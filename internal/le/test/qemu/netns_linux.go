@@ -51,6 +51,7 @@ var netnsSelections = map[string][]string{
 	netnsPPPoE: {
 		"pppoe-basic", "pppoe-concurrent-l2tp", "pppoe-service-name", "pppoe-vlan",
 		"pppoe-per-mac-cap", "pppoe-padr-flood", "pppoe-reload-apply", "pppoe-reload-enable",
+		"pppoe-client-lcp-renegotiation", "pppoe-realm-relay-nomatch",
 	},
 	netnsPlugin: {
 		"rpki-aspa-valid", "rpki-aspa-invalid", "rpki-aspa-unknown", "rpki-aspa-disabled",

@@ -82,9 +82,9 @@ commands execute inside that guest; `test qemu all` runs as root.
 | Command | Population |
 |---------|------------|
 | `./le test qemu netns suites <comma-separated-suites>` | The explicit kernel-dependent subset for each selected suite. `plugin` selects the seven ASPA cases, the RFC 2545 next-hop replay case and the static-into-OSPF redistribution chain case |
-| `le test qemu all` | Every functional suite, the Linux unit pass, the installer phase, and every registered integration package. Five suites run in a per-test network namespace, requiring full `ip`, `setcap` and `getcap` tools |
+| `le test qemu all` | Every functional suite, the Linux unit pass, the installer phase, and every registered integration package. Six suites run in a per-test network namespace, requiring full `ip`, `setcap` and `getcap` tools |
 | `le test qemu all only needs-linux` | The same suites, each narrowed to the `.ci` tests marked `option=needs-linux`. The unit, installer and integration phases stay whole, and the report names the population it covered |
-| `le test qemu all test test/<dir>/<name>.ci` | That one `.ci`, through the suite that walks its directory (`vmSuiteFor`), with the same shim, environment and network-namespace preparation. No other suite or phase runs. `./le feature run` and `./le rfc record` reach a capability-gated test this way, through `testqemu.OneCICommand` under `docker-lab harness` |
+| `le test qemu all test test/<dir>/<name>.ci` | That one `.ci`, through the suite that walks its directory (`vmSuiteFor`); a draft, `test/draft/<dir>/<name>.ci`, runs through the same suite with `--draft`. Either takes the same shim, environment and network-namespace preparation. No other suite or phase runs. `./le feature run` and `./le rfc record` reach a capability-gated test this way, through `testqemu.OneCICommand` under `docker-lab harness` |
 
 `test qemu all` discovers the suites' tests through the native runner, so a new
 `needs-linux` test needs no registration there. `netns` uses the explicit
@@ -325,7 +325,7 @@ binary for source listings.
 <!-- source: internal/le/test/qemu/run.go -- RunOptions.HardwareOnly, acceleration, qemuArgs -->
 <!-- source: internal/le/test/qemu/hugepages.go -- accelerator, Hardware -->
 
-### Five suites do not run in the guest root namespace
+### Six suites do not run in the guest root namespace
 
 `test qemu all` runs inside an SSH session, and that session's transport lives in
 the guest ROOT network namespace. A suite that programs the firewall, the
@@ -337,13 +337,28 @@ prerouting chain in the guest root namespace, the run died inside
 pass, the installer phase and the integration phase still to come never ran
 (`plan/journal/gate-excludes-part-of-its-population.md`).
 
+The `ipsec` suite did the same through the SPD. A daemon on the real XFRM
+backend whose `vpn ipsec unmatched` is unset installs the RFC 4301 Section
+4.4.1 catch-all DISCARD for in, out and fwd, any address to any address
+(`installUnmatched`, `internal/component/ike/engine/unmatched.go`). Only IKE's
+own ports, the tunnels and the operator's bypass entries stay open, so in the
+guest root namespace the run's SSH session went unanswered, ssh gave up after
+its keepalives (`ServerAliveInterval=30`) and exited 255. Each namespace holds
+its own XFRM tables, so a test also sees only its own states and policies.
+A guest command that runs `le test ipsec` itself, as
+`./le test qemu run ... command './le test ipsec --draft -a'` does, gets no
+namespace and cuts the session the same way: run one test through
+`le test qemu all test test/<dir>/<name>.ci`, or a draft through
+`le test qemu all test test/draft/<dir>/<name>.ci`, which takes the suite's namespace.
+<!-- source: internal/component/ike/engine/unmatched.go -- installUnmatched, unmatchedPolicies -->
+
 Every row of `vmSuites` therefore states its namespace, and a row that states
 none is refused before the run starts.
 
 | Namespace | Suites | What the child gets |
 |-----------|--------|---------------------|
 | `guest-root` | every other suite | the guest's own namespace, and ze as root |
-| `per-test` | `firewall`, `policy`, `ospf`, `ospfv3`, `pppoe` | a fresh namespace for each test, entered by the `.ci` runner before it spawns anything, and ze as uid 1000 holding file capabilities |
+| `per-test` | `firewall`, `policy`, `ospf`, `ospfv3`, `pppoe`, `ipsec` | a fresh namespace for each test, entered by the `.ci` runner before it spawns anything, and ze as uid 1000 holding file capabilities |
 
 The runner enters the namespace itself, once per test (`enterTestNetns`,
 `internal/test/runner/netns_linux.go`), and only when `ZE_TEST_NETNS` is set

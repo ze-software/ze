@@ -1,0 +1,62 @@
+# Test: a PPPoE client answers an access concentrator's LCP Configure-Request
+#       in the network phase on the existing session, reruns CHAP and IPCP,
+#       and applies the new result without a new discovery.
+# VALIDATES: spec-home-cpe-12-pppoe-client-lcp-renegotiation AC-4 and AC-5
+#            through the daemon. The compiled fixture plays the access
+#            concentrator on zeac0, the far end of the veth pair, with the
+#            scripted peer of internal/test/pppoeac: discovery once (session
+#            44), LCP with CHAP-MD5, a CHAP challenge whose digest it checks
+#            against the configured secret, IPCP giving 100.64.91.2. Once
+#            `show interface pppoe-client` reports zereneg0 up with that
+#            address, it sends a Configure-Request with a new Magic-Number
+#            and MRU 1400, and requires Ze's own Configure-Request and an
+#            unmodified Configure-Ack on session 44, a fresh CHAP Response,
+#            and IPCP to 100.64.92.2. The operator view must then report
+#            100.64.92.2 up on session 44 and device zereneg0, and the kernel
+#            must hold that pair alone on the same ifindex with MTU 1400.
+# PREVENTS: a client that ends the session on a network-phase
+#           Configure-Request, ignores it, or redials. The concentrator
+#           answers discovery only once, so a redial never reaches the second
+#           up state; a dropped request leaves the LCP read to time out.
+#
+# Requires Linux, CAP_NET_ADMIN for the PPP device and CAP_NET_RAW for both
+# AF_PACKET sockets. keepalive interval 3600 keeps Echo-Requests off the wire
+# while the fixture polls, so the scripted reads see only the negotiation.
+option=needs-linux:caps=net-admin,net-raw
+option=netns-link:name=zecpe0:peer=zeac0
+option=timeout:value=90s
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external pppoe-client-renegotiation-test {
+		run "le test fixture pppoe/pppoe-client-lcp-renegotiation"
+		encoder json
+	}
+}
+
+interface {
+	backend netlink
+	pppoe-client zereneg0 {
+		source-interface zecpe0
+		authentication {
+			username subscriber
+			password secret
+		}
+		mtu 1450
+		keepalive {
+			interval 3600
+			failures 255
+		}
+		reconnect {
+			delay-min 1
+			delay-max 1
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=90s
+expect=exit:code=0
+expect=stderr:contains=OK: pppoe-client zereneg0 renegotiated LCP, CHAP and IPCP on session 44: 100.64.91.2 became 100.64.92.2 on the same ifindex, MTU 1400
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

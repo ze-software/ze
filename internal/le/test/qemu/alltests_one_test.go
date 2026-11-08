@@ -11,7 +11,8 @@ import (
 // suite and no other phase; a per-test-namespace suite still gets its
 // namespace preparation first. The stem is the LAST word: the runner reads its
 // flags up to the first test name, so a `-p` after the stem is itself read as a
-// test name ("test \"-p\" not found", the first real guest run).
+// test name ("test \"-p\" not found", the first real guest run). A draft,
+// test/draft/<dir>/<name>.ci, runs the same way with the runner's --draft flag.
 // PREVENTS: a one-test run that falls back to the whole population (hours of
 // guest time for one answer), selects a directory no suite walks, or reports
 // its path as an `option=` tag population.
@@ -24,6 +25,14 @@ func TestOneTestRunsOnlyTheSuiteThatWalksItsDirectory(t *testing.T) {
 		{test: "test/policy/policy-boot-apply.ci", wantWords: []string{"policy", "policy-boot-apply"}, wantCommand: 3},
 		{test: "test/plugin/show-mtu-host.ci", wantWords: []string{"bgp", "plugin", "show-mtu-host"}, wantCommand: 2},
 		{test: "test/pppoe/pppoe-basic.ci", wantWords: []string{"pppoe", "pppoe-basic"}, wantCommand: 3},
+		// A real-XFRM ipsec test installs the SPD catch-all DISCARD, so it runs in
+		// its own namespace: namespace preparation, conntrack, then the suite.
+		{test: "test/ipsec/ipsec-teardown-leaves-nothing.ci", wantWords: []string{"ipsec", "ipsec-teardown-leaves-nothing"}, wantCommand: 3},
+		// A draft runs through the suite of its directory with --draft, so the
+		// runner discovers it from test/draft/<dir> and it gets that suite's
+		// namespace.
+		{test: "test/draft/ipsec/ipsec-follows-wan-address.ci", wantWords: []string{"ipsec", "--draft", "ipsec-follows-wan-address"}, wantCommand: 3},
+		{test: "test/draft/plugin/show-mtu-host.ci", wantWords: []string{"bgp", "plugin", "--draft", "show-mtu-host"}, wantCommand: 2},
 	} {
 		t.Run(tc.test, func(t *testing.T) {
 			run := vmFixture(t)
@@ -76,7 +85,10 @@ func TestOneTestRunsOnlyTheSuiteThatWalksItsDirectory(t *testing.T) {
 // any child starts.
 // PREVENTS: a refusal read as an empty pass.
 func TestOneTestOutsideEverySuiteIsRefused(t *testing.T) {
-	for _, test := range []string{"test/nowhere/x.ci", "test/policy/x.et", "internal/x.ci"} {
+	for _, test := range []string{
+		"test/nowhere/x.ci", "test/policy/x.et", "internal/x.ci",
+		"test/draft/x.ci", "test/draft/nowhere/x.ci", "test/draft/ipsec/sub/x.ci", "test/ipsec/draft/x.ci",
+	} {
 		run := vmFixture(t)
 		run.Test = test
 		rec := &recorder{}

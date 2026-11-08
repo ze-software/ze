@@ -229,14 +229,15 @@ var actions = leaction.New(area,
 			" Refuses to start outside the guest, or with a suite list that has a hole in it." +
 			" `only needs-linux` narrows the functional suites to the .ci tests marked" +
 			" option=needs-linux, which is the tight loop for a change to a Linux-only path." +
-			" `test <path>` runs that one .ci through the suite that walks its directory, and nothing else",
+			" `test <path>` runs that one .ci through the suite that walks its directory, and nothing else;" +
+			" a draft, test/draft/<dir>/<name>.ci, runs through the same suite with --draft",
 		Parameters: []leaction.Parameter{
 			{Keyword: onlyKeyword, Kind: leaction.KindEnum, Help: "run only the tests that need Linux", Value: "selection", Values: []string{linuxOnlySelection},
 				ValueHelp: map[string]string{
 					linuxOnlySelection: "only the .ci tests marked option=needs-linux",
 				},
 				Requirement: leaction.Optional},
-			{Keyword: testKeyword, Kind: leaction.KindPath, Help: "one .ci test to run, as test/<dir>/<name>.ci", Value: "test/<dir>/<name>.ci", Requirement: leaction.Optional},
+			{Keyword: testKeyword, Kind: leaction.KindPath, Help: "one .ci test to run, under test/ or test/draft/", Value: "test/<dir>/<name>.ci", Requirement: leaction.Optional},
 		},
 		AnswerArgs: runAllTestsHere,
 	},

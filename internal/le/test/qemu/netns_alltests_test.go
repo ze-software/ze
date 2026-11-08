@@ -32,7 +32,13 @@ import (
 // stated here rather than read from vmSuites: a test that derives its
 // expectation from the table under test agrees with any edit to it, including
 // the edit that puts firewall back in the transport's namespace.
-var perTestSuites = []string{"firewall", "policy", "ospf", "ospfv3", "pppoe"}
+//
+// ipsec is in it for the firewall incident's reason. A real-XFRM daemon whose
+// `vpn ipsec unmatched` is unset installs the RFC 4301 catch-all DISCARD for
+// in, out and fwd any-to-any, so in the guest root namespace it drops the run's
+// own SSH session, which ends with ssh's exit 255 once ServerAliveInterval
+// (run_exec.go) has gone unanswered.
+var perTestSuites = []string{"firewall", "policy", "ospf", "ospfv3", "pppoe", "ipsec"}
 
 // The mapping itself. An edit that moves a suite between namespaces has to
 // change this line, which is the point.

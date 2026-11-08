@@ -161,10 +161,12 @@ type vmSuite struct {
 
 // vmSuites is every functional suite, in the ORDER the VM runs them.
 //
-// The order is behavior in one place. ipsec runs before the IGP suites because
+// ipsec once had to run before the IGP suites, because
 // test/ipsec/ipsec-teardown-leaves-nothing.ci asserts that the XFRM state and
-// policy tables are EMPTY after its daemons stop. RFC 4552 tests in test/ospfv3
-// program XFRM of their own.
+// policy tables are EMPTY after its daemons stop and the RFC 4552 tests in
+// test/ospfv3 program XFRM of their own. Both suites now run in a per-test
+// namespace, and each namespace holds its own XFRM tables, so that order no
+// longer carries the assertion; it is kept as it was.
 // enumeration: exempt (these are functional test suite names, not plugin names; the list being hand-written is its own defect, recorded in plan/journal/plugin-list-hardcoded.md)
 var vmSuites = []vmSuite{
 	{Name: "encode", Args: []string{bgpVerb, "encode", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
@@ -208,9 +210,12 @@ var vmSuites = []vmSuite{
 			" the namespace they are installed in, the transport's included. Serial for firewall's reason",
 	},
 	{
-		Name: "ipsec", Args: []string{"ipsec", allTests}, Concurrency: serial, Namespace: guestRoot,
-		Why: "the teardown test reads the whole XFRM state and policy table, which is one table" +
-			" for the VM; several tests here also share one local address and one IKE port",
+		Name: "ipsec", Args: []string{"ipsec", allTests}, Concurrency: serial, Namespace: perTest,
+		Why: "a real-XFRM daemon that leaves `vpn ipsec unmatched` unset installs the RFC 4301" +
+			" catch-all DISCARD for in, out and fwd any-to-any (installUnmatched), and in the guest" +
+			" root namespace that drops the SSH transport carrying the run: ssh exits 255 once its" +
+			" keepalives go unanswered. Each namespace also holds its own XFRM tables, so the teardown" +
+			" test's empty-table read sees only its own daemons. Serial for firewall's reason",
 	},
 	{Name: installerName, Args: []string{"install", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
 	{Name: "appliance", Args: []string{"appliance", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
@@ -321,6 +326,7 @@ var integrationPackages = []string{
 	"./internal/component/l2tp",
 	"./internal/component/l2tp/ppp",
 	"./internal/component/l2tp/pppoeclient",
+	"./internal/test/pppoeac",
 	"./internal/component/telemetry/collector",
 	"./internal/core/dnsserver",
 	"./internal/core/smart",
@@ -867,21 +873,34 @@ func (a *allTestsRun) executeOne(environ []string) (AllTestsReport, int) {
 	return report, 0
 }
 
-// errNotOneCI refuses a test narrowing that names no test/<dir>/<name>.ci.
-var errNotOneCI = errors.New("qemu: all test takes test/<dir>/<name>.ci")
+// errNotOneCI refuses a test narrowing that names no test/<dir>/<name>.ci and
+// no draft test/draft/<dir>/<name>.ci.
+var errNotOneCI = errors.New("qemu: all test takes test/<dir>/<name>.ci or test/draft/<dir>/<name>.ci")
 
 // vmSuiteFor answers the VM suite that runs the .ci at rel, test/<dir>/<name>.ci,
 // with its --all flag removed and the test's stem in Only, so the suite
 // selects that one file. A suite walks the directory its last word names.
+//
+// A draft, test/draft/<dir>/<name>.ci, is run by the same suite with the
+// runner's draftFlag, which discovers from test/draft/<dir> instead
+// (runner.SuiteDir). It takes that suite's namespace too: a draft is the test
+// that has not yet been proved, so it is the last one to run where it can cut
+// the transport.
+//
 // ciRootDir is the checkout directory every .ci suite lives under, and
 // goTestVerb the go subcommand a guest test binary is built with.
 const (
 	ciRootDir  = "test"
 	goTestVerb = "test"
+	draftFlag  = "--draft"
 )
 
 func vmSuiteFor(rel string) (vmSuite, error) {
 	parts := strings.Split(rel, "/")
+	draft := len(parts) == 4 && parts[1] == runner.DraftDirName
+	if draft {
+		parts = []string{parts[0], parts[2], parts[3]}
+	}
 	if len(parts) != 3 {
 		return vmSuite{}, fmt.Errorf("%w, got %s", errNotOneCI, rel)
 	}
@@ -899,6 +918,9 @@ func vmSuiteFor(rel string) (vmSuite, error) {
 		}
 		if words[len(words)-1] != parts[1] {
 			continue
+		}
+		if draft {
+			words = append(words, draftFlag)
 		}
 		suite.Args = words
 		suite.Only = stem

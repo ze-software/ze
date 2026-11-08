@@ -1,0 +1,68 @@
+# Test: a PPPoE subscriber whose username realm names no relay-realm binding
+# is terminated locally, and with no local users it is refused.
+#
+# VALIDATES: spec-home-cpe-14 row pppoe-realm-relay-nomatch: on a LAC whose
+#            only binding is `relay-realm example.net`, a subscriber that
+#            completes discovery and LCP and answers CHAP as cpe@other.example
+#            is handed to the local auth handler, which holds no user, so it
+#            gets a CHAP Failure (RFC 1994 Section 4.4) and never a Success
+#            (docs/guide/l2tp.md, "Relay by realm").
+# VALIDATES: the decision is counted as a realm no-match on the operator's own
+#            metrics endpoint (relay_sink.go RelayRealm,
+#            countRelay(relayKindRealm, relayOutcomeNoMatch)), so the refusal
+#            is the local path and not a matched realm whose call failed.
+# PREVENTS: an unmatched realm relayed anyway, or authenticated with no
+#           credential: delete the no-match return in relaySink.RelayRealm and
+#           the counter stays at zero.
+option=needs-linux:caps=net-admin,net-raw
+option=netns-link:name=veth-bng:peer=veth-sub
+
+stdin=config:terminator=EOF_CONF
+l2tp {
+    enabled true
+    remote lns-a {
+        address 127.0.0.2
+    }
+    relay-realm example.net {
+        remote lns-a
+    }
+}
+environment {
+    l2tp {
+        server main {
+            ip 127.0.0.1
+            port $PORT
+        }
+    }
+}
+pppoe {
+    enabled true
+    ac-name ze-realm
+    interface veth-bng {
+    }
+}
+telemetry {
+    prometheus {
+        enabled true
+        server main {
+            ip 127.0.0.1
+            port $PORT2
+        }
+    }
+}
+EOF_CONF
+
+option=env:var=ze.log.l2tp:value=debug
+option=env:var=ze.log.pppoe:value=debug
+option=env:var=ze.l2tp.skip-kernel-probe:value=true
+option=env:var=TEST_IFACE:value=veth-sub
+
+cmd=background:seq=1:exec=ze -:stdin=config
+cmd=foreground:seq=2:exec=le test fixture pppoe/realm-nomatch:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=OK: PADS received
+expect=stdout:contains=OK: LCP opened
+expect=stdout:contains=OK: CHAP Response sent as cpe@other.example
+expect=stdout:contains=OK: CHAP Failure received
+
+http=wait:seq=1:url=http://127.0.0.1:$PORT2/metrics:status=200:contains=ze_l2tp_relay_total{kind="realm",outcome="no-match"} 1:timeout=30s

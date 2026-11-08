@@ -1285,8 +1285,14 @@ which is the same ratchet's third cluster.
 <!-- source: internal/component/bfd/transport/udp_linux.go -- applySocketOptions, SO_REUSEPORT under ze.bfd.test-parallel -->
 
 The ipsec cluster (`option=exclusive:group=ipsec-xfrm`) contends on the kernel's
-own tables. `ip xfrm state` and `ip xfrm policy` are node-wide, so a test that
-reads them cannot tell its own SPIs and selectors from a sibling's. The two rekey
+own tables. `ip xfrm state` and `ip xfrm policy` are shared by everything in one
+network namespace, so a test that reads them cannot tell its own SPIs and
+selectors from a sibling's. `./le test qemu all` runs each ipsec test in a
+namespace of its own, because a real-XFRM daemon's default SPD catch-all DISCARD
+would otherwise drop the run's SSH session
+(`docs/architecture/testing/qemu-integration.md`, "Six suites do not run in the
+guest root namespace"); the group still serializes a run that shares one
+namespace, such as `./le test ipsec` on a Linux host. The two rekey
 tests watch the SPI set for a make-before-break replacement arriving, and
 `ipsec-teardown-leaves-nothing` asserts both tables are *empty*, which any
 concurrent tunnel falsifies. `ipsec-show-dataplane-kernel` and
