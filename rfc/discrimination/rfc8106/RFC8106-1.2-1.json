@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8106-1.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/iface/rfc8106_ra_rdnss_test.go::TestRARDNSSRecordFromUserOpt",
+    "unit-sha": "e379eed1736db4cd",
+    "claim-sha": "8233673edeae4f2d",
+    "route": "mutant",
+    "producer": "internal/component/iface/ra_rdnss.go::handle",
+    "producer-sha": "1d9662b4632d67fd",
+    "break": "line 288: \"payload.Option[0] != ndp.OptRDNSS\" -\u003e \"true || payload.Option[0] != ndp.OptRDNSS\""
+  },
+  {
+    "rid": "RFC8106-1.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/iface/rfc8106_ra_rdnss_test.go::TestRARDNSSStaticNameServerWins",
+    "unit-sha": "fcd8bc64eecdb1c1",
+    "claim-sha": "f1b8ca971888683d",
+    "route": "mutant",
+    "producer": "internal/core/dnssource/select.go::Select",
+    "producer-sha": "3e046391f2e5df66",
+    "break": "line 303: \"list.mode != ModeMerge\" -\u003e \"list.mode != ModeMerge \u0026\u0026 false\""
+  }
+]

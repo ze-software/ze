@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC8106-5.3.1-7",
+    "polarity": "positive",
+    "unit": "internal/component/iface/rfc8106_ra_rdnss_test.go::TestRARDNSSListedAfterDHCP",
+    "unit-sha": "9f51d1d0ed33a273",
+    "claim-sha": "ffb98719690028f6",
+    "route": "mutant",
+    "producer": "internal/core/dnssource/record.go::CompareRecords",
+    "producer-sha": "6ec6cbe1037939ac",
+    "break": "line 86: \"cmp.Compare(a.Rank, b.Rank)\" -\u003e \"cmp.Compare(b.Rank, a.Rank)\""
+  }
+]

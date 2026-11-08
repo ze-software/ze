@@ -2,7 +2,7 @@
   "note": "IKE Child SA install asserts Mode==tunnel on both SAs and the OSPFv3 installer asserts Mode==transport on every SA, so both modes are proven; single-polarity annotated",
   "requirement_sha": "db38daf7ff5cee61",
   "tests": {
-    "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "c73ed3c86a44bf44",
+    "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "e37080524641dd96",
     "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAPerDestinationWithOSPFSelector": "ef2210b72b5a1430"
   },
   "units": {

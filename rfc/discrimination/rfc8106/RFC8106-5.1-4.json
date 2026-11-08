@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC8106-5.1-4",
+    "polarity": "positive",
+    "unit": "internal/component/iface/rfc8106_ra_rdnss_test.go::TestRARDNSSLinkLocalCarriesZone",
+    "unit-sha": "9300b4b133048821",
+    "claim-sha": "daa9d4dd7fc664a5",
+    "route": "mutant",
+    "producer": "internal/component/iface/ra_rdnss.go::handle",
+    "producer-sha": "1d9662b4632d67fd",
+    "break": "line 312: \"option.Servers[i] = server.WithZone(payload.Name)\" -\u003e \"option.Servers[i] = server\""
+  }
+]

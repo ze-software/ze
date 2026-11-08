@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8106-5.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/iface/rfc8106_ra_rdnss_test.go::TestRARDNSSLinkLocalCarriesZone",
+    "unit-sha": "9300b4b133048821",
+    "claim-sha": "2c635a283353ddf7",
+    "route": "mutant",
+    "producer": "internal/component/iface/ra_rdnss.go::handle",
+    "producer-sha": "1d9662b4632d67fd",
+    "break": "line 312: \"option.Servers[i] = server.WithZone(payload.Name)\" -\u003e \"option.Servers[i] = server\""
+  },
+  {
+    "rid": "RFC8106-5.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/iface/rfc8106_ra_rdnss_test.go::TestRARDNSSLinkLocalScopedToItsOwnLink",
+    "unit-sha": "0ba6ee43de626624",
+    "claim-sha": "4b4fb1a66d2db441",
+    "route": "mutant",
+    "producer": "internal/component/iface/ra_rdnss.go::handle",
+    "producer-sha": "1d9662b4632d67fd",
+    "break": "line 312: \"option.Servers[i] = server.WithZone(payload.Name)\" -\u003e \"option.Servers[i] = server\""
+  }
+]

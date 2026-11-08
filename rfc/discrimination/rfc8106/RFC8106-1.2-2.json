@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8106-1.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/iface/rfc8106_ra_rdnss_test.go::TestRARDNSSLaterRAKeepsDHCPFirst",
+    "unit-sha": "1ab1e7a7ba462138",
+    "claim-sha": "bd2b88476dec3580",
+    "route": "mutant",
+    "producer": "internal/core/dnssource/record.go::CompareRecords",
+    "producer-sha": "6ec6cbe1037939ac",
+    "break": "line 86: \"cmp.Compare(a.Rank, b.Rank)\" -\u003e \"cmp.Compare(b.Rank, a.Rank)\""
+  },
+  {
+    "rid": "RFC8106-1.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/iface/rfc8106_ra_rdnss_test.go::TestRARDNSSListedAfterDHCP",
+    "unit-sha": "9f51d1d0ed33a273",
+    "claim-sha": "ca86b24338ddbb76",
+    "route": "mutant",
+    "producer": "internal/core/dnssource/record.go::CompareRecords",
+    "producer-sha": "6ec6cbe1037939ac",
+    "break": "line 86: \"cmp.Compare(a.Rank, b.Rank)\" -\u003e \"cmp.Compare(b.Rank, a.Rank)\""
+  }
+]

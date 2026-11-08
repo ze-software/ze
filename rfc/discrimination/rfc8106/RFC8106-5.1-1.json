@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8106-5.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/iface/rfc8106_ra_rdnss_test.go::TestRARDNSSLifetimeZeroWithdraws",
+    "unit-sha": "d0d0f3b9ed48b4b1",
+    "claim-sha": "a0397693beca81e4",
+    "route": "mutant",
+    "producer": "internal/component/iface/ra_rdnss.go::apply",
+    "producer-sha": "d2575308f5fe1db6",
+    "break": "line 67: \"l.servers = slices.Delete(l.servers, at, at+1)\" -\u003e \"_ = at\""
+  },
+  {
+    "rid": "RFC8106-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/iface/rfc8106_ra_rdnss_test.go::TestRARDNSSRefreshKeeps",
+    "unit-sha": "5067565cf5da9839",
+    "claim-sha": "6604968877b4e83d",
+    "route": "mutant",
+    "producer": "internal/component/iface/ra_rdnss.go::apply",
+    "producer-sha": "d2575308f5fe1db6",
+    "break": "line 72: \"l.servers[at].expires = entry.expires\" -\u003e \"_ = entry.expires\""
+  }
+]

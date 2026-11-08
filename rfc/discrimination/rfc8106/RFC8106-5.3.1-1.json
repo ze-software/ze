@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC8106-5.3.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/iface/rfc8106_ra_rdnss_test.go::TestRARDNSSMalformedDiscarded",
+    "unit-sha": "0ef90463193a4bfc",
+    "claim-sha": "b6fef539fc13d7eb",
+    "route": "mutant",
+    "producer": "internal/core/ndp/rdnss.go::ParseRDNSS",
+    "producer-sha": "ce4545729f709555",
+    "break": "line 90: \"(length-1)%2 != 0\" -\u003e \"false \u0026\u0026 (length-1)%2 != 0\""
+  },
+  {
+    "rid": "RFC8106-5.3.1-1",
+    "polarity": "negative",
+    "unit": "internal/core/ndp/rfc8106_rdnss_test.go::TestParseRDNSSOption",
+    "unit-sha": "303f7787fd79fa22",
+    "claim-sha": "d4cab9d39b1f06d0",
+    "route": "mutant",
+    "producer": "internal/core/ndp/rdnss.go::ParseRDNSS",
+    "producer-sha": "ce4545729f709555",
+    "break": "line 87: \"length \u003c 3\" -\u003e \"length \u003c 6\""
+  },
+  {
+    "rid": "RFC8106-5.3.1-1",
+    "polarity": "positive",
+    "unit": "internal/core/ndp/rfc8106_rdnss_test.go::TestParseRDNSSOptionRefusesBadLength",
+    "unit-sha": "fa28b06e4c2d4b46",
+    "claim-sha": "da49f3ded942a2dc",
+    "route": "mutant",
+    "producer": "internal/core/ndp/rdnss.go::ParseRDNSS",
+    "producer-sha": "ce4545729f709555",
+    "break": "line 87: \"length \u003c 3\" -\u003e \"false \u0026\u0026 length \u003c 3\""
+  }
+]
