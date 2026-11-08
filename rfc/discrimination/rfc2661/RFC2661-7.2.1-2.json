@@ -18,7 +18,7 @@
     "claim-sha": "5767997f8b6f5c84",
     "route": "revert",
     "producer": "internal/component/l2tp/session_initiator.go::newInitiatorSession",
-    "producer-sha": "b6fc217e81364edf",
-    "break": "body of newInitiatorSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "c6c5af905e57c21e",
+    "break": "body of newInitiatorSession replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -7,8 +7,8 @@
     "claim-sha": "e21e19afd06a8404",
     "route": "revert",
     "producer": "internal/component/l2tp/session_initiator.go::handleICRP",
-    "producer-sha": "9b4942ab96896ddf",
-    "break": "body of handleICRP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "80c7016795327f46",
+    "break": "body of handleICRP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2661-4.4.4-1",

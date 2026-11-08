@@ -27,9 +27,9 @@
     "unit": "internal/component/l2tp/pppoeclient/rfc1877_client_dns_test.go::TestRFC1661ClientDropsRejectedDNSOptions",
     "unit-sha": "7fc53c4d33f7dcaa",
     "claim-sha": "a473b30ffa6dfead",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateIPCP",
-    "producer-sha": "198bc0abf963cdf6",
-    "break": "body of negotiateIPCP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer-sha": "54763ce50843f40d",
+    "break": "line 1000: \"if rejected.HasPrimary {\" -\u003e \"if false {\""
   }
 ]

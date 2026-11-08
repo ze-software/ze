@@ -7,8 +7,8 @@
     "claim-sha": "e1c277efbdca4edf",
     "route": "revert",
     "producer": "internal/component/l2tp/session_initiator.go::placeOutgoingCall",
-    "producer-sha": "36927eae5f12813e",
-    "break": "body of placeOutgoingCall replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "4e3d393fd0b74041",
+    "break": "body of placeOutgoingCall replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2661-6.9-1",
@@ -18,7 +18,7 @@
     "claim-sha": "6b3b7865856effd9",
     "route": "revert",
     "producer": "internal/component/l2tp/session_initiator.go::placeOutgoingCall",
-    "producer-sha": "36927eae5f12813e",
-    "break": "body of placeOutgoingCall replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "4e3d393fd0b74041",
+    "break": "body of placeOutgoingCall replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

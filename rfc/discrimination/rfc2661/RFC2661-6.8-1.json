@@ -7,8 +7,8 @@
     "claim-sha": "7e708e5286561957",
     "route": "revert",
     "producer": "internal/component/l2tp/session_initiator.go::writeICCNBody",
-    "producer-sha": "26fee14b766516fb",
-    "break": "body of writeICCNBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "318c7173cd36687c",
+    "break": "body of writeICCNBody replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2661-6.8-1",
