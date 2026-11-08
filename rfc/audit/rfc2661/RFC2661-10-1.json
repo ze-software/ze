@@ -3,9 +3,9 @@
   "requirement_sha": "7eadfdeae6dfa6d7",
   "tests": {
     "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661CDNCleansUpAndSendsNothing": "055162183ff6df00",
-    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_CDN_AnyState": "9f78f3f88883c2a2",
-    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_CDN_EstablishedSession": "9f78f3f88883c2a2",
-    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_CDN_UnknownSessionDropped": "9f78f3f88883c2a2",
+    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_CDN_AnyState": "301065cd6fc0ff09",
+    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_CDN_EstablishedSession": "301065cd6fc0ff09",
+    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_CDN_UnknownSessionDropped": "301065cd6fc0ff09",
     "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661CDNCleansUpSilently": "ed0cb3271bdc0590",
     "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661CDNCleansUpSilently#2": "ed0cb3271bdc0590"
   },

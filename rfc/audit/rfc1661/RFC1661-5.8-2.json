@@ -2,8 +2,8 @@
   "note": "Rejudge 2026-11-08: the pppoeclient units changed only in plumbing (frames through testFrameReader, negotiateLCP's new nil reentry argument and shared Identifier counter new(uint8), which negotiateLCP increments before every Configure-Request); every input, assertion and comparison is unchanged and negotiateLCP still gates each reply through ppp.ValidateLCPReply. Positive TestRFC1661EchoReplyInOpened (reply in Opened, recorded red on sendEchoReply); negative TestRFC1661NoEchoOutsideOpened (Echo-Request in Req-Sent/Ack-Sent/Ack-Rcvd/Stopped draws neither Echo-Reply nor Echo-Request, peer Magic matching so only state blocks it); TestRFC1661KeepaliveEchoOnlyInOpened covers the sending half. pppoeclient TestClientLCPEchoBeforeOpenDiscarded kept (client role).",
   "requirement_sha": "9e7c1a7d87cb760e",
   "tests": {
-    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened": "d6b4e2cbd1b095e9",
-    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened#2": "d6b4e2cbd1b095e9",
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened": "682b78fb127362e1",
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened#2": "682b78fb127362e1",
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened": "86bc304723db0e98",
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoEchoOutsideOpened": "86bc304723db0e98",
     "internal/component/l2tp/pppoeclient/rfc1661_lcp_transition_test.go::TestClientLCPEchoBeforeOpenDiscarded": "cc1471d8800ad0e2"

@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "6e1e87cfaa4fb86b",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "26cf3d1698d7665f",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "26cf3d1698d7665f"
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "067be5620fa22bc3",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "067be5620fa22bc3"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "fdaf9e91d2c10be4",

@@ -3,8 +3,8 @@
   "requirement_sha": "d0add38fb6db42ea",
   "tests": {
     "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661StopCCNClearsSessionsSilently": "055162183ff6df00",
-    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_StopCCN_CascadeSessions": "9f78f3f88883c2a2",
-    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestStopCCNQueuesAllTeardowns": "9f78f3f88883c2a2"
+    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_StopCCN_CascadeSessions": "301065cd6fc0ff09",
+    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestStopCCNQueuesAllTeardowns": "301065cd6fc0ff09"
   },
   "units": {
     "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661StopCCNClearsSessionsSilently": "327914a7c874074a",

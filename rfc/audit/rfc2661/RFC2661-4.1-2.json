@@ -4,7 +4,7 @@
   "tests": {
     "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661EveryEmittedMessageOpensWithMessageType": "055162183ff6df00",
     "internal/component/l2tp/rfc2661_reactor_test.go::TestReactor_MalformedSCCRQCreatesNoTunnel": "967923124e21ac52",
-    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestWriteICRPBody": "9f78f3f88883c2a2",
+    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestWriteICRPBody": "301065cd6fc0ff09",
     "test/l2tp/rfc2661-emitted-control-shape.ci": "c54a95273ff244c5"
   },
   "units": {

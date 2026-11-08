@@ -2,8 +2,8 @@
   "note": "RFC 1661 Section 3.5: \"Advancement from the Authentication phase to the Network-Layer Protocol phase MUST NOT occur until authentication has completed.\" Rejudged statically at HEAD. TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes runs the real session with CHAP and IPCP enabled: ipEvents is buffered, so its emptiness after one second and synctest.Wait is observable; pending yields no address request, rejected yields none, accepted yields the address request and an IPCP Configure-Request. Running runNCPPhase ahead of runAuthPhase goes red by reading. The narrowed claim on TestRFC1661NoNetworkPhaseUntilAuthCompletes now states only what it asserts: on a rejected no-auth decision afterLCPOpen returns false with no SetMTU, setMRU or SetAdminUp. TestRFC1661NetworkPhaseRunsAfterAuthCompletes proves that path runs on accept. afterLCPOpen as changed by 926f01f732 still runs runAuthPhase before runNCPPhase and SetMTU. Pending is proved for CHAP only; PAP and MS-CHAPv2 share the runAuthPhase dispatch.",
   "requirement_sha": "4f0e0d174ab38afb",
   "tests": {
-    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes": "d6b4e2cbd1b095e9",
-    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes#2": "d6b4e2cbd1b095e9",
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes": "682b78fb127362e1",
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes#2": "682b78fb127362e1",
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NetworkPhaseRunsAfterAuthCompletes": "86bc304723db0e98",
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNetworkPhaseUntilAuthCompletes": "86bc304723db0e98"
   },

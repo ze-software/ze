@@ -3335,7 +3335,7 @@ the core's kernel check refuses another.
 <!-- source: internal/le/interoplab/topology/check_realm_relay.go -- checkRealmRelayAccel, checkRealmRelayXL2TPD, lacRealmSessionVerdict, strayRefusedVerdict, xl2tpdLNSVerdict -->
 <!-- source: internal/le/interoplab/topology/register_pppoe_dhcpv6_pd.go -- pppoeDHCPv6PDScenario -->
 <!-- source: internal/le/interoplab/topology/check_pppoe_dhcpv6_pd.go -- checkPPPoEDHCPv6PD, delegationVerdict -->
-<!-- source: internal/le/interoplab/topology/check_pppoe_dhcpv6_pd_lan.go -- checkDelegatedLAN, advertisedLifetimesVerdict, zeroLifetimeVerdict, enableIPv6Forwarding -->
+<!-- source: internal/le/interoplab/topology/check_pppoe_dhcpv6_pd_lan.go -- checkDelegatedLAN, advertisedLifetimesVerdict, zeroLifetimeVerdict -->
 <!-- source: internal/le/interoplab/topology/check_vpn.go -- checkMgmtTunnelEd25519, swanAuthVerdict -->
 
 `./le test integration interop-topology` runs every scenario;
