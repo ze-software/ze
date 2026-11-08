@@ -86,6 +86,58 @@ func applySysctl(osName string, u unitEntry) {
 	}
 }
 
+// sourceIPv6Forwarding names the sysctl default the interface component holds
+// on net.ipv6.conf.all.forwarding. It is apart from componentNameInterface so
+// clearing it touches no per-device default.
+const sourceIPv6Forwarding = "interface-ipv6-forwarding"
+
+// forwardsIPv6 reports whether the unit sets ipv6 forwarding true.
+func (u *unitEntry) forwardsIPv6() bool {
+	if u.IPv6 == nil {
+		return false
+	}
+	if u.IPv6.Forwarding == nil {
+		return false
+	}
+	return *u.IPv6.Forwarding
+}
+
+// applyIPv6ForwardingSwitch holds net.ipv6.conf.all.forwarding at 1 while a
+// unit forwards IPv6, and withdraws that default when none does. Linux
+// forwards an IPv6 packet only while all.forwarding is 1, or while the ingress
+// device's force_forwarding is 1 (net/ipv6/ip6_output.c ip6_forward): the
+// per-device forwarding applySysctl writes decides only the host or router
+// role, so on its own it routes nothing. The kernel copies the global value
+// into every device; the sysctl store then writes back each unit's own
+// forwarding leaf (store.write in internal/component/sysctl/sysctl.go), and
+// withdrawing hands the key back to another source that still claims it, or
+// to its value before Ze.
+func applyIPv6ForwardingSwitch(on bool) {
+	eb := GetEventBus()
+	if eb == nil {
+		return
+	}
+	log := loggerPtr.Load()
+
+	if !on {
+		payload, _ := json.Marshal(struct {
+			Source string `json:"source"`
+		}{Source: sourceIPv6Forwarding})
+		if _, err := eb.Emit(sysctlevents.Namespace, sysctlevents.EventClearSourceDefaults, string(payload)); err != nil {
+			log.Warn("iface: cannot withdraw the IPv6 forwarding switch; inspect with ze show sysctl", "err", err)
+		}
+		return
+	}
+	payload, _ := json.Marshal(struct {
+		Key    string `json:"key"`
+		Value  string `json:"value"`
+		Source string `json:"source"`
+	}{Key: "net.ipv6.conf.all.forwarding", Value: "1", Source: sourceIPv6Forwarding})
+	if _, err := eb.Emit(sysctlevents.Namespace, sysctlevents.EventDefault, string(payload)); err != nil {
+		log.Warn("iface: cannot turn the IPv6 forwarding switch on; units with ipv6 forwarding true do not route", "err", err)
+	}
+}
+
 // applySysctlProfiles resolves named profiles and emits their settings as
 // sysctl defaults via EventBus. Emits clear-profile-defaults first to remove
 // stale keys from a previous config cycle, then emits each profile's settings

@@ -50,6 +50,14 @@ type KeyDef struct {
 	Description string    // Human-readable description
 	Platform    Platform  // Platform availability
 	Template    bool      // True if Name contains <iface> placeholder
+
+	// Propagates names the per-interface templates the kernel rewrites as a
+	// side effect of a write to this key. Linux copies a write of
+	// net.ipv6.conf.all.forwarding into every device's forwarding (and zeroes
+	// force_forwarding when the value is 0), so after such a write the sysctl
+	// store re-applies each instance it manages; the kernel's copy stands on
+	// every other one. Empty for a key whose write touches nothing else.
+	Propagates []string
 }
 
 var (

@@ -972,8 +972,14 @@ operator retiring a resolver from one who set nothing.
 
 Sending is separate from accepting. Set `forwarding true` on an advertising
 interface, and leave `accept-ra` at 0 unless the same interface also learns
-from another router. `ze doctor` reports `doctor-iface-ra-forwarding` for an
-advertising interface whose `net.ipv6.conf.<dev>.forwarding` is 0.
+from another router. While any unit sets `forwarding true`, Ze also holds
+`net.ipv6.conf.all.forwarding` at 1, because Linux forwards no IPv6 packet
+without it. The kernel copies that switch into every device's `forwarding`;
+Ze then writes back each unit's own `forwarding` leaf, so a unit set to false
+stays a host.
+`ze doctor` reports `doctor-iface-ra-forwarding` for an advertising interface
+whose `net.ipv6.conf.<dev>.forwarding` is 0, or whose kernel forwards no IPv6
+(`all.forwarding` 0 and the device's `force_forwarding` not 1).
 
 There is no show command for this. Router Advertisements are observed through
 Prometheus: `ze_iface_ra_sent_total{interface}` counts every advertisement, and

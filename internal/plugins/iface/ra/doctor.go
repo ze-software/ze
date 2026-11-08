@@ -1,11 +1,11 @@
 // Design: ai/rules/repo-maintenance.md -- self-contained doctor checks owned by
 // the package that owns the runtime dependency.
-// Related: doctor_linux.go -- reads net.ipv6.conf.<device>.forwarding
+// Related: doctor_linux.go -- reads net.ipv6.conf.<device>.forwarding, all.forwarding and force_forwarding
 // Related: doctor_other.go -- the non-Linux stub, which knows no forwarding state
 //
 // A router that advertises itself tells hosts to send it their off-link
-// traffic. With IPv6 forwarding off on that device the kernel drops that
-// traffic, so every host on the link autoconfigures, installs a default route,
+// traffic. With IPv6 forwarding off on that device, or with the kernel's
+// global switch off, the kernel drops that traffic, so every host on the link autoconfigures, installs a default route,
 // and loses connectivity, with nothing in the daemon output saying why.
 //
 // Config verify cannot catch this: forwarding can arrive from a sysctl profile
@@ -32,6 +32,13 @@ var interfaceKinds = []string{"ethernet", "veth", "bridge", "dummy", "tunnel", "
 // whether the state could be read at all. A test replaces it; the platform
 // implementations are doctor_linux.go and doctor_other.go.
 var ipv6ForwardingReader = readIPv6Forwarding
+
+// ipv6KernelForwardingReader reports whether Linux forwards an IPv6 packet
+// that arrives on a device, and whether that could be read. Per-device
+// forwarding alone routes nothing: ip6_forward (net/ipv6/ip6_output.c) drops
+// the packet unless net.ipv6.conf.all.forwarding is 1 or the ingress device's
+// force_forwarding is 1. A test replaces it.
+var ipv6KernelForwardingReader = readIPv6KernelForwarding
 
 // raForwardingDoctorCheck is the registration, installed from register.go.
 var raForwardingDoctorCheck = diagnostic.DoctorCheck{
@@ -83,7 +90,26 @@ func checkRAForwarding(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 			// Forwarding is a property of the device, so several advertising
 			// units on one interface share one warning.
 			on, known := ipv6ForwardingReader(device)
-			if !known || on {
+			if !known {
+				continue
+			}
+			if !on {
+				diags = append(diags, diagnostic.Diagnostic{
+					Code:     "doctor-iface-ra-forwarding",
+					Severity: diagnostic.SeverityWarning,
+					Message: tb.Reset().
+						Str("interface ").Str(name).
+						Str(" sends Router Advertisements while net.ipv6.conf.").Str(device).
+						Str(".forwarding is 0; hosts will install a default route through Ze and their off-link traffic will be dropped").
+						String(),
+				})
+				continue
+			}
+			routes, routesKnown := ipv6KernelForwardingReader(device)
+			if !routesKnown {
+				continue
+			}
+			if routes {
 				continue
 			}
 			diags = append(diags, diagnostic.Diagnostic{
@@ -91,8 +117,9 @@ func checkRAForwarding(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 				Severity: diagnostic.SeverityWarning,
 				Message: tb.Reset().
 					Str("interface ").Str(name).
-					Str(" sends Router Advertisements while net.ipv6.conf.").Str(device).
-					Str(".forwarding is 0; hosts will install a default route through Ze and their off-link traffic will be dropped").
+					Str(" sends Router Advertisements while net.ipv6.conf.all.forwarding is 0 and net.ipv6.conf.").Str(device).
+					Str(".force_forwarding is not 1, so Linux forwards no IPv6 packet and hosts' off-link traffic is dropped; ").
+					Str("set ipv6 forwarding true on the unit, and remove any sysctl setting that holds net.ipv6.conf.all.forwarding at 0 (ze show sysctl names it)").
 					String(),
 			})
 		}

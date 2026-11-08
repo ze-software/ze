@@ -3300,11 +3300,31 @@ interface {
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- container router-advertisement -->
 
 Set `ipv6 forwarding true` on an advertising unit. Hosts send Ze their off-link
-traffic. The kernel drops that traffic while `net.ipv6.conf.<device>.forwarding`
-is 0. `ze doctor` reports `doctor-iface-ra-forwarding` for each advertising
-interface in that state. Leave `accept-ra` at 0 unless the same interface also learns from another
-router.
+traffic. Linux forwards an IPv6 packet only while
+`net.ipv6.conf.all.forwarding` is 1, or while the receiving device's
+`force_forwarding` is 1. The per-device `net.ipv6.conf.<device>.forwarding`
+alone forwards nothing: it makes the device act as a router, so it stops
+accepting Router Advertisements unless `accept-ra` is 2. While any unit sets
+`ipv6 forwarding true`, Ze holds `net.ipv6.conf.all.forwarding` at 1. The
+kernel copies that value into every device's `forwarding`, so every device
+then forwards and acts as a router. Ze writes back the `forwarding` of each
+unit that sets it, so a unit with `ipv6 forwarding false` stays a host; a
+device whose unit says nothing keeps the kernel's copy, as on FRR and VyOS.
+When no unit forwards any more, Ze
+gives the switch back to its earlier value, unless another part of Ze (the
+kernel FIB writer) still needs it on. A sysctl setting of
+`net.ipv6.conf.all.forwarding` overrides this, as any config value overrides a
+default. Turning the switch on flushes the default routes the kernel learnt
+from Router Advertisements on a device whose `accept-ra` is not 2; the next
+advertisement installs them again.
 
+`ze doctor` reports `doctor-iface-ra-forwarding` for each advertising interface
+whose device `forwarding` is 0, and for each one whose kernel forwards no IPv6
+(`all.forwarding` 0 and the device's `force_forwarding` not 1). Leave
+`accept-ra` at 0 unless the same interface also learns from another router.
+
+<!-- source: internal/component/iface/config_sysctl.go -- applyIPv6ForwardingSwitch -->
+<!-- source: internal/component/sysctl/sysctl.go -- write, reapplyManaged -->
 <!-- source: internal/plugins/iface/ra/doctor.go -- checkRAForwarding -->
 
 Two zero values are legal input and each one carries its own meaning.

@@ -1384,6 +1384,9 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 	allEntries = kept
 
 	previousUnitQoS := indexUnitQoS(previous)
+	// Set once a unit this apply configures asks to forward IPv6, for the
+	// global switch Phase 2b turns on after every per-device value.
+	ipv6Forwarding := false
 	for _, e := range allEntries {
 		if e.Disable {
 			continue
@@ -1504,6 +1507,7 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 			}
 			applySysctl(osName, *u)
 			applySysctlProfiles(osName, u.SysctlProfiles)
+			ipv6Forwarding = ipv6Forwarding || u.forwardsIPv6()
 			if mirrorErrs := applyMirror(b, osName, *u, devices, journal); len(mirrorErrs) > 0 {
 				return recordAll(osName+" mirror", mirrorErrs)
 			}
@@ -1521,8 +1525,10 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 			}
 			applySysctl("lo", *u)
 			applySysctlProfiles("lo", u.SysctlProfiles)
+			ipv6Forwarding = ipv6Forwarding || u.forwardsIPv6()
 		}
 	}
+	applyIPv6ForwardingSwitch(ipv6Forwarding)
 
 	// Phase 2b': Replace the IPv6 reverse-path checks. Linux has no IPv6
 	// rp_filter sysctl, so the IPv4 path above cannot carry them. The whole

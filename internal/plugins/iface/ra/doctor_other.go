@@ -12,3 +12,7 @@ package ifacera
 func readIPv6Forwarding(string) (on, known bool) {
 	return false, false
 }
+
+func readIPv6KernelForwarding(string) (on, known bool) {
+	return false, false
+}

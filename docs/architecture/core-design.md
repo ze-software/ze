@@ -3039,6 +3039,36 @@ answers an error rather than an empty string.
 <!-- source: internal/component/sysctl/backend.go -- Read -->
 <!-- source: internal/component/sysctl/backend_linux.go -- keyToPath -->
 
+Two sources can ask for the same default. The entry keeps every other source's
+claim when a later one takes effect (`entry.shadowed`), and clearing a source
+hands the key to a claim that remains, the lowest-sorting source first, before
+it falls back to the original kernel value. fib-kernel and the interface
+component both declare `net.ipv6.conf.all.forwarding=1`, so the interface
+component withdrawing its claim leaves IPv6 forwarding on while fib-kernel runs.
+<!-- source: internal/component/sysctl/sysctl.go -- dropDefaults, setDefault -->
+
+A known key can declare the per-interface templates a write of it rewrites
+(`KeyDef.Propagates`). Linux copies a write of `net.ipv6.conf.all.forwarding`
+or `net.ipv4.conf.all.forwarding` into every device's `forwarding` and into
+`default.forwarding`, and the IPv6 write of 0 also zeroes every
+`force_forwarding` (`net/ipv6/addrconf.c` `addrconf_forward_change`,
+`net/ipv4/devinet.c` `inet_forward_change`). Every store write goes through
+`store.write`, which after such a write re-applies each matching key the store
+manages (a unit's `forwarding false`, a config value) whose kernel value
+changed. The kernel's copy stands on every other device and on `default`, as
+FRR and VyOS let it: with `all.forwarding` 1 Linux forwards IPv6 arriving on
+any device (`ip6_forward` reads `all.forwarding` or the ingress device's
+`force_forwarding`), so a device that takes the router role with it is
+consistent. A managed key whose value did not change is not rewritten, because
+the kernel flushes Router Advertisement default routes on every write of 1 to a
+`forwarding` key. On clean stop the propagating keys are restored first, so
+per-device originals are the last write. The interface component holds the
+IPv6 switch on while any unit sets `ipv6 forwarding true`
+(`applyIPv6ForwardingSwitch`).
+<!-- source: internal/core/sysctl/known_linux.go -- Propagates -->
+<!-- source: internal/component/sysctl/sysctl.go -- write, reapplyManaged, restoreAll -->
+<!-- source: internal/component/iface/config_sysctl.go -- applyIPv6ForwardingSwitch -->
+
 A profile registry (`internal/core/sysctl/profiles.go`) holds named collections of
 kernel tunables. Five built-in profiles (dsr, router, hardened, multihomed, proxy) are
 registered at init time. User-defined profiles are registered from sysctl config at

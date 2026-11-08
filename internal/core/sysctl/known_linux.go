@@ -10,10 +10,27 @@ func init() {
 	MustRegister(KeyDef{
 		Name: "net.ipv4.conf.all.forwarding", Type: TypeBool,
 		Description: "Enable IPv4 forwarding globally", Platform: PlatformLinux,
+		// net/ipv4/devinet.c inet_forward_change writes the new value into
+		// every device's forwarding and into default.forwarding. Linux
+		// forwards IPv4 only on a device whose own forwarding is 1
+		// (ip_route_input_slow reads IN_DEV_FORWARD), so a unit with ipv4
+		// forwarding false is re-applied after the copy.
+		Propagates: []string{"net.ipv4.conf.<iface>.forwarding"},
 	})
 	MustRegister(KeyDef{
 		Name: "net.ipv6.conf.all.forwarding", Type: TypeBool,
 		Description: "Enable IPv6 forwarding globally", Platform: PlatformLinux,
+		// net/ipv6/addrconf.c addrconf_forward_change writes the new value
+		// into every device's forwarding and into default.forwarding, and
+		// zeroes every device's force_forwarding when the value is 0. The
+		// copy stands on a device nothing in Ze manages: with all.forwarding
+		// 1 the kernel forwards IPv6 arriving there (ip6_forward), so the
+		// device is a router. A device whose forwarding a unit or a config
+		// value sets is re-applied.
+		Propagates: []string{
+			"net.ipv6.conf.<iface>.forwarding",
+			"net.ipv6.conf.<iface>.force_forwarding",
+		},
 	})
 	MustRegister(KeyDef{
 		Name: "net.ipv4.conf.all.rp_filter", Type: TypeIntRange, Min: 0, Max: 2,

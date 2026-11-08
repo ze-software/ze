@@ -878,13 +878,19 @@ with `feature not supported by backend "vpp"`.
 
 An advertising interface tells hosts to send it their off-link traffic. Set
 `ipv6 forwarding true` on that unit, or the kernel drops that traffic and every
-host on the link loses connectivity. Leave `accept-ra` at 0 unless the same
+host on the link loses connectivity. Linux forwards IPv6 only while
+`net.ipv6.conf.all.forwarding` is 1 (or the receiving device's
+`force_forwarding` is), so while any unit forwards Ze holds that switch at 1
+and writes back each unit's own `forwarding` leaf, which the kernel overwrites
+when the switch changes. Leave `accept-ra` at 0 unless the same
 interface also learns from another router.
 
 Config verify cannot catch this, because forwarding can arrive from a sysctl
 profile after verify runs. Ze reports the state instead. The
 `doctor-iface-ra-forwarding` check emits one warning for each advertising
-interface whose `net.ipv6.conf.<device>.forwarding` is 0.
+interface whose `net.ipv6.conf.<device>.forwarding` is 0, and one for each whose
+kernel forwards no IPv6 (`all.forwarding` 0 and the device's `force_forwarding`
+not 1).
 
 <!-- source: internal/plugins/iface/ra/doctor.go -- checkRAForwarding, doctor-iface-ra-forwarding -->
 

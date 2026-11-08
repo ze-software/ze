@@ -49,7 +49,50 @@ func runForwardingCheck(t *testing.T, tree *config.Tree, forwarding map[string]b
 		on, known := forwarding[device]
 		return on, known
 	}
+	// These cases judge the per-device knob alone, so the kernel forwards.
+	previousKernel := ipv6KernelForwardingReader
+	t.Cleanup(func() { ipv6KernelForwardingReader = previousKernel })
+	ipv6KernelForwardingReader = func(string) (bool, bool) { return true, true }
 	return checkRAForwarding(diagnostic.DoctorCheckContext{Tree: tree})
+}
+
+// VALIDATES: an advertising interface whose device forwards per device while
+// net.ipv6.conf.all.forwarding is 0 (and its force_forwarding is not 1) is
+// reported, naming the global switch; a kernel that forwards, or whose state
+// cannot be read, gives no warning.
+// PREVENTS: ze doctor staying silent on a CPE whose units say forwarding
+// true while Linux drops every forwarded IPv6 packet (ip6_forward reads only
+// all.forwarding or the ingress device's force_forwarding).
+func TestDoctorRAKernelForwarding(t *testing.T) {
+	for name, tc := range map[string]struct {
+		routes, known bool
+		warns         bool
+	}{
+		"warns when the kernel forwards no IPv6": {routes: false, known: true, warns: true},
+		"silent when the kernel forwards":        {routes: true, known: true},
+		"silent when the state cannot be read":   {routes: false, known: false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			previous := ipv6ForwardingReader
+			previousKernel := ipv6KernelForwardingReader
+			t.Cleanup(func() {
+				ipv6ForwardingReader = previous
+				ipv6KernelForwardingReader = previousKernel
+			})
+			ipv6ForwardingReader = func(string) (bool, bool) { return true, true }
+			ipv6KernelForwardingReader = func(string) (bool, bool) { return tc.routes, tc.known }
+
+			got := checkRAForwarding(diagnostic.DoctorCheckContext{Tree: raTree(t, "ethernet", "eth0", true, "")})
+			if !tc.warns {
+				assert.Empty(t, got)
+				return
+			}
+			require.Len(t, got, 1)
+			assert.Equal(t, "doctor-iface-ra-forwarding", got[0].Code)
+			assert.Contains(t, got[0].Message, "net.ipv6.conf.all.forwarding is 0")
+			assert.Contains(t, got[0].Message, "eth0")
+		})
+	}
 }
 
 // VALIDATES: design decision D-6. A unit that advertises while IPv6 forwarding

@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -58,6 +59,45 @@ type entry struct {
 	transientValue string
 	defaultValue   string
 	defaultSource  string // plugin name that set the default
+
+	// shadowed holds the default each other source still claims, keyed by
+	// source, while a later source's default is the one in effect. Clearing
+	// the source in effect promotes one of these instead of dropping the key
+	// to its original, so two sources that both need a value (fib-kernel and
+	// the interface component on net.ipv6.conf.all.forwarding) do not lose
+	// it when one of them withdraws.
+	shadowed map[string]string
+}
+
+// dropDefaults removes every default claim whose source match accepts. When
+// the claim in effect goes, the claim of the lowest-sorting remaining source
+// takes its place. It reports whether the default in effect changed.
+func (e *entry) dropDefaults(match func(source string) bool) bool {
+	for source := range e.shadowed {
+		if match(source) {
+			delete(e.shadowed, source)
+		}
+	}
+	if e.defaultSource == "" {
+		return false
+	}
+	if !match(e.defaultSource) {
+		return false
+	}
+	e.defaultValue = ""
+	e.defaultSource = ""
+	if len(e.shadowed) == 0 {
+		return true
+	}
+	sources := make([]string, 0, len(e.shadowed))
+	for source := range e.shadowed {
+		sources = append(sources, source)
+	}
+	slices.Sort(sources)
+	e.defaultSource = sources[0]
+	e.defaultValue = e.shadowed[sources[0]]
+	delete(e.shadowed, sources[0])
+	return true
 }
 
 // effective returns the value that should be applied (highest priority layer).
@@ -160,10 +200,85 @@ func (s *store) applyEffective(e *entry) (string, layer, error) {
 	if l < 0 {
 		return "", -1, nil // No value to apply.
 	}
-	if err := s.be.write(e.key, val); err != nil {
+	if err := s.write(e.key, val); err != nil {
 		return "", -1, err
 	}
 	return val, l, nil
+}
+
+// write sets one key in the kernel, then re-applies the keys this store
+// manages that the registry says a write of it rewrites. Linux copies a write
+// of net.ipv6.conf.all.forwarding into every device's forwarding. The copy
+// stands on every device the store does not manage, as with FRR and VyOS: the
+// kernel then forwards IPv6 arriving there, so the device takes the router
+// role too. A device whose forwarding the store holds (a unit with ipv6
+// forwarding false, a config value) gets that value back. Caller MUST hold
+// s.mu (write lock).
+func (s *store) write(key, value string) error {
+	def, known := sysctlreg.Lookup(key)
+	if !known {
+		return s.be.write(key, value)
+	}
+	if err := s.be.write(key, value); err != nil {
+		return err
+	}
+	for _, template := range def.Propagates {
+		s.reapplyManaged(key, template)
+	}
+	return nil
+}
+
+// reapplyManaged writes back each managed key matching template whose kernel
+// value the write of key changed. A key whose value did not change is not
+// written, because Linux flushes Router Advertisement default routes on every
+// write of 1 to a forwarding key, even one that changes nothing
+// (net/ipv6/addrconf.c addrconf_fixup_forwarding). Caller MUST hold s.mu.
+func (s *store) reapplyManaged(key, template string) {
+	prefix, suffix, found := strings.Cut(template, "<iface>")
+	if !found {
+		s.log.Warn("sysctl: propagated template has no <iface> segment; managed keys are not re-applied",
+			"key", key, "template", template)
+		return
+	}
+	for instance, e := range s.entries {
+		if instance == key {
+			continue
+		}
+		if !matchesInstance(instance, prefix, suffix) {
+			continue
+		}
+		want, l := e.effective()
+		if l < 0 {
+			continue // Nothing holds this key now: the kernel's copy stands.
+		}
+		now, err := s.be.read(instance)
+		if err != nil {
+			s.log.Warn("sysctl: cannot read a managed key back after a write rewrote it",
+				"key", key, "instance", instance, "err", err)
+			continue
+		}
+		if now == want {
+			continue
+		}
+		if werr := s.be.write(instance, want); werr != nil {
+			s.log.Warn("sysctl: cannot re-apply a managed key a write rewrote",
+				"key", key, "instance", instance, "value", want, "err", werr)
+		}
+	}
+}
+
+// matchesInstance reports whether key fills prefix<iface>suffix with a
+// non-empty interface name.
+func matchesInstance(key, prefix, suffix string) bool {
+	middle, ok := strings.CutPrefix(key, prefix)
+	if !ok {
+		return false
+	}
+	middle, ok = strings.CutSuffix(middle, suffix)
+	if !ok {
+		return false
+	}
+	return middle != ""
 }
 
 // setDefault sets a plugin default for a key. Returns the applied event payload
@@ -180,6 +295,16 @@ func (s *store) setDefault(key, value, source string) (appliedPayload string, er
 	defer s.mu.Unlock()
 
 	e := s.getOrCreate(key)
+
+	// A default another source set stays claimed under that source, so
+	// clearing this source later hands the key back to it.
+	if e.defaultSource != "" && e.defaultSource != source {
+		if e.shadowed == nil {
+			e.shadowed = make(map[string]string)
+		}
+		e.shadowed[e.defaultSource] = e.defaultValue
+	}
+	delete(e.shadowed, source)
 
 	// Same value from a different source is redundant, not a conflict.
 	// Update source silently, skip kernel write and applied event.
@@ -345,7 +470,7 @@ func (s *store) applyConfig(settings map[string]string) ([]string, []error) {
 
 		s.saveOriginal(e)
 
-		if err := s.be.write(key, value); err != nil {
+		if err := s.write(key, value); err != nil {
 			errs = append(errs, err)
 			continue
 		}
@@ -426,7 +551,7 @@ func (s *store) rollbackConfig(snap configSnapshot) {
 		if l < 0 {
 			continue
 		}
-		if err := s.be.write(e.key, val); err != nil {
+		if err := s.write(e.key, val); err != nil {
 			s.log.Warn("sysctl: rollback write failed", "key", e.key, "err", err)
 		}
 	}
@@ -438,16 +563,33 @@ func (s *store) restoreAll() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for _, e := range s.entries {
-		if !e.hasSaved {
-			continue
+	// A key whose write the kernel copies into per-device keys goes first:
+	// the per-device originals restored after it are then the last word.
+	for _, propagating := range []bool{true, false} {
+		for _, e := range s.entries {
+			if !e.hasSaved {
+				continue
+			}
+			if propagatesWrite(e.key) != propagating {
+				continue
+			}
+			if err := s.write(e.key, e.original); err != nil {
+				s.log.Warn("sysctl: restore failed", "key", e.key, "original", e.original, "err", err)
+				continue
+			}
+			s.log.Info("sysctl: restored original value", "key", e.key, "value", e.original)
 		}
-		if err := s.be.write(e.key, e.original); err != nil {
-			s.log.Warn("sysctl: restore failed", "key", e.key, "original", e.original, "err", err)
-			continue
-		}
-		s.log.Info("sysctl: restored original value", "key", e.key, "value", e.original)
 	}
+}
+
+// propagatesWrite reports whether the registry declares that a write of key
+// rewrites other keys.
+func propagatesWrite(key string) bool {
+	def, known := sysctlreg.Lookup(key)
+	if !known {
+		return false
+	}
+	return len(def.Propagates) > 0
 }
 
 // listKnownKeys returns a JSON array of all registered known keys with metadata.
@@ -545,20 +687,18 @@ func (s *store) clearSourceDefaults(source string) {
 	defer s.mu.Unlock()
 
 	for _, e := range s.entries {
-		if e.defaultSource != source {
+		if !e.dropDefaults(func(claimant string) bool { return claimant == source }) {
 			continue
 		}
-		e.defaultValue = ""
-		e.defaultSource = ""
 
 		val, l := e.effective()
 		if val != "" {
-			if err := s.be.write(e.key, val); err != nil {
+			if err := s.write(e.key, val); err != nil {
 				s.log.Warn("sysctl: clear-source write failed", "key", e.key, "err", err)
 			}
 			_ = l
 		} else if e.hasSaved {
-			if err := s.be.write(e.key, e.original); err != nil {
+			if err := s.write(e.key, e.original); err != nil {
 				s.log.Warn("sysctl: clear-source restore failed", "key", e.key, "err", err)
 			}
 		}
@@ -648,21 +788,19 @@ func (s *store) clearProfileDefaults(ifaceName string) {
 		if !strings.Contains(key, ".conf."+ifaceName+".") {
 			continue
 		}
-		if !strings.HasPrefix(e.defaultSource, "profile:") {
+		if !e.dropDefaults(func(claimant string) bool { return strings.HasPrefix(claimant, "profile:") }) {
 			continue
 		}
-		e.defaultValue = ""
-		e.defaultSource = ""
 
 		// Re-apply effective value: config or transient may still be set.
 		val, l := e.effective()
 		if val != "" {
-			if err := s.be.write(key, val); err != nil {
+			if err := s.write(key, val); err != nil {
 				s.log.Warn("sysctl: clear-profile write failed", "key", key, "err", err)
 			}
 		} else if e.hasSaved {
 			// No layer has a value: restore original.
-			if err := s.be.write(key, e.original); err != nil {
+			if err := s.write(key, e.original); err != nil {
 				s.log.Warn("sysctl: clear-profile restore failed", "key", key, "err", err)
 			}
 		}
