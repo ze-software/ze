@@ -2,15 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | Route-based tunnels are shipped; a peer that proposes both families and is narrowed to IPv6 over an IPv4 WAN must carry IPv6 end to end. Today no test covers the IPv6-inner datapath and child 20 shows it cannot work. Validation plus whatever fix the scenario exposes. |
 | RFC gaps | - |
 | Depends | spec-home-cpe-20-xfrm-cross-family-tunnel-state.md |
-| Phase | 0/3 |
+| Phase | 3/3 |
 | Handoff | - |
-| Updated | 2026-10-31 |
+| Updated | 2026-11-08 |
 
 Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
 
@@ -371,3 +371,148 @@ statement it touches.
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean
 - [ ] **Commit A** and **Commit B** per `ai/rules/planning.md`
+
+## Implementation Summary
+
+### What Was Implemented
+- e8faddced1 (unit tests, interop scenario, docs), 3c23153b48 (strongSwan offers MODP_2048 so the PFS rekey of AC-8 succeeds), 5ee1ebb500 (parse test promoted to `test/parse/`). All three carry a `Spec-work: home-cpe-1-logical-interface-name` trailer by misattribution; they are this spec's work.
+- No product code changed: A-1, A-2 and AC-1's wire check held, so `recordInitiatorSelectorsIn`, `childPolicies` and `proposeChildTSPayloads` stay as they were. The datapath fix is child 20's `XFRM_STATE_AF_UNSPEC` (`xfrmStateFromParams`, `internal/component/ike/dataplane/xfrm_linux.go`, 0db8414cfd).
+- Scenario checker `checkVTIIPv6InnerIPv4Outer` (`internal/le/interoplab/ipsec/vtiipv6.go`), registered in `scenarioCheckers` with `writesPeerSysctl`.
+
+### Bugs Found/Fixed
+- strongSwan's child offered no D-H group while Ze's esp-group sets PFS, so Ze rightly refused the rekey with NO_PROPOSAL_CHOSEN: a lab config defect, fixed in 3c23153b48. No product bug.
+
+### Documentation Updates
+- `docs/guide/ipsec.md` "IPv6 inside an IPv4 tunnel on a VTI" (e8faddced1), `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` (dual-family narrowing paragraph), `docs/architecture/testing/interop.md` (scenario section, anchor on the scenario's `swanctl.conf`), `features/ipsec-interop-testing.md` (anchor `vtiipv6.go -- checkVTIIPv6InnerIPv4Outer`).
+- `./le repo check`: all checks passed (2026-11-08).
+
+### Deviations from Plan
+- AC-6: the red walk (`c6-afunspec-off`, `state.AFUnspec = false`) fails the scenario at step 3, the af-unspec state check that precedes the ping, so the ping itself was not observed red. The ping step's own discrimination is its ESP counters: `verifyESPDirectionsToward` (`internal/le/interoplab/ipsec/helpers.go`) requires all four simplex SAs to advance across a lossless ping, and `xfrmi_xmit2` gives vti0 no clear exit. That replaces the Critical Review row "Ping fails with the Child SA deleted", which was not run.
+- AC-7 is asserted through `show vpn ipsec sa | json` (`requireChildIfID`, `waitZeSelectors`) rather than the text form.
+- `test/parse/ipsec-dual-family-selectors-validate.ci` carries no Linux marker, so on macOS the xfrm-on-darwin check refuses it; it was run in the Ze 7.3 QEMU guest. A macOS-only defect, which waits until after the first release (`ai/META-DECISIONS.md`, "Production is Linux").
+- The IPsec umbrella row for the scenario was not written by this closure: the door gate refused the edit to `plan/release/validation/spec-ipsec-0-umbrella.md` (five further doors, and a producer it cites no longer exists). See Work Not Done.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The implementation commits carry `Spec-work: home-cpe-1-logical-interface-name` | They are home-cpe-6's work; the session's claim at commit time was child 1 | Reading e8faddced1, 3c23153b48, 5ee1ebb500 at closure | Named here and in commit A's body |
+| approach | The spec stayed at `Status design`, `Phase 0/3` while all three phases were committed | Implementation was complete | Closure entry | Set to in-progress via `./le spec claim`, Phase 3/3 |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| 1. Dual-family list validates and is sent in order | Done | `vti_dual_family_test.go` `TestDualFamilyProposalNarrowedToIPv6InstallsVTIPolicy`; `config_test.go` `TestDualFamilySelectorListValidates`; `test/parse/ipsec-dual-family-selectors-validate.ci` | |
+| 2. IPv6-only answer accepted, recorded, installed with if_id, no IPv4 policy | Done | `ts_mixed_family_test.go` `TestInitiatorAcceptsNarrowingToOneFamily`; `child_test.go` `TestNarrowedChildInstallsOnlyTheNegotiatedFamily` | |
+| 3. IPv6 route via vti0 carries a ping | Done | `vtiipv6.go` `vtiIPv6Carries` | |
+| 4. Interop against strongSwan, red with child 20 reverted | Done | `vti-ipv6-inner-ipv4-outer`; red under `c6-afunspec-off` | See Deviations, AC-6 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestDualFamilyProposalNarrowedToIPv6InstallsVTIPolicy` (`requireWireSelectors` IPv4 then IPv6); `ipsec-dual-family-selectors-validate` | |
+| AC-2 | Done | `TestInitiatorAcceptsNarrowingToOneFamily`; scenario `waitChildSelectors(::/0, ::/0)` | |
+| AC-3 | Done | `requireIPv6PoliciesOnly` (unit); `requireIPv6PoliciesOnIfID` out/in/fwd on if_id 7 (interop) | |
+| AC-4 | Done | `TestInitiatorRefusesAWidenedFamilyOfATwoFamilyProposal` | |
+| AC-5 | Done | `vtiIPv6Carries` → `verifyESPDirectionsToward` | |
+| AC-6 | Done | `c6-vti-broken.log`: FAIL "lacks af-unspec" | Fails at the state check, see Deviations |
+| AC-7 | Done | `requireChildIfID` over `show vpn ipsec sa \| json`; `waitZeSelectors` | |
+| AC-8 | Done | `checkVTIIPv6InnerIPv4Outer` rekey step, then `vtiIPv6Negotiated` and `vtiIPv6Carries` again | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestInitiatorAcceptsNarrowingToOneFamily` | Done | `internal/component/ike/engine/ts_mixed_family_test.go` | both families |
+| `TestNarrowedChildInstallsOnlyTheNegotiatedFamily` | Done | `internal/component/ike/engine/child_test.go` | |
+| `TestDualFamilyProposalNarrowedToIPv6InstallsVTIPolicy` | Done | `internal/component/ike/engine/vti_dual_family_test.go` | |
+| `TestDualFamilySelectorListValidates` | Done | `internal/component/ike/engine/config_test.go` | |
+| `ipsec-dual-family-selectors-validate` | Done | `test/parse/` | |
+| `vti-ipv6-inner-ipv4-outer` | Done | `test/interop-ipsec/scenarios/` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `ts_narrow.go`, `child.go`, `rekey.go` | Not needed | Conditional on A-1, A-2, AC-1 breaking; none broke |
+| `docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md` | Not needed | Conditional on a `ts_narrow.go` change |
+| `docs/guide/ipsec.md` | Done | e8faddced1, 67700fd37e |
+| `plan/release/validation/spec-ipsec-0-umbrella.md` | Not done | Work Not Done |
+| scenario directory, `vti_dual_family_test.go`, parse `.ci` | Done | |
+
+### Audit Summary
+- **Total items:** 18
+- **Done:** 13
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 5 (four conditional files not needed, the umbrella row homed in its own spec)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Dual-family proposal accepted and sent in order | functional + unit | `ipsec-dual-family-selectors-validate` pass in the Ze 7.3 guest (`out-qb2/c6-clean.log`), red under `c6-combination-unchecked` ("seq 2: expected exit code 1, got 0", `out-qb2/c6-broken.log`) |
+| IPv6-only answer installed on the if_id, no IPv4 policy | interop | `vti-ipv6-inner-ipv4-outer` step 2, `requireIPv6PoliciesOnIfID` |
+| IPv6 ping crosses vti0 | interop | `c6-vti-clean.log`: PASS 1 scenario (11s), 2026-11-08 on the tree after 652591fc76 |
+| Red when child 20 is reverted | interop | `c6-vti-broken.log`: FAIL "the state 172.28.0.2 -> 172.28.0.3 on if_id 0x7 lacks af-unspec" |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| List `vti-ipv6-inner-ipv4-outer` in the IPsec umbrella's test inventory | The door gate refused this closure's edit (five more doors, and a cited producer that no longer exists) | `plan/release/validation/spec-ipsec-0-umbrella.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/home-cpe-6-ipsec-ipv6-in-ipv4-vti-7e292f27-ced0-427f-a7b6-3a931db211f9.md` (24 files, verdict clean) |
+| `./le spec review check` | OK (10 code files, clean, hashes match) |
+| Rounds | 1 |
+| Reviewer lenses used | wiring, logic of the xfrm dump parsers, vacuity of the red walk, style pass over the changed Go (no `panic()`, loops bounded by input, no new lifecycle), RFC 7296 Section 2.9 initiator side |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | No BLOCKER or ISSUE | - | - |
+
+NOTEs: (1) the comment in `requireIPv6PoliciesOnIfID` says `requireInterfaceSPDCatchAll` judges the final entry, which this scenario does not call (`spd-vti-unmatched-no-exemptions` does); the skipped entry is a BLOCK, so it admits nothing. (2) The AC-6 red is observed at the state check, not the ping (Deviations).
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/interop-ipsec/scenarios/vti-ipv6-inner-ipv4-outer/` | Yes | `ls`: `swanctl.conf`, `ze.conf` |
+| `internal/component/ike/engine/vti_dual_family_test.go` | Yes | `ls`: 9.0K |
+| `test/parse/ipsec-dual-family-selectors-validate.ci` | Yes | `ls`: 3.7K |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-4 | unit tests exist and assert as stated | `grep -n '^func Test'` finds all five in `ts_mixed_family_test.go`, `child_test.go`, `config_test.go`, `vti_dual_family_test.go`; bodies read at closure |
+| AC-5..AC-8 | scenario green, red under the revert | `c6-vti-clean.log` PASS; `c6-vti-broken.log` FAIL at af-unspec |
+| all | scoped package test on today's tree | `go test -race`, all feature tags, HEAD 45025b3639, 2026-11-08 (`c6pkg.log`): `ike/dataplane` ok, `interoplab/ipsec` ok, `ike/engine` FAIL only in `TestMobikeParallelAuthKeepsPromotedPolicyEndpoints` and `TestMobikeParallelAuthRetiresChildRekey`, which bind 127.0.0.2 and fail on macOS without the loopback alias that `./le setup` adds (not this spec's code) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Config with two selector entries and `vti bind` | `test/parse/ipsec-dual-family-selectors-validate.ci` | Read: config 1 accepted, config 2 (third IPv4 entry) refused by the same validator |
+| Real IKE exchange with strongSwan | `checkers.go` `"vti-ipv6-inner-ipv4-outer"` → `checkVTIIPv6InnerIPv4Outer` | Read |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestInitiatorAcceptsNarrowingToOneFamily` |
+| A-2 | confirmed | `TestNarrowedChildInstallsOnlyTheNegotiatedFamily`, interop step 2 |
+| A-3 | confirmed | interop `vtiIPv6Carries`: route via vti0 reached the kernel |
+| A-4 | confirmed | interop `waitChildSelectors(::/0, ::/0)` and no `0.0.0.0/0` in `swanctl --list-sas` |
+| A-5 | confirmed | clean PASS with 0db8414cfd, FAIL with `state.AFUnspec = false` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Feature file IPv6-inner evidence | `features/ipsec-interop-testing.md` anchor `vtiipv6.go -- checkVTIIPv6InnerIPv4Outer` | Yes |
+| User guide | `docs/guide/ipsec.md` "IPv6 inside an IPv4 tunnel on a VTI", config matches the scenario's `ze.conf` | Yes |
+| RFC rows (checklist 9) | `rfc/short/rfc7296.md` RFC7296-2.9-1 and 2.9-2 bind the responder and carry no inline test link; no new tag was added | No change owed |
+| Anchors (checklist 16) | `./le repo check` passed | Yes |

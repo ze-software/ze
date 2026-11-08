@@ -18,7 +18,7 @@
 # traffic proposed by the initiator, it narrows the Traffic Selectors to some
 # subset of the initiator's proposal (provided the set does not become the null
 # set)." The initiator offers both families so the responder can narrow to one.
-# Spec: plan/release/fixes/spec-home-cpe-6-ipsec-ipv6-in-ipv4-vti.md, AC-1
+# Spec: spec-home-cpe-6-ipsec-ipv6-in-ipv4-vti (closed), AC-1
 # (validation half). Unit proof: TestDualFamilySelectorListValidates
 # (internal/component/ike/engine/config_test.go).
 # Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md.
