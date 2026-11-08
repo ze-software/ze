@@ -2,15 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | docs |
 | Priority | P2 |
 | Release reason | Documentation for the home-CPE migration: the conversion is done by a model, so a written mapping is the only thing that makes it reproducible and reviewable (umbrella goal 2). It also records every place an accepted VyOS construct has no Ze equivalent today, which is the list of defects children 1 to 22 close. |
 | RFC gaps | - |
 | Depends | - (rows that name a child carry that child's state; they change when the child lands) |
-| Phase | 0/2 |
+| Phase | 2/2 |
 | Handoff | - |
-| Updated | 2026-11-02 |
+| Updated | 2026-11-08 |
 
 Parent: `plan/release/fixes/spec-home-cpe-0-umbrella.md` (child 10).
 
@@ -361,7 +361,7 @@ None: `grep -rn -i 'vyos' plan/journal/` finds no open row.
 - [ ] AC-1..AC-7 all demonstrated
 - [ ] Every user story has a working path (N-A: docs)
 - [ ] Wiring Test table complete
-- [ ] The targeted tests for what changed pass: `./le test functional parse` for `vyos-guide-example.ci`, `./le doc check all` for the page's anchors, and `./le verify changed` over the closing commits
+- [ ] The targeted tests for what changed pass: `./le test functional parse` for `vyos-guide-example.ci`, and `./le doc check all` for the page's anchors (agents run no `./le verify` command; GitHub CI verifies the pushed commits)
 
 ### TDD
 - [ ] Tests written
@@ -375,3 +375,149 @@ None: `grep -rn -i 'vyos' plan/journal/` finds no open row.
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean
 - [ ] **Commit A** and **Commit B** per `ai/rules/planning.md`
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `docs/guide/migrating-from-vyos.md` (566 lines): where the VyOS side was read, how the model is fed, the secret paths, the mapping by area (interfaces and routes, firewall and NAT, services and VPN, system) with a Class and a Child column, dropped constructs, the conversion record, the check, interim rewrites and a worked example (a83df302de; rows updated for children 2, 4, 5 and 8 in 2e86691ad2; review fixes in 5f131e629e, ba33f252e3, 38815780ca, 4657263d8e and closure commit A).
+- `docs/guide/README.md`: task row and page row (a83df302de).
+- `test/parse/vyos-guide-example.ci`: the worked example's Ze side through `ze config validate` (promoted in 728edf70c9).
+
+### Bugs Found/Fixed
+- Writing the guide surfaced defects recorded in a83df302de: rows in `plan/journal/unwired-feature.md` and `plan/journal/validated-value-discarded-by-its-caller.md`, and an owned row in `plan/release/fixes/spec-firewall-dynamic-set-config-fidelity.md` (the network-group set element defect that "Interim rewrites" names).
+
+### Documentation Updates
+- The page carries 44 `<!-- source: -->` anchors (grep count, 2026-11-08).
+- `./le doc check all` (closure run, 2026-11-08): red only on the `clear debug` command's operator availability lines (84), another session's; nothing on this page.
+
+### Deviations from Plan
+- Version line: the rows were read at `vyos/1.5dev0-5530-g611550d23` and re-checked at `vyos/1.5dev0-5851-gdb29bdc89`; the spec named only the latter.
+- The feeding section does not use VyOS's `strip-private` (A-1 broken, below).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1 assumed `strip-private` redacts the secrets and leaves addresses usable | `src/helpers/strip-private.py` also replaces IP addresses by default, which the conversion needs | reading vyos-1x at implementation | the guide's "How the model is fed" tells the operator not to use it for step 2 and lists the secret paths to redact |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| 1. How the model is fed | Done | `docs/guide/migrating-from-vyos.md` "How the model is fed", "Secret paths" | |
+| 2. The mapping | Done | same page, "The mapping" and its four subsections | |
+| 3. Dropped constructs | Done | same page, "Dropped constructs" | |
+| 4. The conversion record | Done | same page, "The conversion record" and the worked example's "Conversion record (excerpt)" | |
+| 5. The check | Done | same page, "The check" | |
+| 6. Interim rewrites | Done | same page, "Interim rewrites" | three rows left: child 8, `spec-firewall-dynamic-set-config-fidelity` and `spec-iface-resolution-across-the-plugin-boundary` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | the page's section list (`grep -n '^#'`, 2026-11-07) | |
+| AC-2 | Done | 44 anchors; `./le doc check all` red only on a foreign `clear debug` row | |
+| AC-3 | Done | `test/parse/vyos-guide-example.ci` passing on Linux (main thread run, 2026-11-07) | |
+| AC-4 | Done | "Interim rewrites" names child 8, `spec-firewall-dynamic-set-config-fidelity` and `spec-iface-resolution-across-the-plugin-boundary`; the mapping rows still open name those and child 13 | |
+| AC-5 | Done | `docs/guide/README.md` lines 20 and 92 | |
+| AC-6 | Done | the guide links no `static-routes.md` example | |
+| AC-7 | Done | a Class column on every mapping table; "Where the VyOS side was read" names the version and the vyos-1x files | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `vyos-guide-example` | Done | `test/parse/vyos-guide-example.ci` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `docs/guide/migrating-from-vyos.md` | Done | a83df302de, 2e86691ad2, review fixes 5f131e629e, ba33f252e3, 38815780ca, 4657263d8e, commit A |
+| `docs/guide/README.md` | Done | a83df302de |
+| `test/parse/vyos-guide-example.ci` | Done | 728edf70c9 |
+
+### Audit Summary
+- **Total items:** 17
+- **Done:** 17
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0 (the version line is recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A model converts a VyOS home-CPE configuration by following the page, and its output is valid Ze | functional | `test/parse/vyos-guide-example.ci`: the worked example's Ze output passes `ze config validate` (Linux run, 2026-11-07) |
+| A reviewer checks every source line was mapped or dropped | functional (lab) | the conversion record format in the guide; child 11's `conversion` scenario (`test/interop-topology/scenarios/conversion/`) reads it, owned by `plan/release/fixes/spec-home-cpe-11-lab.md` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Wiring row 2: the converted CPE configuration through a Ze start and the lab | the lab is child 11's deliverable | `plan/release/fixes/spec-home-cpe-11-lab.md` |
+| Mapping rows that change when children 8 and 13 land | those children are open | `plan/release/fixes/spec-home-cpe-8-ipv6-cpe-chain.md`, `plan/release/fixes/spec-home-cpe-13-pppoe-client-ipcp-dns.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/home-cpe-10-vyos-mapping-guide-7e292f27-ced0-427f-a7b6-3a931db211f9.md` |
+| `./le spec review check` | pass (closure run, 2026-11-08) |
+| Rounds | 5; the final round 0 BLOCKER, 0 ISSUE |
+| Reviewer lenses used | each row against its YANG anchor and its producer; secrets (the guide never asks for a secret to be pasted to the model); the worked example, its line numbers and its `.ci`; each row's class against the page's own class table |
+
+### Runs
+| Round | Reviewer | Result | Fixed by |
+|-------|----------|--------|----------|
+| 1 | independent | 0 BLOCKER, 2 ISSUE, 4 NOTE (findings 1 to 4 and two spec-record notes) | 5f131e629e (guide), 289007ccf5 (pppoeclient) |
+| 2 | independent | 1 ISSUE (finding 5) | ba33f252e3 |
+| 3 | independent | 1 ISSUE (finding 6) | 38815780ca |
+| 4 | independent | 0 BLOCKER, 0 ISSUE, 4 NOTE: three page notes (finding 7) and this section stale | 4657263d8e; this section |
+| 5 | closure agent, inline `/ze-review` over the guide, the `.ci`, the README rows and this spec | 0 BLOCKER, 0 ISSUE, 2 NOTE (findings 8 and 9) | commit A |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | rows called equivalent depend on the firewall writing the configured interface name into nft unchanged (`lowerIfaceMatch`); the hw-id row did not say Ze never renames the kernel device | `docs/guide/migrating-from-vyos.md` | 5f131e629e: the hw-id, `inbound-interface`/`outbound-interface`, NAT source and three `adjust-mss` rows name `spec-iface-resolution-across-the-plugin-boundary`; "Interface names in firewall rules" paragraph and an "Interim rewrites" row |
+| 2 | ISSUE | the PPPoE session socket named the configured `source-interface`, not the resolved device (`pppoeclient` `Dialer.Dial`) | product code | 289007ccf5 |
+| 3 | NOTE | the `.ci` header claimed every mapping construct with a Ze form appears once | `test/parse/vyos-guide-example.ci` | 5f131e629e: header narrowed (comment only) |
+| 4 | NOTE | "Conversion record (excerpt)" listed row 52 before row 50, and rows 105 and 106 carried an undefined class `-` | `docs/guide/migrating-from-vyos.md` | 5f131e629e |
+| 5 | ISSUE | after child 8's ee9d52da6e the page contradicted itself on the delegated prefix | `docs/guide/migrating-from-vyos.md` | ba33f252e3: the PD and router-advert rows map to child 8 |
+| 6 | ISSUE | the PD and router-advert rows were classed `conditional` while their VyOS producers were unread | `docs/guide/migrating-from-vyos.md` | 38815780ca: the producers read, rows classed `behavior change` |
+| 7 | NOTE | dhcp6c's source not named; `address 0` and the unnumbered `sla-id` order not stated | `docs/guide/migrating-from-vyos.md` | 4657263d8e |
+| 8 | NOTE | the network-group row was `conditional` with Child `-`, though the class table says a conditional row names the spec that removes the condition; `spec-firewall-dynamic-set-config-fidelity` owns the `encodeSetElementKey` defect | `docs/guide/migrating-from-vyos.md` | commit A: the Child cell, the paragraph under the table and the "Interim rewrites" row name it |
+| 9 | NOTE | conversion record lines 10 and 11 were classed `equivalent`, though the record's Class column is the class of the mapping row used, which is `conditional` | `docs/guide/migrating-from-vyos.md` | commit A: `conditional`, noting that a `pppoe-client` meets the condition |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `docs/guide/migrating-from-vyos.md` | Yes | `wc -l`: 566 lines (2026-11-08) |
+| `test/parse/vyos-guide-example.ci` | Yes | ls: 8.1K (2026-11-07) |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-2 | every row anchored | `grep -c '<!-- source:'` = 44 (2026-11-08) |
+| AC-3 | the example validates | `vyos-guide-example.ci` passed on Linux (main thread, 2026-11-07); the closure run on darwin skips it (`skip-os=darwin`), and the `.ci` has not changed since 5f131e629e |
+| AC-5 | the index lists the page | `grep -n migrating-from-vyos docs/guide/README.md`: lines 20, 92 |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| worked example through `ze config validate` | `test/parse/vyos-guide-example.ci` | Yes, passing |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken | `strip-private` also replaces addresses; the guide says not to use it (Mistake Log) |
+| A-2 | confirmed | the worked example maps every line or drops it with a reason; a new construct adds a row ("Dropped constructs") |
+| A-3 | confirmed | the placeholder form is stated in "Secret paths"; the lab's refusal of an unknown placeholder is child 11's (Work Not Done) |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| 11 Daemon comparison | `grep -n -i vyos docs/comparison.md` finds nothing, so no row to update | Yes |
+| 6 Guide page | the page's anchors, judged by `./le doc check all` | Yes, red only on a foreign row |
