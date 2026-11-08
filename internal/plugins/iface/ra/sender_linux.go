@@ -249,6 +249,7 @@ func (s *Sender) run(ctx context.Context, conn net.PacketConn, pc *ipv6.PacketCo
 	// A CE-role unit follows the WAN default route (RFC 7084 G-4). The watch
 	// starts with the first spec that names a WAN and lasts the sender's life.
 	defaults := newWANDefaults()
+	wans := newWANResolver(s.spec.Interface, s.log)
 	routeChanges := make(chan struct{}, 1)
 	var unwatch func()
 	defer func() {
@@ -267,7 +268,7 @@ func (s *Sender) run(ctx context.Context, conn net.PacketConn, pc *ipv6.PacketCo
 	}
 	watchWAN()
 	build := func() ndp.RAConfig {
-		cfg := adv.build(time.Now(), wanHoldsDefault(adv.spec.WANs, defaults))
+		cfg := adv.build(time.Now(), wans.holdsDefault(adv.spec.WANs, defaults))
 		cfg.SourceLinkLayerAddress = sourceMAC
 		return cfg
 	}
@@ -315,7 +316,7 @@ func (s *Sender) run(ctx context.Context, conn net.PacketConn, pc *ipv6.PacketCo
 			return
 		}
 		now := time.Now()
-		if !adv.urgent(now, wanHoldsDefault(adv.spec.WANs, defaults)) {
+		if !adv.urgent(now, wans.holdsDefault(adv.spec.WANs, defaults)) {
 			return
 		}
 		at := now.Add(ndp.CeaseWait(state.lastSent, now))
@@ -497,18 +498,63 @@ func (s *Sender) watchDefaultRoutes(defaults *wanDefaults, changed chan<- struct
 	return unregister
 }
 
-// wanHoldsDefault reports whether a default route leaves through the device
-// of any WAN the unit names. A WAN with no device holds no route, which is
-// the answer itself: its session is down.
-func wanHoldsDefault(wans []string, defaults *wanDefaults) bool {
+// wanResolver answers whether a default route leaves through the device of a
+// WAN the unit names, and says so at WARN when it cannot look. A WAN that does
+// not resolve holds no route, and the unit then advertises Router Lifetime 0
+// (RFC 7084 G-4); that is right while a PPP session is down, and wrong when
+// the name is mistyped or the backend cannot read the device, so the operator
+// is told which it is rather than left with a LAN that has no default router.
+// One WARN is logged when a WAN starts failing, or fails with another error,
+// and one INFO when it resolves again, so the periodic sends do not flood the
+// log. Bounded by the WANs the unit names. Not safe for concurrent use; the
+// send loop is its only caller.
+type wanResolver struct {
+	lan string
+	log *slog.Logger
+	// failing holds the error last reported for each WAN that does not resolve.
+	failing map[string]string
+}
+
+func newWANResolver(lan string, log *slog.Logger) *wanResolver {
+	return &wanResolver{lan: lan, log: log, failing: make(map[string]string)}
+}
+
+// holdsDefault reports whether a default route leaves through the device of
+// any WAN in wans.
+func (r *wanResolver) holdsDefault(wans []string, defaults *wanDefaults) bool {
+	held := false
 	for _, name := range wans {
 		binding, err := iface.Resolve(name)
 		if err != nil {
+			r.failed(name, err)
 			continue
 		}
+		r.resolved(name)
 		if defaults.holds(binding.Ifindex) {
-			return true
+			held = true
 		}
 	}
-	return false
+	return held
+}
+
+// failed reports a WAN that did not resolve, once for each distinct error.
+func (r *wanResolver) failed(name string, err error) {
+	reason := err.Error()
+	if r.failing[name] == reason {
+		return
+	}
+	r.failing[name] = reason
+	r.log.Warn("iface-ra: WAN interface not resolved, so this LAN advertises Router Lifetime 0 (RFC 7084 G-4) until it resolves;"+
+		" check the WAN session and its name with `show interface`",
+		"iface", r.lan, "wan", name, "error", err)
+}
+
+// resolved records that a WAN resolves, and says so when it had failed.
+func (r *wanResolver) resolved(name string) {
+	if _, was := r.failing[name]; !was {
+		return
+	}
+	delete(r.failing, name)
+	r.log.Info("iface-ra: WAN interface resolved, its default route counts again",
+		"iface", r.lan, "wan", name)
 }

@@ -3,7 +3,10 @@
 package ifacera
 
 import (
+	"bytes"
+	"log/slog"
 	"net/netip"
+	"strings"
 	"testing"
 	"time"
 
@@ -131,5 +134,34 @@ func TestParseMAC(t *testing.T) {
 			cfg := ndp.RAConfig{SourceLinkLayerAddress: got}
 			assert.Equal(t, 24, ndp.RALen(cfg), "a six-octet address emits one 8-octet option")
 		})
+	}
+}
+
+// VALIDATES: a WAN the CE unit names that does not resolve is reported at WARN,
+// naming the LAN and the WAN, and once only while it keeps failing with the
+// same error; it still reads as holding no default route.
+// METHOD: ask the resolver three times about a WAN no device carries, with a
+// text logger, and count the WARN lines.
+// PREVENTS: a Router Lifetime held at 0 with nothing in the log saying why,
+// which is what the silent skip of an unresolvable WAN produced.
+func TestWANResolverWarnsOnceForAnUnresolvableWAN(t *testing.T) {
+	var out bytes.Buffer
+	resolver := newWANResolver("lan0", slog.New(slog.NewTextHandler(&out, nil)))
+	defaults := newWANDefaults()
+	defaults.seed(nil)
+
+	for range 3 {
+		if resolver.holdsDefault([]string{"zenowan0"}, defaults) {
+			t.Fatal("a WAN that does not resolve must not hold a default route")
+		}
+	}
+	logged := out.String()
+	if n := strings.Count(logged, "level=WARN"); n != 1 {
+		t.Fatalf("want one WARN for the unresolvable WAN, got %d:\n%s", n, logged)
+	}
+	for _, want := range []string{"iface=lan0", "wan=zenowan0", "Router Lifetime 0"} {
+		if !strings.Contains(logged, want) {
+			t.Fatalf("the WARN does not carry %q:\n%s", want, logged)
+		}
 	}
 }

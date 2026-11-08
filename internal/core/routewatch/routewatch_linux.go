@@ -7,6 +7,7 @@ package routewatch
 import (
 	"fmt"
 	"net/netip"
+	"runtime"
 	"time"
 
 	"github.com/vishvananda/netlink"
@@ -113,8 +114,9 @@ func (w *Watcher) stopping() bool {
 
 // reportSetupGaveUp says that route monitoring has stopped, why waiting will
 // not restart it, and which capability an operator has to grant. The message
-// names CAP_NET_ADMIN because that is what both halves of the setup need: the
-// netlink route socket, and the setns into the pinned namespace.
+// names CAP_NET_ADMIN. The setns into a pinned namespace the opening thread is
+// not in needs CAP_SYS_ADMIN as well, and namespaceToEnter skips it in the
+// usual case, where the daemon runs in the namespace it pinned.
 func (w *Watcher) reportSetupGaveUp(attempts int, last error) {
 	if w.errCb == nil {
 		return
@@ -152,10 +154,7 @@ func (w *Watcher) subscribeOnce() error {
 			}
 		},
 	}
-	if w.platform.ns.IsOpen() {
-		opts.Namespace = &w.platform.ns
-	}
-	if err := netlink.RouteSubscribeWithOptions(updates, done, opts); err != nil {
+	if err := w.openSubscription(updates, done, opts); err != nil {
 		// The library may already watch done to close the socket it opened.
 		close(done)
 		return fmt.Errorf("subscribe to netlink route updates: %w", err)
@@ -218,6 +217,54 @@ func (w *Watcher) subscribeOnce() error {
 	}
 }
 
+// openSubscription opens the netlink route subscription in the pinned
+// namespace. The OS thread stays locked until the socket is open, so the
+// namespace namespaceToEnter compared is the one the socket opens in; once
+// open, a socket keeps its namespace whichever thread reads it.
+func (w *Watcher) openSubscription(updates chan<- netlink.RouteUpdate, done <-chan struct{}, opts netlink.RouteSubscribeOptions) error {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	target, err := w.namespaceToEnter()
+	if err != nil {
+		return err
+	}
+	if target.IsOpen() {
+		opts.Namespace = &target
+	}
+	return netlink.RouteSubscribeWithOptions(updates, done, opts)
+}
+
+// namespaceToEnter returns the namespace the netlink library must move the
+// calling thread into before it opens a socket: the pinned namespace, or
+// netns.None() when the thread already runs in it, or when nothing was
+// pinned. The caller MUST hold its OS thread locked from this call until the
+// socket is open, or the answer may describe another thread.
+//
+// The library enters a namespace it is given with setns(2) even when the
+// thread is already in it, and the kernel allows that only with
+// CAP_SYS_ADMIN (netns_install). A daemon granted CAP_NET_ADMIN alone, as a
+// container usually is, then had both its subscription and ListRoutes
+// refused: no route event and no listed route reached any consumer, and the
+// iface-ra sender of a CE unit read its WAN as holding no default route, so
+// every LAN advertisement carried Router Lifetime 0. Entering only a namespace
+// the thread is not in leaves CAP_SYS_ADMIN to the one case that needs it.
+func (w *Watcher) namespaceToEnter() (netns.NsHandle, error) {
+	if !w.platform.ns.IsOpen() {
+		return netns.None(), nil
+	}
+	current, err := netns.Get()
+	if err != nil {
+		return netns.None(), fmt.Errorf("read the network namespace of the thread opening the route socket: %w", err)
+	}
+	same := current.Equal(w.platform.ns)
+	_ = current.Close()
+	if same {
+		return netns.None(), nil
+	}
+	return w.platform.ns, nil
+}
+
 // ListRoutes returns the main-table routes for prefix as add events, read
 // once from the kernel in the watcher's namespace. The subscription lists the
 // existing routes only when it opens, so a handler registered after Start
@@ -229,9 +276,18 @@ func (w *Watcher) ListRoutes(prefix netip.Prefix) ([]RouteEvent, error) {
 	}
 	filter := &netlink.Route{Table: unix.RT_TABLE_MAIN}
 	var routes []netlink.Route
-	var err error
-	if w.platform.ns.IsOpen() {
-		h, herr := netlink.NewHandleAt(w.platform.ns)
+
+	// The thread stays locked until the listing socket is open, so the
+	// namespace namespaceToEnter compared is the one the socket opens in.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	target, err := w.namespaceToEnter()
+	if err != nil {
+		return nil, fmt.Errorf("list routes for %s: %w", prefix, err)
+	}
+	if target.IsOpen() {
+		h, herr := netlink.NewHandleAt(target)
 		if herr != nil {
 			return nil, fmt.Errorf("list routes: open a handle in the watched namespace: %w", herr)
 		}

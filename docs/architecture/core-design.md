@@ -2749,6 +2749,14 @@ snapshot of the handlers. A late consumer misses the routes the subscription
 listed when it opened, so `Watcher.ListRoutes` reads the routes for one prefix
 once from the kernel, in the watched namespace. On non-Linux, `subscribe()` blocks without delivering events.
 
+`Start` pins the network namespace of the goroutine that calls it, and the
+subscription and `ListRoutes` open their sockets there. A thread that already runs
+in the pinned namespace opens its socket in place: the watcher enters the namespace
+only from a thread that is elsewhere. The netlink library enters a namespace with
+setns(2) even when the thread is already in it, and the kernel allows that only with
+`CAP_SYS_ADMIN`, so a daemon granted `CAP_NET_ADMIN` alone (a container, as the
+interop lab runs Ze) had both refused, and no route reached any consumer.
+
 The watcher retries in two ways, because it has two failures. A subscription that was
 created and then died is re-created once a second, for as long as the process runs.
 The netlink library ends its receive loop on ordinary route churn, so that retry has
@@ -2768,7 +2776,7 @@ the socket causes is the watcher's own shutdown, and it is not reported. The err
 callback MUST NOT call `Wait`: the receive goroutine waits on the callback, the drain
 waits on the receive goroutine, and `Wait` waits on the drain.
 <!-- source: internal/core/routewatch/routewatch.go -- Watcher, Register, deliver -->
-<!-- source: internal/core/routewatch/routewatch_linux.go -- subscribe, subscribeOnce, stopping, subscribeSetupTries, reportSetupGaveUp -->
+<!-- source: internal/core/routewatch/routewatch_linux.go -- subscribe, subscribeOnce, stopping, subscribeSetupTries, reportSetupGaveUp, openSubscription, namespaceToEnter, ListRoutes -->
 <!-- source: internal/plugins/fib/kernel/monitor_linux.go -- the error callback that logs it -->
 
 ### FIB Kernel

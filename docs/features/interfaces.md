@@ -1067,9 +1067,12 @@ Router Lifetime went out, an advertisement with Router Lifetime 0 leaves at once
 rather than at the next periodic one (G-5), still carrying the prefix and route
 while the delegation holds (L-3). A /64 whose delegation ended is advertised once
 with zero lifetimes, then dropped. A unit without `delegated-prefix` keeps its
-configured Router Lifetime whatever the WAN does.
+configured Router Lifetime whatever the WAN does. A WAN whose device Ze cannot
+resolve holds no default route, and Ze logs it at WARN, naming the LAN and the WAN,
+when it starts failing, and at INFO when it resolves again.
 
 <!-- source: internal/plugins/iface/ra/advertiser.go -- build, routerLifetime, urgent, wanDefaults -->
+<!-- source: internal/plugins/iface/ra/sender_linux.go -- wanResolver, holdsDefault -->
 <!-- source: internal/component/iface/delegated_consumer.go -- runDelegationWorker, installDelegatedAddress -->
 
 <!-- source: internal/plugins/iface/ra/sender_linux.go -- openRASocket, run, sendFinal -->
