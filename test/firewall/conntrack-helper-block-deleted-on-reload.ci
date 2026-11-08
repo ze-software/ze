@@ -5,7 +5,12 @@
 #            transaction delivers the removed system/conntrack root as an
 #            empty section, which lists no helper, and the apply withdraws the
 #            tables: `nft list tables` no longer shows them while the daemon
-#            still runs (the fixture checks it is alive).
+#            still runs (the fixture checks it is alive). With no firewall
+#            block left the reload also stops the plugin, whose stop flush
+#            withdraws the same tables, so the table check alone cannot tell
+#            the two apart: the daemon's `firewall config reloaded` line with
+#            `conntrack-helpers=[]` proves the apply itself took the empty
+#            helper set.
 # PREVENTS: a helper that keeps being assigned after the operator deleted the
 #           block (the hub returned early on an absent block, so nothing
 #           withdrew the tables).
@@ -35,7 +40,10 @@ system {
 }
 EOF_CONF2
 
+option=env:var=ze.log.firewall:value=info
+
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+expect=stderr:pattern=msg="firewall config reloaded".*conntrack-helpers=\[\]
 cmd=foreground:seq=2:exec=le test fixture firewall/conntrack-helper-block-deleted-on-reload:timeout=20s
 expect=exit:code=0
 expect=stdout:contains=helper table removed on reload
