@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | config |
 | Priority | P3 |
 | Release reason | Feature: an operator migrating a CPE carries its LCP echo and redial settings; Ze fixes them at 10 s by 3 failures and a 1 to 60 s backoff. Nothing misbehaves with the defaults. |
@@ -10,7 +10,7 @@
 | Depends | Implementation: `spec-home-cpe-12-pppoe-client-lcp-renegotiation.md` (it changes `keepaliveLoop` too, and its scripted access concentrator is the harness of this spec's entry-point test). Closure: no scenario; the tests in this spec are its evidence |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-31 |
+| Updated | 2026-11-08 |
 
 Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
 
@@ -324,3 +324,150 @@ new state.
 
 ### Closure
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
+
+## Implementation Summary
+
+### What Was Implemented
+- `db2ea98439`: YANG `keepalive { interval; failures }` and `reconnect { delay-min; delay-max }` on `list pppoe-client` (`internal/component/iface/yang/ze-iface-conf.yang`, defaults 10, 3, 1, 60); `PPPoEClientTiming`, `Validate`, `reconnectDelay`, `parsePPPoEClientTiming` (`internal/component/iface/pppoe_client_timing.go`); `parsePPPoEClientEntry` reads it (`config.go`); `PPPoEClient.run` waits `c.cfg.Timing.reconnectDelay`; `pppoeClientConfigChanged` compares every field but `Timing`, and `reconcilePPPoEClients` hands a timing-only change to `setTiming`; `Dial` validates again and carries the values through `sessionConfig` to `keepaliveLoop`, which ends on `echoFails >= session.cfg.keepaliveFailures`. The constants `echoInterval`, `echoMaxFailures`, `reconnectBaseDelay`, `reconnectMaxDelay` and `ReconnectDelay` are deleted. `Schema.LookupDeclared` lets the Linux-only list's defaults resolve on any host.
+- `76fcc6d41d`: `test/parse/pppoe-client-keepalive.ci` promoted.
+- `c65d67f899`: `features/interfaces.md` paragraph and Real-path test; VyOS mapping rows; the RFC 1661 Section 4.6 Restart-timer journal row owned by `spec-lcp-restart-counters`.
+
+### Bugs Found/Fixed
+- None in the product. One documentation inaccuracy, fixed at closure (Review Gate finding 1).
+
+### Documentation Updates
+- `docs/architecture/l2tp/cpe-1-pppoe-client.md` (keepalive and reconnect paragraph, anchors `pppoe_client.go -- pppoeClientConfigChanged, setTiming, run`, `pppoe_client_timing.go -- PPPoEClientTiming.Validate, reconnectDelay`, `network_phase.go -- keepaliveLoop`), `docs/guide/pppoe.md` ("PPPoE client keepalive and redial"), `docs/guide/configuration.md` (PPPoE client section), `docs/architecture/config/yang-config-design.md` (`LookupDeclared`): `db2ea98439`.
+- `features/interfaces.md`, `docs/guide/migrating-from-vyos.md`: `c65d67f899`.
+- Closure: `docs/guide/pppoe.md` no longer equates pppd's `lcp-echo-failure` with `keepalive failures`; it states the off-by-one the VyOS guide already gives, with a `network_phase.go -- keepaliveLoop` anchor.
+- `./le doc check all`: every failure is under `../gh-pages/` (the published site checkout, 386 rows each in `reference/cli/index.{md,html}`, 437 in `llms.txt`, per-command pages missing); none is under `docs/`, `features/` or this change.
+
+### Deviations from Plan
+- Test homes: the iface unit tests live in `internal/component/iface/pppoe_client_timing_test.go`, not `config_test.go`/`pppoe_client_test.go`; the end-to-end test is `internal/component/iface/pppoe_keepalive_integration_linux_test.go` (three top-level tests `TestPPPoEClientKeepaliveConfigEndToEnd{Detection,Backoff,ReloadUptake}`), not under `pppoeclient`, because it drives the iface config apply entry point.
+- Backoff end to end uses `delay-min 3; delay-max 4` rather than 1 and 2: the defaults wait 1 s then 2 s, so 1 and 2 could not go red without the leaves; 3 and 4 do.
+- Reload uptake keeps the running session's count (2) and lets the AC withhold replies on it, then checks the next session uses 3, rather than having the AC drop the session first; it proves the same AC-6 claim and also that the running session was not restarted (Echo id 200 answered on the same session).
+- Validation of the ranges is done at parse and again at `Dial` (`PPPoEClientTiming.Validate`); YANG `range` is the first check.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The pppoe guide said the keepalive leaves "are the settings pppd calls `lcp-echo-interval` and `lcp-echo-failure`" | pppd's `lcp-echo-failure N` matches `failures N+1` (`docs/guide/migrating-from-vyos.md` row, `keepaliveLoop`) | closure review | guide corrected in commit A |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Echo interval configurable per client | Done | `ze-iface-conf.yang` `container keepalive` `leaf interval`; `network_phase.go` `keepaliveLoop` `session.cfg.keepaliveInterval` | |
+| Unanswered-echo count configurable | Done | `leaf failures`; `keepaliveLoop` `echoFails >= session.cfg.keepaliveFailures` | |
+| Min and max reconnect delay configurable | Done | `container reconnect`; `pppoe_client_timing.go` `reconnectDelay`; `pppoe_client.go` `run` | |
+| Defaults unchanged | Done | YANG `default 10`, `3`, `1`, `60` | `TestPPPoEClientKeepaliveDefaults` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestPPPoEClientKeepaliveDefaults`; parse `.ci` accepts an entry with no block | |
+| AC-2 | Done | `TestKeepaliveEndsAtConfiguredFailures`; `TestPPPoEClientKeepaliveConfigEndToEndDetection` (exactly 2 unanswered, then PADT) | |
+| AC-3 | Done | `TestPPPoEClientReconnectDelayFromConfig` (5, 10, 20, 20 s); `TestPPPoEClientKeepaliveConfigEndToEndBackoff` (lower bounds 3 s, 4 s) | |
+| AC-4 | Done | `TestPPPoEClientDelayMaxBelowMin`; `pppoe-client-keepalive.ci` | message names both leaves and the fix |
+| AC-5 | Done | `TestPPPoEClientTimingBoundaries`; `pppoe-client-keepalive.ci` boundary steps | |
+| AC-6 | Done | `TestPPPoEClientReloadKeepsSessionOnTimerChange`; `TestPPPoEClientKeepaliveConfigEndToEndReloadUptake` | |
+| AC-7 | Done | `TestPPPoEClientReloadKeepsSessionOnTimerChange` (other-leaf case); `pppoeClientConfigChanged` compares the whole struct but `Timing` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestPPPoEClientKeepaliveDefaults` | Done | `internal/component/iface/pppoe_client_timing_test.go` | file moved |
+| `TestPPPoEClientKeepaliveFromConfig` | Done | same | |
+| `TestPPPoEClientReconnectDelayFromConfig` | Done | same | synctest |
+| `TestPPPoEClientReloadKeepsSessionOnTimerChange` | Done | same | |
+| `TestKeepaliveEndsAtConfiguredFailures` | Done | `internal/component/l2tp/pppoeclient/keepalive_config_test.go` | |
+| `TestPPPoEClientDelayMaxBelowMin` | Done | `pppoe_client_timing_test.go` | |
+| `TestPPPoEClientKeepaliveConfigEndToEnd` | Done | `internal/component/iface/pppoe_keepalive_integration_linux_test.go` | three top-level tests |
+| `pppoe-client-keepalive` | Done | `test/parse/pppoe-client-keepalive.ci` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `ze-iface-conf.yang` | Done | |
+| `config.go` | Done | parse calls `parsePPPoEClientTiming` |
+| `pppoe_client.go` | Done | plus new `pppoe_client_timing.go` |
+| `session.go`, `network_phase.go`, `dialer.go` | Done | plus `connected_session.go` zero refusal |
+| `docs/architecture/l2tp/cpe-1-pppoe-client.md`, `docs/guide/pppoe.md`, `docs/guide/configuration.md` | Done | |
+| `docs/features/interfaces.md` | Changed | read: nothing became wrong; the declaration `features/interfaces.md` carries the paragraph |
+| `test/parse/pppoe-client-keepalive.ci` | Done | |
+
+### Audit Summary
+- **Total items:** 23
+- **Done:** 22
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Dead-peer detection follows the configured interval and failure count | functional, real kernel PPP unit | `TestPPPoEClientKeepaliveConfigEndToEndDetection` PASS in QEMU (`tmp/session/2026-11-07-104251/scratch/rwinv/out-qemu/clean-iface.log`); red with the check fixed at 3 (`c17-failures-fixed`, log `out-qemu/c17-failures-fixed.log`, "echo timeout failures=3") |
+| Redial hold-off follows delay-min and delay-max | functional, real kernel PPP unit | `TestPPPoEClientKeepaliveConfigEndToEndBackoff` PASS; red with `delay := t.ReconnectDelayMin / 4` (`out-qemu/c17-backoff-short.log`, delay=750ms) |
+| A timing-only reload keeps the session and the next session uses the new values | functional | `TestPPPoEClientKeepaliveConfigEndToEndReloadUptake` PASS; red with the `Timing` exclusion removed from `pppoeClientConfigChanged` (`out-qemu/c17-reload-restarts.log`) |
+| Config is validated, defaults unchanged | functional `.ci` | `pppoe-client-keepalive` PASS (`out-gb3/c17-clean.log`); red at seq 11 with the delay-max check disabled (`out-gb3/c17-broken.log`) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Configurable client LCP Restart timer (RFC 1661 Section 4.6) | separate obligation, not echo | `plan/release/fixes/spec-lcp-restart-counters.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/home-cpe-17-pppoe-client-keepalive-config-7e292f27-ced0-427f-a7b6-3a931db211f9.md` (15 files, verdict clean) |
+| `./le spec review check` | clean |
+| Rounds | 2 |
+| Reviewer lenses used | wiring, removed-behavior, concurrency on `cfg.Timing`, input validation, docs against `keepaliveLoop`, RFC proof records |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The guide equated pppd's `lcp-echo-failure` with `keepalive failures`, so an operator copying `lcp-echo-failure 3` detects one interval earlier than before | `docs/guide/pppoe.md`, "PPPoE client keepalive and redial" | states the off-by-one, `failures 4` for pppd's 3, as `migrating-from-vyos.md` does |
+
+### NOTEs
+- `reconcilePPPoEClients` reads `client.cfg` unlocked, but it is the only writer (`setTiming`), and the run goroutine reads `cfg.Timing` under `c.mu` (`run`, `runSession`), so there is no race; the scoped `-race` run is clean.
+- `run` stops the client with an ERROR naming the fix if `reconnectDelay` refuses the timing; unreachable through config because the parse validates first.
+- `./le rfc check`: no discrimination line for rfc1661 or rfc2516 is stale. `RFC2516-7-3` carries a STALE audit verdict and `RFC2516-5.5-3` a SHIFTED one, both from `a02374d9ad` (LCP restart counter) changing `rfc2516_host_termination_test.go`, which this spec's commits never touched.
+- `./le test weakened check base db2ea98439~1`: none of its 44 findings is in a file this spec changed. `./le repo check`: all passed.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/parse/pppoe-client-keepalive.ci` | yes | committed in `76fcc6d41d`; `pppoe-client-keepalive` PASS in `out-gb3/c17-clean.log` |
+| `internal/component/iface/pppoe_keepalive_integration_linux_test.go` | yes | gopls and Read at closure |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-7 | unit tests pass | `./le job run label unit-pkg quiet command go test -race -tags <feature tags> -run 'PPPoEClient\|Keepalive\|Timing\|ReconnectDelay\|RFC2516' ./internal/component/iface/ ./internal/component/l2tp/pppoeclient/`: `ok iface 2.729s`, `ok pppoeclient 1.436s` (`tmp/session/2026-11-07-104251/scratch/job-unit-pkg-afb9bd06.log`) |
+| constants gone | no fixed timer remains | `grep -rn 'echoMaxFailures\|reconnectBaseDelay\|reconnectMaxDelay\|ReconnectDelay(' internal/component/l2tp/pppoeclient/ internal/component/iface/` (non-test): no hit |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| config through `ze config validate` | `test/parse/pppoe-client-keepalive.ci` | PASS and red at seq 11 under the break (`out-gb3/`) |
+| config apply through `startPPPoEConfig` to the production dialer | `pppoe_keepalive_integration_linux_test.go` | three tests PASS, each red under its break (`out-qemu/`) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | a timer-only reload keeps the session: `TestPPPoEClientKeepaliveConfigEndToEndReloadUptake` (Echo id 200 answered on the same session after reload), red when `Timing` restarts the client |
+| A-2 | confirmed | accel-ppp `lcp-echo-interval` and pppd's take whole seconds (spec row 17, VyOS template at `d6902e6423ec`); YANG `uint16` `range "1..3600"` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| cpe-1 keepalive and reconnect paragraph | `keepaliveLoop`, `PPPoEClientTiming.Validate`, `reconnectDelay`, `setTiming`, `runSession` read at closure | yes |
+| guide pppoe and features/interfaces paragraphs | YANG defaults and ranges at `ze-iface-conf.yang` 1876-1941 | yes, guide counting corrected |
+| `./le doc check all` | failures only under `../gh-pages/` | none in this change |

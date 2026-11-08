@@ -187,14 +187,18 @@ A `pppoe-client` entry detects a dead access concentrator with LCP
 Echo-Requests. `keepalive interval` sets the seconds between two requests
 (default 10), and `keepalive failures` sets how many unanswered requests in a
 row end the session (default 3), so the default detection time is about 30
-seconds. These are the settings pppd calls `lcp-echo-interval` and
-`lcp-echo-failure`. After a session ends or a dial fails, the client waits
+seconds. These play the part of pppd's `lcp-echo-interval` and
+`lcp-echo-failure`, with one difference in counting: Ze ends the session when
+it sends the request that reaches `failures`, while pppd ends it at the next
+tick after its Nth unanswered request. pppd's `lcp-echo-failure 3` therefore
+matches `keepalive failures 4`. After a session ends or a dial fails, the client waits
 before it dials again: the first wait is `reconnect delay-min` (default 1
 second), and each further failure doubles it up to `reconnect delay-max`
 (default 60 seconds). A change to any of these leaves keeps the running
 session up: the next session and the next wait use the new values. Every leaf
 and its range is listed in [Configuration](configuration.md), "PPPoE Client".
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client keepalive, reconnect -->
+<!-- source: internal/component/l2tp/pppoeclient/network_phase.go -- keepaliveLoop -->
 The `access-reconnect` topology scenario proves the redial: after the LNS
 drops the session and RADIUS hands out a new address, the CPE comes back with
 it, the IKE SA follows it and masquerade uses it.

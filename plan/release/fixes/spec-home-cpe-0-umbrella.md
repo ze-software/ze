@@ -106,7 +106,7 @@ Child spec files, all in `plan/release/fixes/`:
 | 14 | `spec-home-cpe-14-lac-realm-relay.md` |
 | 15 | Closed (2026-11-08): `spec-home-cpe-15-lns-lcp-renegotiation`; the `l2tp proxy-lcp` leaf, its session outcome and its counter label documented in `docs/guide/l2tp.md` ("PPP negotiation") |
 | 16 | Closed (2026-11-04): `spec-home-cpe-16-lns-mru-and-auth-allow-list`; policy and MRU controls documented in `docs/guide/l2tp.md` and `docs/guide/pppoe.md` |
-| 17 | `spec-home-cpe-17-pppoe-client-keepalive-config.md` |
+| 17 | Closed (2026-11-08): `spec-home-cpe-17-pppoe-client-keepalive-config`; the `keepalive` and `reconnect` leaves documented in `docs/guide/pppoe.md` ("PPPoE client keepalive and redial") and `docs/architecture/l2tp/cpe-1-pppoe-client.md` |
 | 18 | `spec-home-cpe-18-interoplab-multi-link-topology.md` |
 | 19 | `spec-home-cpe-19-access-chain-scenario.md` |
 | 20 | `spec-home-cpe-20-xfrm-cross-family-tunnel-state.md` |
@@ -413,7 +413,7 @@ Each child owns its wiring tests; the rows below name one per child from its spe
 | realm relay config and subscriber (`spec-home-cpe-14-lac-realm-relay.md`) | → | realm match, proxy LCP | `TestRelaySinkRealmMatchPlacesCallWithProxyLCP` |
 | `proxy-lcp renegotiate` (`spec-home-cpe-15-lns-lcp-renegotiation`, closed; `docs/guide/l2tp.md`) | → | non-proxy session branch | `TestL2TPProxyLCPRenegotiateReachesDriver` |
 | `l2tp { mru 1492 }` (`docs/guide/l2tp.md`, "PPP negotiation") | → | session MRU | `TestReactorPPPPolicyReloadIsolation`, `TestConfiguredMRUNakInformationFloor`; interop `l2tp-lns-mru-xl2tpd` |
-| `keepalive interval 2; failures 2` (`spec-home-cpe-17-pppoe-client-keepalive-config.md`) | → | keepalive loop | `TestPPPoEClientKeepaliveFromConfig` |
+| `keepalive interval 2; failures 2` (`spec-home-cpe-17-pppoe-client-keepalive-config`, closed; `docs/guide/pppoe.md`) | → | keepalive loop | `TestPPPoEClientKeepaliveFromConfig`, `TestPPPoEClientKeepaliveConfigEndToEndDetection` |
 | `./le test integration interop-topology ze-static-link-chain` (`spec-home-cpe-18-interoplab-multi-link-topology.md`) | → | topology runner | scenario `ze-static-link-chain` |
 | `./le test integration interop-topology access-up` (`spec-home-cpe-19-access-chain-scenario.md`) | → | LAC relay to LNS and RADIUS | scenario `access-up` |
 | tunnel-mode SA install (`spec-home-cpe-20-xfrm-cross-family-tunnel-state.md`) | → | XFRM state builder | `TestXFRMTunnelStateIsInstalledAFUnspec` |
