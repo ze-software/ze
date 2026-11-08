@@ -390,30 +390,142 @@ func (s *Session) IPCP(ctx context.Context, id uint8, local, remote netip.Addr) 
 			}
 			continue
 		}
-		// RFC 1332 Section 2, RFC 1661 Section 5.2.
-		if err := s.SendControl(proto, ppp.LCPConfigureAck, pkt.Identifier, pkt.Data); err != nil {
-			return err
+		return s.ipcpConclude(ctx, id, pkt.Identifier, pkt.Data, ours[:])
+	}
+}
+
+// ipcpConclude Acknowledges the host's acceptable Configure-Request
+// (identifier requestID, options request), sends the concentrator's own
+// Configure-Request carrying ours, and requires an exact Configure-Ack of it.
+func (s *Session) ipcpConclude(ctx context.Context, id, requestID uint8, request, ours []byte) error {
+	// RFC 1332 Section 2, RFC 1661 Section 5.2.
+	if err := s.SendControl(ppp.ProtoIPCP, ppp.LCPConfigureAck, requestID, request); err != nil {
+		return err
+	}
+	// RFC 1332 Section 3.3.
+	if err := s.SendControl(ppp.ProtoIPCP, ppp.LCPConfigureRequest, id, ours); err != nil {
+		return err
+	}
+	proto, pkt, err := s.ReadExpectedControl(ctx)
+	if err != nil {
+		return err
+	}
+	if proto != ppp.ProtoIPCP {
+		return errors.New("expected IPCP Configure-Ack protocol")
+	}
+	if pkt.Code != ppp.LCPConfigureAck {
+		return errors.New("expected IPCP Configure-Ack code")
+	}
+	if pkt.Identifier != id {
+		return errors.New("IPCP Ack identifier differs from request")
+	}
+	if !bytes.Equal(pkt.Data, ours) {
+		return fmt.Errorf("IPCP Ack options %x differ from %x", pkt.Data, ours)
+	}
+	return nil
+}
+
+// IPCPWithDNS plays IPCP as IPCP does, and also offers dns as the host's
+// DNS servers: dns[0] as Primary-DNS-Address and, when present, dns[1] as
+// Secondary-DNS-Address. It is opt-in, because IPCP offers no DNS, as
+// accel-ppp without [dns] does. A requested DNS option whose value is not
+// the offered server is Nak'd with it; a requested Secondary-DNS-Address
+// is Rejected when dns holds one server, and so is every option other
+// than IP-Address and the two DNS options. A host that does not request a
+// DNS option is not prompted for it, so a client that never asks learns
+// none.
+//
+// RFC 1877 Section 1.1: "If local peer requests an invalid server address
+// (which it will typically do intentionally) the remote peer specifies the
+// address by NAKing this option, and returning the IP address of a valid DNS
+// server."
+func (s *Session) IPCPWithDNS(ctx context.Context, id uint8, local, remote netip.Addr, dns []netip.Addr) error {
+	if !local.Is4() {
+		return errors.New("IPCP local address must be IPv4")
+	}
+	if !remote.Is4() {
+		return errors.New("IPCP remote address must be IPv4")
+	}
+	if len(dns) == 0 || len(dns) > 2 {
+		return fmt.Errorf("IPCP offers one or two DNS servers, not %d", len(dns))
+	}
+	offered := map[uint8]netip.Addr{ppp.IPCPOptIPAddress: remote, ppp.IPCPOptPrimaryDNS: dns[0]}
+	if len(dns) == 2 {
+		offered[ppp.IPCPOptSecondaryDNS] = dns[1]
+	}
+	for _, server := range dns {
+		if !server.Is4() {
+			return fmt.Errorf("IPCP DNS server %s must be IPv4", server)
 		}
-		// RFC 1332 Section 3.3.
-		if err := s.SendControl(proto, ppp.LCPConfigureRequest, id, ours[:]); err != nil {
-			return err
-		}
-		proto, pkt, err = s.ReadExpectedControl(ctx)
+	}
+	ours := [6]byte{ppp.IPCPOptIPAddress, 6}
+	localBytes := local.As4()
+	copy(ours[2:], localBytes[:])
+	// Retries are bounded by the script's context.
+	for {
+		proto, pkt, err := s.ReadExpectedControl(ctx)
 		if err != nil {
 			return err
 		}
 		if proto != ppp.ProtoIPCP {
-			return errors.New("expected IPCP Configure-Ack protocol")
+			return fmt.Errorf("expected IPCP, received protocol %x", proto)
 		}
-		if pkt.Code != ppp.LCPConfigureAck {
-			return errors.New("expected IPCP Configure-Ack code")
+		if pkt.Code != ppp.LCPConfigureRequest {
+			return fmt.Errorf("expected IPCP Request, received code %d", pkt.Code)
 		}
-		if pkt.Identifier != id {
-			return errors.New("IPCP Ack identifier differs from request")
+		rejected, naked := ipcpReviewOffered(pkt.Data, offered)
+		// RFC 1661 Section 5.4: "If some Configuration Options received in a Configure-Request are not recognizable or are not acceptable for negotiation (as configured by a network administrator), then the implementation MUST transmit a Configure-Reject."
+		if len(rejected) != 0 {
+			if err := s.SendControl(proto, ppp.LCPConfigureReject, pkt.Identifier, rejected); err != nil {
+				return err
+			}
+			continue
 		}
-		if !bytes.Equal(pkt.Data, ours[:]) {
-			return fmt.Errorf("IPCP Ack options %x differ from %x", pkt.Data, ours)
+		// RFC 1661 Section 5.3: "Each Configuration Option which is allowed only a single instance MUST be modified to a value acceptable to the Configure-Nak sender."
+		if len(naked) != 0 {
+			if err := s.SendControl(proto, ppp.LCPConfigureNak, pkt.Identifier, naked); err != nil {
+				return err
+			}
+			continue
 		}
-		return nil
+		return s.ipcpConclude(ctx, id, pkt.Identifier, pkt.Data, ours[:])
 	}
+}
+
+// ipcpReviewOffered splits an IPCP option list against the offered values:
+// rejected holds every option offered does not name, unmodified; naked holds
+// every named option whose value differs, rewritten to the offered value, in
+// request order, then IP-Address appended when the request lacks it. A
+// malformed list stops the review at the malformed option.
+func ipcpReviewOffered(options []byte, offered map[uint8]netip.Addr) (rejected, naked []byte) {
+	sawAddress := false
+	for len(options) >= 2 {
+		length := int(options[1])
+		if length < 2 || length > len(options) {
+			break
+		}
+		option := options[:length]
+		options = options[length:]
+		want, named := offered[option[0]]
+		if !named {
+			rejected = append(rejected, option...)
+			continue
+		}
+		if option[0] == ppp.IPCPOptIPAddress {
+			sawAddress = true
+		}
+		wantBytes := want.As4()
+		if length == 6 && bytes.Equal(option[2:6], wantBytes[:]) {
+			continue
+		}
+		naked = append(naked, option[0], 6)
+		naked = append(naked, wantBytes[:]...)
+	}
+	if !sawAddress {
+		// RFC 1661 Section 5.3: "If that option is not listed, then that option MAY be appended to the list of Nak'd Configuration Options, in order to prompt the peer to include that option in its next Configure-Request packet."
+		wantBytes := offered[ppp.IPCPOptIPAddress].As4()
+		naked = append(naked, ppp.IPCPOptIPAddress, 6)
+		naked = append(naked, wantBytes[:]...)
+	}
+	return rejected, naked
 }
