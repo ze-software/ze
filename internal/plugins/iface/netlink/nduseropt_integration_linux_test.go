@@ -44,6 +44,7 @@ func TestMonitorEmitsRDNSSFromAcceptedRA(t *testing.T) {
 			t.Error(err)
 		}
 	})
+	writeSysctl(t, "net/ipv6/conf/all/accept_dad", "0")
 	writeSysctl(t, "net/ipv6/conf/"+host+"/accept_dad", "0")
 	writeSysctl(t, "net/ipv6/conf/"+router+"/accept_dad", "0")
 	writeSysctl(t, "net/ipv6/conf/"+host+"/accept_ra", "0")
@@ -135,8 +136,10 @@ func hasLinkLocal(t *testing.T, link netlink.Link) bool {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// A tentative address cannot source a packet: DAD still runs when
+	// net.ipv6.conf.all.accept_dad is on, whatever the device's own setting.
 	for _, a := range addrs {
-		if a.IP.IsLinkLocalUnicast() {
+		if a.IP.IsLinkLocalUnicast() && a.Flags&unix.IFA_F_TENTATIVE == 0 {
 			return true
 		}
 	}
