@@ -1,0 +1,150 @@
+# Functional test: a `respond` daemon's peer restarts and re-initiates, and the
+# successor IKE SA supersedes the old one only once its own Child SA is installed.
+# VALIDATES: spec-home-cpe-22 AC-2 and AC-15 on the daemon path. peer-b (respond, REAL
+#            xfrm) holds an IKE SA with peer-a. peer-a is killed (SIGKILL, so no Delete
+#            reaches peer-b) and started again, and its new IKE_SA_INIT is a parallel
+#            re-initiation on peer-b's `respond` session. The fixture requires the old
+#            Child SA's states to stay in peer-b's kernel until the successor's states
+#            are installed, then to leave, with the policies unchanged.
+# PREVENTS: a successor that takes ownership (and removes the old Child SA) before its
+#           own Child SA is installed, which would cut a working tunnel.
+#
+# WHY ONE DATAPLANE AND NOT TWO. The kernel keys an XFRM state on (src, dst, spi, proto),
+# so both ends of one Child SA are the same two states and a second daemon's install
+# answers EEXIST. peer-b runs the real xfrm backend and peer-a the noop one, and every
+# kernel assertion is about peer-b.
+#
+# The initiate-peer path (a gateway reauthenticating a tunnel Ze started) needs a gateway
+# that schedules reauthentication, which no Ze daemon does before spec-ike-reauth; its
+# daemon proof is the strongSwan interop scenarios responder-reauths-ze-initiator and
+# real-nat-port-translated-responder-reauths-ze-initiator.
+#
+# Gated option=needs-linux:caps=net-admin: peer-b programs real XFRM state, so this SKIPs
+# on a host without CAP_NET_ADMIN and runs as root in the QEMU VM.
+
+option=needs-linux:caps=net-admin
+# Serialize against every other real-XFRM ipsec test: `ip xfrm state` and `ip xfrm
+# policy` are node-wide.
+option=exclusive:group=ipsec-xfrm
+option=env:var=ze_test_ike_port:value=$PORT2
+option=timeout:value=150s
+option=env:var=ze_log_ike:value=info
+
+# ── peer-b (background, REAL xfrm): binds 127.0.0.2, `respond` ──
+stdin=peer-b:terminator=EOF_PEER_B
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-a {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.2
+				remote-address 127.0.0.1
+				mode tunnel
+				traffic-selector 1 {
+					protocol 6
+					local {
+						prefix 192.0.2.128/25
+					}
+					remote {
+						prefix 192.0.2.0/25
+						port 179
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_PEER_B
+
+# ── peer-a (background, noop dataplane): binds 127.0.0.1, `initiate`, restarted mid-test ──
+stdin=peer-a:terminator=EOF_PEER_A
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-b {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				mode tunnel
+				traffic-selector 1 {
+					protocol 6
+					local {
+						prefix 192.0.2.0/25
+						port 179
+					}
+					remote {
+						prefix 192.0.2.128/25
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_PEER_A
+
+cmd=background:seq=1:exec=ze -:stdin=peer-b:name=peer-b
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+cmd=background:seq=2:exec=env ze_test_ike_dataplane=noop ze -:stdin=peer-a:name=peer-a
+cmd=foreground:seq=3:exec=le test fixture ipsec/respond-reinit-supersede/established:timeout=70s
+expect=stdout:contains=INSTALLED:
+# SIGKILL: peer-a must send no Delete, so peer-b still holds the old IKE SA when the
+# restarted peer-a's IKE_SA_INIT arrives.
+cmd=stop:seq=4:name=peer-a:signal=kill
+cmd=background:seq=5:exec=env ze_test_ike_dataplane=noop ze -:stdin=peer-a:name=peer-a-restarted
+cmd=foreground:seq=6:exec=le test fixture ipsec/respond-reinit-supersede/superseded:timeout=70s
+expect=stdout:contains=SUCCESSOR-INSTALLED:
+expect=stdout:contains=OLD-RETIRED:
+expect=stdout:contains=POLICY-STABLE:
+reject=stdout:pattern=OLD-REMOVED-EARLY
+reject=stdout:pattern=POLICY-MOVED
+# signal=term: peer-b's policies are real and node-wide, and the release that removes
+# them runs on the way out of runEngine.
+cmd=stop:seq=7:name=peer-a-restarted:signal=term
+cmd=stop:seq=8:name=peer-b:signal=term
+
+expect=exit:code=0
