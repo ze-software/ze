@@ -147,7 +147,10 @@ func checkSessionEndWithdrawsRouter(ctx context.Context, check *interoplab.Check
 		return err
 	}
 	if err := pollUntil(ctx, pdWait, nodeSLAACHost+" drops "+router.String()+" as its default router", func() error {
-		answer, err := check.Lab.Query(ctx, nodeSLAACHost, []string{"ip", "-6", ipWordRoute, wordShow, "default"}, nil)
+		// An empty answer is the state this wait looks for, so the read uses
+		// execOK (exit 0, any output) rather than Lab.Query, which refuses an
+		// empty answer as a failed query.
+		answer, err := execOK(ctx, check, nodeSLAACHost, []string{"ip", "-6", ipWordRoute, wordShow, "default"})
 		if err != nil {
 			return err
 		}
