@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7296-1.4.1-6",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_reauth_receive_test.go::TestHeldSuccessorAnswersLivenessAndDelete",
+    "unit-sha": "c0c3feed91684132",
+    "claim-sha": "ab4847163bf6de91",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/held_successor.go::answerHeldSuccessorInformational",
+    "producer-sha": "bd3131882aa2fea7",
+    "break": "line 221: \"ps.forgetSecondSlot(sa, table)\" -\u003e \"_ = table\""
+  }
+]

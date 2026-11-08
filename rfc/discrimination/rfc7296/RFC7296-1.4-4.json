@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7296-1.4-4",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_reauth_receive_test.go::TestHeldSuccessorAnswersLivenessAndDelete",
+    "unit-sha": "c0c3feed91684132",
+    "claim-sha": "00fa340c1d8a719e",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/held_successor.go::answerHeldSuccessorInformational",
+    "producer-sha": "bd3131882aa2fea7",
+    "break": "line 214: \"cacheResponse(sa, msgID, resp)\" -\u003e \"_ = msgID\""
+  }
+]
