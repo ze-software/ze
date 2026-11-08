@@ -7,8 +7,8 @@
     "claim-sha": "623dddd9cd3bcfab",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/chap.go::runCHAPAuthPhase",
-    "producer-sha": "05048196d264131e",
-    "break": "line 299: \"if decision.accept {\" -\u003e \"if !decision.accept {\""
+    "producer-sha": "9c753692055db08a",
+    "break": "line 316: \"if decision.accept {\" -\u003e \"if !decision.accept {\""
   },
   {
     "rid": "RFC1994-4.1-3",
@@ -18,8 +18,8 @@
     "claim-sha": "a751e6d991c48306",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/chap.go::runCHAPAuthPhase",
-    "producer-sha": "05048196d264131e",
-    "break": "line 299: \"if decision.accept {\" -\u003e \"if !decision.accept {\""
+    "producer-sha": "9c753692055db08a",
+    "break": "line 316: \"if decision.accept {\" -\u003e \"if !decision.accept {\""
   },
   {
     "rid": "RFC1994-4.1-3",
@@ -29,8 +29,8 @@
     "claim-sha": "4ad14f38ccd1f978",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/chap.go::runCHAPAuthPhase",
-    "producer-sha": "05048196d264131e",
-    "break": "line 299: \"if decision.accept {\" -\u003e \"if !decision.accept {\""
+    "producer-sha": "9c753692055db08a",
+    "break": "line 316: \"if decision.accept {\" -\u003e \"if !decision.accept {\""
   },
   {
     "rid": "RFC1994-4.1-3",
@@ -40,7 +40,7 @@
     "claim-sha": "f46c35a314adf703",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/chap.go::runCHAPAuthPhase",
-    "producer-sha": "05048196d264131e",
-    "break": "line 299: \"if decision.accept {\" -\u003e \"if !decision.accept {\""
+    "producer-sha": "9c753692055db08a",
+    "break": "line 316: \"if decision.accept {\" -\u003e \"if !decision.accept {\""
   }
 ]

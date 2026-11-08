@@ -7,7 +7,7 @@
     "claim-sha": "6348b00b9847689e",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/session.go::runClientAuth",
-    "producer-sha": "7150e36133372ef9",
+    "producer-sha": "ca84b03c7748187b",
     "break": "body of runClientAuth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "28ef8b69956a11ca",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/session.go::runClientAuth",
-    "producer-sha": "7150e36133372ef9",
+    "producer-sha": "ca84b03c7748187b",
     "break": "body of runClientAuth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -7,7 +7,7 @@
     "claim-sha": "e1ab134ae88c3ca5",
     "route": "revert",
     "producer": "internal/component/ike/engine/initiator.go::buildSignatureHashAlgosNotify",
-    "producer-sha": "c3bd257487ab2a94",
+    "producer-sha": "55b8f2760075937e",
     "break": "body of buildSignatureHashAlgosNotify replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "b3d7fda8c9c7edce",
     "route": "revert",
     "producer": "internal/component/ike/engine/initiator.go::buildSignatureHashAlgosNotify",
-    "producer-sha": "c3bd257487ab2a94",
+    "producer-sha": "55b8f2760075937e",
     "break": "body of buildSignatureHashAlgosNotify replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

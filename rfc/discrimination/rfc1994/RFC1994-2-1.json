@@ -18,7 +18,7 @@
     "claim-sha": "e0a8cbc3e716dae0",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/chap.go::runCHAPAuthPhase",
-    "producer-sha": "05048196d264131e",
-    "break": "line 308: \"if decision.accept {\" -\u003e \"if false {\""
+    "producer-sha": "9c753692055db08a",
+    "break": "line 316: \"if decision.accept {\" -\u003e \"if false {\""
   }
 ]

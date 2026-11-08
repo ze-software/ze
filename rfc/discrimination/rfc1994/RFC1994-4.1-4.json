@@ -29,7 +29,7 @@
     "claim-sha": "84dc31bebe37648b",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/network_phase.go::keepaliveLoop",
-    "producer-sha": "23dead456bf7bc87",
+    "producer-sha": "8d7ad771bd20a88d",
     "break": "body of keepaliveLoop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -40,7 +40,7 @@
     "claim-sha": "ee32617acc2345dd",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/network_phase.go::keepaliveLoop",
-    "producer-sha": "23dead456bf7bc87",
+    "producer-sha": "8d7ad771bd20a88d",
     "break": "body of keepaliveLoop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -51,7 +51,7 @@
     "claim-sha": "4483f43965dc4b8b",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/session.go::runClientAuth",
-    "producer-sha": "7150e36133372ef9",
+    "producer-sha": "ca84b03c7748187b",
     "break": "body of runClientAuth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -62,7 +62,7 @@
     "claim-sha": "ea3b7d9349f2d986",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/session.go::runClientAuth",
-    "producer-sha": "7150e36133372ef9",
+    "producer-sha": "ca84b03c7748187b",
     "break": "body of runClientAuth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

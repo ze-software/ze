@@ -36,33 +36,33 @@
     "rid": "RFC2516-5.5-4",
     "polarity": "positive",
     "unit": "internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go::TestRFC2516ClientPADTStopsOnlyMatchingSession",
-    "unit-sha": "56fe24cedc12f3c2",
+    "unit-sha": "03c13ec2d277ab0b",
     "claim-sha": "0f7ffec3c0dd84e4",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/dialer.go::watchPADT",
     "producer-sha": "70dc245b55e88e2c",
-    "break": "body of watchPADT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of watchPADT replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2516-5.5-4",
     "polarity": "negative",
     "unit": "internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go::TestRFC2516ClientPADTStopsOnlyMatchingSession",
-    "unit-sha": "56fe24cedc12f3c2",
+    "unit-sha": "03c13ec2d277ab0b",
     "claim-sha": "1bdceb7a455f84ef",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/dialer.go::watchPADT",
     "producer-sha": "70dc245b55e88e2c",
-    "break": "body of watchPADT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of watchPADT replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2516-5.5-4",
     "polarity": "positive",
     "unit": "internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go::TestRFC2516ClientSentPADTStopsPPPBeforeSend",
-    "unit-sha": "8b9b693309830367",
+    "unit-sha": "6cb69e3c81a4b49a",
     "claim-sha": "af7d838ee0b888c1",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/dialer.go::sendPADT",
     "producer-sha": "829c7fda5389edfb",
-    "break": "body of sendPADT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of sendPADT replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

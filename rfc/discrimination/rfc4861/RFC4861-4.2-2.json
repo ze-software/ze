@@ -7,7 +7,7 @@
     "claim-sha": "54f8bd41eb386bee",
     "route": "revert",
     "producer": "internal/core/ndp/ra.go::BuildRA",
-    "producer-sha": "04ee0a8d6341b538",
+    "producer-sha": "426bf861d7b94aca",
     "break": "body of BuildRA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "c3f6ae9536a28b49",
     "route": "revert",
     "producer": "internal/core/ndp/ra.go::BuildRA",
-    "producer-sha": "04ee0a8d6341b538",
+    "producer-sha": "426bf861d7b94aca",
     "break": "body of BuildRA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

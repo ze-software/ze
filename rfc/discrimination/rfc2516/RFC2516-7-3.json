@@ -36,7 +36,7 @@
     "rid": "RFC2516-7-3",
     "polarity": "positive",
     "unit": "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates",
-    "unit-sha": "25860d4b4992e878",
+    "unit-sha": "7dbb94172ae89a76",
     "claim-sha": "ae425c3a25ba84f0",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/dialer.go::superviseNetworkPhase",

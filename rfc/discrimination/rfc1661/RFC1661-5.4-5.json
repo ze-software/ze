@@ -2,12 +2,23 @@
   {
     "rid": "RFC1661-5.4-5",
     "polarity": "positive",
+    "unit": "internal/component/l2tp/pppoeclient/rfc1661_client_dns_test.go::TestRFC1661ClientDropsRejectedDNSOptions",
+    "unit-sha": "7fc53c4d33f7dcaa",
+    "claim-sha": "a473b30ffa6dfead",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/pppoeclient/session.go::runIPCP",
+    "producer-sha": "abd4485d9d816b85",
+    "break": "line 1057: \"if rejected.HasPrimary {\" -\u003e \"if false {\""
+  },
+  {
+    "rid": "RFC1661-5.4-5",
+    "polarity": "positive",
     "unit": "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions",
     "unit-sha": "01f3359cf6353b4f",
     "claim-sha": "95763fc7a7948101",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
-    "producer-sha": "9ccef2d011ba9eab",
+    "producer-sha": "0b46c4ef1f106a82",
     "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,18 +29,7 @@
     "claim-sha": "a1949ec1622f828c",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
-    "producer-sha": "9ccef2d011ba9eab",
+    "producer-sha": "0b46c4ef1f106a82",
     "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
-  },
-  {
-    "rid": "RFC1661-5.4-5",
-    "polarity": "positive",
-    "unit": "internal/component/l2tp/pppoeclient/rfc1661_client_dns_test.go::TestRFC1661ClientDropsRejectedDNSOptions",
-    "unit-sha": "7fc53c4d33f7dcaa",
-    "claim-sha": "a473b30ffa6dfead",
-    "route": "mutant",
-    "producer": "internal/component/l2tp/pppoeclient/session.go::runIPCP",
-    "producer-sha": "325321669867bee9",
-    "break": "line 994: \"if rejected.HasPrimary {\" -\u003e \"if false {\""
   }
 ]

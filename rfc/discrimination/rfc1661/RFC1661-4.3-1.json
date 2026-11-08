@@ -40,8 +40,8 @@
     "claim-sha": "37c4741197e13eb6",
     "route": "mutant",
     "producer": "internal/component/l2tp/pppoeclient/session.go::runClientAuth",
-    "producer-sha": "7150e36133372ef9",
-    "break": "line 560: \"if !admitted {\" -\u003e \"if true || !admitted {\""
+    "producer-sha": "ca84b03c7748187b",
+    "break": "line 615: \"if !admitted {\" -\u003e \"if true || !admitted {\""
   },
   {
     "rid": "RFC1661-4.3-1",
@@ -51,8 +51,8 @@
     "claim-sha": "f330bf85c3fdd1d8",
     "route": "mutant",
     "producer": "internal/component/l2tp/pppoeclient/session.go::runIPCP",
-    "producer-sha": "325321669867bee9",
-    "break": "line 850: \"if !admitted {\" -\u003e \"if true || !admitted {\""
+    "producer-sha": "abd4485d9d816b85",
+    "break": "line 909: \"if !admitted {\" -\u003e \"if true || !admitted {\""
   },
   {
     "rid": "RFC1661-4.3-1",
@@ -62,7 +62,7 @@
     "claim-sha": "90e28605fa63fbc4",
     "route": "mutant",
     "producer": "internal/component/l2tp/pppoeclient/network_phase.go::keepaliveLoop",
-    "producer-sha": "23dead456bf7bc87",
+    "producer-sha": "8d7ad771bd20a88d",
     "break": "line 265: \"if !admitted {\" -\u003e \"if true || !admitted {\""
   }
 ]

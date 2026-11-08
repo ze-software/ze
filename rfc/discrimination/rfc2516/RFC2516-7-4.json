@@ -7,7 +7,7 @@
     "claim-sha": "9a85720981ba588e",
     "route": "revert",
     "producer": "internal/component/iface/pppoe_client.go::runSession",
-    "producer-sha": "44a62828bcfdd216",
+    "producer-sha": "947151529d3afac5",
     "break": "body of runSession replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "1967110a59f82fe1",
     "route": "revert",
     "producer": "internal/component/iface/pppoe_client.go::runSession",
-    "producer-sha": "44a62828bcfdd216",
+    "producer-sha": "947151529d3afac5",
     "break": "body of runSession replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

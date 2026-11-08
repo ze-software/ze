@@ -7,8 +7,8 @@
     "claim-sha": "5e8e323ae5584704",
     "route": "revert",
     "producer": "internal/component/ike/engine/mobike.go::mobikeAuthOffer",
-    "producer-sha": "0322f2a488c92ec2",
-    "break": "body of mobikeAuthOffer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "4fdfc248d9677a8f",
+    "break": "body of mobikeAuthOffer replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4555-x-1",
@@ -18,8 +18,8 @@
     "claim-sha": "d012fc8c0c4aa231",
     "route": "revert",
     "producer": "internal/component/ike/engine/mobike.go::acceptMobikeOffer",
-    "producer-sha": "0bf7acd4e3e6d5f9",
-    "break": "body of acceptMobikeOffer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "1018623ce0ed1c35",
+    "break": "body of acceptMobikeOffer replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4555-x-1",
@@ -29,8 +29,8 @@
     "claim-sha": "129c0853729cdd25",
     "route": "revert",
     "producer": "internal/component/ike/engine/mobike.go::mobikeAuthOffer",
-    "producer-sha": "0322f2a488c92ec2",
-    "break": "body of mobikeAuthOffer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "4fdfc248d9677a8f",
+    "break": "body of mobikeAuthOffer replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4555-x-1",
@@ -40,7 +40,7 @@
     "claim-sha": "45e4f05b04da12b2",
     "route": "revert",
     "producer": "internal/component/ike/engine/mobike.go::acceptMobikeOffer",
-    "producer-sha": "0bf7acd4e3e6d5f9",
-    "break": "body of acceptMobikeOffer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "1018623ce0ed1c35",
+    "break": "body of acceptMobikeOffer replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

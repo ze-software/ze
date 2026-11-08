@@ -18,7 +18,7 @@
     "claim-sha": "ad5004e4957f8606",
     "route": "revert",
     "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecPolicies",
-    "producer-sha": "82d190d1cec3f817",
-    "break": "body of buildIPsecPolicies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "a3902a723d7c65ce",
+    "break": "body of buildIPsecPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

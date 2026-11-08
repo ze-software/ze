@@ -7,7 +7,7 @@
     "claim-sha": "c051169853df9b24",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
-    "producer-sha": "9ccef2d011ba9eab",
+    "producer-sha": "0b46c4ef1f106a82",
     "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "9bad8388437d9025",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
-    "producer-sha": "9ccef2d011ba9eab",
+    "producer-sha": "0b46c4ef1f106a82",
     "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
