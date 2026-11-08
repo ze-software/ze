@@ -276,8 +276,12 @@ func (c *PPPoEClient) run() {
 			return
 		}
 
-		c.logger.Info("pppoe-client: session ended, reconnecting",
-			"error", err, "delay", delay, "attempt", c.attempts)
+		// The session's end carries its cause (a refused /dev/ppp, a lost
+		// carrier, a peer PADT): at Info it vanished at the default level, so a
+		// client that can never come up left nothing in the log.
+		c.logger.Warn("pppoe-client: session ended, reconnecting",
+			"error", err, "delay", delay, "attempt", c.attempts,
+			"fix", "see the error for the cause; inspect with ze show interface pppoe-client")
 
 		select {
 		case <-c.stopCh:
