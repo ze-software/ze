@@ -527,7 +527,9 @@ guard (`source_guard.go`), and `installXFRMInterfaceEntries` installs a source
 entry only for an address `sourceGuards.install` answers as guarded. The guard
 is three kernel objects: the nft table `ze_ipsec_source_guard` (registered with
 `firewall.RegisterTables`, one postrouting chain, per address a pass term for
-its own device and a drop term for any other), one `iprule.Source` rule per
+its own device, a pass term for a packet entering an IPsec transform
+(`firewall.MatchIPsecTransform`, nft `rt ipsec exists`) and a drop term for any
+other device), one `iprule.Source` rule per
 address at `iprule.IPsecSourceGuardPriority`, and one table per interface from
 `iprule.IPsecSourceGuardTables` holding `unreachable ::/0` and a device route
 for every IPv6 remote selector of a Child SA at the interface's if_id, from
@@ -539,7 +541,12 @@ after the exemptions and before the interface catch-alls, so no source BYPASS
 is ever live without its guard. The rule steers a packet whose socket chose the
 tunnel source (`ip6_dst_lookup_tail` looks the route up with the source set);
 when the kernel picks the source it keeps the route found with none, and the
-nft drop stops it. A guard address that is also a peer's IKE local address is
+nft drop stops it. A packet routed into the interface meets postrouting a second
+time in `xfrm6_output`, on its way into the Child SA, with the bundle's outer
+device (`eth0`) as its output device; the transform term passes it, because it
+leaves encrypted. Without that term the drop took every IPv6 packet from the
+tunnel address into the tunnel: `vti0` counted a transmit error with no carrier
+error and the outbound SA encrypted nothing. A guard address that is also a peer's IKE local address is
 skipped with a warning, and the same configuration is refused at verify
 (`refuseTunnelAddressAsIKEEndpoint`).
 

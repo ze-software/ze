@@ -219,10 +219,16 @@ type vtiIPv6Read struct {
 //     drop.
 //   - Routes, rules, addresses and disable_ipv6, which decide whether the packet is
 //     routed into the tunnel and accepted once decapsulated.
+//   - vti0's counters twice verbose, whose tx aborted count is a dst_output failure
+//     after the transform lookup succeeded (xfrmi_xmit2), and Ze's nft ruleset with
+//     handles, where a postrouting drop of the inner packet shows.
 var vtiIPv6EvidenceReads = slices.Concat(
 	[]vtiIPv6Read{{zePeer, pingCommand(pingProbe{peer: zePeer, target: vtiIPv6SwanInner, source: vtiIPv6ZeInner}, 1)}},
 	vtiIPv6PeerReads(zePeer, vtiIPv6Interface),
-	[]vtiIPv6Read{{zePeer, []string{"ip", "-d", "-s", "link", ipWordShow, vtiIPv6Interface}}},
+	[]vtiIPv6Read{
+		{zePeer, []string{"ip", "-d", "-s", "-s", "link", ipWordShow, vtiIPv6Interface}},
+		{zePeer, []string{"nft", "-a", "list", "ruleset"}},
+	},
 	vtiIPv6PeerReads(swanPeer, containerInterface),
 )
 

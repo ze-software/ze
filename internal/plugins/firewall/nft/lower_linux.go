@@ -122,6 +122,12 @@ const (
 	nfARPOut nftables.ChainHook = 1
 )
 
+// nftRtXFRM is NFT_RT_XFRM of enum nft_rt_keys (include/uapi/linux/netfilter/
+// nf_tables.h: CLASSID, NEXTHOP4, NEXTHOP6, TCPMSS, XFRM), which neither
+// golang.org/x/sys/unix nor google/nftables names. nft_rt_get_eval stores one byte,
+// 1 when the packet's dst is an XFRM bundle (`rt ipsec exists`).
+const nftRtXFRM expr.RtKey = 4
+
 // lowerHook converts a ze ChainHook to the kernel hook number of the table's
 // family. The arp family has only input and output, numbered in its own space;
 // every other hook is refused there rather than handed to the kernel as a
@@ -496,6 +502,11 @@ func lowerMatch(ctx *lowerCtx, m firewall.Match) ([]expr.Any, error) {
 		return []expr.Any{
 			&expr.Meta{Key: expr.MetaKeyPKTTYPE, Register: 1},
 			&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: []byte{unix.PACKET_HOST}},
+		}, nil
+	case firewall.MatchIPsecTransform:
+		return []expr.Any{
+			&expr.Rt{Register: 1, Key: nftRtXFRM},
+			&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: []byte{1}},
 		}, nil
 	case firewall.MatchOutputInterface:
 		return lowerIfaceMatch(expr.MetaKeyOIFNAME, v.Name, v.Wildcard)

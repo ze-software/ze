@@ -293,7 +293,7 @@ type Action interface {
 	actionMarker()
 }
 
-// --- Match types (23) ---
+// --- Match types (24) ---
 
 // MatchSourceAddress matches packets by source IP prefix.
 type MatchSourceAddress struct{ Prefix netip.Prefix }
@@ -339,6 +339,14 @@ type MatchInputInterface struct {
 // Daemon-only: VRRP combines it with its PRIVATE macvlan input interface to
 // discard destination-VMAC traffic without discarding multicast advertisements.
 type MatchUnicast struct{}
+
+// MatchIPsecTransform matches a packet whose route hands it to an IPsec transform:
+// its dst is an XFRM bundle, so the packet leaves encrypted (nft `rt ipsec exists`,
+// NFT_RT_XFRM). Its zero value is the complete predicate. Daemon-only: the IKE
+// tunnel-source guard passes the inner packet that xfrm6_output runs through
+// postrouting, whose output device there is the outer path's, not the XFRM
+// interface's.
+type MatchIPsecTransform struct{}
 
 // MatchOutputInterface matches packets by output interface name.
 // See MatchInputInterface for Wildcard semantics.
@@ -569,6 +577,7 @@ func (MatchICMPType) matchMarker()           {}
 func (MatchICMPv6Type) matchMarker()         {}
 func (MatchTCPFlags) matchMarker()           {}
 func (MatchUnicast) matchMarker()            {}
+func (MatchIPsecTransform) matchMarker()     {}
 
 func (MatchIPv4TTLBelow) matchMarker()           {}
 func (MatchIPv6HopLimitBelow) matchMarker()      {}

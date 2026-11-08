@@ -309,6 +309,8 @@ func verifyMatch(prefix string, m firewall.Match) error {
 		return fmt.Errorf("%s: input-interface match not supported by backend vpp (VPP ACL is bound per-interface, not matched per-rule)", prefix)
 	case firewall.MatchUnicast:
 		return fmt.Errorf("%s: link-layer unicast match not supported by backend vpp (VPP ACL has no host packet-type metadata); use backend nft", prefix)
+	case firewall.MatchIPsecTransform:
+		return fmt.Errorf("%s: IPsec transform match not supported by backend vpp (VPP ACL has no route or XFRM metadata); use backend nft", prefix)
 	case firewall.MatchOutputInterface:
 		return fmt.Errorf("%s: output-interface match not supported by backend vpp (VPP ACL is bound per-interface, not matched per-rule)", prefix)
 	case firewall.MatchConnMark:

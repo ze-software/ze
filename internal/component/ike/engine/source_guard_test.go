@@ -464,3 +464,62 @@ func TestChildSAGuardsEveryNegotiatedIPv6Selector(t *testing.T) {
 		t.Error("the IPv6 tunnel route stayed after its Child SA went")
 	}
 }
+
+// VALIDATES: a guarded address's terms accept the packet entering an IPsec transform
+// before the term that drops the address through any other device, so the inner
+// packet xfrm6_output runs through postrouting with the outer device (eth0) as its
+// output device reaches the Child SA.
+// Method: walk sourceGuardTerms in order as nft evaluates them, for a packet from the
+// address whose output device is eth0 and whose route is an XFRM bundle, and for the
+// same packet with no bundle.
+// PREVENTS: the regression vti-unmatched-discard-interface-spd and
+// vti-ipv6-tunnel-source-no-cleartext-leak found in the lab: every IPv6 echo from the
+// tunnel address passed vti0's SPD lookup and was dropped in xfrm6_output's
+// postrouting pass (vti0 tx_errors rose with no carrier error, the outbound SA's oseq
+// stayed put, no XFRM drop counter moved).
+func TestSourceGuardPassesTheTransformAndDropsTheLeak(t *testing.T) {
+	addr := mustAddr(t, "fd00:db8:1::1")
+	terms := sourceGuardTerms(0, addr, "vti0")
+	verdict := func(outputDevice string, transformed bool) firewall.Action {
+		for _, term := range terms {
+			if termMatchesGuardPacket(term, addr, outputDevice, transformed) {
+				return term.Actions[0]
+			}
+		}
+		return nil
+	}
+	if got := verdict("eth0", true); got != firewall.Action(firewall.Accept{}) {
+		t.Errorf("a packet from the tunnel address entering the Child SA through eth0's bundle: %#v, want accept", got)
+	}
+	if got := verdict("eth0", false); got != firewall.Action(firewall.Drop{}) {
+		t.Errorf("a clear packet from the tunnel address out of eth0: %#v, want drop", got)
+	}
+	if got := verdict("vti0", false); got != firewall.Action(firewall.Accept{}) {
+		t.Errorf("a packet from the tunnel address out of vti0: %#v, want accept", got)
+	}
+}
+
+// termMatchesGuardPacket evaluates one guard term against a packet from source, out of
+// outputDevice, whose route is an XFRM bundle when transformed. A match type the guard
+// does not use fails the comparison, so a new one cannot pass unread.
+func termMatchesGuardPacket(term firewall.Term, source netip.Addr, outputDevice string, transformed bool) bool {
+	for _, m := range term.Matches {
+		switch v := m.(type) {
+		case firewall.MatchSourceAddress:
+			if !v.Prefix.Contains(source) {
+				return false
+			}
+		case firewall.MatchOutputInterface:
+			if v.Name != outputDevice {
+				return false
+			}
+		case firewall.MatchIPsecTransform:
+			if !transformed {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
+}

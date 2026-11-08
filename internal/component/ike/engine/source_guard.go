@@ -31,9 +31,16 @@ import (
 //     remote traffic selector bound to it, ended by `unreachable ::/0`. A socket that
 //     chose the tunnel address as its source is steered into the tunnel or refused.
 //   - Filtering: the nft table ze_ipsec_source_guard drops, at postrouting, IPv6 whose
-//     source is a guarded address and whose output device is not its interface. When
-//     the kernel chose the source, ip6_dst_lookup_tail keeps the route it looked up with
-//     no source, so no source rule is consulted; the drop is what stops that packet.
+//     source is a guarded address, whose output device is not its interface, and which
+//     is not entering an IPsec transform. When the kernel chose the source,
+//     ip6_dst_lookup_tail keeps the route it looked up with no source, so no source
+//     rule is consulted; the drop is what stops that packet. A packet routed into the
+//     interface meets postrouting twice: once leaving through the interface, and again
+//     in xfrm6_output on its way into the Child SA, where the output device is the
+//     outer path's (the bundle's dst device, eth0) rather than the interface's. That
+//     second pass is passed by its XFRM bundle (MatchIPsecTransform): it leaves
+//     encrypted, so it is no cleartext leak, and dropping it lost every IPv6 packet
+//     from the tunnel address into the tunnel.
 //
 // A source BYPASS is installed only while its address is guarded (installXFRMInterfaceEntries),
 // and the guard is removed only after the BYPASS (pruneXFRMInterfaceEntries).
@@ -394,7 +401,7 @@ func (g *sourceGuards) publishHeld(log *slog.Logger) {
 		sources := slices.Clone(h.spec.sources)
 		slices.SortFunc(sources, netip.Addr.Compare)
 		for _, addr := range sources {
-			terms = append(terms, sourceGuardTerms(len(terms)/2, addr, h.spec.device)...)
+			terms = append(terms, sourceGuardTerms(len(next), addr, h.spec.device)...)
 			next[addr] = true
 		}
 	}
@@ -446,9 +453,13 @@ func (g *sourceGuards) tableUsed(table uint32) bool {
 	return false
 }
 
-// sourceGuardTerms is the pair of terms for one guarded address: pass it through its
-// own device, drop it through any other. A term name accepts letters, digits, '-', '_'
-// and '.', so the terms are numbered rather than named after the address.
+// sourceGuardTerms is the terms for one guarded address, in order: pass it through its
+// own device, pass it into an IPsec transform, drop it through any other device. The
+// transform term exists because xfrm6_output runs postrouting again for a packet
+// entering a Child SA, with the outer path's device as the output device (the
+// package comment above); that packet leaves encrypted. A term name accepts letters,
+// digits, '-', '_' and '.', so the terms are numbered rather than named after the
+// address.
 func sourceGuardTerms(index int, addr netip.Addr, device string) []firewall.Term {
 	source := firewall.MatchSourceAddress{Prefix: netip.PrefixFrom(addr, 128)}
 	n := strconv.Itoa(index)
@@ -456,6 +467,11 @@ func sourceGuardTerms(index int, addr netip.Addr, device string) []firewall.Term
 		{
 			Name:    "tunnel-source-" + n + "-own-device",
 			Matches: []firewall.Match{source, firewall.MatchOutputInterface{Name: device}},
+			Actions: []firewall.Action{firewall.Accept{}},
+		},
+		{
+			Name:    "tunnel-source-" + n + "-ipsec-transform",
+			Matches: []firewall.Match{source, firewall.MatchIPsecTransform{}},
 			Actions: []firewall.Action{firewall.Accept{}},
 		},
 		{
