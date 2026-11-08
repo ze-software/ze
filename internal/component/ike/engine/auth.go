@@ -140,6 +140,17 @@ func buildAuthRequest(sa *SA) ([]byte, error) {
 			}
 			innerPayloads = append(certPayloads, innerPayloads...)
 		}
+		// RFC 7296 Section 3.7: CERTREQ "can appear in the IKE_INIT_SA response
+		// and/or the IKE_AUTH request. Certificate Request payloads MAY be included
+		// in an exchange when the sender needs to get the certificate of the
+		// receiver." Ze needs it whenever it holds a CA to verify the responder
+		// against (getRemoteCert refuses an IKE_AUTH response without CERT), and a
+		// responder that sends its certificate only when asked (strongSwan's
+		// default `send_cert = ifasked`, ike_cert_post.c build_certs) otherwise
+		// answers without one.
+		if certReq := buildCertRequest(sa); certReq != nil {
+			innerPayloads = append(innerPayloads, wire.PayloadEntry{Payload: certReq})
+		}
 	}
 
 	// RFC 7296 Section 2.4: INITIAL_CONTACT "MUST be in the first IKE_AUTH request or
