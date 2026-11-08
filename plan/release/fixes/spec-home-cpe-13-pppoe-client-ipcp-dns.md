@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | A home CPE learns its resolvers from the access network; the PPPoE client never asks for them, so a router with no static `name-server` cannot resolve names once the WAN is up. The `access-up` scenario of the umbrella asserts DNS learned from IPCP. No accepted configuration misbehaves today (the options are never sent), so this is a feature (P3) even though the umbrella lists it as a release fix; the umbrella orders it last. |
@@ -365,10 +365,16 @@ every server that has no DNS to offer.
 
 ## Blocker
 
-Second closure attempt, 2026-11-08 (evening): B-1 to B-3 are cleared (table
-"Cleared" below). It stopped again before commit A on B-4.
+Every blocker is cleared; the tables stay as the record of the two stopped
+closures. B-4 was cleared by `a9cef076ad`, which re-took
+`rfc/discrimination/rfc1661/RFC1661-5.4-5.json` over today's
+`session.go::runIPCP` (break at line 1057, producer-sha `abd4485d9d816b85`).
+`./le rfc check` on 2026-11-08 (`tmp/session/2026-11-07-104251/scratch/c13-rfccheck2.log`)
+names no line for `rfc1661_client_dns_test.go`, RFC1661-5.4-5 or rfc1877; its
+only rfc1661 line is RFC1661-4.3-1 on child 12's `rfc1661_renegotiation_test.go`
+(`keepaliveLoop`), not this spec's unit.
 
-| # | What blocks | Producer | What clears it |
+| # | What blocked | Producer | What cleared it |
 |---|-------------|----------|----------------|
 | B-4 | `./le rfc check` (log `tmp/session/2026-11-07-104251/scratch/c13-rfccheck.log`, line 66): the mutant record `rfc/discrimination/rfc1661/RFC1661-5.4-5.json` for this spec's unit `rfc1661_client_dns_test.go::TestRFC1661ClientDropsRejectedDNSOptions` "no longer verifies (producer-changed)". Its break, `if rejected.HasPrimary {` -> `if false {`, was taken against `session.go::runIPCP` before `a02374d9ad` (LCP restart counter, 19:13) changed that producer. A closure checks proof records and never writes them (`/ze-close` step 6) | `internal/component/l2tp/pppoeclient/session.go` `runIPCP` | re-record it under `/ze-implement` step 5 (`./le rfc discriminate` for RFC1661-5.4-5 on that unit), then `./le rfc check` names no line with `rfc1661_client_dns_test.go`. The same commit staled the `negotiateLCP`, `runClientAuth`, `runIPCP` and `keepaliveLoop` records of RFC1661-4.3-1, 5.1-3, 5.2-3, 5.2-4, 5.3-7, 5.4-3, 5.4-4, 5.4-5 and 5.8-2 (log lines 49-67, units in `rfc1661_lcp_reply_test.go`, `rfc1661_renegotiation_test.go`, `rfc1661_lcp_transition_test.go`); those units are child 12's and the LCP reply work's, not this spec's, but RFC1661-5.4-5.json holds both kinds, so one re-take of that stem clears them together |
 
@@ -391,9 +397,6 @@ do not exist yet. Each is a run, not code: the code is committed.
 | B-2 | The functional test of AC-11's empty half: `test/draft/plugin/show-interface-pppoe-client.ci` was drafted and never run, so it is not promoted, and the Deliverables row "`test/plugin/show-interface-pppoe-client.ci` passes" is unmet. It needs Linux and CAP_NET_ADMIN | `handleShowInterfacePPPoEClient` (`internal/component/iface/cmd/show_pppoe_client.go`), `PPPoEClient.status` | on Linux (QEMU guest): `./le test plugin --draft --pattern show-interface-pppoe-client`, green, then a red by breaking `DNSServers` in `PPPoEClient.status`; then promote to `test/plugin/` |
 | B-3 | A unit run after this closure renamed `rfc1877_client_dns_test.go` to `rfc1661_client_dns_test.go` (`./le rfc move`, because every tag in it cites RFC 1661). The rename changes no code, but the packages were last run on darwin at `518401eb75`, before child 23 reshaped `resolv.go`, and the DHCP client's Linux resolver tests never ran | the packages below | `tags="ze_core $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt \| sort -u \| tr '\n' ' ')"; ./le job run label c13-unit quiet command go test -race -tags "$tags" ./internal/component/l2tp/pppoeclient/ ./internal/component/iface/ ./internal/component/iface/cmd/ ./internal/component/config/system/ ./internal/plugins/iface/dhcp/ ./internal/le/interoplab/pppoe/` (the dhcp package's resolver tests are Linux-only) |
 
-When B-4 is re-recorded, set Status back to `in-progress` and run `/ze-close`
-again: B-1 to B-3 are done, the closure sections below are filled, and the
-review is clean.
 
 ## Implementation Summary
 
@@ -413,6 +416,7 @@ review is clean.
 
 ### Deviations from Plan
 - Child 23 (`25a0665638`, `1cc0217d82`, `8d13a9dceb`) later replaced the ordering inside `Resolvers` with the `system dns-source` selection. The registry, ranks and the static-wins rule this spec added survive; the PPP lease is now one `received` record (`docs/features/dns-resolver.md`)
+- The two citations of this spec in `spec-home-cpe-23-dns-source-fall-through.md` (its Depends cell and a Required Reading line, both a record of an implementation dependency already met) are grandfathered by one `plan/.citation-baseline` entry rather than repointed: the spec-edit gate refuses any edit of that in-progress spec until its own Changed-Wire Census search evidence and AC-2/AC-19 are repaired, which is child 23's work. Its owner repoints them to the bare stem and drops the entry
 - The test file is `rfc1661_client_dns_test.go`, not `rfc1877_client_dns_test.go`: `./le rfc check` names a file by the RFC its tags cite, and RFC 1877 has no requirement ids
 
 ## Mistake Log
@@ -434,17 +438,17 @@ review is clean.
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1 | Done | `TestRFC1877ClientRequestsDNSOptions` | unit run owed (B-3) |
+| AC-1 | Done | `TestRFC1877ClientRequestsDNSOptions` | |
 | AC-2 | Done | `TestRFC1877ClientTakesDNSFromNak`; interop `01-pppoe-chap-ipv4` | |
 | AC-3 | Done | `TestRFC1661ClientDropsRejectedDNSOptions`; interop `pppoe-ipcp-dns-rejected-ze-client` | |
 | AC-4 | Done | `TestRFC1661ClientDropsRejectedDNSOptions` | |
 | AC-5 | Done | `TestRFC1661ClientFailsOnRejectedIPAddress` | |
-| AC-6 | Done | `TestPPPoEClientSetsResolverLease`; interop `01-pppoe-chap-ipv4` | `access-up` red owed (B-1) |
+| AC-6 | Done | `TestPPPoEClientSetsResolverLease`; interop `01-pppoe-chap-ipv4`, `access-up` (red and green, B-1) | |
 | AC-7 | Done | `TestResolversStaticBeatsPPP` | |
 | AC-8 | Done | `TestPPPoEClientSetsResolverLease` | |
 | AC-9 | Done | `TestResolversPPPSourceAfterDHCP` | |
 | AC-10 | Done | `TestRFC1877ClientTakesDNSFromNak` | |
-| AC-11 | Partial | `TestShowInterfacePPPoEClientDNSServers`; interop `01-pppoe-chap-ipv4` (populated) | `.ci` run owed (B-2) |
+| AC-11 | Done | `TestShowInterfacePPPoEClientDNSServers`; interop `01-pppoe-chap-ipv4` (populated); `test/plugin/show-interface-pppoe-client.ci` (empty, B-2) | |
 | AC-12 | Done | `TestPPPoEClientReplacesResolverLeaseOnDNSOnlyChange` | |
 | AC-13 | Done | `TestPPPoEClientWithdrawsLeaseWhenRenegotiationDropsDNS` | |
 | AC-14 | Done | `TestResolverOriginRegistryOrdersByRank` | |
@@ -456,7 +460,7 @@ review is clean.
 | `TestResolversPPPSourceAfterDHCP`, `TestResolversStaticBeatsPPP` | Done | `internal/component/config/system/resolv_test.go` | |
 | `TestResolverOriginRegistryOrdersByRank` | Changed | `internal/component/config/system/resolv_origin_test.go` | own file |
 | the four iface tests | Changed | `internal/component/iface/pppoe_client_dns_test.go` | own file, not `pppoe_client_test.go` |
-| `show-interface-pppoe-client` | Partial | `test/draft/plugin/show-interface-pppoe-client.ci` | B-2 |
+| `show-interface-pppoe-client` | Done | `test/plugin/show-interface-pppoe-client.ci` | promoted in `0736f9808d` (B-2) |
 
 ### Files from Plan
 | File | Status | Notes |
@@ -469,8 +473,8 @@ review is clean.
 
 ### Audit Summary
 - **Total items:** 14 AC, 3 requirements
-- **Done:** 13 AC, 3 requirements
-- **Partial:** AC-11, until B-2 runs (no scope change: the run is owed, not dropped)
+- **Done:** 14 AC, 3 requirements
+- **Partial:** none
 - **Skipped:** none
 - **Changed:** test file placement (Deviations)
 
@@ -480,22 +484,22 @@ review is clean.
 |------------------|---------------|-------------------|
 | The client asks for DNS and takes the Nak's values | interop, accel-ppp `[dns]` | `01-pppoe-chap-ipv4`, 2026-11-08: clean `c13-dns-01-clean.log` "1 passed"; broken by `c13-request-no-dns` (request sent without 129/131): `c13-dns-01-broken.log` FAIL "ze resolv.conf /tmp/resolv.conf = ... nameserver 127.0.0.11 ..., want ... nameserver 192.0.2.53\nnameserver 192.0.2.54" |
 | A server with no DNS still brings the session up | interop, accel-ppp without `[dns]` | `pppoe-ipcp-dns-rejected-ze-client`, 2026-11-08: clean "1 passed"; broken by `c13-dns-reject-fatal` (a DNS Reject fails the session): FAIL "pppoe0 never carried the IPCP address" |
-| Learned servers reach resolv.conf ranked below static | unit | `TestResolversStaticBeatsPPP`, `TestResolversPPPSourceAfterDHCP`; run owed (B-3) |
-| A Ze LNS's IPCP DNS reaches the CPE | interop, Ze LNS through Ze LAC | `access-up` clean "1 passed" (`c13-access-up-dns-clean.log`); red owed (B-1) |
+| Learned servers reach resolv.conf ranked below static | unit | `TestResolversStaticBeatsPPP`, `TestResolversPPPSourceAfterDHCP`: `ok internal/component/config/system` (`c13-unit.log`, B-3) |
+| A Ze LNS's IPCP DNS reaches the CPE | interop, Ze LNS through Ze LAC | `access-up` clean "1 passed" (`c13-access-up-dns-clean.log`); broken by `c13-request-no-dns`: FAIL "pppoe0 is up with dns-servers [], so IPCP learned none" (`c13-access-up-dns-broken.log`, B-1) |
 
 ## Work Not Done
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| none: B-1 to B-3 are runs this spec still owes before it closes | | |
+| none | every acceptance criterion is Done (Implementation Audit) | none |
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
-| Artifact | not recorded: closure stopped before commit A (Blocker) |
-| `./le spec review check` | not run |
-| Rounds | 1 |
+| Artifact | `tmp/review/home-cpe-13-pppoe-client-ipcp-dns-7e292f27-ced0-427f-a7b6-3a931db211f9.md`, recorded 2026-11-08 over the spec, `plan/release/fixes/spec-home-cpe-0-umbrella.md`, `plan/.citation-baseline` and the test file `internal/component/l2tp/pppoeclient/rfc1661_client_dns_test.go` (with its pre-rename path `rfc1877_client_dns_test.go`; the rename in `989aa9e21c` moved it with no content change) |
+| `./le spec review check` | CLEAN over the same files |
+| Rounds | 2 (round 2, third closure: the re-taken `RFC1661-5.4-5.json` against today's `runIPCP` Reject branch at line 1057, the DNS paragraph of `features/interfaces.md` against `ipcpInitialRequest`, `adoptNakDNS` and `PPPoEClient.endSessionLeases`, and the citer edits; no BLOCKER or ISSUE) |
 | Reviewer lenses used | logic and wiring of `negotiateIPCP` (Nak, Reject, Ack against the outstanding set), lease lifetime in `runSession` and `endSessionLeases`, show handler JSON (`dns-servers` never absent or null), interop checker refusals, style (no peer-reachable `panic`: the only panics are in `resolverOriginRegistry.register`, reached from `init`) |
 
 ### Findings fixed
@@ -517,7 +521,7 @@ NOTE (not blocking): the `leaseDNS` comment says "the next change retries" a fai
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
-| AC-1..AC-14 | each test function exists | `git grep -l "func <name>("` found all eleven planned functions, 2026-11-08; runs owed (B-3) |
+| AC-1..AC-14 | each test function exists | `git grep -l "func <name>("` found all eleven planned functions, 2026-11-08; their packages ran `ok` (B-3) |
 | AC-14 | closed enumeration deleted | `git grep` for `resolverOriginDHCPv4` and `DHCPv4ResolverSource` over `*.go`: no match |
 
 ### Wiring Verified (end-to-end)

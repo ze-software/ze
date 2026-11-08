@@ -102,7 +102,7 @@ Child spec files, all in `plan/release/fixes/`:
 | 10 | `spec-home-cpe-10-vyos-mapping-guide.md` |
 | 11 | `spec-home-cpe-11-lab.md` |
 | 12 | `spec-home-cpe-12-pppoe-client-lcp-renegotiation.md` |
-| 13 | `spec-home-cpe-13-pppoe-client-ipcp-dns.md` |
+| 13 | Closed (2026-11-08): `spec-home-cpe-13-pppoe-client-ipcp-dns`; IPCP-learned DNS documented in `docs/architecture/l2tp/cpe-1-pppoe-client.md` and `docs/features/dns-resolver.md` |
 | 14 | `spec-home-cpe-14-lac-realm-relay.md` |
 | 15 | Closed (2026-11-08): `spec-home-cpe-15-lns-lcp-renegotiation`; the `l2tp proxy-lcp` leaf, its session outcome and its counter label documented in `docs/guide/l2tp.md` ("PPP negotiation") |
 | 16 | Closed (2026-11-04): `spec-home-cpe-16-lns-mru-and-auth-allow-list`; policy and MRU controls documented in `docs/guide/l2tp.md` and `docs/guide/pppoe.md` |
@@ -409,7 +409,7 @@ Each child owns its wiring tests; the rows below name one per child from its spe
 | guide worked example (`spec-home-cpe-10-vyos-mapping-guide.md`) | → | `ze config validate` | `test/parse/vyos-guide-example.ci` |
 | converted CPE configuration (`spec-home-cpe-11-lab.md`) | → | CPE load and commit verifiers | scenario `conversion` |
 | LCP Configure-Request during CHAP (`spec-home-cpe-12-pppoe-client-lcp-renegotiation.md`) | → | renegotiation | `TestRFC1661ClientRenegotiatesLCPDuringAuth` |
-| IPCP Configure-Nak with DNS (`spec-home-cpe-13-pppoe-client-ipcp-dns.md`) | → | resolver lease | `TestPPPoEClientSetsResolverLease` |
+| IPCP Configure-Nak with DNS (`spec-home-cpe-13-pppoe-client-ipcp-dns`, closed; `docs/architecture/l2tp/cpe-1-pppoe-client.md`) | → | resolver lease | `TestPPPoEClientSetsResolverLease` |
 | realm relay config and subscriber (`spec-home-cpe-14-lac-realm-relay.md`) | → | realm match, proxy LCP | `TestRelaySinkRealmMatchPlacesCallWithProxyLCP` |
 | `proxy-lcp renegotiate` (`spec-home-cpe-15-lns-lcp-renegotiation`, closed; `docs/guide/l2tp.md`) | → | non-proxy session branch | `TestL2TPProxyLCPRenegotiateReachesDriver` |
 | `l2tp { mru 1492 }` (`docs/guide/l2tp.md`, "PPP negotiation") | → | session MRU | `TestReactorPPPPolicyReloadIsolation`, `TestConfiguredMRUNakInformationFloor`; interop `l2tp-lns-mru-xl2tpd` |
