@@ -9,7 +9,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-08 |
+| Updated | 2026-11-08 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -39,6 +39,24 @@ The design phase decides, with the owner where it changes behavior, whether
 interface-layer routes become Loc-RIB producers, which distance they carry, and how
 `rib { distance { } }` exposes it. These facts are the parent's and the journal's
 claims; the design phase re-reads each producer.
+
+A concrete collision this spec owns (found 2026-11-08 by comparing recent VyOS
+fixes against Ze): the interface layer installs its default routes with no
+ownership check. `DHCPClient.installV4Route`
+(`internal/plugins/iface/dhcp/dhcp_v4_linux.go`), `handleRouterDiscovered` and
+the link handlers in `internal/component/iface/register.go`, and the PPPoE client
+(`internal/component/iface/pppoe_client.go`) all call `AddRoute`, which the
+netlink backend implements as `netlink.RouteReplace`
+(`internal/plugins/iface/netlink/manage_linux.go`). The kernel replaces the
+route that holds the same table, prefix and metric, whoever installed it, so a
+lease or an RA silently replaces a Ze static blackhole or reject default route,
+or another daemon's route. The FIB backend refuses that case:
+`replaceOwnedRoute` (`internal/plugins/fib/kernel/backend_linux.go`) lists the
+routes in the slot and returns EEXIST when one belongs to another protocol.
+Whatever the arbitration design becomes, an interface-layer install never
+replaces a route it does not own. The analogue in VyOS is T9482 (39507a51f,
+f819e1492 in `~/Code/github.com/vyos/vyos-1x`): a blackhole next to a next-hop
+route of the same distance.
 
 Acceptance criteria: none moved from the parent, whose ACs cover the connected and
 main-table static paths only. This spec writes its own at design time.
@@ -113,3 +131,9 @@ main-table static paths only. This spec writes its own at design time.
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
+
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `reconciler-claims-state-another-owner-installed.md` | 2026-11-08 | DHCP, RA and PPPoE default routes `RouteReplace` a route Ze does not own |

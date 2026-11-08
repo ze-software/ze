@@ -9,7 +9,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-06 |
+| Updated | 2026-11-08 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -53,6 +53,16 @@ decision belongs to the owner rather than to the implementer. Whichever way it
 goes, the gap the operator meets today is that one accepted enumeration value
 runs a different protocol, and a spec that only records the choice has not closed
 it (`ai/rules/completion.md`).
+
+**Prior art.** VyOS T9320 (commit 5fbfd47c8) added a deprecation warning when an
+IKE group selects IKEv1. A warning alone does not close this gap in Ze, because
+Ze's `ikev1` does not run IKEv1 at all.
+
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `unwired-feature.md` | 2026-11-08 | `key-exchange ikev1` commits and the group runs IKEv2 |
 
 ## Required Reading
 
