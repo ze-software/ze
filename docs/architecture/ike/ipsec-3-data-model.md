@@ -139,6 +139,19 @@ the peer and the leaf path, `authentication second-round local` or `remote`.
 <!-- source: internal/component/ike/ipsec/second_round.go -- parseSecondRound, ValidateSecondRounds -->
 <!-- source: internal/component/ike/ipsec/validate.go -- validateIdentityLeaves, validateCertificateChain -->
 
+**The model describes more than one SPD, and names none of them.** `Policies`
+(the `vpn ipsec policy` list) and `Unmatched` populate the node-wide SPD, which
+the kernel keeps at XFRM if_id 0. Every interface a peer names under `vti bind`
+(`SiteToSitePeer.VTIBind`) is a further SPD at that interface's if_id, holding
+the peer's Child SA policies and its own final DISCARD entry. The model carries
+no SPD identifier: the engine selects the SPD from the binding at apply time
+(`resolveIfID`, `planXFRMInterfaceEntries`), and RFC 4301 Section 4.4.1's
+selection function is the set of if_id 0 entries that hand traffic routed into
+a bound interface to that interface's SPD
+(`docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`, SPD dispositions).
+
+<!-- source: internal/component/ike/engine/unmatched_xfrm_interface.go -- planXFRMInterfaceEntries, interfaceSPDCatchAll -->
+
 ## Traps this code exists to avoid
 
 The linters in this repository push back on four shapes in this package. Each

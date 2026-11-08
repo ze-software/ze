@@ -1,11 +1,11 @@
 // Design: docs/architecture/policyroute/netlink-int-field-truncation.md -- netlink int width
 
-package policyroute
+package iprule
 
-// netlinkTableInt converts a kernel routing table ID to the Go int that
+// tableInt converts a kernel routing table ID to the Go int that
 // netlink.Rule.Table is typed as. int is 64 bits on this target, so every
-// uint32 converts exactly. See netlinkint_linux_amd64.go for why the
+// uint32 converts exactly. See table_linux_amd64.go for why the
 // conversion is split per architecture.
-func netlinkTableInt(v uint32) (int, error) {
+func tableInt(v uint32) (int, error) {
 	return int(v), nil
 }

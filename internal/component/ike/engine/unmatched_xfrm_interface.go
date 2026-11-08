@@ -7,6 +7,7 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -41,17 +42,31 @@ import (
 // SPD instead of deciding it in the node-wide one.
 
 // xfrmInterfaceFacts is one bound XFRM interface as the iface resolver reads it: the
-// kernel index of its device and the addresses it holds.
+// kernel index of its device, the if_id that names its SPD, and the addresses it holds.
+// readXFRMInterface never answers an ifID of 0 (boundInterfaceIfID).
 type xfrmInterfaceFacts struct {
 	ifIndex   int
+	ifID      uint32
 	addresses []netip.Addr
 }
 
-// xfrmExemption is one installed exemption entry and the interface it was built for,
-// so a failed read of that interface keeps its entries rather than removing them.
-type xfrmExemption struct {
+// xfrmInterfaceEntry is one installed SPD entry Ze holds for a bound XFRM interface,
+// the interface it was built for and the job it does, so a failed read of that
+// interface keeps its entries rather than removing them, and install and prune run
+// the roles in their order (xfrmInterfaceRoleOrder).
+type xfrmInterfaceEntry struct {
 	iface  string
+	role   dataplane.PolicyRole
 	params dataplane.SPParams
+}
+
+// xfrmInterfaceRoleOrder is the order the roles of a bound interface's entries are
+// installed in; removal runs it backwards. The interface's own catch-all goes in
+// first, so its SPD has its final entry before the if_id 0 exemption hands any packet
+// on to it, and it comes out last, after the exemption stopped handing packets over.
+var xfrmInterfaceRoleOrder = [...]dataplane.PolicyRole{
+	dataplane.PolicyRoleInterfaceCatchAll,
+	dataplane.PolicyRoleInterfaceExemption,
 }
 
 // xfrmExemptionDirections are the directions the interface-index entry covers. In is
@@ -112,6 +127,30 @@ func xfrmInterfaceExemptions(facts xfrmInterfaceFacts) []dataplane.SPParams {
 	return out
 }
 
+// interfaceSPDCatchAll builds the final entry of one XFRM interface's SPD: in, out
+// and fwd for both families, at the interface's if_id, ranked last.
+//
+// RFC 4301 Section 4.4.1: "Every SPD SHOULD have a nominal, final entry that matches
+// anything that is otherwise unmatched, and discards it." RFC 4301 Section 5.2:
+// "Every SPD SHOULD have a nominal, final entry that catches anything that is
+// otherwise unmatched, and discards it." Each if_id is one SPD, so the interface's
+// SPD needs its own entry: the if_id 0 catch-all is never consulted for a packet
+// looked up at the interface's if_id.
+//
+// It discards under both values of `unmatched`. A BYPASS at an interface if_id
+// carries no cleartext: xfrmi_xmit drops a packet whose lookup returns no state, and
+// __xfrm_policy_check rejects a tunnel-mode packet a template-free entry matched, so a
+// bypass entry would be listed as bypass while the kernel drops what it matches.
+// Ranked at dataplane.PriorityUnmatched, it sits below every Child SA policy of the
+// interface (dataplane.PriorityChildSA), which the kernel searches first.
+func interfaceSPDCatchAll(ifID uint32) []dataplane.SPParams {
+	out := make([]dataplane.SPParams, 0, len(ikeBypassFamilies)*len(unmatchedDirections))
+	for _, family := range ikeBypassFamilies {
+		out = append(out, spdCatchAllEntries(family, dataplane.SPActionDiscard, ifID)...)
+	}
+	return out
+}
+
 // boundXFRMInterfaces answers the interfaces the configuration's peers bind under
 // `vti bind`, each once, sorted so the reads run in a stable order.
 func boundXFRMInterfaces(cfg *ipsec.IPsecConfig) []string {
@@ -130,7 +169,7 @@ func boundXFRMInterfaces(cfg *ipsec.IPsecConfig) []string {
 	return names
 }
 
-// readXFRMInterfaceFn is the read planXFRMExemptions takes, so a test stands fixed
+// readXFRMInterfaceFn is the read planXFRMInterfaceEntries takes, so a test stands fixed
 // facts in its place without an interface backend. Production never replaces it.
 //
 //nolint:gochecknoglobals // Injection seam, replaced only by tests.
@@ -140,7 +179,9 @@ var readXFRMInterfaceFn = readXFRMInterface
 // maps the logical name to its device (docs/architecture/iface/logical-name-resolution.md).
 // An address the resolver reports in a form netip cannot parse is an error, never a
 // skipped address: a missing source entry drops that address's IPv6 traffic. A zone
-// is dropped, because an XFRM selector carries none.
+// is dropped, because an XFRM selector carries none. The if_id comes from the same
+// resolution the peer's Child SA policies use (boundInterfaceIfID), so the interface's
+// catch-all sits in the SPD that holds them.
 func readXFRMInterface(name string) (xfrmInterfaceFacts, error) {
 	// EnsureBackend first, for the reason resolveInterfaceAddr gives: without an
 	// `interfaces` block nothing else loads one, and every read then fails.
@@ -149,11 +190,15 @@ func readXFRMInterface(name string) (xfrmInterfaceFacts, error) {
 	if err != nil {
 		return xfrmInterfaceFacts{}, err
 	}
+	ifID, err := boundInterfaceIfID(name)
+	if err != nil {
+		return xfrmInterfaceFacts{}, err
+	}
 	addrs, err := iface.Addresses(name)
 	if err != nil {
 		return xfrmInterfaceFacts{}, err
 	}
-	facts := xfrmInterfaceFacts{ifIndex: index, addresses: make([]netip.Addr, 0, len(addrs))}
+	facts := xfrmInterfaceFacts{ifIndex: index, ifID: ifID, addresses: make([]netip.Addr, 0, len(addrs))}
 	for _, a := range addrs {
 		addr, err := netip.ParseAddr(a.Address)
 		if err != nil {
@@ -164,86 +209,141 @@ func readXFRMInterface(name string) (xfrmInterfaceFacts, error) {
 	return facts, nil
 }
 
-// planXFRMExemptions answers the exemption entries cfg needs now: none unless the
-// catch-all discards, and otherwise the entries of every bound interface.
+// planXFRMInterfaceEntries answers the SPD entries the bound XFRM interfaces of cfg
+// need now. Every bound interface gets its own SPD's catch-all (interfaceSPDCatchAll),
+// whatever `unmatched` says. Only while the if_id 0 catch-all discards does it also get
+// the if_id 0 exemptions (xfrmInterfaceExemptions): under a bypass catch-all the
+// traffic reaches the interface without them.
 //
-// A read that fails is not an interface with nothing to exempt, so the entries held
-// for that interface are kept. Removing them for a transient lookup fault would drop
-// the tunnel's traffic, which is what followAddress refuses for the IKE address too.
-// An interface that does not exist yet is the same failure; the address worker reads
-// it again when its addresses or its link appear. The caller holds applyMu.
-func (s *ikeEngineState) planXFRMExemptions(cfg *ipsec.IPsecConfig) map[spdSelector]xfrmExemption {
-	next := make(map[spdSelector]xfrmExemption)
-	if cfg.Unmatched != dataplane.SPActionDiscard {
-		return next
-	}
+// A read that fails is not an interface with nothing to hold, so the entries held for
+// that interface are kept, the exemptions only while the catch-all still discards.
+// Removing them for a transient lookup fault would drop the tunnel's traffic, which is
+// what followAddress refuses for the IKE address too. An interface that does not exist
+// yet is the same failure; the address worker reads it again when its addresses or its
+// link appear. A read answering an if_id of 0 is refused like a failed read, because an
+// entry built for it would sit in the node-wide SPD. The caller holds applyMu.
+func (s *ikeEngineState) planXFRMInterfaceEntries(cfg *ipsec.IPsecConfig) map[spdSelector]xfrmInterfaceEntry {
+	next := make(map[spdSelector]xfrmInterfaceEntry)
+	discards := cfg.Unmatched == dataplane.SPActionDiscard
 	for _, name := range boundXFRMInterfaces(cfg) {
 		facts, err := readXFRMInterfaceFn(name)
+		if err == nil && facts.ifID == 0 {
+			err = errors.New("the interface reports if_id 0, which is the node-wide SPD")
+		}
 		if err != nil {
-			s.log.Warn("ike: cannot read a bound XFRM interface, keeping its SPD catch-all exemption as it was; "+
-				"until it reads, traffic routed into it may meet the DISCARD catch-all; "+
-				"fix: make sure the interface `vti bind` names exists (`show interface "+name+"`), "+
-				"or `set vpn ipsec unmatched bypass`",
+			s.log.Warn("ike: cannot read a bound XFRM interface, keeping its SPD entries as they were; "+
+				"until it reads, a new interface SPD has no final entry, and under `unmatched discard` traffic routed into it may meet the DISCARD catch-all; "+
+				"fix: make sure the interface `vti bind` names exists and is an XFRM interface (`show interface "+name+"`)",
 				"interface", name, "error", err)
-			for sel, held := range s.xfrmExempt {
-				if held.iface == name {
-					next[sel] = held
+			for sel, held := range s.xfrmEntries {
+				if held.iface != name {
+					continue
 				}
+				if held.role == dataplane.PolicyRoleInterfaceExemption && !discards {
+					continue
+				}
+				next[sel] = held
 			}
 			continue
 		}
+		// RFC 4301 Section 4.4.1, Section 5.2: the interface SPD's final entry.
+		for _, p := range interfaceSPDCatchAll(facts.ifID) {
+			next[selectorOf(&p)] = xfrmInterfaceEntry{iface: name, role: dataplane.PolicyRoleInterfaceCatchAll, params: p}
+		}
+		if !discards {
+			continue
+		}
+		// RFC 4301 Section 4.4.1: the SPD selection function, by output interface.
 		for _, p := range xfrmInterfaceExemptions(facts) {
-			next[selectorOf(&p)] = xfrmExemption{iface: name, params: p}
+			next[selectorOf(&p)] = xfrmInterfaceEntry{iface: name, role: dataplane.PolicyRoleInterfaceExemption, params: p}
 		}
 	}
 	return next
 }
 
-// installXFRMExemptions installs every entry of next the engine does not hold yet, and
-// records each one the backend took. One that failed is left out of the record, so the
-// next apply or address event tries it again. The failure is logged at error level
-// because it fails closed: the bound tunnel's traffic meets the DISCARD catch-all.
-// The caller holds applyMu.
-func (s *ikeEngineState) installXFRMExemptions(dp dataplane.Dataplane, next map[spdSelector]xfrmExemption) {
+// installXFRMInterfaceEntries installs every entry of next the engine does not hold
+// yet, role by role in xfrmInterfaceRoleOrder, and records each one the backend took.
+// One that failed is left out of the record, so the next apply or address event tries
+// it again. A failed exemption is logged at error level because it fails closed: the
+// bound tunnel's traffic meets the DISCARD catch-all. A failed interface catch-all is
+// logged at error level too: the interface's SPD then has no final entry the operator
+// can see, and the kernel drops what reaches it unmatched for its own reasons
+// (xfrmi_xmit, __xfrm_policy_check).
+//
+// A backend that declares it holds no SPD entry bound to no interface
+// (catchAllUnsupported, the VPP backend) gets no interface catch-all: such a backend
+// keeps no if_id SPD for the entry to close. The caller holds applyMu.
+func (s *ikeEngineState) installXFRMInterfaceEntries(dp dataplane.Dataplane, next map[spdSelector]xfrmInterfaceEntry) {
 	if dp == nil {
 		return
 	}
-	if s.xfrmExempt == nil {
-		s.xfrmExempt = make(map[spdSelector]xfrmExemption)
+	if s.xfrmEntries == nil {
+		s.xfrmEntries = make(map[spdSelector]xfrmInterfaceEntry)
 	}
-	for sel, entry := range next {
-		if _, held := s.xfrmExempt[sel]; held {
+	noIfIDSPD := catchAllUnsupported(dp)
+	for _, role := range xfrmInterfaceRoleOrder {
+		if role == dataplane.PolicyRoleInterfaceCatchAll && noIfIDSPD != nil {
+			s.warnNoInterfaceCatchAll(next, noIfIDSPD)
 			continue
 		}
-		if err := dp.InstallPolicy(entry.params); err != nil {
-			s.log.Error("ike: could not install the SPD catch-all exemption of a bound XFRM interface; "+
-				"traffic routed into it meets the DISCARD catch-all and is dropped; "+
-				"the daemon needs CAP_NET_ADMIN to install it, and the next commit or address change retries it",
-				"interface", entry.iface, "dir", entry.params.Dir, "error", err)
-			continue
+		for sel, entry := range next {
+			if entry.role != role {
+				continue
+			}
+			if _, held := s.xfrmEntries[sel]; held {
+				continue
+			}
+			if err := dp.InstallPolicy(entry.params); err != nil {
+				s.log.Error("ike: could not install an SPD entry of a bound XFRM interface; "+
+					"an exemption that is missing drops the traffic routed into it at the DISCARD catch-all, "+
+					"a catch-all that is missing leaves the interface SPD without its final entry; "+
+					"the daemon needs CAP_NET_ADMIN to install it, and the next commit or address change retries it",
+					"interface", entry.iface, "role", entry.role.String(), "dir", entry.params.Dir, "error", err)
+				continue
+			}
+			s.xfrmEntries[sel] = entry
 		}
-		s.xfrmExempt[sel] = entry
 	}
 }
 
-// pruneXFRMExemptions removes every held entry next no longer names: an interface no
-// peer binds, an address the interface lost, a device that moved to another index, or
-// a catch-all that no longer discards. A removal is reported to the SPD ledger
-// (removeZePolicy), so a failed one keeps the catch-all beneath it at exit. The
-// caller holds applyMu.
-func (s *ikeEngineState) pruneXFRMExemptions(dp dataplane.Dataplane, next map[spdSelector]xfrmExemption) {
-	for sel, held := range s.xfrmExempt {
-		if _, kept := next[sel]; kept {
+// warnNoInterfaceCatchAll says, once per install pass that has one to place, that the
+// backend keeps no if_id SPD, so no interface catch-all is installed.
+func (s *ikeEngineState) warnNoInterfaceCatchAll(next map[spdSelector]xfrmInterfaceEntry, reason error) {
+	for _, entry := range next {
+		if entry.role != dataplane.PolicyRoleInterfaceCatchAll {
 			continue
 		}
-		if dp != nil {
-			err := removeZePolicy(dp, held.params)
-			if err != nil && !policyGone(err) {
-				s.log.Warn("ike: could not remove the SPD catch-all exemption of an XFRM interface; "+
-					"it keeps passing what it matches until removed",
-					"interface", held.iface, "dir", held.params.Dir, "error", err)
+		s.log.Warn("ike: this dataplane keeps no SPD per XFRM interface, so no interface SPD catch-all is installed",
+			"interface", entry.iface, "error", reason)
+		return
+	}
+}
+
+// pruneXFRMInterfaceEntries removes every held entry next no longer names, role by role
+// in the reverse of xfrmInterfaceRoleOrder: an interface no peer binds, an address the
+// interface lost, a device that moved to another index or if_id, or an exemption under
+// a catch-all that no longer discards. A removal is reported to the SPD ledger
+// (removeZePolicy), so a failed one keeps the if_id 0 catch-all in place at exit. The
+// caller holds applyMu.
+func (s *ikeEngineState) pruneXFRMInterfaceEntries(dp dataplane.Dataplane, next map[spdSelector]xfrmInterfaceEntry) {
+	for i := len(xfrmInterfaceRoleOrder) - 1; i >= 0; i-- {
+		role := xfrmInterfaceRoleOrder[i]
+		for sel, held := range s.xfrmEntries {
+			if held.role != role {
+				continue
 			}
+			if _, kept := next[sel]; kept {
+				continue
+			}
+			if dp != nil {
+				err := removeZePolicy(dp, held.params)
+				if err != nil && !policyGone(err) {
+					s.log.Warn("ike: could not remove an SPD entry of an XFRM interface; "+
+						"it keeps acting on what it matches until removed",
+						"interface", held.iface, "role", held.role.String(), "dir", held.params.Dir, "error", err)
+				}
+			}
+			delete(s.xfrmEntries, sel)
 		}
-		delete(s.xfrmExempt, sel)
 	}
 }

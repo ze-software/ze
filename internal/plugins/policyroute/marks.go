@@ -7,15 +7,20 @@ import (
 	"net/netip"
 	"sync"
 
+	"github.com/ze-software/ze/internal/core/iprule"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const (
 	fwmarkBase = 0x50000
 	fwmarkMax  = 0x5FFFF
+)
 
-	autoTableBase = 2000
-	autoTableMax  = 2999
+// The auto table range is declared once, in internal/core/iprule, beside every other
+// range a Ze producer allocates from, so the ranges are checked disjoint there.
+var (
+	autoTableBase = iprule.PolicyRouteAutoTables.First
+	autoTableMax  = iprule.PolicyRouteAutoTables.Last
 )
 
 type allocator struct {

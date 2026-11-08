@@ -70,13 +70,15 @@ func (d *bypassDP) RemovePolicyParams(p dataplane.SPParams) error {
 }
 
 // spKey is the identity of a policy for set comparison: everything the kernel uses
-// to tell one policy from another (vendor netlink selFromPolicy + Dir).
+// to tell one policy from another (vendor netlink selFromPolicy + Dir), and the if_id,
+// which the kernel keys a policy by too (xfrm_policy_match): it names the SPD.
 type spKey struct {
 	src, dst         string
 	dir              dataplane.SADir
 	upperProto       uint8
 	srcPort, dstPort dataplane.PortMatch
 	ifIndex          int
+	ifID             uint32
 }
 
 func keyOf(p dataplane.SPParams) spKey {
@@ -88,6 +90,7 @@ func keyOf(p dataplane.SPParams) spKey {
 		srcPort:    p.SrcPort,
 		dstPort:    p.DstPort,
 		ifIndex:    p.IfIndex,
+		ifID:       p.IfID,
 	}
 }
 

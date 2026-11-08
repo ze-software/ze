@@ -1093,12 +1093,25 @@ func resolveIfID(peer *ipsec.SiteToSitePeer) (uint32, error) {
 	if peer.VTIBind == "" {
 		return 0, nil
 	}
-	ifID, err := xfrmIfIDOf(peer.VTIBind)
+	ifID, err := boundInterfaceIfID(peer.VTIBind)
 	if err != nil {
-		return 0, fmt.Errorf("ike: peer %s binds vti %s, which is not an XFRM interface: %w", peer.Name, peer.VTIBind, err)
+		return 0, fmt.Errorf("ike: peer %s binds vti %s: %w", peer.Name, peer.VTIBind, err)
+	}
+	return ifID, nil
+}
+
+// boundInterfaceIfID answers the if_id of the XFRM interface name, refusing 0. It is
+// the one resolution both the Child SA policies (resolveIfID) and the interface's SPD
+// catch-all (readXFRMInterface) use, so the catch-all and the Child SAs sit in one SPD.
+// An if_id of 0 is refused rather than returned: it is the node-wide SPD, and an entry
+// built there for an interface would act on every packet of the node.
+func boundInterfaceIfID(name string) (uint32, error) {
+	ifID, err := xfrmIfIDOf(name)
+	if err != nil {
+		return 0, fmt.Errorf("%s is not an XFRM interface: %w", name, err)
 	}
 	if ifID == 0 {
-		return 0, fmt.Errorf("ike: peer %s binds vti %s, whose if_id is 0 and cannot carry a bound SA", peer.Name, peer.VTIBind)
+		return 0, fmt.Errorf("the if_id of %s is 0, which is the node-wide SPD and cannot carry a bound SA", name)
 	}
 	return ifID, nil
 }

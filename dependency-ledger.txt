@@ -661,6 +661,7 @@ github.com/vishvananda/netlink	internal/component/l2tp/ppp	in use when the ledge
 github.com/vishvananda/netlink	internal/component/l2tp/pppoeclient	in use when the ledger was seeded
 github.com/vishvananda/netlink	internal/component/mpls	in use when the ledger was seeded
 github.com/vishvananda/netlink	internal/component/mtu/cmd	in use when the ledger was seeded
+github.com/vishvananda/netlink	internal/core/iprule	ip rule encoder shared by policyroute and the IPsec source guard (moved from policyroute)
 github.com/vishvananda/netlink	internal/core/network	in use when the ledger was seeded
 github.com/vishvananda/netlink	internal/core/probe	in use when the ledger was seeded
 github.com/vishvananda/netlink	internal/core/routewatch	in use when the ledger was seeded
@@ -899,6 +900,7 @@ golang.org/x/sys/unix	internal/component/sysctl	in use when the ledger was seede
 golang.org/x/sys/unix	internal/component/web	in use when the ledger was seeded
 golang.org/x/sys/unix	internal/core/crashlog	in use when the ledger was seeded
 golang.org/x/sys/unix	internal/core/diskspace	in use when the ledger was seeded
+golang.org/x/sys/unix	internal/core/iprule	netlink and route constants for the shared ip rule encoder (moved from policyroute)
 golang.org/x/sys/unix	internal/core/network	in use when the ledger was seeded
 golang.org/x/sys/unix	internal/core/probe	in use when the ledger was seeded
 golang.org/x/sys/unix	internal/core/routewatch	in use when the ledger was seeded

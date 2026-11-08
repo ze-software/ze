@@ -44,11 +44,12 @@ const (
 	// go/incorrect-integer-conversion. That was tried (alert 171) and it costs
 	// table IDs 2^31..2^32-1 that the kernel accepts and every shipped target
 	// can program; test/parse/netlink-int-field-range.ci pins the full range.
-	// The alert is about the int conversion in newIPRule, not about this
-	// constant, and it is answered there: the conversion lives in
-	// architecture-constrained files where int is known to be 64-bit
-	// (netlinkint_linux_amd64.go, netlinkint_linux_arm64.go) and the narrow
-	// bound applies only on the builds that need it (netlinkint_linux_generic.go).
+	// The alert is about the int conversion in the rule encoder
+	// (internal/core/iprule, Mark.Rule), not about this constant, and it is
+	// answered there: the conversion lives in architecture-constrained files
+	// where int is known to be 64-bit (table_linux_amd64.go, table_linux_arm64.go)
+	// and the narrow bound applies only on the builds that need it
+	// (table_linux_generic.go).
 	maxEncodableTable = uint64(math.MaxInt)
 )
 

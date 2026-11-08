@@ -156,7 +156,7 @@ func startAddressWorker(s *ikeEngineState, bus ze.EventBus) *addressWorker {
 			bus.Subscribe(ifaceevents.Namespace, ifaceevents.EventAddrAdded, trigger),
 			bus.Subscribe(ifaceevents.Namespace, ifaceevents.EventAddrRemoved, trigger),
 			// A bound XFRM interface created again comes back under a new index, and
-			// one with no address raises no address event (planXFRMExemptions).
+			// one with no address raises no address event (planXFRMInterfaceEntries).
 			bus.Subscribe(ifaceevents.Namespace, ifaceevents.EventCreated, trigger),
 		)
 	}
@@ -205,8 +205,8 @@ func (w *addressWorker) Stop() {
 // literal pair is still missing its socket, re-plans the running configuration onto it:
 // the primary pair moves, only the sessions that held it stop, and the reconcile starts
 // the peers the new address serves. It then restarts any route-chosen session whose
-// source left the host, and rebuilds the SPD catch-all exemptions of the bound XFRM
-// interfaces from what they hold now. It does nothing before the first apply.
+// source left the host, and rebuilds the SPD entries of the bound XFRM interfaces (each
+// interface SPD's catch-all and the if_id 0 exemptions) from what they hold now. It does nothing before the first apply.
 //
 // The event is a trigger and the resolver is the truth, so a burst of events, or an event
 // for another interface, costs one read and changes nothing (R-1: act only on a change).
@@ -234,10 +234,10 @@ func (s *ikeEngineState) followAddress() {
 		}
 	}
 	// A bound XFRM interface that gained or lost an address, or came back under a new
-	// index, needs its catch-all exemptions rebuilt (unmatched_xfrm_interface.go).
-	exemptions := s.planXFRMExemptions(s.applied)
-	s.installXFRMExemptions(dataplane.Get(), exemptions)
-	s.pruneXFRMExemptions(dataplane.Get(), exemptions)
+	// index or if_id, needs its SPD entries rebuilt (unmatched_xfrm_interface.go).
+	entries := s.planXFRMInterfaceEntries(s.applied)
+	s.installXFRMInterfaceEntries(dataplane.Get(), entries)
+	s.pruneXFRMInterfaceEntries(dataplane.Get(), entries)
 	s.restartVanishedRouteSources()
 }
 

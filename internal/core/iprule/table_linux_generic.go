@@ -2,14 +2,14 @@
 
 //go:build linux && !amd64 && !arm64
 
-package policyroute
+package iprule
 
 import (
 	"fmt"
 	"math"
 )
 
-// netlinkTableInt converts a kernel routing table ID to the Go int that
+// tableInt converts a kernel routing table ID to the Go int that
 // netlink.Rule.Table is typed as, on a target whose int width is not known
 // here to be 64 bits.
 //
@@ -24,7 +24,7 @@ import (
 // Ze ships linux/amd64 and linux/arm64 (`internal/appliance/config.go`), so this
 // path exists to keep `go build` honest
 // elsewhere, not to bound what operators can configure.
-func netlinkTableInt(v uint32) (int, error) {
+func tableInt(v uint32) (int, error) {
 	if uint64(v) > uint64(math.MaxInt) {
 		return 0, fmt.Errorf("table %d exceeds %d, the largest this build can program through netlink", v, uint64(math.MaxInt))
 	}

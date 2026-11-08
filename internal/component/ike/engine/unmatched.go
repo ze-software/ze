@@ -49,6 +49,15 @@ func unmatchedPolicies(family net.IP, action dataplane.SPAction) ([]dataplane.SP
 		return nil, fmt.Errorf("ike: unmatched disposition %d is neither discard (%d) nor bypass (%d)",
 			action, dataplane.SPActionDiscard, dataplane.SPActionBypass)
 	}
+	return spdCatchAllEntries(family, action, 0), nil
+}
+
+// spdCatchAllEntries builds the final entry of ONE SPD in one address family: in, out
+// and fwd, the family's wildcard, any protocol and port, ranked last. The SPD is named
+// by ifID, which is the kernel's SPD-ID: 0 is the node-wide SPD (unmatchedPolicies),
+// and an XFRM interface's if_id is that interface's SPD (interfaceSPDCatchAll). The
+// caller has already judged action: this builder checks nothing.
+func spdCatchAllEntries(family net.IP, action dataplane.SPAction, ifID uint32) []dataplane.SPParams {
 	anyNet := anyNetFor(family)
 	out := make([]dataplane.SPParams, 0, len(unmatchedDirections))
 	for _, dir := range unmatchedDirections {
@@ -60,9 +69,10 @@ func unmatchedPolicies(family net.IP, action dataplane.SPAction) ([]dataplane.SP
 			Priority: dataplane.PriorityUnmatched,
 			SrcPort:  dataplane.AnyPortMatch(),
 			DstPort:  dataplane.AnyPortMatch(),
+			IfID:     ifID,
 		})
 	}
-	return out, nil
+	return out
 }
 
 // installUnmatched installs the catch-all for every address family.

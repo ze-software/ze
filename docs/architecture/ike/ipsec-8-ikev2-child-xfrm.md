@@ -444,7 +444,7 @@ traffic in the clear.
 |---|---|---|---|
 | PROTECT | `childPolicies`, from a negotiated Child SA | `allow` with a template | `IPSEC_API_SPD_ACTION_PROTECT` |
 | BYPASS | `ikeBypassPolicies`, the operator `vpn ipsec policy` list, `unmatchedPolicies` under `vpn ipsec unmatched bypass`, and `xfrmInterfaceExemptions` under `vpn ipsec unmatched discard` | `allow` with no template | `IPSEC_API_SPD_ACTION_BYPASS` |
-| DISCARD | the operator `vpn ipsec policy` list, and `unmatchedPolicies` under `vpn ipsec unmatched discard` | `block` | `IPSEC_API_SPD_ACTION_DISCARD` |
+| DISCARD | the operator `vpn ipsec policy` list, `unmatchedPolicies` under `vpn ipsec unmatched discard`, and `interfaceSPDCatchAll` for every bound XFRM interface under either value | `block` | `IPSEC_API_SPD_ACTION_DISCARD` |
 
 The template-free XFRM action mapper is called only after `isTemplateFree`
 selects BYPASS or DISCARD. An unnamed action at that internal mapper raises a
@@ -491,13 +491,35 @@ requires of a multi-SPD implementation: for each bound interface, BYPASS entries
 at if_id 0 and `PriorityUnmatchedXFRMInterface` (one above the catch-all, below
 every operator order and Child SA policy), out and fwd for both families with
 the selector ifindex set to the interface, and out from each IPv6 address it
-holds. `planXFRMExemptions` reads the interface through the iface resolver
-(`iface.ResolveIndex`, `iface.Addresses`), keeping the held entries of an
-interface whose read fails. `applyConfig` installs new entries before
-re-asserting the catch-all on a reload and prunes stale ones after it; the
-address worker (`followAddress`, on `addr-added`, `addr-removed` and `created`)
-rebuilds them, and `releaseSPD` removes them through the SPD ledger before the
-catch-all. The IPv6 source entry also passes a packet from that address routed
+holds.
+
+Each bound interface's SPD also gets its own final entry (RFC 4301 Sections
+4.4.1 and 5.2): `interfaceSPDCatchAll` builds the same wildcard in, out and fwd
+for both families as `unmatchedPolicies`, through the shared builder
+`spdCatchAllEntries`, at the interface's if_id and `PriorityUnmatched`, below
+the interface's Child SA policies at `PriorityChildSA`. It is DISCARD under both
+values of `unmatched`: an XFRM interface has no cleartext path, since
+`xfrmi_xmit` drops a packet whose lookup returns no state and
+`__xfrm_policy_check` rejects a tunnel-mode packet a template-free entry matched,
+so a BYPASS there would be listed as bypass while the kernel drops. The if_id
+comes from `boundInterfaceIfID`, the resolution `resolveIfID` uses for the Child
+SA policies, which refuses 0 (the node-wide SPD, and what a metadata-mode
+interface reports). A backend whose `CatchAllSupported` answers
+`dataplane.ErrNoNodeWideSPD` (VPP) keeps no if_id SPD and gets no interface
+catch-all.
+
+`planXFRMInterfaceEntries` reads the interface through the iface resolver
+(`iface.ResolveIndex`, `iface.Addresses`) and its if_id, and answers each entry
+with its `dataplane.PolicyRole`: `interface-catch-all` always,
+`interface-exemption` only under DISCARD. It keeps the held entries of an
+interface whose read fails, the exemptions only while the catch-all still
+discards. `installXFRMInterfaceEntries` installs by role, the interface
+catch-all before the exemptions, and `pruneXFRMInterfaceEntries` removes in the
+reverse order. `applyConfig` installs new entries before re-asserting the node
+catch-all on a reload and prunes stale ones after it; the address worker
+(`followAddress`, on `addr-added`, `addr-removed` and `created`) rebuilds them,
+and `releaseSPD` removes them through the SPD ledger after the Child SA policies
+(`stopAllPeers` ran first) and before the node catch-all. The IPv6 source entry also passes a packet from that address routed
 out of another interface, the residual `docs/guide/ipsec.md` names.
 
 Ze's SPD is one unit with a lifetime of [first apply, exit]. `applyConfig`
@@ -552,7 +574,7 @@ it is being dropped.
 <!-- source: internal/component/ike/engine/spd_policy.go -- spdPolicyParams, installSPDPolicies -->
 <!-- source: internal/component/ike/engine/unmatched.go -- unmatchedPolicies, installUnmatched -->
 <!-- source: internal/component/ike/engine/apply.go -- applyConfig, releaseSPD -->
-<!-- source: internal/component/ike/engine/unmatched_xfrm_interface.go -- xfrmInterfaceExemptions, planXFRMExemptions -->
+<!-- source: internal/component/ike/engine/unmatched_xfrm_interface.go -- xfrmInterfaceExemptions, interfaceSPDCatchAll, planXFRMInterfaceEntries -->
 
 ## Policy ownership
 

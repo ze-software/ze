@@ -10,21 +10,15 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/firewall"
+	"github.com/ze-software/ze/internal/core/iprule"
 )
 
 const policyRoutingTable = "ze_pr"
 
 type translationResult struct {
 	Tables     []firewall.Table
-	IPRules    []ipRuleSpec
+	IPRules    []iprule.Mark
 	AutoRoutes []autoRouteSpec
-}
-
-type ipRuleSpec struct {
-	Mark     uint32
-	Mask     uint32
-	Table    uint32
-	Priority int
 }
 
 type autoRouteSpec struct {
@@ -74,9 +68,9 @@ func (a *allocator) translate(policies []PolicyRoute) (*translationResult, error
 	return result, nil
 }
 
-func (a *allocator) translatePolicy(policy PolicyRoute, basePriority *int) ([]firewall.Term, []ipRuleSpec, []autoRouteSpec, error) {
+func (a *allocator) translatePolicy(policy PolicyRoute, basePriority *int) ([]firewall.Term, []iprule.Mark, []autoRouteSpec, error) {
 	var terms []firewall.Term
-	var ipRules []ipRuleSpec
+	var ipRules []iprule.Mark
 	var autoRoutes []autoRouteSpec
 
 	for i := range policy.Rules {
@@ -243,9 +237,9 @@ func parseAddressMatch(v string, isSource bool) (firewall.Match, error) {
 	return firewall.MatchDestinationAddress{Prefix: prefix}, nil
 }
 
-func (a *allocator) buildActions(policyName string, rule PolicyRule, basePriority *int) ([]firewall.Action, []ipRuleSpec, []autoRouteSpec, error) {
+func (a *allocator) buildActions(policyName string, rule PolicyRule, basePriority *int) ([]firewall.Action, []iprule.Mark, []autoRouteSpec, error) {
 	var actions []firewall.Action
-	var ipRules []ipRuleSpec
+	var ipRules []iprule.Mark
 	var autoRoutes []autoRouteSpec
 
 	if rule.Action.TCPMSS > 0 {
@@ -267,7 +261,7 @@ func (a *allocator) buildActions(policyName string, rule PolicyRule, basePriorit
 			return nil, nil, nil, err
 		}
 		actions = append(actions, firewall.SetMark{Value: mark, Mask: 0xFFFFFFFF})
-		ipRules = append(ipRules, ipRuleSpec{
+		ipRules = append(ipRules, iprule.Mark{
 			Mark:     mark,
 			Mask:     0xFFFFFFFF,
 			Table:    rule.Action.Table,
@@ -285,7 +279,7 @@ func (a *allocator) buildActions(policyName string, rule PolicyRule, basePriorit
 			return nil, nil, nil, err
 		}
 		actions = append(actions, firewall.SetMark{Value: mark, Mask: 0xFFFFFFFF})
-		ipRules = append(ipRules, ipRuleSpec{
+		ipRules = append(ipRules, iprule.Mark{
 			Mark:     mark,
 			Mask:     0xFFFFFFFF,
 			Table:    tbl,

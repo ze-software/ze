@@ -230,12 +230,12 @@ type ikeEngineState struct {
 	// installed with (installSPDPolicies, spd_policy.go).
 	installedSPD map[string]ipsec.SPDPolicy
 
-	// xfrmExempt is the SPD catch-all exemptions of the bound XFRM interfaces as
-	// currently installed, keyed by selector (unmatched_xfrm_interface.go). Nil until
-	// the first install fills it. Tracked for
-	// the reason installedSPD is: an address the interface lost is removed under the
-	// selector it was installed with.
-	xfrmExempt map[spdSelector]xfrmExemption
+	// xfrmEntries is the SPD entries of the bound XFRM interfaces as currently
+	// installed, keyed by selector (unmatched_xfrm_interface.go): each interface SPD's
+	// own catch-all and the if_id 0 exemptions above the node catch-all. Nil until the
+	// first install fills it. Tracked for the reason installedSPD is: an address the
+	// interface lost is removed under the selector it was installed with.
+	xfrmEntries map[spdSelector]xfrmInterfaceEntry
 
 	// spdApplied records whether this engine reached the SPD writers of its first
 	// apply: the IKE bypass and the catch-all (applyConfig). Ze's SPD appears there and
@@ -363,15 +363,18 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 	// ahead of the bypass drops no IKE exchange. The bypass carries no configuration, so
 	// it is installed once (installIKEBypass, bypass.go).
 	//
-	// A route-based peer's traffic is looked up at if_id 0 before it reaches its XFRM
-	// interface, so under a DISCARD catch-all each bound interface needs the exemption
-	// entries above it (unmatched_xfrm_interface.go). On a reload they go in BEFORE the
-	// catch-all is re-asserted, so a catch-all turning to DISCARD never drops a bound
+	// Each XFRM interface a peer binds is an SPD of its own, at its if_id, and gets its
+	// own final entry (RFC 4301 Section 4.4.1, Section 5.2). A route-based peer's traffic
+	// is looked up at if_id 0 before it reaches its XFRM interface, so under a DISCARD
+	// catch-all each bound interface also needs the exemption entries above it: the SPD
+	// selection function (RFC 4301 Section 4.4.1, unmatched_xfrm_interface.go). On a
+	// reload they go in BEFORE the catch-all is re-asserted, the interface catch-all
+	// ahead of the exemptions, so a catch-all turning to DISCARD never drops a bound
 	// tunnel's traffic, and the stale ones come out AFTER it, so a catch-all turning to
 	// BYPASS never does either. On the first apply the catch-all still goes in first.
-	exemptions := s.planXFRMExemptions(cfg)
+	interfaceEntries := s.planXFRMInterfaceEntries(cfg)
 	if s.spdApplied {
-		s.installXFRMExemptions(dataplane.Get(), exemptions)
+		s.installXFRMInterfaceEntries(dataplane.Get(), interfaceEntries)
 	}
 	s.spdApplied = true
 	if err := installUnmatched(dataplane.Get(), cfg.Unmatched, s.log); err != nil {
@@ -381,8 +384,8 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 		installIKEBypass(dataplane.Get(), s.log)
 		s.ikeBypassInstalled = true
 	}
-	s.installXFRMExemptions(dataplane.Get(), exemptions)
-	s.pruneXFRMExemptions(dataplane.Get(), exemptions)
+	s.installXFRMInterfaceEntries(dataplane.Get(), interfaceEntries)
+	s.pruneXFRMInterfaceEntries(dataplane.Get(), interfaceEntries)
 	s.discardInForce.Store(cfg.Unmatched == dataplane.SPActionDiscard)
 	if phase == applyStartup {
 		// The start is never verified, so refuseImplicitDiscard cannot run here.
@@ -645,7 +648,9 @@ func (s *ikeEngineState) shutdown(log *slog.Logger) {
 
 // releaseSPD removes the SPD this engine installed, on every exit of runEngine, as
 // the one unit applyConfig installed it as: the IKE bypass, then the operator's
-// entries, and the catch-all LAST. Each set is node-wide and outlives the process
+// entries, then the bound XFRM interfaces' exemptions and each interface SPD's own
+// catch-all (after its Child SA policies, which stopAllPeers removed), and the node
+// catch-all LAST. Each set is node-wide and outlives the process
 // that installed it, so an entry left behind keeps acting for a daemon that is no
 // longer running: a DISCARD keeps dropping traffic, a bypass keeps exempting it.
 //
@@ -657,7 +662,7 @@ func (s *ikeEngineState) shutdown(log *slog.Logger) {
 //
 // A removal that fails leaves its entry installed, and that entry would then outlive
 // the catch-all. So the catch-all is removed only when the SPD ledger (spd_left.go) is
-// empty: every Child SA policy, bypass, operator entry and XFRM interface exemption Ze installed is gone. Otherwise
+// empty: every Child SA policy, bypass, operator entry and XFRM interface entry Ze installed is gone. Otherwise
 // it stays, and warnSPDLeft names the entries left and the command that removes them.
 //
 // An engine that never applied a configuration installed nothing, so it removes
@@ -669,7 +674,7 @@ func (s *ikeEngineState) releaseSPD(dp dataplane.Dataplane, log *slog.Logger) {
 	}
 	removeIKEBypass(dp, log)
 	removeSPDPolicies(dp, s.installedSPD, log)
-	s.pruneXFRMExemptions(dp, nil)
+	s.pruneXFRMInterfaceEntries(dp, nil)
 	if warnSPDLeft(dp, log) {
 		return
 	}

@@ -58,17 +58,21 @@ func liveExemptions(dp *catchAllDP) []string {
 	return keys
 }
 
-// liveCatchAll answers the action of the live IPv4 out catch-all entry.
+// liveCatchAll answers the action of the live IPv4 out catch-all entry of the node-wide
+// SPD (if_id 0), never an interface SPD's catch-all, which discards under both values.
 func liveCatchAll(t *testing.T, dp *catchAllDP) dataplane.SPAction {
 	t.Helper()
 	for _, p := range dp.live {
-		if p.Priority == int(dataplane.PriorityUnmatched) && p.Dir == dataplane.SADirOut && p.Src.IP.To4() != nil {
+		if p.Priority == int(dataplane.PriorityUnmatched) && p.IfID == 0 && p.Dir == dataplane.SADirOut && p.Src.IP.To4() != nil {
 			return p.Action
 		}
 	}
 	t.Fatal("no IPv4 out catch-all entry is live")
 	return 0
 }
+
+// vti0IfID is the if_id the stubbed vti0 reports: its SPD-ID.
+const vti0IfID = 9
 
 func vtiBoundConfig(action dataplane.SPAction) *ipsec.IPsecConfig {
 	peer := applyTestPeer("127.0.0.1")
@@ -165,7 +169,7 @@ func TestXFRMExemptionsFollowApplyAddressAndRelease(t *testing.T) {
 	dp := &catchAllDP{}
 	loadFailClosedBackend(t, dp)
 	stub := stubXFRMInterfaceReads(t)
-	stub.facts["vti0"] = xfrmInterfaceFacts{ifIndex: 7, addresses: []netip.Addr{mustAddr(t, "2001:db8::1")}}
+	stub.facts["vti0"] = xfrmInterfaceFacts{ifIndex: 7, ifID: vti0IfID, addresses: []netip.Addr{mustAddr(t, "2001:db8::1")}}
 	state := applyTestState(t)
 
 	if err := state.applyConfig(vtiBoundConfig(dataplane.SPActionDiscard), applyReload); err != nil {
@@ -186,7 +190,7 @@ func TestXFRMExemptionsFollowApplyAddressAndRelease(t *testing.T) {
 		t.Fatalf("catch-all action %d, want discard", got)
 	}
 
-	stub.facts["vti0"] = xfrmInterfaceFacts{ifIndex: 7, addresses: []netip.Addr{mustAddr(t, "2001:db8::2")}}
+	stub.facts["vti0"] = xfrmInterfaceFacts{ifIndex: 7, ifID: vti0IfID, addresses: []netip.Addr{mustAddr(t, "2001:db8::2")}}
 	state.followAddress()
 	want = slices.Sorted(slices.Values(append(slices.Clone(base), out+" 2001:db8::2/128 -> ::/0 ifindex 0")))
 	if got := liveExemptions(dp); !slices.Equal(got, want) {
@@ -217,8 +221,8 @@ func TestXFRMExemptionsFollowApplyAddressAndRelease(t *testing.T) {
 	if got := liveExemptions(dp); len(got) != 0 {
 		t.Errorf("releaseSPD left exemptions installed: %q", got)
 	}
-	if len(state.xfrmExempt) != 0 {
-		t.Errorf("releaseSPD left the engine recording %d exemptions", len(state.xfrmExempt))
+	if len(state.xfrmEntries) != 0 {
+		t.Errorf("releaseSPD left the engine recording %d exemptions", len(state.xfrmEntries))
 	}
 }
 
@@ -232,7 +236,7 @@ func TestXFRMExemptionsPrecedeADiscardCatchAllOnReload(t *testing.T) {
 	dp := &catchAllDP{}
 	loadFailClosedBackend(t, dp)
 	stub := stubXFRMInterfaceReads(t)
-	stub.facts["vti0"] = xfrmInterfaceFacts{ifIndex: 7}
+	stub.facts["vti0"] = xfrmInterfaceFacts{ifIndex: 7, ifID: vti0IfID}
 	state := applyTestState(t)
 
 	if err := state.applyConfig(vtiBoundConfig(dataplane.SPActionBypass), applyReload); err != nil {
@@ -247,7 +251,7 @@ func TestXFRMExemptionsPrecedeADiscardCatchAllOnReload(t *testing.T) {
 		if p.Priority == dataplane.PriorityUnmatchedXFRMInterface && firstExemption < 0 {
 			firstExemption = i
 		}
-		if p.Priority == int(dataplane.PriorityUnmatched) && p.Action == dataplane.SPActionDiscard && firstDiscard < 0 {
+		if p.Priority == int(dataplane.PriorityUnmatched) && p.IfID == 0 && p.Action == dataplane.SPActionDiscard && firstDiscard < 0 {
 			firstDiscard = i
 		}
 	}
@@ -275,4 +279,263 @@ func TestXFRMExemptionsNeedABoundInterface(t *testing.T) {
 	if got := liveExemptions(dp); len(got) != 0 {
 		t.Errorf("exemptions installed with no bound interface: %q", got)
 	}
+}
+
+// interfaceCatchAllKey renders one entry with its if_id, for comparing the entries of
+// one interface SPD.
+func interfaceCatchAllKey(p *dataplane.SPParams) string {
+	return strconv.Itoa(int(p.Dir)) + " " + p.Src.String() + " -> " + p.Dst.String() +
+		" if_id " + strconv.FormatUint(uint64(p.IfID), 10)
+}
+
+// liveInterfaceCatchAll answers the interface SPD catch-all entries the fake backend
+// holds now: the entries ranked last in an SPD other than the node-wide one.
+func liveInterfaceCatchAll(t *testing.T, dp *catchAllDP) []string {
+	t.Helper()
+	var keys []string
+	for _, p := range dp.live {
+		if p.Priority != int(dataplane.PriorityUnmatched) || p.IfID == 0 {
+			continue
+		}
+		if p.Action != dataplane.SPActionDiscard {
+			t.Errorf("%s: interface catch-all action %d, want discard", interfaceCatchAllKey(&p), p.Action)
+		}
+		keys = append(keys, interfaceCatchAllKey(&p))
+	}
+	slices.Sort(keys)
+	return keys
+}
+
+// wantInterfaceCatchAll is the six entries of one interface SPD's catch-all.
+func wantInterfaceCatchAll(ifID uint32) []string {
+	in, out, fwd := strconv.Itoa(int(dataplane.SADirIn)), strconv.Itoa(int(dataplane.SADirOut)), strconv.Itoa(int(dataplane.SADirFwd))
+	id := " if_id " + strconv.FormatUint(uint64(ifID), 10)
+	want := []string{
+		in + " 0.0.0.0/0 -> 0.0.0.0/0" + id,
+		out + " 0.0.0.0/0 -> 0.0.0.0/0" + id,
+		fwd + " 0.0.0.0/0 -> 0.0.0.0/0" + id,
+		in + " ::/0 -> ::/0" + id,
+		out + " ::/0 -> ::/0" + id,
+		fwd + " ::/0 -> ::/0" + id,
+	}
+	slices.Sort(want)
+	return want
+}
+
+// VALIDATES: AC-1 and AC-2 at the builder: one interface SPD's final entry is six
+// DISCARD entries, in, out and fwd for both families, at the interface's if_id, ranked
+// last, any protocol and port; the largest if_id is carried unchanged (boundary).
+// Method: build the entries for if_id 9 and for 2^32-1 and compare with the expected
+// set, then check rank and match width on each.
+// PREVENTS: an interface catch-all built in the node-wide SPD (if_id 0), which would
+// drop every packet of the node, or one ranked above the interface's Child SAs.
+func TestInterfaceSPDCatchAllEntries(t *testing.T) {
+	for _, ifID := range []uint32{vti0IfID, math.MaxUint32} {
+		got := interfaceSPDCatchAll(ifID)
+		keys := make([]string, 0, len(got))
+		for i := range got {
+			p := &got[i]
+			keys = append(keys, interfaceCatchAllKey(p))
+			if p.Action != dataplane.SPActionDiscard {
+				t.Errorf("%s: action %d, want discard", interfaceCatchAllKey(p), p.Action)
+			}
+			if p.Priority != int(dataplane.PriorityUnmatched) {
+				t.Errorf("%s: priority %d, want %d", interfaceCatchAllKey(p), p.Priority, int(dataplane.PriorityUnmatched))
+			}
+			if p.Priority <= dataplane.PriorityChildSA {
+				t.Errorf("%s: priority %d outranks a Child SA policy (%d)", interfaceCatchAllKey(p), p.Priority, dataplane.PriorityChildSA)
+			}
+			if !p.SrcPort.IsAny() || !p.DstPort.IsAny() || p.UpperProto != 0 || p.IfIndex != 0 {
+				t.Errorf("%s: narrowed to a protocol, port or device", interfaceCatchAllKey(p))
+			}
+		}
+		slices.Sort(keys)
+		if want := wantInterfaceCatchAll(ifID); !slices.Equal(keys, want) {
+			t.Errorf("if_id %d catch-all:\n got %q\nwant %q", ifID, keys, want)
+		}
+	}
+}
+
+// VALIDATES: a read answering if_id 0 for a bound interface installs nothing for it:
+// if_id 0 is the node-wide SPD (boundary: the invalid value below the range).
+// Method: stub vti0 with if_id 0, apply under discard, and look for any entry an
+// interface plan would have placed.
+// PREVENTS: an interface catch-all landing in the node-wide SPD and dropping all traffic.
+func TestInterfaceSPDCatchAllRefusesIfIDZero(t *testing.T) {
+	dp := &catchAllDP{}
+	loadFailClosedBackend(t, dp)
+	stub := stubXFRMInterfaceReads(t)
+	stub.facts["vti0"] = xfrmInterfaceFacts{ifIndex: 7}
+	state := applyTestState(t)
+
+	if err := state.applyConfig(vtiBoundConfig(dataplane.SPActionDiscard), applyReload); err != nil {
+		t.Fatalf("discard apply: %v", err)
+	}
+	if got := liveExemptions(dp); len(got) != 0 {
+		t.Errorf("exemptions installed for an interface with if_id 0: %q", got)
+	}
+	if len(state.xfrmEntries) != 0 {
+		t.Errorf("the engine holds %d entries for an interface with if_id 0", len(state.xfrmEntries))
+	}
+}
+
+// VALIDATES: wiring row 1 (AC-1): a commit with a peer bound to vti0 under
+// `unmatched discard` reaches planXFRMInterfaceEntries and leaves vti0's SPD holding its
+// own DISCARD catch-all, beside the if_id 0 exemptions and the DISCARD node catch-all.
+// Phase 5 adds the source guard to this test.
+// Method: applyConfig over the fake backend with a stubbed vti0, then read the live set.
+// PREVENTS: an interface SPD with no final entry.
+func TestApplyInstallsInterfaceSPDCatchAllAndGuard(t *testing.T) {
+	dp := &catchAllDP{}
+	loadFailClosedBackend(t, dp)
+	stub := stubXFRMInterfaceReads(t)
+	stub.facts["vti0"] = xfrmInterfaceFacts{ifIndex: 7, ifID: vti0IfID, addresses: []netip.Addr{mustAddr(t, "2001:db8::1")}}
+	state := applyTestState(t)
+
+	if err := state.applyConfig(vtiBoundConfig(dataplane.SPActionDiscard), applyReload); err != nil {
+		t.Fatalf("discard apply: %v", err)
+	}
+	if got, want := liveInterfaceCatchAll(t, dp), wantInterfaceCatchAll(vti0IfID); !slices.Equal(got, want) {
+		t.Errorf("interface SPD catch-all:\n got %q\nwant %q", got, want)
+	}
+	if got := liveExemptions(dp); len(got) != 5 {
+		t.Errorf("if_id 0 exemptions: got %q, want the four interface entries and one source entry", got)
+	}
+	if got := liveCatchAll(t, dp); got != dataplane.SPActionDiscard {
+		t.Errorf("node catch-all action %d, want discard", got)
+	}
+}
+
+// VALIDATES: wiring row 2 (AC-2): under `unmatched bypass` vti0's SPD still gets its
+// DISCARD catch-all, the node catch-all is BYPASS, and no exemption is installed.
+// Method: applyConfig under bypass over the fake backend, then read the live set.
+// PREVENTS: an interface catch-all that follows `unmatched` and is listed as bypass
+// while the kernel drops what it matches.
+func TestApplyInstallsInterfaceSPDCatchAllUnderBypass(t *testing.T) {
+	dp := &catchAllDP{}
+	loadFailClosedBackend(t, dp)
+	stub := stubXFRMInterfaceReads(t)
+	stub.facts["vti0"] = xfrmInterfaceFacts{ifIndex: 7, ifID: vti0IfID, addresses: []netip.Addr{mustAddr(t, "2001:db8::1")}}
+	state := applyTestState(t)
+
+	if err := state.applyConfig(vtiBoundConfig(dataplane.SPActionBypass), applyReload); err != nil {
+		t.Fatalf("bypass apply: %v", err)
+	}
+	if got, want := liveInterfaceCatchAll(t, dp), wantInterfaceCatchAll(vti0IfID); !slices.Equal(got, want) {
+		t.Errorf("interface SPD catch-all:\n got %q\nwant %q", got, want)
+	}
+	if got := liveExemptions(dp); len(got) != 0 {
+		t.Errorf("exemptions installed under a bypass catch-all: %q", got)
+	}
+	if got := liveCatchAll(t, dp); got != dataplane.SPActionBypass {
+		t.Errorf("node catch-all action %d, want bypass", got)
+	}
+}
+
+// VALIDATES: the interface catch-all is installed before the if_id 0 exemptions hand
+// any packet over to its SPD, on a reload that turns the node catch-all to discard.
+// Method: apply bypass with vti0 unbound, then discard with vti0 bound, and compare the
+// positions of the first interface catch-all and the first exemption in the install log.
+// PREVENTS: an instant where traffic is handed to an interface SPD with no final entry.
+func TestInterfaceSPDCatchAllPrecedesTheExemptions(t *testing.T) {
+	dp := &catchAllDP{}
+	loadFailClosedBackend(t, dp)
+	stub := stubXFRMInterfaceReads(t)
+	stub.facts["vti0"] = xfrmInterfaceFacts{ifIndex: 7, ifID: vti0IfID}
+	state := applyTestState(t)
+
+	unbound := testIPsecConfig(applyTestPeer("127.0.0.1"))
+	unbound.Unmatched = dataplane.SPActionBypass
+	if err := state.applyConfig(unbound, applyReload); err != nil {
+		t.Fatalf("unbound apply: %v", err)
+	}
+	from := len(dp.installed)
+	if err := state.applyConfig(vtiBoundConfig(dataplane.SPActionDiscard), applyReload); err != nil {
+		t.Fatalf("discard apply: %v", err)
+	}
+	firstCatchAll, firstExemption := -1, -1
+	for i, p := range dp.installed[from:] {
+		if p.Priority == int(dataplane.PriorityUnmatched) && p.IfID == vti0IfID && firstCatchAll < 0 {
+			firstCatchAll = i
+		}
+		if p.Priority == dataplane.PriorityUnmatchedXFRMInterface && firstExemption < 0 {
+			firstExemption = i
+		}
+	}
+	if firstCatchAll < 0 || firstExemption < 0 {
+		t.Fatalf("the discard apply installed interface catch-all at %d and exemption at %d", firstCatchAll, firstExemption)
+	}
+	if firstCatchAll > firstExemption {
+		t.Errorf("an exemption (install %d) went in before the interface catch-all (install %d)", firstExemption, firstCatchAll)
+	}
+}
+
+// failInterfaceCatchAllRemovalDP refuses the removal of any interface SPD catch-all
+// entry, as a kernel would refuse a daemon without CAP_NET_ADMIN.
+type failInterfaceCatchAllRemovalDP struct {
+	catchAllDP
+}
+
+func (d *failInterfaceCatchAllRemovalDP) RemovePolicyParams(p dataplane.SPParams) error {
+	if p.Priority == int(dataplane.PriorityUnmatched) && p.IfID != 0 {
+		return errors.New("test: operation not permitted")
+	}
+	return d.catchAllDP.RemovePolicyParams(p)
+}
+
+// VALIDATES: AC-8 for the interface SPD: releaseSPD removes the interface catch-all
+// with the exemptions, before the node catch-all; when that removal fails, the SPD
+// ledger holds the entry and the node catch-all stays beneath it. Phase 5 adds the
+// guard's removal to this test.
+// Method: apply discard, release over a backend that removes cleanly, then apply and
+// release again over one that refuses the interface catch-all removal.
+// PREVENTS: an interface catch-all that outlives the daemon unreported.
+func TestReleaseRemovesInterfaceSPDAndGuard(t *testing.T) {
+	t.Run("clean", func(t *testing.T) {
+		dp := &catchAllDP{}
+		loadFailClosedBackend(t, dp)
+		stub := stubXFRMInterfaceReads(t)
+		stub.facts["vti0"] = xfrmInterfaceFacts{ifIndex: 7, ifID: vti0IfID}
+		state := applyTestState(t)
+		if err := state.applyConfig(vtiBoundConfig(dataplane.SPActionDiscard), applyReload); err != nil {
+			t.Fatalf("discard apply: %v", err)
+		}
+		state.releaseSPD(dp, state.log)
+		if got := liveInterfaceCatchAll(t, dp); len(got) != 0 {
+			t.Errorf("releaseSPD left the interface catch-all installed: %q", got)
+		}
+		if got := liveExemptions(dp); len(got) != 0 {
+			t.Errorf("releaseSPD left exemptions installed: %q", got)
+		}
+	})
+	t.Run("refused", func(t *testing.T) {
+		dp := &failInterfaceCatchAllRemovalDP{}
+		loadFailClosedBackend(t, dp)
+		stub := stubXFRMInterfaceReads(t)
+		stub.facts["vti0"] = xfrmInterfaceFacts{ifIndex: 7, ifID: vti0IfID}
+		state := applyTestState(t)
+		if err := state.applyConfig(vtiBoundConfig(dataplane.SPActionDiscard), applyReload); err != nil {
+			t.Fatalf("discard apply: %v", err)
+		}
+		catchAll := interfaceSPDCatchAll(vti0IfID)
+		t.Cleanup(func() {
+			for i := range catchAll {
+				spdLeft.record(&catchAll[i], nil)
+			}
+		})
+		state.releaseSPD(dp, state.log)
+		left := spdLeft.describe(&xfrmCommandDP{})
+		for i := range catchAll {
+			command := dataplane.XFRMPolicyDeleteCommand(&catchAll[i])
+			if !slices.Contains(left, command) {
+				t.Errorf("the SPD ledger does not name the refused removal %q; it holds %q", command, left)
+			}
+		}
+		if got := liveExemptions(&dp.catchAllDP); len(got) != 0 {
+			t.Errorf("releaseSPD left exemptions installed: %q", got)
+		}
+		if got := liveCatchAll(t, &dp.catchAllDP); got != dataplane.SPActionDiscard {
+			t.Errorf("node catch-all action %d after a refused interface removal, want it kept as discard", got)
+		}
+	})
 }

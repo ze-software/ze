@@ -1,13 +1,13 @@
 // Design: docs/architecture/policyroute/netlink-int-field-truncation.md -- netlink int width
 
-package policyroute
+package iprule
 
-// netlinkTableInt converts a kernel routing table ID to the Go int that
+// tableInt converts a kernel routing table ID to the Go int that
 // netlink.Rule.Table is typed as.
 //
 // int is 64 bits on this target, so every uint32 converts exactly and there is
 // nothing to reject. The check that the generic build needs lives in
-// netlinkint_linux_generic.go; keeping it out of here is what lets the full
+// table_linux_generic.go; keeping it out of here is what lets the full
 // kernel-legal table range stay usable on the targets Ze actually ships
 // (`internal/appliance/config.go` accepts linux/amd64 and linux/arm64 only).
 //
@@ -19,6 +19,6 @@ package policyroute
 // not a narrowing one. Expressing the bound as this build's math.MaxInt in a
 // file with no architecture constraint is what left
 // go/incorrect-integer-conversion flagged as alert 171.
-func netlinkTableInt(v uint32) (int, error) {
+func tableInt(v uint32) (int, error) {
 	return int(v), nil
 }

@@ -306,7 +306,7 @@ func TestParsePolicyConfigRuleOrderTiebreakByName(t *testing.T) {
 // the conversion to Go int that netlink.Rule.Table performs, while still
 // accepting every value at or below the bound it is given.
 // PREVENTS: `then table <N>` above MaxInt32 on a 32-bit build silently losing
-// its table selection. newIPRule converts to int (rules_linux.go) and the
+// its table selection. iprule.Mark.Rule converts to int (internal/core/iprule) and the
 // encoder emits FRA_TABLE only for Table >= 256 and the compat byte only for
 // 0 <= Table < 256 (vendor/github.com/vishvananda/netlink/rule_linux.go:57,126),
 // so a negative Table installs a rule with RT_TABLE_UNSPEC and the operator's
@@ -350,7 +350,7 @@ func TestValidateActionTableRejectsUnencodable(t *testing.T) {
 // PREVENTS: the parser being wired to a hardcoded 32-bit bound, which would
 // reject kernel-legal table IDs on the 64-bit targets Ze ships. That narrowing
 // was shipped once to quiet CodeQL alert 171 and reverted: the int conversion
-// is answered where it happens (netlinkTableInt), not by refusing config.
+// is answered where it happens (iprule tableInt), not by refusing config.
 func TestParsePolicyConfigTableBoundMatchesBuild(t *testing.T) {
 	for _, tbl := range []uint64{4000, math.MaxInt32, math.MaxInt32 + 1, math.MaxUint32} {
 		input := `{

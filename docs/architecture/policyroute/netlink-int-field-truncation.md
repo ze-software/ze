@@ -11,12 +11,12 @@ the route lands in `RT_TABLE_MAIN` at the kernel default metric.
 Policy routing and VRF-style table isolation are security controls, so that
 failure direction is fail-open. CodeQL alert 170
 (`go/incorrect-integer-conversion`, high) flagged the conversion in
-`rules_linux.go`.
+the policy routing rule encoder, now `internal/core/iprule` (`newRule`).
 
 ## The bound is `math.MaxInt`, not `math.MaxInt32`
 
 <!-- source: internal/plugins/policyroute/config.go -- validateActionTable, maxEncodableTable -->
-<!-- source: internal/plugins/policyroute/rules_linux.go -- newIPRule error return -->
+<!-- source: internal/core/iprule/iprule_linux.go -- newRule error return -->
 
 Ze ships `linux/amd64` and `linux/arm64` flavors in
 `internal/le/repo/compiles/matrix.go`, where `int` is 64-bit and every uint32 is
@@ -25,7 +25,7 @@ Exact-or-reject says reject what ze cannot deliver exactly, not what it can.
 
 ## The bound is a function parameter
 
-<!-- source: internal/plugins/policyroute/netlinkint_linux_generic.go -- maxEncodable constant -->
+<!-- source: internal/core/iprule/table_linux_generic.go -- tableInt bound -->
 
 `validateTableID(id, maxEncodable)`, `validateActionTable(tbl, maxEncodable)` and
 `validateRouteMetric(metric, maxEncodable)` take the bound as a parameter, and
@@ -40,12 +40,16 @@ the guard and the test goes red.
 ## The guard sits at both layers
 
 Config validation tells the operator at commit time. The netlink call site stops
-a future producer from bypassing the validation. `newIPRule` gained an error
-return for this. `buildRoute` and `buildRichRoute` already had one.
+a future producer from bypassing the validation. The rule encoder, now
+`internal/core/iprule` (`newRule`, behind `Mark.Rule` and `Source.Rule`), has an
+error return for this. `buildRoute` and `buildRichRoute` already had one.
 
-No shared helper package was added. The duplicated expression is `math.MaxInt`, a
-stdlib constant. That is not duplicated knowledge, and a new `internal/core`
-package for three lines is not worth the import edge.
+The encoder moved to the core leaf `internal/core/iprule` when the IKE engine
+needed source-prefix rules too: a gated component cannot import the gated
+policyroute plugin, and a copy would be a second declaration. The per-architecture
+conversion moved with it (`table_linux_amd64.go`, `table_linux_arm64.go`,
+`table_linux_generic.go`). The duplicated expression `math.MaxInt` in the config
+bounds is a stdlib constant, not duplicated knowledge.
 
 ## Consequences
 

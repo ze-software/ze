@@ -63,6 +63,16 @@ overlap by construction. An operator-supplied table ID in 1000 to 2999
 (ze-reserved) or 253 to 255 (kernel system) is rejected at PARSE time, not at
 apply time.
 
+The auto table range is declared in `internal/core/iprule`
+(`PolicyRouteAutoTables`), beside every other range a Ze producer allocates
+from, and `TestTableRangesAreDisjoint` checks them against each other. The
+`ip rule` encoder lives there too (`iprule.Mark.Rule`): the IKE engine builds
+source-prefix rules with the same encoder (`iprule.Source.Rule`), and a gated
+component cannot import this gated plugin.
+
+<!-- source: internal/core/iprule/iprule.go -- TableRange, PolicyRouteAutoTables, Mark -->
+<!-- source: internal/core/iprule/iprule_linux.go -- newRule, Mark.Rule, Source.Rule -->
+
 ### One terminal action per rule
 
 Only one of accept, drop, table or next-hop is allowed. The conflict is detected

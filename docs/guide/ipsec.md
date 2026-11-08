@@ -1368,13 +1368,27 @@ the way and be dropped. So for every XFRM interface a peer binds, Ze installs
 | out and fwd, IPv4 and IPv6 | any address, output device the XFRM interface | Forwarded traffic, and the router's own IPv4 traffic, carry the output device into the lookup |
 | out, IPv6 | source each IPv6 address the XFRM interface holds, any destination | The router's own IPv6 traffic is looked up before the kernel records the output device |
 
-Nothing is installed under `unmatched bypass`, since the catch-all already
-passes the traffic. The entries follow the interface: Ze reads its index and
-addresses through the interface resolver, and reads them again when an
+None of these is installed under `unmatched bypass`, since the catch-all already
+passes the traffic.
+
+Each bound XFRM interface's own database also gets a final entry: a `discard`
+in, out and fwd for IPv4 and IPv6 at the interface's `if_id`, ranked last, so
+the interface's Child SA policies are always searched first. A packet routed
+into the interface that no Child SA covers is dropped there and counted by the
+kernel's `XfrmOutPolBlock` counter. This entry discards under both values of
+`unmatched`: an XFRM interface has no path in the clear, because the kernel
+drops a packet there that matches no Child SA whatever entry it meets, so a
+`bypass` at the interface would only be listed as one. It goes in before the
+`if_id` 0 entries above hand any packet to the interface, and comes out after
+them.
+
+The entries follow the interface: Ze reads its index and
+addresses and `if_id` through the interface resolver, and reads them again when an
 interface address is added or removed or an interface is created. An address
 the interface loses takes its entry with it, and the entries are removed when
-no peer binds the interface, when `unmatched` turns to `bypass`, and when the
-engine stops. If the interface cannot be read, its entries stay as they were and
+no peer binds the interface and when the engine stops; the `if_id` 0 entries also
+leave when `unmatched` turns to `bypass`. An interface that reports `if_id` 0 is
+treated as one that cannot be read, because `if_id` 0 is the node-wide database. If the interface cannot be read, its entries stay as they were and
 the daemon logs a warning. If an entry cannot be installed, the daemon logs an
 error: the tunnel's traffic is then dropped by the catch-all. On a reload that
 turns `discard` on, the entries go in before the catch-all changes, so a
@@ -1387,7 +1401,7 @@ catch-all. Do not source traffic from the tunnel address towards a destination
 routed elsewhere, or add a `policy` entry with action `discard` for it, which
 outranks the exemption.
 
-<!-- source: internal/component/ike/engine/unmatched_xfrm_interface.go -- xfrmInterfaceExemptions, planXFRMExemptions, installXFRMExemptions, pruneXFRMExemptions -->
+<!-- source: internal/component/ike/engine/unmatched_xfrm_interface.go -- xfrmInterfaceExemptions, interfaceSPDCatchAll, planXFRMInterfaceEntries, installXFRMInterfaceEntries, pruneXFRMInterfaceEntries -->
 <!-- source: internal/component/ike/engine/dynamic_wan.go -- startAddressWorker, followAddress -->
 <!-- source: internal/component/ike/dataplane/dataplane.go -- PriorityUnmatchedXFRMInterface -->
 
