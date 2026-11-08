@@ -18,9 +18,8 @@ import (
 // PPPIOCGUNIT. Clean-up deletes the device so the test name is free for the
 // next run. This test confirms A-1 (kernel accepts rtnetlink kind "ppp" with
 // IFLA_PPP_DEV_FD) and A-4 (closing the unit fd releases the name in time for
-// a re-create), the two assumptions
-// plan/release/fixes/spec-home-cpe-1-logical-interface-name.md marks
-// unvalidated before child-1 phase 2 lands. The test needs CAP_NET_ADMIN,
+// a re-create), the two kernel assumptions of
+// spec-home-cpe-1-logical-interface-name. The test needs CAP_NET_ADMIN,
 // which the ./le test integration harness provides through a user namespace.
 func TestDevPPPSetupNamesUnit(t *testing.T) {
 	const name = "pppze0"

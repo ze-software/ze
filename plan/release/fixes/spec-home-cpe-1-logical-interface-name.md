@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Scope | config |
 | Priority | P1 |
 | Release reason | Accepted configuration does the wrong thing: `pppoe-client pppoe0` validates, yet a static route, a firewall match or a masquerade rule that names `pppoe0` never matches the session device, which the kernel calls `pppN`. The guide's own example (`docs/guide/static-routes.md`, `interface pppoe0`) does not work. |
@@ -367,34 +367,33 @@ together is accepted.
 | Test fails on behavior mismatch | Re-read the source in Current Behavior |
 | 3 fix attempts failed | STOP. Report all 3 approaches |
 
-## Blocker
+## Red Walks (the former Blocker, cleared 2026-11-08)
 
-Closure attempt 2026-11-08 (`/ze-close`): every AC is implemented in committed
-code, and every planned test exists and has passed. What blocks closure is the
-red phase `ai/rules/interop-and-goal-validation.md` requires before an interop
-or functional test may be claimed to validate the change: none is recorded for
-this spec's scenario or `.ci` files. `docs/labs/pppoe-interop.md`
-("pppoe-named-device-reconnect-ze-client", last paragraph) says so itself: a
-red run against a rebuilt defective producer must be recorded before the
-behavior is claimed proved. A closure subagent may not run the Docker lab or
-QEMU, so the main thread owes these runs.
+The first closure attempt stopped because no red phase was recorded for the
+scenario or the `.ci` files (`ai/rules/interop-and-goal-validation.md`). The
+main thread ran each break on 2026-11-08 through a Go build overlay
+(`GOFLAGS=-overlay=<walk>/overlay.json`, driver
+`tmp/session/2026-11-07-104251/scratch/rw1/run.sh`, logs beside it), rebuilding
+the lab image or the guest binaries each time. The closure agent diffed each
+overlay copy against the source its `overlay.json` names: each differs only by
+the break below (the w5b YANG copy also lacks the RFC 8106 RDNSS sentence that
+8d13a9dceb added to an unrelated leaf after the copy was taken).
 
-| # | Test | Break (producer) | Expected red | Run |
+| # | Test | Break (producer) | Observed red | Log |
 |---|------|------------------|--------------|-----|
-| 1 | interop `pppoe-named-device-reconnect-ze-client` | `pppoeclient.Dialer.Dial` (`internal/component/l2tp/pppoeclient/dialer.go`) passes `""` instead of `cfg.Name` to `ppp.DevPPPSetup`; rebuild the Ze image | the checker (`check_named_device.go` `checkNamedDeviceReconnect`) finds a `pppN` and no `pppoe0` | `ZE_PPPOE_INTEROP_SCENARIO=pppoe-named-device-reconnect-ze-client ./le test deployment docker-pppoe-accel` |
-| 2 | the same scenario | the static link watch (`internal/plugins/static/link.go`, its `iface.Subscribe` call) answers a channel that never fires; rebuild | after `accel-cmd terminate` the default route does not come back without a reload | same |
-| 3 | `test/static/static-interface-nexthop-pppoe-absent.ci`, `static-interface-nexthop-pppoe-same-commit.ci` | `iface.DeclaredDynamicNames` (`internal/component/iface/declared_dynamic.go`) answers no names | the route lands in the skipped set instead of waiting | QEMU guest, the two files |
-| 4 | `test/static/static-interface-nexthop-pppoe-follows-device.ci` | the link-watch break of row 2 | the `proto 250` route does not return after the fixture recreates `pppoe0` | QEMU guest |
-| 5 | `test/parse/pppoe-client-name-too-long.ci`, `pppoe-client-name-collides.ci` | remove the key's YANG `length`/`pattern` and the cross-kind check `ifaceConfig.refuseDuplicateInterfaceNames` (`internal/component/iface/config.go`) | the config is accepted | QEMU guest, the two files |
+| 1 | interop `pppoe-named-device-reconnect-ze-client` | `pppoeclient.Dialer.Dial` passes `""` instead of `cfg.Name` to `ppp.DevPPPSetup` | `FAIL (1m16s): first session: wait for PPP device pppoe0 in ze timed out`; `0 passed, 1 failed` | `w1-dial-unnamed-lab.log` |
+| 2 | the same scenario | `ifaceLinks.subscribe` (`internal/plugins/static/link.go`) forwards events until the first LinkDown after a LinkUp, then drops every later one | `FAIL (37s): session after accel-ppp terminated the first (ifindex 11): the static default route did not reach the kernel through pppoe0, got ""` | `w2b-linkwatch-no-return-lab.log` |
+| 3 | `static-interface-nexthop-pppoe-absent.ci`, `static-interface-nexthop-pppoe-same-commit.ci` (QEMU guest, Ze 7.3) | `iface.DeclaredDynamicNames` answers no names (`if false && present`) | both FAIL: `ZE-OBSERVER-FAIL: boot, no session: 0.0.0.0/0 is skipped (interface "pppoe0" ... not found), want it waiting for pppoe0`, and the same skip `after one reload adding client and route` | `w3-declared-empty-guest.log` |
+| 4 | `static-interface-nexthop-pppoe-follows-device.ci` (QEMU guest) | the link-watch break of row 2 | FAIL: `ZE-OBSERVER-FAIL: device recreated: 198.18.76.0/24 is ""` | `w2b-linkwatch-no-return-guest.log` |
+| 5 | `pppoe-client-name-too-long.ci`, `pppoe-client-name-collides.ci` (QEMU guest) | YANG `length "1..15"` and `pattern` removed from `list pppoe-client` `leaf name`; the key's `ValidateIfaceName` call and `ifaceConfig.refuseDuplicateInterfaceNames` removed (`internal/component/iface/config.go`) | both FAIL: `configuration valid: .../stdin-toolong.conf` and `configuration valid: .../stdin-collide.conf` | `w5b-name-checks-all-guest.log` |
 
-Clears when each row's red is observed and recorded (in the commit body that
-restores the code), and `docs/labs/pppoe-interop.md` replaces "The scenario is
-authored ..." with the passing run (PPPoE suite run 2026-11-07:
-`pppoe-named-device-reconnect-ze-client: pass (11s)`, 14 of 16, the two reds
-owned by `spec-l2tp-ipv6-subscriber`) and the red result. Then `/ze-close`
-resumes at step 1.
+Restore: on the unbroken tree the scenario passed again
+(`pppoe-named-device-reconnect-ze-client: pass (9s)`, `interop: 1 passed, 0
+failed`, `restore-lab.log`). The `.ci` files passed on the unbroken tree at
+fb9671a9f9, 6d194604f9 and 5ee1ebb500 (table below).
+`docs/labs/pppoe-interop.md` now records the passing run and both scenario reds.
 
-Verified at this attempt, so the next closure need not repeat it:
+Verified at the first closure attempt, and standing as evidence for these ACs:
 
 | AC | Producer | Evidence |
 |----|----------|----------|
@@ -467,3 +466,162 @@ mapping at all.
 
 ### Closure
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- The PPPoE client creates its PPP unit under the configured name: `ppp.DevPPPSetup` takes a name and, when it is set, `createPPPLink` sends RTM_NEWLINK kind `ppp` with `IFLA_IFNAME` and `IFLA_PPP_DEV_FD` (NLM_F_EXCL, bounded EBUSY/EEXIST retry), then reads the unit back with PPPIOCGUNIT. The LNS and the AC keep PPPIOCNEWUNIT (a65e5c69c6, 1d7b88a626)
+- `PPPoEClient.runSession` and `status` address and report the device by `cfg.Name` (1d7b88a626, a65e5c69c6)
+- The pppoe-client key is validated as a kernel device name (YANG `length "1..15"`, `pattern`, `ValidateIfaceName`) and refused when another configured interface of any kind carries it (`ifaceConfig.refuseDuplicateInterfaceNames`) (a8932e4e13)
+- `iface.DeclaredDynamicNames` answers the on-demand names of one delivered `interface` section; static's `verifyCandidateStatic` classifies each next-hop against the candidate section (`candidateDeclaredNames`, `classifyDeclared`, `nextHop.Dynamic`), so apply, rollback and the pending delivery carry the set verified with their routes (71fac007f6)
+- Device presence is a second next-hop activity input beside BFD: `internal/plugins/static/link.go` keeps one `iface.Subscribe` watch per declared name a committed route uses, and `setLinkLocked`/`markDevice` reprogram on LinkUp, LinkDown and an ifindex move. Both removal owners treat ESRCH as done (`netlinkStaticBackend.removeRoute`, fib-kernel `delOwnedRoute`) (5982501268)
+- PPPoE session sockets bind the resolved device (`pppoe.InterfaceBinding.Device`), on the client and the access concentrator (289007ccf5)
+- Interop scenario `pppoe-named-device-reconnect-ze-client` and its checker `checkNamedDeviceReconnect` (69ecaa5a44)
+
+### Bugs Found/Fixed
+- Connected routes never saw addresses that predated the iface monitor, which kept the follows-device `.ci` red; fixed by 44d3dab2ff and proven by `static-interface-nexthop-pppoe-follows-device.ci`
+- AC-16: the session socket took the configured name, not the resolved device; covered by `TestDialSessionSocketUsesResolvedDevice`, `TestInterfaceServerSessionSocketUsesResolvedDevice`, `TestDialOSNameSourceInterface`
+
+### Documentation Updates
+- Pages updated with the code: `docs/architecture/static-routes.md`, `docs/architecture/core-design.md` (ESRCH), `docs/guide/static-routes.md`, `docs/architecture/iface/logical-name-resolution.md`, `docs/architecture/l2tp/bng-5-pppoe.md`, `docs/architecture/l2tp/cpe-1-pppoe-client.md`, `docs/features/interfaces.md`, `docs/guide/firewall.md`, `docs/guide/pppoe.md`, `docs/guide/configuration.md` (commits 71fac007f6, 5982501268, 69ecaa5a44, a8932e4e13, 289007ccf5)
+- At closure: `docs/labs/pppoe-interop.md` "pppoe-named-device-reconnect-ze-client" records the passing run and the two scenario reds (anchors `dialer.go -- Dialer.Dial`, `link.go -- ifaceLinks.subscribe`); `features/static-routes.md` gains the on-demand interface clause, the three static `.ci` files as real-path tests, a `link.go` anchor and a 2026-11-08 Doc review
+- `./le doc check all`: FAILED on surfaces this spec does not touch (the `../gh-pages` command-equivalent pages for `show interface pppoe-client`, and the command-help contract for `clear debug`); source anchors pass
+
+### Deviations from Plan
+- `TestPPPoEClientNameValidated` lives in `internal/component/iface/pppoe_client_test.go`, and `TestDeclaredDynamicNames` in `declared_dynamic_test.go`, not `config_test.go`
+- `features/interfaces.md` real-path tests do not list the two parse `.ci` files: that declaration's Doc review is already stale from other sessions' changes to `docs/features/interfaces.md` on 2026-11-08, and re-reviewing it is outside this spec
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The first closure attempt found no red phase recorded for the scenario or the five `.ci` files | Implementation promoted tests without a recorded break | `/ze-close` step 1, 2026-11-08 | Spec handed back blocked; the main thread ran the five walks; recorded under "Red Walks" |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| The configured name of a pppoe-client is its kernel device, every session and reconnect | Done | `internal/component/l2tp/ppp/devppp_linux.go` `DevPPPSetup`, `createPPPLink`; `pppoeclient.Dialer.Dial` | red walk 1 |
+| Every consumer naming it reaches the session | Done | nft keeps the literal name (`lowerIfaceMatch`); static resolves by name | interop masquerade counter |
+| Static route survives absence at boot and across reconnects, main and named table, alone or in mixed ECMP | Done | `internal/plugins/static/link.go`, `inject.go` `programRouteLocked` | red walks 2-4 |
+| Client and route added in one commit are accepted | Done | `register.go` `verifyCandidateStatic`, `candidateDeclaredNames` | red walk 3 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestDevPPPSetupNamesUnit`; interop first session | red walk 1 |
+| AC-2 | Done | interop reconnect (new ifindex) | |
+| AC-3 | Done | absent `.ci`, follows-device `.ci`, interop | red walks 2-4 |
+| AC-4 | Done | `TestStaticDeclaredRemovedFallsBackToSkip`; `static-per-route-isolation.ci` unchanged | |
+| AC-5 | Done | interop masquerade counter before and after reconnect | |
+| AC-6 | Done | `pppoe-client-name-too-long.ci`, `TestPPPoEClientNameValidated` | red walk 5 |
+| AC-7 | Done | `pppoe-client-name-collides.ci` | red walk 5 |
+| AC-8 | Done | `TestPPPoEClientUsesConfiguredDeviceName` | |
+| AC-9 | Done | `TestApplyKeepsPPPoEClientDevice` | |
+| AC-10 | Done | same-commit `.ci`, `TestStaticApplyIgnoresApplyOrder` | red walk 3 |
+| AC-11 | Done | `TestStaticDeclaredRemovedFallsBackToSkip` | |
+| AC-12 | Done | `TestStaticRollbackRestoresDeclaredSet` | |
+| AC-13 | Done | `TestStaticInterfaceRouteFollowsDevice` (Ze 7.3) | |
+| AC-14 | Done | follows-device `.ci`, `TestStaticWaitingMemberNotSkipped` | red walk 4 |
+| AC-15 | Done | `TestStaticMixedECMPFollowsDevice` (Ze 7.3) | |
+| AC-16 | Done | `TestDialOSNameSourceInterface` (Ze 7.3), two unit tests | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| 18 unit and integration tests of the plan | Done | each found by `grep -rln "func <name>("` at closure | locations above and in Deviations |
+| 5 functional `.ci` | Done | `test/parse/`, `test/static/` | red walks 3-5 |
+| interop scenario | Done | `test/interop-pppoe/scenarios/pppoe-named-device-reconnect-ze-client/` | red walks 1-2 |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify (code) | Done | every file listed changed in the seven child-1 commits |
+| Files to Create | Done | see Files Exist below |
+| Docs | Done | Documentation Updates above |
+
+### Audit Summary
+- **Total items:** 4 requirements, 16 ACs, 24 tests, plan files
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 test file locations (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The configured name is the kernel device on every session and reconnect | interop | `pppoe-named-device-reconnect-ze-client` pass (9s) on 2026-11-08; red with `Dial` passing `""` (walk 1) |
+| Every consumer naming it reaches the session | interop | same scenario: static default through `pppoe0` at proto 250 and masqueraded ping with a rising nft counter, before and after `accel-cmd terminate` |
+| A static route through it survives absence at boot and across reconnects, main and named table, alone or in mixed ECMP | functional + kernel integration | absent and follows-device `.ci` red under walks 3-4; `TestStaticInterfaceRouteFollowsDevice`, `TestStaticMixedECMPFollowsDevice` PASS on Ze 7.3 |
+| A commit adding the client and its route together is accepted | functional | `static-interface-nexthop-pppoe-same-commit.ci`, red under walk 3 |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is done | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | recorded by `./le spec review record` over the closure files; its path and the check result are in commit A's message |
+| `./le spec review check` | run before commit A |
+| Rounds | 1 |
+| Reviewer lenses used | wiring and functional coverage; logic and concurrency of the link watch; security of the name validation and netlink create; removed-behavior and test-rewrite audit (`./le test weakened check base 1d7b88a626~1`: clean, 299 test files) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | no BLOCKER or ISSUE | - | - |
+
+### Run 1 NOTEs
+1. NOTE: `DevPPPSetup` blames a name collision when PPPIOCGUNIT fails after a successful named create; with NLM_F_EXCL that create cannot adopt another program's device, so the stated cause is unlikely (`internal/component/l2tp/ppp/devppp_linux.go` `DevPPPSetup`).
+2. NOTE: a key equal to a device Ze does not list as a configured entry (`lo`, a VLAN unit such as `eth0.100`) passes parse and fails at dial after the bounded EEXIST retry, with a message naming the fix (R-3).
+3. NOTE: `iface.BindResolverEventsForConsumerTest` is an exported test hook in a production file, matching about 59 existing `...ForTest` hooks.
+4. NOTE: the per-route skip of a declared member whose device vanishes between `ensureLinkLocked` and `staticPath` waits for the next apply, the same as any skip.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/l2tp/ppp/devppp_integration_linux_test.go` | Yes | ls 2026-11-08, 2.6K |
+| `test/parse/pppoe-client-name-too-long.ci`, `pppoe-client-name-collides.ci` | Yes | ls 2026-11-08 |
+| `test/static/static-interface-nexthop-pppoe-absent.ci`, `-same-commit.ci`, `-follows-device.ci` | Yes | ls 2026-11-08 |
+| `test/interop-pppoe/scenarios/pppoe-named-device-reconnect-ze-client/` | Yes | accel-ppp.conf, chap-secrets, role, ze.conf |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2 | named create | `Dialer.Dial` passes `cfg.Name` to `DevPPPSetup`; `createPPPLink` retries only EBUSY/EEXIST; `grep 'StrInt("ppp"' pppoe_client.go` empty |
+| AC-3, AC-13..15 | waiting member follows its device | red walks 2-4 observed 2026-11-08 |
+| AC-4, AC-10..12 | candidate classification | `verifyCandidateStatic` calls `candidateDeclaredNames` then `classifyDeclared`; red walk 3 |
+| AC-5 | NAT through the session | restore run pass (9s) |
+| AC-6, AC-7 | name refusals | YANG `length "1..15"` and `pattern` on `list pppoe-client` `leaf name`; `parseIfaceConfig` calls `ValidateIfaceName` on the key and `refuseDuplicateInterfaceNames`; red walk 5 |
+| AC-8, AC-9, AC-16 | status name, prune, resolved device | `PPPoEClient.status` reports `c.cfg.Name`; `pppoe.PPPoECreate` takes an `InterfaceBinding` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| client and route at boot, no session | `test/static/static-interface-nexthop-pppoe-absent.ci` | red under walk 3 proves it drives `DeclaredDynamicNames` |
+| one reload adding both | `test/static/static-interface-nexthop-pppoe-same-commit.ci` | red under walk 3 |
+| device up, down, deleted, recreated | `test/static/static-interface-nexthop-pppoe-follows-device.ci` | red under walk 4 proves it drives the link watch |
+| key validation | `test/parse/pppoe-client-name-too-long.ci`, `-collides.ci` | red under walk 5 |
+| full CPE | interop `pppoe-named-device-reconnect-ze-client` | red under walks 1 and 2 |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestDevPPPSetupNamesUnit` PASS on Ze 7.3 in QEMU; interop first session |
+| A-2 | confirmed | `sendPPPLinkCreate` encodes the request with the vendored `nl` package |
+| A-3 | confirmed | `TestStaticInterfaceRouteFollowsDevice` and the interop reconnect |
+| A-4 | confirmed | interop reconnect brings up a new `pppoe0`; `createPPPLink` bounded EEXIST retry |
+| A-5 | confirmed | `TestApplyKeepsPPPoEClientDevice` |
+| A-6 | confirmed | `warnIfExternal` names the waiting-route consequence (`register.go`) |
+| A-7 | confirmed | `TestStaticRemoveRouteToleratesESRCH`, `TestFIBDeleteToleratesESRCH` PASS on Ze 7.3 |
+| A-8 | confirmed | `TestStaticMixedECMPFollowsDevice` PASS on Ze 7.3 |

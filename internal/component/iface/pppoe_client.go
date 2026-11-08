@@ -201,8 +201,7 @@ func (c *PPPoEClient) status() PPPoEClientStatus {
 		// The kernel device carries the configured name once the dialer
 		// creates it through RTM_NEWLINK kind "ppp" with IFLA_IFNAME. For a
 		// client that has never completed Dial (pppUnit still -1) the OS
-		// name column stays empty, which is what status reported before
-		// child-1 phase 2. See plan/release/fixes/spec-home-cpe-1-logical-interface-name.md.
+		// name column stays empty. See docs/architecture/l2tp/cpe-1-pppoe-client.md.
 		pppIface = c.cfg.Name
 	}
 

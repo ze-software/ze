@@ -12,8 +12,7 @@ var errPppDevPppNotAvailableOn = errors.New("ppp: /dev/ppp not available on this
 
 // DevPPPSetup is not available on non-Linux platforms. The name parameter
 // mirrors the Linux signature so the two platforms stay in sync; it is
-// otherwise unused here (child-1,
-// plan/release/fixes/spec-home-cpe-1-logical-interface-name.md).
+// otherwise unused here.
 func DevPPPSetup(_ int, _ string) (int, int, int, error) {
 	return -1, -1, -1, errPppDevPppNotAvailableOn
 }

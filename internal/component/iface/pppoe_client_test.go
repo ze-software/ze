@@ -317,14 +317,14 @@ func (d *fakeDialer) Dial(_ PPPoEClientConfig, stopCh <-chan struct{}, _ *slog.L
 	return d.sess, nil
 }
 
-// TestPPPoEClientUsesConfiguredDeviceName verifies child-1 Phase 1 wiring:
-// runSession names the device by the configured key (here pppoe0), not by
-// the kernel-chosen pppN. The fake dialer returns a session with unit num 7
-// so a regression that keeps textbuf.StrInt("ppp", 7) would reach the
-// backend with "ppp7" and the assertions below fail. The configured name
-// must appear on every backend call runSession makes after Dial returns.
-// VALIDATES: AC-1, AC-8 with a fake dialer
-// (plan/release/fixes/spec-home-cpe-1-logical-interface-name.md).
+// TestPPPoEClientUsesConfiguredDeviceName verifies that runSession names the
+// device by the configured key (here pppoe0), not by the kernel-chosen pppN.
+// The fake dialer returns a session with unit num 7 so a regression that
+// keeps textbuf.StrInt("ppp", 7) would reach the backend with "ppp7" and the
+// assertions below fail. The configured name must appear on every backend
+// call runSession makes after Dial returns.
+// VALIDATES: AC-1, AC-8 of spec-home-cpe-1-logical-interface-name, with a
+// fake dialer.
 func TestPPPoEClientUsesConfiguredDeviceName(t *testing.T) {
 	cfg := PPPoEClientConfig{
 		Name:            "pppoe0",

@@ -267,9 +267,19 @@ runs Alpine's 1.14.0 package.
 <!-- source: internal/le/interoplab/pppoe/check_named_device.go -- checkNamedDeviceReconnect, removeDockerDefaultRoute, namedMasqueradeThroughSession -->
 <!-- source: test/interop-pppoe/scenarios/pppoe-named-device-reconnect-ze-client/ze.conf -- CPE configuration -->
 
-The scenario is authored. A passing run and a red run against a rebuilt
-defective producer must be recorded before this page claims the behavior is
-proved.
+The scenario passed on 2026-11-08 (`pppoe-named-device-reconnect-ze-client:
+pass (9s)`) on the unbroken tree, and it discriminates. Two rebuilt defective
+producers each turned it red on the same day:
+
+| Break | Red |
+|-------|-----|
+| `pppoeclient.Dialer.Dial` passes `""` instead of `cfg.Name` to `ppp.DevPPPSetup`, so the kernel names the unit `pppN` | `first session: wait for PPP device pppoe0 in ze timed out` |
+| static's link watch (`internal/plugins/static/link.go`) hears the device's first up and its loss, then drops every later event | `session after accel-ppp terminated the first (ifindex 11): the static default route did not reach the kernel through pppoe0` |
+<!-- source: internal/component/l2tp/pppoeclient/dialer.go -- Dialer.Dial -->
+<!-- source: internal/plugins/static/link.go -- ifaceLinks.subscribe -->
+
+The second red is the reconnect half of the claim: the route came back only
+because static heard `pppoe0` return.
 
 ### pppoe-peer-terminate-ze-ac
 
