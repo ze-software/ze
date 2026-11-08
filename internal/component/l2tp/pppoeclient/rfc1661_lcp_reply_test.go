@@ -229,6 +229,21 @@ func TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue(t *testing.T) {
 		if magic == 0 || magic == clientMagic {
 			t.Fatalf("new Magic = %#x, want fresh nonzero value", magic)
 		}
+		// The Nak looped back carries the value Ze itself suggested to the
+		// server; adopting it would let both ends send the same Magic-Number,
+		// so the redrawn value must differ from it too.
+		nakOpts, err := ppp.ParseLCPOptions(nak.Data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, opt := range nakOpts {
+			if opt.Type != ppp.LCPOptMagic {
+				continue
+			}
+			if suggested := binary.BigEndian.Uint32(opt.Data); magic == suggested {
+				t.Fatalf("new Magic = %#x adopts the looped Nak's suggestion, want a value of its own", magic)
+			}
+		}
 		frames <- serverFrame(ppp.LCPConfigureRequest, 78, nil)
 		frames <- serverFrame(ppp.LCPConfigureAck, next.Identifier, next.Data)
 		if err := <-done; err != nil {
