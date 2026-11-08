@@ -27,7 +27,7 @@ var renameWork = map[string]string{
 // renameFixtureSpec is a spec body that names its own stem twice, in the title
 // and in a self-reference, the two places a rename has to rewrite.
 func renameFixtureSpec(stem string) string {
-	return "# Spec: " + stem + "\n\n| Status | in-progress |\n\n" + renameWork[stem] + "\n" +
+	return "# Spec: " + stem + "\n\n| Field | Value |\n|-------|-------|\n| Status | in-progress |\n\n" + renameWork[stem] + "\n" +
 		"See plan/post-release/engineering/spec-" + stem + ".md for the acceptance criteria.\n"
 }
 

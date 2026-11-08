@@ -527,6 +527,53 @@ func TestAFailedBlockDeletesNothing(t *testing.T) {
 	}
 }
 
+// TestAFailedPublicationKeepsTheUnchangedCopy is the failed-publication case of
+// AC-5 / P-5 of spec-tooling-one-off-defects: a block that builds its commit
+// and then fails to publish it keeps the working copy of its removed path,
+// even a copy byte for byte what git holds, which a published block deletes.
+// TestAFailedBlockDeletesNothing stops the block before it starts to publish;
+// this one fails at the compare-and-swap, the last step before the removal.
+// Method: a lock file on the branch HEAD names, so `git update-ref` refuses
+// after core.filesRefLockTimeout while HEAD stays where it was. The output must
+// carry the swap's own refusal, so an earlier failure cannot pass for it.
+// MUTATION: (script.go, "`_ze_now=$(git rev-parse --verify 'HEAD^{commit}')`,", "`break`,"): a refused swap leaves the publish loop as if it had published, so the script runs on and deletes the unchanged copy of a commit that never landed.
+func TestAFailedPublicationKeepsTheUnchangedCopy(t *testing.T) {
+	root, prepared := removalFixture(t, "removal-failed-publication-fixture")
+	head := strings.TrimSpace(runCommitGitOutput(t, root, "rev-parse", "HEAD"))
+	// The files backend locks the branch's own ref file; reftable, which a
+	// git configured with init.defaultRefFormat creates, locks its table list.
+	lock := filepath.Join(root, ".git", "reftable", "tables.list.lock")
+	if format := strings.TrimSpace(runCommitGitOutput(t, root, "rev-parse", "--show-ref-format")); format == "files" {
+		branch := strings.TrimSpace(runCommitGitOutput(t, root, "symbolic-ref", "HEAD"))
+		lock = filepath.Join(root, ".git", filepath.FromSlash(branch)+".lock")
+	}
+	if err := os.WriteFile(lock, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	command := exec.CommandContext(t.Context(), "bash", filepath.Join(root, filepath.FromSlash(prepared.Script)))
+	command.Dir = root
+	output, err := command.CombinedOutput()
+	if err == nil {
+		t.Fatalf("the block reported success past a held branch lock:\n%s", output)
+	}
+	if !strings.Contains(string(output), "git update-ref refused to move HEAD") {
+		t.Fatalf("the run failed before its publication step, so it proves nothing about a failed publication:\n%s", output)
+	}
+	if got := strings.TrimSpace(runCommitGitOutput(t, root, "rev-parse", "HEAD")); got != head {
+		t.Fatalf("the failed publication moved HEAD from %s to %s:\n%s", head, got, output)
+	}
+	content, err := os.ReadFile(filepath.Join(root, "tracked.txt"))
+	if err != nil {
+		t.Fatalf("a failed publication deleted the working-tree copy: %v\n%s", err, output)
+	}
+	if string(content) != "tracked\n" {
+		t.Fatalf("a failed publication changed the working-tree copy: %q", content)
+	}
+	if _, err := os.Lstat(filepath.Join(root, filepath.FromSlash(prepared.Message))); err != nil {
+		t.Fatalf("a failed publication deleted its message, so the script cannot be run again: %v", err)
+	}
+}
+
 // TestARemovedDirectoryIsKeptAndTheScriptFinishes covers a removed file that a
 // directory replaced after preparation. (A `remove` naming a directory used to
 // reach here too; validateRemovePath now refuses it at create time.) Staging
