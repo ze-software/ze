@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"net/netip"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -30,16 +31,17 @@ type scenarioCheck struct {
 	// scenario's strongSwan gets /proc/sys writable, under the generic net
 	// sysctl profile; every other strongSwan keeps Docker's read-only /proc/sys.
 	writesPeerSysctl bool
-	// zeSysctls are `key=value` settings Docker writes through `--sysctl` into
-	// Ze's own network namespace at start, as natSysctls does for the NAT box. Ze
-	// never gets /proc/sys writable: a checker reads these back, it never writes.
-	zeSysctls []string
+	// networkIPv6 is the IPv6 /64 the scenario's lab network carries beside
+	// networkPrefix. Docker disables IPv6 on eth0 of a container attached to a
+	// network without IPv6, and a start-time --sysctl
+	// net.ipv6.conf.all.disable_ipv6=0 does not undo it (the lab read eth0 back
+	// disabled), so a scenario that needs IPv6 on Ze's eth0 asks for an IPv6
+	// network, as the BGP lab does for OSPFv3 (needsIPv6, internal/le/interoplab/
+	// bgp/prepare.go). Docker then numbers each peer's eth0 at its host number.
+	// The zero prefix keeps the network IPv4-only. Ze never gets /proc/sys
+	// writable.
+	networkIPv6 netip.Prefix
 }
-
-// zeIPv6On enables IPv6 on every interface of Ze's namespace, eth0 included,
-// which Docker disables on a network with no IPv6. The topology labs start
-// their IPv6 nodes the same way (ipv6On, register_pppoe_dhcpv6_pd.go).
-var zeIPv6On = []string{"net.ipv6.conf.all.disable_ipv6=0"}
 
 var scenarioCheckers = map[string]scenarioCheck{
 	"child-rekey":                                     {run: checkChildRekey},
@@ -119,9 +121,9 @@ var scenarioCheckers = map[string]scenarioCheck{
 	// (vtispd.go). strongSwan decapsulates IPv6 onto its lab interface, as above.
 	"vti-unmatched-discard-interface-spd": {run: checkVTIUnmatchedDiscardInterfaceSPD, writesPeerSysctl: true},
 	// The tunnel-source guard, observed from strongSwan's side of the WAN (vtispd.go).
-	// Both lab interfaces carry IPv6 for the WAN path: strongSwan's checker writes
-	// its sysctls, and Docker enables Ze's at start (zeIPv6On).
-	"vti-ipv6-tunnel-source-no-cleartext-leak": {run: checkVTIIPv6TunnelSourceNoCleartextLeak, writesPeerSysctl: true, zeSysctls: zeIPv6On},
+	// Both lab interfaces carry IPv6 for the WAN path: the lab network carries
+	// leakWANLink, and strongSwan's checker also writes its sysctls for the tunnel.
+	"vti-ipv6-tunnel-source-no-cleartext-leak": {run: checkVTIIPv6TunnelSourceNoCleartextLeak, writesPeerSysctl: true, networkIPv6: leakWANLink},
 	// RFC 8247 Section 3.1 legacy signatures: strongSwan runs with RFC 7427 off, so
 	// Ze signs and verifies the AUTH method of each key (legacysig.go).
 	"x509-legacy-ecdsa-p256-signature": {run: checkLegacySignature("ECDSA-256 signature")},

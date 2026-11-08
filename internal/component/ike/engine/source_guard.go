@@ -485,7 +485,7 @@ func sourceGuardTable(terms []firewall.Term) firewall.Table {
 }
 
 // guardTunnelRoute records that peer's Child SA carries (add) or no longer carries its
-// remote traffic selector, and keeps the guard table of the interface whose if_id the
+// remote traffic selectors, and keeps the guard table of the interface whose if_id the
 // Child SA carries in step. Only an IPv6 selector of a Child SA bound to an XFRM
 // interface (IfID not 0) has a guard table to enter. It runs where the Child SA's route
 // events are emitted (emitRouteAdd, emitRouteRemove).
@@ -496,17 +496,51 @@ func guardTunnelRoute(add bool, peer string, child *ChildSA, log *slog.Logger) {
 	if child.IfID == 0 {
 		return
 	}
-	if child.TSRemote == nil {
-		return
+	for _, prefix := range childRemotePrefixes(child) {
+		if !prefix.Addr().Is6() {
+			continue
+		}
+		guards.tunnelRoute(add, peer, guardRouteKey{ifID: child.IfID, prefix: prefix}, log)
 	}
-	prefix, ok := netIPNetToPrefix(child.TSRemote)
-	if !ok {
-		return
+}
+
+// childRemotePrefixes answers the remote traffic selectors child installs policies for,
+// masked and each listed once: the remote half of every negotiated pair that installs a
+// policy (childPolicyPair), or TSRemote alone for a Child SA that negotiated no selector
+// set, the same choice appendChildPolicies makes. TSRemote holds only the first pair, so
+// a Child SA that negotiated IPv4 first and IPv6 second carries an IPv6 selector that
+// TSRemote never shows; reading TSRemote alone left that selector out of the guard table,
+// and the guard's rule then refused every packet from the tunnel address to it.
+func childRemotePrefixes(child *ChildSA) []netip.Prefix {
+	out := make([]netip.Prefix, 0, max(1, len(child.Selectors)))
+	if len(child.Selectors) == 0 {
+		if child.TSRemote == nil {
+			return out
+		}
+		if prefix, ok := netIPNetToPrefix(child.TSRemote); ok {
+			out = append(out, prefix.Masked())
+		}
+		return out
 	}
-	if !prefix.Addr().Is6() {
-		return
+	for _, pair := range child.Selectors {
+		pp, ok := childPolicyPair(child, pair)
+		if !ok {
+			continue
+		}
+		if pp.remote == nil {
+			continue
+		}
+		prefix, ok := netIPNetToPrefix(pp.remote)
+		if !ok {
+			continue
+		}
+		prefix = prefix.Masked()
+		if slices.Contains(out, prefix) {
+			continue
+		}
+		out = append(out, prefix)
 	}
-	guards.tunnelRoute(add, peer, guardRouteKey{ifID: child.IfID, prefix: prefix.Masked()}, log)
+	return out
 }
 
 func (g *sourceGuards) tunnelRoute(add bool, peer string, key guardRouteKey, log *slog.Logger) {

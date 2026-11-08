@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/netip"
 	"strconv"
 	"strings"
 
@@ -289,18 +290,24 @@ const (
 	leakWANDestination = "2001:db8:99::1"
 	// leakWANPrefix is Ze's route to it.
 	leakWANPrefix = "2001:db8:99::/64"
-	// leakZeWAN and leakSwanWAN are the IPv6 addresses the checker puts on the two lab
-	// interfaces, on one link, so Ze has a next hop for leakWANPrefix.
+	// leakZeWAN and leakSwanWAN are the IPv6 addresses of the two lab interfaces on
+	// leakWANLink, so Ze has a next hop for leakWANPrefix. Docker numbers them at the
+	// peers' host numbers (2 and 3); the checker asserts them again, with nodad.
 	leakZeWAN   = "fd00:db8:a::2"
 	leakSwanWAN = "fd00:db8:a::3"
 	// leakProbeCount is the echoes each probe sends.
 	leakProbeCount = 3
 	// leakEthIPv6 is the sysctl that says whether IPv6 is on for Ze's lab interface,
-	// which Docker disables on a network with no IPv6 and zeIPv6On enables at start;
-	// the ip6_output drop a disabled eth0 causes would hide a leak behind a dead
-	// interface.
+	// which Docker disables on a network with no IPv6 and leaves on for this
+	// scenario's network (networkIPv6, leakWANLink); the ip6_output drop a disabled
+	// eth0 causes would hide a leak behind a dead interface.
 	leakEthIPv6 = "net.ipv6.conf.eth0.disable_ipv6"
 )
+
+// leakWANLink is the IPv6 /64 the scenario's lab network carries (networkIPv6), so
+// Docker leaves IPv6 on for both lab interfaces and numbers them leakZeWAN and
+// leakSwanWAN.
+var leakWANLink = netip.MustParsePrefix("fd00:db8:a::/64")
 
 // checkVTIIPv6TunnelSourceNoCleartextLeak proves, from strongSwan's side of the WAN,
 // that IPv6 from vti0's tunnel address toward a WAN-only destination never leaves Ze
@@ -370,15 +377,15 @@ func checkVTIIPv6TunnelSourceNoCleartextLeak(ctx context.Context, lab *scenarioL
 // catch-all would drop), Ze's route to the destination with the tunnel address as its
 // preferred source, and strongSwan's two INPUT counters.
 func (l *scenarioLab) leakWANPath(ctx context.Context) error {
-	// Docker enabled it at start (zeIPv6On); read it back, because a dead eth0 would
-	// make the zero count below prove nothing.
+	// The lab network carries IPv6 (leakWANLink), so Docker left it on; read it back,
+	// because a dead eth0 would make the zero count below prove nothing.
 	enabled, err := l.exec(ctx, zePeer, "sysctl", "-n", leakEthIPv6)
 	if err != nil {
 		return fmt.Errorf("read Ze's %s: %w", leakEthIPv6, err)
 	}
 	if strings.TrimSpace(enabled) != vtiIPv6Enabled {
-		return fmt.Errorf("ze's %s is %q, want %s: the scenario's zeSysctls (zeIPv6On) did not enable IPv6 on eth0, so no leak could be seen",
-			leakEthIPv6, strings.TrimSpace(enabled), vtiIPv6Enabled)
+		return fmt.Errorf("ze's %s is %q, want %s: the scenario's lab network (networkIPv6 %s) did not leave IPv6 on for eth0, so no leak could be seen",
+			leakEthIPv6, strings.TrimSpace(enabled), vtiIPv6Enabled, leakWANLink)
 	}
 	mac, err := l.exec(ctx, swanPeer, "cat", "/sys/class/net/"+containerInterface+"/address")
 	if err != nil {

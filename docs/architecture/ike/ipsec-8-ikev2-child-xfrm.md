@@ -530,8 +530,9 @@ is three kernel objects: the nft table `ze_ipsec_source_guard` (registered with
 its own device and a drop term for any other), one `iprule.Source` rule per
 address at `iprule.IPsecSourceGuardPriority`, and one table per interface from
 `iprule.IPsecSourceGuardTables` holding `unreachable ::/0` and a device route
-for every IPv6 remote selector of a Child SA at the interface's if_id
-(`guardTunnelRoute`, called beside `emitRouteAdd` and `emitRouteRemove`; routes
+for every IPv6 remote selector of a Child SA at the interface's if_id, from
+every negotiated pair and not only the first that `TSRemote` holds
+(`childRemotePrefixes`; `guardTunnelRoute`, called beside `emitRouteAdd` and `emitRouteRemove`; routes
 carry `rtproto.IPsecSourceGuard`). Install runs the nft table, then routes,
 then rules, between the interface catch-alls and the exemptions; prune runs
 after the exemptions and before the interface catch-alls, so no source BYPASS

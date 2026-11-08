@@ -14,6 +14,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
+	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/core/iprule"
 	"github.com/ze-software/ze/internal/core/rtproto"
 )
@@ -405,5 +406,61 @@ func TestChildSAMaintainsTheGuardTable(t *testing.T) {
 	guardTunnelRoute(false, "second", early, log)
 	if stub.guard.routes[tunnel] {
 		t.Error("the tunnel route stayed after the last Child SA carrying it went")
+	}
+}
+
+// VALIDATES: a Child SA bound to vti0 whose negotiated selector set holds an IPv4 pair
+// first and an IPv6 pair second adds a route into vti0 for the IPv6 remote selector to
+// vti0's guard table, and removes it when the Child SA goes.
+// Method: build the Child SA as the negotiation leaves it, TSRemote holding only the
+// first (IPv4) pair, call guardTunnelRoute around a discard apply, and read the recorded
+// routes.
+// PREVENTS: the regression vti-unmatched-discard-interface-spd found in the lab: the
+// guard read TSRemote alone, so the IPv6 selector never entered the table and the
+// guard's rule refused every packet from the tunnel address to strongSwan's IPv6 side
+// as unreachable.
+func TestChildSAGuardsEveryNegotiatedIPv6Selector(t *testing.T) {
+	dp := &catchAllDP{}
+	loadFailClosedBackend(t, dp)
+	stub := stubXFRMInterfaceReads(t)
+	stub.facts["vti0"] = xfrmInterfaceFacts{device: "vti0", ifIndex: 7, ifID: vti0IfID, addresses: []netip.Addr{mustAddr(t, "fd00:db8:1::1")}}
+	state := applyTestState(t)
+	log := state.log
+
+	if err := state.applyConfig(vtiBoundConfig(dataplane.SPActionDiscard), applyReload); err != nil {
+		t.Fatalf("discard apply: %v", err)
+	}
+	table := stub.guard.rules[netip.MustParsePrefix("fd00:db8:1::1/128")]
+
+	remote4 := &net.IPNet{IP: net.ParseIP("10.255.2.0").To4(), Mask: net.CIDRMask(24, 32)}
+	child := &ChildSA{
+		IfID:     vti0IfID,
+		TSLocal:  &net.IPNet{IP: net.ParseIP("10.255.1.0").To4(), Mask: net.CIDRMask(24, 32)},
+		TSRemote: remote4,
+		Selectors: []tsPair{
+			{
+				I: tsSelector{Net: &net.IPNet{IP: net.ParseIP("10.255.1.0").To4(), Mask: net.CIDRMask(24, 32)}, Port: ipsec.AnyPort()},
+				R: tsSelector{Net: remote4, Port: ipsec.AnyPort()},
+			},
+			{
+				I: tsSelector{Net: &net.IPNet{IP: net.ParseIP("fd00:db8:1::"), Mask: net.CIDRMask(64, 128)}, Port: ipsec.AnyPort()},
+				R: tsSelector{Net: &net.IPNet{IP: net.ParseIP("fd00:db8:2::"), Mask: net.CIDRMask(64, 128)}, Port: ipsec.AnyPort()},
+			},
+		},
+		SelectorsLocalIsTSi: true,
+	}
+	guardTunnelRoute(true, "swan", child, log)
+
+	tunnel := iprule.Route{Table: table, Dst: netip.MustParsePrefix("fd00:db8:2::/64"), LinkIndex: 7, Protocol: rtproto.IPsecSourceGuard}
+	if !stub.guard.routes[tunnel] {
+		t.Fatalf("the IPv6 selector negotiated second is not in vti0's guard table: %v", stub.guard.routes)
+	}
+	if len(stub.guard.routes) != 2 {
+		t.Errorf("routes: %v, want the unreachable default and the one IPv6 tunnel route", stub.guard.routes)
+	}
+
+	guardTunnelRoute(false, "swan", child, log)
+	if stub.guard.routes[tunnel] {
+		t.Error("the IPv6 tunnel route stayed after its Child SA went")
 	}
 }

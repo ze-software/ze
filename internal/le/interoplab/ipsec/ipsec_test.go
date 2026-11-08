@@ -585,6 +585,16 @@ func TestScenarioPlansPreserveTopologyAndInputs(t *testing.T) {
 			plan.Network.Candidates[0].IPv4 != networkPrefix {
 			t.Errorf("%s network = %#v", source.Name, plan.Network)
 		}
+		// Only the tunnel-source leak scenario needs IPv6 on Ze's eth0, which Docker
+		// leaves on only on a network that carries IPv6; every other lab network stays
+		// IPv4-only.
+		wantIPv6 := netip.Prefix{}
+		if source.Name == "vti-ipv6-tunnel-source-no-cleartext-leak" {
+			wantIPv6 = leakWANLink
+		}
+		if len(plan.Network.Candidates) == 1 && plan.Network.Candidates[0].IPv6 != wantIPv6 {
+			t.Errorf("%s network IPv6 = %s, want %s", source.Name, plan.Network.Candidates[0].IPv6, wantIPv6)
+		}
 		wantContainers := []string{
 			"ze-ipsec-ze-plan-test",
 			"ze-ipsec-swan-plan-test",

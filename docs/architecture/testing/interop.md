@@ -2409,7 +2409,7 @@ PFS is on. With `aes256gcm16` alone the rekey drew `N(NO_PROP)`. The checker ass
 | Step | State read | Fails when |
 |------|------------|------------|
 | Selectors | `swanctl --list-sas`, and the child of `show vpn ipsec sa \| json`, each waited for, because Ze lists its Child SA only once the XFRM install is done (`waitChildSelectors`, `waitZeSelectors`) | Either end holds anything but `::/0` on both halves, strongSwan holds an IPv4 selector, or Ze's child does not report `if-id` 7 |
-| Policies | Ze's `ip xfrm policy`, the records on `if_id 0x7` | They are not exactly one `::/0` policy for each of `out`, `in` and `fwd` |
+| Policies | Ze's `ip xfrm policy`, the records on `if_id 0x7` other than `vti0`'s own final entry (`action block` at priority 4294967295, both families, `isInterfaceSPDCatchAll`) | They are not exactly one `::/0` policy for each of `out`, `in` and `fwd`; any other IPv4 policy on the if_id, a BLOCK at another priority included, is refused |
 | States | Ze's `ip xfrm state`, the records on `if_id 0x7` | Fewer than two, or one without `flag af-unspec` (child 20's `XFRM_STATE_AF_UNSPEC`) |
 | Datapath | `ip -6 route get fd00:db8:1::2` on Ze, a ping from `fd00:db8:1::1`, and the four directed ESP counters | The route does not leave through `vti0`, the ping loses anything, or any simplex SA did not count bytes |
 | Rekey | The four rows above again after `swanctl --rekey --child ze-child` and a new SPI | Any of them fails |
@@ -2450,11 +2450,15 @@ at if_id 0. The red walk rebuilds the Ze image without the exemptions
 (`xfrmInterfaceExemptions` answering nothing) and must fail at the first ping.
 
 `vti-ipv6-tunnel-source-no-cleartext-leak` proves the tunnel-source guard from the
-WAN side. IPv6 is on for both lab interfaces: strongSwan's checker writes its
-sysctls (`writesPeerSysctl`), while Ze keeps a read-only `/proc/sys` and Docker
-writes `net.ipv6.conf.all.disable_ipv6=0` into its namespace at start (the
-scenario's `zeSysctls`, `zeIPv6On`), which the checker reads back for `eth0`
-before counting. The checker gives strongSwan the WAN-only
+WAN side. IPv6 is on for both lab interfaces because the scenario's lab network
+carries the IPv6 /64 fd00:db8:a::/64 beside its IPv4 subnet (`networkIPv6` on its
+`scenarioCheckers` entry, `leakWANLink`), the route the BGP lab takes for OSPFv3.
+Docker disables IPv6 on `eth0` of a container on an IPv4-only network, and a
+start-time `--sysctl net.ipv6.conf.all.disable_ipv6=0` did not undo it, so Ze
+keeps a read-only `/proc/sys` and takes no `--sysctl`; Docker numbers the two
+interfaces fd00:db8:a::2 and fd00:db8:a::3. strongSwan's checker still writes its
+sysctls (`writesPeerSysctl`) for the tunnel side, and the checker reads
+`disable_ipv6` back for Ze's `eth0` before counting. The checker gives strongSwan the WAN-only
 destination 2001:db8:99::1 on `lo`, and routes it on Ze out of `eth0` through a
 static neighbour with `vti0`'s address fd00:db8:1::1 as the preferred source. Its
 observer is an `ip6tables` INPUT counter in strongSwan's namespace per source.
@@ -2472,7 +2476,8 @@ exemption waits for its guard, so the leak path itself would be missing and the 
 would stop at the leak-path check instead.
 
 <!-- source: internal/le/interoplab/ipsec/vtispd.go -- checkVTIUnmatchedDiscardInterfaceSPD, spdDropsOutsideSelectors, requireInterfaceSPDCatchAll, checkVTIIPv6TunnelSourceNoCleartextLeak, leakWANPath, leakPathExists, wanCounter -->
-<!-- source: internal/le/interoplab/ipsec/checkers.go -- zeSysctls, zeIPv6On -->
+<!-- source: internal/le/interoplab/ipsec/checkers.go -- networkIPv6 -->
+<!-- source: internal/le/interoplab/ipsec/vtispd.go -- leakWANLink -->
 <!-- source: test/interop-ipsec/scenarios/vti-unmatched-discard-interface-spd/ze.conf -- unmatched discard, routes outside the selectors -->
 <!-- source: test/interop-ipsec/scenarios/vti-ipv6-tunnel-source-no-cleartext-leak/ze.conf -- wan-control bypass -->
 

@@ -230,7 +230,7 @@ func scenarioPlan(root string, environment interoplab.Environment, source intero
 		Source: source,
 		Network: interoplab.NetworkSpec{
 			Name:       networkName,
-			Candidates: []interoplab.Subnet{{IPv4: networkPrefix}},
+			Candidates: []interoplab.Subnet{{IPv4: networkPrefix, IPv6: scenarioCheckers[source.Name].networkIPv6}},
 		},
 		Containers: []string{zeContainer, swanContainer, frrContainer, natContainer, dnsContainer},
 		Prepare: func(_ context.Context, prepare interoplab.PrepareContext) (interoplab.PreparedScenario, error) {
@@ -401,14 +401,6 @@ func prepareScenario(root string, source interoplab.ScenarioSource, state *scena
 	if err != nil {
 		return fail(err)
 	}
-	// A scenario that needs Ze's kernel settings changed (zeSysctls) has Docker
-	// write them through --sysctl at start, into Ze's own network namespace, so
-	// /proc/sys stays read-only. Every other scenario keeps Docker's defaults.
-	zeSysctls := scenarioCheckers[source.Name].zeSysctls
-	zeArguments := make([]string, 0, 2*len(zeSysctls))
-	for _, sysctl := range zeSysctls {
-		zeArguments = append(zeArguments, "--sysctl", sysctl)
-	}
 	peers = append(peers, interoplab.PeerConfig{
 		Name:      zePeer,
 		Container: containers.ze,
@@ -420,7 +412,6 @@ func prepareScenario(root string, source interoplab.ScenarioSource, state *scena
 		Mounts:       zeMounts,
 		Environment:  environment,
 		Capabilities: []string{capabilityNetAdmin},
-		Arguments:    zeArguments,
 		Command:      []string{"start", "/etc/ze/ze.conf"},
 	})
 	return interoplab.PreparedScenario{Peers: peers, Cleanup: cleanup}, nil

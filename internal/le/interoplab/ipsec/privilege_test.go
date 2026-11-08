@@ -84,7 +84,7 @@ func ipsecPeerGrants(scenario, peer string) grantcheck.Grants {
 		}
 		return grants
 	case zePeer:
-		return grantcheck.Grants{Capabilities: []string{"NET_ADMIN"}, Sysctls: scenarioCheckers[scenario].zeSysctls}
+		return grantcheck.Grants{Capabilities: []string{"NET_ADMIN"}}
 	case natPeer:
 		return grantcheck.Grants{Capabilities: []string{"NET_ADMIN"}, Sysctls: natSysctls}
 	}
@@ -97,8 +97,8 @@ func ipsecPeerGrants(scenario, peer string) grantcheck.Grants {
 // (cutting its reassembly marks, or enabling IPv6 on its lab interface;
 // writesPeerSysctl on its checker entry) and only there, gets /proc/sys
 // writable under the generic net sysctl profile, which grants every sysctl
-// those checkers write; ze gets neither, and takes only the --sysctl values its
-// scenario's entry declares (zeSysctls), which Docker writes at start.
+// those checkers write; ze gets neither, and takes no --sysctl: a scenario that
+// needs IPv6 on its eth0 gets an IPv6 lab network instead (networkIPv6).
 // PREVENTS: a lab peer silently running --privileged again, or a grant drifting
 // from the writes the lab makes.
 func TestIPsecLabPeersRunWithoutPrivilege(t *testing.T) {

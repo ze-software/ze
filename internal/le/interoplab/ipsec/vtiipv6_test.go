@@ -2,6 +2,7 @@ package ipsec
 
 import (
 	"errors"
+	"net/netip"
 	"strings"
 	"testing"
 
@@ -65,6 +66,80 @@ func TestRequireIPv6PoliciesOnIfID(t *testing.T) {
 
 	if err := requireIPv6PoliciesOnIfID(parseXFRMBlocks(""), vtiIPv6IfID); err == nil {
 		t.Error("an empty dump was accepted")
+	}
+}
+
+// vtiInterfaceCatchAllDump is the final entry Ze installs at vti0's if_id since the SPD
+// selection work, as iproute2 printed it in the lab: a BLOCK at the last priority for
+// in, out and fwd, in both families.
+const vtiInterfaceCatchAllDump = `src 0.0.0.0/0 dst 0.0.0.0/0
+	dir in action block priority 4294967295
+	if_id 0x7
+src 0.0.0.0/0 dst 0.0.0.0/0
+	dir fwd action block priority 4294967295
+	if_id 0x7
+src 0.0.0.0/0 dst 0.0.0.0/0
+	dir out action block priority 4294967295
+	if_id 0x7
+src ::/0 dst ::/0
+	dir in action block priority 4294967295
+	if_id 0x7
+src ::/0 dst ::/0
+	dir fwd action block priority 4294967295
+	if_id 0x7
+src ::/0 dst ::/0
+	dir out action block priority 4294967295
+	if_id 0x7
+`
+
+// VALIDATES: the policy assertion accepts the narrowed set beside vti0's own final
+// entry (BLOCK at the last priority, both families), and still refuses an IPv4 policy
+// that admits traffic at the if_id, whether it prints no action at the last priority
+// or a BLOCK at another priority.
+// Method: the narrowed dump plus the lab's catch-all records, then each near miss.
+// PREVENTS: vti-ipv6-inner-ipv4-outer refusing Ze's interface catch-all as a negotiated
+// IPv4 selector, and an IPv4 allow policy hiding behind the catch-all's exemption.
+func TestRequireIPv6PoliciesOnIfIDBesideTheInterfaceCatchAll(t *testing.T) {
+	withCatchAll := vtiIPv6PolicyDump + vtiInterfaceCatchAllDump
+	if err := requireIPv6PoliciesOnIfID(parseXFRMBlocks(withCatchAll), vtiIPv6IfID); err != nil {
+		t.Fatalf("the narrowed policy set beside the interface catch-all was refused: %v", err)
+	}
+	if err := requireInterfaceSPDCatchAll(parseXFRMBlocks(withCatchAll), vtiIPv6IfID); err != nil {
+		t.Fatalf("the fixture is not the final entry requireInterfaceSPDCatchAll accepts: %v", err)
+	}
+
+	allowAtLast := withCatchAll + "src 0.0.0.0/0 dst 0.0.0.0/0\n\tdir out priority 4294967295\n\tif_id 0x7\n"
+	if err := requireIPv6PoliciesOnIfID(parseXFRMBlocks(allowAtLast), vtiIPv6IfID); err == nil {
+		t.Error("an IPv4 allow policy at the last priority on the if_id was accepted")
+	}
+
+	blockElsewhere := withCatchAll + "src 0.0.0.0/0 dst 0.0.0.0/0\n\tdir out action block priority 2000\n\tif_id 0x7\n"
+	if err := requireIPv6PoliciesOnIfID(parseXFRMBlocks(blockElsewhere), vtiIPv6IfID); err == nil {
+		t.Error("an IPv4 policy at the Child SA priority on the if_id was accepted because it blocks")
+	}
+
+	ipv4Child := withCatchAll + "src 0.0.0.0/0 dst 0.0.0.0/0\n\tdir out priority 2000 ptype main\n\tif_id 0x7\n"
+	if err := requireIPv6PoliciesOnIfID(parseXFRMBlocks(ipv4Child), vtiIPv6IfID); err == nil {
+		t.Error("an IPv4 Child SA policy beside the catch-all was accepted")
+	}
+}
+
+// VALIDATES: leakZeWAN and leakSwanWAN are the addresses Docker gives Ze (host 2) and
+// strongSwan (host 3) on leakWANLink, so the checker's own address steps restate what
+// the lab network assigns rather than adding a second address.
+// PREVENTS: the leak scenario's WAN addresses drifting from its lab network.
+func TestLeakWANAddressesAreOnTheLabNetwork(t *testing.T) {
+	for _, address := range []struct {
+		value string
+		host  byte
+	}{{leakZeWAN, 2}, {leakSwanWAN, 3}} {
+		addr := netip.MustParseAddr(address.value)
+		if !leakWANLink.Contains(addr) {
+			t.Errorf("%s is not on %s", addr, leakWANLink)
+		}
+		if addr.As16()[15] != address.host {
+			t.Errorf("%s is not host %d of %s", addr, address.host, leakWANLink)
+		}
 	}
 }
 

@@ -323,9 +323,15 @@ func parseXFRMBlocks(output string) []xfrmBlock {
 	return blocks
 }
 
-// requireIPv6PoliciesOnIfID refuses unless the policies bound to ifID are exactly one
-// ::/0 === ::/0 policy for each of out, in and fwd. Linux needs fwd beside in for a
-// tunnel (RequiresForwardPolicy, internal/component/ike/dataplane/xfrm_linux.go).
+// requireIPv6PoliciesOnIfID refuses unless the policies bound to ifID, other than the
+// SPD's own final entry, are exactly one ::/0 === ::/0 policy for each of out, in and
+// fwd. Linux needs fwd beside in for a tunnel (RequiresForwardPolicy,
+// internal/component/ike/dataplane/xfrm_linux.go). The final entry is the BLOCK at
+// the last priority Ze installs at every bound interface's if_id, in both families
+// (interfaceSPDCatchAll, internal/component/ike/engine/unmatched_xfrm_interface.go):
+// it discards what no Child SA policy matched, so its IPv4 wildcard admits no IPv4
+// traffic. Any other policy at ifID, a BLOCK at another priority included, is judged
+// against the negotiated ::/0.
 func requireIPv6PoliciesOnIfID(blocks []xfrmBlock, ifID string) error {
 	directions := map[string]int{xfrmDirOut: 0, xfrmDirIn: 0, xfrmDirFwd: 0}
 	for i := range blocks {
@@ -335,6 +341,10 @@ func requireIPv6PoliciesOnIfID(blocks []xfrmBlock, ifID string) error {
 			continue
 		}
 		if bound != ifID {
+			continue
+		}
+		if isInterfaceSPDCatchAll(block) {
+			// requireInterfaceSPDCatchAll judges the final entry; it admits nothing.
 			continue
 		}
 		direction, ok := block.field("dir")
@@ -360,6 +370,19 @@ func requireIPv6PoliciesOnIfID(blocks []xfrmBlock, ifID string) error {
 		}
 	}
 	return nil
+}
+
+// isInterfaceSPDCatchAll reports whether block is an SPD's final entry: action BLOCK
+// at dataplane.PriorityUnmatched. Both words must be present: field answers "" for a
+// word the record does not print, which matches neither, so a policy that prints no
+// action (it allows) is never mistaken for the final entry.
+func isInterfaceSPDCatchAll(block *xfrmBlock) bool {
+	action, _ := block.field("action")
+	if action != xfrmActionBlock {
+		return false
+	}
+	priority, _ := block.field("priority")
+	return priority == spdCatchAllPriority
 }
 
 // requireAFUnspecStates refuses unless at least the two states of one Child SA are bound
