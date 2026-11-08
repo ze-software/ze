@@ -7,7 +7,7 @@
     "claim-sha": "fb64a7449102f341",
     "route": "revert",
     "producer": "internal/plugins/iface/dhcp/dhcp_v6_linux.go::effect",
-    "producer-sha": "44e5ec3f2714044d",
-    "break": "body of effect replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "b4189417e4b136b4",
+    "break": "body of effect replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

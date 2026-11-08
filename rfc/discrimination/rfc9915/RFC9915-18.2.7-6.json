@@ -7,7 +7,7 @@
     "claim-sha": "a8e728093ca3878c",
     "route": "revert",
     "producer": "internal/plugins/iface/dhcp/dhcp_v6_linux.go::shutdown",
-    "producer-sha": "6a08352640b3198a",
-    "break": "body of shutdown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "7794af05074ee2f3",
+    "break": "body of shutdown replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

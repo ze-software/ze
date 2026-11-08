@@ -3,7 +3,7 @@
     "rid": "RFC9915-18.2.10.1-1",
     "polarity": "positive",
     "unit": "internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go::TestRFC9915DuplicateAddressDeclinedOnTheLink",
-    "unit-sha": "ddc365c7fb0ebe31",
+    "unit-sha": "f9a13c79758533a6",
     "claim-sha": "28a715ccdd6d020b",
     "route": "revert",
     "producer": "internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go::checkDAD",

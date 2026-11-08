@@ -7,7 +7,7 @@
     "claim-sha": "d1309826b7554eda",
     "route": "revert",
     "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::teardownV4",
-    "producer-sha": "123bded0b16a8c52",
+    "producer-sha": "31e27f6638f28b6f",
     "break": "body of teardownV4 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

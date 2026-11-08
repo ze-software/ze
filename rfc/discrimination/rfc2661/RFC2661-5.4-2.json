@@ -7,8 +7,8 @@
     "claim-sha": "b7760681afa404fc",
     "route": "revert",
     "producer": "internal/component/l2tp/reactor_kernel.go::collectKernelEventsLocked",
-    "producer-sha": "b3c72d3d078bc6f3",
-    "break": "body of collectKernelEventsLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "a776104d49900c87",
+    "break": "body of collectKernelEventsLocked replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2661-5.4-2",
@@ -18,7 +18,7 @@
     "claim-sha": "4ecad3dc1a7f060b",
     "route": "revert",
     "producer": "internal/component/l2tp/reactor_kernel.go::collectKernelEventsLocked",
-    "producer-sha": "b3c72d3d078bc6f3",
-    "break": "body of collectKernelEventsLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "a776104d49900c87",
+    "break": "body of collectKernelEventsLocked replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

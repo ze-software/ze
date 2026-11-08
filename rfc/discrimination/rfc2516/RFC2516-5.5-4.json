@@ -7,8 +7,8 @@
     "claim-sha": "939810f453b2a875",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoe/server.go::handlePADT",
-    "producer-sha": "33a6a147fcf2b0ae",
-    "break": "body of handlePADT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "863d986e2f126f57",
+    "break": "body of handlePADT replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2516-5.5-4",
@@ -18,8 +18,8 @@
     "claim-sha": "fb5b637514111613",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoe/server.go::handlePADT",
-    "producer-sha": "33a6a147fcf2b0ae",
-    "break": "body of handlePADT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "863d986e2f126f57",
+    "break": "body of handlePADT replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2516-5.5-4",
