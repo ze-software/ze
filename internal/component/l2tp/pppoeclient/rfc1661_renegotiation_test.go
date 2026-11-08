@@ -1,6 +1,5 @@
 // Design: docs/architecture/l2tp/cpe-1-pppoe-client.md -- LCP reentry from later phases.
 // Related: session.go, network_phase.go -- the three frame consumers.
-// RFC naming: untagged -- scripted renegotiation probes, not recorded RFC conformance proofs.
 
 package pppoeclient
 
@@ -124,6 +123,7 @@ func TestClientReentryRejectsUninitialized(t *testing.T) {
 
 // TestRFC1661ClientRenegotiatesLCPDuringAuth requires an answer to an LCP
 // restart after a CHAP Response, using the real authentication frame consumer.
+// RFC requirement: RFC1661-4.3-1 positive -- while authenticating after one CHAP Response, the PPPoE client answers a peer LCP Configure-Request (Identifier 0x73, Magic-Number 0x55667788) with its own LCP Configure-Request followed directly by a Configure-Ack carrying that Identifier and Magic-Number unchanged, then sends a second CHAP Response.
 func TestRFC1661ClientRenegotiatesLCPDuringAuth(t *testing.T) {
 	w := runRestartExchange(t, false, false, ppp.ProtoCHAP)
 	if got := len(chapPacketsWritten(t, &w.recordingRWC)); got != 2 {
@@ -186,6 +186,7 @@ func TestClientReentryAdmitsNakAndReject(t *testing.T) {
 
 // TestRFC1661ClientRenegotiatesLCPDuringIPCP requires a restart response while
 // IPCP is negotiating, using its channel frame consumer before PPPIOCCONNECT.
+// RFC requirement: RFC1661-4.3-1 positive -- while IPCP negotiates, the PPPoE client answers a peer LCP Configure-Request (Identifier 0x73, Magic-Number 0x55667788) with its own LCP Configure-Request followed directly by a Configure-Ack carrying that Identifier and Magic-Number unchanged.
 func TestRFC1661ClientRenegotiatesLCPDuringIPCP(t *testing.T) {
 	w := runRestartExchange(t, true, false, ppp.ProtoCHAP)
 	assertClientRenegotiationReply(t, &w.recordingRWC)
@@ -193,6 +194,7 @@ func TestRFC1661ClientRenegotiatesLCPDuringIPCP(t *testing.T) {
 
 // TestRFC1661ClientRenegotiatesLCPInNetworkPhase requires a restart response
 // from keepalive's channel consumer, without a second descriptor reader.
+// RFC requirement: RFC1661-4.3-1 positive -- in the network phase, the PPPoE client's keepalive loop answers a peer LCP Configure-Request (Identifier 0x73, Magic-Number 0x55667788) with its own LCP Configure-Request followed directly by a Configure-Ack carrying that Identifier and Magic-Number unchanged.
 func TestRFC1661ClientRenegotiatesLCPInNetworkPhase(t *testing.T) {
 	w := &recordingRWC{}
 	var log bytes.Buffer

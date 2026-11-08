@@ -26,6 +26,7 @@ import (
 // negative window open. Successful traffic before and after rejects a dead path.
 // Operator config reaches runSession through registered plugin config delivery.
 // MUTATION: replace restart's NPModeDrop with NPModePass to expose IPv4 leakage.
+// RFC requirement: RFC1661-3.6-2 positive -- over a real PPPoE session through the kernel PPP channel, IPv4 packets sent in both directions while LCP, PAP and IPCP renegotiate (each Ack held back) are not delivered, while IPv4 in both directions is delivered before the renegotiation starts and after IPCP reopens.
 func TestDialRenegotiatesLCPInNetworkPhase(t *testing.T) {
 	if !userns.Enter(t) {
 		return
