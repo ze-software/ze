@@ -1,0 +1,44 @@
+# Test: `show interface pppoe-client` reports a configured client and its
+#       dns-servers key while no session is up.
+# VALIDATES: spec-home-cpe-13 AC-11, the no-servers half: the daemon answers
+#            one object for pppoe0 with state discovery, source-interface zentk
+#            and dns-servers present as an empty list, never absent and never
+#            null; delegated-prefixes (spec-home-cpe-8 AC-6) the same, as no
+#            DHCPv6 lease exists without a session. The fixture reads the raw JSON, so a dropped key cannot
+#            decode as an empty slice.
+# PREVENTS: an answer that omits dns-servers when IPCP learned none, and a
+#           command that is not reachable through the daemon dispatcher.
+# The populated list needs an access concentrator, which a .ci cannot host:
+# the interop checkers under internal/le/interoplab/pppoe/ own that half.
+#
+# Requires Linux and CAP_NET_ADMIN: pppoe-client is a Linux-only kind, the
+# netlink interface backend runs, and the setup creates zentk, the client's
+# source interface, where no access concentrator answers.
+option=needs-linux:caps=net-admin
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external show-interface-pppoe-client-test {
+		run "le test fixture plugin/show-interface-pppoe-client"
+		encoder json
+	}
+}
+
+interface {
+	backend netlink
+	pppoe-client pppoe0 {
+		source-interface zentk
+		authentication {
+			username u
+			password p
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture static/static-kernel-setup
+cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=OK: show interface pppoe-client: pppoe0 in discovery on zentk, dns-servers [], delegated-prefixes []
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
