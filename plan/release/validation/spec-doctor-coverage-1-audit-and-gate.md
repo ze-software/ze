@@ -1,0 +1,375 @@
+# Spec: doctor-coverage-1-audit-and-gate
+
+| Field | Value |
+|-------|-------|
+| Status | design |
+| Scope | tooling |
+| Priority | P2 |
+| Release reason | `ai/META-DECISIONS.md`: `ze doctor` reports every problem an operator can hit, with cause and fix; this child finds every problem class, gives runtime state a phase that cannot read healthy when unseen, and stops new classes landing without a check |
+| RFC gaps | - |
+| Depends | - |
+| Phase | design: owner questions O-1, O-2, O-3 open |
+| Handoff | - |
+| Updated | 2026-11-08 |
+
+Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+Parent: `plan/release/validation/spec-doctor-coverage-0-umbrella.md`.
+
+## Task
+
+Thomas: "Not only the one you have, but all problems. So we will have to audit
+the code for all the things we need to be added to it."
+
+This child owns four things, in this order:
+
+| # | Work | Why first |
+|---|------|-----------|
+| 1 | The `runtime` doctor phase, the `fix` field on every doctor diagnostic, and the local route's answer when it cannot see daemon state | every later check needs a phase for daemon state and a field for its fix command |
+| 2 | The gate: a scan that finds every problem site (a Warn or Error log line, a report-bus raise, a health row) and refuses a commit that adds one with no doctor code | its report is the mechanical half of the audit, and it stops the backlog growing while the audit runs |
+| 3 | The audit: every component and plugin walked, the gate's report plus the silent states no log line names, into one inventory file | the area children are written from it |
+| 4 | The area children: one spec per door area that holds gap rows | the gaps stay visible as specs |
+
+## Required Reading
+
+### Architecture Docs
+- [ ] `docs/architecture/doctor-and-health-checks.md` - tiers, phases, owners, tests
+  → Decision: the phase set is declared once in `pkg/plugin/rpc` (`DoctorCheckPhase`) and aliased by `internal/core/diagnostic`; a new phase is added there and nowhere else
+  → Constraint: `parsed-config` checks must accept invalid semantics and apply nothing; the new `runtime` phase must likewise apply nothing and only read
+  → Constraint: `TestDoctorDependencyInventory` holds an expected total; it stays, and the gate is a separate check that names sites
+- [ ] `ai/doors/plugin-infra.md` - the rpc package is wire
+  → Constraint: "A field or method name in `rpc` is wire, not Go: renaming a JSON tag breaks every plugin written in another language"; the new `fix` key and the `runtime` phase value are a protocol change, made directly before the first release with every in-tree plugin rebuilt (`ai/META-DECISIONS.md`, plugin protocol owes no backward compatibility)
+- [ ] `ai/doors/core.md` - core registries
+  → Constraint: a registry holds value types and is the only list; the gate reads the doctor registries, never a copied list of codes
+- [ ] `ai/doors/le-tooling.md` - le tools
+  → Constraint: a tool is one package under `internal/le/` at the path its name predicts (`le arch doctor-coverage` is `internal/le/arch/doctorcoverage`), registered from `init()`; `le` may link `internal/component/plugin/all` to read what `ze` registers
+- [ ] `ai/rules/user-facing-errors.md`
+  → Constraint: the fixing command sits on a line of its own; JSON carries no color
+- [ ] `ai/META-DECISIONS.md`
+  → Decision: a refusal that judges what the commit itself adds stands, while no gate refuses a commit for a red; the gate judges added sites only
+  → Constraint: every operator command runs through the daemon on every surface, and the local route stays for an unreachable daemon (O-1 asks how far `ze doctor` delegates)
+
+**Key insights:**
+- On the daemon route `runChecks` still loads the config FILE from the store (`loadDoctorConfig`), not the running configuration, so a `runtime` check must read its owner's live state and never infer live state from `ctx.Tree`
+- `collectPluginDoctorChecks` and `runPluginRegistryChecks` both rebuild each diagnostic from `Code`, `Severity`, `Message` only, so any fix carried elsewhere is dropped at two places
+
+## Current Behavior (MANDATORY)
+
+**Source files read:**
+- [ ] `pkg/plugin/rpc/types.go` - `DoctorCheckPhase` with four values and `Valid`; `DoctorCheckDiagnostic{Code, Severity, Message}`
+- [ ] `internal/core/diagnostic/doctor_registry.go` - `DoctorCheck`, `DoctorCheckContext`, `RegisterDoctorCheck`, `DoctorChecksForPhase`
+- [ ] `internal/core/diagnostic/types.go` - `Diagnostic{Code, Severity, Message, Path, ..., Help, FixSafety, Repair, Related}`, `DoctorResult`
+- [ ] `internal/component/doctor/answer.go` - `Answer`, `RuntimeChecks` (nil on the local route), `readyOf`
+- [ ] `internal/component/doctor/doctor.go` `runChecks` - pre-config, then config load from the store, missing-config or parsed-config and post-config
+- [ ] `internal/component/doctor/checks_plugin_registry.go` `runPluginRegistryChecks` - bridges `registry.PluginDoctorChecks()` per phase, three fields
+- [ ] `internal/component/doctor/cmd/show.go` `HandleDoctor`, `collectPluginDoctorChecks` - daemon route, per-check timeout, three fields
+- [ ] `internal/core/report/report.go` - `Issue{Source, Code, Severity, Subject, Message, Detail}`, `RaiseWarning`, `ClearWarning`, `ClearSource`
+
+**Behavior to preserve:**
+- the four existing phases and their order; every existing check and code
+- `DoctorResult` keys `schema-version`, `ready`, `diagnostics`; exit 1 when not ready on the local drawing
+- a not-ready result on the daemon route is data with code 0
+
+**Behavior to change:**
+- a `runtime` phase that runs only inside the daemon
+- a `fix` field carried from every check to every surface
+- the local route reports that runtime checks did not run, instead of silence
+- a commit that adds an uncovered problem site is refused, naming the site and the two ways to cover it
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Doctor phase set | `pkg/plugin/rpc/types.go` `DoctorCheckPhase`, `Valid` | Four phases, one declaration | extends: adds `runtime` in the same declaration |
+| Doctor check registry | `internal/core/diagnostic/doctor_registry.go` `RegisterDoctorCheck` | In-tree owners register checks with codes | extends: a `runtime` check registers here with the new phase |
+| Plugin doctor checks | `internal/component/plugin/registry/doctor.go` `DoctorCheckDef`; `checks_plugin_registry.go` | Plugin-declared checks bridged per phase | extends: carries `fix`; a plugin declares `runtime` checks the same way |
+| Daemon doctor route | `internal/component/doctor/cmd/show.go` `HandleDoctor` | Runs `doctor.Answer` with the plugins' checks | extends: also runs `runtime` registry checks |
+| Diagnostic record | `internal/core/diagnostic/types.go` `Diagnostic` | Has `Help`, `Repair`, no fix command field | extends: adds `Fix`; `Help` stays for config validation help text, which is not a command |
+| Diagnostic code registry | `internal/core/diagnostic/registry.go` `Register`; `ze show diagnostic` | Explains each code | extends: the gate resolves every covered code through it |
+| Enumeration gate | `internal/le/arch/enumeration`, `./le arch enumeration check` and `report`, exempt marker | AST scan of the tree with a report and a check form | extends as a model: `./le arch doctor-coverage` copies its check and report shape |
+| Report bus | `internal/core/report/report.go` `RaiseWarning`, `RaiseError` | Coded operator issues | extends: each raise is a problem site whose code must be a doctor code |
+| Live health registry | `internal/core/health/registry.go` `Register`, `RegisterWhen` | Degraded rows with a reason | extends: each registration is a problem site the inventory maps to a doctor check |
+| Dependency inventory test | `internal/component/doctor/doctor_checks_test.go` `TestDoctorDependencyInventory` | Expected total of dependencies | does not apply: kept as is; it counts dependencies, not problem classes |
+| Commit-time added-content refusals | `./le commit create` (journal owned-rows refusal, `plan/journal/README.md` "Owned rows") | Refuses what the commit itself adds | extends: the doctor-coverage check joins as a refusal of added sites |
+| Audit records | `plan/audits/` | Historical audit reports | extends: the inventory lands there |
+
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
+
+### Entry Point
+- `show doctor` on any daemon surface; `ze doctor` locally
+- `./le arch doctor-coverage check` and `./le commit create` for the gate
+
+### Transformation Path
+1. `HandleDoctor` calls `doctor.Answer` with a runtime closure that runs plugin checks and the `runtime` registry checks
+2. `runChecks` never runs `runtime` checks; on the local route `Answer` adds one `doctor-runtime-not-checked` warning whose fix names `show doctor` (O-1 decides whether the local route asks the daemon first)
+3. Each diagnostic carries `fix`; `renderDoctor` prints it on its own line after the message; JSON carries the `fix` key
+4. Gate: the scan parses non-test Go under `internal/component`, `internal/plugins` and `cmd/ze`, finds problem sites, resolves each site's code against the codes of every registered doctor check (in-tree and plugin), and lists the uncovered ones; the check form refuses only sites the commit adds against `HEAD^`
+
+### Boundaries Crossed
+| Boundary | How | Verified |
+|----------|-----|----------|
+| Engine to plugin | `ze-plugin-callback:doctor-check` output gains `fix`; Stage 1 declaration may carry phase `runtime` | No: census below |
+| le to product registries | le links `internal/component/plugin/all` and reads `diagnostic.DoctorChecksForPhase` and `registry.PluginDoctorChecks` | No |
+
+### Changed-Wire Census
+
+**Search evidence:** scope `pkg/`, `internal/`, `cmd/`, `test/`; terms `DoctorCheckDiagnostic`, `DoctorCheckOutput`, `DoctorCheckPhase`, `"doctor-check"`, `pre-config`, `post-config`. Positive control: `collectPluginDoctorChecks` reads `out.Diagnostics` (read above). The implementer re-runs the search before phase 1 and adds every carrier found.
+
+| Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
+|------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
+| doctor-check output | writer | each plugin check through `pkg/plugin/sdk` doctor callback | `DoctorCheckDiagnostic` is the element type | add `fix` (omitempty); every in-tree plugin rebuilt |
+| doctor-check output | reader | `internal/component/doctor/cmd/show.go` `collectPluginDoctorChecks` | maps three fields | map `fix` too |
+| registry bridge | reader | `internal/component/doctor/checks_plugin_registry.go` `runPluginRegistryChecks` | maps three fields | map `fix` too |
+| Stage 1 doctor declaration | writer and reader | `rpc.DoctorCheckDecl.Phase`, validated by `DoctorCheckPhase.Valid` | `Valid` lists four phases | add `runtime` to the declaration and `Valid` |
+| `ze doctor --json` / `show doctor` JSON | writer | `diagnostic.Diagnostic` | `DoctorResult.Diagnostics` | add `fix` (omitempty), kebab-case |
+
+### Integration Points
+- `doctor.Answer` - adds the runtime-not-checked row on the local route
+- `./le commit create` - runs the doctor-coverage refusal over the staged set
+
+### Architectural Verification
+| Check | Holds? | Evidence |
+|-------|--------|----------|
+| No bypassed layers (data flows through the intended path) | Yes | runtime checks run through `HandleDoctor` and `doctor.Answer` |
+| No unintended coupling (components stay isolated) | Yes | the gate is le tooling; product code gains no le import |
+| No duplicated functionality (extends existing, does not recreate) | Yes | Existing Mechanisms table |
+| Zero-copy preserved where applicable (refs, not copies) | Yes | no hot path |
+| Registration over hardcoding, outbound | Yes | runtime checks register with the existing registry |
+| Registration over hardcoding, inbound | Yes | the gate derives covered codes from the two doctor registries; it holds no code list |
+
+## Risks & Assumptions
+
+### Assumptions
+| ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
+|----|-----------|--------------------------------|----------|--------------|--------|
+| A-1 | A problem site can name its code statically: a report raise takes the code as an argument, and a log line can carry a `code` attribute whose value is an exported code constant | `report.Issue.Code`; slog attributes are key-value pairs | the scan cannot resolve a code built at run time | gate unit test over fixtures with constant, variable and missing codes | unvalidated |
+| A-2 | le can read every registered doctor check's codes by linking the composition root | `ai/doors/le-tooling.md`: le may link `internal/component/plugin/all` | the gate misses plugin codes | `TestDoctorCoverageReadsPluginCodes` | unvalidated |
+| A-3 | The daemon's in-process components (L2TP, iface, IKE) run their `runtime` checks in the daemon process, so a registry check there reads live state | L2TP and PPPoE are `Engine.RegisterSubsystem` subsystems (`ai/doors/hub-engine.md`); IKE runs in the daemon through DirectBridge (`ai/doors/plugin-infra.md`, Traps) | a check reads an empty copy | each owner's check test runs against the live owner state; a forked plugin uses the plugin callback instead | unvalidated |
+
+### Risks
+| ID | Risk | Early signal | Mitigation / fallback |
+|----|------|--------------|----------------------|
+| R-1 | The gate refuses ordinary new log lines and slows every session | refusals on lines that are not problems | the refusal message names both covers (a doctor code, or the event marker O-2 decides); a `plan/learned/HOOK-FRICTION.md` row if friction appears |
+| R-2 | A local run with a dead daemon reads ready | no row about runtime checks | `doctor-runtime-not-checked` is a warning, always present on the local route when `runtime` checks are registered |
+| R-3 | The inventory is one row per log line and unusable | thousands of rows | group by problem class and owner; the report keeps the per-site list |
+| R-4 | A forked plugin's `runtime` check is called while the plugin is stopped | `doctor-plugin-unreachable` | existing behavior: that row already says the plugin did not answer |
+
+## Blast Radius
+
+| Question | Answer |
+|----------|--------|
+| What breaks if this is wrong? | a commit refused wrongly (tooling), or a doctor row missing; no forwarding change |
+| How is it reverted? | single commit revert per phase |
+| Who else touches this path? | every session committing new log lines (the gate); every plugin author (`fix` key) |
+
+## Wiring Test (MANDATORY -- NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+| `show doctor` | → | `HandleDoctor` running a registered `runtime` check | `test/plugin/show-doctor-runtime-checks.ci` |
+| `ze doctor --json` | → | `Answer` adding `doctor-runtime-not-checked` | `TestDoctorRuntimePhaseNotRunLocally` |
+| plugin doctor callback | → | `collectPluginDoctorChecks` mapping `fix` | `TestCollectPluginDoctorChecksCarriesFix` |
+| `./le arch doctor-coverage check` | → | the site scan and code resolution | `TestDoctorCoverageRefusesAddedUncoveredSite` |
+| `./le commit create` | → | the added-site refusal | `TestCommitCreateRefusesUncoveredProblemSite` |
+
+## Acceptance Criteria
+
+| AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
+|-------|-------------------|-------------------|-----------------------------|
+| AC-1 | A check registered with phase `runtime`, `show doctor` | the daemon runs it and its diagnostics appear with code, severity, message and fix | none |
+| AC-2 | The same check, `ze doctor --json` locally | the check does not run; one warning `doctor-runtime-not-checked` says runtime checks need the running daemon and its fix line reads `show doctor` (or, under O-1 option B, the local route answers from the daemon) | none |
+| AC-3 | A plugin check returning a diagnostic with `fix` | text output prints the fix on its own line after the message; JSON carries `"fix"`; on every surface through `show doctor` | none |
+| AC-4 | A fixture commit adding a Warn log line in `internal/plugins/<x>` with no doctor code | `./le arch doctor-coverage check` and `./le commit create` refuse it, naming file and line, and print the two covers | a site the commit did not add is reported by `report`, never refused |
+| AC-5 | `./le arch doctor-coverage report` | lists every uncovered site grouped by owner package and door area, with counts | none |
+| AC-6 | Audit done | `plan/audits/doctor-problem-inventory.md` holds one row per problem class with columns area, owner package, class, state it reads, route (local or runtime), existing check and code or `gap`, source sites; and one spec per door area with gap rows exists at `plan/release/validation/spec-doctor-coverage-<n>-<area>.md`, each listing its rows as ACs | an area with no gap row gets no spec |
+| AC-7 | Every check added under this umbrella | its unit test asserts a non-empty fix that names a `ze` command or a `set`/`delete` config path | none |
+| AC-9 | An existing check that reads daemon state while registered at `pre-config`, `parsed-config` or `post-config` | the audit lists it with its owner; it moves to `runtime` in its area child (IKE's `ipsec-virtual-ip-pool` and `ipsec-udp-encap` move in child 2), so the local route never reads that state as empty and healthy | none |
+| AC-8 | Docs | `docs/architecture/doctor-and-health-checks.md` documents the `runtime` phase, the fix field, the local-route row and the gate; `docs/plugin-development/` documents `fix` and `runtime` for plugin authors | none |
+
+## 🧪 TDD Test Plan
+
+### Unit Tests
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestDoctorPhaseRuntimeValid` | `pkg/plugin/rpc/types_test.go` | `runtime` is a valid phase | |
+| `TestDoctorRuntimePhaseNotRunLocally` | `internal/component/doctor/answer_test.go` | AC-2 | |
+| `TestDoctorRuntimePhaseRunsOnDaemonRoute` | `internal/component/doctor/cmd/show_test.go` | AC-1 | |
+| `TestCollectPluginDoctorChecksCarriesFix` | `internal/component/doctor/cmd/show_test.go` | AC-3 | |
+| `TestRunPluginRegistryChecksCarriesFix` | `internal/component/doctor/checks_plugin_registry_test.go` | AC-3, local bridge | |
+| `TestRenderDoctorPrintsFixOnItsOwnLine` | `internal/component/doctor/answer_test.go` | AC-3 text shape | |
+| `TestDoctorCoverageRefusesAddedUncoveredSite` | `internal/le/arch/doctorcoverage/check_test.go` | AC-4 | |
+| `TestDoctorCoverageAcceptsCoveredSite` | `internal/le/arch/doctorcoverage/check_test.go` | a site whose code a registered check declares passes | |
+| `TestDoctorCoverageReadsPluginCodes` | `internal/le/arch/doctorcoverage/check_test.go` | A-2 | |
+| `TestDoctorCoverageReportGroupsByOwner` | `internal/le/arch/doctorcoverage/report_test.go` | AC-5 | |
+| `TestCommitCreateRefusesUncoveredProblemSite` | the `./le commit create` refusal tests | AC-4 through the commit entry | |
+
+### Boundary Tests (numeric inputs)
+| Field | Range | Last Valid | Invalid Below | Invalid Above |
+|-------|-------|------------|---------------|---------------|
+| none | N/A | N/A | N/A | N/A |
+
+### Functional Tests
+| Test | Location | End-User Scenario | Status |
+|------|----------|-------------------|--------|
+| `show-doctor-runtime-checks` | `test/plugin/show-doctor-runtime-checks.ci` | operator runs `show doctor` on a daemon and reads a runtime row with its fix | |
+| `doctor-runtime-not-checked` | `test/ui/doctor-runtime-not-checked.ci` | operator runs `ze doctor` with no daemon and is told to run `show doctor` | |
+
+## Files to Modify
+- `pkg/plugin/rpc/types.go` - `runtime` phase, `Valid`, `DoctorCheckDiagnostic.Fix`
+- `internal/core/diagnostic/types.go` - `Diagnostic.Fix`
+- `internal/core/diagnostic/doctor_registry.go` - alias `DoctorPhaseRuntime`; phase rank
+- `internal/component/doctor/answer.go` - local-route row, fix rendering
+- `internal/component/doctor/doctor.go` - `runChecks` skips `runtime`
+- `internal/component/doctor/checks_plugin_registry.go` - carry `fix`
+- `internal/component/doctor/cmd/show.go` - run `runtime` registry checks; carry `fix`
+- `docs/architecture/doctor-and-health-checks.md` - the phase, the field, the gate
+- `docs/guide/health-checks.md` - reading the fix line
+
+## Files to Create
+- `internal/le/arch/doctorcoverage/` - the scan, `check` and `report` actions, registered from `init()`
+- `test/plugin/show-doctor-runtime-checks.ci`
+- `test/ui/doctor-runtime-not-checked.ci`
+- `plan/audits/doctor-problem-inventory.md` - the inventory
+- `plan/release/validation/spec-doctor-coverage-<n>-<area>.md` - one per door area with gaps
+
+### Integration Checklist
+| Integration Point | Applies? | File / reason |
+|-------------------|----------|---------------|
+| YANG schema (new RPCs/config) | No | `show doctor` exists |
+| YANG validation constraints | N-A | no leaf |
+| YANG custom validators | N-A | no leaf |
+| CLI commands/flags | Yes | `le arch doctor-coverage check` and `report` (le tooling) |
+| CLI grammar (keyword before value) | Yes | `ai/rules/cli.md`; `./le cli grammar` |
+| Editor autocomplete | N-A | no leaf |
+| Functional test for new RPC/API | Yes | `test/plugin/show-doctor-runtime-checks.ci` |
+| Pipe completeness | Yes | `show doctor` with the json pipe already works; the `fix` key rides it |
+| Env var registration | N-A | none |
+| Doctor check for runtime dependencies | Yes | this child is the doctor contract itself |
+| Prometheus counters/metrics | N-A | none |
+| BGP family surface (new SAFI / capability / attribute) | N-A | none |
+
+### Documentation Update Checklist (BLOCKING)
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | the doctor feature page under `features/` (level from `./le feature report`) |
+| 2 | Config syntax changed? | No | none |
+| 3 | CLI command added/changed? | No | `ze doctor` output gains a fix line; `docs/guide/health-checks.md` covers it |
+| 4 | API/RPC added/changed? | Yes | `docs/architecture/api/commands.md` (`show doctor` JSON gains `fix`) |
+| 5 | Plugin added/changed? | No | none |
+| 6 | Has a user guide page? | Yes | `docs/guide/health-checks.md` |
+| 7 | Wire format changed? | No | no protocol wire beyond the plugin protocol (row 8) |
+| 8 | Plugin SDK/protocol changed? | Yes | `docs/architecture/api/process-protocol.md`, `docs/plugin-development/` doctor sections |
+| 9 | RFC behavior implemented, changed, or newly proven? | No | none |
+| 10 | Test infrastructure changed? | No | none |
+| 11 | Affects daemon comparison? | No | none |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/doctor-and-health-checks.md` |
+| 13 | Route metadata keys added/changed? | No | none |
+| 14 | Prometheus counters added/changed? | No | none |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | none |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `docs/features/ai-first.md` (declared by `internal/core/diagnostic/types.go` and `checks_plugin_registry.go`): updated, the diagnostic record gains `fix`; `docs/architecture/api/ipc_protocol.md` (declared by `pkg/plugin/rpc/types.go`): unaffected, answer-line framing does not change, only a JSON field inside a doctor-check payload; the rest derived by `./le spec citation anchors spec plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` at implementation |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/health-checks.md` sample output |
+
+## Implementation Steps
+
+1. **Phase: Wiring** -- `runtime` phase, `fix` field through both bridges, local-route row
+   - Tests: `TestDoctorPhaseRuntimeValid`, `TestDoctorRuntimePhaseNotRunLocally`, `TestDoctorRuntimePhaseRunsOnDaemonRoute`, `TestCollectPluginDoctorChecksCarriesFix`, `TestRunPluginRegistryChecksCarriesFix`, `TestRenderDoctorPrintsFixOnItsOwnLine`
+   - Files: rpc types, diagnostic types and registry, doctor answer, doctor.go, bridges
+   - Verify: fail, implement, pass; the `.ci` tests pass
+2. **Phase: Gate** -- `./le arch doctor-coverage check` and `report`, joined to `./le commit create`
+   - Tests: the four `doctorcoverage` tests, `TestCommitCreateRefusesUncoveredProblemSite`
+   - Verify: a fixture adding an uncovered Warn is refused; a covered one passes
+3. **Phase: Audit** -- per door area (`ai/doors/README.md` order): run `report` for the area, then walk each component and plugin for silent states: refusals that leave state degraded after the command returns, config accepted but not in effect (skipped, waiting), failed kernel or peer interactions retried without a log line, missing capability, and every health row
+   - Output: `plan/audits/doctor-problem-inventory.md`, committed per area as each area finishes
+4. **Phase: Area children** -- write one spec per area holding gap rows, each row an AC with owner, state, route and code name
+
+### Critical Review Checklist
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Completeness | every door area walked; every inventory row has a state it reads |
+| Correctness | no `runtime` check runs on the local route; the local row always appears when a `runtime` check exists |
+| Naming | JSON key `fix`, phase `runtime`, code `doctor-runtime-not-checked`, kebab-case |
+| Data flow | the gate derives codes from registries, never a list |
+| Rule: user-facing-errors | the gate's refusal names the site, why, and the two covers on their own lines |
+
+### Deliverables Checklist
+| Deliverable | Verification method |
+|-------------|---------------------|
+| `runtime` phase | `TestDoctorPhaseRuntimeValid` |
+| `fix` on every surface | `test/plugin/show-doctor-runtime-checks.ci` asserts the `fix` key |
+| Gate | `TestDoctorCoverageRefusesAddedUncoveredSite` |
+| Inventory | `plan/audits/doctor-problem-inventory.md` with a row for every door area |
+| Area children | listing `plan/release/validation/spec-doctor-coverage-*` |
+
+### Security Review Checklist
+| Check | What to look for |
+|-------|-----------------|
+| Information exposure | a fix line never carries a secret; `show doctor` stays behind authz |
+| Gate input | the scan reads source only, never runs it |
+
+### Failure Routing
+
+| Failure | Route To |
+|---------|----------|
+| A site's code cannot be resolved statically | DESIGN: the owner names the code with a constant |
+| 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
+
+## Design Insights
+
+- The daemon route re-reads the config file, so "running state" and "config on disk" can disagree; a runtime check reports live state and, where it compares against config, compares against the running configuration the owner applied.
+
+## Owner Questions
+
+| # | Question | Options | Recommendation and evidence | What each answer changes |
+|---|----------|---------|-----------------------------|--------------------------|
+| O-1 | Does local `ze doctor` ask the running daemon for its runtime checks? `ai/META-DECISIONS.md` says every command runs through the daemon on every daemon surface and that "the local route stays for when the daemon is unreachable"; it does not say whether the local route asks a reachable daemon first | A: local stays local and prints `doctor-runtime-not-checked` with fix `show doctor`. B: local asks the daemon when its socket answers and `config` names no file outside the daemon's config directories; it falls back to A when unreachable | B: an operator typing `ze doctor` on a broken box expects the box's real state, and B costs one daemon call on a route `show doctor` already serves. A is simpler | B adds a client call in `answer.go` and a test with a live daemon; A only the warning row |
+| O-2 | May a problem site be marked as a transient event that owes no doctor check (a peer reset that recovers, one retry)? | A: no marker; every Warn and Error carries a doctor code, and a transient class is reported as a recent-event row read from the report bus ring. B: a marker comment naming the reason, judged by review like the enumeration exempt marker | A matches "doctor reports every problem"; B keeps transient noise out of doctor | A makes the report bus the event store for doctor and adds one bridge check; B adds a marker the gate accepts |
+| O-3 | Release timing of the area children | A: every area child is release work (P2). B: area children for features in a declared release profile are P2, the rest post-release | A follows "doctor reports every problem"; B follows the release-profile rule for scope | moves area children between `release/validation` and `post-release/features` |
+
+## Owned journal rows
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+
+## Key Design Decisions
+| Decision | Alternatives Considered | Rationale |
+|----------|------------------------|-----------|
+| A `runtime` phase in the existing phase set | a flag on `DoctorCheckContext` telling a check which route it runs on | a phase is declared once and the runner skips it; a flag lets every check decide, and one that forgets reads empty state as healthy |
+| `Fix` as its own field | put the fix in `Help`, or only in the message | `Help` carries config validation help text, not a command; a separate field lets the renderer put the command on its own line on every surface |
+| Gate judges added sites, report lists all | refuse every uncovered site in the tree | `ai/META-DECISIONS.md`: no gate refuses a commit for a red; a refusal that judges what the commit adds stands |
+| Gate as an AST scan with registry lookup | a runtime registry of degraded states each mapped to a check | a runtime registry misses a new problem that never registers; the scan sees every new log line and raise |
+
+## Known Limitations
+- The area children's content is the audit's output; they are named by AC-6.
+
+## Checklist
+
+### Pre-Spec Verification (before the design is presented)
+- [ ] Metadata table present, with a valid Status, Depends, Phase and Updated
+- [ ] `ai/INDEX.md` keyword table checked
+- [ ] An `rfc/short/` summary exists for every RFC referenced
+- [ ] Template format followed: the 🧪 emoji, tables rather than prose, `[ ]` never `[x]`
+- [ ] No code snippets
+- [ ] Files to Modify names feature code, not only tests
+- [ ] Current Behavior and Data Flow sections completed
+- [ ] AC-N rows carry testable assertions
+- [ ] Every assumption has a Basis and a validation method; every failure mode is a risk row
+- [ ] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
+- [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
+
+### Goal Gates (MUST pass)
+- [ ] AC-1..AC-9 all demonstrated
+- [ ] Wiring Test table complete: every row a concrete test name, none deferred
+- [ ] The targeted tests pass in the main checkout: `./le job run label doctor command go test -tags <tags> ./internal/component/doctor/... ./pkg/plugin/rpc/...`, `./le job run label le-arch command go test ./internal/le/arch/doctorcoverage/...`, `./le test functional plugin` and `./le test functional ui` for the two `.ci` files, with the tags `./le repo changed scope print both` names
+- [ ] Every A-N confirmed or broken, none `unvalidated`
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
+- [ ] Functional `.ci` tests for end-to-end behavior
+
+### Closure
+- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
+- [ ] **Commit A:** code + tests + docs + edited spec
+- [ ] **Commit B:** `remove plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` only
