@@ -25,6 +25,10 @@ import (
 type ownedOutcome struct {
 	// newChild is a Child SA that REPLACED the live one through a rekey.
 	newChild *ChildSA
+	// retiredChild is the Child SA newChild replaced. The owner loop moves the tunnel
+	// routes from it to newChild (rekeyTunnelRoutes), so prefixes the rekey dropped are
+	// withdrawn and the ones both carry are not re-announced.
+	retiredChild *ChildSA
 	// createdChild is a Child SA created on a childless IKE SA, replacing nothing
 	// (RFC 7296 Section 1.3.1). The owner loop starts its lifetime and announces it.
 	createdChild *ChildSA
@@ -506,7 +510,7 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 			ps.pendingRekey = nil
 			log.Info("child-sa: rekeyed via CREATE_CHILD_SA", "peer", ps.peerName,
 				"old-in", old.InboundSPI, "new-in", newChild.InboundSPI)
-			return ownedOutcome{newChild: newChild}
+			return ownedOutcome{newChild: newChild, retiredChild: old}
 		case rekeyIKE:
 			newSA, err := applyIKERekeyResponse(sa, p, inner, log)
 			if err != nil {
@@ -594,7 +598,7 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 		ps.rebindRekeyOwed = false
 		log.Info("child-sa: rekeyed by peer via CREATE_CHILD_SA", "peer", ps.peerName,
 			"old-in", old.InboundSPI, "new-in", newChild.InboundSPI)
-		return ownedOutcome{newChild: newChild}
+		return ownedOutcome{newChild: newChild, retiredChild: old}
 	}
 	// The TS payloads tell a new Child SA from an IKE SA rekey, never the KE payload,
 	// because a new Child SA with PFS carries KEi too.

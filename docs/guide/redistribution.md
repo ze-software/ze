@@ -478,7 +478,7 @@ token first.
 | `kernel` | the kernel plugin | routes another program installed in the OS FIB |
 | `isis`, `ospf` | the IGP plugins | that protocol's SPF-selected routes |
 | `as112`, `l2tp` | those plugins | the covering prefixes and the per-session routes they own |
-| `ipsec` | the IKE engine | every remote traffic selector of each established Child SA, one route per selector: a Child SA that negotiated an IPv4 pair and an IPv6 pair contributes both prefixes, and withdraws both when it goes <!-- source: internal/component/ike/engine/redistribute.go -- emitRouteAdd, emitRouteRemove --> |
+| `ipsec` | the IKE engine | every remote traffic selector of each established Child SA, one route per selector: a Child SA that negotiated an IPv4 pair and an IPv6 pair contributes both prefixes, and withdraws both when it goes. A Child SA rekey that changes the set withdraws only the prefixes it dropped and announces only the ones it added; a prefix kept across the rekey is not withdrawn and re-announced <!-- source: internal/component/ike/engine/redistribute.go -- emitRouteAdd, emitRouteRemove, rekeyTunnelRoutes --> |
 
 `connected` never offers a prefix whose network address is loopback
 (127.0.0.0/8, ::1/128), link-local (169.254.0.0/16, fe80::/10), multicast

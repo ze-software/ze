@@ -10,8 +10,11 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
+	"github.com/ze-software/ze/internal/core/iprule"
 	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/core/rtproto"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -126,5 +129,139 @@ func TestChildSARouteEventsWithoutSelectorsCarryTSRemote(t *testing.T) {
 	}
 	if got := bus.take(); !slices.Equal(got, want) {
 		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+// rekeyTestChild builds a Child SA on vti0 whose local side is 10.255.1.0/24 and
+// fd00:db8:1::/64 and whose remote side is the given prefixes, one selector pair each,
+// in order. The local half of each pair matches the remote half's family.
+func rekeyTestChild(t *testing.T, remotes ...string) *ChildSA {
+	t.Helper()
+	child := &ChildSA{IfID: vti0IfID, SelectorsLocalIsTSi: true}
+	for _, remote := range remotes {
+		prefix := netip.MustParsePrefix(remote)
+		local := netip.MustParsePrefix("10.255.1.0/24")
+		if prefix.Addr().Is6() {
+			local = netip.MustParsePrefix("fd00:db8:1::/64")
+		}
+		pair := tsPair{
+			I: tsSelector{Net: prefixIPNet(local), Port: ipsec.AnyPort()},
+			R: tsSelector{Net: prefixIPNet(prefix), Port: ipsec.AnyPort()},
+		}
+		child.Selectors = append(child.Selectors, pair)
+		if child.TSRemote == nil {
+			child.TSLocal, child.TSRemote = pair.I.Net, pair.R.Net
+		}
+	}
+	return child
+}
+
+func prefixIPNet(prefix netip.Prefix) *net.IPNet {
+	bits := 32
+	if prefix.Addr().Is6() {
+		bits = 128
+	}
+	return &net.IPNet{IP: net.IP(prefix.Addr().AsSlice()), Mask: net.CIDRMask(prefix.Bits(), bits)}
+}
+
+// rekeyGuard stands vti0 up under the DISCARD default with a guarded IPv6 tunnel
+// address, as TestChildSAGuardsEveryNegotiatedIPv6Selector does, and answers the stub
+// and vti0's guard table, so a test can read which tunnel routes the guard holds.
+func rekeyGuard(t *testing.T) (*xfrmInterfaceStub, uint32) {
+	t.Helper()
+	dp := &catchAllDP{}
+	loadFailClosedBackend(t, dp)
+	stub := stubXFRMInterfaceReads(t)
+	stub.facts["vti0"] = xfrmInterfaceFacts{device: "vti0", ifIndex: 7, ifID: vti0IfID, addresses: []netip.Addr{mustAddr(t, "fd00:db8:1::1")}}
+	state := applyTestState(t)
+	if err := state.applyConfig(vtiBoundConfig(dataplane.SPActionDiscard), applyReload); err != nil {
+		t.Fatalf("discard apply: %v", err)
+	}
+	return stub, stub.guard.rules[netip.MustParsePrefix("fd00:db8:1::1/128")]
+}
+
+func guardHolds(stub *xfrmInterfaceStub, table uint32, prefix string) bool {
+	return stub.guard.routes[iprule.Route{Table: table, Dst: netip.MustParsePrefix(prefix), LinkIndex: 7, Protocol: rtproto.IPsecSourceGuard}]
+}
+
+// VALIDATES: a Child SA rekey that changes the selector set withdraws, from the
+// route-change bus and from the tunnel-source guard, exactly the prefixes the retired
+// Child SA carried and the successor does not, announces only the ones the successor
+// adds, and emits nothing for a prefix both carry.
+// PREVENTS: the owner loop announcing the successor's set and never withdrawing the
+// retired one, which left a prefix the rekey narrowed away announced to BGP, OSPF and
+// IS-IS and routed into the interface by the guard table, for as long as the tunnel ran.
+func TestChildSARekeyMovesOnlyChangedTunnelRoutes(t *testing.T) {
+	tests := []struct {
+		name      string
+		successor []string
+		want      []routeChange
+		guardKept []string
+		guardGone []string
+	}{
+		{
+			name:      "narrowed to IPv4",
+			successor: []string{"10.255.2.0/24"},
+			want: []routeChange{
+				{afi: 2, safi: 1, action: redistevents.ActionRemove, prefix: netip.MustParsePrefix("fd00:db8:2::/64")},
+			},
+			guardGone: []string{"fd00:db8:2::/64"},
+		},
+		{
+			name:      "IPv6 selector replaced",
+			successor: []string{"10.255.2.0/24", "fd00:db8:3::/64"},
+			want: []routeChange{
+				{afi: 2, safi: 1, action: redistevents.ActionAdd, prefix: netip.MustParsePrefix("fd00:db8:3::/64")},
+				{afi: 2, safi: 1, action: redistevents.ActionRemove, prefix: netip.MustParsePrefix("fd00:db8:2::/64")},
+			},
+			guardKept: []string{"fd00:db8:3::/64"},
+			guardGone: []string{"fd00:db8:2::/64"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stub, table := rekeyGuard(t)
+			log := slogutil.DiscardLogger()
+			retired := rekeyTestChild(t, "10.255.2.0/24", "fd00:db8:2::/64")
+			successor := rekeyTestChild(t, tt.successor...)
+			bus := &routeBus{}
+			guardTunnelRoute(true, "swan", retired, log)
+
+			rekeyTunnelRoutes(bus, "swan", retired, successor, log)
+			if got := bus.take(); !slices.Equal(got, tt.want) {
+				t.Errorf("route changes: got %v, want %v", got, tt.want)
+			}
+			for _, prefix := range tt.guardKept {
+				if !guardHolds(stub, table, prefix) {
+					t.Errorf("guard table lacks %s, which the successor carries: %v", prefix, stub.guard.routes)
+				}
+			}
+			for _, prefix := range tt.guardGone {
+				if guardHolds(stub, table, prefix) {
+					t.Errorf("guard table still holds %s, which the rekey dropped: %v", prefix, stub.guard.routes)
+				}
+			}
+		})
+	}
+}
+
+// VALIDATES: a Child SA rekey that keeps the selector set emits no route change and
+// leaves the guard table's tunnel route in place.
+// PREVENTS: a rekey flapping every tunnel route (withdraw, then announce) on each
+// lifetime expiry, which every redistribute consumer would propagate.
+func TestChildSARekeyKeepsUnchangedTunnelRoutes(t *testing.T) {
+	stub, table := rekeyGuard(t)
+	log := slogutil.DiscardLogger()
+	retired := rekeyTestChild(t, "10.255.2.0/24", "fd00:db8:2::/64")
+	successor := rekeyTestChild(t, "10.255.2.0/24", "fd00:db8:2::/64")
+	bus := &routeBus{}
+	guardTunnelRoute(true, "swan", retired, log)
+
+	rekeyTunnelRoutes(bus, "swan", retired, successor, log)
+	if got := bus.take(); len(got) != 0 {
+		t.Errorf("route changes for an unchanged selector set: %v, want none", got)
+	}
+	if !guardHolds(stub, table, "fd00:db8:2::/64") {
+		t.Errorf("guard table lost the kept IPv6 tunnel route: %v", stub.guard.routes)
 	}
 }

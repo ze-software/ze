@@ -488,19 +488,26 @@ func sourceGuardTable(terms []firewall.Term) firewall.Table {
 // remote traffic selectors, and keeps the guard table of the interface whose if_id the
 // Child SA carries in step. Only an IPv6 selector of a Child SA bound to an XFRM
 // interface (IfID not 0) has a guard table to enter. It runs where the Child SA's route
-// events are emitted (emitRouteAdd, emitRouteRemove).
+// events are emitted (emitRouteAdd, emitRouteRemove, rekeyTunnelRoutes).
 func guardTunnelRoute(add bool, peer string, child *ChildSA, log *slog.Logger) {
 	if child == nil {
 		return
 	}
-	if child.IfID == 0 {
+	guardTunnelPrefixes(add, peer, child.IfID, childRemotePrefixes(child), log)
+}
+
+// guardTunnelPrefixes enters (add) or leaves the IPv6 prefixes among prefixes in the
+// guard table of the XFRM interface ifID, for peer. guardTunnelRoute passes a Child SA's
+// whole set; rekeyTunnelRoutes passes only what a rekey added or dropped.
+func guardTunnelPrefixes(add bool, peer string, ifID uint32, prefixes []netip.Prefix, log *slog.Logger) {
+	if ifID == 0 {
 		return
 	}
-	for _, prefix := range childRemotePrefixes(child) {
+	for _, prefix := range prefixes {
 		if !prefix.Addr().Is6() {
 			continue
 		}
-		guards.tunnelRoute(add, peer, guardRouteKey{ifID: child.IfID, prefix: prefix}, log)
+		guards.tunnelRoute(add, peer, guardRouteKey{ifID: ifID, prefix: prefix}, log)
 	}
 }
 

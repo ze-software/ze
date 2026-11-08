@@ -484,8 +484,7 @@ func (ps *PeerSession) maintainSA(
 				childLT = newLifetimeState(ps.getESPGroup().Lifetime)
 				ps.incRekeyCount()
 				emitChildRekey(bus, ps.peerName, out.newChild, log)
-				emitRouteAdd(bus, out.newChild, log)
-				guardTunnelRoute(true, ps.peerName, out.newChild, log)
+				rekeyTunnelRoutes(bus, ps.peerName, out.retiredChild, out.newChild, log)
 			}
 		case now := <-ticker.C:
 			// Drop a parallel half-open handshake the peer abandoned before it could

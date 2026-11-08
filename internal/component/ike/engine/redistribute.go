@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
+	"slices"
 	"sync"
 
 	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
@@ -71,7 +72,7 @@ func emitRouteAdd(bus ze.EventBus, child *ChildSA, log *slog.Logger) {
 
 // emitRouteRemove withdraws every prefix emitRouteAdd announced for child. Both read
 // childRemotePrefixes, so the withdrawal names exactly the announced set; a Child SA's
-// selectors never change while it lives (a rekey builds a new ChildSA).
+// selectors never change while it lives (a rekey builds a new ChildSA, and rekeyTunnelRoutes moves the routes).
 func emitRouteRemove(bus ze.EventBus, child *ChildSA, log *slog.Logger) {
 	if bus == nil {
 		return
@@ -82,6 +83,56 @@ func emitRouteRemove(bus ze.EventBus, child *ChildSA, log *slog.Logger) {
 	for _, prefix := range childRemotePrefixes(child) {
 		emitRouteChange(bus, redistevents.ActionRemove, prefix, log)
 	}
+}
+
+// rekeyTunnelRoutes moves peer's tunnel routes, on the route-change bus and in the
+// tunnel-source guard, from retired to the successor a Child SA rekey installed. A rekey
+// can narrow or change the selector set (newRekeyedChild adopts what the exchange
+// negotiated), so it announces only the prefixes successor adds and withdraws only the
+// ones it dropped. A prefix both carry is left alone: withdrawing and re-announcing it
+// would flap the route at every rekey. The successor's prefixes are announced before the
+// retired ones are withdrawn, make-before-break as the SA swap itself is.
+func rekeyTunnelRoutes(bus ze.EventBus, peer string, retired, successor *ChildSA, log *slog.Logger) {
+	if retired == nil {
+		emitRouteAdd(bus, successor, log)
+		guardTunnelRoute(true, peer, successor, log)
+		return
+	}
+	before := childRemotePrefixes(retired)
+	after := childRemotePrefixes(successor)
+	added := prefixesAbsentFrom(after, before)
+	dropped := prefixesAbsentFrom(before, after)
+	if bus == nil {
+		log.Warn("ipsec: rekey route-change skipped: no event bus", "peer", peer)
+	} else {
+		for _, prefix := range added {
+			emitRouteChange(bus, redistevents.ActionAdd, prefix, log)
+		}
+		for _, prefix := range dropped {
+			emitRouteChange(bus, redistevents.ActionRemove, prefix, log)
+		}
+	}
+	// A guard entry is keyed by the interface too, so a successor on another interface
+	// (never the case today: newRekeyedChild inherits IfID) moves the whole set.
+	if retired.IfID != successor.IfID {
+		guardTunnelPrefixes(true, peer, successor.IfID, after, log)
+		guardTunnelPrefixes(false, peer, retired.IfID, before, log)
+		return
+	}
+	guardTunnelPrefixes(true, peer, successor.IfID, added, log)
+	guardTunnelPrefixes(false, peer, retired.IfID, dropped, log)
+}
+
+// prefixesAbsentFrom answers the prefixes of set that other does not hold, in set's order.
+func prefixesAbsentFrom(set, other []netip.Prefix) []netip.Prefix {
+	var out []netip.Prefix
+	for _, prefix := range set {
+		if slices.Contains(other, prefix) {
+			continue
+		}
+		out = append(out, prefix)
+	}
+	return out
 }
 
 // emitRouteChange publishes one route-change batch carrying prefix under action.
