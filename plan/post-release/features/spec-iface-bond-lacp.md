@@ -110,7 +110,7 @@ aggregation at all.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Using the vendored `vishvananda/netlink` bond link type is a new use of an approved module and needs Thomas's approval before code (`ai/META-DECISIONS.md`, third-party module rule) | META-DECISIONS, "Code and dependencies" | Code written without approval | Ask Thomas at design, with what it is for | unvalidated |
+| A-1 | Using the vendored `vishvananda/netlink` bond link type needs no further approval: every package and feature of `vishvananda/netlink` may be used, and the per-use approval for third-party modules applies only to experimental crypto modules such as Cloudflare's `circl` | Owner standing rule, recorded with the other code and dependency rules | - | Owner rule | validated |
 | A-2 | VPP's bond and LACP plugins (`bond_create2`, `bond_add_member`, `lacp`) can build an 802.3ad bond exactly | VPP has a bond API | VPP refuses the kind | Read VPP source, quote the functions | unvalidated |
 | A-3 | Recent kernels no longer copy the first member's MAC to the bond | VyOS T7571 and T9269 | Bond MAC handling differs | Integration test reads the bond MAC after the first enslave | unvalidated |
 
@@ -196,7 +196,7 @@ aggregation at all.
 
 ## Implementation Steps
 
-1. **Phase: Wiring** - YANG kind, parse, failing `.ci`, approval for A-1.
+1. **Phase: Wiring** - YANG kind, parse, failing `.ci`.
 2. **Phase: Verify** - member option refusals, one aggregator per member.
 3. **Phase: Netlink apply** - create, enslave, release, MTU and MAC rules.
 4. **Phase: Show, doctor, VPP** - LACP state, member checks, VPP or refusal.

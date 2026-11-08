@@ -110,7 +110,7 @@ vif-c <id>`; Ze offers one 802.1Q tag per unit only.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The kernel deletes child VLANs when their lower device is deleted (cascade) | VyOS T9313 `41fac0cfb` | Teardown order matters less | Integration test | unvalidated |
 | A-2 | VPP builds an 802.1ad outer plus 802.1Q inner sub-interface exactly (`create_subif` with dot1ad and inner tag flags) | VPP sub-interface API | VPP refuses QinQ | Read VPP source, quote the function | unvalidated |
-| A-3 | Setting `VlanProtocol` on the vendored netlink VLAN link is a use already covered by the iface netlink approval | vendored `vishvananda/netlink` `Vlan.VlanProtocol` | Needs Thomas's approval as a new use | Ask at design | unvalidated |
+| A-3 | Setting `VlanProtocol` on the vendored netlink VLAN link needs no further approval: every package and feature of `vishvananda/netlink` may be used, and the per-use approval for third-party modules applies only to experimental crypto modules such as Cloudflare's `circl` | Owner standing rule, recorded with the other code and dependency rules; vendored `vishvananda/netlink` `Vlan.VlanProtocol` | - | Owner rule | validated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |

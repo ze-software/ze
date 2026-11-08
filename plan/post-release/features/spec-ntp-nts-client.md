@@ -30,12 +30,29 @@ VyOS reference: VyOS configures chrony's `nts` option per server
 (`~/Code/github.com/vyos/vyos-1x`, `interface-definitions/service_ntp.xml.in`).
 T8882 `44d216875` is the per-server poll work this spec depends on.
 
-**Questions only Thomas can answer, with the evidence:**
+**Owner decisions:**
 
-| Decision | Evidence | What each answer changes |
-|----------|----------|--------------------------|
-| Enrol RFC 8915 in a profile | `rfc/full/rfc8915.txt` is present; no `rfc/profiles/` entry lists it, so no `rfc/short/rfc8915.md` may be written (`ai/META-DECISIONS.md`) | Enrolled: a summary and tagged tests are owed. Not enrolled: the spec runs with RFC quotes in code but no ledger rows |
-| A module for AES-SIV-CMAC-256 (RFC 5297), or Ze's own | Go's standard library has no AES-SIV; `github.com/beevik/ntp`, already vendored, has no NTS. A new module needs Thomas's approval for this use (`ai/META-DECISIONS.md`, "Code and dependencies") | A module: one vendor commit first. Ze's own: an RFC 5297 implementation with its test vectors |
+| Decision | What Thomas decided | What it fixes in this spec |
+|----------|---------------------|----------------------------|
+| D1: release timing | NTS can come after the first release | The spec stays in `plan/post-release/` |
+| D2: RFC 8915 enrolment | Not enrolled: no profile lists RFC 8915 and no `rfc/short/rfc8915.md` is written (RFC validation scope does not grow for an RFC no profile lists) | The spec runs with RFC quotes in code but no ledger rows, tags or discrimination records |
+| D3: a library for NTS | "Any library we could use": a third-party Go module for NTS is approved, either an AES-SIV-CMAC-256 (RFC 5297) module for the authenticator or a whole NTS client such as `github.com/beevik/nts`. Cloudflare's `circl` is never used for it | Ze writes no RFC 5297 implementation of its own. Choosing the library is design work (below) |
+
+**Design work owed by D3: choose the library.** Go's standard library has no
+AES-SIV, and `github.com/beevik/ntp`, already vendored, has no NTS. Candidates
+to evaluate at design, judged on RFC 5297 Appendix A vectors, RFC 8915
+behaviour, maintenance, licence, dependency footprint (no `circl` anywhere in
+the dependency tree) and how well it fits the plugin's per-server state:
+
+| Candidate | Note |
+|-----------|------|
+| `github.com/secure-io/siv-go` | AES-SIV and AES-GCM-SIV; small, standard-library only |
+| `github.com/miscreant/miscreant.go` | AES-SIV per RFC 5297; check maintenance status |
+| `github.com/tink-crypto/tink-go` (deterministic AEAD, AES-SIV) | Maintained, but a large module for one primitive |
+| `github.com/beevik/nts` | A whole NTS client by the author of the vendored `beevik/ntp`; it brings its own AES-SIV dependency. Evaluated against the in-plugin design; if chosen, its own dependencies are named here |
+
+The chosen module lands in a commit of its own (`go.mod`, `go.sum` and its
+`vendor/` tree, nothing else) before the commit that first uses it.
 
 ## Required Reading
 
@@ -147,7 +164,7 @@ T8882 `44d216875` is the per-server poll work this spec depends on.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestAESSIVVectors` | where AES-SIV lands | RFC 5297 Appendix A vectors | |
+| `TestAESSIVVectors` | `internal/plugins/ntp/`, over the chosen module | RFC 5297 Appendix A vectors | |
 | `TestNTSKERecordsRoundTrip` | `internal/plugins/ntp/` | Section 4 record encoding | |
 | `TestNTSAuthenticatorRejects` | `internal/plugins/ntp/` | AC-3, AC-4 | |
 
@@ -195,11 +212,11 @@ T8882 `44d216875` is the per-server poll work this spec depends on.
 | 1 | New user-facing feature | Yes | `features/` entry |
 | 2 | Config syntax changed | Yes | the NTP guide page |
 | 7 | Wire format | Yes | a `docs/architecture/wire/` page for NTS |
-| 9 | RFC behavior | Yes, if RFC 8915 is enrolled | `rfc/short/rfc8915.md` |
+| 9 | RFC behavior | No: RFC 8915 is not enrolled (D2), so no `rfc/short/` summary | - |
 
 ## Implementation Steps
 1. **Phase: Wiring** - config and status, test red
-2. **Phase: AES-SIV** - per Thomas's module decision
+2. **Phase: Library** - choose the library (D3), land its vendor commit alone, then `TestAESSIVVectors` against it
 3. **Phase: NTS-KE** - AC-2, AC-5, AC-6
 4. **Phase: Authenticated NTP** - AC-1, AC-3, AC-4, AC-7
 
