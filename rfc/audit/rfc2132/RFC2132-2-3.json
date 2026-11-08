@@ -2,7 +2,7 @@
   "note": "TestASCIIOptionParsingTolerantOfTrailingNull asserts option 60 and 77 values without a trailing NUL are recognized by isPXEClient/isIPXE; a receiver requiring the NUL fails it",
   "requirement_sha": "eb7238d9df0e9835",
   "tests": {
-    "internal/plugins/dhcpserver/handler_test.go::TestASCIIOptionParsingTolerantOfTrailingNull": "3c71d2e2f2b59688"
+    "internal/plugins/dhcpserver/handler_test.go::TestASCIIOptionParsingTolerantOfTrailingNull": "7ca95b207015521d"
   },
   "units": {
     "internal/plugins/dhcpserver/handler_test.go::TestASCIIOptionParsingTolerantOfTrailingNull": "113f4af5cd40ab57"
