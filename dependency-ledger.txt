@@ -36,8 +36,11 @@ github.com/beevik/ntp	internal/plugins/ntp	in use when the ledger was seeded
 github.com/charmbracelet/colorprofile	internal/component/cli	in use when the ledger was seeded
 github.com/charmbracelet/x/ansi	internal/component/cli/testing	in use when the ledger was seeded
 github.com/chromedp/chromedp	internal/le/site/browsertest	in use when the ledger was seeded
+github.com/cilium/ebpf	internal/component/ike/dataplane	SPD selection phase 8 (D8-1): cgroup setsockopt guard refusing IP/IPV6 XFRM socket policies under vpn ipsec application-override deny
 github.com/cilium/ebpf	internal/plugins/trafficusage	in use when the ledger was seeded
+github.com/cilium/ebpf/asm	internal/component/ike/dataplane	SPD selection phase 8 (D8-1): cgroup setsockopt guard refusing IP/IPV6 XFRM socket policies under vpn ipsec application-override deny
 github.com/cilium/ebpf/asm	internal/plugins/trafficusage	in use when the ledger was seeded
+github.com/cilium/ebpf/link	internal/component/ike/dataplane	SPD selection phase 8 (D8-1): cgroup setsockopt guard refusing IP/IPV6 XFRM socket policies under vpn ipsec application-override deny
 github.com/cilium/ebpf/link	internal/plugins/trafficusage	in use when the ledger was seeded
 github.com/cilium/ebpf/rlimit	internal/plugins/trafficusage	in use when the ledger was seeded
 github.com/cloudflare/circl/sign/ed448	internal/core/ed448	Ed448 signatures for IKEv2 AUTH, the one approved use of circl
