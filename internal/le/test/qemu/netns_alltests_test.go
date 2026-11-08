@@ -133,6 +133,14 @@ func TestASuiteInTheGuestNamespaceIsToldNothingAboutNamespaces(t *testing.T) {
 	}
 }
 
+// wantNetnsGrant is the setcap text the per-test namespace daemon must be
+// given, written out rather than read from runner.NetnsDaemonSetcap, so a
+// change to the declaration that drops a capability turns these tests red.
+// cap_bpf is what the IPsec plugin's default application-override deny guard
+// needs for BPF_MAP_CREATE; without it every XFRM test declaring
+// caps=net-admin,bpf failed at stage Config with EPERM.
+const wantNetnsGrant = "cap_net_admin,cap_net_raw,cap_net_bind_service,cap_bpf+ep"
+
 // The capability copies are made before the first suite, and the run refuses to
 // continue when that fails. A setcap on the 9p mount buys nothing, so the
 // binaries are copied to the guest's own tmpfs first.
@@ -148,8 +156,8 @@ func TestTheCapabilityCopiesAreMadeBeforeTheFirstSuite(t *testing.T) {
 	first := strings.Join(rec.calls[0], " ")
 	for _, want := range []string{
 		"sh -c",
-		setcapCommand + " " + netnsCapabilities + " " + netnsCapDir + "/" + zeName,
-		setcapCommand + " " + netnsCapabilities + " " + netnsCapDir + "/" + zeStrippedName,
+		setcapCommand + " " + wantNetnsGrant + " " + netnsCapDir + "/" + zeName,
+		setcapCommand + " " + wantNetnsGrant + " " + netnsCapDir + "/" + zeStrippedName,
 		"chown 1000:1000 " + netnsStateDir,
 	} {
 		if !strings.Contains(first, want) {
@@ -222,7 +230,7 @@ func TestTheCapabilityCopiesCarryTheHarnessTheDroppedDaemonExecs(t *testing.T) {
 	if !strings.Contains(first, "chmod 0755 "+target) {
 		t.Errorf("the le copy is not made executable by every user:\n  %s", first)
 	}
-	if !strings.Contains(first, setcapCommand+" "+netnsCapabilities+" "+target) {
+	if !strings.Contains(first, setcapCommand+" "+wantNetnsGrant+" "+target) {
 		t.Errorf("the le copy does not carry the daemons' capabilities, so a fixture it runs"+
 			" as the dropped user cannot open its packet socket:\n  %s", first)
 	}

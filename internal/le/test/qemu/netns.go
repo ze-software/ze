@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 // Where the launcher puts what the dropped user needs.
@@ -68,7 +69,8 @@ func netnsCapMountScript() string {
 // PPPoE tests then fail on their own ENOENT.
 //
 // devtmpfs creates /dev/ppp 0600 root, and the per-test namespace daemon runs
-// as netnsUID with netnsCapabilities, which hold no cap_dac_override. Its PPPoE
+// as netnsUID with the file capabilities runner.NetnsDaemonSetcap names, which
+// hold no cap_dac_override. Its PPPoE
 // client failed DevPPPSetup after every PADS, sent PADT and redialed, so on
 // Ze's own image pppoe-client-lcp-renegotiation timed out in its
 // concentrator's LCP read. The widened node persists for every local user
@@ -101,10 +103,6 @@ func netnsHarnessSource() (string, error) {
 	}
 	return self, nil
 }
-
-// netnsCapabilities is the set ze needs to program netlink, nftables and a
-// privileged port while running as an ordinary user inside the namespace.
-const netnsCapabilities = "cap_net_admin,cap_net_raw,cap_net_bind_service+ep"
 
 // The environment the .ci runner reads to enter the mode.
 //
@@ -238,6 +236,12 @@ func (a *allTestsRun) prepareNamespace(environ []string, suites []vmSuite) error
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrNamespacePreparation, err)
 	}
+	// The grant is the runner's own declaration, so the caps= gate that
+	// judges each test in this mode reads the set written here.
+	capabilities, err := runner.NetnsDaemonSetcap()
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrNamespacePreparation, err)
+	}
 
 	var tb textbuf.Buffer
 	tb.Str("set -e").
@@ -262,7 +266,7 @@ func (a *allTestsRun) prepareNamespace(environ []string, suites []vmSuite) error
 		tb.Str("; rm -f ").Str(target).
 			Str("; cp ").Str(binary.source).Byte(' ').Str(target).
 			Str("; chmod 0755 ").Str(target).
-			Str("; ").Str(setcapCommand).Byte(' ').Str(netnsCapabilities).Byte(' ').Str(target).
+			Str("; ").Str(setcapCommand).Byte(' ').Str(capabilities).Byte(' ').Str(target).
 			Str("; ").Str(getcapCommand).Byte(' ').Str(target)
 	}
 

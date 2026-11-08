@@ -372,7 +372,14 @@ The runner enters the namespace itself, once per test (`enterTestNetns`,
 with a non-root `ZE_TEST_UID`. `test qemu all` sets both for a routed suite, copies
 `ze`, `ze-stripped` and the running `le` to the guest's own tmpfs with the same
 file capabilities (a 9p mount carries no extended attribute, so a `setcap` on
-`/workspace` would buy nothing), and gives the dropped user a state directory to
+`/workspace` would buy nothing). The capabilities are the runner's own
+declaration, `netnsDaemonCapBits` in `internal/test/runner/caps.go`, written
+through `runner.NetnsDaemonSetcap` as
+`cap_net_admin,cap_net_raw,cap_net_bind_service,cap_bpf+ep`, and the `.ci`
+runner's `caps=` gate reads the same list in this mode, so a test that needs a
+capability the dropped daemon will not hold is skipped with its name rather
+than admitted by the root runner's own probe. The preparation also gives the
+dropped user a state directory to
 write in. The `le` copy is what the dropped daemon finds when a plugin block runs
 `le test fixture ...` by name: the runner puts that tmpfs on the daemon's PATH as
 `ZE_BIN`'s directory, and the only other `le` there is the shim link into the
@@ -396,7 +403,9 @@ device on a machine that outlives the run.
 <!-- source: internal/le/test/qemu/netns.go -- netnsCapMountScript -->
 <!-- source: internal/le/test/qemu/netns.go -- netnsDevPPPScript -->
 <!-- source: internal/le/test/qemu/netns.go -- netnsHarnessSource -->
-<!-- test: internal/le/test/qemu/netns_alltests_test.go -- TestTheCapabilityCopiesLandOnATmpfsThatHonorsFileCapabilities, TestTheCapabilityCopiesCarryTheHarnessTheDroppedDaemonExecs, TestThePreparationLetsTheDroppedDaemonOpenDevPPP -->
+<!-- source: internal/test/runner/caps.go -- netnsDaemonCapBits, NetnsDaemonSetcap -->
+<!-- source: internal/test/runner/record_parse_option.go -- applyNetnsDaemonCapsGate -->
+<!-- test: internal/le/test/qemu/netns_alltests_test.go -- TestTheCapabilityCopiesAreMadeBeforeTheFirstSuite, TestTheCapabilityCopiesLandOnATmpfsThatHonorsFileCapabilities, TestTheCapabilityCopiesCarryTheHarnessTheDroppedDaemonExecs, TestThePreparationLetsTheDroppedDaemonOpenDevPPP -->
 <!-- source: internal/le/test/qemu/netns_linux.go -- prepareNetnsBinaries -->
 <!-- source: internal/le/test/qemu/netns_linux.go -- prepareNetnsState -->
 <!-- source: internal/le/test/qemu/netns.go -- allTestsRun.prepareNamespace -->

@@ -1056,6 +1056,23 @@ capability bits the probe tests.
 
 <!-- source: internal/test/runner/caps.go -- capsRequired -->
 
+The probe reads the runner's own effective set, which is the answer while the
+runner and ze share one credential. The per-test netns mode breaks that: the
+runner is root and ze is dropped to `ZE_TEST_UID`, holding only the file
+capabilities the QEMU harness writes on its copies of `ze`, `ze-stripped` and
+`le`. `netnsDaemonCapBits` (`internal/test/runner/caps.go`) declares that grant
+once: `NetnsDaemonSetcap` derives the setcap text from it, currently
+`cap_net_admin,cap_net_raw,cap_net_bind_service,cap_bpf+ep`, and in that mode
+the gate also judges each declared token against it. A test that declares a
+capability outside the grant (today only `sys-time`) is skipped before ze
+starts, with a reason naming the missing capability and the declaration to
+edit. `cap_bpf` is in the grant because the IPsec plugin's default `vpn ipsec
+application-override deny` guard creates an eBPF map; without it the XFRM tests
+that declare `caps=net-admin,bpf` failed at stage Config with EPERM.
+<!-- source: internal/test/runner/caps.go -- netnsDaemonCapBits, NetnsDaemonSetcap, netnsDaemonMissing -->
+<!-- source: internal/test/runner/record_parse_option.go -- applyNetnsDaemonCapsGate -->
+<!-- test: internal/test/runner/caps_netns_test.go -- TestNetnsDaemonSetcapNamesTheGrant, TestNetnsModeGateRefusesACapOutsideTheGrant -->
+
 #### A clamped path built by the test itself
 
 A `.ci` that needs a path with a known MTU runs the daemon through the

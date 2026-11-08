@@ -242,8 +242,38 @@ func parseOptionNeedsLinux(r *Record, _ string, kv map[string]string) error {
 			var tb textbuf.Buffer
 			r.SkipReason = tb.Str("needs-linux caps=").Str(strings.Join(caps, ",")).
 				Str(" (capability absent; run via ./le test qemu all)").String()
+			return nil
 		}
+		return applyNetnsDaemonCapsGate(r, caps)
 	}
+	return nil
+}
+
+// applyNetnsDaemonCapsGate skips a record whose declared caps= the netns-mode
+// ze daemon will not hold. hasCaps probes the runner's own CapEff, and in that
+// mode the runner is root while ze is dropped to ZE_TEST_UID with only the
+// file capabilities in netnsDaemonCapBits, so the runner probe alone passes
+// every token and the test then fails inside ze (BPF_MAP_CREATE answering
+// EPERM for an IPsec guard). The reason names each missing capability and the
+// declaration that grants it. Off netns mode the runner and ze share one
+// credential, and hasCaps is the whole answer.
+func applyNetnsDaemonCapsGate(r *Record, caps []string) error {
+	if !netnsActive() {
+		return nil
+	}
+	missing, err := netnsDaemonMissing(caps)
+	if err != nil {
+		return fmt.Errorf("option=needs-linux caps=%s: admission failed: %w", strings.Join(caps, ","), err)
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+	var tb textbuf.Buffer
+	r.SkipReason = tb.Str("needs-linux caps=").Str(strings.Join(caps, ",")).
+		Str(" (the netns-mode ze daemon runs as ZE_TEST_UID and is not granted ").
+		Str(strings.Join(missing, ",")).
+		Str("; add it to netnsDaemonCapBits in internal/test/runner/caps.go, or move the test to a guest-root suite of ./le test qemu all)").
+		String()
 	return nil
 }
 

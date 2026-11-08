@@ -156,6 +156,84 @@ func ContainerCapsDockerNames() ([]string, error) {
 	return names, nil
 }
 
+// netnsDaemonCapBits is the one declaration of the capabilities a ze daemon
+// holds in the per-test netns launch mode. That mode drops ze to ZE_TEST_UID
+// (runOrchestrated, runner_exec.go), so ze holds no capability of the runner's:
+// it holds only the file capabilities the QEMU harness writes on its copies of
+// ze, ze-stripped and le, and NetnsDaemonSetcap derives that setcap text from
+// this list (internal/le/test/qemu, netnsCapabilities). The parse-time gate
+// reads the same list (netnsDaemonMissing), so a test declaring a capability
+// the grant lacks is skipped with the missing name rather than passing a probe
+// of the root runner and then failing inside ze.
+//
+// CAP_BPF is here because the IPsec plugin's default `vpn ipsec
+// application-override deny` guard creates an eBPF map and attaches a cgroup
+// program before the tunnel comes up; without it BPF_MAP_CREATE answers EPERM
+// and every XFRM test that declares caps=net-admin,bpf failed at stage Config.
+// CAP_SYS_TIME is deliberately absent: a test that sets the clock changes the
+// guest it runs on rather than its namespace, so its gate keeps it out of this
+// mode.
+var netnsDaemonCapBits = []int{capNetAdmin, capNetRaw, capNetBindService, capBPF}
+
+// setcapName answers setcap(8)'s name for a capability bit: the kernel's CAP_
+// name in lower case, derived from capDockerName so a bit carries one
+// spelling. A bit with no name is an error naming the bit.
+func setcapName(bit int) (string, error) {
+	name, ok := capDockerName[bit]
+	if !ok {
+		var tb textbuf.Buffer
+		return "", errors.New(tb.Str("capability bit ").Int(int64(bit)).
+			Str(" has no name: add it to capDockerName in internal/test/runner/caps.go").String())
+	}
+	return "cap_" + strings.ToLower(name), nil
+}
+
+// NetnsDaemonSetcap answers the setcap(8) argument that grants the netns-mode
+// ze daemon netnsDaemonCapBits as permitted and effective file capabilities,
+// for example "cap_net_admin,cap_bpf+ep". The QEMU harness writes exactly this
+// text, so the grant and the gate cannot drift apart.
+func NetnsDaemonSetcap() (string, error) {
+	var tb textbuf.Buffer
+	for i, bit := range netnsDaemonCapBits {
+		name, err := setcapName(bit)
+		if err != nil {
+			return "", err
+		}
+		if i > 0 {
+			tb.Byte(',')
+		}
+		tb.Str(name)
+	}
+	return tb.Str("+ep").String(), nil
+}
+
+// netnsDaemonMissing answers, in declaration order and once each, the setcap
+// names of the capabilities the caps= tokens require that netnsDaemonCapBits
+// does not grant. An empty answer means the netns-mode daemon holds every one.
+// An unknown token is an error, never an empty answer.
+func netnsDaemonMissing(tokens []string) ([]string, error) {
+	var missing []string
+	for _, token := range tokens {
+		bits, ok := capsRequired[token]
+		if !ok {
+			return nil, fmt.Errorf("unknown capability token %q (supported: %s)", token, capsAccepted())
+		}
+		for _, bit := range bits {
+			if slices.Contains(netnsDaemonCapBits, bit) {
+				continue
+			}
+			name, err := setcapName(bit)
+			if err != nil {
+				return nil, err
+			}
+			if !slices.Contains(missing, name) {
+				missing = append(missing, name)
+			}
+		}
+	}
+	return missing, nil
+}
+
 // capsAccepted lists the accepted tokens for an error message, derived from the
 // table so a new capability cannot be added without the diagnostic naming it
 // (ai/rules/evidence.md).

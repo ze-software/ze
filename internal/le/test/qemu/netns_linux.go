@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 // netnsSuiteTimeout is the wall-clock cap one selected subset runs under. The
@@ -128,6 +129,12 @@ func prepareNetnsBinaries(ctx context.Context, binaries netnsBinaries) error {
 	if err != nil {
 		return err
 	}
+	// The grant is the runner's own declaration, so the caps= gate that
+	// judges each test in this mode reads the set written here.
+	capabilities, err := runner.NetnsDaemonSetcap()
+	if err != nil {
+		return err
+	}
 	var tb textbuf.Buffer
 	copies := []struct{ name, source string }{{"ze", binaries.Ze}, {"ze-stripped", binaries.Stripped}, {leName, harness}}
 	for _, pair := range copies {
@@ -143,7 +150,7 @@ func prepareNetnsBinaries(ctx context.Context, binaries netnsBinaries) error {
 			}
 			return fmt.Errorf("copy %s failed with exit %d", pair.source, result.Code)
 		}
-		if result, err := guestRun(ctx, "", []string{"setcap", netnsCapabilities, destination}, nil); err != nil || result.Code != 0 {
+		if result, err := guestRun(ctx, "", []string{"setcap", capabilities, destination}, nil); err != nil || result.Code != 0 {
 			if err != nil {
 				return err
 			}
