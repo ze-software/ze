@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | plugin |
 | Priority | P3 |
 | Release reason | Feature: a home CPE behind PPPoE clamps forwarded SYNs to the route MTU without the operator computing the value; a fixed `tcp-mss-set` already covers the need, so this waits |
@@ -10,7 +10,7 @@
 | Depends | `plan/release/fixes/spec-home-cpe-21-mss-clamp-not-raise.md` (its netns test harness and its proof that the two-byte MSS write never raises); `plan/release/fixes/spec-home-cpe-18-interoplab-multi-link-topology.md` (the topology suite and the shared image registry that `pppoe-mss-pmtu` runs on) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-02 |
+| Updated | 2026-11-08 |
 
 Parent: `plan/release/fixes/spec-home-cpe-0-umbrella.md` (child 9).
 
@@ -99,7 +99,7 @@ that leaves unchanged.
 | nft to kernel | rule add; kernel validates the hook | No |
 
 ### Integration Points
-- `lowerAction` in `lower_linux.go`, `validateAction` in `validate.go` and `verifyAction` in `vpp/verify.go`, each beside its `SetTCPMSS` arm.
+- `lowerAction` in `lower_linux.go`, `validateAction` in `validate.go` and `verifyAction` in `internal/plugins/firewall/vpp/verify.go`, each beside its `SetTCPMSS` arm.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -115,16 +115,23 @@ that leaves unchanged.
 
 | ID | Question | Options | Evidence | Effect on this spec |
 |----|----------|---------|----------|---------------------|
-| D-1 | Should firewall actions become a registry (each action declaring its parse, its verify and a lowering per backend) instead of the closed `Action` sum type that every backend lowers by type switch? | (a) keep the closed sum type: the firewall component owns its actions, backends register, each backend switch fails closed; (b) redesign actions as registrations, a firewall-wide change across every existing action (the model's action types, `parseThenBlock`, `validateAction`, both backends) before this action is added | `model.go` `Action` (marker interface); `lowerAction` and `verifyAction` defaults refuse unknown types; `RegisterBackend`, `RegisterVerifier` in `backend.go`; owner rule in `ai/META-DECISIONS.md` ("a design that has the engine or config code name a specific feature, plugin, field or path is wrong") names engine and config code, and this code is the firewall component's own | (a): this spec proceeds as written. (b): a separate firewall spec lands first and this action becomes one registration in it. Owed to Thomas; not taken here |
+| D-1 | Should firewall actions become a registry (each action declaring its parse, its verify and a lowering per backend) instead of the closed `Action` sum type that every backend lowers by type switch? | (a) keep the closed sum type: the firewall component owns its actions, backends register, each backend switch fails closed; (b) redesign actions as registrations, a firewall-wide change across every existing action (the model's action types, `parseThenBlock`, `validateAction`, both backends) before this action is added | `model.go` `Action` (marker interface); `lowerAction` and `verifyAction` defaults refuse unknown types; `RegisterBackend`, `RegisterVerifier` in `backend.go`; owner rule in `ai/META-DECISIONS.md` ("a design that has the engine or config code name a specific feature, plugin, field or path is wrong") names engine and config code, and this code is the firewall component's own | (a): this spec proceeds as written. (b): a separate firewall spec lands first and this action becomes one registration in it. Answered by Thomas on 2026-11-08: (a), keep the closed set (see Answer below) |
+
+**D-1 answered by Thomas (2026-11-08), a one-off design answer for this spec,
+not a meta rule.** Keep the closed set: firewall actions stay the firewall
+component's own closed `Action` set; backends register (`RegisterBackend`,
+`RegisterVerifier`) and each backend's lowering switch fails closed on an
+unknown action. The owner rule on modular design covers engine and config
+code, not a component's own model. This spec proceeds as written.
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | The route MTU of a PPPoE device route is the PPPoE MTU (1492) | kernel `dst_mtu` of a route via `pppN` | the clamp uses 1500 and does nothing | `pppoe-mss-pmtu` (a real PPP device negotiated with accel-ppp); the netns test proves the arithmetic on a 1492-MTU veth | unvalidated |
-| A-2 | The reverse-route MTU term does not lower the value below the forward path on a CPE | `get_tcpmss` source | a LAN with a smaller MTU clamps more, which is still correct | `TestTCPMSSClampToPMTU` asymmetric-MTU case | unvalidated |
-| A-3 | The accel-ppp node clamps no MSS of its own | accel-ppp has no MSS option in the image's configuration | the scenario's 1452 could come from accel-ppp | the scenario's red walk: with Ze's term removed, the 1460 SYN arrives as 1460 | unvalidated |
+| A-1 | The route MTU of a PPPoE device route is the PPPoE MTU (1492) | kernel `dst_mtu` of a route via `pppN` | the clamp uses 1500 and does nothing | `pppoe-mss-pmtu` (a real PPP device negotiated with accel-ppp); the netns test proves the arithmetic on a 1492-MTU veth | confirmed (Pre-Commit Verification) |
+| A-2 | The reverse-route MTU term does not lower the value below the forward path on a CPE | `get_tcpmss` source | a LAN with a smaller MTU clamps more, which is still correct | `TestTCPMSSClampToPMTU` asymmetric-MTU case | confirmed (Pre-Commit Verification) |
+| A-3 | The accel-ppp node clamps no MSS of its own | accel-ppp has no MSS option in the image's configuration | the scenario's 1452 could come from accel-ppp | the scenario's red walk: with Ze's term removed, the 1460 SYN arrives as 1460 | confirmed (Pre-Commit Verification) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -209,7 +216,7 @@ because IPv6 over the PPPoE session depends on child 8.
 - `internal/plugins/firewall/vpp/verify.go`
 - `docs/guide/firewall.md`
 - `docs/architecture/core-design.md` - declared by `model.go`, `config.go`, `validate.go` and `lower_linux.go`. Section 14b states the count of abstract expression types; the new action makes that count wrong, so the sentence is updated to the count the model holds after the change. Section 14a (the `ze:backend` gate) stays true
-- `docs/architecture/firewall/fw-6-firewall-vpp.md` - declared by `vpp/verify.go`; it describes the per-expression verifier without listing refused actions, so nothing becomes wrong
+- `docs/architecture/firewall/fw-6-firewall-vpp.md` - declared by `internal/plugins/firewall/vpp/verify.go`; it describes the per-expression verifier without listing refused actions, so nothing becomes wrong
 - `docs/architecture/testing/interop.md` - the topology suite's scenario inventory gains `pppoe-mss-pmtu`
 
 ## Files to Create
@@ -335,3 +342,135 @@ None (grep of `plan/journal/` for MSS).
 ### Closure
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean
+
+## Implementation Summary
+
+### What Was Implemented
+- Landed in ba972d0bb6 (code, tests, docs) and d7bbba3daf (the `.ci` promoted). Both carry the trailer `Spec-work: home-cpe-1-logical-interface-name` by a claim mix-up; the subjects name child 9.
+- YANG leaf `tcp-mss-clamp-to-pmtu` (`ze-firewall-conf.yang`, `ze:backend "nft"`); `ClampTCPMSSToPMTU` in `model.go`; parsed in `config.go` `parseThenBlock`; verified by `validate.go` `validateClampTCPMSSToPMTU` (family, exclusivity with `tcp-mss-set`, hook walk over jump and goto through `baseChainReaching` and `chainReaches`); lowered by `lower_linux.go` `lowerClampTCPMSSToPMTU` (`rt` TCPMSS, a byteorder hton, then the shared `tcpMSSWrite`); refused by `internal/plugins/firewall/vpp/verify.go` `verifyAction`; rendered by `cmd/show.go` and `web/page_firewall.go`.
+- Scenario `pppoe-mss-pmtu`: `register_pppoe_mss_pmtu.go`, `check_mss_pmtu.go` `checkMSSPMTU` and `mssPMTUVerdict`.
+
+### Bugs Found/Fixed
+- Byte order: `nft_rt_eval` stores the route MSS in host order and `nft_exthdr_tcp_set_eval` reads a `__be16`, so without the hton a little-endian host never clamps. Covered by `TestTCPMSSClampToPMTU` and `TestLowerClampToPMTU`.
+
+### Documentation Updates
+- `docs/guide/firewall.md` actions table row and the PPPoE example; `docs/architecture/testing/interop.md` scenario inventory row `pppoe-mss-pmtu`; `features/firewall.md`; `docs/guide/migrating-from-vyos.md` mapping rows (line 176, conversion lines 10 and 11).
+- At closure, `docs/architecture/core-design.md` section 14b: the count was 44 (23 match) and the model now holds 24 match types, because 9c92ef159f added a match without the page. Corrected to 45 (24 match, 13 action, 8 modifier).
+- `./le doc check all`: red with 1851 command-availability drift rows, none on this spec's pages (log `tmp/session/2026-11-07-104251/scratch/c9-doccheck.log`).
+
+### Deviations from Plan
+- The interop red walk broke the lowering (`lowerAction` answers `nil, nil` for the action), not the term, and the scenario went red at its table check before any probe was sent. The planned "1460 arrives as 1460" observation was not made. A-3 is confirmed from accel-pppd's source instead, and the verdict half is `TestMSSPMTUVerdict`. The comment in `accel-ppp.conf` that claimed otherwise is corrected.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The implementation commits carried another spec's `Spec-work` trailer and left this spec at `design` | the work was this spec's | closure read `git log` | recorded here; status moved through `ready` by `./le spec claim` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Term action clamps SYN MSS to route MTU less headers | Done | `lower_linux.go` `lowerClampTCPMSSToPMTU` | |
+| 1460 to 1452 (IPv4) or 1432 (IPv6) at MTU 1492; smaller kept | Done | `integration_linux_test.go` `TestTCPMSSClampToPMTU` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestTCPMSSClampToPMTU` | QEMU, Ze's kernel |
+| AC-2 | Done | `TestTCPMSSClampToPMTU` | |
+| AC-3 | Done | `TestTCPMSSClampToPMTU` | |
+| AC-4 | Done | `TestValidateClampToPMTUHook`; `firewall-tcp-mss-clamp-to-pmtu.ci` | |
+| AC-5 | Done | `TestValidateClampToPMTUHook` "with tcp-mss-set refuses"; `TestParseTCPMSSClampToPMTU` | |
+| AC-6 | Done | `TestValidateClampToPMTUHook` arp, bridge, netdev | |
+| AC-7 | Done | `TestVPPRefusesClampToPMTU` | |
+| AC-8 | Done | scenario `pppoe-mss-pmtu` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestParseTCPMSSClampToPMTU` | Done | `config_test.go` | |
+| `TestValidateClampToPMTUHook` | Done | `validate_test.go` | |
+| `TestLowerClampToPMTU` | Done | `lower_linux_test.go` | |
+| `TestVPPRefusesClampToPMTU` | Done | `internal/plugins/firewall/vpp/verify_test.go` | |
+| `TestMSSPMTUVerdict` | Done | `check_mss_pmtu_test.go` | |
+| `TestTCPMSSClampToPMTU` | Done | `integration_linux_test.go` | |
+| `firewall-tcp-mss-clamp-to-pmtu` | Done | `test/firewall/` | |
+| `pppoe-mss-pmtu` | Done | `test/interop-topology/scenarios/` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify and Files to Create | Done | all in ba972d0bb6 and d7bbba3daf; `fw-6-firewall-vpp.md` needed no change, as planned |
+
+### Audit Summary
+- **Total items:** 20
+- **Done:** 20
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (the interop red walk, in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A forwarded SYN is clamped to the route MTU less the fixed headers, never raised | kernel integration test | `TestTCPMSSClampToPMTU` PASS in QEMU on Ze's kernel 2026-11-08 10:49 (`rwinv/out-c2-12-qemu/clean-c9.log`); red with the lowering broken: 1460 arrives as 1460 in all four cases (`c9-no-mss-clamp.log`) |
+| The same through the daemon from config | functional `.ci` | `firewall-tcp-mss-clamp-to-pmtu` PASS (`rwinv/out-c2-12-netns/clean-guest.log` line 215); red with the lowering broken: the installed table lacks `tcp option maxseg size set rt mtu` (`c9-no-mss-clamp-guest.log` line 38) |
+| A PPP MTU negotiated with third-party software reaches the SYN | interop | `pppoe-mss-pmtu` against accel-ppp: pass 2026-11-08 12:20 (`rwinv/out-c2-12-interop/rerun-pppoe-mss.log`); red 12:16 with the lowering broken (`c9-pppoe-mss-broken.log`) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC demonstrated | `plan/release/fixes/spec-home-cpe-9-mss-clamp-to-pmtu.md` (this spec) |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/home-cpe-9-mss-clamp-to-pmtu-7e292f27-ced0-427f-a7b6-3a931db211f9.md` (28 files, verdict clean) |
+| `./le spec review check` | run by `./le commit create` on commit B |
+| Rounds | 1 |
+| Reviewer lenses used | wiring (every `SetTCPMSS` switch has its `ClampTCPMSSToPMTU` arm: show, web, validate, nft, vpp), guard audit (hook walk fails closed on an unknown hook, bounded BFS with a visited set, cycle test), kernel contract (`nft_rt_validate` hook mask), style, docs |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | none | 0 BLOCKER, 0 ISSUE. NOTEs: the `accel-ppp.conf` comment claimed a red walk that was not observed (corrected); core-design count stale from another commit (corrected) | | |
+
+Pre-checks: `./le test weakened check base ba972d0bb6~1` clean; `./le repo check` 3 issues, all in other specs' topology checkers (`check_access_verdict.go`, `check_pppoe_dhcpv6_pd*.go`).
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/firewall/firewall-tcp-mss-clamp-to-pmtu.ci` | yes | ls, 2.7K |
+| `test/interop-topology/scenarios/pppoe-mss-pmtu/` | yes | `accel-ppp.conf`, `ze-cpe.conf` |
+| `internal/le/interoplab/topology/check_mss_pmtu.go`, `check_mss_pmtu_test.go`, `register_pppoe_mss_pmtu.go` | yes | ls |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-4..AC-7 | refusals | 2026-11-08 closure run: `TestParseTCPMSSClampToPMTU`, `TestValidateClampToPMTUHook`, `TestVPPRefusesClampToPMTU`, `TestMSSPMTUVerdict` PASS (`go test -race` over firewall, vpp, topology) |
+| AC-1..AC-3, AC-8 | clamp | the 2026-11-08 runs above. `lower_linux.go` differs from the walk's overlay by the one broken line only; no commit touched `internal/plugins/firewall/nft/` or `internal/component/firewall/` since 2026-11-08T10:00; 9167d499fd changed topology only for `convertedCPE` (CAP_BPF) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| leaf in a forward-chain term through the daemon | `firewall-tcp-mss-clamp-to-pmtu.ci` | read: seq 1 refuses the prerouting placement naming table, chain, term, base chain and fix; seq 3 lists `tcp option maxseg size set rt mtu` in the installed table |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `checkMSSPMTU` requires `mtu 1492` on `pppoe0` and the server captured 1452 |
+| A-2 | confirmed | `TestTCPMSSClampToPMTU` ingress MTU 1400 cases give 1360 and 1340 |
+| A-3 | confirmed | `grep -rni mss accel-pppd` in the accel-ppp source (06f64b1) finds nothing; `accel-ppp.conf` sets no clamp |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| guide row and example | `validate.go` refusal text and hooks; YANG description | yes |
+| core-design 14b count | `model.go`: 24 `matchMarker`, 21 `actionMarker` (13 action, 8 modifier) | yes |
+| RFC status | no tags, no `rfc/short/` summary for RFC 6691 or 9293; `./le rfc check` names neither | N-A |

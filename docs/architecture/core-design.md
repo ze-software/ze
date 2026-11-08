@@ -2242,7 +2242,7 @@ interface and data model.
 | Firewall | `internal/component/firewall/` | `Apply([]Table)`, `ListTables()`, `GetCounters()` | `firewallnft` (google/nftables) | `firewallvpp` (GoVPP) |
 | Traffic | `internal/component/traffic/` | `Apply(ctx, map[string]InterfaceQoS)`, `ListQdiscs()` | `trafficnetlink` (vishvananda/netlink) | `trafficvpp` (GoVPP) |
 
-The firewall data model uses 44 abstract expression types (23 match, 13 action, 8 modifier)
+The firewall data model uses 45 abstract expression types (24 match, 13 action, 8 modifier)
 that model firewall concepts (MatchSourceAddress, Accept, SetMark), not nftables register
 operations. The nft backend lowers abstract types to nftables expressions internally. The
 VPP backend maps them directly to ACL rules and policers.
