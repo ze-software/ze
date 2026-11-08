@@ -59,3 +59,21 @@ func TestMSSPMTUVerdict(t *testing.T) {
 		})
 	}
 }
+
+// TestSynProbeIgnoresTheClientExit proves the SYN-only probe runs its client
+// as quoted shell words and keeps the client's own exit out of the result,
+// while a client that could not run (126, 127) still fails.
+// PREVENTS: the nc probe to a port nothing listens on failing the scenario
+// before its capture was read, because Lab.Exec errors on any non-zero exit.
+func TestSynProbeIgnoresTheClientExit(t *testing.T) {
+	argv := synProbe("nc", "-w", "2", "10.186.1.5", "9001")
+	want := []string{"sh", "-c", "'nc' '-w' '2' '10.186.1.5' '9001'; [ $? -lt 126 ]"}
+	if len(argv) != len(want) {
+		t.Fatalf("synProbe = %q, want %q", argv, want)
+	}
+	for index := range want {
+		if argv[index] != want[index] {
+			t.Errorf("synProbe word %d = %q, want %q", index, argv[index], want[index])
+		}
+	}
+}

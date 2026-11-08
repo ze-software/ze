@@ -96,7 +96,7 @@ const (
 
 // The realm-relay scenarios' second subscriber. Its realm, other.example.net,
 // is not the one ze-lac.conf relays (lab.example.net), so the LAC
-// authenticates it locally, and with no auth handler configured it refuses it.
+// authenticates it locally, and with no local user configured it refuses it.
 const (
 	nodeStrayPPPD = "pppd-stray"
 	strayUser     = "pppd@other.example.net"
@@ -111,6 +111,9 @@ const (
 	// serve the LNS role from configuration alone.
 	xl2tpdImage  = "ze-radius-subscriber-lac"
 	xl2tpdConfig = "/etc/xl2tpd/xl2tpd.conf"
+	// xl2tpdChapStaged is where the checkout's chap-secrets is mounted; the
+	// start shell copies it to /etc/ppp/chap-secrets at mode 0600.
+	xl2tpdChapStaged = "/etc/ppp/chap-secrets.lab"
 	// xl2tpdLNSLog holds what xl2tpd writes to stderr in the foreground
 	// (misc.c l2tp_log: syslog is off when -D keeps it from daemonizing).
 	xl2tpdLNSLog = "/var/log/xl2tpd.log"
@@ -144,7 +147,12 @@ func realmRelayChain(lns node, checker interoplab.Checker) scenario {
 // for the checker; the pppd it starts inherits that stderr and also writes
 // its own debug log. 06A5 in the UDP socket table is port 1701.
 func xl2tpdLNS() node {
-	shell := "mkdir -p /var/log/ppp /var/run/xl2tpd; exec xl2tpd -D -c " + xl2tpdConfig + " >>" + xl2tpdLNSLog + " 2>&1"
+	// pppd 2.5.5 refuses a secrets file with group or world access ("Can't
+	// use /etc/ppp/chap-secrets: secret file has world and/or group access"),
+	// and the checkout's copy arrives read-only and 0644, so the shell copies
+	// it into place at 0600 before xl2tpd starts a pppd that reads it.
+	shell := "mkdir -p /var/log/ppp /var/run/xl2tpd; cp " + xl2tpdChapStaged + " /etc/ppp/chap-secrets; chmod 600 /etc/ppp/chap-secrets; " +
+		"exec xl2tpd -D -c " + xl2tpdConfig + " >>" + xl2tpdLNSLog + " 2>&1"
 	directory := scenarioDirectory + "/" + realmRelayXL2TPDScenario
 	return node{name: nodeXL2TPDLNS, image: xl2tpdImage, host: 3,
 		config: "xl2tpd.conf", mountedAt: xl2tpdConfig,
@@ -154,7 +162,7 @@ func xl2tpdLNS() node {
 		shared: []sharedFile{
 			{source: directory + "/l2tp-secrets", target: "/etc/xl2tpd/l2tp-secrets"},
 			{source: directory + "/ppp-options", target: xl2tpdPPPOptions},
-			{source: directory + "/chap-secrets", target: "/etc/ppp/chap-secrets"},
+			{source: directory + "/chap-secrets", target: xl2tpdChapStaged},
 		},
 		ready:    []string{"sh", "-c", "grep -q ':06A5 ' /proc/net/udp"},
 		logFiles: []string{xl2tpdLNSLog, xl2tpdPPPDLog}}

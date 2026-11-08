@@ -63,11 +63,7 @@ func checkRoadWarrior(ctx context.Context, check *interoplab.CheckContext) error
 	if !strings.Contains(page, "ze home lab web") {
 		return fmt.Errorf("wg-client fetched %q from the web server, not its page", page)
 	}
-	capture, err := readWebCapture(ctx, check)
-	if err != nil {
-		return err
-	}
-	return synSourceVerdict(capture, webAddress+".80:", subscriberAddress)
+	return waitWebSYNFrom(ctx, check, webAddress+".80:", subscriberAddress)
 }
 
 // wireGuardDumpVerdict judges `wg show wg0 dump`: the interface line listens

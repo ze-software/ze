@@ -15,16 +15,28 @@ import (
 // checkStaticLinkChain proves the core links and several Ze nodes: every Ze
 // node answers `show interface brief` by its own name and lists each link
 // device the declaration gives it; A pings C's address on the far link,
-// which only B's forwarding can carry; and outside, on eth0 alone, cannot
-// reach a link address. outside has no default route and routes link a-b's
-// prefix onto eth0 (outsidePrestart), so its ping ARPs on the lab network:
-// a reply proves a-b leaks onto eth0's segment, and the Docker host's own
-// routing cannot answer it. Every assertion reads state, never a delay.
+// which only B's forwarding can carry; and outside, on eth0 alone, received
+// link a-b's frames only with the link's 802.1Q tag (linkABSeparate).
+//
+// A ping from outside to a link address proves nothing either way: Linux
+// answers ARP for any address the host holds on any interface
+// (arp_ignore 0), so ze-b answers 10.181.1.3 from its own eth0 MAC whether or
+// not link a-b is separate. Every assertion reads state, never a delay.
 func checkStaticLinkChain(ctx context.Context, check *interoplab.CheckContext) error {
 	for _, name := range []string{nodeA, nodeB, nodeC} {
 		if err := waitInterfaceBrief(ctx, check, name); err != nil {
 			return err
 		}
+	}
+	near, err := check.Member(nodeA, "a-b")
+	if err != nil {
+		return err
+	}
+	// The flush makes ze-a ARP again for ze-b, a broadcast the bridge floods
+	// to outside's port, so outside's capture holds a tagged frame of link
+	// a-b and its verdict is not vacuous.
+	if _, err := check.Lab.Exec(ctx, nodeA, []string{"ip", "neigh", "flush", "dev", near.Device}, nil); err != nil {
+		return fmt.Errorf("flush ze-a's neighbours on %s: %w", near.Device, err)
 	}
 	far, err := check.Member(nodeC, "b-c")
 	if err != nil {
@@ -33,16 +45,25 @@ func checkStaticLinkChain(ctx context.Context, check *interoplab.CheckContext) e
 	if err := waitPing(ctx, check, nodeA, far.IPv4.String()); err != nil {
 		return fmt.Errorf("ze-a cannot reach ze-c's %s through ze-b: %w", far.IPv4, err)
 	}
-	near, err := check.Member(nodeB, "a-b")
+	return linkABSeparate(ctx, check)
+}
+
+// linkABSeparate waits until outside's capture holds a tagged frame of link
+// a-b, which proves outside's port receives the link's broadcasts, then
+// refuses any frame of the link's prefix that arrived without the tag: that
+// frame left the VLAN onto eth0's own segment.
+func linkABSeparate(ctx context.Context, check *interoplab.CheckContext) error {
+	reading, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout: 20 * time.Second, Interval: time.Second,
+		Description: "outside's capture holding a tagged frame of link a-b",
+	}, func(probe context.Context) (string, error) {
+		return check.Lab.Query(probe, "outside", []string{"tcpdump", "-e", "-n", "-r", outsideCapture}, nil)
+	}, func(answer string) bool { return strings.Contains(answer, "802.1Q") })
 	if err != nil {
-		return err
+		return fmt.Errorf("outside's capture never held a tagged frame of link a-b, so it cannot judge the link (last reading %q): %w", reading, err)
 	}
-	answer, err := check.Lab.Exec(ctx, "outside", []string{"ping", "-c", "2", "-W", "2", near.IPv4.String()}, nil)
-	if err != nil {
-		return fmt.Errorf("outside's ping of %s did not run: %w", near.IPv4, err)
-	}
-	if answer.ExitCode == 0 {
-		return fmt.Errorf("outside, on eth0 alone, reached ze-b's link address %s, so link a-b is not separate from the lab network", near.IPv4)
+	if leaked := untaggedFrames(reading); leaked != "" {
+		return fmt.Errorf("outside, on eth0 alone, received link a-b's frames without the link's tag, so link a-b is not separate from the lab network:\n%s", leaked)
 	}
 	return nil
 }

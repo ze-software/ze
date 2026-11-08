@@ -200,6 +200,28 @@ func TestMSSVerdict(t *testing.T) {
 	}
 }
 
+// TestSYNSourceVerdictWaitsOnAnEmptyCapture proves synSourceVerdict tells a
+// capture that holds no SYN yet (errNoSourceSYN, which waitWebSYNFrom polls
+// past) from one whose SYN came from the wrong source (a final refusal), and
+// accepts the masqueraded one.
+// PREVENTS: reading the capture once, the moment curl returned, before
+// tcpdump received the SYN from the kernel.
+func TestSYNSourceVerdictWaitsOnAnEmptyCapture(t *testing.T) {
+	target := webAddress + ".80:"
+	syn := func(source string) string {
+		return "00:42:30.100000 IP " + source + ".40010 > " + target + " Flags [S], seq 1, win 64240, length 0"
+	}
+	if err := synSourceVerdict("", target, subscriberAddress); !errors.Is(err, errNoSourceSYN) {
+		t.Errorf("an empty capture gave %v, want errNoSourceSYN", err)
+	}
+	if err := synSourceVerdict(syn("192.168.50.20"), target, subscriberAddress); err == nil || errors.Is(err, errNoSourceSYN) {
+		t.Errorf("an unmasqueraded SYN gave %v, want a final refusal", err)
+	}
+	if err := synSourceVerdict(syn(subscriberAddress), target, subscriberAddress); err != nil {
+		t.Errorf("the masqueraded SYN gave %v, want accepted", err)
+	}
+}
+
 // TestReservationVerdict judges AC-2 and AC-3: a range lease inside
 // 192.168.50.100-199, and each reservation exact, the second one in the later
 // subnet (vacuity trap 3).

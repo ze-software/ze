@@ -106,7 +106,7 @@ func sendMSSProbe(ctx context.Context, check *interoplab.CheckContext, lanDevice
 	port := decimal(probe.port)
 	// The exit code is not read: the connection is refused or times out by
 	// design, and the server's capture is the verdict.
-	if _, err := check.Lab.Exec(ctx, nodeLANHost, []string{"nc", "-w", "2", serverAddress, port}, nil); err != nil {
+	if _, err := check.Lab.Exec(ctx, nodeLANHost, synProbe("nc", "-w", "2", serverAddress, port), nil); err != nil {
 		return fmt.Errorf("open TCP from lan-host to %s:%s: %w", serverAddress, port, err)
 	}
 	var verdict error
@@ -130,6 +130,23 @@ func sendMSSProbe(ctx context.Context, check *interoplab.CheckContext, lanDevice
 		return fmt.Errorf("lan-host offered MSS %s to %s:%s and the server captured no SYN: %w", offered, serverAddress, port, err)
 	}
 	return verdict
+}
+
+// synProbe wraps a connect that only has to SEND its SYN: nothing listens on
+// the probe port, so the client always exits non-zero (refused, or timed out
+// when no answer comes back), and Lab.Exec turns every non-zero exit into an
+// error. The wrapper keeps the client's exit out of the verdict, which the
+// capture alone gives, but still fails on 126 and 127, the shell's "cannot
+// execute" and "not found": a client that never ran sent no SYN.
+func synProbe(argv ...string) []string {
+	var tb textbuf.Buffer
+	for index, word := range argv {
+		if index > 0 {
+			tb.Byte(' ')
+		}
+		tb.Str(interoplab.ShellQuoted(word))
+	}
+	return []string{"sh", "-c", tb.Str("; [ $? -lt 126 ]").String()}
 }
 
 // errNoProbeSYN says the capture holds no SYN to the probe's port yet.

@@ -332,7 +332,7 @@ func checkNegotiated(ctx context.Context, check *interoplab.CheckContext, sessio
 
 // The CLI account the converted ze-cpe.conf declares (`system authentication
 // user admin`, `environment ssh server main` on `::` port 22, which answers
-// the loopback too), and the lab-values name its password placeholder reads.
+// every address the CPE holds), and the lab-values name its password placeholder reads.
 // cpeCLIStore is the account's own client store: the lab's fixture account
 // (interoplab.ZeCLIStore) does not exist on the CPE.
 const (
@@ -360,7 +360,12 @@ func cpeCLILogin(root string) (interoplab.ZeCLILogin, error) {
 	if !found {
 		return interoplab.ZeCLILogin{}, fmt.Errorf("%s/%s lists no %s, the password ze-cpe.conf gives user %s; add it", cpeDirectory, cpeLabValuesFile, cpeCLIPasswordValue, cpeCLIUser)
 	}
-	return interoplab.ZeCLILogin{User: cpeCLIUser, Password: password, Port: cpeCLIPort, Store: cpeCLIStore}, nil
+	// The CLI dials the CPE's LAN gateway address, never its loopback: the
+	// converted input ruleset (ze-cpe.conf `table v4-input`, rules 20-a and
+	// 20-b) admits SSH only from the LAN prefixes and drops the rest, as the
+	// VyOS ruleset it came from does, and a session to 192.168.50.1 leaves
+	// from 192.168.50.1 itself.
+	return interoplab.ZeCLILogin{User: cpeCLIUser, Password: password, Host: netip.MustParseAddr(cpeLANGateway), Port: cpeCLIPort, Store: cpeCLIStore}, nil
 }
 
 // waitResolvers judges AC-6 in two clauses, each from its own producer.

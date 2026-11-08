@@ -65,7 +65,7 @@ func TestLACRealmSessionVerdict(t *testing.T) {
 // no answer yet keeps the poll waiting.
 // METHOD: pppd 2.5.5 log lines, as chap_handle_status prints them.
 func TestStrayRefusedVerdict(t *testing.T) {
-	local := "rcvd [CHAP Failure id=0x1 \"no auth handler configured\"]\nCHAP authentication failed: no auth handler configured\nCHAP authentication failed\n"
+	local := "rcvd [CHAP Failure id=0x1 \"no users configured\"]\nCHAP authentication failed: no users configured\nCHAP authentication failed\n"
 	for _, tc := range []struct {
 		name string
 		log  string

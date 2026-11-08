@@ -447,6 +447,12 @@ func TestAccessChainCPECLILogin(t *testing.T) {
 	if login.User != cpeCLIUser || login.Port != cpeCLIPort || login.Store != cpeCLIStore || login.Password == "" {
 		t.Errorf("cpeCLILogin = %+v; want user %s port %s store %s and a password", login, cpeCLIUser, cpeCLIPort, cpeCLIStore)
 	}
+	// The loopback is not admitted by the CPE's input ruleset (rules 20-a and
+	// 20-b take SSH from the LAN prefixes only), so the login dials the LAN
+	// gateway, whose own address is the session's source.
+	if login.Host.String() != cpeLANGateway {
+		t.Errorf("cpeCLILogin dials %s, want the CPE's LAN gateway %s", login.Host, cpeLANGateway)
+	}
 	template, err := os.ReadFile(filepath.Join(checkoutRoot(t), filepath.FromSlash(cpeDirectory), cpeConvertedFile))
 	if err != nil {
 		t.Fatalf("read the converted CPE configuration: %v", err)

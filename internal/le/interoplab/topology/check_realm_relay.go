@@ -23,10 +23,14 @@ const (
 )
 
 // lacLocalRefusal is the CHAP Failure message the LAC sends a subscriber it
-// authenticates locally with no auth handler configured
-// (l2tp/pppoe/drain.go callPPPoEAuthHandler). pppd prints it after
-// "CHAP authentication failed: " (ppp 2.5.5 chap.c chap_handle_status).
-const lacLocalRefusal = "no auth handler configured"
+// authenticates locally with no user configured. The l2tp-auth-local plugin
+// registers its handler from init() in every build that carries L2TP
+// (authlocal/register.go), so with no `authentication local user` the
+// handler answers (authlocal/auth.go localAuth.handle); the "no auth handler
+// configured" refusal of l2tp/pppoe/drain.go is reached only by a build
+// without that plugin. pppd prints the message after "CHAP authentication
+// failed: " (ppp 2.5.5 chap.c chap_handle_status).
+const lacLocalRefusal = "no users configured"
 
 // lacRelaySession is the part of a LAC session `show l2tp sessions` answers
 // that a realm call adds (spec-home-cpe-14 AC-12). A Service-Name relay or a

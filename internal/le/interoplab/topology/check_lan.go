@@ -122,12 +122,32 @@ func checkMasquerade(ctx context.Context, check *interoplab.CheckContext, peer, 
 	if !strings.Contains(page, "ze home lab web") {
 		return fmt.Errorf("%s fetched %q from the web server, not its page", peer, page)
 	}
-	capture, err := readWebCapture(ctx, check)
-	if err != nil {
-		return err
-	}
-	return synSourceVerdict(capture, webAddress+".80:", source)
+	return waitWebSYNFrom(ctx, check, webAddress+".80:", source)
 }
+
+// waitWebSYNFrom polls the web server's capture until it holds a SYN to
+// target, then judges its source. A fetch that already returned does not mean
+// the capture holds its SYN: tcpdump without --immediate-mode receives packets
+// from the kernel a buffer timeout late (up to a second), and -U only flushes
+// what it has received, so a capture read the moment curl exits can still be
+// empty. sendLANMSSProbe waits the same way.
+func waitWebSYNFrom(ctx context.Context, check *interoplab.CheckContext, target, source string) error {
+	var verdict error
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: 20 * time.Second, Interval: time.Second,
+		Description: "the web server's capture of the SYN to " + target},
+		func(probe context.Context) (string, error) { return readWebCapture(probe, check) },
+		func(capture string) bool {
+			verdict = synSourceVerdict(capture, target, source)
+			return !errors.Is(verdict, errNoSourceSYN)
+		})
+	if err != nil {
+		return fmt.Errorf("the web server's capture holds no SYN to %s from %s: %w", target, source, err)
+	}
+	return verdict
+}
+
+// errNoSourceSYN says the capture holds no SYN to the target yet.
+var errNoSourceSYN = errors.New("no SYN to the target in the capture")
 
 // readWebCapture answers the web server's capture as tcpdump prints it.
 func readWebCapture(ctx context.Context, check *interoplab.CheckContext) (string, error) {
@@ -152,7 +172,7 @@ func synSourceVerdict(capture, target, source string) error {
 		seen = true
 	}
 	if !seen {
-		return fmt.Errorf("the web server's capture holds no SYN to %s from %s", target, source)
+		return fmt.Errorf("the web server's capture holds no SYN to %s from %s: %w", target, source, errNoSourceSYN)
 	}
 	return nil
 }
@@ -170,9 +190,9 @@ func sendLANMSSProbe(ctx context.Context, check *interoplab.CheckContext, probe 
 		return err
 	}
 	port := decimal(probe.port)
-	// The exit code is not read: nothing listens on the port, and only the
-	// SYN the server captured is judged.
-	if _, err := check.Lab.Exec(ctx, nodeLANStatic, []string{"curl", "-s", "--connect-timeout", "3", "http://" + webAddress + ":" + port + "/"}, nil); err != nil {
+	// The exit code is not read (synProbe): nothing listens on the port, and
+	// only the SYN the server captured is judged.
+	if _, err := check.Lab.Exec(ctx, nodeLANStatic, synProbe("curl", "-s", "--connect-timeout", "3", "http://"+webAddress+":"+port+"/"), nil); err != nil {
 		return fmt.Errorf("open TCP from lan-host to %s:%s: %w", webAddress, port, err)
 	}
 	var verdict error
