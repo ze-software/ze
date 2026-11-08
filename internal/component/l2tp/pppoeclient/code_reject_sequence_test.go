@@ -39,9 +39,11 @@ func TestClientCodeRejectSequence(t *testing.T) {
 		// Complete this epoch before its network rejection. Replacement of current
 		// must not restore a stale sequence, and uint8 wrap must retain zero.
 		identifier := w.openIPCP(t, request[3], 0)
+		applyPending(t, s)
 		assertCodeRejectSequence(t, w, 0)
 		magic = w.openLCP(t, 0, magic)
 		w.openIPCP(t, identifier, 1)
+		applyPending(t, s)
 		assertCodeRejectSequence(t, w, 1)
 		if s.current.magic != magic {
 			t.Fatal("last restart did not publish its result")
@@ -119,9 +121,11 @@ func TestClientCodeRejectInitialSequence(t *testing.T) {
 			t.Fatal("interrupted restart published a result")
 		}
 		ipcpID = w.openIPCP(t, request[3], 0)
+		applyPending(t, s)
 		assertCodeRejectSequence(t, w, 5)
 		magic = w.openLCP(t, 0, magic)
 		w.openIPCP(t, ipcpID, 1)
+		applyPending(t, s)
 		assertCodeRejectSequence(t, w, 6)
 		if s.current.magic != magic {
 			t.Fatal("repeated restart did not publish its result")

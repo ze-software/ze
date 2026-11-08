@@ -13,6 +13,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 )
 
@@ -46,6 +47,8 @@ func TestConnectedRestartFailures(t *testing.T) {
 				go superviseNetworkPhase(link, s, done, slog.New(slog.NewTextHandler(&log, nil)))
 				synctest.Wait()
 				want := ""
+				// applied is the result the "pass" case reports applied.
+				var applied iface.PPPoEResult
 				switch name {
 				case "drop", "write", "lcp-timeout", "stop-lcp":
 					w.send(ppp.ProtoLCP, 1, 91, exchangePeerOptions(0))
@@ -94,6 +97,13 @@ func TestConnectedRestartFailures(t *testing.T) {
 					case "pass":
 						want = "cannot resume IPv4"
 						w.openIPCP(t, initial.ipcpIdentifier, 0)
+						// PASS is attempted only once the interface applied the
+						// complete result, so the failure follows that apply.
+						synctest.Wait()
+						if w.passes() != 0 {
+							t.Fatalf("PASS attempted before the result was applied: %v", w.modes)
+						}
+						applied = applyPending(t, s)
 					case "ipcp-timeout":
 						want = "IPCP timeout"
 						// sleep(timer): advance the production IPCP deadline in fake time.
@@ -117,7 +127,24 @@ func TestConnectedRestartFailures(t *testing.T) {
 				if !strings.Contains(log.String(), want) {
 					t.Fatalf("failure log %q, want %q", log.String(), want)
 				}
-				if s.current != before {
+				if name == "pass" {
+					// The PASS failure follows a complete, applied result:
+					// current is that result, never a partial one.
+					if s.current == before {
+						t.Fatal("applied result did not replace current before PASS")
+					}
+					if applied.LocalIP != s.current.localIP || applied.PeerIP != s.current.peerIP {
+						t.Fatalf("applied addresses %v/%v, want current %v/%v",
+							applied.LocalIP, applied.PeerIP, s.current.localIP, s.current.peerIP)
+					}
+					if applied.NegMTU != s.current.negMTU {
+						t.Fatalf("applied MTU %d, want current %d", applied.NegMTU, s.current.negMTU)
+					}
+					if applied.PrimaryDNS != s.current.primaryDNS || applied.SecondaryDNS != s.current.secondaryDNS {
+						t.Fatalf("applied DNS %v/%v, want current %v/%v", applied.PrimaryDNS, applied.SecondaryDNS,
+							s.current.primaryDNS, s.current.secondaryDNS)
+					}
+				} else if s.current != before {
 					t.Fatal("failure published a partial negotiated result")
 				}
 				passes := 0
@@ -194,6 +221,13 @@ func TestConnectedRestartReentry(t *testing.T) {
 		if s.current.magic != magic {
 			t.Fatal("final result not published")
 		}
+		synctest.Wait()
+		if len(w.modes) != 1 {
+			t.Fatalf("forwarding resumed before the interface applied the result: %v", w.modes)
+		}
+		if got := applyPending(t, s); got.Seq != 1 {
+			t.Fatalf("published Seq = %d, want 1: an interrupted exchange published", got.Seq)
+		}
 		if len(w.modes) != 2 {
 			t.Fatalf("interruption changed forwarding: %v", w.modes)
 		}
@@ -226,6 +260,7 @@ func TestConnectedRestartEchoDeadline(t *testing.T) {
 		w.quiet(t)
 		w.authenticate(t, ppp.ProtoCHAP, true)
 		w.openIPCP(t, initial.ipcpIdentifier, 0)
+		applyPending(t, s)
 		// sleep(timer): no keepalive is due until a full fresh interval elapsed.
 		time.Sleep(testKeepaliveInterval - time.Nanosecond)
 		w.quiet(t)

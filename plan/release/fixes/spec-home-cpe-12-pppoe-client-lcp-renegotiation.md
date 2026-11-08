@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | Shipped PPPoE client misbehaves on an accepted configuration: an access network that renegotiates LCP after the LAC opened it (the wholesale L2TP shape) never gets its Configure-Request answered, so the session times out and the CPE never comes up. Blocks the home-CPE migration. |
@@ -242,8 +242,9 @@ and the proof still owed.
 | AC-10 | Renegotiation changes only the peer address | iface replaces the P2P address's peer and the default route's gateway; the local address and the MTU are not touched (no `SetMTU` call) |
 | AC-11 | Renegotiation changes only the negotiated MTU | iface calls `SetMTU` once with the new value, capped by the configured `mtu`; no address or route is removed or added |
 | AC-12 | Renegotiation changes nothing | a record arrives and `runSession` makes no backend call when all fields are already applied. An unchanged desired result can retry a previously failed route install or removal |
-| AC-13 | A second Configure-Request arrives after the first renegotiation's record was sent and before `runSession` read it | `runSession` applies only the second result, once |
+| AC-13 | A result nobody waits on (the IPv4 withdrawal an IPCP Configure-Request in Opened publishes) is still unread when IPCP reopens and publishes its result | the one-slot queue holds only the newer result, with the new addresses and the higher `Seq`; `runSession` applies only the initial and that newest result, once each; IPv4 stays discarded until that `Seq` is reported applied, then passes exactly once |
 | AC-14 | `SetMTU` or `AddAddressP2P` fails while applying a record | the session ends, `Cleanup` releases the unit, and `run` reconnects with its backoff (same as a first-apply failure) |
+| AC-16 | An LCP restart or an IPCP renegotiation completes in the network phase | forwarding (IPv4, and IPv6 when IPv6CP opened) resumes only after the consumer reports the renegotiated result (MTU, addresses, route) applied through `PPPoESession.Applied` with its `Seq`; a session that stops first ends the wait (`TestRestartForwardingWaitsForApplied`, `TestIPCPRenegotiationWaitsForApplied`, `TestDualStackLCPRestartTakesIPv6Down`, `TestClientNetworkPhaseRenegotiationRecovers` in `restart_applied_test.go`) |
 | AC-15 | `AddRoute` fails while applying a record | a warning names the route and the device; the session stays up |
 
 ## End-to-End User Stories
@@ -274,7 +275,7 @@ evidence. This mapping does not claim RFC discrimination or target-kernel proof.
 | `TestPPPoEClientSessionChanges/peer` | `internal/component/iface/pppoe_changes_test.go` | AC-10: same local value, new P2P peer/gateway, no MTU call | Prior scoped race PASS |
 | `TestPPPoEClientSessionChanges/mtu`, `TestPPPoEClientChangedMTUHitsConfiguredCap` | `internal/component/iface/pppoe_changes_test.go`, `internal/component/iface/pppoe_route_progress_test.go` | AC-11: one MTU write, no address/route calls, changed value reaches configured cap | Prior scoped proof retained |
 | `TestPPPoEClientSessionChanges/unchanged`, `TestPPPoEClientChangeRouteRetry`, `TestPPPoEClientInitialRouteRetry`, `TestPPPoEClientOldRouteRemovalRetry` | `internal/component/iface/pppoe_changes_test.go`, `internal/component/iface/pppoe_change_lifecycle_test.go` | AC-12: zero calls after successful application. Failed route installs/removals can retry | Prior scoped race PASS |
-| `TestConnectedChangesReachConsumerNewest` | `changes_consumer_test.go` | AC-13: two real restarts while iface is held, then only initial and newest results applied | Prior race PASS. Unlike `TestPPPoEClientNewestPendingChange`, this test uses the production slot replacement |
+| `TestConnectedChangesReachConsumerNewest`, `TestConnectedChangesNewestWins` | `changes_consumer_test.go`, `connected_changes_test.go` | AC-13: an unread withdrawal replaced by the reopened IPCP result; with iface held, only initial and newest results applied once, only Seq 2 reported, IPv4 DROP until then | Rewritten for the Applied contract; not yet run. Unlike `TestPPPoEClientNewestPendingChange`, this test uses the production slot replacement |
 | `TestPPPoEClientChangeApplyFailureCleansUp`, `TestPPPoEClientChangeReconnect` | `internal/component/iface/pppoe_changes_test.go`, `internal/component/iface/pppoe_change_lifecycle_test.go` | AC-14: fatal MTU/address errors invoke Cleanup, then Start's run loop waits the reconnect delay before Dial | Prior scoped race PASS. Unit release is modeled by Cleanup |
 | `TestPPPoEClientChangeRouteRetry` | `internal/component/iface/pppoe_change_lifecycle_test.go` | AC-15: warning contains route/gateway/device, session stays up, no Cleanup, retry succeeds | Prior scoped race PASS |
 | `TestConnectedRestartReentry`, `TestConnectedChangesInterruptedExchange` | `connected_failure_test.go`, `connected_changes_test.go` | Interrupted auth/IPCP restarts preserve DROP and publish only the final completion | Prior race PASS |

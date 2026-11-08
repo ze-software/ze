@@ -28,6 +28,7 @@ func independenceSession(t *testing.T, c *clientIPv6CP, v4, v6 *[]ppp.NPMode) *c
 		setIPv6Mode: func(mode ppp.NPMode) error { *v6 = append(*v6, mode); return nil },
 		ipv6:        c,
 		changes:     make(chan iface.PPPoEResult, 1),
+		applied:     make(chan uint64, 1),
 	}
 }
 
@@ -272,13 +273,19 @@ func TestRFC7084WLL3IPCPIndependence(t *testing.T) {
 			if workerEnded(done) {
 				t.Fatal("reopening IPCP ended the session")
 			}
+			up := pendingResult(t, s)
+			// IPv4 stays discarded until the interface applied the result.
+			if len(w.modes) != 1 || w.modes[0] != ppp.NPModeDrop {
+				t.Fatalf("IPv4 modes %v before the result was applied, want [drop]", w.modes)
+			}
+			s.acknowledge(up.Seq)
+			synctest.Wait()
 			if len(w.modes) != 2 || w.modes[1] != ppp.NPModePass {
 				t.Fatalf("IPv4 modes %v, want drop then pass", w.modes)
 			}
 			if len(v6) != 1 {
 				t.Fatalf("IPv6 modes %v changed while IPCP reopened", v6)
 			}
-			up := pendingResult(t, s)
 			if up.LocalIP != netip.MustParseAddr("198.51.100.2") {
 				t.Fatalf("reopened local address %v", up.LocalIP)
 			}

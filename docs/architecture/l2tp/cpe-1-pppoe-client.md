@@ -41,7 +41,14 @@ The client retains its last transmitted Configure-Request and validates
 Configure-Ack, Configure-Nak and Configure-Reject against it through
 `ppp.ValidateLCPReply`. A stale Identifier or changed Ack/Reject options cannot
 advance LCP. A valid reply changes the next request's Identifier, while an
-unanswered timeout retransmits the same packet. The client adopts MRU Naks within
+unanswered timeout retransmits the same packet. The Restart timer (three
+seconds) restarts on every Configure-Request sent, and a Restart counter of
+ten (Max-Configure) counts them; a valid Ack in Req-Sent, or a valid Nak or
+Reject in Req-Sent or Ack-Sent, sets it back to ten. When the timer expires
+with no request left, LCP ends with an LCP timeout. A separate 60-second
+deadline ends a negotiation that never converges, such as a peer that Naks
+every request. Neither value is configurable yet (RFC 1661 Section 4.6 gaps
+RFC1661-4.6-1 and RFC1661-4.6-3). The client adopts MRU Naks within
 the receive bounds and redraws a nonzero Magic-Number after a Magic Nak. Rejected
 options remain absent even if a later Nak suggests them again. The final
 negotiated Magic-Number is passed to the authentication and keepalive phases.
@@ -281,7 +288,11 @@ review remain open.
 Network-phase reentry uses a constructed connected owner with the existing
 reader, retained credentials and the session's LCP, PAP and IPCP Identifier sequences.
 It sets IPv4 mode to DROP before sending any restart packet. The shared phase
-owner reruns LCP, authentication and IPCP, then sets PASS after IPCP reaches Opened.
+owner reruns LCP, authentication and IPCP. Once IPCP reaches Opened the worker
+publishes the new result and keeps IPv4, and IPv6 when IPv6CP opened, at DROP
+until the interface worker reports that result applied; only then does it set
+PASS, so no packet leaves with the replaced address or MTU. An IPCP-only
+renegotiation (`renegotiateIPCP`) waits the same way.
 The same result constructor admits initial and restarted negotiation before connection
 or PASS. It refuses an unusable IPv4 address or a negotiated MTU outside
 68..configured MTU, also bounded by the peer MRU.
@@ -303,7 +314,12 @@ descriptor and reader references from initial negotiation. IPv4 mode changes
 share the transport lifecycle lock and refuse operations after transport closure.
 After every completed restart, the worker sends the complete interface result,
 including when its values did not change. The one-slot channel replaces an unread
-result with the newest result and never blocks on interface operations.
+result with the newest result, so publishing never blocks on interface operations.
+Each result carries a `Seq` that increases per session. The interface worker
+calls `PPPoESession.Applied` with it after applying the result, including one that
+changed nothing or whose route install only warned. A restart waits for that
+report, or for the session to stop, before it passes forwarding. An apply error
+ends the session through Cleanup, which stops the wait.
 <!-- source: internal/component/l2tp/pppoeclient/dialer.go -- Dial, setIPv4Mode -->
 <!-- source: internal/component/l2tp/pppoeclient/connected_session.go -- restart -->
 

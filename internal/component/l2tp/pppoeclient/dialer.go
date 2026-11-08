@@ -286,6 +286,7 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 		PrimaryDNS:   result.primaryDNS,
 		SecondaryDNS: result.secondaryDNS,
 		Changes:      connected.changes,
+		Applied:      connected.acknowledge,
 		Done:         link.stopped,
 		Cleanup: func() {
 			link.cleanupConnected(keepaliveDone, cleanup)

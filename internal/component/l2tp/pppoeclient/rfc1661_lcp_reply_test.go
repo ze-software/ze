@@ -197,7 +197,9 @@ func TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue(t *testing.T) {
 			var buf [ppp.MaxFrameBufLen]byte
 			result, err := negotiateLCP(w, testFrameReader(t, frames, nil), buf[:], sessionConfig{mtu: 1492}, clientMagic, nil, stop, slog.Default(), new(uint8))
 			if err == nil {
-				sendEchoReply(w, buf[:], ppp.LCPPacket{Identifier: 0x51}, result.localMagic)
+				if err := sendEchoReply(w, buf[:], ppp.LCPPacket{Identifier: 0x51}, result.localMagic); err != nil {
+					t.Errorf("Echo-Reply on a healthy writer: %v", err)
+				}
 			}
 			done <- err
 		}()

@@ -51,6 +51,8 @@ func TestConnectedLCPStaleReplies(t *testing.T) {
 					request = w.take(t, ppp.ProtoLCP, 1)
 					w.send(ppp.ProtoLCP, 2, request[3], request[6:])
 					identifier = w.openIPCP(t, identifier, epoch)
+					// The epoch passes IPv4 once the interface applied it.
+					applyPending(t, s)
 					lastID = request[3]
 				}
 			})
@@ -87,6 +89,8 @@ func TestConnectedPAPStaleAck(t *testing.T) {
 			}
 			w.send(ppp.ProtoPAP, 2, request[3], []byte{0})
 			identifier = w.openIPCP(t, identifier, epoch)
+			// The epoch passes IPv4 once the interface applied it.
+			applyPending(t, s)
 			previous = request[3]
 		}
 	})

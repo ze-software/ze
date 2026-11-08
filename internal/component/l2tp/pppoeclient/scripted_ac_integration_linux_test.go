@@ -81,6 +81,12 @@ func TestScriptedACRenegotiatesDial(t *testing.T) {
 		if change.PeerIP != netip.MustParseAddr("198.51.100.1") {
 			t.Fatalf("new peer address: %v", change.PeerIP)
 		}
+		// Play the interface consumer: the session passes IPv4 again only
+		// once the renegotiated result is reported applied.
+		if sess.Applied == nil {
+			t.Fatal("the dialer's session carries no Applied for its consumer")
+		}
+		sess.Applied(change.Seq)
 	case <-sess.Done:
 		t.Fatal("renegotiation ended the session")
 	case <-ctx.Done():

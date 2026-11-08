@@ -23,6 +23,7 @@ package pppoeclient
 
 import (
 	"encoding/binary"
+	"errors"
 	"io"
 	"log/slog"
 	"testing"
@@ -269,7 +270,9 @@ func TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates(t *testing.T) {
 		t.Fatal("the Host could still write PPP on the session after LCP terminated")
 	}
 	var buf [ppp.MaxFrameBufLen]byte
-	sendEchoReply(link, buf[:], ppp.LCPPacket{Identifier: 7}, 0x0badcafe)
+	if err := sendEchoReply(link, buf[:], ppp.LCPPacket{Identifier: 7}, 0x0badcafe); !errors.Is(err, io.ErrClosedPipe) {
+		t.Fatalf("Echo-Reply on the terminated session = %v, want io.ErrClosedPipe", err)
+	}
 	if got := hostLCPWrites(t, channel); len(got) != 1 {
 		t.Fatalf("the Host wrote %v after LCP terminated", got[1:])
 	}

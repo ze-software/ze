@@ -108,6 +108,8 @@ func TestRestartEchoSequence(t *testing.T) {
 		w.send(ppp.ProtoLCP, 10, first[3], first[6:])
 		magic := w.openLCP(t, 0, initial.magic)
 		w.openIPCP(t, initial.ipcpIdentifier, 0)
+		// The restart completes only once the interface applied its result.
+		applyPending(t, s)
 		// sleep(timer): reach the first tick after the completed restart.
 		time.Sleep(testKeepaliveInterval)
 		next := w.take(t, ppp.ProtoLCP, 9)
@@ -151,14 +153,21 @@ func TestRestartMTUAdmission(t *testing.T) {
 					}
 					w.send(ppp.ProtoLCP, 2, request[3], request[6:])
 					w.openIPCP(t, initial.ipcpIdentifier, 0)
+					synctest.Wait()
+					if len(s.changes) != 1 {
+						t.Fatal("boundary did not publish result")
+					}
+					if w.passes() != 0 {
+						t.Fatalf("IPv4 passed before the interface applied the result: %v", w.modes)
+					}
+					if got := applyPending(t, s); got.NegMTU != mtu {
+						t.Fatalf("published MTU = %d, want %d", got.NegMTU, mtu)
+					}
 					if w.passes() != 1 {
 						t.Fatalf("boundary did not enable IPv4: %v", w.modes)
 					}
 					if s.current.negMTU != mtu {
 						t.Fatalf("MTU = %d, want %d", s.current.negMTU, mtu)
-					}
-					if len(s.changes) != 1 {
-						t.Fatal("boundary did not publish result")
 					}
 					return
 				}

@@ -17,11 +17,23 @@ import (
 )
 
 const (
-	lcpNegotiationTimeout = 30 * time.Second
-	authTimeout           = 30 * time.Second
-	ncpTimeout            = 30 * time.Second
-	papRetryInterval      = 3 * time.Second
-	papRequestsMax        = 5
+	// lcpNegotiationTimeout is the higher-level bound on one LCP negotiation,
+	// separate from the Restart counter: a peer that answers every request
+	// with a Configure-Nak resets the counter forever. It is twice the
+	// lcpConfigureMax x lcpRestartInterval a silent peer takes, so the counter
+	// ends a silent peer and this deadline ends a negotiation loop.
+	// RFC 1661 Section 4.5: "Implementors should keep this in mind and SHOULD
+	// implement loop detection mechanisms or higher level timeouts."
+	lcpNegotiationTimeout = 60 * time.Second
+	// lcpRestartInterval and lcpConfigureMax are the RFC 1661 Section 4.6
+	// defaults of the client's LCP Restart timer and Max-Configure. Neither
+	// is configurable yet (rfc/short/rfc1661.md, RFC1661-4.6-1 and -3).
+	lcpRestartInterval = 3 * time.Second
+	lcpConfigureMax    = 10
+	authTimeout        = 30 * time.Second
+	ncpTimeout         = 30 * time.Second
+	papRetryInterval   = 3 * time.Second
+	papRequestsMax     = 5
 )
 
 // sessionConfig carries parameters for negotiateSession and the connected
@@ -212,8 +224,19 @@ func negotiateLCP(w io.Writer, reader *frameReader, buf []byte, cfg sessionConfi
 
 	deadline := time.NewTimer(lcpNegotiationTimeout)
 	defer deadline.Stop()
-	restart := time.NewTicker(3 * time.Second)
+	// RFC 1661 Section 4.4, scr: "The Restart timer is started when the
+	// Configure-Request packet is transmitted, to guard against packet loss.
+	// The Restart counter is decremented each time a Configure-Request is
+	// sent." Every send below calls sent, so the timer measures the time since
+	// the LAST request, never a fixed cadence from the first. The counter
+	// starts at Max-Configure (irc) and counts the request already on the wire.
+	configureRemaining := lcpConfigureMax - 1
+	restart := time.NewTimer(lcpRestartInterval)
 	defer restart.Stop()
+	sent := func() {
+		configureRemaining--
+		restart.Reset(lcpRestartInterval)
+	}
 
 	for state != ppp.LCPStateOpened {
 		var pkt ppp.LCPPacket
@@ -227,8 +250,14 @@ func negotiateLCP(w io.Writer, reader *frameReader, buf []byte, cfg sessionConfi
 			case <-stopCh:
 				return lcpResult{}, errors.New("pppoe-client: stopped during LCP")
 			case <-deadline.C:
-				return lcpResult{}, errors.New("pppoe-client: LCP timeout")
+				return lcpResult{}, errors.New("pppoe-client: LCP timeout: negotiation did not converge within 60 seconds; check the access concentrator's PPP configuration")
 			case <-restart.C:
+				// RFC 1661 Section 4.3: "The TO- event indicates that the
+				// Restart counter is not greater than zero, and no more packets
+				// need to be retransmitted."
+				if configureRemaining <= 0 {
+					return lcpResult{}, errors.New("pppoe-client: LCP timeout: the access concentrator answered none of 10 Configure-Requests; check that it runs PPP on this session")
+				}
 				// RFC 1661 Section 5.1: "The Identifier field MUST be changed
 				// whenever the contents of the Options field changes, and whenever
 				// a valid reply has been received for a previous request."
@@ -237,9 +266,14 @@ func negotiateLCP(w io.Writer, reader *frameReader, buf []byte, cfg sessionConfi
 					request[3] = *identifier
 					state = ppp.LCPStateReqSent
 				}
+				// RFC 1661 Section 4.3: "The TO+ event indicates that the
+				// Restart counter continues to be greater than zero, which
+				// triggers the corresponding Configure-Request or
+				// Terminate-Request packet to be retransmitted."
 				if err := writeClientLCPRequest(w, request[:requestLen]); err != nil {
 					return lcpResult{}, err
 				}
+				sent()
 				continue
 			case frame, ok := <-reader.next():
 				reader.received()
@@ -318,7 +352,9 @@ func negotiateLCP(w io.Writer, reader *frameReader, buf []byte, cfg sessionConfi
 						"len", len(pkt.Data))
 					continue
 				}
-				sendLCPOptionReply(w, buf, code, pkt.Identifier, opts, logger)
+				if err := sendLCPOptionReply(w, buf, code, pkt.Identifier, opts, logger); err != nil {
+					return lcpResult{}, err
+				}
 				continue
 			}
 			// The options are contained in the packet and each
@@ -343,11 +379,15 @@ func negotiateLCP(w io.Writer, reader *frameReader, buf []byte, cfg sessionConfi
 			// outright", and the LNS side Nak'd it.
 			_, naks, rejects := ppp.NegotiatePeerOptions(walk.Options, clientLCPPolicy(cfg, magic))
 			if len(rejects) > 0 {
-				sendLCPOptionReply(w, buf, ppp.LCPConfigureReject, pkt.Identifier, rejects, logger)
+				if err := sendLCPOptionReply(w, buf, ppp.LCPConfigureReject, pkt.Identifier, rejects, logger); err != nil {
+					return lcpResult{}, err
+				}
 				continue
 			}
 			if len(naks) > 0 {
-				sendLCPOptionReply(w, buf, ppp.LCPConfigureNak, pkt.Identifier, naks, logger)
+				if err := sendLCPOptionReply(w, buf, ppp.LCPConfigureNak, pkt.Identifier, naks, logger); err != nil {
+					return lcpResult{}, err
+				}
 				continue
 			}
 
@@ -373,8 +413,10 @@ func negotiateLCP(w io.Writer, reader *frameReader, buf []byte, cfg sessionConfi
 			if !authSupported {
 				// RFC 1661 Section 6.2 permits a Nak containing a
 				// supported Authentication-Protocol as an alternative.
-				sendLCPOptionReply(w, buf, ppp.LCPConfigureNak, pkt.Identifier,
-					[]ppp.LCPOption{{Type: ppp.LCPOptAuthProto, Data: []byte{0xc2, 0x23, 5}}}, logger)
+				if err := sendLCPOptionReply(w, buf, ppp.LCPConfigureNak, pkt.Identifier,
+					[]ppp.LCPOption{{Type: ppp.LCPOptAuthProto, Data: []byte{0xc2, 0x23, 5}}}, logger); err != nil {
+					return lcpResult{}, err
+				}
 				continue
 			}
 			result.peerMRU = mru
@@ -392,6 +434,9 @@ func negotiateLCP(w io.Writer, reader *frameReader, buf []byte, cfg sessionConfi
 		case ppp.LCPConfigureAck:
 			switch state {
 			case ppp.LCPStateReqSent:
+				// RFC 1661 Section 4.1, Req-Sent/RCA: "irc/7". Ack-Rcvd
+				// still waits for the peer's request with the timer running.
+				configureRemaining = lcpConfigureMax
 				state = ppp.LCPStateAckRcvd
 			case ppp.LCPStateAckSent:
 				state = ppp.LCPStateOpened
@@ -403,6 +448,7 @@ func negotiateLCP(w io.Writer, reader *frameReader, buf []byte, cfg sessionConfi
 				if err := writeClientLCPRequest(w, request[:requestLen]); err != nil {
 					return lcpResult{}, err
 				}
+				sent()
 				state = ppp.LCPStateReqSent
 			case ppp.LCPStateInitial, ppp.LCPStateStarting, ppp.LCPStateClosed,
 				ppp.LCPStateStopped, ppp.LCPStateClosing, ppp.LCPStateStopping, ppp.LCPStateOpened:
@@ -463,11 +509,18 @@ func negotiateLCP(w io.Writer, reader *frameReader, buf []byte, cfg sessionConfi
 				}
 			}
 			magic = localMagic
+			// RFC 1661 Section 4.1: RCN is "irc,scr/6" in Req-Sent and
+			// "irc,scr/8" in Ack-Sent, but "scr/6" in Ack-Rcvd. A valid
+			// reply proves the peer responds, so its counter starts again.
+			if state != ppp.LCPStateAckRcvd {
+				configureRemaining = lcpConfigureMax
+			}
 			*identifier++
 			requestLen, err = sendLCPConfigRequest(w, request[:], *identifier, localMRU, localMagic, logger)
 			if err != nil {
 				return lcpResult{}, err
 			}
+			sent()
 			if state != ppp.LCPStateAckSent {
 				state = ppp.LCPStateReqSent
 			}
@@ -478,7 +531,9 @@ func negotiateLCP(w io.Writer, reader *frameReader, buf []byte, cfg sessionConfi
 			continue
 
 		case ppp.LCPTerminateRequest:
-			sendTerminateAck(w, buf, pkt)
+			if err := sendTerminateAck(w, buf, pkt); err != nil {
+				return lcpResult{}, fmt.Errorf("pppoe-client: server terminated LCP: %w", err)
+			}
 			return lcpResult{}, errors.New("pppoe-client: server terminated LCP")
 		}
 	}
@@ -562,11 +617,15 @@ func runClientAuth(w io.ReadWriteCloser, reader *frameReader, buf []byte, lcp lc
 					}
 					return reentry
 				case ppp.LCPEchoRequest:
-					sendEchoReply(w, buf, pkt, magic)
+					if err := sendEchoReply(w, buf, pkt, magic); err != nil {
+						return err
+					}
 				case ppp.LCPTerminateRequest:
 					// RFC 1334 Section 2.2.1: LCP termination is an
 					// alternative failure indication when a PAP Nak is lost.
-					sendTerminateAck(w, buf, pkt)
+					if err := sendTerminateAck(w, buf, pkt); err != nil {
+						return fmt.Errorf("pppoe-client: server terminated during auth: %w", err)
+					}
 					return errors.New("pppoe-client: server terminated during auth")
 				}
 				continue
@@ -852,9 +911,13 @@ func runIPCP(w io.Writer, reader *frameReader, buf []byte, magic uint32, peerMRU
 				}
 				return ipcpResult{}, reentry
 			case ppp.LCPEchoRequest:
-				sendEchoReply(w, buf, pkt, magic)
+				if err := sendEchoReply(w, buf, pkt, magic); err != nil {
+					return ipcpResult{}, err
+				}
 			case ppp.LCPTerminateRequest:
-				sendTerminateAck(w, buf, pkt)
+				if err := sendTerminateAck(w, buf, pkt); err != nil {
+					return ipcpResult{}, fmt.Errorf("pppoe-client: server terminated during IPCP: %w", err)
+				}
 				return ipcpResult{}, errors.New("pppoe-client: server terminated during IPCP")
 			case ppp.LCPProtocolReject:
 				if ipv6 == nil {
@@ -1149,31 +1212,47 @@ func clientLCPPolicy(cfg sessionConfig, magic uint32) ppp.LCPNegPolicy {
 // Configure-Request", so the prefix that fits is a different packet: the
 // client writes nothing and says so, and the server's own retransmission
 // drives the negotiation.
-func sendLCPOptionReply(w io.Writer, buf []byte, code, id uint8, opts []ppp.LCPOption, logger *slog.Logger) {
+//
+// A write that fails or is short is returned: the reply did not reach the
+// peer, so the negotiation it answers cannot advance.
+func sendLCPOptionReply(w io.Writer, buf []byte, code, id uint8, opts []ppp.LCPOption, logger *slog.Logger) error {
 	off := ppp.WriteFrame(buf, 0, ppp.ProtoLCP, nil)
 	dataOff := off + 4 // lcpHeaderLen
 	dataLen, fits := ppp.WriteLCPOptions(buf, dataOff, opts)
+	// refuse-by-default: guards negotiateLCP -- a reply that does not fit is withheld on purpose, and the peer's retransmission drives the negotiation
 	if !fits {
 		logger.Warn("pppoe-client: LCP reply suppressed, its options do not fit a frame",
 			"code", ppp.LCPCodeName(code),
 			"id", id,
 			"options", len(opts))
-		return
+		return nil
 	}
 	off += ppp.WriteLCPPacket(buf, off, code, id, buf[dataOff:dataOff+dataLen])
-	w.Write(buf[:off]) //nolint:errcheck // best effort
+	if err := writeClientPacket(w, buf[:off]); err != nil {
+		return fmt.Errorf("pppoe-client: LCP %s: %w", ppp.LCPCodeName(code), err)
+	}
+	return nil
 }
 
-func sendTerminateAck(w io.Writer, buf []byte, req ppp.LCPPacket) {
+// sendTerminateAck answers a Terminate-Request; a failed or short write is
+// returned.
+func sendTerminateAck(w io.Writer, buf []byte, req ppp.LCPPacket) error {
 	off := ppp.WriteFrame(buf, 0, ppp.ProtoLCP, nil)
 	off += ppp.WriteLCPPacket(buf, off, ppp.LCPTerminateAck, req.Identifier, nil)
-	w.Write(buf[:off]) //nolint:errcheck // best effort
+	if err := writeClientPacket(w, buf[:off]); err != nil {
+		return fmt.Errorf("pppoe-client: LCP Terminate-Ack: %w", err)
+	}
+	return nil
 }
 
-func sendEchoReply(w io.Writer, buf []byte, req ppp.LCPPacket, magic uint32) {
+// sendEchoReply answers an Echo-Request; a failed or short write is returned.
+func sendEchoReply(w io.Writer, buf []byte, req ppp.LCPPacket, magic uint32) error {
 	off := ppp.WriteFrame(buf, 0, ppp.ProtoLCP, nil)
 	off += ppp.BuildLCPEchoReply(buf, off, req.Identifier, magic, req.Data)
-	w.Write(buf[:off]) //nolint:errcheck // best effort
+	if err := writeClientPacket(w, buf[:off]); err != nil {
+		return fmt.Errorf("pppoe-client: LCP Echo-Reply: %w", err)
+	}
+	return nil
 }
 
 // sendIPCPRequest writes the IPCP Configure-Request carrying options into buf

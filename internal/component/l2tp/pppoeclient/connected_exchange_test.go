@@ -15,6 +15,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 )
 
@@ -264,6 +265,21 @@ func (w *connectedExchange) openIPCP(t *testing.T, previousID uint8, passes int)
 	return request[3]
 }
 
+// applyPending plays the interface consumer for the one pending result: it
+// reads it, reports it applied through the session's Applied (acknowledge),
+// and lets the worker pass forwarding. It returns the result it applied.
+func applyPending(t *testing.T, s *connectedSession) iface.PPPoEResult {
+	t.Helper()
+	synctest.Wait()
+	if len(s.changes) != 1 {
+		t.Fatalf("pending results = %d, want one to apply", len(s.changes))
+	}
+	got := <-s.changes
+	s.acknowledge(got.Seq)
+	synctest.Wait()
+	return got
+}
+
 // TestConnectedExchangeRestarts repeatedly drives the real keepalive consumer
 // through CHAP, PAP, none and CHAP. It checks atomic results, old ownership,
 // stale CHAP correlation, echo counters/timing and reuse of both reader sources.
@@ -300,6 +316,10 @@ func TestConnectedExchangeRestarts(t *testing.T) {
 				t.Fatal("partial result published before IPCP")
 			}
 			identifier = w.openIPCP(t, identifier, epoch)
+			if w.passes() != epoch {
+				t.Fatalf("PASS before the interface applied the result: %v", w.modes)
+			}
+			applyPending(t, s)
 			if w.passes() != epoch+1 {
 				t.Fatalf("missing PASS: %v", w.modes)
 			}

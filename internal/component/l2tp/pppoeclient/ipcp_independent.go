@@ -209,7 +209,8 @@ func (s *connectedSession) waitForIPCP() error {
 
 // renegotiateIPCP runs IPCP again on the open link while LCP, and IPv6CP
 // when it runs, stay up. IPv4 is already discarded (ipcpDown). Success
-// passes IPv4 again and publishes the new addresses. An IPCP-only failure
+// publishes the new addresses and passes IPv4 again once the interface
+// consumer has applied them (awaitApplied). An IPCP-only failure
 // leaves IPCP Stopped and the link up while IPv6CP runs.
 func (s *connectedSession) renegotiateIPCP(buf []byte, queued *ppp.LCPPacket, stop <-chan struct{}, logger *slog.Logger) error {
 	run := ipcpRun{ipv6: s.ipv6, queued: queued, applyIPv6: func(event ipv6cpEvent) error {
@@ -225,18 +226,22 @@ func (s *connectedSession) renegotiateIPCP(buf []byte, queued *ppp.LCPPacket, st
 	if err != nil {
 		return err
 	}
-	// RFC 1661 Section 3.6: "After a NCP has reached the Opened state, PPP
-	// will carry the corresponding network-layer protocol packets."
-	if err := s.setIPv4Mode(ppp.NPModePass); err != nil {
-		return fmt.Errorf("pppoe-client: cannot pass IPv4 after IPCP reopened: %w", err)
-	}
 	s.current.localIP = result.localIP
 	s.current.peerIP = result.peerIP
 	s.current.primaryDNS = result.primaryDNS
 	s.current.secondaryDNS = result.secondaryDNS
 	s.ipcpStopped = false
 	logger.Info("pppoe-client: IPCP reopened", "local-ip", result.localIP, "peer-ip", result.peerIP)
-	s.publish()
+	// IPv4 stays discarded until the interface carries the new addresses, so
+	// no packet leaves with the replaced source (connectedSession.restart).
+	if err := s.awaitApplied(s.publish(), stop); err != nil {
+		return err
+	}
+	// RFC 1661 Section 3.6: "After a NCP has reached the Opened state, PPP
+	// will carry the corresponding network-layer protocol packets."
+	if err := s.setIPv4Mode(ppp.NPModePass); err != nil {
+		return fmt.Errorf("pppoe-client: cannot pass IPv4 after IPCP reopened: %w", err)
+	}
 	return nil
 }
 

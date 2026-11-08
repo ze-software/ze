@@ -580,11 +580,18 @@ func TestL2TPProxyLCPRenegotiateReachesDriver(t *testing.T) {
 		require.Equal(t, ppp.LCPConfigureRequest, req.Code)
 		opts, err := ppp.ParseLCPOptions(req.Data)
 		require.NoError(t, err)
+		var magic []byte
 		for _, o := range opts {
 			if o.Type == ppp.LCPOptMagic {
 				require.NotEqual(t, []byte{0xCA, 0xFE, 0xBA, 0xBE}, o.Data, "Magic-Number inherited from the LAC")
+				magic = o.Data
 			}
 		}
+		// The renegotiation is the LNS's own LCP: it MUST carry a Magic-Number
+		// of its own, so a request with none would pass the loop above unchecked.
+		require.Len(t, magic, 4, "renegotiated Configure-Request carries no 4-octet Magic-Number option")
+		require.NotEqual(t, []byte{0, 0, 0, 0}, magic, "renegotiated Magic-Number is zero")
+		require.NotEqual(t, []byte{0xCA, 0xFE, 0xBA, 0xBE}, magic, "Magic-Number inherited from the LAC")
 	})
 }
 

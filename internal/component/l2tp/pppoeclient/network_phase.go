@@ -271,9 +271,15 @@ func keepaliveLoop(session *connectedSession, done chan<- struct{}, stopCh <-cha
 			case ppp.LCPEchoReply:
 				echoFails = 0
 			case ppp.LCPEchoRequest:
-				sendEchoReply(session.transport, frameBuf[:], pkt, session.current.magic)
+				if err := sendEchoReply(session.transport, frameBuf[:], pkt, session.current.magic); err != nil {
+					logger.Warn("pppoe-client: echo reply write failed; the client will reconnect", "error", err)
+					return
+				}
 			case ppp.LCPTerminateRequest:
-				sendTerminateAck(session.transport, frameBuf[:], pkt)
+				if err := sendTerminateAck(session.transport, frameBuf[:], pkt); err != nil {
+					logger.Warn("pppoe-client: server sent LCP Terminate-Request and the Terminate-Ack write failed", "error", err)
+					return
+				}
 				logger.Info("pppoe-client: server sent LCP Terminate-Request")
 				return
 			case ppp.LCPProtocolReject:

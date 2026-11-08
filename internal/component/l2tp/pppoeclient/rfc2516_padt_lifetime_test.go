@@ -84,7 +84,9 @@ func TestRFC2516ClientPADTStopsOnlyMatchingSession(t *testing.T) {
 	}
 	before := channel.Len()
 	var response [ppp.MaxFrameBufLen]byte
-	sendTerminateAck(link, response[:], ppp.LCPPacket{Identifier: 9})
+	if err := sendTerminateAck(link, response[:], ppp.LCPPacket{Identifier: 9}); !errors.Is(err, io.ErrClosedPipe) {
+		t.Fatalf("Terminate-Ack after PADT = %v, want io.ErrClosedPipe", err)
+	}
 	if channel.Len() != before {
 		t.Fatal("client transmitted PPP termination after receiving PADT")
 	}
@@ -118,7 +120,9 @@ func TestRFC2516ClientLocalStopDisablesPPP(t *testing.T) {
 	}
 	before := channel.Len()
 	var response [ppp.MaxFrameBufLen]byte
-	sendTerminateAck(link, response[:], ppp.LCPPacket{Identifier: 10})
+	if err := sendTerminateAck(link, response[:], ppp.LCPPacket{Identifier: 10}); !errors.Is(err, io.ErrClosedPipe) {
+		t.Fatalf("Terminate-Ack after local shutdown = %v, want io.ErrClosedPipe", err)
+	}
 	if channel.Len() != before {
 		t.Fatal("client transmitted PPP termination after local shutdown")
 	}
@@ -149,7 +153,9 @@ func TestRFC2516ClientSentPADTStopsPPPBeforeSend(t *testing.T) {
 			t.Fatal("PADT reached the discovery socket before PPP closed")
 		}
 		var response [ppp.MaxFrameBufLen]byte
-		sendTerminateAck(link, response[:], ppp.LCPPacket{Identifier: 11})
+		if err := sendTerminateAck(link, response[:], ppp.LCPPacket{Identifier: 11}); !errors.Is(err, io.ErrClosedPipe) {
+			t.Fatalf("Terminate-Ack after outbound PADT = %v, want io.ErrClosedPipe", err)
+		}
 		if channel.Len() != 0 {
 			t.Fatal("PPP termination was transmitted after outbound PADT")
 		}

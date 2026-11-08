@@ -75,15 +75,23 @@ func TestClientMRUConvergence(t *testing.T) {
 					previous = initial.ipcpIdentifier
 				}
 				w.openIPCP(t, previous, 0)
+				if restart {
+					// The restart passes IPv4 only once the interface applied
+					// the published result.
+					synctest.Wait()
+					if w.passes() != 0 {
+						t.Fatalf("PASS before the result was applied: %v", w.modes)
+					}
+					if got := applyPending(t, s); got.NegMTU != 68 {
+						t.Fatalf("published MTU = %d", got.NegMTU)
+					}
+				}
 				if err := <-result; err != nil {
 					t.Fatal(err)
 				}
 				if restart {
 					if w.passes() != 1 {
 						t.Fatalf("PASS count = %d", w.passes())
-					}
-					if got := <-s.changes; got.NegMTU != 68 {
-						t.Fatalf("published MTU = %d", got.NegMTU)
 					}
 				}
 			})

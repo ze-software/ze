@@ -37,6 +37,11 @@ func TestConnectedRenegotiationMetric(t *testing.T) {
 			go keepaliveLoop(s, done, stop, slog.New(slog.NewTextHandler(io.Discard, nil)))
 			w.openLCP(t, 0, initial.magic)
 			w.openIPCP(t, initial.ipcpIdentifier, 0)
+			// The restart completes once the interface applied its result.
+			applyPending(t, s)
+			if w.passes() != 1 {
+				t.Fatalf("restart did not pass IPv4 once applied: %v", w.modes)
+			}
 		})
 	}
 	synctest.Test(t, func(t *testing.T) {

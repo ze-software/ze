@@ -51,6 +51,11 @@ func TestUnitReaderPhaseBoundary(t *testing.T) {
 		if s.reader != reader {
 			t.Fatal("phase transition replaced the receive owner")
 		}
+		synctest.Wait()
+		if w.passes() != 0 {
+			t.Fatalf("IPv4 passed before the interface applied the result: %v", w.modes)
+		}
+		applyPending(t, s)
 		if w.passes() != 1 {
 			t.Fatalf("fresh IPCP failed to resume IPv4: %v", w.modes)
 		}

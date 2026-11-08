@@ -132,6 +132,11 @@ func TestConnectedAuthQueueDiscard(t *testing.T) {
 		}
 		w.send(ppp.ProtoCHAP, 3, 63, nil)
 		w.openIPCP(t, initial.ipcpIdentifier, 0)
+		synctest.Wait()
+		if w.passes() != 0 {
+			t.Fatalf("IPCP passed IPv4 before the interface applied the result: %v", w.modes)
+		}
+		applyPending(t, s)
 		if w.passes() != 1 {
 			t.Fatalf("IPCP did not reopen: %v", w.modes)
 		}

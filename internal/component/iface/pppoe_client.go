@@ -102,6 +102,10 @@ type PPPoEResult struct {
 	// (RFC 5072 Section 5), invalid while IPv6CP is not Opened or when the
 	// client configures no ipv6.
 	LinkLocal netip.Addr
+	// Seq numbers the results one session publishes, from 1 and increasing.
+	// The consumer hands it back through PPPoESession.Applied once the
+	// result's MTU, addresses, route and DNS are on the device.
+	Seq uint64
 }
 
 // PPPoESession represents a fully negotiated PPPoE+PPP session.
@@ -122,6 +126,16 @@ type PPPoESession struct {
 	// including unchanged results. The sole producer replaces the oldest pending
 	// value in a one-slot channel. It never closes Changes; Done ends consumption.
 	Changes <-chan PPPoEResult
+	// Applied MUST be called by the consumer of Changes after it has applied
+	// a result (MTU, address pair, default route and DNS lease), with that
+	// result's Seq, including a result that changed nothing or whose route
+	// install only warned. After an LCP or IPCP renegotiation the session
+	// keeps IPv4, and IPv6 when IPv6CP opened, discarded until Applied
+	// reports that result, so no packet leaves with the replaced address or
+	// MTU (pppd's lcp_up sets the MTU before link_established opens the
+	// NCPs). The session ends the wait when it stops. Nil when the dialer
+	// does not wait. Safe to call from the consumer while the session runs.
+	Applied func(seq uint64)
 	// Done is closed when the session ends (echo timeout, LCP terminate).
 	// The PPPoEClient selects on this to detect session loss.
 	Done <-chan struct{}
@@ -451,6 +465,12 @@ func (c *PPPoEClient) runSession() error {
 			c.localIP = next.LocalIP
 			c.peerIP = next.PeerIP
 			c.mu.Unlock()
+			// The session holds forwarding discarded after a renegotiation
+			// until this call: report the result only once it is applied.
+			// refuse-by-default: guards PPPoESession -- a dialer that sets no Applied does not wait for one
+			if sess.Applied != nil {
+				sess.Applied(next.Seq)
+			}
 		}
 	}
 }

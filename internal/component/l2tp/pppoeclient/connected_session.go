@@ -32,6 +32,11 @@ type connectedSession struct {
 	papIdentifier    uint8
 	ipcpCodeRejectID uint8
 	changes          chan iface.PPPoEResult
+	// seq is the Seq of the last result publish sent; applied carries the
+	// Seq the interface consumer last reported applied (acknowledge), at most
+	// one pending value, newest wins.
+	seq     uint64
+	applied chan uint64
 	// ipv6 is nil when the pppoe-client configures no ipv6: that nil is a
 	// guard, keepaliveLoop then drops IPv6CP like any unconfigured protocol.
 	// enableIPv6CP sets it with setIPv6Mode.
@@ -94,6 +99,7 @@ func newConnectedSession(transport io.ReadWriteCloser, initial sessionResult,
 		lcpIdentifier: initial.lcpIdentifier, papIdentifier: initial.papIdentifier,
 		ipcpCodeRejectID: initial.ipcpCodeRejectID,
 		changes:          make(chan iface.PPPoEResult, 1), current: current,
+		applied: make(chan uint64, 1),
 	}, nil
 }
 
@@ -144,8 +150,10 @@ func newNegotiatedSession(initial sessionResult, cfg sessionConfig) (negotiatedS
 
 // restart consumes an admitted request, retaining the same transport and unit.
 // The caller MUST stop echo timing first and MUST end the session on error.
-// No partial result is published: current changes only after IPCP and PASS,
-// and the IPv6CP state negotiation reached is applied with it.
+// No partial result is published: current changes only after IPCP opens, and
+// the result is published then. IPv4, and IPv6 when IPv6CP reached Opened,
+// pass only once the interface consumer has applied that result
+// (awaitApplied), as pppd's lcp_up sets the MTU before link_established.
 // RFC 1661 Section 3.4: "The receipt of the LCP Configure-Request causes a return
 // to the Link Establishment phase from the Network-Layer Protocol phase or
 // Authentication phase."
@@ -174,39 +182,91 @@ func (s *connectedSession) restart(pending *lcpReentry, stop <-chan struct{}, lo
 	if err != nil {
 		return err
 	}
+	s.current = next
+	s.ipcpStopped = false
+	// IPv6CP ran beside IPCP inside negotiatePhases with IPv6 discarded
+	// (keepaliveLoop applied lowerDown before this restart). It passes only
+	// after the result below is applied, if it reached Opened; otherwise
+	// keepaliveLoop goes on negotiating.
+	ipv6Opened := false
+	if s.ipv6 != nil {
+		ipv6Opened = s.ipv6.opened()
+	}
+	if ipv6Opened {
+		s.linkLocal = s.ipv6.linkLocal()
+	}
+	if err := s.awaitApplied(s.publish(), stop); err != nil {
+		return err
+	}
 	// RFC 1661 Section 3.6: "After a NCP has reached the Opened state, PPP will
 	// carry the corresponding network-layer protocol packets."
 	if err := s.setIPv4Mode(ppp.NPModePass); err != nil {
 		return fmt.Errorf("pppoe-client: cannot resume IPv4 after LCP restart: %w", err)
 	}
-	s.current = next
-	s.ipcpStopped = false
-	// IPv6CP ran beside IPCP inside negotiatePhases with IPv6 discarded
-	// (keepaliveLoop applied lowerDown before this restart). It passes only
-	// now, if it reached Opened; otherwise keepaliveLoop goes on negotiating.
-	if s.ipv6 != nil {
-		if s.ipv6.opened() {
-			return s.applyIPv6CP(ipv6cpOpened, logger)
+	if ipv6Opened {
+		// RFC 5072 Section 2: "Before any IPv6 packets may be communicated,
+		// PPP MUST reach the network-layer protocol phase, and the IPv6
+		// Control Protocol MUST reach the Opened state."
+		if err := s.setIPv6Mode(ppp.NPModePass); err != nil {
+			return fmt.Errorf("pppoe-client: cannot pass IPv6 after IPv6CP opened: %w", err)
+		}
+		logger.Info("pppoe-client: IPv6CP opened", "link-local", s.linkLocal)
+	}
+	return nil
+}
+
+// awaitApplied waits until the interface consumer reports the result numbered
+// seq, or a later one, applied (iface.PPPoESession.Applied, acknowledge). It
+// ends with an error when stop closes, which is how a consumer that stopped
+// or failed an apply releases the worker: its Cleanup closes the session.
+func (s *connectedSession) awaitApplied(seq uint64, stop <-chan struct{}) error {
+	for {
+		select {
+		case <-stop:
+			return errors.New("pppoe-client: session stopped before the interface applied the renegotiated result")
+		case got := <-s.applied:
+			if got >= seq {
+				return nil
+			}
 		}
 	}
-	s.publish()
-	return nil
+}
+
+// acknowledge records that the interface consumer applied the result numbered
+// seq. It is iface.PPPoESession.Applied, called from the consumer's goroutine,
+// the only sender: the session worker only drains applied, so after one drain
+// the send succeeds, and the loop runs at most twice. A newer value replaces
+// an unread older one, since the worker needs only the highest.
+func (s *connectedSession) acknowledge(seq uint64) {
+	for {
+		select {
+		case s.applied <- seq:
+			return
+		default:
+		}
+		select {
+		case <-s.applied:
+		default:
+		}
+	}
 }
 
 // publish replaces the one pending result with the session's complete current
 // state: the IPCP values, invalid while IPCP is Stopped, and the IPv6CP
-// link-local address.
-func (s *connectedSession) publish() {
+// link-local address. It answers the Seq it gave the result.
+func (s *connectedSession) publish() uint64 {
 	// The worker is the only sender. A consumer can only create more room,
 	// so replacing the one pending value never waits for interface operations.
 	select {
 	case <-s.changes:
 	default: // No previous completion is pending.
 	}
-	result := iface.PPPoEResult{NegMTU: s.current.negMTU, LinkLocal: s.linkLocal}
+	s.seq++
+	result := iface.PPPoEResult{NegMTU: s.current.negMTU, LinkLocal: s.linkLocal, Seq: s.seq}
 	if !s.ipcpStopped {
 		result.LocalIP, result.PeerIP = s.current.localIP, s.current.peerIP
 		result.PrimaryDNS, result.SecondaryDNS = s.current.primaryDNS, s.current.secondaryDNS
 	}
 	s.changes <- result
+	return s.seq
 }
