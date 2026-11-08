@@ -1,5 +1,6 @@
 // Design: docs/architecture/testing/interop.md -- the topology suite.
 // Related: register_pppoe_dhcpv6_pd.go -- the scenario this checker judges.
+// Related: check_pppoe_dhcpv6_pd_lan.go -- its LAN half (Phases 4 and 5).
 package topology
 
 import (
@@ -21,14 +22,16 @@ import (
 // accel-ppp.conf's pref-lifetime of 60 puts 30 seconds after the Reply.
 const pdWait = 90 * time.Second
 
-// checkPPPoEDHCPv6PD proves spec-home-cpe-8 Phases 1 to 3 against accel-ppp:
+// checkPPPoEDHCPv6PD proves spec-home-cpe-8 against accel-ppp and dhcpcd.
+// Phases 1 to 3 come first:
 // IPv6CP opens and pppoe0 holds a link-local address from a non-zero
 // interface identifier while no pppN device holds one (AC-1); pppoe0 runs
 // accept_ra 2 with forwarding and autoconf on, routes ::/0 via accel-ppp's
 // link-local and holds a SLAAC address from the RA's prefix (AC-5); and the
 // DHCPv6 client on pppoe0 asked for IA_PD with a /56 hint and took the /60
 // accel-ppp delegated (AC-6, WPD-3): by requesting it after an Advertise, or,
-// after a Rapid Commit Reply, by renewing it (delegationVerdict).
+// after a Rapid Commit Reply, by renewing it (delegationVerdict). Phases 4
+// and 5 then judge the delegated prefix's use on lan0 (checkDelegatedLAN).
 func checkPPPoEDHCPv6PD(ctx context.Context, check *interoplab.CheckContext) error {
 	if err := pollUntil(ctx, sessionUpTimeout, cpeDevice+" holds a link-local address", func() error {
 		answer, err := check.Lab.Query(ctx, nodeCPE, []string{"ip", "-o", "-6", ipWordAddress, wordShow}, nil)
@@ -60,13 +63,22 @@ func checkPPPoEDHCPv6PD(ctx context.Context, check *interoplab.CheckContext) err
 	}); err != nil {
 		return err
 	}
-	return pollUntil(ctx, pdWait, "accel-ppp delegated a /"+strconv.Itoa(pdDelegatedLength)+" to the CPE", func() error {
+	pool := netip.MustParsePrefix(pdDelegatePool)
+	var delegated netip.Prefix
+	if err := pollUntil(ctx, pdWait, "accel-ppp delegated a /"+strconv.Itoa(pdDelegatedLength)+" to the CPE", func() error {
 		log, err := check.Lab.Query(ctx, nodeAccel, []string{commandCat, pdAccelLog}, nil)
 		if err != nil {
 			return err
 		}
-		return delegationVerdict(log, netip.MustParsePrefix(pdDelegatePool))
-	})
+		if err := delegationVerdict(log, pool); err != nil {
+			return err
+		}
+		delegated = delegatedPrefix(readDelegationLog(log, pool))
+		return nil
+	}); err != nil {
+		return err
+	}
+	return checkDelegatedLAN(ctx, check, delegated)
 }
 
 // checkWANSysctls waits for the three per-device sysctls the ipv6 container
@@ -297,6 +309,16 @@ func delegationVerdict(log string, pool netip.Prefix) error {
 		return rapidCommitVerdict(seen, log)
 	}
 	return fmt.Errorf("the CPE sent no DHCPv6 Request for a prefix in %s and accel-ppp sent no Rapid Commit Reply delegating one, so it did not take the /%d offered:\n%s", pool, pdDelegatedLength, interoplab.OutputExcerpt(log))
+}
+
+// delegatedPrefix answers the prefix the CPE holds once delegationVerdict
+// accepted the log: the one it requested on the four-message path, or the one
+// accel-ppp's Rapid Commit Reply delegated and the CPE renewed.
+func delegatedPrefix(seen delegationLog) netip.Prefix {
+	if seen.requested.IsValid() {
+		return seen.requested
+	}
+	return seen.rapidReplied
 }
 
 // fourMessageVerdict judges Solicit, Advertise, Request, Reply: the CPE
