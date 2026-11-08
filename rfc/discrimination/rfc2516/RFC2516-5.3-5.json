@@ -18,7 +18,7 @@
     "claim-sha": "acf2b52e148b2fc3",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoe/server.go::handlePADR",
-    "producer-sha": "a5db0a54e1b1949c",
+    "producer-sha": "fb83ac0f85d21f77",
     "break": "body of handlePADR replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

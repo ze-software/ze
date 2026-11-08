@@ -7,8 +7,8 @@
     "claim-sha": "78396f3877c1e73b",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
-    "producer-sha": "9c3092d569b56385",
-    "break": "line 1417: \"tr := LCPDoTransition(cur, ev)\" -\u003e \"tr := LCPDoTransition(cur, LCPEventRXR)\""
+    "producer-sha": "d16cf3df0a7f8cad",
+    "break": "line 1431: \"tr := LCPDoTransition(cur, ev)\" -\u003e \"tr := LCPDoTransition(cur, LCPEventRXR)\""
   },
   {
     "rid": "RFC1661-4.3-1",
@@ -50,9 +50,9 @@
     "unit-sha": "7fd1021f7b708705",
     "claim-sha": "f330bf85c3fdd1d8",
     "route": "mutant",
-    "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateIPCP",
-    "producer-sha": "54763ce50843f40d",
-    "break": "line 831: \"if !admitted {\" -\u003e \"if true || !admitted {\""
+    "producer": "internal/component/l2tp/pppoeclient/session.go::runIPCP",
+    "producer-sha": "325321669867bee9",
+    "break": "line 850: \"if !admitted {\" -\u003e \"if true || !admitted {\""
   },
   {
     "rid": "RFC1661-4.3-1",
@@ -62,7 +62,7 @@
     "claim-sha": "90e28605fa63fbc4",
     "route": "mutant",
     "producer": "internal/component/l2tp/pppoeclient/network_phase.go::keepaliveLoop",
-    "producer-sha": "1452afbdbe7ad8ea",
-    "break": "line 217: \"if !admitted {\" -\u003e \"if true || !admitted {\""
+    "producer-sha": "23dead456bf7bc87",
+    "break": "line 265: \"if !admitted {\" -\u003e \"if true || !admitted {\""
   }
 ]

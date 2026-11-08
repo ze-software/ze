@@ -40,8 +40,8 @@
     "claim-sha": "3627626d45a67c25",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
-    "producer-sha": "9c3092d569b56385",
-    "break": "line 1349: \"optsBad = verdict == lcpRequestUnacceptable\" -\u003e \"optsBad = false\""
+    "producer-sha": "d16cf3df0a7f8cad",
+    "break": "line 1363: \"optsBad = verdict == lcpRequestUnacceptable\" -\u003e \"optsBad = false\""
   },
   {
     "rid": "RFC1661-5.4-1",
@@ -73,8 +73,8 @@
     "claim-sha": "6ae29db2008e1300",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
-    "producer-sha": "9c3092d569b56385",
-    "break": "line 1349: \"optsBad = verdict == lcpRequestUnacceptable\" -\u003e \"optsBad = false\""
+    "producer-sha": "d16cf3df0a7f8cad",
+    "break": "line 1363: \"optsBad = verdict == lcpRequestUnacceptable\" -\u003e \"optsBad = false\""
   },
   {
     "rid": "RFC1661-5.4-1",
@@ -84,8 +84,8 @@
     "claim-sha": "75989bef3cd2f4db",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::sendConfigureAck",
-    "producer-sha": "63e628a7c5182c20",
-    "break": "line 1977: \"WriteLCPPacket(buf, off, LCPConfigureAck, req.Identifier, req.Data)\" -\u003e \"WriteLCPPacket(buf, off, LCPConfigureReject, req.Identifier, req.Data)\""
+    "producer-sha": "f5dfc7cf30003a71",
+    "break": "line 2003: \"WriteLCPPacket(buf, off, LCPConfigureAck, req.Identifier, req.Data)\" -\u003e \"WriteLCPPacket(buf, off, LCPConfigureReject, req.Identifier, req.Data)\""
   },
   {
     "rid": "RFC1661-5.4-1",

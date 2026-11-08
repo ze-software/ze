@@ -29,7 +29,7 @@
     "claim-sha": "e01463e7fd514a31",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/chap.go::runCHAPAuthPhase",
-    "producer-sha": "3f74cce028b64dc5",
+    "producer-sha": "05048196d264131e",
     "break": "line 299: \"if decision.accept {\" -\u003e \"if !decision.accept {\""
   },
   {
@@ -40,7 +40,7 @@
     "claim-sha": "52deb1dce4fce073",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/chap.go::runCHAPAuthPhase",
-    "producer-sha": "3f74cce028b64dc5",
+    "producer-sha": "05048196d264131e",
     "break": "line 299: \"if decision.accept {\" -\u003e \"if !decision.accept {\""
   },
   {

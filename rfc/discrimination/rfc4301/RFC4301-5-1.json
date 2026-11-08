@@ -7,8 +7,8 @@
     "claim-sha": "df21a99dc511e365",
     "route": "revert",
     "producer": "internal/component/ike/engine/unmatched.go::unmatchedPolicies",
-    "producer-sha": "f4357bf108b8a31e",
-    "break": "body of unmatchedPolicies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "b4dbc62580139331",
+    "break": "body of unmatchedPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4301-5-1",
@@ -18,8 +18,8 @@
     "claim-sha": "4a54ad89d25ec3f1",
     "route": "revert",
     "producer": "internal/component/ike/engine/unmatched.go::unmatchedPolicies",
-    "producer-sha": "f4357bf108b8a31e",
-    "break": "body of unmatchedPolicies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "b4dbc62580139331",
+    "break": "body of unmatchedPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4301-5-1",

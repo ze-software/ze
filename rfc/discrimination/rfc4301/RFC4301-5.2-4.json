@@ -7,8 +7,8 @@
     "claim-sha": "a38f91b8b9e371ba",
     "route": "revert",
     "producer": "internal/component/ike/engine/bypass.go::ikeBypassPolicies",
-    "producer-sha": "45908ec464ffd0cf",
-    "break": "body of ikeBypassPolicies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "f9258fc6a6434a85",
+    "break": "body of ikeBypassPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4301-5.2-4",
@@ -18,7 +18,7 @@
     "claim-sha": "167bcfb86a40653f",
     "route": "revert",
     "producer": "internal/component/ike/engine/bypass.go::ikeBypassPolicies",
-    "producer-sha": "45908ec464ffd0cf",
-    "break": "body of ikeBypassPolicies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "f9258fc6a6434a85",
+    "break": "body of ikeBypassPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

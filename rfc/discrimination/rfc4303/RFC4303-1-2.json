@@ -36,7 +36,7 @@
     "rid": "RFC4303-1-2",
     "polarity": "positive",
     "unit": "internal/component/ike/engine/rfc4303_integrity_only_test.go::TestRFC4303IntegrityOnlyESPIsNegotiated",
-    "unit-sha": "c71fa62719045292",
+    "unit-sha": "ddfebe57d35b9883",
     "claim-sha": "427cb4d00a76205d",
     "route": "mutant",
     "producer": "internal/component/ike/crypto/proposal.go::acceptESPEncryption",

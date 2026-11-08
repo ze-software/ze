@@ -25,11 +25,11 @@
     "rid": "RFC1332-2-2",
     "polarity": "positive",
     "unit": "internal/component/l2tp/pppoeclient/rfc1332_ipcp_codes_test.go::TestClientIPCPUnusedCodesAreCodeRejected",
-    "unit-sha": "9c326a4ef8320df3",
+    "unit-sha": "df7d5ef83f064c51",
     "claim-sha": "d6ad453fe7d077f2",
     "route": "revert",
-    "producer": "internal/component/l2tp/pppoeclient/session.go::sendIPCPCodeReject",
-    "producer-sha": "50e528e4e2f5eb0f",
-    "break": "body of sendIPCPCodeReject replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/l2tp/pppoeclient/session.go::sendNCPCodeReject",
+    "producer-sha": "c153bc8589de8bf9",
+    "break": "body of sendNCPCodeReject replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

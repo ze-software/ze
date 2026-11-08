@@ -18,7 +18,7 @@
     "claim-sha": "842e5048fed35c22",
     "route": "revert",
     "producer": "internal/component/l2tp/tunnel_fsm.go::teardownStopCCN",
-    "producer-sha": "5b260806112bc55c",
-    "break": "body of teardownStopCCN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "8fe9f2d3a4b5da69",
+    "break": "body of teardownStopCCN replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

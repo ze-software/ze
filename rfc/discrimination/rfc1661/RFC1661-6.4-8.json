@@ -7,8 +7,8 @@
     "claim-sha": "41ed18abf8f2e898",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
-    "producer-sha": "9c3092d569b56385",
-    "break": "line 1277: \"if received != s.peerMagic {\" -\u003e \"if false {\""
+    "producer-sha": "d16cf3df0a7f8cad",
+    "break": "line 1288: \"if received != s.peerMagic {\" -\u003e \"if false {\""
   },
   {
     "rid": "RFC1661-6.4-8",
@@ -18,8 +18,8 @@
     "claim-sha": "2dca1c9950a84e70",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
-    "producer-sha": "9c3092d569b56385",
-    "break": "line 1277: \"if received != s.peerMagic {\" -\u003e \"if true {\""
+    "producer-sha": "d16cf3df0a7f8cad",
+    "break": "line 1288: \"if received != s.peerMagic {\" -\u003e \"if true {\""
   },
   {
     "rid": "RFC1661-6.4-8",
@@ -29,8 +29,8 @@
     "claim-sha": "6870a8ce592f03ee",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
-    "producer-sha": "9c3092d569b56385",
-    "break": "line 1277: \"if received != s.peerMagic {\" -\u003e \"if true {\""
+    "producer-sha": "d16cf3df0a7f8cad",
+    "break": "line 1288: \"if received != s.peerMagic {\" -\u003e \"if true {\""
   },
   {
     "rid": "RFC1661-6.4-8",
@@ -40,7 +40,7 @@
     "claim-sha": "d12fe68a0aa8320b",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
-    "producer-sha": "9c3092d569b56385",
-    "break": "line 1277: \"if received != s.peerMagic {\" -\u003e \"if false {\""
+    "producer-sha": "d16cf3df0a7f8cad",
+    "break": "line 1288: \"if received != s.peerMagic {\" -\u003e \"if false {\""
   }
 ]

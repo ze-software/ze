@@ -293,8 +293,8 @@
     "claim-sha": "23bd7cbdba4ca44f",
     "route": "mutant",
     "producer": "internal/component/ike/engine/fsm.go::runInitiator",
-    "producer-sha": "26ce48b955b883e2",
-    "break": "line 142: \"sa.innerSelectors = ps.innerSelectors\" -\u003e \"\""
+    "producer-sha": "189a98f91c6004f2",
+    "break": "line 175: \"sa.innerSelectors = ps.innerSelectors\" -\u003e \"\""
   },
   {
     "rid": "RFC3948-5.1-1",
@@ -315,8 +315,8 @@
     "claim-sha": "6df203fb4403edca",
     "route": "mutant",
     "producer": "internal/component/ike/engine/register.go::tryResponderSAInit",
-    "producer-sha": "af5622fcb30478c7",
-    "break": "line 833: \"sa.innerSelectors = ps.innerSelectors\" -\u003e \"sa.innerSelectors = nil\""
+    "producer-sha": "d3f25fa84405ecfc",
+    "break": "line 862: \"sa.innerSelectors = ps.innerSelectors\" -\u003e \"sa.innerSelectors = nil\""
   },
   {
     "rid": "RFC3948-5.1-1",
@@ -326,8 +326,8 @@
     "claim-sha": "d239ca36520bb614",
     "route": "mutant",
     "producer": "internal/component/ike/engine/reconcile.go::startPeerSession",
-    "producer-sha": "2792b509d740c166",
-    "break": "line 774: \"innerSelectors: table.innerSelectors,\" -\u003e \"innerSelectors: nil,\""
+    "producer-sha": "b2369ce81ca31ec0",
+    "break": "line 835: \"innerSelectors: table.innerSelectors,\" -\u003e \"innerSelectors: nil,\""
   },
   {
     "rid": "RFC3948-5.1-1",

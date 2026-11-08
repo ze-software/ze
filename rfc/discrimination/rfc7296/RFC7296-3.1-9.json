@@ -7,7 +7,7 @@
     "claim-sha": "8199c79341e8b695",
     "route": "revert",
     "producer": "internal/component/ike/engine/responder.go::buildSAInitResponse",
-    "producer-sha": "da5b24160f00980b",
+    "producer-sha": "12267fd497657ec4",
     "break": "body of buildSAInitResponse replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "bdbdda17e89e64d2",
     "route": "revert",
     "producer": "internal/component/ike/engine/fsm.go::handleInbound",
-    "producer-sha": "d62214a5808eed73",
-    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "38a681e79f39dc2d",
+    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

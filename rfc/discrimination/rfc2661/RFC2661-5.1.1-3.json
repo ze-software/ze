@@ -18,7 +18,7 @@
     "claim-sha": "408c38e952e15ba4",
     "route": "revert",
     "producer": "internal/component/l2tp/tunnel_initiator.go::handleSCCRP",
-    "producer-sha": "ebc344a3ecf6c52d",
-    "break": "body of handleSCCRP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "943dc7389c2d44cb",
+    "break": "body of handleSCCRP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

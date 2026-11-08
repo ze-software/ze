@@ -25,11 +25,11 @@
     "rid": "RFC1332-4.1-1",
     "polarity": "negative",
     "unit": "internal/component/l2tp/pppoeclient/rfc1332_ipcp_codes_test.go::TestClientIPCPRejectsVanJacobsonCompression",
-    "unit-sha": "6587c45a21058b48",
+    "unit-sha": "26f477681cffe0ab",
     "claim-sha": "e905cb828ca76fb7",
     "route": "revert",
     "producer": "internal/component/l2tp/ppp/ipcp.go::ParseIPCPOptions",
-    "producer-sha": "1e8cc3fb4eebd69c",
+    "producer-sha": "c46f456568adf8b2",
     "break": "body of ParseIPCPOptions replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

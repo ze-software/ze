@@ -7,7 +7,7 @@
     "claim-sha": "6bb93746cfccddb8",
     "route": "revert",
     "producer": "internal/component/l2tp/session_fsm.go::teardownSession",
-    "producer-sha": "264ac3132cd395d0",
-    "break": "body of teardownSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "957f53391b4090d6",
+    "break": "body of teardownSession replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

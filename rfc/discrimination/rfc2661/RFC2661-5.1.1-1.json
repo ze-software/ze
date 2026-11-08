@@ -7,8 +7,8 @@
     "claim-sha": "1672c876a0bea1ea",
     "route": "revert",
     "producer": "internal/component/l2tp/tunnel_fsm.go::handleSCCRQ",
-    "producer-sha": "7b911f10b735d280",
-    "break": "body of handleSCCRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "bc858a8cb15b8253",
+    "break": "body of handleSCCRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2661-5.1.1-1",
@@ -18,7 +18,7 @@
     "claim-sha": "79967cc6af6b9644",
     "route": "revert",
     "producer": "internal/component/l2tp/tunnel_initiator.go::handleSCCRP",
-    "producer-sha": "ebc344a3ecf6c52d",
-    "break": "body of handleSCCRP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "943dc7389c2d44cb",
+    "break": "body of handleSCCRP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

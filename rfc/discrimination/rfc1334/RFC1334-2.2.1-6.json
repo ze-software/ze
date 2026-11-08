@@ -7,7 +7,7 @@
     "claim-sha": "e4d994cf8004d20b",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/pap.go::runPAPAuthPhase",
-    "producer-sha": "b46126199c45686c",
+    "producer-sha": "3e41808982706b48",
     "break": "line 264: \"if !s.writeFrame(writeBuf[:off]) {\" -\u003e \"if _ = writeBuf[:off]; false {\""
   },
   {

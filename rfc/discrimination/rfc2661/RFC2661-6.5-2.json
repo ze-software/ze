@@ -7,7 +7,7 @@
     "claim-sha": "47da7b135a1827d5",
     "route": "revert",
     "producer": "internal/component/l2tp/tunnel_fsm.go::handleHelloTimer",
-    "producer-sha": "0b3fcce0b237fa19",
-    "break": "body of handleHelloTimer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "061d9d78d990dcef",
+    "break": "body of handleHelloTimer replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -7,7 +7,7 @@
     "claim-sha": "6e5aa8548996d362",
     "route": "revert",
     "producer": "internal/component/l2tp/tunnel_initiator.go::initiate",
-    "producer-sha": "7e7444cf437bbcbf",
-    "break": "body of initiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "dcbbaededbaa1104",
+    "break": "body of initiate replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -7,7 +7,7 @@
     "claim-sha": "a2ae5ccffe5b0cb4",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateIPCP",
-    "producer-sha": "069ba8863a71a9e3",
+    "producer-sha": "2a6fc9c037628235",
     "break": "body of negotiateIPCP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "0e1ed14b5994b589",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateIPCP",
-    "producer-sha": "069ba8863a71a9e3",
+    "producer-sha": "2a6fc9c037628235",
     "break": "body of negotiateIPCP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -29,7 +29,7 @@
     "claim-sha": "84dc31bebe37648b",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/network_phase.go::keepaliveLoop",
-    "producer-sha": "81f70b91ee773ee3",
+    "producer-sha": "23dead456bf7bc87",
     "break": "body of keepaliveLoop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -40,30 +40,30 @@
     "claim-sha": "ee32617acc2345dd",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/network_phase.go::keepaliveLoop",
-    "producer-sha": "81f70b91ee773ee3",
+    "producer-sha": "23dead456bf7bc87",
     "break": "body of keepaliveLoop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC1994-4.1-4",
     "polarity": "negative",
     "unit": "internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go::TestRFC1994PeerSendsNoResponseWithoutChallenge",
-    "unit-sha": "f406609ae3bd0cde",
+    "unit-sha": "3eb8e2fcaabb7e3a",
     "claim-sha": "4483f43965dc4b8b",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/session.go::runClientAuth",
-    "producer-sha": "c83d1658af0a4fc7",
-    "break": "body of runClientAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "7150e36133372ef9",
+    "break": "body of runClientAuth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC1994-4.1-4",
     "polarity": "positive",
     "unit": "internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go::TestRFC1994PeerTransmitsResponseForEveryChallenge",
-    "unit-sha": "a009a0fa61e743e5",
+    "unit-sha": "e8935c50392e8507",
     "claim-sha": "ea3b7d9349f2d986",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/session.go::runClientAuth",
-    "producer-sha": "c83d1658af0a4fc7",
-    "break": "body of runClientAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "7150e36133372ef9",
+    "break": "body of runClientAuth replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC1994-4.1-4",

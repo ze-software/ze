@@ -7,8 +7,8 @@
     "claim-sha": "9a3e17c0d0975799",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
-    "producer-sha": "9c3092d569b56385",
-    "break": "line 1380: \"if s.authRequired \u0026\u0026 s.configuredAuthMethod == AuthMethodNone {\" -\u003e \"if false {\""
+    "producer-sha": "d16cf3df0a7f8cad",
+    "break": "line 1394: \"if s.authRequired \u0026\u0026 s.configuredAuthMethod == AuthMethodNone {\" -\u003e \"if false {\""
   },
   {
     "rid": "RFC1661-3.5-6",
@@ -18,7 +18,7 @@
     "claim-sha": "0884c5dd0a8cd1b5",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
-    "producer-sha": "9c3092d569b56385",
-    "break": "line 1380: \"if s.authRequired \u0026\u0026 s.configuredAuthMethod == AuthMethodNone {\" -\u003e \"if s.authRequired {\""
+    "producer-sha": "d16cf3df0a7f8cad",
+    "break": "line 1394: \"if s.authRequired \u0026\u0026 s.configuredAuthMethod == AuthMethodNone {\" -\u003e \"if s.authRequired {\""
   }
 ]

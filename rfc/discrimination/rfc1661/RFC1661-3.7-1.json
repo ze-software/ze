@@ -18,7 +18,7 @@
     "claim-sha": "3390e8af65c7a33f",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
-    "producer-sha": "9c3092d569b56385",
-    "break": "line 1453: \"return s.applyTransition(cur, tr, pkt)\" -\u003e \"ended := s.applyTransition(cur, tr, pkt); return ended || pkt.Code == LCPTerminateRequest\""
+    "producer-sha": "d16cf3df0a7f8cad",
+    "break": "line 1467: \"return s.applyTransition(cur, tr, pkt)\" -\u003e \"ended := s.applyTransition(cur, tr, pkt); return ended || pkt.Code == LCPTerminateRequest\""
   }
 ]

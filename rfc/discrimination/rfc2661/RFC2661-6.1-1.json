@@ -29,8 +29,8 @@
     "claim-sha": "15945f76611dc204",
     "route": "revert",
     "producer": "internal/component/l2tp/tunnel_fsm.go::handleSCCRQ",
-    "producer-sha": "7b911f10b735d280",
-    "break": "body of handleSCCRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "bc858a8cb15b8253",
+    "break": "body of handleSCCRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2661-6.1-1",

@@ -36,12 +36,12 @@
     "rid": "RFC2516-x-9",
     "polarity": "positive",
     "unit": "internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go::TestRFC2516HostSessionMTUDefaultsToThePPPoECeiling",
-    "unit-sha": "0d5be0e316d6add3",
+    "unit-sha": "07b5932f47b36618",
     "claim-sha": "00fee310ab786c1e",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/dialer.go::pppoeSessionMTU",
     "producer-sha": "6de41697a3b729b9",
-    "break": "body of pppoeSessionMTU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of pppoeSessionMTU replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2516-x-9",

@@ -40,8 +40,8 @@
     "claim-sha": "473a9aa73738f15d",
     "route": "revert",
     "producer": "internal/component/ike/engine/inbound.go::handleCreateChildSAOwned",
-    "producer-sha": "5f2528c88290ae24",
-    "break": "body of handleCreateChildSAOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "cb2eec6647bc1e98",
+    "break": "body of handleCreateChildSAOwned replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7296-3.1-12",
@@ -51,7 +51,7 @@
     "claim-sha": "0b52f7d9337e3592",
     "route": "revert",
     "producer": "internal/component/ike/engine/inbound.go::handleCreateChildSAOwned",
-    "producer-sha": "5f2528c88290ae24",
-    "break": "body of handleCreateChildSAOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "cb2eec6647bc1e98",
+    "break": "body of handleCreateChildSAOwned replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

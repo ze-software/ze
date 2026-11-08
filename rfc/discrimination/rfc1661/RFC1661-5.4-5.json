@@ -28,8 +28,8 @@
     "unit-sha": "7fc53c4d33f7dcaa",
     "claim-sha": "a473b30ffa6dfead",
     "route": "mutant",
-    "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateIPCP",
-    "producer-sha": "54763ce50843f40d",
-    "break": "line 1000: \"if rejected.HasPrimary {\" -\u003e \"if false {\""
+    "producer": "internal/component/l2tp/pppoeclient/session.go::runIPCP",
+    "producer-sha": "325321669867bee9",
+    "break": "line 994: \"if rejected.HasPrimary {\" -\u003e \"if false {\""
   }
 ]

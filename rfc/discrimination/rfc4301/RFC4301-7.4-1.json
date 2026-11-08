@@ -51,8 +51,8 @@
     "claim-sha": "676f7aaf3265b13f",
     "route": "revert",
     "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyDirection",
-    "producer-sha": "f5e7bc6a44c54f3c",
-    "break": "body of spdPolicyDirection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "c4abed964f9eea9c",
+    "break": "body of spdPolicyDirection replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4301-7.4-1",
@@ -62,8 +62,8 @@
     "claim-sha": "85da92f71334b575",
     "route": "revert",
     "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyDirection",
-    "producer-sha": "f5e7bc6a44c54f3c",
-    "break": "body of spdPolicyDirection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "c4abed964f9eea9c",
+    "break": "body of spdPolicyDirection replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4301-7.4-1",

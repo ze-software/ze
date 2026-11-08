@@ -29,8 +29,8 @@
     "claim-sha": "8e8efd10a85370ed",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/session.go::clientLCPPolicy",
-    "producer-sha": "badf22421d419a6c",
-    "break": "body of clientLCPPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "23822a95db318e3a",
+    "break": "body of clientLCPPolicy replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2516-7-2",
@@ -40,7 +40,7 @@
     "claim-sha": "d0100849babeebd7",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/session.go::clientLCPPolicy",
-    "producer-sha": "badf22421d419a6c",
-    "break": "body of clientLCPPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "23822a95db318e3a",
+    "break": "body of clientLCPPolicy replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

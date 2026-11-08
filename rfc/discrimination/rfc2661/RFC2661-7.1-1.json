@@ -1,17 +1,6 @@
 [
   {
     "rid": "RFC2661-7.1-1",
-    "polarity": "positive",
-    "unit": "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661InvalidOrMalformedMessageClearsControlConnection",
-    "unit-sha": "6ee5d6f7f47b4f71",
-    "claim-sha": "209771310b440403",
-    "route": "revert",
-    "producer": "internal/component/l2tp/tunnel_fsm.go::teardownStopCCN",
-    "producer-sha": "5b260806112bc55c",
-    "break": "body of teardownStopCCN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-  },
-  {
-    "rid": "RFC2661-7.1-1",
     "polarity": "negative",
     "unit": "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661InvalidOrMalformedMessageClearsControlConnection",
     "unit-sha": "6ee5d6f7f47b4f71",
@@ -20,6 +9,17 @@
     "producer": "internal/component/l2tp/tunnel_fsm.go::handleMessage",
     "producer-sha": "e5d1ed8bd17ce9de",
     "break": "body of handleMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-7.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661InvalidOrMalformedMessageClearsControlConnection",
+    "unit-sha": "6ee5d6f7f47b4f71",
+    "claim-sha": "209771310b440403",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::teardownStopCCN",
+    "producer-sha": "8fe9f2d3a4b5da69",
+    "break": "body of teardownStopCCN replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2661-7.1-1",
@@ -51,8 +51,8 @@
     "claim-sha": "6197e661f821a651",
     "route": "revert",
     "producer": "internal/component/l2tp/tunnel_initiator.go::handleSCCRP",
-    "producer-sha": "ebc344a3ecf6c52d",
-    "break": "body of handleSCCRP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "943dc7389c2d44cb",
+    "break": "body of handleSCCRP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2661-7.1-1",
@@ -73,7 +73,7 @@
     "claim-sha": "a1acf76c9c1428c8",
     "route": "revert",
     "producer": "internal/component/l2tp/tunnel_initiator.go::handleSCCRP",
-    "producer-sha": "ebc344a3ecf6c52d",
-    "break": "body of handleSCCRP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "943dc7389c2d44cb",
+    "break": "body of handleSCCRP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

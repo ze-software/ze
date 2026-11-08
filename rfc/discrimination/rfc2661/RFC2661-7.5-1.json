@@ -7,8 +7,8 @@
     "claim-sha": "cc4fa68fe4b125c9",
     "route": "revert",
     "producer": "internal/component/l2tp/session_fsm.go::handleOCRQ",
-    "producer-sha": "3fa8ddaf9d71189d",
-    "break": "body of handleOCRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "d64c5ac97d23c120",
+    "break": "body of handleOCRQ replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2661-7.5-1",
@@ -18,7 +18,7 @@
     "claim-sha": "d3086175e8eeef62",
     "route": "revert",
     "producer": "internal/component/l2tp/session_fsm.go::sendCDNNoSession",
-    "producer-sha": "7d9e01b2f2d296d5",
-    "break": "body of sendCDNNoSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "79b78d1dd06ce6d0",
+    "break": "body of sendCDNNoSession replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
