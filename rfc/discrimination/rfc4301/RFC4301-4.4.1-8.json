@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4301-4.4.1-8",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_application_override_test.go::TestRFC4301OverrideLeafSelectsTheGuard",
+    "unit-sha": "cea002a70809a68c",
+    "claim-sha": "0c6c32614ccb9eb0",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/application_override.go::applyApplicationOverride",
+    "producer-sha": "2906258b335197b2",
+    "break": "line 48: \"override\" -\u003e \"ipsec.ApplicationOverrideDeny\""
+  }
+]

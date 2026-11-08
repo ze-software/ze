@@ -29,7 +29,7 @@
     "claim-sha": "db30674c7b5901c1",
     "route": "revert",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::policyInfoFromKernel",
-    "producer-sha": "539411cba78ddfb4",
+    "producer-sha": "b90ad1dcb5a4d101",
     "break": "body of policyInfoFromKernel replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
