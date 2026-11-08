@@ -188,6 +188,8 @@ func (e *expression) valueType(source sourceExpr, depth int) (sourceExpr, bool) 
 		return sourceExpr{value: function.decl.Type.Results.List[0].Type, file: function.file, pkg: function.pkg}, true
 	case *ast.SelectorExpr:
 		return e.fieldType(source, value, depth)
+	case *ast.SliceExpr:
+		return e.sliceType(source, value, depth)
 	case *ast.Ident:
 		binding := value.Obj
 		if binding == nil {
@@ -432,6 +434,56 @@ func (e *expression) fieldType(source sourceExpr, selector *ast.SelectorExpr, de
 				return sourceExpr{value: field.Type, file: file, pkg: owner}, true
 			}
 		}
+	}
+	return sourceExpr{}, false
+}
+
+// sliceType answers the static type of a slice expression a[low:high]. Go
+// specification, "Slice expressions": "Except for untyped strings, if the
+// sliced operand is a string or slice, the result of the slice operation is a
+// non-constant value of the same type as the operand." and "If the sliced
+// operand is an array, it must be addressable and the result of the slice
+// operation is a slice with the same element type as the array." A pointer to
+// an array slices the array it points to. An operand whose type is unknown,
+// or of any other kind, refuses.
+func (e *expression) sliceType(source sourceExpr, slice *ast.SliceExpr, depth int) (sourceExpr, bool) {
+	operand, found := e.valueType(sourceExpr{value: slice.X, file: source.file, pkg: source.pkg}, depth+1)
+	if !found {
+		return sourceExpr{}, false
+	}
+	shape, found := e.underlyingType(operand, depth+1)
+	if !found {
+		return sourceExpr{}, false
+	}
+	if pointer, indirect := shape.value.(*ast.StarExpr); indirect {
+		shape, found = e.underlyingType(sourceExpr{value: pointer.X, file: shape.file, pkg: shape.pkg}, depth+1)
+		if !found {
+			return sourceExpr{}, false
+		}
+		array, isArray := shape.value.(*ast.ArrayType)
+		if !isArray {
+			return sourceExpr{}, false
+		}
+		if array.Len == nil {
+			return sourceExpr{}, false
+		}
+		return sourceExpr{value: &ast.ArrayType{Lbrack: array.Lbrack, Elt: array.Elt}, file: shape.file, pkg: shape.pkg}, true
+	}
+	switch kind := shape.value.(type) {
+	case *ast.ArrayType:
+		if kind.Len == nil {
+			return operand, true
+		}
+		return sourceExpr{value: &ast.ArrayType{Lbrack: kind.Lbrack, Elt: kind.Elt}, file: shape.file, pkg: shape.pkg}, true
+	case *ast.Ident:
+		basic, isBasic := basicType(shape)
+		if !isBasic {
+			return sourceExpr{}, false
+		}
+		if basic.Info()&types.IsString == 0 {
+			return sourceExpr{}, false
+		}
+		return operand, true
 	}
 	return sourceExpr{}, false
 }
