@@ -59,7 +59,7 @@ func readCidataISO(t *testing.T, image []byte) (string, map[string][]byte) {
 func TestDockerLabWritesCidata(t *testing.T) {
 	guest := dockerLabGuest{
 		instanceID: "docker-lab-42", publicKey: "ssh-ed25519 AAAAC3Nz test",
-		shares: []dockerLabShare{{tag: "zelab0", point: "/Users/someone/ze"}},
+		shares: []dockerLabShare{{tag: "zelab0", host: "/Users/someone/ze", point: "/Users/someone/ze"}},
 	}
 	files := guest.cidataFiles()
 	image, err := cidataISO(files)

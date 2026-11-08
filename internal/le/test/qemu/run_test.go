@@ -345,7 +345,7 @@ func TestScratchSymlinkResolvesHostAndGuestPaths(t *testing.T) {
 		t.Fatal(err)
 	}
 	run := NewRun(root, RunOptions{})
-	shares, err := run.scratchShares()
+	shares, err := run.scratchShares(GuestWorkspace)
 	if err != nil {
 		t.Fatal(err)
 	}

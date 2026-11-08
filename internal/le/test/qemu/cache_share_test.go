@@ -24,7 +24,7 @@ func TestACacheLinkIsOneShare(t *testing.T) {
 	if err := os.Symlink(target, filepath.Join(linked, "cache")); err != nil {
 		t.Fatal(err)
 	}
-	share, ok, err := cacheShare(linked)
+	share, ok, err := cacheShare(linked, GuestWorkspace)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +38,7 @@ func TestACacheLinkIsOneShare(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, tree := range map[string]string{"real": plain, "absent": t.TempDir()} {
-		share, ok, err := cacheShare(tree)
+		share, ok, err := cacheShare(tree, GuestWorkspace)
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
@@ -51,7 +51,7 @@ func TestACacheLinkIsOneShare(t *testing.T) {
 	if err := os.Symlink(filepath.Join(target, "gone"), filepath.Join(dangling, "cache")); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := cacheShare(dangling); err == nil {
+	if _, _, err := cacheShare(dangling, GuestWorkspace); err == nil {
 		t.Fatal("a dangling cache link answered no error")
 	}
 }

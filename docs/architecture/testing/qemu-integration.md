@@ -611,7 +611,13 @@ The Docker lab branch then:
    checkout over 9p at the checkout's own absolute path, and each directory the
    checkout's `tmp` and `cache` links lead out of it at its own path, so a bind
    mount the host le names (the kernel probe mounts the linux `ze` by its host
-   path) resolves in the guest (spec R-7). The image boots a read-only root,
+   path) resolves in the guest (spec R-7). When a link's target text is not
+   that resolved path, because a directory on the way is itself a symlink
+   (`cache` names `~/.cache/ze/` and `~/.cache` links elsewhere), the directory
+   is exported once more under its own tag and mounted at the path the link
+   names, so the link resolves in the guest too: without it the harness
+   setup's `mkdir` under `/workspace/cache` failed before the command ran
+   (`dockerLabShares`). The image boots a read-only root,
    so the guest can create a mount point only strictly under `/mnt`, `/Users`
    or `/home` (`dockerhost.ShareMountRoots`). A share outside them is refused
    before the VM boots, with the directories named and the fix (move the
@@ -663,7 +669,7 @@ interrupt a terminal would have sent; the lab runs its own teardown under its
 own signal root and exits. le waits for it up to five minutes, then kills its
 group. Only then does le list the leftovers, and only after that does the VM
 stop (spec AC-10).
-<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, runDockerLab, Run.dockerLab, Run.dockerLabPrepare, dockerLabVM.argv, dockerLabGuest.cidataFiles, Run.runHostLe, dockerLabSession.forward, dockerLabLeftoverListing, BuildLinuxZe, refuseUnmountableShare -->
+<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLabHere, runDockerLab, Run.dockerLab, Run.dockerLabPrepare, dockerLabVM.argv, dockerLabGuest.cidataFiles, Run.runHostLe, dockerLabSession.forward, dockerLabLeftoverListing, BuildLinuxZe, refuseUnmountableShare, Run.dockerLabShares -->
 <!-- source: internal/le/test/qemu/cidata.go -- cidataISO -->
 <!-- source: internal/le/setup/docker/host/actions.go -- EnsureImage -->
 <!-- source: internal/le/job/job.go -- Admission.RunContext -->
@@ -671,6 +677,7 @@ stop (spec AC-10).
 <!-- test: internal/le/test/qemu/dockerlab_root_test.go TestDockerLabBuildsUnderTheVerbRoot, TestDockerLabBuildsSayTheyWereStopped -->
 <!-- test: internal/le/test/qemu/dockerlab_leftover_test.go TestDockerLabReportsWhatTheGuestStillHolds -->
 <!-- test: internal/le/test/qemu/dockerlab_test.go TestDockerLabBootsTheDockerHostImage, TestDockerLabCidataPassesTheGuestParser, TestDockerLabHostLeTargetsTheForwardedSocket, TestDockerLabForwardsOneInterruptThenStopsTheVM -->
+<!-- test: internal/le/test/qemu/dockerlab_share_test.go TestDockerLabMountsTheCacheWhereItsLinkPoints -->
 <!-- test: internal/le/test/qemu/cidata_test.go TestDockerLabWritesCidata, TestCidataRefusesANameItCannotRecord -->
 
 A suite's one-scenario selector travels as `env`, a list of `NAME=value`

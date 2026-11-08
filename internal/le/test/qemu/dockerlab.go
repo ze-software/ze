@@ -20,6 +20,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -93,10 +94,12 @@ systemctl start docker.service
 touch /run/lima-boot-done
 `
 
-// dockerLabShare is one 9p export, mounted in the guest at point, which is
-// also its host path.
+// dockerLabShare is one 9p export: QEMU exports host, and the guest mounts it
+// at point. The two are the same path except where a checkout link names its
+// target through a host symlink (dockerLabShares).
 type dockerLabShare struct {
 	tag   string
+	host  string
 	point string
 }
 
@@ -206,7 +209,7 @@ func (vm dockerLabVM) argv() []string {
 	}
 	for _, share := range vm.shares {
 		b.Reset()
-		export := b.Str("local,path=").Str(share.point).Str(",mount_tag=").Str(share.tag).
+		export := b.Str("local,path=").Str(share.host).Str(",mount_tag=").Str(share.tag).
 			Str(",security_model=none,id=").Str(share.tag).String()
 		argv = append(argv, "-virtfs", export)
 	}
@@ -499,14 +502,26 @@ func (r *Run) dockerLabPrepare(ctx context.Context, image, bootPreparation strin
 // dockerLabShares answers the 9p exports: the checkout, then every directory
 // its tmp and cache links lead out of it (scratchShares), each mounted at its
 // own host path, so a path the host le resolves is the same file in the guest.
+//
+// A link whose target text is not that resolved path, because a directory on
+// the way is itself a symlink (cache -> ~/.cache/ze/ with ~/.cache linking
+// elsewhere), would dangle in the guest, where nothing exists at the text: the
+// harness setup's mkdir under /workspace/cache then failed before the command
+// ran. Such a directory is exported a second time and mounted at the path the
+// link names. It is a second tag rather than a second mount of the first,
+// because a virtio 9p channel serves one mount.
 func (r *Run) dockerLabShares() ([]dockerLabShare, error) {
-	shares := []dockerLabShare{{tag: "zelab0", point: r.Tree}}
-	linked, err := r.scratchShares()
+	shares := []dockerLabShare{{tag: "zelab0", host: r.Tree, point: r.Tree}}
+	linked, err := r.scratchShares(r.Tree)
 	if err != nil {
 		return nil, err
 	}
-	for i, share := range linked {
-		shares = append(shares, dockerLabShare{tag: "zelab" + strconv.Itoa(i+1), point: share.Host})
+	for _, share := range linked {
+		shares = append(shares, dockerLabShare{tag: "zelab" + strconv.Itoa(len(shares)), host: share.Host, point: share.Host})
+		named := path.Clean(share.Guest)
+		if named != share.Host {
+			shares = append(shares, dockerLabShare{tag: "zelab" + strconv.Itoa(len(shares)), host: share.Host, point: named})
+		}
 	}
 	for _, share := range shares {
 		if err := refuseUnmountableShare(share.point, r.shareMountRoots); err != nil {

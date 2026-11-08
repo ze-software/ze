@@ -631,15 +631,17 @@ func (r *Run) arm64BIOS() (string, error) {
 }
 
 // scratchShares answers the 9p exports the guest needs to follow the checkout
-// symlinks it meets under /workspace: tmp itself, or the relocated children
-// of a real tmp (internal/core/tmplink, Shares), and the cache link the Go
-// build cache lives behind (cacheShare).
-func (r *Run) scratchShares() ([]tmplink.Share, error) {
-	shares, err := tmplink.Shares(r.Tree, "/workspace")
+// symlinks it meets once it mounts the checkout at workspace: tmp itself, or
+// the relocated children of a real tmp (internal/core/tmplink, Shares), and
+// the cache link the Go build cache lives behind (cacheShare). The Alpine run
+// mounts the checkout at GuestWorkspace; docker-lab mounts it at its own host
+// path, so a relative link resolves against that path in its guest.
+func (r *Run) scratchShares(workspace string) ([]tmplink.Share, error) {
+	shares, err := tmplink.Shares(r.Tree, workspace)
 	if err != nil {
 		return nil, fmt.Errorf("find the tmp directories relocated out of the checkout: %w", err)
 	}
-	cache, linked, err := cacheShare(r.Tree)
+	cache, linked, err := cacheShare(r.Tree, workspace)
 	if err != nil {
 		return nil, fmt.Errorf("find the build cache relocated out of the checkout: %w", err)
 	}
@@ -662,10 +664,16 @@ const cacheShareTag = "zescratch-cache"
 // (internal/le/go/toolchain, GoCache). Without the export the link dangles and a
 // build fails with "mkdir /workspace/cache: file exists".
 //
+// Guest is the link's own target text, joined to workspace when relative, so
+// it is the path the guest reaches through the link once the checkout is
+// mounted at workspace. Host is that target resolved on the host, and the two
+// differ when a directory on the way is itself a symlink (a home whose
+// ~/.cache links elsewhere).
+//
 // It lives here rather than in tmplink because the kernel builder imports
 // tmplink and runs no le-driven build in its guest: an edit there changes the
 // runtime-kernel cache identity for no behavior of the kernel's.
-func cacheShare(tree string) (tmplink.Share, bool, error) {
+func cacheShare(tree, workspace string) (tmplink.Share, bool, error) {
 	link := filepath.Join(tree, "cache")
 	info, err := os.Lstat(link)
 	if errors.Is(err, os.ErrNotExist) {
@@ -687,7 +695,7 @@ func cacheShare(tree string) (tmplink.Share, bool, error) {
 	}
 	guest := target
 	if !filepath.IsAbs(target) {
-		guest = path.Clean(path.Join(GuestWorkspace, filepath.ToSlash(target)))
+		guest = path.Clean(path.Join(workspace, filepath.ToSlash(target)))
 	}
 	return tmplink.Share{Tag: cacheShareTag, Host: host, Guest: guest}, true, nil
 }
@@ -695,7 +703,7 @@ func cacheShare(tree string) (tmplink.Share, bool, error) {
 func (r *Run) virtfsArgs() ([]string, error) {
 	var b textbuf.Buffer
 	workspace := b.Str("local,path=").Str(r.Tree).Str(",mount_tag=workspace,security_model=none,id=ws0,readonly=off").String()
-	shares, err := r.scratchShares()
+	shares, err := r.scratchShares(GuestWorkspace)
 	if err != nil {
 		return nil, err
 	}
@@ -796,7 +804,7 @@ func (r *Run) setupCommand(goRelease string) (string, error) {
 		"mkdir -p /workspace",
 		"mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 workspace /workspace",
 	)
-	shares, err := r.scratchShares()
+	shares, err := r.scratchShares(GuestWorkspace)
 	if err != nil {
 		return "", err
 	}

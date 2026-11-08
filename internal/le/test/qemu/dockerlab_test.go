@@ -31,7 +31,7 @@ func TestDockerLabBootsTheDockerHostImage(t *testing.T) {
 				goarch: goarch, accelerator: "hvf", firmware: "/fw/edk2-aarch64-code.fd",
 				image: "/cache/docker-host.img", cidata: "/run/cidata.iso", console: "/run/console.log",
 				memory: "4096", cpus: "4", sshPort: 2222,
-				shares: []dockerLabShare{{tag: "zelab0", point: "/Users/someone/ze"}, {tag: "zelab1", point: "/scratch/tmp"}},
+				shares: []dockerLabShare{{tag: "zelab0", host: "/Users/someone/ze", point: "/Users/someone/ze"}, {tag: "zelab1", host: "/scratch/tmp", point: "/scratch/tmp"}},
 			}
 			argv := strings.Join(vm.argv(), " ")
 			image := strings.Index(argv, "-drive file=/cache/docker-host.img,format=raw,if=virtio,snapshot=on")
@@ -71,7 +71,7 @@ func TestDockerLabBootsTheDockerHostImage(t *testing.T) {
 func TestDockerLabCidataPassesTheGuestParser(t *testing.T) {
 	guest := dockerLabGuest{
 		instanceID: "docker-lab-42-1761040000", publicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITest ze-docker-lab",
-		shares: []dockerLabShare{{tag: "zelab0", point: "/Users/someone/Code/ze"}},
+		shares: []dockerLabShare{{tag: "zelab0", host: "/Users/someone/Code/ze", point: "/Users/someone/Code/ze"}},
 	}
 	dir := t.TempDir()
 	for _, file := range guest.cidataFiles() {
