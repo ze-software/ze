@@ -53,10 +53,7 @@ module ze-routing-table-conf {
                      VRF tables, policy routing auto tables, IPsec source-guard tables),
                      and an identifier this build cannot
                      program through netlink without truncation.";
-                ze:help "Kernel routing table ID. Reserved IDs
-                         excluded: 0 (use 'default'), 253-255
-                         (kernel reserved), and the ranges Ze
-                         reserves for its own tables.";
+                ze:help "Kernel routing table ID; not 0, 253-255 or a range Ze reserves";
             }
         }
     }
