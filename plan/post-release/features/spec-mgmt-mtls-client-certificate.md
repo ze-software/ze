@@ -80,7 +80,7 @@ spec makes into criteria:
 | Listener TLS material and rotation | `docs/architecture/pki/tls-listeners.md`; `cmd/ze/hub/listener_migrate.go` `updateWebCertificate` | Serves and rotates the server leaf | Extends: a changed client CA rotates the same way, with no rebind |
 | EAP-TLS client chain verification | `internal/core/eap` `newTLSMethod`, `checkChainRevocation` | Verifies a client chain and its revocation for EAP-TLS | Extends where it fits: revocation checking is reused, not rewritten |
 | Accepted local identity generation | `cmd/ze/hub/aaa_lifecycle.go` `newAcceptedLocalIdentity` | Users and profiles per generation | Extends: a certificate subject resolves to a user here |
-| OAuth spec | `plan/post-release/features/spec-mgmt-oauth-bearer-and-web-sso.md` | Bearer tokens on the same surfaces | Does not apply: separate credential; both share AC-4's header rule |
+| OAuth login specs | `plan/post-release/features/spec-oauth-login-0-umbrella.md`; bearer tokens in `spec-oauth-login-3-bearer-api-surfaces.md`, certificate-bound tokens in `spec-oauth-login-6-certificate-bound-tokens.md` | Bearer tokens on the same surfaces | Does not apply: separate credential; this spec's AC-4 and child 3's AC-3 state the same header rule. Child 6 depends on this spec |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -137,7 +137,7 @@ spec makes into criteria:
 |----------|--------|
 | What breaks if this is wrong? | A management listener admits a certificate it should refuse |
 | How is it reverted? | Single commit revert |
-| Who else touches this path? | The OAuth spec, the login-identity spec, PKI listener rotation |
+| Who else touches this path? | The OAuth login specs (`spec-oauth-login-3-bearer-api-surfaces.md`, `spec-oauth-login-6-certificate-bound-tokens.md`), the login-identity spec, PKI listener rotation |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 | Entry Point | → | Feature Code | Test |
