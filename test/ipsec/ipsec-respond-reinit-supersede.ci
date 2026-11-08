@@ -22,7 +22,8 @@
 # Gated option=needs-linux:caps=net-admin: peer-b programs real XFRM state, so this SKIPs
 # on a host without CAP_NET_ADMIN and runs as root in the QEMU VM.
 
-option=needs-linux:caps=net-admin
+# bpf: the default `vpn ipsec application-override deny` loads a cgroup setsockopt guard.
+option=needs-linux:caps=net-admin,bpf
 # Serialize against every other real-XFRM ipsec test: `ip xfrm state` and `ip xfrm
 # policy` are node-wide.
 option=exclusive:group=ipsec-xfrm

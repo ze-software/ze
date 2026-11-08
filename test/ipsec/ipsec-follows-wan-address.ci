@@ -38,7 +38,8 @@
 # Gated option=needs-linux:caps=net-admin: peer-a programs real XFRM state and the fixture
 # creates a dummy interface, so this SKIPs on an unprivileged host and runs as root in the
 # QEMU VM.
-option=needs-linux:caps=net-admin
+# bpf: the default `vpn ipsec application-override deny` loads a cgroup setsockopt guard.
+option=needs-linux:caps=net-admin,bpf
 # Serialize against every other real-XFRM ipsec test: `ip xfrm state` is node-wide.
 option=exclusive:group=ipsec-xfrm
 option=env:var=ze_test_ike_port:value=$PORT2

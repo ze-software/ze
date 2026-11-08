@@ -45,7 +45,8 @@
 # on a host without CAP_NET_ADMIN (the unprivileged dev box) and runs as root in the QEMU
 # VM, where `fsuite ipsec` in internal/le/test/qemu/alltests.go executes the suite.
 
-option=needs-linux:caps=net-admin
+# bpf: the default `vpn ipsec application-override deny` loads a cgroup setsockopt guard.
+option=needs-linux:caps=net-admin,bpf
 # Serialize against every other real-XFRM ipsec test. `ip xfrm state` and
 # `ip xfrm policy` are NODE-WIDE, so a sibling running concurrently adds SPIs and
 # policies this test's readers cannot tell from its own.

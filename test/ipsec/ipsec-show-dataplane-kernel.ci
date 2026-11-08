@@ -33,7 +33,8 @@
 # QEMU VM, where `fsuite ipsec` in internal/le/test/qemu/alltests.go executes the
 # suite.
 
-option=needs-linux:caps=net-admin
+# bpf: the default `vpn ipsec application-override deny` loads a cgroup setsockopt guard.
+option=needs-linux:caps=net-admin,bpf
 # Serialize against every other real-XFRM ipsec test. `ip xfrm state` is
 # NODE-WIDE, so a sibling running concurrently puts its own SPIs in the dump this
 # test reads and the absence assertion below would be about the other test's
