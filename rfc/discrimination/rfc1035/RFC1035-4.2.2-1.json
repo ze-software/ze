@@ -6,9 +6,9 @@
     "unit-sha": "85d2d96a9738204d",
     "claim-sha": "87a6afec3a84fc51",
     "route": "mutant",
-    "producer": "internal/plugins/dnsresolver/forward.go::exchange",
-    "producer-sha": "be20e1ad5539bf94",
-    "break": "line 108: \"co.WriteMsg(query)\" -\u003e \"func() error { b, e := query.Pack(); if e != nil { return e }; _, e = c.Write(b); return e }()\""
+    "producer": "internal/plugins/dnsresolver/forward.go::exchangeWire",
+    "producer-sha": "2fdc063382c32d63",
+    "break": "line 122: \"co.Write(wire)\" -\u003e \"c.Write(wire)\""
   },
   {
     "rid": "RFC1035-4.2.2-1",
@@ -17,8 +17,8 @@
     "unit-sha": "85d2d96a9738204d",
     "claim-sha": "d3a9ab493d830e3e",
     "route": "mutant",
-    "producer": "internal/plugins/dnsresolver/forward.go::exchange",
-    "producer-sha": "be20e1ad5539bf94",
-    "break": "line 108: \"co.WriteMsg(query)\" -\u003e \"func() error { if network != networkUDP { return co.WriteMsg(query) }; b, e := query.Pack(); if e != nil { return e }; _, e = c.Write(append([]byte{byte(len(b) \u003e\u003e 8), byte(len(b))}, b...)); return e }()\""
+    "producer": "internal/plugins/dnsresolver/forward.go::exchangeWire",
+    "producer-sha": "2fdc063382c32d63",
+    "break": "line 122: \"co.Write(wire)\" -\u003e \"func() (int, error) { if network != networkUDP { return co.Write(wire) }; return c.Write(append([]byte{byte(len(wire) \u003e\u003e 8), byte(len(wire))}, wire...)) }()\""
   }
 ]

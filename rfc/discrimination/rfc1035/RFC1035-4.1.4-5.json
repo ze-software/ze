@@ -17,8 +17,8 @@
     "unit-sha": "fb38e9429bd5531f",
     "claim-sha": "74a61be3979ddbec",
     "route": "mutant",
-    "producer": "internal/plugins/dnsresolver/forward.go::exchange",
-    "producer-sha": "be20e1ad5539bf94",
-    "break": "line 113: \"co.ReadMsg()\" -\u003e \"func() (*dns.Msg, error) { b, e := co.ReadMsgHeader(nil); if e != nil { return nil, e }; for i := 12; i+1 \u003c len(b); i++ { if b[i] == 0xC0 \u0026\u0026 b[i+1] == 0x0C { return nil, errReplyMismatch } }; m := new(dns.Msg); return m, m.Unpack(b) }()\""
+    "producer": "internal/plugins/dnsresolver/forward.go::exchangeWire",
+    "producer-sha": "2fdc063382c32d63",
+    "break": "line 140: \"r.Unpack(buf[:n])\" -\u003e \"func() error { b := buf[:n]; for i := 12; i+1 \u003c len(b); i++ { if b[i] == 0xC0 \u0026\u0026 b[i+1] == 0x0C { return errReplyMismatch } }; return r.Unpack(b) }()\""
   }
 ]
