@@ -356,12 +356,7 @@ func LinkMemberships(links []Link, peer string, host uint8) []LinkMembership {
 }
 
 func linkHasMember(link *Link, peer string) bool {
-	for _, member := range link.Members {
-		if member == peer {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(link.Members, peer)
 }
 
 // linkScript renders the commands that put one member on each of its links:
@@ -482,7 +477,8 @@ func wrapStart(peer *PeerConfig, links string, start ImageStart) {
 	wrapped = append(wrapped, wrapperErrexit, script.String(), wrapperArgumentsStart)
 	wrapped = append(wrapped, entrypoint...)
 	wrapped = append(wrapped, command...)
-	peer.Arguments = append(arguments, entrypointFlag, wrapperShell)
+	arguments = append(arguments, entrypointFlag, wrapperShell)
+	peer.Arguments = arguments
 	peer.Command = wrapped
 	peer.Prestart = ""
 }
@@ -510,10 +506,10 @@ func linkToolRefusal(image, peer string, build ImageBuild, cause error) error {
 	var reason textbuf.Buffer
 	reason.Str("image ").Str(image).Str(" cannot build link member ").Str(peer).
 		Str("'s VLAN devices: it has no ").Str(wrapperShell).Str(" or no ip (").Err(cause).Str("). Fix: ")
-	if build.Dockerfile != "" {
-		reason.Str("install iproute2 in ").Str(build.Dockerfile)
-	} else {
+	if build.Dockerfile == "" {
 		reason.Str("build ").Str(build.Tag).Str(" from a Dockerfile that installs iproute2")
+	} else {
+		reason.Str("install iproute2 in ").Str(build.Dockerfile)
 	}
 	return errors.New(reason.String())
 }
