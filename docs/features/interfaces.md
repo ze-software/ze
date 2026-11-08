@@ -105,9 +105,9 @@ and reconciles its DHCP, PPPoE and Router Advertisement workers.
 | | Prefix Information options for SLAAC | have | |
 | | RDNSS resolver option (RFC 8106) | have | |
 | | Router Solicitation answers with rate limit | have | |
-| | Route Information option (RFC 4191), for the delegated prefix of a unit that numbers from one | have | |
-| | A LAN /64 from a DHCPv6 delegated prefix, with lifetimes bounded by the delegation (RFC 7084 L-2, RFC 9915 Section 6.3) | have | |
-| | CE Router Lifetime: 0 without a WAN default route or a prefix, and an immediate zero-lifetime RA when either is lost (RFC 7084 G-4, G-5, L-4) | have | |
+| | Route Information option (RFC 4191), for the delegated prefix of a unit that numbers from one | have | One option per delegated prefix, with the delegation's remaining valid lifetime; see "Send loop" <!-- source: internal/plugins/iface/ra/advertiser.go -- build, withRoute --> <!-- source: internal/core/ndp/ra.go -- writeRouteInformation --> |
+| | A LAN /64 from a DHCPv6 delegated prefix, with lifetimes bounded by the delegation (RFC 7084 L-2, RFC 9915 Section 6.3) | have | `ipv6 delegated-prefix <pppoe-client> { subnet-id; interface-identifier }`; the source must be a `pppoe-client` whose `dhcpv6` asks for a prefix (`docs/guide/pppoe.md`, "PPPoE client IPv6") <!-- source: internal/component/iface/delegated_prefix.go -- deriveDelegatedAddress, verifyDelegatedPrefixes, requestsDelegation --> <!-- source: internal/component/iface/delegated_consumer.go -- installDelegatedAddress --> |
+| | CE Router Lifetime: 0 without a WAN default route or a prefix, and an immediate zero-lifetime RA when either is lost (RFC 7084 G-4, G-5, L-4) | have | Applies only to a unit with `delegated-prefix`; see "Send loop" <!-- source: internal/plugins/iface/ra/advertiser.go -- routerLifetime, urgent --> |
 | **Traffic Mirroring** | Ingress/egress via tc mirred | have | |
 | | Idempotent setup/cleanup | have | |
 | | Traffic redirect (vs mirror) | missing | lower |
@@ -1076,7 +1076,8 @@ holds an IPv6 default route through the WAN device and the unit advertises a pre
 otherwise it is 0 (RFC 7084 G-4 and L-4). When either is lost after a non-zero
 Router Lifetime went out, an advertisement with Router Lifetime 0 leaves at once
 rather than at the next periodic one (G-5), still carrying the prefix and route
-while the delegation holds (L-3). A /64 whose delegation ended is advertised once
+while the delegation holds (L-3). The change back, when both hold again, leaves at
+once the same way, and "at once" still keeps the 3 second spacing above. A /64 whose delegation ended is advertised once
 with zero lifetimes, then dropped. A unit without `delegated-prefix` keeps its
 configured Router Lifetime whatever the WAN does. A WAN whose device Ze cannot
 resolve holds no default route, and Ze logs it at WARN, naming the LAN and the WAN,

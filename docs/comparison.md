@@ -466,6 +466,7 @@ one.
 | BFD integration | Partial | Yes | Yes | Yes | No | No | No | No | No | No | Yes |
 | Firewall (nftables) | Yes | No | No | Yes | Yes | No | No | No | No | No | Yes |
 | IPv6 Router Advertisement sender (radvd role) | Yes | No | No | Yes | No | No | No | No | No | No | Unclear |
+| IPv6 CPE (RFC 7084): PPPoE client with IPv6CP, DHCPv6 prefix delegation, LAN /64 and CE Router Advertisements | Partial | ? | ? | ? | No | No | No | No | No | No | ? |
 | Modular subsystem loading | Yes | Partial | Partial | No | No | No | No | No | No | No | No |
 | Config commit/rollback (candidate + active) | Yes | No | No | No | No | No | No | No | No | No | No |
 | Schema discovery (CLI) | Yes | No | No | No | No | No | No | No | No | No | No |
@@ -484,6 +485,26 @@ marked `Unclear`: it runs its own IP stack, and this claim was not checked
 against its source.
 <!-- source: internal/plugins/iface/ra/sender_linux.go -- Router Advertisement send loop -->
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- container router-advertisement -->
+
+**IPv6 CPE:** Ze can be the IPv6 customer edge router of a PPPoE access line. The
+PPPoE client negotiates IPv6CP beside IPCP (RFC 5072) and takes its default route
+and a SLAAC address from the access concentrator's Router Advertisements. The
+DHCPv6 client on the session device asks for a delegated prefix, a LAN unit numbers
+a /64 from it, and that unit's Router Advertisements carry the /64, a Route
+Information option for the whole prefix (RFC 4191), and a Router Lifetime of 0
+while the WAN holds no default route (RFC 7084 G-4, G-5, L-3, L-4). The row is
+`Partial` because the RFC 7084 summary still records gaps: no LAN DHCPv6 server
+(L-8, L-10), no DNS Search List option (L-11), no ULA handling (ULA-4, ULA-5),
+no DHCPv6 started by the M or O flag of a received advertisement (WAA-6, WPD-4),
+and no ICMPv6 Destination Unreachable code 5 for forwarded packets that use an
+address from an invalidated prefix (L-14). OpenBGPd, GoBGP, bio-rd, ExaBGP, RustyBGP and rustbgpd manage no
+interfaces, so their cells are `No`. BIRD, FRR and freeRtr read `?`: the CPE
+role needs a PPPoE and a DHCPv6 client beside the Router Advertisement sender,
+and this row was not checked against their source.
+<!-- source: internal/component/l2tp/pppoeclient/ipv6cp_client.go -- receiveNak, applyIPv6CP -->
+<!-- source: internal/component/iface/delegated_prefix.go -- deriveDelegatedAddress -->
+<!-- source: internal/plugins/iface/ra/advertiser.go -- build, routerLifetime, urgent -->
+<!-- source: rfc/short/rfc7084.md -- RFC7084-4.3-10, RFC7084-4.3-11, RFC7084-4.3-12, RFC7084-4.3-2, RFC7084-4.3-3, RFC7084-4.2-15, RFC7084-4.2-22, RFC7084-4.3-14 -->
 
 **Administrative distance:** `rib { distance { } }` sets one distance per
 protocol, and every leaf decides which route the kernel forwards on. Connected
