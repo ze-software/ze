@@ -312,7 +312,7 @@ func (s Suite) Run(ctx context.Context) (report SuiteReport) {
 		line.Reset()
 		s.progress(line.Str("interop: images ready (").Str(time.Since(preparing).Round(time.Second).String()).Byte(')'))
 	}
-	starts := make(map[string]ImageStart)
+	starts := imageStarts{start: make(map[string]ImageStart), probed: make(map[string]bool)}
 	for index, plan := range s.Scenarios {
 		line.Reset()
 		s.progress(scenarioLine(&line, index, len(s.Scenarios), plan.Source.Name).Str(": running"))
@@ -401,10 +401,20 @@ func scenarioLine(line *textbuf.Buffer, index, total int, name string) *textbuf.
 	return line.Str("interop: [").Int(int64(index + 1)).Byte('/').Int(int64(total)).Str("] ").Str(name)
 }
 
-// runScenario runs one scenario. starts caches, by image reference, the
-// start each wrapped peer's image runs and whether it passed the link probe,
-// so each image is inspected and probed once for the suite.
-func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references map[string]string, images *[]ImageResult, starts map[string]ImageStart) (result ScenarioResult) {
+// imageStarts caches, by resolved image reference and for one Suite.Run, the
+// start each wrapped peer's image runs and which images passed the link
+// probe. The two are kept apart because an image first wrapped for a
+// Prestart alone is inspected but never probed, and a later scenario that
+// makes it a link member still owes the probe and its named refusal. Not
+// safe for concurrent use: Run runs its scenarios one at a time.
+type imageStarts struct {
+	start  map[string]ImageStart
+	probed map[string]bool
+}
+
+// runScenario runs one scenario. starts caches what wrapStarts reads from
+// each image, so each image is inspected and probed at most once for the run.
+func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references map[string]string, images *[]ImageResult, starts imageStarts) (result ScenarioResult) {
 	result.Name = plan.Source.Name
 	if plan.Source.Name == "" {
 		result.Error = "scenario has no name"
@@ -531,9 +541,8 @@ func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references ma
 // a link is refused, naming its Dockerfile, before any container starts.
 // declared holds the peers before image resolution, whose Image is the
 // suite's logical name, so a refusal names the declaration.
-func (s Suite) wrapStarts(ctx context.Context, links []Link, declared, peers []PeerConfig, starts map[string]ImageStart) (map[string][]LinkMembership, error) {
+func (s Suite) wrapStarts(ctx context.Context, links []Link, declared, peers []PeerConfig, starts imageStarts) (map[string][]LinkMembership, error) {
 	memberships := make(map[string][]LinkMembership, len(peers))
-	probed := make(map[string]bool, len(peers))
 	for index := range peers {
 		peer := &peers[index]
 		joined := LinkMemberships(links, peer.Name, peer.Host)
@@ -541,20 +550,20 @@ func (s Suite) wrapStarts(ctx context.Context, links []Link, declared, peers []P
 			continue
 		}
 		memberships[peer.Name] = joined
-		start, known := starts[peer.Image]
-		if !known {
-			if len(joined) > 0 && !probed[peer.Image] {
-				if err := s.Docker.probeLinkTools(ctx, peer.Image); err != nil {
-					return memberships, linkToolRefusal(peer.Image, peer.Name, s.imageDeclaration(declared[index].Image), err)
-				}
-				probed[peer.Image] = true
+		if len(joined) > 0 && !starts.probed[peer.Image] {
+			if err := s.Docker.probeLinkTools(ctx, peer.Image); err != nil {
+				return memberships, linkToolRefusal(peer.Image, peer.Name, s.imageDeclaration(declared[index].Image), err)
 			}
+			starts.probed[peer.Image] = true
+		}
+		start, known := starts.start[peer.Image]
+		if !known {
 			read, err := s.Docker.ImageStart(ctx, peer.Image)
 			if err != nil {
 				return memberships, err
 			}
 			start = read
-			starts[peer.Image] = start
+			starts.start[peer.Image] = start
 		}
 		*peer = ComposeStart(*peer, links, start)
 	}

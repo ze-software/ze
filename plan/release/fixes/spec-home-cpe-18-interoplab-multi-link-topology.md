@@ -2,15 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | Validation tooling. The access chain (child 19) and the home-CPE lab (child 11) are the only route to an end-to-end proof of the shipped PPPoE-to-L2TP relay data path, and they need several links and several Ze nodes in one scenario, which the harness cannot express today. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 0/4 |
+| Phase | 4/4 |
 | Handoff | - |
-| Updated | 2026-10-31 |
+| Updated | 2026-11-08 |
 
 Parent: `plan/release/fixes/spec-home-cpe-0-umbrella.md` (child 18).
 
@@ -288,7 +288,7 @@ Deleted: `internal/le/interoplab/bgp/prepare_links.go`.
 | 13 | Route metadata keys? | No | |
 | 14 | Prometheus counters? | No | |
 | 15 | Registered inventory changed? | No | |
-| 16 | Changed source referenced by doc anchors? | Yes | derived with `./le spec citation anchors`; `interop.md` anchors `bgp/prepare_links.go` and `bgp/prepare.go` |
+| 16 | Changed source referenced by doc anchors? | Yes | derived with `./le spec citation anchors`; `interop.md` anchored the BGP link file (deleted) and `internal/le/interoplab/bgp/prepare.go` |
 | 17 | Existing docs show examples for this area? | Yes | the `isis-import-policy-frr` paragraph |
 
 ## Implementation Steps
@@ -383,3 +383,168 @@ None: `grep -rn 'labLink\|scenarioLinks\|one network per\|two Ze' plan/journal/`
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean
 - [ ] **Commit A** and **Commit B** per `ai/rules/planning.md`
+
+## Implementation Summary
+
+### What Was Implemented
+- Core links: `internal/le/interoplab/link.go` (`Link`, `LinkMembership`, `ValidateLinks`, `LinkMemberships`, `linkScript`, `ImageStart`, `parseImageStart`, `ComposeStart`, `wrapStart`, `linkToolRefusal`), with external ends (`Link.External`) and named devices (`Link.Devices`) for the RSVP-TE freeRouter VLAN and files that already name a device. `lab.go` `ScenarioPlan.Links`, `CheckContext.Links`/`Memberships`, `runScenario` validates links and `wrapStarts` composes one wrapper per peer; `docker.go` `PeerConfig.Prestart`, `Docker.ImageStart`, `probeLinkTools`. Commit 60c615ead1.
+- Image registry: `internal/le/interoplab/imageregistry.go` (`RegisterImage`, `SuiteImages`, `ResolveImages`); every suite (bgp, l2tp, radius, radiussubscriber, pppoe, ipsec, rsvpte, deployment WireGuard, core FreeRADIUS) registers by name. 60c615ead1.
+- BGP migration: `bgp/prepare_links.go` and the BGP `wrapStart` deleted; link-local and scenario prestarts become `PeerConfig.Prestart`; `register_import_policy.go` declares `interoplab.Link`s through `linkDeclarations`. 60c615ead1.
+- RSVP-TE: the `vlan` line of `<role>-net.txt` removed; `rsvpte.go` `labLinks` declares the protected VLAN as a core link with freeRouter as its external end (AC-7b). 75e454a300.
+- Topology suite `internal/le/interoplab/topology/`, verb `interop-topology` (`gates.go`, keyword `scenario`), scenarios `ze-static-link-chain` and `two-ze-pppoe-link`. 60c615ead1; lab fixes 0204244dd1, 8e2c5c8dca.
+- Closure fix: `lab.go` `imageStarts` keeps the link probe cache apart from the start cache (Review Gate finding 1); `internal/le/interoplab/wrapstarts_test.go`.
+
+### Bugs Found/Fixed
+- An image first wrapped for a Prestart alone was never probed when a later scenario of the same run made it a link member, because the start cache answered first (`lab.go` `wrapStarts`). Covered by `TestWrapStartsProbesAnImageFirstSeenWithoutLinks`.
+
+### Documentation Updates
+- `docs/architecture/testing/interop.md` "Separate links between daemons" rewritten for the core (anchors `link.go`, `docker.go` `PeerConfig, ImageStart, probeLinkTools`), "The topology suite" section, suites row; `docs/functional-tests.md` topology row (anchor `gates.go`). Landed in 60c615ead1. The closure fix makes the existing sentence "A member's image is probed once for `sh` and `ip`" true in every scenario order; no page edit needed.
+- `internal/le/interoplab/bgp/prepare_bfd_link_local.go` header: the stale `wrapStart` mention repointed at `interoplab.ComposeStart`.
+
+### Deviations from Plan
+- AC-6: the smoke scenario `two-ze-static-link` became `ze-static-link-chain` (three Ze nodes), as AC-6 itself records.
+- `Link` gained `External` and `Devices`, not in the design: the RSVP-TE protected VLAN has one container member (freeRouter terminates it in its jar over rawInt) and its checker downs a device named `prot0`.
+- Implementation commits carry `Spec-work: home-cpe-1-logical-interface-name`, the claim of the session that wrote them, not this spec's stem.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The probe-once cache was the start cache, keyed on the first role an image appeared in | Probing and inspecting are separate facts; a Prestart-only peer is inspected, never probed | Review Gate, reading `wrapStarts` | Split into `imageStarts`, regression test |
+| approach | Implementation commits were made under another spec's claim | `Spec-work:` comes from the session's claim, so the commits name `home-cpe-1-logical-interface-name` | closure, `git log` trailers | Recorded here; this spec sat in `design` with no claim while it was implemented |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| 1. Named links, optional IPv4/IPv6, prefix-less layer 2 | Done | `internal/le/interoplab/link.go` `Link`, `linkScript` | |
+| 2. Any planned peer can be a member | Done | `link.go` `validateLink` (members are planned peer names) | `linkLocalOwners` no longer gates membership |
+| 3. Several Ze nodes, own name and config | Done | `topology/topology.go`, scenario `ze-static-link-chain` | |
+| 4. Images registered by name, suites derive lists | Done | `imageregistry.go`; each suite's `register_images.go` | `TestSuiteImageListsUnchanged` |
+| 5. `topology` suite | Done | `internal/le/interoplab/topology/`, `gates.go` `interop-topology` | |
+| BGP link mechanism deleted | Done | `bgp/prepare_links.go` gone; `git grep -w -E 'labLink\|scenarioLinks\|renderLinks'` empty | the `wrapStart` hits are the core's own wrapper in `link.go` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestLinkRenderDevicesAndAddresses`; `ze-static-link-chain` pass, red walk `c18-chain-links-broken` | |
+| AC-2 | Done | `two-ze-pppoe-link` pass; red walks `c18-pppoe-down`, `c18-pppoe-leak` (the eth0-only observer captures untagged PADI when the link goes untagged) | |
+| AC-3 | Done | `TestLinkRenderDevicesAndAddresses` (IPv6 /64, host octet, nodad) | |
+| AC-4 | Done | `TestLinkValidateRefusals`, `TestLinkDeviceNameRefusals`, `TestLinkExternalEnd` | |
+| AC-5 | Done | `TestLinkToolRefusalNamesTheDockerfile`, `TestWrapStartsProbesAnImageFirstSeenWithoutLinks` | |
+| AC-6 | Done | `ze-static-link-chain` pass (three nodes, `show interface brief` by name, A pings C through B) | |
+| AC-7 | Done | `isis-import-policy-frr` pass, red walk `c18-isis-links-broken`; `TestBGPImportPolicyLinksUnchanged` | |
+| AC-7b | Done | `ospf-multiaf-v4-frr` pass; RSVP-TE 10 passed; `TestBackupPathProtectedLinkFromCore`; `zenode.go` `zeNodeNet.add` refuses any line but `route` | |
+| AC-8 | Done | topology scenarios of children 11 and 19 run FreeRADIUS, strongSwan and accel-ppp images (`register_home_lab.go`, `register_wholesale_accel.go`) | |
+| AC-9 | Done | `TestPlanRefusesUnknownImage` | |
+| AC-10 | Done | `TestImageRegistryDuplicatePanics` | |
+| AC-11 | Done | `TestSuiteImageListsUnchanged`; one scenario per suite green (`rwinv/out-c18/*.log`: bgp, rsvpte, radius, radius-subscriber, topology, ipsec, pppoe, l2tp-ppp 13 passed); WireGuard `./le test qemu vpn-kernel` PASS | |
+| AC-11b | Changed | release check, cited from the CI `verify` run on the pushed commit, as the AC states | closure does not wait on it (AC text) |
+| AC-12 | Done | `lab.go` `Suite.Run` calls `DockerKernel(s.StagedZe)` before any image build; topology builds a `Suite` like every suite | no exemption |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestLinkValidateRefusals` | Done | `internal/le/interoplab/link_test.go` | |
+| `TestLinkRenderDevicesAndAddresses` | Done | `link_test.go` | |
+| `TestStartWrapperComposesLinksPrestartEntrypoint` | Done | `link_test.go` | |
+| `TestImageRegistryDuplicatePanics` | Done | `imageregistry_test.go` | |
+| `TestPlanRefusesUnknownImage` | Done | `imageregistry_test.go` | |
+| `TestBGPImportPolicyLinksUnchanged` | Done | `bgp/prepare_links_test.go` | file name kept, refusal cases moved to core |
+| `TestTopologyCatalogDiscovers` | Done | `topology/topology_test.go` | |
+| `TestSuiteImageListsUnchanged` | Done | `topology/image_lists_test.go` | |
+| `ze-static-link-chain` | Done | `test/interop-topology/scenarios/ze-static-link-chain/` | |
+| `two-ze-pppoe-link` | Done | `test/interop-topology/scenarios/two-ze-pppoe-link/` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/le/interoplab/lab.go`, `docker.go` | Done | |
+| `internal/le/interoplab/bgp/prepare.go`, `register_import_policy.go` | Done | |
+| suite image builders, `wireguardproof.go` | Done | `register_images.go` per suite |
+| `internal/le/test/integration/gates.go` | Done | |
+| `docs/architecture/testing/interop.md`, `docs/functional-tests.md` | Done | |
+| `docs/architecture/testing/qemu-integration.md` | Done | read, nothing became wrong |
+| `link.go`, `imageregistry.go`, `topology/`, scenario dirs | Done | |
+| `bgp/prepare_links.go` deleted | Done | |
+
+### Audit Summary
+- **Total items:** 37
+- **Done:** 36
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (AC-11b, by its own text a CI release check)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Links are a property of the shared core, open to any peer | interop | `isis-import-policy-frr` green on core links and red with links broken (`rwinv/out-interop/c18-isis-links-*.log`) |
+| A prefix-less layer-2 link isolates PPPoE | interop | `two-ze-pppoe-link` green; red when the link goes untagged (`c18-pppoe-leak-broken.log`: "observer, on eth0 alone, received untagged PPPoE discovery") |
+| Several Ze nodes per scenario | interop | `ze-static-link-chain` green, red with links broken (`c18-chain-links-*.log`) |
+| Images registered once, suites derive lists | unit + interop | `TestSuiteImageListsUnchanged`; every suite one scenario green (`rwinv/run-c18-suites.log`), WireGuard proof PASS (`rwinv/out-gb5/vpn-kernel.log`) |
+| A `topology` suite for children 19 and 11 | interop | `./le test integration interop-topology`; children 19 and 11 scenarios register in it |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is done; AC-11b is the CI release run by its own text | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/home-cpe-18-interoplab-multi-link-topology-7e292f27-ced0-427f-a7b6-3a931db211f9.md` |
+| `./le spec review check` | clean |
+| Rounds | 2 |
+| Reviewer lenses used | logic + wiring (`wrapStarts`, `wrapStart`, `ValidateLinks`, registry), security (script quoting, device names, capabilities), removed behavior (BGP refusals moved to core), style |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | A link member whose image was first wrapped for a Prestart alone skipped the `sh`/`ip` probe (the start cache answered first), so AC-5's named refusal was lost in that order, and the `runScenario` comment claimed a probe record it did not keep | `internal/le/interoplab/lab.go` `wrapStarts` | `imageStarts` with a separate `probed` map; `TestWrapStartsProbesAnImageFirstSeenWithoutLinks` |
+
+### Run 2
+0 BLOCKER, 0 ISSUE. NOTEs: `wrapStart` keeps a trailing `--entrypoint` with no value as an argument (Docker refuses it, no wrapper can be built); child 11's CPE node adds `BPF` beside `NET_ADMIN`, declared by that member as the Security checklist allows. Style pass over `lab.go` and `wrapstarts_test.go`: no peer-reachable panic (the `linkVLAN` panics in `link.go` fire only on a membership `LinkMemberships` built from a validated declaration), one fact per guard, `textbuf` for strings.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/interoplab/link.go`, `link_test.go`, `imageregistry.go`, `imageregistry_test.go` | Yes | read at closure |
+| `internal/le/interoplab/topology/` | Yes | `topology.go`, `register_catalog.go`, `topology_test.go`, `image_lists_test.go` |
+| `test/interop-topology/scenarios/ze-static-link-chain/`, `two-ze-pppoe-link/` | Yes | `ls test/interop-topology/scenarios/` |
+| `internal/le/interoplab/bgp/prepare_links.go` | Deleted | `ls`: No such file or directory |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-5, AC-9, AC-10 | unit tests pass | `./le job run label unit-pkg command go test -count=1 ./internal/le/interoplab/...`: every package ok (pppoe under `ze_l2tp`, where its wire checkers are gated) |
+| AC-7 | BGP link code gone | `git grep -w -E 'labLink\|scenarioLinks\|renderLinks' -- internal/le`: no hit |
+| AC-11 | suites green | `rwinv/run-c18-suites.log` all exit=0; `rwinv/out-gb5/vpn-kernel.log` "WireGuard kernel ping and no /sbin/modprobe: PASS" |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le test integration interop-topology` | scenario `ze-static-link-chain` (interop scenario, no .ci) | pass, `rwinv/out-c18/topology.log` |
+| `./le test integration interop-topology` | scenario `two-ze-pppoe-link` | pass, `c18-pppoe-*-clean.log` |
+| `./le test integration interop isis-import-policy-frr` | scenario | pass, `c18-isis-links-clean.log` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `two-ze-pppoe-link`: the eth0-only observer captures no untagged PADI, and red when untagged. A packet socket on eth0 still sees the tagged frame (`link.go` `Link` comment), which no protocol socket receives |
+| A-2 | confirmed | `TestParseImageStart`; every wrapped scenario starts its daemon |
+| A-3 | confirmed | every suite's member images pass `probeLinkTools`; the refusal names the Dockerfile (`TestLinkToolRefusalNamesTheDockerfile`) |
+| A-4 | confirmed | `ze-static-link-chain` runs three Ze nodes from one `StagedZe` |
+| A-5 | confirmed | child 19's `lcpMRUVerdict` (`topology/check_access_capture.go`) asserts the negotiated MRU over the core link |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| interop.md "Separate links between daemons" | `link.go` `wrapStart`, `ValidateLinks`; `docker.go` `probeLinkTools`; "probed once" now holds in every order (`lab.go` `imageStarts`) | Yes |
+| interop.md "The topology suite", functional-tests.md row | `gates.go` `interop-topology`, `topologyScenarioKeyword` | Yes |
+| prepare_bfd_link_local.go header | `link.go` `ComposeStart` | Yes |
