@@ -54,7 +54,8 @@ func ZeCLICommand(command string) []string {
 
 // ZeCLICommandAs builds the argv that asks a Ze daemon's CLI one question
 // from inside its container as login: it seeds login's client store once
-// (`ze init`), then runs `ze cli -c`. The daemon's config MUST carry login's
+// (`ze init`), then runs `ze cli -c`, with host key verification off when
+// login's host is not a loopback address. The daemon's config MUST carry login's
 // `system authentication` user and an `environment ssh` server that answers
 // on login's host and port. A configuration that is not the lab's own,
 // such as the home CPE's converted one, names its account here.
@@ -64,8 +65,17 @@ func ZeCLICommandAs(login ZeCLILogin, command string) []string {
 		Str(ShellQuoted(login.Password)).Byte(' ').Str(ShellQuoted(login.Host.String())).Byte(' ').
 		Str(ShellQuoted(login.Port)).Str(" | ZE_CONFIG_DIR=").
 		Str(login.Store).Str(" ze init").String()
-	run := tb.Reset().Str("ZE_CONFIG_DIR=").Str(login.Store).Str(" ZE_SSH_PASSWORD=").
-		Str(ShellQuoted(login.Password)).Str(" ze cli -c ").Str(ShellQuoted(command)).String()
+	tb.Reset().Str("ZE_CONFIG_DIR=").Str(login.Store)
+	// The SSH client trusts an unknown host key only on a loopback host
+	// (sshclient.hostKeyCallback), and the lab seeds no host key. A login on
+	// a non-loopback address still dials the container's own address, so the
+	// session never leaves it and skipping the key check trusts nothing a
+	// loopback session would not.
+	if !login.Host.IsLoopback() {
+		tb.Str(" ZE_SSH_INSECURE=true")
+	}
+	run := tb.Str(" ZE_SSH_PASSWORD=").Str(ShellQuoted(login.Password)).
+		Str(" ze cli -c ").Str(ShellQuoted(command)).String()
 	shell := tb.Reset().Str("[ -d ").Str(login.Store).Str(" ] || ").Str(seed).
 		Str(" >/dev/null; ").Str(run).String()
 	return []string{"sh", "-c", shell}

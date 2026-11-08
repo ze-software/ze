@@ -240,12 +240,9 @@ func checkWANInputDropped(ctx context.Context, check *interoplab.CheckContext) e
 	if err != nil {
 		return err
 	}
-	wan, err := check.Lab.Exec(ctx, nodeWeb, bareConnect(subscriberAddress, "22"), nil)
-	if err != nil {
-		return fmt.Errorf("connect from the web server to %s:22: %w", subscriberAddress, err)
-	}
-	if wan.ExitCode == 0 {
-		return fmt.Errorf("the web server completed TCP to the CPE's SSH port on %s; the WAN input term must drop it", subscriberAddress)
+	_, err = check.Lab.Exec(ctx, nodeWeb, bareConnect(subscriberAddress, "22"), nil)
+	if verdict := wanConnectVerdict(err); verdict != nil {
+		return verdict
 	}
 	after, err := readDropCounter(ctx, check)
 	if err != nil {
@@ -256,6 +253,36 @@ func checkWANInputDropped(ctx context.Context, check *interoplab.CheckContext) e
 	}
 	if _, err := execOK(ctx, check, nodeLANStatic, bareConnect(cpeLANGateway, "22")); err != nil {
 		return fmt.Errorf("lan-host could not complete TCP to the CPE's SSH port on %s, the positive control: %w", cpeLANGateway, err)
+	}
+	return nil
+}
+
+// bareConnectUnanswered is the exit `timeout` gives bareConnect when its bound
+// ended a connect nobody answered. A refused connect exits 1 at once.
+const bareConnectUnanswered = 124
+
+// wanConnectVerdict judges the web server's bareConnect to the CPE's SSH
+// port from the error Exec returned for it, since Exec returns one for every
+// non-zero exit. Only the bound ending the connect passes: no error means the
+// handshake completed, another exit means the CPE answered (a reset is an
+// answer, and the WAN input term drops), and an error that is no exit means
+// the command never ran to one.
+func wanConnectVerdict(execErr error) error {
+	if execErr == nil {
+		return fmt.Errorf("the web server completed TCP to the CPE's SSH port on %s; the WAN input term must drop it", subscriberAddress)
+	}
+	code, exited := interoplab.ExecExitCode(execErr)
+	if !exited {
+		return fmt.Errorf("connect from the web server to %s:22: %w", subscriberAddress, execErr)
+	}
+	return wanExitVerdict(code, execErr)
+}
+
+// wanExitVerdict judges the exit the web server's connect ran to: only the
+// bound ending it passes.
+func wanExitVerdict(code int, execErr error) error {
+	if code != bareConnectUnanswered {
+		return fmt.Errorf("the CPE answered the web server's TCP to its SSH port on %s (exit %d, not the %d of an unanswered connect); the WAN input term must drop it: %w", subscriberAddress, code, bareConnectUnanswered, execErr)
 	}
 	return nil
 }

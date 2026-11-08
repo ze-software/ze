@@ -633,6 +633,26 @@ func OneShotDidNotExit(err error) bool {
 	return commandErr.Cause != nil
 }
 
+// ExecExitCode answers the exit code of a command Exec ran that exited
+// non-zero, and false for every other error: Exec refused its arguments, or
+// the docker client failed, hit its bound or was stopped. Exec returns an
+// error for every non-zero exit, so a checker whose verdict is a particular
+// exit (`timeout`'s 124 for a connection nobody answered) reads it here
+// rather than from the CommandResult beside the error.
+func ExecExitCode(err error) (int, bool) {
+	commandErr, ok := errors.AsType[*commandError](err)
+	if !ok {
+		return 0, false
+	}
+	if commandErr.Cause != nil {
+		return 0, false
+	}
+	if commandErr.ExitCode == 0 {
+		return 0, false
+	}
+	return commandErr.ExitCode, true
+}
+
 // oneShotArguments is every one-shot container's argv, the kernel probe's
 // included, so each carries the owner labels and the name a canceled run is
 // removed by.

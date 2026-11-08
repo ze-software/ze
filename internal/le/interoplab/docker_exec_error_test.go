@@ -52,3 +52,31 @@ func requireExecTimeoutText(t *testing.T, err error, operation string) {
 		t.Fatalf("error = %q, want it to open with %q and the 30s bound", text, operation)
 	}
 }
+
+// VALIDATES: ExecExitCode answers the exit of a command Exec ran to a non-zero
+// exit, and refuses an error whose command never ran to one: the client hit
+// its bound, or the call succeeded.
+// PREVENTS: a checker whose verdict is an expected non-zero exit (an
+// unanswered connect's 124) reading every non-zero exit as a lab failure, or
+// a bound the docker client hit as that verdict.
+// Method: a recording runner answers each exec, and the test reads the
+// classification of the error Exec returned.
+func TestExecExitCodeAnswersOnlyARanCommand(t *testing.T) {
+	exited := newDocker(&recordingRunner{run: func(ProcessCommand) (ProcessResult, error) {
+		return ProcessResult{ExitCode: 124}, nil
+	}})
+	_, err := exited.Exec(t.Context(), "lab-web", []string{"timeout", "5", "true"}, nil)
+	if code, ok := ExecExitCode(err); !ok || code != 124 {
+		t.Errorf("ExecExitCode(%v) = %d, %t; want 124, true", err, code, ok)
+	}
+	bounded := newDocker(&recordingRunner{run: func(ProcessCommand) (ProcessResult, error) {
+		return ProcessResult{ExitCode: timeoutExitCode}, context.DeadlineExceeded
+	}})
+	_, err = bounded.Exec(t.Context(), "lab-web", []string{"sleep", "60"}, nil)
+	if code, ok := ExecExitCode(err); ok {
+		t.Errorf("ExecExitCode(%v) = %d, true for a docker client its bound stopped", err, code)
+	}
+	if _, ok := ExecExitCode(nil); ok {
+		t.Error("ExecExitCode(nil) answered an exit")
+	}
+}

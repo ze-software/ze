@@ -3285,7 +3285,12 @@ lab sends, and that node's configuration serves the SSH account on
 its account with `interoplab.ZeCLICommandAs`: the home CPE's converted
 configuration serves user `admin` on port 22, its password read from
 `test/interop-topology/cpe/lab-values`, and `access-up` asks it
-`show interface pppoe-client` that way. The access chain's checkers read the
+`show interface pppoe-client` that way. The CPE's input ruleset admits SSH
+only from its LAN, so that login dials the CPE's LAN gateway `192.168.50.1`
+rather than loopback, and the builder sets `ze.ssh.insecure` for a
+non-loopback host: the SSH client trusts an unknown host key only on
+loopback, the lab seeds none, and the session still never leaves the
+container. The access chain's checkers read the
 LAC and the LNS through their REST surface instead (`POST /api/v1/execute` on `127.0.0.1` port 17012,
 the `api-server` block its configurations carry), which answers the
 `show l2tp` commands as JSON.
