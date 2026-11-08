@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | Shipped PPPoE client misbehaves on an accepted configuration: an access network that renegotiates LCP after the LAC opened it (the wholesale L2TP shape) never gets its Configure-Request answered, so the session times out and the CPE never comes up. Blocks the home-CPE migration. |
@@ -10,9 +10,37 @@
 | Depends | Implementation: none. Closure: the scenario this spec owns, `access-wholesale-accel-lns`, needs `spec-home-cpe-14-lac-realm-relay.md` and `spec-home-cpe-18-interoplab-multi-link-topology.md` implemented. `access-wholesale` is owned by `spec-home-cpe-15-lns-lcp-renegotiation.md` and does not hold this spec's closure (umbrella "Scenario ownership") |
 | Phase | 5/6 |
 | Handoff | - |
-| Updated | 2026-11-03 |
+| Updated | 2026-11-08 |
 
 Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
+
+## Blocker
+
+Closure attempt 2026-11-08 found the implementation landed and the netns
+PPPoE suite green on Ze 7.3 (10/10, `pppoe-client-lcp-renegotiation`
+included), but none of this spec's validating tests has a recorded red
+(`ai/rules/interop-and-goal-validation.md`), and the client path carries no
+`RFC requirement:` tag for the spec's own gaps: every `RFC1661-4.3-1` and
+`RFC1661-3.6-2` tag in the tree is on the LNS FSM (`internal/component/l2tp/ppp/rfc1661_test.go`,
+`rfc1661_clauses_test.go`), none in `internal/component/l2tp/pppoeclient/`.
+What clears it: each row below run as a red walk (break, rebuild, red, restore,
+green), the unit rows tagged and recorded through `./le rfc record`, and the
+interop row run once children 14 and 18 are implemented (both still `design`).
+
+| Test | Break (file, function: before -> after) | Expected red |
+|------|------------------------------------------|--------------|
+| `pppoe-client-lcp-renegotiation` (`test/pppoe/`, `./le test qemu netns suites pppoe`) | `internal/component/l2tp/pppoeclient/network_phase.go` `keepaliveLoop`, `case ppp.LCPConfigureRequest`: body (requestLCPReentry ... `session.restart`) -> `continue` | observer times out at the renegotiation LCP read: no client Configure-Request and Ack on session 44 |
+| `TestRFC1661ClientRenegotiatesLCPInNetworkPhase` (tag `RFC1661-4.3-1`) | same break as above | missing scr then Configure-Ack before EOF |
+| `TestRFC1661ClientRenegotiatesLCPDuringAuth` (tag `RFC1661-4.3-1`) | `session.go` `runClientAuth`, `case ppp.LCPConfigureRequest`: `return reentry` -> `continue` | missing Configure-Ack `c0 21 02 73 00 0a 05 06 55 66 77 88` |
+| `TestRFC1661ClientRenegotiatesLCPDuringIPCP` (tag `RFC1661-4.3-1`) | `session.go` `negotiateIPCP`, LCP branch `case ppp.LCPConfigureRequest`: `return ipcpResult{}, reentry` -> `continue` | missing Configure-Ack; no second CHAP or IPCP epoch |
+| `TestDialRenegotiatesLCPInNetworkPhase` (Linux integration, tag `RFC1661-3.6-2`) | `connected_session.go` `(*connectedSession).restart`: `s.setIPv4Mode(ppp.NPModeDrop)` call -> removed | IPv4 delivered during LCP, PAP or IPCP instead of dropped |
+| `access-wholesale-accel-lns` (interop-topology) | first-row break, container image rebuilt | CPE never reaches IPCP Opened behind accel-ppp; checker red. Needs `spec-home-cpe-14-lac-realm-relay.md` and `spec-home-cpe-18-interoplab-multi-link-topology.md` implemented first |
+
+Also open, from this spec's own ledger: `TestDialRenegotiatesLCPInNetworkPhase`,
+`TestPPPoEConfigRenegotiatesKernelState` and `TestDialAcknowledgesFirstEagerIPCP`
+are proven on 7.2.9-ze, target 7.3 owed (A-1..A-3); package-scoped lint over
+`pppoeclient`, `iface`, `pppoeac` has no stable-input pass; the parent's
+external model review is still pending.
 
 Review instruction received from the parent (2026-11-02): "User now requests
 external model review before finishing: main will pause at final review gate and
