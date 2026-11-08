@@ -278,8 +278,8 @@ func (r *Run) bootstrap(ctx context.Context, stdin io.Writer, serial *serialStre
 
 func (r *Run) sshOptions(port int) []string {
 	return []string{
-		"-o", "StrictHostKeyChecking=no",
-		"-o", "UserKnownHostsFile=/dev/null",
+		"-o", sshNoHostKeyCheck,
+		"-o", sshNoKnownHosts,
 		"-o", "PreferredAuthentications=none",
 		"-o", "LogLevel=ERROR",
 		"-p", strconv.Itoa(port),

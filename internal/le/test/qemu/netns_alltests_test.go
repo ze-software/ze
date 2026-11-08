@@ -188,6 +188,59 @@ func TestTheCapabilityCopiesLandOnATmpfsThatHonorsFileCapabilities(t *testing.T)
 	}
 }
 
+// VALIDATES: the preparation copies the running le into the capability tmpfs
+// with the daemons' capabilities, after that tmpfs is mounted and handed to the
+// dropped user's group.
+// PREVENTS: a per-test namespace daemon (uid 1000) exec'ing a plugin's
+// `le test fixture ...` by name and finding only the shim link into the
+// checkout, whose root keeps the host owner's 0700 mode. On Ze's own image
+// pppoe-client-lcp-renegotiation logged "/bin/sh: le: Permission denied",
+// its fixture never started, and the test timed out.
+// METHOD: run the preparation against the recorder and read the one shell
+// line it emits.
+func TestTheCapabilityCopiesCarryTheHarnessTheDroppedDaemonExecs(t *testing.T) {
+	run := vmFixture(t)
+	rec := &recorder{}
+	run.Run = rec.run
+	run.Execute()
+
+	if len(rec.calls) == 0 {
+		t.Fatal("the run emitted no command at all")
+	}
+	first := strings.Join(rec.calls[0], " ")
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatalf("os.Executable: %v", err)
+	}
+	target := netnsCapDir + "/" + leName
+	copyLine := "cp " + self + " " + target
+	copyAt := strings.Index(first, copyLine)
+	if copyAt < 0 {
+		t.Fatalf("the preparation does not copy the running le to %s, so the dropped daemon"+
+			" cannot exec `le` by name:\n  %s", target, first)
+	}
+	if !strings.Contains(first, "chmod 0755 "+target) {
+		t.Errorf("the le copy is not made executable by every user:\n  %s", first)
+	}
+	if !strings.Contains(first, setcapCommand+" "+netnsCapabilities+" "+target) {
+		t.Errorf("the le copy does not carry the daemons' capabilities, so a fixture it runs"+
+			" as the dropped user cannot open its packet socket:\n  %s", first)
+	}
+	for _, before := range []string{
+		"mount -t tmpfs -o mode=0750,nodev tmpfs " + netnsCapDir,
+		"chown 0:" + netnsUID + " " + netnsCapDir,
+	} {
+		at := strings.Index(first, before)
+		if at < 0 {
+			t.Fatalf("the preparation does not carry %q:\n  %s", before, first)
+		}
+		if at > copyAt {
+			t.Errorf("%q runs after the le copy, so the copy lands where the dropped user"+
+				" cannot reach it or the mount hides it:\n  %s", before, first)
+		}
+	}
+}
+
 // A guest without libcap cannot give ze its capabilities, and the run says so
 // before it boots through an hour of suites that would each fail on it.
 func TestAGuestWithoutSetcapIsRefusedBeforeAnythingRuns(t *testing.T) {

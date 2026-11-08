@@ -10,6 +10,7 @@ package testqemu
 // give. No VM is ever started.
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -281,5 +282,102 @@ func TestTheConsoleTailIsBoundedAndNeverSilentlyEmpty(t *testing.T) {
 	missing := consoleTail(filepath.Join(t.TempDir(), "absent.log"))
 	if len(missing) != 1 || !strings.Contains(missing[0], "no serial console captured") {
 		t.Errorf("an unreadable console answered %v", missing)
+	}
+}
+
+// VALIDATES: the sshpass argv turns public-key authentication off, never asks
+// the ssh-agent, offers only the password, and keeps the password, port, target
+// and query where sshpass and ssh read them.
+// PREVENTS: an ssh-agent holding many keys making OpenSSH offer each of them
+// first, so Ze's server (six attempts) ends the session with "Too many
+// authentication failures" before sshpass types the password.
+func TestTheApplianceSSHOffersOnlyThePassword(t *testing.T) {
+	argv := sshpassArgv("secret", 2223, "show host memory | json")
+
+	if len(argv) < 4 || argv[0] != "-p" || argv[1] != "secret" || argv[2] != "ssh" {
+		t.Fatalf("sshpass does not get the password before ssh: %q", argv)
+	}
+	if got := argv[len(argv)-2:]; got[0] != SSHUser+"@"+forwardHost || got[1] != "show host memory | json" {
+		t.Errorf("the target and query are not last: %q", got)
+	}
+
+	options := map[string]bool{}
+	sshArgs := argv[3 : len(argv)-2]
+	for i := 0; i < len(sshArgs); i++ {
+		switch sshArgs[i] {
+		case "-o":
+			i++
+			options[sshArgs[i]] = true
+		case "-p":
+			i++
+			if sshArgs[i] != "2223" {
+				t.Errorf("ssh port is %q, want 2223", sshArgs[i])
+			}
+		default:
+			t.Errorf("unexpected ssh argument %q", sshArgs[i])
+		}
+	}
+	for _, want := range []string{
+		"PubkeyAuthentication=no",
+		"IdentityAgent=none",
+		"IdentitiesOnly=yes",
+		"PreferredAuthentications=password",
+		sshNoHostKeyCheck,
+		sshNoKnownHosts,
+		"ConnectTimeout=5",
+	} {
+		if !options[want] {
+			t.Errorf("ssh option %q is missing from %q", want, argv)
+		}
+	}
+}
+
+// VALIDATES: a failed ssh attempt is reported with the line that says why the
+// server ended the session, not only OpenSSH's closing "Disconnected" line, and
+// the kept cause lines are bounded.
+// PREVENTS: "Too many authentication failures" being hidden behind
+// "Disconnected from 127.0.0.1 port 2223", which read as an appliance that
+// dropped the session.
+func TestAnSSHFailureKeepsTheLineThatSaysWhy(t *testing.T) {
+	stderr := "Warning: Permanently added '[127.0.0.1]:2223' (ED25519) to the list of known hosts.\n" +
+		"Received disconnect from 127.0.0.1 port 2223:2: Too many authentication failures\n" +
+		"Disconnected from 127.0.0.1 port 2223\n"
+	got := sshFailure(stderr, "", errors.New("exit status 255"))
+	want := "Received disconnect from 127.0.0.1 port 2223:2: Too many authentication failures; " +
+		"Disconnected from 127.0.0.1 port 2223"
+	if got != want {
+		t.Errorf("sshFailure = %q, want %q", got, want)
+	}
+
+	denied := sshFailure("admin@127.0.0.1: Permission denied (password).\n", "", errors.New("exit status 255"))
+	if denied != "admin@127.0.0.1: Permission denied (password)." {
+		t.Errorf("a single-line refusal answered %q", denied)
+	}
+
+	if refused := sshFailure("ssh: connect to host 127.0.0.1 port 2223: Connection refused\n", "", nil); refused != "ssh: connect to host 127.0.0.1 port 2223: Connection refused" {
+		t.Errorf("a refused connection answered %q", refused)
+	}
+
+	var many strings.Builder
+	for i := range 5 {
+		many.WriteString("Permission denied, attempt ")
+		many.WriteString(string(rune('1' + i)))
+		many.WriteString("\n")
+	}
+	many.WriteString("Disconnected from 127.0.0.1 port 2223\n")
+	bounded := sshFailure(many.String(), "", nil)
+	if strings.Count(bounded, "Permission denied") != sshCauseLinesMax {
+		t.Errorf("the kept cause lines are not bounded to %d: %q", sshCauseLinesMax, bounded)
+	}
+	if !strings.HasPrefix(bounded, "Permission denied, attempt 3; ") {
+		t.Errorf("the kept cause lines are not the last ones: %q", bounded)
+	}
+
+	if answer := sshFailure("", "denied by the disconnect policy\nnot json\n", errors.New("empty answer")); answer != "not json" {
+		t.Errorf("standard output was scanned for causes: %q", answer)
+	}
+
+	if silent := sshFailure("", "", errors.New("exit status 255")); silent != "exit status 255" {
+		t.Errorf("a silent failure answered %q, want the process error", silent)
 	}
 }

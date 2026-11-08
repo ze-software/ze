@@ -470,11 +470,11 @@ func (c *CrashCapture) readListing(port int) (crashListing, string, bool) {
 	var listing crashListing
 	out, stderr, err := c.run.ssh(context.Background(), port, CrashesQuery)
 	if err != nil {
-		return listing, lastLine(stderr, out, err), false
+		return listing, sshFailure(stderr, out, err), false
 	}
 	var document any
 	if err := json.Unmarshal([]byte(out), &document); err != nil {
-		return listing, "answered, not JSON: " + lastLine("", out, err), false
+		return listing, "answered, not JSON: " + sshFailure("", out, err), false
 	}
 	readiness, ok := findKey(document, "readiness", findDepthMax).(map[string]any)
 	if !ok {
@@ -506,7 +506,7 @@ func (c *CrashCapture) bootTime(port int, previous int64) (int64, string) {
 		out, stderr, err := c.run.ssh(context.Background(), port, KernelQuery)
 		stale := false
 		if err != nil {
-			lastError = lastLine(stderr, out, err)
+			lastError = sshFailure(stderr, out, err)
 		} else if booted, ok := bootTimeOf(out); ok {
 			if booted != previous {
 				return booted, ""

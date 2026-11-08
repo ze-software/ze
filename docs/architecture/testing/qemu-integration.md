@@ -363,15 +363,24 @@ none is refused before the run starts.
 The runner enters the namespace itself, once per test (`enterTestNetns`,
 `internal/test/runner/netns_linux.go`), and only when `ZE_TEST_NETNS` is set
 with a non-root `ZE_TEST_UID`. `test qemu all` sets both for a routed suite, copies
-`ze` and `ze-stripped` to the guest's own tmpfs (a 9p mount carries no extended
-attribute, so a `setcap` on `/workspace` would buy nothing), and gives the
-dropped user a state directory to write in. That tmpfs is mounted on
+`ze`, `ze-stripped` and the running `le` to the guest's own tmpfs with the same
+file capabilities (a 9p mount carries no extended attribute, so a `setcap` on
+`/workspace` would buy nothing), and gives the dropped user a state directory to
+write in. The `le` copy is what the dropped daemon finds when a plugin block runs
+`le test fixture ...` by name: the runner puts that tmpfs on the daemon's PATH as
+`ZE_BIN`'s directory, and the only other `le` there is the shim link into the
+checkout, whose root keeps the host owner's 0700 mode over 9p. Without the copy,
+`pppoe-client-lcp-renegotiation` on Ze's own image logged
+`/bin/sh: le: Permission denied`, its fixture never started, and the test timed
+out (`netnsHarnessSource`). That tmpfs is mounted on
 `/tmp/zebin` itself (`netnsCapMountScript`), because the kernel ignores a file
 capability on a `nosuid` mount and gokrazy, the init of Ze's own image, mounts
 `/tmp` with `nosuid`: there the copies ran as uid 1000 with no capability, and
 an ipsec daemon's XFRM install answered `operation not permitted`. The
 preparation refuses a `nosuid` mount it finds on `/tmp/zebin`.
 <!-- source: internal/le/test/qemu/netns.go -- netnsCapMountScript -->
+<!-- source: internal/le/test/qemu/netns.go -- netnsHarnessSource -->
+<!-- test: internal/le/test/qemu/netns_alltests_test.go -- TestTheCapabilityCopiesLandOnATmpfsThatHonorsFileCapabilities, TestTheCapabilityCopiesCarryTheHarnessTheDroppedDaemonExecs -->
 <!-- source: internal/le/test/qemu/netns_linux.go -- prepareNetnsBinaries -->
 <!-- source: internal/le/test/qemu/netns.go -- allTestsRun.prepareNamespace -->
 
@@ -415,7 +424,8 @@ block runs `le test fixture ...` makes it exec `le` by name: a link into the
 checkout failed with `le: Permission denied`, because the 9p root keeps the
 host owner's 0700 mode, and such a fixture also needs the capabilities for its
 AF_PACKET socket, which a dropped user receives only from the file.
-<!-- source: internal/le/test/qemu/netns_linux.go -- prepareNetnsBinaries, netnsHarnessSource, runNetnsSuite -->
+<!-- source: internal/le/test/qemu/netns_linux.go -- prepareNetnsBinaries, runNetnsSuite -->
+<!-- source: internal/le/test/qemu/netns.go -- netnsHarnessSource -->
 
 The plugin subset is scheduled in `qemu-nightly.yml`'s
 `runtime-kernel-labs` job, alongside the PPPoE proof. Run the same action inside
@@ -959,6 +969,27 @@ crash capture, the MPLS boot and the hostname proof start outside `Run` carry ne
 <!-- source: internal/le/test/qemu/run_exec.go -- executePlan, sshSession -->
 <!-- test: internal/le/test/qemu/run_guestcommand_test.go TestGuestCommandInterruptReachesTheGuestBeforeTheVMStops, TestGuestCommandTeardownPastTheGraceStopsTheVM, TestGuestCommandSecondInterruptStopsTheVM, TestGuestCommandUndeliveredInterruptSaysSo, TestGuestCommandLineKeepsTheCommandsStatus, TestGuestCommandTimeoutForwardsTheInterrupt, TestGuestCommandSSHFailureAfterTheForwardSaysSSH, TestHostCommandOutlivesADeadTerminal, TestHostCommandOwnGroupLeadsItsOwnProcessGroup -->
 <!-- test: internal/le/test/qemu/run_guestcommand_linux_test.go TestGuestInterruptLineSignalsTheRecordedGroup, TestChildProcAttrDiesWithLe -->
+
+## Asking the appliance over SSH
+
+The hugepages proof, crash capture, the MPLS boot and the hostname proof ask
+the appliance their questions through one `sshpass` call, with the seeded
+`admin` password. That ssh turns public-key authentication off
+(`PubkeyAuthentication=no`), never asks the ssh-agent (`IdentityAgent=none`,
+`IdentitiesOnly=yes`) and offers only the password
+(`PreferredAuthentications=password`). Without those options, an agent holding
+many keys made OpenSSH offer each one first, and Ze's SSH server, which allows
+six attempts, ended the session with `Too many authentication failures` before
+the password was typed.
+
+A failed attempt is reported with the final line of ssh's stderr, preceded by
+up to three earlier lines that say why the server ended the session (a
+`disconnect`, `denied` or `authentication fail` line). OpenSSH prints that
+cause before its closing `Disconnected from 127.0.0.1 port <port>`, so a
+report that kept only the last line read as an appliance that dropped the
+session.
+<!-- source: internal/le/test/qemu/boot.go -- sshpassArgv, sshFailure, withSessionEndCause, namesSessionEnd -->
+<!-- test: internal/le/test/qemu/boot_test.go TestTheApplianceSSHOffersOnlyThePassword, TestAnSSHFailureKeepsTheLineThatSaysWhy -->
 
 ## Stopping the hugepages proof
 

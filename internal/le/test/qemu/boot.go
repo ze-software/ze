@@ -251,7 +251,7 @@ func (h *Hugepages) ask(ctx context.Context, port int, query string) (string, st
 		if err == nil {
 			return out, ""
 		}
-		lastError := lastLine(stderr, out, err)
+		lastError := sshFailure(stderr, out, err)
 		if !time.Now().Before(end) {
 			return "", lastError
 		}
@@ -266,26 +266,11 @@ func (h *Hugepages) ask(ctx context.Context, port int, query string) (string, st
 }
 
 // ssh runs one command on the appliance and answers its two streams.
-//
-// The appliance is built fresh for this run, and its key is new every time.
-// Therefore, host-key checking is off and the known-hosts file is discarded.
-// The connection timeout is short. A refused connection becomes a retry, not a
-// wait.
 func (h *Hugepages) ssh(ctx context.Context, port int, query string) (stdout, stderr string, err error) {
 	ctx, cancel := context.WithTimeout(ctx, sshAttemptMax)
 	defer cancel()
 
-	var tb textbuf.Buffer
-	target := tb.Str(SSHUser).Byte('@').Str(forwardHost).String()
-	tb.Reset()
-	portArg := tb.Int(int64(port)).String()
-
-	cmd := exec.CommandContext(ctx, "sshpass", "-p", h.SSHPass, "ssh", //nolint:gosec // the argv is built here, never by an operator
-		"-p", portArg,
-		"-o", "StrictHostKeyChecking=no",
-		"-o", "UserKnownHostsFile=/dev/null",
-		"-o", "ConnectTimeout=5",
-		target, query)
+	cmd := exec.CommandContext(ctx, "sshpass", sshpassArgv(h.SSHPass, port, query)...) //nolint:gosec // the argv is built here, never by an operator
 
 	var out, diagnostic textbuf.Buffer
 	cmd.Stdout = &out
@@ -297,6 +282,49 @@ func (h *Hugepages) ssh(ctx context.Context, port int, query string) (stdout, st
 	defer func() { err = errors.Join(owner.Close(), ctx.Err()) }()
 	<-owner.Done()
 	return out.String(), diagnostic.String(), nil
+}
+
+// The two ssh options every ssh this package starts carries: a VM built for
+// one run has a new host key each time, so neither checking nor remembering it
+// means anything.
+const (
+	sshNoHostKeyCheck = "StrictHostKeyChecking=no"
+	sshNoKnownHosts   = "UserKnownHostsFile=/dev/null"
+)
+
+// sshpassArgv answers the arguments of the one sshpass call that asks the
+// appliance a question: the password, then ssh with its options, the target and
+// the query.
+//
+// The appliance is built fresh for this run, and its key is new every time.
+// Therefore, host-key checking is off and the known-hosts file is discarded.
+// The connection timeout is short. A refused connection becomes a retry, not a
+// wait.
+//
+// PUBLIC-KEY AUTHENTICATION IS OFF, and the ssh-agent is never asked. The
+// appliance accepts only the seeded password. An agent holding many keys made
+// OpenSSH offer each of them first, and Ze's server (x/crypto, six attempts)
+// ended the session with "Too many authentication failures" before sshpass
+// ever typed the password. The proof then read as an appliance that dropped
+// the session.
+func sshpassArgv(password string, port int, query string) []string {
+	var tb textbuf.Buffer
+	target := tb.Str(SSHUser).Byte('@').Str(forwardHost).String()
+	tb.Reset()
+	portArg := tb.Int(int64(port)).String()
+
+	return []string{
+		"-p", password, "ssh",
+		"-p", portArg,
+		"-o", sshNoHostKeyCheck,
+		"-o", sshNoKnownHosts,
+		"-o", "ConnectTimeout=5",
+		"-o", "PubkeyAuthentication=no",
+		"-o", "IdentityAgent=none",
+		"-o", "IdentitiesOnly=yes",
+		"-o", "PreferredAuthentications=password",
+		target, query,
+	}
 }
 
 // noAnswer answers the verdict for an appliance that never replied.
@@ -437,18 +465,65 @@ func pagesTotalOf(document string) (uint64, error) {
 	return uint64(value), nil
 }
 
-// lastLine answers the final line of whichever stream carried something, or the
-// process error when neither did.
-func lastLine(stderr, out string, err error) string {
-	for _, stream := range []string{stderr, out} {
-		trimmed := strings.TrimSpace(stream)
-		if trimmed == "" {
-			continue
-		}
+// sshFailure answers why an ssh attempt failed, in one line for the report.
+//
+// It is the final line of whichever stream carried something, or the process
+// error when neither did. When that stream is stderr, the earlier lines that
+// name why the server ended the session come first, joined with "; ", the last
+// sshCauseLinesMax of them. OpenSSH prints the cause ("Received disconnect from
+// ... Too many authentication failures", "Permission denied") BEFORE its
+// closing "Disconnected from 127.0.0.1 port 2223". A report that kept only the
+// last line hid the cause and read as an appliance that dropped the session.
+// Standard output is never scanned: an answer that is not JSON may contain
+// these words without being an ssh diagnostic.
+func sshFailure(stderr, out string, err error) string {
+	if trimmed := strings.TrimSpace(stderr); trimmed != "" {
+		return withSessionEndCause(strings.Split(trimmed, "\n"))
+	}
+	if trimmed := strings.TrimSpace(out); trimmed != "" {
 		lines := strings.Split(trimmed, "\n")
 		return lines[len(lines)-1]
 	}
 	return err.Error()
+}
+
+// sshCauseLinesMax bounds how many cause lines sshFailure keeps before the final
+// line, so a stream of repeated refusals cannot grow the report without limit.
+const sshCauseLinesMax = 3
+
+// withSessionEndCause answers the final stderr line, preceded by the last
+// sshCauseLinesMax earlier lines that name a session ending. lines is never
+// empty: sshFailure splits a non-empty trimmed stream.
+func withSessionEndCause(lines []string) string {
+	final := strings.TrimSpace(lines[len(lines)-1])
+	var causes []string
+	for _, line := range lines[:len(lines)-1] {
+		line = strings.TrimSpace(line)
+		if !namesSessionEnd(line) {
+			continue
+		}
+		causes = append(causes, line)
+	}
+	if len(causes) > sshCauseLinesMax {
+		causes = causes[len(causes)-sshCauseLinesMax:]
+	}
+	var tb textbuf.Buffer
+	for _, cause := range causes {
+		tb.Str(cause).Str("; ")
+	}
+	return tb.Str(final).String()
+}
+
+// namesSessionEnd reports whether an ssh stderr line says why the server ended
+// or refused the session.
+func namesSessionEnd(line string) bool {
+	lower := strings.ToLower(line)
+	for _, marker := range []string{"disconnect", "denied", "authentication fail"} {
+		if strings.Contains(lower, marker) {
+			return true
+		}
+	}
+	return false
 }
 
 // consoleTail answers the last lines of the captured serial console.

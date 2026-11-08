@@ -283,12 +283,12 @@ func (m *MPLSBoot) askJSON(port int) (string, string) {
 		out, stderr, err := m.run.ssh(context.Background(), port, MPLSQuery)
 		switch {
 		case err != nil:
-			lastError = lastLine(stderr, out, err)
+			lastError = sshFailure(stderr, out, err)
 		case json.Valid([]byte(out)):
 			return out, ""
 		default:
 			var tb textbuf.Buffer
-			lastError = tb.Str("answered, not JSON: ").Str(lastLine("", out, errors.New("empty answer"))).String()
+			lastError = tb.Str("answered, not JSON: ").Str(sshFailure("", out, errors.New("empty answer"))).String()
 		}
 		if !time.Now().Before(end) {
 			return "", lastError

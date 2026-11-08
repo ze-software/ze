@@ -661,7 +661,7 @@ type dockerLabSession struct {
 func (s dockerLabSession) args(extra ...string) []string {
 	args := []string{
 		"-i", s.key, "-o", "IdentitiesOnly=yes", "-o", "BatchMode=yes",
-		"-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
+		"-o", sshNoHostKeyCheck, "-o", sshNoKnownHosts,
 		"-o", "LogLevel=ERROR", "-o", "ConnectTimeout=5", "-p", strconv.Itoa(s.port),
 	}
 	args = append(args, extra...)

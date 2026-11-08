@@ -18,6 +18,7 @@ package testqemu
 import (
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -59,6 +60,26 @@ func netnsCapMountScript() string {
 		Str(" per-test namespace daemon cannot program XFRM, nftables or interfaces: run umount ").
 		Str(netnsCapDir).Str(" in the guest, then run again\" >&2; exit 1; }")
 	return tb.String()
+}
+
+// netnsHarnessSource answers the le to copy into netnsCapDir, for both callers
+// of the mode (prepareNetnsBinaries and allTestsRun.prepareNamespace). The
+// suite's daemon runs as netnsUID, and a .ci whose plugin block runs
+// "le test fixture ..." makes that daemon exec le by name. The only other le
+// on its PATH is a link to the running le, which points into the checkout, and
+// the checkout's root keeps the host owner's 0700 mode over 9p, so the dropped
+// user could not reach it and /bin/sh answered "le: Permission denied"
+// (pppoe-client-lcp-renegotiation). The copy is reachable through
+// netnsCapDir's group, and it carries the daemons' file capabilities because
+// such a fixture opens the AF_PACKET or netlink sockets the daemon itself
+// needs: file capabilities, not the dropped user's empty ambient set, are what
+// an exec under that user receives.
+func netnsHarnessSource() (string, error) {
+	self, err := os.Executable()
+	if err != nil {
+		return "", errors.New("the guest le does not know its own executable: " + err.Error())
+	}
+	return self, nil
 }
 
 // netnsCapabilities is the set ze needs to program netlink, nftables and a
@@ -176,8 +197,14 @@ func (a *allTestsRun) usesPerTestNamespace(suites []vmSuite) bool {
 }
 
 // prepareNamespace gives the per-test namespace launcher what it needs: a
-// capability-carrying copy of ze and ze-stripped on a filesystem that keeps an
-// extended attribute, and a state directory the dropped user owns.
+// capability-carrying copy of ze, ze-stripped and the running le on a
+// filesystem that keeps an extended attribute, and a state directory the
+// dropped user owns.
+//
+// le is copied for the reason netnsHarnessSource gives: the runner puts
+// netnsCapDir on the daemon's PATH (it is ZE_BIN's directory), and without a
+// copy there the dropped daemon's `le test fixture` plugin found only the shim
+// link into the 0700 checkout and never started.
 //
 // It is the same preparation ./le test qemu netns performs
 // (prepareNetnsBinaries and prepareNetnsState, netns_linux.go). It runs as one
@@ -185,6 +212,11 @@ func (a *allTestsRun) usesPerTestNamespace(suites []vmSuite) bool {
 func (a *allTestsRun) prepareNamespace(environ []string, suites []vmSuite) error {
 	if !a.usesPerTestNamespace(suites) {
 		return nil
+	}
+
+	harness, err := netnsHarnessSource()
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrNamespacePreparation, err)
 	}
 
 	var tb textbuf.Buffer
@@ -197,12 +229,17 @@ func (a *allTestsRun) prepareNamespace(environ []string, suites []vmSuite) error
 		Str("; mkdir -p ").Str(netnsStateDir).
 		Str("; chown ").Str(netnsUID).Byte(':').Str(netnsUID).Byte(' ').Str(netnsStateDir).
 		Str("; chmod 0750 ").Str(netnsStateDir)
-	for name, source := range map[string]string{
-		zeName:         a.workspacePath(a.ZeBin),
-		zeStrippedName: a.workspacePath(a.StrippedBin),
+	for _, binary := range []struct{ name, source string }{
+		{zeName, a.workspacePath(a.ZeBin)},
+		{zeStrippedName, a.workspacePath(a.StrippedBin)},
+		{leName, harness},
 	} {
-		target := filepath.Join(netnsCapDir, name)
-		tb.Str("; cp ").Str(source).Byte(' ').Str(target).
+		target := filepath.Join(netnsCapDir, binary.name)
+		// rm first: cp onto a binary a previous run in the same guest still
+		// executes fails with ETXTBSY, and the unlinked inode stays valid
+		// for that run.
+		tb.Str("; rm -f ").Str(target).
+			Str("; cp ").Str(binary.source).Byte(' ').Str(target).
 			Str("; chmod 0755 ").Str(target).
 			Str("; ").Str(setcapCommand).Byte(' ').Str(netnsCapabilities).Byte(' ').Str(target).
 			Str("; ").Str(getcapCommand).Byte(' ').Str(target)

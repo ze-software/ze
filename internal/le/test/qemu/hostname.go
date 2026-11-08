@@ -422,7 +422,7 @@ func (h *Hostname) askHostname(port int, want string) (string, string) {
 		out, stderr, err := h.run.ssh(context.Background(), port, HostnameQuery)
 		switch name, parseErr := hostnameOf(out); {
 		case err != nil:
-			lastError = lastLine(stderr, out, err)
+			lastError = sshFailure(stderr, out, err)
 		case parseErr != nil:
 			lastError = "answered, not the host inventory: " + parseErr.Error()
 		case name == want:

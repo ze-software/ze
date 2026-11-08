@@ -156,24 +156,6 @@ func prepareNetnsBinaries(ctx context.Context, binaries netnsBinaries) error {
 	return nil
 }
 
-// netnsHarnessSource answers the le to copy into netnsCapDir. The suite's
-// daemon runs as netnsUID, and a .ci whose plugin block runs
-// "le test fixture ..." makes that daemon exec le by name. A link to the
-// running le pointed into the 9p checkout, whose root keeps the host owner's
-// 0700 mode, so the dropped user could not reach it and /bin/sh answered
-// "le: Permission denied" (pppoe-client-lcp-renegotiation). The copy is
-// reachable through netnsCapDir's group, and it carries the daemons' file
-// capabilities because such a fixture opens the AF_PACKET or netlink sockets
-// the daemon itself needs: file capabilities, not the dropped user's empty
-// ambient set, are what an exec under that user receives.
-func netnsHarnessSource() (string, error) {
-	self, err := os.Executable()
-	if err != nil {
-		return "", errors.New("the guest le does not know its own executable: " + err.Error())
-	}
-	return self, nil
-}
-
 func inThrowawayGuest() bool {
 	data, err := os.ReadFile("/proc/mounts")
 	if err != nil {
