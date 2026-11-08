@@ -14,7 +14,7 @@
 
 Parent: plan/post-release/features/spec-vpn-concentrator-0-umbrella.md (written on Thomas's decision O-2, 2026-11-08). Siblings: `plan/post-release/features/spec-ike-eap-only-authentication.md` (RFC 5998) and `plan/post-release/features/spec-ike-multiple-authentication-eap-rounds.md` (RFC 4739).
 
-Implementation came from `plan/release/fixes/spec-home-cpe-5-ike-eddsa.md` (commits `987f0e052b` Ed25519, `bfc6dfe868` circl vendor, `091e347f4b` Ed448). This spec answers that spec's open decision O-1.
+Implementation came from `spec-home-cpe-5-ike-eddsa`, closed 2026-11-08 (commits `987f0e052b` Ed25519, `bfc6dfe868` circl vendor, `091e347f4b` Ed448). This spec answers that spec's open decision O-1.
 
 RFC gaps: no RFC 8420 requirement is known unmet in code (Current Behavior). The cell carries `-` because no `rfc/short/rfc8420.md` exists yet, and the cell takes only listed requirement ids or summary stems. The testing gaps this spec closes are in the TDD Test Plan.
 
@@ -147,6 +147,7 @@ spec brings it onto the RFC ledger:
 | Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
 |------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
 | SIGNATURE_HASH_ALGORITHMS notify | writer | `ike/engine/initiator.go` `buildSignatureHashAlgosNotify` over `announcedHashAlgos` | read 2026-11-08 | preserve: no edit |
+| SIGNATURE_HASH_ALGORITHMS notify | reader | `ike/engine/initiator.go` `parseHashAlgoNotify`, called from `responder.go` and `fsm.go` into `SA.RemoteHashAlgos`; outside the repository, strongSwan (the interop peer) | read 2026-11-08 | preserve: no edit |
 | AUTH method 14 | writer and reader | `ike/engine/auth.go` `computeX509Auth`, `verifyX509Auth` | read 2026-11-08 | preserve: no edit |
 
 ### Integration Points
@@ -265,7 +266,7 @@ The signature and AlgorithmIdentifier length boundaries are tested by the implem
 - `internal/core/ed448/ed448_test.go` - `TestVerifyRefusesEd448phSignature`, tag
 - `internal/component/ike/engine/auth.go`, `auth_signature_scheme.go`, `register_signature_eddsa.go`, `register_signature_ed448.go`, `internal/core/ed448/ed448.go` - header notes only (AC-9)
 - `features/ikev2-engine.md` - the feature's evidence names RFC 8420 and its summary
-- `plan/release/fixes/spec-home-cpe-5-ike-eddsa.md` - its O-1 and Documentation row 9 point to this spec (appended note)
+- none for `spec-home-cpe-5-ike-eddsa`: it closed on 2026-11-08 with its O-1 and Documentation row 9 already pointing to this spec
 
 ## Files to Create
 - `rfc/short/rfc8420.md` - the summary (AC-1, AC-3)

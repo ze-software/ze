@@ -2,19 +2,19 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P2 |
-| Release reason | The home CPE authenticates with an Ed25519 certificate. Ze's PKI store accepts Ed25519 keys and the IPsec guide implies they sign, but IKE refuses them (`errUnsupportedKey`). RFC 8420 is listed in no release profile, so by the release timing rule this may land after the first release; the false guide sentence is corrected now. |
+| Release reason | The home CPE authenticates with an Ed25519 certificate. Ze's PKI store accepts Ed25519 keys and the IPsec guide implies they sign, but IKE refuses them (`errUnsupportedKey`). RFC 8420 is listed in no release profile, so by the release timing rule this could land after the first release; it landed before it, and the guide now states what Ze does. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 0/4 |
+| Phase | 4/4 |
 | Handoff | - |
-| Updated | 2026-11-02 |
+| Updated | 2026-11-08 |
 
 Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
 
-RFC gaps: RFC 8420 Sections 2 and 3 (all MUST and MUST NOT). RFC 8420 is not enrolled: no release profile lists it and it has no `rfc/short/` summary (owner decision O-1 pending), so the metadata cell, which takes only listed requirement ids or summary stems, carries `-`.
+RFC gaps: none known in code. RFC 8420 has no `rfc/short/` summary yet: Thomas decided O-1 on 2026-11-08, and `plan/post-release/features/spec-ike-rfc8420-eddsa-conformance.md` (commit `0f367857c2`) lists it as optional for vpn-concentrator and writes, enrols and tags the summary. The metadata cell takes only listed requirement ids or summary stems, so it carries `-`.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -145,11 +145,11 @@ with RFC 7427.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | strongSwan 6.1.0 announces Identity and verifies an Ed25519 AUTH | Announcing: source read (A-4). Verifying: the lab image builds the openssl and curve25519 plugins (`test/interop-ipsec/Dockerfile.strongswan`), and strongSwan's openssl plugin carries `openssl_ed_public_key.c` | Scenario configuration changes | Scenario `x509-ed25519-ze-initiator` | source-read (announce half); verify half unvalidated |
-| A-2 | `crypto/x509` parses a certificate whose subject key is Ed448 without error, leaving `PublicKey` unset | Go 1.27.3 `crypto/x509` `parseCertificate` skips `parsePublicKey` for `UnknownPublicKeyAlgorithm` (read 2026-11-02) | Ed448 leaf cannot even be stored; Ed448 needs a patched GOROOT | `TestPKIAcceptsEd448KeyAndCertificate` | source-read |
-| A-3 | A P-256 CA can sign an Ed448 leaf and Go verifies that chain, because the chain check reads only the issuer's key; an Ed448 CA (or intermediate) gives `ErrUnsupportedAlgorithm` | Go 1.27.3 `crypto/x509` `checkSignature`: the signature algorithm is looked up in `signatureAlgorithmDetails`, which holds no Ed448 entry, so an Ed448 signature returns `ErrUnsupportedAlgorithm`; an ECDSA-with-SHA256 signature is checked with the issuer's P-256 key and never reads the leaf key (read 2026-11-02). The lab CA `test/interop-ipsec/pki/ca.pem` is P-256 | Ed448 leaves need chain handling changes | `TestVerifyX509AuthAcceptsEd448LeafUnderP256CA`, `TestVerifyX509AuthRefusesEd448LeafFromUntrustedCA`, scenario `x509-ed448-ze-responder` | source-read |
-| A-4 | Announcing Identity always matches the peer's behaviour and is conformant, since Ze always supports EdDSA verification once this lands | strongSwan 6.1.0 `src/libcharon/sa/ikev2/tasks/ike_init.c` `send_supported_hash_algorithms` (read 2026-11-02): with no IKE signature scheme configured it announces every registered hasher `hasher_algorithm_for_ikev2` accepts, and the openssl and curve25519 plugins each register a pro forma `HASH_IDENTITY` hasher, so strongSwan announces Identity whenever those plugins load, whatever its own certificate key; RFC 8420 Section 3 "supported and configured" | Announce only when an EdDSA certificate is configured | Source read; the scenarios' pcap shows both notifies carrying 5 | source-read |
-| A-5 | `cloudflare/circl` `sign/ed448` implements RFC 8032 Ed448 with empty context | circl documentation | Choose another implementation | Phase 1 RFC 8032 Section 7.4 test vectors | unvalidated |
+| A-1 | strongSwan 6.1.0 announces Identity and verifies an Ed25519 AUTH | Announcing: source read (A-4). Verifying: the lab image builds the openssl and curve25519 plugins (`test/interop-ipsec/Dockerfile.strongswan`), and strongSwan's openssl plugin carries `openssl_ed_public_key.c` | Scenario configuration changes | Scenario `x509-ed25519-ze-initiator` | confirmed (Assumptions Resolved) |
+| A-2 | `crypto/x509` parses a certificate whose subject key is Ed448 without error, leaving `PublicKey` unset | Go 1.27.3 `crypto/x509` `parseCertificate` skips `parsePublicKey` for `UnknownPublicKeyAlgorithm` (read 2026-11-02) | Ed448 leaf cannot even be stored; Ed448 needs a patched GOROOT | `TestPKIAcceptsEd448KeyAndCertificate` | confirmed (Assumptions Resolved) |
+| A-3 | A P-256 CA can sign an Ed448 leaf and Go verifies that chain, because the chain check reads only the issuer's key; an Ed448 CA (or intermediate) gives `ErrUnsupportedAlgorithm` | Go 1.27.3 `crypto/x509` `checkSignature`: the signature algorithm is looked up in `signatureAlgorithmDetails`, which holds no Ed448 entry, so an Ed448 signature returns `ErrUnsupportedAlgorithm`; an ECDSA-with-SHA256 signature is checked with the issuer's P-256 key and never reads the leaf key (read 2026-11-02). The lab CA `test/interop-ipsec/pki/ca.pem` is P-256 | Ed448 leaves need chain handling changes | `TestVerifyX509AuthAcceptsEd448LeafUnderP256CA`, `TestVerifyX509AuthRefusesEd448LeafFromUntrustedCA`, scenario `x509-ed448-ze-responder` | confirmed (Assumptions Resolved) |
+| A-4 | Announcing Identity always matches the peer's behaviour and is conformant, since Ze always supports EdDSA verification once this lands | strongSwan 6.1.0 `src/libcharon/sa/ikev2/tasks/ike_init.c` `send_supported_hash_algorithms` (read 2026-11-02): with no IKE signature scheme configured it announces every registered hasher `hasher_algorithm_for_ikev2` accepts, and the openssl and curve25519 plugins each register a pro forma `HASH_IDENTITY` hasher, so strongSwan announces Identity whenever those plugins load, whatever its own certificate key; RFC 8420 Section 3 "supported and configured" | Announce only when an EdDSA certificate is configured | Source read; the scenarios' pcap shows both notifies carrying 5 | confirmed (Assumptions Resolved) |
+| A-5 | `cloudflare/circl` `sign/ed448` implements RFC 8032 Ed448 with empty context | circl documentation | Choose another implementation | Phase 1 RFC 8032 Section 7.4 test vectors | confirmed (Assumptions Resolved) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -212,20 +212,20 @@ with RFC 7427.
 |------|------|-----------|--------|
 | `TestSignatureHashNotifyAnnouncesIdentity` | `internal/component/ike/engine/auth_eddsa_test.go` | AC-1 | |
 | `TestComputeX509AuthSignsWithEd25519UnderIdentity` | same | AC-2, RFC 8032 Section 7.1 vector on fixed octets | |
-| `TestComputeX509AuthSignsWithEd448UnderIdentity` | `internal/component/ike/engine/auth_ed448_test.go` | AC-3 | written |
+| `TestComputeX509AuthSignsWithEd448UnderIdentity` | `internal/component/ike/engine/auth_ed448_test.go` | AC-3 | passes |
 | `TestSignMatchesRFC8032Ed448Vectors` | `internal/core/ed448/ed448_test.go` | AC-3, RFC 8032 Section 7.4 "Blank" and "1 octet" vectors byte for byte, through the PKCS #8 and SubjectPublicKeyInfo parsers (A-5) | passes |
 | `TestVerifyRefusesAlteredInput`, `TestParseRefusesOtherAlgorithmsAndMalformedKeys` | `internal/core/ed448/ed448_test.go` | Ed448 verify refusals and length boundaries; id-Ed448 with parameters refused (RFC 8410 Section 3) | passes |
 | `TestEdDSARefusedWithoutIdentity` | `internal/component/ike/engine/auth_eddsa_test.go` | AC-4 | |
-| `TestEd448RefusedWithoutIdentity` | `internal/component/ike/engine/auth_ed448_test.go` | AC-4 for Ed448 | written |
+| `TestEd448RefusedWithoutIdentity` | `internal/component/ike/engine/auth_ed448_test.go` | AC-4 for Ed448 | passes |
 | `TestVerifyX509AuthAcceptsEd25519` | `internal/component/ike/engine/auth_eddsa_test.go` | AC-6 both polarities | |
-| `TestVerifyX509AuthAcceptsEd448` | `internal/component/ike/engine/auth_ed448_test.go` | AC-6 both polarities for Ed448; 113 and 115 octets refused | written |
+| `TestVerifyX509AuthAcceptsEd448` | `internal/component/ike/engine/auth_ed448_test.go` | AC-6 both polarities for Ed448; 113 and 115 octets refused | passes |
 | `TestVerifyRefusesEdDSAAlgIDWithMismatchedKey` | `internal/component/ike/engine/auth_eddsa_test.go` | AC-7 | |
-| `TestVerifyRefusesEd448AlgIDWithMismatchedKey` | `internal/component/ike/engine/auth_ed448_test.go` | AC-7 for Ed448: id-Ed448 from an Ed25519 certificate, id-Ed25519 and ecdsa-with-SHA256 from an Ed448 certificate. Its first run found the id-Ed25519 case accepted, because both families share the Identity hash; fixed by `requireKeyFamilyNamesAlgorithm` in `verifyX509Auth` | written, fix not yet rerun |
+| `TestVerifyRefusesEd448AlgIDWithMismatchedKey` | `internal/component/ike/engine/auth_ed448_test.go` | AC-7 for Ed448: id-Ed448 from an Ed25519 certificate, id-Ed25519 and ecdsa-with-SHA256 from an Ed448 certificate. Its first run found the id-Ed25519 case accepted, because both families share the Identity hash; fixed by `requireKeyFamilyNamesAlgorithm` in `verifyX509Auth` | passes after the fix |
 | `TestVerifyRefusesEdDSAAlgIDWithParameters` | `internal/component/ike/engine/auth_eddsa_test.go` | AC-8 | |
-| `TestVerifyRefusesEd448AlgIDWithParameters` | `internal/component/ike/engine/auth_ed448_test.go` | AC-8 for Ed448 | written |
-| `TestVerifyX509AuthAcceptsEd448LeafUnderP256CA` | `internal/component/ike/engine/auth_ed448_test.go` | AC-14, A-2, A-3: the openssl-minted Ed448 leaf issued by the P-256 lab CA verifies through `getRemoteCert` and the Ed448 AUTH | written |
-| `TestVerifyX509AuthRefusesEd448LeafFromUntrustedCA` | same | AC-15, A-3: an Ed448 leaf from a CA the store does not hold fails `verifyRemoteAuth` with `x509.UnknownAuthorityError` naming the peer | written |
-| `TestGetRemoteCertNamesEd448SignedChain` | same | Known Limitations: a leaf an Ed448 CA signed is refused naming the peer, the issuer and the fix | written |
+| `TestVerifyRefusesEd448AlgIDWithParameters` | `internal/component/ike/engine/auth_ed448_test.go` | AC-8 for Ed448 | passes |
+| `TestVerifyX509AuthAcceptsEd448LeafUnderP256CA` | `internal/component/ike/engine/auth_ed448_test.go` | AC-14, A-2, A-3: the openssl-minted Ed448 leaf issued by the P-256 lab CA verifies through `getRemoteCert` and the Ed448 AUTH | passes |
+| `TestVerifyX509AuthRefusesEd448LeafFromUntrustedCA` | same | AC-15, A-3: an Ed448 leaf from a CA the store does not hold fails `verifyRemoteAuth` with `x509.UnknownAuthorityError` naming the peer | passes |
+| `TestGetRemoteCertNamesEd448SignedChain` | same | Known Limitations: a leaf an Ed448 CA signed is refused naming the peer, the issuer and the fix | passes |
 | `TestPKIAcceptsEd448KeyAndCertificate` | `internal/component/pki/config_ed448_test.go` | AC-9, A-2 | passes |
 | existing `TestRFC7427SignatureAlgorithmIsOneThePeerSent` | `internal/component/ike/engine/` | unchanged, still green | |
 
@@ -244,10 +244,10 @@ with RFC 7427.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `x509-ed25519-ze-initiator` | `test/interop-ipsec/scenarios/x509-ed25519-ze-initiator/`, checker `checkEd25519ZeSigns` (`internal/le/interoplab/ipsec/checkers.go`) | strongSwan 6.1.0, P-256 server cert | AC-10, the CPE case | written, not run |
-| `x509-ed25519-ze-responder` | `test/interop-ipsec/scenarios/x509-ed25519-ze-responder/`, checker `checkEd25519ZeVerifies` | strongSwan with Ed25519 client cert | AC-11 | written, not run |
-| `x509-ed448-ze-initiator` | `test/interop-ipsec/scenarios/x509-ed448-ze-initiator/`, checker `checkEd448ZeSigns` (`internal/le/interoplab/ipsec/eddsa.go`) | strongSwan 6.1.0 (openssl plugin: `PRIVKEY_SIGN`/`PUBKEY_VERIFY SIGN_ED448`, `HASHER HASH_IDENTITY`) | AC-12 | written, not run |
-| `x509-ed448-ze-responder` | `test/interop-ipsec/scenarios/x509-ed448-ze-responder/`, checker `checkEd448ZeVerifies` | strongSwan 6.1.0 initiator, two connections: `ze` with an Ed448 leaf issued by the lab P-256 CA, `untrusted` with an Ed448 leaf from `untrusted-ca.example.net` (`server-untrusted.pem`, mounted by `internal/le/interoplab/ipsec/ipsec.go`) | AC-14 (the `ze` connection establishes and traffic crosses it), AC-15 (charon logs `received AUTHENTICATION_FAILED notify error`, Ze logs the refusal with `peer=swan` and the unknown authority, no new ESP state) | written, not run |
+| `x509-ed25519-ze-initiator` | `test/interop-ipsec/scenarios/x509-ed25519-ze-initiator/`, checker `checkEd25519ZeSigns` (`internal/le/interoplab/ipsec/checkers.go`) | strongSwan 6.1.0, P-256 server cert | AC-10, the CPE case | passes; red walk recorded (Goal Validation) |
+| `x509-ed25519-ze-responder` | `test/interop-ipsec/scenarios/x509-ed25519-ze-responder/`, checker `checkEd25519ZeVerifies` | strongSwan with Ed25519 client cert | AC-11 | passes; red walk recorded (Goal Validation) |
+| `x509-ed448-ze-initiator` | `test/interop-ipsec/scenarios/x509-ed448-ze-initiator/`, checker `checkEd448ZeSigns` (`internal/le/interoplab/ipsec/eddsa.go`) | strongSwan 6.1.0 (openssl plugin: `PRIVKEY_SIGN`/`PUBKEY_VERIFY SIGN_ED448`, `HASHER HASH_IDENTITY`) | AC-12 | passes; red walk recorded (Goal Validation) |
+| `x509-ed448-ze-responder` | `test/interop-ipsec/scenarios/x509-ed448-ze-responder/`, checker `checkEd448ZeVerifies` | strongSwan 6.1.0 initiator, two connections: `ze` with an Ed448 leaf issued by the lab P-256 CA, `untrusted` with an Ed448 leaf from `untrusted-ca.example.net` (`server-untrusted.pem`, mounted by `internal/le/interoplab/ipsec/ipsec.go`) | AC-14 (the `ze` connection establishes and traffic crosses it), AC-15 (charon logs `received AUTHENTICATION_FAILED notify error`, Ze logs the refusal with `peer=swan` and the unknown authority, no new ESP state) | passes; red walk recorded (Goal Validation) |
 
 Each scenario runs alone with `IPSEC_INTEROP_SCENARIO=<name> ./le test integration interop-ipsec` (`docs/functional-tests.md`, the IPsec interop row), for example `IPSEC_INTEROP_SCENARIO=x509-ed448-ze-responder ./le test integration interop-ipsec`.
 
@@ -299,7 +299,7 @@ Each scenario runs alone with `IPSEC_INTEROP_SCENARIO=<name> ./le test integrati
 | 6 | Has a user guide page? | Yes | `docs/guide/ipsec.md` |
 | 7 | Wire format changed? | Yes | `docs/architecture/ike/ipsec-6-ikev2-crypto.md` |
 | 8 | Plugin SDK/protocol changed? | No | |
-| 9 | RFC behavior implemented? | Yes | `rfc/short/rfc7427.md` notes Identity; RFC 8420 summary waits for the owner's profile decision |
+| 9 | RFC behavior implemented? | Yes | `rfc/short/rfc7427.md` notes Identity (closure); the RFC 8420 summary is `plan/post-release/features/spec-ike-rfc8420-eddsa-conformance.md`'s work (O-1) |
 | 10 | Test infrastructure changed? | No | |
 | 11 | Affects daemon comparison? | Yes | `docs/comparison.md` if it lists IKE signature algorithms |
 | 12 | Internal architecture changed? | No | |
@@ -379,8 +379,8 @@ a hash runs at all, rather than which one.
 
 | ID | Decision | Options |
 |----|----------|---------|
-| O-1 | RFC 8420 in a release profile | List it as optional for vpn-endpoint and vpn-concentrator (then a summary is written and enrolled), or leave it unlisted (code ships, no ledger entry) |
-| O-2 | `github.com/cloudflare/circl` (`sign/ed448`) as a new third-party module, for Ed448 | Approve it: it lands alone as `go.mod`, `go.sum` and `vendor/`, then AC-3, AC-9, AC-12, AC-14 and AC-15 are built as a second family in `register_signature_eddsa.go` plus the PKI parse and the raw SubjectPublicKeyInfo read. Or name another Ed448 source. `docs/contributing/ze-go-style.md`: "No new third-party import enters until Thomas agrees". Until then Ed448 is unimplemented and the guide says so; Ed25519 does not depend on it |
+| O-1 | RFC 8420 in a release profile | Decided 2026-11-08: RFC 8420 gets its own spec in the vpn-concentrator work, `plan/post-release/features/spec-ike-rfc8420-eddsa-conformance.md` (commit `0f367857c2`), which lists it as optional for vpn-concentrator and writes and enrols the summary. Nothing is left open here |
+| O-2 | `github.com/cloudflare/circl` (`sign/ed448`) as a new third-party module, for Ed448 | Decided: approved for `internal/core/ed448` alone. The module landed alone in `bfc6dfe868` (`go.mod`, `go.sum`, `vendor/`), and the approval is the `dependency-ledger.txt` row `github.com/cloudflare/circl/sign/ed448	internal/core/ed448` added by `a5f0fbcd06`. Ed448 is built as its own family, `register_signature_ed448.go`, over `internal/core/ed448` (`091e347f4b`) |
 
 ## Known Limitations
 - A chain in which a CA or intermediate signs with Ed448 is refused: `crypto/x509` `checkSignature` answers `ErrUnsupportedAlgorithm` (A-3). Ze refuses it with a message that names the issuer, says its Ed448 signature cannot be checked, and gives the fix (issue the Ed448 leaf from an RSA, ECDSA or Ed25519 CA). RFC 8420 covers the IKE AUTH signature, not certificate chains.
@@ -425,3 +425,160 @@ Section 3 MUST quoted in Required Reading.
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean
 - [ ] **Commit A** and **Commit B** per `ai/rules/planning.md`
+
+## Implementation Summary
+
+### What Was Implemented
+- `987f0e052b`: the Digital Signature algorithms became one table, `signatureSchemes` in `internal/component/ike/engine/auth_signature_scheme.go`, filled from `init()` by `register_signature_rsa.go`, `register_signature_ecdsa.go` and `register_signature_eddsa.go`. `selectSignatureAlgorithm`, `signDigest`, `hashFromAlgID`, `verifySignature`, `announcedHashAlgos` (read by `buildSignatureHashAlgosNotify`) and `legacyKeyName` are lookups in it. Ed25519 signs pure under Identity (5) for a peer that announced it, and verifies.
+- `bfc6dfe868`: `github.com/cloudflare/circl` v1.6.5 vendored alone.
+- `091e347f4b`: `internal/core/ed448` wraps circl `sign/ed448` (pure Ed448, empty context, PKCS #8 and SubjectPublicKeyInfo readers); `register_signature_ed448.go` adds the Ed448 family with `ed448CertificateKey`; `certificatePublicKey` reads a key crypto/x509 leaves nil; `requireKeyFamilyNamesAlgorithm` refuses an AlgorithmIdentifier the certificate key's family does not own; `getRemoteCert` names an Ed448-signed chain; `pki/config.go` `parsePrivateKey` and `verifyKeyMatchesCert` accept Ed448; four strongSwan scenarios and `test/parse/pki-ed448-certificate-accepted.ci`.
+
+### Bugs Found/Fixed
+- An Ed448 signature labelled id-Ed25519 from an Ed448 certificate verified, because both families share the Identity hash. Fixed by `requireKeyFamilyNamesAlgorithm` (`auth_signature_scheme.go`), covered by `TestVerifyRefusesEd448AlgIDWithMismatchedKey`.
+
+### Documentation Updates
+- `docs/guide/ipsec.md` (signature paragraph, PKI example) and `docs/architecture/ike/ipsec-7-ikev2-engine.md` (signature-family paragraph, anchors to `register_signature_eddsa.go`, `register_signature_ed448.go`, `internal/core/ed448/ed448.go`): in `987f0e052b` and `091e347f4b`.
+- Closure: `rfc/short/rfc7427.md` notes Identity (5) beside its hash table, with anchors to `hashAlgoIdentity`, `announcedHashAlgos`, `chooseEd25519Signature`, `chooseEd448Signature`; `features/ikev2-engine.md` Interop names the four `ipsec/x509-ed*` scenarios.
+- `./le doc check all`: the anchor stage reports "checked 3043 anchors across 23 digests, all resolve"; the run exits 1 on the `clear debug` pipe-operator availability check, which no file of this spec touches.
+
+### Deviations from Plan
+- The scheme files are `register_signature_*.go`, not `auth_scheme_*.go` (`writeGoPatterns` refuses an `init()` registration outside a `register*.go` file), and Ed448 is its own family file, `register_signature_ed448.go`, not part of `register_signature_eddsa.go`.
+- Ed448 arithmetic lives in a new core package, `internal/core/ed448`, so circl has one importer (the ledger row approves that directory alone).
+- The checkers live in `internal/le/interoplab/ipsec/eddsa.go`, registered in `checkers.go`; the lab keys live in each scenario's own `pki/` directory, not in `test/interop-ipsec/pki/`.
+- `docs/architecture/ike/ipsec-6-ikev2-crypto.md` was not edited: it holds no signature algorithm table (grep for signature, ECDSA and RSA finds none); the signature families are documented in `ipsec-7-ikev2-engine.md`.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Algorithm confusion was planned as a hash check (R-2: the family refuses a hash it does not sign with) | Two families share the Identity hash, so the hash cannot tell Ed25519 from Ed448 | `TestVerifyRefusesEd448AlgIDWithMismatchedKey` red on its first run | `requireKeyFamilyNamesAlgorithm` matches the AlgorithmIdentifier against the key's family |
+| approach | The implementation commits left `features/ikev2-engine.md` Interop and `rfc/short/rfc7427.md` silent on the new scenarios and Identity | Documentation rows 1 and 9 said both were owed | Closure step 4 | Repaired in commit A |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| 1. Announce Identity (5) | Done | `auth_signature_scheme.go` `announcedHashAlgos`; `register_signature_eddsa.go` and `register_signature_ed448.go` `announce` | both roles use `buildSignatureHashAlgosNotify` |
+| 2. Sign pure EdDSA only for a peer that announced Identity | Done | `chooseEd25519Signature`, `signEd25519`, `chooseEd448Signature`, `signEd448`; `auth.go` `computeX509Auth` skips the hash for `hashIdentity` | |
+| 3. Verify Ed25519 and Ed448 AUTH | Done | `verifyEd25519`, `verifyEd448`, `certificatePublicKey`, `requireKeyFamilyNamesAlgorithm` | |
+| 4. Ed448 keys and leaves in the PKI store | Done | `pki/config.go` `parsePrivateKey`, `verifyKeyMatchesCert`; `pki/certkey.go` | |
+| 5. strongSwan proof, four directions, trusted and untrusted CA | Done | `internal/le/interoplab/ipsec/eddsa.go` | Goal Validation |
+| Guide correction | Done | `docs/guide/ipsec.md` | AC-13 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestSignatureHashNotifyAnnouncesIdentity` | |
+| AC-2 | Done | `TestComputeX509AuthSignsWithEd25519UnderIdentity`, `TestEd25519SignsPureRFC8032Vector` | |
+| AC-3 | Done | `TestComputeX509AuthSignsWithEd448UnderIdentity`, `TestSignMatchesRFC8032Ed448Vectors` | |
+| AC-4 | Done | `TestEdDSARefusedWithoutIdentity`, `TestEd448RefusedWithoutIdentity` | message names Identity, the peer's list and the fix |
+| AC-5 | Done | `computeLegacySignatureAuth` unchanged apart from `legacyKeyName` | |
+| AC-6 | Done | `TestVerifyX509AuthAcceptsEd25519`, `TestVerifyX509AuthAcceptsEd448` | |
+| AC-7 | Done | `TestVerifyRefusesEdDSAAlgIDWithMismatchedKey`, `TestVerifyRefusesEd448AlgIDWithMismatchedKey` | |
+| AC-8 | Done | `TestVerifyRefusesEdDSAAlgIDWithParameters`, `TestVerifyRefusesEd448AlgIDWithParameters` | |
+| AC-9 | Done | `TestPKIAcceptsEd448KeyAndCertificate`, `pki-ed448-certificate-accepted.ci` | |
+| AC-10 | Done | `x509-ed25519-ze-initiator` | |
+| AC-11 | Done | `x509-ed25519-ze-responder` | |
+| AC-12 | Done | `x509-ed448-ze-initiator` | |
+| AC-13 | Done | `docs/guide/ipsec.md` lines 447-456 | |
+| AC-14 | Done | `TestVerifyX509AuthAcceptsEd448LeafUnderP256CA`, `x509-ed448-ze-responder` | |
+| AC-15 | Done | `TestVerifyX509AuthRefusesEd448LeafFromUntrustedCA`, `x509-ed448-ze-responder` (`untrusted` connection) | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| every unit test of the TDD table | Done | `auth_eddsa_test.go`, `auth_ed448_test.go`, `internal/core/ed448/ed448_test.go`, `pki/config_ed448_test.go` | all twenty names found with `git grep "func <name>("` |
+| `pki-ed448-certificate-accepted` | Done | `test/parse/` | |
+| four interop scenarios | Done | `test/interop-ipsec/scenarios/x509-ed*` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `auth.go`, `initiator.go`, `auth_legacy.go`, `cert_payload.go`, `pki/config.go` | Done | |
+| `auth_signature_scheme.go`, `register_signature_{rsa,ecdsa,eddsa}.go` | Done | plus `register_signature_ed448.go` |
+| `go.mod`, `go.sum`, `vendor/` | Done | `bfc6dfe868` |
+| `docs/guide/ipsec.md`, `ipsec-7-ikev2-engine.md` | Done | |
+| `ipsec-6-ikev2-crypto.md` | Changed | Deviations |
+| `rfc/full/rfc8420.txt`, scenarios, `.ci` | Done | |
+
+### Audit Summary
+- **Total items:** 6 requirements, 15 ACs, 3 test groups, 6 file groups
+- **Done:** all but one file row
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (`ipsec-6-ikev2-crypto.md`, Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Ze signs with Ed25519 for strongSwan (the CPE case) | interop, red walk | `x509-ed25519-ze-initiator` passed at 12:19 on 2026-11-08 (`tmp/session/2026-11-07-104251/scratch/rwinv/out-c2-12-interop/rerun-ed25519-init.log`); with `sign: signEd448` in the Ed25519 family (overlay `rwinv/c5-ed25519-signs-ed448`) Ze logged `build IKE_AUTH failed ... unsupported key type` and the run ended `FAIL 0 passed, 1 failed` (`c5-ed25519-init-broken.log`, 12:08) |
+| Ze verifies strongSwan's Ed25519 | interop, red walk | `rerun-ed25519-resp.log` pass; overlay `c5-ed25519-verifies-ed448`: Ze logged `initiator AUTH verification failed`, charon `received AUTHENTICATION_FAILED notify error`, FAIL (`c5-ed25519-resp-broken.log`, 12:10) |
+| Ze signs with Ed448 | interop, red walk | `rerun-ed448-init.log` pass; overlay `c5-ed448-signs-ed25519`: `unsupported key type`, FAIL (`c5-ed448-init-broken.log`, 12:12) |
+| Ze verifies an Ed448 leaf from a trusted CA and refuses one from an untrusted CA | interop, red walk | `rerun-ed448-resp.log` pass; overlay `c5-ed448-verifies-ed25519`: `initiator AUTH verification failed`, FAIL (`c5-ed448-resp-broken.log`, 12:13) |
+| PKI accepts Ed448 | functional, red walk | `rwinv/c2-12-host.log`: `pki-ed448-certificate-accepted` CLEAN pass, BROKEN (overlay `c5-pki-ed448-unparsed`, the Ed448 PKCS #8 branch disabled) FAIL |
+
+The overlays replace only `register_signature_eddsa.go`, `register_signature_ed448.go` or `pki/config.go`, none changed since `091e347f4b` (2026-11-07 23:57).
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| RFC 8420 summary, enrolment, tags and discrimination records | O-1: Thomas gave RFC 8420 its own spec | `plan/post-release/features/spec-ike-rfc8420-eddsa-conformance.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/home-cpe-5-ike-eddsa-7e292f27-ced0-427f-a7b6-3a931db211f9.md` (17 files) |
+| `./le spec review check` | clean |
+| Rounds | 1 |
+| Reviewer lenses used | logic and wiring of the scheme table, algorithm confusion, input bounds (AlgorithmIdentifier, key and signature lengths), stale comments, docs against source |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | No BLOCKER or ISSUE. NOTE: `buildSignatureHashAlgosNotify`'s comment names Identity for Ed25519 only, though Ed448 needs it too (incomplete, not false). NOTE: `computeX509Auth` calls `hashFunc.New()`, which panics for an unlinked hash; every registered hash is SHA-2, linked by the families | `initiator.go`, `auth.go` | - |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `auth_signature_scheme.go`, `register_signature_{rsa,ecdsa,eddsa,ed448}.go`, `auth_eddsa_test.go`, `auth_ed448_test.go` | Yes | `ls internal/component/ike/engine` 2026-11-08 |
+| `internal/core/ed448/ed448.go`, `ed448_test.go` | Yes | `ls` |
+| `rfc/full/rfc8420.txt`, `test/parse/pki-ed448-certificate-accepted.ci` | Yes | `ls` |
+| four `test/interop-ipsec/scenarios/x509-ed*` | Yes | `ls test/interop-ipsec/scenarios` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-9, AC-14, AC-15 (units) | the package tests pass | `ike/engine`: `all5.log` 2026-11-08 11:51, the only failures `TestMobikeParallelAuth*` (`bind: can't assign requested address` for 127.0.0.2, macOS loopback, not this spec); `pki` and `core/ed448`: `ok` in `u15.log` 23:45, no file changed since |
+| AC-10 to AC-12, AC-14, AC-15 (interop) | the four scenarios pass | `rerun-ed*.log`, `PASS 1 scenario(s)` each |
+| AC-13 | guide states the behaviour | `docs/guide/ipsec.md` 447-456 read at closure |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Ed448 `pki certificate` entry | `test/parse/pki-ed448-certificate-accepted.ci` | pass, and red with the Ed448 branch disabled |
+| strongSwan exchange, both roles, both curves | the four interop scenarios | `eddsa.go` read: the checkers read charon's own `authentication of ... with ED25519/ED448 successful` lines |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `x509-ed25519-ze-initiator` passes: charon logs the Ed25519 authentication of Ze as successful, and Ze signed only because charon announced 5 |
+| A-2 | confirmed | `TestPKIAcceptsEd448KeyAndCertificate` and `TestVerifyX509AuthAcceptsEd448LeafUnderP256CA` parse the Ed448 leaf through `x509.ParseCertificate` |
+| A-3 | confirmed | `TestVerifyX509AuthAcceptsEd448LeafUnderP256CA`, `TestGetRemoteCertNamesEd448SignedChain`, `x509-ed448-ze-responder` |
+| A-4 | confirmed | both initiator scenarios pass, so strongSwan announced Identity; both responder scenarios pass, so Ze's announcement reached charon's signer |
+| A-5 | confirmed | `TestSignMatchesRFC8032Ed448Vectors` matches RFC 8032 Section 7.4 byte for byte |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| 1 feature: `features/ikev2-engine.md` Interop lists the four scenarios | `checkers.go` registry rows for `x509-ed*` | Yes |
+| 6, 17 guide: `docs/guide/ipsec.md` 447-456 | `chooseEd25519Signature`, `chooseEd448Signature`, `getRemoteCert` Ed448 refusal | Yes |
+| 7 wire: `ipsec-7-ikev2-engine.md` 401-431 | AlgorithmIdentifiers in `register_signature_eddsa.go` and `register_signature_ed448.go` | Yes |
+| 9 RFC: `rfc/short/rfc7427.md` Identity note | `hashAlgoIdentity`, RFC 8420 Section 2 "This document defines a new value called "Identity" (5)" | Yes |
+| 11 comparison: No | `grep -i ecdsa\|ed25519\|rfc 7427 docs/comparison.md` finds no IKE signature list | Yes |
+| 16 anchors | `./le doc check all`: all anchors resolve | Yes |
