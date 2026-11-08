@@ -2,15 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | blocked |
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | Adds an LNS policy RFC 2661 permits but does not require (renegotiating LCP instead of accepting the LAC's proxy LCP). It corrects a guide sentence that claims the option already exists. |
 | RFC gaps | - |
 | Depends | Implementation: none. Closure: this spec owns two scenarios. `l2tp-lns-lcp-renegotiate-pppd` needs `spec-home-cpe-14-lac-realm-relay.md` (a LAC that sends proxy LCP) and `spec-home-cpe-18-interoplab-multi-link-topology.md`; `access-wholesale` needs those two, `spec-home-cpe-19-access-chain-scenario.md` (the access-chain nodes it reuses) and `spec-home-cpe-12-pppoe-client-lcp-renegotiation.md` (a Ze CPE that survives the renegotiation). The LNS's CHAP-only allow-list and MRU 1492 are implemented and documented in `docs/guide/l2tp.md` |
-| Phase | 0/3 |
+| Phase | 3/3 |
 | Handoff | - |
-| Updated | 2026-11-04 |
+| Updated | 2026-11-08 |
 
 Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
 
@@ -467,3 +467,169 @@ files with Section 4.4.5.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-home-cpe-15-lns-lcp-renegotiation.md` only, in the same `./le commit create` script
+
+## Blocker
+
+| Field | Value |
+|-------|-------|
+| What blocks | AC-5 and the reactor wiring have no green run on today's code. `TestReloadAppliesProxyLCPToNewSessions`, `TestHandleLCPUpRecordsProxyLCPOutcome` and the rest of `internal/component/l2tp/reactor_ppp_linux_test.go` last ran on 2026-11-08 at 10:50 UTC (`rwinv/out-qemu/clean-l2tp.log`, PASS). e71c333447 (11:01 UTC) then changed the reload test's setup to `attachReactor`, which now also calls `setPPPPolicy`, and a02374d9ad (19:13 UTC) changed the same file again. The 19:48 guest run (`rwinv/qemu-c12-c15.sh`) ran only `TestL2TPProxyLCPRenegotiateReachesDriver` in that package. It compiled the file but did not run the other tests |
+| Producer | `internal/component/l2tp/reactor_ppp_linux_test.go` `TestReloadAppliesProxyLCPToNewSessions`, `attachReactor`; the code under test is `internal/component/l2tp/subsystem_reload.go` (the `ProxyLCP` hot-apply) and `reactor_setters.go` `setProxyLCPPolicy` |
+| What clears it | The main thread runs this in the Ze-kernel QEMU guest: `go test -race -tags "<feature tags>" -count=1 -v ./internal/component/l2tp/` (whole package, because the Linux files are only compiled there), and records PASS for `TestReloadAppliesProxyLCPToNewSessions`, `TestHandleLCPUpRecordsProxyLCPOutcome` and `TestL2TPProxyLCPRenegotiateReachesDriver`. Then it sets this spec back to `in-progress`, and a closure agent fills the AC-5 evidence row and lands commits A and B. Everything else below is done. The review artifact (`tmp/review/home-cpe-15-lns-lcp-renegotiation-7e292f27-ced0-427f-a7b6-3a931db211f9.md`, CLEAN, 2 rounds) stays valid while those 40 files keep their hashes |
+
+Owed at closure besides that run: commit A repoints the citers before commit B removes this file. The umbrella's child 15 row becomes `Closed (<date>): spec-home-cpe-15-lns-lcp-renegotiation; ...`, as the child 16 row is. The umbrella's wiring row for `proxy-lcp renegotiate`, and the R-4 row of `plan/release/fixes/spec-l2tp-proxied-pap-interop-and-identity.md`, take the bare stem.
+
+## Implementation Summary
+
+### What Was Implemented
+- `l2tp { proxy-lcp accept | renegotiate; }` enumeration leaf, default `accept` (`ze-l2tp-conf.yang`), parsed by `ParseProxyLCPPolicy` in `config.go` `ExtractParameters` and in the reload path (`subsystem_reload.go`). It is hot-applied to new sessions through `reactor_setters.go` `setProxyLCPPolicy` (0cf6ed47ad).
+- `ppp.StartSession.RenegotiateProxyLCP`, set in `reactor_kernel.go` from `reactorParams.ProxyLCP`. In `ppp/proxy.go`, `admitProxyLCP` gates the short-circuit and returns the outcome (`none`, `accepted`, `renegotiated`) that `session_run.go` `run` carries on every `EventLCPUp` (0cf6ed47ad).
+- The outcome is kept on the L2TP session (`reactor_kernel.go` `handleLCPUp`), shown as `proxy-lcp` in `show l2tp session id <id>` (`snapshot.go`, `cmd/l2tp.go` `sessionJSON`), and counted once per session in `ze_l2tp_session_lcp_opened_total{proxy_lcp}` (`metrics.go` `countSessionLCPOpened`, f9ae2b9b88).
+- Every "RFC 2661 Section 18" citation was corrected to Section 4.4.5 (or 4.4.5 and 9.5).
+- The guide, command reference, feature file and RFC summaries were updated, and the two topology scenarios were registered (`register_wholesale.go`, `check_wholesale.go`).
+
+### Bugs Found/Fixed
+- The proxy-authentication path did not retransmit an unanswered CHAP Challenge after a renegotiation. The `access-wholesale` walk found it and 14d3df65a7 fixed it. `spec-ppp-l2tp-aaa-one-off-defects` owns that fix, not this spec.
+- The closure review found AC-4 untested at the driver. b58db96452 adds `TestDriverProxyLCPRenegotiateNoProxyIsNormalPath`.
+
+### Documentation Updates
+- `docs/guide/l2tp.md`: the `l2tp {}` example in "Configuration", "PPP negotiation" (the `proxy-lcp` table and the `<!-- source: internal/component/l2tp/ppp/proxy.go -- admitProxyLCP, EvaluateProxyLCP -->` anchor), "Read commands", "Session establishment counter" and "Reload semantics".
+- The `show l2tp session id <sid>` row of `docs/guide/command-reference.md`, the proxy LCP paragraph of `features/l2tpv2-bng.md`, the "Proxy LCP/auth (Section 4.4.5)" note of `rfc/short/rfc2661.md`, the RFC1661-3.1-1 annotation of `rfc/short/rfc1661.md`, and the `access-wholesale` and `l2tp-lns-lcp-renegotiate-pppd` rows of `docs/architecture/testing/interop.md` with their `register_wholesale.go` anchor.
+- `./le doc check all` exits 1, with no finding on any of these pages (`c15-close-doccheck.log`). The reds are tree-wide: command operator availability, missing `../gh-pages` command-equivalents pages, and an `interop.md` anchor naming `enableIPv6Forwarding` in `check_pppoe_dhcpv6_pd_lan.go`, which belongs to another spec.
+
+### Deviations from Plan
+- The driver unit tests are in `ppp/proxy_renegotiate_test.go`, not in `manager_test.go` and `auth_dispatch_test.go`. `TestReloadAppliesProxyLCPToNewSessions` is in `reactor_ppp_linux_test.go`, not in `subsystem_reload_test.go`.
+- `l2tp-lns-lcp-renegotiate-pppd` lives under `test/interop-topology/scenarios/`, not `test/interop-l2tp/`, because it needs child 18's multi-link topology.
+- `access-wholesale/ze-cpe.conf` was created and later removed by a0e83e12a1 (child 11): the CPE now reads the shared converted CPE configuration.
+- The metric label has no `invalid` value. A partial, malformed or out-of-policy proxy is renegotiated and counted as `renegotiated`, as the guide and YANG description state.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | This spec's commits carry other specs' `Spec-work:` trailers: 0cf6ed47ad carries `home-cpe-1-logical-interface-name`, and f9ae2b9b88 and e71c333447 carry `home-cpe-23-dns-source-fall-through`, because each was created under another spec's claim | They implement child 15 | `git log` at closure | Recorded here. The push discharge of a `Review-owed:` finds commit A through `Spec-work:`, so these three commits are judged under the other stems |
+| approach | AC-4 (renegotiate with no proxy AVPs) had no driver test, although the TDD plan mapped it to the normal-path tests | No test set the flag without proxy data | Closure review, round 1 | b58db96452 |
+| approach | A test-body change (e71c333447) landed after the last green Linux run of its package, and the next guest run filtered to one test | The other Linux tests of the package did not run on the new body | Closure audit of the run logs | Blocker above |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| LNS leaf selecting accept or renegotiate | Done | `yang/ze-l2tp-conf.yang` leaf `proxy-lcp`; `config.go` `ExtractParameters` | |
+| Renegotiate ignores AVPs 26-28 and runs the normal path | Done | `ppp/proxy.go` `admitProxyLCP`; `ppp/session_run.go` `run` | |
+| Guide sentence corrected | Done | `docs/guide/l2tp.md` "PPP negotiation" | |
+| "Section 18" citations corrected | Done | grep for `Section 18` and `§18` over `internal/component/l2tp`, `docs/guide/l2tp.md`, `rfc/short/rfc1661.md` and `rfc/short/rfc2661.md` returns nothing | |
+| How the two leaves combine | Done | Key Design Decisions; the guide's "PPP negotiation" paragraph on proxy authentication | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestDriverProxyLCPAcceptUnchanged`, `TestDriverProxyLCPSkipsNegotiation` | |
+| AC-2 | Done | `TestDriverProxyLCPRenegotiateSendsConfReq`, `TestDriverProxyLCPRenegotiateOwnMagic`; interop `l2tp-lns-lcp-renegotiate-pppd` | |
+| AC-3 | Done | `TestDriverProxyLCPRenegotiateUsesConfiguredAuth`; `access-wholesale` | |
+| AC-4 | Done | `TestDriverProxyLCPRenegotiateNoProxyIsNormalPath` (b58db96452) | |
+| AC-5 | Partial | `TestReloadAppliesProxyLCPToNewSessions` | Blocker: its current body has not run |
+| AC-6 | Done | `TestSessionJSONProxyLCPOutcome`, `TestHandleLCPUpRecordsProxyLCPOutcome`; `check_wholesale.go` `renegotiatedVerdict` on the live session | |
+| AC-7 | Done | the guide's "PPP negotiation"; citation grep empty | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestDriverProxyLCPRenegotiateSendsConfReq` | Done | `ppp/proxy_renegotiate_test.go` | |
+| `TestDriverProxyLCPRenegotiateUsesConfiguredAuth` | Changed | `ppp/proxy_renegotiate_test.go` | file moved |
+| `TestDriverProxyLCPRenegotiateOwnMagic` | Done | `ppp/proxy_renegotiate_test.go` | |
+| `TestDriverProxyLCPAcceptUnchanged` | Done | `ppp/proxy_renegotiate_test.go` | |
+| `TestNonLCPBeforeOpenedDiscarded` | Done | `ppp/proxy_renegotiate_test.go` | |
+| `TestProxyLCPPAPWaitsForRetransmittedRequest` | Changed | `ppp/proxy_renegotiate_test.go` | file moved |
+| `TestProxyLCPLeafParse` | Done | `config_test.go` | |
+| `TestReloadAppliesProxyLCPToNewSessions` | Changed | `reactor_ppp_linux_test.go` | file moved; rerun owed (Blocker) |
+| `TestL2TPProxyLCPRenegotiateReachesDriver` | Done | `reactor_ppp_linux_test.go` | |
+| `TestSessionJSONProxyLCPOutcome` | Done | `cmd/l2tp_test.go` | |
+| `lns-proxy-lcp-config` | Done | `test/l2tp/lns-proxy-lcp-config.ci` | a6d26a1fa0 |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| YANG, `config.go`, `reactor_kernel.go`, `reactor_setters.go`, `subsystem_reload.go` | Done | 0cf6ed47ad |
+| `ppp/start_session.go`, `ppp/session_run.go`, `ppp/proxy.go`, `kernel_event.go`, `session.go`, `snapshot.go`, `cmd/l2tp.go` | Done | 0cf6ed47ad |
+| `docs/guide/l2tp.md`, `command-reference.md`, `rfc/short/rfc1661.md`, `rfc/short/rfc2661.md`, `features/l2tpv2-bng.md` | Done | 0cf6ed47ad, f9ae2b9b88 |
+| `register_wholesale.go`, `check_wholesale.go`, `check_wholesale_test.go`, both scenario directories | Done | 0cf6ed47ad; `ze-cpe.conf` later removed by child 11 |
+
+### Audit Summary
+- **Total items:** 33
+- **Done:** 28
+- **Partial:** 1 (AC-5, the Blocker; a rerun, not missing work)
+- **Skipped:** 0
+- **Changed:** 4 (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The operator makes the LNS ignore proxy LCP and negotiate LCP itself | interop | `l2tp-lns-lcp-renegotiate-pppd`: clean pass, then red with the gate forced off (`c15-leaf-ignored`: `if false` in place of `if start.RenegotiateProxyLCP`) at `waitPPPDAddress` (`rwinv/interop-1319.log`, `out-interop/c15-renegotiate-pppd-broken.log`) |
+| A Ze CPE behind a realm-relaying Ze LAC comes up through a renegotiating Ze LNS | interop | `access-wholesale`: clean `1 passed`, broken red with "no LCP Configure-Request from 192.0.2.3" (`rwinv/interop-1319-c.log`) |
+| The flag reaches the driver from the reactor | unit, red walk | `TestL2TPProxyLCPRenegotiateReachesDriver` clean 3 PASS (`out-c12c15/c15-driver-clean.log`). With the reactor dropping the flag (`c15-reactor-drops-flag`), the renegotiate subtest fails: expected 0xc021, actual 0xc223, "first frame must be LCP, not an auth challenge" (`out-c12c15/c15-reactor-drops-flag.log`) |
+| The leaf validates and loads | functional | `test/l2tp/lns-proxy-lcp-config.ci`, 80 stress runs and no failure, then green in the l2tp suite (a6d26a1fa0) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | | |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/home-cpe-15-lns-lcp-renegotiation-7e292f27-ced0-427f-a7b6-3a931db211f9.md` |
+| `./le spec review check` | clean: "OK (28 code files, clean, hashes match)" |
+| Rounds | 2 |
+| Reviewer lenses used | wiring, functional coverage, documentation drift, logic and locking (`setProxyLCPPolicy` and the `reactor_kernel.go` policy snapshot under `tunnelsMu`), security (an untrusted LAC on renegotiate), style (no `panic`, `go func` or Sprintf in shipped Go), removed-behavior (the old `EvaluateProxyLCP` and `acceptProxyPolicy` sequence is kept inside `admitProxyLCP`) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | AC-4 had no test: no driver test set `RenegotiateProxyLCP` without proxy AVPs, and none checked the `none` outcome at the driver | `ppp/proxy_renegotiate_test.go` | b58db96452 `TestDriverProxyLCPRenegotiateNoProxyIsNormalPath`. Red walk: `admitProxyLCP` answering Renegotiated for an absent proxy gives "EventLCPUp.ProxyLCP = renegotiated, want none" (`scratch/c15-close/ac4-broken.log`) |
+
+Run 2, over b58db96452: 0 BLOCKER, 0 ISSUE. NOTEs: the interop row's directory was recorded as `interop-l2tp` (now under Deviations), and the Integration Checklist named an `invalid` label value that does not exist (also under Deviations).
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/l2tp/lns-proxy-lcp-config.ci` | yes | ls at closure |
+| `test/interop-topology/scenarios/access-wholesale/` | yes | `users`, `ze-lac.conf`, `ze-lns.conf` |
+| `test/interop-topology/scenarios/l2tp-lns-lcp-renegotiate-pppd/` | yes | `users`, `ze-lac.conf`, `ze-lns.conf` |
+| `internal/le/interoplab/topology/register_wholesale.go`, `check_wholesale.go`, `check_wholesale_test.go` | yes | ls at closure |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-4 | driver behavior | `go test -race` with the feature tags, `internal/component/l2tp/ppp`, 8 proxy LCP tests PASS (`scratch/c15-close/ac4-clean.log`, 2026-11-08 ~20:10 UTC) |
+| AC-5 | reload | owed (Blocker) |
+| AC-6 | session JSON | `cmd/l2tp.go` `sessionJSON` writes `proxy-lcp`; `TestSessionJSONProxyLCPOutcome` in the host unit run (`scratch/c15-units.log`) |
+| AC-7 | guide and citations | grep for `can renegotiate`, `S18`, `Section 18` and `§18` returns nothing |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze config validate` with `proxy-lcp` | `test/l2tp/lns-proxy-lcp-config.ci` | read: it validates both values, refuses `trust` naming the allowed values, and reads back `"proxy-lcp": "renegotiate"` |
+| `proxy-lcp renegotiate` with ICCN AVPs 26-28 | none (`TestL2TPProxyLCPRenegotiateReachesDriver` plus the two interop scenarios) | the red walk above |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `l2tp-lns-lcp-renegotiate-pppd` clean pass; `check_wholesale.go` `pppdRenegotiationVerdict` reads the second LCP negotiation in pppd's log |
+| A-2 | confirmed | child 12 (a02374d9ad and earlier) gave the Ze CPE an RCR-in-Opened renegotiation. `access-wholesale` was red at the CPE address before it (`rwinv/interop-1319-b.log`) and passed after (`interop-1319-c.log`) |
+| A-3 | confirmed | `TestNonLCPBeforeOpenedDiscarded` PASS |
+| A-4 | confirmed | `TestProxyLCPPAPWaitsForRetransmittedRequest` PASS |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Guide `proxy-lcp` table | `ppp/proxy.go` `admitProxyLCP` (partial or malformed proxy goes to renegotiate; the flag check comes first) | yes |
+| Metric `ze_l2tp_session_lcp_opened_total{proxy_lcp}` | `metrics.go` `bindL2TPMetrics`, `countSessionLCPOpened` | yes |
+| `show l2tp session id <id>` `proxy-lcp` | `cmd/l2tp.go` `sessionJSON`, `snapshot.go` `proxyLCPOutcomeName` | yes |
+| Reload row | `subsystem_reload.go`, the `ProxyLCP` hot-apply branch | yes |
+| RFC summaries | no new tagged unit (the diff adds no `RFC requirement:` line). `./le rfc check` shows SHIFTED and STALE verdicts on rfc1661 and rfc2661 units in `rfc1661_phase_lifecycle_test.go` (14d3df65a7), `pppoeclient/rfc1661_lcp_reply_test.go` (a02374d9ad) and `rfc2661_session_fsm_test.go` (79e3205310). None of those files is in this spec's diff (`scratch/c15-close-rfccheck.log`) | yes |
