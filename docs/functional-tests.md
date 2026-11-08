@@ -400,6 +400,29 @@ option line in each file since.
 <!-- source: internal/test/runner/record_dut_store.go -- dutStore, parseOptionStorage, env -->
 <!-- source: internal/test/runner/runner_exec.go -- runTest, runOrchestrated -->
 
+The store lives under the child's config root, `ze.config.dir`: the test's
+work directory, or the daemon's config directory in an orchestrated test. A
+child holds that key under one spelling only. `env.Get` reads `ze.config.dir`,
+`ze_config_dir` and `ZE_CONFIG_DIR` as one key and prefers a dotted spelling
+whatever the order. So the runner removes every earlier spelling before it sets
+the root, the store selector and each `option=env` entry. A root inherited from
+the developer's shell never reaches any test child (`droppedFromChild`). A `.ci` that declares
+`option=env:var=ZE_CONFIG_DIR:value=.` decides as surely as one that spells it
+`ze.config.dir`. `ze init` (seed) and `ze start` then resolve the same root.
+<!-- source: internal/test/runner/record_dut_store.go -- dutEnv, withEntry -->
+<!-- source: internal/test/runner/harness_exec.go -- droppedFromChild -->
+<!-- source: internal/test/runner/record_dut_store_root_test.go -- TestDUTRootIsOneAcrossSpellings -->
+
+No check derives which tests need the disk store. The dependence is a
+run-time fact that the `.ci` text does not show: a reader needs the disk only
+when the DUT created the store. A store seeded first (`ze init`, a fixture) is
+on disk under either selector, so `storage/tree data-backup` reads its store on
+the memory default. One fixture name serves cases of both kinds
+(`storage/tree` runs five cases on disk and sixteen on memory), and two
+orchestrated DUTs may share one config directory at the same time. The
+`option=storage` line is therefore the author's declaration. A missing one shows
+as a read of an absent store or as state lost across a restart.
+
 ### Looking-glass certificate persistence
 
 The LG TLS fixture seeds a known certificate and key through `storage.Open`

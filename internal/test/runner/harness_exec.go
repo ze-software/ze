@@ -108,8 +108,16 @@ const storeTrimOffEntry = storeTrimVariable + "=off"
 // droppedFromChild answers whether an inherited environment entry name is one
 // no test child receives. env.Get matches case-insensitively and reads a dot as
 // an underscore, so every spelling of the key is dropped.
+//
+// The developer's own config root (dutConfigRootKey) is dropped too: a child
+// reading it would seed, start or edit the operator's store. A DUT gets its
+// test's root from dutEnv, and any other child gets none.
 func droppedFromChild(name string) bool {
-	return strings.EqualFold(strings.ReplaceAll(name, ".", "_"), leBuildNameVariable)
+	normalized := strings.ReplaceAll(name, ".", "_")
+	if strings.EqualFold(normalized, leBuildNameVariable) {
+		return true
+	}
+	return strings.EqualFold(normalized, strings.ReplaceAll(dutConfigRootKey, ".", "_"))
 }
 
 // replacedInChild answers whether an inherited environment entry name is the

@@ -851,6 +851,14 @@ No child environment carries `ZE_LE_BUILD_NAME`: a child reached through the
 `le` link is not the named build file, and `refuseWrongBuildName` would refuse
 every one of them under `./le --name x`.
 
+No child environment inherits the developer's `ze.config.dir`, under any
+spelling, so no child seeds, starts or edits the operator's store. A DUT, and
+every process of an orchestrated test, gets its test's root from `dutEnv`
+instead (`docs/functional-tests.md`, "The DUT's store"). Any other child gets
+none.
+<!-- source: internal/test/runner/harness_exec.go -- droppedFromChild -->
+<!-- source: internal/test/runner/record_dut_store.go -- dutEnv -->
+
 Every child environment carries `ze_le_store_trim=off`, and an inherited
 spelling of that key is dropped. Every `le` call otherwise starts le's hourly
 store trim in the checkout it is pointed at, as a detached child that writes

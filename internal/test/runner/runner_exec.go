@@ -323,7 +323,6 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) (pa
 		textbuf.StrInt("ze_test_bgp_port=", int64(rec.Port)),
 		// NOTE: ze_bgp_tcp_bind removed - listeners now derived from peer LocalAddress
 		r.childPathEnv(),
-		"ze.config.dir="+rec.WorkDir,
 		// SLOG_LEVEL=DEBUG was set here until 2026-09-04 and nothing has ever
 		// read it: slogutil resolves a level from `ze.log*` alone
 		// (internal/core/slogutil), and a grep for the name finds no consumer
@@ -337,18 +336,11 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) (pa
 		// a constant: see pluginStageStall (plugin_stage_stall.go).
 		r.pluginStageStallEnv(testBudget),
 	)
-	// The store a ze DUT creates when its work directory holds none: memory
-	// unless the .ci asks for the disk (option=storage, record_dut_store.go).
-	// Before EnvVars, so an explicit option=env still decides.
-	if storeEnv := rec.DUTStore.env(); storeEnv != "" {
-		clientEnv = append(clientEnv, storeEnv)
-	}
-
-	// Add test-specific environment variables (the port placeholders expand
-	// like exec strings so per-test ports work in env knobs too).
-	for _, kv := range rec.EnvVars {
-		clientEnv = append(clientEnv, ExpandPorts(kv, rec.Port))
-	}
+	// The config root, the store a ze DUT creates when its work directory holds
+	// none (memory unless the .ci asks for the disk, option=storage), then the
+	// .ci's own option=env entries, so an explicit option=env still decides
+	// (record_dut_store.go, dutEnv).
+	clientEnv = rec.dutEnv(clientEnv, rec.WorkDir)
 
 	// Add syslog destination if syslog server is running.
 	// These use the ze.log.backend / ze.log.destination convention from
@@ -919,7 +911,6 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			// load); the destination is still reported unreachable. See checks_reach.go.
 			"ze.test.doctor.probe-timeout=250ms",
 		)
-		proc.Env = append(proc.Env, "ze.config.dir="+configDir)
 		// Only set ze_test_bgp_port for ze and the peer. Other processes
 		// (e.g., le chaos run --in-process) manage their own port configuration and
 		// the override breaks their mock network setup.
@@ -942,17 +933,12 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			proc.Env = append(proc.Env,
 				textbuf.StrInt("ZE_TEST_NETNS_HOST=", int64(netnsHostInode)))
 		}
-		// The store a ze DUT creates when none exists, as runTest sets it: for
-		// every child, so a fixture that launches ze passes it on.
-		if storeEnv := rec.DUTStore.env(); storeEnv != "" {
-			proc.Env = append(proc.Env, storeEnv)
-		}
-		// Add test-specific environment variables (option=env:var=KEY:value=VALUE).
-		// The port placeholders expand like exec strings so per-test ports work
-		// in env knobs too (e.g. ze.test.ike.port shared by a two-daemon IKE pair).
-		for _, kv := range rec.EnvVars {
-			proc.Env = append(proc.Env, ExpandPorts(kv, rec.Port))
-		}
+		// The config root, the store a ze DUT creates when none exists, and the
+		// .ci's own option=env entries, as runTest sets them: for every child,
+		// so a fixture that launches ze passes them on. The port placeholders
+		// expand like exec strings so per-test ports work in env knobs too (e.g.
+		// ze.test.ike.port shared by a two-daemon IKE pair).
+		proc.Env = rec.dutEnv(proc.Env, configDir)
 		// Tell ze daemons to write a readiness file after signal handlers are
 		// registered. The test runner waits for this file before writing
 		// daemon.pid, eliminating a startup race condition. Armed for both

@@ -4,7 +4,12 @@
 
 package runner
 
-import "errors"
+import (
+	"errors"
+	"strings"
+
+	"github.com/ze-software/ze/internal/core/env"
+)
 
 // dutStore is the config store a ze DUT creates when its work directory holds
 // none. The zero value is the default a .ci gets by writing nothing, and it is
@@ -55,4 +60,39 @@ func (s dutStore) env() string {
 		return ""
 	}
 	panic("BUG: dutStore holds a value no constant names")
+}
+
+// dutConfigRootKey is the config root a ze child seeds and starts under
+// (internal/core/paths, DefaultConfigDir).
+const dutConfigRootKey = "ze.config.dir"
+
+// dutEnv answers environ with a DUT's store choices applied, in order: the
+// config root, the store selector, then the .ci's own option=env entries, so
+// an explicit option=env still decides. runTest and runOrchestrated both call
+// it, so every child of a test gets the same answer.
+//
+// Each entry replaces every earlier spelling of its key. env.Get reads a key
+// case-insensitively with a dot and an underscore as one separator, and
+// prefers a dotted spelling whatever the order, so an appended entry did not
+// decide: an inherited ze.config.dir or the runner's own dotted root beat a
+// .ci's `option=env:var=ZE_CONFIG_DIR`, while the same declaration spelled
+// with dots won. Seed (`ze init`, DefaultConfigDir) and start then resolved a
+// different root for one declaration, and a non-Go reader of ZE_CONFIG_DIR
+// saw the operator's store.
+func (r *Record) dutEnv(environ []string, root string) []string {
+	environ = withEntry(environ, dutConfigRootKey+"="+root)
+	if storeEnv := r.DUTStore.env(); storeEnv != "" {
+		environ = withEntry(environ, storeEnv)
+	}
+	for _, kv := range r.EnvVars {
+		environ = withEntry(environ, ExpandPorts(kv, r.Port))
+	}
+	return environ
+}
+
+// withEntry answers environ with entry as the only spelling of its key.
+// It may reuse environ's backing array, as append does.
+func withEntry(environ []string, entry string) []string {
+	name, _, _ := strings.Cut(entry, "=")
+	return append(env.Without(environ, name), entry)
 }
