@@ -106,7 +106,7 @@ below. Thomas answered its decisions D8-1 to D8-4 (table 8.10).
 
 ### RFC Summaries (Scope: protocol)
 - [ ] `rfc/short/rfc4301.md` - rows RFC4301-4.4.1-5 and RFC4301-4.4.1-8
-  → Constraint: both rows cite `plan/spec-ipsec-spd-selection.md`, a path that does not exist; the row edit names `plan/post-release/features/spec-ipsec-spd-selection.md`
+  → Constraint: both rows once cited this spec at the root of `plan/`, where it never lived; the row edit names `plan/post-release/features/spec-ipsec-spd-selection.md`
 - [ ] `rfc/requirements/rfc4301.md` - the same rows, same stale path
 
 **Key insights:**
