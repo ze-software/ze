@@ -401,6 +401,11 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   shared-checkout friction inside that model.
 - Close in-progress specs before opening new ones. The WIP cap is lowered as
   specs close, never raised.
+- A spec whose work is committed may be claimed above the WIP cap only to
+  close it: the closure agent sets `ZE_SPEC_WIP_CAP` one above the current
+  in-progress count for that claim, closes the spec in the same run and
+  releases the claim. That is not a raise of the cap, and it is never used to
+  start work.
 - A handover lives in the repository (`plan/handover/`) and is committed in the
   turn it is written, never only in a session directory.
 - Test selectively: run only the tests the change reaches (its packages, its
