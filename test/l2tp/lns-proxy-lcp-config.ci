@@ -1,0 +1,37 @@
+# Test: the LNS proxy LCP policy leaf `l2tp proxy-lcp` validates, loads and
+# reads back, and a value outside its enumeration is refused naming the
+# allowed values.
+# VALIDATES: spec-home-cpe-15 wiring row 2 (`ze config validate` with the
+# leaf reaches ExtractParameters). The driver behaviour the leaf selects is
+# proven by TestL2TPProxyLCPRenegotiateReachesDriver and the
+# l2tp-lns-lcp-renegotiate-pppd interop scenario.
+# PREVENTS: a leaf the schema accepts but the loader drops, and an unknown
+# policy silently read as the default.
+option=timeout:value=60s
+
+stdin=renegotiate:terminator=EOF_RENEGOTIATE
+l2tp { proxy-lcp renegotiate; }
+EOF_RENEGOTIATE
+stdin=accept:terminator=EOF_ACCEPT
+l2tp { proxy-lcp accept; }
+EOF_ACCEPT
+stdin=unknown:refused=config-parse:terminator=EOF_UNKNOWN
+l2tp { proxy-lcp trust; }
+EOF_UNKNOWN
+
+# Each validation owns its exit expectation.
+cmd=foreground:seq=1:exec=ze config validate -:stdin=renegotiate:exit=0
+cmd=foreground:seq=2:exec=ze config validate -:stdin=accept:exit=0
+cmd=foreground:seq=3:exec=ze config validate -:stdin=unknown:exit=1
+expect=stdout:contains=proxy-lcp
+expect=stdout:contains=trust
+expect=stdout:contains=accept
+expect=stdout:contains=renegotiate
+
+# The dump requires a minimal BGP root but the validation inputs above do not.
+stdin=readback:terminator=EOF_READBACK
+bgp { router-id 192.0.2.1; }
+l2tp { proxy-lcp renegotiate; }
+EOF_READBACK
+cmd=foreground:seq=4:exec=ze cli -c "show config dump - | json":stdin=readback:exit=0
+expect=stdout:pattern="proxy-lcp":\s*"renegotiate"
