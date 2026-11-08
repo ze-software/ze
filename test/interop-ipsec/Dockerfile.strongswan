@@ -64,7 +64,9 @@ RUN gcc -O2 -Wall -Wextra -Werror -o /out/usr/bin/rawprobe /src/rawprobe/rawprob
 
 FROM alpine:3.24.3
 
-RUN apk add --no-cache gmp iproute2 iptables libcurl openssl sqlite-libs tini
+# ip6tables is the WAN-side packet counter of vti-ipv6-tunnel-source-no-cleartext-leak
+# (wanCounter, internal/le/interoplab/ipsec/vtispd.go); Alpine ships it apart from iptables.
+RUN apk add --no-cache gmp iproute2 iptables ip6tables libcurl openssl sqlite-libs tini
 
 COPY --from=build /out/ /
 

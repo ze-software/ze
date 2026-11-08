@@ -2433,6 +2433,49 @@ fail at the state row and the ping.
 <!-- source: test/interop-ipsec/scenarios/vti-ipv6-inner-ipv4-outer/swanctl.conf -- local_ts and remote_ts ::/0, esp_proposals -->
 <!-- source: internal/component/ike/engine/rekey.go -- respondChildRekey -->
 
+`vti-unmatched-discard-interface-spd` proves RFC 4301 Section 4.4.1's SPD selection
+function and each XFRM interface SPD's own final entry under `unmatched discard`.
+Ze binds one Child SA carrying 10.255.1.0/24 to 10.255.2.0/24 and fd00:db8:1::/64
+to fd00:db8:2::/64 to `vti0` (if_id 7); strongSwan's child names the same pairs, so
+`select_` (`traffic_selector_list.c`) answers them unchanged. The checker requires
+IPv4 and IPv6 to cross the tunnel both ways, each Ze-initiated round trip counted
+by all four simplex SAs: Linux looks Ze's packet up at if_id 0 first, where the
+DISCARD catch-all would drop it, so only the selection entries hand it to `vti0`'s
+SPD. It requires `vti0`'s SPD to hold a BLOCK at priority 4294967295 in, out and
+fwd for both families. Last it pings 10.255.9.1 and fd00:db8:9::1, which ze.conf
+routes into `vti0` outside every selector: every echo must be lost, `vti0`'s
+`tx_errors` must rise (`xfrmi_xmit` counts the failed lookup), and
+`XfrmOutPolBlock` must rise, so the drop happened inside `vti0`'s SPD rather than
+at if_id 0. The red walk rebuilds the Ze image without the exemptions
+(`xfrmInterfaceExemptions` answering nothing) and must fail at the first ping.
+
+`vti-ipv6-tunnel-source-no-cleartext-leak` proves the tunnel-source guard from the
+WAN side. IPv6 is on for both lab interfaces: strongSwan's checker writes its
+sysctls (`writesPeerSysctl`), while Ze keeps a read-only `/proc/sys` and Docker
+writes `net.ipv6.conf.all.disable_ipv6=0` into its namespace at start (the
+scenario's `zeSysctls`, `zeIPv6On`), which the checker reads back for `eth0`
+before counting. The checker gives strongSwan the WAN-only
+destination 2001:db8:99::1 on `lo`, and routes it on Ze out of `eth0` through a
+static neighbour with `vti0`'s address fd00:db8:1::1 as the preferred source. Its
+observer is an `ip6tables` INPUT counter in strongSwan's namespace per source.
+Before counting, it requires the leak path to exist: the if_id 0 source BYPASS for
+fd00:db8:1::1, the guard's `ip -6 rule` from it, and the kernel choosing `eth0` and
+fd00:db8:1::1 for the destination. A positive control, ICMPv6 from `eth0`'s own
+address passed by the `wan-control` bypass, must reach the counter. Then echoes from
+the tunnel address, socket-chosen (`ping -I`, steered by the rule) and
+kernel-chosen (no source, dropped by the postrouting term), must leave the
+counter at zero. The red walk rebuilds the Ze image with the source exemption
+installed whether or not its guard holds (the `!guarded[source]` test in
+`installXFRMInterfaceEntries` answering false) and with no guard installed, and must
+fail at the zero count. Removing the guard alone is not that break: the source
+exemption waits for its guard, so the leak path itself would be missing and the run
+would stop at the leak-path check instead.
+
+<!-- source: internal/le/interoplab/ipsec/vtispd.go -- checkVTIUnmatchedDiscardInterfaceSPD, spdDropsOutsideSelectors, requireInterfaceSPDCatchAll, checkVTIIPv6TunnelSourceNoCleartextLeak, leakWANPath, leakPathExists, wanCounter -->
+<!-- source: internal/le/interoplab/ipsec/checkers.go -- zeSysctls, zeIPv6On -->
+<!-- source: test/interop-ipsec/scenarios/vti-unmatched-discard-interface-spd/ze.conf -- unmatched discard, routes outside the selectors -->
+<!-- source: test/interop-ipsec/scenarios/vti-ipv6-tunnel-source-no-cleartext-leak/ze.conf -- wan-control bypass -->
+
 ### IPsec virtual-IP leases
 
 Two scenarios prove Ze as the IRAS of RFC 7296 Section 2.19: a strongSwan client

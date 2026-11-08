@@ -83,6 +83,8 @@ func ipsecPeerGrants(scenario, peer string) grantcheck.Grants {
 			grants.AppArmorProfile = interoplab.NetSysctlAppArmorProfileName
 		}
 		return grants
+	case zePeer:
+		return grantcheck.Grants{Capabilities: []string{"NET_ADMIN"}, Sysctls: scenarioCheckers[scenario].zeSysctls}
 	case natPeer:
 		return grantcheck.Grants{Capabilities: []string{"NET_ADMIN"}, Sysctls: natSysctls}
 	}
@@ -95,7 +97,8 @@ func ipsecPeerGrants(scenario, peer string) grantcheck.Grants {
 // (cutting its reassembly marks, or enabling IPv6 on its lab interface;
 // writesPeerSysctl on its checker entry) and only there, gets /proc/sys
 // writable under the generic net sysctl profile, which grants every sysctl
-// those checkers write; ze gets neither.
+// those checkers write; ze gets neither, and takes only the --sysctl values its
+// scenario's entry declares (zeSysctls), which Docker writes at start.
 // PREVENTS: a lab peer silently running --privileged again, or a grant drifting
 // from the writes the lab makes.
 func TestIPsecLabPeersRunWithoutPrivilege(t *testing.T) {

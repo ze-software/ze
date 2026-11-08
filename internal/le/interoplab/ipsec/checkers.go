@@ -30,7 +30,16 @@ type scenarioCheck struct {
 	// scenario's strongSwan gets /proc/sys writable, under the generic net
 	// sysctl profile; every other strongSwan keeps Docker's read-only /proc/sys.
 	writesPeerSysctl bool
+	// zeSysctls are `key=value` settings Docker writes through `--sysctl` into
+	// Ze's own network namespace at start, as natSysctls does for the NAT box. Ze
+	// never gets /proc/sys writable: a checker reads these back, it never writes.
+	zeSysctls []string
 }
+
+// zeIPv6On enables IPv6 on every interface of Ze's namespace, eth0 included,
+// which Docker disables on a network with no IPv6. The topology labs start
+// their IPv6 nodes the same way (ipv6On, register_pppoe_dhcpv6_pd.go).
+var zeIPv6On = []string{"net.ipv6.conf.all.disable_ipv6=0"}
 
 var scenarioCheckers = map[string]scenarioCheck{
 	"child-rekey":                                     {run: checkChildRekey},
@@ -106,6 +115,13 @@ var scenarioCheckers = map[string]scenarioCheck{
 	// IPv6 inside an IPv4 Child SA on vti0: the checker enables IPv6 on strongSwan's
 	// lab interface, where its policy-based tunnel decapsulates (vtiipv6.go).
 	"vti-ipv6-inner-ipv4-outer": {run: checkVTIIPv6InnerIPv4Outer, writesPeerSysctl: true},
+	// The SPD selection function and vti0's own final entry under `unmatched discard`
+	// (vtispd.go). strongSwan decapsulates IPv6 onto its lab interface, as above.
+	"vti-unmatched-discard-interface-spd": {run: checkVTIUnmatchedDiscardInterfaceSPD, writesPeerSysctl: true},
+	// The tunnel-source guard, observed from strongSwan's side of the WAN (vtispd.go).
+	// Both lab interfaces carry IPv6 for the WAN path: strongSwan's checker writes
+	// its sysctls, and Docker enables Ze's at start (zeIPv6On).
+	"vti-ipv6-tunnel-source-no-cleartext-leak": {run: checkVTIIPv6TunnelSourceNoCleartextLeak, writesPeerSysctl: true, zeSysctls: zeIPv6On},
 	// RFC 8247 Section 3.1 legacy signatures: strongSwan runs with RFC 7427 off, so
 	// Ze signs and verifies the AUTH method of each key (legacysig.go).
 	"x509-legacy-ecdsa-p256-signature": {run: checkLegacySignature("ECDSA-256 signature")},

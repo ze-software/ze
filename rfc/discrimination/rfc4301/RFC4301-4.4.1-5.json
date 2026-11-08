@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4301-4.4.1-5",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_spd_selection_test.go::TestRFC4301SPDSelectionByOutputInterface",
+    "unit-sha": "623f0d92b76926f4",
+    "claim-sha": "ed3db6ec4123226f",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/unmatched_xfrm_interface.go::xfrmInterfaceExemptions",
+    "producer-sha": "a6dac5f19d0e6b77",
+    "break": "line 103: \"range xfrmExemptionDirections {\" -\u003e \"range xfrmExemptionDirections[:0] {\""
+  },
+  {
+    "rid": "RFC4301-4.4.1-5",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_spd_selection_test.go::TestRFC4301SPDSelectionLeavesOtherTrafficInTheNodeSPD",
+    "unit-sha": "06953caa5c3d0eb6",
+    "claim-sha": "2e30d7f7026404a1",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/unmatched_xfrm_interface.go::xfrmInterfaceExemptions",
+    "producer-sha": "a6dac5f19d0e6b77",
+    "break": "line 113: \"facts.ifIndex\" -\u003e \"0\""
+  }
+]
