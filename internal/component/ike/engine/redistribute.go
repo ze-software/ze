@@ -43,20 +43,49 @@ func registerIPsecProducer() bool {
 
 var ipsecRouteChange = events.Register[*redistevents.RouteChangeBatch](ipsecName, redistevents.EventType)
 
-func emitRouteAdd(bus ze.EventBus, tsRemote *net.IPNet, log *slog.Logger) {
+// emitRouteAdd announces every remote traffic selector child installs a policy for, one
+// route-change batch per prefix. A Child SA can negotiate several selector pairs (IPv4
+// first and IPv6 second on a route-based xfrm interface), and TSRemote holds only the
+// first, so the prefixes come from childRemotePrefixes: announcing TSRemote alone left
+// every later pair's prefix unknown to the redistribute consumers. A batch carries one
+// AFI, so each prefix travels in its own. emitRouteRemove withdraws the same set.
+func emitRouteAdd(bus ze.EventBus, child *ChildSA, log *slog.Logger) {
 	if bus == nil {
 		log.Warn("ipsec: emit route-change skipped: no event bus")
 		return
 	}
-	if tsRemote == nil {
-		log.Warn("ipsec: emit route-change skipped: nil tsRemote")
+	if child == nil {
+		log.Warn("ipsec: emit route-change skipped: nil Child SA")
 		return
 	}
-	log.Debug("ipsec: emitting route-change add", "prefix", tsRemote.String())
-	prefix, ok := netIPNetToPrefix(tsRemote)
-	if !ok {
+	prefixes := childRemotePrefixes(child)
+	if len(prefixes) == 0 {
+		log.Warn("ipsec: emit route-change skipped: Child SA has no remote traffic selector")
 		return
 	}
+	for _, prefix := range prefixes {
+		log.Debug("ipsec: emitting route-change add", "prefix", prefix.String())
+		emitRouteChange(bus, redistevents.ActionAdd, prefix, log)
+	}
+}
+
+// emitRouteRemove withdraws every prefix emitRouteAdd announced for child. Both read
+// childRemotePrefixes, so the withdrawal names exactly the announced set; a Child SA's
+// selectors never change while it lives (a rekey builds a new ChildSA).
+func emitRouteRemove(bus ze.EventBus, child *ChildSA, log *slog.Logger) {
+	if bus == nil {
+		return
+	}
+	if child == nil {
+		return
+	}
+	for _, prefix := range childRemotePrefixes(child) {
+		emitRouteChange(bus, redistevents.ActionRemove, prefix, log)
+	}
+}
+
+// emitRouteChange publishes one route-change batch carrying prefix under action.
+func emitRouteChange(bus ze.EventBus, action redistevents.RouteAction, prefix netip.Prefix, log *slog.Logger) {
 	batch := redistevents.AcquireBatch()
 	batch.Protocol = ipsecProtocolID
 	if prefix.Addr().Is4() {
@@ -67,41 +96,14 @@ func emitRouteAdd(bus ze.EventBus, tsRemote *net.IPNet, log *slog.Logger) {
 		batch.SAFI = 1
 	}
 	batch.Entries = append(batch.Entries, redistevents.RouteChangeEntry{
-		Action: redistevents.ActionAdd,
+		Action: action,
 		Prefix: prefix,
 	})
 	n, err := ipsecRouteChange.Emit(bus, batch)
 	if err != nil {
-		log.Warn("ipsec: emit route-change add failed", "error", err)
+		log.Warn("ipsec: emit route-change failed", "action", action, "prefix", prefix.String(), "error", err)
 	} else {
-		log.Debug("ipsec: route-change add delivered", "prefix", tsRemote.String(), "subscribers", n)
-	}
-	redistevents.ReleaseBatch(batch)
-}
-
-func emitRouteRemove(bus ze.EventBus, tsRemote *net.IPNet, log *slog.Logger) {
-	if bus == nil || tsRemote == nil {
-		return
-	}
-	prefix, ok := netIPNetToPrefix(tsRemote)
-	if !ok {
-		return
-	}
-	batch := redistevents.AcquireBatch()
-	batch.Protocol = ipsecProtocolID
-	if prefix.Addr().Is4() {
-		batch.AFI = 1
-		batch.SAFI = 1
-	} else {
-		batch.AFI = 2
-		batch.SAFI = 1
-	}
-	batch.Entries = append(batch.Entries, redistevents.RouteChangeEntry{
-		Action: redistevents.ActionRemove,
-		Prefix: prefix,
-	})
-	if _, err := ipsecRouteChange.Emit(bus, batch); err != nil {
-		log.Debug("ipsec: emit route-change remove failed", "error", err)
+		log.Debug("ipsec: route-change delivered", "action", action, "prefix", prefix.String(), "subscribers", n)
 	}
 	redistevents.ReleaseBatch(batch)
 }

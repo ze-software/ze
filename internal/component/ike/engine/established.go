@@ -168,7 +168,7 @@ func (ps *PeerSession) runEstablished(
 			log.Debug("ike: tunnel route nil tsRemote", "peer", ps.peerName)
 		}
 		emitChildUp(bus, ps.peerName, child, log)
-		emitRouteAdd(bus, child.TSRemote, log)
+		emitRouteAdd(bus, child, log)
 		guardTunnelRoute(true, ps.peerName, child, log)
 		childLT = newLifetimeState(ps.getESPGroup().Lifetime)
 	}
@@ -365,7 +365,7 @@ func (ps *PeerSession) maintainSA(
 			return nil
 		case <-routeReannounce.C:
 			if child := ps.getChildSA(); child != nil {
-				emitRouteAdd(bus, child.TSRemote, log)
+				emitRouteAdd(bus, child, log)
 				guardTunnelRoute(true, ps.peerName, child, log)
 			}
 		case request := <-ps.probeRequests:
@@ -477,14 +477,14 @@ func (ps *PeerSession) maintainSA(
 				ps.childCreate.stop()
 				childLT = newLifetimeState(ps.getESPGroup().Lifetime)
 				emitChildUp(bus, ps.peerName, out.createdChild, log)
-				emitRouteAdd(bus, out.createdChild.TSRemote, log)
+				emitRouteAdd(bus, out.createdChild, log)
 				guardTunnelRoute(true, ps.peerName, out.createdChild, log)
 			}
 			if out.newChild != nil {
 				childLT = newLifetimeState(ps.getESPGroup().Lifetime)
 				ps.incRekeyCount()
 				emitChildRekey(bus, ps.peerName, out.newChild, log)
-				emitRouteAdd(bus, out.newChild.TSRemote, log)
+				emitRouteAdd(bus, out.newChild, log)
 				guardTunnelRoute(true, ps.peerName, out.newChild, log)
 			}
 		case now := <-ticker.C:
@@ -1066,7 +1066,7 @@ func (ps *PeerSession) cleanupChild(dp dataplane.Dataplane, bus ze.EventBus, log
 	if live != nil {
 		removeChildSAExcept(live, firstSharingSelector(live, pending), dp, log)
 		emitChildDown(bus, ps.peerName, live, log)
-		emitRouteRemove(bus, live.TSRemote, log)
+		emitRouteRemove(bus, live, log)
 		guardTunnelRoute(false, ps.peerName, live, log)
 		log.Info("ike: tunnel routes withdrawn", "peer", ps.peerName)
 		ps.setChildSA(nil)

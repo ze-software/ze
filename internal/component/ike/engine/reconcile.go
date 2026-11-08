@@ -761,7 +761,7 @@ func stopPeerSession(
 	if child := ps.getChildSA(); child != nil {
 		removeChildSA(child, dp, log)
 		emitChildDown(bus, name, child, log)
-		emitRouteRemove(bus, child.TSRemote, log)
+		emitRouteRemove(bus, child, log)
 		guardTunnelRoute(false, name, child, log)
 		ps.setChildSA(nil)
 	}
