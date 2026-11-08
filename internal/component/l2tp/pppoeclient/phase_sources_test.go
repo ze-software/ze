@@ -25,7 +25,7 @@ func TestClientIPCPConnectedSources(t *testing.T) {
 		w := &recordingRWC{}
 		var buf [ppp.MaxFrameBufLen]byte
 		id := uint8(7)
-		got, err := negotiateIPCP(w, testFrameReader(t, frames, unit), buf[:], clientMagic, 1492, nil, &id, make(chan struct{}), slog.New(slog.NewTextHandler(io.Discard, nil)), new(uint8))
+		got, err := negotiateIPCP(w, testFrameReader(t, frames, unit), buf[:], clientMagic, 1492, nil, &id, make(chan struct{}), slog.New(slog.NewTextHandler(io.Discard, nil)), new(uint8), nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -55,7 +55,7 @@ func TestClientIPCPConnectedControl(t *testing.T) {
 		frames := make(chan readFrame, 1)
 		frames <- clientRenegotiationRequest()
 		var buf [ppp.MaxFrameBufLen]byte
-		_, err := negotiateIPCP(io.Discard, testFrameReader(t, frames, make(chan readFrame)), buf[:], clientMagic, 1492, nil, new(uint8), make(chan struct{}), slog.New(slog.NewTextHandler(io.Discard, nil)), new(uint8))
+		_, err := negotiateIPCP(io.Discard, testFrameReader(t, frames, make(chan readFrame)), buf[:], clientMagic, 1492, nil, new(uint8), make(chan struct{}), slog.New(slog.NewTextHandler(io.Discard, nil)), new(uint8), nil)
 		var pending *lcpReentry
 		if !errors.As(err, &pending) {
 			t.Fatalf("channel reentry = %v", err)
@@ -92,7 +92,7 @@ func TestClientConnectedUnitFailure(t *testing.T) {
 					case "auth":
 						err = runClientAuth(w, testFrameReader(t, make(chan readFrame), unit), buf[:], lcpResult{authProto: ppp.ProtoCHAP}, sessionConfig{}, clientMagic, make(chan struct{}), logger, new(uint8))
 					case "ipcp":
-						_, err = negotiateIPCP(w, testFrameReader(t, make(chan readFrame), unit), buf[:], clientMagic, 1492, nil, new(uint8), make(chan struct{}), logger, new(uint8))
+						_, err = negotiateIPCP(w, testFrameReader(t, make(chan readFrame), unit), buf[:], clientMagic, 1492, nil, new(uint8), make(chan struct{}), logger, new(uint8), nil)
 					}
 					if !errors.Is(err, readErr) {
 						t.Fatalf("phase ended with %v, want %v", err, readErr)

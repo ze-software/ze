@@ -47,7 +47,9 @@ const (
 // treated as independent of each other and start and terminate
 // independently."
 //
-// One worker, keepaliveLoop, owns it; it is not safe for concurrent use.
+// One worker owns it at a time: negotiateIPCP while IPCP negotiates (IPv6CP
+// starts there, beside IPCP), then keepaliveLoop. It is not safe for
+// concurrent use.
 // newClientIPv6CP is its only producer.
 type clientIPv6CP struct {
 	state ppp.LCPState
@@ -484,30 +486,40 @@ func (c *clientIPv6CP) receiveReject(pkt ppp.LCPPacket, logger *slog.Logger) (ip
 	return ipv6cpUnchanged, nil
 }
 
-// enableIPv6CP attaches the IPv6CP automaton to a connected session. mac is
-// the PPPoE source interface's hardware address; setIPv6Mode MUST be
-// serialized against transport and unit closure, as setIPv4Mode is.
-func (s *connectedSession) enableIPv6CP(mac []byte, setIPv6Mode func(ppp.NPMode) error) error {
-	if setIPv6Mode == nil {
-		return errors.New("pppoe-client: missing connected IPv6 mode control")
+// rejectsIPv6CP reports whether an LCP Protocol-Reject names IPv6CP.
+// RFC 1661 Section 5.7: the Rejected-Protocol field is octets 0..1 of Data.
+func rejectsIPv6CP(pkt ppp.LCPPacket) bool {
+	if len(pkt.Data) < 2 {
+		return false
 	}
-	s.ipv6 = newClientIPv6CP(mac, s.current.peerMRU)
-	s.setIPv6Mode = setIPv6Mode
-	return nil
+	return uint16(pkt.Data[0])<<8|uint16(pkt.Data[1]) == ppp.ProtoIPv6CP
 }
 
-// startIPv6CP begins an IPv6CP epoch: IPv6 is discarded until IPv6CP opens,
-// then the first Configure-Request is sent.
+// enableIPv6CP attaches the IPv6CP automaton that negotiation started (it ran
+// beside IPCP in negotiateIPCP) to a connected session, and applies the state
+// it reached: IPv6 passes when IPv6CP already opened, and is discarded
+// otherwise. setIPv6Mode MUST be serialized against transport and unit
+// closure, as setIPv4Mode is.
 //
 // RFC 1661 Section 3.6: "Any supported network-layer protocol packets
 // received when the corresponding NCP is not in the Opened state MUST be
 // silently discarded."
-func (s *connectedSession) startIPv6CP(buf []byte) error {
-	if err := s.setIPv6Mode(ppp.NPModeDrop); err != nil {
+func (s *connectedSession) enableIPv6CP(ipv6 *clientIPv6CP, setIPv6Mode func(ppp.NPMode) error, logger *slog.Logger) error {
+	if ipv6 == nil {
+		return errors.New("pppoe-client: missing IPv6CP automaton")
+	}
+	if setIPv6Mode == nil {
+		return errors.New("pppoe-client: missing connected IPv6 mode control")
+	}
+	s.ipv6 = ipv6
+	s.setIPv6Mode = setIPv6Mode
+	if ipv6.opened() {
+		return s.applyIPv6CP(ipv6cpOpened, logger)
+	}
+	if err := setIPv6Mode(ppp.NPModeDrop); err != nil {
 		return fmt.Errorf("pppoe-client: cannot hold IPv6 until IPv6CP opens: %w", err)
 	}
-	s.ipv6.peerMRU = s.current.peerMRU
-	return s.ipv6.start(s.transport, buf)
+	return nil
 }
 
 // applyIPv6CP carries an IPv6CP event to the unit and the session result.

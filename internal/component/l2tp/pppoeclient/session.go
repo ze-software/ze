@@ -106,8 +106,10 @@ func requestLCPReentry(pkt ppp.LCPPacket) (*lcpReentry, bool) {
 }
 
 // negotiateSession drives LCP, authentication, and IPCP on the PPP
-// channel fd. Returns the negotiated addresses and MTU.
-func negotiateSession(chanFile io.ReadWriteCloser, reader *frameReader, unitFD, unitNum int, cfg sessionConfig, stopCh <-chan struct{}, logger *slog.Logger) (sessionResult, error) {
+// channel fd. Returns the negotiated addresses and MTU. ipv6 is nil when no
+// ipv6 is configured; otherwise IPv6CP runs beside IPCP and the automaton
+// keeps the state it reached for the connected session.
+func negotiateSession(chanFile io.ReadWriteCloser, reader *frameReader, unitFD, unitNum int, cfg sessionConfig, stopCh <-chan struct{}, logger *slog.Logger, ipv6 *clientIPv6CP) (sessionResult, error) {
 	// Admission precedes the first LCP write, including for a typed-nil link.
 	link, ok := chanFile.(*sessionLink)
 	if !ok {
@@ -118,7 +120,7 @@ func negotiateSession(chanFile io.ReadWriteCloser, reader *frameReader, unitFD, 
 	}
 	var ipcpIdentifier, lcpIdentifier, papIdentifier, ipcpCodeRejectID uint8
 	// RFC 1661 Sections 3.4-3.6: the same owner drives initial and connected negotiation.
-	state, err := negotiatePhases(chanFile, reader, cfg, 0, nil, &ipcpIdentifier, stopCh, logger, &lcpIdentifier, &papIdentifier, &ipcpCodeRejectID)
+	state, err := negotiatePhases(chanFile, reader, cfg, 0, nil, &ipcpIdentifier, stopCh, logger, &lcpIdentifier, &papIdentifier, &ipcpCodeRejectID, ipv6)
 	if err != nil {
 		return sessionResult{}, err
 	}
@@ -735,7 +737,14 @@ func learnedDNS(requested bool, value netip.Addr) netip.Addr {
 // The caller MUST retain it across interrupted negotiations and network handling.
 // The caller MUST supply the existing ordered reader, which enables the unit
 // only after PPPIOCCONNECT and dispatches channel control before unit input.
-func negotiateIPCP(w io.Writer, reader *frameReader, buf []byte, magic uint32, peerMRU uint16, chap *networkPhaseCHAP, identifier *uint8, stopCh <-chan struct{}, logger *slog.Logger, codeRejectID *uint8) (ipcpResult, error) {
+//
+// ipv6 is nil when the pppoe-client configures no ipv6: that nil is a guard,
+// and an IPv6CP frame is then dropped like any unconfigured protocol.
+// Otherwise IPv6CP starts here beside IPCP and runs on the same reader until
+// IPCP opens; the automaton keeps whatever state it reached, and the caller
+// applies it (connectedSession.enableIPv6CP, connectedSession.restart). IPv6
+// stays discarded on the unit for the whole call.
+func negotiateIPCP(w io.Writer, reader *frameReader, buf []byte, magic uint32, peerMRU uint16, chap *networkPhaseCHAP, identifier *uint8, stopCh <-chan struct{}, logger *slog.Logger, codeRejectID *uint8, ipv6 *clientIPv6CP) (ipcpResult, error) {
 	var result ipcpResult
 	requested := ipcpInitialRequest()
 	// RFC 1332 Section 2 uses the LCP exchange mechanism. A new exchange
@@ -748,10 +757,28 @@ func negotiateIPCP(w io.Writer, reader *frameReader, buf []byte, magic uint32, p
 	if err != nil {
 		return ipcpResult{}, err
 	}
+	if ipv6 != nil {
+		// RFC 1661 Section 3.6: "Once PPP has finished the previous phases,
+		// each network-layer protocol (such as IP, IPX, or AppleTalk) MUST be
+		// separately configured by the appropriate Network Control Protocol
+		// (NCP)."
+		// RFC 5072 Section 3: "IPV6CP packets may not be exchanged until PPP
+		// has reached the network-layer protocol phase."
+		// Both NCPs open from the same point, so IPv6CP never waits for IPCP.
+		// An access concentrator that holds IPv6CP passive (accel-ppp with
+		// ipv6=allow) activates the session as soon as IPCP opens; it MUST
+		// have seen this request by then, or it brings the session up IPv4-only.
+		ipv6.peerMRU = peerMRU
+		if err := ipv6.start(w, buf); err != nil {
+			return ipcpResult{}, err
+		}
+	}
 
 	deadline := time.NewTimer(ncpTimeout)
 	defer deadline.Stop()
-	restart := time.NewTicker(3 * time.Second)
+	// One timer serves both NCPs: IPCP's and IPv6CP's Restart timer are each
+	// the RFC 1661 Section 4.6 default of three seconds (ipv6cpRestartInterval).
+	restart := time.NewTicker(ipv6cpRestartInterval)
 	defer restart.Stop()
 
 	// RFC 1332 Section 2 uses the LCP exchange mechanism. Keep the exact
@@ -772,6 +799,11 @@ func negotiateIPCP(w io.Writer, reader *frameReader, buf []byte, magic uint32, p
 			}
 			if err := writeClientPacket(w, request[:requestLen]); err != nil {
 				return ipcpResult{}, err
+			}
+			if ipv6 != nil {
+				if err := ipv6.tick(w, buf, logger); err != nil {
+					return ipcpResult{}, err
+				}
 			}
 			continue
 		case frame, ok = <-reader.next():
@@ -805,6 +837,29 @@ func negotiateIPCP(w io.Writer, reader *frameReader, buf []byte, magic uint32, p
 			case ppp.LCPTerminateRequest:
 				sendTerminateAck(w, buf, pkt)
 				return ipcpResult{}, errors.New("pppoe-client: server terminated during IPCP")
+			case ppp.LCPProtocolReject:
+				if ipv6 == nil {
+					continue
+				}
+				if !rejectsIPv6CP(pkt) {
+					continue
+				}
+				// The automaton was never applied to the unit, so its event
+				// changes nothing yet; the caller applies the final state.
+				logger.Info("pppoe-client: the access concentrator rejected IPv6CP; IPv4 continues")
+				ipv6.protocolRejected()
+			}
+			continue
+		}
+		if proto == ppp.ProtoIPv6CP {
+			if ipv6 == nil {
+				continue
+			}
+			// RFC 7084 Section 4.2 WLL-3: IPv6CP negotiates beside IPCP; its
+			// outcome never ends IPCP. The event is not applied here: IPv6
+			// stays discarded until the caller applies the final state.
+			if _, err := ipv6.handle(w, buf, pkt, logger); err != nil {
+				return ipcpResult{}, err
 			}
 			continue
 		}

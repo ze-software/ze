@@ -33,7 +33,7 @@ func TestReaderTransitionHeldFrame(t *testing.T) {
 			err := runClientAuth(w, reader, buf[:], lcpResult{authProto: ppp.ProtoCHAP}, cfg, 1, stop, logger, new(uint8))
 			if err == nil {
 				// RFC 1332 Section 2: fresh input must complete both directions.
-				_, err = negotiateIPCP(w, reader, buf[:], 1, 1492, nil, new(uint8), stop, logger, new(uint8))
+				_, err = negotiateIPCP(w, reader, buf[:], 1, 1492, nil, new(uint8), stop, logger, new(uint8), nil)
 			}
 			result <- err
 		}()

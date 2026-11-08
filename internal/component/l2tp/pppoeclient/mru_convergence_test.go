@@ -41,7 +41,7 @@ func TestClientMRUConvergence(t *testing.T) {
 					w.unit = w.frames
 					go func() {
 						var ipcp, lcp, pap, reject uint8
-						next, err := negotiatePhases(w, s.reader, s.cfg, 0, nil, &ipcp, stop, logger, &lcp, &pap, &reject)
+						next, err := negotiatePhases(w, s.reader, s.cfg, 0, nil, &ipcp, stop, logger, &lcp, &pap, &reject, nil)
 						if err == nil {
 							if next.negMTU != 68 {
 								t.Errorf("initial MTU = %d, want 68", next.negMTU)
@@ -101,7 +101,7 @@ func TestSessionTransportRequired(t *testing.T) {
 		defer close(stop)
 		reader := testFrameReader(t, w.frames, nil)
 		_, err := negotiateSession(w, reader, -1, -1,
-			sessionConfig{mtu: 1492, chanFD: -1}, stop, slog.New(slog.NewTextHandler(io.Discard, nil)))
+			sessionConfig{mtu: 1492, chanFD: -1}, stop, slog.New(slog.NewTextHandler(io.Discard, nil)), nil)
 		if len(w.writes) != 0 {
 			t.Fatal("unsupported transport wrote a packet")
 		}

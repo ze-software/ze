@@ -139,7 +139,8 @@ func newNegotiatedSession(initial sessionResult, cfg sessionConfig) (negotiatedS
 
 // restart consumes an admitted request, retaining the same transport and unit.
 // The caller MUST stop echo timing first and MUST end the session on error.
-// No partial result is published: current changes only after IPCP and PASS.
+// No partial result is published: current changes only after IPCP and PASS,
+// and the IPv6CP state negotiation reached is applied with it.
 // RFC 1661 Section 3.4: "The receipt of the LCP Configure-Request causes a return
 // to the Link Establishment phase from the Network-Layer Protocol phase or
 // Authentication phase."
@@ -164,7 +165,7 @@ func (s *connectedSession) restart(pending *lcpReentry, stop <-chan struct{}, lo
 	}
 	// RFC 1661 Sections 3.4-3.6: reuse the initial phase owner and ordered reader.
 	next, err := negotiatePhases(s.transport, s.reader, s.cfg,
-		s.current.magic, pending, &s.ipcpIdentifier, stop, logger, &s.lcpIdentifier, &s.papIdentifier, &s.ipcpCodeRejectID)
+		s.current.magic, pending, &s.ipcpIdentifier, stop, logger, &s.lcpIdentifier, &s.papIdentifier, &s.ipcpCodeRejectID, s.ipv6)
 	if err != nil {
 		return err
 	}
@@ -174,6 +175,14 @@ func (s *connectedSession) restart(pending *lcpReentry, stop <-chan struct{}, lo
 		return fmt.Errorf("pppoe-client: cannot resume IPv4 after LCP restart: %w", err)
 	}
 	s.current = next
+	// IPv6CP ran beside IPCP inside negotiatePhases with IPv6 discarded
+	// (keepaliveLoop applied lowerDown before this restart). It passes only
+	// now, if it reached Opened; otherwise keepaliveLoop goes on negotiating.
+	if s.ipv6 != nil {
+		if s.ipv6.opened() {
+			return s.applyIPv6CP(ipv6cpOpened, logger)
+		}
+	}
 	s.publish()
 	return nil
 }

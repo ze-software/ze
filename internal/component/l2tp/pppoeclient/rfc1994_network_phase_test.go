@@ -172,7 +172,7 @@ func runIPCPWindow(t *testing.T, stop chan struct{}, feed ...readFrame) (*record
 // ipcpWindowWorker runs negotiateIPCP once and reports its error on done.
 func ipcpWindowWorker(w io.Writer, reader *frameReader, chap *networkPhaseCHAP, stop <-chan struct{}, logger *slog.Logger, done chan<- error) {
 	var buf [ppp.MaxFrameBufLen]byte
-	_, err := negotiateIPCP(w, reader, buf[:], 1, 0, chap, new(uint8), stop, logger, new(uint8))
+	_, err := negotiateIPCP(w, reader, buf[:], 1, 0, chap, new(uint8), stop, logger, new(uint8), nil)
 	done <- err
 }
 

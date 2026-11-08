@@ -36,7 +36,7 @@ func TestInitialMTUAdmission(t *testing.T) {
 				go func() {
 					_, err := negotiateSession(link, testFrameReader(t, w.frames, nil), -1, 0,
 						sessionConfig{mtu: 1492, chanFD: -1}, stop,
-						slog.New(slog.NewTextHandler(io.Discard, nil)))
+						slog.New(slog.NewTextHandler(io.Discard, nil)), nil)
 					result <- err
 				}()
 				request := w.take(t, ppp.ProtoLCP, 1)

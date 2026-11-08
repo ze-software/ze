@@ -30,6 +30,9 @@ type negotiatedSession struct {
 }
 
 // negotiatePhases returns only after both directions of IPCP reach Opened.
+// ipv6 is nil when no ipv6 is configured; otherwise IPv6CP starts beside IPCP
+// on entering the network phase (negotiateIPCP), and the caller applies the
+// state it reached once this returns.
 // The caller MUST retain all identifiers across calls and be the sole reader
 // consumer. No descriptor is created or closed.
 // RFC 1661 Section 3.4: "The receipt of the LCP Configure-Request causes a return
@@ -37,7 +40,8 @@ type negotiatedSession struct {
 // Authentication phase."
 func negotiatePhases(transport io.ReadWriteCloser, reader *frameReader,
 	cfg sessionConfig, magic uint32, pending *lcpReentry, identifier *uint8,
-	stop <-chan struct{}, logger *slog.Logger, lcpIdentifier, papIdentifier *uint8, codeRejectID *uint8) (negotiatedSession, error) {
+	stop <-chan struct{}, logger *slog.Logger, lcpIdentifier, papIdentifier *uint8, codeRejectID *uint8,
+	ipv6 *clientIPv6CP) (negotiatedSession, error) {
 	if err := reader.validate(); err != nil {
 		return negotiatedSession{}, err
 	}
@@ -70,10 +74,18 @@ func negotiatePhases(transport io.ReadWriteCloser, reader *frameReader,
 		}
 		// RFC 1994 Sections 4.1 and 4.2: each epoch owns fresh CHAP correlation.
 		chap := networkPhaseCHAPFor(lcp.authProto, cfg)
-		// RFC 1332 Section 2: run both IPCP directions on the existing sources.
-		ipcp, err := negotiateIPCP(transport, reader, buf[:], magic, lcp.peerMRU, chap, identifier, stop, logger, codeRejectID)
+		// RFC 1332 Section 2: run both IPCP directions on the existing sources,
+		// and IPv6CP beside them when it is configured (RFC 1661 Section 3.6).
+		ipcp, err := negotiateIPCP(transport, reader, buf[:], magic, lcp.peerMRU, chap, identifier, stop, logger, codeRejectID, ipv6)
 		if err != nil {
 			if errors.As(err, &pending) {
+				if ipv6 != nil {
+					// RFC 1661 Section 3.4: the return to Link Establishment
+					// takes IPv6CP down too. It was never applied to the
+					// unit, so its event changes nothing; the next epoch's
+					// negotiateIPCP starts it again.
+					ipv6.lowerDown()
+				}
 				continue
 			}
 			return negotiatedSession{}, err

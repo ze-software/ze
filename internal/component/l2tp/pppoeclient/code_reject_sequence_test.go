@@ -70,7 +70,7 @@ func TestClientCodeRejectInitialSequence(t *testing.T) {
 		result := make(chan outcome, 1)
 		go func() {
 			state, err := negotiatePhases(w, reader, cfg, 0, nil,
-				&ipcpID, stop, logger, &lcpID, &papID, &rejectID)
+				&ipcpID, stop, logger, &lcpID, &papID, &rejectID, nil)
 			result <- outcome{state, err}
 		}()
 		request := w.take(t, ppp.ProtoLCP, 1)

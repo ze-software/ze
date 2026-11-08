@@ -135,7 +135,8 @@ lands, its row changes.
 
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- ethernet mac match, offload, bridge member, unit ipv4/ipv6 address, pppoe-client, pppoe-client keepalive and reconnect, pppoe-client ipv6, grouping ipv6-host, wireguard, xfrm if-id -->
 <!-- source: internal/component/iface/register.go -- reconcileDHCP -->
-<!-- source: internal/component/l2tp/pppoeclient/network_phase.go -- keepaliveLoop, startIPv6CP -->
+<!-- source: internal/component/l2tp/pppoeclient/network_phase.go -- keepaliveLoop -->
+<!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateIPCP -->
 <!-- source: internal/plugins/static/yang/ze-static-conf.yang -- table route distance, next hop, next interface -->
 <!-- source: internal/component/config/system/resolv.go -- RegisterResolverOrigin -->
 

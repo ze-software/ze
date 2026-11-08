@@ -111,7 +111,7 @@ func TestClientIPCPCodeZeroCodeRejected(t *testing.T) {
 		defer close(stop)
 		go func() {
 			var buf [ppp.MaxFrameBufLen]byte
-			_, _ = negotiateIPCP(w, testFrameReader(t, frames, nil), buf[:], 1, 0, nil, new(uint8), stop, slog.Default(), new(uint8)) // Stopped before IPCP opens.
+			_, _ = negotiateIPCP(w, testFrameReader(t, frames, nil), buf[:], 1, 0, nil, new(uint8), stop, slog.Default(), new(uint8), nil) // Stopped before IPCP opens.
 		}()
 		synctest.Wait()
 		frames <- ipcpFrame(0, 0x30, []byte{1, 2})

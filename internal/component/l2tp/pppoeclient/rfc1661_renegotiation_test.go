@@ -55,7 +55,7 @@ func TestClientDiscardsMalformedReentryDuringIPCP(t *testing.T) {
 		w := &recordingRWC{}
 		var buf [ppp.MaxFrameBufLen]byte
 		var identifier uint8
-		result, err := negotiateIPCP(w, testFrameReader(t, frames, nil), buf[:], clientMagic, 1492, nil, &identifier, make(chan struct{}), slog.New(slog.NewTextHandler(io.Discard, nil)), new(uint8))
+		result, err := negotiateIPCP(w, testFrameReader(t, frames, nil), buf[:], clientMagic, 1492, nil, &identifier, make(chan struct{}), slog.New(slog.NewTextHandler(io.Discard, nil)), new(uint8), nil)
 		if err != nil {
 			t.Fatalf("options % x interrupted IPCP: %v", options, err)
 		}
@@ -299,7 +299,7 @@ func TestClientRenegotiationNakNeedsPeerAcceptance(t *testing.T) {
 	link := &sessionLink{channel: w}
 	_, err := negotiateSession(link, testFrameReader(t, w.frames, nil), -1, -1,
 		sessionConfig{mtu: 1492, chanFD: -1, username: "user", password: "pass"},
-		make(chan struct{}), slog.New(slog.NewTextHandler(io.Discard, nil)))
+		make(chan struct{}), slog.New(slog.NewTextHandler(io.Discard, nil)), nil)
 	if err == nil {
 		t.Fatal("uncorrected peer proposal opened LCP")
 	}
@@ -485,7 +485,7 @@ func runRestartExchange(t *testing.T, duringIPCP, zeroMagic bool, auth uint16) *
 	link := &sessionLink{channel: w}
 	_, err := negotiateSession(link, testFrameReader(t, w.frames, nil), -1, -1,
 		sessionConfig{mtu: 1492, chanFD: -1, username: "user", password: "pass"},
-		make(chan struct{}), slog.New(slog.NewTextHandler(io.Discard, nil)))
+		make(chan struct{}), slog.New(slog.NewTextHandler(io.Discard, nil)), nil)
 	// Invalid descriptors deliberately stop the real entry point only AFTER
 	// both protocol directions have opened. Kernel ownership is Phase 3/5 proof.
 	if err == nil {

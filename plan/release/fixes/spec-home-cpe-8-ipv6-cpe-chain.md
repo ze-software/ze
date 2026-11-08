@@ -388,7 +388,7 @@ OD-1 (a) and OD-2 (a).
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `pppoe-ipv6cp-ze-client` | `test/interop-pppoe/scenarios/pppoe-ipv6cp-ze-client/`, checker `checkZeClientIPv6CP` (`internal/le/interoplab/pppoe/check_ipv6cp_client.go`) | accel-ppp, which Naks every Interface-Identifier but its own `ipv6-peer-intf-id` 0:0:0:5a | AC-1, AC-2, AC-5: Ze adopts the Nak's identifier and opens IPv6CP, `pppoe0` holds fe80::5a, RA default route and SLAAC address, IPv6 ping to accel-ppp. Red walks owed: `keepaliveLoop` never calls `startIPv6CP`; `receiveNak` keeps `c.local` instead of adopting the suggestion | written, not run |
+| `pppoe-ipv6cp-ze-client` | `test/interop-pppoe/scenarios/pppoe-ipv6cp-ze-client/`, checker `checkZeClientIPv6CP` (`internal/le/interoplab/pppoe/check_ipv6cp_client.go`) | accel-ppp, which Naks every Interface-Identifier but its own `ipv6-peer-intf-id` 0:0:0:5a | AC-1, AC-2, AC-5: Ze adopts the Nak's identifier and opens IPv6CP, `pppoe0` holds fe80::5a, RA default route and SLAAC address, IPv6 ping to accel-ppp. Red walks owed: `negotiateIPCP` never calls `clientIPv6CP.start`; `receiveNak` keeps `c.local` instead of adopting the suggestion | written, not run |
 | `pppoe-ipv6cp-rejected-ze-client` | `test/interop-pppoe/scenarios/pppoe-ipv6cp-rejected-ze-client/`, checker `checkZeClientIPv6CPRejected` | accel-ppp with IPv6 denied, which Protocol-Rejects IPv6CP | NCP independence (AC-3): one Protocol-Reject, no LCP Terminate-Request, one CHAP Success, IPv4 ping after the reject, no link-local address. Red walk owed: the `ppp.LCPProtocolReject` arm of `keepaliveLoop` returns instead of stopping IPv6CP | written, not run |
 | `pppoe-dhcpv6-pd-ze-client` | `test/interop-topology/scenarios/` (suite and verb from child 18; this spec owns the scenario) | accel-ppp, dhcpcd | PD on `pppoe0`, LAN /64, RA PIO and RIO, LAN host traffic; after `accel-cmd` terminates the session, the next LAN RA carries Router Lifetime 0 and dhcpcd drops Ze as default router. Red walks: lifetime bound removed (advertised valid lifetime above remaining); W input forced true (Router Lifetime stays non-zero after the session ends) | written, not run, for Phases 1 to 3 only: the scenario (`test/interop-topology/scenarios/pppoe-dhcpv6-pd-ze-client/`, `register_pppoe_dhcpv6_pd.go`, checker `checkPPPoEDHCPv6PD`) proves IPv6CP, the WAN RA and SLAAC, and DHCPv6 PD on `pppoe0` (AC-1, AC-5, AC-6: IA_PD with a /56 hint, the /60 accel-ppp offered requested and delegated). No LAN node runs yet: the LAN /64, RA PIO and RIO, the terminate step and the two red walks above belong to Phases 4 and 5, which are in scope (owner ruling) and extend this scenario with a LAN node. AC-6 gap: no show command reports the lease's valid and preferred lifetimes on Ze's side, so the checker does not observe the published lifetimes |
 
@@ -487,10 +487,11 @@ suite, because `pppoe-dhcpv6-pd-ze-client` runs in it.
 
 ## Owned journal rows
 
-None owned. Related: `plan/journal/silent-fall-through.md` row 2026-10-31 (PPPoE client drops IPv6CP, CCP and unknown protocols), owned by `spec-ppp-l2tp-aaa-one-off-defects`; this spec removes IPv6CP from that row's set when it lands.
+One owned row, below. Related: `plan/journal/silent-fall-through.md` row 2026-10-31 (PPPoE client drops IPv6CP, CCP and unknown protocols), owned by `spec-ppp-l2tp-aaa-one-off-defects`; this spec removes IPv6CP from that row's set when it lands.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| ncp-started-behind-another-ncp.md | 2026-11-08 | PPPoE client starts IPv6CP only after IPCP opened, so accel-ppp ipv6=allow activates IPv4-only and never runs ND or DHCPv6 (pppoe-dhcpv6-pd-ze-client red) |
 
 ## Key Design Decisions
 

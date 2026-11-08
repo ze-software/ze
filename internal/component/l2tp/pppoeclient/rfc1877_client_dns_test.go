@@ -45,7 +45,7 @@ func startIPCP(t *testing.T, frames chan readFrame, stop chan struct{}) (*frameL
 	reader := testFrameReader(t, frames, nil)
 	go func() {
 		var buf [ppp.MaxFrameBufLen]byte
-		result, err := negotiateIPCP(w, reader, buf[:], 1, 0, nil, new(uint8), stop, slog.Default(), new(uint8))
+		result, err := negotiateIPCP(w, reader, buf[:], 1, 0, nil, new(uint8), stop, slog.Default(), new(uint8), nil)
 		done <- ipcpOutcome{result, err}
 	}()
 	return w, done

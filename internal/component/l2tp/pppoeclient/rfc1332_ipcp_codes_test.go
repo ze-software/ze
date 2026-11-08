@@ -37,7 +37,7 @@ func TestClientIPCPUnusedCodesAreCodeRejected(t *testing.T) {
 		defer close(stop)
 		go func() {
 			var buf [ppp.MaxFrameBufLen]byte
-			_, _ = negotiateIPCP(w, testFrameReader(t, frames, nil), buf[:], 1, 100, nil, new(uint8), stop, slog.Default(), new(uint8)) // The test stops it before IPCP opens, so the result says nothing.
+			_, _ = negotiateIPCP(w, testFrameReader(t, frames, nil), buf[:], 1, 100, nil, new(uint8), stop, slog.Default(), new(uint8), nil) // The test stops it before IPCP opens, so the result says nothing.
 		}()
 		synctest.Wait()
 
@@ -96,7 +96,7 @@ func TestClientIPCPRejectsVanJacobsonCompression(t *testing.T) {
 		defer close(stop)
 		go func() {
 			var buf [ppp.MaxFrameBufLen]byte
-			_, _ = negotiateIPCP(w, testFrameReader(t, frames, nil), buf[:], 1, 0, nil, new(uint8), stop, slog.Default(), new(uint8)) // The test stops it before IPCP opens, so the result says nothing.
+			_, _ = negotiateIPCP(w, testFrameReader(t, frames, nil), buf[:], 1, 0, nil, new(uint8), stop, slog.Default(), new(uint8), nil) // The test stops it before IPCP opens, so the result says nothing.
 		}()
 		synctest.Wait()
 

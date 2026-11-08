@@ -116,18 +116,16 @@ func keepaliveLoop(session *connectedSession, done chan<- struct{}, stopCh <-cha
 		frameBuf  [ppp.MaxFrameBufLen]byte
 	)
 
-	// RFC 7084 Section 4.2 WLL-3: IPv6CP starts once the network phase is
-	// reached and runs independently of IPCP. ipv6Restart stays nil, so its
-	// case never fires, when session.ipv6 is nil (no ipv6 configured).
+	// RFC 7084 Section 4.2 WLL-3: IPv6CP runs independently of IPCP. It
+	// started beside IPCP when the network phase was reached (negotiateIPCP),
+	// and this loop carries on its negotiation where that left it.
+	// ipv6Restart stays nil, so its case never fires, when session.ipv6 is
+	// nil (no ipv6 configured).
 	var ipv6Restart <-chan time.Time
 	if session.ipv6 != nil {
 		restart := time.NewTicker(ipv6cpRestartInterval)
 		defer restart.Stop()
 		ipv6Restart = restart.C
-		if err := session.startIPv6CP(frameBuf[:]); err != nil {
-			logger.Warn("pppoe-client: IPv6CP could not start; the client will reconnect", "error", err)
-			return
-		}
 	}
 
 	for {
@@ -229,15 +227,11 @@ func keepaliveLoop(session *connectedSession, done chan<- struct{}, stopCh <-cha
 					}
 				}
 				// RFC 1661 Sections 3.4-3.6: DROP precedes scr and sca/scn.
+				// restart starts IPv6CP again beside IPCP and applies the
+				// state it reached.
 				if err := session.restart(reentry, stopCh, logger); err != nil {
 					logger.Warn("pppoe-client: LCP restart failed; the client will reconnect", "error", err)
 					return
-				}
-				if session.ipv6 != nil {
-					if err := session.startIPv6CP(frameBuf[:]); err != nil {
-						logger.Warn("pppoe-client: IPv6CP could not restart; the client will reconnect", "error", err)
-						return
-					}
 				}
 				// RFC 1661 Section 5.8: "On transmission, the Identifier field MUST
 				// be changed whenever the content of the Data field changes, and
@@ -254,14 +248,10 @@ func keepaliveLoop(session *connectedSession, done chan<- struct{}, stopCh <-cha
 				logger.Info("pppoe-client: server sent LCP Terminate-Request")
 				return
 			case ppp.LCPProtocolReject:
-				// RFC 1661 Section 5.7 Rejected-Protocol: octets 0..1 of Data.
 				if session.ipv6 == nil {
 					continue
 				}
-				if len(pkt.Data) < 2 {
-					continue
-				}
-				if uint16(pkt.Data[0])<<8|uint16(pkt.Data[1]) != ppp.ProtoIPv6CP {
+				if !rejectsIPv6CP(pkt) {
 					continue
 				}
 				logger.Info("pppoe-client: the access concentrator rejected IPv6CP; IPv4 continues")

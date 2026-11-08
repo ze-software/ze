@@ -236,7 +236,23 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 		keepaliveInterval: cfg.Timing.KeepaliveInterval,
 		keepaliveFailures: cfg.Timing.KeepaliveFailures,
 	}
-	result, negErr := negotiateSession(link, reader, unitFD, unitNum, sessCfg, link.stopped, logger)
+	// ipv6 stays nil, the guard negotiateIPCP and keepaliveLoop read as "no
+	// IPv6CP", when the pppoe-client configures no ipv6.
+	var ipv6 *clientIPv6CP
+	if cfg.IPv6.Enabled {
+		// RFC 1661 Section 3.6: "Any supported network-layer protocol packets
+		// received when the corresponding NCP is not in the Opened state MUST
+		// be silently discarded." IPv6CP negotiates during IPCP's
+		// negotiation, so IPv6 is held from before the first NCP request.
+		if err := link.setIPv6Mode(unitFD, ppp.NPModeDrop); err != nil {
+			cleanup()
+			return iface.PPPoESession{}, fmt.Errorf("pppoe-client: cannot hold IPv6 until IPv6CP opens: %w", err)
+		}
+		// RFC 5072 Section 4.1: the tentative identifier comes from the
+		// source interface's EUI-48 (ppp.TentativeIPv6CPInterfaceID).
+		ipv6 = newClientIPv6CP(source.HWAddr[:], 0)
+	}
+	result, negErr := negotiateSession(link, reader, unitFD, unitNum, sessCfg, link.stopped, logger, ipv6)
 	if negErr != nil {
 		cleanup()
 		return iface.PPPoESession{}, negErr
@@ -250,12 +266,10 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 		cleanup()
 		return iface.PPPoESession{}, err
 	}
-	if cfg.IPv6.Enabled {
-		// RFC 5072 Section 4.1: the tentative identifier comes from the
-		// source interface's EUI-48 (ppp.TentativeIPv6CPInterfaceID).
-		if err := connected.enableIPv6CP(source.HWAddr[:], func(mode ppp.NPMode) error {
+	if ipv6 != nil {
+		if err := connected.enableIPv6CP(ipv6, func(mode ppp.NPMode) error {
 			return link.setIPv6Mode(unitFD, mode)
-		}); err != nil {
+		}, logger); err != nil {
 			cleanup()
 			return iface.PPPoESession{}, err
 		}

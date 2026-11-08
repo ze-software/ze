@@ -79,7 +79,7 @@ func TestClientEagerIPCPReaders(t *testing.T) {
 					// RFC 1661 Sections 3.4-3.6.
 					_, err := negotiatePhases(w, reader,
 						sessionConfig{mtu: 1492, username: "subscriber", password: "secret"},
-						0, nil, &ipcpID, stop, slog.New(gate), &lcpID, &papID, &rejectID)
+						0, nil, &ipcpID, stop, slog.New(gate), &lcpID, &papID, &rejectID, nil)
 					result <- err
 				}()
 				request := w.take(t, ppp.ProtoLCP, ppp.LCPConfigureRequest)
