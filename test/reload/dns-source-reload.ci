@@ -1,0 +1,97 @@
+# Test: a reload carries system dns-source like every other config: a list
+#       Ze cannot evaluate is refused and the daemon keeps running, and a
+#       list it can evaluate is taken
+#
+# VALIDATES: spec-home-cpe-23, the router consumer's reload half. The daemon
+#            boots with source received; config2 names two sources and no
+#            mode, which the reload refuses with the AC-16 text while the
+#            daemon stays up; config3 names the same two sources with mode
+#            merge, and that reload passes. The registry takes the reloaded
+#            list through applyResolvConf (cmd/ze/hub/main_system.go), which
+#            hands SystemConfig.DNSSource to Resolvers.Configure: the unit
+#            tests TestDefaultListsReproduceToday and TestRouterSourceMerge
+#            prove the selection the list makes.
+# PREVENTS: a reload that applies a list the validator would refuse at
+#           boot, or a refused reload that stops the daemon.
+#
+# The router's selection has no operator command before show system dns
+# (spec phase 8), so this test reads the reload verdicts, not the servers.
+# Each `reload` step returns only once show reload-status reports a new
+# generation (liveStagesReload), and a refused reload advances it too
+# (doReloadContext marks every processed reload), so the reload step is the
+# fence: the `has` read after it sees that reload's own outcome.
+
+option=timeout:value=40s
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+system {
+	dns {
+		resolv-conf-path "";
+	}
+	dns-source {
+		source [ received ]
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+system {
+	dns {
+		resolv-conf-path "";
+	}
+	name-server [ 198.51.100.53 ]
+	dns-source {
+		source [ received configured ]
+	}
+}
+EOF_CONF2
+
+tmpfs=config3.conf:terminator=EOF_CONF3
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+system {
+	dns {
+		resolv-conf-path "";
+	}
+	name-server [ 198.51.100.53 ]
+	dns-source {
+		source [ received configured ]
+		mode merge
+	}
+}
+EOF_CONF3
+
+tmpfs=stages.script:terminator=EOF_SCRIPT
+reload config2.conf
+has show reload-status => "last-outcome":"failed"
+say DNS-SOURCE-RELOAD: refused reload processed, daemon still answering
+reload config3.conf
+has show reload-status => "last-outcome":"applied"
+say DNS-SOURCE-RELOAD: valid reload applied
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=40s
+
+expect=stderr:contains=reload error: reload: parse config:
+expect=stderr:contains=system dns-source names 2 sources (received, configured) and no mode
+expect=stderr:contains=set system dns-source mode first-usable
+expect=stderr:contains=DNS-SOURCE-RELOAD: refused reload processed, daemon still answering
+expect=stderr:contains=DNS-SOURCE-RELOAD: valid reload applied
+reject=stderr:pattern=LIVE-STAGES line
+reject=stderr:pattern=panic
