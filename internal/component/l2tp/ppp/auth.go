@@ -427,12 +427,29 @@ func (s *pppSession) serveFrameAwaitingDecision(f []byte, lcpState LCPState) boo
 	return s.currentState() != lcpState
 }
 
-// waitCHAPLike reads ProtoCHAP frames from framesIn until parse yields
-// a Response whose returned Identifier matches wantID, or s.authTimeout
-// expires. Shared by CHAP-MD5 and MS-CHAPv2 response waits.
+// chapChallengeMax is the optional retry counter of RFC 1994 Section 4.1:
+// the most Challenges one authentication round sends before it gives up.
+// Ten, sent defaultRestartTimer apart, is pppd's authenticator default
+// (pppd/chap.c, chap_max_transmits and chap_server_timeout_time), so a Ze
+// LNS gives up on a silent peer when pppd would.
+const chapChallengeMax = 10
+
+// waitCHAPLike sends a Challenge through challenge, then reads ProtoCHAP
+// frames from framesIn until parse yields a Response whose returned
+// Identifier matches the last Challenge's, the retry counter expires, or
+// s.authTimeout expires. Shared by CHAP-MD5 and MS-CHAPv2.
+//
+// challenge sends one fresh Challenge and returns its Identifier. It is
+// called again every restart interval while no matching Response has
+// arrived: RFC 1994 Section 4.1 changes both the Identifier and the Value
+// "each time a Challenge is sent", so a retransmission is a new Challenge
+// and only the newest one is answerable. pppd and accel-ppp resend the
+// same packet instead; a peer answers either form, because it copies the
+// Identifier of the Challenge it answers into its Response.
 //
 // Implements AC-16 silent-discard (RFC 1994 §4.1): a Response with a
-// mismatched Identifier is dropped with a debug log and the wait
+// mismatched Identifier, a late answer to an earlier Challenge included,
+// is dropped with a debug log and the wait
 // continues. A malformed CHAP frame (bad ParseFrame, parse error)
 // tears the session down immediately -- those are peer-misbehavior
 // conditions the Phase 9 retry loop does not paper over.
@@ -454,17 +471,28 @@ func (s *pppSession) serveFrameAwaitingDecision(f []byte, lcpState LCPState) boo
 func waitCHAPLike[T any](
 	s *pppSession,
 	label string,
-	wantID uint8,
+	challenge func() (uint8, bool),
 	parse func([]byte) (T, uint8, error),
 ) (T, bool) {
 	var zero T
 	lcpState := s.currentState()
+	wantID, ok := challenge()
+	if !ok {
+		return zero, false
+	}
+	sent := 1
 	timeout := s.authTimeout
 	if timeout <= 0 {
 		timeout = defaultAuthTimeout
 	}
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
+	restart := s.chapRestart
+	if restart <= 0 {
+		restart = defaultRestartTimer
+	}
+	retransmit := time.NewTimer(restart)
+	defer retransmit.Stop()
 	for {
 		select {
 		case f, ok := <-s.framesIn:
@@ -523,6 +551,27 @@ func waitCHAPLike[T any](
 			return zero, false
 		case <-s.sessStop:
 			return zero, false
+		case <-retransmit.C:
+			if sent >= chapChallengeMax {
+				var tb textbuf.Buffer
+				reason := tb.Str(label).Str(": the peer answered none of ").Int(chapChallengeMax).
+					Str(" Challenges sent ").Str(restart.String()).
+					Str(" apart; check that the client runs CHAP and that its PPP frames reach Ze").String()
+				s.fail(reason)
+				s.sendAuthEvent(eventAuthFailure{
+					TunnelID:  s.tunnelID,
+					SessionID: s.sessionID,
+					Reason:    "timeout",
+				})
+				return zero, false
+			}
+			// RFC 1994 Section 4.1: "Additional Challenge packets MUST be sent until a valid Response packet is received, or an optional retry counter expires."
+			wantID, ok = challenge()
+			if !ok {
+				return zero, false
+			}
+			sent++
+			retransmit.Reset(restart)
 		case <-timer.C:
 			var tb textbuf.Buffer
 			reason := tb.Str(label).Str(": timeout awaiting Response for identifier ").Uint(uint64(wantID)).String()
@@ -538,10 +587,10 @@ func waitCHAPLike[T any](
 }
 
 // waitCHAPResponse is the CHAP-MD5 specialization of waitCHAPLike.
-// Silent-discards Responses whose Identifier differs from wantID per
-// RFC 1994 §4.1 and AC-16.
-func (s *pppSession) waitCHAPResponse(wantID uint8) (cHAPResponse, bool) {
-	return waitCHAPLike(s, "chap", wantID,
+// Silent-discards Responses whose Identifier differs from the newest
+// Challenge's per RFC 1994 §4.1 and AC-16.
+func (s *pppSession) waitCHAPResponse(challenge func() (uint8, bool)) (cHAPResponse, bool) {
+	return waitCHAPLike(s, "chap", challenge,
 		func(p []byte) (cHAPResponse, uint8, error) {
 			r, err := parseCHAPResponse(p)
 			return r, r.Identifier, err
@@ -553,8 +602,8 @@ func (s *pppSession) waitCHAPResponse(wantID uint8) (cHAPResponse, bool) {
 // ParseMSCHAPv2Response enforces the RFC 2759 §4 shape (49-byte
 // Response, Reserved/Flags == 0) as hard errors; identifier mismatch
 // is the only case that loops.
-func (s *pppSession) waitMSCHAPv2Response(wantID uint8) (mSCHAPv2Response, bool) {
-	return waitCHAPLike(s, "chap-v2", wantID,
+func (s *pppSession) waitMSCHAPv2Response(challenge func() (uint8, bool)) (mSCHAPv2Response, bool) {
+	return waitCHAPLike(s, "chap-v2", challenge,
 		func(p []byte) (mSCHAPv2Response, uint8, error) {
 			r, err := parseMSCHAPv2Response(p)
 			return r, r.Identifier, err

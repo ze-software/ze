@@ -162,8 +162,8 @@ func awaitAuthRequest(t *testing.T, authEvents <-chan AuthEvent) {
 // family's Control Protocol Configure-Request goes on the wire.
 // PREVENTS: IPCP or IPV6CP started beside, or ahead of, authentication.
 //
-// RFC requirement: RFC1332-2.1-1 negative -- with IPCP enabled and the CHAP Challenge unanswered, no address request, no address installed (fake backend P2P calls) and no frame on the wire for three seconds.
-// RFC requirement: RFC5072-3-1 negative -- with IPV6CP enabled and the CHAP Challenge unanswered, no IPV6CP Configure-Request (no frame at all) is written for three seconds and no IPv6 address is requested.
+// RFC requirement: RFC1332-2.1-1 negative -- with IPCP enabled and the CHAP Challenge unanswered, no address request, no address installed (fake backend P2P calls) and no frame other than a retransmitted CHAP Challenge on the wire for three seconds.
+// RFC requirement: RFC5072-3-1 negative -- with IPV6CP enabled and the CHAP Challenge unanswered, no IPV6CP Configure-Request (no frame other than a retransmitted CHAP Challenge) is written for three seconds and no IPv6 address is requested.
 // RFC requirement: RFC5072-3-1 positive -- the same IPV6CP session, once the CHAP Response is accepted, writes an IPV6CP (0x8057) Configure-Request.
 func TestNCPHeldUntilNetworkPhase(t *testing.T) {
 	for _, family := range []AddressFamily{AddressFamilyIPv4, AddressFamilyIPv6} {
@@ -173,7 +173,13 @@ func TestNCPHeldUntilNetworkPhase(t *testing.T) {
 					family == AddressFamilyIPv4, family == AddressFamilyIPv6, time.Hour)
 				openLifecycleLCP(t, peer)
 				challenge := readLifecyclePacket(t, peer, ProtoCHAP, CHAPCodeChallenge)
-				assertNoLifecycleFrame(t, peer, 3*time.Second)
+				challenge = onlyChallengesUntil(t, peer, 3*time.Second, challenge)
+				// The Restart timer fires at the instant the window closes, so a
+				// retransmitted Challenge can be mid-write when the deadline
+				// passes. Let the session block on that write, then take it under
+				// the same refusals, so the answer goes to the current Challenge.
+				synctest.Wait()
+				challenge = onlyChallengesUntil(t, peer, time.Millisecond, challenge)
 				if len(ipEvents) != 0 {
 					t.Fatal("address requested while authentication is pending")
 				}
@@ -191,19 +197,45 @@ func TestNCPHeldUntilNetworkPhase(t *testing.T) {
 	}
 }
 
-// assertNoLifecycleFrame fails when the session writes any frame within d.
-func assertNoLifecycleFrame(t *testing.T, peer net.Conn, d time.Duration) {
+// onlyChallengesUntil reads every frame the session writes within d and
+// fails on any frame other than a CHAP Challenge (protocol 0xc223, Code 1):
+// LCP, NCP and every other protocol stay refused while authentication is
+// pending. The authenticator's retransmitted Challenges are allowed, and
+// each one's Identifier must differ from the previous Challenge's
+// (RFC 1994 Section 4.1). It returns the newest Challenge, the only one a
+// Response can still answer.
+func onlyChallengesUntil(t *testing.T, peer net.Conn, d time.Duration, last LCPPacket) LCPPacket {
 	t.Helper()
 	if err := peer.SetReadDeadline(time.Now().Add(d)); err != nil {
 		t.Fatal(err)
 	}
 	buf := make([]byte, MaxFrameBufLen)
-	n, err := peer.Read(buf)
-	if err == nil {
-		t.Fatalf("frame written while authentication is pending: %x", buf[:n])
-	}
-	if !errors.Is(err, os.ErrDeadlineExceeded) {
-		t.Fatalf("read: %v", err)
+	for {
+		n, err := peer.Read(buf)
+		if err != nil {
+			if !errors.Is(err, os.ErrDeadlineExceeded) {
+				t.Fatalf("read: %v", err)
+			}
+			return last
+		}
+		proto, payload, _, perr := ParseFrame(buf[:n])
+		if perr != nil {
+			t.Fatalf("frame written while authentication is pending does not parse: %x: %v", buf[:n], perr)
+		}
+		if proto != ProtoCHAP {
+			t.Fatalf("frame written while authentication is pending: %x", buf[:n])
+		}
+		pkt, perr := ParseLCPPacket(payload)
+		if perr != nil {
+			t.Fatalf("CHAP frame written while authentication is pending does not parse: %x: %v", buf[:n], perr)
+		}
+		if pkt.Code != CHAPCodeChallenge {
+			t.Fatalf("frame written while authentication is pending: %x", buf[:n])
+		}
+		if pkt.Identifier == last.Identifier {
+			t.Fatalf("retransmitted Challenge reused Identifier %d", pkt.Identifier)
+		}
+		last = pkt
 	}
 }
 

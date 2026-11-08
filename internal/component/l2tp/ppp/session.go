@@ -276,6 +276,12 @@ type pppSession struct {
 	restartCount int
 	restartTimer *time.Timer
 
+	// chapRestart is the interval between two CHAP or MS-CHAPv2
+	// Challenges of one authentication round (waitCHAPLike). Zero means
+	// defaultRestartTimer, the value every production session uses; only
+	// a test sets it, to see retransmission without waiting seconds.
+	chapRestart time.Duration
+
 	// protocolRejectID is the Identifier of the next Protocol-Reject.
 	// RFC 1661 Section 5.7: "The Identifier field MUST be changed for each
 	// Protocol-Reject sent." Goroutine-owned; wraps at 256.

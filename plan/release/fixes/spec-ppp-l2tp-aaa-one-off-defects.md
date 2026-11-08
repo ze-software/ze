@@ -2,14 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | Each row is incorrect shipped subscriber behaviour (LCP and NCP negotiation, L2TP teardown and dialling, RADIUS attribute handling) |
 | Depends | - |
 | Phase | - |
 | Handoff | verify |
-| Updated | 2026-10-23 |
+| Updated | 2026-11-08 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -53,6 +53,14 @@ reads from the Vendor-Id, so row 2026-09-20 is present.
 - [ ] `internal/component/l2tp/pppoe/` - `InterfaceServer.handlePADT`
 - [ ] `internal/component/radius/attr.go` - `EncodeVSA`, `DecodeVSA`
 - [ ] `internal/component/l2tp/` authradius - `isValidSubscriberIP`
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec |
+|-----------|------------------------------------------|--------------------|-----------|
+| CHAP Response wait | `internal/component/l2tp/ppp/auth.go`, `waitCHAPLike` | One wait shared by CHAP-MD5 and MS-CHAPv2: discards a mismatched Identifier, routes LCP frames, fails on `authTimeout` | Extends: it owns the Challenge restart timer and retry limit, so both methods retransmit through one path |
+| LCP Restart timer | `internal/component/l2tp/ppp/session_run.go`, `defaultRestartTimer`, `defaultMaxConfigure` | RFC 1661 Section 4.6 three-second restart and ten-try counter for LCP | Reused as the CHAP Challenge restart interval; the CHAP retry limit is its own constant |
+| Per-row fixes | each producer under Current Behavior | Each journal row names its own producer | Each row is fixed at its producer, red test first |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -156,6 +164,7 @@ The subscriber auth registry, the metrics registry, session teardown events.
 | `blanket-mechanism-hid-missing-cases` | 2026-08-31 | pppoe client LCP |
 | `crypto-rand-read-error-branch-is-dead-code` | 2026-09-09 | `generateIPv6CPInterfaceID` |
 | `rfc-extension-not-implemented` | 2026-10-30 | `generateIPv6CPInterfaceID` u bit never cleared |
+| `rfc-extension-not-implemented` | 2026-11-08 | LNS CHAP authenticator (ppp/chap.go runCHAPAuthPhase, auth.go waitCHAPLike) |
 | `design-claim-never-measured` | 2026-09-03 | `subscriber.RegisterAuthHandler` |
 | `dial-ignores-which-listener-reaches-the-remote` | 2026-10-17 | `Subsystem.PlaceOutgoingCall` |
 | `field-carries-two-meanings` | 2026-09-30 | Framed-IP-Address 0xFFFFFFFF |

@@ -223,9 +223,31 @@ func drawCHAPChallenge(dst []byte) error {
 	return err
 }
 
+// sendCHAPChallenge writes one CHAP-MD5 Challenge into buf and onto the
+// wire: a fresh Value drawn into value, the next Identifier, and the LNS
+// Name. It returns the Identifier and whether the write succeeded; a
+// failure has already been reported through s.fail. waitCHAPLike calls it
+// for the first Challenge and for each retransmission.
+//
+// RFC 1994 Section 4.1: "The Identifier field MUST be changed each time a Challenge is sent."
+// RFC 1994 Section 4.1: "The Challenge Value MUST be changed each time a Challenge is sent."
+func (s *pppSession) sendCHAPChallenge(buf []byte, value *[chapChallengeValueLen]byte) (uint8, bool) {
+	if err := drawCHAPChallenge(value[:]); err != nil {
+		var tb textbuf.Buffer
+		s.fail(tb.Str("chap: crypto/rand: ").Err(err).String())
+		return 0, false
+	}
+	s.chapIdentifier++
+	identifier := s.chapIdentifier
+	off := WriteFrame(buf, 0, ProtoCHAP, nil)
+	off += writeCHAPChallenge(buf, off, identifier, value[:], []byte(chapLNSName))
+	return identifier, s.writeFrame(buf[:off])
+}
+
 // runCHAPAuthPhase drives the CHAP-MD5 three-way handshake as
-// authenticator: draw a fresh 16-byte Challenge value, send Challenge,
-// read the peer's Response, emit EventAuthRequest, wait for the
+// authenticator: draw a fresh 16-byte Challenge value, send Challenge
+// (and a new one each restart interval while unanswered, see
+// waitCHAPLike), read the peer's Response, emit EventAuthRequest, wait for the
 // external handler's AuthResponse, and write Success (accept) or
 // Failure (reject). Returns false if the session should tear down
 // (reject, timeout, stop, wire error).
@@ -234,10 +256,11 @@ func drawCHAPChallenge(dst []byte) error {
 // method switch that calls this function when LCP negotiated
 // Auth-Protocol = 0xC223 (CHAP) with Algorithm = 5 (MD5).
 //
-// RFC 1994 Section 4.1: the Identifier MUST change each time a
-// Challenge is sent. runCHAPAuthPhase increments s.chapIdentifier
-// before drawing the next value and uses the result as the Challenge
-// Identifier; the peer's Response MUST echo that same Identifier.
+// RFC 1994 Section 4.1: the Identifier and the Value MUST change each
+// time a Challenge is sent. sendCHAPChallenge increments
+// s.chapIdentifier and draws a fresh value for every Challenge, the
+// retransmissions waitCHAPLike sends included; the peer's Response MUST
+// echo the newest Identifier, and value then holds the newest Value.
 //
 // Called from runAuthPhase when LCP negotiated Auth-Protocol = 0xC223
 // (CHAP) with Algorithm = 5 (MD5); see session_run.go method switch.
@@ -245,23 +268,17 @@ func drawCHAPChallenge(dst []byte) error {
 // (auth.go).
 func (s *pppSession) runCHAPAuthPhase() bool {
 	var value [chapChallengeValueLen]byte
-	if err := drawCHAPChallenge(value[:]); err != nil {
-		var tb textbuf.Buffer
-		s.fail(tb.Str("chap: crypto/rand: ").Err(err).String())
-		return false
-	}
-	s.chapIdentifier++
-	identifier := s.chapIdentifier
+	var identifier uint8
 
 	challengeBuf := getFrameBuf()
 	defer putFrameBuf(challengeBuf)
-	cOff := WriteFrame(challengeBuf, 0, ProtoCHAP, nil)
-	cOff += writeCHAPChallenge(challengeBuf, cOff, identifier, value[:], []byte(chapLNSName))
-	if !s.writeFrame(challengeBuf[:cOff]) {
-		return false
-	}
 
-	resp, ok := s.waitCHAPResponse(identifier)
+	// RFC 1994 Section 4.1
+	resp, ok := s.waitCHAPResponse(func() (uint8, bool) {
+		var sent bool
+		identifier, sent = s.sendCHAPChallenge(challengeBuf, &value)
+		return identifier, sent
+	})
 	if !ok {
 		return false
 	}

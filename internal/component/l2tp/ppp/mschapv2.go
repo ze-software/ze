@@ -313,9 +313,32 @@ func drawMSCHAPv2Challenge(dst []byte) error {
 	return err
 }
 
+// sendMSCHAPv2Challenge writes one MS-CHAPv2 Challenge into buf and onto
+// the wire: a fresh Authenticator Challenge drawn into value, the next
+// Identifier, and the LNS Name. It returns the Identifier and whether the
+// write succeeded; a failure has already been reported through s.fail.
+// waitCHAPLike calls it for the first Challenge and for each
+// retransmission.
+//
+// RFC 1994 Section 4.1: "The Identifier field MUST be changed each time a Challenge is sent."
+// RFC 1994 Section 4.1: "The Challenge Value MUST be changed each time a Challenge is sent."
+func (s *pppSession) sendMSCHAPv2Challenge(buf []byte, value *[mschapv2ChallengeValueLen]byte) (uint8, bool) {
+	if err := drawMSCHAPv2Challenge(value[:]); err != nil {
+		var tb textbuf.Buffer
+		s.fail(tb.Str("chap-v2: crypto/rand: ").Err(err).String())
+		return 0, false
+	}
+	s.chapIdentifier++
+	identifier := s.chapIdentifier
+	off := WriteFrame(buf, 0, ProtoCHAP, nil)
+	off += writeMSCHAPv2Challenge(buf, off, identifier, value[:], []byte(mschapv2LNSName))
+	return identifier, s.writeFrame(buf[:off])
+}
+
 // runMSCHAPv2AuthPhase drives the MS-CHAPv2 mutual authentication as
 // authenticator: draw a fresh 16-byte Authenticator Challenge, send
-// Challenge, read the peer's Response, validate Value-Size (49) and
+// Challenge (and a new one each restart interval while unanswered, see
+// waitCHAPLike), read the peer's Response, validate Value-Size (49) and
 // zero-Reserved / zero-Flags, emit EventAuthRequest, wait for the
 // external handler's AuthResponse carrying the 20-byte
 // Authenticator-Response, and write Success (accept) or Failure
@@ -336,35 +359,30 @@ func drawMSCHAPv2Challenge(dst []byte) error {
 //
 // RFC 2759 Section 4 inherits RFC 1994 Section 4.1's Identifier
 // discipline: the Identifier MUST change each time a Challenge is sent.
-// runMSCHAPv2AuthPhase increments s.chapIdentifier before drawing the
-// next value and uses the result as the Challenge Identifier; the
-// peer's Response MUST echo that same Identifier. The counter is shared
-// with CHAP-MD5 because LCP negotiates exactly one Auth-Protocol method
-// per session.
+// Like CHAP-MD5, an unanswered Challenge is followed by a new one every
+// restart interval until a Response or the retry counter (waitCHAPLike).
+// sendMSCHAPv2Challenge increments s.chapIdentifier and draws a fresh
+// value for every Challenge, the retransmissions waitCHAPLike sends
+// included; the peer's Response MUST echo the newest Identifier, and
+// value then holds the newest Value. The counter is shared with CHAP-MD5
+// because LCP negotiates exactly one Auth-Protocol method per session.
 func (s *pppSession) runMSCHAPv2AuthPhase() bool {
 	var value [mschapv2ChallengeValueLen]byte
-	if err := drawMSCHAPv2Challenge(value[:]); err != nil {
-		var tb textbuf.Buffer
-		s.fail(tb.Str("chap-v2: crypto/rand: ").Err(err).String())
-		return false
-	}
-	s.chapIdentifier++
-	identifier := s.chapIdentifier
+	var identifier uint8
 
 	challengeBuf := getFrameBuf()
 	defer putFrameBuf(challengeBuf)
-	cOff := WriteFrame(challengeBuf, 0, ProtoCHAP, nil)
-	cOff += writeMSCHAPv2Challenge(challengeBuf, cOff, identifier, value[:], []byte(mschapv2LNSName))
-	if !s.writeFrame(challengeBuf[:cOff]) {
-		return false
-	}
 
 	// RFC 2759 Section 4 (via RFC 1994 §4.1): Response Identifier MUST
 	// match the outstanding Challenge Identifier. AC-16: mismatched
 	// Identifiers are silently discarded (handled in waitMSCHAPv2Response).
 	// Structural parse errors (Reserved/Flags non-zero, wrong 49-byte
 	// length) remain hard fails.
-	resp, ok := s.waitMSCHAPv2Response(identifier)
+	resp, ok := s.waitMSCHAPv2Response(func() (uint8, bool) {
+		var sent bool
+		identifier, sent = s.sendMSCHAPv2Challenge(challengeBuf, &value)
+		return identifier, sent
+	})
 	if !ok {
 		return false
 	}

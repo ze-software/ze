@@ -344,7 +344,12 @@ PPP negotiation proceeds through these phases:
    magic number, echo keepalive. 10-state FSM with ~30 transitions.
 2. **Authentication** -- PAP (RFC 1334), CHAP-MD5 (RFC 1994), or
    MS-CHAPv2 (RFC 2759). Dispatched to the registered auth handler
-   (l2tp-auth-local or l2tp-auth-radius plugin).
+   (l2tp-auth-local or l2tp-auth-radius plugin). A CHAP or MS-CHAPv2
+   Challenge the subscriber does not answer is followed by a new one, with
+   a new Identifier and Value, every 3 seconds (RFC 1994 Section 4.1); after
+   10 unanswered Challenges, or the auth timeout, the session ends. Only the
+   newest Challenge is answerable, so a late Response to an earlier one is
+   discarded.
 3. **IPCP** (RFC 1332) -- IPv4 address assignment + DNS options (RFC 1877).
    Dispatched to the registered pool handler (l2tp-pool plugin).
 4. **IPv6CP** (RFC 5072) -- interface identifier negotiation. Runs in
