@@ -26,6 +26,9 @@ func testIPsecConfig(peers ...ipsec.SiteToSitePeer) *ipsec.IPsecConfig {
 		// The parser always fills the disposition; the zero value is PROTECT, which
 		// installUnmatched refuses, so a configuration built by hand names one.
 		Unmatched: dataplane.SPActionBypass,
+		// The apply refuses the zero value as it refuses PROTECT above; allow attaches
+		// no guard, so a fake dataplane needs no guard to apply this configuration.
+		ApplicationOverride: ipsec.ApplicationOverrideAllow,
 	}
 	for i := range peers {
 		cfg.Peers[peers[i].Name] = peers[i]

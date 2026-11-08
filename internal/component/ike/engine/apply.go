@@ -385,15 +385,34 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 	// running disposition stays. On the first apply the node catch-all, the IKE bypass
 	// and the prune have run, so the SPD state matches discardInForce, and releaseSPD
 	// removes them on exit.
+	//
+	// The application override guard (RFC 4301 Section 4.4.1) follows the catch-all on
+	// the first apply, before the IKE bypass and before any IKE socket opens, so no
+	// application can exempt a socket from an SPD Ze has started to enforce. A guard
+	// that cannot attach under deny fails the apply and installs nothing further. On a
+	// reload it moves FIRST, ahead of every SPD change, so a refused guard leaves the
+	// running SPD and its disposition as they were.
 	interfaceEntries := s.planXFRMInterfaceEntries(cfg)
 	if s.spdApplied {
+		if err := applyApplicationOverride(dataplane.Get(), cfg.ApplicationOverride); err != nil {
+			return err
+		}
 		if err := s.installXFRMInterfaceEntries(dataplane.Get(), interfaceEntries); err != nil {
 			return err
 		}
 	}
+	firstApply := !s.spdApplied
 	s.spdApplied = true
 	if err := installUnmatched(dataplane.Get(), cfg.Unmatched, s.log); err != nil {
 		return err
+	}
+	if firstApply {
+		if err := applyApplicationOverride(dataplane.Get(), cfg.ApplicationOverride); err != nil {
+			// The catch-all is in force, so the refusal of an implicit discard on the
+			// next commit judges the SPD as it is.
+			s.discardInForce.Store(cfg.Unmatched == dataplane.SPActionDiscard)
+			return err
+		}
 	}
 	if !s.ikeBypassInstalled {
 		installIKEBypass(dataplane.Get(), s.log)
@@ -692,6 +711,11 @@ func (s *ikeEngineState) releaseSPD(dp dataplane.Dataplane, log *slog.Logger) {
 	if !s.spdApplied {
 		return
 	}
+	// The application override guard goes after the catch-all, so no instant holds a
+	// Ze SPD entry an application could override. When the catch-all stays because an
+	// entry could not be removed, the guard is detached here all the same: the engine
+	// is leaving, and the link would close with the process anyway.
+	defer releaseApplicationOverride(dp, log)
 	removeIKEBypass(dp, log)
 	removeSPDPolicies(dp, s.installedSPD, log)
 	s.pruneXFRMInterfaceEntries(dp, xfrmInterfacePlan{})

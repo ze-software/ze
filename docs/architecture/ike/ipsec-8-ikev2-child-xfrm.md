@@ -611,6 +611,60 @@ it is being dropped.
 <!-- source: internal/component/ike/engine/apply.go -- applyConfig, releaseSPD -->
 <!-- source: internal/component/ike/engine/unmatched_xfrm_interface.go -- xfrmInterfaceExemptions, interfaceSPDCatchAll, planXFRMInterfaceEntries -->
 
+## The application override guard
+
+RFC 4301 Section 4.4.1 owes the administrator a choice over whether a user or
+application may override the SPD. On Linux the override is a per-socket policy:
+`xfrm_lookup_with_ifid` and `__xfrm_policy_check` consult `sk->sk_policy` before
+any SPD entry, and `do_ip_setsockopt` and `do_ipv6_setsockopt` ask only for
+`CAP_NET_ADMIN`. The kernel's own enforcement point is cgroup BPF on setsockopt:
+`do_sock_setsockopt` runs `BPF_CGROUP_RUN_PROG_SETSOCKOPT` before the protocol
+handler, and any attached program that answers 0 turns the call into `EPERM`.
+
+`vpn ipsec application-override` (`deny` by default) selects it.
+`applyApplicationOverride` (`engine/application_override.go`) attaches the guard
+after the if_id 0 catch-all is first installed and before the IKE bypass, moves
+it on a reload, and `releaseApplicationOverride` detaches it after the catch-all
+leaves. A guard that cannot attach under `deny` fails the apply. The seam is
+`dataplane.OverrideGuard` (`override_guard.go`); the XFRM backend implements it
+in `override_guard_linux.go`, VPP answers `OverrideGuardNotApplicable` because
+its SPD holds no socket policies, and the noop backend answers `ErrNotSupported`.
+
+The program (`overrideGuardInstructions`) is assembled in Go with
+`cilium/ebpf/asm`, attached by link to the cgroup2 root found in
+`/proc/self/mountinfo`, and lives as long as the link Ze holds: no bpffs pin. It
+answers 1 for every option but `IP_XFRM_POLICY`, `IP_IPSEC_POLICY` (level
+`SOL_IP`), `IPV6_XFRM_POLICY` and `IPV6_IPSEC_POLICY` (level `SOL_IPV6`), so
+every other setsockopt on the host costs two loads and two compares. For those
+four it answers 1 when `bpf_get_netns_cookie` says the socket is outside Ze's
+network namespace, or when the caller is the process that loaded the guard, and
+otherwise counts the refusal in a per-CPU array and answers 0.
+
+The caller is named with `bpf_get_ns_current_pid_tgid`, handed the device and
+inode of the loader's `/proc/self/ns/pid`, and compared with `os.Getpid`. Both
+are then numbers in the same PID namespace. `bpf_get_current_pid_tgid` answers
+in the initial namespace, which in a container (the interop lab, a Docker
+deployment) never equals `os.Getpid`, so a guard built on it refused Ze's own
+ESP form policy. A caller in any other PID namespace gets a non-zero answer from
+the helper and is refused. The device is converted to the kernel's `dev_t`
+encoding (`kernelDev`): `ns_match` compares against the nsfs superblock, and the
+stat(2) encoding differs from it once the minor reaches 256. Both helpers are in
+`bpf_base_func_proto` ahead of its `CAP_BPF` gate, and `cg_sockopt_func_proto`
+falls through to it (`kernel/bpf/helpers.c`, `kernel/bpf/cgroup.c`, v7.3).
+
+Ze's one socket policy, the ESP form reader's inbound ALLOW
+(`espFormBypassInboundPolicy`), carries `PriorityESPFormSocket` as a mark. The
+kernel copies a socket policy's priority (`copy_from_user_policy`, reached from
+`xfrm_compile_policy`) and never matches on it, so the read-back names that row
+`esp-form-socket` and any other `socket-override` (`socketPolicyRole`). A
+process that set its policy before the guard attached can copy the mark; doctor
+therefore counts every socket policy, not only the unmarked ones.
+
+<!-- source: internal/component/ike/dataplane/override_guard_linux.go -- attach, overrideGuardInstructions, currentPIDNamespace, kernelDev, cgroup2RootFrom -->
+<!-- source: internal/component/ike/dataplane/override_guard.go -- OverrideGuard, OverrideGuardStatus -->
+<!-- source: internal/component/ike/engine/application_override.go -- applyApplicationOverride, releaseApplicationOverride -->
+<!-- source: internal/component/ike/dataplane/policy_role.go -- socketPolicyRole -->
+
 ## Policy ownership
 
 Two peers whose selectors overlap would otherwise take each other's kernel

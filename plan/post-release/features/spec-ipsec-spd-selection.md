@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Priority | P3 |
-| Release reason | Ze already runs one SPD per XFRM interface if_id beside the node-wide SPD at if_id 0, so RFC 4301 Section 4.4.1 owes the selection function and each SPD its own final DISCARD entry; the shipped partial selection leaves one IPv6 cleartext path. RFC4301-4.4.1-8 (application override) is designed in Phase 8, awaiting Thomas's decisions D8-1 to D8-4. |
+| Release reason | Ze already runs one SPD per XFRM interface if_id beside the node-wide SPD at if_id 0, so RFC 4301 Section 4.4.1 owes the selection function and each SPD its own final DISCARD entry; the shipped partial selection leaves one IPv6 cleartext path. RFC4301-4.4.1-8 (application override) is Phase 8, in implementation: Thomas answered D8-1 to D8-4 (cilium/ebpf approved for `ike/dataplane`, default `deny`, socket policies only, one switch). |
 | Scope | protocol |
 | RFC gaps | RFC4301-4.4.1-5, RFC4301-4.4.1-8 |
 | Depends | - |
-| Phase | - |
+| Phase | 8/8 |
 | Handoff | - |
 | Updated | 2026-11-08 |
 
@@ -84,7 +84,7 @@ to specify whether or not a user or application can override (default) system
 policies." Ze has no user or application principal in its SPD model
 (`ipsec/spd_policy.go` `SPDPolicy` carries no override leaf). Thomas decided that
 its design is a new phase of this spec: see "Phase 8: application override control"
-below. Its open decisions D8-1 to D8-4 wait for Thomas.
+below. Thomas answered its decisions D8-1 to D8-4 (table 8.10).
 
 ## Required Reading
 
@@ -422,8 +422,8 @@ refuses a red it did not observe, and writes `rfc/discrimination/rfc4301.json`.
 
 ## Phase 8: application override control (RFC4301-4.4.1-8)
 
-Design only, written 2026-11-08. It waits for Thomas's answers to D8-1 to D8-4
-(table at the end of this section) before it moves to implementation.
+Designed 2026-11-08. Thomas answered D8-1 to D8-4 the same day (table 8.10,
+Answer column), and the phase is in implementation.
 
 ### 8.1 Facts the design rests on
 
@@ -473,7 +473,7 @@ What "user or application" means for Ze, from F1, F6 and F9:
 | Part | Decision |
 |------|----------|
 | The control | `vpn ipsec application-override`, an enumeration `deny` or `allow`, default per D8-2. It answers the RFC's question for every user and application in Ze's network namespace at once (granularity per D8-4) |
-| What `deny` enforces | A cgroup setsockopt program, attached by link to the cgroup2 root with multi-attach. It refuses with EPERM `IP_XFRM_POLICY`, `IP_IPSEC_POLICY` (level `SOL_IP`) and `IPV6_XFRM_POLICY`, `IPV6_IPSEC_POLICY` (level `SOL_IPV6`), values taken from `golang.org/x/sys/unix`, when the socket's netns cookie is Ze's and the caller is not the process that loaded the guard: the one that runs the IKE dataplane and sets the ESP form policy, whose tgid is fixed at load. Every other setsockopt passes untouched. A per-CPU counter map counts refusals |
+| What `deny` enforces | A cgroup setsockopt program, attached by link to the cgroup2 root with multi-attach. It refuses with EPERM `IP_XFRM_POLICY`, `IP_IPSEC_POLICY` (level `SOL_IP`) and `IPV6_XFRM_POLICY`, `IPV6_IPSEC_POLICY` (level `SOL_IPV6`), values taken from `golang.org/x/sys/unix`, when the socket's netns cookie is Ze's and the caller is not the process that loaded the guard: the one that runs the IKE dataplane and sets the ESP form policy. The program reads the caller's tgid in Ze's own PID namespace with `bpf_get_ns_current_pid_tgid`, given the device and inode of Ze's `/proc/self/ns/pid` (the device converted to the kernel's MKDEV encoding, which the helper compares), and compares it with Ze's `os.Getpid`: `bpf_get_current_pid_tgid` answers in the initial namespace, which a container's `os.Getpid` never equals. A caller in another PID namespace makes the helper fail, and is refused even when its initial-namespace tgid equals Ze's. Every other setsockopt passes untouched. A per-CPU counter map counts refusals |
 | What `allow` does | No program. Linux's CAP_NET_ADMIN gate alone applies |
 | Ze's own override | The ESP form socket policy is the IPsec implementation's own receive path (RFC 7296 Section 2.23, both ESP forms), not a user or application, so the tgid exemption lets it through under `deny`. It is marked and listed as `esp-form-socket`, and the doctor names it, so the administrator sees it. The IKE bypass is SPD content, not an override |
 | Direct SPD writes | Out of the guard's reach on Ze's kernel (F6). Treated per D8-3 |
@@ -489,7 +489,7 @@ User-facing text (`ai/rules/user-facing-errors.md`):
 |---------|------|
 | Apply refusal | "vpn ipsec application-override deny: Ze could not attach its setsockopt guard to the cgroup2 root (<kernel error>). Without it any process holding CAP_NET_ADMIN can exempt its sockets from the IPsec policy. Run ze with CAP_BPF and CAP_NET_ADMIN, mount cgroup2 at /sys/fs/cgroup, or set `vpn ipsec application-override allow` to accept that risk." |
 | Doctor, guard detached under `deny` | "The IPsec application-override guard is not attached, so applications can override the SPD. Something detached it or Ze's load failed. Restart ze; if this persists, run `ze doctor --json` and read the attach error." |
-| Doctor, foreign socket policy | "A process holds a per-socket IPsec policy (<direction>, <selector>) that overrides the SPD for its socket. The kernel cannot remove it and does not say which process owns it. Restart the applications started before Ze, or set `vpn ipsec application-override deny` and restart them." (warning under `deny`, notice under `allow`) |
+| Doctor, foreign socket policy | "A process holds a per-socket IPsec policy (<direction>, <selector>) that overrides the SPD for its socket. The kernel cannot remove it and does not say which process owns it. Restart the applications started before Ze, or set `vpn ipsec application-override deny` and restart them." (warning, under `deny` only: under `allow` the administrator accepted overrides) |
 | Doctor, other SPD writers | "Processes <pid (comm), ...> hold CAP_NET_ADMIN in Ze's network namespace, so Linux lets them write the IPsec SPD directly. Remove the capability from them or stop them." |
 
 ### 8.4 Data Flow
@@ -514,9 +514,9 @@ User-facing text (`ai/rules/user-facing-errors.md`):
 | ID | Statement | Basis | Validated by |
 |----|-----------|-------|--------------|
 | A8-1 | The program sees the caller's tgid and the socket's netns cookie in a setsockopt hook on 7.3 | F4 helper lists | `TestRFC4301ApplicationOverrideDeniedInKernel` exemption and netns legs |
-| A8-2 | Ze's pinned gokrazy mounts cgroup2 at `/sys/fs/cgroup` | the local gokrazy `mount.go` | the implementing agent reads the pinned version; the kernel test boots Ze's image |
+| A8-2 | Ze's pinned gokrazy mounts cgroup2 at `/sys/fs/cgroup` | the local gokrazy `mount.go` | CONFIRMED: Ze pins gokrazy v0.0.0-20260703061218-a4a45a20149d (`gokrazy/ze/builddir/github.com/gokrazy/gokrazy/go.mod`), whose `mount.go` line 174 reads "syscall.Mount("cgroup2", "/sys/fs/cgroup", "cgroup2", 0, "")" (`gokrazy/modcache`); the kernel test boots Ze's image |
 | A8-3 | A distribution host with a cgroup v1 hybrid layout mounts cgroup2 elsewhere | systemd hybrid layout | the guard finds the cgroup2 mount from `/proc/self/mountinfo`, never a fixed path |
-| A8-4 | The kernel copies the priority of a socket policy and ignores it for matching | `copy_from_user_policy` "xp->priority = p->priority;", called from `xfrm_compile_policy`; `xfrm_sk_policy_lookup` reads no priority | `TestESPFormSocketPolicyCarriesZeMarkInKernel` |
+| A8-4 | The kernel copies the priority of a socket policy and ignores it for matching | `copy_from_user_policy` "xp->priority = p->priority;", called from `xfrm_compile_policy`; `xfrm_sk_policy_lookup` reads no priority | CONFIRMED at v7.3 source (`xfrm_user.c` line 2200 in `copy_from_user_policy`, reached from `xfrm_compile_policy`); `TestESPFormSocketPolicyCarriesZeMarkInKernel` proves it on the running kernel |
 | R8-1 | Default `deny` on a host whose ze lacks CAP_BPF fails every IPsec apply | F4 | the refusal names the fix; the guide says so |
 | R8-2 | A process with CAP_SYS_ADMIN or CAP_BPF detaches the link | link semantics | doctor reports a detached guard as an error |
 | R8-3 | The program runs on every setsockopt on the host | F4 | it returns on the level and option compare first; the counter is per-CPU |
@@ -529,11 +529,11 @@ User-facing text (`ai/rules/user-facing-errors.md`):
 | AC-14 | `deny`; a process other than the guard's own, with CAP_NET_ADMIN, in Ze's netns, calls each of the four options in both families | Each call fails with EPERM; its traffic still meets the SPD (an unmatched probe from it is dropped by the DISCARD catch-all, `XfrmOutPolBlock` rises); the refusal counter rises | None |
 | AC-15 | `deny`; the same call from a process in another network namespace | Succeeds: the guard governs Ze's SPD only | Other namespaces have their own SPD |
 | AC-16 | `deny`; an SA that asks for both ESP forms | The ESP form reader sets its socket policy and receives both forms, as today; the listing shows it as `esp-form-socket` | Ze's own receive path |
-| AC-17 | `allow` | No guard attached; the call in AC-14 succeeds; doctor lists the policy as `socket-override` at notice level | All socket policies of CAP_NET_ADMIN holders |
+| AC-17 | `allow` | No guard attached; the call in AC-14 succeeds; the listing shows the policy as `socket-override`; doctor reports nothing about socket policies, because the administrator chose to allow them (doctor has only the error and warning levels) | All socket policies of CAP_NET_ADMIN holders |
 | AC-18 | `deny` where the guard cannot attach | The apply fails with the refusal text, naming the kernel error; doctor reports an error | None |
 | AC-19 | Reload `deny` to `allow`, `allow` to `deny`, IPsec removed | The guard detaches, attaches, detaches, with no restart | Socket policies set while `allow` held stay until their sockets close (F5), and doctor names them |
 | AC-20 | `show vpn ipsec dataplane policy` with socket policies present | Each socket row reads direction `in`, `out` or `fwd`, `spd` `socket`, role `esp-form-socket` or `socket-override`; no row reads direction `unknown` | None |
-| AC-21 | Doctor under each state | Guard detached under `deny`: error. Foreign socket policy: warning under `deny`, notice under `allow`. Another CAP_NET_ADMIN holder in Ze's netns: warning naming pid and command | None |
+| AC-21 | Doctor under each state | Guard detached under `deny`: error. Socket policy not attributable to Ze: warning under `deny`, nothing under `allow`. Another CAP_NET_ADMIN holder in Ze's netns: warning naming pid and command | None |
 | AC-22 | `./le rfc check` after Phase 8 | RFC4301-4.4.1-8 carries a tagged positive and negative test, each with a discrimination record, and the annotation D8-3 settles; no `{gap}` | None |
 
 ### 8.7 TDD
@@ -547,14 +547,21 @@ User-facing text (`ai/rules/user-facing-errors.md`):
 | `TestPolicyInfoMapsSocketDirections` | `internal/component/ike/dataplane/xfrm_linux_test.go` | F8 fixed: directions 3 to 5 map to in, out, fwd with SPD `socket` |
 | `TestShowDataplanePolicyNamesSocketRows` | `internal/component/ike/cmd/show_dataplane_test.go` | AC-20 |
 | `TestDoctorApplicationOverride` | `internal/component/ike/engine/doctor_application_override_test.go` | AC-21, each state through seams |
+| `TestDoctorSPDWritersReadsProc` | same | AC-21: another CAP_NET_ADMIN holder in Ze's network namespace is named by pid and command; Ze, a kernel thread, a non-holder and another namespace are not |
+| `TestDoctorSPDWritersReportsUnreadableProc` | same | a missing `/proc`, and a process whose namespace Linux hides, raise `doctor-ipsec-spd-writer-unknown` with the cause and the fix, never "no writer"; a process that exited during the scan does not |
+| `TestOverrideGuardProgramExemptsZeInItsPIDNamespace` | `internal/component/ike/dataplane/override_guard_program_linux_test.go` | the exemption over the program's instructions: Ze passes on the host and in a container (its initial-namespace tgid differs from `os.Getpid`); another process, and a caller in another PID namespace whose initial-namespace tgid equals Ze's, are refused and counted; other options and other network namespaces pass uncounted |
+| `TestKernelDevEncodesMKDEV` | same | the device of `/proc/self/ns/pid` is converted to the kernel's MKDEV encoding the helper compares |
 | `TestRFC4301OverrideLeafSelectsTheGuard` (tagged RFC4301-4.4.1-8) | `internal/component/ike/engine/rfc4301_application_override_test.go` | `deny` attaches and `allow` does not, through the apply path |
 | `ipsec-application-override` | `test/parse/ipsec-application-override.ci` | the leaf through the real config path; a bad value is refused with the allowed values named |
 
 | Kernel test (QEMU, Ze's 7.3 kernel) | File | Validates |
 |-------------------------------------|------|-----------|
-| `TestRFC4301ApplicationOverrideDeniedInKernel` (tagged RFC4301-4.4.1-8, positive) | `internal/component/ike/dataplane/override_guard_integration_linux_test.go` | AC-14 with a forked helper as the application, AC-15 and AC-16 legs |
+| `TestRFC4301ApplicationOverrideDeniedInKernel` (tagged RFC4301-4.4.1-8, positive) | `internal/component/ike/dataplane/override_guard_integration_linux_test.go` | AC-14 with a forked helper as the application, AC-15 and AC-16 legs; the PID namespace leg: the loader forked with CLONE_NEWPID runs as pid 1 there, its own ESP form policy passes, and this process, outside that namespace, is refused with EPERM |
 | `TestRFC4301ApplicationOverrideAllowedInKernel` (tagged, negative) | same | AC-17: the same helper succeeds with no guard |
 | `TestESPFormSocketPolicyCarriesZeMarkInKernel` | same | A8-4 |
+| `TestOverrideGuardHelperProcess` | same | not a test of its own: the forked helper the kernel tests run as the application and as the loader |
+
+Each kernel test is root-only (it skips otherwise) and runs in its own network namespace on a locked thread.
 
 | Red walk | Break of the producing code | Expected |
 |----------|-----------------------------|----------|
@@ -583,10 +590,10 @@ control changes no IKE or ESP byte and has no protocol peer
 | Modify | `internal/component/ike/dataplane/xfrm_linux.go` | socket direction mapping, role from the mark |
 | Modify | `internal/component/ike/cmd/show_dataplane.go`, `internal/component/ike/yang/ze-ipsec-cmd.yang` | socket rows; the `container policy` description |
 | Modify | `internal/component/ike/engine/register.go` | two doctor checks |
-| Modify | `internal/core/diagnostic/codes.go` | three codes with their remedies |
-| Create | `internal/component/ike/dataplane/override_guard_linux.go`, `internal/component/ike/dataplane/override_guard_other.go` | program, load, attach, detach, counter |
-| Create | `internal/component/ike/engine/doctor_application_override.go` and its test | the checks |
-| Create | `internal/component/ike/dataplane/override_guard_integration_linux_test.go`, `internal/component/ike/engine/rfc4301_application_override_test.go`, `test/parse/ipsec-application-override.ci` | the tests above |
+| Modify | `internal/core/diagnostic/codes.go` | four codes with their remedies: the guard, the socket policy, the SPD writer, and the SPD writer Ze cannot see |
+| Create | `internal/component/ike/dataplane/override_guard_linux.go`, `internal/component/ike/dataplane/override_guard_other.go` | program, load, attach, detach, counter; the PID namespace the exemption reads |
+| Create | `internal/component/ike/engine/doctor_application_override.go` and its test `internal/component/ike/engine/doctor_application_override_test.go` | the checks, and the unreadable `/proc` answer |
+| Create | `internal/component/ike/dataplane/override_guard_program_linux_test.go`, `internal/component/ike/dataplane/override_guard_integration_linux_test.go`, `internal/component/ike/engine/rfc4301_application_override_test.go`, `test/parse/ipsec-application-override.ci` | the tests above |
 | Docs | `docs/guide/ipsec.md`, `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`, `docs/architecture/ike/ipsec-dataplane-inspection.md`, `docs/features/rfc-status.md` | the control, the guard, the socket rows |
 | RFC | `rfc/short/rfc4301.md`, `rfc/requirements/rfc4301.md` | RFC4301-4.4.1-8 per D8-3 |
 
@@ -600,6 +607,15 @@ administrator and doctor names. Under D8-3 (b) it ends covered on Ze's kernel on
 the BPF LSM leg lands.
 
 ### 8.10 Decisions only Thomas can make
+
+Thomas's answers, 2026-11-08:
+
+| ID | Answer |
+|----|--------|
+| D8-1 | (a): `cilium/ebpf` (`asm`, `link`) is approved for `ike/dataplane` |
+| D8-2 | (a) `deny`. No config migration (no release shipped a config); every repository user of `vpn ipsec` (configs, `.ci`, fixtures, interop scenarios, engine tests) is converted or re-validated in this work |
+| D8-3 | (a): socket policies only; doctor names the other CAP_NET_ADMIN holders |
+| D8-4 | (a): one switch |
 
 | ID | Question | Options | Recommendation |
 |----|----------|---------|----------------|
@@ -622,7 +638,7 @@ the BPF LSM leg lands.
 6. **Phase: Visibility** - role and SPD in the owner ledger, read join, show keys, `.ci`
    - Tests: `TestPolicyOwnersRecordRoleAndSPD`, `TestShowDataplanePolicyNamesSPDAndRole`, `dataplane-policy-spd-role`
 7. **Phase: Conformance** - the tagged pair, `./le rfc record` for each, rows edited, both interop scenarios with their red walks, docs
-8. **Phase: Application override control** - once Thomas answers D8-1 to D8-4: the leaf, the guard, the socket rows, the doctor checks, the tagged pair (the Phase 8 section)
+8. **Phase: Application override control** - D8-1 to D8-4 answered (table 8.10): the leaf, the guard, the socket rows, the doctor checks, the tagged pair (the Phase 8 section)
    - Tests: the Phase 8 TDD tables
 
 ### Critical Review Checklist
@@ -686,7 +702,11 @@ the BPF LSM leg lands.
 
 ## Known Limitations
 
-- RFC4301-4.4.1-8 stays a gap until Phase 8 lands; its design waits for D8-1 to D8-4.
+- RFC4301-4.4.1-8 stays a gap until Phase 8 lands (AC-22).
+- A process that sets a socket policy carrying Ze's reserved priority (`PriorityESPFormSocket`) is listed as `esp-form-socket`: the kernel copies the priority as given (A8-4) and names no owner (F5). Under `deny` the guard refuses that process anyway, so only a policy set under `allow` or before the guard attached can copy the mark. Doctor still counts every socket policy, and reports the rows beyond the ones Ze holds as not attributable to Ze.
+- A socket policy set before the guard attached, or while `allow` held, stays until its socket closes: no netlink request removes one (F5). Doctor names it under `deny`.
+- A direct SPD write by another CAP_NET_ADMIN holder is outside the guard (D8-3 (a), F6): Linux treats every such holder as an administrator. Doctor names the holders.
+- The VPP backend has no socket policies, so the guard concerns the kernel XFRM backend only. How VPP protects its API socket is unverified: Ze writes `socksvr { socket-name }` with no mode or group (`internal/component/vpp/startupconf.go`), and no VPP source checkout was available locally to read its default socket mode.
 - RFC4301-4.4.1.1-5 is owned by `plan/release/fixes/spec-ipsec-spd-name-selection.md`.
 
 ## Implementation Ownership

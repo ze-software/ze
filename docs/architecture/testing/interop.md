@@ -925,7 +925,9 @@ namespace-wide `net/ipv4/conf/all/rp_filter` and
 `internal/plugins/vrrp/dataplane_linux.go`), and
 `TestVRRPWritesOnlyLabGrantedSysctls` records every write it makes and checks
 the profile grants each. In the IPsec lab the NAT box, strongSwan and ze hold
-`NET_ADMIN`; the NAT box sets its three sysctls through `--sysctl`; strongSwan
+`NET_ADMIN`, and ze also holds `BPF`, because `vpn ipsec application-override
+deny` (the default) loads and attaches its setsockopt guard and fails the apply
+without it (`capabilityBPF`, `internal/le/interoplab/ipsec/ipsec.go`); the NAT box sets its three sysctls through `--sysctl`; strongSwan
 runs under `ze-lab-net-sysctl` only in a scenario whose `scenarioCheckers`
 entry sets `writesPeerSysctl` (`internal/le/interoplab/ipsec/checkers.go`),
 because its checker writes strongSwan's sysctls at run time (it cuts the

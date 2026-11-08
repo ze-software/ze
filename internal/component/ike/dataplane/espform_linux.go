@@ -253,8 +253,11 @@ func espFormBypassInboundPolicy(conn net.PacketConn) error {
 			SoftPacketLimit: xfrmInfinity,
 			HardPacketLimit: xfrmInfinity,
 		},
-		Dir:    xfrmPolicyDirIn,
-		Action: xfrmPolicyActionAllow,
+		// The kernel copies a socket policy's priority and never matches on it, so
+		// it carries Ze's mark: the listing names this row esp-form-socket.
+		Priority: PriorityESPFormSocket,
+		Dir:      xfrmPolicyDirIn,
+		Action:   xfrmPolicyActionAllow,
 	}
 
 	var setErr error

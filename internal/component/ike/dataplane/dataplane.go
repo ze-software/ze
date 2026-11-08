@@ -624,6 +624,12 @@ type PolicyInfo struct {
 	// one at this if_id. SPDName (policy_role.go) renders the SPD for a reader.
 	Role         PolicyRole
 	SPDInterface string
+
+	// PerSocket is true for a per-socket policy, which a process set on one of its
+	// sockets with IP_XFRM_POLICY or IPV6_XFRM_POLICY. It sits in no SPD: the kernel
+	// consults it before every SPD entry for that socket's traffic, so it is listed
+	// with the SPD name "socket" (SPDName).
+	PerSocket bool
 }
 
 // TunnelMigration changes only the outer addresses and ESP encapsulation of one

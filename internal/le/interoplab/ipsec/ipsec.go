@@ -41,6 +41,13 @@ const (
 	// Raw sockets (rawprobe, ping -M do) are CAP_NET_RAW, which Docker grants.
 	capabilityNetAdmin = "NET_ADMIN"
 
+	// capabilityBPF is the second capability the Ze peer holds: `vpn ipsec
+	// application-override` defaults to deny, and the guard that enforces it is a
+	// cgroup setsockopt BPF program, which the kernel loads only for CAP_BPF and
+	// attaches only for CAP_NET_ADMIN (internal/component/ike/dataplane,
+	// override_guard_linux.go). Without it every IPsec apply in the lab fails.
+	capabilityBPF = "BPF"
+
 	zePasswordHash = "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO" // #nosec G101 -- published bcrypt hash for the fixture-only testpass account, not a secret.
 
 	// swanLabConfig holds the charon settings every strongSwan peer in this lab
@@ -411,7 +418,7 @@ func prepareScenario(root string, source interoplab.ScenarioSource, state *scena
 		// database tree created beside that explicit configuration.
 		Mounts:       zeMounts,
 		Environment:  environment,
-		Capabilities: []string{capabilityNetAdmin},
+		Capabilities: []string{capabilityNetAdmin, capabilityBPF},
 		Command:      []string{"start", "/etc/ze/ze.conf"},
 	})
 	return interoplab.PreparedScenario{Peers: peers, Cleanup: cleanup}, nil

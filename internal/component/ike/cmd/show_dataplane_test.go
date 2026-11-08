@@ -488,6 +488,36 @@ func TestShowDataplanePolicyNamesSPDAndRole(t *testing.T) {
 	require.Equal(t, "if-id 9", publicRows[4]["spd"])
 }
 
+// TestShowDataplanePolicyNamesSocketRows proves AC-20: the per-socket rows the
+// backend reads from the dump render with their own direction, SPD socket, and the
+// role that tells Ze's ESP form reader from another process's override.
+//
+// VALIDATES: policyInfoToMap and policyDirName over PerSocket rows.
+// PREVENTS: socket rows listed with direction unknown, or as node SPD entries.
+func TestShowDataplanePolicyNamesSocketRows(t *testing.T) {
+	useDataplane(t, &fakeDataplane{policies: []dataplane.PolicyInfo{
+		{Dir: dataplane.SADirIn, Action: dataplane.SPActionBypass, Priority: dataplane.PriorityESPFormSocket, PerSocket: true, Role: dataplane.PolicyRoleESPFormSocket},
+		{Dir: dataplane.SADirOut, Action: dataplane.SPActionBypass, PerSocket: true, Role: dataplane.PolicyRoleSocketOverride},
+		{Dir: dataplane.SADirFwd, Action: dataplane.SPActionBypass, PerSocket: true, Role: dataplane.PolicyRoleSocketOverride},
+	}})
+
+	resp, err := handleShowVPNIPsecDataplanePolicy(nil, commandtest.Args())
+	require.NoError(t, err)
+	require.Equal(t, plugin.StatusDone, resp.Status)
+	rows := rowsOf(t, resp, "policies")
+	want := []struct{ direction, role string }{
+		{"in", "esp-form-socket"},
+		{"out", "socket-override"},
+		{"fwd", "socket-override"},
+	}
+	require.Len(t, rows, len(want))
+	for i, w := range want {
+		require.Equal(t, w.direction, rows[i]["direction"], "row %d direction", i)
+		require.Equal(t, "socket", rows[i]["spd"], "row %d spd", i)
+		require.Equal(t, w.role, rows[i]["role"], "row %d role", i)
+	}
+}
+
 // TestDriftCleanReportsNothing is AC-4.
 func TestDriftCleanReportsNothing(t *testing.T) {
 	usePeerInfo(t, map[string]engine.PeerInfo{

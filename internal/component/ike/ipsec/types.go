@@ -8,6 +8,7 @@ package ipsec
 import (
 	"net/netip"
 	"reflect"
+	"strconv"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 )
@@ -868,6 +869,46 @@ type IPsecConfig struct {
 	// engine/unmatched.go). Its zero value, false, is what EmptyConfig and a written
 	// leaf carry, and both answer "nothing to refuse".
 	UnmatchedByDefault bool
+
+	// ApplicationOverride is the administrator's answer to RFC 4301 Section 4.4.1:
+	// whether a user or application may override Ze's SPD with a per-socket policy.
+	// The parser writes ApplicationOverrideDeny for an absent leaf inside `vpn ipsec`,
+	// and EmptyConfig writes ApplicationOverrideAllow, because a box with no `vpn
+	// ipsec` block holds no SPD boundary to guard. The zero value is
+	// ApplicationOverrideUnspecified, which the apply refuses (engine
+	// application_override.go), so a configuration built by hand names one.
+	ApplicationOverride ApplicationOverride
+}
+
+// ApplicationOverride is the value of `vpn ipsec application-override`.
+type ApplicationOverride uint8
+
+const (
+	// ApplicationOverrideUnspecified is the zero value: nobody chose. It is never a
+	// disposition, and the apply refuses it.
+	ApplicationOverrideUnspecified ApplicationOverride = iota
+	// ApplicationOverrideDeny refuses every per-socket IPsec policy in Ze's network
+	// namespace except the one Ze's own ESP form reader sets.
+	ApplicationOverrideDeny
+	// ApplicationOverrideAllow leaves per-socket IPsec policies to Linux's own
+	// CAP_NET_ADMIN check.
+	ApplicationOverrideAllow
+)
+
+// applicationOverrideNames is the one declaration of each value's config word.
+var applicationOverrideNames = [...]string{
+	ApplicationOverrideUnspecified: "unspecified",
+	ApplicationOverrideDeny:        "deny",
+	ApplicationOverrideAllow:       "allow",
+}
+
+// String answers the config word. A value outside the declared set is a Ze defect,
+// and is named with its number rather than passed off as a declared value.
+func (o ApplicationOverride) String() string {
+	if int(o) < len(applicationOverrideNames) {
+		return applicationOverrideNames[o]
+	}
+	return "invalid-application-override-" + strconv.Itoa(int(o))
 }
 
 // Changed returns the peer names whose configuration differs between

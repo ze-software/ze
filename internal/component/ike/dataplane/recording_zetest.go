@@ -35,6 +35,8 @@ func newRecordingBackend() (Dataplane, error) {
 type recordingDataplane struct {
 	mu       sync.Mutex
 	policies map[recordedPolicyKey]SPParams
+	// guardAttached is the override guard state the engine last asked for.
+	guardAttached bool
 }
 
 // recordedPolicyKey is the identity the kernel gives a policy: its selector, its
@@ -79,6 +81,33 @@ func (d *recordingDataplane) Close() error                         { return nil 
 
 // CatchAllSupported answers yes: the backend holds an entry bound to no interface.
 func (d *recordingDataplane) CatchAllSupported() error { return nil }
+
+// AttachOverrideGuard records the guard as attached, so a .ci can read the state the
+// engine asked for through doctor.
+func (d *recordingDataplane) AttachOverrideGuard() error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.guardAttached = true
+	return nil
+}
+
+// DetachOverrideGuard records the guard as detached.
+func (d *recordingDataplane) DetachOverrideGuard() error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.guardAttached = false
+	return nil
+}
+
+// OverrideGuardState answers the recorded state; nothing is refused here.
+func (d *recordingDataplane) OverrideGuardState() (OverrideGuardState, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.guardAttached {
+		return OverrideGuardState{Status: OverrideGuardAttached}, nil
+	}
+	return OverrideGuardState{Status: OverrideGuardDetached}, nil
+}
 
 func (d *recordingDataplane) InstallPolicy(p SPParams) error {
 	d.mu.Lock()

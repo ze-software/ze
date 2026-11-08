@@ -133,6 +133,36 @@ module ze-ipsec-conf {
                 ze:help "Disposition of traffic no SPD entry matches: discard or bypass.";
             }
 
+            leaf application-override {
+                type enumeration {
+                    enum deny {
+                        ze:help "Refuse every per-socket IPsec policy but Ze's own.";
+                    }
+                    enum allow {
+                        ze:help "Let any process holding CAP_NET_ADMIN set per-socket IPsec policies.";
+                    }
+                }
+                default deny;
+                description "Whether a user or application may override this Security Policy
+                             Database. RFC 4301 Section 4.4.1: 'However, the system
+                             administrator MUST be able to specify whether or not a user or
+                             application can override (default) system policies.' On Linux an
+                             application overrides the SPD by setting a per-socket policy
+                             (IP_XFRM_POLICY, IPV6_XFRM_POLICY and the IPSEC_POLICY
+                             spellings), which outranks every SPD entry, the discard
+                             catch-all included.
+
+                             deny attaches a setsockopt guard to the cgroup2 root that refuses
+                             those four options with EPERM to every process in Ze's network
+                             namespace except Ze's own IPsec dataplane, so it needs ze to hold
+                             CAP_BPF and CAP_NET_ADMIN and a cgroup2 mount; a guard that
+                             cannot attach fails the commit. allow attaches nothing, and Linux
+                             lets any process holding CAP_NET_ADMIN set one. A process holding
+                             CAP_NET_ADMIN can still write the SPD itself, which no setsockopt
+                             guard sees: ze doctor names every such process.";
+                ze:help "Whether applications may override the SPD per socket: deny or allow.";
+            }
+
             list policy {
                 key "name";
                 description "An entry of the Security Policy Database that Ze installs directly,

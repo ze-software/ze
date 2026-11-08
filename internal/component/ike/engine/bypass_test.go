@@ -25,6 +25,33 @@ type bypassDP struct {
 	// a policy removal HAPPENS is the whole subject of the rekey tests.
 	removedPolicies []removedPolicy
 	removedSAs      []uint32
+
+	// guardOps records the application override guard calls in order ("attach",
+	// "detach"), and guardErr refuses an attach with that error, so the apply's
+	// refusal and its order against the catch-all can be asserted.
+	guardOps []string
+	guardErr error
+}
+
+func (d *bypassDP) AttachOverrideGuard() error {
+	if d.guardErr != nil {
+		return d.guardErr
+	}
+	d.guardOps = append(d.guardOps, "attach")
+	return nil
+}
+
+func (d *bypassDP) DetachOverrideGuard() error {
+	d.guardOps = append(d.guardOps, "detach")
+	return nil
+}
+
+// OverrideGuardState answers from the last recorded call.
+func (d *bypassDP) OverrideGuardState() (dataplane.OverrideGuardState, error) {
+	if len(d.guardOps) > 0 && d.guardOps[len(d.guardOps)-1] == "attach" {
+		return dataplane.OverrideGuardState{Status: dataplane.OverrideGuardAttached}, nil
+	}
+	return dataplane.OverrideGuardState{Status: dataplane.OverrideGuardDetached}, nil
 }
 
 type removedPolicy struct {

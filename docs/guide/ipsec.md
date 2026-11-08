@@ -1441,6 +1441,62 @@ interface instead.
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmPolicyAction -->
 <!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppSPDAction -->
 
+### Application overrides
+
+RFC 4301 Section 4.4.1: "However, the system administrator MUST be able to
+specify whether or not a user or application can override (default) system
+policies." On Linux an application overrides the SPD by setting a per-socket
+policy (`IP_XFRM_POLICY`, `IPV6_XFRM_POLICY`, and the older `IP_IPSEC_POLICY`
+and `IPV6_IPSEC_POLICY`). The kernel consults it before any SPD entry, so one
+ALLOW socket policy takes that socket past every entry, the discard catch-all
+included. Linux asks only for `CAP_NET_ADMIN`, and a Ze appliance gives that to
+every external plugin it starts. One leaf decides:
+
+```
+set vpn ipsec application-override deny
+```
+
+| Value | Meaning |
+|---|---|
+| `deny` (default) | Ze attaches a cgroup BPF program to the cgroup2 root that refuses those four options with `EPERM` to every process in Ze's network namespace except Ze itself. Every other setsockopt passes untouched, and a process in another network namespace (which has its own SPD) is not affected |
+| `allow` | No program. Linux's own `CAP_NET_ADMIN` check is the only gate, and you accept that a holder can take its sockets out of the SPD |
+
+A box with no `vpn ipsec` block attaches nothing: it has no SPD to protect.
+
+Ze's own exception is the ESP form reader's inbound socket policy (see "Both
+ESP wire forms"): it is the IPsec implementation's receive path, not an
+application, and the listing names it `esp-form-socket`. The program recognises
+Ze by its process id inside Ze's own PID namespace, so the exception holds when
+Ze runs in a container.
+
+`deny` needs `CAP_BPF` and `CAP_NET_ADMIN`, a cgroup2 mount (Ze finds it in
+`/proc/self/mountinfo`; gokrazy mounts it at `/sys/fs/cgroup`) and a kernel with
+`CONFIG_CGROUP_BPF`, which Ze's kernel carries. When any of them is missing the
+apply fails rather than run without the guard:
+
+```
+vpn ipsec application-override deny: Ze could not attach its setsockopt guard to the cgroup2 root (<kernel error>). Without it any process holding CAP_NET_ADMIN can exempt its sockets from the IPsec policy. Run ze with CAP_BPF and CAP_NET_ADMIN, mount cgroup2 at /sys/fs/cgroup, or set `vpn ipsec application-override allow` to accept that risk.
+```
+
+A reload moves between the two values with no restart, and removing `vpn ipsec`
+detaches the program after the catch-all leaves.
+
+What the guard cannot do, and what `ze doctor` reports instead:
+
+| Limit | Why | Doctor |
+|---|---|---|
+| A socket policy set before the guard attached, or while `allow` held, stays until its socket closes | The kernel offers no way to delete a socket policy, and its dump names no owning process | `doctor-ipsec-socket-policy`, a warning per policy that is not Ze's, under `deny` |
+| A `CAP_NET_ADMIN` holder can still write the SPD itself over netlink | cgroup BPF has no hook on a netlink send, and Linux treats that holder as an administrator | `doctor-ipsec-spd-writer`, a warning naming each such process and its command; `doctor-ipsec-spd-writer-unknown` when `/proc` hides processes from Ze (not mounted, `hidepid`, no ptrace access), so it cannot tell |
+| A process holding `CAP_SYS_ADMIN` or `CAP_BPF` can detach the program | It is an ordinary cgroup link | `doctor-ipsec-override-guard`, an error when the guard is not attached under `deny` |
+
+`show vpn ipsec dataplane policy` lists every socket policy with SPD `socket`,
+its direction, and role `esp-form-socket` or `socket-override`.
+
+<!-- source: internal/component/ike/ipsec/yang/ze-ipsec-conf.yang -- application-override -->
+<!-- source: internal/component/ike/dataplane/override_guard_linux.go -- attach, overrideGuardInstructions, currentPIDNamespace -->
+<!-- source: internal/component/ike/engine/application_override.go -- applyApplicationOverride, releaseApplicationOverride -->
+<!-- source: internal/component/ike/engine/doctor_application_override.go -- checkIPsecApplicationOverride, checkIPsecSPDWriters -->
+
 ## Both ESP wire forms
 
 RFC 7296 Section 2.23 requires a device that supports NAT traversal to receive

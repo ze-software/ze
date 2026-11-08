@@ -86,7 +86,33 @@ func EmptyConfig() *IPsecConfig {
 		IKEGroups: make(map[string]IKEGroup),
 		Peers:     make(map[string]SiteToSitePeer),
 		Unmatched: dataplane.SPActionBypass,
+		// No `vpn ipsec` block is no SPD boundary, so there is nothing an application
+		// could override and no guard to attach.
+		ApplicationOverride: ApplicationOverrideAllow,
 	}
+}
+
+// parseApplicationOverride reads whether a user or application may override the
+// SPD with a per-socket policy.
+//
+// RFC 4301 Section 4.4.1: "However, the system administrator MUST be able to specify
+// whether or not a user or application can override (default) system policies."
+// An absent leaf is the YANG default, deny, written here explicitly rather than left
+// to the zero value, which names no choice.
+func parseApplicationOverride(t *config.Tree) (ApplicationOverride, error) {
+	v, ok := t.Get("application-override")
+	if !ok {
+		return ApplicationOverrideDeny, nil
+	}
+	// The words are the ones applicationOverrideNames declares, read back from it so
+	// the parser and the renderer cannot spell a value two ways.
+	switch v {
+	case ApplicationOverrideDeny.String():
+		return ApplicationOverrideDeny, nil
+	case ApplicationOverrideAllow.String():
+		return ApplicationOverrideAllow, nil
+	}
+	return ApplicationOverrideUnspecified, fmt.Errorf("ipsec application-override %q: want deny or allow", v)
 }
 
 // parseUnmatched reads the disposition of the SPD catch-all entry.
@@ -143,6 +169,13 @@ func ParseIPsecConfig(tree *config.Tree) (*IPsecConfig, error) {
 	cfg.Unmatched = unmatched
 	_, written := ipsecRoot.Get("unmatched")
 	cfg.UnmatchedByDefault = !written
+
+	// RFC 4301 Section 4.4.1, the administrator's override control.
+	override, err := parseApplicationOverride(ipsecRoot)
+	if err != nil {
+		return nil, err
+	}
+	cfg.ApplicationOverride = override
 
 	if v, ok := ipsecRoot.Get("interface"); ok {
 		cfg.Interface = v

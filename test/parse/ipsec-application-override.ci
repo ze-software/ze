@@ -1,0 +1,124 @@
+# Test: vpn ipsec application-override, RFC 4301 Section 4.4.1's administrator
+# control over whether a user or application may override the SPD, reaches the
+# config through `ze config validate`: deny and allow are accepted, and any other
+# value is refused by the YANG enumeration with the two values named.
+#
+# The refusal is the discriminator: the exit code alone says only that the config
+# failed somewhere, so the needles name the leaf and the enumeration
+# (ValidateLeafValue's enum arm, internal/component/config/schema.go). The two
+# accepted values follow, so the test fails if the refusal widens into
+# "application-override rejected". What each value does at apply is unit- and
+# kernel-proven (TestRFC4301OverrideLeafSelectsTheGuard,
+# TestRFC4301ApplicationOverrideDeniedInKernel).
+stdin=bad:terminator=EOF_BAD
+vpn {
+	ipsec {
+		application-override permit
+		ike-group IKE-1 {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 14
+			}
+		}
+		esp-group ESP-1 {
+			proposal 1 {
+				encryption aes256gcm
+			}
+		}
+		site-to-site {
+			peer branch-1 {
+				ike-group IKE-1
+				esp-group ESP-1
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret 00ff41
+					pre-shared-secret-encoding hex
+				}
+			}
+		}
+	}
+}
+
+EOF_BAD
+
+stdin=deny:terminator=EOF_DENY
+vpn {
+	ipsec {
+		application-override deny
+		ike-group IKE-1 {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 14
+			}
+		}
+		esp-group ESP-1 {
+			proposal 1 {
+				encryption aes256gcm
+			}
+		}
+		site-to-site {
+			peer branch-1 {
+				ike-group IKE-1
+				esp-group ESP-1
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret 00ff41
+					pre-shared-secret-encoding hex
+				}
+			}
+		}
+	}
+}
+
+EOF_DENY
+
+stdin=allow:terminator=EOF_ALLOW
+vpn {
+	ipsec {
+		application-override allow
+		ike-group IKE-1 {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 14
+			}
+		}
+		esp-group ESP-1 {
+			proposal 1 {
+				encryption aes256gcm
+			}
+		}
+		site-to-site {
+			peer branch-1 {
+				ike-group IKE-1
+				esp-group ESP-1
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret 00ff41
+					pre-shared-secret-encoding hex
+				}
+			}
+		}
+	}
+}
+
+EOF_ALLOW
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=bad
+expect=exit:code=1
+# The needles carry no ':' because the directive splits on it.
+expect=stdout:contains=application-override
+expect=stdout:contains=expected one of
+expect=stdout:contains=deny, allow
+cmd=foreground:seq=2:exec=ze config validate -:stdin=deny
+expect=exit:code=0
+cmd=foreground:seq=3:exec=ze config validate -:stdin=allow
+expect=exit:code=0

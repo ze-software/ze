@@ -60,6 +60,10 @@ const (
 	CodeDoctorIPsecCertURL                         = "doctor-ipsec-cert-url"
 	CodeDoctorIPsecCertURLDenied                   = "doctor-ipsec-cert-url-denied"
 	CodeDoctorIPsecCookieThreshold                 = "doctor-ipsec-cookie-threshold"
+	CodeDoctorIPsecOverrideGuard                   = "doctor-ipsec-override-guard"
+	CodeDoctorIPsecSocketPolicy                    = "doctor-ipsec-socket-policy"
+	CodeDoctorIPsecSPDWriter                       = "doctor-ipsec-spd-writer"
+	CodeDoctorIPsecSPDWriterUnknown                = "doctor-ipsec-spd-writer-unknown"
 	CodeDoctorIPsecVirtualIPPool                   = "doctor-ipsec-virtual-ip-pool"
 	CodeDoctorIPsecInterfaceAddress                = "doctor-ipsec-interface-address"
 	CodeDoctorIPsecIface                           = "doctor-ipsec-iface"
@@ -953,6 +957,48 @@ var builtinCodes = []CodeMeta{
 			"source addresses is off. Lower cookie-threshold to the responding-peer count or " +
 			"below, or leave it at the default of 0 to challenge every inbound initiation.",
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-cookie-threshold"},
+	},
+	{
+		Code:  CodeDoctorIPsecOverrideGuard,
+		Title: "IPsec application-override guard not attached",
+		Description: "vpn ipsec application-override is deny, but the cgroup setsockopt guard that " +
+			"refuses per-socket IPsec policies to every process but Ze is not attached. Any process " +
+			"holding CAP_NET_ADMIN in Ze's network namespace can then set IP_XFRM_POLICY or " +
+			"IPV6_XFRM_POLICY on its socket and take that socket out of every SPD entry, the " +
+			"DISCARD catch-all included (RFC 4301 Section 4.4.1). A process holding CAP_BPF or " +
+			"CAP_SYS_ADMIN can detach the guard. Restart ze; if this persists, run ze doctor --json " +
+			"and read the attach error.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-override-guard"},
+	},
+	{
+		Code:  CodeDoctorIPsecSocketPolicy,
+		Title: "A per-socket IPsec policy overrides the SPD",
+		Description: "Under vpn ipsec application-override deny, the kernel holds a per-socket IPsec " +
+			"policy that is not Ze's own. It was set before the guard attached, or while allow " +
+			"held, and it overrides the SPD for its socket until the socket closes: no netlink " +
+			"request removes it, and the kernel does not name the owning process. Restart the " +
+			"applications started before Ze. show vpn ipsec dataplane policy lists it with the " +
+			"role socket-override.",
+		Examples: []string{exampleDoctorJSON, "show vpn ipsec dataplane policy"},
+	},
+	{
+		Code:  CodeDoctorIPsecSPDWriter,
+		Title: "Other processes can write the IPsec SPD",
+		Description: "Processes other than Ze hold CAP_NET_ADMIN in Ze's network namespace. Linux " +
+			"admits an XFRM netlink write from any such process, and no hook separates it from Ze, " +
+			"so each can add or remove SPD entries directly. vpn ipsec application-override " +
+			"governs per-socket policies only. Remove CAP_NET_ADMIN from those processes or stop them.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-spd-writer"},
+	},
+	{
+		Code:  CodeDoctorIPsecSPDWriterUnknown,
+		Title: "Ze cannot tell which processes can write the IPsec SPD",
+		Description: "Ze could not read /proc, or Linux refused to show some processes' network " +
+			"namespace or capabilities (procfs not mounted, hidepid, or no ptrace access to them). " +
+			"Ze then cannot tell which other processes hold CAP_NET_ADMIN in its network namespace, " +
+			"and each such process can add or remove SPD entries directly. Mount /proc without " +
+			"hidepid and run ze as root with CAP_SYS_PTRACE, then run ze doctor again.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-spd-writer-unknown"},
 	},
 	{
 		Code:  CodeDoctorIPsecVirtualIPPool,

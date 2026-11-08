@@ -74,6 +74,21 @@ func (b *vppBackend) CatchAllSupported() error {
 	return fmt.Errorf("%w: vpp: an SPD entry applies only to the interfaces its SPD is bound to", ErrNoNodeWideSPD)
 }
 
+// AttachOverrideGuard declares there is nothing to guard: VPP's SPD lives in VPP, and
+// a per-socket policy reaches only the kernel's XFRM, so no application can override
+// VPP's SPD by setsockopt. Writing VPP's SPD needs its binary API socket.
+func (b *vppBackend) AttachOverrideGuard() error {
+	return fmt.Errorf("vpp: %w", ErrNoSocketPolicySPD)
+}
+
+// DetachOverrideGuard has nothing to remove.
+func (b *vppBackend) DetachOverrideGuard() error { return nil }
+
+// OverrideGuardState answers not applicable, for the reason AttachOverrideGuard gives.
+func (b *vppBackend) OverrideGuardState() (OverrideGuardState, error) {
+	return OverrideGuardState{Status: OverrideGuardNotApplicable}, nil
+}
+
 func (b *vppBackend) InstallPolicy(p SPParams) error {
 	swIfIndex, err := vppPolicyInterface(p)
 	if err != nil {

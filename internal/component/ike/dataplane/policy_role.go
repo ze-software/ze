@@ -42,6 +42,12 @@ const (
 	// installs through the same dataplane (plugins/ospf/ipsec_install.go). It is Ze's
 	// own entry, so it is never left to read as "unknown".
 	PolicyRoleOSPF
+	// PolicyRoleESPFormSocket is the per-socket policy of Ze's ESP form reader
+	// (espFormBypassInboundPolicy), told apart by PriorityESPFormSocket.
+	PolicyRoleESPFormSocket
+	// PolicyRoleSocketOverride is any other per-socket policy: an application's
+	// override of the SPD (RFC 4301 Section 4.4.1).
+	PolicyRoleSocketOverride
 )
 
 // policyRoleNames is the one declaration of each role's rendered name, indexed by
@@ -55,7 +61,22 @@ var policyRoleNames = [...]string{
 	PolicyRoleChildSA:            "child-sa",
 	PolicyRoleOperator:           "operator",
 	PolicyRoleOSPF:               "ospf",
+	PolicyRoleESPFormSocket:      "esp-form-socket",
+	PolicyRoleSocketOverride:     "socket-override",
 }
+
+// socketPolicyRole names a per-socket policy from its priority, the mark Ze writes
+// into its own (PriorityESPFormSocket). A process that copies the mark is listed as
+// Ze's; doctor still counts every socket policy, so the copy is not hidden there.
+func socketPolicyRole(priority int) PolicyRole {
+	if priority == PriorityESPFormSocket {
+		return PolicyRoleESPFormSocket
+	}
+	return PolicyRoleSocketOverride
+}
+
+// spdNameSocket names where a per-socket policy sits: on a socket, ahead of every SPD.
+const spdNameSocket = "socket"
 
 // String answers the role's rendered name. A value outside the declared set is a Ze
 // defect, and is named with its number rather than passed off as a declared role.
@@ -79,6 +100,9 @@ const spdNameNode = "node"
 // appropriate SPD for outbound traffic processing." The kernel's if_id is the SPD-ID,
 // and this is the name the operator reads it by.
 func (p *PolicyInfo) SPDName() string {
+	if p.PerSocket {
+		return spdNameSocket
+	}
 	if p.IfID == 0 {
 		return spdNameNode
 	}

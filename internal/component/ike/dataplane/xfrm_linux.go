@@ -62,6 +62,10 @@ type xfrmBackend struct {
 	// migrationCleanup holds alternate SAD identities after a failed rollback
 	// whose delete also failed. Ordinary Child SA teardown retries these entries.
 	migrationCleanup map[SAIdentity]SAIdentity
+
+	// guard is the application override guard (override_guard_linux.go), held only
+	// while `vpn ipsec application-override deny` is applied.
+	guard overrideGuard
 }
 
 func newXFRMBackend() (Dataplane, error) {
@@ -723,12 +727,12 @@ func (b *xfrmBackend) policyInfoFromKernel(p *netlink.XfrmPolicy) PolicyInfo {
 		Dst:        p.Dst,
 		SrcPort:    PortMatch{Port: uint16(p.SrcPort), Mask: p.SrcPortMask},
 		DstPort:    PortMatch{Port: uint16(p.DstPort), Mask: p.DstPortMask},
-		Dir:        SADir(p.Dir) + 1,
 		UpperProto: uint8(p.Proto),
 		Priority:   p.Priority,
 		IfIndex:    p.Ifindex,
 		IfID:       uint32(p.Ifid),
 	}
+	info.Dir, info.PerSocket = policyDirFromKernel(p.Dir)
 	// An ALLOW policy with no template is the SPD BYPASS disposition of RFC 4301
 	// Section 4.4.1, and a BLOCK policy is the DISCARD disposition of the same
 	// section. A template present under ALLOW means the policy protects, which is
@@ -753,8 +757,39 @@ func (b *xfrmBackend) policyInfoFromKernel(p *netlink.XfrmPolicy) PolicyInfo {
 			info.Mode = mode
 		}
 	}
+	if info.PerSocket {
+		// A socket policy is no SPD entry, so the owner ledger holds no record of it.
+		// Its role says whether it is Ze's own (the ESP form reader's, marked by its
+		// priority) or an application's override.
+		info.Role = socketPolicyRole(info.Priority)
+		return info
+	}
 	b.policies.annotate(&info)
 	return info
+}
+
+// policyDirFromKernel maps the dump's direction. The kernel lists a per-socket
+// policy with its direction offset by XFRM_POLICY_MAX (xfrm_sk_policy_link calls
+// __xfrm_policy_link with XFRM_POLICY_MAX + dir), which the netlink package names
+// XFRM_SOCKET_IN, XFRM_SOCKET_OUT and XFRM_SOCKET_FWD. A value outside the six maps
+// to the zero SADir, which the listing renders as unknown, never to a direction it
+// does not carry.
+func policyDirFromKernel(d netlink.Dir) (dir SADir, perSocket bool) {
+	switch d {
+	case netlink.XFRM_DIR_IN:
+		return SADirIn, false
+	case netlink.XFRM_DIR_OUT:
+		return SADirOut, false
+	case netlink.XFRM_DIR_FWD:
+		return SADirFwd, false
+	case netlink.XFRM_SOCKET_IN:
+		return SADirIn, true
+	case netlink.XFRM_SOCKET_OUT:
+		return SADirOut, true
+	case netlink.XFRM_SOCKET_FWD:
+		return SADirFwd, true
+	}
+	return 0, false
 }
 
 // zeXFRMMode is the inverse of kernelXFRMMode. The two constant sets are offset

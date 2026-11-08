@@ -71,7 +71,7 @@ func argumentPairs(arguments []string, flag string) []string {
 // ipsecPeerGrants answers the exact grant set a peer of the named scenario
 // holds: FRR the NET_ADMIN and SYS_ADMIN of the shared FRR peer; strongSwan NET_ADMIN, and /proc/sys writable only where its
 // checker writes a sysctl; the NAT box NET_ADMIN and its --sysctl settings;
-// every other peer NET_ADMIN.
+// ze NET_ADMIN and BPF; every other peer NET_ADMIN.
 func ipsecPeerGrants(scenario, peer string) grantcheck.Grants {
 	switch peer {
 	case frrPeer:
@@ -84,15 +84,17 @@ func ipsecPeerGrants(scenario, peer string) grantcheck.Grants {
 		}
 		return grants
 	case zePeer:
-		return grantcheck.Grants{Capabilities: []string{"NET_ADMIN"}}
+		// BPF: the default `vpn ipsec application-override deny` loads a cgroup
+		// setsockopt program (capabilityBPF in ipsec.go).
+		return grantcheck.Grants{Capabilities: []string{"NET_ADMIN", "BPF"}}
 	case natPeer:
 		return grantcheck.Grants{Capabilities: []string{"NET_ADMIN"}, Sysctls: natSysctls}
 	}
 	return grantcheck.Grants{Capabilities: []string{"NET_ADMIN"}}
 }
 
-// VALIDATES: AC-1. No peer is privileged; the NAT box, strongSwan and ze hold
-// NET_ADMIN; the NAT box sets its sysctls through --sysctl and its script writes
+// VALIDATES: AC-1. No peer is privileged; the NAT box and strongSwan hold
+// NET_ADMIN, ze NET_ADMIN and BPF; the NAT box sets its sysctls through --sysctl and its script writes
 // none; strongSwan, where the scenario's checker writes its sysctls at run time
 // (cutting its reassembly marks, or enabling IPv6 on its lab interface;
 // writesPeerSysctl on its checker entry) and only there, gets /proc/sys

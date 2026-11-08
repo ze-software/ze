@@ -33,6 +33,17 @@ func (noopDataplane) Close() error                                     { return 
 // CatchAllSupported answers yes, as every other install of this test-only backend does.
 func (noopDataplane) CatchAllSupported() error { return nil }
 
+// AttachOverrideGuard and DetachOverrideGuard accept, as every other write of this
+// test-only backend does.
+func (noopDataplane) AttachOverrideGuard() error { return nil }
+func (noopDataplane) DetachOverrideGuard() error { return nil }
+
+// OverrideGuardState refuses, as ListPolicies does: this backend attached nothing,
+// so an answer would be a claim about the machine it cannot make.
+func (noopDataplane) OverrideGuardState() (OverrideGuardState, error) {
+	return OverrideGuardState{}, fmt.Errorf("%w: the noop dataplane attaches nothing, so it cannot read the override guard", ErrNotSupported)
+}
+
 // ListSAs and ListPolicies REFUSE rather than report an empty dataplane.
 //
 // The write methods above succeed so an unprivileged .ci can complete an IKEv2
