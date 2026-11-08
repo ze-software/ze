@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | Shipped PPPoE client misbehaves on an accepted configuration: an access network that renegotiates LCP after the LAC opened it (the wholesale L2TP shape) never gets its Configure-Request answered, so the session times out and the CPE never comes up. Blocks the home-CPE migration. |
@@ -16,42 +16,75 @@ Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
 
 ## Blocker
 
-Closure attempt 2026-11-08 found the implementation landed and the netns
-PPPoE suite green on Ze 7.3 (10/10, `pppoe-client-lcp-renegotiation`
-included), but none of this spec's validating tests has a recorded red
-(`ai/rules/interop-and-goal-validation.md`), and the client path carries no
-`RFC requirement:` tag for the spec's own gaps: every `RFC1661-4.3-1` and
-`RFC1661-3.6-2` tag in the tree is on the LNS FSM (`internal/component/l2tp/ppp/rfc1661_test.go`,
-`rfc1661_clauses_test.go`), none in `internal/component/l2tp/pppoeclient/`.
-What clears it: each row below run as a red walk (break, rebuild, red, restore,
-green), the unit rows tagged and recorded through `./le rfc record`, and the
-interop row run once children 14 and 18 are implemented (both still `design`).
+Closure attempt 2026-11-08 (second): the implementation and the external
+review fixes have landed (`86bc403a4e`, `a02374d9ad`), but four red walks are
+owed on the code in the tree now. Their producers changed after the last
+walk: `a02374d9ad` (this spec, 19:13) rewrote `restart`, `keepaliveLoop`,
+`runClientAuth` and `negotiateIPCP`, and `57ef59e5e1` (child 8, 22:52) added
+IPv6CP gauge calls to `keepaliveLoop` and `(*connectedSession).restart`. What
+clears it: each row below observed red under its break and green clean on
+HEAD. The spec then returns to `in-progress` for closure.
 
-| Test | Break (file, function: before -> after) | Expected red |
-|------|------------------------------------------|--------------|
-| `pppoe-client-lcp-renegotiation` (`test/pppoe/`, `./le test qemu netns suites pppoe`) | `internal/component/l2tp/pppoeclient/network_phase.go` `keepaliveLoop`, `case ppp.LCPConfigureRequest`: body (requestLCPReentry ... `session.restart`) -> `continue` | observer times out at the renegotiation LCP read: no client Configure-Request and Ack on session 44 |
-| `TestRFC1661ClientRenegotiatesLCPInNetworkPhase` (tag `RFC1661-4.3-1`) | same break as above | missing scr then Configure-Ack before EOF |
-| `TestRFC1661ClientRenegotiatesLCPDuringAuth` (tag `RFC1661-4.3-1`) | `session.go` `runClientAuth`, `case ppp.LCPConfigureRequest`: `return reentry` -> `continue` | missing Configure-Ack `c0 21 02 73 00 0a 05 06 55 66 77 88` |
-| `TestRFC1661ClientRenegotiatesLCPDuringIPCP` (tag `RFC1661-4.3-1`) | `session.go` `negotiateIPCP`, LCP branch `case ppp.LCPConfigureRequest`: `return ipcpResult{}, reentry` -> `continue` | missing Configure-Ack; no second CHAP or IPCP epoch |
-| `TestDialRenegotiatesLCPInNetworkPhase` (Linux integration, tag `RFC1661-3.6-2`) | `connected_session.go` `(*connectedSession).restart`: `s.setIPv4Mode(ppp.NPModeDrop)` call -> removed | IPv4 delivered during LCP, PAP or IPCP instead of dropped |
-| `access-wholesale-accel-lns` (interop-topology) | first-row break, container image rebuilt | CPE never reaches IPCP Opened behind accel-ppp; checker red. Needs `spec-home-cpe-14-lac-realm-relay.md` and `spec-home-cpe-18-interoplab-multi-link-topology.md` implemented first |
+| # | Test | Break (current line) | Last run | What is owed |
+|---|------|----------------------|----------|--------------|
+| 1 | `TestRFC1661ClientRenegotiatesLCPInNetworkPhase` (`RFC1661-4.3-1`, Darwin unit) | `network_phase.go` `keepaliveLoop` line 270:5, `if !admitted {` -> `if true \|\| !admitted {` | re-taken in `a9cef076ad` (21:34) | `./le rfc check` reports the record `producer-changed` by `57ef59e5e1`: re-record |
+| 2 | `TestDialRenegotiatesLCPInNetworkPhase` (`RFC1661-3.6-2`, Linux integration, `internal/component/iface/rfc1661_pppoe_packets_integration_linux_test.go`) | `connected_session.go` `(*connectedSession).restart` line 176:26, `NPModeDrop` -> `NPModePass` | green 2026-11-07 (`qemu-lx2.log`, build `42a8e2ff74`); never red | no discrimination record: `rfc/discrimination/rfc1661/RFC1661-3.6-2.json` holds only the LNS unit. Green and red on HEAD in the Ze 7.3 guest |
+| 3 | `pppoe-client-lcp-renegotiation` (`test/pppoe/`, netns) | row 1's break | green 12:16 and red 12:17 on 2026-11-08 (`g3/clean.log`, `g3/c12-broken.log`: "renegotiation on session 44: LCP: context deadline exceeded") | both ran before `a02374d9ad`: rerun clean and broken on HEAD |
+| 4 | `access-wholesale-accel-lns` (interop-topology) | `session.go` `runClientAuth` line 615:6, `if !admitted {` -> `if true \|\| !admitted {` | green on `a02374d9ad` (`rwinv/topo-full-ac12.log`, 21:06); never red | red walk under the auth break, then a clean rerun |
 
-Also open, from this spec's own ledger: `TestDialRenegotiatesLCPInNetworkPhase`,
+Scratch paths are under `tmp/session/2026-11-07-104251/scratch/`. Fresh
+overlays for rows 2 to 4, cut from HEAD `f76e6ac342`, are in
+`rwinv/c12-v3/{ipv4,np,auth}/overlay.json`. The `rwinv/c12-*` overlays of
+19:37 predate `57ef59e5e1` and are stale.
+
+Two earlier walks are not evidence. `g2/c12-broken.log` (12:01) is spoiled:
+its clean run `g2/clean.log` (11:58) failed the same way, "first negotiation:
+LCP: context deadline exceeded", so the red does not come from the break.
+The wholesale walk `rwinv/out-c2-12-interop/c12-wholesale-broken.log` (12:17)
+passed under the network-phase break, so it does not discriminate. The cause
+is the scenario's shape, not a weak checker: the Ze LAC runs LCP and starts
+CHAP with the CPE itself before it relays by realm
+(`test/interop-topology/scenarios/access-wholesale-accel-lns/ze-lac.conf`), so
+accel-ppp's fresh Configure-Request reaches the CPE while it is still in the
+Authentication phase (`runClientAuth`), never in `keepaliveLoop`. Row 4 uses
+the `runClientAuth` break for that reason.
+
+Linux evidence on `a02374d9ad` that stands: `rwinv/out-c12c15/c12-scripted.log`
+(`TestScriptedACRenegotiatesDial`, 2 PASS) and
+`rwinv/out-c12c15/l2tp-ppp-linux.log` (`internal/component/l2tp/ppp`, 1116
+PASS), both 19:48. Darwin `pppoeclient` and `iface` green on `a02374d9ad`
+(`c12b.log`, 19:02). Still owed on Ze 7.3 from the assumptions:
 `TestPPPoEConfigRenegotiatesKernelState` and `TestDialAcknowledgesFirstEagerIPCP`
-are proven on 7.2.9-ze, target 7.3 owed (A-1..A-3); package-scoped lint over
-`pppoeclient`, `iface`, `pppoeac` has no stable-input pass; the parent's
-external model review is still pending.
+(A-1..A-3), last run on 7.2.9-ze. Package-scoped lint over `pppoeclient`,
+`iface` and `pppoeac` still has no stable-input pass.
 
-Review instruction received from the parent (2026-11-02): "User now requests
-external model review before finishing: main will pause at final review gate and
-supply brief; don't declare finished/commit closure."
+Outside this spec, `57ef59e5e1` also staled child 8's records whose producer is
+`keepaliveLoop` or `applyIPv6CP` (`RFC1994-4.1-4` both polarities,
+`RFC2516-7-3`, `RFC7084-4.2-10`). Child 8 owns their re-take.
 
-The main session holds the final review gate for that external review. This
-instruction does not authorize a closure commit before the review.
+## External Review
+
+Thomas asked for an external model review before closure. It ran on Codex on
+2026-11-08 (`tmp/session/2026-11-07-104251/scratch/codex-c12.log`, final
+findings block) and returned 4 ISSUEs and 3 NOTEs. Every ISSUE was fixed in
+`a02374d9ad`, whose test changes `ze-test-judge` judged (the approval lines
+are in that commit). AC-13 was restated and AC-16 added there.
+
+| # | Severity | Finding | Disposition |
+|---|----------|---------|-------------|
+| 1 | ISSUE | `session.go` `negotiateLCP`: the Restart timer did not follow transmissions | fixed: the timer restarts at every Configure-Request, with a Restart counter (Max-Configure 10) per RFC 1661 Section 4.4 and pppd `fsm_sconfreq`; `lcp_restart_timer_test.go` |
+| 2 | ISSUE | `sendLCPOptionReply`, `sendEchoReply`, `sendTerminateAck` discarded write errors | fixed: the errors are returned (RFC 1661 Sections 5.1, 5.5) |
+| 3 | ISSUE | `(*connectedSession).restart` and iface `runSession` resumed forwarding before the new settings applied | fixed: IPv4 and IPv6 stay DROP until the iface consumer reports the result applied (`PPPoEResult.Seq`, `PPPoESession.Applied`); `restart_applied_test.go`, AC-16 |
+| 4 | ISSUE | `TestConnectedExchangeRestarts` had no dual-stack LCP reentry proof | fixed: dual-stack restart and recovery tests |
+| 5 | NOTE | `TestRFC1661ClientRenegotiatesLCPInNetworkPhase` proved the replies, not recovery | addressed: recovery test added |
+| 6 | NOTE | the fresh-Magic assertion of `TestL2TPProxyLCPRenegotiateReachesDriver` was conditional | addressed: the assertion is unconditional |
+| 7 | NOTE | `access-wholesale-accel-lns` written, not run | green since (`rwinv/topo-full-ac12.log`); its red walk is Blocker row 4 |
+
+RFC 1661 Section 4.6 (Restart and Max-Configure configurable) is recorded as a
+client gap in `rfc/short/rfc1661.md`.
 
 One-off owner authorization (2026-11-02): "start child 12, ignore spec limit
-(number open)". This claim uses `ZE_SPEC_WIP_CAP=15`; the standing WIP rule
-does not change.
+(number open)". The standing WIP rule does not change.
 
 RFC gaps, in words: RFC 1661 Section 3.4 and Section 4.1 (RCR in Opened, and
 RCR during the Authentication and Network-Layer Protocol phases; the summary
