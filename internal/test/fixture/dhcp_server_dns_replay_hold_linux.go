@@ -5,6 +5,7 @@
 // Related: dns_resolver_forward_ppp_replay_linux.go -- the resolver's replay scenario this one follows for the DHCP server
 // Related: dns_source_router_follows_lease_linux.go -- leaseNegotiate and leaseDNSServer, the IPCP lease reused here
 // Related: ../dhcpprobe/first_linux.go -- First, which judges the server's first reply
+// Related: dhcp_server_dns_replay_hold_gate_linux.go -- the gate that keeps the server's snapshot-request unanswered
 
 package fixture
 
@@ -41,9 +42,9 @@ const replayHoldResolvConf = "dhcp-server-dns-replay-hold.resolv.conf"
 const replayHoldExchange = "x,hold-first,type=discover,mac=02-00-00-00-00-71,expect=offer,dns=192.0.2.53,dns-count=1,lease=3600"
 
 // The DHCPDISCOVER is resent replayHoldInterval apart, so one reaches the
-// listener within that time of the moment it binds, long before the startup
-// replay it holds for can be applied. replayHoldWindow bounds the whole
-// wait, the reload included.
+// listener within that time of the moment it binds, inside the window the
+// gate keeps the startup replay away (replayHoldGateHeld). replayHoldWindow
+// bounds the whole wait, the reload included.
 const (
 	replayHoldInterval = 5 * time.Millisecond
 	replayHoldWindow   = 30 * time.Second
@@ -57,12 +58,16 @@ const (
 // does reloadSource add `service dhcp-server`. The plugin binds its listener
 // when it is configured, before the snapshot-request it sends once started
 // is answered, so its learned list is still empty while the first requests
-// arrive. The probe is already sending a DHCPDISCOVER every
-// replayHoldInterval when the SIGHUP goes out, and the first OFFER the server
-// gives MUST already carry the lease's server: offerDNS holds every reply
-// until the replay is applied (dnssource.Follower.AwaitReplay). Without the
-// hold the first OFFER carries no option 6 and the shortened lease.
-func dhcpServerDNSReplayHold(ctx context.Context, _ *sdk.Plugin, reloadSource string) error {
+// arrive. Before the reload the fixture closes its gate
+// (dhcp_server_dns_replay_hold_gate_linux.go), which keeps that
+// snapshot-request unanswered until replayHoldGateHeld after the listener is
+// bound. The probe starts sending a DHCPDISCOVER every replayHoldInterval as
+// soon as the SIGHUP is out, and the first OFFER the server gives MUST come
+// after the gate opens and carry the lease's server: offerDNS holds every
+// reply until the replay is applied (dnssource.Follower.AwaitReplay).
+// Without the hold the server answers inside the gate, and its first OFFER
+// carries no option 6 and the shortened lease.
+func dhcpServerDNSReplayHold(ctx context.Context, p *sdk.Plugin, reloadSource string) error {
 	runCtx, cancel := context.WithTimeout(ctx, 100*time.Second)
 	defer cancel()
 
@@ -94,19 +99,44 @@ func dhcpServerDNSReplayHold(ctx context.Context, _ *sdk.Plugin, reloadSource st
 	}
 	defer probe.Close() //nolint:errcheck // The verdict is already taken; a close error changes none.
 
-	if err := replayHoldSignalReload(runCtx, reloadSource); err != nil {
-		return fmt.Errorf("reload %s: %w", reloadSource, err)
+	gate, err := closeReplayHoldGate(runCtx, p)
+	if err != nil {
+		return fmt.Errorf("replay gate: %w", err)
 	}
+	defer gate.open() // a panic below still releases the engine's queued deliveries
+
+	if err := replayHoldSignalReload(runCtx, reloadSource); err != nil {
+		_, gateErr := gate.finish()
+		return errors.Join(fmt.Errorf("reload %s: %w", reloadSource, err), gateErr)
+	}
+	gate.watchListener(runCtx)
 	emit := func(line string) {
 		var tb textbuf.Buffer
 		tb.Str(line).Str("\n").StdErr()
 	}
-	if err := probe.First(&step.Exchange, replayHoldInterval, replayHoldWindow, emit); err != nil {
-		return fmt.Errorf("the DHCP server started after the PPPoE lease, its first offer: %w", err)
+	firstErr := probe.First(&step.Exchange, replayHoldInterval, replayHoldWindow, emit)
+	answeredAt := time.Now()
+	span, gateErr := gate.finish()
+	if firstErr != nil {
+		return fmt.Errorf("the DHCP server started after the PPPoE lease, its first offer: %w", firstErr)
 	}
+	if gateErr != nil {
+		return fmt.Errorf("replay gate: %w", gateErr)
+	}
+	return replayHoldJudgeSpan(span, answeredAt)
+}
 
+// replayHoldJudgeSpan refuses a first OFFER that came while the gate held the
+// server's snapshot-request, and reports the window the hold covered.
+func replayHoldJudgeSpan(span replayHoldSpan, answeredAt time.Time) error {
+	if answeredAt.Before(span.openedAt) {
+		return errors.New("the DHCP server answered while its snapshot-request was still unanswered, " +
+			span.openedAt.Sub(answeredAt).String() + " before the gate opened")
+	}
 	var tb textbuf.Buffer
-	tb.Str("OK: dhcp-server started after the PPPoE lease -> first offer carries the replayed lease server ").
+	tb.Str("OK: dhcp-server listener bound, no offer while its snapshot-request was held for ").
+		Str(span.openedAt.Sub(span.boundAt).Round(time.Millisecond).String()).Str("\n").
+		Str("OK: dhcp-server started after the PPPoE lease -> first offer carries the replayed lease server ").
 		Str(leaseDNSServer.String()).Str("\n").StdErr()
 	return nil
 }
