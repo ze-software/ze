@@ -595,7 +595,7 @@ module ze-types {
     typedef dns-source-class {
         type enumeration {
             enum received {
-                ze:help "Resolvers Ze learned from the network, by DHCPv4, DHCPv6 or IPCP.";
+                ze:help "Resolvers Ze learned from the network, by DHCPv4, DHCPv6, IPCP or router advertisement RDNSS.";
             }
             enum configured {
                 ze:help "The resolvers configured on this consumer itself.";
