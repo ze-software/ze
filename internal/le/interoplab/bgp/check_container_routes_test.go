@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
@@ -61,5 +62,25 @@ func TestRemoveContainerDefaultRouteRunsIPRouteDelete(t *testing.T) {
 				t.Fatalf("deletion refused: %v", err)
 			}
 		})
+	}
+}
+
+// TestNSSADefaultDiagnosticKeepsCauseAndAddsRoutes requires the assertion-2
+// diagnostic to keep the wait's error in the chain and to append what FRR and
+// the kernel hold, so a failed lab run names the route that won.
+//
+// MUTATION: (internal/le/interoplab/bgp/check_container_routes.go,
+// `	return fmt.Errorf("%w; FRR default routes: %s; kernel routes: %s", cause, frrDefault, kernel)`,
+// `	return fmt.Errorf("%v; FRR default routes: %s; kernel routes: %s", cause, frrDefault, kernel)`):
+// the cause leaves the chain, and errors.Is fails.
+func TestNSSADefaultDiagnosticKeepsCauseAndAddsRoutes(t *testing.T) {
+	cause := errors.New("wait timed out")
+	lab := &defaultRouteLab{result: interoplab.CommandResult{Stdout: "default via 172.30.0.1 dev eth0\n"}}
+	err := nssaDefaultDiagnostic(t.Context(), lab, cause)
+	if !errors.Is(err, cause) {
+		t.Fatalf("the wait's error left the chain: %v", err)
+	}
+	if !strings.Contains(err.Error(), "default via 172.30.0.1 dev eth0") {
+		t.Fatalf("the diagnostic lost the route output: %v", err)
 	}
 }

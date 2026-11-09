@@ -1368,7 +1368,7 @@ func checkNSSADefault(ctx context.Context, check *interoplab.CheckContext) (resu
 	}, func(routes string) bool {
 		return requireRouteInstalledVia(routes, defaultRoute, borderRouter, "ospf") == nil
 	}); err != nil {
-		return fail(2, err)
+		return fail(2, nssaDefaultDiagnostic(ctx, check.Lab, err))
 	}
 
 	// Assertion 3 retains FRR's receiver database observation as an ancillary check.

@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
@@ -27,4 +28,24 @@ func removeContainerDefaultRoute(ctx context.Context, lab interoplab.CheckerLab,
 		return nil
 	}
 	return fmt.Errorf("remove the Docker default route from %s: %w", peer, err)
+}
+
+// nssaDefaultDiagnostic appends to the NSSA default assertion's failure what
+// FRR selected for 0.0.0.0/0 and the container's kernel routes, so a run shows
+// which route beat the OSPF default. It runs only after the wait failed, keeps
+// the original error wrapped, and bounds its own queries, so it cannot change
+// the verdict or hang past a cancelled run.
+func nssaDefaultDiagnostic(ctx context.Context, lab interoplab.CheckerLab, cause error) error {
+	queryCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
+	defer cancel()
+	answer := func(argv []string) string {
+		result, err := lab.Exec(queryCtx, peerFRR, argv, nil)
+		if err != nil {
+			return "unavailable: " + err.Error()
+		}
+		return strings.TrimSpace(result.Stdout)
+	}
+	frrDefault := answer([]string{cmdVtysh, "-c", "show ip route 0.0.0.0/0 json"})
+	kernel := answer([]string{"ip", "route", "show"})
+	return fmt.Errorf("%w; FRR default routes: %s; kernel routes: %s", cause, frrDefault, kernel)
 }
