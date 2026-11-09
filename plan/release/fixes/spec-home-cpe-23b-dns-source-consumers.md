@@ -77,6 +77,8 @@ valid.
 |---|----------|-------------------------------|---------|
 | D-16 | A consumer that hands addresses to another host never hands out a loopback or an unscoped link-local address, whatever its origin | The consumers that hand addresses on are DHCPv4 option 6, RA RDNSS and subscriber DNS. The LAN resolver is not one of them: it forwards from Ze itself, so a loopback upstream such as 127.0.0.53 is usable there, and its exposure to clients is `self`, which D-5 refuses on `forward dns-source`. IPv4 link-local (169.254.0.0/16) stays out of D-16 deliberately: it carries no zone to lose, and a server at such an address on the client's own link is reachable from it. A loopback address (127.0.0.0/8, ::1) and an IPv6 link-local address with no zone are wrong on all of them: a configured 127.0.0.1 is as wrong as the host's 127.0.0.53 (D-13), because either names a server only Ze itself can reach. The shared selection rule drops them for those consumers only, as part of "usable": each consumer's list states at construction whether it serves Ze or hands addresses on, and the router consumer keeps loopback and link-local, because Ze's own lookups can reach them. Each drop is logged with the consumer path and the address. It lands in 23b, as AC-27, in phases 5 (DHCPv4 option 6 and RA RDNSS) and 6 (subscriber), tested by `TestSelectDropsHostOnlyAddressesForHandedOutLists` in the core leaf and by one case in each consumer's pass-through test | a host-only address handed to a LAN client or a subscriber |
 | D-17 | The LAN resolver keeps its answer and negative caches when its forward upstream set changes, as dnsmasq does by default | A fresh `system-dns` snapshot or a reselection of `forward dns-source` replaces only the forward list of the published policy (`resolver.relearn`, `internal/plugins/dnsresolver/state.go`); the caches are emptied only by `clear dns resolver cache all` (`resolver.clearCaches`). This is dnsmasq 2.91's default: `poll_resolv` (`src/dnsmasq.c`) re-reads the upstream servers and calls `clear_cache_and_reload` only under `option_bool(OPT_RELOAD)`, which only the opt-in `--clear-on-reload` sets, documented as "Whenever /etc/resolv.conf is re-read or the upstream servers are set via DBus, clear the DNS cache." An answer cached from the old upstreams, a negative one included, is therefore served until its TTL ends. A test that queries before the learned upstream arrives asks a name no later stage asks, so the earlier upstream's negative answer cannot decide a later stage (5c6105dc87). `docs/architecture/dns/lan-resolver.md` states it | whether the LAN resolver clears its caches when its upstreams change |
+| D-18 | The subscriber's two IPCP DNS slots are filled primary, then secondary, from the pool's selection in list order | `selectSubscriberDNS` (`internal/component/l2tp/plugins/pool/dns_source.go`) runs the shared rule over the pool's list, keeps the first `ipcpDNSSlots` (2) servers, puts the first in Primary-DNS and the second in Secondary-DNS, and logs the rest at INFO with the consumer path. A RADIUS reply with only MS-Primary-DNS-Server therefore offers that one alone under `first-usable` and, under `merge`, that one then the pool's primary; the accel-ppp per-slot overwrite is not copied (Known Limitations). `slotAddresses` reads a primary and secondary pair (RADIUS or the pool's leaves) in slot order, an unset slot contributing nothing | how a selection of any length becomes the two IPCP slots |
+| D-19 | A handed-on list also refuses an IPv6 link-local whose zone is not the link the consumer hands on to | Review round 1 finding 4: a learned RDNSS `fe80::x%wan0` is reachable only on the WAN, and RFC 8106 Section 5.1 says "When a resolver sends a DNS query message to an RDNSS identified by a link-local address, it MUST use the corresponding link." D-16 named only the zone-less case; fffefb45f9 makes the RA consumer drop a link-local of another link, logged as a drop, and RFC8106-5.1-2 is recorded on it (83f4316387) | a link-local resolver learned on the WAN advertised on the LAN |
 
 ### Design carried from 23a
 
@@ -275,8 +277,8 @@ MS-Primary and MS-Secondary in `AuthMetadata` for the pool's `radius` class.
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-3 | A subscriber keeps the DNS negotiated at IPCP until it renegotiates | IPCP has no unsolicited update; LNS renegotiation is child 15 | none | RFC 1661 reading | unvalidated |
-| A-5 | `show system dns` has an owning command package for `system` operational data | not yet checked | a new `*-cmd` plugin is owed | `./le cli ownership` at implementation | unvalidated |
+| A-3 | A subscriber keeps the DNS negotiated at IPCP until it renegotiates | IPCP has no unsolicited update; LNS renegotiation is child 15 | none | RFC 1661 reading | confirmed: the pool computes the DNS once per IP request (`selectSubscriberDNS` called only from the IPCP response path, `internal/component/l2tp/plugins/pool/register.go` line 317) |
+| A-5 | `show system dns` has an owning command package for `system` operational data | not yet checked | a new `*-cmd` plugin is owed | `./le cli ownership` at implementation | broken: no owner existed; the new `system-dns-cmd` plugin owns it (`internal/plugins/system-dns-cmd/cmd/show_dns.go`, `registerShowSystemDNS`), the "if wrong" branch |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -576,3 +578,189 @@ altogether.") above the pass-through defaults of the DHCPv4 and RA consumers.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-home-cpe-23b-dns-source-consumers.md` only, in the same `./le commit create` script
+
+---
+
+## Implementation Summary
+
+Closure prepared 2026-11-09 while four agents still fix the items marked
+**pending** below. Evidence logs are under
+`tmp/session/2026-11-07-104251/scratch/rwinv/` (`out-gb11/`, `out-gb12/`).
+
+### What Was Implemented
+- Shared rule: a list states its audience, and a handed-on list drops loopback and zone-less IPv6 link-local (D-16, fb83d97fbb), and a link-local of another link (D-19, fffefb45f9).
+- LAN resolver: `forward dns-source` over the `system-dns` event, the D-5 default, the `self`/`radius` refusal, relearn without rebind, queries held until the learned replay (d66f28fe7c, 23fc8313b6, 292ffc64cb); caches kept on upstream change (D-17); only bound listeners published, no selection while disabled (a5356d64e0).
+- DHCPv4 option 6 and RA RDNSS: D-5 defaults, explicit lists, `self` per D-6, the D-9 60-second lease, Lifetime 0 withdrawal (ae8ad2d589, 83f0f6c683, 130c9ffb9b, 728c515223); RDNSS and delegated /64 withdrawal queues bounded (fffefb45f9, ad3cecbf68).
+- Subscriber: MS-Primary/Secondary-DNS-Server extraction, pool `dns-source` with default `radius`, `configured`, `received`, IPCP slots filled primary then secondary (D-18) (1d36bd5ec6, 1f69bc459c); a removed pool plugin withdraws its selections (f6f6b0a7dd).
+- Operator surfaces: `show system dns` in the new `system-dns-cmd` plugin, every consumer publishes its selection, `show doctor` checks, one reader refusing a malformed `dns-source`, metrics (fefd30ab74, a3cfaa083f, e31b2ae512, 311177442c, de1ad423ab, 02f90959a4); a removed consumer withdraws its selection (ac5ab17dad); rejected-snapshot counter resolved after metrics start (7d8d935e4f).
+- RFC: `rfc/short/rfc2548.md` written and walked (59367ae574, `rfc/extraction/rfc2548.json`), MS DNS rows tagged (36f54771b5), records observed red (8d83d8bde0, 83f4316387).
+- Tests: four dns-resolver forward-learned `.ci` promoted (67eda8e941); subscriber, show and doctor fixtures and the `radius-subscriber-dns` interop scenario (c85d2718f2).
+
+### Bugs Found/Fixed
+Review round 1 (`tmp/session/2026-11-07-104251/scratch/c23b-review-r1.md`) findings and their fixes are in "Findings fixed" under Review Gate.
+
+### Documentation Updates
+- 3f5eb284d9: `ai/INDEX.md`, `docs/architecture/api/commands.md`, `docs/architecture/config/syntax.md`, `docs/features/dns-resolver.md`, `docs/guide/command-reference.md` (the `self` key), `docs/guide/plugins.md`, `docs/guide/status.md`.
+- Earlier phase commits: `docs/guide/dns-resolver.md` (forward `dns-source` rows), `docs/guide/l2tp.md` line 1163, `docs/guide/pppoe.md` line 177, `docs/guide/configuration.md` (resolver, subnet and pool `dns-source` rows with the `poolDNSDefault, selectSubscriberDNS` anchor), `docs/architecture/dns/lan-resolver.md` line 194, `docs/plugin-development/metrics.md` lines 250-252, `docs/architecture/testing/interop.md` (c85d2718f2).
+- **pending:** `docs/comparison.md` has no VyOS DNS-source rows (Doc checklist row 11; its DNS rows are lines 338-339), and `features/lan-dns-resolver.md` names no `dns-source` (row 1). Owed run: `./le doc check all` after both edits.
+
+### Deviations from Plan
+- A-5 broke: no owner existed for `show system dns`, so the new plugin `internal/plugins/system-dns-cmd` owns it.
+- D-19 added after review: a foreign-zone link-local is dropped on handed-on lists, beyond D-16's zone-less case.
+- The dhcpserver `self` case lives in `TestOption6FromDNSSource`, not a separate `TestSelfIsAddressOnClientInterface` (769ec28eca corrected the TDD table).
+- `TestDNSSourceClassRefused` exists only in dnsresolver, and `TestModeRequiredEachConsumer` only in config/system, dnsresolver and pool; the DHCP and RA halves of AC-11 and AC-16b rest on the pending parse drafts.
+
+## Mistake Log
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-5 assumed an owning command package for `system` operational data | none existed | implementation of phase 8 | `system-dns-cmd` plugin created |
+| approach | Phases 4 to 8 landed unit tests only, and the `.ci` and interop proof was left to the end | review round 1 BLOCKER 1: no daemon-level test reached 23b behaviour | independent review | `.ci` written as drafts and promoted one by one (67eda8e941, c85d2718f2, pending rest) |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Point 2: every consumer has the full choice of sources | Done | resolver `parseForwardSources` (`internal/plugins/dnsresolver/config.go`), dhcpserver and iface RA `dns-source`, pool `parsePoolSources` | the router is 23a's |
+| Point 3: ordered list with fall-through | Done | `dnssource.Select` (`internal/core/dnssource/select.go`) | one shared rule |
+| Point 4: RADIUS DNS passes through | Done | `extractAuthMetadata` (`authradius/extract.go`), `selectSubscriberDNS` (`pool/dns_source.go`) | interop pending |
+| Operator surfaces | Partial (pending) | `registerShowSystemDNS`, doctor `dnsSourceFindings`, metrics | `show-system-dns.ci` red |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-6 | Done | `TestForwardListFromSelectionNoRebind`; `dns-resolver-forward-received`, `dns-resolver-forward-ppp-lease` pass clean and red under break (`out-gb12/g12-clean.log`, `c23b-fwd-received.log`, `c23b-ppp-lease.log`) | |
+| AC-7 | Partial | `TestOption6FromDNSSource` (self case), `TestSelfIsAddressOnClientInterface` (iface, pool) | `test/dhcp/dhcp-server-dns-source-self.ci` not written; owed |
+| AC-8 | Done (unit) | `TestRDNSSWithdrawnAdvertisedLifetimeZero`, RFC8106-5.1-1 record (83f4316387, `rec-RFC8106-5.1-1-pos.log`) | no RA `.ci` in the plan |
+| AC-9 | Partial (pending) | `TestPoolIPCPDNSFromRadius`; draft `l2tp-pool-dns-source-radius` passes clean, red under break (`c23b-pool-radius.log`, `c23b-extract-ms-dns.log`) | promotion and the `radius-subscriber-dns` interop pending |
+| AC-10 | Partial (pending) | `TestPoolIPCPDNSRadiusAbsent`; draft `l2tp-pool-dns-source-configured` passes clean, red under break (`c23b-pool-configured.log`) | `l2tp-pool-dns-source-received` draft red (105.9 s, `g12-clean.log`) |
+| AC-11 | Partial (pending) | `TestSelfRefusedOnSystemAndForward` (0b21d66b9f), `TestDNSSourceClassRefused` | draft `dns-source-class-refused` red: line 10 `expected key or '{' for server, got LBRACKET` (`p-class-clean.log`) |
+| AC-12 | Partial (pending) | `internal/plugins/system-dns-cmd/cmd` unit pass (`u-resolver.log`) | draft `show-system-dns` red: `parse config: line 16 ... LBRACKET` (`g12-clean.log`); `TestRegisteredWireMethods` pending |
+| AC-13 | Partial (pending) | `dns-resolver-forward-dhcpv4-replay` draft passes clean and red (`c23b-replay.log`, out-gb11); resolver `awaitReplay` | promotion pending; review NOTE 15: dhcpserver answers before the replay, so AC-13 holds strictly for the resolver only |
+| AC-14 | Partial | `TestOption6PassThroughDefault` | `test/dhcp/dhcp-server-dns-pass-through.ci` not written; owed |
+| AC-15 | Done (unit) | `TestRDNSSPassThroughDefault` (`internal/component/iface/ra_dns_source_test.go`) | |
+| AC-16b | Partial (pending) | `TestModeRequiredEachConsumer` (system, dnsresolver, pool) | draft `dns-source-mode-required-consumers` red, same LBRACKET parse (`p-mode-clean.log`) |
+| AC-20 | Done | `TestForwardPassThroughDefault`; `dns-resolver-forward-default`, `dns-resolver-forward-dhcpv4-default` pass clean, red under break (`c23b-fwd-default.log`, `c23b-dhcpv4-default.log`) | |
+| AC-25 | Partial | `TestLeaseShortWhileReceivedUnusable` | `test/dhcp/dhcp-server-short-lease-wan-down.ci` not written; owed |
+| AC-26 | Done | `rfc/short/rfc2548.md` line 22 `Optional use cases | lns`; tags 36f54771b5; records `rfc/discrimination/rfc2548/RFC2548-2.7.6-1.json`, `RFC2548-2.7.7-1.json` (83f4316387, `rec-RFC2548-*.log`) | `./le rfc check` re-run pending (below) |
+| AC-27 | Done (unit) | `TestSelectDropsHostOnlyAddressesForHandedOutLists`, the consumer pass-through cases, RFC8106-5.1-2 record | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| unit tests of the TDD table | Done | located by `func` grep: dhcpserver `handler_dns_source_test.go`, iface `ra_dns_source_test.go`, ra `advertiser_rdnss_test.go`, dnsresolver `config_tx_test.go`, dnssource `self_refused_test.go`, `select_test.go`, authradius `extract_dns_test.go`, pool `dns_source_test.go` | all packages pass (`out-gb12/u-*.log`) except the three pending reds below |
+| `.ci` promoted | Done | `test/plugin/dns-resolver-forward-received.ci`, `dns-resolver-forward-default.ci`, `dns-resolver-forward-dhcpv4-default.ci`, `test/pppoe/dns-resolver-forward-ppp-lease.ci` | |
+| `.ci` drafts | pending | `test/draft/{parse,plugin,l2tp,pppoe}/` | listed under Pre-Commit "Files Exist" |
+| `.ci` not written | owed | the three `test/dhcp/` files | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| four consumer YANG modules | Done | each `uses dns-source` |
+| `show system dns` YANG and handler | Done | `internal/plugins/system-dns-cmd/` |
+| `docs/comparison.md`, `features/lan-dns-resolver.md` | pending | Documentation Updates |
+
+### Audit Summary
+- **Total items:** 16 ACs
+- **Done:** AC-6, AC-8, AC-15, AC-20, AC-26, AC-27
+- **Partial:** AC-7, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14, AC-16b, AC-25, each waiting on a pending fix or an owed `.ci`, none on a scope cut
+- **Skipped:** none
+- **Changed:** A-5, D-19 (Deviations)
+
+## Goal Validation (BLOCKING)
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Point 2 and 3, LAN resolver: falls through its own list, default pass-through | functional | `dns-resolver-forward-received`, `-default`, `-dhcpv4-default`, `-ppp-lease`: PASS in `out-gb12/g12-clean.log`, FAIL under each break (`c23b-fwd-*.log`, `c23b-dhcpv4-default.log`, `c23b-ppp-lease.log`) |
+| Point 2 and 3, DHCPv4 option 6 and RA RDNSS | unit, functional owed | `TestOption6FromDNSSource`, `TestOption6PassThroughDefault`, `TestLeaseShortWhileReceivedUnusable`, `TestRDNSSPassThroughDefault`, `TestRDNSSWithdrawnAdvertisedLifetimeZero` pass (`u-dhcp.log`, `u-iface.log`, `u-ra.log`); the three `test/dhcp/` `.ci` are owed |
+| Point 4, RADIUS DNS reaches the subscriber | functional, interop pending | draft `l2tp-pool-dns-source-radius` PASS clean, FAIL under the extract and pool breaks; `radius-subscriber-dns` **pending**: FreeRADIUS container exited 255 before the probe (`out-gb12/interop-dns-clean.log`) |
+| Operator sees every consumer's selection | functional pending | `doctor-dns-source` draft PASS clean, red under three breaks (`c23b-doctor-*.log`); `show-system-dns` draft **pending** |
+
+## Work Not Done
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| RFC 7084 L-11 DNSSL half | out of this spec's scope from the start | `plan/post-release/features/spec-router-advertisement-options-out-of-scope.md` |
+| IPv6 subscriber DNS (RFC 6911 attribute 169, PPP RA RDNSS, DHCPv6 option 23) | D-4 | `plan/post-release/features/spec-l2tp-ipv6-subscriber-dns.md` |
+| LAN DHCPv6 DNS_SERVERS consumer (RFC 7084 L-10) | needs a LAN DHCPv6 server | `plan/post-release/features/spec-dhcpv6-server.md` |
+
+Every pending item in this closure is in scope and stays here until fixed.
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | not recorded yet: the gate waits for the pending fixes |
+| `./le spec review check` | not run |
+| Rounds | 1 so far (`tmp/session/2026-11-07-104251/scratch/c23b-review-r1.md`: 4 BLOCKER, 8 ISSUE, 5 NOTE) |
+| Reviewer lenses used | logic and wiring, RFC quotes, goroutines, D-9 and D-16, docs |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | no `.ci` reached 23b behaviour | Wiring Test rows | 67eda8e941, c85d2718f2; rest **pending** |
+| 2 | BLOCKER | AC-26 rows untagged | `rfc/short/rfc2548.md` | 36f54771b5, 83f4316387 |
+| 3 | BLOCKER | unbounded RDNSS withdrawal queue silences the unit's RAs | `internal/plugins/iface/ra/advertiser.go` | fffefb45f9, sibling /64 queue ad3cecbf68 |
+| 4 | BLOCKER | WAN link-local RDNSS advertised on the LAN | `internal/component/iface/ra_dns_source.go` | fffefb45f9 (D-19) |
+| 5 | ISSUE | wire-methods snapshot lacks `ze-system-dns:show-system-dns` | `internal/component/plugin/all/testdata/wire-methods.snapshot` | 67f97a55f4; `TestRegisteredWireMethods` re-run **pending** (`u-wire.log`: build failed) |
+| 6 | ISSUE | resolver publishes unbound listeners and a disabled selection | `internal/plugins/dnsresolver/publish.go` | a5356d64e0 |
+| 7 | ISSUE | rejected-snapshot counter bound to the Nop registry | dhcpserver and dnsresolver `register.go` | 7d8d935e4f |
+| 8 | ISSUE | doctor-dns-source-self-unserved text contradicts D-6 | `internal/core/diagnostic/codes.go` | b525648a71 |
+| 9 | ISSUE | documentation drift | Doc checklist rows 2, 4, 5, 15 | 3f5eb284d9; rows 1 and 11 **pending** |
+| 10 | ISSUE | a consumer's publication outlives it | `internal/component/config/system/resolv.go` | ac5ab17dad, f6f6b0a7dd |
+| 11 | ISSUE | RFC8106-5.1-1 advertising side unproven | `advertiser_rdnss_test.go` | 83f4316387 |
+| 12 | ISSUE | spec-named unit tests missing | `internal/core/dnssource` | 0b21d66b9f, 769ec28eca |
+
+NOTEs 13 to 17 recorded in the review file; NOTE 15 bears on AC-13 (above).
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/dns-resolver-forward-received.ci`, `test/plugin/dns-resolver-forward-default.ci` | yes | `ls`, 3.6K and 3.3K |
+| `test/plugin/dns-resolver-forward-dhcpv4-default.ci`, `test/pppoe/dns-resolver-forward-ppp-lease.ci` | yes | `git ls-files test` |
+| `test/parse/dns-source-class-refused.ci`, `test/l2tp/l2tp-pool-dns-source-radius.ci`, `test/plugin/show-system-dns.ci` | no, draft only | `test/draft/parse/`, `test/draft/l2tp/`, `test/draft/plugin/` |
+| `test/dhcp/dhcp-server-dns-source-self.ci`, `dhcp-server-dns-pass-through.ci`, `dhcp-server-short-lease-wan-down.ci` | no | `ls test/dhcp` holds none; owed |
+| `test/interop-radius-subscriber/scenarios/radius-subscriber-dns/` | yes | `git ls-files`: `ppp-options`, `users`, `ze.conf` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| all | unit packages pass | `out-gb12/u-dnssource.log`, `u-dhcp.log`, `u-iface.log`, `u-ra.log`, `u-ndp.log`, `u-l2tp.log`, `u-resolver.log`, `u-system.log`: `ok` |
+| AC-26 | records present | `rfc/discrimination/rfc2548/RFC2548-2.7.6-1.json`, `RFC2548-2.7.7-1.json`, `rfc/discrimination/rfc8106/RFC8106-5.1-1.json`, `RFC8106-5.1-2.json` (83f4316387) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `forward dns-source source received` | `test/plugin/dns-resolver-forward-received.ci` | PASS clean, FAIL under break |
+| resolver with no `forward server` and no `dns-source` | `test/plugin/dns-resolver-forward-default.ci` | PASS clean, FAIL under break |
+| `system dns-source source self` | `test/draft/parse/dns-source-class-refused.ci` | **pending** |
+| Access-Accept with MS DNS | `test/draft/l2tp/l2tp-pool-dns-source-radius.ci` | PASS clean, FAIL under break; promotion **pending** |
+| subnet `dns-source source self`, pass-through, D-9 | none | owed |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-3 | confirmed | `selectSubscriberDNS` called once per IP request, `pool/register.go` line 317 |
+| A-5 | broken | `internal/plugins/system-dns-cmd/cmd/show_dns.go` `registerShowSystemDNS`; Mistake Log row |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| pool default `radius`, `configured`, `received` | `docs/guide/configuration.md` anchor `pool/dns_source.go -- poolDNSDefault, selectSubscriberDNS` | yes |
+| metrics series | `docs/plugin-development/metrics.md` lines 250-252 | yes |
+| comparison and feature level | `docs/comparison.md`, `features/lan-dns-resolver.md` | **pending** |
+
+### Pending: owed runs before the Review Gate can close
+| Item | Owed run |
+|------|----------|
+| parse drafts `dns-source-class-refused`, `dns-source-mode-required-consumers` | `./le test bgp parse --draft -a`, clean and under each break, then promote to `test/parse/` |
+| `l2tp-pool-dns-source-received`, `show-system-dns`, `dns-resolver-forward-dhcpv4-replay`, `l2tp-pool-dns-source-radius`, `-configured`, `doctor-dns-source` | `./le test bgp pppoe --draft -a`, `./le test bgp l2tp --draft -a`, `./le test bgp plugin --draft -a`, then promote |
+| three `test/dhcp/` `.ci` | write per `/ze-test`, then `./le test functional dhcp` |
+| `radius-subscriber-dns` | `./le test integration interop-radius-subscriber`, clean and under the extract break |
+| `TestRegisteredWireMethods` | `./le job run label unit-pkg command go test -tags <ze tags> -run TestRegisteredWireMethods ./internal/component/plugin/all/` |
+| hub `TestStreamingOneShotAnswersCarryData` | same form, `./cmd/ze/hub/` |
+| fixture `TestEveryDaemonStoppingFixtureDeclaresStopsDaemon` | same form, `./internal/test/fixture/` |
+| compound gate (`internal/test/fixture/l2tp_pool_dns_source.go` lines 195, 227, 326) | `./le arch compound-guard check` |
+| refuse gate | `./le arch refuse-by-default check` |
+| RFC records stale in `out-gb12/rfc-check.log`: RFC7084-4.3-6, RFC7084-4.3-8, RFC9915-6.3-2 (producer-changed) and four `./le rfc move` file renames | `./le rfc check` |
+| review round 2 | `/ze-review` over the complete diff, then `./le spec review record` |
