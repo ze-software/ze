@@ -69,6 +69,29 @@ predates this session. Two causes, traced with probes:
    5 RTR fixtures), P-18, P-36, P-26, P-32, P-33(1), P-4, P-14 partial; the
    owned journal rows; Review Gate; two-commit closure.
 
+## P-12 progress (later in the same session)
+
+Recorded in `tooling-one-off-evidence.md`, sections P-12 (a) to (d).
+
+- (d) build-only bench staging: proved (`e9c131dc27`).
+- (c) IPsec log key: unit carrier proved; interop checker half owed.
+- (b) RTR fixtures: `rpki-revalidate-late-sync` proved. The four relay
+  fixtures need the loopback alias (`sudo ifconfig lo0 alias 127.0.0.2`, an
+  owner action). The shared harness cut cannot be observed with an
+  uncommitted edit, because `./le` runs a build of the committed HEAD.
+- (a) interop checkers: 10 of 15 proved (self next hop, MED across AS, MED
+  removal, RFC 2545, blackhole, ADD-PATH, NO_EXPORT, IS-IS hostname, NSSA,
+  relay withdrawal). NSSA needed lab repairs `b31f79495e` and `9281c5f8a0`.
+  Unproved: LOCAL_PREF strip and typed NLRI (session readiness unreliable
+  without any break), End-of-RIB (`docker exec` into FRR times out every
+  run), route-server AS path (three prepend breaks stay green; the `bgp-rs`
+  producer is untraced), RFC 7606 mixed update (producer untraced).
+- Lab method: `tmp/session/2026-11-07-095909/scratch/interopwalk.py` takes
+  a JSON list of walks (single edit or `edits` list), applies the break, runs
+  the scenario, restores and checks the bytes, then runs the restored green.
+  Checker code runs inside `./le`, so a checker change must be committed
+  before a lab run uses it.
+
 ## Method notes
 
 - Red walks: `tmp/session/2026-11-07-095909/scratch/redwalk.py` takes a JSON
