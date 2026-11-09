@@ -1,0 +1,225 @@
+# Functional test: show vpn ipsec dataplane policy names each REAL kernel entry's SPD
+# and role.
+# Spec: plan/post-release/features/spec-ipsec-spd-selection.md (AC-9, user story 3,
+#       wiring test row 5)
+#
+# VALIDATES: an operator who lists the Security Policy Database through the daemon's
+#            command path (`show vpn ipsec dataplane policy`, the
+#            ze-ike:show-vpn-ipsec-dataplane-policy RPC -> ListPolicies ->
+#            policyInfoFromKernel -> policyInfoToMap) reads, on every row the kernel
+#            holds, which SPD holds the entry (`spd`), the job Ze installed it for
+#            (`role`) and its interface index (`if-index`). Each SPD and each role this
+#            configuration makes is asserted on its own row:
+#              - node SPD (if_id 0): the `unmatched discard` catch-all (catch-all), the
+#                IKE control-plane bypass (ike-bypass), a `vpn ipsec policy` entry at its
+#                order (operator), and the if_id 0 BYPASS that hands traffic routed into
+#                the bound XFRM interface on to that interface's SPD
+#                (interface-exemption), whose selector names the interface's index, so
+#                its `if-index` is non-zero;
+#              - the XFRM interface's SPD (if_id 4093): its own final DISCARD
+#                (interface-catch-all) named by the interface, and the negotiated Child
+#                SA's policies (child-sa), which carry no SPD name of their own and are
+#                named from the catch-all at the same if_id (nameInterfaceSPDs).
+#            Every key the listing carried before is still present, and no row Ze
+#            installed reads role unknown.
+# PREVENTS: a listing that cannot tell the node-wide SPD from an interface SPD, a role
+#           inferred from the priority (an operator `order` can take any priority), and
+#           an if-index dropped from the row.
+#
+# WHY THE REAL KERNEL. The rows come from the kernel dump joined to the owner ledger
+# (dataplane/xfrm_linux.go policyInfoFromKernel -> policyOwners.annotate). The
+# recording dataplane answers from its own list and never runs that join, so only the
+# xfrm backend proves the join survives the kernel round trip.
+#
+# WHY ONE DATAPLANE AND NOT TWO. Both ends of one Child SA are the same two kernel
+# states, so a second XfrmStateAdd answers EEXIST. The RESPONDER runs the real xfrm
+# backend and the initiator the noop one (ipsec-show-dataplane-kernel.ci), so every row
+# asserted below is the responder's.
+#
+# WHY zespdrole0 AT if_id 4093. The interface block makes the iface component create
+# the XFRM netdev, which the responder's `vti bind` names. The name and if_id are used
+# by no other test, so the interface SPD in the dump is this test's alone.
+#
+# WHY THESE PREFIXES. The policies are node-wide for the life of the test, so they are
+# RFC 2544 benchmarking ranges (198.18.240.0/22) no other ipsec test installs.
+#
+# WHY EACH ASSERTION BINDS ITS KEYS ON ONE ROW. The JSON keys of a row are sorted
+# (action, direction, dst, dst-port, if-id, if-index, mode, owner, owner-known,
+# priority, reqid, role, spd, src, src-port, tunnel-dst, tunnel-src, upper-proto), and
+# no value of a row is an object, so `[^}]*` keeps one match inside one row: a role on
+# one row cannot pair with an SPD or an if-index on another. The ` ?` takes compact and
+# indented JSON alike.
+#
+# Gated option=needs-linux:caps=net-admin,bpf: the responder programs real XFRM state
+# and creates an XFRM interface, so this SKIPs on a host without CAP_NET_ADMIN and runs
+# as root in the QEMU VM, where `fsuite ipsec` in internal/le/test/qemu/alltests.go
+# executes the suite.
+
+# bpf: the default `vpn ipsec application-override deny` loads a cgroup setsockopt guard.
+option=needs-linux:caps=net-admin,bpf
+# Serialize against every other real-XFRM ipsec test: the SPD is NODE-WIDE.
+option=exclusive:group=ipsec-xfrm
+option=env:var=ze_test_ike_port:value=$PORT2
+option=timeout:value=120s
+option=env:var=ze_log_ike:value=info
+
+# ── Responder daemon (REAL xfrm, engine-steps executor): 127.0.0.2 ──
+stdin=responder:terminator=EOF_RESPONDER
+plugin {
+	external engine-steps {
+		run "le mock engine-steps ./engine-steps.json"
+		encoder json
+	}
+}
+
+interface {
+	xfrm zespdrole0 {
+		if-id 4093
+	}
+}
+
+vpn {
+	ipsec {
+		# Written, not left to the default: the interface exemptions exist only while
+		# the node-wide catch-all discards (planXFRMInterfaceEntries).
+		unmatched discard
+		policy spd-role-operator {
+			action discard
+			order 800
+			direction out
+			local {
+				prefix 198.18.242.0/24
+			}
+			remote {
+				prefix 198.18.243.0/24
+			}
+		}
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer initiator {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.2
+				remote-address 127.0.0.1
+				mode tunnel
+				vti {
+					bind zespdrole0
+				}
+				traffic-selector 1 {
+					local {
+						prefix 198.18.240.0/24
+					}
+					remote {
+						prefix 198.18.241.0/24
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_RESPONDER
+
+# ── Initiator daemon (background, noop dataplane): binds 127.0.0.1 ──
+stdin=initiator:terminator=EOF_INITIATOR
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-1 {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				mode tunnel
+				traffic-selector 1 {
+					local {
+						prefix 198.18.241.0/24
+					}
+					remote {
+						prefix 198.18.240.0/24
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_INITIATOR
+
+cmd=background:seq=1:exec=env ze_test_ike_dataplane=noop ze -:stdin=initiator
+# The responder carries the executor: the engine steps end with `request shutdown`,
+# so this process exits when they are done, and teardown then stops the initiator.
+cmd=foreground:seq=2:exec=ze -:stdin=responder:timeout=110s
+
+# ── Engine steps, dispatched inside the responder ──
+
+# Establishment gate. aes-cbc appears in the SA row only once IKE_AUTH has completed,
+# so the Child SA policies are in the kernel after this, not a delay.
+command=show vpn ipsec sa | json
+expect=output:contains=aes-cbc:timeout=60
+
+command=show vpn ipsec dataplane policy | json
+# Node SPD: the final entry `unmatched discard` asks for, if_id 0, no interface index.
+expect=output:matches="action": ?"discard"[^}]*"if-id": ?0,[^}]*"if-index": ?0,[^}]*"role": ?"catch-all"[^}]*"spd": ?"node":timeout=30
+# Node SPD: the IKE control-plane bypass.
+expect=output:matches="action": ?"bypass"[^}]*"role": ?"ike-bypass"[^}]*"spd": ?"node":timeout=10
+# Node SPD: the operator entry, at the kernel priority its `order` wrote.
+expect=output:matches="priority": ?800,[^}]*"role": ?"operator"[^}]*"spd": ?"node":timeout=10
+# Node SPD: the SPD selection entry for the bound interface. Its selector names the
+# interface's ifindex, so `if-index` is a positive number on this row (the kernel
+# assigns the value, so the test asserts its presence, never a literal).
+expect=output:matches="action": ?"bypass"[^}]*"if-index": ?[1-9][0-9]*,[^}]*"role": ?"interface-exemption"[^}]*"spd": ?"node":timeout=30
+# Interface SPD: its own final DISCARD at the interface's if_id, named by the interface.
+expect=output:matches="action": ?"discard"[^}]*"if-id": ?4093,[^}]*"role": ?"interface-catch-all"[^}]*"spd": ?"zespdrole0":timeout=30
+# Interface SPD: the Child SA's policies at the same if_id, named from the catch-all,
+# and still carrying the tunnel endpoints the listing reported before.
+expect=output:matches="action": ?"protect"[^}]*"if-id": ?4093,[^}]*"role": ?"child-sa"[^}]*"spd": ?"zespdrole0"[^}]*"tunnel-src": ?"127\.0\.0\.[12]":timeout=30
+# Every key the listing carried before is still there.
+expect=output:contains="owner-known":timeout=10
+# Every entry here is Ze's own, so no row reads unknown.
+expect=output:absent="role": "unknown":timeout=10
+expect=output:absent="role":"unknown":timeout=10
+
+expect=exit:code=0
+expect=stderr:contains=engine-steps: all steps passed
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
