@@ -388,6 +388,12 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   strictly enough for tests to check it, the same can not be said of the
   website's free text. It also says that most of the site's information is
   generated from the code, so the data reflects the software's real state.
+- Building the website renders data; it never runs a check. A proof over
+  the code (the plugin inventory's external-effect proof, a coverage or
+  conformance gate) is a check like a unit test: it runs in CI and at
+  release, never as a step of `./le site build`. A fact the site publishes
+  from the code is read from its declaration or from a committed data file,
+  so a page edit publishes in minutes.
 - Website screenshots use WebP, alongside lightweight terminal-event playback
   for application demonstrations. Encoded video assets are not published on the
   website or stored in the repository, and CI/CD does not generate videos.
