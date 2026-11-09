@@ -1,0 +1,124 @@
+# Test: with no forward server and no forward dns-source, the LAN resolver
+#       forwards to a learned resolver, and to a committed forward server
+#       alone once one is set.
+# Spec: spec-home-cpe-23b-dns-source-consumers -- AC-20, Wiring Test row 4
+# VALIDATES: the built-in default list forwardDefault (configured, received,
+#            first-usable; internal/plugins/dnsresolver/config.go) through the
+#            daemon. The resolver on 127.0.23.63 starts with no upstream. The
+#            compiled fixture advertises an RA whose RDNSS option names
+#            2001:db8:53::253 on zerfwd0 until the resolver answers
+#            web.example.test with 203.0.113.10, which only the stub on that
+#            address serves. It then reloads config2.conf, which adds
+#            `forward server 127.0.23.64`, and waits for 203.0.113.77, which
+#            only the stub on 127.0.23.64 serves: the configured class wins the
+#            first-usable list, so the learned server is no longer asked.
+# PREVENTS: an enabled resolver with no forward server that refuses to start
+#           or never forwards, and a default that keeps the learned server
+#           beside an operator's forward server.
+#
+# AC-20 names a WAN DHCPv4 lease carrying 192.0.2.53; no plugin-suite harness
+# serves a DHCPv4 lease, so the learned record here comes from an RA's RDNSS
+# option, which the registry files under the same `received` class.
+#
+# DISCRIMINATION (break overlay, not yet run):
+# tmp/session/2026-11-07-104251/scratch/rwinv/c23b-forward-default/ replaces
+# config.go with a copy whose forwardDefault names configured alone. The
+# fixture must then fail at "under the default list ... never forwarded".
+#
+# The fixture creates the stub's dummy link zerfwddns0 and deletes it when it
+# returns; the daemon removes the veth pair it created when it stops.
+#
+# Requires Linux and CAP_NET_ADMIN (veth, dummy, accept_ra), CAP_NET_RAW (raw
+# ICMPv6) and CAP_NET_BIND_SERVICE (port 53).
+option=needs-linux:caps=net-admin,net-raw,net-bind
+option=timeout:value=90s
+
+stdin=ze-conf:terminator=EOF_CONF
+system {
+	dns {
+		resolv-conf-path "";
+	}
+}
+
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.23.63
+			port 53
+		}
+		allow-from 127.0.0.0/8
+	}
+}
+
+plugin {
+	external dns-resolver-forward-default-test {
+		run "le test fixture plugin/dns-resolver-forward-default config2.conf"
+		encoder json
+	}
+}
+
+interface {
+	backend netlink
+
+	veth zerfwd0 {
+		peer zerfwd1
+		unit 0 {
+			ipv6 {
+				accept-ra 2
+			}
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+system {
+	dns {
+		resolv-conf-path "";
+	}
+}
+
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.23.63
+			port 53
+		}
+		allow-from 127.0.0.0/8
+		forward {
+			server 127.0.23.64 {
+				port 53
+			}
+		}
+	}
+}
+
+plugin {
+	external dns-resolver-forward-default-test {
+		run "le test fixture plugin/dns-resolver-forward-default config2.conf"
+		encoder json
+	}
+}
+
+interface {
+	backend netlink
+
+	veth zerfwd0 {
+		peer zerfwd1
+		unit 0 {
+			ipv6 {
+				accept-ra 2
+			}
+		}
+	}
+}
+EOF_CONF2
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=90s
+expect=exit:code=0
+
+expect=stderr:contains=dns-resolver default forward -> the RA RDNSS server, then the committed forward server alone
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

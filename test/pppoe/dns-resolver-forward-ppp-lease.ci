@@ -1,0 +1,99 @@
+# Test: the LAN resolver's forward dns-source list follows a PPPoE lease's
+#       IPCP DNS server, and falls back to the configured server when the
+#       session ends.
+# Spec: spec-home-cpe-23b-dns-source-consumers -- AC-6
+# VALIDATES: `forward dns-source source [ received configured ]` with a ppp
+#            record (origin ppp, rank 300): the compiled fixture
+#            (dnsResolverForwardPPPLease,
+#            internal/test/fixture/dns_resolver_forward_ppp_lease_linux.go)
+#            first sees the resolver on 127.0.23.73 answer from the configured
+#            stub 127.0.23.74 (203.0.113.77), then plays the access
+#            concentrator on zeac0 and Naks the client's Primary-DNS request
+#            with 192.0.2.53 (RFC 1877 Section 1.1); the same query must then
+#            answer 203.0.113.10, which only the stub on 192.0.2.53 serves.
+#            A PADT then ends the session, and the answer must return to
+#            203.0.113.77.
+# PREVENTS: a LAN resolver that keeps a withdrawn lease's server, or never
+#           follows a ppp record at all.
+#
+# received-interface [ zedns1 ] narrows the received class to this client's
+# lease (PPPoEResolverSource keys it by the configured name zedns1). Without
+# it the guest's /etc/resolv.conf record (the host fallback, D-13) is a
+# received entry from the start, so first-usable forwards to it rather than
+# to the configured stub, and its NXDOMAIN for the probe name is cached.
+#
+# The suite is pppoe because only a per-test-namespace suite honours
+# option=netns-link. resolv-conf-path is absolute and inside the test's own
+# directory, so the write never reaches the guest's resolv.conf.
+#
+# Requires Linux, CAP_NET_ADMIN for the PPP device, CAP_NET_RAW for both
+# AF_PACKET sockets and CAP_NET_BIND_SERVICE for the stubs and the listener.
+option=needs-linux:caps=net-admin,net-raw,net-bind
+option=netns-link:name=zecpe0:peer=zeac0
+option=netns-link:name=zedns0:address=192.0.2.53/32
+option=timeout:value=90s
+
+stdin=ze-conf:terminator=EOF_CONF
+system {
+	dns {
+		resolv-conf-path /proc/self/cwd/dns-resolver-forward-ppp-lease.resolv.conf
+	}
+}
+
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.23.73
+			port 53
+		}
+		allow-from 127.0.0.0/8
+		forward {
+			server 127.0.23.74 {
+				port 53
+			}
+			dns-source {
+				source [ received configured ]
+				received-interface [ zedns1 ]
+				mode first-usable
+			}
+		}
+	}
+}
+
+plugin {
+	external dns-resolver-forward-ppp-lease-test {
+		run "le test fixture pppoe/dns-resolver-forward-ppp-lease"
+		encoder json
+	}
+}
+
+interface {
+	backend netlink
+	pppoe-client zedns1 {
+		source-interface zecpe0
+		authentication {
+			username subscriber
+			password secret
+		}
+		mtu 1450
+		keepalive {
+			interval 3600
+			failures 255
+		}
+		reconnect {
+			delay-min 1
+			delay-max 1
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le mock dns --port 53 --address 192.0.2.53
+cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=90s
+expect=exit:code=0
+
+# NO NEEDLE MAY HOLD A COLON: the runner splits a directive on ':'.
+expect=stderr:contains=dns-resolver forward -> configured, then the IPCP lease's server 192.0.2.53, then configured again after PADT
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

@@ -1,0 +1,101 @@
+# Test: the LAN resolver's forward dns-source list forwards to a learned
+#       resolver, and falls through to the configured server when the learned
+#       one is withdrawn.
+# Spec: spec-home-cpe-23b-dns-source-consumers -- AC-6, Wiring Test row 1
+# VALIDATES: the path from `service dns-resolver forward dns-source` through
+#            the system-dns snapshot event (followLearnedResolvers,
+#            internal/plugins/dnsresolver/register.go) to the upstream list
+#            forwardUpstreams (internal/plugins/dnsresolver/state.go) builds.
+#            The list is `received configured` with first-usable. The compiled
+#            fixture first waits until the resolver on 127.0.23.53 answers
+#            web.example.test with 203.0.113.77, which only the configured
+#            stub on 127.0.23.54 serves. It then advertises an RA whose RDNSS
+#            option names 2001:db8:53::153 on zerfwr0 (raRDNSS,
+#            internal/component/iface/ra_rdnss.go) until the resolver answers
+#            203.0.113.10, which only the stub on that address serves. Last it
+#            sends the same RA with Lifetime 0 and waits for 203.0.113.77
+#            again. web.example.test carries TTL 0 on both stubs, so no cached
+#            answer hides a change of upstream.
+# PREVENTS: a resolver that reads its upstreams once at start, or ignores the
+#           learned class, or keeps a withdrawn server.
+#
+# received-interface [ zerfwr0 ] narrows the received class to the RA's
+# record on the veth. Without it the guest's /etc/resolv.conf record (the
+# host fallback, D-13) is a received entry from the start, so first-usable
+# forwards to it rather than to the configured stub, and its NXDOMAIN for
+# web.example.test is cached negatively for every later stage.
+#
+# AC-6 names a ppp lease; the learned record here comes from an RA's RDNSS
+# option, which the registry files under the same `received` class. AC-13
+# (a resolver restarted while leases exist) is not driven here.
+#
+# DISCRIMINATION (break overlay, not yet run):
+# tmp/session/2026-11-07-104251/scratch/rwinv/c23b-forward-received/ replaces
+# state.go with a copy whose forwardUpstreams passes no received candidates.
+# The fixture must then fail at "never forwarded to the RDNSS server".
+#
+# The resolver's own resolv.conf write is off (empty path): the test shares
+# the guest's filesystem. The fixture creates the stub's dummy link zerfwrdns0
+# and deletes it when it returns; the daemon removes the veth pair it created
+# when it stops.
+#
+# Requires Linux and CAP_NET_ADMIN (veth, dummy, accept_ra), CAP_NET_RAW (raw
+# ICMPv6) and CAP_NET_BIND_SERVICE (port 53).
+option=needs-linux:caps=net-admin,net-raw,net-bind
+option=timeout:value=90s
+
+stdin=ze-conf:terminator=EOF_CONF
+system {
+	dns {
+		resolv-conf-path "";
+	}
+}
+
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.23.53
+			port 53
+		}
+		allow-from 127.0.0.0/8
+		forward {
+			server 127.0.23.54 {
+				port 53
+			}
+			dns-source {
+				source [ received configured ]
+				received-interface [ zerfwr0 ]
+				mode first-usable
+			}
+		}
+	}
+}
+
+plugin {
+	external dns-resolver-forward-received-test {
+		run "le test fixture plugin/dns-resolver-forward-received"
+		encoder json
+	}
+}
+
+interface {
+	backend netlink
+
+	veth zerfwr0 {
+		peer zerfwr1
+		unit 0 {
+			ipv6 {
+				accept-ra 2
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=90s
+expect=exit:code=0
+
+expect=stderr:contains=dns-resolver forward -> configured, then the RA RDNSS server, then configured again at Lifetime 0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

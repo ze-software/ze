@@ -1,0 +1,156 @@
+# Test: with no forward server and no forward dns-source, the LAN resolver
+#       forwards to the DNS server a WAN DHCPv4 lease carries, and to a
+#       committed forward server alone once one is set, without rebinding
+#       its listener.
+# Spec: spec-home-cpe-23b-dns-source-consumers -- AC-20
+# VALIDATES: the built-in default list forwardDefault (configured, received,
+#            first-usable; internal/plugins/dnsresolver/config.go) through the
+#            daemon, over a real DHCPv4 lease. Ze's own DHCP server listens on
+#            zerd41, the peer end of the veth pair, and leases to Ze's own
+#            DHCP client on zerd40 with option 6 = 192.0.2.53; the dhcpv4
+#            origin records it. The compiled fixture gives zerd41 192.0.2.1/24,
+#            runs the stub on 192.0.2.53 (dummy link zerd4dns0) and waits
+#            until the resolver on 127.0.23.83 answers web.example.test with
+#            203.0.113.10, which only that stub serves. It reads the
+#            listener's socket inode from /proc/net/udp, reloads config2.conf
+#            (adds `forward server 127.0.23.84`), waits for 203.0.113.77,
+#            which only the stub on 127.0.23.84 serves, and checks the inode
+#            is unchanged (D-5: no rebind).
+# PREVENTS: an enabled resolver with no forward server that never forwards to
+#           a DHCPv4 lease's server, a default that keeps the learned server
+#           beside an operator's forward server, and a reload that rebinds.
+#
+# DISCRIMINATION (break overlay, not yet run):
+# tmp/session/2026-11-07-104251/scratch/rwinv/c23b-forward-default/ replaces
+# config.go with a copy whose forwardDefault names configured alone. The
+# fixture must then fail at "under the default list ... never forwarded".
+#
+# The fixture deletes zerd4dns0 when it returns; the daemon removes the veth
+# pair it created when it stops.
+#
+# Requires Linux and CAP_NET_ADMIN (veth, dummy, addresses), CAP_NET_RAW (the
+# DHCP client's raw socket) and CAP_NET_BIND_SERVICE (ports 53 and 67).
+option=needs-linux:caps=net-admin,net-raw,net-bind
+option=timeout:value=120s
+
+stdin=ze-conf:terminator=EOF_CONF
+system {
+	dns {
+		resolv-conf-path "";
+	}
+}
+
+service {
+	dhcp-server {
+		enabled true
+		listen-interface zerd41
+		shared-network wan {
+			subnet 192.0.2.0/24 {
+				range isp {
+					start 192.0.2.100
+					stop 192.0.2.100
+				}
+				lease-time 3600
+				dns-server 192.0.2.53
+			}
+		}
+	}
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.23.83
+			port 53
+		}
+		allow-from 127.0.0.0/8
+	}
+}
+
+plugin {
+	external dns-resolver-forward-dhcpv4-default-test {
+		run "le test fixture plugin/dns-resolver-forward-dhcpv4-default config2.conf"
+		encoder json
+	}
+}
+
+interface {
+	backend netlink
+
+	veth zerd40 {
+		peer zerd41
+		unit 0 {
+			ipv4 {
+				dhcp {
+					enabled true
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+system {
+	dns {
+		resolv-conf-path "";
+	}
+}
+
+service {
+	dhcp-server {
+		enabled true
+		listen-interface zerd41
+		shared-network wan {
+			subnet 192.0.2.0/24 {
+				range isp {
+					start 192.0.2.100
+					stop 192.0.2.100
+				}
+				lease-time 3600
+				dns-server 192.0.2.53
+			}
+		}
+	}
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.23.83
+			port 53
+		}
+		allow-from 127.0.0.0/8
+		forward {
+			server 127.0.23.84 {
+				port 53
+			}
+		}
+	}
+}
+
+plugin {
+	external dns-resolver-forward-dhcpv4-default-test {
+		run "le test fixture plugin/dns-resolver-forward-dhcpv4-default config2.conf"
+		encoder json
+	}
+}
+
+interface {
+	backend netlink
+
+	veth zerd40 {
+		peer zerd41
+		unit 0 {
+			ipv4 {
+				dhcp {
+					enabled true
+				}
+			}
+		}
+	}
+}
+EOF_CONF2
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=120s
+expect=exit:code=0
+
+expect=stderr:contains=dns-resolver default forward -> the DHCPv4 lease's server 192.0.2.53, then the committed forward server alone, listener not rebound
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
