@@ -633,7 +633,7 @@ func parseFullPoolConfig(data string) (poolConfigResult, error) {
 	var result poolConfigResult
 
 	if ipv4Block, ok := poolBlock["ipv4"].(map[string]any); ok {
-		p, err := parseIPv4Pool(ipv4Block, poolDNSDefault)
+		p, err := parseIPv4Pool(ipv4Block, poolDNSSourcePath, poolDNSDefault)
 		if err != nil {
 			return poolConfigResult{}, err
 		}
@@ -678,9 +678,10 @@ func parseFullPoolConfig(data string) (poolConfigResult, error) {
 	return result, nil
 }
 
-// parseIPv4Pool reads one IPv4 pool block. builtin is the built-in default of
-// the block's dns-source list, whose path names that list.
-func parseIPv4Pool(ipv4Block map[string]any, builtin dnssource.List) (*ipv4Pool, error) {
+// parseIPv4Pool reads one IPv4 pool block. sourcesAt is the instance path of
+// the block's dns-source container, named in its refusals, and builtin is
+// that list's built-in default.
+func parseIPv4Pool(ipv4Block map[string]any, sourcesAt string, builtin dnssource.List) (*ipv4Pool, error) {
 	gwStr, _ := ipv4Block["gateway"].(string)
 	if gwStr == "" {
 		return nil, fmt.Errorf("%s: pool ipv4 requires gateway (NAS-side IP)", Name)
@@ -731,7 +732,7 @@ func parseIPv4Pool(ipv4Block map[string]any, builtin dnssource.List) (*ipv4Pool,
 		}
 	}
 
-	sources, err := parsePoolSources(ipv4Block, builtin)
+	sources, err := parsePoolSources(ipv4Block, sourcesAt, builtin)
 	if err != nil {
 		return nil, err
 	}
@@ -749,7 +750,7 @@ func parseNamedPools(entries []configvalue.ListEntry) (map[string]*ipv4Pool, err
 		if entry.Key == "" {
 			return nil, fmt.Errorf("%s: named-pool requires a name", Name)
 		}
-		pool, err := parseIPv4Pool(entry.Fields, namedPoolDNSDefault)
+		pool, err := parseIPv4Pool(entry.Fields, "l2tp pool named-pool "+entry.Key+" dns-source", namedPoolDNSDefault)
 		if err != nil {
 			return nil, fmt.Errorf("%s: named-pool %q: %w", Name, entry.Key, err)
 		}

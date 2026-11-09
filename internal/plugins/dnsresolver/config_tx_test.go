@@ -345,7 +345,7 @@ func TestDNSSourceClassRefused(t *testing.T) {
 		if !errors.As(err, &refused) {
 			t.Fatalf("%s: err = %v, want *ClassRefusedError", class, err)
 		}
-		if refused.Path != forwardDNSSourcePath || refused.Refusal.Fix == "" {
+		if refused.Path != forwardDNSSourcePath || refused.Fix() == "" {
 			t.Fatalf("%s: refusal %+v names the wrong path or no fix", class, refused)
 		}
 	}

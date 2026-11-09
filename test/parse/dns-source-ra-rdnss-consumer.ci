@@ -69,9 +69,9 @@ interface {
 EOF_RA_NO_MODE
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=ra-radius:exit=1
-expect=stdout:contains=interface unit ipv6 router-advertisement rdnss dns-source names radius
+expect=stdout:contains=interface ethernet eth0 unit 0 ipv6 router-advertisement rdnss dns-source names radius
 expect=stdout:contains=a host on this link is not a subscriber
-expect=stdout:contains=delete interface unit ipv6 router-advertisement rdnss dns-source source radius
+expect=stdout:contains=delete interface ethernet eth0 unit 0 ipv6 router-advertisement rdnss dns-source source radius
 
 cmd=foreground:seq=2:exec=ze config validate -:stdin=ra-no-mode:exit=1
-expect=stdout:contains=interface unit ipv6 router-advertisement rdnss dns-source names 2 sources (received, configured) and no mode
+expect=stdout:contains=interface ethernet eth0 unit 0 ipv6 router-advertisement rdnss dns-source names 2 sources (received, configured) and no mode

@@ -356,13 +356,17 @@ var forwardRefusals = []dnssource.Refusal{
 	{
 		Class: dnssource.ClassSelf,
 		Why:   "self is Ze's own LAN resolver, and the resolver cannot be its own upstream: its queries would loop back to itself",
-		Fix: "delete " + forwardDNSSourcePath + " source self, and set service dns-resolver forward server <address> " +
-			"or take the upstreams from the network with set " + forwardDNSSourcePath + " source received",
+		Fix: func(path string) string {
+			return "delete " + path + " source self, and set service dns-resolver forward server <address> " +
+				"or take the upstreams from the network with set " + path + " source received"
+		},
 	},
 	{
 		Class: dnssource.ClassRadius,
 		Why:   "radius names the resolvers a RADIUS server gives one PPP subscriber, and the LAN resolver is not a subscriber",
-		Fix:   "delete " + forwardDNSSourcePath + " source radius; the resolver takes configured (forward server) and received",
+		Fix: func(path string) string {
+			return "delete " + path + " source radius; the resolver takes configured (forward server) and received"
+		},
 	},
 }
 
@@ -380,7 +384,8 @@ func parseForwardSources(r map[string]any) (dnssource.List, error) {
 		return dnssource.List{}, errors.New("service dns-resolver forward is not a container, so Ze cannot read its dns-source list\n" +
 			"run ze config validate, and write service dns-resolver forward { server <address>; } or delete service dns-resolver forward")
 	}
-	return dnssource.ParseContainer(fm, forwardDefault, dnssource.FamilyAll, dnssource.AudienceZe, forwardRefusals...)
+	return dnssource.ParseContainer(fm, forwardDNSSourcePath, forwardDefault, dnssource.FamilyAll, dnssource.AudienceZe,
+		forwardRefusals...)
 }
 
 func asMap(m map[string]any, key string) (map[string]any, bool) {

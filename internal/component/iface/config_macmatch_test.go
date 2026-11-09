@@ -12,7 +12,7 @@ import "testing"
 // TestParseIfaceEntryMatchMAC verifies the mac/match leaf is read into
 // ifaceEntry, independently of the mac/address override.
 func TestParseIfaceEntryMatchMAC(t *testing.T) {
-	e, err := parseIfaceEntry("uplink", map[string]any{
+	e, err := parseIfaceEntry("ethernet", "uplink", map[string]any{
 		"mac": map[string]any{"match": "aa:bb:cc:dd:ee:ff"},
 	})
 	if err != nil {
@@ -23,7 +23,7 @@ func TestParseIfaceEntryMatchMAC(t *testing.T) {
 	}
 
 	// Override and match are independent: both parse from the same mac container.
-	e2, err := parseIfaceEntry("uplink", map[string]any{
+	e2, err := parseIfaceEntry("ethernet", "uplink", map[string]any{
 		"mac": map[string]any{"address": "02:00:00:00:00:01", "match": "aa:bb:cc:dd:ee:ff"},
 	})
 	if err != nil {
@@ -34,7 +34,7 @@ func TestParseIfaceEntryMatchMAC(t *testing.T) {
 	}
 
 	// Absent mac/match leaves the field empty (bind by name/os-name).
-	e3, err := parseIfaceEntry("eth1", map[string]any{})
+	e3, err := parseIfaceEntry("ethernet", "eth1", map[string]any{})
 	if err != nil {
 		t.Fatalf("parseIfaceEntry (no mac): %v", err)
 	}

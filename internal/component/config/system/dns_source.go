@@ -19,13 +19,17 @@ var routerDNSSourceRefusals = []dnssource.Refusal{
 	{
 		Class: dnssource.ClassSelf,
 		Why:   "self is Ze's own LAN resolver, and Ze cannot be its own upstream: its lookups would loop back to itself",
-		Fix: "delete system dns-source source self, and name the upstream servers with set system name-server <address> " +
-			"or take them from the network with set system dns-source source received",
+		Fix: func(path string) string {
+			return "delete " + path + " source self, and name the upstream servers with set system name-server <address> " +
+				"or take them from the network with set " + path + " source received"
+		},
 	},
 	{
 		Class: dnssource.ClassRadius,
 		Why:   "radius names the resolvers a RADIUS server gives one PPP subscriber, and the router is not a subscriber",
-		Fix:   "delete system dns-source source radius; the router takes configured (system name-server) and received",
+		Fix: func(path string) string {
+			return "delete " + path + " source radius; the router takes configured (system name-server) and received"
+		},
 	},
 }
 

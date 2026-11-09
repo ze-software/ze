@@ -18,7 +18,7 @@ import (
 
 // TestParseIfaceEntryOSName verifies the os-name leaf is read into ifaceEntry.
 func TestParseIfaceEntryOSName(t *testing.T) {
-	e, err := parseIfaceEntry("uplink", map[string]any{"os-name": "eth0"})
+	e, err := parseIfaceEntry("ethernet", "uplink", map[string]any{"os-name": "eth0"})
 	if err != nil {
 		t.Fatalf("parseIfaceEntry: %v", err)
 	}
@@ -27,7 +27,7 @@ func TestParseIfaceEntryOSName(t *testing.T) {
 	}
 
 	// Absent os-name leaves the field empty (default-to-name at resolve time).
-	e2, err := parseIfaceEntry("eth1", map[string]any{})
+	e2, err := parseIfaceEntry("ethernet", "eth1", map[string]any{})
 	if err != nil {
 		t.Fatalf("parseIfaceEntry (no os-name): %v", err)
 	}

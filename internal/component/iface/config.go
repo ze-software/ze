@@ -476,7 +476,7 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 				return nil, fmt.Errorf("ethernet: %w", err)
 			}
 			m, _ := v.(map[string]any)
-			entry, err := parseIfaceEntry(name, m)
+			entry, err := parseIfaceEntry("ethernet", name, m)
 			if err != nil {
 				return nil, fmt.Errorf("ethernet %q: %w", name, err)
 			}
@@ -490,7 +490,7 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 				return nil, fmt.Errorf("dummy: %w", err)
 			}
 			m, _ := v.(map[string]any)
-			entry, err := parseIfaceEntry(name, m)
+			entry, err := parseIfaceEntry("dummy", name, m)
 			if err != nil {
 				return nil, fmt.Errorf("dummy %q: %w", name, err)
 			}
@@ -504,7 +504,7 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 				return nil, fmt.Errorf("veth: %w", err)
 			}
 			m, _ := v.(map[string]any)
-			iface, err := parseIfaceEntry(name, m)
+			iface, err := parseIfaceEntry("veth", name, m)
 			if err != nil {
 				return nil, fmt.Errorf("veth %q: %w", name, err)
 			}
@@ -525,7 +525,7 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 				return nil, fmt.Errorf("bridge: %w", err)
 			}
 			m, _ := v.(map[string]any)
-			iface, err := parseIfaceEntry(name, m)
+			iface, err := parseIfaceEntry("bridge", name, m)
 			if err != nil {
 				return nil, fmt.Errorf("bridge %q: %w", name, err)
 			}
@@ -612,7 +612,7 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 	if loMap, ok := ifaceMap["loopback"].(map[string]any); ok {
 		lo := &loopbackEntry{}
 		var err error
-		lo.Units, err = parseUnits(loMap, "")
+		lo.Units, err = parseUnits(loMap, "", "interface loopback")
 		if err != nil {
 			return nil, fmt.Errorf("loopback: %w", err)
 		}
@@ -701,7 +701,7 @@ func (c *ifaceConfig) refuseDuplicateInterfaceNames() error {
 // materialized into the case map before the leaves are read, so a leaf the
 // operator left out reaches the backend with the value the schema declares.
 func parseTunnelEntry(name string, m map[string]any, tunnels tunnelSchema) (tunnelEntry, error) {
-	iface, err := parseIfaceEntry(name, m)
+	iface, err := parseIfaceEntry("tunnel", name, m)
 	if err != nil {
 		return tunnelEntry{}, err
 	}
@@ -776,7 +776,7 @@ func parseTunnelEntry(name string, m map[string]any, tunnels tunnelSchema) (tunn
 // parseXFRMEntry walks the JSON tree for one xfrm list entry and produces
 // an xfrmEntry. if-id is mandatory and must be non-zero.
 func parseXFRMEntry(name string, m map[string]any) (xfrmEntry, error) {
-	iface, err := parseIfaceEntry(name, m)
+	iface, err := parseIfaceEntry("xfrm", name, m)
 	if err != nil {
 		return xfrmEntry{}, err
 	}
@@ -915,7 +915,7 @@ func parseTunnelLeaves(spec *TunnelSpec, caseMap map[string]any) error {
 // already plaintext at this layer -- the config parser's parseLeaf has
 // decoded any $9$ prefix before the tree reaches us.
 func parseWireguardEntry(name string, m map[string]any) (wireguardEntry, error) {
-	iface, err := parseIfaceEntry(name, m)
+	iface, err := parseIfaceEntry("wireguard", name, m)
 	if err != nil {
 		return wireguardEntry{}, err
 	}
@@ -1127,7 +1127,11 @@ func parsePPPoEClientEntry(name string, m map[string]any, pppoeSchema pppoeClien
 	return entry, nil
 }
 
-func parseIfaceEntry(name string, m map[string]any) (ifaceEntry, error) {
+// parseIfaceEntry reads the leaves every interface kind shares and its
+// units. kind is the YANG list the entry sits in (ethernet, bridge, ...),
+// which with name gives the entry's config path, so a unit's refusal can name
+// the node the operator wrote.
+func parseIfaceEntry(kind, name string, m map[string]any) (ifaceEntry, error) {
 	entry := ifaceEntry{Name: name}
 	if m == nil {
 		return entry, nil
@@ -1152,14 +1156,17 @@ func parseIfaceEntry(name string, m map[string]any) (ifaceEntry, error) {
 	entry.Offload = parseOffloadConfig(m)
 	parentCoS, _ := m["class-of-service"].(string)
 	var err error
-	entry.Units, err = parseUnits(m, parentCoS)
+	entry.Units, err = parseUnits(m, parentCoS, "interface "+kind+" "+name)
 	if err != nil {
 		return entry, fmt.Errorf("%s: %w", name, err)
 	}
 	return entry, nil
 }
 
-func parseUnits(m map[string]any, parentCoS string) ([]unitEntry, error) {
+// parseUnits reads the unit list of one interface. ifacePath is that
+// interface's config path (interface ethernet eth0), from which each unit's
+// own path is built for the refusals that name a unit's node.
+func parseUnits(m map[string]any, parentCoS, ifacePath string) ([]unitEntry, error) {
 	unitMap, ok := m["unit"].(map[string]any)
 	if !ok {
 		return nil, nil //nolint:nilnil // no unit container means no units, not an error
@@ -1199,7 +1206,7 @@ func parseUnits(m map[string]any, parentCoS string) ([]unitEntry, error) {
 			if err != nil {
 				return nil, fmt.Errorf("unit %q: %w", name, err)
 			}
-			u.IPv6, err = parseIPv6Settings(um)
+			u.IPv6, err = parseIPv6Settings(um, ifacePath+" unit "+name)
 			if err != nil {
 				return nil, fmt.Errorf("unit %q: %w", name, err)
 			}
@@ -1455,7 +1462,10 @@ func parseIPv4Settings(um map[string]any) (*ipv4Settings, error) {
 	return s, nil
 }
 
-func parseIPv6Settings(um map[string]any) (*ipv6Settings, error) {
+// parseIPv6Settings reads a unit's ipv6 container. unitPath is the unit's
+// config path (interface ethernet eth0 unit 0), named by the refusals of
+// what the container holds.
+func parseIPv6Settings(um map[string]any, unitPath string) (*ipv6Settings, error) {
 	v6, ok := um["ipv6"].(map[string]any)
 	if !ok {
 		return nil, nil //nolint:nilnil // absent container means unconfigured, not an error
@@ -1504,7 +1514,7 @@ func parseIPv6Settings(um map[string]any) (*ipv6Settings, error) {
 	if s.DHCPv6 != nil {
 		set = true
 	}
-	ra, err := parseRAConfig(v6)
+	ra, err := parseRAConfig(v6, unitPath)
 	if err != nil {
 		return nil, err
 	}

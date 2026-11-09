@@ -134,7 +134,7 @@ func TestSelfIsAddressOnClientInterface(t *testing.T) {
 	pool := newIPv4Pool(testGW, netip.MustParseAddr("10.0.0.1"), netip.MustParseAddr("10.0.0.10"),
 		netip.MustParseAddr("203.0.113.53"), netip.Addr{})
 	list, err := parsePoolSources(map[string]any{"dns-source": map[string]any{"source": "self"}},
-		poolDNSDefault)
+		poolDNSSourcePath, poolDNSDefault)
 	if err != nil {
 		t.Fatalf("source self refused: %v", err)
 	}
@@ -151,7 +151,7 @@ func TestPoolCutsAtTwoServers(t *testing.T) {
 	pool := newIPv4Pool(testGW, netip.MustParseAddr("10.0.0.1"), netip.MustParseAddr("10.0.0.10"),
 		netip.MustParseAddr("203.0.113.53"), netip.MustParseAddr("203.0.113.54"))
 	list, err := parsePoolSources(map[string]any{"dns-source": map[string]any{
-		"source": []any{"radius", "configured"}, "mode": "merge"}}, poolDNSDefault)
+		"source": []any{"radius", "configured"}, "mode": "merge"}}, poolDNSSourcePath, poolDNSDefault)
 	if err != nil {
 		t.Fatalf("list refused: %v", err)
 	}
@@ -177,7 +177,7 @@ func TestModeRequiredEachConsumer(t *testing.T) {
 		wantPath string
 	}{
 		{"ipv4 no mode", `{"l2tp":{"pool":{"ipv4":{` + ipv4 + `,"dns-source":{"source":["radius","configured"]}}}}}`, poolDNSSourcePath},
-		{"named no mode", `{"l2tp":{"pool":{"named-pool":{"gold":{` + ipv4 + `,"dns-source":{"source":["configured","received"]}}}}}}`, namedPoolDNSSourcePath},
+		{"named no mode", `{"l2tp":{"pool":{"named-pool":{"gold":{` + ipv4 + `,"dns-source":{"source":["configured","received"]}}}}}}`, "l2tp pool named-pool gold dns-source"},
 		{"ipv4 with mode", `{"l2tp":{"pool":{"ipv4":{` + ipv4 + `,"dns-source":{"source":["radius","configured"],"mode":"merge"}}}}}`, ""},
 		{"named one source", `{"l2tp":{"pool":{"named-pool":{"gold":{` + ipv4 + `,"dns-source":{"source":"received"}}}}}}`, ""},
 	}

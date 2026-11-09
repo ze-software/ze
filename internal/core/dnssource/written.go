@@ -93,17 +93,27 @@ func unknownClassError(path, word string) error {
 const ContainerKey = "dns-source"
 
 // ParseContainer reads the dns-source container of parent, a consumer's
-// config object, into the list the consumer selects with. A parent that holds
-// no container answers builtin, the consumer's built-in default (D-5), whose
-// path names the container in every refusal; a container that is not an
-// object is refused rather than read as absent, because the default would
-// then stand in for a list the operator wrote. The written list is validated
-// by NewWrittenList with family, audience and the classes the consumer
-// refuses.
-func ParseContainer(parent map[string]any, builtin List, family Family, audience Audience, refused ...Refusal) (List, error) {
+// config object, into the list the consumer selects with. at is the
+// container's instance path, as an operator types it in a set command with
+// every list key filled in (interface ethernet eth0 unit 0 ipv6
+// router-advertisement rdnss dns-source): every refusal names it, so each
+// fix command it prints is one the operator can run. A parent that holds no
+// container answers builtin, the consumer's built-in default (D-5); a
+// container that is not an object is refused rather than read as absent,
+// because the default would then stand in for a list the operator wrote. The
+// written list is validated by NewWrittenList with family, audience and the
+// classes the consumer refuses. The list answered carries builtin's path, the
+// schema path its publications and log lines name beside the instance, so a
+// written list and the default report under one path.
+func ParseContainer(parent map[string]any, at string, builtin List, family Family, audience Audience, refused ...Refusal) (List, error) {
 	raw, present := parent[ContainerKey]
 	if present {
-		return parseWrittenContainer(builtin.Path(), raw, family, audience, refused)
+		list, err := parseWrittenContainer(at, raw, family, audience, refused)
+		if err != nil {
+			return List{}, err
+		}
+		list.path = builtin.Path()
+		return list, nil
 	}
 	return builtin, nil
 }

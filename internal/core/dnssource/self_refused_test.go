@@ -27,18 +27,19 @@ func TestSelfRefusedOnSystemAndForward(t *testing.T) {
 		name    string
 		path    string
 		refusal Refusal
+		fix     string
 	}{
 		{
-			name: "system",
-			path: "system dns-source",
-			refusal: Refusal{Class: ClassSelf, Why: "Ze cannot be its own upstream",
-				Fix: "delete system dns-source source self"},
+			name:    "system",
+			path:    "system dns-source",
+			refusal: Refusal{Class: ClassSelf, Why: "Ze cannot be its own upstream", Fix: deleteSourceFix(ClassSelf)},
+			fix:     "delete system dns-source source self",
 		},
 		{
-			name: "forward",
-			path: "service dns-resolver forward dns-source",
-			refusal: Refusal{Class: ClassSelf, Why: "the resolver cannot be its own upstream",
-				Fix: "delete service dns-resolver forward dns-source source self"},
+			name:    "forward",
+			path:    "service dns-resolver forward dns-source",
+			refusal: Refusal{Class: ClassSelf, Why: "the resolver cannot be its own upstream", Fix: deleteSourceFix(ClassSelf)},
+			fix:     "delete service dns-resolver forward dns-source source self",
 		},
 	}
 	bodies := []struct {
@@ -52,7 +53,7 @@ func TestSelfRefusedOnSystemAndForward(t *testing.T) {
 		builtin := StatedDefault(consumer.path, FamilyAll, AudienceZe, ModeFirstUsable, ClassConfigured, ClassReceived)
 		for _, body := range bodies {
 			parent := map[string]any{ContainerKey: map[string]any{"source": body.source}}
-			_, err := ParseContainer(parent, builtin, FamilyAll, AudienceZe, consumer.refusal)
+			_, err := ParseContainer(parent, consumer.path, builtin, FamilyAll, AudienceZe, consumer.refusal)
 			var refused *ClassRefusedError
 			if !errors.As(err, &refused) {
 				t.Fatalf("%s, %s: err = %v, want *ClassRefusedError", consumer.name, body.name, err)
@@ -71,8 +72,8 @@ func TestSelfRefusedOnSystemAndForward(t *testing.T) {
 			if want := consumer.path + " names self: " + consumer.refusal.Why; lines[0] != want {
 				t.Errorf("%s, %s: first line = %q, want %q", consumer.name, body.name, lines[0], want)
 			}
-			if lines[1] != consumer.refusal.Fix {
-				t.Errorf("%s, %s: fix line = %q, want %q", consumer.name, body.name, lines[1], consumer.refusal.Fix)
+			if lines[1] != consumer.fix {
+				t.Errorf("%s, %s: fix line = %q, want %q", consumer.name, body.name, lines[1], consumer.fix)
 			}
 		}
 	}

@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/netip"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -239,7 +240,8 @@ func TestOption6CutAtOptionMaximum(t *testing.T) {
 
 // TestSubnetDNSSourceRefused proves AC-11 and AC-16b for a DHCP subnet through
 // the one parse the verifier and the boot run: radius is refused with the
-// subnet's path, two sources without mode are refused, and the same list
+// subnet's instance path (its shared-network and prefix keys filled in) and
+// a fix command on that path, two sources without mode are refused, and the same list
 // with mode, or one source without it, is accepted.
 func TestSubnetDNSSourceRefused(t *testing.T) {
 	t.Parallel()
@@ -251,6 +253,13 @@ func TestSubnetDNSSourceRefused(t *testing.T) {
 	var refused *dnssource.ClassRefusedError
 	if _, err := parseConfig(config(`{"source":["radius"]}`)); !errors.As(err, &refused) {
 		t.Fatalf("source radius: err = %v, want a ClassRefusedError", err)
+	}
+	const at = "service dhcp-server shared-network LAN subnet 192.0.2.0/24 dns-source"
+	if refused.Path != at {
+		t.Fatalf("source radius: refusal names %q, want the subnet's instance path %q", refused.Path, at)
+	}
+	if want := "delete " + at + " source radius"; !strings.HasPrefix(refused.Fix(), want) {
+		t.Fatalf("source radius: fix %q, want it to start %q", refused.Fix(), want)
 	}
 	if _, err := parseConfig(config(`{"source":["self","received"]}`)); err == nil {
 		t.Fatal("two sources without mode accepted")

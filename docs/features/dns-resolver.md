@@ -226,7 +226,12 @@ DNS (`l2tp pool ipv4 dns-source`, `l2tp pool named-pool dns-source`) use it.
 A class names a role, never a protocol. A protocol that learns resolvers
 registers an origin with a rank, and its records appear inside `received`.
 Each consumer declares the classes it cannot use, with the reason and the
-fix it prints: the router refuses `self` and `radius`. A consumer's built-in
+fix it prints: the router refuses `self` and `radius`. A refusal of a list
+that sits under a keyed node names that instance, its keys filled in, so its
+fix command runs as printed: `delete interface ethernet eth0 unit 0 ipv6
+router-advertisement rdnss dns-source source radius`, `service dhcp-server
+shared-network LAN subnet 192.168.1.0/24 dns-source`, `l2tp pool named-pool
+gold dns-source`. A consumer's built-in
 default applies only while its `dns-source` container is absent. Once the
 container is written, the default no longer applies, its `mode` included.
 
@@ -346,6 +351,7 @@ JSON form of a record is in `docs/architecture/api/process-protocol.md`,
 
 <!-- source: internal/component/config/yang/modules/ze-types.yang -- dns-source-class, dns-source -->
 <!-- source: internal/core/dnssource/select.go -- Class, ParseClass, ParseMode, NewList, NewWrittenList, Refusal, EmptyListError, RepeatedSourceError -->
+<!-- source: internal/core/dnssource/written.go -- ParseContainer -->
 <!-- source: internal/core/dnssource/record.go -- Record, CompareRecords, liveAddresses -->
 <!-- source: internal/component/config/system/dns_source.go -- readWrittenDNSSource, unknownDNSSourceClassError -->
 <!-- source: internal/plugins/iface/dhcp/register.go -- dhcpv4ResolverOrigin, dhcpv6ResolverOrigin -->

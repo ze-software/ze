@@ -156,7 +156,7 @@ func parseSharedNetwork(name string, data map[string]any) (sharedNetwork, error)
 		if !ok {
 			continue
 		}
-		sub, err := parseSubnet(prefixStr, subData)
+		sub, err := parseSubnet(name, prefixStr, subData)
 		if err != nil {
 			return sn, fmt.Errorf("subnet %q: %w", prefixStr, err)
 		}
@@ -169,7 +169,7 @@ func parseSharedNetwork(name string, data map[string]any) (sharedNetwork, error)
 	return sn, nil
 }
 
-func parseSubnet(prefixStr string, data map[string]any) (subnetConfig, error) {
+func parseSubnet(sharedNetwork, prefixStr string, data map[string]any) (subnetConfig, error) {
 	var sub subnetConfig
 
 	prefix, err := netip.ParsePrefix(prefixStr)
@@ -246,7 +246,7 @@ func parseSubnet(prefixStr string, data map[string]any) (subnetConfig, error) {
 		return sub, fmt.Errorf("dns-server: count %d exceeds DHCP option maximum %d", len(sub.DNSServers), maxDNSServers)
 	}
 
-	sources, err := parseSubnetSources(data)
+	sources, err := parseSubnetSources(sharedNetwork, prefixStr, data)
 	if err != nil {
 		return sub, err
 	}
@@ -505,7 +505,8 @@ func parsePXEConfig(dhcpMap map[string]any) (pxeConfig, error) {
 }
 
 // subnetDNSSourcePath is the YANG path of a subnet's option 6 list, named in
-// its refusals and in every address the selection drops.
+// its publications and in every address the selection drops; a refusal names
+// the subnet's instance path instead (parseSubnetSources).
 const subnetDNSSourcePath = "service dhcp-server shared-network subnet dns-source"
 
 // subnetDNSDefault is a subnet's built-in option 6 list (D-5): the dns-server
@@ -519,14 +520,18 @@ var subnetDNSRefusals = []dnssource.Refusal{
 	{
 		Class: dnssource.ClassRadius,
 		Why:   "radius names the resolvers a RADIUS server gives one PPP subscriber, and a DHCP client is not a subscriber",
-		Fix: "delete " + subnetDNSSourcePath + " source radius; the subnet takes configured (dns-server), " +
-			"received and self",
+		Fix: func(path string) string {
+			return "delete " + path + " source radius; the subnet takes configured (dns-server), received and self"
+		},
 	},
 }
 
 // parseSubnetSources reads a subnet's dns-source container, or answers the
-// built-in default when it is absent.
-func parseSubnetSources(data map[string]any) (dnssource.List, error) {
-	return dnssource.ParseContainer(data, subnetDNSDefault, dnssource.FamilyIPv4, dnssource.AudienceHandedOn,
+// built-in default when it is absent. sharedNetwork and prefix are the keys
+// of the subnet, so a refusal names the container the operator wrote and its
+// fix command runs as printed.
+func parseSubnetSources(sharedNetwork, prefix string, data map[string]any) (dnssource.List, error) {
+	at := "service dhcp-server shared-network " + sharedNetwork + " subnet " + prefix + " dns-source"
+	return dnssource.ParseContainer(data, at, subnetDNSDefault, dnssource.FamilyIPv4, dnssource.AudienceHandedOn,
 		subnetDNSRefusals...)
 }

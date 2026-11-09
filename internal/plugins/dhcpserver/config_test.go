@@ -630,7 +630,7 @@ func TestServerIdentifierLeafParse(t *testing.T) {
 
 	const subnet = "10.99.0.0/24"
 	for _, value := range []string{"10.99.0.1", "10.99.0.254", "192.168.50.1"} {
-		sub, err := parseSubnet(subnet, map[string]any{"server-identifier": value})
+		sub, err := parseSubnet("LAN", subnet, map[string]any{"server-identifier": value})
 		if err != nil {
 			t.Errorf("server-identifier %s: %v, want accepted", value, err)
 			continue
@@ -639,7 +639,7 @@ func TestServerIdentifierLeafParse(t *testing.T) {
 			t.Errorf("server-identifier %s parsed as %v", value, got)
 		}
 	}
-	unset, err := parseSubnet(subnet, map[string]any{})
+	unset, err := parseSubnet("LAN", subnet, map[string]any{})
 	if err != nil {
 		t.Fatalf("subnet with no server-identifier: %v", err)
 	}
@@ -648,7 +648,7 @@ func TestServerIdentifierLeafParse(t *testing.T) {
 	}
 
 	for _, value := range []string{"10.99.0.0", "10.99.0.255", "224.0.0.1", "255.255.255.255", "0.0.0.0", "127.0.0.1", "169.254.1.1"} {
-		_, err := parseSubnet(subnet, map[string]any{"server-identifier": value})
+		_, err := parseSubnet("LAN", subnet, map[string]any{"server-identifier": value})
 		if err == nil {
 			t.Errorf("server-identifier %s accepted, want refused", value)
 			continue
@@ -660,7 +660,7 @@ func TestServerIdentifierLeafParse(t *testing.T) {
 		}
 	}
 	for _, value := range []string{"2001:db8::1", "not-an-address"} {
-		if _, err := parseSubnet(subnet, map[string]any{"server-identifier": value}); err == nil {
+		if _, err := parseSubnet("LAN", subnet, map[string]any{"server-identifier": value}); err == nil {
 			t.Errorf("server-identifier %q accepted, want refused", value)
 		} else if !strings.Contains(err.Error(), "server-identifier") {
 			t.Errorf("server-identifier %q: error %q does not name the leaf", value, err)

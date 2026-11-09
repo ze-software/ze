@@ -50,7 +50,7 @@ func TestMTUDefaultMatchesApplyPath(t *testing.T) {
 	}
 	require.Positive(t, checked, "registered interface schema must expose MTU-bearing lists")
 
-	entry, err := parseIfaceEntry("wg0", map[string]any{})
+	entry, err := parseIfaceEntry("wireguard", "wg0", map[string]any{})
 	require.NoError(t, err)
 	assert.Equal(t, 0, entry.MTU, "an omitted mtu must leave the device's MTU untouched")
 }

@@ -93,8 +93,9 @@ func (c *raUnitConfig) EffectiveRDNSSLifetime() uint32 {
 // parseRAConfig reads the router-advertisement container out of a unit's ipv6
 // container. It returns nil when the container is absent, and an error for any
 // value or combination RFC 4861 forbids, which OnConfigVerify turns into a
-// rejected commit.
-func parseRAConfig(v6 map[string]any) (*raUnitConfig, error) {
+// rejected commit. unitPath is the unit's config path, from which the rdnss
+// dns-source refusals name the node the operator wrote.
+func parseRAConfig(v6 map[string]any, unitPath string) (*raUnitConfig, error) {
 	rm, ok := v6["router-advertisement"].(map[string]any)
 	if !ok {
 		return nil, nil //nolint:nilnil // absent container means unconfigured, not an error
@@ -139,7 +140,7 @@ func parseRAConfig(v6 map[string]any) (*raUnitConfig, error) {
 	if err := raParsePrefixes(rm, cfg); err != nil {
 		return nil, err
 	}
-	if err := raParseRDNSS(rm, cfg); err != nil {
+	if err := raParseRDNSS(rm, cfg, unitPath); err != nil {
 		return nil, err
 	}
 	if err := raValidate(cfg); err != nil {
@@ -229,14 +230,14 @@ func raParsePrefixEntry(key string, entry map[string]any) (raPrefixConfig, error
 }
 
 // raParseRDNSS fills the resolver list, its lifetime and its dns-source list
-// from the rdnss container.
-func raParseRDNSS(rm map[string]any, cfg *raUnitConfig) error {
+// from the rdnss container of the unit at unitPath.
+func raParseRDNSS(rm map[string]any, cfg *raUnitConfig, unitPath string) error {
 	dm, ok := rm["rdnss"].(map[string]any)
 	if !ok {
 		cfg.Sources = raRDNSSDefault
 		return nil
 	}
-	sources, err := raParseRDNSSSources(dm)
+	sources, err := raParseRDNSSSources(dm, unitPath)
 	if err != nil {
 		return err
 	}

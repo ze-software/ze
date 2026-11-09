@@ -131,7 +131,7 @@ expect=stderr:contains=service dns-resolver forward dns-source names 2 sources (
 
 cmd=foreground:seq=3:exec=ze config validate -:stdin=subnet:exit=1
 expect=exit:code=1
-expect=stdout:contains=service dhcp-server shared-network subnet dns-source names 2 sources (self, received) and no mode
+expect=stdout:contains=service dhcp-server shared-network LAN subnet 192.168.1.0/24 dns-source names 2 sources (self, received) and no mode
 
 
 cmd=foreground:seq=4:exec=ze config validate -:stdin=pool:exit=1
@@ -140,7 +140,7 @@ expect=stdout:contains=l2tp pool ipv4 dns-source names 2 sources (radius, receiv
 
 cmd=foreground:seq=5:exec=ze config validate -:stdin=named-pool:exit=1
 expect=exit:code=1
-expect=stdout:contains=l2tp pool named-pool dns-source names 2 sources (configured, received) and no mode
+expect=stdout:contains=l2tp pool named-pool gold dns-source names 2 sources (configured, received) and no mode
 
 cmd=foreground:seq=6:exec=ze config validate -:stdin=forward-merge
 expect=exit:code=0

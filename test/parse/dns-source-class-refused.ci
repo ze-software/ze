@@ -118,9 +118,9 @@ expect=stdout:contains=delete service dns-resolver forward dns-source source rad
 
 cmd=foreground:seq=3:exec=ze config validate -:stdin=subnet-radius:exit=1
 expect=exit:code=1
-expect=stdout:contains=service dhcp-server shared-network subnet dns-source names radius
+expect=stdout:contains=service dhcp-server shared-network LAN subnet 192.168.1.0/24 dns-source names radius
 expect=stdout:contains=a DHCP client is not a subscriber
-expect=stdout:contains=delete service dhcp-server shared-network subnet dns-source source radius
+expect=stdout:contains=delete service dhcp-server shared-network LAN subnet 192.168.1.0/24 dns-source source radius
 
 
 cmd=foreground:seq=4:exec=ze config validate -:stdin=subnet-self

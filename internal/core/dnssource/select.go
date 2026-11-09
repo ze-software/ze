@@ -242,15 +242,21 @@ type Written struct {
 
 // Refusal is a class a consumer cannot use, with the reason and the fix the
 // operator reads when a list names it. Each consumer declares its own, so
-// this package names no consumer.
+// this package names no consumer. Fix MUST be set: it answers the fix for
+// the container written at path, the instance path with every list key
+// filled in (interface ethernet eth0 unit 0 ...), so the command it names is
+// one the operator can run as printed. A consumer with list instances
+// declares one Refusal for all of them, which is why the fix is a function
+// of the path and not a string holding one.
 type Refusal struct {
 	Class Class
 	Why   string
-	Fix   string
+	Fix   func(path string) string
 }
 
 // NewWrittenList validates the dns-source container an operator wrote at
-// path and answers the list. It refuses, in this order: a class in refused
+// path, the instance path with every list key filled in, and answers the
+// list. It refuses, in this order: a class in refused
 // (*ClassRefusedError), a received-interface with no received source
 // (*ReceivedInterfaceError), then what NewList refuses. The consumer calls
 // it from every place its config is checked, so validate, commit and boot
@@ -482,9 +488,14 @@ func (e *ClassRefusedError) What() string {
 	return e.Path + " names " + string(e.Refusal.Class)
 }
 
+// Fix gives the command that settles it, for the container at e.Path.
+func (e *ClassRefusedError) Fix() string {
+	return e.Refusal.Fix(e.Path)
+}
+
 // Error renders what, why and the fix, the fix on a line of its own.
 func (e *ClassRefusedError) Error() string {
-	return e.What() + ": " + e.Refusal.Why + "\n" + e.Refusal.Fix
+	return e.What() + ": " + e.Refusal.Why + "\n" + e.Fix()
 }
 
 // ReceivedInterfaceError refuses a received-interface on a list that does

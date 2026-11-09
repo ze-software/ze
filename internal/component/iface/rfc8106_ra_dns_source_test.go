@@ -137,16 +137,21 @@ func TestRDNSSLifetimeBoundedByLease(t *testing.T) {
 }
 
 // VALIDATES: AC-16b and the refusal of radius for the RDNSS list: config
-// verify refuses radius, and two sources with no mode, naming the path.
-// PREVENTS: a list that means nothing on a LAN unit reaching the sender.
+// verify refuses radius, and two sources with no mode, naming the unit's
+// own list (interface ethernet eth0 unit 0 ...) in the refusal and in its
+// fix command.
+// PREVENTS: a list that means nothing on a LAN unit reaching the sender; a
+// refusal that names no interface or unit, whose fix the CLI cannot run.
 func TestRDNSSDNSSourceRefused(t *testing.T) {
-	for _, body := range []string{
-		`{"enabled": "true", "rdnss": {"dns-source": {"source": ["radius"]}}}`,
-		`{"enabled": "true", "rdnss": {"dns-source": {"source": ["configured", "received"]}}}`,
+	const at = "interface ethernet eth0 unit 0 ipv6 router-advertisement rdnss dns-source"
+	for body, fix := range map[string]string{
+		`{"enabled": "true", "rdnss": {"dns-source": {"source": ["radius"]}}}`:                 "delete " + at + " source radius",
+		`{"enabled": "true", "rdnss": {"dns-source": {"source": ["configured", "received"]}}}`: "set " + at + " mode first-usable",
 	} {
 		_, err := parseIfaceConfig(raUnitJSON(body))
 		require.Error(t, err, body)
-		assert.Contains(t, err.Error(), raRDNSSSourcePath, body)
+		assert.Contains(t, err.Error(), at+" names ", body)
+		assert.Contains(t, err.Error(), "\n"+fix, body)
 	}
 	_, err := parseIfaceConfig(raUnitJSON(`{"enabled": "true", "rdnss": {"dns-source": {"source": ["configured", "received"], "mode": "merge"}}}`))
 	require.NoError(t, err, "the same list with mode is accepted")

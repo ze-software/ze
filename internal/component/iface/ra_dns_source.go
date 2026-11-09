@@ -18,8 +18,12 @@ import (
 )
 
 // raRDNSSSourcePath is the YANG path of a unit's RDNSS list, named in its
-// refusals and in every address the selection drops.
-const raRDNSSSourcePath = "interface unit ipv6 router-advertisement rdnss dns-source"
+// publications and in every address the selection drops. A refusal names the
+// unit's instance path instead (raParseRDNSSSources).
+const raRDNSSSourcePath = "interface unit" + raRDNSSSourceSuffix
+
+// raRDNSSSourceSuffix is the path from a unit to its RDNSS list.
+const raRDNSSSourceSuffix = " ipv6 router-advertisement rdnss dns-source"
 
 // raRDNSSServersMax is how many addresses Ze puts in the RDNSS option: the
 // max-elements of rdnss server, applied to every class so a learned list
@@ -38,16 +42,19 @@ var raRDNSSRefusals = []dnssource.Refusal{
 	{
 		Class: dnssource.ClassRadius,
 		Why:   "radius names the resolvers a RADIUS server gives one PPP subscriber, and a host on this link is not a subscriber",
-		Fix: "delete " + raRDNSSSourcePath + " source radius; the unit takes configured (rdnss server), " +
-			"received and self",
+		Fix: func(path string) string {
+			return "delete " + path + " source radius; the unit takes configured (rdnss server), received and self"
+		},
 	},
 }
 
-// raParseRDNSSSources reads the dns-source container of an rdnss container,
-// or answers the built-in default when it is absent.
-func raParseRDNSSSources(rdnss map[string]any) (dnssource.List, error) {
-	return dnssource.ParseContainer(rdnss, raRDNSSDefault, dnssource.FamilyIPv6, dnssource.AudienceHandedOn,
-		raRDNSSRefusals...)
+// raParseRDNSSSources reads the dns-source container of the rdnss container
+// of the unit at unitPath (interface ethernet eth0 unit 0), or answers the
+// built-in default when it is absent. A refusal names the unit's own list,
+// so the operator can tell which unit was refused and run the fix as printed.
+func raParseRDNSSSources(rdnss map[string]any, unitPath string) (dnssource.List, error) {
+	return dnssource.ParseContainer(rdnss, unitPath+raRDNSSSourceSuffix, raRDNSSDefault, dnssource.FamilyIPv6,
+		dnssource.AudienceHandedOn, raRDNSSRefusals...)
 }
 
 // raRDNSSSelection is what one unit's RDNSS option carries at one reconcile.

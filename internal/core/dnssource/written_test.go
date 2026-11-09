@@ -11,8 +11,8 @@ import (
 // routerSelf and routerRadius are the refusals a consumer shaped like the
 // router declares. The text is the test's own: this package names no consumer.
 var (
-	routerSelf   = Refusal{Class: ClassSelf, Why: "Ze cannot be its own upstream", Fix: "delete system dns-source source self"}
-	routerRadius = Refusal{Class: ClassRadius, Why: "the router has no subscriber", Fix: "delete system dns-source source radius"}
+	routerSelf   = Refusal{Class: ClassSelf, Why: "Ze cannot be its own upstream", Fix: deleteSourceFix(ClassSelf)}
+	routerRadius = Refusal{Class: ClassRadius, Why: "the router has no subscriber", Fix: deleteSourceFix(ClassRadius)}
 )
 
 // TestReceivedInterfaceFilter: with received-interface set, received takes
@@ -207,18 +207,28 @@ func TestReadWrittenFromPluginJSON(t *testing.T) {
 	}
 }
 
+// deleteSourceFix answers a Refusal fix that deletes class from the list at
+// the path it is given, as each consumer's fix starts.
+func deleteSourceFix(class Class) func(path string) string {
+	return func(path string) string { return "delete " + path + " source " + string(class) }
+}
+
 // TestParseContainerAbsentWrittenAndMalformed: an absent container answers
-// the built-in default, a written one the written list, and a container that
-// is not an object is refused naming the path, never read as absent.
+// the built-in default, a written one the written list under the default's
+// schema path, and a container that is not an object is refused naming the
+// instance path, never read as absent.
 //
 // VALIDATES: ParseContainer, the one reader every consumer's dns-source goes
 // through. PREVENTS: the default silently standing in for a list the operator
-// wrote, which the per-consumer type assertions did.
+// wrote, which the per-consumer type assertions did; a refusal naming the
+// schema path, which holds no list key and so is no node the operator can
+// set or delete.
 func TestParseContainerAbsentWrittenAndMalformed(t *testing.T) {
-	builtin := StatedDefault("service dhcp-server subnet dns-source", FamilyIPv4, AudienceHandedOn,
+	const at = "service dhcp-server shared-network LAN subnet 192.0.2.0/24 dns-source"
+	builtin := StatedDefault("service dhcp-server shared-network subnet dns-source", FamilyIPv4, AudienceHandedOn,
 		ModeFirstUsable, ClassConfigured, ClassReceived)
 
-	got, err := ParseContainer(map[string]any{}, builtin, FamilyIPv4, AudienceHandedOn)
+	got, err := ParseContainer(map[string]any{}, at, builtin, FamilyIPv4, AudienceHandedOn)
 	if err != nil {
 		t.Fatalf("absent container refused: %v", err)
 	}
@@ -226,19 +236,70 @@ func TestParseContainerAbsentWrittenAndMalformed(t *testing.T) {
 		t.Errorf("absent container: got a written list, want the built-in default")
 	}
 
-	got, err = ParseContainer(map[string]any{ContainerKey: map[string]any{"source": "self"}}, builtin, FamilyIPv4, AudienceHandedOn)
+	got, err = ParseContainer(map[string]any{ContainerKey: map[string]any{"source": "self"}}, at, builtin, FamilyIPv4, AudienceHandedOn)
 	if err != nil {
 		t.Fatalf("written container refused: %v", err)
 	}
 	if got.Stated() || len(got.Sources()) != 1 || got.Sources()[0] != ClassSelf {
 		t.Errorf("written container: sources %v default %v, want [self] written", got.Sources(), got.Stated())
 	}
+	if got.Path() != builtin.Path() {
+		t.Errorf("written container: path %q, want the schema path %q its publications carry", got.Path(), builtin.Path())
+	}
 
-	_, err = ParseContainer(map[string]any{ContainerKey: "self"}, builtin, FamilyIPv4, AudienceHandedOn)
+	_, err = ParseContainer(map[string]any{ContainerKey: "self"}, at, builtin, FamilyIPv4, AudienceHandedOn)
 	if err == nil {
 		t.Fatal("a dns-source that is not a container was accepted")
 	}
-	if !strings.Contains(err.Error(), "service dhcp-server subnet dns-source is not a container") {
-		t.Errorf("refusal %q does not name the path", err)
+	if !strings.Contains(err.Error(), at+" is not a container") {
+		t.Errorf("refusal %q does not name the instance path %q", err, at)
+	}
+}
+
+// TestParseContainerRefusalNamesInstance: every refusal of a written list
+// names the instance path the consumer passed, in what it says and in the
+// fix command, for a refused class, a missing mode and an unknown word.
+//
+// Method: one consumer with a keyed instance path that differs from its
+// default's schema path; each body is refused, and the error must hold the
+// instance path and a fix line on it, and must not hold the schema path.
+//
+// VALIDATES: the refusals of a keyed consumer (a unit, a subnet, a named
+// pool) give a fix the operator can run as printed.
+// PREVENTS: a fix command built from the schema path, which names no list
+// key, so the CLI refuses it and the operator cannot tell which instance was
+// refused.
+func TestParseContainerRefusalNamesInstance(t *testing.T) {
+	const at = "interface ethernet eth0 unit 0 ipv6 router-advertisement rdnss dns-source"
+	const schema = "interface unit ipv6 router-advertisement rdnss dns-source"
+	builtin := StatedDefault(schema, FamilyIPv6, AudienceHandedOn, ModeFirstUsable, ClassConfigured, ClassReceived)
+	radius := Refusal{Class: ClassRadius, Why: "a host is not a subscriber", Fix: deleteSourceFix(ClassRadius)}
+	cases := []struct {
+		name string
+		body map[string]any
+		fix  string
+	}{
+		{name: "refused class", body: map[string]any{"source": "radius"}, fix: "delete " + at + " source radius"},
+		{name: "no mode", body: map[string]any{"source": []any{"received", "configured"}}, fix: "set " + at + " mode first-usable"},
+		{name: "unknown class", body: map[string]any{"source": "dhcp"}, fix: "delete " + at + " source dhcp"},
+	}
+	for _, tc := range cases {
+		_, err := ParseContainer(map[string]any{ContainerKey: tc.body}, at, builtin, FamilyIPv6, AudienceHandedOn, radius)
+		if err == nil {
+			t.Fatalf("%s: accepted", tc.name)
+		}
+		lines := strings.Split(err.Error(), "\n")
+		if len(lines) != 2 {
+			t.Fatalf("%s: error %q has %d lines, want what and why, then the fix", tc.name, err, len(lines))
+		}
+		if !strings.HasPrefix(lines[0], at+" ") {
+			t.Errorf("%s: first line %q does not open with the instance path %q", tc.name, lines[0], at)
+		}
+		if !strings.HasPrefix(lines[1], tc.fix) {
+			t.Errorf("%s: fix line %q, want it to start %q", tc.name, lines[1], tc.fix)
+		}
+		if strings.Contains(err.Error(), schema) {
+			t.Errorf("%s: error %q names the schema path %q, which no command accepts", tc.name, err, schema)
+		}
 	}
 }
