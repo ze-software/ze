@@ -79,6 +79,8 @@ valid.
 | D-17 | The LAN resolver keeps its answer and negative caches when its forward upstream set changes, as dnsmasq does by default | A fresh `system-dns` snapshot or a reselection of `forward dns-source` replaces only the forward list of the published policy (`resolver.relearn`, `internal/plugins/dnsresolver/state.go`); the caches are emptied only by `clear dns resolver cache all` (`resolver.clearCaches`). This is dnsmasq 2.91's default: `poll_resolv` (`src/dnsmasq.c`) re-reads the upstream servers and calls `clear_cache_and_reload` only under `option_bool(OPT_RELOAD)`, which only the opt-in `--clear-on-reload` sets, documented as "Whenever /etc/resolv.conf is re-read or the upstream servers are set via DBus, clear the DNS cache." An answer cached from the old upstreams, a negative one included, is therefore served until its TTL ends. A test that queries before the learned upstream arrives asks a name no later stage asks, so the earlier upstream's negative answer cannot decide a later stage (5c6105dc87). `docs/architecture/dns/lan-resolver.md` states it | whether the LAN resolver clears its caches when its upstreams change |
 | D-18 | The subscriber's two IPCP DNS slots are filled primary, then secondary, from the pool's selection in list order | `selectSubscriberDNS` (`internal/component/l2tp/plugins/pool/dns_source.go`) runs the shared rule over the pool's list, keeps the first `ipcpDNSSlots` (2) servers, puts the first in Primary-DNS and the second in Secondary-DNS, and logs the rest at INFO with the consumer path. A RADIUS reply with only MS-Primary-DNS-Server therefore offers that one alone under `first-usable` and, under `merge`, that one then the pool's primary; the accel-ppp per-slot overwrite is not copied (Known Limitations). `slotAddresses` reads a primary and secondary pair (RADIUS or the pool's leaves) in slot order, an unset slot contributing nothing | how a selection of any length becomes the two IPCP slots |
 | D-19 | A handed-on list also refuses an IPv6 link-local whose zone is not the link the consumer hands on to | Review round 1 finding 4: a learned RDNSS `fe80::x%wan0` is reachable only on the WAN, and RFC 8106 Section 5.1 says "When a resolver sends a DNS query message to an RDNSS identified by a link-local address, it MUST use the corresponding link." D-16 named only the zone-less case; fffefb45f9 makes the RA consumer drop a link-local of another link, logged as a drop, and RFC8106-5.1-2 is recorded on it (83f4316387) | a link-local resolver learned on the WAN advertised on the LAN |
+| D-20 | An IPCP Primary-DNS or Secondary-DNS request for a slot the pool holds no server for is Configure-Rejected, alone and ahead of any Nak | RFC 1877 Section 1.1 says "By default, no primary DNS address is provided." (Section 1.3 says the same of the secondary), so an empty slot has no value to Nak with, and RFC 1661 Section 5.4 governs the Reject. Before 924cd6d7c9, `buildNakOrReject` (`internal/component/l2tp/ppp/ncp.go`) left the unserved option out of its Nak and the subscriber resent the same Configure-Request forever (the `l2tp-pool-dns-source-received` IPCP loop, AC-10). Each slot is judged on its own, so a primary-empty, secondary-empty or both-empty session rejects exactly the unserved options; a served option still gets its Nak. This is what pppd's `ipcp_reqci` does, as 924cd6d7c9 cites and review round 2 checked (pppd source not re-read in this edit). Unit-proven by `ncp_dns_reject_test.go`; `docs/guide/l2tp.md` states it | what Ze answers a subscriber asking for a DNS slot it cannot fill |
+| D-21 | The DHCP server and the LAN resolver share one bounded replay hold | Review round 1 NOTE 15: a DHCP server started while WAN leases exist answered its first OFFER and ACK before the engine replayed the learned records, handing out an empty option 6 and D-9's 60-second lease (AC-13). 0b7c9ea0a7 moves the LAN resolver's gate (292ffc64cb) onto `dnssource.Follower` (`ExpectReplay`, `Replayed`, `AwaitReplay`, `ReplayWaitMax` 2 s, `internal/core/dnssource/follow.go`); `offerDNS` (`internal/plugins/dhcpserver/handler.go`) waits on it, and a snapshot request that could not be sent ends the wait at once. The resolver now releases held queries only after the policy built from the replay is stored. One timer, no goroutine; review round 2 checked it bounded and lock-free on the offer path | whether a consumer answers before the learned replay arrives |
 
 ### Design carried from 23a
 
@@ -597,12 +599,14 @@ Closure prepared 2026-11-09 while four agents still fix the items marked
 - Tests: four dns-resolver forward-learned `.ci` promoted (67eda8e941); subscriber, show and doctor fixtures and the `radius-subscriber-dns` interop scenario (c85d2718f2).
 
 ### Bugs Found/Fixed
-Review round 1 (`tmp/session/2026-11-07-104251/scratch/c23b-review-r1.md`) findings and their fixes are in "Findings fixed" under Review Gate.
+Review round 1 (`tmp/session/2026-11-07-104251/scratch/c23b-review-r1.md`) and round 2 (`tmp/session/2026-11-07-104251/scratch/c23b-review-r2.md`) findings and their fixes are in "Findings fixed" and "Round 2 findings" under Review Gate.
 
 ### Documentation Updates
 - 3f5eb284d9: `ai/INDEX.md`, `docs/architecture/api/commands.md`, `docs/architecture/config/syntax.md`, `docs/features/dns-resolver.md`, `docs/guide/command-reference.md` (the `self` key), `docs/guide/plugins.md`, `docs/guide/status.md`.
 - Earlier phase commits: `docs/guide/dns-resolver.md` (forward `dns-source` rows), `docs/guide/l2tp.md` line 1163, `docs/guide/pppoe.md` line 177, `docs/guide/configuration.md` (resolver, subnet and pool `dns-source` rows with the `poolDNSDefault, selectSubscriberDNS` anchor), `docs/architecture/dns/lan-resolver.md` line 194, `docs/plugin-development/metrics.md` lines 250-252, `docs/architecture/testing/interop.md` (c85d2718f2).
-- **pending:** `docs/comparison.md` has no VyOS DNS-source rows (Doc checklist row 11; its DNS rows are lines 338-339), and `features/lan-dns-resolver.md` names no `dns-source` (row 1). Owed run: `./le doc check all` after both edits.
+- 23c067bb8d: `docs/comparison.md` VyOS DNS-source rows (Doc checklist row 11), `features/lan-dns-resolver.md` and `features/dns-resolver.md` name `dns-source` (row 1), `docs/guide/migrating-from-vyos.md`, `docs/architecture/api/process-protocol.md`.
+- 924cd6d7c9: `docs/guide/l2tp.md` (IPCP Configure-Reject, D-20). 0b7c9ea0a7: `docs/architecture/dns/lan-resolver.md`, `docs/architecture/provisioning/dhcp-server.md`, `docs/features/dns-resolver.md` (shared replay hold, D-21). bd985af80f: `docs/architecture/provisioning/dhcp-server.md` (probe fixture).
+- **pending:** `docs/guide/status.md` says `show system dns` has "no committed functional test yet"; it changes when `test/plugin/show-system-dns.ci` lands (review round 2 ISSUE 4).
 
 ### Deviations from Plan
 - A-5 broke: no owner existed for `show system dns`, so the new plugin `internal/plugins/system-dns-cmd` owns it.
@@ -658,7 +662,7 @@ Review round 1 (`tmp/session/2026-11-07-104251/scratch/c23b-review-r1.md`) findi
 |------|--------|-------|
 | four consumer YANG modules | Done | each `uses dns-source` |
 | `show system dns` YANG and handler | Done | `internal/plugins/system-dns-cmd/` |
-| `docs/comparison.md`, `features/lan-dns-resolver.md` | pending | Documentation Updates |
+| `docs/comparison.md`, `features/lan-dns-resolver.md` | Done | 23c067bb8d |
 
 ### Audit Summary
 - **Total items:** 16 ACs
@@ -690,7 +694,7 @@ Every pending item in this closure is in scope and stays here until fixed.
 |-------|-------|
 | Artifact | not recorded yet: the gate waits for the pending fixes |
 | `./le spec review check` | not run |
-| Rounds | 1 so far (`tmp/session/2026-11-07-104251/scratch/c23b-review-r1.md`: 4 BLOCKER, 8 ISSUE, 5 NOTE) |
+| Rounds | 2 so far (`tmp/session/2026-11-07-104251/scratch/c23b-review-r1.md`: 4 BLOCKER, 8 ISSUE, 5 NOTE; `tmp/session/2026-11-07-104251/scratch/c23b-review-r2.md`, over 80731c4ce7..bd985af80f: 1 BLOCKER, 3 ISSUE, 5 NOTE) |
 | Reviewer lenses used | logic and wiring, RFC quotes, goroutines, D-9 and D-16, docs |
 
 ### Findings fixed
@@ -704,12 +708,27 @@ Every pending item in this closure is in scope and stays here until fixed.
 | 6 | ISSUE | resolver publishes unbound listeners and a disabled selection | `internal/plugins/dnsresolver/publish.go` | a5356d64e0 |
 | 7 | ISSUE | rejected-snapshot counter bound to the Nop registry | dhcpserver and dnsresolver `register.go` | 7d8d935e4f |
 | 8 | ISSUE | doctor-dns-source-self-unserved text contradicts D-6 | `internal/core/diagnostic/codes.go` | b525648a71 |
-| 9 | ISSUE | documentation drift | Doc checklist rows 2, 4, 5, 15 | 3f5eb284d9; rows 1 and 11 **pending** |
+| 9 | ISSUE | documentation drift | Doc checklist rows 1, 2, 4, 5, 11, 15 | 3f5eb284d9; rows 1 and 11 by 23c067bb8d |
 | 10 | ISSUE | a consumer's publication outlives it | `internal/component/config/system/resolv.go` | ac5ab17dad, f6f6b0a7dd |
 | 11 | ISSUE | RFC8106-5.1-1 advertising side unproven | `advertiser_rdnss_test.go` | 83f4316387 |
 | 12 | ISSUE | spec-named unit tests missing | `internal/core/dnssource` | 0b21d66b9f, 769ec28eca |
 
-NOTEs 13 to 17 recorded in the review file; NOTE 15 bears on AC-13 (above).
+NOTEs 13 to 17 recorded in the review file. NOTE 15 (the DHCP server answered before the learned replay, AC-13) is fixed by 0b7c9ea0a7 (D-21); round 2 found NOTEs 13, 14, 16 and 17 untouched.
+
+### Round 2 findings
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| R2-1 | BLOCKER | round-1 BLOCKER 1 still open: most 23b behaviour has no committed `.ci`, six fixture drivers have no committed caller, `radius-subscriber-dns` has never passed, and the replay hold and the IPCP Configure-Reject are unit-proven only | `test/draft/`, `internal/test/fixture/` | progress only: 9f3505b3bd (`pppoe/dns-resolver-forward-ppp-replay` fixture, split pool guards), bd985af80f (`dhcp/probe-learned` fixture, dhcpprobe option 51 and option 6 count), a59d1ee848 (FreeRADIUS 3.2.10 pinned by manifest list digest, for the container that exited 255); **pending**: the parse drafts' syntax (`server [ ... ]` refused with LBRACKET), `dhcp-server-dns-source-self.ci`, promotion of every draft, a green `radius-subscriber-dns` (Pending table) |
+| R2-2 | ISSUE | the `WithdrawsOnBye` unit tests call `withdraw()` directly, so neither the `OnBye` registrations nor the engine accepting the bye-time emit is proven | dnsresolver, dhcpserver and pool `publish_test.go` | **pending**: a `test/reload` `.ci` that removes the resolver and a DHCP server and asserts `show system dns` drops them, and the unit tests renamed to what they drive |
+| R2-3 | ISSUE | discrimination records stale by producer change: RFC5072-4.1-4, RFC5072-4.1-6 and RFC1332-3.3-2 (`buildNakOrReject`, 924cd6d7c9), RFC5625-4.4.1-1 (dnsresolver `admit`, 0b7c9ea0a7) | `rfc/discrimination/` | **pending**: `./le rfc record` each (Pending table) |
+| R2-4 | ISSUE | round-1 ISSUE 9 rows 1 and 11 were uncommitted; `docs/guide/status.md` must change when `show-system-dns.ci` lands | `docs/comparison.md`, `features/lan-dns-resolver.md`, `docs/guide/status.md` | 23c067bb8d (rows 1 and 11); `status.md` **pending** with the `.ci` |
+| R2-5 | NOTE | a consumer that dies without a bye keeps its last selection in the registry | `internal/component/config/system/resolv.go` | recorded; engine removal is covered |
+| R2-6 | NOTE | `TestSelfRefusedOnSystemAndForward` proves the refusal rendering, not the refusals its name names | `internal/core/dnssource/self_refused_test.go` | recorded; the refusals are proven by `TestModeRequiredEachConsumer` and `TestDNSSourceClassRefused` |
+| R2-7 | NOTE | `TestIPCPDNSRequestWithoutServer` carries no RFC1661-5.4 tag for the Configure-Reject branch | `internal/component/l2tp/ppp/` | recorded |
+| R2-8 | NOTE | `publishPools` marshals before taking `published.mu`, so concurrent callers can emit an older set after a newer one (pre-existing) | `internal/component/l2tp/plugins/pool/publish.go` | recorded |
+| R2-9 | NOTE | round-1 NOTEs 13, 14, 16 and 17 untouched | review file | recorded |
+
+Round 2 checked clean: the RFC 1661 Section 5.4 and RFC 1877 Sections 1, 1.1 and 1.3 quotes in `ncp.go`, the RFC 8106 Section 5.1 quote above `raOnLink`, the replay hold (bounded, one timer, no goroutine, no lock on the offer path) and the withdrawal path.
 
 ## Pre-Commit Verification
 
@@ -748,9 +767,11 @@ NOTEs 13 to 17 recorded in the review file; NOTE 15 bears on AC-13 (above).
 |---------------------------------|-----------------|----------|
 | pool default `radius`, `configured`, `received` | `docs/guide/configuration.md` anchor `pool/dns_source.go -- poolDNSDefault, selectSubscriberDNS` | yes |
 | metrics series | `docs/plugin-development/metrics.md` lines 250-252 | yes |
-| comparison and feature level | `docs/comparison.md`, `features/lan-dns-resolver.md` | **pending** |
+| comparison and feature level | `docs/comparison.md`, `features/lan-dns-resolver.md` (23c067bb8d) | yes |
 
 ### Pending: owed runs before the Review Gate can close
+Batch 13 logs are in `tmp/session/2026-11-07-104251/scratch/rwinv/out-gb13/` (unit `u-*.log`, parse drafts `p-class-*.log` and `p-mode-*.log`, `compound.log`, `refuse.log`, `doc.log`, `feature.log`); batch 14 writes to `tmp/session/2026-11-07-104251/scratch/rwinv/out-gb14/`, which did not exist at this edit. A row leaves this table only when its log has been read and is green.
+
 | Item | Owed run |
 |------|----------|
 | parse drafts `dns-source-class-refused`, `dns-source-mode-required-consumers` | `./le test bgp parse --draft -a`, clean and under each break, then promote to `test/parse/` |
@@ -763,4 +784,7 @@ NOTEs 13 to 17 recorded in the review file; NOTE 15 bears on AC-13 (above).
 | compound gate (`internal/test/fixture/l2tp_pool_dns_source.go` lines 195, 227, 326) | `./le arch compound-guard check` |
 | refuse gate | `./le arch refuse-by-default check` |
 | RFC records stale in `out-gb12/rfc-check.log`: RFC7084-4.3-6, RFC7084-4.3-8, RFC9915-6.3-2 (producer-changed) and four `./le rfc move` file renames | `./le rfc check` |
-| review round 2 | `/ze-review` over the complete diff, then `./le spec review record` |
+| RFC records stale by round-2 producer edits (R2-3): RFC5072-4.1-4, RFC5072-4.1-6, RFC1332-3.3-2, RFC5625-4.4.1-1 | `./le rfc record` each, then `./le rfc check` |
+| bye-time withdrawal (R2-2) | write the `test/reload` `.ci` per `/ze-test`, then run it |
+| unit packages touched by 924cd6d7c9, 0b7c9ea0a7, bd985af80f, a59d1ee848 | scoped `./le job run` tests of `internal/component/l2tp/ppp`, `internal/core/dnssource`, `internal/plugins/dhcpserver`, `internal/plugins/dnsresolver`, `internal/test/dhcpprobe`, `internal/le/interoplab` |
+| review round 3 | `/ze-review` over the complete diff once R2-1 to R2-4 are fixed, then `./le spec review record` |
