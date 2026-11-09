@@ -155,6 +155,15 @@ func (e leaseEnd) expired(now time.Time) bool {
 	return !now.Before(e.at)
 }
 
+// same reports whether e and other end at the same instant, or both stay
+// until withdrawn.
+func (e leaseEnd) same(other leaseEnd) bool {
+	if e.bounded != other.bounded {
+		return false
+	}
+	return e.at.Equal(other.at)
+}
+
 // routerDNSSourcePath is the config path of the router consumer's list.
 const routerDNSSourcePath = "system dns-source"
 
@@ -298,7 +307,15 @@ func (r *Resolvers) setLeaseLocked(source ResolverSource, servers []netip.Addr, 
 	if r.leases == nil {
 		r.leases = make(map[ResolverSource]lease)
 	}
-	r.leases[source] = lease{servers: servers, received: now, end: end}
+	received := now
+	// A source that sets the servers and the validity it already holds (the
+	// host's resolv.conf re-read on each Configure, a reply that repeats the
+	// lease) changes nothing, so it keeps its received time: refresh then
+	// sees no change and publishes no snapshot.
+	if held, recorded := r.leases[source]; recorded && slices.Equal(held.servers, servers) && held.end.same(end) {
+		received = held.received
+	}
+	r.leases[source] = lease{servers: servers, received: received, end: end}
 }
 
 // now answers the registry's clock's time.
@@ -480,8 +497,10 @@ func (r *Resolvers) deliver() {
 
 // refresh withdraws every lease whose validity ended, re-arms the expiry
 // timer, recomputes the snapshot from the recorded sources with the router's
-// list, and writes the file when its servers changed. The caller MUST hold
-// r.mu.
+// list, and writes the file when its servers changed. A new snapshot, with
+// the next Sequence, replaces the current one only when its records or the
+// router's selection changed, so a Configure or SetLease that changes
+// nothing delivers and publishes nothing. The caller MUST hold r.mu.
 func (r *Resolvers) refresh() error {
 	now := r.now()
 	for source, held := range r.leases {
@@ -502,10 +521,15 @@ func (r *Resolvers) refresh() error {
 		dnssource.ClassConfigured: r.static,
 		dnssource.ClassReceived:   list.Received(records, now),
 	})
-	r.snapshot = dnssource.Snapshot{
-		Sequence: r.snapshot.Sequence + 1,
-		Records:  records,
-		Router:   dnssource.NewConsumerSelection(list, "", selection),
+	router := dnssource.NewConsumerSelection(list, "", selection)
+	// Sequence 0 is the zero Resolvers' snapshot, which was never delivered,
+	// so the first refresh always publishes.
+	if r.snapshot.Sequence == 0 || !dnssource.SameRecords(records, r.snapshot.Records) || !router.Equal(&r.snapshot.Router) {
+		r.snapshot = dnssource.Snapshot{
+			Sequence: r.snapshot.Sequence + 1,
+			Records:  records,
+			Router:   router,
+		}
 	}
 	return r.flush(serverTexts(selection.Servers))
 }

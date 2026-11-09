@@ -45,7 +45,9 @@ type Record struct {
 	Unit      string `json:"unit"`
 	// Addresses are the servers in the order the source sent them.
 	Addresses []netip.Addr `json:"addresses"`
-	// Received is when the producer last set the record.
+	// Received is when the producer set the record to its current
+	// addresses and validity: a producer that sets the same record again
+	// leaves it unchanged.
 	Received time.Time `json:"received"`
 	// Expires is the absolute end of validity. Its zero value is a named
 	// state, not a missing one: valid until the producer withdraws it.
@@ -70,6 +72,55 @@ type Record struct {
 	// Port and Path are the DNR SvcParams port and dohpath.
 	Port uint16 `json:"port,omitempty"`
 	Path string `json:"path,omitempty"`
+}
+
+// Equal reports whether r and other are the same record: every field,
+// times compared as instants. A nil slice and an empty one are equal, as in
+// ConsumerSelection.Equal.
+func (r *Record) Equal(other *Record) bool {
+	if r.Origin != other.Origin {
+		return false
+	}
+	if r.Rank != other.Rank {
+		return false
+	}
+	if r.Interface != other.Interface {
+		return false
+	}
+	if r.Unit != other.Unit {
+		return false
+	}
+	if !slices.Equal(r.Addresses, other.Addresses) {
+		return false
+	}
+	if !r.Received.Equal(other.Received) {
+		return false
+	}
+	if !r.Expires.Equal(other.Expires) {
+		return false
+	}
+	if r.Fallback != other.Fallback {
+		return false
+	}
+	if r.Priority != other.Priority {
+		return false
+	}
+	if r.Name != other.Name {
+		return false
+	}
+	if !slices.Equal(r.Transport, other.Transport) {
+		return false
+	}
+	if r.Port != other.Port {
+		return false
+	}
+	return r.Path == other.Path
+}
+
+// SameRecords reports whether a and b carry the same records in the same
+// order (Record.Equal).
+func SameRecords(a, b []Record) bool {
+	return slices.EqualFunc(a, b, func(x, y Record) bool { return x.Equal(&y) })
 }
 
 // ValidUntilWithdrawn reports whether the record carries no expiry.
