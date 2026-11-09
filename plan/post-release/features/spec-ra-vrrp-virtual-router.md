@@ -185,7 +185,7 @@ sent.
 |----------|--------|
 | What breaks if this is wrong? | IPv6 hosts lose or keep a stale default router |
 | How is it reverted? | single commit revert |
-| Who else touches this path? | `plan/release/fixes/spec-rfc4861-ze-owned-must-gaps.md` (Router Lifetime on forwarding loss) and `plan/release/fixes/spec-home-cpe-8-ipv6-cpe-chain.md` (CE Router Lifetime matrix) edit the same sender |
+| Who else touches this path? | `plan/release/fixes/spec-rfc4861-ze-owned-must-gaps.md` (Router Lifetime on forwarding loss) and `spec-home-cpe-8-ipv6-cpe-chain` (closed; its CE Router Lifetime matrix is `(*advertiser).routerLifetime` in `internal/plugins/iface/ra/advertiser.go`) edit the same sender |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

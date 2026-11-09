@@ -544,6 +544,31 @@ constraints, message ordering, and every MUST/MUST NOT.
 
 ## Blocker
 
+Fourth closure, 2026-11-09, handed back before commit A on one item: the
+iface lint result. `rwinv/out-gb8/iface-lint.log` does not exist; guest batch 8
+(`rwinv/guest-batch8.log`) writes it at its end (`==host lint iface`) and was
+still running the in-guest c4 engine tests when this closure reached commit A
+(two re-checks). What clears it: that log shows no finding in
+`internal/component/iface/delegated_prefix.go` or `delegated_prefix_test.go`
+(a finding there is fixed and the iface package test re-run); then a closure
+run re-records the review (`./le spec review record ... rounds 2` over those
+two files, this spec and `plan/post-release/features/spec-ra-vrrp-virtual-router.md`)
+and lands commits A and B. Everything else below is done.
+
+## Closure history
+
+Fourth closure, 2026-11-09: the third handback's blocker is cleared. Guest
+batch 8 (Ze kernel 7.3, `rwinv/out-gb8/c8-inguest-run.log`): `iface-verify.log`
+shows `internal/component/iface` ok with the sorted walk; `c8-unknown-source-clean.log`
+and `c8-subnet-id-clean.log` pass; `c8-unknown-source-broken.log` and
+`c8-subnet-id-broken.log` fail at seq 1, "expected exit code 1, got 0" with
+"configuration valid", so each break removes exactly the refusal its test
+expects. Commit A carries the order fix and `TestDelegatedPrefixVerifyDeterministic`.
+`./le rfc check` (`scratch/c8close4-rfccheck.log`): 19 violations tree-wide,
+none on rfc5072, rfc7084 or rfc9915. The one citer,
+`plan/post-release/features/spec-ra-vrrp-virtual-router.md`, now names the
+bare stem and `(*advertiser).routerLifetime`.
+
 Third closure, 2026-11-09, handed back before commit A on one item. The
 `RFC7084-4.3-13` records landed (b161ed9edd, after an independent judge
 approved both L-13 tests and the break; the negative test was strengthened in
@@ -630,7 +655,7 @@ the journal row states the red, but no log exists.
 ### Bugs Found/Fixed
 - IPv6CP started only after IPCP opened, so accel-ppp `ipv6=allow` activated IPv4-only (journal `ncp-started-behind-another-ncp.md`, fixed by 5aa5b17adb; `ncp_start_test.go`, `pppoe-dhcpv6-pd-ze-client`).
 - The route watcher's setns into its own namespace needed CAP_SYS_ADMIN, so a CAP_NET_ADMIN daemon advertised Router Lifetime 0 (2652d989f8, `nosysadmin_linux_test.go`).
-- `verifyDelegatedPrefixes` walked units in the parser's map order, so a duplicate subnet-id named whichever unit came first and the subnet-id parse test passed or failed by chance (`rwinv/out-gb6/c8-subnet-id-clean.log`). Fixed by a sorted walk (`compareDelegatedUnits`), proven by `TestDelegatedPrefixVerifyDeterministic` (uncommitted until guest batch 8; see Blocker).
+- `verifyDelegatedPrefixes` walked units in the parser's map order, so a duplicate subnet-id named whichever unit came first and the subnet-id parse test passed or failed by chance (`rwinv/out-gb6/c8-subnet-id-clean.log`). Fixed by a sorted walk (`compareDelegatedUnits`), proven by `TestDelegatedPrefixVerifyDeterministic`; parse walks re-run on the fix in guest batch 8 (`rwinv/out-gb8/c8-*.log`).
 
 ### Documentation Updates
 - Architecture, guide, config reference, feature pages, monitoring and comparison: commits 2bebae34b5, ee9d52da6e, 5aa5b17adb, 6e7ba09a0f, 7361ba2192, a5adb4ca2c, 57ef59e5e1, 176f532c5e. `rfc/short/rfc7084.md` L-13 row; `./le rfc update` run.
@@ -682,7 +707,7 @@ the journal row states the red, but no log exists.
 | AC-13 | Done | topology `checkDelegatedLAN` (dhcpcd SLAAC, ping) | |
 | AC-14 | Done | `TestRFC7084G5ImmediateZeroLifetime`, `TestRFC7084G4RouterLifetimeFollowsWANDefault` | |
 | AC-15 | Done | `TestRFC7084RouterLifetimeMatrix` | |
-| AC-16 | Done | `TestDelegatedPrefixVerify`, the two refusal `.ci` tests | guest batch 6 |
+| AC-16 | Done | `TestDelegatedPrefixVerify`, `TestDelegatedPrefixVerifyDeterministic`, the two refusal `.ci` tests | guest batch 8 |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
@@ -735,7 +760,7 @@ the journal row states the red, but no log exists.
 |-------|-------|
 | Artifact | written by `./le spec review record` at closure |
 | `./le spec review check` | clean |
-| Rounds | 1 |
+| Rounds | 2 |
 | Reviewer lenses used | wiring and process boundary (DHCP clients run in the iface process; `iface-dhcp` refuses to run external), peer input (IPv6CP and IPCP option walks after the codec's bound checks, Protocol-Reject length; the one `BUG` panic, `clientIPv6CP.running`, is reachable only from Ze's own state), lifetimes and urgency (`advertiser`, the delegation worker), concurrency (`Sender.Update` under `raMu`, the `delegations` mutex), RFC quotes, style pass; `./le repo check` clean; `./le test weakened check base 2bebae34b5~1` clean (194 test files) |
 
 ### Findings fixed
@@ -762,7 +787,7 @@ Over the uncommitted `verifyDelegatedPrefixes` fix and `delegated_prefix_test.go
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
 | AC-1 to AC-16 | unit tests pass | `./le job run label c8pkgs command go test -count=1` over `iface`, `pppoeclient`, `ndp`, `ra`, `routewatch`, `sysctl`: all ok on darwin, 2026-11-09; the `_linux` tests ran in the guest batches |
-| AC-16 | parse refusals discriminate | `rwinv/out-gb6/c8-*-{clean,broken}.log` |
+| AC-16 | parse refusals discriminate, on the sorted walk | `rwinv/out-gb8/c8-*-{clean,broken}.log`; `rwinv/out-gb8/iface-verify.log` (iface package ok in the guest) |
 | L-13 | replaced prefix withdrawn at once | `./le job run label c8l13 command go test -count=1 ./internal/plugins/iface/ra/`: ok |
 
 ### Wiring Verified (end-to-end)
@@ -770,7 +795,7 @@ Over the uncommitted `verifyDelegatedPrefixes` fix and `delegated_prefix_test.go
 |-------------|----------|----------|
 | `pppoe-client ... ipv6` | `test/parse/pppoe-client-ipv6.ci`, `pppoe-ipv6cp-ze-client` | green |
 | `ipv6 dhcpv6 pd` | `pppoe-dhcpv6-pd-ze-client` | green |
-| LAN `ipv6 delegated-prefix` | `pppoe-dhcpv6-pd-ze-client`, two refusal `.ci` | green; guest batch 6 |
+| LAN `ipv6 delegated-prefix` | `pppoe-dhcpv6-pd-ze-client`, two refusal `.ci` | green; guest batch 8 |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |

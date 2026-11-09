@@ -7,6 +7,7 @@
 package iface
 
 import (
+	"cmp"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -165,24 +166,49 @@ func verifyDelegatedPrefixes(cfg *ifaceConfig) error {
 		sources[c.Name] = c.IPv6.DHCPv6
 	}
 
-	claimed := make(map[delegatedUse]string)
-	var err error
+	// The parser builds the interface and unit lists from Go maps, so their
+	// order changes from run to run. Verify walks the units sorted by interface
+	// then unit name, so the same config always reports the same error: the
+	// first unit refused, and the unit a duplicate names as the earlier claim.
+	var units []delegatedUnit
 	forEachEnabledUnit(cfg, func(ifaceName string, u *unitEntry) {
-		if err != nil {
-			return
-		}
 		if u.IPv6 == nil {
 			return
 		}
-		unit := ifaceName + " unit " + u.Label
-		for _, dp := range u.IPv6.DelegatedPrefixes {
-			err = verifyDelegatedEntry(unit, dp, sources, claimed)
-			if err != nil {
-				return
+		if len(u.IPv6.DelegatedPrefixes) == 0 {
+			return
+		}
+		units = append(units, delegatedUnit{iface: ifaceName, label: u.Label, prefixes: u.IPv6.DelegatedPrefixes})
+	})
+	slices.SortFunc(units, compareDelegatedUnits)
+
+	claimed := make(map[delegatedUse]string)
+	for _, du := range units {
+		unit := du.iface + " unit " + du.label
+		// parseDelegatedPrefixes ordered the entries by source.
+		for _, dp := range du.prefixes {
+			if err := verifyDelegatedEntry(unit, dp, sources, claimed); err != nil {
+				return err
 			}
 		}
-	})
-	return err
+	}
+	return nil
+}
+
+// delegatedUnit is one enabled unit carrying delegated-prefix entries, as
+// verifyDelegatedPrefixes walks it.
+type delegatedUnit struct {
+	iface    string
+	label    string
+	prefixes []delegatedPrefixConfig
+}
+
+// compareDelegatedUnits orders units by interface name, then unit name.
+func compareDelegatedUnits(a, b delegatedUnit) int {
+	if c := cmp.Compare(a.iface, b.iface); c != 0 {
+		return c
+	}
+	return cmp.Compare(a.label, b.label)
 }
 
 // requestsDelegation reports whether a pppoe-client's DHCPv6 settings make it
