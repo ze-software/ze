@@ -393,8 +393,8 @@ func TestRFC7084L13RenewKeepsPrefix(t *testing.T) {
 			continue
 		}
 		count++
-		if pi.PreferredLifetime == 0 {
-			t.Fatalf("renewed /64 advertised with Preferred Lifetime 0: %+v", pi)
+		if pi.ValidLifetime != 7200 || pi.PreferredLifetime != 3600 {
+			t.Fatalf("renewed /64 lifetimes valid %d preferred %d, want the renewed 7200 and 3600", pi.ValidLifetime, pi.PreferredLifetime)
 		}
 	}
 	if count != 1 {
