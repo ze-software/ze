@@ -16,6 +16,21 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Blocker
 
+Third closure attempt (2026-11-09): R3's review steps are done. The closure
+sections, the Security Review and the Review Gate are appended below, and the
+gate is recorded at `tmp/review/ipsec-spd-selection-7e292f27-ced0-427f-a7b6-3a931db211f9.md`
+(86 files, hash-pinned, check OK). It found two ISSUEs, both fixed and still
+uncommitted: the Linux 6.10 floor in `engine/application_override.go`
+`attachOverrideGuard`, `docs/guide/ipsec.md` and `ze-ipsec-conf.yang`, and the
+socket-policy advice in `engine/doctor_application_override.go`. Batch 8 still
+has not run: `rwinv/out-gb8/` does not exist. What remains, in order:
+
+| # | What | Who | Clears when |
+|---|------|-----|-------------|
+| N1 | Scoped run of the two fixes: `./le job run label ike-engine command go test -tags <ike tags> -run 'TestApplyFailsWhenOverrideGuardCannotAttach\|TestDoctorApplicationOverride\|TestRFC4301OverrideLeafSelectsTheGuard' ./internal/component/ike/engine/`, `./le go lint run scope ./internal/component/ike/engine/...` (the edit hook's lint timed out), `./le doc check all`, then commit the four files | main thread | green, committed |
+| N2 | R1 and R2 below (batch 8) | main thread | the named batch 8 logs green |
+| N3 | Commits A and B. The review is pinned to file hashes, so if N1 or N2 changes a recorded file, re-record over the changed files only. At commit A, repoint the citers in the Verified table below and carry the teardown `.ci` fix if the main thread has not committed it | a closure agent | `./le spec citation` green after B |
+
 Second closure attempt (`/ze-close`, 2026-11-09, after b161ed9edd): item 1 below
 is cleared, items 2 and 3 still wait on guest batch 8, which has not run (no
 `tmp/session/2026-11-07-104251/scratch/rwinv/out-gb8/` directory exists). The
@@ -803,3 +818,173 @@ implementing function quotes the Section 4.4.1, 5.1 or 5.2 sentence it performs
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Each bound XFRM interface's SPD gets its own final DISCARD entry, in, out and fwd, both families, at its if_id (`engine/unmatched.go` `spdCatchAllEntries`, `engine/unmatched_xfrm_interface.go` `interfaceSPDCatchAll`, installed ahead of the exemptions by `installXFRMInterfaceEntries`; a refused install fails the apply, `interfaceCatchAllRefused`).
+- The shipped if_id 0 selection exemptions kept and tested (`xfrmInterfaceExemptions`), the IPv6 source exemption installed only once its guard holds (`guards.install` answers the guarded set).
+- The IPv6 tunnel-source guard: per-interface table in 3000-3999, `from <addr>/128` rules at priority 30000, Child SA remote-selector routes plus `unreachable ::/0`, and the `ze_ipsec_source_guard` postrouting drop (`engine/source_guard.go`); the encoder moved to `internal/core/iprule` with policyroute as its first user.
+- Role and SPD name on every listed policy (`dataplane/policy_role.go`, `policy_owner.go` `label`/`annotate`, `xfrm_linux.go` `policyDirFromKernel`, `cmd/show_dataplane.go` `policyInfoToMap`).
+- AC-12 refusal at verify (`engine/source_guard.go` `refuseTunnelAddressAsIKEEndpoint`, called from `engine/register.go`).
+- Phase 8: `vpn ipsec application-override deny|allow` (default deny), the cgroup setsockopt guard (`dataplane/override_guard_linux.go`), its engine control (`engine/application_override.go`), and two doctor checks (`engine/doctor_application_override.go`).
+
+### Bugs Found/Fixed
+- Closure review: the deny refusal named no kernel version, so on a distribution kernel before 6.10 (which does not offer `bpf_get_ns_current_pid_tgid` to a cgroup program) it told the operator to add capabilities that change nothing. `attachOverrideGuard` now names Linux 6.10; `TestApplyFailsWhenOverrideGuardCannotAttach` asserts it.
+- Closure review: the socket-policy doctor warning, raised only under `deny`, told the operator to "set deny". `socketPolicyDiagnostics` now names the restart alone.
+
+### Documentation Updates
+- Implementation phases: `docs/guide/ipsec.md`, `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`, `ipsec-dataplane-inspection.md`, `ipsec-3-data-model.md`, `docs/architecture/policyroute/policy-routing.md`, `docs/architecture/core-design.md` section 19 (the Blocker's Docs row).
+- Closure: `docs/guide/ipsec.md` application-override requirements name Linux 6.10 and the refusal text matches `attachOverrideGuard`, with source anchors; `ze-ipsec-conf.yang` `application-override` description names Linux 6.10.
+- `./le doc check all`: owed to the main thread after the closure edits (the previous run failed only on the `clear debug` pipe inventory, not this spec's).
+
+### Deviations from Plan
+- `internal/component/ike/dataplane/override_guard_integration_linux_test.go` was created as `rfc4301_override_guard_integration_linux_test.go`: the `rfc4301_` prefix is the repository's naming for a file carrying RFC-tagged units (sibling `rfc4301_xfrm_xfrmi_catchall_integration_linux_test.go`). Same tests, same tags; 8.7's table names the old path.
+- The interface catch-all is DISCARD under both `unmatched` values, and a postrouting nft drop was added beside the source rule (Task section, "Two points of the approved brief did not survive the source check").
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The deny requirements (guide, YANG, refusal text) listed capabilities, cgroup2 and CONFIG_CGROUP_BPF, not the kernel version the guard's helper needs | `bpf_get_ns_current_pid_tgid` reaches a cgroup program from Linux 6.10 (`kernel/bpf/helpers.c` v6.10 `bpf_base_func_proto`; v6.9 `cg_sockopt_func_proto` has no case for it) | Closure review | Fixed in the three surfaces |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| 1. Final DISCARD per interface SPD | Done | `engine/unmatched_xfrm_interface.go` `interfaceSPDCatchAll` | |
+| 2. Selection by output interface | Done | `xfrmInterfaceExemptions` | |
+| 3. Sound source-address selection | Done | `engine/source_guard.go` | |
+| 4. Inbound selection | Done | `TestRFC4301InboundSelectsTheInterfaceSPDInKernel`, no code owed | |
+| 5. Visibility and conformance | Done | `cmd/show_dataplane.go` `policyInfoToMap`, `rfc/discrimination/rfc4301/` | |
+| Phase 8 application override | Done | `engine/application_override.go`, `dataplane/override_guard_linux.go` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestApplyInstallsInterfaceSPDCatchAllAndGuard`, `TestRFC4301InterfaceSPDDiscardsUnmatchedInKernel` | |
+| AC-2 | Done | `TestApplyInstallsInterfaceSPDCatchAllUnderBypass`, `TestInterfaceSPDBypassCarriesNoCleartextInKernel` | |
+| AC-3 | Done | `TestRFC4301InterfaceSPDDiscardsUnmatchedInKernel` | |
+| AC-4 | Done | `TestRFC4301InboundSelectsTheInterfaceSPDInKernel` | |
+| AC-5, AC-6 | Done | `TestTunnelSourceGuardInKernel`, `TestSourceGuardPassesTheTransformAndDropsTheLeak` | interop `vti-ipv6-tunnel-source-no-cleartext-leak` owed under deny (Blocker) |
+| AC-7 | Done | `TestRFC4301SPDSelectionByOutputInterface` | |
+| AC-8 | Done | `TestReleaseRemovesInterfaceSPDAndGuard`, `TestAddressEventFollowsTheGuard` | |
+| AC-9 | Done | `TestShowDataplanePolicyNamesSPDAndRole`, `test/ipsec/dataplane-policy-spd-role.ci` | |
+| AC-10, AC-22 | Done | `./le rfc check` (Blocker, Verified table) | |
+| AC-11 | Done | `internal/core/iprule/table_linux_test.go`, policyroute tests | |
+| AC-12 | Done | `TestGuardRefusesTunnelAddressAsIKEEndpoint` | |
+| AC-13 | Done | `TestApplicationOverrideLeafParses`, `test/parse/ipsec-application-override.ci` | |
+| AC-14, AC-15, AC-16 | Done | `TestRFC4301ApplicationOverrideDeniedInKernel`, `TestOverrideGuardProgramExemptsZeInItsPIDNamespace` | |
+| AC-17 | Done | `TestRFC4301ApplicationOverrideAllowedInKernel` | |
+| AC-18 | Done | `TestApplyFailsWhenOverrideGuardCannotAttach` | text now names Linux 6.10 |
+| AC-19 | Done | `TestReloadMovesOverrideGuard` | |
+| AC-20 | Done | `TestShowDataplanePolicyNamesSocketRows`, `TestPolicyInfoMapsSocketDirections` | |
+| AC-21 | Done | `TestDoctorApplicationOverride`, `TestDoctorSPDWritersReadsProc`, `TestDoctorReportsRefusedDeny` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| All 34 planned `Test*` names | Done | found by `grep func <name>(` under `internal/` (Blocker, Verified table) | one file renamed (Deviations) |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify and Files to Create, phases 1 to 8 | Done | `git diff d0c2738a48..b161ed9edd --stat` over `internal/component/ike`, `internal/core/iprule`, `internal/core/rtproto`, `internal/plugins/policyroute`, `test/ipsec`, `test/interop-ipsec` |
+| `override_guard_integration_linux_test.go` | Changed | created as `rfc4301_override_guard_integration_linux_test.go` |
+
+### Audit Summary
+- **Total items:** 6 requirements, 22 ACs
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 file name (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Each interface SPD has a final DISCARD entry | kernel integration | `TestRFC4301InterfaceSPDDiscardsUnmatchedInKernel` PASS in `scratch/qemu-lx12.log`; record `rfc/discrimination/rfc4301/RFC4301-4.4.1-3.json` |
+| Explicit SPD selection function (RFC4301-4.4.1-5) | unit with discrimination | `TestRFC4301SPDSelectionByOutputInterface` and its negative; `rfc/discrimination/rfc4301/RFC4301-4.4.1-5.json` |
+| No IPv6 cleartext leak from a tunnel source | kernel integration + interop | `TestTunnelSourceGuardInKernel` PASS in `qemu-lx12.log`; interop `vti-ipv6-tunnel-source-no-cleartext-leak` under deny OWED (Blocker R2) |
+| Operator sees each entry's SPD and role | functional | `test/ipsec/dataplane-policy-spd-role.ci` PASS in `rwinv/out-gb6/ipsec-clean.log`, twelve breaks red in `rwinv/out-gb7/spd-*.log` |
+| Administrator controls application override (RFC4301-4.4.1-8) | kernel integration, security negative | `TestRFC4301ApplicationOverrideDeniedInKernel` (EPERM for a foreign process) in `scratch/p8rec/out-qemu/kernel.log`; `rfc/discrimination/rfc4301/RFC4301-4.4.1-8.json` |
+| Route-based tunnel to strongSwan works under deny | interop | `vti-unmatched-discard-interface-spd`, `vti-ipv6-inner-ipv4-outer` under deny OWED (Blocker R2) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| RFC4301-4.4.1-3 final DISCARD for the VPP and OSPF SPDs | outside the XFRM backend this spec covers | `plan/post-release/features/spec-ipsec-spd-final-discard-vpp-ospf.md` |
+| RFC4301-4.4.1.1-5 mandatory named selection | split at the release migration | `plan/release/fixes/spec-ipsec-spd-name-selection.md` |
+
+## Security Review
+
+| Check | Finding | Evidence |
+|-------|---------|----------|
+| Fail closed | Holds: a source exemption is installed only for an address in the set `guards.install` answers, which needs both the rule and the published nft table | `installXFRMInterfaceEntries` (`!guarded[source]`), `guardedLocked` |
+| Cleartext leak | Both paths covered: bound source by the rule, kernel-chosen source by the postrouting drop | `TestTunnelSourceGuardInKernel` legs |
+| Foreign state | Rules at priority 30000 in Ze's 3000-3999 range, routes with `rtproto.IPsecSourceGuard` 248, nft table `ze_` prefixed and registered under owner `ike-source-guard`; removal names only what `held` records | `source_guard.go` `guardRule`, `guardUnreachable`, `prune` |
+| Error leakage | Refusals name address, interface, peer and fix; no key material | `refuseTunnelAddressAsIKEEndpoint`, `attachOverrideGuard` |
+| Privilege (override guard) | The program exempts only the loading tgid in Ze's PID namespace; another namespace's caller fails the helper and is refused; the netns cookie limits it to Ze's SPD | `overrideGuardInstructions`, `TestOverrideGuardProgramExemptsZeInItsPIDNamespace` |
+| eBPF program safety | Stack slots written before read (key at fp-4 by `StoreImm`, pidns info by the helper), map value null-checked before the increment | `overrideGuardInstructions` |
+| Untrusted input | `/proc` and mountinfo parsing bounded by the file; no allocation driven by a peer | `spdWriters`, `cgroup2RootFrom` |
+| Detach by another holder | Reported: doctor reads the link's cgroup id and errors on 0 | `overrideGuard.state`, `checkIPsecApplicationOverride` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/ipsec-spd-selection-7e292f27-ced0-427f-a7b6-3a931db211f9.md` (86 files, the list in `tmp/session/2026-11-07-104251/scratch/spd-review-files.txt`) |
+| `./le spec review check` | OK (80 code files, clean, hashes match), 2026-11-09 |
+| Rounds | 2 |
+| Reviewer lenses used | logic and ordering (apply, prune, release), security (eBPF guard, source guard ownership), user-facing errors, docs against source, style pass (no `panic`, `fmt.Sprintf` or `go func` in the new production files) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Deny refusal and the guide omit the Linux 6.10 floor, so on an older kernel the named fix cannot work | `engine/application_override.go` `attachOverrideGuard`, `docs/guide/ipsec.md`, `ze-ipsec-conf.yang` | Message, guide and YANG name Linux 6.10; test asserts it |
+| 2 | ISSUE | Socket-policy warning, raised only under deny, advised "set deny" | `engine/doctor_application_override.go` `socketPolicyDiagnostics` | Advice reduced to the restart that clears it |
+
+### NOTEs (do not block)
+- The guard's `ip rule`, table routes and nft table outlive a crash, as every other Ze kernel object does (the firewall registry comment, `FlushAllTables`; the SPD itself, `releaseSPD`). A restart re-allocates tables by sorted interface name, so only a config changed while Ze was down can leave a stale rule pointing at another interface's table, where its traffic meets that interface's DISCARD (fail closed).
+- `overrideGuardDiagnostic` says to read "the attach error" also when the guard was detached after a good attach; "Restart ze" is the working fix.
+
+### Run 2
+Over the two fixes: string changes only, the strengthened assertion matches the new text. 0 BLOCKER, 0 ISSUE.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/core/iprule/iprule_test.go`, `engine/source_guard_integration_linux_test.go`, `engine/rfc4301_spd_selection_test.go`, `test/ipsec/dataplane-policy-spd-role.ci`, both new interop scenario directories | yes | `ls` in this closure run: each listed, interop dirs hold `ze.conf` and `swanctl.conf` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-18 | refusal names the error and every fix | `TestApplyFailsWhenOverrideGuardCannotAttach` wants list now includes "Linux 6.10 or later"; run owed to the main thread (handback) |
+| AC-1..AC-22 | tests exist | Blocker Verified row: 34 names found by grep |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `show vpn ipsec dataplane policy` | `test/ipsec/dataplane-policy-spd-role.ci` | PASS in `rwinv/out-gb6/ipsec-clean.log`; line 3 names this spec |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestRFC4301InterfaceSPDDiscardsUnmatchedInKernel` PASS, `qemu-lx12.log` |
+| A-2, A-3 | confirmed | `TestTunnelSourceGuardInKernel` PASS, `qemu-lx12.log` |
+| A-4 | confirmed | `TestRFC4301InboundSelectsTheInterfaceSPDInKernel` PASS, `qemu-lx12.log`; no code owed |
+| A-5 | confirmed | `TestInterfaceSPDBypassCarriesNoCleartextInKernel` PASS, `qemu-lx12.log` |
+| A-6 | confirmed | `internal/core/iprule/iprule.go` `ZeTableRanges`, `iprule_test.go` disjoint ranges |
+| A-7 | confirmed | refused at verify, `TestGuardRefusesTunnelAddressAsIKEEndpoint` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Guide: deny requirements and refusal text | `attachOverrideGuard` string; v6.10 `kernel/bpf/helpers.c` `bpf_base_func_proto` case `BPF_FUNC_get_ns_current_pid_tgid`, absent from v6.9 `cg_sockopt_func_proto` | yes |
+| Architecture: helper placement | `ipsec-8-ikev2-child-xfrm.md` cites `bpf_base_func_proto` ahead of the CAP_BPF gate (v7.3), consistent with v6.10 | yes |
