@@ -345,7 +345,7 @@ MS-Primary and MS-Secondary in `AuthMetadata` for the pool's `radius` class.
 | `TestOption6PassThroughDefault` | dhcpserver `handler_test.go` | AC-14 | |
 | `TestRDNSSPassThroughDefault` | iface `reconcile_ra_test.go` | AC-15 | |
 | `TestForwardPassThroughDefault` | dnsresolver `config_tx_test.go` | AC-20 | |
-| `TestSelfRefusedOnSystemAndForward` | the core leaf's package test | AC-11, the `self` refusal's what, why and fix parts for both consumers | |
+| `TestSelfRefusedOnSystemAndForward` | dnssource `self_refused_test.go` | AC-11, the `self` refusal's what, why and fix parts for both consumers | |
 | `TestModeRequiredEachConsumer` | each consumer's config test | AC-16b through the consumer's verifier and its boot parse | |
 | `TestForwardListFromSelectionNoRebind` | dnsresolver `config_tx_test.go` | AC-6 | |
 | `TestOption6FromDNSSource` | dhcpserver `handler_test.go` | AC-7, and 23a AC-5 for option 6 | |
@@ -353,7 +353,7 @@ MS-Primary and MS-Secondary in `AuthMetadata` for the pool's `radius` class.
 | `TestExtractMSDNSServers` | authradius `extract_test.go` | parse and R-6 | |
 | `TestPoolIPCPDNSFromRadius`, `TestPoolIPCPDNSRadiusAbsent` | pool `register_test.go` | AC-9, AC-10 | |
 | `TestDNSSourceClassRefused` | each consumer's config test | AC-11 | |
-| `TestSelfIsAddressOnClientInterface` | dhcpserver `handler_test.go`, iface `reconcile_ra_test.go`, pool `register_test.go` | AC-7, D-6 for each consumer | |
+| `TestSelfIsAddressOnClientInterface` | iface `ra_dns_source_test.go`, pool `dns_source_test.go`; for dhcpserver the `self` case of `TestOption6FromDNSSource` (`handler_dns_source_test.go`) | AC-7, D-6 for each consumer | |
 | `TestLeaseShortWhileReceivedUnusable` | dhcpserver `handler_test.go` | AC-25 | |
 | `TestSelectDropsHostOnlyAddressesForHandedOutLists` | the core leaf's package test | AC-27, D-16: a handed-out list drops loopback and zone-less IPv6 link-local and falls through; a router list keeps both | |
 
