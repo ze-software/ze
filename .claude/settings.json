@@ -1,4 +1,7 @@
 {
+  "worktree": {
+    "bgIsolation": "none"
+  },
   "mcp": {},
   "hooks": {
     "SessionStart": [
