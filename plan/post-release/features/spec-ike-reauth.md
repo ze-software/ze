@@ -71,6 +71,14 @@ Add IKEv2 reauthentication:
 - Add a reauth timer that starts a fresh authentication, installs replacement Child SAs, and only then retires the old SAs.
 - Keep reauth control distinct from the existing lifetime/rekey control.
 
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| IKE SA rekey | `internal/component/ike/engine/rekey.go` `rekeyIKESA`, `newLifetimeState`; `established.go` `maintainSA` | soft expiry rekeys through CREATE_CHILD_SA, hard expiry tears down | does not apply to the reauth itself (a rekey keeps the authenticated identity); the reauth timer sits beside it in `maintainSA` and the rekey path stays unchanged |
+| Full initiator handshake | `internal/component/ike/engine/fsm.go` `runOnce`, `runInitiator` | IKE_SA_INIT and IKE_AUTH for an `initiate` peer, rerun with backoff on failure | extends: the reauth starts a fresh `runInitiator` exchange rather than a second handshake |
+| Peer-started reauthentication on an `initiate` peer | `internal/component/ike/engine/reauth_receive.go` `matchReauthenticatingPeer`; `TestInitiatePeerAdoptsPeerStartedReauth` (`rfc7296_reauth_receive_test.go`), from `spec-home-cpe-22-ike-responder-reauth` (closed `5d9241eaa6`) | a new IKE_SA_INIT from the peer an established `initiate` session talks to is answered, and the authenticated successor supersedes the old SA | extends: the switch to the replacement SA and the retirement of the old SAs reuse this supersede path rather than writing a second |
+
 ## Data Flow (MANDATORY)
 
 ### Entry Point

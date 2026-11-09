@@ -38,6 +38,15 @@ This ownership split preserves the original obligations and evidence. Migration 
 | Native IKE/XFRM umbrella acceptance AC-1..11 and historical child/evidence reconciliation. | `plan/release/validation/spec-ipsec-0-umbrella.md` |
 | Umbrella AC-12 integration only; underlying code remains with spec-ipsec-dataplane-selector, spec-ipsec-vpp-policy-interface and spec-ipsec-vpp-dataplane-readback. | `plan/post-release/features/spec-ipsec-vpp-umbrella-integration.md` |
 
+## Home-CPE scenarios
+
+IPsec scenarios the home-CPE work added, listed here because this umbrella is
+the parent of the IPsec scenarios (`plan/release/fixes/spec-home-cpe-0-umbrella.md`).
+
+| Scenario | Directory | Owner | What it proves |
+|----------|-----------|-------|----------------|
+| `vti-ipv6-inner-ipv4-outer` | `test/interop-ipsec/scenarios/vti-ipv6-inner-ipv4-outer/` | `spec-home-cpe-6-ipsec-ipv6-in-ipv4-vti` (closed `9dabfc7a2a`); its red walk reverts the cross-family state fix of `spec-home-cpe-20-xfrm-cross-family-tunnel-state` (closed `12fb5bbfe9`) | a route-based tunnel carries IPv6 inside an IPv4 SA against strongSwan, selectors narrowed by the responder |
+
 ## Work Not Done
 
 | Scope | Current owner |
@@ -459,7 +468,7 @@ These are the top-level outcomes. Each child spec has its own detailed ACs.
 - `internal/component/ike/dataplane/` -- SA/SP installer interface + XFRM netlink backend + VPP backend
 - `internal/component/ike/transport/` -- UDP socket management, NAT-T, port 500/4500
 - `internal/component/iface/xfrm.go` -- XFRMSpec, XFRMInfo types
-- `internal/plugins/ifacenetlink/xfrm_linux.go` -- XFRM interface netlink creation (removed; ifacenetlink was a dead stub)
+- `internal/plugins/iface/netlink/xfrm_linux.go` -- XFRM interface netlink creation (`CreateXFRM`, package `ifacenetlink`)
 - `rfc/short/rfc3748.md`, `rfc5216.md`, `rfc2759.md`, `rfc7427.md` -- RFC summaries (EAP, signature auth)
 
 #### Implementation Steps
