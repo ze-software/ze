@@ -31,6 +31,20 @@ const rdnssWithdrawnPerRA = 8
 // last advertised for it runs out.
 const retiringRDNSSMax = ndp.MaxInitialAdvertisements * rdnssWithdrawnPerRA
 
+// delegatedWithdrawnPerRA is the most retired delegated /64s one
+// advertisement withdraws. Each costs a Prefix Information option of 32
+// octets and at most one Route Information option of 24, so eight add at most
+// 448 octets and the advertisement stays inside the minimum link MTU beside
+// the live state. A longer queue goes out over the following advertisements.
+const delegatedWithdrawnPerRA = 8
+
+// retiringDelegatedMax bounds the delegated /64s waiting for their withdrawal,
+// for the reason retiringRDNSSMax bounds the resolvers: what the initial burst
+// a link-up starts carries. When it is full the oldest withdrawal is dropped,
+// and hosts keep their addresses from that /64 until the Valid Lifetime last
+// advertised for it runs out.
+const retiringDelegatedMax = ndp.MaxInitialAdvertisements * delegatedWithdrawnPerRA
+
 // mainRouteTable is the kernel's main routing table (RT_TABLE_MAIN), where the
 // WAN default route lives, whether Router Discovery or the operator put it.
 const mainRouteTable = 254
@@ -41,8 +55,10 @@ const mainRouteTable = 254
 // send loop is its only caller.
 type advertiser struct {
 	spec iface.RASenderSpec
-	// retiring holds the delegated /64s an update dropped. The next
-	// advertisement carries each once with zero lifetimes, then forgets it.
+	// retiring holds the delegated /64s an update dropped, oldest first, at
+	// most retiringDelegatedMax. Each advertisement carries the first
+	// delegatedWithdrawnPerRA of them with zero lifetimes, and sent forgets
+	// the ones that went out.
 	retiring []iface.DelegatedAdvert
 	// retiringRDNSS holds the resolvers an update dropped, oldest first, at
 	// most retiringRDNSSMax. Each advertisement carries the first
@@ -55,22 +71,35 @@ type advertiser struct {
 	sentAny      bool
 }
 
+// droppedWithdrawals is what the advertiser gave up withdrawing, because its
+// queue was full or the advertisement carrying it could not be encoded. The
+// send loop logs each at WARN: hosts keep what it names until the lifetime
+// last advertised for it runs out.
+type droppedWithdrawals struct {
+	delegated []iface.DelegatedAdvert
+	rdnss     []netip.Addr
+}
+
 // update replaces the spec. A delegated /64 the new spec no longer carries is
 // retired: the lease ended, or the unit no longer numbers from it. A resolver
 // the new spec no longer advertises is retired the same way: its learned
 // record was withdrawn, or the unit's dns-source list now selects another. A
-// retiring resolver the new spec advertises again is live, and leaves the
-// queue. update answers the withdrawals the full queue dropped, for the
+// retiring /64 or resolver the new spec advertises again is live, and leaves
+// its queue. update answers the withdrawals a full queue dropped, for the
 // caller to log.
-func (a *advertiser) update(spec iface.RASenderSpec) (dropped []netip.Addr) {
+func (a *advertiser) update(spec iface.RASenderSpec) (dropped droppedWithdrawals) {
+	a.retiring = slices.DeleteFunc(a.retiring, func(d iface.DelegatedAdvert) bool {
+		return slices.ContainsFunc(spec.Delegated, sameSubnet(d))
+	})
 	for _, old := range a.spec.Delegated {
-		kept := slices.ContainsFunc(spec.Delegated, func(d iface.DelegatedAdvert) bool {
-			return d.Address.Masked() == old.Address.Masked()
-		})
+		kept := slices.ContainsFunc(spec.Delegated, sameSubnet(old))
 		if !kept {
-			a.retiring = append(a.retiring, old)
+			if !slices.ContainsFunc(a.retiring, sameSubnet(old)) {
+				a.retiring = append(a.retiring, old)
+			}
 		}
 	}
+	a.retiring, dropped.delegated = trimOldest(a.retiring, retiringDelegatedMax)
 	for _, old := range a.spec.Advertisement.RDNSS {
 		if slices.Contains(spec.Advertisement.RDNSS, old) {
 			continue
@@ -83,12 +112,36 @@ func (a *advertiser) update(spec iface.RASenderSpec) (dropped []netip.Addr) {
 	a.retiringRDNSS = slices.DeleteFunc(a.retiringRDNSS, func(addr netip.Addr) bool {
 		return slices.Contains(spec.Advertisement.RDNSS, addr)
 	})
-	if over := len(a.retiringRDNSS) - retiringRDNSSMax; over > 0 {
-		dropped = slices.Clone(a.retiringRDNSS[:over])
-		a.retiringRDNSS = slices.Delete(a.retiringRDNSS, 0, over)
-	}
+	a.retiringRDNSS, dropped.rdnss = trimOldest(a.retiringRDNSS, retiringRDNSSMax)
 	a.spec = spec
 	return dropped
+}
+
+// sameSubnet answers a match for each delegated advert that numbers the /64
+// d numbers.
+func sameSubnet(d iface.DelegatedAdvert) func(iface.DelegatedAdvert) bool {
+	subnet := d.Address.Masked()
+	return func(other iface.DelegatedAdvert) bool {
+		return other.Address.Masked() == subnet
+	}
+}
+
+// trimOldest bounds a withdrawal queue at limit entries. It answers the queue
+// without its oldest entries beyond limit, and those entries, for the caller
+// to log.
+func trimOldest[T any](queue []T, limit int) (kept, dropped []T) {
+	over := len(queue) - limit
+	if over <= 0 {
+		return queue, nil
+	}
+	dropped = slices.Clone(queue[:over])
+	return slices.Delete(queue, 0, over), dropped
+}
+
+// queueHead answers what the next advertisement withdraws from a withdrawal
+// queue: its oldest perRA entries. The rest wait for the advertisements after.
+func queueHead[T any](queue []T, perRA int) []T {
+	return queue[:min(len(queue), perRA)]
 }
 
 // build returns the advertisement to send at now. wanDefault says whether a
@@ -105,14 +158,14 @@ func (a *advertiser) build(now time.Time, wanDefault bool) ndp.RAConfig {
 		// RFC 7084 Section 4.3 L-3
 		cfg.Routes = withRoute(cfg.Routes, d.Delegated.Masked(), valid)
 	}
-	for _, d := range a.retiring {
+	for _, d := range queueHead(a.retiring, delegatedWithdrawnPerRA) {
 		cfg.Prefixes = append(cfg.Prefixes, delegatedPrefixInfo(d.Address.Masked(), 0, 0))
 		cfg.Routes = withRoute(cfg.Routes, d.Delegated.Masked(), 0)
 	}
 	cfg.RDNSSLifetime = a.rdnssLifetime(now)
 	// update keeps a live resolver out of the queue, so none of these is
 	// also in cfg.RDNSS.
-	cfg.RDNSSWithdrawn = append(cfg.RDNSSWithdrawn, a.retiringRDNSS[:min(len(a.retiringRDNSS), rdnssWithdrawnPerRA)]...)
+	cfg.RDNSSWithdrawn = append(cfg.RDNSSWithdrawn, queueHead(a.retiringRDNSS, rdnssWithdrawnPerRA)...)
 	cfg.RouterLifetime = a.routerLifetime(now, wanDefault)
 	return cfg
 }
@@ -243,24 +296,40 @@ func (a *advertiser) urgent(now time.Time, wanDefault bool) bool {
 	return (a.lastLifetime > 0) != (next > 0)
 }
 
-// sent records the advertisement that left. It ends every prefix retirement
-// and the withdrawal of each resolver cfg carried; a resolver still queued
-// goes in the next advertisement, which urgent brings forward.
+// sent records the advertisement that left. It ends the withdrawal of each
+// delegated /64 and each resolver cfg carried; one still queued goes in the
+// next advertisement, which urgent brings forward.
 func (a *advertiser) sent(cfg ndp.RAConfig) {
 	a.lastLifetime = cfg.RouterLifetime
 	a.sentAny = true
-	a.retiring = nil
+	a.retiring = slices.DeleteFunc(a.retiring, func(d iface.DelegatedAdvert) bool {
+		return withdrawsSubnet(cfg.Prefixes, d.Address.Masked())
+	})
 	a.retiringRDNSS = slices.DeleteFunc(a.retiringRDNSS, func(addr netip.Addr) bool {
 		return slices.Contains(cfg.RDNSSWithdrawn, addr)
 	})
 }
 
-// abandon drops every retirement, prefix and resolver, and answers the
-// resolvers dropped. The send loop calls it when an advertisement could not
-// be encoded, so the next one carries the live state alone and a withdrawal
-// that cannot be written never stops the unit advertising.
-func (a *advertiser) abandon() (dropped []netip.Addr) {
-	dropped = a.retiringRDNSS
+// withdrawsSubnet reports whether prefixes carry subnet with a Valid Lifetime
+// of zero, the withdrawal of a retired /64.
+func withdrawsSubnet(prefixes []ndp.PrefixInfo, subnet netip.Prefix) bool {
+	for _, pi := range prefixes {
+		if pi.Prefix != subnet {
+			continue
+		}
+		if pi.ValidLifetime == 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// abandon drops every retirement, prefix and resolver, and answers what it
+// dropped. The send loop calls it when an advertisement could not be encoded,
+// so the next one carries the live state alone and a withdrawal that cannot be
+// written never stops the unit advertising.
+func (a *advertiser) abandon() (dropped droppedWithdrawals) {
+	dropped = droppedWithdrawals{delegated: a.retiring, rdnss: a.retiringRDNSS}
 	a.retiring = nil
 	a.retiringRDNSS = nil
 	return dropped

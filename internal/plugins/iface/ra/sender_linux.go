@@ -287,7 +287,7 @@ func (s *Sender) run(ctx context.Context, conn net.PacketConn, pc *ipv6.PacketCo
 			// withdrawal that cannot be encoded never silences the unit.
 			s.log.Error("iface-ra: advertisement could not be encoded, nothing sent; its withdrawals are dropped",
 				"iface", s.spec.Interface, "need", ndp.RALen(cfg), "have", len(buf),
-				"rdnss", len(cfg.RDNSS), "rdnss-withdrawn", len(cfg.RDNSSWithdrawn))
+				"prefixes", len(cfg.Prefixes), "rdnss", len(cfg.RDNSS), "rdnss-withdrawn", len(cfg.RDNSSWithdrawn))
 			s.logDroppedWithdrawals(adv.abandon())
 			return
 		}
@@ -385,11 +385,15 @@ func (s *Sender) run(ctx context.Context, conn net.PacketConn, pc *ipv6.PacketCo
 	}
 }
 
-// logDroppedWithdrawals logs, at WARN, each resolver whose withdrawal the
-// advertiser dropped: hosts on the link keep it until the Lifetime last
-// advertised for it runs out.
-func (s *Sender) logDroppedWithdrawals(dropped []netip.Addr) {
-	for _, addr := range dropped {
+// logDroppedWithdrawals logs, at WARN, each delegated /64 and each resolver
+// whose withdrawal the advertiser dropped: hosts on the link keep it until the
+// lifetime last advertised for it runs out.
+func (s *Sender) logDroppedWithdrawals(dropped droppedWithdrawals) {
+	for _, d := range dropped.delegated {
+		s.log.Warn("iface-ra: delegated prefix withdrawal dropped, hosts keep addresses from it until its advertised valid lifetime ends",
+			"iface", s.spec.Interface, "prefix", d.Address.Masked(), "queued-max", retiringDelegatedMax)
+	}
+	for _, addr := range dropped.rdnss {
 		s.log.Warn("iface-ra: resolver withdrawal dropped, hosts keep it until its advertised RDNSS lifetime ends",
 			"iface", s.spec.Interface, "address", addr, "queued-max", retiringRDNSSMax)
 	}

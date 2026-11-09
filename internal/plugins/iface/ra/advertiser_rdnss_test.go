@@ -149,10 +149,10 @@ func TestRDNSSWithdrawalsSpreadAcrossAdvertisements(t *testing.T) {
 	sendRA(t, adv, now)
 
 	// The link goes down: two selection changes, nothing sent.
-	if dropped := adv.update(rdnssSpecOf(second)); len(dropped) != 0 {
+	if dropped := adv.update(rdnssSpecOf(second)).rdnss; len(dropped) != 0 {
 		t.Fatalf("dropped %v from a queue of 5", dropped)
 	}
-	if dropped := adv.update(rdnssSpecOf(third)); len(dropped) != 0 {
+	if dropped := adv.update(rdnssSpecOf(third)).rdnss; len(dropped) != 0 {
 		t.Fatalf("dropped %v from a queue of 10", dropped)
 	}
 
@@ -194,7 +194,7 @@ func TestRDNSSWithdrawalQueueBounded(t *testing.T) {
 	retired = append(retired, adv.spec.Advertisement.RDNSS...)
 	for i := range updates {
 		next := rdnssAddrs(byte(i+1), 4)
-		dropped = append(dropped, adv.update(rdnssSpecOf(next))...)
+		dropped = append(dropped, adv.update(rdnssSpecOf(next)).rdnss...)
 		if len(adv.retiringRDNSS) > retiringRDNSSMax {
 			t.Fatalf("update %d: queue holds %d, bound %d", i, len(adv.retiringRDNSS), retiringRDNSSMax)
 		}
@@ -230,7 +230,7 @@ func TestRDNSSAbandonClearsWithdrawals(t *testing.T) {
 	sendRA(t, adv, now)
 	adv.update(rdnssSpecOf(live))
 
-	if dropped := adv.abandon(); !slices.Equal(dropped, rdnssAddrs(1, 3)) {
+	if dropped := adv.abandon().rdnss; !slices.Equal(dropped, rdnssAddrs(1, 3)) {
 		t.Fatalf("abandon answered %v, want the three queued", dropped)
 	}
 	cfg := adv.build(now, false)
