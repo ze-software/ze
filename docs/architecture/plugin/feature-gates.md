@@ -656,13 +656,17 @@ traversal separately from the kind proof.
 
 Range assignments to existing key or value targets also enter the complete
 retained-write equations, including dormant writers and alias or indexed targets.
-Fresh `:=` bindings and blank identifiers are not existing stores. The bounded
-reader marks unsupported transferred ownership explicitly when a retained target
-is needed; a later field projection cannot turn that uncertainty into an empty
-capability set.
+Fresh `:=` bindings and blank identifiers are not existing stores. The value
+a range header stores into an existing target is the collection's flattened
+contents, as an index read answers, because the Go specification assigns the
+iteration values "as in an assignment statement" and for an array, slice,
+string or map those are its indexes, keys and elements. A field read of the
+stored value still refuses for want of an element summary. A function iterator
+or a channel, whose iteration values are not the collection value, refuses,
+and so does a collection whose type is not resolved.
 <!-- source: internal/le/repo/inventory/externalcalls.go -- externalEffects.call -->
 <!-- source: internal/le/repo/inventory/externalranges.go -- externalEffects.rangeExecution, externalRangeWalk.expression, externalRangeWalk.datatype -->
-<!-- source: internal/le/repo/inventory/externalrangestores.go -- externalEffects.indexRangeAssignment, externalEffects.rangeAssignment -->
+<!-- source: internal/le/repo/inventory/externalrangestores.go -- externalEffects.indexRangeAssignment, externalEffects.rangeAssignment, externalEffects.rangeAssignedValue -->
 
 An unavailable Go body still refuses unless retained target-selected assembly
 proves a narrow direct transfer to the existing standard-library boundary, or

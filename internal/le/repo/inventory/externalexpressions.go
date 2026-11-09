@@ -168,9 +168,7 @@ func (e *externalEffects) expressionValue(source sourceExpr, possible bool, dept
 		return e.literalValue(source, value, possible, depth)
 	case *ast.UnaryExpr:
 		if value.Op == token.RANGE {
-			const reason = "range assignment capability ownership is unsupported"
-			e.problem(source, reason)
-			return externalValue{unknown: reason}
+			return e.rangeAssignedValue(source, value, possible, depth)
 		}
 		if value.Op == token.ARROW {
 			// A receive reads the channel's flattened contents, as an index

@@ -8,6 +8,8 @@ import (
 
 // TestCommittedExternalRangeAssignmentRetainsCallback distinguishes discarding
 // callbacks from storing them through a range-assignment target in a public root.
+// The stored value is the ranged callback itself (rangeAssignedValue), so the
+// storing writer refuses on the registration it escapes, not on the range.
 func TestCommittedExternalRangeAssignmentRetainsCallback(t *testing.T) {
 	for _, kind := range []string{"plugin", "yang"} {
 		for _, writer := range []struct{ name, file, pkg, function string }{
@@ -28,7 +30,8 @@ func TestCommittedExternalRangeAssignmentRetainsCallback(t *testing.T) {
 				changedSource = strings.Replace(changedSource, "import helper", "import store \"github.com/ze-software/ze/"+externalNeutralDir+"\"\nimport helper", 1)
 				fixture.goFile(t, writer.file, changedSource)
 				commitInventoryFixture(t, fixture.root)
-				externalEffectsRefusal(t, fixture, "range")
+				// The stored callback installs and the public root exposes it.
+				externalEffectsRefusal(t, fixture, "registration may execute through an escaped capability")
 			})
 		}
 	}
