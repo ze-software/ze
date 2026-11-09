@@ -13,6 +13,8 @@ import (
 	"net"
 	"net/netip"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/dnssource"
 )
 
 // Option codes ze never emits. Declared here so the assertions that prove their
@@ -582,32 +584,49 @@ func TestFlagsReservedBitsIgnored(t *testing.T) {
 func TestRenewalTimersOrderedWithinLease(t *testing.T) {
 	t.Parallel()
 
-	for _, leaseSec := range []uint32{60, 3600, 86400, 604800} {
+	for _, tc := range []struct {
+		name      string
+		configSec uint32
+		sources   dnssource.List
+		wantLease uint32
+	}{
+		{"configured 60", 60, writtenSubnetList(t, dnssource.ModeUnspecified, dnssource.ClassConfigured), 60},
+		{"configured 3600", 3600, writtenSubnetList(t, dnssource.ModeUnspecified, dnssource.ClassConfigured), 3600},
+		{"configured 86400", 86400, writtenSubnetList(t, dnssource.ModeUnspecified, dnssource.ClassConfigured), 86400},
+		{"configured 604800", 604800, writtenSubnetList(t, dnssource.ModeUnspecified, dnssource.ClassConfigured), 604800},
+		// D-9: the default list reaches received with nothing usable, so the reply carries the 60 s lease.
+		{"D-9 short lease", 86400, subnetDNSDefault, shortLeaseSec},
+	} {
 		sub := subnetConfig{
 			Prefix:       netip.MustParsePrefix("192.168.1.0/24"),
 			Ranges:       []addressRange{{Name: "pool", Start: netip.MustParseAddr("192.168.1.100"), Stop: netip.MustParseAddr("192.168.1.200")}},
-			LeaseTimeSec: leaseSec,
+			LeaseTimeSec: tc.configSec,
+			Sources:      tc.sources,
 		}
 		h := newDHCPHandler(sub, pxeConfig{})
 		offer := h.handle(buildMsg(msgDiscover, net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x15}, 0x2146, netip.Addr{}, 0, nil))
 		h.leases.stop()
 		if offer == nil {
-			t.Fatalf("lease %ds: expected DHCPOFFER, got nil", leaseSec)
+			t.Fatalf("%s: expected DHCPOFFER, got nil", tc.name)
+		}
+		leaseSec := leaseOf(t, offer)
+		if leaseSec != tc.wantLease {
+			t.Fatalf("%s: lease = %d, want %d", tc.name, leaseSec, tc.wantLease)
 		}
 		t1b := getResponseOption(offer, optT1)
 		t2b := getResponseOption(offer, optT2)
 		if len(t1b) != 4 || len(t2b) != 4 {
-			t.Fatalf("lease %ds: T1 = %v, T2 = %v, want four octets each", leaseSec, t1b, t2b)
+			t.Fatalf("%s: T1 = %v, T2 = %v, want four octets each", tc.name, t1b, t2b)
 		}
 		t1 := binary.BigEndian.Uint32(t1b)
 		t2 := binary.BigEndian.Uint32(t2b)
 		// RFC requirement: RFC2131-4.4.5-2 positive -- the renewal timer T1 the server returns is strictly earlier than the rebinding timer T2.
 		if t1 >= t2 {
-			t.Errorf("lease %ds: T1 = %d, T2 = %d; T1 must be earlier than T2", leaseSec, t1, t2)
+			t.Errorf("%s: T1 = %d, T2 = %d; T1 must be earlier than T2", tc.name, t1, t2)
 		}
 		// RFC requirement: RFC2131-4.4.5-3 positive -- the rebinding timer T2 the server returns is strictly earlier than the lease expiry.
 		if t2 >= leaseSec {
-			t.Errorf("lease %ds: T2 = %d; T2 must be earlier than the lease expiry of %d", leaseSec, t2, leaseSec)
+			t.Errorf("%s: T2 = %d; T2 must be earlier than the lease expiry of %d", tc.name, t2, leaseSec)
 		}
 	}
 }
