@@ -222,25 +222,6 @@ func (e *externalEffects) body(node ast.Node, source sourceExpr, possible bool) 
 			return
 		}
 	}
-	var signature *ast.FuncType
-	switch function := node.(type) {
-	case *ast.FuncDecl:
-		if function.Body != nil {
-			signature = function.Type
-		}
-	case *ast.FuncLit:
-		signature = function.Type
-	}
-	if signature != nil {
-		if signature.Results != nil {
-			for _, result := range signature.Results.List {
-				if len(result.Names) != 0 {
-					e.problem(source, "named result ownership is unsupported")
-					return
-				}
-			}
-		}
-	}
 	if _, exists := e.bodies[node]; !exists {
 		e.bodies[node] = source
 		e.changed = true
@@ -334,6 +315,7 @@ func (e *externalEffects) solve() error {
 				continue
 			}
 			e.statements(body, source, node, e.possible[node])
+			e.namedResults(node, source)
 			if err := e.refuseUnknown(); err != nil {
 				return err
 			}
@@ -600,4 +582,50 @@ func (e *externalEffects) growAmbient(value externalValue) bool {
 	growth.join(value)
 	e.ambientGrowths = append(e.ambientGrowths, growth)
 	return true
+}
+
+// namedResults joins the value of each named result variable into the
+// function's return summary. Go specification, Return statements: "The
+// expression list may be empty if the function's result type specifies names
+// for its result parameters." and "A "return" statement that specifies results
+// sets the result parameters before any deferred functions are executed." A
+// named result is a variable of its declared type: a read of it yields its
+// zero value and every assignment to it, a deferred closure's included, so
+// joining that read with the explicit return values bounds what the caller
+// receives, whichever return the body takes.
+func (e *externalEffects) namedResults(node ast.Node, source sourceExpr) {
+	var signature *ast.FuncType
+	switch function := node.(type) {
+	case *ast.FuncDecl:
+		signature = function.Type
+	case *ast.FuncLit:
+		signature = function.Type
+	}
+	if signature == nil || signature.Results == nil {
+		return
+	}
+	result := e.returns[node]
+	grew := false
+	for _, field := range signature.Results.List {
+		for _, name := range field.Names {
+			if name.Name == "_" {
+				continue
+			}
+			if name.Obj == nil {
+				// Object resolution binds every named result; without it the
+				// variable cannot be read, so its value is not known.
+				e.problem(source, "named result "+name.Name+" has no resolved variable")
+				return
+			}
+			value := e.readObject(name.Obj)
+			value.join(externalValue{reads: map[*ast.Object]bool{name.Obj: true}})
+			if result.join(value) {
+				grew = true
+			}
+		}
+	}
+	if grew {
+		e.returns[node] = result
+		e.changed = true
+	}
 }

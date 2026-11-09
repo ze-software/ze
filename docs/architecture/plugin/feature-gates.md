@@ -162,8 +162,16 @@ result at its own position, a result field with several names counting once
 per name, when the callee resolves as a declared function or method and is
 not generic. A callee that does not resolve, a result count that differs
 from the variables, and the comma-ok forms (a type assertion, a map index, a
-receive) leave the variables untyped.
+receive) leave the variables untyped. The root-field proof of a field read
+`o.initialized` takes that positional type for such a variable, because its
+initializer is the whole call, which has no single type.
+A function with named results returns what its result variables hold as well
+as its explicit return values: a named result is a variable of its declared
+type, so a read of it yields its zero value and every assignment to it, a
+naked return's and a deferred closure's included.
 <!-- source: internal/le/repo/inventory/methods.go -- expression.method, expression.methodAt, expression.methodReceiver, expression.addressable, expression.valueType, expression.tupleType, expression.fieldType -->
+<!-- source: internal/le/repo/inventory/externalrootfields.go -- externalEffects.fieldReceiverType, externalTupleOperand -->
+<!-- source: internal/le/repo/inventory/externaleffects.go -- externalEffects.namedResults -->
 <!-- source: internal/le/repo/inventory/methodpromotion.go -- expression.promotedMethod, promotedReceiver, declaredMethods, declaresField -->
 <!-- source: internal/le/repo/inventory/externaladdresses.go -- externalEffects.addressValue -->
 <!-- source: internal/le/repo/inventory/registrations.go -- registrations.node -->

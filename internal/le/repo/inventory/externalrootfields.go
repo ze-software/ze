@@ -73,6 +73,15 @@ func (e *externalEffects) fieldReceiverType(source sourceExpr, depth int) (sourc
 	if datatype, declared := e.types[object]; declared {
 		return datatype, ""
 	}
+	if externalTupleOperand(object) {
+		// o, valid := mi.skipField(...): the initializer is the whole call,
+		// which has no single type, so o's root is its position's declared
+		// result (tupleType).
+		if datatype, known := e.resolver.valueType(source, depth+1); known {
+			return datatype, ""
+		}
+		return sourceExpr{}, "returned root field ownership is unresolved"
+	}
 	initializer, err := e.resolver.target(source)
 	if err != nil {
 		return sourceExpr{}, "root field initializer ownership is unresolved"
@@ -128,4 +137,17 @@ func (e *externalEffects) projectField(source sourceExpr, selector *ast.Selector
 		result.join(externalValue{locations: receiver.locations})
 	}
 	return result
+}
+
+// externalTupleOperand reports whether object is declared by a multi-value
+// assignment or declaration whose single right-hand side yields every
+// operand, as a call with several results does.
+func externalTupleOperand(object *ast.Object) bool {
+	switch declaration := object.Decl.(type) {
+	case *ast.AssignStmt:
+		return len(declaration.Lhs) > 1 && len(declaration.Rhs) == 1
+	case *ast.ValueSpec:
+		return len(declaration.Names) > 1 && len(declaration.Values) == 1
+	}
+	return false
 }

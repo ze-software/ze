@@ -7,8 +7,9 @@ import (
 )
 
 // TestCommittedExternalNamedReturnRefuses prevents a naked return from silently
-// losing its named callback slot. This bounded model does not certify the shape,
-// even when the assigned callback is inert.
+// losing its named callback slot. The named result's value is returned
+// (namedResults), so the inert callback publishes and the installing one
+// refuses on the registration it carries to the external callee.
 func TestCommittedExternalNamedReturnRefuses(t *testing.T) {
 	for _, body := range []string{"", "install(0)"} {
 		t.Run("callback-"+body, func(t *testing.T) {
@@ -20,7 +21,11 @@ func TestCommittedExternalNamedReturnRefuses(t *testing.T) {
 			declaration := "func callback() (result func()) { result = func() { " + body + " }; return }\n"
 			fixture.goFile(t, callableOwnerCaller, externalEffectsSource(declaration, call))
 			commitInventoryFixture(t, fixture.root)
-			externalEffectsRefusal(t, fixture, "named")
+			if body == "" {
+				externalEffectsPositive(t, fixture)
+				return
+			}
+			externalEffectsRefusal(t, fixture, "registration may execute through an escaped capability")
 		})
 	}
 }
