@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Priority | - |
 | Release reason | Ze as the router of a home FTTP line, replacing a VyOS CPE. Children that fix shipped defects belong in `release/fixes/` on their own merit. |
 | Scope | product |
 | Depends | - |
-| Phase | 0/4 |
+| Phase | 6/6 |
 | Handoff | - |
 | Updated | 2026-11-09 |
 
@@ -41,8 +41,8 @@ everything except a translator program:
 | WAN | PPPoE client, CHAP, MTU 1492, no default route from PPP | supported |
 | WAN | Static default route via the PPPoE interface by its configured name | supported: the configured name is the kernel device and follows a reconnect (child 1, closed) |
 | WAN | LCP renegotiation started by the LNS after the LAC completed LCP (common in wholesale L2TP access) | supported in every phase (child 12, closed) |
-| WAN | DNS learned from IPCP (RFC 1877) | supported: requested in IPCP, a Reject of the DNS options handled (child 13, closed); its use beside static and other learned servers is the `dns-source` work (children 23 and 23b, open) |
-| WAN | IPv6: IPv6CP, DHCPv6-PD, /64 and RAs on the LAN | implemented (child 8); its closure is blocked on one lint log (child 8 Blocker) |
+| WAN | DNS learned from IPCP (RFC 1877) | supported: requested in IPCP, a Reject of the DNS options handled (child 13, closed); its use beside static and other learned servers is the `dns-source` work (child 23 closed for the router's own resolver; child 23b, open, for the LAN, DHCPv4, RA and subscriber consumers) |
+| WAN | IPv6: IPv6CP, DHCPv6-PD, /64 and RAs on the LAN | supported (child 8, closed `87c7b998ad`) |
 | WAN | MSS clamp on SYN | supported: the value is an upper bound and a smaller MSS is kept, proven on Ze's kernel and described as a clamp in YANG (child 21, closed); clamp-to-PMTU is the `tcp-mss-clamp-to-pmtu` leaf (child 9, closed) |
 | LAN | Bridge with several members and addresses; ethernet MAC match and offloads | supported |
 | LAN | DHCPv4 server, several subnets on one bridge, static reservations | supported: reservations first across every subnet on the interface (child 2, closed) |
@@ -90,7 +90,7 @@ everything except a translator program:
 
 Child spec files, all in `plan/release/fixes/`:
 
-Four children remain open (checked 2026-11-09 with `ls
+One child remains open, 23b (checked 2026-11-09 with `ls
 plan/release/fixes/spec-home-cpe-*`); every other child is closed, and its
 record is the spec text at the parent of its closure commit
 (`git show <commit>^:plan/release/fixes/<file>`).
@@ -111,9 +111,9 @@ record is the spec text at the parent of its closure commit
 | 12 | closed | `9bad2dd6bd` (`spec-home-cpe-12-pppoe-client-lcp-renegotiation.md`); PPPoE client LCP renegotiation in every phase documented in `docs/architecture/l2tp/cpe-1-pppoe-client.md` and `docs/guide/configuration.md` ("PPPoE Client") |
 | 13 | closed | `ac001804c0` (`spec-home-cpe-13-pppoe-client-ipcp-dns.md`); IPCP-learned DNS documented in `docs/architecture/l2tp/cpe-1-pppoe-client.md` and `docs/features/dns-resolver.md` |
 | 14 | closed | `4bef6da011` (`spec-home-cpe-14-lac-realm-relay`); `TestReloadAppliesRelayRealms` passed (`rwinv/out-gb7/c14-reload.log`) and the RFC2661-6.1-1 record was re-observed red; relay by realm documented in `docs/guide/l2tp.md` ("Relay by realm") |
-| 15 | closed | `spec-home-cpe-15-lns-lcp-renegotiation`; the `l2tp proxy-lcp` leaf, its session outcome and its counter label documented in `docs/guide/l2tp.md` ("PPP negotiation") |
-| 16 | closed | `spec-home-cpe-16-lns-mru-and-auth-allow-list`; policy and MRU controls documented in `docs/guide/l2tp.md` and `docs/guide/pppoe.md` |
-| 17 | closed | `spec-home-cpe-17-pppoe-client-keepalive-config`; the `keepalive` and `reconnect` leaves documented in `docs/guide/pppoe.md` ("PPPoE client keepalive and redial") and `docs/architecture/l2tp/cpe-1-pppoe-client.md` |
+| 15 | closed | `5ba9503304` (`spec-home-cpe-15-lns-lcp-renegotiation`); the `l2tp proxy-lcp` leaf, its session outcome and its counter label documented in `docs/guide/l2tp.md` ("PPP negotiation") |
+| 16 | closed | `5b587ad9d2` (`spec-home-cpe-16-lns-mru-and-auth-allow-list`), its review follow-up `dc3514eaec` (`spec-home-cpe-16-mru-enforcement-and-review-fixes`); policy and MRU controls documented in `docs/guide/l2tp.md` and `docs/guide/pppoe.md` |
+| 17 | closed | `1587411097` (`spec-home-cpe-17-pppoe-client-keepalive-config`); the `keepalive` and `reconnect` leaves documented in `docs/guide/pppoe.md` ("PPPoE client keepalive and redial") and `docs/architecture/l2tp/cpe-1-pppoe-client.md` |
 | 18 | closed | `e063c582f9` (`spec-home-cpe-18-interoplab-multi-link-topology.md`) |
 | 19 | closed | `bf94d63407` (`spec-home-cpe-19-access-chain-scenario.md`) |
 | 20 | closed | `12fb5bbfe9` (`spec-home-cpe-20-xfrm-cross-family-tunnel-state.md`) |
@@ -124,7 +124,7 @@ record is the spec text at the parent of its closure commit
 
 Review correction and completion (2026-11-06): the owner found eight defects
 in the earlier child16 closure. The follow-up
-`spec-home-cpe-16-mru-enforcement-and-review-fixes` split them into16a through16h;
+`spec-home-cpe-16-mru-enforcement-and-review-fixes` split them into 16a through 16h;
 all eight now have implementation, independent review, scoped central proof and
 formal closure. Omitted and valid proxied MRUs preserve useful authenticated
 service while Ze installs the session transmit cap. The dated owner requirement and its derived design live in
@@ -157,7 +157,7 @@ Implementation prerequisites:
 
 | Child | Needs implemented first |
 |-------|-------------------------|
-| 12, 16, 18, 1, 2, 3, 7, 10, 20, 21, 22, 5, 4 | none within the set (child 5 is back in `design`, its registration redesign awaiting approval) |
+| 12, 16, 18, 1, 2, 3, 7, 10, 20, 21, 22, 5, 4 | none within the set |
 | 6 | 20's fix committed (not closed); both specs carry a "Dependency and closure order" section |
 | 13 | 12 (the change record and the re-enterable `negotiateIPCP`) |
 | 17 | 12 (`keepaliveLoop` and the scripted access concentrator) |
@@ -389,7 +389,7 @@ conntrack helper is off.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The capability table covers every construct a home FTTP CPE of this kind uses | survey of a VyOS home-CPE configuration (umbrella Task) | a construct maps to nothing | child 10's conversion record lists every source line as mapped or dropped | unvalidated |
+| A-1 | The capability table covers every construct a home FTTP CPE of this kind uses | survey of a VyOS home-CPE configuration (umbrella Task) | a construct maps to nothing | child 10's conversion record lists every source line as mapped or dropped | confirmed (closure, 2026-11-09): Pre-Commit Verification, Assumptions Resolved |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -534,23 +534,46 @@ Edits outside the home-CPE specs that the children owed, as checked on
 
 | Edit | State |
 |------|-------|
-| list `vti-ipv6-inner-ipv4-outer` in `release/validation/spec-ipsec-0-umbrella.md` | done in this commit (its "Home-CPE scenarios" section) |
-| child 22 pointer in `post-release/features/spec-ike-reauth.md` | done in this commit |
+| list `vti-ipv6-inner-ipv4-outer` in `release/validation/spec-ipsec-0-umbrella.md` | done in `ff924ca486` (its "Home-CPE scenarios" section) |
+| child 22 pointer in `post-release/features/spec-ike-reauth.md` | done in `ff924ca486`; its IKE SA rekey row, which named a `rekeyIKESA` that does not exist, corrected at closure (Review Gate) |
 | narrow `post-release/features/spec-l2tp-proxy-authentication.md` to its LNS half | already done: its Task says it is the LNS half only and names child 14 for the LAC half |
 | move the hostname half of the `plan/journal/unwired-feature.md` 2026-09-04 `remote-address` row to child 4 | already done: the row names `spec-home-cpe-4-ike-dynamic-wan (hostname half; IPv6 half: 2026-11-07 row)` |
 | journal rows for the client dropping Configure-Request, the pppoe-client name never reaching the kernel, static routes not reinstalled after a reconnect | not owed: each defect is fixed, the first by child 12, the other two by child 1 (its Current Behavior covers reconnects), so no open row is written for them |
 | fetch `rfc/full/rfc8420.txt` | already done: the file is in the tree |
 
-## Goal Validation
+## Deliverables Checklist
 
-One row per goal of the Task. Child 11's Goal Validation ("Goal Validation
+The umbrella ships no code: its deliverables are its children, the guide and
+the lab, each verified by its own closure.
+
+| Deliverable | Verification method | Evidence |
+|-------------|---------------------|----------|
+| Every child spec closed | `git log --diff-filter=D -- 'plan/*spec-home-cpe-*'` names the closing commit of each child file; `ls plan/release/fixes/spec-home-cpe-*` lists the open ones | 23 of 24 closed (Implementation Summary); 23b open, `in-progress`, Phase 8/8 |
+| The VyOS-to-Ze mapping guide | `ls docs/guide/migrating-from-vyos.md`; child 10's AC table | page present; child 10 closed `3d1d4ecba7` with AC-1 to AC-7 Done |
+| The home-CPE lab on the converted configuration | `ls -d test/interop-topology/scenarios/<name>` for the eleven scenarios of the rerun list; child 11's closure | all eleven directories present; child 11 closed `dcc20ffb68`; the rerun after 23b is pending (Goal Validation) |
+| The edits outside the home-CPE specs the children owed | the "Edits outside the home-CPE specs" table above | every row done or not owed |
+
+## Security Review Checklist
+
+| Check | What to look for | Result |
+|-------|------------------|--------|
+| Secrets in the conversion | the model never receives a password, key or PSK; placeholders are never valid in a leaf | child 10's guide (secret path list, placeholder form) and child 11's lab substitution, each reviewed in its own closure |
+| Code-level security | injection, bounds, untrusted input, DoS, authorization | per child: the umbrella changes no code, and each child's Security Review Checklist covered its own diff |
+| Owner data in the repository | nothing drawn from the owner's configuration or provider | every value in the spec set and the lab is invented (RFC 5737, RFC 3849, ULA, `example.net`) |
+
+## Goal Validation notes
+
+Child 11's Goal Validation ("Goal Validation
 (umbrella goals)" in `spec-home-cpe-11-lab`, closed `dcc20ffb68`, readable in
 that commit's parent) maps each goal to its lab evidence. That lab ran before
 children 8, 14, 23 and 23b landed, so the whole-CPE lab is owed one more run
 over the converted configuration once they have: 8, 14 and 23 have closed
 (`87c7b998ad`, `4bef6da011`, `62c14b96ca`) and 23b is still open. The command
-list is `tmp/session/2026-11-07-104251/scratch/rwinv/umbrella-lab.sh`, run by
-the main thread, and its log is this table's pending evidence.
+list is `tmp/session/2026-11-07-104251/scratch/rwinv/umbrella-lab.sh` (the ten
+Lab table scenarios plus `mgmt-tunnel-ed25519`, one log each under
+`tmp/session/2026-11-07-104251/scratch/rwinv/umbrella-lab/`), run by the main
+thread, and its logs are the pending evidence of the Goal Validation table at
+the end of this spec.
 
 The rerun pulls the FreeRADIUS image as it is pinned since `a59d1ee848`
 (23b): `interoplab.FreeRADIUSImage` now names the 3.2.10 manifest list
@@ -560,22 +583,6 @@ The topology suite shares that pin: its `ze-topology-freeradius` image is
 built from `interoplab.FreeRADIUSImage`, passed in as `FREERADIUS_IMAGE`
 (`test/interop-topology/access-chain/Dockerfile.freeradius`), so the access
 scenarios in this rerun are the first topology runs on the new pin.
-
-| Goal | Evidence | State |
-|------|----------|-------|
-| 1. Ze implements every capability a home CPE of this kind uses, correctly | child 11: each capability row maps to a scenario clause, WAN (`access-up`, `access-reconnect`, `access-wholesale`, `access-wholesale-accel-lns`), LAN and firewall (`lan-services`), VPN (`road-warrior`, `mgmt-tunnel`, `mgmt-tunnel-ed25519`), system (`conversion`); IPv6 by child 8's own tests and `pppoe-dhcpv6-pd-ze-client`, clamp-to-PMTU by child 9's `TestTCPMSSClampToPMTU` and `pppoe-mss-pmtu` | pending: the whole-CPE lab rerun after 8, 14, 23 and 23b land; NTP and the archive are not in the synthetic source (Work Not Done) |
-| 2. A written VyOS-to-Ze mapping guide makes the conversion reproducible and reviewable | child 10's guide (closed `3d1d4ecba7`); child 11's `conversion`: the record covers every source line, and the configuration produced by following the guide is the one every home-CPE lab scenario runs | pending: `conversion` in the rerun; the construct-coverage check is Work Not Done |
-| 3. A lab that re-creates the access chain proves the converted router works | child 11: every home-CPE lab scenario runs the converted configuration, each with a recorded red walk (`rwinv/c11-*` breaks) | pending: the rerun of every scenario in the command list, green |
-
-## Work Not Done
-
-| What was not done | Why | The spec that now owns it |
-|-------------------|-----|---------------------------|
-| A live reorder of an interface's addresses moves its primary | found by child 11's lab; a separate reconcile change | `plan/release/fixes/spec-iface-address-reorder-moves-primary.md` |
-| The synthetic VyOS source covers every construct the guide maps or drops, with a check (child 11 A-2 broken; NTP and the archive absent) | found at child 11's closure | `plan/release/validation/spec-home-cpe-lab-guide-construct-coverage.md` |
-| An IPv6 subscriber of the LNS or PPPoE server is given no resolver (no RDNSS, no DHCPv6 option 23) | owner decision 2026-11-08: a spec of its own after this umbrella, which it does not block | `plan/post-release/features/spec-l2tp-ipv6-subscriber-dns.md` |
-| Ze accepts no IPv6 address request from an L2TP or PPPoE subscriber | previously owner-approved post-release feature | `plan/post-release/features/spec-l2tp-ipv6-subscriber.md` |
-| The problem classes the home-CPE lab found that `ze doctor` does not report | owner request: one doctor check per class | `plan/release/validation/spec-doctor-coverage-2-home-cpe-batch.md` |
 
 ## Checklist
 
@@ -604,3 +611,184 @@ scenarios in this rerun are the first topology runs on the new pin.
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean
 - [ ] **Commit A** and **Commit B** per `ai/rules/planning.md`
+
+## Implementation Summary
+
+### What Was Implemented
+
+The umbrella ships no code. Its work is its children, each closed by its own
+spec with its own review gate; the closing commit of each (the commit that
+removed the child file, `git log --diff-filter=D -- 'plan/*spec-home-cpe-*'`):
+
+| Child | Delivered | Closing commit |
+|-------|-----------|----------------|
+| 1 | logical interface names (`pppoe-client` and any non-ethernet name) resolve to the kernel device in static routes, firewall and NAT, and follow a reconnect | `c5794805be` |
+| 2 | DHCPv4 subnet selection on a shared interface, reservations first across every subnet | `2bce073236` |
+| 3 | conntrack helpers built into Ze's kernel, assigned only when listed (Option A) | `d8584db704` |
+| 4 | IKE follows a dynamic WAN address, NAT detection with an FQDN remote, retries while the name does not resolve | `4b3eee5598` |
+| 5 | Ed25519 sign and verify in IKEv2 signature authentication | `209709901c` |
+| 6 | route-based tunnel carrying IPv6 inside an IPv4 SA, `vti-ipv6-inner-ipv4-outer` against strongSwan | `9dabfc7a2a` |
+| 7 | dual-wildcard SSH listener refused at validate, kernel hostname on the appliance | `cede669879` |
+| 8 | IPv6 CPE chain: IPv6CP, DHCPv6-PD, /64 and RAs on the LAN | `87c7b998ad` (records retaken in `8d83d8bde0`) |
+| 9 | `tcp-mss-clamp-to-pmtu` | `403e3256f9` |
+| 10 | the VyOS-to-Ze mapping guide, `docs/guide/migrating-from-vyos.md` | `3d1d4ecba7` |
+| 11 | the home-CPE lab on the converted configuration | `dcc20ffb68` |
+| 12 | PPPoE client LCP renegotiation in every phase | `9bad2dd6bd` |
+| 13 | RFC 1877 DNS in IPCP, a Reject of the DNS options handled | `ac001804c0` |
+| 14 | LAC realm relay with proxy LCP and proxy authentication AVPs | `4bef6da011` |
+| 15 | LNS `proxy-lcp accept\|renegotiate` | `5ba9503304` |
+| 16 | LNS MRU and authentication allow-list; review follow-up 16a to 16h | `5b587ad9d2`; follow-up `dc3514eaec` (16a `b21c1ebcc2`, 16b `7ffaf575d6`, 16c `389f10fb16`, 16d `1875e80c5c`, 16e `c3a1f04941`, 16f `433c56dad8`, 16g `b64e0b88e2`, 16h `095c3f43d2`) |
+| 17 | PPPoE client keepalive and reconnect leaves | `1587411097` |
+| 18 | interop lab multi-link topology suite | `e063c582f9` |
+| 19 | access-chain scenarios (`access-up`, `access-pool`, `access-accounting`) | `bf94d63407` |
+| 20 | xfrm tunnel state for IPv6 inside IPv4 (`XFRM_STATE_AF_UNSPEC`) | `12fb5bbfe9` |
+| 21 | MSS clamp never raises, proven on Ze's kernel | `0a7cfc0ae1` |
+| 22 | an `initiate` peer adopts a responder-started reauthentication | `5d9241eaa6` |
+| 23 | `dns-source` part a: resolver registry, selection rule, router consumer, RFC 5625 | `62c14b96ca` |
+| 23b | `dns-source` consumers: LAN resolver, DHCPv4, RA, subscriber, RADIUS DNS, `show system dns` | open, `in-progress`, in its final batch |
+
+The umbrella's own edits outside its file landed in `ff924ca486`:
+`plan/release/validation/spec-ipsec-0-umbrella.md` (the "Home-CPE scenarios"
+section, the `internal/plugins/iface/netlink/xfrm_linux.go` path) and
+`plan/post-release/features/spec-ike-reauth.md` (the child 22 pointer and its
+Existing Mechanisms section, whose rekey row this closure corrected).
+
+### Bugs Found/Fixed
+- `plan/post-release/features/spec-ike-reauth.md` named a `rekeyIKESA` function that does not exist, and the umbrella's held-back edit copied it into the Existing Mechanisms row. The IKE SA rekey is `startIKERekey` (`internal/component/ike/engine/established.go`), `initiateIKERekey`, `applyIKERekeyResponse` and `respondIKERekey` (`internal/component/ike/engine/rekey.go`), and old keys are cleared by `forgetKeys` (`internal/component/ike/engine/sa.go`). Every occurrence in that spec corrected (Review Gate).
+
+### Documentation Updates
+- None by the umbrella: it changes no behavior. Each child carried its own page edits (the child table above names the pages for 12 to 17), and the four survey doc defects were owed and handled by the child that touched each page (10 for `static-routes.md`, 3 for `configuration.md`, 5 and 6 for `ipsec.md`, 14 and 15 for `l2tp.md`).
+
+### Deviations from Plan
+
+Owner decisions taken in this goal that the children carry:
+
+| Decision | Where it is recorded | What it does |
+|----------|----------------------|--------------|
+| Child 1, review coverage (owner-approved 2026-11-08) | `Review-owed:` trailer of `c5794805be` | 139 commits carry `Spec-work: home-cpe-1-logical-interface-name` because this goal's session committed IKE, interop and DNS work while child 1 was claimed; child 1's own files have a CLEAN artifact, the rest were reviewed under their own work; the debt is owed at push |
+| SPD override, "Override, owe review at push" (2026-11-09) | `Review-owed:` trailer of `52c4757cea` (`spec-ipsec-spd-selection` closure) | six commits under the SPD-selection trailer are other sessions' work, among them `8d13a9dceb`, which is child 23's RA RDNSS work; reviewed under their own specs, the debt owed at push |
+| "Override all home-cpe" for misattributed `Spec-work` trailers (2026-11-09) | `Review-owed:` trailer of `62c14b96ca` (child 23) | the closure review coverage is overridden for every home-cpe closure of this goal whose trailer carries other specs' work (`f9ae2b9b88`, `a5adb4ca2c`, `bf2e2d753c` under 23a); each is reviewed under its own spec, the debt owed at push |
+| Conntrack helpers, Option A (2026-11-02) | child 3; "Open decisions for the owner" | helpers built into Ze's kernel, assigned only when listed |
+| RFC 8420 in its own spec (2026-11-08) | child 5's O-1 | `plan/post-release/features/spec-ike-rfc8420-eddsa-conformance.md` |
+| RFC9915-6.3-1 to -3 owed (2026-11-07) | child 8's "Owner ruling" | the decline lifted; child 8 implemented them |
+| IPv6 subscriber DNS after this umbrella (2026-11-08) | Work Not Done | its own post-release spec, not blocking the umbrella |
+
+The umbrella's status went from `skeleton` straight to `in-progress` at
+closure (through `ready` and the claim): it was never implemented as a unit,
+its children were.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | the held-back `spec-ike-reauth` edit (`ff924ca486`) copied that spec's `rekeyIKESA` into a new Existing Mechanisms row without resolving the symbol | no such function; the rekey is `startIKERekey`, `initiateIKERekey`, `applyIKERekeyResponse`, `respondIKERekey` | closure review, `grep -rn 'func .*[Rr]ekey' internal/component/ike/engine/` | every occurrence corrected in this closure |
+| approach | the umbrella body kept statements its children had made stale: "four children remain open", child 8 "blocked on one lint log", child 5 "back in design", children 23 and 23b both open, "done in this commit" for edits `ff924ca486` already landed | one child open (23b); 8, 5 and 23 closed | closure review against `git log` | corrected in this closure |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| 1. Ze implements every capability a home CPE of this kind uses, correctly | Partial | children 1 to 23 closed (Implementation Summary) | 23b open in its final batch; the whole-CPE lab rerun pending |
+| 2. A written VyOS-to-Ze mapping guide | Done | `docs/guide/migrating-from-vyos.md`, child 10 `3d1d4ecba7` | the construct-coverage check is Work Not Done |
+| 3. A lab that re-creates the access chain proves the converted router works | Partial | child 11 `dcc20ffb68`, `test/interop-topology/scenarios/` | the rerun after 23b pending |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Partial | 23 of 24 children closed, each demonstrating its own ACs in its closure commit's parent copy | 23b open |
+| AC-2 | Partial | child 11's closure: every Lab table scenario green on the converted configuration, each with a recorded red walk (`rwinv/c11-*`) | the rerun over today's tree (`umbrella-lab.sh`) pending |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| per child unit, boundary and functional tests | Done | each child's closure (Wiring Test rows re-checked in Pre-Commit Verification) | 23b's in its own spec |
+| Lab table interop scenarios | Partial | `test/interop-topology/scenarios/` | rerun pending |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| the child specs (Files to Create) | Done | all written; 23 removed at closure, 23b open |
+| the survey doc defects (Files to Modify) | Done | handled by the child that touched each page |
+
+### Audit Summary
+- **Total items:** 9
+- **Done:** 5
+- **Partial:** 4 (all the same two pending items: 23b's closure and the lab rerun; neither is a scope reduction)
+- **Skipped:** 0
+- **Changed:** 0
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| 1. Ze implements every capability a home CPE of this kind uses, correctly | interop | child 11's committed table ("Goal Validation (umbrella goals)" in `spec-home-cpe-11-lab` at `dcc20ffb68^`): WAN (`access-up`, `access-reconnect`, `access-wholesale`, `access-wholesale-accel-lns`), LAN and firewall (`lan-services`), VPN (`road-warrior`, `mgmt-tunnel`, `mgmt-tunnel-ed25519`), system (`conversion`); IPv6 by child 8's tests and `pppoe-dhcpv6-pd-ze-client`; clamp-to-PMTU by `TestTCPMSSClampToPMTU` (`internal/plugins/firewall/nft/integration_linux_test.go`) and `pppoe-mss-pmtu`. Pending final evidence: the whole-CPE rerun, `tmp/session/2026-11-07-104251/scratch/rwinv/umbrella-lab.sh`, logs in `rwinv/umbrella-lab/`, once 23b lands |
+| 2. A written VyOS-to-Ze mapping guide makes the conversion reproducible and reviewable | functional + interop | child 10's guide (`3d1d4ecba7`) with `test/parse/vyos-guide-example.ci`; child 11's `conversion` scenario (the record covers every line of the synthetic source, and the guide's output is the configuration every home-CPE scenario runs). Pending final evidence: `conversion.log` of the rerun |
+| 3. A lab that re-creates the access chain proves the converted router works | interop | child 11: every home-CPE lab scenario on the converted configuration, each with a recorded red walk (`rwinv/c11-*` breaks). Pending final evidence: all eleven logs of the rerun ending `exit=0` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| A live reorder of an interface's addresses moves its primary | found by child 11's lab; a separate reconcile change | `plan/release/fixes/spec-iface-address-reorder-moves-primary.md` |
+| The synthetic VyOS source covers every construct the guide maps or drops, with a check (child 11 A-2 broken: address and port groups, `ip-src-route`, `clamp-mss-to-pmtu`, `ipv6 adjust-mss`, router advertisements, NTP, the commit archive and three dropped rows are absent) | found at child 11's closure | `plan/release/validation/spec-home-cpe-lab-guide-construct-coverage.md` |
+| An IPv6 subscriber of the LNS or PPPoE server is given no resolver (no RDNSS, no DHCPv6 option 23) | owner decision 2026-11-08: a spec of its own after this umbrella, which it does not block | `plan/post-release/features/spec-l2tp-ipv6-subscriber-dns.md` |
+| Ze accepts no IPv6 address request from an L2TP or PPPoE subscriber | previously owner-approved post-release feature | `plan/post-release/features/spec-l2tp-ipv6-subscriber.md` |
+| The problem classes the home-CPE lab found that `ze doctor` does not report | owner request: one doctor check per class | `plan/release/validation/spec-doctor-coverage-2-home-cpe-batch.md` |
+| RFC 8420 summary and enrolment | child 5's O-1, owner decision 2026-11-08 | `plan/post-release/features/spec-ike-rfc8420-eddsa-conformance.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | recorded by `./le spec review record spec plan/release/fixes/spec-home-cpe-0-umbrella.md` over the three files below; the path is in the commit body |
+| `./le spec review check` | clean at record time; it goes stale when the 23b closure and the lab rerun edit this spec, and is re-recorded then |
+| Rounds | 2 |
+| Reviewer lenses used | spec claims against source (every symbol, path and commit the umbrella and its two held-back edits name, resolved by grep and `git log`), stale statements, owner-decision record |
+
+Files reviewed: `plan/release/fixes/spec-home-cpe-0-umbrella.md`,
+`plan/release/validation/spec-ipsec-0-umbrella.md` (its `ff924ca486` hunks:
+the scenario directory and the `CreateXFRM` path, package `ifacenetlink`,
+both resolve), `plan/post-release/features/spec-ike-reauth.md`.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Existing Mechanisms row names `rekeyIKESA`, which does not exist; the same name in Recovery, Current Behavior, Behavior to preserve and Security Review | `plan/post-release/features/spec-ike-reauth.md` | named `startIKERekey`, `initiateIKERekey`, `applyIKERekeyResponse`, `respondIKERekey`, `forgetKeys`; the quoted established.go comment replaced by the one in the source |
+
+Round 1 NOTEs (record defects, fixed in one edit): the stale umbrella
+statements in the Mistake Log; the Work Not Done row that understated child
+11's A-2 gap; the missing Deliverables and Security Review Checklists, added.
+Round 2: 0 BLOCKER, 0 ISSUE.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/dhcp/dhcpserver-shared-segment-reservation.ci`, `test/firewall/conntrack-helper-ftp-assigned.ci`, `test/parse/listener-dual-wildcard-refused.ci`, `test/parse/pppoe-client-ipv6.ci`, `test/firewall/firewall-tcp-mss-clamp-to-pmtu.ci`, `test/parse/vyos-guide-example.ci` | yes | `ls`, 2026-11-09 |
+| the eleven rerun scenario directories under `test/interop-topology/scenarios/`, plus `ze-static-link-chain`, `pppoe-dhcpv6-pd-ze-client`, `pppoe-mss-pmtu` and `test/interop-l2tp/scenarios/l2tp-lns-mru-xl2tpd` | yes | `ls -d`, 2026-11-09 |
+| `docs/guide/migrating-from-vyos.md` | yes | `ls`, 2026-11-09 |
+| every Work Not Done destination spec | yes | `git ls-files --error-unmatch`, 2026-11-09 (status skeleton or design) |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | 23 of 24 children closed | `git log --diff-filter=D --since=2026-10-15 -- 'plan/*spec-home-cpe-*'` lists the 23 closing commits of the Implementation Summary; `ls plan/release/fixes/spec-home-cpe-*` lists the umbrella and 23b only |
+| AC-2 | the lab ran green with red walks at child 11's closure | `spec-home-cpe-11-lab` at `dcc20ffb68^`, "Goal Validation (umbrella goals)"; rerun pending |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| every Wiring Test row | the six `.ci` files above, the scenarios above | each test function resolves: `grep -rl 'func <Test>('` finds all fifteen named Go tests (for example `TestPPPoEClientUsesConfiguredDeviceName` in `internal/component/iface/pppoe_client_test.go`, `TestXFRMTunnelStateIsInstalledAFUnspec` in `internal/component/ike/dataplane/xfrm_integration_linux_test.go`); what each exercises was judged in its child's closure |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | child 10's guide maps or drops every construct of the survey, and child 11's conversion record lists every line of the synthetic source as mapped or dropped (`dcc20ffb68^`, Goal Validation row 2). The synthetic source covers part of the guide's inventory (child 11 A-2 broken), homed in `plan/release/validation/spec-home-cpe-lab-guide-construct-coverage.md` |
+
+### Remaining before commit A
+| Item | Owner |
+|------|-------|
+| child 23b's closure | `plan/release/fixes/spec-home-cpe-23b-dns-source-consumers.md` |
+| the whole-CPE lab rerun, eleven logs ending `exit=0` | main thread, `umbrella-lab.sh`; its result fills the Goal Validation pending cells |
