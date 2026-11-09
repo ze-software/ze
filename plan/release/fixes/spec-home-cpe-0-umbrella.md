@@ -101,7 +101,7 @@ Child spec files, all in `plan/release/fixes/`:
 | 9 | `spec-home-cpe-9-mss-clamp-to-pmtu.md` |
 | 10 | `spec-home-cpe-10-vyos-mapping-guide.md` |
 | 11 | `spec-home-cpe-11-lab.md` |
-| 12 | `spec-home-cpe-12-pppoe-client-lcp-renegotiation.md` |
+| 12 | Closed (2026-11-09): `spec-home-cpe-12-pppoe-client-lcp-renegotiation`; PPPoE client LCP renegotiation in every phase documented in `docs/architecture/l2tp/cpe-1-pppoe-client.md` and `docs/guide/configuration.md` ("PPPoE Client") |
 | 13 | Closed (2026-11-08): `spec-home-cpe-13-pppoe-client-ipcp-dns`; IPCP-learned DNS documented in `docs/architecture/l2tp/cpe-1-pppoe-client.md` and `docs/features/dns-resolver.md` |
 | 14 | `spec-home-cpe-14-lac-realm-relay.md` |
 | 15 | Closed (2026-11-08): `spec-home-cpe-15-lns-lcp-renegotiation`; the `l2tp proxy-lcp` leaf, its session outcome and its counter label documented in `docs/guide/l2tp.md` ("PPP negotiation") |
@@ -408,7 +408,7 @@ Each child owns its wiring tests; the rows below name one per child from its spe
 | clamp-to-PMTU term (`spec-home-cpe-9-mss-clamp-to-pmtu.md`) | → | firewall apply | `test/firewall/firewall-tcp-mss-clamp-to-pmtu.ci` |
 | guide worked example (`spec-home-cpe-10-vyos-mapping-guide.md`) | → | `ze config validate` | `test/parse/vyos-guide-example.ci` |
 | converted CPE configuration (`spec-home-cpe-11-lab.md`) | → | CPE load and commit verifiers | scenario `conversion` |
-| LCP Configure-Request during CHAP (`spec-home-cpe-12-pppoe-client-lcp-renegotiation.md`) | → | renegotiation | `TestRFC1661ClientRenegotiatesLCPDuringAuth` |
+| LCP Configure-Request during CHAP (`spec-home-cpe-12-pppoe-client-lcp-renegotiation`, closed) | → | renegotiation | `TestRFC1661ClientRenegotiatesLCPDuringAuth` |
 | IPCP Configure-Nak with DNS (`spec-home-cpe-13-pppoe-client-ipcp-dns`, closed; `docs/architecture/l2tp/cpe-1-pppoe-client.md`) | → | resolver lease | `TestPPPoEClientSetsResolverLease` |
 | realm relay config and subscriber (`spec-home-cpe-14-lac-realm-relay.md`) | → | realm match, proxy LCP | `TestRelaySinkRealmMatchPlacesCallWithProxyLCP` |
 | `proxy-lcp renegotiate` (`spec-home-cpe-15-lns-lcp-renegotiation`, closed; `docs/guide/l2tp.md`) | → | non-proxy session branch | `TestL2TPProxyLCPRenegotiateReachesDriver` |

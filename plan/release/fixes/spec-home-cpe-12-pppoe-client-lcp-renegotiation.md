@@ -2,22 +2,32 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | Shipped PPPoE client misbehaves on an accepted configuration: an access network that renegotiates LCP after the LAC opened it (the wholesale L2TP shape) never gets its Configure-Request answered, so the session times out and the CPE never comes up. Blocks the home-CPE migration. |
 | RFC gaps | RFC1661-4.3-1, RFC1661-3.6-2 |
 | Depends | Implementation: none. Closure: the scenario this spec owns, `access-wholesale-accel-lns`, needs `spec-home-cpe-14-lac-realm-relay.md` and `spec-home-cpe-18-interoplab-multi-link-topology.md` implemented. `access-wholesale` is owned by `spec-home-cpe-15-lns-lcp-renegotiation.md` and does not hold this spec's closure (umbrella "Scenario ownership") |
-| Phase | 5/6 |
+| Phase | 6/6 |
 | Handoff | - |
 | Updated | 2026-11-09 |
 
 Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
 
-## Blocker
+## Closure history
+
+Fifth attempt, 2026-11-09, on HEAD `30fc41f279`: the fourth attempt's row 1
+is cleared. `TestDialRenegotiatesLCPInNetworkPhase` observed red in 4s on Ze
+7.3 under the break in `(*connectedSession).restart` (`NPModeDrop` ->
+`NPModePass`, `rwinv/out-gb8/rec-c12-362.log`, record committed in
+`30fc41f279`), and `./le rfc check` reports no rfc1661 line
+(`c12-rfccheck-6.log`). The closure landed; the one open item is the lint
+re-run in Pre-Commit Verification.
+
+### Fourth attempt (2026-11-09)
 
 Closure attempt 2026-11-09 (fourth), on HEAD `3625fc2764`. One piece of owed
-evidence has no log, so commit A is held again: row 1 below.
+evidence had no log, so commit A was held again: row 1 below.
 
 | # | Owed | Why it is not met | What clears it |
 |---|------|-------------------|----------------|
@@ -802,12 +812,12 @@ adding an operator option or an unrelated fallback.
 | AC-1 | Done | `TestRFC1661ClientRenegotiatesLCPDuringAuth` | |
 | AC-2 | Done | `TestRFC1661ClientNaksRenegotiationZeroMagic`, `TestClientRenegotiationNakNeedsPeerAcceptance` | |
 | AC-3 | Done | `TestRFC1661ClientRenegotiatesLCPDuringIPCP` | |
-| AC-4 | Done | `TestRFC1661ClientRenegotiatesLCPInNetworkPhase`, `TestConnectedExchangeRestarts`, `pppoe-client-lcp-renegotiation` | 7.3 run of `TestDialRenegotiatesLCPInNetworkPhase` owed (Blocker rows 1, 2) |
-| AC-5 | Done | `TestPPPoEClientSessionChanges/local`, `/both-addresses`, `TestPPPoEConfigRenegotiatesKernelState` | the kernel test ran on 7.2.9-ze only (Blocker row 2) |
+| AC-4 | Done | `TestRFC1661ClientRenegotiatesLCPInNetworkPhase`, `TestConnectedExchangeRestarts`, `pppoe-client-lcp-renegotiation` | `TestDialRenegotiatesLCPInNetworkPhase` PASS on 7.3 (`out-gb7/c12-iface-k73.log`) |
+| AC-5 | Done | `TestPPPoEClientSessionChanges/local`, `/both-addresses`, `TestPPPoEConfigRenegotiatesKernelState` | kernel test PASS on 7.3 (`out-gb7/c12-iface-k73.log`) |
 | AC-6 | Done | `TestRFC1661ClientRenegotiationChangesAuthProto` | |
 | AC-7 | Done | `TestRestartEchoSequence` | |
 | AC-8 | Done | `TestConnectedRestartFailures` | |
-| AC-9 | Done | `TestDialRenegotiatesLCPInNetworkPhase` | record owed (Blocker row 1) |
+| AC-9 | Done | `TestDialRenegotiatesLCPInNetworkPhase` | record observed red (`out-gb8/rec-c12-362.log`, `30fc41f279`) |
 | AC-10 | Done | `TestPPPoEClientSessionChanges/peer` | |
 | AC-11 | Done | `TestPPPoEClientSessionChanges/mtu`, `TestPPPoEClientChangedMTUHitsConfiguredCap` | |
 | AC-12 | Done | `TestPPPoEClientSessionChanges/unchanged`, `TestPPPoEClientChangeRouteRetry` | |
@@ -821,7 +831,7 @@ adding an operator option or an unrelated fallback.
 |------|--------|----------|-------|
 | pppoeclient and iface units | Done | `internal/component/l2tp/pppoeclient/`, `internal/component/iface/` | Darwin `ok` on `dbbfd58c39` (`c12-close-unit.log`) |
 | `pppoe-client-lcp-renegotiation` | Done | `test/pppoe/pppoe-client-lcp-renegotiation.ci` | clean and broken on 7.3.0-ze |
-| Linux integration (`TestDialRenegotiatesLCPInNetworkPhase`, `TestPPPoEConfigRenegotiatesKernelState`, `TestDialAcknowledgesFirstEagerIPCP`) | Partial | `internal/component/iface/`, `internal/component/l2tp/pppoeclient/` | 7.3 runs owed (Blocker row 2) |
+| Linux integration (`TestDialRenegotiatesLCPInNetworkPhase`, `TestPPPoEConfigRenegotiatesKernelState`, `TestDialAcknowledgesFirstEagerIPCP`) | Done | `internal/component/iface/`, `internal/component/l2tp/pppoeclient/` | PASS on 7.3 (`out-gb7/c12-iface-k73.log`, `out-gb7/c12-pppoeclient-k73.log`) |
 | `access-wholesale-accel-lns` | Done | `test/interop-topology/scenarios/access-wholesale-accel-lns/` | red and green |
 
 ### Files from Plan
@@ -831,8 +841,8 @@ adding an operator option or an unrelated fallback.
 
 ### Audit Summary
 - **Total items:** 3 requirements, 16 ACs, 4 test groups
-- **Done:** all but the Linux integration test group
-- **Partial:** the Linux integration group, whose 7.3 runs are owed evidence, not scope (Blocker)
+- **Done:** all
+- **Partial:** none
 - **Skipped:** none
 - **Changed:** see Deviations
 
@@ -849,14 +859,14 @@ adding an operator option or an unrelated fallback.
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| none | the open items are owed evidence for this spec, held in its Blocker | `plan/release/fixes/spec-home-cpe-12-pppoe-client-lcp-renegotiation.md` |
+| none | every in-scope item is done; the lint re-run is evidence, recorded under Pre-Commit Verification | - |
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
 | Artifact | `tmp/review/home-cpe-12-pppoe-client-lcp-renegotiation-7e292f27-ced0-427f-a7b6-3a931db211f9.md` (119 files: every file of `86bc403a4e`, `a02374d9ad` and `ba8d4732ff` outside `plan/`, test files included, all of `internal/test/pppoeac`, `docs/guide/configuration.md`, and the files of `3625fc2764`); findings in `tmp/session/2026-11-07-104251/scratch/c12-review-findings.md` (round 2 added) |
-| `./le spec review check` | clean (102 code files, hashes match), 2026-11-09, fourth attempt |
+| `./le spec review check` | clean (102 code files, hashes match), 2026-11-09, fourth attempt; re-recorded in the fifth attempt over 117 files: the spec added, and three files dropped because another session changed them after the review (`docs/features/interfaces.md` and `iface/register.go` in `83f0f6c683`, `docs/guide/configuration.md` dirty in the working tree); their reviewed content is the committed one |
 | Rounds | 2 (round 2: test hunks and `internal/test/pppoeac`, 0 BLOCKER, 0 ISSUE, two NOTEs) |
 | Reviewer lenses used | logic and wiring (`restart`, `awaitApplied` and `acknowledge`, the `negotiateLCP` counter, `runSession` apply and `Applied`); security and edge cases (no peer-reachable panic, the two `BUG` panics guard local state; bounds are ten epochs, Max-Configure 10 and the 60 s LCP deadline, and PADT or Cleanup ends `awaitApplied`); backend ownership (`RemoveAddressP2P` exact pair) |
 
@@ -899,7 +909,7 @@ surface; this spec's TDD tables carry the old packet test file name.
 | ID | Final Status | Evidence |
 |----|--------------|----------|
 | A-1 | confirmed on 7.2.9-ze and 7.3 | `rwinv/out-gb7/c12-iface-k73.log`, `c12-pppoeclient-k73.log` |
-| A-2 | confirmed on 7.2.9-ze and 7.3; its red record owed | Blocker row 1 |
+| A-2 | confirmed on 7.2.9-ze and 7.3, red under the `NPModePass` break | `rwinv/out-gb8/rec-c12-362.log` "observed red in 4s"; record `rfc/discrimination/rfc1661/RFC1661-3.6-2.json` (`30fc41f279`) |
 | A-3 | confirmed on 7.3.0-ze by the netns walk (same session 44, same ifindex) | `out-gb6/pppoe-clean.log` |
 | A-4 | confirmed | `test/interop-pppoe/Dockerfile.accel` declares 1.14.0 |
 
@@ -909,3 +919,8 @@ surface; this spec's TDD tables carry the old packet test file name.
 | guide: forwarding resumes after the interface applies | `connected_session.go` `restart` lines 198-205; `pppoe_client.go` `runSession` lines 471-473 | yes |
 | counter name and label | `metrics.go` line 31, label `name` | yes |
 | architecture page: apply before PASS, Restart counter | `cpe-1-pppoe-client.md` lines 45 and 291-295 against `restart` and `negotiateLCP` | yes |
+
+### Open item at commit A
+| Item | State | Command |
+|------|-------|---------|
+| Lint re-run over `3625fc2764`'s files | running in guest batch 9, step `==host lint c12 fix scope`; `rwinv/out-gb9/c12-lint.log` absent at commit A. The earlier run's remaining findings are in other sessions' files, named in Closure history | `./le go lint run scope "./internal/component/l2tp/pppoeclient/... ./internal/component/iface/... ./internal/test/fixture/..."` |
