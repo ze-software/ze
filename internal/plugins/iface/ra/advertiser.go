@@ -16,6 +16,21 @@ import (
 	"github.com/ze-software/ze/internal/core/routewatch"
 )
 
+// rdnssWithdrawnPerRA is the most resolvers one advertisement withdraws: the
+// max-elements of rdnss server, so the Lifetime-0 RDNSS option is never longer
+// than the live one and an advertisement stays well inside the minimum link
+// MTU. A longer queue goes out over the following advertisements.
+const rdnssWithdrawnPerRA = 8
+
+// retiringRDNSSMax bounds the resolvers waiting for their withdrawal. The
+// queue grows while nothing can be sent (the link is down, or the rate limit
+// of ndp.CeaseWait holds the next advertisement), so it is capped at what the
+// initial burst a link-up starts carries: ndp.MaxInitialAdvertisements
+// advertisements of rdnssWithdrawnPerRA each. When it is full the oldest
+// withdrawal is dropped, and that host keeps the resolver until the Lifetime
+// last advertised for it runs out.
+const retiringRDNSSMax = ndp.MaxInitialAdvertisements * rdnssWithdrawnPerRA
+
 // mainRouteTable is the kernel's main routing table (RT_TABLE_MAIN), where the
 // WAN default route lives, whether Router Discovery or the operator put it.
 const mainRouteTable = 254
@@ -29,9 +44,10 @@ type advertiser struct {
 	// retiring holds the delegated /64s an update dropped. The next
 	// advertisement carries each once with zero lifetimes, then forgets it.
 	retiring []iface.DelegatedAdvert
-	// retiringRDNSS holds the resolvers an update dropped. The next
-	// advertisement carries them once in an RDNSS option of Lifetime 0, then
-	// forgets them.
+	// retiringRDNSS holds the resolvers an update dropped, oldest first, at
+	// most retiringRDNSSMax. Each advertisement carries the first
+	// rdnssWithdrawnPerRA of them in an RDNSS option of Lifetime 0, and sent
+	// forgets the ones that went out.
 	retiringRDNSS []netip.Addr
 	// lastLifetime is the Router Lifetime of the last advertisement sent,
 	// and sentAny says one was sent at all.
@@ -42,8 +58,11 @@ type advertiser struct {
 // update replaces the spec. A delegated /64 the new spec no longer carries is
 // retired: the lease ended, or the unit no longer numbers from it. A resolver
 // the new spec no longer advertises is retired the same way: its learned
-// record was withdrawn, or the unit's dns-source list now selects another.
-func (a *advertiser) update(spec iface.RASenderSpec) {
+// record was withdrawn, or the unit's dns-source list now selects another. A
+// retiring resolver the new spec advertises again is live, and leaves the
+// queue. update answers the withdrawals the full queue dropped, for the
+// caller to log.
+func (a *advertiser) update(spec iface.RASenderSpec) (dropped []netip.Addr) {
 	for _, old := range a.spec.Delegated {
 		kept := slices.ContainsFunc(spec.Delegated, func(d iface.DelegatedAdvert) bool {
 			return d.Address.Masked() == old.Address.Masked()
@@ -61,7 +80,15 @@ func (a *advertiser) update(spec iface.RASenderSpec) {
 		}
 		a.retiringRDNSS = append(a.retiringRDNSS, old)
 	}
+	a.retiringRDNSS = slices.DeleteFunc(a.retiringRDNSS, func(addr netip.Addr) bool {
+		return slices.Contains(spec.Advertisement.RDNSS, addr)
+	})
+	if over := len(a.retiringRDNSS) - retiringRDNSSMax; over > 0 {
+		dropped = slices.Clone(a.retiringRDNSS[:over])
+		a.retiringRDNSS = slices.Delete(a.retiringRDNSS, 0, over)
+	}
 	a.spec = spec
+	return dropped
 }
 
 // build returns the advertisement to send at now. wanDefault says whether a
@@ -83,13 +110,9 @@ func (a *advertiser) build(now time.Time, wanDefault bool) ndp.RAConfig {
 		cfg.Routes = withRoute(cfg.Routes, d.Delegated.Masked(), 0)
 	}
 	cfg.RDNSSLifetime = a.rdnssLifetime(now)
-	for _, addr := range a.retiringRDNSS {
-		// An address advertised again is live, and one option says so.
-		if slices.Contains(cfg.RDNSS, addr) {
-			continue
-		}
-		cfg.RDNSSWithdrawn = append(cfg.RDNSSWithdrawn, addr)
-	}
+	// update keeps a live resolver out of the queue, so none of these is
+	// also in cfg.RDNSS.
+	cfg.RDNSSWithdrawn = append(cfg.RDNSSWithdrawn, a.retiringRDNSS[:min(len(a.retiringRDNSS), rdnssWithdrawnPerRA)]...)
 	cfg.RouterLifetime = a.routerLifetime(now, wanDefault)
 	return cfg
 }
@@ -220,12 +243,27 @@ func (a *advertiser) urgent(now time.Time, wanDefault bool) bool {
 	return (a.lastLifetime > 0) != (next > 0)
 }
 
-// sent records the advertisement that left, which ends every retirement.
+// sent records the advertisement that left. It ends every prefix retirement
+// and the withdrawal of each resolver cfg carried; a resolver still queued
+// goes in the next advertisement, which urgent brings forward.
 func (a *advertiser) sent(cfg ndp.RAConfig) {
 	a.lastLifetime = cfg.RouterLifetime
 	a.sentAny = true
 	a.retiring = nil
+	a.retiringRDNSS = slices.DeleteFunc(a.retiringRDNSS, func(addr netip.Addr) bool {
+		return slices.Contains(cfg.RDNSSWithdrawn, addr)
+	})
+}
+
+// abandon drops every retirement, prefix and resolver, and answers the
+// resolvers dropped. The send loop calls it when an advertisement could not
+// be encoded, so the next one carries the live state alone and a withdrawal
+// that cannot be written never stops the unit advertising.
+func (a *advertiser) abandon() (dropped []netip.Addr) {
+	dropped = a.retiringRDNSS
+	a.retiring = nil
 	a.retiringRDNSS = nil
+	return dropped
 }
 
 // defaultRouteKey identifies one IPv6 default route in the main table.

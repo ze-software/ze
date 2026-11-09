@@ -61,6 +61,9 @@ type raRDNSSSelection struct {
 	expires time.Time
 	// dropped are the host-only addresses the list refused, for the log.
 	dropped []netip.Addr
+	// offLink are the link-local addresses whose zone is another link than
+	// the unit's, refused before the list ran (raOnLink), for the log.
+	offLink []netip.Addr
 	// cut is how many selected servers did not fit the option.
 	cut int
 	// chosen is the selection as it is published (publishRASelections), its
@@ -71,20 +74,23 @@ type raRDNSSSelection struct {
 // raSelectRDNSS applies the unit's list to its candidates: configured is the
 // rdnss server leaf-list, received the learned records at now, and self the
 // unit's own global or unique-local address (D-6), absent when it holds none.
-func raSelectRDNSS(cfg *raUnitConfig, self netip.Addr, records []dnssource.Record, now time.Time) raRDNSSSelection {
+// device is the kernel device the unit advertises on (raUnitDevice), "" when
+// it is bound to none.
+func raSelectRDNSS(cfg *raUnitConfig, device string, self netip.Addr, records []dnssource.Record, now time.Time) raRDNSSSelection {
 	list := cfg.Sources
 	if list.IsZero() {
 		list = raRDNSSDefault
 	}
+	var offLink []netip.Addr
 	candidates := dnssource.Candidates{
-		dnssource.ClassConfigured: cfg.RDNSS,
-		dnssource.ClassReceived:   list.Received(records, now),
+		dnssource.ClassConfigured: raOnLink(cfg.RDNSS, device, &offLink),
+		dnssource.ClassReceived:   raOnLink(list.Received(records, now), device, &offLink),
 	}
 	if self.IsValid() {
 		candidates[dnssource.ClassSelf] = []netip.Addr{self}
 	}
 	selection := dnssource.Select(list, candidates)
-	out := raRDNSSSelection{servers: selection.Servers, dropped: selection.Dropped}
+	out := raRDNSSSelection{servers: selection.Servers, dropped: selection.Dropped, offLink: offLink}
 	if len(out.servers) > raRDNSSServersMax {
 		out.cut = len(out.servers) - raRDNSSServersMax
 		out.servers = out.servers[:raRDNSSServersMax]
@@ -96,6 +102,53 @@ func raSelectRDNSS(cfg *raUnitConfig, self netip.Addr, records []dnssource.Recor
 		out.expires = receivedEnd(out.servers, candidates[dnssource.ClassConfigured], self, records, now)
 	}
 	return out
+}
+
+// raOnLink answers addrs without the link-local addresses that belong to
+// another link than device, and appends each one it removes to offLink.
+//
+// RFC 8106 Section 5.1: "When a resolver sends a DNS query message to an
+// RDNSS identified by a link-local address, it MUST use the corresponding
+// link." A link-local resolver learned from an RA carries the device the RA
+// arrived on as its zone (raRDNSS.handle). The RDNSS option has no room for a
+// zone, so a host on this unit's link reads the address as one on its own
+// link, where it is not the resolver. A zoned link-local is therefore handed
+// on only by the unit on its own device. A zone-less one is left to the
+// list's host-only check (D-16), which drops it.
+func raOnLink(addrs []netip.Addr, device string, offLink *[]netip.Addr) []netip.Addr {
+	var kept []netip.Addr
+	for _, addr := range addrs {
+		if raOffLink(addr, device) {
+			*offLink = append(*offLink, addr)
+			continue
+		}
+		kept = append(kept, addr)
+	}
+	return kept
+}
+
+// raOffLink reports whether addr is a link-local address zoned to another
+// link than device. With no device every zoned link-local is off the unit's
+// link, because the unit has none to share with it.
+func raOffLink(addr netip.Addr, device string) bool {
+	if !addr.IsLinkLocalUnicast() {
+		return false
+	}
+	if addr.Zone() == "" {
+		return false
+	}
+	return addr.Zone() != device
+}
+
+// raUnitDevice answers the kernel device a unit advertises on, through the
+// shared resolver, or "" when its interface is bound to no device now.
+func raUnitDevice(ifaceName string, u *unitEntry) string {
+	parent, err := resolveDeviceName(ifaceName)
+	// refuse-by-default: guards raOffLink -- a unit bound to no device has no link, so every zoned link-local is off it
+	if err != nil {
+		return ""
+	}
+	return unitOSName(parent, u)
 }
 
 // receivedEnd answers the earliest end of validity among the servers that
@@ -193,16 +246,23 @@ func raUsableSelf(text string) netip.Addr {
 }
 
 // logRDNSSSelection logs, at WARN, each host-only address the selection
-// dropped and each server that did not fit the option (D-16), once per
+// dropped, each link-local address of another link it refused, and each server that did not fit the option (D-16), once per
 // change from the previous selection, so a steady state does not repeat the
 // lines on every reconcile.
 func logRDNSSSelection(log *slog.Logger, key raUnitKey, selection, previous raRDNSSSelection) {
-	if slices.Equal(selection.dropped, previous.dropped) && selection.cut == previous.cut {
+	if slices.Equal(selection.dropped, previous.dropped) && selection.cut == previous.cut &&
+		slices.Equal(selection.offLink, previous.offLink) {
 		return
 	}
 	for _, addr := range selection.dropped {
 		log.Warn("interface: host-only resolver not advertised in RDNSS",
 			"path", raRDNSSSourcePath, "iface", key.ifaceName, "unit", key.unit, "address", addr)
+	}
+	for _, addr := range selection.offLink {
+		log.Warn("interface: link-local resolver of another link not advertised in RDNSS; "+
+			"a host on this link cannot reach it, so name a global resolver in rdnss server",
+			"path", raRDNSSSourcePath, "iface", key.ifaceName, "unit", key.unit,
+			"address", addr.WithZone(""), "link", addr.Zone())
 	}
 	if selection.cut > 0 {
 		log.Warn("interface: resolvers beyond what the RDNSS option carries not advertised",

@@ -170,7 +170,7 @@ func reconcileRA(cfg *ifaceConfig, active map[raUnitKey]raEntry, log *slog.Logge
 		}
 		spec.Delegated, _ = claimDelegatedAdverts(u, now) // the delegation worker reports refusals
 		self := raSelfAddress(u, spec.Delegated)
-		selection := raSelectRDNSS(u.IPv6.RouterAdvertisement, self, learned, now)
+		selection := raSelectRDNSS(u.IPv6.RouterAdvertisement, raUnitDevice(ifaceName, u), self, learned, now)
 		spec.Advertisement.RDNSS = selection.servers
 		spec.RDNSSExpires = selection.expires
 		desired[key] = spec

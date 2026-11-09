@@ -283,8 +283,12 @@ func (s *Sender) run(ctx context.Context, conn net.PacketConn, pc *ipv6.PacketCo
 		}
 		n := ndp.BuildRA(buf, 0, cfg)
 		if n == 0 {
-			s.log.Error("iface-ra: advertisement did not fit its buffer, nothing sent",
-				"iface", s.spec.Interface, "need", ndp.RALen(cfg), "have", len(buf))
+			// The next advertisement carries the live state alone, so a
+			// withdrawal that cannot be encoded never silences the unit.
+			s.log.Error("iface-ra: advertisement could not be encoded, nothing sent; its withdrawals are dropped",
+				"iface", s.spec.Interface, "need", ndp.RALen(cfg), "have", len(buf),
+				"rdnss", len(cfg.RDNSS), "rdnss-withdrawn", len(cfg.RDNSSWithdrawn))
+			s.logDroppedWithdrawals(adv.abandon())
 			return
 		}
 		if _, err := pc.WriteTo(buf[:n], control, dst); err != nil {
@@ -333,7 +337,7 @@ func (s *Sender) run(ctx context.Context, conn net.PacketConn, pc *ipv6.PacketCo
 			return
 
 		case spec := <-s.updates:
-			adv.update(spec)
+			s.logDroppedWithdrawals(adv.update(spec))
 			watchWAN()
 			hurry()
 
@@ -374,7 +378,20 @@ func (s *Sender) run(ctx context.Context, conn net.PacketConn, pc *ipv6.PacketCo
 			state.solicitedPending = false
 			send(build(), solicited)
 			rearm(time.Now().Add(ndp.UnsolicitedInterval(adv.spec.MinimumInterval, adv.spec.MaximumInterval, state.sent, random)))
+			// Withdrawals beyond what one advertisement carries go in the
+			// next, at the rate limit rather than the periodic schedule.
+			hurry()
 		}
+	}
+}
+
+// logDroppedWithdrawals logs, at WARN, each resolver whose withdrawal the
+// advertiser dropped: hosts on the link keep it until the Lifetime last
+// advertised for it runs out.
+func (s *Sender) logDroppedWithdrawals(dropped []netip.Addr) {
+	for _, addr := range dropped {
+		s.log.Warn("iface-ra: resolver withdrawal dropped, hosts keep it until its advertised RDNSS lifetime ends",
+			"iface", s.spec.Interface, "address", addr, "queued-max", retiringRDNSSMax)
 	}
 }
 

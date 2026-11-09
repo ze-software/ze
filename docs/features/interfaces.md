@@ -989,12 +989,15 @@ the learned resolvers instead of no RDNSS option.
 | Case | What the RDNSS option carries |
 |------|-------------------------------|
 | a learned resolver | a lifetime no longer than what remains of the lease that supplied it, recomputed at every send |
-| a resolver the unit stops advertising (lease withdrawn, `server` committed) | one advertisement, sent at once, with a second RDNSS option of lifetime 0 for it |
+| a resolver the unit stops advertising (lease withdrawn, `server` committed) | one advertisement, sent at once, with a second RDNSS option of lifetime 0 for it; past 8 withdrawals the rest go in the next advertisements, at the RA rate limit |
+| withdrawals queued while nothing can be sent (the link is down) | at most 24, what the 3 advertisements of the initial burst carry; each older one dropped is logged at WARN, and hosts keep it until its last advertised lifetime ends |
 | a loopback or zone-less link-local address | never advertised; each drop is logged at WARN with the path |
+| a link-local address learned on another link (`fe80::1%wan0` on a LAN unit) | never advertised: the option carries no zone, so a host would query it on its own link (RFC 8106 Section 5.1); each drop is logged at WARN. One learned on the unit's own device is advertised |
 | more than 8 selected | the first 8 in list order; the rest are logged |
 
 <!-- source: internal/component/iface/ra_dns_source.go -- raSelectRDNSS, receivedEnd, raSelfAddress, logRDNSSSelection -->
-<!-- source: internal/plugins/iface/ra/advertiser.go -- advertiser.update, advertiser.rdnssLifetime -->
+<!-- source: internal/component/iface/ra_dns_source.go -- raOnLink, raOffLink, raUnitDevice -->
+<!-- source: internal/plugins/iface/ra/advertiser.go -- advertiser.update, advertiser.build, advertiser.sent, advertiser.rdnssLifetime, retiringRDNSSMax -->
 
 ### Validation
 

@@ -109,7 +109,7 @@ func TestRDNSSDropsHostOnlyAddresses(t *testing.T) {
 	cfg := mustParseRA(t, `{"enabled": "true"}`)
 	learned := []dnssource.Record{raLeaseRecord(time.Time{}, "::1", "fe80::1", "2001:db8::53")}
 
-	selection := raSelectRDNSS(cfg, netip.Addr{}, learned, time.Now())
+	selection := raSelectRDNSS(cfg, "lan0", netip.Addr{}, learned, time.Now())
 
 	assert.Equal(t, []netip.Addr{netip.MustParseAddr("2001:db8::53")}, selection.servers)
 	assert.Equal(t, []netip.Addr{netip.MustParseAddr("::1"), netip.MustParseAddr("fe80::1")}, selection.dropped)
@@ -130,7 +130,7 @@ func TestRDNSSLifetimeBoundedByLease(t *testing.T) {
 		raLeaseRecord(later, "2001:db8::54"),
 	}
 
-	selection := raSelectRDNSS(cfg, netip.Addr{}, learned, now)
+	selection := raSelectRDNSS(cfg, "lan0", netip.Addr{}, learned, now)
 
 	require.Len(t, selection.servers, 2)
 	assert.True(t, selection.expires.Equal(later), "::54 ends at its later record, before ::53")
@@ -150,4 +150,44 @@ func TestRDNSSDNSSourceRefused(t *testing.T) {
 	}
 	_, err := parseIfaceConfig(raUnitJSON(`{"enabled": "true", "rdnss": {"dns-source": {"source": ["configured", "received"], "mode": "merge"}}}`))
 	require.NoError(t, err, "the same list with mode is accepted")
+}
+
+// VALIDATES: finding 4 of the 23b review, RFC 8106 Section 5.1 on the
+// advertising side. A link-local resolver learned on wan0 carries wan0 as its
+// zone; a lan0 unit refuses it, reports it as off its link, and advertises
+// the next usable entry. The same address zoned to lan0 is the unit's own
+// link and is advertised, and a unit bound to no device refuses both.
+// PREVENTS: a LAN host told to query fe80::1 on its own link, where the WAN
+// resolver is not.
+//
+// RFC requirement: RFC8106-5.1-2 positive -- a link-local resolver zoned to another device than the unit's is left out of the unit's RDNSS servers and reported off its link, while one zoned to the unit's own device is kept.
+func TestRDNSSRefusesLinkLocalOfAnotherLink(t *testing.T) {
+	cfg := mustParseRA(t, `{"enabled": "true"}`)
+	wanLinkLocal := netip.MustParseAddr("fe80::1%wan0")
+	lanLinkLocal := netip.MustParseAddr("fe80::2%lan0")
+	global := netip.MustParseAddr("2001:db8::53")
+	learned := []dnssource.Record{raLeaseRecord(time.Time{}, "fe80::1%wan0", "fe80::2%lan0", "2001:db8::53")}
+
+	t.Run("lan0 unit", func(t *testing.T) {
+		selection := raSelectRDNSS(cfg, "lan0", netip.Addr{}, learned, time.Now())
+		assert.Equal(t, []netip.Addr{lanLinkLocal, global}, selection.servers)
+		assert.Equal(t, []netip.Addr{wanLinkLocal}, selection.offLink)
+		assert.Empty(t, selection.dropped, "a zoned link-local is not host-only")
+	})
+	t.Run("wan0 unit", func(t *testing.T) {
+		selection := raSelectRDNSS(cfg, "wan0", netip.Addr{}, learned, time.Now())
+		assert.Equal(t, []netip.Addr{wanLinkLocal, global}, selection.servers)
+		assert.Equal(t, []netip.Addr{lanLinkLocal}, selection.offLink)
+	})
+	t.Run("unit bound to no device", func(t *testing.T) {
+		selection := raSelectRDNSS(cfg, "", netip.Addr{}, learned, time.Now())
+		assert.Equal(t, []netip.Addr{global}, selection.servers)
+		assert.Equal(t, []netip.Addr{wanLinkLocal, lanLinkLocal}, selection.offLink)
+	})
+	t.Run("configured link-local of another link", func(t *testing.T) {
+		configured := mustParseRA(t, `{"enabled": "true", "rdnss": {"server": ["fe80::9%wan0", "2001:db8::99"]}}`)
+		selection := raSelectRDNSS(configured, "lan0", netip.Addr{}, nil, time.Now())
+		assert.Equal(t, []netip.Addr{netip.MustParseAddr("2001:db8::99")}, selection.servers)
+		assert.Equal(t, []netip.Addr{netip.MustParseAddr("fe80::9%wan0")}, selection.offLink)
+	})
 }
