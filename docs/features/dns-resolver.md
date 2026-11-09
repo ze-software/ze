@@ -287,6 +287,13 @@ has published, sorted by name. A consumer that has not published yet is
 absent: its plugin is not running or has not received its first snapshot.
 <!-- source: internal/plugins/system-dns-cmd/cmd/show_dns.go -- showSystemDNS, newSystemDNSAnswer -->
 
+The registry exports `ze_dns_source_records{origin}`, the learned records
+each origin holds (zero once its leases are withdrawn), and
+`ze_dns_source_selection_changes_total{consumer}`, one per change of a
+consumer's published selection after its first, the router's under
+`system`. A repeated publication of the same answer is not a change.
+<!-- source: internal/component/config/system/resolv_metrics.go -- SetMetrics, observe -->
+
 `show doctor` warns, for the router and every published list, when a list
 that names `received` selected no server (`doctor-dns-source-empty`), when a
 `received-interface` entry names an interface that holds no learned record

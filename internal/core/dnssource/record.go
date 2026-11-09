@@ -174,6 +174,46 @@ type ConsumerSelection struct {
 	Serves []netip.Addr `json:"serves,omitempty"`
 }
 
+// Equal reports whether c and other publish the same list and the same
+// answer. A nil slice and an empty one are equal: a publication decoded from
+// JSON holds either for the same answer.
+func (c *ConsumerSelection) Equal(other *ConsumerSelection) bool {
+	if c.Path != other.Path {
+		return false
+	}
+	if c.Instance != other.Instance {
+		return false
+	}
+	if c.Mode != other.Mode {
+		return false
+	}
+	if c.Default != other.Default {
+		return false
+	}
+	if !slices.Equal(c.Sources, other.Sources) {
+		return false
+	}
+	if !slices.Equal(c.ReceivedInterfaces, other.ReceivedInterfaces) {
+		return false
+	}
+	if !slices.Equal(c.Used, other.Used) {
+		return false
+	}
+	if !slices.Equal(c.Servers, other.Servers) {
+		return false
+	}
+	if !slices.Equal(c.Self, other.Self) {
+		return false
+	}
+	return slices.Equal(c.Serves, other.Serves)
+}
+
+// SameSelections reports whether two publications of one consumer carry the
+// same selections in the same order (ConsumerSelection.Equal).
+func SameSelections(a, b []ConsumerSelection) bool {
+	return slices.EqualFunc(a, b, func(x, y ConsumerSelection) bool { return x.Equal(&y) })
+}
+
 // NewConsumerSelection pairs list with what it selected, for the list named
 // instance at list's path.
 func NewConsumerSelection(list List, instance string, selection Selection) ConsumerSelection {

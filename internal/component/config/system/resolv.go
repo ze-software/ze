@@ -205,8 +205,10 @@ type Resolvers struct {
 	// consumers holds each consumer's last Publication, keyed by its name;
 	// the registry names no consumer, it keeps what each one publishes.
 	consumers map[string][]dnssource.ConsumerSelection
-	clock     clock.Clock // nil: the real clock
-	expiry    clock.Timer // armed to the earliest lease end; nil until one is bounded
+	// metrics is nil until SetMetrics hands the registry its collectors.
+	metrics *resolverMetrics
+	clock   clock.Clock // nil: the real clock
+	expiry  clock.Timer // armed to the earliest lease end; nil until one is bounded
 
 	// notifyMu serializes delivery to watchers, so each watcher sees the
 	// snapshots in sequence order. It is taken before mu, never inside it.
@@ -430,7 +432,11 @@ func (r *Resolvers) SetPublication(publication *dnssource.Publication) error {
 	if r.consumers == nil {
 		r.consumers = make(map[string][]dnssource.ConsumerSelection)
 	}
+	previous, held := r.consumers[publication.Consumer]
 	r.consumers[publication.Consumer] = publication.Selections
+	if held && r.metrics != nil && !dnssource.SameSelections(previous, publication.Selections) {
+		r.metrics.selectionChanged(publication.Consumer)
+	}
 	return nil
 }
 

@@ -944,6 +944,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// plugin in this process or a forked one reads them from the bus.
 	stopDNSPublish := system.ProcessResolvers().PublishOn(apiServer)
 	defer stopDNSPublish()
+	// The registry's dns-source metrics are created once a metrics registry
+	// exists; the hook waits for it when telemetry starts later.
+	registry.InjectPluginMetrics("system-dns", system.ProcessResolvers().SetMetrics)
 
 	// Reactor-independent `request shutdown`: a BGP daemon stops via the reactor,
 	// but a reactorless daemon (BFD-only, DHCP-only, OSPF-only) needs the command

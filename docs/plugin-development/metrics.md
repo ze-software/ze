@@ -247,6 +247,8 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_dns_resolver_upstream_queries_total` | CounterVec | result | dnsresolver: one per upstream exchange, `answered`, `timeout`, `error`, `failure` or `truncated` |
 | `ze_dns_resolver_listener_up` | GaugeVec | protocol, address | dnsresolver: 1 while a listener socket is bound, by protocol and address with port |
 | `ze_dns_tcp_connection_refused_total` | Counter | | DNS server harness: one per TCP connection closed at accept because its listener held `Options.TCPConnMax` (the LAN resolver sets it) |
+| `ze_dns_source_records` | GaugeVec | origin | system-dns registry (`config/system` `Resolvers.SetMetrics`): the learned resolver records each origin holds, zero once its leases are withdrawn |
+| `ze_dns_source_selection_changes_total` | CounterVec | consumer | system-dns registry: one per change of a consumer's published dns-source selection after its first, the router's under consumer `system` |
 
 The three iface link-event counters answer the same question from different
 points on the path, and none of them reports a lost final state. A rising
