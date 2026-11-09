@@ -44,6 +44,12 @@ type AuthMetadata struct {
 	CoSProfile          string        // "cos:<name>" extracted from Filter-Id; empty if none
 	AcctInterimInterval uint32        // seconds, 0 = not set
 	FramedRoutes        []FramedRoute // RFC 2865 attr 22 + RFC 3162 attr 99
+	// DNSPrimary and DNSSecondary are the subscriber's resolvers from
+	// MS-Primary-DNS-Server and MS-Secondary-DNS-Server (RFC 2548 Sections
+	// 2.7.6 and 2.7.7, vendor 311 types 28 and 29). The zero Addr means the
+	// Access-Accept carried no such attribute, or one that was malformed.
+	DNSPrimary   netip.Addr
+	DNSSecondary netip.Addr
 }
 
 type metadataKey struct {

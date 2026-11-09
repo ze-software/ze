@@ -57,18 +57,34 @@ module ze-l2tp-pool-conf {
                 }
                 leaf dns-primary {
                     type zt:ipv4-address;
-                    description "Ze offers the address as the IPCP Primary DNS option, and it offers no such
-                        option while the leaf is absent. A subscriber that asks for another address gets
-                        a Configure-Nak carrying this one. Ze drops the option from its later requests
-                        when the subscriber rejects it.";
+                    description "The configured source's first server for the IPCP Primary DNS option (see
+                        dns-source, which decides whether RADIUS or the learned resolvers come first). A
+                        subscriber that asks for another address gets a Configure-Nak carrying the selected
+                        one. Ze drops the option from its later requests when the subscriber rejects it.";
                     ze:help "Primary DNS server pushed to subscribers.";
                 }
                 leaf dns-secondary {
                     type zt:ipv4-address;
-                    description "Ze offers the address as the IPCP Secondary DNS option, and it offers no
-                        such option while the leaf is absent. The leaf is independent of dns-primary, so
-                        a pool can name one, both, or neither.";
+                    description "The configured source's second server, offered in the IPCP Secondary DNS
+                        option when dns-source selects the configured source. The leaf is independent of
+                        dns-primary, so a pool can name one, both, or neither; with only this one set it
+                        fills the primary slot.";
                     ze:help "Secondary DNS server pushed to subscribers.";
+                }
+                uses zt:dns-source {
+                    refine dns-source {
+                        description "The sources of a subscriber's IPCP Primary and Secondary DNS, in order, for a
+                            session this pool serves. radius is the Access-Accept's MS-Primary-DNS-Server and
+                            MS-Secondary-DNS-Server; configured is dns-primary then dns-secondary; received is
+                            every IPv4 resolver Ze learned by DHCPv4, IPCP or the host's own resolv.conf; self is
+                            the gateway, Ze's own address on the subscriber's PPP link. The selection fills the
+                            primary slot, then the secondary, and Ze logs every server past the second. A loopback
+                            address is never offered, whatever its source, and each one dropped is logged. With
+                            the container absent the default is source radius, then configured, then received,
+                            mode first-usable: what RADIUS names when it names any, otherwise dns-primary and
+                            dns-secondary when either is set, otherwise the learned resolvers. Write source
+                            configured alone to offer only the pool's own servers.";
+                    }
                 }
             }
             list named-pool {
@@ -113,17 +129,24 @@ module ze-l2tp-pool-conf {
                 }
                 leaf dns-primary {
                     type zt:ipv4-address;
-                    description "A session RADIUS sends to this pool receives this address, and not the one
-                        the ipv4 pool holds. Ze offers no Primary DNS option while the leaf is absent,
-                        even when the ipv4 pool names one.";
+                    description "The configured source of a session RADIUS sends to this pool: this address,
+                        and never the one the ipv4 pool holds, even while this leaf is absent.";
                     ze:help "Primary DNS server pushed to subscribers.";
                 }
                 leaf dns-secondary {
                     type zt:ipv4-address;
-                    description "A session RADIUS sends to this pool receives this address, and not the one
-                        the ipv4 pool holds. Ze offers no Secondary DNS option while the leaf is absent,
-                        even when the ipv4 pool names one.";
+                    description "The second server of this pool's configured source, and never the ipv4
+                        pool's, even while this leaf is absent.";
                     ze:help "Secondary DNS server pushed to subscribers.";
+                }
+                uses zt:dns-source {
+                    refine dns-source {
+                        description "The sources of the IPCP DNS a session RADIUS sends to this pool receives, in
+                            order, read as under the ipv4 pool: radius, configured (this entry's dns-primary and
+                            dns-secondary, never the ipv4 pool's), received and self (this entry's gateway). The
+                            ipv4 pool's list does not apply here. With the container absent the default is source
+                            radius, then configured, then received, mode first-usable.";
+                    }
                 }
             }
             container ipv6-pd {

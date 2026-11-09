@@ -11,6 +11,7 @@ import (
 	"net/netip"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/l2tp"
 	"github.com/ze-software/ze/internal/component/l2tp/plugins/pool/yang"
@@ -19,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/configvalue"
+	"github.com/ze-software/ze/internal/core/dnssource"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -38,7 +40,11 @@ type poolPlugin struct {
 
 	busMu sync.Mutex
 	bus   ze.EventBus
-	unsub func()
+	unsub []func()
+
+	// learned is the newest system-dns snapshot, which the received source
+	// of every subscriber list reads when a session asks for its address.
+	learned dnssource.Follower
 
 	sessionAddrs    sync.Map // sessionKey -> sessionAddr (IPv4)
 	sessionPrefixes sync.Map // sessionKey -> sessionPrefix (IPv6)
@@ -113,13 +119,26 @@ func verifyPoolConfig(sections []sdk.ConfigSection) error {
 func (p *poolPlugin) setEventBus(eb ze.EventBus) {
 	p.busMu.Lock()
 	defer p.busMu.Unlock()
-	if p.unsub != nil {
-		p.unsub()
+	for _, unsub := range p.unsub {
+		unsub()
 	}
 	p.bus = eb
-	p.unsub = subevents.SessionDown.Subscribe(eb, func(payload *subevents.SessionDownPayload) {
-		p.onSessionDown(payload)
-	})
+	p.unsub = []func(){
+		subevents.SessionDown.Subscribe(eb, func(payload *subevents.SessionDownPayload) {
+			p.onSessionDown(payload)
+		}),
+		// The selection is evaluated when a session asks, so a snapshot
+		// needs no action beyond being kept.
+		dnssource.SnapshotEvent.Subscribe(eb, func(snapshot *dnssource.Snapshot) {
+			p.learned.AcceptSnapshot(snapshot)
+		}),
+	}
+	// A snapshot emitted before the subscription is not delivered, so ask for
+	// the current one: sessions that start now see the leases already held.
+	if _, err := dnssource.SnapshotRequest.Emit(eb); err != nil {
+		logger().Warn("l2tp-pool: learned resolvers not requested; the received source is empty until the next lease change",
+			"error", err)
+	}
 }
 
 // onSessionDown returns whatever the session held to the pool it came from.
@@ -285,6 +304,10 @@ func (p *poolPlugin) handle(req ppp.EventIPRequest) ppp.IPResponseArgs {
 		poolName = meta.FramedPool
 	}
 
+	// RFC 2548 Sections 2.7.6 and 2.7.7: the radius source is the
+	// Access-Accept's MS DNS servers, offered by the pool's dns-source list.
+	dns := selectSubscriberDNS(pool, meta, p.learned.Records(), time.Now(), logger())
+
 	// RFC 2865 Section 5.8: Framed-IP-Address bypasses pool allocation.
 	// Uses the selected pool's gateway/DNS (named pool if Framed-Pool
 	// was also set, default pool otherwise).
@@ -300,8 +323,8 @@ func (p *poolPlugin) handle(req ppp.EventIPRequest) ppp.IPResponseArgs {
 			Family:       ppp.AddressFamilyIPv4,
 			Local:        pool.gateway,
 			Peer:         meta.FramedIP,
-			DNSPrimary:   pool.dnsPrimary,
-			DNSSecondary: pool.dnsSecondary,
+			DNSPrimary:   dns.primary,
+			DNSSecondary: dns.secondary,
 		}
 	}
 
@@ -325,8 +348,8 @@ func (p *poolPlugin) handle(req ppp.EventIPRequest) ppp.IPResponseArgs {
 		Family:       ppp.AddressFamilyIPv4,
 		Local:        pool.gateway,
 		Peer:         addr,
-		DNSPrimary:   pool.dnsPrimary,
-		DNSSecondary: pool.dnsSecondary,
+		DNSPrimary:   dns.primary,
+		DNSSecondary: dns.secondary,
 	}
 }
 
@@ -593,7 +616,7 @@ func parseFullPoolConfig(data string) (poolConfigResult, error) {
 	var result poolConfigResult
 
 	if ipv4Block, ok := poolBlock["ipv4"].(map[string]any); ok {
-		p, err := parseIPv4Pool(ipv4Block)
+		p, err := parseIPv4Pool(ipv4Block, poolDNSSourcePath, poolDNSDefault)
 		if err != nil {
 			return poolConfigResult{}, err
 		}
@@ -638,7 +661,9 @@ func parseFullPoolConfig(data string) (poolConfigResult, error) {
 	return result, nil
 }
 
-func parseIPv4Pool(ipv4Block map[string]any) (*ipv4Pool, error) {
+// parseIPv4Pool reads one IPv4 pool block. sourcePath and builtin are the
+// config path and the built-in default of the block's dns-source list.
+func parseIPv4Pool(ipv4Block map[string]any, sourcePath string, builtin dnssource.List) (*ipv4Pool, error) {
 	gwStr, _ := ipv4Block["gateway"].(string)
 	if gwStr == "" {
 		return nil, fmt.Errorf("%s: pool ipv4 requires gateway (NAS-side IP)", Name)
@@ -689,7 +714,13 @@ func parseIPv4Pool(ipv4Block map[string]any) (*ipv4Pool, error) {
 		}
 	}
 
-	return newIPv4Pool(gateway, start, end, dnsPrimary, dnsSecondary), nil
+	sources, err := parsePoolSources(ipv4Block, sourcePath, builtin)
+	if err != nil {
+		return nil, err
+	}
+	pool := newIPv4Pool(gateway, start, end, dnsPrimary, dnsSecondary)
+	pool.sources = sources
+	return pool, nil
 }
 
 // parseNamedPools builds the Framed-Pool table. The pool name is the list KEY,
@@ -701,7 +732,7 @@ func parseNamedPools(entries []configvalue.ListEntry) (map[string]*ipv4Pool, err
 		if entry.Key == "" {
 			return nil, fmt.Errorf("%s: named-pool requires a name", Name)
 		}
-		pool, err := parseIPv4Pool(entry.Fields)
+		pool, err := parseIPv4Pool(entry.Fields, namedPoolDNSSourcePath, namedPoolDNSDefault)
 		if err != nil {
 			return nil, fmt.Errorf("%s: named-pool %q: %w", Name, entry.Key, err)
 		}

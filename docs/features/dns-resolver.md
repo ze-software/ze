@@ -206,7 +206,8 @@ daemon, so they cannot see a lease. They ask the server that `--server`
 that hands resolver addresses on writes the same list. The router's
 `system dns-source`, a DHCP subnet's option 6 (`service dhcp-server
 shared-network subnet dns-source`) and a unit's RA RDNSS (`interface ... unit
-... ipv6 router-advertisement rdnss dns-source`) use it.
+... ipv6 router-advertisement rdnss dns-source`) and a subscriber pool's IPCP
+DNS (`l2tp pool ipv4 dns-source`, `l2tp pool named-pool dns-source`) use it.
 
 | Leaf | Shape |
 |------|-------|
@@ -219,7 +220,7 @@ shared-network subnet dns-source`) and a unit's RA RDNSS (`interface ... unit
 | `received` | every unexpired learned record, by origin rank, then interface, then unit |
 | `configured` | the consumer's own static list: for the router, `system name-server` |
 | `self` | Ze's own address on the interface the client is on |
-| `radius` | the resolvers RADIUS gives one PPP subscriber |
+| `radius` | the resolvers RADIUS gives one PPP subscriber: the Access-Accept's MS-Primary-DNS-Server and MS-Secondary-DNS-Server (RFC 2548), allowed only in a pool's list |
 
 A class names a role, never a protocol. A protocol that learns resolvers
 registers an origin with a rank, and its records appear inside `received`.

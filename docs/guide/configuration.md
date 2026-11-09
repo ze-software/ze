@@ -4704,13 +4704,28 @@ l2tp {
 | `gateway` | IPv4 address | NAS-side IP sent to the subscriber as the PPP peer address |
 | `start` | IPv4 address | First allocatable address in the pool range |
 | `end` | IPv4 address | Last allocatable address in the pool range |
-| `dns-primary` | IPv4 address | Primary DNS server sent via IPCP |
-| `dns-secondary` | IPv4 address | Secondary DNS server sent via IPCP |
+| `dns-primary` | IPv4 address | The pool's first server, the `configured` source of its IPCP DNS |
+| `dns-secondary` | IPv4 address | The pool's second server, the `configured` source of its IPCP DNS |
+| `dns-source` | container | Where a subscriber's IPCP Primary and Secondary DNS come from: `source` (`radius`, `configured`, `received`, `self`), `mode`, `received-interface` |
 
 Named pools use the same settings nested under `named-pool <name> { }`.
+A named pool's `configured` source is its own `dns-primary` and
+`dns-secondary`, never the `ipv4` pool's.
+
+With no `dns-source`, a subscriber gets the MS-Primary-DNS-Server and
+MS-Secondary-DNS-Server of its Access-Accept when RADIUS sends either, the
+pool's `dns-primary` and `dns-secondary` otherwise, and the IPv4 resolvers Ze
+learned (DHCPv4, IPCP, the host's resolv.conf) when the pool names none:
+`source radius configured received mode first-usable`. Before this default a
+pool offered only its own two leaves; `dns-source { source configured; }`
+keeps that. `self` offers the pool's `gateway`. The selection fills the
+primary slot, then the secondary, so a pool naming only `dns-secondary`
+offers it as the primary. A loopback address is never offered, and each one
+dropped is logged.
 The gateway must not overlap the pool range.
 
 <!-- source: internal/component/l2tp/plugins/pool/register.go -- parseIPv4Pool, parseNamedPools -->
+<!-- source: internal/component/l2tp/plugins/pool/dns_source.go -- poolDNSDefault, selectSubscriberDNS -->
 <!-- source: internal/component/l2tp/plugins/pool/yang/ze-l2tp-pool-conf.yang -- YANG schema -->
 
 ## Hub Configuration

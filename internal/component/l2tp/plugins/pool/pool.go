@@ -7,6 +7,8 @@ import (
 	"encoding/binary"
 	"net/netip"
 	"sync"
+
+	"github.com/ze-software/ze/internal/core/dnssource"
 )
 
 // ipv4Pool is a bitmap-backed IPv4 address pool. Thread-safe.
@@ -19,6 +21,9 @@ type ipv4Pool struct {
 	bitmap       []uint64
 	dnsPrimary   netip.Addr
 	dnsSecondary netip.Addr
+	// sources is the subscriber DNS list: the written dns-source, or the
+	// built-in default while the container is absent (dns_source.go).
+	sources dnssource.List
 }
 
 func newIPv4Pool(gateway, start, end, dnsPrimary, dnsSecondary netip.Addr) *ipv4Pool {
@@ -33,6 +38,7 @@ func newIPv4Pool(gateway, start, end, dnsPrimary, dnsSecondary netip.Addr) *ipv4
 		bitmap:       make([]uint64, words),
 		dnsPrimary:   dnsPrimary,
 		dnsSecondary: dnsSecondary,
+		sources:      poolDNSDefault,
 	}
 }
 

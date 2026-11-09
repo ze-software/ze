@@ -78,8 +78,8 @@ func newSingleAddressPlugin(t *testing.T, bus ze.EventBus) *poolPlugin {
 	p.setEventBus(bus)
 	t.Cleanup(func() {
 		p.busMu.Lock()
-		if p.unsub != nil {
-			p.unsub()
+		for _, unsub := range p.unsub {
+			unsub()
 		}
 		p.busMu.Unlock()
 	})

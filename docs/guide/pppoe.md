@@ -174,6 +174,10 @@ l2tp {
 The `l2tp` block here configures the shared BNG plugins, not an L2TP listener:
 `l2tp-auth-local` verifies the credential and `l2tp-pool` supplies the IPCP
 address. A PPPoE-only BNG needs neither `l2tp enabled` nor an L2TP server.
+The IPCP DNS a PPPoE subscriber gets follows the pool's `dns-source` list, as
+on L2TP: with none written, RADIUS's MS DNS servers, then the pool's
+`dns-primary` and `dns-secondary`, then the resolvers Ze learned
+(`docs/guide/l2tp.md`, "IP address pool").
 
 The PPP auth handler slot holds one handler, and configuration decides its
 owner: `l2tp-auth-radius` claims it when a RADIUS server is configured, and

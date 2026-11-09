@@ -123,6 +123,10 @@ const (
 	MSCHAPChallenge = 11 // MS-CHAP-Challenge
 	MSCHAP2Response = 25 // MS-CHAP2-Response
 	MSCHAP2Success  = 26 // MS-CHAP2-Success
+	// RFC 2548 Section 2.7.6: "28 for MS-Primary-DNS-Server"
+	MSPrimaryDNSServer = 28
+	// RFC 2548 Section 2.7.7: "29 for MS-Secondary-DNS-Server"
+	MSSecondaryDNSServer = 29
 )
 
 // Accounting Status-Type values (RFC 2866 Section 5.1).

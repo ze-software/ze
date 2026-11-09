@@ -1160,9 +1160,21 @@ accounting records report the address the pool gave (RFC 2866 Section 4.1).
 `Framed-IP-Netmask` is parsed into session metadata, but the current IPv4 IPCP
 response has no netmask field to apply.
 
+The IPCP DNS offered follows the pool's `dns-source` list. With none written,
+an Access-Accept's MS-Primary-DNS-Server and MS-Secondary-DNS-Server (RFC 2548,
+vendor 311 types 28 and 29) come first, then the pool's `dns-primary` and
+`dns-secondary`, then the resolvers Ze learned on its WAN:
+`source radius configured received mode first-usable`. Write
+`dns-source { source configured; }` to offer only the pool's own servers, as
+before this list existed. accel-ppp replaces each IPCP DNS option on its own,
+so a RADIUS reply naming only the primary keeps its configured secondary;
+under `first-usable` Ze offers the RADIUS primary alone, and under `merge` the
+RADIUS primary followed by the pool's primary.
+
 Session-down events release allocated addresses back to the pool.
 
 <!-- source: internal/component/l2tp/plugins/pool/ -->
+<!-- source: internal/component/l2tp/plugins/authradius/extract_dns.go -- extractMSDNSServers -->
 
 ## Traffic shaping
 

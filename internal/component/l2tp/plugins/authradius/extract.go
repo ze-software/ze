@@ -102,6 +102,14 @@ func extractAuthMetadata(resp *radius.Packet) *l2tp.AuthMetadata {
 		found = true
 	}
 
+	// RFC 2548 Sections 2.7.6 and 2.7.7: the subscriber's resolvers, which
+	// the pool's radius source offers in IPCP.
+	if primary, secondary := extractMSDNSServers(resp); primary.IsValid() || secondary.IsValid() {
+		meta.DNSPrimary = primary
+		meta.DNSSecondary = secondary
+		found = true
+	}
+
 	// RFC 2865 Section 5.22: Framed-Route (multi-valued, text).
 	// RFC 3162 Section 2.5: Framed-IPv6-Route (multi-valued, text).
 	routes := extractFramedRoutes(resp)

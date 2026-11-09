@@ -71,6 +71,20 @@ RADIUS transport needs no knowledge of request codes. The parser writes the
 <!-- source: internal/component/l2tp/plugins/authradius/config.go -- parseConfigFromTree, serverPort, accountingPortDefault -->
 <!-- source: internal/component/l2tp/plugins/authradius/register.go -- activateRadiusConfig, retireAuthClient -->
 
+**The subscriber's resolvers are read from the Access-Accept, and the pool
+decides whether to offer them.** `extractMSDNSServers` reads
+MS-Primary-DNS-Server and MS-Secondary-DNS-Server (RFC 2548 Sections 2.7.6
+and 2.7.7: vendor 311, types 28 and 29, a four-octet address) into
+`AuthMetadata.DNSPrimary` and `DNSSecondary`. The first well-formed attribute
+of each type wins, and one whose value is not four octets names no server.
+The pool's `radius` source reads the two fields; its `dns-source` list,
+`radius` first by default, decides what IPCP carries
+(`docs/features/dns-resolver.md`). IPv6 subscriber DNS (RFC 6911 attribute
+169) is not read yet.
+
+<!-- source: internal/component/l2tp/plugins/authradius/extract_dns.go -- extractMSDNSServers -->
+<!-- source: internal/component/l2tp/session_metadata.go -- AuthMetadata -->
+
 ## What every Accounting-Request carries
 
 Ze emits the session attributes below on every subscriber Accounting-Request.
