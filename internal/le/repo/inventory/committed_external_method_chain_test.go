@@ -139,31 +139,6 @@ func TestCommittedExternalMethodChainUnresolvedReceiversRefuse(t *testing.T) {
 const methodChainParcel = "type parcel struct { hook func() }\n" +
 	"func (p parcel) Apply(offset int) parcel { _ = offset; return p }\n"
 
-// TestCommittedExternalCallResultFieldIsProjection requires a selector on a
-// call result that names no method to stay a field projection under the
-// root-field rules, now that the call result has a static type. Method: the
-// callback field of x.Apply(1) is handed to an external callee; the call's
-// return summary does not certify which field value the result holds, so
-// both an inert and a registering callback refuse on root field ownership
-// rather than publish.
-//
-// MUTATION: (internal/le/repo/inventory/externalrootfields.go, `if !known {`,
-// `if !known && false {`): a field the receiver summary does not hold projects as
-// empty, and the inert case publishes.
-func TestCommittedExternalCallResultFieldIsProjection(t *testing.T) {
-	const call = "x := parcel{hook: func() { BODY }}; order.Slice([]any{x.Apply(1).hook}, func(i, j int) bool { return false })"
-	for _, body := range []string{"", "install(0)"} {
-		for _, kind := range []string{"plugin", "yang"} {
-			t.Run(kind+"/"+body, func(t *testing.T) {
-				fixture := externalEffectsFixture(t, kind)
-				fixture.goFile(t, callableOwnerCaller, externalEffectsSource(methodChainParcel, strings.Replace(call, "BODY", body, 1)))
-				commitInventoryFixture(t, fixture.root)
-				externalEffectsRefusal(t, fixture, "root field")
-			})
-		}
-	}
-}
-
 // methodChainEnvelope embeds presence by value, so Present is promoted to
 // the call result x.Apply(1).Info().
 const methodChainEnvelope = "type envelope struct { presence }\n" +

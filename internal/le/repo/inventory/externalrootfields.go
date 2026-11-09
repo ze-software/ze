@@ -110,9 +110,16 @@ func (e *externalEffects) projectField(source sourceExpr, selector *ast.Selector
 	}
 	field, known := receiver.fields[selector.Sel.Name]
 	if !known {
-		reason = "declared root field value ownership is unresolved"
-		e.problem(source, reason)
-		return externalValue{unknown: reason}
+		// A missing field is a fact of this round only: the receiver may be
+		// the result of a callee the walk scheduled this round, whose returns
+		// the fixpoint has not summarized yet. The problem refuses the round,
+		// and beginRound clears it, so a field the last round still cannot
+		// find refuses the inventory. An unknown value here would instead
+		// reach the ambient pool through an external call taking it as an
+		// argument, and the pool's unknown is permanent: no later round could
+		// clear it once the callee's returns carried the field.
+		e.problem(source, "declared root field value ownership is unresolved")
+		return externalValue{reads: receiver.reads}
 	}
 	var result externalValue
 	result.join(field)

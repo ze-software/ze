@@ -400,6 +400,30 @@ populate only proved direct struct members, including names in a retained generi
 struct declaration. Retained field selection proves the receiver's static root
 and direct member before consuming a field value; an asserted type cannot borrow
 another interface alternative's field. Unsupported owner shapes refuse explicitly.
+A literal of a retained struct starts from its type's capability, which holds
+every declared member: a function or interface member holds nothing, the zero
+value Go gives a member the literal omits (Go specification, Composite
+literals: "Omitted fields get the zero value for that field."). So a callee
+that returns `&T{Err: err}` on one path and `&T{Config: &c}` on another, as
+grpc's `parseServiceConfig` does, returns a value whose `Err` and `Config` are
+each the join over every path.
+A field the receiver's value summary does not hold refuses the fixpoint round
+that reads it, never the analysis: a call result's summary grows as the walk
+reaches the callee's returns, and in the round that first schedules the callee
+it holds no field at all. The read then yields only the receiver's reads, and
+the round's problem (`declared root field value ownership is unresolved`)
+refuses the inventory only when the last round still finds no such field. An
+unknown value there would be wrong, because an external call taking it as an
+argument puts it in the ambient pool, whose unknown is permanent.
+An external call's result is the flattened union of its inputs and the
+ambient pool. It carries an origin, so a selector on it reads the whole value
+and never projects a field. Kept unflattened, it would carry the pool's root
+fields, and a result stored into a retained field and exposed again would nest
+the pool one level deeper every round, so the fixpoint would never close.
+<!-- source: internal/le/repo/inventory/externalcalls.go -- externalEffects.call -->
+<!-- source: internal/le/repo/inventory/externalliteralshapes.go -- externalEffects.typedLiteralValue -->
+<!-- source: internal/le/repo/inventory/externaleffecttypes.go -- externalTypeWalk.shape -->
+<!-- source: internal/le/repo/inventory/externaleffects.go -- externalEffects.beginRound, externalEffects.refuseUnknown -->
 Indexed or ranged values retain all aggregate capabilities, but carry a separate
 field-ownership obligation until an actual element-field summary is available;
 a type-only empty callback field cannot discharge it. Nested fields preserve

@@ -55,7 +55,14 @@ func (e *externalEffects) call(source sourceExpr, call *ast.CallExpr, possible b
 			// to a parent expression after the report must already refuse.
 			return externalValue{unknown: e.amb.unknown}
 		}
-		return inputs
+		// The result is flattened: it carries the ambient pool, and the pool
+		// holds the root fields of every exposed retained value. Kept whole, a
+		// result stored into a retained field (&T{Err: fault}) and exposed
+		// again would nest the pool inside its own field one level deeper each
+		// round, and the fixpoint would never close. No field name is lost:
+		// the result carries an origin, so a selector on it never projects a
+		// field (expressionValue) and reads the whole value instead.
+		return externalFlat(inputs, 0)
 	}
 	if len(owner.callables) == 0 {
 		if e.builtin(callee) {
