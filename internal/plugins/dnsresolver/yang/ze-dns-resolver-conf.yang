@@ -31,7 +31,8 @@ module ze-dns-resolver-conf {
                 default false;
                 description "The default is false, so the resolver binds no listener and answers no query. A true
                     value binds each `listener` entry for UDP and TCP, and needs at least one `listener`, one
-                    `allow-from` prefix and one `forward server`.";
+                    `allow-from` prefix, and either one `forward server` or a `forward dns-source` that names
+                    received (the default list does).";
                 ze:help "Enable the LAN DNS resolver";
             }
 
