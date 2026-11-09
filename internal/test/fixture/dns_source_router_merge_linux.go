@@ -11,6 +11,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net/netip"
 	"os"
@@ -20,6 +21,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	"github.com/ze-software/ze/internal/core/dnssource"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -49,15 +51,21 @@ const (
 // under system dns-source source [ received configured ] mode merge, the
 // router lists the IPCP lease's server and then the configured one, and the
 // internal resolver reaches the configured server when the lease's server
-// does not answer. Before the lease the file must list the configured server
-// alone, which also proves the daemon writes the path this fixture reads.
-// After the lease it must list both, received first; only then is the lookup
-// asked, so its answer comes from a resolver whose first server is dead.
+// does not answer. Before the lease the file must list the host's own
+// /etc/resolv.conf servers and then the configured server (mergeBeforeLease),
+// which also proves the daemon writes the path this fixture reads. After the
+// lease it must list the lease's server and then the configured one, the
+// host's servers gone; only then is the lookup asked, so its answer comes from
+// a resolver whose first server is dead.
 func dnsSourceRouterMerge(ctx context.Context, plugin *sdk.Plugin) error {
 	acCtx, cancel := context.WithTimeout(ctx, 75*time.Second)
 	defer cancel()
 
-	if err := dnsSourceWaitResolvConf(acCtx, mergeResolvConf, mergeConfiguredServer); err != nil {
+	before, err := mergeBeforeLease()
+	if err != nil {
+		return fmt.Errorf("before the lease: %w", err)
+	}
+	if err := dnsSourceWaitResolvConf(acCtx, mergeResolvConf, before...); err != nil {
 		return fmt.Errorf("before the lease: %w", err)
 	}
 
@@ -92,6 +100,39 @@ func dnsSourceRouterMerge(ctx context.Context, plugin *sdk.Plugin) error {
 		Str(", and web.example.test type A -> ").Str(dnsAnswerLine(data)).
 		Str(" through the configured server after the lease's server refused\n").StdErr()
 	return nil
+}
+
+// mergeHostResolvConf is the host's own resolv.conf, which the daemon reads as
+// the received class's host record (readHost, hostResolvConfPath,
+// internal/component/config/system/resolv_host.go). The fixture shares the
+// daemon's namespaces, so it reads the same file.
+const mergeHostResolvConf = "/etc/resolv.conf"
+
+// mergeBeforeLease answers the list the daemon must write before any lease:
+// the host record's servers, then the configured server. The host record is
+// a fallback inside received (spec-home-cpe-23 D-13): it is live while no
+// other received record is, so under mode merge its servers come first, and
+// the lease's record replaces them. The host file is the guest's, outside the
+// test's control (a QEMU guest names its slirp resolver there), so the
+// fixture reads it rather than assume it is empty. Each server is kept once
+// and only when usable, as the daemon's selection does (dnssource.Usable).
+func mergeBeforeLease() ([]netip.Addr, error) {
+	host, _, err := dnssource.ReadResolvConf(mergeHostResolvConf)
+	// An absent host file is no host record: the daemon reads it the same way.
+	if err != nil && !errors.Is(err, dnssource.ErrNoResolvConf) {
+		return nil, fmt.Errorf("read the host's %s: %w", mergeHostResolvConf, err)
+	}
+	var want []netip.Addr
+	for _, addr := range append(host, mergeConfiguredServer) {
+		if !dnssource.Usable(addr) {
+			continue
+		}
+		if slices.Contains(want, addr) {
+			continue
+		}
+		want = append(want, addr)
+	}
+	return want, nil
 }
 
 // dnsSourceWaitResolvConf polls the resolv.conf the daemon writes at path
