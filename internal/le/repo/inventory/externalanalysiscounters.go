@@ -33,6 +33,9 @@ type externalAnalysisCounters struct {
 	typeProvisional int
 	typeSettledHits int
 	typeRounds      int
+	// objectEvaluations counts readObject calls that evaluated an object's
+	// definitions, past the round's read cache.
+	objectEvaluations int
 
 	ticks       int
 	reportEvery int

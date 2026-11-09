@@ -143,6 +143,15 @@ func (e *externalEffects) readObject(object *ast.Object) externalValue {
 	if e.linkedObject(object) {
 		return externalValue{unknown: "linkname authority is unsupported", unknownAt: e.linknames[object]}
 	}
+	// A read answered earlier in this round is answered again from the round's
+	// cache. A state change after that read sets e.changed, so the fixpoint
+	// runs another round, and in the round that ends it nothing changes, so
+	// every cached read equals a fresh one. The caller gets its own copy.
+	if cached, found := e.readCache[object]; found {
+		var answered externalValue
+		answered.join(cached)
+		return answered
+	}
 	var result externalValue
 	result.join(e.bindings[object])
 	if e.reading[object] {
@@ -150,6 +159,9 @@ func (e *externalEffects) readObject(object *ast.Object) externalValue {
 	}
 	e.reading[object] = true
 	defer delete(e.reading, object)
+	if e.counters != nil {
+		e.counters.objectEvaluations++
+	}
 	if datatype, found := e.types[object]; found {
 		result.join(e.typeMethods(datatype, 0))
 		if e.referenceType(datatype, 0) {
@@ -195,6 +207,9 @@ func (e *externalEffects) readObject(object *ast.Object) externalValue {
 		}
 	}
 	e.bind(object, result)
+	var cached externalValue
+	cached.join(result)
+	e.readCache[object] = cached
 	return result
 }
 

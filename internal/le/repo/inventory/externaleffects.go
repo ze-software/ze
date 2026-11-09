@@ -48,6 +48,9 @@ type externalEffects struct {
 	// its binding last absorbed the pool at. Bindings only grow, so a
 	// parameter joins only the growths after that version (externalParameters).
 	formalAmbient map[*ast.Object]int
+	// readCache holds each object's complete readObject answer for the
+	// current fixpoint round; solve clears it at the start of every round.
+	readCache map[*ast.Object]externalValue
 	// settledTypes keeps settled type frames for the whole analysis
 	// (externalTypeWalk.settle).
 	settledTypes map[int32]externalTypeSettled
@@ -124,6 +127,7 @@ func newExternalEffects(source *externalSource) *externalEffects {
 		formalDemand:    make(map[*ast.Object]bool),
 		formalExternal:  make(map[*ast.Object]bool),
 		formalAmbient:   make(map[*ast.Object]int),
+		readCache:       make(map[*ast.Object]externalValue),
 		formalIndirect:  make(map[ast.Node]sourceExpr),
 		formalUnbound:   make(map[ast.Node]sourceExpr),
 		formalInvalid:   make(map[ast.Node]string),
@@ -282,8 +286,7 @@ func (e *externalEffects) solve() error {
 		if err := e.refuseUnknown(); err != nil {
 			return err
 		}
-		e.changed = false
-		e.failure = nil
+		e.beginRound()
 		for _, directory := range directories {
 			pkg := e.source.snapshot.packages[directory]
 			if e.source.roots[directory] {
@@ -566,6 +569,15 @@ func (e *externalEffects) statements(node ast.Node, scope sourceExpr, owner ast.
 		}
 		return false
 	})
+}
+
+// beginRound resets the per-round state of the fixpoint: the change flag, the
+// round's preferred failure, and the read cache, whose answers hold only for
+// the round that filled them.
+func (e *externalEffects) beginRound() {
+	e.changed = false
+	e.failure = nil
+	clear(e.readCache)
 }
 
 // growAmbient is the one writer of amb. Every growth advances ambient, which
