@@ -201,11 +201,18 @@ Subscribers of one remote share one tunnel, including those that arrive
 while it is still connecting. `ze_l2tp_relay_total` counts each decision (see
 Metrics).
 
-**Status: under construction.** The PPPoE side consults the binding and the
-hand-off described above is wired and unit-tested, but no test has yet run
-it against a real LNS: the end-to-end proof will be the interop scenarios
-`l2tp-lac-realm-relay-accel-ppp` and `l2tp-lac-realm-relay-xl2tpd`, and the
-Linux tests of the bridge after local LCP are not written yet.
+Two topology scenarios prove the realm path against LNSes Ze does not
+write. In `l2tp-lac-realm-relay-accel-ppp` a pppd subscriber is relayed by
+its realm to accel-ppp, which ignores the proxy AVPs and renegotiates; the
+subscriber reaches IPCP, the LAC session carries the `relay-realm` keys, and
+a second subscriber of an unbound realm is refused locally and never reaches
+the LNS. `l2tp-lac-realm-relay-xl2tpd` runs the same relay against xl2tpd and
+its pppd. The Linux tests `TestLACRealmBridgeAfterLocalLCP` and
+`TestLACRealmHandoffRetransmission` bridge real pppox channels after local
+LCP, and `pppoe-realm-relay-nomatch.ci` shows an unbound realm terminated
+locally and refused.
+<!-- source: internal/le/interoplab/topology/check_realm_relay.go -- checkRealmRelayAccel, checkRealmRelayXL2TPD -->
+<!-- source: internal/component/l2tp/bridge_realm_integration_linux_test.go -- TestLACRealmBridgeAfterLocalLCP, TestLACRealmHandoffRetransmission -->
 
 <!-- source: internal/component/l2tp/yang/ze-l2tp-conf.yang -- remote/relay/relay-realm lists -->
 <!-- source: internal/component/l2tp/config.go -- validateRelayRealms, checkRealmSyntax, LookupRealmRelay -->
