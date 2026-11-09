@@ -1618,6 +1618,26 @@ only by a GitHub `CodeQL` workflow run on a pushed commit whose Go extraction
 log shows an authored sentinel extracted and a `gokrazy/modcache` sentinel
 absent.
 
+## P-12 (c): IPsec lab log key (2026-11-09)
+
+The repair is `163a5d1b88`: the IPsec lab sets `ZE_LOG=debug` for the Ze
+peer (`zeEnvironment`, `internal/le/interoplab/ipsec/ipsec.go`); the former
+`ZE_LOG_LEVEL` resolved to a logger subsystem named "level". The carrier is
+`TestPreparedIPsecPeerEnablesDebugLogging`
+(`internal/le/interoplab/ipsec/environment_consumer_test.go`), which hands the
+prepared container environment to the real logger consumer. The spec names
+`TestLogKeyReachesPeerCheck`, which does not exist; this test is its carrier.
+
+| Step | Result |
+| --- | --- |
+| Green | passes (`go test -tags ze_le`) |
+| Attributed red | `ZE_LOG` set back to `ZE_LOG_LEVEL`: fails as "prepared Ze peer environment does not enable IKE debug logging: [{ZE_LOG_LEVEL debug}]" |
+| Restored green | bytes restored by the red-walk tool |
+
+Still owed for P-12 (c): the checker half, a scenario whose `waitLog` needle
+on the Ze peer is logged at debug level with no `ze-env` override, run in the
+interop lab.
+
 ## P-12 (d): build-only bench staging (2026-11-09)
 
 The repair is `8664a8ee44`: `Bench.Run` (`internal/le/perf/bench.go`) stages
