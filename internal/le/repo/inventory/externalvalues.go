@@ -21,6 +21,8 @@ type externalValue struct {
 	// unresolvedFields is a root-selector obligation, not an absent capability.
 	// Indexed/ranged whole values retain their aggregate effects, but a static
 	// field type alone cannot certify the element's actual stored field value.
+	// A range value slot whose element population is proved carries the
+	// stored elements' fields instead, and no obligation (rangedValue).
 	unresolvedFields string
 	// References preserves each field's backing shape without granting a
 	// location until an owning retained binding supplies one.

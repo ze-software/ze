@@ -99,6 +99,11 @@ type externalEffects struct {
 	// the census cannot see.
 	formalUnbound map[ast.Node]sourceExpr
 	formalInvalid map[ast.Node]string
+	// rangeIndexes holds each package's occurrence index for the ranged
+	// element population proof; rangeVariables the scope of every fresh
+	// range variable, so formal provenance can reach its collection.
+	rangeIndexes   map[*sourcePackage]*externalRangeUses
+	rangeVariables map[*ast.Object]sourceExpr
 }
 
 func newExternalEffects(source *externalSource) *externalEffects {
@@ -122,6 +127,8 @@ func newExternalEffects(source *externalSource) *externalEffects {
 		formalIndirect:  make(map[ast.Node]sourceExpr),
 		formalUnbound:   make(map[ast.Node]sourceExpr),
 		formalInvalid:   make(map[ast.Node]string),
+		rangeIndexes:    make(map[*sourcePackage]*externalRangeUses),
+		rangeVariables:  make(map[*ast.Object]sourceExpr),
 	}
 }
 

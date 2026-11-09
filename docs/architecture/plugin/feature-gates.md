@@ -123,8 +123,11 @@ called on that variable's address, as Go specifies, and its receiver is bound
 to the address, so a write through it reaches the variable's storage. On a
 value Go cannot address, such as a call result or a literal, the pointer
 method stays unresolved, and so does one on a field, element or dereference
-receiver. A range variable resolves the same way, but its receiver formal is
-not yet grounded, because a range element has no retained source equation. A
+receiver. A range variable resolves the same way, and its receiver formal is
+grounded exactly when its collection's element sources are: the value slot's
+source equation is the element population described under the root-field
+rules below, so a receiver ranged from a package slice of literals is grounded
+and one ranged over a parameter's elements is not. A
 selector on a call result that names no such method is a field projection,
 judged by the root-field rules of the external-effect contract below.
 Executing a directly called method executes its receiver first, as Go
@@ -380,6 +383,32 @@ Indexed or ranged values retain all aggregate capabilities, but carry a separate
 field-ownership obligation until an actual element-field summary is available;
 a type-only empty callback field cannot discharge it. Nested fields preserve
 their own obligations without contaminating an unrelated scalar sibling.
+
+A range variable's value slot over a slice, array or map has that summary when
+the analyzer proves the collection's whole element population. Go defines the
+second iteration value as `a[i]` or `m[k]`, so the slot holds exactly the
+stored elements, and a field read from it is the join of that field across
+every value proved stored into the collection: its literal elements, element
+stores (`m[k] = v`), `append` arguments, and the populations of the variables
+and unexported struct fields it is assigned from. The proof reads syntax and
+exact declaration identities only, from a per-package occurrence index, and
+refuses with `ranged element field ownership requires a retained element
+summary: <reason>` whenever an occurrence could change the population in a way
+no source shows: the collection is a parameter, an exported variable or field,
+a range variable, or a call result; it is aliased other than along the
+assignment the proof followed; it is passed to a call in a body the walk has
+scheduled; an element's address, method or field is written in place; or a
+type alias, defined type, conversion or positional literal could name the same
+field. A call in a body no execution reached cannot run, as everywhere in the
+walk, and the fixed point revisits the proof once the body is scheduled. The
+slot's value also joins the collection's whole flattened union and the element
+type's methods, so whole-element exposure still sees every retained callback;
+only the proved elements lend field names. An empty proved population is a
+real answer: the body never runs. The key slot, channel ranges and function
+iterators keep the obligation.
+
+<!-- source: internal/le/repo/inventory/externalrangeelements.go -- rangeElements, rangedValue, rangedReceiverType, rangedProof -->
+<!-- source: internal/le/repo/inventory/externalrangeuses.go -- rangeUses, rangeFieldIdentity, rangeLiteralType -->
 A channel is modelled as the same kind of reference container as a slice,
 whatever its direction (`chan T`, `chan<- T`, `<-chan T`): its possible contents
 are the flattened capability of its element type. A send stores the flattened

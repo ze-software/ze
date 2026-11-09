@@ -80,6 +80,15 @@ func (e *externalEffects) call(source sourceExpr, call *ast.CallExpr, possible b
 					return externalValue{unknown: "allocation type ownership is unresolved"}
 				}
 				inputs.join(e.typeMethods(sourceExpr{value: call.Args[0], file: source.file, pkg: source.pkg}, depth))
+			case externalBuiltinLen, externalBuiltinCap:
+				// Go specification, "Length and capacity": "The built-in
+				// functions len and cap take arguments of various types and
+				// return a result of type int." An int holds no callable,
+				// location or origin, so the operand's capabilities stay with
+				// the operand. The result is still derived from the operand's
+				// contents, so its reads remain a metadata dependency, and an
+				// unknown operand stays unknown.
+				return externalValue{reads: inputs.reads, unknown: inputs.unknown, unknownAt: inputs.unknownAt}
 			case "copy", "delete", "clear", "close":
 				e.problem(source, "builtin mutation capability transfer is unsupported")
 			}

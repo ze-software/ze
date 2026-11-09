@@ -94,10 +94,8 @@ func (e *externalEffects) expressionValue(source sourceExpr, possible bool, dept
 						if _, callback := datatype.value.(*ast.FuncType); callback {
 							return externalValue{unknown: "range callback capability transfer is unsupported"}
 						}
-						result := child(ranged.X)
-						result.join(e.typeMethods(datatype, depth+1))
-						result.unresolvedFields = "ranged element field ownership requires a retained element summary"
-						return result
+						collection := child(ranged.X)
+						return e.rangedValue(object, source, collection, e.typeMethods(datatype, depth+1), depth+1)
 					}
 				}
 			}

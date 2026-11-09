@@ -150,6 +150,9 @@ func (proofs *externalFormalProofs) object(object *ast.Object, depth int) *exter
 			// this is distinct from a formal with no argument evidence.
 			proof.grounded = true
 		}
+	} else if variable, ranged := e.rangeVariables[object]; ranged {
+		// A fresh range variable's source is its collection's elements.
+		proof.join(proofs.rangedProof(object, variable, depth+1))
 	}
 	for _, definition := range e.definitions[object] {
 		proof.join(proofs.expression(definition.source, depth+1))

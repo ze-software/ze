@@ -166,6 +166,17 @@ func (e *expression) valueType(source sourceExpr, depth int) (sourceExpr, bool) 
 		return sourceExpr{value: &ast.StarExpr{Star: operand.value.Pos(), X: operand.value}, file: operand.file, pkg: operand.pkg}, true
 	case *ast.CallExpr:
 		callee := sourceExpr{value: value.Fun, file: source.file, pkg: source.pkg}
+		if predeclaredIdentifier(callee, "make") {
+			// Go specification, "Making slices, maps and channels": "The
+			// built-in function make takes a type T, which must be a slice,
+			// map or channel type, or a type parameter, optionally followed by
+			// a type-specific list of expressions." It returns a value of
+			// type T, so make(map[string]*T) is that map type.
+			if len(value.Args) == 0 {
+				return sourceExpr{}, false
+			}
+			return sourceExpr{value: value.Args[0], file: source.file, pkg: source.pkg}, true
+		}
 		function, found := e.declaredFunction(callee)
 		if !found {
 			function, found = e.methodAt(callee, depth+1)

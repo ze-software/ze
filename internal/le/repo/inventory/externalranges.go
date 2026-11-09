@@ -164,9 +164,11 @@ func (walk *externalRangeWalk) binding(source sourceExpr, depth int) (externalRa
 	if datatype, known := walk.effects.types[object]; known {
 		return walk.datatype(datatype, depth+1)
 	}
-	if err := walk.effects.resolver.immutable(source); err != nil {
-		return externalRangeUnresolved, "range inferred declaration is not immutable: " + err.Error()
-	}
+	// The kind is the variable's static type, which its initializer fixes
+	// and no write changes. Go specification, Assignment statements: "each
+	// value must be assignable to the type of the operand to which it is
+	// assigned". So a written variable keeps its initializer's kind, and the
+	// values its writes store are judged by the capability walk, not here.
 	resolved, err := walk.effects.resolver.target(source)
 	if err != nil {
 		return externalRangeUnresolved, "range declaration initializer is unresolved: " + err.Error()

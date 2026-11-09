@@ -35,6 +35,17 @@ func externalRangeValue(statement *ast.RangeStmt, target ast.Expr) ast.Expr {
 }
 
 func (e *externalEffects) indexRangeAssignment(statement *ast.RangeStmt, scope sourceExpr, owner ast.Node) {
+	if statement.Tok == token.DEFINE {
+		// A fresh range variable has no definition to index: its source is
+		// its collection's elements, which formal provenance reaches here.
+		for _, target := range []ast.Expr{statement.Key, statement.Value} {
+			if name, identifier := target.(*ast.Ident); identifier {
+				if name.Obj != nil {
+					e.rangeVariables[name.Obj] = sourceExpr{value: name, file: scope.file, pkg: scope.pkg}
+				}
+			}
+		}
+	}
 	for _, target := range externalRangeTargets(statement) {
 		value := externalRangeValue(statement, target)
 		source := sourceExpr{value: target, file: scope.file, pkg: scope.pkg}

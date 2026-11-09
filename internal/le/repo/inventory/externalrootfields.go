@@ -8,8 +8,11 @@ import (
 
 // fieldReceiverType proves the receiver expression's static root, independently
 // of the capability union carried by interface alternatives or child values.
-// Indexed and ranged element fields need a separate value summary; they cannot
-// borrow a type-only empty callback field after collection flattening.
+// Indexed element fields need a separate value summary; they cannot borrow a
+// type-only empty callback field after collection flattening. A range
+// variable's value slot owns its element type only once rangeElements proves
+// the collection's whole element population, whose stored values then carry
+// the actual field values (rangedValue).
 func (e *externalEffects) fieldReceiverType(source sourceExpr, depth int) (sourceExpr, string) {
 	if depth >= 128 {
 		return sourceExpr{}, "root field ownership exceeds 128 source steps"
@@ -64,14 +67,8 @@ func (e *externalEffects) fieldReceiverType(source sourceExpr, depth int) (sourc
 	if object == nil {
 		return sourceExpr{}, "root field binding ownership is unresolved"
 	}
-	if assignment, assigned := object.Decl.(*ast.AssignStmt); assigned {
-		if len(assignment.Rhs) == 1 {
-			if ranged, synthetic := assignment.Rhs[0].(*ast.UnaryExpr); synthetic {
-				if ranged.Op == token.RANGE {
-					return sourceExpr{}, "ranged element field ownership requires a retained element summary"
-				}
-			}
-		}
+	if _, _, ranged := externalRangeVariable(object); ranged {
+		return e.rangedReceiverType(object, source, depth+1)
 	}
 	if datatype, declared := e.types[object]; declared {
 		return datatype, ""
