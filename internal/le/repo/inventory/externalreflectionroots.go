@@ -88,7 +88,10 @@ func (w *externalReflectionWalk) interfaceRoot(source sourceExpr, scope *externa
 		if reason != "" {
 			return false, reason
 		}
-		if len(arguments) != definition.TypeParams.NumFields() {
+		// A bare generic name is the declaration read uninstantiated, as the
+		// static export walk reads an exported Box: its parameters keep the
+		// declaration binding the census bounds (receiverInstantiations).
+		if len(arguments) != 0 && len(arguments) != definition.TypeParams.NumFields() {
 			return false, "reflected value generic argument count is unresolved"
 		}
 		for index, argument := range arguments {

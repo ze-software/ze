@@ -297,6 +297,10 @@ parameter, reflection reads it as every type the retained source writes in
 that position of an instantiation of the type, because a value of type T has
 one of them as its dynamic type. An instantiation that names the type's own
 parameter is skipped, and a parameter whose census reaches itself refuses. A
+bare generic name, as the static export walk reads an exported `Box`
+uninstantiated, keeps that declaration binding rather than rebinding its
+parameters with no argument, and its reflected descriptor needs no argument
+count. A
 method called on a value of type T has no declaration and dispatches through
 the stored value's own capability. A direct call of a generic receiver's
 method and a generic function still refuse.

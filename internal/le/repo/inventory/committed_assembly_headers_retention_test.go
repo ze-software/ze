@@ -5,6 +5,22 @@ import "testing"
 
 // TestCommittedAssemblyHeaderEvidenceRetainsSnapshot proves lazy header
 // derivation cannot reopen dirty or later-committed declarations/presence.
+// Its positive prerequisite needs the static export walk to expose the
+// generated declarations' exported generic Box[T any] uninstantiated, with T
+// reflected as Box's instantiations.
+//
+// MUTATION: (internal/le/repo/inventory/externaleffecttypes.go,
+// `	if parameters != 0 && len(arguments) != 0 {`, `	if parameters != 0 {`):
+// the bare walk rebinds T with no argument, and the prerequisite refuses as a
+// reflected value parameter with no retained argument.
+// MUTATION: (internal/le/repo/inventory/externalreflectionroots.go,
+// `		if len(arguments) != 0 && len(arguments) != definition.TypeParams.NumFields() {`,
+// `		if len(arguments) != definition.TypeParams.NumFields() {`): the bare
+// root refuses its argument count.
+// MUTATION: (internal/le/repo/inventory/externalreflectiontypes.go,
+// `	if len(arguments) != 0 && len(arguments) != definition.TypeParams.NumFields() {`,
+// `	if len(arguments) != definition.TypeParams.NumFields() {`): the bare
+// descriptor refuses its argument count.
 func TestCommittedAssemblyHeaderEvidenceRetainsSnapshot(t *testing.T) {
 	for _, kind := range []string{"generated-declarations", "textflag.h", "funcdata.h", "go_asm.h"} {
 		t.Run(kind, func(t *testing.T) {

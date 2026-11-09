@@ -237,7 +237,9 @@ func (w *externalReflectionWalk) collectNamed(source sourceExpr, arguments []ext
 		return
 	}
 	definition := named.definition
-	if len(arguments) != definition.TypeParams.NumFields() {
+	// A bare generic name is the declaration read uninstantiated; expand
+	// keeps the declaration binding the census bounds.
+	if len(arguments) != 0 && len(arguments) != definition.TypeParams.NumFields() {
 		w.noteUnknown(result, "reflected generic type argument count is unresolved")
 		return
 	}

@@ -283,7 +283,10 @@ func (w *externalTypeWalk) named(source sourceExpr, arguments []externalTypeArgu
 		return result
 	}
 	scope := w.effects.typeIdentities.lexicalScope(owner)
-	if parameters != 0 {
+	// A bare generic name (an exported Box walked uninstantiated) keeps the
+	// declaration's own parameter binding the lexical scope gives, which
+	// reflection bounds by the instantiations (receiverInstantiations).
+	if parameters != 0 && len(arguments) != 0 {
 		scope = externalBindTypeParameters(scope, definition.TypeParams, arguments)
 	}
 	own := len(w.path)
