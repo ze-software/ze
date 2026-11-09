@@ -56,15 +56,20 @@ func TestPoolPublishesSubscriberSelection(t *testing.T) {
 	}
 }
 
-// TestPoolWithdrawsOnBye proves the pool plugin's bye path sends a withdrawal
-// once it has published, sends nothing afterwards, and publishes again when a
-// new run installs a bus. Method: a pool on an in-process bus, withdraw, then
-// a fresh snapshot and a config publish that would each publish a changed
-// set, then a second setEventBus.
+// TestPoolWithdrawPublishesEmptySelection proves withdraw, called directly,
+// sends one withdrawn publication with no selection once the pool plugin has
+// published, that nothing is published after it, and that a second
+// setEventBus publishes the pool's selection again (published[2]). Method: a
+// pool on an in-process bus, call withdraw, then a fresh snapshot and a
+// config publish that would each publish a changed set, then a second
+// setEventBus. It does not drive the registered OnBye handler; the
+// daemon-level proof that a removed pool leaves show system dns is
+// test/draft/plugin/show-system-dns-withdraw-l2tp-pool.ci.
 //
-// VALIDATES: spec-home-cpe-23b, a removed consumer leaves show system dns.
-// PREVENTS: the registry keeping a stopped pool plugin's last selections.
-func TestPoolWithdrawsOnBye(t *testing.T) {
+// VALIDATES: spec-home-cpe-23b, the withdrawal body, the silence after it,
+// and the publication a new run sends.
+// PREVENTS: a withdrawn pool plugin publishing its selections again.
+func TestPoolWithdrawPublishesEmptySelection(t *testing.T) {
 	bus := newReleaseBus()
 	var published []*dnssource.Publication
 	dnssource.PublicationEvent.Subscribe(bus, func(p *dnssource.Publication) { published = append(published, p) })

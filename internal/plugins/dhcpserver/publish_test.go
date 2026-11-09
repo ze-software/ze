@@ -88,15 +88,18 @@ func TestDHCPPublisherPublishesEachSubnet(t *testing.T) {
 	}
 }
 
-// TestDHCPPublisherWithdrawsOnBye proves the DHCP server's bye path sends a
-// withdrawal once it has published, and sends nothing afterwards, so a stop
+// TestDHCPPublisherWithdrawPublishesEmptySelection proves withdraw, called
+// directly, sends one withdrawn publication with no selection once the DHCP
+// server has published, and that nothing is published after it, so a stop
 // that follows cannot list the consumer again. Method: publish one empty set
-// through a captured sender, withdraw, then serve and refresh again, and
-// decode the bodies sent.
+// through a captured sender, call withdraw, then serve and refresh again,
+// and decode the bodies sent. It does not drive the registered OnBye
+// handler; the daemon-level proof that a removed DHCP server leaves show
+// system dns is test/draft/plugin/show-system-dns-withdraw-dhcp-server.ci.
 //
-// VALIDATES: spec-home-cpe-23b, a removed consumer leaves show system dns.
-// PREVENTS: the registry keeping a stopped DHCP server's last selections.
-func TestDHCPPublisherWithdrawsOnBye(t *testing.T) {
+// VALIDATES: spec-home-cpe-23b, the withdrawal body and the silence after it.
+// PREVENTS: a withdrawn DHCP server publishing its selections again.
+func TestDHCPPublisherWithdrawPublishesEmptySelection(t *testing.T) {
 	var publisher dhcpPublisher
 	var bodies []string
 	publisher.setSender(func(body string) { bodies = append(bodies, body) })

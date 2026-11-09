@@ -141,15 +141,19 @@ func TestDisabledResolverPublishesNoSelection(t *testing.T) {
 	}
 }
 
-// TestResolverWithdrawsOnBye proves the resolver's bye path sends a
-// withdrawal once it has published, and nothing after it, so the listener
-// down edges of the stop that follows do not list the consumer again.
-// Method: apply and start the announcer, withdraw, then feed a listener
-// edge and apply again, and decode the bodies sent.
+// TestResolverWithdrawPublishesEmptySelection proves withdraw, called
+// directly, sends one withdrawn publication with no selection once the
+// resolver has published, and that nothing is published after it, so the
+// listener down edges of the stop that follows do not list the consumer
+// again. Method: apply and start the announcer, call withdraw, then feed a
+// listener edge and apply again, and decode the bodies sent. It does not
+// drive the registered OnBye handler; the daemon-level proof that a removed
+// resolver leaves show system dns is
+// test/draft/plugin/show-system-dns-withdraw-on-removal.ci.
 //
-// VALIDATES: spec-home-cpe-23b, a removed consumer leaves show system dns.
-// PREVENTS: the registry keeping a stopped resolver's last selection.
-func TestResolverWithdrawsOnBye(t *testing.T) {
+// VALIDATES: spec-home-cpe-23b, the withdrawal body and the silence after it.
+// PREVENTS: a withdrawn resolver publishing its selection again.
+func TestResolverWithdrawPublishesEmptySelection(t *testing.T) {
 	res := newResolver(time.Now)
 	cfg := defaultConfig()
 	cfg.Enabled = true
