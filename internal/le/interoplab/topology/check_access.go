@@ -48,7 +48,8 @@ const sessionUpTimeout = 120 * time.Second
 // checkAccessUp proves access-up on state, each clause from a different
 // producer (vacuity trap 5): the CPE's address and resolver, the LAC's
 // discovery capture and L2TP tables, FreeRADIUS's login record, the LNS's
-// session table and core capture, and the LNS's PPP interface counters.
+// session table and core capture, lan-res-c's DHCP lease, which carries the
+// learned resolvers in option 6, and the LNS's PPP interface counters.
 func checkAccessUp(ctx context.Context, check *interoplab.CheckContext) error {
 	subscriber := netip.MustParseAddr(subscriberAddress)
 	// AC-4: 203.0.113.1 lies outside the pool, so only the Access-Accept's
@@ -74,6 +75,9 @@ func checkAccessUp(ctx context.Context, check *interoplab.CheckContext) error {
 		return err
 	}
 	if err := waitResolvers(ctx, check); err != nil {
+		return err
+	}
+	if err := checkOption6PassThrough(ctx, check); err != nil {
 		return err
 	}
 	return checkPingAcross(ctx, check, nodeLNS, subscriber, pingCount)

@@ -93,7 +93,7 @@ func checkLease(ctx context.Context, check *interoplab.CheckContext, client stri
 	if err != nil {
 		return err
 	}
-	if _, err := execOK(ctx, check, client, []string{"dhcpcd", "-4", "-1", "-w", "-t", "60", lan.Device}); err != nil {
+	if _, err := execOK(ctx, check, client, []string{commandDHCPCD, "-4", "-1", "-w", "-t", "60", lan.Device}); err != nil {
 		return fmt.Errorf("%s's dhcpcd bound no lease from the CPE: %w", client, err)
 	}
 	answer, err := execOK(ctx, check, client, []string{"ip", "-o", "-4", "address", "show", "dev", lan.Device})

@@ -402,21 +402,52 @@ func renderHomeCPE(root string, now time.Time, algorithm cpeKeyAlgorithm) (rende
 }
 
 // prepareHomeCPE answers the prepare step of a scenario whose CPE holds a key
-// of algorithm: it renders the CPE configuration and the issued files into
-// directory, for the nodes that mount them (node.prepared).
-func prepareHomeCPE(algorithm cpeKeyAlgorithm) func(root, directory string) error {
+// of algorithm: it renders the CPE configuration, with the scenario's
+// additions inserted, and the issued files into directory, for the nodes that
+// mount them (node.prepared). A scenario with no additions runs the
+// conversion as rendered.
+func prepareHomeCPE(algorithm cpeKeyAlgorithm, additions ...cpeAddition) func(root, directory string) error {
 	return func(root, directory string) error {
-		return writeHomeCPE(root, directory, algorithm)
+		return writeHomeCPE(root, directory, algorithm, additions)
 	}
 }
 
+// cpeAddition is lab-only text one scenario inserts into the rendered CPE
+// configuration, for a case the VyOS source cannot state, so ze-cpe.conf
+// stays the conversion and its record stays true. text goes immediately
+// before anchor, which the rendered configuration MUST hold exactly once.
+type cpeAddition struct {
+	anchor string
+	text   string
+}
+
+// addToCPEConfig inserts each addition before its anchor, in order. It
+// refuses an anchor the configuration holds no time or several times, because
+// the addition would then land nowhere or in a place nobody chose.
+func addToCPEConfig(config string, additions []cpeAddition) (string, error) {
+	for _, addition := range additions {
+		count := strings.Count(config, addition.anchor)
+		if count != 1 {
+			return "", fmt.Errorf("a lab addition to the CPE configuration is anchored on %q, which %s/%s holds %d times, want once; "+
+				"re-anchor the addition on text the converted file holds once", addition.anchor, cpeDirectory, cpeConvertedFile, count)
+		}
+		at := strings.Index(config, addition.anchor)
+		config = config[:at] + addition.text + config[at:]
+	}
+	return config, nil
+}
+
 // writeHomeCPE is prepareHomeCPE's step for one run.
-func writeHomeCPE(root, directory string, algorithm cpeKeyAlgorithm) error {
+func writeHomeCPE(root, directory string, algorithm cpeKeyAlgorithm, additions []cpeAddition) error {
 	rendered, err := renderHomeCPE(root, time.Now(), algorithm)
 	if err != nil {
 		return err
 	}
-	files := map[string][]byte{renderedCPEConfig: []byte(rendered.config), renderedCPEResolvConf: []byte(cpeResolvConf)}
+	config, err := addToCPEConfig(rendered.config, additions)
+	if err != nil {
+		return err
+	}
+	files := map[string][]byte{renderedCPEConfig: []byte(config), renderedCPEResolvConf: []byte(cpeResolvConf)}
 	maps.Copy(files, rendered.files)
 	for name, content := range files {
 		path := filepath.Join(directory, filepath.FromSlash(name))

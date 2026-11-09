@@ -71,12 +71,65 @@ const (
 // bridge br0 holds eth2, so the CPE also joins link lan, with lan-client as
 // the link's second member: a link needs two. Links are declared access,
 // core, lan, so the CPE reaches access as eth1 (pppoe0's source) and lan as
-// eth2, and the LAC reaches access as eth1 and core as eth2.
-func accessChain(checker interoplab.Checker) scenario {
+// eth2, and the LAC reaches access as eth1 and core as eth2. Each node of
+// lan joins link lan after lan-client.
+func accessChain(checker interoplab.Checker, lan ...node) scenario {
 	chain := dialChain(checker, convertedCPE())
+	members := make([]string, 0, 2+len(lan))
+	members = append(members, nodeCPE, nodeLANClient)
 	chain.nodes = append(chain.nodes, dhcpClient(nodeLANClient, 21, ""))
-	chain.links = append(chain.links, interoplab.Link{Name: homeLANLink, VLAN: 197, Members: []string{nodeCPE, nodeLANClient}})
+	chain.nodes = append(chain.nodes, lan...)
+	for index := range lan {
+		members = append(members, lan[index].name)
+	}
+	chain.links = append(chain.links, interoplab.Link{Name: homeLANLink, VLAN: 197, Members: members})
 	chain.prepare = prepareHomeCPE(cpeKeyP256)
+	return chain
+}
+
+// The lab's pass-through subnet, which access-up adds to the CPE
+// (spec-home-cpe-23b story 1b): 10.77.0.0/24 on br0, with no dns-server and
+// no dns-source, so option 6 there comes from the D-5 default (configured,
+// then received, first usable). lan-res-c is reserved in it, so it leases
+// there whatever subnet a new client is allocated from.
+const (
+	nodeLANResC         = "lan-res-c"
+	resCMAC             = "02:00:5e:50:00:50"
+	resCAddress         = "10.77.0.50"
+	passThroughGateway  = "10.77.0.1"
+	passThroughSubnetIP = "10.77.0.0/24"
+)
+
+// passThroughAdditions add the pass-through subnet to the converted CPE. The
+// VyOS source has no subnet whose conversion keeps the default: a VyOS subnet
+// with no `option name-server` sends no option 6, so its faithful conversion
+// writes `dns-source source configured` (docs/guide/migrating-from-vyos.md).
+// The subnet is added beside 10.99.0.0/24, so 192.168.50.0/24 stays first in
+// both the address list and the subnet list: br0's primary address, and so
+// the subnet a new client is allocated from (resolveSegment), are unchanged.
+var passThroughAdditions = []cpeAddition{
+	{anchor: "10.99.0.1/24 ]", text: passThroughGateway + "/24 "},
+	{anchor: "            subnet 10.99.0.0/24 {\n", text: "" +
+		"            subnet " + passThroughSubnetIP + " {\n" +
+		"                range 0 {\n" +
+		"                    start 10.77.0.100;\n" +
+		"                    stop 10.77.0.199;\n" +
+		"                }\n" +
+		"                lease-time 86400;\n" +
+		"                default-router " + passThroughGateway + ";\n" +
+		"                static-mapping res-c {\n" +
+		"                    mac-address " + resCMAC + ";\n" +
+		"                    ip-address " + resCAddress + ";\n" +
+		"                }\n" +
+		"            }\n"},
+}
+
+// accessUpChain is access-up's chain: accessChain with lan-res-c on link lan
+// and the pass-through subnet added to the CPE, so the scenario also proves
+// option 6 under the default (checkOption6PassThrough).
+func accessUpChain() scenario {
+	chain := accessChain(checkAccessUp, dhcpClient(nodeLANResC, 25, resCMAC))
+	chain.prepare = prepareHomeCPE(cpeKeyP256, passThroughAdditions...)
 	return chain
 }
 
@@ -154,7 +207,7 @@ func captureStart(device, file, filter string) string {
 }
 
 func init() {
-	scenarios[accessUpScenario] = accessChain(checkAccessUp)
+	scenarios[accessUpScenario] = accessUpChain()
 	scenarios[accessPoolScenario] = accessChain(checkAccessPool)
 	scenarios[accessAccountingScenario] = accessChain(checkAccessAccounting)
 }

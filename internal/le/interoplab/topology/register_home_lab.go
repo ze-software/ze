@@ -154,7 +154,9 @@ func homeLab(checker interoplab.Checker, options homeOptions) scenario {
 }
 
 // convertedCPE is the Ze CPE of every home-CPE scenario: the converted
-// configuration the prepare step rendered, never a file of its own. IPv6 is
+// configuration the prepare step rendered, never a file of its own. A
+// scenario that needs a case the VyOS source cannot state inserts it at
+// render time (cpeAddition: access-up's pass-through subnet). IPv6 is
 // enabled for vti0's management address, and the node writes its devices'
 // sysctls at run time as a deployed CPE does (netSysctlWriter).
 //

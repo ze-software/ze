@@ -85,7 +85,7 @@ func checkDelegatedLAN(ctx context.Context, check *interoplab.CheckContext, dele
 // RIO's route to delegated via router, and an IPv6 ping to accel-ppp that
 // crosses Ze both ways.
 func checkSLAACHost(ctx context.Context, check *interoplab.CheckContext, device string, subnet, delegated netip.Prefix, router netip.Addr) error {
-	if _, err := execOK(ctx, check, nodeSLAACHost, []string{"dhcpcd", "-6", "-b", "-j", pdDHCPCDLog, device}); err != nil {
+	if _, err := execOK(ctx, check, nodeSLAACHost, []string{commandDHCPCD, "-6", "-b", "-j", pdDHCPCDLog, device}); err != nil {
 		return fmt.Errorf("start dhcpcd on %s: %w", nodeSLAACHost, err)
 	}
 	if err := pollUntil(ctx, pdWait, nodeSLAACHost+" holds a SLAAC address in "+subnet.String(), func() error {
