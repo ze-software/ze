@@ -24,7 +24,7 @@
   {
     "rid": "RFC8106-5.1-1",
     "polarity": "positive",
-    "unit": "internal/plugins/iface/ra/advertiser_rdnss_test.go::TestRDNSSWithdrawnAdvertisedLifetimeZero",
+    "unit": "internal/plugins/iface/ra/rfc8106_advertiser_rdnss_test.go::TestRDNSSWithdrawnAdvertisedLifetimeZero",
     "unit-sha": "51e07ef9834cb919",
     "claim-sha": "d8bb6abf3db4fd67",
     "route": "mutant",

@@ -357,7 +357,7 @@ MS-Primary and MS-Secondary in `AuthMetadata` for the pool's `radius` class.
 | `TestExtractMSDNSServers` | authradius `extract_test.go` | parse and R-6 | |
 | `TestPoolIPCPDNSFromRadius`, `TestPoolIPCPDNSRadiusAbsent` | pool `register_test.go` | AC-9, AC-10 | |
 | `TestDNSSourceClassRefused` | each consumer's config test | AC-11 | |
-| `TestSelfIsAddressOnClientInterface` | iface `ra_dns_source_test.go`, pool `dns_source_test.go`; for dhcpserver the `self` case of `TestOption6FromDNSSource` (`handler_dns_source_test.go`) | AC-7, D-6 for each consumer | |
+| `TestSelfIsAddressOnClientInterface` | iface `rfc8106_ra_dns_source_test.go`, pool `rfc2548_dns_source_test.go`; for dhcpserver the `self` case of `TestOption6FromDNSSource` (`handler_dns_source_test.go`) | AC-7, D-6 for each consumer | |
 | `TestLeaseShortWhileReceivedUnusable` | dhcpserver `handler_test.go` | AC-25 | |
 | `TestSelectDropsHostOnlyAddressesForHandedOutLists` | the core leaf's package test | AC-27, D-16: a handed-out list drops loopback and zone-less IPv6 link-local and falls through; a router list keeps both | |
 
@@ -650,7 +650,7 @@ Review round 1 (`tmp/session/2026-11-07-104251/scratch/c23b-review-r1.md`) and r
 | AC-12 | Partial (pending) | `internal/plugins/system-dns-cmd/cmd` unit pass (`u-resolver.log`) | draft `show-system-dns` red: `parse config: line 16 ... LBRACKET` (`g12-clean.log`); `TestRegisteredWireMethods` pending |
 | AC-13 | Partial (pending) | `dns-resolver-forward-dhcpv4-replay` draft passes clean and red (`c23b-replay.log`, out-gb11); resolver `awaitReplay` | promotion pending; review NOTE 15: dhcpserver answers before the replay, so AC-13 holds strictly for the resolver only |
 | AC-14 | Partial | `TestOption6PassThroughDefault` | `test/dhcp/dhcp-server-dns-pass-through.ci` not written; owed |
-| AC-15 | Done (unit) | `TestRDNSSPassThroughDefault` (`internal/component/iface/ra_dns_source_test.go`) | |
+| AC-15 | Done (unit) | `TestRDNSSPassThroughDefault` (`internal/component/iface/rfc8106_ra_dns_source_test.go`) | |
 | AC-16b | Partial (pending) | `TestModeRequiredEachConsumer` (system, dnsresolver, pool) | drafts `dns-source-class-refused`, `dns-source-mode-required-consumers` and `dns-source-ra-rdnss-consumer` (the RA half, skipped on darwin); `dns-source-mode-required-consumers` was red, same LBRACKET parse (`p-mode-clean.log`) |
 | AC-20 | Done | `TestForwardPassThroughDefault`; `dns-resolver-forward-default`, `dns-resolver-forward-dhcpv4-default` pass clean, red under break (`c23b-fwd-default.log`, `c23b-dhcpv4-default.log`) | |
 | AC-25 | Partial | `TestLeaseShortWhileReceivedUnusable` (the bare default) | drafted as `test/draft/dhcp/dhcp-server-short-lease-wan-down.ci`, received class narrowed to the WAN veth (Deviations); run and promotion owed |
@@ -660,7 +660,7 @@ Review round 1 (`tmp/session/2026-11-07-104251/scratch/c23b-review-r1.md`) and r
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
-| unit tests of the TDD table | Done | located by `func` grep: dhcpserver `handler_dns_source_test.go`, iface `ra_dns_source_test.go`, ra `advertiser_rdnss_test.go`, dnsresolver `config_tx_test.go`, dnssource `self_refused_test.go`, `select_test.go`, authradius `extract_dns_test.go`, pool `dns_source_test.go` | all packages pass (`out-gb12/u-*.log`) except the three pending reds below |
+| unit tests of the TDD table | Done | located by `func` grep: dhcpserver `handler_dns_source_test.go`, iface `rfc8106_ra_dns_source_test.go`, ra `rfc8106_advertiser_rdnss_test.go`, dnsresolver `config_tx_test.go`, dnssource `self_refused_test.go`, `select_test.go`, authradius `rfc2548_extract_dns_test.go`, pool `rfc2548_dns_source_test.go` | all packages pass (`out-gb12/u-*.log`) except the three pending reds below |
 | `.ci` promoted | Done | `test/plugin/dns-resolver-forward-received.ci`, `dns-resolver-forward-default.ci`, `dns-resolver-forward-dhcpv4-default.ci`, `test/pppoe/dns-resolver-forward-ppp-lease.ci` | |
 | `.ci` drafts | pending | `test/draft/{parse,plugin,l2tp,pppoe}/` | listed under Pre-Commit "Files Exist" |
 | `.ci` not written | owed | the three `test/dhcp/` files | |
@@ -718,7 +718,7 @@ Every pending item in this closure is in scope and stays here until fixed.
 | 8 | ISSUE | doctor-dns-source-self-unserved text contradicts D-6 | `internal/core/diagnostic/codes.go` | b525648a71 |
 | 9 | ISSUE | documentation drift | Doc checklist rows 1, 2, 4, 5, 11, 15 | 3f5eb284d9; rows 1 and 11 by 23c067bb8d |
 | 10 | ISSUE | a consumer's publication outlives it | `internal/component/config/system/resolv.go` | ac5ab17dad, f6f6b0a7dd; daemon-level proof: draft `test/draft/plugin/show-system-dns-withdraw-on-removal.ci` (R2-2) |
-| 11 | ISSUE | RFC8106-5.1-1 advertising side unproven | `advertiser_rdnss_test.go` | 83f4316387 |
+| 11 | ISSUE | RFC8106-5.1-1 advertising side unproven | `rfc8106_advertiser_rdnss_test.go` | 83f4316387 |
 | 12 | ISSUE | spec-named unit tests missing | `internal/core/dnssource` | 0b21d66b9f, 769ec28eca |
 
 NOTEs 13 to 17 recorded in the review file. NOTE 15 (the DHCP server answered before the learned replay, AC-13) is fixed by 0b7c9ea0a7 (D-21); round 2 found NOTEs 13, 14, 16 and 17 untouched.

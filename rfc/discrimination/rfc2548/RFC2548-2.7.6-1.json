@@ -2,7 +2,7 @@
   {
     "rid": "RFC2548-2.7.6-1",
     "polarity": "positive",
-    "unit": "internal/component/l2tp/plugins/authradius/extract_dns_test.go::TestExtractMSDNSServers",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2548_extract_dns_test.go::TestExtractMSDNSServers",
     "unit-sha": "fa0cb9899165ad5d",
     "claim-sha": "4397d6f5b70a38e0",
     "route": "mutant",
@@ -13,7 +13,7 @@
   {
     "rid": "RFC2548-2.7.6-1",
     "polarity": "positive",
-    "unit": "internal/component/l2tp/plugins/pool/dns_source_test.go::TestPoolIPCPDNSFromRadius",
+    "unit": "internal/component/l2tp/plugins/pool/rfc2548_dns_source_test.go::TestPoolIPCPDNSFromRadius",
     "unit-sha": "4454cd7bab93d3ba",
     "claim-sha": "6b61f56d9e42ee65",
     "route": "mutant",

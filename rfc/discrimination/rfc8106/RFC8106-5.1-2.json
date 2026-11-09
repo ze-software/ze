@@ -2,7 +2,7 @@
   {
     "rid": "RFC8106-5.1-2",
     "polarity": "positive",
-    "unit": "internal/component/iface/ra_dns_source_test.go::TestRDNSSRefusesLinkLocalOfAnotherLink",
+    "unit": "internal/component/iface/rfc8106_ra_dns_source_test.go::TestRDNSSRefusesLinkLocalOfAnotherLink",
     "unit-sha": "42424a98378cb047",
     "claim-sha": "e187f495d3887f3e",
     "route": "mutant",
