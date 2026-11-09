@@ -55,3 +55,53 @@ func TestPoolPublishesSubscriberSelection(t *testing.T) {
 		t.Fatalf("an unchanged selection was published again: %d sets", len(published))
 	}
 }
+
+// TestPoolWithdrawsOnBye proves the pool plugin's bye path sends a withdrawal
+// once it has published, sends nothing afterwards, and publishes again when a
+// new run installs a bus. Method: a pool on an in-process bus, withdraw, then
+// a fresh snapshot and a config publish that would each publish a changed
+// set, then a second setEventBus.
+//
+// VALIDATES: spec-home-cpe-23b, a removed consumer leaves show system dns.
+// PREVENTS: the registry keeping a stopped pool plugin's last selections.
+func TestPoolWithdrawsOnBye(t *testing.T) {
+	bus := newReleaseBus()
+	var published []*dnssource.Publication
+	dnssource.PublicationEvent.Subscribe(bus, func(p *dnssource.Publication) { published = append(published, p) })
+
+	p := &poolPlugin{pool: newIPv4Pool(testGW, netip.MustParseAddr("10.0.0.1"),
+		netip.MustParseAddr("10.0.0.10"), netip.Addr{}, netip.Addr{})}
+	p.setEventBus(bus)
+	if len(published) != 1 {
+		t.Fatalf("joining the bus published %d sets, want 1", len(published))
+	}
+
+	p.withdraw()
+	if len(published) != 2 {
+		t.Fatalf("withdraw sent %d publications in total, want 2", len(published))
+	}
+	withdrawal := published[1]
+	if withdrawal.Consumer != poolConsumer || !withdrawal.Withdrawn || len(withdrawal.Selections) != 0 {
+		t.Fatalf("withdrawal = %+v, want a withdrawn %q with no selection", withdrawal, poolConsumer)
+	}
+
+	snapshot := &dnssource.Snapshot{Sequence: 1, Records: []dnssource.Record{{
+		Origin: "dhcpv4", Rank: 100, Interface: "wan0", Unit: "0",
+		Addresses: []netip.Addr{netip.MustParseAddr("192.0.2.53")}, Received: time.Now(), Expires: time.Now().Add(time.Hour),
+	}}}
+	if _, err := dnssource.SnapshotEvent.Emit(bus, snapshot); err != nil {
+		t.Fatalf("emit snapshot: %v", err)
+	}
+	p.publishPools(bus)
+	if len(published) != 2 {
+		t.Fatalf("a withdrawn pool plugin published again: %d publications, want 2: %+v", len(published), published[2:])
+	}
+
+	p.setEventBus(bus)
+	if len(published) != 3 {
+		t.Fatalf("a new run published %d publications in total, want 3", len(published))
+	}
+	if published[2].Withdrawn || len(published[2].Selections) != 1 {
+		t.Fatalf("a new run published %+v, want the pool's selection again", published[2])
+	}
+}

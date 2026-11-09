@@ -369,6 +369,13 @@ func runPlugin(conn net.Conn) int {
 	defer func() { _ = p.Close() }()
 
 	p.OnConfigVerify(verifyPoolConfig)
+	// A plugin the engine removes while the daemon runs withdraws its
+	// selections, so show system dns and ze doctor stop reporting them. On
+	// daemon stop no bye arrives, and the registry stops with the daemon.
+	p.OnBye(func(string) error {
+		poolInstance.withdraw()
+		return nil
+	})
 
 	var pendingResult *poolConfigResult
 
