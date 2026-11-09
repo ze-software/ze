@@ -1805,6 +1805,10 @@ via CREATE_CHILD_SA", "child-sa: creation refused, keeping the IKE SA"); the
 narrowing and EAP-TLS refusals are error text whose logging level was not
 traced. No checker found depends on `ZE_LOG=debug`, so the half needs either
 a debug-only needle to wait on or a ruling that the unit carrier is the proof.
+Owner decision (2026-11-09): the unit carrier is the proof of P-12 (c), and
+the lab check moves to its own spec,
+`plan/post-release/engineering/spec-ipsec-lab-debug-log-check.md`. P-12 (c)
+is closed on `TestPreparedIPsecPeerEnablesDebugLogging` with its recorded red.
 
 ## P-12 (d): build-only bench staging (2026-11-09)
 
