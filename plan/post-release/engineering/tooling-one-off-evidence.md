@@ -1647,7 +1647,11 @@ Not attributed:
   session down, but a red at establishment does not prove the checker's own
   assertion. A break that keeps the session up, or discarding type-2 (the
   second break the plan names), is still owed. The checker does not read the
-  NLRI registry, so the shared-registry risk does not apply.
+  NLRI registry, so the shared-registry risk does not apply. The second break
+  (discarding EVPN type 2) also fails at assertion 2, and so does the restored
+  green run after it, where the earlier restored green had passed (1m25s): the
+  scenario's session establishment is itself unreliable, so no red here is
+  attributable until that is fixed.
 - `checkRelayWithdrawalShape` / `bgp-relay-withdraw-shape-frr`, positive
   half proved: `recordPrepend` (`wireu/aspath_slot.go`) returning before any
   prepend fails "assertion 2: wait for FRR route 10.10.0.0/24 timed out",
