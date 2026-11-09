@@ -29,6 +29,10 @@ type advertiser struct {
 	// retiring holds the delegated /64s an update dropped. The next
 	// advertisement carries each once with zero lifetimes, then forgets it.
 	retiring []iface.DelegatedAdvert
+	// retiringRDNSS holds the resolvers an update dropped. The next
+	// advertisement carries them once in an RDNSS option of Lifetime 0, then
+	// forgets them.
+	retiringRDNSS []netip.Addr
 	// lastLifetime is the Router Lifetime of the last advertisement sent,
 	// and sentAny says one was sent at all.
 	lastLifetime uint16
@@ -36,7 +40,9 @@ type advertiser struct {
 }
 
 // update replaces the spec. A delegated /64 the new spec no longer carries is
-// retired: the lease ended, or the unit no longer numbers from it.
+// retired: the lease ended, or the unit no longer numbers from it. A resolver
+// the new spec no longer advertises is retired the same way: its learned
+// record was withdrawn, or the unit's dns-source list now selects another.
 func (a *advertiser) update(spec iface.RASenderSpec) {
 	for _, old := range a.spec.Delegated {
 		kept := slices.ContainsFunc(spec.Delegated, func(d iface.DelegatedAdvert) bool {
@@ -45,6 +51,15 @@ func (a *advertiser) update(spec iface.RASenderSpec) {
 		if !kept {
 			a.retiring = append(a.retiring, old)
 		}
+	}
+	for _, old := range a.spec.Advertisement.RDNSS {
+		if slices.Contains(spec.Advertisement.RDNSS, old) {
+			continue
+		}
+		if slices.Contains(a.retiringRDNSS, old) {
+			continue
+		}
+		a.retiringRDNSS = append(a.retiringRDNSS, old)
 	}
 	a.spec = spec
 }
@@ -55,6 +70,7 @@ func (a *advertiser) build(now time.Time, wanDefault bool) ndp.RAConfig {
 	cfg := a.spec.Advertisement
 	cfg.Prefixes = slices.Clone(cfg.Prefixes)
 	cfg.Routes = slices.Clone(cfg.Routes)
+	cfg.RDNSSWithdrawn = slices.Clone(cfg.RDNSSWithdrawn)
 	for _, d := range a.spec.Delegated {
 		// RFC 9915 Section 6.3
 		valid, preferred := d.Lifetimes(now)
@@ -66,8 +82,37 @@ func (a *advertiser) build(now time.Time, wanDefault bool) ndp.RAConfig {
 		cfg.Prefixes = append(cfg.Prefixes, delegatedPrefixInfo(d.Address.Masked(), 0, 0))
 		cfg.Routes = withRoute(cfg.Routes, d.Delegated.Masked(), 0)
 	}
+	cfg.RDNSSLifetime = a.rdnssLifetime(now)
+	for _, addr := range a.retiringRDNSS {
+		// An address advertised again is live, and one option says so.
+		if slices.Contains(cfg.RDNSS, addr) {
+			continue
+		}
+		cfg.RDNSSWithdrawn = append(cfg.RDNSSWithdrawn, addr)
+	}
 	cfg.RouterLifetime = a.routerLifetime(now, wanDefault)
 	return cfg
+}
+
+// rdnssLifetime is the RDNSS option's Lifetime at now: the unit's lifetime,
+// bounded by what remains of the learned records that supplied the servers,
+// so a host is never told to keep a resolver past its lease. A remainder is
+// rounded down, and a record already ended advertises 0, which RFC 8106
+// Section 5.1 reads as "MUST no longer be used".
+func (a *advertiser) rdnssLifetime(now time.Time) uint32 {
+	lifetime := a.spec.Advertisement.RDNSSLifetime
+	if a.spec.RDNSSExpires.IsZero() {
+		return lifetime
+	}
+	left := a.spec.RDNSSExpires.Sub(now)
+	if left <= 0 {
+		return 0
+	}
+	seconds := left / time.Second // integer division rounds down
+	if seconds < time.Duration(lifetime) {
+		return uint32(seconds)
+	}
+	return lifetime
 }
 
 // delegatedPrefixInfo is the Prefix Information option of a delegated /64,
@@ -149,7 +194,7 @@ func (a *advertiser) routerLifetime(now time.Time, wanDefault bool) uint16 {
 
 // urgent reports whether the advertisement at now must go before the
 // periodic schedule: a retired prefix to withdraw, or a Router Lifetime that
-// crossed zero since the last one sent.
+// crossed zero since the last one sent, or a resolver to withdraw.
 //
 // RFC 7084 Section 4.1 G-5: "By default, if the IPv6 CE router is an
 // advertising router and loses its IPv6 default router(s) and/or detects loss
@@ -162,6 +207,9 @@ func (a *advertiser) routerLifetime(now time.Time, wanDefault bool) uint16 {
 // MAX_INITIAL_RTR_ADVERTISEMENTS unsolicited advertisements".
 func (a *advertiser) urgent(now time.Time, wanDefault bool) bool {
 	if len(a.retiring) > 0 {
+		return true
+	}
+	if len(a.retiringRDNSS) > 0 {
 		return true
 	}
 	if !a.sentAny {
@@ -177,6 +225,7 @@ func (a *advertiser) sent(cfg ndp.RAConfig) {
 	a.lastLifetime = cfg.RouterLifetime
 	a.sentAny = true
 	a.retiring = nil
+	a.retiringRDNSS = nil
 }
 
 // defaultRouteKey identifies one IPv6 default route in the main table.

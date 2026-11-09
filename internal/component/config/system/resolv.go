@@ -392,7 +392,7 @@ func (r *Resolvers) Watch(fn func(*dnssource.Snapshot)) (stop func()) {
 // change. The caller MUST call the returned stop before bus goes away.
 func (r *Resolvers) PublishOn(bus ze.EventBus) (stop func()) {
 	stopWatch := r.Watch(func(snapshot *dnssource.Snapshot) { emitDNSSnapshot(bus, snapshot) })
-	stopRequests := dnsSnapshotRequest.Subscribe(bus, func() {
+	stopRequests := dnssource.SnapshotRequest.Subscribe(bus, func() {
 		current := r.Snapshot()
 		emitDNSSnapshot(bus, &current)
 	})
@@ -405,7 +405,7 @@ func (r *Resolvers) PublishOn(bus ze.EventBus) (stop func()) {
 // emitDNSSnapshot publishes one snapshot. Delivery is best effort: a failure
 // is logged at WARN, and the next change or request publishes again.
 func emitDNSSnapshot(bus ze.EventBus, snapshot *dnssource.Snapshot) {
-	if _, err := dnsSnapshotEvent.Emit(bus, snapshot); err != nil {
+	if _, err := dnssource.SnapshotEvent.Emit(bus, snapshot); err != nil {
 		slogutil.Logger("resolv").Warn("system-dns snapshot not published", "sequence", snapshot.Sequence, "err", err)
 	}
 }

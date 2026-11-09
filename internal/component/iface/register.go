@@ -22,6 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	sysctlevents "github.com/ze-software/ze/internal/component/sysctl/events"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/dnssource"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/health"
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
@@ -520,12 +521,22 @@ func runEngine(conn net.Conn) int {
 	delegationQ := newDelegationQueue()
 	delegationStop := make(chan struct{})
 	delegationDone := make(chan struct{})
+	// learnedDNS holds the newest system-dns snapshot, whose records fill the
+	// RDNSS list of every advertising unit (ra_dns_source.go). Its handler
+	// only records the snapshot and wakes rdnssCh; the worker re-runs the
+	// RA reconcile outside the EventBus Emit goroutine.
+	var learnedDNS dnssource.Follower
+	setRALearned(&learnedDNS)
 	refreshDelegatedRA := func() {
 		raMu.Lock()
 		reconcileRA(activeCfg.Load(), activeRA, log)
 		raMu.Unlock()
 	}
 	go runDelegationWorker(delegationQ, delegationStop, delegationDone, &activeCfg, refreshDelegatedRA, log)
+	rdnssCh := make(chan struct{}, 1)
+	rdnssStop := make(chan struct{})
+	rdnssDone := make(chan struct{})
+	go runRDNSSWorker(rdnssCh, rdnssStop, rdnssDone, refreshDelegatedRA)
 	// The owned-device registry (device_owner.go) shares the SAME reconcile
 	// channel and worker: reconcileOnReadyWithJournal reconciles BOTH
 	// registries from snapshots on every pass, so one worker serves both and a
@@ -703,6 +714,18 @@ func runEngine(conn net.Conn) int {
 		// RDNSS options the netlink monitor hands up from accepted RAs.
 		unsubscribers = append(unsubscribers, eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventNDUserOption,
 			events.AsString(raRDNSSProducer.handle)))
+
+		// The learned resolvers fill each unit's RDNSS list. The request
+		// after the subscription brings the state the registry already
+		// holds, which a snapshot sent before it never delivered here.
+		unsubscribers = append(unsubscribers, dnssource.SnapshotEvent.Subscribe(eb, func(snapshot *dnssource.Snapshot) {
+			if learnedDNS.AcceptSnapshot(snapshot) {
+				nonBlockingNotify(rdnssCh)
+			}
+		}))
+		if _, err := dnssource.SnapshotRequest.Emit(eb); err != nil {
+			log.Warn("interface: system-dns snapshot not requested; RDNSS follows the first change instead", "err", err)
+		}
 
 		// Subscribe once to vpp lifecycle events so reconciliation that was
 		// deferred during initial apply (vpp handshake still in flight) runs
@@ -1051,6 +1074,10 @@ func runEngine(conn net.Conn) int {
 	// RA reconcile, which would start a sender the stop below then misses.
 	close(delegationStop)
 	<-delegationDone
+	// The RDNSS worker's pass is an RA reconcile too, so it stops here for
+	// the same reason.
+	close(rdnssStop)
+	<-rdnssDone
 
 	// Stop all PPPoE clients on shutdown.
 	pppoeMu.Lock()

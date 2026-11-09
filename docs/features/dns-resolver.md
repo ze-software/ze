@@ -203,8 +203,10 @@ daemon, so they cannot see a lease. They ask the server that `--server`
 ### The `dns-source` list and the learned record
 
 `dns-source` is one YANG grouping, declared in `ze-types`, so every consumer
-that hands resolver addresses on writes the same list. Today the router's
-`system dns-source` is the only consumer that uses it.
+that hands resolver addresses on writes the same list. The router's
+`system dns-source`, a DHCP subnet's option 6 (`service dhcp-server
+shared-network subnet dns-source`) and a unit's RA RDNSS (`interface ... unit
+... ipv6 router-advertisement rdnss dns-source`) use it.
 
 | Leaf | Shape |
 |------|-------|
@@ -240,8 +242,13 @@ link is reachable from it.
 A consumer plugin, in the engine process or its own, subscribes to the
 `system-dns` snapshot, asks for a replay once it has started, and keeps the
 newest snapshot's records with `dnssource.Follower`, which drops a
-snapshot older than the last it kept.
-<!-- source: internal/core/dnssource/follow.go -- Follower -->
+snapshot older than the last it kept. A plugin process receives the JSON
+form and hands it to `Accept`. A component in the daemon (the interface
+component, for RDNSS) subscribes to the typed handle
+`dnssource.SnapshotEvent`, hands the value to `AcceptSnapshot`, and emits
+`dnssource.SnapshotRequest` after it subscribes.
+<!-- source: internal/core/dnssource/follow.go -- Follower, Accept, AcceptSnapshot -->
+<!-- source: internal/core/dnssource/register.go -- SnapshotEvent, SnapshotRequest -->
 
 | Origin | Rank | Learned from |
 |--------|------|--------------|

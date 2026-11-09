@@ -198,6 +198,11 @@ type RAConfig struct {
 	// RDNSSLifetime is the seconds the resolvers can be used; 0 means they must
 	// no longer be used (RFC 8106 Section 5.1).
 	RDNSSLifetime uint32
+	// RDNSSWithdrawn are resolvers the router stopped advertising. They go in
+	// a second RDNSS option whose Lifetime is 0, so a host drops them at once
+	// rather than when their last advertised lifetime runs out. The caller
+	// keeps them apart from RDNSS.
+	RDNSSWithdrawn []netip.Addr
 }
 
 // hasSourceLinkLayerAddress reports whether the configured link-layer address
@@ -219,12 +224,16 @@ func RALen(cfg RAConfig) int {
 	if len(cfg.RDNSS) > 0 {
 		n += rdnssOptionFixed + rdnssAddressLen*len(cfg.RDNSS)
 	}
+	if len(cfg.RDNSSWithdrawn) > 0 {
+		n += rdnssOptionFixed + rdnssAddressLen*len(cfg.RDNSSWithdrawn)
+	}
 	return n
 }
 
 // BuildRA writes a Router Advertisement into buf starting at off and returns
 // the number of octets written. It returns 0 and writes nothing when off is
-// negative, when cfg carries more than RDNSSMax resolvers, or when buf has
+// negative, when cfg carries more than RDNSSMax resolvers in RDNSS or in
+// RDNSSWithdrawn, or when buf has
 // fewer than RALen(cfg) octets left. An RA is never shorter than its 16-octet
 // header, so 0 unambiguously means "not encoded" and the caller must treat it
 // as an error rather than as an empty message.
@@ -237,6 +246,9 @@ func RALen(cfg RAConfig) int {
 // tells receivers to ignore the ones they do not recognize.
 func BuildRA(buf []byte, off int, cfg RAConfig) int {
 	if off < 0 || len(cfg.RDNSS) > RDNSSMax || len(buf)-off < RALen(cfg) {
+		return 0
+	}
+	if len(cfg.RDNSSWithdrawn) > RDNSSMax {
 		return 0
 	}
 	start := off
@@ -277,7 +289,10 @@ func BuildRA(buf []byte, off int, cfg RAConfig) int {
 	// provide ULA addressing) using the "Route Information Option" specified
 	// in Section 2.3 of [RFC4191]."
 	off = writeRouteInformation(buf, off, cfg)
-	off = writeRDNSS(buf, off, cfg)
+	off = writeRDNSS(buf, off, cfg.RDNSS, cfg.RDNSSLifetime)
+	// RFC 8106 Section 5.1: "A value of zero means that the RDNSS addresses
+	// MUST no longer be used."
+	off = writeRDNSS(buf, off, cfg.RDNSSWithdrawn, 0)
 
 	return off - start
 }
@@ -363,21 +378,32 @@ func writePrefixOptions(buf []byte, off int, cfg RAConfig) int {
 	return off
 }
 
-// writeRDNSS appends the Recursive DNS Server option (RFC 8106 Section 5.1)
-// and returns the new offset.
-func writeRDNSS(buf []byte, off int, cfg RAConfig) int {
-	if len(cfg.RDNSS) == 0 {
+// writeRDNSS appends one Recursive DNS Server option (RFC 8106 Section 5.1)
+// carrying servers with lifetime, and returns the new offset. No servers
+// writes nothing.
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|     Type      |     Length    |           Reserved            |  off+0
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|                           Lifetime                            |  off+4
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|            Addresses of IPv6 Recursive DNS Servers            |  off+8
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+func writeRDNSS(buf []byte, off int, servers []netip.Addr, lifetime uint32) int {
+	if len(servers) == 0 {
 		return off
 	}
 	buf[off] = OptRDNSS
 	// RFC 8106 Section 5.1: Length in 8-octet units is 3 for one address and
 	// grows by 2 for every additional address, so 1 + 2*count.
-	buf[off+1] = uint8(1 + 2*len(cfg.RDNSS))
+	buf[off+1] = uint8(1 + 2*len(servers))
 	binary.BigEndian.PutUint16(buf[off+2:], 0) // Reserved
-	binary.BigEndian.PutUint32(buf[off+4:], cfg.RDNSSLifetime)
+	binary.BigEndian.PutUint32(buf[off+4:], lifetime)
 	off += rdnssOptionFixed
 
-	for _, addr := range cfg.RDNSS {
+	for _, addr := range servers {
 		a := addr.As16()
 		copy(buf[off:off+rdnssAddressLen], a[:])
 		off += rdnssAddressLen

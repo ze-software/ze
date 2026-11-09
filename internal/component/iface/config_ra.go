@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"github.com/ze-software/ze/internal/core/configvalue"
+	"github.com/ze-software/ze/internal/core/dnssource"
 )
 
 // Defaults for the router-advertisement container. Each one repeats the
@@ -73,6 +74,10 @@ type raUnitConfig struct {
 	// different from an explicit 0. RFC 8106 Section 5.1 gives 0 the meaning
 	// "stop using these resolvers", so the two cases cannot share a value.
 	RDNSSLifetime *uint32 // seconds
+	// Sources is the rdnss dns-source list: which classes fill the RDNSS
+	// option, in order. It holds raRDNSSDefault while the container is
+	// absent; a zero List (a test literal) reads as that default too.
+	Sources dnssource.List
 }
 
 // EffectiveRDNSSLifetime returns the lifetime to advertise in the RDNSS
@@ -223,13 +228,19 @@ func raParsePrefixEntry(key string, entry map[string]any) (raPrefixConfig, error
 	return p, nil
 }
 
-// raParseRDNSS fills the resolver list and its lifetime from the rdnss
-// container.
+// raParseRDNSS fills the resolver list, its lifetime and its dns-source list
+// from the rdnss container.
 func raParseRDNSS(rm map[string]any, cfg *raUnitConfig) error {
 	dm, ok := rm["rdnss"].(map[string]any)
 	if !ok {
+		cfg.Sources = raRDNSSDefault
 		return nil
 	}
+	sources, err := raParseRDNSSSources(dm)
+	if err != nil {
+		return err
+	}
+	cfg.Sources = sources
 	for _, s := range configvalue.LeafList(dm["server"]) {
 		addr, err := netip.ParseAddr(s)
 		if err != nil {

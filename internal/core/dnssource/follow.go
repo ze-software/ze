@@ -11,8 +11,8 @@ import (
 	"sync"
 )
 
-// Follower is a plugin consumer's view of the system-dns namespace: it
-// decodes each snapshot the engine delivers to the plugin as JSON, keeps the
+// Follower is a consumer's view of the system-dns namespace: it
+// takes each snapshot (decoded from JSON in a plugin, typed in the daemon), keeps the
 // records of the newest one, and drops a snapshot older than the last it
 // kept (Snapshot, "a subscriber MUST drop a snapshot whose Sequence is
 // below the last one it applied"). The zero Follower holds no snapshot and
@@ -33,15 +33,23 @@ func (f *Follower) Accept(event string) (fresh bool, err error) {
 	if err := json.Unmarshal([]byte(event), &snapshot); err != nil {
 		return false, fmt.Errorf("system-dns snapshot does not decode: %w", err)
 	}
+	return f.AcceptSnapshot(&snapshot), nil
+}
+
+// AcceptSnapshot keeps snapshot when it is newer than the last one kept and
+// answers whether it was, like Accept. A consumer in the daemon calls it from
+// its SnapshotEvent handler, where the bus hands the typed value. The record
+// slice is copied; the producer MUST NOT change a snapshot it emitted.
+func (f *Follower) AcceptSnapshot(snapshot *Snapshot) (fresh bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.held && snapshot.Sequence <= f.sequence {
-		return false, nil
+		return false
 	}
 	f.held = true
 	f.sequence = snapshot.Sequence
-	f.records = snapshot.Records
-	return true, nil
+	f.records = slices.Clone(snapshot.Records)
+	return true
 }
 
 // Records answers the records of the newest snapshot kept, in received-class

@@ -8,8 +8,10 @@ package iface
 import (
 	"log/slog"
 	"slices"
+	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/dnssource"
 	"github.com/ze-software/ze/internal/core/ndp"
 )
 
@@ -53,6 +55,11 @@ type RASenderSpec struct {
 	// Delegated is the /64 the unit holds from each live delegation. The
 	// sender advertises each with the lifetimes that remain at every send.
 	Delegated []DelegatedAdvert
+	// RDNSSExpires is the end of validity of the learned records that
+	// supplied Advertisement.RDNSS. The sender advertises the lesser of the
+	// RDNSS lifetime and what remains to it at every send. The zero value is
+	// a named state: no learned server carries an end, so the lifetime stands.
+	RDNSSExpires time.Time
 }
 
 // Equal reports whether two specs describe the same advertisement, so reconcile
@@ -65,6 +72,7 @@ func (s RASenderSpec) Equal(other RASenderSpec) bool {
 		s.MaximumInterval == other.MaximumInterval &&
 		slices.Equal(s.WANs, other.WANs) &&
 		slices.EqualFunc(s.Delegated, other.Delegated, DelegatedAdvert.Equal) &&
+		s.RDNSSExpires.Equal(other.RDNSSExpires) &&
 		raAdvertisementEqual(s.Advertisement, other.Advertisement)
 }
 
@@ -79,6 +87,7 @@ func raAdvertisementEqual(a, b ndp.RAConfig) bool {
 		a.RDNSSLifetime == b.RDNSSLifetime &&
 		slices.Equal(a.SourceLinkLayerAddress, b.SourceLinkLayerAddress) &&
 		slices.Equal(a.RDNSS, b.RDNSS) &&
+		slices.Equal(a.RDNSSWithdrawn, b.RDNSSWithdrawn) &&
 		slices.Equal(a.Prefixes, b.Prefixes) &&
 		slices.Equal(a.Routes, b.Routes)
 }
@@ -94,6 +103,27 @@ func SetRASenderFactory(f func(RASenderSpec) (RASender, error)) {
 	raSenderFactory = f
 }
 
+// raLearned is the Follower of the running engine, whose records fill each
+// unit's RDNSS list. runEngine sets it through setRALearned, the way
+// SetRASenderFactory sets raSenderFactory. Safe for concurrent use.
+var raLearned atomic.Pointer[dnssource.Follower]
+
+// setRALearned installs the engine's Follower. A respawned engine replaces
+// the previous one's.
+func setRALearned(f *dnssource.Follower) {
+	raLearned.Store(f)
+}
+
+// raLearnedRecords answers the records the installed Follower holds.
+func raLearnedRecords() []dnssource.Record {
+	// refuse-by-default: guards reconcileRA -- with no engine installed (a unit test) no resolver is learned, which is the state before any lease
+	f := raLearned.Load()
+	if f == nil {
+		return nil
+	}
+	return f.Records()
+}
+
 // raUnitKey identifies one advertising unit.
 type raUnitKey struct {
 	ifaceName string
@@ -105,19 +135,26 @@ type raUnitKey struct {
 type raEntry struct {
 	sender RASender
 	spec   RASenderSpec
+	// rdnss is the selection the spec's RDNSS came from, kept so a drop is
+	// logged once per change rather than on every reconcile.
+	rdnss raRDNSSSelection
 }
 
 // reconcileRA starts senders for units that newly advertise, stops senders for
 // units that stopped advertising, and updates a running sender whose
 // advertisement changed. Called from OnConfigure and OnConfigApply beside
-// reconcileDHCP, and by the delegation worker after a lease changes.
+// reconcileDHCP, by the delegation worker after a lease changes, and by the
+// RDNSS worker after the learned resolvers change. The records of the newest
+// system-dns snapshot (raLearned) fill each unit's RDNSS list.
 func reconcileRA(cfg *ifaceConfig, active map[raUnitKey]raEntry, log *slog.Logger) {
 	if raSenderFactory == nil {
 		return
 	}
 
 	now := time.Now()
+	learned := raLearnedRecords()
 	desired := make(map[raUnitKey]RASenderSpec)
+	selections := make(map[raUnitKey]raRDNSSSelection)
 	forEachEnabledUnit(cfg, func(ifaceName string, u *unitEntry) {
 		if u.IPv6 == nil || u.IPv6.RouterAdvertisement == nil || !u.IPv6.RouterAdvertisement.Enabled {
 			return
@@ -128,7 +165,12 @@ func reconcileRA(cfg *ifaceConfig, active map[raUnitKey]raEntry, log *slog.Logge
 			spec.WANs = append(spec.WANs, dp.Source)
 		}
 		spec.Delegated, _ = claimDelegatedAdverts(u, now) // the delegation worker reports refusals
+		self := raSelfAddress(u, spec.Delegated)
+		selection := raSelectRDNSS(u.IPv6.RouterAdvertisement, self, learned, now)
+		spec.Advertisement.RDNSS = selection.servers
+		spec.RDNSSExpires = selection.expires
 		desired[key] = spec
+		selections[key] = selection
 	})
 
 	for key := range active {
@@ -141,6 +183,9 @@ func reconcileRA(cfg *ifaceConfig, active map[raUnitKey]raEntry, log *slog.Logge
 			delete(active, key)
 			continue
 		}
+		logRDNSSSelection(log, key, selections[key], entry.rdnss)
+		entry.rdnss = selections[key]
+		active[key] = entry
 		if entry.spec.Equal(newSpec) {
 			continue
 		}
@@ -161,7 +206,8 @@ func reconcileRA(cfg *ifaceConfig, active map[raUnitKey]raEntry, log *slog.Logge
 				"iface", key.ifaceName, "unit", key.unit, "error", err)
 			continue
 		}
-		active[key] = raEntry{sender: sender, spec: spec}
+		logRDNSSSelection(log, key, selections[key], raRDNSSSelection{})
+		active[key] = raEntry{sender: sender, spec: spec, rdnss: selections[key]}
 		log.Info("interface: router advertisement sender started",
 			"iface", key.ifaceName, "unit", key.unit,
 			"prefixes", len(spec.Advertisement.Prefixes))
@@ -180,7 +226,9 @@ func stopAllRASenders(active map[raUnitKey]raEntry, log *slog.Logger) {
 	}
 }
 
-// raSpecFor turns one unit's parsed configuration into the sender spec.
+// raSpecFor turns one unit's parsed configuration into the sender spec. The
+// RDNSS it carries is the configured list; reconcileRA replaces it with the
+// unit's dns-source selection.
 func raSpecFor(ifaceName, unit string, cfg *raUnitConfig) RASenderSpec {
 	spec := RASenderSpec{
 		Interface:       ifaceName,

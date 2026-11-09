@@ -977,6 +977,25 @@ that.
 
 <!-- source: internal/component/iface/config_ra.go -- raUnitConfig.RDNSSLifetime, EffectiveRDNSSLifetime -->
 
+`rdnss dns-source` chooses where the advertised resolvers come from: the
+`dns-source` list of `docs/features/dns-resolver.md`. `configured` is
+`server`, `received` is every IPv6 resolver Ze learned (DHCPv6, an accepted
+Router Advertisement, the host's resolv.conf), and `self` is the unit's own
+global or unique-local address. `radius` is refused. With no `dns-source`
+the list is `source [ configured received ]`, `mode first-usable`: a unit
+with `server` set advertises exactly that, and a unit with none advertises
+the learned resolvers instead of no RDNSS option.
+
+| Case | What the RDNSS option carries |
+|------|-------------------------------|
+| a learned resolver | a lifetime no longer than what remains of the lease that supplied it, recomputed at every send |
+| a resolver the unit stops advertising (lease withdrawn, `server` committed) | one advertisement, sent at once, with a second RDNSS option of lifetime 0 for it |
+| a loopback or zone-less link-local address | never advertised; each drop is logged at WARN with the path |
+| more than 8 selected | the first 8 in list order; the rest are logged |
+
+<!-- source: internal/component/iface/ra_dns_source.go -- raSelectRDNSS, receivedEnd, raSelfAddress, logRDNSSSelection -->
+<!-- source: internal/plugins/iface/ra/advertiser.go -- advertiser.update, advertiser.rdnssLifetime -->
+
 ### Validation
 
 The YANG ranges bound each leaf on its own. Config verify applies the cross-leaf

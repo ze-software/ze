@@ -768,6 +768,23 @@ module ze-iface-conf {
                                          operator who retires a resolver from one who set nothing.";
                             ze:help "How long a host can use these resolvers (RFC 8106 Section 5.1).";
                         }
+
+                        uses zt:dns-source {
+                            refine dns-source {
+                                description "The sources of this unit's RDNSS option, in order. configured is
+                                    server; received is every IPv6 resolver Ze learned by DHCPv6, a Router
+                                    Advertisement or the host's own resolv.conf; self is this unit's own global
+                                    or unique-local address, none when it holds no such address. radius is
+                                    refused here. A loopback or a link-local address with no zone is never
+                                    advertised, whatever its source, and each one dropped is logged. The option
+                                    carries 8 addresses at most. With the container absent the default is source
+                                    configured, then received, mode first-usable: the server entries when any
+                                    are set, otherwise the learned resolvers. A learned resolver is advertised
+                                    with a lifetime no longer than what remains of its lease, and a resolver the
+                                    unit stops advertising is sent once with lifetime 0. Write source configured
+                                    alone to keep a unit with no server from sending RDNSS.";
+                            }
+                        }
                     }
                 }
             }
