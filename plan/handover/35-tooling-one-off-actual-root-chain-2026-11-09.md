@@ -92,6 +92,24 @@ Recorded in `tooling-one-off-evidence.md`, sections P-12 (a) to (d).
   Checker code runs inside `./le`, so a checker change must be committed
   before a lab run uses it.
 
+## Last run (end of session)
+
+- Package suite (`go test` of `internal/le/repo/inventory` with the full tag
+  set, skipping the five actual-root tests): **green**, `ok` in 949s.
+- Actual root (`TestAnswerAnswersTheInventory`): refuses at
+  `vendor/google.golang.org/protobuf/compiler/protogen/protogen.go`
+  (the 654th line), "external registration capability is unknown: returned
+  root field ownership is unresolved". That is the next analyzer fix:
+  probe which expression's root type fails `fieldReceiverType`
+  (`externalrootfields.go`), as the earlier stops were traced.
+- RTR fixtures (P-12 b): all five proved after the owner added the
+  127.0.0.2 loopback alias (`947d1a699b`).
+- P-12 (c): closed on its unit carrier by owner decision; the lab check is
+  `spec-ipsec-lab-debug-log-check.md` (`b43f7a8889`).
+- Interop checkers (P-12 a): 11 of 15 proved, the route-server AS path
+  included (`4bb4b0c651`); #2 and #8 lab session flaky, #14 exec hang, #7
+  checker cannot see the message shape (judged checker change owed).
+
 ## Earlier records
 
 This is the only handover for this spec. Handovers 32, 33 and 34 were removed
