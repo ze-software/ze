@@ -19,7 +19,8 @@ import (
 
 const area = "verify"
 
-// verbChanged is the scoped verification an agent may start.
+// verbChanged is the scoped verification Thomas runs; no agent runs it
+// (ai/META-DECISIONS.md, "Ze is pre-release").
 const verbChanged = "changed"
 
 // doesRun is the vocabulary verb every verification name of this area performs.

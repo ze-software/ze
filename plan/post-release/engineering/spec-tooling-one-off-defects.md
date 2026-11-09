@@ -9,7 +9,7 @@
 | Depends | - |
 | Phase | 4/13 |
 | Handoff | `plan/handover/35-tooling-one-off-actual-root-chain-2026-11-09.md` |
-| Updated | 2026-11-06 |
+| Updated | 2026-11-09 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -250,38 +250,7 @@ The verification-debt shards, the session directory, the hook registry.
 
 ## Executable integrity incident
 
-Dropped 2026-11-08 ("Scope decision" above): the record below is history, and its archives need no further preservation.
-
-Two terminal-demo builds on 2026-10-26 exited successfully but produced damaged
-executables. The first failed in `runtime.moduledataverify1` before initialization;
-the second reported an unexpected EOF loading the embedded `ze-extensions.yang`.
-The source module was nonempty.
-
-| Executable | Zero-filled file interval | Stored Go content ID | Recomputed content ID |
-|------------|---------------------------|----------------------|-----------------------|
-| Startup failure | `0x2000000..0x2800000` | `YNJkZwklx-RBZlSDsYpq` | `WAQqHyi1zYO9fa0P_0X-` |
-| Embedded-schema failure | `0x2400000..0x2540000` | `wk2MOJhdeFtdMaMaUTeB` | `KCklwPUbGXChvI1v3Iij` |
-
-The read-only recomputation follows Go's `buildid.FindAndHash` and `HashToString`:
-exclude the GNU note's descriptor, zero Go build-ID occurrences and encode the
-first 120 SHA-256 bits. It agrees with the intact control. The mismatches place
-the damage after Go computed the content hash, not necessarily after its later
-build-ID rewrite. They do not distinguish source-inode damage, installation
-copying or subsequent destination mutation.
-
-A diagnostic retained the linker output and traced cross-filesystem installation:
-rename and `copy_file_range` returned `EXDEV`, followed by buffered writes.
-Its source and destination matched. A subsequent native build retaining its
-work directory also matched source and staged SHA-256
-`4ad69e96ff72cbcd205e4e86dd5f69d768b02a5004db01daf1eac4a61d338c24`;
-the staged Ze, recorder and runtime helper passed their content-ID comparisons.
-Neither successful run establishes a repair.
-
-Session `644a4e78-0122-4eeb-8642-eb50638a1641` retains the damaged executables as
-`scratch/ze-zeroed-segment.tar.gz` and `scratch/ze-zeroed-schema.tar.gz`, plus
-diagnostic traces. Preserve those archives until the incident is diagnosed.
-On recurrence, retain the actual native build's source and compare both files
-before execution. The responsible component remains unestablished.
+AC-27 was dropped on 2026-11-08 ("Scope decision" above): the incident was not investigated in the session that met it, so it is not recorded (`ai/META-DECISIONS.md`), and its journal class file `plan/journal/artifact-bytes-disagree-with-identity.md` is removed.
 
 ## Owned journal rows
 
@@ -320,17 +289,12 @@ before execution. The responsible component remains unestablished.
 | `bulk-rename-corruption` | 2026-10-27 | le-vendor-web-answers, le-checks-answers |
 | `package-red-not-reproduced` | 2026-10-27 | harnesstool `setup docker` namespace panic |
 | `package-red-not-reproduced` | 2026-10-27 | le-rules-answers render-update |
-| `published-value-drifts-from-the-behavior-it-describes` | 2026-10-27 | hookSourcesDigest stale |
-| `published-value-drifts-from-the-behavior-it-describes` | 2026-10-27 | wholetree-mentions ledger |
-| `read-fails-on-a-fact-the-caller-does-not-need` | 2026-10-27 | TestSessionStartRendersNoDeferredArtifact |
 | `fixture-encodes-an-impossible-state` | 2026-10-27 | TestPartialHealthExplainsScopedEvidence |
 | `commit-needs-an-uncommitted-symbol` | 2026-10-27 | rfc/full/rfc7084.txt untracked |
 | `claim-outlives-the-evidence-it-cites` | 2026-10-27 | features/ai-first-design.md Doc review |
 | `lint-contract-not-applied` | 2026-10-27 | misspell and gocritic findings at 0723d7d26a |
 | `session-never-establishes-with-the-peer` | 2026-10-27 | RPKI relay tests, `le mock rtr` never syncs a VRP |
-| `artifact-bytes-disagree-with-identity` | 2026-10-26 | native executable corruption after content hashing |
 | `test-artifacts-land-in-the-repository-root` | 2026-10-26 | job lint-input guard encounters another session's Go backup |
-| `tool-help-contradicts-owner-rule.md` | 2026-10-25 | `le verify changed` help and page grant agents a run the Linux-host rule withholds (moved from the closed spec-le-cli-usability) |
 | `acceptance-criterion-written-as-an-absence` | 2026-08-21 | AC-9 grep for `show bgp summary` |
 | `blanket-mechanism-hid-missing-cases` | 2026-08-10 | Stop hook classifier |
 | `bulk-rename-corruption` | 2026-08-10 | lint `unused` on l2tp |
@@ -340,7 +304,6 @@ before execution. The responsible component remains unestablished.
 | `delegation-hands-the-callee-a-different-argv` | 2026-10-13 | `./le stress-repro` |
 | `delegation-hands-the-callee-a-different-argv` | 2026-09-07 | `le` launcher script |
 | `delegation-hands-the-callee-a-different-argv` | 2026-09-04 | `refuseWrongBuildName` |
-| `delegation-hands-the-callee-a-different-argv` | 2026-09-05 | `./le commit create` session identity |
 | `error-answered-with-another-errors-code` | 2026-10-10 | `DockerKernelRoute` |
 | `escape-hatch-scoped-wider-than-its-justification` | 2026-09-27 | `writeGoPatterns` |
 | `field-carries-two-meanings` | 2026-10-03 | `runOrchestrated` |
@@ -375,20 +338,15 @@ before execution. The responsible component remains unestablished.
 | `pointer-shared-across-the-names-it-indexes` | 2026-09-04 | `./le commit create ... append` |
 | `pointer-shared-across-the-names-it-indexes` | 2026-09-05 | `./le commit create` same tag |
 | `prohibition-broken-by-the-agent-that-carried-it` | 2026-08-31 | subagent `git mv` of a `.ci` |
-| `record-written-before-the-operation-succeeds` | 2026-09-08 | `recordDebt` |
 | `record-written-before-the-operation-succeeds` | 2026-08-19 | verification-debt shard |
 | `refactor-removes-feature` | 2026-09-03 | four hook gates |
 | `refactor-removes-feature` | 2026-09-03 | spec-write design gate |
 | `refactor-removes-feature` | 2026-08-31 | `checkNoFamilyEndOfRIB` and 14 checkers |
 | `removal-leaves-the-file-on-disk` | 2026-10-21 | `sweepAbandoned` |
 | `removal-leaves-the-file-on-disk` | 2026-09-19 | `sweepAbandoned` |
-| `removal-leaves-the-file-on-disk` | 2026-09-12 | `renderSharedIndexRepair` |
-| `removal-leaves-the-file-on-disk` | 2026-09-07 | `renderSharedIndexRepair` |
-| `removal-leaves-the-file-on-disk` | 2026-09-06 | `./le commit create ... remove` |
 | `replacement-written-before-it-is-validated` | 2026-09-08 | `go mod vendor` |
 | `rule-metadata-values-disagree-with-linter` | 2026-09-12 | rule corpus level |
 | `silent-fall-through` | 2026-10-05 | `RunEngineSteps` |
-| `silent-fall-through` | 2026-09-08 | `zeTestParseRunCLI` |
 | `silent-fall-through` | 2026-09-07 | `./le qemu run` 9p mount |
 | `silent-fall-through` | 2026-09-04 | YANG resolution in test binaries |
 | `silent-fall-through` | 2026-08-15 | orphan `stdin=peer` block |
@@ -423,10 +381,6 @@ before execution. The responsible component remains unestablished.
 | `bound-too-small-for-its-own-burst` | 2026-10-22 | stressrepro `runSlug` joins every selector into one filename |
 | `bound-too-small-for-its-own-burst` | 2026-10-25 | `le job run` stall window breaks a silent gomu run |
 | `bound-too-small-for-its-own-burst` | 2026-11-02 | web test runner's first `agent-browser open` bound widened only in verify mode |
-| `declared-format-contradicts-payload` | 2026-08-31 | session state file `Uncommitted:` section is a whole-tree `git status` |
-| `declared-format-contradicts-payload` | 2026-09-01 | `rfc/not-enrolled.txt` `source-restricted` kind refused by `./le rfc check` |
-| `gate-excludes-part-of-its-population` | 2026-08-22 | a spec's Files to Modify list read as the population of a wire's speakers |
-| `gate-excludes-part-of-its-population` | 2026-09-27 | `rfc/short/` holds no summary for eight implemented documents |
 | `gate-red-where-nothing-blocks-on-it` | 2026-08-30 | `./le verify lint run scope ./internal/le/site/...` 18 goconst findings |
 | `gate-red-where-nothing-blocks-on-it` | 2026-08-31 | `./le cli-grammar` is in no blocking set |
 | `gate-red-where-nothing-blocks-on-it` | 2026-09-10 | lint after OSPF closure: 93 host, 104 Linux findings |
@@ -441,7 +395,8 @@ before execution. The responsible component remains unestablished.
 
 Rows from the whole one-off sweep found fixed at HEAD on 2026-10-23 that have no
 other spec home here. Each needs its journal cell closed with this evidence by
-the agent that closes fixed rows.
+the agent that closes fixed rows. The rows below the first four were verified
+at source and their journal cells closed on 2026-11-09.
 
 | Class file | Date | Surface | Evidence |
 |------------|------|---------|----------|
@@ -449,6 +404,20 @@ the agent that closes fixed rows.
 | `guard-added-to-one-half-of-a-pair` | 2026-09-21 | RSVP-TE `buildResv` | `internal/plugins/rsvpte/build.go` `buildResv` writes the filter through `encodeFilterSpec` |
 | `protocol-state-advanced-before-the-peer-confirmed` | 2026-09-28 | LDP `handleInit` | `internal/plugins/ldp/session.go`: `initAccepted` gates operational on the peer's KeepAlive (`onOperational`, RFC 5036 Section 2.5.3) |
 | `silent-fall-through` | 2026-09-21 | LDP `DecodeInit` U-bit | `internal/plugins/ldp/wire.go`: `unknownTLVError` for an unknown TLV with the U bit clear, status `statusUnknownTLV` |
+| `silent-fall-through` | 2026-09-08 | `zeTestParseRunCLI` | `e8c5576aa8`: an unknown suite verb exits non-zero; `TestBgpUnknownVerbFails` (`internal/test/cli/cmd_bgp_refusal_test.go`) |
+| `removal-leaves-the-file-on-disk` | 2026-09-12 | `renderSharedIndexRepair` | `d70bbec7fc` `renderWorkingTreeRemoval`; `TestARemovalDeletesTheWorkingTreeCopyItCommitted`, `TestAClosureLeavesNoSpecBehind` (`internal/le/commit/snapshot_test.go`) |
+| `removal-leaves-the-file-on-disk` | 2026-09-07 | `renderSharedIndexRepair` | `d70bbec7fc` `renderWorkingTreeRemoval`; `TestARemovalDeletesTheWorkingTreeCopyItCommitted`, `TestAClosureLeavesNoSpecBehind` |
+| `removal-leaves-the-file-on-disk` | 2026-09-06 | `./le commit create ... remove` | `d70bbec7fc` `renderWorkingTreeRemoval`; `TestARemovalDeletesTheWorkingTreeCopyItCommitted`, `TestAClosureLeavesNoSpecBehind` |
+| `record-written-before-the-operation-succeeds` | 2026-09-08 | `recordDebt` | Producer removed by `2688449b1b`, which derives push debt from git trailers; HEAD holds no `recordDebt`, `extendDebtRow` or `openDebtRowAt` |
+| `published-value-drifts-from-the-behavior-it-describes` | 2026-10-27 | hookSourcesDigest stale | `aa1d18cd84`; `TestEveryStoredDigestMatchesTheTreeItRatchets` (`internal/le/ai/hooks/parity_test.go`) |
+| `published-value-drifts-from-the-behavior-it-describes` | 2026-10-27 | wholetree-mentions ledger | `ddb218e110`, ledger `internal/le/testdata/wholetree-mentions.txt`; `TestNoAgentSurfaceTellsAnAgentToRunAWholeTreeVerify` (`internal/le/wholetree_corpus_test.go`) |
+| `read-fails-on-a-fact-the-caller-does-not-need` | 2026-10-27 | TestSessionStartRendersNoDeferredArtifact | `80ddf15db9`; `TestSessionStartRendersNoDeferredArtifact` (`internal/le/hookruntime/lifecycle_test.go`) |
+| `declared-format-contradicts-payload` | 2026-08-31 | session state file `Uncommitted:` section | `3475223c4b` heads the list `Shared-checkout changes (session attribution unavailable):`; `TestSessionStateLabelsSharedCheckout` (`internal/le/session/one_off_proof_test.go`) |
+| `declared-format-contradicts-payload` | 2026-09-01 | `rfc/not-enrolled.txt` `source-restricted` kind | The report was mistaken: a stale `bin/le` ran the retired reader, and `enrolmentKinds` accepts the kind; `TestNotEnrolledWriterReaderAgreement` (`37cf1d1d03`, `internal/le/rfc/one_off_proof_test.go`) |
+| `gate-excludes-part-of-its-population` | 2026-08-22 | a spec's Files to Modify list read as a wire's speakers | `fcb9fbe117`; `TestWireCensusIncludesNonGoSpeakers` (`internal/le/spec/one_off_proof_test.go`) |
+| `gate-excludes-part-of-its-population` | 2026-09-27 | `rfc/short/` held no summary for eight documents | RFC 9117, 7383 and 8247 hold summaries; the other five stay unenrolled because no profile lists them (`ai/META-DECISIONS.md`, "RFC validation scope does not grow"); `TestOwnedDocumentDisposition` (`37cf1d1d03`, `internal/le/rfc/owned_dispositions_test.go`) |
+| `delegation-hands-the-callee-a-different-argv` | 2026-09-05 | `./le commit create` session identity | `8c64ad2d4a`; `TestGeneratedReviewUsesOriginArtifact` (`internal/le/commit/review_publication_runtime_test.go`), and `TestGeneratedRecheckKeepsThePreparingIdentity` (`6cdae17af4`, `internal/le/commit/recheck_identity_test.go`) |
+| `tool-help-contradicts-owner-rule` | 2026-10-25 | `le verify changed` help and page | `530d157df0`: the help and `verify-freshness-scope.md` say no agent runs it; the `verbChanged` comment in `internal/le/verify/actions.go` corrected 2026-11-09 |
 
 ## Checklist
 
@@ -484,7 +453,7 @@ nor remove an obligation. AC-1 has its own initial runner audit.
 | F: RFC accounting | AC-9, AC-23, AC-25 | Guest placement for namespace-dependent RFC proofs |
 | G: interop and generated peers | AC-12, AC-28, GoBGP in AC-17 | RPKI mock synchronization and the recorded-fixed RSVP-TE/LDP occurrences |
 | H: fixtures and gates | AC-19, AC-26, remaining AC-13/AC-17 cases | Remaining lint, grammar, rename, population, publication and fixture occurrences |
-| I: executable integrity | AC-27 | Recovery of damaged bytes and attribution to the responsible writer or storage boundary |
+| I: executable integrity | AC-27 | None: AC-27 was dropped 2026-11-08 ("Scope decision" above) |
 
 ### Direct observations
 
@@ -516,17 +485,7 @@ does not establish runtime proof unless the row names an executed command.
 
 ### AC-27 evidence blocker
 
-The earlier statement that session `644a4e78-0122-4eeb-8642-eb50638a1641`
-retains both damaged executables is not verified today. Its recorded directory,
-`tmp/session/2026-10-22-644a4e78-0122-4eeb-8642-eb50638a1641/scratch/`,
-currently lists only `appliance-amd64-proof/`. Neither named archive is present
-there. A bounded recovery search reported no replacement location. This does not
-prove that no backup exists.
-
-The owner has been asked for another copy or a host snapshot. AC-27 remains open.
-Recovery or a recurrence observed across the build/install boundaries is needed
-to identify the cause. A successful rebuild or a new integrity check cannot,
-by itself, demonstrate repair of the recorded incident.
+None: AC-27 was dropped on 2026-11-08 ("Scope decision" above).
 
 ## Reconciled design candidate — 2026-11-02
 
@@ -654,7 +613,7 @@ change still needs independent judgment and native discrimination evidence.
 | AC-5 / P-5 | A | Generated `remove` deletes only unchanged working copies after successful publication, including two-block spec closure; it preserves changed bytes/modes, directories and failed-publication copies. Same-tag prepare/append calls allocate independent messages and do not duplicate obligations. Prove both ordinary and replace/append occurrences against the current Git-derived mechanism |
 | AC-6 / P-6 | A | Every still-applicable review/approval obligation has a legitimate writer and an observable discharge. Failed validation creates no debt or spent approval. Historical incorrect/duplicate shard records cannot influence current answers. Test retry, failed publication and another session's correction through the successor, without restoring retired shard commands. Late RFC approval additionally owes P-30 |
 | AC-7 / P-7 | D | Reclamation handles interrupted removal, directoryless owner markers and the standalone entry point without verification. Prove ownership/refusal for foreign resources. Cancellation reaches an in-flight stage and stops and reaps its owned process group within seconds, including a TERM-ignoring child; it does not wait for the next stage or the stage's normal timeout. Reuse the group-kill and bounded pipe-wait contract detailed under P-7 below. No agent invokes verify to prove it; use the scoped dispatcher/process fixture |
-| AC-8 / P-8 | E | Stop classification, per-call panic exemption, subject/freshness design evidence, daemon-path proof demand and the four lost hook categories each get a current rule-to-consumer disposition and nonvacuous probes. Do not reinstate prose-sensitive deferral gates. Session start emits required context inside its 5-second harness budget; source digest, deferred-artifact fixture and fixture needle match the actual producer |
+| AC-8 / P-8 | E | Stop classification, per-call panic exemption, subject/freshness design evidence, daemon-path proof demand and the four lost hook categories each get a current rule-to-consumer disposition and nonvacuous probes. Do not reinstate prose-sensitive deferral gates. Session start emits required context inside its 5-second harness budget; source digest, deferred-artifact fixture and fixture needle match the actual producer. Partial at HEAD on 2026-11-09: three rows open and the four-lost-hooks carrier missing (the Phase 7 note below) |
 | AC-9 / P-9 | F, E | Mandatory/optional gaps retain their levels; rule metadata agrees with the body's obligation. Preserve owner-ruling interpretation without authority/provenance redesign. Gate existing owner-ruling RFC approval issuance, owner attestation, push preparation and spec review record whenever owner-authorised is supplied, before any writes, regardless of review round cap. Ordinary judge approvals, reviews without owner authorization, consumers and already-prepared push scripts remain noninteractive. Push preparation records the owner instruction; script execution preserves that owner-ordered route. A PTY can satisfy the operational boundary: no identity or future coverage-loss approval is inferred; P-30/P-31 remain independent obligations |
 | AC-10 / P-10 | D | Guest cache sharing works with the supported symlink layout; attribute the xattr failure before changing mount policy. Native arm64 Linux selects available KVM rather than `hvf:tcg`. A failed required 9p mount prevents all later download/build steps. Relative appliance paths survive in-process gok directory changes. A kernel probe's `unknown` result names a probe failure, never a missing kernel feature |
 | AC-11 / P-11 | B, D, E | Hook probe repositories hold readable committed originals. Both QEMU fixture incidents preserve a declared Go version and the intended fixture root. Wait-file callers and driver agree on a per-run marker. BFD restart uses the store whose persistence it asserts. Demonstrate each through its real fixture, without removing fail-closed producer checks |
@@ -673,7 +632,7 @@ change still needs independent judgment and native discrimination evidence.
 | AC-24 / P-24 | E | The spec template and design check require an evidence-derived census of every reader and writer of a changed wire, including non-Go/outside-language carriers. Files to Modify is the edit set, not the population. A fixture that omits a known speaker must fail the coverage judgment |
 | AC-25 / P-25 | F | Account separately for ASPA-profile and RFC 9117, 4506, 5080, 7383, 8247, 7519 and 1008. Enroll no unlisted document. Preserve each retired obligation and correction provenance. Verify RFC9117's reported repair, RFC7383's optional debt, and RFC8247 method14's reported missing SHOULD row against authoritative text and current profiles, with extraction/tag/discrimination proof where applicable |
 | AC-26 / P-26 | H | Reconstruct each owned historical lint/gate population and resolve its members against current producers. Include post-OSPF host/Linux findings, capability and uncovered-file findings, wiring/audit/doc failures, all three September 17 fixtures, and plugin ownership. A baseline or a green gate at HEAD does not erase an unidentified member. Scoped repairs precede retained CI release evidence |
-| AC-27 / P-27 | I | Recover the two damaged executables and traces, or observe recurrence across build/install/storage boundaries. Attribute the zeroed bytes to the responsible writer or boundary and demonstrate that repair. This remains evidence-blocked; neither an integrity check nor a successful rebuild closes it |
+| AC-27 / P-27 | I | Dropped 2026-11-08 ("Scope decision" above); no obligation remains |
 | AC-28 / P-28 | G | Real OPEN handshakes prove IPv4/iBGP, IPv4/eBGP, IPv6/iBGP and IPv6/eBGP generated bulk UPDATEs. Cover active/passive and ordinary/connmap paths: LOCAL_PREF present on ordinary iBGP and absent on eBGP. Deliberate raw-hex injection remains byte-exact. An encoder-only test cannot certify handshake-derived classification |
 | AC-29 / P-29 | A | Review pins cover actual prospective committed content for historical spec-work paths, selected hunks, whole snapshots, earlier appended blocks and removals. Preparation and execution select the same artifact under different ambient sessions. Concurrent unselected edits neither stale a committed-content review nor become reviewed implicitly; missing/unreadable content refuses |
 | AC-30 / P-30 | A | A late independent RFC approval reaches the applicable owed change without changing the test again or impersonating the owner. Bind target change, unit, reviewed content and publication order; reject stale/replayed approvals, wrong targets and approvals outside the pushed range. Do not let one unit-name approval clear a different change |
@@ -773,7 +732,7 @@ are proposed carrier locations in the named owning package, not existing files.
 | P-7 reclaim | Proposed `test/ui/reclaim-owned-artifacts.ci`; standalone reclaim entry, not verify | Interrupted removal, directoryless owned marker, foreign marker and live owner → reclaim only authorized dead resources, no suite launched | Require directory before marker cleanup; treat dirty interrupted-removal state as foreign; ignore ownership |
 | P-8 Stop/panic | `internal/le/hookruntime/one_off_proof_test.go` `TestHookVerdictBoundaries`; actual hook dispatcher | Each historically lost Stop category and mixed allowed/disallowed panic calls → current rule-specific verdict, exemption applies to one call | Whole-edit panic exemption; category default erases a required verdict |
 | P-8 design/daemon evidence | Same file `TestDesignEvidenceNamesSubjectAndFreshness`, `TestDaemonPathDemandsFunctionalProof`; write hook entry | Wrong-subject/stale read marker and daemon-path edit with helper-only proof → refusal; matching fresh evidence/control accepted | Accept any source-read marker; omit daemon-path demand |
-| P-8 four lost hooks | Same file `TestHistoricalHookIntentHasCurrentConsumer`; hook dispatcher | Commit deferral, test-first, delegation reminder, subagent context, each with violating/control fixture → current-rule disposition and nonvacuous verdict | Remove its current consumer. For retired prose-sensitive policy, assert explicit permitted behavior rather than reintroduce it; consumer decisions still need current-rule census |
+| P-8 four lost hooks | Same file `TestHistoricalHookIntentHasCurrentConsumer` (not written: absent at HEAD on 2026-11-09); hook dispatcher | Commit deferral, test-first, delegation reminder, subagent context, each with violating/control fixture → current-rule disposition and nonvacuous verdict | Remove its current consumer. For retired prose-sensitive policy, assert explicit permitted behavior rather than reintroduce it; consumer decisions still need current-rule census |
 | P-8 startup/fixtures | Same file `TestSessionStartWithinHarnessBudget`; existing `TestSessionStartRendersNoDeferredArtifact` and rendered-rule fixture | Actual session-start with absent derived artifact and current source digest/needle → required context within existing five-second harness budget, no derived-artifact work | Add blocking derivation; stale digest; require retired update-index text |
 | P-9 levels/metadata | `internal/le/rfc/one_off_proof_test.go` `TestGapLevelAccounting`; real check/report stage; separate rule metadata fixture in `internal/le/hookruntime/one_off_proof_test.go` | MUST/SHOULD gaps including RFC9256/RFC9552; mismatched metadata/body → separate counts and named metadata mismatch | Count SHOULD as MUST; read metadata alone |
 | P-9 terminal boundary | Existing rfc approve owner-ruling branch, commit create attest, commit push preparation and spec review record owner-authorised; proposed entry tests beside approve_test.go, commit/push_test.go and spec review tests, using human.IsTerminal | Both-terminal, piped-stdin, piped-stdout and detector-error cases; refusal leaves approval rows/messages/scripts/review artifacts unchanged and creates no directories. Review authorization below and above the cap requires the gate whenever supplied. Ordinary RFC/weakening approvals and reviews without owner authorization remain agent-callable; recorded consumers and prepared push scripts execute noninteractively | Remove gate, apply it only above the review cap, move it after a write, or gate ordinary reviews/judges/script execution. PTY acceptance is a detector limit, not identity proof; no new owner record or rfc authorise command |
@@ -1092,7 +1051,7 @@ verification** unless the S table above names the same fact.
 | H | Retirement and carrier containment | Preserve owner-approved retirements and map old names/count/order or metadata/prose assertions to replacement proofs. Successful dispatch is additional. Resumed source reads confirm verifyAsset/fileDigest path reuse, readCastFacts reopening and copyPath symlink copying. Final contract requires rooted acquisition plus retained verified bytes/staging; retirement alias tests are a separate boundary. Parent review and containment proof remain pending |
 | H | Aggregate lint evidence | Partially recovered in the companion: A has 11 coordinate lines; B has 184 coordinate/153 normalized lines, not the historical 138 estimate or whole 1272-line log; C/D complete retained normalized old/new lists have 121/163 lines. Context/flavor/coordinate losses, B's cut suffix and uncaptured diagnostics remain gaps. Original post-OSPF tmp/session/2026-09-09-5bc855cc-5761-4012-8d90-7a9823029ab3/scratch/ospf-closure-lint.log remains missing; named repairs or current greens cannot close those populations |
 | H, B, D | Load-red evidence | Partially recovered per companion and incident table below. A has five of seven web names; B has all seven reload timeout names and 21 of 22 web names. B web ID3 remains unknown because the historical numeric filter excluded it; never borrow A's ID3. Raw context and uncaptured members remain missing; P-35 cause/repair proofs remain open |
-| I | Incident evidence | AC-27 incident 644a4e78-0122-4eeb-8642-eb50638a1641: scratch/ze-zeroed-segment.tar.gz, scratch/ze-zeroed-schema.tar.gz and actual traces remain unrecovered. Need another copy/host snapshot or observed recurrence retaining source/destination across the native boundary. Cause and attributable repair remain blocked |
+| I | Incident evidence | None: AC-27 was dropped 2026-11-08 ("Scope decision" above) |
 
 The aggregate lint obligations include every named subpopulation from the journal:
 
@@ -1326,7 +1285,7 @@ at any actual report publisher reached by implementation.
 | Settled source contracts | Existing owner issuance routes, browser startup/owned cleanup, installer second-interrupt handling and comparison publication are selected above. No residual owner mechanism choice remains for these repairs; implementation and discriminating runtime evidence are still owed |
 | Remaining proof mapping | P-12 build-only/fixed-protocol carriers, P-14 l2tp population and P-37 actual lint-input selection retain their named producer/carrier mapping work before certification. These are implementation/evidence obligations, not requests for another broad design census |
 | Parent independent review and main approval | Review these contracts and their phase/file/test/docs plan against current producers, then record main approval before implementation. Process isolation and the metadata evaluator are proposed, not owner-approved by report receipt |
-| Historical proof inputs | AC-27 archives/traces, post-OSPF log, remaining October raw contexts/members, authentic naming proof archive, June inventories and G four-peer configs/OPENs/captures remain the exact external blockers above |
+| Historical proof inputs | Post-OSPF log, remaining October raw contexts/members, authentic naming proof archive, June inventories and G four-peer configs/OPENs/captures remain the exact external blockers above |
 
 Publication form, SHA binding, review tree, clock semantics, explicit-kernel
 placement and inventory membership no longer have competing proposed alternatives
@@ -1358,14 +1317,39 @@ need their existing proof checked, not a second implementation.
 | 10. Committed inventories and extraction — 17 CodeQL, 32 | Proposed `internal/le/repo/inventory/` and `internal/le/repo/codeql/`; reuse/extract roadmap object reads and declarations AST resolution; `internal/le/plugin/coupling/scan.go`, site inventory, `.github/workflows/codeql.yml`, featuretags generator | P-32 complete committed population/refusal tests; P-17 derived inputs/dependency guard and future CI extraction sentinels. No compile/export/copy to read inventory. Update feature-gates/plugin inventory design and CodeQL workflow documentation; refresh generated inventory pages only after producer proof |
 | 11. Publication, fixture and deterministic views — 13, 17 theme, 19, 26 named fixtures, 34, 38 | `internal/le/site/{demo,build}.go`, terminaldemo/chaos, DNS and action/manifest/home/lab-pin fixtures; `docs/features/ai-first.md`, help_ai.go printSummary/Recipes/CommonErrors and `features/ai-first-design.md` evidence | P-13 clock/poster, P-17 theme, P-19 generator/discovery/workflow, P-26 fixtures, P-34 contracts/DNS and H's completed source-review corrections, P-38 replacement/verified-byte proofs. Apply prose and help-producer corrections, validate selected-path claims, then truthful review date; no date-only refresh. Independent DNS judge remains owed |
 | 12. Remaining tool inputs/reports — 4 launcher/watchdog/stress, 14, 20, 21, 37 | Launcher/helper selection and `internal/le/test/stressrepro/run.go`; existing toolchain/vendor/schema registration and lint input guard; `internal/perf/report`, `internal/perf/cli/cmd_report.go`, reached site convergence readers | P-4 exact argv/fresh entry, P-14 owned patches/schema/l2tp census, P-20 pass identity/empty refusal/loss before dedup across renderers, P-21 filename collisions and P-37 actual lint-input distinction. Update running-commands, performance/benchmarking and exact schema/vendor pages; finish consumer census before declaring publication proof complete |
-| 13. Incident proof closure — moved 2026-11-08: AC-27 dropped, the evidence-only parts of 16, 26 and 35 moved to `spec-tooling-historical-evidence.md` ("Scope decision" above) | Recovered evidence companion and original incident producers; no speculative generic integrity repair | Recover named originals or attributable recurrence for AC-27; reconcile every remaining June/lint/load member. Execute only the identified affected cases once cause is known. Keep unresolved obligations open; historical greens or current gate passes are not substitutes |
+| 13. Incident proof closure — moved 2026-11-08: AC-27 dropped, the evidence-only parts of 16, 26 and 35 moved to `spec-tooling-historical-evidence.md` ("Scope decision" above) | Recovered evidence companion and original incident producers; no speculative generic integrity repair | Reconcile every remaining June/lint/load member. Execute only the identified affected cases once cause is known. Keep unresolved obligations open; historical greens or current gate passes are not substitutes |
 
-**Phase 7 current work is complete:** implementation, scoped independent review
-and real-entry proof are complete, as recorded in the
+**Phase 7 is partial (corrected 2026-11-09).** The earlier record here called
+Phase 7 complete and P-8 proved, citing the
 [current hook evidence](tooling-one-off-evidence.md#contemporary-review-follow-up-not-recovered-historical-evidence).
-Missing June technique/fuzz inventories and authentic October originals remain
-Phase 13 obligations. This records Phase 7 completion only, not whole-spec or
-journal closure.
+That claim was wrong at HEAD: `TestHistoricalHookIntentHasCurrentConsumer`, the
+P-8 carrier for the four lost hooks, does not exist, and three P-8 journal rows
+stay open:
+
+| Class file | Date | Defect at HEAD |
+|------------|------|----------------|
+| `blanket-mechanism-hid-missing-cases` | 2026-08-10 | The Stop hook's `preserveState` (`internal/le/session/summary.go`, near line 192) treats any line starting `## Session:` as a snapshot start, a handoff that quotes the heading included. An uncommitted working-tree repair by another session exists; HEAD does not carry it |
+| `refactor-removes-feature` | 2026-09-03 | The hook fixture table (`internal/le/ai/hooks/fixtures.go`, near lines 1541-1542) binds the commit-gate category to `postDeferral` and the test-first category to `writeSpecStatus`, so neither lost gate has a consumer of its own |
+| `reference-checked-claim-unchecked` | 2026-10-26 | `internal/le/ai/hooks/fixture_catalog.go` line 53 expects `./le ai rules update index`, while `internal/le/hookruntime/writeedit.go` line 141 prints "run the native rules render action" |
+
+`TestHookVerdictBoundaries`, `TestDaemonPathDemandsFunctionalProof`,
+`TestSessionStartWithinHarnessBudget` and `TestDesignEvidenceNamesSubjectAndFreshness`
+(`internal/le/hookruntime/one_off_proof_test.go`) exist. Missing June
+technique/fuzz inventories and authentic October originals moved to
+`spec-tooling-historical-evidence.md` ("Scope decision" above).
+
+**Named proof carriers that do not exist (checked 2026-11-09).** The proof
+matrix names five carriers HEAD does not hold. The behaviour each was to prove
+is carried today by the tests in the right column, a narrower proof where the
+row says so:
+
+| Named carrier | Existing tests that carry the behaviour |
+|---------------|------------------------------------------|
+| P-1 `TestUnknownSuiteVerbRefused` | `TestBgpUnknownVerbFails` and `TestBgpHelpSucceeds` (`internal/test/cli/cmd_bgp_refusal_test.go`) |
+| P-5 `TestGeneratedRemovalPreservesChangedCopies` | `TestARemovalDeletesTheWorkingTreeCopyItCommitted`, `TestADivergentWorkingTreeCopySurvivesTheRemoval`, `TestAModeOnlyDifferenceLeavesTheFile`, `TestARemovedDirectoryIsKeptAndTheScriptFinishes`, `TestAFailedPublicationKeepsTheUnchangedCopy` and `TestAClosureLeavesNoSpecBehind` (`internal/le/commit/snapshot_test.go`) |
+| P-29 `TestReviewPinsProspectiveContent` | `TestGeneratedReviewUsesOriginArtifact`, `TestGeneratedReviewRechecksEveryCASAttempt`, `TestExplicitReviewBlobRemovalAndMissingObject` (`internal/le/commit/review_publication_runtime_test.go`), `TestNativeReviewPublishesEarlierWholeAndHunkSnapshots` and `TestNativeReviewPinsExecutableMode` (`internal/le/commit/review_publication_content_test.go`) |
+| P-22 `test/ui/session-state-attribution.ci` | `TestSessionStateLabelsSharedCheckout` (`internal/le/session/one_off_proof_test.go`), a unit over the real renderer rather than a functional test |
+| P-15 `test/ui/functional-selection-contract.ci` | `TestDirectSpecEditChecksWIP` (`internal/le/hookruntime/one_off_proof_test.go`) carries the WIP half; `TestBgpValidSuiteRetainsSelection` (`internal/test/cli/cmd_bgp_refusal_test.go`) proves only that the parsed request keeps its `--pattern` selector, and no test proves a documented selector runs exactly the selected case |
 
 Phases 1–12 contain implementable contracts and named proof debt; their exact
 external dependencies stay explicit rather than blocking all useful work or being
@@ -1444,7 +1428,7 @@ hook categories, six cancellation routes, eight RFC documents, fifteen checkers,
 three September 17 fixtures and four recorded-fixed entries remain visible. This
 is complete index accounting, not a completed semantic census or a clean audit.
 June backfills, aggregate logs, replacement coverage,
-the named proof/carrier mappings and AC-27 attribution remain open. The selected
+and the named proof/carrier mappings remain open (AC-27 was dropped 2026-11-08). The selected
 contracts passed the final owner approval gate recorded above. The one-off
 owner clarification retains owner-ruling interpretation and adds the terminal-only
 authorization boundary through the existing producers identified above. No new
