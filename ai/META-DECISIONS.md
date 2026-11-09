@@ -349,6 +349,9 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   each one an "update report"; the Discord post title, the command, the skill
   and the archive files keep the "weekly" names. It keeps the same length
   budget, three Discord messages and four at most, whatever the span.
+- The update report is written in Thomas's tone, under the project's name: it
+  reads as he would write it, never as a model's prose
+  (`website/changes/discord/STYLE.md`, "Identity & voice").
 - An agent's report is written for the agent that commissioned it. Rewrite it
   for the owner, never forward it. A reply to the owner stays under 15 lines and
   puts its tables before its prose. Other prose follows `ai/rules/writing.md`.

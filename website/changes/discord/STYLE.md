@@ -16,6 +16,13 @@ file; skim the last one or two posts before writing a new one.
 - **Confident and factual, not hypey.** Report what shipped. No "excited to
   announce", no "game-changing", no marketing adjectives. The audience is
   network engineers who can smell fluff.
+- **Thomas's tone, in the project's name.** The words are Zeledon's, but the
+  tone is Thomas's: direct, explaining the why, long sentences chained with
+  commas next to short flat ones, "should" for what the reader ought to do,
+  an inverted conditional now and then ("Should you want the old
+  behaviour, ..."), no contractions, "can not" rather than "cannot", UK
+  spelling. A neat parallel phrase ("accepts and sends nothing") reads as a
+  model wrote it: say what happens to the routes in plain words instead.
 - **Concise.** Short opening line, then grouped bullets. A reader should be able
   to scan the whole thing in under a minute.
 
