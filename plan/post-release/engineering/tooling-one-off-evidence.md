@@ -1678,7 +1678,15 @@ Not attributed:
   path to exactly "65002", so the gap is the producer: the scenario runs the
   `bgp-rs` plugin, and the site that decides its prepend is still untraced.
   No claim about the checker is made.
-- Untried: `checkRFC7606MixedUpdate` (`buildCombinedUpdates` in
+- `checkRFC7606MixedUpdate` / `bgp-rfc7606-relay-shape-frr`: `SplitWireUpdate`
+  (`wireu/split.go`) splits every mixed UPDATE whatever its size. Removing
+  the mixed-fields test from its early return, so a mixed UPDATE is
+  forwarded whole, still passes (16s): FRR applies the withdrawal and
+  installs the announcement from the one message, so a checker that reads
+  FRR's table cannot see the RFC 7606 Section 5.1 shape. The checker needs an
+  observation of the relayed messages themselves (one field per UPDATE)
+  before this break can go red; that is a checker change, judged first.
+- Earlier note, now superseded for this checker: `checkRFC7606MixedUpdate` (`buildCombinedUpdates` in
   `wireu/split.go` handles only oversized updates, so the producer the
   scenario reaches is not yet traced), `checkRouteServerASPath` (the
   prepend site the scenario reaches is not yet traced).
