@@ -1654,8 +1654,14 @@ Not attributed:
   which is FRR's enforce-first-as rejecting the advertisement whose prepend
   was lost, as the checker's comment states; restored green passes (1m10s).
   This replaces the panic-body positive record in
-  `rfc4271/RFC4271-5.1.2-3.json`. The negative half (a withdrawal carrying no
-  AS_PATH) still needs the paired `Record` and `planAttr` break.
+  `rfc4271/RFC4271-5.1.2-3.json`. Negative half proved with the paired break:
+  `Record` routes a withdrawal through the prepend path (`false &&` on its
+  withdraw-only case) and `planAttr` (`reactor/forward_build.go`) stops
+  refusing an attribute on an UPDATE that advertises nothing (`false &&` on
+  its `src == nil && !gate.advertises()` guard). The withdrawal then fails
+  "assertion 4: wait for FRR route 10.10.0.0/24" to be absent within 90s:
+  FRR keeps the route, so it did not accept the withdrawal; restored green
+  passes (1m2s). Checker fully proved.
 - Untried: `checkRFC7606MixedUpdate` (`buildCombinedUpdates` in
   `wireu/split.go` handles only oversized updates, so the producer the
   scenario reaches is not yet traced), `checkRouteServerASPath` (the
