@@ -343,6 +343,11 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 - Report defects found and fixes made during requested work promptly, rather
   than waiting for the final report. Say what each defect blocks, distinguish
   a written patch from a verified fix, and give the evidence when it is fixed.
+- The weekly update is published about every two weeks, not on a calendar
+  week. Each one covers the commits from the previous update's `release-to`
+  to the branch tip when it is drafted, so its span varies. It keeps the
+  "weekly" names (post title, command, skill, archive files) and the same
+  length budget, three Discord messages and four at most, whatever the span.
 - An agent's report is written for the agent that commissioned it. Rewrite it
   for the owner, never forward it. A reply to the owner stays under 15 lines and
   puts its tables before its prose. Other prose follows `ai/rules/writing.md`.
