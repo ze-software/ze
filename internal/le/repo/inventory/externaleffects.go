@@ -355,7 +355,7 @@ func (e *externalEffects) solve() error {
 			}
 		}
 		for object, source := range e.writes {
-			if e.metadata[object] {
+			if e.metadata[object] && !e.projectedLocalWrite(source) {
 				return e.source.snapshot.evaluator().problem(source, "external registration metadata depends on a mutated retained backing location")
 			}
 		}
@@ -685,6 +685,39 @@ func externalElementFieldTarget(target sourceExpr) bool {
 		}
 		_, indexed := ast.Unparen(address.X).(*ast.IndexExpr)
 		return indexed
+	}
+	return false
+}
+
+// projectedLocalWrite reports whether a write to a metadata object is the one
+// store the static family projection already models: the names[i] =
+// family.String() statement of a function whose body familyProjection accepts
+// as the finite make, range, store, return form. That projection reads the
+// whole body and refuses any other statement, so the slice it reports is the
+// freshly made local after this store, and the store reaches nothing else; a
+// collection the store's location also names (len(set) joins set's location
+// into the make result) is an over-approximation of that one target. Every
+// other write keeps refusing.
+func (e *externalEffects) projectedLocalWrite(source sourceExpr) bool {
+	if source.file == nil || source.value == nil {
+		return false
+	}
+	for _, decl := range source.file.Decls {
+		function, isFunction := decl.(*ast.FuncDecl)
+		if !isFunction || function.Body == nil || len(function.Body.List) != 3 {
+			continue
+		}
+		iteration, ranged := function.Body.List[1].(*ast.RangeStmt)
+		if !ranged || len(iteration.Body.List) != 1 {
+			continue
+		}
+		store, assigned := iteration.Body.List[0].(*ast.AssignStmt)
+		if !assigned || len(store.Lhs) != 1 || store.Lhs[0] != source.value {
+			continue
+		}
+		owner := sourceFunction{decl: function, file: source.file, pkg: source.pkg}
+		_, err := e.source.snapshot.evaluator().familyProjection(owner, sourceExpr{value: function.Name, file: source.file, pkg: source.pkg})
+		return err == nil
 	}
 	return false
 }

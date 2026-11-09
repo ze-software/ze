@@ -143,8 +143,35 @@ func (e *externalEffects) rangedValue(object *ast.Object, source sourceExpr, col
 		}
 	}
 	e.bind(object, stored)
+	result = e.withoutCollectionLocation(result, object, source)
 	result.join(stored)
 	return result
+}
+
+// withoutCollectionLocation drops the ranged collection variable's own
+// location from a proved range value. Go specification, "For statements with
+// range clause": the value slot holds "a[i] E", a copy of the element, so it
+// never refers to the collection's backing storage; a reference into that
+// storage an element does hold (a stored &x[j]) arrives through the proved
+// element values, joined after this. Keeping the location would let a copy
+// read from familySet make familySet writable wherever the copy escapes.
+func (e *externalEffects) withoutCollectionLocation(value externalValue, object *ast.Object, source sourceExpr) externalValue {
+	_, ranged, synthetic := externalRangeVariable(object)
+	if !synthetic {
+		return value
+	}
+	collection := e.object(sourceExpr{value: ast.Unparen(ranged.X), file: source.file, pkg: source.pkg})
+	if collection == nil || !value.locations[collection] {
+		return value
+	}
+	locations := make(map[*ast.Object]bool, len(value.locations))
+	for location := range value.locations {
+		if location != collection {
+			locations[location] = true
+		}
+	}
+	value.locations = locations
+	return value
 }
 
 // elementValue evaluates one proved element source in its producer's

@@ -25,6 +25,16 @@ func retainedControlFixture(t *testing.T) string {
 // helper shapes: returned string slice, Family.String calls, and the bounded
 // FlowSpec make/range/index/return projection. Families and their support flags
 // must reach the public report under exact canonical keys.
+//
+// MUTATION: (internal/le/repo/inventory/externalrangeelements.go,
+// `	result = e.withoutCollectionLocation(result, object, source)`,
+// `	_ = source`): the range copy fam carries familySet's own location, the
+// exported String's return grows the ambient pool with it, and the
+// flowspec projection refuses as external mutation through familySet.
+// MUTATION: (internal/le/repo/inventory/externaleffects.go,
+// `			if e.metadata[object] && !e.projectedLocalWrite(source) {`,
+// `			if e.metadata[object] {`): the projection's own names[i] store
+// refuses as a mutated retained backing location.
 func TestCommittedFamilyHelpersRetainCanonicalNames(t *testing.T) {
 	cases := []struct {
 		name, helper string
@@ -198,5 +208,26 @@ func init() { func(_ int) {}(installInArgument()) }
 	}
 	if !slices.Equal(names, []string{"argument-plugin", "committed-linux"}) {
 		t.Fatalf("immediate closure argument registration silently omitted: %v", names)
+	}
+}
+
+// TestCommittedFamilyHelperWriteOutsideProjectionRefuses keeps a write to a
+// metadata slice refusing when its helper is not the finite family-name
+// projection: the exemption covers only that projection's one store.
+func TestCommittedFamilyHelperWriteOutsideProjectionRefuses(t *testing.T) {
+	root := retainedControlFixture(t)
+	write(t, root, "internal/component/plugin/registry/registry.go", `package registry
+type Registration struct { Name, Description, YANG string; Dependencies, OptionalDependencies, StartAfter, ConfigRoots, Families []string; RunEngine func(); InProcessNLRIDecoder, InProcessNLRIEncoder, InProcessRouteEncoder, InProcessConfigNLRIBuilder func() }
+func Register(Registration) error { return nil }
+`)
+	write(t, root, "internal/plugins/example/families.go", `package example
+import r "github.com/ze-software/ze/internal/component/plugin/registry"
+func familyEngine() {}
+func declaredFamilies() []string { names := []string{"ipv4/unicast"}; names[0] = "ipv6/unicast"; return names }
+func init() { _ = r.Register(r.Registration{Name: "family-provider", RunEngine: familyEngine, Families: declaredFamilies(), InProcessNLRIDecoder: familyEngine, InProcessNLRIEncoder: familyEngine, InProcessRouteEncoder: familyEngine, InProcessConfigNLRIBuilder: familyEngine}) }
+`)
+	commitInventoryFixture(t, root)
+	if inv, err := Collect(root); err == nil {
+		t.Fatalf("a write outside the family projection published: %+v", inv.Plugins)
 	}
 }

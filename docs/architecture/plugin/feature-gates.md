@@ -165,13 +165,19 @@ from the variables, and the comma-ok forms (a type assertion, a map index, a
 receive) leave the variables untyped. The root-field proof of a field read
 `o.initialized` takes that positional type for such a variable, because its
 initializer is the whole call, which has no single type.
+A write to an object the registration metadata reads refuses ("external
+registration metadata depends on a mutated retained backing location"),
+except the one store of the finite family-name projection FlowSpec uses
+(`names := make([]string, len(set))`, `for i, f := range set { names[i] =
+f.String() }`, `return names`): that projection reads the whole helper and
+refuses any other statement, so the value it reports already holds the store.
 A function with named results returns what its result variables hold as well
 as its explicit return values: a named result is a variable of its declared
 type, so a read of it yields its zero value and every assignment to it, a
 naked return's and a deferred closure's included.
 <!-- source: internal/le/repo/inventory/methods.go -- expression.method, expression.methodAt, expression.methodReceiver, expression.addressable, expression.valueType, expression.tupleType, expression.fieldType -->
 <!-- source: internal/le/repo/inventory/externalrootfields.go -- externalEffects.fieldReceiverType, externalTupleOperand -->
-<!-- source: internal/le/repo/inventory/externaleffects.go -- externalEffects.namedResults -->
+<!-- source: internal/le/repo/inventory/externaleffects.go -- externalEffects.namedResults, externalEffects.projectedLocalWrite -->
 <!-- source: internal/le/repo/inventory/methodpromotion.go -- expression.promotedMethod, promotedReceiver, declaredMethods, declaresField -->
 <!-- source: internal/le/repo/inventory/externaladdresses.go -- externalEffects.addressValue -->
 <!-- source: internal/le/repo/inventory/registrations.go -- registrations.node -->
@@ -526,7 +532,12 @@ as everywhere in the walk, and the fixed point revisits the proof once the
 body is scheduled. The slot's value also joins the collection's whole
 flattened union and the element type's methods, so whole-element exposure
 still sees every retained callback; only the proved elements lend field
-names. An empty proved population is a real answer: the body never runs. The
+names. A proved slot drops the collection variable's own location from
+that union: the slot holds a copy of the element, never a reference to the
+backing array, and a reference into it that an element does hold, a stored
+`&x[j]`, arrives through the element values. So `for _, fam := range
+familySet { fam.String() }` does not make `familySet` writable when `String`
+is exposed. An empty proved population is a real answer: the body never runs. The
 key slot, channel ranges and function iterators keep the obligation.
 
 An index expression `x[k]` over a slice, array, pointer to array or map
