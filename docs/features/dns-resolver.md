@@ -23,7 +23,7 @@ The client side shares no configuration and no cache with any of them.
 | Static name servers | `system { name-server [8.8.8.8 1.1.1.1]; }` sets upstream DNS servers |
 | Router resolver selection | One rule picks the router's servers: the configured `name-server` list when it has an entry, else every learned record (DHCPv4, DHCPv6, PPPoE IPCP, RA RDNSS), and the host's `/etc/resolv.conf` only while none of those lists a server |
 | resolv.conf writer | Writes the router's servers to resolv-conf-path, and rewrites it whenever a source changes |
-| Learned DNS | Static servers take priority over the servers a DHCP lease or a PPPoE session supplied |
+| Learned DNS | Under the default list, static servers take priority over the servers a DHCP lease, a PPPoE session or a router advertisement supplied |
 | Query types | A, AAAA, TXT, PTR, CNAME, MX, NS, SRV |
 | LRU cache | O(1) operations, configurable size and max TTL |
 | TTL-aware | Respects response TTL, caps at configured maximum, honors TTL=0 (do not cache) |
@@ -150,6 +150,9 @@ Ze refuses, at `ze config validate`, at commit, at boot and at reload:
 | `received-interface` without `received` in `source` | the filter would select nothing. Add `source received`, or delete `received-interface` |
 | `source self` | Ze cannot be its own upstream. Name upstream servers with `name-server`, or use `source received` |
 | `source radius` | RADIUS resolvers belong to one PPP subscriber, not the router |
+| a `dns-source` container with no `source` | an empty list offers no resolver. Name a source, or delete `dns-source` to take the default |
+| one class twice in `source` | its second place can never contribute a server. Delete the repeat |
+| a `source` or `mode` word Ze does not know | Ze cannot tell what the word selects. Use a class from the list below, and `first-usable` or `merge` |
 
 A list naming one source needs no `mode`, because both modes give it the
 same answer.
@@ -196,6 +199,61 @@ daemon, so they cannot see a lease. They ask the server that `--server`
 (`--dns-server` for cymru) names, else the servers of the host's
 `/etc/resolv.conf`, else they fail closed.
 <!-- source: internal/component/resolve/cli/local_servers.go -- localServers -->
+
+### The `dns-source` list and the learned record
+
+`dns-source` is one YANG grouping, declared in `ze-types`, so every consumer
+that hands resolver addresses on writes the same list. Today the router's
+`system dns-source` is the only consumer that uses it.
+
+| Leaf | Shape |
+|------|-------|
+| `source` | the classes, in the order the consumer falls through them, each class at most once |
+| `mode` | `first-usable` or `merge`, with no default. A list of two or more classes needs one |
+| `received-interface` | interface names, in order. It narrows `received` and nothing else |
+
+| Class | What it lists |
+|-------|---------------|
+| `received` | every unexpired learned record, by origin rank, then interface, then unit |
+| `configured` | the consumer's own static list: for the router, `system name-server` |
+| `self` | Ze's own address on the interface the client is on |
+| `radius` | the resolvers RADIUS gives one PPP subscriber |
+
+A class names a role, never a protocol. A protocol that learns resolvers
+registers an origin with a rank, and its records appear inside `received`.
+Each consumer declares the classes it cannot use, with the reason and the
+fix it prints: the router refuses `self` and `radius`. A consumer's built-in
+default applies only while its `dns-source` container is absent. Once the
+container is written, the default no longer applies, its `mode` included.
+
+| Origin | Rank | Learned from |
+|--------|------|--------------|
+| `dhcpv4` | 100 | DHCPv4 option 6 |
+| `dhcpv6` | 200 | DHCPv6 DNS Recursive Name Server option |
+| `ppp` | 300 | IPCP on a PPPoE client session (RFC 1877) |
+| `ra` | 400 | Router Advertisement RDNSS (RFC 8106) |
+| `host` | 500 | the host's `/etc/resolv.conf`, registered as a fallback |
+
+A lower rank lists first. A fallback origin's records are listed only while
+no other record lists an address.
+
+Each learned record holds its origin and rank, the interface and unit that
+learned it (both empty for the host's file), the addresses in the order the
+source sent them, when it was received and when it expires. A record with no
+expiry is valid until its source withdraws it. The record also reserves
+`priority`, `name`, `transport`, `port` and `path` for RFC 9463 encrypted
+resolver discovery (DNR), which Ze does not implement yet. A record that
+names a `transport` is not plain DNS on port 53, so `received` skips it. The
+JSON form of a record is in `docs/architecture/api/process-protocol.md`,
+"The `system-dns` namespace".
+
+<!-- source: internal/component/config/yang/modules/ze-types.yang -- dns-source-class, dns-source -->
+<!-- source: internal/core/dnssource/select.go -- Class, ParseClass, ParseMode, NewList, NewWrittenList, Refusal, EmptyListError, RepeatedSourceError -->
+<!-- source: internal/core/dnssource/record.go -- Record, CompareRecords, liveAddresses -->
+<!-- source: internal/component/config/system/dns_source.go -- readWrittenDNSSource, unknownDNSSourceClassError -->
+<!-- source: internal/plugins/iface/dhcp/register.go -- dhcpv4ResolverOrigin, dhcpv6ResolverOrigin -->
+<!-- source: internal/component/iface/register.go -- pppoeClientResolverOrigin, raResolverOrigin -->
+<!-- source: internal/component/config/system/register_dns.go -- hostResolverOrigin -->
 
 ## Cache management
 
