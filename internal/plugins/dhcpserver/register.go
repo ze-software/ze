@@ -100,7 +100,7 @@ func runDHCPServerPlugin(conn net.Conn) int {
 	tx := sdk.NewConfigTx(serverConfig{}, parseDHCPSections, srv.install)
 	tx.Register(p)
 	p.OnConfigure(func(sections []sdk.ConfigSection) error { return srv.configureAtBoot(tx, sections) })
-	followLearnedResolvers(p, &srv.learned, log)
+	followLearnedResolvers(p, &srv.learned, &srv.publisher, log)
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
@@ -123,12 +123,18 @@ func runDHCPServerPlugin(conn net.Conn) int {
 // each reply's option 6 reads the current learned resolvers. The startup
 // subscription and the snapshot request at OnStarted give a plugin that
 // starts after the leases the records already held (AC-13). Replies evaluate
-// the list when they are built, so a snapshot needs no other action.
-func followLearnedResolvers(p *sdk.Plugin, learned *dnssource.Follower, log *slog.Logger) {
+// the list when they are built; a fresh snapshot makes publisher publish each
+// subnet's selection again for show system dns and ze doctor.
+func followLearnedResolvers(p *sdk.Plugin, learned *dnssource.Follower, publisher *dhcpPublisher, log *slog.Logger) {
 	p.SetStartupSubscriptionsIn(dnssource.Namespace, []string{dnssource.SnapshotEventType}, nil, "")
 	p.OnEvent(func(event string) error {
-		if _, err := learned.Accept(event); err != nil {
+		fresh, err := learned.Accept(event)
+		if err != nil {
 			log.Warn("dhcpserver: learned resolvers not applied; option 6 keeps the previous ones", "error", err)
+			return nil
+		}
+		if fresh {
+			publisher.refresh()
 		}
 		return nil
 	})
@@ -136,6 +142,14 @@ func followLearnedResolvers(p *sdk.Plugin, learned *dnssource.Follower, log *slo
 		if _, err := p.EmitEvent(ctx, dnssource.Namespace, dnssource.SnapshotRequestEventType, "", "", ""); err != nil {
 			log.Warn("dhcpserver: learned resolvers not requested; they apply at the next lease change", "error", err)
 		}
+		// The emit outlives this callback, so it does not take its
+		// cancellation.
+		emitCtx := context.WithoutCancel(ctx)
+		publisher.setSender(func(body string) {
+			if _, err := p.EmitEvent(emitCtx, dnssource.Namespace, dnssource.PublicationEventType, "", "", body); err != nil {
+				log.Warn("dhcpserver: option 6 selections not published; show system dns shows the previous ones", "error", err)
+			}
+		})
 		return nil
 	})
 }

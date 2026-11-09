@@ -45,6 +45,9 @@ type poolPlugin struct {
 	// learned is the newest system-dns snapshot, which the received source
 	// of every subscriber list reads when a session asks for its address.
 	learned dnssource.Follower
+	// published is the body of the last selection publication sent
+	// (publishPools), so an unchanged set is not sent again.
+	published poolPublished
 
 	sessionAddrs    sync.Map // sessionKey -> sessionAddr (IPv4)
 	sessionPrefixes sync.Map // sessionKey -> sessionPrefix (IPv6)
@@ -127,12 +130,17 @@ func (p *poolPlugin) setEventBus(eb ze.EventBus) {
 		subevents.SessionDown.Subscribe(eb, func(payload *subevents.SessionDownPayload) {
 			p.onSessionDown(payload)
 		}),
-		// The selection is evaluated when a session asks, so a snapshot
-		// needs no action beyond being kept.
+		// The selection is evaluated when a session asks; a fresh snapshot
+		// only changes what is published for show system dns.
 		dnssource.SnapshotEvent.Subscribe(eb, func(snapshot *dnssource.Snapshot) {
-			p.learned.AcceptSnapshot(snapshot)
+			if p.learned.AcceptSnapshot(snapshot) {
+				p.publishPools(eb)
+			}
 		}),
 	}
+	// A new bus has no publication from this plugin: send the whole set.
+	p.published.reset()
+	p.publishPools(eb)
 	// A snapshot emitted before the subscription is not delivered, so ask for
 	// the current one: sessions that start now see the leases already held.
 	if _, err := dnssource.SnapshotRequest.Emit(eb); err != nil {
@@ -382,6 +390,7 @@ func runPlugin(conn net.Conn) int {
 			poolInstance.pool = pendingResult.defaultPool
 			poolInstance.namedPools = pendingResult.namedPools
 			poolInstance.mu.Unlock()
+			poolInstance.publishPools(poolInstance.currentBus())
 			poolInstance.v6mu.Lock()
 			poolInstance.v6pool = pendingResult.defaultV6Pool
 			poolInstance.v6namedPools = pendingResult.namedV6Pools
@@ -432,6 +441,7 @@ func runPlugin(conn net.Conn) int {
 			poolInstance.v6namedPools = pendingResult.namedV6Pools
 			poolInstance.v6mu.Unlock()
 			poolInstance.mu.Unlock()
+			poolInstance.publishPools(poolInstance.currentBus())
 			if pendingResult.defaultPool != nil {
 				total, _, _ := pendingResult.defaultPool.stats()
 				logger().Info("l2tp-pool: configured", "total", total, "named-pools", len(pendingResult.namedPools))

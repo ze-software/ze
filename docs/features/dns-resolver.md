@@ -264,7 +264,21 @@ registry replaces the consumer's previous set with each publication: a list
 the operator removed leaves by being absent. The registry keys the sets by
 the consumer's name and names no consumer itself. The router's own
 selection stays in the snapshot.
+
+| Consumer | Instance | Published when |
+|----------|----------|----------------|
+| `dns-resolver` | none (one forward list) | a policy build, after start |
+| `dhcpserver` | the subnet prefix | each config install and each fresh snapshot; `self` is the listened device's address inside the subnet |
+| `interface` | `<interface> unit <unit>` | each RA reconcile; the servers are the ones the RDNSS option carries |
+| `l2tp-pool` | none for the default pool, the name for a named pool | joining the bus, each pool install and each fresh snapshot |
+
+RADIUS names a subscriber's servers when the session asks, so the pool's
+published selection is what a session whose RADIUS reply carries no MS DNS
+server is offered: the `radius` class contributes nothing to it.
 <!-- source: internal/core/dnssource/record.go -- ConsumerSelection, NewConsumerSelection, Publication -->
+<!-- source: internal/plugins/dhcpserver/publish.go -- dhcpPublisher -->
+<!-- source: internal/component/iface/ra_dns_source.go -- publishRASelections -->
+<!-- source: internal/component/l2tp/plugins/pool/publish.go -- publishPools -->
 <!-- source: internal/component/config/system/resolv.go -- PublishOn, SetPublication, Consumers -->
 
 `show system dns` answers `records` (every learned record) and `consumers`:

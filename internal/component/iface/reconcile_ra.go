@@ -112,6 +112,9 @@ var raLearned atomic.Pointer[dnssource.Follower]
 // the previous one's.
 func setRALearned(f *dnssource.Follower) {
 	raLearned.Store(f)
+	raPublished.mu.Lock()
+	raPublished.body = ""
+	raPublished.mu.Unlock()
 }
 
 // raLearnedRecords answers the records the installed Follower holds.
@@ -145,7 +148,8 @@ type raEntry struct {
 // advertisement changed. Called from OnConfigure and OnConfigApply beside
 // reconcileDHCP, by the delegation worker after a lease changes, and by the
 // RDNSS worker after the learned resolvers change. The records of the newest
-// system-dns snapshot (raLearned) fill each unit's RDNSS list.
+// system-dns snapshot (raLearned) fill each unit's RDNSS list, and every
+// unit's selection is published (publishRASelections).
 func reconcileRA(cfg *ifaceConfig, active map[raUnitKey]raEntry, log *slog.Logger) {
 	if raSenderFactory == nil {
 		return
@@ -172,6 +176,7 @@ func reconcileRA(cfg *ifaceConfig, active map[raUnitKey]raEntry, log *slog.Logge
 		desired[key] = spec
 		selections[key] = selection
 	})
+	publishRASelections(selections, log)
 
 	for key := range active {
 		entry := active[key]

@@ -48,6 +48,9 @@ type dhcpServer struct {
 	// learned is the newest system-dns snapshot, which every handler's
 	// received class reads at reply time (followLearnedResolvers).
 	learned dnssource.Follower
+	// publisher publishes each subnet's option 6 selection; install hands it
+	// every handler set it makes the running one.
+	publisher dhcpPublisher
 }
 
 // install makes cfg the running config, or returns an error and leaves the
@@ -82,6 +85,7 @@ func (s *dhcpServer) install(cfg serverConfig) error {
 	stopLeasesNotIn(s.handlers, handlers)
 	kept := len(handlers) - len(newLeaseTables(handlers, s.handlers))
 	s.running, s.handlers, s.listeners = cfg, handlers, listeners
+	s.publisher.serve(handlers, listeners)
 	if !cfg.Enabled {
 		s.log.Debug("dhcpserver: disabled in config")
 		return nil

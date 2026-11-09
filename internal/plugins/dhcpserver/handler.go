@@ -170,14 +170,7 @@ func newDHCPHandlerWithTables(sub subnetConfig, pxe pxeConfig, p *pool, lt *leas
 // shorter than that is kept.
 func (h *dhcpHandler) offerDNS(self netip.Addr) dnsOffer {
 	list := h.subnet.Sources
-	candidates := dnssource.Candidates{
-		dnssource.ClassConfigured: h.subnet.DNSServers,
-		dnssource.ClassReceived:   list.Received(h.learned.Records(), h.leases.clock.Now()),
-	}
-	if self.IsValid() {
-		candidates[dnssource.ClassSelf] = []netip.Addr{self}
-	}
-	selection := dnssource.Select(list, candidates)
+	selection := h.selectDNS(self)
 	if h.dropped.changed(selection.Dropped) {
 		for _, addr := range selection.Dropped {
 			loggerPtr.Load().Warn("dhcpserver: host-only resolver not handed out in option 6",
@@ -194,6 +187,22 @@ func (h *dhcpHandler) offerDNS(self netip.Addr) dnsOffer {
 		offer.leaseSec = shortLeaseSec
 	}
 	return offer
+}
+
+// selectDNS evaluates the subnet's option 6 list now, with self as the self
+// class's address (invalid: the self class offers nothing). It is the one
+// evaluation a reply (offerDNS) and the published selection (dhcpPublisher)
+// both read, so show system dns names what a client is handed.
+func (h *dhcpHandler) selectDNS(self netip.Addr) dnssource.Selection {
+	list := h.subnet.Sources
+	candidates := dnssource.Candidates{
+		dnssource.ClassConfigured: h.subnet.DNSServers,
+		dnssource.ClassReceived:   list.Received(h.learned.Records(), h.leases.clock.Now()),
+	}
+	if self.IsValid() {
+		candidates[dnssource.ClassSelf] = []netip.Addr{self}
+	}
+	return dnssource.Select(list, candidates)
 }
 
 // awaitsReceived reports whether list reaches its received class and found no

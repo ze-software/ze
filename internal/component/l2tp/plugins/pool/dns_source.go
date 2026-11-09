@@ -44,6 +44,16 @@ func parsePoolSources(block map[string]any, builtin dnssource.List) (dnssource.L
 	return dnssource.ParseContainer(block, builtin, dnssource.FamilyIPv4, dnssource.AudienceHandedOn)
 }
 
+// poolDNSCandidates is what every class but radius offers pool's list at
+// now: radius is per session, and selectSubscriberDNS adds it.
+func poolDNSCandidates(pool *ipv4Pool, records []dnssource.Record, now time.Time) dnssource.Candidates {
+	return dnssource.Candidates{
+		dnssource.ClassConfigured: slotAddresses(pool.dnsPrimary, pool.dnsSecondary),
+		dnssource.ClassSelf:       slotAddresses(pool.gateway, netip.Addr{}),
+		dnssource.ClassReceived:   pool.sources.Received(records, now),
+	}
+}
+
 // subscriberDNS is the pair of resolvers one IPCP response offers. The zero
 // Addr in a slot means the response carries no such option.
 type subscriberDNS struct {
@@ -60,11 +70,7 @@ func selectSubscriberDNS(pool *ipv4Pool, meta *l2tp.AuthMetadata, records []dnss
 	log *slog.Logger,
 ) subscriberDNS {
 	list := pool.sources
-	candidates := dnssource.Candidates{
-		dnssource.ClassConfigured: slotAddresses(pool.dnsPrimary, pool.dnsSecondary),
-		dnssource.ClassSelf:       slotAddresses(pool.gateway, netip.Addr{}),
-		dnssource.ClassReceived:   list.Received(records, now),
-	}
+	candidates := poolDNSCandidates(pool, records, now)
 	if meta != nil {
 		radius := slotAddresses(meta.DNSPrimary, meta.DNSSecondary)
 		// R-6: a RADIUS server that names 0.0.0.0, a multicast address or the

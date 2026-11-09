@@ -6,9 +6,12 @@
 package iface
 
 import (
+	"encoding/json"
 	"log/slog"
 	"net/netip"
 	"slices"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/dnssource"
@@ -60,6 +63,9 @@ type raRDNSSSelection struct {
 	dropped []netip.Addr
 	// cut is how many selected servers did not fit the option.
 	cut int
+	// chosen is the selection as it is published (publishRASelections), its
+	// servers the ones the option carries; its Instance is set by the caller.
+	chosen dnssource.ConsumerSelection
 }
 
 // raSelectRDNSS applies the unit's list to its candidates: configured is the
@@ -83,6 +89,9 @@ func raSelectRDNSS(cfg *raUnitConfig, self netip.Addr, records []dnssource.Recor
 		out.cut = len(out.servers) - raRDNSSServersMax
 		out.servers = out.servers[:raRDNSSServersMax]
 	}
+	out.chosen = dnssource.NewConsumerSelection(list, "", selection)
+	out.chosen.Servers = slices.Clone(out.servers)
+	out.chosen.Self = slices.DeleteFunc(out.chosen.Self, func(addr netip.Addr) bool { return !slices.Contains(out.servers, addr) })
 	if slices.Contains(selection.Used, dnssource.ClassReceived) {
 		out.expires = receivedEnd(out.servers, candidates[dnssource.ClassConfigured], self, records, now)
 	}
@@ -217,4 +226,65 @@ func runRDNSSWorker(ch, stop <-chan struct{}, done chan<- struct{}, refresh func
 			return
 		}
 	}
+}
+
+// raConsumer is the name the interface component publishes its units' RDNSS
+// selections under.
+const raConsumer = "interface"
+
+// raPublished is the body of the last RDNSS publication sent, so a reconcile
+// that changed no selection sends nothing. setRALearned clears it, because a
+// respawned engine MUST publish its whole set again. Safe for concurrent use.
+var raPublished struct {
+	mu   sync.Mutex
+	body string
+}
+
+// raInstance names one unit's list among the component's lists.
+func raInstance(key raUnitKey) string {
+	return key.ifaceName + " unit " + key.unit
+}
+
+// publishRASelections publishes the RDNSS selection of every advertising unit
+// for show system dns and ze doctor, as the whole set: a unit that stopped
+// advertising leaves by being absent. It sends only a set that differs from
+// the last one sent, and nothing while no event bus is installed (a unit
+// test of the reconcile alone).
+func publishRASelections(selections map[raUnitKey]raRDNSSSelection, log *slog.Logger) {
+	eb := GetEventBus()
+	// refuse-by-default: guards reconcileRA -- with no bus installed nobody can read a publication, and the next reconcile after the bus is set publishes the whole set
+	if eb == nil {
+		return
+	}
+	keys := make([]raUnitKey, 0, len(selections))
+	for key := range selections {
+		keys = append(keys, key)
+	}
+	slices.SortFunc(keys, func(a, b raUnitKey) int {
+		if c := strings.Compare(a.ifaceName, b.ifaceName); c != 0 {
+			return c
+		}
+		return strings.Compare(a.unit, b.unit)
+	})
+	publication := &dnssource.Publication{Consumer: raConsumer, Selections: make([]dnssource.ConsumerSelection, 0, len(keys))}
+	for _, key := range keys {
+		current := selections[key].chosen
+		current.Instance = raInstance(key)
+		publication.Selections = append(publication.Selections, current)
+	}
+	body, err := json.Marshal(publication)
+	if err != nil {
+		log.Warn("interface: RDNSS selections not published; show system dns shows the previous ones", "path", raRDNSSSourcePath, "error", err)
+		return
+	}
+	raPublished.mu.Lock()
+	defer raPublished.mu.Unlock()
+	if string(body) == raPublished.body {
+		return
+	}
+	if _, err := dnssource.PublicationEvent.Emit(eb, publication); err != nil {
+		log.Warn("interface: RDNSS selections not published; show system dns shows the previous ones", "path", raRDNSSSourcePath, "error", err)
+		return
+	}
+	raPublished.body = string(body)
 }
