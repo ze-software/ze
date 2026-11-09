@@ -372,6 +372,7 @@ ze-rsvpte:show-rsvp-te-lsp
 ze-rsvpte:show-rsvp-te-tunnel
 ze-static:show-static
 ze-storage:show-smart
+ze-system-dns:show-system-dns
 ze-traceroute:monitor-traceroute
 ze-traceroute:resolve-traceroute
 ze-traceroute:show-probe-round
