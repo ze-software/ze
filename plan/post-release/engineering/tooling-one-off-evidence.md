@@ -1745,6 +1745,13 @@ Blocked by lab readiness, not product evidence:
 - `checkNoFamilyEndOfRIB` / `no-family-peer-eor-frr`: three green runs failed
   at "assertion 4: docker exec ze-iop-frr-p12a cat /var/run/frr/bgpd.pid did
   not finish within 30s (exit 124)", before any End-of-RIB assertion.
+  Lead, not yet observed: assertion 4's probe runs every second and reads
+  the FRR identity twice (`readNoFamilyEORIdentity`,
+  `check_no_family_eor.go`, five `docker exec` calls each) plus the log,
+  about eleven execs a second into one container; a stall of the Colima
+  Docker daemon under that rate would hang one exec past its 30s bound. A
+  probe that spaces or batches those reads is a checker change and needs the
+  judge first.
 
 ## P-12 (b): RTR fixtures (2026-11-09)
 
