@@ -166,6 +166,9 @@ reject=stderr:pattern=fatal error
 # through the shim the runner puts first on the child PATH (Runner.setupBinShims).
 cmd=background:seq=2:exec=env ze_test_ike_dataplane=noop ze -:stdin=initiator:name=initiator
 cmd=foreground:seq=3:exec=le test fixture ipsec/teardown-leaves-nothing/cycle:timeout=70s
+expect=stdout:contains=INSTALLED:
+expect=stdout:contains=TORN-DOWN:
+expect=stderr:contains=engine-steps: all steps passed
 # signal=term, not the default kill: the release under test runs on the way out of
 # runEngine, and a SIGKILLed process runs nothing at all. The runner reaps each
 # process before the next step, so the residue check below sees a settled kernel.
@@ -198,7 +201,4 @@ expect=output:contains=clear-all:timeout=10
 command=clear vpn ipsec sa all
 expect=output:contains=clear-all:timeout=10
 expect=exit:code=0
-expect=stdout:contains=INSTALLED:
-expect=stdout:contains=TORN-DOWN:
 expect=stdout:contains=RESIDUE: none
-expect=stderr:contains=engine-steps: all steps passed
