@@ -28,7 +28,7 @@ The client side shares no configuration and no cache with any of them.
 | LRU cache | O(1) operations, configurable size and max TTL |
 | TTL-aware | Respects response TTL, caps at configured maximum, honors TTL=0 (do not cache) |
 | Concurrent safe | Mutex-protected cache, safe for multi-goroutine use |
-| Server failover | The internal resolver asks the router's servers in order. A server that gives no answer passes the query to the next one |
+| Server failover | The internal resolver asks the router's servers in order. A server that gives no answer, or answers SERVFAIL, REFUSED or any RCODE other than NOERROR and NXDOMAIN, passes the query to the next one. When every server fails, the caller gets the last server failure, never an empty success |
 | Fail closed | With no server selected, queries fail with `no DNS server configured`. No public resolver is ever added |
 | Timeout control | Per-resolver configurable timeout (1-60 seconds) |
 | Cache management | List entries, inspect by name, and clear with `clear dns cache all/record/stats`: flush everything, delete by name/type, or reset the counters |
@@ -111,7 +111,7 @@ how two classes combine:
 | `mode` | The router's servers |
 |--------|----------------------|
 | `first-usable` | the first class in the list that holds a usable server, alone; a later class is a backup, used only while the earlier ones hold none |
-| `merge` | every class, in list order, a server already listed not repeated; Ze's internal resolver tries a later server when an earlier one does not answer |
+| `merge` | every class, in list order, a server already listed not repeated; Ze's internal resolver tries a later server when an earlier one does not answer or answers a server failure |
 
 With no `dns-source` written, the default is `source [ configured received ]`
 with `mode first-usable`. That is what Ze always did:

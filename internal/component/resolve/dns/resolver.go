@@ -369,8 +369,12 @@ func (r *Resolver) ResolvePTR(address string) ([]string, error) {
 //
 // The servers are asked in order, each within the configured timeout. A server
 // that gives no answer (a transport error, a timeout) passes the query to the
-// next; the first answer, whatever its RCODE, is the answer. When none
-// answers, the error names the last failure.
+// next, and so does one that answers with a status that says nothing about the
+// name (SERVFAIL, REFUSED and every other RCODE but NOERROR and NXDOMAIN). The
+// first NOERROR or NXDOMAIN answer is the answer. When no server gives one, the
+// last server failure a server answered is returned as the status, with no
+// error and no records, so the caller keeps what it had; when no server
+// answered at all, the error names the last failure.
 func (r *Resolver) query(name string, qtype uint16) ([]string, uint32, Status, error) {
 	servers := *r.servers.Load()
 	if len(servers) == 0 {
@@ -378,17 +382,30 @@ func (r *Resolver) query(name string, qtype uint16) ([]string, uint32, Status, e
 	}
 
 	var lastErr error
+	failure := StatusUnspecified
 	for _, server := range servers {
 		records, ttl, status, err := r.queryServer(server, name, qtype)
-		if err == nil {
-			return records, ttl, status, nil
+		if err != nil {
+			var unanswered *unansweredError
+			if !errors.As(err, &unanswered) {
+				return nil, 0, StatusUnspecified, err
+			}
+			r.logger.Warn("DNS server did not answer, asking the next", "server", server, "name", name, "err", err)
+			lastErr = err
+			continue
 		}
-		var unanswered *unansweredError
-		if !errors.As(err, &unanswered) {
-			return nil, 0, StatusUnspecified, err
+		// RFC 1034 Section 5.3.3: "if the response shows a servers failure or
+		// other bizarre contents, delete the server from the SLIST and go back
+		// to step 3."
+		if !status.Authoritative() {
+			r.logger.Warn("DNS server answered a server failure, asking the next", "server", server, "name", name, "rcode", status.String())
+			failure = status
+			continue
 		}
-		r.logger.Warn("DNS server did not answer, asking the next", "server", server, "name", name, "err", err)
-		lastErr = err
+		return records, ttl, status, nil
+	}
+	if failure != StatusUnspecified {
+		return nil, 0, failure, nil
 	}
 	return nil, 0, StatusUnspecified, lastErr
 }
