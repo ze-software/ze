@@ -1351,6 +1351,14 @@ func checkNSSADefault(ctx context.Context, check *interoplab.CheckContext) (resu
 	// in the SAME selected, installed JSON route entry as the prefix: a default
 	// reaching FRR from anywhere else cannot satisfy the assertion.
 	borderRouter := networkHostAddress(check.Network, 2)
+	// Docker gives the FRR container a default route of its own, which wins
+	// selection over OSPF's (administrative distance 110), so the Type 7
+	// default FRR learns would never be the selected, installed entry the
+	// assertion reads. Removing it leaves OSPF as the only default source,
+	// which is the topology the scenario describes.
+	if err := removeContainerDefaultRoute(ctx, check.Lab, peerFRR); err != nil {
+		return fail(2, err)
+	}
 	if _, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     60 * time.Second,
 		Interval:    2 * time.Second,
