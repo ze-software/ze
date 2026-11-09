@@ -8,7 +8,7 @@
 // behavior (local-only auth) with no error, no warning: fail-open on the
 // daemon's own persisted format, while the brace format rejected the same
 // keys. Boot (LoadConfig) and validate (ParseTreeForValidation) share this
-// producer (parseSetWithMigration), so both are covered.
+// producer (parseSetConfig), so both are covered.
 package config
 
 import (

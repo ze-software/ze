@@ -657,7 +657,7 @@ editing text files and sending SIGHUP (though SIGHUP reload is also supported).
 | `ze config edit` | Interactive editor with YANG-aware tab completion |
 | `ze config validate <file>` | Validate a config file offline |
 | `ze config import <file>` | Import a config file into the store |
-| `ze config migrate <file>` | Convert ExaBGP config to ze-native format |
+| `ze config migrate <file>` | Rewrite a config in the set or hierarchical form |
 | `ze signal reload` | Trigger config reload (same as SIGHUP) |
 <!-- source: internal/component/config/cli/main.go -- config domain commands -->
 

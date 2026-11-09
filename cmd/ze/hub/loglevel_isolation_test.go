@@ -1,5 +1,4 @@
 // Design: docs/architecture/config/environment.md -- environment block publishes log levels to the process
-// Related: main_evolve_test.go -- evolveTestSetup isolates the level for every evolution test
 // Related: config_source_repaired_test.go -- buildRepairedStore isolates it for the repaired-store runs
 // Related: service_web_baseline_test.go -- the baseline test needs the level unset to prove anything
 

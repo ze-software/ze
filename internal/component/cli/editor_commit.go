@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/config/migration"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -74,18 +73,7 @@ func (e *Editor) commitSession(force bool) (*CommitResult, error) {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
 
-	// Apply tree structure migrations if the committed config is hierarchical.
 	var warnings []string
-	if config.DetectFormat(committedContent) == config.FormatHierarchical {
-		if migration.NeedsMigration(committedTree) {
-			result, migrateErr := migration.Migrate(committedTree)
-			if migrateErr == nil {
-				committedTree = result.Tree
-			} else {
-				warnings = append(warnings, fmt.Sprintf("tree migration skipped: %v", migrateErr))
-			}
-		}
-	}
 
 	// Read and parse draft (created by SaveDraft above).
 	draftPath := DraftPath(e.originalPath)
@@ -285,16 +273,6 @@ func (e *Editor) commitSessionCandidate(stamp time.Time, force bool) (*CommitRes
 	}
 
 	var warnings []string
-	if config.DetectFormat(committedContent) == config.FormatHierarchical {
-		if migration.NeedsMigration(committedTree) {
-			result, migrateErr := migration.Migrate(committedTree)
-			if migrateErr == nil {
-				committedTree = result.Tree
-			} else {
-				warnings = append(warnings, fmt.Sprintf("tree migration skipped: %v", migrateErr))
-			}
-		}
-	}
 
 	draftPath := DraftPath(e.originalPath)
 	draftData, err := guard.ReadFile(draftPath)

@@ -172,7 +172,7 @@ func usage() {
 				{Name: "archive <name>", Desc: "Archive to a named destination (via daemon)"},
 			}},
 			{Title: "Migration", Entries: []helpfmt.HelpEntry{
-				{Name: "migrate <file>", Desc: "Convert old format to current"},
+				{Name: "migrate <file>", Desc: "Rewrite a config in the set or hierarchical form"},
 			}},
 			{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 				{Name: "-f", Desc: "Bypass database, use filesystem directly"},

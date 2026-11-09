@@ -130,7 +130,7 @@ func TestConfigMigratePrintsSecretEncoded(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	output, _, _, err := configMigrateWithWarnings(path, "", formHierarchical)
+	output, _, err := configMigrateWithWarnings(path, "", formHierarchical)
 	if err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
@@ -184,7 +184,7 @@ func TestConfigMigrateSetFormPrintsSecretEncoded(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	output, _, _, err := configMigrateWithWarnings(path, "", formSet)
+	output, _, err := configMigrateWithWarnings(path, "", formSet)
 	if err != nil {
 		t.Fatalf("migrate: %v", err)
 	}

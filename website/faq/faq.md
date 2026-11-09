@@ -80,7 +80,7 @@ Straight answers about what Ze does, where it is ready, and what adopting it inv
       <details class="faq-card cat-automate" id="exabgp">
         <summary>I run ExaBGP. Can I move to Ze?</summary>
         <div>
-          <p>Yes. Ze includes <code>ze config migrate</code> for configuration conversion and a compatibility bridge that lets existing ExaBGP process scripts run while you port them.</p>
+          <p>Yes. Ze includes <code>ze exabgp migrate</code> for configuration conversion and a compatibility bridge that lets existing ExaBGP process scripts run while you port them.</p>
           <p>The <a href="../use-cases/exabgp-migration/">ExaBGP migration guide</a> covers conversion, known differences, and the point where a native Ze plugin becomes the better choice.</p>
         </div>
       </details>

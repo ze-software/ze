@@ -4982,9 +4982,9 @@ match criteria, actions, reserved ranges, and CLI usage.
 
 ## ExaBGP Migration
 
-Ze auto-detects and migrates ExaBGP configuration files:
+`ze exabgp migrate` converts an ExaBGP configuration file to Ze syntax:
 
 ```
-ze config migrate exabgp.conf > ze.conf
+ze exabgp migrate exabgp.conf > ze.conf
 ```
-<!-- source: internal/component/config/cli/cmd_migrate.go -- cmdMigrate; internal/exabgp/migration/ -- ExaBGP config conversion -->
+<!-- source: internal/plugins/exabgp/main.go -- cmdMigrate; internal/exabgp/migration/ -- ExaBGP config conversion -->

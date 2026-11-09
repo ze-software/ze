@@ -28,7 +28,7 @@ func TestWritersKeepPlaintextPasswordAsHash(t *testing.T) {
 	require.NoError(t, err)
 	outputs := map[string]string{"fmt": formatted}
 	for _, form := range []string{"set", "hierarchical"} {
-		output, _, _, err := configMigrateWithWarnings(configPath, "", form)
+		output, _, err := configMigrateWithWarnings(configPath, "", form)
 		require.NoError(t, err, "migrate %s", form)
 		outputs["migrate "+form] = output
 	}
@@ -62,9 +62,8 @@ func TestMigrateDefaultOutputSet(t *testing.T) {
 	require.NoError(t, err)
 
 	// Migrate with default format ("set").
-	output, result, _, err := configMigrateWithWarnings(configPath, "", "set")
+	output, _, err := configMigrateWithWarnings(configPath, "", "set")
 	require.NoError(t, err)
-	require.NotNil(t, result)
 
 	// Output should be set-format lines, not hierarchical.
 	assert.True(t, strings.Contains(output, "set "),
@@ -94,7 +93,7 @@ func TestMigrateExplicitHierarchical(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(hierarchical), 0o600)
 	require.NoError(t, err)
 
-	output, _, _, err := configMigrateWithWarnings(configPath, "", "hierarchical")
+	output, _, err := configMigrateWithWarnings(configPath, "", "hierarchical")
 	require.NoError(t, err)
 
 	assert.True(t, strings.Contains(output, "bgp {"),

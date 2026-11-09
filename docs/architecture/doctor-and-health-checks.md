@@ -214,7 +214,7 @@ rule over the package's source.
 | Caller | Where | What it does |
 |--------|-------|--------------|
 | `ze doctor` | the registered check, run by `runChecks` | renders the diagnostic; `Run` already exits 1 on any `SeverityError` |
-| daemon start | `runYANGConfig`, after `applyEvolutions` and before `EnsureActiveVersion` | one stderr line, one `logStartupFailure`, `return 1` |
+| daemon start | `runYANGConfig`, after the config load and any downgrade recovery, before `EnsureActiveVersion` | one stderr line, one `logStartupFailure`, `return 1` |
 | config reload | `runReloadContext`, before `ReloadConfig` | refuses with the running configuration still serving |
 | `ze config validate` | `runValidation` | `config-kernel-capability` at error severity |
 

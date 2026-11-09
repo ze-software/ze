@@ -35,8 +35,7 @@ import (
 // `.conf`, each `.ci` stdin block a command
 // hands to ze as a daemon config or a `ze config` input, each fragment a test
 // or a demo tape loads into a running config (validated merged, in the order
-// it is loaded), each `ze config migrate` input (validated as the command's
-// output), and the `ze exabgp migrate` output of every ExaBGP config. Every
+// it is loaded), and the `ze exabgp migrate` output of every ExaBGP config. Every
 // config a carrying test declares refused (refused=<code> on its tmpfs or
 // stdin block) must be
 // refused with that code.
@@ -91,9 +90,6 @@ const (
 	// ruleLoadSequence: a fragment a test or tape loads into a running config
 	// is validated merged onto it, in load order, not alone.
 	ruleLoadSequence
-	// ruleMigrateInput: a body a test feeds to `ze config migrate` is
-	// validated as the command's output.
-	ruleMigrateInput
 	// ruleNativeClassification: a legacy test/exabgp-compat/native fixture is
 	// logged with its reason (internal/test/exabgpnative).
 	ruleNativeClassification
@@ -143,9 +139,6 @@ type sweepCarrier struct {
 	// skipped is true when the carrying test expects a non-zero exit and
 	// declares nothing: it carries a config Ze must refuse.
 	skipped bool
-	// migrateInput is true when the carrying test feeds the body to
-	// `ze config migrate`.
-	migrateInput bool
 }
 
 // loadStep is one fragment a sequence loads into the running config.
@@ -406,9 +399,6 @@ func (s *sweepContext) ciCarriers(path string) ([]sweepCarrier, []loadSequence) 
 		if s.on(ruleDeclaredRefusal) {
 			c.refused = f.Refused
 		}
-		if s.on(ruleMigrateInput) {
-			c.migrateInput = use.migrateInputs[f.Path]
-		}
 		carriers = append(carriers, c)
 	}
 	names := make([]string, 0, len(use.configBlocks))
@@ -439,14 +429,12 @@ type ciUse struct {
 	baseFile string
 	// baseBlock is the stdin block a ze daemon starts on, "" when none.
 	baseBlock string
-	// migrateInputs names each tmpfs file `ze config migrate` reads.
-	migrateInputs map[string]bool
 }
 
 // ciCommandUse reads the `.ci`'s commands through the runner's own parse and
 // its own rule for which operand a ze invocation reads as its config.
 func ciCommandUse(path string, parsed *tmpfs.Tmpfs) ciUse {
-	use := ciUse{configBlocks: map[string]bool{}, migrateInputs: map[string]bool{}}
+	use := ciUse{configBlocks: map[string]bool{}}
 	// A stdin=config block is a config by the name the .ci format gives it,
 	// whichever route hands it to ze: a wrapped argv (le test fail-syscall
 	// ... -- ze -), a pipeline inside ze cli -c, a leading global flag, or the
@@ -470,14 +458,6 @@ func ciCommandUse(path string, parsed *tmpfs.Tmpfs) ciUse {
 			continue
 		}
 		if len(args) < 2 || args[0] != "config" {
-			continue
-		}
-		if args[1] == "migrate" {
-			for _, arg := range args[2:] {
-				if strings.HasSuffix(arg, ".conf") {
-					use.migrateInputs[arg] = true
-				}
-			}
 			continue
 		}
 		if cmd.Stdin != "" && slices.Contains(args, "-") {
@@ -650,15 +630,6 @@ func (s *sweepContext) judgeCarrier(c *sweepCarrier) {
 		s.report.skipped++
 		return
 	}
-	if c.migrateInput {
-		output, err := s.migrateConfig(c.body)
-		if err != nil {
-			s.report.find(c.source + ": ze config migrate: " + err.Error())
-			return
-		}
-		s.checkBody(sweepCarrier{source: "config migrate " + c.source, body: output, rfc8212: c.rfc8212})
-		return
-	}
 	s.checkBody(*c)
 }
 
@@ -745,7 +716,7 @@ func (s *sweepContext) migrateConfig(body string) (string, error) {
 	if err := os.WriteFile(input, []byte(body), 0o600); err != nil {
 		return "", err
 	}
-	output, _, _, err := configMigrateWithWarnings(input, "", formHierarchical)
+	output, _, err := configMigrateWithWarnings(input, "", formHierarchical)
 	return output, err
 }
 
@@ -902,7 +873,7 @@ func directoryIsAboutRFC8212(path string) bool {
 // VALIDATES: every exclusion the sweep makes is the rule's doing: with the rule
 // off, findings return that name what the rule covers (an interop scenario's
 // placeholder, a $PORT, a test-only plugin, a declared refusal, a loaded
-// fragment, a migrate input, a legacy native fixture, an FRR vtysh.conf).
+// fragment, a legacy native fixture, an FRR vtysh.conf).
 // PREVENTS: a rule that turns nothing away, or findings that vanish for a
 // reason no rule states.
 func TestSweepDerivesEachExclusion(t *testing.T) {
@@ -917,7 +888,6 @@ func TestSweepDerivesEachExclusion(t *testing.T) {
 		{"test plugins", ruleTestPlugins, sweepKeep{"fakeredist", "fakedrain"}, "fakeredist"},
 		{"declared refusal", ruleDeclaredRefusal, sweepKeep{"refused="}, "test/reload/reload-bad-config.ci"},
 		{"load sequence", ruleLoadSequence, sweepKeep{"demos/terminal"}, "demos/terminal/topics/"},
-		{"migrate input", ruleMigrateInput, sweepKeep{"config migrate"}, "test/parse/cli-config-migrate-log-booleans.ci"},
 		{"native classification", ruleNativeClassification, sweepKeep{exabgpnative.Dir}, exabgpnative.Dir},
 		{"statement shape", ruleStatementShape, sweepKeep{"vtysh"}, "vtysh.conf"},
 	}

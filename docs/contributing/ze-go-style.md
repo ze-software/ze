@@ -715,7 +715,7 @@ below. The buffer and pool rules are in "Performance" above.
 | Standard Go | Ze | Rule | Why |
 |---|---|---|---|
 | Struct tags plus `json.Unmarshal` | YANG schema as the sole source of truth | `ai/rules/config.md` | Schema-driven validation, migration, completion and diff |
-| A config version field | No version numbers; machine-transformable migration | `ai/rules/config.md` | YANG evolution handles schema change |
+| A config version field | No version numbers and no migration of Ze's own syntax | `ai/META-DECISIONS.md` | Pre-release: a syntax change converts the repository's configs in the same change |
 | Silent defaults for missing fields | Fail on an unknown key and suggest the closest valid one | `ai/rules/config.md` | Explicit beats implicit |
 | `interface{}` for flexible config | `map[string]any` through one canonical pipeline | `ai/rules/repo-maintenance.md` | File to Tree to `ResolveBGPTree` to `map[string]any` to `PeersFromTree` |
 

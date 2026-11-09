@@ -139,7 +139,7 @@ func TestMigrateOutputDash(t *testing.T) {
 
 	// When an output path is given, the config is written there (stdout for "-")
 	// and NOT also returned, so the caller does not double-print.
-	if _, _, _, err := configMigrateWithWarnings(in, "-", ""); err != nil {
+	if _, _, err := configMigrateWithWarnings(in, "-", ""); err != nil {
 		t.Fatalf("configMigrateWithWarnings(-o -): %v", err)
 	}
 	if out.Len() == 0 {

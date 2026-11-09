@@ -48,7 +48,7 @@ command.
 
 ## Archive and rollback
 
-Ze stores configuration revisions in the configured storage backend. The archive guide covers revision pointers, named archive destinations, schema evolution, and recovery.
+Ze stores configuration revisions in the configured storage backend. The archive guide covers revision pointers, named archive destinations, and recovery.
 
 Useful commands include:
 

@@ -1,124 +1,25 @@
 # Configuration Syntax Changes
 
-<!-- source: internal/component/config/cli/cmd_migrate.go -- migration implementation -->
-<!-- source: internal/component/config/migration/migrate.go -- transformation registry -->
+<!-- source: internal/component/config/cli/cmd_migrate.go -- ze config migrate, form conversion only -->
+<!-- source: internal/component/config/loader.go -- parseSetConfig, the unknown-field message -->
 
-Ze has not shipped a stable configuration release yet. There is no public
-deprecation lifecycle for old config versions, and Ze does not promise a
-numbered generation ladder for config syntax.
+Ze has not shipped a release, so there is no deprecation lifecycle for its
+config syntax and no path that rewrites an older form of it. When the syntax
+changes, the configurations in the repository are converted in the same
+change, and no other file written in the old form exists to convert.
 
-Config compatibility is date-based. A config file records the schema stamp that
-wrote it, and recovery chooses the newest rollback file that the running binary
-can parse. For pre-release files or old examples, `ze config migrate` converts
-known older shapes to the syntax expected by the current tree.
+A config file records the schema stamp of the release that wrote it, and
+recovery after a downgrade chooses the newest rollback file that the running
+binary can parse.
 
 ## Compatibility rules
 
 | Case | What Ze does |
 |------|--------------|
 | Current config | `ze config validate <file>` checks it directly. |
-| Older pre-release Ze syntax | `ze config migrate` applies named transforms, then emits current syntax. |
-| ExaBGP-shaped syntax | The migrator converts supported shapes and reports unsupported extensions. |
+| Older pre-release Ze syntax | The parse fails, naming the line and the unknown keyword. Edit the file to the current syntax. |
+| ExaBGP syntax | `ze exabgp migrate` converts the shapes it supports and warns about the extensions it does not translate. |
 | Newer schema stamp after downgrade | Startup tries rollback files newest-first and writes back the first one this binary can parse. |
-
-The transform names are descriptive implementation names, not public config
-version numbers. Use `ze config migrate --list` to see the current list in the
-binary you are running.
-
-## Older shapes the migrator recognizes
-
-### Root-level `neighbor`
-
-Older examples sometimes used root-level `neighbor` blocks:
-
-```
-neighbor 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-}
-```
-
-Current native config puts BGP under `bgp {}` and separates transport from BGP
-session state:
-
-```
-bgp {
-    router-id 192.0.2.254
-    session { asn { local 65000; } }
-
-    peer upstream1 {
-        connection {
-            remote { ip 192.0.2.1; }
-        }
-        session {
-            asn { remote 65001; }
-        }
-    }
-}
-```
-
-### Root-level peer globs
-
-Older configs could use root-level peer globs for shared defaults:
-
-```
-peer * {
-    hold-time 90;
-}
-```
-
-Current config uses named groups and concrete peers:
-
-```
-bgp {
-    router-id 192.0.2.254
-    session {
-        asn {
-            local 65000
-        }
-    }
-    group default {
-        timer { receive-hold-time 90; }
-
-        peer upstream1 {
-            connection {
-                remote { ip 192.0.2.1; }
-            }
-            session {
-                asn { remote 65001; }
-            }
-        }
-    }
-}
-```
-
-### `template { neighbor }`
-
-Older template neighbors became peer groups:
-
-```
-template {
-    neighbor ibgp-rs {
-        peer-as 65000;
-    }
-}
-```
-
-Current config expresses the same default as a BGP group:
-
-```
-bgp {
-    router-id 192.0.2.1
-    session {
-        asn {
-            local 65000
-        }
-    }
-    group ibgp-rs {
-        session { asn { remote 65000; } }
-    }
-}
-```
 
 ## Unsupported ExaBGP extensions
 
@@ -164,20 +65,14 @@ Ze does not copy a private codepoint.
 ## Commands
 
 ```bash
-# Check whether a file already matches the current binary
+# Check whether a file matches the current binary
 ze config validate config.conf
 
-# Preview conversion without writing a new file
-ze config migrate --dry-run config.conf
+# Convert an ExaBGP config to Ze syntax
+ze exabgp migrate exabgp.conf
 
-# Convert to stdout
-ze config migrate config.conf
-
-# Convert to a new file
-ze config migrate -o config-current.conf config.conf
-
-# List transforms in this binary
-ze config migrate --list
+# Rewrite a current Ze config in the set or hierarchical form
+ze config migrate format hierarchical config.conf
 ```
 
 See [Configuration Migration](../../config-migration.md) for command details.

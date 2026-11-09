@@ -315,7 +315,7 @@ answer of does not change the draft.
 | Command | Description |
 |---------|-------------|
 | `ze config validate <file>` | Validate configuration file |
-| `ze config migrate <file>` | Convert ExaBGP config to ze format |
+| `ze config migrate <file>` | Rewrite a config in the set or hierarchical form |
 | `ze config fmt <file>` | Normalize formatting (output to stdout) |
 | `ze config dump <file>` | Dump parsed config as JSON tree |
 | `ze config diff <a> <b>` | Compare two config files |

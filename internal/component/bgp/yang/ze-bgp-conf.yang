@@ -1364,30 +1364,6 @@ module ze-bgp-conf {
                     ze:help "Shell command that starts the external process.";
                 }
 
-                // Old syntax fields
-                leaf-list processes {
-                    type string;
-                    description "The config migration rewrites the leaf. Ze creates one attach process entry per name
-                        in the list, and it deletes the block that carried the leaf. The BGP reactor reads no value
-                        from the leaf.";
-                    ze:help "Legacy ExaBGP process reference list. Use 'receive' and 'send' instead.";
-                }
-
-                leaf-list processes-match {
-                    type string;
-                    description "The config migration treats each pattern as a process name, and it creates one attach
-                        process entry per pattern. Ze matches nothing against the pattern. The BGP reactor reads no
-                        value from the leaf.";
-                    ze:help "Legacy ExaBGP process match patterns for event filtering.";
-                }
-
-                container neighbor-changes {
-                    presence "Neighbor change notifications enabled";
-                    description "The events are up, down, and reset. The process can therefore react to a peer lifecycle transition.";
-                    ze:help "Send session state change events to this process.";
-                }
-
-                // New syntax fields
                 container content {
                     description "Ze reads encoding and format from the container. A binding that names neither takes
                         the encoder the program registered, and the parsed format.";

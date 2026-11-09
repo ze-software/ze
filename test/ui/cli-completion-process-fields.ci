@@ -1,5 +1,7 @@
 # Test: ze config completion — process list fields
 # VALIDATES: Process container shows run, receive, send, content, etc.
+# VALIDATES: the removed old-syntax fields (processes, processes-match,
+#            neighbor-changes) are not offered.
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
@@ -41,4 +43,5 @@ expect=stdout:contains=run
 expect=stdout:contains=receive
 expect=stdout:contains=send
 expect=stdout:contains=content
-expect=stdout:contains=neighbor-changes
+reject=stdout:contains=neighbor-changes
+reject=stdout:contains=processes

@@ -774,7 +774,8 @@ Key commands:
 | `ze bgp encode <text>` | Encode route to wire hex |
 | `ze config validate <file>` | Validate configuration |
 | `ze config edit` | Interactive config editor |
-| `ze config migrate <file>` | Convert ExaBGP config |
+| `ze config migrate <file>` | Rewrite a config in the set or hierarchical form |
+| `ze exabgp migrate <file>` | Convert ExaBGP config |
 | `ze cli` | Interactive runtime CLI |
 | `ze schema list` | List YANG schemas |
 | `ze schema methods` | List RPCs from YANG |

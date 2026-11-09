@@ -3,13 +3,11 @@
 Why: `ai/rules/config.md`
 
 ## Why No Version Numbers
-- All config changes must be machine-transformable
-- Migration framework handles old -> new conversion
-- Detect old syntax -> transform to new
+- Ze is pre-release: no shipped config exists, so a syntax change converts the repository's configs in the same change and keeps no rewrite path for the old form (`ai/META-DECISIONS.md`)
 - Version numbers encourage "check version, branch logic" which accumulates forever
 
 ## Why Fail on Unknown
 - Unknown key at any level -> fail with clear error
 - No silent ignore of typos or deprecated fields
-- Forces explicit migration, prevents subtle misconfiguration
+- Forces an explicit edit, prevents subtle misconfiguration
 - Error message should suggest closest valid key if possible

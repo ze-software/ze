@@ -159,7 +159,7 @@ func fmtHelpPage() *helpfmt.Page {
 // colored when stderr, where the local routes print it, is a terminal.
 func writeFmtUsage(diag *textbuf.Buffer) {
 	fmtHelpPage().WriteTo(diag, slogutil.UseColor(os.Stderr))
-	diag.Str("\nFormats current config files only. For old configs, run \"ze config migrate\" first.\n")
+	diag.Str("\nFormats current config files only. For an ExaBGP config, run \"ze exabgp migrate\" first.\n")
 }
 
 // The leaves ze-config-cli-cmd.yang declares on show config fmt for the

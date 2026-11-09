@@ -16,7 +16,6 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/grmarker"
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/component/config"
-	_ "github.com/ze-software/ze/internal/component/config/migration" // init() registers migration function
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"

@@ -675,7 +675,7 @@ Lazy-parsed wire format and pool-based attribute deduplication reduce memory ove
 encoding contexts match, UPDATEs are forwarded without re-parsing. Written in Go with an
 estimated 10-15% overhead vs. C/Rust (not yet benchmarked at scale; see
 [Performance Trade-offs](DESIGN.md#performance-trade-offs)). ExaBGP configuration files can be
-migrated via `ze config migrate`. Built-in RPKI validation, policy filters (prefix-list,
+migrated via `ze exabgp migrate`. Built-in RPKI validation, policy filters (prefix-list,
 AS-path regex, community matching, attribute modification), Prometheus metrics, and structured
 JSON logging. The web UI automatically enriches displayed values using YANG-declared decorators
 (e.g., AS numbers annotated with organization names via Team Cymru DNS). External process
@@ -685,7 +685,7 @@ plugins extend policy further via the JSON event and text command protocol.
 <!-- source: internal/core/bgp/context/registry.go -- ContextID encoding context matching -->
 <!-- source: internal/component/bgp/plugins/rpki/register.go -- RPKI validation plugin -->
 <!-- source: internal/component/web/decorator.go -- DecoratorRegistry, YANG decorator framework -->
-<!-- source: internal/component/config/cli/cmd_migrate.go -- ze config migrate -->
+<!-- source: internal/plugins/exabgp/main.go -- cmdMigrate, ze exabgp migrate -->
 
 **ExaBGP** is the automation specialist. It pioneered the external-process model where BGP events
 are delivered as JSON to stdin/stdout of user scripts in any language. Deployed worldwide for

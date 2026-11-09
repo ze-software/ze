@@ -121,7 +121,7 @@ func TestShowConfigFmtAnswersTheFormattedConfig(t *testing.T) {
 // fmt` comes back in the answer, with the bytes and exit code the flag package
 // and the printing command produced before.
 func TestShowConfigFmtRefusalsAreReturned(t *testing.T) {
-	const note = "\nFormats current config files only. For old configs, run \"ze config migrate\" first.\n"
+	const note = "\nFormats current config files only. For an ExaBGP config, run \"ze exabgp migrate\" first.\n"
 	cases := []struct {
 		name   string
 		args   []string
