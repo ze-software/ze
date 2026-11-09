@@ -552,8 +552,13 @@ func sendCookieChallenge(
 // Child SA, and send the IKE_AUTH response, establishing the SA. RFC 7296 Section 1.2.
 func (ps *PeerSession) handleAuthRequest(sa *SA, msg *wire.Message, rawMsg []byte, tr *transport.UDPTransport, remote *net.UDPAddr, log *slog.Logger) {
 	inner, err := decryptAndParse(sa, msg, rawMsg)
+	// RFC 7296 Section 2.4: an IKE_AUTH that does not decrypt ends nothing.
+	if err != nil && discardUnauthenticatedHandshakeRequest(sa, err, log) {
+		return
+	}
 	if err != nil {
-		log.Warn("ike: IKE_AUTH request decrypt failed", "peer", sa.PeerName, "error", err)
+		// Authenticated (errInnerParse), so the payloads are the peer's own and the handshake ends.
+		log.Warn("ike: IKE_AUTH request authenticated but its payloads do not parse, handshake ended", "peer", sa.PeerName, "error", err)
 		sa.State = StateDead
 		return
 	}

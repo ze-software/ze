@@ -389,6 +389,30 @@ its Child SA.
 
 <!-- source: internal/component/ike/engine/fsm.go -- runResponder, reapStaleHandshake -->
 
+**An IKE_AUTH that does not decrypt must not end the handshake.** Before the
+handshake authenticates, `handleAuthRequest` (the first IKE_AUTH) and
+`handleResponderEAP` (each EAP round) set `StateDead` on any error from
+`decryptAndParse`. Both SPIs and the Message ID travel in the clear, so one
+datagram built from an observed header ended the handshake of a peer that had
+done nothing wrong, against RFC 7296 Section 2.4: "an endpoint MUST NOT conclude
+that the other endpoint has failed based on any routing information (e.g., ICMP
+messages) or IKE messages that arrive without cryptographic protection".
+`discardUnauthenticatedHandshakeRequest` now drops a request that has no SK
+payload or fails its integrity check, counts it under
+`ze_ipsec_error_notify_suppressed_total{reason="handshake-unauthenticated"}`,
+sends nothing, and leaves the SA untouched, so the peer's next genuine request
+finds the exchange where it was. An inner payload chain that fails to parse after
+the integrity check passed (`errInnerParse`) is the peer's own message and still
+ends the handshake. Nothing the drop does refreshes `CreatedAt`, so the half-open
+reaper above still ends a handshake that only forgeries keep busy, and the inbound
+token bucket in `dispatchInbound` bounds how often the drop runs (RFC 7296
+Section 2.4, "Implementations MUST limit the rate at which they take actions
+based on unprotected messages"). `handleResponderAuthRound` already dropped an
+undecryptable RFC 4739 round the same way.
+
+<!-- source: internal/component/ike/engine/responder_unauthenticated.go -- discardUnauthenticatedHandshakeRequest -->
+<!-- source: internal/component/ike/engine/responder_eap.go -- handleResponderEAP -->
+
 **An IP literal identity must be ID_IPV4_ADDR, not ID_FQDN.** `buildIDPayload`
 always emitted ID_FQDN. Initiator scenarios masked it because the peer had no
 identity constraint. A constrained peer rejects the responder IDr.
@@ -419,3 +443,13 @@ sent message is driven into the other through `handleInbound`, for a full PSK
 handshake, a full EAP-MSCHAPv2 handshake and an IKE rekey. Interop against a
 real peer catches what a self-consistent implementation cannot, which here was
 the identity type constraint.
+
+`responder-eap-survives-unprotected-auth` proves the unauthenticated-input drop
+against strongSwan as the EAP-MSCHAPv2 client. After a control exchange, it holds
+Ze's answers back so Ze waits mid-EAP, injects forged IKE_AUTH requests under the
+live SPIs, checks that
+`ze_ipsec_error_notify_suppressed_total{reason="handshake-unauthenticated"}`
+rose once per forgery, then releases the hold and requires charon's
+retransmission to complete the exchange and pass traffic.
+
+<!-- source: internal/le/interoplab/ipsec/unprotected_eap.go -- checkResponderEAPSurvivesUnprotectedAuth -->

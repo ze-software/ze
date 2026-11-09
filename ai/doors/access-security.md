@@ -104,9 +104,15 @@ a user takes effect at once on every credential surface
   `peerConfigChanged` named eight of twelve peer fields, so a narrowed traffic
   selector committed and never applied. Fixed by `SiteToSitePeer.Equal`
   (`plan/journal/guard-enumerates-instead-of-subtracting.md`, 2026-08-24).
-- **A datagram that fails to decrypt kills a live SA.** Both the responder EAP
-  round and the initiator IKE_AUTH set `StateDead`, against RFC 7296
-  Section 2.4. Open (`plan/journal/unprotected-message-changes-sa-state.md`).
+- **A datagram that fails to decrypt kills a live SA.** RFC 7296 Section 2.4
+  forbids concluding anything from an unprotected message. The responder's
+  first IKE_AUTH and EAP rounds now drop it through
+  `discardUnauthenticatedHandshakeRequest`
+  (`ike/engine/responder_unauthenticated.go`) and keep the handshake, while an
+  authenticated chain that fails to parse (`errInnerParse`) still ends it.
+  Fixed on the responder (2026-11-09). The initiator's `handleAuthResponse` and
+  `handleEAPResponse` (`fsm.go`) still set `StateDead`. Open
+  (`plan/journal/unprotected-message-changes-sa-state.md`, 2026-09-29).
 - **A refusal added for reload also ran at startup**, so the IPsec config
   apply (then `applyIPsecConfig`, now `applyConfig` taking an `applyPhase`) skipped every IKE transport when the WAN came up late
   (`plan/learned/RECURRING-PATTERNS.md`, from

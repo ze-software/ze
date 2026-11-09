@@ -301,8 +301,14 @@ func (ps *PeerSession) handleResponderEAP(sa *SA, msg *wire.Message, rawMsg []by
 		log.Warn("ike: EAP packet discarded", "peer", sa.PeerName, "error", err)
 		return
 	}
+	// RFC 7296 Section 2.4: an EAP round that does not decrypt ends nothing, so the
+	// peer's next genuine round still finds the exchange where it left it.
+	if err != nil && discardUnauthenticatedHandshakeRequest(sa, err, log) {
+		return
+	}
 	if err != nil {
-		log.Warn("ike: EAP round decrypt failed", "peer", sa.PeerName, "error", err)
+		// Authenticated (errInnerParse), so the payloads are the peer's own and the handshake ends.
+		log.Warn("ike: EAP round authenticated but its payloads do not parse, handshake ended", "peer", sa.PeerName, "error", err)
 		sa.State = StateDead
 		return
 	}

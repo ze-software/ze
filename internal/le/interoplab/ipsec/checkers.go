@@ -96,6 +96,7 @@ var scenarioCheckers = map[string]scenarioCheck{
 	"responder-accepts-reinit":                                {run: checkResponderAcceptsReinit},
 	"responder-reauths-ze-initiator":                          {run: checkResponderReauthsZeInitiator},
 	"responder-eap-mschapv2":                                  {run: checkResponderEAPMSCHAPv2},
+	"responder-eap-survives-unprotected-auth":                 {run: checkResponderEAPSurvivesUnprotectedAuth},
 	"responder-eap-tls12":                                     {run: checkResponderEAPTLS12},
 	"responder-eap-tls13":                                     {run: checkResponderEAPTLS13},
 	// The leaf-only client establishes exactly as responder-eap-tls13 does, so it
