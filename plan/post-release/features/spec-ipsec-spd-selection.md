@@ -16,10 +16,31 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Blocker
 
-Closure (`/ze-close`, 2026-11-09) stopped at step 1, Deliverables review: one
-deliverable is not implemented, and two evidence runs the spec names are not on
-record. The spec returns to `/ze-implement`; the main thread sets it back to
-`in-progress`.
+Second closure attempt (`/ze-close`, 2026-11-09, after b161ed9edd): item 1 below
+is cleared, items 2 and 3 still wait on guest batch 8, which has not run (no
+`tmp/session/2026-11-07-104251/scratch/rwinv/out-gb8/` directory exists). The
+main thread sets the spec back to `in-progress` once batch 8's logs are green.
+
+Verified in this attempt (so the next closure does not redo it):
+
+| Check | Evidence |
+|-------|----------|
+| Item 1 cleared | `test/ipsec/dataplane-policy-spd-role.ci` landed in b161ed9edd; clean pass in `rwinv/out-gb6/ipsec-clean.log` (`PASS 1 dataplane-policy-spd-role`); each of the twelve breaks in `rwinv/out-gb7/spd-*.log` fails at the engine step its break targets, read from each log's `engine step N` line: catch-all role, node SPD renamed and ledger join dropped at step 4 (the node catch-all row), ike-bypass role at 5, operator role at 6, exemption role and if-index dropped at 7, if-id dropped and interface catch-all SPD unnamed at 8, child-sa role and child-sa SPD not joined at 9, owner-known dropped at 10. Each break's diff is `rwinv/spd-role-<name>/diff.txt` |
+| Item 2, seven of nine | `rwinv/out-gb6/ipsec-clean.log`: PASS for `ipsec-child-rekey-xfrm-narrowing`, `ipsec-child-rekey-xfrm`, `ipsec-follows-wan-address`, `ipsec-peer-reload-applies-selectors`, `ipsec-respond-reinit-supersede`, `ipsec-show-dataplane-kernel`, `ipsec-show-sa-counters`; FAIL for `ipsec-peer-reload-leaves-tunnel-alone` and `ipsec-teardown-leaves-nothing` |
+| Every planned test exists | all 34 `Test*` names of the TDD tables (phases 1 to 8) found by `grep func <name>(` under `internal/`; `override_guard_integration_linux_test.go` was created as `rfc4301_override_guard_integration_linux_test.go` (a Deviation for the closure record) |
+| RFC records | `./le rfc check` (2026-11-09): no rfc4301 line except RFC4301-4.4.1-3 partial, owned by `plan/post-release/features/spec-ipsec-spd-final-discard-vpp-ospf.md` |
+| Docs | `docs/guide/ipsec.md` (guard, `application-override`), `docs/architecture/ike/ipsec-dataplane-inspection.md` ("a policy names its SPD and its role", `socket` rows), `docs/architecture/ike/ipsec-3-data-model.md` (more than one SPD), `docs/architecture/policyroute/policy-routing.md` (`internal/core/iprule`), `docs/architecture/core-design.md` section 19 `ike` row (firewall, `core/iprule`). `./le doc check all` fails only on the `clear debug` pipe-operator inventory, not this spec's |
+| Citers commit A must repoint | `test/ipsec/dataplane-policy-spd-role.ci` line 3, `plan/post-release/features/spec-ipsec-spd-final-discard-vpp-ospf.md` lines 10 and 153, `plan/release/fixes/spec-ipsec-spd-name-selection.md` lines 30, 45 and 49 (`git grep spec-ipsec-spd-selection`); the three Go comments use the bare stem already |
+
+Remaining, in order:
+
+| # | What blocks | Owner | What clears it |
+|---|-------------|-------|----------------|
+| R1 | Reruns of `ipsec-peer-reload-leaves-tunnel-alone` (map-order listen-host pick, fixed in fc25454bfe, pre-existing since 6783d25e9e) and `ipsec-teardown-leaves-nothing` (misattached assertions, judge-approved fix uncommitted in `test/ipsec/ipsec-teardown-leaves-nothing.ci`) | main thread, guest batch 8 | `rwinv/out-gb8/c23-clean.log`, sections `==CI peer-reload` and `==CI teardown`, both PASS; the main thread commits the teardown fix after it |
+| R2 | Interop trio under `deny` (`vti-unmatched-discard-interface-spd`, `vti-ipv6-tunnel-source-no-cleartext-leak`, `vti-ipv6-inner-ipv4-outer`); `rwinv/out-gb6/interop-*.log` each hold only a launcher refusal ("docker-lab kernel is only valid with command"), so the scenarios never ran | main thread, guest batch 8 | `rwinv/out-gb8/interop-<scenario>.log`, all three green |
+| R3 | Closure steps not yet run: the closure sections (`plan/templates/TEMPLATE-CLOSURE.md`), security review, the `/ze-review` Review Gate over the whole implementation (d0c2738a48..b161ed9edd, about 6000 changed lines across phases 1 to 8) with its `./le spec review record` artifact, and commits A and B | a fresh `/ze-close` agent after R1 and R2 | The gate is pinned to file hashes, so it runs after batch 8, once no further fix can land |
+
+The first attempt's table, for its history:
 
 | # | What blocks | Where it is owed | What clears it |
 |---|-------------|------------------|----------------|
