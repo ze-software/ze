@@ -32,6 +32,18 @@ func Plugins(root string) ([]Plugin, error) {
 	return snapshot.Plugins()
 }
 
+// DeclaredPlugins reports the registrations the committed Linux le source
+// declares, read the way Plugins reads them but without the external-effect
+// proof, which is a check that runs in CI and never in a website build. The
+// website publishes this list; the checks that need completeness call Plugins.
+func DeclaredPlugins(root string) ([]Plugin, error) {
+	snapshot, err := ReadCommitted(context.Background(), root)
+	if err != nil {
+		return nil, err
+	}
+	return snapshot.DeclaredPlugins()
+}
+
 // yangModuleName answers the module a YANG document declares.
 //
 // It reads the first "module" or "submodule" statement, which YANG requires to

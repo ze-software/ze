@@ -1,4 +1,5 @@
 // Design: website/AI.md -- a build stages sources into an isolated Pages artifact
+// Related: pluginregistry.go -- the declared plugin list the build publishes, with no proof run.
 package site
 
 import (
@@ -539,9 +540,10 @@ func refreshNativeSurfaces(ctx context.Context, paths Paths) (err error) {
 	}
 	defer func() { err = errors.Join(err, os.RemoveAll(daemonDir)) }()
 
-	// The plugin registry is read first: off Linux it needs Docker, and a
-	// build that cannot reach Docker stops before the daemon compile rather
-	// than after it.
+	// The plugin registry is read first: a committed source that declares no
+	// readable population stops the build before the daemon compile rather
+	// than after it. It reads the declarations only; the external-effect
+	// proof is a check, never a step of the build (pluginregistry.go).
 	if err := publishPluginRegistry(paths); err != nil {
 		return err
 	}

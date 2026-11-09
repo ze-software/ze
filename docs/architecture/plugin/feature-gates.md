@@ -930,8 +930,18 @@ statistics. Reachable `config/yang.RegisterModule` calls contribute standalone
 schema modules as well as schemas carried by plugin registrations. The site
 publisher and coupling checker consume this snapshot too; neither reopens dirty
 source or substitutes its host registry.
+
+The site publisher reads it through `DeclaredPlugins`, which walks the same
+initializers with the same metadata refusals but runs no external-effect
+proof: a call the walk cannot resolve is opaque (its operands are walked, no
+body is followed) and a bodyless function is not certified. It lists what the
+source declares. Completeness, that no registration hides behind such a call,
+is the proof's answer, and `Plugins` runs it for the inventory's own tests and
+the gated-table and coupling checks, in CI and at release. Building the
+website renders data and runs no check.
 <!-- source: internal/le/repo/inventory/collectactualfiles.go -- Snapshot.collect, Snapshot.collectFiles -->
 <!-- source: internal/le/repo/inventory/registrations.go -- registrations.registerModule -->
+<!-- source: internal/le/repo/inventory/registrations.go -- Snapshot.DeclaredPlugins, callAuthority, Snapshot.walkRegistrations -->
 <!-- source: internal/le/plugin/coupling/coupling.go -- buildSnapshotModel -->
 
 

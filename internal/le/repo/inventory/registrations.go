@@ -30,8 +30,32 @@ type registrations struct {
 	moduleIdentities map[string]bool
 	assembly         *assemblyIndex
 	external         map[externalCallSite]bool
-	diagnosticOnly   bool
+	authority        callAuthority
 }
+
+// callAuthority names what decides a call the init walk cannot resolve to a
+// retained declaration, and a bodyless function it reaches. The zero value is
+// no authority: a reader built without one is a Ze defect and panics.
+type callAuthority uint8
+
+const (
+	callAuthorityUnspecified callAuthority = iota
+	// callProved refuses an unresolved call unless the external-effect proof
+	// admitted its site, and certifies every bodyless function. Plugins and
+	// the report publish under it.
+	callProved
+	// callDiagnostic follows an unresolved call's operands after the proof
+	// refused, to reach a more specific retained-source refusal. The saved
+	// proof refusal still prevents publication.
+	callDiagnostic
+	// callDeclared reads the declared registrations with no proof: an
+	// unresolved call and a bodyless function are opaque, so their operands
+	// are walked and no body is followed or certified. A registration reached
+	// only through such a call is not listed; the proof, which runs as a
+	// check (Plugins), is what refuses that tree. DeclaredPlugins publishes
+	// under it.
+	callDeclared
+)
 
 // initializationScope distinguishes a function's lexical block from a package
 // initializer expression, which has no enclosing local block.
@@ -55,17 +79,42 @@ func (s *Snapshot) Plugins() ([]Plugin, error) {
 	return result, nil
 }
 
+// DeclaredPlugins resolves every registration the committed build's init walk
+// reaches through retained declarations, without the external-effect proof.
+// It returns no partial list when a declaration or its metadata is unresolved.
+// It answers what the source declares, never that nothing else registers:
+// that completeness is Plugins' proof, a check that runs in CI, not here.
+func (s *Snapshot) DeclaredPlugins() ([]Plugin, error) {
+	reader, err := s.walkRegistrations(nil, callDeclared)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.refuseEmpty(reader); err != nil {
+		return nil, err
+	}
+	registrations := sortedRegistrations(reader)
+	result := make([]Plugin, 0, len(registrations))
+	for index := range registrations {
+		result = append(result, registrations[index].plugin)
+	}
+	return result, nil
+}
+
 func (s *Snapshot) registrations() ([]registeredPlugin, error) {
 	reader, err := s.readRegistrations()
 	if err != nil {
 		return nil, err
 	}
+	return sortedRegistrations(reader), nil
+}
+
+func sortedRegistrations(reader *registrations) []registeredPlugin {
 	result := make([]registeredPlugin, 0, len(reader.plugins))
 	for _, registration := range reader.plugins {
 		result = append(result, registration)
 	}
 	slices.SortFunc(result, func(a, b registeredPlugin) int { return strings.Compare(a.plugin.Name, b.plugin.Name) })
-	return result, nil
+	return result
 }
 
 func (s *Snapshot) readRegistrations() (*registrations, error) {
@@ -73,9 +122,41 @@ func (s *Snapshot) readRegistrations() (*registrations, error) {
 	if err != nil {
 		return nil, err
 	}
+	authority := callProved
+	if certificate.refusal != nil {
+		authority = callDiagnostic
+	}
+	reader, err := s.walkRegistrations(certificate.sites, authority)
+	if err != nil {
+		return nil, err
+	}
+	// Diagnostic traversal never upgrades an incomplete effect proof. Even a
+	// complete-looking private population must be discarded on this path.
+	if certificate.refusal != nil {
+		return nil, certificate.refusal
+	}
+	if err := s.refuseEmpty(reader); err != nil {
+		return nil, err
+	}
+	return reader, nil
+}
+
+// refuseEmpty refuses a walk that found no registration: an empty population
+// is an unreadable composition, never an answer.
+func (s *Snapshot) refuseEmpty(reader *registrations) error {
+	if len(reader.plugins) == 0 {
+		return fmt.Errorf("committed Linux le at %s registers no plugins; commit its composition imports before publishing inventory", s.revision)
+	}
+	return nil
+}
+
+// walkRegistrations follows every package initializer of the snapshot.
+// admitted is the external-effect proof's admitted call sites, nil when no
+// proof ran; authority decides the calls the walk cannot resolve.
+func (s *Snapshot) walkRegistrations(admitted map[externalCallSite]bool, authority callAuthority) (*registrations, error) {
 	reader := &registrations{eval: s.evaluator(), active: make(map[*ast.FuncDecl]bool), visited: make(map[*ast.FuncDecl]bool), plugins: make(map[string]registeredPlugin), modules: make(map[string]string)}
-	reader.external = certificate.sites
-	reader.diagnosticOnly = certificate.refusal != nil
+	reader.external = admitted
+	reader.authority = authority
 	reader.moduleIdentities = make(map[string]bool)
 	packages := make([]string, 0, len(s.packages))
 	for dir := range s.packages {
@@ -94,14 +175,6 @@ func (s *Snapshot) readRegistrations() (*registrations, error) {
 				return nil, err
 			}
 		}
-	}
-	// Diagnostic traversal never upgrades an incomplete effect proof. Even a
-	// complete-looking private population must be discarded on this path.
-	if certificate.refusal != nil {
-		return nil, certificate.refusal
-	}
-	if len(reader.plugins) == 0 {
-		return nil, fmt.Errorf("committed Linux le at %s registers no plugins; commit its composition imports before publishing inventory", s.revision)
 	}
 	return reader, nil
 }
@@ -179,10 +252,11 @@ func (r *registrations) node(node ast.Node, function initializationScope, condit
 		// classification, never dispatch the original alias/parentheses again.
 		callee, declared, err := r.callableSource(current, function)
 		if err != nil {
-			if r.diagnosticOnly {
-				// The saved unresolved proof already forbids publication. Keep
-				// evaluating operands to reach a more specific retained-source
-				// refusal, without inventing an owner for this invocation.
+			if r.opaqueUnresolved() {
+				// Diagnostic: the saved unresolved proof already forbids
+				// publication. Keep evaluating operands to reach a more
+				// specific retained-source refusal. Declared: no proof ran,
+				// so the call is opaque. Neither invents an owner for it.
 				if err := r.node(current.Fun, function, conditional); err != nil {
 					return err
 				}
@@ -235,6 +309,12 @@ func (r *registrations) node(node ast.Node, function initializationScope, condit
 				return r.eval.problem(sourceExpr{value: current, file: function.file, pkg: function.pkg}, "callable declaration has unresolved execution ownership")
 			}
 			if called.decl.Body == nil {
+				// A bodyless function has no Go body that could register.
+				// Certifying its assembly is the proof's work, not the
+				// declared reading's.
+				if r.opaqueBodyless() {
+					return nil
+				}
 				if r.assembly == nil {
 					evidence, err := r.eval.snapshot.assemblyEvidence()
 					if err != nil {
@@ -252,6 +332,34 @@ func (r *registrations) node(node ast.Node, function initializationScope, condit
 		return nil
 	}
 	return r.children(node, function, conditional)
+}
+
+// opaqueUnresolved reports whether a call the walk cannot resolve is walked
+// for its operands rather than refused.
+func (r *registrations) opaqueUnresolved() bool {
+	switch r.authority {
+	case callProved:
+		return false
+	case callDiagnostic, callDeclared:
+		return true
+	case callAuthorityUnspecified:
+		panic("BUG: registration walk has no call authority")
+	}
+	panic("BUG: registration walk has an unknown call authority")
+}
+
+// opaqueBodyless reports whether a bodyless function the walk reaches is left
+// uncertified. Only the declared reading, which runs no proof, leaves it.
+func (r *registrations) opaqueBodyless() bool {
+	switch r.authority {
+	case callProved, callDiagnostic:
+		return false
+	case callDeclared:
+		return true
+	case callAuthorityUnspecified:
+		panic("BUG: registration walk has no call authority")
+	}
+	panic("BUG: registration walk has an unknown call authority")
 }
 
 // children walks immediate children only; node owns control-flow handling and

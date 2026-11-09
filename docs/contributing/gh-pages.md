@@ -579,6 +579,17 @@ compile; it never falls back to a partial host population.
 <!-- source: internal/le/repo/inventory/source.go -- ReadCommitted, normalizeLinuxContext -->
 <!-- source: internal/le/site/pluginregistry.go -- committedPluginRegistry -->
 
+The build publishes the DECLARED registrations (`repoinventory.DeclaredPlugins`)
+and does not prove them. Building the website renders data and never runs a
+check, so the external-effect proof, which shows no registration hides behind
+a call the reader cannot follow, is not a step of `./le site build`. It runs as
+a check through `repoinventory.Plugins`: the `plugin gated-table check` and
+`plugin coupling check` stages and the inventory package's unit tests, which
+the `verify` workflow runs on every pushed commit. A tree the proof refuses
+still publishes its declared list; the red is CI's.
+<!-- source: internal/le/repo/inventory/plugins.go -- DeclaredPlugins, Plugins -->
+<!-- source: internal/le/verify/engine/stages.go -- fullStages -->
+
 The command catalog and the configuration tree below need no container: a
 command whose handler is Linux-only registers a non-Linux stub under the same
 name, so a darwin daemon answers both byte for byte as a linux one does
