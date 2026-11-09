@@ -46,6 +46,9 @@ const (
 	CodeDoctorAS112WatchdogMissingWithdraw         = "doctor-as112-watchdog-missing-withdraw"
 	CodeDoctorDNSResolverPortUnavailable           = "doctor-dns-resolver-port-unavailable"
 	CodeDoctorDNSResolverUpstreamUnreachable       = "doctor-dns-resolver-upstream-unreachable"
+	CodeDoctorDNSSourceEmpty                       = "doctor-dns-source-empty"
+	CodeDoctorDNSSourceInterfaceSilent             = "doctor-dns-source-interface-silent"
+	CodeDoctorDNSSourceSelfUnserved                = "doctor-dns-source-self-unserved"
 	CodeDoctorClockSkew                            = "doctor-clock-skew"
 	CodeDoctorMachineIDMissing                     = "doctor-machine-id-missing"
 	CodeDoctorConfigClaimsUnavailable              = "doctor-config-claims-unavailable"
@@ -535,6 +538,24 @@ var builtinCodes = []CodeMeta{
 		Title:       "No DNS resolver responding",
 		Description: "None of the name servers configured under system/name-server responded to a query.",
 		Examples:    []string{exampleDoctorJSON},
+	},
+	{
+		Code:        CodeDoctorDNSSourceEmpty,
+		Title:       "A dns-source list selected no resolver",
+		Description: "A consumer's dns-source list (written, or its built-in default) names received, and the list selected no server, so that consumer offers no DNS resolver: no lease, router advertisement or PPP session has supplied one, and no later class in the list holds a usable server. Run show system dns to see the records and each selection. Add a fallback, for example set system name-server <address> and the source configured, or check why no interface learned a resolver.",
+		Examples:    []string{"ze show doctor", "ze show system dns"},
+	},
+	{
+		Code:        CodeDoctorDNSSourceInterfaceSilent,
+		Title:       "A received-interface holds no learned resolver",
+		Description: "A dns-source list narrows received to interfaces named under received-interface, and one of them holds no learned resolver record, so the list never selects from it. The interface may not have learned yet (no DHCP lease, no RA, no PPP session), or the name is wrong. Run show system dns to see which interfaces hold records, then correct the received-interface entry or bring the interface up.",
+		Examples:    []string{"ze show doctor", "ze show system dns"},
+	},
+	{
+		Code:        CodeDoctorDNSSourceSelfUnserved,
+		Title:       "A self DNS server is not served",
+		Description: "A consumer hands Ze's own address to clients through the self source of its dns-source list (the DHCP server identifier, the RA source address or the pool gateway), and no service dns-resolver listener answers on that address, so clients time out. Add a listener on that address, for example set service dns-resolver listener lan ip <address>, or remove self from that consumer's dns-source list.",
+		Examples:    []string{"ze show doctor", "ze show system dns"},
 	},
 	{
 		Code:        "doctor-iface-down",

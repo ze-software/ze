@@ -22,12 +22,13 @@ const (
 
 // HandleDoctor is the RPC handler for ze-doctor:show-doctor, the daemon form
 // of `ze doctor`. It runs the one producer `ze doctor` runs locally
-// (doctor.Answer) on the daemon route, adding the doctor checks of the
-// plugins this daemon runs, and maps the answer as the local-data bridge maps
-// every local-data command (pluginserver.AnswerLocalData).
+// (doctor.Answer) on the daemon route, adding the checks that read this
+// daemon's runtime state (diagnostic.RunDaemonDoctorChecks) and the doctor
+// checks of the plugins it runs, and maps the answer as the local-data bridge
+// maps every local-data command (pluginserver.AnswerLocalData).
 func HandleDoctor(cmdCtx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
 	runtime := func() []diagnostic.Diagnostic {
-		return collectPluginDoctorChecks(cmdCtx)
+		return append(diagnostic.RunDaemonDoctorChecks(), collectPluginDoctorChecks(cmdCtx)...)
 	}
 	answer := func(args command.ValidatedArgs) command.LocalAnswer {
 		return doctor.Answer(args, runtime)

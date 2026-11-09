@@ -308,6 +308,10 @@ type Candidates map[Class][]netip.Addr
 type Selection struct {
 	Servers []netip.Addr
 	Used    []Class
+	// Self are the Servers entries the self class contributed, in Servers
+	// order. They are Ze's own addresses, so they reach a client only while
+	// some DNS service of Ze answers on them, which the doctor checks.
+	Self []netip.Addr
 	// Dropped are the host-only entries an AudienceHandedOn list refused,
 	// in the order met. The consumer MUST log each with the list's path.
 	Dropped []netip.Addr
@@ -333,6 +337,9 @@ func Select(list List, candidates Candidates) Selection {
 			continue
 		}
 		selection.Used = append(selection.Used, class)
+		if class == ClassSelf {
+			selection.Self = append(selection.Self, selection.Servers[before:]...)
+		}
 		if list.mode != ModeMerge {
 			break
 		}

@@ -10,7 +10,10 @@
 
 package system
 
-import "github.com/ze-software/ze/internal/component/config"
+import (
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+)
 
 func init() {
 	registerSystemDoctorChecks()
@@ -24,5 +27,14 @@ func init() {
 	// class the router cannot use.
 	if err := config.RegisterTreeValidator("system-dns-source", validateRouterDNSSourceTree); err != nil {
 		panic("BUG: system dns-source validator registration refused: " + err.Error())
+	}
+	// The dns-source selection checks read the registry the consumers
+	// publish into, which only the daemon fills, so only show doctor runs them.
+	if err := diagnostic.RegisterDaemonDoctorCheck(diagnostic.DaemonDoctorCheck{
+		Name:  dnsSourceDoctorCheckName,
+		Codes: dnsSourceDoctorCodes,
+		Check: checkDNSSourceSelections,
+	}); err != nil {
+		panic("BUG: dns-source doctor check registration refused: " + err.Error())
 	}
 }

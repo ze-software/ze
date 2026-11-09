@@ -4,7 +4,7 @@ Ze has three tiers of self-diagnosis, and they differ by WHEN they answer.
 
 | Tier | Command | When the fact is produced |
 |------|---------|---------------------------|
-| Offline readiness | `ze doctor` | At read time, in the operator's own process, by re-probing config and the environment |
+| Readiness | `ze doctor`, and its daemon form `show doctor` | At read time, by re-probing config and the environment. `ze doctor` runs in the operator's own process; `show doctor` runs the same producer (`doctor.Answer`) inside the daemon, and adds the daemon doctor checks and the doctor checks of the plugins the daemon runs |
 | Live health | `show health` | At read time, inside the daemon, by running a registered probe now |
 | Recorded setup outcome | `show plugin list` | Once, in a plugin's own `init()`, before `main()`. The `outcome` and `reason` columns replay it |
 
@@ -21,6 +21,21 @@ and refuses to start when a plugin recorded a HARD failure. A CLI verb never
 reaches `run`, so no `ze` invocation is refused by it: the command that tells
 the operator what is wrong keeps working on a host where the daemon will not
 boot.
+
+## Daemon doctor checks
+
+Some readiness facts exist only in the running daemon: a registry its plugins
+fill at runtime, such as every consumer's dns-source selection. A check over
+such a registry registers with `diagnostic.RegisterDaemonDoctorCheck`, and only
+`show doctor` runs it (`diagnostic.RunDaemonDoctorChecks`, called from
+`HandleDoctor`). The local `ze doctor` does not, because in its process that
+registry is empty and the check would report a box it never looked at as
+healthy. The dns-source checks (`doctor-dns-source-empty`,
+`doctor-dns-source-interface-silent`, `doctor-dns-source-self-unserved`) are
+the first such checks, owned by `internal/component/config/system`.
+<!-- source: internal/core/diagnostic/doctor_daemon.go -- RegisterDaemonDoctorCheck, RunDaemonDoctorChecks -->
+<!-- source: internal/component/doctor/cmd/show.go -- HandleDoctor -->
+<!-- source: internal/component/config/system/doctor_dns_source.go -- dnsSourceFindings -->
 
 ## Usable disk capacity
 

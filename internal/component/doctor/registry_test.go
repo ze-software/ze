@@ -50,6 +50,15 @@ func TestDoctorRegisteredCheckCodesHaveMetadata(t *testing.T) {
 			}
 		}
 	}
+	// The daemon checks (show doctor alone runs them) owe the same metadata.
+	for _, check := range diagnostic.DaemonDoctorChecks() {
+		seen++
+		for _, code := range check.Codes {
+			if diagnostic.Lookup(code) == nil {
+				t.Errorf("daemon check %q declares %q without diagnostic metadata", check.Name, code)
+			}
+		}
+	}
 	if seen == 0 {
 		t.Fatal("no doctor check is registered: this test passed over an empty registry")
 	}

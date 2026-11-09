@@ -305,3 +305,39 @@ func TestNewListRefusesUnspecifiedAudience(t *testing.T) {
 		t.Fatalf("NewList with no audience: err = %v, want errNoAudience", err)
 	}
 }
+
+// TestSelectAttributesSelf: the selection names the servers the self class
+// contributed, apart from the others, under merge and under first-usable.
+//
+// VALIDATES: Selection.Self, which the self-not-served doctor check reads
+// (spec-home-cpe-23b R-9).
+// PREVENTS: a self address reported as received or configured, or a server
+// another class contributed reported as self.
+func TestSelectAttributesSelf(t *testing.T) {
+	merge, err := NewList("dhcp subnet dns-source", FamilyIPv4, AudienceHandedOn, ModeMerge, ClassConfigured, ClassSelf)
+	if err != nil {
+		t.Fatalf("NewList: %v", err)
+	}
+	got := Select(merge, Candidates{
+		ClassConfigured: addrs(t, "198.51.100.53"),
+		ClassSelf:       addrs(t, "192.0.2.1"),
+	})
+	if want := addrs(t, "198.51.100.53", "192.0.2.1"); !slices.Equal(got.Servers, want) {
+		t.Fatalf("servers = %v, want %v", got.Servers, want)
+	}
+	if want := addrs(t, "192.0.2.1"); !slices.Equal(got.Self, want) {
+		t.Fatalf("self = %v, want %v", got.Self, want)
+	}
+
+	first, err := NewList("dhcp subnet dns-source", FamilyIPv4, AudienceHandedOn, ModeFirstUsable, ClassConfigured, ClassSelf)
+	if err != nil {
+		t.Fatalf("NewList: %v", err)
+	}
+	got = Select(first, Candidates{
+		ClassConfigured: addrs(t, "198.51.100.53"),
+		ClassSelf:       addrs(t, "192.0.2.1"),
+	})
+	if len(got.Self) != 0 {
+		t.Fatalf("self = %v, want none: configured won under first-usable", got.Self)
+	}
+}

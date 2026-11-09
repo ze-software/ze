@@ -164,6 +164,9 @@ type ConsumerSelection struct {
 	Used []Class `json:"used"`
 	// Servers are the consumer's resolvers, in the order it hands them on.
 	Servers []netip.Addr `json:"servers"`
+	// Self are the Servers entries the self class contributed: Ze's own
+	// addresses, reachable only while some consumer Serves them.
+	Self []netip.Addr `json:"self,omitempty"`
 	// Serves are the addresses the consumer itself answers DNS queries on
 	// (the LAN resolver's listeners); empty for a consumer that answers none.
 	// A self entry another consumer hands on is reachable only when some
@@ -183,6 +186,7 @@ func NewConsumerSelection(list List, instance string, selection Selection) Consu
 		ReceivedInterfaces: list.ReceivedInterfaces(),
 		Used:               slices.Clone(selection.Used),
 		Servers:            slices.Clone(selection.Servers),
+		Self:               slices.Clone(selection.Self),
 	}
 }
 
