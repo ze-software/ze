@@ -150,7 +150,7 @@ falls into:
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
-| Umbrella specs | `plan/post-release/features/spec-vpn-concentrator-0-umbrella.md`, `plan/release/fixes/spec-home-cpe-0-umbrella.md` | A `-0-umbrella` spec lists its children, each child carries a Parent line, and the umbrella closes when they close | extends: the same shape |
+| Umbrella specs | `plan/post-release/features/spec-vpn-concentrator-0-umbrella.md`, `spec-home-cpe-0-umbrella` (closed) | A `-0-umbrella` spec lists its children, each child carries a Parent line, and the umbrella closes when they close | extends: the same shape |
 | MCP OAuth resource server | `internal/component/mcp` `oauthAuthenticator`, `verifyJWT`, `jwksCache`, `fetchASMetadata` | Verifies MCP access tokens | does not apply at umbrella level: child 1 moves it to a core leaf and every other child uses it |
 | AAA bundle and accepted identity generation | `internal/component/aaa` `AuthResult`, `WithProfileAuthorizer`; `cmd/ze/hub/aaa_lifecycle.go` `newAcceptedLocalIdentity` | One generation of users and profiles for every credential surface, swapped atomically on reload | does not apply at umbrella level: child 2 extends it with token identity |
 | Authorization profiles | `internal/component/authz` | Command authorization by profile | does not apply at umbrella level: child 2 maps claims to these profiles; no new authorization model |

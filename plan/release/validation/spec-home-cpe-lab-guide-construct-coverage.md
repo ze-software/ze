@@ -12,7 +12,7 @@
 | Handoff | - |
 | Updated | 2026-11-08 |
 
-Parent: `plan/release/fixes/spec-home-cpe-0-umbrella.md`. Found at the closure
+Parent: `spec-home-cpe-0-umbrella` (closed). Found at the closure
 of `spec-home-cpe-11-lab`, whose assumption A-2 ("a synthetic VyOS
 configuration covering every umbrella construct exercises the guide") was
 broken when measured.

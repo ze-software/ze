@@ -1,6 +1,6 @@
 # Handover: home-CPE umbrella implementation (2026-11-07 to 2026-11-08)
 
-Umbrella: `plan/release/fixes/spec-home-cpe-0-umbrella.md`. Goal set by Thomas:
+Umbrella: `spec-home-cpe-0-umbrella` (closed). Goal set by Thomas:
 complete the home-CPE implementation; all testing in the main thread, one
 CPU-heavy job at a time; agents develop in parallel while tests run.
 

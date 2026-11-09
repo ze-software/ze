@@ -73,7 +73,7 @@ umbrella adds no requirement and no code.
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
-| Umbrella specs | `plan/release/fixes/spec-home-cpe-0-umbrella.md`, `plan/release/validation/spec-doctor-coverage-0-umbrella.md` | A `-0-umbrella` spec lists its children with a Parent line in each child and closes when they close | extends: the same shape for the vpn-concentrator profile |
+| Umbrella specs | `spec-home-cpe-0-umbrella` (closed), `plan/release/validation/spec-doctor-coverage-0-umbrella.md` | A `-0-umbrella` spec lists its children with a Parent line in each child and closes when they close | extends: the same shape for the vpn-concentrator profile |
 | Profile membership by summary Meta rows | `internal/le/rfc/meta.go` `readUseCases`, `checkUseCases`; `rfc-conformance-gates.md` "Profiles and aggregates" | A summary declares the profiles it belongs to, required or optional | does not apply as a change: the umbrella lists children, never RFCs; `./le rfc tree profile vpn-concentrator` is the RFC list |
 | RFC ledger tooling | `./le rfc check`, `./le rfc record`, `./le rfc extraction create` | Gates summaries, tags and discrimination records | does not apply as a change: each child uses it for its own RFC |
 | IKE responder EAP authenticator | `ike/engine/responder_eap.go`, `eap_auth.go` | EAP-MSCHAPv2, EAP-TLS and MD5-Challenge on the responder | does not apply at umbrella level: children 2 and 3 extend it |
@@ -146,7 +146,7 @@ umbrella adds no requirement and no code.
 | AC-1 | Child 1 closed | RFC 8420 is enrolled with `Optional use cases: vpn-concentrator`, and `./le rfc tree profile vpn-concentrator` shows its rows in the optional tier | none |
 | AC-2 | Child 2 closed | RFC 5998 rows RFC5998-3-1 to 3-4 and 4-1 are no longer `{gap}` and each has a discrimination record | none |
 | AC-3 | Child 3 closed | the RFC 4739 rounds the child names are built and proven against strongSwan | none |
-| AC-4 | Every child closed | `./le rfc tree profile vpn-concentrator` lists no `{gap}` row that no spec owns | none |
+| AC-4 | Every child closed | every `{gap}` row `./le rfc tree profile vpn-concentrator` lists is owned by a spec named in it, so each remaining gap has the spec that schedules it; an unowned row is the failure | none |
 
 ## 🧪 TDD Test Plan
 

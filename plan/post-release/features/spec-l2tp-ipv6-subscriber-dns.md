@@ -6,7 +6,7 @@
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | Owner decision (2026-11-08): a spec of its own, queued after the home-CPE umbrella, which it does not block. Subscriber IPv6 is itself post-release (`spec-l2tp-ipv6-subscriber.md`), so no shipped session reaches the missing resolver today |
-| Depends | `plan/post-release/features/spec-l2tp-ipv6-subscriber.md` (IPv6CP opens and the PPP RA is sent); `spec-home-cpe-23-dns-source-fall-through` (the `dns-source` grammar, `docs/features/dns-resolver.md`) and `spec-home-cpe-23b-dns-source-consumers` (closed; the `radius` class and the pool consumer, documented in `docs/features/dns-resolver.md` and `docs/guide/l2tp.md`); after `plan/release/fixes/spec-home-cpe-0-umbrella.md` closes |
+| Depends | `plan/post-release/features/spec-l2tp-ipv6-subscriber.md` (IPv6CP opens and the PPP RA is sent); `spec-home-cpe-23-dns-source-fall-through` (the `dns-source` grammar, `docs/features/dns-resolver.md`) and `spec-home-cpe-23b-dns-source-consumers` (closed; the `radius` class and the pool consumer, documented in `docs/features/dns-resolver.md` and `docs/guide/l2tp.md`); after `spec-home-cpe-0-umbrella` (closed) |
 | Phase | - |
 | Updated | 2026-11-08 |
 

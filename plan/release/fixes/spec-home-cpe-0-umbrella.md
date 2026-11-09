@@ -41,7 +41,7 @@ everything except a translator program:
 | WAN | PPPoE client, CHAP, MTU 1492, no default route from PPP | supported |
 | WAN | Static default route via the PPPoE interface by its configured name | supported: the configured name is the kernel device and follows a reconnect (child 1, closed) |
 | WAN | LCP renegotiation started by the LNS after the LAC completed LCP (common in wholesale L2TP access) | supported in every phase (child 12, closed) |
-| WAN | DNS learned from IPCP (RFC 1877) | supported: requested in IPCP, a Reject of the DNS options handled (child 13, closed); its use beside static and other learned servers is the `dns-source` work (child 23 closed for the router's own resolver; child 23b, open, for the LAN, DHCPv4, RA and subscriber consumers) |
+| WAN | DNS learned from IPCP (RFC 1877) | supported: requested in IPCP, a Reject of the DNS options handled (child 13, closed); its use beside static and other learned servers is the `dns-source` work (child 23 closed for the router's own resolver; child 23b, closed, for the LAN, DHCPv4, RA and subscriber consumers) |
 | WAN | IPv6: IPv6CP, DHCPv6-PD, /64 and RAs on the LAN | supported (child 8, closed `87c7b998ad`) |
 | WAN | MSS clamp on SYN | supported: the value is an upper bound and a smaller MSS is kept, proven on Ze's kernel and described as a clamp in YANG (child 21, closed); clamp-to-PMTU is the `tcp-mss-clamp-to-pmtu` leaf (child 9, closed) |
 | LAN | Bridge with several members and addresses; ethernet MAC match and offloads | supported |
@@ -90,8 +90,8 @@ everything except a translator program:
 
 Child spec files, all in `plan/release/fixes/`:
 
-One child remains open, 23b (checked 2026-11-09 with `ls
-plan/release/fixes/spec-home-cpe-*`); every other child is closed, and its
+Every child is closed (checked 2026-11-09 with `ls
+plan/release/fixes/spec-home-cpe-*`, which lists only this umbrella), and its
 record is the spec text at the parent of its closure commit
 (`git show <commit>^:plan/release/fixes/<file>`).
 
@@ -201,8 +201,8 @@ scenario run. Children 12 and 16 come first because each makes an
 accepted configuration do the wrong thing; 12 lands its code first and closes
 once `access-wholesale-accel-lns` can run. Child 23b closes after 23, whose
 registry and grammar it consumes. Children 8 (`87c7b998ad`), 14
-(`4bef6da011`) and 23 (`62c14b96ca`) have closed; 23b is the one still open,
-and the umbrella closes after it and the lab rerun (Goal Validation).
+(`4bef6da011`), 23 (`62c14b96ca`) and 23b (`f0072e4a2e`) have closed, and the
+umbrella closes after them and the lab rerun (Goal Validation).
 
 Doc defects found during the survey, owed with the child that touches each page:
 `docs/guide/ipsec.md` (PKI example uses leaf names that do not exist; implies
@@ -548,9 +548,9 @@ the lab, each verified by its own closure.
 
 | Deliverable | Verification method | Evidence |
 |-------------|---------------------|----------|
-| Every child spec closed | `git log --diff-filter=D -- 'plan/*spec-home-cpe-*'` names the closing commit of each child file; `ls plan/release/fixes/spec-home-cpe-*` lists the open ones | 23 of 24 closed (Implementation Summary); 23b open, `in-progress`, Phase 8/8 |
+| Every child spec closed | `git log --diff-filter=D -- 'plan/*spec-home-cpe-*'` names the closing commit of each child file; `ls plan/release/fixes/spec-home-cpe-*` lists the open ones | 24 of 24 closed (Implementation Summary); 23b last, `f0072e4a2e` |
 | The VyOS-to-Ze mapping guide | `ls docs/guide/migrating-from-vyos.md`; child 10's AC table | page present; child 10 closed `3d1d4ecba7` with AC-1 to AC-7 Done |
-| The home-CPE lab on the converted configuration | `ls -d test/interop-topology/scenarios/<name>` for the eleven scenarios of the rerun list; child 11's closure | all eleven directories present; child 11 closed `dcc20ffb68`; the rerun after 23b is pending (Goal Validation) |
+| The home-CPE lab on the converted configuration | `ls -d test/interop-topology/scenarios/<name>` for the eleven scenarios of the rerun list; child 11's closure | all eleven directories present; child 11 closed `dcc20ffb68`; the rerun after 23b ran green on 2026-11-09 (Goal Validation) |
 | The edits outside the home-CPE specs the children owed | the "Edits outside the home-CPE specs" table above | every row done or not owed |
 
 ## Security Review Checklist
@@ -567,12 +567,12 @@ Child 11's Goal Validation ("Goal Validation
 (umbrella goals)" in `spec-home-cpe-11-lab`, closed `dcc20ffb68`, readable in
 that commit's parent) maps each goal to its lab evidence. That lab ran before
 children 8, 14, 23 and 23b landed, so the whole-CPE lab is owed one more run
-over the converted configuration once they have: 8, 14 and 23 have closed
-(`87c7b998ad`, `4bef6da011`, `62c14b96ca`) and 23b is still open. The command
+over the converted configuration once they have: 8, 14, 23 and 23b have closed
+(`87c7b998ad`, `4bef6da011`, `62c14b96ca`, `f0072e4a2e`). The command
 list is `tmp/session/2026-11-07-104251/scratch/rwinv/umbrella-lab.sh` (the ten
 Lab table scenarios plus `mgmt-tunnel-ed25519`, one log each under
 `tmp/session/2026-11-07-104251/scratch/rwinv/umbrella-lab/`), run by the main
-thread, and its logs are the pending evidence of the Goal Validation table at
+thread, and its logs are the evidence of the Goal Validation table at
 the end of this spec.
 
 The rerun pulls the FreeRADIUS image as it is pinned since `a59d1ee848`
@@ -645,7 +645,7 @@ removed the child file, `git log --diff-filter=D -- 'plan/*spec-home-cpe-*'`):
 | 21 | MSS clamp never raises, proven on Ze's kernel | `0a7cfc0ae1` |
 | 22 | an `initiate` peer adopts a responder-started reauthentication | `5d9241eaa6` |
 | 23 | `dns-source` part a: resolver registry, selection rule, router consumer, RFC 5625 | `62c14b96ca` |
-| 23b | `dns-source` consumers: LAN resolver, DHCPv4, RA, subscriber, RADIUS DNS, `show system dns` | open, `in-progress`, in its final batch |
+| 23b | `dns-source` consumers: LAN resolver, DHCPv4, RA, subscriber, RADIUS DNS, `show system dns` | `f0072e4a2e` |
 
 The umbrella's own edits outside its file landed in `ff924ca486`:
 `plan/release/validation/spec-ipsec-0-umbrella.md` (the "Home-CPE scenarios"
@@ -682,39 +682,39 @@ its children were.
 | Kind | What happened | What was true instead | How discovered | Action |
 |------|---------------|----------------------|----------------|--------|
 | approach | the held-back `spec-ike-reauth` edit (`ff924ca486`) copied that spec's `rekeyIKESA` into a new Existing Mechanisms row without resolving the symbol | no such function; the rekey is `startIKERekey`, `initiateIKERekey`, `applyIKERekeyResponse`, `respondIKERekey` | closure review, `grep -rn 'func .*[Rr]ekey' internal/component/ike/engine/` | every occurrence corrected in this closure |
-| approach | the umbrella body kept statements its children had made stale: "four children remain open", child 8 "blocked on one lint log", child 5 "back in design", children 23 and 23b both open, "done in this commit" for edits `ff924ca486` already landed | one child open (23b); 8, 5 and 23 closed | closure review against `git log` | corrected in this closure |
+| approach | the umbrella body kept statements its children had made stale: "four children remain open", child 8 "blocked on one lint log", child 5 "back in design", children 23 and 23b both open, "done in this commit" for edits `ff924ca486` already landed | one child open (23b) at the time; 8, 5 and 23 closed, 23b since (`f0072e4a2e`) | closure review against `git log` | corrected in this closure |
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| 1. Ze implements every capability a home CPE of this kind uses, correctly | Partial | children 1 to 23 closed (Implementation Summary) | 23b open in its final batch; the whole-CPE lab rerun pending |
+| 1. Ze implements every capability a home CPE of this kind uses, correctly | Done | children 1 to 23b closed (Implementation Summary); the whole-CPE lab rerun green (Goal Validation row 1) | |
 | 2. A written VyOS-to-Ze mapping guide | Done | `docs/guide/migrating-from-vyos.md`, child 10 `3d1d4ecba7` | the construct-coverage check is Work Not Done |
-| 3. A lab that re-creates the access chain proves the converted router works | Partial | child 11 `dcc20ffb68`, `test/interop-topology/scenarios/` | the rerun after 23b pending |
+| 3. A lab that re-creates the access chain proves the converted router works | Done | child 11 `dcc20ffb68`, `test/interop-topology/scenarios/`; the rerun after 23b, eleven scenarios `exit=0` (Goal Validation row 3) | |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1 | Partial | 23 of 24 children closed, each demonstrating its own ACs in its closure commit's parent copy | 23b open |
-| AC-2 | Partial | child 11's closure: every Lab table scenario green on the converted configuration, each with a recorded red walk (`rwinv/c11-*`) | the rerun over today's tree (`umbrella-lab.sh`) pending |
+| AC-1 | Done | 24 of 24 children closed, each demonstrating its own ACs in its closure commit's parent copy; 23b last, `f0072e4a2e` | |
+| AC-2 | Done | child 11's closure: every Lab table scenario green on the converted configuration, each with a recorded red walk (`rwinv/c11-*`); the rerun over today's tree (`umbrella-lab.sh`, le build `74a20ff92c`, 2026-11-09): all eleven scenarios `exit=0`, `interop: 1 passed, 0 failed` each, and the new `access-up` option 6 pass-through check red under its break | logs in `tmp/session/2026-11-07-104251/scratch/rwinv/umbrella-lab/` |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
 | per child unit, boundary and functional tests | Done | each child's closure (Wiring Test rows re-checked in Pre-Commit Verification) | 23b's in its own spec |
-| Lab table interop scenarios | Partial | `test/interop-topology/scenarios/` | rerun pending |
+| Lab table interop scenarios | Done | `test/interop-topology/scenarios/` | rerun green 2026-11-09, eleven logs `exit=0` |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
-| the child specs (Files to Create) | Done | all written; 23 removed at closure, 23b open |
+| the child specs (Files to Create) | Done | all written; each removed at its closure, 23b last (`f0072e4a2e`) |
 | the survey doc defects (Files to Modify) | Done | handled by the child that touched each page |
 
 ### Audit Summary
 - **Total items:** 9
-- **Done:** 5
-- **Partial:** 4 (all the same two pending items: 23b's closure and the lab rerun; neither is a scope reduction)
+- **Done:** 9
+- **Partial:** 0
 - **Skipped:** 0
 - **Changed:** 0
 
@@ -722,9 +722,9 @@ its children were.
 
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
-| 1. Ze implements every capability a home CPE of this kind uses, correctly | interop | child 11's committed table ("Goal Validation (umbrella goals)" in `spec-home-cpe-11-lab` at `dcc20ffb68^`): WAN (`access-up`, `access-reconnect`, `access-wholesale`, `access-wholesale-accel-lns`), LAN and firewall (`lan-services`), VPN (`road-warrior`, `mgmt-tunnel`, `mgmt-tunnel-ed25519`), system (`conversion`); IPv6 by child 8's tests and `pppoe-dhcpv6-pd-ze-client`; clamp-to-PMTU by `TestTCPMSSClampToPMTU` (`internal/plugins/firewall/nft/integration_linux_test.go`) and `pppoe-mss-pmtu`. Pending final evidence: the whole-CPE rerun, `tmp/session/2026-11-07-104251/scratch/rwinv/umbrella-lab.sh`, logs in `rwinv/umbrella-lab/`, once 23b lands |
-| 2. A written VyOS-to-Ze mapping guide makes the conversion reproducible and reviewable | functional + interop | child 10's guide (`3d1d4ecba7`) with `test/parse/vyos-guide-example.ci`; child 11's `conversion` scenario (the record covers every line of the synthetic source, and the guide's output is the configuration every home-CPE scenario runs). Pending final evidence: `conversion.log` of the rerun |
-| 3. A lab that re-creates the access chain proves the converted router works | interop | child 11: every home-CPE lab scenario on the converted configuration, each with a recorded red walk (`rwinv/c11-*` breaks). Pending final evidence: all eleven logs of the rerun ending `exit=0` |
+| 1. Ze implements every capability a home CPE of this kind uses, correctly | interop | child 11's committed table ("Goal Validation (umbrella goals)" in `spec-home-cpe-11-lab` at `dcc20ffb68^`): WAN (`access-up`, `access-reconnect`, `access-wholesale`, `access-wholesale-accel-lns`), LAN and firewall (`lan-services`), VPN (`road-warrior`, `mgmt-tunnel`, `mgmt-tunnel-ed25519`), system (`conversion`); IPv6 by child 8's tests and `pppoe-dhcpv6-pd-ze-client`; clamp-to-PMTU by `TestTCPMSSClampToPMTU` (`internal/plugins/firewall/nft/integration_linux_test.go`) and `pppoe-mss-pmtu`. Final evidence: the whole-CPE rerun after 23b, `tmp/session/2026-11-07-104251/scratch/rwinv/umbrella-lab.sh` (le build `74a20ff92c`, 2026-11-09), logs in `tmp/session/2026-11-07-104251/scratch/rwinv/umbrella-lab/`: `access-up`, `access-pool`, `access-accounting`, `access-wholesale`, `access-wholesale-accel-lns`, `access-reconnect`, `mgmt-tunnel`, `mgmt-tunnel-ed25519`, `lan-services`, `road-warrior` and `conversion` each `exit=0`, `interop: 1 passed, 0 failed`. The new `access-up` option 6 pass-through check (`internal/le/interoplab/topology/check_access_option6.go`, 23b story 1b) passes clean and goes red under 23b's pass-through break (`access-up-passthrough-broken.log`, `exit=1`: "lan-res-c was never handed ze-cpe's learned resolvers in option 6: the lease carried no option 6, want [192.0.2.53 192.0.2.54]") |
+| 2. A written VyOS-to-Ze mapping guide makes the conversion reproducible and reviewable | functional + interop | child 10's guide (`3d1d4ecba7`) with `test/parse/vyos-guide-example.ci`; child 11's `conversion` scenario (the record covers every line of the synthetic source, and the guide's output is the configuration every home-CPE scenario runs). Final evidence: `conversion.log` of the rerun, `exit=0`, `interop: 1 passed, 0 failed` |
+| 3. A lab that re-creates the access chain proves the converted router works | interop | child 11: every home-CPE lab scenario on the converted configuration, each with a recorded red walk (`rwinv/c11-*` breaks). Final evidence: all eleven logs of the rerun end `exit=0` (summary table at the end of `tmp/session/2026-11-07-104251/scratch/rwinv/umbrella-lab.log`), and the one break the rerun carries went red at its own assertion |
 
 ## Work Not Done
 
@@ -742,8 +742,8 @@ its children were.
 | Field | Value |
 |-------|-------|
 | Artifact | recorded by `./le spec review record spec plan/release/fixes/spec-home-cpe-0-umbrella.md` over the three files below; the path is in the commit body |
-| `./le spec review check` | clean at record time; it goes stale when the 23b closure and the lab rerun edit this spec, and is re-recorded then |
-| Rounds | 2 |
+| `./le spec review check` | re-recorded 2026-11-09 after the 23b closure and the lab rerun, over this spec and the six citers repointed to the bare stem; clean |
+| Rounds | 3 |
 | Reviewer lenses used | spec claims against source (every symbol, path and commit the umbrella and its two held-back edits name, resolved by grep and `git log`), stale statements, owner-decision record |
 
 Files reviewed: `plan/release/fixes/spec-home-cpe-0-umbrella.md`,
@@ -761,6 +761,22 @@ statements in the Mistake Log; the Work Not Done row that understated child
 11's A-2 gap; the missing Deliverables and Security Review Checklists, added.
 Round 2: 0 BLOCKER, 0 ISSUE.
 
+Round 3 (2026-11-09, after 5c324f96db): over the 23b and lab-rerun edits.
+Every claim checked at its source: `f0072e4a2e` deletes the 23b spec; the
+rerun's summary table (`umbrella-lab.log`) shows eleven scenarios exit 0 and
+the pass-through break exit 1 at "the lease carried no option 6"; the 33
+deletions of the AC-1 log command. One NOTE fixed in the same edit: the AC-1
+row said the log lists 24 commits, it lists 33 (the nine child 16 follow-ups
+beside the 24 children). Citers repointed to the bare stem:
+`plan/handover/2026-11-07-home-cpe-implementation.md`,
+`plan/post-release/features/spec-l2tp-ipv6-subscriber-dns.md`,
+`plan/post-release/features/spec-oauth-login-0-umbrella.md`,
+`plan/post-release/features/spec-vpn-concentrator-0-umbrella.md` (its AC-4,
+which the spec hook refused as an absence-only criterion, restated with the
+same meaning in positive form),
+`plan/release/validation/spec-home-cpe-lab-guide-construct-coverage.md`,
+`plan/release/validation/spec-ipsec-0-umbrella.md`. 0 BLOCKER, 0 ISSUE.
+
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
@@ -774,8 +790,8 @@ Round 2: 0 BLOCKER, 0 ISSUE.
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
-| AC-1 | 23 of 24 children closed | `git log --diff-filter=D --since=2026-10-15 -- 'plan/*spec-home-cpe-*'` lists the 23 closing commits of the Implementation Summary; `ls plan/release/fixes/spec-home-cpe-*` lists the umbrella and 23b only |
-| AC-2 | the lab ran green with red walks at child 11's closure | `spec-home-cpe-11-lab` at `dcc20ffb68^`, "Goal Validation (umbrella goals)"; rerun pending |
+| AC-1 | 24 of 24 children closed | `git log --diff-filter=D --since=2026-10-15 -- 'plan/*spec-home-cpe-*'` lists 33 deletions: the 24 child closing commits of the Implementation Summary, 23b's `f0072e4a2e` last, and nine child 16 follow-up specs (16 review fixes, 16a to 16h); `ls plan/release/fixes/spec-home-cpe-*` lists the umbrella only |
+| AC-2 | the lab ran green with red walks at child 11's closure, and again after 23b | `spec-home-cpe-11-lab` at `dcc20ffb68^`, "Goal Validation (umbrella goals)"; the rerun's summary table at the end of `tmp/session/2026-11-07-104251/scratch/rwinv/umbrella-lab.log`: eleven rows exit `0`, `access-up-passthrough-broken` exit `1` |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
@@ -790,5 +806,6 @@ Round 2: 0 BLOCKER, 0 ISSUE.
 ### Remaining before commit A
 | Item | Owner |
 |------|-------|
-| child 23b's closure | done: `spec-home-cpe-23b-dns-source-consumers` closed 2026-11-09; the access-up option 6 pass-through check (`internal/le/interoplab/topology/check_access_option6.go`) rides on the lab rerun below |
-| the whole-CPE lab rerun, eleven logs ending `exit=0` | main thread, `umbrella-lab.sh`; its result fills the Goal Validation pending cells |
+| child 23b's closure | done: `spec-home-cpe-23b-dns-source-consumers` closed `f0072e4a2e` |
+| the whole-CPE lab rerun, eleven logs ending `exit=0` | done 2026-11-09: eleven logs `exit=0`; Goal Validation filled from them |
+| the access-up option 6 pass-through lab run 23b handed this umbrella (23b's Work Not Done row) | done in the same rerun: `access-up` green, and red under the pass-through break (`access-up-passthrough-broken.log`, `exit=1`) |

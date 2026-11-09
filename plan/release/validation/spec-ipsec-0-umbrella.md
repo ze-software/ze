@@ -41,7 +41,7 @@ This ownership split preserves the original obligations and evidence. Migration 
 ## Home-CPE scenarios
 
 IPsec scenarios the home-CPE work added, listed here because this umbrella is
-the parent of the IPsec scenarios (`plan/release/fixes/spec-home-cpe-0-umbrella.md`).
+the parent of the IPsec scenarios (`spec-home-cpe-0-umbrella`, closed).
 
 | Scenario | Directory | Owner | What it proves |
 |----------|-----------|-------|----------------|
