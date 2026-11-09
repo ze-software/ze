@@ -7,7 +7,7 @@
     "claim-sha": "0be2ae1f3b8681f3",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/extract.go::extractAuthMetadata",
-    "producer-sha": "1e75cee3c580be2d",
+    "producer-sha": "7ee516783373560c",
     "break": "body of extractAuthMetadata replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

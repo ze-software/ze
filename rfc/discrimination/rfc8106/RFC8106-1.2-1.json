@@ -18,7 +18,7 @@
     "claim-sha": "f1b8ca971888683d",
     "route": "mutant",
     "producer": "internal/core/dnssource/select.go::Select",
-    "producer-sha": "3e046391f2e5df66",
-    "break": "line 303: \"list.mode != ModeMerge\" -\u003e \"list.mode != ModeMerge \u0026\u0026 false\""
+    "producer-sha": "0110e209d3ed1804",
+    "break": "line 343: \"list.mode != ModeMerge\" -\u003e \"list.mode != ModeMerge \u0026\u0026 false\""
   }
 ]

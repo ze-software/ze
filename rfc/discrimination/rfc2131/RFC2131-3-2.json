@@ -6,8 +6,8 @@
     "unit-sha": "70eea576bb17572d",
     "claim-sha": "d187c71d5e6817c0",
     "route": "revert",
-    "producer": "internal/plugins/dhcpserver/handler.go::buildReply",
-    "producer-sha": "cc207d7f15b3cf6d",
-    "break": "body of buildReply replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/plugins/dhcpserver/handler.go::dhcpHandler.buildOfferedReply",
+    "producer-sha": "d1592f12dc4e5f3f",
+    "break": "body of dhcpHandler.buildOfferedReply replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

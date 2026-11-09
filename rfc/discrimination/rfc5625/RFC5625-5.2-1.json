@@ -6,9 +6,9 @@
     "unit-sha": "7811b87ca92ac5e9",
     "claim-sha": "ebacf16f88c5ad63",
     "route": "mutant",
-    "producer": "internal/plugins/dhcpserver/handler.go::buildReply",
-    "producer-sha": "cc207d7f15b3cf6d",
-    "break": "line 173: \"h.subnet.DomainName != \\\"\\\"\" -\u003e \"true\""
+    "producer": "internal/plugins/dhcpserver/handler.go::buildOfferedReply",
+    "producer-sha": "d1592f12dc4e5f3f",
+    "break": "line 302: \"h.subnet.DomainName != \\\"\\\"\" -\u003e \"true\""
   },
   {
     "rid": "RFC5625-5.2-1",
@@ -17,8 +17,8 @@
     "unit-sha": "7811b87ca92ac5e9",
     "claim-sha": "9087dbf1d08fc99f",
     "route": "mutant",
-    "producer": "internal/plugins/dhcpserver/handler.go::buildReply",
-    "producer-sha": "cc207d7f15b3cf6d",
-    "break": "line 173: \"h.subnet.DomainName != \\\"\\\"\" -\u003e \"false\""
+    "producer": "internal/plugins/dhcpserver/handler.go::buildOfferedReply",
+    "producer-sha": "d1592f12dc4e5f3f",
+    "break": "line 302: \"h.subnet.DomainName != \\\"\\\"\" -\u003e \"false\""
   }
 ]

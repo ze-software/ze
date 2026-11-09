@@ -62,8 +62,8 @@
     "claim-sha": "3b581246cd568248",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/extract.go::extractAuthMetadata",
-    "producer-sha": "1e75cee3c580be2d",
-    "break": "body of extractAuthMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "7ee516783373560c",
+    "break": "body of extractAuthMetadata replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2866-4.1-1",
@@ -73,8 +73,8 @@
     "claim-sha": "d651995fa37afbdb",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/extract.go::extractAuthMetadata",
-    "producer-sha": "1e75cee3c580be2d",
-    "break": "body of extractAuthMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "7ee516783373560c",
+    "break": "body of extractAuthMetadata replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2866-4.1-1",

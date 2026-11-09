@@ -6,9 +6,9 @@
     "unit-sha": "9b0f8b5fce3c766c",
     "claim-sha": "b4c84f88c1137877",
     "route": "revert",
-    "producer": "internal/plugins/dhcpserver/handler.go::buildReply",
-    "producer-sha": "cc207d7f15b3cf6d",
-    "break": "body of buildReply replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/plugins/dhcpserver/handler.go::dhcpHandler.buildOfferedReply",
+    "producer-sha": "d1592f12dc4e5f3f",
+    "break": "body of dhcpHandler.buildOfferedReply replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2131-4.3.1-2",
@@ -17,9 +17,9 @@
     "unit-sha": "9b0f8b5fce3c766c",
     "claim-sha": "e9320268d530803a",
     "route": "revert",
-    "producer": "internal/plugins/dhcpserver/handler.go::buildReply",
-    "producer-sha": "cc207d7f15b3cf6d",
-    "break": "body of buildReply replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/plugins/dhcpserver/handler.go::dhcpHandler.buildOfferedReply",
+    "producer-sha": "d1592f12dc4e5f3f",
+    "break": "body of dhcpHandler.buildOfferedReply replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2131-4.3.1-2",
@@ -28,8 +28,8 @@
     "unit-sha": "97f5afe378333447",
     "claim-sha": "b5b145060e9d2276",
     "route": "revert",
-    "producer": "internal/plugins/dhcpserver/handler.go::buildReply",
-    "producer-sha": "cc207d7f15b3cf6d",
-    "break": "body of buildReply replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/plugins/dhcpserver/handler.go::dhcpHandler.buildOfferedReply",
+    "producer-sha": "d1592f12dc4e5f3f",
+    "break": "body of dhcpHandler.buildOfferedReply replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -18,8 +18,8 @@
     "claim-sha": "31e3211c7b4610f9",
     "route": "mutant",
     "producer": "internal/plugins/iface/ra/advertiser.go::sent",
-    "producer-sha": "617975c4cd79d0e6",
-    "break": "line 179: \"a.retiring = nil\" -\u003e \"_ = a.retiring\""
+    "producer-sha": "6521f6e0a248efc7",
+    "break": "line 227: \"a.retiring = nil\" -\u003e \"_ = a.retiring\""
   },
   {
     "rid": "RFC7084-4.3-6",
@@ -29,7 +29,7 @@
     "claim-sha": "f57195f00553433e",
     "route": "mutant",
     "producer": "internal/plugins/iface/ra/advertiser.go::build",
-    "producer-sha": "6c8682ae5879fdea",
-    "break": "line 63: \"cfg.Routes = withRoute(cfg.Routes, d.Delegated.Masked(), valid)\" -\u003e \"_ = withRoute(cfg.Routes, d.Delegated.Masked(), valid)\""
+    "producer-sha": "478de83872b340f5",
+    "break": "line 79: \"cfg.Routes = withRoute(cfg.Routes, d.Delegated.Masked(), valid)\" -\u003e \"_ = withRoute(cfg.Routes, d.Delegated.Masked(), valid)\""
   }
 ]
