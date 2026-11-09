@@ -312,6 +312,9 @@ func parseAndVerifyFirewallSections(sections []sdk.ConfigSection, base *firewall
 	if cfg.Backend == "" {
 		return nil, errFirewallNoBackendConfiguredAndNo
 	}
+	if err := refuseReservedTableNames(cfg.Tables); err != nil {
+		return nil, err
+	}
 	if err := ValidateTables(cfg.Tables); err != nil {
 		return nil, err
 	}
@@ -421,6 +424,9 @@ func runEngine(conn net.Conn) int {
 			if err := validateBackendGate(sections, cfg.Backend); err != nil {
 				return err
 			}
+		}
+		if err := refuseReservedTableNames(cfg.Tables); err != nil {
+			return err
 		}
 		if err := ValidateTables(cfg.Tables); err != nil {
 			return err

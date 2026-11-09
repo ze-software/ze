@@ -94,12 +94,20 @@ var reconcileMu sync.Mutex
 // the route that asked for it, and the next reconcile appends to it instead of
 // replacing it. Refusing here keeps such a table out of the kernel, and tells
 // the owner rather than dropping its rules quietly.
+//
+// A name another owner reserved (MustReserveTableNames) is refused too, before
+// the registry changes, so the reserving owner's tables stay as they were. An
+// unreserved name stays shareable: firewall-irr and firewall-domain register
+// sets into an operator table's name, and ApplyAll merges them.
 func RegisterTables(owner string, tables []Table) error {
 	for i := range tables {
 		if !strings.HasPrefix(tables[i].Name, tableNamePrefix) {
 			return fmt.Errorf("firewall: owner %q registered table %q without the %q ownership prefix",
 				owner, tables[i].Name, tableNamePrefix)
 		}
+	}
+	if err := refuseForeignReservations(owner, tables); err != nil {
+		return err
 	}
 	tableRegistry.mu.Lock()
 	defer tableRegistry.mu.Unlock()

@@ -1,0 +1,31 @@
+# Test: an operator table whose kernel name another owner reserved is
+# refused at verify, naming the table, its kernel name and the owner.
+# VALIDATES: AC-15 of spec-firewall-existing-family-and-owner-correctness --
+#            the firewall engine refuses `table vrrp_owner_arp`, whose kernel
+#            name ze_vrrp_owner_arp the VRRP owner filter reserved, whether
+#            or not VRRP is configured.
+# PREVENTS: the operator's table merging into the VRRP owner table at
+#           ApplyAll, so one kernel table carries two owners' chains.
+stdin=config:terminator=EOF_CONF
+firewall {
+	backend nft;
+	table vrrp_owner_arp {
+		family arp;
+		chain output {
+			type filter;
+			hook output;
+			priority 0;
+			policy accept;
+			term all {
+				then {
+					accept;
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=kernel name "ze_vrrp_owner_arp" is reserved by owner "vrrp-owner"

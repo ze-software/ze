@@ -43,18 +43,29 @@ that does not carry the prefix and returns an error to the producer, so a bare
 name never reaches the kernel and the producer is told rather than losing its
 rules quietly.
 
-| Producer | Name | Where it is set |
-|----------|------|-----------------|
-| firewall engine | `tableNamePrefix + name` | `ParseFirewallConfig` |
-| policy-routes | `ze_pr` | `policyRoutingTable` |
-| copp | `ze_copp` | `coppTableName` |
-| ddos-local | `ze_ddos-local` | `tableName` |
-| firewall-irr | `ze_irr_iface`, and config names via `tableNamePrefix` | `ifaceTableName` |
-| FlowSpec bridge | `ze_flowspec` | `tableName` |
-| anomaly-shape | `ze_anomaly-shape`, `ze_anomaly-shape6` | `tableNameV4`, `tableNameV6` |
-| gtsm | `ze_gtsm` | `filterTableName` |
+| Producer | Registry owner | Name | Where it is set |
+|----------|----------------|------|-----------------|
+| firewall engine | `firewall` | `tableNamePrefix + name` | `ParseFirewallConfig` |
+| conntrack helpers | `conntrack-helpers` | `ze_conntrack_helpers`, `ze_conntrack_helpers_ip` | `conntrackHelperTableInet`, `conntrackHelperTableIP` |
+| policy-routes | `policy-routes` | `ze_pr` | `policyRoutingTable` |
+| copp | `copp` | `ze_copp` | `coppTableName` |
+| ddos-local | `ze_ddos-local` | `ze_ddos-local` | `tableName` |
+| firewall-irr | `firewall-irr` | `ze_irr_iface`, and sets into config names via `tableNamePrefix` | `ifaceTableName` |
+| firewall-domain | `firewall-domain` | sets into config names only | `DomainGroupSetNames` |
+| FlowSpec bridge | `flowspec` | `ze_flowspec` | `tableName` |
+| anomaly-shape | `anomaly-shape` | `ze_anomaly-shape`, `ze_anomaly-shape6` | `tableNameV4`, `tableNameV6` |
+| gtsm | `gtsm` | `ze_gtsm` | `filterTableName` |
+| IKE tunnel-source guard | `ike-source-guard` | `ze_ipsec_source_guard` | `sourceGuardTableName` |
+| VRRP accept filter | `vrrp` | `ze_vrrp` | `acceptFilterTableName` |
+| VRRP owner filter | `vrrp-owner` | `ze_vrrp_owner_arp`, `ze_vrrp_owner_nd` | `ownerFilterARPTableName`, `ownerFilterNDTableName` |
+| VRRP backup filter | `vrrp-backup` | `ze_vrrp_backup` | `backupFilterTableName` |
 
 <!-- source: internal/component/firewall/registry.go -- RegisterTables -->
+<!-- source: internal/component/firewall/conntrack_helpers.go -- conntrackHelperTableInet -->
+<!-- source: internal/component/ike/engine/source_guard.go -- sourceGuardTableName -->
+<!-- source: internal/plugins/vrrp/ownerfilter.go -- ownerFilterARPTableName -->
+<!-- source: internal/plugins/vrrp/acceptfilter.go -- acceptFilterTableName -->
+<!-- source: internal/plugins/vrrp/backupfilter.go -- backupFilterTableName -->
 <!-- source: internal/component/gtsm/gtsm.go -- filterTableName, FilterTables -->
 <!-- source: internal/plugins/copp/translate.go -- coppTableName -->
 <!-- source: internal/plugins/ddos/local/responder.go -- tableName -->
@@ -68,6 +79,32 @@ holds an entry for each of them: `copp`, `ddos-local`, `flowspec`,
 `anomaly-shape` and `anomaly-shape6`. `ddos-local` picks its family from the
 victim prefix and its chain from the hook, so it is one name in two families
 with two chains.
+
+## Rule 2b: a producer's table name is reserved
+
+`ApplyAll` merges tables of the same name and family from different owners, so
+an operator table `vrrp_owner_nd` (kernel name `ze_vrrp_owner_nd`) used to be
+merged into the VRRP owner table, giving one kernel table two owners' base
+chains. Each producer above except firewall-domain therefore reserves its own
+names with `firewall.MustReserveTableNames(owner, names...)`, called from the
+`init()` of its own `register_tables.go` (the firewall engine reserves the
+conntrack-helper tables from `register.go`). The firewall component holds no
+list of producers: a producer that is compiled out reserves nothing, and no
+table of its name can then exist.
+
+Two checks read the reservation:
+
+| Check | Where | What it refuses |
+|-------|-------|-----------------|
+| Registry | `RegisterTables` | A table name another owner reserved, before the registry changes, naming both owners; the reserving owner keeps its tables |
+| Operator config | `refuseReservedTableNames`, from `parseAndVerifyFirewallSections` and the configure path | An operator table whose kernel name any owner reserved, in any family, whether or not that owner is active, naming the table, its kernel name and the owner |
+
+A name nobody reserved stays shareable: firewall-irr and firewall-domain
+register sets into an operator table's name, and `ApplyAll` merges them as
+before. A second owner reserving a held name panics at init, because it is a
+defect in that package.
+<!-- source: internal/component/firewall/reservation.go -- MustReserveTableNames, refuseForeignReservations, refuseReservedTableNames -->
+<!-- source: internal/component/firewall/engine.go -- parseAndVerifyFirewallSections -->
 
 ## Rule 2a: the tables those builds left are removed once
 

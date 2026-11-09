@@ -47,6 +47,11 @@ const (
 )
 
 func init() { //nolint:gochecknoinits // plugin registration
+	// The helper tables are this engine's own, registered under
+	// conntrackHelperOwner; an operator table of the same name would merge
+	// into them (reservation.go).
+	MustReserveTableNames(conntrackHelperOwner, conntrackHelperTableInet, conntrackHelperTableIP)
+
 	reg := registry.Registration{
 		Name:        "firewall",
 		Description: "Packet filter and NAT rules (nftables on Linux)",
