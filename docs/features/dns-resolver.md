@@ -204,7 +204,8 @@ daemon, so they cannot see a lease. They ask the server that `--server`
 
 `dns-source` is one YANG grouping, declared in `ze-types`, so every consumer
 that hands resolver addresses on writes the same list. The router's
-`system dns-source`, a DHCP subnet's option 6 (`service dhcp-server
+`system dns-source`, the LAN resolver's upstreams (`service dns-resolver
+forward dns-source`), a DHCP subnet's option 6 (`service dhcp-server
 shared-network subnet dns-source`) and a unit's RA RDNSS (`interface ... unit
 ... ipv6 router-advertisement rdnss dns-source`) and a subscriber pool's IPCP
 DNS (`l2tp pool ipv4 dns-source`, `l2tp pool named-pool dns-source`) use it.

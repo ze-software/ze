@@ -801,6 +801,31 @@ plugin {
 
 **Timeout semantics:** During startup, all plugins synchronize at each stage. The timeout controls how long this plugin waits for all plugins to complete each stage. With multiple plugins, use the same timeout for all, or set the longest timeout on all plugins to avoid fast plugins timing out while waiting for slow ones.
 
+### dns-source (resolver source lists)
+
+Every consumer that hands resolver addresses on writes one shared container,
+the `dns-source` grouping of `ze-types`: `system dns-source`,
+`service dns-resolver forward dns-source`, a DHCP subnet's `dns-source`, a
+unit's `ipv6 router-advertisement rdnss dns-source`, and
+`l2tp pool ipv4 dns-source` / `l2tp pool named-pool dns-source`.
+
+```
+dns-source {
+    source [ configured received ];   # classes, in fall-through order
+    mode first-usable;                # or merge; required with two or more sources
+    received-interface [ eth0 ];      # narrows received only
+}
+```
+
+The classes are `received`, `configured`, `self` and `radius`. Each consumer
+refuses the classes it cannot use, naming the path, the reason and the fix,
+at `ze config validate`, commit and boot: the router and the LAN resolver's
+upstream list refuse `self` and `radius`, and only a pool accepts `radius`.
+A container that is absent leaves the consumer's built-in default in force;
+once written, only what was written applies. Defaults and the selection
+rules: `docs/features/dns-resolver.md`.
+<!-- source: internal/core/dnssource/select.go -- NewWrittenList, ModeRequiredError, ClassRefusedError -->
+
 ### ospf
 
 Top-level native OSPFv2 configuration. The `ospf` container is a YANG config
