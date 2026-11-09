@@ -2847,10 +2847,15 @@ first-apply at startup, so the daemon cannot boot into an unworkable state.
 
 An `interface pppoe-client` uses `source-interface` for Ethernet discovery and
 `authentication` for the subscriber credentials. The client answers an LCP
-renegotiation from the access network on the existing PPP session. It repeats
-authentication and IPCP before it resumes IPv4 forwarding. The interface worker
-applies changed addresses, MTU and default gateway on the same device.
-Target-kernel and wholesale interoperability proof remain outstanding.
+renegotiation from the access network on the existing PPP session and the same
+`pppN` device: it discards IPv4, and IPv6 when the client runs it, while it repeats LCP,
+authentication and IPCP, the interface worker then applies any changed
+address, MTU or default gateway, and forwarding resumes only once that is
+done, so no packet leaves with the replaced address. This works behind a
+wholesale LAC whose retail LNS (accel-ppp, for one) ignores the proxied LCP
+and negotiates again.
+<!-- source: internal/component/l2tp/pppoeclient/connected_session.go -- restart, awaitApplied -->
+<!-- source: internal/component/iface/pppoe_client.go -- runSession -->
 
 `source-interface` names an interface as you configured it, so an `ethernet`
 entry with an `os-name` or `mac match` selector works: discovery and the PPPoE
@@ -2865,8 +2870,6 @@ longer key, a key outside the interface-name pattern, and a key that another
 configured interface (ethernet, bridge, dummy and the rest) already uses.
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client -->
 <!-- source: internal/component/iface/config.go -- refuseDuplicateInterfaceNames -->
-<!-- source: internal/component/l2tp/pppoeclient/connected_session.go -- restart -->
-<!-- source: internal/component/iface/pppoe_client.go -- runSession -->
 
 The counter `ze_pppoe_client_renegotiations_total` uses the configured client
 `name` as its label. It counts network-phase restart attempts, including failures,

@@ -10,11 +10,42 @@
 | Depends | Implementation: none. Closure: the scenario this spec owns, `access-wholesale-accel-lns`, needs `spec-home-cpe-14-lac-realm-relay.md` and `spec-home-cpe-18-interoplab-multi-link-topology.md` implemented. `access-wholesale` is owned by `spec-home-cpe-15-lns-lcp-renegotiation.md` and does not hold this spec's closure (umbrella "Scenario ownership") |
 | Phase | 5/6 |
 | Handoff | - |
-| Updated | 2026-11-08 |
+| Updated | 2026-11-09 |
 
 Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
 
 ## Blocker
+
+Closure attempt 2026-11-09 (third), on HEAD `dbbfd58c39`. Deliverables,
+security, documentation and the Review Gate are done (closure sections at the
+end). Commit A is held because three pieces of owed evidence have no log.
+Their producers are `internal/component/l2tp/pppoeclient/connected_session.go`
+`(*connectedSession).restart` and `awaitApplied`, and `network_phase.go`
+`keepaliveLoop`, last changed by `57ef59e5e1` (2026-11-08 22:52).
+
+| # | Owed | Why it is not met | What clears it |
+|---|------|-------------------|----------------|
+| 1 | `RFC1661-3.6-2` record for `TestDialRenegotiatesLCPInNetworkPhase` (`internal/component/iface/rfc1661_pppoe_packets_integration_linux_test.go`, break `connected_session.go` `restart` `NPModeDrop` -> `NPModePass`) | `rfc/discrimination/rfc1661/RFC1661-3.6-2.json` holds only the LNS unit `TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened`. The batch 6 attempt `rwinv/out-gb6/rec-c12-362.log` is void (the mutant route lacked `report <path>`), and the batch 7 log `rwinv/out-gb7/rec-c12-362.log` does not exist | `./le rfc discriminate stem rfc1661 report <path>`, then `./le rfc record` with `report <path>` and the proposed `mutant <file:line:column#n>`, in the Ze 7.3 guest; the record then verifies under `./le rfc check` |
+| 2 | `TestPPPoEConfigRenegotiatesKernelState` and `TestDialAcknowledgesFirstEagerIPCP` on Ze 7.3 (A-1 to A-3) | the last runs are on 7.2.9-ze (`qemu-lx1.log`, `qemu-lx2.log`); no `rwinv/` or later log names them | in the Ze 7.3 guest, with `tags` holding `integration ze_core` and every `ze_` gate of `feature-gates.txt`: `CGO_ENABLED=1 ./le job run label c12-k73 command go test -race -count=1 -timeout 120s -tags "$tags" -v -run '^(TestPPPoEConfigRenegotiatesKernelState\|TestDialRenegotiatesLCPInNetworkPhase)$' ./internal/component/iface` and `CGO_ENABLED=1 ./le job run label c12-e73 command go test -race -count=1 -timeout 120s -tags "$tags" -v -run '^TestDialAcknowledgesFirstEagerIPCP$' ./internal/component/l2tp/pppoeclient` |
+| 3 | Package-scoped lint | no stable-input pass was ever recorded | `./le go lint run scope "./internal/component/l2tp/pppoeclient/... ./internal/component/l2tp/ppp/... ./internal/component/iface/... ./internal/plugins/iface/netlink/... ./internal/test/pppoeac/... ./internal/test/fixture/..."` |
+
+Cleared since the second attempt: its row 1 (`RFC1661-4.3-1` re-taken;
+`./le rfc check` on 2026-11-09 reports no RFC 1661 stale or producer-changed
+record, `c12-close-rfccheck.log`), its row 3 (netns
+`pppoe-client-lcp-renegotiation` on 7.3.0-ze: clean
+`rwinv/out-gb6/pppoe-clean.log` "ALL PHASES PASSED", broken
+`rwinv/out-gb6/c12-lcp-broken.log` "renegotiation on session 44: LCP: context
+deadline exceeded", both 2026-11-09, after `57ef59e5e1`) and its row 4
+(`access-wholesale-accel-lns` under the `runClientAuth` break: broken
+`rwinv/c12-wholesale-broken.log` "0 passed, 1 failed" with the CPE at "auth
+timeout", clean `rwinv/c12-wholesale-clean.log` "1 passed", 2026-11-08
+23:14-23:15, after `57ef59e5e1`). Scratch paths are under
+`tmp/session/2026-11-07-104251/scratch/`.
+
+When rows 1 to 3 are green the closure resumes at commit A. The spec file
+changes then, so the review artifact is re-recorded with it (Review Gate).
+
+### Blocker history (2026-11-08, second attempt)
 
 Closure attempt 2026-11-08 (second): the implementation and the external
 review fixes have landed (`86bc403a4e`, `a02374d9ad`), but four red walks are
@@ -686,3 +717,158 @@ adding an operator option or an unrelated fallback.
 
 ### Closure
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Client LCP reentry from Authentication, IPCP and the network phase: `session.go` `requestLCPReentry`, `runClientAuth`, `runIPCP`; `network_phase.go` `keepaliveLoop` (`reenter`); one phase owner, `phases.go` `negotiatePhases` (ten-epoch bound).
+- Network-phase restart on the same PPPoE session and unit: `connected_session.go` `restart` (DROP, rerun, publish, `awaitApplied`, PASS); the PPPIOCSNPMODE wrapper `ppp/devppp_linux.go` `SetIPv4Mode` and `ppp/npmode.go`.
+- Ordered receive: `receive.go` `frameReader`, `receive_linux.go` `sessionLink.readPacket` (channel first, then the connected unit).
+- Change records and in-place apply: `iface.PPPoESession.Changes` and `Applied`, `PPPoEResult.Seq`; `iface/pppoe_client.go` `runSession` per-field diff, make-before-break address and route; netlink `RemoveAddressP2P` exact-pair removal.
+- External review fixes (`a02374d9ad`): LCP Restart timer and counter (`negotiateLCP`), write errors returned, forwarding held until the consumer reports the result applied.
+- Counter `ze_pppoe_client_renegotiations_total{name}` (`metrics.go` `countRenegotiation`).
+
+### Bugs Found/Fixed
+- Guide drift found at closure: `docs/guide/configuration.md` "PPPoE Client" said IPv4 resumes after IPCP and that wholesale proof was outstanding, stale since `a02374d9ad` (`awaitApplied`) and the green `access-wholesale-accel-lns`. Rewritten; its source anchors moved under the paragraph they support.
+
+### Documentation Updates
+- `docs/guide/configuration.md` (this closure): anchors `connected_session.go -- restart, awaitApplied` and `pppoe_client.go -- runSession`.
+- Already landed: `docs/architecture/l2tp/cpe-1-pppoe-client.md` (`86bc403a4e`, `a02374d9ad`, `882e057d0d`), `features/interfaces.md` line 22, `docs/architecture/l2tp/bng-5-pppoe.md`, `rfc/short/rfc1661.md`.
+- `./le doc check all` (2026-11-09): source anchors pass. It exits red on `../gh-pages` command-equivalent surfaces that were not regenerated (`show interface pppoe-client`, `clear debug` operator rows), which this change does not produce.
+
+### Deviations from Plan
+- The packet test is `rfc1661_pppoe_packets_integration_linux_test.go`, not `pppoe_packets_integration_linux_test.go` (renamed in `882e057d0d`).
+- Forwarding resumes after the consumer's `Applied`, not at IPCP Opened: R-4's mitigation is replaced by AC-16 (external review issue 3).
+- The wholesale red walk uses the `runClientAuth` break, because accel-ppp's request reaches the CPE in Authentication.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The first wholesale walk broke `keepaliveLoop` and stayed green | the LAC's local CHAP puts accel-ppp's Configure-Request in `runClientAuth` | `c12-wholesale-broken.log` (2026-11-08 12:17) passed | walk moved to the `runClientAuth` break; red on 2026-11-08 23:14 |
+| approach | The batch 6 `RFC1661-3.6-2` record ran the mutant route without `report <path>` | `./le rfc record` needs the report the discriminator writes | `out-gb6/rec-c12-362.log` | Blocker row 1 names the full route |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Opened RCR handled in every phase after LCP opened | Done | `session.go` `runClientAuth` lines 612-618 and `runIPCP`; `network_phase.go` `keepaliveLoop` lines 267-275 | |
+| Same PPPoE session and unit | Done | `connected_session.go` `restart` | the netns walk asserts session 44 and the ifindex |
+| The interface keeps routing after IPCP reopens | Done | `iface/pppoe_client.go` `runSession` lines 423-473 | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRFC1661ClientRenegotiatesLCPDuringAuth` | |
+| AC-2 | Done | `TestRFC1661ClientNaksRenegotiationZeroMagic`, `TestClientRenegotiationNakNeedsPeerAcceptance` | |
+| AC-3 | Done | `TestRFC1661ClientRenegotiatesLCPDuringIPCP` | |
+| AC-4 | Done | `TestRFC1661ClientRenegotiatesLCPInNetworkPhase`, `TestConnectedExchangeRestarts`, `pppoe-client-lcp-renegotiation` | 7.3 run of `TestDialRenegotiatesLCPInNetworkPhase` owed (Blocker rows 1, 2) |
+| AC-5 | Done | `TestPPPoEClientSessionChanges/local`, `/both-addresses`, `TestPPPoEConfigRenegotiatesKernelState` | the kernel test ran on 7.2.9-ze only (Blocker row 2) |
+| AC-6 | Done | `TestRFC1661ClientRenegotiationChangesAuthProto` | |
+| AC-7 | Done | `TestRestartEchoSequence` | |
+| AC-8 | Done | `TestConnectedRestartFailures` | |
+| AC-9 | Done | `TestDialRenegotiatesLCPInNetworkPhase` | record owed (Blocker row 1) |
+| AC-10 | Done | `TestPPPoEClientSessionChanges/peer` | |
+| AC-11 | Done | `TestPPPoEClientSessionChanges/mtu`, `TestPPPoEClientChangedMTUHitsConfiguredCap` | |
+| AC-12 | Done | `TestPPPoEClientSessionChanges/unchanged`, `TestPPPoEClientChangeRouteRetry` | |
+| AC-13 | Done | `TestConnectedChangesReachConsumerNewest`, `TestConnectedChangesNewestWins` | |
+| AC-14 | Done | `TestPPPoEClientChangeApplyFailureCleansUp`, `TestPPPoEClientChangeReconnect` | |
+| AC-15 | Done | `TestPPPoEClientChangeRouteRetry` | |
+| AC-16 | Done | `TestRestartForwardingWaitsForApplied`, `TestIPCPRenegotiationWaitsForApplied`, `TestDualStackLCPRestartTakesIPv6Down`, `TestClientNetworkPhaseRenegotiationRecovers` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| pppoeclient and iface units | Done | `internal/component/l2tp/pppoeclient/`, `internal/component/iface/` | Darwin `ok` on `dbbfd58c39` (`c12-close-unit.log`) |
+| `pppoe-client-lcp-renegotiation` | Done | `test/pppoe/pppoe-client-lcp-renegotiation.ci` | clean and broken on 7.3.0-ze |
+| Linux integration (`TestDialRenegotiatesLCPInNetworkPhase`, `TestPPPoEConfigRenegotiatesKernelState`, `TestDialAcknowledgesFirstEagerIPCP`) | Partial | `internal/component/iface/`, `internal/component/l2tp/pppoeclient/` | 7.3 runs owed (Blocker row 2) |
+| `access-wholesale-accel-lns` | Done | `test/interop-topology/scenarios/access-wholesale-accel-lns/` | red and green |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| every Files to Modify and Files to Create entry | Done | listed under Files Exist; the packet test carries its renamed name |
+
+### Audit Summary
+- **Total items:** 3 requirements, 16 ACs, 4 test groups
+- **Done:** all but the Linux integration test group
+- **Partial:** the Linux integration group, whose 7.3 runs are owed evidence, not scope (Blocker)
+- **Skipped:** none
+- **Changed:** see Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The client follows the Opened RCR column in every phase after LCP opened | unit, RFC record | `TestRFC1661ClientRenegotiatesLCP*`; the `RFC1661-4.3-1` record verifies under `./le rfc check` (2026-11-09) |
+| Authentication and IPCP rerun on the same session and unit, and the interface keeps routing | functional | `pppoe-client-lcp-renegotiation` clean on 7.3.0-ze; the broken run is red at "renegotiation on session 44: LCP" |
+| The third-party wholesale shape works | interop | `access-wholesale-accel-lns` passes (28 s) clean and fails under the `runClientAuth` break |
+| IP is discarded while IPCP is not Opened | integration | `TestDialRenegotiatesLCPInNetworkPhase` on 7.2.9-ze; its 7.3 run and record are owed (Blocker row 1) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | the open items are owed evidence for this spec, held in its Blocker | `plan/release/fixes/spec-home-cpe-12-pppoe-client-lcp-renegotiation.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/home-cpe-12-pppoe-client-lcp-renegotiation-7e292f27-ced0-427f-a7b6-3a931db211f9.md` (31 files: every non-test file of `86bc403a4e`, `a02374d9ad` and `ba8d4732ff`, plus `docs/guide/configuration.md`); findings in `tmp/session/2026-11-07-104251/scratch/c12-review-findings.md` |
+| `./le spec review check` | clean (25 code files, hashes match), 2026-11-09 |
+| Rounds | 1 |
+| Reviewer lenses used | logic and wiring (`restart`, `awaitApplied` and `acknowledge`, the `negotiateLCP` counter, `runSession` apply and `Applied`); security and edge cases (no peer-reachable panic, the two `BUG` panics guard local state; bounds are ten epochs, Max-Configure 10 and the 60 s LCP deadline, and PADT or Cleanup ends `awaitApplied`); backend ownership (`RemoveAddressP2P` exact pair) |
+
+Pre-checks: `./le repo check` all passed (`c12-close-repocheck.log`);
+`./le test weakened check base 86bc403a4e~1` clean over 770 test files
+(`c12-close-weakened.log`). Test files were not reread line by line in this
+round: they carry the Codex review, the `ze-test-judge` approvals in
+`a02374d9ad` and the clean weakening audit. The resumed closure re-records the
+artifact with the spec file once it stops changing.
+
+NOTEs, which do not block: `receive.go` `frameReader.run` allocates one frame
+buffer per control-plane read; the Max-Configure error text in `negotiateLCP`
+is exact only for Req-Sent and Ack-Sent; the VPP backend answers
+`RemoveAddressP2P` with `errNotSupported`, as for the rest of the PPP NCP
+surface; this spec's TDD tables carry the old packet test file name.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | NOTE | the guide said forwarding resumed before the interface applied the result | `docs/guide/configuration.md` "PPPoE Client" | rewritten in this closure |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `rfc1661_renegotiation_test.go`, `receive.go`, `receive_linux.go`, `receive_other.go`, the three `pppoe_startup_observation*` files, `pppoe_config_integration_linux_test.go`, `pppoe_kernel_integration_linux_test.go`, `rfc1661_pppoe_packets_integration_linux_test.go`, `internal/test/pppoeac/`, `access-wholesale-accel-lns/{accel-ppp,ze-lac}.conf`, `test/pppoe/pppoe-client-lcp-renegotiation.ci`, both fixture files, `check_wholesale_accel.go` | yes | `ls` on 2026-11-09 lists every one |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-16 | the named tests exist and pass | grep finds each `func Test...` once; `go test` of pppoeclient and iface is `ok` on `dbbfd58c39` (`c12-close-unit.log`) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `interface pppoe-client`, network-phase Configure-Request | `test/pppoe/pppoe-client-lcp-renegotiation.ci` (in `netnsPPPoE`, `netns_linux.go` line 55) | yes: the fixture `pppoeClientRenegotiation` drives `session.LCP(..., restart=true)`, then reads `show interface pppoe-client` and the kernel ifindex |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed on 7.2.9-ze; 7.3 owed | Blocker row 2 |
+| A-2 | confirmed on 7.2.9-ze; 7.3 owed | Blocker rows 1, 2 |
+| A-3 | confirmed on 7.3.0-ze by the netns walk (same session 44, same ifindex) | `out-gb6/pppoe-clean.log` |
+| A-4 | confirmed | `test/interop-pppoe/Dockerfile.accel` declares 1.14.0 |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| guide: forwarding resumes after the interface applies | `connected_session.go` `restart` lines 198-205; `pppoe_client.go` `runSession` lines 471-473 | yes |
+| counter name and label | `metrics.go` line 31, label `name` | yes |
+| architecture page: apply before PASS, Restart counter | `cpe-1-pppoe-client.md` lines 45 and 291-295 against `restart` and `negotiateLCP` | yes |
