@@ -1630,6 +1630,17 @@ Every red below fails the checker's feature assertion, not a startup.
 | `checkSelfNextHopWithheld` / `bgp-self-nexthop-withheld-frr` | `egressNextHopIsPeerOwn` (`reactor/forward_next_hop.go`) always false | "assertion 5: FRR decoded an UPDATE carrying 10.11.0.0/24, whose NEXT_HOP 172.30.0.3 is FRR's own address" | pass (10s); clean green before the break: pass (24s) |
 | `checkMEDAcrossAS` / `bgp-med-across-as-gobgp` | `applyFactsMED` (`reactor/forward_med.go`): the final received-MED suppression replaced by `_ = mods` | "assertion 12: GoBGP route 10.60.0.0/24 still carries Med 100" | pass (34s). The second break (stripping Ze's own MED 42) is still owed |
 
+| `checkNoExportBoundary` / `bgp-wellknown-noexport-frr` | `wellKnownAllowsEgress` (`reactor/forward_wellknown.go`) admits every route (`true \|\| w.AllowsEgressTo(isIBGP)`) | "assertion 7: FRR learned 10.10.0.0/24, which ze must withhold from this peer" | pass (17s). Replaces the panic-body record in `rfc1997/RFC1997-Well-1.json` as the attributed break; the "suppress internal delivery" break is still owed |
+| `checkISISDynamicHostname` / `isis-p2p-frr` | `fixedTLVs` (`isis/lsdb/origination.go`) omits the hostname TLV (`name == "-"`) | "assertion 2: wait for ze dynamic hostname in the FRR IS-IS database timed out", the checker's own hostname wait | pass (28s) |
+
+Red at HEAD, owed an investigation before any break means anything:
+
+- `checkNSSADefault` / `ospf-stub-nssa-frr`: three runs without a break fail
+  at "assertion 2: wait for NSSA default route from the border router timed
+  out" (2m7s, 2m4s, and the restored run of the walk). Either Ze's border
+  router does not originate the Type-7 default (`wantsType7Default`,
+  `internal/plugins/ospf/nssa.go`) or the scenario is wrong; not yet traced.
+
 Blocked by lab readiness, not product evidence:
 
 - `checkLocalPrefStrip` / `bgp-local-pref-strip-gobgp`: of four green runs
