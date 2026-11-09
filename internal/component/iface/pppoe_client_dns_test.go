@@ -102,6 +102,29 @@ func TestPPPoEClientSetsResolverLease(t *testing.T) {
 	})
 }
 
+// TestPPPoEClientLeaseNamesConfiguredInterface: the record IPCP's servers
+// make carries the pppoe-client's configured name, the name a
+// `received-interface` entry holds, and not the session device or the
+// source interface.
+//
+// VALIDATES: spec-home-cpe-23-dns-source-fall-through A-8, the PPPoE half.
+// PREVENTS: `received-interface pppoe0` never selecting the session's servers.
+func TestPPPoEClientLeaseNamesConfiguredInterface(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		h := newDNSSession(t, "192.0.2.53", "")
+		defer h.stop()
+		var names []string
+		for _, rec := range h.resolvers.Snapshot().Records {
+			if slices.Contains(rec.Addresses, netip.MustParseAddr("192.0.2.53")) {
+				names = append(names, rec.Interface)
+			}
+		}
+		if !slices.Equal(names, []string{"wan"}) {
+			t.Fatalf("records holding the IPCP server name %v, want [wan]", names)
+		}
+	})
+}
+
 // TestPPPoEClientReplacesResolverLeaseOnDNSOnlyChange: a renegotiation that
 // keeps the addresses and MTU but learns new servers replaces the lease and
 // touches no address, route or MTU.

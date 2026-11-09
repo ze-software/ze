@@ -128,3 +128,26 @@ func TestDHCPv4TeardownWithdrawsItsDNS(t *testing.T) {
 		t.Errorf("after teardown, resolv.conf:\n%s\nwant:\n%s", got, want)
 	}
 }
+
+// TestDHCPLeaseRecordNamesItsInterface: each DHCP lease's record carries the
+// interface and unit the client was started for, which reconcileDHCP passes
+// as the configured interface name, the name a `received-interface` entry
+// holds.
+//
+// VALIDATES: spec-home-cpe-23-dns-source-fall-through A-8, the DHCP half.
+// PREVENTS: `received-interface wan0` never selecting the lease's servers.
+func TestDHCPLeaseRecordNamesItsInterface(t *testing.T) {
+	resolvers := &system.Resolvers{}
+	c := &DHCPClient{ifaceName: "wan0", unit: "7", config: dHCPConfig{Resolvers: resolvers}}
+	c.setV4Resolvers([]string{resolvV4Server}, system.UntilWithdrawn)
+	c.setV6Resolvers([]string{resolvV6Server}, system.UntilWithdrawn)
+	records := resolvers.Snapshot().Records
+	if len(records) != 2 {
+		t.Fatalf("records %+v, want one DHCPv4 and one DHCPv6", records)
+	}
+	for _, rec := range records {
+		if rec.Interface != "wan0" || rec.Unit != "7" {
+			t.Errorf("record %+v names %s unit %s, want wan0 unit 7", rec, rec.Interface, rec.Unit)
+		}
+	}
+}
