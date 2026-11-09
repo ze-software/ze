@@ -11,6 +11,15 @@ import (
 // and MS-Secondary-DNS-Server reach AuthMetadata, the pool's radius source.
 // Method: build Access-Accepts with vendor 311 types 28 and 29, alone, both,
 // malformed and under another vendor, and read the extracted metadata.
+//
+// RFC requirement: RFC2548-2.7.6-1 positive -- an Access-Accept's
+// MS-Primary-DNS-Server (vendor 311, type 28, a four-octet address) is read
+// as the subscriber's primary DNS server, alone or beside the secondary, the
+// first of two such attributes winning (extract_dns.go extractMSDNSServers).
+// RFC requirement: RFC2548-2.7.7-1 positive -- an Access-Accept's
+// MS-Secondary-DNS-Server (vendor 311, type 29, a four-octet address) is read
+// as the subscriber's secondary DNS server, alone or beside the primary
+// (extract_dns.go extractMSDNSServers).
 func TestExtractMSDNSServers(t *testing.T) {
 	primary := netip.MustParseAddr("198.51.100.53")
 	secondary := netip.MustParseAddr("198.51.100.54")

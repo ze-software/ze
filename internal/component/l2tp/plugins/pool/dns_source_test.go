@@ -47,6 +47,14 @@ func askIPCP(t *testing.T, p *poolPlugin, sessionID uint16, meta *l2tp.AuthMetad
 // dns-primary and of a learned resolver. Method: a pool with dns-primary set
 // and a learned lease, a session whose metadata names one MS DNS server, on
 // the allocated path and on the Framed-IP path.
+//
+// RFC requirement: RFC2548-2.7.6-1 positive -- the MS-Primary-DNS-Server a
+// session's RADIUS metadata carries is offered to the PPP peer as the IPCP
+// primary DNS server, ahead of the pool's dns-primary and a learned resolver,
+// on the allocated and the Framed-IP paths (dns_source.go selectSubscriberDNS).
+// RFC requirement: RFC2548-2.7.7-1 positive -- the MS-Secondary-DNS-Server a
+// session's RADIUS metadata carries is offered to the PPP peer as the IPCP
+// secondary DNS server on the Framed-IP path (dns_source.go selectSubscriberDNS).
 func TestPoolIPCPDNSFromRadius(t *testing.T) {
 	radiusDNS := netip.MustParseAddr("198.51.100.53")
 	pool := newIPv4Pool(testGW, netip.MustParseAddr("10.0.0.1"), netip.MustParseAddr("10.0.0.10"),
