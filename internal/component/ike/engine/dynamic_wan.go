@@ -76,9 +76,13 @@ func planPeers(cfg *ipsec.IPsecConfig, ifIP string) *peerPlan {
 
 	if cfg.Interface == "" {
 		// One pair for every peer, as before the listener set: the wildcard in
-		// production, and under the test port the first local-address found.
+		// production, and under the test port the local-address of the first peer
+		// in name order that names one. Name order, not map order: planPeers must
+		// answer the same host for the same configuration, or a reload that adds an
+		// unrelated peer with another local-address moves the pair on some runs and
+		// rebindListeners stops every session on it.
 		peerLocal := ""
-		for name := range cfg.Peers {
+		for _, name := range slices.Sorted(maps.Keys(cfg.Peers)) {
 			if la := cfg.Peers[name].LocalAddress; la != "" {
 				peerLocal = la
 				break
@@ -311,7 +315,8 @@ func (s *ikeEngineState) followAddress() {
 			// prevents. A device the backend reports absent is not this case: it
 			// arrives here as the empty address (readInterfaceAddr).
 			s.log.Warn("ike: cannot read interface addresses, keeping the current address",
-				"interface", s.applied.Interface, "address", s.ifAddr, "error", err)
+				"interface", s.applied.Interface, "address", s.ifAddr, "error", err,
+				"fix", "none if the next address event reads the interface; if this repeats, check the interface exists with: show interface "+s.applied.Interface)
 		case ifIP != s.ifAddr:
 			s.log.Info("ike: interface address changed",
 				"interface", s.applied.Interface, "from", s.ifAddr, "to", ifIP)

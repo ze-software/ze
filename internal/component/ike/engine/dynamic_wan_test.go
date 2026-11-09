@@ -572,3 +572,32 @@ func TestRouteChosenAddressChangeWithoutMobikeRestarts(t *testing.T) {
 		t.Fatal("the peer was not started again to pick its new source")
 	}
 }
+
+// TestPlanPeersTestPortHostIsStable proves that, with no `interface`, the primary pair
+// under the test port binds the same host for the same configuration. The method is a
+// two-peer configuration whose peers name different local-addresses, planned 200 times:
+// Go randomizes map iteration, so a host picked in map order differs across the runs
+// with near certainty, and test/ipsec/ipsec-peer-reload-leaves-tunnel-alone.ci saw that
+// as a reload adding peer-quiet (127.0.0.3) that moved the pair off 127.0.0.1 and
+// stopped peer-b's running session.
+func TestPlanPeersTestPortHostIsStable(t *testing.T) {
+	orig := ikeTestPortFn
+	ikeTestPortFn = func() string { return "45500" }
+	t.Cleanup(func() { ikeTestPortFn = orig })
+
+	cfg := &ipsec.IPsecConfig{Peers: map[string]ipsec.SiteToSitePeer{
+		"peer-quiet": {LocalAddress: "127.0.0.3"},
+		"peer-b":     {LocalAddress: "127.0.0.1"},
+	}}
+	for range 200 {
+		plan := planPeers(cfg, "")
+		if plan.primaryHost != "127.0.0.1" {
+			t.Fatalf("primaryHost = %q, want 127.0.0.1 (the local-address of peer-b, first in name order)", plan.primaryHost)
+		}
+		for name, host := range plan.hostOf {
+			if host != "127.0.0.1" {
+				t.Fatalf("hostOf[%s] = %q, want the primary host 127.0.0.1", name, host)
+			}
+		}
+	}
+}
