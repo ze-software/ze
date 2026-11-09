@@ -137,9 +137,10 @@ func (b *xfrmBackend) InstallSA(p SAParams) error {
 // RFC 7296 Section 2.24 MUST: tunnel encapsulators and decapsulators "MUST support the ECN
 // full-functionality option for tunnels", and MUST implement the processing "to prevent
 // discarding of ECN congestion indications". Linux copies the congestion indication on
-// decapsulation UNLESS XFRM_STATE_NOECN is set in the state's flags. Nothing below sets a
-// flag, and netlink.XfrmState carries no general flags field to set one through, so the
-// kernel default stands for every SA ze installs.
+// decapsulation UNLESS XFRM_STATE_NOECN is set in the state's flags. Nothing below sets
+// it: netlink.XfrmState carries no general flags field, only ESN and AFUnspec, which set
+// XFRM_STATE_ESN and XFRM_STATE_AF_UNSPEC alone, so the kernel default stands for every SA
+// ze installs.
 //
 // It is split out of InstallSA so the mapping can be driven without a netlink socket: the
 // tests that prove Section 2.24 call THIS, not a type literal.

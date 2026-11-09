@@ -2,15 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | A shipped capability does the wrong thing: a tunnel-mode Child SA whose negotiated selectors carry IPv6 over IPv4 endpoints (or IPv4 over IPv6) installs, reports up, and carries no inner traffic of the other family. RFC 4301 Section 5.1.2.1 allows the versions to differ. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 0/2 |
+| Phase | 2/2 |
 | Handoff | - |
-| Updated | 2026-11-07 |
+| Updated | 2026-11-09 |
 
 Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
 
@@ -347,11 +347,10 @@ header."` above the flag.
 |------|----------|-------|--------|
 | 2026-11-07 | `TestXFRMTunnelCarriesTheOtherInnerFamily` (subtests `ipv6_inside_ipv4`, `ipv4_inside_ipv6`, `ipv4_inside_ipv4`), `TestXFRMTunnelStateIsInstalledAFUnspec`, `TestXFRMReadbackOfAFUnspecState`, with the fix of 0db8414cfd | `./le test qemu run kernel tmp/kernel/build/vmlinuz`, guest reporting Ze's runtime kernel 7.3 | PASS, all three (AC-2, AC-3, AC-5, AC-6, AC-7 at the dataplane) |
 | 2026-11-07 | Interop scenario `vti-ipv6-inner-ipv4-outer` (child 6), after d0c2738a48 "ike: traffic into an xfrm interface passes the discard catch-all" and 3c23153b48 "interop-ipsec: vti IPv6 scenario offers MODP_2048 for its PFS rekey" | Ze's Docker host, `./le test integration interop-ipsec` | PASS, reported by the main thread. Its red walk with this fix reverted belongs to child 6 (AC-6 there) |
-
-Owed before closure:
-
-- **AC-1 red walk, not yet run.** Break: in `xfrmStateFromParams` (`internal/component/ike/dataplane/xfrm_linux.go`), comment out `state.AFUnspec = true`, so the vendored encoder sends no flag (the alternative break is the three-line `if state.AFUnspec` block in the vendored `xfrmUsersaInfoFromXfrmState`, which also reddens `TestPatchedVendorModulesMatchUpstream`). Run the three tests above in the same guest. Expected red: `ipv6_inside_ipv4` and `ipv4_inside_ipv6` fail with no answer and `XfrmOutNoStates` among the counters the test prints; `ipv4_inside_ipv4` stays green (the control); `TestXFRMTunnelStateIsInstalledAFUnspec` fails on the missing flag. Restore by hand (no `git restore`), confirm the file matches HEAD, rerun green, and paste the red output into the commit that records it.
-- `test/ipsec/ipsec-show-dataplane-kernel.ci` in the QEMU guest (Functional Tests).
+| 2026-11-07 | AC-1 red walk: `state.AFUnspec = true` in `xfrmStateFromParams` replaced by `_ = state // red walk` (`lx8.sh`, section `==RED20`), then `TestXFRMTunnelCarriesTheOtherInnerFamily -v`; file restored from its copy, `git diff --stat` empty, test rerun | QEMU guest on Ze's kernel, `./le job run label lx`; `tmp/session/2026-11-07-104251/scratch/qemu-lx8.log` lines 96-121 | RED: `ipv6_inside_ipv4` "side b received no request from fd00:2a::1 through the IPv4-outer SA: read udp [fd00:2a::2]:47020: i/o timeout; xfrm_stat moved: side a: XfrmOutNoStates +1; side b: no counter moved"; `ipv4_inside_ipv6` the same for 10.42.0.1 with `XfrmOutNoStates +1`; `ipv4_inside_ipv4` PASS (the control). Restored: `ok internal/component/ike/dataplane 1.030s` |
+| 2026-11-08 | Child 6's red walk of `vti-ipv6-inner-ipv4-outer` with this fix reverted (overlay `rwinv/home-cpe-20-vti-af-unspec-interop/`, `state.AFUnspec = false`) | Ze's Docker host, `./le test integration interop-ipsec` | RED: "ze: the state 172.28.0.2 -> 172.28.0.3 on if_id 0x7 lacks af-unspec, so the kernel gives its selector the outer family and no IPv6 flow finds it" (`rwinv/home-cpe-20-vti-af-unspec-interop/vti-ipv6-inner-ipv4-outer.log`) |
+| 2026-11-07 | `test/ipsec/ipsec-show-dataplane-kernel.ci` | QEMU guest, Ze 7.3; `tmp/session/2026-11-07-104251/scratch/rwinv/out-gb6/ipsec-clean.log` | PASS ("1/1 PASS 28 ipsec-show-dataplane-kernel") |
+| 2026-11-09 | `go test ./internal/component/ike/dataplane/ ./internal/le/vendorpatch/` after the closure's comment fix; `GOOS=linux go vet ./internal/component/ike/dataplane/` | darwin host, `./le job run label c20-unit` / `c20-vet` | ok, ok; vet clean |
 
 ## Checklist
 
@@ -384,3 +383,141 @@ Owed before closure:
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean
 - [ ] **Commit A** and **Commit B** per `ai/rules/planning.md`
+
+## Implementation Summary
+
+### What Was Implemented
+- 0db8414cfd: `netlink-xfrm-fixes.patch` adds `XfrmState.AFUnspec`; the vendored `xfrmUsersaInfoFromXfrmState` sets `XFRM_STATE_AF_UNSPEC` from it and the state decoder reports it back. `xfrmStateFromParams` (`internal/component/ike/dataplane/xfrm_linux.go`) sets it for a tunnel-mode state with no selector, under the RFC 4301 Section 5.1.2 quote.
+- Tests: `TestXFRMStateFlagsForTunnelWithoutSelector` (unit), `TestXFRMTunnelStateIsInstalledAFUnspec`, `TestXFRMReadbackOfAFUnspecState`, `TestXFRMTunnelCarriesTheOtherInnerFamily` (kernel, own netns each).
+- Closure: the `xfrmStateFromParams` doc comment said "Nothing below sets a flag", false since `AFUnspec`; corrected. That comment edit staled three audit verdicts that cite the function (RFC4301-4.2-1, RFC4301-4.4.2.1-3, RFC4303-3.4.4.1-2); each was re-judged (`./le rfc audit-stamp ... mode rejudge`) with its verdict unchanged, because no statement changed.
+
+### Bugs Found/Fixed
+- The defect this spec exists for, covered by `TestXFRMTunnelCarriesTheOtherInnerFamily` (red walk recorded above).
+- Stale doc comment on `xfrmStateFromParams` (closure review, ISSUE 1).
+
+### Documentation Updates
+- `docs/guide/ipsec.md` "The inner family of a tunnel does not have to match its outer family" (0db8414cfd), with the dataplane and operator statements kept separate.
+- `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` "A tunnel-mode state with no selector carries `XFRM_STATE_AF_UNSPEC`" and the vendor-patch list (0db8414cfd).
+- `docs/architecture/linux-limitations.md` (0db8414cfd).
+- `./le doc check all`: anchors resolve (3043 across 23 digests); the run is red on the pipe-operator availability check for `clear debug`, which this spec does not touch.
+
+### Deviations from Plan
+- Goal Gates named `./le verify changed`; no agent runs it (`ai/META-DECISIONS.md`). The scoped runs in Recorded evidence are the evidence.
+- The red walk ran only `TestXFRMTunnelCarriesTheOtherInnerFamily`; `TestXFRMTunnelStateIsInstalledAFUnspec` was not observed red. It is not RFC-tagged and AC-1 names the datapath test, which the walk proves.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The implementation left the ECN doc comment of `xfrmStateFromParams` saying nothing sets a flag | `AFUnspec` sets `XFRM_STATE_AF_UNSPEC` | Closure review, comment check | Comment corrected; audit verdicts re-judged |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Prove the drop red before the fix | Done | `qemu-lx8.log` lines 96-121 | `XfrmOutNoStates +1` |
+| Set `XFRM_STATE_AF_UNSPEC` on tunnel states with no selector | Done | `xfrm_linux.go` `xfrmStateFromParams`; vendored `xfrmUsersaInfoFromXfrmState` | via `netlink-xfrm-fixes.patch` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | red walk, Recorded evidence row 2026-11-07 | counter `XfrmOutNoStates`; red output in commit A body |
+| AC-2 | Done | `TestXFRMTunnelCarriesTheOtherInnerFamily/ipv6_inside_ipv4` PASS (`qemu-lx6.log`, `qemu-kern2.log`) | |
+| AC-3 | Done | `TestXFRMTunnelStateIsInstalledAFUnspec` PASS (`qemu-kern2.log` line 109) | |
+| AC-4 | Done | `TestXFRMStateFlagsForTunnelWithoutSelector` (unit, ok 2026-11-09); explicit-selector rows of `TestXFRMTunnelStateIsInstalledAFUnspec` | |
+| AC-5 | Done | `ipv4_inside_ipv4` PASS in both red and green runs | |
+| AC-6 | Done | `ipv4_inside_ipv6` PASS (`qemu-lx6.log` line 61) | |
+| AC-7 | Done | `TestXFRMReadbackOfAFUnspecState` PASS; `ipsec-show-dataplane-kernel.ci` PASS | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestXFRMStateFlagsForTunnelWithoutSelector` | Done | `xfrm_linux_test.go` | |
+| `TestXFRMTunnelStateIsInstalledAFUnspec` | Done | `xfrm_integration_linux_test.go` | |
+| `TestXFRMTunnelCarriesTheOtherInnerFamily` | Done | `xfrm_cross_family_integration_linux_test.go` | red-first |
+| `TestXFRMReadbackOfAFUnspecState` | Done | `xfrm_readback_integration_linux_test.go` | |
+| `ipsec-show-dataplane-kernel` | Done | `test/ipsec/ipsec-show-dataplane-kernel.ci` | PASS on Ze 7.3 |
+| `vti-ipv6-inner-ipv4-outer` | Done (child 6) | `test/interop-ipsec/scenarios/` | green, and red with this fix reverted |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch` | Done | 0db8414cfd |
+| `vendor/github.com/vishvananda/netlink/xfrm_state_linux.go` | Done | regenerated, 0db8414cfd |
+| `internal/component/ike/dataplane/xfrm_linux.go` | Done | 0db8414cfd; comment fixed at closure |
+| `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` | Done | 0db8414cfd |
+| `internal/component/ike/dataplane/xfrm_cross_family_integration_linux_test.go` | Done | created, 0db8414cfd |
+
+### Audit Summary
+- **Total items:** 20
+- **Done:** 20
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Prove the defect red by a datapath test before the fix | functional (kernel netns) | `qemu-lx8.log`: `ipv6_inside_ipv4` and `ipv4_inside_ipv6` FAIL, `XfrmOutNoStates +1`, control PASS |
+| IPv6 crosses an IPv4-outer tunnel SA Ze installs | interop | child 6 `vti-ipv6-inner-ipv4-outer` PASS against strongSwan 6.1.0; RED with the fix reverted ("lacks af-unspec") |
+| The same test goes green with the fix | functional (kernel netns) | `qemu-lx6.log` / `qemu-kern2.log`: all three subtests PASS |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is demonstrated | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/home-cpe-20-xfrm-cross-family-tunnel-state-7e292f27-ced0-427f-a7b6-3a931db211f9.md` (4 files, verdict clean) |
+| `./le spec review check` | OK (1 code file, clean, hashes match) |
+| Rounds | 2 |
+| Reviewer lenses used | wiring (builder reached by `InstallSA`), logic of the flag rule (tunnel and nil selector only), vacuity of the red walk (control subtest green, counter named), comment drift, security (policy scope), style pass over the changed Go (no `panic()`, no new loop, no allocation) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Doc comment said "Nothing below sets a flag" after `AFUnspec` was added | `xfrm_linux.go` `xfrmStateFromParams` | Comment states that NOECN is never set and that ESN and AFUnspec are the struct's only flag fields |
+
+Run 2: 0 BLOCKER, 0 ISSUE. NOTEs: the spec's prose cites RFC 4301 Section 5.1.2.1 for "IPsec allows the IP version...", which `rfc/full/rfc4301.txt` places in Section 5.1.2 (the code quotes 5.1.2 correctly); `TestXFRMTunnelStateIsInstalledAFUnspec` has no recorded red. Security: a state is reached only through an SPD template, and each policy is one negotiated pair bound to the Child SA's if_id (`childPolicies`), so AF_UNSPEC widens no path into the state.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/ike/dataplane/xfrm_cross_family_integration_linux_test.go` | Yes | 332 lines in 0db8414cfd |
+| `test/ipsec/ipsec-show-dataplane-kernel.ci` | Yes | ran as test 28 in `ipsec-clean.log` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | red with the flag removed | `qemu-lx8.log` line 106: "XfrmOutNoStates +1" |
+| AC-3, AC-4 | flag only for tunnel with nil selector | `xfrm_linux.go` line 222 `if p.Mode == ModeTunnel && p.Sel == nil`; unit test ok 2026-11-09 |
+| AC-2, AC-5..AC-7 | kernel tests green | `qemu-kern2.log` lines 100-117 PASS |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Child SA install through two `ze` daemons, readback by `show vpn ipsec dataplane sa` | `test/ipsec/ipsec-show-dataplane-kernel.ci` | PASS on Ze 7.3 |
+| IPv6 through an IPv4 SA to strongSwan | interop `vti-ipv6-inner-ipv4-outer` | PASS, red with the fix reverted |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | red walk: `XfrmOutNoStates +1` on side a, nothing on side b |
+| A-2 | confirmed (source read) | Linux v7.3 `__xfrm_policy_check`; the walk cannot observe the inbound half because the outbound drops first |
+| A-3 | confirmed | child 6's scenario carries IPv6 both ways against strongSwan 6.1.0 |
+| A-4 | confirmed | v1.3.1 and upstream main carry no setter; vendor patch stays |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/guide/ipsec.md` inner family paragraph | `xfrmStateFromParams` sets `AFUnspec` for tunnel mode with nil `Sel` | Yes |
+| `ipsec-8-ikev2-child-xfrm.md` AF_UNSPEC section | vendored `xfrmUsersaInfoFromXfrmState` line 721 | Yes |
+| RFC status | `grep -i 'encapsulating header' rfc/short/rfc4301.md`: no row (a MAY-level "allows"); `./le rfc update` regenerated nothing new | Yes |
