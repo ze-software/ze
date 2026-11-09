@@ -29,7 +29,7 @@
     "claim-sha": "f57195f00553433e",
     "route": "mutant",
     "producer": "internal/plugins/iface/ra/advertiser.go::build",
-    "producer-sha": "478de83872b340f5",
-    "break": "line 79: \"cfg.Routes = withRoute(cfg.Routes, d.Delegated.Masked(), valid)\" -\u003e \"_ = withRoute(cfg.Routes, d.Delegated.Masked(), valid)\""
+    "producer-sha": "177ad19aa7da7e6d",
+    "break": "line 159: \"cfg.Routes = withRoute(cfg.Routes, d.Delegated.Masked(), valid)\" -\u003e \"_ = withRoute(cfg.Routes, d.Delegated.Masked(), valid)\""
   }
 ]

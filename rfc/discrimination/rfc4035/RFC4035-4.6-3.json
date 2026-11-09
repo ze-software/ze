@@ -1,17 +1,6 @@
 [
   {
     "rid": "RFC4035-4.6-3",
-    "polarity": "positive",
-    "unit": "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035ResponseCDAndADBitsChangeNothing",
-    "unit-sha": "352a4e86abd004bc",
-    "claim-sha": "a5b310cb18c56eaa",
-    "route": "revert",
-    "producer": "internal/component/resolve/dns/resolver.go::query",
-    "producer-sha": "ef83da331fe05303",
-    "break": "body of query replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
-  },
-  {
-    "rid": "RFC4035-4.6-3",
     "polarity": "negative",
     "unit": "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035ResponseCDAndADBitsChangeNothing",
     "unit-sha": "352a4e86abd004bc",
@@ -20,6 +9,17 @@
     "producer": "internal/component/resolve/dns/resolver.go::dnssecDecision",
     "producer-sha": "8495c71007fe23e5",
     "break": "body of dnssecDecision replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4035-4.6-3",
+    "polarity": "positive",
+    "unit": "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035ResponseCDAndADBitsChangeNothing",
+    "unit-sha": "352a4e86abd004bc",
+    "claim-sha": "a5b310cb18c56eaa",
+    "route": "revert",
+    "producer": "internal/component/resolve/dns/resolver.go::query",
+    "producer-sha": "46015be977cd0923",
+    "break": "body of query replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4035-4.6-3",
@@ -40,7 +40,7 @@
     "claim-sha": "3eec3d5a162af6b7",
     "route": "revert",
     "producer": "internal/component/resolve/dns/resolver.go::query",
-    "producer-sha": "ef83da331fe05303",
+    "producer-sha": "46015be977cd0923",
     "break": "body of query replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

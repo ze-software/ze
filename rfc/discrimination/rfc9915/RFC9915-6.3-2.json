@@ -7,8 +7,8 @@
     "claim-sha": "aa04145e28d75436",
     "route": "mutant",
     "producer": "internal/plugins/iface/ra/advertiser.go::build",
-    "producer-sha": "478de83872b340f5",
-    "break": "line 76: \"valid, preferred := d.Lifetimes(now)\" -\u003e \"valid, preferred := d.Lifetimes(now.Add(-time.Hour))\""
+    "producer-sha": "177ad19aa7da7e6d",
+    "break": "line 156: \"valid, preferred := d.Lifetimes(now)\" -\u003e \"valid, preferred := d.Lifetimes(now.Add(-time.Hour))\""
   },
   {
     "rid": "RFC9915-6.3-2",
@@ -18,7 +18,7 @@
     "claim-sha": "df7374a229669aac",
     "route": "mutant",
     "producer": "internal/plugins/iface/ra/advertiser.go::build",
-    "producer-sha": "478de83872b340f5",
-    "break": "line 76: \"valid, preferred := d.Lifetimes(now)\" -\u003e \"valid, preferred := d.Lifetimes(now.Add(-time.Hour))\""
+    "producer-sha": "177ad19aa7da7e6d",
+    "break": "line 156: \"valid, preferred := d.Lifetimes(now)\" -\u003e \"valid, preferred := d.Lifetimes(now.Add(-time.Hour))\""
   }
 ]

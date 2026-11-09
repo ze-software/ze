@@ -7,7 +7,7 @@
     "claim-sha": "1b59f6404a4a2f65",
     "route": "revert",
     "producer": "internal/component/iface/reconcile_ra.go::reconcileRA",
-    "producer-sha": "0119284fa7b0fac3",
+    "producer-sha": "e4b58681886eb60e",
     "break": "body of reconcileRA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

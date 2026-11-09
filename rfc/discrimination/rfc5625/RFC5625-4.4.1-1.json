@@ -7,7 +7,7 @@
     "claim-sha": "f747497f308c76a7",
     "route": "mutant",
     "producer": "internal/plugins/dnsresolver/server.go::admit",
-    "producer-sha": "558693b0bd74a274",
+    "producer-sha": "5b295aaf02d0f08a",
     "break": "line 105: \"if !r.limits.admit(source, pol.clientRate, r.now()) {\" -\u003e \"if transport == networkTCP || !r.limits.admit(source, pol.clientRate, r.now()) {\""
   }
 ]

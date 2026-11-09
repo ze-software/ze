@@ -7,7 +7,7 @@
     "claim-sha": "974389bacdef698b",
     "route": "revert",
     "producer": "internal/component/resolve/dns/resolver.go::query",
-    "producer-sha": "ef83da331fe05303",
+    "producer-sha": "46015be977cd0923",
     "break": "body of query replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "b6872194dabe881b",
     "route": "revert",
     "producer": "internal/component/resolve/dns/resolver.go::query",
-    "producer-sha": "ef83da331fe05303",
+    "producer-sha": "46015be977cd0923",
     "break": "body of query replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
