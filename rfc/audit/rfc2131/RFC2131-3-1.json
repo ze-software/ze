@@ -2,8 +2,8 @@
   "note": "positive reads octets 236..239 of OFFER, ACK and NAK and pins 0x63825363; negative replaces the cookie with 0xDEADBEEF and asserts h.handle returns nil",
   "requirement_sha": "95d1985bcbb53c91",
   "tests": {
-    "internal/plugins/dhcpserver/rfc2131_test.go::TestMagicCookieRequiredAndEmitted": "58ec8a3bd79857ea",
-    "internal/plugins/dhcpserver/rfc2131_test.go::TestMagicCookieRequiredAndEmitted#2": "58ec8a3bd79857ea"
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestMagicCookieRequiredAndEmitted": "22f78e0ee972c487",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestMagicCookieRequiredAndEmitted#2": "22f78e0ee972c487"
   },
   "units": {
     "internal/plugins/dhcpserver/rfc2131_test.go::TestMagicCookieRequiredAndEmitted": "36eefa13fd94b4d9",

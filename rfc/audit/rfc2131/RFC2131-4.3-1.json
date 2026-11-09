@@ -2,7 +2,7 @@
   "note": "Re-judged 2026-11-08 (independent auditor) after 10e9995d31 and 47f14d5ede moved DHCP serving into segment.serve (segment.go) and turned dhcpHandler.handle into a test shim (segment_test.go) that builds a one-subnet segment whose device holds serverAddr(h) and calls segment.serve, the same function serveRequests and serveMulti call (register.go). RFC 2131 Table 3 marks the server identifier MUST in DHCPOFFER, DHCPACK and DHCPNAK. The only change in TestServerIdentifierInEveryReply is want = serverAddr(h) instead of h.serverIP; it still requires option 54 in OFFER, ACK and NAK to equal the device address, four octets. buildReply and buildNak still append option 54 unconditionally (safeAppendOption at handler.go:148 and :253), and segment.serverID withholds the whole reply rather than sending one without 54, so {single-polarity} still holds. Annotation finding (not a verdict change): its line references handler.go:246 and handler.go:349 are stale, buildReply is now at handler.go:122 and buildNak at handler.go:237. Prior judgement: single-polarity positive: option 54 in OFFER, ACK and NAK must equal the server address, so omitting or mis-setting it goes red",
   "requirement_sha": "594a4b981bf77ae8",
   "tests": {
-    "internal/plugins/dhcpserver/rfc2131_test.go::TestServerIdentifierInEveryReply": "58ec8a3bd79857ea"
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestServerIdentifierInEveryReply": "22f78e0ee972c487"
   },
   "units": {
     "internal/plugins/dhcpserver/rfc2131_test.go::TestServerIdentifierInEveryReply": "aba18eebd8fdac7c"

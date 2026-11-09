@@ -4,8 +4,8 @@
   "tests": {
     "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131EveryReplyOptionContainedInItsField": "dccaaa2d0b83fd7f",
     "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131EveryReplyOptionContainedInItsField#2": "dccaaa2d0b83fd7f",
-    "internal/plugins/dhcpserver/rfc2131_test.go::TestOptionsContainedWithinTheirField": "58ec8a3bd79857ea",
-    "internal/plugins/dhcpserver/rfc2131_test.go::TestOptionsContainedWithinTheirField#2": "58ec8a3bd79857ea"
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestOptionsContainedWithinTheirField": "22f78e0ee972c487",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestOptionsContainedWithinTheirField#2": "22f78e0ee972c487"
   },
   "units": {
     "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131EveryReplyOptionContainedInItsField": "45cadecdc056e081",

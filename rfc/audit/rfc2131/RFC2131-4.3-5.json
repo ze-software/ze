@@ -2,8 +2,8 @@
   "note": "Re-judged 2026-11-08 (independent auditor) after 10e9995d31 and 47f14d5ede moved DHCP serving into segment.serve (segment.go) and turned dhcpHandler.handle into a test shim (segment_test.go) that builds a one-subnet segment whose device holds serverAddr(h) and calls segment.serve, the same function serveRequests and serveMulti call (register.go). Only serverAddr(h) replaces h.serverIP; OFFER, ACK and NAK are still walked for option 50 after requests that carry it, and TestReplyOmitsClientOnlyOptions keeps the bare-request positive. Prior judgement: positive: no OFFER/ACK/NAK carries option 50; negative: requests carrying option 50 still draw OFFER/ACK/NAK without it",
   "requirement_sha": "58a62a16cc4c9ea6",
   "tests": {
-    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "58ec8a3bd79857ea",
-    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "58ec8a3bd79857ea"
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "22f78e0ee972c487",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "22f78e0ee972c487"
   },
   "units": {
     "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "46dba8081b60e55f",

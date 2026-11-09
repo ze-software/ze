@@ -2,8 +2,8 @@
   "note": "Re-judged 2026-11-08 (independent auditor) after 10e9995d31 and 47f14d5ede moved DHCP serving into segment.serve (segment.go) and turned dhcpHandler.handle into a test shim (segment_test.go) that builds a one-subnet segment whose device holds serverAddr(h) and calls segment.serve, the same function serveRequests and serveMulti call (register.go). Only serverAddr(h) replaces h.serverIP; both polarities still require every NAK option code to be 53 or 54, which goes red on any 'All others' option (and is stricter than Table 3 on 56, 60 and 61, as recorded before). Prior judgement: positive and negative both require every NAK option code to be 53 or 54, so any option Table 3 marks 'All others' goes red. The assertion is stricter than Table 3: it would also go red on the Message option (56, SHOULD), Client identifier (61, MAY) and Vendor class identifier (60, MAY), which Table 3 allows in a DHCPNAK",
   "requirement_sha": "3df5580604775bbf",
   "tests": {
-    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "58ec8a3bd79857ea",
-    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "58ec8a3bd79857ea"
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "22f78e0ee972c487",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "22f78e0ee972c487"
   },
   "units": {
     "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "46dba8081b60e55f",

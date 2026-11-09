@@ -4,7 +4,7 @@
   "tests": {
     "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ConfiguredParameterValuesReturned": "dccaaa2d0b83fd7f",
     "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ConfiguredParameterValuesReturned#2": "dccaaa2d0b83fd7f",
-    "internal/plugins/dhcpserver/rfc2131_test.go::TestUnconfiguredParametersOmitted": "58ec8a3bd79857ea"
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestUnconfiguredParametersOmitted": "22f78e0ee972c487"
   },
   "units": {
     "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ConfiguredParameterValuesReturned": "c1d5a1844df6ae7b",

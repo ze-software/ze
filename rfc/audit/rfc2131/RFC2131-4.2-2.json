@@ -8,7 +8,7 @@
   "tests": {
     "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ChaddrContentsIdentifyTheClient": "dccaaa2d0b83fd7f",
     "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ChaddrContentsIdentifyTheClient#2": "dccaaa2d0b83fd7f",
-    "internal/plugins/dhcpserver/rfc2131_test.go::TestChaddrIdentifiesClientWithoutClientIdentifier": "58ec8a3bd79857ea"
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestChaddrIdentifiesClientWithoutClientIdentifier": "22f78e0ee972c487"
   },
   "units": {
     "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ChaddrContentsIdentifyTheClient": "596673e186b3e922",
