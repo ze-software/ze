@@ -139,8 +139,9 @@ type leafWalk struct {
 
 // leafBody proves that a complete entered body is a leaf. It reads the body
 // as the assembler does, with the file's own macros expanded
-// (leafExpansion.statements), and judges every expanded statement: it is
-// condition-free and names no go_asm.h constant, names a symbol only as a
+// (leafExpansion.statements), and judges every expanded statement of every
+// conditional arm (the census already refuses a definition inside one): it
+// names no go_asm.h constant, names a symbol only as a
 // read (leafSymbolReads), calls nothing, emits no raw data and defines
 // nothing; no label is defined twice; every branch names a label of this
 // body; and the last statement cannot fall past the body's end into whatever
@@ -149,11 +150,18 @@ func leafBody(raw []byte, definition *assemblyDefinition) ([]leafRead, error) {
 	name := definition.path
 	expansion := newLeafExpansion(definition)
 	walk := leafWalk{labels: make(map[string]bool)}
+	var blocks assemblyConditionals
 	err := assemblyStatements(raw, name, func(statement assemblyStatement) error {
 		// The complete unit's preprocessing was already validated by the census.
 		if statement.tokens[0] == "#" {
-			if assemblyConditionalDirective(statement.tokens) != assemblyConditionalNone {
-				return fmt.Errorf("%s: entered assembly body contains conditional", name)
+			// A conditional is read branch-neutrally, never by its predicate:
+			// every arm is judged as if it ran, so whichever arm the build
+			// selects is a sequence of statements each proved a leaf step.
+			if conditional, err := blocks.accept(statement.tokens); conditional {
+				if err != nil {
+					return fmt.Errorf("%s: %w", name, err)
+				}
+				return nil
 			}
 			if err := expansion.directive(statement); err != nil {
 				return fmt.Errorf("%s: %w", name, err)
@@ -169,10 +177,18 @@ func leafBody(raw []byte, definition *assemblyDefinition) ([]leafRead, error) {
 				return fmt.Errorf("%s: %w", name, err)
 			}
 		}
+		if blocks.inside() {
+			// The other arm may hold no such statement, so a statement inside
+			// a conditional never terminates the body.
+			walk.terminated = false
+		}
 		return nil
 	})
 	if err != nil {
 		return nil, err
+	}
+	if blocks.inside() {
+		return nil, fmt.Errorf("%s: malformed assembly conditional: unterminated in the leaf body", name)
 	}
 	for _, target := range walk.targets {
 		if !walk.labels[target] {

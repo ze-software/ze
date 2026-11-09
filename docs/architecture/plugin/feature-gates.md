@@ -738,7 +738,11 @@ attribute itself. Any other flag
 refuses, `DUPOK` among them, because it lets the linker keep another
 definition. Its body reads no `TLS`, holds no `CALL`, no
 `BYTE`/`WORD`/`LONG`/`QUAD`/`DWORD`/`OCTA` data that could encode an
-instruction, no definition word, no conditional and no `go_asm.h` constant,
+instruction, no definition word and no `go_asm.h` constant in any arm of a
+conditional, which is read branch-neutrally, never by its predicate, so
+whichever arm the build selects is proved (zstd's `matchLen` picks `TZCNTQ`
+or `BSFQ` under `#ifdef GOAMD64_v3`); a statement inside an arm never ends the
+body, and a definition inside an arm refuses in the unit census,
 defines no label twice, and branches only to labels defined in the same body,
 never through a symbol. A branch label needs a lower-case letter, because
 register names are upper case and the assembler reads a register first, and

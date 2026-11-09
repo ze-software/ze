@@ -356,3 +356,40 @@ func TestCommittedAssemblyLeafSymbolControlsRefuse(t *testing.T) {
 		}
 	}
 }
+
+// TestCommittedAssemblyLeafConditionalArms requires a leaf body that chooses
+// an instruction by a build predicate to publish when every arm is a leaf, as
+// zstd's matchLen picks TZCNTQ or BSFQ under #ifdef GOAMD64_v3, and to refuse
+// when one arm is not: an arm that calls, a body whose only RET sits inside
+// an arm, and a macro defined inside an arm, which the unit census refuses
+// before the body is read. The predicate is never read.
+//
+// MUTATION: (internal/le/repo/inventory/assemblyleaf.go,
+// `			if conditional, err := blocks.accept(statement.tokens); conditional {`,
+// `			if conditional, err := false, error(nil); conditional {`): no
+// conditional is tracked, the RET inside the else arm terminates the body,
+// and the arm-only-return shape publishes.
+// MUTATION: (internal/le/repo/inventory/assemblyleaf.go,
+// `			walk.terminated = false`, `			_ = walk`): the RET inside the
+// else arm terminates the body, and the arm-only-return shape publishes.
+func TestCommittedAssemblyLeafConditionalArms(t *testing.T) {
+	const header = "#include \"textflag.h\"\nTEXT ·inventoryLeaf(SB),NOSPLIT,$0-2\n"
+	const results = " MOVB $0, bmi1+0(FP)\n MOVB $0, bmi2+1(FP)\n"
+	for _, kind := range []string{"plugin", "yang"} {
+		t.Run("matchlen/"+kind, func(t *testing.T) {
+			unit := header + results + "#ifdef GOAMD64_v3\n TZCNTQ BX, BX\n#else\n BSFQ BX, BX\n#endif\n RET\n"
+			fixture := asmLeafFixture(t, kind, unit, asmLeafResultsDecl, "_, _ = inventoryLeaf()")
+			externalEffectsPositive(t, fixture)
+		})
+		for _, refused := range []struct{ name, body, cause string }{
+			{"call-in-arm", "#ifdef GOAMD64_v3\n TZCNTQ BX, BX\n#else\n CALL ·inventoryOther(SB)\n#endif\n RET\n", "assembly leaf body calls through CALL"},
+			{"arm-only-return", "#ifdef GOAMD64_v3\n XORQ AX, AX\n#else\n RET\n#endif\n", "assembly leaf body can run past its end"},
+			{"define-in-arm", "#ifdef GOAMD64_v3\n#define SHIFT BX\n#endif\n RET\n", "conditional assembly changes namespace through define"},
+		} {
+			t.Run(refused.name+"/"+kind, func(t *testing.T) {
+				fixture := asmLeafFixture(t, kind, header+results+refused.body, asmLeafResultsDecl, "_, _ = inventoryLeaf()")
+				asmLeafRefusal(t, fixture, refused.cause)
+			})
+		}
+	}
+}
