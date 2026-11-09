@@ -1,0 +1,1225 @@
+﻿
+
+
+
+Internet Engineering Task Force (IETF)                 M. Boucadair, Ed.
+Request for Comments: 9463                                        Orange
+Category: Standards Track                                T. Reddy.K, Ed.
+ISSN: 2070-1721                                                    Nokia
+                                                                 D. Wing
+                                                    Cloud Software Group
+                                                                 N. Cook
+                                                            Open-Xchange
+                                                               T. Jensen
+                                                               Microsoft
+                                                           November 2023
+
+
+  DHCP and Router Advertisement Options for the Discovery of Network-
+                       designated Resolvers (DNR)
+
+Abstract
+
+   This document specifies new DHCP and IPv6 Router Advertisement
+   options to discover encrypted DNS resolvers (e.g., DNS over HTTPS,
+   DNS over TLS, and DNS over QUIC).  Particularly, it allows a host to
+   learn an Authentication Domain Name together with a list of IP
+   addresses and a set of service parameters to reach such encrypted DNS
+   resolvers.
+
+Status of This Memo
+
+   This is an Internet Standards Track document.
+
+   This document is a product of the Internet Engineering Task Force
+   (IETF).  It represents the consensus of the IETF community.  It has
+   received public review and has been approved for publication by the
+   Internet Engineering Steering Group (IESG).  Further information on
+   Internet Standards is available in Section 2 of RFC 7841.
+
+   Information about the current status of this document, any errata,
+   and how to provide feedback on it may be obtained at
+   https://www.rfc-editor.org/info/rfc9463.
+
+Copyright Notice
+
+   Copyright (c) 2023 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents
+   (https://trustee.ietf.org/license-info) in effect on the date of
+   publication of this document.  Please review these documents
+   carefully, as they describe your rights and restrictions with respect
+   to this document.  Code Components extracted from this document must
+   include Revised BSD License text as described in Section 4.e of the
+   Trust Legal Provisions and are provided without warranty as described
+   in the Revised BSD License.
+
+Table of Contents
+
+   1.  Introduction
+   2.  Terminology
+   3.  Overview
+     3.1.  Configuration Data for Encrypted DNS
+       3.1.1.  ADN as Reference Identifier for DNS Authentication
+       3.1.2.  Avoiding Dependency on External Resolvers
+       3.1.3.  Single vs. Multiple IP Addresses
+       3.1.4.  Why Not Separate Options for the ADN and IP Addresses?
+       3.1.5.  Service Parameters
+       3.1.6.  ADN-Only Mode
+       3.1.7.  Ordering of Encrypted DNS Options
+       3.1.8.  DNR Validation Checks
+       3.1.9.  DNR Information Using Other Provisioning Mechanisms
+     3.2.  Handling Configuration Data Conflicts
+     3.3.  Validating Discovered Resolvers
+     3.4.  Multihoming Considerations
+   4.  DHCPv6 Encrypted DNS Option
+     4.1.  Option Format
+     4.2.  DHCPv6 Client Behavior
+   5.  DHCPv4 Encrypted DNS Option
+     5.1.  Option Format
+     5.2.  DHCPv4 Client Behavior
+   6.  IPv6 RA Encrypted DNS Option
+     6.1.  Option Format
+     6.2.  IPv6 Host Behavior
+   7.  Security Considerations
+     7.1.  Spoofing Attacks
+     7.2.  Deletion Attacks
+     7.3.  Passive Attacks
+     7.4.  Wireless Security - Authentication Attacks
+   8.  Privacy Considerations
+   9.  IANA Considerations
+     9.1.  DHCPv6 Option
+     9.2.  DHCPv4 Option
+     9.3.  Neighbor Discovery Option
+   10. References
+     10.1.  Normative References
+     10.2.  Informative References
+   Acknowledgments
+   Contributors
+   Authors' Addresses
+
+1.  Introduction
+
+   This document focuses on the discovery of encrypted DNS resolvers
+   that are using protocols such as DNS over HTTPS (DoH) [RFC8484], DNS
+   over TLS (DoT) [RFC7858], or DNS over QUIC (DoQ) [RFC9250] in local
+   networks.
+
+   In particular, this document specifies how a local encrypted DNS
+   resolver can be discovered by connected hosts by means of DHCPv4
+   [RFC2132], DHCPv6 [RFC8415], and IPv6 Router Advertisement (RA)
+   options [RFC4861].  These options are designed to convey the
+   following information: the DNS Authentication Domain Name (ADN), a
+   list of IP addresses, and a set of service parameters.  This
+   procedure is called Discovery of Network-designated Resolvers (DNR).
+
+   The options defined in this document can be deployed in a variety of
+   deployments (e.g., local networks with Customer Premises Equipment
+   (CPEs) that may or may not be managed by an Internet Service Provider
+   (ISP), or local networks with or without DNS forwarders).  Providing
+   an inventory of such deployments is beyond the scope of this
+   document.
+
+   Resolver selection considerations are out of scope.  Likewise,
+   policies (including any interactions with users) are out of scope.
+
+2.  Terminology
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in
+   BCP 14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+   This document makes use of the terms defined in [RFC8499].  The
+   following additional terms are used:
+
+   Authentication Domain Name (ADN):  Refers to a domain name that is
+      used by a DNS client to authenticate a DNS resolver.
+
+   ADN-only mode:  Refers to a DNS discovery mode where only the ADN of
+      the DNS resolver is retrieved.  See Section 3.1.6.
+
+   Do53:  Refers to unencrypted DNS.
+
+   DNR:  Refers to the procedure called Discovery of Network-designated
+      Resolvers.
+
+   Encrypted DNS:  Refers to a scheme where DNS exchanges are
+      transported over an encrypted channel.  Examples include DoT, DoH,
+      and DoQ.
+
+   Encrypted DNS resolver:  Refers to a DNS resolver that supports any
+      encrypted DNS scheme.
+
+   Encrypted DNS options:  Refers to the options defined in Sections 4,
+      5, and 6.
+
+   DHCP:  Refers to both DHCPv4 and DHCPv6.
+
+3.  Overview
+
+   This document describes how a DNS client can discover local encrypted
+   DNS resolvers using DHCP (Sections 4 and 5) and Neighbor Discovery
+   protocol (Section 6) Encrypted DNS options.
+
+   These options configure an ADN, a list of IP addresses, and a set of
+   service parameters of the encrypted DNS resolver.  More information
+   about the design of these options is provided in the following
+   subsections.
+
+3.1.  Configuration Data for Encrypted DNS
+
+3.1.1.  ADN as Reference Identifier for DNS Authentication
+
+   In order to allow for a PKIX-based authentication of the encrypted
+   DNS resolver to the DNS client, the Encrypted DNS options are
+   designed to always include an ADN.  This ADN is presented as a
+   reference identifier for DNS authentication purposes.  This design
+   accommodates the current best practices for issuing certificates as
+   per Section 1.7.2 of [RFC6125]:
+
+      |  Some certification authorities issue server certificates based
+      |  on IP addresses, but preliminary evidence indicates that such
+      |  certificates are a very small percentage (less than 1%) of
+      |  issued certificates.
+
+3.1.2.  Avoiding Dependency on External Resolvers
+
+   To avoid adding a dependency on another server to resolve the ADN,
+   the Encrypted DNS options return the IP address(es) to locate an
+   encrypted DNS resolver.  These encrypted DNS resolvers may be hosted
+   on the same IP address or distinct IP addresses.  Such a decision is
+   deployment specific.
+
+   In order to optimize the size of discovery messages when all DNS
+   resolvers terminate on the same IP address, early draft versions of
+   this document considered relying upon the discovery mechanisms
+   specified in [RFC2132], [RFC3646], and [RFC8106] to retrieve a list
+   of IP addresses to reach their DNS resolvers.  Nevertheless, this
+   approach requires a client that supports more than one encrypted DNS
+   protocol (e.g., DoH and DoT) to probe that list of IP addresses.  To
+   avoid such probing, the options defined in Sections 4, 5, and 6
+   associate an encrypted DNS protocol with an IP address.  No probing
+   is required in such a design.
+
+3.1.3.  Single vs. Multiple IP Addresses
+
+   A list of IP addresses to reach an encrypted DNS resolver may be
+   returned in an Encrypted DNS option to accommodate current
+   deployments relying upon primary and backup resolvers.  Also, DNR can
+   be used in contexts where other DNS redundancy schemes (e.g., anycast
+   as discussed in BCP 126 [RFC4786]) are used.
+
+   Whether one or more IP addresses are returned in an Encrypted DNS
+   option is deployment specific.  For example, a router embedding a
+   recursive server or a forwarder has to include one single IP address
+   pointing to one of its LAN-facing interfaces.  Typically, this IP
+   address can be a private IPv4 address, a Link-Local address, an IPv6
+   Unique Local Address (ULA), or a Global Unicast Address (GUA).
+
+   If multiple IP addresses are to be returned in an Encrypted DNS
+   option, these addresses are returned, ordered by preference, for use
+   by the client.
+
+3.1.4.  Why Not Separate Options for the ADN and IP Addresses?
+
+   A single option is used to convey both the ADN and IP addresses.
+   Otherwise, a means to correlate an IP address conveyed in an option
+   with an ADN conveyed in another option will be required if, for
+   example, more than one ADN is supported by the network.
+
+3.1.5.  Service Parameters
+
+   Because distinct encrypted DNS protocols (e.g., DoT, DoH, and DoQ)
+   may be provisioned by a network and some of these protocols may make
+   use of customized port numbers instead of default port numbers, the
+   Encrypted DNS options are designed to return a set of service
+   parameters.  These parameters are encoded following the same rules
+   for encoding SvcParams using the wire format specified in Section 2.2
+   of [RFC9460].  This encoding approach may increase the size of the
+   options, but it has the merit of relying upon an existing IANA
+   registry and, thus, accommodating new encrypted DNS protocols and
+   service parameters that may be defined in the future.
+
+   The following service parameters MUST be supported by a DNR
+   implementation:
+
+   alpn:  Used to indicate the set of supported protocols (Section 7.1
+      of [RFC9460]).
+
+   port:  Used to indicate the target port number for the encrypted DNS
+      connection (Section 7.2 of [RFC9460]).
+
+   In addition, the following service parameter is RECOMMENDED to be
+   supported by a DNR implementation:
+
+   dohpath:  Used to supply a relative DoH URI Template (Section 5.1 of
+      [RFC9461]).
+
+3.1.6.  ADN-Only Mode
+
+   The provisioning mode in which an ADN, a list of IP addresses, and a
+   set of service parameters of the encrypted DNS resolver are supplied
+   to a host SHOULD be used because the Encrypted DNS options are self-
+   contained and do not require any additional DNS queries.  The reader
+   may refer to [RFC7969] for an overview of advanced capabilities that
+   are supported by DHCP servers to populate configuration data (e.g.,
+   issue DNS queries).
+
+   In contexts where putting additional complexity on requesting hosts
+   is acceptable, returning an ADN only can be considered.  The supplied
+   ADN will be passed to a local resolution library (a DNS client,
+   typically), which will then issue Service Binding (SVCB) queries
+   [RFC9461].  These SVCB queries can be sent to the discovered
+   encrypted DNS resolver itself or to the network-designated Do53
+   resolver.  Note that this mode may be subject to active attacks,
+   which can be mitigated by DNSSEC.
+
+      |  How an ADN is passed to a local resolution library is
+      |  implementation specific.
+
+3.1.7.  Ordering of Encrypted DNS Options
+
+   The DHCP options defined in Sections 4 and 5 follow the option
+   ordering guidelines in Section 17 of [RFC7227].
+
+   Likewise, the RA option (Section 6) adheres to the recommendations in
+   Section 9 of [RFC4861].
+
+3.1.8.  DNR Validation Checks
+
+   On receipt of an Encrypted DNS option, the DHCP client (or IPv6 host)
+   makes the following validation checks:
+
+   *  The ADN is present and encoded as per Section 10 of [RFC8415].
+
+   *  If additional data is supplied:
+
+      -  The service parameters are encoded following the rules
+         specified in Section 2.2 of [RFC9460].
+
+      -  The option includes at least one valid IP address.
+
+      -  The service parameters do not include "ipv4hint" or "ipv6hint"
+         parameters.
+
+   If any of the checks fail, the receiver discards the received
+   Encrypted DNS option.
+
+3.1.9.  DNR Information Using Other Provisioning Mechanisms
+
+   The provisioning mechanisms specified in this document may not be
+   available in specific networks (e.g., some cellular networks
+   exclusively use Protocol Configuration Options (PCOs) [TS.24008]) or
+   may not be suitable in some contexts (e.g., where secure discovery is
+   needed).  Other mechanisms may be considered in these contexts for
+   the provisioning of encrypted DNS resolvers.  It is RECOMMENDED that
+   at least the following DNR information be made available to a
+   requesting host:
+
+   *  A service priority whenever the discovery mechanism does not rely
+      on implicit ordering if multiple instances of the encrypted DNS
+      are used.
+
+   *  An ADN.  This parameter is mandatory.
+
+   *  A list of IP addresses to locate the encrypted DNS resolver.
+
+   *  A set of service parameters.
+
+3.2.  Handling Configuration Data Conflicts
+
+   If encrypted DNS resolvers are discovered by a host using both RA and
+   DHCP, the rules discussed in Section 5.3.1 of [RFC8106] MUST be
+   followed.
+
+   DHCP/RA options to discover encrypted DNS resolvers (including DoH
+   URI Templates) takes precedence over Discovery of Designated
+   Resolvers (DDR) [RFC9462], since DDR uses Do53 to an external DNS
+   resolver, which is susceptible to both internal and external attacks
+   whereas DHCP/RA is typically protected using the mechanisms discussed
+   in Section 7.1.
+
+   If a client learns both Do53 and encrypted DNS resolvers from the
+   same network, and absent explicit configuration otherwise, it is
+   RECOMMENDED that the client use the encrypted DNS resolvers for that
+   network.  If the client cannot establish an authenticated and
+   encrypted connection with the encrypted DNS resolver, it may fall
+   back to using the Do53 resolver.
+
+3.3.  Validating Discovered Resolvers
+
+   This section describes a set of validation checks to confirm that an
+   encrypted DNS resolver matches what is provided using DNR (e.g., DHCP
+   or RA).  Such validation checks do not intend to validate the
+   security of the DNR provisioning mechanisms or the user's trust
+   relationship to the network.
+
+   If the local DNS client supports one of the discovered encrypted DNS
+   protocols identified by Application-Layer Protocol Negotiation (ALPN)
+   protocol identifiers (or another service parameter that indicates
+   some other protocol disambiguation mechanism), the DNS client
+   establishes an encrypted DNS session following the service priority
+   of the discovered encrypted resolvers.
+
+   The DNS client verifies the connection based on PKIX validation
+   [RFC5280] of the DNS resolver certificate and uses the validation
+   techniques as described in [RFC6125] to compare the ADN conveyed in
+   the Encrypted DNS options to the certificate provided (see
+   Section 8.1 of [RFC8310] for more details).  The DNS client uses the
+   default system or application PKI trust anchors unless configured
+   otherwise to use explicit trust anchors.  ALPN-related considerations
+   can be found in Section 7.1 of [RFC9460].  Operational considerations
+   related to checking the revocation status of the certificate of an
+   encrypted DNS resolver are discussed in Section 10 of [RFC8484].
+
+3.4.  Multihoming Considerations
+
+   Devices may be connected to multiple networks, each providing their
+   own DNS configuration using the discovery mechanisms specified in
+   this document.  Nevertheless, discussing DNS selection of multi-
+   interfaced devices is beyond the scope of this specification.  Such
+   considerations fall under the generic issue of handling multiple
+   provisioning sources and should not be processed in each option
+   separately, as per the recommendation in Section 12 of [RFC7227].
+
+   The reader may refer to [RFC6731] for a discussion of DNS selection
+   issues and an example of DNS resolver selection for multi-interfaced
+   devices.  Also, the reader may refer to [Local-DNS-Authority] for a
+   discussion on how DNR and Provisioning Domain (PvD) key "dnsZones"
+   (Section 4.3 of [RFC8801]) can be used in "split DNS" environments
+   (Section 6 of [RFC8499]).
+
+4.  DHCPv6 Encrypted DNS Option
+
+4.1.  Option Format
+
+   The format of the DHCPv6 Encrypted DNS option is shown in Figure 1.
+
+      0                   1                   2                   3
+      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |       OPTION_V6_DNR           |         Option-length         |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |       Service Priority        |         ADN Length            |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     ~                   authentication-domain-name                  ~
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |         Addr Length           |                               |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                               |
+     ~                        ipv6-address(es)                       ~
+     |                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |                               |                               |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                               |
+     ~                 Service Parameters (SvcParams)                ~
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+                   Figure 1: DHCPv6 Encrypted DNS Option
+
+   The fields of the option shown in Figure 1 are as follows:
+
+   Option-code:  OPTION_V6_DNR (144; see Section 9.1).
+
+   Option-length:  Length of the enclosed data in octets.  The option
+      length is ('ADN Length' + 4) when only an ADN is included in the
+      option.
+
+   Service Priority:  The priority of this OPTION_V6_DNR instance
+      compared to other instances.  This 16-bit unsigned integer is
+      interpreted following the rules specified in Section 2.4.1 of
+      [RFC9460].
+
+   ADN Length:  Length of the authentication-domain-name field in
+      octets.
+
+   authentication-domain-name (variable length):  A Fully Qualified
+      Domain Name (FQDN) of the encrypted DNS resolver.  This field is
+      formatted as specified in Section 10 of [RFC8415].
+
+      An example of the authentication-domain-name encoding is shown in
+      Figure 2.  This example conveys the FQDN "doh1.example.com.", and
+      the resulting ADN Length field is 18.
+
+       +------+------+------+------+------+------+------+------+------+
+       | 0x04 |   d  |   o  |   h  |  1   | 0x07 |   e  |   x  |   a  |
+       +------+------+------+------+------+------+------+------+------+
+       |   m  |   p  |   l  |   e  | 0x03 |   c  |   o  |   m  | 0x00 |
+       +------+------+------+------+------+------+------+------+------+
+
+          Figure 2: An Example of the DNS authentication-domain-name
+                                   Encoding
+
+   Addr Length:  Length of enclosed IPv6 addresses in octets.  When
+      present, it MUST be a multiple of 16.
+
+   ipv6-address(es) (variable length):  Indicates one or more IPv6
+      addresses to reach the encrypted DNS resolver.  An address can be
+      a Link-Local address, a ULA, or a GUA.  The format of this field
+      is shown in Figure 3.
+
+       0                   1                   2                   3
+       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |                                                               |
+      |                         ipv6-address                          |
+      |                                                               |
+      |                                                               |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |                              ...                              |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+                Figure 3: Format of the ipv6-address(es) Field
+
+   Service Parameters (SvcParams) (variable length):  Specifies a set of
+      service parameters that are encoded following the rules in
+      Section 2.2 of [RFC9460].  Service parameters may include, for
+      example, a list of ALPN protocol identifiers or alternate port
+      numbers.  This field SHOULD include at least the "alpn" SvcParam.
+      The "alpn" SvcParam may not be required in contexts such as a
+      variant of DNS over the Constrained Application Protocol (CoAP)
+      where messages are encrypted using Object Security for Constrained
+      RESTful Environments (OSCORE) [RFC8613].  The service parameters
+      MUST NOT include "ipv4hint" or "ipv6hint" SvcParams, as they are
+      superseded by the included IP addresses.
+
+      If no port service parameter is included, this indicates that
+      default port numbers should be used.  As a reminder, the default
+      port number is 853 for DoT, 443 for DoH, and 853 for DoQ.
+
+      The length of this field is ('Option-length' - 6 - 'ADN Length' -
+      'Addr Length').
+
+   Note that the "Addr Length", "ipv6-address(es)", and "Service
+   Parameters (SvcParams)" fields are not present if the ADN-only mode
+   is used (Section 3.1.6).
+
+4.2.  DHCPv6 Client Behavior
+
+   To discover an encrypted DNS resolver, the DHCPv6 client MUST include
+   OPTION_V6_DNR in an Option Request Option (ORO), per Sections 18.2.1,
+   18.2.2, 18.2.4, 18.2.5, 18.2.6, and 21.7 of [RFC8415].
+
+   The DHCPv6 client MUST be prepared to receive multiple instances of
+   the OPTION_V6_DNR option; each option is to be treated as a separate
+   encrypted DNS resolver.  These instances MUST be processed following
+   their service priority (i.e., a smaller service priority value
+   indicates a higher preference).
+
+   The DHCPv6 client MUST silently discard any OPTION_V6_DNR that fails
+   to pass the validation steps defined in Section 3.1.8.
+
+   The DHCPv6 client MUST silently discard multicast and host loopback
+   addresses conveyed in OPTION_V6_DNR.
+
+5.  DHCPv4 Encrypted DNS Option
+
+5.1.  Option Format
+
+   The format of the DHCPv4 Encrypted DNS option is illustrated in
+   Figure 4.
+
+                 0                   1
+                 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
+                +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+                | OPTION_V4_DNR |     Length    |
+                +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+                ~      DNR Instance Data #1     ~
+                +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+   ---
+                .              ...              .    |
+                +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ optional
+                ~      DNR Instance Data #n     ~    |
+                +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+   ---
+
+                   Figure 4: DHCPv4 Encrypted DNS Option
+
+   The fields of the option shown in Figure 4 are as follows:
+
+   Code:  OPTION_V4_DNR (162; see Section 9.2).
+
+   Length:  Indicates the length of the enclosed data in octets.
+
+   DNR Instance Data:  Includes the configuration data of an encrypted
+      DNS resolver.  The format of this field is shown in Figure 5.
+
+                       0                   1
+                       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
+                      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+                      |    DNR Instance Data Length   |
+                      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+                      |       Service Priority        |
+                      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+                      |   ADN Length  |               |
+                      +-+-+-+-+-+-+-+-+               |
+                      ~  authentication-domain-name   ~
+                      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+                      |  Addr Length  |               |
+                      +-+-+-+-+-+-+-+-+               |
+                      ~        IPv4 Address(es)       ~
+                      |               +-+-+-+-+-+-+-+-+
+                      |               |               |
+                      +-+-+-+-+-+-+-+-+               |
+                      ~Service Parameters (SvcParams) ~
+                      |                               |
+                      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+                      Figure 5: DNR Instance Data Format
+
+      When several encrypted DNS resolvers are to be included, the "DNR
+      Instance Data" field is repeated.
+
+   The fields shown in Figure 5 are as follows:
+
+   DNR Instance Data Length:  Length of all following data in octets.
+      This field is set to ('ADN Length' + 3) when only an ADN is
+      provided for a DNR instance.
+
+   Service Priority:  The priority of this instance compared to other
+      DNR instances.  This 16-bit unsigned integer is interpreted
+      following the rules specified in Section 2.4.1 of [RFC9460].
+
+   ADN Length:  Length of the authentication-domain-name field in
+      octets.
+
+   authentication-domain-name (variable length):  The ADN of the
+      encrypted DNS resolver.  This field is formatted as specified in
+      Section 10 of [RFC8415].  An example is provided in Figure 2.
+
+   Addr Length:  Length of included IPv4 addresses in octets.  When
+      present, it MUST be a multiple of 4.
+
+   IPv4 Address(es) (variable length):  Indicates one or more IPv4
+      addresses to reach the encrypted DNS resolver.  Both private and
+      public IPv4 addresses can be included in this field.  The format
+      of this field is shown in Figure 6.  This format assumes that an
+      IPv4 address is encoded as a1.a2.a3.a4.
+
+                 0     8     16    24    32    40    48
+                 +-----+-----+-----+-----+-----+-----+--
+                 |  a1 |  a2 |  a3 |  a4 |  a1 |  a2 | ...
+                 +-----+-----+-----+-----+-----+-----+--
+                   IPv4 Address 1          IPv4 Address 2 ...
+
+                Figure 6: Format of the IPv4 Address(es) Field
+
+   Service Parameters (SvcParams) (variable length):  Specifies a set of
+      service parameters that are encoded following the rules in
+      Section 2.2 of [RFC9460].  Service parameters may include, for
+      example, a list of ALPN protocol identifiers or alternate port
+      numbers.  This field SHOULD include at least the "alpn" SvcParam.
+      The "alpn" SvcParam may not be required in contexts such as a
+      variant of DNS over CoAP where messages are encrypted using
+      OSCORE.  The service parameters MUST NOT include "ipv4hint" or
+      "ipv6hint" SvcParams, as they are superseded by the included IP
+      addresses.
+
+      If no port service parameter is included, this indicates that
+      default port numbers should be used.
+
+      The length of this field is ('DNR Instance Data Length' - 4 - 'ADN
+      Length' - 'Addr Length').
+
+   Note that the "Addr Length", "IPv4 Address(es)", and "Service
+   Parameters (SvcParams)" fields are not present if the ADN-only mode
+   is used (Section 3.1.6).
+
+   OPTION_V4_DNR is a concatenation-requiring option.  As such, the
+   mechanism specified in [RFC3396] MUST be used if OPTION_V4_DNR
+   exceeds the maximum DHCPv4 option size of 255 octets.
+
+5.2.  DHCPv4 Client Behavior
+
+   To discover an encrypted DNS resolver, the DHCPv4 client requests the
+   encrypted DNS resolver by including OPTION_V4_DNR in a Parameter
+   Request List option [RFC2132].
+
+   The DHCPv4 client MUST be prepared to receive multiple "DNR Instance
+   Data" field entries in the OPTION_V4_DNR option; each instance is to
+   be treated as a separate encrypted DNS resolver.  These instances
+   MUST be processed following their service priority (i.e., a smaller
+   service priority value indicates a higher preference).
+
+   The DHCPv4 client MUST silently discard any OPTION_V4_DNR that fails
+   to pass the validation steps defined in Section 3.1.8.
+
+   The DHCPv4 client MUST silently discard multicast and host loopback
+   addresses conveyed in OPTION_V4_DNR.
+
+6.  IPv6 RA Encrypted DNS Option
+
+6.1.  Option Format
+
+   This section defines a new Neighbor Discovery option [RFC4861]: the
+   IPv6 RA Encrypted DNS option.  This option is useful in contexts
+   similar to those discussed in Section 1.1 of [RFC8106].
+
+   The format of the IPv6 RA Encrypted DNS option is illustrated in
+   Figure 7.
+
+      0                   1                   2                   3
+      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |     Type      |     Length    |        Service Priority       |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |                           Lifetime                            |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |          ADN Length           |                               |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                               |
+     ~                   authentication-domain-name                  ~
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |         Addr Length           |                               |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                               |
+     ~                        ipv6-address(es)                       ~
+     |                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |                               |     SvcParams Length          |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     ~                 Service Parameters (SvcParams)                ~
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+                     Figure 7: RA Encrypted DNS Option
+
+   The fields of the option shown in Figure 7 are as follows:
+
+   Type:  8-bit identifier of the Encrypted DNS option as assigned by
+      IANA (144; see Section 9.3).
+
+   Length:  8-bit unsigned integer.  The length of the option (including
+      the Type and Length fields) is in units of 8 octets.
+
+   Service Priority:  16-bit unsigned integer.  The priority of this
+      Encrypted DNS option instance compared to other instances.  This
+      field is interpreted following the rules specified in
+      Section 2.4.1 of [RFC9460].
+
+   Lifetime:  32-bit unsigned integer.  This represents the maximum time
+      in seconds (relative to the time the packet is received) over
+      which the discovered ADN is valid.
+
+      The value of Lifetime SHOULD by default be at least 3 *
+      MaxRtrAdvInterval, where MaxRtrAdvInterval is the maximum RA
+      interval as defined in [RFC4861].
+
+      A value of all one bits (0xffffffff) represents infinity.
+
+      A value of zero means that this ADN MUST no longer be used.
+
+   ADN Length:  16-bit unsigned integer.  This field indicates the
+      length of the authentication-domain-name field in octets.
+
+   authentication-domain-name (variable length):  The ADN of the
+      encrypted DNS resolver.  This field is formatted as specified in
+      Section 10 of [RFC8415].
+
+   Addr Length:  16-bit unsigned integer.  This field indicates the
+      length of enclosed IPv6 addresses in octets.  When present, it
+      MUST be a multiple of 16.
+
+   ipv6-address(es) (variable length):  One or more IPv6 addresses of
+      the encrypted DNS resolver.  An address can be a Link-Local
+      address, a ULA, or a GUA.
+
+      All of the addresses share the same Lifetime value.  As also
+      discussed in [RFC8106], if it is desirable to have different
+      Lifetime values per IP address, multiple Encrypted DNS options may
+      be used.
+
+      The format of this field is shown in Figure 3.
+
+   SvcParams Length:  16-bit unsigned integer.  This field indicates the
+      length of the "Service Parameters (SvcParams)" field in octets.
+
+   Service Parameters (SvcParams) (variable length):  Specifies a set of
+      service parameters that are encoded following the rules in
+      Section 2.2 of [RFC9460].  Service parameters may include, for
+      example, a list of ALPN protocol identifiers or alternate port
+      numbers.  This field SHOULD include at least the "alpn" SvcParam.
+      The "alpn" SvcParam may not be required in contexts such as a
+      variant of DNS over CoAP where messages are encrypted using
+      OSCORE.  The service parameters MUST NOT include "ipv4hint" or
+      "ipv6hint" SvcParams, as they are superseded by the included IP
+      addresses.
+
+      If no port service parameter is included, this indicates that
+      default port numbers should be used.
+
+   Note that the "Addr Length", "ipv6-address(es)", and "Service
+   Parameters (SvcParams)" fields are not present if the ADN-only mode
+   is used (Section 3.1.6).
+
+   The option MUST be padded with zeros so that the full enclosed data
+   is a multiple of 8 octets (Section 4.6 of [RFC4861]).
+
+6.2.  IPv6 Host Behavior
+
+   The procedure for DNS configuration is the same as it is with any
+   other Neighbor Discovery option [RFC4861].  In addition, the host
+   follows the same procedure as the procedure described in
+   Section 5.3.1 of [RFC8106] for processing received Encrypted DNS
+   options, with the formatting requirements listed in Section 6.1 and
+   the validation checks listed in Section 3.1.8 substituted for length
+   and field validations.
+
+   The host MUST be prepared to receive multiple Encrypted DNS options
+   in RAs.  These instances MUST be processed following their service
+   priority (i.e., a smaller service priority value indicates a higher
+   preference).
+
+   The host MUST silently discard multicast and host loopback addresses
+   conveyed in the Encrypted DNS options.
+
+7.  Security Considerations
+
+7.1.  Spoofing Attacks
+
+   DHCP/RA messages are not encrypted or protected against modification
+   within the LAN.  Unless spoofing attacks are mitigated as described
+   below, the content of DHCP and RA messages can be spoofed or modified
+   by active attackers, such as compromised devices within the local
+   network.  An active attacker (Section 3.3 of [RFC3552]) can spoof the
+   DHCP/RA response to provide the attacker's encrypted DNS resolver.
+   Note that such an attacker can launch other attacks as discussed in
+   Section 22 of [RFC8415].  The attacker can get a domain name with a
+   domain-validated public certificate from a Certificate Authority (CA)
+   and host an encrypted DNS resolver.
+
+   Attacks of spoofed or modified DHCP responses and RA messages by
+   attackers within the local network may be mitigated by making use of
+   the following mechanisms:
+
+   DHCPv6-Shield [RFC7610]:  The network access node (e.g., a border
+      router, a CPE, an Access Point (AP)) discards DHCP response
+      messages received from any local endpoint.
+
+   RA-Guard [RFC7113]:  The network access node discards RA messages
+      received from any local endpoint.
+
+   Source Address Validation Improvement (SAVI) solution for DHCP
+   [RFC7513]:  The network access node filters packets with forged
+      source IP addresses.
+
+   The above mechanisms would ensure that the endpoint receives the
+   correct configuration information of the encrypted DNS resolvers
+   selected by the DHCP server (or RA sender), but these mechanisms
+   cannot provide any information about the DHCP server or the entity
+   hosting the DHCP server (or RA sender).
+
+   Encrypted DNS sessions with rogue resolvers that spoof the IP address
+   of a DNS resolver will fail because the DNS client will fail to
+   authenticate that rogue resolver based upon PKIX authentication
+   [RFC6125], particularly the ADN in the Encrypted DNS option.  DNS
+   clients that ignore authentication failures and accept spoofed
+   certificates will be subject to attacks (e.g., attacks that redirect
+   to malicious resolvers or intercept sensitive data).
+
+7.2.  Deletion Attacks
+
+   If the DHCP responses or RAs are dropped by the attacker, the client
+   can fall back to using a preconfigured encrypted DNS resolver.
+   However, the use of policies to select resolvers is beyond the scope
+   of this document.
+
+   Note that deletion attacks are not specific to DHCP/RA.
+
+7.3.  Passive Attacks
+
+   A passive attacker (Section 3.2 of [RFC3552]) can determine that a
+   host is using DHCP/RA to discover an encrypted DNS resolver and can
+   infer that the host is capable of using DoH/DoT/DoQ to encrypt DNS
+   messages.  However, a passive attacker cannot spoof or modify DHCP/RA
+   messages.
+
+7.4.  Wireless Security - Authentication Attacks
+
+   Wireless LANs (WLANs), frequently deployed in local networks (e.g.,
+   home networks), are vulnerable to various attacks (e.g., [Evil-Twin],
+   [Krack], [Dragonblood]).  Because of these attacks, only
+   cryptographically authenticated communications are trusted on WLANs.
+   This means that any information (e.g., regarding NTP servers, DNS
+   resolvers, or domain search lists) provided by such networks via
+   DHCP, DHCPv6, or RA is untrusted because DHCP and RA messages are not
+   authenticated.
+
+   If the pre-shared key (PSK) is the same for all clients that connect
+   to the same WLAN (e.g., Wi-Fi Protected Access Pre-Shared Key (WPA-
+   PSK)), the shared key will be available to all nodes, including
+   attackers.  As such, it is possible to mount an active on-path
+   attack.  On-path attacks are possible within local networks because
+   this form of WLAN authentication lacks peer entity authentication.
+
+   This leads to the need for provisioning unique credentials for
+   different clients.  Endpoints can be provisioned with unique
+   credentials (username and password, typically) provided by the local
+   network administrator to mutually authenticate to the local WLAN AP
+   (e.g., 802.1x Wireless User Authentication on OpenWrt [dot1x], EAP-
+   pwd [RFC8146] ("EAP" stands for "Extensible Authentication
+   Protocol")).  Not all endpoint devices (e.g., Internet of Things
+   (IoT) devices) support 802.1x supplicants and need an alternate
+   mechanism to connect to the local network.  To address this
+   limitation, unique PSKs can be created for each such device and WPA-
+   PSK is used (e.g., [IPSK]).
+
+8.  Privacy Considerations
+
+   Privacy considerations that are also specific to DNR provisioning
+   mechanisms are discussed in Section 23 of [RFC8415] and in [RFC7824].
+   Anonymity profiles for DHCP clients are discussed in [RFC7844].  The
+   mechanisms defined in this document can be used to infer that a DHCP
+   client or IPv6 host supports Encrypted DNS options, but these
+   mechanisms do not explicitly reveal whether local DNS clients are
+   able to consume these options or infer their encryption capabilities.
+   Other than that, this document does not expose more privacy
+   information compared to Do53 discovery options.
+
+   As discussed in [RFC9076], the use of encrypted DNS does not reduce
+   the data available in the DNS resolver.  For example, the reader may
+   refer to Section 8 of [RFC8484] or Section 7 of [RFC9250] for a
+   discussion on specific privacy considerations for encrypted DNS.
+
+9.  IANA Considerations
+
+9.1.  DHCPv6 Option
+
+   IANA has assigned the following new DHCPv6 Option Code in the "Option
+   Codes" registry maintained at [DHCPV6].
+
+   +=======+===============+============+==================+===========+
+   | Value | Description   | Client ORO | Singleton        | Reference |
+   |       |               |            | Option           |           |
+   +=======+===============+============+==================+===========+
+   | 144   | OPTION_V6_DNR | Yes        | No               | RFC 9463  |
+   +-------+---------------+------------+------------------+-----------+
+
+                    Table 1: DHCPv6 Encrypted DNS Option
+
+9.2.  DHCPv4 Option
+
+   IANA has assigned the following new DHCP Option Code in the "BOOTP
+   Vendor Extensions and DHCP Options" registry maintained at [BOOTP].
+
+      +=====+===============+=============+============+===========+
+      | Tag | Name          | Data Length | Meaning    | Reference |
+      +=====+===============+=============+============+===========+
+      | 162 | OPTION_V4_DNR | N           | Encrypted  | RFC 9463  |
+      |     |               |             | DNS Server |           |
+      +-----+---------------+-------------+------------+-----------+
+
+                   Table 2: DHCPv4 Encrypted DNS Option
+
+9.3.  Neighbor Discovery Option
+
+   IANA has assigned the following new IPv6 Neighbor Discovery Option
+   type in the "IPv6 Neighbor Discovery Option Formats" subregistry
+   under the "Internet Control Message Protocol version 6 (ICMPv6)
+   Parameters" registry maintained at [ND].
+
+                +======+======================+===========+
+                | Type | Description          | Reference |
+                +======+======================+===========+
+                | 144  | Encrypted DNS Option | RFC 9463  |
+                +------+----------------------+-----------+
+
+                   Table 3: Neighbor Discovery Encrypted
+                                 DNS Option
+
+10.  References
+
+10.1.  Normative References
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC2132]  Alexander, S. and R. Droms, "DHCP Options and BOOTP Vendor
+              Extensions", RFC 2132, DOI 10.17487/RFC2132, March 1997,
+              <https://www.rfc-editor.org/info/rfc2132>.
+
+   [RFC3396]  Lemon, T. and S. Cheshire, "Encoding Long Options in the
+              Dynamic Host Configuration Protocol (DHCPv4)", RFC 3396,
+              DOI 10.17487/RFC3396, November 2002,
+              <https://www.rfc-editor.org/info/rfc3396>.
+
+   [RFC4861]  Narten, T., Nordmark, E., Simpson, W., and H. Soliman,
+              "Neighbor Discovery for IP version 6 (IPv6)", RFC 4861,
+              DOI 10.17487/RFC4861, September 2007,
+              <https://www.rfc-editor.org/info/rfc4861>.
+
+   [RFC8106]  Jeong, J., Park, S., Beloeil, L., and S. Madanapalli,
+              "IPv6 Router Advertisement Options for DNS Configuration",
+              RFC 8106, DOI 10.17487/RFC8106, March 2017,
+              <https://www.rfc-editor.org/info/rfc8106>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+   [RFC8415]  Mrugalski, T., Siodelski, M., Volz, B., Yourtchenko, A.,
+              Richardson, M., Jiang, S., Lemon, T., and T. Winters,
+              "Dynamic Host Configuration Protocol for IPv6 (DHCPv6)",
+              RFC 8415, DOI 10.17487/RFC8415, November 2018,
+              <https://www.rfc-editor.org/info/rfc8415>.
+
+   [RFC9460]  Schwartz, B., Bishop, M., and E. Nygren, "Service Binding
+              and Parameter Specification via the DNS (SVCB and HTTPS
+              Resource Records)", RFC 9460, DOI 10.17487/RFC9460,
+              November 2023, <https://www.rfc-editor.org/info/rfc9460>.
+
+   [RFC9461]  Schwartz, B., "Service Binding Mapping for DNS Servers",
+              RFC 9461, DOI 10.17487/RFC9461, November 2023,
+              <https://www.rfc-editor.org/info/rfc9461>.
+
+10.2.  Informative References
+
+   [BOOTP]    IANA, "BOOTP Vendor Extensions and DHCP Options",
+              <https://www.iana.org/assignments/bootp-dhcp-parameters/>.
+
+   [DHCPV6]   IANA, "Option Codes",
+              <https://www.iana.org/assignments/dhcpv6-parameters/>.
+
+   [DNS-TLS-DHCPv6-Opt]
+              Pusateri, T. and W. Toorop, "DHCPv6 Options for private
+              DNS Discovery", Work in Progress, Internet-Draft, draft-
+              pusateri-dhc-dns-driu-00, 2 July 2018,
+              <https://datatracker.ietf.org/doc/html/draft-pusateri-dhc-
+              dns-driu-00>.
+
+   [dot1x]    OpenWrt, "Introduction to 802.1X", December 2021,
+              <https://openwrt.org/docs/guide-user/network/wifi/
+              wireless.security.8021x>.
+
+   [Dragonblood]
+              Vanhoef, M. and E. Ronen, "Dragonblood: Analyzing the
+              Dragonfly Handshake of WPA3 and EAP-pwd", 2020 IEEE
+              Symposium on Security and Privacy (SP), San Francisco, pp.
+              517-533, DOI 10.1109/SP40000.2020.00031, May 2020,
+              <https://ieeexplore.ieee.org/document/9152782>.
+
+   [Evil-Twin]
+              Wikipedia, "Evil twin (wireless networks)", November 2022,
+              <https://en.wikipedia.org/wiki/
+              Evil_twin_(wireless_networks)>.
+
+   [IPSK]     Cisco, "8.5 Identity PSK Feature Deployment Guide",
+              December 2021,
+              <https://www.cisco.com/c/en/us/td/docs/wireless/
+              controller/technotes/8-5/
+              b_Identity_PSK_Feature_Deployment_Guide.html>.
+
+   [Krack]    Vanhoef, M. and F. Piessens, "Key Reinstallation Attacks:
+              Forcing Nonce Reuse in WPA2", CCS '17: Proceedings of the
+              2017 ACM SIGSAC Conference on Computer and Communications
+              Security, pp. 1313-1328, DOI 10.1145/3133956.3134027,
+              October 2017,
+              <https://dl.acm.org/doi/10.1145/3133956.3134027>.
+
+   [Local-DNS-Authority]
+              Reddy, T., Wing, D., Smith, K., and B. Schwartz,
+              "Establishing Local DNS Authority in Validated Split-
+              Horizon Environments", Work in Progress, Internet-Draft,
+              draft-ietf-add-split-horizon-authority-04, 8 March 2023,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-add-
+              split-horizon-authority-04>.
+
+   [ND]       IANA, "IPv6 Neighbor Discovery Option Formats",
+              <https://www.iana.org/assignments/icmpv6-parameters/>.
+
+   [RFC3552]  Rescorla, E. and B. Korver, "Guidelines for Writing RFC
+              Text on Security Considerations", BCP 72, RFC 3552,
+              DOI 10.17487/RFC3552, July 2003,
+              <https://www.rfc-editor.org/info/rfc3552>.
+
+   [RFC3646]  Droms, R., Ed., "DNS Configuration options for Dynamic
+              Host Configuration Protocol for IPv6 (DHCPv6)", RFC 3646,
+              DOI 10.17487/RFC3646, December 2003,
+              <https://www.rfc-editor.org/info/rfc3646>.
+
+   [RFC4786]  Abley, J. and K. Lindqvist, "Operation of Anycast
+              Services", BCP 126, RFC 4786, DOI 10.17487/RFC4786,
+              December 2006, <https://www.rfc-editor.org/info/rfc4786>.
+
+   [RFC5280]  Cooper, D., Santesson, S., Farrell, S., Boeyen, S.,
+              Housley, R., and W. Polk, "Internet X.509 Public Key
+              Infrastructure Certificate and Certificate Revocation List
+              (CRL) Profile", RFC 5280, DOI 10.17487/RFC5280, May 2008,
+              <https://www.rfc-editor.org/info/rfc5280>.
+
+   [RFC6125]  Saint-Andre, P. and J. Hodges, "Representation and
+              Verification of Domain-Based Application Service Identity
+              within Internet Public Key Infrastructure Using X.509
+              (PKIX) Certificates in the Context of Transport Layer
+              Security (TLS)", RFC 6125, DOI 10.17487/RFC6125, March
+              2011, <https://www.rfc-editor.org/info/rfc6125>.
+
+   [RFC6731]  Savolainen, T., Kato, J., and T. Lemon, "Improved
+              Recursive DNS Server Selection for Multi-Interfaced
+              Nodes", RFC 6731, DOI 10.17487/RFC6731, December 2012,
+              <https://www.rfc-editor.org/info/rfc6731>.
+
+   [RFC7113]  Gont, F., "Implementation Advice for IPv6 Router
+              Advertisement Guard (RA-Guard)", RFC 7113,
+              DOI 10.17487/RFC7113, February 2014,
+              <https://www.rfc-editor.org/info/rfc7113>.
+
+   [RFC7227]  Hankins, D., Mrugalski, T., Siodelski, M., Jiang, S., and
+              S. Krishnan, "Guidelines for Creating New DHCPv6 Options",
+              BCP 187, RFC 7227, DOI 10.17487/RFC7227, May 2014,
+              <https://www.rfc-editor.org/info/rfc7227>.
+
+   [RFC7513]  Bi, J., Wu, J., Yao, G., and F. Baker, "Source Address
+              Validation Improvement (SAVI) Solution for DHCP",
+              RFC 7513, DOI 10.17487/RFC7513, May 2015,
+              <https://www.rfc-editor.org/info/rfc7513>.
+
+   [RFC7610]  Gont, F., Liu, W., and G. Van de Velde, "DHCPv6-Shield:
+              Protecting against Rogue DHCPv6 Servers", BCP 199,
+              RFC 7610, DOI 10.17487/RFC7610, August 2015,
+              <https://www.rfc-editor.org/info/rfc7610>.
+
+   [RFC7824]  Krishnan, S., Mrugalski, T., and S. Jiang, "Privacy
+              Considerations for DHCPv6", RFC 7824,
+              DOI 10.17487/RFC7824, May 2016,
+              <https://www.rfc-editor.org/info/rfc7824>.
+
+   [RFC7844]  Huitema, C., Mrugalski, T., and S. Krishnan, "Anonymity
+              Profiles for DHCP Clients", RFC 7844,
+              DOI 10.17487/RFC7844, May 2016,
+              <https://www.rfc-editor.org/info/rfc7844>.
+
+   [RFC7858]  Hu, Z., Zhu, L., Heidemann, J., Mankin, A., Wessels, D.,
+              and P. Hoffman, "Specification for DNS over Transport
+              Layer Security (TLS)", RFC 7858, DOI 10.17487/RFC7858, May
+              2016, <https://www.rfc-editor.org/info/rfc7858>.
+
+   [RFC7969]  Lemon, T. and T. Mrugalski, "Customizing DHCP
+              Configuration on the Basis of Network Topology", RFC 7969,
+              DOI 10.17487/RFC7969, October 2016,
+              <https://www.rfc-editor.org/info/rfc7969>.
+
+   [RFC8146]  Harkins, D., "Adding Support for Salted Password Databases
+              to EAP-pwd", RFC 8146, DOI 10.17487/RFC8146, April 2017,
+              <https://www.rfc-editor.org/info/rfc8146>.
+
+   [RFC8310]  Dickinson, S., Gillmor, D., and T. Reddy, "Usage Profiles
+              for DNS over TLS and DNS over DTLS", RFC 8310,
+              DOI 10.17487/RFC8310, March 2018,
+              <https://www.rfc-editor.org/info/rfc8310>.
+
+   [RFC8484]  Hoffman, P. and P. McManus, "DNS Queries over HTTPS
+              (DoH)", RFC 8484, DOI 10.17487/RFC8484, October 2018,
+              <https://www.rfc-editor.org/info/rfc8484>.
+
+   [RFC8499]  Hoffman, P., Sullivan, A., and K. Fujiwara, "DNS
+              Terminology", BCP 219, RFC 8499, DOI 10.17487/RFC8499,
+              January 2019, <https://www.rfc-editor.org/info/rfc8499>.
+
+   [RFC8613]  Selander, G., Mattsson, J., Palombini, F., and L. Seitz,
+              "Object Security for Constrained RESTful Environments
+              (OSCORE)", RFC 8613, DOI 10.17487/RFC8613, July 2019,
+              <https://www.rfc-editor.org/info/rfc8613>.
+
+   [RFC8801]  Pfister, P., Vyncke, É., Pauly, T., Schinazi, D., and W.
+              Shao, "Discovering Provisioning Domain Names and Data",
+              RFC 8801, DOI 10.17487/RFC8801, July 2020,
+              <https://www.rfc-editor.org/info/rfc8801>.
+
+   [RFC9076]  Wicinski, T., Ed., "DNS Privacy Considerations", RFC 9076,
+              DOI 10.17487/RFC9076, July 2021,
+              <https://www.rfc-editor.org/info/rfc9076>.
+
+   [RFC9250]  Huitema, C., Dickinson, S., and A. Mankin, "DNS over
+              Dedicated QUIC Connections", RFC 9250,
+              DOI 10.17487/RFC9250, May 2022,
+              <https://www.rfc-editor.org/info/rfc9250>.
+
+   [RFC9462]  Pauly, T., Kinnear, E., Wood, C. A., McManus, P., and T.
+              Jensen, "Discovery of Designated Resolvers", RFC 9462,
+              DOI 10.17487/RFC9462, November 2023,
+              <https://www.rfc-editor.org/info/rfc9462>.
+
+   [TS.24008] 3GPP, "Technical Specification Group Core Network and
+              Terminals; Mobile radio interface Layer 3 specification;
+              Core network protocols; Stage 3 (Release 18)", version
+              18.4.0, September 2023,
+              <https://www.3gpp.org/DynaReport/24008.htm>.
+
+Acknowledgments
+
+   Many thanks to Christian Jacquenet and Michael Richardson for their
+   reviews.
+
+   Thanks to Stephen Farrell, Martin Thomson, Vittorio Bertola, Stéphane
+   Bortzmeyer, Ben Schwartz, Iain Sharp, and Chris Box for their
+   comments.
+
+   Thanks to Mark Nottingham for the feedback on HTTP redirection that
+   was discussed in previous draft versions of this specification.
+
+   The use of DHCP as a candidate protocol to retrieve an ADN was
+   mentioned in Section 7.3.1 of [RFC8310] and in an Internet-Draft
+   authored by Tom Pusateri and Willem Toorop [DNS-TLS-DHCPv6-Opt].
+
+   Thanks to Bernie Volz for the review of the DHCP part.
+
+   Christian Amsüss reported a case where the ALPN service parameter
+   cannot be used.
+
+   Thanks to Andrew Campling for the Shepherd review and Éric Vyncke for
+   the AD review.
+
+   Thanks to Rich Salz for the secdir reviews, Joe Clarke for the opsdir
+   review, Robert Sparks for the artart review, and David Blacka for the
+   dnsdir review.
+
+   Thanks to Lars Eggert, Roman Danyliw, Erik Kline, Martin Duke, Robert
+   Wilton, Paul Wouters, and Zaheduzzaman Sarker for the IESG review.
+
+Contributors
+
+   Nicolai Leymann
+   Deutsche Telekom
+   Germany
+   Email: n.leymann@telekom.de
+
+
+   Zhiwei Yan
+   CNNIC
+   No.4 South 4th Street, Zhongguancun
+   Beijing
+   100190
+   China
+   Email: yan@cnnic.cn
+
+
+Authors' Addresses
+
+   Mohamed Boucadair (editor)
+   Orange
+   35000 Rennes
+   France
+   Email: mohamed.boucadair@orange.com
+
+
+   Tirumaleswar Reddy.K (editor)
+   Nokia
+   India
+   Email: kondtir@gmail.com
+
+
+   Dan Wing
+   Cloud Software Group Holdings, Inc.
+   United States of America
+   Email: dwing-ietf@fuggles.com
+
+
+   Neil Cook
+   Open-Xchange
+   United Kingdom
+   Email: neil.cook@noware.co.uk
+
+
+   Tommy Jensen
+   Microsoft
+   United States of America
+   Email: tojens@microsoft.com
