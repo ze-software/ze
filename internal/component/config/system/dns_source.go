@@ -45,7 +45,7 @@ func RouterDNSSource(sys *config.Tree) (dnssource.List, error) {
 	if err != nil {
 		return dnssource.List{}, err
 	}
-	return dnssource.NewWrittenList(routerDNSSourcePath, dnssource.FamilyAll, written, routerDNSSourceRefusals...)
+	return dnssource.NewWrittenList(routerDNSSourcePath, dnssource.FamilyAll, dnssource.AudienceZe, written, routerDNSSourceRefusals...)
 }
 
 // DefaultRouterDNSSource answers the router's built-in default list, for a

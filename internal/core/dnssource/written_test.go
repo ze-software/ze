@@ -34,7 +34,7 @@ func TestReceivedInterfaceFilter(t *testing.T) {
 			Expires: now.Add(-time.Second)},
 	}
 
-	one, err := NewWrittenList("system dns-source", FamilyAll,
+	one, err := NewWrittenList("system dns-source", FamilyAll, AudienceZe,
 		&Written{Sources: []Class{ClassReceived}, ReceivedInterfaces: []string{"eth1"}}, routerSelf, routerRadius)
 	if err != nil {
 		t.Fatalf("one-source list with received-interface and no mode refused: %v", err)
@@ -46,7 +46,7 @@ func TestReceivedInterfaceFilter(t *testing.T) {
 
 	// The leaf-list order beats the rank order: eth1's ppp record lists
 	// before eth0's dhcpv4 one. eth2 holds only an expired record, eth9 none.
-	ordered, err := NewWrittenList("system dns-source", FamilyAll,
+	ordered, err := NewWrittenList("system dns-source", FamilyAll, AudienceZe,
 		&Written{Sources: []Class{ClassReceived}, ReceivedInterfaces: []string{"eth9", "eth2", "eth1", "eth0"}})
 	if err != nil {
 		t.Fatalf("NewWrittenList: %v", err)
@@ -73,7 +73,7 @@ func TestReceivedInterfaceWithoutReceivedRefused(t *testing.T) {
 		{Sources: []Class{ClassConfigured}, ReceivedInterfaces: []string{"eth0"}},
 		{ReceivedInterfaces: []string{"eth0"}},
 	} {
-		_, err := NewWrittenList("system dns-source", FamilyAll, &written)
+		_, err := NewWrittenList("system dns-source", FamilyAll, AudienceZe, &written)
 		var refused *ReceivedInterfaceError
 		if !errors.As(err, &refused) {
 			t.Fatalf("%+v: err = %v, want *ReceivedInterfaceError", written, err)
@@ -89,7 +89,7 @@ func TestReceivedInterfaceWithoutReceivedRefused(t *testing.T) {
 		}
 	}
 
-	_, err := NewWrittenList("system dns-source", FamilyAll,
+	_, err := NewWrittenList("system dns-source", FamilyAll, AudienceZe,
 		&Written{Sources: []Class{ClassConfigured}, ReceivedInterfaces: []string{"eth0", "eth1"}})
 	if err == nil || !strings.HasSuffix(err.Error(), "or delete system dns-source received-interface") {
 		t.Fatalf("two interfaces: err = %v, want the fix deleting the whole leaf-list", err)
@@ -104,7 +104,7 @@ func TestReceivedInterfaceWithoutReceivedRefused(t *testing.T) {
 // PREVENTS: a refused class being accepted and selecting nothing, or the
 // mode refusal hiding the class refusal.
 func TestWrittenListRefusesConsumerClasses(t *testing.T) {
-	_, err := NewWrittenList("system dns-source", FamilyAll,
+	_, err := NewWrittenList("system dns-source", FamilyAll, AudienceZe,
 		&Written{Sources: []Class{ClassReceived, ClassSelf}}, routerSelf, routerRadius)
 	var refused *ClassRefusedError
 	if !errors.As(err, &refused) {
@@ -114,12 +114,12 @@ func TestWrittenListRefusesConsumerClasses(t *testing.T) {
 		t.Fatalf("self: error = %q, want %q", err.Error(), want)
 	}
 
-	_, err = NewWrittenList("system dns-source", FamilyAll, &Written{Sources: []Class{ClassRadius}}, routerSelf, routerRadius)
+	_, err = NewWrittenList("system dns-source", FamilyAll, AudienceZe, &Written{Sources: []Class{ClassRadius}}, routerSelf, routerRadius)
 	if !errors.As(err, &refused) || refused.Refusal.Class != ClassRadius {
 		t.Fatalf("radius: err = %v, want the radius refusal", err)
 	}
 
-	_, err = NewWrittenList("system dns-source", FamilyAll,
+	_, err = NewWrittenList("system dns-source", FamilyAll, AudienceZe,
 		&Written{Sources: []Class{ClassReceived, ClassConfigured}}, routerSelf, routerRadius)
 	var mode *ModeRequiredError
 	if !errors.As(err, &mode) {
@@ -136,11 +136,11 @@ func TestWrittenListRefusesConsumerClasses(t *testing.T) {
 // PREVENTS: show and the selection reporting a written list as the default,
 // or the default's first-usable leaking into a written list.
 func TestDefaultListIsStatedNotLent(t *testing.T) {
-	stated := StatedDefault("system dns-source", FamilyAll, ModeFirstUsable, ClassConfigured, ClassReceived)
+	stated := StatedDefault("system dns-source", FamilyAll, AudienceZe, ModeFirstUsable, ClassConfigured, ClassReceived)
 	if !stated.Stated() || stated.Mode() != ModeFirstUsable {
 		t.Fatalf("default: stated=%v mode=%v, want stated first-usable", stated.Stated(), stated.Mode())
 	}
-	written, err := NewWrittenList("system dns-source", FamilyAll, &Written{Sources: []Class{ClassReceived}})
+	written, err := NewWrittenList("system dns-source", FamilyAll, AudienceZe, &Written{Sources: []Class{ClassReceived}})
 	if err != nil {
 		t.Fatalf("NewWrittenList: %v", err)
 	}

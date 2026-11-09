@@ -164,7 +164,7 @@ const routerDNSSourcePath = "system dns-source"
 // DNS servers have been manually configured, these parameters SHOULD NOT be
 // overridden by DHCP." First-usable over configured then received is exactly
 // that order.
-var routerDefault = dnssource.StatedDefault(routerDNSSourcePath, dnssource.FamilyAll,
+var routerDefault = dnssource.StatedDefault(routerDNSSourcePath, dnssource.FamilyAll, dnssource.AudienceZe,
 	dnssource.ModeFirstUsable, dnssource.ClassConfigured, dnssource.ClassReceived)
 
 // Resolvers is the router's resolver registry and the only writer of

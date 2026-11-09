@@ -115,6 +115,24 @@ const (
 	FamilyAll = FamilyIPv4 | FamilyIPv6
 )
 
+// Audience says who receives a list's servers, which decides whether an
+// address only Ze itself can reach is usable. The zero value names no
+// audience and NewList refuses it, so every consumer states its own.
+type Audience uint8
+
+const (
+	// AudienceUnspecified is the zero value; NewList refuses it.
+	AudienceUnspecified Audience = iota
+	// AudienceZe is a list whose servers Ze itself asks: the router's and the
+	// LAN resolver's upstreams. A loopback or link-local server is reachable.
+	AudienceZe
+	// AudienceHandedOn is a list whose servers Ze hands to another host: DHCPv4
+	// option 6, RA RDNSS, a subscriber's IPCP. Select drops a loopback address
+	// and an IPv6 link-local address with no zone from it, because neither
+	// names a server the receiving host can reach.
+	AudienceHandedOn
+)
+
 // admits reports whether addr is of a family in f. An IPv4-mapped IPv6
 // address counts as IPv4, the family a client reaching it uses.
 func (f Family) admits(addr netip.Addr) bool {
@@ -133,7 +151,9 @@ type List struct {
 	sources []Class
 	mode    Mode
 	family  Family
-	stated  bool // a built-in default, not an operator-written list
+	// audience decides whether a host-only address is usable (Audience).
+	audience Audience
+	stated   bool // a built-in default, not an operator-written list
 	// interfaces narrows the received class to the records learned on these
 	// interfaces, in this order (received-interface). Empty: every interface.
 	interfaces []string
@@ -143,14 +163,21 @@ type List struct {
 // nothing, whatever the sources held. Only a Ze defect builds one.
 var errNoFamily = errors.New("BUG: a dns-source list admits no address family")
 
+// errNoAudience refuses a list that does not say who receives its servers.
+// Only a Ze defect builds one.
+var errNoAudience = errors.New("BUG: a dns-source list states no audience")
+
 // NewList validates the list written at path (the config path of the
 // consumer's dns-source container, as an operator types it in a set command)
 // and answers it. Two or more sources with ModeUnspecified are refused with
 // a *ModeRequiredError. A list naming no source, or one class twice, is
-// refused too.
-func NewList(path string, family Family, mode Mode, sources ...Class) (List, error) {
+// refused too. audience states who receives the servers (Audience).
+func NewList(path string, family Family, audience Audience, mode Mode, sources ...Class) (List, error) {
 	if family&FamilyAll == 0 {
 		return List{}, errNoFamily
+	}
+	if audience == AudienceUnspecified {
+		return List{}, errNoAudience
 	}
 	if len(sources) == 0 {
 		return List{}, &EmptyListError{Path: path}
@@ -163,7 +190,7 @@ func NewList(path string, family Family, mode Mode, sources ...Class) (List, err
 	if len(sources) > 1 && mode == ModeUnspecified {
 		return List{}, &ModeRequiredError{Path: path, Sources: slices.Clone(sources)}
 	}
-	return List{path: path, sources: slices.Clone(sources), mode: mode, family: family}, nil
+	return List{path: path, sources: slices.Clone(sources), mode: mode, family: family, audience: audience}, nil
 }
 
 // StatedDefault answers a consumer's built-in default list: the list that
@@ -171,11 +198,11 @@ func NewList(path string, family Family, mode Mode, sources ...Class) (List, err
 // states its mode, even for one source. The consumer MUST call it with a list
 // NewList accepts and a mode; anything else is a Ze defect in that consumer's
 // stated default, found at package initialization, and it panics.
-func StatedDefault(path string, family Family, mode Mode, sources ...Class) List {
+func StatedDefault(path string, family Family, audience Audience, mode Mode, sources ...Class) List {
 	if mode == ModeUnspecified {
 		panic("BUG: built-in dns-source default at " + path + " states no mode")
 	}
-	list, err := NewList(path, family, mode, sources...)
+	list, err := NewList(path, family, audience, mode, sources...)
 	if err != nil {
 		panic("BUG: built-in dns-source default at " + path + " is invalid: " + err.Error())
 	}
@@ -228,7 +255,7 @@ type Refusal struct {
 // (*ReceivedInterfaceError), then what NewList refuses. The consumer calls
 // it from every place its config is checked, so validate, commit and boot
 // give one verdict.
-func NewWrittenList(path string, family Family, written *Written, refused ...Refusal) (List, error) {
+func NewWrittenList(path string, family Family, audience Audience, written *Written, refused ...Refusal) (List, error) {
 	for _, source := range written.Sources {
 		for i := range refused {
 			if refused[i].Class == source {
@@ -239,7 +266,7 @@ func NewWrittenList(path string, family Family, written *Written, refused ...Ref
 	if len(written.ReceivedInterfaces) > 0 && !slices.Contains(written.Sources, ClassReceived) {
 		return List{}, &ReceivedInterfaceError{Path: path, Interfaces: slices.Clone(written.ReceivedInterfaces)}
 	}
-	list, err := NewList(path, family, written.Mode, written.Sources...)
+	list, err := NewList(path, family, audience, written.Mode, written.Sources...)
 	if err != nil {
 		return List{}, err
 	}
@@ -281,11 +308,17 @@ type Candidates map[Class][]netip.Addr
 type Selection struct {
 	Servers []netip.Addr
 	Used    []Class
+	// Dropped are the host-only entries an AudienceHandedOn list refused,
+	// in the order met. The consumer MUST log each with the list's path.
+	Dropped []netip.Addr
 }
 
 // Select applies list to the candidates and answers the selection.
 //
-// An entry counts only when Usable and of a family the list admits. Under
+// An entry counts only when Usable and of a family the list admits. On an
+// AudienceHandedOn list it must also be reachable from another host
+// (HostOnly), and each host-only entry dropped is answered in Dropped so the
+// consumer logs it with its path. Under
 // ModeFirstUsable the first class holding such an entry wins, and a later
 // class is used only when every earlier one holds none. Under ModeMerge every
 // class contributes. Either way a server already selected is not repeated.
@@ -295,7 +328,7 @@ func Select(list List, candidates Candidates) Selection {
 	var selection Selection
 	for _, class := range list.sources {
 		before := len(selection.Servers)
-		selection.Servers = appendUsable(selection.Servers, candidates[class], list.family)
+		selection.Servers, selection.Dropped = appendUsable(selection.Servers, selection.Dropped, candidates[class], &list)
 		if len(selection.Servers) == before {
 			continue
 		}
@@ -307,14 +340,21 @@ func Select(list List, candidates Candidates) Selection {
 	return selection
 }
 
-// appendUsable appends each usable address of entries, of a family in
-// family, that out does not already hold.
-func appendUsable(out, entries []netip.Addr, family Family) []netip.Addr {
+// appendUsable appends each usable address of entries, of a family list
+// admits, that out does not already hold. On a handed-on list a host-only
+// address goes to dropped instead.
+func appendUsable(out, dropped, entries []netip.Addr, list *List) (servers, refused []netip.Addr) {
 	for _, addr := range entries {
 		if !Usable(addr) {
 			continue
 		}
-		if !family.admits(addr) {
+		if !list.family.admits(addr) {
+			continue
+		}
+		if list.audience == AudienceHandedOn && HostOnly(addr) {
+			if !slices.Contains(dropped, addr) {
+				dropped = append(dropped, addr)
+			}
 			continue
 		}
 		if slices.Contains(out, addr) {
@@ -322,7 +362,26 @@ func appendUsable(out, entries []netip.Addr, family Family) []netip.Addr {
 		}
 		out = append(out, addr)
 	}
-	return out
+	return out, dropped
+}
+
+// HostOnly reports whether addr names a server only Ze itself can reach: a
+// loopback address (127.0.0.0/8, ::1), or an IPv6 link-local address with no
+// zone, which another host cannot tell which link to send on. IPv4
+// link-local (169.254.0.0/16) is not host-only: it carries no zone to lose,
+// and a server at such an address on the client's own link is reachable.
+func HostOnly(addr netip.Addr) bool {
+	unmapped := addr.Unmap()
+	if unmapped.IsLoopback() {
+		return true
+	}
+	if !unmapped.Is6() {
+		return false
+	}
+	if !unmapped.IsLinkLocalUnicast() {
+		return false
+	}
+	return unmapped.Zone() == ""
 }
 
 // limitedBroadcast is 255.255.255.255, which never names a host.
@@ -331,7 +390,8 @@ var limitedBroadcast = netip.AddrFrom4([4]byte{255, 255, 255, 255})
 // Usable reports whether addr can be a resolver: a valid address that is not
 // unspecified, not multicast and not the IPv4 limited broadcast. Loopback and
 // link-local stay usable here: a local resolver such as 127.0.0.53 is a
-// legitimate server for Ze's own lookups.
+// legitimate server for Ze's own lookups. A list handed to another host
+// drops them in Select (HostOnly, AudienceHandedOn).
 func Usable(addr netip.Addr) bool {
 	if !addr.IsValid() {
 		return false

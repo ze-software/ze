@@ -96,7 +96,7 @@ var (
 
 func routerList(t *testing.T, written dnssource.Written) dnssource.List {
 	t.Helper()
-	list, err := dnssource.NewWrittenList(routerDNSSourcePath, dnssource.FamilyAll, &written, routerDNSSourceRefusals...)
+	list, err := dnssource.NewWrittenList(routerDNSSourcePath, dnssource.FamilyAll, dnssource.AudienceZe, &written, routerDNSSourceRefusals...)
 	if err != nil {
 		t.Fatalf("NewWrittenList: %v", err)
 	}

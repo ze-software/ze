@@ -226,6 +226,23 @@ fix it prints: the router refuses `self` and `radius`. A consumer's built-in
 default applies only while its `dns-source` container is absent. Once the
 container is written, the default no longer applies, its `mode` included.
 
+Each consumer also states who receives its servers. The router and the LAN
+resolver's upstreams serve Ze itself, so a loopback server such as
+127.0.0.53 or an IPv6 link-local server is usable there. DHCPv4 option 6,
+RA RDNSS and a subscriber's IPCP hand addresses to another host, so the
+selection drops a loopback address (127.0.0.0/8, ::1) and an IPv6
+link-local address with no zone from them, logs each drop with the
+consumer's path, and falls through to the next entry or class. IPv4
+link-local (169.254.0.0/16) is kept: a server there on the client's own
+link is reachable from it.
+<!-- source: internal/core/dnssource/select.go -- Audience, HostOnly, appendUsable -->
+
+A consumer plugin, in the engine process or its own, subscribes to the
+`system-dns` snapshot, asks for a replay once it has started, and keeps the
+newest snapshot's records with `dnssource.Follower`, which drops a
+snapshot older than the last it kept.
+<!-- source: internal/core/dnssource/follow.go -- Follower -->
+
 | Origin | Rank | Learned from |
 |--------|------|--------------|
 | `dhcpv4` | 100 | DHCPv4 option 6 |
