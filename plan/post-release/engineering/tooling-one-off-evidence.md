@@ -1679,6 +1679,16 @@ Red at HEAD, owed an investigation before any break means anything:
   `show ip route 0.0.0.0/0 json`, and the lab keeps no containers after a
   run, so the next step is a checker diagnostic that records that output on
   failure (an RFC-tagged unit, so it needs the judge first).
+  Diagnostic added in `9281c5f8a0` (judged). With it, on the same Docker
+  default removal, the scenario passes (2m11s), so the first run after
+  `b31f79495e` was a slow failure, not proof the removal is insufficient.
+  Attributed red: `wantsType7Default` (`ospf/nssa.go`) with its border-router
+  branch disabled (`isABR && false`) fails assertion 2 with FRR holding no
+  default route at all ("FRR default routes: {}"), where the HEAD failure
+  had held the OSPF default unselected; restored green passes (2m7s).
+  Each pass runs close to the wait's 60s bound plus setup, so the scenario
+  may be slow rather than reliably green; two of three runs on the fixed
+  checker passed.
 
 Blocked by lab readiness, not product evidence:
 
