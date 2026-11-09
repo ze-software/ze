@@ -168,7 +168,9 @@ in the website source front matter. Missing history is an error.
 Read both required groups (`immediate` and `pre-release`) and the nice-to-have
 group before selecting items. Keep every status and diagnostic in the evidence.
 Write one short progress paragraph with remaining release work items and
-relevant scope changes. Link https://ze-software.net/project/roadmap/.
+relevant scope changes. Say what the two groups are in the reader's words
+(required before the first release, planned for after it): "queue" and
+"nice-to-have" mean nothing to a reader who has not seen the roadmap. Link https://ze-software.net/project/roadmap/.
 Use user-facing capabilities in the body. Spec filenames and bucket names stay
 in the drafting evidence.
 
