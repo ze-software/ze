@@ -2,7 +2,7 @@
   {
     "rid": "RFC7296-2.23-8",
     "polarity": "positive",
-    "unit": "internal/component/ike/engine/nat_dns_test.go::TestDNSRemoteNATMismatchFloats",
+    "unit": "internal/component/ike/engine/rfc7296_nat_dns_test.go::TestDNSRemoteNATMismatchFloats",
     "unit-sha": "eec1acc77332abdb",
     "claim-sha": "6eced69d6d0157c8",
     "route": "mutant",

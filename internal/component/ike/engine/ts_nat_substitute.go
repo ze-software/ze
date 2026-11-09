@@ -28,10 +28,12 @@ func observedLocalAddress(sa *SA) net.IP {
 // THE PEER NEVER CHOOSES IT. sa.remoteUDPAddr prefers sa.peerEndpoint, and
 // adoptAuthenticatedEndpoint is its only writer, called only after a decrypt and a
 // Message ID window check (sa.go). With no authenticated message yet it falls back to
-// the CONFIGURED remote-address, never to the datagram in hand. On the responder those
-// two are the same address: matchResponderPeer (register.go) accepts an unsolicited
-// IKE_SA_INIT only from a source equal to the configured remote-address, so a peer
-// behind a NAT is configured with its post-NAT address.
+// the remote address the connect cycle resolved from the configured remote-address
+// (cycleRemoteAddress, cycle_addr.go), never to the datagram in hand. On the responder
+// those two are the same address: matchResponderPeer (register.go) accepts an
+// unsolicited IKE_SA_INIT only from a source equal to the configured remote-address, or
+// to an address its DNS name last resolved to (respond_names.go), so a peer behind a
+// NAT is configured with its post-NAT address.
 //
 // It returns nil when neither source yields an address.
 func observedRemoteAddress(sa *SA) net.IP {

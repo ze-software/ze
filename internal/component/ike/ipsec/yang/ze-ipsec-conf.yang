@@ -71,8 +71,9 @@ module ze-ipsec-conf {
 
             leaf interface {
                 type string;
-                description "Commit refuses a name no interface on the host carries. The first IPv4 address of
-                    the interface fills the local-address of every peer that names none, and Ze
+                description "Commit accepts a name no interface on the host carries yet, so a WAN created
+                    after Ze (a PPPoE unit) can be named; the doctor check ipsec-interface reports
+                    a name the host does not hold. The first IPv4 address of the interface fills the local-address of every peer that names none, and Ze
                     follows it: when an address appears (a PPPoE or DHCP WAN that came up after
                     Ze), those peers start; when it changes, they restart from the new address;
                     when it leaves, they stop and remove their Child SAs, and wait. The IKE socket

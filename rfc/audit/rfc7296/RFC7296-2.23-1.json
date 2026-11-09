@@ -2,14 +2,14 @@
   "note": "Re-judged 2026-11-08 (independent auditor) after 67700fd37e. A new positive tag, TestDNSRemoteNATMismatchFloats (nat_dns_test.go), drives handleSAInitResponse for a peer named by DNS over a real encoded response: a NAT_DETECTION_SOURCE_IP hash that is not over the resolved address sets detected+peerBehindNAT and floats to 4500, and one over the resolved address changes nothing, so a check made against the configured name, or skipped, goes red. It carries a mutant record. The earlier units are unchanged and keep their records. Prior judgement: Rejudged 2026-09-30 (ike-eap judge). TestRFC7296InitiatorChecksEachNATDetectionPayload drives handleSAInitResponse over a real encoded IKE_SA_INIT response: a SOURCE_IP mismatch alone sets NATDetected+PeerBehindNAT and floats to 4500, a DESTINATION_IP mismatch alone sets NATDetected+BehindNAT and floats, so ignoring either payload goes red. TestRFC7296InitiatorCheckFindsNoNATOnMatchingPayloads (both present, both matching: no NAT, not floated) goes red if presence alone were taken as a NAT, i.e. if the payloads were not checked. Both carry observed-red records on fsm.go handleSAInitResponse. HEAD tags on transport TestNATDetectionPresent/Absent (DetectNAT in isolation) are supplementary and hold no record.",
   "requirement_sha": "bbd53970fb7dbb3a",
   "tests": {
-    "internal/component/ike/engine/nat_dns_test.go::TestDNSRemoteNATMismatchFloats": "001beb93b5c85894",
+    "internal/component/ike/engine/rfc7296_nat_dns_test.go::TestDNSRemoteNATMismatchFloats": "001beb93b5c85894",
     "internal/component/ike/engine/rfc7296_nat_port4500_test.go::TestRFC7296InitiatorCheckFindsNoNATOnMatchingPayloads": "3a4d8f90e5724d15",
     "internal/component/ike/engine/rfc7296_nat_port4500_test.go::TestRFC7296InitiatorChecksEachNATDetectionPayload": "3a4d8f90e5724d15",
     "internal/component/ike/transport/nat_test.go::TestNATDetectionAbsent": "5e9bb9c1bf045ab6",
     "internal/component/ike/transport/nat_test.go::TestNATDetectionPresent": "5e9bb9c1bf045ab6"
   },
   "units": {
-    "internal/component/ike/engine/nat_dns_test.go::TestDNSRemoteNATMismatchFloats": "65a0206c27f9b1c2",
+    "internal/component/ike/engine/rfc7296_nat_dns_test.go::TestDNSRemoteNATMismatchFloats": "65a0206c27f9b1c2",
     "internal/component/ike/engine/rfc7296_nat_port4500_test.go::TestRFC7296InitiatorCheckFindsNoNATOnMatchingPayloads": "fdf8cd0cb003eb8b",
     "internal/component/ike/engine/rfc7296_nat_port4500_test.go::TestRFC7296InitiatorChecksEachNATDetectionPayload": "66114a6b61fec466",
     "internal/component/ike/transport/nat_test.go::TestNATDetectionAbsent": "1def2ef48b085e7c",

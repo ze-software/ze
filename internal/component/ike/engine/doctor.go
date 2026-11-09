@@ -140,7 +140,7 @@ func checkIPsecInterface(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagn
 			Code:     diagnostic.CodeDoctorIPsecIface,
 			Severity: severityError,
 			Message: tb.Str("vpn ipsec interface not found: ").Str(cfg.Interface).
-				Str(" (peers without an explicit local-address will not establish)").String(),
+				Str(" (peers without an explicit local-address wait until it exists and holds an IPv4 address; create the interface, or give each peer one with: set vpn ipsec site-to-site peer <name> local-address <ipv4>)").String(),
 		}}
 	}
 	return nil

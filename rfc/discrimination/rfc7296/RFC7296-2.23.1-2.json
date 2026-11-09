@@ -24,7 +24,7 @@
   {
     "rid": "RFC7296-2.23.1-2",
     "polarity": "positive",
-    "unit": "internal/component/ike/engine/transport_mode_test.go::TestTransportModeDNSRemoteProposesResolvedPair",
+    "unit": "internal/component/ike/engine/rfc7296_transport_mode_test.go::TestTransportModeDNSRemoteProposesResolvedPair",
     "unit-sha": "e17d4087b51277f5",
     "claim-sha": "ff6a67dd88907c10",
     "route": "mutant",
