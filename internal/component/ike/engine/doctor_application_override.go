@@ -265,7 +265,11 @@ func spdWriters(root string, self int) (spdScan, error) {
 		if ns != own {
 			continue
 		}
-		if cmdline, cmdErr := os.ReadFile(filepath.Join(dir, "cmdline")); cmdErr != nil || len(cmdline) == 0 { //nolint:gosec // dir is root plus a numeric pid entry, the leaf a constant
+		cmdline, cmdErr := os.ReadFile(filepath.Join(dir, "cmdline")) //nolint:gosec // dir is root plus a numeric pid entry, the leaf a constant
+		if cmdErr != nil {
+			continue
+		}
+		if len(cmdline) == 0 {
 			continue
 		}
 		status, statusErr := os.ReadFile(filepath.Join(dir, "status")) //nolint:gosec // dir is root plus a numeric pid entry, the leaf a constant
