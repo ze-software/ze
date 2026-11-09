@@ -143,16 +143,19 @@ func runResolverPlugin(conn net.Conn) int {
 
 // learnedSnapshotHandler answers the event handler that applies each
 // system-dns snapshot to res. A snapshot it cannot apply is logged at WARN and
-// counted in rejected, and the handler answers no error: the SDK delivers a
+// counted in the series rejected answers at that moment, never one captured
+// when the handler was built: the engine runs ConfigureMetrics once its
+// registry exists, which can be after the plugin started, and a captured
+// series would stay the no-op one. The handler answers no error: the SDK delivers a
 // batch of events through one handler loop that stops at the first error
 // (pkg/plugin/sdk OnEvent and activateBridge), and the engine records that
 // error against the process for every later barrier, so an error here would
 // lose a newer, valid snapshot queued behind this one.
-func learnedSnapshotHandler(res *resolver, rejected metrics.Counter, log *slog.Logger) func(event string) error {
+func learnedSnapshotHandler(res *resolver, rejected func() metrics.Counter, log *slog.Logger) func(event string) error {
 	return func(event string) error {
 		// refuse-by-default: guards sdk.Plugin.OnEvent -- the SDK's batch loop goes on to the next snapshot only on a nil answer; the rejection is recorded by the WARN line and the counter instead
 		if err := res.relearn(event); err != nil {
-			rejected.Inc()
+			rejected().Inc()
 			log.Warn("dns-resolver: a system-dns snapshot was not applied; forwarding keeps the previous learned resolvers until the next snapshot, which the next lease change sends",
 				"error", err, "metric", dnssource.RejectedMetricName)
 			return nil
@@ -172,7 +175,7 @@ func learnedSnapshotHandler(res *resolver, rejected metrics.Counter, log *slog.L
 func followLearnedResolvers(p *sdk.Plugin, res *resolver, log *slog.Logger) {
 	res.expectReplay()
 	p.SetStartupSubscriptionsIn(dnssource.Namespace, []string{dnssource.SnapshotEventType}, nil, "")
-	p.OnEvent(learnedSnapshotHandler(res, rmetrics().learnedRejected, log))
+	p.OnEvent(learnedSnapshotHandler(res, learnedRejectedCounter, log))
 	p.OnStarted(func(ctx context.Context) error {
 		if _, err := p.EmitEvent(ctx, dnssource.Namespace, dnssource.SnapshotRequestEventType, "", "", ""); err != nil {
 			log.Warn("dns-resolver: learned resolvers not requested; they apply at the next lease change", "error", err)

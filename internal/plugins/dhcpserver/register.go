@@ -55,10 +55,7 @@ func init() {
 			loggerPtr.Store(l)
 		}
 	}
-	reg.ConfigureMetrics = func(metricsRegistry metrics.Registry) {
-		dhcpGuard.SetMetricsRegistry(metricsRegistry)
-		learnedRejected.Store(&rejectedSeries{counter: dnssource.RejectedCounter(metricsRegistry, dhcpConsumer)})
-	}
+	reg.ConfigureMetrics = configureMetrics
 	if err := registry.Register(reg); err != nil {
 		fmt.Fprintf(os.Stderr, "dhcpserver: registration failed: %v\n", err)
 		os.Exit(1)
@@ -122,8 +119,18 @@ func runDHCPServerPlugin(conn net.Conn) int {
 	return 0
 }
 
+// configureMetrics is the registration's ConfigureMetrics. The engine runs
+// it once a metrics registry exists, which can be after the plugin started
+// (internal/component/plugin inprocess.go defers it to InjectPluginMetrics),
+// so nothing may capture a series before it: learnedRejectedCounter is read
+// at each increment.
+func configureMetrics(metricsRegistry metrics.Registry) {
+	dhcpGuard.SetMetricsRegistry(metricsRegistry)
+	learnedRejected.Store(&rejectedSeries{counter: dnssource.RejectedCounter(metricsRegistry, dhcpConsumer)})
+}
+
 // learnedRejected holds dhcpserver's series of dnssource.RejectedMetricName,
-// stored by ConfigureMetrics before the engine runs.
+// stored by configureMetrics whenever the engine's metrics registry arrives.
 var learnedRejected atomic.Pointer[rejectedSeries]
 
 // rejectedSeries boxes the counter so atomic.Pointer can hold it.
@@ -140,18 +147,20 @@ func learnedRejectedCounter() metrics.Counter {
 
 // learnedSnapshotHandler answers the event handler that keeps learned on each
 // system-dns snapshot and republishes the selections when one is fresh. A
-// snapshot it cannot apply is logged at WARN and counted in rejected, and the
+// snapshot it cannot apply is logged at WARN and counted in the series
+// rejected answers at that moment (never one captured when the handler was
+// built, which would stay the no-op one if metrics arrived later), and the
 // handler answers no error: the SDK delivers a batch of events through one
 // handler loop that stops at the first error (pkg/plugin/sdk OnEvent and
 // activateBridge), and the engine records that error against the process for
 // every later barrier, so an error here would lose a newer, valid snapshot
 // queued behind this one.
-func learnedSnapshotHandler(learned *dnssource.Follower, publisher *dhcpPublisher, rejected metrics.Counter, log *slog.Logger) func(event string) error {
+func learnedSnapshotHandler(learned *dnssource.Follower, publisher *dhcpPublisher, rejected func() metrics.Counter, log *slog.Logger) func(event string) error {
 	return func(event string) error {
 		fresh, err := learned.Accept(event)
 		// refuse-by-default: guards sdk.Plugin.OnEvent -- the SDK's batch loop goes on to the next snapshot only on a nil answer; the rejection is recorded by the WARN line and the counter instead
 		if err != nil {
-			rejected.Inc()
+			rejected().Inc()
 			log.Warn("dhcpserver: a system-dns snapshot was not applied; option 6 keeps the previous learned resolvers until the next snapshot, which the next lease change sends",
 				"error", err, "metric", dnssource.RejectedMetricName)
 			return nil
@@ -171,7 +180,7 @@ func learnedSnapshotHandler(learned *dnssource.Follower, publisher *dhcpPublishe
 // subnet's selection again for show system dns and ze doctor.
 func followLearnedResolvers(p *sdk.Plugin, learned *dnssource.Follower, publisher *dhcpPublisher, log *slog.Logger) {
 	p.SetStartupSubscriptionsIn(dnssource.Namespace, []string{dnssource.SnapshotEventType}, nil, "")
-	p.OnEvent(learnedSnapshotHandler(learned, publisher, learnedRejectedCounter(), log))
+	p.OnEvent(learnedSnapshotHandler(learned, publisher, learnedRejectedCounter, log))
 	p.OnStarted(func(ctx context.Context) error {
 		if _, err := p.EmitEvent(ctx, dnssource.Namespace, dnssource.SnapshotRequestEventType, "", "", ""); err != nil {
 			log.Warn("dhcpserver: learned resolvers not requested; they apply at the next lease change", "error", err)

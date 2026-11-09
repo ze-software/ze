@@ -119,8 +119,16 @@ func buildMetrics(reg metrics.Registry) *resolverMetrics {
 }
 
 // setMetricsRegistry publishes metrics backed by reg. Called through the
-// registration's ConfigureMetrics before the engine runs.
+// registration's ConfigureMetrics, which the engine runs once its registry
+// exists, possibly after the plugin started (internal/component/plugin
+// inprocess.go defers it to InjectPluginMetrics). A caller therefore reads a
+// series through rmetrics at each use and never keeps one.
 func setMetricsRegistry(reg metrics.Registry) { metricsPtr.Store(buildMetrics(reg)) }
+
+// learnedRejectedCounter answers the current series of
+// dnssource.RejectedMetricName for this plugin, read at each increment so a
+// registry set after start is the one counted.
+func learnedRejectedCounter() metrics.Counter { return rmetrics().learnedRejected }
 
 // rmetrics returns the metric set, a no-op one before ConfigureMetrics.
 func rmetrics() *resolverMetrics {
