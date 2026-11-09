@@ -122,8 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1</strong><b>of 3 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 3 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 3 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>7</strong><b>7 of 22 tagged units, 0 escaped and 5 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>7</strong><b>of 3 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>17</strong><b>17 of 26 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -196,7 +195,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -237,16 +236,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>22</td>
+<td>26</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>22</td>
+<td>26</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>7</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>12</td>
+<td>17</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7947.md</code></td>
@@ -315,7 +314,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>MUST bar</strong></p>
 <div data-ze-rfc-bar="rfc7947:must">Ze proven 2, Ze correctness gap 1</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc7947:overview">Ze MUST proven 2, SHOULD proven 3, SHOULD not decided 2, Ze correctness gap 1</div>
+<div data-ze-rfc-bar="rfc7947:overview">Ze MUST proven 2, SHOULD proven 4, SHOULD not decided 1, Ze correctness gap 1</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -363,7 +362,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc7947:should.total">5</span></td>
 </tr>
 <tr><td>SHOULD proven</td>
-<td><span data-ze-rfc="rfc7947:should.proven">3</span></td>
+<td><span data-ze-rfc="rfc7947:should.proven">4</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
 <td><span data-ze-rfc="rfc7947:should.os-verified">0</span></td>
@@ -390,7 +389,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc7947:should.not-yet">0</span></td>
 </tr>
 <tr><td>SHOULD not decided</td>
-<td><span data-ze-rfc="rfc7947:should.not-decided">2</span></td>
+<td><span data-ze-rfc="rfc7947:should.not-decided">1</span></td>
 </tr>
 </tbody>
 </table>
@@ -408,13 +407,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHOULD NOT</td>
 <td>2.2.2.1 - Route Server AS_PATH Management</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7947-x-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L451" title="internal/component/bgp/reactor/rfc7947_forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L452" title="internal/component/bgp/reactor/rfc7947_forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go#L223" title="internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go" target="_blank" rel="noopener"><code>TestRelayStoredRouteRSClientPreservesASPath</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L329" title="internal/component/bgp/reactor/rfc7947_forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSEBGPPrepend</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L330" title="internal/component/bgp/reactor/rfc7947_forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSEBGPPrepend</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go#L259" title="internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go" target="_blank" rel="noopener"><code>TestRelayStoredRoutePlainEBGPPrependsLocalAS</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-relay-aspath-transparency.ci#L4" title="test/plugin/bgp-rs-relay-aspath-transparency.ci" target="_blank" rel="noopener"><code>bgp-rs-relay-aspath-transparency.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-relay-aspath-transparency.ci#L8" title="test/plugin/bgp-rs-relay-aspath-transparency.ci" target="_blank" rel="noopener"><code>bgp-rs-relay-aspath-transparency.ci</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1028" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRouteServerASPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L939" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRouteServerASPath</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7947-x-2">RFC7947-x-2</code></td><td colspan="3"><span class="rfc-subject">As the route server does not participate in the actual routing of traffic, the NEXT_HOP attribute MUST be passed unmodified to the route server clients, similar to the &#34;third-party&#34; next-hop feature described in Section 5.1.3. of [RFC4271]. (§2.2.1)</span></td></tr>
@@ -422,7 +421,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.2.1 - NEXT_HOP Attribute</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7947-x-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L456" title="internal/component/bgp/reactor/rfc7947_forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L457" title="internal/component/bgp/reactor/rfc7947_forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> NEXT_HOP transparency is not RS-specific -- every forwarded route preserves it by default (nhModeNone, internal/component/bgp/reactor/peer_forward_facts.go:147), so unlike x-1&#39;s AS-path prepend there is no &#34;confined&#34; negative where a comparable non-RS peer rewrites NEXT_HOP; the only rewrite is an explicit per-peer next-hop-self/explicit override, which exercises the override feature rather than the RS-transparency MUST-NOT. The positive is proven byte-identical in TestReactorForwardRSTransparent</p></td>
 </tr>
@@ -431,8 +430,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHOULD</td>
 <td>2.2.3 - MULTI_EXIT_DISC Attribute</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7947-x-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L373" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestForwardKeepsMEDForRouteServerClient</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L458" title="internal/component/bgp/reactor/rfc7947_forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L349" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestForwardKeepsMEDForRouteServerClient</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L459" title="internal/component/bgp/reactor/rfc7947_forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L11" title="test/plugin/med-not-propagated-across-as.ci" target="_blank" rel="noopener"><code>med-not-propagated-across-as.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/med-not-propagated-across-as.ci#L15" title="test/plugin/med-not-propagated-across-as.ci" target="_blank" rel="noopener"><code>med-not-propagated-across-as.ci</code></a></span></div>
 </div></td>
@@ -442,8 +441,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHOULD</td>
 <td>2.1 - Client UPDATE Messages</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7947-x-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_consumer_test.go#L86" title="internal/component/bgp/reactor/rfc7947_consumer_test.go" target="_blank" rel="noopener"><code>TestRFC7947ClientPolicyControlsWire</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_consumer_test.go#L87" title="internal/component/bgp/reactor/rfc7947_consumer_test.go" target="_blank" rel="noopener"><code>TestRFC7947ClientPolicyControlsWire</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_consumer_test.go#L94" title="internal/component/bgp/reactor/rfc7947_consumer_test.go" target="_blank" rel="noopener"><code>TestRFC7947ClientPolicyControlsWire</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_consumer_test.go#L95" title="internal/component/bgp/reactor/rfc7947_consumer_test.go" target="_blank" rel="noopener"><code>TestRFC7947ClientPolicyControlsWire</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7947-x-5">RFC7947-x-5</code></td><td colspan="3"><span class="rfc-subject">The route server SHOULD perform one or more BGP Decision Processes to select routes for subsequent advertisement to its clients, taking into account possible configuration to provide multiple Network Layer Reachability Information (NLRI) paths to a particular client as described in Section 2.3.2.2 or multiple Loc-RIBs as described in Section 2.3.2.1. (§2.1)</span></td></tr>
@@ -453,7 +452,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7947-x-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_decision_test.go#L28" title="internal/component/bgp/reactor/rfc7947_rs_decision_test.go" target="_blank" rel="noopener"><code>TestRFC7947RouteServerWorseReannouncementYieldsOtherSourceRoute</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_announcement_election_test.go#L628" title="internal/component/bgp/reactor/rfc7947_rs_announcement_election_test.go" target="_blank" rel="noopener"><code>TestRSAnnouncementAddPathClientGetsEveryPath</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_withdrawal_replacement_test.go#L501" title="internal/component/bgp/reactor/rfc7947_rs_withdrawal_replacement_test.go" target="_blank" rel="noopener"><code>TestRSOwnerWithdrawalPolicyDeniedSkipsToNextSurvivor</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_withdrawal_replacement_test.go#L503" title="internal/component/bgp/reactor/rfc7947_rs_withdrawal_replacement_test.go" target="_blank" rel="noopener"><code>TestRSOwnerWithdrawalPolicyDeniedSkipsToNextSurvivor</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_decision_test.go#L86" title="internal/component/bgp/reactor/rfc7947_rs_decision_test.go" target="_blank" rel="noopener"><code>TestRFC7947RouteServerWorseLaterRouteDoesNotDisplace</code></a></span></div>
 </div></td>
 </tr>
@@ -462,8 +461,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHOULD NOT</td>
 <td>2.2 - Attribute Transparency</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7947-2.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_consumer_test.go#L33" title="internal/component/bgp/reactor/rfc7947_consumer_test.go" target="_blank" rel="noopener"><code>TestRFC7947AllAttributesReachClient</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_consumer_test.go#L55" title="internal/component/bgp/reactor/rfc7947_consumer_test.go" target="_blank" rel="noopener"><code>TestRouteServerTransparencyStopsAtOrdinaryPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_consumer_test.go#L35" title="internal/component/bgp/reactor/rfc7947_consumer_test.go" target="_blank" rel="noopener"><code>TestRFC7947AllAttributesReachClient</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_consumer_test.go#L60" title="internal/component/bgp/reactor/rfc7947_consumer_test.go" target="_blank" rel="noopener"><code>TestRouteServerTransparencyStopsAtOrdinaryPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-opaque-transparency-forked.ci#L35" title="test/plugin/bgp-rs-opaque-transparency-forked.ci" target="_blank" rel="noopener"><code>bgp-rs-opaque-transparency-forked.ci</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-opaque-transparency.ci#L28" title="test/plugin/bgp-rs-opaque-transparency.ci" target="_blank" rel="noopener"><code>bgp-rs-opaque-transparency.ci</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-opaque-transparency-forked.ci#L39" title="test/plugin/bgp-rs-opaque-transparency-forked.ci" target="_blank" rel="noopener"><code>bgp-rs-opaque-transparency-forked.ci</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-opaque-transparency.ci#L32" title="test/plugin/bgp-rs-opaque-transparency.ci" target="_blank" rel="noopener"><code>bgp-rs-opaque-transparency.ci</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7947-2.2.2.2-1">RFC7947-2.2.2.2-1</code></td><td colspan="3"><span class="rfc-subject">In contrast to what is recommended in Section 6.3 of [RFC4271], route server clients need to be able to accept UPDATE messages where the leftmost AS in the AS_PATH attribute is not equal to the AS number of the route server that sent the UPDATE message. If the route server client BGP system has implemented a check for this, the BGP implementation MUST allow this check to be disabled and SHOULD allow the check to be disabled on a per-peer basis. (§2.2.2.2)</span></td></tr>
@@ -471,8 +474,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.2.2.2 - Route Server client AS_PATH Management</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7947-2.2.2.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/filter/loop_test.go#L345" title="internal/component/bgp/reactor/filter/loop_test.go" target="_blank" rel="noopener"><code>TestLoopIngressAcceptsNonAdjacentLeftmostAS</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/filter/loop_test.go#L363" title="internal/component/bgp/reactor/filter/loop_test.go" target="_blank" rel="noopener"><code>TestLoopIngressRejectsLocalASFromRouteServer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_session_first_as_test.go#L185" title="internal/component/bgp/reactor/rfc7947_session_first_as_test.go" target="_blank" rel="noopener"><code>TestSessionASPAFirstASRoles</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_session_first_as_test.go#L190" title="internal/component/bgp/reactor/rfc7947_session_first_as_test.go" target="_blank" rel="noopener"><code>TestSessionASPAFirstASRoles</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7947-2.1-1">RFC7947-2.1-1</code></td><td colspan="3"><span class="rfc-subject">A route server MUST accept all UPDATE messages received from each of its clients for inclusion in its Adj-RIB-In. (§2.1)</span></td></tr>
@@ -505,13 +508,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc7947-x-1"><code>RFC7947-x-1</code></a></h3>
 <p>the route server SHOULD NOT prepend its own AS number to the AS_PATH segment nor modify the AS_PATH segment in any other way. (§2.2.2.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7947 Section 2.2.2.1: &#34;As a route server does not participate in the process of forwarding data between client routers, and because modification of the AS_PATH attribute could affect the route server client BGP Decision Process, the route server SHOULD NOT prepend its own AS number to the AS_PATH segment nor modify the AS_PATH segment in any other way.&#34; Re-judged 2026-10-31 by an independent auditor after c8a7d38c3f changed TestReactorForwardRSEBGPPrepend and f8f7628bdf changed bgp-rs-relay-aspath-transparency.ci. Both changes are the same RFC 8212 Section 3 fixture repair: the unit&#39;s non-RS EBGP destination gains an explicit filterless FinalAccept ExportPolicy (and makeRSPeer gives its source the same import/export pair), and the .ci gains a bgp-level filter { import { final accept; } export { final accept; } }. Without them reactorForwardRSSection skips the destination at filterapi.Policy.AcceptsAtEnd (an unconfigured policy returns !external), so the tests dispatched nothing; the policies carry no refs, so hasActiveFilter stays false and the fast path, and the !facts.rsClient prepend branch it reaches, are unchanged. No assertion moved: the unit still requires one dispatch, non-empty rawBodies and a body longer than the input, and the .ci still pins the exact wire bytes, conn=2 (rs-client true) byte-identical with AS_SEQUENCE[65001] and conn=3 (rs-client false) AS_SEQUENCE[65000,65001]. The unit&#39;s growth-only assertion remains weaker than an exact path oracle, as recorded before; the exact pair is supplied by the .ci and by TestRelayStoredRouteRSClientPreservesASPath / TestRelayStoredRoutePlainEBGPPrependsLocalAS, with TestReactorForwardRSTransparent proving byte identity for an RS client and checkRouteServerASPath the interop side, all unchanged. Discrimination record re-taken in c8a7d38c3f over the changed unit and verified by ./le rfc discriminate: mutant forward_rs.go::reactorForwardRSSection line 633 &#39;!facts.rsClient&#39; -&gt; false reddens it. Both carriers re-run green (go test -run TestReactorForwardRSEBGPPrepend|TestReactorForwardRSTransparent; ./le test bgp plugin bgp-rs-relay-aspath-transparency). Verdict unchanged.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/bgp/check_rfc.go::checkRouteServerASPath moved. Re-judged 2026-11-03 by an independent auditor who authored none of ee1025b381. RFC 7947 Section 2.2.2.1 read: &#34;As a route server does not participate in the process of forwarding data between client routers, and because modification of the AS_PATH attribute could affect the route server client BGP Decision Process, the route server SHOULD NOT prepend its own AS number to the AS_PATH segment nor modify the AS_PATH segment in any other way.&#34; The only unit change is one claim line on TestReactorForwardRSTransparent: the deleted ExtractASPathPrependOps is replaced by its live successor prependASPathOps (aspath_edit.go, called from filter_library.go), a parenthetical naming the operator-policy path the test does not exercise; the body, its RS-client destination and its byte-identical assertion are unchanged, so the claim states no more than the test checks. Its positive discrimination record is new: a hand-written PAIRED break in reactorForwardRSSection, line 582 &#39;!facts.rsClient&#39; -&gt; true with line 594 &#39;facts.rsClient &amp;&amp; communityPolicy != nil&#39; -&gt; false. Read against the producer, the pair is a faithful break: the first guard alone lets the automatic local-AS prepend be set for an RS client but the RS branch overwrites intent.Prepend with RSPrepend (empty without a community request), the second alone leaves no prepend set; together the route server prepends AS 65000 toward the RS client, exactly the behaviour the sentence advises against, and nothing else changes for this input (non-RS peers already took the first branch; the unit carries no prepend community). Solo greens are recorded beside the paired red. Negative TestReactorForwardRSEBGPPrepend (record at line 582 -&gt; false), the RelayStoredRoute pair, bgp-rs-relay-aspath-transparency.ci (exact bytes for rs-client and non-RS receivers) and the BIRD-side checkRouteServerASPath are unchanged. The EBGPPrepend unit&#39;s growth-only assertion remains weaker than an exact path oracle, covered exactly by the .ci and the relay pair. Verdict unchanged: enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L329" title="internal/component/bgp/reactor/rfc7947_forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSEBGPPrepend</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L330" title="internal/component/bgp/reactor/rfc7947_forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSEBGPPrepend</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
@@ -526,9 +529,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L451" title="internal/component/bgp/reactor/rfc7947_forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L452" title="internal/component/bgp/reactor/rfc7947_forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go#L223" title="internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go" target="_blank" rel="noopener"><code>TestRelayStoredRouteRSClientPreservesASPath</code></a></td>
@@ -536,7 +539,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1028" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRouteServerASPath</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L939" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRouteServerASPath</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -550,13 +553,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7947-x-2"><code>RFC7947-x-2</code></a></h3>
 <p>As the route server does not participate in the actual routing of traffic, the NEXT_HOP attribute MUST be passed unmodified to the route server clients, similar to the &#34;third-party&#34; next-hop feature described in Section 5.1.3. of [RFC4271]. (§2.2.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7947 Section 2.2.1: &#34;As the route server does not participate in the actual routing of traffic, the NEXT_HOP attribute MUST be passed unmodified to the route server clients, similar to the &#34;third-party&#34; next-hop feature described in Section 5.1.3. of [RFC4271].&#34; The sole current carrier TestReactorForwardRSTransparent forwards a body with NEXT_HOP 10.0.0.254 and reachable NLRI to an RS client and requires complete byte identity. A dropped/changed next-hop fails, and nonempty output excludes the no-forward false positive. Existing single-polarity annotation remains justified for the default transparent path: ordinary forwarding also preserves next-hop unless an explicit policy requests a rewrite; changing that policy would test another feature, not create this rule&#39;s confining negative. peerForwardFacts/buildForwardFacts and forwarding producer path were read. One positive cover, zero negative, with the existing annotation rather than a fabricated pair. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-03 by an independent auditor who authored none of ee1025b381. RFC 7947 Section 2.2.1: &#34;As the route server does not participate in the actual routing of traffic, the NEXT_HOP attribute MUST be passed unmodified to the route server clients, similar to the &#34;third-party&#34; next-hop feature described in Section 5.1.3. of [RFC4271].&#34; The sole carrier TestReactorForwardRSTransparent changed only in the x-1 claim comment (ExtractASPathPrependOps -&gt; prependASPathOps); its body forwards NEXT_HOP 10.0.0.254 to an RS client and requires complete byte identity of a non-empty dispatch, so a rewritten or dropped next-hop fails. Discrimination record verified by ./le rfc discriminate: peer_forward_facts.go precomputeNextHop &#39;f.nhMode = nhModeNone&#39; -&gt; explicit 192.0.2.1 reddens it. The {single-polarity: positive} annotation stays justified: next-hop transparency is the default for every forwarded route, and the only rewrite is an explicit override feature, not an RS-confined negative. Verdict unchanged: enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L456" title="internal/component/bgp/reactor/rfc7947_forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L457" title="internal/component/bgp/reactor/rfc7947_forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
@@ -565,7 +568,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7947-x-3"><code>RFC7947-x-3</code></a></h3>
 <p>Contrary to Section 5.1.4 of [RFC4271], if applied to an NLRI UPDATE sent to a route server, this attribute SHOULD be propagated to other route server clients, and the route server SHOULD NOT modify its value. (§2.2.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc7947): &#34;Contrary to Section 5.1.4 of [RFC4271], if applied to an NLRI UPDATE sent to a route server, this attribute SHOULD be propagated to other route server clients, and the route server SHOULD NOT modify its value.&#34; The only edit to test/plugin/med-not-propagated-across-as.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file&#39;s git history.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-03 by an independent auditor who authored none of ee1025b381. RFC 7947 Section 2.2.3: &#34;Contrary to Section 5.1.4 of [RFC4271], if applied to an NLRI UPDATE sent to a route server, this attribute SHOULD be propagated to other route server clients, and the route server SHOULD NOT modify its value.&#34; The only changed unit is TestReactorForwardRSTransparent, and only in the x-1 claim comment (ExtractASPathPrependOps -&gt; prependASPathOps); its body still forwards MULTI_EXIT_DISC 100 to an RS client and requires the forwarded body byte-identical, so a stripped or altered MED fails; its x-3 claim (automatic Section 5.1.4 strip never fires toward an RS client, operator del { med; } still removes upstream) is unchanged and states no more than the test checks. TestForwardKeepsMEDForRouteServerClient and med-not-propagated-across-as.ci are unchanged. Verdict unchanged: enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -576,12 +579,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L373" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestForwardKeepsMEDForRouteServerClient</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_med_test.go#L349" title="internal/component/bgp/reactor/forward_med_test.go" target="_blank" rel="noopener"><code>TestForwardKeepsMEDForRouteServerClient</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L458" title="internal/component/bgp/reactor/rfc7947_forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L459" title="internal/component/bgp/reactor/rfc7947_forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -595,20 +598,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7947-x-4"><code>RFC7947-x-4</code></a></h3>
 <p>The route server SHOULD forward UPDATE messages from its Loc-RIB or Loc-RIBs to its clients as determined by local policy. (§2.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of faf7c5c380. RFC 7947 Section 2.1: &#34;The route server SHOULD forward UPDATE messages from its Loc-RIB or Loc-RIBs to its clients as determined by local policy.&#34; faf7c5c380 (filter chain model moved into internal/component/policy) changed one line in the tagged unit internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire: mustPolicy(t, []filterapi.FilterRef{{Name: &#34;client-policy&#34;}}, filterapi.FinalAccept) became mustPolicy(t, []routepolicy.Ref{{Name: &#34;client-policy&#34;}}, routepolicy.FinalAccept). mustPolicy still calls filterapi.NewPolicy with the same single unbound ref and the explicit accept final (NewPolicy now wraps policy.NewChain; an unbound ref stays external as the zero inProcess field did), so the policy the fixture installs, every input and every assertion are unchanged. No other commit touched the file since the verdict was stamped. be95c10053 changed sibling units in the same file (acceptingLiveSettings), not this one. The unit still requires no policy-agnostic send from reactorForwardRS, exactly one export policy call per client, one UPDATE per client with the exact NLRI and ORIGIN for the accepting client and only the exact withdrawal for the rejecting one, with the accepting client swapped between rounds. Verdict unchanged: enforced. Ran: go test -tags ze_bgp -run over the six faf7c5c380-changed reactor units, PASS on 2026-10-31. Earlier judgements are in this file&#39;s git history.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-03 by an independent auditor who authored none of 816ce1ce4c, 2cbd255ba4, 2e5c2d012a, d22b811ce4 or 1a2ccaeef8 (phase 5 of spec-filter-wire-0-umbrella, the per-peer text filter chain deleted). RFC 7947 Section 2.1 read: &#34;The route server SHOULD forward UPDATE messages from its Loc-RIB or Loc-RIBs to its clients as determined by local policy.&#34; The moved unit TestRFC7947ClientPolicyControlsWire changed only the filter plumbing: The test filter is now an answerTransport behind filterTransportSeam, compiled by answerPolicy into a policychain library chain, so the verdict travels the real filter-update path (route.Input, rpc.FilterUpdateOutput decoded by the library chain) instead of the deleted policyFilterSeam that handed a PolicyResponse straight to the text chain; that is the production path every plugin filter now takes. The per-client verdict now keys on input.Peer, the destination the export run is for, and the per-client call count uses transport.callsFor; it still requires exactly one export-policy call per client per round, one UPDATE with the exact NLRI and ORIGIN 2 to the accepting client and only the exact withdrawal to the rejecting one, with the accepting client swapped between rounds, so a verdict shared or leaked between destinations goes red. Assertions unchanged; tag claims unchanged and no wider than the body. Ran the tagged units under ./le job run at HEAD (-tags ze_bgp, -v): PASS (scratch audit-p5-units-v.log). Verdict unchanged: enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_consumer_test.go#L87" title="internal/component/bgp/reactor/rfc7947_consumer_test.go" target="_blank" rel="noopener"><code>TestRFC7947ClientPolicyControlsWire</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_consumer_test.go#L95" title="internal/component/bgp/reactor/rfc7947_consumer_test.go" target="_blank" rel="noopener"><code>TestRFC7947ClientPolicyControlsWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_consumer_test.go#L86" title="internal/component/bgp/reactor/rfc7947_consumer_test.go" target="_blank" rel="noopener"><code>TestRFC7947ClientPolicyControlsWire</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_consumer_test.go#L94" title="internal/component/bgp/reactor/rfc7947_consumer_test.go" target="_blank" rel="noopener"><code>TestRFC7947ClientPolicyControlsWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -623,20 +626,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_decision_test.go#L86" title="internal/component/bgp/reactor/rfc7947_rs_decision_test.go" target="_blank" rel="noopener"><code>TestRFC7947RouteServerWorseLaterRouteDoesNotDisplace</code></a></td>
 <td>unit/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_announcement_election_test.go#L628" title="internal/component/bgp/reactor/rfc7947_rs_announcement_election_test.go" target="_blank" rel="noopener"><code>TestRSAnnouncementAddPathClientGetsEveryPath</code></a></td>
 <td>unit/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_decision_test.go#L28" title="internal/component/bgp/reactor/rfc7947_rs_decision_test.go" target="_blank" rel="noopener"><code>TestRFC7947RouteServerWorseReannouncementYieldsOtherSourceRoute</code></a></td>
 <td>unit/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_withdrawal_replacement_test.go#L501" title="internal/component/bgp/reactor/rfc7947_rs_withdrawal_replacement_test.go" target="_blank" rel="noopener"><code>TestRSOwnerWithdrawalPolicyDeniedSkipsToNextSurvivor</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_withdrawal_replacement_test.go#L503" title="internal/component/bgp/reactor/rfc7947_rs_withdrawal_replacement_test.go" target="_blank" rel="noopener"><code>TestRSOwnerWithdrawalPolicyDeniedSkipsToNextSurvivor</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
@@ -645,40 +648,60 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7947-2.2-1"><code>RFC7947-2.2-1</code></a></h3>
 <p>Therefore, contrary to what is specified in Section 5 of [RFC4271], route servers SHOULD NOT by default (unless explicitly configured) update well-known BGP attributes received from route server clients before redistributing them to their other route server clients. Optional recognized and unrecognized BGP attributes, whether transitive or non-transitive, SHOULD NOT be updated by the route server (unless enforced by local IXP operator configuration) and SHOULD be passed on to other route server clients. (§2.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc7947): &#34;Therefore, contrary to what is specified in Section 5 of [RFC4271], route servers SHOULD NOT by default (unless explicitly configured) update well-known BGP attributes received from route server clients before redistributing them to their other route server clients. Optional recognized and unrecognized BGP attributes, whether transitive or non-transitive, SHOULD NOT be updated by the route server (unless enforced by local IXP operator configuration) and SHOULD be passed on to other route server clients.&#34; be95c10053 replaced lowLiveSettings with acceptingLiveSettings for source, client and ordinary peer in TestRFC7947AllAttributesReachClient and TestRouteServerTransparencyStopsAtOrdinaryPeer (FinalAccept import and export, no refs); faf7c5c380 only renamed filterapi to routepolicy elsewhere in the file. An accepting policy rewrites no attribute, so the client&#39;s byte-identical attributes, the unknown non-transitive attribute kept from the client, and the Partial bit set on the unknown transitive toward the ordinary peer still come from the route-server transparency producer. Assertions unchanged. Verdict unchanged: enforced. Earlier judgements are in this file&#39;s git history.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-02 by an independent auditor who authored none of the change, over all four carriers. RFC 7947 Section 2.2: &#34;Optional recognized and unrecognized BGP attributes, whether transitive or non-transitive, SHOULD NOT be updated by the route server (unless enforced by local IXP operator configuration) and SHOULD be passed on to other route server clients.&#34; Since ce79316b65 Ze&#39;s transparency for optional attributes is bgp-rs&#39;s inserted export step bgp-rs:transparency (rs/transparency.go rsInsertions on session rs-client true, evaluateRSFilter setting preserve-opaque-attributes), read by both forward rails (forward_rs.go and reactor_api_forward.go treatments bit, forward_body.go forwardWire). The reactor pair (TestRFC7947AllAttributesReachClient, TestRouteServerTransparencyStopsAtOrdinaryPeer) now gets that treatment from a test-only export member, so on its own it would stay green if bgp-rs stopped inserting or setting it; it still proves the engine half byte-exact: well-known ORIGIN, AS_PATH (no prepend), NEXT_HOP, MED and COMMUNITY unchanged toward an rs-client, the preserve branch on the RS rail, and confinement (0xF2 dropped, 0xF1 Partial for the ordinary peer). The bgp-rs half is now carried by test/plugin/bgp-rs-opaque-transparency.ci and its -forked twin (2c7013ba98): receiver A (rs-client) asserted byte-identical to the source UPDATE as exact hex, receiver B (ordinary eBGP) asserted 0xF2 dropped, 0xF1 Partial set and AS prepended, through bgp-rs in-process and forked. Their four hand-written mutants are sound and minimal at the producer: evaluateRSFilter Sets nil gave receiver A 0035 ... E0F103112233 with 0xF2 gone (positive red for the stated reason, both files); rsInsertions also matching rs-client false gave receiver B 0xF2 kept and 0xF1 without Partial (negative red, both files; B keeps the AS prepend, which is engine RSClient behaviour, so the commit&#39;s &#39;byte-identical&#39; wording for B is loose but the red is the claimed leak). Positive inputs are genuinely conforming, negatives violate this requirement&#39;s client confinement, and no buffer trips another rule first. Verdict: enforced over the four carriers together.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_consumer_test.go#L55" title="internal/component/bgp/reactor/rfc7947_consumer_test.go" target="_blank" rel="noopener"><code>TestRouteServerTransparencyStopsAtOrdinaryPeer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_consumer_test.go#L60" title="internal/component/bgp/reactor/rfc7947_consumer_test.go" target="_blank" rel="noopener"><code>TestRouteServerTransparencyStopsAtOrdinaryPeer</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-opaque-transparency-forked.ci#L39" title="test/plugin/bgp-rs-opaque-transparency-forked.ci" target="_blank" rel="noopener"><code>bgp-rs-opaque-transparency-forked.ci</code></a></td>
+<td>functional/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-opaque-transparency.ci#L32" title="test/plugin/bgp-rs-opaque-transparency.ci" target="_blank" rel="noopener"><code>bgp-rs-opaque-transparency.ci</code></a></td>
+<td>functional/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_consumer_test.go#L35" title="internal/component/bgp/reactor/rfc7947_consumer_test.go" target="_blank" rel="noopener"><code>TestRFC7947AllAttributesReachClient</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_consumer_test.go#L33" title="internal/component/bgp/reactor/rfc7947_consumer_test.go" target="_blank" rel="noopener"><code>TestRFC7947AllAttributesReachClient</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-opaque-transparency-forked.ci#L35" title="test/plugin/bgp-rs-opaque-transparency-forked.ci" target="_blank" rel="noopener"><code>bgp-rs-opaque-transparency-forked.ci</code></a></td>
+<td>functional/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/bgp-rs-opaque-transparency.ci#L28" title="test/plugin/bgp-rs-opaque-transparency.ci" target="_blank" rel="noopener"><code>bgp-rs-opaque-transparency.ci</code></a></td>
+<td>functional/verify</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc7947-2.2.2.2-1"><code>RFC7947-2.2.2.2-1</code></a></h3>
 <p>In contrast to what is recommended in Section 6.3 of [RFC4271], route server clients need to be able to accept UPDATE messages where the leftmost AS in the AS_PATH attribute is not equal to the AS number of the route server that sent the UPDATE message. If the route server client BGP system has implemented a check for this, the BGP implementation MUST allow this check to be disabled and SHOULD allow the check to be disabled on a per-peer basis. (§2.2.2.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. The client must accept a leftmost AS that is not the RS AS, and MUST allow any such check to be disabled. TestLoopIngressAcceptsNonAdjacentLeftmostAS asserts acceptance of [65002 65003] from RS peer AS 65010, so any leftmost-AS equality check goes red. TestLoopIngressRejectsLocalASFromRouteServer shows the filter reads AS_PATH and rejects a local-AS loop on the same session. ze has no such check, so the disable clause holds by absence. Note: check.log reports both discrimination records for these units as producer-changed (loop.go moved), and they need re-recording.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-02 by an independent auditor who authored none of 9d7957d61f, 5296340831, 982500f728 or b803afc762. RFC 7947 Section 2.2.2.2 read: &#34;If the route server client BGP system has implemented a check for this, the BGP implementation MUST allow this check to be disabled and SHOULD allow the check to be disabled on a per-peer basis.&#34; Ze implements the check in Session.firstASMismatch and prepareRFC7606FirstAS (reactor/session_validation.go, session_validation_receive.go); both gate on Session.firstASPeer, which turns it off when this session&#39;s own OPEN carries Role RS-client (localRSClient, session_negotiate.go), a per-peer setting. The tags now sit on reactor/rfc7947_session_first_as_test.go::TestSessionASPAFirstASRoles, which drives the real session read path over net.Pipe (OPEN, KEEPALIVE, UPDATE through ReadAndProcess) and captures the semantic UPDATE at the message callback. Positive: local Role RS-client with remote Role RS or no Role (loose); an UPDATE from AS 65002 with AS_PATH [65003] arrives byte-identical, session stays Established. Negative: local Role RS or no Role, remote Role RS or not; the same UPDATE arrives as exactly the withdrawal of 203.0.113.0/24, so the check stays on for every peer the exemption does not name (per peer). Isolation: a single AS_SEQUENCE whose only fault is the leftmost AS; local AS 65001 is absent, so no loop rule can fire. Discrimination: two mutant records on firstASPeer line 340 (drop &amp;&amp; !s.localRSClient turns the positive red; force the check off turns the negative red). The LoopIngress tags judged weak before were removed in b803afc762. Not covered here: the config path from a peer&#39;s role leaf to the transmitted Role capability, which this unit sets through the plugin capability getter. Verdict: enforced (was weak; the tagged units changed).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/filter/loop_test.go#L363" title="internal/component/bgp/reactor/filter/loop_test.go" target="_blank" rel="noopener"><code>TestLoopIngressRejectsLocalASFromRouteServer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_session_first_as_test.go#L190" title="internal/component/bgp/reactor/rfc7947_session_first_as_test.go" target="_blank" rel="noopener"><code>TestSessionASPAFirstASRoles</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/filter/loop_test.go#L345" title="internal/component/bgp/reactor/filter/loop_test.go" target="_blank" rel="noopener"><code>TestLoopIngressAcceptsNonAdjacentLeftmostAS</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_session_first_as_test.go#L185" title="internal/component/bgp/reactor/rfc7947_session_first_as_test.go" target="_blank" rel="noopener"><code>TestSessionASPAFirstASRoles</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -916,7 +939,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

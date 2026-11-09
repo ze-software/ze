@@ -70,6 +70,7 @@
 <li><a href="#os-metrics-netdata-compatible">OS Metrics (Netdata-compatible)</a></li>
 <li><a href="#host-inventory-metrics">Host Inventory Metrics</a></li>
 <li><a href="#contained-panics">Contained Panics</a></li>
+<li><a href="#pppoe-client-ipv6-metrics">PPPoE Client IPv6 Metrics</a></li>
 <li><a href="#loc-rib-import-policy-metrics">Loc-RIB Import Policy Metrics</a></li>
 <li><a href="#bgp-metrics">BGP Metrics</a>
 <ol>
@@ -753,6 +754,40 @@ at zero from the moment the component has a metrics registry.</p>
 <!-- source: internal/component/gnmi/panic_guard.go -- rpcTask, endRPCAfterPanic -->
 <p>| <code>config-confirm</code> | <code>write</code> | One config write on the commit-confirm worker (a gNMI Set, an SSH, web or API commit, an accept, an abort, a managed push): its caller gets an error saying the write may be partly applied and naming the <code>ze show crashes</code> command; the worker serves the next write and the open window's deadline |</p>
 <!-- source: internal/component/config/confirm/panic_guard.go -- writeTask, writeEndedByPanic -->
+<h3 id="pppoe-client-ipv6-metrics">PPPoE Client IPv6 Metrics</h3>
+<p>A home CPE on a PPPoE WAN publishes whether IPv6 reached the WAN and whether
+the WAN holds a prefix for the LAN, one series per <code>pppoe-client</code> name:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_pppoe_client_ipv6cp_opened{name}</code></td>
+<td>gauge</td>
+<td>1 while IPv6CP is Opened and IPv6 passes on the session; 0 before it opens, after the access concentrator rejects or closes it, during an LCP restart, and once the session ends</td>
+</tr>
+<tr>
+<td><code>ze_iface_delegated_prefixes_held{name}</code></td>
+<td>gauge</td>
+<td>The delegated prefixes the client's DHCPv6 lease holds. 0 means no LAN unit whose <code>ipv6 delegated-prefix</code> names this client has a /64</td>
+</tr>
+<tr>
+<td><code>ze_pppoe_client_renegotiations_total{name}</code></td>
+<td>counter</td>
+<td>Network-phase LCP renegotiations the client started</td>
+</tr>
+</tbody>
+</table>
+<p>An alert on <code>ze_pppoe_client_ipv6cp_opened == 1 and ze_iface_delegated_prefixes_held == 0</code> finds a WAN with IPv6 whose ISP has not
+delegated a prefix. <code>show interface pppoe-client</code> shows the prefixes and the
+lifetimes that remain.</p>
+<!-- source: internal/component/l2tp/pppoeclient/metrics.go -- bindClientMetrics, recordIPv6CPOpened -->
+<!-- source: internal/component/iface/delegated_lease.go -- delegations.record, publishHeld -->
 <h3 id="loc-rib-import-policy-metrics">Loc-RIB Import Policy Metrics</h3>
 <p>An import chain (<code>&lt;protocol&gt; filter import</code>, <code>rib filter import</code>) can hide a
 path: the Loc-RIB keeps it but never selects it. These two series count what
@@ -1340,7 +1375,7 @@ ze cli -c "show bgp rpki status"
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 17:53 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

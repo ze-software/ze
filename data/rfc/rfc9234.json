@@ -8,10 +8,10 @@
   "must": {
     "total": 19,
     "kept": 19,
-    "ze-proven": 8,
+    "ze-proven": 11,
     "os-verified": 0,
     "os-gap": 0,
-    "ze-gap": 11,
+    "ze-gap": 8,
     "not-owed": 0,
     "not-owed-by-kind": {}
   },
@@ -27,9 +27,9 @@
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
-    "functional": 4,
+    "functional": 5,
     "interop": 1,
-    "unit": 3
+    "unit": 5
   },
   "unmet": [
     "RFC9234-5-7",

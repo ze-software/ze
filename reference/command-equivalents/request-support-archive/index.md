@@ -5,8 +5,8 @@ Collect logs\, config\, state and diagnostics into one archive\.
 ## Ze command
 
 - Registry path: `request support archive`
-- Usage: `request support archive`
-- Mode: Daemon
+- Usage: `request support archive [module <module>] [exclude <exclude>] [since <since>] [reason <reason>]`
+- Mode: daemon, offline
 - Wire method: `ze-support:request-support-archive`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
@@ -14,10 +14,10 @@ Collect logs\, config\, state and diagnostics into one archive\.
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: none
-- Pipes, when the answer has rows: none
-- Pipes, while streaming: none
-- Pipes, local process only: none
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
@@ -25,7 +25,12 @@ The archive holds logs\, config\, state and diagnostics\, and is what to send wh
 
 ## Arguments
 
-No command-specific arguments listed.
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `module` | string | no | any value of this type | Collect only these modules \(comma\-separated\)\. | Only the named modules are collected\, given as a comma\-separated list of module names\. Not given together with exclude\. |
+| `exclude` | string | no | any value of this type | Collect every module except these \(comma\-separated\)\. | Every module except the named ones is collected\, given as a comma\-separated list of module names\. Not given together with module\. |
+| `since` | string | no | any value of this type | Start the logs at this time or this long ago\. | The logs the archive holds start at this time\: a duration back from now \(2h\, 30m\) or a date or time \(2026\-05\-25\, 2026\-05\-25T14\:00\:00Z\)\. |
+| `reason` | string | no | any value of this type | Why the archive was collected\, recorded in its manifest\. | Free text recorded in the archive\'s manifest\, cut at 256 characters\. |
 
 ## Mapping intents
 

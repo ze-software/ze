@@ -577,6 +577,9 @@
     <loc>https://ze-software.net/project/changes/2026-10-12/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/project/changes/2026-10-25/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/project/history/</loc>
   </url>
   <url>
@@ -812,6 +815,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc2545/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc2548/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc2661/</loc>
@@ -1076,6 +1082,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc5575/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc5625/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc5635/</loc>
@@ -2110,6 +2119,9 @@
     <loc>https://ze-software.net/reference/command-equivalents/show-class-of-service/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-command-catalog/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-command-complete/</loc>
   </url>
   <url>
@@ -2117,6 +2129,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-command-list/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-command-reference/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-config-cat/</loc>
@@ -2296,6 +2311,9 @@
     <loc>https://ze-software.net/reference/command-equivalents/show-interface-brief/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-interface-delegated-prefix/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-interface-errors/</loc>
   </url>
   <url>
@@ -2303,6 +2321,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-interface-name-detail/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-interface-pppoe-client/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-interface-rate/</loc>
@@ -2740,6 +2761,9 @@
     <loc>https://ze-software.net/reference/command-equivalents/show-system-date/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-system-dns/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-system-file-descriptors/</loc>
   </url>
   <url>
@@ -2906,6 +2930,15 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/update-resolve-rir/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/update-serve-pause/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/update-serve-start/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/update-serve-stop/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/update-serve/</loc>

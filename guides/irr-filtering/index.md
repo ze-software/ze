@@ -107,7 +107,7 @@ $ ze config cat ze.conf |
 $ sudo systemctl start ze.service
 ```
 
-The import replaces the stored `ze.conf` only because `--yes` confirms it; the previous version stays available to `ze config rollback`. Nothing here contacts the daemon, which is stopped anyway. Starting Ze loads the plugin and resolves the AS-SET in the background. An UPDATE that arrives before the list waits up to 4 seconds for it, and is then rejected and kept for another evaluation, as [After a restart](#after-a-restart) describes. Replace `ze.conf`, `customer-a`, `AS-CUSTOMER`, and `65001` with the stored configuration key, peer name, AS-SET, and remote ASN for your deployment.
+The import replaces the stored `ze.conf` only because `--yes` confirms it; the previous version stays available to `ze config rollback`. Nothing here contacts the daemon, which is stopped anyway. Starting Ze loads the plugin and resolves the AS-SET in the background. An UPDATE that arrives before the list is rejected at once and kept for another evaluation, as [After a restart](#after-a-restart) describes. Replace `ze.conf`, `customer-a`, `AS-CUSTOMER`, and `65001` with the stored configuration key, peer name, AS-SET, and remote ASN for your deployment.
 <!-- source: internal/component/config/cli/editor_stdin.go -- openEditableConfig -->
 <!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage -->
 
@@ -134,8 +134,9 @@ session {
 
 A commit that changes a peer's `as-set`, the IRR `server`, or a peer's
 `filter import filters` reference takes effect on the running filter. A changed
-as-set does not inherit the list of the old one: the next UPDATE from that peer
-waits a few seconds for the new set to resolve, then is filtered against it.
+as-set does not inherit the list of the old one: an UPDATE from that peer before
+the new set resolves has its announced routes rejected and kept, and the filter
+asks the peer for them again once the new list arrives.
 Deleting the `as-set` counts as a change: Ze asks PeeringDB again, as it would
 for a peer that never named one, and filters against the set PeeringDB returns.
 If PeeringDB does not answer, Ze queries `AS<asn>` itself until the next
@@ -209,11 +210,11 @@ The entry disappears from memory and from ZeFS, and the firewall tables are re-a
 
 The BGP filter keeps its prefix-lists in memory only and writes nothing to disk, so a restarted Ze starts with no list for any ASN and resolves every enrolled ASN again from the IRR server. A configuration reload keeps the lists already resolved, except for an ASN whose AS-SET changed, which starts from no list.
 
-Until an ASN's first resolution completes, an UPDATE from its peer waits for it, for at most 4 seconds. An UPDATE still without a list after that wait has its announced routes rejected, and they are kept for another evaluation. When the list arrives, the filter asks the peer for them again by ROUTE-REFRESH, as described in the next section, so the peer needs Route Refresh negotiated and the `refresh` permission. A peer without them keeps those routes rejected until it sends them again.
+Until an ASN's first resolution completes, an UPDATE from its peer has its announced routes rejected at once, with no wait, and they are kept for another evaluation; its withdrawals still apply. `show bgp irr` reports the ASN `pending` meanwhile. When the list arrives, the filter asks the peer for them again by ROUTE-REFRESH, as described in the next section, so the peer needs Route Refresh negotiated and the `refresh` permission. A peer without them keeps those routes rejected until it sends them again.
 
 When the IRR server cannot be reached at startup, no last known good list exists to fall back to: the peer's announcements are rejected, and the filter retries the lookup every minute while it holds a rejected route, until the server answers.
 
-<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- firstResolveWait, handleConfigure, forgetUnconfigured -->
+<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- handleFilterUpdate, handleConfigure, forgetUnconfigured -->
 
 At first enrollment, do not place the session into service until `show bgp irr` reports `status: ok`. A peer without loaded prefix data has no list from which to make a useful allow decision.
 

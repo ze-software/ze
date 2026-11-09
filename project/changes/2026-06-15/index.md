@@ -1,4 +1,4 @@
-# Week of 2026-06-15
+# 2026-06-15 – 2026-06-21 (1 week)
 
 Native IS-IS landed, MPLS gained fast reroute, and firewall rules can now pull straight from the IRR.
 

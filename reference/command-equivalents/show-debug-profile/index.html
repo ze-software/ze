@@ -55,12 +55,15 @@
 <dl class="cmd-meta">
 <div><dt>Registry path</dt><dd><code>show debug profile</code></dd></div>
 <div><dt>Usage</dt><dd><code>show debug profile [name &lt;name&gt;] [module &lt;module&gt;]</code></dd></div>
-<div><dt>Mode</dt><dd>Read-only</dd></div>
+<div><dt>Mode</dt><dd>read-only, offline</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-debug:show-profile</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
 <div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
 <div><dt>Subcommands</dt><dd>none: this command takes no subcommand</dd></div>
-<div><dt>Pipes</dt><dd>none: this command reaches no pipe layer</dd></div>
+<div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
+<div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill</dd></div>
+<div><dt>Pipes, while streaming</dt><dd>log</dd></div>
+<div><dt>Pipes, local process only</dt><dd>save</dd></div>
 </dl>
 <h3>Description</h3><p>Reads debug.zefs and asks no daemon. With no argument it lists the<br>profile names. name &lt;name&gt; prints that profile as a table of module, level, flags and<br>scopes, and module &lt;prefix&gt; then keeps the rows under one subsystem subtree. Any other<br>trailing word is refused rather than ignored.</p>
 <h3>Arguments</h3>
@@ -133,7 +136,7 @@ and the keyword is read only after name.</td></tr>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

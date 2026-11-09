@@ -1,4 +1,4 @@
-# Week of 2025-12-22
+# 2025-12-22 – 2025-12-28 (1 week)
 
 Work on the BGP engine itself: route encoding correctness, session robustness, and a first real API surface for driving peers programmatically.
 

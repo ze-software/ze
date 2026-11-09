@@ -26,6 +26,11 @@ l2tp {
     shared-secret <secret>;     // CHAP-MD5 tunnel auth (RFC 2661 S4.2)
     auth-method chap-md5;        // PPP Auth-Protocol first advertised
     allow-no-auth false;         // explicit opt-in required for no-auth
+    proxy-lcp accept;            // LNS: accept the LAC's proxy LCP, or renegotiate
+    mru 1500;                   // Information-field octets; 68..1500, IPv6 needs 1280
+    authentication {
+        allow [ chap-md5 ];     // ordered permitted methods; optional
+    }
     hello-interval 60;           // seconds of peer silence before HELLO
     hello-retries 2;             // unanswered HELLO intervals before dead-peer teardown (0 disables)
     max-retransmit 5;            // retransmissions of an unacknowledged message before the tunnel is cleared
@@ -105,11 +110,120 @@ listener, a dial asks for a restart instead.
 The `relay` binding is the LAC path: a PPPoE subscriber whose Service-Name
 matches is relayed into an L2TP incoming call (ICRQ) toward the bound remote
 instead of terminating PPP locally. The subscriber-PPP↔L2TP kernel channel
-bridge that carries frames at the LAC is Linux-only and exercised through
-`./le test deployment l2tp-ppp`. Initiator tunnel interop is proven against
-xl2tpd in `test/interop-l2tp/scenarios/03-ze-lac-xl2tpd-lns`.
+bridge that carries frames at the LAC is Linux-only. `TestLACChannelBridge`
+shows only that the bridge ioctls reach the kernel, and
+`./le test deployment l2tp-ppp` has xl2tpd dial Ze as an LNS with no PPPoE
+and no Ze LAC, so it never reaches the bridge. The end-to-end proof of the
+relay data path is the topology scenario `access-up`
+(`./le test integration interop-topology scenario access-up`): a Ze CPE
+dials with no Service-Name, a Ze LAC relays it with `relay ""` to a Ze LNS,
+and the CPE pings the LNS across the session. It runs on a Docker host
+running Ze's kernel, and it goes red when the LAC skips the bridge: the LNS
+then logs an LCP negotiation timeout and the CPE never holds its address.
+`access-pool` proves the LNS pool fallback and `access-accounting` the
+RADIUS Start, Interim-Update and Stop over the same chain. Initiator tunnel interop is
+proven against xl2tpd in `test/interop-l2tp/scenarios/03-ze-lac-xl2tpd-lns`.
 
-<!-- source: internal/component/l2tp/yang/ze-l2tp-conf.yang -- remote/relay lists -->
+### Relay by realm (wholesale LAC)
+
+A `relay-realm` binding selects the LNS from the realm of the PPP username,
+the way a wholesale access network does:
+
+```
+l2tp {
+    relay-realm example.net {   // username realm -> L2TP incoming call
+        remote lns-retail;      // must reference an l2tp/remote above
+    }
+}
+```
+
+The realm is the text after the last `@` of the username, compared exactly
+once case is ignored, so `cpe@Example.NET` matches `example.net` and
+`cpe@x.example.net` does not. A Service-Name `relay` that matches at PPPoE
+discovery wins, and a username whose realm names no binding is authenticated
+by the local auth handler as for any PPPoE session.
+
+For a matched realm the LAC runs LCP with the subscriber, starts
+authentication (a CHAP Challenge, or the PAP Authenticate-Request it
+receives, per the PPPoE `authentication-allow` list), dials the bound remote
+and places an incoming call whose ICCN carries the proxy AVPs of RFC 2661
+Section 4.4.5:
+
+| AVP | Name | Content |
+|-----|------|---------|
+| 26 | Initial Received LCP CONFREQ | options of the first Configure-Request the subscriber sent |
+| 27 | Last Sent LCP CONFREQ | options of the LAC's Configure-Request the subscriber Acked |
+| 28 | Last Received LCP CONFREQ | options of the subscriber's Configure-Request the LAC Acked |
+| 29 | Proxy Authen Type | 2 (CHAP) or 3 (PAP) |
+| 30 | Proxy Authen Name | the username |
+| 31 | Proxy Authen Challenge | CHAP only: the challenge the LAC sent |
+| 32 | Proxy Authen ID | the CHAP or PAP Identifier |
+| 33 | Proxy Authen Response | the CHAP response, or the PAP password hidden after a Random Vector |
+
+Every proxy AVP carries M=0. A PAP password travels only hidden, so a PAP
+subscriber's proxy authentication is sent only when the remote has a
+`shared-secret`; without one the ICCN carries AVPs 26 to 28 alone, the LAC
+logs why, and the LNS restarts authentication. An LNS may also ignore the
+proxy data and renegotiate LCP and authentication; a Ze LNS does so under
+`proxy-lcp renegotiate` (see PPP negotiation).
+The `access-wholesale` topology scenario proves the relay end to end: a Ze LAC
+runs LCP and CHAP with a Ze CPE, picks the LNS by the realm, and the LNS
+renegotiates LCP and challenges again before the CPE reaches IPCP Opened.
+<!-- source: internal/le/interoplab/topology/check_wholesale.go -- checkAccessWholesale -->
+
+`ze config validate`, a commit and the daemon at start refuse a binding
+whose remote is not declared, an empty realm, a realm holding `@` or
+whitespace, a realm longer than 253 octets, and two bindings that differ only
+in case, each with the change that fixes it. A reload applies to the next
+authentication.
+
+`show l2tp session id <id>` on the LAC adds `relay-realm`, `relay-remote`,
+`proxy-lcp-sent` and `proxy-auth-sent` to a realm-relayed session, and
+`proxy-auth-reason` (`no-shared-secret`, `no-authentication`,
+`proxy-data-too-large`) when proxy authentication was not sent.
+
+While the call is placed the LAC keeps the subscriber's link served: it
+answers LCP Echo-Request and drops a retransmitted CHAP Response or PAP
+Authenticate-Request, which the pending decision answers. Once the L2TP
+session is ready the LAC stops reading the subscriber's PPP channel, bridges
+it to the L2TP session, and from then on sends the subscriber nothing itself:
+the LNS continues the PPP session. A matched realm whose call fails (no
+listener, a refused tunnel, a CDN or a bridge error before the bridge) is
+refused with a CHAP Failure or PAP Authenticate-Nak naming the realm, then an
+LCP Terminate-Request; it is never authenticated locally. An MS-CHAPv2
+subscriber of a matched realm is refused the same way, because RFC 2661
+Section 4.4.5 defines no Proxy Authen Type for MS-CHAPv2; its Failure carries
+the RFC 2759 Section 6 fields (`E=691 R=0 C=<the challenge sent> V=3`) with
+the realm in the `M=` text. After the bridge, a
+subscriber PADT ends the L2TP session with CDN Result Code 1 (loss of
+carrier), and an L2TP session the LNS ends sends the subscriber PADT.
+Subscribers of one remote share one tunnel, including those that arrive
+while it is still connecting. `ze_l2tp_relay_total` counts each decision (see
+Metrics).
+
+Two topology scenarios prove the realm path against LNSes Ze does not
+write. In `l2tp-lac-realm-relay-accel-ppp` a pppd subscriber is relayed by
+its realm to accel-ppp, which ignores the proxy AVPs and renegotiates; the
+subscriber reaches IPCP, the LAC session carries the `relay-realm` keys, and
+a second subscriber of an unbound realm is refused locally and never reaches
+the LNS. `l2tp-lac-realm-relay-xl2tpd` runs the same relay against xl2tpd and
+its pppd. The Linux tests `TestLACRealmBridgeAfterLocalLCP` and
+`TestLACRealmHandoffRetransmission` bridge real pppox channels after local
+LCP, and `pppoe-realm-relay-nomatch.ci` shows an unbound realm terminated
+locally and refused.
+<!-- source: internal/le/interoplab/topology/check_realm_relay.go -- checkRealmRelayAccel, checkRealmRelayXL2TPD -->
+<!-- source: internal/component/l2tp/bridge_realm_integration_linux_test.go -- TestLACRealmBridgeAfterLocalLCP, TestLACRealmHandoffRetransmission -->
+
+<!-- source: internal/component/l2tp/yang/ze-l2tp-conf.yang -- remote/relay/relay-realm lists -->
+<!-- source: internal/component/l2tp/config.go -- validateRelayRealms, checkRealmSyntax, LookupRealmRelay -->
+<!-- source: internal/component/l2tp/config_policy.go -- validateParameters -->
+<!-- source: internal/component/l2tp/relay_sink.go -- RelayRealm, realmCall.Cancel -->
+<!-- source: internal/component/l2tp/iccn_proxy.go -- newICCNProxy, writeICCNProxyAVPs -->
+<!-- source: internal/component/l2tp/pppoe/realm_relay.go -- realmHandoff.run, subscriberGone -->
+<!-- source: internal/component/l2tp/ppp/auth.go -- awaitAuthDecision, serveFrameAwaitingDecision -->
+<!-- source: internal/component/l2tp/ppp/mschapv2.go -- mschapv2RefusalMessage -->
+<!-- source: internal/component/l2tp/teardown.go -- teardownRealmSession -->
+<!-- source: internal/component/l2tp/reactor_dial.go -- handleDial, connectingTunnelToLocked -->
 <!-- source: internal/component/l2tp/cmd/outgoing_call.go -- handleOutgoingCall -->
 
 ## Rejecting a malformed SCCRQ
@@ -155,12 +269,33 @@ datagram whose message type is not SCCRQ keeps its silent drop.
 | `show l2tp tunnels` | Array of tunnel summaries |
 | `show l2tp tunnel <id>` | One tunnel detail (AVPs, capabilities, session list) |
 | `show l2tp sessions` | Array of session summaries (flattened across tunnels) |
-| `show l2tp session <id>` | One session detail (PPP state, assigned IP, speeds) |
+| `show l2tp session id <id>` | One session detail (PPP state, negotiated MRU/auth method, `proxy-lcp` outcome, assigned IP, speeds; the realm relay keys on a realm-relayed LAC session) |
 | `show l2tp statistics` | Protocol counters (tunnel/session counts, per-message stats) |
 | `show l2tp listeners` | Bound UDP endpoints |
-| `show l2tp config` | Effective runtime config; `shared-secret` redacted to `<set>`/`<unset>` |
+| `show l2tp config` | Effective runtime config, including `mru` and `authentication-allow`; `shared-secret` redacted to `<set>`/`<unset>` |
 
 <!-- source: internal/component/l2tp/cmd/l2tp.go -->
+
+`show l2tp config` reports the local requested `mru` (1500 when absent) and
+the effective `authentication-allow` list, including the method-dependent
+default when no list was written. It describes the policy for new sessions,
+not what an established peer negotiated.
+
+Session summaries and details report `mru` as the peer's negotiated receive
+MRU before the local transmit cap, and `auth-method` as the method agreed by LCP.
+These are the actual values from normal or accepted proxy negotiation, not
+copies of the configured MRU or preferred method. Both keys are `null`
+before LCP opens and after LCP goes down; negotiated no-auth is the distinct
+value `"none"`. LCP-up precedes authentication, so a reported method does not
+by itself mean the subscriber has authenticated.
+The installed IP interface MTU is bounded by both this peer MRU and the
+session's configured MRU, so a reported peer MRU of 1500 can accompany an
+installed MTU of 1492. An omitted peer option is reported as the PPP default
+of 1500; it does not remove the local transmit cap.
+
+<!-- source: internal/component/l2tp/reactor_kernel.go -- handleLCPUp, handleLCPDown -->
+<!-- source: internal/component/l2tp/snapshot.go -- sessionSnapshot -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpen -->
 
 ### Destructive commands
 
@@ -220,9 +355,17 @@ PPP negotiation proceeds through these phases:
    magic number, echo keepalive. 10-state FSM with ~30 transitions.
 2. **Authentication** -- PAP (RFC 1334), CHAP-MD5 (RFC 1994), or
    MS-CHAPv2 (RFC 2759). Dispatched to the registered auth handler
-   (l2tp-auth-local or l2tp-auth-radius plugin).
+   (l2tp-auth-local or l2tp-auth-radius plugin). A CHAP or MS-CHAPv2
+   Challenge the subscriber does not answer is followed by a new one, with
+   a new Identifier and Value, every 3 seconds (RFC 1994 Section 4.1); after
+   10 unanswered Challenges, or the auth timeout, the session ends. Only the
+   newest Challenge is answerable, so a late Response to an earlier one is
+   discarded.
 3. **IPCP** (RFC 1332) -- IPv4 address assignment + DNS options (RFC 1877).
    Dispatched to the registered pool handler (l2tp-pool plugin).
+   A DNS option the subscriber asks for and the pool holds no server for
+   (no `dns-secondary`, say) is Configure-Rejected (RFC 1661 Section 5.4),
+   so the subscriber drops it and IPCP still opens.
 4. **IPv6CP** (RFC 5072) -- interface identifier negotiation. Runs in
    parallel with IPCP when both NCPs are enabled. NCPs are independent
    (RFC 1661 S2): if the pool handler declines IPv6 (for example an
@@ -232,9 +375,19 @@ PPP negotiation proceeds through these phases:
 The PPP MRU counts the Information field, not the two-octet Protocol field.
 Ze's userspace buffers hold 1502 octets, and the kernel receive MRU stays at
 1500 even when a smaller MRU was requested. The outgoing IP interface MTU
-comes from the peer's negotiated MRU without subtracting PPP framing.
+is the smaller of the peer's negotiated MRU and the session's configured
+MRU, without subtracting PPP framing. An omitted peer option still means a
+peer receive capacity of 1500; it cannot raise the interface MTU past the
+configured cap.
+Code-Reject, Protocol-Reject and Echo-Reply use the same effective transmit
+limit for their returned payloads; a larger receive buffer does not permit an
+oversized reply.
+Set `l2tp mru` to the requested receive MRU (68..1500, default 1500), for
+example 1492 behind a PPPoE LAC. It does not cap receive buffers or describe
+the peer's receive MRU. `show l2tp config` reports the effective `mru` and
+`authentication-allow` policy, not negotiated session values.
 <!-- source: internal/component/l2tp/ppp/frame.go -- MaxFrameLen, MaxFrameBufLen -->
-<!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpen -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpen, transmitMRU, writeCodeReject, sendProtocolReject, sendEchoReply -->
 
 PPP descriptors use blocking `os.File` I/O rather than the runtime epoll path.
 Closing a session prevents new operations while an in-flight blocking syscall
@@ -282,10 +435,15 @@ the last request. Nak and Reject replies also need the matching Identifier;
 Reject options must be an unchanged, ordered subset of that request.
 Rejected options stay out of subsequent requests. Unanswered retransmissions
 retain their Identifier, while a changed request or valid reply advances it.
+An LCP or NCP configuration response must fit the session transmit limit
+with all required options intact. If it cannot, Ze reports session failure
+and stops negotiation before an unsent response can advance its state.
 Echo packets carry zero until Magic-Number negotiation succeeds, then the
 local Magic-Number; received Echo packets must carry the peer's value.
 <!-- source: internal/component/l2tp/ppp/lcp.go -- ValidateLCPReply -->
 <!-- source: internal/component/l2tp/ppp/session_run.go -- handleLCPPacket, sendConfigureRequest, transmitMagic -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- sendConfigureAck, sendConfigureNakOrReject -->
+<!-- source: internal/component/l2tp/ppp/ncp.go -- sendNCPConfigureAck, sendNCPConfigureNakOrReject -->
 LCP enters Opened before authentication and NCP execute. If those phases
 receive an LCP restart or termination, they unwind into the new LCP state
 instead of restoring Opened. Periodic CHAP and MS-CHAPv2 authentication
@@ -337,8 +495,36 @@ alone, and the refusal is logged and counted (see Prometheus metrics).
 <!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpenIPv6Service -->
 
 Authentication and NCP have configurable timeouts. LCP negotiation and restart
-timers are fixed. LCP proxy (RFC 2661 S18) is supported: when the LAC provides
-proxy LCP AVPs, Ze validates them and can renegotiate instead of accepting them.
+timers are fixed.
+
+Proxy LCP (RFC 2661 Section 4.4.5) is the LAC's record of the LCP it already
+negotiated with the subscriber, sent in ICCN as AVPs 26 to 28. The RFC lets an
+LNS use it to continue "without renegotiation of LCP", and notes that "the LNS
+policy may be to enter an additional round of LCP negotiation and/or
+authentication if the LAC is not trusted". The `proxy-lcp` leaf picks the
+policy:
+
+| `proxy-lcp` | What the LNS does |
+|-------------|-------------------|
+| `accept` (default) | When all three AVPs parse and the proxied method is in the auth allow-list and the proxied MRU fits `mru`, LCP opens on the LAC's values. Partial, malformed or out-of-policy proxy data is renegotiated. |
+| `renegotiate` | The AVPs are ignored. Ze sends its own Configure-Request with its own Magic-Number, MRU and Auth-Protocol; the subscriber, Opened with the LAC, renegotiates (RFC 1661 Section 4.3). |
+
+Under both values Ze then authenticates the subscriber itself, with a fresh
+CHAP Challenge, or by waiting for a PAP Authenticate-Request. On `renegotiate`
+the method is the configured one, never the LAC's. Ze does not use the proxy
+authentication AVPs (RFC 2661 Section 9.5). `show l2tp session id <id>` reports
+what happened in the `proxy-lcp` key: `accepted`, `renegotiated`, `none` (the
+ICCN carried no proxy LCP), or null before LCP first opens. The leaf is global
+to the LNS, not set per LAC.
+
+```
+l2tp {
+    proxy-lcp renegotiate;
+}
+```
+<!-- source: internal/component/l2tp/ppp/proxy.go -- admitProxyLCP, EvaluateProxyLCP -->
+<!-- source: internal/component/l2tp/ppp/auth.go -- acceptProxyPolicy -->
+<!-- source: internal/component/l2tp/config.go -- ParseProxyLCPPolicy -->
 
 NCP enablement is controlled via the `ncp` container under `l2tp`:
 
@@ -361,18 +547,110 @@ The subsystem handles the PPP auth protocol (PAP/CHAP wire framing),
 then dispatches an `EventAuthRequest` to the registered auth handler.
 The handler responds with accept/reject via a channel.
 
-By default, new sessions advertise `auth-method chap-md5` and
-`allow-no-auth false`. If a peer rejects every acceptable Auth-Protocol,
-the PPP session is disconnected after LCP instead of falling through to
-the no-auth accounting path. Set `allow-no-auth true` only for lab peers
-or explicit no-auth deployments; `auth-method none` is rejected unless
-that opt-in is present.
+Authentication results obey the session transmit limit. PAP and CHAP trim
+only optional display text. MS-CHAPv2 preserves the complete authenticator
+response on success and the structured error fields on failure, shortening
+only human-readable text. Cached PAP replies preserve their original outcome
+with an empty message. A required structured result that cannot fit fails
+visibly instead of sending a truncated authenticator or challenge field.
+<!-- source: internal/component/l2tp/ppp/pap.go -- runPAPAuthPhase, reanswerPAP -->
+<!-- source: internal/component/l2tp/ppp/chap.go -- runCHAPAuthPhase -->
+<!-- source: internal/component/l2tp/ppp/mschapv2.go -- runMSCHAPv2AuthPhase, fitMSCHAPv2FailureMessage -->
 
-With `auth-method pap`, the first Configure-Request still offers CHAP-MD5.
-Ze offers PAP only after the peer sends a Configure-Nak that suggests PAP,
-because RFC 1334 Section 2 requires an implementation that includes CHAP to
-offer it before PAP.
+By default, new sessions advertise `auth-method chap-md5` and
+`allow-no-auth false`. A peer's Configure-Nak can select only an untried
+permitted method. Ze offers every available CHAP variant before PAP, even if
+the peer keeps suggesting PAP; an unknown, unlisted or already-tried
+suggestion advances to the next untried permitted method.
+
+If none remains, required authentication closes LCP with Terminate-Request
+before Opened: no authentication request or network-phase work runs. A valid
+Configure-Reject removes the entire Auth-Protocol option for that negotiation,
+even when unused methods remain; required authentication closes LCP in that
+case too. With `allow-no-auth true`, either refusal instead continues without
+the option and uses the no-wire-auth handler. Set that opt-in only for lab
+peers or explicit no-auth deployments; `auth-method none` requires it.
+
+With `auth-method pap` and no explicit allow-list, the first Configure-Request
+offers CHAP-MD5 and a Nak toward PAP selects PAP next. An explicit PAP-only
+policy offers PAP directly. RFC 1334 Section 2 requires an implementation that
+includes CHAP to offer it before PAP.
 <!-- source: internal/component/l2tp/ppp/auth.go -- initialAuthMethod -->
+
+`authentication { allow [ chap-md5 ms-chap-v2 ]; }` declares an ordered set
+of permitted methods. It must include `auth-method`, cannot contain `none`,
+and cannot accompany `auth-method none`. With no list, `chap-md5` permits
+only CHAP-MD5, `ms-chap-v2` only MS-CHAPv2, `pap` permits CHAP-MD5 then PAP,
+and `none` has an empty policy. Explicit ordering never makes PAP precede
+an available CHAP method. Configuration validation and reload refuse invalid
+lists rather than replacing malformed explicit input with a broader default.
+<!-- source: internal/component/l2tp/ppp/auth_policy.go -- ResolveAuthAllow -->
+
+The editor adds one allowed method per command. For example,
+`set l2tp authentication allow chap-md5`, followed by
+`set l2tp authentication allow pap`, permits both methods. A refusal prints
+the commands for its transport, retaining permitted methods before adding the
+peer's suggestion. Run them only if that additional method is intended;
+changing the peer to accept an already permitted method needs no policy edit.
+<!-- source: internal/component/l2tp/ppp/auth.go -- refuseAuthMethod -->
+<!-- source: internal/component/cli/model_commands_edit.go -- cmdSet -->
+<!-- source: internal/component/cli/editor_commands.go -- SetValue, setLeafListMember -->
+
+Proxy LCP is subject to the same policy. A proxied method outside the permitted
+list, an unknown Auth-Protocol, or absent authentication when authentication is
+required causes Ze to run normal LCP instead. Ze also renegotiates if the LAC's
+Last-Sent receive MRU exceeds `l2tp mru`; an absent Last-Sent MRU means 1500.
+The peer's Last-Received receive MRU remains the negotiated peer value.
+The shared interface setup caps the transmit MTU at the smaller of that value
+and the session's configured MRU, including when the peer omitted its option.
+A peer receive MRU of 1500 or 9000 can therefore remain admitted under a
+1492 local policy; authentication and IPCP still complete with a transmit
+MTU of 1492.
+<!-- source: internal/component/l2tp/ppp/auth.go -- selectAuthFallback, refuseAuthMethod, acceptProxyPolicy -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpen -->
+
+Ze also runs normal LCP when a proxied MRU or Magic-Number is malformed: the
+wrong width, listed twice, or a Magic-Number of zero.
+
+Ze never authenticates from the Proxy Authen AVPs. The Proxy Authen Name only
+seeds the displayed username until an authenticated identity replaces it. A
+session with no such identity (no authentication ran, or the peer authenticated
+with an empty name) keeps the LAC's unverified Name, and RADIUS accounting sends
+it as User-Name. A proxied CHAP or MS-CHAPv2 session gets a fresh Challenge from
+Ze. PAP is started by the peer, so a proxied PAP session waits 6 seconds for the
+peer's Authenticate-Request. A peer that sends none, because the LAC already
+finished PAP with it, gets a new round of LCP from Ze and authenticates again,
+so such a session comes up about 6 seconds later than one that needs no new
+round.
+<!-- source: internal/component/l2tp/session_fsm.go -- handleICCN -->
+<!-- source: internal/component/l2tp/reactor_kernel.go -- handleSessionIPAssigned -->
+<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- onSessionIPAssigned, buildAcctPacket -->
+<!-- source: internal/component/l2tp/ppp/proxy.go -- decodeProxyMRU, decodeProxyMagic -->
+<!-- source: internal/component/l2tp/ppp/pap.go -- proxyPAPRequestWait, runPAPAuthPhase, renegotiateProxiedLCP -->
+
+IPv6CP is enabled by default, so the configured MRU must be at least 1280.
+For IPv4-only service, set `l2tp ncp enable-ipv6cp false` before using an
+MRU from 68 through 1279. Validation checks the effective combination at
+initial load and reload; a refused reload keeps the previous session policy.
+The shared PPP driver also rejects a directly supplied cap that is too small
+for its enabled protocols. The receive buffer capacity remains 1500.
+<!-- source: internal/component/l2tp/config_policy.go -- validateMRUPolicy, validateMRUNCP -->
+<!-- source: internal/component/l2tp/config.go -- ExtractParameters -->
+<!-- source: internal/component/l2tp/subsystem_reload.go -- extractFromProvider -->
+<!-- source: internal/component/l2tp/ppp/manager.go -- spawnSession -->
+
+When an otherwise valid peer negotiates an MRU smaller than 1280, Ze does not
+start IPv6CP or allocate an IPv6 address. IPv4 can still establish using the
+peer's smaller limit. An IPv6-only session fails with an MRU diagnostic rather
+than reporting usable service. A later LCP negotiation can restore IPv6 when
+the new directional MRUs support 1280: it starts from the configured MRU again,
+so a smaller value the peer Nakked in an earlier negotiation does not carry
+over. Peer MRUs smaller than 68 are Nakked to 68 instead of causing Ze to
+install an MTU larger than the agreed limit.
+<!-- source: internal/component/l2tp/ppp/mru_policy.go -- ipv6MRUSupported -->
+<!-- source: internal/component/l2tp/ppp/ncp.go -- runNCPPhase, onNCPOpened -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- negPolicy, handleLCPPacket -->
+<!-- source: internal/component/l2tp/ppp/auth.go -- resetAuthNegotiation -->
 
 Two auth handlers ship with ze. The slot holds one handler, and configuration
 decides its owner: `l2tp-auth-radius` claims it when a RADIUS server is
@@ -885,9 +1163,21 @@ accounting records report the address the pool gave (RFC 2866 Section 4.1).
 `Framed-IP-Netmask` is parsed into session metadata, but the current IPv4 IPCP
 response has no netmask field to apply.
 
+The IPCP DNS offered follows the pool's `dns-source` list. With none written,
+an Access-Accept's MS-Primary-DNS-Server and MS-Secondary-DNS-Server (RFC 2548,
+vendor 311 types 28 and 29) come first, then the pool's `dns-primary` and
+`dns-secondary`, then the resolvers Ze learned on its WAN:
+`source radius configured received mode first-usable`. Write
+`dns-source { source configured; }` to offer only the pool's own servers, as
+before this list existed. accel-ppp replaces each IPCP DNS option on its own,
+so a RADIUS reply naming only the primary keeps its configured secondary;
+under `first-usable` Ze offers the RADIUS primary alone, and under `merge` the
+RADIUS primary followed by the pool's primary.
+
 Session-down events release allocated addresses back to the pool.
 
 <!-- source: internal/component/l2tp/plugins/pool/ -->
+<!-- source: internal/component/l2tp/plugins/authradius/extract_dns.go -- extractMSDNSServers -->
 
 ## Traffic shaping
 
@@ -1012,13 +1302,32 @@ L2TP exposes metrics under the `ze_l2tp_*` and `ze_radius_*` namespaces.
 | `ze_l2tp_lcp_echo_loss_ratio` | gauge | Current 100s bucket echo loss ratio |
 | `ze_l2tp_bucket_state` | gauge | CQM bucket state (established=0, negotiating=1, down=2) |
 
+### Relay counter (labels: kind, outcome)
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `ze_l2tp_relay_total` | counter | PPPoE relay decisions on a LAC. `kind` is `service` (a `relay` binding, decided at discovery) or `realm` (a `relay-realm` binding, decided at authentication). `outcome` is `no-match` (terminated locally), `refused` (a binding matched but the call could not start), `placed` (the incoming call was placed), and for `realm` also `bridged` or `bridge-failed` |
+
+<!-- source: internal/component/l2tp/relay_metrics.go -- bindRelayMetrics, relayOutcome.label -->
+
+### Session establishment counter (labels: proxy_lcp)
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `ze_l2tp_session_lcp_opened_total` | counter | Sessions whose LCP reached Opened for the first time, counted once per session (a later LCP reopen does not count again). `proxy_lcp` is the same value `show l2tp session id <id>` reports as `proxy-lcp`: `none` (the LAC sent no proxy LCP), `accepted` (LCP opened on the LAC's proxy LCP) or `renegotiated` (Ze negotiated LCP with the subscriber itself, because `proxy-lcp renegotiate` is set or the proxy LCP was malformed or outside the `mru` and authentication policy) |
+
+<!-- source: internal/component/l2tp/metrics.go -- bindL2TPMetrics, countSessionLCPOpened -->
+<!-- source: internal/component/l2tp/reactor_kernel.go -- handleLCPUp -->
+<!-- source: internal/component/l2tp/ppp/events.go -- ProxyLCPOutcome.String -->
+
 ### PPP negotiation counters (labels: reason)
 
 | Metric | Type | Description |
 |--------|------|-------------|
 | `ze_ppp_ipv6cp_identifier_refusals_total` | counter | IPv6CP negotiations refused for want of a usable interface identifier |
+| `ze_ppp_auth_failures_total` | counter | Authentication policy refusals before LCP Opened, with `reason="auth-method-refused"` |
 
-The label set is closed and holds three values. A session or tunnel ID is
+The IPv6CP counter's label set is closed and holds three values. A session or tunnel ID is
 deliberately not a label: a subscriber daemon carries thousands of sessions.
 
 | Reason | Meaning |
@@ -1028,6 +1337,14 @@ deliberately not a label: a subscriber daemon carries thousands of sessions.
 | `suggestion-draw-failed` | Ze could not draw a valid identifier to suggest, and answered with a Configure-Reject rather than a Configure-Nak carrying a value it would refuse on receive |
 
 This counter is shared with PPPoE subscribers, which run the same PPP driver.
+
+The authentication counter also covers L2TP and PPPoE. It increments once when
+a required-auth session exhausts its permitted methods or the peer rejects
+Auth-Protocol. The warning and final session-down reason name the peer's
+suggestion, the permitted methods, and the operator configuration to change.
+No Accounting-Stop exists before authentication; use this counter and the log
+to diagnose those refusals.
+<!-- source: internal/component/l2tp/ppp/metrics.go -- initPPPMetrics, countAuthMethodRefusal -->
 
 ### Reader-loop error counters
 
@@ -1187,6 +1504,9 @@ each knob according to this policy:
 | `max-sessions` | Hot-apply at next admission decision. |
 | `auth-method` | Hot-apply to new PPP sessions. |
 | `allow-no-auth` | Hot-apply to new PPP sessions. |
+| `proxy-lcp` | Hot-apply to new PPP sessions; a session already started keeps the policy and outcome it had. |
+| `mru` | Hot-apply to new PPP sessions; established sessions retain their requested MRU. |
+| `authentication/allow` | Hot-apply to new PPP sessions; existing sessions retain their policy. |
 | `authentication/timeout` | Hot-apply to new PPP sessions. |
 | `authentication/reauth-interval` | Hot-apply to new PPP sessions. |
 | `auth/local/user` | Apply replaces the local credential table, including removing users. Subsequent local authentication requests use it. |

@@ -6,7 +6,7 @@ List the keys in the selected store\.
 
 - Registry path: `show data list`
 - Usage: `show data list`
-- Mode: Read-only
+- Mode: read-only, offline
 - Wire method: `ze-config-storage:show-data-list`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default

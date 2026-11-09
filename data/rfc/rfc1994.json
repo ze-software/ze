@@ -8,10 +8,10 @@
   "must": {
     "total": 16,
     "kept": 16,
-    "ze-proven": 8,
+    "ze-proven": 9,
     "os-verified": 0,
     "os-gap": 0,
-    "ze-gap": 8,
+    "ze-gap": 7,
     "not-owed": 0,
     "not-owed-by-kind": {}
   },
@@ -27,11 +27,10 @@
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
-    "unit": 8
+    "unit": 9
   },
   "unmet": [
     "RFC1994-2.3-1",
-    "RFC1994-4.1-2",
     "RFC1994-4.1-9"
   ]
 }

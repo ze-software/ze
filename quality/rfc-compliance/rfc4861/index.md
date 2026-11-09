@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 20 | of 138 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0 | of 138 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0 | of 138 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 49 | 49 of 49 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 48 | 48 of 49 tagged units, 0 escaped and 1 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -86,9 +86,9 @@ Enrolled: Ze is an IPv6 router that originates Router Advertisements and answers
 
 **Area:** IPv6 Neighbor Discovery and Router Advertisement
 
-**Proof:** 30 of 138 MUST proven
+**Proof:** 29 of 138 MUST proven
 
-**Evidence:** unit 30
+**Evidence:** unit 29
 
 **Unmet:** RFC4861-11.2-1, RFC4861-11.2-2, RFC4861-2.3-1, RFC4861-4.4-3, RFC4861-4.6-1, RFC4861-6.1.1-1, RFC4861-6.1.1-2, RFC4861-6.2.1-1, RFC4861-6.2.1-8, RFC4861-6.2.4-1, RFC4861-6.2.5-1, RFC4861-6.2.5-2, RFC4861-6.2.6-1, RFC4861-7.2.6-1, RFC4861-7.2.8-1, RFC4861-7.2.8-2, RFC4861-9-7
 
@@ -112,8 +112,8 @@ Enrolled: Ze is an IPv6 router that originates Router Advertisements and answers
 
 ## Figures
 
-- **MUST bar**: Ze proven 30, OS testing gap 91, Ze correctness gap 17
-- **Overview bar**: Ze MUST proven 30, SHOULD not decided 79, OS testing gap 91, Ze correctness gap 17
+- **MUST bar**: Ze proven 29, OS testing gap 91, Ze correctness gap 18
+- **Overview bar**: Ze MUST proven 29, SHOULD not decided 79, OS testing gap 91, Ze correctness gap 18
 
 | Figure | Rows |
 |---|---|
@@ -122,10 +122,10 @@ Enrolled: Ze is an IPv6 router that originates Router Advertisements and answers
 | Mandatory register | not complete |
 | MUST rows | 138 |
 | MUST rows kept (the MUST bar) | 138 |
-| Ze proven | 30 |
+| Ze proven | 29 |
 | OS verified | 0 |
 | OS testing gap | 91 |
-| Ze correctness gap | 17 |
+| Ze correctness gap | 18 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -877,7 +877,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC4861AdvSendAdvertisementsIsFalseByDefault`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc4861_router_configuration_test.go#L82) | unit/verify | revert, verified |
+| positive | [`TestRFC4861AdvSendAdvertisementsIsFalseByDefault`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc4861_router_configuration_test.go#L82) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC4861-6.2.1-3`](#rfc4861-6.2.1-3)
 

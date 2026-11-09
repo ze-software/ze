@@ -75,6 +75,9 @@ policy {
     reject-asn NO-TRANSIT {
         indirect [ 174 701 3356 ];
     }
+    match reject-asn-NO-TRANSIT {
+        reject-asn NO-TRANSIT;
+    }
 }
 
 bgp {
@@ -116,11 +119,11 @@ bgp {
         }
         filter {
             import {
-                filters [ NO-TRANSIT ];
+                filters [ reject-asn-NO-TRANSIT ];
                 final accept;
             }
             export {
-                filters [ NO-TRANSIT ];
+                filters [ reject-asn-NO-TRANSIT ];
                 final accept;
             }
         }

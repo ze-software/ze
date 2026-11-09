@@ -1,4 +1,4 @@
-# Week of 2026-02-16
+# 2026-02-16 – 2026-02-22 (1 week)
 
 A hard round of route reflector hardening, a live web dashboard for the chaos tool, and a batch of BGP protocol and config improvements.
 

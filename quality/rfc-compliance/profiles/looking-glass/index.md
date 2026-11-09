@@ -10,8 +10,8 @@ Figures as of the last build, read from [data/rfc/profiles/looking-glass.json](.
 
 ## Figures
 
-- **MUST bar**: Ze proven 175, Ze correctness gap 133
-- **Overview bar**: Ze MUST proven 175, SHOULD proven 5, SHOULD not decided 88, Ze correctness gap 133
+- **MUST bar**: Ze proven 178, Ze correctness gap 130
+- **Overview bar**: Ze MUST proven 178, SHOULD proven 5, SHOULD not decided 88, Ze correctness gap 130
 
 | Figure | Rows |
 |---|---|
@@ -20,10 +20,10 @@ Figures as of the last build, read from [data/rfc/profiles/looking-glass.json](.
 | Mandatory register | not complete |
 | MUST rows | 308 |
 | MUST rows kept (the MUST bar) | 308 |
-| Ze proven | 175 |
+| Ze proven | 178 |
 | OS verified | 0 |
 | OS testing gap | 0 |
-| Ze correctness gap | 133 |
+| Ze correctness gap | 130 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -50,7 +50,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze proven 83, Ze correctness gap 50 | Ze MUST proven 83, SHOULD proven 3, SHOULD not decided 31, Ze correctness gap 50 | looking-glass: required by rfc/short/rfc4271.md |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze proven 85, Ze correctness gap 48 | Ze MUST proven 85, SHOULD proven 3, SHOULD not decided 31, Ze correctness gap 48 | looking-glass: required by rfc/short/rfc4271.md |
 
 ### Level 4
 
@@ -72,7 +72,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 6793](../../rfc6793/) (cycle with rfc5668) | BGP Support for Four-Octet Autonomous System (AS) Number Space | Ze proven 20, Ze correctness gap 10 | Ze MUST proven 20, SHOULD not decided 6, Ze correctness gap 10 | looking-glass: required by rfc/short/rfc6793.md |
+| [RFC 6793](../../rfc6793/) (cycle with rfc5668) | BGP Support for Four-Octet Autonomous System (AS) Number Space | Ze proven 21, Ze correctness gap 9 | Ze MUST proven 21, SHOULD not decided 6, Ze correctness gap 9 | looking-glass: required by rfc/short/rfc6793.md |
 | [RFC 7911](../../rfc7911/) | Advertisement of Multiple Paths in BGP | Ze proven 9 | Ze MUST proven 9, SHOULD not decided 4 | looking-glass: required by rfc/short/rfc7911.md |
 | [RFC 8522](../../rfc8522/) | Looking Glass Command Set | Ze correctness gap 18 | SHOULD not decided 5, Ze correctness gap 18 | looking-glass: required by rfc/short/rfc8522.md |
 

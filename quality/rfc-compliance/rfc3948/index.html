@@ -443,8 +443,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.1.2 - Transport Mode Decapsulation NAT Procedure</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3948-3.1.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1666" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1705" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1701" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1740" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></span></div>
 </div><p class="rfc-mark"><strong>nightly-only:</strong> every test bound to this requirement runs in the scheduled workflow alone, so nothing here is proven on the merge path</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-3.1.2-2">RFC3948-3.1.2-2</code></td><td colspan="3"><span class="rfc-subject">Tunnel mode TCP checksums MUST be verified (S3.1.2)</span></td></tr>
@@ -452,8 +452,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.1.2 - Transport Mode Decapsulation NAT Procedure</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3948-3.1.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1702" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1669" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1737" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1704" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></span></div>
 </div><p class="rfc-mark"><strong>nightly-only:</strong> every test bound to this requirement runs in the scheduled workflow alone, so nothing here is proven on the merge path</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-2.1-4">RFC3948-2.1-4</code></td><td colspan="3"><span class="rfc-subject">receivers MUST NOT depend on the UDP checksum being a zero value (S2.1)</span></td></tr>
@@ -630,7 +630,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc3948-2.1-1"><code>RFC3948-2.1-1</code></a></h3>
 <p>The SPI field in the ESP header MUST NOT be a zero value. (S2.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-10 against RFC 3948 S2.1 &#34;The SPI field in the ESP header MUST NOT be a zero value.&#34; after e2e724cf57 changed TestResponderRefusesPeerSPIZero. Its negative no longer asserts the IKE SA stays down (RFC 7296 S2.21.2 lets it stay up childless); it asserts no first Child SA on the session, an IKE_AUTH response sent, no SA payload in it and a NO_PROPOSAL_CHOSEN refusal. That is still the SPI obligation: the only route to an ESP header carrying the peer&#39;s 0 is a Child SA built on it, and the SAi2 edit is the only difference from TestResponderUsesPeerSPI, which pins outbound SPI 0x0a0b0c0d. Removing both refusals (selectAuthChildSA&#39;s ChildOutboundSPI==0 and createFirstChildSA&#39;s) creates the Child SA and reddens it. Unchanged units: own SPI TestRFC3948GeneratedESPSPIIsNeverZero (five scripted zero draws discarded), initiator SAr2 TestRFC3948OutboundESPSPIIsNeverZero (no establish, no ESP state), rekey request and response refuse 0 with no Child SA and no ESP state and install 0x0a0b0c0d. Records revert the producers (whole-body, reach); discrimination judged from the exact assertions. Caveat: TestGenerateESPSPI (random draws) cannot fail on its own and is redundant.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 67700fd37e. The only change in TestRFC3948OutboundESPSPIIsNeverZero is that initiatorFirstChildSA no longer takes the peer config (it reads sa.PeerCfg); the outbound ESP state must still carry exactly the peer&#39;s non-zero SPI, and an SAr2 with SPI 0 must still leave the initiator un-established with no SA installed. Records are current. Prior judgement: Re-judged 2026-10-10 against RFC 3948 S2.1 &#34;The SPI field in the ESP header MUST NOT be a zero value.&#34; after e2e724cf57 changed TestResponderRefusesPeerSPIZero. Its negative no longer asserts the IKE SA stays down (RFC 7296 S2.21.2 lets it stay up childless); it asserts no first Child SA on the session, an IKE_AUTH response sent, no SA payload in it and a NO_PROPOSAL_CHOSEN refusal. That is still the SPI obligation: the only route to an ESP header carrying the peer&#39;s 0 is a Child SA built on it, and the SAi2 edit is the only difference from TestResponderUsesPeerSPI, which pins outbound SPI 0x0a0b0c0d. Removing both refusals (selectAuthChildSA&#39;s ChildOutboundSPI==0 and createFirstChildSA&#39;s) creates the Child SA and reddens it. Unchanged units: own SPI TestRFC3948GeneratedESPSPIIsNeverZero (five scripted zero draws discarded), initiator SAr2 TestRFC3948OutboundESPSPIIsNeverZero (no establish, no ESP state), rekey request and response refuse 0 with no Child SA and no ESP state and install 0x0a0b0c0d. Records revert the producers (whole-body, reach); discrimination judged from the exact assertions. Caveat: TestGenerateESPSPI (random draws) cannot fail on its own and is redundant.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -761,12 +761,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1705" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1740" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1666" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1701" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -781,12 +781,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1669" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1704" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1702" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1737" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -1432,7 +1432,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

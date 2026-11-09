@@ -154,11 +154,11 @@ an external process), or anything else.</p>
 regex, such as integration with member databases, real-time RPKI feeds, or custom
 business rules, Ze's plugin model is more flexible than any built-in policy language.</p>
 <h3 id="exabgp-migration">ExaBGP migration</h3>
-<p><code>ze config migrate</code> converts ExaBGP configuration files. <code>ze exabgp plugin</code> runs
+<p><code>ze exabgp migrate</code> converts ExaBGP configuration files. <code>ze exabgp plugin</code> runs
 existing ExaBGP processes with Ze as the BGP engine. If you have ExaBGP deployments
 and want multithreading, broader address family support, or the plugin ecosystem,
 Ze provides a migration path that does not require rewriting your scripts.</p>
-<!-- source: internal/component/config/cli/cmd_migrate.go -- ze config migrate -->
+<!-- source: internal/plugins/exabgp/main.go -- cmdMigrate, ze exabgp migrate -->
 <!-- source: internal/plugins/exabgp/main.go -- ze exabgp plugin -->
 <h3 id="wire-level-protocol-tooling">Wire-level protocol tooling</h3>
 <p>Ze is useful even without running a daemon. <code>ze bgp decode</code> and <code>ze bgp encode</code>
@@ -362,7 +362,7 @@ third-party integrations, gRPC would scale better.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

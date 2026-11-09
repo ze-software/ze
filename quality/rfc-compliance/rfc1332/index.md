@@ -141,7 +141,7 @@ Source: [data/rfc/rfc1332.json](../../../data/rfc/rfc1332.json).
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC1332-2-1` | Exactly one IPCP packet is encapsulated in the Information field of PPP Data Link Layer frames where the Protocol field indicates type hex 8021 (IP Control Protocol). (§2) | MUST | 2 | **positive:** `unit/verify` [`TestIPCPFrameCarriesExactlyOnePacket`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/frame_test.go#L145). **positive:** `unit/verify` [`TestIPCPOnePacketPerFrameThroughRun`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L222). **negative:** `unit/verify` [`TestIPCPOnePacketPerFrameThroughRun`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L223) |
+| `RFC1332-2-1` | Exactly one IPCP packet is encapsulated in the Information field of PPP Data Link Layer frames where the Protocol field indicates type hex 8021 (IP Control Protocol). (§2) | MUST | 2 | **positive:** `unit/verify` [`TestIPCPFrameCarriesExactlyOnePacket`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/frame_test.go#L145). **positive:** `unit/verify` [`TestIPCPOnePacketPerFrameThroughRun`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L254). **negative:** `unit/verify` [`TestIPCPOnePacketPerFrameThroughRun`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L255) |
 | `RFC1332-2-2` | Only Codes 1 through 7 (Configure-Request, Configure-Ack, Configure-Nak, Configure-Reject, Terminate-Request, Terminate-Ack and Code-Reject) are used. Other Codes should be treated as unrecognized and should result in Code-Rejects. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestClientIPCPUnusedCodesAreCodeRejected`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1332_ipcp_codes_test.go#L31). **positive:** `unit/verify` [`TestIPCPUnusedCodesAreCodeRejected`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_codes_test.go#L35). **negative:** `unit/verify` [`TestIPCPUsedCodesAreNotCodeRejected`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_codes_test.go#L74) |
 | `RFC1332-2.1-1` | Before any IP packets may be communicated, PPP must reach the Network-Layer Protocol phase, and the IP Control Protocol must reach the Opened state. (§2.1) | MUST | 2.1 | **positive:** `unit/verify` [`TestIPResponseConfiguresInterface`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L110). **negative:** `unit/verify` [`TestIPCPNoAddressBeforeOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L171). **negative:** `unit/verify` [`TestNCPHeldUntilNetworkPhase`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L165) |
 | `RFC1332-2.1-3` | The maximum length of an IP packet transmitted over a PPP link is the same as the maximum length of the Information field of a PPP data link layer frame. (§2.1) | MUST | 2.1 | **positive:** `unit/verify` [`TestIPMTUInstalledFromNegotiatedMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_mtu_test.go#L18). **negative:** `unit/verify` [`TestIPMTUInstalledFromNegotiatedMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_mtu_test.go#L19) |
@@ -172,9 +172,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestIPCPOnePacketPerFrameThroughRun`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L223) | unit/verify | revert, verified |
+| negative | [`TestIPCPOnePacketPerFrameThroughRun`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L255) | unit/verify | revert, verified |
 | positive | [`TestIPCPFrameCarriesExactlyOnePacket`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/frame_test.go#L145) | unit/verify | revert, verified |
-| positive | [`TestIPCPOnePacketPerFrameThroughRun`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L222) | unit/verify | revert, verified |
+| positive | [`TestIPCPOnePacketPerFrameThroughRun`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L254) | unit/verify | revert, verified |
 
 ### [`RFC1332-2-2`](#rfc1332-2-2)
 
@@ -192,7 +192,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 Before any IP packets may be communicated, PPP must reach the Network-Layer Protocol phase, and the IP Control Protocol must reach the Opened state. (§2.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudge 2026-10-02 (independent judge). Opened clause: positive TestIPResponseConfiguresInterface (completeIPCP -> AddAddressP2P ppp42 10.0.0.1/32 10.0.0.2/32, EventSessionIPAssigned, SetAdminUp after EventSessionUp; revert sendIPAssigned observed red). Negative TestIPCPNoAddressBeforeOpened holds IPCP at Ack-Rcvd and fails on EventSessionIPAssigned, any AddAddressP2P or any SetAdminUp (SetAdminUp runs only after runNCPPhase returns, session_run.go). Recorded on the mutant route: gomu 0.1.0 report over ncp.go (552 mutants, 315 killed; this mutant TIMED_OUT in the full package run) mutant ncp.go_245, handleNCPPacket line 540 `tr.NewState == LCPStateOpened` -> `!=`; judge re-ran it under a Go overlay: red on the unit's own assertion 'EventSessionIPAssigned emitted before IPCP reached Opened'. Network-phase clause: TestNCPHeldUntilNetworkPhase/ipv4 (runAuthPhase revert observed red). Ruling 2 receive side: a supported IPv4 packet before NCP Opened is discarded, TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened under RFC1661-3.6-2 (supportsProtocol revert recorded). Claim nit, not a verdict defect: 'so the kernel has no interface to carry IP on' is a rationale the fake backend does not assert; pppN exists but stays down.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-11-08 after 14d3df65a7 against RFC 1332 Section 2.1 "Before any IP packets may be communicated, PPP must reach the Network-Layer Protocol phase, and the IP Control Protocol must reach the Opened state." Network-phase clause: TestNCPHeldUntilNetworkPhase/ipv4 holds CHAP pending 3 s; onlyChallengesUntil fails on any frame but a CHAP Challenge (Code 1) with a changed Identifier (RFC 1994 4.1 retransmission), so any IPCP 0x8021 or IP frame fails it; it also asserts no EventIPRequest and no AddAddressP2P (-); runAuthPhase revert recorded. Tightened window isolates the rule better than the old one. Opened clause, units unchanged: TestIPCPNoAddressBeforeOpened holds IPCP at Ack-Rcvd and fails on EventSessionIPAssigned, any AddAddressP2P or SetAdminUp (-, mutant ncp.go handleNCPPacket NewState == Opened -> != recorded); TestIPResponseConfiguresInterface installs ppp42 10.0.0.1/32 peer 10.0.0.2/32 and brings it up after Opened (+, sendIPAssigned revert recorded). Receive side: TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened under RFC1661-3.6-2.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -208,8 +208,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestIPMTUInstalledFromNegotiatedMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_mtu_test.go#L19) | unit/verify | revert, verified |
-| positive | [`TestIPMTUInstalledFromNegotiatedMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_mtu_test.go#L18) | unit/verify | revert, verified |
+| negative | [`TestIPMTUInstalledFromNegotiatedMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_mtu_test.go#L19) | unit/verify | mutant, verified |
+| positive | [`TestIPMTUInstalledFromNegotiatedMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_mtu_test.go#L18) | unit/verify | mutant, verified |
 
 ### [`RFC1332-2.1-4`](#rfc1332-2.1-4)
 
@@ -219,14 +219,14 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestIPMTUInstalledFromNegotiatedMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_mtu_test.go#L21) | unit/verify | revert, verified |
-| positive | [`TestIPMTUInstalledFromNegotiatedMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_mtu_test.go#L20) | unit/verify | revert, verified |
+| negative | [`TestIPMTUInstalledFromNegotiatedMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_mtu_test.go#L21) | unit/verify | mutant, verified |
+| positive | [`TestIPMTUInstalledFromNegotiatedMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_mtu_test.go#L20) | unit/verify | mutant, verified |
 
 ### [`RFC1332-3-1`](#rfc1332-3-1)
 
 IPCP uses the same Configuration Option format defined for LCP [1], with a separate set of Options. (§3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Send side now tagged: TestIPCPOptionsWrittenInLCPFormat compares WriteIPCPOptions output byte for byte (Types 3/129/131, Length 6, four octets) and walks it with ParseLCPOptions; any drift of Type, Length or Data is red. Receive side: TestIPCPParseOptions decodes a well-formed list, TestIPCPParseRejects refuses malformed TLVs with the exact errors.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudge 2026-11-08: TestIPCPOptionsWrittenInLCPFormat changed only by the iPCPOptions -> IPCPOptions type rename; it still compares WriteIPCPOptions output byte for byte (Types 3/129/131, Length 6, four octets) and walks it with ParseLCPOptions, so any drift of Type, Length or Data is red. Receive side unchanged: TestIPCPParseOptions decodes a well-formed list, TestIPCPParseRejects refuses malformed TLVs with the exact errors.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

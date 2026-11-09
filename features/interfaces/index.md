@@ -34,7 +34,7 @@ and reconciles its DHCP, PPPoE and Router Advertisement workers.
 | | MACsec | missing | lower |
 | | MACVLAN | missing | lower |
 | | Geneve | missing | lower |
-| | PPPoE | missing | lower |
+| | PPPoE client (`pppoe-client`; the session device carries the configured name, so routes, firewall and NAT name it directly) | have | <!-- source: internal/component/l2tp/ppp/devppp_linux.go -- DevPPPSetup --> |
 | | L2TPv3 | missing | lower |
 | | WiFi | missing | lower |
 | | XFRM (route-based IPsec, if_id) | have | |
@@ -73,14 +73,16 @@ and reconciles its DHCP, PPPoE and Router Advertisement workers.
 | | IPv6 default route from RA with configurable metric | have | |
 | | Routes carry `proto 253` (`ze-iface`), so a teardown removes only its own | have | <!-- source: internal/plugins/iface/netlink/manage_linux.go -- AddRoute stamps rtm_protocol, RemoveRoute matches on it --> |
 | | Learned default routes rank at metric 254, clear of a static route's metric | have | <!-- source: internal/component/iface/config.go -- defaultLearnedRouteMetric --> |
-| | DNS from DHCP to `/tmp/resolv.conf`, tracked per lease: a renewal without DNS or a lease end removes that lease's servers only | have | <!-- source: internal/component/config/system/resolv.go -- Resolvers --> |
+| | DNS from DHCP and from PPPoE IPCP (RFC 1877) to `/tmp/resolv.conf`, tracked per lease and ordered DHCPv4, DHCPv6, PPP: a renewal or renegotiation without DNS, or a lease or session end, removes that lease's servers only | have | <!-- source: internal/component/config/system/resolv.go -- Resolvers --> |
 | | Hostname in DHCPv4 (option 12) | have | |
 | | Client-ID in DHCPv4 (option 61) | have | |
 | | DHCPv4 flags bits 1 to 15 sent as zero, even when the server's OFFER or ACK sets them (RFC 2131 section 2) | have | |
 | | NTP servers from DHCP (option 42) | have | |
 | | DHCPv6 proper Renew (not re-solicit) | have | |
 | | DHCP relay | missing | lower |
-| | DHCP server | missing | lower |
+| | DHCPv4 server (RFC 2131) on each `listen-interface`, with pools, static mappings and PXE options | have | <!-- source: internal/plugins/dhcpserver/register.go -- bindListeners, serveRequests --> |
+| | DHCPv4 server: several subnets on one interface (`shared-network`), a static mapping in any subnet of the segment before any pool, new addresses from the subnet of the interface's primary address first; a listener answers only for the shared networks its interface is addressed in | have | <!-- source: internal/plugins/dhcpserver/segment.go -- resolveSegment, segment.discover --> |
+| | DHCPv4 server identifier (option 54) is the interface's own address in the client's subnet, the interface's primary address for a relay-only subnet, or the `server-identifier` leaf while the interface holds it; a REQUEST naming any of the server's addresses on the segment is accepted (RFC 2131 section 4.1) | have | <!-- source: internal/plugins/dhcpserver/segment.go -- segment.serverID, segment.serverIDOwner --> |
 | **Monitoring** | Netlink multicast (link + addr + neigh) | have | |
 | | Virtual iface state detection | have | |
 | | 11 bus topics, JSON payloads | have | |
@@ -103,7 +105,9 @@ and reconciles its DHCP, PPPoE and Router Advertisement workers.
 | | Prefix Information options for SLAAC | have | |
 | | RDNSS resolver option (RFC 8106) | have | |
 | | Router Solicitation answers with rate limit | have | |
-| | Route Information option (RFC 4191) | missing | lower |
+| | Route Information option (RFC 4191), for the delegated prefix of a unit that numbers from one | have | One option per delegated prefix, with the delegation's remaining valid lifetime; see "Send loop" <!-- source: internal/plugins/iface/ra/advertiser.go -- build, withRoute --> <!-- source: internal/core/ndp/ra.go -- writeRouteInformation --> |
+| | A LAN /64 from a DHCPv6 delegated prefix, with lifetimes bounded by the delegation (RFC 7084 L-2, RFC 9915 Section 6.3) | have | `ipv6 delegated-prefix <pppoe-client> { subnet-id; interface-identifier }`; the source must be a `pppoe-client` whose `dhcpv6` asks for a prefix (`docs/guide/pppoe.md`, "PPPoE client IPv6") <!-- source: internal/component/iface/delegated_prefix.go -- deriveDelegatedAddress, verifyDelegatedPrefixes, requestsDelegation --> <!-- source: internal/component/iface/delegated_consumer.go -- installDelegatedAddress --> |
+| | CE Router Lifetime: 0 without a WAN default route or a prefix, and an immediate zero-lifetime RA when either is lost (RFC 7084 G-4, G-5, L-4) | have | Applies only to a unit with `delegated-prefix`; see "Send loop" <!-- source: internal/plugins/iface/ra/advertiser.go -- routerLifetime, urgent --> |
 | **Traffic Mirroring** | Ingress/egress via tc mirred | have | |
 | | Idempotent setup/cleanup | have | |
 | | Traffic redirect (vs mirror) | missing | lower |
@@ -144,7 +148,7 @@ and reconciles its DHCP, PPPoE and Router Advertisement workers.
 | **Security** | 802.1X / EAPoL | missing | lower |
 | | Storm control | missing | lower |
 | **Configuration** | YANG model (all types + units) | have | |
-| | Input validation (name, VLAN, MTU) | have | |
+| | Input validation (name, VLAN, MTU) | have | A `pppoe-client` key is the kernel device name, so it is 1 to 15 octets (IFNAMSIZ), starts with a letter, holds only letters, digits, `_`, `.` and `-`, and may not repeat the key of any other configured interface of any kind |
 | **Platform** | Pluggable backend interface | have | |
 | | Linux netlink backend (default) | have | |
 | | YANG `backend` leaf (config-driven selection) | have | `backend vpp` starts the VPP component with the interface plugin. A build without `ze_vpp` refuses it when the config is validated, committed or booted, naming the leaf and the tag, rather than at apply |
@@ -164,7 +168,7 @@ and reconciles its DHCP, PPPoE and Router Advertisement workers.
 <!-- source: internal/plugins/iface/netlink/tunnel_linux.go — CreateTunnel for 8 tunnel kinds via Gretun/Gretap/Iptun/Sittun/Ip6tnl -->
 <!-- source: internal/plugins/iface/netlink/wireguard_linux.go — CreateWireguardDevice (netlink), ConfigureWireguardDevice and GetWireguardDevice (wgctrl) -->
 <!-- source: internal/plugins/iface/netlink/monitor_linux.go — netlink multicast subscription -->
-<!-- source: internal/plugins/iface/netlink/bridge_linux.go — bridge ports, STP via sysfs -->
+<!-- source: internal/plugins/iface/netlink/bridge_linux.go — bridge ports, STP over rtnetlink (IFLA_BR_STP_STATE) -->
 <!-- source: internal/component/sysctl/backend_linux.go -- per-interface sysctl writes -->
 <!-- source: internal/plugins/iface/netlink/mirror_linux.go — traffic mirroring via tc -->
 <!-- source: internal/plugins/iface/vpp/ifacevpp.go — VPP Backend implementation (lazy GoVPP channel) -->
@@ -301,7 +305,7 @@ A managed client (`ze init --managed`) and an appliance seed (`ze init --seed`) 
 discovery and write no initial config: the managed client takes its first config from
 its hub, and the appliance discovers on the device at first boot.
 
-<!-- source: internal/plugins/init/main.go -- runInit -->
+<!-- source: internal/plugins/init/main.go -- runInitPublished -->
 
 <!-- source: internal/component/iface/discover.go -- DiscoverInterfaces, infoToZeType -->
 
@@ -355,6 +359,16 @@ The two settings that name a SECOND interface resolve through the same map: a br
 member is enslaved by the kernel device its entry selects, and a mirror sends its copy
 to the capture port's kernel device.
 
+Created kinds need no resolution, because Ze makes the device under its configured
+name: dummy, veth, bridge, tunnel, WireGuard, XFRM, and the `pppoe-client` session
+device. The PPPoE client creates its PPP unit under the list key on every session and
+every reconnect, so `pppoe-client pppoe0` is the kernel device `pppoe0` and never a
+`pppN`. A static route `next { interface pppoe0 }`, a firewall `output-interface
+"pppoe0"` match and a masquerade rule therefore reach the session. The device exists
+only while a session is up. A static route through it waits for the device and follows
+it across a reconnect (`docs/guide/static-routes.md`, "Interface-only next-hops").
+
+<!-- source: internal/component/l2tp/ppp/devppp_linux.go -- DevPPPSetup, createPPPLink -->
 <!-- source: internal/component/iface/config_apply.go -- bindDevices, deviceFor, validateSelectors -->
 <!-- source: internal/component/iface/dispatch.go -- ResolveDevice translation in the by-name dispatch ops -->
 <!-- source: internal/component/iface/resolve.go -- Resolve / Addresses / Subscribe logical-name resolver -->
@@ -426,7 +440,10 @@ hex octets, the 2-octet type code then 1 to 128 octets of identifier (RFC 9915
 Section 11.1), and a commit refuses any other form. Ze changed from a fresh
 time-stamped DUID per Solicit to this stable one, so a server hands out one new
 binding once after the upgrade. On stop the client removes its addresses, then sends
-a Release and waits at most 3 s for the answer.
+a Release and waits at most 3 s for the answer. A delegated prefix a LAN unit took a
+/64 from is left out of that Release, and when nothing else is held no Release is
+sent: RFC 9915 Section 6.3 forbids releasing a delegated prefix while any of its
+space is outstanding.
 
 The kernel runs duplicate address detection on every leased address the client
 installs. The client reads the outcome while the address is tentative: when the
@@ -482,6 +499,17 @@ one `dhcp-expired` for each, and solicits again.
   MTU less the encapsulation for a tunnel (1476 for gre).
 <!-- source: internal/component/iface/config_apply.go -- applyConfig, applyVLANMTU, readVLANMTUs, restoreVLANMTUs -->
 <!-- source: internal/component/iface/config.go -- parseIfaceEntry -->
+- **The first configured address is the primary.** A unit's `address` leaf-list is installed
+  in the order it is written, IPv4 before IPv6, so the first address is added first and the
+  kernel lists it first. That address is the interface's primary: the DHCPv4 server takes the
+  segment's home subnet from it, and source-address selection prefers it. Every install path
+  keeps the order: the commit's reconcile, the reconcile after a VPP connect or a registry
+  change, the additive pass a not-ready backend takes, and the transaction's add-address
+  operations. Addresses a plugin registers follow the configured ones. A reconcile adds only
+  the addresses missing from the device, so reordering the leaf-list of a live interface does
+  not move an address that is already installed.
+<!-- source: internal/component/iface/config_apply.go -- desiredState, reconcileOnReadyWithJournal, addDesiredAddresses -->
+<!-- source: internal/component/iface/operation.go -- decomposeIfaceOperations -->
 - **Make-before-break.** Migration adds new address, waits for BGP readiness, then removes old.
   Prevents session loss during address moves.
 - **Same-subnet renumbers keep working.** Because the new address is added first, a renumber
@@ -496,12 +524,15 @@ one `dhcp-expired` for each, and solicits again.
   untouched, as is the VPP backend, which deletes exactly the requested address.
 <!-- source: internal/plugins/iface/netlink/addr_primary.go -- ensureDeleteIsolated, flushedByDelete -->
 <!-- source: internal/plugins/iface/netlink/manage_linux.go -- RemoveAddress delegates to removeAddressGuarded -->
-- **Point-to-point address removal.** A local CIDR identifies the address to remove.
-  The netlink backend reads the installed address and retains its peer metadata for deletion.
-  Linux matches both `IFA_LOCAL` and `IFA_ADDRESS`, so rebuilding the request from the local
-  CIDR alone cannot remove an address whose peer differs. The primary/secondary guard
-  still runs before deletion. Removing the address also removes its kernel connected route.
-<!-- source: internal/plugins/iface/netlink/addr_primary_linux.go -- netlinkAddrRemover.List, netlinkAddrRemover.Delete -->
+- **Point-to-point address removal.** `RemoveAddress` selects by local CIDR and retains the installed peer metadata for deletion.
+  `RemoveAddressP2P` requires the exact installed local/peer pair before deletion.
+  A successful dump proving that pair absent completes removal without a delete call.
+  A failed dump or lookup remains an error. IPv4 deletion also accepts the kernel's
+  `EADDRNOTAVAIL` when the pair disappeared after the dump.
+  Requests and installed addresses use the same normalization, including equal IPv4 endpoints.
+  The primary/secondary guard uses the selected pair and its peer subnet to protect other addresses before deletion.
+<!-- source: internal/plugins/iface/netlink/addr_primary_linux.go -- resolveAddressRemoval, netlinkAddrRemover.resolve, toDeviceAddress -->
+<!-- source: internal/plugins/iface/netlink/addr_primary.go -- selectDeleteTarget, addressSubnet, ensureDeleteIsolated -->
 - **Virtual interface state.** Dummy/bridge/veth report `OperUnknown` not `OperUp`;
   monitor checks `IFF_UP` flag as fallback.
 - **Tunnel encapsulation as YANG choice/case.** The `tunnel` list at the iface level
@@ -858,13 +889,19 @@ with `feature not supported by backend "vpp"`.
 
 An advertising interface tells hosts to send it their off-link traffic. Set
 `ipv6 forwarding true` on that unit, or the kernel drops that traffic and every
-host on the link loses connectivity. Leave `accept-ra` at 0 unless the same
+host on the link loses connectivity. Linux forwards IPv6 only while
+`net.ipv6.conf.all.forwarding` is 1 (or the receiving device's
+`force_forwarding` is), so while any unit forwards Ze holds that switch at 1
+and writes back each unit's own `forwarding` leaf, which the kernel overwrites
+when the switch changes. Leave `accept-ra` at 0 unless the same
 interface also learns from another router.
 
 Config verify cannot catch this, because forwarding can arrive from a sysctl
 profile after verify runs. Ze reports the state instead. The
 `doctor-iface-ra-forwarding` check emits one warning for each advertising
-interface whose `net.ipv6.conf.<device>.forwarding` is 0.
+interface whose `net.ipv6.conf.<device>.forwarding` is 0, and one for each whose
+kernel forwards no IPv6 (`all.forwarding` 0 and the device's `force_forwarding`
+not 1).
 
 <!-- source: internal/plugins/iface/ra/doctor.go -- checkRAForwarding, doctor-iface-ra-forwarding -->
 
@@ -939,6 +976,28 @@ that.
 | `lifetime 4294967295` | 4294967295 | Use the resolvers, and never expire them |
 
 <!-- source: internal/component/iface/config_ra.go -- raUnitConfig.RDNSSLifetime, EffectiveRDNSSLifetime -->
+
+`rdnss dns-source` chooses where the advertised resolvers come from: the
+`dns-source` list of `docs/features/dns-resolver.md`. `configured` is
+`server`, `received` is every IPv6 resolver Ze learned (DHCPv6, an accepted
+Router Advertisement, the host's resolv.conf), and `self` is the unit's own
+global or unique-local address. `radius` is refused. With no `dns-source`
+the list is `source [ configured received ]`, `mode first-usable`: a unit
+with `server` set advertises exactly that, and a unit with none advertises
+the learned resolvers instead of no RDNSS option.
+
+| Case | What the RDNSS option carries |
+|------|-------------------------------|
+| a learned resolver | a lifetime no longer than what remains of the lease that supplied it, recomputed at every send |
+| a resolver the unit stops advertising (lease withdrawn, `server` committed) | one advertisement, sent at once, with a second RDNSS option of lifetime 0 for it; past 8 withdrawals the rest go in the next advertisements, at the RA rate limit |
+| withdrawals queued while nothing can be sent (the link is down) | at most 24, what the 3 advertisements of the initial burst carry; each older one dropped is logged at WARN, and hosts keep it until its last advertised lifetime ends |
+| a loopback or zone-less link-local address | never advertised; each drop is logged at WARN with the path |
+| a link-local address learned on another link (`fe80::1%wan0` on a LAN unit) | never advertised: the option carries no zone, so a host would query it on its own link (RFC 8106 Section 5.1); each drop is logged at WARN. One learned on the unit's own device is advertised |
+| more than 8 selected | the first 8 in list order; the rest are logged |
+
+<!-- source: internal/component/iface/ra_dns_source.go -- raSelectRDNSS, receivedEnd, raSelfAddress, logRDNSSSelection -->
+<!-- source: internal/component/iface/ra_dns_source.go -- raOnLink, raOffLink, raUnitDevice -->
+<!-- source: internal/plugins/iface/ra/advertiser.go -- advertiser.update, advertiser.build, advertiser.sent, advertiser.rdnssLifetime, retiringRDNSSMax -->
 
 ### Validation
 
@@ -1026,6 +1085,30 @@ one as well.
 Nothing leaves a link that is down. The next link-up event restarts the initial
 burst.
 
+A config change or a lease renew updates a running sender in place. It is never
+restarted, because a restart would send the zero Router Lifetime above and
+withdraw Ze from every host for nothing.
+
+A unit with `ipv6 delegated-prefix <wan>` is in the CE role. Its advertisement
+carries the unit's /64 with the L and A flags, and a Route Information option
+(RFC 4191) for the whole delegated prefix. Both carry the lifetimes that remain of
+the delegation at the moment of each send, so they never outlive it (RFC 9915
+Section 6.3). Its Router Lifetime is the configured value only while the main table
+holds an IPv6 default route through the WAN device and the unit advertises a prefix;
+otherwise it is 0 (RFC 7084 G-4 and L-4). When either is lost after a non-zero
+Router Lifetime went out, an advertisement with Router Lifetime 0 leaves at once
+rather than at the next periodic one (G-5), still carrying the prefix and route
+while the delegation holds (L-3). The change back, when both hold again, leaves at
+once the same way, and "at once" still keeps the 3 second spacing above. A /64 whose delegation ended is advertised once
+with zero lifetimes, then dropped. A unit without `delegated-prefix` keeps its
+configured Router Lifetime whatever the WAN does. A WAN whose device Ze cannot
+resolve holds no default route, and Ze logs it at WARN, naming the LAN and the WAN,
+when it starts failing, and at INFO when it resolves again.
+
+<!-- source: internal/plugins/iface/ra/advertiser.go -- build, routerLifetime, urgent, wanDefaults -->
+<!-- source: internal/plugins/iface/ra/sender_linux.go -- wanResolver, holdsDefault -->
+<!-- source: internal/component/iface/delegated_consumer.go -- runDelegationWorker, installDelegatedAddress -->
+
 <!-- source: internal/plugins/iface/ra/sender_linux.go -- openRASocket, run, sendFinal -->
 <!-- source: internal/core/ndp/schedule.go -- SolicitedDelay, SolicitedSendTime, MinDelayBetweenRAs -->
 
@@ -1111,7 +1194,7 @@ A `ze doctor` check (`doctor-iface-macvlan`) probes kernel macvlan capability
 | `interface/created` | First RTM_NEWLINK for an index | name, unit, type, index, mtu |
 | `interface/up` | OperUp or OperUnknown+IFF_UP | name, unit, index |
 | `interface/down` | Other oper states or RTM_DELLINK | name, unit, index; deletion also carries type and mtu |
-| `interface/addr-added` | RTM_NEWADDR (DAD complete) | name, unit, index, address, prefix-length, family, origin |
+| `interface/addr-added` | RTM_NEWADDR (DAD complete), and once for every address the kernel holds when the monitor starts | name, unit, index, address, prefix-length, family, origin |
 | `interface/addr-removed` | RTM_DELADDR | name, unit, index, address, prefix-length, family, origin |
 | `interface/dhcp-acquired` | DHCPv4 ACK | name, unit, address, prefix-length, router, dns, lease-time |
 | `interface/dhcp-renewed` | Renewal success | name, unit, address, prefix-length, router, dns, lease-time |
@@ -1119,6 +1202,21 @@ A `ze doctor` check (`doctor-iface-macvlan`) probes kernel macvlan capability
 
 <!-- source: internal/core/iface/events/events.go -- interface event names -->
 <!-- source: internal/plugins/iface/netlink/monitor_linux.go -- event payloads -->
+
+The netlink monitor starts after the boot-time apply has assigned the
+configured addresses, and a netlink subscription delivers only changes. It
+therefore asks the kernel for every existing address on the subscribed socket
+when it starts, and announces each as `interface/addr-added` before any later
+change. Without that dump no consumer heard of an address that predated the
+monitor: `connected` published no prefix for it, so the system RIB could not
+prove a static gateway inside it, and a multipath group that also names a
+device-only next-hop dropped that gateway. A consumer can meet the same address
+announced twice (the dump overlapping a live change, or the kernel announcing
+an IPv6 address again when its lifetimes change), so a consumer that counts
+addresses keys them by identity: `connected` keeps the set of addresses that
+cover each prefix, not a count of events.
+<!-- source: internal/plugins/iface/netlink/monitor_linux.go -- start, ListExisting -->
+<!-- source: internal/plugins/connected/connected.go -- routeObserver.prefixes, handleAddrAdded, handleAddrRemoved -->
 
 Neighbor table changes are not a bus topic. These topics come from the
 interface monitor, which starts only when an `interface` block configures a
@@ -1254,6 +1352,7 @@ underlying mechanism. Cells with a footnote carry a caveat.
 | | `RemoveAddress` | real | real (SwInterfaceAddDelAddress) | err |
 | | `ReplaceAddressWithLifetime` | real | partial [2] | err |
 | | `AddAddressP2P` | real | err (PPP NCP not supported yet) | err |
+| | `RemoveAddressP2P` | exact installed pair | err (PPP NCP not supported yet) | err |
 | **Route** | `AddRoute` | real | err (use fib-vpp plugin) | err |
 | | `RemoveRoute` | real | err (use fib-vpp plugin) | err |
 | | `ListRoutes` | real | err (use fib-vpp plugin) | err |
@@ -1272,7 +1371,7 @@ underlying mechanism. Cells with a footnote carry a caveat.
 | | `ListNeighbors` | real | err (pending ip_neighbor_dump) | err |
 | **Bridge** | `BridgeAddPort` | real | real (SwInterfaceSetL2Bridge) | err |
 | | `BridgeDelPort` | real | real (SwInterfaceSetL2Bridge) | err |
-| | `BridgeSetSTP` | real (sysfs) | err (VPP STP varies by version) | err |
+| | `BridgeSetSTP` | real (rtnetlink IFLA_BR_STP_STATE; works with a read-only /sys) | err (VPP STP varies by version) | err |
 | **Mirror** | `SetupMirror` | real (tc mirred) | real (device SPAN) | err |
 | | `RemoveMirror` | real | real (device SPAN) | err |
 | | `ListMirrors` | real (tc filter dump) | real (SwInterfaceSpanDump) | err |

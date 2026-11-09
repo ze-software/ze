@@ -1,4 +1,4 @@
-# Week of 2026-07-01
+# 2026-07-01 – 2026-07-06 (6 days)
 
 Work landed across DNS, traffic security, routing, and the CLI this week.
 

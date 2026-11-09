@@ -293,7 +293,7 @@ replaced by <code>30s</code>.</p>
     domain $DOMAIN;
 }
 </code></pre>
-<p>If the environment variable is empty or unset, the literal string is kept (e.g., <code>$HOSTNAME</code> stays as-is). When <code>host</code> is not configured, it defaults to <code>unknown</code>. No <code>os.Hostname()</code> fallback is used.</p>
+<p>If the environment variable is empty or unset, the literal string is kept (e.g., <code>$HOSTNAME</code> stays as-is). When <code>host</code> is not configured, it defaults to the machine's host name (<code>os.Hostname()</code>), or <code>unknown</code> when that cannot be read.</p>
 <!-- source: internal/component/config/system/system.go -- ExpandEnvValue, ExtractSystemConfig -->
 <h2 id="cli-usage">CLI Usage</h2>
 <p>Archive a configuration to a named destination:</p>
@@ -504,7 +504,7 @@ file you name in the same shape, such as <code>20260101.conf</code> beside the f
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

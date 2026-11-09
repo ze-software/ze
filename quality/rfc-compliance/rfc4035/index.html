@@ -599,7 +599,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4035-3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze&#39;s authoritative servers give the EDNS0 message size extension no support -- ze&#39;s SetEdns0 producers are the two clients that query upstream, the stub resolver (internal/component/resolve/dns/resolver.go:261) and the caching resolver&#39;s forwarder (internal/plugins/dnsresolver/forward.go:41), never the authoritative reply path; the server path reads an OPT only for the client-subnet address (internal/core/dnsserver/client.go:23) and writes a reply built by msg.SetReply with no OPT pseudo-RR and no requestor-payload-size handling (internal/core/dnsserver/handler.go:55)</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze&#39;s authoritative servers give the EDNS0 message size extension no support -- ze&#39;s SetEdns0 producers are the two clients that query upstream, the stub resolver (internal/component/resolve/dns/resolver.go:418, inside queryServer) and the caching resolver&#39;s forwarder (internal/plugins/dnsresolver/forward.go:41), never the authoritative reply path; the server path reads an OPT only for the client-subnet address (internal/core/dnsserver/client.go:23) and writes a reply built by msg.SetReply with no OPT pseudo-RR and no requestor-payload-size handling (internal/core/dnsserver/handler.go:55)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-3-2">RFC4035-3-2</code></td><td colspan="3"><span class="rfc-subject">A security-aware name server MUST support the EDNS0 ([RFC2671]) message size extension, MUST support a message size of at least 1220 octets (§3)</span></td></tr>
 <tr><td></td>
@@ -979,7 +979,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_security_aware_test.go#L45" title="internal/component/resolve/dns/rfc4035_security_aware_test.go" target="_blank" rel="noopener"><code>TestRFC4035SecurityAwareQueryInEveryValidatingMode</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_test.go#L60" title="internal/component/resolve/dns/rfc4035_test.go" target="_blank" rel="noopener"><code>TestRFC4035_QueryCarriesEDNS0DOAndClearAD</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the DO bit is emitted rather than parsed -- SetEdns0(4096, validating) sets it whenever dnssec-validation is permissive or strict (internal/component/resolve/dns/resolver.go:261) -- so there is no non-conformant input to reject; off mode is a plain non-security-aware stub, which this requirement does not govern</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the DO bit is emitted rather than parsed -- SetEdns0(4096, validating) sets it whenever dnssec-validation is permissive or strict (internal/component/resolve/dns/resolver.go:418, inside queryServer) -- so there is no non-conformant input to reject; off mode is a plain non-security-aware stub, which this requirement does not govern</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-4.1-2">RFC4035-4.1-2</code></td><td colspan="3"><span class="rfc-subject">A security-aware resolver MUST support a message size of at least 1220 octets (§4.1)</span></td></tr>
 <tr><td></td>
@@ -998,7 +998,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_security_aware_test.go#L52" title="internal/component/resolve/dns/rfc4035_security_aware_test.go" target="_blank" rel="noopener"><code>TestRFC4035SecurityAwareQueryInEveryValidatingMode</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_test.go#L70" title="internal/component/resolve/dns/rfc4035_test.go" target="_blank" rel="noopener"><code>TestRFC4035_QueryCarriesEDNS0DOAndClearAD</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the sender&#39;s UDP payload size field is emitted, not parsed -- SetEdns0 writes 4096 on every query (internal/component/resolve/dns/resolver.go:261) -- so no malformed input exists to reject</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the sender&#39;s UDP payload size field is emitted, not parsed -- SetEdns0 writes 4096 on every query (internal/component/resolve/dns/resolver.go:418, inside queryServer) -- so no malformed input exists to reject</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-4.1-5">RFC4035-4.1-5</code></td><td colspan="3"><span class="rfc-subject">A security-aware resolver&#39;s IP layer MUST handle fragmented UDP packets correctly regardless of whether any such fragmented packets were received via IPv4 or IPv6. (§4.1)</span></td></tr>
 <tr><td></td>
@@ -1135,7 +1135,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4035-4.9.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_test.go#L62" title="internal/component/resolve/dns/rfc4035_test.go" target="_blank" rel="noopener"><code>TestRFC4035_QueryCarriesEDNS0DOAndClearAD</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze&#39;s stub sets the DO bit under permissive and strict (internal/component/resolve/dns/resolver.go:261) and leaves the signature check to the upstream; the bit is emitted, not parsed, so there is no non-conformant input to reject</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze&#39;s stub sets the DO bit under permissive and strict (internal/component/resolve/dns/resolver.go:418, inside queryServer) and leaves the signature check to the upstream; the bit is emitted, not parsed, so there is no non-conformant input to reject</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4035-4.9.3-2">RFC4035-4.9.3-2</code></td><td colspan="3"><span class="rfc-subject">In any case, a security-aware stub resolver MUST NOT place any reliance on signature validation allegedly performed on its behalf, except when the security-aware stub resolver obtained the data in question from a trusted security-aware recursive name server via a secure channel. (§4.9.3)</span></td></tr>
 <tr><td></td>
@@ -1925,7 +1925,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td><a href="#rfc4035-3-1"><code>RFC4035-3-1</code></a> A security-aware name server MUST support the EDNS0 ([RFC2671]) message size extension (§3)</td>
 <td>{gap}, no test</td>
-<td>ze&#39;s authoritative servers give the EDNS0 message size extension no support -- ze&#39;s SetEdns0 producers are the two clients that query upstream, the stub resolver (internal/component/resolve/dns/resolver.go:261) and the caching resolver&#39;s forwarder (internal/plugins/dnsresolver/forward.go:41), never the authoritative reply path; the server path reads an OPT only for the client-subnet address (internal/core/dnsserver/client.go:23) and writes a reply built by msg.SetReply with no OPT pseudo-RR and no requestor-payload-size handling (internal/core/dnsserver/handler.go:55)</td>
+<td>ze&#39;s authoritative servers give the EDNS0 message size extension no support -- ze&#39;s SetEdns0 producers are the two clients that query upstream, the stub resolver (internal/component/resolve/dns/resolver.go:418, inside queryServer) and the caching resolver&#39;s forwarder (internal/plugins/dnsresolver/forward.go:41), never the authoritative reply path; the server path reads an OPT only for the client-subnet address (internal/core/dnsserver/client.go:23) and writes a reply built by msg.SetReply with no OPT pseudo-RR and no requestor-payload-size handling (internal/core/dnsserver/handler.go:55)</td>
 </tr>
 <tr><td><a href="#rfc4035-3-2"><code>RFC4035-3-2</code></a> A security-aware name server MUST support the EDNS0 ([RFC2671]) message size extension, MUST support a message size of at least 1220 octets (§3)</td>
 <td>{gap}, no test</td>
@@ -2572,7 +2572,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC4035-3.2.3-2, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-4.1-1"><code>RFC4035-4.1-1</code></a></h3>
 <p>A security-aware resolver MUST include an EDNS ([RFC2671]) OPT pseudo-RR with the DO ([RFC3225]) bit set when sending queries. (§4.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. TestRFC4035SecurityAwareQueryInEveryValidatingMode now runs permissive AND strict (the earlier strict-only finding): the query carries an OPT with DO set in both. Record: Resolver.query revert observed red. {single-polarity} holds: an emitted field with no input to refuse.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 25a0665638: the tests build the resolver with Servers: []string{addr} instead of Server: addr, and Resolver.query now asks each server in turn through queryServer, which sets SetEdns0(4096, validating) on every query (resolver.go:418) and applies dnssecDecision to every answer. With one server the tagged units drive the same path. DO is still required set in permissive and strict. Annotation finding (not a verdict change): its resolver.go:261 reference is stale; SetEdns0 is now at resolver.go:418, in queryServer. Prior judgement: Re-judged 2026-09-30. TestRFC4035SecurityAwareQueryInEveryValidatingMode now runs permissive AND strict (the earlier strict-only finding): the query carries an OPT with DO set in both. Record: Resolver.query revert observed red. {single-polarity} holds: an emitted field with no input to refuse.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2607,7 +2607,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc4035-4.1-4"><code>RFC4035-4.1-4</code></a></h3>
 <p>MUST use the &#34;sender&#39;s UDP payload size&#34; field in the EDNS OPT pseudo-RR to advertise the message size that it is willing to accept. (§4.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Same unit: 4096 advertised in both validating modes, and a ~2900-octet uncompressed UDP answer is accepted whole (all 110 records), tying the advertised size to what the receive path accepts (the earlier finding). Record: query revert observed red. {single-polarity} holds.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 25a0665638: the tests build the resolver with Servers: []string{addr} instead of Server: addr, and Resolver.query now asks each server in turn through queryServer, which sets SetEdns0(4096, validating) on every query (resolver.go:418) and applies dnssecDecision to every answer. With one server the tagged units drive the same path. 4096 is still required in both validating modes and the ~2900-octet answer must still arrive whole. Annotation finding (not a verdict change): its resolver.go:261 reference is stale; SetEdns0 is now at resolver.go:418, in queryServer. Prior judgement: Re-judged 2026-09-30. Same unit: 4096 advertised in both validating modes, and a ~2900-octet uncompressed UDP answer is accepted whole (all 110 records), tying the advertised size to what the receive path accepts (the earlier finding). Record: query revert observed red. {single-polarity} holds.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2670,7 +2670,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc4035-4.6-3"><code>RFC4035-4.6-3</code></a></h3>
 <p>A resolver MUST disregard the meaning of the CD and AD bits in a response unless the response was obtained by using a secure channel or the resolver was specifically configured to regard the message header bits without using a secure channel. (§4.6)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Both bits now: under strict validation a NOERROR answer with AD=1 CD=1 yields exactly the records of the clear answer (a resolver requiring or honouring AD would differ), and SERVFAIL with AD, CD or both is refused, so no response bit lets a failure through. Records: query (+) and dnssecDecision (-) reverts observed red.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 25a0665638: the tests build the resolver with Servers: []string{addr} instead of Server: addr, and Resolver.query now asks each server in turn through queryServer, which sets SetEdns0(4096, validating) on every query (resolver.go:418) and applies dnssecDecision to every answer. With one server the tagged units drive the same path. A SERVFAIL refused by DNSSEC policy is not an unansweredError, so it is not passed to a next server; the AD/CD assertions are unchanged. Prior judgement: Re-judged 2026-09-30. Both bits now: under strict validation a NOERROR answer with AD=1 CD=1 yields exactly the records of the clear answer (a resolver requiring or honouring AD would differ), and SERVFAIL with AD, CD or both is refused, so no response bit lets a failure through. Records: query (+) and dnssecDecision (-) reverts observed red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2716,7 +2716,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC4035-4.8-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4035-4.9-1"><code>RFC4035-4.9-1</code></a></h3>
 <p>A security-aware stub resolver MUST support the DNSSEC RR types, at least to the extent of not mishandling responses just because they contain DNSSEC RRs. (§4.9)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. an A+RRSIG answer must return exactly the A record and a DNSSEC-only answer (RRSIG, NSEC, DNSKEY) must yield no records and no error, so mishandling either way goes red</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 25a0665638: the tests build the resolver with Servers: []string{addr} instead of Server: addr, and Resolver.query now asks each server in turn through queryServer, which sets SetEdns0(4096, validating) on every query (resolver.go:418) and applies dnssecDecision to every answer. With one server the tagged units drive the same path. The A+RRSIG and DNSSEC-only assertions are unchanged. Prior judgement: an A+RRSIG answer must return exactly the A record and a DNSSEC-only answer (RRSIG, NSEC, DNSKEY) must yield no records and no error, so mishandling either way goes red</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -3509,7 +3509,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

@@ -6,7 +6,7 @@ Show one environment variable in detail\.
 
 - Registry path: `show env get`
 - Usage: `show env get <name>`
-- Mode: Read-only
+- Mode: read-only, offline
 - Wire method: `ze-env:show-get`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default

@@ -1,4 +1,4 @@
-# Week of 2026-07-06
+# 2026-07-06 – 2026-07-12 (1 week)
 
 A dense week across VPN, DNS, subscriber access, the VPP data plane, the web UI, and observability.
 

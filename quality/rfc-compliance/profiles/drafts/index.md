@@ -8,17 +8,17 @@ Figures as of the last build, read from [data/rfc/profiles/drafts.json](../../..
 
 ## Figures
 
-- **MUST bar**: Ze proven 74, OS testing gap 1, Ze correctness gap 46
-- **Overview bar**: Ze MUST proven 74, SHOULD proven 6, SHOULD not decided 55, OS testing gap 1, Ze correctness gap 46
+- **MUST bar**: Ze proven 76, OS testing gap 1, Ze correctness gap 46
+- **Overview bar**: Ze MUST proven 76, SHOULD proven 6, SHOULD not decided 55, OS testing gap 1, Ze correctness gap 46
 
 | Figure | Rows |
 |---|---|
 | RFCs | 8 |
 | Not walked | 0 |
 | Mandatory register | not complete |
-| MUST rows | 121 |
-| MUST rows kept (the MUST bar) | 121 |
-| Ze proven | 74 |
+| MUST rows | 123 |
+| MUST rows kept (the MUST bar) | 123 |
+| Ze proven | 76 |
 | OS verified | 0 |
 | OS testing gap | 1 |
 | Ze correctness gap | 46 |
@@ -79,7 +79,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
 | [DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY](../../draft-ietf-idr-linklocal-capability/) | Link-Local Next Hop Capability for BGP | Ze proven 13, Ze correctness gap 2 | Ze MUST proven 13, SHOULD not decided 12, Ze correctness gap 2 |
-| [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION](../../draft-ietf-sidrops-aspa-verification/) | BGP AS_PATH Verification Based on Autonomous System Provider Authorization (ASPA) Objects | Ze proven 6, Ze correctness gap 2 | Ze MUST proven 6, SHOULD not decided 10, Ze correctness gap 2 |
+| [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION](../../draft-ietf-sidrops-aspa-verification/) | BGP AS_PATH Verification Based on Autonomous System Provider Authorization (ASPA) Objects | Ze proven 8, Ze correctness gap 2 | Ze MUST proven 8, SHOULD not decided 10, Ze correctness gap 2 |
 
 ### Level 10
 

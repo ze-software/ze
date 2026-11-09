@@ -117,9 +117,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><a href="../">All profiles</a> · <a href="../../">All RFCs</a></p>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="profile/dhcp-provisioning/required:must">Ze proven 174, OS testing gap 116, Ze correctness gap 182</div>
+<div data-ze-rfc-bar="profile/dhcp-provisioning/required:must">Ze proven 189, OS testing gap 116, Ze correctness gap 167</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="profile/dhcp-provisioning/required:overview">Ze MUST proven 174, SHOULD proven 7, Not owed 1, SHOULD not decided 213, OS testing gap 116, Ze correctness gap 182</div>
+<div data-ze-rfc-bar="profile/dhcp-provisioning/required:overview">Ze MUST proven 189, SHOULD proven 10, Not owed 1, SHOULD not decided 210, OS testing gap 116, Ze correctness gap 167</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -140,7 +140,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="profile/dhcp-provisioning/required:must.kept">472</span></td>
 </tr>
 <tr><td>Ze proven</td>
-<td><span data-ze-rfc="profile/dhcp-provisioning/required:must.ze-proven">174</span></td>
+<td><span data-ze-rfc="profile/dhcp-provisioning/required:must.ze-proven">189</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="profile/dhcp-provisioning/required:must.os-verified">0</span></td>
@@ -149,7 +149,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="profile/dhcp-provisioning/required:must.os-gap">116</span></td>
 </tr>
 <tr><td>Ze correctness gap</td>
-<td><span data-ze-rfc="profile/dhcp-provisioning/required:must.ze-gap">182</span></td>
+<td><span data-ze-rfc="profile/dhcp-provisioning/required:must.ze-gap">167</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="profile/dhcp-provisioning/required:must.not-owed">1</span></td>
@@ -167,7 +167,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="profile/dhcp-provisioning/required:should.total">220</span></td>
 </tr>
 <tr><td>SHOULD proven</td>
-<td><span data-ze-rfc="profile/dhcp-provisioning/required:should.proven">7</span></td>
+<td><span data-ze-rfc="profile/dhcp-provisioning/required:should.proven">10</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
 <td><span data-ze-rfc="profile/dhcp-provisioning/required:should.os-verified">0</span></td>
@@ -194,7 +194,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="profile/dhcp-provisioning/required:should.not-yet">0</span></td>
 </tr>
 <tr><td>SHOULD not decided</td>
-<td><span data-ze-rfc="profile/dhcp-provisioning/required:should.not-decided">213</span></td>
+<td><span data-ze-rfc="profile/dhcp-provisioning/required:should.not-decided">210</span></td>
 </tr>
 </tbody>
 </table>
@@ -203,20 +203,35 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Tree</h2>
 <p>Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows &#34;not walked&#34; and no bar.</p>
-<h3>Level 0</h3>
+<h3>Level 2</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
-<tr><td><a href="../../rfc1350/">RFC 1350</a></td>
+<tr><td><a href="../../rfc1350/">RFC 1350</a> (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1332, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293)</td>
 <td>The TFTP Protocol (Revision 2)</td>
 <td><div data-ze-rfc-bar="rfc1350:must">Ze proven 8, Ze correctness gap 2</div></td>
 <td><div data-ze-rfc-bar="rfc1350:overview">Ze MUST proven 8, SHOULD proven 2, SHOULD not decided 2, Ze correctness gap 2</div></td>
 </tr>
+<tr><td><a href="../../rfc2131/">RFC 2131</a> (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1332, rfc1350, rfc1812, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293)</td>
+<td>Dynamic Host Configuration Protocol</td>
+<td><div data-ze-rfc-bar="rfc2131:must">Ze proven 21, OS testing gap 9, Ze correctness gap 41</div></td>
+<td><div data-ze-rfc-bar="rfc2131:overview">Ze MUST proven 21, SHOULD proven 3, SHOULD not decided 35, OS testing gap 9, Ze correctness gap 41</div></td>
+</tr>
+<tr><td><a href="../../rfc2132/">RFC 2132</a> (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1332, rfc1350, rfc1812, rfc2131, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293)</td>
+<td>DHCP Options and BOOTP Vendor Extensions</td>
+<td><div data-ze-rfc-bar="rfc2132:must">Ze proven 1, Ze correctness gap 33</div></td>
+<td><div data-ze-rfc-bar="rfc2132:overview">Ze MUST proven 1, SHOULD not decided 34, Ze correctness gap 33</div></td>
+</tr>
+<tr><td><a href="../../rfc4861/">RFC 4861</a> (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1332, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc5905, rfc8200, rfc8201, rfc9293)</td>
+<td>Neighbor Discovery for IP version 6 (IPv6)</td>
+<td><div data-ze-rfc-bar="rfc4861:must">Ze proven 29, OS testing gap 91, Ze correctness gap 18</div></td>
+<td><div data-ze-rfc-bar="rfc4861:overview">Ze MUST proven 29, SHOULD not decided 79, OS testing gap 91, Ze correctness gap 18</div></td>
+</tr>
 </tbody>
 </table>
 </div>
-<h3>Level 1</h3>
+<h3>Level 3</h3>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
@@ -236,42 +251,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div data-ze-rfc-bar="rfc2349:must">Ze proven 3, Ze correctness gap 1</div></td>
 <td><div data-ze-rfc-bar="rfc2349:overview">Ze MUST proven 3, SHOULD proven 1, SHOULD not decided 1, Ze correctness gap 1</div></td>
 </tr>
-</tbody>
-</table>
-</div>
-<h3>Level 2</h3>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
-<tbody>
-<tr><td><a href="../../rfc2131/">RFC 2131</a> (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293)</td>
-<td>Dynamic Host Configuration Protocol</td>
-<td><div data-ze-rfc-bar="rfc2131:must">Ze proven 18, OS testing gap 9, Ze correctness gap 44</div></td>
-<td><div data-ze-rfc-bar="rfc2131:overview">Ze MUST proven 18, SHOULD proven 2, SHOULD not decided 36, OS testing gap 9, Ze correctness gap 44</div></td>
-</tr>
-<tr><td><a href="../../rfc2132/">RFC 2132</a> (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2131, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293)</td>
-<td>DHCP Options and BOOTP Vendor Extensions</td>
-<td><div data-ze-rfc-bar="rfc2132:must">Ze proven 1, Ze correctness gap 33</div></td>
-<td><div data-ze-rfc-bar="rfc2132:overview">Ze MUST proven 1, SHOULD not decided 34, Ze correctness gap 33</div></td>
-</tr>
-<tr><td><a href="../../rfc4861/">RFC 4861</a> (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc5905, rfc8200, rfc8201, rfc9293)</td>
-<td>Neighbor Discovery for IP version 6 (IPv6)</td>
-<td><div data-ze-rfc-bar="rfc4861:must">Ze proven 30, OS testing gap 91, Ze correctness gap 17</div></td>
-<td><div data-ze-rfc-bar="rfc4861:overview">Ze MUST proven 30, SHOULD not decided 79, OS testing gap 91, Ze correctness gap 17</div></td>
-</tr>
-<tr><td><a href="../../rfc7440/">RFC 7440</a></td>
-<td>TFTP Windowsize Option</td>
-<td><div data-ze-rfc-bar="rfc7440:must">Ze proven 9</div></td>
-<td><div data-ze-rfc-bar="rfc7440:overview">Ze MUST proven 9, SHOULD proven 1, SHOULD not decided 5</div></td>
-</tr>
-</tbody>
-</table>
-</div>
-<h3>Level 3</h3>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
-<tbody>
 <tr><td><a href="../../rfc4578/">RFC 4578</a></td>
 <td>Dynamic Host Configuration Protocol (DHCP) Options for the Intel Preboot eXecution Environment (PXE)</td>
 <td><div data-ze-rfc-bar="rfc4578:must">Ze proven 1, Ze correctness gap 3</div></td>
@@ -290,15 +269,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
+<tr><td><a href="../../rfc7440/">RFC 7440</a></td>
+<td>TFTP Windowsize Option</td>
+<td><div data-ze-rfc-bar="rfc7440:must">Ze proven 9</div></td>
+<td><div data-ze-rfc-bar="rfc7440:overview">Ze MUST proven 9, SHOULD proven 1, SHOULD not decided 5</div></td>
+</tr>
 <tr><td><a href="../../rfc8106/">RFC 8106</a></td>
 <td>IPv6 Router Advertisement Options for DNS Configuration</td>
-<td><div data-ze-rfc-bar="rfc8106:must">Ze correctness gap 11</div></td>
-<td><div data-ze-rfc-bar="rfc8106:overview">SHOULD not decided 13, Ze correctness gap 11</div></td>
+<td><div data-ze-rfc-bar="rfc8106:must">Ze proven 5, Ze correctness gap 6</div></td>
+<td><div data-ze-rfc-bar="rfc8106:overview">Ze MUST proven 5, SHOULD proven 2, SHOULD not decided 11, Ze correctness gap 6</div></td>
 </tr>
 <tr><td><a href="../../rfc9915/">RFC 9915</a></td>
 <td>Dynamic Host Configuration Protocol for IPv6 (DHCPv6)</td>
-<td><div data-ze-rfc-bar="rfc9915:must">Ze proven 82, OS testing gap 3, Ze correctness gap 41</div></td>
-<td><div data-ze-rfc-bar="rfc9915:overview">Ze MUST proven 82, OS testing gap 3, Ze correctness gap 41</div></td>
+<td><div data-ze-rfc-bar="rfc9915:must">Ze proven 85, OS testing gap 3, Ze correctness gap 38</div></td>
+<td><div data-ze-rfc-bar="rfc9915:overview">Ze MUST proven 85, OS testing gap 3, Ze correctness gap 38</div></td>
 </tr>
 </tbody>
 </table>
@@ -310,8 +294,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc7084/">RFC 7084</a></td>
 <td>Basic Requirements for IPv6 Customer Edge Routers</td>
-<td><div data-ze-rfc-bar="rfc7084:must">Ze proven 14, OS testing gap 7, Ze correctness gap 20</div></td>
-<td><div data-ze-rfc-bar="rfc7084:overview">Ze MUST proven 14, SHOULD not decided 25, OS testing gap 7, Ze correctness gap 20</div></td>
+<td><div data-ze-rfc-bar="rfc7084:must">Ze proven 19, OS testing gap 7, Ze correctness gap 15</div></td>
+<td><div data-ze-rfc-bar="rfc7084:overview">Ze MUST proven 19, SHOULD not decided 25, OS testing gap 7, Ze correctness gap 15</div></td>
 </tr>
 </tbody>
 </table>
@@ -349,7 +333,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

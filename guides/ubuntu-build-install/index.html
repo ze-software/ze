@@ -65,7 +65,7 @@
 <!-- source: internal/le/setup/actions.go -- Answer -->
 <!-- source: internal/le/setup/actions.go -- Answer -->
 <!-- source: internal/le/repo/featuretags/daemontags.go -- DaemonTags -->
-<!-- source: internal/plugins/init/main.go -- Run, runInit -->
+<!-- source: internal/plugins/init/main.go -- Run, runInit, runInitPublished -->
 <!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authentication.user base fields and system.authorization.profile -->
 <!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- environment.ssh and public-keys augmentation -->
 <h2 id="1-install-build-tools">1. Install build tools</h2>
@@ -143,11 +143,12 @@ sudo test -d /etc/ze/database
 <p>This creates the bootstrap admin in an atomically published tree. Its directories
 are 0700 and files 0600. Both an existing tree and a <code>database.zefs</code> artifact
 refuse initialization; <code>ze init --force --yes</code> replaces an unowned store and
-retains a <code>.replaced-&lt;stamp&gt;</code> backup. <code>ze init --from &lt;blob&gt;</code> imports a local
-blob; the URL form is storage-2. Keep the bootstrap admin as a recovery user until you
-have tested the configured users below.</p>
-<!-- source: internal/plugins/init/main.go -- Run, runInit -->
+retains a <code>.replaced-&lt;stamp&gt;</code> backup. <code>ze init --from &lt;source&gt;</code> imports a blob
+from a local path or a URL. Add <code>--sha256 &lt;hex&gt;</code> to require a specific digest.
+Keep the bootstrap admin as a recovery user until you have tested the configured users below.</p>
+<!-- source: internal/plugins/init/main.go -- Run, runInit, runInitPublished, runImport, runFetchImport -->
 <p>The initial config is stored under the name the instance name gives it. If that name cannot be read back, <code>ze init</code> fails with <code>name initial config:</code> rather than writing <code>ze.conf</code>.</p>
+<!-- source: internal/plugins/init/main.go -- runInitPublished -->
 <h2 id="5-create-the-first-stored-config">5. Create the first stored config</h2>
 <p>Keep the active configuration inside <code>database/</code> for bare <code>ze start</code>. Do not
 create <code>/etc/ze/edge-01.conf</code> as a second source of truth in this workflow.
@@ -340,7 +341,7 @@ sudo /usr/local/bin/ze uninstall local
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

@@ -122,12 +122,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 20 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 20 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 20 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>36</strong><b>36 of 36 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>38</strong><b>38 of 38 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>20</strong><b>of 25 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>20</strong><b>of 26 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands</p></article>
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 20 gated MUSTs</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 20 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 20 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
@@ -215,7 +215,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>25</td>
+<td>26</td>
 </tr>
 <tr><td>Gated MUST-level</td>
 <td>20</td>
@@ -236,16 +236,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>36</td>
+<td>38</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>36</td>
+<td>38</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>1</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>36</td>
+<td>38</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8247.md</code></td>
@@ -314,7 +314,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>MUST bar</strong></p>
 <div data-ze-rfc-bar="rfc8247:must">Ze proven 17, Ze correctness gap 3</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc8247:overview">Ze MUST proven 17, SHOULD not decided 5, Ze correctness gap 3</div>
+<div data-ze-rfc-bar="rfc8247:overview">Ze MUST proven 17, SHOULD proven 1, SHOULD not decided 5, Ze correctness gap 3</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -359,10 +359,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc8247:must.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
 <tr><td>SHOULD / MAY rows</td>
-<td><span data-ze-rfc="rfc8247:should.total">5</span></td>
+<td><span data-ze-rfc="rfc8247:should.total">6</span></td>
 </tr>
 <tr><td>SHOULD proven</td>
-<td><span data-ze-rfc="rfc8247:should.proven">0</span></td>
+<td><span data-ze-rfc="rfc8247:should.proven">1</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
 <td><span data-ze-rfc="rfc8247:should.os-verified">0</span></td>
@@ -609,6 +609,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8247-3.1-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8247-3.1-4">RFC8247-3.1-4</code></td><td colspan="3"><span class="rfc-subject">Digital Signature [RFC7427] is expected to be promoted as it provides hash function, signature format, and algorithm agility.  Its current status is SHOULD. (§3.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8247-3.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_method_test.go#L33" title="internal/component/ike/engine/rfc7427_method_test.go" target="_blank" rel="noopener"><code>TestRFC7427DigitalSignatureMethodIsUsed</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_method_test.go#L34" title="internal/component/ike/engine/rfc7427_method_test.go" target="_blank" rel="noopener"><code>TestRFC7427DigitalSignatureMethodIsUsed</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8247-3.1.1-2">RFC8247-3.1.1-2</code></td><td colspan="3"><span class="rfc-subject">Since these signatures only have value in real time and need no future protection, smaller keys were kept at SHOULD NOT instead of MUST NOT. (§3.1.1)</span></td></tr>
@@ -1018,6 +1027,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc8247-3.1-4"><code>RFC8247-3.1-4</code></a></h3>
+<p>Digital Signature [RFC7427] is expected to be promoted as it provides hash function, signature format, and algorithm agility.  Its current status is SHOULD. (§3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_method_test.go#L34" title="internal/component/ike/engine/rfc7427_method_test.go" target="_blank" rel="noopener"><code>TestRFC7427DigitalSignatureMethodIsUsed</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_method_test.go#L33" title="internal/component/ike/engine/rfc7427_method_test.go" target="_blank" rel="noopener"><code>TestRFC7427DigitalSignatureMethodIsUsed</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Extraction sign-off</h2>
 <div class="rfc-table-wrap">
@@ -1025,10 +1054,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Field</th><th>Value</th></tr></thead>
 <tbody>
 <tr><td>Reviewer</td>
-<td>claude (ze-rfc phase-1 agent, session 45f03892)</td>
+<td>RFCContinuation (session ses_e640edc6effeAAkQ560zO43PMs)</td>
 </tr>
 <tr><td>Signed off</td>
-<td>2026-10-26</td>
+<td>2026-11-04</td>
 </tr>
 <tr><td>Register</td>
 <td>rfc2119</td>
@@ -1144,7 +1173,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>not stated</td>
 <td>3</td>
 <td>walked</td>
-<td>not stated</td>
+<td>RFC8247-3.1-4 is read from the Digital Signature paragraph of Section 3.1: &#34;Digital Signature [RFC7427] is expected to be promoted as it provides hash function, signature format, and algorithm agility.  Its current status is SHOULD.&#34; The rfc2119 inventory derives MUST-level sites, so this SHOULD-only paragraph has no derived site locator; the existing section-level unsourced-ids mechanism preserves the optional row&#39;s source association without inventing one.</td>
 </tr>
 <tr><td><code>3.1.1</code></td>
 <td>not stated</td>
@@ -1346,7 +1375,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

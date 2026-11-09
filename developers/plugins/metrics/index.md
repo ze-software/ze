@@ -1,7 +1,9 @@
 # Plugin Metrics
 
-Plugins that have observable runtime state register their own Prometheus metrics
-via the existing `ConfigureMetrics` callback in the `Registration` struct.
+Register metrics in the process that performs the work. Plugins whose engines
+produce the observations use the existing `ConfigureMetrics` callback in the
+`Registration` struct. Code that runs in the daemon independently of its plugin
+process uses the deferred daemon hook described below.
 
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.ConfigureMetrics -->
 
@@ -218,6 +220,8 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_managed_config_changed_pushed_total` | Counter | | managed (hub server) |
 | `ze_plugin_write_watchdog_total` | CounterVec | transport | plugin (server) |
 | `ze_plugin_filter_batch_routes` | Histogram | | plugin (ipc): the routes one filter-update exchange with a forked plugin carried, buckets 1 to 64 (`rpc.FilterUpdateBatchMax`); a plugin running internal is called through its filter slot and observes nothing |
+| `ze_plugin_filter_slot_routes_total` | Counter | | plugin (ipc): routes for which the typed in-process filter slot returned a non-nil verdict without an error; closed slots and evaluator errors do not count. The batch histogram's `_sum` counts routes sent through the encoded transport instead |
+| `ze_plugin_filter_route_enqueues_total` | Counter | | plugin (ipc): routes successfully sent to the encoded filter-update queue, including routes whose later exchange fails. Closed connections and canceled waits that enqueue nothing do not count. Unlike the batch histogram, this advances while an earlier exchange is still in flight |
 | `ze_policy_route_set_refusals_total` | CounterVec | filter | bgp library chains (policychain): one per route a plugin filter failed by answering a set Ze refused (undeclared, not settable at the attachment, unknown, or of the wrong shape), whichever `on-error` then decided the route. `filter` is the chain reference, `<plugin>:<filter>` |
 | `ze_iface_owned_devices` | GaugeVec | owner | iface (owned-device registry) |
 | `ze_iface_link_events_coalesced_total` | CounterVec | name | iface (link event queue) |
@@ -228,6 +232,9 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_iface_config_apply_started_total` | Counter | | iface (config apply) |
 | `ze_iface_ra_sent_total` | CounterVec | interface | iface-ra |
 | `ze_iface_ra_solicited_total` | CounterVec | interface | iface-ra |
+| `ze_iface_delegated_prefixes_held` | GaugeVec | name | iface (delegated-prefix table) |
+| `ze_pppoe_client_renegotiations_total` | CounterVec | name | l2tp-pppoe-client |
+| `ze_pppoe_client_ipv6cp_opened` | GaugeVec | name | l2tp-pppoe-client |
 | `ze_radius_unsigned_eap_discards_total` | Counter | | radius (client) |
 | `ze_radius_unsigned_response_discards_total` | CounterVec | server | radius (client): one per Access answer discarded for carrying no Message-Authenticator |
 | `ze_dns_resolver_queries_total` | CounterVec | transport, rcode | dnsresolver: one per query answered |
@@ -240,6 +247,9 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_dns_resolver_upstream_queries_total` | CounterVec | result | dnsresolver: one per upstream exchange, `answered`, `timeout`, `error`, `failure` or `truncated` |
 | `ze_dns_resolver_listener_up` | GaugeVec | protocol, address | dnsresolver: 1 while a listener socket is bound, by protocol and address with port |
 | `ze_dns_tcp_connection_refused_total` | Counter | | DNS server harness: one per TCP connection closed at accept because its listener held `Options.TCPConnMax` (the LAN resolver sets it) |
+| `ze_dns_source_snapshots_rejected_total` | CounterVec | consumer | dnsresolver (`dns-resolver`) and dhcpserver (`dhcpserver`): one per system-dns snapshot the consumer received and could not apply; it keeps its previous learned resolvers, logs the cause at WARN and goes on to the next snapshot |
+| `ze_dns_source_records` | GaugeVec | origin | system-dns registry (`config/system` `Resolvers.SetMetrics`): the learned resolver records each origin holds, zero once its leases are withdrawn |
+| `ze_dns_source_selection_changes_total` | CounterVec | consumer | system-dns registry: one per change of a consumer's published dns-source selection after its first, the router's under consumer `system` |
 
 The three iface link-event counters answer the same question from different
 points on the path, and none of them reports a lost final state. A rising
@@ -278,6 +288,22 @@ hosts join the link.
 
 <!-- source: internal/plugins/iface/ra/ifacera.go -- incSent, incSolicited -->
 <!-- source: internal/plugins/iface/ra/sender_linux.go -- send call sites -->
+
+`ze_iface_delegated_prefixes_held{name}` counts the delegated prefixes the
+DHCPv6 lease of the pppoe-client `name` holds. It is set each time the client
+binds, renews or loses a prefix, so 0 means no LAN unit that takes a /64 from
+that client has one. `ze_pppoe_client_ipv6cp_opened{name}` is 1 while that
+client's IPv6CP is Opened and IPv6 passes on the session, and 0 before it
+opens, after the access concentrator rejects or closes it, during an LCP
+restart and once the session ends. Read together: a client at 1 on IPv6CP and
+0 on delegated prefixes has IPv6 on the WAN but no delegation for the LAN.
+`ze_pppoe_client_renegotiations_total{name}` counts network-phase LCP
+renegotiations the client started.
+
+<!-- source: internal/component/iface/delegated_lease.go -- delegations.record, publishHeld -->
+<!-- source: internal/component/l2tp/pppoeclient/metrics.go -- bindClientMetrics, recordIPv6CPOpened, countRenegotiation -->
+<!-- source: internal/component/l2tp/pppoeclient/ipv6cp_client.go -- applyIPv6CP -->
+<!-- source: internal/component/l2tp/pppoeclient/network_phase.go -- keepaliveLoop -->
 
 The LAN resolver's `ze_dns_resolver_queries_total` counts answered queries
 only: a query dropped by the rate or the outstanding bound gets no reply and
@@ -438,12 +464,105 @@ Two consequences for a plugin author:
 - Declaring a `Dependency` on `bgp` does not order the injection. Dependencies
   order the 5-stage handshake, not the spawn the hook used to be bound to.
 
+### Metrics owned by daemon callbacks
+
+A callback that runs in the daemon registers its metrics with
+`registry.InjectPluginMetrics` from its owner's `init()`, as the crash-capture
+plugin does. The same deferred injection creates its counters when the daemon's
+registry becomes available; without a registry, no exporter is created.
+
+The `reject-asn` match condition uses this form: its list is compiled into the
+daemon's BGP chain even when the plugin's command process runs forked.
+`bgp-filter-path-asn` therefore declares no process `ConfigureMetrics` callback
+for these counters. The command process must not publish a second copy of
+daemon-owned observations.
+<!-- source: internal/plugins/crashes/register.go -- init -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/register.go -- init -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/metrics.go -- setMetricsRegistry, recordReject -->
+
+
+### A plugin run in its own process
+
+A plugin the daemon forks (`plugin { external <name> { run ...; } }`) cannot
+reach the daemon's registry. Its runner, `cli.RunPlugin`, calls the same
+`ConfigureMetrics` before `RunEngine`, with an `sdk.MetricsPublisher`: a
+`metrics.Registry` that creates each metric in the daemon under the same name
+and shape, over the `metrics-publish` RPC. The plugin's code does not change,
+and a scrape of the daemon shows the same names and values as in-process.
+
+The plugin decides how often the daemon learns of changes:
+
+- a declaration is published at once, as soon as the plugin is running, so
+  every name exists in the daemon from the start;
+- updates accumulate in the plugin and are published every interval:
+  `MetricsIntervalDefault` (5 seconds), or what the plugin sets with
+  `Plugin.SetMetricsInterval` before `Run` (100 ms to one hour);
+- `Plugin.FlushMetrics` publishes at once, and the last updates are published
+  before the plugin acknowledges its removal (`bye`). A daemon stop closes the
+  connection with no `bye`, so the changes of its last interval are not sent;
+  the daemon is stopping, and nothing scrapes it.
+
+What the plugin holds is bounded whatever the update rate: a counter's sum
+since the last publish, a gauge's value, and one count and one sum per
+histogram bucket. Deletion tracking holds only the labeled series the daemon
+acknowledged, at most `rpc.MetricsSeriesMax`; repeated creation and deletion
+between publishes does not accumulate a deletion log. Recreating a deleted
+label replaces its previous value, and handles kept from the deleted series
+cannot change its replacement.
+
+A flush takes one snapshot and splits it into finite requests when necessary
+to fit the RPC frame limit, applying declarations before deletions before
+updates. A request the daemon did not take (an error, or no registry yet)
+keeps its changes and the unsent tail for the next flush; requests already
+acknowledged are not replayed. An increment made during startup is not lost.
+Per plugin the daemon holds at most `rpc.MetricsDeclaredMax` names and
+`rpc.MetricsSeriesMax` labeled series. A series past the limit, a label value
+longer than `rpc.MetricLabelValueMax` octets, a name without the `ze_` prefix,
+a name the daemon holds with another shape, a declaration too wide to fit an
+RPC frame even alone, and a value that is not finite are not forwarded, each
+with one WARN line. A name the daemon refuses gives back its labeled series and
+its declared slot, and its handles update nothing. The plugin remembers
+`rpc.MetricsDeclaredMax` refused names, so a repeat stays one WARN line. Past
+that, a name the daemon refuses is remembered in the declared slot it keeps, and
+a name the plugin itself refuses is not held: one further WARN line says later
+refused names go unnamed. A name longer than `rpc.MetricNameMax` is never held
+either. One WARN line covers all such names, showing the name cut at the limit.
+Declaration admission uses its encoded size, not an
+arbitrary label-name length limit; a fitting singleton is left to the actual
+request writer. The label-value boundary is inclusive: 256 octets are accepted.
+A restarted plugin declares its metrics again and carries on from the daemon's
+values. A Go plugin outside this repository gets the same registry from
+`Plugin.MetricsRegistry`.
+
+Label values MUST be valid UTF-8: the publisher refuses malformed bytes before
+JSON can replace them and change a series' identity. A valid empty-string
+label and the Unicode replacement character are accepted normally. `Delete`
+returns false for malformed values or a label-value count that does not match
+the vector; it cannot delete another valid label by resolving the same key.
+
+The publisher also refuses an addition or observation if its resulting pending
+aggregate cannot be represented as a finite `float64`. It logs the refusal
+without changing the previously accepted value or histogram count. While a
+request is unacknowledged, admission includes the values that request would
+restore if it failed. Those retained changes remain bounded; an overflowing
+operation cannot poison other labels or metrics. Once the request is
+acknowledged, its values no longer constrain later deltas against a possible
+restoration. A gauge can replace its value with `Set`. This is a transport
+boundary, not parity with native Prometheus's support for infinite aggregates:
+`metrics-publish` carries no non-finite JSON number.
+
+<!-- source: internal/component/plugin/cli/cli.go -- withForkedMetrics -->
+<!-- source: pkg/plugin/sdk/metrics.go -- MetricsPublisher, SetMetricsInterval, FlushMetrics, flushMetricsAtBye -->
+<!-- source: internal/component/plugin/server/dispatch_metrics.go -- pluginMetricSet -->
+
 ## NopRegistry Fallback
 
 When telemetry is disabled in config, plugins receive a `NopRegistry` that returns
 no-op metric implementations. The nil-check on the atomic pointer handles the case
 where `ConfigureMetrics` is never called at all (plugin loaded without a metrics
-registry).
+registry). A forked plugin always receives its publisher; with telemetry
+disabled the daemon creates the published metrics in the `NopRegistry`, so
+they vanish there exactly as an in-process plugin's do.
 
 <!-- source: internal/core/metrics/nop.go -- NopRegistry -->
 
@@ -489,15 +608,15 @@ as capability-only, but it filters every UPDATE on ingress and egress, so each
 of its refusal paths carries a reason-labeled counter.
 
 A route filter is the same case. `bgp-filter-path-asn` refuses a route whose
-AS_PATH carries a listed ASN, and it also refuses one fail-closed when the named
-list is unknown or no config has arrived yet. Its counter separates the three
-with a `reason` label and says where in the path the match was with a `position`
-label, so an operator reads which rule is eating the routes rather than only how
-many. The peer is in the log line: a peer address in a label would grow the
+AS_PATH carries a listed ASN. A match naming a list that is not defined is
+refused at config load, so no fail-closed reject reaches the counter, and its
+`reason` label has the one value `listed-asn`. A `position` label says where in
+the path the match was, so an operator reads which rule is eating the routes
+rather than only how many. The peer is in the log line: a peer address in a label would grow the
 series count with the session count.
 
 <!-- source: internal/component/bgp/plugins/role/metrics.go -- recordDrop -->
-<!-- source: internal/component/bgp/plugins/role/otc.go -- OTCIngressFilter, OTCEgressFilter -->
+<!-- source: internal/component/bgp/plugins/role/otc.go -- decideOTCIngress, OTCEgressFilter -->
 <!-- source: internal/component/bgp/plugins/filter_path_asn/metrics.go -- recordReject -->
 
 A filter that rewrites a received route is the same case again: the route is
@@ -507,10 +626,9 @@ own-GA scrub removes (RFC 7454 Section 11), labelled `width` (`standard` or
 routes its RFC 7999 Section 3.2 guard adds a propagation community to, labelled
 `community` with the YANG keyword (`no-export` or `no-advertise`). Each is
 counted after the rebuild that applies it succeeded, never where the change is
-only computed. Its filters run in the daemon whatever process the plugin's
-engine runs in, so the registry arrives through `Filter.ConfigureMetrics`, which
-`filterapi.SetMetricsRegistry` calls from the reactor's metrics-enable block,
-and not through the plugin `ConfigureMetrics` hook.
+only computed. The registry arrives through the plugin's
+`Registration.ConfigureMetrics` hook (`filter_community/register.go`), before
+the plugin's engine runs.
 
 The route server counts the control-community edits it makes for its clients.
 `ze_bgp_rs_prepend_applied_total` counts the UPDATEs written to a client that
@@ -524,8 +642,8 @@ split into several sections counts once per section, because each section
 carries the edit.
 
 <!-- source: internal/component/bgp/plugins/filter_community/metrics.go -- recordScrub, recordRelationTag, recordBlackholeGuard -->
-<!-- source: internal/component/bgp/filterapi/metrics.go -- SetMetricsRegistry -->
-<!-- source: internal/component/bgp/reactor/forward_rs.go -- recordRSCommunityEdits -->
+<!-- source: internal/component/bgp/plugins/filter_community/register.go -- ConfigureMetrics -->
+<!-- source: internal/component/bgp/reactor/forward_rs_community.go -- recordRSCommunityEdits -->
 
 ## Reference Implementation
 

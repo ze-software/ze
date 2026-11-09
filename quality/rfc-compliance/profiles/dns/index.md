@@ -10,17 +10,17 @@ Figures as of the last build, read from [data/rfc/profiles/dns.json](../../../..
 
 ## Figures
 
-- **MUST bar**: Ze proven 34, Ze correctness gap 262
-- **Overview bar**: Ze MUST proven 34, SHOULD proven 1, Not owed 3, SHOULD not decided 210, Ze correctness gap 262
+- **MUST bar**: Ze proven 46, Ze correctness gap 262
+- **Overview bar**: Ze MUST proven 46, SHOULD proven 1, Not owed 3, SHOULD not decided 225, Ze correctness gap 262
 
 | Figure | Rows |
 |---|---|
-| RFCs | 11 |
+| RFCs | 12 |
 | Not walked | 0 |
 | Mandatory register | not complete |
-| MUST rows | 299 |
-| MUST rows kept (the MUST bar) | 296 |
-| Ze proven | 34 |
+| MUST rows | 311 |
+| MUST rows kept (the MUST bar) | 308 |
+| Ze proven | 46 |
 | OS verified | 0 |
 | OS testing gap | 0 |
 | Ze correctness gap | 262 |
@@ -28,7 +28,7 @@ Figures as of the last build, read from [data/rfc/profiles/dns.json](../../../..
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 3 |
-| SHOULD / MAY rows | 211 |
+| SHOULD / MAY rows | 226 |
 | SHOULD proven | 1 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
@@ -38,7 +38,7 @@ Figures as of the last build, read from [data/rfc/profiles/dns.json](../../../..
 | SHOULD not owed: not-applicable | 0 |
 | SHOULD not ever | 0 |
 | SHOULD not yet | 0 |
-| SHOULD not decided | 210 |
+| SHOULD not decided | 225 |
 
 The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
 
@@ -50,7 +50,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 1035](../../rfc1035/) (cycle with rfc1034, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | Domain Names - Implementation and Specification | Ze proven 12, Ze correctness gap 15 | Ze MUST proven 12, SHOULD not decided 6, Ze correctness gap 15 |
+| [RFC 1035](../../rfc1035/) (cycle with rfc1034, rfc1122, rfc1123, rfc1191, rfc1195, rfc1332, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | Domain Names - Implementation and Specification | Ze proven 12, Ze correctness gap 15 | Ze MUST proven 12, SHOULD not decided 6, Ze correctness gap 15 |
 
 ### Level 3
 
@@ -82,6 +82,12 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 | [RFC 7871](../../rfc7871/) | Client Subnet in DNS Queries | Ze correctness gap 36 | SHOULD not decided 52, Ze correctness gap 36 |
 
 ### Level 7
+
+| RFC | Title | MUST bar | Overview bar |
+|---|---|---|---|
+| [RFC 5625](../../rfc5625/) | DNS Proxy Implementation Guidelines | Ze proven 12 | Ze MUST proven 12, SHOULD not decided 15 |
+
+### Level 8
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|

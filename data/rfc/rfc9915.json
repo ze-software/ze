@@ -8,10 +8,10 @@
   "must": {
     "total": 126,
     "kept": 126,
-    "ze-proven": 82,
+    "ze-proven": 85,
     "os-verified": 0,
     "os-gap": 3,
-    "ze-gap": 41,
+    "ze-gap": 38,
     "not-owed": 0,
     "not-owed-by-kind": {}
   },
@@ -27,7 +27,7 @@
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
-    "unit": 82
+    "unit": 85
   },
   "unmet": [
     "RFC9915-10-1",
@@ -67,9 +67,6 @@
     "RFC9915-21.23-7",
     "RFC9915-21.25-2",
     "RFC9915-21.25-3",
-    "RFC9915-21.25-4",
-    "RFC9915-6.3-1",
-    "RFC9915-6.3-2",
-    "RFC9915-6.3-3"
+    "RFC9915-21.25-4"
   ]
 }

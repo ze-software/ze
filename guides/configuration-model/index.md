@@ -604,7 +604,7 @@ Peers are keyed by name (`peer <name> { }`) where the name must start with a let
 | `connection { ttl { min; } }` | Minimum TTL for incoming packets | No |
 | `connection { ttl { set; } }` | TTL for outgoing packets | No |
 | `group-updates` | Enable/disable UPDATE grouping | No (default: enable) |
-| `rs-fast-path` | Enable reactor-native RS forwarding, which bypasses plugin dispatch for UPDATE forwarding. Destinations with active export filters or an effective export reject, including absent EBGP export policy, return on the skipped list. `bgp-rs` then applies policy on the cached path, not a bypass. Both peers must attach that plugin: the source grants `receive [ update-received ]`, and the destination grants `send [ update ]` ([Route Reflection, Plugin Bindings](https://github.com/ze-software/ze/blob/main/docs/guide/route-reflection.md#plugin-bindings)) | No (default: disable) |
+| `rs-fast-path` | Enable reactor-native RS forwarding, which bypasses plugin dispatch for UPDATE forwarding. The fast path runs each destination's active export filters itself, not a bypass. Destinations with an effective export reject, including absent EBGP export policy, or whose export filters could not run, or whose export filters refused an UPDATE that must be withdrawn one address family at a time, return on the skipped list, and `bgp-rs` applies policy to them on the cached path. Both peers must attach that plugin: the source grants `receive [ update-received ]`, and the destination grants `send [ update ]` ([Route Reflection, Plugin Bindings](https://github.com/ze-software/ze/blob/main/docs/guide/route-reflection.md#plugin-bindings)) | No (default: disable) |
 | `blackhole { }` | Honor RFC 7999's BLACKHOLE community from this peer. See [Blackhole Honoring](#blackhole-honoring-rfc-7999) | No (default: off) |
 | `flowspec-redirect-check { enabled }` | The draft-simpson-idr-flowspec-redirect-02 Section 3 check on a FlowSpec rule from an EBGP peer that carries a redirect-to-IP action (0x0800) to next hop X. Ze finds the longest unicast match for X in the rule's own domain (a flow-vpn rule's Route Distinguisher); when its origin AS is not the peer's AS, Ze keeps the rule but drops the action: it installs the rule without 0x0800 and forwards it without 0x0800 and with a zero next-hop length. `false` turns the check off for the session. Also settable at the bgp and group levels; the peer's value beats the group's, and the group's beats the bgp level's | No (default: the check runs) |
 <!-- source: internal/component/bgp/reactor/config.go -- parsePeerFromTree, parsePeerSettings; internal/component/bgp/yang/ze-bgp-conf.yang -- peer-fields, container timer -->
@@ -747,7 +747,7 @@ numbers, because `1.10` is not one.
 
 Five surfaces stay asplain whatever the leaf says:
 
-- the filter text a filter plugin matches
+- the `as-path` field a filter plugin reads
 - the `update text` command Ze replays to itself
 - the AS path of the plugin event stream
 - the text form of the plugin process protocol
@@ -1059,6 +1059,9 @@ two-step form of the same idea:
 
 ```
 policy {
+    match AUTHORIZED-IN {
+        prefix-list AUTHORIZED;
+    }
     modify RTBH {
         match { community 65001:666; }
         set { next-hop 192.0.2.1; }
@@ -1073,7 +1076,7 @@ bgp {
         }
     }
     peer transit-a {
-        filter { import { filters [ prefix-list:AUTHORIZED modify:RTBH ]; final accept; } }
+        filter { import { filters [ AUTHORIZED-IN modify:RTBH ]; final accept; } }
     }
 }
 ```
@@ -1694,7 +1697,11 @@ Configure `final accept` only where route exchange is intended, with any filters
 that the routing agreement requires. Loop-detection entries are prepended unless
 the chain already names them. `inactive: filters NAME;` retains a reference but
 disables its execution without changing an explicitly configured final.
+A plugin can also insert a member of its own on the peers whose config asks
+for it, ahead of yours; an inserted member does not establish operator policy
+either ([Route Policy](https://github.com/ze-software/ze/blob/main/docs/guide/route-policy.md), "Members a plugin inserts for you").
 <!-- source: internal/component/bgp/config/peers.go -- prependDefaultFilters -->
+<!-- source: internal/component/bgp/config/filter_insertion.go -- insertDeclaredFilters -->
 <!-- source: internal/component/policy/chain.go -- ExtractChain, ConcatChains -->
 
 See [Route Filters](../redistribution/index.md) for details.
@@ -1775,6 +1782,9 @@ policy {
             action reject
         }
     }
+    match CUSTOMERS-IN {
+        prefix-list CUSTOMERS;
+    }
 }
 
 bgp {
@@ -1790,7 +1800,7 @@ bgp {
             }
         }
         filter {
-            import { filters [ CUSTOMERS ]; final accept; }
+            import { filters [ CUSTOMERS-IN ]; final accept; }
         }
     }
 }
@@ -1810,26 +1820,25 @@ in the order they appear; the first match determines the action. A route
 that matches no entry is implicitly rejected.
 
 **Multi-prefix UPDATEs.** When an UPDATE carries several prefixes and the
-prefix-list accepts some but rejects others, the filter returns `modify`:
-the UPDATE is rewritten to carry only the accepted prefixes in each rewritable
-CIDR-family block, including legacy NLRI and MP_REACH/MP_UNREACH sections.
-A rejected prefix in a non-rewritable family, such as a FlowSpec destination
-component, rejects the whole UPDATE. The rewritten result still receives the
-policy's final decision; `modify` does not grant acceptance.
+prefix-list accepts some but rejects others, the match drops the rejected
+prefixes: the UPDATE carries on with only the accepted prefixes in each
+rewritable section, legacy NLRI and MP_REACH/MP_UNREACH alike. A rejected
+prefix in a section that cannot be rewritten, such as a FlowSpec destination
+component, rejects the whole UPDATE. The result still receives the policy's
+final decision; a drop does not grant acceptance.
 
-Filter instance names are globally unique under the `policy` root. Use the plain
-name as the primary reference form. Prefixed forms are accepted for
-disambiguation or advanced use:
-
-| Form | Example |
-|------|---------|
-| Plain filter name (preferred) | `CUSTOMERS` |
-| `<filter-type>:<filter>` | `prefix-list:CUSTOMERS` |
-| `<plugin>:<filter>` | `bgp-filter-prefix:CUSTOMERS` |
+Filter instance names are globally unique under the `policy` root. A BGP peer
+chain names the `match` instance (`CUSTOMERS-IN` above), never the prefix-list:
+a BGP chain naming `CUSTOMERS` or `prefix-list:CUSTOMERS` is refused at
+commit, because no BGP filter serves the prefix-list type, and
+`bgp-filter-prefix:CUSTOMERS` is refused at config load (`ze config validate`
+included), because that compiled-in plugin serves no policy filter. A Loc-RIB import chain judges a
+prefix-list itself ([Route Policy at the Loc-RIB](https://github.com/ze-software/ze/blob/main/docs/guide/route-policy.md)).
 
 <!-- source: internal/component/bgp/plugins/filter_prefix/yang/ze-filter-prefix.yang -- prefix-list YANG container -->
 <!-- source: internal/component/bgp/plugins/filter_prefix/config.go -- parsePrefixLists -->
-<!-- source: internal/component/bgp/plugins/filter_prefix/filter_prefix.go -- handleFilterUpdate, per-prefix partition modify path -->
+<!-- source: internal/component/bgp/plugins/filter_prefix/condition.go -- compileBGPCondition -->
+<!-- source: internal/component/bgp/policychain/chain.go -- compileMember -->
 
 ### IRR Prefix-List Filter
 
@@ -1914,6 +1923,9 @@ policy {
     as-path-list ALLOW-PEER {
         entry "^65001" { action accept }
     }
+    match ALLOW-PEER-IN {
+        as-path ALLOW-PEER;
+    }
     as-path-list TRANSIT {
         entry "^[0-9]+( [0-9]+)+" { action accept }
     }
@@ -1927,7 +1939,7 @@ bgp {
         }
     }
     peer customer-a {
-        filter { import { filters [ as-path-list:ALLOW-PEER ]; final accept; } }
+        filter { import { filters [ ALLOW-PEER-IN ]; final accept; } }
     }
 }
 ```
@@ -1949,6 +1961,9 @@ policy {
         indirect [ 174 3356 ]
         origin [ 65535 ]
     }
+    match reject-asn-NO-TRANSIT {
+        reject-asn NO-TRANSIT
+    }
     reject-asn SHAPES {
         regex [ "^3356 174 " ]
     }
@@ -1963,8 +1978,8 @@ bgp {
     }
     peer peer-a {
         filter {
-            import { filters [ NO-TRANSIT ]; final accept; }
-            export { filters [ NO-TRANSIT ]; final accept; }
+            import { filters [ reject-asn-NO-TRANSIT ]; final accept; }
+            export { filters [ reject-asn-NO-TRANSIT ]; final accept; }
         }
     }
 }
@@ -2002,8 +2017,10 @@ destination peer rather than the sender, so nothing is `direct` there and
 `indirect` covers the whole path.
 
 The same ASN under two keywords unions rather than replacing, so `indirect` plus
-`direct` is `anywhere`. A chain names a list by its bare name, or as
-`reject-asn:NAME`, or as `bgp-filter-path-asn:NAME`.
+`direct` is `anywhere`. A BGP chain reaches a list through a `match` instance
+whose `reject-asn` condition names it
+(`policy { match NO-TRANSIT-IN { reject-asn NO-TRANSIT; } }`); a chain naming
+the list itself is refused at commit.
 
 In the config editor, Tab inside a `reject-asn` list offers all seven keywords
 with what each one covers, and Tab on any ASN leaf-list offers the well-known
@@ -2033,6 +2050,9 @@ policy {
     community-match BLOCK-NO-EXPORT {
         entry no-export { type standard; action reject }
     }
+    match community-BLOCK-NO-EXPORT {
+        community BLOCK-NO-EXPORT
+    }
     community-match ALLOW-CUSTOMER {
         entry 65001:100 { type standard; action accept }
         entry 65001:100:200 { type large; action accept }
@@ -2047,7 +2067,7 @@ bgp {
         }
     }
     peer transit-a {
-        filter { import { filters [ community-match:BLOCK-NO-EXPORT ]; final accept; } }
+        filter { import { filters [ community-BLOCK-NO-EXPORT ]; final accept; } }
     }
 }
 ```
@@ -2072,6 +2092,9 @@ traversal, but it does not bypass `final reject`.
 
 ```
 policy {
+    match CUSTOMERS-IN {
+        prefix-list CUSTOMERS;
+    }
     modify PREFER-LOCAL {
         set {
             local-preference 200
@@ -2093,7 +2116,7 @@ bgp {
     }
     peer transit-a {
         filter {
-            import { filters [ prefix-list:CUSTOMERS modify:PREFER-LOCAL ]; final accept; }
+            import { filters [ CUSTOMERS-IN modify:PREFER-LOCAL ]; final accept; }
             export { filters [ modify:PREPEND-3 ]; final accept; }
         }
     }
@@ -2140,7 +2163,8 @@ AIGP TLV from consideration rather than scoring it. The full table is
 `del { med; }` is the mechanism RFC 4271 Section 5.1.4 requires a speaker to
 implement. It takes effect on an `import` chain only. That section requires the
 removal before Decision Process phases 1 and 2, and the import chain is the only
-chain that runs there. On an `export` chain, the directive is refused and logged.
+chain that runs there. On an `export` chain, the removal is ignored with a logged
+warning, and the definition's other operations still apply.
 It is mutually exclusive with `set med`, `increment med`, and `decrement med`.
 The configuration is refused when removal and one of these operations are both stated.
 
@@ -2155,7 +2179,7 @@ in the route satisfies the condition.
 
 <!-- source: internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang -- modify YANG container, match -->
 <!-- source: internal/component/bgp/plugins/filter_modify/config.go -- parseModifyDefs -->
-<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- appendMEDRemove -->
+<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- medRemoveFor -->
 <!-- source: internal/component/bgp/reactor/forward_med.go -- applyFactsMED -->
 <!-- source: internal/component/bgp/plugins/filter_modify/match.go -- matchCond, matches -->
 
@@ -2248,7 +2272,7 @@ peer transit-a {
 This excerpt deliberately permits export of the configured routes. An EBGP
 peer without explicit export policy receives no announcements, including locally
 configured routes. Import remains a separate decision.
-<!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- exportFilterForBody -->
+<!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- egressGate -->
 
 A configured route is sent only when the session negotiated its address
 family. A route whose family the peer did not advertise, an `ipv6/mpls-vpn`
@@ -2816,6 +2840,79 @@ first-apply at startup, so the daemon cannot boot into an unworkable state.
 <!-- source: internal/component/config/yang/modules/ze-extensions.yang -- extension backend -->
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- ze:backend annotations on bridge/tunnel/wireguard/veth/mirror -->
 
+### PPPoE Client
+
+An `interface pppoe-client` uses `source-interface` for Ethernet discovery and
+`authentication` for the subscriber credentials. The client answers an LCP
+renegotiation from the access network on the existing PPP session and the same
+`pppN` device: it discards IPv4, and IPv6 when the client runs it, while it repeats LCP,
+authentication and IPCP, the interface worker then applies any changed
+address, MTU or default gateway, and forwarding resumes only once that is
+done, so no packet leaves with the replaced address. This works behind a
+wholesale LAC whose retail LNS (accel-ppp, for one) ignores the proxied LCP
+and negotiates again.
+<!-- source: internal/component/l2tp/pppoeclient/connected_session.go -- restart, awaitApplied -->
+<!-- source: internal/component/iface/pppoe_client.go -- runSession -->
+
+`source-interface` names an interface as you configured it, so an `ethernet`
+entry with an `os-name` or `mac match` selector works: discovery and the PPPoE
+session both run on the kernel device that selector picks.
+<!-- source: internal/component/l2tp/pppoeclient/dialer.go -- Dialer.Dial -->
+
+The client key is the name of the kernel device: Ze creates the session device
+as `pppoe0` for `pppoe-client pppoe0`, on every session and every reconnect, so a
+static route, a firewall match or NAT names the WAN by the key the operator wrote.
+The kernel limits that name to 15 octets, so `ze config validate` refuses a
+longer key, a key outside the interface-name pattern, and a key that another
+configured interface (ethernet, bridge, dummy and the rest) already uses.
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client -->
+<!-- source: internal/component/iface/config.go -- refuseDuplicateInterfaceNames -->
+
+The counter `ze_pppoe_client_renegotiations_total` uses the configured client
+`name` as its label. It counts network-phase restart attempts, including failures,
+so repeated access-network renegotiation remains visible when IPCP cannot finish.
+<!-- source: internal/component/l2tp/pppoeclient/metrics.go -- bindClientMetrics, countRenegotiation -->
+
+Two blocks tune dead-peer detection and the redial hold-off of each client.
+`keepalive interval` (1 to 3600 seconds, default 10) is the time between two
+LCP Echo-Requests, and `keepalive failures` (1 to 255, default 3) ends the
+session on that many unanswered requests in a row; any Echo-Reply resets the
+count. `reconnect delay-min` (1 to 3600 seconds, default 1) is the wait before
+the first redial, doubled for each further failure up to `reconnect delay-max`
+(1 to 3600 seconds, default 60). A session that comes up resets the wait.
+`ze config validate` refuses a value outside its range, and a `delay-max`
+below `delay-min`. A change to these leaves alone keeps the running session:
+the next session and the next wait use the new values. Any other change to the
+client restarts it.
+
+```
+interface {
+    pppoe-client pppoe0 {
+        source-interface eth2;
+        authentication { username user; password secret; }
+        keepalive { interval 5; failures 4; }
+        reconnect { delay-min 5; delay-max 120; }
+    }
+}
+```
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client keepalive, reconnect -->
+<!-- source: internal/component/iface/pppoe_client_timing.go -- PPPoEClientTiming, parsePPPoEClientTiming, reconnectDelay -->
+
+The `ipv6` container of a `pppoe-client` takes `enabled` (boolean, default
+false: negotiate IPv6CP and install the link-local address), the shared IPv6
+host leaves `autoconf`, `accept-ra` (0 to 2) and `forwarding`, and the
+`dhcpv6` block with `enabled`, `pd length` (48 to 64) and `duid`, the same
+leaves a unit's `ipv6` carries. Ze refuses them while `enabled` is not true.
+On a unit and on a pppoe-client session alike, `accept-ra` above 0 also feeds
+the router's DNS: the RDNSS servers of each accepted Router Advertisement
+become an `ra` record of the `received` class (RFC 8106, see
+[DNS resolver](../../features/dns-resolver/index.md)), and setting it back to 0
+withdraws them.
+The full example is in [PPPoE](../pppoe/index.md), "PPPoE client IPv6".
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- grouping ipv6-host, pppoe-client ipv6 -->
+<!-- source: internal/component/iface/pppoe_client.go -- reconcilePPPoEClients, pppoeClientConfigChanged, setTiming -->
+<!-- source: internal/component/iface/ra_rdnss.go -- raRDNSS.setTargets -->
+
 ### Route Priority
 
 The `route-priority` leaf on a unit sets the Linux route metric for default routes
@@ -3209,11 +3306,33 @@ interface {
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- container router-advertisement -->
 
 Set `ipv6 forwarding true` on an advertising unit. Hosts send Ze their off-link
-traffic. The kernel drops that traffic while `net.ipv6.conf.<device>.forwarding`
-is 0. `ze doctor` reports `doctor-iface-ra-forwarding` for each advertising
-interface in that state. Leave `accept-ra` at 0 unless the same interface also learns from another
-router.
+traffic. Linux forwards an IPv6 packet only while
+`net.ipv6.conf.all.forwarding` is 1, or while the receiving device's
+`force_forwarding` is 1. The per-device `net.ipv6.conf.<device>.forwarding`
+alone forwards nothing: it makes the device act as a router, so it stops
+accepting Router Advertisements unless `accept-ra` is 2. While any unit sets
+`ipv6 forwarding true`, Ze holds `net.ipv6.conf.all.forwarding` at 1. The
+kernel copies that value into every device's `forwarding`, so every device
+then forwards and acts as a router. Ze writes back the `forwarding` of each
+unit that sets it, so a unit with `ipv6 forwarding false` stays a host; a
+device whose unit says nothing keeps the kernel's copy, as on FRR and VyOS.
+When no unit forwards any more, Ze
+gives the switch back to its earlier value, unless another part of Ze (the
+kernel FIB writer) still needs it on. A sysctl setting of
+`net.ipv6.conf.all.forwarding` overrides this, as any config value overrides a
+default. Turning the switch on flushes the default routes the kernel learnt
+from Router Advertisements on a device whose `accept-ra` is not 2; the next
+advertisement installs them again.
 
+`ze doctor` reports `doctor-iface-ra-forwarding` for each advertising interface
+whose device `forwarding` is 0, and for each one whose kernel forwards no IPv6
+(`all.forwarding` 0 and the device's `force_forwarding` not 1). Leave
+`accept-ra` at 0 unless the same interface also learns from another router:
+`accept-ra` above 0 also takes the RDNSS servers of that router's
+advertisements into the router's `received` DNS servers.
+
+<!-- source: internal/component/iface/config_sysctl.go -- applyIPv6ForwardingSwitch -->
+<!-- source: internal/component/sysctl/sysctl.go -- write, reapplyManaged -->
 <!-- source: internal/plugins/iface/ra/doctor.go -- checkRAForwarding -->
 
 Two zero values are legal input and each one carries its own meaning.
@@ -3237,6 +3356,14 @@ lowering only `valid-lifetime` below that number is rejected. Set both leaves
 together.
 
 <!-- source: internal/component/iface/config_ra.go -- raValidate, raParsePrefixEntry -->
+
+A unit with `ipv6 delegated-prefix <pppoe-client> { subnet-id <id>; }` numbers
+itself from that client's DHCPv6 delegated prefix and advertises the /64 with
+lifetimes bounded by the delegation. Its Router Lifetime then follows the WAN
+default route (RFC 7084 G-4). The PPPoE guide has the example
+([PPPoE client IPv6](../pppoe/index.md#pppoe-client-ipv6)).
+
+<!-- source: internal/component/iface/delegated_prefix.go -- parseDelegatedPrefixes, verifyDelegatedPrefixes -->
 
 See [Interface Management](../../features/interfaces/index.md#ipv6-router-advertisements)
 for the send loop, the counters, and the RFC references.
@@ -3522,12 +3649,37 @@ system {
 }
 ```
 
-**Helper modules:** Load kernel conntrack ALG helpers via `modprobe`. Valid modules: ftp, h323, sip, pptp, tftp, sane, irc, amanda, netbios-ns, snmp. Modules are load-only (removing from config stops loading on next boot but does not unload at runtime). On gokrazy, modules are built-in and loading is skipped.
+**Helper modules:** Each `module` names a conntrack helper (an ALG) that Ze assigns to new connections. Valid modules: amanda, ftp, h323, irc, netbios-ns, pptp, sane, sip, snmp, tftp. `nfs` and `sqlnet` are not accepted: they need user-space helpers that no kernel module provides. The list is empty by default, so no helper runs unless you list it (RFC 4787 Section 7 REQ-10).
+
+Since Linux 6.0 the kernel never assigns a helper on its own, so loading a module is not enough. For each listed helper Ze installs a ze-owned nft table with one `ct helper` object per kernel helper and transport, and one rule per port that assigns it, in the `prerouting` and `output` hooks at priority -5 (before your own filter chains at priority 0). A helper the kernel registers for both IPv4 and IPv6 is assigned from the `inet` table `ze_conntrack_helpers`; one the kernel registers for IPv4 only is assigned from the `ip` table `ze_conntrack_helpers_ip`, so no IPv6 connection is ever given it. Removing a module removes its assignment on the next commit, and deleting the whole `system conntrack` block does the same.
+
+The helper tables belong to the firewall's config transaction, with or without a `firewall {}` block. `ze config validate` and the commit refuse a helper the firewall backend cannot hold, a failed commit or a rollback puts the previous helpers back, and a clean daemon stop removes them unless `firewall { flush-on-shutdown false; }` is set. When the kernel refuses a helper, the commit error names the `modprobe` command that loads it and the `delete system conntrack module` command that stops assigning it.
+
+The `lan-services` topology scenario proves the `ftp` helper through NAT: an active-mode FTP transfer from a LAN host through the masquerading CPE completes its data connection.
+<!-- source: internal/le/interoplab/topology/check_lan.go -- checkActiveFTP -->
+
+| Module | Kernel helper | Assigned on | Families |
+|--------|---------------|-------------|----------|
+| amanda | `amanda` | udp 10080 | IPv4, IPv6 |
+| ftp | `ftp` | tcp 21 | IPv4, IPv6 |
+| h323 | `RAS`, `Q.931` | udp 1719, tcp 1720 | IPv4, IPv6 |
+| irc | `irc` | tcp 6667 | IPv4 |
+| netbios-ns | `netbios-ns` | udp 137 | IPv4 |
+| pptp | `pptp` | tcp 1723 | IPv4 |
+| sane | `sane` | tcp 6566 | IPv4, IPv6 |
+| sip | `sip` | udp and tcp 5060, 5061 | IPv4, IPv6 |
+| snmp | `snmp` | udp 161 | IPv4 |
+| tftp | `tftp` | udp 69 | IPv4, IPv6 |
+
+Ze's own kernel builds in every helper above, with its NAT companion where the kernel has one (sane and netbios-ns have none). Built in and unassigned, a helper sees no connection. On a distribution kernel the helper's `nf_conntrack_<name>` module must be loaded. The VPP firewall backend has no conntrack helper and refuses any listed module at commit.
 
 **Dual-setting prevention:** Sysctl keys managed by conntrack (e.g., `nf_conntrack_max`) are rejected if also set in `sysctl { setting { ... } }`. The error message names the friendly conntrack config option to use instead.
 
-**Monitoring:** Use `show system conntrack` to view current entry count, configured max, loaded modules, per-protocol timeouts, and TCP behavior flags.
+**Monitoring:** Use `show system conntrack` to view current entry count, configured max, loaded modules, the assigned helpers (kernel helper, protocol, ports and families of each), per-protocol timeouts, and TCP behavior flags.
 <!-- source: internal/component/config/system/conntrack.go -- ConntrackConfig, sysctl key mapping -->
+<!-- source: internal/component/config/system/conntrack_helpers.go -- conntrackHelpers -->
+<!-- source: internal/component/firewall/conntrack_helpers.go -- ConntrackHelperTables, conntrackSectionModules, conntrackHelperApplyError, assignedConntrackHelpers -->
+<!-- source: internal/component/firewall/engine.go -- parseConfigSections, parseAndVerifyFirewallSections, flushOnStop -->
 <!-- source: internal/component/config/system/yang/ze-system-conf.yang -- conntrack container -->
 
 ## Flow Export
@@ -3849,6 +4001,75 @@ env var > CLI flag > config file > YANG default.
 <!-- source: internal/component/config/environment.go — ParseCompoundListen -->
 <!-- source: cmd/ze/hub/main.go — runYANGConfig env/CLI/config resolution for webAddrs, lgAddrs, mcpAddrs -->
 
+#### `::` beside an IPv4 address
+
+On most services `::` is dual-stack: one socket accepts IPv6 clients and IPv4
+clients, so `::` alone serves both families. Because that socket also holds the
+IPv4 port, `0.0.0.0` (or any IPv4 address) on the same protocol and port can
+never bind beside it. `ze config validate` and a commit refuse the pair, naming
+both entries and the fix:
+
+```
+listener conflict: ssh v6 (tcp [::]:22) and ssh v4 (tcp 0.0.0.0:22) cannot both bind: `::` on ssh v6 is dual-stack and already accepts IPv4 on port 22, ...; remove `0.0.0.0` from ssh v4, or replace `::` with the IPv6 addresses to serve
+```
+
+List `::` alone to serve both families, or list specific addresses of each
+family (`192.0.2.1` and `2001:db8::1` on one port both bind). L2TP and the web
+server bind IPv6 sockets IPv6-only, so for them `0.0.0.0` and `::` on one port
+are accepted and both bind.
+<!-- source: internal/component/config/listener.go -- dualStackPair, isDualStackWildcard, conflictError, RegisterListenerV6Only -->
+
+#### SSH listeners: all or none, and on reload
+
+SSH binds every `server` entry or none. When one address cannot bind (it is not
+on the host, or another process holds the port), SSH does not start, every
+address it had bound is released, and one warn line names the address and the
+bind error; `ze doctor`'s listener check reports the address. The daemon runs
+on without SSH, as it does when the first entry fails.
+
+A commit that changes the SSH `server` list moves the running SSH server
+without a restart. Every new address binds before any removed one closes; if
+one cannot bind, the reload is refused naming it, SSH keeps serving its
+previous addresses, and any other listener the same reload already moved goes
+back. Moving one port between families (`127.0.0.1:22` to `0.0.0.0:22`) cannot
+bind while the old listener holds the port, so make that change in two commits:
+add the new address on another port first, or remove the old one first.
+<!-- source: internal/component/ssh/ssh.go -- bindListeners, Server.Reconfigure -->
+<!-- source: cmd/ze/hub/listener_migrate.go -- listenerMigrator.setSSH, attachSSH -->
+
+### System Host Name
+
+`system host` names the router. Ze uses it as its own identity everywhere (the
+prompt, BMP `sysName`, archives), and it supports `$ENV_VAR` expansion:
+
+```
+system {
+    host cpe-lab;
+}
+```
+
+The value, after expansion, must be a valid host name (RFC 1123 Section 2.1,
+RFC 952): letters, digits and hyphens in dot-separated labels, no label starting
+or ending with a hyphen, at most 63 bytes per label and 64 in all (the kernel's
+limit). `ze config validate` and a commit refuse anything else, naming the value
+and the rule. A `$ENV_VAR` that is not set when the config is validated is left
+for the daemon, which keeps the literal value as Ze's identity.
+<!-- source: internal/component/config/system/hostname.go -- ValidateHostName, validateSystemHostTree -->
+
+On the appliance build, Ze also sets the kernel host name (what `uname -n`,
+syslog and the shell prompt show) from `system host` at start and on every
+reload that changes it. With `system host` unset, the kernel keeps the image's
+name. If setting it fails (ze lacks `CAP_SYS_ADMIN`), the kernel keeps its name,
+one warn line names the value, the error and the fix, and `ze doctor` reports
+`doctor-system-host-not-applied`; the commit is not refused.
+<!-- source: cmd/ze/hub/main_system_hostname.go -- reconcileKernelHostname -->
+<!-- source: internal/component/config/system/doctor_hostname.go -- checkKernelHostname -->
+
+On a distro install (any build without the appliance tag), the operating system
+owns the host name: Ze never calls `sethostname`, and `system host` changes
+only Ze's own identity.
+<!-- source: cmd/ze/hub/main_system_nonappliance.go -- kernelHostnameOwned -->
+
 ### DNS Name Servers
 
 Configure static DNS name servers and resolver tuning under `system {}`:
@@ -3867,29 +4088,38 @@ system {
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `name-server` | leaf-list ip-address | (none) | Static DNS servers. First server used by ze internal resolver, and measured by `show mtu` as its reference address when `environment { mtu { reference-address } }` is not set. All written to resolv.conf at startup and after every config commit/reload. |
-| `resolv-conf-path` | string | `/tmp/resolv.conf` | Path for resolv.conf output. Default suits gokrazy (read-only rootfs). Empty disables. |
-| `timeout` | uint16 | `5` | Query timeout in seconds. Range: 1-60. |
+| `name-server` | leaf-list ip-address | (none) | Static DNS servers. When set, they are the router's servers: the internal resolver asks them in order, and all are written to resolv.conf at startup and after every config commit/reload. The first is measured by `show mtu` as its reference address when `environment { mtu { reference-address } }` is not set. |
+| `dns-source { source [...] mode ... received-interface [...] }` | container | `source [ configured received ]`, `mode first-usable` | Where the router's servers come from, in order: `configured` is `name-server`, `received` is every resolver learned by DHCPv4, DHCPv6, IPCP or router advertisement RDNSS (and the host's `/etc/resolv.conf`, listed only while no learned record lists a server). `mode first-usable` takes the first source that holds a server, `mode merge` takes them all in order. Two sources with no `mode`, `received-interface` without `received`, and `self` or `radius` are refused at validate, commit, boot and reload. See [the DNS resolver page](../../features/dns-resolver/index.md#where-the-routers-servers-come-from). |
+| `resolv-conf-path` | string | `/tmp/resolv.conf` | Path for resolv.conf output. Default suits gokrazy (read-only rootfs). Empty disables. Any other value must be an absolute path in clean form (no `..` or repeated `/`); validation and commit refuse it otherwise. |
+| `timeout` | uint16 | `5` | Query timeout in seconds, for each server asked. Range: 1-60. |
 | `cache-size` | uint32 | `10000` | Maximum cached entries. 0 disables caching entirely. |
 | `cache-ttl` | uint32 | `86400` | Maximum cache entry TTL in seconds. 0 means use only the response TTL. |
 
 The cache respects DNS response TTLs: entries expire at `min(response TTL, cache-ttl)`.
 Records with TTL=0 from the server are not cached (per RFC 1035).
 
-When static name servers are configured, DHCP-discovered DNS servers do not
-overwrite resolv.conf. When no static servers are configured, resolv-conf-path
-lists the servers of every DHCP lease, DHCPv4 before DHCPv6, and a lease whose
-renewal omits DNS, or that ends, takes only its own servers out
-(`docs/features/dns-resolver.md`, "DHCP interaction").
+The router's servers come from one selection, which both the internal
+resolver and resolv-conf-path follow. When static name servers are
+configured, they are the router's servers, and a learned server never
+overrides them. When none are configured, the router's servers are those of
+every DHCP lease and every PPPoE client session, DHCPv4 first, then DHCPv6,
+then the servers a PPPoE client learned from IPCP (RFC 1877, primary first),
+then the servers of the host's `/etc/resolv.conf`. Ze reads the host file at
+startup and on reload, and never when it is the same file as
+`resolv-conf-path`. A lease whose renewal omits DNS, a PPPoE renegotiation
+whose access concentrator offers none, or a lease or session that ends takes
+only its own servers out (`docs/features/dns-resolver.md`, "Where the
+router's servers come from").
 
-The internal resolver never falls back to a public recursive resolver. If no
-static name server exists and the configured resolv.conf path is missing or
-empty, DNS queries fail with `no DNS server configured` until DHCP or config
-provides a server.
+The internal resolver asks the servers in order, and passes a query to the
+next server when one gives no answer. It never falls back to a public
+recursive resolver: when no source supplies a server, DNS queries fail with
+`no DNS server configured` until a lease or the config provides one.
 
 <!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system DNS config -->
-<!-- source: internal/component/resolve/dns/resolver.go -- NewResolver, Resolve -->
-<!-- source: cmd/ze/hub/main.go -- newResolvers wiring -->
+<!-- source: internal/component/resolve/dns/resolver.go -- NewResolver, Resolver.query -->
+<!-- source: internal/component/config/system/resolv.go -- routerDefault, Resolvers.refresh -->
+<!-- source: cmd/ze/hub/main_system.go -- newResolvers -->
 
 ### Firmware Update Check and Self-Update
 
@@ -4102,14 +4332,16 @@ service {
 |---------|------|---------|-------------|
 | `enabled` | boolean | `false` | Enable DHCP server. |
 | `listen-interface` | leaf-list | (none) | Interfaces to serve DHCP on. |
-| `shared-network <name>` | list | (none) | Named grouping of subnets. |
+| `shared-network <name>` | list | (none) | The subnets of one physical segment (see "Several subnets on one interface"). |
 | `subnet <prefix>` | IPv4 prefix | (none) | Subnet with address pool and options. |
 | `range <name>` | list | (none) | Named dynamic address pool. Multiple ranges per subnet for disjoint pools. |
 | `range <name>.start` | IPv4 address | (none) | First allocatable address. |
 | `range <name>.stop` | IPv4 address | (none) | Last allocatable address. |
-| `lease-time` | uint32 | `86400` | Lease duration in seconds (60-604800). |
+| `lease-time` | uint32 | `86400` | Lease duration in seconds (60-604800). While the subnet's `dns-source` list reaches `received` and no learned resolver is usable, replies carry a 60-second lease instead, so a client that leased with the WAN down renews within a minute of it coming up (RFC 5625 Section 5.3). |
 | `default-router` | IPv4 address | (none) | Default gateway (option 3). |
-| `dns-server` | leaf-list of IPv4 address | (none) | DNS servers (option 6). |
+| `server-identifier` | IPv4 address | (none) | Address the server identifies itself with in this subnet's replies (option 54). Unset: the listen interface's address in the subnet (see "Several subnets on one interface"). |
+| `dns-server` | leaf-list of IPv4 address | (none) | DNS servers (option 6): the `configured` class of `dns-source`. |
+| `dns-source` | container | `source configured received`, `mode first-usable` | Where option 6 comes from, in order: `configured` (`dns-server`), `received` (the IPv4 resolvers Ze learned on its WAN), `self` (Ze's own address in the subnet on the interface the request arrived on; none for a relayed request). `radius` is refused. A loopback address is never handed out and each one dropped is logged. With the container absent, a subnet with no `dns-server` hands out the learned resolvers, where before it sent no option 6; write `dns-source { source configured; }` to keep it sending none. |
 | `domain-name` | string | (none) | Domain name for clients (option 15). |
 | `static-mapping <name>` | list | (none) | Static MAC-to-IP binding (excluded from dynamic allocation). |
 
@@ -4119,6 +4351,66 @@ IPv6 value is refused when the config is validated.
 Multiple named ranges allow disjoint address pools within a single subnet.
 Ranges must not overlap and are allocated in order (first range fills before
 the second is used). Up to 10 ranges per subnet are supported.
+
+#### Several subnets on one interface
+
+A `shared-network` holds the subnets of one physical segment, as in ISC dhcpd
+and Kea. A LAN bridge addressed 192.168.50.1/24 and 10.99.0.1/24 serves both
+subnets when they sit in one shared network. A listen interface serves only
+the shared networks it holds an address in, so a second LAN interface never
+hands out the first LAN's addresses. An interface that holds no IPv4 address in
+any configured subnet answers only relayed clients: the server logs a warning
+and `ze doctor` reports `doctor-dhcp-segment-address`. Add an address in a
+configured subnet to the interface, or remove it from `listen-interface`. A
+relayed request (non-zero `giaddr`) is served from the shared network holding
+the relay's address.
+
+For each client the server chooses, in this order:
+
+1. A `static-mapping` for the client's MAC in any subnet of the segment, so a
+   reservation in the second subnet wins over the first subnet's pool.
+2. The address the server already holds for the client.
+3. For a DHCPDISCOVER, the requested address when it is free in a pool of the
+   segment.
+4. A new address from the pool of the subnet holding the interface's primary
+   address (relayed: the relay's address), then the other subnets' pools in
+   the order Ze sorts them: shared networks by name, subnets by prefix text.
+
+A client renewing or rebooting with an address that differs from its
+reservation, or that lies in no subnet of the segment, is sent a DHCPNAK and
+starts again, so a reservation added later takes effect at its next renewal.
+
+Every reply names the server with an address the client can reach (option 54,
+the server identifier):
+
+1. The subnet's `server-identifier`, when the listen interface holds that
+   address. When it does not, the server does not answer and logs a warning
+   naming the subnet, the address and the fix: add the address to the
+   interface, or delete the leaf.
+2. Otherwise the interface's own address in the subnet, 10.99.0.1 for a client
+   served from 10.99.0.0/24 in the example above.
+3. For a subnet reached only through a relay, which the interface holds no
+   address in, the interface's primary address.
+
+`default-router` does not choose it. A client's REQUEST that names any of the
+server's addresses on the segment is accepted. A commit refuses a
+`server-identifier` that is not a unicast host address, or that is the network
+or broadcast address of its subnet. Set it when the interface holds several
+addresses in one subnet and clients must use one of them, such as a VRRP
+virtual address:
+
+```
+service {
+    dhcp-server {
+        listen-interface br0;
+        shared-network lan {
+            subnet 10.99.0.0/24 {
+                server-identifier 10.99.0.2;
+            }
+        }
+    }
+}
+```
 
 #### PXE Boot Support
 
@@ -4163,6 +4455,8 @@ BIOS bootfile.
 
 <!-- source: internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang -- DHCP server config schema -->
 <!-- source: internal/plugins/dhcpserver/config.go -- parseConfig, parseRanges, parsePXEConfig -->
+<!-- source: internal/plugins/dhcpserver/config.go -- parseServerIdentifier -->
+<!-- source: internal/plugins/dhcpserver/segment.go -- segment.serverID, segment.serverIDOwner -->
 
 ### TFTP Server
 
@@ -4292,6 +4586,8 @@ Protocol settings (root `l2tp {}`):
 | `shared-secret` | string | (unset) | CHAP-MD5 challenge/response secret (RFC 2661 S4.2). If unset and a peer sends a Challenge AVP, the tunnel is rejected with StopCCN Result Code 4. |
 | `auth-method` | enum | `chap-md5` | PPP Auth-Protocol first advertised in LCP. Values: `chap-md5`, `ms-chap-v2`, `pap`, `none`. `none` requires `allow-no-auth true`. |
 | `allow-no-auth` | boolean | `false` | Allows PPP LCP to proceed without an Auth-Protocol after explicit operator opt-in. Default false disconnects peers that reject all configured authentication methods. |
+| `mru` | uint16 | 1500 | Requested PPP Information-field octets, 64..1500. Does not lower receive capacity. Hot-applies to new sessions. |
+| `authentication/allow` | ordered enum set | method-dependent | Permitted methods, including `auth-method`, never `none`. Defaults: CHAP-MD5 only, MS-CHAPv2 only, CHAP-MD5 then PAP for `pap`, empty for `none`. Cannot accompany `auth-method none`. Hot-applies to new sessions. |
 | `hello-interval` | uint16 | (unset) | Seconds of peer silence before sending HELLO (1-3600). RFC 2661 recommends 60. |
 | `max-tunnels` | uint16 | 1024 | Maximum concurrent tunnels. `0` explicitly requests unbounded admission by this knob. New SCCRQs beyond a positive limit receive StopCCN Result Code 2. |
 | `max-sessions` | uint16 | 1024 | Maximum concurrent sessions per tunnel. `0` explicitly requests unbounded admission on each tunnel. New ICRQs/OCRQs beyond a positive limit receive CDN Result Code 4 (no resources). |
@@ -4302,11 +4598,12 @@ Listener endpoints (`environment { l2tp { } }`):
 |---------|------|---------|-------------|
 | `server <name>` | list | `0.0.0.0:1701` | Named UDP listen endpoints, same pattern as other services. |
 
-PPP authentication (env var, YANG pending in spec-l2tp-7-subsystem):
+PPP authentication phase timing is configured under `l2tp authentication`:
 
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `ze.l2tp.auth.timeout` | duration | `30s` | Upper bound on the PPP authentication phase per session. If no auth handler responds within this window, the session fails closed (LCP Terminate + session down). Malformed values fall back to 30s with a WARN log. |
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `timeout` | uint16 | 30 | Authentication timeout in seconds (1..3600). Hot-applies to new sessions. |
+| `reauth-interval` | uint32 | 0 | Reauthentication interval in seconds, 0 or 5..86400. Hot-applies to new sessions. |
 
 <!-- source: internal/component/l2tp/config.go -- ExtractParameters -->
 <!-- source: internal/component/l2tp/subsystem.go -- L2TPSubsystem lifecycle -->
@@ -4345,6 +4642,7 @@ pppoe {
 | `ac-name` | string | `ze` | Access Concentrator Name advertised in PADO (RFC 2516 S5.2). |
 | `service-name` | leaf-list | (empty) | Accepted Service-Name values. Empty list means accept any Service-Name. |
 | `auth-method` | enumeration | `chap-md5` | PPP Auth-Protocol the AC advertises in its own LCP Configure-Request: `none`, `pap`, `chap-md5`, `ms-chap-v2`. The credential is verified by `l2tp-auth-local` or `l2tp-auth-radius`. |
+| `authentication-allow` | ordered leaf-list | derived | Flat ordered set of `chap-md5`, `ms-chap-v2`, `pap`; must contain `auth-method`. Cannot contain `none` or accompany `auth-method none`. |
 | `allow-no-auth` | boolean | `false` | Accept a subscriber whose LCP ends with no Auth-Protocol. Required beside `auth-method none`, which is otherwise refused at startup. |
 | `cookie-timeout` | uint16 | 5 | AC-Cookie validity in seconds (1-300). Older cookies rejected in PADR. |
 | `max-sessions` | uint16 | 65535 | Maximum concurrent PPPoE sessions per interface. |
@@ -4354,6 +4652,17 @@ pppoe {
 | `interface / service-name` | leaf-list | (global) | Per-interface Service-Name filter, overrides global list. |
 | `interface / max-sessions` | uint16 | (global) | Per-interface session limit, defaults to global max-sessions. |
 | `interface / max-sessions-per-mac` | uint16 | (global) | Per-interface override for max-sessions-per-mac. |
+
+Without `authentication-allow`, the effective policy is `[chap-md5]` for
+`chap-md5`, `[ms-chap-v2]` for `ms-chap-v2`, `[chap-md5 pap]` for `pap`,
+and empty for `none`. Write, for example,
+`authentication-allow [chap-md5 pap];` beside `auth-method chap-md5;` to
+explicitly permit PAP fallback. CHAP variants are offered before PAP, with
+the configured CHAP variant first and remaining CHAP variants in written
+order. Reload applies the policy to new sessions only; existing sessions keep
+their original policy. Migrating configurations that relied on implicit
+fallback must explicitly name every permitted method. PPPoE retains its fixed
+1492-octet MRU ceiling.
 
 <!-- source: internal/component/l2tp/pppoe/config.go -- ExtractParameters -->
 <!-- source: internal/component/l2tp/pppoe/subsystem.go -- PPPoE subsystem lifecycle -->
@@ -4392,13 +4701,28 @@ l2tp {
 | `gateway` | IPv4 address | NAS-side IP sent to the subscriber as the PPP peer address |
 | `start` | IPv4 address | First allocatable address in the pool range |
 | `end` | IPv4 address | Last allocatable address in the pool range |
-| `dns-primary` | IPv4 address | Primary DNS server sent via IPCP |
-| `dns-secondary` | IPv4 address | Secondary DNS server sent via IPCP |
+| `dns-primary` | IPv4 address | The pool's first server, the `configured` source of its IPCP DNS |
+| `dns-secondary` | IPv4 address | The pool's second server, the `configured` source of its IPCP DNS |
+| `dns-source` | container | Where a subscriber's IPCP Primary and Secondary DNS come from: `source` (`radius`, `configured`, `received`, `self`), `mode`, `received-interface` |
 
 Named pools use the same settings nested under `named-pool <name> { }`.
+A named pool's `configured` source is its own `dns-primary` and
+`dns-secondary`, never the `ipv4` pool's.
+
+With no `dns-source`, a subscriber gets the MS-Primary-DNS-Server and
+MS-Secondary-DNS-Server of its Access-Accept when RADIUS sends either, the
+pool's `dns-primary` and `dns-secondary` otherwise, and the IPv4 resolvers Ze
+learned (DHCPv4, IPCP, the host's resolv.conf) when the pool names none:
+`source radius configured received mode first-usable`. Before this default a
+pool offered only its own two leaves; `dns-source { source configured; }`
+keeps that. `self` offers the pool's `gateway`. The selection fills the
+primary slot, then the secondary, so a pool naming only `dns-secondary`
+offers it as the primary. A loopback address is never offered, and each one
+dropped is logged.
 The gateway must not overlap the pool range.
 
 <!-- source: internal/component/l2tp/plugins/pool/register.go -- parseIPv4Pool, parseNamedPools -->
+<!-- source: internal/component/l2tp/plugins/pool/dns_source.go -- poolDNSDefault, selectSubscriberDNS -->
 <!-- source: internal/component/l2tp/plugins/pool/yang/ze-l2tp-pool-conf.yang -- YANG schema -->
 
 ## Hub Configuration
@@ -4655,9 +4979,9 @@ match criteria, actions, reserved ranges, and CLI usage.
 
 ## ExaBGP Migration
 
-Ze auto-detects and migrates ExaBGP configuration files:
+`ze exabgp migrate` converts an ExaBGP configuration file to Ze syntax:
 
 ```
-ze config migrate exabgp.conf > ze.conf
+ze exabgp migrate exabgp.conf > ze.conf
 ```
-<!-- source: internal/component/config/cli/cmd_migrate.go -- cmdMigrate; internal/exabgp/migration/ -- ExaBGP config conversion -->
+<!-- source: internal/plugins/exabgp/main.go -- cmdMigrate; internal/exabgp/migration/ -- ExaBGP config conversion -->

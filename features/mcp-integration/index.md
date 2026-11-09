@@ -3,26 +3,28 @@
 <!-- source: internal/component/mcp/tools.go -- MCP tool dispatch primitives -->
 <!-- source: internal/test/cli/cmd_mcp.go -- MCP test client -->
 
-Ze includes an MCP (Model Context Protocol) server that makes the BGP daemon **AI-ready**. Any AI assistant (Claude, GPT, or custom agents) can connect via MCP and fully control Ze -- the same operations available through the CLI are accessible programmatically through typed tools.
+Ze exposes daemon commands through an MCP (Model Context Protocol) server.
+Clients discover tools from the running daemon and invoke commands with the
+caller's permissions. Command availability depends on the registered surface;
+an interactive CLI view is not automatically a one-shot MCP operation.
+<!-- source: internal/component/command/surface.go -- AnswerSurface, answerView -->
 
-## AI-Ready BGP Operations
+## Discoverable command tools
 
-The MCP server exposes typed tools with structured parameters, so AI assistants can manage BGP without parsing CLI output:
+Generated groups use typed inputs where YANG RPC metadata supplies them.
+Groups without typed inputs expose an `arguments` string.
+<!-- source: internal/component/mcp/tools.go -- buildToolDef -->
 
 | Tool | Description |
 |------|-------------|
-| `ze_execute` | Run **any** CLI command -- full daemon control (the escape hatch) |
-| `ze_reference` | Full machine-readable reference for this daemon (commands, RPC endpoints, dispatch keys, plugins, families, services); same JSON as `ze help ai --json`. Call first to discover capabilities. |
-| `ze_announce` | Announce routes with typed parameters (origin, next-hop, communities, prefixes) |
-| `ze_withdraw` | Withdraw routes |
-| `ze_show_bgp` | BGP peer state, ASN, uptime, and summary views (auto-generated from `show bgp ...`) |
-| `ze_request_peer` | Peer lifecycle: teardown, pause, resume, flush (auto-generated from `request peer ...`) |
+| `ze_execute` | Dispatch a supported daemon command string with the caller's permissions. |
+| `ze_reference` | Reference assembled from this binary's registries and schemas; the same JSON data as `ze help ai --json`. |
+| Generated groups | Discover current names and action/input schemas through `tools/list`; do not assume a route-specific tool name. |
 
-`ze_execute` and `ze_reference` are the two handcrafted tools. Every other tool
-is auto-generated from the command registry at runtime: a command prefix becomes
-a tool name (`show bgp rib` becomes `ze_show_bgp_rib`), with an `action` enum and
-optional `arguments` and `peer` parameters. New commands are exposed
-automatically without code changes.
+`ze_execute` and `ze_reference` are the fixed tools. Generated tool groups read
+the live command list at `tools/list` time. Groups with named actions expose an
+`action` enum; selector parameters appear only where the command supports them.
+<!-- source: internal/component/mcp/tools.go -- toolHandlers, groupCommands, buildToolDef -->
 
 A plugin command registered with `Hidden` true reaches no tool list. The flag
 already removed the command from completion and from help, and `buildCommandMeta`
@@ -32,15 +34,16 @@ skip covers both surfaces.
 <!-- source: internal/component/mcp/tools.go -- toolName, generateTools -->
 <!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta: the Hidden skip -->
 
-The `ze_execute` tool is the key to full control: anything you can do in `ze cli` (interactive or `ze cli -c` for one-shot commands), an AI can do via MCP. This includes:
+`ze_execute` uses the daemon command grammar for the operations that command
+registrations offer on MCP. Offline commands may have a different daemon path;
+terminal-only views and streaming-only operations are not automatically
+equivalent one-shot calls. Discover current commands rather than copying an old
+route, configuration or cache example.
 
-- **Route management:** `send bgp * update text origin set igp nhop set 1.1.1.1 nlri add 10.0.0.0/24`
-- **RIB queries:** `show bgp rib received`, `show bgp rib sent`, `clear bgp rib in`
-- **Peer lifecycle:** `show bgp peer list`, `request peer 10.0.0.1 teardown 6`, `delete bgp peer <sel>`
-- **Configuration:** `request commit start window1`, route changes, `request commit end window1`
-- **Cache operations:** `show cache`, `send bgp <sel> cached <id>`
-- **Event subscription:** `request subscribe bgp/update`
-- **Schema discovery:** `command-list`, `command-help <name>`
+Notification metadata in `ze_reference` describes the schema. Its presence
+does not itself provide an MCP event subscription.
+<!-- source: internal/component/command/surface.go -- AnswerSurface, answerOfflineRoot, answerView -->
+<!-- source: internal/component/aihelp/aihelp.go -- Build -->
 
 ## Starting the MCP Server
 
@@ -68,22 +71,34 @@ Environment variable overrides: `ze.mcp.listen=ip:port`, `ze.mcp.enabled=true`, 
 ## AI Command Reference
 
 ```
-ze help ai
-ze help ai api          # daemon API endpoints (ze-bgp:*, ze-iface:*, ...)
+ze help ai              # summary
+ze help ai all          # detailed listings and authored guidance
+ze help ai --json       # registry-derived JSON reference
+ze help ai api          # daemon RPCs, update syntax, families and plugins
 ```
 
-Generates a machine-readable command reference from code, suitable for feeding to an AI as context. Lists all available commands with their parameters, descriptions, and examples. The legacy `ze help --ai` flag form is still accepted.
+The listings come from the binary's registrations and schemas. Recipes and
+explanations are maintained text, not a guarantee that every example is current.
+`ze_reference` returns the JSON reference inside MCP text content. The legacy
+`ze help --ai` flag form is still accepted.
+<!-- source: internal/plugins/help/help_ai.go -- renderAIHelpDocument, printSummary -->
+<!-- source: internal/component/mcp/tools.go -- toolHandlers, TextResult -->
 
 ## Example: AI-Driven Route Announcement
 
 An AI assistant connected via MCP can:
 
-1. Check peer state: `ze_show_bgp` returns structured JSON with all peer status
-2. Announce a route: `ze_announce` with origin=igp, next-hop=10.0.0.1, prefixes=[10.0.0.0/24]
-3. Verify propagation: `ze_execute` with command `show bgp rib sent peer peer1 family ipv4/unicast`
-4. Withdraw if needed: `ze_withdraw` with the same prefixes
+1. Read `tools/list` and call `ze_reference` to discover this daemon's commands.
+2. Call `ze_execute` with `show bgp peer list` to inspect configured peers.
+3. Announce through `ze_execute` with `send bgp * update text origin igp next-hop 10.0.0.1 nlri add 10.0.0.0/24`.
+4. Call `ze_execute` with `show bgp rib sent peer peer1 family ipv4/unicast` to inspect that peer's sent routes.
+5. If withdrawal is needed, use the current `send bgp` withdrawal grammar through `ze_execute`, rather than assuming a `ze_withdraw` tool exists.
 
-All without parsing text output -- each tool returns structured data.
+Current results use MCP text-content envelopes. JSON references and rendered
+command data are carried in that text; the envelope is not a promise of a
+separate typed result object for every command.
+<!-- source: internal/plugins/help/help_ai.go -- printRecipes -->
+<!-- source: internal/component/mcp/tools.go -- toolHandlers, TextResult -->
 
 ## Protocol (2026-07-28)
 

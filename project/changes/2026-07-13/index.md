@@ -1,4 +1,4 @@
-# Week of 2026-07-13
+# 2026-07-13 – 2026-07-19 (1 week)
 
 A busy routing week brought VRRP, BGP multipath in the FIB, BMP Loc-RIB monitoring, tighter RPKI policy, and several management-plane security fixes.
 

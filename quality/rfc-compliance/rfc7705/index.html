@@ -412,8 +412,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>3.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7705-3.3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_live_behavior_test.go#L220" title="internal/component/bgp/reactor/rfc7705_live_behavior_test.go" target="_blank" rel="noopener"><code>TestRFC7705NoPrependInstalledAndAdvertised</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_live_behavior_test.go#L221" title="internal/component/bgp/reactor/rfc7705_live_behavior_test.go" target="_blank" rel="noopener"><code>TestRFC7705NoPrependInstalledAndAdvertised</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_live_behavior_test.go#L234" title="internal/component/bgp/reactor/rfc7705_live_behavior_test.go" target="_blank" rel="noopener"><code>TestRFC7705NoPrependInstalledAndAdvertised</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_live_behavior_test.go#L235" title="internal/component/bgp/reactor/rfc7705_live_behavior_test.go" target="_blank" rel="noopener"><code>TestRFC7705NoPrependInstalledAndAdvertised</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7705-3.3-3">RFC7705-3.3-3</code></td><td colspan="3"><span class="rfc-subject">it MUST still append the globally configured ASN as normal when advertising the UPDATE to other local eBGP neighbors (§3.3)</span></td></tr>
@@ -477,8 +477,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7705-4.2-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_live_behavior_test.go#L246" title="internal/component/bgp/reactor/rfc7705_live_behavior_test.go" target="_blank" rel="noopener"><code>TestRFC7705MigrationWireSemantics</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_live_behavior_test.go#L247" title="internal/component/bgp/reactor/rfc7705_live_behavior_test.go" target="_blank" rel="noopener"><code>TestRFC7705MigrationWireSemantics</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_live_behavior_test.go#L260" title="internal/component/bgp/reactor/rfc7705_live_behavior_test.go" target="_blank" rel="noopener"><code>TestRFC7705MigrationWireSemantics</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_live_behavior_test.go#L261" title="internal/component/bgp/reactor/rfc7705_live_behavior_test.go" target="_blank" rel="noopener"><code>TestRFC7705MigrationWireSemantics</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7705-3.3-6">RFC7705-3.3-6</code></td><td colspan="3"><span class="rfc-subject">To implement this mechanism, a BGP speaker SHOULD send BGP OPEN [RFC4271] (see Section 4.2) messages to the configured eBGP peer(s) using the local ASN configured for this session as the value sent in &#34;My Autonomous System&#34;. (§3.3)</span></td></tr>
@@ -590,12 +590,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_live_behavior_test.go#L221" title="internal/component/bgp/reactor/rfc7705_live_behavior_test.go" target="_blank" rel="noopener"><code>TestRFC7705NoPrependInstalledAndAdvertised</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_live_behavior_test.go#L235" title="internal/component/bgp/reactor/rfc7705_live_behavior_test.go" target="_blank" rel="noopener"><code>TestRFC7705NoPrependInstalledAndAdvertised</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_live_behavior_test.go#L220" title="internal/component/bgp/reactor/rfc7705_live_behavior_test.go" target="_blank" rel="noopener"><code>TestRFC7705NoPrependInstalledAndAdvertised</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_live_behavior_test.go#L234" title="internal/component/bgp/reactor/rfc7705_live_behavior_test.go" target="_blank" rel="noopener"><code>TestRFC7705NoPrependInstalledAndAdvertised</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -740,12 +740,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_live_behavior_test.go#L247" title="internal/component/bgp/reactor/rfc7705_live_behavior_test.go" target="_blank" rel="noopener"><code>TestRFC7705MigrationWireSemantics</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_live_behavior_test.go#L261" title="internal/component/bgp/reactor/rfc7705_live_behavior_test.go" target="_blank" rel="noopener"><code>TestRFC7705MigrationWireSemantics</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_live_behavior_test.go#L246" title="internal/component/bgp/reactor/rfc7705_live_behavior_test.go" target="_blank" rel="noopener"><code>TestRFC7705MigrationWireSemantics</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_live_behavior_test.go#L260" title="internal/component/bgp/reactor/rfc7705_live_behavior_test.go" target="_blank" rel="noopener"><code>TestRFC7705MigrationWireSemantics</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -971,7 +971,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

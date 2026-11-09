@@ -1,4 +1,4 @@
-# Week of 2026-01-05
+# 2026-01-05 – 2026-01-11 (1 week)
 
 This week rounded out route-refresh, ADD-PATH and VPN/labeled-unicast support in the plugin API, alongside a batch of BGP correctness fixes.
 

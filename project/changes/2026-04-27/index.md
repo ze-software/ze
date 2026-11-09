@@ -1,4 +1,4 @@
-# Week of 2026-04-27
+# 2026-04-27 – 2026-05-03 (1 week)
 
 Interface configuration now rolls back cleanly on failure, the web UI got a dedicated CLI page, and traffic-control state survives more edge cases.
 

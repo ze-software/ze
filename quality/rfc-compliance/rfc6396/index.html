@@ -456,10 +456,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>4.3.4 - RIB Entries</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.3.4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_dump_test.go#L244" title="internal/plugins/mrt/rfc6396_dump_test.go" target="_blank" rel="noopener"><code>TestDumpV2RIBEntryASPathIs4Byte</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L596" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6396RIBEntryASPathStoredFourByte</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L597" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6396RIBEntryASPathStoredFourByte</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go#L99" title="internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go" target="_blank" rel="noopener"><code>TestRFC6396TwoByteSessionRouteDumpsFourByteASPath</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go#L115" title="internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go" target="_blank" rel="noopener"><code>TestRFC6396FourByteSessionRouteDumpsASPathUnchanged</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L624" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6396RIBEntryASPathFourByteSessionUnchanged</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L625" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6396RIBEntryASPathFourByteSessionUnchanged</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-4.3.4-2">RFC6396-4.3.4-2</code></td><td colspan="3"><span class="rfc-subject">There is one exception to the encoding of BGP attributes for the BGP MP_REACH_NLRI attribute (BGP Type Code 14) [RFC4760].  Since the AFI, SAFI, and NLRI information is already encoded in the RIB Entry Header or RIB_GENERIC Entry Header, only the Next Hop Address Length and Next Hop Address fields are included.  The Reserved field is omitted. (§4.3.4)</span></td></tr>
@@ -773,7 +773,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L624" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6396RIBEntryASPathFourByteSessionUnchanged</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L625" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6396RIBEntryASPathFourByteSessionUnchanged</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -783,7 +783,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L596" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6396RIBEntryASPathStoredFourByte</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L597" title="internal/core/bgp/attribute/rfc6793_reconcile_test.go" target="_blank" rel="noopener"><code>TestRFC6396RIBEntryASPathStoredFourByte</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1336,7 +1336,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/ikev2-ipsec.json](../
 
 ## Figures
 
-- **MUST bar**: Ze proven 252, OS testing gap 75, Ze correctness gap 377
-- **Overview bar**: Ze MUST proven 252, SHOULD proven 9, SHOULD not decided 256, OS testing gap 75, Ze correctness gap 377
+- **MUST bar**: Ze proven 257, OS testing gap 75, Ze correctness gap 372
+- **Overview bar**: Ze MUST proven 257, SHOULD proven 9, SHOULD not decided 257, OS testing gap 75, Ze correctness gap 372
 
 | Figure | Rows |
 |---|---|
@@ -18,15 +18,15 @@ Figures as of the last build, read from [data/rfc/profiles/ikev2-ipsec.json](../
 | Mandatory register | not complete |
 | MUST rows | 704 |
 | MUST rows kept (the MUST bar) | 704 |
-| Ze proven | 252 |
+| Ze proven | 257 |
 | OS verified | 0 |
 | OS testing gap | 75 |
-| Ze correctness gap | 377 |
+| Ze correctness gap | 372 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
-| SHOULD / MAY rows | 265 |
+| SHOULD / MAY rows | 266 |
 | SHOULD proven | 9 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
@@ -36,7 +36,7 @@ Figures as of the last build, read from [data/rfc/profiles/ikev2-ipsec.json](../
 | SHOULD not owed: not-applicable | 0 |
 | SHOULD not ever | 0 |
 | SHOULD not yet | 0 |
-| SHOULD not decided | 256 |
+| SHOULD not decided | 257 |
 
 The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
 
@@ -69,12 +69,12 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 |---|---|---|---|
 | [RFC 3948](../../rfc3948/) (cycle with rfc3602, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | UDP Encapsulation of IPsec ESP Packets | Ze proven 6, Ze correctness gap 5 | Ze MUST proven 6, SHOULD proven 2, SHOULD not decided 3, Ze correctness gap 5 |
 | [RFC 4106](../../rfc4106/) (cycle with rfc3602, rfc3948, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | The Use of Galois/Counter Mode (GCM) in IPsec Encapsulating Security Payload (ESP) | Ze proven 5, OS testing gap 3 | Ze MUST proven 5, SHOULD not decided 5, OS testing gap 3 |
-| [RFC 4301](../../rfc4301/) (cycle with rfc3602, rfc3948, rfc4106, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | Security Architecture for the Internet Protocol | Ze proven 52, OS testing gap 2, Ze correctness gap 47 | Ze MUST proven 52, SHOULD proven 1, SHOULD not decided 2, OS testing gap 2, Ze correctness gap 47 |
+| [RFC 4301](../../rfc4301/) (cycle with rfc3602, rfc3948, rfc4106, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | Security Architecture for the Internet Protocol | Ze proven 54, OS testing gap 2, Ze correctness gap 45 | Ze MUST proven 54, SHOULD not decided 3, OS testing gap 2, Ze correctness gap 45 |
 | [RFC 4302](../../rfc4302/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | IP Authentication Header | Ze proven 9, OS testing gap 19, Ze correctness gap 4 | Ze MUST proven 9, SHOULD not decided 10, OS testing gap 19, Ze correctness gap 4 |
 | [RFC 4303](../../rfc4303/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4309, rfc5282, rfc7296, rfc8247) | IP Encapsulating Security Payload (ESP) | Ze proven 7, Ze correctness gap 16 | Ze MUST proven 7, SHOULD not decided 4, Ze correctness gap 16 |
 | [RFC 5282](../../rfc5282/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc7296, rfc8247) | Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol | Ze proven 19 | Ze MUST proven 19, SHOULD not decided 11 |
-| [RFC 7296](../../rfc7296/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc8247) | Internet Key Exchange Protocol Version 2 (IKEv2) | Ze proven 84, Ze correctness gap 150 | Ze MUST proven 84, SHOULD proven 4, SHOULD not decided 5, Ze correctness gap 150 |
-| [RFC 8247](../../rfc8247/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296) | Algorithm Implementation Requirements and Usage Guidance for the Internet Key Exchange Protocol Version 2 (IKEv2) | Ze proven 17, Ze correctness gap 3 | Ze MUST proven 17, SHOULD not decided 5, Ze correctness gap 3 |
+| [RFC 7296](../../rfc7296/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc8247) | Internet Key Exchange Protocol Version 2 (IKEv2) | Ze proven 87, Ze correctness gap 147 | Ze MUST proven 87, SHOULD proven 4, SHOULD not decided 5, Ze correctness gap 147 |
+| [RFC 8247](../../rfc8247/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296) | Algorithm Implementation Requirements and Usage Guidance for the Internet Key Exchange Protocol Version 2 (IKEv2) | Ze proven 17, Ze correctness gap 3 | Ze MUST proven 17, SHOULD proven 1, SHOULD not decided 5, Ze correctness gap 3 |
 
 ### Level 5
 

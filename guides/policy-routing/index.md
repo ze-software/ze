@@ -182,11 +182,21 @@ TCP flag names: `fin`, `syn`, `rst`, `psh`, `ack`, `urg`.
 | `drop` | Drop the packet |
 | `table N` | Route via kernel table N (user must populate the table) |
 | `next-hop IP` | Route via the specified next-hop (table auto-managed) |
-| `tcp-mss N` | Clamp TCP MSS to N bytes (combinable with `table` or `next-hop`) |
+| `tcp-mss N` | Clamp TCP MSS to at most N bytes (combinable with `table` or `next-hop`) |
 
 Only one terminal action (`accept`, `drop`, `table`, or `next-hop`) is
 allowed per rule. `tcp-mss` is a modifier and can be combined with a
 terminal action.
+
+`tcp-mss N` is an upper bound, never a value written over the one a host
+offered. A SYN that offers a larger MSS leaves with N, one that offers N or less
+leaves unchanged, and a SYN with no MSS option gains none. Only a SYN carries
+the option, so match `tcp-flags syn`. RFC 6691 Section 2 sets N as the path MTU
+minus the fixed IP and TCP headers: 40 bytes for IPv4 and 60 for IPv6, so a
+1492-byte PPPoE link takes 1452 for IPv4 and 1432 for IPv6, and the example
+above, 1436, fits a 1476-byte GRE tunnel.
+<!-- source: internal/plugins/policyroute/translate.go -- buildActions -->
+<!-- source: internal/plugins/firewall/nft/lower_linux.go -- lowerSetTCPMSS -->
 
 ### table action
 

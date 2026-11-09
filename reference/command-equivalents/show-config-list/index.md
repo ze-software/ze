@@ -6,7 +6,7 @@ List all configuration files stored in the database\.
 
 - Registry path: `show config list`
 - Usage: `show config list`
-- Mode: Read-only
+- Mode: read-only, offline
 - Wire method: `ze-config-cli:show-config-list`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default

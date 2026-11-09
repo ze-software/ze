@@ -46,13 +46,13 @@
         .activity-hero {
             position: relative;
             overflow: hidden;
-            border: 2px solid rgba(255, 255, 255, 0.92);
+            border: 2px solid var(--line-strong);
             border-radius: clamp(1.1rem, 2.5vw, 1.55rem);
             padding: clamp(1.15rem, 2.4vw, 1.65rem);
             background:
                 radial-gradient(circle at 86% 38%, rgba(157, 100, 245, 0.18), transparent 14rem),
                 radial-gradient(circle at 20% 18%, rgba(26, 188, 156, 0.14), transparent 16rem),
-                linear-gradient(135deg, rgba(255, 254, 254, 0.96), rgba(233, 245, 255, 0.84));
+                var(--panel);
             box-shadow: var(--clay), 0 1.7rem 4rem -2.2rem var(--shadow);
             color: var(--text);
             margin-bottom: 0;
@@ -129,12 +129,25 @@
             line-height: 1.5;
         }
         .activity-widget {
-            --activity-ink: #09111d;
-            --activity-card: rgba(255, 255, 255, 0.74);
-            --activity-card-strong: rgba(255, 255, 255, 0.9);
-            --activity-border: rgba(255, 255, 255, 0.94);
+            --activity-ink: var(--text);
+            --activity-card: var(--panel);
+            --activity-card-strong: var(--panel-strong);
+            --activity-border: var(--line-strong);
+            --activity-level-0: var(--line);
+            --activity-level-1: #8fd5c4;
+            --activity-level-2: #45b69e;
+            --activity-level-3: #218872;
+            --activity-level-4: #12614f;
+            --activity-level-5: #083d32;
             display: grid;
             gap: 1rem;
+        }
+        :root[data-theme="dark"] .activity-widget {
+            --activity-level-1: #237e6c;
+            --activity-level-2: #2ca58d;
+            --activity-level-3: #54c9ad;
+            --activity-level-4: #8ae3c8;
+            --activity-level-5: #baf5dd;
         }
         .activity-widget .stats {
             display: grid;
@@ -148,9 +161,7 @@
             border: 2px solid var(--activity-border);
             border-radius: 1.05rem;
             padding: 0.85rem;
-            background:
-                linear-gradient(145deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.52)),
-                var(--sky-tint);
+            background: var(--activity-card);
             box-shadow: var(--clay);
         }
         .activity-widget .stat::after {
@@ -213,11 +224,11 @@
         }
         .activity-widget .pill {
             width: fit-content;
-            border: 1px solid rgba(15, 23, 42, 0.08);
+            border: 1px solid var(--activity-border);
             border-radius: 999px;
             padding: 0.4rem 0.65rem;
             color: var(--muted);
-            background: rgba(255, 255, 255, 0.62);
+            background: var(--activity-card);
             font-size: 0.74rem;
             font-weight: 800;
             white-space: nowrap;
@@ -231,19 +242,15 @@
             border: 2px solid var(--activity-border);
             border-radius: 1.45rem;
             padding: clamp(1rem, 2vw, 1.25rem);
-            background:
-                linear-gradient(160deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.68)),
-                var(--panel-strong);
+            background: var(--activity-card-strong);
             box-shadow: var(--clay);
         }
         .activity-widget .chart-scroll {
             overflow-x: auto;
             padding: clamp(0.8rem, 1.4vw, 1rem);
-            border: 2px solid rgba(255, 255, 255, 0.94);
+            border: 2px solid var(--activity-border);
             border-radius: 1.15rem;
-            background:
-                radial-gradient(circle at 9% 16%, rgba(26, 188, 156, 0.15), transparent 18rem),
-                linear-gradient(145deg, rgba(255, 254, 254, 0.94), rgba(233, 245, 255, 0.82));
+            background: var(--activity-card);
             box-shadow: var(--clay);
         }
         .activity-widget .chart-scroll::-webkit-scrollbar {
@@ -299,9 +306,9 @@
         .activity-widget .day-cell {
             width: 11px;
             height: 11px;
-            border: 1px solid rgba(255, 255, 255, 0.95);
+            border: 1px solid var(--activity-border);
             border-radius: 3px;
-            background: var(--grape-tint);
+            background: var(--activity-level-0);
             cursor: default;
             transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
         }
@@ -309,19 +316,16 @@
         .activity-widget .activity-grid .day-cell:focus-visible {
             position: relative;
             z-index: 2;
-            border-color: rgba(255, 255, 255, 1);
+            border-color: var(--text);
             outline: none;
             box-shadow: 0 0 0 2px var(--grape-glow), var(--clay);
             transform: scale(1.22);
         }
-        .activity-widget .day-cell[data-level="1"] { background: var(--mint-chip); }
-        .activity-widget .day-cell[data-level="2"] { background: var(--mint-base); }
-        .activity-widget .day-cell[data-level="3"] { background: var(--teal-base); }
-        .activity-widget .day-cell[data-level="4"] { background: var(--sky-base); }
-        .activity-widget .day-cell[data-level="5"] {
-            background: var(--grape-base);
-            box-shadow: 0 0 0.65rem var(--grape-glow);
-        }
+        .activity-widget .day-cell[data-level="1"] { background: var(--activity-level-1); }
+        .activity-widget .day-cell[data-level="2"] { background: var(--activity-level-2); }
+        .activity-widget .day-cell[data-level="3"] { background: var(--activity-level-3); }
+        .activity-widget .day-cell[data-level="4"] { background: var(--activity-level-4); }
+        .activity-widget .day-cell[data-level="5"] { background: var(--activity-level-5); }
         .activity-widget .day-cell.pre-repo {
             border-color: transparent;
             background: transparent;
@@ -366,10 +370,10 @@
         .activity-widget .go-bucket {
             display: grid;
             gap: 0.45rem;
-            border: 1px solid rgba(15, 23, 42, 0.07);
+            border: 1px solid var(--activity-border);
             border-radius: 0.95rem;
             padding: 0.65rem;
-            background: rgba(255, 255, 255, 0.58);
+            background: var(--activity-card);
         }
         .activity-widget .go-bucket h3 {
             margin: 0;
@@ -391,7 +395,7 @@
             gap: 0.7rem;
             min-height: 0;
             padding: 0.4rem 0.48rem 0.48rem;
-            background: rgba(255, 255, 255, 0.62);
+            background: var(--activity-card);
             box-shadow: none;
         }
         .activity-widget .go-panel .stat strong {
@@ -411,7 +415,7 @@
         .activity-widget th,
         .activity-widget td {
             padding: 0.52rem 0;
-            border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+            border-bottom: 1px solid var(--activity-border);
             text-align: left;
             font-size: 0.83rem;
         }
@@ -508,8 +512,8 @@
                 </div>
                 <div class="activity-widget reveal" aria-label="Activity heatmap">
 <section class="stats" aria-label="Summary">
-        <div class="stat"><span id="total-label">Total added lines</span><strong id="total-value">5,327,557</strong></div>
-        <div class="stat"><span id="active-label">Days with added lines</span><strong id="active-value">316</strong></div>
+        <div class="stat"><span id="total-label">Total added lines</span><strong id="total-value">5,669,527</strong></div>
+        <div class="stat"><span id="active-label">Days with added lines</span><strong id="active-value">324</strong></div>
         <div class="stat"><span id="peak-label">Peak line day</span><strong id="peak-value">140,381</strong></div>
         <div class="stat"><span>Days shown</span><strong>365</strong></div>
         <div class="metric-control">
@@ -517,7 +521,7 @@
                 <button type="button" data-metric="lines" aria-pressed="true">Added Lines</button>
                 <button type="button" data-metric="commits" aria-pressed="false">Commits</button>
             </div>
-            <div class="pill">2025-11-02 to 2026-11-01</div>
+            <div class="pill">2025-11-10 to 2026-11-09</div>
         </div>
     </section>
                     <div class="dashboard-grid">
@@ -529,67 +533,60 @@
 <span class="month-label" style="grid-column:2"></span>
 <span class="month-label" style="grid-column:3"></span>
 <span class="month-label" style="grid-column:4"></span>
-<span class="month-label" style="grid-column:5">Dec</span>
+<span class="month-label" style="grid-column:5"></span>
 <span class="month-label" style="grid-column:6"></span>
 <span class="month-label" style="grid-column:7"></span>
-<span class="month-label" style="grid-column:8"></span>
-<span class="month-label" style="grid-column:9">Jan</span>
+<span class="month-label" style="grid-column:8">Jan</span>
+<span class="month-label" style="grid-column:9"></span>
 <span class="month-label" style="grid-column:10"></span>
 <span class="month-label" style="grid-column:11"></span>
 <span class="month-label" style="grid-column:12"></span>
-<span class="month-label" style="grid-column:13"></span>
-<span class="month-label" style="grid-column:14">Feb</span>
+<span class="month-label" style="grid-column:13">Feb</span>
+<span class="month-label" style="grid-column:14"></span>
 <span class="month-label" style="grid-column:15"></span>
 <span class="month-label" style="grid-column:16"></span>
-<span class="month-label" style="grid-column:17"></span>
-<span class="month-label" style="grid-column:18">Mar</span>
+<span class="month-label" style="grid-column:17">Mar</span>
+<span class="month-label" style="grid-column:18"></span>
 <span class="month-label" style="grid-column:19"></span>
 <span class="month-label" style="grid-column:20"></span>
-<span class="month-label" style="grid-column:21"></span>
-<span class="month-label" style="grid-column:22">Apr</span>
+<span class="month-label" style="grid-column:21">Apr</span>
+<span class="month-label" style="grid-column:22"></span>
 <span class="month-label" style="grid-column:23"></span>
 <span class="month-label" style="grid-column:24"></span>
-<span class="month-label" style="grid-column:25"></span>
-<span class="month-label" style="grid-column:26">May</span>
+<span class="month-label" style="grid-column:25">May</span>
+<span class="month-label" style="grid-column:26"></span>
 <span class="month-label" style="grid-column:27"></span>
 <span class="month-label" style="grid-column:28"></span>
 <span class="month-label" style="grid-column:29"></span>
-<span class="month-label" style="grid-column:30"></span>
-<span class="month-label" style="grid-column:31">Jun</span>
+<span class="month-label" style="grid-column:30">Jun</span>
+<span class="month-label" style="grid-column:31"></span>
 <span class="month-label" style="grid-column:32"></span>
 <span class="month-label" style="grid-column:33"></span>
-<span class="month-label" style="grid-column:34"></span>
-<span class="month-label" style="grid-column:35">Jul</span>
+<span class="month-label" style="grid-column:34">Jul</span>
+<span class="month-label" style="grid-column:35"></span>
 <span class="month-label" style="grid-column:36"></span>
 <span class="month-label" style="grid-column:37"></span>
-<span class="month-label" style="grid-column:38"></span>
-<span class="month-label" style="grid-column:39">Aug</span>
+<span class="month-label" style="grid-column:38">Aug</span>
+<span class="month-label" style="grid-column:39"></span>
 <span class="month-label" style="grid-column:40"></span>
 <span class="month-label" style="grid-column:41"></span>
 <span class="month-label" style="grid-column:42"></span>
-<span class="month-label" style="grid-column:43"></span>
-<span class="month-label" style="grid-column:44">Sep</span>
+<span class="month-label" style="grid-column:43">Sep</span>
+<span class="month-label" style="grid-column:44"></span>
 <span class="month-label" style="grid-column:45"></span>
 <span class="month-label" style="grid-column:46"></span>
-<span class="month-label" style="grid-column:47"></span>
-<span class="month-label" style="grid-column:48">Oct</span>
+<span class="month-label" style="grid-column:47">Oct</span>
+<span class="month-label" style="grid-column:48"></span>
 <span class="month-label" style="grid-column:49"></span>
 <span class="month-label" style="grid-column:50"></span>
 <span class="month-label" style="grid-column:51"></span>
-<span class="month-label" style="grid-column:52"></span>
-<span class="month-label" style="grid-column:53">Nov</span>
+<span class="month-label" style="grid-column:52">Nov</span>
+<span class="month-label" style="grid-column:53"></span>
                 </div>
                 <div class="chart-body">
                     <div class="weekday-labels" aria-hidden="true"><span></span><span>Mon</span><span></span><span>Wed</span><span></span><span>Fri</span><span></span></div>
-                    <div class="activity-grid" role="img" aria-label="Daily activity from 2025-11-02 to 2026-11-01">
-<div class="day-cell pre-repo" data-date="2025-11-02" data-date-label="Sun 02 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 02 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-03" data-date-label="Mon 03 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 03 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-04" data-date-label="Tue 04 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 04 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-05" data-date-label="Wed 05 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 05 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-06" data-date-label="Thu 06 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 06 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-07" data-date-label="Fri 07 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 07 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-08" data-date-label="Sat 08 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 08 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell pre-repo" data-date="2025-11-09" data-date-label="Sun 09 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 09 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
+                    <div class="activity-grid" role="img" aria-label="Daily activity from 2025-11-10 to 2026-11-09">
+<div class="day-cell outside pre-repo" data-date="2025-11-09" data-date-label="Sun 09 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sun 09 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
 <div class="day-cell pre-repo" data-date="2025-11-10" data-date-label="Mon 10 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 10 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
 <div class="day-cell pre-repo" data-date="2025-11-11" data-date-label="Tue 11 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 11 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
 <div class="day-cell pre-repo" data-date="2025-11-12" data-date-label="Wed 12 Nov 2025" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 12 Nov 2025: 0 lines added, 0 commits" tabindex="0"></div>
@@ -946,13 +943,20 @@
 <div class="day-cell" data-date="2026-10-29" data-date-label="Thu 29 Oct 2026" data-lines="10086" data-lines-display="10,086" data-lines-level="1" data-commits="64" data-commits-display="64" data-commits-level="1" data-level="1" aria-label="Thu 29 Oct 2026: 10,086 lines added, 64 commits" tabindex="0"></div>
 <div class="day-cell" data-date="2026-10-30" data-date-label="Fri 30 Oct 2026" data-lines="61977" data-lines-display="61,977" data-lines-level="3" data-commits="240" data-commits-display="240" data-commits-level="4" data-level="3" aria-label="Fri 30 Oct 2026: 61,977 lines added, 240 commits" tabindex="0"></div>
 <div class="day-cell" data-date="2026-10-31" data-date-label="Sat 31 Oct 2026" data-lines="41940" data-lines-display="41,940" data-lines-level="2" data-commits="284" data-commits-display="284" data-commits-level="5" data-level="2" aria-label="Sat 31 Oct 2026: 41,940 lines added, 284 commits" tabindex="0"></div>
-<div class="day-cell" data-date="2026-11-01" data-date-label="Sun 01 Nov 2026" data-lines="18078" data-lines-display="18,078" data-lines-level="1" data-commits="68" data-commits-display="68" data-commits-level="1" data-level="1" aria-label="Sun 01 Nov 2026: 18,078 lines added, 68 commits" tabindex="0"></div>
-<div class="day-cell outside" data-date="2026-11-02" data-date-label="Mon 02 Nov 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Mon 02 Nov 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell outside" data-date="2026-11-03" data-date-label="Tue 03 Nov 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 03 Nov 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell outside" data-date="2026-11-04" data-date-label="Wed 04 Nov 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 04 Nov 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell outside" data-date="2026-11-05" data-date-label="Thu 05 Nov 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 05 Nov 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell outside" data-date="2026-11-06" data-date-label="Fri 06 Nov 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 06 Nov 2026: 0 lines added, 0 commits" tabindex="0"></div>
-<div class="day-cell outside" data-date="2026-11-07" data-date-label="Sat 07 Nov 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 07 Nov 2026: 0 lines added, 0 commits" tabindex="0"></div>
+<div class="day-cell" data-date="2026-11-01" data-date-label="Sun 01 Nov 2026" data-lines="50524" data-lines-display="50,524" data-lines-level="2" data-commits="252" data-commits-display="252" data-commits-level="4" data-level="2" aria-label="Sun 01 Nov 2026: 50,524 lines added, 252 commits" tabindex="0"></div>
+<div class="day-cell" data-date="2026-11-02" data-date-label="Mon 02 Nov 2026" data-lines="50586" data-lines-display="50,586" data-lines-level="2" data-commits="318" data-commits-display="318" data-commits-level="5" data-level="2" aria-label="Mon 02 Nov 2026: 50,586 lines added, 318 commits" tabindex="0"></div>
+<div class="day-cell" data-date="2026-11-03" data-date-label="Tue 03 Nov 2026" data-lines="35959" data-lines-display="35,959" data-lines-level="2" data-commits="103" data-commits-display="103" data-commits-level="2" data-level="2" aria-label="Tue 03 Nov 2026: 35,959 lines added, 103 commits" tabindex="0"></div>
+<div class="day-cell" data-date="2026-11-04" data-date-label="Wed 04 Nov 2026" data-lines="43337" data-lines-display="43,337" data-lines-level="2" data-commits="108" data-commits-display="108" data-commits-level="2" data-level="2" aria-label="Wed 04 Nov 2026: 43,337 lines added, 108 commits" tabindex="0"></div>
+<div class="day-cell" data-date="2026-11-05" data-date-label="Thu 05 Nov 2026" data-lines="28582" data-lines-display="28,582" data-lines-level="2" data-commits="90" data-commits-display="90" data-commits-level="2" data-level="2" aria-label="Thu 05 Nov 2026: 28,582 lines added, 90 commits" tabindex="0"></div>
+<div class="day-cell" data-date="2026-11-06" data-date-label="Fri 06 Nov 2026" data-lines="38638" data-lines-display="38,638" data-lines-level="2" data-commits="82" data-commits-display="82" data-commits-level="2" data-level="2" aria-label="Fri 06 Nov 2026: 38,638 lines added, 82 commits" tabindex="0"></div>
+<div class="day-cell" data-date="2026-11-07" data-date-label="Sat 07 Nov 2026" data-lines="58465" data-lines-display="58,465" data-lines-level="3" data-commits="96" data-commits-display="96" data-commits-level="2" data-level="3" aria-label="Sat 07 Nov 2026: 58,465 lines added, 96 commits" tabindex="0"></div>
+<div class="day-cell" data-date="2026-11-08" data-date-label="Sun 08 Nov 2026" data-lines="32775" data-lines-display="32,775" data-lines-level="2" data-commits="185" data-commits-display="185" data-commits-level="3" data-level="2" aria-label="Sun 08 Nov 2026: 32,775 lines added, 185 commits" tabindex="0"></div>
+<div class="day-cell" data-date="2026-11-09" data-date-label="Mon 09 Nov 2026" data-lines="21182" data-lines-display="21,182" data-lines-level="1" data-commits="207" data-commits-display="207" data-commits-level="3" data-level="1" aria-label="Mon 09 Nov 2026: 21,182 lines added, 207 commits" tabindex="0"></div>
+<div class="day-cell outside" data-date="2026-11-10" data-date-label="Tue 10 Nov 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Tue 10 Nov 2026: 0 lines added, 0 commits" tabindex="0"></div>
+<div class="day-cell outside" data-date="2026-11-11" data-date-label="Wed 11 Nov 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Wed 11 Nov 2026: 0 lines added, 0 commits" tabindex="0"></div>
+<div class="day-cell outside" data-date="2026-11-12" data-date-label="Thu 12 Nov 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Thu 12 Nov 2026: 0 lines added, 0 commits" tabindex="0"></div>
+<div class="day-cell outside" data-date="2026-11-13" data-date-label="Fri 13 Nov 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Fri 13 Nov 2026: 0 lines added, 0 commits" tabindex="0"></div>
+<div class="day-cell outside" data-date="2026-11-14" data-date-label="Sat 14 Nov 2026" data-lines="0" data-lines-display="0" data-lines-level="0" data-commits="0" data-commits-display="0" data-commits-level="0" data-level="0" aria-label="Sat 14 Nov 2026: 0 lines added, 0 commits" tabindex="0"></div>
                     </div>
                 </div>
             </div>
@@ -964,41 +968,41 @@
 <div class="go-bucket">
             <h3>Total Code</h3>
             <div class="go-stats">
-<div class="stat"><span>Files</span><strong>13,684</strong></div>
-<div class="stat"><span>Total lines</span><strong>3,101,601</strong></div>
-<div class="stat"><span>Code</span><strong>2,218,826</strong></div>
-<div class="stat"><span>Blank</span><strong>274,352</strong></div>
-<div class="stat"><span>Comments</span><strong>608,423</strong></div>
+<div class="stat"><span>Files</span><strong>15,192</strong></div>
+<div class="stat"><span>Total lines</span><strong>3,347,263</strong></div>
+<div class="stat"><span>Code</span><strong>2,410,684</strong></div>
+<div class="stat"><span>Blank</span><strong>288,114</strong></div>
+<div class="stat"><span>Comments</span><strong>648,465</strong></div>
             </div>
         </div>
 <div class="go-bucket">
             <h3>Production</h3>
             <div class="go-stats">
-<div class="stat"><span>Files</span><strong>6,494</strong></div>
-<div class="stat"><span>Total lines</span><strong>1,441,675</strong></div>
-<div class="stat"><span>Code</span><strong>1,003,880</strong></div>
-<div class="stat"><span>Blank</span><strong>118,988</strong></div>
-<div class="stat"><span>Comments</span><strong>318,807</strong></div>
+<div class="stat"><span>Files</span><strong>7,003</strong></div>
+<div class="stat"><span>Total lines</span><strong>1,540,607</strong></div>
+<div class="stat"><span>Code</span><strong>1,075,611</strong></div>
+<div class="stat"><span>Blank</span><strong>124,768</strong></div>
+<div class="stat"><span>Comments</span><strong>340,228</strong></div>
             </div>
         </div>
 <div class="go-bucket">
             <h3>Test</h3>
             <div class="go-stats">
-<div class="stat"><span>Files</span><strong>7,190</strong></div>
-<div class="stat"><span>Total lines</span><strong>1,659,926</strong></div>
-<div class="stat"><span>Code</span><strong>1,214,946</strong></div>
-<div class="stat"><span>Blank</span><strong>155,364</strong></div>
-<div class="stat"><span>Comments</span><strong>289,616</strong></div>
+<div class="stat"><span>Files</span><strong>8,189</strong></div>
+<div class="stat"><span>Total lines</span><strong>1,806,656</strong></div>
+<div class="stat"><span>Code</span><strong>1,335,073</strong></div>
+<div class="stat"><span>Blank</span><strong>163,346</strong></div>
+<div class="stat"><span>Comments</span><strong>308,237</strong></div>
             </div>
         </div>
 <div class="go-bucket">
             <h3>Dependencies</h3>
             <div class="go-stats">
-<div class="stat"><span>Files</span><strong>6,529</strong></div>
-<div class="stat"><span>Total lines</span><strong>1,986,265</strong></div>
-<div class="stat"><span>Code</span><strong>1,539,920</strong></div>
-<div class="stat"><span>Blank</span><strong>176,604</strong></div>
-<div class="stat"><span>Comments</span><strong>269,741</strong></div>
+<div class="stat"><span>Files</span><strong>6,554</strong></div>
+<div class="stat"><span>Total lines</span><strong>1,989,386</strong></div>
+<div class="stat"><span>Code</span><strong>1,542,298</strong></div>
+<div class="stat"><span>Blank</span><strong>176,946</strong></div>
+<div class="stat"><span>Comments</span><strong>270,142</strong></div>
                 <div class="stat"><span>Modules</span><strong>283</strong></div>
             </div>
         </div>
@@ -1015,7 +1019,7 @@
                 </div>
             </section>
 <script>
-const metricSummaries = {"commits":{"totalLabel":"Total commits","totalValue":"14,662","activeLabel":"Days with commits","activeValue":"316","peakLabel":"Peak commit day","peakValue":"351","thresholdLabel":"Commit thresholds","thresholdValue":"71, 141, 211, 281"},"lines":{"totalLabel":"Total added lines","totalValue":"5,327,557","activeLabel":"Days with added lines","activeValue":"316","peakLabel":"Peak line day","peakValue":"140,381","thresholdLabel":"Line thresholds","thresholdValue":"28,077, 56,153, 84,229, 112,305"}};
+const metricSummaries = {"commits":{"totalLabel":"Total commits","totalValue":"16,035","activeLabel":"Days with commits","activeValue":"324","peakLabel":"Peak commit day","peakValue":"351","thresholdLabel":"Commit thresholds","thresholdValue":"71, 141, 211, 281"},"lines":{"totalLabel":"Total added lines","totalValue":"5,669,527","activeLabel":"Days with added lines","activeValue":"324","peakLabel":"Peak line day","peakValue":"140,381","thresholdLabel":"Line thresholds","thresholdValue":"28,077, 56,153, 84,229, 112,305"}};
 let currentMetric = "lines";
 const cells = Array.from(document.querySelectorAll(".activity-grid .day-cell"));
 const buttons = Array.from(document.querySelectorAll(".metric-switch button"));
@@ -1158,7 +1162,7 @@ setMetric("lines");
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 14:11 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

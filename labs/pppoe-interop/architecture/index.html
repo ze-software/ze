@@ -62,12 +62,17 @@ implementations. Ze acts as a client against
 <ol>
 <li><a href="#01-pppoe-chap-ipv4">01-pppoe-chap-ipv4</a></li>
 <li><a href="#02-ze-ac-pppd-client">02-ze-ac-pppd-client</a></li>
+<li><a href="#pppoe-omitted-mru-ze-ac">pppoe-omitted-mru-ze-ac</a></li>
 <li><a href="#pppoe-chap-rechallenge-ze-client">pppoe-chap-rechallenge-ze-client</a></li>
+<li><a href="#pppoe-named-device-reconnect-ze-client">pppoe-named-device-reconnect-ze-client</a></li>
 <li><a href="#pppoe-peer-terminate-ze-ac">pppoe-peer-terminate-ze-ac</a></li>
+<li><a href="#pppoe-chap-only-pap-client">pppoe-chap-only-pap-client</a></li>
 <li><a href="#pppoe-empty-service-name">pppoe-empty-service-name</a></li>
 <li><a href="#pppoe-padr-replay">pppoe-padr-replay</a></li>
 <li><a href="#pppoe-pap-ze-ac">pppoe-pap-ze-ac</a></li>
 <li><a href="#pppoe-pap-ze-client">pppoe-pap-ze-client</a></li>
+<li><a href="#pppoe-ipv6cp-ze-client">pppoe-ipv6cp-ze-client</a></li>
+<li><a href="#pppoe-ipv6cp-rejected-ze-client">pppoe-ipv6cp-rejected-ze-client</a></li>
 <li><a href="#ipv6cp-zero-identifier-and-ipv6cp-missing-option">ipv6cp-zero-identifier and ipv6cp-missing-option</a></li>
 </ol></li>
 <li><a href="#relationship-to-other-evidence">Relationship to other evidence</a></li>
@@ -81,7 +86,8 @@ container runs privileged: Ze, accel-ppp and the pppd client each hold
 the <code>pppoe</code> pppox module, built in or loaded by the host: no container loads a
 kernel module.</p>
 <p>The client scenario requires PADI/PADO/PADR/PADS discovery, LCP, CHAP-MD5,
-IPCP, one kernel <code>pppN</code> interface, traffic to the access concentrator, the
+IPCP, one kernel device named after the <code>pppoe-client</code> key (<code>pppoe0</code>),
+traffic to the access concentrator, the
 accel-ppp session view, and clean teardown. The access-concentrator scenario
 requires the same discovery and NCP path from an independent pppd trace. It
 also dials a wrong credential and requires CHAP refusal before proving that all
@@ -96,8 +102,11 @@ session state disappeared.</p>
   scenarios/
     01-pppoe-chap-ipv4/         Ze client, accel-ppp concentrator
     02-ze-ac-pppd-client/       Ze concentrator, pppd client
+    pppoe-omitted-mru-ze-ac/    Ze concentrator, peer MRU omitted, measured Ze transmit cap
     pppoe-chap-rechallenge-ze-client/  Ze client, native accel-ppp reauthentication
+    pppoe-named-device-reconnect-ze-client/  Ze client as a CPE: pppoe0, static default, masquerade, reconnect
     pppoe-peer-terminate-ze-ac/        Ze concentrator, pppd LCP termination without incoming PADT
+    pppoe-chap-only-pap-client/       Ze concentrator, CHAP-only default, PAP-only pppd client
     pppoe-empty-service-name/  Ze concentrator, pppd client, no service-name configured
     pppoe-padr-replay/         Ze concentrator, pppd client, max-sessions-per-mac 1
     ipv6cp-zero-identifier/    Ze concentrator, pppd session, zero IPv6CP identifier replayed
@@ -107,7 +116,9 @@ internal/le/interoplab/pppoe/
   scenarios.go         Role-selected container plans and mounts
   check_client.go      Ze client assertions
   check_ac.go          Ze access-concentrator assertions
+  check_named_device.go  pppoe-named-device-reconnect-ze-client: device name, route and NAT across a reconnect
   check_service_name.go  pppoe-empty-service-name: wire-level Service-Name proof
+  check_auth_allow.go    pppoe-chap-only-pap-client: session-correlated policy refusal and resource cleanup
   check_padr_replay.go   pppoe-padr-replay: wire-level replay and per-MAC cap proof
   check_ipv6cp.go        ipv6cp-zero-identifier, ipv6cp-missing-option: wire-level
                          IPv6CP proof, BLOCKED until plan/post-release/features/spec-l2tp-ipv6-subscriber.md
@@ -129,6 +140,16 @@ refusal.</p>
 was measured on 2026-08-01 and its Linux VM supplied both requirements on that
 machine. The QEMU action remains available for a host where the probe refuses.</p>
 <!-- source: internal/le/interoplab/pppoe/pppoe.go -- preflight -->
+<p>The client image pins pppd <strong>2.5.5</strong> from the official GitHub tag archive with
+a SHA256 checksum. The archive contains autotools inputs, not <code>configure</code>.
+Upstream <code>autogen.sh</code> generates the build system and runs <code>configure</code> with
+the image's existing installation paths. Build-only autotools dependencies
+do not enter the runtime image. Native runs against pppd 2.5.5 passed
+<code>pppoe-chap-only-pap-client</code>, <code>pppoe-pap-ze-ac</code> and
+<code>02-ze-ac-pppd-client</code> on 2026-11-04. The CHAP-only scenario also failed
+against a rebuilt producer with the old broad authentication default and
+passed again after restoration.</p>
+<!-- source: test/interop-pppoe/Dockerfile.client -- PPP_VERSION, PPP_SHA256, build stage -->
 <h2 id="running">Running</h2>
 <pre><code>./le test deployment docker-pppoe-accel
 ZE_PPPOE_INTEROP_SCENARIO=01-pppoe-chap-ipv4 ./le test deployment docker-pppoe-accel
@@ -140,7 +161,9 @@ ZE_PPPOE_INTEROP_SCENARIO=ipv6cp-missing-option ./le test deployment docker-pppo
 ZE_PPPOE_INTEROP_SCENARIO=pppoe-pap-ze-ac ./le test deployment docker-pppoe-accel
 ZE_PPPOE_INTEROP_SCENARIO=pppoe-pap-ze-client ./le test deployment docker-pppoe-accel
 ZE_PPPOE_INTEROP_SCENARIO=pppoe-chap-rechallenge-ze-client ./le test deployment docker-pppoe-accel
+ZE_PPPOE_INTEROP_SCENARIO=pppoe-named-device-reconnect-ze-client ./le test deployment docker-pppoe-accel
 ZE_PPPOE_INTEROP_SCENARIO=pppoe-peer-terminate-ze-ac ./le test deployment docker-pppoe-accel
+ZE_PPPOE_INTEROP_SCENARIO=pppoe-chap-only-pap-client ./le --name session test deployment docker-pppoe-accel
 </code></pre>
 <p><code>01-pppoe-chap-ipv4</code> and <code>02-ze-ac-pppd-client</code> predate the naming rule and keep
 their numeric prefixes. A scenario added since carries none:
@@ -163,9 +186,26 @@ suite carries both roles.</p>
 <h2 id="scenarios">Scenarios</h2>
 <h3 id="01-pppoe-chap-ipv4">01-pppoe-chap-ipv4</h3>
 <p>Ze authenticates as <code>alice</code> with CHAP-MD5. IPCP assigns <code>10.11.0.2</code> with
-<code>10.11.0.1</code> as its peer. The checker requires one Ze <code>pppN</code> interface with that
+<code>10.11.0.1</code> as its peer. The checker requires one Ze PPP device, <code>pppoe0</code>, with that
 point-to-point address, a route through it, ICMP to the peer, an accel-ppp
 session for <code>alice</code>, and removal of that session after Ze stops.</p>
+<p>accel-ppp's <code>[dns]</code> section offers <code>192.0.2.53</code> and <code>192.0.2.54</code>, which it
+Naks into Ze's IPCP request. While the session is up, and before it stops Ze,
+the checker requires Ze's <code>/tmp/resolv.conf</code> to list them in that order after
+the generated header. It then runs <code>show interface pppoe-client</code> through Ze's
+REST execute endpoint (enabled in the scenario's <code>ze.conf</code> on <code>127.0.0.1:9099</code>,
+so the <code>curl</code> runs inside the Ze container) and requires <code>pppoe0</code>'s
+<code>dns-servers</code> to be <code>["192.0.2.53", "192.0.2.54"]</code>. It reads the raw JSON, so
+an absent key or a <code>null</code> is refused. <code>pppoe-ipcp-dns-rejected-ze-client</code> runs
+the same checks against an accel-ppp that Rejects both DNS options, so the
+session leases no server and <code>dns-servers</code> must be an empty list. With no lease
+listing a server, Ze falls back to the host's own resolvers, so the checker
+reads the Ze container's <code>/etc/resolv.conf</code> (Docker's, which Ze never writes)
+and requires Ze's resolv.conf to be the generated header followed by exactly
+those servers, in that order. It refuses a host list that holds accel-ppp's
+<code>10.11.0.1</code>, because that server would match whether or not the client dropped
+the Rejected options.</p>
+<!-- source: internal/le/interoplab/pppoe/check_client.go -- checkZeClient, checkZeClientDNSRejected, zeHostResolvers, checkZeClientShowDNS, pppoeClientDNSServers -->
 <p>The checker also reads accel-ppp's verbose trace and requires, in order, its
 LCP Configure-Request with <code>&lt;auth CHAP-md5&gt;</code>, Ze's Configure-Ack carrying that
 option, a CHAP Challenge, Ze's Response naming <code>alice</code>, and a CHAP Success.
@@ -188,6 +228,28 @@ reads pppd's discovery, bidirectional LCP, CHAP, and IPCP trace and compares it
 with Ze's REST session table. It then requires PADT and empty state before
 repeating the dial with <code>wrong-secret</code>; the second trace must reach CHAP and
 receive a refusal without creating a session.</p>
+<h3 id="pppoe-omitted-mru-ze-ac">pppoe-omitted-mru-ze-ac</h3>
+<p>The real pppd client omits its MRU option. The checker correlates its decoded
+Configure-Request with Ze's matching Configure-Ack and requires reciprocal
+LCP acknowledgment, CHAP success and assigned IPv4 service. It measures Ze's
+own <code>pppN</code> interface with <code>ip -j link show</code> and requires MTU 1492. A client
+interface capped at 1492 cannot substitute for this Ze-side measurement.
+Both peers must send traffic through the session, followed by PADT, empty
+session tables and release of Ze's kernel PPP resources.</p>
+<!-- source: internal/le/interoplab/pppoe/check_mru_omitted.go -- checkOmittedPeerMRU, omittedMRULCPEvidence, omittedMRUZeLink -->
+<p>The checker appends pppd's <code>default-mru</code> option to the normal typed dial.
+In pinned pppd 2.5.5, <code>lcp_addci</code> omits MRU when <code>neg_mru</code> is false.
+The PPPoE plugin otherwise lowers the requested MRU to 1492 for a normal
+Ethernet link, so leaving out a command-line <code>mru</code> value alone does not
+exercise omission. <code>default-mru</code> also refuses Ze's initial MRU option;
+successful replacement negotiation remains part of this proof. The test
+retains pppd's full trace and Ze's measured link JSON in the native job log.</p>
+<!-- source: internal/le/interoplab/pppoe/check_mru_omitted.go -- checkOmittedPeerMRU -->
+<!-- source: test/interop-pppoe/Dockerfile.client -- PPP_VERSION -->
+<p>Run <code>ZE_PPPOE_INTEROP_SCENARIO=pppoe-omitted-mru-ze-ac ./le --name session test deployment docker-pppoe-accel</code>.
+The scenario is authored; a passing run and rebuilt defective-artifact
+discrimination must be recorded before its behavior is claimed as proved.</p>
+<!-- source: internal/le/interoplab/pppoe/check_mru_omitted.go -- init -->
 <h3 id="pppoe-chap-rechallenge-ze-client">pppoe-chap-rechallenge-ze-client</h3>
 <p>After IPCP traffic succeeds, the checker observes two native accel-ppp CHAP
 reauthentication exchanges. It checks each Response's Identifier, CHAP-MD5
@@ -197,6 +259,66 @@ cross the session. This separates network-phase CHAP from initial login.</p>
 <!-- source: internal/le/interoplab/pppoe/check_lifecycle.go -- checkCHAPRechallenge -->
 <!-- source: internal/le/interoplab/pppoe/check_lifecycle_wire.go -- rechallengeEvidence -->
 <!-- source: test/interop-pppoe/scenarios/pppoe-chap-rechallenge-ze-client/accel-ppp.conf -- native auth interval -->
+<h3 id="pppoe-named-device-reconnect-ze-client">pppoe-named-device-reconnect-ze-client</h3>
+<p>Ze runs the home CPE configuration the guides show. The <code>pppoe-client pppoe0</code>
+entry sets <code>no-default-route</code>, a static route <code>0.0.0.0/0</code> has
+<code>next { interface pppoe0 }</code>, and a NAT postrouting term masquerades
+<code>output-interface "pppoe0"</code>. A dummy <code>lan0</code> at <code>198.51.100.1/24</code> stands in for
+the LAN. The checker first deletes the default route Docker gives the
+container through <code>eth0</code>. A CPE has no such route, and at metric 0 it would
+collide with fib-kernel's add of the static default. If Ze already holds a PPP
+device at that point, the checker stops and asks for a rerun. It also adds
+<code>192.0.2.1</code> to accel-ppp's loopback: only the static default covers that
+address on Ze's side.</p>
+<p>On the first session the checker requires:</p>
+<ul>
+<li><code>pppoe0</code> as the only PPP device in Ze's container, so no <code>pppN</code> comes from
+the client</li>
+<li>its IPCP address</li>
+<li>the default route at protocol 250 (fib-kernel) through <code>pppoe0</code></li>
+<li><code>ip route get 192.0.2.1</code> through <code>pppoe0</code></li>
+<li>a ping from <code>198.51.100.1</code> to <code>192.0.2.1</code> that is answered, which needs the
+masquerade, because accel-ppp holds no route back to <code>198.51.100.0/24</code></li>
+<li>a higher packet count on the masquerade rule's counter, read with
+<code>nft list chain ip ze_cpenat postrouting</code></li>
+</ul>
+<p>The checker then runs <code>accel-cmd terminate username alice</code>. In accel-ppp,
+<code>terminate_exec2</code> (<code>accel-pppd/cli/std_cmd.c</code>) matches the session by
+username and calls <code>ap_session_terminate</code>, and the PPPoE <code>disconnect</code> sends
+PADT. The checker waits for a new <code>pppoe0</code> with another ifindex. It then
+requires the same evidence again: the default route back through the new
+device with no reload, the masqueraded ping, and a higher counter. The second
+session's address is <code>10.11.0.3</code>, because accel-ppp's pool hands out the head
+of its free list (<code>get_ip</code> in <code>accel-pppd/extra/ippool.c</code>) and <code>put_ip</code> returns
+<code>10.11.0.2</code> to the tail.</p>
+<p>The accel-ppp functions were read at <code>06f64b1</code> of the upstream tree. The lab
+runs Alpine's 1.14.0 package.</p>
+<!-- source: internal/le/interoplab/pppoe/check_named_device.go -- checkNamedDeviceReconnect, removeDockerDefaultRoute, namedMasqueradeThroughSession -->
+<!-- source: test/interop-pppoe/scenarios/pppoe-named-device-reconnect-ze-client/ze.conf -- CPE configuration -->
+<p>The scenario passed on 2026-11-08 (<code>pppoe-named-device-reconnect-ze-client: pass (9s)</code>) on the unbroken tree, and it discriminates. Two rebuilt defective
+producers each turned it red on the same day:</p>
+<table>
+<thead>
+<tr>
+<th>Break</th>
+<th>Red</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pppoeclient.Dialer.Dial</code> passes <code>""</code> instead of <code>cfg.Name</code> to <code>ppp.DevPPPSetup</code>, so the kernel names the unit <code>pppN</code></td>
+<td><code>first session: wait for PPP device pppoe0 in ze timed out</code></td>
+</tr>
+<tr>
+<td>static's link watch hears the device's first up and its loss, then drops every later event. <span class="ev-src"><span class="ev-ref"><code>internal/plugins/static/link.go</code></span></span></td>
+<td><code>session after accel-ppp terminated the first (ifindex 11): the static default route did not reach the kernel through pppoe0</code></td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/l2tp/pppoeclient/dialer.go -- Dialer.Dial -->
+<!-- source: internal/plugins/static/link.go -- ifaceLinks.subscribe -->
+<p>The second red is the reconnect half of the claim: the route came back only
+because static heard <code>pppoe0</code> return.</p>
 <h3 id="pppoe-peer-terminate-ze-ac">pppoe-peer-terminate-ze-ac</h3>
 <p>The checker first establishes authenticated traffic with pppd. It then filters
 only pppd's outgoing PADT and asks pppd to terminate. Capture at Ze must show the
@@ -218,6 +340,34 @@ and Linux's
 and <a href="https://github.com/torvalds/linux/blob/master/drivers/net/dummy.c" target="_blank" rel="noopener"><code>dummy_xmit</code></a>.</p>
 <!-- source: internal/le/interoplab/pppoe/check_lifecycle.go -- checkPeerTerminate -->
 <!-- source: internal/le/interoplab/pppoe/check_lifecycle_wire.go -- terminateEvidence -->
+<h3 id="pppoe-chap-only-pap-client">pppoe-chap-only-pap-client</h3>
+<p>Ze's AC has neither <code>auth-method</code> nor <code>authentication-allow</code> configured, so
+its effective policy is CHAP-MD5 only. The real pppd client refuses CHAP,
+EAP and both MS-CHAP variants, leaving PAP as its only acceptable method.
+The fixture supplies valid credentials and an address pool: an accidental
+PAP downgrade cannot hide behind a credential or address-allocation failure.</p>
+<p>Before dialing, the checker waits for tcpdump's capture-activation marker at
+Ze. It requires Ze's successful PADS, its CHAP-MD5 Configure-Request, the
+client's matching-Identifier PAP Configure-Nak, Ze's LCP Terminate-Request,
+and exactly one <strong>Ze-originated</strong> PADT, all on the PADS session ID and the
+same Ethernet endpoints. A client PADT cannot substitute for Ze's PADT.
+No PAP or other authentication/NCP traffic may appear, and a client
+Configure-Ack that could let Ze's LCP reach Opened is refused. The checker
+also reads pppd's own Configure-Nak and Terminate-Request trace, and requires
+Ze's refusal record to name the PAP suggestion and the CHAP-only allow-list.</p>
+<p>The checker does not kill pppd or sleep for a guessed teardown interval.
+It waits for the dial to exit, Ze's REST session table to empty, both peers'
+PPP interfaces to disappear, and Ze's <code>/proc/net/pppoe</code> to retain only its
+header. Capture remains active through those observations; the final flushed
+capture is judged again so duplicate Ze PADTs count.</p>
+<p>The independent peer behavior comes from pppd 2.5.5's
+<a href="https://github.com/ppp-project/ppp/blob/v2.5.5/pppd/lcp.c" target="_blank" rel="noopener"><code>lcp_reqci</code></a>,
+which Naks refused CHAP with PAP when EAP is refused, and
+<a href="https://github.com/ppp-project/ppp/blob/v2.5.5/pppd/fsm.c" target="_blank" rel="noopener"><code>fsm_rtermreq</code></a>,
+which acknowledges termination before Opened but keeps negotiating until
+Ze's lower-layer teardown. This negative scenario complements, rather than
+changes, the explicit <code>auth-method pap</code> success proof below.</p>
+<!-- source: internal/le/interoplab/pppoe/check_auth_allow.go -- checkCHAPOnlyPAPClient, chapOnlyRefusalEvidence -->
 <h3 id="pppoe-empty-service-name">pppoe-empty-service-name</h3>
 <p>Ze's AC carries no <code>service-name</code> leaf. The independent pppd client dials with
 no requested service (RFC 2516 Section 5.1's "any service is acceptable"). The
@@ -283,9 +433,47 @@ trace and requires <code>recv [PAP AuthReq</code> and <code>send [PAP AuthAck</c
 The lab cannot lose a frame on demand, so the retry itself stays proven by the
 discriminated unit tests in <code>pppoeclient</code>; this scenario proves the PAP path
 interoperates. <code>spec-pppoe-client-pap-retry</code>.</p>
+<h3 id="pppoe-ipv6cp-ze-client">pppoe-ipv6cp-ze-client</h3>
+<p>Ze dials accel-ppp with <code>ipv6 enabled true</code>, <code>accept-ra 2</code>, <code>autoconf true</code>
+and <code>forwarding true</code> on its <code>pppoe-client</code>. accel-ppp runs <code>ipv6=prefer</code>,
+so the session starts only once IPv6CP opened. Its own identifier is
+<code>0:0:0:1</code>, and <code>ipv6-peer-intf-id=0:0:0:5a</code> with
+<code>ipv6-accept-peer-intf-id=0</code> makes it Nak any other identifier the client
+offers with <code>0:0:0:5a</code> (<code>ipaddr_recv_conf_req</code> in accel-ppp's
+<code>ppp/ipv6cp_opt_intfid.c</code>). Ze starts from its source MAC's EUI-64, so the
+Nak is always exercised. <code>ipv6pool</code> hands the session the first /64 of
+<code>2001:db8:100::/56</code>, and <code>ipv6_nd</code> advertises it with the autonomous flag.</p>
+<p>The checker reads accel-ppp's own trace for, in order: Ze's Configure-Request
+with one non-zero Interface-Identifier and no other option, accel-ppp's
+Configure-Nak of that request suggesting <code>0:0:0:5a</code>, Ze's next request
+carrying exactly <code>0:0:0:5a</code> (RFC 5072 Section 4.1), and accel-ppp's
+Configure-Ack of it, plus Ze's Configure-Ack of accel-ppp's own request.
+In Ze's container it then requires the device to be <code>pppoe0</code>, <code>fe80::5a/64</code>
+on it, <code>accept_ra</code> 2 and <code>forwarding</code> 1 on it, a default route via <code>fe80::1</code>
+(accel-ppp's link-local) through it, a global address SLAAC formed in
+<code>2001:db8:100::/64</code>, and an IPv6 ping to <code>fe80::1</code> across the session. The
+IPv4 session proof of <code>01-pppoe-chap-ipv4</code> follows.</p>
+<h3 id="pppoe-ipv6cp-rejected-ze-client">pppoe-ipv6cp-rejected-ze-client</h3>
+<p>The same Ze client against an accel-ppp with <code>ipv6=deny</code>, which answers every
+IPv6CP packet with an LCP Protocol-Reject (<code>ipv6cp_recv</code> in accel-ppp's
+<code>ppp/ppp_ipv6cp.c</code>). The checker waits for that reject, pings the IPv4
+gateway five times (longer than Ze's 3-second IPv6CP Restart timer), then
+requires from accel-ppp's trace exactly one Protocol-Reject of IPv6CP, so the
+client stopped sending it (RFC 1661 Section 5.7), no LCP Terminate-Request
+either way, and exactly one CHAP success, so there was no second session.
+<code>pppoe0</code> must hold no link-local address. The IPv4 session proof follows
+(RFC 7084 WLL-3).</p>
+<p>Both scenarios carry an <code>ipv6-session</code> file. Its presence makes the lab set
+<code>net.ipv6.conf.default.disable_ipv6=0</code> in both containers, so the PPP devices
+they create at run time keep IPv6, and run Ze under the lab's net-sysctl
+grant, because the client writes its session device's sysctls each time a
+session creates it (<code>scenarios.go</code>, <code>ipv6SessionScenario</code>). accel-ppp has no
+command that closes IPv6CP alone, and once IPv6CP has opened accel-ppp ends
+the whole session when it closes (<code>ipv6cp_layer_finished</code>), so an IPv6CP
+close under a live IPCP stays proven by the <code>pppoeclient</code> unit tests.</p>
 <h3 id="ipv6cp-zero-identifier-and-ipv6cp-missing-option">ipv6cp-zero-identifier and ipv6cp-missing-option</h3>
 <p>Written and registered against RFC 5072 Section 4.1's zero-identifier Nak
-and its missing-option one-shot Nak, driven by a real pppd 2.5.4 client and
+and its missing-option one-shot Nak, driven by a real pppd client and
 read off the wire (<code>check_ipv6cp.go</code>), the same shape <code>pppoe-padr-replay</code>
 established. pppd cannot be made to send either request: its <code>ipv6</code>
 option refuses the zero identifier ("Illegal interface identifier (local)",
@@ -298,7 +486,7 @@ Configure-Ack from Ze's MAC. <strong>Neither can pass today.</strong> <code>pool
 <code>EventIPRequest</code> whose family is not IPv4 with <code>Accept: false</code>, and
 <code>runNCPPhase</code> (<code>internal/component/l2tp/ppp/ncp.go</code>) reads that decline
 before the session reads a single client frame, so Ze's IPv6CP FSM never
-starts, on any configuration. Both scenarios run against pppd 2.5.4 only: this
+starts, on any configuration. Both scenarios use the pinned pppd peer: this
 lab's client image carries pppd and rp-pppoe, and accel-ppp-as-client is not a
 role its images support. Both checkers return a citing error at the first
 missing wire evidence rather than passing vacuously.
@@ -379,7 +567,7 @@ missing wire evidence rather than passing vacuously.
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

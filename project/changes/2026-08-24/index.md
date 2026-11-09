@@ -1,4 +1,4 @@
-# Week of 2026-08-24
+# 2026-08-24 – 2026-08-30 (1 week)
 
 Standards closure was the plan for the week. The build and test tooling took it instead: the Makefile and 256 shell and Python scripts are gone, replaced by Go, and that move is still in progress. Around it, output formatting moved off flags and onto the pipe operators, and a TACACS+ authentication bypass was closed.
 

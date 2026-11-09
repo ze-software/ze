@@ -8,35 +8,32 @@
   "must": {
     "total": 11,
     "kept": 11,
-    "ze-proven": 0,
+    "ze-proven": 5,
     "os-verified": 0,
     "os-gap": 0,
-    "ze-gap": 11,
+    "ze-gap": 6,
     "not-owed": 0,
     "not-owed-by-kind": {}
   },
   "should": {
     "total": 13,
-    "proven": 0,
+    "proven": 2,
     "os-verified": 0,
     "os-gap": 0,
     "not-owed": 0,
     "not-ever": 0,
     "not-yet": 0,
-    "not-decided": 13,
+    "not-decided": 11,
     "not-owed-by-kind": {}
   },
-  "proven-by-kind": {},
+  "proven-by-kind": {
+    "unit": 5
+  },
   "unmet": [
-    "RFC8106-1.2-1",
-    "RFC8106-1.2-2",
-    "RFC8106-5.1-1",
-    "RFC8106-5.1-2",
     "RFC8106-5.2-1",
     "RFC8106-5.2-2",
     "RFC8106-5.2-3",
     "RFC8106-5.2-4",
-    "RFC8106-5.3.1-1",
     "RFC8106-5.3.1-2",
     "RFC8106-5.3.1-3"
   ]

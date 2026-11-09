@@ -438,7 +438,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7611-2.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> no owner decision declines ACCEPT_OWN configuration. RFC 7611 Section 2.3 says &#34;ACCEPT_OWN handling SHOULD be controlled by configuration, and if controlled by configuration, it MUST default to being disabled.&#34;, and ze offers no ACCEPT_OWN configuration and never applies the Section 2.1 acceptance: internal/component/bgp/reactor/filter/loop.go::LoopIngress refuses an own-ORIGINATOR_ID route whatever community it carries</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> no owner decision declines ACCEPT_OWN configuration. RFC 7611 Section 2.3 says &#34;ACCEPT_OWN handling SHOULD be controlled by configuration, and if controlled by configuration, it MUST default to being disabled.&#34;, and ze offers no ACCEPT_OWN configuration and never applies the Section 2.1 acceptance: internal/component/bgp/reactor/loopdetect/loop.go::LoopIngress refuses an own-ORIGINATOR_ID route whatever community it carries</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7611-2.3-2">RFC7611-2.3-2</code></td><td colspan="3"><span class="rfc-subject">When ACCEPT_OWN is disabled by configuration (either explicitly or by default), the router MUST NOT apply the special route acceptance rules detailed in Section 2.1. (§2.3)</span></td></tr>
 <tr><td></td>
@@ -487,7 +487,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="#rfc7611-2.3-1"><code>RFC7611-2.3-1</code></a> ACCEPT_OWN handling SHOULD be controlled by configuration, and if controlled by configuration, it MUST default to being disabled (§2.3)</td>
 <td>{gap}, no test</td>
-<td>no owner decision declines ACCEPT_OWN configuration. RFC 7611 Section 2.3 says &#34;ACCEPT_OWN handling SHOULD be controlled by configuration, and if controlled by configuration, it MUST default to being disabled.&#34;, and ze offers no ACCEPT_OWN configuration and never applies the Section 2.1 acceptance: internal/component/bgp/reactor/filter/loop.go::LoopIngress refuses an own-ORIGINATOR_ID route whatever community it carries</td>
+<td>no owner decision declines ACCEPT_OWN configuration. RFC 7611 Section 2.3 says &#34;ACCEPT_OWN handling SHOULD be controlled by configuration, and if controlled by configuration, it MUST default to being disabled.&#34;, and ze offers no ACCEPT_OWN configuration and never applies the Section 2.1 acceptance: internal/component/bgp/reactor/loopdetect/loop.go::LoopIngress refuses an own-ORIGINATOR_ID route whatever community it carries</td>
 </tr>
 <tr><td><a href="#rfc7611-3-1"><code>RFC7611-3-1</code></a> This extra step MUST only be invoked during the best path selection process of VPN-IP routes [RFC4364] (i.e., it MUST NOT be invoked for the best path selection of imported IP routes in a VRF). (§3)</td>
 <td>{gap}, no test</td>
@@ -758,7 +758,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

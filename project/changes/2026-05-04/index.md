@@ -1,4 +1,4 @@
-# Week of 2026-05-04
+# 2026-05-04 – 2026-05-10 (1 week)
 
 Two major subsystems landed this week: a fleet management tool for appliances, and a PPPoE access concentrator alongside VPP-backed NAT and ACLs.
 

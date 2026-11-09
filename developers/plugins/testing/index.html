@@ -149,13 +149,17 @@ run the plugin in a goroutine and simulate engine messages from the other end of
 <p>The <code>Run()</code> method performs the 5-stage startup protocol before entering the event
 loop. Tests must simulate all five stages from the engine side.</p>
 <!-- source: pkg/plugin/sdk/sdk.go -- Run -->
+<p>Stage 1 must answer the negotiated protocol version, not an empty <code>ok</code>: the SDK
+refuses a missing or different version before continuing to Stage 2.</p>
+<!-- source: pkg/plugin/sdk/sdk_version.go -- acceptProtocolVersion -->
 <pre><code class="language-go">func completeStartup(t *testing.T, ctx context.Context, engineMux *rpc.MuxConn) {
     t.Helper()
 
-    // Stage 1: read declare-registration, respond OK
+    // Stage 1: read declare-registration, answer the protocol version
     req := &lt;-engineMux.Requests()
     assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
-    require.NoError(t, engineMux.SendOK(ctx, req.ID))
+    require.NoError(t, engineMux.SendResult(ctx, req.ID,
+        &amp;rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 
     // Stage 2: send configure
     configInput := struct {
@@ -311,9 +315,10 @@ the reload, and <code>TestConfigApplyWithoutHandlerIsRefused</code> in
         })
     }()
 
-    // Stage 1
+    // Stage 1: answer the protocol version
     req := &lt;-engineMux.Requests()
-    require.NoError(t, engineMux.SendOK(ctx, req.ID))
+    require.NoError(t, engineMux.SendResult(ctx, req.ID,
+        &amp;rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}))
 
     // Stage 2: send config
     configInput := struct {
@@ -331,6 +336,7 @@ the reload, and <code>TestConfigApplyWithoutHandlerIsRefused</code> in
 }
 </code></pre>
 <!-- source: pkg/plugin/rpc/types.go -- ConfigSection -->
+<!-- source: pkg/plugin/sdk/sdk_version.go -- acceptProtocolVersion -->
 <h2 id="table-driven-tests">Table-Driven Tests</h2>
 <p>Test multiple scenarios efficiently using Go table-driven test patterns:</p>
 <pre><code class="language-go">func TestCommandDispatch(t *testing.T) {
@@ -431,7 +437,7 @@ p.OnEvent(func(event string) error {
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

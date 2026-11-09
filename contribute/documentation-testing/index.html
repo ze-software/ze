@@ -54,7 +54,10 @@ change.</p>
 <div class="doc-layout">
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#quick-start">Quick start</a></li>
-<li><a href="#what-gets-checked">What gets checked</a></li>
+<li><a href="#what-gets-checked">What gets checked</a>
+<ol>
+<li><a href="#native-catalog-lifetime">Native catalog lifetime</a></li>
+</ol></li>
 <li><a href="#when-to-run">When to run</a></li>
 <li><a href="#how-to-interpret-output">How to interpret output</a>
 <ol>
@@ -154,6 +157,22 @@ any non-test importer, so such an export can never have a non-test reference.</p
 <!-- source: internal/le/doc/consistency/consistency.go -- Answer -->
 <!-- source: internal/le/doc/wiring/docwiring.go -- Answer -->
 <!-- source: internal/le/doc/ste/actions.go -- Answer -->
+<h3 id="native-catalog-lifetime">Native catalog lifetime</h3>
+<p>The <code>doc-drift</code> action builds a native daemon before reading its command catalog.
+SIGINT or SIGTERM cancels that invocation's build or catalog command. The caller's
+context bounds both phases: the five-minute build bound and two-minute catalog
+bound never detach them from a caller that stopped. Each process group is stopped
+and joined before its temporary daemon directory is removed. A canceled build
+starts no catalog command, and a canceled invocation returns a failure verdict.
+The Go callers of <code>Drift</code>, <code>BuildDaemon</code> and <code>CommandCatalog</code> pass their context
+explicitly.</p>
+<p>The drift stage of <code>doc check all</code> has the same invocation-level cancellation.
+The aggregate documentation checker still runs its independent later stages after
+a failed stage; this is not a claim that one interrupt cancels that whole sequence.</p>
+<!-- source: internal/le/doc/yangcontract/actions.go -- runDrift -->
+<!-- source: internal/le/doc/yangcontract/drift.go -- Drift -->
+<!-- source: internal/le/doc/yangcontract/command_surfaces.go -- BuildDaemon, runCommandCatalog, runCatalogProcess -->
+<!-- source: internal/le/doc/wiring/docverify.go -- docDriftStage, answerDocVerify -->
 <h2 id="when-to-run">When to run</h2>
 <table>
 <thead>
@@ -329,7 +348,7 @@ with its own <code>ze:method</code>. Every
 loaded module is walked, so a module whose name carries no <code>-api</code> suffix is
 judged with the rest. An offline local command declares its help in a
 <code>registry.Meta</code> beside its handler and reaches no YANG module at all, and
-<code>ze help command --json</code> merges it with the tree (<code>cmd/ze/help_command.go</code>,
+<code>ze help command --json</code> merges it with the tree (<code>internal/plugins/help/help_command.go</code>,
 <code>collectCommands</code>). A CONFIG node declares its help in a <code>-conf</code> module, and
 <code>entryShortHelp</code> (<code>internal/component/cli/completer.go</code>) puts it on the row
 under the completion menu.</p>
@@ -738,7 +757,7 @@ command validation, and changed-file wiring</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 09:46 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

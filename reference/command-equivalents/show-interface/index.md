@@ -6,11 +6,11 @@ Show network interfaces on this box\.
 
 - Registry path: `show interface`
 - Usage: `show interface`
-- Mode: Read-only
+- Mode: read-only, offline
 - Wire method: `ze-iface:show-interface`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
-- Subcommands: `brief`, `errors`, `name`, `rate`, `scan`, `type`
+- Subcommands: `brief`, `delegated-prefix`, `errors`, `name`, `pppoe-client`, `rate`, `scan`, `type`
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
@@ -21,7 +21,7 @@ Show network interfaces on this box\.
 - Command pipes: none
 - Pipe aliases: none
 
-Without arguments\, returns all interfaces with full detail\. Subcommands\: brief\, type \<t\>\, errors\, rate \[\<name\>\]\, name \<name\> detail\, name \<name\> counters\.
+Without arguments\, returns all interfaces with full detail\. Subcommands\: brief\, type \<t\>\, errors\, rate \[\<name\>\]\, pppoe\-client\, delegated\-prefix\, name \<name\> detail\, name \<name\> counters\.
 
 ## Arguments
 

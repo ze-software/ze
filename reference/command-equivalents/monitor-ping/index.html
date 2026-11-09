@@ -54,8 +54,8 @@
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
 <div><dt>Registry path</dt><dd><code>monitor ping</code></dd></div>
-<div><dt>Usage</dt><dd><code>monitor ping</code></dd></div>
-<div><dt>Mode</dt><dd>Read-only</dd></div>
+<div><dt>Usage</dt><dd><code>monitor ping &lt;destination&gt; [interval &lt;interval&gt;] [timeout &lt;timeout&gt;] [count &lt;count&gt;] [size &lt;size&gt;]</code></dd></div>
+<div><dt>Mode</dt><dd>read-only, offline</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-ping:monitor-ping</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
 <div><dt>Task support</dt><dd>required: the MCP server always answers with a task handle</dd></div>
@@ -68,7 +68,19 @@
 </dl>
 <h3>Description</h3><p>Pings &lt;target&gt; until you stop it. Adjust interval and timeout as needed. Shows<br>running min/avg/max RTT and packet loss.</p>
 <h3>Arguments</h3>
-<p>No command-specific arguments listed.</p>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>destination</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>Host or IP address to ping.</td><td>The value is the first bare word of the command, or follows the destination
+keyword. A host name is resolved in either address family, and the family of the
+answer selects ICMPv4 or ICMPv6.</td></tr>
+<tr><td><code>interval</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Time between two echo requests.</td><td>The value is the time between two echo requests, in Go duration syntax,
+100ms to 30s. Absent, the value is 1s.</td></tr>
+<tr><td><code>timeout</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Time to wait for each reply.</td><td>The value is the time Ze waits for each reply, in Go duration syntax, 1s
+to 30s. Absent, the value is 5s.</td></tr>
+<tr><td><code>count</code></td><td>uint</td><td>no</td><td>any value of this type</td><td>Number of echo requests before the stream stops.</td><td>Ze sends this many echo requests and stops. Absent, the stream runs until
+you stop it, and the one-shot answer of the API surfaces sends 5.</td></tr>
+<tr><td><code>size</code></td><td>uint</td><td>no</td><td>any value of this type</td><td>ICMP echo payload size in bytes.</td><td>Ze fills the payload to exactly this many bytes, with its marker copied
+into the front. Absent, Ze sends the small default payload.</td></tr>
+</tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
 <article class="cmd-detail-card cmd-vendor-detail"><h2>Juniper Junos MX</h2>
@@ -133,7 +145,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

@@ -206,7 +206,7 @@ enum above:
 - **OTC mismatch** (RFC 9234, Only-To-Customer attribute validation): enforced
   by the bgp-role plugin.
 
-<!-- source: internal/component/bgp/reactor/filter/loop.go -- ingress AS/cluster-list/originator-id loop filter -->
+<!-- source: internal/component/bgp/reactor/loopdetect/loop.go -- ingress AS/cluster-list/originator-id loop filter -->
 <!-- source: internal/component/bgp/plugins/role/otc.go -- RFC 9234 OTC validation -->
 
 ## AIGP session policy

@@ -158,7 +158,7 @@ detection (RFC 4271 Section 9) and cluster-list loop detection (RFC 4456 Section
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/reactor/filter/loop.go -- LoopIngress -->
+<!-- source: internal/component/bgp/reactor/loopdetect/loop.go -- LoopIngress -->
 <h3 id="external-plugin-filters">External plugin filters</h3>
 <p>External plugins declare filters at startup using <code>&lt;plugin&gt;:&lt;filter&gt;</code> names.
 Example: <code>rpki:validate</code>, <code>community:scrub</code>.</p>
@@ -169,7 +169,7 @@ Example: <code>rpki:validate</code>, <code>community:scrub</code>.</p>
 <li>Default filters (e.g., loop-detection) auto-populate in every peer's import chain.</li>
 <li>On each received UPDATE, the engine runs the import filter chain.</li>
 <li>On each forwarded UPDATE, the engine runs the export chain per destination peer.</li>
-<li>Each filter responds accept, reject, or modify (delta-only).</li>
+<li>Each filter responds accept, reject, or modify (the fields it changes).</li>
 </ol>
 <!-- source: internal/component/policy/chain.go -- ExtractChain, ConcatChains -->
 <!-- source: internal/component/bgp/config/peers.go -- prependDefaultFilters -->
@@ -202,7 +202,7 @@ activate bgp peer special filter import filters no-self-as
 </code></pre>
 <!-- source: internal/component/config/parser_list.go -- stripInactiveMemberPrefix (inline inactive: normalization) -->
 <!-- source: internal/component/policy/chain.go -- RefsFromMembers retains Inactive -->
-<!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain skips policy.Ref.Inactive -->
+<!-- source: internal/component/bgp/config/library_chains.go -- compileLibraryChain skips policy.Ref.Inactive -->
 <h3 id="chain-order">Chain Order</h3>
 <p>Chains are cumulative across config levels:</p>
 <table>
@@ -266,11 +266,11 @@ insert filter import filters new-filter last
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain -->
+<!-- source: internal/component/bgp/policychain/chain.go -- Chain.run, rawOutcome, endFinal -->
 <p>Neither <code>accept</code> nor <code>modify</code> grants final acceptance. After the chain completes,
 <code>final accept;</code> permits the route and <code>final reject;</code> drops it. A raw payload
 rewrite stops later filters, but the final decision still applies.</p>
-<!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain -->
+<!-- source: internal/component/bgp/policychain/chain.go -- Chain.run, rawOutcome, endFinal -->
 <h3 id="conditioning-a-modifier-without-dropping-the-rest">Conditioning a modifier without dropping the rest</h3>
 <p>A chain is a pipe in which a reject DROPS the route, so a match filter placed
 before a modifier can only express "modify these and discard everything else".
@@ -309,8 +309,7 @@ bgp {
 <code>internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang</code> for the
 full leaf reference.</p>
 <!-- source: internal/component/bgp/plugins/filter_modify/match.go -- matchCond -->
-<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- handleFilterUpdate -->
-<!-- source: internal/component/bgp/filtertext/community.go -- HasCommunity -->
+<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- evaluateModify -->
 <h3 id="filters-cannot-override-the-rfc-4271-egress-rules">Filters Cannot Override the RFC 4271 Egress Rules</h3>
 <p>Four Section 5 rules are asked after the export chain has run, so no filter can
 grant what the RFC refuses: LOCAL_PREF is removed toward an external peer
@@ -342,7 +341,7 @@ rather than forwarding it unmodified, and increments
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/bgp/reactor/filter_chain.go -- policyFilterFunc, PolicyFilterChain -->
+<!-- source: internal/component/bgp/policychain/chain.go -- Chain.failure -->
 <h3 id="writing-a-filter-plugin">Writing a Filter Plugin</h3>
 <p>A filter plugin is a normal ze plugin that includes <code>filters</code> in its stage 1
 <code>declare-registration</code>. See <a href="../plugins/">Plugin Guide</a> for general plugin
@@ -387,14 +386,6 @@ route.</p>
 <!-- source: internal/plugins/redistribute/config.go -- compileRuleChains -->
 <!-- source: internal/plugins/redistribute/register_reference.go -- importFiltersPattern -->
 <!-- source: internal/plugins/redistribute/redistribute.go -- redistRoute -->
-<p>A file written before the chain, with <code>family [ ... ]</code> or <code>tag N</code> directly under
-<code>import</code>, no longer loads: the refusal names the fix,
-<code>ze config migrate -o &lt;new-file&gt; &lt;file&gt;</code>, which moves the two leaves into a
-<code>match redistribute-&lt;destination&gt;-&lt;source&gt;</code> instance named in the rule's
-<code>filters</code> with <code>final accept</code>. <code>tag 0</code> becomes <code>tag [ 0 ]</code> and keeps selecting
-the untagged routes. A rule that names neither leaf, a bare <code>import &lt;source&gt;</code>
-included, is already current and is left as written.</p>
-<!-- source: internal/plugins/redistribute/migrate.go -- migrateImportLeaves, importNeedsMigration -->
 <pre><code>policy {
     match redistribute-ospf-static {
         tag [ 4242 ];
@@ -516,6 +507,9 @@ level the router originates, not a property the route arrives with, so a
     prefix-list loopbacks {
         entry 0.0.0.0/0 { ge 32; le 32; action accept; }
     }
+    match loopback-prefixes {
+        prefix-list loopbacks;
+    }
     modify loopback-metric {
         set { metric 10; }
     }
@@ -523,7 +517,7 @@ level the router originates, not a property the route arrives with, so a
 isis {
     filter {
         export {
-            filters [ loopbacks loopback-metric ];
+            filters [ loopback-prefixes loopback-metric ];
             final accept;
         }
     }
@@ -599,7 +593,7 @@ token first.</p>
 <tr>
 <td><code>ipsec</code></td>
 <td>the IKE engine</td>
-<td>the remote traffic selector of each established Child SA</td>
+<td>every remote traffic selector of each established Child SA, one route per selector: a Child SA that negotiated an IPv4 pair and an IPv6 pair contributes both prefixes, and withdraws both when it goes. A Child SA rekey that changes the set withdraws only the prefixes it dropped and announces only the ones it added; a prefix kept across the rekey is not withdrawn and re-announced <!-- source: internal/component/ike/engine/redistribute.go -- emitRouteAdd, emitRouteRemove, rekeyTunnelRoutes --></td>
 </tr>
 </tbody>
 </table>
@@ -816,7 +810,7 @@ report and no separate redistribution check exists.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

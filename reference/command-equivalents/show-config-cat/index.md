@@ -6,18 +6,18 @@ Print the full text of a stored configuration snapshot\.
 
 - Registry path: `show config cat`
 - Usage: `show config cat <id>`
-- Mode: Read-only
+- Mode: read-only, offline
 - Wire method: `ze-config-cli:show-config-cat`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
-- Answer shape: not declared
+- Answer shape: blob
 - Address fields: none
 - Column order: none
-- Pipes, always: none
-- Pipes, when the answer has rows: none
-- Pipes, while streaming: none
-- Pipes, local process only: none
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on its rows: none
+- Pipes, while streaming: log
+- Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 

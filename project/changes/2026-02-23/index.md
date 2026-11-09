@@ -1,4 +1,4 @@
-# Week of 2026-02-23
+# 2026-02-23 – 2026-03-01 (1 week)
 
 A route-server-focused week: reliability fixes for BGP Route Server under load, a new external plugin protocol option, and systematic config validation.
 

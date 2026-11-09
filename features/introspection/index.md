@@ -2,7 +2,7 @@
 
 <!-- source: internal/component/config/yang/cli/main.go -- ze schema subcommands -->
 <!-- source: internal/plugins/env/env.go -- ze env subcommands -->
-<!-- source: cmd/ze/help_ai.go -- ze help ai output -->
+<!-- source: internal/plugins/help/help_ai.go -- ze help ai output -->
 <!-- source: internal/le/repo/inventory/inventory.go -- Answer -->
 <!-- source: internal/le/cli/list/commandlist.go -- Answer -->
 <!-- source: internal/le/doc/yangcontract/actions.go -- Answer -->
@@ -47,8 +47,9 @@ One registration is still out of their reach: an EXTERNAL plugin's. It registers
 nothing in the composition root, so its declaration reaches a running daemon
 alone, through `show command help "<name>"` and Tab completion in the
 interactive session. That answer carries a command's two help texts under
-`description` (the one-line summary) and `description` (the explanation), for a
+`short-help` (the one-line summary) and `description` (the explanation), for a
 builtin and for a plugin command alike.
+<!-- source: internal/plugins/meta/cmd/help.go -- commandHelp -->
 
 `ze show plugin declarations` closes that last gap. One row for each plugin
 this binary carries, one for each plugin the named config file declares, and no
@@ -86,7 +87,7 @@ with everything it started: the run string is given to a shell, and a shell
 that runs more than one command holds the plugin as its own child.
 <!-- source: internal/component/plugin/declarations.go -- dataDeclarations, declarationRows, queriedDeclarationRow -->
 <!-- source: internal/component/config/register_plugin_declarations.go -- readConfiguredPlugins -->
-<!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
+<!-- source: internal/plugins/help/help_command.go -- collectCommands, extractPipes -->
 <!-- source: internal/component/command/declared.go -- DeclaredForCommand -->
 <!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, pipeAliasHelp -->
 
@@ -99,12 +100,13 @@ that runs more than one command holds the plugin as its own child.
 | `./le doc yang-contract command-contract` | Cross-checks YANG commands and handlers |
 | `./le doc yang-contract doc-drift` | Detects documentation drift |
 
-Each plugin the inventory reports also carries the package directory it
-registers from and every YANG file beside it. Both are DERIVED, so no plugin
-declares either: the directory is the package the plugin's engine function was
-compiled in, and the file list is the directory holding the module the
-registration carries. The public plugin catalog publishes both.
-<!-- source: internal/le/repo/inventory/plugins.go -- pluginPackageDir, pluginYANGFiles -->
+The inventory reads committed `HEAD` with the declared Linux le feature set,
+independent of the host and uncommitted edits. Each plugin row carries the
+package that defines its engine function and the YANG files beside its
+registered module. If the plugin declares no module, the file list comes from
+its package's `yang/` directory. The public plugin catalog publishes both.
+<!-- source: internal/le/repo/inventory/source.go -- ReadCommitted -->
+<!-- source: internal/le/repo/inventory/registrations.go -- engineSource, yangFiles -->
 
 The inventory keeps startup ordering separate from dependencies. Its JSON uses
 `start-after` (omitted when empty), and its plugin table labels the same metadata

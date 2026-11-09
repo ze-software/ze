@@ -359,7 +359,7 @@ after RFC 7606 structural validation and after prefix limit counting, which both
 run on the session read path before the UPDATE reaches the filter pipeline.
 A route failing any check is dropped silently (no NOTIFICATION, session stays up).
 Cluster ID defaults to Router ID per RFC 4456 Section 7.</p>
-<!-- source: internal/component/bgp/reactor/filter/loop.go -- LoopIngress -->
+<!-- source: internal/component/bgp/reactor/loopdetect/loop.go -- LoopIngress -->
 <!-- source: internal/component/bgp/filterapi/filterapi.go -- FilterStageProtocol -->
 <!-- source: internal/component/bgp/reactor/session_validation.go -- enforceRFC7606; internal/component/bgp/reactor/session_prefix.go -- checkPrefixLimits -->
 <h3 id="capabilities-configuration">Capabilities Configuration</h3>
@@ -539,7 +539,7 @@ No reporting helper creates the displayed relationships. The command filters Ze&
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 02:50 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

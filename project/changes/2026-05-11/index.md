@@ -1,4 +1,4 @@
-# Week of 2026-05-11
+# 2026-05-11 – 2026-05-17 (1 week)
 
 CPE features round out, interface config gets restructured, and RPKI gains ASPA path verification.
 

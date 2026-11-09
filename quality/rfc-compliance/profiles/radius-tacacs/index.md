@@ -8,26 +8,26 @@ Figures as of the last build, read from [data/rfc/profiles/radius-tacacs.json](.
 
 ## Figures
 
-- **MUST bar**: Ze proven 123, Ze correctness gap 79
-- **Overview bar**: Ze MUST proven 123, SHOULD proven 3, SHOULD not decided 102, Ze correctness gap 79
+- **MUST bar**: Ze proven 123, Ze correctness gap 110
+- **Overview bar**: Ze MUST proven 123, SHOULD proven 5, SHOULD not decided 134, Ze correctness gap 110
 
 | Figure | Rows |
 |---|---|
-| RFCs | 11 |
+| RFCs | 12 |
 | Not walked | 0 |
 | Mandatory register | not complete |
-| MUST rows | 202 |
-| MUST rows kept (the MUST bar) | 202 |
+| MUST rows | 233 |
+| MUST rows kept (the MUST bar) | 233 |
 | Ze proven | 123 |
 | OS verified | 0 |
 | OS testing gap | 0 |
-| Ze correctness gap | 79 |
+| Ze correctness gap | 110 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
-| SHOULD / MAY rows | 105 |
-| SHOULD proven | 3 |
+| SHOULD / MAY rows | 139 |
+| SHOULD proven | 5 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
@@ -36,7 +36,7 @@ Figures as of the last build, read from [data/rfc/profiles/radius-tacacs.json](.
 | SHOULD not owed: not-applicable | 0 |
 | SHOULD not ever | 0 |
 | SHOULD not yet | 0 |
-| SHOULD not decided | 102 |
+| SHOULD not decided | 134 |
 
 The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
 
@@ -50,6 +50,12 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 |---|---|---|---|
 | [RFC 2865](../../rfc2865/) (cycle with rfc2866) | Remote Authentication Dial In User Service (RADIUS) | Ze proven 27, Ze correctness gap 4 | Ze MUST proven 27, SHOULD not decided 1, Ze correctness gap 4 |
 | [RFC 2866](../../rfc2866/) (cycle with rfc2865) | RADIUS Accounting | Ze proven 8, Ze correctness gap 7 | Ze MUST proven 8, SHOULD not decided 1, Ze correctness gap 7 |
+
+### Level 3
+
+| RFC | Title | MUST bar | Overview bar |
+|---|---|---|---|
+| [RFC 2548](../../rfc2548/) | Microsoft Vendor-specific RADIUS Attributes | Ze correctness gap 31 | SHOULD proven 2, SHOULD not decided 32, Ze correctness gap 31 |
 
 ### Level 4
 

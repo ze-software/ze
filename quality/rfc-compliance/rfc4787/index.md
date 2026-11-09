@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 0 | of 13 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0 | of 13 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0 | of 13 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 0 | 0 of 0 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 2 | 2 of 2 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -70,10 +70,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 0 |
-| Tagged units | 0 |
+| Test tags | 2 |
+| Tagged units | 2 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 2 |
 | Summary | `rfc/short/rfc4787.md` |
 | Requirement shard | `rfc/requirements/rfc4787.md` |
 | RFC text | `rfc/full/rfc4787.txt` |
@@ -111,7 +111,7 @@ Enrolled: NAT behavioral requirements for unicast UDP (BCP 127). Every MUST-leve
 ## Figures
 
 - **MUST bar**: Ze correctness gap 13
-- **Overview bar**: SHOULD not decided 16, Ze correctness gap 13
+- **Overview bar**: SHOULD proven 2, SHOULD not decided 14, Ze correctness gap 13
 
 | Figure | Rows |
 |---|---|
@@ -129,7 +129,7 @@ Enrolled: NAT behavioral requirements for unicast UDP (BCP 127). Every MUST-leve
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 16 |
-| SHOULD proven | 0 |
+| SHOULD proven | 2 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
@@ -138,7 +138,7 @@ Enrolled: NAT behavioral requirements for unicast UDP (BCP 127). Every MUST-leve
 | SHOULD not owed: not-applicable | 0 |
 | SHOULD not ever | 0 |
 | SHOULD not yet | 0 |
-| SHOULD not decided | 16 |
+| SHOULD not decided | 14 |
 
 The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
 
@@ -168,8 +168,8 @@ Source: [data/rfc/rfc4787.json](../../../data/rfc/rfc4787.json).
 | `RFC4787-4.3-5` | c) A default value of five minutes or more for the NAT UDP mapping timer is RECOMMENDED. (§4.3) | RECOMMENDED | 4.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4787-5-1` | REQ-8: If application transparency is most important, it is RECOMMENDED that a NAT have an "Endpoint-Independent Filtering" behavior. (§5) | RECOMMENDED | 5 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4787-5-2` | If a more stringent filtering behavior is most important, it is RECOMMENDED that a NAT have an "Address-Dependent Filtering" behavior. (§5) | RECOMMENDED | 5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4787-7-1` | To eliminate interference with UNSAF NAT traversal mechanisms and allow integrity protection of UDP communications, NAT ALGs for UDP-based protocols SHOULD be turned off. (§7) | SHOULD | 7 | **positive:** no positive test. **negative:** no negative test |
-| `RFC4787-7-2` | a) If a NAT includes ALGs, it is RECOMMENDED that the NAT allow the NAT administrator to enable or disable each ALG separately. (§7) | RECOMMENDED | 7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4787-7-1` | To eliminate interference with UNSAF NAT traversal mechanisms and allow integrity protection of UDP communications, NAT ALGs for UDP-based protocols SHOULD be turned off. (§7) | SHOULD | 7 | **positive:** `unit/verify` [`TestConntrackHelperNotAssignedWhenUnlisted`](https://github.com/ze-software/ze/blob/main/internal/plugins/firewall/nft/rfc4787_conntrack_helpers_integration_linux_test.go#L159). **negative:** no negative test |
+| `RFC4787-7-2` | a) If a NAT includes ALGs, it is RECOMMENDED that the NAT allow the NAT administrator to enable or disable each ALG separately. (§7) | RECOMMENDED | 7 | **positive:** `unit/verify` [`TestConntrackHelperNotAssignedWhenUnlisted`](https://github.com/ze-software/ze/blob/main/internal/plugins/firewall/nft/rfc4787_conntrack_helpers_integration_linux_test.go#L160). **negative:** no negative test |
 | `RFC4787-9-2` | The NAT's default configuration SHOULD NOT filter ICMP messages based on their source IP address. (§9) | SHOULD NOT | 9 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4787-9-3` | Such ICMP messages SHOULD be rewritten by the NAT (specifically, the IP headers and the ICMP payload) and forwarded to the appropriate internal or external host. (§9) | SHOULD | 9 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4787-9-4` | b) It is RECOMMENDED that a NAT support ICMP Destination Unreachable messages. (§9) | RECOMMENDED | 9 | **positive:** no positive test. **negative:** no negative test |
@@ -303,6 +303,26 @@ a) A NAT's out-of-order fragment processing mechanism MUST be designed so that f
 Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC4787-11-2, so no unit is bound to it.
+
+### [`RFC4787-7-1`](#rfc4787-7-1)
+
+To eliminate interference with UNSAF NAT traversal mechanisms and allow integrity protection of UDP communications, NAT ALGs for UDP-based protocols SHOULD be turned off. (§7)
+
+Audit verdict: not audited: no reader has judged these tests
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| positive | [`TestConntrackHelperNotAssignedWhenUnlisted`](https://github.com/ze-software/ze/blob/main/internal/plugins/firewall/nft/rfc4787_conntrack_helpers_integration_linux_test.go#L159) | unit/verify | mutant, verified |
+
+### [`RFC4787-7-2`](#rfc4787-7-2)
+
+a) If a NAT includes ALGs, it is RECOMMENDED that the NAT allow the NAT administrator to enable or disable each ALG separately. (§7)
+
+Audit verdict: not audited: no reader has judged these tests
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| positive | [`TestConntrackHelperNotAssignedWhenUnlisted`](https://github.com/ze-software/ze/blob/main/internal/plugins/firewall/nft/rfc4787_conntrack_helpers_integration_linux_test.go#L160) | unit/verify | mutant, verified |
 
 ## Extraction sign-off
 

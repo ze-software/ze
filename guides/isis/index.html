@@ -456,16 +456,17 @@ loopbacks, at metric 10:</p>
   prefix-list loopbacks {
     entry 0.0.0.0/0 { ge 32; le 32; action accept; }
   }
+  match loopback-prefixes { prefix-list loopbacks; }
   modify loopback-metric { set { metric 10; } }
 }
 isis {
   filter {
-    export { filters [ loopbacks loopback-metric ]; final accept; }
+    export { filters [ loopback-prefixes loopback-metric ]; final accept; }
   }
 }
 </code></pre>
 <p>A filter's accept only passes the route on, so the chain ends in <code>final accept</code>;
-<code>loopbacks</code> rejects every prefix that matches no entry. TLV 135 (IPv4)
+<code>loopback-prefixes</code> rejects every prefix that no entry of <code>loopbacks</code> matches. TLV 135 (IPv4)
 carries <strong>no external bit</strong>. A redistributed route is an ordinary reachability
 entry; the only wire flag is the up/down bit (RFC 5305 sec 4), which IS-IS sets only
 when leaking a prefix to a lower level (RFC 2966), never to mark external origin.
@@ -729,7 +730,7 @@ System ID embedded in the first NET.</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

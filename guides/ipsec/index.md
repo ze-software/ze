@@ -140,12 +140,14 @@ IPsec is configured under `vpn { ipsec { } }`. Named `ike-group` and `esp-group`
 
 ```text
 pki {
-    certificate my-cert {
-        certificate-file /etc/ze/certs/router.pem;
-        private-key-file /etc/ze/certs/router-key.pem;
+    ca my-ca {
+        certificate "-----BEGIN CERTIFICATE-----...";
     }
-    ca-certificate my-ca {
-        certificate-file /etc/ze/certs/ca.pem;
+    certificate my-cert {
+        certificate "-----BEGIN CERTIFICATE-----...";
+        private {
+            key "-----BEGIN PRIVATE KEY-----...";
+        }
     }
 }
 
@@ -207,7 +209,7 @@ If the protected ping receives `Destination Net Unreachable` from the local
 router, inspect the committed route and kernel route lookup before changing
 selectors or proposals.
 <!-- source: internal/component/cli/editor_draft.go -- writeThroughCreate -->
-<!-- source: internal/component/cli/editor_create_entry.go -- creationReplayOps -->
+<!-- source: internal/component/cli/editor_create_entry.go -- creationReplayPlan -->
 
 If the routes exist but a protected-host ping still loses every packet, compare
 SA counters with the receiving router's `/proc/net/xfrm_stat` and
@@ -348,6 +350,31 @@ restart instead of waiting for Dead Peer Detection.
 
 <!-- source: internal/component/ike/engine/established.go -- owned SA routing -->
 <!-- source: internal/component/ike/engine/auth.go -- INITIAL_CONTACT -->
+
+The replacement takes over only once its Child SA is installed. If Ze refuses
+that Child SA (no matching ESP proposal, traffic selectors it cannot accept),
+the new IKE SA is held beside the old one and the old tunnel keeps carrying
+traffic; the log names the refusal and its fix. The peer can still create the
+Child SA on the replacement later, and the tunnel then moves onto it; it can also
+delete the replacement, which leaves the old tunnel as it was. If the old IKE SA then ends
+while the replacement still has no Child SA, Ze deletes the replacement and the
+session reconnects.
+
+A gateway can also reauthenticate a tunnel that Ze started (RFC 7296 Section
+2.8.3 lets either end create the new IKE SA). An `initiate` peer accepts a new
+IKE_SA_INIT while its IKE SA is established, and only from the address that SA
+talks to; with no established SA it still refuses every unsolicited initiation.
+The new IKE SA authenticates with the same peer configuration, and Ze moves the
+tunnel onto it, new Child SA first, without reconnecting. A peer that
+authenticates with EAP refuses it, because RFC 7296 says reauthentication then
+has to come from the side that started the original IKE SA: set
+`reauth_time = 0s` on a strongSwan gateway for such a peer. If the gateway's
+reauthentication crosses Ze's own IKE SA rekey, or Ze's reconnect after it gave
+the old SA up, Ze keeps the IKE SA the gateway started and deletes its own, in
+whichever order the two complete, so one tunnel remains.
+
+<!-- source: internal/component/ike/engine/reauth_receive.go -- matchReauthenticatingPeer, adoptPeerStartedSuccessor, relinquishToSuccessor -->
+<!-- source: internal/component/ike/engine/responder.go -- finishResponderEstablish -->
 
 
 ```text
@@ -502,11 +529,22 @@ RFC 7427 Digital Signature (method 14). A peer that does not, such as strongSwan
 with `charon.signature_authentication = no`, gets the method that fits Ze's
 certificate key: RSA Digital Signature (method 1, SHA-1) for an RSA key, and
 ECDSA-256, ECDSA-384 or ECDSA-521 (methods 9, 10, 11) for an ECDSA key on P-256,
-P-384 or P-521. Any other key, Ed25519 for example, cannot authenticate to such
-a peer, and the refusal says so. Ze verifies all of these methods from the peer.
+P-384 or P-521. An Ed25519 or Ed448 key signs under RFC 7427 only, as RFC 8420
+defines it: Ze announces the Identity hash in every IKE_SA_INIT, and when the
+peer announces it too (strongSwan does with its openssl plugin, and for Ed25519
+with its curve25519 plugin too) Ze signs the AUTH octets whole with pure Ed25519
+or pure Ed448. A peer that does not announce Identity, or sends no notify at all,
+cannot be signed for with an EdDSA key, and the IKE_AUTH fails with a message
+naming the peer: use an ECDSA or RSA certificate for it. Ze verifies all of these
+methods from the peer, Ed25519 and Ed448 included. An Ed448 certificate must be
+issued by an RSA, ECDSA or Ed25519 CA: Ze cannot check a chain whose CA signs
+with Ed448.
 A ze started with `GODEBUG=fips140=only` refuses method 1, because Go refuses
 SHA-1 signatures in that mode: enable RFC 7427 on the peer instead.
 <!-- source: internal/component/ike/engine/auth_legacy.go -- computeLegacySignatureAuth, signLegacyRSAAuth, verifyLegacyRSAAuth -->
+<!-- source: internal/component/ike/engine/auth_signature_scheme.go -- selectSignatureAlgorithm, announcedHashAlgos -->
+<!-- source: internal/component/ike/engine/register_signature_eddsa.go -- chooseEd25519Signature, signEd25519, verifyEd25519 -->
+<!-- source: internal/component/ike/engine/register_signature_ed448.go -- chooseEd448Signature, signEd448, verifyEd448 -->
 <!-- source: internal/component/ike/engine/auth_ecdsa.go -- signECDSAAuth -->
 
 An `eap-tls` peer whose EAP-TLS client sends its certificate without the
@@ -1314,34 +1352,10 @@ leaf, either value, always passes, and so does a commit to a box whose catch-all
 already discards.
 
 The check runs on commit only. A configuration the daemon starts with is not
-verified, so start-up decides from the file's schema stamp (its first line,
-`# ze-schema: YY.MM.DD`, naming the release that saved it) which default the
-file was written under:
-
-| The file | At start |
-|---|---|
-| Stamped 26.10.18 or earlier, `vpn ipsec` present, `unmatched` unset | The schema evolution `ipsec-unmatched-keeps-bypass` writes `unmatched bypass` into it. A config file is saved back, re-stamped; a config piped on stdin is changed in memory only, so the evolution runs again at every start. The router keeps the catch-all it ran with, and the start log says so at warning level |
-| Stamped 26.10.19 or later, `unmatched` unset | Discard, the default, with the error log below |
-| No stamp (written by hand, piped on stdin), or a dev build's `dev` stamp | Discard, the default, with the error log below |
-| `unmatched` written, either value | As written |
-
-A file with no stamp proves no release, so it gets the RFC default rather than
-a guess: write `unmatched bypass` into it to keep passing unmatched traffic. The
-release is the build date, so a binary built on 2026-10-18 may hold either
-default; every build made that day stamps 26.10.18, and every file it saved is
-read as old. The cost falls on one
-case: a file a 26.10.18 build saved with the leaf unset while the discard was
-already in force also gains `unmatched bypass`, so write `unmatched discard` in
-it to keep the discard. The evolution runs at start only, never on a reload.
-After a downgrade recovers a rollback from history, the evolution reads the
-stamp the rollback was saved with, not the one recovery writes over it.
-
-When the evolution applies, the start log says so at warning level, which the
-default log level shows:
-
-```
-level=WARN msg="config evolution changed behavior" config=/etc/ze/ze.conf evolution=ipsec-unmatched-keeps-bypass change="wrote `vpn ipsec unmatched bypass`: ... then run `set vpn ipsec unmatched discard` and commit" saved="saved: ..."
-```
+verified, and start-up reads `unmatched` as the file states it: unset means
+discard, the default, with the error log below, whichever release saved the
+file. Write `unmatched bypass` into a file to keep passing unmatched traffic,
+and `unmatched discard` to say the discard is meant.
 
 When the daemon starts with the discard in force by default, it logs it at
 error level, with the same facts and commands as the refusal, so the console
@@ -1399,15 +1413,161 @@ the entries are then already installed when the catch-all starts dropping. A
 `bypass` entry added or changed once `discard` is in force always crosses the
 window.
 
+#### Route-based tunnels under `discard`
+
+The Linux kernel keeps one policy database for each XFRM `if_id`. The
+catch-all lives at `if_id` 0, and a peer with `vti bind` installs its Child SA
+policies at the `if_id` of that XFRM interface. A packet routed into the
+interface is looked up at `if_id` 0 first, and only reaches the interface's own
+policies once it gets there. Under `discard` it would meet the catch-all on
+the way and be dropped. So for every XFRM interface a peer binds, Ze installs
+`bypass` entries at `if_id` 0, ranked just above the catch-all and below every
+`policy` entry and every Child SA policy:
+
+| Entry | Matches | Why |
+|---|---|---|
+| out and fwd, IPv4 and IPv6 | any address, output device the XFRM interface | Forwarded traffic, and the router's own IPv4 traffic, carry the output device into the lookup |
+| out, IPv6 | source each IPv6 address the XFRM interface holds, any destination | The router's own IPv6 traffic is looked up before the kernel records the output device |
+
+None of these is installed under `unmatched bypass`, since the catch-all already
+passes the traffic.
+
+Each bound XFRM interface's own database also gets a final entry: a `discard`
+in, out and fwd for IPv4 and IPv6 at the interface's `if_id`, ranked last, so
+the interface's Child SA policies are always searched first. A packet routed
+into the interface that no Child SA covers is dropped there and counted by the
+kernel's `XfrmOutPolBlock` counter. This entry discards under both values of
+`unmatched`: an XFRM interface has no path in the clear, because the kernel
+drops a packet there that matches no Child SA whatever entry it meets, so a
+`bypass` at the interface would only be listed as one. It goes in before the
+`if_id` 0 entries above hand any packet to the interface, and comes out after
+them.
+
+The entries follow the interface: Ze reads its index and
+addresses and `if_id` through the interface resolver, and reads them again when an
+interface address is added or removed or an interface is created. An address
+the interface loses takes its entry with it, and the entries are removed when
+no peer binds the interface and when the engine stops; the `if_id` 0 entries also
+leave when `unmatched` turns to `bypass`. An interface that reports `if_id` 0 is
+treated as one that cannot be read, because `if_id` 0 is the node-wide database. If the interface cannot be read, its entries stay as they were and
+the daemon logs a warning. If an `if_id` 0 entry cannot be installed, the daemon
+logs an error: the tunnel's traffic is then dropped by the catch-all. If an
+interface's own final entry cannot be installed, which includes a daemon without
+`CAP_NET_ADMIN`, the apply fails as it does for the node-wide catch-all: a
+commit is refused, at startup the configure step returns the error, and no
+`if_id` 0 entry hands that interface any traffic. Without its final entry the
+kernel would still accept an unmatched inbound packet that arrived under a
+transport-mode or offloaded state. Fix: give the daemon `CAP_NET_ADMIN`, then
+commit again. An interface address change meets the same failure with no commit
+to refuse, so the daemon logs it as an error and the next commit fails until
+the entry goes in. On a reload that
+turns `discard` on, the entries go in before the catch-all changes, so a
+running tunnel never loses traffic.
+
+The IPv6 source entry is wider than the interface it stands for: an IPv6
+packet sourced from the XFRM interface's own address but routed out of another
+interface would match it too. Under `unmatched discard` Ze therefore guards each
+such address, and installs its source entry only while the guard holds:
+
+- A rule `from <address>/128` looks the packet up in a routing table Ze owns
+  for the interface (tables 3000 to 3999, routes marked `ze-ipsec-guard`). The
+  table holds a route into the interface for every IPv6 remote traffic selector
+  of a Child SA bound to it, and ends in `unreachable ::/0`. A program that
+  binds the tunnel address as its source is sent into the tunnel, or told the
+  destination is unreachable.
+- The nft table `ze_ipsec_source_guard` drops, at postrouting, IPv6 from the
+  address leaving through any other interface. This catches the packet whose
+  source the kernel picked after routing it, which no source rule sees.
+
+So traffic from a tunnel address leaves only through its tunnel, and the
+operator's own routing table IDs 1000 to 3999 are refused because Ze reserves
+them. A peer whose `local-address` is an address of an interface some peer
+binds with `vti bind` is refused at commit: the guard would send its IKE
+traffic into its own tunnel. Set `local-address` to an address of the WAN
+interface instead.
+
+<!-- source: internal/component/ike/engine/unmatched_xfrm_interface.go -- xfrmInterfaceExemptions, interfaceSPDCatchAll, planXFRMInterfaceEntries, installXFRMInterfaceEntries, pruneXFRMInterfaceEntries -->
+<!-- source: internal/component/ike/engine/source_guard.go -- guardSources, refuseTunnelAddressAsIKEEndpoint, install, prune, sourceGuardTerms, guardTunnelRoute -->
+<!-- source: internal/core/iprule/iprule.go -- IPsecSourceGuardTables, IPsecSourceGuardPriority, Reserved -->
+<!-- source: internal/component/ike/engine/dynamic_wan.go -- startAddressWorker, followAddress -->
+<!-- source: internal/component/ike/dataplane/dataplane.go -- PriorityUnmatchedXFRMInterface -->
+
 <!-- source: internal/component/ike/ipsec/config.go -- parseUnmatched -->
 <!-- source: internal/component/ike/engine/unmatched.go -- unmatchedPolicies, installUnmatched, verifyUnmatchedEnforceable, refuseImplicitDiscard, warnImplicitDiscardAtStart -->
-<!-- source: internal/component/ike/ipsec/unmatched_evolution.go -- unmatchedBypassEvolution -->
 <!-- source: internal/component/ike/engine/apply.go -- applyConfig -->
 <!-- source: internal/component/ike/dataplane/dataplane.go -- CatchAllInstaller -->
 <!-- source: internal/component/ike/ipsec/spd_policy.go -- SPDPolicy, parseSPDPolicy, ValidateSPDPolicies -->
 <!-- source: internal/component/ike/engine/spd_policy.go -- spdPolicyParams, installSPDPolicies -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmPolicyAction -->
 <!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppSPDAction -->
+
+### Application overrides
+
+RFC 4301 Section 4.4.1: "However, the system administrator MUST be able to
+specify whether or not a user or application can override (default) system
+policies." On Linux an application overrides the SPD by setting a per-socket
+policy (`IP_XFRM_POLICY`, `IPV6_XFRM_POLICY`, and the older `IP_IPSEC_POLICY`
+and `IPV6_IPSEC_POLICY`). The kernel consults it before any SPD entry, so one
+ALLOW socket policy takes that socket past every entry, the discard catch-all
+included. Linux asks only for `CAP_NET_ADMIN`, and a Ze appliance gives that to
+every external plugin it starts. One leaf decides:
+
+```
+set vpn ipsec application-override deny
+```
+
+| Value | Meaning |
+|---|---|
+| `deny` (default) | Ze attaches a cgroup BPF program to the cgroup2 root that refuses those four options with `EPERM` to every process in Ze's network namespace except Ze itself. Every other setsockopt passes untouched, and a process in another network namespace (which has its own SPD) is not affected |
+| `allow` | No program. Linux's own `CAP_NET_ADMIN` check is the only gate, and you accept that a holder can take its sockets out of the SPD |
+
+A box with no `vpn ipsec` block attaches nothing: it has no SPD to protect.
+
+Ze's own exception is the ESP form reader's inbound socket policy (see "Both
+ESP wire forms"): it is the IPsec implementation's receive path, not an
+application, and the listing names it `esp-form-socket`. The program recognises
+Ze by its process id inside Ze's own PID namespace, so the exception holds when
+Ze runs in a container.
+
+`deny` needs `CAP_BPF` and `CAP_NET_ADMIN`, a cgroup2 mount (Ze finds it in
+`/proc/self/mountinfo`; gokrazy's init and systemd both mount it at
+`/sys/fs/cgroup` at boot) and a kernel with
+`CONFIG_CGROUP_BPF`, Linux 6.10 or later, both of which Ze's kernel carries. The
+version matters on a distribution kernel: the guard names its caller with
+`bpf_get_ns_current_pid_tgid`, which Linux offers to a cgroup program only from
+6.10 (`bpf_base_func_proto` in `kernel/bpf/helpers.c`; 6.9's
+`cg_sockopt_func_proto` does not offer it), so an older kernel refuses to load the
+guard. When any of them is missing the apply fails rather than run without the
+guard:
+
+```
+vpn ipsec application-override deny: Ze could not attach its setsockopt guard to the cgroup2 root (<kernel error>). Without it any process holding CAP_NET_ADMIN can exempt its sockets from the IPsec policy. Run ze with CAP_BPF and CAP_NET_ADMIN on Linux 6.10 or later (an older kernel refuses the guard's bpf_get_ns_current_pid_tgid call), mount cgroup2 at /sys/fs/cgroup, or set `vpn ipsec application-override allow` to accept that risk.
+```
+<!-- source: internal/component/ike/engine/application_override.go -- attachOverrideGuard -->
+<!-- source: internal/component/ike/dataplane/override_guard_linux.go -- overrideGuardInstructions -->
+
+Until an apply succeeds, `ze doctor` reports the same refusal as
+`doctor-ipsec-override-guard`, so a boot that left IPsec down on such a host says
+why.
+
+A reload moves between the two values with no restart, and removing `vpn ipsec`
+detaches the program after the catch-all leaves.
+
+What the guard cannot do, and what `ze doctor` reports instead:
+
+| Limit | Why | Doctor |
+|---|---|---|
+| A socket policy set before the guard attached, or while `allow` held, stays until its socket closes | The kernel offers no way to delete a socket policy, and its dump names no owning process | `doctor-ipsec-socket-policy`, a warning per policy that is not Ze's, under `deny` |
+| A `CAP_NET_ADMIN` holder can still write the SPD itself over netlink | cgroup BPF has no hook on a netlink send, and Linux treats that holder as an administrator | `doctor-ipsec-spd-writer`, a warning naming each such process and its command; `doctor-ipsec-spd-writer-unknown` when `/proc` hides processes from Ze (not mounted, `hidepid`, no ptrace access), so it cannot tell |
+| A process holding `CAP_SYS_ADMIN` or `CAP_BPF` can detach the program | It is an ordinary cgroup link | `doctor-ipsec-override-guard`, an error when the guard is not attached under `deny` |
+
+`show vpn ipsec dataplane policy` lists every socket policy with SPD `socket`,
+its direction, and role `esp-form-socket` or `socket-override`.
+
+<!-- source: internal/component/ike/ipsec/yang/ze-ipsec-conf.yang -- application-override -->
+<!-- source: internal/component/ike/dataplane/override_guard_linux.go -- attach, overrideGuardInstructions, currentPIDNamespace -->
+<!-- source: internal/component/ike/engine/application_override.go -- applyApplicationOverride, releaseApplicationOverride -->
+<!-- source: internal/component/ike/engine/doctor_application_override.go -- checkIPsecApplicationOverride, checkIPsecSPDWriters -->
 
 ## Both ESP wire forms
 
@@ -1476,6 +1636,68 @@ missing combination. Add the missing entries, or remove the entry that brings in
 extra prefix.
 
 <!-- source: internal/component/ike/engine/config.go -- validateSelectorCombinations -->
+
+The inner family of a tunnel does not have to match its outer family. RFC 4301
+Section 5.1.2: "IPsec allows the IP version of the encapsulating header to be
+different from that of the inner header." On Linux, a tunnel-mode SA Ze installs
+carries IPv4 or IPv6 inner traffic over an outer pair of either family, so one Child
+SA whose selectors hold an IPv4 and an IPv6 pair carries both. The two outer
+addresses of a tunnel always share one family.
+
+What you can configure today is narrower, because Ze's IKE sockets are IPv4 only: a
+tunnel has an IPv4 outer pair and carries IPv4 or IPv6 inside it. IPv4 inside an
+IPv6 outer pair works in the kernel datapath, but no configuration reaches it until
+IKE runs over IPv6.
+
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams -->
+<!-- source: internal/component/ike/transport/udp.go -- newTransport -->
+
+### IPv6 inside an IPv4 tunnel on a VTI
+
+A route-based peer that carries both families writes one entry for each family. A peer
+with no list proposes the wildcard of its outer family alone, so a peer reached over IPv4
+would never propose IPv6.
+
+```
+interface {
+    xfrm vti0 {
+        if-id 7;
+        unit 0 { ipv6 { address [ fd00:db8:1::1/128 ]; } }
+    }
+}
+static {
+    table default {
+        route fd00:db8:1::/112 { next { interface vti0 { } } }
+    }
+}
+vpn { ipsec { site-to-site { peer hq {
+    vti { bind vti0; }
+    traffic-selector 1 { local { prefix 0.0.0.0/0; } remote { prefix 0.0.0.0/0; } }
+    traffic-selector 2 { local { prefix ::/0; } remote { prefix ::/0; } }
+} } } }
+```
+
+Ze proposes both entries, the IPv4 one first. A responder whose own policy names IPv6
+alone, such as strongSwan with `local_ts = ::/0` and `remote_ts = ::/0`, answers `::/0`
+on both sides. RFC 7296 Section 2.9 allows that: "When the responder chooses a subset of
+the traffic proposed by the initiator, it narrows the Traffic Selectors to some subset
+of the initiator's proposal (provided the set does not become the null set)." Ze then
+installs what the responder answered and nothing more: an IPv6 policy for each of the
+in, out and forward directions, each carrying vti0's if_id, and no IPv4 policy, so the
+router's own IPv4 traffic never enters vti0. An answer wider than the entry Ze proposed
+is refused. `show vpn ipsec sa` reports the narrowed selectors and the if-id. The
+`vti-ipv6-inner-ipv4-outer` interop scenario runs this configuration against strongSwan,
+with a ping before and after a Child SA rekey.
+The `mgmt-tunnel` and `mgmt-tunnel-ed25519` topology scenarios run the same shape
+from a CPE behind PPPoE, authenticating with a P-256 and an Ed25519 certificate:
+strongSwan narrows the selectors to `::/0`, an IPv6 ping crosses vti0 with each
+direction's ESP counters advancing, and MOBIKE moves the IKE SA to UDP 4500.
+<!-- source: internal/le/interoplab/topology/check_vpn.go -- checkMgmtTunnel, checkMgmtTunnelEd25519 -->
+
+<!-- source: internal/component/ike/engine/rekey.go -- proposeChildTSPayloads -->
+<!-- source: internal/component/ike/engine/ts_narrow.go -- recordInitiatorSelectorsIn -->
+<!-- source: internal/component/ike/engine/child.go -- childPolicies, childInstalledPolicies -->
+<!-- source: internal/le/interoplab/ipsec/vtiipv6.go -- checkVTIIPv6InnerIPv4Outer -->
 
 As responder, Ze narrows the initiator's proposed TSi and TSr to a subset the list allows,
 and leads the answer with the initiator's first choices. When the pairs it accepts are not
@@ -1632,7 +1854,7 @@ through it. Use the XFRM backend, which is the default and the production path.
 
 ## PKI certificate store
 
-The `pki { }` block stores X.509 certificates, private keys, CA certificates, and the certificate revocation lists each CA published. Certificates are loaded from PEM files and validated at commit time. The PKI store also serves TLS certificates for the web UI and gRPC API.
+The `pki { }` block stores X.509 certificates, private keys, CA certificates, and the certificate revocation lists each CA published. A `ca` entry holds a CA `certificate` and its `crl` list; a `certificate` entry holds its `certificate`, its `intermediate` list and an optional `private { key }`. Each value is written inline in the config, not read from a file, and is validated at commit time. The key leaf accepts PKCS8, SEC1 and PKCS1 encodings, and IKEv2 signs with RSA, ECDSA, Ed25519 and Ed448 keys (Ed25519 and Ed448 only for a peer that announces RFC 8420's Identity hash). An Ed448 key is read from its PKCS8 encoding, and its certificate must come from a CA that does not itself sign with Ed448. The PKI store also serves TLS certificates for the web UI and gRPC API.
 
 Health monitoring reports certificate expiry as a warning at 30 days and an error after expiry. Prometheus exposes `ze_pki_certificate_expiry_seconds` and `ze_pki_certificate_valid`.
 
@@ -1649,7 +1871,7 @@ the kernel refused, a state it expired, and a policy that outlived its owner.
 | Command | What it reads |
 |---|---|
 | `show vpn ipsec dataplane sa [spi <spi>]` | The Security Association Database: SPI, addresses, if-id, mode, algorithms, replay window, byte and packet counters, and timestamps. `spi <spi>` selects every matching SPI, which can occur under different destinations or interfaces. SPI 0 is refused under RFC 4303 Section 2.1 |
-| `show vpn ipsec dataplane policy` | The Security Policy Database: selector prefixes and ports, direction, priority, upper-layer protocol, if-id, tunnel endpoints, and the peer that installed each policy. A policy Ze did not install reports its owner as unknown |
+| `show vpn ipsec dataplane policy` | The Security Policy Database: selector prefixes and ports, direction, priority, upper-layer protocol, if-id, if-index, tunnel endpoints, and the peer that installed each policy. `spd` names the SPD holding the policy (`node` for if-id 0, the XFRM interface a peer binds with `vti bind`, or `if-id <n>` for one no bound interface has), and `role` names the job Ze installed it for (`catch-all`, `interface-catch-all`, `interface-exemption`, `ike-bypass`, `child-sa`, `operator`, `ospf`). A policy Ze did not install reports its owner and its role as unknown |
 | `show vpn ipsec dataplane drift` | Each expected Child SA identity absent from the kernel. The command exits non-zero when it finds drift, so a script can test it |
 <!-- source: internal/component/ike/cmd/show_dataplane.go -- handleShowVPNIPsecDataplaneSA, handleShowVPNIPsecDataplanePolicy, handleShowVPNIPsecDataplaneDrift -->
 
@@ -1829,7 +2051,7 @@ IKE peers. The scenarios cover:
 | Ze as responder | PSK, EAP-MSCHAPv2, EAP-TLS over TLS 1.3, IKE SA rekey started by strongSwan, and a fresh IKE_SA_INIT accepted beside an established SA |
 | Rekey and teardown | Child SA rekey with make-before-break, `clear vpn ipsec sa` and re-establishment, and a Delete sent while the one request window is held |
 | Negotiation | The INVALID_KE_PAYLOAD retry and the COOKIE challenge |
-| Dataplane | A live Child SA whose peer changes ESP form mid-session, and BGP routes exchanged with FRR over the tunnel |
+| Dataplane | A live Child SA whose peer changes ESP form mid-session, BGP routes exchanged with FRR over the tunnel, and IPv6 carried inside an IPv4 Child SA on an xfrm interface after strongSwan narrows a two-family proposal to `::/0` (`vti-ipv6-inner-ipv4-outer`) |
 | NAT traversal | Transport mode and tunnel mode with ESP in UDP 4500, each measuring what Ze's stack does with the inner TCP and UDP checksum after decapsulation (RFC 3948 Section 3.1.2) |
 | MOBIKE | `mobike-initiator` and `mobike-responder` remove the mobile peer's original outer address, retain the same IKE and Child SPIs, and require encrypted traffic in both directions after migration |
 | Traffic selectors | Child SA rekey narrowing, an answer that narrows the initiator's proposal, ESN offered both ways, and a peer reload that narrows |
@@ -1855,3 +2077,56 @@ boundaries; neither is a claim that every IKE extension is implemented.
 <!-- source: internal/component/ike/dataplane/dataplane.go -- XFRM state and policy programming -->
 <!-- source: internal/component/ike/ipsec/config.go -- configuration and validation -->
 <!-- source: internal/le/interoplab/ipsec/ipsec.go -- strongSwan interoperability scenarios -->
+
+## A WAN address that comes and goes
+
+A CPE often dials its tunnel from a PPPoE or DHCP WAN whose address does not exist
+at boot and can change on every reconnect. Ze follows it.
+
+| You write | Local address of a peer that names no `local-address` |
+|-----------|--------------------------------------------------------|
+| `vpn ipsec interface <name>` | The interface's first IPv4 address, followed as it changes |
+| Neither `interface` nor `local-address` | The source address the route to the remote selects, looked up at the start of every connection attempt |
+
+With `interface` set:
+
+- At boot with no address yet, Ze warns, starts the peers that carry their own
+  `local-address`, and holds the others. `ze doctor` reports each waiting peer
+  (check `ipsec-interface-address`).
+- When the address appears, the waiting peers start from it.
+- When it changes, those peers restart from the new address, and their old
+  Child SAs are removed.
+- When it leaves, those peers stop, remove their Child SAs, and wait.
+- A peer with its own `local-address` has its own socket and is never restarted
+  by any of this.
+
+Ze hears these changes from the kernel's interface address table, so it follows
+the interface whether or not the configuration has an `interface` block for it,
+and also when the interface does not exist yet at boot.
+
+An interface that is deleted, as `ppp0` is when a PPPoE session ends, holds no
+address: its peers stop and wait exactly as when the address leaves, and start
+again when the interface returns with an address. Ze logs one warning when the
+interface goes missing, not one for every address change while it stays
+missing. A read of the interface that fails for another reason (a netlink
+error) is not taken as absence: the running peers are kept, and Ze logs a
+warning.
+
+A reload whose interface has no IPv4 address is still refused: an address that
+arrives later is followed without a commit.
+
+`local-address` takes an IP address and nothing else. `local-address any` is
+refused; leave the leaf out instead.
+
+`remote-address` may be a DNS name. It is resolved at the start of every
+connection attempt: a name that does not resolve yet is retried with the
+reconnect backoff (1 s, doubling to 60 s, never giving up), and the address it
+resolves to is the one NAT detection, the Child SA and transport mode use. A
+`respond` peer configured by name accepts an initiation from any address the
+name resolved to at the last refresh (every 60 s and after each commit); an
+incoming packet never causes a DNS query.
+
+On a host with several addresses, the route-chosen source is also the address
+replies to an initiating peer leave from, which is not always the address the
+request reached (RFC 7296 Section 2.11; tracked by
+`plan/release/fixes/spec-rfcgate-1b-rfc7296-pilot-deferred-ike-source-address.md`).

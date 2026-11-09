@@ -341,16 +341,17 @@
                         <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card cat-routing" id="plugin-bgp-role" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-role RFC 9234 BGP Role capability RFC 9234 BGP Role capability internal/component/bgp/plugins/role BGP   bgp bgp   internal/component/bgp/plugins/role/yang/ze-role.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-bgp-role" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-role RFC 9234 BGP Role capability RFC 9234 BGP Role capability internal/component/bgp/plugins/role BGP   bgp bgp policy   internal/component/bgp/plugins/role/yang/ze-role-asn-set.yang internal/component/bgp/plugins/role/yang/ze-role.yang">
                         <span class="cat">BGP</span>
                         <h3><a href="bgp-role/"><code>bgp-role</code></a></h3>
                         <p class="plugin-desc">RFC 9234 BGP Role capability</p>
                         <div class="chips">
                             <span class="chip mode">config:bgp</span>
                             <span class="chip">needs:bgp</span>
-                            <span class="chip">YANG:1</span>
+                            <span class="chip">needs:policy</span>
+                            <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code>, <code>policy</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
 
                     <article class="card plugin-card cat-routing" id="plugin-bgp-route-refresh" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-route-refresh Route Refresh capability decoding Route Refresh capability decoding internal/component/bgp/plugins/route_refresh BGP   bgp bgp   internal/component/bgp/plugins/route_refresh/yang/ze-refresh-cmd.yang internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh-api.yang internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh.yang">
@@ -942,19 +943,20 @@
                         <h2 id="plugin-group-firewall">Firewall</h2>
                         <span>3 plugins</span>
                     </div>
-                    <p>Generated group for registry entries mapped to the Firewall area. Config roots: <code>firewall</code>. Source area: <code>internal/component/firewall</code>.</p>
+                    <p>Generated group for registry entries mapped to the Firewall area. Config roots: <code>firewall</code>, <code>system</code>. Source area: <code>internal/component/firewall</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-services" id="plugin-firewall" data-plugin-card data-family="firewall" data-category="security" data-search="firewall Packet filter and NAT rules (nftables on Linux) Packet filter and NAT rules (nftables on Linux) internal/component/firewall Firewall   firewall  vpp  internal/component/firewall/yang/ze-firewall-cmd.yang internal/component/firewall/yang/ze-firewall-conf.yang">
+                    <article class="card plugin-card cat-services" id="plugin-firewall" data-plugin-card data-family="firewall" data-category="security" data-search="firewall Packet filter and NAT rules (nftables on Linux) Packet filter and NAT rules (nftables on Linux) internal/component/firewall Firewall   firewall system/conntrack  vpp  internal/component/firewall/yang/ze-firewall-cmd.yang internal/component/firewall/yang/ze-firewall-conf.yang">
                         <span class="cat">Firewall</span>
                         <h3><a href="firewall/"><code>firewall</code></a></h3>
                         <p class="plugin-desc">Packet filter and NAT rules (nftables on Linux)</p>
                         <div class="chips">
                             <span class="chip mode">config:firewall</span>
+                            <span class="chip mode">config:system/conntrack</span>
                             <span class="chip">optional:vpp</span>
                             <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>firewall</code></dd></div><div><dt>Optional</dt><dd><code>vpp</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>firewall</code>, <code>system/conntrack</code></dd></div><div><dt>Optional</dt><dd><code>vpp</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
 
                     <article class="card plugin-card cat-services" id="plugin-firewall-domain" data-plugin-card data-family="firewall" data-category="security" data-search="firewall-domain DNS-sourced address groups for firewall rules DNS-sourced address groups for firewall rules internal/component/firewall/plugins/domain Firewall   firewall firewall   internal/component/firewall/plugins/domain/yang/ze-firewall-domain-group-cmd.yang internal/component/firewall/plugins/domain/yang/ze-firewall-domain-group.yang">
@@ -1719,7 +1721,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

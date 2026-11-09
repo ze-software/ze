@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>update serve - Command Equivalents - Ze</title>
-        <meta name="description" content="Serve this binary and its version manifest for update checks." />
+        <meta name="description" content="Show the update server&#39;s status, or start, stop and pause it." />
         <meta property="og:title" content="update serve - Command Equivalents - Ze" />
-        <meta property="og:description" content="Serve this binary and its version manifest for update checks." />
+        <meta property="og:description" content="Show the update server&#39;s status, or start, stop and pause it." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="update serve - Command Equivalents - Ze" />
-        <meta name="twitter:description" content="Serve this binary and its version manifest for update checks." />
+        <meta name="twitter:description" content="Show the update server&#39;s status, or start, stop and pause it." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -48,20 +48,24 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Command map</span>
     <h1 id="command-equivalent-detail-title">update serve</h1>
-    <p>Serve this binary and its version manifest for update checks.</p>
+    <p>Show the update server&#39;s status, or start, stop and pause it.</p>
 </div>
 <div class="cmd-detail-grid">
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
 <div><dt>Registry path</dt><dd><code>update serve</code></dd></div>
-<div><dt>Mode</dt><dd>Offline</dd></div>
-<div><dt>Wire method</dt><dd><code>not listed</code></dd></div>
+<div><dt>Usage</dt><dd><code>update serve</code></dd></div>
+<div><dt>Mode</dt><dd>daemon, offline</dd></div>
+<div><dt>Wire method</dt><dd><code>ze-update:update-serve</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
 <div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
-<div><dt>Subcommands</dt><dd>none: this command takes no subcommand</dd></div>
-<div><dt>Pipes</dt><dd>none: this command reaches no pipe layer</dd></div>
+<div><dt>Subcommands</dt><dd><code>pause</code> <code>start</code> <code>stop</code></dd></div>
+<div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
+<div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill</dd></div>
+<div><dt>Pipes, while streaming</dt><dd>log</dd></div>
+<div><dt>Pipes, local process only</dt><dd>save</dd></div>
 </dl>
-<h3>Description</h3><p>The server answers a version manifest, the running binary and its SHA-256 digest. It is meant for build infrastructure rather than for a router in production.</p>
+<h3>Description</h3><p>The daemon serves its running binary and a version manifest for update checks,<br>until it is told to stop. A daemon runs one such server at a time. Through the daemon,<br>&#39;update serve&#39; alone answers that server&#39;s status: whether it runs, the address it<br>listens on and whether it is paused. The foreground &#39;ze update serve&#39;, given the<br>address to listen on, runs the same server in the operator&#39;s own process instead.</p>
 <h3>Arguments</h3>
 <p>No command-specific arguments listed.</p>
 </article>
@@ -128,7 +132,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

@@ -146,6 +146,9 @@ policy {
             action accept;
         }
     }
+    match community-SERVICE-20 {
+        community SERVICE-20;
+    }
 }
 
 bgp {
@@ -158,7 +161,7 @@ bgp {
     peer pe1 {
         filter {
             export {
-                filters [ community-match:SERVICE-20 ];
+                filters [ community-SERVICE-20 ];
                 final accept;
             }
         }

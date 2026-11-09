@@ -73,7 +73,7 @@ plugins connect back via TLS.</p>
 <li><a href="#the-filter-update-batch">The filter-update batch</a></li>
 <li><a href="#the-route-fields-of-filter-update">The Route Fields of filter-update</a></li>
 <li><a href="#the-sets-of-a-filter-update-answer">The Sets of a filter-update answer</a></li>
-<li><a href="#the-filter-text-an-onfilterupdate-handler-reads">The Filter Text an OnFilterUpdate Handler Reads</a></li>
+<li><a href="#filter-run-occasions">Filter Run Occasions</a></li>
 </ol></li>
 <li><a href="#runtime-rpcs-plugin-to-engine">Runtime RPCs (Plugin to Engine)</a></li>
 <li><a href="#message-flow-example">Message Flow Example</a></li>
@@ -398,7 +398,7 @@ reader goroutine routes incoming lines by verb: <code>ok</code>/<code>error</cod
 <tr>
 <td><code>filters</code></td>
 <td><code>[]FilterDecl</code></td>
-<td>Named route filters the plugin provides: each a <code>name</code> or a <code>name-pattern</code>, and the route fields it <code>reads</code> (<code>raw</code> for the UPDATE body) and <code>sets</code>; Stage 1 and config load judge them ("Filter Declaration"). <span class="ev-src"><span class="ev-ref"><code>docs/architecture/api/process-protocol.md</code></span></span></td>
+<td>Named route filters the plugin provides: each a <code>name</code> or a <code>name-pattern</code>, and the route fields it <code>reads</code> (<code>raw</code> for the UPDATE body) and <code>sets</code>, and whether an export filter also runs on two extra occasions, <code>readvertise</code> and <code>judges-final</code> ("Filter Run Occasions"); Stage 1 and config load judge them ("Filter Declaration"). <span class="ev-src"><span class="ev-ref"><code>docs/architecture/api/process-protocol.md</code></span></span></td>
 </tr>
 <tr>
 <td><code>doctor-checks</code></td>
@@ -520,7 +520,7 @@ outside the process.</p>
 <tr>
 <td><code>shape</code></td>
 <td><code>string</code></td>
-<td>What the answer holds: <code>doc</code>, <code>map</code> or <code>tab</code></td>
+<td>What the answer holds: <code>doc</code>, <code>map</code>, <code>tab</code> or <code>blob</code></td>
 </tr>
 <tr>
 <td><code>columns</code></td>
@@ -1051,10 +1051,10 @@ each wire method to its registered handler.</p>
 </tr>
 <tr>
 <td><code>ze-plugin-callback:filter-update</code></td>
-<td><code>OnFilter</code> (or <code>OnFilterUpdate</code>, its adapter)</td>
+<td><code>OnFilter</code></td>
 <td><code>FilterUpdateBatchInput</code> (<code>routes</code>, each a <code>FilterUpdateInput</code>)</td>
 <td><code>FilterUpdateBatchOutput</code> (<code>verdicts</code>, each a <code>FilterUpdateOutput</code>)</td>
-<td>Filter a batch of routes, one verdict per route in request order ("The filter-update batch"). The engine waits <code>rpc.FilterUpdateTimeout</code> (5 s) for the whole batch, then applies the filter's <code>on-error</code> policy to each of its routes, so a handler that waits MUST bound the wait well below it</td>
+<td>Filter a batch of routes, one verdict per route in request order ("The filter-update batch"). The engine waits <code>rpc.FilterUpdateTimeout</code> (5 s) for the whole batch, then applies the filter's <code>on-error</code> policy to each of its routes, so a handler MUST NOT wait on its own data: it answers from what it holds, and a route it could not judge yet is re-judged later (for an import filter, by asking the peer with <code>request peer &lt;peer&gt; refresh &lt;family&gt;</code>, as <code>bgp-filter-irr</code> does)</td>
 </tr>
 <tr>
 <td><code>ze-plugin-callback:doctor-check</code></td>
@@ -1200,37 +1200,61 @@ session's routes (<code>docs/architecture/plugin/rib-storage-design.md</code>,
 <h3 id="the-filter-update-batch">The filter-update batch</h3>
 <p>One <code>filter-update</code> exchange carries a batch of routes. The request is
 <code>{"routes":[...]}</code>, each entry one route as <code>FilterUpdateInput</code> describes it
-(<code>filter</code>, <code>direction</code>, <code>peer</code>, <code>peer-as</code>, <code>update</code>, <code>fields</code>, <code>raw</code>). The
+(<code>filter</code>, <code>direction</code>, <code>peer</code>, <code>peer-as</code>, <code>fields</code>, <code>raw</code>). The
 answer is <code>{"verdicts":[...]}</code>, one <code>FilterUpdateOutput</code> per route, at the
 position of its route.</p>
-<pre><code>#7 ze-plugin-callback:filter-update {"routes":[{"filter":"lp","direction":"import","peer":"192.0.2.1","peer-as":65001,"update":"","fields":{"prefix":["10.0.0.0/24"]}},{"filter":"lp","direction":"import","peer":"192.0.2.1","peer-as":65001,"update":"","fields":{"prefix":["10.0.1.0/24"]}}]}
+<pre><code>#7 ze-plugin-callback:filter-update {"routes":[{"filter":"lp","direction":"import","peer":"192.0.2.1","peer-as":65001,"fields":{"prefix":{"ipv4/unicast":["10.0.0.0/24"]}}},{"filter":"lp","direction":"import","peer":"192.0.2.1","peer-as":65001,"fields":{"prefix":{"ipv4/unicast":["10.0.1.0/24"]}}}]}
 #7 ok {"verdicts":[{"action":"reject"},{"action":"modify","sets":[{"field":"med","action":"set","value":50}]}]}
 </code></pre>
 <ul>
 <li><strong>What a batch holds.</strong> Ze sends the routes queued for the plugin when the
-exchange starts, at most <code>rpc.FilterUpdateBatchMax</code> (64). A lone route goes
+exchange starts, at most <code>rpc.FilterUpdateBatchMax</code> (64), and splits that
+FIFO group into contiguous exchanges that each fit the 16 MiB RPC request
+frame, including its JSON envelope, method and request ID. A lone route goes
 at once in a batch of one; routes that queue while an exchange is in flight
-go together in the next one. Routes from one source are queued in the order
-that source produced them, and a later batch holds only routes queued after
-the earlier one was sent, so per-source order holds within and across
-batches.</li>
+go in the next group. Routes from one source stay in order within and across
+exchanges, and each verdict stays paired with its original route. A route
+whose serialized input cannot fit a frame even alone fails only itself
+under its filter's <code>on-error</code>, not its queued neighbors.</li>
 <li><strong>One timeout per batch.</strong> <code>rpc.FilterUpdateTimeout</code> (5 s) bounds the whole
 exchange. When it expires, or the plugin answers an error, each route of the
 batch takes its filter's <code>on-error</code>, one outcome per route.</li>
+<li><strong>Queue admission and the typed slot.</strong> Only the encoded transport creates a
+per-route <code>rpc.FilterUpdateTimeout</code> (5 s) deadline, before encoding the route
+and waiting for room in the bounded batch queue. An earlier caller deadline
+or cancellation still wins. Once admitted, the route waits behind the
+bounded queue's predecessors and any exchange in flight, then its own
+exchange, each bounded separately by the batch timeout. An activated typed
+slot calls the evaluator synchronously under the
+fast-path contract, with no unused route context or timer. A closed slot
+fails the route; it never falls back to the queue.</li>
 <li><strong>One verdict per route.</strong> A reply with more or fewer verdicts than the
 request held routes is malformed: no verdict of it is applied, and each
 route of the batch takes its filter's <code>on-error</code>. The next batch is judged
 normally.</li>
 <li><strong>A route the filter cannot judge.</strong> A verdict carrying <code>error</code> (a string)
 fails that route alone under its filter's <code>on-error</code>; the other routes of
-the batch keep their verdicts. The Go SDK answers this way when the
-evaluator fails: <code>answerFilterBatch</code> calls the evaluator <code>OnFilter</code>
-installed once per route, in request order, and an error it returns or a
-nil verdict fails that route alone, so a Go filter is written for one route.</li>
+the batch keep their verdicts. A nonempty <code>error</code> takes precedence over
+every other verdict field: no action, sets, raw rewrite or teardown is
+applied. The Go SDK answers this way when the evaluator fails:
+<code>answerFilterBatch</code> calls the evaluator <code>OnFilter</code> installed once per route,
+in request order, and an error it returns or a nil verdict fails that route
+alone, so a Go filter is written for one route. The same evaluator run
+internal, through the typed slot, gets the same answer: a returned error,
+nil verdict or nonempty verdict <code>error</code> fails that route alone, before raw
+ownership processing, and counts no completed typed judgment. The
+conformance harness compares these consumer-visible failures rather than
+the ignored fields of a failed verdict.</li>
 </ul>
+<!-- source: pkg/plugin/rpc/filter_slot.go -- CallFilterSlot -->
+<!-- source: internal/component/plugin/ipc/filter_slot.go -- CallFilter -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- libraryCaller.CallFilter -->
 <!-- source: pkg/plugin/rpc/types.go -- FilterUpdateBatchMax, FilterUpdateBatchInput, FilterUpdateBatchOutput -->
 <!-- source: internal/component/plugin/ipc/filter_batch.go -- SendFilterUpdate, filterBatcher -->
+<!-- source: internal/component/plugin/ipc/filter_batch_bytes.go -- exchange, frameFits, filterBatchWireFixedSize -->
+<!-- source: pkg/plugin/rpc/filter_batch_size.go -- FilterUpdateInput.JSONSizeBound -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilter, answerFilterBatch -->
+<!-- source: pkg/plugin/sdk/filter_conformance.go -- answerText -->
 <h3 id="the-route-fields-of-filter-update">The Route Fields of filter-update</h3>
 <p><code>FilterUpdateInput.Fields</code> (<code>fields</code> on the wire) is one JSON object holding the
 route fields the filter declared in <code>reads</code>, and no other. Each key is the
@@ -1254,6 +1278,11 @@ shapes:</p>
 <td><span class="ev-src"><span class="ev-ref"><code>{"ipv4/unicast":["10.0.0.0/24"]}</code></span></span></td>
 </tr>
 <tr>
+<td><code>withdrawn</code></td>
+<td>object: family to the list of withdrawn NLRI (the body Withdrawn Routes, then MP_UNREACH_NLRI), in the event's withdrawal shapes (ADD-PATH adds <code>path-id</code>); the sections as received, whatever an earlier filter dropped. Read-only: no attachment lets a filter set it</td>
+<td><span class="ev-src"><span class="ev-ref"><code>{"ipv4/unicast":["10.9.0.0/24"]}</code></span></span></td>
+</tr>
+<tr>
 <td><code>family</code></td>
 <td>list of the announced families</td>
 <td><code>["ipv4/unicast","ipv6/unicast"]</code></td>
@@ -1275,6 +1304,118 @@ shapes:</p>
 </tr>
 </tbody>
 </table>
+<p>A filter may also declare the facts of the session the route is judged on.
+The plain names describe the session's peer: the peer the route came from on
+import, the peer it goes to on export. The <code>source-</code> names describe, on
+export, the peer a forwarded route came from; a route Ze originated has none.
+A fact the session does not hold is left out, never sent as a zero or an
+empty string.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Shape</th>
+<th>Left out when</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>peer-name</code>, <code>source-peer-name</code></td>
+<td>string: the peer's config name</td>
+<td>never, once the peer is known</td>
+<td><code>"edge"</code></td>
+</tr>
+<tr>
+<td><code>peer-group</code>, <code>source-peer-group</code></td>
+<td>string: the peer's group</td>
+<td>the peer is in no group</td>
+<td><code>"clients"</code></td>
+</tr>
+<tr>
+<td><code>peer-address</code>, <code>source-peer-address</code></td>
+<td>string: the peer's address</td>
+<td>never, once the peer is known</td>
+<td><code>"192.0.2.1"</code></td>
+</tr>
+<tr>
+<td><code>local-as</code></td>
+<td>the local AS number on this session</td>
+<td>the session has none yet</td>
+<td><code>65000</code></td>
+</tr>
+<tr>
+<td><code>peer-as</code>, <code>source-peer-as</code></td>
+<td>the peer's AS number</td>
+<td>a dynamic peer still resolving its AS</td>
+<td><code>65001</code></td>
+</tr>
+<tr>
+<td><code>route-server-as</code></td>
+<td>the AS the route server acts on for a route-server client</td>
+<td>the peer is not a route-server client</td>
+<td><code>64999</code></td>
+</tr>
+<tr>
+<td><code>ibgp</code>, <code>source-ibgp</code></td>
+<td>boolean: an internal session, an RFC 7705 migration session included</td>
+<td>never, once the peer is known</td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>rs-client</code>, <code>source-rs-client</code></td>
+<td>boolean: the peer is a configured route-server client</td>
+<td>never, once the peer is known</td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td><code>llgr-advertised</code></td>
+<td>boolean: the OPEN Ze sent this session carried the Long-Lived Graceful Restart Capability (RFC 9494 Section 3)</td>
+<td>on export: only the received path knows it</td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td><code>source-llgr-advertised</code></td>
+<td>boolean: the OPEN Ze sent the session an exported route came from carried the Long-Lived Graceful Restart Capability (RFC 9494 Section 3)</td>
+<td>on import, and on export unless the route was rebuilt from storage (<code>rebuilt</code> is true): the live export rails carry the stale level in <code>stale</code> instead</td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td><code>src-role</code>, <code>src-peer-role</code></td>
+<td>string: route metadata <code>bgp-role</code> registers, Ze's role toward the route's source peer and that peer's role toward Ze. <span class="ev-src"><span class="ev-ref"><code>docs/architecture/meta/README.md</code></span></span></td>
+<td class="cell-no">✕</td>
+<td><code>"customer"</code></td>
+</tr>
+<tr>
+<td><code>stale</code></td>
+<td>the route's stale level, route metadata <code>bgp-gr</code> registers (0 to 255; 2 marks an LLGR-stale route)</td>
+<td class="cell-no">✕</td>
+<td><code>2</code></td>
+</tr>
+<tr>
+<td><code>rebuilt</code></td>
+<td>boolean: route metadata the engine registers, set on a route rebuilt from storage</td>
+<td>a live route</td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td><code>otc</code></td>
+<td>the route's Only to Customer attribute (RFC 9234 Section 5), an AS number, registered by <code>bgp-role</code>; a value that is not 4 octets fails the filter that reads it</td>
+<td>the UPDATE carries no OTC</td>
+<td><code>65001</code></td>
+</tr>
+</tbody>
+</table>
+<p>A route metadata field is also a set: a filter at <code>bgp import</code> that declared
+it answers <code>{"field":"stale","action":"set","value":2}</code>, with the value in the
+field's type (a string, an integer from 0 to 255, or <code>true</code> or <code>false</code>).
+The engine writes it into the route's metadata map, so a later member of the
+chain reads it and the received event carries it in <code>route-meta</code>. A filter at
+<code>bgp export</code> reads the received route's map and may not set it: every
+destination shares that map.</p>
+<p><code>otc</code> is a set only for a filter of <code>bgp-role</code>, the plugin that owns it: it
+answers <code>{"field":"otc","action":"set","value":65001}</code> at either attachment.
+A set of <code>otc</code> from any other plugin's filter fails the route.</p>
 <p>For example, a filter that declared <code>community</code>, <code>as-path</code> and
 <code>local-preference</code> reads
 <code>"fields":{"community":["65001:100"],"as-path":[65001,65002],"local-preference":100}</code>.</p>
@@ -1287,23 +1428,21 @@ the filter's <code>on-error</code> decides the route instead of the filter.</li>
 <li>Stage 1 refuses a declared BGP field this binary cannot write: the
 community fields need <code>bgp-filter-community</code>, <code>originator-id</code> and
 <code>cluster-list</code> need <code>bgp-rr</code>, and <code>aigp</code> needs <code>bgp-aigp</code>.</li>
-<li>In a chain that holds only plugin filters, the values are the route as the
-chain received it: a modify an earlier filter answered reaches this filter
-in the text <code>update</code> only, as it does for <code>raw</code>.</li>
-<li>In a chain that also holds an in-process filter, the values are the route
-as the earlier members left it: a local-preference, med or community an
-earlier member set, in process or in a plugin, is what this filter reads.
-<code>raw</code> is still the received body. Such a chain sends no text <code>update</code>, so a
+<li>The values are the route as the earlier members of the chain left it: a
+local-preference, med or community an earlier member set, in process or in
+a plugin, is what this filter reads. <code>raw</code> is still the received body. A
 filter that declared no <code>reads</code> fails the route under its <code>on-error</code>.</li>
 </ul>
 <!-- source: internal/component/bgp/policyview/fields_json.go -- AppendFields, CheckFieldWriter -->
 <!-- source: internal/component/bgp/policyview/register_writers.go -- the field writers -->
-<!-- source: internal/component/bgp/format/announced_json.go -- AppendAnnouncedNLRIJSON -->
-<!-- source: internal/component/bgp/reactor/filter_chain.go -- filterFields -->
+<!-- source: internal/component/bgp/policyview/session.go -- ImportSession, ExportSession, the session fact answers -->
+<!-- source: internal/component/bgp/policyview/metadata.go -- MustRegisterMetadata, readMetadata, SetMetadata -->
+<!-- source: internal/component/bgp/policychain/sets_metadata.go -- applyExternalMetadata, metadataValue -->
+<!-- source: internal/component/bgp/policyview/register.go -- sessionFacts -->
+<!-- source: internal/component/bgp/format/announced_json.go -- AppendAnnouncedNLRIJSON, AppendWithdrawnNLRIJSON -->
 <!-- source: internal/component/bgp/policychain/external.go -- judgeExternal -->
 <h3 id="the-sets-of-a-filter-update-answer">The Sets of a filter-update answer</h3>
-<p>A filter in a chain that also holds an in-process filter answers its changes
-in <code>FilterUpdateOutput.Sets</code> (<code>sets</code> on the wire), with <code>"action":"modify"</code>.
+<p>A filter answers its changes in <code>FilterUpdateOutput.Sets</code> (<code>sets</code> on the wire), with <code>"action":"modify"</code>.
 Each entry names one field the filter declared in <code>sets</code>, how it changes, and
 the value in the field's shape:</p>
 <table>
@@ -1335,6 +1474,42 @@ the value in the field's shape:</p>
 <td><span class="ev-src"><span class="ev-ref"><code>{"field":"community","action":"add","value":"65000:100"}</code></span></span></td>
 </tr>
 <tr>
+<td><code>med</code></td>
+<td><code>remove</code></td>
+<td><code>null</code>; honored on an import chain only (RFC 4271 Section 5.1.4), so on an export chain the route fails</td>
+<td><code>{"field":"med","action":"remove","value":null}</code></td>
+</tr>
+<tr>
+<td><code>aigp</code></td>
+<td><code>set</code>, <code>increment</code>, <code>decrement</code></td>
+<td>a number from 0 to 4294967295; an increment or decrement of a route with no AIGP changes nothing</td>
+<td><span class="ev-src"><span class="ev-ref"><code>{"field":"aigp","action":"increment","value":10}</code></span></span></td>
+</tr>
+<tr>
+<td><code>origin</code></td>
+<td><code>set</code></td>
+<td><code>"igp"</code>, <code>"egp"</code> or <code>"incomplete"</code></td>
+<td><code>{"field":"origin","action":"set","value":"egp"}</code></td>
+</tr>
+<tr>
+<td><code>next-hop</code></td>
+<td><code>set</code></td>
+<td>one IPv4 address</td>
+<td><code>{"field":"next-hop","action":"set","value":"192.0.2.1"}</code></td>
+</tr>
+<tr>
+<td><code>large-community</code></td>
+<td><code>add</code>, <code>remove</code></td>
+<td>one large community string</td>
+<td><span class="ev-src"><span class="ev-ref"><code>{"field":"large-community","action":"add","value":"65000:1:2"}</code></span></span></td>
+</tr>
+<tr>
+<td><code>extended-community</code></td>
+<td><code>add</code>, <code>remove</code></td>
+<td>one extended community string, in the form the UPDATE event writes</td>
+<td><span class="ev-src"><span class="ev-ref"><code>{"field":"extended-community","action":"add","value":"target:65000:100"}</code></span></span></td>
+</tr>
+<tr>
 <td><code>as-path</code></td>
 <td><code>prepend</code></td>
 <td>a count of local AS copies, 1 to 32</td>
@@ -1349,7 +1524,7 @@ the value in the field's shape:</p>
 <tr>
 <td><code>prefix</code></td>
 <td><code>remove</code></td>
-<td>one announced prefix, in the shape the <code>prefix</code> field is sent: the prefix string, or under ADD-PATH <code>{"prefix":...,"path-id":...}</code></td>
+<td>one announced unicast, multicast or labeled-unicast NLRI, in the shape the <code>prefix</code> field is sent: the prefix string, under ADD-PATH <code>{"prefix":...,"path-id":...}</code>, and for labeled unicast <code>{"labels":[[label,entry],...],"prefix":...}</code>, with <code>"path-id"</code> between them under ADD-PATH</td>
 <td><span class="ev-src"><span class="ev-ref"><code>{"field":"prefix","action":"remove","value":"10.0.9.0/24"}</code></span></span></td>
 </tr>
 <tr>
@@ -1361,10 +1536,12 @@ the value in the field's shape:</p>
 </tbody>
 </table>
 <ul>
+<li>A later filter of the chain is sent the value an earlier filter's sets
+left, not the received one.</li>
 <li>An increment or decrement starts from the route's value, or from
 <code>bgp defaults attribute</code> when the route carries none, and stays within 0 and
-4294967295. The changes fold in chain order with the in-process filters'
-changes and produce the same UPDATE bytes.</li>
+4294967295. The changes fold in chain order and produce the same UPDATE
+bytes.</li>
 <li>The route fails under the filter's <code>on-error</code>, logged and counted, with none
 of its sets applied, when an entry names a field the filter did not declare,
 a field the chain's attachment does not let a filter set, or a field no BGP
@@ -1380,67 +1557,132 @@ session's AS number width, <code>"private-peer-as"</code> the peer AS, a prefix 
 drops the entry from the body NLRI and from MP_REACH_NLRI (an MP_REACH_NLRI
 left empty leaves the UPDATE), and a family remove drops that family's
 MP_REACH_NLRI and MP_UNREACH_NLRI (the body NLRI and withdrawn routes for
-<code>ipv4/unicast</code>). Prepends add up across the chain to at most 32. A prefix
-the route does not announce, or one with host bits set, fails the route.</li>
-<li>The route fails the same way when the answer carries <code>sets</code> beside <code>accept</code>
-or <code>reject</code>, or a text <code>update</code>.</li>
+<code>ipv4/unicast</code>). Prepends add up across the chain to at most 32. A labeled
+remove drops the entry whose prefix and whole label stack match, label
+field included (RFC 8277 Section 2.3). A prefix the route does not
+announce, one with host bits set, or a value whose shape names another
+kind of NLRI (a label stack for a unicast entry, a plain prefix for a
+labeled one) fails the route.</li>
+<li><code>"action":"withdraw"</code> removes the route rather than only stopping it: on
+import the engine treats the route's announcements as withdrawn by the peer
+that sent them, so a version accepted earlier leaves the RIB; on export the
+route is withdrawn toward that destination. Every route of the UPDATE is
+withdrawn: one whose MP_REACH_NLRI and MP_UNREACH_NLRI name two families is
+withdrawn as two UPDATEs, one per family, because one UPDATE carries one
+MP_UNREACH_NLRI. Both generated withdrawals carry the original policy
+decision: import does not run the filter again on the attribute-free
+follow-up. The later filters of the chain are not called.</li>
+<li>A filter that declares no <code>reads</code> is never called: Ze has no field to send
+it, so every route the chain asks it to judge fails, and the chain treats
+the failure as <code>on-error</code> <code>reject</code> whatever the filter declared. Declare at
+least one field the filter reads, or <code>raw</code>.</li>
+<li>The route fails the same way when the answer carries <code>sets</code> beside <code>accept</code>,
+<code>reject</code> or <code>withdraw</code>.</li>
 <li>A filter that declares <code>raw</code> among its reads may answer <code>"action":"modify"</code>
-with a whole-body <code>raw</code> rewrite and no <code>sets</code>. The rewrite is terminal: the
-later filters of the chain are not called, the chain's final still decides
-the route, and the rewrite is sent in place of the received body. The route
-fails under the filter's <code>on-error</code> when the filter did not declare <code>raw</code>,
-when the rewrite is shorter than the 4 octets of an UPDATE body's two length
-fields, and when an earlier filter of the chain already set a field: the
-rewrite was made from the received body, so it would discard that change.</li>
-<li><code>teardown</code> on an import route closes the session, as in a chain of plugin
-filters only; on export it is ignored and the action stands.</li>
+with a whole-body <code>raw</code> rewrite and no <code>sets</code>. A valid rewrite is terminal:
+the later filters of the chain are not called, the chain's final still
+decides the route, and the rewrite is sent in place of the received body.
+Before it can end the chain, Ze checks the UPDATE section framing and
+applies the receive path's mandatory RFC 9012 Section 13 tunnel checks and
+normalization. A malformed rewrite is a named member failure, logged and
+counted on a live run, under that filter's <code>on-error</code>: <code>reject</code> drops the
+route; <code>accept</code> discards the failed rewrite and continues to later members
+with the route unchanged. A dry run follows the same decisions and records
+the member failure without logging or counting it. The same failure rule
+applies when the filter did not declare <code>raw</code>, when the body is shorter than
+its two 2-octet length fields or a section extends beyond it, and when an
+earlier member already set a field: a rewrite made from the received body
+would discard that change. It also applies when a filter answers <code>raw</code> on a
+pass over a body that differs from the chain's input ("Filter Run Occasions").</li>
+<li><code>teardown</code> on an import route closes the session; on export it is ignored
+and the action stands.</li>
 </ul>
 <!-- source: internal/component/bgp/policychain/external.go -- externalAnswer, applyExternalSets, rawAnswer -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- libraryCaller.CallFilter, runLibraryChain -->
+<!-- source: internal/component/bgp/reactor/filter_chain.go -- decodeFilterRawOverride, filterRawTunnelEncap -->
+<!-- source: internal/component/bgp/policychain/external.go -- judgeExternal, errExternalNoReads -->
+<!-- source: internal/component/bgp/policychain/chain.go -- Chain.run, the import-only teardown -->
 <!-- source: internal/component/bgp/policychain/chain.go -- rawOutcome -->
 <!-- source: internal/component/bgp/policychain/external_intents.go -- applyASPathIntent, applyPrefixIntent, applyFamilyIntent -->
 <!-- source: internal/component/bgp/policychain/external.go -- externalIntentsOfReads -->
+<!-- source: internal/component/bgp/policychain/external_attributes.go -- applyAttributeSet, removeMED -->
+<!-- source: internal/component/bgp/policychain/chain_overlay_attributes.go -- overlayAttributes -->
+<!-- source: internal/component/bgp/policyview/fields_json.go -- appendOverlaid -->
 <!-- source: pkg/plugin/rpc/types.go -- FilterSet, FilterSetAction -->
-<h3 id="the-filter-text-an-onfilterupdate-handler-reads">The Filter Text an <code>OnFilterUpdate</code> Handler Reads</h3>
-<p><code>FilterUpdateInput.Update</code> is the UPDATE as text: <code>&lt;name&gt; &lt;value&gt;</code> attribute
-pairs, then one NLRI block for each section the UPDATE carries.</p>
+<h3 id="filter-run-occasions">Filter Run Occasions</h3>
+<p>An export chain calls a filter once for each route. Two fields of the filter's
+declaration add occasions, and both default to false. Stage 1 refuses each one
+on an import-only filter. The request does not name the occasion: the same
+<code>filter-update</code> message arrives each time.</p>
 <table>
 <thead>
 <tr>
-<th>Block</th>
-<th>UPDATE section</th>
+<th>Field</th>
+<th>When the filter also runs</th>
+<th>Which members run</th>
+<th>What decides the route</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>nlri add &lt;prefix&gt;...</code></td>
-<td>The legacy NLRI field, always IPv4 unicast</td>
+<td><code>readvertise</code></td>
+<td>A graceful-restart retention re-advertises its stale routes (the stale readvertise rail)</td>
+<td>Only the external members that declare it. The route's <code>stale</code> metadata is set</td>
+<td>A route that reaches the end of those members is sent: the chain's final is not read. A <code>raw</code> answer ends the run and the final decides it, so a chain whose final is reject withholds a raw answer where it would send a set answer</td>
 </tr>
 <tr>
-<td><code>nlri del &lt;prefix&gt;...</code></td>
-<td>The legacy Withdrawn Routes, always IPv4 unicast</td>
-</tr>
-<tr>
-<td><code>mp &lt;family&gt; add &lt;prefix&gt;...</code></td>
-<td>An MP_REACH_NLRI attribute, any family, IPv4 unicast included</td>
-</tr>
-<tr>
-<td><code>mp &lt;family&gt; del &lt;prefix&gt;...</code></td>
-<td>An MP_UNREACH_NLRI attribute</td>
+<td><code>judges-final</code></td>
+<td>The export chain rewrote the body, by a set or by a <code>raw</code> answer</td>
+<td>Only the external members that declare it, in chain order</td>
+<td>The answer of the pass replaces the answer of the chain. A route that reaches the end of the pass is accepted, because the chain's final already decided it. A <code>raw</code> answer, allowed only when the rewritten body equals the chain's input, ends the pass and the final decides it</td>
 </tr>
 </tbody>
 </table>
-<p>For example: <code>origin igp as-path [65001] nlri add 10.0.0.0/24 mp ipv6/unicast add 2001:db8::/32</code>.
-Split the NLRI value at every <code>nlri</code> and <code>mp</code> token, and read the family only
-from an <code>mp</code> block. A family whose NLRI is not a CIDR prefix renders a marker
-block with no prefix (<code>mp l2vpn/evpn add</code>).</p>
-<p>A <code>FilterModify</code> answer that changes NLRI returns the whole NLRI value, in the
-same keywords, with prefixes removed and the rest in the order given. The
-engine refuses, and drops the route, an answer that adds or reorders a prefix,
-names a section the UPDATE does not carry, or changes a non-CIDR block. The
-full contract is in <code>docs/architecture/api/process-protocol.md</code>, "NLRI Blocks
-and the Modify Answer".</p>
-<!-- source: internal/component/bgp/reactor/filter_format.go -- AppendUpdateForFilter -->
-<!-- source: internal/component/bgp/reactor/filter_nlri_delta.go -- sectionNLRIDelta -->
+<p>A member whose declaration Ze cannot read, because its plugin has gone or no
+longer declares the filter, runs on both occasions and fails under
+<code>on-error</code>. Whether it opted in is unknown, and it may be the filter that
+withholds the route.</p>
+<p><strong>The stale readvertise rail.</strong> The rail takes its body from what Ze already
+sent, so the route has passed the chain once. If the destination's export policy
+changed after the route was sent, the policy of that first run no longer
+applies. Ze then runs every member that does not declare <code>readvertise</code>, then the
+chain's final, then the members that declare it over that result, with <code>raw</code>
+holding the body the rail started from.</p>
+<p><strong>The pass over a rewritten body.</strong> The pass reads <code>raw</code> as the route the chain
+received, and every other field from the rewritten body. A filter that declares
+<code>raw</code> compares the two to see what the chain took off. The pass may reject,
+withdraw or set. A raw answer is refused when the pass runs over a body that
+differs from the chain's input, because it would discard the rewrite. The refusal
+is a member failure under that filter's <code>on-error</code>. <code>show policy test</code> shows the
+pass.</p>
+<p>The pass protects a member's answer from a member that does not declare
+<code>judges-final</code>. It does not protect that answer from a member that does: the
+last one in chain order has the last word.</p>
+<p>On the stale rail, a member must declare both fields to run in the pass, unless
+the policy changed, in which case every member that declares <code>judges-final</code>
+runs. The rail skips the pass when it has one member and that member is the
+chain's only <code>judges-final</code> member, because it already ran last.</p>
+<p><strong>What repeats.</strong> A <code>judges-final</code> filter that ran in the chain runs again on
+every rewritten route. A <code>readvertise</code> filter answers again on bytes it already judged when the route was
+first sent. A filter that declares both can run more times than that on one
+route.</p>
+<p><strong>What a filter author makes safe to repeat.</strong> The filter MUST answer correctly
+on a route it already changed:</p>
+<ul>
+<li>A verdict MUST hold on the rewritten body, not only on the body the filter
+first saw. Read <code>raw</code> to see the route before the chain changed it.</li>
+<li>A set that adds to the route applies again. A <code>prepend</code> of the AS path in the
+pass doubles the copies. Compare first, or set a value that the second run
+leaves as it is.</li>
+<li>A side effect in the filter (a counter, a log line, a lookup) happens on each
+run, so it cannot count routes.</li>
+</ul>
+<!-- source: internal/component/bgp/policychain/chain.go -- Chain.run, readvertiseRuns, Readvertises, judgesFinalRuns, HoldsFinalJudge, RailEndsOnFinalJudge -->
+<!-- source: internal/component/bgp/policychain/external.go -- ExternalRoute, errExternalRawAfterSets -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runFinalJudges, runLibraryChain -->
+<!-- source: internal/component/bgp/reactor/stale_readvertise_chain.go -- runStaleChain -->
+<!-- source: internal/component/bgp/reactor/policy_dryrun_library.go -- runFinalJudges -->
+<!-- source: internal/component/plugin/registry/filter_declaration.go -- JudgesFinal on an import-only filter -->
 <h2 id="runtime-rpcs-plugin-to-engine">Runtime RPCs (Plugin to Engine)</h2>
 <p>Plugins call the engine during runtime through these SDK methods:</p>
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- UpdateRoute through DecodeUpdate -->
@@ -1512,6 +1754,13 @@ and the Modify Answer".</p>
 <td><code>BatchValidateInput</code></td>
 <td><code>BatchValidateResult</code></td>
 <td>Submit route validation decisions</td>
+</tr>
+<tr>
+<td><code>ze-plugin-engine:metrics-publish</code></td>
+<td><code>MetricsRegistry</code>, <code>SetMetricsInterval</code>, <code>FlushMetrics</code></td>
+<td><code>MetricsPublishInput</code></td>
+<td><code>MetricsPublishOutput</code></td>
+<td>Declare metrics and publish their changes, at the plugin's interval. <span class="ev-src"><span class="ev-ref"><code>docs/plugin-development/metrics.md</code></span></span></td>
 </tr>
 <tr>
 <td><code>ze-plugin-engine:dispatch-command</code></td>
@@ -1678,7 +1927,7 @@ config-verify, etc.) and bye.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 14:11 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

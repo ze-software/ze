@@ -1,4 +1,4 @@
-# Week of 2026-05-18
+# 2026-05-18 – 2026-05-24 (1 week)
 
 A full native IPsec/IKEv2 VPN stack, a route server for IXPs, and a big allocation-hunting pass across the BGP hot path.
 

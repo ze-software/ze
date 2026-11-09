@@ -98,7 +98,7 @@ Project context for people deciding whether to try Ze or help shape it.
 
 - [Why Ze what makes Ze different and who it is for](https://ze-software.net/project/why-ze/)
 - [Roadmap the path to the first release](https://ze-software.net/project/roadmap/)
-- [Changes what shipped, week by week](https://ze-software.net/project/changes/)
+- [Changes what shipped, update by update](https://ze-software.net/project/changes/)
 - [Blog longer notes behind the work](https://ze-software.net/blog/)
 - [FAQ answers before you commit time](https://ze-software.net/faq/)
 - [Contribute code, bug reports, and interop results](https://ze-software.net/contribute/)

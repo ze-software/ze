@@ -364,6 +364,14 @@
       "gated": true
     },
     {
+      "stem": "rfc2548",
+      "file": "data/rfc/rfc2548.json",
+      "title": "Microsoft Vendor-specific RADIUS Attributes",
+      "walked": true,
+      "enrolment": "out-of-scope",
+      "gated": false
+    },
+    {
       "stem": "rfc2661",
       "file": "data/rfc/rfc2661.json",
       "title": "Layer Two Tunneling Protocol \"L2TP\"",
@@ -1063,6 +1071,14 @@
       "stem": "rfc5575",
       "file": "data/rfc/rfc5575.json",
       "title": "Dissemination of Flow Specification Rules",
+      "walked": true,
+      "enrolment": "enrolled",
+      "gated": true
+    },
+    {
+      "stem": "rfc5625",
+      "file": "data/rfc/rfc5625.json",
+      "title": "DNS Proxy Implementation Guidelines",
       "walked": true,
       "enrolment": "enrolled",
       "gated": true

@@ -58,6 +58,8 @@ over Ethernet to the BNG without an intermediate LAC/LNS tunnel.</p>
 <ol>
 <li><a href="#changing-the-configuration">Changing the configuration</a></li>
 <li><a href="#subscriber-authentication">Subscriber authentication</a></li>
+<li><a href="#pppoe-client-keepalive-and-redial">PPPoE client keepalive and redial</a></li>
+<li><a href="#pppoe-client-ipv6">PPPoE client IPv6</a></li>
 </ol></li>
 <li><a href="#interoperability">Interoperability</a></li>
 <li><a href="#cli-commands">CLI Commands</a></li>
@@ -127,7 +129,7 @@ concentrator at once, with no restart:</p>
 </thead>
 <tbody>
 <tr>
-<td><code>ac-name</code>, <code>service-name</code>, <code>cookie-timeout</code>, <code>padi-rate-limit</code>, <code>max-sessions</code>, <code>max-sessions-per-mac</code>, <code>auth-method</code>, <code>allow-no-auth</code></td>
+<td><code>ac-name</code>, <code>service-name</code>, <code>cookie-timeout</code>, <code>padi-rate-limit</code>, <code>max-sessions</code>, <code>max-sessions-per-mac</code>, <code>auth-method</code>, <code>authentication-allow</code>, <code>allow-no-auth</code></td>
 <td>Apply to the next PADI and the next admitted session. A session already up keeps the terms it was admitted under. A lowered <code>max-sessions</code> refuses new sessions and ends none. AC-Cookies already handed out stay valid</td>
 </tr>
 <tr>
@@ -151,10 +153,10 @@ concentrator at once, with no restart:</p>
 <h3 id="subscriber-authentication">Subscriber authentication</h3>
 <p><code>auth-method</code> is the PPP Auth-Protocol the access concentrator puts in its own
 LCP Configure-Request: <code>chap-md5</code> (the default), <code>pap</code>, <code>ms-chap-v2</code>, or <code>none</code>.
-With <code>pap</code>, the first Configure-Request still offers CHAP-MD5, and PAP is
-offered only after the subscriber sends a Configure-Nak that suggests PAP
-(RFC 1334 Section 2: an implementation that includes CHAP MUST offer it before
-PAP).</p>
+With <code>pap</code> and its derived default policy, the first Configure-Request offers
+CHAP-MD5, and PAP is offered only after the subscriber sends a Configure-Nak
+that suggests PAP (RFC 1334 Section 2: an implementation that includes CHAP
+MUST offer it before PAP). An explicit <code>[pap]</code> policy offers PAP directly.</p>
 <!-- source: internal/component/l2tp/ppp/auth.go -- initialAuthMethod -->
 <p><code>none</code> requires <code>allow-no-auth true</code>. The daemon rejects <code>none</code> without that
 opt-in, and rejects an unknown authentication method, with
@@ -176,6 +178,12 @@ opt-in, and rejects an unknown authentication method, with
 <td>Auth-Protocol advertised in the AC's LCP Configure-Request (RFC 1661 Section 6.2)</td>
 </tr>
 <tr>
+<td><code>authentication-allow</code></td>
+<td>Derived from <code>auth-method</code></td>
+<td>ordered set of <code>pap</code>, <code>chap-md5</code>, <code>ms-chap-v2</code></td>
+<td>Permitted methods; must include <code>auth-method</code>, cannot include <code>none</code> or accompany <code>auth-method none</code></td>
+</tr>
+<tr>
 <td><code>allow-no-auth</code></td>
 <td><code>false</code></td>
 <td>boolean</td>
@@ -186,6 +194,48 @@ opt-in, and rejects an unknown authentication method, with
 <p>The default matches the L2TP LNS default, so an operator who configures a
 credential for one transport gets the same treatment on the other.
 Explicit no-auth sessions need no local user entry.</p>
+<p>The flat <code>authentication-allow</code> leaf sits beside <code>auth-method</code>:</p>
+<pre><code>pppoe {
+    auth-method chap-md5
+    authentication-allow [chap-md5 ms-chap-v2 pap]
+}
+</code></pre>
+<p>Absent or empty lists derive <code>[chap-md5]</code> for <code>chap-md5</code>,
+<code>[ms-chap-v2]</code> for <code>ms-chap-v2</code>, <code>[chap-md5 pap]</code> for <code>pap</code>, and no
+methods for <code>none</code>. Lists are ordered sets: duplicate entries do not add a
+second attempt. The configured CHAP variant is offered first; remaining CHAP
+variants follow written order, before PAP regardless of its written position.
+Changes affect newly admitted sessions only, not an existing session's policy.</p>
+<p>A Configure-Nak selects an untried permitted method; an unlisted, unknown or
+already-tried suggestion advances through the remaining methods without
+repeating an offer. A PAP suggestion cannot skip an untried CHAP variant.
+A valid Configure-Reject removes Auth-Protocol for the whole negotiation,
+rather than trying a different method. Required authentication ends LCP with
+Terminate-Request before Opened when no acceptable method remains or the
+option is rejected, followed by PADT when termination completes. No PAP
+exchange or auth-handler request occurs on that refusal. Explicit
+<code>allow-no-auth true</code> instead permits the no-wire-auth handler after the option
+is dropped.</p>
+<!-- source: internal/component/l2tp/ppp/auth.go -- selectAuthFallback, refuseAuthMethod -->
+<p>The editor accepts one method per command. To permit PAP explicitly while
+retaining CHAP-MD5, use <code>set pppoe authentication-allow chap-md5</code>, followed by
+<code>set pppoe authentication-allow pap</code>. Refusal messages print only PPPoE repair
+commands for a PPPoE subscriber. To repair an invalid explicit list by restoring
+the method-derived default, use <code>delete pppoe authentication-allow</code>.</p>
+<!-- source: internal/component/l2tp/ppp/auth.go -- refuseAuthMethod -->
+<!-- source: internal/component/l2tp/pppoe/config.go -- ExtractParameters -->
+<!-- source: internal/component/cli/model_commands_edit.go -- cmdSet -->
+<!-- source: internal/component/cli/editor_commands.go -- SetValue, setLeafListMember -->
+<p><strong>Migration:</strong> CHAP-MD5 and MS-CHAPv2 no longer implicitly permit other
+methods. If subscribers previously relied on PAP fallback, explicitly include
+both the configured method and <code>pap</code>. Do not enable <code>allow-no-auth</code> as a
+substitute for permitting the authentication method those subscribers need.
+PPPoE's MRU ceiling remains fixed at 1492; there is no PPPoE MRU setting.
+The installed IP interface MTU is at most 1492, including when the peer
+omits its MRU option and thus advertises the PPP default of 1500. A smaller
+negotiated peer MRU still lowers the transmit MTU. The kernel receive buffer
+keeps its required 1500-octet capacity.</p>
+<!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpen -->
 <p>The credential comes from the same auth plugins the L2TP LNS uses. Configure a
 local user, or a RADIUS server:</p>
 <pre><code>l2tp {
@@ -207,15 +257,117 @@ local user, or a RADIUS server:</p>
 </code></pre>
 <p>The <code>l2tp</code> block here configures the shared BNG plugins, not an L2TP listener:
 <code>l2tp-auth-local</code> verifies the credential and <code>l2tp-pool</code> supplies the IPCP
-address. A PPPoE-only BNG needs neither <code>l2tp enabled</code> nor an L2TP server.</p>
+address. A PPPoE-only BNG needs neither <code>l2tp enabled</code> nor an L2TP server.
+The IPCP DNS a PPPoE subscriber gets follows the pool's <code>dns-source</code> list, as
+on L2TP: with none written, RADIUS's MS DNS servers, then the pool's
+<code>dns-primary</code> and <code>dns-secondary</code>, then the resolvers Ze learned
+(<code>docs/guide/l2tp.md</code>, "IP address pool").</p>
 <p>The PPP auth handler slot holds one handler, and configuration decides its
 owner: <code>l2tp-auth-radius</code> claims it when a RADIUS server is configured, and
 <code>l2tp-auth-local</code> keeps it otherwise. A box with local users and no RADIUS block
 therefore authenticates against those users, on PPPoE and on L2TP.</p>
 <!-- source: internal/component/l2tp/plugins/authradius/register.go -- activateRadiusConfig claims the slot -->
+<h3 id="pppoe-client-keepalive-and-redial">PPPoE client keepalive and redial</h3>
+<p>A <code>pppoe-client</code> entry detects a dead access concentrator with LCP
+Echo-Requests. <code>keepalive interval</code> sets the seconds between two requests
+(default 10), and <code>keepalive failures</code> sets how many unanswered requests in a
+row end the session (default 3), so the default detection time is about 30
+seconds. These play the part of pppd's <code>lcp-echo-interval</code> and
+<code>lcp-echo-failure</code>, with one difference in counting: Ze ends the session when
+it sends the request that reaches <code>failures</code>, while pppd ends it at the next
+tick after its Nth unanswered request. pppd's <code>lcp-echo-failure 3</code> therefore
+matches <code>keepalive failures 4</code>. After a session ends or a dial fails, the client waits
+before it dials again: the first wait is <code>reconnect delay-min</code> (default 1
+second), and each further failure doubles it up to <code>reconnect delay-max</code>
+(default 60 seconds). A change to any of these leaves keeps the running
+session up: the next session and the next wait use the new values. Every leaf
+and its range is listed in <a href="../configuration-model/">Configuration</a>, "PPPoE Client".</p>
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client keepalive, reconnect -->
+<!-- source: internal/component/l2tp/pppoeclient/network_phase.go -- keepaliveLoop -->
+<p>The <code>access-reconnect</code> topology scenario proves the redial: after the LNS
+drops the session and RADIUS hands out a new address, the CPE comes back with
+it, the IKE SA follows it and masquerade uses it.</p>
+<!-- source: internal/le/interoplab/topology/check_vpn.go -- checkAccessReconnect -->
+<h3 id="pppoe-client-ipv6">PPPoE client IPv6</h3>
+<p><code>ipv6 enabled true</code> on a <code>pppoe-client</code> negotiates IPv6CP beside IPCP. The
+client installs the link-local address formed from the negotiated interface
+identifier on the session device. An access concentrator that rejects or
+ignores IPv6CP leaves the IPv4 session up. The same container takes
+<code>accept-ra</code>, <code>autoconf</code> and <code>forwarding</code>, written to the session device each
+time a session creates it, and a <code>dhcpv6</code> block that runs the DHCPv6 client on
+the session device. Ze refuses the other <code>ipv6</code> leaves while <code>enabled</code> is not
+true. For a router that learns its default route from the access
+concentrator's Router Advertisements and asks for a delegated /56:</p>
+<pre><code>pppoe-client pppoe0 {
+    source-interface eth2
+    authentication { username user@isp.example; password secret; }
+    ipv6 {
+        enabled true
+        accept-ra 2
+        autoconf true
+        forwarding true
+        dhcpv6 { enabled true; pd { length 56; } }
+    }
+}
+</code></pre>
+<p>A PPP device has no hardware address, so the DHCPv6 client builds its DUID-LL
+and IAIDs from the source interface unless <code>dhcpv6 duid</code> is set. The delegated
+prefix is published as a lease on <code>pppoe0</code>.</p>
+<p>A LAN unit takes a /64 from it with <code>ipv6 delegated-prefix</code>, named after the
+<code>pppoe-client</code>:</p>
+<pre><code>interface ethernet eth1 {
+    unit 0 {
+        ipv6 {
+            forwarding true
+            delegated-prefix pppoe0 { subnet-id 1; interface-identifier ::1; }
+            router-advertisement { enabled true; }
+        }
+    }
+}
+</code></pre>
+<p>With <code>2001:db8:aa00::/56</code> delegated, <code>eth1</code> holds <code>2001:db8:aa00:1::1/64</code>. The
+subnet id sits in the bits between the delegated length and 64, so a /56 holds
+ids 0 to 255; <code>interface-identifier</code> defaults to <code>::1</code>. The address takes the
+lifetimes that remain of the delegation, and a renew refreshes them (RFC 9915
+Section 6.3). When the lease ends the address is removed. Config verify refuses a
+<code>subnet-id</code> the <code>pd length</code> cannot hold, two units taking the same id from one
+source, and a source that is not a <code>pppoe-client</code> asking for a prefix. A server
+may delegate a longer prefix than the hint; when it is too small for the id, Ze
+logs an error naming the unit and the fix, and the unit gets no /64.</p>
+<p>With <code>router-advertisement</code> enabled, the unit advertises the /64 for SLAAC and a
+Route Information option for the whole delegated prefix, both bounded by what
+remains of the delegation. Its Router Lifetime is the configured one only while
+<code>pppoe0</code> holds an IPv6 default route and the unit has a prefix, and an
+advertisement with Router Lifetime 0 leaves at once when either is lost (RFC 7084
+G-4, G-5, L-4). While a LAN unit holds space from the prefix, the client never
+releases it.</p>
+<p><code>show interface pppoe-client</code> lists, under <code>delegated-prefixes</code>, each prefix the
+client's lease holds with its <code>valid-lifetime</code> and <code>preferred-lifetime</code>: the
+whole seconds that remain when you ask, 4294967295 meaning infinite.
+<code>show interface delegated-prefix</code> answers one row per <code>delegated-prefix</code> entry
+of an enabled unit, naming the <code>interface</code>, <code>unit</code>, <code>source</code> and <code>subnet-id</code>.
+A unit whose <code>state</code> is <code>installed</code> also carries its <code>address</code>, the derived /64
+as <code>prefix</code>, the whole <code>delegated</code> prefix and the lifetimes that remain. The
+other states carry a <code>reason</code>: <code>waiting</code> (the source holds no delegated prefix),
+<code>too-small</code> (the delegated prefix cannot hold the subnet id, with the fix) and
+<code>not-installed</code> (the address install failed, and the log names why).</p>
+<p>The interop scenarios <code>pppoe-ipv6cp-ze-client</code> and
+<code>pppoe-ipv6cp-rejected-ze-client</code> prove this against accel-ppp: the first the
+negotiated link-local address, the RA default route and SLAAC, the second an
+access concentrator that rejects IPv6CP (<code>docs/labs/pppoe-interop.md</code>).</p>
+<!-- source: internal/component/iface/pppoe_client_ipv6.go -- parsePPPoEClientIPv6, applyPPPoEClientSysctls -->
+<!-- source: internal/component/iface/register.go -- reconcileDHCP, pppoeClientDHCPUnit -->
+<!-- source: internal/component/iface/delegated_consumer.go -- runDelegationWorker, installDelegatedAddress -->
+<!-- source: internal/component/iface/delegated_prefix.go -- deriveDelegatedAddress, verifyDelegatedPrefixes -->
+<!-- source: internal/component/iface/delegated_lease.go -- DelegatedPrefixStatus, statusOf -->
+<!-- source: internal/component/iface/delegated_prefix_command.go -- delegatedUnitRowOf, delegatedUnitStatusOf -->
+<!-- source: internal/plugins/iface/ra/advertiser.go -- build, routerLifetime -->
+<!-- source: internal/plugins/iface/dhcp/dhcp_v6_linux.go -- releasableLease -->
 <h2 id="interoperability">Interoperability</h2>
-<p>Two Docker lab scenarios run Ze in each PPPoE role.
-<code>./le test deployment docker-pppoe-accel</code> runs both.</p>
+<p>Docker lab scenarios run Ze in each PPPoE role; the table names the two
+baseline ones and the CPE reconnect, and <code>docs/labs/pppoe-interop.md</code> lists
+every scenario.
+<code>./le test deployment docker-pppoe-accel</code> runs them all.</p>
 <table>
 <thead>
 <tr>
@@ -230,12 +382,18 @@ therefore authenticates against those users, on PPPoE and on L2TP.</p>
 <td><code>01-pppoe-chap-ipv4</code></td>
 <td>client</td>
 <td>accel-ppp</td>
-<td>Discovery, LCP, CHAP-MD5, the IPCP address on a kernel <code>pppN</code> interface, a ping to the AC gateway through the session, and a clean teardown</td>
+<td>Discovery, LCP, CHAP-MD5, the IPCP address on the kernel device <code>pppoe0</code>, named after the <code>pppoe-client</code> key, a ping to the AC gateway through the session, and a clean teardown</td>
+</tr>
+<tr>
+<td><code>pppoe-named-device-reconnect-ze-client</code></td>
+<td>client</td>
+<td>accel-ppp</td>
+<td>A home CPE: the device is <code>pppoe0</code> and the client creates no <code>pppN</code>; a static default <code>next { interface pppoe0 }</code> reaches the kernel through it; LAN traffic masqueraded on <code>output-interface "pppoe0"</code> crosses it and the nft counter rises; after accel-ppp terminates the session, a new <code>pppoe0</code> comes up and the route and NAT work again with no reload</td>
 </tr>
 <tr>
 <td><code>02-ze-ac-pppd-client</code></td>
 <td>access concentrator</td>
-<td>pppd 2.5.4 with the rp-pppoe plugin</td>
+<td>pppd 2.5.5 with the rp-pppoe plugin</td>
 <td>Discovery, LCP demanding CHAP-MD5, the credential accepted, an IPCP pool address, ICMP across the session, and a wrong password refused before IPCP</td>
 </tr>
 </tbody>
@@ -409,7 +567,7 @@ ID for L2TP) and SessionID.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

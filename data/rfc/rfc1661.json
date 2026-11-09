@@ -8,27 +8,27 @@
   "must": {
     "total": 76,
     "kept": 76,
-    "ze-proven": 42,
+    "ze-proven": 43,
     "os-verified": 0,
     "os-gap": 2,
-    "ze-gap": 32,
+    "ze-gap": 31,
     "not-owed": 0,
     "not-owed-by-kind": {}
   },
   "should": {
     "total": 25,
-    "proven": 0,
+    "proven": 2,
     "os-verified": 0,
     "os-gap": 0,
     "not-owed": 0,
     "not-ever": 0,
     "not-yet": 0,
-    "not-decided": 25,
+    "not-decided": 23,
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
     "interop": 4,
-    "unit": 38
+    "unit": 39
   },
   "unmet": [
     "RFC1661-2-2",

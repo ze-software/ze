@@ -1,4 +1,4 @@
-# Week of 2026-08-03
+# 2026-08-03 – 2026-08-09 (1 week)
 
 Ze is being checked against the RFCs it implements, one MUST at a time, and that is where most of this week's work came from. BGP took the largest share. IS-IS learned to answer a purge of its own LSP, gNMI stopped serving unauthenticated writes, and web and DNS listeners can now carry an operator's own certificate.
 

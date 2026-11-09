@@ -54,17 +54,35 @@
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
 <div><dt>Registry path</dt><dd><code>show bgp decode</code></dd></div>
-<div><dt>Usage</dt><dd><code>show bgp decode</code></dd></div>
-<div><dt>Mode</dt><dd>Read-only</dd></div>
+<div><dt>Usage</dt><dd><code>show bgp decode [type &lt;open|update|notification|keepalive&gt;] [nlri &lt;nlri&gt;] [family &lt;family&gt;] [pcap &lt;pcap&gt;] [plugin &lt;plugin&gt;] [message &lt;message&gt;]</code></dd></div>
+<div><dt>Mode</dt><dd>read-only, offline</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-bgp:show-decode</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
 <div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
 <div><dt>Subcommands</dt><dd>none: this command takes no subcommand</dd></div>
-<div><dt>Pipes</dt><dd>none: this command reaches no pipe layer</dd></div>
+<div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
+<div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill</dd></div>
+<div><dt>Pipes, while streaming</dt><dd>log</dd></div>
+<div><dt>Pipes, local process only</dt><dd>save</dd></div>
 </dl>
 <h3>Description</h3><p>Paste a hex BGP UPDATE and get back parsed attributes,<br>NLRI, and withdrawn prefixes. Use it to read pcap captures or to debug wire<br>issues. The web UI carries the same tool under tools.</p>
 <h3>Arguments</h3>
-<p>No command-specific arguments listed.</p>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>type</code></td><td>enum</td><td>no</td><td><code>open</code> <code>update</code> <code>notification</code> <code>keepalive</code></td><td>Message type to decode as</td><td>Reads the message as this type. Without it, a message with a BGP header
+is read as the type its header names, and one without a header as an UPDATE
+body.</td></tr>
+<tr><td><code>nlri</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Decode as NLRI of this family</td><td>Reads the payload as NLRI alone, of this address family (afi/safi).</td></tr>
+<tr><td><code>family</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Address family of an UPDATE</td><td>The address family an UPDATE body is decoded under (afi/safi).</td></tr>
+<tr><td><code>pcap</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Capture file to decode</td><td>A packet capture to read every BGP message from, in the order the
+messages completed on the wire.</td></tr>
+<tr><td><code>plugin</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Plugin that decodes first</td><td>A registered plugin that decodes capabilities and NLRI before the
+other registered decoders. The name alone forks the plugin, ze.&lt;name&gt; runs it in a
+goroutine and ze-&lt;name&gt; calls it in-process. A name no registered plugin decodes
+under is refused. A program path is taken only by the local ze bgp decode
+command&#39;s own option, since it names a program on the host the decode runs on.</td></tr>
+<tr><td><code>message</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Hexadecimal message</td><td>The message in hexadecimal. Colons and spaces between the digits are
+stripped, so it may span several words.</td></tr>
+</tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
 <article class="cmd-detail-card cmd-vendor-detail"><h2>Juniper Junos MX</h2>
@@ -129,7 +147,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

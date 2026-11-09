@@ -808,7 +808,7 @@ bgp {
 <ol>
 <li>The RTR session starts at v2. If the cache names supported v1 in an Unsupported Version response, Ze reconnects at v1; ASPA records are unavailable at that version.</li>
 <li>The cache sends ASPA PDUs alongside VRPs. An announcement replaces the provider list for one customer AS; a 12-byte withdrawal removes that customer's complete record. An AS0-only list means no authorized providers. AS0 mixed with other providers is an RTR error.</li>
-<li>The BGP receive path checks the first AS against the neighbor after AS4 reconstruction. A mismatch is treated as withdrawal, except on a local transparent route-server-client session. The receive path applies RFC 9774: a route whose AS_PATH or AS4_PATH holds an AS_SET or AS_CONFED_SET is treat-as-withdraw, so it never reaches ASPA verification. The ASPA code still answers Invalid for such a path, as RFC 9774 Section 4 restates.</li>
+<li>The BGP receive path checks the first AS against the neighbor after AS4 reconstruction. A mismatch is treated as withdrawal, except on a local transparent route-server-client session. A neighbor configured as AS_TRANS (23456) on a two-octet session (<code>asn4 disable</code>) is checked on the AS_PATH as received, which cannot confirm the reconstructed path's first AS, so ASPA itself marks such a route Invalid unless that first AS is 23456; a local <code>role import rs-client</code> is exempt. With ASPA verification enabled, every route from a peer configured <code>capability { asn4 disable; }</code> with <code>remote 23456</code> whose real AS is four-octet is therefore Invalid, even from a compliant peer whose AS4_PATH is correct, because Ze cannot confirm that the peer is the AS its AS4_PATH names. The plugin logs one warning per such peer with the fix: set the peer's real AS as <code>session asn remote</code> and <code>capability { asn4 enable; }</code> toward it. The receive path applies RFC 9774: a route whose AS_PATH or AS4_PATH holds an AS_SET or AS_CONFED_SET is treat-as-withdraw, so it never reaches ASPA verification. The ASPA code still answers Invalid for such a path, as RFC 9774 Section 4 restates.</li>
 <li>ASPA removes consecutive duplicate ASNs. Upstream verification checks authorization from origin toward neighbor; downstream verification compares the authorized and possible ramps from both ends of the path.</li>
 <li>The result appears as <code>"aspa-state"</code> in the RPKI event JSON.</li>
 </ol>
@@ -1125,7 +1125,7 @@ must succeed before this source is published as a recording.</code></pre>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

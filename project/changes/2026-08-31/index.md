@@ -1,4 +1,4 @@
-# Week of 2026-08-31
+# 2026-08-31 – 2026-09-06 (1 week)
 
 Reading the standards documents end to end is finding real defects faster than it is finding paperwork, and most of the week went on fixing what it found. Three of them mattered: an authentication bypass on IKE logins, a redistribute block that discarded every route from every peer, and subscriber IPv6 that never worked at all.
 

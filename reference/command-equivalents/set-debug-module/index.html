@@ -55,12 +55,15 @@
 <dl class="cmd-meta">
 <div><dt>Registry path</dt><dd><code>set debug module</code></dd></div>
 <div><dt>Usage</dt><dd><code>set debug module &lt;module-name&gt; [level &lt;level&gt;] [flag &lt;flag&gt;] [scope &lt;kind&gt; &lt;value&gt;]</code></dd></div>
-<div><dt>Mode</dt><dd>Daemon</dd></div>
+<div><dt>Mode</dt><dd>daemon, offline</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-debug:set-module</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
 <div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
 <div><dt>Subcommands</dt><dd><code>scope</code></dd></div>
-<div><dt>Pipes</dt><dd>none: this command reaches no pipe layer</dd></div>
+<div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
+<div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill</dd></div>
+<div><dt>Pipes, while streaming</dt><dd>log</dd></div>
+<div><dt>Pipes, local process only</dt><dd>save</dd></div>
 </dl>
 <h3>Description</h3><p>The bare command enables the subsystem at its default level. A level, a<br>flag or a scope narrows what the subsystem writes. The profile is saved and applied.</p>
 <h3>Arguments</h3>
@@ -135,7 +138,7 @@ the valid flags are listed.</td></tr>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

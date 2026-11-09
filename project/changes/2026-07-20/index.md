@@ -1,4 +1,4 @@
-# Week of 2026-07-20
+# 2026-07-20 – 2026-07-26 (1 week)
 
 Ze has left Codeberg for GitHub. Beyond the move: protocol correctness, a security triage over the code-scanning backlog, and build-time feature gates that let a deployment ship only the code it runs.
 

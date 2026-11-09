@@ -108,7 +108,7 @@ logged, crash recorded, and counted in
 <p>Credentials are stored under <code>database/</code> in the resolved configuration folder,
 with bcrypt-hashed passwords. Initialization seeds every key before publishing
 the directory, so an interrupted initialization cannot expose partial credentials.</p>
-<!-- source: internal/plugins/init/main.go -- Run, runInit -->
+<!-- source: internal/plugins/init/main.go -- Run, runInit, runInitPublished -->
 <table>
 <thead>
 <tr>
@@ -159,7 +159,7 @@ any process owns the store, including a web-only daemon. Changing the SSH target
 does not bypass this protection.</p>
 <!-- source: internal/plugins/init/main.go -- Run, runInit -->
 <p>The initial config is written under the name the store's instance name gives it. When that name cannot be read, <code>ze init</code> fails with <code>name initial config: ...</code> and closes the interface backend it opened, rather than writing the config under <code>ze.conf</code>.</p>
-<!-- source: internal/plugins/init/main.go -- runInit -->
+<!-- source: internal/plugins/init/main.go -- runInitPublished -->
 <h3 id="store-folder-and-ownership">Store folder and ownership</h3>
 <p>An explicit config path selects its parent folder. Without one, clients and
 daemons use <code>ze.config.dir</code>, then the binary's default configuration folder.
@@ -931,7 +931,7 @@ ze signal quit                 # goroutine dump (kills daemon!)
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 23:56 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

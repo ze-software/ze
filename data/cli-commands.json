@@ -772,7 +772,7 @@
     "path": "clear debug",
     "short-help": "Clear the default debug profile.",
     "description": "It writes an empty profile into the default slot and applies it, so the\nstored default and the running daemon both stop. A named profile is not touched.",
-    "mode": "daemon",
+    "mode": "daemon, offline",
     "wire-method": "ze-debug:clear-debug",
     "usage": "clear debug",
     "grammar": [
@@ -783,6 +783,99 @@
       {
         "text": "debug",
         "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
       }
     ]
   },
@@ -6220,7 +6313,7 @@
     "path": "delete debug module",
     "short-help": "Disable debug for a subsystem, or remove one of its flags or scopes.",
     "description": "The module name alone removes the whole module. Naming a flag or a scope\nremoves that one and leaves the module enabled. Deleting a module the profile does not\nhold succeeds and changes nothing, so a repeated command is safe.",
-    "mode": "daemon",
+    "mode": "daemon, offline",
     "wire-method": "ze-debug:delete-module",
     "args": [
       {
@@ -6274,6 +6367,99 @@
         "kind": "group"
       }
     ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ],
     "subcommands": [
       "scope"
     ]
@@ -6282,7 +6468,7 @@
     "path": "delete debug profile name",
     "short-help": "Delete a named debug profile.",
     "description": "It removes the stored slot and nothing else. The running daemon keeps\nwhatever it is writing, so deleting the profile that is live does not turn its output off.",
-    "mode": "daemon",
+    "mode": "daemon, offline",
     "wire-method": "ze-debug:delete-profile-name",
     "args": [
       {
@@ -6314,6 +6500,99 @@
       {
         "text": "profile-name",
         "kind": "value"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
       }
     ]
   },
@@ -7204,10 +7483,43 @@
     "path": "monitor ping",
     "short-help": "Continuous ping with live loss and RTT statistics.",
     "description": "Pings <target> until you stop it. Adjust interval and timeout as needed. Shows\nrunning min/avg/max RTT and packet loss.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-ping:monitor-ping",
     "task-support": "required",
-    "usage": "monitor ping",
+    "args": [
+      {
+        "name": "destination",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Host or IP address to ping.",
+        "description": "The value is the first bare word of the command, or follows the destination\nkeyword. A host name is resolved in either address family, and the family of the\nanswer selects ICMPv4 or ICMPv6."
+      },
+      {
+        "name": "interval",
+        "type": "string",
+        "short-help": "Time between two echo requests.",
+        "description": "The value is the time between two echo requests, in Go duration syntax,\n100ms to 30s. Absent, the value is 1s."
+      },
+      {
+        "name": "timeout",
+        "type": "string",
+        "short-help": "Time to wait for each reply.",
+        "description": "The value is the time Ze waits for each reply, in Go duration syntax, 1s\nto 30s. Absent, the value is 5s."
+      },
+      {
+        "name": "count",
+        "type": "uint",
+        "short-help": "Number of echo requests before the stream stops.",
+        "description": "Ze sends this many echo requests and stops. Absent, the stream runs until\nyou stop it, and the one-shot answer of the API surfaces sends 5."
+      },
+      {
+        "name": "size",
+        "type": "uint",
+        "short-help": "ICMP echo payload size in bytes.",
+        "description": "Ze fills the payload to exactly this many bytes, with its marker copied\ninto the front. Absent, Ze sends the small default payload."
+      }
+    ],
+    "usage": "monitor ping <destination> [interval <interval>] [timeout <timeout>] [count <count>] [size <size>]",
     "grammar": [
       {
         "text": "monitor",
@@ -7216,6 +7528,26 @@
       {
         "text": "ping",
         "kind": "keyword"
+      },
+      {
+        "text": "destination",
+        "kind": "value"
+      },
+      {
+        "text": "interval",
+        "kind": "option"
+      },
+      {
+        "text": "timeout",
+        "kind": "option"
+      },
+      {
+        "text": "count",
+        "kind": "option"
+      },
+      {
+        "text": "size",
+        "kind": "option"
       }
     ],
     "operators": [
@@ -7448,10 +7780,47 @@
     "path": "monitor traceroute",
     "short-help": "Live mtr-style traceroute that updates continuously.",
     "description": "Shows each hop with running RTT statistics. Keeps probing so you can watch\npath changes and latency shifts over time.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-traceroute:monitor-traceroute",
     "task-support": "required",
-    "usage": "monitor traceroute",
+    "args": [
+      {
+        "name": "destination",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Host or IP address to trace.",
+        "description": "The value is the first bare word of the command, or follows the destination\nkeyword. A host name is resolved in either address family, and the family of the\nanswer selects ICMPv4 or ICMPv6."
+      },
+      {
+        "name": "max-hops",
+        "type": "uint",
+        "short-help": "Maximum number of hops.",
+        "description": "The value is the largest time-to-live the stream probes. Absent, the\nstream probes 30 hops, and the one-shot round of the API surfaces probes 16."
+      },
+      {
+        "name": "timeout",
+        "type": "string",
+        "short-help": "Timeout duration, accepted and not read.",
+        "description": "The value is accepted in Go duration syntax, 1s to 30s, and then not read:\neach probe round waits one second for every answer."
+      },
+      {
+        "name": "probes",
+        "type": "uint",
+        "short-help": "Number of probes per hop, accepted and not read.",
+        "description": "The value is accepted in the range 1 to 10 and then not read: a probe\nround sends one probe at each time-to-live."
+      },
+      {
+        "name": "do-not-fragment",
+        "type": "enum",
+        "values": [
+          "honor-cache",
+          "bypass-cache"
+        ],
+        "short-help": "Don't Fragment mode, accepted and not read.",
+        "description": "The keyword takes one of two values, honor-cache or bypass-cache, as on show\ntraceroute, and then neither is read: a probe round sends every probe with the Don't\nFragment bit off."
+      }
+    ],
+    "usage": "monitor traceroute <destination> [max-hops <max-hops>] [timeout <timeout>] [probes <probes>] [do-not-fragment <honor-cache|bypass-cache>]",
     "grammar": [
       {
         "text": "monitor",
@@ -7460,6 +7829,30 @@
       {
         "text": "traceroute",
         "kind": "keyword"
+      },
+      {
+        "text": "destination",
+        "kind": "value"
+      },
+      {
+        "text": "max-hops",
+        "kind": "option"
+      },
+      {
+        "text": "timeout",
+        "kind": "option"
+      },
+      {
+        "text": "probes",
+        "kind": "option"
+      },
+      {
+        "text": "do-not-fragment",
+        "values": [
+          "honor-cache",
+          "bypass-cache"
+        ],
+        "kind": "option"
       }
     ],
     "operators": [
@@ -16065,9 +16458,35 @@
     "path": "request support archive",
     "short-help": "Collect logs, config, state and diagnostics into one archive.",
     "description": "The archive holds logs, config, state and diagnostics, and is what to send\nwhen you report an issue. Secrets are redacted unless asked for. Modules can be selected\nor excluded, and a time window narrows the logs the archive holds.",
-    "mode": "daemon",
+    "mode": "daemon, offline",
     "wire-method": "ze-support:request-support-archive",
-    "usage": "request support archive",
+    "args": [
+      {
+        "name": "module",
+        "type": "string",
+        "short-help": "Collect only these modules (comma-separated).",
+        "description": "Only the named modules are collected, given as a comma-separated list of\nmodule names. Not given together with exclude."
+      },
+      {
+        "name": "exclude",
+        "type": "string",
+        "short-help": "Collect every module except these (comma-separated).",
+        "description": "Every module except the named ones is collected, given as a comma-separated\nlist of module names. Not given together with module."
+      },
+      {
+        "name": "since",
+        "type": "string",
+        "short-help": "Start the logs at this time or this long ago.",
+        "description": "The logs the archive holds start at this time: a duration back from now\n(2h, 30m) or a date or time (2026-05-25, 2026-05-25T14:00:00Z)."
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "short-help": "Why the archive was collected, recorded in its manifest.",
+        "description": "Free text recorded in the archive's manifest, cut at 256 characters."
+      }
+    ],
+    "usage": "request support archive [module <module>] [exclude <exclude>] [since <since>] [reason <reason>]",
     "grammar": [
       {
         "text": "request",
@@ -16080,6 +16499,115 @@
       {
         "text": "archive",
         "kind": "keyword"
+      },
+      {
+        "text": "module",
+        "kind": "option"
+      },
+      {
+        "text": "exclude",
+        "kind": "option"
+      },
+      {
+        "text": "since",
+        "kind": "option"
+      },
+      {
+        "text": "reason",
+        "kind": "option"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
       }
     ]
   },
@@ -16198,7 +16726,7 @@
     "path": "request wireguard keypair",
     "short-help": "Generate a WireGuard keypair with the system wg binary.",
     "description": "The private key is written on the first line and the public key on the\nsecond. The wg binary must be installed on this host.",
-    "mode": "daemon",
+    "mode": "daemon, offline",
     "wire-method": "ze-diag:request-wireguard-keypair",
     "usage": "request wireguard keypair",
     "grammar": [
@@ -16213,6 +16741,99 @@
       {
         "text": "keypair",
         "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
       }
     ]
   },
@@ -19343,7 +19964,7 @@
     "path": "set debug active name",
     "short-help": "Load a named debug profile and apply it to the running daemon.",
     "description": "The named profile becomes the live state and the default slot is not\noverwritten, so a restart returns the daemon to the default profile rather than to this one.",
-    "mode": "daemon",
+    "mode": "daemon, offline",
     "wire-method": "ze-debug:set-active-name",
     "args": [
       {
@@ -19376,13 +19997,106 @@
         "text": "profile-name",
         "kind": "value"
       }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
     ]
   },
   {
     "path": "set debug module",
     "short-help": "Enable debug output for one subsystem.",
     "description": "The bare command enables the subsystem at its default level. A level, a\nflag or a scope narrows what the subsystem writes. The profile is saved and applied.",
-    "mode": "daemon",
+    "mode": "daemon, offline",
     "wire-method": "ze-debug:set-module",
     "args": [
       {
@@ -19446,6 +20160,99 @@
         "kind": "group"
       }
     ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ],
     "subcommands": [
       "scope"
     ]
@@ -19454,7 +20261,7 @@
     "path": "set debug profile name",
     "short-help": "Save the current debug state as a named profile.",
     "description": "It copies what the daemon is writing now into a named slot. The default\nslot is left as it is, so saving a profile does not change what the running daemon logs.",
-    "mode": "daemon",
+    "mode": "daemon, offline",
     "wire-method": "ze-debug:set-profile-name",
     "args": [
       {
@@ -19487,13 +20294,106 @@
         "text": "profile-name",
         "kind": "value"
       }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
     ]
   },
   {
     "path": "set debug timeout",
     "short-help": "Set how long debug output stays enabled.",
     "description": "The duration is written as 30m, 1h or 90s. Seconds are rounded up to\nminutes, the longest accepted value is 24h, and zero disables the timer.",
-    "mode": "daemon",
+    "mode": "daemon, offline",
     "wire-method": "ze-debug:set-timeout",
     "args": [
       {
@@ -19521,6 +20421,99 @@
       {
         "text": "duration",
         "kind": "value"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
       }
     ]
   },
@@ -21596,9 +22589,53 @@
     "path": "show bgp decode",
     "short-help": "Decode a hex-encoded BGP message into readable JSON.",
     "description": "Paste a hex BGP UPDATE and get back parsed attributes,\nNLRI, and withdrawn prefixes. Use it to read pcap captures or to debug wire\nissues. The web UI carries the same tool under tools.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-bgp:show-decode",
-    "usage": "show bgp decode",
+    "args": [
+      {
+        "name": "type",
+        "type": "enum",
+        "values": [
+          "open",
+          "update",
+          "notification",
+          "keepalive"
+        ],
+        "short-help": "Message type to decode as",
+        "description": "Reads the message as this type. Without it, a message with a BGP header\nis read as the type its header names, and one without a header as an UPDATE\nbody."
+      },
+      {
+        "name": "nlri",
+        "type": "string",
+        "short-help": "Decode as NLRI of this family",
+        "description": "Reads the payload as NLRI alone, of this address family (afi/safi)."
+      },
+      {
+        "name": "family",
+        "type": "string",
+        "short-help": "Address family of an UPDATE",
+        "description": "The address family an UPDATE body is decoded under (afi/safi)."
+      },
+      {
+        "name": "pcap",
+        "type": "string",
+        "short-help": "Capture file to decode",
+        "description": "A packet capture to read every BGP message from, in the order the\nmessages completed on the wire."
+      },
+      {
+        "name": "plugin",
+        "type": "string",
+        "short-help": "Plugin that decodes first",
+        "description": "A registered plugin that decodes capabilities and NLRI before the\nother registered decoders. The name alone forks the plugin, ze.<name> runs it in a\ngoroutine and ze-<name> calls it in-process. A name no registered plugin decodes\nunder is refused. A program path is taken only by the local ze bgp decode\ncommand's own option, since it names a program on the host the decode runs on."
+      },
+      {
+        "name": "message",
+        "type": "string",
+        "short-help": "Hexadecimal message",
+        "description": "The message in hexadecimal. Colons and spaces between the digits are\nstripped, so it may span several words."
+      }
+    ],
+    "usage": "show bgp decode [type <open|update|notification|keepalive>] [nlri <nlri>] [family <family>] [pcap <pcap>] [plugin <plugin>] [message <message>]",
     "grammar": [
       {
         "text": "show",
@@ -21611,6 +22648,129 @@
       {
         "text": "decode",
         "kind": "keyword"
+      },
+      {
+        "text": "type",
+        "values": [
+          "open",
+          "update",
+          "notification",
+          "keepalive"
+        ],
+        "kind": "option"
+      },
+      {
+        "text": "nlri",
+        "kind": "option"
+      },
+      {
+        "text": "family",
+        "kind": "option"
+      },
+      {
+        "text": "pcap",
+        "kind": "option"
+      },
+      {
+        "text": "plugin",
+        "kind": "option"
+      },
+      {
+        "text": "message",
+        "kind": "option"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
       }
     ]
   },
@@ -21618,9 +22778,66 @@
     "path": "show bgp encode",
     "short-help": "Turn a route announcement into wire-format hex.",
     "description": "Takes a route in API syntax and returns the BGP UPDATE\nas a hex string. Use it to build a test payload, to feed ze-test, or to verify\nthat an announcement encodes correctly.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-bgp:show-encode",
-    "usage": "show bgp encode",
+    "args": [
+      {
+        "name": "family",
+        "type": "string",
+        "short-help": "Address family of the route",
+        "description": "The address family the route is encoded for (afi/safi). Without it,\nipv4/unicast."
+      },
+      {
+        "name": "local-as",
+        "type": "uint",
+        "short-help": "Local AS number",
+        "description": "The local AS number the UPDATE is built for. Without it, 65533."
+      },
+      {
+        "name": "peer-as",
+        "type": "uint",
+        "short-help": "Peer AS number",
+        "description": "The peer AS number. Equal to local-as, the UPDATE is built for an iBGP\nsession. Without it, 65533."
+      },
+      {
+        "name": "path-id",
+        "type": "enum",
+        "values": [
+          "include",
+          "omit"
+        ],
+        "short-help": "ADD-PATH path identifier",
+        "description": "Whether each NLRI carries an ADD-PATH path identifier (RFC 7911).\nWithout it, omit."
+      },
+      {
+        "name": "part",
+        "type": "enum",
+        "values": [
+          "message",
+          "body",
+          "nlri"
+        ],
+        "short-help": "Part of the UPDATE to answer",
+        "description": "Which part of the UPDATE the answer carries: the whole message with\nits 19-octet header, the body without the header, or the NLRI alone. Without\nit, message."
+      },
+      {
+        "name": "asn-width",
+        "type": "enum",
+        "values": [
+          "two-octet",
+          "four-octet"
+        ],
+        "short-help": "AS number encoding width",
+        "description": "How AS numbers are encoded: in two octets (RFC 4271) or in four\n(RFC 6793). Without it, four-octet."
+      },
+      {
+        "name": "announcement",
+        "type": "string",
+        "short-help": "Route to encode",
+        "description": "The route in the API announcement syntax, such as route 10.0.0.0/24\nnext-hop 192.0.2.1."
+      }
+    ],
+    "usage": "show bgp encode [family <family>] [local-as <local-as>] [peer-as <peer-as>] [path-id <include|omit>] [part <message|body|nlri>] [asn-width <two-octet|four-octet>] [announcement <announcement>]",
     "grammar": [
       {
         "text": "show",
@@ -21633,6 +22850,140 @@
       {
         "text": "encode",
         "kind": "keyword"
+      },
+      {
+        "text": "family",
+        "kind": "option"
+      },
+      {
+        "text": "local-as",
+        "kind": "option"
+      },
+      {
+        "text": "peer-as",
+        "kind": "option"
+      },
+      {
+        "text": "path-id",
+        "values": [
+          "include",
+          "omit"
+        ],
+        "kind": "option"
+      },
+      {
+        "text": "part",
+        "values": [
+          "message",
+          "body",
+          "nlri"
+        ],
+        "kind": "option"
+      },
+      {
+        "text": "asn-width",
+        "values": [
+          "two-octet",
+          "four-octet"
+        ],
+        "kind": "option"
+      },
+      {
+        "text": "announcement",
+        "kind": "option"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
       }
     ]
   },
@@ -26903,6 +28254,128 @@
     ]
   },
   {
+    "path": "show command catalog",
+    "short-help": "List every command this binary carries with its summary.",
+    "description": "Walks the YANG command tree and the local command registry, and prints one row\nper command with its summary.",
+    "mode": "read-only",
+    "wire-method": "ze-help:show-command-catalog",
+    "args": [
+      {
+        "name": "filter",
+        "type": "string",
+        "short-help": "Text a command's path or description must hold.",
+        "description": "Keep only the commands whose path or description holds this text. A bare\nfirst word is the filter too."
+      }
+    ],
+    "usage": "show command catalog [filter <filter>]",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "command",
+        "kind": "keyword"
+      },
+      {
+        "text": "catalog",
+        "kind": "keyword"
+      },
+      {
+        "text": "filter",
+        "kind": "option"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "always",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "always",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "always",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "always",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "always",
+        "description": "Answer with these fields, in this order"
+      }
+    ],
+    "answer-shape": "map"
+  },
+  {
     "path": "show command complete",
     "short-help": "Get tab-completion candidates for a partial command.",
     "description": "Returns possible completions for the given input. Used internally by the CLI\neditor, but also callable for scripting.",
@@ -27248,10 +28721,142 @@
     ]
   },
   {
+    "path": "show command reference",
+    "short-help": "Print the agent reference this binary builds from its own registries.",
+    "description": "The reference is generated from the registries of this binary, so it always\nmatches the running version. With no section it prints a summary with counts.",
+    "mode": "read-only",
+    "wire-method": "ze-help:show-command-reference",
+    "args": [
+      {
+        "name": "cli",
+        "type": "flag",
+        "short-help": "CLI subcommands.",
+        "description": "Print the cli section: CLI subcommands. Sections combine."
+      },
+      {
+        "name": "api",
+        "type": "flag",
+        "short-help": "Daemon API commands with parameters, update syntax, families and plugins.",
+        "description": "Print the api section: Daemon API commands with parameters, update syntax, families and plugins. Sections combine."
+      },
+      {
+        "name": "mcp",
+        "type": "flag",
+        "short-help": "MCP tools with parameters and examples.",
+        "description": "Print the mcp section: MCP tools with parameters and examples. Sections combine."
+      },
+      {
+        "name": "dispatch",
+        "type": "flag",
+        "short-help": "Dispatch keys for daemon commands.",
+        "description": "Print the dispatch section: Dispatch keys for daemon commands. Sections combine."
+      },
+      {
+        "name": "all",
+        "type": "flag",
+        "short-help": "Every section combined.",
+        "description": "Print the all section: Every section combined. Sections combine."
+      }
+    ],
+    "usage": "show command reference [cli] [api] [mcp] [dispatch] [all]",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "command",
+        "kind": "keyword"
+      },
+      {
+        "text": "reference",
+        "kind": "keyword"
+      },
+      {
+        "text": "cli",
+        "kind": "flag"
+      },
+      {
+        "text": "api",
+        "kind": "flag"
+      },
+      {
+        "text": "mcp",
+        "kind": "flag"
+      },
+      {
+        "text": "dispatch",
+        "kind": "flag"
+      },
+      {
+        "text": "all",
+        "kind": "flag"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "blob"
+  },
+  {
     "path": "show config cat",
     "short-help": "Print the full text of a stored configuration snapshot.",
     "description": "Outputs the config as-is.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-config-cli:show-config-cat",
     "args": [
       {
@@ -27280,13 +28885,71 @@
         "text": "id",
         "kind": "value"
       }
-    ]
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "blob"
   },
   {
     "path": "show config diff",
     "short-help": "Compare two configuration versions side by side.",
     "description": "Shows what was added, removed, or changed. Commonly used with rollback\nrevisions to review what changed before you roll back.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-config-cli:show-config-diff",
     "usage": "show config diff",
     "grammar": [
@@ -27366,9 +29029,17 @@
     "path": "show config dump",
     "short-help": "Show the fully resolved configuration tree of a file.",
     "description": "Parses the config and outputs it after includes, defaults, and group\ninheritance have been applied. It reads the file you name, so it shows what the\ndaemon would load from it. To see what a running daemon applied, use\nshow config running.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-config-cli:show-config-dump",
-    "usage": "show config dump",
+    "args": [
+      {
+        "name": "strip-private",
+        "type": "flag",
+        "short-help": "Replace sensitive values with a marker.",
+        "description": "Replace every sensitive value in the answer with a marker, so the tree\ncan be shared without its secrets."
+      }
+    ],
+    "usage": "show config dump [strip-private]",
     "grammar": [
       {
         "text": "show",
@@ -27381,6 +29052,10 @@
       {
         "text": "dump",
         "kind": "keyword"
+      },
+      {
+        "text": "strip-private",
+        "kind": "flag"
       }
     ],
     "operators": [
@@ -27446,9 +29121,23 @@
     "path": "show config fmt",
     "short-help": "Pretty-print the configuration with consistent formatting.",
     "description": "Normalizes indentation and ordering. Output goes to stdout (read-only). To\nrewrite the file in place, use 'ze config fmt -w' from the CLI.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-config-cli:show-config-fmt",
-    "usage": "show config fmt",
+    "args": [
+      {
+        "name": "check",
+        "type": "flag",
+        "short-help": "Report whether formatting is needed",
+        "description": "Answers whether the file needs formatting instead of the formatted text:\nexit 0 when it is formatted, 1 with the file named when it is not."
+      },
+      {
+        "name": "diff",
+        "type": "flag",
+        "short-help": "Show what formatting would change",
+        "description": "Answers the unified diff formatting would apply instead of the formatted\ntext."
+      }
+    ],
+    "usage": "show config fmt [check] [diff]",
     "grammar": [
       {
         "text": "show",
@@ -27461,14 +29150,80 @@
       {
         "text": "fmt",
         "kind": "keyword"
+      },
+      {
+        "text": "check",
+        "kind": "flag"
+      },
+      {
+        "text": "diff",
+        "kind": "flag"
       }
-    ]
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "blob"
   },
   {
     "path": "show config graph",
     "short-help": "Show how components and peers depend on each other, as JSON.",
     "description": "Prints the dependency graph of a config file as JSON. Inactive blocks\nare left out, so the graph is the one the daemon would build.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-config-cli:show-config-graph",
     "args": [
       {
@@ -27497,13 +29252,71 @@
         "text": "file",
         "kind": "value"
       }
-    ]
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "blob"
   },
   {
     "path": "show config history",
     "short-help": "List available configuration rollback points.",
     "description": "Shows revisions with timestamps and commit metadata. Pair with 'show config\ndiff' to review changes before rolling back.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-config-cli:show-config-history",
     "usage": "show config history",
     "grammar": [
@@ -27627,7 +29440,7 @@
     "path": "show config list",
     "short-help": "List all configuration files stored in the database.",
     "description": "Shows archived snapshots and the active config.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-config-cli:show-config-list",
     "usage": "show config list",
     "grammar": [
@@ -27864,7 +29677,7 @@
     "path": "show config validation",
     "short-help": "Check a config for errors without applying it.",
     "description": "Both the grammar of the file and the meaning of its values are checked,\nand each problem is reported with the diagnostic code that explains it. Nothing is\napplied.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-config-cli:show-config-validation",
     "args": [
       {
@@ -28080,7 +29893,7 @@
     "path": "show data cat",
     "short-help": "Print the value of a storage key.",
     "description": "Outputs the decoded value for the given storage key.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-config-storage:show-data-cat",
     "args": [
       {
@@ -28109,13 +29922,71 @@
         "text": "key",
         "kind": "value"
       }
-    ]
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "blob"
   },
   {
     "path": "show data list",
     "short-help": "List the keys in the selected store.",
     "description": "Lists the keys in the selected store. Use 'show data cat <key>' to read one value.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-config-storage:show-data-list",
     "usage": "show data list",
     "grammar": [
@@ -28236,7 +30107,7 @@
     "path": "show data registered",
     "short-help": "List the key patterns registered by all subsystems.",
     "description": "Lists the storage key patterns registered by subsystems.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-config-storage:show-data-registered",
     "usage": "show data registered",
     "grammar": [
@@ -28932,7 +30803,7 @@
     "path": "show debug profile",
     "short-help": "Show stored debug profiles, one by name, or one filtered to a module subtree.",
     "description": "Reads debug.zefs and asks no daemon. With no argument it lists the\nprofile names. name <name> prints that profile as a table of module, level, flags and\nscopes, and module <prefix> then keeps the rows under one subsystem subtree. Any other\ntrailing word is refused rather than ignored.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-debug:show-profile",
     "args": [
       {
@@ -28970,13 +30841,106 @@
         "text": "module",
         "kind": "option"
       }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
     ]
   },
   {
     "path": "show diagnostic",
     "short-help": "Explain one diagnostic code Ze printed.",
     "description": "The answer gives the meaning of the code, its likely cause and the recommended\nfix. It is read from the diagnostic catalog this binary carries and asks no daemon.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-explain:show-diagnostic",
     "args": [
       {
@@ -29000,6 +30964,99 @@
       {
         "text": "code",
         "kind": "value"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
       }
     ]
   },
@@ -29647,10 +31704,24 @@
   {
     "path": "show doctor",
     "short-help": "Check if this box is ready to run Ze.",
-    "description": "Verifies runtime dependencies: required files, sockets,\nports, and kernel modules. Each check reports pass or fail with a reason. Run\nthis before first start or after changing the platform setup.",
+    "description": "Verifies runtime dependencies: required files, sockets, ports, and kernel\nmodules, and the checks the daemon's plugins declare. Each check reports pass\nor fail with a reason. ze doctor runs the same checks with no daemon, before\nfirst start or after changing the platform setup.",
     "mode": "read-only",
     "wire-method": "ze-doctor:show-doctor",
-    "usage": "show doctor",
+    "args": [
+      {
+        "name": "config",
+        "type": "string",
+        "short-help": "Config file to check instead of the active config.",
+        "description": "Check this config file instead of the active config in the store. On the\ndaemon the file must lie in a config directory of the daemon's host."
+      },
+      {
+        "name": "kernel-capabilities",
+        "type": "flag",
+        "short-help": "Probe every kernel feature Ze enrolls.",
+        "description": "Probe every kernel feature Ze enrolls, whatever the configuration uses. The\nanswer is ready only when every feature is present."
+      }
+    ],
+    "usage": "show doctor [config <config>] [kernel-capabilities]",
     "grammar": [
       {
         "text": "show",
@@ -29659,6 +31730,14 @@
       {
         "text": "doctor",
         "kind": "keyword"
+      },
+      {
+        "text": "config",
+        "kind": "option"
+      },
+      {
+        "text": "kernel-capabilities",
+        "kind": "flag"
       }
     ],
     "operators": [
@@ -29858,7 +31937,7 @@
     "path": "show env get",
     "short-help": "Show one environment variable in detail.",
     "description": "Returns the variable name, current value, default, and what it controls.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-env:show-get",
     "args": [
       {
@@ -29996,7 +32075,7 @@
     "path": "show env list",
     "short-help": "List all Ze environment variables with their current values.",
     "description": "Shows which env vars are set and their defaults.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-env:show-list",
     "usage": "show env list",
     "grammar": [
@@ -30121,7 +32200,7 @@
     "path": "show env registered",
     "short-help": "List every registered environment variable with metadata.",
     "description": "Includes type, default, description, and whether it is currently set.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-env:show-registered",
     "usage": "show env registered",
     "grammar": [
@@ -33483,8 +35562,8 @@
   {
     "path": "show interface",
     "short-help": "Show network interfaces on this box.",
-    "description": "Without arguments, returns all interfaces with full detail.\nSubcommands: brief, type <t>, errors, rate [<name>], name <name> detail,\nname <name> counters.",
-    "mode": "read-only",
+    "description": "Without arguments, returns all interfaces with full detail.\nSubcommands: brief, type <t>, errors, rate [<name>], pppoe-client,\ndelegated-prefix, name <name> detail, name <name> counters.",
+    "mode": "read-only, offline",
     "wire-method": "ze-iface:show-interface",
     "usage": "show interface",
     "grammar": [
@@ -33592,8 +35671,10 @@
     ],
     "subcommands": [
       "brief",
+      "delegated-prefix",
       "errors",
       "name",
+      "pppoe-client",
       "rate",
       "scan",
       "type"
@@ -33617,6 +35698,121 @@
       },
       {
         "text": "brief",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "show interface delegated-prefix",
+    "short-help": "Show the /64 each LAN unit takes from a delegated prefix, and its source.",
+    "description": "One object per delegated-prefix entry of every enabled\nunit, sorted by interface, unit and source: interface, unit, source (the\npppoe-client whose lease delegates the prefix), subnet-id, and state. state is\ninstalled when the unit holds its address, which adds device, address (the\nunit's address with its /64 length), prefix (the derived /64), delegated (the\nwhole delegated prefix), valid-lifetime and preferred-lifetime (whole seconds\nremaining, 4294967295 meaning infinite). waiting means the source holds no\ndelegated prefix; too-small means the delegated prefix cannot hold the\nsubnet-id; not-installed means the address install failed. Each of those\nthree carries a reason, and the last two name the delegated prefix.",
+    "mode": "read-only",
+    "wire-method": "ze-iface:show-interface-delegated-prefix",
+    "usage": "show interface delegated-prefix",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "interface",
+        "kind": "keyword"
+      },
+      {
+        "text": "delegated-prefix",
         "kind": "keyword"
       }
     ],
@@ -33996,6 +36192,121 @@
       },
       {
         "text": "detail",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "show interface pppoe-client",
+    "short-help": "Show PPPoE client sessions, the DNS servers they learned and their delegated prefixes.",
+    "description": "One object per configured PPPoE client: its state, source\ninterface, session id, local and peer address, uptime, and the DNS servers\nlearned from IPCP (RFC 1877), primary first. dns-servers is an empty list\nwhen the access concentrator supplied none; a configured system name-server\nstill takes precedence in resolv.conf. delegated-prefixes lists each prefix\nthe client's DHCPv6 lease holds (RFC 9915 IA_PD) as prefix, valid-lifetime and\npreferred-lifetime, sorted by prefix: the lifetimes are the whole seconds that\nremain at the moment of the answer, 4294967295 meaning infinite, and the list\nis empty when no prefix is delegated.",
+    "mode": "read-only",
+    "wire-method": "ze-iface:show-interface-pppoe-client",
+    "usage": "show interface pppoe-client",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "interface",
+        "kind": "keyword"
+      },
+      {
+        "text": "pppoe-client",
         "kind": "keyword"
       }
     ],
@@ -44877,7 +47188,7 @@
     "path": "show ping",
     "short-help": "Ping a target from the router itself.",
     "description": "Sends ICMP echo requests to <dest> (IP or hostname). Default count is 5.\nTimeout uses Go duration syntax (e.g. 3s, 500ms). Confirms reachability from\nthis box, not from your workstation.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-ping:show-ping",
     "args": [
       {
@@ -45840,7 +48151,7 @@
     "path": "show plugin declarations",
     "short-help": "Show what each plugin declares about its command surface.",
     "description": "Each row names one plugin, says whether its code is in this\nbinary or in another one, and carries the commands it serves and the pipe\naliases it puts on them. Add 'config <path>' and the plugins that file\ndeclares gain a row too, external ones included.\nA plugin whose declaration could not be read keeps its row and says why in\nthe state field, so a plugin is never missing from the answer.\n'show plugin list' answers the other question, which plugins this binary\ncarries and what each plugin's own init() recorded.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-plugin:show-declarations",
     "usage": "show plugin declarations",
     "grammar": [
@@ -45969,7 +48280,7 @@
     "path": "show plugin declarations config",
     "short-help": "Read the plugin blocks of a config file as well.",
     "description": "The keyword types the value after it, so the reader of the\ncommand line knows the token is a config file and not a plugin name. The file is\nread with the daemon's own loader, so the answer covers the plugins the daemon\nwould start from it.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-plugin:show-declarations-config",
     "args": [
       {
@@ -46112,7 +48423,7 @@
     "path": "show plugin list",
     "short-help": "List the plugins compiled into this binary.",
     "description": "Each row carries the plugin name, what it does, the address\nfamilies it handles, the RFCs it implements, the BGP capability codes it owns,\nthe setup outcome its own init() recorded (succeeded, soft-failure,\nhard-failure or unknown) and the reason the plugin gave. A plugin that\nrecorded nothing is listed as unknown, never omitted, and a plugin that\nrecorded and then did not register keeps its row.\nThe outcome replays a past event: it was recorded once, before main(),\nand this command reads it back. 'show health' answers the other question,\nby running a probe now and reporting what the daemon is doing at this\nmoment.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-plugin:show-list",
     "usage": "show plugin list",
     "grammar": [
@@ -49150,7 +51461,7 @@
     "path": "show schema events",
     "short-help": "List all notification types defined in YANG API modules.",
     "description": "Shows which events a plugin can subscribe to.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-config-schema:show-schema-events",
     "usage": "show schema events",
     "grammar": [
@@ -49273,7 +51584,7 @@
     "path": "show schema handlers",
     "short-help": "Show which handler serves each YANG module.",
     "description": "Maps module names to their implementing Go handler.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-config-schema:show-schema-handlers",
     "usage": "show schema handlers",
     "grammar": [
@@ -49395,7 +51706,7 @@
     "path": "show schema list",
     "short-help": "List all YANG schemas loaded by the daemon.",
     "description": "Shows module name, namespace, and revision for each schema.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-config-schema:show-schema-list",
     "usage": "show schema list",
     "grammar": [
@@ -49519,7 +51830,7 @@
     "path": "show schema methods",
     "short-help": "List all RPC methods defined in YANG API modules.",
     "description": "Useful for plugin developers to discover available operations.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-config-schema:show-schema-methods",
     "usage": "show schema methods",
     "grammar": [
@@ -49642,7 +51953,7 @@
     "path": "show schema protocol",
     "short-help": "Show the wire protocol version and format details.",
     "description": "Useful for checking compatibility between Ze versions.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-config-schema:show-schema-protocol",
     "usage": "show schema protocol",
     "grammar": [
@@ -49722,7 +52033,7 @@
     "path": "show skill",
     "short-help": "Fetch one bundled agent skill by name.",
     "description": "Prints the named skill's Markdown document.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-skills:show-skill",
     "args": [
       {
@@ -49731,9 +52042,15 @@
         "mandatory": true,
         "short-help": "Skill name.",
         "description": "A skill name as show skills prints it. An unknown name is refused."
+      },
+      {
+        "name": "full",
+        "type": "flag",
+        "short-help": "Return expanded content (with examples and patterns).",
+        "description": "Print the expanded document, with examples and patterns, where the skill\ncarries one."
       }
     ],
-    "usage": "show skill <name>",
+    "usage": "show skill <name> [full]",
     "grammar": [
       {
         "text": "show",
@@ -49746,6 +52063,103 @@
       {
         "text": "name",
         "kind": "value"
+      },
+      {
+        "text": "full",
+        "kind": "flag"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
       }
     ]
   },
@@ -49753,7 +52167,7 @@
     "path": "show skills",
     "short-help": "List the agent skills this binary carries.",
     "description": "Each skill is a Markdown document bundled with the binary, so it always\nmatches the running version. Prints each bundled skill with its one-line description.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-skills:show-skills",
     "usage": "show skills",
     "grammar": [
@@ -49764,6 +52178,99 @@
       {
         "text": "skills",
         "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
       }
     ]
   },
@@ -51096,6 +53603,121 @@
       },
       {
         "text": "date",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "show system dns",
+    "short-help": "Learned DNS resolvers and each consumer's dns-source selection.",
+    "description": "The answer lists every learned resolver record (its origin, interface,\nunit, addresses, when it was received and when it expires), then\nevery dns-source consumer's selection: the router's own under the\nconsumer name system, and each consumer that published one (the LAN\nresolver, each DHCP subnet, each RA unit, each subscriber pool). Each\nselection carries its config path, the instance it belongs to, the\nsources and mode evaluated, default true while the built-in default\nlist applies, the classes used and the servers handed on. A consumer\nthat has not published yet is absent: its plugin is not running or\nhas not received the first snapshot. A plugin removed while the\ndaemon runs withdraws its selection, so it is absent too.",
+    "mode": "read-only",
+    "wire-method": "ze-system-dns:show-system-dns",
+    "usage": "show system dns",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "system",
+        "kind": "keyword"
+      },
+      {
+        "text": "dns",
         "kind": "keyword"
       }
     ],
@@ -52908,7 +55530,7 @@
     "path": "show traceroute",
     "short-help": "Trace the network path from this router to a target.",
     "description": "Shows each hop with its IP and round-trip time. Dest can be an IP or hostname.\nDefaults: 30 max hops, 3 probes per hop. Increase probes for more reliable RTT\nmeasurements.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-traceroute:show-traceroute",
     "args": [
       {
@@ -53686,7 +56308,7 @@
     "path": "show version",
     "short-help": "Show the running Ze version and build date.",
     "description": "You can verify which release is deployed on this box.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-cmd:show-version",
     "usage": "show version",
     "grammar": [
@@ -53919,7 +56541,7 @@
   {
     "path": "show vpn ipsec dataplane policy",
     "short-help": "Show the Security Policy Database the kernel holds.",
-    "description": "Lists each policy with its selector prefixes\nand ports, direction, priority, upper-layer protocol, if_id, tunnel endpoints,\nand the peer that installed it. A policy with no matching SA is the failure\nthis command exists to show. RFC 4301 Section 4.4 keeps the SPD and the SAD\nseparate, and so does this tree.",
+    "description": "Lists each policy with its selector prefixes\nand ports, direction, priority, upper-layer protocol, if_id, interface index,\ntunnel endpoints, and the peer that installed it. Each policy also names the SPD\nthat holds it (spd: node for if_id 0, the bound XFRM interface, or if-id and the\nnumber) and the job Ze installed it for (role), which reads unknown for a policy\nZe did not install. A per-socket policy, which overrides every SPD entry for its one\nsocket, reads spd socket, its direction in, out or fwd, and role esp-form-socket for\nZe's own ESP form reader or socket-override for any other process's. A policy with no matching SA is the failure\nthis command exists to show. RFC 4301 Section 4.4 keeps the SPD and the SAD\nseparate, and so does this tree.",
     "mode": "read-only",
     "wire-method": "ze-ike:show-vpn-ipsec-dataplane-policy",
     "usage": "show vpn ipsec dataplane policy",
@@ -55599,9 +58221,17 @@
     "path": "show yang completion",
     "short-help": "Show YANG paths available for tab completion.",
     "description": "Lists every valid completion point in the command tree.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-config-yang:show-yang-completion",
-    "usage": "show yang completion",
+    "args": [
+      {
+        "name": "min-prefix",
+        "type": "uint",
+        "short-help": "Minimum disambiguation depth to report",
+        "description": "The shortest disambiguation depth a collision is reported at."
+      }
+    ],
+    "usage": "show yang completion [min-prefix <min-prefix>]",
     "grammar": [
       {
         "text": "show",
@@ -55614,6 +58244,10 @@
       {
         "text": "completion",
         "kind": "keyword"
+      },
+      {
+        "text": "min-prefix",
+        "kind": "option"
       }
     ],
     "operators": [
@@ -55715,9 +58349,23 @@
     "path": "show yang doc",
     "short-help": "Generate command reference docs from YANG schemas.",
     "description": "Produces structured documentation with descriptions, arguments, and usage\npatterns for every registered command.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-config-yang:show-yang-doc",
-    "usage": "show yang doc",
+    "args": [
+      {
+        "name": "list",
+        "type": "flag",
+        "short-help": "List every documented command",
+        "description": "Answers the list of every documented command instead of one command's\npage."
+      },
+      {
+        "name": "command",
+        "type": "string",
+        "short-help": "Command to document",
+        "description": "The command whose page is answered, as its words are typed."
+      }
+    ],
+    "usage": "show yang doc [list] [command <command>]",
     "grammar": [
       {
         "text": "show",
@@ -55730,16 +58378,96 @@
       {
         "text": "doc",
         "kind": "keyword"
+      },
+      {
+        "text": "list",
+        "kind": "flag"
+      },
+      {
+        "text": "command",
+        "kind": "option"
       }
-    ]
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "blob"
   },
   {
     "path": "show yang tree",
     "short-help": "Print the YANG tree for a module in a readable hierarchy.",
     "description": "Shows node types, data types, and config-vs-state annotations. Similar to\n'pyang -f tree'. Useful for understanding the config or command structure.",
-    "mode": "read-only",
+    "mode": "read-only, offline",
     "wire-method": "ze-config-yang:show-yang-tree",
-    "usage": "show yang tree",
+    "args": [
+      {
+        "name": "commands",
+        "type": "flag",
+        "short-help": "Show only the command nodes",
+        "description": "Answers only the command nodes of the tree. Giving it with config is\nrefused."
+      },
+      {
+        "name": "config",
+        "type": "flag",
+        "short-help": "Show only the config nodes",
+        "description": "Answers only the config nodes of the tree. Giving it with commands is\nrefused."
+      }
+    ],
+    "usage": "show yang tree [commands] [config]",
     "grammar": [
       {
         "text": "show",
@@ -55752,6 +58480,14 @@
       {
         "text": "tree",
         "kind": "keyword"
+      },
+      {
+        "text": "commands",
+        "kind": "flag"
+      },
+      {
+        "text": "config",
+        "kind": "flag"
       }
     ],
     "operators": [
@@ -58026,9 +60762,476 @@
   },
   {
     "path": "update serve",
-    "short-help": "Serve this binary and its version manifest for update checks.",
-    "description": "The server answers a version manifest, the running binary and its SHA-256 digest. It is meant for build infrastructure rather than for a router in production.",
-    "mode": "offline"
+    "short-help": "Show the update server's status, or start, stop and pause it.",
+    "description": "The daemon serves its running binary and a version manifest for update checks,\nuntil it is told to stop. A daemon runs one such server at a time. Through the daemon,\n'update serve' alone answers that server's status: whether it runs, the address it\nlistens on and whether it is paused. The foreground 'ze update serve', given the\naddress to listen on, runs the same server in the operator's own process instead.",
+    "mode": "daemon, offline",
+    "wire-method": "ze-update:update-serve",
+    "usage": "update serve",
+    "grammar": [
+      {
+        "text": "update",
+        "kind": "keyword"
+      },
+      {
+        "text": "serve",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ],
+    "subcommands": [
+      "pause",
+      "start",
+      "stop"
+    ]
+  },
+  {
+    "path": "update serve pause",
+    "short-help": "Toggle the update server's pause.",
+    "description": "Each call toggles the pause, and the answer says which state it left. A paused\nserver still answers, and its manifest says paused, so update clients hold off. The\nupdate-paused file beside the binary pauses it too, whatever this state says.",
+    "mode": "daemon",
+    "wire-method": "ze-update:update-serve-pause",
+    "usage": "update serve pause",
+    "grammar": [
+      {
+        "text": "update",
+        "kind": "keyword"
+      },
+      {
+        "text": "serve",
+        "kind": "keyword"
+      },
+      {
+        "text": "pause",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "update serve start",
+    "short-help": "Start the update server and answer its listen address.",
+    "description": "The answer names the address the server listens on, the bound port included\nwhen the listen leaf asked for port 0. A second start while one server runs is refused:\nstop it first with 'update serve stop'. Meant for build infrastructure rather than for a\nrouter in production.",
+    "mode": "daemon",
+    "wire-method": "ze-update:update-serve-start",
+    "args": [
+      {
+        "name": "listen",
+        "type": "string",
+        "short-help": "Listen on this host:port (default :8080).",
+        "description": "The address the server listens on, as host:port, an IPv6 host in brackets.\nAn empty host listens on every address. Without it, the server listens on :8080."
+      }
+    ],
+    "usage": "update serve start [listen <listen>]",
+    "grammar": [
+      {
+        "text": "update",
+        "kind": "keyword"
+      },
+      {
+        "text": "serve",
+        "kind": "keyword"
+      },
+      {
+        "text": "start",
+        "kind": "keyword"
+      },
+      {
+        "text": "listen",
+        "kind": "option"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "update serve stop",
+    "short-help": "Stop the update server.",
+    "description": "Requests in flight get five seconds to finish before their connections are\nclosed. The command answers once the server has ended.",
+    "mode": "daemon",
+    "wire-method": "ze-update:update-serve-stop",
+    "usage": "update serve stop",
+    "grammar": [
+      {
+        "text": "update",
+        "kind": "keyword"
+      },
+      {
+        "text": "serve",
+        "kind": "keyword"
+      },
+      {
+        "text": "stop",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
   },
   {
     "path": "update system firmware apply",

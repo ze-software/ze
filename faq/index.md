@@ -42,7 +42,7 @@ Start with the [quickstart](https://ze-software.net/guides/quickstart/). Use the
 
 **I run ExaBGP. Can I move to Ze?**
 
-Yes. Ze includes `ze config migrate` for configuration conversion and a compatibility bridge that lets existing ExaBGP process scripts run while you port them.
+Yes. Ze includes `ze exabgp migrate` for configuration conversion and a compatibility bridge that lets existing ExaBGP process scripts run while you port them.
 
 The [ExaBGP migration guide](https://ze-software.net/use-cases/exabgp-migration/) covers conversion, known differences, and the point where a native Ze plugin becomes the better choice.
 

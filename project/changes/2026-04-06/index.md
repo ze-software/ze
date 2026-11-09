@@ -1,4 +1,4 @@
-# Week of 2026-04-06
+# 2026-04-06 – 2026-04-12 (1 week)
 
 A full BFD engine, BGP route reflection and policy filters, a REST/gRPC config editor, WireGuard support, and a talk at Net Manchester.
 

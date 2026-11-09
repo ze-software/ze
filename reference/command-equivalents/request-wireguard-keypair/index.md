@@ -6,7 +6,7 @@ Generate a WireGuard keypair with the system wg binary\.
 
 - Registry path: `request wireguard keypair`
 - Usage: `request wireguard keypair`
-- Mode: Daemon
+- Mode: daemon, offline
 - Wire method: `ze-diag:request-wireguard-keypair`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
@@ -14,10 +14,10 @@ Generate a WireGuard keypair with the system wg binary\.
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: none
-- Pipes, when the answer has rows: none
-- Pipes, while streaming: none
-- Pipes, local process only: none
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 

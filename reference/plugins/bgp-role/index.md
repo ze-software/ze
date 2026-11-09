@@ -9,7 +9,7 @@ RFC 9234 BGP Role capability
 | Registry area | BGP |
 | Kind | Runtime plugin |
 | Source path | `internal/component/bgp/plugins/role` |
-| YANG modules | 1 |
+| YANG modules | 2 |
 
 ## Configuration
 
@@ -17,7 +17,7 @@ RFC 9234 BGP Role capability
 
 ## Dependencies
 
-- Required: [`bgp`](../bgp/index.md)
+- Required: [`bgp`](../bgp/index.md), [`policy`](../policy/index.md)
 - Optional: None
 
 ## Used by
@@ -29,5 +29,5 @@ RFC 9234 BGP Role capability
 
 Package: `internal/component/bgp/plugins/role`
 
-YANG files: `internal/component/bgp/plugins/role/yang/ze-role.yang`
+YANG files: `internal/component/bgp/plugins/role/yang/ze-role-asn-set.yang`, `internal/component/bgp/plugins/role/yang/ze-role.yang`
 Metadata source: `Registration`

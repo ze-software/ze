@@ -2,16 +2,16 @@
   "stem": "rfc2661",
   "title": "Layer Two Tunneling Protocol \"L2TP\"",
   "walked": true,
-  "requirements": 103,
+  "requirements": 104,
   "implementer": "mixed",
   "implemented": true,
   "must": {
-    "total": 94,
-    "kept": 94,
-    "ze-proven": 81,
+    "total": 95,
+    "kept": 95,
+    "ze-proven": 89,
     "os-verified": 0,
     "os-gap": 1,
-    "ze-gap": 12,
+    "ze-gap": 5,
     "not-owed": 0,
     "not-owed-by-kind": {}
   },
@@ -28,17 +28,10 @@
   },
   "proven-by-kind": {
     "functional": 5,
-    "unit": 76
+    "unit": 84
   },
   "unmet": [
     "RFC2661-4.2-2",
-    "RFC2661-4.3-1",
-    "RFC2661-4.4.5-1",
-    "RFC2661-4.4.5-2",
-    "RFC2661-4.4.5-3",
-    "RFC2661-4.4.5-4",
-    "RFC2661-4.4.5-5",
-    "RFC2661-4.4.5-6",
     "RFC2661-9.5-2"
   ]
 }

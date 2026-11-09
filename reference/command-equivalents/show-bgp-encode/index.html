@@ -54,17 +54,35 @@
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
 <div><dt>Registry path</dt><dd><code>show bgp encode</code></dd></div>
-<div><dt>Usage</dt><dd><code>show bgp encode</code></dd></div>
-<div><dt>Mode</dt><dd>Read-only</dd></div>
+<div><dt>Usage</dt><dd><code>show bgp encode [family &lt;family&gt;] [local-as &lt;local-as&gt;] [peer-as &lt;peer-as&gt;] [path-id &lt;include|omit&gt;] [part &lt;message|body|nlri&gt;] [asn-width &lt;two-octet|four-octet&gt;] [announcement &lt;announcement&gt;]</code></dd></div>
+<div><dt>Mode</dt><dd>read-only, offline</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-bgp:show-encode</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
 <div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
 <div><dt>Subcommands</dt><dd>none: this command takes no subcommand</dd></div>
-<div><dt>Pipes</dt><dd>none: this command reaches no pipe layer</dd></div>
+<div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
+<div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill</dd></div>
+<div><dt>Pipes, while streaming</dt><dd>log</dd></div>
+<div><dt>Pipes, local process only</dt><dd>save</dd></div>
 </dl>
 <h3>Description</h3><p>Takes a route in API syntax and returns the BGP UPDATE<br>as a hex string. Use it to build a test payload, to feed ze-test, or to verify<br>that an announcement encodes correctly.</p>
 <h3>Arguments</h3>
-<p>No command-specific arguments listed.</p>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>family</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Address family of the route</td><td>The address family the route is encoded for (afi/safi). Without it,
+ipv4/unicast.</td></tr>
+<tr><td><code>local-as</code></td><td>uint</td><td>no</td><td>any value of this type</td><td>Local AS number</td><td>The local AS number the UPDATE is built for. Without it, 65533.</td></tr>
+<tr><td><code>peer-as</code></td><td>uint</td><td>no</td><td>any value of this type</td><td>Peer AS number</td><td>The peer AS number. Equal to local-as, the UPDATE is built for an iBGP
+session. Without it, 65533.</td></tr>
+<tr><td><code>path-id</code></td><td>enum</td><td>no</td><td><code>include</code> <code>omit</code></td><td>ADD-PATH path identifier</td><td>Whether each NLRI carries an ADD-PATH path identifier (RFC 7911).
+Without it, omit.</td></tr>
+<tr><td><code>part</code></td><td>enum</td><td>no</td><td><code>message</code> <code>body</code> <code>nlri</code></td><td>Part of the UPDATE to answer</td><td>Which part of the UPDATE the answer carries: the whole message with
+its 19-octet header, the body without the header, or the NLRI alone. Without
+it, message.</td></tr>
+<tr><td><code>asn-width</code></td><td>enum</td><td>no</td><td><code>two-octet</code> <code>four-octet</code></td><td>AS number encoding width</td><td>How AS numbers are encoded: in two octets (RFC 4271) or in four
+(RFC 6793). Without it, four-octet.</td></tr>
+<tr><td><code>announcement</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Route to encode</td><td>The route in the API announcement syntax, such as route 10.0.0.0/24
+next-hop 192.0.2.1.</td></tr>
+</tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
 <article class="cmd-detail-card cmd-vendor-detail"><h2>Juniper Junos MX</h2>
@@ -129,7 +147,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

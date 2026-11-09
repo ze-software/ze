@@ -5,8 +5,8 @@ Print the YANG tree for a module in a readable hierarchy\.
 ## Ze command
 
 - Registry path: `show yang tree`
-- Usage: `show yang tree`
-- Mode: Read-only
+- Usage: `show yang tree [commands] [config]`
+- Mode: read-only, offline
 - Wire method: `ze-config-yang:show-yang-tree`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
@@ -25,7 +25,10 @@ Shows node types\, data types\, and config\-vs\-state annotations\. Similar to \
 
 ## Arguments
 
-No command-specific arguments listed.
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `commands` | flag | no | any value of this type | Show only the command nodes | Answers only the command nodes of the tree\. Giving it with config is refused\. |
+| `config` | flag | no | any value of this type | Show only the config nodes | Answers only the config nodes of the tree\. Giving it with commands is refused\. |
 
 ## Mapping intents
 

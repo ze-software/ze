@@ -1,4 +1,4 @@
-# Week of 2026-09-07
+# 2026-09-07 – 2026-09-13 (1 week)
 
 Five new capabilities: BFD strict mode, OSPF costs priced from link speed, VRRP groups that track an uplink, an IPv6 Router Advertisement sender, and certificate revocation checking on IKE logins. The biggest fix was in BGP. Ze was rewriting AS numbers out of routes it relayed.
 

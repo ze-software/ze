@@ -179,7 +179,7 @@ refuses what it cannot support, from the answer it has in hand, after it runs.</
 </tr>
 <tr>
 <td><code>ze config migrate</code></td>
-<td>Convert an older ze config to the current format</td>
+<td>Rewrite a config in the set or hierarchical form</td>
 </tr>
 <tr>
 <td><code>ze config fmt</code></td>
@@ -405,7 +405,13 @@ The dashboard polls three local BGP sessions. Press &#34;s&#34; to sort by the n
 </figure>
 <p><strong>Commit confirmed:</strong> The editor supports <code>commit confirmed &lt;seconds&gt;</code> for safe remote changes. The config is applied immediately but auto-reverts if <code>commit accept</code> is not issued within the timeout window (1-3600 seconds). Use <code>commit abort</code> to revert manually. A plain commit is <code>commit now</code>; <code>commit verify</code> validates without applying. Modeled after Junos commit confirmed.</p>
 <!-- source: internal/component/cli/model_load.go -- cmdCommitConfirmed -->
-<p><strong>Command history persistence:</strong> Both <code>ze config edit</code> and <code>ze cli</code> persist command history to the <code>database/</code> store. History survives application restarts, is stored per-mode (edit vs command) and per-user, with consecutive dedup and a configurable rolling window (default 100, max 10000). Graceful degradation when no blob store is available (in-memory only).</p>
+<p><strong>Command history persistence:</strong> Both <code>ze config edit</code> and <code>ze cli</code> persist command history to the <code>database/</code> store. History survives graceful session close and application restarts, is stored per-mode (config vs operational) and per-user, with consecutive dedup and a configurable rolling window (default 100, max 10000). Accepted commands are immediately browsable; storage publication runs on one session-owned worker rather than blocking input, timers or command results. Waiting whole snapshots coalesce to the newest for each mode. Graceful model shutdown drains them before releasing the store; abrupt process death can lose queued history. With no store, history stays in memory. This does not change draft, configuration or commit durability, and independent sessions retain their existing whole-snapshot overwrite behavior rather than merging histories.
+The SSH model owner's <code>Server.Stop</code> waits for admitted model cleanup before its caller may release the store, including disconnected channels. Its network shutdown timeout does not discard accepted history. Concurrent terminal channels on one SSH connection each close their own model.
+The daemon retains hook-built SSH through the plugin server's <code>OnStop</code> callbacks. <code>runYANGConfig</code> owns one immediately deferred <code>sync.OnceFunc</code> stop, so normal shutdown and startup failure both join SSH cleanup before its caller releases the store. Hook admission seals and joins an in-flight constructor; callback order does not matter.</p>
+<!-- source: internal/component/ssh/ssh.go -- Stop, sessionCloseMiddleware -->
+<!-- source: internal/component/ssh/model_lifetime.go -- modelSessions, modelSession -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
+<!-- source: cmd/ze/hub/infra_setup.go -- setupInfraHook -->
 <!-- source: internal/component/cli/history.go -- History type -->
 <p><strong>Login warnings:</strong> When an operator connects via SSH, ze checks for conditions requiring attention and displays warnings in the welcome area. Each warning includes a message and an actionable command. Currently checks for stale prefix data (peers with <code>prefix-updated</code> older than 6 months); run <code>update bgp peer * prefix</code> to refresh from PeeringDB.</p>
 <!-- source: internal/component/ssh/session.go -- createSessionModel login warning collection -->
@@ -482,7 +488,7 @@ The dashboard polls three local BGP sessions. Press &#34;s&#34; to sort by the n
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

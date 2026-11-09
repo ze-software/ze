@@ -496,7 +496,7 @@ contract rather than a display:</p>
 <ul>
 <li>the AS path of the plugin event stream</li>
 <li>the <code>update text</code> command Ze replays to itself</li>
-<li>the filter text a filter plugin matches</li>
+<li>the <code>as-path</code> field a filter plugin reads</li>
 <li>the text form of the plugin process protocol</li>
 <li>the <code>as_path</code> of the birdwatcher-compatible looking glass API</li>
 </ul>
@@ -622,7 +622,7 @@ rail did not.</p>
 <tr>
 <td>Configured MULTI_EXIT_DISC removal</td>
 <td>4271 Section 5.1.4</td>
-<td><code>policy/modify/&lt;name&gt;/del/med</code>, on an import chain only. An export chain refuses the directive and logs why (Section 9.1.2.2).</td>
+<td><code>policy/modify/&lt;name&gt;/del/med</code>, on an import chain only. On an export chain the removal is ignored with a logged warning, and the definition's other operations still apply (Section 9.1.2.2).</td>
 </tr>
 <tr>
 <td class="cell-no">✕</td>
@@ -712,7 +712,7 @@ rail did not.</p>
 <!-- source: internal/component/bgp/reactor/forward_modify_failure.go -- modifyFailure -->
 <!-- source: internal/component/bgp/reactor/session_rfc9774.go -- transmittedPathHoldsSet, writeUpdateAsWithdrawal -->
 <!-- source: internal/component/bgp/message/rfc9774.go -- ASPathSetSegment, asPathSetVerdict -->
-<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- appendMEDRemove -->
+<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- medRemoveFor -->
 <h3 id="unrecognized-nlri-types-in-a-typed-family">Unrecognized NLRI types in a typed family</h3>
 <p>RFC 7606 Section 5.4 requires a speaker advertising a typed address family to
 discard routes carrying an NLRI type it does not implement, "unless the relevant
@@ -982,7 +982,7 @@ whether an enabled peer's capture directory is usable
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 09:46 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

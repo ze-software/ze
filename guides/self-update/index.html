@@ -57,6 +57,7 @@ and fleet deployment.</p>
 <li><a href="#server-setup">Server Setup</a>
 <ol>
 <li><a href="#ze-update-serve">ze update serve</a></li>
+<li><a href="#under-the-daemon">Under the daemon</a></li>
 <li><a href="#pause-mechanism">Pause Mechanism</a></li>
 <li><a href="#custom-server">Custom Server</a></li>
 </ol></li>
@@ -122,11 +123,33 @@ guarantees either the old or new binary is always present.</p>
 </table>
 <p>The server computes SHA-256 at startup. If the binary changes on disk (rebuild),
 restart the server.</p>
+<!-- source: internal/plugins/update-cmd/cmd/serve.go -- runUpdateServe, the foreground server -->
+<!-- source: internal/plugins/update-cmd/cmd/serve_daemon.go -- updateServeOwner, the server under the daemon -->
+<h3 id="under-the-daemon">Under the daemon</h3>
+<p>A running daemon can serve the same endpoints itself, from any command surface
+(<code>ze cli</code>, SSH, the web, REST, gRPC, MCP):</p>
+<pre><code>update serve                      # answers {"running": false, "paused": false}
+update serve start listen :8080   # answers {"listen": "[::]:8080", "paused": false}
+update serve pause                # toggles the pause, answers the state it left
+update serve stop                 # answers once the server has ended
+</code></pre>
+<p><code>update serve</code> alone answers the status of the daemon's server: whether it
+runs and, while it does, the address it listens on and whether it is paused.
+It starts nothing. Without <code>listen</code>, the server listens on <code>:8080</code>. Port 0 picks a free port, and
+the answer names it. A daemon runs one update server at a time: a second
+<code>update serve start</code> is refused until <code>update serve stop</code>. A signal sent to the
+daemon reaches the daemon, not its server, so <code>update serve pause</code> takes the
+place of <code>SIGUSR1</code> there. The server lives no longer than the daemon: stopping
+the daemon stops its update server, and the daemon finishes stopping only once
+the server has ended.</p>
+<!-- source: internal/plugins/update-cmd/cmd/serve_daemon.go -- updateServeOwner.endWithDaemon -->
+<!-- source: internal/plugins/update-cmd/cmd/serve_daemon.go -- updateServeOwner.status -->
+<!-- source: internal/component/plugin/server/stop_hooks.go -- Server.OnStop -->
 <h3 id="pause-mechanism">Pause Mechanism</h3>
 <p>Two mechanisms, ORed together:</p>
 <ul>
 <li><strong>File:</strong> create a file named <code>update-paused</code> in the binary's directory. Remove to unpause.</li>
-<li><strong>Signal:</strong> send <code>SIGUSR1</code> to toggle the in-memory pause state. Logged to stderr.</li>
+<li><strong>Signal:</strong> send <code>SIGUSR1</code> to the foreground <code>ze update serve</code> to toggle the in-memory pause state. Logged to stderr. Under the daemon, <code>update serve pause</code> toggles it instead.</li>
 </ul>
 <p>When paused, the manifest returns <code>"paused": true</code>. Clients with <code>auto-apply</code> stop
 downloading. Manual commands (<code>update system firmware apply</code>) bypass pause.</p>
@@ -260,7 +283,7 @@ can reach the target release.</p>
 </tr>
 <tr>
 <td>"paused by server"</td>
-<td>Server manifest has <code>paused: true</code>; remove pause file or send SIGUSR1</td>
+<td>Server manifest has <code>paused: true</code>; remove pause file, send SIGUSR1, or run <code>update serve pause</code> on a daemon's server</td>
 </tr>
 <tr>
 <td>"checksum mismatch"</td>
@@ -335,7 +358,7 @@ including failures with their reason. History survives restarts.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

@@ -1,4 +1,4 @@
-# Week of 2026-10-05
+# 2026-10-05 – 2026-10-11 (1 week)
 
 A week on configuration safety, the public API and the appliance kernel, with fixes across BGP, RSVP-TE and IKEv2. Several changes need a look before upgrading, listed first.
 

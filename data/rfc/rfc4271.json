@@ -8,10 +8,10 @@
   "must": {
     "total": 133,
     "kept": 133,
-    "ze-proven": 83,
+    "ze-proven": 85,
     "os-verified": 0,
     "os-gap": 0,
-    "ze-gap": 50,
+    "ze-gap": 48,
     "not-owed": 0,
     "not-owed-by-kind": {}
   },
@@ -27,8 +27,8 @@
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
-    "functional": 5,
-    "interop": 3,
+    "functional": 6,
+    "interop": 4,
     "unit": 75
   },
   "unmet": [

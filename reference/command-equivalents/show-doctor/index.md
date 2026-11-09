@@ -5,7 +5,7 @@ Check if this box is ready to run Ze\.
 ## Ze command
 
 - Registry path: `show doctor`
-- Usage: `show doctor`
+- Usage: `show doctor [config <config>] [kernel-capabilities]`
 - Mode: Read-only
 - Wire method: `ze-doctor:show-doctor`
 - Backends: any backend
@@ -21,11 +21,14 @@ Check if this box is ready to run Ze\.
 - Command pipes: none
 - Pipe aliases: none
 
-Verifies runtime dependencies\: required files\, sockets\, ports\, and kernel modules\. Each check reports pass or fail with a reason\. Run this before first start or after changing the platform setup\.
+Verifies runtime dependencies\: required files\, sockets\, ports\, and kernel modules\, and the checks the daemon\'s plugins declare\. Each check reports pass or fail with a reason\. ze doctor runs the same checks with no daemon\, before first start or after changing the platform setup\.
 
 ## Arguments
 
-No command-specific arguments listed.
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `config` | string | no | any value of this type | Config file to check instead of the active config\. | Check this config file instead of the active config in the store\. On the daemon the file must lie in a config directory of the daemon\'s host\. |
+| `kernel-capabilities` | flag | no | any value of this type | Probe every kernel feature Ze enrolls\. | Probe every kernel feature Ze enrolls\, whatever the configuration uses\. The answer is ready only when every feature is present\. |
 
 ## Mapping intents
 

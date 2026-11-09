@@ -5,8 +5,8 @@ Show the fully resolved configuration tree of a file\.
 ## Ze command
 
 - Registry path: `show config dump`
-- Usage: `show config dump`
-- Mode: Read-only
+- Usage: `show config dump [strip-private]`
+- Mode: read-only, offline
 - Wire method: `ze-config-cli:show-config-dump`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
@@ -25,7 +25,9 @@ Parses the config and outputs it after includes\, defaults\, and group inheritan
 
 ## Arguments
 
-No command-specific arguments listed.
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `strip-private` | flag | no | any value of this type | Replace sensitive values with a marker\. | Replace every sensitive value in the answer with a marker\, so the tree can be shared without its secrets\. |
 
 ## Mapping intents
 

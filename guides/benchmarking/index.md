@@ -272,6 +272,21 @@ After running benchmarks, generate reports from the result files:
 ./le perf compare --html result-ze.json result-gobgp.json > comparison.html
 ```
 
+Comparison and trend reports validate every decoded row before selecting the
+latest sample, applying `--last`, or writing output. Any nonzero `routes-lost`
+refuses the whole report, naming the input and measurement; an older lossy row
+cannot be hidden by a newer clean row. Missing or null `convergence-ms` is not a
+measurement and is refused; an explicitly measured `0` is valid. Raw JSON and
+NDJSON remain diagnostic evidence and retain loss rather than refusing it.
+
+All comparison formats (Markdown, HTML tables and charts, and `--doc`) and both
+trend formats use this rule. Compare has no JSON comparison format. Invalid
+input writes no report bytes. A stdout write error fails the command, but bytes
+already written cannot be rolled back; shell redirection can truncate its target
+before the command starts. The automated runner publishes its HTML report and
+doc snapshot by replacing each destination only after successful generation;
+failure retains that file's old bytes, not a transaction across all artifacts.
+
 <!-- source: internal/perf/cli/cmd_report.go -- report subcommand -->
 <!-- source: internal/perf/report/markdown.go -- Markdown report generation -->
 <!-- source: internal/perf/report/html.go -- HTML report generation -->
@@ -287,7 +302,16 @@ covers three sets of Go benchmarks, and needs no Docker and no DUT:
 |------|------------|---------|
 | In-process: the typed DirectBridge filter slot | `BenchmarkFilterFastPath` | `pkg/plugin/sdk` |
 | External: one `filter-update` batch of 1, 16 and 64 routes | `BenchmarkFilterForkedBatch` | `pkg/plugin/sdk` |
-| Text `filter-update`, the before figure | `BenchmarkFilterModifyEgress`, `BenchmarkAppendUpdateForFilter_Reused`, `BenchmarkAppendAttrsForFilter_Reused` | `internal/component/bgp/reactor` (`ze_bgp`) |
+| External slow path: a filter that modifies the route, from the received UPDATE to the rebuilt one, in batches of 1, 16 and 64 routes | `BenchmarkFilterSlowPathModify` | `internal/component/bgp/reactor` (tag `ze_bgp`) |
+
+`BenchmarkFilterSlowPathModify` drives each route through the real import
+chain. The engine projects the declared fields, and `PluginConn.CallRPC` with
+`MuxConn` framing carries the batch over `net.Pipe` to a real SDK plugin,
+whose `OnFilter` evaluator sets local-preference 200. The engine then decodes
+the verdicts, applies the set and rebuilds the UPDATE body. The plugin
+server's process lookup and the batcher's queue are left out, so every
+exchange carries exactly the batch size. Next to the per-exchange figures it
+reports `ns/route`, `B/route` and `allocs/route`.
 
 ```bash
 # Check the harness builds: compile each package, list the benchmarks,
@@ -369,6 +393,10 @@ Limit the comparison window to the last N entries with `--last`:
 ./le perf track --check --last 5 history.ndjson
 ```
 
+`--last` limits the displayed or regression-comparison window, not input
+validation. A lossy or missing-convergence row anywhere in the history refuses
+the command, including `--check`, even when it lies outside that window.
+
 For the full flag reference, see [le perf track](../command-reference/index.md#le-perf-track).
 
 ## Understanding Results
@@ -381,7 +409,7 @@ The JSON result object contains these key fields:
 
 | Field | Unit | Description |
 |-------|------|-------------|
-| `convergence-ms` | ms | Time from first UPDATE sent to last route received (median) |
+| `convergence-ms` | ms | Time from first UPDATE sent to last route received (median); explicit zero is measured, missing/null is absent |
 | `convergence-stddev-ms` | ms | Standard deviation of convergence across iterations |
 | `first-route-ms` | ms | Time to first route arrival |
 | `throughput-avg` | routes/s | Average route propagation rate |
@@ -398,6 +426,13 @@ The JSON result object contains these key fields:
 | `pass` | name | `live-forwarding` or `rib-propagation` (see "Passes"); absent in a result written before the field existed |
 | `repeat` | count | Total iterations run |
 | `repeat-kept` | count | Iterations kept after outlier removal |
+
+Raw result readers and writers preserve convergence presence: absent/null input
+remains absent on serialization, while an explicitly measured zero remains `0`,
+including when Go results are serialized as values, pointers, slice entries or
+map values. Direct Go measurement producers call `Result.RecordConvergence`,
+which records zero explicitly; existing nonzero raw values carry their own
+presence. An uninitialized `Result` has no convergence measurement.
 
 ### Interpreting Results
 

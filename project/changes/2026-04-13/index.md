@@ -1,4 +1,4 @@
-# Week of 2026-04-13
+# 2026-04-13 – 2026-04-19 (1 week)
 
 A complete L2TP/PPP access stack, TACACS+ and pluggable AAA, a VPP dataplane, and new nftables/tc firewall backends.
 

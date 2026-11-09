@@ -70,11 +70,11 @@ business rules, Ze's plugin model is more flexible than any built-in policy lang
 
 ### ExaBGP migration
 
-`ze config migrate` converts ExaBGP configuration files. `ze exabgp plugin` runs
+`ze exabgp migrate` converts ExaBGP configuration files. `ze exabgp plugin` runs
 existing ExaBGP processes with Ze as the BGP engine. If you have ExaBGP deployments
 and want multithreading, broader address family support, or the plugin ecosystem,
 Ze provides a migration path that does not require rewriting your scripts.
-<!-- source: internal/component/config/cli/cmd_migrate.go -- ze config migrate -->
+<!-- source: internal/plugins/exabgp/main.go -- cmdMigrate, ze exabgp migrate -->
 <!-- source: internal/plugins/exabgp/main.go -- ze exabgp plugin -->
 
 ### Wire-level protocol tooling

@@ -1,4 +1,4 @@
-# Week of 2026-03-09
+# 2026-03-09 – 2026-03-15 (1 week)
 
 A big week for access, config safety, and BGP session security.
 

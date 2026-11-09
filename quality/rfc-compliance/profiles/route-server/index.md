@@ -10,8 +10,8 @@ Figures as of the last build, read from [data/rfc/profiles/route-server.json](..
 
 ## Figures
 
-- **MUST bar**: Ze proven 203, Ze correctness gap 191
-- **Overview bar**: Ze MUST proven 203, SHOULD proven 18, Not owed 3, SHOULD not decided 203, Ze correctness gap 191
+- **MUST bar**: Ze proven 209, Ze correctness gap 185
+- **Overview bar**: Ze MUST proven 209, SHOULD proven 19, Not owed 3, SHOULD not decided 202, Ze correctness gap 185
 
 | Figure | Rows |
 |---|---|
@@ -20,16 +20,16 @@ Figures as of the last build, read from [data/rfc/profiles/route-server.json](..
 | Mandatory register | not complete |
 | MUST rows | 397 |
 | MUST rows kept (the MUST bar) | 394 |
-| Ze proven | 203 |
+| Ze proven | 209 |
 | OS verified | 0 |
 | OS testing gap | 0 |
-| Ze correctness gap | 191 |
+| Ze correctness gap | 185 |
 | MUST rows not owed | 3 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 3 |
 | SHOULD / MAY rows | 221 |
-| SHOULD proven | 18 |
+| SHOULD proven | 19 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
@@ -38,7 +38,7 @@ Figures as of the last build, read from [data/rfc/profiles/route-server.json](..
 | SHOULD not owed: not-applicable | 0 |
 | SHOULD not ever | 0 |
 | SHOULD not yet | 0 |
-| SHOULD not decided | 203 |
+| SHOULD not decided | 202 |
 
 The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
 
@@ -50,7 +50,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze proven 83, Ze correctness gap 50 | Ze MUST proven 83, SHOULD proven 3, SHOULD not decided 31, Ze correctness gap 50 | route-server: required by rfc/short/rfc4271.md |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze proven 85, Ze correctness gap 48 | Ze MUST proven 85, SHOULD proven 3, SHOULD not decided 31, Ze correctness gap 48 | route-server: required by rfc/short/rfc4271.md |
 | [RFC 9582](../../rfc9582/) | A Profile for Route Origin Authorizations (ROAs) | Ze correctness gap 16 | SHOULD not decided 6, Ze correctness gap 16 | route-server: required by rfc/short/rfc9582.md |
 
 ### Level 4
@@ -74,9 +74,9 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 6793](../../rfc6793/) (cycle with rfc5668) | BGP Support for Four-Octet Autonomous System (AS) Number Space | Ze proven 20, Ze correctness gap 10 | Ze MUST proven 20, SHOULD not decided 6, Ze correctness gap 10 | route-server: required by rfc/short/rfc6793.md |
+| [RFC 6793](../../rfc6793/) (cycle with rfc5668) | BGP Support for Four-Octet Autonomous System (AS) Number Space | Ze proven 21, Ze correctness gap 9 | Ze MUST proven 21, SHOULD not decided 6, Ze correctness gap 9 | route-server: required by rfc/short/rfc6793.md |
 | [RFC 7911](../../rfc7911/) | Advertisement of Multiple Paths in BGP | Ze proven 9 | Ze MUST proven 9, SHOULD not decided 4 | route-server: required by rfc/short/rfc7911.md |
-| [RFC 7947](../../rfc7947/) | Internet Exchange BGP Route Server | Ze proven 2, Ze correctness gap 1 | Ze MUST proven 2, SHOULD proven 3, SHOULD not decided 2, Ze correctness gap 1 | route-server: required by rfc/short/rfc7947.md |
+| [RFC 7947](../../rfc7947/) | Internet Exchange BGP Route Server | Ze proven 2, Ze correctness gap 1 | Ze MUST proven 2, SHOULD proven 4, SHOULD not decided 1, Ze correctness gap 1 | route-server: required by rfc/short/rfc7947.md |
 
 ### Level 7
 
@@ -96,7 +96,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 | [RFC 7999](../../rfc7999/) | BLACKHOLE Community | Ze proven 4 | Ze MUST proven 4, SHOULD proven 3, SHOULD not decided 9 | route-server: required by rfc/short/rfc7999.md |
 | [RFC 8092](../../rfc8092/) | BGP Large Communities Attribute | Ze proven 7 | Ze MUST proven 7, SHOULD not decided 4 | route-server: required by rfc/short/rfc8092.md |
 | [RFC 8893](../../rfc8893/) | Resource Public Key Infrastructure (RPKI) Origin Validation for BGP Export | Ze correctness gap 4 | SHOULD not decided 2, Ze correctness gap 4 | route-server: required by rfc/short/rfc8893.md |
-| [RFC 9234](../../rfc9234/) | Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages | Ze proven 8, Ze correctness gap 11 | Ze MUST proven 8, SHOULD proven 1, SHOULD not decided 4, Ze correctness gap 11 | route-server: required by rfc/short/rfc9234.md |
+| [RFC 9234](../../rfc9234/) | Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages | Ze proven 11, Ze correctness gap 8 | Ze MUST proven 11, SHOULD proven 1, SHOULD not decided 4, Ze correctness gap 8 | route-server: required by rfc/short/rfc9234.md |
 | [RFC 9774](../../rfc9774/) | Deprecation of AS_SET and AS_CONFED_SET in BGP | Ze proven 2, Ze correctness gap 1 | Ze MUST proven 2, Ze correctness gap 1 | route-server: required by rfc/short/rfc9774.md |
 
 ### Level 9
@@ -150,8 +150,8 @@ The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of th
 | [RFC 2918](../../rfc2918/) | Route Refresh Capability for BGP-4 | Ze proven 3, Ze correctness gap 3 | Ze MUST proven 3, SHOULD proven 1, SHOULD not decided 4, Ze correctness gap 3 | route-server: optional in rfc/short/rfc2918.md |
 | [RFC 4486](../../rfc4486/) | Subcodes for BGP Cease NOTIFICATION Message | Ze correctness gap 1 | SHOULD not decided 10, Ze correctness gap 1 | route-server: optional in rfc/short/rfc4486.md |
 | [RFC 4724](../../rfc4724/) | Graceful Restart Mechanism for BGP | Ze proven 14, Ze correctness gap 12 | Ze MUST proven 14, SHOULD proven 1, SHOULD not decided 4, Ze correctness gap 12 | route-server: optional in rfc/short/rfc4724.md |
-| [RFC 7313](../../rfc7313/) | Enhanced Route Refresh Capability for BGP-4 | Ze proven 5, Ze correctness gap 6 | Ze MUST proven 5, SHOULD not decided 6, Ze correctness gap 6 | route-server: optional in rfc/short/rfc7313.md |
 | [RFC 8203](../../rfc8203/) | BGP Administrative Shutdown Communication | Ze proven 3, Ze correctness gap 2 | Ze MUST proven 3, SHOULD not decided 4, Ze correctness gap 2 | route-server: optional in rfc/short/rfc8203.md |
 | [RFC 8950](../../rfc8950/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc7606, rfc8277) | Advertising IPv4 Network Layer Reachability Information (NLRI) with an IPv6 Next Hop | Ze proven 3, Ze correctness gap 3 | Ze MUST proven 3, SHOULD not decided 2, Ze correctness gap 3 | route-server: optional in rfc/short/rfc8950.md |
 | [RFC 9003](../../rfc9003/) | Extended BGP Administrative Shutdown Communication | Ze proven 1, Ze correctness gap 3 | Ze MUST proven 1, SHOULD not decided 7, Ze correctness gap 3 | route-server: optional in rfc/short/rfc9003.md |
+| [RFC 7313](../../rfc7313/) | Enhanced Route Refresh Capability for BGP-4 | Ze proven 5, Ze correctness gap 6 | Ze MUST proven 5, SHOULD not decided 6, Ze correctness gap 6 | route-server: optional in rfc/short/rfc7313.md |
 | [RFC 8654](../../rfc8654/) | Extended Message Support for BGP | Ze proven 9, Ze correctness gap 2 | Ze MUST proven 9, SHOULD proven 1, Not owed 1, SHOULD not decided 3, Ze correctness gap 2 | route-server: optional in rfc/short/rfc8654.md |

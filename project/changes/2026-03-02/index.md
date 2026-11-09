@@ -1,4 +1,4 @@
-# Week of 2026-03-02
+# 2026-03-02 – 2026-03-08 (1 week)
 
 Best-path selection landed, along with outbound route tracking and a round of CLI/editor polish.
 

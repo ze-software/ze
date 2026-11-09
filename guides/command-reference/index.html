@@ -117,6 +117,7 @@ and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 <li><a href="#show-system-update">show system update</a></li>
 <li><a href="#show-system-update-history">show system update history</a></li>
 <li><a href="#update-system-firmware">update system firmware</a></li>
+<li><a href="#update-serve">update serve</a></li>
 <li><a href="#show-bgp">show bgp</a></li>
 <li><a href="#ping-traceroute">ping / traceroute</a></li>
 <li><a href="#show-crashes">show crashes</a></li>
@@ -213,7 +214,7 @@ through pipes without temp files:</p>
 <pre><code>generate | ze config show -                 # read a config from stdin
 ssh host cat rib.mrt | ze analyze show -    # analyse an MRT streamed in
 ze config show - | ze config set - bgp session asn local 65001 | ze config validate -
-ze config migrate -o - old.conf             # write the migrated config to stdout
+ze config migrate -o - router.conf          # write the set form to stdout
 </code></pre>
 <p>stdin can be consumed once: a second <code>-</code> in a single command fails with a clear
 error rather than reading empty. A file literally named <code>-</code> is addressed as
@@ -395,6 +396,36 @@ the running daemon produces on reload. See
 <a href="../configuration-model/#backend-capability-errors">Backend Capability Errors</a>.</p>
 <!-- source: internal/component/config/cli/cmd_validate.go -- cmdValidate, backend-gate loop -->
 <!-- source: internal/component/config/backend_gate.go -- validateBackendFeatures -->
+<p>Some refusals are about the machine running the command, not about the file.
+Each carries a code of its own, so a config written for a router and
+validated on a workstation is not mistaken for a broken one; the same file
+validates on the host it is written for:</p>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>When</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>config-kernel-capability</code></td>
+<td>The config uses a subsystem this kernel cannot carry</td>
+</tr>
+<tr>
+<td><code>config-node-other-os</code></td>
+<td>The config uses a node the schema holds only on another operating system (<code>interface xfrm</code>, <code>interface pppoe-client</code> and <code>mirror</code> exist only on Linux). The message names the node and its OS, and says to validate on that OS</td>
+</tr>
+<tr>
+<td><code>config-host-backend</code></td>
+<td>A subsystem names no backend and this OS has no default (interface, firewall and traffic-control default to netlink, nft and tc on Linux only), or a hardware inventory a verifier reads (the CPU list for VPP) is absent here</td>
+</tr>
+</tbody>
+</table>
+<p><code>ze show diagnostic &lt;code&gt;</code> explains each one.</p>
+<!-- source: internal/component/config/os_restricted.go -- NodeOfAnotherOSError -->
+<!-- source: internal/core/diagnostic/host_verdict.go -- HostVerdict, IsHostVerdict -->
+<!-- source: internal/core/diagnostic/codes.go -- CodeConfigNodeOtherOS, CodeConfigHostBackend -->
 <p>Validation warns, and still exits 0, for every EBGP peer direction that has no
 explicit import or export policy. RFC 8212 Section 3 closes that direction: Ze
 uses none of the routes the peer sends, or sends it none, so the session comes
@@ -438,12 +469,21 @@ ze config cat &lt;key&gt;              # Print database entry
 <pre><code>ze config validate &lt;file&gt;        # Validate configuration file
 ze config show &lt;file&gt; [path...]  # Show the config tree at a path (one-shot)
 ze config dump &lt;file&gt;            # Dump parsed configuration
+ze config dump --strip-private &lt;file&gt;  # Same, with every secret masked
 ze config diff &lt;f1&gt; &lt;f2&gt;         # Compare two configs
 ze config diff &lt;N&gt; &lt;file&gt;        # Compare with rollback revision
 ze config fmt &lt;file&gt;             # Format and normalize
 ze config show --backup &lt;artifact&gt; &lt;name&gt; [path...]  # Read a config inside a backup
 ze config diff --backup &lt;artifact&gt; &lt;N&gt; &lt;name&gt;        # Diff inside a backup
 </code></pre>
+<p>From a daemon surface (SSH, the web, MCP, REST, gRPC) the daemon runs
+<code>show config dump</code>, <code>validation</code>, <code>diff</code>, <code>history</code>, <code>graph</code> and <code>fmt</code> only on a
+file inside the configuration directories <code>show config list</code> searches, never
+on standard input (<code>-</code>), and never rewrites a file with <code>fmt -w</code>; the refusal
+names the local <code>ze</code> command to run where the file is. The secret mask is the
+keyword <code>strip-private</code> there: <code>show config dump strip-private &lt;file&gt;</code>, and
+<code>fmt --check</code> and <code>--diff</code> are the keywords <code>check</code> and <code>diff</code>:
+<code>show config fmt diff &lt;file&gt;</code>. The diff arrives as the answer's warnings.</p>
 <p><code>--backup &lt;artifact&gt;</code> points <code>edit</code>, <code>show</code>, <code>diff</code>, <code>set</code> and <code>list</code> at the
 configs inside a backup artifact instead of the live store, with no daemon. A
 commit or a <code>set</code> publishes a new version and its pointers into the artifact,
@@ -472,9 +512,13 @@ one candidate never reads as two.</p>
 ze config rollback &lt;N&gt; &lt;file&gt;    # Restore revision N
 ze config archive &lt;name&gt; &lt;file&gt;  # Archive config (see config-archive.md)
 </code></pre>
-<p><strong>Migration:</strong></p>
-<pre><code>ze config migrate &lt;file&gt;         # Convert old format to current
+<p><strong>Form conversion:</strong></p>
+<pre><code>ze config migrate &lt;file&gt;                        # Rewrite in the set form
+ze config migrate format hierarchical &lt;file&gt;    # Rewrite as nested blocks
 </code></pre>
+<p><code>ze config migrate</code> reads a current config in either form; it does not rewrite
+an older pre-release syntax. An ExaBGP config is converted by
+<code>ze exabgp migrate</code> (below).</p>
 <!-- source: internal/component/config/cli/main.go -- subcommandHandlers, storageHandlers -->
 <table>
 <thead>
@@ -493,16 +537,8 @@ ze config archive &lt;name&gt; &lt;file&gt;  # Archive config (see config-archiv
 <td>Output file (migrate)</td>
 </tr>
 <tr>
-<td><code>--dry-run</code></td>
-<td>Show what would be migrated without changes (migrate)</td>
-</tr>
-<tr>
-<td><code>--list</code></td>
-<td>List available transformations (migrate)</td>
-</tr>
-<tr>
-<td><code>--format &lt;fmt&gt;</code></td>
-<td>Output format: <code>set</code> (default) or <code>hierarchical</code> (migrate)</td>
+<td><code>format &lt;form&gt;</code></td>
+<td>Output form, typed before the file: <code>set</code> (default) or <code>hierarchical</code> (migrate)</td>
 </tr>
 </tbody>
 </table>
@@ -616,10 +652,100 @@ ze bgp encode &lt;route-command&gt;    # Encode route command to BGP hex
 ze bgp plugin cli                # Plugin debug shell (5-stage handshake + interactive)
 ze bgp plugin cli --name &lt;name&gt;  # Debug shell with custom plugin name
 
-# Also available via YANG verb dispatch (same behavior, no daemon needed):
+# Also available via YANG verb dispatch (no daemon needed), answering data:
 ze show bgp decode &lt;hex&gt;
+ze show bgp decode type open &lt;hex&gt;
 ze show bgp encode &lt;route-command&gt;
+ze show bgp encode family ipv6/unicast part nlri &lt;route-command&gt;
 </code></pre>
+<p><code>ze show bgp decode</code> and <code>ze show bgp encode</code> answer data, so a pipe applies to
+them (<code>ze cli -c "show bgp decode &lt;hex&gt; | json"</code>), and their text rendering is
+the output <code>ze bgp decode</code> and <code>ze bgp encode</code> print. A decode answers each
+message as its hexadecimal and its decoding in the Ze event format; an encode
+answers the family, the part of the UPDATE it carries and the hexadecimal. A
+typed payload that does not decode is refused by <code>show bgp decode</code>, with the
+decoder's reason, on every surface; <code>ze bgp decode</code> prints that reason on
+stdout and exits 1, as it always has. The
+options keep working on both spellings, and each option that selects what is
+answered also has a keyword, which is the form a remote surface takes:</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Option</th>
+<th>Keyword</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>decode</td>
+<td><code>--open</code>, <code>--update</code>, <code>--notification</code>, <code>--keepalive</code></td>
+<td><code>type &lt;open|update|notification|keepalive&gt;</code></td>
+</tr>
+<tr>
+<td>decode</td>
+<td><code>--nlri &lt;family&gt;</code></td>
+<td><code>nlri &lt;family&gt;</code></td>
+</tr>
+<tr>
+<td>decode</td>
+<td><code>-f</code>, <code>--family &lt;family&gt;</code></td>
+<td><code>family &lt;family&gt;</code></td>
+</tr>
+<tr>
+<td>decode</td>
+<td><code>pcap &lt;file&gt;</code></td>
+<td><code>pcap &lt;file&gt;</code></td>
+</tr>
+<tr>
+<td>decode</td>
+<td><code>--plugin &lt;name&gt;</code> (repeatable)</td>
+<td><code>plugin &lt;name&gt;</code></td>
+</tr>
+<tr>
+<td>encode</td>
+<td><code>-f &lt;family&gt;</code></td>
+<td><code>family &lt;family&gt;</code></td>
+</tr>
+<tr>
+<td>encode</td>
+<td><code>-a &lt;asn&gt;</code>, <code>-z &lt;asn&gt;</code></td>
+<td><code>local-as &lt;asn&gt;</code>, <code>peer-as &lt;asn&gt;</code></td>
+</tr>
+<tr>
+<td>encode</td>
+<td><code>-i</code></td>
+<td><code>path-id include</code></td>
+</tr>
+<tr>
+<td>encode</td>
+<td><code>-n</code>, <code>--no-header</code></td>
+<td><code>part nlri</code>, <code>part body</code></td>
+</tr>
+<tr>
+<td>encode</td>
+<td><code>--asn4=false</code></td>
+<td><code>asn-width two-octet</code></td>
+</tr>
+</tbody>
+</table>
+<p>A choice given both ways is refused. <code>--json</code> on decode is a rendering option of
+the local command only. The forms that read standard input (<code>decode -</code>,
+<code>decode pcap -</code>, and <code>encode</code> with no route) need the local <code>ze</code> process.</p>
+<p>A plugin named on decode is asked to decode every capability and NLRI before
+the registered decoders are, and the answer lists the plugins it was decoded
+under. The registered decoders answer what no named plugin decodes, so a
+registered plugin decodes its capabilities and families without being named.
+<code>&lt;name&gt;</code> forks <code>ze plugin &lt;name&gt; --decode</code>, <code>ze.&lt;name&gt;</code> runs the plugin in a
+goroutine and <code>ze-&lt;name&gt;</code> calls it in-process; a name no registered plugin
+decodes under is refused, with the names that do. <code>--plugin /path/to/program</code>
+runs a third-party program that answers the same <code>decode capability &lt;code&gt; &lt;hex&gt;</code> and <code>decode nlri &lt;family&gt; &lt;hex&gt;</code> requests on standard input. Only the
+local <code>ze</code> process runs a program path, so the <code>plugin</code> keyword takes a name.</p>
+<!-- source: internal/component/bgp/cli/decode_answer.go -- answerDecode, applyDecodeLeaves -->
+<!-- source: internal/component/command/route.go -- Route, CallerLocal -->
+<!-- source: internal/component/bgp/cli/decode_plugin.go -- parseDecodePlugin, decodePlugins -->
+<!-- source: internal/component/bgp/cli/encode.go -- answerEncode, applyEncodeLeaves -->
+<!-- source: internal/component/bgp/cli/yang/ze-bgp-tools-cmd.yang -- decode, encode -->
 <p>The <code>pcap</code> keyword precedes the path, so the first word after <code>decode</code> is always
 a keyword or a hex payload and never an ambiguous file name. A capture may be
 one <code>show capture-raw dump bgp pcap</code> wrote or one from tcpdump: the reader takes
@@ -697,7 +823,7 @@ across, and a capture with no BGP in it exits non-zero naming what it examined.<
 </tr>
 <tr>
 <td><code>--asn4</code></td>
-<td>4-byte ASN (default: true) <!-- source: internal/component/bgp/cli/main.go -- Run; internal/component/bgp/cli/decode.go -- cmdDecode; internal/component/bgp/cli/encode.go -- cmdEncode --></td>
+<td>4-byte ASN (default: true) <!-- source: internal/component/bgp/cli/main.go -- Run; internal/component/bgp/cli/decode_answer.go -- cmdDecode; internal/component/bgp/cli/encode.go -- cmdEncode --></td>
 </tr>
 </tbody>
 </table>
@@ -872,6 +998,7 @@ OS view. Available via daemon SSH (online RPC); YANG registration only.</p>
 ze show system cpu                 # goroutine count, logical CPUs, GOMAXPROCS + hardware
 ze show system date                # wall-clock time: RFC3339, Unix, timezone
 ze show system platform            # runtime platform type and capabilities
+ze show system dns                 # learned resolver records and each dns-source consumer's selection
 </code></pre>
 <p>Each response is a flat JSON map with kebab-case keys:</p>
 <table>
@@ -895,12 +1022,16 @@ ze show system platform            # runtime platform type and capabilities
 <td><code>time</code> (RFC3339), <code>unix</code>, <code>unix-nano</code>, <code>timezone</code>, <code>utc-offset-secs</code></td>
 </tr>
 <tr>
+<td><code>show system dns</code></td>
+<td><code>records</code> (each learned record: <code>origin</code>, <code>rank</code>, <code>interface</code>, <code>unit</code>, <code>addresses</code>, <code>received</code>, <code>expires</code>, and when set <code>fallback</code>, <code>priority</code>, <code>name</code>, <code>transport</code>, <code>port</code>, <code>path</code>), <code>consumers</code> (each: <code>consumer</code>, <code>selections</code> with <code>path</code>, <code>instance</code>, <code>sources</code>, <code>mode</code>, <code>default</code>, <code>received-interfaces</code>, <code>used</code>, <code>servers</code>, <code>self</code>, <code>serves</code>); the router is first, as consumer <code>system</code>. <span class="ev-src"><span class="ev-ref"><code>docs/features/dns-resolver.md</code></span></span></td>
+</tr>
+<tr>
 <td><code>show system platform</code></td>
 <td><code>type</code> (gokrazy, systemd, container, plain-linux, darwin), <code>read-only-root</code>, <code>perm-available</code>, <code>systemd-available</code>, <code>gokrazy-update-socket</code>, <code>gokrazy-ui-available</code>, <code>reboot-allowed</code>, <code>persistent-storage-writable</code>, <code>fd-limit-soft-current</code>, <code>fd-limit-hard-max</code>, <code>fd-limit-raisable</code></td>
 </tr>
 <tr>
 <td><code>show system conntrack</code></td>
-<td><code>count</code>, <code>max</code>, <code>buckets</code>, <code>expect-max</code>, <code>accounting</code>, <code>timestamp</code>, <code>checksum</code>, <code>log-invalid</code>, <code>modules</code> (loaded nf_conntrack_* list), <code>timeouts</code> (per-protocol), <code>tcp-behavior</code> (be-liberal, loose, max-retrans, ignore-invalid-rst)</td>
+<td><code>count</code>, <code>max</code>, <code>buckets</code>, <code>expect-max</code>, <code>accounting</code>, <code>timestamp</code>, <code>checksum</code>, <code>log-invalid</code>, <code>modules</code> (loaded nf_conntrack_* list), <code>helpers</code> (one row per assigned kernel helper: <code>module</code>, <code>kernel-helper</code>, <code>protocol</code>, <code>ports</code>, <code>families</code>), <code>timeouts</code> (per-protocol), <code>tcp-behavior</code> (be-liberal, loose, max-retrans, ignore-invalid-rst)</td>
 </tr>
 </tbody>
 </table>
@@ -1269,7 +1400,20 @@ ze request support archive --sensitive                 # Include passwords (defa
 ze request support archive --since 2h                  # Time scope for log collection
 ze request support archive --output /var/support/      # Output directory (default: cwd)
 </code></pre>
-<!-- source: internal/component/support/support.go -- Run, collect, SupportManifest -->
+<p>Through the daemon (SSH, <code>ze cli -c</code>, MCP, REST, gRPC, the web), the caller's
+host is not the router, so no directory of the caller's can be named. The
+daemon keeps the archive in its store under <code>support/archive/&lt;name&gt;</code> and
+answers the manifest, whose <code>archive-key</code> names the key and <code>archive-octets</code>
+its size. Read the bytes back with <code>show data cat &lt;key&gt;</code>. The leaves <code>module</code>,
+<code>exclude</code>, <code>since</code> and <code>reason</code> make the choices their flags make; <code>--output</code>
+is refused there by name. An archive larger than one remote answer carries
+(8 MiB) is refused with its size: narrow it with <code>module</code> or <code>exclude</code>, or run
+the local command on the router.</p>
+<pre><code>ze cli -c "request support archive module version,doctor reason 'BGP flap'"
+ze cli -c "show data cat support/archive/ze-support-router1-20261102-101500.tar.gz"
+</code></pre>
+<!-- source: internal/component/support/support.go -- Run, Answer, storeAnswer, collect, SupportManifest -->
+<!-- source: internal/component/command/blob.go -- BlobRemoteOctetsMax -->
 <!-- source: internal/component/support/modules.go -- moduleRegistry, ModuleNames, ModuleList -->
 <h3 id="ze-interface">ze interface</h3>
 <p>OS network interface management (standalone, no daemon needed for most commands).
@@ -1283,6 +1427,13 @@ ze show interface type &lt;type&gt;      # Filter by type (ethernet, bridge, vxl
 ze show interface errors           # Interfaces with non-zero Rx/Tx error or drop counters
 ze show interface rate             # Per-second rate data for all interfaces
 ze show interface rate &lt;name&gt;      # Per-second rate data for one interface
+ze show interface pppoe-client     # Each PPPoE client: name, state, source-interface, ppp-interface,
+                                   # session-id, local-ip, peer-ip, uptime, dns-servers (IPCP-learned,
+                                   # primary first, [] when none), delegated-prefixes (DHCPv6 IA_PD:
+                                   # prefix, valid-lifetime, preferred-lifetime remaining, [] when none)
+ze show interface delegated-prefix # Each LAN unit's delegated-prefix entry: interface, unit, source,
+                                   # subnet-id, state; installed adds device, address, prefix (the /64),
+                                   # delegated, valid-lifetime, preferred-lifetime; others add a reason
 ze show interface --json           # JSON output
 ze interface create dummy &lt;name&gt;   # Create a dummy interface
 ze interface create veth &lt;n&gt; &lt;p&gt;   # Create a veth pair
@@ -2022,6 +2173,22 @@ sha256 is absent from the manifest.</p>
 <p><code>rollback</code> renames the <code>.prev</code> backup to the target binary and restarts. After
 rollback, <code>.prev</code> no longer exists and the new version is gone from disk.</p>
 <!-- source: internal/plugins/update-cmd/cmd/firmware.go -- firmware CLI handlers -->
+<h3 id="update-serve">update serve</h3>
+<pre><code>ze update serve --listen :8080           # Foreground server in this process (SIGUSR1 toggles pause)
+ze cli -c "update serve"                 # The daemon's server status: running, listen address, paused
+ze update serve start listen :8080       # The daemon starts its server and answers the listen address
+ze update serve pause                    # Toggle the daemon's server pause
+ze update serve stop                     # Stop the daemon's server; answers once it has ended
+</code></pre>
+<p>Both forms serve <code>GET /version.json</code>, the running binary at <code>GET /&lt;goos&gt;/&lt;goarch&gt;</code>
+and its digest at <code>GET /&lt;goos&gt;/&lt;goarch&gt;/sha256</code>, for build infrastructure rather
+than for a router in production. The <code>start</code>, <code>stop</code> and <code>pause</code> commands act on
+the daemon's one server and reach it from every surface; a second <code>start</code> is
+refused until <code>stop</code>. A signal sent to the daemon reaches the daemon, so <code>pause</code>
+replaces <code>SIGUSR1</code> there. The <code>update-paused</code> file beside the binary pauses
+either form. See <a href="../self-update/">self-update</a>.</p>
+<!-- source: internal/plugins/update-cmd/cmd/serve.go -- runUpdateServe -->
+<!-- source: internal/plugins/update-cmd/cmd/serve_daemon.go -- updateServeOwner start, stop, pause -->
 <h3 id="show-bgp">show bgp</h3>
 <pre><code>ze show bgp                          # Every configured peer
 ze show bgp ipv4                     # Expanded to ipv4/unicast
@@ -2070,9 +2237,9 @@ and <code>./le cli list</code> both list <code>summary</code> on the command. Ea
 command's summary under <code>description</code> and its long explanation under
 <code>description</code>. The full RPKI command list is in <code>docs/guide/rpki.md</code>.</p>
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, summaryAliasExpansion -->
-<!-- source: cmd/ze/help_command.go -- appendPluginCommands -->
+<!-- source: internal/plugins/help/help_command.go -- appendPluginCommands -->
 <!-- source: internal/le/cli/list/commandlist.go -- aliasesFor -->
-<!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
+<!-- source: internal/plugins/help/help_command.go -- collectCommands, extractPipes -->
 <p><code>show bgp summary</code> was a second spelling of this command until 2026-08. It is
 removed, not aliased, so it answers an unknown-command error. <code>show bgp</code> gives
 the ordered table, and <code>show bgp | summary</code> gives the aggregate fields that
@@ -2083,7 +2250,10 @@ the ordered table, and <code>show bgp | summary</code> gives the aggregate field
 <!-- source: internal/component/command/column_order.go -- ColumnsForCommand, commandMatchesPrefix -->
 <h3 id="ping-traceroute">ping / traceroute</h3>
 <p><code>show ping</code> and <code>show traceroute</code> use Ze's internal ICMP engine and work without
-the daemon running (registered as local handlers). <code>monitor ping</code> and <code>monitor traceroute</code> also work offline, streaming results until Ctrl-C.</p>
+the daemon running (registered as local handlers). <code>monitor ping</code> and <code>monitor traceroute</code> also work offline, streaming results until Ctrl-C. Through the
+daemon, <code>ze cli -c</code> and SSH stream them the same way from the router, and MCP,
+REST, gRPC and the web admin console get one sample: the rows of a bounded ping
+run, or one traceroute probe round.</p>
 <pre><code>ze show ping 8.8.8.8                          # 5 probes, 5s timeout
 ze show ping 8.8.8.8 count 10 timeout 3s      # count 1-100, timeout 1s-30s
 ze show ping 8.8.8.8 size 1400                # ICMP payload bytes (1-65507)
@@ -2375,8 +2545,12 @@ ze yang doc [command]            # Command documentation
 </tr>
 </tbody>
 </table>
-<p>The tree and the collision report are registered answers, so the pipe layer
-renders them: <code>ze cli -c "show yang tree --config | json"</code>.</p>
+<p>Each flag has a keyword, the form a remote surface takes, where the daemon
+refuses a flag: <code>show yang tree commands</code>, <code>show yang tree config</code>,
+<code>show yang completion min-prefix &lt;N&gt;</code> (1 to 10), <code>show yang doc list</code> and
+<code>show yang doc command &lt;words&gt;</code>. Giving a keyword and its flag together is
+refused. The tree and the collision report are registered answers, so the pipe
+layer renders them: <code>ze cli -c "show yang tree config | json"</code>.</p>
 <!-- source: internal/component/config/yang/cli/main.go -- Run -->
 <h3 id="ze-appliance-kernel">ze appliance kernel</h3>
 <p>The build-host binary builds or resolves Ze's installer or runtime kernel.
@@ -2714,12 +2888,22 @@ fails on a local command it finds with no node.</p>
 <!-- source: internal/le/doc/yangcontract/contract.go -- Validate, OrphanLocalHandlers -->
 <p><code>show debug profile name &lt;name&gt;</code> reads a stored profile (offline). To see the daemon's
 actual live state, use <code>show debug</code> (YANG-dispatched RPC, requires a running daemon).</p>
+<p>These debug commands, and <code>show diagnostic</code>, <code>show skills</code>, <code>show skill</code> and
+<code>request wireguard keypair</code>, answer data rather than printed text. <code>ze &lt;command&gt;</code>
+prints the same text as before, and <code>ze cli -c "&lt;command&gt; | json"</code> (or any other
+pipe) applies the operator to the answer's fields: <code>show debug profile name default | json</code>
+gives one <code>module</code>, <code>level</code>, <code>flags</code>, <code>scopes</code> object per row. <code>--json</code> on
+<code>show diagnostic</code> and <code>show skill(s)</code> stays a local spelling of the same output.</p>
+<!-- source: internal/plugins/debug/show.go -- debugModulesAnswer, drawDebugModules -->
+<!-- source: internal/plugins/explain/main.go -- Run, render, drawText -->
+<!-- source: internal/plugins/skills/main.go -- showSkills, showSkill, render -->
+<!-- source: internal/plugins/diag/diag.go -- runWgKeypair, drawWgKeypair -->
 <!-- source: internal/plugins/debug/debug.go -- runSetModule, runDeleteModule, applyProfile -->
 <!-- source: internal/plugins/debug/register.go -- set/delete/show/clear debug registrations -->
 <!-- source: internal/plugins/debug/cmd/handlers.go -- show debug live state RPC -->
 <!-- source: internal/component/debug/yang/register.go -- RegisterModule, ValidateFlag -->
 <h3 id="ze-pipe">ze pipe</h3>
-<p>Apply pipe formatting to stdin. Offline commands (like <code>ze show debug profile</code>) do not pass
+<p>Apply pipe formatting to stdin. Offline commands that print text rather than answer data do not pass
 through the YANG-dispatched pipe infrastructure. <code>ze pipe</code> provides the same
 operators as a standalone filter.</p>
 <pre><code>&lt;command&gt; | ze pipe json [compact]     # Format as JSON (pretty or compact)
@@ -3292,6 +3476,13 @@ each chart bar is labelled with the DUT and the pass. A result with no <code>pas
 field reads <code>not recorded</code> in that column and displaces neither pass. A file
 whose <code>pass</code> names no known pass is refused with the file name, the value and
 the accepted values, and the command exits 1.</p>
+<p>All raw rows are validated before latest-sample selection and before any report
+byte is written. Nonzero <code>routes-lost</code>, or missing/null <code>convergence-ms</code>, refuses
+the whole comparison with the source file and measurement identity. A measured
+explicit zero is valid. Older lossy duplicates are not silently discarded.
+There is no JSON comparison format: raw result JSON remains diagnostic evidence,
+including loss. Stdout write errors fail the command without rolling back bytes
+already written; shell redirection itself may truncate a destination first.</p>
 <!-- source: internal/perf/report/markdown.go -- latestComparisonResults -->
 <h4 id="le-perf-track">le perf track</h4>
 <p>Track performance history and detect regressions from an NDJSON file.</p>
@@ -3357,6 +3548,10 @@ the accepted values, and the command exits 1.</p>
 </table>
 <!-- source: internal/perf/regression.go -- regression detection thresholds -->
 <p>Exit codes: 0 = no regression (or report mode), 1 = regression detected or error.</p>
+<p>Every history row is validated before <code>--last</code> filters the window, including in
+<code>--check</code> mode. Nonzero loss or missing/null convergence anywhere in the input
+refuses with the history file and row identity before report output; explicit
+zero convergence remains valid.</p>
 <hr>
 <h2 id="runtime-commands">Runtime Commands</h2>
 <p>Commands sent to the running daemon. Access through three entry points:</p>
@@ -3383,7 +3578,10 @@ the accepted values, and the command exits 1.</p>
 </table>
 <p><strong>Note:</strong> Some <code>ze show</code> subcommands run locally without a daemon (version,
 bgp decode/encode, env, schema, yang, completion). These are dispatched
-via local handlers before attempting SSH connection.</p>
+via local handlers before attempting SSH connection. The daemon serves the
+same commands to SSH, the web, MCP, REST and gRPC, through the same handler
+or, for <code>show version</code>, <code>show ping</code> and <code>show interface</code>, through an RPC that
+calls the same producer, so the answer is the one <code>ze &lt;verb&gt;</code> prints.</p>
 <p><code>ze cli</code> accepts <code>-c &lt;command&gt;</code> for single-shot execution and
 <code>--format &lt;format&gt;</code>. The flag has no default of its own. A command that names no
 format is rendered in the configured default, the <code>environment cli format default</code> leaf. A format pipe inside the command wins over the flag, so
@@ -3583,8 +3781,8 @@ answered a different peer on each call.</p>
 </table>
 <p>The peer selector comes first (<code>peer &lt;sel&gt;</code>, matching <code>show bgp peer &lt;sel&gt; ...</code>), then the direction (<code>import</code>/<code>export</code>), then optional <code>filter &lt;NAME&gt;</code>, then <code>update &lt;HEX&gt;</code>.</p>
 <p><code>&lt;HEX&gt;</code> is a hex-encoded full BGP UPDATE message (including the 19-byte header). The <code>0x</code> prefix is optional.</p>
-<p>Optional: <code>source-asn4 false</code> to test with ASN2 encoding context (default: ASN4). This is what makes AS4_PATH (RFC 6793) the active path carrier.</p>
-<p>Output is structured JSON with fields: <code>direction</code>, <code>peer</code>, <code>action</code> (accept/reject/modify/undetermined), <code>trace</code> (per-filter decisions), <code>text-before</code>, <code>text-after</code>, <code>changed-attrs</code>, and <code>wire-changes</code> (wire-level attribute ops such as <code>AS4_PATH suppressed</code> that the flat filter text cannot express). An export dry-run toward an internal peer lists no <code>AS_PATH</code> operation, because the export chain applies no <code>as-path-prepend</code> or <code>remove-private</code> toward one (RFC 4271 Section 5.1.2).</p>
+<p>Optional: <code>source-asn4 false</code> to paste an UPDATE as received over a two-octet session (default: ASN4). The dry-run first merges its AS4_PATH and AS4_AGGREGATOR into the four-octet form, as the live import does (RFC 6793 Section 4.2.3), and explains that route, which is the one the filters see.</p>
+<p>Output is structured JSON with fields: <code>direction</code>, <code>peer</code>, <code>action</code> (accept/reject/modify/undetermined), <code>trace</code> (per-filter decisions), <code>text-before</code>, <code>text-after</code>, <code>changed-attrs</code>, and <code>wire-changes</code> (the wire-level attribute operations the chain applies, such as <code>AS_PATH set</code>, which <code>text-before</code> and <code>text-after</code> cannot show). An export dry-run toward an internal peer lists no <code>AS_PATH</code> operation, because the export chain applies no <code>as-path-prepend</code> or <code>remove-private</code> toward one (RFC 4271 Section 5.1.2).</p>
 <p>If the remote AS is unresolved, <code>action</code> is <code>undetermined</code> and <code>reason</code> tells you
 to wait for establishment and repeat <code>show policy test</code>. No filter executes,
 including a single-filter override. Trace and text are empty, with no wire
@@ -3594,12 +3792,18 @@ changes. For a known EBGP session, an absent direction has a rejecting final.
 with no policy, and <code>undetermined</code> an absent direction whose session type is not
 known yet.</p>
 <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun -->
+<p>The chain <code>show policy chain</code> and <code>show policy test</code> read is the peer's
+effective chain, so it carries the members a plugin inserted as well as the
+ones the operator named: on a peer with an RFC 9234 role, the upstream check
+<code>bgp-role:upstream-asn</code> appears in the import chain of a <code>provider</code>, <code>peer</code> or
+<code>rs</code> session and in the export chain of a <code>peer</code> or <code>rs-client</code> session
+(<a href="../bgp-role/">BGP roles</a>, "The Upstream Check a Role Inserts").</p>
+<!-- source: internal/component/bgp/plugins/cmd/policy/handler.go -- toPolicyChain -->
+<!-- source: internal/component/bgp/config/filter_insertion.go -- insertForPeer -->
 <p><code>text-before</code> and <code>text-after</code> name every attribute the UPDATE carries. Five of
 those names first appeared on 2026-09-04: <code>origin</code>, <code>med</code>, <code>local-preference</code>,
 <code>atomic-aggregate</code> and <code>cluster-list</code>. The renderer named a Go type no parser
-built for each of them, so the dry-run output was silent about all five. See
-<a href="https://github.com/ze-software/ze/blob/main/docs/architecture/api/process-protocol.md" target="_blank" rel="noopener">The Attribute Names in the Filter Text Protocol</a>
-for the full set.</p>
+built for each of them, so the dry-run output was silent about all five.</p>
 <p>This command does not forward routes, update the RIB, populate cache, or mutate peer state.</p>
 <!-- source: internal/component/bgp/plugins/cmd/policy/handler.go -- handleShowPolicyTest -->
 <h3 id="set-commands">Set Commands</h3>
@@ -3983,7 +4187,7 @@ unicast; <code>mp &lt;family&gt; add &lt;prefixes&gt;</code>, <code>mp &lt;famil
 <tr>
 <td><code>show bgp reject-asn</code></td>
 <td>read-only</td>
-<td>Every reject-asn list: each ASN with its effective position set, the network the curated table names for it, and the peers that name the list on import and on export</td>
+<td>Every reject-asn list: each ASN with its effective position set, the network the curated table names for it, and the peers whose import and export chains reach the list through a match instance, a deactivated reference not counted</td>
 </tr>
 <tr>
 <td><code>show bgp reject-asn name &lt;name&gt;</code></td>
@@ -4257,9 +4461,9 @@ a keyword.</p>
 <td>List all active L2TP sessions</td>
 </tr>
 <tr>
-<td><code>show l2tp session &lt;sid&gt;</code></td>
+<td><code>show l2tp session id &lt;sid&gt;</code></td>
 <td>run</td>
-<td>Show one session by local session ID</td>
+<td>Show one session by local session ID, including its <code>proxy-lcp</code> outcome; on a LAC, a session relayed by realm adds <code>relay-realm</code>, <code>relay-remote</code>, <code>proxy-lcp-sent</code>, <code>proxy-auth-sent</code> and, when no proxy authentication was sent, <code>proxy-auth-reason</code> (<code>no-shared-secret</code>, <code>no-authentication</code>, <code>proxy-data-too-large</code>); a Service-Name relay or a local session carries none of these keys</td>
 </tr>
 <tr>
 <td><code>show l2tp statistics</code></td>
@@ -4334,7 +4538,8 @@ a keyword.</p>
 <li><code>cause &lt;code&gt;</code>: RADIUS Disconnect-Cause value (uint16), recorded alongside the reason</li>
 </ul>
 <!-- source: internal/component/l2tp/cmd/yang/ze-l2tp-cmd.yang -->
-<!-- source: internal/component/l2tp/cmd/l2tp.go -- handleSessionTeardown, parseKeywordArgs -->
+<!-- source: internal/component/l2tp/cmd/l2tp.go -- handleSessionTeardown, parseKeywordArgs, sessionJSON -->
+<!-- source: internal/component/l2tp/iccn_proxy.go -- proxyAuthReasonNoSharedSecret, proxyAuthReasonNoAuth, proxyAuthReasonTooLarge -->
 <h3 id="pppoe-commands">PPPoE Commands</h3>
 <table>
 <thead>
@@ -4650,6 +4855,21 @@ active after enabling debug or applying a profile.</p>
 <td>Detailed help for a command</td>
 </tr>
 <tr>
+<td><code>show command catalog [filter &lt;text&gt;]</code></td>
+<td>read-only</td>
+<td>Every command this binary carries, with its grammar and summary: the daemon form of <code>ze help command</code></td>
+</tr>
+<tr>
+<td><code>show command reference [cli] [api] [mcp] [dispatch] [all]</code></td>
+<td>read-only</td>
+<td>The agent reference built from this binary's registries: the daemon form of <code>ze help ai</code> <!-- source: internal/plugins/help/yang/ze-help-cmd.yang -- module ze-help-cmd --></td>
+</tr>
+<tr>
+<td><code>show doctor [config &lt;file&gt;] [kernel-capabilities]</code></td>
+<td>read-only</td>
+<td>The readiness checks, with the daemon's plugin checks: the daemon form of <code>ze doctor</code> <!-- source: internal/component/doctor/yang/ze-doctor-cmd.yang -- container doctor --></td>
+</tr>
+<tr>
 <td><code>show event list</code></td>
 <td>read-only</td>
 <td>List available event types <!-- source: internal/plugins/meta/yang/ze-command-meta-cmd.yang -- module ze-command-meta-cmd --></td>
@@ -4873,7 +5093,7 @@ reaches, where the daemon expands the chain.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 14:11 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

@@ -310,11 +310,9 @@ load continues:</p>
 <pre><code>system.authentication.user.alice.password: weak password (shorter than 8 characters)
 </code></pre>
 <!-- source: internal/component/config/loader.go -- warnWeakPassword -->
-<p>Two later steps DO rewrite that file, and both replace the plaintext with the hash. A
-schema evolution makes <code>applyEvolutions</code> serialize the loaded tree back to the config
-path, and a rollback makes <code>RecoverConfig</code> do the same. <code>applyEvolutions</code> archives the
-current file first, so the archived version keeps the plaintext.</p>
-<!-- source: cmd/ze/hub/main_evolve.go -- applyEvolutions -->
+<p>One later step DOES rewrite that file and replace the plaintext with the hash: after a
+downgrade, <code>RecoverConfig</code> serializes the rollback it recovered back to the config path.
+It archives the current file first, so the archived version keeps the plaintext.</p>
 <!-- source: internal/component/config/stamp.go -- RecoverConfig -->
 <h3 id="step-3-reload">Step 3: reload</h3>
 <p>The daemon picks up the new user on the next config reload. A session
@@ -528,10 +526,19 @@ base64 data in the user's <code>public-keys</code> block:</p>
             }
         }
     }
+    authorization {
+        profile admin {
+            run { default-action allow }
+            edit { default-action allow }
+        }
+    }
 }
 </code></pre>
 <p>The key name (<code>laptop</code>, <code>workstation</code>) is an identifier only. It appears in
 no protocol exchange but helps distinguish multiple keys for the same user.</p>
+<p>The user's <code>profile</code> must name a profile defined under <code>system authorization</code>;
+<code>admin</code> is not an implicit allow-all profile. Key authentication and permission
+to run a command are separate checks.</p>
 <h3 id="supported-key-types">Supported key types</h3>
 <table>
 <thead>
@@ -758,7 +765,7 @@ and continues.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 02:50 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

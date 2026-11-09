@@ -1,4 +1,4 @@
-# Week of 2026-03-30
+# 2026-03-30 – 2026-04-05 (1 week)
 
 A full interface management subsystem, offline DNS/RIR resolution tooling, config-driven plugin loading, BGP healthcheck and long-lived graceful restart support, and a Looking Glass overhaul.
 

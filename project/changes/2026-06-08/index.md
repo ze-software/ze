@@ -1,4 +1,4 @@
-# Week of 2026-06-08
+# 2026-06-08 – 2026-06-14 (1 week)
 
 A week of operator-facing polish: the Web Workbench UI, SR-Policy and IRR-based filtering in BGP, per-subscriber CoS, and a talk at LINX.
 

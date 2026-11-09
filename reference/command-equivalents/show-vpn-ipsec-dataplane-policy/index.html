@@ -65,7 +65,7 @@
 <div><dt>Pipes, while streaming</dt><dd>log</dd></div>
 <div><dt>Pipes, local process only</dt><dd>save</dd></div>
 </dl>
-<h3>Description</h3><p>Lists each policy with its selector prefixes<br>and ports, direction, priority, upper-layer protocol, if_id, tunnel endpoints,<br>and the peer that installed it. A policy with no matching SA is the failure<br>this command exists to show. RFC 4301 Section 4.4 keeps the SPD and the SAD<br>separate, and so does this tree.</p>
+<h3>Description</h3><p>Lists each policy with its selector prefixes<br>and ports, direction, priority, upper-layer protocol, if_id, interface index,<br>tunnel endpoints, and the peer that installed it. Each policy also names the SPD<br>that holds it (spd: node for if_id 0, the bound XFRM interface, or if-id and the<br>number) and the job Ze installed it for (role), which reads unknown for a policy<br>Ze did not install. A per-socket policy, which overrides every SPD entry for its one<br>socket, reads spd socket, its direction in, out or fwd, and role esp-form-socket for<br>Ze&#39;s own ESP form reader or socket-override for any other process&#39;s. A policy with no matching SA is the failure<br>this command exists to show. RFC 4301 Section 4.4 keeps the SPD and the SAD<br>separate, and so does this tree.</p>
 <h3>Arguments</h3>
 <p>No command-specific arguments listed.</p>
 </article>
@@ -132,7 +132,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

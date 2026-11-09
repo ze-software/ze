@@ -55,12 +55,15 @@
 <dl class="cmd-meta">
 <div><dt>Registry path</dt><dd><code>delete debug profile name</code></dd></div>
 <div><dt>Usage</dt><dd><code>delete debug profile name &lt;profile-name&gt;</code></dd></div>
-<div><dt>Mode</dt><dd>Daemon</dd></div>
+<div><dt>Mode</dt><dd>daemon, offline</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-debug:delete-profile-name</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
 <div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
 <div><dt>Subcommands</dt><dd>none: this command takes no subcommand</dd></div>
-<div><dt>Pipes</dt><dd>none: this command reaches no pipe layer</dd></div>
+<div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
+<div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill</dd></div>
+<div><dt>Pipes, while streaming</dt><dd>log</dd></div>
+<div><dt>Pipes, local process only</dt><dd>save</dd></div>
 </dl>
 <h3>Description</h3><p>It removes the stored slot and nothing else. The running daemon keeps<br>whatever it is writing, so deleting the profile that is live does not turn its output off.</p>
 <h3>Arguments</h3>
@@ -131,7 +134,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

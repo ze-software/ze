@@ -593,7 +593,19 @@ hugepages yourself. On the gokrazy appliance Ze owns the kernel cmdline: set
 <code>ze appliance build</code> bakes <code>default_hugepagesz</code>/<code>hugepagesz</code>/<code>hugepages</code> into the
 boot cmdline for you (see the appliance guide). <code>ze doctor</code> reports
 <code>doctor-vpp-hugepages</code> when VPP is enabled but the reservation is missing,
-insufficient, or clamped. Before enabling VPP:</p>
+insufficient, or clamped.</p>
+<p>The boot-time reservation proof is <code>./le test qemu vpp-hugepages</code>. Its invocation
+root covers the native host build, appliance build and boot-time SSH assertions;
+SIGINT, SIGTERM or SIGHUP ends the active owned command group and prevents a later
+phase or renderable verdict payload. QEMU is joined before the work directory is
+removed. Normal completion first sends QEMU SIGINT and preserves its existing
+ten-second shutdown grace; cancellation or an error closes the owned group
+immediately. Host process-fixture tests establish that lifetime contract only:
+a hugepage reservation still needs the actual booted kernel's
+<code>show host kernel</code> and <code>show host memory</code> answers.</p>
+<!-- source: internal/le/test/qemu/hugepages.go -- Hugepages.Run -->
+<!-- source: internal/le/test/qemu/boot.go -- Hugepages.bootAndAssert, boot, ask, ssh -->
+<p>Before enabling VPP:</p>
 <table>
 <thead>
 <tr>
@@ -784,7 +796,7 @@ and converging sub-second on a full table.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

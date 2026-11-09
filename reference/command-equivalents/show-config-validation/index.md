@@ -6,7 +6,7 @@ Check a config for errors without applying it\.
 
 - Registry path: `show config validation`
 - Usage: `show config validation <file>`
-- Mode: Read-only
+- Mode: read-only, offline
 - Wire method: `ze-config-cli:show-config-validation`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default

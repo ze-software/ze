@@ -1,26 +1,27 @@
 # `update serve`
 
-Serve this binary and its version manifest for update checks\.
+Show the update server\'s status\, or start\, stop and pause it\.
 
 ## Ze command
 
 - Registry path: `update serve`
-- Mode: Offline
-- Wire method: `not listed`
+- Usage: `update serve`
+- Mode: daemon, offline
+- Wire method: `ze-update:update-serve`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
-- Subcommands: none: this command takes no subcommand
+- Subcommands: `pause`, `start`, `stop`
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: none
-- Pipes, when the answer has rows: none
-- Pipes, while streaming: none
-- Pipes, local process only: none
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-The server answers a version manifest\, the running binary and its SHA\-256 digest\. It is meant for build infrastructure rather than for a router in production\.
+The daemon serves its running binary and a version manifest for update checks\, until it is told to stop\. A daemon runs one such server at a time\. Through the daemon\, \'update serve\' alone answers that server\'s status\: whether it runs\, the address it listens on and whether it is paused\. The foreground \'ze update serve\'\, given the address to listen on\, runs the same server in the operator\'s own process instead\.
 
 ## Arguments
 

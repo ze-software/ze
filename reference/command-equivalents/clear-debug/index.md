@@ -6,7 +6,7 @@ Clear the default debug profile\.
 
 - Registry path: `clear debug`
 - Usage: `clear debug`
-- Mode: Daemon
+- Mode: daemon, offline
 - Wire method: `ze-debug:clear-debug`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
@@ -14,10 +14,10 @@ Clear the default debug profile\.
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: none
-- Pipes, when the answer has rows: none
-- Pipes, while streaming: none
-- Pipes, local process only: none
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 

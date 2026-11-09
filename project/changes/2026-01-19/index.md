@@ -1,4 +1,4 @@
-# Week of 2026-01-19
+# 2026-01-19 – 2026-01-25 (1 week)
 
 A big architecture week: Ze split into a hub process and a BGP child process, gained live config reload, and got a documented plugin SDK.
 

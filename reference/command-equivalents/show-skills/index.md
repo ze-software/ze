@@ -6,7 +6,7 @@ List the agent skills this binary carries\.
 
 - Registry path: `show skills`
 - Usage: `show skills`
-- Mode: Read-only
+- Mode: read-only, offline
 - Wire method: `ze-skills:show-skills`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
@@ -14,10 +14,10 @@ List the agent skills this binary carries\.
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
-- Pipes, always: none
-- Pipes, when the answer has rows: none
-- Pipes, while streaming: none
-- Pipes, local process only: none
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, while streaming: log
+- Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 

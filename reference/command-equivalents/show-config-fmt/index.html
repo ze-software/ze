@@ -54,17 +54,25 @@
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
 <div><dt>Registry path</dt><dd><code>show config fmt</code></dd></div>
-<div><dt>Usage</dt><dd><code>show config fmt</code></dd></div>
-<div><dt>Mode</dt><dd>Read-only</dd></div>
+<div><dt>Usage</dt><dd><code>show config fmt [check] [diff]</code></dd></div>
+<div><dt>Mode</dt><dd>read-only, offline</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-config-cli:show-config-fmt</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
 <div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
 <div><dt>Subcommands</dt><dd>none: this command takes no subcommand</dd></div>
-<div><dt>Pipes</dt><dd>none: this command reaches no pipe layer</dd></div>
+<div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
+<div><dt>Pipes, while streaming</dt><dd>log</dd></div>
+<div><dt>Pipes, local process only</dt><dd>save</dd></div>
+<div><dt>Answer shape</dt><dd>blob</dd></div>
 </dl>
 <h3>Description</h3><p>Normalizes indentation and ordering. Output goes to stdout (read-only). To<br>rewrite the file in place, use &#39;ze config fmt -w&#39; from the CLI.</p>
 <h3>Arguments</h3>
-<p>No command-specific arguments listed.</p>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>check</code></td><td>flag</td><td>no</td><td>any value of this type</td><td>Report whether formatting is needed</td><td>Answers whether the file needs formatting instead of the formatted text:
+exit 0 when it is formatted, 1 with the file named when it is not.</td></tr>
+<tr><td><code>diff</code></td><td>flag</td><td>no</td><td>any value of this type</td><td>Show what formatting would change</td><td>Answers the unified diff formatting would apply instead of the formatted
+text.</td></tr>
+</tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping intents</h2>
 <section class="cmd-intent"><h3>Show running, candidate, and diffed configuration</h3>
@@ -136,7 +144,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

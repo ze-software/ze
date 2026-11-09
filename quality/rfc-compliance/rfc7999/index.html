@@ -123,8 +123,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 4 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 4 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0</strong><b>of 4 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>18</strong><b>18 of 38 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>7</strong><b>of 4 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>18</strong><b>18 of 39 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -192,7 +191,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. It counts TAGGED UNITS, not obligations, so this count is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -233,10 +232,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>38</td>
+<td>39</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>38</td>
+<td>39</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>7</td>
@@ -424,8 +423,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_equal_cover_test.go#L23" title="internal/component/bgp/plugins/rib/rfc7999_equal_cover_test.go" target="_blank" rel="noopener"><code>TestRFC7999BlackholeHonoredOnAnEqualAuthorizedPrefix</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L186" title="internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go" target="_blank" rel="noopener"><code>TestBlackholeNotStampedOutsideAuthorization</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_equal_cover_test.go#L50" title="internal/component/bgp/plugins/rib/rfc7999_equal_cover_test.go" target="_blank" rel="noopener"><code>TestRFC7999BlackholeRefusedUnderALongerAuthorizedPrefix</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L890" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L891" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L798" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L799" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-3.3-2">RFC7999-3.3-2</code></td><td colspan="3"><span class="rfc-subject">BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: o The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. o The receiving party agreed to honor the BLACKHOLE community on the particular BGP session. (§3.3)</span></td></tr>
@@ -440,8 +439,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L158" title="internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go" target="_blank" rel="noopener"><code>TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L359" title="internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go" target="_blank" rel="noopener"><code>TestBlackholeRuleForDynamicGroup</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_cover_test.go#L37" title="internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_cover_test.go" target="_blank" rel="noopener"><code>TestRFC7999BlackholeNotHonoredOutsideTheAuthorizedPrefix</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L892" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L893" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L800" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L801" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-3.3-4">RFC7999-3.3-4</code></td><td colspan="3"><span class="rfc-subject">An operator MUST ensure that origin validation techniques (such as the one described in [RFC6811]) do not inadvertently block legitimate announcements carrying the BLACKHOLE community. (§3.3)</span></td></tr>
@@ -479,6 +478,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/rfc7999_blackhole_guard_test.go#L42" title="internal/component/bgp/plugins/filter_community/rfc7999_blackhole_guard_test.go" target="_blank" rel="noopener"><code>TestRFC7999BlackholeFieldHasReader</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go#L25" title="internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go" target="_blank" rel="noopener"><code>TestRFC7999ReceivedBlackholeRouteGainsThePropagationCommunity</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go#L46" title="internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go" target="_blank" rel="noopener"><code>TestRFC7999RouteWithoutBlackholeGainsNoPropagationCommunity</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/community-blackhole-noexport-forked.ci#L10" title="test/plugin/community-blackhole-noexport-forked.ci" target="_blank" rel="noopener"><code>community-blackhole-noexport-forked.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/community-blackhole-noexport.ci#L6" title="test/plugin/community-blackhole-noexport.ci" target="_blank" rel="noopener"><code>community-blackhole-noexport.ci</code></a></span></div>
 </div></td>
 </tr>
@@ -506,10 +506,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHOULD NOT</td>
 <td>4 - Vendor Implementation Recommendations</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7999-4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go#L199" title="internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go" target="_blank" rel="noopener"><code>TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go#L191" title="internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go" target="_blank" rel="noopener"><code>TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L161" title="internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go" target="_blank" rel="noopener"><code>TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L135" title="internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go" target="_blank" rel="noopener"><code>TestBlackholeNotStampedWithoutAgreement</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go#L170" title="internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go" target="_blank" rel="noopener"><code>TestBlackholeCommunityRewritesNextHopWhenAgreed</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go#L165" title="internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go" target="_blank" rel="noopener"><code>TestBlackholeCommunityRewritesNextHopWhenAgreed</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7999-6-1">RFC7999-6-1</code></td><td colspan="3"><span class="rfc-subject">In order to further limit the impact of unauthorized BGP announcements carrying the BLACKHOLE community, the receiving BGP speaker SHOULD verify by applying strict filtering (see Section 6.2.1.1.2 of [RFC7454]) that the peer announcing the prefix is authorized to do so. (§6)</span></td></tr>
@@ -627,7 +627,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7999-3.3-1"><code>RFC7999-3.3-1</code></a></h3>
 <p>BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: o The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. (§3.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent source rejudgment of every current cover including checkRFC7999Blackhole. RFC 7999 Section 3.3: BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. The receiving party agreed to honor the BLACKHOLE community on the particular BGP session. Equal-/24 and covered-/32 positives require exact Blackhole on best-change and Loc-RIB; longer-/25 authorization and outside-prefix negatives require exact type 0. Dynamic group tests require the matching group rule, peer override precedence, and event-carried group identity reaching Loc-RIB. coveredByAuthorized, blackholeRouteTypeForBest and checkBestPathChange produce the type consumed by sysrib and the kernel discard builder. checkRFC7999Blackhole assertion 4 requires a real kernel discard and assertion 5 positively requires forwarding for the unauthorized prefix, after both foreign sessions and all destination routes exist. Q1-Q4 pass for the authorization clause with agreement held true; the dynamic fixture is consumer-boundary rather than eBGP-admission evidence. Stored panic records establish reachability only. No checks were run; live FRR/BIRD/Linux and VPP acceptance and changed-unit proof maintenance remain pending.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole, internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2 moved. Independent source rejudgment of every current cover including checkRFC7999Blackhole. RFC 7999 Section 3.3: BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. The receiving party agreed to honor the BLACKHOLE community on the particular BGP session. Equal-/24 and covered-/32 positives require exact Blackhole on best-change and Loc-RIB; longer-/25 authorization and outside-prefix negatives require exact type 0. Dynamic group tests require the matching group rule, peer override precedence, and event-carried group identity reaching Loc-RIB. coveredByAuthorized, blackholeRouteTypeForBest and checkBestPathChange produce the type consumed by sysrib and the kernel discard builder. checkRFC7999Blackhole assertion 4 requires a real kernel discard and assertion 5 positively requires forwarding for the unauthorized prefix, after both foreign sessions and all destination routes exist. Q1-Q4 pass for the authorization clause with agreement held true; the dynamic fixture is consumer-boundary rather than eBGP-admission evidence. Stored panic records establish reachability only. No checks were run; live FRR/BIRD/Linux and VPP acceptance and changed-unit proof maintenance remain pending.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -643,7 +643,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L891" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L799" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -668,7 +668,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L890" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L798" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -677,7 +677,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7999-3.3-2"><code>RFC7999-3.3-2</code></a></h3>
 <p>BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: o The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. o The receiving party agreed to honor the BLACKHOLE community on the particular BGP session. (§3.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent source rejudgment of every current cover including checkRFC7999Blackhole. RFC 7999 Section 3.3: BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. The receiving party agreed to honor the BLACKHOLE community on the particular BGP session. The row includes both bullets: equal/covered positives require exact Blackhole; outside and too-short announced-prefix negatives require type 0 despite agreement. Authorized/no-community internal config requires type 0; dynamic group membership and peer-rule precedence have distinct outcomes, and the structured consumer must retain ix and install Blackhole. The synthetic empty-community map is not user config-parser proof: prefixes-only defaults agreement. The interop scenario instead explicitly agrees only 65001:666 for BIRD sending 65535:666; assertion 6 requires a gateway route, while assertion 4 requires discard for the authorized/agreed FRR route and assertion 5 isolates authorization. blackholeRouteTypeForBest scopes the decision to the winning session and blackholeRouteType requires both conditions before sysrib/FIB consumption. Q1-Q4 pass over the combined population; group-membership negative alone is not agreement-isolated. Stored coveredByAuthorized HALTs prove reachability only. No checks ran; current live foreign/Linux/VPP acceptance and changed-unit proof maintenance remain pending.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole, internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2 moved. Independent source rejudgment of every current cover including checkRFC7999Blackhole. RFC 7999 Section 3.3: BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. The receiving party agreed to honor the BLACKHOLE community on the particular BGP session. The row includes both bullets: equal/covered positives require exact Blackhole; outside and too-short announced-prefix negatives require type 0 despite agreement. Authorized/no-community internal config requires type 0; dynamic group membership and peer-rule precedence have distinct outcomes, and the structured consumer must retain ix and install Blackhole. The synthetic empty-community map is not user config-parser proof: prefixes-only defaults agreement. The interop scenario instead explicitly agrees only 65001:666 for BIRD sending 65535:666; assertion 6 requires a gateway route, while assertion 4 requires discard for the authorized/agreed FRR route and assertion 5 isolates authorization. blackholeRouteTypeForBest scopes the decision to the winning session and blackholeRouteType requires both conditions before sysrib/FIB consumption. Q1-Q4 pass over the combined population; group-membership negative alone is not agreement-isolated. Stored coveredByAuthorized HALTs prove reachability only. No checks ran; current live foreign/Linux/VPP acceptance and changed-unit proof maintenance remain pending.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -698,7 +698,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L893" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L801" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -723,7 +723,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L892" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L800" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC7999Blackhole</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -752,7 +752,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7999-3.2-1"><code>RFC7999-3.2-1</code></a></h3>
 <p>A BGP speaker receiving an announcement tagged with the BLACKHOLE community SHOULD add the NO_ADVERTISE or NO_EXPORT community as defined in [RFC1997], or a similar community, to prevent propagation of the prefix outside the local AS. (§3.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc7999): &#34;A BGP speaker receiving an announcement tagged with the BLACKHOLE community SHOULD add the NO_ADVERTISE or NO_EXPORT community as defined in [RFC1997], or a similar community, to prevent propagation of the prefix outside the local AS.&#34; The only edit to test/plugin/community-blackhole-noexport.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file&#39;s git history.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-02 by an independent auditor who authored none of the change. RFC 7999 Section 3.2: &#34;A BGP speaker receiving an announcement tagged with the BLACKHOLE community SHOULD add the NO_ADVERTISE or NO_EXPORT community as defined in [RFC1997], or a similar community, to prevent propagation of the prefix outside the local AS.&#34; The only edit to test/plugin/community-blackhole-noexport.ci since the last judgement is a965ee38fb, which names bgp-filter-community:ingress in the bgp-level import chain: the community settings now run only as chain members, and checkCommunityMembers (chain_member.go) refuses a blackhole-propagation setting whose import chain does not name that member. No input, expect, reject or requirement-tag line changed. The member is answered by evaluateCommunityFilter -&gt; ingressFilter -&gt; applyIngressFilter -&gt; blackholePropagationGuard, and ingressFilter logs &#34;community ingress applied ... blackhole-propagation=no-export&#34; only when the payload was modified; with no tag, strip or scrub configured, that modification can only be the guard adding NO_EXPORT, and the fixture observer additionally requires RIB queries for 65535:666 and 65535:65281. The three Go units (TestRFC7999BlackholeFieldHasReader, TestRFC7999ReceivedBlackholeRouteGainsThePropagationCommunity, TestRFC7999RouteWithoutBlackholeGainsNoPropagationCommunity) are unchanged and carry revert records against blackholePropagationGuard. The .ci was not re-run by this auditor; its verdict rests on the unchanged expectations over the new production path. Verdict unchanged: enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -771,6 +771,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go#L25" title="internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go" target="_blank" rel="noopener"><code>TestRFC7999ReceivedBlackholeRouteGainsThePropagationCommunity</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/community-blackhole-noexport-forked.ci#L10" title="test/plugin/community-blackhole-noexport-forked.ci" target="_blank" rel="noopener"><code>community-blackhole-noexport-forked.ci</code></a></td>
+<td>functional/verify</td>
+<td>unproven</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/community-blackhole-noexport.ci#L6" title="test/plugin/community-blackhole-noexport.ci" target="_blank" rel="noopener"><code>community-blackhole-noexport.ci</code></a></td>
@@ -807,18 +812,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7999-4-1"><code>RFC7999-4-1</code></a></h3>
 <p>Without an explicit configuration directive set by the operator, network elements SHOULD NOT discard traffic destined towards IP prefixes that are tagged with the BLACKHOLE community. (§4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. SHOULD NOT discard without an operator directive. Positive (conforming) TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement: a modify naming only 65001:100 accepts the 65535:666 route with no change; rib TestBlackholeNotStampedWithoutAgreement / ...WhenNoCommunityAgreedButAuthorizationExists: RouteType 0 on both rails. Negative TestBlackholeCommunityRewritesNextHopWhenAgreed is the directive-present counter-case (next-hop rewritten to the named discard address). Accepted as the negative: it shows the no-discard outcome is caused by the absent directive, so a filter that never rewrote anything cannot pass the pair. Revert records on (matchCond).matches for both filter_modify units; the rib positives have none.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-03 by an independent auditor who authored none of 816ce1ce4c, 2cbd255ba4, 2e5c2d012a, d22b811ce4 or 1a2ccaeef8 (phase 5 of spec-filter-wire-0-umbrella, the per-peer text filter chain deleted). RFC 7999 Section 4 read: &#34;Without an explicit configuration directive set by the operator, network elements SHOULD NOT discard traffic destined towards IP prefixes that are tagged with the BLACKHOLE community.&#34; The moved unit TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement dropped only the out.Update != &#34;&#34; half of its no-change check, because d22b811ce4 removed the text Update field from the filter protocol: an answer can no longer carry a change there, so the remaining len(out.Sets) == 0 with Action accept is the whole of what an accept can change. Positive still: a modify matching only 65001:100 answers accept with no set for the 65535:666 route; negative TestBlackholeCommunityRewritesNextHopWhenAgreed still requires modify with exactly next-hop set &#34;192.0.2.1&#34;. RIB carriers byte-identical. Ran the tagged units under ./le job run at HEAD (-tags ze_bgp, -v): PASS (scratch audit-p5-units-v.log). Verdict unchanged: enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go#L170" title="internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go" target="_blank" rel="noopener"><code>TestBlackholeCommunityRewritesNextHopWhenAgreed</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go#L165" title="internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go" target="_blank" rel="noopener"><code>TestBlackholeCommunityRewritesNextHopWhenAgreed</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go#L199" title="internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go" target="_blank" rel="noopener"><code>TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go#L191" title="internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go" target="_blank" rel="noopener"><code>TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1015,7 +1020,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

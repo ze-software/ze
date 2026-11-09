@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>20</strong><b>of 29 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>6</strong><b>of 29 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 29 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>63</strong><b>63 of 106 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>65</strong><b>65 of 106 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -246,7 +246,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>29</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>63</td>
+<td>65</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8955.md</code></td>
@@ -668,10 +668,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go#L12" title="internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go" target="_blank" rel="noopener"><code>TestPrefixPolicyFiltersFlowSpecDestination</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go#L24" title="internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go" target="_blank" rel="noopener"><code>TestRFC8955CommunityPolicyAcceptsAPermittedFlowSpecRoute</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go#L13" title="internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go" target="_blank" rel="noopener"><code>TestPrefixPolicyFiltersFlowSpecDestination</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go#L39" title="internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go" target="_blank" rel="noopener"><code>TestRFC8955CommunityPolicyRejectsADeniedFlowSpecRoute</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go#L13" title="internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go" target="_blank" rel="noopener"><code>TestPrefixPolicyFiltersFlowSpecDestination</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go#L14" title="internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go" target="_blank" rel="noopener"><code>TestRFC8955CommunityPolicyAcceptsAPermittedFlowSpecRoute</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go#L14" title="internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go" target="_blank" rel="noopener"><code>TestPrefixPolicyFiltersFlowSpecDestination</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go#L32" title="internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go" target="_blank" rel="noopener"><code>TestRFC8955CommunityPolicyRejectsADeniedFlowSpecRoute</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-6-5">RFC8955-6-5</code></td><td colspan="3"><span class="rfc-subject">Although the forwarding attributes of two routes for the same Flow Specification prefix may be the same, BGP is still required to perform its path selection algorithm in order to select the correct set of attributes to advertise. (§6)</span></td></tr>
@@ -1549,30 +1549,30 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8955-3-1"><code>RFC8955-3-1</code></a></h3>
 <p>Standard BGP policy mechanisms, such as UPDATE filtering by NLRI prefix as well as community matching, must apply to the Flow specification defined NLRI-type. (§3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Both halves now tagged both ways. Community half: TestRFC8955CommunityPolicyAcceptsAPermittedFlowSpecRoute (ipv4/flow and ipv4/flow-vpn with 65001:100 accepted) and TestRFC8955CommunityPolicyRejectsADeniedFlowSpecRoute (denied community first-match and implicit deny reject a FlowSpec route); revert records on evaluateCommunities. Prefix half: filter_prefix flowspec_test.go pair (accept, reject, missing, mixed), no record. Both at the plugin entry point: no .ci drives a FlowSpec UPDATE through a configured community filter in the running daemon. Rejudged 2026-10-17 (independent reader) after the owner-approved 6019dd0675 change to TestPrefixPolicyFiltersFlowSpecDestination: the filter input prefix changed from nlri to mp, the section keyword the filter text now uses for MP_REACH families. The cases are unchanged: ipv4/flow and ipv4/flow-vpn destinations inside 10.0.0.0/8 ge 16 le 24 must be accepted, and /25, out-of-range, invalid and mixed destinations rejected, with no unicast rewrite. A parser that stopped reading the mp form would fail the accept cases, and a policy that stopped applying would fail the reject cases. Package re-run green 2026-10-17. RFC 8955 Section 3: &#34;Standard BGP policy mechanisms, such as UPDATE filtering by NLRI prefix as well as community matching, must apply to the Flow specification defined NLRI-type.&#34; The community units are unchanged. Verdict stands.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-02 by an independent auditor who authored none of the changes named. RFC 8955 Section 3: &#34;Standard BGP policy mechanisms, such as UPDATE filtering by NLRI prefix as well as community matching, must apply to the Flow specification defined NLRI-type.&#34; d34463329d rewrote all four tagged units from plugin text input to wire UPDATEs judged by a compiled policychain over a registry holding the list and a match filter naming it (judgeWire, matchChain), the path the engine now runs. Community half: SAFI 133 and 134 FlowSpec-only UPDATEs (no IPv4 NLRI field) carrying 65001:100 must accept; 65001:666 beside 65001:100 and 64496:1 alone must reject with final accept, so the reject comes from the list&#39;s first match and implicit deny, not the final. Prefix half: ipv4/flow and flow-vpn destination 10.1.0.0/24 must accept with no MP_REACH NLRI drop; /25, 192.0.2.0/24, a rule with only a source component, and a mixed permitted/denied pair must reject. The old text case &#39;invalid&#39; became &#39;no destination&#39;, its wire counterpart. Stronger than before: wire bytes and the real chain rather than plugin text. Still no daemon .ci drives a FlowSpec UPDATE through a configured filter. Verdict unchanged: enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go#L39" title="internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go" target="_blank" rel="noopener"><code>TestRFC8955CommunityPolicyRejectsADeniedFlowSpecRoute</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go#L32" title="internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go" target="_blank" rel="noopener"><code>TestRFC8955CommunityPolicyRejectsADeniedFlowSpecRoute</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go#L13" title="internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go" target="_blank" rel="noopener"><code>TestPrefixPolicyFiltersFlowSpecDestination</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go#L24" title="internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go" target="_blank" rel="noopener"><code>TestRFC8955CommunityPolicyAcceptsAPermittedFlowSpecRoute</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go#L14" title="internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go" target="_blank" rel="noopener"><code>TestPrefixPolicyFiltersFlowSpecDestination</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go#L12" title="internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go" target="_blank" rel="noopener"><code>TestPrefixPolicyFiltersFlowSpecDestination</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go#L14" title="internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go" target="_blank" rel="noopener"><code>TestRFC8955CommunityPolicyAcceptsAPermittedFlowSpecRoute</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go#L13" title="internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go" target="_blank" rel="noopener"><code>TestPrefixPolicyFiltersFlowSpecDestination</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2253,7 +2253,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

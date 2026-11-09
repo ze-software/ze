@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>36</strong><b>of 91 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1</strong><b>of 91 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 91 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>150</strong><b>150 of 156 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>144</strong><b>144 of 156 tagged units, 0 escaped and 6 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -2212,12 +2212,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L418" title="internal/component/config/rfc7950_validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_LengthViolation</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L317" title="internal/component/config/rfc7950_validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_PatternViolation</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L176" title="internal/component/config/rfc7950_validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_RangeViolation</code></a></td>
@@ -2232,7 +2232,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L852" title="internal/component/config/rfc7950_validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_ValidatePattern</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L900" title="internal/component/config/rfc7950_validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_HoldTimeRange</code></a></td>
@@ -2242,7 +2242,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L851" title="internal/component/config/rfc7950_validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_ValidatePattern</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -2306,7 +2306,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_datastore_test.go#L53" title="internal/component/config/rfc7950_datastore_test.go" target="_blank" rel="noopener"><code>TestRFC7950RunningDatastoreRefusesAViolationAtParse</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc7950_web_commit_validation_test.go#L58" title="cmd/ze/hub/rfc7950_web_commit_validation_test.go" target="_blank" rel="noopener"><code>TestRFC7950WebCommitWritesAValidEdit</code></a></td>
@@ -2316,7 +2316,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_datastore_test.go#L34" title="internal/component/config/rfc7950_datastore_test.go" target="_blank" rel="noopener"><code>TestRFC7950RunningDatastoreAcceptsAValidConfig</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -2355,7 +2355,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC7950-8.3.3-2, so no unit is bound to it.</p>
 <h3><a href="#rfc7950-9.1-1"><code>RFC7950-9.1-1</code></a></h3>
 <p>Implementations MUST support all lexical representations specified in this document. (§9.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-19 (independent auditor, after 40a03eb762 and db457cb3c2). Section 9.1: &#34;Implementations MUST support all lexical representations specified in this document.&#34; Tagged units are unchanged; the cited producers changed. db457cb3c2 splits compound guards in readInstancePredicates and readEqualsQuoted into one guard per operand with identical bodies, no behavior change. 40a03eb762 makes instanceExists a referenceWalk method that compares a leaf-list predicate value with sameValue (canonicalValue of both sides under the leaf-list&#39;s type) and selects a list entry through the canonical keyIndex (canonicalKey) instead of the raw map-key address, so a configured value and a default in use now answer the same lexical forms. This resolves the prior judgement&#39;s observation that [.=&#39;+17&#39;] matched a default 17 but not a configured 17 (Section 9.1: &#34;In particular, any XPath expression evaluations are done using the canonical form if the data type has a canonical form.&#34;). The &#39;.&#39; leaf-list-predicate parse, *WSP handling and absent-value refusal that TestRFC7950InstanceIdentifierLeafListPredicate and ...Absent assert are unaffected (string leaf-list: canonicalValue is identity), and the integer, decimal64, binary, bits, leafref and union-default units of the prior judgement stand. All tagged units and TestReferenceCanonicalValueRefusesOther pass at HEAD (go test -tags &#39;ze_core ze_bgp&#39; over config/yang and config). The canonical comparison is proven by TestRFC7950InstanceIdentifierCanonicalValue under RFC7950-9.13-1, not by a 9.1-1 tag.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent source rejudgment against RFC 7950 Section 9.1: &#34;Implementations MUST support all lexical representations specified in this document.&#34; Read all tagged units, their type/default/reference helpers and cited producers. Integer tags exercise +17/17/-17 and legal signed hexadecimal/octal module defaults, with exact normalized values and malformed-notation refusals. Decimal64 tags require the declared signed/integral/fraction forms and exact error classes for invalid forms and restrictions. Binary and bits tags distinguish accepted defined representations from malformed alphabet/padding, lengths and unknown bit names. Reference tags exercise type loading, leafref lexical validation, union-default member selection and both quoted leaf-list-predicate forms versus absent target. canonicalValue still canonicalizes signed/unsigned decimal integers and decimal64, returning other representations unchanged; canonicalKey, sameValue and referenceWalk.instanceExists use it for comparison. Its current exhaustive-ignore directive documents that deliberately narrow normalization switch; no new grammar is introduced. Canonical-comparison-specific tests under other IDs are not silently counted as 9.1-1 tags. Verdict enforced. No execution or recorded-proof freshness was verified here.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -5114,7 +5114,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

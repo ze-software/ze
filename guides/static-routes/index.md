@@ -72,6 +72,17 @@ static {
 }
 ```
 
+When the interface is a `pppoe-client` the configuration declares, the route
+waits for the session rather than failing. It is committed while the session is
+down (at boot, before the access concentrator answers, or in the same commit
+that adds the client), and `static show` lists it with the next-hop inactive and
+not skipped. Once the session's device is up, the route is installed through it;
+when the session drops it is removed, and when the session comes back it is
+installed again, with no reload. This holds in the main table and in a named
+table. An interface the configuration does not declare is resolved at commit
+as before: if no such device exists, the route is skipped with its reason and
+retried on the next commit.
+
 Interface-only next-hops do not support BFD profiles (BFD requires a
 peer address). Weight is supported for ECMP:
 
@@ -104,6 +115,11 @@ static {
     }
 }
 ```
+
+When `pppoe0` is a declared `pppoe-client`, the group follows the session.
+While the session is down the route goes through `10.0.0.1` alone; once it is
+up, through both with their weights; after it drops, through `10.0.0.1` alone
+again. The route is never withdrawn while one member is active.
 
 ### Multiple next-hops (ECMP)
 

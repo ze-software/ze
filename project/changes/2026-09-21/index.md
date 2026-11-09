@@ -1,4 +1,4 @@
-# Week of 2026-09-21
+# 2026-09-21 – 2026-09-27 (1 week)
 
 Ze can back up and restore its configuration store, including on a running router. BGP gained AIGP and BGP-LS export, and every RFC Ze implements has now been read end to end.
 

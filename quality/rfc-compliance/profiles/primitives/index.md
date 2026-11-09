@@ -9,7 +9,7 @@ Figures as of the last build, read from [data/rfc/profiles/primitives.json](../.
 ## Figures
 
 - **MUST bar**: Ze proven 20, Ze correctness gap 31
-- **Overview bar**: Ze MUST proven 20, SHOULD not decided 34, Ze correctness gap 31
+- **Overview bar**: Ze MUST proven 20, SHOULD proven 2, SHOULD not decided 32, Ze correctness gap 31
 
 | Figure | Rows |
 |---|---|
@@ -27,7 +27,7 @@ Figures as of the last build, read from [data/rfc/profiles/primitives.json](../.
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 34 |
-| SHOULD proven | 0 |
+| SHOULD proven | 2 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
@@ -36,7 +36,7 @@ Figures as of the last build, read from [data/rfc/profiles/primitives.json](../.
 | SHOULD not owed: not-applicable | 0 |
 | SHOULD not ever | 0 |
 | SHOULD not yet | 0 |
-| SHOULD not decided | 34 |
+| SHOULD not decided | 32 |
 
 The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
 
@@ -56,7 +56,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 4787](../../rfc4787/) | Network Address Translation (NAT) Behavioral Requirements for Unicast UDP | Ze correctness gap 13 | SHOULD not decided 16, Ze correctness gap 13 |
+| [RFC 4787](../../rfc4787/) | Network Address Translation (NAT) Behavioral Requirements for Unicast UDP | Ze correctness gap 13 | SHOULD proven 2, SHOULD not decided 14, Ze correctness gap 13 |
 
 ### Level 3
 

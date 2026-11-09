@@ -275,13 +275,22 @@ firewall config section.</p>
 </tr>
 <tr>
 <td><code>tcp-mss N</code></td>
-<td>Clamp TCP MSS to N bytes (combinable with <code>table</code> or <code>next-hop</code>)</td>
+<td>Clamp TCP MSS to at most N bytes (combinable with <code>table</code> or <code>next-hop</code>)</td>
 </tr>
 </tbody>
 </table>
 <p>Only one terminal action (<code>accept</code>, <code>drop</code>, <code>table</code>, or <code>next-hop</code>) is
 allowed per rule. <code>tcp-mss</code> is a modifier and can be combined with a
 terminal action.</p>
+<p><code>tcp-mss N</code> is an upper bound, never a value written over the one a host
+offered. A SYN that offers a larger MSS leaves with N, one that offers N or less
+leaves unchanged, and a SYN with no MSS option gains none. Only a SYN carries
+the option, so match <code>tcp-flags syn</code>. RFC 6691 Section 2 sets N as the path MTU
+minus the fixed IP and TCP headers: 40 bytes for IPv4 and 60 for IPv6, so a
+1492-byte PPPoE link takes 1452 for IPv4 and 1432 for IPv6, and the example
+above, 1436, fits a 1476-byte GRE tunnel.</p>
+<!-- source: internal/plugins/policyroute/translate.go -- buildActions -->
+<!-- source: internal/plugins/firewall/nft/lower_linux.go -- lowerSetTCPMSS -->
 <h3 id="table-action">table action</h3>
 <p><code>then { table 100; }</code> internally allocates an fwmark from the reserved
 range 0x50000-0x5FFFF, adds a SetMark action to the nftables rule, and
@@ -424,7 +433,7 @@ the shared firewall table registry.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 09:46 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

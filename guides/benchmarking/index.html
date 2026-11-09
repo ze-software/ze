@@ -429,6 +429,19 @@ however many passes it has.</p>
 # HTML report
 ./le perf compare --html result-ze.json result-gobgp.json &gt; comparison.html
 </code></pre>
+<p>Comparison and trend reports validate every decoded row before selecting the
+latest sample, applying <code>--last</code>, or writing output. Any nonzero <code>routes-lost</code>
+refuses the whole report, naming the input and measurement; an older lossy row
+cannot be hidden by a newer clean row. Missing or null <code>convergence-ms</code> is not a
+measurement and is refused; an explicitly measured <code>0</code> is valid. Raw JSON and
+NDJSON remain diagnostic evidence and retain loss rather than refusing it.</p>
+<p>All comparison formats (Markdown, HTML tables and charts, and <code>--doc</code>) and both
+trend formats use this rule. Compare has no JSON comparison format. Invalid
+input writes no report bytes. A stdout write error fails the command, but bytes
+already written cannot be rolled back; shell redirection can truncate its target
+before the command starts. The automated runner publishes its HTML report and
+doc snapshot by replacing each destination only after successful generation;
+failure retains that file's old bytes, not a transaction across all artifacts.</p>
 <!-- source: internal/perf/cli/cmd_report.go -- report subcommand -->
 <!-- source: internal/perf/report/markdown.go -- Markdown report generation -->
 <!-- source: internal/perf/report/html.go -- HTML report generation -->
@@ -456,12 +469,20 @@ covers three sets of Go benchmarks, and needs no Docker and no DUT:</p>
 <td><code>pkg/plugin/sdk</code></td>
 </tr>
 <tr>
-<td>Text <code>filter-update</code>, the before figure</td>
-<td><code>BenchmarkFilterModifyEgress</code>, <code>BenchmarkAppendUpdateForFilter_Reused</code>, <code>BenchmarkAppendAttrsForFilter_Reused</code></td>
-<td><code>internal/component/bgp/reactor</code> (<code>ze_bgp</code>)</td>
+<td>External slow path: a filter that modifies the route, from the received UPDATE to the rebuilt one, in batches of 1, 16 and 64 routes</td>
+<td><code>BenchmarkFilterSlowPathModify</code></td>
+<td><code>internal/component/bgp/reactor</code> (tag <code>ze_bgp</code>)</td>
 </tr>
 </tbody>
 </table>
+<p><code>BenchmarkFilterSlowPathModify</code> drives each route through the real import
+chain. The engine projects the declared fields, and <code>PluginConn.CallRPC</code> with
+<code>MuxConn</code> framing carries the batch over <code>net.Pipe</code> to a real SDK plugin,
+whose <code>OnFilter</code> evaluator sets local-preference 200. The engine then decodes
+the verdicts, applies the set and rebuilds the UPDATE body. The plugin
+server's process lookup and the batcher's queue are left out, so every
+exchange carries exactly the batch size. Next to the per-exchange figures it
+reports <code>ns/route</code>, <code>B/route</code> and <code>allocs/route</code>.</p>
 <pre><code class="language-bash"># Check the harness builds: compile each package, list the benchmarks,
 # measure nothing, and print the go command of each set.
 ./le perf filter
@@ -537,6 +558,9 @@ prevents false positives from noisy measurements.</p>
 <p>Limit the comparison window to the last N entries with <code>--last</code>:</p>
 <pre><code class="language-bash">./le perf track --check --last 5 history.ndjson
 </code></pre>
+<p><code>--last</code> limits the displayed or regression-comparison window, not input
+validation. A lossy or missing-convergence row anywhere in the history refuses
+the command, including <code>--check</code>, even when it lies outside that window.</p>
 <p>For the full flag reference, see <a href="../command-reference/#le-perf-track">le perf track</a>.</p>
 <h2 id="understanding-results">Understanding Results</h2>
 <h3 id="json-output-fields">JSON Output Fields</h3>
@@ -554,7 +578,7 @@ prevents false positives from noisy measurements.</p>
 <tr>
 <td><code>convergence-ms</code></td>
 <td>ms</td>
-<td>Time from first UPDATE sent to last route received (median)</td>
+<td>Time from first UPDATE sent to last route received (median); explicit zero is measured, missing/null is absent</td>
 </tr>
 <tr>
 <td><code>convergence-stddev-ms</code></td>
@@ -638,6 +662,12 @@ prevents false positives from noisy measurements.</p>
 </tr>
 </tbody>
 </table>
+<p>Raw result readers and writers preserve convergence presence: absent/null input
+remains absent on serialization, while an explicitly measured zero remains <code>0</code>,
+including when Go results are serialized as values, pointers, slice entries or
+map values. Direct Go measurement producers call <code>Result.RecordConvergence</code>,
+which records zero explicitly; existing nonzero raw values carry their own
+presence. An uninitialized <code>Result</code> has no convergence measurement.</p>
 <h3 id="interpreting-results">Interpreting Results</h3>
 <p><strong>Convergence time</strong> is the primary metric. It measures how long the DUT takes
 to forward all injected routes from sender to receiver. Lower is better.</p>
@@ -735,7 +765,7 @@ result inconclusive and say which answer is missing.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 14:11 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

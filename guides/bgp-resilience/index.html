@@ -99,7 +99,7 @@ bgp {
 }
 </code></pre>
 <p>Long-Lived Graceful Restart extends the stale period and deprioritises stale routes. It is active only when both peers negotiate it. Routes carrying <code>NO_LLGR</code> are removed rather than retained.</p>
-<p>Load <code>bgp-gr</code> with <code>internal &lt;name&gt; { use bgp-gr }</code>, as the example above does. <code>run "ze plugin bgp-gr"</code> would start the plugin engine in a child process, where RFC 9494's egress filter and the route reflector's retention decision in the daemon could not read its state, so the engine refuses to start that way and the daemon does not start. <code>ze doctor</code> reports the arrangement from the config as <code>doctor-bgp-gr-out-of-process</code>.</p>
+<p>Load <code>bgp-gr</code> with <code>internal &lt;name&gt; { use bgp-gr }</code>, as the example above does, or in a child process with <code>run "ze plugin bgp-gr"</code>: the RFC 9494 egress filter and the retention verdict the route reflector reads both run over the plugin connection, so either placement behaves the same.</p>
 <p>See <a href="../graceful-restart/">Graceful Restart</a> for timers, stale levels, communities, and failure handling.</p>
 <h2 id="restarting-ze">Restarting Ze</h2>
 <p>Use the restart path when peers should see a planned Graceful Restart:</p>
@@ -211,7 +211,7 @@ attempts finished, not that every historical route was delivered.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

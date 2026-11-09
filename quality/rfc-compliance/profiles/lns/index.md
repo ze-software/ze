@@ -8,26 +8,26 @@ Figures as of the last build, read from [data/rfc/profiles/lns.json](../../../..
 
 ## Figures
 
-- **MUST bar**: Ze proven 263, OS testing gap 94, Ze correctness gap 101
-- **Overview bar**: Ze MUST proven 263, SHOULD proven 7, SHOULD not decided 154, OS testing gap 94, Ze correctness gap 101
+- **MUST bar**: Ze proven 273, OS testing gap 94, Ze correctness gap 92
+- **Overview bar**: Ze MUST proven 273, SHOULD proven 9, SHOULD not decided 152, OS testing gap 94, Ze correctness gap 92
 
 | Figure | Rows |
 |---|---|
 | RFCs | 14 |
 | Not walked | 0 |
 | Mandatory register | not complete |
-| MUST rows | 458 |
-| MUST rows kept (the MUST bar) | 458 |
-| Ze proven | 263 |
+| MUST rows | 459 |
+| MUST rows kept (the MUST bar) | 459 |
+| Ze proven | 273 |
 | OS verified | 0 |
 | OS testing gap | 94 |
-| Ze correctness gap | 101 |
+| Ze correctness gap | 92 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 161 |
-| SHOULD proven | 7 |
+| SHOULD proven | 9 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
@@ -36,7 +36,7 @@ Figures as of the last build, read from [data/rfc/profiles/lns.json](../../../..
 | SHOULD not owed: not-applicable | 0 |
 | SHOULD not ever | 0 |
 | SHOULD not yet | 0 |
-| SHOULD not decided | 154 |
+| SHOULD not decided | 152 |
 
 The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
 
@@ -48,7 +48,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 1661](../../rfc1661/) | The Point-to-Point Protocol (PPP) | Ze proven 42, OS testing gap 2, Ze correctness gap 32 | Ze MUST proven 42, SHOULD not decided 25, OS testing gap 2, Ze correctness gap 32 | lns: required by rfc/short/rfc1661.md |
+| [RFC 1661](../../rfc1661/) | The Point-to-Point Protocol (PPP) | Ze proven 43, OS testing gap 2, Ze correctness gap 31 | Ze MUST proven 43, SHOULD proven 2, SHOULD not decided 23, OS testing gap 2, Ze correctness gap 31 | lns: required by rfc/short/rfc1661.md |
 | [RFC 2865](../../rfc2865/) (cycle with rfc2866) | Remote Authentication Dial In User Service (RADIUS) | Ze proven 27, Ze correctness gap 4 | Ze MUST proven 27, SHOULD not decided 1, Ze correctness gap 4 | lns: required by rfc/short/rfc2865.md |
 | [RFC 2866](../../rfc2866/) (cycle with rfc2865) | RADIUS Accounting | Ze proven 8, Ze correctness gap 7 | Ze MUST proven 8, SHOULD not decided 1, Ze correctness gap 7 | lns: required by rfc/short/rfc2866.md |
 
@@ -56,15 +56,15 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 1994](../../rfc1994/) | PPP Challenge Handshake Authentication Protocol (CHAP) | Ze proven 8, Ze correctness gap 8 | Ze MUST proven 8, SHOULD proven 2, SHOULD not decided 9, Ze correctness gap 8 | lns: required by rfc/short/rfc1994.md |
+| [RFC 1994](../../rfc1994/) | PPP Challenge Handshake Authentication Protocol (CHAP) | Ze proven 9, Ze correctness gap 7 | Ze MUST proven 9, SHOULD proven 2, SHOULD not decided 9, Ze correctness gap 7 | lns: required by rfc/short/rfc1994.md |
 
 ### Level 2
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 1332](../../rfc1332/) (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | The PPP Internet Protocol Control Protocol (IPCP) | Ze proven 8 | Ze MUST proven 8, SHOULD not decided 6 | lns: required by rfc/short/rfc1332.md |
+| [RFC 1332](../../rfc1332/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | The PPP Internet Protocol Control Protocol (IPCP) | Ze proven 8 | Ze MUST proven 8, SHOULD not decided 6 | lns: required by rfc/short/rfc1332.md |
 | [RFC 1334](../../rfc1334/) | PPP Authentication Protocols | Ze proven 13 | Ze MUST proven 13, SHOULD not decided 3 | lns: required by rfc/short/rfc1334.md |
-| [RFC 4861](../../rfc4861/) (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc5905, rfc8200, rfc8201, rfc9293) | Neighbor Discovery for IP version 6 (IPv6) | Ze proven 30, OS testing gap 91, Ze correctness gap 17 | Ze MUST proven 30, SHOULD not decided 79, OS testing gap 91, Ze correctness gap 17 | lns: required by rfc/short/rfc4861.md |
+| [RFC 4861](../../rfc4861/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1332, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc5905, rfc8200, rfc8201, rfc9293) | Neighbor Discovery for IP version 6 (IPv6) | Ze proven 29, OS testing gap 91, Ze correctness gap 18 | Ze MUST proven 29, SHOULD not decided 79, OS testing gap 91, Ze correctness gap 18 | lns: required by rfc/short/rfc4861.md |
 
 ### Level 3
 
@@ -77,13 +77,13 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 5072](../../rfc5072/) | IP Version 6 over PPP | Ze proven 9, Ze correctness gap 7 | Ze MUST proven 9, SHOULD not decided 12, Ze correctness gap 7 | lns: required by rfc/short/rfc5072.md |
+| [RFC 5072](../../rfc5072/) | IP Version 6 over PPP | Ze proven 10, Ze correctness gap 6 | Ze MUST proven 10, SHOULD not decided 12, Ze correctness gap 6 | lns: required by rfc/short/rfc5072.md |
 
 ### Level 5
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 2661](../../rfc2661/) | Layer Two Tunneling Protocol "L2TP" | Ze proven 81, OS testing gap 1, Ze correctness gap 12 | Ze MUST proven 81, SHOULD proven 2, SHOULD not decided 6, OS testing gap 1, Ze correctness gap 12 | lns: required by rfc/short/rfc2661.md |
+| [RFC 2661](../../rfc2661/) | Layer Two Tunneling Protocol "L2TP" | Ze proven 89, OS testing gap 1, Ze correctness gap 5 | Ze MUST proven 89, SHOULD proven 2, SHOULD not decided 6, OS testing gap 1, Ze correctness gap 5 | lns: required by rfc/short/rfc2661.md |
 
 ### Level 6
 
@@ -107,26 +107,26 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 RFCs this use case lists as optional, each declared by the Optional use cases row of its own summary. They count in none of the figures above until the owner brings one into scope by moving it to the Use cases row. Their own bars and figures follow.
 
-- **MUST bar**: Ze proven 17, Ze correctness gap 69
-- **Overview bar**: Ze MUST proven 17, SHOULD proven 2, SHOULD not decided 114, Ze correctness gap 69
+- **MUST bar**: Ze proven 17, Ze correctness gap 100
+- **Overview bar**: Ze MUST proven 17, SHOULD proven 4, SHOULD not decided 146, Ze correctness gap 100
 
 | Figure | Rows |
 |---|---|
-| RFCs | 7 |
+| RFCs | 8 |
 | Not walked | 0 |
 | Mandatory register | not complete |
-| MUST rows | 86 |
-| MUST rows kept (the MUST bar) | 86 |
+| MUST rows | 117 |
+| MUST rows kept (the MUST bar) | 117 |
 | Ze proven | 17 |
 | OS verified | 0 |
 | OS testing gap | 0 |
-| Ze correctness gap | 69 |
+| Ze correctness gap | 100 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
-| SHOULD / MAY rows | 116 |
-| SHOULD proven | 2 |
+| SHOULD / MAY rows | 150 |
+| SHOULD proven | 4 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
@@ -135,13 +135,14 @@ RFCs this use case lists as optional, each declared by the Optional use cases ro
 | SHOULD not owed: not-applicable | 0 |
 | SHOULD not ever | 0 |
 | SHOULD not yet | 0 |
-| SHOULD not decided | 114 |
+| SHOULD not decided | 146 |
 
 The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
 | [RFC 1570](../../rfc1570/) | PPP LCP Extensions | Ze correctness gap 22 | SHOULD not decided 16, Ze correctness gap 22 | lns: optional in rfc/short/rfc1570.md |
+| [RFC 2548](../../rfc2548/) | Microsoft Vendor-specific RADIUS Attributes | Ze correctness gap 31 | SHOULD proven 2, SHOULD not decided 32, Ze correctness gap 31 | lns: optional in rfc/short/rfc2548.md |
 | [RFC 6911](../../rfc6911/) | RADIUS Attributes for IPv6 Access Networks | Ze correctness gap 3 | SHOULD not decided 9, Ze correctness gap 3 | lns: optional in rfc/short/rfc6911.md |
 | [RFC 4818](../../rfc4818/) | RADIUS Delegated-IPv6-Prefix Attribute | Ze correctness gap 3 | SHOULD not decided 3, Ze correctness gap 3 | lns: optional in rfc/short/rfc4818.md |
 | [RFC 2867](../../rfc2867/) (cycle with rfc2868, rfc2869) | RADIUS Accounting Modifications for Tunnel Protocol Support | Ze correctness gap 1 | SHOULD not decided 16, Ze correctness gap 1 | lns: optional in rfc/short/rfc2867.md |

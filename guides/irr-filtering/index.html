@@ -157,7 +157,7 @@ $ ze config cat ze.conf |
 &gt; ze config import --yes --name ze.conf -
 $ sudo systemctl start ze.service
 </code></pre>
-<p>The import replaces the stored <code>ze.conf</code> only because <code>--yes</code> confirms it; the previous version stays available to <code>ze config rollback</code>. Nothing here contacts the daemon, which is stopped anyway. Starting Ze loads the plugin and resolves the AS-SET in the background. An UPDATE that arrives before the list waits up to 4 seconds for it, and is then rejected and kept for another evaluation, as <a href="#after-a-restart">After a restart</a> describes. Replace <code>ze.conf</code>, <code>customer-a</code>, <code>AS-CUSTOMER</code>, and <code>65001</code> with the stored configuration key, peer name, AS-SET, and remote ASN for your deployment.</p>
+<p>The import replaces the stored <code>ze.conf</code> only because <code>--yes</code> confirms it; the previous version stays available to <code>ze config rollback</code>. Nothing here contacts the daemon, which is stopped anyway. Starting Ze loads the plugin and resolves the AS-SET in the background. An UPDATE that arrives before the list is rejected at once and kept for another evaluation, as <a href="#after-a-restart">After a restart</a> describes. Replace <code>ze.conf</code>, <code>customer-a</code>, <code>AS-CUSTOMER</code>, and <code>65001</code> with the stored configuration key, peer name, AS-SET, and remote ASN for your deployment.</p>
 <!-- source: internal/component/config/cli/editor_stdin.go -- openEditableConfig -->
 <!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage -->
 <p>Run <code>ze config cat ze.conf</code> before and after these commands to review the stored changes. This offline workflow is separate from the live SSH workflow in the demonstration below.</p>
@@ -175,8 +175,9 @@ $ sudo systemctl start ze.service
 <h2 id="changing-irr-settings-on-a-running-router">Changing IRR settings on a running router</h2>
 <p>A commit that changes a peer's <code>as-set</code>, the IRR <code>server</code>, or a peer's
 <code>filter import filters</code> reference takes effect on the running filter. A changed
-as-set does not inherit the list of the old one: the next UPDATE from that peer
-waits a few seconds for the new set to resolve, then is filtered against it.
+as-set does not inherit the list of the old one: an UPDATE from that peer before
+the new set resolves has its announced routes rejected and kept, and the filter
+asks the peer for them again once the new list arrives.
 Deleting the <code>as-set</code> counts as a change: Ze asks PeeringDB again, as it would
 for a peer that never named one, and filters against the set PeeringDB returns.
 If PeeringDB does not answer, Ze queries <code>AS&lt;asn&gt;</code> itself until the next
@@ -228,9 +229,9 @@ $ ze cli -c 'clear firewall irr asn 65001'
 <p>The entry disappears from memory and from ZeFS, and the firewall tables are re-applied. Firewall configuration that still references the name fails to verify until it is fetched again with <code>update firewall irr</code>.</p>
 <h3 id="after-a-restart">After a restart</h3>
 <p>The BGP filter keeps its prefix-lists in memory only and writes nothing to disk, so a restarted Ze starts with no list for any ASN and resolves every enrolled ASN again from the IRR server. A configuration reload keeps the lists already resolved, except for an ASN whose AS-SET changed, which starts from no list.</p>
-<p>Until an ASN's first resolution completes, an UPDATE from its peer waits for it, for at most 4 seconds. An UPDATE still without a list after that wait has its announced routes rejected, and they are kept for another evaluation. When the list arrives, the filter asks the peer for them again by ROUTE-REFRESH, as described in the next section, so the peer needs Route Refresh negotiated and the <code>refresh</code> permission. A peer without them keeps those routes rejected until it sends them again.</p>
+<p>Until an ASN's first resolution completes, an UPDATE from its peer has its announced routes rejected at once, with no wait, and they are kept for another evaluation; its withdrawals still apply. <code>show bgp irr</code> reports the ASN <code>pending</code> meanwhile. When the list arrives, the filter asks the peer for them again by ROUTE-REFRESH, as described in the next section, so the peer needs Route Refresh negotiated and the <code>refresh</code> permission. A peer without them keeps those routes rejected until it sends them again.</p>
 <p>When the IRR server cannot be reached at startup, no last known good list exists to fall back to: the peer's announcements are rejected, and the filter retries the lookup every minute while it holds a rejected route, until the server answers.</p>
-<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- firstResolveWait, handleConfigure, forgetUnconfigured -->
+<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- handleFilterUpdate, handleConfigure, forgetUnconfigured -->
 <p>At first enrollment, do not place the session into service until <code>show bgp irr</code> reports <code>status: ok</code>. A peer without loaded prefix data has no list from which to make a useful allow decision.</p>
 <h3 id="a-rejected-route-is-evaluated-again-when-the-list-changes">A rejected route is evaluated again when the list changes</h3>
 <p>A route rejected because its ASN had no list yet, or because the list did not hold it, is kept for another evaluation. When a list arrives or a refresh changes it, the filter checks what it kept, and for each peer with a route the new list authorizes it sends a ROUTE-REFRESH for that family. The peer sends its routes again and the filter decides them against the new list. While an ASN that holds a rejected route has no list, or its last lookup failed, the filter retries the lookup every minute.</p>
@@ -466,7 +467,7 @@ must succeed before this source is published as a recording.</code></pre>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 09:46 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

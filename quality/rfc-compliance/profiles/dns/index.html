@@ -118,15 +118,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>Use case: <a href="../../../../use-cases/as112/">AS112 anycast DNS inside a network</a></p>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="profile/dns/required:must">Ze proven 34, Ze correctness gap 262</div>
+<div data-ze-rfc-bar="profile/dns/required:must">Ze proven 46, Ze correctness gap 262</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="profile/dns/required:overview">Ze MUST proven 34, SHOULD proven 1, Not owed 3, SHOULD not decided 210, Ze correctness gap 262</div>
+<div data-ze-rfc-bar="profile/dns/required:overview">Ze MUST proven 46, SHOULD proven 1, Not owed 3, SHOULD not decided 225, Ze correctness gap 262</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
 <tbody>
 <tr><td>RFCs</td>
-<td><span data-ze-rfc="profile/dns/required:rfcs">11</span></td>
+<td><span data-ze-rfc="profile/dns/required:rfcs">12</span></td>
 </tr>
 <tr><td>Not walked</td>
 <td><span data-ze-rfc="profile/dns/required:not-walked">0</span></td>
@@ -135,13 +135,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="profile/dns/required:register">not complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
-<td><span data-ze-rfc="profile/dns/required:must.total">299</span></td>
+<td><span data-ze-rfc="profile/dns/required:must.total">311</span></td>
 </tr>
 <tr><td>MUST rows kept (the MUST bar)</td>
-<td><span data-ze-rfc="profile/dns/required:must.kept">296</span></td>
+<td><span data-ze-rfc="profile/dns/required:must.kept">308</span></td>
 </tr>
 <tr><td>Ze proven</td>
-<td><span data-ze-rfc="profile/dns/required:must.ze-proven">34</span></td>
+<td><span data-ze-rfc="profile/dns/required:must.ze-proven">46</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="profile/dns/required:must.os-verified">0</span></td>
@@ -165,7 +165,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="profile/dns/required:must.not-owed-by-kind.not-applicable">3</span></td>
 </tr>
 <tr><td>SHOULD / MAY rows</td>
-<td><span data-ze-rfc="profile/dns/required:should.total">211</span></td>
+<td><span data-ze-rfc="profile/dns/required:should.total">226</span></td>
 </tr>
 <tr><td>SHOULD proven</td>
 <td><span data-ze-rfc="profile/dns/required:should.proven">1</span></td>
@@ -195,7 +195,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="profile/dns/required:should.not-yet">0</span></td>
 </tr>
 <tr><td>SHOULD not decided</td>
-<td><span data-ze-rfc="profile/dns/required:should.not-decided">210</span></td>
+<td><span data-ze-rfc="profile/dns/required:should.not-decided">225</span></td>
 </tr>
 </tbody>
 </table>
@@ -209,7 +209,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
-<tr><td><a href="../../rfc1035/">RFC 1035</a> (cycle with rfc1034, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293)</td>
+<tr><td><a href="../../rfc1035/">RFC 1035</a> (cycle with rfc1034, rfc1122, rfc1123, rfc1191, rfc1195, rfc1332, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293)</td>
 <td>Domain Names - Implementation and Specification</td>
 <td><div data-ze-rfc-bar="rfc1035:must">Ze proven 12, Ze correctness gap 15</div></td>
 <td><div data-ze-rfc-bar="rfc1035:overview">Ze MUST proven 12, SHOULD not decided 6, Ze correctness gap 15</div></td>
@@ -299,6 +299,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
+<tr><td><a href="../../rfc5625/">RFC 5625</a></td>
+<td>DNS Proxy Implementation Guidelines</td>
+<td><div data-ze-rfc-bar="rfc5625:must">Ze proven 12</div></td>
+<td><div data-ze-rfc-bar="rfc5625:overview">Ze MUST proven 12, SHOULD not decided 15</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Level 8</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
+<tbody>
 <tr><td><a href="../../rfc7858/">RFC 7858</a></td>
 <td>Specification for DNS over Transport Layer Security (TLS)</td>
 <td><div data-ze-rfc-bar="rfc7858:must">Ze proven 3, Ze correctness gap 16</div></td>
@@ -340,7 +353,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

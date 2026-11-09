@@ -49,11 +49,14 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Feature</span>
     <h1 id="mcp-integration">MCP Integration</h1>
-    <p>Ze includes an MCP (Model Context Protocol) server that makes the BGP daemon <strong>AI-ready</strong>. Any AI assistant (Claude, GPT, or custom agents) can connect via MCP and fully control Ze -- the same operations available through the CLI are accessible programmatically through typed tools.</p>
+    <p>Ze exposes daemon commands through an MCP (Model Context Protocol) server.
+Clients discover tools from the running daemon and invoke commands with the
+caller's permissions. Command availability depends on the registered surface;
+an interactive CLI view is not automatically a one-shot MCP operation.</p>
 </div>
 <div class="doc-layout">
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
-<li><a href="#ai-ready-bgp-operations">AI-Ready BGP Operations</a></li>
+<li><a href="#discoverable-command-tools">Discoverable command tools</a></li>
 <li><a href="#starting-the-mcp-server">Starting the MCP Server</a></li>
 <li><a href="#ai-command-reference">AI Command Reference</a></li>
 <li><a href="#example-ai-driven-route-announcement">Example: AI-Driven Route Announcement</a></li>
@@ -65,8 +68,11 @@
 </ol></li>
 <li><a href="#testing">Testing</a></li>
 </ol></details></nav><div class="doc-body">
-<h2 id="ai-ready-bgp-operations">AI-Ready BGP Operations</h2>
-<p>The MCP server exposes typed tools with structured parameters, so AI assistants can manage BGP without parsing CLI output:</p>
+<!-- source: internal/component/command/surface.go -- AnswerSurface, answerView -->
+<h2 id="discoverable-command-tools">Discoverable command tools</h2>
+<p>Generated groups use typed inputs where YANG RPC metadata supplies them.
+Groups without typed inputs expose an <code>arguments</code> string.</p>
+<!-- source: internal/component/mcp/tools.go -- buildToolDef -->
 <table>
 <thead>
 <tr>
@@ -77,51 +83,37 @@
 <tbody>
 <tr>
 <td><code>ze_execute</code></td>
-<td>Run <strong>any</strong> CLI command -- full daemon control (the escape hatch)</td>
+<td>Dispatch a supported daemon command string with the caller's permissions.</td>
 </tr>
 <tr>
 <td><code>ze_reference</code></td>
-<td>Full machine-readable reference for this daemon (commands, RPC endpoints, dispatch keys, plugins, families, services); same JSON as <code>ze help ai --json</code>. Call first to discover capabilities.</td>
+<td>Reference assembled from this binary's registries and schemas; the same JSON data as <code>ze help ai --json</code>.</td>
 </tr>
 <tr>
-<td><code>ze_announce</code></td>
-<td>Announce routes with typed parameters (origin, next-hop, communities, prefixes)</td>
-</tr>
-<tr>
-<td><code>ze_withdraw</code></td>
-<td>Withdraw routes</td>
-</tr>
-<tr>
-<td><code>ze_show_bgp</code></td>
-<td>BGP peer state, ASN, uptime, and summary views (auto-generated from <code>show bgp ...</code>)</td>
-</tr>
-<tr>
-<td><code>ze_request_peer</code></td>
-<td>Peer lifecycle: teardown, pause, resume, flush (auto-generated from <code>request peer ...</code>)</td>
+<td>Generated groups</td>
+<td>Discover current names and action/input schemas through <code>tools/list</code>; do not assume a route-specific tool name.</td>
 </tr>
 </tbody>
 </table>
-<p><code>ze_execute</code> and <code>ze_reference</code> are the two handcrafted tools. Every other tool
-is auto-generated from the command registry at runtime: a command prefix becomes
-a tool name (<code>show bgp rib</code> becomes <code>ze_show_bgp_rib</code>), with an <code>action</code> enum and
-optional <code>arguments</code> and <code>peer</code> parameters. New commands are exposed
-automatically without code changes.</p>
+<p><code>ze_execute</code> and <code>ze_reference</code> are the fixed tools. Generated tool groups read
+the live command list at <code>tools/list</code> time. Groups with named actions expose an
+<code>action</code> enum; selector parameters appear only where the command supports them.</p>
+<!-- source: internal/component/mcp/tools.go -- toolHandlers, groupCommands, buildToolDef -->
 <p>A plugin command registered with <code>Hidden</code> true reaches no tool list. The flag
 already removed the command from completion and from help, and <code>buildCommandMeta</code>
 is the one source both the MCP tool list and the API command list read, so the
 skip covers both surfaces.</p>
 <!-- source: internal/component/mcp/tools.go -- toolName, generateTools -->
 <!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta: the Hidden skip -->
-<p>The <code>ze_execute</code> tool is the key to full control: anything you can do in <code>ze cli</code> (interactive or <code>ze cli -c</code> for one-shot commands), an AI can do via MCP. This includes:</p>
-<ul>
-<li><strong>Route management:</strong> <code>send bgp * update text origin set igp nhop set 1.1.1.1 nlri add 10.0.0.0/24</code></li>
-<li><strong>RIB queries:</strong> <code>show bgp rib received</code>, <code>show bgp rib sent</code>, <code>clear bgp rib in</code></li>
-<li><strong>Peer lifecycle:</strong> <code>show bgp peer list</code>, <code>request peer 10.0.0.1 teardown 6</code>, <code>delete bgp peer &lt;sel&gt;</code></li>
-<li><strong>Configuration:</strong> <code>request commit start window1</code>, route changes, <code>request commit end window1</code></li>
-<li><strong>Cache operations:</strong> <code>show cache</code>, <code>send bgp &lt;sel&gt; cached &lt;id&gt;</code></li>
-<li><strong>Event subscription:</strong> <code>request subscribe bgp/update</code></li>
-<li><strong>Schema discovery:</strong> <code>command-list</code>, <code>command-help &lt;name&gt;</code></li>
-</ul>
+<p><code>ze_execute</code> uses the daemon command grammar for the operations that command
+registrations offer on MCP. Offline commands may have a different daemon path;
+terminal-only views and streaming-only operations are not automatically
+equivalent one-shot calls. Discover current commands rather than copying an old
+route, configuration or cache example.</p>
+<p>Notification metadata in <code>ze_reference</code> describes the schema. Its presence
+does not itself provide an MCP event subscription.</p>
+<!-- source: internal/component/command/surface.go -- AnswerSurface, answerOfflineRoot, answerView -->
+<!-- source: internal/component/aihelp/aihelp.go -- Build -->
 <h2 id="starting-the-mcp-server">Starting the MCP Server</h2>
 <pre><code>ze start --mcp 8080            # start from stored (blob) config; run `ze init` first
 ze --mcp 8080 config.conf      # start from a config file
@@ -139,19 +131,31 @@ ze --mcp 8080 config.conf      # start from a config file
 </code></pre>
 <p>Environment variable overrides: <code>ze.mcp.listen=ip:port</code>, <code>ze.mcp.enabled=true</code>, <code>ze.mcp.token=&lt;secret&gt;</code>. Defaults to <code>127.0.0.1:8080</code> (security: local-only unless explicitly overridden via <code>ze.mcp.listen</code>). Bearer token auth available via <code>--mcp-token</code> flag, <code>ze.mcp.token</code> env var, or the config <code>token</code> leaf.</p>
 <h2 id="ai-command-reference">AI Command Reference</h2>
-<pre><code>ze help ai
-ze help ai api          # daemon API endpoints (ze-bgp:*, ze-iface:*, ...)
+<pre><code>ze help ai              # summary
+ze help ai all          # detailed listings and authored guidance
+ze help ai --json       # registry-derived JSON reference
+ze help ai api          # daemon RPCs, update syntax, families and plugins
 </code></pre>
-<p>Generates a machine-readable command reference from code, suitable for feeding to an AI as context. Lists all available commands with their parameters, descriptions, and examples. The legacy <code>ze help --ai</code> flag form is still accepted.</p>
+<p>The listings come from the binary's registrations and schemas. Recipes and
+explanations are maintained text, not a guarantee that every example is current.
+<code>ze_reference</code> returns the JSON reference inside MCP text content. The legacy
+<code>ze help --ai</code> flag form is still accepted.</p>
+<!-- source: internal/plugins/help/help_ai.go -- renderAIHelpDocument, printSummary -->
+<!-- source: internal/component/mcp/tools.go -- toolHandlers, TextResult -->
 <h2 id="example-ai-driven-route-announcement">Example: AI-Driven Route Announcement</h2>
 <p>An AI assistant connected via MCP can:</p>
 <ol>
-<li>Check peer state: <code>ze_show_bgp</code> returns structured JSON with all peer status</li>
-<li>Announce a route: <code>ze_announce</code> with origin=igp, next-hop=10.0.0.1, prefixes=[10.0.0.0/24]</li>
-<li>Verify propagation: <code>ze_execute</code> with command <code>show bgp rib sent peer peer1 family ipv4/unicast</code></li>
-<li>Withdraw if needed: <code>ze_withdraw</code> with the same prefixes</li>
+<li>Read <code>tools/list</code> and call <code>ze_reference</code> to discover this daemon's commands.</li>
+<li>Call <code>ze_execute</code> with <code>show bgp peer list</code> to inspect configured peers.</li>
+<li>Announce through <code>ze_execute</code> with <code>send bgp * update text origin igp next-hop 10.0.0.1 nlri add 10.0.0.0/24</code>.</li>
+<li>Call <code>ze_execute</code> with <code>show bgp rib sent peer peer1 family ipv4/unicast</code> to inspect that peer's sent routes.</li>
+<li>If withdrawal is needed, use the current <code>send bgp</code> withdrawal grammar through <code>ze_execute</code>, rather than assuming a <code>ze_withdraw</code> tool exists.</li>
 </ol>
-<p>All without parsing text output -- each tool returns structured data.</p>
+<p>Current results use MCP text-content envelopes. JSON references and rendered
+command data are carried in that text; the envelope is not a promise of a
+separate typed result object for every command.</p>
+<!-- source: internal/plugins/help/help_ai.go -- printRecipes -->
+<!-- source: internal/component/mcp/tools.go -- toolHandlers, TextResult -->
 <h2 id="protocol-2026-07-28">Protocol (2026-07-28)</h2>
 <p>Ze speaks MCP protocol revision <code>2026-07-28</code> and no other. The profile is
 stateless, and every message is its own HTTP POST to <code>/mcp</code>. Each POST carries
@@ -278,7 +282,7 @@ synchronously.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 02:50 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

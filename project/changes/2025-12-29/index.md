@@ -1,4 +1,4 @@
-# Week of 2025-12-29
+# 2025-12-29 – 2026-01-04 (1 week)
 
 Route-family coverage rounded out (labeled-unicast, MPLS VPN, MUP, route reflection), a batch of protocol-correctness fixes, and a security-relevant change to how Ze listens for BGP sessions.
 

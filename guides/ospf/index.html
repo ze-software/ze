@@ -324,13 +324,12 @@ ospf {
     }
 }
 </code></pre>
-<p>The <code>ospf redistribute &lt;source&gt;</code> list keeps only <code>nssa-propagate</code>. Its <code>metric</code>, <code>metric-type</code> and <code>tag</code> leaves are retired: a config that still carries them is refused, and <code>ze config migrate</code> rewrites each entry into a <code>modify</code> instance matching <code>protocol [ &lt;source&gt; ]</code> on the export chain. The old per-source tag applied only to a route without one, so the migration writes it as a second instance that also matches <code>tag [ 0 ]</code>.</p>
+<p>The <code>ospf redistribute &lt;source&gt;</code> list holds only <code>nssa-propagate</code>. The metric, metric type and tag of a redistributed route are set by a <code>modify</code> instance matching <code>protocol [ &lt;source&gt; ]</code> on the export chain. A tag meant only for a route that carries none goes in a second instance that also matches <code>tag [ 0 ]</code>.</p>
 <p>A reload that changes the export chain judges the routes OSPF already holds again: a route the new chain rejects has its AS-external LSA flushed, a route it now accepts is originated, and a changed metric, metric type or tag re-originates the LSA with them. A reload that fails, in OSPF or in another plugin, puts the chain of the running config back and judges the routes against it again, so the failed commit's chain never stays installed.</p>
 <!-- source: internal/plugins/ospf/redistribute/consumer.go -- Consumer InjectRoute, WithdrawRoute, Rejudge -->
 <!-- source: internal/plugins/ospf/register.go -- OnConfigApply, OnConfigRollback -->
 <!-- source: internal/plugins/ospf/redistribute/export.go -- exportVerdict, applyExportSets -->
 <!-- source: internal/plugins/ospf/export_chain.go -- parseExportChain -->
-<!-- source: internal/plugins/ospf/migrate.go -- migrateRedistributeLeaves -->
 <!-- source: internal/plugins/ospf/redistribute/source.go -- Source OnSPFChange exports OSPF routes -->
 <!-- source: internal/plugins/ospf/redist_wiring.go -- engine InjectExternal -->
 <p>The <code>redistribute</code> block is the whole configuration. It needs no <code>plugin</code> block
@@ -845,7 +844,7 @@ $ ze-demo card topic-ospf recap</code></pre>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

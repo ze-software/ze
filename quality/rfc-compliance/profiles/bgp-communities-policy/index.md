@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-communities-polic
 
 ## Figures
 
-- **MUST bar**: Ze proven 28, Ze correctness gap 21
-- **Overview bar**: Ze MUST proven 28, SHOULD proven 4, SHOULD not decided 33, Ze correctness gap 21
+- **MUST bar**: Ze proven 31, Ze correctness gap 18
+- **Overview bar**: Ze MUST proven 31, SHOULD proven 4, SHOULD not decided 33, Ze correctness gap 18
 
 | Figure | Rows |
 |---|---|
@@ -18,10 +18,10 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-communities-polic
 | Mandatory register | not complete |
 | MUST rows | 49 |
 | MUST rows kept (the MUST bar) | 49 |
-| Ze proven | 28 |
+| Ze proven | 31 |
 | OS verified | 0 |
 | OS testing gap | 0 |
-| Ze correctness gap | 21 |
+| Ze correctness gap | 18 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -82,7 +82,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 | [RFC 7611](../../rfc7611/) | BGP ACCEPT_OWN Community Attribute | Ze proven 2, Ze correctness gap 3 | Ze MUST proven 2, SHOULD not decided 3, Ze correctness gap 3 |
 | [RFC 7999](../../rfc7999/) | BLACKHOLE Community | Ze proven 4 | Ze MUST proven 4, SHOULD proven 3, SHOULD not decided 9 |
 | [RFC 8092](../../rfc8092/) | BGP Large Communities Attribute | Ze proven 7 | Ze MUST proven 7, SHOULD not decided 4 |
-| [RFC 9234](../../rfc9234/) | Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages | Ze proven 8, Ze correctness gap 11 | Ze MUST proven 8, SHOULD proven 1, SHOULD not decided 4, Ze correctness gap 11 |
+| [RFC 9234](../../rfc9234/) | Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages | Ze proven 11, Ze correctness gap 8 | Ze MUST proven 11, SHOULD proven 1, SHOULD not decided 4, Ze correctness gap 8 |
 
 ### Level 9
 

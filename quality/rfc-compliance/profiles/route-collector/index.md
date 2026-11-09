@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/route-collector.json]
 
 ## Figures
 
-- **MUST bar**: Ze proven 209, Ze correctness gap 153
-- **Overview bar**: Ze MUST proven 209, SHOULD proven 8, SHOULD not decided 91, Ze correctness gap 153
+- **MUST bar**: Ze proven 212, Ze correctness gap 150
+- **Overview bar**: Ze MUST proven 212, SHOULD proven 8, SHOULD not decided 91, Ze correctness gap 150
 
 | Figure | Rows |
 |---|---|
@@ -18,10 +18,10 @@ Figures as of the last build, read from [data/rfc/profiles/route-collector.json]
 | Mandatory register | not complete |
 | MUST rows | 362 |
 | MUST rows kept (the MUST bar) | 362 |
-| Ze proven | 209 |
+| Ze proven | 212 |
 | OS verified | 0 |
 | OS testing gap | 0 |
-| Ze correctness gap | 153 |
+| Ze correctness gap | 150 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -48,7 +48,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze proven 83, Ze correctness gap 50 | Ze MUST proven 83, SHOULD proven 3, SHOULD not decided 31, Ze correctness gap 50 | route-collector: required by rfc/short/rfc4271.md |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze proven 85, Ze correctness gap 48 | Ze MUST proven 85, SHOULD proven 3, SHOULD not decided 31, Ze correctness gap 48 | route-collector: required by rfc/short/rfc4271.md |
 
 ### Level 4
 
@@ -69,7 +69,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 6793](../../rfc6793/) (cycle with rfc5668) | BGP Support for Four-Octet Autonomous System (AS) Number Space | Ze proven 20, Ze correctness gap 10 | Ze MUST proven 20, SHOULD not decided 6, Ze correctness gap 10 | route-collector: required by rfc/short/rfc6793.md |
+| [RFC 6793](../../rfc6793/) (cycle with rfc5668) | BGP Support for Four-Octet Autonomous System (AS) Number Space | Ze proven 21, Ze correctness gap 9 | Ze MUST proven 21, SHOULD not decided 6, Ze correctness gap 9 | route-collector: required by rfc/short/rfc6793.md |
 | [RFC 7911](../../rfc7911/) | Advertisement of Multiple Paths in BGP | Ze proven 9 | Ze MUST proven 9, SHOULD not decided 4 | route-collector: required by rfc/short/rfc7911.md |
 
 ### Level 7

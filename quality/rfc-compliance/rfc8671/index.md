@@ -212,7 +212,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 The existing flags are defined in Section 4.2 of [RFC7854], and the remaining bits are reserved for future use.  They MUST be transmitted as 0, and their values MUST be ignored on receipt. (§4)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671ReservedPeerFlagsIgnoredOnReceipt, internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671ReservedPeerFlagsTransmittedAsZero moved. Re-read 2026-10-23 after peerHeaderFromEvent became (PeerHeader, error). Transmit clause: TestRFC8671ReservedPeerFlagsTransmittedAsZero, over a known AS and through mustPeerHeader (fatal on any error), still fails if peerHeaderFromEvent, locRIBPeerHeader or the byte writePeerHeader puts on the wire carries a reserved bit, for IPv4 and IPv6, both directions. Receipt clause: TestRFC8671ReservedPeerFlagsIgnoredOnReceipt fails if a header with every reserved bit set is refused or changes a defined flag, over two bases. The unit edits are the AS type change only; no assertion moved.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read 2026-10-23 after peerHeaderFromEvent became (PeerHeader, error). Transmit clause: TestRFC8671ReservedPeerFlagsTransmittedAsZero, over a known AS and through mustPeerHeader (fatal on any error), still fails if peerHeaderFromEvent, locRIBPeerHeader or the byte writePeerHeader puts on the wire carries a reserved bit, for IPv4 and IPv6, both directions. Receipt clause: TestRFC8671ReservedPeerFlagsIgnoredOnReceipt fails if a header with every reserved bit set is refused or changes a defined flag, over two bases. The unit edits are the AS type change only; no assertion moved.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -251,7 +251,7 @@ No test carries RFC8671-5.2-2, so no unit is bound to it.
 
 The O flag MUST be set accordingly to indicate if the route monitor or route mirroring message conveys Adj-RIB-In or Adj-RIB-Out. (§6.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671OFlagClearOnAdjRIBInMessages, internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671OFlagSetOnAdjRIBOutMessages moved. Re-read 2026-09-27. Forbidden: O not matching the RIB conveyed on Route Monitoring or Route Mirroring. TestRFC8671OFlagSetOnAdjRIBOutMessages fails if either message for a sent UPDATE lacks O; TestRFC8671OFlagClearOnAdjRIBInMessages fails if either for a received UPDATE carries it. Both read off the collector pipe after handleStructuredEvent.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read 2026-09-27. Forbidden: O not matching the RIB conveyed on Route Monitoring or Route Mirroring. TestRFC8671OFlagSetOnAdjRIBOutMessages fails if either message for a sent UPDATE lacks O; TestRFC8671OFlagClearOnAdjRIBInMessages fails if either for a received UPDATE carries it. Both read off the collector pipe after handleStructuredEvent.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -283,7 +283,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 In case of any change that results in the alteration of behavior of an existing BMP session (i.e., changes to filtering and table names), the session MUST be bounced with a Peer Down/Peer Up sequence. (§7.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession, internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671RemovingEveryCollectorBouncesTheSession, internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671UnrelatedBGPChangeBouncesNothing moved. Re-read 2026-09-27. Forbidden: a behaviour-altering change (the RFC's i.e.: filtering, table names) without a Peer Down/Peer Up per peer. Filtering: TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession fails unless each of two peers gets exactly one Peer Down then one Peer Up after a route-monitoring-policy change through the engine reload rail. Table names: the Loc-RIB table name is the constant locRIBTableName, so no change can occur. Negatives: TestRFC8671UnrelatedBGPChangeBouncesNothing, TestRFC8671RemovingEveryCollectorBouncesTheSession. Not asserted: that other behavior leaves (route-mirroring, loc-rib) also bounce.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read 2026-09-27. Forbidden: a behaviour-altering change (the RFC's i.e.: filtering, table names) without a Peer Down/Peer Up per peer. Filtering: TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession fails unless each of two peers gets exactly one Peer Down then one Peer Up after a route-monitoring-policy change through the engine reload rail. Table names: the Loc-RIB table name is the constant locRIBTableName, so no change can occur. Negatives: TestRFC8671UnrelatedBGPChangeBouncesNothing, TestRFC8671RemovingEveryCollectorBouncesTheSession. Not asserted: that other behavior leaves (route-mirroring, loc-rib) also bounce.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

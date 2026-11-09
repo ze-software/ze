@@ -1,6 +1,6 @@
 # Dependencies
 
-Ze is Go, and Go code leans on packages. 54 direct dependencies, read straight from `go.mod` so the list and versions can't drift -- each one with a plain-English reason it's there, grounded in where it's actually imported, not its own pitch.
+Ze is Go, and Go code leans on packages. 55 direct dependencies, read straight from `go.mod` so the list and versions can't drift -- each one with a plain-English reason it's there, grounded in where it's actually imported, not its own pitch.
 
 ## Terminal, Web & SSH Interfaces (11)
 
@@ -18,7 +18,7 @@ Ze is Go, and Go code leans on packages. 54 direct dependencies, read straight f
 | `github.com/creack/pty` | `v1.1.24` | Opens a pseudo-terminal in a Linux integration test that exercises serial console handling. |
 | `github.com/chromedp/chromedp` | `v0.21.0` | Drives headless Chrome in a test that proves the website fills its published figures from the facts snapshot. |
 
-## Networking & Protocols (6)
+## Networking & Protocols (7)
 
 | Module | Version | Why we use it |
 | --- | --- | --- |
@@ -28,6 +28,7 @@ Ze is Go, and Go code leans on packages. 54 direct dependencies, read straight f
 | `golang.zx2c4.com/wireguard/wgctrl` | `v0.0.0-20241231184526-a9ab2273dd10` | Creates and configures WireGuard interfaces and peers from the interface netlink backend. |
 | `github.com/mdlayher/packet` | `v1.2.0` | Raw AF_PACKET sockets behind the `diag capture` CLI command. |
 | `github.com/packetcap/go-pcap` | `v0.0.0-20260731105150-c86974bbfbcd` | Only its filter subpackage: parses tcpdump/BPF-style filter expressions for `diag capture`. Packet capture itself goes through mdlayher/packet instead. |
+| `github.com/cloudflare/circl` | `v1.6.5` | Only its Ed448 package: Ed448 signatures for IKEv2 authentication (RFC 8420). |
 
 ## Linux Kernel Interfaces (7)
 

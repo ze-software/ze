@@ -1,38 +1,40 @@
 # How Ze is developed with AI
 
-Most of Ze's code is written by AI coding agents. I know that makes some people uneasy, and I understand why. Many developers see good software as a craft, the work of a skilled person who cares about every line, and it is hard to see where that care fits when a machine writes the code. Ze is meant to run in networks that people depend on, so I need to be able to explain where the quality of its code comes from when no craftsman wrote it.
+Most of Ze's code is written by AI coding agents. I know that makes some people uneasy, and I understand why. Many developers see good software as a craft: the work of a skilled person who cares about every line. It is hard to see where that care fits when a machine writes the code. Ze is meant to run in networks that people depend on, so I need to explain how I make sure the code is reliable when an agent writes it.
 
 The answer came from somewhere I did not expect when I started, which is the way I have run a business for more than twenty years.
 
 ## Craft and industry
 
-I understand the craft view from the inside. I wrote ExaBGP by hand over many years, and I know the satisfaction of a piece of code that is exactly right. Seen from there, ISO, which turns the way work is done into a defined and audited process, looks like the opposite of everything good about the job.
+I understand the craft view from the inside. I wrote ExaBGP by hand over many years, and I know the satisfaction of a piece of code that is exactly right. From that point of view, ISO can look like the opposite of everything good about the job: it requires work to follow a defined process, which is then audited.
 
-I thought so too when I started my career. I was firmly opposed to processes and saw them as useless constraints, and to be fair, a badly designed ISO system can be exactly that. It goes wrong the way a bad KPI does: people learn to satisfy the measure, the measure becomes the goal, and the customer's experience, which it was meant to protect, drops out of sight. I have since found that agents can play a bad measure just as readily as people do, so whatever process I give them has to keep the outcome in view, and I have to correct it whenever it starts rewarding the wrong thing. That means I still look at the code: its structure and the overall implementation. I do not read the details, because the details are what the tests are for. That is what test-driven development gives me, and it is why the number of tests in Ze grows with each commit.
+I thought so too when I started my career. I was firmly opposed to processes and saw them as useless constraints, and a badly designed ISO system can be exactly that. It can fail in the same way as a bad key performance indicator (KPI): people learn to satisfy the measure, and the customer's experience, which the measure was meant to protect, is forgotten. I have since found that agents can play a bad measure just as readily as people do. The process I give them has to keep the outcome in view, and I have to correct it whenever it starts rewarding the wrong thing.
 
-Where I have ended up is that craft and industry suit different work. A bespoke piece of furniture, or a one-off solution for a single customer, benefits from one person's skill and taste. Cars and industrial machinery are not built that way any more, and I would not want to drive a car whose brakes depended on how its maker felt that morning. A network operating system feels much closer to the car to me. Its behaviour is written down in RFCs, it has to behave the same way every time, and it can be tested against what those RFCs say. For that kind of software I have found that craft adds little, while a good process catches what even a gifted engineer misses on a bad day.
+That means I still look at the code's structure and overall implementation. I do not read the details, because the tests are there to check them. That is what test-driven development gives me, and it is why the number of tests in Ze grows with each commit.
 
-The techniques that make software reliable have been written about for decades, and the models have read all of it. When it comes to applying them, I have found that an agent does better than a senior engineer, and I include myself in that. It does not innovate the way a person does, so the design and the decisions about what to build have stayed with me. Inside the right process, though, it produces quality, and building that process has become my part of the job.
+I have come to see craft and industry as suited to different kinds of work. A bespoke piece of furniture, or a one-off solution for a single customer, benefits from one person's skill and taste. Cars and industrial machinery are no longer built that way, and I would not want to drive a car whose brakes depended on how its maker felt that morning. A network operating system feels much closer to the car to me. Its behaviour is written down in RFCs, it has to behave the same way every time, and it can be tested against what those RFCs say. For that kind of software, I have found that craft adds little, while a good process catches what even a gifted engineer misses on a bad day.
+
+The techniques that make software reliable have been written about for decades, and the models have read all of it. When it comes to applying those techniques, I have found that an agent does better than a senior engineer, and I include myself in that. An agent does not innovate the way a person does, so the design and the decisions about what to build have stayed with me. Within the right process, though, an agent produces quality, and building that process has become my part of the job.
 
 ## Where it started
 
 I started using AI on ExaBGP, before Ze existed. ExaBGP had some long-standing design issues, and fixing any one of them would have taken weeks of development. With an agent, I only had to formulate the problem and the change I wanted, and it did the work. Some of those fixes came back elegant, and a few were better than what I had initially considered.
 
-The first big job was grunt work: making ExaBGP's code pass type checking with mypy. It was hard going with Opus 4.5. More recently, Opus 5.5 handled fault isolation in ExaBGP very well: ExaBGP already stopped an exception raised while decoding a protocol message from bubbling up into the core engine, and the agent tidied that mechanism up into `with` statements that express it far more elegantly.
+The first big job was tedious work: making ExaBGP's code pass type checking with mypy. It was hard going with Opus 4.5. More recently, Opus 5.5 handled fault isolation in ExaBGP very well. ExaBGP already caught exceptions raised while decoding a protocol message before they reached the core engine, and the agent reorganised that mechanism using `with` statements that express it far more elegantly.
 
 ## How the models got here
 
-For anyone not following AI development closely, the models have changed a great deal in a short time. In my experience, Claude Opus 4.5 was the first model that made agentic engineering possible, where an agent takes a piece of work from the request through to tested code while a person supervises. Even so, I had to fight Opus 4.5 and 4.6 to get the work done properly, and I hated working with 4.7 and 4.8. Opus 5.0 showed clear signs of progress, but its English was so hard to follow that working with it felt alien.
+For anyone not following AI development closely, the models have changed a great deal in a short time. In my experience, Claude Opus 4.5 was the first model that made agentic engineering possible: an agent could take a request through to tested code while a person supervised. Even so, I had to fight Opus 4.5 and 4.6 to get the work done properly, and I hated working with 4.7 and 4.8. Opus 5.0 showed clear signs of progress, but its English was so hard to follow that working with it felt alien.
 
 Opus 5.5 has raised the bar. Like OpenAI's Astra, it is a model I trust to achieve what I set it to do, and it finds problems in the code that earlier models could not spot. Most of the process on this page took shape while I was working with the earlier models, and it still matters with the newer ones, because a model that is good at its job still needs to be told what the job is.
 
 ## Agents need managing the way staff do
 
-Running a team taught me that quality cannot depend on who happens to be at work that day. You write down how things are done, make it clear who is responsible for what, have someone other than the author check the work, and when something goes wrong, change the process so that it does not happen again. As a director I cannot do every task myself, and I would not want to. My job is to decide how the work should be done, make sure it was, and fix the process when it was not.
+Running a team taught me that quality cannot depend on who happens to be at work that day. You write down how things are done, make it clear who is responsible for what, and have someone other than the author check the work. When something goes wrong, you change the process so that it does not happen again. As a director I cannot do every task myself, and I would not want to. My job is to decide how the work should be done, make sure it was done that way, and fix the process when it was not.
 
-When I started working with agents, they reminded me of a new member of staff who is remarkably fast and knows the trade, but has never set foot in the company. An agent does not know my decisions, or which shortcuts I will not accept, and in two ways it is worse off than a new hire. It forgets everything when its session ends, so whatever I had told one agent in conversation, I had to tell the next one again. Several agents also work at the same time without knowing what the others were told. With people, a written process is good practice. With agents, I found it was the only thing that carried over from one session to the next.
+When I started working with agents, they reminded me of a new member of staff who is remarkably fast and knows the trade, but has never worked at the company. An agent does not know the decisions I have made or which shortcuts I will not accept. Unlike a new member of staff, it also forgets what I have told it when the session ends, so I have to give the same explanations to the next agent. Several agents can also work at the same time without knowing what the others have been told. With people, a written process is good practice. With agents, I found it was the only way to carry those instructions from one session to the next.
 
-So I ended up running Ze's development as a management system for agents. Its procedures are written down in the repository beside the code, and every agent session reads them, whichever AI tool is running it.
+I now run Ze's development using a management system for agents. Its procedures are written down in the repository beside the code, and every agent session reads them, whichever AI tool is running it.
 
 ## Where the method comes from
 
@@ -43,7 +45,7 @@ I have run Exa Networks, an ISP, since 2003. Exa is certified to ISO 9001 for qu
 Looking back, most of the practices a business uses to manage its staff now have a counterpart in Ze's repository. I did not design them up front. Each one was added after agents went wrong in a way I did not want to see twice.
 
 <!-- table-columns: off -->
-| Management practice | In Ze's repository | What happened before it |
+| Management practice | In Ze's repository | Why I introduced it |
 | --- | --- | --- |
 | Policy set by management | An [owner decisions file](https://github.com/ze-software/ze/blob/main/ai/META-DECISIONS.md) records scope, priorities and the questions that are already settled. | Agents kept asking questions I had already answered, and a question was often a polite way of dropping work that looked hard. An agent may now ask me how to do something, never whether to do it. |
 | Documented procedures | The [rules](https://github.com/ze-software/ze/tree/main/ai/rules) live in one place that every AI tool reads. | An instruction kept in one tool's memory, or in one session's notes, was lost to the next session and to every other tool. |
@@ -61,9 +63,9 @@ A few limits now apply whatever the task, and for several of them the tooling re
 
 - Weaken a test to make it pass, unless an independent judge has approved the change.
 - Review its own work.
-- Call work done before a test exercises it the way a user reaches it, through the CLI, the configuration or the wire.
+- Call work done before a test exercises it through the same interface a user would use: the CLI, the configuration or the wire.
 - Run destructive version control commands, or touch work belonging to another session. Several agents work in the same checkout at once.
-- Implement protocol behaviour from memory. It reads the RFC text, and where the RFC is silent, it reads the source of established open source implementations so that Ze interoperates with them.
+- Implement protocol behaviour from memory. An agent reads the RFC text and, where the RFC is silent, the source of established open source implementations so that Ze interoperates with them.
 
 ## What has stayed my job
 
@@ -77,7 +79,7 @@ I have written about parts of this at more length on the blog. [The repository i
 
 ## Where it still falls short
 
-Agents get things wrong, and so do people. The first version of a feature is often not fully correct, and proving it takes many passes, plenty of time and a fair amount of compute. For an RFC, every requirement has to be found, tested and shown to fail when the code is broken, and that work carries on long after the first implementation is published.
+Agents get things wrong, and so do people. The first version of a feature is often not fully correct, and proving it takes many passes, plenty of time and a fair amount of compute. For an RFC, every requirement has to be found and tested, and each test must be shown to fail when the code is broken. That work carries on long after the first implementation is published.
 
 This website is probably where you will find the most mistakes. An RFC defines behaviour strictly enough for a test to check it, but nothing checks the free text of a web page in the same way. If you find something wrong here or in Ze, I would appreciate it if you could tell me on [Discord](https://discord.gg/T8s7CjPDne) or the [issue tracker](https://github.com/ze-software/ze/issues).
 

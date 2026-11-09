@@ -51,6 +51,9 @@ policy {
     reject-asn NO-TRANSIT {
         indirect [ 174 701 3356 ];
     }
+    match reject-asn-NO-TRANSIT {
+        reject-asn NO-TRANSIT;
+    }
     modify TRANSIT-A-PREF {
         set {
             local-preference 200;
@@ -101,7 +104,7 @@ bgp {
         }
         filter {
             export {
-                filters [ NO-TRANSIT ];
+                filters [ reject-asn-NO-TRANSIT ];
                 final accept;
             }
         }

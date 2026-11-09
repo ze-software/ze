@@ -181,6 +181,11 @@ checks the same property over the registered set.</p>
 </ul>
 <p>Because discovery is directory-based, copying a plugin folder in (or deleting it)
 and re-running codegen is all that's needed to wire (or unwire) the plugin.</p>
+<p><code>le go module move ... apply</code> refreshes the moved tree through that same
+<code>pluginimports.Write</code> producer. It does not execute the generator's Go source:
+the generator is a library package, not a standalone program. A generation
+error retains its cause in the diagnostic and returns a failing move result.</p>
+<!-- source: internal/le/go/module/move.go -- runPluginGenerator, applyMove -->
 <h3 id="the-cli-command-owner">The CLI command owner</h3>
 <p>A package whose <code>init()</code> calls <code>registry.MustRegisterRootHandler</code>,
 <code>registry.RegisterRoot</code>, <code>command.MustRegisterLocal</code> or any other
@@ -543,7 +548,7 @@ package holds the matching presence test, such as
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

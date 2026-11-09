@@ -1,4 +1,4 @@
-# Week of 2026-02-09
+# 2026-02-09 – 2026-02-15 (1 week)
 
 A new chaos-testing tool, matured config reload, RFC 7606 enforcement, and a hot-path allocation cleanup.
 

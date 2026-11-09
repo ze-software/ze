@@ -123,7 +123,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 1 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 1 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0</strong><b>of 1 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>4</strong><b>4 of 6 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>8</strong><b>8 of 8 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 <article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>1</strong><b>of 1 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
@@ -233,16 +233,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>6</td>
+<td>8</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>6</td>
+<td>8</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>1</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>4</td>
+<td>8</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc6996.md</code></td>
@@ -399,12 +399,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6996-4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go#L35" title="internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC6996RemovesPrivateUseASNsFromBothPathAttributes</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6996_remove_private_test.go#L32" title="internal/component/bgp/reactor/rfc6996_remove_private_test.go" target="_blank" rel="noopener"><code>TestRFC6996StripRemovesPrivateUseASNsFromAS4Path</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go#L47" title="internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go" target="_blank" rel="noopener"><code>TestRFC6996StripsPrivateUseASN</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go#L62" title="internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC6996KeepsASNsOutsideThePrivateUseRanges</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go#L56" title="internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go" target="_blank" rel="noopener"><code>TestRFC6996KeepsPublicASN</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6996_remove_private_test.go#L48" title="internal/component/bgp/reactor/rfc6996_remove_private_test.go" target="_blank" rel="noopener"><code>TestRFC6996StripKeepsAS4PathASNsOutsideThePrivateUseRanges</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6996_remove_private_test.go#L81" title="internal/component/bgp/reactor/rfc6996_remove_private_test.go" target="_blank" rel="noopener"><code>TestRFC6996ExportRemovesPrivateUseASNsFromASPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6996_old_speaker_export_test.go#L23" title="internal/component/bgp/reactor/rfc6996_old_speaker_export_test.go" target="_blank" rel="noopener"><code>TestRFC6996OldSpeakerReceivesStrippedASPathAndAS4Path</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go#L40" title="internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC6996RemovesPrivateUseASNsFromBothPathAttributes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6996_remove_private_test.go#L41" title="internal/component/bgp/reactor/rfc6996_remove_private_test.go" target="_blank" rel="noopener"><code>TestRFC6996StripRemovesPrivateUseASNsFromAS4Path</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go#L50" title="internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go" target="_blank" rel="noopener"><code>TestRFC6996StripsPrivateUseASN</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go#L57" title="internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC6996KeepsASNsOutsideThePrivateUseRanges</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go#L60" title="internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go" target="_blank" rel="noopener"><code>TestRFC6996KeepsPublicASN</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6996_remove_private_test.go#L57" title="internal/component/bgp/reactor/rfc6996_remove_private_test.go" target="_blank" rel="noopener"><code>TestRFC6996StripKeepsAS4PathASNsOutsideThePrivateUseRanges</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6996-4-2">RFC6996-4-2</code></td><td colspan="3"><span class="rfc-subject">Operators SHOULD ensure that all External Border Gateway Protocol (EBGP) speakers support the extensions described in [RFC6793] and that implementation-specific features that recognize Private Use ASNs have been updated to recognize both ranges prior to making use of the newer, numerically higher range of Private Use ASNs in the four-octet AS number space. (Section 4)</span></td></tr>
@@ -436,38 +438,48 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc6996-4-1"><code>RFC6996-4-1</code></a></h3>
 <p>If Private Use ASNs are used and prefixes originate from these ASNs, Private Use ASNs MUST be removed from AS path attributes (including AS4_PATH if utilizing a four-octet AS number space) before being advertised to the global Internet. (Section 4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Both clauses, both polarities, at the range edges. Positive: plugin TestRFC6996RemovesPrivateUseASNsFromBothPathAttributes rewrites AS_PATH [64496 64512 65534 4200000000 4294967294 64497] to [64496 64497] and draws the strip directive for an AS4_PATH holding 4294967294; reactor TestRFC6996StripRemovesPrivateUseASNsFromAS4Path asserts the exact AS4_PATH rewrite to [64496 64497]. Negative: 64511/65535/4199999999/4294967295 kept in AS_PATH and AS4_PATH at both tiers (accept, zero ops), so an off-by-one bound in either range goes red. All four new units carry observed-red revert records (isPrivateASN, isRFC6996PrivateASN). The two older private_as_test.go units are subsets with no record.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-03 by an independent auditor who authored none of 6b105ebc58 or c782411791. RFC 6996 Section 4 read: &#34;Private Use ASNs MUST be removed from AS path attributes (including AS4_PATH if utilizing a four-octet AS number space) before being advertised to the global Internet.&#34; TestRFC6996OldSpeakerReceivesStrippedASPathAndAS4Path changed one line: the literal one-step chain list became buildOrderedEgressSteps(), the production builder returning the same export-chain step; the as-path remove private member and the exact stripped AS_PATH and AS4_PATH octets are untouched. Scoped run green. Its mutant record is unit-changed and owes a re-record. Verdict unchanged. Earlier judgement, still standing for the unmoved units: Re-judged 2026-11-02 by an independent auditor who authored none of the changes named. RFC 6996 Section 4: &#34;Private Use ASNs MUST be removed from AS path attributes (including AS4_PATH if utilizing a four-octet AS number space) before being advertised to the global Internet.&#34; TestRFC6996ExportRemovesPrivateUseASNsFromASPath changed in 76c2b9156a (runEgressPolicyChainASN4 now takes the session facts, passed as policyview.Session{EBGP: true}, matching the EBGP destination the unit already names) and 5c1aea079c (comment spelling). The same four-octet AS_PATH [64511 64512 65534 65535 4199999999 4200000000 4294967294 4294967295] must still come out exactly [64511 65535 4199999999 4294967295] with accept and a wire override, so both edges of both ranges and their neighbours stay pinned. Other carriers byte-identical. Verdict unchanged: enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go#L62" title="internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC6996KeepsASNsOutsideThePrivateUseRanges</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go#L57" title="internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC6996KeepsASNsOutsideThePrivateUseRanges</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go#L56" title="internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go" target="_blank" rel="noopener"><code>TestRFC6996KeepsPublicASN</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go#L60" title="internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go" target="_blank" rel="noopener"><code>TestRFC6996KeepsPublicASN</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6996_remove_private_test.go#L48" title="internal/component/bgp/reactor/rfc6996_remove_private_test.go" target="_blank" rel="noopener"><code>TestRFC6996StripKeepsAS4PathASNsOutsideThePrivateUseRanges</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6996_remove_private_test.go#L57" title="internal/component/bgp/reactor/rfc6996_remove_private_test.go" target="_blank" rel="noopener"><code>TestRFC6996StripKeepsAS4PathASNsOutsideThePrivateUseRanges</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go#L35" title="internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC6996RemovesPrivateUseASNsFromBothPathAttributes</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go#L40" title="internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC6996RemovesPrivateUseASNsFromBothPathAttributes</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go#L50" title="internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go" target="_blank" rel="noopener"><code>TestRFC6996StripsPrivateUseASN</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6996_old_speaker_export_test.go#L23" title="internal/component/bgp/reactor/rfc6996_old_speaker_export_test.go" target="_blank" rel="noopener"><code>TestRFC6996OldSpeakerReceivesStrippedASPathAndAS4Path</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6996_remove_private_test.go#L81" title="internal/component/bgp/reactor/rfc6996_remove_private_test.go" target="_blank" rel="noopener"><code>TestRFC6996ExportRemovesPrivateUseASNsFromASPath</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go#L47" title="internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go" target="_blank" rel="noopener"><code>TestRFC6996StripsPrivateUseASN</code></a></td>
-<td>unit/verify</td>
-<td>unproven</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6996_remove_private_test.go#L32" title="internal/component/bgp/reactor/rfc6996_remove_private_test.go" target="_blank" rel="noopener"><code>TestRFC6996StripRemovesPrivateUseASNsFromAS4Path</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6996_remove_private_test.go#L41" title="internal/component/bgp/reactor/rfc6996_remove_private_test.go" target="_blank" rel="noopener"><code>TestRFC6996StripRemovesPrivateUseASNsFromAS4Path</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -625,7 +637,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

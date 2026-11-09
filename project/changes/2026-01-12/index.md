@@ -1,4 +1,4 @@
-# Week of 2026-01-12
+# 2026-01-12 – 2026-01-18 (1 week)
 
 A week focused on Graceful Restart, ExaBGP migration tooling, and logging.
 

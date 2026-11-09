@@ -39,12 +39,40 @@ Endpoints:
 The server computes SHA-256 at startup. If the binary changes on disk (rebuild),
 restart the server.
 
+<!-- source: internal/plugins/update-cmd/cmd/serve.go -- runUpdateServe, the foreground server -->
+<!-- source: internal/plugins/update-cmd/cmd/serve_daemon.go -- updateServeOwner, the server under the daemon -->
+
+### Under the daemon
+
+A running daemon can serve the same endpoints itself, from any command surface
+(`ze cli`, SSH, the web, REST, gRPC, MCP):
+
+```
+update serve                      # answers {"running": false, "paused": false}
+update serve start listen :8080   # answers {"listen": "[::]:8080", "paused": false}
+update serve pause                # toggles the pause, answers the state it left
+update serve stop                 # answers once the server has ended
+```
+
+`update serve` alone answers the status of the daemon's server: whether it
+runs and, while it does, the address it listens on and whether it is paused.
+It starts nothing. Without `listen`, the server listens on `:8080`. Port 0 picks a free port, and
+the answer names it. A daemon runs one update server at a time: a second
+`update serve start` is refused until `update serve stop`. A signal sent to the
+daemon reaches the daemon, not its server, so `update serve pause` takes the
+place of `SIGUSR1` there. The server lives no longer than the daemon: stopping
+the daemon stops its update server, and the daemon finishes stopping only once
+the server has ended.
+<!-- source: internal/plugins/update-cmd/cmd/serve_daemon.go -- updateServeOwner.endWithDaemon -->
+<!-- source: internal/plugins/update-cmd/cmd/serve_daemon.go -- updateServeOwner.status -->
+<!-- source: internal/component/plugin/server/stop_hooks.go -- Server.OnStop -->
+
 ### Pause Mechanism
 
 Two mechanisms, ORed together:
 
 - **File:** create a file named `update-paused` in the binary's directory. Remove to unpause.
-- **Signal:** send `SIGUSR1` to toggle the in-memory pause state. Logged to stderr.
+- **Signal:** send `SIGUSR1` to the foreground `ze update serve` to toggle the in-memory pause state. Logged to stderr. Under the daemon, `update serve pause` toggles it instead.
 
 When paused, the manifest returns `"paused": true`. Clients with `auto-apply` stop
 downloading. Manual commands (`update system firmware apply`) bypass pause.
@@ -204,7 +232,7 @@ can reach the target release.
 | "auto-apply requires server to provide sha256" | Server manifest missing `sha256` field |
 | "waiting for spread" | Spread delay not elapsed; wait or use `update system firmware download` |
 | "waiting for maintenance window" | Outside configured window; wait or use `update system firmware apply` |
-| "paused by server" | Server manifest has `paused: true`; remove pause file or send SIGUSR1 |
+| "paused by server" | Server manifest has `paused: true`; remove pause file, send SIGUSR1, or run `update serve pause` on a daemon's server |
 | "checksum mismatch" | Binary changed on server after SHA-256 was computed; restart `ze update serve` |
 | "insufficient disk space" | Need 2x binary size free on the target filesystem |
 | "self-update not supported on read-only filesystem" | Binary is on a read-only mount (gokrazy, squashfs) |

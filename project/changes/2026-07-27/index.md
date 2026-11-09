@@ -1,4 +1,4 @@
-# Week of 2026-07-27
+# 2026-07-27 – 2026-08-02 (1 week)
 
 IPsec was the centre of the week. Ze ran against strongSwan and twenty defects came out. EAP-TLS worked with another implementation for the first time. The BGP announce path went from two encoders to one. OSPF, BMP, MRT and the MCP server each took correctness work.
 

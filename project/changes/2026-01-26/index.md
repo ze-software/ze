@@ -1,4 +1,4 @@
-# Week of 2026-01-26
+# 2026-01-26 – 2026-02-01 (1 week)
 
 Config work, the ExaBGP migration path, and correctness fixes across the wire.
 

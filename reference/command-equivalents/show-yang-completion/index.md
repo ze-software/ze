@@ -5,8 +5,8 @@ Show YANG paths available for tab completion\.
 ## Ze command
 
 - Registry path: `show yang completion`
-- Usage: `show yang completion`
-- Mode: Read-only
+- Usage: `show yang completion [min-prefix <min-prefix>]`
+- Mode: read-only, offline
 - Wire method: `ze-config-yang:show-yang-completion`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
@@ -25,7 +25,9 @@ Lists every valid completion point in the command tree\.
 
 ## Arguments
 
-No command-specific arguments listed.
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `min-prefix` | uint | no | any value of this type | Minimum disambiguation depth to report | The shortest disambiguation depth a collision is reported at\. |
 
 ## Mapping intents
 

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8106 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 8106: IPv6 Router Advertisement Options for DNS Configuration. 11 gated MUST-level requirements, 11 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 8106: IPv6 Router Advertisement Options for DNS Configuration. 11 gated MUST-level requirements, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 8106 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 8106: IPv6 Router Advertisement Options for DNS Configuration. 11 gated MUST-level requirements, 11 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 8106: IPv6 Router Advertisement Options for DNS Configuration. 11 gated MUST-level requirements, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8106 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 8106: IPv6 Router Advertisement Options for DNS Configuration. 11 gated MUST-level requirements, 11 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 8106: IPv6 Router Advertisement Options for DNS Configuration. 11 gated MUST-level requirements, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -118,11 +118,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0</strong><b>of 11 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>5</strong><b>of 11 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 11 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 11 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 11 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0</strong><b>0 of 0 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>15</strong><b>15 of 15 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -137,7 +137,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>11</strong><b>of 11 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>6</strong><b>of 11 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 9 counts marked as a part above are the whole of the 11 gated MUSTs: they add up to 11. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -224,7 +224,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>11</td>
+<td>6</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -236,16 +236,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>0</td>
+<td>15</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>0</td>
+<td>15</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>15</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8106.md</code></td>
@@ -265,9 +265,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Area:</strong> RA DNS options (RDNSS, DNSSL)</p>
-<p><strong>Proof:</strong> 0 of 11 MUST proven</p>
-<p><strong>Evidence:</strong> -</p>
-<p><strong>Unmet:</strong> RFC8106-1.2-1, RFC8106-1.2-2, RFC8106-5.1-1, RFC8106-5.1-2, RFC8106-5.2-1, RFC8106-5.2-2, RFC8106-5.2-3, RFC8106-5.2-4, RFC8106-5.3.1-1, RFC8106-5.3.1-2, RFC8106-5.3.1-3</p>
+<p><strong>Proof:</strong> 5 of 11 MUST proven</p>
+<p><strong>Evidence:</strong> unit 5</p>
+<p><strong>Unmet:</strong> RFC8106-5.2-1, RFC8106-5.2-2, RFC8106-5.2-3, RFC8106-5.2-4, RFC8106-5.3.1-2, RFC8106-5.3.1-3</p>
 
 </section>
 <section><h2>Coverage</h2>
@@ -276,11 +276,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>0</strong></td>
+<td><strong>5</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>11</strong></td>
+<td><strong>6</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -307,13 +307,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (11):</strong> <a href="#rfc8106-1.2-1"><code>RFC8106-1.2-1</code></a>, <a href="#rfc8106-1.2-2"><code>RFC8106-1.2-2</code></a>, <a href="#rfc8106-5.1-1"><code>RFC8106-5.1-1</code></a>, <a href="#rfc8106-5.1-2"><code>RFC8106-5.1-2</code></a>, <a href="#rfc8106-5.2-1"><code>RFC8106-5.2-1</code></a>, <a href="#rfc8106-5.2-2"><code>RFC8106-5.2-2</code></a>, <a href="#rfc8106-5.2-3"><code>RFC8106-5.2-3</code></a>, <a href="#rfc8106-5.2-4"><code>RFC8106-5.2-4</code></a>, <a href="#rfc8106-5.3.1-1"><code>RFC8106-5.3.1-1</code></a>, <a href="#rfc8106-5.3.1-2"><code>RFC8106-5.3.1-2</code></a>, <a href="#rfc8106-5.3.1-3"><code>RFC8106-5.3.1-3</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (5):</strong> <a href="#rfc8106-1.2-1"><code>RFC8106-1.2-1</code></a>, <a href="#rfc8106-1.2-2"><code>RFC8106-1.2-2</code></a>, <a href="#rfc8106-5.1-1"><code>RFC8106-5.1-1</code></a>, <a href="#rfc8106-5.1-2"><code>RFC8106-5.1-2</code></a>, <a href="#rfc8106-5.3.1-1"><code>RFC8106-5.3.1-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (6):</strong> <a href="#rfc8106-5.2-1"><code>RFC8106-5.2-1</code></a>, <a href="#rfc8106-5.2-2"><code>RFC8106-5.2-2</code></a>, <a href="#rfc8106-5.2-3"><code>RFC8106-5.2-3</code></a>, <a href="#rfc8106-5.2-4"><code>RFC8106-5.2-4</code></a>, <a href="#rfc8106-5.3.1-2"><code>RFC8106-5.3.1-2</code></a>, <a href="#rfc8106-5.3.1-3"><code>RFC8106-5.3.1-3</code></a></p>
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc8106:must">Ze correctness gap 11</div>
+<div data-ze-rfc-bar="rfc8106:must">Ze proven 5, Ze correctness gap 6</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc8106:overview">SHOULD not decided 13, Ze correctness gap 11</div>
+<div data-ze-rfc-bar="rfc8106:overview">Ze MUST proven 5, SHOULD proven 2, SHOULD not decided 11, Ze correctness gap 6</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -334,7 +335,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc8106:must.kept">11</span></td>
 </tr>
 <tr><td>Ze proven</td>
-<td><span data-ze-rfc="rfc8106:must.ze-proven">0</span></td>
+<td><span data-ze-rfc="rfc8106:must.ze-proven">5</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc8106:must.os-verified">0</span></td>
@@ -343,7 +344,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc8106:must.os-gap">0</span></td>
 </tr>
 <tr><td>Ze correctness gap</td>
-<td><span data-ze-rfc="rfc8106:must.ze-gap">11</span></td>
+<td><span data-ze-rfc="rfc8106:must.ze-gap">6</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="rfc8106:must.not-owed">0</span></td>
@@ -361,7 +362,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc8106:should.total">13</span></td>
 </tr>
 <tr><td>SHOULD proven</td>
-<td><span data-ze-rfc="rfc8106:should.proven">0</span></td>
+<td><span data-ze-rfc="rfc8106:should.proven">2</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
 <td><span data-ze-rfc="rfc8106:should.os-verified">0</span></td>
@@ -388,7 +389,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc8106:should.not-yet">0</span></td>
 </tr>
 <tr><td>SHOULD not decided</td>
-<td><span data-ze-rfc="rfc8106:should.not-decided">13</span></td>
+<td><span data-ze-rfc="rfc8106:should.not-decided">11</span></td>
 </tr>
 </tbody>
 </table>
@@ -406,36 +407,38 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>1.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8106-1.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze reads no RDNSS or DNSSL option from a received RA; its resolver takes upstream servers from configuration only, and internal/core/ndp/ra.go holds a builder and no parser</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L80" title="internal/component/iface/rfc8106_ra_rdnss_test.go" target="_blank" rel="noopener"><code>TestRARDNSSRecordFromUserOpt</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L112" title="internal/component/iface/rfc8106_ra_rdnss_test.go" target="_blank" rel="noopener"><code>TestRARDNSSStaticNameServerWins</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8106-1.2-2">RFC8106-1.2-2</code></td><td colspan="3"><span class="rfc-subject">If there is DNS information available from multiple RAs and/or from DHCP, the host MUST maintain an ordered list of this information as specified in Section 5.3.1. (§1.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>1.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8106-1.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze keeps no DNS Server List learned from RAs; host-side processing is absent</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L149" title="internal/component/iface/rfc8106_ra_rdnss_test.go" target="_blank" rel="noopener"><code>TestRARDNSSListedAfterDHCP</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L339" title="internal/component/iface/rfc8106_ra_rdnss_test.go" target="_blank" rel="noopener"><code>TestRARDNSSLaterRAKeepsDHCPFirst</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8106-5.1-1">RFC8106-5.1-1</code></td><td colspan="3"><span class="rfc-subject">A value of zero means that the RDNSS addresses MUST no longer be used. (§5.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8106-5.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze as a host learns no RDNSS address, so no Lifetime expiry exists; host-side processing is absent</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L196" title="internal/component/iface/rfc8106_ra_rdnss_test.go" target="_blank" rel="noopener"><code>TestRARDNSSLifetimeZeroWithdraws</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/ra/rfc8106_advertiser_rdnss_test.go#L34" title="internal/plugins/iface/ra/rfc8106_advertiser_rdnss_test.go" target="_blank" rel="noopener"><code>TestRDNSSWithdrawnAdvertisedLifetimeZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L131" title="internal/component/iface/rfc8106_ra_rdnss_test.go" target="_blank" rel="noopener"><code>TestRARDNSSRefreshKeeps</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8106-5.1-2">RFC8106-5.1-2</code></td><td colspan="3"><span class="rfc-subject">When a resolver sends a DNS query message to an RDNSS identified by a link-local address, it MUST use the corresponding link. (§5.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8106-5.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze as a host learns no RDNSS address from an RA; host-side processing is absent</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L169" title="internal/component/iface/rfc8106_ra_rdnss_test.go" target="_blank" rel="noopener"><code>TestRARDNSSLinkLocalCarriesZone</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_dns_source_test.go#L168" title="internal/component/iface/rfc8106_ra_dns_source_test.go" target="_blank" rel="noopener"><code>TestRDNSSRefusesLinkLocalOfAnotherLink</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L313" title="internal/component/iface/rfc8106_ra_rdnss_test.go" target="_blank" rel="noopener"><code>TestRARDNSSLinkLocalScopedToItsOwnLink</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8106-5.2-1">RFC8106-5.2-1</code></td><td colspan="3"><span class="rfc-subject">A value of zero means that the DNSSL domain names MUST no longer be used. (§5.2)</span></td></tr>
 <tr><td></td>
@@ -478,9 +481,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8106-5.3.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze as a host neither validates nor stores a received RDNSS or DNSSL option; host-side processing is absent</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/ndp/rfc8106_rdnss_test.go#L62" title="internal/core/ndp/rfc8106_rdnss_test.go" target="_blank" rel="noopener"><code>TestParseRDNSSOptionRefusesBadLength</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L219" title="internal/component/iface/rfc8106_ra_rdnss_test.go" target="_blank" rel="noopener"><code>TestRARDNSSMalformedDiscarded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/ndp/rfc8106_rdnss_test.go#L30" title="internal/core/ndp/rfc8106_rdnss_test.go" target="_blank" rel="noopener"><code>TestParseRDNSSOption</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8106-5.3.1-2">RFC8106-5.3.1-2</code></td><td colspan="3"><span class="rfc-subject">On the other hand, for DNS options announced by RAs, if some RAs use the Secure Neighbor Discovery (SEND) protocol [RFC3971] for RA security, they MUST be preferred over those that do not use SEND. (§5.3.1)</span></td></tr>
 <tr><td></td>
@@ -489,7 +493,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8106-5.3.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze as a host consumes no DNS option from RAs, SEND or otherwise; host-side processing is absent</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze consumes RDNSS from the RAs the Linux kernel accepts (internal/component/iface/ra_rdnss.go), and neither Ze nor the kernel implements SEND (RFC 3971), so no RA is known to use SEND and none is preferred</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8106-5.3.1-3">RFC8106-5.3.1-3</code></td><td colspan="3"><span class="rfc-subject">Also, DNS options announced by RAs via SEND MUST be preferred over those announced by unauthenticated DHCP [RFC3118]. (§5.3.1)</span></td></tr>
 <tr><td></td>
@@ -498,7 +502,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8106-5.3.1-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze as a host consumes no DNS option from RAs; host-side processing is absent</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze consumes RDNSS from the RAs the Linux kernel accepts, and neither Ze nor the kernel implements SEND (RFC 3971), so no RA DNS option is preferred over DHCP for being authenticated</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8106-5.1-3">RFC8106-5.1-3</code></td><td colspan="3"><span class="rfc-subject">The value of Lifetime SHOULD by default be at least 3 * MaxRtrAdvInterval, where MaxRtrAdvInterval is the maximum RA interval as defined in [RFC4861]. (§5.1)</span></td></tr>
 <tr><td></td>
@@ -514,7 +518,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHOULD</td>
 <td>5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8106-5.1-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L170" title="internal/component/iface/rfc8106_ra_rdnss_test.go" target="_blank" rel="noopener"><code>TestRARDNSSLinkLocalCarriesZone</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
@@ -559,7 +563,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHOULD</td>
 <td>5.3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8106-5.3.1-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L150" title="internal/component/iface/rfc8106_ra_rdnss_test.go" target="_blank" rel="noopener"><code>TestRARDNSSListedAfterDHCP</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
@@ -626,22 +630,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc8106-1.2-1"><code>RFC8106-1.2-1</code></a> Hosts conforming to this specification MUST extract DNS information from RA messages, unless static DNS configuration has been specified by the user. (§1.2)</td>
-<td>{gap}, no test</td>
-<td>ze reads no RDNSS or DNSSL option from a received RA; its resolver takes upstream servers from configuration only, and internal/core/ndp/ra.go holds a builder and no parser</td>
-</tr>
-<tr><td><a href="#rfc8106-1.2-2"><code>RFC8106-1.2-2</code></a> If there is DNS information available from multiple RAs and/or from DHCP, the host MUST maintain an ordered list of this information as specified in Section 5.3.1. (§1.2)</td>
-<td>{gap}, no test</td>
-<td>ze keeps no DNS Server List learned from RAs; host-side processing is absent</td>
-</tr>
-<tr><td><a href="#rfc8106-5.1-1"><code>RFC8106-5.1-1</code></a> A value of zero means that the RDNSS addresses MUST no longer be used. (§5.1)</td>
-<td>{gap}, no test</td>
-<td>ze as a host learns no RDNSS address, so no Lifetime expiry exists; host-side processing is absent</td>
-</tr>
-<tr><td><a href="#rfc8106-5.1-2"><code>RFC8106-5.1-2</code></a> When a resolver sends a DNS query message to an RDNSS identified by a link-local address, it MUST use the corresponding link. (§5.1)</td>
-<td>{gap}, no test</td>
-<td>ze as a host learns no RDNSS address from an RA; host-side processing is absent</td>
-</tr>
 <tr><td><a href="#rfc8106-5.2-1"><code>RFC8106-5.2-1</code></a> A value of zero means that the DNSSL domain names MUST no longer be used. (§5.2)</td>
 <td>{gap}, no test</td>
 <td>ze as a host processes no DNSSL option; host-side processing is absent</td>
@@ -658,17 +646,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>{gap}, no test</td>
 <td>ze sends no DNSSL option; internal/core/ndp/ra.go BuildRA</td>
 </tr>
-<tr><td><a href="#rfc8106-5.3.1-1"><code>RFC8106-5.3.1-1</code></a> Otherwise, the host MUST discard the options. (§5.3.1)</td>
-<td>{gap}, no test</td>
-<td>ze as a host neither validates nor stores a received RDNSS or DNSSL option; host-side processing is absent</td>
-</tr>
 <tr><td><a href="#rfc8106-5.3.1-2"><code>RFC8106-5.3.1-2</code></a> On the other hand, for DNS options announced by RAs, if some RAs use the Secure Neighbor Discovery (SEND) protocol [RFC3971] for RA security, they MUST be preferred over those that do not use SEND. (§5.3.1)</td>
 <td>{gap}, no test</td>
-<td>ze as a host consumes no DNS option from RAs, SEND or otherwise; host-side processing is absent</td>
+<td>ze consumes RDNSS from the RAs the Linux kernel accepts (internal/component/iface/ra_rdnss.go), and neither Ze nor the kernel implements SEND (RFC 3971), so no RA is known to use SEND and none is preferred</td>
 </tr>
 <tr><td><a href="#rfc8106-5.3.1-3"><code>RFC8106-5.3.1-3</code></a> Also, DNS options announced by RAs via SEND MUST be preferred over those announced by unauthenticated DHCP [RFC3118]. (§5.3.1)</td>
 <td>{gap}, no test</td>
-<td>ze as a host consumes no DNS option from RAs; host-side processing is absent</td>
+<td>ze consumes RDNSS from the RAs the Linux kernel accepts, and neither Ze nor the kernel implements SEND (RFC 3971), so no RA DNS option is preferred over DHCP for being authenticated</td>
 </tr>
 </tbody>
 </table>
@@ -679,19 +663,93 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc8106-1.2-1"><code>RFC8106-1.2-1</code></a></h3>
 <p>Hosts conforming to this specification MUST extract DNS information from RA messages, unless static DNS configuration has been specified by the user. (§1.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8106-1.2-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L112" title="internal/component/iface/rfc8106_ra_rdnss_test.go" target="_blank" rel="noopener"><code>TestRARDNSSStaticNameServerWins</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L80" title="internal/component/iface/rfc8106_ra_rdnss_test.go" target="_blank" rel="noopener"><code>TestRARDNSSRecordFromUserOpt</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc8106-1.2-2"><code>RFC8106-1.2-2</code></a></h3>
 <p>If there is DNS information available from multiple RAs and/or from DHCP, the host MUST maintain an ordered list of this information as specified in Section 5.3.1. (§1.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8106-1.2-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L339" title="internal/component/iface/rfc8106_ra_rdnss_test.go" target="_blank" rel="noopener"><code>TestRARDNSSLaterRAKeepsDHCPFirst</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L149" title="internal/component/iface/rfc8106_ra_rdnss_test.go" target="_blank" rel="noopener"><code>TestRARDNSSListedAfterDHCP</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc8106-5.1-1"><code>RFC8106-5.1-1</code></a></h3>
 <p>A value of zero means that the RDNSS addresses MUST no longer be used. (§5.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8106-5.1-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L131" title="internal/component/iface/rfc8106_ra_rdnss_test.go" target="_blank" rel="noopener"><code>TestRARDNSSRefreshKeeps</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L196" title="internal/component/iface/rfc8106_ra_rdnss_test.go" target="_blank" rel="noopener"><code>TestRARDNSSLifetimeZeroWithdraws</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/ra/rfc8106_advertiser_rdnss_test.go#L34" title="internal/plugins/iface/ra/rfc8106_advertiser_rdnss_test.go" target="_blank" rel="noopener"><code>TestRDNSSWithdrawnAdvertisedLifetimeZero</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc8106-5.1-2"><code>RFC8106-5.1-2</code></a></h3>
 <p>When a resolver sends a DNS query message to an RDNSS identified by a link-local address, it MUST use the corresponding link. (§5.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8106-5.1-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L313" title="internal/component/iface/rfc8106_ra_rdnss_test.go" target="_blank" rel="noopener"><code>TestRARDNSSLinkLocalScopedToItsOwnLink</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_dns_source_test.go#L168" title="internal/component/iface/rfc8106_ra_dns_source_test.go" target="_blank" rel="noopener"><code>TestRDNSSRefusesLinkLocalOfAnotherLink</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L169" title="internal/component/iface/rfc8106_ra_rdnss_test.go" target="_blank" rel="noopener"><code>TestRARDNSSLinkLocalCarriesZone</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc8106-5.2-1"><code>RFC8106-5.2-1</code></a></h3>
 <p>A value of zero means that the DNSSL domain names MUST no longer be used. (§5.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -711,7 +769,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc8106-5.3.1-1"><code>RFC8106-5.3.1-1</code></a></h3>
 <p>Otherwise, the host MUST discard the options. (§5.3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8106-5.3.1-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/ndp/rfc8106_rdnss_test.go#L30" title="internal/core/ndp/rfc8106_rdnss_test.go" target="_blank" rel="noopener"><code>TestParseRDNSSOption</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L219" title="internal/component/iface/rfc8106_ra_rdnss_test.go" target="_blank" rel="noopener"><code>TestRARDNSSMalformedDiscarded</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/ndp/rfc8106_rdnss_test.go#L62" title="internal/core/ndp/rfc8106_rdnss_test.go" target="_blank" rel="noopener"><code>TestParseRDNSSOptionRefusesBadLength</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc8106-5.3.1-2"><code>RFC8106-5.3.1-2</code></a></h3>
 <p>On the other hand, for DNS options announced by RAs, if some RAs use the Secure Neighbor Discovery (SEND) protocol [RFC3971] for RA security, they MUST be preferred over those that do not use SEND. (§5.3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -720,6 +799,36 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>Also, DNS options announced by RAs via SEND MUST be preferred over those announced by unauthenticated DHCP [RFC3118]. (§5.3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC8106-5.3.1-3, so no unit is bound to it.</p>
+<h3><a href="#rfc8106-5.1-4"><code>RFC8106-5.1-4</code></a></h3>
+<p>Such link-local addresses SHOULD be registered in the Resolver Repository along with the corresponding link zone indices of the links that receive the RDNSS option(s) for them. (§5.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L170" title="internal/component/iface/rfc8106_ra_rdnss_test.go" target="_blank" rel="noopener"><code>TestRARDNSSLinkLocalCarriesZone</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8106-5.3.1-7"><code>RFC8106-5.3.1-7</code></a></h3>
+<p>The DNS options from RAs and DHCP SHOULD be stored in the DNS Repository and Resolver Repository so that information from DHCP appears there first and therefore takes precedence. (§5.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L150" title="internal/component/iface/rfc8106_ra_rdnss_test.go" target="_blank" rel="noopener"><code>TestRARDNSSListedAfterDHCP</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Extraction sign-off</h2>
 <div class="rfc-table-wrap">
@@ -955,7 +1064,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

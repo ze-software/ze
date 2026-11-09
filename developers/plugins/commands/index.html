@@ -432,7 +432,7 @@ no line can carry earn the same rejected row, and the head then states <code>map
 <td><code>Shape</code></td>
 <td>string</td>
 <td class="cell-no">✕</td>
-<td>What the answer holds: <code>doc</code>, <code>map</code> or <code>tab</code></td>
+<td>What the answer holds: <code>doc</code>, <code>map</code>, <code>tab</code> or <code>blob</code></td>
 </tr>
 <tr>
 <td><code>Columns</code></td>
@@ -494,7 +494,7 @@ CLI waits for the answer, then refuses from what it has in hand.</p>
 </code></pre>
 <p>Four rules decide whether the engine accepts the declaration:</p>
 <ul>
-<li>The shape MUST be <code>doc</code>, <code>map</code> or <code>tab</code>. Any other spelling fails startup.</li>
+<li>The shape MUST be <code>doc</code>, <code>map</code>, <code>tab</code> or <code>blob</code>. Any other spelling fails startup.</li>
 <li>A <code>Columns</code> or <code>AddressFields</code> list MUST come with a <code>Shape</code>.</li>
 <li>A column name MUST be a key your handler writes, in the same spelling. The
 engine cannot check this, and a name that names nothing orders nothing.</li>
@@ -653,7 +653,7 @@ if command == "my-plugin help" {
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

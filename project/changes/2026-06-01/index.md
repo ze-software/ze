@@ -1,4 +1,4 @@
-# Week of 2026-06-01
+# 2026-06-01 – 2026-06-07 (1 week)
 
 The CLI grammar rollout finished, MRT tooling arrived, and a handful of quiet-but-important reliability bugs got fixed.
 

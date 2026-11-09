@@ -6,7 +6,7 @@ List the key patterns registered by all subsystems\.
 
 - Registry path: `show data registered`
 - Usage: `show data registered`
-- Mode: Read-only
+- Mode: read-only, offline
 - Wire method: `ze-config-storage:show-data-registered`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default

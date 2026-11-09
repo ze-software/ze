@@ -1,4 +1,4 @@
-# Week of 2026-02-02
+# 2026-02-02 – 2026-02-08 (1 week)
 
 Mostly spent on the config editor, a new capability, and a round of decode/RIB bug fixes.
 

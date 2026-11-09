@@ -40,11 +40,8 @@ bgp {
 The `policy` root is shared by every protocol, and policy routing's
 `policy route` list lives in it too. A filter type is a list the YANG schema
 marks `ze:filter`; `route` carries no marker, so a filter chain cannot name a
-`policy route` entry. A configuration that still writes `bgp { policy { ... } }`
-is refused with the command that converts it: `ze config migrate -o <new-file>
-<file>` moves the block to the top-level root.
+`policy route` entry.
 <!-- source: internal/component/policy/registry.go -- BuildRegistry, ValidateName -->
-<!-- source: internal/component/config/relocated.go -- relocatedHint, ApplyRelocations -->
 
 The effective references are cumulative: automatic safety filters run first,
 followed by global, group, and peer references. The most-specific configured
@@ -59,6 +56,13 @@ in that direction (RFC 8212 Section 3). IBGP keeps its accepting default,
 including sessions using the migration AS. Automatic and inactive references
 do not count as an explicit policy.
 <!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd -->
+
+A non-required automatic reference you deactivate stays disabled after a plugin
+restart or an unrelated declaration rebuild. A reload uses its current
+deactivation settings, not the settings from boot. Required automatic
+references still cannot be overridden.
+<!-- source: internal/component/bgp/reactor/reload_tree.go -- RebuildRunningPeers -->
+<!-- source: internal/component/bgp/config/filter_insertion.go -- requiredInsertionRefusal -->
 
 Named `loop-detection` instances remain visible in the effective import policy,
 including when the direction has no operator `final`. Plain `no-self-as`,
@@ -84,6 +88,10 @@ commit now
 Deactivation keeps that member as a deliberate no-check decision; it does not
 remove other filters or change the final. Removing the reference at its original
 location is also an option. Automatic import references never populate export.
+A dynamic group's export reference that names the instance through a config
+variable (`loop:AUTO-$remote_as`) is known only when a peer connects, so it is
+refused then: that peer rejects every route it would send, and the log names
+the peer and the reference to remove or deactivate.
 
 A reload compares the whole effective policy. Changing only the export `final`
 therefore reconciles advertisements on the existing session without a source
@@ -111,11 +119,15 @@ Reloading a filter definition without changing the final is a separate operation
 ## A chain that names a plugin filter
 
 A chain member written `<plugin>:<filter>` names a filter that plugin declares
-when it starts. Ze checks the reference against that declaration: the plugin
-must declare a filter of that name (or a name pattern it matches), and the
-fields the filter declares it reads and sets must be ones the attachment
-carries and lets a filter set. When the check fails, the config is not
-applied:
+when it starts. The qualifier also controls execution: a local policy instance
+with the same filter name cannot replace a reference qualified by another
+plugin. Ze checks the reference against that declaration: the plugin must
+declare a filter of that name (or a name pattern it matches). Its declared
+direction must allow the attachment: an import-only filter cannot run on
+export, an export-only filter cannot run on import, and `both` allows either.
+The fields the filter declares it reads and sets must be ones the attachment
+carries and lets a filter set. Ze checks the direction of a plugin's declared
+auto-insertions too. When the check fails, the config is not applied:
 
 - **At startup, ze does not start.** The plugin is refused at its first stage,
   whatever its failure policy, and ze exits with the reason and the fix.
@@ -147,6 +159,22 @@ plugin's declaration, and start or reload again.
 <!-- source: internal/component/plugin/server/startup.go -- refuseStartupOnLoadedChain -->
 <!-- source: internal/component/plugin/server/startup_autoload.go -- reloadChainRefusal -->
 <!-- source: internal/component/plugin/registry/filter_declaration.go -- ErrLoadedChainRefused -->
+<!-- source: internal/component/plugin/registry/filter_insertion.go -- CheckFilterInsertions -->
+<!-- source: internal/component/bgp/config/library_chains.go -- compileLibraryChain -->
+
+A dynamic group may name an external filter through `$remote_as`, `$local_as`
+or `$remote_ip`, for example `bgp-filter-irr:$remote_as`. At config load and
+Stage 1, Ze requires a declaration whose direction, reads and sets fit the
+attachment. An exactly declared name must match the template; a declared name
+pattern is checked against the concrete name after the peer's variables are
+resolved. Ze does not compare the literal `$remote_as` token with an ASN pattern.
+Each peer's resolved name is checked again against the actual declaration,
+with an exact name taking precedence over a pattern. Its direction, reads
+and sets must still fit. A resolved name the plugin does not serve fails
+closed: that peer's chain rejects every route in that direction. Static peers
+cannot use these variables, and an unknown variable is refused at load.
+<!-- source: internal/component/bgp/config/templated_chain.go -- checkTemplatedMember, templatedChain.CompileResolved -->
+<!-- source: internal/component/bgp/config/external_filters.go -- judgeExternalChainTemplate, judgeExternalChainDeclaration -->
 
 ## Filter outcomes
 
@@ -162,14 +190,79 @@ references are all inactive, still applies it. A raw full-UPDATE rewrite stops
 later filters, but still receives the policy final. An earlier reject,
 fail-closed error, or teardown cannot be turned into acceptance by `final accept`.
 
+A `match` instance naming a `prefix-list` judges each prefix of the UPDATE,
+announced and withdrawn, as the `prefix-list` filter does: an UPDATE with no
+prefix, or none the list denies, passes; one whose every prefix is denied is
+rejected; otherwise the denied prefixes are dropped and the rest passes on. A
+FlowSpec rule is judged by its destination prefix, and a denied or absent
+destination rejects the whole UPDATE.
+
+```
+policy {
+    prefix-list CUSTOMERS { entry 10.0.0.0/8 { ge 16; le 24; action accept; } }
+    match customers-only { prefix-list CUSTOMERS; }
+}
+bgp { peer p1 { filter { import { filters [ customers-only ]; final accept; } } } }
+```
+
+<!-- source: internal/component/bgp/policychain/match.go -- matchWalk -->
+<!-- source: internal/component/bgp/plugins/filter_prefix/condition.go -- compileBGPCondition -->
+
 Each plugin declares whether an internal error fails open or closed. Security filters should normally reject on failure. Operational policy should make that choice explicit rather than depending on an unavailable external service.
+
+### Conditional defaults and stale readvertisement
+
+`default-originate-filter` is a condition, not an attribute policy for the
+default route. It judges the encoded default route through the named filter
+and the export policy's final. Valid attribute sets participate in that
+evaluation but do not change the emitted default. An eligible default then
+runs the full export policy separately. A rejected condition, a fail-closed
+evaluation error or an unsupported raw condition withholds the default; use
+a filter that reads declared route fields rather than raw bytes.
+
+A stale readvertisement runs only export members whose declarations opt into
+`readvertise`. Its result goes to the already-filtered writer: ordinary export
+members do not run again, and a non-idempotent set such as AS-path prepend is
+not doubled. A withdrawal decision remains a withdrawal. Writer ownership,
+message-size limits and origination admission still apply.
+
+The exception is a route sent before the peer's export policy last changed,
+whether by a reload that changed it or by the peer being restarted, and a route
+whose earlier send cannot be identified. It runs the whole export policy and its
+final, because the policy that passed it is no longer the one in force, the members
+that opted in running last. A reload that leaves the export policy as it was does
+not trigger this. A rejection withdraws the route from the peer, since leaving it
+would keep a copy with no LLGR_STALE mark until the purge. A route whose earlier send
+cannot be identified is withdrawn only while the prefix holds a route this router
+originated: a fresher route another source put under the same prefix stays.
+
+Known defects, owned by
+[`spec-bgp-refresh-reapplies-export-policy`](https://github.com/ze-software/ze/blob/main/docs/../plan/release/fixes/spec-bgp-refresh-reapplies-export-policy.md):
+this run goes over the bytes already sent, so a non-idempotent set such as AS-path
+prepend applies a second time to that route, and a change inside an external
+plugin's own data is not seen as an export policy change and does not trigger it.
+
+When `bgp-gr` runs, its required `llgr-egress` member answers again on a route
+RFC 9494 Section 4.3 binds, one Ze advertised the LLGR Capability for or attached
+LLGR_STALE to: it runs over a body the export chain rewrote, and puts the community
+back if a member took it off. That holds against an ordinary member. A plugin filter
+that declares `judges-final` runs in the same pass, and one behind `llgr-egress` can
+take the community off again. A route from a neighbor Ze sent no capability
+to is not bound, so an export member may remove the 65535:6 such a neighbor sent. An
+import member runs ahead of it and can still take the community off first.
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- defaultOriginateFilterAccepts, sendDefaultOriginateRoutes -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- sendStaleReadvertiseUnit, decideStaleReadvertise -->
+<!-- source: internal/component/bgp/reactor/stale_readvertise_chain.go -- staleChainFor, runStaleChain -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runFinalJudges -->
+<!-- source: internal/component/bgp/plugins/gr/gr_filter.go -- evaluateLLGREgress, lostLLGRStale -->
+
 
 ## Common policy building blocks
 
 Ze ships filters for:
 
 - AS path matching and length;
-- transit-leak rejection by ASN and position (`reject-asn`);
+- rejection of a path through listed ASNs, by position (`reject-asn`);
 - prefix lists;
 - standard, large, and extended communities;
 - route attribute modification;
@@ -179,6 +272,21 @@ Ze ships filters for:
 - RFC 4271 AS loop and RFC 4456 cluster-list loop detection.
 
 The [plugin guide](../plugins/index.md) documents the registered filter types and their current configuration. The generated [plugin catalogue](https://ze-software.net/reference/plugins/) shows which plugin owns each filter.
+
+### Removing an address family
+
+A `family-filter` instance with `action remove` checks every reachability
+section of the UPDATE: the legacy IPv4 announcements and withdrawals, and the
+families named by MP_REACH_NLRI and MP_UNREACH_NLRI. A mixed UPDATE loses only
+the configured family's sections; announcements and withdrawals of other
+families remain. If no other family remains, the whole UPDATE is suppressed.
+An UPDATE without the configured family passes unchanged.
+
+With `action tear-down`, a match in any of those sections closes the session
+on import. This action is forbidden in export chains.
+
+<!-- source: internal/component/bgp/plugins/filter_family/handler.go -- judgeFamily -->
+<!-- source: internal/component/bgp/plugins/filter_family/match.go -- familyMatch -->
 
 ## Rejecting a path through a transit provider
 
@@ -192,6 +300,9 @@ policy {
     reject-asn NO-TRANSIT {
         indirect [ 174 701 3356 ];
     }
+    match reject-asn-NO-TRANSIT {
+        reject-asn NO-TRANSIT;
+    }
 }
 bgp {
     router-id 192.0.2.1
@@ -203,8 +314,8 @@ bgp {
     peer ix-member {
         role   { import peer; }
         filter {
-            import { filters [ NO-TRANSIT ]; final accept; }
-            export { filters [ NO-TRANSIT ]; final accept; }
+            import { filters [ reject-asn-NO-TRANSIT ]; final accept; }
+            export { filters [ reject-asn-NO-TRANSIT ]; final accept; }
         }
     }
 }
@@ -215,10 +326,12 @@ Seven keywords say where: `direct`, `indirect`, `transit`, `origin`, `anywhere`,
 excludes the sending peer's own leading run and catches the ASN everywhere else.
 The [configuration reference](https://github.com/ze-software/ze/blob/main/docs/config-reference.md) carries the whole table.
 
-Declaring an RFC 9234 role makes this check mandatory on the chains that role
-binds: the config is refused unless each bound chain names a `reject-asn`
-filter, or names one prefixed with `inactive:` to record the decision to run
-without it. See [BGP roles](../bgp-role/index.md).
+A peer that declares an RFC 9234 role needs no list for its upstream
+providers: `bgp-role` inserts `bgp-role:upstream-asn` in the chains that role
+binds and rejects a path through the remote ASN of every `role import
+customer` peer, plus any `role transit-asns` set. A `reject-asn` list is for
+the ASNs you choose beyond that. See [BGP roles](../bgp-role/index.md), "The Upstream
+Check a Role Inserts".
 
 `show bgp reject-asn` prints every list with the effective position set per ASN.
 `show bgp reject-asn known transit-free` prints a pasteable block of well-known
@@ -278,6 +391,18 @@ direction, beside the named `tag` and `strip` sets. Each one is a leaf under
 `filter { ingress { community { } } }`, and the container is available at the
 `bgp`, group, group-peer, and standalone-peer levels.
 
+The settings run only where the peer's filter chain names the member that
+runs them: `bgp-filter-community:ingress` in the import chain for the
+`ingress` settings, `bgp-filter-community:relation` for `relation-tag`, and
+`bgp-filter-community:egress` in the export chain for the `egress` settings.
+A member named at the `bgp` or group level runs for every peer below it. Ze
+refuses a peer whose settings no member runs, and the refusal names the line
+to add. The protocol procedures other plugins insert (LLGR, the RFC 9234
+roles) always run before these members, so a strip or tag cannot hide a
+route from them. Toward every eBGP destination that is not a route-server
+client, the plugin itself inserts the RFC 7999 Section 3.1 BLACKHOLE
+agreement check; it runs whether or not the operator names any member.
+
 | Leaf | Type | Default | Meaning |
 |------|------|---------|---------|
 | `relation-tag` | boolean | `false` | Write the RFC 8195 Section 3.2 relation-to-origin large community on each route this peer sends. |
@@ -296,6 +421,10 @@ bgp {
     }
     group customers {
         filter {
+            import {
+                filters [ bgp-filter-community:ingress bgp-filter-community:relation ];
+                final accept;
+            }
             ingress {
                 community {
                     scrub-own-ga        true;
@@ -511,7 +640,11 @@ A chain that names a library filter instance runs in the dry-run exactly as on
 the session, without counting or logging a failure: a member's trace entry
 shows what it set in `delta` (for example `local-preference 200`), and why it
 failed in `error`. A single-filter override on such a chain runs that one
-filter the same way, followed by the policy's final.
+filter the same way, followed by the policy's final. A filter reading a
+session fact (`peer-name`, `peer-as`, `rs-client`, ...) sees the peer you
+named, on import as the sender and on export as the destination. The pasted
+UPDATE came from no peer, so on export the `source-*` facts are absent, and
+a metadata set on import lasts only for the test.
 
 The dry-run covers the per-peer external-policy stage, not the full ingress
 protocol pipeline. An active named in-process check appears in `trace` with

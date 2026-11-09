@@ -142,35 +142,29 @@ under "Plugin config changed" and "What Requires Restart".
 ## When a Reload Changes a Plugin's Capability
 
 A plugin that adds a capability to ze's OPEN (`bgp-softver`, `bgp-hostname`,
-`bgp-role`, `bgp-llnh`, `bgp-gr`, `exabgp-bridge`) sends it once, when ze
-starts. A reload that would change one is refused, because ze would keep
-sending the old value in its OPEN. The refusal names the peer, the
-`capability` leaf and the plugin, then how to restart:
+`bgp-role`, `bgp-llnh`, `bgp-gr`, `exabgp-bridge`) answers each reload with
+the capabilities the new config declares, and ze installs them when the reload
+commits. A reload that does not commit puts the previous ones back.
 
-```
-peer 192.0.2.1: capability software-version cannot change while ze runs (plugin bgp-softver).
-The plugin sends its capabilities only when ze starts, so ze would keep sending the old value in its OPEN to this peer.
-To apply the change, stop the ze daemon and start it again:
-  under systemd: systemctl restart ze
-  without systemd: ze signal stop, then start ze the way it was started (ze start, or ze start <config-file>)
-  on the ze appliance: request reboot in the ze CLI, or ze signal reboot from a shell
-```
-
-What counts as a change:
+The declarations are checked together after every affected plugin has answered.
+One commit may move a capability from one plugin to another when the old owner
+removes it in that same commit. A conflict with an unchanged owner, or two new
+owners claiming the same capability for the same peer, refuses the commit before
+any plugin applies it. Each OPEN built during replacement or rollback sees a
+complete declaration set, never a temporary gap between owners.
 
 | Reload | Result |
 |--------|--------|
-| A capability's value changes on a peer that stays configured | Refused |
-| A capability is removed from a peer that stays configured | Refused |
-| A peer is added that carries one of these capabilities | Refused: ze holds no OPEN capability for it |
-| A session family is added or removed on a `graceful-restart` peer with no `graceful-restart family` list | Refused: the Graceful Restart payload follows the session families. An explicit `family` list keeps the payload fixed and the reload is accepted |
-| The exabgp bridge's families are edited while its `add-path` is set | Refused naming `add-path`: the ADD-PATH payload is built from those families |
+| A peer is added that carries one of these capabilities | Accepted: its first OPEN carries them |
+| A capability's value changes, or is added or removed, on a peer that stays configured | Accepted. The session restarts to send the new OPEN when the peer advertised that capability code in its own OPEN, because the negotiated result can change. Otherwise the session keeps running, and its next OPEN carries the new value |
+| A session family is added or removed on a `graceful-restart` peer with no `graceful-restart family` list | Accepted, under the row above: the Graceful Restart payload follows the session families. An explicit `family` list keeps the payload fixed |
+| The exabgp bridge's `route-refresh` or `add-path` changes | Accepted, for every peer, under the same rule |
+| The exabgp bridge's families are edited | Refused by the bridge, naming the `family` leaf, with the restart steps: its scripts keep the families they started with |
 | A peer is removed, or nothing these plugins declare changes | Accepted |
-
-The refusal names a peer by its name, or by its address for a plugin that
-keys peers by address (`bgp-role`). A change in a dynamic group's template is
-named as `peers of dynamic group <name>`, and a bridge setting, which applies
-to every session, as `every peer`.
+<!-- source: pkg/plugin/sdk/capability_declaration.go -- composeCapabilityVerify, CandidateCapabilities -->
+<!-- source: internal/component/plugin/server/config_tx_capabilities.go -- stageVerifiedCapabilities, installStagedCapabilities, restoreCapabilities -->
+<!-- source: internal/component/bgp/reactor/peer_settings_negotiation.go -- pluginDeclarationsKept -->
+<!-- source: internal/plugins/exabgp/bridgeplugin/config_tx.go -- verifyReload, changedBridgeLeaves -->
 
 `systemctl restart ze` and `ze signal stop` end each session with a normal
 teardown, so peers withdraw ze's routes until it is back. The appliance routes
@@ -180,7 +174,6 @@ ze's routes for the restart time. Under systemd, the restart that keeps the
 marker is `ze signal restart`, a wait until the process has exited, then
 `systemctl start ze`: `ze signal restart` alone leaves ze stopped, because it
 exits cleanly and the unit restarts only on failure.
-<!-- source: pkg/plugin/sdk/capability_declaration.go -- capabilityChanges, capabilityRefusal -->
 <!-- source: pkg/plugin/sdk/restart_text.go -- RestartSteps -->
 
 ## Binding Plugins to Peers
@@ -613,12 +606,12 @@ address. A session whose events named it nothing is selected by no name.
 | `firewall-vpp` | VPP ACL backend for firewall: translates ze Match/Action types to VPP ACL rules, read-merge-write bindings preserving foreign ACLs | -- (registered as firewall backend) |
 | `policy-routes` | Policy-based routing via nftables packet marking and kernel ip rules. Steers traffic to alternate routing tables or next-hops based on L3/L4 match criteria. [Guide](../policy-routing/index.md) | -- (Config-driven, depends on firewall) |
 | `sysctl` | Kernel tunable management: three-layer precedence (config > transient > default), restore on stop. Named profiles (dsr, router, hardened, multihomed, proxy) for interface units. User-defined profiles. | -- (Bus events, CLI commands) |
-| `dhcpserver` | DHCP server (RFC 2131/2132) with PXE boot support (RFC 4578): pool management, lease tracking, static mappings, PXE option injection (options 43/60/66/67/93) for BIOS/UEFI bootfile selection | -- (Config-driven, UDP listener) |
+| `dhcpserver` | DHCP server (RFC 2131/2132) with PXE boot support (RFC 4578): pool management, lease tracking, static mappings, PXE option injection (options 43/60/66/67/93) for BIOS/UEFI bootfile selection; option 6 from the subnet's `dns-source` list (default `source [ configured received ]`: the subnet's `dns-server`, else the learned resolvers) | -- (Config-driven, UDP listener) |
 | `tftpserver` | Read-only TFTP server (RFC 1350): serves bootloader files for PXE provisioning in 512-byte blocks with stop-and-wait ACK, concurrent transfer limiting, path traversal protection | -- (Config-driven, UDP listener on port 69) |
 | `imageserver` | HTTP image server for PXE provisioning: serves gokrazy disk images, installer boot files, and pre-provisioned zefs databases with SSH credentials. Own HTTP listener, path traversal protection, Range request support | -- (Config-driven, HTTP listener) |
 | `geodns` | GeoDNS server (RFC 1035): DNS answers selected by client source IP. Client IP from EDNS0 client-subnet (RFC 7871) or packet source; CIDR longest-prefix selects a named host-set (A/AAAA/SRV records); synthesizes SOA/NS/glue. `show geodns`, `ze_geodns_*` metrics, UDP+TCP listeners (default 127.0.0.1:5300); compile-out-able with the `ze_geodns` build tag <!-- source: feature-gates.txt -- ze_geodns --> | -- (Config-driven, UDP+TCP listeners) |
 | `as112` | AS112 anycast DNS node (RFC 7534, RFC 7535): authoritative-only sink for misdirected RFC 1918 / link-local reverse-DNS queries plus the EMPTY.AS112.ARPA DNAME-redirection zone. Four fixed anycast host addresses (never operator-typed) registered via the iface address-ownership registry, `IP_FREEBIND` listeners, optional `allow-from` client-source access list (loopback always permitted). `show as112`, `as112 health` (one-shot query for the healthcheck probe), `ze_as112_*` metrics, UDP+TCP listeners on port 53. Now also a BGP redistribute source: `redistribute { destination bgp { import as112 } }` originates the four covering prefixes into BGP, with `asn` (origin AS, default 112), `community`, and a `watchdog` health-gate under `service { as112 }`. <!-- source: internal/plugins/as112/redistribute.go -- registerAS112Sources --> | -- (Config-driven, UDP+TCP listeners) |
-| `dnsresolver` | LAN DNS resolver (RFC 1035, RFC 2181), configured under `service { dns-resolver }`: UDP and TCP listeners on the addresses the operator names, an `allow-from` client prefix list, and an ordered `forward server` list. A commit is refused for a wildcard listener address, and for an enabled resolver with no `allow-from` prefix or no forward server. A query from an allowed client with RD set is answered from the cache or forwarded to the upstream servers in order, and SERVFAIL is returned when no upstream gives a usable answer within the timeout and the per-query work budget <!-- source: internal/plugins/dnsresolver/config.go -- parseConfig, checkEnabled --> <!-- source: internal/plugins/dnsresolver/resolve.go -- resolve, forward --> | -- (Config-driven, UDP+TCP listeners) |
+| `dnsresolver` | LAN DNS resolver (RFC 1035, RFC 2181), configured under `service { dns-resolver }`: UDP and TCP listeners on the addresses the operator names, an `allow-from` client prefix list, an ordered `forward server` list, and a `forward dns-source` list that chooses the upstreams from those servers and the resolvers Ze learned (default `source [ configured received ]`, `mode first-usable`; `docs/features/dns-resolver.md`). A commit is refused for a wildcard listener address, for an enabled resolver with no `allow-from` prefix, and for one with no forward server whose `forward dns-source` names no `received` source. A query from an allowed client with RD set is answered from the cache or forwarded to the upstream servers in order, and SERVFAIL is returned when no upstream gives a usable answer within the timeout and the per-query work budget <!-- source: internal/plugins/dnsresolver/config.go -- parseConfig, checkEnabled --> <!-- source: internal/plugins/dnsresolver/resolve.go -- resolve, forward --> | -- (Config-driven, UDP+TCP listeners) |
 | `traffic-usage` | eBPF TCX per-(port, protocol) and opt-in per-IP byte accounting (IPv4, monitoring only). Pure-Go assembled eBPF (cilium/ebpf asm.Instructions, no C/clang). Prometheus `ze_traffic_usage_*` metrics, `show traffic usage [name <interface>]`. Linux >= 6.6. [Guide](../traffic-usage/index.md) | -- (Config-driven, Bus events) |
 <!-- source: internal/plugins/trafficusage/register.go -- traffic-usage registration -->
 <!-- source: internal/plugins/policyroute/register.go -- policy-routes registration -->
@@ -643,7 +636,7 @@ address. A session whose events named it nothing is selected by no name.
 |--------|-------------|
 | `l2tp-auth-local` | Static user/password authentication for L2TP PPP sessions (PAP/CHAP-MD5/MS-CHAPv2) |
 | `l2tp-auth-radius` | RADIUS authentication (Access-Request), accounting (Start/Stop/Interim-Update), CoA/DM listener, and Access-Accept attribute extraction (Framed-IP-Address, Framed-Pool, Session-Timeout, Idle-Timeout, Filter-Id, Acct-Interim-Interval) |
-| `l2tp-pool` | Bitmap-backed IPv4 address pool with default and named pools; Framed-IP-Address bypasses pool (direct RADIUS IP assignment), Framed-Pool selects a named pool |
+| `l2tp-pool` | Bitmap-backed IPv4 address pool with default and named pools; Framed-IP-Address bypasses pool (direct RADIUS IP assignment), Framed-Pool selects a named pool; IPCP DNS from the pool's `dns-source` list (default `source [ radius configured received ]`: the Access-Accept's MS-Primary-DNS-Server and MS-Secondary-DNS-Server, else `dns-primary`/`dns-secondary`, else the learned resolvers) |
 | `l2tp-shaper` | TC traffic shaping (TBF/HTB) on pppN interfaces with configured default rates, RADIUS CoA rate updates, and initial rate from Filter-Id at session establishment |
 
 These plugins register via the L2TP handler registry (`RegisterAuthHandler`,
@@ -722,15 +715,17 @@ Bus topics in the sysctl pipeline:
 ### Route Filters
 
 Plugins can declare named filters at stage 1 for import and/or export filtering.
-A filter declares which attributes it reads. That declaration does not narrow
-what it receives. The engine builds one subject for the whole chain, and the
-subject names every attribute the UPDATE carries. See
-[The Attribute Names in the Filter Text Protocol](https://github.com/ze-software/ze/blob/main/docs/architecture/api/process-protocol.md)
+A filter declares the route fields it reads, and the engine sends it exactly
+those fields. See
+[The Route Fields of filter-update](../../developers/plugins/protocol/index.md)
 for the names and their value shapes. Filters respond accept, reject, or modify
-(delta-only). See [Route Filters and Redistribution](../redistribution/index.md) for configuration.
+(the fields they change). See [Route Filters and Redistribution](../redistribution/index.md) for configuration.
 
 A single plugin can offer multiple named filters. Config references them as
-`<plugin>:<filter>` (e.g., `rpki:validate`, `community:scrub`).
+`<plugin>:<filter>` (e.g., `rpki:validate`, `community:scrub`). `<plugin>` is
+the plugin's own name, not the name of the `plugin { }` block that runs it: a
+block `internal gr { use bgp-gr; }` serves `bgp-gr:<filter>`, and two blocks
+running the same filter plugin are refused.
 
 | Category | Behavior | Example |
 |----------|----------|---------|
@@ -848,10 +843,14 @@ NAME { ... } }`. Each list is a sequence of `entry <CIDR>` blocks with
 optional `ge` / `le` bounds and an `action` of `accept` or `reject`; the
 first matching entry wins and no match is an implicit deny.
 
-Filter chain references use the standard `<plugin>:<filter>` form:
-`bgp-filter-prefix:CUSTOMERS`. The shorter form `prefix-list:CUSTOMERS` also
-resolves to the same plugin via the filter-type registration, and a bare
-`CUSTOMERS` resolves if no other filter plugin claims a filter of that name.
+A BGP peer chain reaches a list through a `match` instance:
+`policy { match FROM-CUSTOMERS { prefix-list CUSTOMERS; } }`, then
+`filters [ FROM-CUSTOMERS ]`. The daemon judges the match in process over the
+UPDATE, so the plugin answers no `filter-update`. A BGP chain that names the
+list itself, as `CUSTOMERS` or `prefix-list:CUSTOMERS`, is refused at commit:
+no BGP filter serves the prefix-list type. The plugin-qualified
+`bgp-filter-prefix:CUSTOMERS` is refused at config load, as is any
+`<plugin>:<name>` naming a compiled-in plugin that declares no filter.
 
 A prefix-list can also run in a Loc-RIB import chain, named there by its bare
 instance name. It judges one route at a time with the same entry matching: the
@@ -859,23 +858,17 @@ first matching entry decides and no match rejects the route
 ([Route Policy at the Loc-RIB](https://github.com/ze-software/ze/blob/main/docs/guide/route-policy.md)).
 <!-- source: internal/component/bgp/plugins/filter_prefix/rib_evaluator.go -- compileRouteEvaluator -->
 
-| UPDATE content | Filter action |
-|----------------|---------------|
-| Single prefix, accepted | `accept` (passes through) |
-| Single prefix, denied | `reject` (update dropped) |
-| Multi-prefix, all accepted | `accept` (passes through) |
-| Multi-prefix, all denied | `reject` (update dropped) |
-| Multi-prefix, mixed | `modify` -- rewrites the UPDATE NLRI section to carry only the accepted prefixes, denied prefixes are silently removed. cmd-4 phase 2. |
+The match judges each prefix of the UPDATE on its own, in the legacy NLRI and
+Withdrawn Routes and in each MP_REACH_NLRI and MP_UNREACH_NLRI, so an IPv6
+UPDATE or IPv4 unicast carried in MP_REACH_NLRI is judged the same way. An
+UPDATE whose prefixes are all accepted passes, one whose prefixes are all
+denied is rejected, and a mixed one passes with its denied prefixes dropped. A FlowSpec UPDATE with a
+denied destination is rejected whole, because the engine does not rewrite a
+FlowSpec NLRI ([Route Policy at the Loc-RIB](https://github.com/ze-software/ze/blob/main/docs/guide/route-policy.md), "The `match`
+conditions").
 
-The mixed case is judged block by block: the legacy NLRI and Withdrawn Routes,
-and each MP_REACH_NLRI and MP_UNREACH_NLRI, so an IPv6 UPDATE or IPv4 unicast
-carried in MP_REACH_NLRI loses its denied prefixes the same way. A FlowSpec
-UPDATE with a denied destination is rejected whole, because the engine does
-not rewrite a FlowSpec NLRI.
-
-<!-- source: internal/component/bgp/plugins/filter_prefix/filter_prefix.go -- handleFilterUpdate, buildModifyDelta -->
-<!-- source: internal/component/bgp/plugins/filter_prefix/match.go -- partitionUpdate -->
-<!-- source: internal/component/bgp/reactor/filter_nlri_delta.go -- sectionNLRIDelta -->
+<!-- source: internal/component/bgp/plugins/filter_prefix/condition.go -- compileBGPCondition -->
+<!-- source: internal/component/bgp/policychain/match.go -- compileMatchEvaluator, matchWalk -->
 
 ### AS-Path Filter (`bgp-filter-aspath`)
 
@@ -885,12 +878,26 @@ accept|reject; } } }`. Each entry's regex is matched against the AS-path
 string using Go's RE2 engine (linear time, inherently ReDoS-safe). First
 match wins; no match is implicit deny.
 
-Chain references: `bgp-filter-aspath:NAME`, `as-path-list:NAME`, or bare
-`NAME`. Config authors should use `[0-9]` instead of `\d` in regex strings
-because ze's config parser interprets backslash as an escape character.
+Config authors should use `[0-9]` instead of `\d` in regex strings because
+ze's config parser interprets backslash as an escape character.
 
-**The AS-path string every filter matches against.** One reader produces it,
-`filtertext.ASPath`, and every AS-path filter takes it from there. It is the
+A BGP chain reaches a list only through the `as-path` condition of a `match`
+instance, which the plugin registers; a chain naming the list itself is
+refused at commit:
+`policy { match FROM-65001 { as-path TRANSIT; } }` passes an UPDATE the
+`TRANSIT` list accepts and rejects any other, the same regexes over the same
+AS-path string the list judges as a chain member. Only a BGP chain judges it:
+a Loc-RIB route carries no AS path, so a match naming `as-path` there is
+refused. The editor completes the configured lists, and a commit naming any
+other is refused.
+
+<!-- source: internal/component/bgp/plugins/filter_aspath/condition.go -- compileBGPCondition -->
+<!-- source: internal/component/bgp/plugins/filter_aspath/register.go -- MustRegisterMatchCondition -->
+<!-- source: internal/component/bgp/policyview/aspath_text.go -- ASPathText -->
+
+**The AS-path string every pattern matches against.** One reader produces it,
+the route view's `ASPathText`, and the `as-path` condition takes it from
+there. It is the
 space-separated decimal ASNs with no brackets, for example `65001 65002 65003`.
 Two properties of it are load-bearing for a pattern you write:
 
@@ -905,17 +912,9 @@ Two properties of it are load-bearing for a pattern you write:
   filter sees the text (RFC 6793 Section 4.2.3), so a pattern and a hop count
   read the real AS numbers and never AS_TRANS.
 - **A route with no AS_PATH gives the empty string**, and a route with one ASN
-  gives that ASN alone. The producer writes one ASN unbracketed (`as-path
-  65001`) and several in brackets (`as-path [65001 65002]`), and the reader
-  strips the brackets, so a pattern never sees one. A plugin that rewrites the
-  AS path can pad the inside of the brackets, `as-path [ 65001 65002 ]`, and the
-  reader trims that padding too. A pattern and a hop count therefore read the
-  same list whether the path came off the wire or out of a plugin.
+  gives that ASN alone, with no brackets around it.
 
-<!-- source: internal/component/bgp/plugins/filter_aspath/filter_aspath.go -- handleFilterUpdate -->
-<!-- source: internal/component/bgp/plugins/filter_aspath/match.go -- evaluateASPath -->
-<!-- source: internal/component/bgp/filtertext/aspath.go -- ASPath -->
-<!-- source: internal/core/bgp/attribute/text_append.go -- AppendText -->
+<!-- source: internal/component/bgp/plugins/filter_aspath/match.go -- evaluateASPathText -->
 <!-- source: internal/component/bgp/reactor/filter_format.go -- asPathForFilter -->
 
 ### Reject-ASN Filter (`bgp-filter-path-asn`)
@@ -930,6 +929,9 @@ policy {
     reject-asn NO-TRANSIT {
         indirect [ 174 3356 ]
     }
+    match reject-asn-NO-TRANSIT {
+        reject-asn NO-TRANSIT
+    }
 }
 
 bgp {
@@ -942,11 +944,11 @@ bgp {
     peer peer-a {
         filter {
             import {
-                filters [ NO-TRANSIT ];
+                filters [ reject-asn-NO-TRANSIT ];
                 final accept;
             }
             export {
-                filters [ NO-TRANSIT ];
+                filters [ reject-asn-NO-TRANSIT ];
                 final accept;
             }
         }
@@ -1002,7 +1004,10 @@ and a keyword nobody declared are both refused by the config parser.
 Every reject logs the offending ASN or pattern, the position it matched at, the
 list, the peer and the direction.
 
-Chain references: bare `NAME`, `reject-asn:NAME`, or `bgp-filter-path-asn:NAME`.
+A BGP chain reaches a list through the `reject-asn` condition of a `match`
+instance: `policy { match NO-TRANSIT-IN { reject-asn NO-TRANSIT; } }`, then
+`filters [ NO-TRANSIT-IN ]`. A chain naming the list itself is refused at
+commit.
 
 Every reject also increments `ze_filter_path_asn_rejects_total`, labeled with
 the direction, the position that matched and the reason. The peer stays in the
@@ -1016,7 +1021,7 @@ curated date as comments, and after the paste the config holds the numbers.
 `show bgp reject-asn` lists what each list holds, and
 `show bgp reject-asn name <name>` answers for one of them.
 
-<!-- source: internal/component/bgp/plugins/filter_path_asn/filter_path_asn.go -- handleFilterUpdate, senderOf -->
+<!-- source: internal/component/bgp/plugins/filter_path_asn/condition.go -- compileBGPCondition, conditionCheck -->
 <!-- source: internal/component/bgp/plugins/filter_path_asn/command.go -- showRejectASN, showKnownTransitFree -->
 <!-- source: internal/component/bgp/plugins/filter_path_asn/metrics.go -- recordReject -->
 <!-- source: internal/component/bgp/plugins/filter_path_asn/config.go -- positionsByKey, parseRejectASNLists -->
@@ -1034,13 +1039,16 @@ Separate from the tag/strip community plugin (`bgp-filter-community`) because
 intent differs: this plugin filters (accept/reject), that one modifies
 (tag/strip). They can coexist in the same deployment.
 
-Chain references: `bgp-filter-community-match:NAME` or `community-match:NAME`.
+A BGP chain reaches a list through the `community NAME` condition of a
+`match` instance, which the package registers: the daemon judges it over the
+attributes' octets, with the list's own first-match order and implicit deny
+(`docs/guide/route-policy.md`, "The `match` conditions"). A chain naming the
+list itself is refused at commit.
 
 Well-known community names (`no-export`, `no-advertise`, `blackhole`, etc.)
-work as match values because the filter text format renders them as names.
+work as match values.
 
-<!-- source: internal/component/bgp/plugins/filter_community_match/filter_community_match.go -- handleFilterUpdate -->
-<!-- source: internal/component/bgp/plugins/filter_community_match/match.go -- evaluateCommunities -->
+<!-- source: internal/component/bgp/plugins/filter_community_match/condition.go -- compileBGPCondition -->
 
 ### Route Attribute Modifier (`bgp-filter-modify`)
 
@@ -1050,6 +1058,9 @@ only to the routes that meet it. The operations are:
 
 **Set** (absolute value): `set { local-preference 200; med 50; origin igp;
 next-hop 10.0.0.1; as-path-prepend 3; }`. Only present leaves are applied.
+`next-hop` writes the NEXT_HOP attribute, which carries an IPv4 address only,
+so an IPv6 address there is refused when the config loads. `as-path-prepend`
+takes 1 to 32.
 
 **Increment/Decrement** (relative adjustment): `increment { local-preference 50; }`
 or `decrement { med 30; }`. Supported attributes: local-preference, med, aigp.
@@ -1090,7 +1101,8 @@ a speaker to implement. It is honored on an **import** chain only, because that
 section also requires the removal before Decision Process phases 1 and 2. The
 import chain is the only chain that runs there.
 
-On an export chain, the directive is refused and logged. RFC 4271 Section
+On an export chain, the removal is ignored with a logged warning, and the
+definition's other operations still apply. RFC 4271 Section
 9.1.2.2 states that comparing on a MULTI_EXIT_DISC and then advertising the
 route without it causes route loops. The directive is mutually exclusive with
 `set med`, `increment med`, and `decrement med`. A metric received from one
@@ -1113,9 +1125,14 @@ route that must keep flowing untouched has nowhere to go. Use an earlier filter
 when you want the rest dropped:
 
 ```text
+policy {
+    match CUSTOMERS-IN {
+        prefix-list CUSTOMERS;
+    }
+}
 filter {
     import {
-        filters [ prefix-list:CUSTOMERS modify:PREFER-LOCAL ];
+        filters [ CUSTOMERS-IN modify:PREFER-LOCAL ];
         final accept;
     }
 }
@@ -1125,12 +1142,12 @@ filter {
 Chain references: `bgp-filter-modify:NAME` or `modify:NAME`.
 
 <!-- source: internal/component/bgp/plugins/filter_modify/match.go -- matchCond, matches -->
-<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- handleFilterUpdate -->
-<!-- source: internal/component/bgp/plugins/filter_modify/modify.go -- buildDynamicDelta -->
-<!-- source: internal/component/bgp/plugins/filter_modify/modify.go -- buildDelta, buildDynamicDelta -->
-<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- appendMEDRemove -->
-<!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractASPathPrependOps, communityDirectives -->
-<!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractMEDRemoveOps -->
+<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- evaluateModify, medRemoveFor -->
+<!-- source: internal/component/bgp/plugins/filter_modify/config.go -- buildSets, buildCommunitySets -->
+<!-- source: internal/component/bgp/policychain/sets.go -- AddCommunity, RemoveCommunity -->
+<!-- source: internal/component/bgp/policychain/intents.go -- PrependASPath -->
+<!-- source: internal/component/bgp/policychain/external_attributes.go -- removeMED -->
+<!-- source: internal/component/bgp/reactor/aspath_edit.go -- prependASPathOps -->
 
 ### AS-Path Length Filter (`bgp-filter-aspath-length`)
 
@@ -1138,13 +1155,24 @@ Chain references: `bgp-filter-modify:NAME` or `modify:NAME`.
 Configure named filters with min and/or max bounds:
 `policy { as-path-length REJECT-LONG { max 30; } }`.
 Routes outside the configured range are rejected. At least one of max or min
-is required. Path length counts AS_SEQUENCE entries individually and AS_SET as 1,
-following RFC 4271 Section 9.1.2.2.
+is required. Path length counts every ASN of the path: a member of an AS_SET
+and an ASN of a confederation segment each count as one hop. That is the
+filter's own count, not the RFC 4271 Section 9.1.2.2 path length best-path
+selection uses, which counts an AS_SET as 1.
 
-Chain references: `bgp-filter-aspath-length:NAME` or `as-path-length:NAME`.
+A BGP chain reaches an instance only through the `as-path-length` condition
+of a `match` instance, which the plugin registers; a chain naming the
+instance itself is refused at commit: `policy { match NOT-LONG { as-path-length REJECT-LONG; } }` passes
+an UPDATE whose hop count lies within `REJECT-LONG`'s bounds and rejects any
+other, counting the hops the filter counts. Only a BGP chain judges it: a
+Loc-RIB route carries no AS path, so a match naming `as-path-length` there is
+refused. The editor completes the configured instances, and a commit naming
+any other is refused.
 
-<!-- source: internal/component/bgp/plugins/filter_aspath_length/filter_aspath_length.go -- handleFilterUpdate -->
-<!-- source: internal/component/bgp/plugins/filter_aspath_length/aspath_length.go -- evaluateASPathLength, countASPathHops -->
+<!-- source: internal/component/bgp/plugins/filter_aspath_length/condition.go -- compileBGPCondition -->
+<!-- source: internal/component/bgp/plugins/filter_aspath_length/register.go -- MustRegisterMatchCondition -->
+
+<!-- source: internal/component/bgp/plugins/filter_aspath_length/aspath_length.go -- evaluateASPathLength, pathHops -->
 
 ### Remove Private AS (`bgp-filter-remove-private-as`)
 
@@ -1189,7 +1217,12 @@ unique, reference it directly (e.g. `STRIP`). The prefixed forms
 `remove-private-as:STRIP` and `bgp-filter-remove-private-as:STRIP` remain
 accepted for disambiguation or advanced use.
 
-The plugin emits policy intent only. The reactor performs the wire rewrite so
+The plugin emits policy intent only: for a route whose AS_PATH or AS4_PATH
+carries a Private Use ASN it answers the `as-path` remove intent (`private`,
+or `private-peer-as` in `peer-as` mode), read from the route's declared
+`as-path` field and raw body, through one evaluator whether it runs internal
+or forked. A chain naming it runs on the in-process library chain, which
+applies the intent. The reactor performs the wire rewrite so
 AS_SEQUENCE, AS_SET, and confederation segment structure is preserved. On export
 to EBGP peers, private-AS removal runs before the normal local-AS prepend. On
 export to an IBGP peer (peer AS equals local AS, or equals the configured
@@ -1198,8 +1231,8 @@ RFC 4271 Section 5.1.2 forbids modifying the AS_PATH of a route advertised to
 an internal peer, so the route leaves with its AS_PATH unchanged.
 
 <!-- source: internal/component/bgp/reactor/filter_ordered.go -- runEgressPolicyChainASN4 -->
-<!-- source: internal/component/bgp/plugins/filter_remove_private_as/filter_remove_private_as.go -- handleFilterUpdate -->
-<!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractRemovePrivateASOps -->
+<!-- source: internal/component/bgp/plugins/filter_remove_private_as/filter_remove_private_as.go -- evaluateRemovePrivateAS -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- libraryASPathOps -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- export policy before EBGP prepend -->
 
 To test what a filter would do without sending traffic, use `show policy test`:
@@ -1361,7 +1394,7 @@ Commands: []sdk.CommandDecl{{
 }},
 ```
 
-The shape MUST be `doc`, `map` or `tab`, and a column or address-field list MUST
+The shape MUST be `doc`, `map`, `tab` or `blob`, and a column or address-field list MUST
 come with a shape. One command path carries one declaration, so make every
 branch of your handler answer the same shape whatever argument it takes. The
 field list, the bounds and the four refusals are in

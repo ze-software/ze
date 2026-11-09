@@ -122,6 +122,9 @@ policy {
     reject-asn NO-TRANSIT {
         indirect [ 174 701 3356 ]
     }
+    match reject-asn-NO-TRANSIT {
+        reject-asn NO-TRANSIT
+    }
 }
 
 bgp {
@@ -157,11 +160,11 @@ bgp {
         }
         filter {
             import {
-                filters [ NO-TRANSIT ];
+                filters [ reject-asn-NO-TRANSIT ];
                 final accept;
             }
             export {
-                filters [ NO-TRANSIT ];
+                filters [ reject-asn-NO-TRANSIT ];
                 final accept;
             }
         }
@@ -182,18 +185,18 @@ the `inactive:` member prefix. The member remains in the chain but never execute
 ```
 filter {
     import {
-        filters [ inactive:NO-TRANSIT ];
+        filters [ inactive:reject-asn-NO-TRANSIT ];
         final accept;
     }
     export {
-        filters [ inactive:NO-TRANSIT ];
+        filters [ inactive:reject-asn-NO-TRANSIT ];
         final accept;
     }
 }
 ```
 
 The prefix goes on the member, inside the brackets. Inside each direction block,
-`inactive: filters NO-TRANSIT;` deactivates an existing member. Keep the
+`inactive: filters reject-asn-NO-TRANSIT;` deactivates an existing member. Keep the
 `final accept;` decision when the member is inactive. That explicit final,
 not the inactive reference, supplies operator policy. See
 [config-deactivate.md](https://github.com/ze-software/ze/blob/main/docs/guide/config-deactivate.md) for both forms, and
@@ -230,6 +233,13 @@ Seven values diverge, and only these seven.
 | Remote AS | Learned from the peer's OPEN (RFC 4271 Section 4.2) |
 | Connection mode | Passive |
 | Dynamic flag | Set |
+
+A filter chain on a dynamic group can name a filter per member through a variable: `$remote_as` (the AS the member announces in its OPEN), `$local_as` or `$remote_ip`. With `import { filters [ ALLOW-$remote_as ]; final accept; }`, a member that announces AS 65010 runs the filter `ALLOW-65010`. The name is judged twice:
+
+- When the configuration loads, every variable must be one of the three, and at least one filter under `policy` must match the pattern. Otherwise the configuration is refused. A static peer naming a variable is refused too, because only a dynamic group resolves one.
+- When a member establishes, and again when a reload changes its group's chain, the resolved name is judged as a static peer's chain is at load. A member whose resolved name no filter has, or names a filter the attachment refuses, rejects every route in that direction. Ze logs an error naming the member and the reason, and the next reload that defines the filter brings the member back to normal filtering.
+<!-- source: internal/component/bgp/config/templated_chain.go -- checkTemplatedMember, templatedChain.CompileResolved -->
+<!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- resolveDynamicPolicy -->
 
 A dynamic group is held to the same rules as a static peer. A family with no prefix maximum is refused (RFC 4486). A hold time RFC 4271 Section 4.2 refuses is refused here too.
 

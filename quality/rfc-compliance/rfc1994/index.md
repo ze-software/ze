@@ -11,10 +11,10 @@ what Ze has
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Tested both ways | 5 | of 16 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 8 | of 16 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity plus reason | 9 | of 16 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0 | of 16 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0 | of 16 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 33 | 33 of 39 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 34 | 34 of 40 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -35,7 +35,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 3 | of 16 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 2 | of 16 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 9 counts marked as a part above are the whole of the 16 gated MUSTs: they add up to 16. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
@@ -66,14 +66,14 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 27 |
 | Gated MUST-level | 16 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 3 |
+| Declared gaps | 2 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 39 |
-| Tagged units | 39 |
+| Test tags | 40 |
+| Tagged units | 40 |
 | Recorded audit verdicts | 15 |
-| Discrimination records | 33 |
+| Discrimination records | 34 |
 | Summary | `rfc/short/rfc1994.md` |
 | Requirement shard | `rfc/requirements/rfc1994.md` |
 | RFC text | `rfc/full/rfc1994.txt` |
@@ -86,11 +86,11 @@ Enrolled: PPP CHAP-MD5 (RFC 1994): authenticator (LNS) + peer (PPPoE client); 5 
 
 **Area:** PPP CHAP (MD5)
 
-**Proof:** 8 of 16 MUST proven
+**Proof:** 9 of 16 MUST proven
 
-**Evidence:** unit 8
+**Evidence:** unit 9
 
-**Unmet:** RFC1994-2.3-1, RFC1994-4.1-2, RFC1994-4.1-9
+**Unmet:** RFC1994-2.3-1, RFC1994-4.1-9
 
 
 ## Coverage
@@ -112,8 +112,8 @@ Enrolled: PPP CHAP-MD5 (RFC 1994): authenticator (LNS) + peer (PPPoE client); 5 
 
 ## Figures
 
-- **MUST bar**: Ze proven 8, Ze correctness gap 8
-- **Overview bar**: Ze MUST proven 8, SHOULD proven 2, SHOULD not decided 9, Ze correctness gap 8
+- **MUST bar**: Ze proven 9, Ze correctness gap 7
+- **Overview bar**: Ze MUST proven 9, SHOULD proven 2, SHOULD not decided 9, Ze correctness gap 7
 
 | Figure | Rows |
 |---|---|
@@ -122,10 +122,10 @@ Enrolled: PPP CHAP-MD5 (RFC 1994): authenticator (LNS) + peer (PPPoE client); 5 
 | Mandatory register | not complete |
 | MUST rows | 16 |
 | MUST rows kept (the MUST bar) | 16 |
-| Ze proven | 8 |
+| Ze proven | 9 |
 | OS verified | 0 |
 | OS testing gap | 0 |
-| Ze correctness gap | 8 |
+| Ze correctness gap | 7 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -150,16 +150,16 @@ Source: [data/rfc/rfc1994.json](../../../data/rfc/rfc1994.json).
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC1994-1-1` | If authentication of the link is desired, an implementation MUST specify the Authentication-Protocol Configuration Option during Link Establishment phase. (Section 1) | MUST | 1 | **positive:** `unit/verify` [`TestLocalCONFREQAdvertisesAuthMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L690). **negative:** `unit/verify` [`TestAuthProtoRejectClearsMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L155) |
-| `RFC1994-4.1-1` | The authenticator MUST transmit a CHAP packet with the Code field set to 1 (Challenge). (Section 4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestCHAPResponseEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L385). **negative:** no negative test. **{single-polarity}:** runCHAPAuthPhase always frames and writes a CHAP Challenge with Code=1 as its first wire act, with no must-not-challenge branch (internal/component/l2tp/ppp/chap.go:259-261, :144-146) |
-| `RFC1994-4.1-2` | Additional Challenge packets MUST be sent until a valid Response packet is received, or an optional retry counter expires. (Section 4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze sends exactly one Challenge and, on Response timeout, fails the session closed rather than retransmitting the same Identifier/Value (internal/component/l2tp/ppp/chap.go:257-263 single send; internal/component/l2tp/ppp/auth.go:328-337 timeout calls s.fail with no retransmit) |
+| `RFC1994-1-1` | If authentication of the link is desired, an implementation MUST specify the Authentication-Protocol Configuration Option during Link Establishment phase. (Section 1) | MUST | 1 | **positive:** `unit/verify` [`TestLocalCONFREQAdvertisesAuthMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L693). **negative:** `unit/verify` [`TestAuthProtoRejectClearsMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L155) |
+| `RFC1994-4.1-1` | The authenticator MUST transmit a CHAP packet with the Code field set to 1 (Challenge). (Section 4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestCHAPResponseEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L385). **negative:** no negative test. **{single-polarity}:** runCHAPAuthPhase always frames and writes a CHAP Challenge with Code=1 as its first wire act, through waitCHAPLike's first call of sendCHAPChallenge, with no must-not-challenge branch (internal/component/l2tp/ppp/chap.go:242-244, :144-146) |
+| `RFC1994-4.1-2` | Additional Challenge packets MUST be sent until a valid Response packet is received, or an optional retry counter expires. (Section 4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestCHAPChallengeRetransmittedUntilResponse`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_retransmit_test.go#L98). **negative:** no negative test. **{single-polarity}:** waitCHAPLike sends a new Challenge every restart interval until a matching Response or the chapChallengeMax retry counter, so there is no must-not-retransmit branch to negate (internal/component/l2tp/ppp/auth.go:554-572) |
 | `RFC1994-4.1-3` | Based on this comparison, the authenticator MUST send a Success or Failure packet (described below). (Section 4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestCHAPResponseEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L386). **positive:** `unit/verify` [`TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_local_verifier_test.go#L170). **negative:** `unit/verify` [`TestCHAPRejectWritesFailure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L521). **negative:** `unit/verify` [`TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_local_verifier_test.go#L187) |
 | `RFC1994-4.2-1` | If the Value received in a Response is equal to the expected value, then the implementation MUST transmit a CHAP packet with the Code field set to 3 (Success). (Section 4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestCHAPResponseEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L387). **positive:** `unit/verify` [`TestLocalAuthCHAPMD5Accept`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go#L46). **positive:** `unit/verify` [`TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_local_verifier_test.go#L168). **negative:** `unit/verify` [`TestCHAPRejectWritesFailure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L522). **negative:** `unit/verify` [`TestLocalAuthCHAPMD5Reject`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go#L81). **negative:** `unit/verify` [`TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_local_verifier_test.go#L186) |
 | `RFC1994-4.2-2` | If the Value received in a Response is not equal to the expected value, then the implementation MUST transmit a CHAP packet with the Code field set to 4 (Failure) (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestCHAPRejectWritesFailure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L523). **positive:** `unit/verify` [`TestLocalAuthCHAPMD5Reject`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go#L83). **positive:** `unit/verify` [`TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_local_verifier_test.go#L185). **negative:** `unit/verify` [`TestLocalAuthCHAPMD5Accept`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go#L49). **negative:** `unit/verify` [`TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_local_verifier_test.go#L169) |
-| `RFC1994-4.1-4` | Whenever a Challenge packet is received, the peer MUST transmit a CHAP packet with the Code field set to 2 (Response). (Section 4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestBuildCHAPResponse`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/session_test.go#L22). **positive:** `unit/verify` [`TestRFC1994IPCPWindowChallengeAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L192). **positive:** `unit/verify` [`TestRFC1994NetworkPhaseChallengeAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L57). **positive:** `unit/verify` [`TestRFC1994PeerTransmitsResponseForEveryChallenge`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go#L66). **negative:** `unit/verify` [`TestBuildCHAPResponseMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/session_test.go#L60). **negative:** `unit/verify` [`TestRFC1994IPCPWindowNoResponseWithoutChallenge`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L232). **negative:** `unit/verify` [`TestRFC1994NetworkPhaseNoResponseWithoutChallenge`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L100). **negative:** `unit/verify` [`TestRFC1994PeerSendsNoResponseWithoutChallenge`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go#L95) |
-| `RFC1994-4.1-5` | The Identifier field MUST be changed each time a Challenge is sent. (Section 4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestCHAPIdentifierMonotonic`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L835). **positive:** `unit/verify` [`TestCHAPIdentifierWraps`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L880). **negative:** no negative test. **{single-polarity}:** each runCHAPAuthPhase increments the per-session chapIdentifier before sending, so every new Challenge carries a distinct Identifier, and ze never retransmits a Challenge to form a reuse negative (internal/component/l2tp/ppp/chap.go:254-255) |
+| `RFC1994-4.1-4` | Whenever a Challenge packet is received, the peer MUST transmit a CHAP packet with the Code field set to 2 (Response). (Section 4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestBuildCHAPResponse`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/session_test.go#L22). **positive:** `unit/verify` [`TestRFC1994IPCPWindowChallengeAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L195). **positive:** `unit/verify` [`TestRFC1994NetworkPhaseChallengeAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L59). **positive:** `unit/verify` [`TestRFC1994PeerTransmitsResponseForEveryChallenge`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go#L66). **negative:** `unit/verify` [`TestBuildCHAPResponseMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/session_test.go#L60). **negative:** `unit/verify` [`TestRFC1994IPCPWindowNoResponseWithoutChallenge`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L235). **negative:** `unit/verify` [`TestRFC1994NetworkPhaseNoResponseWithoutChallenge`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L102). **negative:** `unit/verify` [`TestRFC1994PeerSendsNoResponseWithoutChallenge`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go#L95) |
+| `RFC1994-4.1-5` | The Identifier field MUST be changed each time a Challenge is sent. (Section 4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestCHAPIdentifierMonotonic`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L835). **positive:** `unit/verify` [`TestCHAPIdentifierWraps`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L880). **negative:** no negative test. **{single-polarity}:** sendCHAPChallenge increments the per-session chapIdentifier for every Challenge it sends, retransmissions included, so no send path reuses an Identifier to form a negative (internal/component/l2tp/ppp/chap.go:240-243) |
 | `RFC1994-4.1-6` | The Response Identifier MUST be copied from the Identifier field of the Challenge which caused the Response. (Section 4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestBuildCHAPResponse`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/session_test.go#L24). **negative:** no negative test. **{single-polarity}:** the peer copies the received Challenge's Identifier byte into the Response header, asserted directly with no rejecting counterpart (internal/component/l2tp/pppoeclient/session.go:400) |
-| `RFC1994-4.1-7` | The Challenge Value MUST be changed each time a Challenge is sent. (Section 4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestCHAPChallengeRandom`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L952). **negative:** no negative test. **{single-polarity}:** runCHAPAuthPhase draws a fresh 16-octet value from crypto/rand for every Challenge (internal/component/l2tp/ppp/chap.go:219-225, :248-249) |
+| `RFC1994-4.1-7` | The Challenge Value MUST be changed each time a Challenge is sent. (Section 4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestCHAPChallengeRandom`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L952). **negative:** no negative test. **{single-polarity}:** sendCHAPChallenge draws a fresh 16-octet value from crypto/rand for every Challenge, retransmissions included (internal/component/l2tp/ppp/chap.go:219-225, :235) |
 | `RFC1994-4.2-3` | The Identifier field MUST be copied from the Identifier field of the Response which caused this reply. (Section 4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestCHAPResponseEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L388). **negative:** no negative test. **{single-polarity}:** waitCHAPResponse only returns a Response whose Identifier equals the outstanding Challenge Identifier, and runCHAPAuthPhase writes Success/Failure with that same Identifier (internal/component/l2tp/ppp/chap.go:296-298, auth.go:318-323) |
 | `RFC1994-4.1-8` | Implementation Notes: Because the Success might be lost, the authenticator MUST allow repeated Response packets during the Network-Layer Protocol phase after completing the Authentication phase. (Section 4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_reauth_test.go#L446). **negative:** no negative test. **{single-polarity}:** a CHAP Response arriving in the main loop after auth completes hits the frame-dispatch default and is dropped without terminating the session, so repeated Responses are tolerated (internal/component/l2tp/ppp/session_run.go:681-683) |
 | `RFC1994-4.1-9` | To prevent discovery of alternative Names and Secrets, any Response packets received having the current Challenge Identifier MUST return the same reply Code previously returned for that specific Challenge (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze caches no per-Challenge reply Code and does not re-send the prior Success/Failure for a repeated Response; it silently drops it (internal/component/l2tp/ppp/session_run.go:681-683; no reply-Code cache in runCHAPAuthPhase) |
@@ -182,7 +182,6 @@ Source: [data/rfc/rfc1994.json](../../../data/rfc/rfc1994.json).
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC1994-4.1-2`](#rfc1994-4.1-2) Additional Challenge packets MUST be sent until a valid Response packet is received, or an optional retry counter expires. (Section 4.1) | {gap}, no test | ze sends exactly one Challenge and, on Response timeout, fails the session closed rather than retransmitting the same Identifier/Value (internal/component/l2tp/ppp/chap.go:257-263 single send; internal/component/l2tp/ppp/auth.go:328-337 timeout calls s.fail with no retransmit) |
 | [`RFC1994-4.1-9`](#rfc1994-4.1-9) To prevent discovery of alternative Names and Secrets, any Response packets received having the current Challenge Identifier MUST return the same reply Code previously returned for that specific Challenge (§4.1) | {gap}, no test | ze caches no per-Challenge reply Code and does not re-send the prior Success/Failure for a repeated Response; it silently drops it (internal/component/l2tp/ppp/session_run.go:681-683; no reply-Code cache in runCHAPAuthPhase) |
 | [`RFC1994-2.3-1`](#rfc1994-2.3-1) The CHAP algorithm requires that the length of the secret MUST be at least 1 octet. (Section 2.3) | {gap}, no test | the CHAP shared secret (authlocal user password) has no minimum-length constraint, so an empty password is accepted and fed to the MD5 hash without rejection (internal/component/l2tp/plugins/authlocal/auth.go:94-99; empty password stored in register.go) |
 
@@ -199,7 +198,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-r
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestAuthProtoRejectClearsMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L155) | unit/verify | revert, verified |
-| positive | [`TestLocalCONFREQAdvertisesAuthMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L690) | unit/verify | revert, verified |
+| positive | [`TestLocalCONFREQAdvertisesAuthMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L693) | unit/verify | revert, verified |
 
 ### [`RFC1994-4.1-1`](#rfc1994-4.1-1)
 
@@ -217,7 +216,9 @@ Additional Challenge packets MUST be sent until a valid Response packet is recei
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC1994-4.1-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| positive | [`TestCHAPChallengeRetransmittedUntilResponse`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_retransmit_test.go#L98) | unit/verify | mutant, verified |
 
 ### [`RFC1994-4.1-3`](#rfc1994-4.1-3)
 
@@ -227,10 +228,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestCHAPRejectWritesFailure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L521) | unit/verify | revert, verified |
-| negative | [`TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_local_verifier_test.go#L187) | unit/verify | revert, verified |
-| positive | [`TestCHAPResponseEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L386) | unit/verify | revert, verified |
-| positive | [`TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_local_verifier_test.go#L170) | unit/verify | revert, verified |
+| negative | [`TestCHAPRejectWritesFailure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L521) | unit/verify | mutant, verified |
+| negative | [`TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_local_verifier_test.go#L187) | unit/verify | mutant, verified |
+| positive | [`TestCHAPResponseEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L386) | unit/verify | mutant, verified |
+| positive | [`TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_local_verifier_test.go#L170) | unit/verify | mutant, verified |
 
 ### [`RFC1994-4.2-1`](#rfc1994-4.2-1)
 
@@ -241,10 +242,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestLocalAuthCHAPMD5Reject`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go#L81) | unit/verify | revert, verified |
-| negative | [`TestCHAPRejectWritesFailure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L522) | unit/verify | revert, verified |
+| negative | [`TestCHAPRejectWritesFailure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L522) | unit/verify | mutant, verified |
 | negative | [`TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_local_verifier_test.go#L186) | unit/verify | revert, verified |
 | positive | [`TestLocalAuthCHAPMD5Accept`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go#L46) | unit/verify | revert, verified |
-| positive | [`TestCHAPResponseEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L387) | unit/verify | revert, verified |
+| positive | [`TestCHAPResponseEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L387) | unit/verify | mutant, verified |
 | positive | [`TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_local_verifier_test.go#L168) | unit/verify | revert, verified |
 
 ### [`RFC1994-4.2-2`](#rfc1994-4.2-2)
@@ -258,23 +259,23 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 | negative | [`TestLocalAuthCHAPMD5Accept`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go#L49) | unit/verify | revert, verified |
 | negative | [`TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_local_verifier_test.go#L169) | unit/verify | revert, verified |
 | positive | [`TestLocalAuthCHAPMD5Reject`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go#L83) | unit/verify | revert, verified |
-| positive | [`TestCHAPRejectWritesFailure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L523) | unit/verify | revert, verified |
+| positive | [`TestCHAPRejectWritesFailure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L523) | unit/verify | mutant, verified |
 | positive | [`TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_local_verifier_test.go#L185) | unit/verify | revert, verified |
 
 ### [`RFC1994-4.1-4`](#rfc1994-4.1-4)
 
 Whenever a Challenge packet is received, the peer MUST transmit a CHAP packet with the Code field set to 2 (Response). (Section 4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge ppp8 2026-09-30 (rejudge). The D-8 defect is fixed at the producer: networkPhaseCHAP.handle (network_phase.go) builds the Response through buildCHAPResponse (Code 2, the Challenge's Identifier, Value-Size 16, MD5(Identifier||secret||Challenge value), Name) and is called from negotiateIPCP (the Network-Layer phase opens with IPCP) and then keepaliveLoop, the same instance carrying a pending Response across; no window between runClientAuth and keepaliveLoop reads frames elsewhere. Every phase in which RFC 1994 Section 4.1 says the peer SHOULD expect a Challenge now has a positive: Authentication (TestRFC1994PeerTransmitsResponseForEveryChallenge), IPCP (TestRFC1994IPCPWindowChallengeAnswered), keepalive (TestRFC1994NetworkPhaseChallengeAnswered), each asserting exactly one Code 2 packet with the Identifier and the exact MD5 Value and Name; the two new positives went red naturally on the unfixed loops (ppp6-red, ppp7-red logs) and carry revert records. Negatives in each phase assert no CHAP packet is written for Code 2 and Code 5 packets, exact len==0 checks. session_test.go units stay supplementary (the malformed-Challenge negative proves a neighbouring discard rule). A Challenge during Link Establishment is correctly discarded under RFC 1661 and is not in scope of this row.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudge 2026-11-08: TestRFC1994PeerTransmitsResponseForEveryChallenge and TestRFC1994PeerSendsNoResponseWithoutChallenge changed only by passing t to runCHAPClient, which now feeds frames through testFrameReader and the shared Identifier counter. Positive: two Challenges (0x42, 0x43) draw exactly two CHAP packets, Code 2, each with its Challenge's Identifier. Negative: Code 2 and Code 5 packets draw no CHAP packet (len == 0). The IPCP-window and network-phase positives of the earlier verdict are unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC1994IPCPWindowNoResponseWithoutChallenge`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L232) | unit/verify | revert, verified |
-| negative | [`TestRFC1994NetworkPhaseNoResponseWithoutChallenge`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L100) | unit/verify | revert, verified |
+| negative | [`TestRFC1994IPCPWindowNoResponseWithoutChallenge`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L235) | unit/verify | revert, verified |
+| negative | [`TestRFC1994NetworkPhaseNoResponseWithoutChallenge`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L102) | unit/verify | revert, verified |
 | negative | [`TestRFC1994PeerSendsNoResponseWithoutChallenge`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go#L95) | unit/verify | revert, verified |
 | negative | [`TestBuildCHAPResponseMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/session_test.go#L60) | unit/verify | revert, verified |
-| positive | [`TestRFC1994IPCPWindowChallengeAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L192) | unit/verify | revert, verified |
-| positive | [`TestRFC1994NetworkPhaseChallengeAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L57) | unit/verify | revert, verified |
+| positive | [`TestRFC1994IPCPWindowChallengeAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L195) | unit/verify | revert, verified |
+| positive | [`TestRFC1994NetworkPhaseChallengeAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L59) | unit/verify | revert, verified |
 | positive | [`TestRFC1994PeerTransmitsResponseForEveryChallenge`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go#L66) | unit/verify | revert, verified |
 | positive | [`TestBuildCHAPResponse`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/session_test.go#L22) | unit/verify | revert, verified |
 
@@ -327,7 +328,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Sing
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_reauth_test.go#L446) | unit/verify | revert, verified |
+| positive | [`TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_reauth_test.go#L446) | unit/verify | mutant, verified |
 
 ### [`RFC1994-4.1-9`](#rfc1994-4.1-9)
 
@@ -345,7 +346,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Sing
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestCHAPResponseOutsideAuthPhaseSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_reauth_test.go#L239) | unit/verify | revert, verified |
+| positive | [`TestCHAPResponseOutsideAuthPhaseSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_reauth_test.go#L239) | unit/verify | mutant, verified |
 
 ### [`RFC1994-2.3-1`](#rfc1994-2.3-1)
 
@@ -359,7 +360,7 @@ No test carries RFC1994-2.3-1, so no unit is bound to it.
 
 It is intended to be human readable, and MUST NOT affect operation of the protocol. (Section 4.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge ppp5 2026-09-30. The Message binds the receiver of Success/Failure, the pppoeclient peer (runClientAuth); the reasoning holds. TestRFC1994FailureMessageDoesNotAffectOutcome holds the Message fixed ('', 'authentication succeeded', non-ASCII) and varies only the Code: Failure returns the 'CHAP auth failed' error (not the closed-channel error an ignored Failure would give), Success returns nil, so a Message that turned a Failure into success, or a Success into failure, is red (recorded runClientAuth revert). TestCHAPSuccessMessageDoesNotAffectOutcome kept. Single-polarity positive per the row marker, whose line citation now names runClientAuth.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudge 2026-11-08: TestRFC1994FailureMessageDoesNotAffectOutcome (runCHAPClient now takes t) and TestCHAPSuccessMessageDoesNotAffectOutcome (testFrameReader, new(uint8)) changed only in plumbing. Message held fixed ('', 'authentication succeeded', non-ASCII) and Code varied: Failure returns the 'CHAP auth failed' error, Success returns nil, so a Message-driven outcome is red. Single-polarity positive per the row marker; runClientAuth still branches only on Code.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -374,7 +375,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC1994CHAPSuccessKeepsTheLink`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go#L129) | unit/verify | revert, verified |
+| negative | [`TestRFC1994CHAPSuccessKeepsTheLink`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go#L129) | unit/verify | mutant, verified |
 | positive | [`TestRFC1994CHAPFailureTerminatesTheLink`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go#L92) | unit/verify | revert, verified |
 
 ### [`RFC1994-4.2-5`](#rfc1994-4.2-5)
@@ -385,7 +386,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC1994CHAPSuccessKeepsTheLink`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go#L126) | unit/verify | revert, verified |
+| negative | [`TestRFC1994CHAPSuccessKeepsTheLink`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go#L126) | unit/verify | mutant, verified |
 | positive | [`TestRFC1994CHAPFailureTerminatesTheLink`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go#L87) | unit/verify | revert, verified |
 
 ## Extraction sign-off

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 1994 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 1994: PPP Challenge Handshake Authentication Protocol (CHAP). 16 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 1994: PPP Challenge Handshake Authentication Protocol (CHAP). 16 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 1994 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 1994: PPP Challenge Handshake Authentication Protocol (CHAP). 16 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 1994: PPP Challenge Handshake Authentication Protocol (CHAP). 16 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 1994 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 1994: PPP Challenge Handshake Authentication Protocol (CHAP). 16 gated MUST-level requirements, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 1994: PPP Challenge Handshake Authentication Protocol (CHAP). 16 gated MUST-level requirements, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -119,10 +119,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>5</strong><b>of 16 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>8</strong><b>of 16 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>9</strong><b>of 16 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 16 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 16 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>33</strong><b>33 of 39 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>34</strong><b>34 of 40 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -137,7 +137,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>3</strong><b>of 16 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>2</strong><b>of 16 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 9 counts marked as a part above are the whole of the 16 gated MUSTs: they add up to 16. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -224,7 +224,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>3</td>
+<td>2</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -236,16 +236,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>39</td>
+<td>40</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>39</td>
+<td>40</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>15</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>33</td>
+<td>34</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc1994.md</code></td>
@@ -265,9 +265,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Area:</strong> PPP CHAP (MD5)</p>
-<p><strong>Proof:</strong> 8 of 16 MUST proven</p>
-<p><strong>Evidence:</strong> unit 8</p>
-<p><strong>Unmet:</strong> RFC1994-2.3-1, RFC1994-4.1-2, RFC1994-4.1-9</p>
+<p><strong>Proof:</strong> 9 of 16 MUST proven</p>
+<p><strong>Evidence:</strong> unit 9</p>
+<p><strong>Unmet:</strong> RFC1994-2.3-1, RFC1994-4.1-9</p>
 
 </section>
 <section><h2>Coverage</h2>
@@ -312,9 +312,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc1994:must">Ze proven 8, Ze correctness gap 8</div>
+<div data-ze-rfc-bar="rfc1994:must">Ze proven 9, Ze correctness gap 7</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc1994:overview">Ze MUST proven 8, SHOULD proven 2, SHOULD not decided 9, Ze correctness gap 8</div>
+<div data-ze-rfc-bar="rfc1994:overview">Ze MUST proven 9, SHOULD proven 2, SHOULD not decided 9, Ze correctness gap 7</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -335,7 +335,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc1994:must.kept">16</span></td>
 </tr>
 <tr><td>Ze proven</td>
-<td><span data-ze-rfc="rfc1994:must.ze-proven">8</span></td>
+<td><span data-ze-rfc="rfc1994:must.ze-proven">9</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc1994:must.os-verified">0</span></td>
@@ -344,7 +344,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc1994:must.os-gap">0</span></td>
 </tr>
 <tr><td>Ze correctness gap</td>
-<td><span data-ze-rfc="rfc1994:must.ze-gap">8</span></td>
+<td><span data-ze-rfc="rfc1994:must.ze-gap">7</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="rfc1994:must.not-owed">0</span></td>
@@ -407,7 +407,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1994-1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L690" title="internal/component/l2tp/ppp/auth_dispatch_test.go" target="_blank" rel="noopener"><code>TestLocalCONFREQAdvertisesAuthMethod</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L693" title="internal/component/l2tp/ppp/auth_dispatch_test.go" target="_blank" rel="noopener"><code>TestLocalCONFREQAdvertisesAuthMethod</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L155" title="internal/component/l2tp/ppp/auth_dispatch_test.go" target="_blank" rel="noopener"><code>TestAuthProtoRejectClearsMethod</code></a></span></div>
 </div></td>
 </tr>
@@ -418,16 +418,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1994-4.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L385" title="internal/component/l2tp/ppp/rfc1994_chap_test.go" target="_blank" rel="noopener"><code>TestCHAPResponseEmitsEvent</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> runCHAPAuthPhase always frames and writes a CHAP Challenge with Code=1 as its first wire act, with no must-not-challenge branch (internal/component/l2tp/ppp/chap.go:259-261, :144-146)</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> runCHAPAuthPhase always frames and writes a CHAP Challenge with Code=1 as its first wire act, through waitCHAPLike&#39;s first call of sendCHAPChallenge, with no must-not-challenge branch (internal/component/l2tp/ppp/chap.go:242-244, :144-146)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1994-4.1-2">RFC1994-4.1-2</code></td><td colspan="3"><span class="rfc-subject">Additional Challenge packets MUST be sent until a valid Response packet is received, or an optional retry counter expires. (Section 4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1994-4.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_retransmit_test.go#L98" title="internal/component/l2tp/ppp/rfc1994_chap_retransmit_test.go" target="_blank" rel="noopener"><code>TestCHAPChallengeRetransmittedUntilResponse</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze sends exactly one Challenge and, on Response timeout, fails the session closed rather than retransmitting the same Identifier/Value (internal/component/l2tp/ppp/chap.go:257-263 single send; internal/component/l2tp/ppp/auth.go:328-337 timeout calls s.fail with no retransmit)</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> waitCHAPLike sends a new Challenge every restart interval until a matching Response or the chapChallengeMax retry counter, so there is no must-not-retransmit branch to negate (internal/component/l2tp/ppp/auth.go:554-572)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1994-4.1-3">RFC1994-4.1-3</code></td><td colspan="3"><span class="rfc-subject">Based on this comparison, the authenticator MUST send a Success or Failure packet (described below). (Section 4.1)</span></td></tr>
 <tr><td></td>
@@ -471,12 +471,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1994-4.1-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/session_test.go#L22" title="internal/component/l2tp/pppoeclient/session_test.go" target="_blank" rel="noopener"><code>TestBuildCHAPResponse</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L192" title="internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go" target="_blank" rel="noopener"><code>TestRFC1994IPCPWindowChallengeAnswered</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L57" title="internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go" target="_blank" rel="noopener"><code>TestRFC1994NetworkPhaseChallengeAnswered</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L195" title="internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go" target="_blank" rel="noopener"><code>TestRFC1994IPCPWindowChallengeAnswered</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L59" title="internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go" target="_blank" rel="noopener"><code>TestRFC1994NetworkPhaseChallengeAnswered</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go#L66" title="internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go" target="_blank" rel="noopener"><code>TestRFC1994PeerTransmitsResponseForEveryChallenge</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/session_test.go#L60" title="internal/component/l2tp/pppoeclient/session_test.go" target="_blank" rel="noopener"><code>TestBuildCHAPResponseMalformed</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L232" title="internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go" target="_blank" rel="noopener"><code>TestRFC1994IPCPWindowNoResponseWithoutChallenge</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L100" title="internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go" target="_blank" rel="noopener"><code>TestRFC1994NetworkPhaseNoResponseWithoutChallenge</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L235" title="internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go" target="_blank" rel="noopener"><code>TestRFC1994IPCPWindowNoResponseWithoutChallenge</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L102" title="internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go" target="_blank" rel="noopener"><code>TestRFC1994NetworkPhaseNoResponseWithoutChallenge</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go#L95" title="internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go" target="_blank" rel="noopener"><code>TestRFC1994PeerSendsNoResponseWithoutChallenge</code></a></span></div>
 </div></td>
 </tr>
@@ -488,7 +488,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L835" title="internal/component/l2tp/ppp/rfc1994_chap_test.go" target="_blank" rel="noopener"><code>TestCHAPIdentifierMonotonic</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L880" title="internal/component/l2tp/ppp/rfc1994_chap_test.go" target="_blank" rel="noopener"><code>TestCHAPIdentifierWraps</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> each runCHAPAuthPhase increments the per-session chapIdentifier before sending, so every new Challenge carries a distinct Identifier, and ze never retransmits a Challenge to form a reuse negative (internal/component/l2tp/ppp/chap.go:254-255)</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> sendCHAPChallenge increments the per-session chapIdentifier for every Challenge it sends, retransmissions included, so no send path reuses an Identifier to form a negative (internal/component/l2tp/ppp/chap.go:240-243)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1994-4.1-6">RFC1994-4.1-6</code></td><td colspan="3"><span class="rfc-subject">The Response Identifier MUST be copied from the Identifier field of the Challenge which caused the Response. (Section 4.1)</span></td></tr>
 <tr><td></td>
@@ -506,7 +506,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1994-4.1-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L952" title="internal/component/l2tp/ppp/rfc1994_chap_test.go" target="_blank" rel="noopener"><code>TestCHAPChallengeRandom</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> runCHAPAuthPhase draws a fresh 16-octet value from crypto/rand for every Challenge (internal/component/l2tp/ppp/chap.go:219-225, :248-249)</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> sendCHAPChallenge draws a fresh 16-octet value from crypto/rand for every Challenge, retransmissions included (internal/component/l2tp/ppp/chap.go:219-225, :235)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1994-4.2-3">RFC1994-4.2-3</code></td><td colspan="3"><span class="rfc-subject">The Identifier field MUST be copied from the Identifier field of the Response which caused this reply. (Section 4.2)</span></td></tr>
 <tr><td></td>
@@ -671,10 +671,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc1994-4.1-2"><code>RFC1994-4.1-2</code></a> Additional Challenge packets MUST be sent until a valid Response packet is received, or an optional retry counter expires. (Section 4.1)</td>
-<td>{gap}, no test</td>
-<td>ze sends exactly one Challenge and, on Response timeout, fails the session closed rather than retransmitting the same Identifier/Value (internal/component/l2tp/ppp/chap.go:257-263 single send; internal/component/l2tp/ppp/auth.go:328-337 timeout calls s.fail with no retransmit)</td>
-</tr>
 <tr><td><a href="#rfc1994-4.1-9"><code>RFC1994-4.1-9</code></a> To prevent discovery of alternative Names and Secrets, any Response packets received having the current Challenge Identifier MUST return the same reply Code previously returned for that specific Challenge (§4.1)</td>
 <td>{gap}, no test</td>
 <td>ze caches no per-Challenge reply Code and does not re-send the prior Success/Failure for a repeated Response; it silently drops it (internal/component/l2tp/ppp/session_run.go:681-683; no reply-Code cache in runCHAPAuthPhase)</td>
@@ -702,7 +698,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L690" title="internal/component/l2tp/ppp/auth_dispatch_test.go" target="_blank" rel="noopener"><code>TestLocalCONFREQAdvertisesAuthMethod</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L693" title="internal/component/l2tp/ppp/auth_dispatch_test.go" target="_blank" rel="noopener"><code>TestLocalCONFREQAdvertisesAuthMethod</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -727,7 +723,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc1994-4.1-2"><code>RFC1994-4.1-2</code></a></h3>
 <p>Additional Challenge packets MUST be sent until a valid Response packet is received, or an optional retry counter expires. (Section 4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1994-4.1-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_retransmit_test.go#L98" title="internal/component/l2tp/ppp/rfc1994_chap_retransmit_test.go" target="_blank" rel="noopener"><code>TestCHAPChallengeRetransmittedUntilResponse</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1994-4.1-3"><code>RFC1994-4.1-3</code></a></h3>
 <p>Based on this comparison, the authenticator MUST send a Success or Failure packet (described below). (Section 4.1)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge ppp4 2026-09-30. rfc1994_local_verifier_test.go (package ppp_test) drives a real LNS session over a net.Pipe: the peer computes its Response Value from a secret, the Driver&#39;s EventAuthRequest is answered by l2tp.GetAuthHandler(), the handler l2tp-auth-local registers in init (verifyCHAPMD5 against bob/secret), and the CHAP Code ze writes is read off the wire. Equal Value -&gt; Success (+), differing Value -&gt; Failure (-), so the comparison, not an injected decision, chooses the reply. Targeted breaks (verifyCHAPMD5 always accept / always reject) each redden the matching unit (ppp4-tb-1994-accept.log, ppp4-tb-1994-reject.log); records are runCHAPAuthPhase reverts. The chap_test.go decision-injected units stay as supplementary.</p>
@@ -738,22 +745,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L521" title="internal/component/l2tp/ppp/rfc1994_chap_test.go" target="_blank" rel="noopener"><code>TestCHAPRejectWritesFailure</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_local_verifier_test.go#L187" title="internal/component/l2tp/ppp/rfc1994_local_verifier_test.go" target="_blank" rel="noopener"><code>TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L386" title="internal/component/l2tp/ppp/rfc1994_chap_test.go" target="_blank" rel="noopener"><code>TestCHAPResponseEmitsEvent</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_local_verifier_test.go#L170" title="internal/component/l2tp/ppp/rfc1994_local_verifier_test.go" target="_blank" rel="noopener"><code>TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -773,7 +780,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L522" title="internal/component/l2tp/ppp/rfc1994_chap_test.go" target="_blank" rel="noopener"><code>TestCHAPRejectWritesFailure</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_local_verifier_test.go#L186" title="internal/component/l2tp/ppp/rfc1994_local_verifier_test.go" target="_blank" rel="noopener"><code>TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier</code></a></td>
@@ -788,7 +795,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L387" title="internal/component/l2tp/ppp/rfc1994_chap_test.go" target="_blank" rel="noopener"><code>TestCHAPResponseEmitsEvent</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_local_verifier_test.go#L168" title="internal/component/l2tp/ppp/rfc1994_local_verifier_test.go" target="_blank" rel="noopener"><code>TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier</code></a></td>
@@ -823,7 +830,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L523" title="internal/component/l2tp/ppp/rfc1994_chap_test.go" target="_blank" rel="noopener"><code>TestCHAPRejectWritesFailure</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_local_verifier_test.go#L185" title="internal/component/l2tp/ppp/rfc1994_local_verifier_test.go" target="_blank" rel="noopener"><code>TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier</code></a></td>
@@ -835,18 +842,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1994-4.1-4"><code>RFC1994-4.1-4</code></a></h3>
 <p>Whenever a Challenge packet is received, the peer MUST transmit a CHAP packet with the Code field set to 2 (Response). (Section 4.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge ppp8 2026-09-30 (rejudge). The D-8 defect is fixed at the producer: networkPhaseCHAP.handle (network_phase.go) builds the Response through buildCHAPResponse (Code 2, the Challenge&#39;s Identifier, Value-Size 16, MD5(Identifier||secret||Challenge value), Name) and is called from negotiateIPCP (the Network-Layer phase opens with IPCP) and then keepaliveLoop, the same instance carrying a pending Response across; no window between runClientAuth and keepaliveLoop reads frames elsewhere. Every phase in which RFC 1994 Section 4.1 says the peer SHOULD expect a Challenge now has a positive: Authentication (TestRFC1994PeerTransmitsResponseForEveryChallenge), IPCP (TestRFC1994IPCPWindowChallengeAnswered), keepalive (TestRFC1994NetworkPhaseChallengeAnswered), each asserting exactly one Code 2 packet with the Identifier and the exact MD5 Value and Name; the two new positives went red naturally on the unfixed loops (ppp6-red, ppp7-red logs) and carry revert records. Negatives in each phase assert no CHAP packet is written for Code 2 and Code 5 packets, exact len==0 checks. session_test.go units stay supplementary (the malformed-Challenge negative proves a neighbouring discard rule). A Challenge during Link Establishment is correctly discarded under RFC 1661 and is not in scope of this row.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudge 2026-11-08: TestRFC1994PeerTransmitsResponseForEveryChallenge and TestRFC1994PeerSendsNoResponseWithoutChallenge changed only by passing t to runCHAPClient, which now feeds frames through testFrameReader and the shared Identifier counter. Positive: two Challenges (0x42, 0x43) draw exactly two CHAP packets, Code 2, each with its Challenge&#39;s Identifier. Negative: Code 2 and Code 5 packets draw no CHAP packet (len == 0). The IPCP-window and network-phase positives of the earlier verdict are unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L232" title="internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go" target="_blank" rel="noopener"><code>TestRFC1994IPCPWindowNoResponseWithoutChallenge</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L235" title="internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go" target="_blank" rel="noopener"><code>TestRFC1994IPCPWindowNoResponseWithoutChallenge</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L100" title="internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go" target="_blank" rel="noopener"><code>TestRFC1994NetworkPhaseNoResponseWithoutChallenge</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L102" title="internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go" target="_blank" rel="noopener"><code>TestRFC1994NetworkPhaseNoResponseWithoutChallenge</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -861,12 +868,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L192" title="internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go" target="_blank" rel="noopener"><code>TestRFC1994IPCPWindowChallengeAnswered</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L195" title="internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go" target="_blank" rel="noopener"><code>TestRFC1994IPCPWindowChallengeAnswered</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L57" title="internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go" target="_blank" rel="noopener"><code>TestRFC1994NetworkPhaseChallengeAnswered</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go#L59" title="internal/component/l2tp/pppoeclient/rfc1994_network_phase_test.go" target="_blank" rel="noopener"><code>TestRFC1994NetworkPhaseChallengeAnswered</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -958,7 +965,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_reauth_test.go#L446" title="internal/component/l2tp/ppp/rfc1994_chap_reauth_test.go" target="_blank" rel="noopener"><code>TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -977,7 +984,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_reauth_test.go#L239" title="internal/component/l2tp/ppp/rfc1994_chap_reauth_test.go" target="_blank" rel="noopener"><code>TestCHAPResponseOutsideAuthPhaseSilentlyDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -988,7 +995,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC1994-2.3-1, so no unit is bound to it.</p>
 <h3><a href="#rfc1994-4.2-4"><code>RFC1994-4.2-4</code></a></h3>
 <p>It is intended to be human readable, and MUST NOT affect operation of the protocol. (Section 4.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge ppp5 2026-09-30. The Message binds the receiver of Success/Failure, the pppoeclient peer (runClientAuth); the reasoning holds. TestRFC1994FailureMessageDoesNotAffectOutcome holds the Message fixed (&#39;&#39;, &#39;authentication succeeded&#39;, non-ASCII) and varies only the Code: Failure returns the &#39;CHAP auth failed&#39; error (not the closed-channel error an ignored Failure would give), Success returns nil, so a Message that turned a Failure into success, or a Success into failure, is red (recorded runClientAuth revert). TestCHAPSuccessMessageDoesNotAffectOutcome kept. Single-polarity positive per the row marker, whose line citation now names runClientAuth.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudge 2026-11-08: TestRFC1994FailureMessageDoesNotAffectOutcome (runCHAPClient now takes t) and TestCHAPSuccessMessageDoesNotAffectOutcome (testFrameReader, new(uint8)) changed only in plumbing. Message held fixed (&#39;&#39;, &#39;authentication succeeded&#39;, non-ASCII) and Code varied: Failure returns the &#39;CHAP auth failed&#39; error, Success returns nil, so a Message-driven outcome is red. Single-polarity positive per the row marker; runClientAuth still branches only on Code.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1016,7 +1023,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go#L129" title="internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go" target="_blank" rel="noopener"><code>TestRFC1994CHAPSuccessKeepsTheLink</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go#L92" title="internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go" target="_blank" rel="noopener"><code>TestRFC1994CHAPFailureTerminatesTheLink</code></a></td>
@@ -1036,7 +1043,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go#L126" title="internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go" target="_blank" rel="noopener"><code>TestRFC1994CHAPSuccessKeepsTheLink</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go#L87" title="internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go" target="_blank" rel="noopener"><code>TestRFC1994CHAPFailureTerminatesTheLink</code></a></td>
@@ -1224,7 +1231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

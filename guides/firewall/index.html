@@ -73,6 +73,7 @@ the nft backend lowers them to nftables kernel expressions.</p>
 </ol></li>
 <li><a href="#action-types-then-block">Action Types (then block)</a>
 <ol>
+<li><a href="#tcp-mss-clamping">TCP MSS Clamping</a></li>
 <li><a href="#nat-exclude">NAT Exclude</a></li>
 <li><a href="#snat-address-ranges">SNAT Address Ranges</a></li>
 </ol></li>
@@ -287,6 +288,13 @@ more chains; a base chain has a type, hook, priority, and default policy.</p>
 that needs kernel state of its own publishes a table through the same backend,
 so it appears beside yours in <code>show firewall ruleset &lt;name&gt;</code> and is withdrawn
 with the configuration that asked for it.</p>
+<p><code>system conntrack module &lt;helper&gt;</code> is another: each listed helper publishes
+<code>ze_conntrack_helpers</code> (family <code>inet</code>) or <code>ze_conntrack_helpers_ip</code> (family
+<code>ip</code>, for helpers the kernel registers for IPv4 only). Each holds one <code>ct helper</code> object per kernel helper and transport, and <code>prerouting</code> and <code>output</code>
+chains at priority -5 that assign it by destination port, so the assignment
+runs before your own chains at priority 0. A chain of yours at a priority below
+-5 sees the connection before the helper is attached. The per-helper ports are
+in <a href="../configuration-model/">the configuration guide</a>, <code>system conntrack</code>.</p>
 <p>One example: a BGP peer configured
 with <code>connection { ttl { max N; } }</code> (RFC 5082 GTSM) gets <code>ze_gtsm</code>, an input
 chain with two kinds of term for that peer.</p>
@@ -496,6 +504,15 @@ Numeric values (0-255) are also accepted.</p>
 <p>A trailing <code>*</code> on an interface name produces a prefix match. For example,
 <code>input-interface "l2tp*"</code> matches any interface whose name starts with <code>l2tp</code>
 (l2tp0, l2tp1, l2tp-peer42, etc.). Without the <code>*</code>, the match is exact.</p>
+<p>A PPPoE client is matched by its configured name. The session device of
+<code>pppoe-client pppoe0</code> is the kernel device <code>pppoe0</code> on every session and every
+reconnect, so <code>output-interface "pppoe0"</code> matches the WAN, as in a masquerade
+rule. Do not write <code>ppp*</code> for the client: the kernel names <code>pppN</code> only the
+subscriber sessions of an L2TP LNS or a PPPoE access concentrator, which have
+no configured name. On such a box, <code>ppp*</code> matches the subscribers and never the
+client.</p>
+<!-- source: internal/component/l2tp/ppp/devppp_linux.go -- DevPPPSetup -->
+<!-- source: internal/plugins/firewall/nft/lower_linux.go -- lowerIfaceMatch -->
 <h2 id="action-types-then-block">Action Types (then block)</h2>
 <table>
 <thead>
@@ -583,8 +600,13 @@ Numeric values (0-255) are also accepted.</p>
 </tr>
 <tr>
 <td><code>tcp-mss-set</code></td>
-<td>Clamp TCP MSS</td>
+<td>Clamp TCP MSS to at most the value: a larger MSS is lowered, a smaller one is left alone, and only a SYN carries the option</td>
 <td><code>tcp-mss-set 1400;</code></td>
+</tr>
+<tr>
+<td><code>tcp-mss-clamp-to-pmtu</code></td>
+<td>Clamp TCP MSS to the MTU of the packet's route less the fixed IP and TCP headers; never raises a smaller MSS. Forward, output and postrouting chains only, and not with <code>tcp-mss-set</code> in one term</td>
+<td><code>tcp-mss-clamp-to-pmtu;</code></td>
 </tr>
 <tr>
 <td><code>counter</code></td>
@@ -608,6 +630,54 @@ Numeric values (0-255) are also accepted.</p>
 </tr>
 </tbody>
 </table>
+<h3 id="tcp-mss-clamping">TCP MSS Clamping</h3>
+<p><code>tcp-mss-set</code> writes a fixed upper bound. <code>tcp-mss-clamp-to-pmtu</code> takes the
+bound from the route instead: the kernel computes it for each packet as the
+smaller of the MTU of the route the packet takes and the MTU of the route back
+to its source, less the fixed headers (40 bytes for IPv4, 60 for IPv6, as
+RFC 6691 asks). It is the nftables <code>tcp option maxseg size set rt mtu</code>, and
+what VyOS writes for <code>adjust-mss clamp-mss-to-pmtu</code> on an interface.</p>
+<p>The <code>lan-services</code> topology scenario proves <code>tcp-mss-set 1400</code> and
+<code>masquerade</code> on a CPE converted from VyOS: a SYN offering 1460 arrives at the
+server with 1400, one offering 1300 arrives unchanged, and the server sees the
+CPE's WAN address as the source.</p>
+<!-- source: internal/le/interoplab/topology/check_lan.go -- checkLANServices, checkMasquerade -->
+<p>Both forms are clamps. An MSS already at or below the bound is left alone,
+because the kernel skips a two-byte MSS write that would raise the value, and a
+SYN without the option is not changed. A term carries one of the two, never
+both.</p>
+<p>The kernel computes the route MSS only at the forward, output and postrouting
+hooks. Verify refuses the leaf in a chain of another hook, and in a regular
+chain that a chain of another hook reaches through <code>jump</code> or <code>goto</code>, naming
+the table, the chain, the term and the hook it found. The table family must be
+<code>ip</code>, <code>ip6</code> or <code>inet</code>. The <code>vpp</code> backend refuses both actions.</p>
+<p>A home CPE behind PPPoE clamps every SYN it forwards onto the PPPoE session.
+The term matches TCP without a flags condition: only a SYN carries the MSS
+option, and a segment without the option passes unchanged. With the session
+MTU at 1492, a SYN offering 1460 leaves with 1452 over IPv4 and 1432 over
+IPv6:</p>
+<pre><code>firewall {
+    backend nft;
+    table cpe {
+        family inet;
+        chain forward {
+            type filter;
+            hook forward;
+            priority 0;
+            policy accept;
+            term clamp {
+                from {
+                    output-interface "pppoe*";
+                    protocol tcp;
+                }
+                then { tcp-mss-clamp-to-pmtu; }
+            }
+        }
+    }
+}
+</code></pre>
+<!-- source: internal/component/firewall/validate.go -- validateClampTCPMSSToPMTU -->
+<!-- source: internal/plugins/firewall/nft/lower_linux.go -- lowerClampTCPMSSToPMTU -->
 <h3 id="nat-exclude">NAT Exclude</h3>
 <p>In a NAT chain, <code>exclude</code> emits a Return verdict so matched traffic skips
 the NAT translation. This replaces the VyOS <code>nat destination rule N exclude</code>
@@ -1267,7 +1337,7 @@ A crash bypasses this path entirely, leaving tables in place.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 17:53 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

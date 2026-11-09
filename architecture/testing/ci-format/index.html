@@ -169,6 +169,7 @@
 <li><a href="#overview">Overview</a></li>
 <li><a href="#input-actions">Input Actions</a></li>
 <li><a href="#expectations_1">Expectations</a></li>
+<li><a href="#dimensions-and-timeout">Dimensions and Timeout</a></li>
 <li><a href="#wait-actions">Wait Actions</a></li>
 <li><a href="#example_4">Example</a></li>
 <li><a href="#test-categories">Test Categories</a></li>
@@ -389,8 +390,8 @@ first BGP message after OPEN/KEEPALIVE, <code>seq=2</code> is the second, etc.</
 <p>A test with two peers and one UPDATE each uses <code>conn=1:seq=1</code> and <code>conn=2:seq=1</code>,
 not <code>conn=1:seq=1</code> and <code>conn=1:seq=2</code>.</p>
 <h3 id="port-substitution">Port Substitution</h3>
-<p>Each test owns a pair of ports, exposed as variables in commands, <code>tmpfs=</code>
-content, <code>option=env</code> values, and URLs:</p>
+<p>Each test owns three consecutive ports, exposed as variables in commands,
+<code>tmpfs=</code> content, stdin blocks, <code>option=env</code> values, and URLs:</p>
 <table>
 <thead>
 <tr>
@@ -407,10 +408,23 @@ content, <code>option=env</code> values, and URLs:</p>
 <td><code>$PORT2</code></td>
 <td>Secondary port, <code>$PORT</code>+1 (web UI, looking glass, plugin acceptor)</td>
 </tr>
+<tr>
+<td><code>$PORT3</code></td>
+<td>Third port, <code>$PORT</code>+2 (an RTR cache, a second listener, a session editor)</td>
+</tr>
 </tbody>
 </table>
+<p><code>runner.ExpandPorts</code> expands these placeholders in <code>tmpfs=</code> content, <code>exec=</code>,
+stdin blocks, <code>option=env</code> values, and HTTP check and wait URLs. Assertion
+values in <code>expect=</code> and <code>reject=</code> are not expanded. The config sweep in
+<code>internal/component/config/cli</code> calls the same function. Any other <code>$PORT&lt;n&gt;</code>
+fails the file at discovery, naming the placeholder: it would name a port the
+lease does not hold.</p>
+<!-- source: internal/test/runner/runner_exec.go -- tmpfsForRecord, runOrchestrated -->
+<!-- source: internal/test/runner/runner_validate.go -- executeHTTPChecks, executeHTTPWaits -->
+<!-- source: internal/test/runner/runner_output_assert.go -- checkCommandAssertions -->
 <p>Never hardcode port numbers. Use <code>$PORT</code> in <code>cmd=</code> exec values and <code>$PORT2</code> in <code>http=</code> URLs.</p>
-<p>The pair is LEASED when the test starts, not when the suite discovers it
+<p>The span is LEASED when the test starts, not when the suite discovers it
 (<code>runner.LeaseTestPorts</code>, <code>internal/test/runner/ports.go</code>). Discovery numbers the
 Nth test of every suite from the same base, so the preference alone collides
 whenever two le test processes run at once. The lease takes per-port advisory
@@ -424,11 +438,11 @@ of the path.</p>
 runners using <code>le-port-locks</code> under their temporary directory do not coordinate
 with this namespace; there is no fallback or hybrid locking mode.</p>
 <p>While holding the locks, the runner probes <code>127.0.0.1</code> with TCP/IPv4 and <code>::1</code>
-with TCP/IPv6 for both ports, keeping all probe listeners open until the whole
-pair has been checked. IPv6 is omitted only when its family, protocol, or
+with TCP/IPv6 for every port, keeping all probe listeners open until the whole
+span has been checked. IPv6 is omitted only when its family, protocol, or
 loopback address is unavailable, not when its port is occupied. Probe listeners
 close before children bind; the advisory locks remain until the test releases
-its lease. A preferred pair that is locked or occupied moves to 25000-32759.</p>
+its lease. A preferred span that is locked or occupied moves to 25000-32759.</p>
 <p>The locks coordinate participating same-user processes on the same host that
 share <code>/tmp</code>; they do not provide universal port exclusivity across users or
 isolated filesystems. An unrelated process can still bind after the probes
@@ -436,12 +450,14 @@ close. A hardcoded number in a <code>.ci</code> file takes part in neither step,
 why the rule above is a rule.</p>
 <!-- source: internal/test/runner/ports.go -- LeaseTestPorts -->
 <!-- source: internal/test/runner/runner_exec.go -- runTest leases before any $PORT expansion -->
-<p>There is no <code>$PORT3</code> placeholder. A compiled fixture that starts additional
-listeners MUST reserve their ports with <code>runner.ReservePorts</code> or
-<code>runner.LeaseTestPorts</code>, and MUST retain the reservation until every child using
-those ports has stopped and been reaped. An offset from <code>$PORT</code> or <code>$PORT2</code> is
-only a preferred allocation address, never a reservation.</p>
-<p>The live managed-client restore fixture uses the runner's pair for the hub's
+<p>There is no <code>$PORT4</code> placeholder. A compiled fixture that starts more
+listeners than the three placeholders cover MUST reserve their ports with
+<code>runner.ReservePorts</code> or <code>runner.LeaseTestPorts</code>, and MUST retain the
+reservation until every child using those ports has stopped and been reaped. An
+offset from a placeholder is only a preferred allocation address, never a
+reservation.</p>
+<!-- source: internal/test/runner/ports.go -- TestPortSpan, ExpandPorts, checkPortPlaceholders -->
+<p>The live managed-client restore fixture uses the runner's first two ports for the hub's
 SSH and plugin listeners and reserves a third port for its managed listener.
 Its hub and client configs declare no BGP peers or dynamic groups, so they bind
 no BGP listeners and need no BGP port offsets.</p>
@@ -485,6 +501,10 @@ goes" says which, why, and what the <code>.ci</code> writes to select each route
 <tr>
 <td><code>text</code></td>
 <td>Plain text content (single-line, newline appended)</td>
+</tr>
+<tr>
+<td><code>refused</code></td>
+<td>The diagnostic code <code>ze config validate</code> refuses this block with, when the test hands ze a config it must refuse (see <code>refused</code> under Tmpfs)</td>
 </tr>
 </tbody>
 </table>
@@ -558,11 +578,20 @@ already writes: no new directive chooses between them.</p>
 </tbody>
 </table>
 <p>The daemon <code>-</code> is recognized by POSITION, not by a list of verbs: the runner
-asks <code>zeDaemonConfigArgIndex</code> which argument is the config, and substitutes only
+asks <code>DaemonConfigArg</code> which argument is the config, and substitutes only
 when that argument is the <code>-</code>. A <code>-</code> belonging to a verb is left in argv and the
 block is piped, so <code>ze config validate -</code> and <code>ze bgp decode pcap -</code> test the
 form the operator types.</p>
 <!-- source: internal/test/runner/runner_exec_util.go -- routeStdinBlock -->
+<p>The route changes how the block travels, never what the runner reads from it.
+Whether a check peer lingers (<code>option=linger:value=true</code>, which the
+<code>then=stop</code> fence below waits on) is read from the <code>.ci</code> block itself with the
+peer's own parser, so a peer given the block as a file lingers exactly as one
+given it on standard input. <code>TestPeerLingerSurvivesStdinRouting</code>
+(<code>internal/test/runner/one_off_proof_test.go</code>) runs both routes through the
+fence.</p>
+<!-- source: internal/test/runner/peer_contract.go -- peerLingers -->
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated -->
 <p>The first daemon block uses <code>ze-bgp.conf</code> in the test work directory, so a
 fixture rewriting that bare name still edits the source the daemon reads.
 Further distinct blocks use <code>daemon-2/ze-&lt;block&gt;.conf</code>, <code>daemon-3/…</code>, each
@@ -584,6 +613,12 @@ line) is read first by ze-peer and then by the test runner. The block named
 with no <code>cmd=</code> at all feeds its <code>expect=</code> lines to ze-peer by another route. <strong>A line neither of them
 acts on fails the file at parse time</strong>, naming the block, the line number and the
 directive.</p>
+<p>When a file declares <code>cmd=</code> lines, every <code>stdin=peer</code> block must be named by
+a <code>cmd=...:exec=le test peer ...:stdin=peer</code> command. An orphan block fails
+parsing even without a rejection directive: its wire expectations would have
+no consumer. Files with no <code>cmd=</code> lines retain the legacy peer execution path.
+Peer command recognition uses the execution tokenizer: quoted command words
+such as <code>"le" test 'peer'</code> and quoted mode values retain their peer role.</p>
 <table>
 <thead>
 <tr>
@@ -642,7 +677,7 @@ There is no special configuration meaning for a <code>.src</code> or <code>.conf
 For example, a peer's <code>action=rewrite</code> may copy a human-readable acknowledgment
 into a completion marker without making either file a daemon configuration.</p>
 <h3 id="syntax_1">Syntax</h3>
-<pre><code>tmpfs=&lt;path&gt;[:mode=&lt;octal&gt;][:encoding=&lt;type&gt;]:terminator=&lt;TERM&gt;
+<pre><code>tmpfs=&lt;path&gt;[:mode=&lt;octal&gt;][:encoding=&lt;type&gt;][:refused=&lt;code&gt;]:terminator=&lt;TERM&gt;
 &lt;content&gt;
 &lt;TERM&gt;
 </code></pre>
@@ -681,12 +716,45 @@ into a completion marker without making either file a daemon configuration.</p>
 <td>-</td>
 <td>End marker (alone on line)</td>
 </tr>
+<tr>
+<td><code>refused</code></td>
+<td class="cell-no">✕</td>
+<td>-</td>
+<td>The diagnostic code <code>ze config validate</code> refuses this file with (<code>config-parse</code>, <code>config-yang-reference</code>, ...): the test feeds Ze a config it must refuse</td>
+</tr>
 </tbody>
 </table>
 <!-- source: internal/test/tmpfs/tmpfs.go -- File struct, Tmpfs.AddFile -->
+<p><code>refused=</code> changes nothing at run time: the runner writes the file like any
+other. It is the test's declaration that the body is a Ze config Ze refuses on
+purpose. The repository config sweep (<code>TestRepositoryConfigsValidate</code>,
+<code>internal/component/config/cli</code>) validates every config a <code>.ci</code> carries, and
+for a declared file it asserts the opposite: the body must be refused with
+that code, and a declared body that validates, or is refused for another
+reason, is a finding.</p>
+<p>The sweep discovers tracked files and untracked files that Git's ignore rules
+permit, using <code>git ls-files --cached --others --exclude-standard</code>. This keeps
+launcher exports and other ignored artifacts out while retaining tracked
+exceptions and new source files. The runner's draft tree remains outside the
+regression corpus. Discovery warnings and source read errors fail the sweep,
+including when a narrowed exclusion test would not select that file.</p>
+<!-- source: internal/component/config/cli/validate_corpus_discovery_test.go -- sweepSourceFiles -->
 <h3 id="mode-defaults">Mode Defaults</h3>
-<p>Files default to <code>0644</code>. Use an explicit <code>mode=</code> only when the test needs a
-different permission.</p>
+<p>A file with no <code>mode=</code> takes its mode from its extension: <code>0755</code> for <code>.py</code>,
+<code>.sh</code>, <code>.bash</code>, <code>.zsh</code>, <code>.pl</code>, <code>.rb</code> and <code>.run</code>, <code>0644</code> for anything else. Use
+an explicit <code>mode=</code> when the test needs a different permission, such as an
+extensionless shim (<code>wg</code>, <code>ip</code>) put on <code>PATH</code>, which only <code>mode=755</code> makes
+executable.</p>
+<p>Both routes a <code>.ci</code> takes write the block's bytes unchanged and keep the mode
+the block declared: the parse suite writes the parsed tmpfs as it is, and every
+other suite rebuilds it per run (to expand <code>$PORT</code>) with the mode the record
+carries, never one derived again from the path.
+<code>TestTmpfsContentAndModeReachBothRoutes</code> (<code>internal/test/runner/one_off_proof_test.go</code>)
+runs an extensionless <code>mode=755</code> shim and a control with no <code>mode=</code> through
+both routes and compares the bytes and the execute bit that reached disk.</p>
+<!-- source: internal/test/tmpfs/tmpfs.go -- defaultModeForPath, WriteTo -->
+<!-- source: internal/test/runner/runner_exec.go -- tmpfsForRecord -->
+<!-- source: internal/test/runner/parsing.go -- setupWorkDir -->
 <h3 id="terminator-rules">Terminator Rules</h3>
 <ul>
 <li>Must be non-empty</li>
@@ -759,6 +827,18 @@ expect=bgp:conn=1:seq=1:hex=FFFF...
 </tbody>
 </table>
 <h2 id="options">Options</h2>
+<p>A peer block may require <code>option=remote_close:value=true</code> when its final
+expectation must be followed by the remote ending the transport. The check peer
+waits for EOF or a connection reset before reporting success. Extra bytes, any
+other read error, or cancellation during runner teardown fail the check. The
+runner's command timeout bounds the peer if the remote never closes.
+It sends nothing and does not close its own connection to obtain that evidence.
+It requires check mode and cannot be combined with <code>linger</code> or <code>conn_map</code>.
+Use it after an exact shutdown NOTIFICATION expectation to prove both the
+protocol message and the remote close.</p>
+<!-- source: internal/test/peer/remote_close.go -- waitRemoteClose, parsePeerOptionRemoteClose -->
+<!-- source: internal/test/peer/reject.go -- completed -->
+<!-- test: internal/test/peer/remote_close_test.go -- TestRemoteCloseRequiresTransportEnd, TestRemoteCloseOption -->
 <pre><code>option=&lt;type&gt;:key=value[:key=value...]
 </code></pre>
 <table>
@@ -808,7 +888,7 @@ expect=bgp:conn=1:seq=1:hex=FFFF...
 <tr>
 <td><code>established-file</code></td>
 <td><code>path=&lt;name&gt;</code></td>
-<td>Peer-block only: ze-peer creates the empty file <code>&lt;name&gt;</code> when the daemon's first UPDATE arrives, once for the whole run. A relative name resolves in the test's work directory, where ze-peer and every compiled fixture run. The UPDATE, not ze's KEEPALIVE, is the event: RFC 4271 Section 9 permits an UPDATE only in Established, so the file proves the DAEMON is Established, while its KEEPALIVE arrives when it can still be in OpenConfirm. It lets a fixture wait on that state instead of a fixed delay: the reload trigger's <code>awaitEstablished</code> holds the SIGHUP until the file named <code>established</code> exists. A session that sends no UPDATE never writes the file. See. <span class="ev-src"><span class="ev-ref"><code>internal/test/fixture/misc_fixture_shellports.go</code></span><span class="ev-ref"><code>test/reload/reload-dynamic-peer-survives.ci</code></span></span></td>
+<td>Peer-block only: ze-peer creates an empty marker file on each session's first UPDATE: <code>&lt;name&gt;</code> for the first session of the run, <code>&lt;name&gt;-2</code> for the second, <code>&lt;name&gt;-N</code> for the Nth, so a fixture waits for the session a reload restarted (<code>await-file established-2</code>) the way it waits for the first. A relative name resolves in the test's work directory, where ze-peer and every compiled fixture run. The UPDATE, not ze's KEEPALIVE, is the event: RFC 4271 Section 9 permits an UPDATE only in Established, so the file proves the DAEMON is Established, while its KEEPALIVE arrives when it can still be in OpenConfirm. It lets a fixture wait on that state instead of a fixed delay: the reload trigger's <code>awaitEstablished</code> holds the SIGHUP until the file named <code>established</code> exists. A session that sends no UPDATE never writes the file. See. <span class="ev-src"><span class="ev-ref"><code>internal/test/fixture/misc_fixture_shellports.go</code></span><span class="ev-ref"><code>test/reload/reload-dynamic-peer-survives.ci</code></span></span></td>
 </tr>
 <tr>
 <td><code>await-file</code></td>
@@ -896,7 +976,7 @@ all-block tokenizer incorrectly refused the apostrophe in
 publishes its marker only after the subject withdrawal and permitted fence
 arrive; classification must not rewrite or weaken those receiver checks.</p>
 <!-- source: internal/test/runner/peer_asn.go -- peerASConfigInputs, peerASRewriteSources, configuredPeerAS -->
-<!-- source: internal/test/runner/runner_exec_util.go -- zeDaemonConfigArgIndex -->
+<!-- source: internal/test/runner/runner_exec_util.go -- DaemonConfigArg -->
 <!-- test: internal/test/runner/peer_asn_test.go -- TestDeclarePeerASClassifiesConfigConsumers, TestDeclarePeerASRefusesMalformedConfigInputs, TestPathASNExportFenceParsesWithDerivedAS -->
 <p>The native derivation corpus gate rejects <strong>every</strong> native <code>.ci</code> parse failure,
 including failures before AS derivation. It does not feed other execution
@@ -1005,6 +1085,15 @@ the TEST hangs because its check peer waits for a session the exited daemon will
 never open. The gate reads <code>CapEff</code> from <code>/proc/self/status</code>, not uid 0: a
 setcap'd binary holds the capability without being root, and a restricted
 container can be root without it.</p>
+<p>An unreadable status file, malformed <code>CapEff</code>, or missing <code>CapEff</code> is an admission
+failure naming the probe cause, not evidence that capabilities are present or
+absent. Both <code>.ci</code> and <code>.et</code> discovery retain that failure before execution.
+<code>NeedsGuest</code> propagates it to feature and RFC placement callers instead of
+selecting a guest from an unknown host capability set. A valid capability set
+that lacks a declared bit still produces the documented capability skip.</p>
+<!-- source: internal/test/runner/caps_linux.go -- probeCaps, probeCapsFile -->
+<!-- source: internal/test/runner/record_parse_option.go -- parseOptionNeedsLinux -->
+<!-- source: internal/test/runner/caps.go -- NeedsGuest -->
 <p>A <code>caps=</code> test does not run in the merge gate. <code>./le verify worktree</code> runs
 unprivileged, so the marker turns an opaque hang into an honest skip there, and
 the coverage relocates to <code>.github/workflows/qemu-nightly.yml</code>.
@@ -1388,15 +1477,22 @@ daemon dies with the fixture. A descendant that left the group cannot hold the
 test open either: the runner stops reading its output pipes 10s after the kill.</p>
 <!-- source: internal/test/runner/runner_exec_util.go -- boundProcessDeadline, processWaitDelay -->
 <!-- test: internal/test/runner/process_deadline_test.go TestStartedProcessDeadlineEndsTheTree -->
+<p>Every successful start has one Wait owner. Normal completion, named stop,
+timeout, and early failure join that owner before the runner removes input
+files or releases ports. A peer drain whose grace expires stops and reaps the
+peer before reading its final output.</p>
+<!-- source: internal/test/runner/process_owner.go -- ownedProcess, cleanup -->
+<!-- source: internal/test/runner/runner_exec_util.go -- drainPeers -->
 <p><strong>Background:</strong> Starts and keeps running until its timeout, an explicit stop, or test completion.
 <strong>Foreground:</strong> Setup commands finish before the next step. A <code>ze</code> daemon starts
 without blocking later steps. Its peers or observer determine when teardown starts.
 <strong>Stop:</strong> Terminates a named background process mid-test (see below).</p>
 <p>Every foreground helper (any program other than <code>ze</code> and the test peer) is
-waited for, the last <code>cmd=</code> line included. A helper earlier in the file that
-exits non-zero fails the test as a setup script. The last helper's exit is the
-one <code>expect=exit:code=</code> asserts; with no such line a non-zero exit fails the
-test. A helper still running at the test deadline fails it as a timeout that
+waited for, the last <code>cmd=</code> line included. Its <code>exit=</code> assertion checks its own
+status before the next command starts. Without <code>exit=</code>, an intermediate helper
+must exit zero. The final helper can instead declare <code>expect=exit:code=</code>.
+If it declares both, both must match. With neither, it must exit zero.
+A helper still running at the test deadline fails it as a timeout that
 names the command: a process the test does not wait for is <code>cmd=background</code>.</p>
 <p>Until 2026-10-14 the last helper was classed with the daemons: started, torn
 down with no <code>Wait</code> unless <code>expect=exit:code=</code> was declared, so its output
@@ -1424,7 +1520,7 @@ process. Three limits apply:</p>
 never a literal quote inside an argument.</li>
 <li>An unbalanced quote fails the test with <code>unclosed quote in ...</code>.</li>
 <li>No shell runs, so <code>|</code>, <code>&gt;</code> and <code>$HOME</code> are ordinary characters inside an
-argument. The runner expands <code>$PORT</code> and <code>$PORT2</code> and nothing else, and
+argument. The runner expands <code>$PORT</code>, <code>$PORT2</code> and <code>$PORT3</code>, and
 <code>le test fixture</code> expands the environment in its own arguments.</li>
 </ul>
 <p>One splitter serves every suite, so a <code>cmd=</code> line produces the same argv
@@ -1454,7 +1550,7 @@ alone while the parse suite honored quotes. The example above was already
 published here, so four <code>test/ui</code> tests were written against it. <code>-c</code> received
 only the first word of the quoted command, <code>ze cli</code> fell through to its SSH
 client, and each test failed with <code>no credentials for 127.0.0.1:2222</code>.</p>
-<!-- source: internal/test/runner/runner_exec_util.go -- splitCommand -->
+<!-- source: internal/test/runner/runner_exec_util.go -- SplitCommand -->
 <!-- source: internal/test/runner/runner_exec.go -- runExecCommands argv construction and binary resolution -->
 <!-- source: internal/test/runner/runner.go -- setupBinShims -->
 <!-- source: internal/test/runner/parsing.go -- runOneCommand, the parse suite's own execution -->
@@ -1518,18 +1614,72 @@ peer-death observation (the deleted <code>test/ipsec/ipsec-dpd-timeout.ci</code>
 <h4 id="exit-vs-expectexitcode-per-command-vs-file-level"><code>exit=</code> vs <code>expect=exit:code=</code> (per-command vs file-level)</h4>
 <p><code>expect=exit:code=</code> is <strong>file-level</strong>: <code>Record.ExpectExitCode</code> is a single value
 (a later <code>expect=exit:code=</code> silently overwrites an earlier one) and the runner
-compares it against <code>lastQuickZeErr</code> -- the exit status of the <strong>last</strong> quick-exit
-<code>ze</code> command in the file. A file that runs several <code>ze config validate</code> commands
+uses the final foreground helper's exit when the final command is a helper.
+Otherwise, it uses the foreground daemon's exit, or the last quick-exit <code>ze</code>
+command's exit when there is no daemon. Await fences retain their daemon/peer
+exit selection. A file that runs several <code>ze config validate</code> commands
 therefore asserts only the final one; every earlier command can exit with any code
 and the test still passes.</p>
 <p>Use <code>exit=</code> on the <code>cmd=</code> line to assert a specific command's own exit code. It is
 checked the moment that command finishes, and names the offending <code>seq</code> on failure:</p>
 <pre><code>cmd seq=2 (ze config validate -): expected exit code 1, got 0
 </code></pre>
+<p>Foreground helpers honor <code>exit=</code> in both intermediate and final positions.
+A helper mismatch retains its output and stops execution before the next command.
+Inspect that output, then correct the helper or its <code>exit=</code> assertion.
+Timeout and cancellation remain failures regardless of the declared exit code.</p>
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated -->
+<!-- test: internal/test/runner/helper_exit_test.go TestForegroundHelperCommandExit, TestForegroundHelperFileExit -->
 <p>Prefer <code>exit=</code> whenever a file runs more than one quick-exit <code>ze</code> command. A
 "quick-exit <code>ze</code> command" is any foreground <code>ze</code> whose verb is not a daemon verb
 (<code>hub</code>, <code>start</code>, <code>cli</code>, <code>monitor</code>) and which has no config-file argument or
 <code>--web</code> flag.</p>
+<p>For helpers and quick-exit <code>ze</code>, <code>exit=0</code> requires a successful wait. A nonzero
+exit compares the child's reported status. A wait error with no readable exit
+status, including an output pipe that exceeds its drain bound, fails the command
+instead of being treated as zero. The failure retains output and names the
+command and wait error. Check that the command runs to completion on this host,
+then run the test again.</p>
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated -->
+<!-- test: internal/test/runner/quick_exit_test.go TestQuickZeCommandExit -->
+<!-- test: internal/test/runner/quick_exit_linux_test.go TestQuickZeUnreadableExit -->
+<p><strong><code>exit=</code> is accepted only where it is checked.</strong> Only the two foreground arms
+that await their process compare it: a foreground helper and a foreground
+quick-exit <code>ze</code>. Every other command refuses <code>exit=</code> when the file is read,
+naming the reason and the fix:</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Why <code>exit=</code> is refused</th>
+<th>Write instead</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cmd=background</code></td>
+<td>The runner never waits for it to exit; it is killed at teardown</td>
+<td><code>cmd=foreground</code>, or an <code>expect=</code> on what it produced</td>
+</tr>
+<tr>
+<td>Foreground <code>ze</code> daemon</td>
+<td>The runner synchronizes on it and tears it down; its status is the file-level one</td>
+<td><code>expect=exit:code=</code></td>
+</tr>
+<tr>
+<td>Foreground <code>le test peer</code></td>
+<td>The same as a foreground daemon</td>
+<td><code>expect=exit:code=</code></td>
+</tr>
+</tbody>
+</table>
+<p>Until 2026-11-02 these lines parsed, and the assertion was dropped in silence.
+<code>classifyStepArm</code> names the arm once for the parser and for <code>runOrchestrated</code>,
+and <code>runOrchestrated</code> checks again before it dispatches, so a record built
+without the parser cannot slip past either.</p>
+<!-- source: internal/test/runner/steparm.go -- classifyStepArm, stepArm.assertsExit, checkExitAssertable -->
+<!-- source: internal/test/runner/record_parse.go -- EncodingTests.parseCmd -->
+<!-- test: internal/test/runner/steparm_test.go TestParseRefusesExitTheArmDrops, TestStepArmAssertsExitOnlyOnAwaitedArms -->
 <h4 id="every-stream-assertion-sits-under-a-command-and-is-scoped-to-it">Every stream assertion sits under a command and is scoped to it</h4>
 <p>Every <code>expect=stdout:</code>, <code>reject=stdout:</code>, <code>expect=stderr:</code> and <code>reject=stderr:</code>
 line belongs to the <code>cmd=</code> line directly above it. Position is the grammar: the
@@ -1609,6 +1759,22 @@ under it reads only what it wrote; a reject under it still reads both streams
 from its start to the end of the run, so the daemon teardown that follows is
 still forbidden. A command the run never reached has an EMPTY span, never the
 whole buffer.</p>
+<p>Output snapshots taken between commands do not finish an open span. The runner
+closes it only after the output writers have joined, including deferred child
+cleanup on an early error. Until 2026-11-03, saving a foreground helper's output
+also closed background and daemon spans, so later output reached the report but
+not the assertions under those commands.</p>
+<!-- source: internal/test/runner/runner_output_assert.go -- setClientOutput, finalizeClientOutput -->
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated -->
+<!-- test: internal/test/runner/last_helper_test.go TestBackgroundSpanSurvivesIntermediateHelper, TestEarlyErrorFinalizesOutputSpans -->
+<p>With <code>--save</code>, the orchestrated runner writes the final client and peer stdout
+and stderr, expected messages, and received wire messages once after the child
+owners finish. This includes a helper failure or timeout that returns before
+normal teardown. Saving preserves the original verdict; a write failure is
+reported as a warning rather than replacing the test's failure.</p>
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated -->
+<!-- source: internal/test/runner/runner_output.go -- saveTestOutput -->
+<!-- test: internal/test/runner/last_helper_test.go TestFailedOrchestratedRunSavesLateOutput, TestEarlySaveWaitsForOwnedWriterJoin -->
 <p><strong>This replaced a file-level check over one combined buffer.</strong> Every expect
 used to read <code>Record.ClientOutput</code>, the concatenated stdout AND stderr of every
 command in the file, so an assertion could be satisfied by a command its author
@@ -1638,6 +1804,13 @@ them may surface real defects; tracked in <code>plan/known-failures/</code>.</p>
 <h4 id="the-parse-suite-reads-its-own-dialect">The parse suite reads its own dialect</h4>
 <p><code>test/parse</code> runs under <code>ParsingTests</code>, a second parser with its own execution
 model. Two differences are load-bearing for an author.</p>
+<p><strong>A command's own <code>exit=</code> is its exit assertion here</strong>, the same one an
+<code>expect=exit:code=</code> under it states, because this suite awaits every command,
+daemon verbs included. A command whose <code>exit=</code> and <code>expect=exit:code=</code> disagree
+is refused at discovery. Until 2026-11-02 this suite parsed <code>exit=</code> and dropped
+it, so only the <code>expect=exit:code=</code> form was checked.</p>
+<!-- source: internal/test/runner/parsing.go -- ciFileParser.parseCommand, ciFileParser.parseExitCode -->
+<!-- test: internal/test/runner/steparm_test.go TestParseSuiteHonoursCommandExit -->
 <p><strong>Every assertion is scoped to one command</strong>, as it is in the generic runner
 (above). This suite has always worked that way and the generic runner now does
 too, so the two dialects no longer disagree about what an assertion's position
@@ -2326,6 +2499,14 @@ test as a message mismatch.</p>
 <h2 id="http-checks">HTTP Checks</h2>
 <p>HTTP checks validate web endpoint responses after all <code>cmd=</code> processes have started.
 Executed in <code>seq</code> order with automatic retry on connection errors (server starting up).</p>
+<p>Under the per-test namespace mode (<code>./le test qemu netns</code>) the daemon listens on
+the namespace's own loopback. net/http dials from a goroutine of its own, which
+does not run on the runner's locked thread, so the runner's transport opens each
+socket inside the test's namespace (<code>netnsDialContext</code>). Before it did, every
+<code>http=</code> line in a namespace test was refused.</p>
+<!-- source: internal/test/runner/runner_validate.go -- httpClientForCheck -->
+<!-- source: internal/test/runner/netns_linux.go -- netnsDialContext -->
+<!-- test: internal/test/runner/netns_linux_test.go -- TestNetnsDialContextReachesTheTestNamespace -->
 <h3 id="assertion-checks-getpost">Assertion Checks (get/post)</h3>
 <pre><code>http=get:seq=N:url=URL:status=CODE[:contains=TEXT][:bodyfile=PATH][:header=NAME: VALUE]
 http=post:seq=N:url=URL:status=CODE[:contains=TEXT][:bodyfile=PATH][:sendfile=PATH][:content-type=TYPE][:header=NAME: VALUE][:insecure-tls=true]
@@ -2620,8 +2801,16 @@ until the observed payload matches, within a bounded attempt count. It is what
 replaces a <code>time.Sleep</code> followed by a one-shot assertion.</p>
 <p><code>fixture.Observe</code> can request a clean daemon shutdown even after an assertion
 failed, so the daemon's exit code does not prove the observer's assertion. A
-failing observer returns an error, which <code>fixture.Run</code> hands to
-<code>fixture.ReportFailure</code>.</p>
+successful scenario must also complete <code>request quiesce</code> with status <code>done</code>.
+Transport errors, engine refusals and other statuses fail the observer. The
+observer reports <code>ZE-OBSERVER-FAIL</code> before requesting shutdown, then returns the
+error to <code>fixture.Run</code>.</p>
+<!-- source: internal/test/fixture/fixture.go -- observeConfigured, Run, ReportFailure -->
+<p>For process-status assertions, <code>le test fixture runner/helper-command-exit &lt;stdout-line&gt; &lt;exit-code&gt;</code> writes the line and exits with the requested status
+from 0 through 255. A requested nonzero status is test input, not an observer
+failure, so it emits no <code>ZE-OBSERVER-FAIL</code>. Invalid arguments and output errors
+still follow the normal fixture failure path.</p>
+<!-- source: internal/test/fixture/register.go -- helperCommandExit -->
 <p><strong>A fixture-driven <code>.ci</code> needs no <code>bgp</code> block and no <code>le test peer</code> to get a daemon
 that stops.</strong> <code>request shutdown</code> reaches a reactorless daemon through the
 shutdown callback the daemon wires beside its plugin server, before any plugin
@@ -2654,6 +2843,17 @@ observer. <code>fixture.ReportFailure</code> emits the FIRST failure only, so th
 the failure site and the one on the way out are one line.</p>
 <!-- source: internal/test/fixture/fixture.go -- observeConfigured, ReportFailure -->
 <!-- source: internal/component/plugin/process/process.go -- relayStderrFrom -->
+<p>Custom shutdown owners retain the same order: complete the successful
+scenario's final quiesce, report its error, publish its result, then request
+shutdown. <code>runPlugin13</code> supplies that barrier when its shutdown flag is true.
+A started scenario retains its verdict if the plugin transport closes first.
+The actual <code>runPlugin13</code> and
+<code>plugin15ObserveStarted</code> regressions cover successful quiesce, transport loss,
+engine refusal and warning status through the authenticated SDK transport.</p>
+<!-- source: internal/test/fixture/plugin_fixture_13.go -- runPlugin13 -->
+<!-- source: internal/test/fixture/plugin_fixture_15.go -- plugin15ObserveStarted -->
+<!-- source: internal/test/fixture/fixture.go -- awaitObserverResult -->
+<!-- test: internal/test/fixture/plugin_fixture_custom_quiesce_test.go -- TestRunPlugin13RequiresCompletedQuiesceBeforeShutdown, TestPlugin15StartedReportsBarrierFailureBeforeShutdown -->
 <p><strong>A driver's working directory is the per-test directory, so a driver names its
 files relatively and <code>fixture.Run</code> refuses to start in the checkout.</strong> The
 runner creates one directory for each test, gives it to every child of that test
@@ -2668,15 +2868,18 @@ ze <code>go.mod</code> (<code>sessionpath.IsRepoRoot</code>). The runner never s
 there, so the refusal is written for a person who typed
 <code>./le test fixture &lt;name&gt;</code> at the root: plain text, not a <code>ZE-OBSERVER-FAIL</code>
 line, ending with the command that runs each <code>.ci</code> test whose step starts the
-fixture, such as <code>./le test ui ze-help-ai-unchanged</code>. It reads every
+fixture, such as <code>./le test ui pipe-interactive-save</code>. It reads every
 <code>test/&lt;dir&gt;/*.ci</code>, skips <code>#</code> comment lines, and asks the one resolver of which
 runner walks a directory (<code>testfunctional.CIRunnerWords</code>): the functional suite
 table, then the <code>le test bgp</code> directories, then a registered <code>le test &lt;dir&gt;</code>
 command. A suite's name is not always its directory (suite <code>installer</code> runs
-<code>test/install/</code> through <code>./le test install</code>), and <code>test/pppoe/</code> has a runner
-but no suite row, so the suite table alone misses both. Each command is that
-runner's words before <code>--all</code>, then the file's stem. When no <code>.ci</code> test starts
-the fixture, it prints the <code>exec=</code> step to add instead. A driver that needs the checkout reads <code>$ZE_REPO_ROOT</code>, which the
+<code>test/install/</code> through <code>./le test install</code>), and registered runners need not
+have a suite row, so the suite table alone cannot resolve every harness.
+PPPoE has a non-gating suite row and uses its existing <code>le test pppoe</code> runner,
+including for <code>suite "pppoe --draft"</code> stress reproduction; its platform and
+namespace requirements remain unchanged. Each fixture command is its runner's
+words before <code>--all</code>, then the file's stem. When no <code>.ci</code> test starts the
+fixture, it prints the <code>exec=</code> step to add instead. A driver that needs the checkout reads <code>$ZE_REPO_ROOT</code>, which the
 runner exports; it never reads the working directory for one.</p>
 <!-- source: internal/test/fixture/fixture.go -- Run, refuseRepoRoot, fixtureTestCommands, startsFixture -->
 <!-- source: internal/le/test/functional/cirunner.go -- CIRunnerWords, Suite.OneTestWords -->
@@ -3011,6 +3214,14 @@ expect=json:conn=1:seq=1:json={...}
 <li><code>json=</code> prefix for JSON data</li>
 </ul>
 <h2 id="editor-test-format-et">Editor Test Format (.et)</h2>
+<p>Editor resource declarations use the shared <code>.ci</code> grammar for
+<code>option=needs-linux[:caps=&lt;tokens&gt;]</code> and <code>option=exclusive:group=&lt;name&gt;</code>.
+Discovery rejects unknown resource keys, duplicate keys, invalid capabilities,
+missing groups, and invalid or overflowing effective timeouts. A parse failure
+outranks a capability skip. The native editor runner retains the discovered
+snapshot and holds its group lease through child reaping and cleanup.</p>
+<!-- source: internal/test/runner/record_parse_option.go -- ParseResourceOption -->
+<!-- source: internal/test/cli/cmd_editor.go -- discoverEditorTests, runEditorTests -->
 <p>The <code>.et</code> format extends <code>.ci</code> for interactive editor testing. Tests are located in <code>test/editor/</code>.</p>
 <!-- source: internal/component/cli/testing/parser.go -- editor test parsing -->
 <h3 id="overview">Overview</h3>
@@ -3247,7 +3458,36 @@ modules. The tree carries no value hints and no plugin commands. A hint provider
 reads the live RIB, and a plugin command comes from the live dispatcher. A
 headless test has neither, so a completion over a VALUE stays empty there.</p>
 <!-- source: internal/component/cli/testing/headless.go -- headlessCommandTree -->
+<h3 id="dimensions-and-timeout">Dimensions and Timeout</h3>
+<p>Editor dimensions use <code>option=width:value=&lt;columns&gt;</code> and
+<code>option=height:value=&lt;rows&gt;</code>. Missing, nonnumeric, nonpositive and overflowing
+integer values are parse errors. Dimensions default to 80×24 and apply to the
+initial model, each new session and every restarted model through the terminal
+resize event. <code>option=timeout:value=&lt;duration&gt;</code> defaults to 30 seconds and
+refuses nonpositive durations or overflow after concurrency headroom is applied.</p>
+<!-- source: internal/component/cli/testing/parser.go -- parseOption -->
+<!-- source: internal/component/cli/testing/runner.go -- testBudget, runTestCaseIn -->
+<p><code>restart=editor</code> recreates the selected editor using its own construction mode
+and session identity. A named <code>session=</code> keeps its user and origin across
+restart and switch-back; it does not inherit the initial file session's identity.</p>
+<!-- source: internal/component/cli/testing/runner.go -- runTestCaseIn -->
 <h3 id="wait-actions">Wait Actions</h3>
+<p>Model copies share one session context and clock. Validation, draft polling,
+confirmation countdown and live-view poll ticks use stoppable timers; closing
+the model cancels pending ticks. Delivery checks the originating model lifetime
+before applying the message, so an expired tick cannot affect a restarted
+editor. Validation also retains its generation check. Authored editor runs use
+real timers; controlled clocks are confined to focused runtime tests.</p>
+<!-- source: internal/component/cli/model_timer.go -- tick, modelTickMsg -->
+<!-- source: internal/component/cli/model.go -- Update, Close -->
+<p>The model declares timer work with <code>TimerMsg</code>. Headless execution runs ordinary
+commands and every state-command result to completion, including nested batches
+and sequences. Only declared timers run asynchronously; command duration never
+classifies work as a timer. Expectations settle validation without waiting for
+recurring display ticks. Restart and case cleanup cancel and join pending model
+timers before releasing the editor.</p>
+<!-- source: internal/component/cli/model_timer.go -- TimerMsg, Wait -->
+<!-- source: internal/component/cli/testing/headless.go -- processCmd, processMsg, settleWait, close -->
 <table>
 <thead>
 <tr>
@@ -3268,12 +3508,40 @@ headless test has neither, so a completion over a VALUE stays empty there.</p>
 <td><code>wait=validation</code></td>
 </tr>
 <tr>
+<td><code>wait=timer:drain</code></td>
+<td>Apply timers pending at entry once</td>
+<td><code>wait=timer:drain</code></td>
+</tr>
+<tr>
 <td><code>wait=timer:expire</code></td>
 <td>Wait for timer expiry</td>
 <td><code>wait=timer:expire</code></td>
 </tr>
 </tbody>
 </table>
+<p><code>wait=ms:&lt;N&gt;</code> pumps timer deliveries for at least N real milliseconds (zero is
+allowed). Negative, noninteger and overflowing durations are parse errors.
+<code>wait=validation</code> applies the current generation before the next state command;
+older debounce ticks cannot satisfy it. A settled editor returns immediately.
+<code>wait=timer:drain</code> waits for and applies every declared timer pending at entry,
+including its complete state-command chain. Timers rearmed by those deliveries
+remain pending for later steps. No elapsed-time threshold establishes readiness;
+an empty entry set or cancellation fails the wait. For a fake ping monitor,
+place it immediately after Enter so the real 50ms first poll drains the prepared
+replies before viewport or saved-file assertions.
+<code>wait=timer:expire</code> requires an active confirmation timer on entry and waits for
+observed timeout rollback. An inactive timer, accept/abort, cancellation, missing
+countdown/poll or rollback error fails the wait. Session editors observe the
+real daemon window through draft polling; they do not synthesize its expiry.
+If the daemon's rollback fails and its window remains open for retry, the wait
+reports the structured rollback cause at the next poll instead of waiting for
+the case timeout. The window stays open; reporting failure does not accept it.</p>
+<!-- source: internal/component/cli/model_commit_window.go -- Poll -->
+<!-- source: internal/component/cli/model.go -- Error -->
+<p>Unknown wait actions and malformed arguments are parse errors. Wait failures
+are recorded on the wait step, including its cause.</p>
+<!-- source: internal/component/cli/testing/headless_wait.go -- parameters, wait, waitEvent -->
+<!-- source: internal/component/cli/testing/runner.go -- runTestCaseIn -->
 <h3 id="example_4">Example</h3>
 <pre><code># Test: Edit navigation
 tmpfs=test.conf:terminator=EOF_CONF
@@ -3358,7 +3626,7 @@ expect=completion:contains=router-id,local-as,peer
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 18:35 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

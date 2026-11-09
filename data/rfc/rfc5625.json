@@ -1,0 +1,33 @@
+{
+  "stem": "rfc5625",
+  "title": "DNS Proxy Implementation Guidelines",
+  "walked": true,
+  "requirements": 27,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 12,
+    "kept": 12,
+    "ze-proven": 12,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 0,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 15,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 15,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 12
+  },
+  "unmet": []
+}

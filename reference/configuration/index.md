@@ -146,7 +146,7 @@ The container holds the plugin switch, the reusable profiles, and the sessions a
 
 ## bgp
 
-*Provided by `bgp` ([ze-bgp-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/yang/ze-bgp-api.yang), [ze-bgp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/yang/ze-bgp-conf.yang)); `bgp-bmp` ([ze-bmp-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/yang/ze-bmp-cmd.yang), [ze-bmp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang)); `bgp-filter-aspath` ([ze-filter-aspath.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_aspath/yang/ze-filter-aspath.yang)); `bgp-filter-aspath-length` ([ze-filter-aspath-length.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_aspath_length/yang/ze-filter-aspath-length.yang)); `bgp-filter-community` ([ze-filter-community.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/yang/ze-filter-community.yang)); `bgp-filter-community-match` ([ze-filter-community-match.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community_match/yang/ze-filter-community-match.yang)); `bgp-filter-family` ([ze-filter-family.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_family/yang/ze-filter-family.yang)); `bgp-filter-irr` ([ze-filter-irr-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr-cmd.yang), [ze-filter-irr.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang)); `bgp-filter-modify` ([ze-filter-modify.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang)); `bgp-filter-path-asn` ([ze-filter-path-asn-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_path_asn/yang/ze-filter-path-asn-cmd.yang), [ze-filter-path-asn.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_path_asn/yang/ze-filter-path-asn.yang)); `bgp-filter-prefix` ([ze-filter-prefix.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_prefix/yang/ze-filter-prefix.yang)); `bgp-filter-remove-private-as` ([ze-filter-remove-private-as.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/yang/ze-filter-remove-private-as.yang)); `bgp-gr` ([ze-graceful-restart.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang)); `bgp-healthcheck` ([ze-healthcheck-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/healthcheck/yang/ze-healthcheck-conf.yang)); `bgp-hostname` ([ze-hostname.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/hostname/yang/ze-hostname.yang)); `bgp-llnh` ([ze-link-local-nexthop.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/llnh/yang/ze-link-local-nexthop.yang)); `bgp-rib` ([ze-rib-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/yang/ze-rib-api.yang), [ze-rib.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/yang/ze-rib.yang)); `bgp-role` ([ze-role.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/yang/ze-role.yang)); `bgp-route-refresh` ([ze-refresh-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/route_refresh/yang/ze-refresh-cmd.yang), [ze-route-refresh-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh-api.yang), [ze-route-refresh.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh.yang)); `bgp-rpki` ([ze-rpki.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/yang/ze-rpki.yang)); `bgp-rs` ([ze-rs-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/yang/ze-rs-conf.yang)); `bgp-softver` ([ze-softver.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/yang/ze-softver.yang)); `bgp-watchdog` ([ze-watchdog-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/watchdog/yang/ze-watchdog-cmd.yang))*
+*Provided by `bgp` ([ze-bgp-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/yang/ze-bgp-api.yang), [ze-bgp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/yang/ze-bgp-conf.yang)); `bgp-bmp` ([ze-bmp-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/yang/ze-bmp-cmd.yang), [ze-bmp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang)); `bgp-filter-aspath` ([ze-filter-aspath.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_aspath/yang/ze-filter-aspath.yang)); `bgp-filter-aspath-length` ([ze-filter-aspath-length.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_aspath_length/yang/ze-filter-aspath-length.yang)); `bgp-filter-community` ([ze-filter-community.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/yang/ze-filter-community.yang)); `bgp-filter-community-match` ([ze-filter-community-match.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community_match/yang/ze-filter-community-match.yang)); `bgp-filter-family` ([ze-filter-family.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_family/yang/ze-filter-family.yang)); `bgp-filter-irr` ([ze-filter-irr-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr-cmd.yang), [ze-filter-irr.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang)); `bgp-filter-modify` ([ze-filter-modify.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang)); `bgp-filter-path-asn` ([ze-filter-path-asn-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_path_asn/yang/ze-filter-path-asn-cmd.yang), [ze-filter-path-asn.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_path_asn/yang/ze-filter-path-asn.yang)); `bgp-filter-prefix` ([ze-filter-prefix.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_prefix/yang/ze-filter-prefix.yang)); `bgp-filter-remove-private-as` ([ze-filter-remove-private-as.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/yang/ze-filter-remove-private-as.yang)); `bgp-gr` ([ze-graceful-restart.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang)); `bgp-healthcheck` ([ze-healthcheck-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/healthcheck/yang/ze-healthcheck-conf.yang)); `bgp-hostname` ([ze-hostname.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/hostname/yang/ze-hostname.yang)); `bgp-llnh` ([ze-link-local-nexthop.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/llnh/yang/ze-link-local-nexthop.yang)); `bgp-rib` ([ze-rib-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/yang/ze-rib-api.yang), [ze-rib.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/yang/ze-rib.yang)); `bgp-role` ([ze-role-asn-set.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/yang/ze-role-asn-set.yang), [ze-role.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/yang/ze-role.yang)); `bgp-route-refresh` ([ze-refresh-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/route_refresh/yang/ze-refresh-cmd.yang), [ze-route-refresh-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh-api.yang), [ze-route-refresh.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh.yang)); `bgp-rpki` ([ze-rpki.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/yang/ze-rpki.yang)); `bgp-rs` ([ze-rs-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/yang/ze-rs-conf.yang)); `bgp-softver` ([ze-softver.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/yang/ze-softver.yang)); `bgp-watchdog` ([ze-watchdog-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/watchdog/yang/ze-watchdog-cmd.yang))*
 
 Border Gateway Protocol routing configuration.
 
@@ -271,12 +271,6 @@ A peer inherits from its group defaults. A group inherits from this global level
           Ze resolves the value in three steps: this leaf first, then the default encoder the program registered, then text. Ze lowercases the value before it passes the value to the program binding.
         - **format** `string`: Output format template for event rendering.
           Ze uses parsed when the leaf is absent. Ze lowercases the value before it passes the value to the program binding.
-      - **neighbor-changes** `container`: Send session state change events to this process.
-        The events are up, down, and reset. The process can therefore react to a peer lifecycle transition.
-      - **processes** `string[]`: Legacy ExaBGP process reference list. Use 'receive' and 'send' instead.
-        The config migration rewrites the leaf. Ze creates one attach process entry per name in the list, and it deletes the block that carried the leaf. The BGP reactor reads no value from the leaf.
-      - **processes-match** `string[]`: Legacy ExaBGP process match patterns for event filtering.
-        The config migration treats each pattern as a process name, and it creates one attach process entry per pattern. Ze matches nothing against the pattern. The BGP reactor reads no value from the leaf.
       - **receive** `string[]`: Event types this peer feeds the program.
         The base types are update, open, notification, keepalive, refresh, state, and negotiated. A plugin registers more, for example update-rpki. A type carries the direction it is fed in: 'update' means both directions, and 'update-received' and 'update-sent' each mean one direction. A registered type keeps its whole name, so a plugin type that ends in -sent is never read as a direction. '*' feeds every type, in both directions. 'all' is not accepted, because a word that reads like a type would grant a type that a plugin registers later, which '*' says on purpose. Ze validates the list at runtime against the registered event types.
       - **run** `string`: Shell command that starts the external process.
@@ -432,12 +426,6 @@ A peer inherits from its group defaults. A group inherits from this global level
             Ze resolves the value in three steps: this leaf first, then the default encoder the program registered, then text. Ze lowercases the value before it passes the value to the program binding.
           - **format** `string`: Output format template for event rendering.
             Ze uses parsed when the leaf is absent. Ze lowercases the value before it passes the value to the program binding.
-        - **neighbor-changes** `container`: Send session state change events to this process.
-          The events are up, down, and reset. The process can therefore react to a peer lifecycle transition.
-        - **processes** `string[]`: Legacy ExaBGP process reference list. Use 'receive' and 'send' instead.
-          The config migration rewrites the leaf. Ze creates one attach process entry per name in the list, and it deletes the block that carried the leaf. The BGP reactor reads no value from the leaf.
-        - **processes-match** `string[]`: Legacy ExaBGP process match patterns for event filtering.
-          The config migration treats each pattern as a process name, and it creates one attach process entry per pattern. Ze matches nothing against the pattern. The BGP reactor reads no value from the leaf.
         - **receive** `string[]`: Event types this peer feeds the program.
           The base types are update, open, notification, keepalive, refresh, state, and negotiated. A plugin registers more, for example update-rpki. A type carries the direction it is fed in: 'update' means both directions, and 'update-received' and 'update-sent' each mean one direction. A registered type keeps its whole name, so a plugin type that ends in -sent is never read as a direction. '*' feeds every type, in both directions. 'all' is not accepted, because a word that reads like a type would grant a type that a plugin registers later, which '*' says on purpose. Ze validates the list at runtime against the registered event types.
         - **run** `string`: Shell command that starts the external process.
@@ -617,6 +605,8 @@ A peer inherits from its group defaults. A group inherits from this global level
         - `rs-client`: RFC 9234: RS-Client (2)
       - **strict** `boolean`: Require peer to send Role capability
         The default false accepts a peer that sends no Role capability, which RFC 9234 Section 4.2 asks for. true rejects that session with a NOTIFICATION of code 2 and subcode 11. The leaf needs import beside it, because Ze validates no OPEN for a peer that declares no local role.
+      - **transit-asns** `string`: asn-set of transit providers this router does not peer with
+        Names a policy asn-set holding the ASNs of transit providers this router does not peer with, for example a provider reached through another router of the network. It is optional: the provider set is derived from the config, as the remote ASN of every peer whose role import is customer (RFC 9234 Section 3.1: the remote AS is then Ze's provider), and the upstream check uses the union of that derived set and every asn-set a transit-asns leaf names, on any peer or group. RFC 7454 Section 9: the check rejects a route whose AS path carries one of those ASNs, on import from a customer, a peer or an RS-client, and on export to a peer or a route server; the session to a provider never compares its own ASN.
     - **rpki** `container`: RPKI action overrides of this peer or group.
       Ze resolves every leaf on its own. A leaf set on the peer wins. A leaf that is unset falls through to the group value, then to the global value.
       - **action** `container`: Origin-validation action overrides of this peer or group.
@@ -954,6 +944,8 @@ A peer inherits from its group defaults. A group inherits from this global level
       - `rs-client`: RFC 9234: RS-Client (2)
     - **strict** `boolean`: Require peer to send Role capability
       The default false accepts a peer that sends no Role capability, which RFC 9234 Section 4.2 asks for. true rejects that session with a NOTIFICATION of code 2 and subcode 11. The leaf needs import beside it, because Ze validates no OPEN for a peer that declares no local role.
+    - **transit-asns** `string`: asn-set of transit providers this router does not peer with
+      Names a policy asn-set holding the ASNs of transit providers this router does not peer with, for example a provider reached through another router of the network. It is optional: the provider set is derived from the config, as the remote ASN of every peer whose role import is customer (RFC 9234 Section 3.1: the remote AS is then Ze's provider), and the upstream check uses the union of that derived set and every asn-set a transit-asns leaf names, on any peer or group. RFC 7454 Section 9: the check rejects a route whose AS path carries one of those ASNs, on import from a customer, a peer or an RS-client, and on export to a peer or a route server; the session to a provider never compares its own ASN.
   - **rpki** `container`: RPKI action overrides of this peer or group.
     Ze resolves every leaf on its own. A leaf set on the peer wins. A leaf that is unset falls through to the group value, then to the global value.
     - **action** `container`: Origin-validation action overrides of this peer or group.
@@ -1319,12 +1311,6 @@ A peer inherits from its group defaults. A group inherits from this global level
           Ze resolves the value in three steps: this leaf first, then the default encoder the program registered, then text. Ze lowercases the value before it passes the value to the program binding.
         - **format** `string`: Output format template for event rendering.
           Ze uses parsed when the leaf is absent. Ze lowercases the value before it passes the value to the program binding.
-      - **neighbor-changes** `container`: Send session state change events to this process.
-        The events are up, down, and reset. The process can therefore react to a peer lifecycle transition.
-      - **processes** `string[]`: Legacy ExaBGP process reference list. Use 'receive' and 'send' instead.
-        The config migration rewrites the leaf. Ze creates one attach process entry per name in the list, and it deletes the block that carried the leaf. The BGP reactor reads no value from the leaf.
-      - **processes-match** `string[]`: Legacy ExaBGP process match patterns for event filtering.
-        The config migration treats each pattern as a process name, and it creates one attach process entry per pattern. Ze matches nothing against the pattern. The BGP reactor reads no value from the leaf.
       - **receive** `string[]`: Event types this peer feeds the program.
         The base types are update, open, notification, keepalive, refresh, state, and negotiated. A plugin registers more, for example update-rpki. A type carries the direction it is fed in: 'update' means both directions, and 'update-received' and 'update-sent' each mean one direction. A registered type keeps its whole name, so a plugin type that ends in -sent is never read as a direction. '*' feeds every type, in both directions. 'all' is not accepted, because a word that reads like a type would grant a type that a plugin registers later, which '*' says on purpose. Ze validates the list at runtime against the registered event types.
       - **run** `string`: Shell command that starts the external process.
@@ -1504,6 +1490,8 @@ A peer inherits from its group defaults. A group inherits from this global level
       - `rs-client`: RFC 9234: RS-Client (2)
     - **strict** `boolean`: Require peer to send Role capability
       The default false accepts a peer that sends no Role capability, which RFC 9234 Section 4.2 asks for. true rejects that session with a NOTIFICATION of code 2 and subcode 11. The leaf needs import beside it, because Ze validates no OPEN for a peer that declares no local role.
+    - **transit-asns** `string`: asn-set of transit providers this router does not peer with
+      Names a policy asn-set holding the ASNs of transit providers this router does not peer with, for example a provider reached through another router of the network. It is optional: the provider set is derived from the config, as the remote ASN of every peer whose role import is customer (RFC 9234 Section 3.1: the remote AS is then Ze's provider), and the upstream check uses the union of that derived set and every asn-set a transit-asns leaf names, on any peer or group. RFC 7454 Section 9: the check rejects a route whose AS path carries one of those ASNs, on import from a customer, a peer or an RS-client, and on export to a peer or a route server; the session to a provider never compares its own ASN.
   - **rpki** `container`: RPKI action overrides of this peer or group.
     Ze resolves every leaf on its own. A leaf set on the peer wins. A leaf that is unset falls through to the group value, then to the global value.
     - **action** `container`: Origin-validation action overrides of this peer or group.
@@ -2201,7 +2189,7 @@ The api-server container under it is the shared parent of the REST and gRPC tran
     - **server <name>** `list`: gRPC API listen endpoints
       The ze:listener extension marks this list, so config validation collects each endpoint and refuses a second listener that binds the same protocol, port and address. An empty list still binds one endpoint, 0.0.0.0 port 50051, from the refine defaults under it.
       - **ip** `ip-address`: Listen IP address
-        The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and an IPv4 address never overlaps an IPv6 address.
+        The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. On most services :: is dual-stack: it also accepts IPv4 clients, so :: alone serves both families. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and a dual-stack :: also overlaps every IPv4 address, so list :: alone rather than :: beside 0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web) accepts :: beside an IPv4 address on the same port.
       - **port** `listener-port`: Listen TCP port; 0 means OS-assigned
         The port range is 0 to 65535. Port 0 makes the operating system pick a free port at bind time, so no client can know the port before the listener starts. ze doctor tries to bind each configured endpoint and reports the one the host refuses.
     - **tls-cert** `string`: Path to TLS certificate file for gRPC
@@ -2217,7 +2205,7 @@ The api-server container under it is the shared parent of the REST and gRPC tran
     - **server <name>** `list`: REST API listen endpoints
       The ze:listener extension marks this list, so config validation collects each endpoint and refuses a second listener that binds the same protocol, port and address. An empty list still binds one endpoint, 0.0.0.0 port 8081, from the refine defaults under it.
       - **ip** `ip-address`: Listen IP address
-        The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and an IPv4 address never overlaps an IPv6 address.
+        The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. On most services :: is dual-stack: it also accepts IPv4 clients, so :: alone serves both families. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and a dual-stack :: also overlaps every IPv4 address, so list :: alone rather than :: beside 0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web) accepts :: beside an IPv4 address on the same port.
       - **port** `listener-port`: Listen TCP port; 0 means OS-assigned
         The port range is 0 to 65535. Port 0 makes the operating system pick a free port at bind time, so no client can know the port before the listener starts. ze doctor tries to bind each configured endpoint and reports the one the host refuses.
   - **token** `string`: Bearer token for API authentication.
@@ -2242,7 +2230,7 @@ The api-server container under it is the shared parent of the REST and gRPC tran
   - **server <name>** `list`: BMP receiver listen endpoints
     The ze:listener extension marks this list, so config validation refuses a second listener that binds the same protocol, port and address. Ze opens one TCP listener for each entry. A bind that fails is logged, and the other entries keep their listener. An empty list binds nothing, because the receiver has no default endpoint.
     - **ip** `ip-address`: Listen IP address
-      The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and an IPv4 address never overlaps an IPv6 address.
+      The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. On most services :: is dual-stack: it also accepts IPv4 clients, so :: alone serves both families. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and a dual-stack :: also overlaps every IPv4 address, so list :: alone rather than :: beside 0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web) accepts :: beside an IPv4 address on the same port.
     - **port** `listener-port`: Listen TCP port; 0 means OS-assigned
       The port range is 0 to 65535. Port 0 makes the operating system pick a free port at bind time, so no client can know the port before the listener starts. ze doctor tries to bind each configured endpoint and reports the one the host refuses.
 - **chaos** `container`: Chaos fault injection settings
@@ -2290,7 +2278,7 @@ The api-server container under it is the shared parent of the REST and gRPC tran
   - **server <name>** `list`: Listen endpoints of the gNMI server.
     Each entry binds one address and one port. The address defaults to 0.0.0.0 and the port defaults to 9339.
     - **ip** `ip-address`: Listen IP address
-      The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and an IPv4 address never overlaps an IPv6 address.
+      The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. On most services :: is dual-stack: it also accepts IPv4 clients, so :: alone serves both families. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and a dual-stack :: also overlaps every IPv4 address, so list :: alone rather than :: beside 0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web) accepts :: beside an IPv4 address on the same port.
     - **port** `listener-port`: Listen TCP port; 0 means OS-assigned
       The port range is 0 to 65535. Port 0 makes the operating system pick a free port at bind time, so no client can know the port before the listener starts. ze doctor tries to bind each configured endpoint and reports the one the host refuses.
   - **tls** `container`: TLS certificate of the gNMI gRPC transport.
@@ -2308,7 +2296,7 @@ The api-server container under it is the shared parent of the REST and gRPC tran
   - **server <name>** `list`: L2TP server listen endpoints (UDP)
     Each entry is one UDP socket Ze binds for L2TPv2, and RFC 2661 assigns port 1701. Config validation refuses two listeners that share a protocol and a port where their addresses overlap. `ze doctor` tries to bind each entry and names the one the host refuses.
     - **ip** `ip-address`: Listen IP address
-      The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and an IPv4 address never overlaps an IPv6 address.
+      The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. On most services :: is dual-stack: it also accepts IPv4 clients, so :: alone serves both families. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and a dual-stack :: also overlaps every IPv4 address, so list :: alone rather than :: beside 0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web) accepts :: beside an IPv4 address on the same port.
     - **port** `listener-port`: Listen TCP port; 0 means OS-assigned
       The port range is 0 to 65535. Port 0 makes the operating system pick a free port at bind time, so no client can know the port before the listener starts. ze doctor tries to bind each configured endpoint and reports the one the host refuses.
 - **log** `container`: Logging settings
@@ -2335,7 +2323,7 @@ The api-server container under it is the shared parent of the REST and gRPC tran
   - **server <name>** `list`: Looking glass listen endpoints.
     Each entry names one listen endpoint. The default endpoint is 0.0.0.0 on port 8443.
     - **ip** `ip-address`: Listen IP address
-      The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and an IPv4 address never overlaps an IPv6 address.
+      The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. On most services :: is dual-stack: it also accepts IPv4 clients, so :: alone serves both families. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and a dual-stack :: also overlaps every IPv4 address, so list :: alone rather than :: beside 0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web) accepts :: beside an IPv4 address on the same port.
     - **port** `listener-port`: Listen TCP port; 0 means OS-assigned
       The port range is 0 to 65535. Port 0 makes the operating system pick a free port at bind time, so no client can know the port before the listener starts. ze doctor tries to bind each configured endpoint and reports the one the host refuses.
   - **tls** `boolean`: Enable TLS. Override with the ze.looking-glass.tls variable.
@@ -2371,7 +2359,7 @@ The api-server container under it is the shared parent of the REST and gRPC tran
   - **server <name>** `list`: Listen endpoints of the MCP server.
     Each entry binds one address and one port. The address defaults to 127.0.0.1 and the port defaults to 8080. The bind-remote leaf decides whether an address other than loopback is kept.
     - **ip** `ip-address`: Listen IP address
-      The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and an IPv4 address never overlaps an IPv6 address.
+      The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. On most services :: is dual-stack: it also accepts IPv4 clients, so :: alone serves both families. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and a dual-stack :: also overlaps every IPv4 address, so list :: alone rather than :: beside 0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web) accepts :: beside an IPv4 address on the same port.
     - **port** `listener-port`: Listen TCP port; 0 means OS-assigned
       The port range is 0 to 65535. Port 0 makes the operating system pick a free port at bind time, so no client can know the port before the listener starts. ze doctor tries to bind each configured endpoint and reports the one the host refuses.
   - **tls** `container`: TLS certificate that serves the MCP endpoint over HTTPS.
@@ -2444,7 +2432,7 @@ The api-server container under it is the shared parent of the REST and gRPC tran
   - **server <name>** `list`: SSH server listen endpoints.
     Each entry names one listen endpoint. The default endpoint is 0.0.0.0 on port 2222.
     - **ip** `ip-address`: Listen IP address
-      The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and an IPv4 address never overlaps an IPv6 address.
+      The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. On most services :: is dual-stack: it also accepts IPv4 clients, so :: alone serves both families. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and a dual-stack :: also overlaps every IPv4 address, so list :: alone rather than :: beside 0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web) accepts :: beside an IPv4 address on the same port.
     - **port** `listener-port`: Listen TCP port; 0 means OS-assigned
       The port range is 0 to 65535. Port 0 makes the operating system pick a free port at bind time, so no client can know the port before the listener starts. ze doctor tries to bind each configured endpoint and reports the one the host refuses.
 - **web** `container`: Web interface settings.
@@ -2458,7 +2446,7 @@ The api-server container under it is the shared parent of the REST and gRPC tran
   - **server <name>** `list`: Web server listen endpoints.
     Each entry names one listen endpoint. The default endpoint is 0.0.0.0 on port 3443.
     - **ip** `ip-address`: Listen IP address
-      The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and an IPv4 address never overlaps an IPv6 address.
+      The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. On most services :: is dual-stack: it also accepts IPv4 clients, so :: alone serves both families. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and a dual-stack :: also overlaps every IPv4 address, so list :: alone rather than :: beside 0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web) accepts :: beside an IPv4 address on the same port.
     - **port** `listener-port`: Listen TCP port; 0 means OS-assigned
       The port range is 0 to 65535. Port 0 makes the operating system pick a free port at bind time, so no client can know the port before the listener starts. ze doctor tries to bind each configured endpoint and reports the one the host refuses.
   - **ui-mode** `enumeration`: Web UI mode.
@@ -2756,8 +2744,10 @@ Ze-managed nftables firewall tables. Table names are bare in config, and the com
           The reply is translated back on the same conntrack entry. A flow that started before the rule was installed keeps its old translation. It changes when that entry expires.
           - **to** `nat-spec`: NAT target address:port
             The value is an address, or an address and a port after a colon, such as 1.2.3.4:80. An address range and a port range are both accepted, and Ze programs each as a minimum and a maximum register. A comma list of ports is refused. With no port in the value Ze translates the address alone.
-        - **tcp-mss-set** `uint16`: Clamp TCP Maximum Segment Size option to the given value
-          The value is 1 to 65535, and verify refuses 0. The table MUST be of family ip, ip6 or inet, because arp, bridge and netdev carry no TCP header to rewrite. A clamp repairs a path whose smallest link cannot carry the segment size the two ends agreed.
+        - **tcp-mss-clamp-to-pmtu** `empty`: Clamp the TCP MSS to the route MTU less the IP and TCP headers
+          Ze clamps the TCP MSS option to the MTU of the route the packet takes, less the fixed IP and TCP headers: 40 bytes for IPv4 and 60 for IPv6, so a 1492-byte PPPoE route gives 1452 or 1432. The kernel also takes the MTU of the route back to the source when it is smaller. An MSS already at or below that value is left alone, so the clamp never raises it. The kernel computes the route MSS only at the forward, output and postrouting hooks, so verify refuses the leaf in a chain of another hook, or in a regular chain such a chain reaches by jump or goto. The table MUST be of family ip, ip6 or inet, and the leaf cannot be combined with tcp-mss-set in one term.
+        - **tcp-mss-set** `uint16`: Clamp the TCP MSS to at most this value (a smaller MSS is kept)
+          The value is an upper bound on the TCP MSS option. A larger MSS is lowered to the value, and an MSS already at or below it is left alone, so the clamp never raises the segment size a host offered. A packet with no MSS option is not changed, and only a SYN carries one. The value is 1 to 65535, and verify refuses 0. The table MUST be of family ip, ip6 or inet, because arp, bridge and netdev carry no TCP header to change. A clamp repairs a path whose smallest link cannot carry the segment size the two ends agreed.
     - **type** `chain-type`: Chain type (base chains only)
       A base chain MUST carry a type, and verify refuses one that does not. The value filter selects packet filtering, nat selects network address translation, and route selects the routing decision override. Each lowers to the nftables chain type of the same name.
       - `filter`: Packet filtering
@@ -2999,19 +2989,25 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
     - **ipv6** `container`: IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.
       The container holds one unit's IPv6 state. Ze installs the addresses through netlink. Ze turns autoconf, accept-ra and forwarding into net.ipv6.conf.<iface> sysctl writes, which it emits on the event bus for the sysctl plugin to perform.
       - **accept-ra** `uint8`: Accept RA level: 0 disables, 1 accepts when not forwarding, 2 accepts even when forwarding.
-        This leaf needs the netlink backend, for the same reason as autoconf: the two leaves describe one behavior.
+        This leaf needs the netlink backend, for the same reason as autoconf: the two leaves describe one behavior. Above 0 it also makes the device's RDNSS options (RFC 8106) an ra record of the router's received DNS servers, on a unit and on a pppoe-client session alike.
       - **address** `string[]`: IPv6 addresses in CIDR notation (e.g., fd00::1/64)
         Ze installs each address on the unit's OS device through netlink. An address that leaves the list is removed on the next apply, because ze reconciles the whole set rather than adding to it.
       - **autoconf** `boolean`: Enable IPv6 stateless autoconfiguration.
         The kernel learns an address only when a Router Advertisement reaches the device it owns, so this leaf needs the netlink backend. On the vpp backend, the NIC belongs to VPP, and no advertisement reaches the Linux Control Plane tap.
+      - **delegated-prefix <source>** `list`: Number this unit from a prefix delegated to a pppoe-client.
+        Ze takes one /64 for this unit out of the prefix the named pppoe-client leases through DHCPv6 prefix delegation (RFC 7084 L-2): the delegated prefix plus subnet-id, shifted into the bits between the delegated length and 64. The unit's address is that /64 plus interface-identifier, and its preferred and valid lifetimes never exceed what remains of the delegation (RFC 9915 Section 6.3). With router-advertisement enabled, the unit advertises the /64 in a Prefix Information option and the delegated prefix in a Route Information option. Ze refuses a source that is not a pppoe-client requesting a delegated prefix, a subnet-id the pd length cannot hold, and two units taking the same subnet-id from one source.
+        - **interface-identifier** `ipv6-address`: The host part of the unit's address in the /64 (default ::1).
+          Only the low 64 bits are used; Ze refuses a value with any of the high 64 bits set.
+        - **subnet-id** `uint16`: The /64 within the delegated prefix (0 to 2^(64 - pd length) - 1).
+          Which /64 of the delegated prefix this unit takes. With pd length 56 the ids run from 0 to 255; with no pd length, the largest id is 65535, the /48 maximum. An id the delegation the server chose cannot hold leaves the unit without a /64, and Ze logs it.
       - **dhcpv6** `container`: DHCPv6 stateful client (RFC 8415).
         The client requests addresses, delegated prefixes, or both, from a DHCPv6 server. It runs alongside SLAAC when autoconf is also enabled.
         - **duid** `string`: Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).
           When the leaf is omitted, ze generates a DUID-LL from the interface MAC. Set the leaf when the DHCP server binds a lease to a specific DUID. Write it as colon-separated hex octets, such as 00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to 128 octets of identifier (RFC 9915 Section 11.1).
         - **enabled** `boolean`: Enable DHCPv6 client
-          Ze starts a DHCPv6 client on this unit when the leaf is true. The client sends a Solicit that carries the Rapid Commit option, and it takes a Reply directly when the server answers with one. Otherwise it sends a Request after the Advertise.
+          Ze starts a DHCPv6 client on this interface when the leaf is true. The client sends a Solicit that carries the Rapid Commit option, and it takes a Reply directly when the server answers with one. Otherwise it sends a Request after the Advertise.
         - **pd** `container`: Prefix delegation
-          Request a delegated prefix. Every Solicit, Request, Renew and Rebind Ze sends carries an IA_PD option, and Ze publishes each delegated prefix as a lease on this unit.
+          Request a delegated prefix. Every Solicit, Request, Renew and Rebind Ze sends carries an IA_PD option, and Ze publishes each delegated prefix as a lease on this interface.
           - **length** `uint8`: Requested prefix length
             The prefix length ze asks for, from 48 to 64, sent as an IA Prefix hint (::/length) in the IA_PD. Without it the IA_PD carries no hint and the server chooses the length.
       - **forwarding** `boolean`: Allow this interface to forward IPv6 packets between interfaces.
@@ -3042,6 +3038,20 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
             4294967295 means that the prefix never expires. The default is 30 days.
         - **rdnss** `container`: Recursive DNS servers advertised to hosts (RFC 8106 Section 5.1).
           The option points a link at a resolver without a DHCPv6 server.
+          - **dns-source** `container`: Where this consumer's DNS resolvers come from, and in what order.
+            The ordered list of sources this consumer takes its DNS resolver addresses from, and how it combines them. With the container absent, the consumer uses its built-in default list, which its own description states. Once any source is written, the default no longer applies, its mode included.
+            - **mode** `enumeration`: How two or more sources combine: first-usable or merge.
+              How a list of two or more sources combines them. first-usable takes the first source that holds a usable server and ignores the rest; merge takes every source in list order. The leaf has no default: a list naming one source needs none, and a list naming more is refused without it.
+              - `first-usable`: The first source with a usable server wins; later ones are backups.
+              - `merge`: Every source's servers, in list order, each server listed once.
+            - **received-interface** `node-name[]`: Take received resolvers only from these interfaces, in this order.
+              Narrows the received source to the resolvers learned on these interfaces, in this order, then by origin rank, then by unit. With none listed, received takes every interface. Ze refuses the leaf when the source list does not name received. An interface that holds no lease yet is accepted: it may learn one later.
+            - **source** `dns-source-class[]`: A source class, in fall-through order: received, configured, self, radius.
+              The source classes in the order the consumer falls through them. A class may appear once. Two or more classes need a mode: Ze refuses the list without one, because it cannot tell whether a later source is a backup or an addition.
+              - `configured`: The resolvers configured on this consumer itself.
+              - `radius`: The resolvers RADIUS gives one PPP subscriber.
+              - `received`: Resolvers Ze learned from the network, by DHCPv4, DHCPv6, IPCP or router advertisement RDNSS.
+              - `self`: Ze's own address on the interface the client is on.
           - **lifetime** `uint32`: How long a host can use these resolvers (RFC 8106 Section 5.1).
             0 tells a host to stop using the resolvers, and an operator can set it. 4294967295 means that the resolvers never expire. This leaf has no default: leave it out, and Ze sends 3 x maximum- interval, the value RFC 8106 Section 5.1 recommends. 0 is not the default for that reason, because Ze could not then tell an operator who retires a resolver from one who set nothing.
           - **server** `ipv6-address[]`: Resolver addresses. All of them share lifetime.
@@ -3221,19 +3231,25 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
     - **ipv6** `container`: IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.
       The container holds one unit's IPv6 state. Ze installs the addresses through netlink. Ze turns autoconf, accept-ra and forwarding into net.ipv6.conf.<iface> sysctl writes, which it emits on the event bus for the sysctl plugin to perform.
       - **accept-ra** `uint8`: Accept RA level: 0 disables, 1 accepts when not forwarding, 2 accepts even when forwarding.
-        This leaf needs the netlink backend, for the same reason as autoconf: the two leaves describe one behavior.
+        This leaf needs the netlink backend, for the same reason as autoconf: the two leaves describe one behavior. Above 0 it also makes the device's RDNSS options (RFC 8106) an ra record of the router's received DNS servers, on a unit and on a pppoe-client session alike.
       - **address** `string[]`: IPv6 addresses in CIDR notation (e.g., fd00::1/64)
         Ze installs each address on the unit's OS device through netlink. An address that leaves the list is removed on the next apply, because ze reconciles the whole set rather than adding to it.
       - **autoconf** `boolean`: Enable IPv6 stateless autoconfiguration.
         The kernel learns an address only when a Router Advertisement reaches the device it owns, so this leaf needs the netlink backend. On the vpp backend, the NIC belongs to VPP, and no advertisement reaches the Linux Control Plane tap.
+      - **delegated-prefix <source>** `list`: Number this unit from a prefix delegated to a pppoe-client.
+        Ze takes one /64 for this unit out of the prefix the named pppoe-client leases through DHCPv6 prefix delegation (RFC 7084 L-2): the delegated prefix plus subnet-id, shifted into the bits between the delegated length and 64. The unit's address is that /64 plus interface-identifier, and its preferred and valid lifetimes never exceed what remains of the delegation (RFC 9915 Section 6.3). With router-advertisement enabled, the unit advertises the /64 in a Prefix Information option and the delegated prefix in a Route Information option. Ze refuses a source that is not a pppoe-client requesting a delegated prefix, a subnet-id the pd length cannot hold, and two units taking the same subnet-id from one source.
+        - **interface-identifier** `ipv6-address`: The host part of the unit's address in the /64 (default ::1).
+          Only the low 64 bits are used; Ze refuses a value with any of the high 64 bits set.
+        - **subnet-id** `uint16`: The /64 within the delegated prefix (0 to 2^(64 - pd length) - 1).
+          Which /64 of the delegated prefix this unit takes. With pd length 56 the ids run from 0 to 255; with no pd length, the largest id is 65535, the /48 maximum. An id the delegation the server chose cannot hold leaves the unit without a /64, and Ze logs it.
       - **dhcpv6** `container`: DHCPv6 stateful client (RFC 8415).
         The client requests addresses, delegated prefixes, or both, from a DHCPv6 server. It runs alongside SLAAC when autoconf is also enabled.
         - **duid** `string`: Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).
           When the leaf is omitted, ze generates a DUID-LL from the interface MAC. Set the leaf when the DHCP server binds a lease to a specific DUID. Write it as colon-separated hex octets, such as 00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to 128 octets of identifier (RFC 9915 Section 11.1).
         - **enabled** `boolean`: Enable DHCPv6 client
-          Ze starts a DHCPv6 client on this unit when the leaf is true. The client sends a Solicit that carries the Rapid Commit option, and it takes a Reply directly when the server answers with one. Otherwise it sends a Request after the Advertise.
+          Ze starts a DHCPv6 client on this interface when the leaf is true. The client sends a Solicit that carries the Rapid Commit option, and it takes a Reply directly when the server answers with one. Otherwise it sends a Request after the Advertise.
         - **pd** `container`: Prefix delegation
-          Request a delegated prefix. Every Solicit, Request, Renew and Rebind Ze sends carries an IA_PD option, and Ze publishes each delegated prefix as a lease on this unit.
+          Request a delegated prefix. Every Solicit, Request, Renew and Rebind Ze sends carries an IA_PD option, and Ze publishes each delegated prefix as a lease on this interface.
           - **length** `uint8`: Requested prefix length
             The prefix length ze asks for, from 48 to 64, sent as an IA Prefix hint (::/length) in the IA_PD. Without it the IA_PD carries no hint and the server chooses the length.
       - **forwarding** `boolean`: Allow this interface to forward IPv6 packets between interfaces.
@@ -3264,6 +3280,20 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
             4294967295 means that the prefix never expires. The default is 30 days.
         - **rdnss** `container`: Recursive DNS servers advertised to hosts (RFC 8106 Section 5.1).
           The option points a link at a resolver without a DHCPv6 server.
+          - **dns-source** `container`: Where this consumer's DNS resolvers come from, and in what order.
+            The ordered list of sources this consumer takes its DNS resolver addresses from, and how it combines them. With the container absent, the consumer uses its built-in default list, which its own description states. Once any source is written, the default no longer applies, its mode included.
+            - **mode** `enumeration`: How two or more sources combine: first-usable or merge.
+              How a list of two or more sources combines them. first-usable takes the first source that holds a usable server and ignores the rest; merge takes every source in list order. The leaf has no default: a list naming one source needs none, and a list naming more is refused without it.
+              - `first-usable`: The first source with a usable server wins; later ones are backups.
+              - `merge`: Every source's servers, in list order, each server listed once.
+            - **received-interface** `node-name[]`: Take received resolvers only from these interfaces, in this order.
+              Narrows the received source to the resolvers learned on these interfaces, in this order, then by origin rank, then by unit. With none listed, received takes every interface. Ze refuses the leaf when the source list does not name received. An interface that holds no lease yet is accepted: it may learn one later.
+            - **source** `dns-source-class[]`: A source class, in fall-through order: received, configured, self, radius.
+              The source classes in the order the consumer falls through them. A class may appear once. Two or more classes need a mode: Ze refuses the list without one, because it cannot tell whether a later source is a backup or an addition.
+              - `configured`: The resolvers configured on this consumer itself.
+              - `radius`: The resolvers RADIUS gives one PPP subscriber.
+              - `received`: Resolvers Ze learned from the network, by DHCPv4, DHCPv6, IPCP or router advertisement RDNSS.
+              - `self`: Ze's own address on the interface the client is on.
           - **lifetime** `uint32`: How long a host can use these resolvers (RFC 8106 Section 5.1).
             0 tells a host to stop using the resolvers, and an operator can set it. 4294967295 means that the resolvers never expire. This leaf has no default: leave it out, and Ze sends 3 x maximum- interval, the value RFC 8106 Section 5.1 recommends. 0 is not the default for that reason, because Ze could not then tell an operator who retires a resolver from one who set nothing.
           - **server** `ipv6-address[]`: Resolver addresses. All of them share lifetime.
@@ -3441,19 +3471,25 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
     - **ipv6** `container`: IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.
       The container holds one unit's IPv6 state. Ze installs the addresses through netlink. Ze turns autoconf, accept-ra and forwarding into net.ipv6.conf.<iface> sysctl writes, which it emits on the event bus for the sysctl plugin to perform.
       - **accept-ra** `uint8`: Accept RA level: 0 disables, 1 accepts when not forwarding, 2 accepts even when forwarding.
-        This leaf needs the netlink backend, for the same reason as autoconf: the two leaves describe one behavior.
+        This leaf needs the netlink backend, for the same reason as autoconf: the two leaves describe one behavior. Above 0 it also makes the device's RDNSS options (RFC 8106) an ra record of the router's received DNS servers, on a unit and on a pppoe-client session alike.
       - **address** `string[]`: IPv6 addresses in CIDR notation (e.g., fd00::1/64)
         Ze installs each address on the unit's OS device through netlink. An address that leaves the list is removed on the next apply, because ze reconciles the whole set rather than adding to it.
       - **autoconf** `boolean`: Enable IPv6 stateless autoconfiguration.
         The kernel learns an address only when a Router Advertisement reaches the device it owns, so this leaf needs the netlink backend. On the vpp backend, the NIC belongs to VPP, and no advertisement reaches the Linux Control Plane tap.
+      - **delegated-prefix <source>** `list`: Number this unit from a prefix delegated to a pppoe-client.
+        Ze takes one /64 for this unit out of the prefix the named pppoe-client leases through DHCPv6 prefix delegation (RFC 7084 L-2): the delegated prefix plus subnet-id, shifted into the bits between the delegated length and 64. The unit's address is that /64 plus interface-identifier, and its preferred and valid lifetimes never exceed what remains of the delegation (RFC 9915 Section 6.3). With router-advertisement enabled, the unit advertises the /64 in a Prefix Information option and the delegated prefix in a Route Information option. Ze refuses a source that is not a pppoe-client requesting a delegated prefix, a subnet-id the pd length cannot hold, and two units taking the same subnet-id from one source.
+        - **interface-identifier** `ipv6-address`: The host part of the unit's address in the /64 (default ::1).
+          Only the low 64 bits are used; Ze refuses a value with any of the high 64 bits set.
+        - **subnet-id** `uint16`: The /64 within the delegated prefix (0 to 2^(64 - pd length) - 1).
+          Which /64 of the delegated prefix this unit takes. With pd length 56 the ids run from 0 to 255; with no pd length, the largest id is 65535, the /48 maximum. An id the delegation the server chose cannot hold leaves the unit without a /64, and Ze logs it.
       - **dhcpv6** `container`: DHCPv6 stateful client (RFC 8415).
         The client requests addresses, delegated prefixes, or both, from a DHCPv6 server. It runs alongside SLAAC when autoconf is also enabled.
         - **duid** `string`: Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).
           When the leaf is omitted, ze generates a DUID-LL from the interface MAC. Set the leaf when the DHCP server binds a lease to a specific DUID. Write it as colon-separated hex octets, such as 00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to 128 octets of identifier (RFC 9915 Section 11.1).
         - **enabled** `boolean`: Enable DHCPv6 client
-          Ze starts a DHCPv6 client on this unit when the leaf is true. The client sends a Solicit that carries the Rapid Commit option, and it takes a Reply directly when the server answers with one. Otherwise it sends a Request after the Advertise.
+          Ze starts a DHCPv6 client on this interface when the leaf is true. The client sends a Solicit that carries the Rapid Commit option, and it takes a Reply directly when the server answers with one. Otherwise it sends a Request after the Advertise.
         - **pd** `container`: Prefix delegation
-          Request a delegated prefix. Every Solicit, Request, Renew and Rebind Ze sends carries an IA_PD option, and Ze publishes each delegated prefix as a lease on this unit.
+          Request a delegated prefix. Every Solicit, Request, Renew and Rebind Ze sends carries an IA_PD option, and Ze publishes each delegated prefix as a lease on this interface.
           - **length** `uint8`: Requested prefix length
             The prefix length ze asks for, from 48 to 64, sent as an IA Prefix hint (::/length) in the IA_PD. Without it the IA_PD carries no hint and the server chooses the length.
       - **forwarding** `boolean`: Allow this interface to forward IPv6 packets between interfaces.
@@ -3484,6 +3520,20 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
             4294967295 means that the prefix never expires. The default is 30 days.
         - **rdnss** `container`: Recursive DNS servers advertised to hosts (RFC 8106 Section 5.1).
           The option points a link at a resolver without a DHCPv6 server.
+          - **dns-source** `container`: Where this consumer's DNS resolvers come from, and in what order.
+            The ordered list of sources this consumer takes its DNS resolver addresses from, and how it combines them. With the container absent, the consumer uses its built-in default list, which its own description states. Once any source is written, the default no longer applies, its mode included.
+            - **mode** `enumeration`: How two or more sources combine: first-usable or merge.
+              How a list of two or more sources combines them. first-usable takes the first source that holds a usable server and ignores the rest; merge takes every source in list order. The leaf has no default: a list naming one source needs none, and a list naming more is refused without it.
+              - `first-usable`: The first source with a usable server wins; later ones are backups.
+              - `merge`: Every source's servers, in list order, each server listed once.
+            - **received-interface** `node-name[]`: Take received resolvers only from these interfaces, in this order.
+              Narrows the received source to the resolvers learned on these interfaces, in this order, then by origin rank, then by unit. With none listed, received takes every interface. Ze refuses the leaf when the source list does not name received. An interface that holds no lease yet is accepted: it may learn one later.
+            - **source** `dns-source-class[]`: A source class, in fall-through order: received, configured, self, radius.
+              The source classes in the order the consumer falls through them. A class may appear once. Two or more classes need a mode: Ze refuses the list without one, because it cannot tell whether a later source is a backup or an addition.
+              - `configured`: The resolvers configured on this consumer itself.
+              - `radius`: The resolvers RADIUS gives one PPP subscriber.
+              - `received`: Resolvers Ze learned from the network, by DHCPv4, DHCPv6, IPCP or router advertisement RDNSS.
+              - `self`: Ze's own address on the interface the client is on.
           - **lifetime** `uint32`: How long a host can use these resolvers (RFC 8106 Section 5.1).
             0 tells a host to stop using the resolvers, and an operator can set it. 4294967295 means that the resolvers never expire. This leaf has no default: leave it out, and Ze sends 3 x maximum- interval, the value RFC 8106 Section 5.1 recommends. 0 is not the default for that reason, because Ze could not then tell an operator who retires a resolver from one who set nothing.
           - **server** `ipv6-address[]`: Resolver addresses. All of them share lifetime.
@@ -3585,19 +3635,25 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
     - **ipv6** `container`: IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.
       The container holds one unit's IPv6 state. Ze installs the addresses through netlink. Ze turns autoconf, accept-ra and forwarding into net.ipv6.conf.<iface> sysctl writes, which it emits on the event bus for the sysctl plugin to perform.
       - **accept-ra** `uint8`: Accept RA level: 0 disables, 1 accepts when not forwarding, 2 accepts even when forwarding.
-        This leaf needs the netlink backend, for the same reason as autoconf: the two leaves describe one behavior.
+        This leaf needs the netlink backend, for the same reason as autoconf: the two leaves describe one behavior. Above 0 it also makes the device's RDNSS options (RFC 8106) an ra record of the router's received DNS servers, on a unit and on a pppoe-client session alike.
       - **address** `string[]`: IPv6 addresses in CIDR notation (e.g., fd00::1/64)
         Ze installs each address on the unit's OS device through netlink. An address that leaves the list is removed on the next apply, because ze reconciles the whole set rather than adding to it.
       - **autoconf** `boolean`: Enable IPv6 stateless autoconfiguration.
         The kernel learns an address only when a Router Advertisement reaches the device it owns, so this leaf needs the netlink backend. On the vpp backend, the NIC belongs to VPP, and no advertisement reaches the Linux Control Plane tap.
+      - **delegated-prefix <source>** `list`: Number this unit from a prefix delegated to a pppoe-client.
+        Ze takes one /64 for this unit out of the prefix the named pppoe-client leases through DHCPv6 prefix delegation (RFC 7084 L-2): the delegated prefix plus subnet-id, shifted into the bits between the delegated length and 64. The unit's address is that /64 plus interface-identifier, and its preferred and valid lifetimes never exceed what remains of the delegation (RFC 9915 Section 6.3). With router-advertisement enabled, the unit advertises the /64 in a Prefix Information option and the delegated prefix in a Route Information option. Ze refuses a source that is not a pppoe-client requesting a delegated prefix, a subnet-id the pd length cannot hold, and two units taking the same subnet-id from one source.
+        - **interface-identifier** `ipv6-address`: The host part of the unit's address in the /64 (default ::1).
+          Only the low 64 bits are used; Ze refuses a value with any of the high 64 bits set.
+        - **subnet-id** `uint16`: The /64 within the delegated prefix (0 to 2^(64 - pd length) - 1).
+          Which /64 of the delegated prefix this unit takes. With pd length 56 the ids run from 0 to 255; with no pd length, the largest id is 65535, the /48 maximum. An id the delegation the server chose cannot hold leaves the unit without a /64, and Ze logs it.
       - **dhcpv6** `container`: DHCPv6 stateful client (RFC 8415).
         The client requests addresses, delegated prefixes, or both, from a DHCPv6 server. It runs alongside SLAAC when autoconf is also enabled.
         - **duid** `string`: Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).
           When the leaf is omitted, ze generates a DUID-LL from the interface MAC. Set the leaf when the DHCP server binds a lease to a specific DUID. Write it as colon-separated hex octets, such as 00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to 128 octets of identifier (RFC 9915 Section 11.1).
         - **enabled** `boolean`: Enable DHCPv6 client
-          Ze starts a DHCPv6 client on this unit when the leaf is true. The client sends a Solicit that carries the Rapid Commit option, and it takes a Reply directly when the server answers with one. Otherwise it sends a Request after the Advertise.
+          Ze starts a DHCPv6 client on this interface when the leaf is true. The client sends a Solicit that carries the Rapid Commit option, and it takes a Reply directly when the server answers with one. Otherwise it sends a Request after the Advertise.
         - **pd** `container`: Prefix delegation
-          Request a delegated prefix. Every Solicit, Request, Renew and Rebind Ze sends carries an IA_PD option, and Ze publishes each delegated prefix as a lease on this unit.
+          Request a delegated prefix. Every Solicit, Request, Renew and Rebind Ze sends carries an IA_PD option, and Ze publishes each delegated prefix as a lease on this interface.
           - **length** `uint8`: Requested prefix length
             The prefix length ze asks for, from 48 to 64, sent as an IA Prefix hint (::/length) in the IA_PD. Without it the IA_PD carries no hint and the server chooses the length.
       - **forwarding** `boolean`: Allow this interface to forward IPv6 packets between interfaces.
@@ -3628,6 +3684,20 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
             4294967295 means that the prefix never expires. The default is 30 days.
         - **rdnss** `container`: Recursive DNS servers advertised to hosts (RFC 8106 Section 5.1).
           The option points a link at a resolver without a DHCPv6 server.
+          - **dns-source** `container`: Where this consumer's DNS resolvers come from, and in what order.
+            The ordered list of sources this consumer takes its DNS resolver addresses from, and how it combines them. With the container absent, the consumer uses its built-in default list, which its own description states. Once any source is written, the default no longer applies, its mode included.
+            - **mode** `enumeration`: How two or more sources combine: first-usable or merge.
+              How a list of two or more sources combines them. first-usable takes the first source that holds a usable server and ignores the rest; merge takes every source in list order. The leaf has no default: a list naming one source needs none, and a list naming more is refused without it.
+              - `first-usable`: The first source with a usable server wins; later ones are backups.
+              - `merge`: Every source's servers, in list order, each server listed once.
+            - **received-interface** `node-name[]`: Take received resolvers only from these interfaces, in this order.
+              Narrows the received source to the resolvers learned on these interfaces, in this order, then by origin rank, then by unit. With none listed, received takes every interface. Ze refuses the leaf when the source list does not name received. An interface that holds no lease yet is accepted: it may learn one later.
+            - **source** `dns-source-class[]`: A source class, in fall-through order: received, configured, self, radius.
+              The source classes in the order the consumer falls through them. A class may appear once. Two or more classes need a mode: Ze refuses the list without one, because it cannot tell whether a later source is a backup or an addition.
+              - `configured`: The resolvers configured on this consumer itself.
+              - `radius`: The resolvers RADIUS gives one PPP subscriber.
+              - `received`: Resolvers Ze learned from the network, by DHCPv4, DHCPv6, IPCP or router advertisement RDNSS.
+              - `self`: Ze's own address on the interface the client is on.
           - **lifetime** `uint32`: How long a host can use these resolvers (RFC 8106 Section 5.1).
             0 tells a host to stop using the resolvers, and an operator can set it. 4294967295 means that the resolvers never expire. This leaf has no default: leave it out, and Ze sends 3 x maximum- interval, the value RFC 8106 Section 5.1 recommends. 0 is not the default for that reason, because Ze could not then tell an operator who retires a resolver from one who set nothing.
           - **server** `ipv6-address[]`: Resolver addresses. All of them share lifetime.
@@ -3666,7 +3736,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
   - **loopback** `boolean`: Monitor loopback interface
     Ze reads no value under the monitor container, so this leaf changes no behavior whether it is true or false. The default is false.
 - **pppoe-client <name>** `list`: PPPoE client interface (RFC 2516).
-  The client dials an access concentrator over a physical Ethernet interface, negotiates LCP, authentication and IPCP, and presents the PPP session as a routable interface with server-assigned addresses. The kernel creates the pppN interface dynamically. The name leaf is a config key only, and the OS interface name is pppN.
+  The client dials an access concentrator over a physical Ethernet interface, negotiates LCP, authentication, IPCP and, when ipv6 is enabled, IPv6CP, and presents the PPP session as a routable interface with server-assigned addresses. Ze creates the kernel device under the configured name through rtnetlink (kind ppp with IFLA_PPP_DEV_FD), so the name an operator writes is the name static routes, firewall matches and NAT see on every session and every reconnect.
   - **ac-name** `string`: Desired access concentrator name.
     When the leaf is set, ze accepts a PADO frame only from this access concentrator. An empty or absent value accepts any access concentrator.
   - **authentication** `container`: PPPoE authentication credentials (PAP or CHAP)
@@ -3679,12 +3749,44 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
     Ze keeps the text in the config only, and it makes no kernel call for it. The kernel link alias IFLA_IFALIAS carries ze's own ownership marker instead, so a description never reaches it.
   - **disable** `empty`: Administratively disable this interface
     Ze skips a disabled interface at every apply step, so it creates no device, it installs no address, it starts no DHCP client and it sends no router advertisement. A DHCP client that is already running stops, and it takes away the address and the default route its lease installed. A device ze created before is deleted, because a disabled interface leaves the managed set. The config block stays in place.
+  - **ipv6** `container`: IPv6 on the PPPoE session: IPv6CP, SLAAC, RA and DHCPv6 client.
+    When enabled is true, the client negotiates IPv6CP (RFC 5072) beside IPCP and independently of it, and installs on the session device the link-local address formed from the negotiated interface identifier. An access concentrator that rejects or ignores IPv6CP leaves the IPv4 session up. Ze writes autoconf, accept-ra and forwarding to the session device each time a session creates it. Write accept-ra 2 with forwarding true for a router that learns its default route from the access concentrator's Router Advertisements. The DHCPv6 client runs on the session device and takes its DUID-LL from the source interface, because a PPP device has no hardware address.
+    - **accept-ra** `uint8`: Accept RA level: 0 disables, 1 accepts when not forwarding, 2 accepts even when forwarding.
+      This leaf needs the netlink backend, for the same reason as autoconf: the two leaves describe one behavior. Above 0 it also makes the device's RDNSS options (RFC 8106) an ra record of the router's received DNS servers, on a unit and on a pppoe-client session alike.
+    - **autoconf** `boolean`: Enable IPv6 stateless autoconfiguration.
+      The kernel learns an address only when a Router Advertisement reaches the device it owns, so this leaf needs the netlink backend. On the vpp backend, the NIC belongs to VPP, and no advertisement reaches the Linux Control Plane tap.
+    - **dhcpv6** `container`: DHCPv6 stateful client (RFC 8415).
+      The client requests addresses, delegated prefixes, or both, from a DHCPv6 server. It runs alongside SLAAC when autoconf is also enabled.
+      - **duid** `string`: Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).
+        When the leaf is omitted, ze generates a DUID-LL from the interface MAC. Set the leaf when the DHCP server binds a lease to a specific DUID. Write it as colon-separated hex octets, such as 00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to 128 octets of identifier (RFC 9915 Section 11.1).
+      - **enabled** `boolean`: Enable DHCPv6 client
+        Ze starts a DHCPv6 client on this interface when the leaf is true. The client sends a Solicit that carries the Rapid Commit option, and it takes a Reply directly when the server answers with one. Otherwise it sends a Request after the Advertise.
+      - **pd** `container`: Prefix delegation
+        Request a delegated prefix. Every Solicit, Request, Renew and Rebind Ze sends carries an IA_PD option, and Ze publishes each delegated prefix as a lease on this interface.
+        - **length** `uint8`: Requested prefix length
+          The prefix length ze asks for, from 48 to 64, sent as an IA Prefix hint (::/length) in the IA_PD. Without it the IA_PD carries no hint and the server chooses the length.
+    - **enabled** `boolean`: Negotiate IPv6CP on the session.
+      Ze refuses the other ipv6 leaves while enabled is not true, because without IPv6CP no IPv6 reaches the session device.
+    - **forwarding** `boolean`: Allow this interface to forward IPv6 packets between interfaces.
+      The leaf sets net.ipv6.conf.<iface>.forwarding. Forwarding disables RA acceptance, unless accept-ra is set to 2.
+  - **keepalive** `container`: Dead-peer detection by LCP Echo-Request (RFC 1661 Section 5.8).
+    Ze sends an LCP Echo-Request on the session every interval and counts the requests the access concentrator leaves unanswered. Any Echo-Reply resets the count. The session ends on the unanswered request that reaches the failure count, and the client then reconnects. A change to these leaves keeps the running session up: the next session uses the new values. Detection takes about interval times failures seconds. A small interval with failures 1 can end a session on a lossy line that is still usable.
+    - **failures** `uint8`: Unanswered Echo-Requests in a row that end the session.
+      The session ends when this many Echo-Requests in a row have no Echo-Reply. The range is 1 to 255 and the default is 3, so the default detection time is about 30 seconds.
+    - **interval** `uint16`: Seconds between two LCP Echo-Requests.
+      Ze sends one LCP Echo-Request each interval while the session is up. The range is 1 to 3600 seconds and the default is 10.
   - **mtu** `uint16`: Maximum transmission unit
     The range is 68 to 16000 bytes. Ze applies the value with the netlink call LinkSetMTU after it creates the interface. Ze restores the previous value when a later step of the same apply fails. When the leaf is omitted, ze makes no MTU call and the device keeps its current MTU. For a device ze creates that is the kernel's default for the kind: 1500 for a dummy, veth or bridge, 1420 for wireguard, and the underlay MTU less the encapsulation for a tunnel. Each kind has its own value, so the schema declares no single default.
   - **no-default-route** `empty`: Do not install a default route through the PPP interface.
     When the leaf is absent, which is the default, ze installs a default route after IPCP completes.
   - **os-name** `string`: OS device this logical interface name binds to.
     When this leaf is omitted, ze uses the logical name as the OS device name, so every interface whose name already matches its kernel device resolves unchanged. Set the leaf to alias a readable interface name to a different kernel device. The iface resolver then maps the logical name to this OS device. ze init records the discovered OS name here.
+  - **reconnect** `container`: Hold-off between two dial attempts after a session ends.
+    After a session ends or a dial fails, ze waits before the next discovery. The first wait is delay-min. Each further failure doubles the wait, up to delay-max. A session that reaches the up state resets the wait to delay-min. delay-max must not be below delay-min. A change to these leaves keeps the running session up and applies to the next wait.
+    - **delay-max** `uint16`: Longest wait between two redials.
+      The doubling wait stops growing at this value. The range is 1 to 3600 seconds and the default is 60. It must be equal to or above delay-min.
+    - **delay-min** `uint16`: Seconds to wait before the first redial.
+      The wait before the first redial after a failure. The range is 1 to 3600 seconds and the default is 1.
   - **route-priority** `uint32`: Route metric of the default route installed after IPCP completes.
     A lower value is preferred. The default 254 ranks this learned default below a static default and below a protocol-learned one, and it matches the route-priority default on a unit. Write 0 to put the route on the kernel metric that an operator's static default also uses. The two then share one kernel route, and the last writer owns it.
   - **service-name** `string`: Desired PPPoE service name. Empty or absent means accept any service (RFC 2516 Section 5.1).
@@ -3937,19 +4039,25 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
     - **ipv6** `container`: IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.
       The container holds one unit's IPv6 state. Ze installs the addresses through netlink. Ze turns autoconf, accept-ra and forwarding into net.ipv6.conf.<iface> sysctl writes, which it emits on the event bus for the sysctl plugin to perform.
       - **accept-ra** `uint8`: Accept RA level: 0 disables, 1 accepts when not forwarding, 2 accepts even when forwarding.
-        This leaf needs the netlink backend, for the same reason as autoconf: the two leaves describe one behavior.
+        This leaf needs the netlink backend, for the same reason as autoconf: the two leaves describe one behavior. Above 0 it also makes the device's RDNSS options (RFC 8106) an ra record of the router's received DNS servers, on a unit and on a pppoe-client session alike.
       - **address** `string[]`: IPv6 addresses in CIDR notation (e.g., fd00::1/64)
         Ze installs each address on the unit's OS device through netlink. An address that leaves the list is removed on the next apply, because ze reconciles the whole set rather than adding to it.
       - **autoconf** `boolean`: Enable IPv6 stateless autoconfiguration.
         The kernel learns an address only when a Router Advertisement reaches the device it owns, so this leaf needs the netlink backend. On the vpp backend, the NIC belongs to VPP, and no advertisement reaches the Linux Control Plane tap.
+      - **delegated-prefix <source>** `list`: Number this unit from a prefix delegated to a pppoe-client.
+        Ze takes one /64 for this unit out of the prefix the named pppoe-client leases through DHCPv6 prefix delegation (RFC 7084 L-2): the delegated prefix plus subnet-id, shifted into the bits between the delegated length and 64. The unit's address is that /64 plus interface-identifier, and its preferred and valid lifetimes never exceed what remains of the delegation (RFC 9915 Section 6.3). With router-advertisement enabled, the unit advertises the /64 in a Prefix Information option and the delegated prefix in a Route Information option. Ze refuses a source that is not a pppoe-client requesting a delegated prefix, a subnet-id the pd length cannot hold, and two units taking the same subnet-id from one source.
+        - **interface-identifier** `ipv6-address`: The host part of the unit's address in the /64 (default ::1).
+          Only the low 64 bits are used; Ze refuses a value with any of the high 64 bits set.
+        - **subnet-id** `uint16`: The /64 within the delegated prefix (0 to 2^(64 - pd length) - 1).
+          Which /64 of the delegated prefix this unit takes. With pd length 56 the ids run from 0 to 255; with no pd length, the largest id is 65535, the /48 maximum. An id the delegation the server chose cannot hold leaves the unit without a /64, and Ze logs it.
       - **dhcpv6** `container`: DHCPv6 stateful client (RFC 8415).
         The client requests addresses, delegated prefixes, or both, from a DHCPv6 server. It runs alongside SLAAC when autoconf is also enabled.
         - **duid** `string`: Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).
           When the leaf is omitted, ze generates a DUID-LL from the interface MAC. Set the leaf when the DHCP server binds a lease to a specific DUID. Write it as colon-separated hex octets, such as 00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to 128 octets of identifier (RFC 9915 Section 11.1).
         - **enabled** `boolean`: Enable DHCPv6 client
-          Ze starts a DHCPv6 client on this unit when the leaf is true. The client sends a Solicit that carries the Rapid Commit option, and it takes a Reply directly when the server answers with one. Otherwise it sends a Request after the Advertise.
+          Ze starts a DHCPv6 client on this interface when the leaf is true. The client sends a Solicit that carries the Rapid Commit option, and it takes a Reply directly when the server answers with one. Otherwise it sends a Request after the Advertise.
         - **pd** `container`: Prefix delegation
-          Request a delegated prefix. Every Solicit, Request, Renew and Rebind Ze sends carries an IA_PD option, and Ze publishes each delegated prefix as a lease on this unit.
+          Request a delegated prefix. Every Solicit, Request, Renew and Rebind Ze sends carries an IA_PD option, and Ze publishes each delegated prefix as a lease on this interface.
           - **length** `uint8`: Requested prefix length
             The prefix length ze asks for, from 48 to 64, sent as an IA Prefix hint (::/length) in the IA_PD. Without it the IA_PD carries no hint and the server chooses the length.
       - **forwarding** `boolean`: Allow this interface to forward IPv6 packets between interfaces.
@@ -3980,6 +4088,20 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
             4294967295 means that the prefix never expires. The default is 30 days.
         - **rdnss** `container`: Recursive DNS servers advertised to hosts (RFC 8106 Section 5.1).
           The option points a link at a resolver without a DHCPv6 server.
+          - **dns-source** `container`: Where this consumer's DNS resolvers come from, and in what order.
+            The ordered list of sources this consumer takes its DNS resolver addresses from, and how it combines them. With the container absent, the consumer uses its built-in default list, which its own description states. Once any source is written, the default no longer applies, its mode included.
+            - **mode** `enumeration`: How two or more sources combine: first-usable or merge.
+              How a list of two or more sources combines them. first-usable takes the first source that holds a usable server and ignores the rest; merge takes every source in list order. The leaf has no default: a list naming one source needs none, and a list naming more is refused without it.
+              - `first-usable`: The first source with a usable server wins; later ones are backups.
+              - `merge`: Every source's servers, in list order, each server listed once.
+            - **received-interface** `node-name[]`: Take received resolvers only from these interfaces, in this order.
+              Narrows the received source to the resolvers learned on these interfaces, in this order, then by origin rank, then by unit. With none listed, received takes every interface. Ze refuses the leaf when the source list does not name received. An interface that holds no lease yet is accepted: it may learn one later.
+            - **source** `dns-source-class[]`: A source class, in fall-through order: received, configured, self, radius.
+              The source classes in the order the consumer falls through them. A class may appear once. Two or more classes need a mode: Ze refuses the list without one, because it cannot tell whether a later source is a backup or an addition.
+              - `configured`: The resolvers configured on this consumer itself.
+              - `radius`: The resolvers RADIUS gives one PPP subscriber.
+              - `received`: Resolvers Ze learned from the network, by DHCPv4, DHCPv6, IPCP or router advertisement RDNSS.
+              - `self`: Ze's own address on the interface the client is on.
           - **lifetime** `uint32`: How long a host can use these resolvers (RFC 8106 Section 5.1).
             0 tells a host to stop using the resolvers, and an operator can set it. 4294967295 means that the resolvers never expire. This leaf has no default: leave it out, and Ze sends 3 x maximum- interval, the value RFC 8106 Section 5.1 recommends. 0 is not the default for that reason, because Ze could not then tell an operator who retires a resolver from one who set nothing.
           - **server** `ipv6-address[]`: Resolver addresses. All of them share lifetime.
@@ -4135,19 +4257,25 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
     - **ipv6** `container`: IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.
       The container holds one unit's IPv6 state. Ze installs the addresses through netlink. Ze turns autoconf, accept-ra and forwarding into net.ipv6.conf.<iface> sysctl writes, which it emits on the event bus for the sysctl plugin to perform.
       - **accept-ra** `uint8`: Accept RA level: 0 disables, 1 accepts when not forwarding, 2 accepts even when forwarding.
-        This leaf needs the netlink backend, for the same reason as autoconf: the two leaves describe one behavior.
+        This leaf needs the netlink backend, for the same reason as autoconf: the two leaves describe one behavior. Above 0 it also makes the device's RDNSS options (RFC 8106) an ra record of the router's received DNS servers, on a unit and on a pppoe-client session alike.
       - **address** `string[]`: IPv6 addresses in CIDR notation (e.g., fd00::1/64)
         Ze installs each address on the unit's OS device through netlink. An address that leaves the list is removed on the next apply, because ze reconciles the whole set rather than adding to it.
       - **autoconf** `boolean`: Enable IPv6 stateless autoconfiguration.
         The kernel learns an address only when a Router Advertisement reaches the device it owns, so this leaf needs the netlink backend. On the vpp backend, the NIC belongs to VPP, and no advertisement reaches the Linux Control Plane tap.
+      - **delegated-prefix <source>** `list`: Number this unit from a prefix delegated to a pppoe-client.
+        Ze takes one /64 for this unit out of the prefix the named pppoe-client leases through DHCPv6 prefix delegation (RFC 7084 L-2): the delegated prefix plus subnet-id, shifted into the bits between the delegated length and 64. The unit's address is that /64 plus interface-identifier, and its preferred and valid lifetimes never exceed what remains of the delegation (RFC 9915 Section 6.3). With router-advertisement enabled, the unit advertises the /64 in a Prefix Information option and the delegated prefix in a Route Information option. Ze refuses a source that is not a pppoe-client requesting a delegated prefix, a subnet-id the pd length cannot hold, and two units taking the same subnet-id from one source.
+        - **interface-identifier** `ipv6-address`: The host part of the unit's address in the /64 (default ::1).
+          Only the low 64 bits are used; Ze refuses a value with any of the high 64 bits set.
+        - **subnet-id** `uint16`: The /64 within the delegated prefix (0 to 2^(64 - pd length) - 1).
+          Which /64 of the delegated prefix this unit takes. With pd length 56 the ids run from 0 to 255; with no pd length, the largest id is 65535, the /48 maximum. An id the delegation the server chose cannot hold leaves the unit without a /64, and Ze logs it.
       - **dhcpv6** `container`: DHCPv6 stateful client (RFC 8415).
         The client requests addresses, delegated prefixes, or both, from a DHCPv6 server. It runs alongside SLAAC when autoconf is also enabled.
         - **duid** `string`: Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).
           When the leaf is omitted, ze generates a DUID-LL from the interface MAC. Set the leaf when the DHCP server binds a lease to a specific DUID. Write it as colon-separated hex octets, such as 00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to 128 octets of identifier (RFC 9915 Section 11.1).
         - **enabled** `boolean`: Enable DHCPv6 client
-          Ze starts a DHCPv6 client on this unit when the leaf is true. The client sends a Solicit that carries the Rapid Commit option, and it takes a Reply directly when the server answers with one. Otherwise it sends a Request after the Advertise.
+          Ze starts a DHCPv6 client on this interface when the leaf is true. The client sends a Solicit that carries the Rapid Commit option, and it takes a Reply directly when the server answers with one. Otherwise it sends a Request after the Advertise.
         - **pd** `container`: Prefix delegation
-          Request a delegated prefix. Every Solicit, Request, Renew and Rebind Ze sends carries an IA_PD option, and Ze publishes each delegated prefix as a lease on this unit.
+          Request a delegated prefix. Every Solicit, Request, Renew and Rebind Ze sends carries an IA_PD option, and Ze publishes each delegated prefix as a lease on this interface.
           - **length** `uint8`: Requested prefix length
             The prefix length ze asks for, from 48 to 64, sent as an IA Prefix hint (::/length) in the IA_PD. Without it the IA_PD carries no hint and the server chooses the length.
       - **forwarding** `boolean`: Allow this interface to forward IPv6 packets between interfaces.
@@ -4178,6 +4306,20 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
             4294967295 means that the prefix never expires. The default is 30 days.
         - **rdnss** `container`: Recursive DNS servers advertised to hosts (RFC 8106 Section 5.1).
           The option points a link at a resolver without a DHCPv6 server.
+          - **dns-source** `container`: Where this consumer's DNS resolvers come from, and in what order.
+            The ordered list of sources this consumer takes its DNS resolver addresses from, and how it combines them. With the container absent, the consumer uses its built-in default list, which its own description states. Once any source is written, the default no longer applies, its mode included.
+            - **mode** `enumeration`: How two or more sources combine: first-usable or merge.
+              How a list of two or more sources combines them. first-usable takes the first source that holds a usable server and ignores the rest; merge takes every source in list order. The leaf has no default: a list naming one source needs none, and a list naming more is refused without it.
+              - `first-usable`: The first source with a usable server wins; later ones are backups.
+              - `merge`: Every source's servers, in list order, each server listed once.
+            - **received-interface** `node-name[]`: Take received resolvers only from these interfaces, in this order.
+              Narrows the received source to the resolvers learned on these interfaces, in this order, then by origin rank, then by unit. With none listed, received takes every interface. Ze refuses the leaf when the source list does not name received. An interface that holds no lease yet is accepted: it may learn one later.
+            - **source** `dns-source-class[]`: A source class, in fall-through order: received, configured, self, radius.
+              The source classes in the order the consumer falls through them. A class may appear once. Two or more classes need a mode: Ze refuses the list without one, because it cannot tell whether a later source is a backup or an addition.
+              - `configured`: The resolvers configured on this consumer itself.
+              - `radius`: The resolvers RADIUS gives one PPP subscriber.
+              - `received`: Resolvers Ze learned from the network, by DHCPv4, DHCPv6, IPCP or router advertisement RDNSS.
+              - `self`: Ze's own address on the interface the client is on.
           - **lifetime** `uint32`: How long a host can use these resolvers (RFC 8106 Section 5.1).
             0 tells a host to stop using the resolvers, and an operator can set it. 4294967295 means that the resolvers never expire. This leaf has no default: leave it out, and Ze sends 3 x maximum- interval, the value RFC 8106 Section 5.1 recommends. 0 is not the default for that reason, because Ze could not then tell an operator who retires a resolver from one who set nothing.
           - **server** `ipv6-address[]`: Resolver addresses. All of them share lifetime.
@@ -4311,19 +4453,25 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
     - **ipv6** `container`: IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.
       The container holds one unit's IPv6 state. Ze installs the addresses through netlink. Ze turns autoconf, accept-ra and forwarding into net.ipv6.conf.<iface> sysctl writes, which it emits on the event bus for the sysctl plugin to perform.
       - **accept-ra** `uint8`: Accept RA level: 0 disables, 1 accepts when not forwarding, 2 accepts even when forwarding.
-        This leaf needs the netlink backend, for the same reason as autoconf: the two leaves describe one behavior.
+        This leaf needs the netlink backend, for the same reason as autoconf: the two leaves describe one behavior. Above 0 it also makes the device's RDNSS options (RFC 8106) an ra record of the router's received DNS servers, on a unit and on a pppoe-client session alike.
       - **address** `string[]`: IPv6 addresses in CIDR notation (e.g., fd00::1/64)
         Ze installs each address on the unit's OS device through netlink. An address that leaves the list is removed on the next apply, because ze reconciles the whole set rather than adding to it.
       - **autoconf** `boolean`: Enable IPv6 stateless autoconfiguration.
         The kernel learns an address only when a Router Advertisement reaches the device it owns, so this leaf needs the netlink backend. On the vpp backend, the NIC belongs to VPP, and no advertisement reaches the Linux Control Plane tap.
+      - **delegated-prefix <source>** `list`: Number this unit from a prefix delegated to a pppoe-client.
+        Ze takes one /64 for this unit out of the prefix the named pppoe-client leases through DHCPv6 prefix delegation (RFC 7084 L-2): the delegated prefix plus subnet-id, shifted into the bits between the delegated length and 64. The unit's address is that /64 plus interface-identifier, and its preferred and valid lifetimes never exceed what remains of the delegation (RFC 9915 Section 6.3). With router-advertisement enabled, the unit advertises the /64 in a Prefix Information option and the delegated prefix in a Route Information option. Ze refuses a source that is not a pppoe-client requesting a delegated prefix, a subnet-id the pd length cannot hold, and two units taking the same subnet-id from one source.
+        - **interface-identifier** `ipv6-address`: The host part of the unit's address in the /64 (default ::1).
+          Only the low 64 bits are used; Ze refuses a value with any of the high 64 bits set.
+        - **subnet-id** `uint16`: The /64 within the delegated prefix (0 to 2^(64 - pd length) - 1).
+          Which /64 of the delegated prefix this unit takes. With pd length 56 the ids run from 0 to 255; with no pd length, the largest id is 65535, the /48 maximum. An id the delegation the server chose cannot hold leaves the unit without a /64, and Ze logs it.
       - **dhcpv6** `container`: DHCPv6 stateful client (RFC 8415).
         The client requests addresses, delegated prefixes, or both, from a DHCPv6 server. It runs alongside SLAAC when autoconf is also enabled.
         - **duid** `string`: Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).
           When the leaf is omitted, ze generates a DUID-LL from the interface MAC. Set the leaf when the DHCP server binds a lease to a specific DUID. Write it as colon-separated hex octets, such as 00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to 128 octets of identifier (RFC 9915 Section 11.1).
         - **enabled** `boolean`: Enable DHCPv6 client
-          Ze starts a DHCPv6 client on this unit when the leaf is true. The client sends a Solicit that carries the Rapid Commit option, and it takes a Reply directly when the server answers with one. Otherwise it sends a Request after the Advertise.
+          Ze starts a DHCPv6 client on this interface when the leaf is true. The client sends a Solicit that carries the Rapid Commit option, and it takes a Reply directly when the server answers with one. Otherwise it sends a Request after the Advertise.
         - **pd** `container`: Prefix delegation
-          Request a delegated prefix. Every Solicit, Request, Renew and Rebind Ze sends carries an IA_PD option, and Ze publishes each delegated prefix as a lease on this unit.
+          Request a delegated prefix. Every Solicit, Request, Renew and Rebind Ze sends carries an IA_PD option, and Ze publishes each delegated prefix as a lease on this interface.
           - **length** `uint8`: Requested prefix length
             The prefix length ze asks for, from 48 to 64, sent as an IA Prefix hint (::/length) in the IA_PD. Without it the IA_PD carries no hint and the server chooses the length.
       - **forwarding** `boolean`: Allow this interface to forward IPv6 packets between interfaces.
@@ -4354,6 +4502,20 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
             4294967295 means that the prefix never expires. The default is 30 days.
         - **rdnss** `container`: Recursive DNS servers advertised to hosts (RFC 8106 Section 5.1).
           The option points a link at a resolver without a DHCPv6 server.
+          - **dns-source** `container`: Where this consumer's DNS resolvers come from, and in what order.
+            The ordered list of sources this consumer takes its DNS resolver addresses from, and how it combines them. With the container absent, the consumer uses its built-in default list, which its own description states. Once any source is written, the default no longer applies, its mode included.
+            - **mode** `enumeration`: How two or more sources combine: first-usable or merge.
+              How a list of two or more sources combines them. first-usable takes the first source that holds a usable server and ignores the rest; merge takes every source in list order. The leaf has no default: a list naming one source needs none, and a list naming more is refused without it.
+              - `first-usable`: The first source with a usable server wins; later ones are backups.
+              - `merge`: Every source's servers, in list order, each server listed once.
+            - **received-interface** `node-name[]`: Take received resolvers only from these interfaces, in this order.
+              Narrows the received source to the resolvers learned on these interfaces, in this order, then by origin rank, then by unit. With none listed, received takes every interface. Ze refuses the leaf when the source list does not name received. An interface that holds no lease yet is accepted: it may learn one later.
+            - **source** `dns-source-class[]`: A source class, in fall-through order: received, configured, self, radius.
+              The source classes in the order the consumer falls through them. A class may appear once. Two or more classes need a mode: Ze refuses the list without one, because it cannot tell whether a later source is a backup or an addition.
+              - `configured`: The resolvers configured on this consumer itself.
+              - `radius`: The resolvers RADIUS gives one PPP subscriber.
+              - `received`: Resolvers Ze learned from the network, by DHCPv4, DHCPv6, IPCP or router advertisement RDNSS.
+              - `self`: Ze's own address on the interface the client is on.
           - **lifetime** `uint32`: How long a host can use these resolvers (RFC 8106 Section 5.1).
             0 tells a host to stop using the resolvers, and an operator can set it. 4294967295 means that the resolvers never expire. This leaf has no default: leave it out, and Ze sends 3 x maximum- interval, the value RFC 8106 Section 5.1 recommends. 0 is not the default for that reason, because Ze could not then tell an operator who retires a resolver from one who set nothing.
           - **server** `ipv6-address[]`: Resolver addresses. All of them share lifetime.
@@ -4443,19 +4605,25 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
     - **ipv6** `container`: IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.
       The container holds one unit's IPv6 state. Ze installs the addresses through netlink. Ze turns autoconf, accept-ra and forwarding into net.ipv6.conf.<iface> sysctl writes, which it emits on the event bus for the sysctl plugin to perform.
       - **accept-ra** `uint8`: Accept RA level: 0 disables, 1 accepts when not forwarding, 2 accepts even when forwarding.
-        This leaf needs the netlink backend, for the same reason as autoconf: the two leaves describe one behavior.
+        This leaf needs the netlink backend, for the same reason as autoconf: the two leaves describe one behavior. Above 0 it also makes the device's RDNSS options (RFC 8106) an ra record of the router's received DNS servers, on a unit and on a pppoe-client session alike.
       - **address** `string[]`: IPv6 addresses in CIDR notation (e.g., fd00::1/64)
         Ze installs each address on the unit's OS device through netlink. An address that leaves the list is removed on the next apply, because ze reconciles the whole set rather than adding to it.
       - **autoconf** `boolean`: Enable IPv6 stateless autoconfiguration.
         The kernel learns an address only when a Router Advertisement reaches the device it owns, so this leaf needs the netlink backend. On the vpp backend, the NIC belongs to VPP, and no advertisement reaches the Linux Control Plane tap.
+      - **delegated-prefix <source>** `list`: Number this unit from a prefix delegated to a pppoe-client.
+        Ze takes one /64 for this unit out of the prefix the named pppoe-client leases through DHCPv6 prefix delegation (RFC 7084 L-2): the delegated prefix plus subnet-id, shifted into the bits between the delegated length and 64. The unit's address is that /64 plus interface-identifier, and its preferred and valid lifetimes never exceed what remains of the delegation (RFC 9915 Section 6.3). With router-advertisement enabled, the unit advertises the /64 in a Prefix Information option and the delegated prefix in a Route Information option. Ze refuses a source that is not a pppoe-client requesting a delegated prefix, a subnet-id the pd length cannot hold, and two units taking the same subnet-id from one source.
+        - **interface-identifier** `ipv6-address`: The host part of the unit's address in the /64 (default ::1).
+          Only the low 64 bits are used; Ze refuses a value with any of the high 64 bits set.
+        - **subnet-id** `uint16`: The /64 within the delegated prefix (0 to 2^(64 - pd length) - 1).
+          Which /64 of the delegated prefix this unit takes. With pd length 56 the ids run from 0 to 255; with no pd length, the largest id is 65535, the /48 maximum. An id the delegation the server chose cannot hold leaves the unit without a /64, and Ze logs it.
       - **dhcpv6** `container`: DHCPv6 stateful client (RFC 8415).
         The client requests addresses, delegated prefixes, or both, from a DHCPv6 server. It runs alongside SLAAC when autoconf is also enabled.
         - **duid** `string`: Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).
           When the leaf is omitted, ze generates a DUID-LL from the interface MAC. Set the leaf when the DHCP server binds a lease to a specific DUID. Write it as colon-separated hex octets, such as 00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to 128 octets of identifier (RFC 9915 Section 11.1).
         - **enabled** `boolean`: Enable DHCPv6 client
-          Ze starts a DHCPv6 client on this unit when the leaf is true. The client sends a Solicit that carries the Rapid Commit option, and it takes a Reply directly when the server answers with one. Otherwise it sends a Request after the Advertise.
+          Ze starts a DHCPv6 client on this interface when the leaf is true. The client sends a Solicit that carries the Rapid Commit option, and it takes a Reply directly when the server answers with one. Otherwise it sends a Request after the Advertise.
         - **pd** `container`: Prefix delegation
-          Request a delegated prefix. Every Solicit, Request, Renew and Rebind Ze sends carries an IA_PD option, and Ze publishes each delegated prefix as a lease on this unit.
+          Request a delegated prefix. Every Solicit, Request, Renew and Rebind Ze sends carries an IA_PD option, and Ze publishes each delegated prefix as a lease on this interface.
           - **length** `uint8`: Requested prefix length
             The prefix length ze asks for, from 48 to 64, sent as an IA Prefix hint (::/length) in the IA_PD. Without it the IA_PD carries no hint and the server chooses the length.
       - **forwarding** `boolean`: Allow this interface to forward IPv6 packets between interfaces.
@@ -4486,6 +4654,20 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
             4294967295 means that the prefix never expires. The default is 30 days.
         - **rdnss** `container`: Recursive DNS servers advertised to hosts (RFC 8106 Section 5.1).
           The option points a link at a resolver without a DHCPv6 server.
+          - **dns-source** `container`: Where this consumer's DNS resolvers come from, and in what order.
+            The ordered list of sources this consumer takes its DNS resolver addresses from, and how it combines them. With the container absent, the consumer uses its built-in default list, which its own description states. Once any source is written, the default no longer applies, its mode included.
+            - **mode** `enumeration`: How two or more sources combine: first-usable or merge.
+              How a list of two or more sources combines them. first-usable takes the first source that holds a usable server and ignores the rest; merge takes every source in list order. The leaf has no default: a list naming one source needs none, and a list naming more is refused without it.
+              - `first-usable`: The first source with a usable server wins; later ones are backups.
+              - `merge`: Every source's servers, in list order, each server listed once.
+            - **received-interface** `node-name[]`: Take received resolvers only from these interfaces, in this order.
+              Narrows the received source to the resolvers learned on these interfaces, in this order, then by origin rank, then by unit. With none listed, received takes every interface. Ze refuses the leaf when the source list does not name received. An interface that holds no lease yet is accepted: it may learn one later.
+            - **source** `dns-source-class[]`: A source class, in fall-through order: received, configured, self, radius.
+              The source classes in the order the consumer falls through them. A class may appear once. Two or more classes need a mode: Ze refuses the list without one, because it cannot tell whether a later source is a backup or an addition.
+              - `configured`: The resolvers configured on this consumer itself.
+              - `radius`: The resolvers RADIUS gives one PPP subscriber.
+              - `received`: Resolvers Ze learned from the network, by DHCPv4, DHCPv6, IPCP or router advertisement RDNSS.
+              - `self`: Ze's own address on the interface the client is on.
           - **lifetime** `uint32`: How long a host can use these resolvers (RFC 8106 Section 5.1).
             0 tells a host to stop using the resolvers, and an operator can set it. 4294967295 means that the resolvers never expire. This leaf has no default: leave it out, and Ze sends 3 x maximum- interval, the value RFC 8106 Section 5.1 recommends. 0 is not the default for that reason, because Ze could not then tell an operator who retires a resolver from one who set nothing.
           - **server** `ipv6-address[]`: Resolver addresses. All of them share lifetime.
@@ -4764,7 +4946,12 @@ L2TPv2 tunnel subsystem settings (RFC 2661). Presence of this block with any con
   - `none`: Advertise no Auth-Protocol, so the session opens with no PPP authentication phase.
   - `pap`: Advertise PAP (RFC 1334), which carries the password in clear text.
 - **authentication** `container`: PPP authentication phase settings for L2TP sessions.
-  The container holds the timing of the PPP authentication phase, and nothing else. The backend that answers a credential sits under the auth container, which the l2tp-auth-local plugin and the l2tp-auth-radius plugin fill. Both leaves here hot-apply: a new value reaches the next session, and a session that is already up keeps the value it started with.
+  PPP authentication negotiation policy and phase timing. The credential backend sits under auth. Changes apply to new sessions; existing sessions retain their policy.
+  - **allow** `enumeration[]`: Permitted PPP authentication methods in preference order.
+    Ordered permitted authentication methods. An explicit list must include auth-method and cannot accompany auth-method none. When absent, CHAP methods permit only themselves, PAP permits CHAP-MD5 then PAP, and none permits no method. CHAP is offered before PAP.
+    - `chap-md5`: Permit CHAP-MD5.
+    - `ms-chap-v2`: Permit MS-CHAPv2.
+    - `pap`: Permit cleartext PAP.
   - **reauth-interval** `uint32`: Periodic re-authentication interval in seconds, 0 by default.
     Periodic re-authentication interval in seconds, for CHAP and MS-CHAPv2 only. Zero disables re-auth. A value of 1 to 4 is rejected, to prevent re-auth storms. The default is 0, which is disabled.
   - **timeout** `uint16`: PPP auth-phase timeout in seconds, 30 by default.
@@ -4787,6 +4974,8 @@ L2TPv2 tunnel subsystem settings (RFC 2661). Presence of this block with any con
   Maximum concurrent sessions per tunnel. The default is a finite deployment safety cap. A value of 0 explicitly requests unbounded admission on each tunnel. A new ICRQ or OCRQ beyond a positive limit is rejected with CDN Result Code 4 (no resources).
 - **max-tunnels** `uint16`: Maximum concurrent L2TP tunnels.
   Maximum concurrent L2TP tunnels. The default is a finite deployment safety cap. A value of 0 explicitly requests unbounded admission by this leaf. The 65535 ceiling imposed by RFC 2661's 16-bit Tunnel ID field still applies. A new SCCRQ beyond a positive limit is rejected with StopCCN Result Code 2.
+- **mru** `uint16`: Requested PPP MRU in octets, 68 to 1500, at least 1280 with IPv6CP, default 1500.
+  Requested PPP receive Information-field size in octets. Receive capacity remains 1500. IPv6CP requires at least 1280; disable IPv6CP to use 68 through 1279 for IPv4-only service. Changes apply to new sessions only.
 - **ncp** `container`: NCP (Network Control Protocol) settings for L2TP sessions.
   NCP is the phase after PPP authentication, where each side negotiates one network-layer protocol. The two enable leaves choose which protocols Ze offers, and the timeout leaf bounds the phase. Each leaf hot-applies to a new session, and a session that is already up keeps what it negotiated.
   - **enable-ipcp** `boolean`: Enable the IPCP NCP (RFC 1332) for new L2TP sessions. When false, no IPv4 address is negotiated.
@@ -4800,9 +4989,23 @@ L2TPv2 tunnel subsystem settings (RFC 2661). Presence of this block with any con
   - **ipv4** `container`: The IPv4 range and the DNS servers a PPP session receives.
     The gateway is the NAS-side address every session sees as its IPCP peer, and it MUST NOT fall inside the start-to-end range.
     - **dns-primary** `ipv4-address`: Primary DNS server pushed to subscribers.
-      Ze offers the address as the IPCP Primary DNS option, and it offers no such option while the leaf is absent. A subscriber that asks for another address gets a Configure-Nak carrying this one. Ze drops the option from its later requests when the subscriber rejects it.
+      The configured source's first server for the IPCP Primary DNS option (see dns-source, which decides whether RADIUS or the learned resolvers come first). A subscriber that asks for another address gets a Configure-Nak carrying the selected one. Ze drops the option from its later requests when the subscriber rejects it.
     - **dns-secondary** `ipv4-address`: Secondary DNS server pushed to subscribers.
-      Ze offers the address as the IPCP Secondary DNS option, and it offers no such option while the leaf is absent. The leaf is independent of dns-primary, so a pool can name one, both, or neither.
+      The configured source's second server, offered in the IPCP Secondary DNS option when dns-source selects the configured source. The leaf is independent of dns-primary, so a pool can name one, both, or neither; with only this one set it fills the primary slot.
+    - **dns-source** `container`: Where this consumer's DNS resolvers come from, and in what order.
+      The ordered list of sources this consumer takes its DNS resolver addresses from, and how it combines them. With the container absent, the consumer uses its built-in default list, which its own description states. Once any source is written, the default no longer applies, its mode included.
+      - **mode** `enumeration`: How two or more sources combine: first-usable or merge.
+        How a list of two or more sources combines them. first-usable takes the first source that holds a usable server and ignores the rest; merge takes every source in list order. The leaf has no default: a list naming one source needs none, and a list naming more is refused without it.
+        - `first-usable`: The first source with a usable server wins; later ones are backups.
+        - `merge`: Every source's servers, in list order, each server listed once.
+      - **received-interface** `node-name[]`: Take received resolvers only from these interfaces, in this order.
+        Narrows the received source to the resolvers learned on these interfaces, in this order, then by origin rank, then by unit. With none listed, received takes every interface. Ze refuses the leaf when the source list does not name received. An interface that holds no lease yet is accepted: it may learn one later.
+      - **source** `dns-source-class[]`: A source class, in fall-through order: received, configured, self, radius.
+        The source classes in the order the consumer falls through them. A class may appear once. Two or more classes need a mode: Ze refuses the list without one, because it cannot tell whether a later source is a backup or an addition.
+        - `configured`: The resolvers configured on this consumer itself.
+        - `radius`: The resolvers RADIUS gives one PPP subscriber.
+        - `received`: Resolvers Ze learned from the network, by DHCPv4, DHCPv6, IPCP or router advertisement RDNSS.
+        - `self`: Ze's own address on the interface the client is on.
     - **end** `ipv4-address`: Last address in the pool range (inclusive).
       The range is inclusive, so this address is handed to a session as well. Ze refuses an end before the start, and it refuses the block that names end without start. A session that arrives after the last free address is refused with pool exhausted.
     - **gateway** `ipv4-address`: NAS-side IP for all PPP sessions (IPCP local address). Must not overlap the pool range.
@@ -4824,19 +5027,41 @@ L2TPv2 tunnel subsystem settings (RFC 2661). Presence of this block with any con
   - **named-pool <name>** `list`: Named IPv4 pools selected by RADIUS Framed-Pool attribute.
     The Framed-Pool attribute RADIUS returns for a session names one of these pools. Ze then uses the gateway and the DNS servers of that pool. Ze refuses the session when the attribute names a pool this list does not hold, and it does not fall back to the ipv4 pool. The ipv4 pool serves a session with no Framed-Pool.
     - **dns-primary** `ipv4-address`: Primary DNS server pushed to subscribers.
-      A session RADIUS sends to this pool receives this address, and not the one the ipv4 pool holds. Ze offers no Primary DNS option while the leaf is absent, even when the ipv4 pool names one.
+      The configured source of a session RADIUS sends to this pool: this address, and never the one the ipv4 pool holds, even while this leaf is absent.
     - **dns-secondary** `ipv4-address`: Secondary DNS server pushed to subscribers.
-      A session RADIUS sends to this pool receives this address, and not the one the ipv4 pool holds. Ze offers no Secondary DNS option while the leaf is absent, even when the ipv4 pool names one.
+      The second server of this pool's configured source, and never the ipv4 pool's, even while this leaf is absent.
+    - **dns-source** `container`: Where this consumer's DNS resolvers come from, and in what order.
+      The ordered list of sources this consumer takes its DNS resolver addresses from, and how it combines them. With the container absent, the consumer uses its built-in default list, which its own description states. Once any source is written, the default no longer applies, its mode included.
+      - **mode** `enumeration`: How two or more sources combine: first-usable or merge.
+        How a list of two or more sources combines them. first-usable takes the first source that holds a usable server and ignores the rest; merge takes every source in list order. The leaf has no default: a list naming one source needs none, and a list naming more is refused without it.
+        - `first-usable`: The first source with a usable server wins; later ones are backups.
+        - `merge`: Every source's servers, in list order, each server listed once.
+      - **received-interface** `node-name[]`: Take received resolvers only from these interfaces, in this order.
+        Narrows the received source to the resolvers learned on these interfaces, in this order, then by origin rank, then by unit. With none listed, received takes every interface. Ze refuses the leaf when the source list does not name received. An interface that holds no lease yet is accepted: it may learn one later.
+      - **source** `dns-source-class[]`: A source class, in fall-through order: received, configured, self, radius.
+        The source classes in the order the consumer falls through them. A class may appear once. Two or more classes need a mode: Ze refuses the list without one, because it cannot tell whether a later source is a backup or an addition.
+        - `configured`: The resolvers configured on this consumer itself.
+        - `radius`: The resolvers RADIUS gives one PPP subscriber.
+        - `received`: Resolvers Ze learned from the network, by DHCPv4, DHCPv6, IPCP or router advertisement RDNSS.
+        - `self`: Ze's own address on the interface the client is on.
     - **end** `ipv4-address`: Last address in the pool range (inclusive).
       The range is inclusive, so this address is handed to a session as well. A session that arrives after the last free address of this pool is refused with pool exhausted. Ze does not move that session to another pool.
     - **gateway** `ipv4-address`: NAS-side IP for sessions using this pool.
       A session RADIUS sends to this pool sees this address as its IPCP peer, and not the gateway of the ipv4 pool. Ze refuses an address that falls inside the range from start to end of this pool.
     - **start** `ipv4-address`: First address in the pool range.
       The leaf is required here, and the ipv4 pool leaves it optional. Ze refuses a start after the end. Ze does not compare the range of one pool against the range of another. Two ranges that overlap can therefore hand one address to two sessions.
+- **proxy-lcp** `enumeration`: Accept the LAC's proxy LCP, or renegotiate LCP with the subscriber (default accept).
+  LNS policy for the proxy LCP AVPs (Initial Received, Last Sent and Last Received LCP CONFREQ) a LAC sends in ICCN, RFC 2661 Section 4.4.5. With accept, a complete proxy that meets the auth allow-list and mru opens LCP on the LAC's values; partial, malformed or out-of-policy proxy data is renegotiated anyway. With renegotiate, Ze sends its own LCP Configure-Request with its own Magic-Number, MRU and Auth-Protocol, then authenticates with the configured method. Ze authenticates the subscriber itself under both values. Changes apply to new sessions only.
+  - `accept`: Open LCP on valid proxy LCP from the LAC, then authenticate again (default).
+  - `renegotiate`: Ignore the LAC's proxy LCP and negotiate LCP with the subscriber afresh.
 - **relay <service>** `list`: PPPoE-to-L2TP relay bindings for the LAC role.
   PPPoE-to-L2TP relay bindings (LAC role). A subscriber whose PADI or PADR carries a matching PPPoE Service-Name is relayed into an L2TP incoming call toward the named remote, instead of terminating PPP locally on this box. Removing a binding restores local termination for that service.
   - **remote** `string`: Name of the L2TP remote that matching subscribers are relayed to.
     Name of the L2TP remote (dial target) that matching subscribers are relayed to. It MUST reference a remote declared under l2tp/remote, and an unknown name is rejected at config validation.
+- **relay-realm <realm>** `list`: Realm-to-LNS relay bindings for a wholesale LAC.
+  Realm-to-LNS relay bindings (wholesale LAC role). A PPPoE subscriber that no Service-Name relay took runs LCP and starts authentication with this box; when the realm of the username (the text after its last '@', compared without regard to case) names a binding, the subscriber is relayed into an L2TP incoming call toward the named remote, carrying the proxy LCP and proxy authentication AVPs of RFC 2661 Section 4.4.5, instead of being authenticated here. A username whose realm names no binding is authenticated by the local auth handler as for any PPPoE session. A matched realm whose call fails is refused, never authenticated locally. A Service-Name relay binding that matches at discovery wins.
+  - **remote** `string`: Name of the L2TP remote that subscribers of this realm are relayed to.
+    Name of the L2TP remote (the retail LNS) that subscribers of this realm are relayed to. It MUST reference a remote declared under l2tp/remote, and an unknown name is rejected at config validation. Proxy authentication for a PAP subscriber is sent only when that remote has a shared-secret, because the password then travels hidden.
 - **remote <name>** `list`: L2TP dial targets, the remote LNS or LAC endpoints Ze dials.
   L2TP dial targets: remote LNS/LAC endpoints ze initiates tunnels toward, and sends SCCRQ to. They are referenced by name from 'request l2tp outgoing-call remote <name>' and from PPPoE relay bindings. Declaring a remote grants no dial by itself. An operator action (RPC) or a relay binding drives the dial.
   - **address** `ip-address`: Remote control-plane IP address to dial. The SCCRQ destination (RFC 2661 Section 6.1).
@@ -5925,7 +6150,7 @@ Declares the plugins this daemon runs, and the hub transport they connect back o
       - **secret** `string`: Per-client auth token (min 32 chars)
         The token this named client presents at authentication. It holds at least 32 characters, and the config is refused below that length with the client name in the error. An entry with no secret is refused as well. Write the same value in the secret leaf of the client block on the remote daemon. This per-client token is checked before the block secret. The CLI masks the value on display, and the committed config file holds it in the clear.
     - **ip** `ip-address`: Listen IP address
-      The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and an IPv4 address never overlaps an IPv6 address.
+      The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. On most services :: is dual-stack: it also accepts IPv4 clients, so :: alone serves both families. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and a dual-stack :: also overlaps every IPv4 address, so list :: alone rather than :: beside 0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web) accepts :: beside an IPv4 address on the same port.
     - **port** `listener-port`: Listen TCP port; 0 means OS-assigned
       The port range is 0 to 65535. Port 0 makes the operating system pick a free port at bind time, so no client can know the port before the listener starts. ze doctor tries to bind each configured endpoint and reports the one the host refuses.
     - **secret** `string`: Auth token for plugin connections (min 32 chars)
@@ -5957,6 +6182,10 @@ Each filter type is a list that its plugin adds through an augment and marks ze:
       The first entry whose pattern matches decides the UPDATE, and no later entry is read. A route whose path matches no entry is rejected, so a list needs no closing reject entry.
       - `accept`: Accept a route whose AS-path matches.
       - `reject`: Reject a route whose AS-path matches.
+- **asn-set <name>** `list`: A named set of AS numbers
+  A plain set of AS numbers, with no position and no action. It is data another feature reads: role transit-asns names one to add the providers this router does not peer with to the RFC 7454 Section 9 upstream check. A filter chain cannot name an asn-set entry.
+  - **asn** `uint32[]`: AS numbers of the set
+    The AS numbers of the set, in plain decimal. 0 is reserved (RFC 7607) and refused.
 - **community-match <name>** `list`: Named community match filter instance.
   Each list holds an ordered set of match entries. Ze reads the entries in order, and the first match wins. No match is an implicit deny, so the route is rejected.
   - **entry <community>** `list`: Ordered match entry, checked against the route's community attributes.
@@ -6000,6 +6229,12 @@ Each filter type is a list that its plugin adds through an augment and marks ze:
     What happens to a route that meets every condition the instance names. The other routes get the opposite.
     - `accept`: Pass on routes meeting every condition, reject the rest.
     - `reject`: Reject routes meeting every condition, pass on the rest.
+  - **as-path** `string`: Match routes whose AS path the named as-path-list accepts
+    The UPDATE passes this condition when the named as-path-list accepts its AS path, read as the space-separated decimal string. The as-path-list is a policy as-path-list instance: the editor completes the configured ones, and a commit naming any other is refused. Only a BGP chain judges it.
+  - **as-path-length** `string`: Match routes whose AS path length the named as-path-length allows
+    The UPDATE passes this condition when its AS path hop count lies within the named as-path-length instance's min and max. The editor completes the configured as-path-length instances, and a commit naming any other is refused. Only a BGP chain judges it.
+  - **community** `string`: Match routes the named community-match list accepts
+    The route passes this condition when the named community-match list accepts it: the list's first entry whose community the route carries decides, and a route no entry matches fails. The list is a policy community-match instance: the editor completes the configured ones, and a commit naming any other is refused. A BGP chain judges it; a Loc-RIB chain refuses it, as its routes carry no community.
   - **family** `string[]`: Match routes of this address family
     An address family name such as ipv4/unicast or ipv6/unicast.
   - **interface** `string[]`: Match routes through this interface
@@ -6018,6 +6253,8 @@ Each filter type is a list that its plugin adds through an augment and marks ze:
     The route passes this condition when the named prefix-list accepts its prefix. The prefix-list is a policy prefix-list instance: the editor completes the configured ones, and a commit naming any other is refused.
   - **protocol** `string[]`: Match routes from this source
     A route source registered by this build (static, connected, ospf, isis, bgp, ...), or ebgp or ibgp for the class of a BGP best. An unknown name is refused at load.
+  - **reject-asn** `string`: Match routes the named reject-asn list does not reject
+    The route passes this condition when the named reject-asn list rejects it on neither arm: no listed ASN at a listed position of its AS path, and no pattern matching the whole path. The sender is known on import only. A match naming it discharges the transit-leak filter a declared RFC 9234 role requires. The list is a policy reject-asn instance: the editor completes the configured ones, and a commit naming any other is refused. A BGP chain judges it; a Loc-RIB chain refuses it.
   - **route-type** `enumeration[]`: Match OSPF routes of this path type
     The OSPF path type of RFC 2328 Section 11, with the NSSA types of RFC 3101. Only OSPF routes carry a route type.
     - `external-1`: OSPF type 1 external path
@@ -6101,7 +6338,7 @@ Each filter type is a list that its plugin adds through an augment and marks ze:
       - `type-1`: External metric in OSPF cost units, added to the internal distance.
       - `type-2`: External metric larger than any internal path, compared alone.
     - **next-hop** `ip-address`: Set the NEXT_HOP attribute of the route.
-      NEXT_HOP is RFC 4271 type 3, and it carries an IPv4 address only. An IPv6 next-hop travels in the MP_REACH attribute instead, so this leaf does not set one.
+      NEXT_HOP is RFC 4271 type 3, and it carries an IPv4 address only. An IPv6 next-hop travels in the MP_REACH attribute instead, which this leaf does not set, so an IPv6 address here is refused when the config is read.
     - **origin** `enumeration`: Set ORIGIN attribute (RFC 4271 type 1).
       The decision process reads the attribute at step 3, after LOCAL_PREF and the AS_PATH length. igp wins over egp, and egp wins over incomplete. Ze replaces whatever the route carried.
       - `egp`: The route came from the retired EGP protocol.
@@ -6187,8 +6424,8 @@ Each filter type is a list that its plugin adds through an augment and marks ze:
         Ze allocates a kernel routing table from range 2000-2999 for this next-hop. Ze then manages the default route, the fwmark, and the ip rule in that table internally.
       - **table** `uint32`: Route matching packets through this kernel routing table.
         Ze routes each matching packet through the kernel routing table with this number. Range 1000-2999 is reserved for ze internal use, which covers the VRF tables and the policy-routing tables Ze allocates.
-      - **tcp-mss** `uint16`: Rewrite the TCP MSS option to this value in bytes.
-        Ze writes this value into the TCP MSS option, kind 2, of every matching packet, and it does not read the value already there. A packet that carries no MSS option is not changed. The range is 1 to 65535, and 0 is refused at commit. This action is not terminal, so it combines with accept, drop, table, or next-hop in the same rule.
+      - **tcp-mss** `uint16`: Clamp the TCP MSS to at most this many bytes (a smaller MSS is kept).
+        The value is an upper bound on the TCP MSS option, kind 2, of every matching packet. A larger MSS is lowered to the value, and an MSS already at or below it is left alone, so the clamp never raises the segment size a host offered. A packet that carries no MSS option is not changed, and only a SYN carries one, so match tcp-flags syn. The range is 1 to 65535, and 0 is refused at commit. This action is not terminal, so it combines with accept, drop, table, or next-hop in the same rule.
 
 ## pppoe
 
@@ -6206,6 +6443,11 @@ This block with any content in it enables the subsystem. Use 'enabled false' to 
   - `ms-chap-v2`: Advertise MS-CHAP-V2 (RFC 2759).
   - `none`: Advertise no Auth-Protocol, so the session opens with no PPP authentication phase.
   - `pap`: Advertise PAP (RFC 1334), which carries the password in clear text.
+- **authentication-allow** `enumeration[]`: Ordered set of permitted subscriber PPP authentication methods.
+  Allowed PPP authentication methods. The list must contain auth-method and cannot be used with auth-method none. Absent or empty derives chap-md5 only for chap-md5, ms-chap-v2 only for ms-chap-v2, CHAP-MD5 then PAP for pap, and no methods for none. CHAP variants precede PAP; the configured CHAP method is first, then written CHAP order. Changes apply only to new sessions.
+  - `chap-md5`: Permit CHAP-MD5 (RFC 1994).
+  - `ms-chap-v2`: Permit MS-CHAP-V2 (RFC 2759).
+  - `pap`: Permit PAP (RFC 1334).
 - **cookie-timeout** `uint16`: AC-Cookie validity duration in seconds. Cookies older than this are rejected in PADR validation.
   The default is 5 seconds and the range is 1 to 300. The cookie is 20 bytes: 16 bytes of a truncated HMAC-SHA256 over the two MAC addresses, and 4 bytes of Unix timestamp. Each interface holds its own random key, so a cookie of one interface never verifies on another.
 - **enabled** `boolean`: Enable the PPPoE subsystem.
@@ -6291,8 +6533,8 @@ Ze builds one registry from these entries, and a static route or a policy route 
 
 - **table <name>** `list`: A named routing table.
   One entry maps one name to one kernel table identifier. Ze refuses an entry named default, and refuses an entry with no id. Two entries CAN carry the same identifier, because the registry keys on the name.
-  - **id** `uint32`: Kernel routing table ID. Reserved IDs excluded: 0 (use 'default'), 253-255 (kernel reserved).
-    The leaf is mandatory. The range refuses 0 and 253 to 255, because 253 is the kernel default table, 254 is the main table and 255 is the local table. Ze also refuses an identifier this build cannot program through netlink without truncation.
+  - **id** `uint32`: Kernel routing table ID; not 0, 253-255 or a range Ze reserves
+    The leaf is mandatory. The range refuses 0 and 253 to 255, because 253 is the kernel default table, 254 is the main table and 255 is the local table. Ze also refuses an identifier inside a range Ze reserves for its own tables (internal/core/iprule, ZeTableRanges: VRF tables, policy routing auto tables, IPsec source-guard tables), and an identifier this build cannot program through netlink without truncation.
 
 ## rsvp-te
 
@@ -6417,13 +6659,13 @@ The container holds the settings of each service Ze runs, and the as112 containe
   - **ipv4-anycast-listener <name>** `list`: Presence-only anchor for port 53 on the fixed IPv4 anycast addresses.
     as112 always occupies port 53 on its fixed IPv4 anycast addresses while it is enabled. The Go-level default, RegisterListenerDefault, fills in the representative address, because no operator-facing command populates this list.
     - **ip** `ip-address`: Listen IP address
-      The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and an IPv4 address never overlaps an IPv6 address.
+      The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. On most services :: is dual-stack: it also accepts IPv4 clients, so :: alone serves both families. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and a dual-stack :: also overlaps every IPv4 address, so list :: alone rather than :: beside 0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web) accepts :: beside an IPv4 address on the same port.
     - **port** `listener-port`: Listen TCP port; 0 means OS-assigned
       The port range is 0 to 65535. Port 0 makes the operating system pick a free port at bind time, so no client can know the port before the listener starts. ze doctor tries to bind each configured endpoint and reports the one the host refuses.
   - **ipv6-anycast-listener <name>** `list`: Presence-only anchor for port 53 on the fixed IPv6 anycast addresses.
     as112 always occupies port 53 on its fixed IPv6 anycast addresses while it is enabled.
     - **ip** `ip-address`: Listen IP address
-      The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and an IPv4 address never overlaps an IPv6 address.
+      The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. On most services :: is dual-stack: it also accepts IPv4 clients, so :: alone serves both families. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and a dual-stack :: also overlaps every IPv4 address, so list :: alone rather than :: beside 0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web) accepts :: beside an IPv4 address on the same port.
     - **port** `listener-port`: Listen TCP port; 0 means OS-assigned
       The port range is 0 to 65535. Port 0 makes the operating system pick a free port at bind time, so no client can know the port before the listener starts. ze doctor tries to bind each configured endpoint and reports the one the host refuses.
   - **location** `string`: City and country in the HOSTNAME.AS112.NET/ARPA TXT answers.
@@ -6443,7 +6685,7 @@ The container holds the settings of each service Ze runs, and the as112 containe
   - **watchdog** `boolean`: Announce the covering prefixes only while the node serves DNS.
     RFC 7534 Section 3.3 states that a node does not advertise the service prefix while the name server is not running. With true, which is the default, Ze announces the covering prefixes only while the as112 node serves. Ze withdraws them when serving is lost, when the service is disabled, and when the node shuts down. With false, Ze announces as soon as the node is enabled and imported, with no serving-state gate. Ze ignores this leaf unless 'import as112' is configured under redistribute.
 - **dhcp-server** `container`: DHCP server settings
-  DHCP server settings. Ze speaks DHCPv4 only (RFC 2131 and RFC 2132), so every address leaf under this container is IPv4. The server binds one listener for each name in listen-interface, and every listener answers for every configured subnet.
+  DHCP server settings. Ze speaks DHCPv4 only (RFC 2131 and RFC 2132), so every address leaf under this container is IPv4. The server binds one listener for each name in listen-interface. A listener answers a client no relay forwarded only from the shared networks that hold a subnet its interface is addressed in, and a relayed client from the shared network that holds the relay's address (giaddr).
   - **enabled** `boolean`: Enable DHCP server
     Enable the DHCP server. Left false, the plugin still parses and validates the config, and it binds no socket and builds no handler. A commit that sets it true rebuilds one handler for each subnet and binds the listeners again.
   - **listen-interface** `string[]`: Interfaces to serve DHCP on
@@ -6461,13 +6703,27 @@ The container holds the settings of each service Ze runs, and the as112 containe
     - **tftp-server** `string`: TFTP server IP address for PXE boot (option 66, siaddr)
       TFTP server IP address for PXE boot. Ze writes the address into the siaddr field of the reply (RFC 2131 Section 4.3.1) and its text form into option 66 (RFC 2132 Section 9.9). The address has to be IPv4. An iPXE client receives neither, because boot-script-url answers it instead.
   - **shared-network <name>** `list`: Named network grouping of subnets
-    Named network grouping of subnets. The name is a label for the operator, and Ze puts it on no packet. Ze sorts the groups by name and builds one handler for each subnet in that order. A request is answered by the first handler that accepts it.
+    The subnets of one physical segment. The name is a label for the operator, and Ze puts it on no packet. A static mapping in any subnet of the segment is offered before any pool, and a new address comes from the subnet holding the listen interface's primary address (or the relay's address), then from the other subnets in the order Ze sorts them: shared networks by name, subnets by prefix text.
     - **subnet <prefix>** `list`: Subnet with address pool and options
-      Subnet with address pool and options. Each subnet becomes one handler with its own address pool and lease table. A request that carries no relay address, no client address and no requested address matches every subnet. The first handler with a free address answers it.
+      Subnet with address pool and options. Each subnet has its own address pool and lease table. A request is served from the subnet the client belongs to on its segment: its static mapping first, then its current binding, then the requested address when it is free, then a pool. The listen interface needs an address in a subnet of the segment, unless the request came through a relay.
       - **default-router** `string`: Default gateway address (option 3)
-        Default gateway address, sent as option 3. Ze also uses it as the DHCP server identifier of this subnet, in option 54. With no default-router the identifier falls back to the start address of the first range, and then to the network address of the prefix. A REQUEST that names a different server identifier is left unanswered.
+        Default gateway address, sent as option 3. It does not choose the server identifier (option 54): see server-identifier.
       - **dns-server** `string[]`: DNS server addresses (option 6)
         DNS server addresses, sent as option 6. Write them in preference order, because Ze sends them in the order it reads them. A commit rejects more than 63 addresses, which is what one DHCP option holds, and it rejects an address that is not IPv4.
+      - **dns-source** `container`: Where this consumer's DNS resolvers come from, and in what order.
+        The ordered list of sources this consumer takes its DNS resolver addresses from, and how it combines them. With the container absent, the consumer uses its built-in default list, which its own description states. Once any source is written, the default no longer applies, its mode included.
+        - **mode** `enumeration`: How two or more sources combine: first-usable or merge.
+          How a list of two or more sources combines them. first-usable takes the first source that holds a usable server and ignores the rest; merge takes every source in list order. The leaf has no default: a list naming one source needs none, and a list naming more is refused without it.
+          - `first-usable`: The first source with a usable server wins; later ones are backups.
+          - `merge`: Every source's servers, in list order, each server listed once.
+        - **received-interface** `node-name[]`: Take received resolvers only from these interfaces, in this order.
+          Narrows the received source to the resolvers learned on these interfaces, in this order, then by origin rank, then by unit. With none listed, received takes every interface. Ze refuses the leaf when the source list does not name received. An interface that holds no lease yet is accepted: it may learn one later.
+        - **source** `dns-source-class[]`: A source class, in fall-through order: received, configured, self, radius.
+          The source classes in the order the consumer falls through them. A class may appear once. Two or more classes need a mode: Ze refuses the list without one, because it cannot tell whether a later source is a backup or an addition.
+          - `configured`: The resolvers configured on this consumer itself.
+          - `radius`: The resolvers RADIUS gives one PPP subscriber.
+          - `received`: Resolvers Ze learned from the network, by DHCPv4, DHCPv6, IPCP or router advertisement RDNSS.
+          - `self`: Ze's own address on the interface the client is on.
       - **domain-name** `string`: Domain name for clients (option 15)
         Domain name for clients, sent as option 15. Ze sends the string as it is written. A commit rejects a value longer than 255 characters, which is the most one DHCP option holds.
       - **lease-time** `uint32`: Lease duration in seconds
@@ -6478,6 +6734,8 @@ The container holds the settings of each service Ze runs, and the as112 containe
           First allocatable address, and the address is allocatable. It has to fall inside the subnet prefix, and it has to be less than or equal to stop. A commit names which of the two rules it broke.
         - **stop** `string`: Last allocatable address
           Last allocatable address, and the address is allocatable. It has to fall inside the subnet prefix. A range of one address is written with the same value in start and stop.
+      - **server-identifier** `string`: Server identifier address (option 54)
+        Address the server identifies itself with in this subnet's replies, sent as option 54 and in siaddr unless PXE names a TFTP server. Left unset, Ze uses the listen interface's address inside the subnet, or, for a subnet served only through a relay, the interface's primary address. Set it to name one address when the interface holds several in the subnet, such as a VRRP virtual address. A commit rejects a value that is not a unicast host address, or that is the network or broadcast address of the subnet. The address need not fall inside the subnet. When the listen interface does not hold the address at the time of a request, Ze does not answer and logs a warning naming the subnet, the address and the fix. A REQUEST naming any of the server's addresses on the segment (RFC 2131 Section 4.1) is accepted as addressed to this server.
       - **static-mapping <name>** `list`: Static MAC-to-IP binding
         Static MAC-to-IP binding. Ze answers a client whose MAC address matches with the mapped address, and it never consults the dynamic pool for that client. A mapped address that falls inside a range is marked in the pool, so no other client is offered it.
         - **ip-address** `string`: Fixed IP address for this client
@@ -6497,9 +6755,23 @@ The container holds the settings of each service Ze runs, and the as112 containe
     - **size** `uint32`: Cache entries, 0 disables caching
       The most entries the cache holds; the least recently used entry is evicted to make room. 0 disables caching.
   - **enabled** `boolean`: Enable the LAN DNS resolver
-    The default is false, so the resolver binds no listener and answers no query. A true value binds each `listener` entry for UDP and TCP, and needs at least one `listener`, one `allow-from` prefix and one `forward server`.
+    The default is false, so the resolver binds no listener and answers no query. A true value binds each `listener` entry for UDP and TCP, and needs at least one `listener`, one `allow-from` prefix, and either one `forward server` or a `forward dns-source` that names received (the default list does).
   - **forward** `container`: Upstream resolvers
     The upstream resolvers forward mode sends queries to.
+    - **dns-source** `container`: Where this consumer's DNS resolvers come from, and in what order.
+      The ordered list of sources this consumer takes its DNS resolver addresses from, and how it combines them. With the container absent, the consumer uses its built-in default list, which its own description states. Once any source is written, the default no longer applies, its mode included.
+      - **mode** `enumeration`: How two or more sources combine: first-usable or merge.
+        How a list of two or more sources combines them. first-usable takes the first source that holds a usable server and ignores the rest; merge takes every source in list order. The leaf has no default: a list naming one source needs none, and a list naming more is refused without it.
+        - `first-usable`: The first source with a usable server wins; later ones are backups.
+        - `merge`: Every source's servers, in list order, each server listed once.
+      - **received-interface** `node-name[]`: Take received resolvers only from these interfaces, in this order.
+        Narrows the received source to the resolvers learned on these interfaces, in this order, then by origin rank, then by unit. With none listed, received takes every interface. Ze refuses the leaf when the source list does not name received. An interface that holds no lease yet is accepted: it may learn one later.
+      - **source** `dns-source-class[]`: A source class, in fall-through order: received, configured, self, radius.
+        The source classes in the order the consumer falls through them. A class may appear once. Two or more classes need a mode: Ze refuses the list without one, because it cannot tell whether a later source is a backup or an addition.
+        - `configured`: The resolvers configured on this consumer itself.
+        - `radius`: The resolvers RADIUS gives one PPP subscriber.
+        - `received`: Resolvers Ze learned from the network, by DHCPv4, DHCPv6, IPCP or router advertisement RDNSS.
+        - `self`: Ze's own address on the interface the client is on.
     - **server <ip>** `list`: Upstream resolver address
       One upstream resolver. The resolver tries the entries in the order they are configured and moves to the next when one does not answer.
       - **port** `port`: Upstream resolver port
@@ -6513,7 +6785,7 @@ The container holds the settings of each service Ze runs, and the as112 containe
   - **listener <name>** `list`: UDP and TCP listen endpoints for the resolver
     UDP and TCP listen endpoints. Each named entry binds one LAN or loopback address and one port. A wildcard address (0.0.0.0 or ::) is refused, because it would also answer on the WAN side. The ze:listener marking enables config-time port-conflict detection across services.
     - **ip** `ip-address`: Listen IP address
-      The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and an IPv4 address never overlaps an IPv6 address.
+      The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. On most services :: is dual-stack: it also accepts IPv4 clients, so :: alone serves both families. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and a dual-stack :: also overlaps every IPv4 address, so list :: alone rather than :: beside 0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web) accepts :: beside an IPv4 address on the same port.
     - **port** `listener-port`: Listen TCP port; 0 means OS-assigned
       The port range is 0 to 65535. Port 0 makes the operating system pick a free port at bind time, so no client can know the port before the listener starts. ze doctor tries to bind each configured endpoint and reports the one the host refuses.
   - **mode** `enumeration`: Resolution mode
@@ -6566,7 +6838,7 @@ The container holds the settings of each service Ze runs, and the as112 containe
   - **listener <name>** `list`: UDP and TCP listen endpoints for geodns.
     UDP+TCP listen endpoints. Each named entry binds one IP (IPv4 or IPv6) and one port. Repeat the same port for a dual-stack pair. Ze defaults to 127.0.0.1:5300 and ::1:5300 when no entry is configured. The ze:listener marking enables config-time port-conflict detection across services.
     - **ip** `ip-address`: Listen IP address
-      The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and an IPv4 address never overlaps an IPv6 address.
+      The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. On most services :: is dual-stack: it also accepts IPv4 clients, so :: alone serves both families. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and a dual-stack :: also overlaps every IPv4 address, so list :: alone rather than :: beside 0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web) accepts :: beside an IPv4 address on the same port.
     - **port** `listener-port`: Listen TCP port; 0 means OS-assigned
       The port range is 0 to 65535. Port 0 makes the operating system pick a free port at bind time, so no client can know the port before the listener starts. ze doctor tries to bind each configured endpoint and reports the one the host refuses.
   - **nameserver** `ipv4-address[]`: Nameserver IPv4 addresses; ns1..nsN.<zone> A glue is synthesised (max 9)
@@ -6894,6 +7166,7 @@ The container holds the system-wide settings. This module attaches the local use
 - **commit-revisions** `uint16`: Maximum number of config archive files kept per file:// location.
   After each archive write, Ze prunes the files beyond this count, oldest first. 0 disables the pruning and keeps every file. The count applies to a file:// archive only, and Ze never prunes an HTTP archive.
 - **conntrack** `container`: Connection tracking (conntrack) module loading, table tuning, and timeout configuration.
+  *Provided by `firewall` ([ze-firewall-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/yang/ze-firewall-cmd.yang), [ze-firewall-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/yang/ze-firewall-conf.yang))*
   The container holds the helper modules to load, the table bounds, the protocol timeouts and the TCP behavior flags. Ze writes each one to its net.netfilter sysctl key.
   - **accounting** `empty`: Enable per-connection byte/packet counters (nf_conntrack_acct).
     Ze writes the value to net.netfilter.nf_conntrack_acct. The counters cost memory per flow, so the kernel keeps them off until they are asked for.
@@ -6910,19 +7183,17 @@ The container holds the system-wide settings. This module attaches the local use
     - `icmpv6`: Log invalid ICMPv6 packets.
     - `tcp`: Log invalid TCP packets.
     - `udp`: Log invalid UDP packets.
-  - **module** `enumeration[]`: Conntrack helper modules to load.
-    The leaf-list only loads a module. Removing a module from the list stops the load on the next boot, and it does not unload the module at runtime.
+  - **module** `enumeration[]`: Conntrack helpers (ALGs) to assign to new connections.
+    Each listed helper gets an nft ct helper object, and new connections to its ports are assigned to it, in prerouting and output at priority -5. A helper the kernel registers for IPv4 only is assigned in IPv4 alone. The list is empty by default, so no ALG runs unless listed (RFC 4787 REQ-10). Removing a helper removes its assignment on the next commit.
     - `amanda`: Amanda helper (nf_conntrack_amanda).
     - `ftp`: FTP helper (nf_conntrack_ftp).
     - `h323`: H.323 helper (nf_conntrack_h323).
     - `irc`: IRC helper (nf_conntrack_irc).
     - `netbios-ns`: NetBIOS-NS helper (nf_conntrack_netbios_ns).
-    - `nfs`: NFS helper (nf_conntrack_nfs).
     - `pptp`: PPTP helper (nf_conntrack_pptp).
     - `sane`: SANE helper (nf_conntrack_sane).
     - `sip`: SIP helper (nf_conntrack_sip). May break VoIP NAT traversal.
     - `snmp`: SNMP helper (nf_conntrack_snmp).
-    - `sqlnet`: SQLnet/TNS helper (nf_conntrack_sqlnet).
     - `tftp`: TFTP helper (nf_conntrack_tftp).
   - **table-size** `uint32`: Maximum conntrack table entries (nf_conntrack_max).
     Ze writes the value to net.netfilter.nf_conntrack_max. The table holds no more flows than this, and a new flow past the bound is dropped.
@@ -7053,15 +7324,29 @@ The container holds the system-wide settings. This module attaches the local use
     - `permissive`: Request DNSSEC, and log a broken chain without failing.
     - `strict`: Request DNSSEC, and reject an answer on a broken chain.
   - **resolv-conf-path** `string`: Path Ze writes the DNS servers to, as a resolv.conf file.
-    The default /tmp/resolv.conf suits gokrazy, whose rootfs is read-only. Set /etc/resolv.conf on standard Linux. An empty string stops Ze writing the file.
+    The default /tmp/resolv.conf suits gokrazy, whose rootfs is read-only. Set /etc/resolv.conf on standard Linux. An empty string stops Ze writing the file. Any other value must be an absolute path in clean form: commit refuses a relative path, and one with a dot-dot element or a repeated slash.
   - **timeout** `uint16`: Query timeout in seconds.
     Ze waits this long for an answer before it gives up on a query. The range is 1 to 60 seconds, and the default is 5.
+- **dns-source** `container`: Where this consumer's DNS resolvers come from, and in what order.
+  The ordered list of sources this consumer takes its DNS resolver addresses from, and how it combines them. With the container absent, the consumer uses its built-in default list, which its own description states. Once any source is written, the default no longer applies, its mode included.
+  - **mode** `enumeration`: How two or more sources combine: first-usable or merge.
+    How a list of two or more sources combines them. first-usable takes the first source that holds a usable server and ignores the rest; merge takes every source in list order. The leaf has no default: a list naming one source needs none, and a list naming more is refused without it.
+    - `first-usable`: The first source with a usable server wins; later ones are backups.
+    - `merge`: Every source's servers, in list order, each server listed once.
+  - **received-interface** `node-name[]`: Take received resolvers only from these interfaces, in this order.
+    Narrows the received source to the resolvers learned on these interfaces, in this order, then by origin rank, then by unit. With none listed, received takes every interface. Ze refuses the leaf when the source list does not name received. An interface that holds no lease yet is accepted: it may learn one later.
+  - **source** `dns-source-class[]`: A source class, in fall-through order: received, configured, self, radius.
+    The source classes in the order the consumer falls through them. A class may appear once. Two or more classes need a mode: Ze refuses the list without one, because it cannot tell whether a later source is a backup or an addition.
+    - `configured`: The resolvers configured on this consumer itself.
+    - `radius`: The resolvers RADIUS gives one PPP subscriber.
+    - `received`: Resolvers Ze learned from the network, by DHCPv4, DHCPv6, IPCP or router advertisement RDNSS.
+    - `self`: Ze's own address on the interface the client is on.
 - **domain** `string`: System domain, supports $ENV_VAR expansion.
   Ze expands a $ENV_VAR reference in the value when it reads the config.
 - **host** `string`: System hostname, supports $ENV_VAR expansion.
   Ze expands a $ENV_VAR reference in the value when it reads the config.
 - **name-server** `ip-address[]`: Static DNS name servers, written to resolv.conf and used by ze internal resolver.
-  Ze writes each address to the resolv.conf file named by dns/resolv-conf-path, and its own resolver asks these servers. When environment mtu reference-address is not set, show mtu measures the first server as its reference address.
+  The configured source of the router's resolvers. Under the default dns-source list, Ze writes each address to the resolv.conf file named by dns/resolv-conf-path, and its own resolver asks these servers, whenever any is set. When environment mtu reference-address is not set, show mtu measures the first server as its reference address.
 - **peeringdb** `container`: PeeringDB API configuration for prefix data lookups.
   The container holds the API base URL and the prefix-limit margin. Ze asks PeeringDB for the prefix counts of a peer.
   - **margin** `uint8`: Percentage margin above PeeringDB count for prefix maximum (0-100).
@@ -7171,7 +7456,7 @@ The container holds the Prometheus export settings and the Netdata- compatible c
   - **server <name>** `list`: Prometheus listen endpoints.
     Each entry names one listen endpoint. The default endpoint is 127.0.0.1 on port 9273.
     - **ip** `ip-address`: Listen IP address
-      The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and an IPv4 address never overlaps an IPv6 address.
+      The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. On most services :: is dual-stack: it also accepts IPv4 clients, so :: alone serves both families. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and a dual-stack :: also overlaps every IPv4 address, so list :: alone rather than :: beside 0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web) accepts :: beside an IPv4 address on the same port.
     - **port** `listener-port`: Listen TCP port; 0 means OS-assigned
       The port range is 0 to 65535. Port 0 makes the operating system pick a free port at bind time, so no client can know the port before the listener starts. ze doctor tries to bind each configured endpoint and reports the one the host refuses.
 
@@ -7252,6 +7537,10 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
 
 - **ipsec** `container`: IPsec VPN configuration.
   Ze speaks IKEv2 (RFC 7296) and installs each negotiated Child SA into the Linux XFRM stack. A peer references one ESP group and one IKE group, and those two carry the algorithms and the timers of the tunnel.
+  - **application-override** `enumeration`: Whether applications may override the SPD per socket: deny or allow.
+    Whether a user or application may override this Security Policy Database. RFC 4301 Section 4.4.1: 'However, the system administrator MUST be able to specify whether or not a user or application can override (default) system policies.' On Linux an application overrides the SPD by setting a per-socket policy (IP_XFRM_POLICY, IPV6_XFRM_POLICY and the IPSEC_POLICY spellings), which outranks every SPD entry, the discard catch-all included. deny attaches a setsockopt guard to the cgroup2 root that refuses those four options with EPERM to every process in Ze's network namespace except Ze's own IPsec dataplane, so it needs ze to hold CAP_BPF and CAP_NET_ADMIN, a cgroup2 mount and Linux 6.10 or later; a guard that cannot attach fails the commit. allow attaches nothing, and Linux lets any process holding CAP_NET_ADMIN set one. A process holding CAP_NET_ADMIN can still write the SPD itself, which no setsockopt guard sees: ze doctor names every such process.
+    - `allow`: Let any process holding CAP_NET_ADMIN set per-socket IPsec policies.
+    - `deny`: Refuse every per-socket IPsec policy but Ze's own.
   - **cookie-threshold** `uint32`: Number of half-open IKE SAs tolerated before a COOKIE challenge.
     Number of half-open IKE SAs tolerated before an inbound IKE_SA_INIT must answer a COOKIE challenge. RFC 7296 Section 2.6 makes the challenge the answer to state and CPU exhaustion from forged source addresses. The default of 0 challenges every inbound initiation, which costs one extra round trip and stops a single spoofed datagram taking a peer's only half-open handshake slot. Raise it to tolerate that many half-open handshakes before challenging.
   - **esp-group <name>** `list`: ESP (Encapsulating Security Payload) group.
@@ -7335,7 +7624,7 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
         - `sha384`: HMAC-SHA-384-192 (RFC 4868).
         - `sha512`: HMAC-SHA-512-256 (RFC 4868).
   - **interface** `string`: WAN interface for IPsec traffic.
-    Commit refuses a name no interface on the host carries. The first IPv4 address of the interface fills the local-address of every peer that names none. The IKE socket on port 500 binds there. The NAT-T socket on port 4500 also binds there unless live XFRM migration is available, when it listens on the wildcard and selects each SA's source address explicitly. A reload whose interface holds no IPv4 address is refused, and the same case at startup runs and writes a warning.
+    Commit accepts a name no interface on the host carries yet, so a WAN created after Ze (a PPPoE unit) can be named; the doctor check ipsec-interface reports a name the host does not hold. The first IPv4 address of the interface fills the local-address of every peer that names none, and Ze follows it: when an address appears (a PPPoE or DHCP WAN that came up after Ze), those peers start; when it changes, they restart from the new address; when it leaves, they stop and remove their Child SAs, and wait. The IKE socket on port 500 binds there. The NAT-T socket on port 4500 also binds there unless live XFRM migration is available, when it listens on the wildcard and selects each SA's source address explicitly. A peer with its own local-address keeps its own socket and is never restarted by an interface address event. A reload whose interface holds no IPv4 address is refused, and the same case at startup runs, writes a warning, and the doctor check ipsec-interface-address names the waiting peers.
   - **policy <name>** `list`: Operator-authored Security Policy Database entry.
     An entry of the Security Policy Database that Ze installs directly, rather than one a Child SA negotiation produces. RFC 4301 Section 4.4.1 gives the database three dispositions: 'PROTECT, BYPASS, or DISCARD'. A peer under site-to-site produces the PROTECT entries, because those name a transform and a peer to negotiate it with. The other two name neither, so they are written here: BYPASS lets traffic cross the IPsec boundary in the clear, and DISCARD stops it at the boundary. Section 7.4 makes the discard disposition an obligation: 'All implementations MUST support DISCARDing of fragments using the normal SPD packet classification mechanisms.' This list is the management interface that Section 4.4.1 requires for it. Ze installs every entry when the configuration is applied and removes it when the entry leaves the configuration. An entry needs no peer, no key and no negotiation, so it is in force whether or not any tunnel is up.
     - **action** `enumeration`: What the entry does with the traffic its selector matches.
@@ -7506,7 +7795,7 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
       - **ike-group** `leafref`: Reference to an IKE group name.
         The group MUST be declared under vpn ipsec ike-group, and commit refuses a name no group carries. It supplies the IKE proposals, the IKE SA lifetime and the Dead Peer Detection timers of this peer.
       - **local-address** `string`: Local endpoint IP address.
-        The value is an IP address literal. Ze reads it with net.ParseIP, so an interface name here resolves to nothing and the peer cannot build a Child SA. Name the interface under vpn ipsec interface instead, and Ze fills this leaf from the first IPv4 address of that interface.
+        The value is an IP address literal, and commit refuses anything else, an interface name or a keyword such as any included. Leave it out to let the address follow something: under vpn ipsec interface, the first IPv4 address of that interface, followed as it changes; without it, the source address the kernel's route to the remote selects, resolved at the start of every connection attempt. On a host with several addresses that source is the route's, and replies to a peer that initiates leave from it too.
       - **mode** `enumeration`: Encapsulation mode for this peer's Child SAs.
         Encapsulation mode for this peer's Child SAs. RFC 7296 Section 1.3.1 states the default itself: 'Except when using this option to negotiate transport mode, all Child SAs will use tunnel mode.' Ze asks for transport mode by sending USE_TRANSPORT_MODE with the Child SA request, and the peer can decline. A declined request establishes a tunnel-mode Child SA unless transport-required is set. Transport mode constrains the traffic selectors. RFC 7296 Section 2.23.1 requires exactly one IP address in TSi and in TSr, so every traffic-selector prefix under this peer must be a single host, and a vti binding is refused because an XFRM interface carries tunnel encapsulation.
         - `transport`: Protect the payload and keep the outer IP header (RFC 4301 transport mode).
@@ -7518,7 +7807,7 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
       - **policy-priority** `uint32`: Rank of this peer's Security Policy Database entries, lowest searched first.
         Where this peer's Security Policy Database entries sit in the operator's ordering of that database. A LOWER value is searched FIRST, in Ze and in the Linux kernel. RFC 4301 Section 4.4.1: 'The ordering requirement arises because entries often will overlap due to the presence of (non-trivial) ranges as values for selectors. Thus, a user or administrator MUST be able to order the entries to express a desired access control policy.' The same section binds this interface: it 'MUST support (total) ordering of these entries, as seen via this interface'. Two peers whose traffic selectors overlap, 0.0.0.0/0 on both for example, describe the same traffic. Give the one that must win the lower value. Nothing orders two peers that share a value, so when their tunnels overlap the one that establishes second is answered TS_UNACCEPTABLE and gets no Child SA: one packet could otherwise be sent into either tunnel, which RFC 3948 Section 5.1 forbids. The default 2000 is the rank every peer took before this leaf existed. The range starts above 100, which is where the IKE control-plane bypass sits. A peer entry at or above that rank captures the IKE exchange that builds and rekeys the very SA it protects, and the tunnel could then never renegotiate. It ends at 2147483647, the largest rank Ze can carry to a dataplane.
       - **remote-address** `string`: Remote endpoint IPv4 address or DNS hostname.
-        Ze resolves the value with net.ResolveUDPAddr over udp4 and sends IKE to port 500 there, so an IPv6 literal is refused with "ike: resolve remote". Ze builds the NAT detection hashes of RFC 7296 Section 2.23 from this value. It sends none when the value is not an address literal. An unsolicited IKE_SA_INIT reaches a respond peer only when its source address equals this leaf, character for character.
+        An IPv4 literal or a DNS name. An initiating peer resolves it over udp4 at the start of every connection attempt, so a name that answers with a new address is dialed there next time, and a name that does not resolve fails the attempt, which is retried with the reconnect backoff (1 s doubling to 60 s). The resolved address is the remote of the IKE SA: the NAT detection hashes of RFC 7296 Section 2.23, the Child SA endpoints and the transport-mode host pair are built from it. IKE over IPv6 is not supported, so an IPv6 literal does not resolve. A respond peer accepts an unsolicited IKE_SA_INIT from this literal, or from any address the name resolved to at the last refresh (every 60 s and after each commit); a datagram never causes a DNS query.
       - **traffic-selector <number>** `list`: The traffic this peer's Child SAs carry.
         The traffic this peer's Child SAs carry, and the policy RFC 7296 Section 2.9 narrows a peer's proposal against. When no entry is present the peer accepts whatever the remote endpoint proposes, which is the behavior of every configuration written before this list existed. Adding an entry restricts the peer: a proposal Ze cannot narrow to a non-empty subset of these entries is answered with TS_UNACCEPTABLE. RFC 7296 Section 2.9 permits several selectors, so this is a list.
         - **local** `container`: The local side of the selector pair (TSi when Ze initiates, TSr when Ze responds).

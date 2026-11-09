@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 0 | of 20 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0 | of 20 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0 | of 20 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 36 | 36 of 36 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 38 | 38 of 38 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,7 +22,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 20 | of 25 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
+| Gated MUSTs | 20 | of 26 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the counts beside it are what says how Ze stands |
 | Out of scope | 0 | of 20 gated MUSTs | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole the cards on this page add up to |
 | Not applicable | 0 | of 20 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as a Ze gap. It is counted in the gated whole the cards add up to |
 | Met below Ze | 0 | of 20 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
@@ -63,17 +63,17 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public row | IKEv2 algorithms |
 | Enrolment | Enrolled |
-| Requirements | 25 |
+| Requirements | 26 |
 | Gated MUST-level | 20 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 3 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 36 |
-| Tagged units | 36 |
+| Test tags | 38 |
+| Tagged units | 38 |
 | Recorded audit verdicts | 1 |
-| Discrimination records | 36 |
+| Discrimination records | 38 |
 | Summary | `rfc/short/rfc8247.md` |
 | Requirement shard | `rfc/requirements/rfc8247.md` |
 | RFC text | `rfc/full/rfc8247.txt` |
@@ -113,7 +113,7 @@ Enrolled: IKEv2 algorithm requirements: twenty MUST-level rows, every one classi
 ## Figures
 
 - **MUST bar**: Ze proven 17, Ze correctness gap 3
-- **Overview bar**: Ze MUST proven 17, SHOULD not decided 5, Ze correctness gap 3
+- **Overview bar**: Ze MUST proven 17, SHOULD proven 1, SHOULD not decided 5, Ze correctness gap 3
 
 | Figure | Rows |
 |---|---|
@@ -130,8 +130,8 @@ Enrolled: IKEv2 algorithm requirements: twenty MUST-level rows, every one classi
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
-| SHOULD / MAY rows | 5 |
-| SHOULD proven | 0 |
+| SHOULD / MAY rows | 6 |
+| SHOULD proven | 1 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
@@ -173,6 +173,7 @@ Source: [data/rfc/rfc8247.json](../../../data/rfc/rfc8247.json).
 | `RFC8247-2.4-6` | Group 2 or the 1024-bit MODP Group has been downgraded from MUST- in RFC 4307 to SHOULD NOT. (§2.4) | SHOULD NOT | 2.4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8247-2.4-7` | Groups 23 and 24 have been demoted to SHOULD NOT and are expected to be further downgraded in the near future to MUST NOT. (§2.4) | SHOULD NOT | 2.4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8247-3.1-3` | They are currently at SHOULD NOT and are expected to be downgraded to MUST NOT in the future. (§3.1) | SHOULD NOT | 3.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8247-3.1-4` | Digital Signature [RFC7427] is expected to be promoted as it provides hash function, signature format, and algorithm agility.  Its current status is SHOULD. (§3.1) | SHOULD | 3.1 | **positive:** `unit/verify` [`TestRFC7427DigitalSignatureMethodIsUsed`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_method_test.go#L33). **negative:** `unit/verify` [`TestRFC7427DigitalSignatureMethodIsUsed`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_method_test.go#L34) |
 | `RFC8247-3.1.1-2` | Since these signatures only have value in real time and need no future protection, smaller keys were kept at SHOULD NOT instead of MUST NOT. (§3.1.1) | SHOULD NOT | 3.1.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8247-2.1-5` | ENCR_3DES has been downgraded from RFC 4307 MUST- to MAY. (§2.1) | MAY | 2.1 | **positive:** no positive test. **negative:** no negative test |
 
@@ -401,12 +402,23 @@ Audit verdict: not audited: no reader has judged these tests
 | negative | [`TestRFC8247SignatureHashes`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/ike_auth_algorithms_test.go#L140) | unit/verify | revert, verified |
 | positive | [`TestRFC8247SignatureHashes`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/ike_auth_algorithms_test.go#L169) | unit/verify | revert, verified |
 
+### [`RFC8247-3.1-4`](#rfc8247-3.1-4)
+
+Digital Signature [RFC7427] is expected to be promoted as it provides hash function, signature format, and algorithm agility.  Its current status is SHOULD. (§3.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC7427DigitalSignatureMethodIsUsed`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_method_test.go#L34) | unit/verify | revert, verified |
+| positive | [`TestRFC7427DigitalSignatureMethodIsUsed`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_method_test.go#L33) | unit/verify | revert, verified |
+
 ## Extraction sign-off
 
 | Field | Value |
 |---|---|
-| Reviewer | claude (ze-rfc phase-1 agent, session 45f03892) |
-| Signed off | 2026-10-26 |
+| Reviewer | RFCContinuation (session ses_e640edc6effeAAkQ560zO43PMs) |
+| Signed off | 2026-11-04 |
 | Register | rfc2119 |
 | Source | rfc/full/rfc8247.txt |
 | Source fingerprint | 1faf9eb5ca639556 |
@@ -433,7 +445,7 @@ Audit verdict: not audited: no reader has judged these tests
 | `2.4` | not stated | 8 | walked | not stated |
 | `2.5` | not stated | 1 | walked | not stated |
 | `3` | not stated | 0 | walked | not stated |
-| `3.1` | not stated | 3 | walked | not stated |
+| `3.1` | not stated | 3 | walked | RFC8247-3.1-4 is read from the Digital Signature paragraph of Section 3.1: "Digital Signature [RFC7427] is expected to be promoted as it provides hash function, signature format, and algorithm agility.  Its current status is SHOULD." The rfc2119 inventory derives MUST-level sites, so this SHOULD-only paragraph has no derived site locator; the existing section-level unsourced-ids mechanism preserves the optional row's source association without inventing one. |
 | `3.1.1` | not stated | 2 | walked | not stated |
 | `3.2` | not stated | 4 | walked | not stated |
 | `4` | not stated | 0 | walked | not stated |

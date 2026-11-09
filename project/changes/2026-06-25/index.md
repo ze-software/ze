@@ -1,4 +1,4 @@
-# Week of 2026-06-25
+# 2026-06-25 – 2026-07-01 (1 week)
 
 Shipped across security, the appliance, routing, and observability this week.
 

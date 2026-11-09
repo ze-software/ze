@@ -4,6 +4,7 @@
   "title": "RADIUS and TACACS+",
   "release": false,
   "required": [
+    "rfc2548",
     "rfc2865",
     "rfc2866",
     "rfc2867",

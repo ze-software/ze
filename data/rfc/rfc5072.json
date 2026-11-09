@@ -8,10 +8,10 @@
   "must": {
     "total": 16,
     "kept": 16,
-    "ze-proven": 9,
+    "ze-proven": 10,
     "os-verified": 0,
     "os-gap": 0,
-    "ze-gap": 7,
+    "ze-gap": 6,
     "not-owed": 0,
     "not-owed-by-kind": {}
   },
@@ -27,7 +27,7 @@
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
-    "unit": 9
+    "unit": 10
   },
   "unmet": [
     "RFC5072-2-2",

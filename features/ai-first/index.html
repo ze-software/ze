@@ -45,44 +45,42 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="md-content reveal cat-automate">
 <!-- source: internal/component/mcp/tools.go -- MCP tool dispatch primitives -->
-<!-- source: cmd/ze/help_ai.go -- ze help ai machine-readable reference -->
+<!-- source: internal/plugins/help/help_ai.go -- ze help ai machine-readable reference -->
 <!-- source: internal/test/cli/cmd_mcp.go -- MCP test client -->
 <!-- source: ai/rules/repo-maintenance.md -- Current Discovery Surfaces -->
 <!-- source: internal/le/repo/inventory/register.go -- inventory command registration -->
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Feature</span>
     <h1 id="ai-first-design">AI-First Design</h1>
-    <p>Ze is built around a single command and discovery surface. Commands,
-configuration nodes, RPCs, events, and plugin metadata are registered once, then
-exposed through MCP and the operator interfaces that need them. AI tools can
-discover the same command catalog, run the same actions, and read structured
-output while helping an operator use or debug the system.</p>
+    <p>Ze uses shared registrations to describe commands and configuration. The CLI,
+MCP and other operator interfaces read this metadata for the surfaces they
+support. AI tools can discover the command catalog, call daemon commands and
+read structured output while helping an operator use or debug the system.</p>
 </div>
 <div class="doc-layout">
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
-<li><a href="#register-once-expose-everywhere">Register Once, Expose Everywhere</a></li>
+<li><a href="#shared-registrations">Shared Registrations</a></li>
 <li><a href="#cli-commands-as-the-api-surface">CLI commands as the API surface</a></li>
 <li><a href="#self-describing-command-reference">Self-Describing Command Reference</a></li>
 <li><a href="#structured-diagnostics">Structured Diagnostics</a></li>
-<li><a href="#version-matched-skills">Version-Matched Skills</a></li>
+<li><a href="#bundled-skills">Bundled Skills</a></li>
 <li><a href="#development-time-discovery">Development-Time Discovery</a></li>
 <li><a href="#mcp-transport">MCP Transport</a></li>
 <li><a href="#what-makes-this-different">What Makes This Different</a></li>
 </ol></details></nav><div class="doc-body">
-<h2 id="register-once-expose-everywhere">Register Once, Expose Everywhere</h2>
+<h2 id="shared-registrations">Shared Registrations</h2>
 <p>The core design point is broader than AI. A feature added to Ze should avoid
 separate hand-written glue for every surface. The same registration path can
 feed the CLI, SSH sessions, the web workbench, REST/gRPC, MCP, generated
 references, completion, authorization, audit, and diagnostics.</p>
 <h2 id="cli-commands-as-the-api-surface">CLI commands as the API surface</h2>
-<p>Every command available through <code>ze cli</code> (interactive or <code>ze cli -c</code> for
-one-shot) is exposed programmatically through MCP, and command output is shared
-with the API engine where those commands are surfaced. This means:</p>
-<ul>
-<li>Features do not become CLI-only by accident</li>
-<li>Human and machine interfaces use the same command grammar</li>
-<li>New commands become automation surfaces when they register with the command catalog</li>
-</ul>
+<p>The CLI and MCP use the same command catalog and daemon dispatcher, with
+availability determined by each command's registration. Offline commands may
+have a different daemon path, interactive views require a terminal, and
+streaming-only commands are excluded from one-shot surfaces. A shared catalog
+therefore describes which commands each interface offers; it does not promise
+that every CLI interaction has an equivalent MCP call.</p>
+<!-- source: internal/component/command/surface.go -- AnswerSurface -->
 <h2 id="self-describing-command-reference">Self-Describing Command Reference</h2>
 <pre><code>ze help command              # full command catalog, filterable
 ze help command bgp          # filter to BGP-related commands
@@ -91,12 +89,25 @@ ze help ai                   # AI-oriented summary with recipes and context
 ze help ai --json            # machine-readable JSON reference
 ze help ai api               # daemon API endpoints (ze-bgp:*, ze-iface:*, ...)
 </code></pre>
-<p>Generates a command reference from the live binary. The output is assembled
-from the plugin registry, YANG schemas, and RPC registrations -- it cannot go stale because
-it is generated from code, not written by hand.</p>
+<p>The command and RPC listings are assembled from the binary's plugin registry,
+YANG schemas and command registrations. Generation removes a separately
+maintained list of those definitions. Descriptions can still be wrong, and the
+hand-written recipes need updating when command behavior changes.</p>
 <p><code>ze help command</code> is the human-facing catalog. The native
 <code>./le cli catalog update file &lt;destination&gt;</code> action renders the corresponding
 Markdown from the live registries.</p>
+<p>Both commands are served by the daemon too, so <code>ze cli -c</code>, SSH, REST, gRPC,
+MCP and the web reach them, under <code>show command catalog</code> (<code>help command</code>) and
+<code>show command reference</code> (<code>help ai</code>): <code>help</code> is an offline root, not a verb,
+so no daemon command path starts with it. <code>--json</code>, <code>--verbose</code> and <code>-v</code> are
+flags of the local <code>ze help</code> command only. On every other surface <code>show command catalog</code> answers its catalog rows as data: it prints the table, and
+<code>show command catalog bgp | json</code> gives the same rows as JSON. <code>show command reference</code> answers its Markdown page as text, and the structured reference is
+the MCP <code>ze_reference</code> tool. A bare word means the
+same on every surface: <code>help command json</code> filters on the word <code>json</code>, and
+<code>help ai json</code> prints the summary.</p>
+<!-- source: internal/plugins/help/register.go -- render, renderTo -->
+<!-- source: internal/plugins/help/help_command.go -- catalogAnswer, helpCommandAnswer, drawCatalog -->
+<!-- source: internal/plugins/help/help_ai.go -- aiHelpAnswer, referenceAnswer -->
 <h2 id="structured-diagnostics">Structured Diagnostics</h2>
 <pre><code>ze cli -c "show config validation &lt;file&gt; | json"
 ze show diagnostic [--json] &lt;diagnostic-code&gt;
@@ -105,11 +116,14 @@ ze config fix --plan &lt;file&gt;
 <p>The validation verdict is a record the pipe layer renders, so <code>| json</code>,
 <code>| yaml</code> and <code>| table</code> are three views of one payload and no command carries a
 rendering flag of its own. The fix plan prints for a reader.</p>
-<p>Config validation emits structured diagnostic records with stable codes, source spans,
-expected/actual facts, and repair metadata. Agents parse JSON diagnostics instead of
-scraping terminal prose.</p>
-<p>Each diagnostic carries a stable code (e.g., <code>config-parse</code>, <code>config-yang-type</code>,
-<code>config-listener-conflict</code>). Use <code>ze show diagnostic &lt;code&gt;</code> to get an explanation.
+<p>Config validation emits diagnostic records with a code, severity and message.
+Source spans, expected/actual facts, help and repair metadata are included when
+the producing check supplies them. Agents must handle their absence.</p>
+<!-- source: internal/core/diagnostic/types.go -- Diagnostic -->
+<!-- source: internal/component/config/cli/cmd_validate.go -- runValidation, validationResult.addError, validationResult.addErrorWithRepair -->
+<p>Codes such as <code>config-parse</code>, <code>config-yang-type</code> and
+<code>config-listener-conflict</code> identify the kind of failure.
+<code>ze show diagnostic &lt;code&gt;</code> explains a registered code.
 The readiness checks <code>ze doctor</code> runs report codes from the same table, which the
 package owning each dependency declares: the DNS resolver's
 <code>doctor-dns-resolver-port-unavailable</code> (a listener port the system will not let ze
@@ -117,35 +131,50 @@ bind) and <code>doctor-dns-resolver-upstream-unreachable</code> (no forward serv
 probe), for example.</p>
 <!-- source: internal/core/diagnostic/codes.go -- CodeDoctorDNSResolverPortUnavailable, CodeDoctorDNSResolverUpstreamUnreachable -->
 <!-- source: internal/plugins/dnsresolver/doctor.go -- doctorChecks -->
-<p><code>ze config fix --plan</code> reports candidate repairs without editing files.
-Repair plans carry safety labels (<code>format-only</code>, <code>section-local</code>, <code>behavior-preserving</code>,
-<code>requires-human-review</code>) and stable repair IDs.</p>
-<h2 id="version-matched-skills">Version-Matched Skills</h2>
+<p><code>ze config fix --plan &lt;file&gt;</code> reports candidate repairs without editing files.
+Where a repair is available, its diagnostic can carry a stable repair ID and a
+safety label such as <code>format-only</code>, <code>section-local</code>, <code>behavior-preserving</code> or
+<code>requires-human-review</code>. A diagnostic does not always have an automatic repair.</p>
+<!-- source: internal/component/config/cli/cmd_fix.go -- resolveFixPlan -->
+<h2 id="bundled-skills">Bundled Skills</h2>
 <pre><code>ze show skills
 ze show skill ze-diagnostics
 ze show skill ze --full
 </code></pre>
-<p>The installed binary serves agent workflow guides matched to its exact version.
-Skills cover diagnostics, config, commands, and agent edit loops. Agents load
-only the skill relevant to the current task.</p>
+<p>The installed binary serves the workflow guides embedded when it was built.
+They cover diagnostics, config, commands and agent edit loops, so an agent can
+load the guide relevant to its task without fetching a separate version.
+Embedding fixes which text the binary serves. It does not check that every
+example describes the implemented behavior.</p>
+<!-- source: internal/plugins/skills/main.go -- skillFS, showSkill -->
+<p>Over the daemon (MCP, REST, gRPC, SSH, web) the expanded form is the model's
+flag leaf <code>full</code>, as in <code>show skill ze full</code>; the local <code>--full</code> means the same.</p>
+<!-- source: internal/plugins/skills/yang/ze-skills-cmd.yang -- leaf full -->
+<!-- source: internal/plugins/skills/main.go -- showSkill -->
 <h2 id="development-time-discovery">Development-Time Discovery</h2>
-<p>Feature, tooling, self-check, verification, and test-infrastructure changes
+<p>Feature, tooling, self-check, verification and test-infrastructure changes
 must update their discovery path in the same work. The standard path is
 <code>ai/rules/repo-maintenance.md</code> for policy, <code>ai/INDEX.md</code> for keyword lookup,
-<code>ai/NAVIGATION.md</code> for task routing, and the relevant native action or docs
-page for verification and usage.</p>
-<!-- source: ai/rules/repo-maintenance.md -- Required Discovery Artifacts -->
+and the relevant native action or docs page for verification and usage.</p>
+<!-- source: ai/rules/repo-maintenance.md -- discovery path directive -->
 <p>Agents should use the existing inventory and verification surfaces:
 <code>./le repo inventory</code>, <code>./le cli list</code>, <code>./le doc check all</code>,
 <code>./le doc index update</code>, and <code>./le doc wiring</code>.</p>
-<p>Commit preparation uses <code>internal/le/commit.Answer</code>: agents pass the vetted
-subject, body, and explicit file list, and the helper creates the session ID,
-message file, executable user-run script, ignored-path checks, and the commit
-itself, built on a parent read once and published with a compare-and-swap.</p>
-<!-- source: internal/le/commit/actions.go -- Answer -->
+<p><code>./le commit create</code> prepares a commit: agents supply the vetted subject, body
+and explicit file list, and the helper validates the selected content and writes
+a message file and executable script. Preparation leaves the shared Git index
+untouched. Running the generated script creates and publishes the commit using
+a private index.</p>
+<p>The script checks whether another commit changed a selected path since
+preparation. It builds on a parent read for that attempt and publishes with a
+compare-and-swap against that parent. If HEAD moved elsewhere, it rechecks the
+selected paths and rebuilds on the new parent, for at most five attempts.</p>
+<!-- source: internal/le/commit/prepare.go -- Create -->
+<!-- source: internal/le/commit/script.go -- renderPublish, publishAttemptsMax -->
 <!-- source: internal/le/doc/check/actions.go -- Actions -->
 <h2 id="mcp-transport">MCP Transport</h2>
-<p>The MCP (Model Context Protocol) server wraps the CLI command surface for AI consumption:</p>
+<p>The MCP (Model Context Protocol) server exposes daemon command calls through
+the shared dispatcher:</p>
 <table>
 <thead>
 <tr>
@@ -156,47 +185,47 @@ itself, built on a parent read once and published with a compare-and-swap.</p>
 <tbody>
 <tr>
 <td><code>ze_execute</code></td>
-<td>Run <strong>any</strong> CLI command -- full daemon control</td>
+<td>Dispatch a daemon command string, subject to the caller's permissions and the command's supported surface</td>
 </tr>
 <tr>
 <td><code>ze_reference</code></td>
-<td>Machine-readable reference for this daemon (commands, endpoints, dispatch keys, plugins, families); same JSON as <code>ze help ai --json</code></td>
+<td>Reference assembled from this binary's registries and schemas; the same data as <code>ze help ai --json</code></td>
 </tr>
 <tr>
-<td><code>ze_announce</code></td>
-<td>Announce routes with typed parameters (origin, next-hop, communities, prefixes)</td>
-</tr>
-<tr>
-<td><code>ze_withdraw</code></td>
-<td>Withdraw routes</td>
-</tr>
-<tr>
-<td><code>ze_show_bgp</code></td>
-<td>BGP peer state, ASN, uptime, and summary views (auto-generated from <code>show bgp ...</code>)</td>
-</tr>
-<tr>
-<td><code>ze_request_peer</code></td>
-<td>Peer lifecycle: teardown, pause, resume, flush (auto-generated from <code>request peer ...</code>)</td>
+<td>Generated tools</td>
+<td>Command groups named from their registered paths, with an <code>action</code> enum where the group has named actions</td>
 </tr>
 </tbody>
 </table>
-<p>Additional tools are auto-generated from the command registry. Every YANG command
-and plugin command becomes a typed MCP tool automatically, so an AI agent can
-discover features, execute the same commands as an operator, and inspect
-structured outputs while debugging.</p>
-<p>The <code>ze_execute</code> tool is the bridge: anything a human can type, an AI can
-execute. Route management, RIB queries, peer lifecycle, configuration changes,
-event subscription, schema discovery, doctor output, warnings, and health checks
-all go through one interface.</p>
+<!-- source: internal/component/mcp/tools.go -- toolHandlers, groupCommands, buildToolDef -->
+<p>The server builds generated tools from the live command list at <code>tools/list</code>
+time. YANG RPC input metadata supplies typed parameters when it is available;
+groups without typed parameters expose a generic <code>arguments</code> string. Tool
+names and grouping depend on the registered command population, so clients
+should read the live tool inventory rather than assume a route-specific tool
+such as <code>ze_announce</code> or <code>ze_withdraw</code> exists.</p>
+<!-- source: internal/component/mcp/tools.go -- buildToolDef -->
+<p><code>ze_execute</code> accepts the same daemon command grammar as other command callers.
+It does not turn offline file operations, interactive terminal views or event
+subscriptions into equivalent MCP operations. The presence of notification
+metadata in <code>ze_reference</code> describes the schema, and does not by itself provide
+an event subscription.</p>
+<!-- source: internal/component/command/surface.go -- AnswerSurface -->
+<!-- source: internal/component/aihelp/aihelp.go -- Build -->
 <p>Start with <code>ze start --mcp &lt;port&gt;</code> or configure via YANG (<code>environment/mcp</code>).</p>
 <h2 id="what-makes-this-different">What Makes This Different</h2>
 <p>Other software adds an API endpoint and expects operators to build separate
 wrappers, UI, documentation, and automation around it. Ze exposes its command
 surface through a self-describing interface that tools can discover at runtime.
-<code>ze help command</code> lists every command with its description. <code>ze help ai</code> adds
-context (recipes, families, update syntax). MCP tools have typed parameters. The
-command list is queryable at runtime (<code>show command list</code>,
-<code>show command help &lt;name&gt;</code>).</p>
+<code>ze help command</code> lists the commands this binary carries with their descriptions.
+<code>ze help ai</code> adds context such as recipes, families and update syntax. Generated
+MCP tools use typed parameters where the registrations provide them and generic
+arguments otherwise. <code>system command list</code> reads the running daemon's builtin
+and plugin-declared command registries; <code>system command help name "&lt;path&gt;"</code>
+reads a command's help. The separate <code>show command list</code> lists builtins;
+<code>show command help &lt;path&gt;</code> can resolve both registries.</p>
+<!-- source: internal/component/plugin/server/system.go -- commandRows, handleSystemCommandHelp -->
+<!-- source: internal/plugins/meta/cmd/help.go -- handleBgpCommandList, handleBgpCommandHelp -->
 <p>The useful property is the shared surface: when a plugin or subsystem registers
 commands, YANG, RPCs, or events, the same metadata can feed CLI, web, generated
 references, automation, authorization, audit, and diagnostics.</p>
@@ -239,7 +268,7 @@ references, automation, authorization, audit, and diagnostics.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 02:50 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

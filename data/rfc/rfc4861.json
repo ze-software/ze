@@ -8,10 +8,10 @@
   "must": {
     "total": 138,
     "kept": 138,
-    "ze-proven": 30,
+    "ze-proven": 29,
     "os-verified": 0,
     "os-gap": 91,
-    "ze-gap": 17,
+    "ze-gap": 18,
     "not-owed": 0,
     "not-owed-by-kind": {}
   },
@@ -27,7 +27,7 @@
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
-    "unit": 30
+    "unit": 29
   },
   "unmet": [
     "RFC4861-11.2-1",

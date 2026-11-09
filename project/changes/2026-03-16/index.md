@@ -1,4 +1,4 @@
-# Week of 2026-03-16
+# 2026-03-16 – 2026-03-22 (1 week)
 
 RPKI route origin validation landed in full, alongside a wave of BGP RFC compliance work, CLI polish, and daemon security hardening.
 

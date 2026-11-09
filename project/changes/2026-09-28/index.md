@@ -1,4 +1,4 @@
-# Week of 2026-09-28
+# 2026-09-28 – 2026-10-04 (1 week)
 
 A week of fixes found by checking Ze against the RFCs: BGP route selection for ADD-PATH and VPN routes, graceful restart, BFD, OSPF flooding and LDP sessions. Five changes need a look before upgrading, listed in their own section.
 

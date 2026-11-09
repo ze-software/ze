@@ -1,4 +1,4 @@
-# Week of 2026-08-17
+# 2026-08-17 – 2026-08-23 (1 week)
 
 The CLI gained a clearer BGP workflow, traffic tools gained history and source-AS context, and IPsec changes now reach running tunnels.
 

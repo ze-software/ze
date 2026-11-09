@@ -19,13 +19,13 @@
   },
   "should": {
     "total": 22,
-    "proven": 0,
+    "proven": 1,
     "os-verified": 0,
     "os-gap": 0,
     "not-owed": 0,
     "not-ever": 0,
     "not-yet": 0,
-    "not-decided": 22,
+    "not-decided": 21,
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {

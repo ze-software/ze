@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/vpn-concentrator.json
 
 ## Figures
 
-- **MUST bar**: Ze proven 357, OS testing gap 57, Ze correctness gap 306
-- **Overview bar**: Ze MUST proven 357, SHOULD proven 13, SHOULD not decided 210, OS testing gap 57, Ze correctness gap 306
+- **MUST bar**: Ze proven 362, OS testing gap 57, Ze correctness gap 301
+- **Overview bar**: Ze MUST proven 362, SHOULD proven 13, SHOULD not decided 211, OS testing gap 57, Ze correctness gap 301
 
 | Figure | Rows |
 |---|---|
@@ -18,15 +18,15 @@ Figures as of the last build, read from [data/rfc/profiles/vpn-concentrator.json
 | Mandatory register | not complete |
 | MUST rows | 720 |
 | MUST rows kept (the MUST bar) | 720 |
-| Ze proven | 357 |
+| Ze proven | 362 |
 | OS verified | 0 |
 | OS testing gap | 57 |
-| Ze correctness gap | 306 |
+| Ze correctness gap | 301 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
-| SHOULD / MAY rows | 223 |
+| SHOULD / MAY rows | 224 |
 | SHOULD proven | 13 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
@@ -36,7 +36,7 @@ Figures as of the last build, read from [data/rfc/profiles/vpn-concentrator.json
 | SHOULD not owed: not-applicable | 0 |
 | SHOULD not ever | 0 |
 | SHOULD not yet | 0 |
-| SHOULD not decided | 210 |
+| SHOULD not decided | 211 |
 
 The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
 
@@ -74,11 +74,11 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 |---|---|---|---|---|
 | [RFC 3948](../../rfc3948/) (cycle with rfc3602, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | UDP Encapsulation of IPsec ESP Packets | Ze proven 6, Ze correctness gap 5 | Ze MUST proven 6, SHOULD proven 2, SHOULD not decided 3, Ze correctness gap 5 | vpn-concentrator: required by rfc/short/rfc3948.md |
 | [RFC 4106](../../rfc4106/) (cycle with rfc3602, rfc3948, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | The Use of Galois/Counter Mode (GCM) in IPsec Encapsulating Security Payload (ESP) | Ze proven 5, OS testing gap 3 | Ze MUST proven 5, SHOULD not decided 5, OS testing gap 3 | vpn-concentrator: required by rfc/short/rfc4106.md |
-| [RFC 4301](../../rfc4301/) (cycle with rfc3602, rfc3948, rfc4106, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | Security Architecture for the Internet Protocol | Ze proven 52, OS testing gap 2, Ze correctness gap 47 | Ze MUST proven 52, SHOULD proven 1, SHOULD not decided 2, OS testing gap 2, Ze correctness gap 47 | vpn-concentrator: required by rfc/short/rfc4301.md |
+| [RFC 4301](../../rfc4301/) (cycle with rfc3602, rfc3948, rfc4106, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | Security Architecture for the Internet Protocol | Ze proven 54, OS testing gap 2, Ze correctness gap 45 | Ze MUST proven 54, SHOULD not decided 3, OS testing gap 2, Ze correctness gap 45 | vpn-concentrator: required by rfc/short/rfc4301.md |
 | [RFC 4303](../../rfc4303/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4309, rfc5282, rfc7296, rfc8247) | IP Encapsulating Security Payload (ESP) | Ze proven 7, Ze correctness gap 16 | Ze MUST proven 7, SHOULD not decided 4, Ze correctness gap 16 | vpn-concentrator: required by rfc/short/rfc4303.md |
 | [RFC 5282](../../rfc5282/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc7296, rfc8247) | Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol | Ze proven 19 | Ze MUST proven 19, SHOULD not decided 11 | vpn-concentrator: required by rfc/short/rfc5282.md |
-| [RFC 7296](../../rfc7296/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc8247) | Internet Key Exchange Protocol Version 2 (IKEv2) | Ze proven 84, Ze correctness gap 150 | Ze MUST proven 84, SHOULD proven 4, SHOULD not decided 5, Ze correctness gap 150 | vpn-concentrator: required by rfc/short/rfc7296.md |
-| [RFC 8247](../../rfc8247/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296) | Algorithm Implementation Requirements and Usage Guidance for the Internet Key Exchange Protocol Version 2 (IKEv2) | Ze proven 17, Ze correctness gap 3 | Ze MUST proven 17, SHOULD not decided 5, Ze correctness gap 3 | vpn-concentrator: required by rfc/short/rfc8247.md |
+| [RFC 7296](../../rfc7296/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc8247) | Internet Key Exchange Protocol Version 2 (IKEv2) | Ze proven 87, Ze correctness gap 147 | Ze MUST proven 87, SHOULD proven 4, SHOULD not decided 5, Ze correctness gap 147 | vpn-concentrator: required by rfc/short/rfc7296.md |
+| [RFC 8247](../../rfc8247/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296) | Algorithm Implementation Requirements and Usage Guidance for the Internet Key Exchange Protocol Version 2 (IKEv2) | Ze proven 17, Ze correctness gap 3 | Ze MUST proven 17, SHOULD proven 1, SHOULD not decided 5, Ze correctness gap 3 | vpn-concentrator: required by rfc/short/rfc8247.md |
 
 ### Level 5
 

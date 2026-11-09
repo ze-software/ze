@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 0 | of 11 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| Tested both ways | 5 | of 11 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0 | of 11 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0 | of 11 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0 | of 11 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 0 | 0 of 0 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 15 | 15 of 15 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -35,7 +35,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 11 | of 11 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 6 | of 11 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 9 counts marked as a part above are the whole of the 11 gated MUSTs: they add up to 11. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
@@ -66,14 +66,14 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 24 |
 | Gated MUST-level | 11 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 11 |
+| Declared gaps | 6 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 0 |
-| Tagged units | 0 |
+| Test tags | 15 |
+| Tagged units | 15 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 15 |
 | Summary | `rfc/short/rfc8106.md` |
 | Requirement shard | `rfc/requirements/rfc8106.md` |
 | RFC text | `rfc/full/rfc8106.txt` |
@@ -86,19 +86,19 @@ Enrolled: IPv6 Router Advertisement Options for DNS Configuration: the RDNSS and
 
 **Area:** RA DNS options (RDNSS, DNSSL)
 
-**Proof:** 0 of 11 MUST proven
+**Proof:** 5 of 11 MUST proven
 
-**Evidence:** -
+**Evidence:** unit 5
 
-**Unmet:** RFC8106-1.2-1, RFC8106-1.2-2, RFC8106-5.1-1, RFC8106-5.1-2, RFC8106-5.2-1, RFC8106-5.2-2, RFC8106-5.2-3, RFC8106-5.2-4, RFC8106-5.3.1-1, RFC8106-5.3.1-2, RFC8106-5.3.1-3
+**Unmet:** RFC8106-5.2-1, RFC8106-5.2-2, RFC8106-5.2-3, RFC8106-5.2-4, RFC8106-5.3.1-2, RFC8106-5.3.1-3
 
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 0 | one part of the gated population |
-| Annotated (including scoped evidence) | 11 | one part of the gated population |
+| Positive and negative tests | 5 | one part of the gated population |
+| Annotated (including scoped evidence) | 6 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
@@ -106,12 +106,14 @@ Enrolled: IPv6 Router Advertisement Options for DNS Configuration: the RDNSS and
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **11** | every gated MUST falls in exactly one bucket above |
 
-**Annotated (including scoped evidence) (11):** [`RFC8106-1.2-1`](#rfc8106-1.2-1), [`RFC8106-1.2-2`](#rfc8106-1.2-2), [`RFC8106-5.1-1`](#rfc8106-5.1-1), [`RFC8106-5.1-2`](#rfc8106-5.1-2), [`RFC8106-5.2-1`](#rfc8106-5.2-1), [`RFC8106-5.2-2`](#rfc8106-5.2-2), [`RFC8106-5.2-3`](#rfc8106-5.2-3), [`RFC8106-5.2-4`](#rfc8106-5.2-4), [`RFC8106-5.3.1-1`](#rfc8106-5.3.1-1), [`RFC8106-5.3.1-2`](#rfc8106-5.3.1-2), [`RFC8106-5.3.1-3`](#rfc8106-5.3.1-3)
+**Positive and negative tests (5):** [`RFC8106-1.2-1`](#rfc8106-1.2-1), [`RFC8106-1.2-2`](#rfc8106-1.2-2), [`RFC8106-5.1-1`](#rfc8106-5.1-1), [`RFC8106-5.1-2`](#rfc8106-5.1-2), [`RFC8106-5.3.1-1`](#rfc8106-5.3.1-1)
+
+**Annotated (including scoped evidence) (6):** [`RFC8106-5.2-1`](#rfc8106-5.2-1), [`RFC8106-5.2-2`](#rfc8106-5.2-2), [`RFC8106-5.2-3`](#rfc8106-5.2-3), [`RFC8106-5.2-4`](#rfc8106-5.2-4), [`RFC8106-5.3.1-2`](#rfc8106-5.3.1-2), [`RFC8106-5.3.1-3`](#rfc8106-5.3.1-3)
 
 ## Figures
 
-- **MUST bar**: Ze correctness gap 11
-- **Overview bar**: SHOULD not decided 13, Ze correctness gap 11
+- **MUST bar**: Ze proven 5, Ze correctness gap 6
+- **Overview bar**: Ze MUST proven 5, SHOULD proven 2, SHOULD not decided 11, Ze correctness gap 6
 
 | Figure | Rows |
 |---|---|
@@ -120,16 +122,16 @@ Enrolled: IPv6 Router Advertisement Options for DNS Configuration: the RDNSS and
 | Mandatory register | not complete |
 | MUST rows | 11 |
 | MUST rows kept (the MUST bar) | 11 |
-| Ze proven | 0 |
+| Ze proven | 5 |
 | OS verified | 0 |
 | OS testing gap | 0 |
-| Ze correctness gap | 11 |
+| Ze correctness gap | 6 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 13 |
-| SHOULD proven | 0 |
+| SHOULD proven | 2 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
@@ -138,7 +140,7 @@ Enrolled: IPv6 Router Advertisement Options for DNS Configuration: the RDNSS and
 | SHOULD not owed: not-applicable | 0 |
 | SHOULD not ever | 0 |
 | SHOULD not yet | 0 |
-| SHOULD not decided | 13 |
+| SHOULD not decided | 11 |
 
 The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
 
@@ -148,24 +150,24 @@ Source: [data/rfc/rfc8106.json](../../../data/rfc/rfc8106.json).
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC8106-1.2-1` | Hosts conforming to this specification MUST extract DNS information from RA messages, unless static DNS configuration has been specified by the user. (§1.2) | MUST | 1.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze reads no RDNSS or DNSSL option from a received RA; its resolver takes upstream servers from configuration only, and internal/core/ndp/ra.go holds a builder and no parser |
-| `RFC8106-1.2-2` | If there is DNS information available from multiple RAs and/or from DHCP, the host MUST maintain an ordered list of this information as specified in Section 5.3.1. (§1.2) | MUST | 1.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze keeps no DNS Server List learned from RAs; host-side processing is absent |
-| `RFC8106-5.1-1` | A value of zero means that the RDNSS addresses MUST no longer be used. (§5.1) | MUST | 5.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze as a host learns no RDNSS address, so no Lifetime expiry exists; host-side processing is absent |
-| `RFC8106-5.1-2` | When a resolver sends a DNS query message to an RDNSS identified by a link-local address, it MUST use the corresponding link. (§5.1) | MUST | 5.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze as a host learns no RDNSS address from an RA; host-side processing is absent |
+| `RFC8106-1.2-1` | Hosts conforming to this specification MUST extract DNS information from RA messages, unless static DNS configuration has been specified by the user. (§1.2) | MUST | 1.2 | **positive:** `unit/verify` [`TestRARDNSSRecordFromUserOpt`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L80). **negative:** `unit/verify` [`TestRARDNSSStaticNameServerWins`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L112) |
+| `RFC8106-1.2-2` | If there is DNS information available from multiple RAs and/or from DHCP, the host MUST maintain an ordered list of this information as specified in Section 5.3.1. (§1.2) | MUST | 1.2 | **positive:** `unit/verify` [`TestRARDNSSListedAfterDHCP`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L149). **negative:** `unit/verify` [`TestRARDNSSLaterRAKeepsDHCPFirst`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L339) |
+| `RFC8106-5.1-1` | A value of zero means that the RDNSS addresses MUST no longer be used. (§5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestRARDNSSLifetimeZeroWithdraws`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L196). **positive:** `unit/verify` [`TestRDNSSWithdrawnAdvertisedLifetimeZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/ra/rfc8106_advertiser_rdnss_test.go#L34). **negative:** `unit/verify` [`TestRARDNSSRefreshKeeps`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L131) |
+| `RFC8106-5.1-2` | When a resolver sends a DNS query message to an RDNSS identified by a link-local address, it MUST use the corresponding link. (§5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestRARDNSSLinkLocalCarriesZone`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L169). **positive:** `unit/verify` [`TestRDNSSRefusesLinkLocalOfAnotherLink`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_dns_source_test.go#L168). **negative:** `unit/verify` [`TestRARDNSSLinkLocalScopedToItsOwnLink`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L313) |
 | `RFC8106-5.2-1` | A value of zero means that the DNSSL domain names MUST no longer be used. (§5.2) | MUST | 5.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze as a host processes no DNSSL option; host-side processing is absent |
 | `RFC8106-5.2-2` | One or more domain names of the DNSSL that MUST be encoded as described in Section 3.1 of [RFC1035]. (§5.2) | MUST | 5.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze sends no DNSSL option; internal/core/ndp/ra.go BuildRA writes Source Link-Layer Address, Prefix Information and RDNSS only |
 | `RFC8106-5.2-3` | Note that for the simple decoding, the domain names MUST NOT be encoded in the compressed form described in Section 4.1.4 of [RFC1035]. (§5.2) | MUST NOT | 5.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze sends no DNSSL option; internal/core/ndp/ra.go BuildRA |
 | `RFC8106-5.2-4` | Because the size of this field MUST be a multiple of 8 octets, for the minimum multiple including the domain name representations, the remaining octets other than the encoding parts of the domain name representations MUST be padded with zeros. (§5.2) | MUST | 5.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze sends no DNSSL option; internal/core/ndp/ra.go BuildRA |
-| `RFC8106-5.3.1-1` | Otherwise, the host MUST discard the options. (§5.3.1) | MUST | 5.3.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze as a host neither validates nor stores a received RDNSS or DNSSL option; host-side processing is absent |
-| `RFC8106-5.3.1-2` | On the other hand, for DNS options announced by RAs, if some RAs use the Secure Neighbor Discovery (SEND) protocol [RFC3971] for RA security, they MUST be preferred over those that do not use SEND. (§5.3.1) | MUST | 5.3.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze as a host consumes no DNS option from RAs, SEND or otherwise; host-side processing is absent |
-| `RFC8106-5.3.1-3` | Also, DNS options announced by RAs via SEND MUST be preferred over those announced by unauthenticated DHCP [RFC3118]. (§5.3.1) | MUST | 5.3.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze as a host consumes no DNS option from RAs; host-side processing is absent |
+| `RFC8106-5.3.1-1` | Otherwise, the host MUST discard the options. (§5.3.1) | MUST | 5.3.1 | **positive:** `unit/verify` [`TestParseRDNSSOptionRefusesBadLength`](https://github.com/ze-software/ze/blob/main/internal/core/ndp/rfc8106_rdnss_test.go#L62). **positive:** `unit/verify` [`TestRARDNSSMalformedDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L219). **negative:** `unit/verify` [`TestParseRDNSSOption`](https://github.com/ze-software/ze/blob/main/internal/core/ndp/rfc8106_rdnss_test.go#L30) |
+| `RFC8106-5.3.1-2` | On the other hand, for DNS options announced by RAs, if some RAs use the Secure Neighbor Discovery (SEND) protocol [RFC3971] for RA security, they MUST be preferred over those that do not use SEND. (§5.3.1) | MUST | 5.3.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze consumes RDNSS from the RAs the Linux kernel accepts (internal/component/iface/ra_rdnss.go), and neither Ze nor the kernel implements SEND (RFC 3971), so no RA is known to use SEND and none is preferred |
+| `RFC8106-5.3.1-3` | Also, DNS options announced by RAs via SEND MUST be preferred over those announced by unauthenticated DHCP [RFC3118]. (§5.3.1) | MUST | 5.3.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze consumes RDNSS from the RAs the Linux kernel accepts, and neither Ze nor the kernel implements SEND (RFC 3971), so no RA DNS option is preferred over DHCP for being authenticated |
 | `RFC8106-5.1-3` | The value of Lifetime SHOULD by default be at least 3 * MaxRtrAdvInterval, where MaxRtrAdvInterval is the maximum RA interval as defined in [RFC4861]. (§5.1) | SHOULD | 5.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8106-5.1-4` | Such link-local addresses SHOULD be registered in the Resolver Repository along with the corresponding link zone indices of the links that receive the RDNSS option(s) for them. (§5.1) | SHOULD | 5.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8106-5.1-4` | Such link-local addresses SHOULD be registered in the Resolver Repository along with the corresponding link zone indices of the links that receive the RDNSS option(s) for them. (§5.1) | SHOULD | 5.1 | **positive:** `unit/verify` [`TestRARDNSSLinkLocalCarriesZone`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L170). **negative:** no negative test |
 | `RFC8106-5.2-5` | That is, Lifetime SHOULD by default be at least 3 * MaxRtrAdvInterval. (§5.2) | SHOULD | 5.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8106-5.3.1-4` | If the DNS options are valid, the host SHOULD copy the values of the options into the DNS Repository and the Resolver Repository in order. (§5.3.1) | SHOULD | 5.3.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8106-5.3.1-5` | In the case where the DNS information of RDNSS and DNSSL can be obtained from multiple sources, such as RAs and DHCP, the IPv6 host SHOULD keep some DNS options from all sources. (§5.3.1) | SHOULD | 5.3.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8106-5.3.1-6` | However, in the case of multiple sources, the ability to store a total of at least three RDNSS addresses (or DNSSL domain names) from the multiple sources is RECOMMENDED. (§5.3.1) | RECOMMENDED | 5.3.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC8106-5.3.1-7` | The DNS options from RAs and DHCP SHOULD be stored in the DNS Repository and Resolver Repository so that information from DHCP appears there first and therefore takes precedence. (§5.3.1) | SHOULD | 5.3.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8106-5.3.1-7` | The DNS options from RAs and DHCP SHOULD be stored in the DNS Repository and Resolver Repository so that information from DHCP appears there first and therefore takes precedence. (§5.3.1) | SHOULD | 5.3.1 | **positive:** `unit/verify` [`TestRARDNSSListedAfterDHCP`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L150). **negative:** no negative test |
 | `RFC8106-6.1-1` | For DNS repository management, the following two data structures SHOULD be synchronized with the Resolver Repository: (§6.1) | SHOULD | 6.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8106-7.2-1` | The corresponding technique for network devices is RECOMMENDED to block rogue RA messages that include the RDNSS and DNSSL options from unauthorized nodes [RFC6104] [RFC6105]. (§7.2) | RECOMMENDED | 7.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8106-5.1-5` | The maximum time in seconds (relative to the time the packet is received) over which these RDNSS addresses MAY be used for name resolution. (§5.1) | MAY | 5.1 | **positive:** no positive test. **negative:** no negative test |
@@ -177,17 +179,12 @@ Source: [data/rfc/rfc8106.json](../../../data/rfc/rfc8106.json).
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC8106-1.2-1`](#rfc8106-1.2-1) Hosts conforming to this specification MUST extract DNS information from RA messages, unless static DNS configuration has been specified by the user. (§1.2) | {gap}, no test | ze reads no RDNSS or DNSSL option from a received RA; its resolver takes upstream servers from configuration only, and internal/core/ndp/ra.go holds a builder and no parser |
-| [`RFC8106-1.2-2`](#rfc8106-1.2-2) If there is DNS information available from multiple RAs and/or from DHCP, the host MUST maintain an ordered list of this information as specified in Section 5.3.1. (§1.2) | {gap}, no test | ze keeps no DNS Server List learned from RAs; host-side processing is absent |
-| [`RFC8106-5.1-1`](#rfc8106-5.1-1) A value of zero means that the RDNSS addresses MUST no longer be used. (§5.1) | {gap}, no test | ze as a host learns no RDNSS address, so no Lifetime expiry exists; host-side processing is absent |
-| [`RFC8106-5.1-2`](#rfc8106-5.1-2) When a resolver sends a DNS query message to an RDNSS identified by a link-local address, it MUST use the corresponding link. (§5.1) | {gap}, no test | ze as a host learns no RDNSS address from an RA; host-side processing is absent |
 | [`RFC8106-5.2-1`](#rfc8106-5.2-1) A value of zero means that the DNSSL domain names MUST no longer be used. (§5.2) | {gap}, no test | ze as a host processes no DNSSL option; host-side processing is absent |
 | [`RFC8106-5.2-2`](#rfc8106-5.2-2) One or more domain names of the DNSSL that MUST be encoded as described in Section 3.1 of [RFC1035]. (§5.2) | {gap}, no test | ze sends no DNSSL option; internal/core/ndp/ra.go BuildRA writes Source Link-Layer Address, Prefix Information and RDNSS only |
 | [`RFC8106-5.2-3`](#rfc8106-5.2-3) Note that for the simple decoding, the domain names MUST NOT be encoded in the compressed form described in Section 4.1.4 of [RFC1035]. (§5.2) | {gap}, no test | ze sends no DNSSL option; internal/core/ndp/ra.go BuildRA |
 | [`RFC8106-5.2-4`](#rfc8106-5.2-4) Because the size of this field MUST be a multiple of 8 octets, for the minimum multiple including the domain name representations, the remaining octets other than the encoding parts of the domain name representations MUST be padded with zeros. (§5.2) | {gap}, no test | ze sends no DNSSL option; internal/core/ndp/ra.go BuildRA |
-| [`RFC8106-5.3.1-1`](#rfc8106-5.3.1-1) Otherwise, the host MUST discard the options. (§5.3.1) | {gap}, no test | ze as a host neither validates nor stores a received RDNSS or DNSSL option; host-side processing is absent |
-| [`RFC8106-5.3.1-2`](#rfc8106-5.3.1-2) On the other hand, for DNS options announced by RAs, if some RAs use the Secure Neighbor Discovery (SEND) protocol [RFC3971] for RA security, they MUST be preferred over those that do not use SEND. (§5.3.1) | {gap}, no test | ze as a host consumes no DNS option from RAs, SEND or otherwise; host-side processing is absent |
-| [`RFC8106-5.3.1-3`](#rfc8106-5.3.1-3) Also, DNS options announced by RAs via SEND MUST be preferred over those announced by unauthenticated DHCP [RFC3118]. (§5.3.1) | {gap}, no test | ze as a host consumes no DNS option from RAs; host-side processing is absent |
+| [`RFC8106-5.3.1-2`](#rfc8106-5.3.1-2) On the other hand, for DNS options announced by RAs, if some RAs use the Secure Neighbor Discovery (SEND) protocol [RFC3971] for RA security, they MUST be preferred over those that do not use SEND. (§5.3.1) | {gap}, no test | ze consumes RDNSS from the RAs the Linux kernel accepts (internal/component/iface/ra_rdnss.go), and neither Ze nor the kernel implements SEND (RFC 3971), so no RA is known to use SEND and none is preferred |
+| [`RFC8106-5.3.1-3`](#rfc8106-5.3.1-3) Also, DNS options announced by RAs via SEND MUST be preferred over those announced by unauthenticated DHCP [RFC3118]. (§5.3.1) | {gap}, no test | ze consumes RDNSS from the RAs the Linux kernel accepts, and neither Ze nor the kernel implements SEND (RFC 3971), so no RA DNS option is preferred over DHCP for being authenticated |
 
 ## Proof state
 
@@ -199,7 +196,10 @@ Hosts conforming to this specification MUST extract DNS information from RA mess
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8106-1.2-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRARDNSSStaticNameServerWins`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L112) | unit/verify | mutant, verified |
+| positive | [`TestRARDNSSRecordFromUserOpt`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L80) | unit/verify | mutant, verified |
 
 ### [`RFC8106-1.2-2`](#rfc8106-1.2-2)
 
@@ -207,7 +207,10 @@ If there is DNS information available from multiple RAs and/or from DHCP, the ho
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8106-1.2-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRARDNSSLaterRAKeepsDHCPFirst`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L339) | unit/verify | mutant, verified |
+| positive | [`TestRARDNSSListedAfterDHCP`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L149) | unit/verify | mutant, verified |
 
 ### [`RFC8106-5.1-1`](#rfc8106-5.1-1)
 
@@ -215,7 +218,11 @@ A value of zero means that the RDNSS addresses MUST no longer be used. (§5.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8106-5.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRARDNSSRefreshKeeps`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L131) | unit/verify | mutant, verified |
+| positive | [`TestRARDNSSLifetimeZeroWithdraws`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L196) | unit/verify | mutant, verified |
+| positive | [`TestRDNSSWithdrawnAdvertisedLifetimeZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/ra/rfc8106_advertiser_rdnss_test.go#L34) | unit/verify | mutant, verified |
 
 ### [`RFC8106-5.1-2`](#rfc8106-5.1-2)
 
@@ -223,7 +230,11 @@ When a resolver sends a DNS query message to an RDNSS identified by a link-local
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8106-5.1-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRARDNSSLinkLocalScopedToItsOwnLink`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L313) | unit/verify | mutant, verified |
+| positive | [`TestRDNSSRefusesLinkLocalOfAnotherLink`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_dns_source_test.go#L168) | unit/verify | mutant, verified |
+| positive | [`TestRARDNSSLinkLocalCarriesZone`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L169) | unit/verify | mutant, verified |
 
 ### [`RFC8106-5.2-1`](#rfc8106-5.2-1)
 
@@ -263,7 +274,11 @@ Otherwise, the host MUST discard the options. (§5.3.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8106-5.3.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestParseRDNSSOption`](https://github.com/ze-software/ze/blob/main/internal/core/ndp/rfc8106_rdnss_test.go#L30) | unit/verify | mutant, verified |
+| positive | [`TestRARDNSSMalformedDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L219) | unit/verify | mutant, verified |
+| positive | [`TestParseRDNSSOptionRefusesBadLength`](https://github.com/ze-software/ze/blob/main/internal/core/ndp/rfc8106_rdnss_test.go#L62) | unit/verify | mutant, verified |
 
 ### [`RFC8106-5.3.1-2`](#rfc8106-5.3.1-2)
 
@@ -280,6 +295,26 @@ Also, DNS options announced by RAs via SEND MUST be preferred over those announc
 Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC8106-5.3.1-3, so no unit is bound to it.
+
+### [`RFC8106-5.1-4`](#rfc8106-5.1-4)
+
+Such link-local addresses SHOULD be registered in the Resolver Repository along with the corresponding link zone indices of the links that receive the RDNSS option(s) for them. (§5.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| positive | [`TestRARDNSSLinkLocalCarriesZone`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L170) | unit/verify | mutant, verified |
+
+### [`RFC8106-5.3.1-7`](#rfc8106-5.3.1-7)
+
+The DNS options from RAs and DHCP SHOULD be stored in the DNS Repository and Resolver Repository so that information from DHCP appears there first and therefore takes precedence. (§5.3.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| positive | [`TestRARDNSSListedAfterDHCP`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc8106_ra_rdnss_test.go#L150) | unit/verify | mutant, verified |
 
 ## Extraction sign-off
 

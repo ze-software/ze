@@ -579,6 +579,12 @@ route under the filter's <code>on-error</code>.</p>
 </tr>
 </tbody>
 </table>
+<p>A filter that needs to know which session it judges declares the session
+facts in its <code>reads</code> (<code>peer-name</code>, <code>peer-group</code>, <code>peer-address</code>, <code>local-as</code>,
+<code>peer-as</code>, <code>route-server-as</code>, <code>ibgp</code>, <code>rs-client</code>, <code>llgr-advertised</code>, and on
+export the <code>source-peer-*</code> facts), and reads them from <code>Fields()</code> like a route
+field, on both transports (protocol.md, "The Route Fields of filter-update").
+It never keeps its own map of peers for this.</p>
 <p>The slot is callable only from Stage 5 until the bridge closes. A stopped,
 crashed or respawning plugin is unavailable: the engine applies the filter's
 <code>on-error</code> and never answers from the old plugin's state.</p>
@@ -589,17 +595,23 @@ return, and MUST read its state from a snapshot its own goroutines swap
 atomically. Data it has not resolved yet takes the filter's <code>on-error</code>; once
 resolved, the plugin asks Ze to re-judge the routes, which at HEAD is
 <code>request peer &lt;peer&gt; refresh &lt;family&gt;</code> (RFC 2918).</p>
+<p>The SDK reuses one borrowed route wrapper within a batch, only after each
+evaluator call returns. Decoded input bytes and collected verdicts remain in
+separate storage; concurrent batch invocations do not share the wrapper.</p>
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- answerFilterBatch -->
 <p><strong>The conformance harness.</strong> Every fast-path filter's test MUST pass
 <code>sdk.CheckFilterConformance(t, name, eval, routes)</code> under <code>-race</code>. It refuses
-a call past <code>sdk.FilterCallDeadline</code>, a repeat call that answers differently
+a call past <code>sdk.FilterCallDeadline</code> in any clause, a repeat call that answers differently
 (state written without a snapshot), a view read after its call returned or a
 kept slice whose reuse changes an answer, a fast-path verdict that differs
 from the forked transport's, and concurrent calls that answer otherwise,
-each report naming the filter and the clause.</p>
+each report naming the filter and the clause.
+The deadline covers every initial, repeat, borrowed-view, forked and concurrent
+invocation. A timeout refuses the filter without waiting for that evaluator to
+return. Go cannot stop the timed-out call; tests with deliberately blocked
+evaluators MUST release them in cleanup.</p>
 <p><strong>Building the answer.</strong> <code>eval</code> answers one <code>*sdk.FilterUpdateOutput</code> per
-route, in one of three shapes. The shapes below are what a filter answers in
-a chain that also holds an in-process filter; a chain of plugin filters only
-still reads the text <code>Update</code> delta. The wire form of each change, and every
+route, in one of three shapes. The wire form of each change, and every
 reason a route fails, is <code>protocol.md</code>, "The Sets of a filter-update answer".</p>
 <table>
 <thead>
@@ -656,20 +668,47 @@ Every other slice of the answer is the engine's from your return, as a
 forked plugin's decoded answer is, and you never write into <code>route.Raw()</code>.</p>
 <!-- source: pkg/plugin/rpc/types.go -- FilterUpdateOutput, FilterSet, FilterSetAction -->
 <!-- source: pkg/plugin/rpc/filter_slot.go -- FilterSlotHandler, ownRawRewrite -->
-<p><code>p.OnFilterUpdate(fn)</code> is the same registration, adapted for a handler
-written against <code>*sdk.FilterUpdateInput</code>: the SDK encodes a fast-path route's
-fields for it and runs its calls one at a time on one worker goroutine, so a
-handler that keeps unsnapshotted state stays race-free. Each call waits at
-most <code>rpc.FilterUpdateTimeout</code> (5 s), as a filter-update exchange does: while
-the handler blocks, the route it holds and every route waiting behind it take
-the filter's <code>on-error</code> once that deadline passes, and a route whose deadline
-passed before the worker took it is never judged late. After the plugin
-closes, a call answers <code>rpc.ErrBridgeClosed</code> ("unavailable"). The adapter is
-removed once every filter registers with <code>OnFilter</code>.</p>
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilter, OnFilterUpdate -->
-<!-- source: pkg/plugin/sdk/filter_serial.go -- filterSerializer -->
-<!-- source: pkg/plugin/sdk/filter_serial.go -- filterUpdateWait -->
+<p><code>OnFilter</code> is the only registration of a filter. An evaluator that reads the
+route as one <code>sdk.FilterUpdateInput</code> value calls <code>route.Input()</code>, which
+returns its declared fields and raw bytes, or a field-read error. It is
+still an evaluator under the contract above:
+its calls run concurrently, so state it keeps is guarded or snapshotted, and
+it does not block.</p>
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilter -->
+<!-- source: pkg/plugin/rpc/filter_slot.go -- Input -->
 <!-- source: pkg/plugin/sdk/filter_conformance.go -- CheckFilterConformance -->
+<p>A filter can also place itself. <code>Registration.FilterInsertions</code> lists the
+peers' filter lists your filter joins without the operator naming it: each
+<code>rpc.FilterInsertion</code> gives the reference, <code>import</code> or <code>export</code>, a priority,
+and the config path under <code>bgp peer</code> whose presence (or one of whose values)
+means a peer needs it. Ze inserts it ahead of the operator's members on
+exactly those peers, group inheritance included. The path must be a node the
+daemon compiled. Your plugin's own YANG is not compiled yet
+(<code>schema.md</code>, "What works today"), so a third-party plugin conditions on a
+path one of ze's modules defines; a plugin compiled into ze conditions only on
+config its own module adds. In place of the path, an insertion can carry a
+<code>session</code> condition: session facts of the peer that must all hold, such as
+<code>ibgp</code> <code>false</code> and <code>rs-client</code> <code>false</code> for every bilateral eBGP session; a
+dynamic peer is judged when its OPEN arrives. Declare the insertions in the <code>Registration</code> you
+pass to <code>p.Run</code>: that Stage 1 declaration is all ze knows of a third-party
+plugin, and ze places the members before any peer starts. Name your filter by
+the process name ze runs you under (<code>&lt;name&gt;:&lt;filter&gt;</code>, the name your
+<code>plugin external &lt;name&gt;</code> entry gives), because that is the reference you
+serve. An insertion marked <code>required</code> carries a <code>reason</code>: the operator cannot
+name, move or deactivate that member, and a config that does is refused at
+verify with your reason, naming the peer, the chain and the reference (this is
+how <code>bgp-role</code> keeps the RFC 9234 Section 5 procedures out of operator reach).
+The fields and refusals are in
+<code>docs/architecture/api/process-protocol.md</code>, "Filter Insertion", and
+<code>internal/test/plugins/fakefilter</code> (<code>FilterInsertions</code>) is a worked example:
+run under another name, it inserts <code>&lt;name&gt;:judge</code> where a peer sets
+<code>fakefilter { insert-copy &lt;name&gt;; }</code>, and <code>&lt;name&gt;:session-judge</code>, which reads
+the <code>peer-name</code> session fact, on the session condition <code>peer-name</code>
+<code>&lt;name&gt;-peer</code>.</p>
+<!-- source: pkg/plugin/rpc/types.go -- FilterInsertion, FilterInsertionSchemaPath -->
+<!-- source: internal/component/bgp/config/filter_insertion.go -- requiredInsertionRefusal -->
+<!-- source: internal/test/plugins/fakefilter/fakefilter.go -- FilterInsertions, sessionInsertion -->
+<!-- source: internal/component/config/schema_origin.go -- CheckFilterInsertionPaths -->
 <h3 id="onbye">OnBye</h3>
 <p>Called when the engine sends <code>bye</code>: when it removes the plugin while the
 daemon keeps running (reason <code>removed</code>), and when it stops a subsystem process.
@@ -747,35 +786,32 @@ Must be called after <code>SetStartupSubscriptions</code> and before <code>Run()
 </code></pre>
 <h3 id="declarecapabilitiesfrom">DeclareCapabilitiesFrom</h3>
 <p>Registers the extractor that computes the plugin's capability declaration from
-the config sections it receives, and the config leaf that sets each code. It is
-the only way a plugin declares capabilities, and it must be called before
-<code>Run()</code>. A plugin whose set does not come from config registers an extractor
-that ignores the sections.</p>
-<!-- source: pkg/plugin/sdk/capability_declaration.go -- DeclareCapabilitiesFrom, capabilityChanges -->
-<p><code>Run</code> calls the extractor once, on the Stage 2 configuration, and sends its
-capabilities at Stage 3. The engine puts that declaration in every OPEN until
-the plugin process ends, so it is never rewritten: a runtime <code>configure</code>
-redelivery reaches <code>OnConfigure</code> and never the extractor.</p>
+the config sections it receives. It is the only way a plugin declares
+capabilities, and it must be called before <code>Run()</code>. A plugin whose set does not
+come from config registers an extractor that ignores the sections.</p>
+<!-- source: pkg/plugin/sdk/capability_declaration.go -- DeclareCapabilitiesFrom, composeCapabilityVerify, CandidateCapabilities -->
+<p><code>Run</code> calls the extractor on the Stage 2 configuration and sends its
+capabilities at Stage 3. A runtime <code>configure</code> redelivery reaches
+<code>OnConfigure</code> and never the extractor.</p>
 <p>At config-verify the plugin's own <code>OnConfigVerify</code> handler answers first. When
-it accepts, the SDK runs the extractor on the candidate sections and compares
-the two declarations per peer selector (<code>Peers</code>) and code. A changed payload, a
-code removed from a peer that stays configured, and a code added (a peer added
-with a capability included) are refused, naming the peer, the leaf and the
-plugin, followed by <code>sdk.RestartSteps()</code>. A peer the candidate no longer names
-is accepted: it sends no OPEN again. A declaration with no <code>Peers</code> applies to
-every peer and is compared as one selector, named <code>every peer</code>.</p>
+it accepts, the SDK runs the extractor on the candidate sections and the answer
+carries the whole candidate declaration (<code>capabilities</code> in the config-verify
+answer). The engine installs it when the reload applies, so a peer the reload
+adds sends its OPEN with its capabilities, and a running session whose
+capability changed restarts when its peer advertised that code. A reload that
+does not commit puts the previous declaration back. <code>sdk.CandidateCapabilities</code>
+returns the declaration the answer carries, for a plugin's own tests.</p>
 <pre><code class="language-go">p.DeclareCapabilitiesFrom(func(sections []sdk.ConfigSection) (sdk.CapabilityDeclaration, error) {
     return sdk.CapabilityDeclaration{
         Capabilities: []sdk.CapabilityDecl{
             {Code: 64, Encoding: "hex", Payload: "0078", Peers: []string{"peer1"}},
         },
-        Peers: []string{"peer1"}, // every peer selector the config names
     }, nil
-}, map[uint8]string{64: "graceful-restart"})
+})
 </code></pre>
 <p>A plugin that reads the <code>bgp</code> root wraps its per-section extraction with
-<code>configjson.BGPCapabilityExtractor</code>, which reports every peer selector of the
-tree (<code>configjson.CapabilitySelectors</code>).</p>
+<code>configjson.BGPCapabilityExtractor</code>, which runs it on each <code>bgp</code> section and
+refuses a section whose data is not JSON.</p>
 <h2 id="engine-methods-plugin-to-engine">Engine Methods (Plugin to Engine)</h2>
 <p>These methods are available at runtime (after startup) to call the engine:</p>
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- all methods -->
@@ -787,6 +823,18 @@ tree (<code>configjson.CapabilitySelectors</code>).</p>
 <p>Dispatches a command through the engine's command dispatcher (inter-plugin communication).</p>
 <pre><code class="language-go">status, data, err := p.DispatchCommand(ctx, "rib adjacent inbound show")
 </code></pre>
+<p>A command that completed and stated a warning answers status <code>warning</code>. The
+warning text, one line per entry, comes with <code>DispatchCommandResult</code>:</p>
+<pre><code class="language-go">result, err := p.DispatchCommandResult(ctx, "show config dump")
+for _, line := range result.Warnings {
+    slog.Warn("dispatched command warned", "line", line)
+}
+</code></pre>
+<p>Every plugin receives those lines, whatever protocol version it declared: the
+engine writes them in the <code>wrn</code> terminator to each plugin
+(<code>docs/architecture/api/ipc_protocol.md</code>, "Answer Protocol").</p>
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- DispatchCommandResult, DispatchResult -->
+<!-- source: internal/component/plugin/dispatch.go -- WriteAnswer, answerWarnings -->
 <h3 id="emitevent">EmitEvent</h3>
 <p>Pushes an event into the engine's delivery pipeline for plugin-to-plugin communication.</p>
 <pre><code class="language-go">delivered, err := p.EmitEvent(ctx, "bgp", "rpki", "received", "192.168.1.1", eventJSON)
@@ -863,7 +911,7 @@ return fmt.Errorf("validation failed")
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 14:11 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

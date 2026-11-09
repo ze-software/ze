@@ -54,8 +54,8 @@
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
 <div><dt>Registry path</dt><dd><code>monitor traceroute</code></dd></div>
-<div><dt>Usage</dt><dd><code>monitor traceroute</code></dd></div>
-<div><dt>Mode</dt><dd>Read-only</dd></div>
+<div><dt>Usage</dt><dd><code>monitor traceroute &lt;destination&gt; [max-hops &lt;max-hops&gt;] [timeout &lt;timeout&gt;] [probes &lt;probes&gt;] [do-not-fragment &lt;honor-cache|bypass-cache&gt;]</code></dd></div>
+<div><dt>Mode</dt><dd>read-only, offline</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-traceroute:monitor-traceroute</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
 <div><dt>Task support</dt><dd>required: the MCP server always answers with a task handle</dd></div>
@@ -68,7 +68,20 @@
 </dl>
 <h3>Description</h3><p>Shows each hop with running RTT statistics. Keeps probing so you can watch<br>path changes and latency shifts over time.</p>
 <h3>Arguments</h3>
-<p>No command-specific arguments listed.</p>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>destination</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>Host or IP address to trace.</td><td>The value is the first bare word of the command, or follows the destination
+keyword. A host name is resolved in either address family, and the family of the
+answer selects ICMPv4 or ICMPv6.</td></tr>
+<tr><td><code>max-hops</code></td><td>uint</td><td>no</td><td>any value of this type</td><td>Maximum number of hops.</td><td>The value is the largest time-to-live the stream probes. Absent, the
+stream probes 30 hops, and the one-shot round of the API surfaces probes 16.</td></tr>
+<tr><td><code>timeout</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Timeout duration, accepted and not read.</td><td>The value is accepted in Go duration syntax, 1s to 30s, and then not read:
+each probe round waits one second for every answer.</td></tr>
+<tr><td><code>probes</code></td><td>uint</td><td>no</td><td>any value of this type</td><td>Number of probes per hop, accepted and not read.</td><td>The value is accepted in the range 1 to 10 and then not read: a probe
+round sends one probe at each time-to-live.</td></tr>
+<tr><td><code>do-not-fragment</code></td><td>enum</td><td>no</td><td><code>honor-cache</code> <code>bypass-cache</code></td><td>Don&#39;t Fragment mode, accepted and not read.</td><td>The keyword takes one of two values, honor-cache or bypass-cache, as on show
+traceroute, and then neither is read: a probe round sends every probe with the Don&#39;t
+Fragment bit off.</td></tr>
+</tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
 <article class="cmd-detail-card cmd-vendor-detail"><h2>Juniper Junos MX</h2>
@@ -133,7 +146,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

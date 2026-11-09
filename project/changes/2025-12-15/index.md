@@ -1,4 +1,4 @@
-# Week of 2025-12-15
+# 2025-12-15 – 2025-12-21 (1 week)
 
 The first tracked week of development on Ze. In seven days the BGP engine went from nothing to a config-driven daemon that speaks the wire protocol, holds a RIB, and tests itself against ExaBGP.
 

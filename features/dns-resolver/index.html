@@ -56,7 +56,10 @@ Uses <code>github.com/miekg/dns</code> (the library CoreDNS is built on).</p>
 <div class="doc-layout">
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#configuration">Configuration</a></li>
-<li><a href="#dhcp-interaction">DHCP interaction</a></li>
+<li><a href="#where-the-routers-servers-come-from">Where the router&#39;s servers come from</a>
+<ol>
+<li><a href="#the-dns-source-list-and-the-learned-record">The dns-source list and the learned record</a></li>
+</ol></li>
 <li><a href="#cache-management">Cache management</a></li>
 <li><a href="#pipe-operators">Pipe operators</a></li>
 <li><a href="#reload-behavior">Reload behavior</a></li>
@@ -84,12 +87,16 @@ caching forwarder that answers recursive queries from customer LANs
 <td><code>system { name-server [8.8.8.8 1.1.1.1]; }</code> sets upstream DNS servers</td>
 </tr>
 <tr>
-<td>resolv.conf writer</td>
-<td>Writes the configured servers, else every DHCP lease's servers, to resolv-conf-path, and rewrites it whenever a source changes</td>
+<td>Router resolver selection</td>
+<td>One rule picks the router's servers: the configured <code>name-server</code> list when it has an entry, else every learned record (DHCPv4, DHCPv6, PPPoE IPCP, RA RDNSS), and the host's only while none of those lists a server. <span class="ev-src"><span class="ev-ref"><code>/etc/resolv.conf</code></span></span></td>
 </tr>
 <tr>
-<td>DHCP integration</td>
-<td>Static servers take priority over DHCP-discovered DNS</td>
+<td>resolv.conf writer</td>
+<td>Writes the router's servers to resolv-conf-path, and rewrites it whenever a source changes</td>
+</tr>
+<tr>
+<td>Learned DNS</td>
+<td>Under the default list, static servers take priority over the servers a DHCP lease, a PPPoE session or a router advertisement supplied</td>
 </tr>
 <tr>
 <td>Query types</td>
@@ -108,8 +115,12 @@ caching forwarder that answers recursive queries from customer LANs
 <td>Mutex-protected cache, safe for multi-goroutine use</td>
 </tr>
 <tr>
-<td>System fallback</td>
-<td class="cell-no">✕</td>
+<td>Server failover</td>
+<td>The internal resolver asks the router's servers in order. A server that gives no answer, or answers SERVFAIL, REFUSED or any RCODE other than NOERROR and NXDOMAIN, passes the query to the next one. When every server fails, the caller gets the last server failure, never an empty success</td>
+</tr>
+<tr>
+<td>Fail closed</td>
+<td>With no server selected, queries fail with <code>no DNS server configured</code>. No public resolver is ever added</td>
 </tr>
 <tr>
 <td>Timeout control</td>
@@ -129,6 +140,8 @@ caching forwarder that answers recursive queries from customer LANs
 </tr>
 </tbody>
 </table>
+<!-- source: internal/component/config/system/resolv.go -- routerDefault, Resolvers.refresh -->
+<!-- source: internal/component/resolve/dns/resolver.go -- Resolver.query, unansweredError -->
 <h2 id="configuration">Configuration</h2>
 <pre><code>system {
     name-server [8.8.8.8 1.1.1.1]
@@ -152,17 +165,22 @@ caching forwarder that answers recursive queries from customer LANs
 <tr>
 <td><code>name-server</code></td>
 <td>(none)</td>
-<td>Static DNS servers. First server used by ze internal resolver. All written to resolv.conf.</td>
+<td>Static DNS servers: the <code>configured</code> source of the router's list. Under the default list, when set, they are the router's servers: the internal resolver asks them in order, and resolv.conf lists them all.</td>
+</tr>
+<tr>
+<td><code>dns-source</code></td>
+<td><code>source [ configured received ]</code>, <code>mode first-usable</code></td>
+<td>The ordered sources of the router's servers and how they combine (next section).</td>
 </tr>
 <tr>
 <td><code>resolv-conf-path</code></td>
 <td><span class="ev-src"><span class="ev-ref"><code>/tmp/resolv.conf</code></span></span></td>
-<td>Path for resolv.conf. Default suits gokrazy (read-only rootfs). Empty disables writing.</td>
+<td>Path for resolv.conf. Default suits gokrazy (read-only rootfs). Empty disables writing. Any other value must be an absolute path in clean form (no <code>..</code> or repeated <code>/</code>): <code>ze config validate</code> and commit refuse it otherwise, and the refusal names the path to write.</td>
 </tr>
 <tr>
 <td><code>timeout</code></td>
 <td>5</td>
-<td>Query timeout in seconds (1-60)</td>
+<td>Query timeout in seconds for each server asked (1-60)</td>
 </tr>
 <tr>
 <td><code>cache-size</code></td>
@@ -176,38 +194,428 @@ caching forwarder that answers recursive queries from customer LANs
 </tr>
 </tbody>
 </table>
-<h2 id="dhcp-interaction">DHCP interaction</h2>
-<p>ze keeps the resolver servers of each source apart: the static <code>name-server</code>
-list, and one list per DHCP client (DHCPv4 or DHCPv6, per interface and unit).
-resolv.conf is rebuilt from them on every change:</p>
+<h2 id="where-the-routers-servers-come-from">Where the router's servers come from</h2>
+<p>Ze keeps the static <code>name-server</code> list and, apart from it, one record per
+learned source: one per DHCP client (DHCPv4 or DHCPv6, per interface and
+unit), one per PPPoE client session (the servers IPCP supplied, RFC 1877,
+primary first), one per unit that accepts Router Advertisements (the RDNSS
+servers, RFC 8106), and one for the host's own <code>/etc/resolv.conf</code>. A record
+carries how long it stays valid: a DHCPv4 lease until the lease expires
+(until withdrawn for an infinite lease), a DHCPv6 Reply until the valid
+lifetime of its last binding runs out, an RA record until its last
+server's Lifetime runs out (a pppoe-client's until its session ends, if
+that comes first), an IPCP lease and the host's file until withdrawn. When a record's validity ends, Ze withdraws it at that moment,
+whether or not its client said so.</p>
+<p>An RA record exists only for a unit whose <code>ipv6 accept-ra</code> is set above 0,
+or for an enabled <code>pppoe-client</code> whose <code>ipv6 accept-ra</code> is set above 0: the
+RAs of that client's WAN session arrive on its session device, which carries
+the client's name, and the record is named after the client.
+The kernel processes the RA, and only when its <code>accept_ra</code> lets it; it then
+hands the RDNSS option to Ze. Ze checks the option as RFC 8106 Section 5.3.1
+says (a Length of at least 3 and odd, unicast addresses) and discards an
+invalid one with a warning naming the interface and the Length. Each server
+lives for the option's Lifetime from receipt, a later RA with the same
+server moves its expiry, Lifetime 0 removes it at once, and a new server is
+listed first (RFC 8106 Section 6.2). One unit keeps at most 8 RA servers;
+past that, the one that expires first is dropped. A unit that loses its
+<code>accept-ra</code>, or is removed, has its RA record withdrawn on that commit, and
+so does a pppoe-client. A pppoe-client's RA record is also withdrawn when
+its session ends, together with its IPCP lease, whatever Lifetime its
+servers had left: they were reached over the session device, which ends
+with the session, and the next session's RAs build a fresh record. An
+interface unit's RA record is not tied to its device that way: it stays
+until its Lifetime runs out, a Lifetime 0 arrives, or a commit removes the
+unit.</p>
+<!-- source: internal/component/iface/ra_rdnss.go -- raRDNSS.handle, raServerList.apply, raRDNSS.withdrawPPPoESession -->
+<!-- source: internal/component/iface/pppoe_client.go -- PPPoEClient.runSession, PPPoEClient.endSessionLeases -->
+<!-- source: internal/core/ndp/rdnss.go -- ParseRDNSS -->
+<p>On every change, one rule selects the router's servers from them, walking
+the list <code>system dns-source</code> names. Two classes of source can be named
+there: <code>configured</code> (the <code>name-server</code> list) and <code>received</code> (every learned
+record, DHCPv4 first, then DHCPv6, then PPPoE, then RA RDNSS, each by
+interface then unit, in the order each source sent them). The host's file
+is a fallback inside <code>received</code>: its servers are listed only while no other
+learned record lists a server. The <code>mode</code> says
+how two classes combine:</p>
 <table>
 <thead>
 <tr>
-<th>Situation</th>
-<th>resolv.conf lists</th>
+<th><code>mode</code></th>
+<th>The router's servers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>first-usable</code></td>
+<td>the first class in the list that holds a usable server, alone; a later class is a backup, used only while the earlier ones hold none</td>
+</tr>
+<tr>
+<td><code>merge</code></td>
+<td>every class, in list order, a server already listed not repeated; Ze's internal resolver tries a later server when an earlier one does not answer or answers a server failure</td>
+</tr>
+</tbody>
+</table>
+<p>With no <code>dns-source</code> written, the default is <code>source [ configured received ]</code>
+with <code>mode first-usable</code>. That is what Ze always did:</p>
+<table>
+<thead>
+<tr>
+<th>Situation, under the default</th>
+<th>The router's servers</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>name-server</code> configured</td>
-<td>the static servers alone; DHCP never overrides them (RFC 3646 Section 6)</td>
+<td>the static servers alone; a learned server never overrides them (RFC 3646 Section 6)</td>
 </tr>
 <tr>
 <td class="cell-no">✕</td>
-<td>every DHCP lease's servers: DHCPv4 clients first, then DHCPv6, each by interface then unit, in the order each server sent them, a repeated server listed once</td>
+<td>every learned record's servers, in the received order above</td>
 </tr>
 <tr>
-<td>a renewal reply omits the DNS option, or a lease ends</td>
-<td>that lease's servers leave the file; the other sources' stay (RFC 9915 Section 18.2.10.5 for DHCPv6)</td>
+<td>a renewal reply omits the DNS option, or a lease ends or expires</td>
+<td>that lease's servers leave the selection; the other sources' stay (RFC 9915 Section 18.2.10.5 for DHCPv6)</td>
 </tr>
 <tr>
 <td>every source withdrawn</td>
-<td>the ze header with no <code>nameserver</code> line, once ze has written the file; a file ze never wrote is left alone</td>
+<td class="cell-no">✕</td>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/config/system/resolv.go -- Resolvers -->
+<p>Two examples. To keep your own resolvers and fall back to the ISP's only
+when none is configured, write nothing: that is the default. To prefer the
+ISP's and keep your own as a backup asked after them:</p>
+<pre><code>system {
+    name-server [ 198.51.100.53 ]
+    dns-source {
+        source [ received configured ]
+        mode merge
+    }
+}
+</code></pre>
+<p><code>received-interface [ eth1 ]</code> narrows <code>received</code> to the leases learned on the
+named interfaces, in the order listed, then by origin, then by unit. An
+interface that holds no lease yet is accepted, because it may learn one
+later.</p>
+<p>Ze refuses, at <code>ze config validate</code>, at commit, at boot and at reload:</p>
+<table>
+<thead>
+<tr>
+<th>Written</th>
+<th>Refusal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>two sources and no <code>mode</code></td>
+<td><code>system dns-source names 2 sources (configured, received) and no mode</code>: Ze cannot tell whether a later source is a backup or an addition. Set <code>mode first-usable</code> or <code>mode merge</code></td>
+</tr>
+<tr>
+<td><code>received-interface</code> without <code>received</code> in <code>source</code></td>
+<td>the filter would select nothing. Add <code>source received</code>, or delete <code>received-interface</code></td>
+</tr>
+<tr>
+<td><code>source self</code></td>
+<td>Ze cannot be its own upstream. Name upstream servers with <code>name-server</code>, or use <code>source received</code></td>
+</tr>
+<tr>
+<td><code>source radius</code></td>
+<td>RADIUS resolvers belong to one PPP subscriber, not the router</td>
+</tr>
+<tr>
+<td>a <code>dns-source</code> container with no <code>source</code></td>
+<td>an empty list offers no resolver. Name a source, or delete <code>dns-source</code> to take the default</td>
+</tr>
+<tr>
+<td>one class twice in <code>source</code></td>
+<td>its second place can never contribute a server. Delete the repeat</td>
+</tr>
+<tr>
+<td>a <code>source</code> or <code>mode</code> word Ze does not know</td>
+<td>Ze cannot tell what the word selects. Use a class from the list below, and <code>first-usable</code> or <code>merge</code></td>
+</tr>
+</tbody>
+</table>
+<p>A list naming one source needs no <code>mode</code>, because both modes give it the
+same answer.</p>
+<!-- source: internal/component/config/system/dns_source.go -- RouterDNSSource, routerDNSSourceRefusals, validateRouterDNSSourceTree -->
+<!-- source: internal/core/dnssource/select.go -- NewWrittenList, List.Received, ModeRequiredError, ReceivedInterfaceError, ClassRefusedError -->
+<p>An address that cannot name a resolver (the unspecified address, a multicast
+address, 255.255.255.255) is skipped, whatever its source. A loopback
+address such as the 127.0.0.53 of a host stub resolver stays, because Ze's
+own lookups can reach it.</p>
+<!-- source: internal/component/config/system/resolv.go -- Resolvers, routerDefault, Resolvers.records, ValidFor, Resolvers.armExpiryLocked -->
+<!-- source: internal/core/dnssource/select.go -- Select, Usable -->
 <!-- source: internal/plugins/iface/dhcp/resolv_linux.go -- setV4Resolvers, setV6Resolvers -->
+<p>The host's <code>/etc/resolv.conf</code> keeps a Ze on a standard distribution
+resolving when no <code>name-server</code> is configured and no lease supplies one. It
+stands in for a lease and never joins one: while a DHCPv4, DHCPv6, PPPoE or
+RA record lists a server, the host's servers are left out, so a container's
+resolver (Docker's 127.0.0.11) is never written beside the servers IPCP
+supplied. When the last such record expires or is withdrawn, the host's
+servers return. Ze reads it at startup and on every config reload, not when the file changes.
+Ze never reads it when it is the same file as <code>resolv-conf-path</code> (symlinks
+are followed), because Ze would then read back the servers it wrote.</p>
+<!-- source: internal/component/config/system/resolv_host.go -- readHost, sameFile -->
+<!-- source: internal/component/config/system/register_dns.go -- hostResolverOrigin -->
+<!-- source: internal/component/config/system/resolv.go -- RegisterFallbackResolverOrigin -->
+<!-- source: internal/core/dnssource/record.go -- liveAddresses -->
+<p>The selection is the one source of truth for every reader:</p>
+<table>
+<thead>
+<tr>
+<th>Reader</th>
+<th>What it does with the selection</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ze's internal resolver</td>
+<td>Asks every selected server in order, and follows the selection on each lease change and reload</td>
+</tr>
+<tr>
+<td>resolv-conf-path</td>
+<td>Lists every selected server</td>
+</tr>
+<tr>
+<td>A plugin, in process or external</td>
+<td>Subscribes to the <code>system-dns</code> event namespace ("The <code>system-dns</code> namespace"). <span class="ev-src"><span class="ev-ref"><code>docs/architecture/api/process-protocol.md</code></span></span></td>
+</tr>
+</tbody>
+</table>
+<!-- source: cmd/ze/hub/main_system.go -- newResolvers -->
+<!-- source: cmd/ze/hub/main.go -- PublishOn -->
+<p>The local commands <code>ze resolve dns</code> and <code>ze resolve cymru</code> run without a
+daemon, so they cannot see a lease. They ask the server that <code>--server</code>
+(<code>--dns-server</code> for cymru) names, else the servers of the host's
+<code>/etc/resolv.conf</code>, else they fail closed.</p>
+<!-- source: internal/component/resolve/cli/local_servers.go -- localServers -->
+<h3 id="the-dns-source-list-and-the-learned-record">The <code>dns-source</code> list and the learned record</h3>
+<p><code>dns-source</code> is one YANG grouping, declared in <code>ze-types</code>, so every consumer
+that hands resolver addresses on writes the same list. The router's
+<code>system dns-source</code>, the LAN resolver's upstreams (<code>service dns-resolver forward dns-source</code>), a DHCP subnet's option 6 (<code>service dhcp-server shared-network subnet dns-source</code>) and a unit's RA RDNSS (<code>interface ... unit ... ipv6 router-advertisement rdnss dns-source</code>) and a subscriber pool's IPCP
+DNS (<code>l2tp pool ipv4 dns-source</code>, <code>l2tp pool named-pool dns-source</code>) use it.</p>
+<table>
+<thead>
+<tr>
+<th>Leaf</th>
+<th>Shape</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>source</code></td>
+<td>the classes, in the order the consumer falls through them, each class at most once</td>
+</tr>
+<tr>
+<td><code>mode</code></td>
+<td><code>first-usable</code> or <code>merge</code>, with no default. A list of two or more classes needs one</td>
+</tr>
+<tr>
+<td><code>received-interface</code></td>
+<td>interface names, in order. It narrows <code>received</code> and nothing else</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Class</th>
+<th>What it lists</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>received</code></td>
+<td>every unexpired learned record, by origin rank, then interface, then unit</td>
+</tr>
+<tr>
+<td><code>configured</code></td>
+<td>the consumer's own static list: for the router, <code>system name-server</code></td>
+</tr>
+<tr>
+<td><code>self</code></td>
+<td>Ze's own address on the interface the client is on</td>
+</tr>
+<tr>
+<td><code>radius</code></td>
+<td>the resolvers RADIUS gives one PPP subscriber: the Access-Accept's MS-Primary-DNS-Server and MS-Secondary-DNS-Server (RFC 2548), allowed only in a pool's list</td>
+</tr>
+</tbody>
+</table>
+<p>A class names a role, never a protocol. A protocol that learns resolvers
+registers an origin with a rank, and its records appear inside <code>received</code>.
+Each consumer declares the classes it cannot use, with the reason and the
+fix it prints: the router refuses <code>self</code> and <code>radius</code>. A refusal of a list
+that sits under a keyed node names that instance, its keys filled in, so its
+fix command runs as printed: <code>delete interface ethernet eth0 unit 0 ipv6 router-advertisement rdnss dns-source source radius</code>, <code>service dhcp-server shared-network LAN subnet 192.168.1.0/24 dns-source</code>, <code>l2tp pool named-pool gold dns-source</code>. A consumer's built-in
+default applies only while its <code>dns-source</code> container is absent. Once the
+container is written, the default no longer applies, its <code>mode</code> included.</p>
+<p>Each consumer also states who receives its servers. The router and the LAN
+resolver's upstreams serve Ze itself, so a loopback server such as
+127.0.0.53 or an IPv6 link-local server is usable there. DHCPv4 option 6,
+RA RDNSS and a subscriber's IPCP hand addresses to another host, so the
+selection drops a loopback address (127.0.0.0/8, ::1) and an IPv6
+link-local address with no zone from them, logs each drop with the
+consumer's path, and falls through to the next entry or class. IPv4
+link-local (169.254.0.0/16) is kept: a server there on the client's own
+link is reachable from it.</p>
+<!-- source: internal/core/dnssource/select.go -- Audience, HostOnly, appendUsable -->
+<p>A consumer plugin, in the engine process or its own, subscribes to the
+<code>system-dns</code> snapshot, asks for a replay once it has started, and keeps the
+newest snapshot's records with <code>dnssource.Follower</code>, which drops a
+snapshot older than the last it kept. A plugin process receives the JSON
+form and hands it to <code>Accept</code>. A component in the daemon (the interface
+component, for RDNSS) subscribes to the typed handle
+<code>dnssource.SnapshotEvent</code>, hands the value to <code>AcceptSnapshot</code>, and emits
+<code>dnssource.SnapshotRequest</code> after it subscribes. A plugin that receives a
+snapshot it cannot decode keeps its previous learned resolvers, logs the
+cause at WARN, counts it in
+<code>ze_dns_source_snapshots_rejected_total{consumer}</code>, and applies the next
+snapshot, including one delivered in the same batch. A plugin that answers
+clients (the LAN resolver, the DHCP server) holds each answer until it applied
+the replay, for 2 seconds at most (<code>ExpectReplay</code>, <code>Replayed</code>,
+<code>AwaitReplay</code>), so none is built from the empty record set it starts with.</p>
+<!-- source: internal/core/dnssource/follow.go -- Follower, Accept, AcceptSnapshot, RejectedCounter, ExpectReplay, Replayed, AwaitReplay -->
+<!-- source: internal/plugins/dnsresolver/register.go -- learnedSnapshotHandler -->
+<!-- source: internal/plugins/dhcpserver/register.go -- learnedSnapshotHandler -->
+<!-- source: internal/core/dnssource/register.go -- SnapshotEvent, SnapshotRequest -->
+<p>Each consumer also publishes what its lists chose, so <code>show system dns</code> and
+<code>show doctor</code> (the daemon form of <code>ze doctor</code>) can read every consumer from
+the daemon. A consumer emits
+<code>(system-dns, selection)</code> carrying a <code>dnssource.Publication</code>: its plugin
+name and one <code>ConsumerSelection</code> per list (the config path, the instance it
+belongs to, such as the subnet, the unit or the pool, the sources and mode,
+<code>default</code> while the built-in default applies, the classes used, the servers,
+<code>self</code>, the servers the <code>self</code> class contributed, and for the LAN resolver
+<code>serves</code>, the listener addresses whose UDP socket is bound now: a configured
+listener that is not bound is not listed, so <code>ze doctor</code> warns about a <code>self</code>
+address nothing answers on). It publishes its
+whole set after it starts and whenever a selection changes, because the
+registry replaces the consumer's previous set with each publication: a list
+the operator removed leaves by being absent. The registry keys the sets by
+the consumer's name and names no consumer itself. The router's own
+selection stays in the snapshot.</p>
+<table>
+<thead>
+<tr>
+<th>Consumer</th>
+<th>Instance</th>
+<th>Published when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dns-resolver</code></td>
+<td>none (one forward list)</td>
+<td>a policy build, after start, and each listener bind or unbind; a disabled resolver publishes an empty set</td>
+</tr>
+<tr>
+<td><code>dhcpserver</code></td>
+<td>the subnet prefix</td>
+<td>each config install and each fresh snapshot; <code>self</code> is the listened device's address inside the subnet</td>
+</tr>
+<tr>
+<td><code>interface</code></td>
+<td><code>&lt;interface&gt; unit &lt;unit&gt;</code></td>
+<td>each RA reconcile; the servers are the ones the RDNSS option carries</td>
+</tr>
+<tr>
+<td><code>l2tp-pool</code></td>
+<td>none for the default pool, the name for a named pool</td>
+<td>joining the bus, each pool install and each fresh snapshot</td>
+</tr>
+</tbody>
+</table>
+<p>RADIUS names a subscriber's servers when the session asks, so the pool's
+published selection is what a session whose RADIUS reply carries no MS DNS
+server is offered: the <code>radius</code> class contributes nothing to it.</p>
+<!-- source: internal/core/dnssource/record.go -- ConsumerSelection, NewConsumerSelection, Publication -->
+<!-- source: internal/plugins/dhcpserver/publish.go -- dhcpPublisher -->
+<!-- source: internal/component/iface/ra_dns_source.go -- publishRASelections -->
+<!-- source: internal/component/l2tp/plugins/pool/publish.go -- publishPools -->
+<!-- source: internal/component/config/system/resolv.go -- PublishOn, SetPublication, Consumers -->
+<p><code>show system dns</code> answers <code>records</code> (every learned record) and <code>consumers</code>:
+the router first, under the consumer name <code>system</code>, then every consumer that
+has published, sorted by name. A consumer that has not published yet is
+absent: its plugin is not running or has not received its first snapshot.
+A plugin the engine removes while the daemon runs sends a withdrawal
+(<code>dnssource.NewWithdrawal</code>) from its <code>bye</code> handler, and the registry then
+forgets it, so its last selection is not reported after it stopped.</p>
+<!-- source: internal/component/config/system/resolv.go -- SetPublication -->
+<!-- source: internal/core/dnssource/record.go -- NewWithdrawal -->
+<!-- source: internal/plugins/system-dns-cmd/cmd/show_dns.go -- showSystemDNS, newSystemDNSAnswer -->
+<p>The registry exports <code>ze_dns_source_records{origin}</code>, the learned records
+each origin holds (zero once its leases are withdrawn), and
+<code>ze_dns_source_selection_changes_total{consumer}</code>, one per change of a
+consumer's published selection after its first, the router's under
+<code>system</code>. A repeated publication of the same answer is not a change.</p>
+<!-- source: internal/component/config/system/resolv_metrics.go -- SetMetrics, observe -->
+<p><code>show doctor</code> warns, for the router and every published list, when a list
+that names <code>received</code> selected no server (<code>doctor-dns-source-empty</code>), when a
+<code>received-interface</code> entry names an interface that holds no learned record
+(<code>doctor-dns-source-interface-silent</code>), and when a <code>self</code> server is an
+address no <code>service dns-resolver</code> listener answers on
+(<code>doctor-dns-source-self-unserved</code>). Each message names the list's path and
+instance. The local <code>ze doctor</code> does not run these checks: the registry they
+read is filled only in the daemon.</p>
+<!-- source: internal/component/config/system/doctor_dns_source.go -- dnsSourceFindings -->
+<table>
+<thead>
+<tr>
+<th>Origin</th>
+<th>Rank</th>
+<th>Learned from</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dhcpv4</code></td>
+<td>100</td>
+<td>DHCPv4 option 6</td>
+</tr>
+<tr>
+<td><code>dhcpv6</code></td>
+<td>200</td>
+<td>DHCPv6 DNS Recursive Name Server option</td>
+</tr>
+<tr>
+<td><code>ppp</code></td>
+<td>300</td>
+<td>IPCP on a PPPoE client session (RFC 1877)</td>
+</tr>
+<tr>
+<td><code>ra</code></td>
+<td>400</td>
+<td>Router Advertisement RDNSS (RFC 8106)</td>
+</tr>
+<tr>
+<td><code>host</code></td>
+<td>500</td>
+<td>the host's, registered as a fallback. <span class="ev-src"><span class="ev-ref"><code>/etc/resolv.conf</code></span></span></td>
+</tr>
+</tbody>
+</table>
+<p>A lower rank lists first. A fallback origin's records are listed only while
+no other record lists an address.</p>
+<p>Each learned record holds its origin and rank, the interface and unit that
+learned it (both empty for the host's file), the addresses in the order the
+source sent them, when it was received and when it expires. A record with no
+expiry is valid until its source withdraws it. The record also reserves
+<code>priority</code>, <code>name</code>, <code>transport</code>, <code>port</code> and <code>path</code> for RFC 9463 encrypted
+resolver discovery (DNR), which Ze does not implement yet. A record that
+names a <code>transport</code> is not plain DNS on port 53, so <code>received</code> skips it. The
+JSON form of a record is in <code>docs/architecture/api/process-protocol.md</code>,
+"The <code>system-dns</code> namespace".</p>
+<!-- source: internal/component/config/yang/modules/ze-types.yang -- dns-source-class, dns-source -->
+<!-- source: internal/core/dnssource/select.go -- Class, ParseClass, ParseMode, NewList, NewWrittenList, Refusal, EmptyListError, RepeatedSourceError -->
+<!-- source: internal/core/dnssource/written.go -- ParseContainer -->
+<!-- source: internal/core/dnssource/record.go -- Record, CompareRecords, liveAddresses -->
+<!-- source: internal/component/config/system/dns_source.go -- readWrittenDNSSource, unknownDNSSourceClassError -->
+<!-- source: internal/plugins/iface/dhcp/register.go -- dhcpv4ResolverOrigin, dhcpv6ResolverOrigin -->
+<!-- source: internal/component/iface/register.go -- pppoeClientResolverOrigin, raResolverOrigin -->
+<!-- source: internal/component/config/system/register_dns.go -- hostResolverOrigin -->
 <h2 id="cache-management">Cache management</h2>
 <p>The DNS cache can be inspected and managed at runtime via CLI commands.</p>
 <p><strong>Inspection:</strong></p>
@@ -245,12 +653,15 @@ clear dns cache record example.com type AAAA    # Delete a single name+type entr
 They work on any command output, including <code>show traceroute</code>, <code>show bgp</code>, etc.
 In <code>monitor traceroute | log</code> mode, they enrich the hop legend.</p>
 <h2 id="reload-behavior">Reload behavior</h2>
-<p>DNS resolver settings are applied at startup. Changing <code>name-server</code> or <code>dns</code>
-settings via config reload requires a process restart to reach the internal
-resolver. resolv.conf follows a reload: a reload that changes or removes
-<code>name-server</code> rewrites it, and removing every static server hands it back to
-the DHCP leases.</p>
-<!-- source: cmd/ze/hub/main_system.go -- applyResolvConf -->
+<p>A reload that changes <code>name-server</code> or <code>dns-source</code> reaches the internal
+resolver and resolv.conf at once: the reload re-runs the selection with the
+new list, and under the default list removing every static server hands both
+back to the learned records. A reload whose <code>dns-source</code> Ze refuses is
+refused whole, and the running list stays. The <code>dns</code> settings
+(<code>timeout</code>, <code>cache-size</code>, <code>cache-ttl</code>) are applied at startup, and a change to
+them needs a process restart.</p>
+<!-- source: cmd/ze/hub/main_system.go -- applyResolvConf, newResolvers -->
+<!-- source: internal/component/config/system/system.go -- ExtractSystemConfig, SystemConfig.DNSSource -->
 </div>
 </div>
             </section>
@@ -288,7 +699,7 @@ the DHCP leases.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 13:31 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

@@ -102,9 +102,11 @@ directives, fuzz target list), see <code>docs/functional-tests.md</code>.</p>
 <p><code>./le setup check</code> reports every tool setup installs, and the scoped package
 test proves the checkout builds and its tests run
 (<code>../guide/developer-setup.md</code>, "After Setup").</p>
-<p><code>./le verify current</code> is the full verification, Thomas's release check. It runs
-only when stdin and stdout are both terminals, so Thomas starts it by hand at
-one; an agent is refused, and its evidence is <code>./le verify changed</code>.</p>
+<p><code>./le verify current</code> is the full verification, Thomas's release check, which
+GitHub CI also runs on a pushed commit. It runs only when stdin and stdout are
+both terminals, so Thomas starts it by hand at one. No agent runs any
+<code>./le verify</code> command, <code>./le verify changed</code> included: an agent's evidence is
+the scoped test runs of what its change reaches, run in the main checkout.</p>
 <p><code>./le</code> is the compiled repository development entry point. Each area exposes
 its own verbs, for example <code>./le test functional plugin</code>,
 <code>./le test qemu installer-iso</code>, and <code>./le test unit bgp</code>. Legacy command names
@@ -144,8 +146,8 @@ changes tracked state.</p>
 </tr>
 <tr>
 <td>4</td>
-<td><code>./le verify changed</code></td>
-<td>Judging a commit's change set: the evidence a push owes</td>
+<td>GitHub CI on the pushed commit</td>
+<td>Judging the pushed change set: no agent runs it locally</td>
 <td>minutes</td>
 </tr>
 <tr>
@@ -158,15 +160,16 @@ changes tracked state.</p>
 </table>
 <p>Steps 1 to 3 are development: run the ones that cover what you changed, and
 <code>./le repo changed scope print both</code> names them
-(<code>running-commands.md</code>, "The changed-set selector"). Step 4 runs once the work
-is committed: it judges the change set from the merge base with the upstream to
-the commit, in a throwaway worktree, and its green scoped record is what
-<code>./le commit push</code> asks for. A red it finds gets a fix commit; it does not hold
-the commit it judged.</p>
+(<code>running-commands.md</code>, "The changed-set selector"). Run them in the main
+checkout, never in a worktree or a copy of the tree. Step 4 is CI's: it runs
+once the work is pushed, and <code>./le commit push</code> asks for no local verify
+record. A red it finds gets a fix commit; it does not hold the commit it
+judged. <code>./le verify changed</code> still exists for Thomas, and no agent runs it.</p>
 <p>Step 5 is the full verification, and it is not an agent's to run. The dispatcher refuses <code>./le verify current</code>, <code>./le verify current fast</code> and every form of <code>./le verify worktree</code>
 unless stdin and stdout are both terminals, because a full run
 loads the whole shared machine and only Thomas knows when that is safe. The
-refusal prints the exact command line to hand to Thomas, and <code>./le verify changed</code> for the agent's own evidence. No keyword or environment variable
+refusal prints the exact command line for Thomas, and the scoped tests that
+are the agent's own evidence. No keyword or environment variable
 skips it. When Thomas starts <code>./le verify current</code>, it runs every stage in a fresh detached worktree
 at HEAD, through the same lifecycle as <code>./le verify worktree</code>, so an edit made
 while it runs cannot move the tree it judges; <code>./le verify current fast</code> runs
@@ -235,7 +238,6 @@ right output, does the state machine transition correctly, does the encoder
 round-trip.</p>
 <pre><code class="language-sh">./le job run label bgp-message command go test ./internal/component/bgp/message/...
 ./le job run label parse-origin command go test ./internal/... -run TestParseOrigin
-./le verify changed
 </code></pre>
 <p>Dynamic-group coverage exercises each plugin's real configuration boundary:
 capability declarations, policy lookups, validation, and command output. Opposite
@@ -583,7 +585,8 @@ rule is <code>ai/rules/testing.md</code>, and the design is
 <p>When Thomas starts <code>./le verify current</code>, it runs the full population in a fresh detached worktree at
 HEAD; <code>./le verify current fast</code> runs the changed-files population in place.
 Both are release checks that start only at a terminal (see the ladder above).
-<code>./le verify changed</code> runs the changed population in a throwaway worktree.
+<code>./le verify changed</code> runs the changed population in a throwaway worktree; Thomas
+may start it, and no agent does.
 <code>./le verify list full</code> and <code>./le verify list fast</code> print each population. The
 unit stages use a two-pass strategy to stay fast:</p>
 <ol>
@@ -707,9 +710,16 @@ share. A file under <code>.claude/</code>, <code>ai/</code>, <code>backups/</cod
 <p>That list is declared once, as <code>lintIgnores</code> beside <code>job.LintLabel</code>
 (<code>internal/le/job/treehash.go</code>), and it EXCLUDES rather than includes. An input
 nobody listed still voids the share, so a missing entry costs a duplicate run
-and never a stale verdict. A tree is on the list because it holds no Go file at
-all, and a <code>//go:embed</code> pattern cannot leave the directory of the package that
-writes it, so nothing under such a tree can reach a Go package.</p>
+and never a stale verdict. Before admission, each build's single
+<code>go list -deps -test</code> query supplies selected JSON metadata for both the authored
+direct lint scope and the ordinary/test dependency compiler population. A real source in an excluded tree,
+an excluded or out-of-checkout symlink target, or a source-resolution error
+refuses admission rather than sharing a verdict that did not measure its inputs.
+Generated test-main source is a separate compiler role: the planner matches its
+<code>main</code> package to the selected tested package by import path and directory, not
+by cache location. It neither joins an absolute generated file beneath that
+directory nor promotes the harness or its dependencies into direct lint scope.
+Authored internal and external test files remain direct lint inputs.</p>
 <p>The findings a shared verdict names are read back out of the replay, so an
 attached red still says which files it was about. A red that names no file is
 charged to every commit in the checkout.</p>
@@ -982,10 +992,10 @@ negotiated link-local address pair.</p>
 </tr>
 <tr>
 <td>Judge my committed change set before a push</td>
-<td><code>./le verify changed</code></td>
+<td>the scoped package tests and functional suites <code>./le repo changed scope print both</code> names; GitHub CI verifies the pushed commit, and no agent runs <code>./le verify</code></td>
 </tr>
 <tr>
-<td>Have the release check run: Thomas runs it at his terminal, and an agent only gives him the command</td>
+<td>Have the release check run: GitHub CI runs it on a pushed commit, and Thomas runs it at his terminal</td>
 <td><code>./le verify current</code></td>
 </tr>
 <tr>
@@ -1043,7 +1053,7 @@ negotiated link-local address pair.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 09:46 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

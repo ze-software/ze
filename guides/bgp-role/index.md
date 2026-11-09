@@ -60,7 +60,8 @@ Mismatched roles cause a Role Mismatch NOTIFICATION (error 2, subcode 11).
 ## OTC Filtering
 
 The OTC (Only To Customer) attribute (type 35) prevents route leaks:
-<!-- source: internal/component/bgp/plugins/role/register.go -- OTCIngressFilter, OTCEgressFilter, otcAttrCode -->
+<!-- source: internal/component/bgp/plugins/role/otc_filter.go -- evaluateOTCIngress, evaluateOTCEgress, otcInsertions -->
+<!-- source: internal/component/bgp/plugins/role/register.go -- otcAttrCode -->
 
 ### What role the procedures use
 
@@ -72,6 +73,12 @@ The Section 5 procedures act on what the PEER is to ze, not on what ze is to the
 | The complement of the local `import` role | When the peer sent no Role capability |
 
 RFC 9234 Section 4.2 settles the second row: "The locally configured BGP Role is used for the procedures described in Section 5." Section 8 names the non-compliant remote as the case the local AS must still stamp for. The complement is the pair table read the other way: `customer` means the peer IS a Provider, `provider` means the peer IS a Customer, `rs-client` means the peer IS an RS, `rs` means the peer IS an RS-Client, and `peer` means the peer IS a Peer.
+
+These RFC procedures require a locally configured `import` role on the
+session. A destination that advertises a Role but has no local role config
+does not acquire RFC stamping, suppression or role-pair validation from that
+advertisement alone. Ze still observes its advertised role for the source's
+operator-selected export set.
 
 The complement feeds the RFC MUST gates only. The `export` set below still reads the capability, because `unknown` there is an operator-selected target and not a missing answer.
 <!-- source: internal/component/bgp/plugins/role/otc.go -- resolvePeerRole, peerRoleComplement -->
@@ -145,7 +152,7 @@ Resolution is by address first and by group second, so a member that states its 
 
 A learned role survives a configuration reload while the configuration still names the peer, or names the group a dynamic member belongs to. An established session sends no second OPEN, so a dropped learned role could not be written back.
 
-A peer made at runtime with `create bgp peer <addr>` is named by no configuration, and its learned role survives every reload as well. Deleting that peer removes the role before `delete bgp peer` returns, and ze logs `learned role dropped: peer removed` with the role it held, so a peer later created at the same address starts with none. A rolled-back commit that had added a peer removes that peer's role the same way. One case keeps a role: an OPEN that ze was still validating when its peer was removed can store the role after the removal, and ze keeps it until a new OPEN for that name replaces it or the daemon restarts.
+Ze observes OPENs from configured roleless destinations and members of configured dynamic groups even when no source role is active. Their advertised roles serve export-set matching only. Each new OPEN replaces the prior observation, including recording an OPEN with no Role as `unknown`. Config commits prune removed peers and groups; the registered OPEN observer receives removal events independently of filter membership. Events free a peer's observation in generation order, so an old queued removal cannot delete a newer OPEN. Activating a source's export policy therefore uses the destination's current role without reconnecting it. OPENs for unconfigured roleless identities, including runtime-created peers outside this census, are not recorded.
 
 ## Config That Cannot Be Reached
 
@@ -169,79 +176,93 @@ When `strict true` is set, ze requires the peer to advertise the Role capability
 
 When strict mode is off (default), ze proceeds even if the peer does not advertise Role. OTC filtering is applied based on the locally configured role.
 
-## A Declared Role Carries a Config Obligation
+## The OTC Procedures a Role Inserts
 
-Declaring a role states a business relationship, and ze holds the config to it.
-A peer whose role implies the transit-leak check must NAME, in each chain that
-role binds, a filter of a type that can refuse a path running through a transit
-provider (RFC 7454 Section 9). `reject-asn` is such a type. A config that omits
-it is REFUSED at load, at `ze config validate`, at `ze doctor` and at the config
-editor's `commit`, naming the peer, the role and the chain.
+A peer whose config sets `role import` carries `bgp-role:otc-ingress` at the
+head of its import list, with nothing for you to write. While any peer or
+dynamic group declares a role, every peer's export list carries
+`bgp-role:otc-egress`. Egress must reach destinations with no role too: the
+source's export set still controls whether they receive its routes. The
+plugin declares this through the generic `any-peer` insertion scope.
 
-| Local role | Remote is | Import chain | Export chain |
-|------------|-----------|--------------|--------------|
-| `provider` | our customer | REQUIRED | not required |
-| `customer` | our transit provider | not required | REQUIRED |
-| `peer` | a settlement-free peer | REQUIRED | REQUIRED |
-| `rs` | a client of the route server we run | REQUIRED | REQUIRED |
-| `rs-client` | the route server we are a client of | REQUIRED | REQUIRED |
+The members run the RFC 9234 Section 5 procedures described above, the same
+way whether `bgp-role` runs inside Ze or as its own process. On import a
+leaked route is withdrawn, as is an UPDATE whose OTC is malformed, and a
+route that must carry OTC gets it; on export a route that must not reach
+the peer is not sent, and one that must carry OTC gets the local AS.
 
-RFC 9234 names the LOCAL speaker's position, so `customer` means the remote is
-our upstream: they legitimately send us the whole table, and the obligation is
-on what we send THEM.
+Both members are required. RFC 9234 Section 5 says "The operator MUST NOT have
+the ability to modify the procedures defined in this section." So a chain that
+names either member, plain or `inactive:`, is refused at load with that
+sentence, naming the peer, the list and the member. A peer with no `role
+import` has no ingress member, but its required egress member remains while
+any source declares a role. With no roles anywhere, neither member is inserted.
+<!-- source: internal/component/bgp/plugins/role/otc_filter.go -- otcFilterDecls, otcInsertions, evaluateOTCIngress, evaluateOTCEgress -->
+<!-- source: internal/component/bgp/config/filter_insertion.go -- requiredInsertionRefusal -->
+
+## The Upstream Check a Role Inserts
+
+A declared role puts one more member in the peer's filter list, with nothing
+for you to write: `bgp-role:upstream-asn`. It rejects a route whose AS path
+carries the ASN of one of your transit providers, at any position, an AS_SET
+member included. RFC 7454 Section 9 recommends it twice: a customer's routes
+"must not be accepted" when their paths hold "upstream transit providers", and
+"Network administrators SHOULD NOT advertise prefixes with upstream AS numbers
+in the AS path to their peering AS".
+
+| Your `role import` | The session is to | The check runs on |
+|--------------------|-------------------|-------------------|
+| `provider` | a customer | import |
+| `peer` | a peer | import and export |
+| `rs` | an RS-client | import |
+| `rs-client` | a route server | export |
+| `customer` | a provider | nowhere: every route a provider sends carries its own ASN |
+
+The providers are derived from the config you already wrote: the remote ASN
+of every peer whose `role import` is `customer` (RFC 9234 Section 3.1: "the
+local AS is a transit customer of the remote AS"). A provider this router does
+not peer with, one reached through another router of your network, goes in a
+`policy asn-set`, named by `role transit-asns` on any peer or group. The check
+compares the union of the two, and never the session's own remote ASN.
+
+Provider discovery uses the same role inheritance as the session: a peer
+declaring its own `role import` overrides its group; a peer with only
+`transit-asns` or the default `strict false` still inherits the group's role.
+Transit sets named on the peer and group both contribute to the union.
 
 ```
 policy {
-    reject-asn NO-TRANSIT {
-        indirect [ 174 701 1299 3356 ]
+    asn-set far-transit {
+        asn [ 64700 64701 ];
     }
 }
-
 bgp {
-    router-id 192.0.2.1
-    session {
-        asn {
-            local 65000
-        }
-    }
-    peer upstream {
+    group customers {
         role {
-            import customer
-        }
-        filter {
-            export {
-                filters [ NO-TRANSIT ];
-                final accept;
-            }
+            import provider;
+            transit-asns far-transit;
         }
     }
 }
 ```
 
-To run a session without the check, name the filter and deactivate it. The chain
-records the decision, and the filter never executes:
-
-```
-filter {
-    export {
-        filters [ NO-TRANSIT ];
-        inactive: filters NO-TRANSIT;
-        final accept;
-    }
-}
-```
-<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
-
-The obligation is independent of OTC. OTC works only where the peer implements
-RFC 9234; a reject-asn list works against any peer and needs nothing from it.
-<!-- source: internal/component/bgp/config/peers.go -- validateLeakFilterObligations, leakFilterByRole -->
+With no provider peer and no `transit-asns`, the set is empty and the member
+rejects nothing: a network with no transit provider has no upstream ASN that
+can leak. Adding or removing a provider peer, or editing the asn-set, takes
+effect on the next route with no session reset. The member is not required,
+because RFC 7454 is a Best Current Practice: name it as
+`inactive:bgp-role:upstream-asn` in a chain to run that session without it.
+<!-- source: internal/component/bgp/plugins/role/upstream.go -- upstreamInsertions, deriveUpstreamSet, evaluateUpstream -->
+<!-- source: internal/component/bgp/plugins/role/yang/ze-role.yang -- transit-asns, asn-set -->
 
 ## Without Role
 
-When role is not configured for a peer, no OTC processing occurs. Routes are forwarded without role-based filtering, and no transit-leak filter is required of that peer: no relationship is declared, so none is implied.
+A peer with no role has no OTC ingress procedure and no inserted upstream check: no relationship is declared for that session. Its export list still runs the OTC egress procedure while any peer declares a role, so a source's export set cannot be bypassed by omitting the destination's role. With no roles anywhere, no OTC members are inserted.
 
-ze says so rather than passing in silence. Config load writes ONE warning naming how many peers and dynamic groups declare no role and the first few by name, and `ze doctor` reports every one of them under `doctor-bgp-peer-no-role`.
+ze says so rather than passing in silence. The role plugin writes ONE warning naming how many peers and dynamic groups declare no role and the first few by name, each time it installs a config (at start and at every reload) and when `ze config validate` checks one. `ze doctor` reports every one of them under `doctor-bgp-peer-no-role`. All three read the same set, so they always name the same peers.
 
 A dynamic group is named with the peers. Its members' AS arrives in the OPEN (RFC 4271 Section 4.2), so ze cannot know a listen range is eBGP, and an IXP route-server range that declares no role is exactly what the report is for. An iBGP peer is left out: a role describes an eBGP relationship, so a route reflector's sessions owe none.
 <!-- source: internal/component/bgp/plugins/role/ -- role plugin implementation -->
-<!-- source: internal/component/bgp/config/peers.go -- rolelessPeers, warnPeersWithoutRole -->
+<!-- source: internal/component/bgp/plugins/role/roleless.go -- rolelessPeers, warnPeersWithoutRole -->
+<!-- source: internal/component/bgp/plugins/role/config_tx.go -- installRoleConfig, verifyRoleConfig -->
+<!-- source: internal/component/bgp/plugins/role/doctor.go -- checkRolelessPeers -->

@@ -1,0 +1,31 @@
+{
+  "stem": "rfc2548",
+  "title": "Microsoft Vendor-specific RADIUS Attributes",
+  "walked": true,
+  "requirements": 65,
+  "implementer": "ze",
+  "implemented": false,
+  "must": {
+    "total": 31,
+    "kept": 31,
+    "ze-proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "ze-gap": 31,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 34,
+    "proven": 2,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "not-ever": 0,
+    "not-yet": 0,
+    "not-decided": 32,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {},
+  "unmet": []
+}

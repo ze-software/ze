@@ -36,7 +36,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 24 | of 35 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 12 | of 35 gated MUSTs judged | 1 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id |
+| Audit verdicts | 12 | of 35 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 9 counts marked as a part above are the whole of the 35 gated MUSTs: they add up to 35. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
@@ -431,7 +431,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Upon reception, the value of the Compatibility field MUST be ignored. (§2.4)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers, internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go::TestRPCDecodeNLRIRealSDKConsumers#2 moved. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc8277): "Upon reception, the value of the Compatibility field MUST be ignored." a0589dd1d1 changed only the stub bridge.SetUpdateRouteSel callback's signature in TestVPNReflectorPeerDownEmitsOnlyRetainedNativeRoutes to accept the new trailing uint64 (source policy epoch), which the stub ignores. No input or assertion changed. Verdict unchanged: enforced. Earlier judgements are in this file's git history.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc8277): "Upon reception, the value of the Compatibility field MUST be ignored." a0589dd1d1 changed only the stub bridge.SetUpdateRouteSel callback's signature in TestVPNReflectorPeerDownEmitsOnlyRetainedNativeRoutes to accept the new trailing uint64 (source policy epoch), which the stub ignores. No input or assertion changed. Verdict unchanged: enforced. Earlier judgements are in this file's git history.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

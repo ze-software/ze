@@ -45,7 +45,7 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="md-content reveal cat-automate">
 <!-- source: internal/component/mcp/tools.go -- MCP tool dispatch primitives -->
-<!-- source: cmd/ze/help_ai.go -- ze help ai output -->
+<!-- source: internal/plugins/help/help_ai.go -- ze help ai output -->
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Guide</span>
     <h1 id="mcp-integration">MCP Integration</h1>
@@ -528,6 +528,16 @@ becomes a tool with an <code>action</code> enum listing its subcommands. When a 
 YANG command is registered, it appears as an MCP tool automatically without
 code changes.</p>
 <p>Run <code>tools/list</code> against a live daemon to see the current tool inventory. <!-- doc-links: ignore (JSON-RPC method name, not a path) --></p>
+<p>The commands the local <code>ze</code> command answers on the router are tools too:
+<code>show env list</code>, <code>show config validation &lt;file&gt;</code>, <code>request support archive</code>,
+and <code>show doctor</code>, the daemon form of <code>ze doctor</code>, among them. The daemon runs
+each through the same handler as <code>ze &lt;verb&gt;</code>, so the tool answers what the
+command prints on the router. A file argument is read only from the
+configuration directories, and stdin cannot be named
+(<a href="../../../architecture/api/commands/">commands</a>, "Served by the daemon too").</p>
+<!-- source: internal/component/plugin/server/local_bridge.go -- loadLocalData -->
+<!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta -->
+<!-- source: internal/component/command/caller_path.go -- CallerPath -->
 <p>Two handcrafted tools (<code>ze_execute</code>, <code>ze_reference</code>) provide escape-hatch and
 discovery capabilities alongside the generated tools.</p>
 <!-- source: internal/component/mcp/tools.go -- handcraftedTools, toolHandlers -->
@@ -875,7 +885,7 @@ keeps naming the taskId that <code>task-call</code> produced.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

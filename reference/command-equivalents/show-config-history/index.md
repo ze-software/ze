@@ -6,7 +6,7 @@ List available configuration rollback points\.
 
 - Registry path: `show config history`
 - Usage: `show config history`
-- Mode: Read-only
+- Mode: read-only, offline
 - Wire method: `ze-config-cli:show-config-history`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default

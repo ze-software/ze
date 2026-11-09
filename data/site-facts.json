@@ -25,8 +25,8 @@
     "tests": "internal/le/test/health.Render, over the tree this build read"
   },
   "blog_articles": 6,
-  "changes": 45,
-  "cli_commands": 491,
+  "changes": 46,
+  "cli_commands": 499,
   "cli_group_commands": {
     "clear-bgp": 4,
     "clear-dns": 4,
@@ -49,35 +49,36 @@
     "show-bfd": 4,
     "show-bgp": 37,
     "show-bmp": 4,
+    "show-command": 5,
     "show-config": 9,
     "show-ddos": 4,
     "show-dns": 5,
     "show-event": 4,
     "show-firewall": 5,
     "show-host": 10,
-    "show-interface": 8,
+    "show-interface": 10,
     "show-isis": 8,
     "show-l2tp": 18,
     "show-metrics": 4,
     "show-ospf": 49,
-    "show-other": 74,
+    "show-other": 71,
     "show-pki": 6,
     "show-policy": 4,
     "show-pppoe": 5,
     "show-rsvp-te": 5,
     "show-schema": 5,
     "show-sysctl": 5,
-    "show-system": 15,
+    "show-system": 16,
     "show-traffic": 4,
     "show-vpn": 6,
     "show-vpp": 4,
     "show-vrrp": 4,
     "system": 8,
-    "update": 16
+    "update": 19
   },
-  "cli_groups": 46,
+  "cli_groups": 47,
   "config_sections": 38,
-  "dependencies": 54,
+  "dependencies": 55,
   "equivalents": {
     "groups": {
       "clear": {
@@ -143,7 +144,7 @@
       "show": {
         "equivalent": 32,
         "reviewed": 76,
-        "total": 306
+        "total": 311
       },
       "system": {
         "equivalent": 0,
@@ -153,7 +154,7 @@
       "update": {
         "equivalent": 0,
         "reviewed": 0,
-        "total": 16
+        "total": 19
       }
     },
     "mapping_entries": 48,
@@ -192,7 +193,7 @@
     },
     "core_experimental": 52
   },
-  "generated_at": "2026-11-01",
+  "generated_at": "2026-11-09",
   "github_stars": 59,
   "health": {
     "adoption": {
@@ -204,10 +205,10 @@
           "with_rfc_tag": "0"
         },
         "2026": {
-          "packages": "704",
+          "packages": "720",
           "with_ci": "37",
-          "with_fuzz": "37",
-          "with_rfc_tag": "138"
+          "with_fuzz": "39",
+          "with_rfc_tag": "140"
         }
       },
       "value": {
@@ -216,13 +217,13 @@
     },
     "assert-nothing": {
       "inert": {
-        "denominator": "40573",
-        "numerator": "112",
+        "denominator": "42810",
+        "numerator": "118",
         "percent": "0.3"
       },
       "value": {
-        "1": "112",
-        "2": "40573",
+        "1": "118",
+        "2": "42810",
         "3": "111"
       }
     },
@@ -237,14 +238,14 @@
         "1": "6"
       },
       "detail": {
-        "1": "7175",
-        "2": "95",
-        "3": "156",
-        "4": "2681",
+        "1": "8174",
+        "2": "97",
+        "3": "155",
+        "4": "2820",
         "5": "201"
       },
       "value": {
-        "1": "40612"
+        "1": "42852"
       }
     },
     "known-failures": {
@@ -257,13 +258,13 @@
     },
     "negative-tests": {
       "overall": {
-        "denominator": "7175",
-        "numerator": "2676",
-        "percent": "37.3"
+        "denominator": "8174",
+        "numerator": "3069",
+        "percent": "37.5"
       },
       "value": {
-        "1": "2676",
-        "2": "7175"
+        "1": "3069",
+        "2": "8174"
       },
       "worst": {
         "1": {
@@ -272,114 +273,114 @@
           "percent": "0.0"
         },
         "10": {
-          "files": "36",
-          "negative": "4",
-          "percent": "11.1"
+          "files": "21",
+          "negative": "2",
+          "percent": "9.5"
         },
         "2": {
-          "files": "10",
-          "negative": "0",
-          "percent": "0.0"
-        },
-        "3": {
           "files": "5",
           "negative": "0",
           "percent": "0.0"
         },
+        "3": {
+          "files": "9",
+          "negative": "0",
+          "percent": "0.0"
+        },
         "4": {
+          "files": "27",
+          "negative": "1",
+          "percent": "3.7"
+        },
+        "5": {
           "files": "17",
           "negative": "1",
           "percent": "5.9"
         },
-        "5": {
+        "6": {
+          "files": "14",
+          "negative": "1",
+          "percent": "7.1"
+        },
+        "7": {
+          "files": "14",
+          "negative": "1",
+          "percent": "7.1"
+        },
+        "8": {
           "files": "27",
           "negative": "2",
           "percent": "7.4"
         },
-        "6": {
+        "9": {
           "files": "11",
           "negative": "1",
           "percent": "9.1"
-        },
-        "7": {
-          "files": "20",
-          "negative": "2",
-          "percent": "10.0"
-        },
-        "8": {
-          "files": "29",
-          "negative": "3",
-          "percent": "10.3"
-        },
-        "9": {
-          "files": "9",
-          "negative": "1",
-          "percent": "11.1"
         }
       }
     },
     "rfc-proof-density": {
       "detail": {
-        "1": "44.4",
+        "1": "45.3",
         "10": "0",
-        "11": "195",
-        "12": "4787",
-        "13": "203",
-        "14": "2331",
+        "11": "196",
+        "12": "4802",
+        "13": "204",
+        "14": "2321",
         "15": "46",
-        "16": "1540",
-        "17": "19",
-        "18": "487",
+        "16": "1511",
+        "17": "21",
+        "18": "503",
         "19": "239",
-        "2": "4737",
+        "2": "4752",
         "20": "0",
         "21": "0",
         "22": "0",
         "23": "14",
         "3": "0",
         "4": "239",
-        "5": "2396",
+        "5": "2360",
         "6": "18",
         "7": "2026",
         "8": "10",
         "9": "31"
       },
       "proof_density": {
-        "denominator": "4737",
-        "numerator": "2102",
-        "percent": "44.4"
+        "denominator": "4752",
+        "numerator": "2153",
+        "percent": "45.3"
       },
       "value": {
-        "1": "2102",
-        "2": "4737"
+        "1": "2153",
+        "2": "4752"
       },
       "worst": {
         "1": {
-          "gated": "41"
-        },
-        "10": {
-          "gated": "13"
-        },
-        "2": {
           "gated": "40"
         },
-        "3": {
+        "10": {
+          "gated": "11"
+        },
+        "2": {
           "gated": "36"
         },
-        "4": {
+        "3": {
           "gated": "34"
+        },
+        "4": {
+          "gated": "18"
         },
         "5": {
           "gated": "18"
         },
         "6": {
-          "gated": "18"
-        },
-        "7": {
           "gated": "17"
         },
-        "8": {
+        "7": {
           "gated": "16"
+        },
+        "8": {
+          "gated": "13"
         },
         "9": {
           "gated": "13"
@@ -388,13 +389,13 @@
     },
     "rfc-unproven": {
       "unproven": {
-        "denominator": "198",
-        "numerator": "30",
-        "percent": "15.2"
+        "denominator": "199",
+        "numerator": "28",
+        "percent": "14.1"
       },
       "value": {
-        "1": "30",
-        "2": "198"
+        "1": "28",
+        "2": "199"
       }
     },
     "tag-orphan": {
@@ -423,7 +424,7 @@
     "targets": 13
   },
   "plugin_registrations": 96,
-  "published_at": "2026-11-01T14:07:42Z",
+  "published_at": "2026-11-09T21:58:41Z",
   "release": null,
   "repo": {
     "design_comments": 7751,
@@ -434,36 +435,36 @@
     "go_packages_display": "950+"
   },
   "rfc": {
-    "enrolled": 203,
-    "enrolled_display": "203",
-    "gated_must": 4787,
-    "gated_must_display": "4,787",
-    "implemented": 195,
-    "implemented_display": "195",
-    "inspected": 203,
-    "inspected_display": "203",
-    "must": 5336,
-    "must_display": "5,336",
-    "must_kept": 4737,
-    "must_kept_display": "4,737",
+    "enrolled": 204,
+    "enrolled_display": "204",
+    "gated_must": 4802,
+    "gated_must_display": "4,802",
+    "implemented": 196,
+    "implemented_display": "196",
+    "inspected": 204,
+    "inspected_display": "204",
+    "must": 5382,
+    "must_display": "5,382",
+    "must_kept": 4752,
+    "must_kept_display": "4,752",
     "not_walked": 0,
     "not_walked_display": "0",
-    "proven": 2102,
-    "proven_display": "2,102",
-    "proven_percent": "44.4",
-    "requirements": 7738,
-    "requirements_display": "7,738",
-    "summaries": 229,
-    "summaries_display": "229"
+    "proven": 2153,
+    "proven_display": "2,153",
+    "proven_percent": "45.3",
+    "requirements": 7834,
+    "requirements_display": "7,834",
+    "summaries": 231,
+    "summaries_display": "231"
   },
   "tests": {
-    "e2e": 2681,
-    "e2e_display": "2,600+",
+    "e2e": 2820,
+    "e2e_display": "2,800+",
     "editor": 201,
     "editor_display": "200+",
-    "fuzz": 95,
-    "fuzz_display": "95",
-    "unit": 40612,
-    "unit_display": "40,600+"
+    "fuzz": 97,
+    "fuzz_display": "97",
+    "unit": 42852,
+    "unit_display": "42,800+"
   }
 }

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5838 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5838: Support of Address Families in OSPFv3. 16 gated MUST-level requirements, 10 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 5838: Support of Address Families in OSPFv3. 16 gated MUST-level requirements, 9 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5838 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5838: Support of Address Families in OSPFv3. 16 gated MUST-level requirements, 10 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 5838: Support of Address Families in OSPFv3. 16 gated MUST-level requirements, 9 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5838 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5838: Support of Address Families in OSPFv3. 16 gated MUST-level requirements, 10 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 5838: Support of Address Families in OSPFv3. 16 gated MUST-level requirements, 9 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -118,11 +118,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>5</strong><b>of 16 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>6</strong><b>of 16 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1</strong><b>of 16 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 16 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 16 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>14</strong><b>14 of 17 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>14</strong><b>14 of 20 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -137,7 +137,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>10</strong><b>of 16 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>9</strong><b>of 16 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 9 counts marked as a part above are the whole of the 16 gated MUSTs: they add up to 16. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -224,7 +224,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>10</td>
+<td>9</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -236,10 +236,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>17</td>
+<td>20</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>17</td>
+<td>20</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>6</td>
@@ -267,7 +267,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Area:</strong> OSPFv3 multiple address families</p>
 <p><strong>Proof:</strong> 4 of 16 MUST proven</p>
 <p><strong>Evidence:</strong> unit 4</p>
-<p><strong>Unmet:</strong> RFC5838-2.2-1, RFC5838-2.5-1, RFC5838-2.7-1, RFC5838-2.7-11, RFC5838-2.7-2, RFC5838-2.7-3, RFC5838-2.7-4, RFC5838-2.7-8, RFC5838-4-1, RFC5838-5-3</p>
+<p><strong>Unmet:</strong> RFC5838-2.2-1, RFC5838-2.7-1, RFC5838-2.7-11, RFC5838-2.7-2, RFC5838-2.7-3, RFC5838-2.7-4, RFC5838-2.7-8, RFC5838-4-1, RFC5838-5-3</p>
 
 </section>
 <section><h2>Coverage</h2>
@@ -276,11 +276,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>5</strong></td>
+<td><strong>6</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>11</strong></td>
+<td><strong>10</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -307,8 +307,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (5):</strong> <a href="#rfc5838-2.3-1"><code>RFC5838-2.3-1</code></a>, <a href="#rfc5838-2.4-1"><code>RFC5838-2.4-1</code></a>, <a href="#rfc5838-2.6-1"><code>RFC5838-2.6-1</code></a>, <a href="#rfc5838-2.6-2"><code>RFC5838-2.6-2</code></a>, <a href="#rfc5838-2.8-1"><code>RFC5838-2.8-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (11):</strong> <a href="#rfc5838-2.2-1"><code>RFC5838-2.2-1</code></a>, <a href="#rfc5838-2.4-2"><code>RFC5838-2.4-2</code></a>, <a href="#rfc5838-2.5-1"><code>RFC5838-2.5-1</code></a>, <a href="#rfc5838-2.7-1"><code>RFC5838-2.7-1</code></a>, <a href="#rfc5838-2.7-2"><code>RFC5838-2.7-2</code></a>, <a href="#rfc5838-2.7-3"><code>RFC5838-2.7-3</code></a>, <a href="#rfc5838-2.7-4"><code>RFC5838-2.7-4</code></a>, <a href="#rfc5838-2.7-8"><code>RFC5838-2.7-8</code></a>, <a href="#rfc5838-2.7-11"><code>RFC5838-2.7-11</code></a>, <a href="#rfc5838-4-1"><code>RFC5838-4-1</code></a>, <a href="#rfc5838-5-3"><code>RFC5838-5-3</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (6):</strong> <a href="#rfc5838-2.3-1"><code>RFC5838-2.3-1</code></a>, <a href="#rfc5838-2.4-1"><code>RFC5838-2.4-1</code></a>, <a href="#rfc5838-2.5-1"><code>RFC5838-2.5-1</code></a>, <a href="#rfc5838-2.6-1"><code>RFC5838-2.6-1</code></a>, <a href="#rfc5838-2.6-2"><code>RFC5838-2.6-2</code></a>, <a href="#rfc5838-2.8-1"><code>RFC5838-2.8-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (10):</strong> <a href="#rfc5838-2.2-1"><code>RFC5838-2.2-1</code></a>, <a href="#rfc5838-2.4-2"><code>RFC5838-2.4-2</code></a>, <a href="#rfc5838-2.7-1"><code>RFC5838-2.7-1</code></a>, <a href="#rfc5838-2.7-2"><code>RFC5838-2.7-2</code></a>, <a href="#rfc5838-2.7-3"><code>RFC5838-2.7-3</code></a>, <a href="#rfc5838-2.7-4"><code>RFC5838-2.7-4</code></a>, <a href="#rfc5838-2.7-8"><code>RFC5838-2.7-8</code></a>, <a href="#rfc5838-2.7-11"><code>RFC5838-2.7-11</code></a>, <a href="#rfc5838-4-1"><code>RFC5838-4-1</code></a>, <a href="#rfc5838-5-3"><code>RFC5838-5-3</code></a></p>
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
@@ -445,9 +445,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5838-2.5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> v6OriginateLinkLSA at origination_v6_link.go:42-48 always encodes an IPv6 link-local address in the Link-LSA link-local field and returns false without one, so an IPv4-AF Link-LSA never carries the interface IPv4 address in the leading 32 bits</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_ipv4_nexthop_test.go#L34" title="internal/plugins/ospf/rfc5838_ipv4_nexthop_test.go" target="_blank" rel="noopener"><code>TestRFC5838IPv4LinkLSACarriesTheLinkIPv4Address</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_ipv4_nexthop_test.go#L117" title="internal/plugins/ospf/rfc5838_ipv4_nexthop_test.go" target="_blank" rel="noopener"><code>TestRFC5838IPv4NextHopFromNeighborLinkLSA</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_ipv4_nexthop_test.go#L97" title="internal/plugins/ospf/rfc5838_ipv4_nexthop_test.go" target="_blank" rel="noopener"><code>TestRFC5838IPv4NextHopFromNeighborLinkLSA</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.6-1">RFC5838-2.6-1</code></td><td colspan="3"><span class="rfc-subject">For IPv4 unicast and IPv4 multicast AFs, the Forwarding Address in AS-external-LSAs and NSSA-LSAs MUST encode an IPv4 address. (§2.6)</span></td></tr>
 <tr><td></td>
@@ -664,10 +665,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>{gap}, no test</td>
 <td>the AF-bit is set in Hello and DD Options only; LSA origination never sets it -- encoder_v6.go:33 applies SetAF to the Hello/DD path only, and origination_v6.go:254 with origination_v6_link.go:51 build Router/Network/Link-LSA Options via neutralToV6Options, which omits OptAF</td>
 </tr>
-<tr><td><a href="#rfc5838-2.5-1"><code>RFC5838-2.5-1</code></a> the link&#39;s IPv4 address will be advertised in the &#34;link local address&#34; field of the IPv4 instance&#39;s Link-LSA. This address is placed in the first 32 bits of the &#34;link local address&#34; field and is used for IPv4 next-hop calculations. The remaining bits MUST be set to zero. (§2.5)</td>
-<td>{gap}, no test</td>
-<td>v6OriginateLinkLSA at origination_v6_link.go:42-48 always encodes an IPv6 link-local address in the Link-LSA link-local field and returns false without one, so an IPv4-AF Link-LSA never carries the interface IPv4 address in the leading 32 bits</td>
-</tr>
 <tr><td><a href="#rfc5838-2.7-1"><code>RFC5838-2.7-1</code></a> For address families other than IPv6, both the MTU for the instance address family and the IPv6 MTU used for OSPFv3 maximum packet determination MUST be considered. (§2.7)</td>
 <td>{gap}, no test</td>
 <td>ze tracks a single per-interface MTU -- neighbor/dd.go:170 sends cfg.InterfaceMTU and neighbor/dd.go:45 checks it -- with no separate address-family MTU versus IPv6 MTU, so the two are not considered independently</td>
@@ -778,7 +775,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc5838-2.5-1"><code>RFC5838-2.5-1</code></a></h3>
 <p>the link&#39;s IPv4 address will be advertised in the &#34;link local address&#34; field of the IPv4 instance&#39;s Link-LSA. This address is placed in the first 32 bits of the &#34;link local address&#34; field and is used for IPv4 next-hop calculations. The remaining bits MUST be set to zero. (§2.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5838-2.5-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_ipv4_nexthop_test.go#L97" title="internal/plugins/ospf/rfc5838_ipv4_nexthop_test.go" target="_blank" rel="noopener"><code>TestRFC5838IPv4NextHopFromNeighborLinkLSA</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_ipv4_nexthop_test.go#L34" title="internal/plugins/ospf/rfc5838_ipv4_nexthop_test.go" target="_blank" rel="noopener"><code>TestRFC5838IPv4LinkLSACarriesTheLinkIPv4Address</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_ipv4_nexthop_test.go#L117" title="internal/plugins/ospf/rfc5838_ipv4_nexthop_test.go" target="_blank" rel="noopener"><code>TestRFC5838IPv4NextHopFromNeighborLinkLSA</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5838-2.6-1"><code>RFC5838-2.6-1</code></a></h3>
 <p>For IPv4 unicast and IPv4 multicast AFs, the Forwarding Address in AS-external-LSAs and NSSA-LSAs MUST encode an IPv4 address. (§2.6)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29 (independent judge, continuation 2). Both LSA kinds that can carry an FA on an IPv4 AF are now proven both ways. NSSA-LSA origination: TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4 / TestRFC5838IPv4AFNSSANeverEncodesIPv6ForwardingAddress (records on forwardingAddressForAF). AS-external-LSA: Ze&#39;s redistributed Type-5 (v6OriginateExternalLSA) carries no FA, and the translated Type-5 copies the Type-7 FA; TestRFC5838IPv4AFTranslatedForwardingAddressIsIPv4 reads 192.0.2.7 in the translated Type-5 for both IPv4 AFs, TestRFC5838IPv4AFTranslatorRefusesIPv6ForwardingAddress feeds a Type-7 with FA 2001:db8:9::2 and finds no translated Type-5. Producer checked: nssa.go translatableForwardingAddressV6 (D-8 fix) gates the copy on the AF with the RFC 5838 s2.6 quote; revert records on it, observed red.</p>
@@ -1096,7 +1114,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

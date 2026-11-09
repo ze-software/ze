@@ -44,19 +44,19 @@ The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of th
 
 Roots first: an RFC sits one level above the highest level of the RFCs it builds on, and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the set above, from its own data file; an RFC that is not walked shows "not walked" and no bar.
 
-### Level 0
+### Level 6
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
 | [RFC 8707](../../rfc8707/) | Resource Indicators for OAuth 2.0 | Ze correctness gap 2 | SHOULD not decided 5, Ze correctness gap 2 |
 
-### Level 7
+### Level 9
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
 | [RFC 8414](../../rfc8414/) | OAuth 2.0 Authorization Server Metadata | Ze proven 9, Ze correctness gap 22 | Ze MUST proven 9, SHOULD not decided 2, Ze correctness gap 22 |
 
-### Level 8
+### Level 11
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|

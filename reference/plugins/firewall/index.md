@@ -13,7 +13,7 @@ Packet filter and NAT rules (nftables on Linux)
 
 ## Configuration
 
-`firewall`
+`firewall`, `system/conntrack`
 
 ## Dependencies
 

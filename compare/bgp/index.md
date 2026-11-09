@@ -86,9 +86,14 @@ OSPFv2 meshes with BGP in both directions like IS-IS, exports OSPF routes into B
 Ze uses plugin filters to manipulate routes in ordered import and export policies. Each direction lists named filter instances or explicit `<plugin>:<filter>` references under `filters` and requires `final accept;` or `final reject;`.
 
 ```
+policy {
+    match CUSTOMERS-IN {
+        prefix-list CUSTOMERS;
+    }
+}
 filter {
     import {
-        filters [ prefix-list:CUSTOMERS ];
+        filters [ CUSTOMERS-IN ];
         final accept;
     }
 }
@@ -303,7 +308,7 @@ It is also pre-release, with a first release planned for 2026. It sits beside im
 
 **Ze is pre-release. Why trust it yet?**
 
-Do not take that on faith: it is backed by 40,600+ Go test functions, 2,600+ end-to-end tests, 95 fuzz targets, and 13 interoperability test images covering routing and network services. That evidence can be checked. It is not a promise. Ze does not have operational mileage yet: real deployments over real time, on real networks. Use it in labs first.
+Do not take that on faith: it is backed by 42,800+ Go test functions, 2,800+ end-to-end tests, 97 fuzz targets, and 13 interoperability test images covering routing and network services. That evidence can be checked. It is not a promise. Ze does not have operational mileage yet: real deployments over real time, on real networks. Use it in labs first.
 
 **Why no BGP confederations yet?**
 

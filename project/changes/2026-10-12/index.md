@@ -1,4 +1,4 @@
-# Week of 2026-10-12
+# 2026-10-12 – 2026-10-25 (2 weeks)
 
 This update covers two weeks. Many settings that Ze used to accept and then silently ignore are now refused, so please read the changes below before upgrading.
 

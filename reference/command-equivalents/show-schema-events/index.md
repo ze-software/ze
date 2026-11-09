@@ -6,7 +6,7 @@ List all notification types defined in YANG API modules\.
 
 - Registry path: `show schema events`
 - Usage: `show schema events`
-- Mode: Read-only
+- Mode: read-only, offline
 - Wire method: `ze-config-schema:show-schema-events`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default

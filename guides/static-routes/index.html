@@ -122,6 +122,16 @@ the interface itself:</p>
     }
 }
 </code></pre>
+<p>When the interface is a <code>pppoe-client</code> the configuration declares, the route
+waits for the session rather than failing. It is committed while the session is
+down (at boot, before the access concentrator answers, or in the same commit
+that adds the client), and <code>static show</code> lists it with the next-hop inactive and
+not skipped. Once the session's device is up, the route is installed through it;
+when the session drops it is removed, and when the session comes back it is
+installed again, with no reload. This holds in the main table and in a named
+table. An interface the configuration does not declare is resolved at commit
+as before: if no such device exists, the route is skipped with its reason and
+retried on the next commit.</p>
 <p>Interface-only next-hops do not support BFD profiles (BFD requires a
 peer address). Weight is supported for ECMP:</p>
 <pre><code>static {
@@ -148,6 +158,10 @@ peer address). Weight is supported for ECMP:</p>
     }
 }
 </code></pre>
+<p>When <code>pppoe0</code> is a declared <code>pppoe-client</code>, the group follows the session.
+While the session is down the route goes through <code>10.0.0.1</code> alone; once it is
+up, through both with their weights; after it drops, through <code>10.0.0.1</code> alone
+again. The route is never withdrawn while one member is active.</p>
 <h3 id="multiple-next-hops-ecmp">Multiple next-hops (ECMP)</h3>
 <p>All next-hops are installed simultaneously as a multipath route:</p>
 <pre><code>static {
@@ -408,7 +422,7 @@ import it into BGP or OSPF, and the more specific routes keep forwarding.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

@@ -1,4 +1,4 @@
-# Week of 2026-03-23
+# 2026-03-23 – 2026-03-29 (1 week)
 
 A full web interface, fleet management, redistribution filtering, and a stack of routing-protocol correctness work all landed together.
 

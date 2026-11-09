@@ -8,33 +8,32 @@
   "must": {
     "total": 101,
     "kept": 101,
-    "ze-proven": 52,
+    "ze-proven": 54,
     "os-verified": 0,
     "os-gap": 2,
-    "ze-gap": 47,
+    "ze-gap": 45,
     "not-owed": 0,
     "not-owed-by-kind": {}
   },
   "should": {
     "total": 3,
-    "proven": 1,
+    "proven": 0,
     "os-verified": 0,
     "os-gap": 0,
     "not-owed": 0,
     "not-ever": 0,
     "not-yet": 0,
-    "not-decided": 2,
+    "not-decided": 3,
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
-    "unit": 52
+    "unit": 54
   },
   "unmet": [
     "RFC4301-4.1-5",
     "RFC4301-4.4.1-13",
     "RFC4301-4.4.1-2",
-    "RFC4301-4.4.1-5",
-    "RFC4301-4.4.1-8",
+    "RFC4301-4.4.1-3",
     "RFC4301-4.4.1.1-1",
     "RFC4301-4.4.1.1-2",
     "RFC4301-4.4.1.1-4",

@@ -1022,29 +1022,6 @@
                     "source": "config"
                   },
                   {
-                    "description": "The events are up, down, and reset. The process can therefore react to a peer lifecycle transition.",
-                    "kind": "container",
-                    "name": "neighbor-changes",
-                    "short-help": "Send session state change events to this process.",
-                    "source": "config"
-                  },
-                  {
-                    "description": "The config migration rewrites the leaf. Ze creates one attach process entry per name\nin the list, and it deletes the block that carried the leaf. The BGP reactor reads no value\nfrom the leaf.",
-                    "kind": "leaf-list",
-                    "name": "processes",
-                    "short-help": "Legacy ExaBGP process reference list. Use 'receive' and 'send' instead.",
-                    "source": "config",
-                    "type": "string"
-                  },
-                  {
-                    "description": "The config migration treats each pattern as a process name, and it creates one attach\nprocess entry per pattern. Ze matches nothing against the pattern. The BGP reactor reads no\nvalue from the leaf.",
-                    "kind": "leaf-list",
-                    "name": "processes-match",
-                    "short-help": "Legacy ExaBGP process match patterns for event filtering.",
-                    "source": "config",
-                    "type": "string"
-                  },
-                  {
                     "description": "The base types are update, open, notification, keepalive, refresh, state, and negotiated. A plugin\nregisters more, for example update-rpki. A type carries the direction it is fed in: 'update' means\nboth directions, and 'update-received' and 'update-sent' each mean one direction. A registered type\nkeeps its whole name, so a plugin type that ends in -sent is never read as a direction. '*' feeds\nevery type, in both directions. 'all' is not accepted, because a word that reads like a type would\ngrant a type that a plugin registers later, which '*' says on purpose. Ze validates the list at\nruntime against the registered event types.",
                     "kind": "leaf-list",
                     "name": "receive",
@@ -1691,29 +1668,6 @@
                         "name": "content",
                         "short-help": "Controls the encoding and filtering of events sent to this process.",
                         "source": "config"
-                      },
-                      {
-                        "description": "The events are up, down, and reset. The process can therefore react to a peer lifecycle transition.",
-                        "kind": "container",
-                        "name": "neighbor-changes",
-                        "short-help": "Send session state change events to this process.",
-                        "source": "config"
-                      },
-                      {
-                        "description": "The config migration rewrites the leaf. Ze creates one attach process entry per name\nin the list, and it deletes the block that carried the leaf. The BGP reactor reads no value\nfrom the leaf.",
-                        "kind": "leaf-list",
-                        "name": "processes",
-                        "short-help": "Legacy ExaBGP process reference list. Use 'receive' and 'send' instead.",
-                        "source": "config",
-                        "type": "string"
-                      },
-                      {
-                        "description": "The config migration treats each pattern as a process name, and it creates one attach\nprocess entry per pattern. Ze matches nothing against the pattern. The BGP reactor reads no\nvalue from the leaf.",
-                        "kind": "leaf-list",
-                        "name": "processes-match",
-                        "short-help": "Legacy ExaBGP process match patterns for event filtering.",
-                        "source": "config",
-                        "type": "string"
                       },
                       {
                         "description": "The base types are update, open, notification, keepalive, refresh, state, and negotiated. A plugin\nregisters more, for example update-rpki. A type carries the direction it is fed in: 'update' means\nboth directions, and 'update-received' and 'update-sent' each mean one direction. A registered type\nkeeps its whole name, so a plugin type that ends in -sent is never read as a direction. '*' feeds\nevery type, in both directions. 'all' is not accepted, because a word that reads like a type would\ngrant a type that a plugin registers later, which '*' says on purpose. Ze validates the list at\nruntime against the registered event types.",
@@ -2476,6 +2430,14 @@
                     "short-help": "Require peer to send Role capability",
                     "source": "config",
                     "type": "boolean"
+                  },
+                  {
+                    "description": "Names a policy asn-set holding the ASNs of transit providers this router does not\npeer with, for example a provider reached through another router of the network. It is\noptional: the provider set is derived from the config, as the remote ASN of every peer whose\nrole import is customer (RFC 9234 Section 3.1: the remote AS is then Ze's provider), and the\nupstream check uses the union of that derived set and every asn-set a transit-asns leaf\nnames, on any peer or group. RFC 7454 Section 9: the check rejects a route whose AS path\ncarries one of those ASNs, on import from a customer, a peer or an RS-client, and on export\nto a peer or a route server; the session to a provider never compares its own ASN.",
+                    "kind": "leaf",
+                    "name": "transit-asns",
+                    "short-help": "asn-set of transit providers this router does not peer with",
+                    "source": "config",
+                    "type": "string"
                   }
                 ],
                 "description": "The container turns on the role rules for this peer. A peer with no role container sends no\nRole capability, and Ze accepts whatever role the peer declares.",
@@ -3914,6 +3876,14 @@
                 "short-help": "Require peer to send Role capability",
                 "source": "config",
                 "type": "boolean"
+              },
+              {
+                "description": "Names a policy asn-set holding the ASNs of transit providers this router does not\npeer with, for example a provider reached through another router of the network. It is\noptional: the provider set is derived from the config, as the remote ASN of every peer whose\nrole import is customer (RFC 9234 Section 3.1: the remote AS is then Ze's provider), and the\nupstream check uses the union of that derived set and every asn-set a transit-asns leaf\nnames, on any peer or group. RFC 7454 Section 9: the check rejects a route whose AS path\ncarries one of those ASNs, on import from a customer, a peer or an RS-client, and on export\nto a peer or a route server; the session to a provider never compares its own ASN.",
+                "kind": "leaf",
+                "name": "transit-asns",
+                "short-help": "asn-set of transit providers this router does not peer with",
+                "source": "config",
+                "type": "string"
               }
             ],
             "description": "The container turns on the role rules for this peer. A peer with no role container sends no\nRole capability, and Ze accepts whatever role the peer declares.",
@@ -5452,29 +5422,6 @@
                     "source": "config"
                   },
                   {
-                    "description": "The events are up, down, and reset. The process can therefore react to a peer lifecycle transition.",
-                    "kind": "container",
-                    "name": "neighbor-changes",
-                    "short-help": "Send session state change events to this process.",
-                    "source": "config"
-                  },
-                  {
-                    "description": "The config migration rewrites the leaf. Ze creates one attach process entry per name\nin the list, and it deletes the block that carried the leaf. The BGP reactor reads no value\nfrom the leaf.",
-                    "kind": "leaf-list",
-                    "name": "processes",
-                    "short-help": "Legacy ExaBGP process reference list. Use 'receive' and 'send' instead.",
-                    "source": "config",
-                    "type": "string"
-                  },
-                  {
-                    "description": "The config migration treats each pattern as a process name, and it creates one attach\nprocess entry per pattern. Ze matches nothing against the pattern. The BGP reactor reads no\nvalue from the leaf.",
-                    "kind": "leaf-list",
-                    "name": "processes-match",
-                    "short-help": "Legacy ExaBGP process match patterns for event filtering.",
-                    "source": "config",
-                    "type": "string"
-                  },
-                  {
                     "description": "The base types are update, open, notification, keepalive, refresh, state, and negotiated. A plugin\nregisters more, for example update-rpki. A type carries the direction it is fed in: 'update' means\nboth directions, and 'update-received' and 'update-sent' each mean one direction. A registered type\nkeeps its whole name, so a plugin type that ends in -sent is never read as a direction. '*' feeds\nevery type, in both directions. 'all' is not accepted, because a word that reads like a type would\ngrant a type that a plugin registers later, which '*' says on purpose. Ze validates the list at\nruntime against the registered event types.",
                     "kind": "leaf-list",
                     "name": "receive",
@@ -6235,6 +6182,14 @@
                 "short-help": "Require peer to send Role capability",
                 "source": "config",
                 "type": "boolean"
+              },
+              {
+                "description": "Names a policy asn-set holding the ASNs of transit providers this router does not\npeer with, for example a provider reached through another router of the network. It is\noptional: the provider set is derived from the config, as the remote ASN of every peer whose\nrole import is customer (RFC 9234 Section 3.1: the remote AS is then Ze's provider), and the\nupstream check uses the union of that derived set and every asn-set a transit-asns leaf\nnames, on any peer or group. RFC 7454 Section 9: the check rejects a route whose AS path\ncarries one of those ASNs, on import from a customer, a peer or an RS-client, and on export\nto a peer or a route server; the session to a provider never compares its own ASN.",
+                "kind": "leaf",
+                "name": "transit-asns",
+                "short-help": "asn-set of transit providers this router does not peer with",
+                "source": "config",
+                "type": "string"
               }
             ],
             "description": "The container turns on the role rules for this peer. A peer with no role container sends no\nRole capability, and Ze accepts whatever role the peer declares.",
@@ -8965,7 +8920,7 @@
               {
                 "children": [
                   {
-                    "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. Config validation refuses\ntwo listeners that share a protocol and a port when their addresses\noverlap. A wildcard address overlaps every address of its own family,\nand an IPv4 address never overlaps an IPv6 address.",
+                    "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. On most services :: is\ndual-stack: it also accepts IPv4 clients, so :: alone serves both\nfamilies. Config validation refuses two listeners that share a\nprotocol and a port when their addresses overlap. A wildcard address\noverlaps every address of its own family, and a dual-stack :: also\noverlaps every IPv4 address, so list :: alone rather than :: beside\n0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web)\naccepts :: beside an IPv4 address on the same port.",
                     "kind": "leaf",
                     "name": "ip",
                     "short-help": "Listen IP address",
@@ -9031,7 +8986,7 @@
               {
                 "children": [
                   {
-                    "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. Config validation refuses\ntwo listeners that share a protocol and a port when their addresses\noverlap. A wildcard address overlaps every address of its own family,\nand an IPv4 address never overlaps an IPv6 address.",
+                    "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. On most services :: is\ndual-stack: it also accepts IPv4 clients, so :: alone serves both\nfamilies. Config validation refuses two listeners that share a\nprotocol and a port when their addresses overlap. A wildcard address\noverlaps every address of its own family, and a dual-stack :: also\noverlaps every IPv4 address, so list :: alone rather than :: beside\n0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web)\naccepts :: beside an IPv4 address on the same port.",
                     "kind": "leaf",
                     "name": "ip",
                     "short-help": "Listen IP address",
@@ -9139,7 +9094,7 @@
           {
             "children": [
               {
-                "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. Config validation refuses\ntwo listeners that share a protocol and a port when their addresses\noverlap. A wildcard address overlaps every address of its own family,\nand an IPv4 address never overlaps an IPv6 address.",
+                "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. On most services :: is\ndual-stack: it also accepts IPv4 clients, so :: alone serves both\nfamilies. Config validation refuses two listeners that share a\nprotocol and a port when their addresses overlap. A wildcard address\noverlaps every address of its own family, and a dual-stack :: also\noverlaps every IPv4 address, so list :: alone rather than :: beside\n0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web)\naccepts :: beside an IPv4 address on the same port.",
                 "kind": "leaf",
                 "name": "ip",
                 "short-help": "Listen IP address",
@@ -9345,7 +9300,7 @@
           {
             "children": [
               {
-                "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. Config validation refuses\ntwo listeners that share a protocol and a port when their addresses\noverlap. A wildcard address overlaps every address of its own family,\nand an IPv4 address never overlaps an IPv6 address.",
+                "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. On most services :: is\ndual-stack: it also accepts IPv4 clients, so :: alone serves both\nfamilies. Config validation refuses two listeners that share a\nprotocol and a port when their addresses overlap. A wildcard address\noverlaps every address of its own family, and a dual-stack :: also\noverlaps every IPv4 address, so list :: alone rather than :: beside\n0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web)\naccepts :: beside an IPv4 address on the same port.",
                 "kind": "leaf",
                 "name": "ip",
                 "short-help": "Listen IP address",
@@ -9420,7 +9375,7 @@
           {
             "children": [
               {
-                "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. Config validation refuses\ntwo listeners that share a protocol and a port when their addresses\noverlap. A wildcard address overlaps every address of its own family,\nand an IPv4 address never overlaps an IPv6 address.",
+                "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. On most services :: is\ndual-stack: it also accepts IPv4 clients, so :: alone serves both\nfamilies. Config validation refuses two listeners that share a\nprotocol and a port when their addresses overlap. A wildcard address\noverlaps every address of its own family, and a dual-stack :: also\noverlaps every IPv4 address, so list :: alone rather than :: beside\n0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web)\naccepts :: beside an IPv4 address on the same port.",
                 "kind": "leaf",
                 "name": "ip",
                 "short-help": "Listen IP address",
@@ -9533,7 +9488,7 @@
           {
             "children": [
               {
-                "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. Config validation refuses\ntwo listeners that share a protocol and a port when their addresses\noverlap. A wildcard address overlaps every address of its own family,\nand an IPv4 address never overlaps an IPv6 address.",
+                "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. On most services :: is\ndual-stack: it also accepts IPv4 clients, so :: alone serves both\nfamilies. Config validation refuses two listeners that share a\nprotocol and a port when their addresses overlap. A wildcard address\noverlaps every address of its own family, and a dual-stack :: also\noverlaps every IPv4 address, so list :: alone rather than :: beside\n0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web)\naccepts :: beside an IPv4 address on the same port.",
                 "kind": "leaf",
                 "name": "ip",
                 "short-help": "Listen IP address",
@@ -9683,7 +9638,7 @@
           {
             "children": [
               {
-                "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. Config validation refuses\ntwo listeners that share a protocol and a port when their addresses\noverlap. A wildcard address overlaps every address of its own family,\nand an IPv4 address never overlaps an IPv6 address.",
+                "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. On most services :: is\ndual-stack: it also accepts IPv4 clients, so :: alone serves both\nfamilies. Config validation refuses two listeners that share a\nprotocol and a port when their addresses overlap. A wildcard address\noverlaps every address of its own family, and a dual-stack :: also\noverlaps every IPv4 address, so list :: alone rather than :: beside\n0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web)\naccepts :: beside an IPv4 address on the same port.",
                 "kind": "leaf",
                 "name": "ip",
                 "short-help": "Listen IP address",
@@ -9978,7 +9933,7 @@
           {
             "children": [
               {
-                "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. Config validation refuses\ntwo listeners that share a protocol and a port when their addresses\noverlap. A wildcard address overlaps every address of its own family,\nand an IPv4 address never overlaps an IPv6 address.",
+                "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. On most services :: is\ndual-stack: it also accepts IPv4 clients, so :: alone serves both\nfamilies. Config validation refuses two listeners that share a\nprotocol and a port when their addresses overlap. A wildcard address\noverlaps every address of its own family, and a dual-stack :: also\noverlaps every IPv4 address, so list :: alone rather than :: beside\n0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web)\naccepts :: beside an IPv4 address on the same port.",
                 "kind": "leaf",
                 "name": "ip",
                 "short-help": "Listen IP address",
@@ -10036,7 +9991,7 @@
           {
             "children": [
               {
-                "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. Config validation refuses\ntwo listeners that share a protocol and a port when their addresses\noverlap. A wildcard address overlaps every address of its own family,\nand an IPv4 address never overlaps an IPv6 address.",
+                "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. On most services :: is\ndual-stack: it also accepts IPv4 clients, so :: alone serves both\nfamilies. Config validation refuses two listeners that share a\nprotocol and a port when their addresses overlap. A wildcard address\noverlaps every address of its own family, and a dual-stack :: also\noverlaps every IPv4 address, so list :: alone rather than :: beside\n0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web)\naccepts :: beside an IPv4 address on the same port.",
                 "kind": "leaf",
                 "name": "ip",
                 "short-help": "Listen IP address",
@@ -11189,10 +11144,18 @@
                         "source": "config"
                       },
                       {
-                        "description": "The value is 1 to 65535, and verify refuses 0. The table MUST be of family ip, ip6 or\ninet, because arp, bridge and netdev carry no TCP header to rewrite. A clamp repairs a\npath whose smallest link cannot carry the segment size the two ends agreed.",
+                        "description": "Ze clamps the TCP MSS option to the MTU of the route the packet takes, less the fixed\nIP and TCP headers: 40 bytes for IPv4 and 60 for IPv6, so a 1492-byte PPPoE route gives\n1452 or 1432. The kernel also takes the MTU of the route back to the source when it is\nsmaller. An MSS already at or below that value is left alone, so the clamp never raises\nit. The kernel computes the route MSS only at the forward, output and postrouting hooks,\nso verify refuses the leaf in a chain of another hook, or in a regular chain such a chain\nreaches by jump or goto. The table MUST be of family ip, ip6 or inet, and the leaf cannot\nbe combined with tcp-mss-set in one term.",
+                        "kind": "leaf",
+                        "name": "tcp-mss-clamp-to-pmtu",
+                        "short-help": "Clamp the TCP MSS to the route MTU less the IP and TCP headers",
+                        "source": "config",
+                        "type": "empty"
+                      },
+                      {
+                        "description": "The value is an upper bound on the TCP MSS option. A larger MSS is lowered to the\nvalue, and an MSS already at or below it is left alone, so the clamp never raises the\nsegment size a host offered. A packet with no MSS option is not changed, and only a SYN\ncarries one. The value is 1 to 65535, and verify refuses 0. The table MUST be of family\nip, ip6 or inet, because arp, bridge and netdev carry no TCP header to change. A clamp\nrepairs a path whose smallest link cannot carry the segment size the two ends agreed.",
                         "kind": "leaf",
                         "name": "tcp-mss-set",
-                        "short-help": "Clamp TCP Maximum Segment Size option to the given value",
+                        "short-help": "Clamp the TCP MSS to at most this value (a smaller MSS is kept)",
                         "source": "config",
                         "type": "uint16"
                       }
@@ -12143,7 +12106,7 @@
               {
                 "children": [
                   {
-                    "description": "This leaf needs the netlink backend, for the same reason as autoconf:\nthe two leaves describe one behavior.",
+                    "description": "This leaf needs the netlink backend, for the same reason as autoconf:\nthe two leaves describe one behavior. Above 0 it also makes the\ndevice's RDNSS options (RFC 8106) an ra record of the router's\nreceived DNS servers, on a unit and on a pppoe-client session alike.",
                     "kind": "leaf",
                     "name": "accept-ra",
                     "short-help": "Accept RA level: 0 disables, 1 accepts when not forwarding, 2 accepts even when forwarding.",
@@ -12169,6 +12132,31 @@
                   {
                     "children": [
                       {
+                        "description": "Only the low 64 bits are used; Ze refuses a value with any of the\nhigh 64 bits set.",
+                        "kind": "leaf",
+                        "name": "interface-identifier",
+                        "short-help": "The host part of the unit's address in the /64 (default ::1).",
+                        "source": "config",
+                        "type": "ipv6-address"
+                      },
+                      {
+                        "description": "Which /64 of the delegated prefix this unit takes. With pd length 56\nthe ids run from 0 to 255; with no pd length, the largest id is\n65535, the /48 maximum. An id the delegation the server chose\ncannot hold leaves the unit without a /64, and Ze logs it.",
+                        "kind": "leaf",
+                        "name": "subnet-id",
+                        "short-help": "The /64 within the delegated prefix (0 to 2^(64 - pd length) - 1).",
+                        "source": "config",
+                        "type": "uint16"
+                      }
+                    ],
+                    "description": "Ze takes one /64 for this unit out of the prefix the named pppoe-client\nleases through DHCPv6 prefix delegation (RFC 7084 L-2): the delegated\nprefix plus subnet-id, shifted into the bits between the delegated\nlength and 64. The unit's address is that /64 plus\ninterface-identifier, and its preferred and valid lifetimes never\nexceed what remains of the delegation (RFC 9915 Section 6.3). With\nrouter-advertisement enabled, the unit advertises the /64 in a Prefix\nInformation option and the delegated prefix in a Route Information\noption. Ze refuses a source that is not a pppoe-client requesting a\ndelegated prefix, a subnet-id the pd length cannot hold, and two units\ntaking the same subnet-id from one source.",
+                    "kind": "list[source]",
+                    "name": "delegated-prefix",
+                    "short-help": "Number this unit from a prefix delegated to a pppoe-client.",
+                    "source": "config"
+                  },
+                  {
+                    "children": [
+                      {
                         "description": "When the leaf is omitted, ze generates a DUID-LL from the interface\nMAC. Set the leaf when the DHCP server binds a lease to a specific\nDUID. Write it as colon-separated hex octets, such as\n00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to\n128 octets of identifier (RFC 9915 Section 11.1).",
                         "kind": "leaf",
                         "name": "duid",
@@ -12177,7 +12165,7 @@
                         "type": "string"
                       },
                       {
-                        "description": "Ze starts a DHCPv6 client on this unit when the leaf is true. The\nclient sends a Solicit that carries the Rapid Commit option, and\nit takes a Reply directly when the server answers with one.\nOtherwise it sends a Request after the Advertise.",
+                        "description": "Ze starts a DHCPv6 client on this interface when the leaf is true. The\nclient sends a Solicit that carries the Rapid Commit option, and\nit takes a Reply directly when the server answers with one.\nOtherwise it sends a Request after the Advertise.",
                         "kind": "leaf",
                         "name": "enabled",
                         "short-help": "Enable DHCPv6 client",
@@ -12195,7 +12183,7 @@
                             "type": "uint8"
                           }
                         ],
-                        "description": "Request a delegated prefix. Every Solicit, Request, Renew and\nRebind Ze sends carries an IA_PD option, and Ze publishes each\ndelegated prefix as a lease on this unit.",
+                        "description": "Request a delegated prefix. Every Solicit, Request, Renew and\nRebind Ze sends carries an IA_PD option, and Ze publishes each\ndelegated prefix as a lease on this interface.",
                         "kind": "container",
                         "name": "pd",
                         "short-help": "Prefix delegation",
@@ -12309,6 +12297,67 @@
                       },
                       {
                         "children": [
+                          {
+                            "children": [
+                              {
+                                "description": "How a list of two or more sources combines them. first-usable\ntakes the first source that holds a usable server and ignores\nthe rest; merge takes every source in list order. The leaf has\nno default: a list naming one source needs none, and a list\nnaming more is refused without it.",
+                                "kind": "leaf",
+                                "name": "mode",
+                                "short-help": "How two or more sources combine: first-usable or merge.",
+                                "source": "config",
+                                "type": "enumeration",
+                                "values": [
+                                  {
+                                    "name": "first-usable",
+                                    "short-help": "The first source with a usable server wins; later ones are backups."
+                                  },
+                                  {
+                                    "name": "merge",
+                                    "short-help": "Every source's servers, in list order, each server listed once."
+                                  }
+                                ]
+                              },
+                              {
+                                "description": "Narrows the received source to the resolvers learned on these\ninterfaces, in this order, then by origin rank, then by unit.\nWith none listed, received takes every interface. Ze refuses\nthe leaf when the source list does not name received. An\ninterface that holds no lease yet is accepted: it may learn one\nlater.",
+                                "kind": "leaf-list",
+                                "name": "received-interface",
+                                "short-help": "Take received resolvers only from these interfaces, in this order.",
+                                "source": "config",
+                                "type": "node-name"
+                              },
+                              {
+                                "description": "The source classes in the order the consumer falls through\nthem. A class may appear once. Two or more classes need a mode:\nZe refuses the list without one, because it cannot tell whether\na later source is a backup or an addition.",
+                                "kind": "leaf-list",
+                                "name": "source",
+                                "short-help": "A source class, in fall-through order: received, configured, self, radius.",
+                                "source": "config",
+                                "type": "dns-source-class",
+                                "values": [
+                                  {
+                                    "name": "configured",
+                                    "short-help": "The resolvers configured on this consumer itself."
+                                  },
+                                  {
+                                    "name": "radius",
+                                    "short-help": "The resolvers RADIUS gives one PPP subscriber."
+                                  },
+                                  {
+                                    "name": "received",
+                                    "short-help": "Resolvers Ze learned from the network, by DHCPv4, DHCPv6, IPCP or router advertisement RDNSS."
+                                  },
+                                  {
+                                    "name": "self",
+                                    "short-help": "Ze's own address on the interface the client is on."
+                                  }
+                                ]
+                              }
+                            ],
+                            "description": "The ordered list of sources this consumer takes its DNS resolver\naddresses from, and how it combines them. With the container\nabsent, the consumer uses its built-in default list, which its\nown description states. Once any source is written, the default\nno longer applies, its mode included.",
+                            "kind": "container",
+                            "name": "dns-source",
+                            "short-help": "Where this consumer's DNS resolvers come from, and in what order.",
+                            "source": "config"
+                          },
                           {
                             "description": "0 tells a host to stop using the resolvers, and an operator can\nset it. 4294967295 means that the resolvers never expire. This\nleaf has no default: leave it out, and Ze sends 3 x maximum-\ninterval, the value RFC 8106 Section 5.1 recommends. 0 is not\nthe default for that reason, because Ze could not then tell an\noperator who retires a resolver from one who set nothing.",
                             "kind": "leaf",
@@ -13063,7 +13112,7 @@
               {
                 "children": [
                   {
-                    "description": "This leaf needs the netlink backend, for the same reason as autoconf:\nthe two leaves describe one behavior.",
+                    "description": "This leaf needs the netlink backend, for the same reason as autoconf:\nthe two leaves describe one behavior. Above 0 it also makes the\ndevice's RDNSS options (RFC 8106) an ra record of the router's\nreceived DNS servers, on a unit and on a pppoe-client session alike.",
                     "kind": "leaf",
                     "name": "accept-ra",
                     "short-help": "Accept RA level: 0 disables, 1 accepts when not forwarding, 2 accepts even when forwarding.",
@@ -13089,6 +13138,31 @@
                   {
                     "children": [
                       {
+                        "description": "Only the low 64 bits are used; Ze refuses a value with any of the\nhigh 64 bits set.",
+                        "kind": "leaf",
+                        "name": "interface-identifier",
+                        "short-help": "The host part of the unit's address in the /64 (default ::1).",
+                        "source": "config",
+                        "type": "ipv6-address"
+                      },
+                      {
+                        "description": "Which /64 of the delegated prefix this unit takes. With pd length 56\nthe ids run from 0 to 255; with no pd length, the largest id is\n65535, the /48 maximum. An id the delegation the server chose\ncannot hold leaves the unit without a /64, and Ze logs it.",
+                        "kind": "leaf",
+                        "name": "subnet-id",
+                        "short-help": "The /64 within the delegated prefix (0 to 2^(64 - pd length) - 1).",
+                        "source": "config",
+                        "type": "uint16"
+                      }
+                    ],
+                    "description": "Ze takes one /64 for this unit out of the prefix the named pppoe-client\nleases through DHCPv6 prefix delegation (RFC 7084 L-2): the delegated\nprefix plus subnet-id, shifted into the bits between the delegated\nlength and 64. The unit's address is that /64 plus\ninterface-identifier, and its preferred and valid lifetimes never\nexceed what remains of the delegation (RFC 9915 Section 6.3). With\nrouter-advertisement enabled, the unit advertises the /64 in a Prefix\nInformation option and the delegated prefix in a Route Information\noption. Ze refuses a source that is not a pppoe-client requesting a\ndelegated prefix, a subnet-id the pd length cannot hold, and two units\ntaking the same subnet-id from one source.",
+                    "kind": "list[source]",
+                    "name": "delegated-prefix",
+                    "short-help": "Number this unit from a prefix delegated to a pppoe-client.",
+                    "source": "config"
+                  },
+                  {
+                    "children": [
+                      {
                         "description": "When the leaf is omitted, ze generates a DUID-LL from the interface\nMAC. Set the leaf when the DHCP server binds a lease to a specific\nDUID. Write it as colon-separated hex octets, such as\n00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to\n128 octets of identifier (RFC 9915 Section 11.1).",
                         "kind": "leaf",
                         "name": "duid",
@@ -13097,7 +13171,7 @@
                         "type": "string"
                       },
                       {
-                        "description": "Ze starts a DHCPv6 client on this unit when the leaf is true. The\nclient sends a Solicit that carries the Rapid Commit option, and\nit takes a Reply directly when the server answers with one.\nOtherwise it sends a Request after the Advertise.",
+                        "description": "Ze starts a DHCPv6 client on this interface when the leaf is true. The\nclient sends a Solicit that carries the Rapid Commit option, and\nit takes a Reply directly when the server answers with one.\nOtherwise it sends a Request after the Advertise.",
                         "kind": "leaf",
                         "name": "enabled",
                         "short-help": "Enable DHCPv6 client",
@@ -13115,7 +13189,7 @@
                             "type": "uint8"
                           }
                         ],
-                        "description": "Request a delegated prefix. Every Solicit, Request, Renew and\nRebind Ze sends carries an IA_PD option, and Ze publishes each\ndelegated prefix as a lease on this unit.",
+                        "description": "Request a delegated prefix. Every Solicit, Request, Renew and\nRebind Ze sends carries an IA_PD option, and Ze publishes each\ndelegated prefix as a lease on this interface.",
                         "kind": "container",
                         "name": "pd",
                         "short-help": "Prefix delegation",
@@ -13229,6 +13303,67 @@
                       },
                       {
                         "children": [
+                          {
+                            "children": [
+                              {
+                                "description": "How a list of two or more sources combines them. first-usable\ntakes the first source that holds a usable server and ignores\nthe rest; merge takes every source in list order. The leaf has\nno default: a list naming one source needs none, and a list\nnaming more is refused without it.",
+                                "kind": "leaf",
+                                "name": "mode",
+                                "short-help": "How two or more sources combine: first-usable or merge.",
+                                "source": "config",
+                                "type": "enumeration",
+                                "values": [
+                                  {
+                                    "name": "first-usable",
+                                    "short-help": "The first source with a usable server wins; later ones are backups."
+                                  },
+                                  {
+                                    "name": "merge",
+                                    "short-help": "Every source's servers, in list order, each server listed once."
+                                  }
+                                ]
+                              },
+                              {
+                                "description": "Narrows the received source to the resolvers learned on these\ninterfaces, in this order, then by origin rank, then by unit.\nWith none listed, received takes every interface. Ze refuses\nthe leaf when the source list does not name received. An\ninterface that holds no lease yet is accepted: it may learn one\nlater.",
+                                "kind": "leaf-list",
+                                "name": "received-interface",
+                                "short-help": "Take received resolvers only from these interfaces, in this order.",
+                                "source": "config",
+                                "type": "node-name"
+                              },
+                              {
+                                "description": "The source classes in the order the consumer falls through\nthem. A class may appear once. Two or more classes need a mode:\nZe refuses the list without one, because it cannot tell whether\na later source is a backup or an addition.",
+                                "kind": "leaf-list",
+                                "name": "source",
+                                "short-help": "A source class, in fall-through order: received, configured, self, radius.",
+                                "source": "config",
+                                "type": "dns-source-class",
+                                "values": [
+                                  {
+                                    "name": "configured",
+                                    "short-help": "The resolvers configured on this consumer itself."
+                                  },
+                                  {
+                                    "name": "radius",
+                                    "short-help": "The resolvers RADIUS gives one PPP subscriber."
+                                  },
+                                  {
+                                    "name": "received",
+                                    "short-help": "Resolvers Ze learned from the network, by DHCPv4, DHCPv6, IPCP or router advertisement RDNSS."
+                                  },
+                                  {
+                                    "name": "self",
+                                    "short-help": "Ze's own address on the interface the client is on."
+                                  }
+                                ]
+                              }
+                            ],
+                            "description": "The ordered list of sources this consumer takes its DNS resolver\naddresses from, and how it combines them. With the container\nabsent, the consumer uses its built-in default list, which its\nown description states. Once any source is written, the default\nno longer applies, its mode included.",
+                            "kind": "container",
+                            "name": "dns-source",
+                            "short-help": "Where this consumer's DNS resolvers come from, and in what order.",
+                            "source": "config"
+                          },
                           {
                             "description": "0 tells a host to stop using the resolvers, and an operator can\nset it. 4294967295 means that the resolvers never expire. This\nleaf has no default: leave it out, and Ze sends 3 x maximum-\ninterval, the value RFC 8106 Section 5.1 recommends. 0 is not\nthe default for that reason, because Ze could not then tell an\noperator who retires a resolver from one who set nothing.",
                             "kind": "leaf",
@@ -13975,7 +14110,7 @@
               {
                 "children": [
                   {
-                    "description": "This leaf needs the netlink backend, for the same reason as autoconf:\nthe two leaves describe one behavior.",
+                    "description": "This leaf needs the netlink backend, for the same reason as autoconf:\nthe two leaves describe one behavior. Above 0 it also makes the\ndevice's RDNSS options (RFC 8106) an ra record of the router's\nreceived DNS servers, on a unit and on a pppoe-client session alike.",
                     "kind": "leaf",
                     "name": "accept-ra",
                     "short-help": "Accept RA level: 0 disables, 1 accepts when not forwarding, 2 accepts even when forwarding.",
@@ -14001,6 +14136,31 @@
                   {
                     "children": [
                       {
+                        "description": "Only the low 64 bits are used; Ze refuses a value with any of the\nhigh 64 bits set.",
+                        "kind": "leaf",
+                        "name": "interface-identifier",
+                        "short-help": "The host part of the unit's address in the /64 (default ::1).",
+                        "source": "config",
+                        "type": "ipv6-address"
+                      },
+                      {
+                        "description": "Which /64 of the delegated prefix this unit takes. With pd length 56\nthe ids run from 0 to 255; with no pd length, the largest id is\n65535, the /48 maximum. An id the delegation the server chose\ncannot hold leaves the unit without a /64, and Ze logs it.",
+                        "kind": "leaf",
+                        "name": "subnet-id",
+                        "short-help": "The /64 within the delegated prefix (0 to 2^(64 - pd length) - 1).",
+                        "source": "config",
+                        "type": "uint16"
+                      }
+                    ],
+                    "description": "Ze takes one /64 for this unit out of the prefix the named pppoe-client\nleases through DHCPv6 prefix delegation (RFC 7084 L-2): the delegated\nprefix plus subnet-id, shifted into the bits between the delegated\nlength and 64. The unit's address is that /64 plus\ninterface-identifier, and its preferred and valid lifetimes never\nexceed what remains of the delegation (RFC 9915 Section 6.3). With\nrouter-advertisement enabled, the unit advertises the /64 in a Prefix\nInformation option and the delegated prefix in a Route Information\noption. Ze refuses a source that is not a pppoe-client requesting a\ndelegated prefix, a subnet-id the pd length cannot hold, and two units\ntaking the same subnet-id from one source.",
+                    "kind": "list[source]",
+                    "name": "delegated-prefix",
+                    "short-help": "Number this unit from a prefix delegated to a pppoe-client.",
+                    "source": "config"
+                  },
+                  {
+                    "children": [
+                      {
                         "description": "When the leaf is omitted, ze generates a DUID-LL from the interface\nMAC. Set the leaf when the DHCP server binds a lease to a specific\nDUID. Write it as colon-separated hex octets, such as\n00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to\n128 octets of identifier (RFC 9915 Section 11.1).",
                         "kind": "leaf",
                         "name": "duid",
@@ -14009,7 +14169,7 @@
                         "type": "string"
                       },
                       {
-                        "description": "Ze starts a DHCPv6 client on this unit when the leaf is true. The\nclient sends a Solicit that carries the Rapid Commit option, and\nit takes a Reply directly when the server answers with one.\nOtherwise it sends a Request after the Advertise.",
+                        "description": "Ze starts a DHCPv6 client on this interface when the leaf is true. The\nclient sends a Solicit that carries the Rapid Commit option, and\nit takes a Reply directly when the server answers with one.\nOtherwise it sends a Request after the Advertise.",
                         "kind": "leaf",
                         "name": "enabled",
                         "short-help": "Enable DHCPv6 client",
@@ -14027,7 +14187,7 @@
                             "type": "uint8"
                           }
                         ],
-                        "description": "Request a delegated prefix. Every Solicit, Request, Renew and\nRebind Ze sends carries an IA_PD option, and Ze publishes each\ndelegated prefix as a lease on this unit.",
+                        "description": "Request a delegated prefix. Every Solicit, Request, Renew and\nRebind Ze sends carries an IA_PD option, and Ze publishes each\ndelegated prefix as a lease on this interface.",
                         "kind": "container",
                         "name": "pd",
                         "short-help": "Prefix delegation",
@@ -14141,6 +14301,67 @@
                       },
                       {
                         "children": [
+                          {
+                            "children": [
+                              {
+                                "description": "How a list of two or more sources combines them. first-usable\ntakes the first source that holds a usable server and ignores\nthe rest; merge takes every source in list order. The leaf has\nno default: a list naming one source needs none, and a list\nnaming more is refused without it.",
+                                "kind": "leaf",
+                                "name": "mode",
+                                "short-help": "How two or more sources combine: first-usable or merge.",
+                                "source": "config",
+                                "type": "enumeration",
+                                "values": [
+                                  {
+                                    "name": "first-usable",
+                                    "short-help": "The first source with a usable server wins; later ones are backups."
+                                  },
+                                  {
+                                    "name": "merge",
+                                    "short-help": "Every source's servers, in list order, each server listed once."
+                                  }
+                                ]
+                              },
+                              {
+                                "description": "Narrows the received source to the resolvers learned on these\ninterfaces, in this order, then by origin rank, then by unit.\nWith none listed, received takes every interface. Ze refuses\nthe leaf when the source list does not name received. An\ninterface that holds no lease yet is accepted: it may learn one\nlater.",
+                                "kind": "leaf-list",
+                                "name": "received-interface",
+                                "short-help": "Take received resolvers only from these interfaces, in this order.",
+                                "source": "config",
+                                "type": "node-name"
+                              },
+                              {
+                                "description": "The source classes in the order the consumer falls through\nthem. A class may appear once. Two or more classes need a mode:\nZe refuses the list without one, because it cannot tell whether\na later source is a backup or an addition.",
+                                "kind": "leaf-list",
+                                "name": "source",
+                                "short-help": "A source class, in fall-through order: received, configured, self, radius.",
+                                "source": "config",
+                                "type": "dns-source-class",
+                                "values": [
+                                  {
+                                    "name": "configured",
+                                    "short-help": "The resolvers configured on this consumer itself."
+                                  },
+                                  {
+                                    "name": "radius",
+                                    "short-help": "The resolvers RADIUS gives one PPP subscriber."
+                                  },
+                                  {
+                                    "name": "received",
+                                    "short-help": "Resolvers Ze learned from the network, by DHCPv4, DHCPv6, IPCP or router advertisement RDNSS."
+                                  },
+                                  {
+                                    "name": "self",
+                                    "short-help": "Ze's own address on the interface the client is on."
+                                  }
+                                ]
+                              }
+                            ],
+                            "description": "The ordered list of sources this consumer takes its DNS resolver\naddresses from, and how it combines them. With the container\nabsent, the consumer uses its built-in default list, which its\nown description states. Once any source is written, the default\nno longer applies, its mode included.",
+                            "kind": "container",
+                            "name": "dns-source",
+                            "short-help": "Where this consumer's DNS resolvers come from, and in what order.",
+                            "source": "config"
+                          },
                           {
                             "description": "0 tells a host to stop using the resolvers, and an operator can\nset it. 4294967295 means that the resolvers never expire. This\nleaf has no default: leave it out, and Ze sends 3 x maximum-\ninterval, the value RFC 8106 Section 5.1 recommends. 0 is not\nthe default for that reason, because Ze could not then tell an\noperator who retires a resolver from one who set nothing.",
                             "kind": "leaf",
@@ -14571,7 +14792,7 @@
               {
                 "children": [
                   {
-                    "description": "This leaf needs the netlink backend, for the same reason as autoconf:\nthe two leaves describe one behavior.",
+                    "description": "This leaf needs the netlink backend, for the same reason as autoconf:\nthe two leaves describe one behavior. Above 0 it also makes the\ndevice's RDNSS options (RFC 8106) an ra record of the router's\nreceived DNS servers, on a unit and on a pppoe-client session alike.",
                     "kind": "leaf",
                     "name": "accept-ra",
                     "short-help": "Accept RA level: 0 disables, 1 accepts when not forwarding, 2 accepts even when forwarding.",
@@ -14597,6 +14818,31 @@
                   {
                     "children": [
                       {
+                        "description": "Only the low 64 bits are used; Ze refuses a value with any of the\nhigh 64 bits set.",
+                        "kind": "leaf",
+                        "name": "interface-identifier",
+                        "short-help": "The host part of the unit's address in the /64 (default ::1).",
+                        "source": "config",
+                        "type": "ipv6-address"
+                      },
+                      {
+                        "description": "Which /64 of the delegated prefix this unit takes. With pd length 56\nthe ids run from 0 to 255; with no pd length, the largest id is\n65535, the /48 maximum. An id the delegation the server chose\ncannot hold leaves the unit without a /64, and Ze logs it.",
+                        "kind": "leaf",
+                        "name": "subnet-id",
+                        "short-help": "The /64 within the delegated prefix (0 to 2^(64 - pd length) - 1).",
+                        "source": "config",
+                        "type": "uint16"
+                      }
+                    ],
+                    "description": "Ze takes one /64 for this unit out of the prefix the named pppoe-client\nleases through DHCPv6 prefix delegation (RFC 7084 L-2): the delegated\nprefix plus subnet-id, shifted into the bits between the delegated\nlength and 64. The unit's address is that /64 plus\ninterface-identifier, and its preferred and valid lifetimes never\nexceed what remains of the delegation (RFC 9915 Section 6.3). With\nrouter-advertisement enabled, the unit advertises the /64 in a Prefix\nInformation option and the delegated prefix in a Route Information\noption. Ze refuses a source that is not a pppoe-client requesting a\ndelegated prefix, a subnet-id the pd length cannot hold, and two units\ntaking the same subnet-id from one source.",
+                    "kind": "list[source]",
+                    "name": "delegated-prefix",
+                    "short-help": "Number this unit from a prefix delegated to a pppoe-client.",
+                    "source": "config"
+                  },
+                  {
+                    "children": [
+                      {
                         "description": "When the leaf is omitted, ze generates a DUID-LL from the interface\nMAC. Set the leaf when the DHCP server binds a lease to a specific\nDUID. Write it as colon-separated hex octets, such as\n00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to\n128 octets of identifier (RFC 9915 Section 11.1).",
                         "kind": "leaf",
                         "name": "duid",
@@ -14605,7 +14851,7 @@
                         "type": "string"
                       },
                       {
-                        "description": "Ze starts a DHCPv6 client on this unit when the leaf is true. The\nclient sends a Solicit that carries the Rapid Commit option, and\nit takes a Reply directly when the server answers with one.\nOtherwise it sends a Request after the Advertise.",
+                        "description": "Ze starts a DHCPv6 client on this interface when the leaf is true. The\nclient sends a Solicit that carries the Rapid Commit option, and\nit takes a Reply directly when the server answers with one.\nOtherwise it sends a Request after the Advertise.",
                         "kind": "leaf",
                         "name": "enabled",
                         "short-help": "Enable DHCPv6 client",
@@ -14623,7 +14869,7 @@
                             "type": "uint8"
                           }
                         ],
-                        "description": "Request a delegated prefix. Every Solicit, Request, Renew and\nRebind Ze sends carries an IA_PD option, and Ze publishes each\ndelegated prefix as a lease on this unit.",
+                        "description": "Request a delegated prefix. Every Solicit, Request, Renew and\nRebind Ze sends carries an IA_PD option, and Ze publishes each\ndelegated prefix as a lease on this interface.",
                         "kind": "container",
                         "name": "pd",
                         "short-help": "Prefix delegation",
@@ -14737,6 +14983,67 @@
                       },
                       {
                         "children": [
+                          {
+                            "children": [
+                              {
+                                "description": "How a list of two or more sources combines them. first-usable\ntakes the first source that holds a usable server and ignores\nthe rest; merge takes every source in list order. The leaf has\nno default: a list naming one source needs none, and a list\nnaming more is refused without it.",
+                                "kind": "leaf",
+                                "name": "mode",
+                                "short-help": "How two or more sources combine: first-usable or merge.",
+                                "source": "config",
+                                "type": "enumeration",
+                                "values": [
+                                  {
+                                    "name": "first-usable",
+                                    "short-help": "The first source with a usable server wins; later ones are backups."
+                                  },
+                                  {
+                                    "name": "merge",
+                                    "short-help": "Every source's servers, in list order, each server listed once."
+                                  }
+                                ]
+                              },
+                              {
+                                "description": "Narrows the received source to the resolvers learned on these\ninterfaces, in this order, then by origin rank, then by unit.\nWith none listed, received takes every interface. Ze refuses\nthe leaf when the source list does not name received. An\ninterface that holds no lease yet is accepted: it may learn one\nlater.",
+                                "kind": "leaf-list",
+                                "name": "received-interface",
+                                "short-help": "Take received resolvers only from these interfaces, in this order.",
+                                "source": "config",
+                                "type": "node-name"
+                              },
+                              {
+                                "description": "The source classes in the order the consumer falls through\nthem. A class may appear once. Two or more classes need a mode:\nZe refuses the list without one, because it cannot tell whether\na later source is a backup or an addition.",
+                                "kind": "leaf-list",
+                                "name": "source",
+                                "short-help": "A source class, in fall-through order: received, configured, self, radius.",
+                                "source": "config",
+                                "type": "dns-source-class",
+                                "values": [
+                                  {
+                                    "name": "configured",
+                                    "short-help": "The resolvers configured on this consumer itself."
+                                  },
+                                  {
+                                    "name": "radius",
+                                    "short-help": "The resolvers RADIUS gives one PPP subscriber."
+                                  },
+                                  {
+                                    "name": "received",
+                                    "short-help": "Resolvers Ze learned from the network, by DHCPv4, DHCPv6, IPCP or router advertisement RDNSS."
+                                  },
+                                  {
+                                    "name": "self",
+                                    "short-help": "Ze's own address on the interface the client is on."
+                                  }
+                                ]
+                              }
+                            ],
+                            "description": "The ordered list of sources this consumer takes its DNS resolver\naddresses from, and how it combines them. With the container\nabsent, the consumer uses its built-in default list, which its\nown description states. Once any source is written, the default\nno longer applies, its mode included.",
+                            "kind": "container",
+                            "name": "dns-source",
+                            "short-help": "Where this consumer's DNS resolvers come from, and in what order.",
+                            "source": "config"
+                          },
                           {
                             "description": "0 tells a host to stop using the resolvers, and an operator can\nset it. 4294967295 means that the resolvers never expire. This\nleaf has no default: leave it out, and Ze sends 3 x maximum-\ninterval, the value RFC 8106 Section 5.1 recommends. 0 is not\nthe default for that reason, because Ze could not then tell an\noperator who retires a resolver from one who set nothing.",
                             "kind": "leaf",
@@ -14977,6 +15284,114 @@
             "type": "empty"
           },
           {
+            "children": [
+              {
+                "description": "This leaf needs the netlink backend, for the same reason as autoconf:\nthe two leaves describe one behavior. Above 0 it also makes the\ndevice's RDNSS options (RFC 8106) an ra record of the router's\nreceived DNS servers, on a unit and on a pppoe-client session alike.",
+                "kind": "leaf",
+                "name": "accept-ra",
+                "short-help": "Accept RA level: 0 disables, 1 accepts when not forwarding, 2 accepts even when forwarding.",
+                "source": "config",
+                "type": "uint8"
+              },
+              {
+                "description": "The kernel learns an address only when a Router Advertisement reaches\nthe device it owns, so this leaf needs the netlink backend. On the vpp\nbackend, the NIC belongs to VPP, and no advertisement reaches the Linux\nControl Plane tap.",
+                "kind": "leaf",
+                "name": "autoconf",
+                "short-help": "Enable IPv6 stateless autoconfiguration.",
+                "source": "config",
+                "type": "boolean"
+              },
+              {
+                "children": [
+                  {
+                    "description": "When the leaf is omitted, ze generates a DUID-LL from the interface\nMAC. Set the leaf when the DHCP server binds a lease to a specific\nDUID. Write it as colon-separated hex octets, such as\n00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to\n128 octets of identifier (RFC 9915 Section 11.1).",
+                    "kind": "leaf",
+                    "name": "duid",
+                    "short-help": "Override the DHCPv6 Unique Identifier (RFC 9915 Section 11).",
+                    "source": "config",
+                    "type": "string"
+                  },
+                  {
+                    "description": "Ze starts a DHCPv6 client on this interface when the leaf is true. The\nclient sends a Solicit that carries the Rapid Commit option, and\nit takes a Reply directly when the server answers with one.\nOtherwise it sends a Request after the Advertise.",
+                    "kind": "leaf",
+                    "name": "enabled",
+                    "short-help": "Enable DHCPv6 client",
+                    "source": "config",
+                    "type": "boolean"
+                  },
+                  {
+                    "children": [
+                      {
+                        "description": "The prefix length ze asks for, from 48 to 64, sent as an IA\nPrefix hint (::/length) in the IA_PD. Without it the IA_PD\ncarries no hint and the server chooses the length.",
+                        "kind": "leaf",
+                        "name": "length",
+                        "short-help": "Requested prefix length",
+                        "source": "config",
+                        "type": "uint8"
+                      }
+                    ],
+                    "description": "Request a delegated prefix. Every Solicit, Request, Renew and\nRebind Ze sends carries an IA_PD option, and Ze publishes each\ndelegated prefix as a lease on this interface.",
+                    "kind": "container",
+                    "name": "pd",
+                    "short-help": "Prefix delegation",
+                    "source": "config"
+                  }
+                ],
+                "description": "The client requests addresses, delegated prefixes, or both, from a\nDHCPv6 server. It runs alongside SLAAC when autoconf is also enabled.",
+                "kind": "container",
+                "name": "dhcpv6",
+                "short-help": "DHCPv6 stateful client (RFC 8415).",
+                "source": "config"
+              },
+              {
+                "description": "Ze refuses the other ipv6 leaves while enabled is not true, because\nwithout IPv6CP no IPv6 reaches the session device.",
+                "kind": "leaf",
+                "name": "enabled",
+                "short-help": "Negotiate IPv6CP on the session.",
+                "source": "config",
+                "type": "boolean"
+              },
+              {
+                "description": "The leaf sets net.ipv6.conf.\u003ciface\u003e.forwarding. Forwarding disables RA\nacceptance, unless accept-ra is set to 2.",
+                "kind": "leaf",
+                "name": "forwarding",
+                "short-help": "Allow this interface to forward IPv6 packets between interfaces.",
+                "source": "config",
+                "type": "boolean"
+              }
+            ],
+            "description": "When enabled is true, the client negotiates IPv6CP (RFC 5072) beside IPCP\nand independently of it, and installs on the session device the\nlink-local address formed from the negotiated interface identifier. An\naccess concentrator that rejects or ignores IPv6CP leaves the IPv4\nsession up. Ze writes autoconf, accept-ra and forwarding to the session\ndevice each time a session creates it. Write accept-ra 2 with forwarding\ntrue for a router that learns its default route from the access\nconcentrator's Router Advertisements. The DHCPv6 client runs on the\nsession device and takes its DUID-LL from the source interface, because\na PPP device has no hardware address.",
+            "kind": "container",
+            "name": "ipv6",
+            "short-help": "IPv6 on the PPPoE session: IPv6CP, SLAAC, RA and DHCPv6 client.",
+            "source": "config"
+          },
+          {
+            "children": [
+              {
+                "description": "The session ends when this many Echo-Requests in a row have no\nEcho-Reply. The range is 1 to 255 and the default is 3, so the\ndefault detection time is about 30 seconds.",
+                "kind": "leaf",
+                "name": "failures",
+                "short-help": "Unanswered Echo-Requests in a row that end the session.",
+                "source": "config",
+                "type": "uint8"
+              },
+              {
+                "description": "Ze sends one LCP Echo-Request each interval while the session is\nup. The range is 1 to 3600 seconds and the default is 10.",
+                "kind": "leaf",
+                "name": "interval",
+                "short-help": "Seconds between two LCP Echo-Requests.",
+                "source": "config",
+                "type": "uint16"
+              }
+            ],
+            "description": "Ze sends an LCP Echo-Request on the session every interval and\ncounts the requests the access concentrator leaves unanswered. Any\nEcho-Reply resets the count. The session ends on the unanswered\nrequest that reaches the failure count, and the client then\nreconnects. A change to these leaves keeps the running session up:\nthe next session uses the new values. Detection takes about interval\ntimes failures seconds. A small interval with failures 1 can end\na session on a lossy line that is still usable.",
+            "kind": "container",
+            "name": "keepalive",
+            "short-help": "Dead-peer detection by LCP Echo-Request (RFC 1661 Section 5.8).",
+            "source": "config"
+          },
+          {
             "description": "The range is 68 to 16000 bytes. Ze applies the value with the netlink call\nLinkSetMTU after it creates the interface. Ze restores the previous value\nwhen a later step of the same apply fails. When the leaf is omitted, ze makes\nno MTU call and the device keeps its current MTU. For a device ze creates\nthat is the kernel's default for the kind: 1500 for a dummy, veth or bridge,\n1420 for wireguard, and the underlay MTU less the encapsulation for a tunnel.\nEach kind has its own value, so the schema declares no single default.",
             "kind": "leaf",
             "name": "mtu",
@@ -14999,6 +15414,31 @@
             "short-help": "OS device this logical interface name binds to.",
             "source": "config",
             "type": "string"
+          },
+          {
+            "children": [
+              {
+                "description": "The doubling wait stops growing at this value. The range is 1 to\n3600 seconds and the default is 60. It must be equal to or above\ndelay-min.",
+                "kind": "leaf",
+                "name": "delay-max",
+                "short-help": "Longest wait between two redials.",
+                "source": "config",
+                "type": "uint16"
+              },
+              {
+                "description": "The wait before the first redial after a failure. The range is 1\nto 3600 seconds and the default is 1.",
+                "kind": "leaf",
+                "name": "delay-min",
+                "short-help": "Seconds to wait before the first redial.",
+                "source": "config",
+                "type": "uint16"
+              }
+            ],
+            "description": "After a session ends or a dial fails, ze waits before the next\ndiscovery. The first wait is delay-min. Each further failure doubles\nthe wait, up to delay-max. A session that reaches the up state resets\nthe wait to delay-min. delay-max must not be below delay-min. A change\nto these leaves keeps the running session up and applies to the next\nwait.",
+            "kind": "container",
+            "name": "reconnect",
+            "short-help": "Hold-off between two dial attempts after a session ends.",
+            "source": "config"
           },
           {
             "description": "A lower value is preferred. The default 254 ranks this learned default\nbelow a static default and below a protocol-learned one, and it matches the\nroute-priority default on a unit. Write 0 to put the route on the kernel\nmetric that an operator's static default also uses. The two then share one\nkernel route, and the last writer owns it.",
@@ -15025,7 +15465,7 @@
             "type": "string"
           }
         ],
-        "description": "The client dials an access concentrator over a physical Ethernet interface,\nnegotiates LCP, authentication and IPCP, and presents the PPP session as a\nroutable interface with server-assigned addresses. The kernel creates the pppN\ninterface dynamically. The name leaf is a config key only, and the OS interface\nname is pppN.",
+        "description": "The client dials an access concentrator over a physical Ethernet interface,\nnegotiates LCP, authentication, IPCP and, when ipv6 is enabled, IPv6CP, and\npresents the PPP session as a routable interface with server-assigned\naddresses. Ze creates the kernel\ndevice under the configured name through rtnetlink (kind ppp with\nIFLA_PPP_DEV_FD), so the name an operator writes is the name static routes,\nfirewall matches and NAT see on every session and every reconnect.",
         "kind": "list[name]",
         "name": "pppoe-client",
         "short-help": "PPPoE client interface (RFC 2516).",
@@ -16038,7 +16478,7 @@
               {
                 "children": [
                   {
-                    "description": "This leaf needs the netlink backend, for the same reason as autoconf:\nthe two leaves describe one behavior.",
+                    "description": "This leaf needs the netlink backend, for the same reason as autoconf:\nthe two leaves describe one behavior. Above 0 it also makes the\ndevice's RDNSS options (RFC 8106) an ra record of the router's\nreceived DNS servers, on a unit and on a pppoe-client session alike.",
                     "kind": "leaf",
                     "name": "accept-ra",
                     "short-help": "Accept RA level: 0 disables, 1 accepts when not forwarding, 2 accepts even when forwarding.",
@@ -16064,6 +16504,31 @@
                   {
                     "children": [
                       {
+                        "description": "Only the low 64 bits are used; Ze refuses a value with any of the\nhigh 64 bits set.",
+                        "kind": "leaf",
+                        "name": "interface-identifier",
+                        "short-help": "The host part of the unit's address in the /64 (default ::1).",
+                        "source": "config",
+                        "type": "ipv6-address"
+                      },
+                      {
+                        "description": "Which /64 of the delegated prefix this unit takes. With pd length 56\nthe ids run from 0 to 255; with no pd length, the largest id is\n65535, the /48 maximum. An id the delegation the server chose\ncannot hold leaves the unit without a /64, and Ze logs it.",
+                        "kind": "leaf",
+                        "name": "subnet-id",
+                        "short-help": "The /64 within the delegated prefix (0 to 2^(64 - pd length) - 1).",
+                        "source": "config",
+                        "type": "uint16"
+                      }
+                    ],
+                    "description": "Ze takes one /64 for this unit out of the prefix the named pppoe-client\nleases through DHCPv6 prefix delegation (RFC 7084 L-2): the delegated\nprefix plus subnet-id, shifted into the bits between the delegated\nlength and 64. The unit's address is that /64 plus\ninterface-identifier, and its preferred and valid lifetimes never\nexceed what remains of the delegation (RFC 9915 Section 6.3). With\nrouter-advertisement enabled, the unit advertises the /64 in a Prefix\nInformation option and the delegated prefix in a Route Information\noption. Ze refuses a source that is not a pppoe-client requesting a\ndelegated prefix, a subnet-id the pd length cannot hold, and two units\ntaking the same subnet-id from one source.",
+                    "kind": "list[source]",
+                    "name": "delegated-prefix",
+                    "short-help": "Number this unit from a prefix delegated to a pppoe-client.",
+                    "source": "config"
+                  },
+                  {
+                    "children": [
+                      {
                         "description": "When the leaf is omitted, ze generates a DUID-LL from the interface\nMAC. Set the leaf when the DHCP server binds a lease to a specific\nDUID. Write it as colon-separated hex octets, such as\n00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to\n128 octets of identifier (RFC 9915 Section 11.1).",
                         "kind": "leaf",
                         "name": "duid",
@@ -16072,7 +16537,7 @@
                         "type": "string"
                       },
                       {
-                        "description": "Ze starts a DHCPv6 client on this unit when the leaf is true. The\nclient sends a Solicit that carries the Rapid Commit option, and\nit takes a Reply directly when the server answers with one.\nOtherwise it sends a Request after the Advertise.",
+                        "description": "Ze starts a DHCPv6 client on this interface when the leaf is true. The\nclient sends a Solicit that carries the Rapid Commit option, and\nit takes a Reply directly when the server answers with one.\nOtherwise it sends a Request after the Advertise.",
                         "kind": "leaf",
                         "name": "enabled",
                         "short-help": "Enable DHCPv6 client",
@@ -16090,7 +16555,7 @@
                             "type": "uint8"
                           }
                         ],
-                        "description": "Request a delegated prefix. Every Solicit, Request, Renew and\nRebind Ze sends carries an IA_PD option, and Ze publishes each\ndelegated prefix as a lease on this unit.",
+                        "description": "Request a delegated prefix. Every Solicit, Request, Renew and\nRebind Ze sends carries an IA_PD option, and Ze publishes each\ndelegated prefix as a lease on this interface.",
                         "kind": "container",
                         "name": "pd",
                         "short-help": "Prefix delegation",
@@ -16204,6 +16669,67 @@
                       },
                       {
                         "children": [
+                          {
+                            "children": [
+                              {
+                                "description": "How a list of two or more sources combines them. first-usable\ntakes the first source that holds a usable server and ignores\nthe rest; merge takes every source in list order. The leaf has\nno default: a list naming one source needs none, and a list\nnaming more is refused without it.",
+                                "kind": "leaf",
+                                "name": "mode",
+                                "short-help": "How two or more sources combine: first-usable or merge.",
+                                "source": "config",
+                                "type": "enumeration",
+                                "values": [
+                                  {
+                                    "name": "first-usable",
+                                    "short-help": "The first source with a usable server wins; later ones are backups."
+                                  },
+                                  {
+                                    "name": "merge",
+                                    "short-help": "Every source's servers, in list order, each server listed once."
+                                  }
+                                ]
+                              },
+                              {
+                                "description": "Narrows the received source to the resolvers learned on these\ninterfaces, in this order, then by origin rank, then by unit.\nWith none listed, received takes every interface. Ze refuses\nthe leaf when the source list does not name received. An\ninterface that holds no lease yet is accepted: it may learn one\nlater.",
+                                "kind": "leaf-list",
+                                "name": "received-interface",
+                                "short-help": "Take received resolvers only from these interfaces, in this order.",
+                                "source": "config",
+                                "type": "node-name"
+                              },
+                              {
+                                "description": "The source classes in the order the consumer falls through\nthem. A class may appear once. Two or more classes need a mode:\nZe refuses the list without one, because it cannot tell whether\na later source is a backup or an addition.",
+                                "kind": "leaf-list",
+                                "name": "source",
+                                "short-help": "A source class, in fall-through order: received, configured, self, radius.",
+                                "source": "config",
+                                "type": "dns-source-class",
+                                "values": [
+                                  {
+                                    "name": "configured",
+                                    "short-help": "The resolvers configured on this consumer itself."
+                                  },
+                                  {
+                                    "name": "radius",
+                                    "short-help": "The resolvers RADIUS gives one PPP subscriber."
+                                  },
+                                  {
+                                    "name": "received",
+                                    "short-help": "Resolvers Ze learned from the network, by DHCPv4, DHCPv6, IPCP or router advertisement RDNSS."
+                                  },
+                                  {
+                                    "name": "self",
+                                    "short-help": "Ze's own address on the interface the client is on."
+                                  }
+                                ]
+                              }
+                            ],
+                            "description": "The ordered list of sources this consumer takes its DNS resolver\naddresses from, and how it combines them. With the container\nabsent, the consumer uses its built-in default list, which its\nown description states. Once any source is written, the default\nno longer applies, its mode included.",
+                            "kind": "container",
+                            "name": "dns-source",
+                            "short-help": "Where this consumer's DNS resolvers come from, and in what order.",
+                            "source": "config"
+                          },
                           {
                             "description": "0 tells a host to stop using the resolvers, and an operator can\nset it. 4294967295 means that the resolvers never expire. This\nleaf has no default: leave it out, and Ze sends 3 x maximum-\ninterval, the value RFC 8106 Section 5.1 recommends. 0 is not\nthe default for that reason, because Ze could not then tell an\noperator who retires a resolver from one who set nothing.",
                             "kind": "leaf",
@@ -16858,7 +17384,7 @@
               {
                 "children": [
                   {
-                    "description": "This leaf needs the netlink backend, for the same reason as autoconf:\nthe two leaves describe one behavior.",
+                    "description": "This leaf needs the netlink backend, for the same reason as autoconf:\nthe two leaves describe one behavior. Above 0 it also makes the\ndevice's RDNSS options (RFC 8106) an ra record of the router's\nreceived DNS servers, on a unit and on a pppoe-client session alike.",
                     "kind": "leaf",
                     "name": "accept-ra",
                     "short-help": "Accept RA level: 0 disables, 1 accepts when not forwarding, 2 accepts even when forwarding.",
@@ -16884,6 +17410,31 @@
                   {
                     "children": [
                       {
+                        "description": "Only the low 64 bits are used; Ze refuses a value with any of the\nhigh 64 bits set.",
+                        "kind": "leaf",
+                        "name": "interface-identifier",
+                        "short-help": "The host part of the unit's address in the /64 (default ::1).",
+                        "source": "config",
+                        "type": "ipv6-address"
+                      },
+                      {
+                        "description": "Which /64 of the delegated prefix this unit takes. With pd length 56\nthe ids run from 0 to 255; with no pd length, the largest id is\n65535, the /48 maximum. An id the delegation the server chose\ncannot hold leaves the unit without a /64, and Ze logs it.",
+                        "kind": "leaf",
+                        "name": "subnet-id",
+                        "short-help": "The /64 within the delegated prefix (0 to 2^(64 - pd length) - 1).",
+                        "source": "config",
+                        "type": "uint16"
+                      }
+                    ],
+                    "description": "Ze takes one /64 for this unit out of the prefix the named pppoe-client\nleases through DHCPv6 prefix delegation (RFC 7084 L-2): the delegated\nprefix plus subnet-id, shifted into the bits between the delegated\nlength and 64. The unit's address is that /64 plus\ninterface-identifier, and its preferred and valid lifetimes never\nexceed what remains of the delegation (RFC 9915 Section 6.3). With\nrouter-advertisement enabled, the unit advertises the /64 in a Prefix\nInformation option and the delegated prefix in a Route Information\noption. Ze refuses a source that is not a pppoe-client requesting a\ndelegated prefix, a subnet-id the pd length cannot hold, and two units\ntaking the same subnet-id from one source.",
+                    "kind": "list[source]",
+                    "name": "delegated-prefix",
+                    "short-help": "Number this unit from a prefix delegated to a pppoe-client.",
+                    "source": "config"
+                  },
+                  {
+                    "children": [
+                      {
                         "description": "When the leaf is omitted, ze generates a DUID-LL from the interface\nMAC. Set the leaf when the DHCP server binds a lease to a specific\nDUID. Write it as colon-separated hex octets, such as\n00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to\n128 octets of identifier (RFC 9915 Section 11.1).",
                         "kind": "leaf",
                         "name": "duid",
@@ -16892,7 +17443,7 @@
                         "type": "string"
                       },
                       {
-                        "description": "Ze starts a DHCPv6 client on this unit when the leaf is true. The\nclient sends a Solicit that carries the Rapid Commit option, and\nit takes a Reply directly when the server answers with one.\nOtherwise it sends a Request after the Advertise.",
+                        "description": "Ze starts a DHCPv6 client on this interface when the leaf is true. The\nclient sends a Solicit that carries the Rapid Commit option, and\nit takes a Reply directly when the server answers with one.\nOtherwise it sends a Request after the Advertise.",
                         "kind": "leaf",
                         "name": "enabled",
                         "short-help": "Enable DHCPv6 client",
@@ -16910,7 +17461,7 @@
                             "type": "uint8"
                           }
                         ],
-                        "description": "Request a delegated prefix. Every Solicit, Request, Renew and\nRebind Ze sends carries an IA_PD option, and Ze publishes each\ndelegated prefix as a lease on this unit.",
+                        "description": "Request a delegated prefix. Every Solicit, Request, Renew and\nRebind Ze sends carries an IA_PD option, and Ze publishes each\ndelegated prefix as a lease on this interface.",
                         "kind": "container",
                         "name": "pd",
                         "short-help": "Prefix delegation",
@@ -17024,6 +17575,67 @@
                       },
                       {
                         "children": [
+                          {
+                            "children": [
+                              {
+                                "description": "How a list of two or more sources combines them. first-usable\ntakes the first source that holds a usable server and ignores\nthe rest; merge takes every source in list order. The leaf has\nno default: a list naming one source needs none, and a list\nnaming more is refused without it.",
+                                "kind": "leaf",
+                                "name": "mode",
+                                "short-help": "How two or more sources combine: first-usable or merge.",
+                                "source": "config",
+                                "type": "enumeration",
+                                "values": [
+                                  {
+                                    "name": "first-usable",
+                                    "short-help": "The first source with a usable server wins; later ones are backups."
+                                  },
+                                  {
+                                    "name": "merge",
+                                    "short-help": "Every source's servers, in list order, each server listed once."
+                                  }
+                                ]
+                              },
+                              {
+                                "description": "Narrows the received source to the resolvers learned on these\ninterfaces, in this order, then by origin rank, then by unit.\nWith none listed, received takes every interface. Ze refuses\nthe leaf when the source list does not name received. An\ninterface that holds no lease yet is accepted: it may learn one\nlater.",
+                                "kind": "leaf-list",
+                                "name": "received-interface",
+                                "short-help": "Take received resolvers only from these interfaces, in this order.",
+                                "source": "config",
+                                "type": "node-name"
+                              },
+                              {
+                                "description": "The source classes in the order the consumer falls through\nthem. A class may appear once. Two or more classes need a mode:\nZe refuses the list without one, because it cannot tell whether\na later source is a backup or an addition.",
+                                "kind": "leaf-list",
+                                "name": "source",
+                                "short-help": "A source class, in fall-through order: received, configured, self, radius.",
+                                "source": "config",
+                                "type": "dns-source-class",
+                                "values": [
+                                  {
+                                    "name": "configured",
+                                    "short-help": "The resolvers configured on this consumer itself."
+                                  },
+                                  {
+                                    "name": "radius",
+                                    "short-help": "The resolvers RADIUS gives one PPP subscriber."
+                                  },
+                                  {
+                                    "name": "received",
+                                    "short-help": "Resolvers Ze learned from the network, by DHCPv4, DHCPv6, IPCP or router advertisement RDNSS."
+                                  },
+                                  {
+                                    "name": "self",
+                                    "short-help": "Ze's own address on the interface the client is on."
+                                  }
+                                ]
+                              }
+                            ],
+                            "description": "The ordered list of sources this consumer takes its DNS resolver\naddresses from, and how it combines them. With the container\nabsent, the consumer uses its built-in default list, which its\nown description states. Once any source is written, the default\nno longer applies, its mode included.",
+                            "kind": "container",
+                            "name": "dns-source",
+                            "short-help": "Where this consumer's DNS resolvers come from, and in what order.",
+                            "source": "config"
+                          },
                           {
                             "description": "0 tells a host to stop using the resolvers, and an operator can\nset it. 4294967295 means that the resolvers never expire. This\nleaf has no default: leave it out, and Ze sends 3 x maximum-\ninterval, the value RFC 8106 Section 5.1 recommends. 0 is not\nthe default for that reason, because Ze could not then tell an\noperator who retires a resolver from one who set nothing.",
                             "kind": "leaf",
@@ -17584,7 +18196,7 @@
               {
                 "children": [
                   {
-                    "description": "This leaf needs the netlink backend, for the same reason as autoconf:\nthe two leaves describe one behavior.",
+                    "description": "This leaf needs the netlink backend, for the same reason as autoconf:\nthe two leaves describe one behavior. Above 0 it also makes the\ndevice's RDNSS options (RFC 8106) an ra record of the router's\nreceived DNS servers, on a unit and on a pppoe-client session alike.",
                     "kind": "leaf",
                     "name": "accept-ra",
                     "short-help": "Accept RA level: 0 disables, 1 accepts when not forwarding, 2 accepts even when forwarding.",
@@ -17610,6 +18222,31 @@
                   {
                     "children": [
                       {
+                        "description": "Only the low 64 bits are used; Ze refuses a value with any of the\nhigh 64 bits set.",
+                        "kind": "leaf",
+                        "name": "interface-identifier",
+                        "short-help": "The host part of the unit's address in the /64 (default ::1).",
+                        "source": "config",
+                        "type": "ipv6-address"
+                      },
+                      {
+                        "description": "Which /64 of the delegated prefix this unit takes. With pd length 56\nthe ids run from 0 to 255; with no pd length, the largest id is\n65535, the /48 maximum. An id the delegation the server chose\ncannot hold leaves the unit without a /64, and Ze logs it.",
+                        "kind": "leaf",
+                        "name": "subnet-id",
+                        "short-help": "The /64 within the delegated prefix (0 to 2^(64 - pd length) - 1).",
+                        "source": "config",
+                        "type": "uint16"
+                      }
+                    ],
+                    "description": "Ze takes one /64 for this unit out of the prefix the named pppoe-client\nleases through DHCPv6 prefix delegation (RFC 7084 L-2): the delegated\nprefix plus subnet-id, shifted into the bits between the delegated\nlength and 64. The unit's address is that /64 plus\ninterface-identifier, and its preferred and valid lifetimes never\nexceed what remains of the delegation (RFC 9915 Section 6.3). With\nrouter-advertisement enabled, the unit advertises the /64 in a Prefix\nInformation option and the delegated prefix in a Route Information\noption. Ze refuses a source that is not a pppoe-client requesting a\ndelegated prefix, a subnet-id the pd length cannot hold, and two units\ntaking the same subnet-id from one source.",
+                    "kind": "list[source]",
+                    "name": "delegated-prefix",
+                    "short-help": "Number this unit from a prefix delegated to a pppoe-client.",
+                    "source": "config"
+                  },
+                  {
+                    "children": [
+                      {
                         "description": "When the leaf is omitted, ze generates a DUID-LL from the interface\nMAC. Set the leaf when the DHCP server binds a lease to a specific\nDUID. Write it as colon-separated hex octets, such as\n00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to\n128 octets of identifier (RFC 9915 Section 11.1).",
                         "kind": "leaf",
                         "name": "duid",
@@ -17618,7 +18255,7 @@
                         "type": "string"
                       },
                       {
-                        "description": "Ze starts a DHCPv6 client on this unit when the leaf is true. The\nclient sends a Solicit that carries the Rapid Commit option, and\nit takes a Reply directly when the server answers with one.\nOtherwise it sends a Request after the Advertise.",
+                        "description": "Ze starts a DHCPv6 client on this interface when the leaf is true. The\nclient sends a Solicit that carries the Rapid Commit option, and\nit takes a Reply directly when the server answers with one.\nOtherwise it sends a Request after the Advertise.",
                         "kind": "leaf",
                         "name": "enabled",
                         "short-help": "Enable DHCPv6 client",
@@ -17636,7 +18273,7 @@
                             "type": "uint8"
                           }
                         ],
-                        "description": "Request a delegated prefix. Every Solicit, Request, Renew and\nRebind Ze sends carries an IA_PD option, and Ze publishes each\ndelegated prefix as a lease on this unit.",
+                        "description": "Request a delegated prefix. Every Solicit, Request, Renew and\nRebind Ze sends carries an IA_PD option, and Ze publishes each\ndelegated prefix as a lease on this interface.",
                         "kind": "container",
                         "name": "pd",
                         "short-help": "Prefix delegation",
@@ -17750,6 +18387,67 @@
                       },
                       {
                         "children": [
+                          {
+                            "children": [
+                              {
+                                "description": "How a list of two or more sources combines them. first-usable\ntakes the first source that holds a usable server and ignores\nthe rest; merge takes every source in list order. The leaf has\nno default: a list naming one source needs none, and a list\nnaming more is refused without it.",
+                                "kind": "leaf",
+                                "name": "mode",
+                                "short-help": "How two or more sources combine: first-usable or merge.",
+                                "source": "config",
+                                "type": "enumeration",
+                                "values": [
+                                  {
+                                    "name": "first-usable",
+                                    "short-help": "The first source with a usable server wins; later ones are backups."
+                                  },
+                                  {
+                                    "name": "merge",
+                                    "short-help": "Every source's servers, in list order, each server listed once."
+                                  }
+                                ]
+                              },
+                              {
+                                "description": "Narrows the received source to the resolvers learned on these\ninterfaces, in this order, then by origin rank, then by unit.\nWith none listed, received takes every interface. Ze refuses\nthe leaf when the source list does not name received. An\ninterface that holds no lease yet is accepted: it may learn one\nlater.",
+                                "kind": "leaf-list",
+                                "name": "received-interface",
+                                "short-help": "Take received resolvers only from these interfaces, in this order.",
+                                "source": "config",
+                                "type": "node-name"
+                              },
+                              {
+                                "description": "The source classes in the order the consumer falls through\nthem. A class may appear once. Two or more classes need a mode:\nZe refuses the list without one, because it cannot tell whether\na later source is a backup or an addition.",
+                                "kind": "leaf-list",
+                                "name": "source",
+                                "short-help": "A source class, in fall-through order: received, configured, self, radius.",
+                                "source": "config",
+                                "type": "dns-source-class",
+                                "values": [
+                                  {
+                                    "name": "configured",
+                                    "short-help": "The resolvers configured on this consumer itself."
+                                  },
+                                  {
+                                    "name": "radius",
+                                    "short-help": "The resolvers RADIUS gives one PPP subscriber."
+                                  },
+                                  {
+                                    "name": "received",
+                                    "short-help": "Resolvers Ze learned from the network, by DHCPv4, DHCPv6, IPCP or router advertisement RDNSS."
+                                  },
+                                  {
+                                    "name": "self",
+                                    "short-help": "Ze's own address on the interface the client is on."
+                                  }
+                                ]
+                              }
+                            ],
+                            "description": "The ordered list of sources this consumer takes its DNS resolver\naddresses from, and how it combines them. With the container\nabsent, the consumer uses its built-in default list, which its\nown description states. Once any source is written, the default\nno longer applies, its mode included.",
+                            "kind": "container",
+                            "name": "dns-source",
+                            "short-help": "Where this consumer's DNS resolvers come from, and in what order.",
+                            "source": "config"
+                          },
                           {
                             "description": "0 tells a host to stop using the resolvers, and an operator can\nset it. 4294967295 means that the resolvers never expire. This\nleaf has no default: leave it out, and Ze sends 3 x maximum-\ninterval, the value RFC 8106 Section 5.1 recommends. 0 is not\nthe default for that reason, because Ze could not then tell an\noperator who retires a resolver from one who set nothing.",
                             "kind": "leaf",
@@ -18128,7 +18826,7 @@
               {
                 "children": [
                   {
-                    "description": "This leaf needs the netlink backend, for the same reason as autoconf:\nthe two leaves describe one behavior.",
+                    "description": "This leaf needs the netlink backend, for the same reason as autoconf:\nthe two leaves describe one behavior. Above 0 it also makes the\ndevice's RDNSS options (RFC 8106) an ra record of the router's\nreceived DNS servers, on a unit and on a pppoe-client session alike.",
                     "kind": "leaf",
                     "name": "accept-ra",
                     "short-help": "Accept RA level: 0 disables, 1 accepts when not forwarding, 2 accepts even when forwarding.",
@@ -18154,6 +18852,31 @@
                   {
                     "children": [
                       {
+                        "description": "Only the low 64 bits are used; Ze refuses a value with any of the\nhigh 64 bits set.",
+                        "kind": "leaf",
+                        "name": "interface-identifier",
+                        "short-help": "The host part of the unit's address in the /64 (default ::1).",
+                        "source": "config",
+                        "type": "ipv6-address"
+                      },
+                      {
+                        "description": "Which /64 of the delegated prefix this unit takes. With pd length 56\nthe ids run from 0 to 255; with no pd length, the largest id is\n65535, the /48 maximum. An id the delegation the server chose\ncannot hold leaves the unit without a /64, and Ze logs it.",
+                        "kind": "leaf",
+                        "name": "subnet-id",
+                        "short-help": "The /64 within the delegated prefix (0 to 2^(64 - pd length) - 1).",
+                        "source": "config",
+                        "type": "uint16"
+                      }
+                    ],
+                    "description": "Ze takes one /64 for this unit out of the prefix the named pppoe-client\nleases through DHCPv6 prefix delegation (RFC 7084 L-2): the delegated\nprefix plus subnet-id, shifted into the bits between the delegated\nlength and 64. The unit's address is that /64 plus\ninterface-identifier, and its preferred and valid lifetimes never\nexceed what remains of the delegation (RFC 9915 Section 6.3). With\nrouter-advertisement enabled, the unit advertises the /64 in a Prefix\nInformation option and the delegated prefix in a Route Information\noption. Ze refuses a source that is not a pppoe-client requesting a\ndelegated prefix, a subnet-id the pd length cannot hold, and two units\ntaking the same subnet-id from one source.",
+                    "kind": "list[source]",
+                    "name": "delegated-prefix",
+                    "short-help": "Number this unit from a prefix delegated to a pppoe-client.",
+                    "source": "config"
+                  },
+                  {
+                    "children": [
+                      {
                         "description": "When the leaf is omitted, ze generates a DUID-LL from the interface\nMAC. Set the leaf when the DHCP server binds a lease to a specific\nDUID. Write it as colon-separated hex octets, such as\n00:03:00:01:02:00:00:00:00:01: the 2-octet type code, then 1 to\n128 octets of identifier (RFC 9915 Section 11.1).",
                         "kind": "leaf",
                         "name": "duid",
@@ -18162,7 +18885,7 @@
                         "type": "string"
                       },
                       {
-                        "description": "Ze starts a DHCPv6 client on this unit when the leaf is true. The\nclient sends a Solicit that carries the Rapid Commit option, and\nit takes a Reply directly when the server answers with one.\nOtherwise it sends a Request after the Advertise.",
+                        "description": "Ze starts a DHCPv6 client on this interface when the leaf is true. The\nclient sends a Solicit that carries the Rapid Commit option, and\nit takes a Reply directly when the server answers with one.\nOtherwise it sends a Request after the Advertise.",
                         "kind": "leaf",
                         "name": "enabled",
                         "short-help": "Enable DHCPv6 client",
@@ -18180,7 +18903,7 @@
                             "type": "uint8"
                           }
                         ],
-                        "description": "Request a delegated prefix. Every Solicit, Request, Renew and\nRebind Ze sends carries an IA_PD option, and Ze publishes each\ndelegated prefix as a lease on this unit.",
+                        "description": "Request a delegated prefix. Every Solicit, Request, Renew and\nRebind Ze sends carries an IA_PD option, and Ze publishes each\ndelegated prefix as a lease on this interface.",
                         "kind": "container",
                         "name": "pd",
                         "short-help": "Prefix delegation",
@@ -18294,6 +19017,67 @@
                       },
                       {
                         "children": [
+                          {
+                            "children": [
+                              {
+                                "description": "How a list of two or more sources combines them. first-usable\ntakes the first source that holds a usable server and ignores\nthe rest; merge takes every source in list order. The leaf has\nno default: a list naming one source needs none, and a list\nnaming more is refused without it.",
+                                "kind": "leaf",
+                                "name": "mode",
+                                "short-help": "How two or more sources combine: first-usable or merge.",
+                                "source": "config",
+                                "type": "enumeration",
+                                "values": [
+                                  {
+                                    "name": "first-usable",
+                                    "short-help": "The first source with a usable server wins; later ones are backups."
+                                  },
+                                  {
+                                    "name": "merge",
+                                    "short-help": "Every source's servers, in list order, each server listed once."
+                                  }
+                                ]
+                              },
+                              {
+                                "description": "Narrows the received source to the resolvers learned on these\ninterfaces, in this order, then by origin rank, then by unit.\nWith none listed, received takes every interface. Ze refuses\nthe leaf when the source list does not name received. An\ninterface that holds no lease yet is accepted: it may learn one\nlater.",
+                                "kind": "leaf-list",
+                                "name": "received-interface",
+                                "short-help": "Take received resolvers only from these interfaces, in this order.",
+                                "source": "config",
+                                "type": "node-name"
+                              },
+                              {
+                                "description": "The source classes in the order the consumer falls through\nthem. A class may appear once. Two or more classes need a mode:\nZe refuses the list without one, because it cannot tell whether\na later source is a backup or an addition.",
+                                "kind": "leaf-list",
+                                "name": "source",
+                                "short-help": "A source class, in fall-through order: received, configured, self, radius.",
+                                "source": "config",
+                                "type": "dns-source-class",
+                                "values": [
+                                  {
+                                    "name": "configured",
+                                    "short-help": "The resolvers configured on this consumer itself."
+                                  },
+                                  {
+                                    "name": "radius",
+                                    "short-help": "The resolvers RADIUS gives one PPP subscriber."
+                                  },
+                                  {
+                                    "name": "received",
+                                    "short-help": "Resolvers Ze learned from the network, by DHCPv4, DHCPv6, IPCP or router advertisement RDNSS."
+                                  },
+                                  {
+                                    "name": "self",
+                                    "short-help": "Ze's own address on the interface the client is on."
+                                  }
+                                ]
+                              }
+                            ],
+                            "description": "The ordered list of sources this consumer takes its DNS resolver\naddresses from, and how it combines them. With the container\nabsent, the consumer uses its built-in default list, which its\nown description states. Once any source is written, the default\nno longer applies, its mode included.",
+                            "kind": "container",
+                            "name": "dns-source",
+                            "short-help": "Where this consumer's DNS resolvers come from, and in what order.",
+                            "source": "config"
+                          },
                           {
                             "description": "0 tells a host to stop using the resolvers, and an operator can\nset it. 4294967295 means that the resolvers never expire. This\nleaf has no default: leave it out, and Ze sends 3 x maximum-\ninterval, the value RFC 8106 Section 5.1 recommends. 0 is not\nthe default for that reason, because Ze could not then tell an\noperator who retires a resolver from one who set nothing.",
                             "kind": "leaf",
@@ -19414,6 +20198,28 @@
       {
         "children": [
           {
+            "description": "Ordered permitted authentication methods. An explicit list must include auth-method\nand cannot accompany auth-method none. When absent, CHAP methods permit only themselves,\nPAP permits CHAP-MD5 then PAP, and none permits no method. CHAP is offered before PAP.",
+            "kind": "leaf-list",
+            "name": "allow",
+            "short-help": "Permitted PPP authentication methods in preference order.",
+            "source": "config",
+            "type": "enumeration",
+            "values": [
+              {
+                "name": "chap-md5",
+                "short-help": "Permit CHAP-MD5."
+              },
+              {
+                "name": "ms-chap-v2",
+                "short-help": "Permit MS-CHAPv2."
+              },
+              {
+                "name": "pap",
+                "short-help": "Permit cleartext PAP."
+              }
+            ]
+          },
+          {
             "description": "Periodic re-authentication interval in seconds, for CHAP and MS-CHAPv2 only. Zero disables re-auth.\nA value of 1 to 4 is rejected, to prevent re-auth storms. The default is 0, which is disabled.",
             "kind": "leaf",
             "name": "reauth-interval",
@@ -19430,7 +20236,7 @@
             "type": "uint16"
           }
         ],
-        "description": "The container holds the timing of the PPP authentication phase, and nothing\nelse. The backend that answers a credential sits under the auth container, which the\nl2tp-auth-local plugin and the l2tp-auth-radius plugin fill. Both leaves here\nhot-apply: a new value reaches the next session, and a session that is already up\nkeeps the value it started with.",
+        "description": "PPP authentication negotiation policy and phase timing. The credential backend\nsits under auth. Changes apply to new sessions; existing sessions retain their policy.",
         "kind": "container",
         "name": "authentication",
         "short-help": "PPP authentication phase settings for L2TP sessions.",
@@ -19509,6 +20315,14 @@
         "type": "uint16"
       },
       {
+        "description": "Requested PPP receive Information-field size in octets. Receive capacity remains 1500.\nIPv6CP requires at least 1280; disable IPv6CP to use 68 through 1279 for IPv4-only service.\nChanges apply to new sessions only.",
+        "kind": "leaf",
+        "name": "mru",
+        "short-help": "Requested PPP MRU in octets, 68 to 1500, at least 1280 with IPv6CP, default 1500.",
+        "source": "config",
+        "type": "uint16"
+      },
+      {
         "children": [
           {
             "description": "IPCP (RFC 1332) is what gives the subscriber an IPv4 address. The default\ntrue offers it on each new session. Set it false and Ze sets DisableIPCP on the\nkernel PPP channel of a new session. That session then gets no IPv4 address, and\nonly IPv6CP can succeed. The leaf hot-applies, and a running session keeps the\naddress it holds.",
@@ -19546,7 +20360,7 @@
           {
             "children": [
               {
-                "description": "Ze offers the address as the IPCP Primary DNS option, and it offers no such\noption while the leaf is absent. A subscriber that asks for another address gets\na Configure-Nak carrying this one. Ze drops the option from its later requests\nwhen the subscriber rejects it.",
+                "description": "The configured source's first server for the IPCP Primary DNS option (see\ndns-source, which decides whether RADIUS or the learned resolvers come first). A\nsubscriber that asks for another address gets a Configure-Nak carrying the selected\none. Ze drops the option from its later requests when the subscriber rejects it.",
                 "kind": "leaf",
                 "name": "dns-primary",
                 "short-help": "Primary DNS server pushed to subscribers.",
@@ -19554,12 +20368,73 @@
                 "type": "ipv4-address"
               },
               {
-                "description": "Ze offers the address as the IPCP Secondary DNS option, and it offers no\nsuch option while the leaf is absent. The leaf is independent of dns-primary, so\na pool can name one, both, or neither.",
+                "description": "The configured source's second server, offered in the IPCP Secondary DNS\noption when dns-source selects the configured source. The leaf is independent of\ndns-primary, so a pool can name one, both, or neither; with only this one set it\nfills the primary slot.",
                 "kind": "leaf",
                 "name": "dns-secondary",
                 "short-help": "Secondary DNS server pushed to subscribers.",
                 "source": "config",
                 "type": "ipv4-address"
+              },
+              {
+                "children": [
+                  {
+                    "description": "How a list of two or more sources combines them. first-usable\ntakes the first source that holds a usable server and ignores\nthe rest; merge takes every source in list order. The leaf has\nno default: a list naming one source needs none, and a list\nnaming more is refused without it.",
+                    "kind": "leaf",
+                    "name": "mode",
+                    "short-help": "How two or more sources combine: first-usable or merge.",
+                    "source": "config",
+                    "type": "enumeration",
+                    "values": [
+                      {
+                        "name": "first-usable",
+                        "short-help": "The first source with a usable server wins; later ones are backups."
+                      },
+                      {
+                        "name": "merge",
+                        "short-help": "Every source's servers, in list order, each server listed once."
+                      }
+                    ]
+                  },
+                  {
+                    "description": "Narrows the received source to the resolvers learned on these\ninterfaces, in this order, then by origin rank, then by unit.\nWith none listed, received takes every interface. Ze refuses\nthe leaf when the source list does not name received. An\ninterface that holds no lease yet is accepted: it may learn one\nlater.",
+                    "kind": "leaf-list",
+                    "name": "received-interface",
+                    "short-help": "Take received resolvers only from these interfaces, in this order.",
+                    "source": "config",
+                    "type": "node-name"
+                  },
+                  {
+                    "description": "The source classes in the order the consumer falls through\nthem. A class may appear once. Two or more classes need a mode:\nZe refuses the list without one, because it cannot tell whether\na later source is a backup or an addition.",
+                    "kind": "leaf-list",
+                    "name": "source",
+                    "short-help": "A source class, in fall-through order: received, configured, self, radius.",
+                    "source": "config",
+                    "type": "dns-source-class",
+                    "values": [
+                      {
+                        "name": "configured",
+                        "short-help": "The resolvers configured on this consumer itself."
+                      },
+                      {
+                        "name": "radius",
+                        "short-help": "The resolvers RADIUS gives one PPP subscriber."
+                      },
+                      {
+                        "name": "received",
+                        "short-help": "Resolvers Ze learned from the network, by DHCPv4, DHCPv6, IPCP or router advertisement RDNSS."
+                      },
+                      {
+                        "name": "self",
+                        "short-help": "Ze's own address on the interface the client is on."
+                      }
+                    ]
+                  }
+                ],
+                "description": "The ordered list of sources this consumer takes its DNS resolver\naddresses from, and how it combines them. With the container\nabsent, the consumer uses its built-in default list, which its\nown description states. Once any source is written, the default\nno longer applies, its mode included.",
+                "kind": "container",
+                "name": "dns-source",
+                "short-help": "Where this consumer's DNS resolvers come from, and in what order.",
+                "source": "config"
               },
               {
                 "description": "The range is inclusive, so this address is handed to a session as well. Ze\nrefuses an end before the start, and it refuses the block that names end without\nstart. A session that arrives after the last free address is refused with pool\nexhausted.",
@@ -19645,7 +20520,7 @@
           {
             "children": [
               {
-                "description": "A session RADIUS sends to this pool receives this address, and not the one\nthe ipv4 pool holds. Ze offers no Primary DNS option while the leaf is absent,\neven when the ipv4 pool names one.",
+                "description": "The configured source of a session RADIUS sends to this pool: this address,\nand never the one the ipv4 pool holds, even while this leaf is absent.",
                 "kind": "leaf",
                 "name": "dns-primary",
                 "short-help": "Primary DNS server pushed to subscribers.",
@@ -19653,12 +20528,73 @@
                 "type": "ipv4-address"
               },
               {
-                "description": "A session RADIUS sends to this pool receives this address, and not the one\nthe ipv4 pool holds. Ze offers no Secondary DNS option while the leaf is absent,\neven when the ipv4 pool names one.",
+                "description": "The second server of this pool's configured source, and never the ipv4\npool's, even while this leaf is absent.",
                 "kind": "leaf",
                 "name": "dns-secondary",
                 "short-help": "Secondary DNS server pushed to subscribers.",
                 "source": "config",
                 "type": "ipv4-address"
+              },
+              {
+                "children": [
+                  {
+                    "description": "How a list of two or more sources combines them. first-usable\ntakes the first source that holds a usable server and ignores\nthe rest; merge takes every source in list order. The leaf has\nno default: a list naming one source needs none, and a list\nnaming more is refused without it.",
+                    "kind": "leaf",
+                    "name": "mode",
+                    "short-help": "How two or more sources combine: first-usable or merge.",
+                    "source": "config",
+                    "type": "enumeration",
+                    "values": [
+                      {
+                        "name": "first-usable",
+                        "short-help": "The first source with a usable server wins; later ones are backups."
+                      },
+                      {
+                        "name": "merge",
+                        "short-help": "Every source's servers, in list order, each server listed once."
+                      }
+                    ]
+                  },
+                  {
+                    "description": "Narrows the received source to the resolvers learned on these\ninterfaces, in this order, then by origin rank, then by unit.\nWith none listed, received takes every interface. Ze refuses\nthe leaf when the source list does not name received. An\ninterface that holds no lease yet is accepted: it may learn one\nlater.",
+                    "kind": "leaf-list",
+                    "name": "received-interface",
+                    "short-help": "Take received resolvers only from these interfaces, in this order.",
+                    "source": "config",
+                    "type": "node-name"
+                  },
+                  {
+                    "description": "The source classes in the order the consumer falls through\nthem. A class may appear once. Two or more classes need a mode:\nZe refuses the list without one, because it cannot tell whether\na later source is a backup or an addition.",
+                    "kind": "leaf-list",
+                    "name": "source",
+                    "short-help": "A source class, in fall-through order: received, configured, self, radius.",
+                    "source": "config",
+                    "type": "dns-source-class",
+                    "values": [
+                      {
+                        "name": "configured",
+                        "short-help": "The resolvers configured on this consumer itself."
+                      },
+                      {
+                        "name": "radius",
+                        "short-help": "The resolvers RADIUS gives one PPP subscriber."
+                      },
+                      {
+                        "name": "received",
+                        "short-help": "Resolvers Ze learned from the network, by DHCPv4, DHCPv6, IPCP or router advertisement RDNSS."
+                      },
+                      {
+                        "name": "self",
+                        "short-help": "Ze's own address on the interface the client is on."
+                      }
+                    ]
+                  }
+                ],
+                "description": "The ordered list of sources this consumer takes its DNS resolver\naddresses from, and how it combines them. With the container\nabsent, the consumer uses its built-in default list, which its\nown description states. Once any source is written, the default\nno longer applies, its mode included.",
+                "kind": "container",
+                "name": "dns-source",
+                "short-help": "Where this consumer's DNS resolvers come from, and in what order.",
+                "source": "config"
               },
               {
                 "description": "The range is inclusive, so this address is handed to a session as well. A\nsession that arrives after the last free address of this pool is refused with\npool exhausted. Ze does not move that session to another pool.",
@@ -19699,6 +20635,24 @@
         "source": "config"
       },
       {
+        "description": "LNS policy for the proxy LCP AVPs (Initial Received, Last Sent and Last Received LCP\nCONFREQ) a LAC sends in ICCN, RFC 2661 Section 4.4.5. With accept, a complete proxy that meets\nthe auth allow-list and mru opens LCP on the LAC's values; partial, malformed or out-of-policy\nproxy data is renegotiated anyway. With renegotiate, Ze sends its own LCP Configure-Request with\nits own Magic-Number, MRU and Auth-Protocol, then authenticates with the configured method. Ze\nauthenticates the subscriber itself under both values. Changes apply to new sessions only.",
+        "kind": "leaf",
+        "name": "proxy-lcp",
+        "short-help": "Accept the LAC's proxy LCP, or renegotiate LCP with the subscriber (default accept).",
+        "source": "config",
+        "type": "enumeration",
+        "values": [
+          {
+            "name": "accept",
+            "short-help": "Open LCP on valid proxy LCP from the LAC, then authenticate again (default)."
+          },
+          {
+            "name": "renegotiate",
+            "short-help": "Ignore the LAC's proxy LCP and negotiate LCP with the subscriber afresh."
+          }
+        ]
+      },
+      {
         "children": [
           {
             "description": "Name of the L2TP remote (dial target) that matching subscribers are relayed to. It MUST reference a\nremote declared under l2tp/remote, and an unknown name is rejected at config validation.",
@@ -19713,6 +20667,23 @@
         "kind": "list[service]",
         "name": "relay",
         "short-help": "PPPoE-to-L2TP relay bindings for the LAC role.",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
+            "description": "Name of the L2TP remote (the retail LNS) that subscribers of this realm are relayed to. It MUST\nreference a remote declared under l2tp/remote, and an unknown name is rejected at config validation.\nProxy authentication for a PAP subscriber is sent only when that remote has a shared-secret, because\nthe password then travels hidden.",
+            "kind": "leaf",
+            "name": "remote",
+            "short-help": "Name of the L2TP remote that subscribers of this realm are relayed to.",
+            "source": "config",
+            "type": "string"
+          }
+        ],
+        "description": "Realm-to-LNS relay bindings (wholesale LAC role). A PPPoE subscriber that no Service-Name relay\ntook runs LCP and starts authentication with this box; when the realm of the username (the text after\nits last '@', compared without regard to case) names a binding, the subscriber is relayed into an L2TP\nincoming call toward the named remote, carrying the proxy LCP and proxy authentication AVPs of RFC 2661\nSection 4.4.5, instead of being authenticated here. A username whose realm names no binding is\nauthenticated by the local auth handler as for any PPPoE session. A matched realm whose call fails is\nrefused, never authenticated locally. A Service-Name relay binding that matches at discovery wins.",
+        "kind": "list[realm]",
+        "name": "relay-realm",
+        "short-help": "Realm-to-LNS relay bindings for a wholesale LAC.",
         "source": "config"
       },
       {
@@ -24133,7 +25104,7 @@
                 "source": "config"
               },
               {
-                "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. Config validation refuses\ntwo listeners that share a protocol and a port when their addresses\noverlap. A wildcard address overlaps every address of its own family,\nand an IPv4 address never overlaps an IPv6 address.",
+                "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. On most services :: is\ndual-stack: it also accepts IPv4 clients, so :: alone serves both\nfamilies. Config validation refuses two listeners that share a\nprotocol and a port when their addresses overlap. A wildcard address\noverlaps every address of its own family, and a dual-stack :: also\noverlaps every IPv4 address, so list :: alone rather than :: beside\n0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web)\naccepts :: beside an IPv4 address on the same port.",
                 "kind": "leaf",
                 "name": "ip",
                 "short-help": "Listen IP address",
@@ -24255,6 +25226,23 @@
         "kind": "list[name]",
         "name": "as-path-list",
         "short-help": "Named AS-path regex filter instance.",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
+            "description": "The AS numbers of the set, in plain decimal. 0 is reserved (RFC 7607) and refused.",
+            "kind": "leaf-list",
+            "name": "asn",
+            "short-help": "AS numbers of the set",
+            "source": "config",
+            "type": "uint32"
+          }
+        ],
+        "description": "A plain set of AS numbers, with no position and no action. It is data another feature\nreads: role transit-asns names one to add the providers this router does not peer with to the\nRFC 7454 Section 9 upstream check. A filter chain cannot name an asn-set entry.",
+        "kind": "list[name]",
+        "name": "asn-set",
+        "short-help": "A named set of AS numbers",
         "source": "config"
       },
       {
@@ -24437,6 +25425,30 @@
             ]
           },
           {
+            "description": "The UPDATE passes this condition when the named as-path-list accepts its AS path,\nread as the space-separated decimal string. The as-path-list is a policy\nas-path-list instance: the editor completes the configured ones, and a commit\nnaming any other is refused. Only a BGP chain judges it.",
+            "kind": "leaf",
+            "name": "as-path",
+            "short-help": "Match routes whose AS path the named as-path-list accepts",
+            "source": "config",
+            "type": "string"
+          },
+          {
+            "description": "The UPDATE passes this condition when its AS path hop count lies within the\nnamed as-path-length instance's min and max. The editor completes the\nconfigured as-path-length instances, and a commit naming any other is\nrefused. Only a BGP chain judges it.",
+            "kind": "leaf",
+            "name": "as-path-length",
+            "short-help": "Match routes whose AS path length the named as-path-length allows",
+            "source": "config",
+            "type": "string"
+          },
+          {
+            "description": "The route passes this condition when the named community-match list accepts\nit: the list's first entry whose community the route carries decides, and a\nroute no entry matches fails. The list is a policy community-match instance:\nthe editor completes the configured ones, and a commit naming any other is\nrefused. A BGP chain judges it; a Loc-RIB chain refuses it, as its routes\ncarry no community.",
+            "kind": "leaf",
+            "name": "community",
+            "short-help": "Match routes the named community-match list accepts",
+            "source": "config",
+            "type": "string"
+          },
+          {
             "description": "An address family name such as ipv4/unicast or ipv6/unicast.",
             "kind": "leaf-list",
             "name": "family",
@@ -24506,6 +25518,14 @@
             "kind": "leaf-list",
             "name": "protocol",
             "short-help": "Match routes from this source",
+            "source": "config",
+            "type": "string"
+          },
+          {
+            "description": "The route passes this condition when the named reject-asn list rejects it on\nneither arm: no listed ASN at a listed position of its AS path, and no\npattern matching the whole path. The sender is known on import only.\nA match naming it discharges the transit-leak\nfilter a declared RFC 9234 role requires. The list is a policy reject-asn\ninstance: the editor completes the configured ones, and a commit naming any\nother is refused. A BGP chain judges it; a Loc-RIB chain refuses it.",
+            "kind": "leaf",
+            "name": "reject-asn",
+            "short-help": "Match routes the named reject-asn list does not reject",
             "source": "config",
             "type": "string"
           },
@@ -24843,7 +25863,7 @@
                 ]
               },
               {
-                "description": "NEXT_HOP is RFC 4271 type 3, and it carries an IPv4 address\nonly. An IPv6 next-hop travels in the MP_REACH attribute instead, so this leaf does not\nset one.",
+                "description": "NEXT_HOP is RFC 4271 type 3, and it carries an IPv4 address\nonly. An IPv6 next-hop travels in the MP_REACH attribute instead, which this leaf does\nnot set, so an IPv6 address here is refused when the config is read.",
                 "kind": "leaf",
                 "name": "next-hop",
                 "short-help": "Set the NEXT_HOP attribute of the route.",
@@ -25197,10 +26217,10 @@
                     "type": "uint32"
                   },
                   {
-                    "description": "Ze writes this value into the TCP MSS option, kind\n2, of every matching packet, and it does not read\nthe value already there. A packet that carries no\nMSS option is not changed. The range is 1 to 65535,\nand 0 is refused at commit. This action is not\nterminal, so it combines with accept, drop, table,\nor next-hop in the same rule.",
+                    "description": "The value is an upper bound on the TCP MSS option,\nkind 2, of every matching packet. A larger MSS is\nlowered to the value, and an MSS already at or\nbelow it is left alone, so the clamp never raises\nthe segment size a host offered. A packet that\ncarries no MSS option is not changed, and only a\nSYN carries one, so match tcp-flags syn. The range\nis 1 to 65535, and 0 is refused at commit. This\naction is not terminal, so it combines with accept,\ndrop, table, or next-hop in the same rule.",
                     "kind": "leaf",
                     "name": "tcp-mss",
-                    "short-help": "Rewrite the TCP MSS option to this value in bytes.",
+                    "short-help": "Clamp the TCP MSS to at most this many bytes (a smaller MSS is kept).",
                     "source": "config",
                     "type": "uint16"
                   }
@@ -25273,6 +26293,28 @@
           {
             "name": "pap",
             "short-help": "Advertise PAP (RFC 1334), which carries the password in clear text."
+          }
+        ]
+      },
+      {
+        "description": "Allowed PPP authentication methods. The list must contain\nauth-method and cannot be used with auth-method none.\nAbsent or empty derives chap-md5 only for chap-md5,\nms-chap-v2 only for ms-chap-v2, CHAP-MD5 then PAP for pap,\nand no methods for none. CHAP variants precede PAP; the\nconfigured CHAP method is first, then written CHAP order.\nChanges apply only to new sessions.",
+        "kind": "leaf-list",
+        "name": "authentication-allow",
+        "short-help": "Ordered set of permitted subscriber PPP authentication methods.",
+        "source": "config",
+        "type": "enumeration",
+        "values": [
+          {
+            "name": "chap-md5",
+            "short-help": "Permit CHAP-MD5 (RFC 1994)."
+          },
+          {
+            "name": "ms-chap-v2",
+            "short-help": "Permit MS-CHAP-V2 (RFC 2759)."
+          },
+          {
+            "name": "pap",
+            "short-help": "Permit PAP (RFC 1334)."
           }
         ]
       },
@@ -25540,10 +26582,10 @@
       {
         "children": [
           {
-            "description": "The leaf is mandatory. The range refuses 0 and 253 to 255, because\n253 is the kernel default table, 254 is the main table and 255 is\nthe local table. Ze also refuses an identifier this build cannot\nprogram through netlink without truncation.",
+            "description": "The leaf is mandatory. The range refuses 0 and 253 to 255, because\n253 is the kernel default table, 254 is the main table and 255 is\nthe local table. Ze also refuses an identifier inside a range Ze\nreserves for its own tables (internal/core/iprule, ZeTableRanges:\nVRF tables, policy routing auto tables, IPsec source-guard tables),\nand an identifier this build cannot\nprogram through netlink without truncation.",
             "kind": "leaf",
             "name": "id",
-            "short-help": "Kernel routing table ID. Reserved IDs\nexcluded: 0 (use 'default'), 253-255\n(kernel reserved).",
+            "short-help": "Kernel routing table ID; not 0, 253-255 or a range Ze reserves",
             "source": "config",
             "type": "uint32"
           }
@@ -26002,7 +27044,7 @@
           {
             "children": [
               {
-                "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. Config validation refuses\ntwo listeners that share a protocol and a port when their addresses\noverlap. A wildcard address overlaps every address of its own family,\nand an IPv4 address never overlaps an IPv6 address.",
+                "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. On most services :: is\ndual-stack: it also accepts IPv4 clients, so :: alone serves both\nfamilies. Config validation refuses two listeners that share a\nprotocol and a port when their addresses overlap. A wildcard address\noverlaps every address of its own family, and a dual-stack :: also\noverlaps every IPv4 address, so list :: alone rather than :: beside\n0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web)\naccepts :: beside an IPv4 address on the same port.",
                 "kind": "leaf",
                 "name": "ip",
                 "short-help": "Listen IP address",
@@ -26027,7 +27069,7 @@
           {
             "children": [
               {
-                "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. Config validation refuses\ntwo listeners that share a protocol and a port when their addresses\noverlap. A wildcard address overlaps every address of its own family,\nand an IPv4 address never overlaps an IPv6 address.",
+                "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. On most services :: is\ndual-stack: it also accepts IPv4 clients, so :: alone serves both\nfamilies. Config validation refuses two listeners that share a\nprotocol and a port when their addresses overlap. A wildcard address\noverlaps every address of its own family, and a dual-stack :: also\noverlaps every IPv4 address, so list :: alone rather than :: beside\n0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web)\naccepts :: beside an IPv4 address on the same port.",
                 "kind": "leaf",
                 "name": "ip",
                 "short-help": "Listen IP address",
@@ -26193,7 +27235,7 @@
               {
                 "children": [
                   {
-                    "description": "Default gateway address, sent as option 3. Ze also uses it as the DHCP server\nidentifier of this subnet, in option 54. With no default-router the identifier falls\nback to the start address of the first range, and then to the network address of the\nprefix. A REQUEST that names a different server identifier is left unanswered.",
+                    "description": "Default gateway address, sent as option 3. It does not choose the server\nidentifier (option 54): see server-identifier.",
                     "kind": "leaf",
                     "name": "default-router",
                     "short-help": "Default gateway address (option 3)",
@@ -26207,6 +27249,67 @@
                     "short-help": "DNS server addresses (option 6)",
                     "source": "config",
                     "type": "string"
+                  },
+                  {
+                    "children": [
+                      {
+                        "description": "How a list of two or more sources combines them. first-usable\ntakes the first source that holds a usable server and ignores\nthe rest; merge takes every source in list order. The leaf has\nno default: a list naming one source needs none, and a list\nnaming more is refused without it.",
+                        "kind": "leaf",
+                        "name": "mode",
+                        "short-help": "How two or more sources combine: first-usable or merge.",
+                        "source": "config",
+                        "type": "enumeration",
+                        "values": [
+                          {
+                            "name": "first-usable",
+                            "short-help": "The first source with a usable server wins; later ones are backups."
+                          },
+                          {
+                            "name": "merge",
+                            "short-help": "Every source's servers, in list order, each server listed once."
+                          }
+                        ]
+                      },
+                      {
+                        "description": "Narrows the received source to the resolvers learned on these\ninterfaces, in this order, then by origin rank, then by unit.\nWith none listed, received takes every interface. Ze refuses\nthe leaf when the source list does not name received. An\ninterface that holds no lease yet is accepted: it may learn one\nlater.",
+                        "kind": "leaf-list",
+                        "name": "received-interface",
+                        "short-help": "Take received resolvers only from these interfaces, in this order.",
+                        "source": "config",
+                        "type": "node-name"
+                      },
+                      {
+                        "description": "The source classes in the order the consumer falls through\nthem. A class may appear once. Two or more classes need a mode:\nZe refuses the list without one, because it cannot tell whether\na later source is a backup or an addition.",
+                        "kind": "leaf-list",
+                        "name": "source",
+                        "short-help": "A source class, in fall-through order: received, configured, self, radius.",
+                        "source": "config",
+                        "type": "dns-source-class",
+                        "values": [
+                          {
+                            "name": "configured",
+                            "short-help": "The resolvers configured on this consumer itself."
+                          },
+                          {
+                            "name": "radius",
+                            "short-help": "The resolvers RADIUS gives one PPP subscriber."
+                          },
+                          {
+                            "name": "received",
+                            "short-help": "Resolvers Ze learned from the network, by DHCPv4, DHCPv6, IPCP or router advertisement RDNSS."
+                          },
+                          {
+                            "name": "self",
+                            "short-help": "Ze's own address on the interface the client is on."
+                          }
+                        ]
+                      }
+                    ],
+                    "description": "The ordered list of sources this consumer takes its DNS resolver\naddresses from, and how it combines them. With the container\nabsent, the consumer uses its built-in default list, which its\nown description states. Once any source is written, the default\nno longer applies, its mode included.",
+                    "kind": "container",
+                    "name": "dns-source",
+                    "short-help": "Where this consumer's DNS resolvers come from, and in what order.",
+                    "source": "config"
                   },
                   {
                     "description": "Domain name for clients, sent as option 15. Ze sends the string as it is written. A\ncommit rejects a value longer than 255 characters, which is the most one DHCP option\nholds.",
@@ -26250,6 +27353,14 @@
                     "source": "config"
                   },
                   {
+                    "description": "Address the server identifies itself with in this subnet's replies, sent as\noption 54 and in siaddr unless PXE names a TFTP server. Left unset, Ze uses the listen\ninterface's address inside the subnet, or, for a subnet served only through a relay,\nthe interface's primary address. Set it to name one address when the interface holds\nseveral in the subnet, such as a VRRP virtual address. A commit rejects a value that\nis not a unicast host address, or that is the network or broadcast address of the\nsubnet. The address need not fall inside the subnet. When the listen interface does not\nhold the address at the time of a request, Ze does not answer and logs a warning naming\nthe subnet, the address and the fix. A REQUEST naming any of the server's addresses on\nthe segment (RFC 2131 Section 4.1) is accepted as addressed to this server.",
+                    "kind": "leaf",
+                    "name": "server-identifier",
+                    "short-help": "Server identifier address (option 54)",
+                    "source": "config",
+                    "type": "string"
+                  },
+                  {
                     "children": [
                       {
                         "description": "Fixed IP address for this client. It has to fall inside the subnet prefix, and a\ncommit rejects an address outside it. The address does not have to fall inside a\nrange. When it does, Ze marks it allocated so the dynamic pool never offers it to\nanother client.",
@@ -26275,21 +27386,21 @@
                     "source": "config"
                   }
                 ],
-                "description": "Subnet with address pool and options. Each subnet becomes one handler with its own address\npool and lease table. A request that carries no relay address, no client address and no\nrequested address matches every subnet. The first handler with a free address answers it.",
+                "description": "Subnet with address pool and options. Each subnet has its own address pool and lease\ntable. A request is served from the subnet the client belongs to on its segment: its static\nmapping first, then its current binding, then the requested address when it is free, then\na pool. The listen interface needs an address in a subnet of the segment, unless the\nrequest came through a relay.",
                 "kind": "list[prefix]",
                 "name": "subnet",
                 "short-help": "Subnet with address pool and options",
                 "source": "config"
               }
             ],
-            "description": "Named network grouping of subnets. The name is a label for the operator, and Ze puts it on no\npacket. Ze sorts the groups by name and builds one handler for each subnet in that order. A\nrequest is answered by the first handler that accepts it.",
+            "description": "The subnets of one physical segment. The name is a label for the operator, and Ze puts it on no\npacket. A static mapping in any subnet of the segment is offered before any pool, and a new\naddress comes from the subnet holding the listen interface's primary address (or the relay's\naddress), then from the other subnets in the order Ze sorts them: shared networks by name,\nsubnets by prefix text.",
             "kind": "list[name]",
             "name": "shared-network",
             "short-help": "Named network grouping of subnets",
             "source": "config"
           }
         ],
-        "description": "DHCP server settings. Ze speaks DHCPv4 only (RFC 2131 and RFC 2132), so every address leaf under\nthis container is IPv4. The server binds one listener for each name in listen-interface, and\nevery listener answers for every configured subnet.",
+        "description": "DHCP server settings. Ze speaks DHCPv4 only (RFC 2131 and RFC 2132), so every address leaf under\nthis container is IPv4. The server binds one listener for each name in listen-interface. A\nlistener answers a client no relay forwarded only from the shared networks that hold a\nsubnet its interface is addressed in, and a relayed client from the shared network that\nholds the relay's address (giaddr).",
         "kind": "container",
         "name": "dhcp-server",
         "short-help": "DHCP server settings",
@@ -26339,7 +27450,7 @@
             "source": "config"
           },
           {
-            "description": "The default is false, so the resolver binds no listener and answers no query. A true\nvalue binds each `listener` entry for UDP and TCP, and needs at least one `listener`, one\n`allow-from` prefix and one `forward server`.",
+            "description": "The default is false, so the resolver binds no listener and answers no query. A true\nvalue binds each `listener` entry for UDP and TCP, and needs at least one `listener`, one\n`allow-from` prefix, and either one `forward server` or a `forward dns-source` that names\nreceived (the default list does).",
             "kind": "leaf",
             "name": "enabled",
             "short-help": "Enable the LAN DNS resolver",
@@ -26348,6 +27459,67 @@
           },
           {
             "children": [
+              {
+                "children": [
+                  {
+                    "description": "How a list of two or more sources combines them. first-usable\ntakes the first source that holds a usable server and ignores\nthe rest; merge takes every source in list order. The leaf has\nno default: a list naming one source needs none, and a list\nnaming more is refused without it.",
+                    "kind": "leaf",
+                    "name": "mode",
+                    "short-help": "How two or more sources combine: first-usable or merge.",
+                    "source": "config",
+                    "type": "enumeration",
+                    "values": [
+                      {
+                        "name": "first-usable",
+                        "short-help": "The first source with a usable server wins; later ones are backups."
+                      },
+                      {
+                        "name": "merge",
+                        "short-help": "Every source's servers, in list order, each server listed once."
+                      }
+                    ]
+                  },
+                  {
+                    "description": "Narrows the received source to the resolvers learned on these\ninterfaces, in this order, then by origin rank, then by unit.\nWith none listed, received takes every interface. Ze refuses\nthe leaf when the source list does not name received. An\ninterface that holds no lease yet is accepted: it may learn one\nlater.",
+                    "kind": "leaf-list",
+                    "name": "received-interface",
+                    "short-help": "Take received resolvers only from these interfaces, in this order.",
+                    "source": "config",
+                    "type": "node-name"
+                  },
+                  {
+                    "description": "The source classes in the order the consumer falls through\nthem. A class may appear once. Two or more classes need a mode:\nZe refuses the list without one, because it cannot tell whether\na later source is a backup or an addition.",
+                    "kind": "leaf-list",
+                    "name": "source",
+                    "short-help": "A source class, in fall-through order: received, configured, self, radius.",
+                    "source": "config",
+                    "type": "dns-source-class",
+                    "values": [
+                      {
+                        "name": "configured",
+                        "short-help": "The resolvers configured on this consumer itself."
+                      },
+                      {
+                        "name": "radius",
+                        "short-help": "The resolvers RADIUS gives one PPP subscriber."
+                      },
+                      {
+                        "name": "received",
+                        "short-help": "Resolvers Ze learned from the network, by DHCPv4, DHCPv6, IPCP or router advertisement RDNSS."
+                      },
+                      {
+                        "name": "self",
+                        "short-help": "Ze's own address on the interface the client is on."
+                      }
+                    ]
+                  }
+                ],
+                "description": "The ordered list of sources this consumer takes its DNS resolver\naddresses from, and how it combines them. With the container\nabsent, the consumer uses its built-in default list, which its\nown description states. Once any source is written, the default\nno longer applies, its mode included.",
+                "kind": "container",
+                "name": "dns-source",
+                "short-help": "Where this consumer's DNS resolvers come from, and in what order.",
+                "source": "config"
+              },
               {
                 "children": [
                   {
@@ -26400,7 +27572,7 @@
           {
             "children": [
               {
-                "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. Config validation refuses\ntwo listeners that share a protocol and a port when their addresses\noverlap. A wildcard address overlaps every address of its own family,\nand an IPv4 address never overlaps an IPv6 address.",
+                "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. On most services :: is\ndual-stack: it also accepts IPv4 clients, so :: alone serves both\nfamilies. Config validation refuses two listeners that share a\nprotocol and a port when their addresses overlap. A wildcard address\noverlaps every address of its own family, and a dual-stack :: also\noverlaps every IPv4 address, so list :: alone rather than :: beside\n0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web)\naccepts :: beside an IPv4 address on the same port.",
                 "kind": "leaf",
                 "name": "ip",
                 "short-help": "Listen IP address",
@@ -26624,7 +27796,7 @@
           {
             "children": [
               {
-                "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. Config validation refuses\ntwo listeners that share a protocol and a port when their addresses\noverlap. A wildcard address overlaps every address of its own family,\nand an IPv4 address never overlaps an IPv6 address.",
+                "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. On most services :: is\ndual-stack: it also accepts IPv4 clients, so :: alone serves both\nfamilies. Config validation refuses two listeners that share a\nprotocol and a port when their addresses overlap. A wildcard address\noverlaps every address of its own family, and a dual-stack :: also\noverlaps every IPv4 address, so list :: alone rather than :: beside\n0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web)\naccepts :: beside an IPv4 address on the same port.",
                 "kind": "leaf",
                 "name": "ip",
                 "short-help": "Listen IP address",
@@ -27981,10 +29153,10 @@
             ]
           },
           {
-            "description": "The leaf-list only loads a module. Removing a module from\nthe list stops the load on the next boot, and it does not\nunload the module at runtime.",
+            "description": "Each listed helper gets an nft ct helper object, and new\nconnections to its ports are assigned to it, in prerouting\nand output at priority -5. A helper the kernel registers\nfor IPv4 only is assigned in IPv4 alone. The list is empty\nby default, so no ALG runs unless listed (RFC 4787 REQ-10).\nRemoving a helper removes its assignment on the next commit.",
             "kind": "leaf-list",
             "name": "module",
-            "short-help": "Conntrack helper modules to load.",
+            "short-help": "Conntrack helpers (ALGs) to assign to new connections.",
             "source": "config",
             "type": "enumeration",
             "values": [
@@ -28009,10 +29181,6 @@
                 "short-help": "NetBIOS-NS helper (nf_conntrack_netbios_ns)."
               },
               {
-                "name": "nfs",
-                "short-help": "NFS helper (nf_conntrack_nfs)."
-              },
-              {
                 "name": "pptp",
                 "short-help": "PPTP helper (nf_conntrack_pptp)."
               },
@@ -28027,10 +29195,6 @@
               {
                 "name": "snmp",
                 "short-help": "SNMP helper (nf_conntrack_snmp)."
-              },
-              {
-                "name": "sqlnet",
-                "short-help": "SQLnet/TNS helper (nf_conntrack_sqlnet)."
               },
               {
                 "name": "tftp",
@@ -28569,7 +29733,7 @@
             ]
           },
           {
-            "description": "The default /tmp/resolv.conf suits gokrazy, whose rootfs is\nread-only. Set /etc/resolv.conf on standard Linux. An empty\nstring stops Ze writing the file.",
+            "description": "The default /tmp/resolv.conf suits gokrazy, whose rootfs is\nread-only. Set /etc/resolv.conf on standard Linux. An empty\nstring stops Ze writing the file. Any other value must be an\nabsolute path in clean form: commit refuses a relative path,\nand one with a dot-dot element or a repeated slash.",
             "kind": "leaf",
             "name": "resolv-conf-path",
             "short-help": "Path Ze writes the DNS servers to, as a resolv.conf file.",
@@ -28592,6 +29756,67 @@
         "source": "config"
       },
       {
+        "children": [
+          {
+            "description": "How a list of two or more sources combines them. first-usable\ntakes the first source that holds a usable server and ignores\nthe rest; merge takes every source in list order. The leaf has\nno default: a list naming one source needs none, and a list\nnaming more is refused without it.",
+            "kind": "leaf",
+            "name": "mode",
+            "short-help": "How two or more sources combine: first-usable or merge.",
+            "source": "config",
+            "type": "enumeration",
+            "values": [
+              {
+                "name": "first-usable",
+                "short-help": "The first source with a usable server wins; later ones are backups."
+              },
+              {
+                "name": "merge",
+                "short-help": "Every source's servers, in list order, each server listed once."
+              }
+            ]
+          },
+          {
+            "description": "Narrows the received source to the resolvers learned on these\ninterfaces, in this order, then by origin rank, then by unit.\nWith none listed, received takes every interface. Ze refuses\nthe leaf when the source list does not name received. An\ninterface that holds no lease yet is accepted: it may learn one\nlater.",
+            "kind": "leaf-list",
+            "name": "received-interface",
+            "short-help": "Take received resolvers only from these interfaces, in this order.",
+            "source": "config",
+            "type": "node-name"
+          },
+          {
+            "description": "The source classes in the order the consumer falls through\nthem. A class may appear once. Two or more classes need a mode:\nZe refuses the list without one, because it cannot tell whether\na later source is a backup or an addition.",
+            "kind": "leaf-list",
+            "name": "source",
+            "short-help": "A source class, in fall-through order: received, configured, self, radius.",
+            "source": "config",
+            "type": "dns-source-class",
+            "values": [
+              {
+                "name": "configured",
+                "short-help": "The resolvers configured on this consumer itself."
+              },
+              {
+                "name": "radius",
+                "short-help": "The resolvers RADIUS gives one PPP subscriber."
+              },
+              {
+                "name": "received",
+                "short-help": "Resolvers Ze learned from the network, by DHCPv4, DHCPv6, IPCP or router advertisement RDNSS."
+              },
+              {
+                "name": "self",
+                "short-help": "Ze's own address on the interface the client is on."
+              }
+            ]
+          }
+        ],
+        "description": "The ordered list of sources this consumer takes its DNS resolver\naddresses from, and how it combines them. With the container\nabsent, the consumer uses its built-in default list, which its\nown description states. Once any source is written, the default\nno longer applies, its mode included.",
+        "kind": "container",
+        "name": "dns-source",
+        "short-help": "Where this consumer's DNS resolvers come from, and in what order.",
+        "source": "config"
+      },
+      {
         "description": "Ze expands a $ENV_VAR reference in the value when it reads the\nconfig.",
         "kind": "leaf",
         "name": "domain",
@@ -28608,7 +29833,7 @@
         "type": "string"
       },
       {
-        "description": "Ze writes each address to the resolv.conf file named by\ndns/resolv-conf-path, and its own resolver asks these servers.\nWhen environment mtu reference-address is not set, show mtu\nmeasures the first server as its reference address.",
+        "description": "The configured source of the router's resolvers. Under the\ndefault dns-source list, Ze writes each address to the\nresolv.conf file named by dns/resolv-conf-path, and its own\nresolver asks these servers, whenever any is set.\nWhen environment mtu reference-address is not set, show mtu\nmeasures the first server as its reference address.",
         "kind": "leaf-list",
         "name": "name-server",
         "short-help": "Static DNS name servers, written to resolv.conf and used by ze internal resolver.",
@@ -29034,7 +30259,7 @@
           {
             "children": [
               {
-                "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. Config validation refuses\ntwo listeners that share a protocol and a port when their addresses\noverlap. A wildcard address overlaps every address of its own family,\nand an IPv4 address never overlaps an IPv6 address.",
+                "description": "The listener binds this address. 0.0.0.0 binds every IPv4 address of\nthe host, and :: binds every IPv6 address. On most services :: is\ndual-stack: it also accepts IPv4 clients, so :: alone serves both\nfamilies. Config validation refuses two listeners that share a\nprotocol and a port when their addresses overlap. A wildcard address\noverlaps every address of its own family, and a dual-stack :: also\noverlaps every IPv4 address, so list :: alone rather than :: beside\n0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web)\naccepts :: beside an IPv4 address on the same port.",
                 "kind": "leaf",
                 "name": "ip",
                 "short-help": "Listen IP address",
@@ -29325,6 +30550,24 @@
     "children": [
       {
         "children": [
+          {
+            "description": "Whether a user or application may override this Security Policy\nDatabase. RFC 4301 Section 4.4.1: 'However, the system\nadministrator MUST be able to specify whether or not a user or\napplication can override (default) system policies.' On Linux an\napplication overrides the SPD by setting a per-socket policy\n(IP_XFRM_POLICY, IPV6_XFRM_POLICY and the IPSEC_POLICY\nspellings), which outranks every SPD entry, the discard\ncatch-all included.\n\ndeny attaches a setsockopt guard to the cgroup2 root that refuses\nthose four options with EPERM to every process in Ze's network\nnamespace except Ze's own IPsec dataplane, so it needs ze to hold\nCAP_BPF and CAP_NET_ADMIN, a cgroup2 mount and Linux 6.10 or\nlater; a guard that\ncannot attach fails the commit. allow attaches nothing, and Linux\nlets any process holding CAP_NET_ADMIN set one. A process holding\nCAP_NET_ADMIN can still write the SPD itself, which no setsockopt\nguard sees: ze doctor names every such process.",
+            "kind": "leaf",
+            "name": "application-override",
+            "short-help": "Whether applications may override the SPD per socket: deny or allow.",
+            "source": "config",
+            "type": "enumeration",
+            "values": [
+              {
+                "name": "allow",
+                "short-help": "Let any process holding CAP_NET_ADMIN set per-socket IPsec policies."
+              },
+              {
+                "name": "deny",
+                "short-help": "Refuse every per-socket IPsec policy but Ze's own."
+              }
+            ]
+          },
           {
             "description": "Number of half-open IKE SAs tolerated before an inbound\nIKE_SA_INIT must answer a COOKIE challenge. RFC 7296\nSection 2.6 makes the challenge the answer to state and CPU\nexhaustion from forged source addresses. The default of 0\nchallenges every inbound initiation, which costs one extra\nround trip and stops a single spoofed datagram taking a\npeer's only half-open handshake slot. Raise it to tolerate\nthat many half-open handshakes before challenging.",
             "kind": "leaf",
@@ -29675,7 +30918,7 @@
             "source": "config"
           },
           {
-            "description": "Commit refuses a name no interface on the host carries. The first IPv4 address of\nthe interface fills the local-address of every peer that names none. The IKE socket\non port 500 binds there. The NAT-T socket on port 4500 also binds there unless\nlive XFRM migration is available, when it listens on the wildcard and selects\neach SA's source address explicitly. A reload whose interface holds no IPv4\naddress is refused, and the same case at startup runs and writes a warning.",
+            "description": "Commit accepts a name no interface on the host carries yet, so a WAN created\nafter Ze (a PPPoE unit) can be named; the doctor check ipsec-interface reports\na name the host does not hold. The first IPv4 address of the interface fills the local-address of every peer that names none, and Ze\nfollows it: when an address appears (a PPPoE or DHCP WAN that came up after\nZe), those peers start; when it changes, they restart from the new address;\nwhen it leaves, they stop and remove their Child SAs, and wait. The IKE socket\non port 500 binds there. The NAT-T socket on port 4500 also binds there unless\nlive XFRM migration is available, when it listens on the wildcard and selects\neach SA's source address explicitly. A peer with its own local-address keeps\nits own socket and is never restarted by an interface address event. A reload\nwhose interface holds no IPv4 address is refused, and the same case at startup\nruns, writes a warning, and the doctor check ipsec-interface-address names the\nwaiting peers.",
             "kind": "leaf",
             "name": "interface",
             "short-help": "WAN interface for IPsec traffic.",
@@ -30388,7 +31631,7 @@
                     "type": "leafref"
                   },
                   {
-                    "description": "The value is an IP address literal. Ze reads it with net.ParseIP, so an\ninterface name here resolves to nothing and the peer cannot build a Child\nSA. Name the interface under vpn ipsec interface instead, and Ze fills this\nleaf from the first IPv4 address of that interface.",
+                    "description": "The value is an IP address literal, and commit refuses anything else,\nan interface name or a keyword such as any included. Leave it out to let\nthe address follow something: under vpn ipsec interface, the first IPv4\naddress of that interface, followed as it changes; without it, the source\naddress the kernel's route to the remote selects, resolved at the start\nof every connection attempt. On a host with several addresses that\nsource is the route's, and replies to a peer that initiates leave from\nit too.",
                     "kind": "leaf",
                     "name": "local-address",
                     "short-help": "Local endpoint IP address.",
@@ -30440,7 +31683,7 @@
                     "type": "uint32"
                   },
                   {
-                    "description": "Ze resolves the value with net.ResolveUDPAddr over udp4 and sends IKE to\nport 500 there, so an IPv6 literal is refused with \"ike: resolve remote\".\nZe builds the NAT detection hashes of RFC 7296 Section 2.23 from this value.\nIt sends none when the value is not an address literal. An unsolicited\nIKE_SA_INIT reaches a respond peer only when its source address equals this\nleaf, character for character.",
+                    "description": "An IPv4 literal or a DNS name. An initiating peer resolves it over udp4\nat the start of every connection attempt, so a name that answers with a\nnew address is dialed there next time, and a name that does not resolve\nfails the attempt, which is retried with the reconnect backoff (1 s\ndoubling to 60 s). The resolved address is the remote of the IKE SA: the\nNAT detection hashes of RFC 7296 Section 2.23, the Child SA endpoints and\nthe transport-mode host pair are built from it. IKE over IPv6 is not\nsupported, so an IPv6 literal does not resolve. A respond peer accepts an\nunsolicited IKE_SA_INIT from this literal, or from any address the name\nresolved to at the last refresh (every 60 s and after each commit); a\ndatagram never causes a DNS query.",
                     "kind": "leaf",
                     "name": "remote-address",
                     "short-help": "Remote endpoint IPv4 address or DNS hostname.",

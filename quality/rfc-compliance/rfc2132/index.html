@@ -406,7 +406,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-3.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1331" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestOptionSubnetMaskBeforeRouter</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1313" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestOptionSubnetMaskBeforeRouter</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze constructs every OFFER/ACK with the subnet mask (option 1) emitted before the router (option 3) in fixed code order (buildReply internal/plugins/dhcpserver/handler.go:251 then :255); no code path emits them reversed, so there is no out-of-order output to assert as a negative</p></td>
 </tr>
@@ -415,7 +415,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-3.5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1354" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestEmittedIPListOptionLengthsMultipleOfFour</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1336" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestEmittedIPListOptionLengthsMultipleOfFour</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze emits option 3 from a single netip.Addr via As4() = exactly 4 octets (buildReply internal/plugins/dhcpserver/handler.go:255), so the router option length is always a multiple of 4 and no code path can emit a non-multiple-of-4 router option to test negatively</p></td>
 </tr>
@@ -442,7 +442,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.8</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-3.8-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1363" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestEmittedIPListOptionLengthsMultipleOfFour</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1345" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestEmittedIPListOptionLengthsMultipleOfFour</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze emits option 6 by concatenating 4-octet As4() addresses (buildReply internal/plugins/dhcpserver/handler.go:258-264), so the DNS option length is always 4*n and no code path can emit a non-multiple-of-4 DNS option to test negatively</p></td>
 </tr>
@@ -649,7 +649,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-2-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1413" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestEveryEmittedOptionHasLengthOctet</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1395" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestEveryEmittedOptionHasLengthOctet</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> every option ze emits goes through safeAppendOption, which writes the length octet before the data on every path (internal/plugins/dhcpserver/handler.go); no input selects a path that omits it, so there is no refusal to assert</p></td>
 </tr>
@@ -658,7 +658,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1458" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestASCIIOptionParsingTolerantOfTrailingNull</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1440" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestASCIIOptionParsingTolerantOfTrailingNull</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze reads ASCII-carrying options 60 and 77 only by fixed-prefix match (isPXEClient internal/plugins/dhcpserver/handler.go:493, isIPXE handler.go:498), so a trailing NUL never corrupts interpretation; no ze receive path rejects or mishandles ASCII option data because of a trailing NUL, so there is no negative case</p></td>
 </tr>
@@ -667,7 +667,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-2-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1450" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestASCIIOptionParsingTolerantOfTrailingNull</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1432" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestASCIIOptionParsingTolerantOfTrailingNull</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze&#39;s ASCII-option receiver prefix-matches options 60 and 77 (isPXEClient internal/plugins/dhcpserver/handler.go:493, isIPXE handler.go:498) and so never requires a trailing NUL; option data without one is accepted, and there is no ze path that demands a trailing NUL to test negatively</p></td>
 </tr>
@@ -676,7 +676,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>8.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1507" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestIgnoresClientVendorSpecificOption43</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1489" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestIgnoresClientVendorSpecificOption43</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze never reads a received option 43 -- vendor-specific information appears only in ze&#39;s Tx path (handler.go:325) and the option-parse loop skips any code it does not request (parseMsgType/parseOptionBytes advance past unrequested options, internal/plugins/dhcpserver/handler.go:367-403), so ze ignores client vendor-specific info and no code path interprets or rejects it</p></td>
 </tr>
@@ -685,7 +685,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>9.13</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-9.13-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1554" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestIgnoresUnknownVendorClass</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1536" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestIgnoresUnknownVendorClass</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze inspects option 60 only for the &#34;PXEClient:&#34; prefix (isPXEClient internal/plugins/dhcpserver/handler.go:493-496); any other vendor class yields false and no class-specific handling, so an unrecognized class is ignored and no code path rejects a packet on class content to test negatively</p></td>
 </tr>
@@ -1140,7 +1140,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1331" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestOptionSubnetMaskBeforeRouter</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1313" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestOptionSubnetMaskBeforeRouter</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1155,7 +1155,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1354" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestEmittedIPListOptionLengthsMultipleOfFour</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1336" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestEmittedIPListOptionLengthsMultipleOfFour</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1178,7 +1178,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1363" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestEmittedIPListOptionLengthsMultipleOfFour</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1345" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestEmittedIPListOptionLengthsMultipleOfFour</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1281,7 +1281,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1413" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestEveryEmittedOptionHasLengthOctet</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1395" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestEveryEmittedOptionHasLengthOctet</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1296,7 +1296,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1458" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestASCIIOptionParsingTolerantOfTrailingNull</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1440" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestASCIIOptionParsingTolerantOfTrailingNull</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1311,7 +1311,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1450" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestASCIIOptionParsingTolerantOfTrailingNull</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1432" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestASCIIOptionParsingTolerantOfTrailingNull</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1326,7 +1326,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1507" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestIgnoresClientVendorSpecificOption43</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1489" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestIgnoresClientVendorSpecificOption43</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1341,7 +1341,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1554" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestIgnoresUnknownVendorClass</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1536" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestIgnoresUnknownVendorClass</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2025,7 +2025,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

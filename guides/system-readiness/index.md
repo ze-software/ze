@@ -21,7 +21,8 @@ With no argument, `ze doctor` checks the active config in the store. `config
 stdin. The file is always the value of the `config` keyword: a bare path such as
 `ze doctor router.conf` is refused with an error that names
 `ze doctor config <file>`.
-<!-- source: internal/component/doctor/doctor.go -- Run, refuseDoctorArgs -->
+<!-- source: internal/component/doctor/doctor.go -- Run -->
+<!-- source: internal/component/doctor/answer.go -- Answer, readDoctorRequest -->
 
 `ze doctor kernel-capabilities` asks a different question: it probes every
 kernel feature Ze enrolls, whatever the configuration uses, prints one row per
@@ -39,8 +40,8 @@ remediation guidance.
 |------|----------------|
 | `doctor-store-integrity` | `database/` store corruption |
 | `doctor-config-missing` | Config file resolution |
-| `doctor-config-parse` | Config syntax |
-| `doctor-config-reference` | Dangling policy/filter references |
+| `doctor-config-parse` | The config file parses, and then passes the same load validation the daemon applies at startup. A syntax error or a load refusal is reported under this code, and no `post-config` check runs after it <!-- source: internal/component/doctor/doctor.go -- runChecks --> |
+| `doctor-config-reference` | Dangling policy/filter references, reported before load validation can refuse the configuration <!-- source: internal/component/bgp/config/filter_reference_doctor.go -- filterReferenceDoctorCheck --> |
 | `doctor-tls-*` | TLS cert existence, expiry, validity |
 | `doctor-plugin-missing` | Plugin binary on PATH |
 | `doctor-plugin-shell-missing` | The shell an external plugin is started with. Ze runs the `run` string as `/bin/sh -c <run>`, so a host with no shell, such as a gokrazy appliance image, starts none of them <!-- source: internal/component/plugin/doctor/check_shell.go -- diagnosePluginShell --> |

@@ -112,7 +112,7 @@ refuses what it cannot support, from the answer it has in hand, after it runs.
 |---------|-------------|
 | `ze config validate <file>` | Validate configuration file |
 | `ze config edit` | Interactive configuration editor |
-| `ze config migrate` | Convert an older ze config to the current format |
+| `ze config migrate` | Rewrite a config in the set or hierarchical form |
 | `ze config fmt` | Format and normalize config file |
 | `ze config dump` | Dump parsed configuration tree |
 | `ze config diff <a> <b>` | Compare two configuration files |
@@ -231,7 +231,13 @@ The dashboard polls three local BGP sessions. Press "s" to sort by the next colu
 **Commit confirmed:** The editor supports `commit confirmed <seconds>` for safe remote changes. The config is applied immediately but auto-reverts if `commit accept` is not issued within the timeout window (1-3600 seconds). Use `commit abort` to revert manually. A plain commit is `commit now`; `commit verify` validates without applying. Modeled after Junos commit confirmed.
 <!-- source: internal/component/cli/model_load.go -- cmdCommitConfirmed -->
 
-**Command history persistence:** Both `ze config edit` and `ze cli` persist command history to the `database/` store. History survives application restarts, is stored per-mode (edit vs command) and per-user, with consecutive dedup and a configurable rolling window (default 100, max 10000). Graceful degradation when no blob store is available (in-memory only).
+**Command history persistence:** Both `ze config edit` and `ze cli` persist command history to the `database/` store. History survives graceful session close and application restarts, is stored per-mode (config vs operational) and per-user, with consecutive dedup and a configurable rolling window (default 100, max 10000). Accepted commands are immediately browsable; storage publication runs on one session-owned worker rather than blocking input, timers or command results. Waiting whole snapshots coalesce to the newest for each mode. Graceful model shutdown drains them before releasing the store; abrupt process death can lose queued history. With no store, history stays in memory. This does not change draft, configuration or commit durability, and independent sessions retain their existing whole-snapshot overwrite behavior rather than merging histories.
+The SSH model owner's `Server.Stop` waits for admitted model cleanup before its caller may release the store, including disconnected channels. Its network shutdown timeout does not discard accepted history. Concurrent terminal channels on one SSH connection each close their own model.
+The daemon retains hook-built SSH through the plugin server's `OnStop` callbacks. `runYANGConfig` owns one immediately deferred `sync.OnceFunc` stop, so normal shutdown and startup failure both join SSH cleanup before its caller releases the store. Hook admission seals and joins an in-flight constructor; callback order does not matter.
+<!-- source: internal/component/ssh/ssh.go -- Stop, sessionCloseMiddleware -->
+<!-- source: internal/component/ssh/model_lifetime.go -- modelSessions, modelSession -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
+<!-- source: cmd/ze/hub/infra_setup.go -- setupInfraHook -->
 <!-- source: internal/component/cli/history.go -- History type -->
 
 **Login warnings:** When an operator connects via SSH, ze checks for conditions requiring attention and displays warnings in the welcome area. Each warning includes a message and an actionable command. Currently checks for stale prefix data (peers with `prefix-updated` older than 6 months); run `update bgp peer * prefix` to refresh from PeeringDB.

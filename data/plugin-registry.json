@@ -544,12 +544,14 @@
       "bgp"
     ],
     "dependencies": [
-      "bgp"
+      "bgp",
+      "policy"
     ],
     "optional_dependencies": [],
     "start_after": [],
     "source_dir": "internal/component/bgp/plugins/role",
     "yang_files": [
+      "internal/component/bgp/plugins/role/yang/ze-role-asn-set.yang",
       "internal/component/bgp/plugins/role/yang/ze-role.yang"
     ]
   },
@@ -910,7 +912,8 @@
     "name": "firewall",
     "description": "Packet filter and NAT rules (nftables on Linux)",
     "config_roots": [
-      "firewall"
+      "firewall",
+      "system/conntrack"
     ],
     "dependencies": [],
     "optional_dependencies": [

@@ -204,11 +204,9 @@ system.authentication.user.alice.password: weak password (shorter than 8 charact
 ```
 <!-- source: internal/component/config/loader.go -- warnWeakPassword -->
 
-Two later steps DO rewrite that file, and both replace the plaintext with the hash. A
-schema evolution makes `applyEvolutions` serialize the loaded tree back to the config
-path, and a rollback makes `RecoverConfig` do the same. `applyEvolutions` archives the
-current file first, so the archived version keeps the plaintext.
-<!-- source: cmd/ze/hub/main_evolve.go -- applyEvolutions -->
+One later step DOES rewrite that file and replace the plaintext with the hash: after a
+downgrade, `RecoverConfig` serializes the rollback it recovered back to the config path.
+It archives the current file first, so the archived version keeps the plaintext.
 <!-- source: internal/component/config/stamp.go -- RecoverConfig -->
 
 ### Step 3: reload
@@ -461,11 +459,21 @@ system {
             }
         }
     }
+    authorization {
+        profile admin {
+            run { default-action allow }
+            edit { default-action allow }
+        }
+    }
 }
 ```
 
 The key name (`laptop`, `workstation`) is an identifier only. It appears in
 no protocol exchange but helps distinguish multiple keys for the same user.
+
+The user's `profile` must name a profile defined under `system authorization`;
+`admin` is not an implicit allow-all profile. Key authentication and permission
+to run a command are separate checks.
 
 ### Supported key types
 

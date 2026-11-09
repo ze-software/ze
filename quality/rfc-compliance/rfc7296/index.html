@@ -123,7 +123,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 234 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 234 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0</strong><b>of 234 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>271</strong><b>271 of 731 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>278</strong><b>278 of 738 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -232,16 +232,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>734</td>
+<td>741</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>731</td>
+<td>738</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>95</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>271</td>
+<td>278</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7296.md</code></td>
@@ -261,8 +261,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Area:</strong> IKEv2</p>
-<p><strong>Proof:</strong> 84 of 234 MUST proven</p>
-<p><strong>Evidence:</strong> functional 1, unit 83</p>
+<p><strong>Proof:</strong> 87 of 234 MUST proven</p>
+<p><strong>Evidence:</strong> functional 1, unit 86</p>
 <p><strong>Unmet:</strong> -</p>
 
 </section>
@@ -307,9 +307,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc7296:must">Ze proven 84, Ze correctness gap 150</div>
+<div data-ze-rfc-bar="rfc7296:must">Ze proven 87, Ze correctness gap 147</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc7296:overview">Ze MUST proven 84, SHOULD proven 4, SHOULD not decided 5, Ze correctness gap 150</div>
+<div data-ze-rfc-bar="rfc7296:overview">Ze MUST proven 87, SHOULD proven 4, SHOULD not decided 5, Ze correctness gap 147</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -330,7 +330,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc7296:must.kept">234</span></td>
 </tr>
 <tr><td>Ze proven</td>
-<td><span data-ze-rfc="rfc7296:must.ze-proven">84</span></td>
+<td><span data-ze-rfc="rfc7296:must.ze-proven">87</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc7296:must.os-verified">0</span></td>
@@ -339,7 +339,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc7296:must.os-gap">0</span></td>
 </tr>
 <tr><td>Ze correctness gap</td>
-<td><span data-ze-rfc="rfc7296:must.ze-gap">150</span></td>
+<td><span data-ze-rfc="rfc7296:must.ze-gap">147</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="rfc7296:must.not-owed">0</span></td>
@@ -430,8 +430,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go#L8" title="internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go" target="_blank" rel="noopener"><code>TestProposalNegotiationFirstMatch</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L87" title="internal/component/ike/engine/rfc7296_esn_test.go" target="_blank" rel="noopener"><code>TestEsnResponderAnswersOnlyAValueTheOfferCarried</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go#L63" title="internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go" target="_blank" rel="noopener"><code>TestProposalNegotiationNoMatch</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1400" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNBothOffered</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1369" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNExtendedOnlyRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1435" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNBothOffered</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1404" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNExtendedOnlyRefused</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7296-3.3-1">RFC7296-3.3-1</code></td><td colspan="3"><span class="rfc-subject">If an initiator wants to propose both combined- mode ciphers and normal ciphers, it must include two proposals: one will have all the combined-mode ciphers, and the other will have all the normal ciphers with the integrity algorithms. (§3.3)</span></td></tr>
@@ -599,6 +599,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.23.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-2.23.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_mode_test.go#L17" title="internal/component/ike/engine/rfc7296_transport_mode_test.go" target="_blank" rel="noopener"><code>TestTransportModeDNSRemoteProposesResolvedPair</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_test.go#L145" title="internal/component/ike/engine/rfc7296_transport_test.go" target="_blank" rel="noopener"><code>TestTransportModeUsesExactlyOneAddress</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_nat_test.go#L39" title="internal/component/ike/engine/rfc7296_transport_nat_test.go" target="_blank" rel="noopener"><code>TestTransportSelectorsMatchTheIKESAAddressesBehindANAT</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_test.go#L175" title="internal/component/ike/engine/rfc7296_transport_test.go" target="_blank" rel="noopener"><code>TestTransportModeUsesExactlyOneAddress</code></a></span></div>
@@ -610,6 +611,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.23.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-2.23.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_mode_test.go#L19" title="internal/component/ike/engine/rfc7296_transport_mode_test.go" target="_blank" rel="noopener"><code>TestTransportModeDNSRemoteProposesResolvedPair</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_test.go#L155" title="internal/component/ike/engine/rfc7296_transport_test.go" target="_blank" rel="noopener"><code>TestTransportModeUsesExactlyOneAddress</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_nat_test.go#L51" title="internal/component/ike/engine/rfc7296_transport_nat_test.go" target="_blank" rel="noopener"><code>TestTransportSelectorsMatchTheIKESAAddressesBehindANAT</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_test.go#L181" title="internal/component/ike/engine/rfc7296_transport_test.go" target="_blank" rel="noopener"><code>TestTransportModeUsesExactlyOneAddress</code></a></span></div>
@@ -648,6 +650,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.23</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-2.23-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_nat_dns_test.go#L207" title="internal/component/ike/engine/rfc7296_nat_dns_test.go" target="_blank" rel="noopener"><code>TestDNSRemoteNATMismatchFloats</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L43" title="internal/component/ike/transport/nat_test.go" target="_blank" rel="noopener"><code>TestNATDetectionPresent</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_nat_port4500_test.go#L36" title="internal/component/ike/engine/rfc7296_nat_port4500_test.go" target="_blank" rel="noopener"><code>TestRFC7296InitiatorChecksEachNATDetectionPayload</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L63" title="internal/component/ike/transport/nat_test.go" target="_blank" rel="noopener"><code>TestNATDetectionAbsent</code></a></span></div>
@@ -891,6 +894,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.23</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-2.23-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_nat_dns_test.go#L68" title="internal/component/ike/engine/rfc7296_nat_dns_test.go" target="_blank" rel="noopener"><code>TestDNSRemoteSendsNATDetection</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_session_test.go#L631" title="internal/component/ike/engine/rfc7296_session_test.go" target="_blank" rel="noopener"><code>TestSesBothEndsSendNATDetectionNotifies</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_session_test.go#L633" title="internal/component/ike/engine/rfc7296_session_test.go" target="_blank" rel="noopener"><code>TestSesBothEndsSendNATDetectionNotifies</code></a></span></div>
 </div></td>
@@ -900,6 +904,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.23</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-2.23-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_nat_dns_test.go#L210" title="internal/component/ike/engine/rfc7296_nat_dns_test.go" target="_blank" rel="noopener"><code>TestDNSRemoteNATMismatchFloats</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_test.go#L357" title="internal/component/ike/engine/rfc7296_natt_test.go" target="_blank" rel="noopener"><code>TestNattFloatsEverySenderToPort4500</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_test.go#L558" title="internal/component/ike/engine/rfc7296_natt_test.go" target="_blank" rel="noopener"><code>TestNattRekeyedChildKeepsUDPEncap</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_test.go#L461" title="internal/component/ike/engine/rfc7296_natt_test.go" target="_blank" rel="noopener"><code>TestNattFloatedSAWithoutNATTSocketSendsNothing</code></a></span></div>
@@ -1017,6 +1022,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>1.4 - The INFORMATIONAL exchange</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-1.4-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_reauth_receive_test.go#L553" title="internal/component/ike/engine/rfc7296_reauth_receive_test.go" target="_blank" rel="noopener"><code>TestHeldSuccessorAnswersLivenessAndDelete</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_lifecycle_test.go#L176" title="internal/component/ike/engine/rfc7296_lifecycle_test.go" target="_blank" rel="noopener"><code>TestLcyEveryInformationalRequestDrawsAResponse</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_lifecycle_test.go#L179" title="internal/component/ike/engine/rfc7296_lifecycle_test.go" target="_blank" rel="noopener"><code>TestLcyEveryInformationalRequestDrawsAResponse</code></a></span></div>
 </div></td>
@@ -1036,6 +1042,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>1.4.1 - Deleting an SA</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7296-1.4.1-6">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_delete_test.go#L61" title="internal/component/ike/engine/rfc7296_delete_test.go" target="_blank" rel="noopener"><code>TestDelPeerDeleteClosesTheDesignatedChildSA</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_reauth_receive_test.go#L557" title="internal/component/ike/engine/rfc7296_reauth_receive_test.go" target="_blank" rel="noopener"><code>TestHeldSuccessorAnswersLivenessAndDelete</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_delete_test.go#L81" title="internal/component/ike/engine/rfc7296_delete_test.go" target="_blank" rel="noopener"><code>TestDelUnknownSPIClosesNothing</code></a></span></div>
 </div></td>
 </tr>
@@ -2932,7 +2939,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1369" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNExtendedOnlyRefused</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1404" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNExtendedOnlyRefused</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -2947,7 +2954,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1400" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNBothOffered</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1435" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkESNBothOffered</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -3422,6 +3429,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_mode_test.go#L17" title="internal/component/ike/engine/rfc7296_transport_mode_test.go" target="_blank" rel="noopener"><code>TestTransportModeDNSRemoteProposesResolvedPair</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_nat_test.go#L39" title="internal/component/ike/engine/rfc7296_transport_nat_test.go" target="_blank" rel="noopener"><code>TestTransportSelectorsMatchTheIKESAAddressesBehindANAT</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
@@ -3450,6 +3462,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_test.go#L181" title="internal/component/ike/engine/rfc7296_transport_test.go" target="_blank" rel="noopener"><code>TestTransportModeUsesExactlyOneAddress</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_mode_test.go#L19" title="internal/component/ike/engine/rfc7296_transport_mode_test.go" target="_blank" rel="noopener"><code>TestTransportModeDNSRemoteProposesResolvedPair</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_transport_nat_test.go#L51" title="internal/component/ike/engine/rfc7296_transport_nat_test.go" target="_blank" rel="noopener"><code>TestTransportSelectorsMatchTheIKESAAddressesBehindANAT</code></a></td>
@@ -3526,7 +3543,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7296-2.23-1"><code>RFC7296-2.23-1</code></a></h3>
 <p>The IKE initiator MUST check the NAT_DETECTION_SOURCE_IP or NAT_DETECTION_DESTINATION_IP payloads if present (§2.23)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-30 (ike-eap judge). TestRFC7296InitiatorChecksEachNATDetectionPayload drives handleSAInitResponse over a real encoded IKE_SA_INIT response: a SOURCE_IP mismatch alone sets NATDetected+PeerBehindNAT and floats to 4500, a DESTINATION_IP mismatch alone sets NATDetected+BehindNAT and floats, so ignoring either payload goes red. TestRFC7296InitiatorCheckFindsNoNATOnMatchingPayloads (both present, both matching: no NAT, not floated) goes red if presence alone were taken as a NAT, i.e. if the payloads were not checked. Both carry observed-red records on fsm.go handleSAInitResponse. HEAD tags on transport TestNATDetectionPresent/Absent (DetectNAT in isolation) are supplementary and hold no record.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 67700fd37e. A new positive tag, TestDNSRemoteNATMismatchFloats (nat_dns_test.go), drives handleSAInitResponse for a peer named by DNS over a real encoded response: a NAT_DETECTION_SOURCE_IP hash that is not over the resolved address sets detected+peerBehindNAT and floats to 4500, and one over the resolved address changes nothing, so a check made against the configured name, or skipped, goes red. It carries a mutant record. The earlier units are unchanged and keep their records. Prior judgement: Rejudged 2026-09-30 (ike-eap judge). TestRFC7296InitiatorChecksEachNATDetectionPayload drives handleSAInitResponse over a real encoded IKE_SA_INIT response: a SOURCE_IP mismatch alone sets NATDetected+PeerBehindNAT and floats to 4500, a DESTINATION_IP mismatch alone sets NATDetected+BehindNAT and floats, so ignoring either payload goes red. TestRFC7296InitiatorCheckFindsNoNATOnMatchingPayloads (both present, both matching: no NAT, not floated) goes red if presence alone were taken as a NAT, i.e. if the payloads were not checked. Both carry observed-red records on fsm.go handleSAInitResponse. HEAD tags on transport TestNATDetectionPresent/Absent (DetectNAT in isolation) are supplementary and hold no record.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -3540,6 +3557,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L63" title="internal/component/ike/transport/nat_test.go" target="_blank" rel="noopener"><code>TestNATDetectionAbsent</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_nat_dns_test.go#L207" title="internal/component/ike/engine/rfc7296_nat_dns_test.go" target="_blank" rel="noopener"><code>TestDNSRemoteNATMismatchFloats</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_nat_port4500_test.go#L36" title="internal/component/ike/engine/rfc7296_nat_port4500_test.go" target="_blank" rel="noopener"><code>TestRFC7296InitiatorChecksEachNATDetectionPayload</code></a></td>
@@ -4152,6 +4174,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_nat_dns_test.go#L68" title="internal/component/ike/engine/rfc7296_nat_dns_test.go" target="_blank" rel="noopener"><code>TestDNSRemoteSendsNATDetection</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_session_test.go#L631" title="internal/component/ike/engine/rfc7296_session_test.go" target="_blank" rel="noopener"><code>TestSesBothEndsSendNATDetectionNotifies</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
@@ -4175,6 +4202,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_test.go#L427" title="internal/component/ike/engine/rfc7296_natt_test.go" target="_blank" rel="noopener"><code>TestNattNoFloatWithoutNAT</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_nat_dns_test.go#L210" title="internal/component/ike/engine/rfc7296_nat_dns_test.go" target="_blank" rel="noopener"><code>TestDNSRemoteNATMismatchFloats</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_test.go#L357" title="internal/component/ike/engine/rfc7296_natt_test.go" target="_blank" rel="noopener"><code>TestNattFloatsEverySenderToPort4500</code></a></td>
@@ -4486,6 +4518,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_reauth_receive_test.go#L553" title="internal/component/ike/engine/rfc7296_reauth_receive_test.go" target="_blank" rel="noopener"><code>TestHeldSuccessorAnswersLivenessAndDelete</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -4525,6 +4562,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_delete_test.go#L61" title="internal/component/ike/engine/rfc7296_delete_test.go" target="_blank" rel="noopener"><code>TestDelPeerDeleteClosesTheDesignatedChildSA</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_reauth_receive_test.go#L557" title="internal/component/ike/engine/rfc7296_reauth_receive_test.go" target="_blank" rel="noopener"><code>TestHeldSuccessorAnswersLivenessAndDelete</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -4826,7 +4868,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7296-1.4.1-1"><code>RFC7296-1.4.1-1</code></a></h3>
 <p>When an SA is closed, both members of the pair MUST be closed (that is, deleted). Each endpoint MUST close its incoming SAs and allow the other endpoint to close the other SA in each pair (§1.4.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independently re-judged against committed a617f53893dab242be088ea985b9baae7e66c430. RFC 7296 Section 1.4.1 states: &#34;When an SA is closed, both members of the pair MUST be closed (that is, deleted).&#34; It also states: &#34;Each endpoint MUST close its incoming SAs and allow the other endpoint to close the other SA in each pair.&#34; handleCreateChildSAOwned deletes a locally refused successful Child rekey answer with sendDeleteESP(p.newInboundSPI), retaining the current child. Error-notify refusals remain distinct because they created no replacement pair. TestRFC7296RefusedRekeyAnswerDeletesTheNewPair exercises the missing-Nr refusal through the authenticated-response relay, asserting no new installation, preservation of the old child and an authenticated ESP Delete naming the new inbound SPI; this relay is not a full owner-loop dispatch test. TestLcyClosingAChildSAClosesBothHalvesAndDeletesOurInbound drives retirement through handleOwnedInbound, distinguishes inbound from outbound SPI and asserts removal of both states on cleanup. cleanupChild/removeChildSAExcept preserve surviving shared policies without retaining the closed pair. Verdict retained from source review; no new execution result is claimed by this rejudgment.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after f50e28c360 and 48254e243a. handleCreateChildSAOwned changed only by returning retiredChild beside newChild on its two successful rekey exits, for the tunnel-route move; the locally refused rekey answer still sends sendDeleteESP(p.newInboundSPI) and keeps the current child. The mutant record on TestRFC7296RefusedRekeyAnswerDeletesTheNewPair is current. Prior judgement: Independently re-judged against committed a617f53893dab242be088ea985b9baae7e66c430. RFC 7296 Section 1.4.1 states: &#34;When an SA is closed, both members of the pair MUST be closed (that is, deleted).&#34; It also states: &#34;Each endpoint MUST close its incoming SAs and allow the other endpoint to close the other SA in each pair.&#34; handleCreateChildSAOwned deletes a locally refused successful Child rekey answer with sendDeleteESP(p.newInboundSPI), retaining the current child. Error-notify refusals remain distinct because they created no replacement pair. TestRFC7296RefusedRekeyAnswerDeletesTheNewPair exercises the missing-Nr refusal through the authenticated-response relay, asserting no new installation, preservation of the old child and an authenticated ESP Delete naming the new inbound SPI; this relay is not a full owner-loop dispatch test. TestLcyClosingAChildSAClosesBothHalvesAndDeletesOurInbound drives retirement through handleOwnedInbound, distinguishes inbound from outbound SPI and asserts removal of both states on cleanup. cleanupChild/removeChildSAExcept preserve surviving shared policies without retaining the closed pair. Verdict retained from source review; no new execution result is claimed by this rejudgment.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -6431,7 +6473,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7296-2.21.4-8"><code>RFC7296-2.21.4-8</code></a></h3>
 <p>A node receiving a suspicious message from an IP address (and port, if NAT traversal is used) with which it has an IKE SA SHOULD send an IKE Notify payload in an IKE INFORMATIONAL exchange over that SA. (§2.21.4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-28 after 91502e4f4a changed maintainSA: the only change replaces ps.handleOwnedInbound with ps.handleOwnedInboundGuarded on the inbound case, a panic boundary that returns reestablish only when a panic is recovered and otherwise returns handleOwnedInbound&#39;s result. publishSAEndpoint, the deferred endpoint withdrawal and informSuspicious are untouched, and the five TestSus units are unchanged; the publishSAEndpoint mutant record was re-taken over today&#39;s maintainSA. Earlier judgement follows. Re-judged 2026-10-26 (independent judge, clean clone at c8584247bb) after a965d7c0d4 changed maintainSA. RFC 7296 Section 2.21.4: &#34;A node receiving a suspicious message from an IP address (and port, if NAT traversal is used) with which it has an IKE SA SHOULD send an IKE Notify payload in an IKE INFORMATIONAL exchange over that SA.&#34; The only maintainSA change moves the IKE SA rekey swap (ownedSA store, retirePendingProbe, setSA, table insert/remove, forgetKeys) into the new adoptRekeyedIKESA, in the same order, adding moveVirtualIP(retired, successor) before the retired SA forgets its keys; the loop then reads sa = out.newSA as before. The Section 2.21.4 path is untouched: maintainSA still defers ps.saEndpoint.Store(nil) on every exit, publishes the SA endpoint at the top of every pass (publishSAEndpoint), so the swapped SA is published on the next pass, and answers ps.suspicious through informSuspicious on the owner goroutine under the current sa. notify_suspicious.go and rfc7296_suspicious_test.go are unchanged by the commit. The five TestSus units assert a protected INFORMATIONAL INVALID_IKE_SPI notify over the existing SA, endpoint and NAT-T port discrimination, response and IKE_SA_INIT exclusion, the rate limit, and notification from a moved endpoint through the real owner loop including endpoint withdrawal on exit; all five pass at HEAD under -race, and their five discrimination records (including the maintainSA publishSAEndpoint mutant) are current.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 67700fd37e, fc9b7f5a3b, 78f09955aa, c8e036be19, 24e7e3ae7b and 48254e243a changed maintainSA. publishSAEndpoint still runs at the top of each loop pass, the deferred saEndpoint.Store(nil) still withdraws it on every exit, and the ps.suspicious case still calls informSuspicious; the changes are reauth, address-worker and route bookkeeping. The five TestSus units are unchanged and their records are current. Prior judgement: Re-judged 2026-10-28 after 91502e4f4a changed maintainSA: the only change replaces ps.handleOwnedInbound with ps.handleOwnedInboundGuarded on the inbound case, a panic boundary that returns reestablish only when a panic is recovered and otherwise returns handleOwnedInbound&#39;s result. publishSAEndpoint, the deferred endpoint withdrawal and informSuspicious are untouched, and the five TestSus units are unchanged; the publishSAEndpoint mutant record was re-taken over today&#39;s maintainSA. Earlier judgement follows. Re-judged 2026-10-26 (independent judge, clean clone at c8584247bb) after a965d7c0d4 changed maintainSA. RFC 7296 Section 2.21.4: &#34;A node receiving a suspicious message from an IP address (and port, if NAT traversal is used) with which it has an IKE SA SHOULD send an IKE Notify payload in an IKE INFORMATIONAL exchange over that SA.&#34; The only maintainSA change moves the IKE SA rekey swap (ownedSA store, retirePendingProbe, setSA, table insert/remove, forgetKeys) into the new adoptRekeyedIKESA, in the same order, adding moveVirtualIP(retired, successor) before the retired SA forgets its keys; the loop then reads sa = out.newSA as before. The Section 2.21.4 path is untouched: maintainSA still defers ps.saEndpoint.Store(nil) on every exit, publishes the SA endpoint at the top of every pass (publishSAEndpoint), so the swapped SA is published on the next pass, and answers ps.suspicious through informSuspicious on the owner goroutine under the current sa. notify_suspicious.go and rfc7296_suspicious_test.go are unchanged by the commit. The five TestSus units assert a protected INFORMATIONAL INVALID_IKE_SPI notify over the existing SA, endpoint and NAT-T port discrimination, response and IKE_SA_INIT exclusion, the rate limit, and notification from a moved endpoint through the real owner loop including endpoint withdrawal on exit; all five pass at HEAD under -race, and their five discrimination records (including the maintainSA publishSAEndpoint mutant) are current.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -9719,7 +9761,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

@@ -41,7 +41,7 @@ Generated group for registry entries mapped to the BGP area. Config roots: `bgp`
 | [`bgp-llnh`](bgp-llnh/index.md) | Link-Local Next-Hop capability plugin | `bgp` | `bgp` | `internal/component/bgp/plugins/llnh` |
 | [`bgp-ls-export`](bgp-ls-export/index.md) | Export native routing databases through BGP-LS | `bgp-ls-export` | `bgp-nlri-ls` | `internal/component/bgp/plugins/ls_export` |
 | [`bgp-rib`](bgp-rib/index.md) | Route Information Base storage | `bgp` | None | `internal/component/bgp/plugins/rib` |
-| [`bgp-role`](bgp-role/index.md) | RFC 9234 BGP Role capability | `bgp` | `bgp` | `internal/component/bgp/plugins/role` |
+| [`bgp-role`](bgp-role/index.md) | RFC 9234 BGP Role capability | `bgp` | `bgp`, `policy` | `internal/component/bgp/plugins/role` |
 | [`bgp-route-refresh`](bgp-route-refresh/index.md) | Route Refresh capability decoding | `bgp` | `bgp` | `internal/component/bgp/plugins/route_refresh` |
 | [`bgp-rpki`](bgp-rpki/index.md) | RPKI origin validation via RTR protocol | `bgp` | `bgp`, `bgp-adj-rib-in` | `internal/component/bgp/plugins/rpki` |
 | [`bgp-rpki-decorator`](bgp-rpki-decorator/index.md) | Correlates UPDATE + RPKI events into merged update-rpki events | None | `bgp`, `bgp-rpki` | `internal/component/bgp/plugins/rpki_decorator` |
@@ -160,11 +160,11 @@ Generated group for registry entries mapped to the FIB area. Config roots: `fib`
 
 ## Firewall
 
-Generated group for registry entries mapped to the Firewall area. Config roots: `firewall`. Source area: `internal/component/firewall`.
+Generated group for registry entries mapped to the Firewall area. Config roots: `firewall`, `system`. Source area: `internal/component/firewall`.
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`firewall`](firewall/index.md) | Packet filter and NAT rules (nftables on Linux) | `firewall` | None | `internal/component/firewall` |
+| [`firewall`](firewall/index.md) | Packet filter and NAT rules (nftables on Linux) | `firewall`, `system/conntrack` | None | `internal/component/firewall` |
 | [`firewall-domain`](firewall-domain/index.md) | DNS-sourced address groups for firewall rules | `firewall` | `firewall` | `internal/component/firewall/plugins/domain` |
 | [`firewall-irr`](firewall-irr/index.md) | IRR-based prefix-list filtering for firewall rules | `firewall` | `firewall` | `internal/component/firewall/plugins/irr` |
 

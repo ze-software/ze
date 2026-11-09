@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 13 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 13 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 13 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0</strong><b>0 of 0 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>2</strong><b>2 of 2 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -236,16 +236,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>0</td>
+<td>2</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>0</td>
+<td>2</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>2</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc4787.md</code></td>
@@ -313,7 +313,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>MUST bar</strong></p>
 <div data-ze-rfc-bar="rfc4787:must">Ze correctness gap 13</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc4787:overview">SHOULD not decided 16, Ze correctness gap 13</div>
+<div data-ze-rfc-bar="rfc4787:overview">SHOULD proven 2, SHOULD not decided 14, Ze correctness gap 13</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -361,7 +361,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc4787:should.total">16</span></td>
 </tr>
 <tr><td>SHOULD proven</td>
-<td><span data-ze-rfc="rfc4787:should.proven">0</span></td>
+<td><span data-ze-rfc="rfc4787:should.proven">2</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
 <td><span data-ze-rfc="rfc4787:should.os-verified">0</span></td>
@@ -388,7 +388,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc4787:should.not-yet">0</span></td>
 </tr>
 <tr><td>SHOULD not decided</td>
-<td><span data-ze-rfc="rfc4787:should.not-decided">16</span></td>
+<td><span data-ze-rfc="rfc4787:should.not-decided">14</span></td>
 </tr>
 </tbody>
 </table>
@@ -586,7 +586,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHOULD</td>
 <td>7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4787-7-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/firewall/nft/rfc4787_conntrack_helpers_integration_linux_test.go#L159" title="internal/plugins/firewall/nft/rfc4787_conntrack_helpers_integration_linux_test.go" target="_blank" rel="noopener"><code>TestConntrackHelperNotAssignedWhenUnlisted</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
@@ -595,7 +595,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>RECOMMENDED</td>
 <td>7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4787-7-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/firewall/nft/rfc4787_conntrack_helpers_integration_linux_test.go#L160" title="internal/plugins/firewall/nft/rfc4787_conntrack_helpers_integration_linux_test.go" target="_blank" rel="noopener"><code>TestConntrackHelperNotAssignedWhenUnlisted</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
@@ -781,6 +781,36 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>a) A NAT&#39;s out-of-order fragment processing mechanism MUST be designed so that fragmentation-based DoS attacks do not compromise the NAT&#39;s ability to process in-order and unfragmented IP packets. (§11)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4787-11-2, so no unit is bound to it.</p>
+<h3><a href="#rfc4787-7-1"><code>RFC4787-7-1</code></a></h3>
+<p>To eliminate interference with UNSAF NAT traversal mechanisms and allow integrity protection of UDP communications, NAT ALGs for UDP-based protocols SHOULD be turned off. (§7)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/firewall/nft/rfc4787_conntrack_helpers_integration_linux_test.go#L159" title="internal/plugins/firewall/nft/rfc4787_conntrack_helpers_integration_linux_test.go" target="_blank" rel="noopener"><code>TestConntrackHelperNotAssignedWhenUnlisted</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc4787-7-2"><code>RFC4787-7-2</code></a></h3>
+<p>a) If a NAT includes ALGs, it is RECOMMENDED that the NAT allow the NAT administrator to enable or disable each ALG separately. (§7)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/firewall/nft/rfc4787_conntrack_helpers_integration_linux_test.go#L160" title="internal/plugins/firewall/nft/rfc4787_conntrack_helpers_integration_linux_test.go" target="_blank" rel="noopener"><code>TestConntrackHelperNotAssignedWhenUnlisted</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Extraction sign-off</h2>
 <div class="rfc-table-wrap">
@@ -1103,7 +1133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

@@ -8,26 +8,26 @@ Figures as of the last build, read from [data/rfc/profiles/fttx-edge.json](../..
 
 ## Figures
 
-- **MUST bar**: Ze proven 342, OS testing gap 120, Ze correctness gap 285
-- **Overview bar**: Ze MUST proven 342, SHOULD proven 7, SHOULD not decided 328, OS testing gap 120, Ze correctness gap 285
+- **MUST bar**: Ze proven 375, OS testing gap 120, Ze correctness gap 265
+- **Overview bar**: Ze MUST proven 375, SHOULD proven 12, SHOULD not decided 338, OS testing gap 120, Ze correctness gap 265
 
 | Figure | Rows |
 |---|---|
-| RFCs | 18 |
+| RFCs | 19 |
 | Not walked | 0 |
 | Mandatory register | not complete |
-| MUST rows | 747 |
-| MUST rows kept (the MUST bar) | 747 |
-| Ze proven | 342 |
+| MUST rows | 760 |
+| MUST rows kept (the MUST bar) | 760 |
+| Ze proven | 375 |
 | OS verified | 0 |
 | OS testing gap | 120 |
-| Ze correctness gap | 285 |
+| Ze correctness gap | 265 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
-| SHOULD / MAY rows | 335 |
-| SHOULD proven | 7 |
+| SHOULD / MAY rows | 350 |
+| SHOULD proven | 12 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
@@ -36,7 +36,7 @@ Figures as of the last build, read from [data/rfc/profiles/fttx-edge.json](../..
 | SHOULD not owed: not-applicable | 0 |
 | SHOULD not ever | 0 |
 | SHOULD not yet | 0 |
-| SHOULD not decided | 328 |
+| SHOULD not decided | 338 |
 
 The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
 
@@ -48,25 +48,25 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 1661](../../rfc1661/) | The Point-to-Point Protocol (PPP) | Ze proven 42, OS testing gap 2, Ze correctness gap 32 | Ze MUST proven 42, SHOULD not decided 25, OS testing gap 2, Ze correctness gap 32 | fttx-edge: required by rfc/short/rfc1661.md |
+| [RFC 1661](../../rfc1661/) | The Point-to-Point Protocol (PPP) | Ze proven 43, OS testing gap 2, Ze correctness gap 31 | Ze MUST proven 43, SHOULD proven 2, SHOULD not decided 23, OS testing gap 2, Ze correctness gap 31 | fttx-edge: required by rfc/short/rfc1661.md |
 
 ### Level 1
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 1994](../../rfc1994/) | PPP Challenge Handshake Authentication Protocol (CHAP) | Ze proven 8, Ze correctness gap 8 | Ze MUST proven 8, SHOULD proven 2, SHOULD not decided 9, Ze correctness gap 8 | fttx-edge: required by rfc/short/rfc1994.md |
+| [RFC 1994](../../rfc1994/) | PPP Challenge Handshake Authentication Protocol (CHAP) | Ze proven 9, Ze correctness gap 7 | Ze MUST proven 9, SHOULD proven 2, SHOULD not decided 9, Ze correctness gap 7 | fttx-edge: required by rfc/short/rfc1994.md |
 | [RFC 2516](../../rfc2516/) | A Method for Transmitting PPP Over Ethernet (PPPoE) | Ze proven 25, OS testing gap 1, Ze correctness gap 11 | Ze MUST proven 25, SHOULD not decided 3, OS testing gap 1, Ze correctness gap 11 | fttx-edge: required by rfc/short/rfc2516.md |
-| [RFC 4787](../../rfc4787/) | Network Address Translation (NAT) Behavioral Requirements for Unicast UDP | Ze correctness gap 13 | SHOULD not decided 16, Ze correctness gap 13 | fttx-edge: required by rfc/short/rfc4787.md |
+| [RFC 4787](../../rfc4787/) | Network Address Translation (NAT) Behavioral Requirements for Unicast UDP | Ze correctness gap 13 | SHOULD proven 2, SHOULD not decided 14, Ze correctness gap 13 | fttx-edge: required by rfc/short/rfc4787.md |
 
 ### Level 2
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 1035](../../rfc1035/) (cycle with rfc1034, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | Domain Names - Implementation and Specification | Ze proven 12, Ze correctness gap 15 | Ze MUST proven 12, SHOULD not decided 6, Ze correctness gap 15 | fttx-edge: required by rfc/short/rfc1035.md |
-| [RFC 1332](../../rfc1332/) (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | The PPP Internet Protocol Control Protocol (IPCP) | Ze proven 8 | Ze MUST proven 8, SHOULD not decided 6 | fttx-edge: required by rfc/short/rfc1332.md |
-| [RFC 2131](../../rfc2131/) (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | Dynamic Host Configuration Protocol | Ze proven 18, OS testing gap 9, Ze correctness gap 44 | Ze MUST proven 18, SHOULD proven 2, SHOULD not decided 36, OS testing gap 9, Ze correctness gap 44 | fttx-edge: required by rfc/short/rfc2131.md |
-| [RFC 2132](../../rfc2132/) (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2131, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | DHCP Options and BOOTP Vendor Extensions | Ze proven 1, Ze correctness gap 33 | Ze MUST proven 1, SHOULD not decided 34, Ze correctness gap 33 | fttx-edge: required by rfc/short/rfc2132.md |
-| [RFC 4861](../../rfc4861/) (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc5905, rfc8200, rfc8201, rfc9293) | Neighbor Discovery for IP version 6 (IPv6) | Ze proven 30, OS testing gap 91, Ze correctness gap 17 | Ze MUST proven 30, SHOULD not decided 79, OS testing gap 91, Ze correctness gap 17 | fttx-edge: required by rfc/short/rfc4861.md |
+| [RFC 1035](../../rfc1035/) (cycle with rfc1034, rfc1122, rfc1123, rfc1191, rfc1195, rfc1332, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | Domain Names - Implementation and Specification | Ze proven 12, Ze correctness gap 15 | Ze MUST proven 12, SHOULD not decided 6, Ze correctness gap 15 | fttx-edge: required by rfc/short/rfc1035.md |
+| [RFC 1332](../../rfc1332/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | The PPP Internet Protocol Control Protocol (IPCP) | Ze proven 8 | Ze MUST proven 8, SHOULD not decided 6 | fttx-edge: required by rfc/short/rfc1332.md |
+| [RFC 2131](../../rfc2131/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1332, rfc1350, rfc1812, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | Dynamic Host Configuration Protocol | Ze proven 21, OS testing gap 9, Ze correctness gap 41 | Ze MUST proven 21, SHOULD proven 3, SHOULD not decided 35, OS testing gap 9, Ze correctness gap 41 | fttx-edge: required by rfc/short/rfc2131.md |
+| [RFC 2132](../../rfc2132/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1332, rfc1350, rfc1812, rfc2131, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | DHCP Options and BOOTP Vendor Extensions | Ze proven 1, Ze correctness gap 33 | Ze MUST proven 1, SHOULD not decided 34, Ze correctness gap 33 | fttx-edge: required by rfc/short/rfc2132.md |
+| [RFC 4861](../../rfc4861/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1332, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc5905, rfc8200, rfc8201, rfc9293) | Neighbor Discovery for IP version 6 (IPv6) | Ze proven 29, OS testing gap 91, Ze correctness gap 18 | Ze MUST proven 29, SHOULD not decided 79, OS testing gap 91, Ze correctness gap 18 | fttx-edge: required by rfc/short/rfc4861.md |
 
 ### Level 3
 
@@ -82,27 +82,28 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 5072](../../rfc5072/) | IP Version 6 over PPP | Ze proven 9, Ze correctness gap 7 | Ze MUST proven 9, SHOULD not decided 12, Ze correctness gap 7 | fttx-edge: required by rfc/short/rfc5072.md |
-| [RFC 9915](../../rfc9915/) | Dynamic Host Configuration Protocol for IPv6 (DHCPv6) | Ze proven 82, OS testing gap 3, Ze correctness gap 41 | Ze MUST proven 82, OS testing gap 3, Ze correctness gap 41 | fttx-edge: required by rfc/short/rfc9915.md |
+| [RFC 5072](../../rfc5072/) | IP Version 6 over PPP | Ze proven 10, Ze correctness gap 6 | Ze MUST proven 10, SHOULD not decided 12, Ze correctness gap 6 | fttx-edge: required by rfc/short/rfc5072.md |
+| [RFC 9915](../../rfc9915/) | Dynamic Host Configuration Protocol for IPv6 (DHCPv6) | Ze proven 85, OS testing gap 3, Ze correctness gap 38 | Ze MUST proven 85, OS testing gap 3, Ze correctness gap 38 | fttx-edge: required by rfc/short/rfc9915.md |
 
 ### Level 5
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 2661](../../rfc2661/) | Layer Two Tunneling Protocol "L2TP" | Ze proven 81, OS testing gap 1, Ze correctness gap 12 | Ze MUST proven 81, SHOULD proven 2, SHOULD not decided 6, OS testing gap 1, Ze correctness gap 12 | fttx-edge: required by rfc/short/rfc2661.md |
+| [RFC 2661](../../rfc2661/) | Layer Two Tunneling Protocol "L2TP" | Ze proven 89, OS testing gap 1, Ze correctness gap 5 | Ze MUST proven 89, SHOULD proven 2, SHOULD not decided 6, OS testing gap 1, Ze correctness gap 5 | fttx-edge: required by rfc/short/rfc2661.md |
 
 ### Level 7
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 7084](../../rfc7084/) | Basic Requirements for IPv6 Customer Edge Routers | Ze proven 14, OS testing gap 7, Ze correctness gap 20 | Ze MUST proven 14, SHOULD not decided 25, OS testing gap 7, Ze correctness gap 20 | fttx-edge: required by rfc/short/rfc7084.md |
+| [RFC 5625](../../rfc5625/) | DNS Proxy Implementation Guidelines | Ze proven 12 | Ze MUST proven 12, SHOULD not decided 15 | fttx-edge: required by rfc/short/rfc5625.md |
+| [RFC 7084](../../rfc7084/) | Basic Requirements for IPv6 Customer Edge Routers | Ze proven 19, OS testing gap 7, Ze correctness gap 15 | Ze MUST proven 19, SHOULD not decided 25, OS testing gap 7, Ze correctness gap 15 | fttx-edge: required by rfc/short/rfc7084.md |
 
 ## Optional (not counted)
 
 RFCs this use case lists as optional, each declared by the Optional use cases row of its own summary. They count in none of the figures above until the owner brings one into scope by moving it to the Use cases row. Their own bars and figures follow.
 
-- **MUST bar**: Ze proven 4, Ze correctness gap 188
-- **Overview bar**: Ze MUST proven 4, SHOULD not decided 66, Ze correctness gap 188
+- **MUST bar**: Ze proven 9, Ze correctness gap 183
+- **Overview bar**: Ze MUST proven 9, SHOULD proven 2, SHOULD not decided 64, Ze correctness gap 183
 
 | Figure | Rows |
 |---|---|
@@ -111,16 +112,16 @@ RFCs this use case lists as optional, each declared by the Optional use cases ro
 | Mandatory register | not complete |
 | MUST rows | 192 |
 | MUST rows kept (the MUST bar) | 192 |
-| Ze proven | 4 |
+| Ze proven | 9 |
 | OS verified | 0 |
 | OS testing gap | 0 |
-| Ze correctness gap | 188 |
+| Ze correctness gap | 183 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 66 |
-| SHOULD proven | 0 |
+| SHOULD proven | 2 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
@@ -129,15 +130,15 @@ RFCs this use case lists as optional, each declared by the Optional use cases ro
 | SHOULD not owed: not-applicable | 0 |
 | SHOULD not ever | 0 |
 | SHOULD not yet | 0 |
-| SHOULD not decided | 66 |
+| SHOULD not decided | 64 |
 
 The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
 | [RFC 4638](../../rfc4638/) | Accommodating a Maximum Transit Unit/Maximum Receive Unit (MTU/MRU) Greater Than 1492 in the Point-to-Point Protocol over Ethernet (PPPoE) | Ze correctness gap 6 | SHOULD not decided 3, Ze correctness gap 6 | fttx-edge: optional in rfc/short/rfc4638.md |
-| [RFC 5905](../../rfc5905/) (cycle with rfc1034, rfc1035, rfc1122, rfc1191, rfc1195, rfc1332, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc8200, rfc8201, rfc9293) | Network Time Protocol Version 4: Protocol and Algorithms Specification | Ze correctness gap 8 | Ze correctness gap 8 | fttx-edge: optional in rfc/short/rfc5905.md |
-| [RFC 8106](../../rfc8106/) | IPv6 Router Advertisement Options for DNS Configuration | Ze correctness gap 11 | SHOULD not decided 13, Ze correctness gap 11 | fttx-edge: optional in rfc/short/rfc8106.md |
+| [RFC 5905](../../rfc5905/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1332, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc8200, rfc8201, rfc9293) | Network Time Protocol Version 4: Protocol and Algorithms Specification | Ze correctness gap 8 | Ze correctness gap 8 | fttx-edge: optional in rfc/short/rfc5905.md |
+| [RFC 8106](../../rfc8106/) | IPv6 Router Advertisement Options for DNS Configuration | Ze proven 5, Ze correctness gap 6 | Ze MUST proven 5, SHOULD proven 2, SHOULD not decided 11, Ze correctness gap 6 | fttx-edge: optional in rfc/short/rfc8106.md |
 | [RFC 4033](../../rfc4033/) (cycle with rfc4034, rfc4035) | DNS Security Introduction and Requirements | no rows | no rows | fttx-edge: optional in rfc/short/rfc4033.md |
 | [RFC 4034](../../rfc4034/) (cycle with rfc4033, rfc4035) | Resource Records for the DNS Security Extensions | Ze correctness gap 59 | Ze correctness gap 59 | fttx-edge: optional in rfc/short/rfc4034.md |
 | [RFC 4035](../../rfc4035/) (cycle with rfc4033, rfc4034) | Protocol Modifications for the DNS Security Extensions | Ze proven 4, Ze correctness gap 104 | Ze MUST proven 4, SHOULD not decided 50, Ze correctness gap 104 | fttx-edge: optional in rfc/short/rfc4035.md |

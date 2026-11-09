@@ -16,6 +16,13 @@ file; skim the last one or two posts before writing a new one.
 - **Confident and factual, not hypey.** Report what shipped. No "excited to
   announce", no "game-changing", no marketing adjectives. The audience is
   network engineers who can smell fluff.
+- **Thomas's tone, in the project's name.** The words are Zeledon's, but the
+  tone is Thomas's: direct, explaining the why, long sentences chained with
+  commas next to short flat ones, "should" for what the reader ought to do,
+  an inverted conditional now and then ("Should you want the old
+  behaviour, ..."), no contractions, "can not" rather than "cannot", UK
+  spelling. A neat parallel phrase ("accepts and sends nothing") reads as a
+  model wrote it: say what happens to the routes in plain words instead.
 - **Concise.** Short opening line, then grouped bullets. A reader should be able
   to scan the whole thing in under a minute.
 
@@ -76,7 +83,8 @@ trusting the words even when the facts are right, so avoid the tells:
 
 **Three Discord messages. Four at the very most.** `./le weekly publish source
 <draft.md>` prints the count without publishing, so the budget is measured
-rather than guessed.
+rather than guessed. The budget holds whatever span the update covers: an
+update covering two weeks selects harder, it does not run longer.
 
 An update is read in a chat window, in one pass, by someone who did not ask for
 it. Every line spends attention the next line then has to earn back. The posts
@@ -160,7 +168,9 @@ in the website source front matter. Missing history is an error.
 Read both required groups (`immediate` and `pre-release`) and the nice-to-have
 group before selecting items. Keep every status and diagnostic in the evidence.
 Write one short progress paragraph with remaining release work items and
-relevant scope changes. Link https://ze-software.net/project/roadmap/.
+relevant scope changes. Say what the two groups are in the reader's words
+(required before the first release, planned for after it): "queue" and
+"nice-to-have" mean nothing to a reader who has not seen the roadmap. Link https://ze-software.net/project/roadmap/.
 Use user-facing capabilities in the body. Spec filenames and bucket names stay
 in the drafting evidence.
 

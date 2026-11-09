@@ -1,7 +1,7 @@
 # MCP Integration
 
 <!-- source: internal/component/mcp/tools.go -- MCP tool dispatch primitives -->
-<!-- source: cmd/ze/help_ai.go -- ze help ai output -->
+<!-- source: internal/plugins/help/help_ai.go -- ze help ai output -->
 
 Ze includes an MCP (Model Context Protocol) server that lets AI assistants
 control BGP operations. The server runs inside the daemon and wraps the
@@ -419,6 +419,18 @@ YANG command is registered, it appears as an MCP tool automatically without
 code changes.
 
 Run `tools/list` against a live daemon to see the current tool inventory. <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+
+The commands the local `ze` command answers on the router are tools too:
+`show env list`, `show config validation <file>`, `request support archive`,
+and `show doctor`, the daemon form of `ze doctor`, among them. The daemon runs
+each through the same handler as `ze <verb>`, so the tool answers what the
+command prints on the router. A file argument is read only from the
+configuration directories, and stdin cannot be named
+([commands](../../../architecture/api/commands/index.md), "Served by the daemon too").
+
+<!-- source: internal/component/plugin/server/local_bridge.go -- loadLocalData -->
+<!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta -->
+<!-- source: internal/component/command/caller_path.go -- CallerPath -->
 
 Two handcrafted tools (`ze_execute`, `ze_reference`) provide escape-hatch and
 discovery capabilities alongside the generated tools.

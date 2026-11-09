@@ -8,10 +8,10 @@
   "must": {
     "total": 30,
     "kept": 30,
-    "ze-proven": 20,
+    "ze-proven": 21,
     "os-verified": 0,
     "os-gap": 0,
-    "ze-gap": 10,
+    "ze-gap": 9,
     "not-owed": 0,
     "not-owed-by-kind": {}
   },
@@ -28,7 +28,7 @@
   },
   "proven-by-kind": {
     "functional": 2,
-    "unit": 18
+    "unit": 19
   },
   "unmet": [
     "RFC6793-4.1-3"

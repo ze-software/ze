@@ -133,6 +133,21 @@ read different registries. Neither is derived from the other.
 <!-- source: internal/component/plugin/server/command.go -- matchBuiltinTokens, longerCommandPath, isCommandPath -->
 <!-- source: internal/component/command/local.go -- LookupLocal -->
 
+### A command that starts work outliving its request
+
+A builtin handler can start work that keeps running after it answers: `update
+serve start` opens a listener and serves it from a goroutine. No config
+transaction and no plugin process owns that work, so the handler binds it to
+the daemon's plugin server with `CommandContext.Server.OnStop(fn)` before it
+starts the goroutine. The server's `Stop`, which the daemon's ordered shutdown
+calls, cancels the server context and then runs every registered `fn`, and
+returns only once each has ended its work, goroutines included. `OnStop`
+answers a withdrawal the owner calls when the work ends first (an operator's
+`update serve stop`), and it refuses once `Stop` has started, so a command that
+arrives while the daemon stops starts nothing.
+<!-- source: internal/component/plugin/server/stop_hooks.go -- Server.OnStop, stopHooks.run -->
+<!-- source: internal/plugins/update-cmd/cmd/serve_daemon.go -- updateServeOwner.start, updateServeOwner.endWithDaemon -->
+
 ### Offline fallback (read-only commands without a daemon)
 
 Some read-only `show` commands must work with **no daemon reachable** — `show crashes`
@@ -154,11 +169,12 @@ the answer cannot vary with the health of the box being diagnosed.
 <!-- source: cmd/ze/internal/cmdutil/cmdutil.go -- RunCommand offline-fallback routing -->
 <!-- source: internal/component/cli/client/main.go -- runOfflineFallback (invoked on daemon-unreachable) -->
 
-### Local-data commands (answered in the caller's own process)
+### Local-data commands (answered in the caller's own process, and by the daemon)
 
-A local-data command never asks a daemon. Its handler reads a registry that
-`init()` filled in this process, so the answer exists before `main()` does. It
-registers with `command.MustRegisterLocalData(path, handler, meta,
+A local-data command needs no daemon. Its handler reads a registry that
+`init()` filled in the process running it, so the answer exists before
+`main()` does, and the daemon runs the same handler for a remote caller
+(below). It registers with `command.MustRegisterLocalData(path, handler, meta,
 command.RenderLocalAnswer)` and returns DATA, which is what lets `| json`,
 `| yaml` and `| table` be three renderings of one payload. The handler
 (`command.LocalDataHandler`) takes the `command.ValidatedArgs` the validator
@@ -168,22 +184,34 @@ data-handler and local-handler registries live in package `command` rather than
 in `command/registry`, because that package cannot import `command` and so
 cannot name the value.
 
-The handler returns a payload AND an exit code, and the two are independent. The
-code carries the verdict, the payload carries the evidence, and `show config validation`
-is the command that needs both: it answers the diagnostics of a configuration it
-rejects and exits 1. The answer therefore goes to stdout whatever the code is,
-because a payload on stderr is a payload no pipe operator can reach. A handler
-with nothing to say writes its reason to stderr itself and returns a nil payload,
-which prints nothing. The one local result stdout never sees is a pipe error,
-which is a diagnostic about the operator's own chain rather than an answer to
-their question.
+The handler returns a `command.LocalAnswer`: a payload, an exit code and a
+diagnostic, and the three are independent. The code carries the verdict, the
+payload carries the evidence, and `show config validation` is the command that
+needs both: it answers the diagnostics of a configuration it rejects and exits
+1. The answer therefore goes to stdout whatever the code is, because a payload
+on stderr is a payload no pipe operator can reach.
+
+A handler writes nothing to the process's stdout or stderr, and neither does
+any helper it calls. A handler with nothing to answer returns a nil payload and
+its reason in the diagnostic (`command.LocalRefusal`), whole lines that each end
+in a newline. A diagnostic beside a payload is a warning about the answer, such
+as the parse warnings `show config dump` reports for a config it still
+resolved. The route that ran the handler decides where the diagnostic goes: the
+local routes (`ServeLocal`, the plain `ze <verb>` handler, and `le`'s `Run`)
+print it verbatim on stderr before the payload. A handler that wrote its own
+refusal put it on whatever stderr the running process had, which for a daemon
+route is the daemon's, and the caller got an empty failure. The one local
+result stdout never sees is a pipe error, which is a diagnostic about the
+operator's own chain rather than an answer to their question.
 <!-- source: internal/component/cli/client/main.go -- emitLocalResult -->
-<!-- source: internal/component/command/local_data.go -- LocalDataHandler, RegisterLocalData, LookupLocalData -->
+<!-- source: internal/component/command/local_data.go -- LocalDataHandler, LocalAnswer, LocalRefusal, LocalErrorLine, writeLocalDiagnostic, plainLocalData, ServeLocal, RegisterLocalData, LookupLocalData -->
+<!-- source: internal/le/le/root/leroot.go -- toolHandler, Run -->
 
 Before the handler runs, `ServeLocal` judges the arguments against the leaves
 the command's YANG declares, with `command.ValidateArgs`, the same validator the
-daemon dispatcher calls. A refused argument is written to stderr and exits 1, and
-the handler is never called. The definitions come from the YANG package, which
+daemon dispatcher calls. A refused argument becomes a refusal value printed on
+stderr like a handler's own, the route exits 1, and the handler is never
+called. The definitions come from the YANG package, which
 registers itself as the source (`command.RegisterArgDefSource`); a process with
 no source registered refuses every local command rather than skipping the check.
 The handler runs on the value `ValidateArgs` returned, never on the raw words.
@@ -208,10 +236,247 @@ value. The tool's own `leroot.Answer` keeps the token slice and reads the judged
 tokens.
 <!-- source: internal/le/le/root/leroot.go -- Register, toolHandler, Run -->
 
+#### Text and bytes answers
+
+A command whose answer IS text or bytes (a stored file, a formatted config, a
+page of documentation) answers a `command.Blob` and declares the `blob` shape
+(`command.ShapeBlob`). `show config cat`, `show config fmt`, `show config graph`,
+`show data cat` and `show yang doc` answer this way. The bytes are what the
+operator asked for, so the plain `ze <verb>` route prints them unchanged, with
+no format applied and no newline added (`RenderLocalAnswer`), and the root
+spellings (`ze config cat`, `ze data cat`, `ze yang doc`) print the same answer
+through `command.PrintLocalAnswer`. A help page, a refusal, a password warning,
+`fmt --check`'s verdict and `fmt --diff`'s hunks travel in the diagnostic and
+reach stderr, where they always went.
+
+A route that carries the answer as JSON receives
+`{"blob":{"encoding":"utf-8","content":"..."}}`. Content that is not valid
+UTF-8 travels as `"encoding":"base64"`, because `json.Marshal` would replace each
+invalid byte and the caller could not recover the file; `command.DecodeBlob`
+reverses either form and refuses an encoding it does not know. The text
+renderer registered under `blob` prints the content, and a chain naming no
+format renders a `blob` command as text whatever the configured default is, so
+`ze cli -c "show data cat <key>"` prints the file and `| json` prints the
+envelope. The global operators act on a blob as on any answer. Every data
+operator is refused by name before the command runs, because bytes have no
+rows or fields: `match cannot apply here: this command answers text or bytes,
+which hold no rows or fields, and match acts on rows; read it whole with | text,
+or as JSON with | json`.
+<!-- source: internal/component/command/blob.go -- Blob, MarshalJSON, DecodeBlob, renderBlobText -->
+<!-- source: internal/component/command/pipe_catalog.go -- ShapeBlob, AnswerShapeSpellings -->
+<!-- source: internal/component/command/pipe.go -- validateDeclaredShape, defaultFormatFor -->
+<!-- source: internal/component/command/local_data.go -- RenderLocalAnswer, PrintLocalAnswer -->
+
+#### Served by the daemon too
+
+The daemon dispatcher serves every local-data command whose exact path a YANG
+`ze:command` node declares, under that path, through the same handler, so MCP,
+REST, gRPC, SSH and the web reach it like any builtin. `LoadBuiltins` and the
+alias loader the server calls end with `loadLocalData`, which reads the local
+registry and the YANG maps and lists no command: a new local-data command with
+a node is served with no further edit, and one with no node is not. A plain
+local command (one that prints rather than answering a value) is not served
+this way. A path a builtin RPC already holds is refused (`ErrCommandHeld`), as
+two builtins on one path are.
+
+A local command at an offline root (`ze doctor`, `ze help command`, `ze help
+ai`) cannot have a node at its own path: the root is not a verb, and every
+command path in the model starts with one (`ai/rules/cli.md`, R1). Its
+registration names the path that answers it on the daemon instead,
+`registry.Meta.DaemonPath`, and four readers follow that one field. The local
+route validates its arguments against the leaves of the daemon path
+(`command.ModelPath`). `loadLocalData` serves the handler under the daemon
+path, or leaves it to the builtin that holds it, and refuses to start when no
+node declares the path. `command.AnswerSurface` offers the root on shell
+completion and `ze cli`, and the daemon path on every daemon surface. The
+`command-contract` gate counts the local handler as served by the daemon
+path, reading the field from the registration's source, so its value is a
+string literal.
+
+| Offline root | Daemon path | Daemon handler |
+|--------------|-------------|----------------|
+| `doctor` | `show doctor` | the builtin `HandleDoctor`, which adds the plugin checks |
+| `help command` | `show command catalog` | the same local-data handler, through the bridge |
+| `help ai` | `show command reference` | the same local-data handler, through the bridge |
+
+`show command list` is not the daemon form of `help command`: it answers the
+commands the running daemon's dispatcher serves, a name and a summary each,
+while the catalog walks the YANG tree, the local registry and the plugin
+declarations of this binary and gives each command its grammar, arguments,
+pipes and mode.
+
+The catalog's `mode` retains a live command's `daemon` or `read-only`
+classification and appends `offline` when an exact-path local handler also
+serves it. Each command path has one row, even when both routes serve it.
+<!-- source: internal/component/command/local.go -- ModelPath -->
+<!-- source: internal/plugins/meta/cmd/help.go -- handleBgpCommandList -->
+<!-- source: internal/plugins/help/help_command.go -- collectCommands -->
+
+A call passes authorization and accounting first, then the dispatcher's
+validator over the node's leaves, then the handler, exactly as a builtin
+does. A token that starts with `-` is refused before the handler, because a
+`--flag` is offline tooling the daemon never reads. The answer maps onto the
+response the way the local route maps it onto the terminal: the payload is
+the response data, under the shape the path declares; a non-zero code is a
+failed status, and the payload, if any, still beside it. The error is a
+`plugin.RefusalError` holding the diagnostic: the response's `error` field
+and the error's text are the reason without its final newline and without
+the `error: ` it may open with, for a program to read, and a surface that
+prints for a person asks `plugin.RefusalLine` and prints the diagnostic as it
+stands (SSH exec, the SSH session, the web terminal, the web admin card and an
+MCP result), so a usage refusal reads `usage: ...` there as it does locally,
+never `error: usage: ...`, and an `error: ` refusal carries its prefix once.
+Every other error keeps the surface's own rendering (`error: <text>`, MCP
+`Error: <text>`). A refusal with no diagnostic is a plain error naming the
+exit code. Nothing is written to the daemon's stdout or stderr.
+
+A diagnostic beside a zero code is a warning about an answer the command still
+gave, such as the parse warnings of `show config dump`. It travels in the
+response's `warnings` field, one line each, under the `warning` status, and
+every surface shows it where the local route prints it, on stderr before the
+answer:
+
+| Surface | Where the warning appears |
+|---------|---------------------------|
+| SSH exec, and `ze cli -c` reading it | On the session's stderr before the answer frame (`writeExecWarnings`); `sshclient.ExecCommandStream` returns it as `Answer.Warnings`, which `ze cli` prints on stderr |
+| SSH interactive session | Above the rendered answer (`cli.CommandOutput.Warning`) |
+| MCP `tools/call` | A second text item, `Warning: <lines>`, after the answer item | <!-- doc-links: ignore (tools/call is an MCP protocol method, not a repository path) -->
+| REST | The `warnings` array of the JSON body |
+| gRPC | `CommandResponse.warnings` |
+| Web admin | The `warnings` key of a JSON result; above the output in the result card |
+| Web CLI terminal | Above the rendered answer |
+
+A plugin that sends a command through the engine (`dispatch-command`) receives
+the status, the data and the warning lines: the lines ride the `wrn`
+terminator of the answer (`docs/architecture/api/ipc_protocol.md`, "Answer
+Protocol").
+<!-- source: internal/component/plugin/dispatch.go -- WriteAnswer, answerWarnings -->
+
+Authorization reads the verb (`IsReadOnlyPath`), unless the registration
+declares its daemon form does more than read with `registry.Meta.NotReadOnly`.
+`show plugin declarations config` declares it, because answering starts each
+external plugin's `run` line from the file, so it is judged in the edit
+section and the read-only profile, whose edit section denies by default,
+refuses it before any process starts. `show data cat` and `show config cat`
+declare it too: either reads any store key, the HTTPS private key
+(`meta/web/key`) and the bcrypt hashes under `meta/auth` and `meta/ssh`
+included, so a secret reaches only a caller the edit section allows.
+<!-- source: internal/component/config/storage/cli/register.go -- show data cat NotReadOnly -->
+<!-- source: internal/component/config/cli/register.go -- show config cat NotReadOnly -->
+
+The handler learns which route called it from `ValidatedArgs.Route()`:
+`command.RouteLocal` on `ServeLocal` and the plain `ze <verb>` handler,
+`command.RouteRemote` when the daemon runs it (`command.AnswerRemote`).
+Only the command package marks a route. `Route.CallerLocal()` is true for
+`RouteLocal` alone, so the zero value, `RouteUnspecified`, is refused the
+caller-only forms the same way the remote route is. `show bgp decode` and
+`show bgp encode` refuse a standard-input form and a decoder program named by
+path unless the route is local, and a help page is drawn with colors only on
+the local route.
+
+A handler whose work takes time reads `ValidatedArgs.Context()` and stops when
+it is done. The dispatcher hands each daemon-route call the request's context
+(`ValidatedArgs.WithContext`, set in `localDataHandler`), so a caller that goes
+away stops the work. A local route sets none, and `Context()` then answers
+`context.Background()`: the work lives as long as the operator's own process.
+`request support archive` checks it before each module.
+
+A `blob` answer to a caller in another process is bounded by
+`command.BlobRemoteOctetsMax` (8 MiB), because the daemon route carries the
+whole answer in one response. A command that would answer more refuses with
+the size and the local command that reads the bytes on the host holding them:
+`show data cat` does so for a large store value, and `request support archive`
+refuses to store an archive it could not hand back.
+
+A command that produces a file names it differently on each route, by design:
+the local route writes it under a directory its caller names, and the daemon
+keeps it in its store under a key `show data cat` reads. Its registration says
+so with `registry.Meta.Artifact`: the words that give the local route a
+directory (`LocalArgs`), the answer field naming the path locally
+(`LocalField`) and the key on the daemon (`DaemonField`), and the fields that
+differ between any two runs (`Volatile`). `request support archive` declares
+it, and `TestLocalCommandDaemonMatchesLocal` (`cmd/ze/hub`) reads it to
+compare the two routes' documents field by field, with no command named in
+the test. Both routes answer the same typed manifest (`support.SupportManifest`),
+so a pipe reads its fields on either one; the `ze request support archive`
+spelling draws it through its registered renderer (`support.Render`) as the
+archive's path on one line, or under `--json` as the indented manifest.
+
+A path argument on the daemon route names a file on the daemon's host, read
+with the daemon's identity, and the authorizer judges command text with no
+notion of a filesystem location. So every handler that reads a file its
+caller names asks `command.CallerPath` for the path to read: on the local
+route the path comes back unchanged, `-` included, and on every other route
+`-` is refused, and a named path is read only when, made absolute and with
+every symbolic link resolved, it lies inside one of the directories the daemon
+already reads configuration from: the user's `ze` directory under
+`XDG_CONFIG_HOME`, else `~/.config/ze`, and the store's directory, which
+`internal/component/config/cli` registers with
+`command.RegisterCallerPathDirs`. The working directory, which `show config
+list` also scans, is not one of them on the daemon route: the daemon's is
+wherever it was started, a place no configuration rule names and a remote
+caller cannot see, so a file there is refused remotely and read locally,
+where the working directory is the operator's own. A relative path is still
+made absolute against the daemon's working directory before it is judged.
+The filesystem root never counts as one. A path
+outside them, a `..` that climbs out, a link that points out and a missing
+file are refused alike, so the refusal says nothing about files outside the
+directories, and it names the local `ze` command that reads any file. A file
+inside them that is one of the configuration store's own entries (the live
+tree under `database/`, its lock, a replaced tree or blob, a stage) is refused
+too, with the reason: those files carry every stored value, the HTTPS private
+key and the password hashes included, and a remote caller reads a stored value
+only with `show data cat <key>`, which is edit-authorized. The registration
+names that test (`callerPathWithheld`, which asks
+`storage.StoreOwnedPath`), so the command layer still knows no location. The
+commands that read through it are `show config dump`, `validation`, `diff`,
+`history` (whose store is opened beside the resolved file, so a link placed
+outside the directories cannot choose the store), `graph` and `fmt`,
+`show plugin declarations config` and `show bgp decode pcap`.
+`show config fmt -w` rewrites its file, so it is refused on the daemon route
+whatever the path.
+
+The dispatcher refuses a flag-shaped token before any handler runs, because a
+flag is read only by the client. When the command also has a local-data
+handler, the refusal names the local `ze` command to run instead. A flag that
+selects what is answered is declared as a YANG leaf so every surface can send
+it: `show config dump strip-private` asks for what `--strip-private` asks for.
+The same holds for `show config fmt check` and `diff` (`--check`, `--diff`),
+`show yang tree commands` and `config`, `show yang completion min-prefix`,
+and `show yang doc list` and `command` (`--list`, and the command words). A
+keyword given beside the flag that makes the same choice is refused rather
+than resolved by a silent winner.
+
+A daemon-served command that parses a caller's config file reads it with
+`config.ReadConfig` or the bare parser, never `config.LoadConfig`, because
+`LoadConfig` publishes the file's `environment { }` block into the process
+that runs it: on the daemon route a read would change the daemon's log and env
+settings. `show plugin declarations config`, `ze doctor`, the support report
+and the crash-capture readiness check read through `ReadConfig`, and the
+config commands above go through the parser alone. Ze's config grammar has no
+include statement, so the confined file is the only file a parse reads.
+<!-- source: internal/component/command/caller_path.go -- CallerPath, RegisterCallerPathDirs, confinedDirs -->
+<!-- source: internal/component/config/cli/register.go -- callerPathDirs, callerPathWithheld -->
+<!-- source: internal/component/config/storage/backup.go -- StoreOwnedPath, storeOwnedName -->
+<!-- source: internal/component/config/cli/cmd_list.go -- configSearchDirs -->
+<!-- source: internal/component/config/loader.go -- LoadConfig, ReadConfig, loadConfig -->
+<!-- source: internal/component/config/yang/cli/yang_data.go -- dataTree, dataCompletion, dataDoc, leafAndFlagRefusal -->
+<!-- source: internal/component/plugin/server/command.go -- flagRefusal -->
+<!-- source: internal/component/plugin/server/local_bridge.go -- loadLocalData, localDataHandler, localAnswerResponse -->
+<!-- source: internal/component/plugin/types.go -- Response, WarningText -->
+<!-- source: internal/component/ssh/answer.go -- writeExecWarnings -->
+<!-- source: internal/component/cli/sshclient/answer.go -- ExecCommandStream -->
+<!-- source: internal/component/mcp/tools.go -- answerResult -->
+<!-- source: internal/component/plugin/server/command.go -- LoadBuiltins, loadBuiltinsWithAliases, IsReadOnlyPath -->
+<!-- source: internal/component/command/route.go -- Route, CallerLocal, AnswerRemote, WithContext, Context -->
+<!-- source: internal/component/command/blob.go -- BlobRemoteOctetsMax -->
+<!-- source: internal/component/command/registry/registry.go -- Meta -->
+<!-- source: internal/component/plugin/register.go -- show plugin declarations config registration -->
+
 This differs from the offline fallback above: a fallback is a second answer for
 a command the daemon normally serves, tried only after the connection fails. A
-local-data command has no daemon side at all, registers no RPC, and therefore
-owes no `wire-methods.snapshot` row.
+local-data command is one handler behind both routes. It registers no RPC on
+the wire-method dispatcher, and therefore owes no `wire-methods.snapshot` row.
 
 `internal/component/plugin/register.go` serves one of them, and it is the
 template: `show plugin list` answers which plugins this binary carries and what
@@ -220,6 +485,67 @@ that owns the registry it reads, so removing the plugin host removes the
 command with it.
 <!-- source: internal/component/plugin/register.go -- dataPlugins, pluginRows -->
 <!-- source: internal/component/command/local_data.go -- RenderLocalAnswer -->
+
+#### Local commands already served by the daemon under the same path
+
+A few local registrations share their path with a daemon RPC the owner
+registered itself. The two routes call one producer, so they cannot drift:
+
+| Command | Producer | Local route | Daemon route |
+|---------|----------|-------------|--------------|
+| `doctor` (daemon path `show doctor`) | `doctor.Answer` | the local-data handler `ze doctor` runs, with no plugin check (no plugin runs in the caller's process) | `HandleDoctor`, the RPC for `ze-doctor:show-doctor`, adding the doctor checks of the plugins the daemon runs |
+| `show ping` | `pingResults` | `showPingLocal` prints it | `handleShowPing` |
+| `show traceroute` | `tracerouteResults` | `showTracerouteLocal` prints it | `handleTraceroute` |
+| `show interface` | `iface.ListInterfaces`, `iface.GetInterface` | `cmdShow` renders the list or one interface (`--json` prints the payload) | `handleShowInterface`, `handleShowInterfaceDetail` answer it as data |
+| `show version` | `zeversion.Answer` | `printVersion` prints it (`ze show version`, `ze version`, `ze --version`) | `handleShowVersion`; `--extended` reaches both routes as a token, since the model declares no leaf |
+| `monitor ping`, `monitor traceroute` | `NewPingSession`, `NewTracerouteSession` | the local loop prints each result | the `ze cli` view and the hub's SSH session factory inject the producer itself as the view factory; SSH exec and `ze cli -c` stream from the same producer (`streamMonitorPing`, `streamMonitorTraceroute`), and the one-shot RPC answers a sample of it: `handleMonitorPing` the rows of a bounded run, `handleMonitorTraceroute` one probe round |
+
+The bridge leaves such a path to its builtin: when the YANG node's own RPC is
+registered as a builtin, the local-data handler on that path is the command's
+no-daemon route (`loadLocalData`). `doctor` is local-data because its answer
+is about the host it runs on, whichever host that is. `show ping` and `show
+traceroute` stay plain local commands, because `ze cli` answers a local-data
+command in its own process before it asks the daemon, and a ping asked through
+`ze cli` is sent from the router; `show interface` and `show version` stay
+plain local for the same reason, since each describes the daemon's host or
+binary. `doctor config <file>` is confined on the
+daemon route like every other caller path (`command.CallerPath`).
+<!-- source: internal/component/doctor/answer.go -- Answer, answerLocal, renderDoctor -->
+<!-- source: internal/core/version/version.go -- Answer -->
+<!-- source: internal/component/iface/cli/show.go -- cmdShow -->
+<!-- source: internal/component/cli/client/main.go -- injectViewFactories -->
+<!-- source: internal/component/doctor/cmd/show.go -- HandleDoctor, collectPluginDoctorChecks -->
+<!-- source: internal/component/plugin/server/local_bridge.go -- loadLocalData, AnswerLocalData -->
+<!-- source: internal/component/ping/cmd/ping.go -- pingResults, handleShowPing -->
+<!-- source: internal/component/traceroute/cmd/traceroute.go -- tracerouteResults, handleTraceroute -->
+<!-- source: internal/component/ping/cmd/monitor.go -- handleMonitorPing, streamMonitorPing -->
+<!-- source: internal/component/traceroute/cmd/monitor.go -- handleMonitorTraceroute, streamMonitorTraceroute -->
+
+#### Which surfaces offer a command
+
+One predicate, `command.AnswerSurface`, answers for a command and a surface
+whether the surface must offer it, must not, or offers it with a qualifier,
+and why. It reads only the registration: its kind, and the hidden, streaming,
+streaming-only, TUI-only, daemon-path and modeled declarations. Each surface producer asks it, and
+`TestEveryCommandOnEverySurface` (`cmd/ze/hub`) asks each producer and fails a
+gap or an offer the predicate refuses, naming the command, the surface, the
+kind and the expected answer.
+
+| Registration | SSH, `ze cli` | Shell completion (`ze <verb>`) | Web admin, web completion, MCP, REST, gRPC |
+|--------------|---------------|--------------------------------|--------------------------------------------|
+| Hidden (a plugin command declared `Hidden`) | Not offered | Not offered | Not offered. It still runs when typed in full |
+| Builtin RPC, local, local-data | Offered | Offered | Offered: the daemon serves each through its handler |
+| Local or local-data at an offline root, with a declared daemon path | `ze cli` offers a local-data one, answered in its own process; SSH does not, and offers the daemon path | Offered | Not offered: the daemon path is, as its own registration |
+| Plugin command (Stage 1 declaration) | Offered | Not offered: no plugin runs in the shell's process | Offered |
+| Plugin command whose path is a schema node with no `ze:command` of its own (`Modeled`, as `show vrrp interface`, whose command node is `name` below it) | Offered | Offered: shell completion walks the shipped schema, which holds the node | Offered |
+| Streaming (`RegisterStreamingHandler`) | Offered as a stream | Offered as a stream | By its one-shot declaration: `OneShotSample` offered, `OneShotStreamingOnly` not ("One-shot answer of a streaming command") |
+| A live view with no RPC | Offered as TUI-only, when `cli.RegisterView` declares it | Not offered | Not offered. An undeclared one fails the check. No view is TUI-only today |
+
+The producers that ask it: the SSH and web admin trees, the web terminal
+completer, `buildCommandMeta` (the MCP, REST and gRPC list) and the `ze cli`
+tree. `command-completion.md` names each one.
+<!-- source: internal/component/command/surface.go -- AnswerSurface, answerOfflineRoot, answerView, ListedOnDaemonSurfaces, OffersCommand -->
+<!-- source: cmd/ze/hub/surface_parity_test.go -- TestEveryCommandOnEverySurface -->
 
 ---
 
@@ -270,26 +596,37 @@ For `ze-bgp:show-policy-test`, `action` describes the external per-peer policy
 stage and its final, not the full protocol pipeline. A named in-process check
 has a trace entry with `action: "not-evaluated"` and empty `text-after`; no
 filter-update RPC was made for it. Selecting such a check as a single-filter
-override is refused with instructions to test it on the peer session.
-<!-- source: internal/component/bgp/reactor/policy_dryrun.go -- tracePolicyFilterChain, PolicyDryRun -->
+override is refused with instructions to test it on the peer session. A
+plugin filter on a policy that compiled no library chain is never called: its
+trace entry has `action: "reject"` and an `error` saying the chain is not
+compiled, and the route is rejected, as the session fails it closed.
+`text-before`, `text-after` and each entry's `text-after` are read from the
+wire UPDATE (the pasted one, or the one the chain built) by a display-only
+renderer that no filter is sent, and `changed-attrs` names the attributes
+whose shown value differs between the two.
+<!-- source: internal/component/bgp/reactor/policy_dryrun.go -- traceUncompiledChain, PolicyDryRun -->
+<!-- source: internal/component/bgp/reactor/policy_dryrun_display.go -- routeDisplay, displayUpdate, routeDisplay.changed -->
 
 A chain with a library member (an in-process filter instance) runs in the
 dry-run as it runs live, through the same chain, display only: no failure is
 counted or logged. Its plugin members are reached through the chain, and no
 filter-update is sent for a library member. Each member's trace entry has
-`action` accept, modify or reject, `delta` the sets a passing member asked as
+`action` accept, modify, reject or withdraw, `delta` the sets a passing member asked as
 text (`local-preference 200`), `error` why a failed member failed (its
 on-error decided the action), and `text-after` the UPDATE as the chain
 rewrote it up to that member (after a failed-open member, the earlier
-members' changes only), built the way the result's is; a rejecting member's
-entry carries none, as a rejecting text filter's. The result's `text-after`
+members' changes only), built the way the result's is; a rejecting or
+withdrawing member's entry carries none. A plugin member that rewrote the
+whole UPDATE body (a raw answer) is a modify with no `delta`, and its
+`text-after` is the body it answered, though the policy's final still
+decides whether the route keeps it. The result's `text-after`
 is the rewritten UPDATE. A single-filter override on such a chain runs that one
-member through the chain, display only, under the policy's final, as the
-text path's override keeps the final; a name the chain does not hold is
+member through the chain, display only, under the policy's final; a name
+the chain does not hold is
 refused as not in the peer's chain. The reported `policy` stays the whole
 chain the live session runs.
-<!-- source: internal/component/bgp/reactor/policy_dryrun_library.go -- traceLibraryChain, libraryTraceEntry, libraryTraceText, libraryMember -->
-<!-- source: internal/component/bgp/policychain/trace.go -- Chain.Trace, Chain.Only, MemberTrace.Apply, Sets.AppendText -->
+<!-- source: internal/component/bgp/reactor/policy_dryrun_library.go -- traceLibraryChain, libraryTraceEntry, libraryTraceText, libraryRewriteText, libraryMember -->
+<!-- source: internal/component/bgp/policychain/trace.go -- Chain.Trace, Chain.Only, MemberTrace.Apply, Sets.AppendText, TraceRewrite -->
 
 An unresolved remote AS returns `action: "undetermined"` with a `reason` telling
 the operator to wait for establishment and repeat `show policy test`. No filter
@@ -312,7 +649,7 @@ and no automatic filters.
 | `ze-static:show-static` | `forwardShowStatic` in `internal/plugins/static/cmd_show.go` | JSON array of configured static routes (proxy to static plugin) |
 | `ze-policyroute:show-policy-routes` | `forwardShowPolicyRoutes` in `internal/plugins/policyroute/cmd_show.go` | JSON array of PBR policy routes (proxy to policyroute plugin) |
 | `ze-bgp:show-policy-chain` | `handleShowPolicyChain` in `internal/component/bgp/plugins/cmd/policy/handler.go` | `{"chains": [{"peer": "...", "name": "...", "import": {"filters": [{"name": "...", "canonical": "..."}], "final": "accept"}, "export": {"filters": null, "final": "reject"}}]}` — effective policies with the direction's effective `final`: the configured final; `reject` with `"final-source": "rfc8212"` for an EBGP direction with no policy (RFC 8212 Section 3); `undetermined` for an absent direction on a dynamic peer not yet established. An IBGP direction with no policy has no `final`, and is omitted when it has no automatic filters. <!-- source: internal/component/bgp/plugins/cmd/policy/handler.go -- policyChain, handleShowPolicyChain --> <!-- source: internal/component/bgp/reactor/reactor_api.go -- policyInfo --> |
-| `ze-bgp:show-policy-test` | `handleShowPolicyTest` in `internal/component/bgp/plugins/cmd/policy/handler.go` | `{"direction": "...", "peer": "...", "action": "accept\|reject\|modify\|undetermined", "trace": [PolicyTraceEntry], "text-before": "...", "text-after": "...", "changed-attrs": [...], "wire-changes": ["AS4_PATH suppressed", ...], "policy": {"filters": [...], "final": "reject", "final-source": "rfc8212"}}` — read-only policy dry-run. The action includes the effective final decision, including after a raw rewrite. `reason` is present for an unresolved remote AS. <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun, tracePolicyFilterChain --> |
+| `ze-bgp:show-policy-test` | `handleShowPolicyTest` in `internal/component/bgp/plugins/cmd/policy/handler.go` | `{"direction": "...", "peer": "...", "action": "accept\|reject\|modify\|undetermined", "trace": [PolicyTraceEntry], "text-before": "...", "text-after": "...", "changed-attrs": [...], "wire-changes": ["AS_PATH set", ...], "policy": {"filters": [...], "final": "reject", "final-source": "rfc8212"}}` — read-only policy dry-run. The action includes the effective final decision, including after a raw rewrite. `reason` is present for an unresolved remote AS. <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun, traceUncompiledChain --> |
 | `ze-bgp:show-bmp-sessions` | `forwardShowBMPSessions` in `internal/component/bgp/plugins/bmp/cmd_show.go` | JSON array of BMP receiver sessions (proxy to BMP plugin) |
 | `ze-bgp:show-bmp-peers` | `forwardShowBMPPeers` in `internal/component/bgp/plugins/bmp/cmd_show.go` | JSON array of BMP monitored peers (proxy to BMP plugin) |
 | `ze-bgp:show-bmp-collectors` | `forwardShowBMPCollectors` in `internal/component/bgp/plugins/bmp/cmd_show.go` | JSON array of BMP sender collectors (proxy to BMP plugin) |
@@ -337,6 +674,7 @@ and no automatic filters.
 | `ze-resolve:clear-dns-cache-stats` | `handleClearDNSCacheStats` in `internal/component/resolve/cmd/dns.go` | `{"action": "reset-stats"}` |
 | `ze-resolve:clear-dns-cache-record` | `handleClearDNSCacheRecord` in `internal/component/resolve/cmd/dns.go` | `{"action": "delete-entry", "name": "...", "removed": N}` or `{"action": "delete-entry", "name": "...", "type": "...", "found": bool}` |
 | `ze-dnsresolver:show-dns-resolver` | `handleShowDNSResolver` in `internal/plugins/dnsresolver/show.go` | `{"running": true, "enabled": bool, "mode": "forward", "listeners": [{"name": "...", "ip": "...", "port": N}], "allow-from": N, "upstreams": ["ip:port", ...], "timeout-seconds": N, "limit-outstanding": N, "limit-per-client-rate": N, "outstanding": N, "cache-max-ttl": N, "cache-max-negative-ttl": N, "cache-answer-entries": N, "cache-negative-entries": N, "cache-hits": N, "cache-misses": N, "cache-hit-rate": N, "queries": N, "coalesced": N, "refused-acl": N, "refused-rd-clear": N, "rate-limited": N, "dropped": N, "upstream-queries": {"answered": N, "timeout": N, "error": N, "failure": N, "truncated": N}}`. `{"running": false}` while the plugin is not running, and `{"running": true, "enabled": false}` before its first config apply <!-- source: internal/plugins/dnsresolver/show.go -- handleShowDNSResolver, resolver.show --> |
+| `ze-system-dns:show-system-dns` | `showSystemDNS` in `internal/plugins/system-dns-cmd/cmd/show_dns.go` | `{"records": [...], "consumers": [{"consumer": "system", "selections": [...]}, ...]}`: every learned resolver record, then the router's selection under consumer `system`, then each consumer's published selections (`docs/features/dns-resolver.md`) |
 | `ze-dnsresolver:clear-dns-resolver-cache` | `handleClearDNSResolverCache` in `internal/plugins/dnsresolver/show.go` | `{"cleared-answer": N, "cleared-negative": N}`: the entries removed from each cache; the counters are kept. An error naming the config to commit while the plugin is not running. The CLI words are `clear dns resolver cache all`; the bare `clear dns resolver cache` has no handler <!-- source: internal/plugins/dnsresolver/yang/ze-dns-resolver-cmd.yang -- clear dns resolver cache all --> |
 | `ze-resolve:show-rir` (args: `<asn>`) | `handleRIRASN` in `internal/component/resolve/cmd/rir.go` | `{"asn": N, "registry": "ARIN", "whois": "whois.arin.net", "range-start": N, "range-end": N}`. Two distinct errors: `AS<n> is in no delegated range` for a table that was read, `RIR delegation table unreadable: ...` for one that was not |
 | `ze-resolve:update-rir` (no args) | `handleRIRRefresh` in `internal/component/resolve/cmd/rir.go` | `{"key": "meta/rir/delegation", "ranges": N, "generated": "YYYY-MM-DD"}`. `ranges` is how many ranges the stored table holds and `generated` is the date it stored. All or nothing: a fetch that failed, a parse that refused, a run that read no ASN record, and a write that stored nothing each answer an error and change no stored table |
@@ -354,6 +692,8 @@ and no automatic filters.
 | `ze-iface:show-interface-type` (args: `<type>`) | `handleShowInterfaceType` in `internal/component/iface/cmd/show_interface.go` | `{"interfaces": [InterfaceInfo]}` for that type. An unmatched type is refused, and the refusal lists the types the running set has |
 | `ze-iface:show-interface-errors` | `handleShowInterfaceErrors` in `internal/component/iface/cmd/show_interface.go` | `{"interfaces": [{name, rx-errors, rx-dropped, tx-errors, tx-dropped}]}`, only the links with a non-zero counter |
 | `ze-iface:show-interface-rate` (args: `[<name>]`) | `handleShowInterfaceRateCmd` in `internal/component/iface/cmd/show_interface.go` | JSON array of `InterfaceRate` (all) or single object (named); fields: `name`, `rx-bps`, `tx-bps`, `rx-pps`, `tx-pps`, `stats` |
+| `ze-iface:show-interface-pppoe-client` | `handleShowInterfacePPPoEClient` in `internal/component/iface/cmd/show_pppoe_client.go`, forwarded to the iface plugin's `show interface pppoe-client` | JSON array of `PPPoEClientStatus` sorted by name: `name`, `state`, `source-interface`, `ppp-interface`, `session-id`, `local-ip`, `peer-ip`, `uptime`, `dns-servers`, `delegated-prefixes` (`[{prefix, valid-lifetime, preferred-lifetime}]`, seconds remaining, 4294967295 infinite, `[]` when none) |
+| `ze-iface:show-interface-delegated-prefix` | `handleShowInterfaceDelegatedPrefix` in `internal/component/iface/cmd/show_delegated_prefix.go`, forwarded to the iface plugin's `show interface delegated-prefix` | JSON array of `DelegatedUnitStatus`, one per delegated-prefix entry of an enabled unit: `interface`, `unit`, `source`, `subnet-id`, `state` (`installed`, `waiting`, `too-small`, `not-installed`); `installed` adds `device`, `address`, `prefix`, `delegated`, `valid-lifetime`, `preferred-lifetime`; the others add `reason`, and `too-small` and `not-installed` add `delegated` |
 | `ze-iface:monitor-interface-rate` | `streamInterfaceRate` in `internal/component/iface/cmd/interface_rate.go` | Streaming JSON lines (1/s); optional `<name>` filter |
 | `ze-storage:show-smart` | `handleShowStorageSmart` in `internal/component/storage/show.go` | JSON array of per-device objects: `name`, `transport`, `healthy`, `temp-celsius`, `power-on-hours`, `error-count`, `percent-used` (NVMe), `available-spare` (NVMe), `smart-enabled`, `last-checked`, `last-short-test`, `last-long-test`. Returns error if SMART management not configured. |
 | `ze-flowexport:show-flow-export` (args: `[<collector>]`) | `handleShowFlowExport` in `internal/plugins/flowexport/cmd_show.go` | No arg: JSON array of per-collector objects. Named: single collector object, or error `collector not found: <name>`. Per-collector fields: `name`, `address`, `port`, `protocol`, `datagrams-sent`, `bytes-sent`, `errors`, `sequence`, `last-export-time` (Unix seconds, omitted before first poll). When unconfigured: `{"status": "not-configured"}`. Backed by `flowexport.Exporter.Status()`. |
@@ -595,7 +935,75 @@ Event types span all namespaces: BGP (update, open, notification, keepalive, ref
 Wire method: `ze-meta:event-monitor`. Supports pipe operators: `| json`, `| table`, `| match`.
 <!-- source: internal/component/plugin/server/monitor.go -- MonitorManager -->
 
-**Note:** `monitor bgp` is the live peer dashboard (TUI only). `monitor event` streams live events (SSH exec or TUI). `monitor system netlink` streams kernel netlink events (SSH exec or TUI, Linux only).
+#### One-shot answer of a streaming command
+
+A streaming command registers with `RegisterStreamingHandler(prefix, oneShot,
+handler)`, and `oneShot` declares what the command answers where no stream can
+be shown: MCP, REST, gRPC and the web admin console run a command once.
+
+| Declaration | One-shot surfaces | Commands |
+|-------------|-------------------|----------|
+| `OneShotSample` | Offered. The one-shot RPC answers one sample from the producer the stream reads | `monitor interface rate` (the rate tracker, as `show interface rate`), `monitor traffic stat` (the trafficstat snapshot, as `show traffic stat`), `monitor ping` (a bounded run of probes), `monitor traceroute` (one probe round) |
+| `OneShotStreamingOnly` | Not offered: the stream is a sequence of events, so no single answer holds its data. Typed in full, the command is refused with `StreamingOnlyError`, which names `ze <command>` and SSH, the places it streams | `monitor bgp`, `monitor event`, `monitor system netlink`, `monitor vpn ipsec` |
+
+A stream whose data lives in a plugin process registers with
+`RegisterPluginStreamingHandler(prefix, oneShot, pluginCommand, handler)`
+instead, naming the plugin command its handler forwards to
+(`Dispatcher.ForwardToPlugin`), the way `RPCRegistration.PluginCommand` names
+it for a builtin. `StreamingPluginCommand(prefix)` answers it, so a reader of
+the registry knows which plugin must run for the stream and its sample to
+answer. `monitor interface rate` declares `show interface rate`, which the
+iface plugin serves from its own rate tracker. With that plugin absent the
+sample is refused (`ratesOf`, `iface.ErrRatePluginAbsent`): the refusal says
+the interface plugin is not running, that Ze starts it only for a
+configuration holding an `interface` section, and the command that adds one.
+The surface parity check starts the plugin that declares the command before it
+asks.
+
+The surface predicate (`command.AnswerSurface`) reads the declaration, so the
+MCP, REST and gRPC command list, the web admin tree and the web terminal
+completer leave a streaming-only command out, and the surface parity check
+fails a sample command whose one-shot answer carries no data.
+
+The refusal is decided once, from the declaration, on both one-shot routes: the
+dispatcher (`Dispatcher.Dispatch`, which MCP, REST, gRPC, the web console and a
+plugin's `dispatch-command` use) and the wire-method route (`wrapHandler`).
+The command's RPC handler is `StreamingOnlyRPC`, which answers an error if a
+route ever skipped the refusal, never a reply.
+<!-- source: internal/component/plugin/server/handler.go -- OneShot, RegisterStreamingHandler, RegisterPluginStreamingHandler, StreamingPluginCommand, StreamingOneShot -->
+<!-- source: internal/component/plugin/server/streaming_only.go -- StreamingOnlyError, streamingOnlyRefusal, StreamingOnlyRPC -->
+<!-- source: cmd/ze/hub/streaming_surface.go -- streamingPathsOff -->
+<!-- source: internal/component/iface/cmd/interface_rate.go -- ratesOf -->
+<!-- source: internal/component/iface/rate_command.go -- ErrRatePluginAbsent -->
+<!-- source: cmd/ze/hub/surface_parity_test.go -- TestStreamingOneShotAnswersCarryData -->
+
+#### Where a monitor command streams
+
+Every monitor command streams live on the four terminal surfaces. Each surface
+branches on a registry, never on a command name:
+
+| Surface | Route |
+|---------|-------|
+| SSH exec (`ssh router monitor ...`) | `pluginserver.IsStreamingCommand` sends the command to the streaming executor (`cmd/ze/hub/service_ssh.go`), which runs the registered streaming handler on the judged arguments |
+| `ze cli -c "monitor ..."` | The client streams when `pluginserver.IsStreamingCommand` holds (`internal/component/cli/client/main.go`) |
+| SSH interactive and the `ze cli` TUI | The model opens a registered live view first (the `monitor bgp` dashboard, the `monitor ping` and `monitor traceroute` views), then a streaming session for any other streaming command (`internal/component/cli/model_keys.go`) |
+| `ze monitor ...` | A registered local handler runs its live loop in-process (`monitor ping`, `monitor traceroute`), and any other command goes through `ze cli -c` |
+
+The streaming handlers of the three commands that also own a live view:
+
+| Command | Streaming handler | Producer | One-shot answer |
+|---------|-------------------|----------|-----------------|
+| `monitor bgp` | `streamBGPMonitor` (`internal/component/bgp/plugins/cmd/monitor/register.go`) | `StreamMonitor` over the daemon's monitor set: a header, then one line per BGP event | `OneShotStreamingOnly` |
+| `monitor ping` | `streamMonitorPing` (`internal/component/ping/cmd/monitor.go`) | `NewPingSession`: one line per probe, the text `ze monitor ping` prints | `OneShotSample`: the rows of a bounded run (the requested count, else 5) |
+| `monitor traceroute` | `streamMonitorTraceroute` (`internal/component/traceroute/cmd/monitor.go`) | `NewTracerouteSession`: one block per probe round, a round each second | `OneShotSample`: one probe round, as `show probe-round` |
+
+`TestEveryMonitorCommandStreams` reads every monitor command from the streaming
+prefixes, the live views and the YANG paths under `monitor`, and fails any one
+a surface would answer once instead of streaming.
+<!-- source: internal/component/bgp/plugins/cmd/monitor/register.go -- streamBGPMonitor -->
+<!-- source: internal/component/ping/cmd/monitor.go -- streamMonitorPing, handleMonitorPing, writePingRows -->
+<!-- source: internal/component/traceroute/cmd/monitor.go -- streamMonitorTraceroute, writeTracerouteRounds -->
+<!-- source: cmd/ze/hub/monitor_streams_test.go -- TestEveryMonitorCommandStreams -->
 
 #### Netlink Monitor
 
@@ -873,8 +1281,8 @@ send bgp <selector> update text mp l2vpn/evpn add ip-prefix rd <rd> prefix <pref
 send bgp <selector> update text mp l2vpn/evpn add multicast rd <rd> ip <ip>
 ```
 
-The section keyword names the UPDATE section the routes travel in, the same two
-keywords the filter text protocol uses. `nlri` takes no family: it is IPv4
+The section keyword names the UPDATE section the routes travel in. `nlri`
+takes no family: it is IPv4
 unicast in the NLRI and Withdrawn Routes fields (RFC 4271 Section 4.3). `mp
 <family>` is MP_REACH_NLRI and MP_UNREACH_NLRI (RFC 4760). IPv4 unicast takes
 `mp ipv4/unicast add` only with an explicit IPv6 next hop (RFC 8950 Section 3);
@@ -994,7 +1402,7 @@ A chain the answer's shape cannot support is refused AFTER the command has run, 
 <!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
 <!-- source: internal/component/command/pipe_save.go -- validateSaveOps -->
 <!-- source: internal/component/command/local_data.go -- ServeLocal -->
-<!-- source: cmd/ze/help_command.go -- operatorsFor -->
+<!-- source: internal/plugins/help/help_command.go -- operatorsFor -->
 <!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
 <!-- source: internal/component/cli/client/main.go -- Execute, commandWithFormat -->
 <!-- source: internal/component/cli/client/answer.go -- daemonOutput, newDaemonOutput -->
@@ -1351,7 +1759,6 @@ Each route of `routes`:
 | `direction` | string | `import` or `export` |
 | `peer` | string | The peer that SENT the route on import, the DESTINATION peer on export |
 | `peer-as` | uint32 | That peer's ASN, with the same meaning as `peer` |
-| `update` | string | Text-format attributes and NLRI (only declared attributes). Empty in a chain that also holds in-process members, which sends `fields` only |
 | `fields` | object | The route fields the filter declared in `reads`, keyed by vocabulary field name, in the UPDATE event's attr-map shape. A field the route does not carry is left out, and the key is absent when the filter declared no route field |
 | `raw` | bytes (base64) | The UPDATE body after the 19-byte header, sent when the filter declared the `raw` read |
 
@@ -1360,8 +1767,7 @@ Each verdict of `verdicts`:
 | Field | Type | Description |
 |-------|------|-------------|
 | `action` | string | `accept`, `reject` or `modify` |
-| `update` | string | A text delta of the changed attributes, on `modify`. Refused in a chain that holds in-process members |
-| `sets` | list | The route fields the filter changes, on `modify`: each a `field`, an `action` and a `value`. Read in a chain that holds in-process members |
+| `sets` | list | The route fields the filter changes, on `modify`: each a `field`, an `action` and a `value` |
 | `raw` | bytes (base64) | A whole-body replacement, on `modify`, from a filter that declared the `raw` read. It ends the chain |
 | `teardown`, `notify-code`, `notify-subcode` | bool, uint8 | Close the session after the import chain. Honored on import only |
 | `error` | string | The filter could not judge this route: the engine applies its on-error to this route alone and reads nothing else of the verdict |
@@ -1372,8 +1778,9 @@ Each verdict of `verdicts`:
 
 **`peer` and `peer-as` change meaning with the direction, and the callback says
 so only through `direction`.** The import chain passes the sending peer
-(`runIngressPolicyChain`) and the export chain passes the destination
-(`runEgressPolicyChainASN4`), both through `PolicyFilterChain`. A filter that
+(`runIngressPolicyChainMeta`) and the export chain passes the destination
+(`runEgressPolicyChainASN4`), both through the library chain's external
+member (`runLibraryChain`). A filter that
 reads the ASN as "who sent me this" is wrong on export, where nothing in the
 callback names the sender at all.
 
@@ -1382,7 +1789,8 @@ is carried to `plugin.FilterRegistration.Direction` and read by nothing in the
 engine, so a filter is called on whichever chain the operator's config names it
 in. Direction lives on the config attachment point, and a filter that must act on
 one direction only tests `direction` itself.
-<!-- source: internal/component/bgp/reactor/filter_ordered.go -- runIngressPolicyChain, runEgressPolicyChainASN4 -->
+<!-- source: internal/component/bgp/reactor/filter_ordered.go -- runIngressPolicyChainMeta, runEgressPolicyChainASN4 -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain -->
 <!-- source: internal/component/plugin/server/startup.go -- the one writer of FilterRegistration.Direction -->
 
 <!-- source: internal/component/plugin/server/server.go -- CallFilterUpdate builds the filter-update request -->
@@ -1911,7 +2319,7 @@ every hidden plugin command.
 <!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta hidden plugin command skip -->
 <!-- source: internal/component/command/node.go -- MergeCommandPaths, CommandEntry -->
 <!-- source: cmd/ze/hub/session_factory.go -- mergePluginCommands (SSH per-session) -->
-<!-- source: internal/component/cli/client/main.go -- newAttachedModel, buildRuntimeTreeFromDispatch -->
+<!-- source: internal/component/cli/client/main.go -- newAttachedModel, BuildRuntimeTreeFromDispatch -->
 <!-- source: cmd/ze/hub/web_completer.go -- pluginAwareCommandCompleter (web live overlay) -->
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
 <!-- source: internal/component/plugin/server/startup.go -- signalStartupComplete, WaitForStartupComplete -->
@@ -2071,7 +2479,7 @@ not yet hold.
 An OFFLINE LOCAL command carries the same two texts in a `registry.Meta`,
 declared beside its handler in Go rather than in a YANG module. `ShortHelp` is
 the summary and `Description` is the explanation, and the same empty-is-unwritten
-rule holds for both. `collectCommands` (`cmd/ze/help_command.go`) merges these
+rule holds for both. `collectCommands` (`internal/plugins/help/help_command.go`) merges these
 registrations into `ze help command --json` after the tree, and skips one whose
 path the tree already holds, so the catalog publishes the node's texts for such
 a path and the registration's for every other. `./le doc yang-contract help-shape` holds
@@ -2129,7 +2537,8 @@ name alone. The selected candidate's summary is on message line 2, whole
 <!-- source: internal/component/plugin/server/schema.go -- RegisteredRPC, RegisterRPCs -->
 <!-- source: internal/component/aihelp/aihelp.go -- RPC, Build -->
 <!-- source: internal/core/helpfmt/helpfmt.go -- Page, (*Page).WriteTo -->
-<!-- source: cmd/ze/help_command.go -- commandEntry, printCommandTable, printCommandVerbose -->
+<!-- source: internal/plugins/help/help_command.go -- commandEntry, catalogAnswer, drawCatalog, printCommandTable, printCommandVerbose -->
+<!-- source: internal/plugins/help/register.go -- render, renderTo -->
 <!-- source: internal/component/command/registry/registry.go -- Meta -->
 <!-- source: internal/component/command/local.go -- ListLocal -->
 <!-- source: cmd/ze/command_help_page.go -- commandHelpPage -->
@@ -2625,6 +3034,16 @@ report one.
 | `ze help command --json` | the compiled tree and `registry.All()` | Yes | Yes |
 | the wiki catalog (`clicatalog.Collect`) | the compiled tree and `registry.All()` | Yes | Yes |
 
+The wiki catalog's `mode` column names the routes that run a command, read from
+its registrations. A YANG path a daemon RPC serves is `daemon`, or `read-only`
+when `IsReadOnlyPath` says so. When a local handler is registered at the same
+path too (a local-data command, or a local command the daemon also serves, such
+as `show version`), the command also runs in the caller's own process with no
+daemon, and the mode carries both routes: `daemon, offline` or
+`read-only, offline`, never the daemon's alone. A command with only a local
+handler is `offline`, or the mode its `registry.Meta` declares.
+<!-- source: internal/le/cli/catalog/catalog.go -- Collect, withLocalRoute, labelLocalRoute -->
+
 An EXTERNAL plugin is the one case the last three rows still cannot answer for.
 It registers nothing in the composition root, so its declaration exists on the
 Stage 1 message alone and a running daemon is the only reader of it.
@@ -2727,7 +3146,7 @@ Two rules govern what such an entry carries.
 <!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, pipeAliasHelp, handleBgpCommandHelp -->
 <!-- source: internal/le/cli/list/commandlist.go -- Collect, Answer -->
 <!-- source: internal/le/cli/catalog/catalog.go -- Collect, operatorsFor -->
-<!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
+<!-- source: internal/plugins/help/help_command.go -- collectCommands, extractPipes -->
 
 #### A plugin declares its own answer shape
 
@@ -2737,14 +3156,14 @@ so a plugin written before this channel existed keeps its old behavior.
 
 | Field | Holds |
 |-------|-------|
-| `shape` | `doc`, `map` or `tab`, the same three words the answer head uses on the wire |
+| `shape` | `doc`, `map` or `tab`, the three words the answer head uses on the wire, or `blob` for text or bytes read as they are (a `blob` answer travels in a `doc` head) |
 | `columns` | the answer's keys, in the order a person reads them. It needs a shape with rows |
 | `address-fields` | the keys whose value holds an address. It needs a shape |
 
 `validateShapeDecls` reads the three fields where `validatePipeDecls` reads the
 aliases. It refuses four declarations by name:
 
-- a spelling that is not one of the three words.
+- a spelling that is not one of the four words.
 - a column or address-field list with no shape.
 - a declaration on a blank command path.
 - a list or a name past its bound.

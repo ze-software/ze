@@ -68,9 +68,9 @@ Ze generates command, configuration and support reference data from the code and
 
  Recently shipped
 
-### [Week of 2026-10-12](https://ze-software.net/project/changes/2026-10-12/)
+### [2026-10-25 – 2026-11-09 (16 days)](https://ze-software.net/project/changes/2026-10-25/)
 
-This update covers two weeks. Many settings that Ze used to accept and then silently ignore are now…
+This update covers two weeks, and a number of the changes can break a working configuration. Following RFC…
 
  RFC compliance progress
 
@@ -82,26 +82,26 @@ One page per RFC, naming each requirement, the test evidence behind it, and the 
 
 Tests help catch changes that break existing behavior. Go tests, end-to-end scenarios, protocol checks, fuzzing and interoperability tests cover different failure modes. The figures describe the test suite and its coverage. Each card explains what is checked and links to how those checks work. Ze is written with AI agents working under a quality process based on ISO management systems; [how Ze is developed with AI](https://ze-software.net/project/ai-development/) explains it.
 
- [See completion by use case](https://ze-software.net/quality/rfc-compliance/profiles/) [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**44.4% RFC MUSTs tested**
+ [See completion by use case](https://ze-software.net/quality/rfc-compliance/profiles/) [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**45.3% RFC MUSTs tested**
 
-- 2,102 of 4,737 MUSTs Ze and the OS owe, in walked RFCs Ze implements
-- Across 195 RFCs, 0 not walked yet
+- 2,153 of 4,752 MUSTs Ze and the OS owe, in walked RFCs Ze implements
+- Across 196 RFCs, 0 not walked yet
 - Until 2026-10-31 the figure counted every MUST row but rollups, annotated rows included
 - Tests tied to requirements
 
- RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**40,600+ Go tests**
+ RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**42,800+ Go tests**
 
 - Check encoded bytes and parsed values.
 - Verify config, state transitions and plugins.
 - gomu checks whether tests catch code changes.
 
- Go tests and mutation checks.](https://ze-software.net/quality/unit-fuzz-mutation/) [**2,600+ end-to-end tests**
+ Go tests and mutation checks.](https://ze-software.net/quality/unit-fuzz-mutation/) [**2,800+ end-to-end tests**
 
 - Start sessions and exchange route updates.
 - Run editor commands, commits and reloads.
 - Check output, errors and saved state.
 
- Scenarios and expected results.](https://ze-software.net/quality/functional-ci/) [**95 fuzz targets**
+ Scenarios and expected results.](https://ze-software.net/quality/functional-ci/) [**97 fuzz targets**
 
 - Generate inputs for parsers and decoders.
 - Probe packets and config text for crashes.
@@ -340,13 +340,23 @@ A lab peer, a migrated ExaBGP config, or a looking-glass instance can produce us
 
 ## Recent engineering notes.
 
-Weekly updates come from git history and Discord's `ze-news`. They stay specific and technical.
+Update reports come from git history and Discord's `ze-news`. They stay specific and technical.
 
 **Update**
 
  01
 
-Week of 2026-10-12
+2026-10-25 – 2026-11-09 (16 days)
+
+### [eBGP now rejects by default, routing policy is one shared tree for every protocol, RADIUS answers must be…](https://ze-software.net/project/changes/2026-10-25/)
+
+ BGP CPE gNMI Config
+
+**Update**
+
+ 02
+
+2026-10-12 – 2026-10-25 (2 weeks)
 
 ### [Two weeks of stricter configuration, an IPsec drop-by-default policy and BGP filter changes, plus BGP…](https://ze-software.net/project/changes/2026-10-12/)
 
@@ -354,23 +364,13 @@ Week of 2026-10-12
 
 **Update**
 
- 02
+ 03
 
-Week of 2026-10-05
+2026-10-05 – 2026-10-11 (1 week)
 
 ### [Safer configuration commits, API changes and a new appliance kernel, plus BGP, RSVP-TE and IPsec fixes.](https://ze-software.net/project/changes/2026-10-05/)
 
- BGP IPsec Config API
-
-**Update**
-
- 03
-
-Week of 2026-09-28
-
-### [RFC reviews led to fixes in BGP route selection, graceful restart, BFD, OSPF and LDP.](https://ze-software.net/project/changes/2026-09-28/)
-
- BGP L2TP Flow Export API - [See all updates](https://ze-software.net/project/changes/)
+ BGP IPsec Config API - [See all updates](https://ze-software.net/project/changes/)
 `Try safely`
 
 ## Try Ze before the first release.

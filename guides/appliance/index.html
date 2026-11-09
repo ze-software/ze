@@ -572,6 +572,13 @@ repository root when it is not already installed:</p>
 </code></pre>
 <h2 id="building-and-installing-an-appliance-end-to-end">Building and installing an appliance (end to end)</h2>
 <h3 id="from-a-json-config-recommended">From a JSON config (recommended)</h3>
+<p>The running appliance's kernel host name comes from <code>system host</code> in its Ze
+config, which Ze applies at start and on every reload. <code>identity.hostname</code> in
+<code>appliance.json</code> names the image's CA certificate and listings, and the image
+boots as <code>ze</code> until Ze applies <code>system host</code>; with <code>system host</code> unset it stays
+<code>ze</code> (see <code>docs/guide/configuration.md</code>, "System Host Name").</p>
+<!-- source: cmd/ze/hub/main_system_hostname.go -- applyKernelHostname, applyKernelHostnameFromMap -->
+<!-- source: gokrazy/ze/config.json -- Hostname -->
 <p>Write an appliance config file (arch, kernel profile, credentials, networking):</p>
 <pre><code class="language-json">{
     "credentials": { "username": "exa", "admin-enabled": true },
@@ -1075,7 +1082,7 @@ config was saved. If the window completes, the active config hash is written to
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

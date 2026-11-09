@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 5 | of 16 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| Tested both ways | 6 | of 16 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 1 | of 16 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0 | of 16 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0 | of 16 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 14 | 14 of 17 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 14 | 14 of 20 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -35,7 +35,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 10 | of 16 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 9 | of 16 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 9 counts marked as a part above are the whole of the 16 gated MUSTs: they add up to 16. Proven by a recorded break counts TAGGED UNITS, a different population, so it is not one of them.
 
@@ -66,12 +66,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 27 |
 | Gated MUST-level | 16 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 10 |
+| Declared gaps | 9 |
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 17 |
-| Tagged units | 17 |
+| Test tags | 20 |
+| Tagged units | 20 |
 | Recorded audit verdicts | 6 |
 | Discrimination records | 14 |
 | Summary | `rfc/short/rfc5838.md` |
@@ -90,15 +90,15 @@ Enrolled: Support of Address Families in OSPFv3 (RFC 5838): 4 MET (non-default-A
 
 **Evidence:** unit 4
 
-**Unmet:** RFC5838-2.2-1, RFC5838-2.5-1, RFC5838-2.7-1, RFC5838-2.7-11, RFC5838-2.7-2, RFC5838-2.7-3, RFC5838-2.7-4, RFC5838-2.7-8, RFC5838-4-1, RFC5838-5-3
+**Unmet:** RFC5838-2.2-1, RFC5838-2.7-1, RFC5838-2.7-11, RFC5838-2.7-2, RFC5838-2.7-3, RFC5838-2.7-4, RFC5838-2.7-8, RFC5838-4-1, RFC5838-5-3
 
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 5 | one part of the gated population |
-| Annotated (including scoped evidence) | 11 | one part of the gated population |
+| Positive and negative tests | 6 | one part of the gated population |
+| Annotated (including scoped evidence) | 10 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | an overlay: each of these is also counted by the part it falls in |
@@ -106,9 +106,9 @@ Enrolled: Support of Address Families in OSPFv3 (RFC 5838): 4 MET (non-default-A
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **16** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (5):** [`RFC5838-2.3-1`](#rfc5838-2.3-1), [`RFC5838-2.4-1`](#rfc5838-2.4-1), [`RFC5838-2.6-1`](#rfc5838-2.6-1), [`RFC5838-2.6-2`](#rfc5838-2.6-2), [`RFC5838-2.8-1`](#rfc5838-2.8-1)
+**Positive and negative tests (6):** [`RFC5838-2.3-1`](#rfc5838-2.3-1), [`RFC5838-2.4-1`](#rfc5838-2.4-1), [`RFC5838-2.5-1`](#rfc5838-2.5-1), [`RFC5838-2.6-1`](#rfc5838-2.6-1), [`RFC5838-2.6-2`](#rfc5838-2.6-2), [`RFC5838-2.8-1`](#rfc5838-2.8-1)
 
-**Annotated (including scoped evidence) (11):** [`RFC5838-2.2-1`](#rfc5838-2.2-1), [`RFC5838-2.4-2`](#rfc5838-2.4-2), [`RFC5838-2.5-1`](#rfc5838-2.5-1), [`RFC5838-2.7-1`](#rfc5838-2.7-1), [`RFC5838-2.7-2`](#rfc5838-2.7-2), [`RFC5838-2.7-3`](#rfc5838-2.7-3), [`RFC5838-2.7-4`](#rfc5838-2.7-4), [`RFC5838-2.7-8`](#rfc5838-2.7-8), [`RFC5838-2.7-11`](#rfc5838-2.7-11), [`RFC5838-4-1`](#rfc5838-4-1), [`RFC5838-5-3`](#rfc5838-5-3)
+**Annotated (including scoped evidence) (10):** [`RFC5838-2.2-1`](#rfc5838-2.2-1), [`RFC5838-2.4-2`](#rfc5838-2.4-2), [`RFC5838-2.7-1`](#rfc5838-2.7-1), [`RFC5838-2.7-2`](#rfc5838-2.7-2), [`RFC5838-2.7-3`](#rfc5838-2.7-3), [`RFC5838-2.7-4`](#rfc5838-2.7-4), [`RFC5838-2.7-8`](#rfc5838-2.7-8), [`RFC5838-2.7-11`](#rfc5838-2.7-11), [`RFC5838-4-1`](#rfc5838-4-1), [`RFC5838-5-3`](#rfc5838-5-3)
 
 ## Figures
 
@@ -154,7 +154,7 @@ Source: [data/rfc/rfc5838.json](../../../data/rfc/rfc5838.json).
 | `RFC5838-2.3-1` | Prefixes that don't conform to the AF of an OSPFv3 instance MUST NOT be used in the route computation for that instance. (§2.3) | MUST NOT | 2.3 | **positive:** `unit/verify` [`TestIPv4OverV3BuildRoutes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_afstrategy_v6_test.go#L283). **negative:** `unit/verify` [`TestRFC5838NonConformingExternalPrefixNotInRouteComputation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_af_test.go#L117). **negative:** `unit/verify` [`TestRFC5838NonConformingInterAreaPrefixNotInRouteComputation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_af_test.go#L93). **negative:** `unit/verify` [`TestRFC5838NonConformingPrefixNotInRouteComputation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_af_test.go#L23) |
 | `RFC5838-2.4-1` | When an OSPFv3 router participates in an AF (sets the AF-bit in the Options field), it MUST discard Hello packets having the AF- bit clear in the Options field. (§2.4) | MUST | 2.4 | **positive:** `unit/verify` [`TestAFBitGatesFullNonDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_multiaf_engine_test.go#L156). **negative:** `unit/verify` [`TestAFBitGatesFullNonDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_multiaf_engine_test.go#L155) |
 | `RFC5838-2.4-2` | The only exception is the Base IPv6 unicast AF, where this check MUST NOT be done (for backward compatibility). (§2.4) | MUST NOT | 2.4 | **positive:** `unit/verify` [`TestAFBitIgnoredDefaultAF`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_multiaf_engine_test.go#L181). **negative:** no negative test. **{single-polarity}:** the default IPv6-unicast AF has no reject path -- afBitAccepted at multiaf.go:181 returns true immediately for e.af.isDefault, so a base-AF Hello is never dropped for a missing AF-bit and there is no negative behavior to exercise |
-| `RFC5838-2.5-1` | the link's IPv4 address will be advertised in the "link local address" field of the IPv4 instance's Link-LSA. This address is placed in the first 32 bits of the "link local address" field and is used for IPv4 next-hop calculations. The remaining bits MUST be set to zero. (§2.5) | MUST | 2.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** v6OriginateLinkLSA at origination_v6_link.go:42-48 always encodes an IPv6 link-local address in the Link-LSA link-local field and returns false without one, so an IPv4-AF Link-LSA never carries the interface IPv4 address in the leading 32 bits |
+| `RFC5838-2.5-1` | the link's IPv4 address will be advertised in the "link local address" field of the IPv4 instance's Link-LSA. This address is placed in the first 32 bits of the "link local address" field and is used for IPv4 next-hop calculations. The remaining bits MUST be set to zero. (§2.5) | MUST | 2.5 | **positive:** `unit/verify` [`TestRFC5838IPv4LinkLSACarriesTheLinkIPv4Address`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_ipv4_nexthop_test.go#L34). **positive:** `unit/verify` [`TestRFC5838IPv4NextHopFromNeighborLinkLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_ipv4_nexthop_test.go#L117). **negative:** `unit/verify` [`TestRFC5838IPv4NextHopFromNeighborLinkLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_ipv4_nexthop_test.go#L97) |
 | `RFC5838-2.6-1` | For IPv4 unicast and IPv4 multicast AFs, the Forwarding Address in AS-external-LSAs and NSSA-LSAs MUST encode an IPv4 address. (§2.6) | MUST | 2.6 | **positive:** `unit/verify` [`TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_forwarding_test.go#L63). **positive:** `unit/verify` [`TestRFC5838IPv4AFTranslatedForwardingAddressIsIPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_translate_test.go#L51). **negative:** `unit/verify` [`TestRFC5838IPv4AFNSSANeverEncodesIPv6ForwardingAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_forwarding_test.go#L84). **negative:** `unit/verify` [`TestRFC5838IPv4AFTranslatorRefusesIPv6ForwardingAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_translate_test.go#L71) |
 | `RFC5838-2.6-2` | the IPv4 Forwarding Address is advertised by placing it in the first 32 bits of the Forwarding Address field in AS-external-LSAs and NSSA-LSAs. The remaining bits MUST be set to zero. (§2.6) | MUST | 2.6 | **positive:** `unit/verify` [`TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_forwarding_test.go#L66). **positive:** `unit/verify` [`TestRFC5838IPv4AFTranslatedForwardingAddressIsIPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_translate_test.go#L54). **negative:** `unit/verify` [`TestRFC5838IPv4AFTranslatorRefusesNonZeroTrailingBits`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_translate_test.go#L85) |
 | `RFC5838-2.7-1` | For address families other than IPv6, both the MTU for the instance address family and the IPv6 MTU used for OSPFv3 maximum packet determination MUST be considered. (§2.7) | MUST | 2.7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze tracks a single per-interface MTU -- neighbor/dd.go:170 sends cfg.InterfaceMTU and neighbor/dd.go:45 checks it -- with no separate address-family MTU versus IPv6 MTU, so the two are not considered independently |
@@ -183,7 +183,6 @@ Source: [data/rfc/rfc5838.json](../../../data/rfc/rfc5838.json).
 | Requirement | State | Reason |
 |---|---|---|
 | [`RFC5838-2.2-1`](#rfc5838-2.2-1) When an OSPFv3 router is supporting AFs as described in this specification, it MUST set the AF-bit in the OSPFv3 Options field of Hello packets, Database Description packets, and LSAs. (§2.2) | {gap}, no test | the AF-bit is set in Hello and DD Options only; LSA origination never sets it -- encoder_v6.go:33 applies SetAF to the Hello/DD path only, and origination_v6.go:254 with origination_v6_link.go:51 build Router/Network/Link-LSA Options via neutralToV6Options, which omits OptAF |
-| [`RFC5838-2.5-1`](#rfc5838-2.5-1) the link's IPv4 address will be advertised in the "link local address" field of the IPv4 instance's Link-LSA. This address is placed in the first 32 bits of the "link local address" field and is used for IPv4 next-hop calculations. The remaining bits MUST be set to zero. (§2.5) | {gap}, no test | v6OriginateLinkLSA at origination_v6_link.go:42-48 always encodes an IPv6 link-local address in the Link-LSA link-local field and returns false without one, so an IPv4-AF Link-LSA never carries the interface IPv4 address in the leading 32 bits |
 | [`RFC5838-2.7-1`](#rfc5838-2.7-1) For address families other than IPv6, both the MTU for the instance address family and the IPv6 MTU used for OSPFv3 maximum packet determination MUST be considered. (§2.7) | {gap}, no test | ze tracks a single per-interface MTU -- neighbor/dd.go:170 sends cfg.InterfaceMTU and neighbor/dd.go:45 checks it -- with no separate address-family MTU versus IPv6 MTU, so the two are not considered independently |
 | [`RFC5838-2.7-2`](#rfc5838-2.7-2) The MTU in the Database Description packet MUST always contain the MTU corresponding to the advertised address family. (§2.7) | {gap}, no test | the Database Description always carries the single cfg.InterfaceMTU at neighbor/dd.go:170 with no per-address-family MTU, so for a non-IPv6 AF whose MTU differs the DD does not carry the AF-specific MTU |
 | [`RFC5838-2.7-3`](#rfc5838-2.7-3) For example, if the instance corresponds to an IPv4 address family, the IPv4 MTU for the interface MUST be specified in the interface MTU field. (§2.7) | {gap}, no test | ze has no IPv4-address-family interface MTU; the DD MTU is the one configured interface MTU at neighbor/dd.go:170, never an IPv4-specific value |
@@ -245,7 +244,11 @@ the link's IPv4 address will be advertised in the "link local address" field of 
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5838-2.5-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC5838IPv4NextHopFromNeighborLinkLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_ipv4_nexthop_test.go#L97) | unit/verify | unproven |
+| positive | [`TestRFC5838IPv4LinkLSACarriesTheLinkIPv4Address`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_ipv4_nexthop_test.go#L34) | unit/verify | unproven |
+| positive | [`TestRFC5838IPv4NextHopFromNeighborLinkLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5838_ipv4_nexthop_test.go#L117) | unit/verify | unproven |
 
 ### [`RFC5838-2.6-1`](#rfc5838-2.6-1)
 

@@ -10,8 +10,8 @@ Figures as of the last build, read from [data/rfc/profiles/ddos-flowspec.json](.
 
 ## Figures
 
-- **MUST bar**: Ze proven 184, OS testing gap 1, Ze correctness gap 153
-- **Overview bar**: Ze MUST proven 184, SHOULD proven 16, Not owed 5, SHOULD not decided 108, OS testing gap 1, Ze correctness gap 153
+- **MUST bar**: Ze proven 186, OS testing gap 1, Ze correctness gap 151
+- **Overview bar**: Ze MUST proven 186, SHOULD proven 16, Not owed 5, SHOULD not decided 108, OS testing gap 1, Ze correctness gap 151
 
 | Figure | Rows |
 |---|---|
@@ -20,10 +20,10 @@ Figures as of the last build, read from [data/rfc/profiles/ddos-flowspec.json](.
 | Mandatory register | not complete |
 | MUST rows | 343 |
 | MUST rows kept (the MUST bar) | 338 |
-| Ze proven | 184 |
+| Ze proven | 186 |
 | OS verified | 0 |
 | OS testing gap | 1 |
-| Ze correctness gap | 153 |
+| Ze correctness gap | 151 |
 | MUST rows not owed | 5 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -62,7 +62,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze proven 83, Ze correctness gap 50 | Ze MUST proven 83, SHOULD proven 3, SHOULD not decided 31, Ze correctness gap 50 | ddos-flowspec: required by rfc/short/rfc4271.md |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze proven 85, Ze correctness gap 48 | Ze MUST proven 85, SHOULD proven 3, SHOULD not decided 31, Ze correctness gap 48 | ddos-flowspec: required by rfc/short/rfc4271.md |
 | [SFLOW-V5](../../sflow-v5/) | sFlow: A Method for Monitoring Traffic in Switched and Routed Networks | Ze proven 22, OS testing gap 1, Ze correctness gap 9 | Ze MUST proven 22, SHOULD proven 3, SHOULD not decided 8, OS testing gap 1, Ze correctness gap 9 | ddos-flowspec: required by rfc/short/sflow-v5.md |
 
 ### Level 5

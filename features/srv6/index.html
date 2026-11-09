@@ -259,6 +259,9 @@ whole route, not just its Prefix-SID attribute:</p>
             action accept;
         }
     }
+    match community-SERVICE-20 {
+        community SERVICE-20;
+    }
 }
 
 bgp {
@@ -271,7 +274,7 @@ bgp {
     peer pe1 {
         filter {
             export {
-                filters [ community-match:SERVICE-20 ];
+                filters [ community-SERVICE-20 ];
                 final accept;
             }
         }
@@ -606,7 +609,7 @@ propagates without negotiation. Ze does not signal SRv6 support via capabilities
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

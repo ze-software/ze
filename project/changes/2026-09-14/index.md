@@ -1,4 +1,4 @@
-# Week of 2026-09-14
+# 2026-09-14 – 2026-09-20 (1 week)
 
 Ze measures the path MTU to a peer now, and sizes every IPsec tunnel from what it measured. Two of the week's fixes are worth a maintenance window: Graceful Restart told every peer that Ze preserved nothing, and RPKI reported origin validation as active with no cache server reachable.
 

@@ -1,4 +1,4 @@
-# Week of 2026-04-20
+# 2026-04-20 – 2026-04-26 (1 week)
 
 Security hardening, a new diagnostics subsystem, and a redesigned operator web UI headline this week.
 

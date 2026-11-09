@@ -1,4 +1,4 @@
-# Week of 2026-06-22
+# 2026-06-22 – 2026-06-28 (1 week)
 
 Focused on trimming attack surface and rounding out OSPF.
 

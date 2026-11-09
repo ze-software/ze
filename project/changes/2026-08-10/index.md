@@ -1,4 +1,4 @@
-# Week of 2026-08-10
+# 2026-08-10 – 2026-08-16 (1 week)
 
 Web and Looking Glass rewrites, remote-triggered blackholing, dynamic BGP peer repairs, authenticated PPPoE and another standards pass shaped the week.
 

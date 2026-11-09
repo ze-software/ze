@@ -13,7 +13,7 @@ what Ze has
 | Tested both ways | 36 | of 91 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 1 | of 91 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0 | of 91 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 150 | 150 of 156 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 144 | 144 of 156 tagged units, 0 escaped and 6 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -839,13 +839,13 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestValidateTree_LengthViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L418) | unit/verify | revert, verified |
-| negative | [`TestValidateTree_PatternViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L317) | unit/verify | revert, verified |
+| negative | [`TestValidateTree_LengthViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L418) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestValidateTree_PatternViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L317) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`TestValidateTree_RangeViolation`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L176) | unit/verify | revert, verified |
 | negative | [`TestValidator_HoldTimeRange`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L901) | unit/verify | revert, verified |
-| negative | [`TestValidator_ValidatePattern`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L852) | unit/verify | revert, verified |
+| negative | [`TestValidator_ValidatePattern`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L852) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestValidator_HoldTimeRange`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L900) | unit/verify | revert, verified |
-| positive | [`TestValidator_ValidatePattern`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L851) | unit/verify | revert, verified |
+| positive | [`TestValidator_ValidatePattern`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_validator_yang_test.go#L851) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC7950-8.1-4`](#rfc7950-8.1-4)
 
@@ -879,9 +879,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 |---|---|---|---|
 | negative | [`TestRFC7950WebCommitRefusesAConstraintViolation`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc7950_web_commit_validation_test.go#L81) | unit/verify | revert, verified |
 | negative | [`TestRFC7950RunningDatastoreRefusesAViolationAfterParse`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_datastore_test.go#L78) | unit/verify | revert, verified |
-| negative | [`TestRFC7950RunningDatastoreRefusesAViolationAtParse`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_datastore_test.go#L53) | unit/verify | revert, verified |
+| negative | [`TestRFC7950RunningDatastoreRefusesAViolationAtParse`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_datastore_test.go#L53) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC7950WebCommitWritesAValidEdit`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc7950_web_commit_validation_test.go#L58) | unit/verify | revert, verified |
-| positive | [`TestRFC7950RunningDatastoreAcceptsAValidConfig`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_datastore_test.go#L34) | unit/verify | revert, verified |
+| positive | [`TestRFC7950RunningDatastoreAcceptsAValidConfig`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_datastore_test.go#L34) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC7950-8.3.1-2`](#rfc7950-8.3.1-2)
 
@@ -922,7 +922,7 @@ No test carries RFC7950-8.3.3-2, so no unit is bound to it.
 
 Implementations MUST support all lexical representations specified in this document. (§9.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-19 (independent auditor, after 40a03eb762 and db457cb3c2). Section 9.1: "Implementations MUST support all lexical representations specified in this document." Tagged units are unchanged; the cited producers changed. db457cb3c2 splits compound guards in readInstancePredicates and readEqualsQuoted into one guard per operand with identical bodies, no behavior change. 40a03eb762 makes instanceExists a referenceWalk method that compares a leaf-list predicate value with sameValue (canonicalValue of both sides under the leaf-list's type) and selects a list entry through the canonical keyIndex (canonicalKey) instead of the raw map-key address, so a configured value and a default in use now answer the same lexical forms. This resolves the prior judgement's observation that [.='+17'] matched a default 17 but not a configured 17 (Section 9.1: "In particular, any XPath expression evaluations are done using the canonical form if the data type has a canonical form."). The '.' leaf-list-predicate parse, *WSP handling and absent-value refusal that TestRFC7950InstanceIdentifierLeafListPredicate and ...Absent assert are unaffected (string leaf-list: canonicalValue is identity), and the integer, decimal64, binary, bits, leafref and union-default units of the prior judgement stand. All tagged units and TestReferenceCanonicalValueRefusesOther pass at HEAD (go test -tags 'ze_core ze_bgp' over config/yang and config). The canonical comparison is proven by TestRFC7950InstanceIdentifierCanonicalValue under RFC7950-9.13-1, not by a 9.1-1 tag.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent source rejudgment against RFC 7950 Section 9.1: "Implementations MUST support all lexical representations specified in this document." Read all tagged units, their type/default/reference helpers and cited producers. Integer tags exercise +17/17/-17 and legal signed hexadecimal/octal module defaults, with exact normalized values and malformed-notation refusals. Decimal64 tags require the declared signed/integral/fraction forms and exact error classes for invalid forms and restrictions. Binary and bits tags distinguish accepted defined representations from malformed alphabet/padding, lengths and unknown bit names. Reference tags exercise type loading, leafref lexical validation, union-default member selection and both quoted leaf-list-predicate forms versus absent target. canonicalValue still canonicalizes signed/unsigned decimal integers and decimal64, returning other representations unchanged; canonicalKey, sameValue and referenceWalk.instanceExists use it for comparison. Its current exhaustive-ignore directive documents that deliberately narrow normalization switch; no new grammar is introduced. Canonical-comparison-specific tests under other IDs are not silently counted as 9.1-1 tags. Verdict enforced. No execution or recorded-proof freshness was verified here.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

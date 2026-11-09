@@ -18,17 +18,17 @@ Choosing a language with explicit memory management would leave us with the same
 
 ## Use the data we already have
 
-A BGP UPDATE arrives as a sequence of bytes containing route announcements or withdrawals, together with attributes such as the next hop and AS path. One way to process it would be to decode every attribute into a Go object, work with those objects, then encode them again when sending the route onwards. If the operation only uses the next hop, however, much of that decoding creates objects which serve no purpose.
+A BGP UPDATE arrives as a sequence of bytes containing route announcements or withdrawals, together with attributes such as the next hop and AS path. Ze receives those bytes in a buffer, an area of memory used to hold them. One way to process the UPDATE would be to decode every attribute into a Go object, work with those objects, then encode them again when sending the route onwards. If the code only needs the next hop, decoding every attribute wastes CPU cycles and may also allocate memory for data it never uses.
 
-We avoid creating those objects by keeping the received bytes in Ze's [WireUpdate](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wire_update.go) and providing access to the attributes within them. Code inspecting the next hop can read that attribute without constructing a decoded representation of all the others. Several parts of Ze can also read the same stored message, so each reader does not require a separate copy. The input still has to be validated; the saving comes from how we represent it during processing.
+Ze's [WireUpdate](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/wire_update.go) keeps the received bytes and provides access to the attributes within them. Code inspecting the next hop can read that attribute without spending time decoding all the others or allocating objects for them. Several parts of Ze can also read the same stored message, so they do not each require a separate copy. The input still has to be validated; the saving comes from how we represent it during processing.
 
 When a message has to change before it is sent, we can avoid another temporary copy by writing the changed message directly into its output buffer. The caller supplies that storage to the encoder, instead of receiving a newly allocated message which it must then copy into place. This [buffer-first approach](https://github.com/ze-software/ze/blob/main/docs/architecture/buffer-architecture.md) makes the destination of the bytes part of the encoding operation.
 
 ## Reuse needs a clear stopping point
 
-A buffer is an area of memory used to hold bytes, and we can reuse it for another message once processing has finished. Keeping available buffers in a pool therefore avoids allocating fresh storage for every message. Sharing those buffers between readers, as we do with `WireUpdate`, means we have to establish when the last reader has finished before returning one to the pool.
+Once processing of our UPDATE has finished, we can reuse its buffer for another message. Keeping available buffers in a pool therefore avoids allocating fresh storage for every message. When readers share a buffer, as they do with `WireUpdate`, we have to establish when the last reader has finished before returning it to the pool.
 
-Garbage collection does not make this reuse safe. Returning a buffer to a pool leaves its underlying memory allocated, and a slice, a view of the bytes in that memory, can still refer to it. If another receive overwrites the buffer before that reader has finished, code expecting the old route will read a different message. The memory remains accessible throughout; its contents have changed too soon.
+Garbage collection does not make this reuse safe. Returning a buffer to a pool leaves its underlying memory allocated, and a slice, a view of the bytes in that memory, can still refer to it. If the next message overwrites the buffer before that reader has finished, code expecting the old route will read a different message. The memory remains accessible throughout; its contents have changed too soon.
 
 To prevent this, Ze has explicit [rules for how long readers can use shared bytes](https://github.com/ze-software/ze/blob/main/docs/architecture/memory/lifetime-contracts.md). An event handler, for example, can inspect a received UPDATE during its call, but retaining the message afterwards requires a snapshot in independent storage. The handler takes that copy before returning, so later processing can continue after the original buffer has been reused. This is a copy with a reason to exist.
 
@@ -36,7 +36,7 @@ A pool also occupies memory while its buffers sit unused. Keeping enough storage
 
 ## Store repeated route attributes once
 
-Reusing message buffers reduces temporary allocation, but the routing information base, or RIB, retains routes long after their receive buffers have been reused. Copying every incoming packet would preserve the data, along with bytes the RIB no longer uses. Copying each route's attributes separately would avoid retaining whole packets but still store repeated values many times.
+Our UPDATE's buffer can be reused once its readers have finished, but the routes it announced may need to stay in the routing information base, or RIB, for much longer. Copying the whole incoming packet would preserve the data, along with bytes the RIB no longer uses. Copying each route's attributes separately would avoid retaining whole packets but still store repeated values many times.
 
 Many routes share an AS path or the same communities, which are values operators attach to routes for policy. Ze's [RIB storage](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/attrparse.go) takes advantage of that repetition by storing identical values for common attributes once. The first occurrence is copied into attribute storage, and later routes refer to that copy for as long as they use the value. This technique is called interning.
 
@@ -48,9 +48,9 @@ Reusing the binary data does not avoid the cost of formatting it for an applicat
 
 We can avoid those intermediate strings by building the result in one buffer. An address followed by a separator and a number, for example, can be written directly into consecutive bytes, without first turning the number into a separate string. Once the result has been consumed, the same buffer can be reset and used for the next value.
 
-Ze's [`textbuf.Buffer`](https://github.com/ze-software/ze/blob/main/internal/core/textbuf/textbuf.go) provides these operations and includes 128 bytes of storage. A correctly initialised local buffer can therefore build short text without a separate heap allocation. Using the completed bytes immediately also avoids a copy of the final result.
+Ze's [`textbuf.Buffer`](https://github.com/ze-software/ze/blob/main/internal/core/textbuf/textbuf.go) provides these operations and includes 128 bytes of storage. A correctly initialised local buffer can therefore build short text without a separate heap allocation. A caller that uses the completed bytes before resetting the buffer can read them directly, without copying the result.
 
-If the text has to remain available after the buffer is reused, it must have independent storage, just as a retained UPDATE does. The caller can request an independent string: for short text, the implementation copies the built-in bytes; for text already held in a larger allocated array, it transfers that storage to the result. The [text buffer design](https://github.com/ze-software/ze/blob/main/docs/architecture/textbuf-string-building.md) explains which operation to use according to how long the result will be kept.
+If the text has to remain available after the buffer is reused, it must have independent storage, just as a retained UPDATE does. The caller can request a string that it can keep. For short text, the implementation copies the buffer's built-in bytes; for text already held in a larger allocated array, it transfers that storage to the string. The [text buffer design](https://github.com/ze-software/ze/blob/main/docs/architecture/textbuf-string-building.md) explains which operation to use according to how long the result will be kept.
 
 ## Check that the intended saving exists
 
@@ -58,7 +58,7 @@ Choosing a design that avoids temporary storage does not establish how much memo
 
 Ze's allocation assertions exercise repeated operations once their working storage is available, so they can detect a new temporary allocation on those paths. The [UPDATE rebuild tests](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_build_merge_test.go), for example, supply an available output buffer and check peer-specific attribute changes. They also check the output itself: the community-removal test verifies which values remain and their order, because an allocation saving would be useless if rebuilding the message changed its meaning.
 
-Those checks apply to the operations they exercise. The complete forwarding path still allocates, including work around the rebuild, and session creation and growth of pools require memory too. Measuring a repeated operation separately lets us detect an avoidable allocation there without pretending that the entire daemon runs without allocating.
+Those checks apply to the operations they exercise. Other parts of the forwarding path still allocate memory, as do session creation and pool growth. Measuring a repeated operation separately lets us detect an avoidable allocation there without pretending that the entire daemon runs without allocating.
 
 The original measurements published with this article used Go 1.26.5 on an Apple M4 Max running macOS on arm64, with allocation reporting and medians of five runs. These are retained historical microbenchmarks of the named operations, rather than a new measurement of the current tree.
 

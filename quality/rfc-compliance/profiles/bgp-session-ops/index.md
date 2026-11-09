@@ -11,7 +11,7 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-session-ops.json]
 ## Figures
 
 - **MUST bar**: Ze proven 39, Ze correctness gap 38
-- **Overview bar**: Ze MUST proven 39, SHOULD proven 5, SHOULD not decided 117, Ze correctness gap 38
+- **Overview bar**: Ze MUST proven 39, SHOULD proven 6, SHOULD not decided 116, Ze correctness gap 38
 
 | Figure | Rows |
 |---|---|
@@ -29,7 +29,7 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-session-ops.json]
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 122 |
-| SHOULD proven | 5 |
+| SHOULD proven | 6 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
@@ -38,7 +38,7 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-session-ops.json]
 | SHOULD not owed: not-applicable | 0 |
 | SHOULD not ever | 0 |
 | SHOULD not yet | 0 |
-| SHOULD not decided | 117 |
+| SHOULD not decided | 116 |
 
 The MUST bar counts the MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT rows of the walked RFCs that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap until one does. The overview bar adds the MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT rows and the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, so its rows count in no figure. Every count is read from the RFC data files when the page loads.
 
@@ -65,7 +65,7 @@ Roots first: an RFC sits one level above the highest level of the RFCs it builds
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
 | [RFC 4724](../../rfc4724/) | Graceful Restart Mechanism for BGP | Ze proven 14, Ze correctness gap 12 | Ze MUST proven 14, SHOULD proven 1, SHOULD not decided 4, Ze correctness gap 12 |
-| [RFC 7947](../../rfc7947/) | Internet Exchange BGP Route Server | Ze proven 2, Ze correctness gap 1 | Ze MUST proven 2, SHOULD proven 3, SHOULD not decided 2, Ze correctness gap 1 |
+| [RFC 7947](../../rfc7947/) | Internet Exchange BGP Route Server | Ze proven 2, Ze correctness gap 1 | Ze MUST proven 2, SHOULD proven 4, SHOULD not decided 1, Ze correctness gap 1 |
 
 ### Level 7
 

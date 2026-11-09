@@ -85,7 +85,8 @@ ze doctor --json kernel-capabilities
 stdin. The file is always the value of the <code>config</code> keyword: a bare path such as
 <code>ze doctor router.conf</code> is refused with an error that names
 <code>ze doctor config &lt;file&gt;</code>.</p>
-<!-- source: internal/component/doctor/doctor.go -- Run, refuseDoctorArgs -->
+<!-- source: internal/component/doctor/doctor.go -- Run -->
+<!-- source: internal/component/doctor/answer.go -- Answer, readDoctorRequest -->
 <p><code>ze doctor kernel-capabilities</code> asks a different question: it probes every
 kernel feature Ze enrolls, whatever the configuration uses, prints one row per
 feature (subsystem, <code>CONFIG_</code> symbol, state, reason) and exits 0 only when every
@@ -113,11 +114,11 @@ remediation guidance.</p>
 </tr>
 <tr>
 <td><code>doctor-config-parse</code></td>
-<td>Config syntax</td>
+<td>The config file parses, and then passes the same load validation the daemon applies at startup. A syntax error or a load refusal is reported under this code, and no <code>post-config</code> check runs after it <!-- source: internal/component/doctor/doctor.go -- runChecks --></td>
 </tr>
 <tr>
 <td><code>doctor-config-reference</code></td>
-<td>Dangling policy/filter references</td>
+<td>Dangling policy/filter references, reported before load validation can refuse the configuration <!-- source: internal/component/bgp/config/filter_reference_doctor.go -- filterReferenceDoctorCheck --></td>
 </tr>
 <tr>
 <td><code>doctor-tls-*</code></td>
@@ -545,7 +546,7 @@ is present and emits the registered code.</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 12:13 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

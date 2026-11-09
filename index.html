@@ -240,8 +240,8 @@
                 </article>
                 <article class="whats-new-item cat-meta">
                     <span class="whats-new-label">Recently shipped</span>
-                    <h3><a href="project/changes/2026-10-12/">Week of 2026-10-12</a></h3>
-                    <p>This update covers two weeks. Many settings that Ze used to accept and then silently ignore are now…</p>
+                    <h3><a href="project/changes/2026-10-25/">2026-10-25 – 2026-11-09 (16 days)</a></h3>
+                    <p>This update covers two weeks, and a number of the changes can break a working configuration. Following RFC…</p>
                 </article>
                 <article class="whats-new-item cat-meta">
                     <span class="whats-new-label">RFC compliance progress</span>
@@ -277,12 +277,12 @@
                 <div class="proof-strip" aria-label="Project evidence">
                     <a class="proof" href="quality/rfc-compliance/">
                         <strong
-                            ><span data-ze-stat="rfc.proven_percent">44.4</span>%
+                            ><span data-ze-stat="rfc.proven_percent">45.3</span>%
                             <span class="label">RFC MUSTs tested</span></strong
                         >
                         <ul>
-                            <li><span data-ze-stat="rfc.proven_display">2,102</span> of <span data-ze-stat="rfc.must_kept_display">4,737</span> MUSTs Ze and the OS owe, in walked RFCs Ze implements</li>
-                            <li>Across <span data-ze-stat="rfc.implemented_display">195</span> RFCs, <span data-ze-stat="rfc.not_walked_display">0</span> not walked yet</li>
+                            <li><span data-ze-stat="rfc.proven_display">2,153</span> of <span data-ze-stat="rfc.must_kept_display">4,752</span> MUSTs Ze and the OS owe, in walked RFCs Ze implements</li>
+                            <li>Across <span data-ze-stat="rfc.implemented_display">196</span> RFCs, <span data-ze-stat="rfc.not_walked_display">0</span> not walked yet</li>
                             <li>Until 2026-10-31 the figure counted every MUST row but rollups, annotated rows included</li>
                             <li>Tests tied to requirements</li>
                         </ul>
@@ -290,7 +290,7 @@
                     </a>
                     <a class="proof" href="quality/unit-fuzz-mutation/">
                         <strong
-                            ><span data-ze-stat="tests.unit_display">40,600+</span> <span class="label">Go tests</span></strong
+                            ><span data-ze-stat="tests.unit_display">42,800+</span> <span class="label">Go tests</span></strong
                         >
                         <ul>
                             <li>Check encoded bytes and parsed values.</li>
@@ -301,7 +301,7 @@
                     </a>
                     <a class="proof" href="quality/functional-ci/">
                         <strong
-                            ><span data-ze-stat="tests.e2e_display">2,600+</span>
+                            ><span data-ze-stat="tests.e2e_display">2,800+</span>
                             <span class="label">end-to-end tests</span></strong
                         >
                         <ul>
@@ -312,7 +312,7 @@
                         <span class="proof-check concept-evidence">Scenarios and expected results.</span>
                     </a>
                     <a class="proof" href="quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests">
-                        <strong><span data-ze-stat="tests.fuzz_display">95</span> <span class="label">fuzz targets</span></strong>
+                        <strong><span data-ze-stat="tests.fuzz_display">97</span> <span class="label">fuzz targets</span></strong>
                         <ul>
                             <li>Generate inputs for parsers and decoders.</li>
                             <li>Probe packets and config text for crashes.</li>
@@ -771,7 +771,7 @@
                 <div class="section-head reveal">
                     <h2 id="blog-teaser-title">Recent engineering notes.</h2>
                     <p>
-                        Weekly updates come from git history and Discord's
+                        Update reports come from git history and Discord's
                         <code>ze-news</code>. They stay specific and technical.
                     </p>
                 </div>
@@ -781,7 +781,21 @@
                             <span class="cat">Update</span>
                             <span class="home-update-number">01</span>
                         </div>
-                        <p class="home-update-date">Week of 2026-10-12</p>
+                        <p class="home-update-date">2026-10-25 – 2026-11-09 (16 days)</p>
+                        <h3><a href="project/changes/2026-10-25/">eBGP now rejects by default, routing policy is one shared tree for every protocol, RADIUS answers must be…</a></h3>
+                        <div class="home-update-tags">
+                            <span class="home-update-tag cat-routing">BGP</span>
+                            <span class="home-update-tag cat-services">CPE</span>
+                            <span class="home-update-tag cat-automate">gNMI</span>
+                            <span class="home-update-tag cat-operate">Config</span>
+                        </div>
+                    </article>
+                    <article class="card card-post home-update-card cat-meta">
+                        <div class="home-update-head">
+                            <span class="cat">Update</span>
+                            <span class="home-update-number">02</span>
+                        </div>
+                        <p class="home-update-date">2026-10-12 – 2026-10-25 (2 weeks)</p>
                         <h3><a href="project/changes/2026-10-12/">Two weeks of stricter configuration, an IPsec drop-by-default policy and BGP filter changes, plus BGP…</a></h3>
                         <div class="home-update-tags">
                             <span class="home-update-tag cat-routing">BGP</span>
@@ -793,28 +807,14 @@
                     <article class="card card-post home-update-card cat-meta">
                         <div class="home-update-head">
                             <span class="cat">Update</span>
-                            <span class="home-update-number">02</span>
+                            <span class="home-update-number">03</span>
                         </div>
-                        <p class="home-update-date">Week of 2026-10-05</p>
+                        <p class="home-update-date">2026-10-05 – 2026-10-11 (1 week)</p>
                         <h3><a href="project/changes/2026-10-05/">Safer configuration commits, API changes and a new appliance kernel, plus BGP, RSVP-TE and IPsec fixes.</a></h3>
                         <div class="home-update-tags">
                             <span class="home-update-tag cat-routing">BGP</span>
                             <span class="home-update-tag cat-services">IPsec</span>
                             <span class="home-update-tag cat-operate">Config</span>
-                            <span class="home-update-tag cat-automate">API</span>
-                        </div>
-                    </article>
-                    <article class="card card-post home-update-card cat-meta">
-                        <div class="home-update-head">
-                            <span class="cat">Update</span>
-                            <span class="home-update-number">03</span>
-                        </div>
-                        <p class="home-update-date">Week of 2026-09-28</p>
-                        <h3><a href="project/changes/2026-09-28/">RFC reviews led to fixes in BGP route selection, graceful restart, BFD, OSPF and LDP.</a></h3>
-                        <div class="home-update-tags">
-                            <span class="home-update-tag cat-routing">BGP</span>
-                            <span class="home-update-tag cat-services">L2TP</span>
-                            <span class="home-update-tag cat-observe">Flow Export</span>
                             <span class="home-update-tag cat-automate">API</span>
                         </div>
                     </article>
@@ -887,7 +887,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="license/">Ze is AGPLv3 open source.</a>
                     <a href="legal/">Legal notice</a>
-                    <span class="footer-published">Published 1 November 2026 14:11 UTC</span>
+                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
                 </div>
             </div>
         </footer>

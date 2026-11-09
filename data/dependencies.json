@@ -75,6 +75,10 @@
                 {
                     "module": "github.com/packetcap/go-pcap",
                     "why": "Only its filter subpackage: parses tcpdump/BPF-style filter expressions for `diag capture`. Packet capture itself goes through mdlayher/packet instead."
+                },
+                {
+                    "module": "github.com/cloudflare/circl",
+                    "why": "Only its Ed448 package: Ed448 signatures for IKEv2 authentication (RFC 8420)."
                 }
             ]
         },
