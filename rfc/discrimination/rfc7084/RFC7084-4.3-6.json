@@ -18,8 +18,8 @@
     "claim-sha": "31e3211c7b4610f9",
     "route": "mutant",
     "producer": "internal/plugins/iface/ra/advertiser.go::sent",
-    "producer-sha": "6521f6e0a248efc7",
-    "break": "line 227: \"a.retiring = nil\" -\u003e \"_ = a.retiring\""
+    "producer-sha": "1882eba66f999af4",
+    "break": "line 306: \"return withdrawsSubnet(cfg.Prefixes, d.Address.Masked())\" -\u003e \"return false \u0026\u0026 withdrawsSubnet(cfg.Prefixes, d.Address.Masked())\""
   },
   {
     "rid": "RFC7084-4.3-6",
