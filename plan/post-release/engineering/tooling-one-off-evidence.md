@@ -1633,6 +1633,11 @@ Every red below fails the checker's feature assertion, not a startup.
 | `checkNoExportBoundary` / `bgp-wellknown-noexport-frr` | `wellKnownAllowsEgress` (`reactor/forward_wellknown.go`) admits every route (`true \|\| w.AllowsEgressTo(isIBGP)`) | "assertion 7: FRR learned 10.10.0.0/24, which ze must withhold from this peer" | pass (17s). Replaces the panic-body record in `rfc1997/RFC1997-Well-1.json` as the attributed break; the "suppress internal delivery" break is still owed |
 | `checkISISDynamicHostname` / `isis-p2p-frr` | `fixedTLVs` (`isis/lsdb/origination.go`) omits the hostname TLV (`name == "-"`) | "assertion 2: wait for ze dynamic hostname in the FRR IS-IS database timed out", the checker's own hostname wait | pass (28s) |
 
+| `checkMEDRemovalConfiguration` / `bgp-med-remove-configured-gobgp` | `removeMED` (`policychain/external_attributes.go`): `sets.RemoveMED()` replaced by `_ = sets` | "assertion 6: GoBGP route 10.61.0.0/24 still carries Med 100" | pass (18s). The "strip the unmatched control" break is still owed |
+| `checkRFC2545NextHops` / `bgp-rfc2545-linklocal-nexthop-frr` | `linkLocalNextHop` (`reactor/link_scope.go`) never appends a link-local (`true \|\| ...` on its first guard) | "assertion 4: on-link route: FRR decoded 1 next-hop addresses, want 2" | pass (10s) |
+| `checkRFC7999Blackhole` / `bgp-rfc7999-blackhole-frr` | `blackholeRouteType` (`rib/rib_blackhole.go`) skips the authorisation cover (`false && !coveredByAuthorized(...)`) | "assertion 5: the kernel holds a discard route for the uncovered 198.51.100.1, want it forwarded through a gateway" | pass (12s). The agreement/community break is still owed |
+| `checkAddPathReadvertiseCollision` / `bgp-addpath-readvertise-collision-frr` | `generate` (`reactor/forward_path_id.go`) mints the constant 1 for every new path | "assertion 10: replayed Path Identifiers differ from live identifiers: live=map[65003:0 65004:1] replayed=map[65003:2 65004:1]" | pass (14s). Replaces the record on `bindSourcePath` as the attributed break of the minting producer |
+
 Red at HEAD, owed an investigation before any break means anything:
 
 - `checkNSSADefault` / `ospf-stub-nssa-frr`: three runs without a break fail
