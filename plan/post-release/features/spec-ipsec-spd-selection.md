@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Priority | P3 |
 | Release reason | Ze already runs one SPD per XFRM interface if_id beside the node-wide SPD at if_id 0, so RFC 4301 Section 4.4.1 owes the selection function and each SPD its own final DISCARD entry; the shipped partial selection leaves one IPv6 cleartext path. RFC4301-4.4.1-8 (application override) is Phase 8, in implementation: Thomas answered D8-1 to D8-4 (cilium/ebpf approved for `ike/dataplane`, default `deny`, socket policies only, one switch). |
 | Scope | protocol |
@@ -13,79 +13,6 @@
 | Updated | 2026-11-09 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
-
-## Blocker
-
-Fourth closure attempt (2026-11-09): commit B (`remove` of this spec) is refused by
-the closure review gate (`./le commit create`, the Spec-work population): 66 files
-from commits carrying `Spec-work: ipsec-spd-selection` are not in the review. Most
-are other sessions' work misattributed to this spec's claim: 8d13a9dceb (dns RA
-RDNSS), 40ca9a51c7 (RA integration wait), f2fc726239 (listener v6only test),
-383ab66db9 (fixture stops the daemon), 36c64b0804 and 6183f96d11 (le tooling); the
-ipsec ones (af04d4903f, 9167d499fd, 652591fc76) are this spec's. Clears when the main
-thread decides how the misattributed trailers are handled, or a reviewer covers the
-whole population, then commits A and B are re-run (A is ready: this spec, the two
-sibling specs and the spd-role `.ci` citer edits). Everything else below is done:
-
-Fourth closure attempt (2026-11-09) cleared every row below. N1: the two fixes and
-this spec's lint landed in aed73c95b7 (the pointer-map half reverted in 5bfb990c0f,
-Mistake Log), unit run PASS in `rwinv/out-gb9/spd-n1.log`. N2: batch 8 and 9 ran,
-R1 PASS (`rwinv/out-gb8/c23-clean.log` teardown, `rwinv/out-gb9/g9-clean.log`
-peer-reload), R2 PASS (`rwinv/out-gb8/interop-*.log`). N3: review re-recorded
-(round 3), citers repointed, commits A and B.
-
-Third closure attempt (2026-11-09): R3's review steps are done. The closure
-sections, the Security Review and the Review Gate are appended below, and the
-gate is recorded at `tmp/review/ipsec-spd-selection-7e292f27-ced0-427f-a7b6-3a931db211f9.md`
-(86 files, hash-pinned, check OK). It found two ISSUEs, both fixed and still
-uncommitted: the Linux 6.10 floor in `engine/application_override.go`
-`attachOverrideGuard`, `docs/guide/ipsec.md` and `ze-ipsec-conf.yang`, and the
-socket-policy advice in `engine/doctor_application_override.go`. Batch 8 still
-has not run: `rwinv/out-gb8/` does not exist. What remains, in order:
-
-| # | What | Who | Clears when |
-|---|------|-----|-------------|
-| N1 | Scoped run of the two fixes: `./le job run label ike-engine command go test -tags <ike tags> -run 'TestApplyFailsWhenOverrideGuardCannotAttach\|TestDoctorApplicationOverride\|TestRFC4301OverrideLeafSelectsTheGuard' ./internal/component/ike/engine/`, `./le go lint run scope ./internal/component/ike/engine/...` (the edit hook's lint timed out), `./le doc check all`, then commit the four files | main thread | green, committed |
-| N2 | R1 and R2 below (batch 8) | main thread | the named batch 8 logs green |
-| N3 | Commits A and B. The review is pinned to file hashes, so if N1 or N2 changes a recorded file, re-record over the changed files only. At commit A, repoint the citers in the Verified table below and carry the teardown `.ci` fix if the main thread has not committed it | a closure agent | `./le spec citation` green after B |
-
-Second closure attempt (`/ze-close`, 2026-11-09, after b161ed9edd): item 1 below
-is cleared, items 2 and 3 still wait on guest batch 8, which has not run (no
-`tmp/session/2026-11-07-104251/scratch/rwinv/out-gb8/` directory exists). The
-main thread sets the spec back to `in-progress` once batch 8's logs are green.
-
-Verified in this attempt (so the next closure does not redo it):
-
-| Check | Evidence |
-|-------|----------|
-| Item 1 cleared | `test/ipsec/dataplane-policy-spd-role.ci` landed in b161ed9edd; clean pass in `rwinv/out-gb6/ipsec-clean.log` (`PASS 1 dataplane-policy-spd-role`); each of the twelve breaks in `rwinv/out-gb7/spd-*.log` fails at the engine step its break targets, read from each log's `engine step N` line: catch-all role, node SPD renamed and ledger join dropped at step 4 (the node catch-all row), ike-bypass role at 5, operator role at 6, exemption role and if-index dropped at 7, if-id dropped and interface catch-all SPD unnamed at 8, child-sa role and child-sa SPD not joined at 9, owner-known dropped at 10. Each break's diff is `rwinv/spd-role-<name>/diff.txt` |
-| Item 2, seven of nine | `rwinv/out-gb6/ipsec-clean.log`: PASS for `ipsec-child-rekey-xfrm-narrowing`, `ipsec-child-rekey-xfrm`, `ipsec-follows-wan-address`, `ipsec-peer-reload-applies-selectors`, `ipsec-respond-reinit-supersede`, `ipsec-show-dataplane-kernel`, `ipsec-show-sa-counters`; FAIL for `ipsec-peer-reload-leaves-tunnel-alone` and `ipsec-teardown-leaves-nothing` |
-| Every planned test exists | all 34 `Test*` names of the TDD tables (phases 1 to 8) found by `grep func <name>(` under `internal/`; `override_guard_integration_linux_test.go` was created as `rfc4301_override_guard_integration_linux_test.go` (a Deviation for the closure record) |
-| RFC records | `./le rfc check` (2026-11-09): no rfc4301 line except RFC4301-4.4.1-3 partial, owned by `plan/post-release/features/spec-ipsec-spd-final-discard-vpp-ospf.md` |
-| Docs | `docs/guide/ipsec.md` (guard, `application-override`), `docs/architecture/ike/ipsec-dataplane-inspection.md` ("a policy names its SPD and its role", `socket` rows), `docs/architecture/ike/ipsec-3-data-model.md` (more than one SPD), `docs/architecture/policyroute/policy-routing.md` (`internal/core/iprule`), `docs/architecture/core-design.md` section 19 `ike` row (firewall, `core/iprule`). `./le doc check all` fails only on the `clear debug` pipe-operator inventory, not this spec's |
-| Citers commit A must repoint | `test/ipsec/dataplane-policy-spd-role.ci` line 3, `plan/post-release/features/spec-ipsec-spd-final-discard-vpp-ospf.md` lines 10 and 153, `plan/release/fixes/spec-ipsec-spd-name-selection.md` lines 30, 45 and 49 (`git grep spec-ipsec-spd-selection`); the three Go comments use the bare stem already |
-
-Remaining, in order:
-
-| # | What blocks | Owner | What clears it |
-|---|-------------|-------|----------------|
-| R1 | Reruns of `ipsec-peer-reload-leaves-tunnel-alone` (map-order listen-host pick, fixed in fc25454bfe, pre-existing since 6783d25e9e) and `ipsec-teardown-leaves-nothing` (misattached assertions, judge-approved fix uncommitted in `test/ipsec/ipsec-teardown-leaves-nothing.ci`) | main thread, guest batch 8 | `rwinv/out-gb8/c23-clean.log`, sections `==CI peer-reload` and `==CI teardown`, both PASS; the main thread commits the teardown fix after it |
-| R2 | Interop trio under `deny` (`vti-unmatched-discard-interface-spd`, `vti-ipv6-tunnel-source-no-cleartext-leak`, `vti-ipv6-inner-ipv4-outer`); `rwinv/out-gb6/interop-*.log` each hold only a launcher refusal ("docker-lab kernel is only valid with command"), so the scenarios never ran | main thread, guest batch 8 | `rwinv/out-gb8/interop-<scenario>.log`, all three green |
-| R3 | Closure steps not yet run: the closure sections (`plan/templates/TEMPLATE-CLOSURE.md`), security review, the `/ze-review` Review Gate over the whole implementation (d0c2738a48..b161ed9edd, about 6000 changed lines across phases 1 to 8) with its `./le spec review record` artifact, and commits A and B | a fresh `/ze-close` agent after R1 and R2 | The gate is pinned to file hashes, so it runs after batch 8, once no further fix can land |
-
-The first attempt's table, for its history:
-
-| # | What blocks | Where it is owed | What clears it |
-|---|-------------|------------------|----------------|
-| 1 | `test/ipsec/dataplane-policy-spd-role.ci` does not exist. It is Wiring Test row 5, End-to-End User Story 3, the Functional Tests row and the "Role and SPD in the listing" deliverable. No `.ci` under `test/` asserts the `spd`, `role` or `if-index` keys (grep of `test/` for them finds none; `test/ipsec/ipsec-show-dataplane-kernel.ci` asserts none of them). The producer it must reach is `internal/component/ike/cmd/show_dataplane.go` `policyInfoToMap`, through the `ze-ike:show-vpn-ipsec-dataplane-policy` RPC | `/ze-implement`, through `/ze-test` | Write the `.ci` against the real XFRM dataplane (the rows come from the kernel dump joined in `dataplane/xfrm_linux.go` `policyInfoFromKernel`), so it declares `option=needs-linux:caps=net-admin,bpf` like the nine XFRM-backed `test/ipsec` tests of 0d3f2c696c, and prove it red then green in the Ze-kernel guest |
-| 2 | The nine XFRM-backed `test/ipsec` `.ci` tests that 0d3f2c696c and af04d4903f made able to start under the `deny` default (`ipsec-show-dataplane-kernel`, `ipsec-show-sa-counters`, `ipsec-teardown-leaves-nothing`, `ipsec-child-rekey-xfrm`, `ipsec-child-rekey-xfrm-narrowing`, `ipsec-follows-wan-address`, `ipsec-peer-reload-applies-selectors`, `ipsec-peer-reload-leaves-tunnel-alone`, `ipsec-respond-reinit-supersede`) have no green guest run on record after af04d4903f. D8-2 obliges this work to re-validate every repository user of `vpn ipsec` under `deny`, so their run is this spec's evidence | main thread (guest batch 6) | A green guest run of the nine, together with item 1's new `.ci` |
-| 3 | The interop scenarios `vti-unmatched-discard-interface-spd`, `vti-ipv6-tunnel-source-no-cleartext-leak` and `vti-ipv6-inner-ipv4-outer` were last reported green at 9c92ef159f, before phase 8 made `deny` the default (652591fc76). No run of them under `deny` is on record; the Deliverables Checklist's Interop row names them | main thread (lab) | `./le test integration interop-ipsec` for the three, green |
-
-Checked and not blocking: `./le rfc check` (2026-11-09) reports no rfc4301
-violation and no stale or shifted rfc4301 audit verdict;
-`rfc/discrimination/rfc4301/RFC4301-4.4.1-5.json` and `RFC4301-4.4.1-8.json`
-exist; RFC4301-4.4.1-3 prints as partial with its gap owned by
-`plan/post-release/features/spec-ipsec-spd-final-discard-vpp-ospf.md`.
 
 ## Task
 
