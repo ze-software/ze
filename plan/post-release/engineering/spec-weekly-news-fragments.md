@@ -32,7 +32,8 @@ Thomas agreed (2026-11-07 and 2026-11-09 sessions):
 | Required | Every spec closure owes a fragment, or a `no-news "<reason>"` statement; no path classifier decides it |
 | Fixes outside a spec | Written by the fixing agent when operator-visible, by skill instruction only; no check |
 | Storage | One file per change under `website/changes/fragments/`, kept permanently; the site does not publish it |
-| Shape | Front matter (spec or journal row, topic, optional feature id) and six fixed headings; "none" allowed except under Before and After |
+| Shape | Front matter (spec or journal row, topic, optional feature id, optional `found-by`) and six fixed headings; "none" allowed except under Before and After |
+| Found by | Optional `found-by` names what surfaced the defect a fix fragment describes, from a closed list declared once in `newsfragment.go`: `rfc-check`, `interop`, `test-judge`, `review`, `operator-report`, `upstream`. `spec-weekly-event-report` lists fix fragments by this value; a test-judge refusal gets no record of its own |
 | Consumer | The weekly-update skill starts from fragments, verifies every claim at the producer, and selects. A fragment is a claim, never evidence |
 | Release notes | Derived from the fragments added since the previous release, not from commit subjects (`spec-release-build` AC-25 changes) |
 | Measure | Over the next two weekly updates, per published item: which of the five facts came from a fragment, from research, or failed verification, recorded in `plan/records/weekly-fragment-measure.md` |
@@ -198,6 +199,7 @@ tooling events (recorded breaks, judge verdicts, interop red/green).
 | AC-2 | Closure with no fragment and no `no-news` | Refused; the message names the fragment path to write, the six headings, and `no-news "<reason>"` | None: a closure must say whether operators see a change |
 | AC-3 | Closure with `no-news "<reason>"` and no fragment | Prepared; the message ends with `No-news: <reason>` before `Spec-work:`; the push owes nothing for it | A closure that also carries a fragment is refused as contradictory, because it says both |
 | AC-4 | A fragment whose topic is not a tag family in `website/data/topics.json` | Refused, naming the topic and the vocabulary file | A topic added to `topics.json` in the same commit is accepted, because the gate reads the prospective tree |
+| AC-4a | A fragment whose `found-by` is not in the declared list | Refused, naming the value and listing the accepted ones | A fragment with no `found-by` is accepted, because most changes are not defects found by a check |
 | AC-5 | A fragment missing a heading, or with an empty heading, or with Before or After reading only "none" | Refused, naming each heading at fault | "none" under Corrects, Exposure, Upstream or Asked by is accepted, because those facts are often truly absent |
 | AC-6 | Closure where `<stem>.md` exists at HEAD but no commit of this spec or this script touched it | Refused as a stale fragment, naming the path | A fragment edited by any commit carrying `Spec-work: <stem>` is accepted |
 | AC-7 | A non-closure commit that carries a fragment (a fix outside a spec) | The fragment is validated by AC-4 and AC-5; no closure rule applies | A non-closure commit with no fragment is prepared as today, because fixes outside a spec owe none |
@@ -222,6 +224,7 @@ tooling events (recorded breaks, judge verdicts, interop red/green).
 | `TestNewsFragmentCarriedEarlierInSameScript` | `internal/le/commit/newsfragment_test.go` | AC-1, R-5 | |
 | `TestNewsFragmentUnknownTopicRefused` | `internal/le/commit/newsfragment_test.go` | AC-4 | |
 | `TestNewsFragmentTopicAddedInSameCommitAccepted` | `internal/le/commit/newsfragment_test.go` | AC-4 survivor | |
+| `TestNewsFragmentFoundByJudged` | `internal/le/commit/newsfragment_test.go` | AC-4a, each declared value accepted, an unknown one refused, absence accepted | |
 | `TestNewsFragmentHeadingsJudged` | `internal/le/commit/newsfragment_test.go` | AC-5, table over each heading, empty and "none" | |
 | `TestNewsFragmentStaleSameNameRefused` | `internal/le/commit/newsfragment_test.go` | AC-6, R-4 | |
 | `TestNewsFragmentValidatedOnNonClosure` | `internal/le/commit/newsfragment_test.go` | AC-7 | |
