@@ -42,7 +42,10 @@ default; radvd's source was not read.
 | `interface-definitions/interfaces_pppoe.xml.in` | `holdoff` range and default |
 | `python/vyos/utils/strip_config.py`; `src/helpers/strip-private.py` | redaction |
 | `data/templates/dhcp-client/ipv6.j2` `id-assoc pd`; `interface-definitions/include/interface/dhcpv6-options.xml.i` | `dhcpv6-options pd <i> interface` `sla-id` and `address` |
-| `data/templates/router-advert/radvd.conf.j2`; `interface-definitions/service_router-advert.xml.in` | `service router-advert interface <i> prefix ::/64`, its lifetimes and `default-lifetime` |
+| `data/templates/router-advert/radvd.conf.j2`; `interface-definitions/service_router-advert.xml.in` | `service router-advert interface <i> prefix ::/64`, its lifetimes and `default-lifetime`; `name-server` (the RDNSS block) |
+| `src/conf_mode/service_dns_forwarding.py` `apply` | `service dns forwarding name-server`, `system` and `dhcp <if>`: the name-server tags and their order |
+| `src/etc/ppp/ip-up.d/98-vyos-pppoe-setup-nameservers` | the PPPoE peer DNS stored under the `dhcp-<if>` tag |
+| `python/vyos/kea.py` (`name_server` to `domain-name-servers`) | `service dhcp-server ... option name-server` |
 
 A row whose VyOS producer is not in this table carries the class `not read`.
 Its Ze form is verified against the YANG, but nobody has compared the behavior
@@ -134,6 +137,8 @@ lands, its row changes.
 | `interfaces pppoe <n> ipv6 address autoconf`, `dhcpv6-options pd <i> length <l>` | `interface pppoe-client <n> ipv6` with `enabled true`, `autoconf true`, `accept-ra 2`, `forwarding true`, `dhcpv6 enabled true` and `dhcpv6 pd length <l>` | Ze negotiates IPv6CP beside IPCP and runs the DHCPv6 client on the session device; `accept-ra 2` keeps the Router Advertisement default route while the box forwards. The delegated prefix is published as a lease on `<n>`, and a LAN unit numbers itself from it with the next row | not read | - |
 | `interfaces pppoe <n> dhcpv6-options pd <i> interface <lan> sla-id <s>`, `address <a>` | `interface ethernet <lan> unit 0 ipv6 delegated-prefix <n>` with `subnet-id <s>` and `interface-identifier ::<a, written in hex>` | VyOS hands `address` to dhcp6c as `ifid`, which reads it as a decimal number, so `address 10` is the host part `::a`. `address 0` has no Ze form: Ze refuses the all-zero host part, so pick another. Without `address`, VyOS forms an EUI-64 host part and Ze uses `::1`. Without `sla-id`, VyOS numbers each LAN interface by its position in the `pd`'s interface list (0, 1, 2), counting those that set their own `sla-id`, and Ze needs that number written as `subnet-id`. Ze refuses a `subnet-id` the `pd length` cannot hold and two units sharing one. The address takes the lifetimes that remain of the delegation and goes when the lease ends. No interop run has yet shown a LAN host taking an address from it, so check on the router that the LAN device holds the /64 (`ip -6 addr show <dev>`, where `<dev>` is `<lan>` unless the LAN came from a `hw-id` row: see "Interface names in firewall rules") | behavior change | 8 |
 | `service router-advert interface <lan> prefix ::/64` on a LAN numbered from the delegated prefix | `interface ethernet <lan> unit 0 ipv6` with `forwarding true` and `router-advertisement enabled true` | no `prefix` entry is written: Ze adds the unit's delegated /64 on its own. Three differences the LAN hosts see. VyOS advertises the prefix with fixed lifetimes (valid 2592000, preferred 14400, `DecrementLifetimes off`), and Ze bounds both by what remains of the delegation. Ze always adds a Route Information option for the whole delegated prefix, and VyOS sends none unless `route` is configured. Ze sends Router Lifetime 0 while no WAN holds a default route or the unit has no live prefix, and VyOS's radvd template writes no condition on it: `AdvDefaultLifetime` when `default-lifetime` is set, radvd's own default otherwise. The same interop condition as the `sla-id` row holds | behavior change | 8 |
+| `service router-advert interface <lan> name-server <a>` | `interface ethernet <lan> unit 0 ipv6 router-advertisement rdnss server <a>` | radvd's template writes the `name-server` entries in one RDNSS option; the unit's built-in `dns-source` list advertises a set `rdnss server` first | equivalent | 23b |
+| `service router-advert interface <lan>` with no `name-server` | `interface ethernet <lan> unit 0 ipv6 router-advertisement rdnss dns-source source configured` | radvd's template writes no RDNSS block without `name-server`. A Ze unit with no `rdnss server` and no written list advertises the IPv6 resolvers Ze learned; the written list keeps the option out, as VyOS does. Leave the list off to pass the learned resolvers on | equivalent | 23b |
 | `protocols static route <p> interface <n> distance <d>` | `static table default route <p>` with `distance <d>` and `next interface <n>` | a route through a `pppoe-client` waits for the session instead of failing | not read | - |
 | `protocols static route <p> next-hop <a>` | `static table default route <p> next hop <a>` | | not read | - |
 | `interfaces wireguard <n> port`, `private-key` | `interface wireguard <n> listen-port`, `private-key` (placeholder) | | not read | - |
@@ -143,6 +148,9 @@ lands, its row changes.
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- ethernet mac match, offload, bridge member, unit ipv4/ipv6 address, unit ipv6 delegated-prefix, unit ipv6 router-advertisement, pppoe-client, pppoe-client keepalive and reconnect, pppoe-client ipv6, grouping ipv6-host, wireguard, xfrm if-id -->
 <!-- source: internal/component/iface/register.go -- reconcileDHCP -->
 <!-- source: internal/component/iface/delegated_consumer.go -- applyDelegatedAddresses, installDelegatedAddress -->
+<!-- source: internal/component/iface/ra_dns_source.go -- raRDNSSDefault -->
+<!-- source: internal/component/iface/config_ra.go -- raParseRDNSS -->
+<!-- source: internal/core/ndp/ra.go -- RALen -->
 <!-- source: internal/plugins/iface/ra/advertiser.go -- delegatedPrefixInfo, withRoute, routerLifetime -->
 <!-- source: internal/component/l2tp/pppoeclient/network_phase.go -- keepaliveLoop -->
 <!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateIPCP -->
@@ -220,7 +228,12 @@ the MSS option, and a packet without the option is not changed.
 | `service dhcp-server listen-interface <i>` | `service dhcp-server enabled true`, `listen-interface <i>` | | not read | - |
 | `service dhcp-server shared-network-name <s> subnet <p>` | `service dhcp-server shared-network <s> subnet <p>` | | not read | - |
 | `subnet <p> range <r> start <a> stop <b>` | `subnet <p> range <r> start <a> stop <b>` | the range name is any string, so VyOS's number is kept | not read | - |
-| `subnet <p> option default-router`, `option name-server`, `option domain-name`, `lease` | `default-router`, `dns-server`, `domain-name`, `lease-time` | | not read | - |
+| `subnet <p> option default-router`, `option domain-name`, `lease` | `default-router`, `domain-name`, `lease-time` | | not read | - |
+| `subnet <p> option name-server <a>` | `subnet <p> dns-server <a>` | VyOS's kea mapping sends option 6 from `name-server`; the subnet's built-in `dns-source` list sends a set `dns-server` first | equivalent | 23b |
+| a subnet with no `option name-server` | `subnet <p> dns-source source configured` | VyOS's kea mapping sends no option 6 without `name-server`. A Ze subnet with no `dns-server` and no written list hands its clients the IPv4 resolvers Ze learned; the written list keeps option 6 out, as VyOS does. Leave the list off to pass the learned resolvers on | equivalent | 23b |
+| `service dns forwarding name-server <a>` (`port <p>`) | `service dns-resolver forward server <a>` (`port <p>`) | the resolver's built-in `dns-source` list asks a set `forward server` first | equivalent | 23b |
+| `service dns forwarding dhcp <if>` | `service dns-resolver forward dns-source source received`, `forward dns-source received-interface <if>` | VyOS asks the servers stored under the `dhcp-<if>` and `dhcpv6-<if>` tags, and its PPPoE `ip-up` script stores the IPCP servers under `dhcp-<if>`, so `<if>` may be the PPPoE interface. Several `dhcp` entries keep their order in `received-interface`. Beside `name-server`, write `source [ configured received ]` and `mode merge`: VyOS asks every tag's servers in tag order, its own static tag first | equivalent | 23b |
+| `service dns forwarding system` | each `system name-server <a>` copied into `forward server`, and each `system name-server <if>` into `forward dns-source received-interface`, with the `source` and `mode` rule of the `dhcp <if>` row | the resolver's list has no class that reads the router's own selection, so the conversion copies the entries | equivalent | 23b |
 | `subnet <p> static-mapping <m> mac <x> ip-address <a>` | `subnet <p> static-mapping <m> mac-address <x> ip-address <a>` | | not read | - |
 | `subnet <p> option server-identifier <a>` | `subnet <p> server-identifier <a>` | the listen interface must hold `<a>`: while it does not, Ze answers nothing for the subnet and logs a warning | not read | - |
 | `subnet <p> subnet-id <n>` | none: dropped | Ze keys a subnet by its prefix | not read | - |
@@ -238,6 +251,11 @@ the MSS option, and a packet without the option is not changed.
 
 <!-- source: internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang -- shared-network, subnet, range, static-mapping, server-identifier -->
 <!-- source: internal/plugins/dhcpserver/segment.go -- segment.serverID, segment.withheld -->
+<!-- source: internal/plugins/dhcpserver/config.go -- subnetDNSDefault, parseSubnetSources -->
+<!-- source: internal/plugins/dhcpserver/handler.go -- offerDNS -->
+<!-- source: internal/plugins/dnsresolver/config.go -- forwardDefault, parseForwardSources -->
+<!-- source: internal/plugins/dnsresolver/yang/ze-dns-resolver-conf.yang -- forward server, port -->
+<!-- source: internal/core/dnssource/select.go -- List.Received -->
 <!-- source: internal/component/pki/yang/ze-pki-conf.yang -- ca certificate, certificate private key -->
 <!-- source: internal/component/ike/engine/register_signature_eddsa.go -- chooseEd25519Signature -->
 <!-- source: internal/component/ike/engine/register_signature_ed448.go -- chooseEd448Signature -->

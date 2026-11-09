@@ -369,6 +369,37 @@ operator captures with tcpdump and reads the file in Wireshark.
 <!-- source: internal/core/report/report.go -- cross-subsystem report bus -->
 <!-- source: internal/component/cmd/show/show.go -- handleShowWarnings, handleShowErrors -->
 
+**Built-in DNS resolver and static DNS name-servers:** Ze carries two
+resolvers. The router's own lookups use a cached stub resolver, and
+`service dns-resolver` is a caching forwarder that answers the hosts behind
+Ze. Every place Ze uses or hands out a DNS server takes it from a `dns-source`
+list that names where the servers come from, in fall-through order:
+`configured` (the servers written for that consumer), `received` (the
+resolvers Ze learned from DHCPv4, DHCPv6, IPCP and RA RDNSS, optionally
+narrowed to named interfaces), `self` (Ze's own address on the client's
+link, for its LAN resolver to answer) and
+`radius` (the MS-Primary-DNS-Server and MS-Secondary-DNS-Server a RADIUS
+server sends for one subscriber, RFC 2548). The consumers are the router
+(`system dns-source`), the LAN resolver's upstreams, option 6 of each DHCPv4
+subnet, the RDNSS option of each Router Advertisement unit, and the IPCP DNS
+options of the subscriber pool (`l2tp pool`), the only consumer that takes
+`radius`. A consumer with no list written uses its configured servers when
+it has any and passes the learned ones on when it has none, and the pool puts
+the RADIUS servers before both. `show system dns`
+prints the learned records and every consumer's selection, and `ze doctor`
+warns when a list that names `received` selects nothing, when a named
+interface holds no learned resolver, and when `self` hands out an address no
+resolver listener answers on.
+
+<!-- source: internal/core/dnssource/select.go -- StatedDefault, Select, List.Received -->
+<!-- source: internal/plugins/dnsresolver/config.go -- forwardDefault -->
+<!-- source: internal/plugins/dhcpserver/config.go -- subnetDNSDefault -->
+<!-- source: internal/component/iface/ra_dns_source.go -- raRDNSSDefault -->
+<!-- source: internal/component/l2tp/plugins/pool/dns_source.go -- poolDNSDefault, selectSubscriberDNS -->
+<!-- source: internal/component/l2tp/plugins/authradius/extract_dns.go -- extractMSDNSServers -->
+<!-- source: internal/plugins/system-dns-cmd/cmd/show_dns.go -- showSystemDNS -->
+<!-- source: internal/component/config/system/doctor_dns_source.go -- doctor-dns-source warnings -->
+
 Most BGP daemons expose operational issues through a mix of per-command
 output (`show protocols all` in BIRD, `show bgp summary` in FRR, counters
 in OpenBGPd) rather than a single aggregated view. Ze provides a cross-
