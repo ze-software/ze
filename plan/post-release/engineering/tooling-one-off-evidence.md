@@ -1677,7 +1677,15 @@ Not attributed:
   (`requireBIRDASPath`, `check_rfc_predicate.go`) compares BIRD's decoded
   path to exactly "65002", so the gap is the producer: the scenario runs the
   `bgp-rs` plugin, and the site that decides its prepend is still untraced.
-  No claim about the checker is made.
+  Traced: each forced prepend was overwritten by the next statement, `if
+  facts.rsClient && communityPolicy != nil { intent.Prepend =
+  communityPolicy.RSPrepend(...) }`, the RFC 8195 community request, which is
+  empty here. A paired break on the general forward rail
+  (`reactor_api_forward.go`: `true || !facts.rsClient` and `false &&` on that
+  overwrite) fails "assertion 4: BIRD decoded AS_PATH "65001 65002" for
+  10.99.0.0/24, want "65002""; restored green passes (13s). The same pair on
+  the route-server rail (`forward_rs.go`) stays green, so the scenario runs
+  the general rail. Checker proved.
 - `checkRFC7606MixedUpdate` / `bgp-rfc7606-relay-shape-frr`: `SplitWireUpdate`
   (`wireu/split.go`) splits every mixed UPDATE whatever its size. Removing
   the mixed-fields test from its early return, so a mixed UPDATE is
