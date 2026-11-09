@@ -333,8 +333,9 @@ func (s *ikeEngineState) followAddress() {
 	if err := s.installXFRMInterfaceEntries(dataplane.Get(), entries); err != nil {
 		// No commit to refuse here: the refused entries stay out of the record, so the
 		// next commit or address change retries them, and that commit fails until they go in.
-		s.log.Error("ike: after an address change an XFRM interface SPD has no final entry",
-			"error", err)
+		s.log.Error("ike: after an address change an XFRM interface SPD has no final entry, so under `unmatched discard` traffic routed into it may meet the DISCARD catch-all",
+			"error", err,
+			"fix", "make sure each interface `vti bind` names exists and is an XFRM interface (`show interface <name>`); the next commit or address change installs the entry again")
 	}
 	s.pruneXFRMInterfaceEntries(dataplane.Get(), entries)
 	s.restartVanishedRouteSources()
@@ -451,7 +452,9 @@ func (s *ikeEngineState) restartVanishedRouteSources() {
 		}
 		held, err := hostHoldsAddrFn(sa.cycleLocal)
 		if err != nil {
-			s.log.Warn("ike: cannot list host addresses, route-chosen peers are not checked", "error", err)
+			s.log.Warn("ike: cannot list host addresses, so a route-chosen peer whose source left the host is not restarted on this change",
+				"error", err,
+				"fix", "none if the next address change lists them; if this repeats, restart the peer with: clear vpn ipsec sa peer <name>")
 			return
 		}
 		if held {

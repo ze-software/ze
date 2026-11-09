@@ -2,15 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | Shipped IKE initiator does the wrong thing on a dynamic WAN: a peer whose local address comes from `interface` never comes up when the address appears after boot and never follows a new address; a peer with neither `interface` nor `local-address` cannot build a Child SA; a DNS-named remote sends no NAT detection. Each configuration is accepted and silently fails. |
 | RFC gaps | - |
 | Depends | spec-home-cpe-1-logical-interface-name.md (only for `interface` naming a PPPoE logical unit) |
-| Phase | 0/4 |
+| Phase | 4/4 |
 | Handoff | - |
-| Updated | 2026-11-02 |
+| Updated | 2026-11-09 |
 
 Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
 
@@ -270,13 +270,13 @@ strongSwan resolves a named remote per packet (`src/libcharon/config/ike_cfg.c`
 | `TestRouteChosenLocalAddressBuildsChildSA` | same | AC-6 | |
 | `TestRouteChosenAddressChangeWithoutMobikeRestarts` | same | AC-8 | |
 | `TestLocalAddressMustBeLiteral` | `internal/component/ike/ipsec/config_test.go` | AC-9 | |
-| `TestDNSRemoteSendsNATDetection` | `internal/component/ike/engine/nat_dns_test.go` | AC-10 | |
+| `TestDNSRemoteSendsNATDetection` | `internal/component/ike/engine/rfc7296_nat_dns_test.go` | AC-10 | |
 | `TestDNSRemoteNATMismatchFloats` | same | AC-11 | |
-| `TestUnresolvableRemoteRetriesWithBackoff` | `internal/component/ike/engine/fsm_test.go` | AC-13, AC-14, A-3 | |
-| `TestRespondPeerMatchesResolvedName` | `internal/component/ike/engine/register_test.go` | AC-16 | |
-| `TestTransportModeDNSRemoteProposesResolvedPair` | `internal/component/ike/engine/transport_mode_test.go` | AC-17 | |
+| `TestUnresolvableRemoteRetriesWithBackoff` | `internal/component/ike/engine/rfc7296_nat_dns_test.go` | AC-13, AC-14, A-3 | |
+| `TestRespondPeerMatchesResolvedName` | `internal/component/ike/engine/respond_names_test.go` | AC-16 | |
+| `TestTransportModeDNSRemoteProposesResolvedPair` | `internal/component/ike/engine/rfc7296_transport_mode_test.go` | AC-17 | |
 | `TestLiteralPeerKeepsItsSocketAcrossInterfaceRebind` | `internal/component/ike/engine/dynamic_wan_test.go` | AC-5 with a literal peer established beside interface-bound peers: the interface pair moves, the literal peer's session and socket survive | |
-| `TestRespondNameCacheLifecycle` | `internal/component/ike/engine/register_test.go` | AC-19, AC-20: refresh failure keeps the set, a changed answer replaces it, removal deletes it, nothing resolves on receipt | |
+| `TestRespondNameCacheLifecycle` | `internal/component/ike/engine/respond_names_test.go` | AC-19, AC-20: refresh failure keeps the set, a changed answer replaces it, removal deletes it, nothing resolves on receipt | |
 | `TestRouteChosenSourceUnderCatchAllDiscard` | `internal/component/ike/engine/dynamic_wan_integration_linux_test.go` (`integration` tag, its own user and network namespace through `userns.Enter`) | AC-21: engine applied with the default DISCARD catch-all, `routeSourceTo` answers and the first IKE_SA_INIT leaves from the route's source | |
 | `TestDoctorIPsecInterfaceAddressWaiting` | `internal/component/ike/engine/doctor_interface_address_test.go` | AC-22 | |
 
@@ -317,7 +317,7 @@ strongSwan resolves a named remote per packet (`src/libcharon/config/ike_cfg.c`
 
 ## Files to Create
 - `internal/component/ike/engine/dynamic_wan.go` - the address worker
-- `internal/component/ike/engine/dynamic_wan_test.go`, `nat_dns_test.go`
+- `internal/component/ike/engine/dynamic_wan_test.go`, `internal/component/ike/engine/rfc7296_nat_dns_test.go` (written as `nat_dns_test.go`, renamed by `./le rfc move` at closure), `internal/component/ike/engine/cycle_addr.go`, `internal/component/ike/engine/respond_names.go`
 - `test/interop-ipsec/scenarios/fqdn-remote-dynamic-local/`, `fqdn-remote-real-nat/`
 - the functional `.ci` files named above
 
@@ -471,3 +471,187 @@ statement; the address worker's call into the MOBIKE-eligible path carries
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean
 - [ ] **Commit A** and **Commit B** per `ai/rules/planning.md`
+
+## Implementation Summary
+
+### What Was Implemented
+- Address worker (`internal/component/ike/engine/dynamic_wan.go` `addressWorker`, `followAddress`, `planPeers`, `adoptPlan`): one goroutine fed by the kernel address table watch (`network.WatchAddresses`) and the bus events `interface/addr-added`, `interface/addr-removed`, `interface/created`; re-reads the interface through `resolveInterfaceAddrFn`, re-plans, rebinds only the pair that moved, and restarts route-chosen peers whose source left the host (`restartVanishedRouteSources`). Commits 67700fd37e, 4642498d90, f2e3a418ec, fc25454bfe.
+- Listener set keyed by local origin (`peerPlan.hostOf`, `literalHosts`, `ikeEngineState.literalPairs`), so a literal `local-address` peer keeps its socket across an interface rebind.
+- Per-cycle pair (`cycle_addr.go` `resolveCyclePair`, `cycleRemoteAddress`, `cycleLocalAddress`): the resolved remote and the literal, interface or route-chosen local are stored on the SA (`SA.cycleRemote`, `SA.cycleLocal`) and read by NAT_DETECTION build and check, Child SA endpoints, wildcard selector family, transport host pair, MOBIKE.
+- `respond` peers named by DNS: cache refreshed on apply, on each address trigger and every 60 s (`respond_names.go`), read on the packet path only (`register.go` `matchResponderPeer`).
+- `local-address` literal-only refusal (`internal/component/ike/ipsec/config.go` `parseSiteToSitePeer`).
+- Doctor check `ipsec-interface-address` (`doctor_interface_address.go`, `CodeDoctorIPsecInterfaceAddress`).
+- IPsec lab name server and two interop scenarios (2d623d2bfb); functional `ipsec-follows-wan-address` (a16f2405e9); parse `ipsec-local-address-literal-only` (5ee1ebb500).
+
+### Bugs Found/Fixed
+- A WAN named only in `vpn ipsec interface` (no `interface` block) had no iface monitor, so the bus alone never reported its address: fixed by the kernel table watch (4642498d90), covered by `ipsec-follows-wan-address`.
+- A deleted WAN interface left its peers running on a dead address: fixed by f2e3a418ec (`readInterfaceAddr`, `interfaceAbsent`), covered by `TestInterfaceAddressRemovalStopsPeers`.
+- The test-port listen host depended on map order (fc25454bfe, `planPeers` name order).
+- Closure: two log lines in `dynamic_wan.go` named no fix (`followAddress` SPD entry error, `restartVanishedRouteSources` address-list warning); both now carry a `fix` key.
+
+### Documentation Updates
+- `docs/guide/ipsec.md` dynamic WAN section (67700fd37e, 4642498d90, f2e3a418ec); `docs/architecture/ike/ipsec-7-ikev2-engine.md` address worker and events (same commits); `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` resolved pair (67700fd37e); `docs/architecture/ike/ipsec-10-cli-diag.md` doctor check (67700fd37e); `docs/architecture/testing/interop.md` "The IPsec name server" (2d623d2bfb); `features/ipsec-nat-traversal.md`, `features/ipsec-data-model.md` (67700fd37e).
+- YANG `interface` description and doctor message corrected at closure (3a2935ef33).
+
+### Deviations from Plan
+- The bus alone did not follow a WAN with no `interface` block (A-1 broken): the worker also watches the kernel address table.
+- `nat_dns_test.go` and `transport_mode_test.go` renamed `rfc7296_*` by `./le rfc move` (the RFC test-file naming check).
+- `TestUnresolvableRemoteRetriesWithBackoff` lives in `rfc7296_nat_dns_test.go`, the respond tests in `respond_names_test.go`, not the files the plan named.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1: the iface monitor reports every WAN address | The monitor starts only with an `interface` block; a WAN named only in `vpn ipsec interface` raised no event | `ipsec-follows-wan-address` on the Linux guest | Kernel address table watch added (4642498d90); recorded in the `addressWorker` doc comment |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| 1. Local address follows the bound interface | Done | `dynamic_wan.go` `followAddress`, `planPeers`; `apply.go` `rebindListeners` | |
+| 2. Route-chosen local address | Done | `cycle_addr.go` `resolveCyclePair`; `fsm.go` stores `sa.cycleLocal` | |
+| 3. NAT detection with a DNS-named remote | Done | readers call `cycleRemoteAddress`/`cycleLocalAddress`: `initiator.go`, `fsm.go`, `responder.go`, `rekey.go` `anyChildTSPayloads`, `inner_selectors.go` `configuredHostPair`, `ts_nat_substitute.go`; `register.go` `matchResponderPeer` | |
+| 4. Keep retrying while the name does not resolve | Done | `resolveCyclePair` error counted by `PeerSession.run`, `reconnectDelay` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestInterfaceAddressArrivalStartsPeers`; `ipsec-follows-wan-address` | |
+| AC-2 | Done | `TestInterfaceAddressArrivalStartsPeers`; `ipsec-follows-wan-address` | |
+| AC-3 | Done | `ipsec-follows-wan-address` (Linux guest); `TestInterfaceAddressChangeRehomesPeers` | unit test skips on macOS loopback |
+| AC-4 | Done | `TestInterfaceAddressRemovalStopsPeers`; `ipsec-follows-wan-address` | |
+| AC-5 | Done | `ipsec-follows-wan-address` (literal peer keeps its SPIs); `TestLiteralPeerKeepsItsSocketAcrossInterfaceRebind` | unit test skips on macOS loopback |
+| AC-6 | Done | `TestRouteChosenLocalAddressBuildsChildSA`; interop `fqdn-remote-dynamic-local` | |
+| AC-7 | Done | `restartVanishedRouteSources` skips an SA with `mobikeUp`; the MOBIKE move is spec-ipsec-11's scenario | referenced, as the AC states |
+| AC-8 | Done | `TestRouteChosenAddressChangeWithoutMobikeRestarts` | |
+| AC-9 | Done | `TestLocalAddressMustBeLiteral`; `ipsec-local-address-literal-only` | |
+| AC-10 | Done | `TestDNSRemoteSendsNATDetection`; interop `fqdn-remote-dynamic-local` | |
+| AC-11 | Done | `TestDNSRemoteNATMismatchFloats`; interop `fqdn-remote-real-nat` | |
+| AC-12 | Done | interop `fqdn-remote-dynamic-local` (charon receives on 500, no NAT verdict) | |
+| AC-13 | Done | `TestUnresolvableRemoteRetriesWithBackoff`; interop `fqdn-remote-dynamic-local` (late DNS) | |
+| AC-14 | Done | same | |
+| AC-15 | Done | `resolveCyclePair` resolves per cycle; `TestUnresolvableRemoteRetriesWithBackoff` | |
+| AC-16 | Done | `TestRespondPeerMatchesResolvedName` | |
+| AC-17 | Done | `TestTransportModeDNSRemoteProposesResolvedPair` | |
+| AC-18 | Done | `apply.go` `unbindablePeers` refusal kept; `ipsec-startup-serves-bindable-peers` | |
+| AC-19 | Done | `TestRespondNameCacheLifecycle` | |
+| AC-20 | Done | `TestRespondNameCacheLifecycle` | |
+| AC-21 | Done | interop `fqdn-remote-dynamic-local` under `unmatched discard` (charon receives from the route-chosen source 172.28.0.2 port 500); `TestRouteChosenSourceUnderCatchAllDiscard` | the unit run on Linux is a non-verbose `ok` |
+| AC-22 | Done | `TestDoctorIPsecInterfaceAddressWaiting` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestInterfaceAddressArrivalStartsPeers` | Done | `dynamic_wan_test.go` | PASS |
+| `TestInterfaceAddressChangeRehomesPeers` | Done | `dynamic_wan_test.go` | SKIP on macOS (needs a second loopback address) |
+| `TestInterfaceAddressRemovalStopsPeers` | Done | `dynamic_wan_test.go` | PASS |
+| `TestRouteChosenLocalAddressBuildsChildSA` | Done | `dynamic_wan_test.go` | PASS |
+| `TestRouteChosenAddressChangeWithoutMobikeRestarts` | Done | `dynamic_wan_test.go` | PASS |
+| `TestLocalAddressMustBeLiteral` | Done | `ipsec/config_test.go` | PASS |
+| `TestDNSRemoteSendsNATDetection` | Done | `rfc7296_nat_dns_test.go` | PASS |
+| `TestDNSRemoteNATMismatchFloats` | Done | `rfc7296_nat_dns_test.go` | PASS |
+| `TestUnresolvableRemoteRetriesWithBackoff` | Done | `rfc7296_nat_dns_test.go` | PASS |
+| `TestRespondPeerMatchesResolvedName` | Done | `respond_names_test.go` | PASS |
+| `TestTransportModeDNSRemoteProposesResolvedPair` | Done | `rfc7296_transport_mode_test.go` | PASS |
+| `TestLiteralPeerKeepsItsSocketAcrossInterfaceRebind` | Done | `dynamic_wan_test.go` | SKIP on macOS |
+| `TestRespondNameCacheLifecycle` | Done | `respond_names_test.go` | PASS |
+| `TestRouteChosenSourceUnderCatchAllDiscard` | Done | `dynamic_wan_integration_linux_test.go` | `ok` on Linux, non-verbose (`qemu-lx1.log`) |
+| `TestDoctorIPsecInterfaceAddressWaiting` | Done | `doctor_interface_address_test.go` | PASS |
+| `ipsec-follows-wan-address` | Done | `test/ipsec/` | PASS on the Linux guest |
+| `ipsec-local-address-literal-only` | Done | `test/parse/` | PASS |
+| `fqdn-remote-dynamic-local`, `fqdn-remote-real-nat` | Done | `test/interop-ipsec/scenarios/` | PASS clean, FAIL broken |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `apply.go`, `register.go`, `fsm.go`, `initiator.go`, `responder.go`, `create_child.go`, `rekey.go`, `ts_nat_substitute.go`, `inner_selectors.go`, `mobike_route_linux.go`, `mobike_route_other.go` | Done | 67700fd37e |
+| `transport_mode.go` | Changed | the host pair is read through `inner_selectors.go` `configuredHostPair` and `ts_nat_substitute.go`; no edit needed |
+| `doctor_interface_address.go`, `doctor_interface_address_test.go`, `internal/core/diagnostic/codes.go` | Done | 67700fd37e |
+| `dynamic_wan.go`, `dynamic_wan_test.go`, `dynamic_wan_integration_linux_test.go`, `cycle_addr.go`, `respond_names.go` | Done | 67700fd37e and later |
+| `ipsec/config.go`, `ze-ipsec-conf.yang` | Done | 67700fd37e, 3a2935ef33 |
+| `docs/guide/ipsec.md`, `ipsec-8-ikev2-child-xfrm.md`, `ipsec-10-cli-diag.md` | Done | see Documentation Updates |
+| `ipsec-3-data-model.md` | Changed | no statement became wrong, as the plan said |
+| `test/ipsec/ipsec-follows-wan-address.ci`, interop scenarios | Done | a16f2405e9, 2d623d2bfb |
+
+### Audit Summary
+- **Total items:** 4 requirements, 22 ACs, 18 tests, 8 file rows
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 file rows (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| 1. Local address follows the bound interface | functional, Linux XFRM | `ipsec-follows-wan-address` PASS (`rwinv/out-gb6/ipsec-clean.log`, test 20); broken FAIL (`rwinv/out-gb6/c4-follows-wan-broken.log`: "the literal peer never installed its Child SA") |
+| 2. Route-chosen local address | interop | `fqdn-remote-dynamic-local` PASS against strongSwan 6.1.0 (`rwinv/c4-dynlocal-clean.log`), FAIL broken (`rwinv/c4-dynlocal-broken.log`); `checkFQDNRemoteDynamicLocal` requires charon to receive from Ze's route-chosen source 172.28.0.2 port 500 |
+| 3. NAT detection with a DNS-named remote | interop | `fqdn-remote-dynamic-local` (no NAT verdict) and `fqdn-remote-real-nat` PASS (`rwinv/c4-realnat-clean.log`), FAIL broken (`rwinv/c4-realnat-broken.log`); RFC 7296 2.23-1, 2.23-7, 2.23-8 records |
+| 4. Keep retrying while the name does not resolve | interop + unit | `fqdn-remote-dynamic-local` starts the DNS container late (`startDNS`); `TestUnresolvableRemoteRetriesWithBackoff` PASS |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| IKE over IPv6 (2026-11-07 `unwired-feature.md` row) | Known Limitation; this spec was owner of record only | `plan/post-release/features/spec-ike-ipv6-transport.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/home-cpe-4-ike-dynamic-wan-7e292f27-ced0-427f-a7b6-3a931db211f9.md` |
+| `./le spec review check` | clean: 8 code files, `dynamic_wan.go` and the files of 3a2935ef33 (`doctor.go`, `ts_nat_substitute.go`, `ze-ipsec-conf.yang`, the two `rfc7296_*` renames) |
+| Rounds | 2 |
+| Reviewer lenses used | wiring (every `ParseIP` reader of the configured strings), concurrency (worker lifecycle, `applyMu`, clone of `s.peers`), security (no DNS on the packet path), user-facing errors, style pass on `dynamic_wan.go`, `cycle_addr.go`, `respond_names.go` (no `panic`, no peer-reachable crash) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | SPD entry error after an address change named no fix | `dynamic_wan.go` `followAddress` | `fix` key added (closure) |
+| 2 | ISSUE | Host address listing warning named no fix and did not say what is skipped | `dynamic_wan.go` `restartVanishedRouteSources` | message and `fix` key (closure) |
+
+### Notes
+- `resolveRespondNames` runs on the address worker, so a slow resolver (5 s per name) delays a WAN address change by that much.
+- `netip.ParseAddr` admits a zoned IPv6 literal that `net.ParseIP` later refuses in `resolveCyclePair`; IKE is IPv4 only (Known Limitations).
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `dynamic_wan.go`, `cycle_addr.go`, `respond_names.go`, `doctor_interface_address.go` | yes | read at closure |
+| `test/ipsec/ipsec-follows-wan-address.ci` | yes | read at closure |
+| `test/interop-ipsec/scenarios/fqdn-remote-dynamic-local/`, `fqdn-remote-real-nat/` | yes | `ls -d` at closure |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-22 | unit tests | `./le job run ... go test -race -v` engine + ipsec, 2026-11-09: `ok` both, PASS for every named test, SKIP for the two loopback tests (`job-unit-pkg2-cfbe2a74.log`); dynamic-WAN subset after the closure fix `ok` (`job-unit-pkg-6c972384.log`) |
+| AC-1..AC-5 | functional | `ipsec-follows-wan-address` PASS on the Linux guest |
+| AC-6, AC-10..AC-14, AC-21 | interop | dynlocal and realnat PASS clean, FAIL broken |
+| AC-9 | parse | `rwinv/c4-literal-clean.log` pass 1/1, the broken log fails |
+| Deliverable | no configured-string reader | grep for `ParseIP` of `PeerCfg.RemoteAddress`/`LocalAddress` hits only `cycle_addr.go` (`resolveCyclePair`, `cycleRemoteAddress`, `cycleLocalAddress`) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| address events and the kernel table | `test/ipsec/ipsec-follows-wan-address.ci` | header read: late, changed, removed address under the default DISCARD; PASS on the guest |
+| route-chosen peer, DNS remote | interop `fqdn-remote-dynamic-local` | `ze.conf` has no `local-address`, no `interface`, `unmatched discard` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken | the bus alone missed a WAN with no `interface` block; kernel table watch (4642498d90); Mistake Log |
+| A-2 | confirmed | commit does not check existence: `ValidateInterfaceRef` runs only in `doctor.go`; YANG description corrected (3a2935ef33) |
+| A-3 | confirmed | `TestUnresolvableRemoteRetriesWithBackoff` PASS |
+| A-4 | confirmed | `checkFQDNRemoteDynamicLocal` requires receipt on 500, then the 4500 SA |
+| A-5 | confirmed | `TestRouteChosenSourceUnderCatchAllDiscard` namespace (`mobikeRouteNetns`) holds a /32 and no default route via the WAN; interop dynlocal PASS |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| 9 RFC behaviour | tags RFC7296-2.23-1, -7, -8, 2.23.1-2, -3 in `rfc7296_nat_dns_test.go`, `rfc7296_transport_mode_test.go`; `./le rfc check` 2026-11-09 lists no rfc7296 2.23 violation | yes |
+| 12 architecture | `ipsec-7-ikev2-engine.md` names the three events the worker subscribes to | yes |
+| 2 config syntax | `docs/guide/configuration.md` shows no `local-address` (grep empty) | no update owed |
+| 15 event consumers | `docs/plugin-overview.md` lists no `interface/addr` consumers (grep empty) | no update owed |
