@@ -40,11 +40,8 @@ bgp {
 The `policy` root is shared by every protocol, and policy routing's
 `policy route` list lives in it too. A filter type is a list the YANG schema
 marks `ze:filter`; `route` carries no marker, so a filter chain cannot name a
-`policy route` entry. A configuration that still writes `bgp { policy { ... } }`
-is refused with the command that converts it: `ze config migrate -o <new-file>
-<file>` moves the block to the top-level root.
+`policy route` entry.
 <!-- source: internal/component/policy/registry.go -- BuildRegistry, ValidateName -->
-<!-- source: internal/component/config/relocated.go -- relocatedHint, ApplyRelocations -->
 
 The effective references are cumulative: automatic safety filters run first,
 followed by global, group, and peer references. The most-specific configured

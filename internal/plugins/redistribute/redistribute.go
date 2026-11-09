@@ -373,8 +373,8 @@ func redistRoute(protocol string, id redistevents.ProtocolID, fam family.Family,
 			// Every redistributed route carries a tag: a producer writes zero
 			// for a route with no tag (RouteChangeEntry.Tag), and zero is a tag
 			// like any other, so `match tag [ 0 ]` selects the untagged routes.
-			// That keeps the retired `tag 0` leaf's meaning and agrees with
-			// FRR's route_match_tag, which compares an untagged route's tag 0.
+			// That agrees with FRR's route_match_tag, which compares an
+			// untagged route's tag 0.
 			HasTag: true,
 			IsBGP:  entry.BGPClass != redistevents.BGPClassUnspecified,
 			IsEBGP: entry.BGPClass == redistevents.BGPClassExternal,

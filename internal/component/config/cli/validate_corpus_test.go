@@ -917,7 +917,7 @@ func TestSweepDerivesEachExclusion(t *testing.T) {
 		{"test plugins", ruleTestPlugins, sweepKeep{"fakeredist", "fakedrain"}, "fakeredist"},
 		{"declared refusal", ruleDeclaredRefusal, sweepKeep{"refused="}, "test/reload/reload-bad-config.ci"},
 		{"load sequence", ruleLoadSequence, sweepKeep{"demos/terminal"}, "demos/terminal/topics/"},
-		{"migrate input", ruleMigrateInput, sweepKeep{"config migrate"}, "test/parse/policy-root-migrate.ci"},
+		{"migrate input", ruleMigrateInput, sweepKeep{"config migrate"}, "test/parse/cli-config-migrate-log-booleans.ci"},
 		{"native classification", ruleNativeClassification, sweepKeep{exabgpnative.Dir}, exabgpnative.Dir},
 		{"statement shape", ruleStatementShape, sweepKeep{"vtysh"}, "vtysh.conf"},
 	}

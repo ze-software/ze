@@ -340,8 +340,6 @@ func schemaFromResolved(loader *yang.Resolved) (*Schema, error) {
 		return nil, fmt.Errorf("schema build errors: %w", buildErr)
 	}
 
-	markRelocations(schema)
-	markRetiredLeaves(schema)
 	markOtherOSNodes(schema)
 	return schema, nil
 }

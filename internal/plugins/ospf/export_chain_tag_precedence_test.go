@@ -1,9 +1,8 @@
-// VALIDATES: the export chain `ze config migrate` writes for a retired
-// `ospf redistribute static { tag 7; }` keeps the old tag precedence at
-// runtime: a route carrying its own tag keeps it, and an untagged route takes
-// the configured tag.
-// PREVENTS: a migration whose tag modify matches every route, which overrides
-// a route's own tag with the configured one in silence.
+// VALIDATES: an `ospf filter export` chain whose tag modify matches
+// `protocol [ static ]; tag [ 0 ]` keeps the route tag precedence at runtime:
+// a route carrying its own tag keeps it, and an untagged route takes the
+// configured tag.
+// PREVENTS: a per-source tag that overrides a route's own tag in silence.
 package ospf
 
 import (
@@ -16,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/config/migration"
 	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/family"
@@ -24,8 +22,8 @@ import (
 	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 	ospfredistribute "github.com/ze-software/ze/internal/plugins/ospf/redistribute"
 
-	// The migration writes policy modify instances: the modify filter type
-	// and its route evaluator register from this package's init.
+	// The chain names policy modify instances: the modify filter type and its
+	// route evaluator register from this package's init.
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/filter_modify"
 )
 
@@ -46,31 +44,34 @@ func (r *externalsInjector) WithdrawExternal(p netip.Prefix) (bool, error) {
 	return ok, nil
 }
 
-// TestMigratedExportChainKeepsRouteTagPrecedence proves the chain the
-// migration writes for a retired per-source tag sets that tag on an untagged
-// route only.
+// TestExportChainKeepsRouteTagPrecedence proves a per-source tag set by a
+// modify that also matches `tag [ 0 ]` reaches an untagged route only.
 //
-// Method: migrate an old config, reparse it under the current schema, deliver
-// the ospf and policy roots as the engine does (each wrapped in its own name,
-// lowered by ToPluginMap), compile them through parseExportChain, install the
-// chain, and inject static routes shaped as the redistribute orchestrator's
-// redistRoute builds them (Tag 0 and HasTag true for an untagged route). The
-// tag-only entry leaves the default metric and type 2; the entry with all
-// three retired leaves sets metric 50 and type 1 on every route as well.
-func TestMigratedExportChainKeepsRouteTagPrecedence(t *testing.T) {
+// Method: parse a config under the current schema, deliver the ospf and policy
+// roots as the engine does (each wrapped in its own name, lowered by
+// ToPluginMap), compile them through parseExportChain, install the chain, and
+// inject static routes shaped as the redistribute orchestrator's redistRoute
+// builds them (Tag 0 and HasTag true for an untagged route). The tag-only chain
+// leaves the default metric and type 2; the chain that also names a metric
+// modify sets metric 50 and type 1 on every route as well.
+func TestExportChainKeepsRouteTagPrecedence(t *testing.T) {
+	const tagModify = "modify ospf-export-static-tag { match { protocol [ static ]; tag [ 0 ]; } set { tag 7; } } "
+	const metricModify = "modify ospf-export-static { match { protocol [ static ]; } set { metric 50; metric-type type-1; } } "
 	cases := []struct {
-		name   string
-		leaves string
-		metric uint32
-		type2  bool
+		name     string
+		modifies string
+		filters  string
+		metric   uint32
+		type2    bool
 	}{
-		{name: "tag only", leaves: "tag 7;", metric: ospfredistribute.DefaultExternalMetric, type2: true},
-		{name: "metric, type and tag", leaves: "metric 50; metric-type type-1; tag 7;", metric: 50, type2: false},
+		{name: "tag only", modifies: tagModify, filters: "ospf-export-static-tag", metric: ospfredistribute.DefaultExternalMetric, type2: true},
+		{name: "metric, type and tag", modifies: metricModify + tagModify, filters: "ospf-export-static ospf-export-static-tag", metric: 50, type2: false},
 	}
 	staticID := redistevents.RegisterProtocol("static")
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			installMigratedExportChain(t, "ospf { router-id 10.0.0.1; redistribute static { "+tc.leaves+" } }")
+			installExportChain(t, "policy { "+tc.modifies+"} "+
+				"ospf { router-id 10.0.0.1; redistribute static { } filter { export { filters [ "+tc.filters+" ]; final accept; } } }")
 
 			inj := &externalsInjector{externals: map[netip.Prefix]ospfredistribute.External{}}
 			consumer := ospfredistribute.NewConsumer(inj)
@@ -98,7 +99,7 @@ func TestMigratedExportChainKeepsRouteTagPrecedence(t *testing.T) {
 					},
 				})
 				ext, ok := inj.externals[prefix]
-				require.True(t, ok, "%s: the migrated chain accepts a static route", r.prefix)
+				require.True(t, ok, "%s: the chain accepts a static route", r.prefix)
 				assert.Equal(t, r.want, ext.Tag, "%s: route tag %d", r.prefix, r.tag)
 				assert.Equal(t, tc.metric, ext.Metric, "%s: metric", r.prefix)
 				assert.Equal(t, tc.type2, ext.Type2, "%s: metric type", r.prefix)
@@ -107,30 +108,26 @@ func TestMigratedExportChainKeepsRouteTagPrecedence(t *testing.T) {
 	}
 }
 
-// installMigratedExportChain migrates old, compiles the export chain the
-// result names, and installs it until the test ends.
-func installMigratedExportChain(t *testing.T, old string) {
+// installExportChain parses text, compiles the export chain it names, and
+// installs it until the test ends.
+func installExportChain(t *testing.T, text string) {
 	t.Helper()
-	tree, err := config.NewParser(mustOSPFSchema(t, config.MigrationSchema)).Parse(old)
+	schema, err := config.YANGSchema()
 	require.NoError(t, err)
-	result, err := migration.Migrate(tree)
-	require.NoError(t, err)
-	require.Contains(t, result.Applied, redistributeLeavesTransformationName)
-	schema := mustOSPFSchema(t, config.YANGSchema)
-	reparsed, err := config.NewParser(schema).Parse(config.Serialize(result.Tree, schema))
+	tree, err := config.NewParser(schema).Parse(text)
 	require.NoError(t, err)
 
 	var sections []configSection
 	for _, root := range []string{Namespace, policy.RootName} {
-		container := reparsed.GetContainer(root)
-		require.NotNil(t, container, "the migrated config holds %s", root)
+		container := tree.GetContainer(root)
+		require.NotNil(t, container, "the config holds %s", root)
 		data, err := json.Marshal(map[string]any{root: container.ToPluginMap()})
 		require.NoError(t, err)
 		sections = append(sections, configSection{Root: root, Data: string(data)})
 	}
 	cfg, err := parseExportChain(sections)
 	require.NoError(t, err)
-	require.NotNil(t, cfg.chain, "the migration wrote ospf filter export")
+	require.NotNil(t, cfg.chain, "the config names ospf filter export")
 	cfg.install()
 	t.Cleanup(func() { ospfredistribute.SetExportChain(nil) })
 }

@@ -8,7 +8,7 @@ import "github.com/ze-software/ze/internal/component/policy"
 
 // importFiltersPattern is the data path of an import rule's filters leaf-list,
 // each list key a wildcard: redistribute destination * import * filters.
-var importFiltersPattern = []string{importPath[0], importPath[1], "*", importPath[2], "*", "filters"}
+var importFiltersPattern = []string{configRoot, "destination", "*", "import", "*", "filters"}
 
 func init() {
 	// The import filters leaf declares `ze:reference "policy-filter"`; this

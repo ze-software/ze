@@ -61,40 +61,6 @@ uses for a mistyped command, `suggest.Command`.
 <!-- source: internal/component/config/retired.go -- UnknownKeywordHint -->
 <!-- source: internal/core/suggest/suggest.go -- Command -->
 
-A block that moved out of a container to become a top-level root gets the
-command that rewrites it instead. `bgp { policy { ... } }` is the one such block
-today: the `policy` component registers the move from `init()` with
-`config.MustRegisterRelocatedContainer("bgp", "policy")`, the schema marks the
-old position, and both parsers answer `policy is no longer inside bgp: it is now
-the top-level policy { ... } block`, then `fix: ze config migrate -o <new-file>
-<file>`. No alias accepts the old position.
-<!-- source: internal/component/config/relocated.go -- MustRegisterRelocatedContainer, markRelocations, relocatedHint -->
-<!-- source: internal/component/policy/register.go -- init, relocatedFromBGP -->
-
-`ze config migrate` parses the file with `config.MigrationSchema()`, which
-grafts each relocated root back under its old parent, and its last
-transformation, `relocated-blocks`, moves the block to the top level and merges
-it with any top-level block already there. A list entry written at both
-positions is refused with both locations named, because no merge can choose
-between them.
-<!-- source: internal/component/config/relocated.go -- MigrationSchema, ApplyRelocations, refuseRelocationConflict -->
-<!-- source: internal/component/config/migration/migrate.go -- relocated-blocks -->
-
-A leaf a schema change retired is refused the same way. The package that owns
-the rewrite registers the leaf with `config.MustRegisterRetiredLeaf(path, name,
-node, replacement)`, both parsers answer `<name> is no longer a leaf of <path>:
-write <replacement> instead`, then the `ze config migrate` fix, and
-`MigrationSchema` grafts the old leaf back so the migration can read it. The
-redistribute import `family` and `tag` leaves are the two retired leaves today.
-<!-- source: internal/plugins/redistribute/register_migration.go -- init -->
-<!-- source: internal/component/config/retired_leaf.go -- MustRegisterRetiredLeaf, markRetiredLeaves, graftRetiredLeaves -->
-
-A feature package adds its own transformation with
-`migration.MustRegisterTransformation`, so `migrate.go` never names it. The
-registered ones run after the built-in ones, in registration order, and
-`ze config migrate --list` shows them with the rest.
-<!-- source: internal/component/config/migration/registered.go -- MustRegisterTransformation, allTransformations -->
-
 An enumeration refusal includes its original path, the values it accepts, and
 the leaf statement to write. A bracket list where the schema expects a container
 names that path and renders the container's immediate fields instead, including
@@ -1036,13 +1002,6 @@ bgp {
 - `template { bgp { peer <pattern> { inherit-name X; } } }` becomes `group X { }`
 - `inherit X` in peers moves the peer into `group X`
 - `neighbor` blocks become `peer` blocks inside groups
-- `redistribute destination D import S { family [ ... ]; tag N; }` becomes a
-  `policy { match redistribute-D-S { family [ ... ]; tag [ N ]; } }` instance,
-  named first in the rule's `filters`, and every import rule without a `final`
-  and without `filters` gets `final accept`. `tag 0` stays `tag [ 0 ]`, which
-  selects the untagged routes. A `match` instance already holding that name is
-  refused
-<!-- source: internal/plugins/redistribute/migrate.go -- migrateImportLeaves, migrateImportRule -->
 
 ### bgp
 

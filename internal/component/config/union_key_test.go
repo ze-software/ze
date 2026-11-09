@@ -2,7 +2,7 @@
 //
 // VALIDATES: a union-typed list key, and a union leaf, are judged against each
 // member type, so a value no member accepts is refused at every parser path.
-// PREVENTS: `bgp policy prefix-list <n> entry <key>` accepting any string as a prefix.
+// PREVENTS: `policy prefix-list <n> entry <key>` accepting any string as a prefix.
 package config
 
 import (

@@ -936,22 +936,8 @@ func (p *SetParser) unknownFieldHint(name string, parent Node) string {
 	if parent == nil {
 		return TopLevelKeywordHint(name, known)
 	}
-	container, ok := parent.(*ContainerNode)
-	if ok && container == p.schema.root {
+	if root, ok := parent.(*ContainerNode); ok && root == p.schema.root {
 		return TopLevelKeywordHint(name, known)
-	}
-	if ok {
-		if hint := container.relocatedHint(name); hint != "" {
-			return hint
-		}
-		if hint := container.retiredHint(name); hint != "" {
-			return hint
-		}
-	}
-	if list, isList := parent.(*ListNode); isList {
-		if hint := list.retiredHint(name); hint != "" {
-			return hint
-		}
 	}
 	return UnknownKeywordHint(name, known)
 }

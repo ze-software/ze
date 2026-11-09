@@ -1,6 +1,5 @@
 // Design: docs/architecture/config/syntax.md — config migration
 // Detail: listener.go — listener normalization transformations
-// Detail: registered.go — transformations a feature package registers
 
 package migration
 
@@ -131,14 +130,6 @@ var transformations = []Transformation{
 		Detect:      hasTemplateBlock,
 		Apply:       migrateTemplateToGroups,
 	},
-	// Phase 4: blocks that moved to a top-level root (runs after wrap-bgp-block,
-	// which may create the old parent). The owners register each move.
-	{
-		Name:        "relocated-blocks",
-		Description: "Move each block that became a top-level root (bgp policy -> policy) to its root",
-		Detect:      config.HasRelocatedContainers,
-		Apply:       config.ApplyRelocations,
-	},
 }
 
 // Migrate applies all needed transformations.
@@ -151,7 +142,7 @@ func Migrate(tree *config.Tree) (*MigrateResult, error) {
 	working := tree.Clone() // Work on clone - original unchanged until success
 	result := &MigrateResult{}
 
-	for _, t := range allTransformations() {
+	for _, t := range transformations {
 		if t.Detect(working) {
 			migrated, err := t.Apply(working)
 			if err != nil {
@@ -180,7 +171,7 @@ func DryRun(tree *config.Tree) (*DryRunResult, error) {
 	result := &DryRunResult{WouldSucceed: true}
 	working := tree.Clone()
 
-	for _, t := range allTransformations() {
+	for _, t := range transformations {
 		if t.Detect(working) {
 			result.WouldApply = append(result.WouldApply, t.Name)
 			// Run on clone to validate it would succeed
@@ -205,7 +196,7 @@ func NeedsMigration(tree *config.Tree) bool {
 	if tree == nil {
 		return false
 	}
-	for _, t := range allTransformations() {
+	for _, t := range transformations {
 		if t.Detect(tree) {
 			return true
 		}
@@ -216,7 +207,9 @@ func NeedsMigration(tree *config.Tree) bool {
 // ListTransformations returns all available transformations with their descriptions.
 // Returns a copy to prevent external modification.
 func ListTransformations() []Transformation {
-	return allTransformations()
+	result := make([]Transformation, len(transformations))
+	copy(result, transformations)
+	return result
 }
 
 // --- Apply functions ---
