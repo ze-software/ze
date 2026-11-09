@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/metrics"
 )
@@ -35,11 +36,89 @@ func RejectedCounter(reg metrics.Registry, consumer string) metrics.Counter {
 // kept (Snapshot, "a subscriber MUST drop a snapshot whose Sequence is
 // below the last one it applied"). The zero Follower holds no snapshot and
 // is ready to use. Safe for concurrent use.
+//
+// A consumer that answers clients from the records also holds them until the
+// replay arrives (ExpectReplay, Replayed, AwaitReplay), so a plugin that
+// starts or restarts while leases exist never answers from the empty list it
+// starts with (spec-home-cpe-23b AC-13).
 type Follower struct {
 	mu       sync.Mutex
 	held     bool
 	sequence uint64
 	records  []Record
+	// replay is closed once the consumer applied the replay the engine
+	// answers its snapshot-request with, or the replay can no longer arrive.
+	// nil when no replay is expected (the zero Follower, a test's): then
+	// AwaitReplay never waits. replayDone records the close, so a second
+	// Replayed does not close it twice.
+	replay     chan struct{}
+	replayDone bool
+}
+
+// ReplayWaitMax bounds how long AwaitReplay holds a caller. The engine
+// answers a snapshot-request in milliseconds; past the bound the consumer
+// answers from what it holds rather than leave a client without an answer
+// until its own timeout, and every later caller passes at once.
+const ReplayWaitMax = 2 * time.Second
+
+// ExpectReplay makes AwaitReplay hold its callers until Replayed runs. It
+// MUST be called before the consumer answers any client (before its plugin
+// runs), and Replayed MUST then be called once the consumer applied the
+// first snapshot it accepted, or once the replay can no longer arrive (the
+// snapshot-request was not sent).
+func (f *Follower) ExpectReplay() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.replay == nil {
+		f.replay = make(chan struct{})
+	}
+}
+
+// Replayed releases every caller AwaitReplay holds, and every later one. It
+// MUST be called after ExpectReplay, and only once the snapshot is applied:
+// a released caller reads what the consumer then holds. The consumer calls
+// it rather than Accept, because the records stored here are not always
+// what the consumer answers from (the resolver builds a policy from them).
+// Safe for concurrent use, and for repeated calls.
+func (f *Follower) Replayed() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	// No channel: no replay is expected, so no caller waits to be released.
+	if f.replay == nil {
+		return
+	}
+	if f.replayDone {
+		return
+	}
+	f.replayDone = true
+	close(f.replay)
+}
+
+// AwaitReplay holds the caller until Replayed ran or ReplayWaitMax passed,
+// and at the bound releases every caller. A Follower that expects no replay
+// never holds. Once released it costs one lock and one non-blocking channel
+// receive. Safe for concurrent use.
+func (f *Follower) AwaitReplay() {
+	f.mu.Lock()
+	replay := f.replay
+	f.mu.Unlock()
+	if replay == nil {
+		return
+	}
+	select {
+	case <-replay:
+		return
+	default:
+	}
+
+	timer := time.NewTimer(ReplayWaitMax)
+	defer timer.Stop()
+
+	select {
+	case <-replay:
+	case <-timer.C:
+		f.Replayed()
+	}
 }
 
 // Accept decodes one (system-dns, snapshot) event and answers whether it is

@@ -168,12 +168,12 @@ func learnedSnapshotHandler(res *resolver, rejected func() metrics.Counter, log 
 // which reaches it as JSON whether it runs in the engine process or its own,
 // and asks for the current one once started, so a resolver that starts or
 // restarts while leases exist forwards to them before the next change
-// (AC-13). Queries wait for that replay (resolver.awaitReplay, bounded by
-// replayWaitMax), so none is answered from the empty list the plugin starts
+// (AC-13). Queries wait for that replay (dnssource.Follower.AwaitReplay,
+// bounded by dnssource.ReplayWaitMax), so none is answered from the empty list the plugin starts
 // with. Each newer snapshot republishes the forward list without
 // rebinding a listener.
 func followLearnedResolvers(p *sdk.Plugin, res *resolver, log *slog.Logger) {
-	res.expectReplay()
+	res.learned.ExpectReplay()
 	p.SetStartupSubscriptionsIn(dnssource.Namespace, []string{dnssource.SnapshotEventType}, nil, "")
 	p.OnEvent(learnedSnapshotHandler(res, learnedRejectedCounter, log))
 	// A plugin the engine removes while the daemon runs withdraws its
@@ -187,7 +187,7 @@ func followLearnedResolvers(p *sdk.Plugin, res *resolver, log *slog.Logger) {
 		if _, err := p.EmitEvent(ctx, dnssource.Namespace, dnssource.SnapshotRequestEventType, "", "", ""); err != nil {
 			log.Warn("dns-resolver: learned resolvers not requested; they apply at the next lease change", "error", err)
 			// No replay answers a request that was never sent: stop holding queries.
-			res.replayed()
+			res.learned.Replayed()
 		}
 		// The selection goes to the registry for show system dns and ze
 		// doctor. The emit outlives this callback, so it does not take its

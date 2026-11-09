@@ -211,12 +211,16 @@ same attempt.
 The learned servers reach the plugin as the `system-dns` snapshot. A plugin
 that starts or restarts while leases exist holds no record until the engine
 answers the replay it requests once started, so `admit` holds every query
-until the first snapshot is accepted (`resolver.awaitReplay`). The hold ends
-after 2 seconds (`replayWaitMax`) if no snapshot arrives, and at once when the
-request could not be sent; every later query passes with one channel receive.
-No query is therefore answered from the empty list the plugin starts with.
+until the policy built from the first accepted snapshot is stored
+(`dnssource.Follower.AwaitReplay`, released by `Replayed` in `relearn`). The
+hold ends after 2 seconds (`dnssource.ReplayWaitMax`) if no snapshot arrives,
+and at once when the request could not be sent; every later query passes with
+one lock and one channel receive. No query is therefore answered from the
+empty list the plugin starts with. The DHCP server holds its replies the same
+way (`docs/architecture/provisioning/dhcp-server.md`).
 
-<!-- source: internal/plugins/dnsresolver/state.go -- expectReplay, replayed, awaitReplay, replayWaitMax -->
+<!-- source: internal/core/dnssource/follow.go -- ExpectReplay, Replayed, AwaitReplay, ReplayWaitMax -->
+<!-- source: internal/plugins/dnsresolver/state.go -- relearn -->
 <!-- source: internal/plugins/dnsresolver/register.go -- followLearnedResolvers -->
 <!-- test: internal/plugins/dnsresolver/replay_test.go -- TestQueryWaitsForReplay, TestQueryNotHeldWithoutReplay, TestReplayWaitBounded -->
 

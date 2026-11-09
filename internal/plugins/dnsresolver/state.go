@@ -127,59 +127,8 @@ type resolver struct {
 	announcement announcement
 	now          func() time.Time
 
-	// replay is closed once the plugin accepted its first system-dns
-	// snapshot, the replay the engine answers a starting plugin's request
-	// with, so no query is answered from an empty learned list while leases
-	// exist (spec-home-cpe-23b AC-13). nil when no replay is expected (a
-	// resolver a test builds): admit then never waits. Set by expectReplay
-	// before any listener is bound, and closed once through replayOnce.
-	replay     chan struct{}
-	replayOnce sync.Once
-
 	quit chan struct{}
 	done chan struct{}
-}
-
-// replayWaitMax bounds how long a query waits for the learned-resolver
-// replay. The engine answers the request in milliseconds; past the bound the
-// resolver answers from what it holds rather than leave a client without an
-// answer until its own timeout, and every later query reads the held list.
-const replayWaitMax = 2 * time.Second
-
-// expectReplay makes admit hold queries until replayed runs. It MUST be
-// called before the plugin binds a listener, so no query reads replay while
-// it is written; replayed MUST then be called once the replay arrived or can
-// no longer arrive.
-func (r *resolver) expectReplay() {
-	r.replay = make(chan struct{})
-}
-
-// replayed releases every query admit holds, and every later one. It MUST be
-// called after expectReplay. Safe for concurrent use.
-func (r *resolver) replayed() {
-	r.replayOnce.Do(func() { close(r.replay) })
-}
-
-// awaitReplay holds the calling query until replayed ran or replayWaitMax
-// passed. Once released it costs one non-blocking channel receive. Safe for
-// concurrent use.
-func (r *resolver) awaitReplay() {
-	ch := r.replay
-	if ch == nil {
-		return
-	}
-	select {
-	case <-ch:
-		return
-	default:
-	}
-	timer := time.NewTimer(replayWaitMax)
-	defer timer.Stop()
-	select {
-	case <-ch:
-	case <-timer.C:
-		r.replayed()
-	}
 }
 
 // newResolver builds a resolver with no policy: until the first apply every
@@ -220,9 +169,10 @@ func (r *resolver) relearn(event string) error {
 	if err != nil {
 		return err
 	}
-	if r.replay != nil {
-		r.replayed()
-	}
+	// The accepted snapshot is the replay admit waits for. Release the held
+	// queries only once the policy built from it is stored (this defer runs
+	// after the Unlock below), so none reads the policy it replaces.
+	defer r.learned.Replayed()
 	if !fresh {
 		return nil
 	}

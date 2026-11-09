@@ -168,7 +168,14 @@ func newDHCPHandlerWithTables(sub subnetConfig, pxe pxeConfig, p *pool, lt *leas
 // (D-6). The lease is shortened to shortLeaseSec while the list reaches the
 // received class and finds no usable entry there (D-9); a configured lease
 // shorter than that is kept.
+//
+// A plugin that starts while leases exist holds the reply until the
+// system-dns replay is applied (AwaitReplay, at most dnssource.ReplayWaitMax),
+// so the first replies after a restart read the learned resolvers rather
+// than the empty set the plugin starts with (AC-13). A handler built alone
+// expects no replay and never waits.
 func (h *dhcpHandler) offerDNS(self netip.Addr) dnsOffer {
+	h.learned.AwaitReplay()
 	list := h.subnet.Sources
 	selection := h.selectDNS(self)
 	if h.dropped.changed(selection.Dropped) {

@@ -166,6 +166,19 @@ handed-on one (`dnssource.AudienceHandedOn`), so a loopback or zone-less
 link-local server is dropped and logged once per change. The selection is cut
 at 63 addresses, the most one option holds.
 
+A server that starts or restarts while WAN leases exist holds no learned
+record until the engine answers its snapshot request, so `offerDNS` holds
+each OFFER and ACK until the first snapshot is accepted
+(`dnssource.Follower.AwaitReplay`, released by `learnedSnapshotHandler`). The
+hold ends after 2 seconds (`dnssource.ReplayWaitMax`) if no snapshot arrives,
+and at once when the request could not be sent. No reply after a restart
+therefore carries the empty selection, or the 60-second lease below, that the
+empty record set it starts with would give. A snapshot that does not decode
+releases nothing; the bound does.
+<!-- source: internal/plugins/dhcpserver/handler.go -- offerDNS -->
+<!-- source: internal/plugins/dhcpserver/register.go -- followLearnedResolvers, learnedSnapshotHandler -->
+<!-- test: internal/plugins/dhcpserver/replay_test.go -- TestReplyWaitsForReplay, TestRejectedReplayDoesNotRelease, TestReplyNotHeldWithoutReplay -->
+
 While the list reaches `received` and finds no usable entry there
 (`awaitsReceived`), the reply carries a 60-second lease, or the configured one
 when it is shorter, and the lease table records what the ACK carried. RFC 5625

@@ -252,8 +252,11 @@ component, for RDNSS) subscribes to the typed handle
 snapshot it cannot decode keeps its previous learned resolvers, logs the
 cause at WARN, counts it in
 `ze_dns_source_snapshots_rejected_total{consumer}`, and applies the next
-snapshot, including one delivered in the same batch.
-<!-- source: internal/core/dnssource/follow.go -- Follower, Accept, AcceptSnapshot, RejectedCounter -->
+snapshot, including one delivered in the same batch. A plugin that answers
+clients (the LAN resolver, the DHCP server) holds each answer until it applied
+the replay, for 2 seconds at most (`ExpectReplay`, `Replayed`,
+`AwaitReplay`), so none is built from the empty record set it starts with.
+<!-- source: internal/core/dnssource/follow.go -- Follower, Accept, AcceptSnapshot, RejectedCounter, ExpectReplay, Replayed, AwaitReplay -->
 <!-- source: internal/plugins/dnsresolver/register.go -- learnedSnapshotHandler -->
 <!-- source: internal/plugins/dhcpserver/register.go -- learnedSnapshotHandler -->
 <!-- source: internal/core/dnssource/register.go -- SnapshotEvent, SnapshotRequest -->

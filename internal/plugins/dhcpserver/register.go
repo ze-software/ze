@@ -165,6 +165,10 @@ func learnedSnapshotHandler(learned *dnssource.Follower, publisher *dhcpPublishe
 				"error", err, "metric", dnssource.RejectedMetricName)
 			return nil
 		}
+		// The records a reply reads are the ones Accept stored, so the
+		// snapshot is applied: release the replies offerDNS holds. A stale
+		// snapshot releases them too, since the newer one is already held.
+		learned.Replayed()
 		if fresh {
 			publisher.refresh()
 		}
@@ -175,10 +179,14 @@ func learnedSnapshotHandler(learned *dnssource.Follower, publisher *dhcpPublishe
 // followLearnedResolvers keeps learned on the newest system-dns snapshot, so
 // each reply's option 6 reads the current learned resolvers. The startup
 // subscription and the snapshot request at OnStarted give a plugin that
-// starts after the leases the records already held (AC-13). Replies evaluate
-// the list when they are built; a fresh snapshot makes publisher publish each
-// subnet's selection again for show system dns and ze doctor.
+// starts after the leases the records already held (AC-13). Replies wait for
+// that replay (dnssource.Follower.AwaitReplay in offerDNS, bounded by
+// dnssource.ReplayWaitMax), so none carries the option 6 list and lease time
+// of the empty record set the plugin starts with. Replies evaluate the list
+// when they are built; a fresh snapshot makes publisher publish each subnet's
+// selection again for show system dns and ze doctor.
 func followLearnedResolvers(p *sdk.Plugin, learned *dnssource.Follower, publisher *dhcpPublisher, log *slog.Logger) {
+	learned.ExpectReplay()
 	p.SetStartupSubscriptionsIn(dnssource.Namespace, []string{dnssource.SnapshotEventType}, nil, "")
 	p.OnEvent(learnedSnapshotHandler(learned, publisher, learnedRejectedCounter, log))
 	// A plugin the engine removes while the daemon runs withdraws its
@@ -191,6 +199,8 @@ func followLearnedResolvers(p *sdk.Plugin, learned *dnssource.Follower, publishe
 	p.OnStarted(func(ctx context.Context) error {
 		if _, err := p.EmitEvent(ctx, dnssource.Namespace, dnssource.SnapshotRequestEventType, "", "", ""); err != nil {
 			log.Warn("dhcpserver: learned resolvers not requested; they apply at the next lease change", "error", err)
+			// No replay answers a request that was never sent: stop holding replies.
+			learned.Replayed()
 		}
 		// The emit outlives this callback, so it does not take its
 		// cancellation.
