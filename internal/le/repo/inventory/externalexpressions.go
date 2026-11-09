@@ -130,15 +130,19 @@ func (e *externalEffects) expressionValue(source sourceExpr, possible bool, dept
 			result.join(externalValue{reads: map[*ast.Object]bool{object: true}})
 			return result
 		}
-		if function, addressed, found := e.source.snapshot.evaluator().methodReceiver(source, 0); found {
-			operand := sourceExpr{value: value.X, file: source.file, pkg: source.pkg}
+		if call, found := e.source.snapshot.evaluator().methodReceiver(source, 0); found {
+			function := call.function
+			// The receiver is x, or for a promoted method the embedded field
+			// x.E it was promoted from, never x itself: a write through it
+			// reaches the field's storage.
+			operand := call.receiver
 			var receiver externalValue
-			if addressed {
+			if call.addressed {
 				// Go calls the pointer method on &x, so the receiver is that
 				// address and a write through it reaches x's storage.
 				receiver = e.addressValue(operand, source, possible, depth)
 			} else {
-				receiver = child(value.X)
+				receiver = child(operand.value)
 			}
 			if e.amb.unknown != "" {
 				return externalValue{unknown: e.amb.unknown}

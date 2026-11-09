@@ -106,10 +106,11 @@ func TestCommittedPointerMethodIterationRetainsConditionalRefusal(t *testing.T) 
 }
 
 // TestCommittedPointerMethodUnsupportedOwnersRefuse does not infer
-// value-method fallback, dereference expressions, aliases, generic/promoted
-// sets or interface values. Implicit addressing of a variable and a
-// reassigned receiver binding are resolved, and
-// TestCommittedPointerMethodImplicitAddressExecutesOwner requires their owner.
+// value-method fallback, dereference expressions, aliases, generic sets or
+// interface values. Implicit addressing of a variable, a reassigned receiver
+// binding and a promoted method are resolved, and
+// TestCommittedPointerMethodImplicitAddressExecutesOwner and
+// TestCommittedPointerMethodPromotedExecutesOwner require their owner.
 func TestCommittedPointerMethodUnsupportedOwnersRefuse(t *testing.T) {
 	for _, scenario := range []callableOwnerCase{
 		{name: "value-method-fallback", declarations: "type parcel struct{}\nfunc (parcel) Deliver() { helper.Install(0) }\nfunc makeParcel() *parcel { return &parcel{} }\nvar packet = makeParcel()\n", call: "packet.Deliver()"},
@@ -117,7 +118,6 @@ func TestCommittedPointerMethodUnsupportedOwnersRefuse(t *testing.T) {
 		{name: "type-alias", declarations: "type parcel struct{}\nfunc (*parcel) Deliver() { helper.Install(0) }\ntype alias = parcel\nvar packet *alias\n", call: "packet.Deliver()"},
 		{name: "generic", declarations: "type parcel[T any] struct{}\nfunc (*parcel[T]) Deliver() { helper.Install(0) }\nvar packet *parcel[int]\n", call: "packet.Deliver()"},
 		{name: "interface", declarations: "type parcel struct{}\nfunc (*parcel) Deliver() { helper.Install(0) }\ntype delivery interface { Deliver() }\nfunc makeDelivery() delivery { return &parcel{} }\nvar packet = makeDelivery()\n", call: "packet.Deliver()"},
-		{name: "promoted", declarations: "type parcel struct{}\nfunc (*parcel) Deliver() { helper.Install(0) }\ntype envelope struct { *parcel }\nvar packet *envelope\n", call: "packet.Deliver()"},
 	} {
 		for _, kind := range []string{"plugin", "yang"} {
 			t.Run(scenario.name+"/"+kind, func(t *testing.T) {

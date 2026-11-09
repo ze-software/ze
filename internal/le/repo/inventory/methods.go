@@ -11,8 +11,9 @@ import (
 // method resolves direct value methods and explicit single-pointer methods on
 // any receiver whose static type valueType derives, a call result or a
 // literal included. A pointer method also resolves on an addressable value
-// receiver, which Go calls on its address (methodReceiver). Value-method
-// fallback, dynamic interfaces, promotion and generic method sets remain
+// receiver, which Go calls on its address, and a method promoted through
+// embedded fields resolves on the embedded field (methodReceiver).
+// Value-method fallback, dynamic interfaces and generic method sets remain
 // unresolved. A caller that executes the method MUST also execute the
 // receiver expression, because it need not be a name.
 func (e *expression) method(source sourceExpr) (sourceFunction, bool) {
@@ -22,24 +23,44 @@ func (e *expression) method(source sourceExpr) (sourceFunction, bool) {
 // methodAt is method at its caller's valueType step count, so a method chain
 // stays inside valueType's 64-step bound.
 func (e *expression) methodAt(source sourceExpr, depth int) (sourceFunction, bool) {
-	function, _, found := e.methodReceiver(source, depth)
-	return function, found
+	call, found := e.methodReceiver(source, depth)
+	return call.function, found
 }
 
-// methodReceiver is methodAt that also answers whether the receiver is
-// implicitly addressed. Go specification, "Calls": "If x is addressable and
-// &x's method set contains m, x.m() is shorthand for (&x).m()." A caller that
-// binds the receiver MUST bind that address, not the value, so a write
-// through the pointer reaches the variable.
-func (e *expression) methodReceiver(source sourceExpr, depth int) (sourceFunction, bool, bool) {
+// methodCall is a resolved method selector x.m: the method's declaration, the
+// receiver Go binds to it, and whether Go binds that receiver's address.
+type methodCall struct {
+	function sourceFunction
+	// receiver is x for a method x's type declares itself, and the embedded
+	// field x.E (x.E1.E2 one level deeper) for a promoted one, because a
+	// promoted method's receiver is the embedded field it was promoted from.
+	// The selector is built by promotedMethod: its field name is the embedded
+	// field's implicit name, its positions those of the call's selector.
+	receiver sourceExpr
+	// addressed answers whether Go calls the method on &receiver. Go
+	// specification, "Calls": "If x is addressable and &x's method set
+	// contains m, x.m() is shorthand for (&x).m()."
+	addressed bool
+}
+
+// methodReceiver is methodAt that also answers the receiver Go binds, and
+// whether it is implicitly addressed. A caller that binds the receiver MUST
+// bind that receiver, not x, and when it is addressed MUST bind its address,
+// not its value, so a write through the pointer reaches the storage.
+//
+// A selector T itself declares a member for (a method, a field, or an
+// embedded field's implicit name) is resolved at depth zero only, as
+// "Selectors" says the shallowest member wins; a selector with no such
+// member is looked up among the promoted methods (promotedMethod).
+func (e *expression) methodReceiver(source sourceExpr, depth int) (methodCall, bool) {
 	selector, ok := source.value.(*ast.SelectorExpr)
 	if !ok {
-		return sourceFunction{}, false, false
+		return methodCall{}, false
 	}
 	receiver := sourceExpr{value: selector.X, file: source.file, pkg: source.pkg}
 	datatype, found := e.valueType(receiver, depth+1)
 	if !found {
-		return sourceFunction{}, false, false
+		return methodCall{}, false
 	}
 	pointer, indirect := datatype.value.(*ast.StarExpr)
 	if indirect {
@@ -47,68 +68,41 @@ func (e *expression) methodReceiver(source sourceExpr, depth int) (sourceFunctio
 	}
 	definition, owner, found := e.concreteType(datatype)
 	if !found {
-		return sourceFunction{}, false, false
+		return methodCall{}, false
 	}
-	var result sourceFunction
-	resultAddressed := false
-	for _, file := range owner.files {
-		for _, declaration := range file.File.Decls {
-			function, ok := declaration.(*ast.FuncDecl)
-			if !ok {
-				continue
-			}
-			if function.Name.Name != selector.Sel.Name {
-				continue
-			}
-			if function.Recv == nil {
-				continue
-			}
-			if len(function.Recv.List) != 1 {
-				return sourceFunction{}, false, false
-			}
-			receiverType := function.Recv.List[0].Type
-			receiverPointer, receiverIndirect := receiverType.(*ast.StarExpr)
-			addressed := false
-			if receiverIndirect != indirect {
-				// A value method on a pointer receiver stays unresolved.
-				if indirect {
-					continue
-				}
-				if !e.addressable(receiver) {
-					continue
-				}
-				addressed = true
-			}
-			if receiverIndirect {
-				receiverType = receiverPointer.X
-			}
-			name, ok := receiverType.(*ast.Ident)
-			if !ok {
-				continue
-			}
-			binding := name.Obj
-			if binding == nil {
-				binding = callablePackageBinding(owner, name.Name)
-			}
-			if binding == nil {
-				continue
-			}
-			if binding.Decl != definition {
-				continue
-			}
-			if result.decl != nil {
-				return sourceFunction{}, false, false
-			}
-			// Bodyless methods are not covered by the package-function assembly
-			// certificate. They must retain unresolved execution ownership.
-			if function.Body == nil {
-				return sourceFunction{}, false, false
-			}
-			result = sourceFunction{decl: function, file: file.File, pkg: owner}
-			resultAddressed = addressed
+	methods, known := declaredMethods(definition, owner, selector.Sel.Name)
+	if !known {
+		return methodCall{}, false
+	}
+	if len(methods) == 0 {
+		if declaresField(definition, selector.Sel.Name) {
+			return methodCall{}, false
 		}
+		addressable := indirect || e.addressable(receiver)
+		return e.promotedMethod(receiver, selector, definition, owner, addressable)
 	}
-	return result, resultAddressed, result.decl != nil
+	if len(methods) != 1 {
+		return methodCall{}, false
+	}
+	function := methods[0]
+	_, receiverIndirect := function.decl.Recv.List[0].Type.(*ast.StarExpr)
+	addressed := false
+	if receiverIndirect != indirect {
+		// A value method on a pointer receiver stays unresolved.
+		if indirect {
+			return methodCall{}, false
+		}
+		if !e.addressable(receiver) {
+			return methodCall{}, false
+		}
+		addressed = true
+	}
+	// Bodyless methods are not covered by the package-function assembly
+	// certificate. They must retain unresolved execution ownership.
+	if function.decl.Body == nil {
+		return methodCall{}, false
+	}
+	return methodCall{function: function, receiver: receiver, addressed: addressed}, true
 }
 
 // addressable admits the receivers Go can take the address of without a type
@@ -249,13 +243,14 @@ func (e *expression) valueType(source sourceExpr, depth int) (sourceExpr, bool) 
 			if declaration.Type != nil {
 				return sourceExpr{value: declaration.Type, file: source.file, pkg: source.pkg}, true
 			}
-			if len(declaration.Names) != len(declaration.Values) {
-				return sourceExpr{}, false
-			}
 			for index, name := range declaration.Names {
-				if name.Obj == binding {
-					return e.valueType(sourceExpr{value: declaration.Values[index], file: source.file, pkg: source.pkg}, depth+1)
+				if name.Obj != binding {
+					continue
 				}
+				if len(declaration.Names) != len(declaration.Values) {
+					return e.tupleType(source, declaration.Values, len(declaration.Names), index, depth+1)
+				}
+				return e.valueType(sourceExpr{value: declaration.Values[index], file: source.file, pkg: source.pkg}, depth+1)
 			}
 		case *ast.AssignStmt:
 			// go/parser binds range variables to a synthetic short assignment
@@ -267,19 +262,64 @@ func (e *expression) valueType(source sourceExpr, depth int) (sourceExpr, bool) 
 					}
 				}
 			}
-			if len(declaration.Lhs) != len(declaration.Rhs) {
-				return sourceExpr{}, false
-			}
 			for index, left := range declaration.Lhs {
 				name, ok := left.(*ast.Ident)
 				if !ok {
 					continue
 				}
-				if name.Obj == binding {
-					return e.valueType(sourceExpr{value: declaration.Rhs[index], file: source.file, pkg: source.pkg}, depth+1)
+				if name.Obj != binding {
+					continue
 				}
+				if len(declaration.Lhs) != len(declaration.Rhs) {
+					return e.tupleType(source, declaration.Rhs, len(declaration.Lhs), index, depth+1)
+				}
+				return e.valueType(sourceExpr{value: declaration.Rhs[index], file: source.file, pkg: source.pkg}, depth+1)
 			}
 		}
+	}
+	return sourceExpr{}, false
+}
+
+// tupleType answers the static type of the operand at position among
+// operands, declared or assigned from right, the one multi-valued call on
+// the right-hand side. Go specification, "Assignment statements": "The
+// number of operands on the left hand side must match the number of values.
+// For instance, if f is a function returning two values, x, y = f() assigns
+// the first value to x and the second to y." Operand i has the type of the
+// callee's i-th declared result, a result field with several names counting
+// once per name. The callee resolves as valueType's call arm resolves one: a
+// declared function or a resolved method, never generic. A callee that does
+// not resolve, a result count that differs from operands, and the comma-ok
+// forms (a type assertion, a map index, a receive) refuse.
+func (e *expression) tupleType(source sourceExpr, right []ast.Expr, operands, position, depth int) (sourceExpr, bool) {
+	if len(right) != 1 {
+		return sourceExpr{}, false
+	}
+	call, isCall := ast.Unparen(right[0]).(*ast.CallExpr)
+	if !isCall {
+		return sourceExpr{}, false
+	}
+	callee := sourceExpr{value: call.Fun, file: source.file, pkg: source.pkg}
+	function, resolved := e.declaredFunction(callee)
+	if !resolved {
+		function, resolved = e.methodAt(callee, depth+1)
+	}
+	if !resolved {
+		return sourceExpr{}, false
+	}
+	if function.decl.Type.TypeParams.NumFields() != 0 {
+		return sourceExpr{}, false
+	}
+	if function.decl.Type.Results.NumFields() != operands {
+		return sourceExpr{}, false
+	}
+	first := 0
+	for _, result := range function.decl.Type.Results.List {
+		count := max(len(result.Names), 1)
+		if position < first+count {
+			return sourceExpr{value: result.Type, file: function.file, pkg: function.pkg}, true
+		}
+		first += count
 	}
 	return sourceExpr{}, false
 }

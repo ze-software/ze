@@ -122,9 +122,6 @@ func TestCommittedExternalMethodChainUnresolvedReceiversRefuse(t *testing.T) {
 		{"pointer receiver", methodChainPresence +
 			"func (q *presence) Present(index int) bool { return index == q.size }\n" +
 			"func (p pointer) Info() presence { _ = p; return presence{size: 0} }\n"},
-		{"promoted", methodChainPresence + methodChainPresent +
-			"type envelope struct { presence }\n" +
-			"func (p pointer) Info() envelope { _ = p; return envelope{presence: presence{size: 0}} }\n"},
 	} {
 		for _, kind := range []string{"plugin", "yang"} {
 			t.Run(shape.name+"/"+kind, func(t *testing.T) {
@@ -164,5 +161,48 @@ func TestCommittedExternalCallResultFieldIsProjection(t *testing.T) {
 				externalEffectsRefusal(t, fixture, "root field")
 			})
 		}
+	}
+}
+
+// methodChainEnvelope embeds presence by value, so Present is promoted to
+// the call result x.Apply(1).Info().
+const methodChainEnvelope = "type envelope struct { presence }\n" +
+	"func (p pointer) Info() envelope { _ = p; return envelope{presence: presence{size: 0}} }\n"
+
+// TestCommittedExternalMethodChainPromotedPublishes requires a value method
+// promoted through an embedded value of a call result to resolve, with the
+// embedded field Info().presence as its receiver. Method: the chain
+// x.Apply(1).Info().Present(0) of the publishing test, with Info returning an
+// envelope embedding presence; every method is inert, so the only possible
+// refusal is an unresolved receiver. Present then hands a callback to
+// sort.Slice beside its read of q.size: an inert callback publishes and a
+// registering one refuses as registration, so Present's body was walked
+// with q bound.
+//
+// MUTATION: (internal/le/repo/inventory/methodpromotion.go,
+// `if members == 1 {`, `if members == 2 {`): Present no longer resolves, is
+// projected as a field of the call result, and every case refuses on root
+// field ownership: the inert ones publish nothing and the registering one
+// loses its registration cause.
+func TestCommittedExternalMethodChainPromotedPublishes(t *testing.T) {
+	const walked = "func (q presence) Present(index int) bool { order.Slice([]int{q.size}, func(i, j int) bool { BODY return false }); return index == q.size }\n"
+	for _, kind := range []string{"plugin", "yang"} {
+		t.Run("exact chain/"+kind, func(t *testing.T) {
+			fixture := externalEffectsFixture(t, kind)
+			fixture.goFile(t, callableOwnerCaller, externalEffectsSource(methodChainPointer+methodChainPresence+methodChainPresent+methodChainEnvelope, methodChainCall))
+			commitInventoryFixture(t, fixture.root)
+			externalEffectsPositive(t, fixture)
+		})
+		t.Run("walked body/"+kind, func(t *testing.T) {
+			fixture := externalEffectsFixture(t, kind)
+			inert := methodChainPointer + methodChainPresence + strings.Replace(walked, "BODY", "", 1) + methodChainEnvelope
+			fixture.goFile(t, callableOwnerCaller, externalEffectsSource(inert, methodChainCall))
+			commitInventoryFixture(t, fixture.root)
+			externalEffectsPositive(t, fixture)
+			registering := methodChainPointer + methodChainPresence + strings.Replace(walked, "BODY", "install(0);", 1) + methodChainEnvelope
+			fixture.goFile(t, callableOwnerCaller, externalEffectsSource(registering, methodChainCall))
+			commitInventoryFixture(t, fixture.root)
+			externalEffectsRefusal(t, fixture, "registration")
+		})
 	}
 }

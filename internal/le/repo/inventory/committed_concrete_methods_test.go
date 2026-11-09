@@ -109,13 +109,14 @@ func TestCommittedInterfaceReceiverCannotBorrowConcreteMethod(t *testing.T) {
 	}
 }
 
-// TestCommittedUnsupportedReceiverOwnersRefuse keeps interface results, generic
-// types and promoted method sets outside the direct concrete owner certificate.
+// TestCommittedUnsupportedReceiverOwnersRefuse keeps interface results and
+// generic types outside the direct concrete owner certificate. A promoted
+// method resolves, and TestCommittedConcreteMethodPromotedValueExecutesOwner
+// requires its owner.
 func TestCommittedUnsupportedReceiverOwnersRefuse(t *testing.T) {
 	for _, owner := range []struct{ name, declarations string }{
 		{"interface-result", "type parcel struct{}\nfunc (parcel) Deliver() { helper.Install(0) }\ntype delivery interface { Deliver() }\nfunc makeDelivery() delivery { return parcel{} }\nvar packet = makeDelivery()\n"},
 		{"generic", "type parcel[T any] struct{}\nfunc (parcel[T]) Deliver() { helper.Install(0) }\nvar packet = parcel[int]{}\n"},
-		{"promoted", "type parcel struct{}\nfunc (parcel) Deliver() { helper.Install(0) }\ntype envelope struct { parcel }\nvar packet = envelope{}\n"},
 	} {
 		for _, kind := range []string{"plugin", "yang"} {
 			t.Run(owner.name+"/"+kind, func(t *testing.T) {

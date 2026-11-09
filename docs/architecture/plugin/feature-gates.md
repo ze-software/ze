@@ -117,8 +117,22 @@ A method is resolved on any receiver whose static type the analyzer derives:
 a name, a call result or a literal, so `x.Apply(1).Info().Present(0)` and
 `T{}.M()` each reach the declared method. The same refusals hold for every
 receiver form: a callee with more than one result, a generic type or callee,
-an interface, a promoted method, a value method on a pointer, and a method
-with no body. A pointer method called on a variable of the value type is
+an interface, a value method on a pointer, and a method with no body. A
+method promoted through embedded fields resolves when the receiver's type
+declares no member of that name itself: the search runs one embedding level
+at a time, at most four, and the first level holding a member of that name
+decides, as the Go specification's shallowest-depth rule says. It refuses
+when that level holds two such members, when the member is a field, and when
+an embedded field of a level searched is an interface, an alias, a generic
+type or a type no retained package declares, because its members are then
+unknown. The promoted method's receiver is the embedded field `x.E`, never
+`x`: its value, or its address when the method takes `*E` on an embedded `E`
+and the path is addressable (`x` is a variable or a pointer, or an embedded
+pointer lies on the path), so a write through it reaches the field's storage.
+The registration walk still executes `x` itself before the call. So
+protojson's `d.Read()`, where `decoder` embeds `*json.Decoder`, reaches
+`(*json.Decoder).Read` with `d.Decoder` as its receiver. A pointer method
+called on a variable of the value type is
 called on that variable's address, as Go specifies, and its receiver is bound
 to the address, so a write through it reaches the variable's storage. On a
 value Go cannot address, such as a call result or a literal, the pointer
@@ -142,8 +156,15 @@ field `f`, when `f` is declared directly in the retained, non-generic struct
 type of `x`, reached through at most one pointer. An imported name, a method,
 an embedded or promoted field, and a holder whose type is unknown stay
 untyped. So `n := (b.nBits + 7) >> 3` is a `uint8` when `b` is a `*writer`,
-and so is `i` in `for i := range n`.
-<!-- source: internal/le/repo/inventory/methods.go -- expression.method, expression.methodAt, expression.methodReceiver, expression.addressable, expression.valueType, expression.fieldType -->
+and so is `i` in `for i := range n`. A variable declared or assigned from one
+multi-valued call, `tok, err := d.Read()`, has the type of the callee's
+result at its own position, a result field with several names counting once
+per name, when the callee resolves as a declared function or method and is
+not generic. A callee that does not resolve, a result count that differs
+from the variables, and the comma-ok forms (a type assertion, a map index, a
+receive) leave the variables untyped.
+<!-- source: internal/le/repo/inventory/methods.go -- expression.method, expression.methodAt, expression.methodReceiver, expression.addressable, expression.valueType, expression.tupleType, expression.fieldType -->
+<!-- source: internal/le/repo/inventory/methodpromotion.go -- expression.promotedMethod, promotedReceiver, declaredMethods, declaresField -->
 <!-- source: internal/le/repo/inventory/externaladdresses.go -- externalEffects.addressValue -->
 <!-- source: internal/le/repo/inventory/registrations.go -- registrations.node -->
 
