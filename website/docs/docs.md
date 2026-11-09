@@ -99,7 +99,7 @@ job you are trying to do, then follow the links inside that path.
         <div class="link-list">
             <a href="../project/why-ze/">Why Ze <span>what makes Ze different and who it is for</span></a>
             <a href="../project/roadmap/">Roadmap <span>the path to the first release</span></a>
-            <a href="../project/changes/">Changes <span>what shipped, week by week</span></a>
+            <a href="../project/changes/">Changes <span>what shipped, update by update</span></a>
             <a href="../blog/">Blog <span>longer notes behind the work</span></a>
             <a href="../faq/">FAQ <span>answers before you commit time</span></a>
             <a href="../contribute/">Contribute <span>code, bug reports, and interop results</span></a>

@@ -47,7 +47,7 @@ func TestUpdateCoverageReachesEverySurface(t *testing.T) {
 		}
 	}
 	page := readArtifact(t, paths.Output, changesDirectory+"/2026-10-12/index.html")
-	for _, want := range []string{"Development update · 2 weeks", `<meta name="description" content="` + label, `<title>` + label + " - Ze</title>"} {
+	for _, want := range []string{"Update report · 2 weeks", `<meta name="description" content="` + label, `<title>` + label + " - Ze</title>"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("page omits %q", want)
 		}

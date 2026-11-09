@@ -187,7 +187,7 @@ func TestAWeekRendersItsAuthoredInputs(t *testing.T) {
 	for _, chrome := range []string{
 		"<title>2026-08-17 – 2026-08-23 (1 week) - Ze</title>",
 		`<link rel="canonical" href="https://ze-software.net/project/changes/2026-08-17/" />`,
-		`<link rel="alternate" type="application/rss+xml" title="Ze development updates" href="../feed.xml" />`,
+		`<link rel="alternate" type="application/rss+xml" title="Ze update reports" href="../feed.xml" />`,
 		`<link rel="stylesheet" href="../../../assets/site.css" />`,
 		`<main id="top" class="has-page-sidebar" tabindex="-1">`,
 		`<aside class="page-sidebar" aria-label="Related page links">`,
@@ -250,7 +250,7 @@ func TestTheChangesIndexRendersItsAuthoredInputs(t *testing.T) {
 	for _, chrome := range []string{
 		"<title>Changes - Ze</title>",
 		`<link rel="canonical" href="https://ze-software.net/project/changes/" />`,
-		`<link rel="alternate" type="application/rss+xml" title="Ze development updates" href="feed.xml" />`,
+		`<link rel="alternate" type="application/rss+xml" title="Ze update reports" href="feed.xml" />`,
 		".ch-chip.cat-meta {",
 		`<section aria-labelledby="changes-title">`,
 		`<main id="top" class="has-page-sidebar" tabindex="-1">`,
@@ -393,7 +393,7 @@ func TestTheChangesFeedIsPublishedAtBothAddresses(t *testing.T) {
 	}
 	for _, want := range []string{
 		`<rss version="2.0">`,
-		"<title>Ze development updates</title>",
+		"<title>Ze update reports</title>",
 		"<link>https://ze-software.net/project/changes/</link>",
 		"<lastBuildDate>Mon, 17 Aug 2026 00:00:00 +0000</lastBuildDate>",
 		"<title>2026-08-17 – 2026-08-23 (1 week)</title>",

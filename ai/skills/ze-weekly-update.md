@@ -31,7 +31,7 @@ Read these before drafting:
 
 1. `website/changes/discord/STYLE.md`.
 2. The latest one or two files in `website/changes/discord/`.
-3. `website/AI.md`, especially `Weekly Update Checklist`.
+3. `website/AI.md`, especially `Update Report Checklist`.
 4. `website/data/topics.json` for allowed update tags.
 5. The latest `website/changes/posts/*.md` post, to keep format and coverage continuity.
 

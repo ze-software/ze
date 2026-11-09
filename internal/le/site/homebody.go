@@ -518,7 +518,7 @@ const homeTemplate = `        <div class="site-home">
                 <div class="section-head reveal">
                     <h2 id="blog-teaser-title">Recent engineering notes.</h2>
                     <p>
-                        Development updates come from git history and Discord's
+                        Update reports come from git history and Discord's
                         <code>ze-news</code>. They stay specific and technical.
                     </p>
                 </div>

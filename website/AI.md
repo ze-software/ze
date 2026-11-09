@@ -549,7 +549,7 @@ controls and never autoplays. The columns stack at 960px.
 <!-- source: internal/le/site/home.go -- homeBody -->
 <!-- source: website/assets/js/site.js -- initTerminalDemoPlayers -->
 
-Development updates use the inclusive calendar dates in `covers:` as their
+Update reports use the inclusive calendar dates in `covers:` as their
 reporting period. Pages, index cards, homepage teasers, feeds and Markdown
 mirrors show both dates and the duration: seven days is `1 week`, fourteen
 is `2 weeks`, and other spans use days. `data/changes.json` carries
@@ -559,7 +559,7 @@ date covers one day. Ranges require two valid dates in order. The historical
 `YYYY-MM-DD HH:MM` form is validated and counted by calendar date.
 <!-- source: internal/le/site/changes.go -- changeCoverage, changeDuration, readChangeWeek -->
 
-The homepage's development update cards use the post's optional `home-summary:` front
+The homepage's update report cards use the post's optional `home-summary:` front
 matter. Write one short summary of at most 108 characters. Without it,
 the card uses the introduction's first paragraph. The renderer collapses
 whitespace and clips long summaries at a word boundary, with an ellipsis.
@@ -687,11 +687,11 @@ use the shared theme surfaces so low activity remains visible in dark mode.
 script. It refreshes live slide statistics and embedded activity when the deck
 uses them, then regenerates the standalone bundle.
 
-## Development Update Checklist
+## Update Report Checklist
 
 Trigger: a new `changes/posts/<start-date>.md` lands (the Discord
 `ze-news` update -- this is the development changelog source; the `blog/` section
-is now for occasional editorial articles, not the development update). Work through
+is now for occasional editorial articles, not the update report). Work through
 this before considering the update done.
 
 0. **Tag the week.** Give the new post a `tags:` front-matter line (comma-

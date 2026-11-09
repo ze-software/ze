@@ -115,7 +115,7 @@ func writeLLMSProductSnapshot(out *textbuf.Buffer, lookup *factLookup) {
 		Str(lookup.plain("cli_commands")).Str(" CLI commands, ").Str(lookup.plain("config_sections")).
 		Str(" config sections, ").Str(lookup.plain("plugin_registrations")).Str(" plugin registrations, ").
 		Str(lookup.plain("dependencies")).Str(" direct Go dependencies, ").Str(lookup.plain("changes")).
-		Str(" development updates.\n")
+		Str(" update reports.\n")
 	out.Str("- Test evidence counts: ").Str(lookup.plain("tests.unit_display")).Str(" unit tests, ").
 		Str(lookup.plain("tests.fuzz_display")).Str(" fuzz targets, ").Str(lookup.plain("tests.e2e_display")).
 		Str(" end-to-end transcript steps, ").Str(lookup.plain("interop.scenarios_display")).

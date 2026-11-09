@@ -12,7 +12,7 @@ Ze keeps the programmable event model and builds those surrounding responsibilit
 
 The first tracked development week began in December 2025 with the BGP wire engine, capability negotiation, path attributes, address families, RIB work, session state, and ExaBGP interop. The project then expanded through configuration and plugin architecture, route server and reflector paths, policy, operator surfaces, interfaces, FIB backends, routing protocols, access services, security, diagnostics, packaging, and interoperability.
 
-The [weekly changes](https://ze-software.net/project/changes/) retain the detailed chronological record. [Milestones](https://ze-software.net/project/milestones/) selects the larger product changes, while the [roadmap](https://ze-software.net/project/roadmap/) describes what remains before a stable release.
+The [update reports](https://ze-software.net/project/changes/) retain the detailed chronological record. [Milestones](https://ze-software.net/project/milestones/) selects the larger product changes, while the [roadmap](https://ze-software.net/project/roadmap/) describes what remains before a stable release.
 
 ## What remained familiar
 

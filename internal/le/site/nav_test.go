@@ -132,7 +132,7 @@ func TestTheSharedHeaderStatesTheCountsTheSnapshotPublishes(t *testing.T) {
 		"<small>" + markedFact("dependencies", "42") + " direct packages, generated from go.mod</small>",
 		"<small>" + markedFact("cli_commands", "402") + " commands, generated from Ze&#39;s live binary</small>",
 		"<small>" + markedFact("config_sections", "36") + " sections, indexed from live YANG</small>",
-		"<small>" + markedFact("changes", "37") + " development updates, what shipped</small>",
+		"<small>" + markedFact("changes", "37") + " update reports, what shipped</small>",
 		`aria-label="Ze on GitHub"`,
 		`<span class="nav-badge-count">` + markedFact("github_stars", "50") + `</span>`,
 	} {
@@ -184,10 +184,11 @@ func TestTheSharedHeaderRefusesACountItCannotAnswer(t *testing.T) {
 
 // VALIDATES: AC-4's parity target, for the header fragment.
 //
-// The fragment published at gh-pages 2fa8fa2ad is the golden, with two edits
+// The fragment published at gh-pages 2fa8fa2ad is the golden, with three edits
 // since: the roadmap entry's description, which spec-release-roadmap changed in
-// website/data/nav.json, and the Examples menu's "Completion by use case"
-// entry, which links the RFC profile index from the menu. The one difference
+// website/data/nav.json, the Examples menu's "Completion by use case"
+// entry, which links the RFC profile index from the menu, and the Changes
+// entry's "development updates" renamed "update reports" at the owner's order. The one difference
 // this comparison allows is the spelling of an apostrophe: Python wrote &#x27;
 // where Go writes &#39;, and the owner ruled on 2026-08-29 that a character reference a reader cannot tell
 // apart is not a difference.

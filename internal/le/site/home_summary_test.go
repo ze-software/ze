@@ -105,7 +105,7 @@ func TestTheHomepageBoundsWeeklyIntroFallbacks(t *testing.T) {
 		},
 		{
 			name: "empty opening",
-			want: "Development update",
+			want: "Update report",
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {

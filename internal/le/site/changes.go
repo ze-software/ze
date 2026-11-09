@@ -1,4 +1,4 @@
-// Design: website/AI.md -- development updates share one producer over changes/posts/*.md.
+// Design: website/AI.md -- update reports share one producer over changes/posts/*.md.
 // Detail: markdown.go renders each section, shell.go wraps the page, feed.go the RSS.
 // Related: blog.go publishes the editorial articles, which are a different section.
 package site
@@ -46,12 +46,12 @@ const (
 	changesLegacyFeedDest  = "changes/feed.xml"
 	changesIndexFile       = "data/changes.json"
 	changesURL             = siteBase + changesDirectory + "/"
-	changesFeedTitle       = "Ze development updates"
+	changesFeedTitle       = "Ze update reports"
 )
 
 // changesIndexDescription is the meta description of the index, and the lead of
 // its Markdown mirror is the same sentence in longer form below.
-const changesIndexDescription = "What shipped in Ze: development updates, newest first."
+const changesIndexDescription = "What shipped in Ze: update reports, newest first."
 
 // topicsVocabularyFile is the controlled tag vocabulary: every tag family a
 // week may carry, and the category that colors its chip.
@@ -85,7 +85,7 @@ type changeTopic struct {
 	Key      string `json:"key"`
 }
 
-// changeWeek is one development update as data/changes.json states it. The
+// changeWeek is one update report as data/changes.json states it. The
 // sections and optional homepage summary are not published in that file.
 type changeWeek struct {
 	Slug          string        `json:"slug"`
@@ -242,7 +242,7 @@ func loadChangeWeeks(source string, vocabulary map[string]string) ([]changeWeek,
 		weeks = append(weeks, week)
 	}
 	if len(weeks) == 0 {
-		return nil, fmt.Errorf("no development update in %s; add a post to publish the changelog", directory)
+		return nil, fmt.Errorf("no update report in %s; add a post to publish the changelog", directory)
 	}
 	sort.SliceStable(weeks, func(left, right int) bool { return weeks[left].Slug > weeks[right].Slug })
 	return weeks, nil
@@ -419,7 +419,7 @@ func renderChangeWeek(output string, week changeWeek, links pageLinks) error {
 	if err != nil {
 		return err
 	}
-	description := week.label() + ". Development update."
+	description := week.label() + ". Update report."
 	if week.Intro != "" {
 		description = truncateRunes(week.label()+". "+trimIntroWhitespace(week.Intro), weekDescriptionMax)
 	}
@@ -448,8 +448,8 @@ func changeWeekBody(week changeWeek, lead string) (string, error) {
 	if week.IsDraft {
 		page.Str(`                <span class="tag">Draft -- pending review</span>`).Byte('\n')
 	}
-	page.Str(pageHero(week.label(), lead, "Development update · "+week.Duration, ` id="post-title"`, heroClasses)).Byte('\n')
-	page.Str(`                <p class="post-back"><a href="../">&larr; All development updates</a></p>`).Byte('\n')
+	page.Str(pageHero(week.label(), lead, "Update report · "+week.Duration, ` id="post-title"`, heroClasses)).Byte('\n')
+	page.Str(`                <p class="post-back"><a href="../">&larr; All update reports</a></p>`).Byte('\n')
 	page.Str("            </section>\n")
 	page.Str(`            <section class="blog-post reveal">`).Byte('\n')
 	page.Str(`                <div class="blog-grid">`).Byte('\n')
@@ -516,7 +516,7 @@ func changeWeekMirror(week changeWeek) string {
 
 // changesIndexLead is the paragraph the index hero carries. It is markup rather
 // than plain text, because it names the two neighboring pages as links.
-const changesIndexLead = "What shipped in Ze, newest first: development updates, mined from git " +
+const changesIndexLead = "What shipped in Ze, newest first: update reports, mined from git " +
 	"history and posted to Discord's <code>ze-news</code>. Each update's chips are the areas it " +
 	"touched; click a category to show just the updates that touched it, click again to show " +
 	"everything, or click an update for the full write-up. Ze is pre-release, so the configuration " +
@@ -536,7 +536,7 @@ func changesIndexBody(weeks []changeWeek) string {
 
 	var page textbuf.Buffer
 	page.Reset().Str(`            <section aria-labelledby="changes-title">`).Byte('\n')
-	page.Str(pageHero("Changes.", changesIndexLead, "Development updates", ` id="changes-title"`,
+	page.Str(pageHero("Changes.", changesIndexLead, "Update reports", ` id="changes-title"`,
 		"section-head "+heroClasses)).Byte('\n')
 	page.Str(`                <div class="legend ch-filters reveal" role="group" `).
 		Str(`aria-label="Filter updates by category">`).Byte('\n')
@@ -593,7 +593,7 @@ func changesIndexRow(week changeWeek) string {
 func changesIndexMirror(weeks []changeWeek) string {
 	var mirror textbuf.Buffer
 	mirror.Reset().Str("# Changes\n\n")
-	mirror.Str("What shipped in Ze, newest first: development updates, mined from git history ").
+	mirror.Str("What shipped in Ze, newest first: update reports, mined from git history ").
 		Str("and posted to Discord's `ze-news`. Each update lists the areas it touched; click an update for ").
 		Str("the full write-up. Ze is pre-release, so the configuration syntax can still change, and the ").
 		Str("[roadmap](../roadmap/) tracks the path to a stable release. For the landmark features on a ").
@@ -636,7 +636,7 @@ func changesFeed(weeks []changeWeek) string {
 			built = week.Slug
 		}
 		link := changesURL + week.Slug + "/"
-		description := "Ze development update."
+		description := "Ze update report."
 		if week.Intro != "" {
 			description = trimIntroWhitespace(week.Intro)
 		}
@@ -654,7 +654,7 @@ func changesFeed(weeks []changeWeek) string {
 	feed.Str("    <channel>\n")
 	feed.Str("        <title>").Str(changesFeedTitle).Str("</title>\n")
 	feed.Str("        <link>").Str(changesURL).Str("</link>\n")
-	feed.Str("        <description>Ze development updates, in Zeledon's voice, ").
+	feed.Str("        <description>Ze update reports, in Zeledon's voice, ").
 		Str("mined from git history.</description>\n")
 	feed.Str("        <language>en</language>\n")
 	feed.Str("        <lastBuildDate>").Str(feedDate(built)).Str("</lastBuildDate>\n")

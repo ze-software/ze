@@ -176,7 +176,7 @@ func TestThePageMapTakesItsCountsFromTheFactsSnapshot(t *testing.T) {
 		"7 commands, generated from Ze's live binary",
 		"3 direct packages, generated from go.mod",
 		"36 sections, indexed from live YANG",
-		"9 development updates, what shipped",
+		"9 update reports, what shipped",
 	} {
 		if !strings.Contains(content, fresh) {
 			t.Errorf("the page map does not carry %q", fresh)

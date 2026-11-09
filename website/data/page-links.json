@@ -301,7 +301,7 @@
             {
               "href": "project/changes/",
               "label": "Changes",
-              "desc": "Development updates, newest first."
+              "desc": "Update reports, newest first."
             },
             {
               "href": "project/activity/",
@@ -346,7 +346,7 @@
             {
               "href": "project/changes/",
               "label": "Changes",
-              "desc": "Development updates behind the milestones."
+              "desc": "Update reports behind the milestones."
             },
             {
               "href": "project/activity/",
@@ -401,7 +401,7 @@
             {
               "href": "search/",
               "label": "Site search",
-              "desc": "Search all generated pages and development updates."
+              "desc": "Search all generated pages and update reports."
             },
             {
               "href": "docs/",
@@ -929,7 +929,7 @@
             {
               "href": "search/",
               "label": "Search",
-              "desc": "Find a command, guide, or development update by keyword."
+              "desc": "Find a command, guide, or update report by keyword."
             }
           ]
         }
@@ -1130,7 +1130,7 @@
             {
               "href": "project/changes/",
               "label": "All changes",
-              "desc": "Return to the development update index."
+              "desc": "Return to the update report index."
             },
             {
               "href": "project/milestones/",

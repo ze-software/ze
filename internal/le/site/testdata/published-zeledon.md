@@ -2,15 +2,15 @@ Mascot
 
 # Zeledon.
 
-Ze's mascot, and the voice behind the development updates.
+Ze's mascot, and the voice behind the update reports.
 
  ![Zeledon, the Ze bird mascot](https://ze-software.net/assets/zeledon.svg) Zeledon. `Who is Zeledon?`
 
-Zeledon is Ze's mascot, and also the name for the voice that narrates the project. The development updates in this site's [changelog](https://ze-software.net/project/changes/) and the posts in Ze's Discord `ze-news` channel are written as Zeledon, not as a person: they report what shipped, in plain language, without hype.
+Zeledon is Ze's mascot, and also the name for the voice that narrates the project. The update reports in this site's [changelog](https://ze-software.net/project/changes/) and the posts in Ze's Discord `ze-news` channel are written as Zeledon, not as a person: they report what shipped, in plain language, without hype.
 
 Zeledon never says "I built this". It says "Ze can now do this" -- the project speaks for itself, and whoever is behind the keyboard that week stays out of the sentence.
 
-- [Development updates see Zeledon's voice in the archive](https://ze-software.net/project/changes/)
+- [Update reports see Zeledon's voice in the archive](https://ze-software.net/project/changes/)
 - [Discord: ze-news where updates post first](https://discord.gg/T8s7CjPDne)
 
 ## How Zeledon writes.

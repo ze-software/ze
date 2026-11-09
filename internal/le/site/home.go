@@ -531,7 +531,7 @@ func blogTeaserCards(weeks []changeWeek) string {
 			summary = week.Intro[:paragraphEnd]
 		}
 		if summary == "" {
-			summary = "Development update"
+			summary = "Update report"
 		}
 		var out textbuf.Buffer
 		out.Reset().Str("                    <article class=\"card card-post home-update-card cat-").
