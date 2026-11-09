@@ -1660,7 +1660,17 @@ Red at HEAD, owed an investigation before any break means anything:
   at "assertion 2: wait for NSSA default route from the border router timed
   out" (2m7s, 2m4s, and the restored run of the walk). Either Ze's border
   router does not originate the Type-7 default (`wantsType7Default`,
-  `internal/plugins/ospf/nssa.go`) or the scenario is wrong; not yet traced.
+  `internal/plugins/ospf/nssa.go`) or the scenario is wrong. Traced from the
+  failed run's last output: FRR does hold `0.0.0.0/0` from OSPF (metric 11),
+  so Ze's border router originates it, but the entry is neither selected nor
+  installed, because the FRR container's own Docker default route wins on
+  administrative distance. `checkNSSADefault` (`interoplab/bgp/check_rfc.go`,
+  assertion 2) requires the OSPF default selected and installed via the
+  border router, so it can never pass while the container keeps its Docker
+  default. The repair is environmental: remove the FRR container's default
+  route before the wait, which keeps the assertion intact. Accepting an
+  unselected OSPF default instead would weaken the checker and needs the
+  judge.
 
 Blocked by lab readiness, not product evidence:
 
