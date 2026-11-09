@@ -31,6 +31,11 @@ const (
 // containerRunning is the state `docker inspect` reports for a live container.
 const containerRunning = "running"
 
+// execMissingExitCode is the status `docker exec` answers when the image holds
+// no such program ("executable file not found in $PATH"). A pulled peer image
+// such as FreeRADIUS carries no iproute2, so its namespace reads answer this.
+const execMissingExitCode = 127
+
 // peerDiagnosticSource is what a failed scenario reads from each container it
 // started: the container's state, its log and, while it runs, the
 // devices and addresses its network namespace holds. *Docker serves it.
@@ -56,7 +61,8 @@ var (
 // container that exited, the daemon's log with its first lines, a device that is
 // missing or sits on the wrong VLAN. started holds the containers the run
 // created; a peer whose container never started has nothing to read. Each
-// read that fails is reported in place of its answer, never skipped.
+// read that fails is reported in place of its answer, never skipped; a read
+// whose program the image lacks says so in one line rather than as an error.
 func diagnosePeers(ctx context.Context, source peerDiagnosticSource, peers []PeerConfig, started []string) []string {
 	blocks := make([]string, 0, len(started))
 	for index := range peers {
@@ -102,6 +108,10 @@ func diagnosePeer(ctx context.Context, source peerDiagnosticSource, peer *PeerCo
 	for _, probe := range probes {
 		block.Str("  ").Join(probe, " ").Str(":\n")
 		answer, err := source.Exec(ctx, peer.Container, probe, nil)
+		if err != nil && answer.ExitCode == execMissingExitCode {
+			block.Str("    not read: the image carries no ").Str(probe[0]).Byte('\n')
+			continue
+		}
 		if err != nil {
 			block.Str("    failed: ").Err(err).Byte('\n')
 			continue

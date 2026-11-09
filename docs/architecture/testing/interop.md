@@ -1214,7 +1214,10 @@ container log empty, so the scenario that configures the file declares it
 on its peer (`PeerConfig.LogFiles`, a topology node's `logFiles`), and the
 block then carries `tail -n 40` of each declared file. A checker's verdict names what it waited for; the blocks name why it never
 came, such as a daemon that exited at start or a link device that is
-missing. A read that fails is printed in place of its answer. The container
+missing. A read that fails is printed in place of its answer, and a read
+whose program the image lacks (`docker exec` exit 127, as `ip` in the pulled
+FreeRADIUS image) is printed as one `not read: the image carries no <program>`
+line. The container
 log is read whole (`docker logs --tail all`) and printed whole when it holds
 at most 80 lines; a longer one is printed as its first 40 lines, the error
 lines among the lines cut (a Ze `level=ERROR` record, the `error:` line ze

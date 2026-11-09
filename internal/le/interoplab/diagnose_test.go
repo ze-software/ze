@@ -15,6 +15,9 @@ type fakeDiagnosticSource struct {
 	states map[string]string
 	logs   map[string]string
 	execs  []string
+	// missing names a program the images lack: an Exec of it answers what
+	// `docker exec` answers for an absent executable.
+	missing string
 }
 
 func (f *fakeDiagnosticSource) ContainerState(_ context.Context, name string) (string, error) {
@@ -31,7 +34,35 @@ func (f *fakeDiagnosticSource) LogsWhole(_ context.Context, name string) (LogRes
 
 func (f *fakeDiagnosticSource) Exec(_ context.Context, name string, argv []string, _ []EnvironmentVariable) (CommandResult, error) {
 	f.execs = append(f.execs, name+" "+strings.Join(argv, " "))
+	if argv[0] == f.missing {
+		return CommandResult{ExitCode: execMissingExitCode}, errors.New(`exec: "` + argv[0] + `": executable file not found in $PATH`)
+	}
 	return CommandResult{Stdout: "answer of " + strings.Join(argv, " ") + "\n"}, nil
+}
+
+// TestDiagnosePeerNotesAProgramTheImageLacks proves a namespace read whose
+// program the image does not carry is reported as one line naming the program,
+// not as a failed exec, while the peer's other reads still print their answers.
+// PREVENTS: the FreeRADIUS peer's block printing two OCI "executable file not
+// found" errors for ip, which read as a lab fault beside a checker's verdict.
+// Method: a fake source whose image lacks ip, and one declared log file.
+func TestDiagnosePeerNotesAProgramTheImageLacks(t *testing.T) {
+	source := &fakeDiagnosticSource{
+		states:  map[string]string{"c-radius": "running exit=0 oom=false"},
+		logs:    map[string]string{"c-radius": "Ready to process requests\n"},
+		missing: "ip",
+	}
+	peer := PeerConfig{Name: "server", Container: "c-radius", LogFiles: []string{"/var/log/radius.log"}}
+	block := diagnosePeer(context.Background(), source, &peer)
+	if got := strings.Count(block, "    not read: the image carries no ip\n"); got != 2 {
+		t.Errorf("block notes the missing ip %d times, want once per ip read:\n%s", got, block)
+	}
+	if strings.Contains(block, "failed:") {
+		t.Errorf("a program the image lacks is reported as a failed read:\n%s", block)
+	}
+	if !strings.Contains(block, "answer of tail -n 40 /var/log/radius.log") {
+		t.Errorf("the declared log file is not read after the missing ip:\n%s", block)
+	}
 }
 
 // TestDiagnosePeersNamesTheCause proves a failed scenario's report carries,
