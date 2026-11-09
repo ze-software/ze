@@ -2,6 +2,7 @@
 
 // Design: docs/architecture/dns/lan-resolver.md -- Forwarding: the upstreams the forward dns-source list picks
 // Related: dns_resolver_forward_learned_linux.go -- the scenarios registered below
+// Related: dns_resolver_forward_ppp_lease_linux.go -- the PPPoE lease scenario registered below
 
 package fixture
 
@@ -18,6 +19,9 @@ func init() {
 	Register("plugin/dns-resolver-forward-received",
 		observer02("dns-resolver-forward-received-test", dnsResolverForwardReceived))
 	Register("plugin/dns-resolver-forward-default", dnsResolverForwardDefaultDriver)
+	// The scripted access concentrator brings up the PPPoE lease (AC-6).
+	Register("pppoe/dns-resolver-forward-ppp-lease",
+		observer02("dns-resolver-forward-ppp-lease-test", dnsResolverForwardPPPLease))
 }
 
 // dnsResolverForwardDefaultDriver takes one argument, the config file the
