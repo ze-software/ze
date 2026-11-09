@@ -9,16 +9,29 @@ import (
 	"github.com/ze-software/ze/internal/core/dnssource"
 )
 
+// decodePublication decodes one body the announcer sent.
+func decodePublication(t *testing.T, body string) dnssource.Publication {
+	t.Helper()
+	var publication dnssource.Publication
+	if err := json.Unmarshal([]byte(body), &publication); err != nil {
+		t.Fatalf("body is not a Publication: %v\n%s", err, body)
+	}
+	return publication
+}
+
 // TestResolverPublishesSelectionOnceStarted proves the LAN resolver publishes
 // its forward selection with the addresses it listens on, holds a selection
 // built before the plugin could emit until setAnnouncer, and sends a body
-// only when it changed. Method: apply a config before and after the sender
-// is set, and count the bodies the sender received.
+// only when it changed. Method: report the listener's UDP socket bound, as
+// the harness does, apply a config before and after the sender is set, and
+// count the bodies the sender received.
 func TestResolverPublishesSelectionOnceStarted(t *testing.T) {
 	res := newResolver(time.Now)
 	cfg := defaultConfig()
+	cfg.Enabled = true
 	cfg.Forward = []upstream{{IP: netip.MustParseAddr("198.51.100.53"), Port: defaultPort}}
 	cfg.Listeners = []listenerEndpoint{{Name: "lan", IP: netip.MustParseAddr("192.0.2.1"), Port: defaultPort}}
+	res.onListenerChange(networkUDP, netip.AddrPortFrom(cfg.Listeners[0].IP, cfg.Listeners[0].Port), true)
 	res.apply(&cfg)
 
 	var bodies []string
@@ -53,5 +66,77 @@ func TestResolverPublishesSelectionOnceStarted(t *testing.T) {
 	res.apply(&cfg)
 	if len(bodies) != 2 {
 		t.Fatalf("a changed selection was not sent: %d bodies", len(bodies))
+	}
+}
+
+// TestResolverServesOnlyBoundListeners proves the publication lists a
+// listener address as served only while its UDP socket is bound, so ze doctor
+// warns doctor-dns-source-self-unserved for a self address nothing answers.
+// Method: apply a config naming one listener, then feed the bind and unbind
+// edges the harness reports through OnListenerChange, and read Serves in the
+// body each edge sends.
+//
+// VALIDATES: spec-home-cpe-23b D-6, the resolver's Serves are the addresses
+// it answers on. PREVENTS: a configured but unbound listener read as served.
+func TestResolverServesOnlyBoundListeners(t *testing.T) {
+	res := newResolver(time.Now)
+	cfg := defaultConfig()
+	cfg.Enabled = true
+	listener := listenerEndpoint{Name: "lan", IP: netip.MustParseAddr("192.0.2.1"), Port: defaultPort}
+	listen := netip.AddrPortFrom(listener.IP, listener.Port)
+	cfg.Listeners = []listenerEndpoint{listener}
+	res.apply(&cfg)
+
+	var bodies []string
+	res.setAnnouncer(func(body string) { bodies = append(bodies, body) })
+	serves := func() []netip.Addr {
+		t.Helper()
+		publication := decodePublication(t, bodies[len(bodies)-1])
+		if len(publication.Selections) != 1 {
+			t.Fatalf("publication = %+v, want one selection", publication)
+		}
+		return publication.Selections[0].Serves
+	}
+
+	if got := serves(); len(got) != 0 {
+		t.Fatalf("serves = %v before any socket is bound, want none", got)
+	}
+	res.onListenerChange(networkUDP, listen, true)
+	if got := serves(); len(got) != 1 || got[0] != listener.IP {
+		t.Fatalf("serves = %v once UDP is bound, want [%v]", got, listener.IP)
+	}
+	res.onListenerChange(networkUDP, listen, false)
+	if got := serves(); len(got) != 0 {
+		t.Fatalf("serves = %v once UDP is unbound, want none", got)
+	}
+}
+
+// TestDisabledResolverPublishesNoSelection proves a disabled resolver, which
+// binds nothing, publishes an empty selection set: neither its forward list
+// nor its configured listener addresses. Method: apply a disabled config that
+// names a forward server and a listener, then decode the body sent.
+//
+// VALIDATES: spec-home-cpe-23b, a consumer that answers nobody hands on no
+// selection. PREVENTS: ze doctor reading a disabled resolver's listener as
+// served, or warning doctor-dns-source-empty for it.
+func TestDisabledResolverPublishesNoSelection(t *testing.T) {
+	res := newResolver(time.Now)
+	cfg := defaultConfig()
+	cfg.Enabled = false
+	cfg.Forward = []upstream{{IP: netip.MustParseAddr("198.51.100.53"), Port: defaultPort}}
+	cfg.Listeners = []listenerEndpoint{{Name: "lan", IP: netip.MustParseAddr("192.0.2.1"), Port: defaultPort}}
+	res.apply(&cfg)
+
+	var bodies []string
+	res.setAnnouncer(func(body string) { bodies = append(bodies, body) })
+	if len(bodies) != 1 {
+		t.Fatalf("setAnnouncer sent %d bodies, want 1", len(bodies))
+	}
+	publication := decodePublication(t, bodies[0])
+	if publication.Consumer != resolverConsumer {
+		t.Fatalf("consumer = %q, want %q", publication.Consumer, resolverConsumer)
+	}
+	if publication.Selections == nil || len(publication.Selections) != 0 {
+		t.Fatalf("selections = %#v, want an empty set", publication.Selections)
 	}
 }

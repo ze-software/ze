@@ -265,7 +265,10 @@ the daemon. A consumer emits
 name and one `ConsumerSelection` per list (the config path, the instance it
 belongs to, such as the subnet, the unit or the pool, the sources and mode,
 `default` while the built-in default applies, the classes used, the servers,
-`self`, the servers the `self` class contributed, and for the LAN resolver the addresses it serves DNS on). It publishes its
+`self`, the servers the `self` class contributed, and for the LAN resolver
+`serves`, the listener addresses whose UDP socket is bound now: a configured
+listener that is not bound is not listed, so `ze doctor` warns about a `self`
+address nothing answers on). It publishes its
 whole set after it starts and whenever a selection changes, because the
 registry replaces the consumer's previous set with each publication: a list
 the operator removed leaves by being absent. The registry keys the sets by
@@ -274,7 +277,7 @@ selection stays in the snapshot.
 
 | Consumer | Instance | Published when |
 |----------|----------|----------------|
-| `dns-resolver` | none (one forward list) | a policy build, after start |
+| `dns-resolver` | none (one forward list) | a policy build, after start, and each listener bind or unbind; a disabled resolver publishes an empty set |
 | `dhcpserver` | the subnet prefix | each config install and each fresh snapshot; `self` is the listened device's address inside the subnet |
 | `interface` | `<interface> unit <unit>` | each RA reconcile; the servers are the ones the RDNSS option carries |
 | `l2tp-pool` | none for the default pool, the name for a named pool | joining the bus, each pool install and each fresh snapshot |

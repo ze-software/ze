@@ -96,6 +96,14 @@ func TestDNSSourceDoctorFindings(t *testing.T) {
 	if want := "service dhcp-server subnet dns-source (192.0.2.0/24): hands out 192.0.2.1 through self"; len(got[0].Message) < len(want) || got[0].Message[:len(want)] != want {
 		t.Errorf("self unserved message = %q, want prefix %q", got[0].Message, want)
 	}
+
+	// Disabled resolver: it publishes an empty selection set, binds nothing
+	// and answers nobody, so the self address is unserved and its received
+	// list, which nothing uses, owes no empty finding.
+	disabled := []dnssource.Publication{healthy[0], {Consumer: "dns-resolver", Selections: []dnssource.ConsumerSelection{}}}
+	if got := findingCodes(dnsSourceFindings(snapshot, disabled)); !slices.Equal(got, []string{diagnostic.CodeDoctorDNSSourceSelfUnserved}) {
+		t.Errorf("disabled resolver: findings %v, want [%s]", got, diagnostic.CodeDoctorDNSSourceSelfUnserved)
+	}
 }
 
 // TestDNSSourceDoctorCheckRunsOnlyOnTheDaemonRoute proves the check is

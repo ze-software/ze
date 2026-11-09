@@ -68,6 +68,22 @@ func (s *listenerStates) prune(keep []listenerEndpoint) {
 	}
 }
 
+// serving answers the IP of every listener in listeners whose UDP socket is
+// bound now, in listeners' order: the addresses the resolver answers DNS
+// clients on. A listener whose UDP socket is down or was never reported is
+// not serving, because a client's first query goes over UDP.
+func (s *listenerStates) serving(listeners []listenerEndpoint) []netip.Addr {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []netip.Addr
+	for _, l := range listeners {
+		if s.up[listenerKey{protocol: networkUDP, listen: netip.AddrPortFrom(l.IP, l.Port)}] {
+			out = append(out, l.IP)
+		}
+	}
+	return out
+}
+
 // show returns the state of the sockets bound on listen (the listen IP and
 // port, the form the harness reports), one key per transport:
 // {"udp": "up", "tcp": "down"}. A transport never reported is "unknown",

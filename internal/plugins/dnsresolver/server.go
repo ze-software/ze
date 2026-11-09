@@ -141,13 +141,14 @@ type resolverServer struct {
 //
 // OnListenerChange records each bind and unbind edge, a crashed listener's
 // included, in res.listeners, which show dns resolver and
-// ze_dns_resolver_listener_up read.
+// ze_dns_resolver_listener_up read, and publishes the selection again with
+// the listeners bound now (resolver.onListenerChange).
 func newResolverServer(log *slog.Logger, res *resolver) *resolverServer {
 	return &resolverServer{mgr: dnsserver.New(log, recursiveHandler(log, res), dnsserver.Options{
 		UDPSize:          dnsserver.RecursiveUDPSize,
 		Freebind:         true,
 		TCPConnMax:       resolverTCPConnMax,
-		OnListenerChange: res.listeners.change,
+		OnListenerChange: res.onListenerChange,
 		MsgAcceptFunc:    dnsserver.RecursiveAccept,
 		Signed:           res.signed,
 	})}
