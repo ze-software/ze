@@ -15,9 +15,12 @@
 # it is on the running session.
 #
 # THE TWO HALVES OF THE CLAIM, and why neither alone is enough:
-#   - reject=stderr ike: stopping peer proves nothing was restarted. That string is
-#     logged in exactly one place, the removal loop of reconcilePeers, and shutdown does
-#     not log it.
+#   - reject=stderr ike: stopping peer, before "sighup reload complete", proves nothing
+#     was restarted by the reload. The engine logs the reload marker only after the ike
+#     plugin's apply (and its reconcile) returned. Shutdown also logs "ike: stopping
+#     peer" (stopAllPeers -> stopPeerSession), always after the marker, so the reject
+#     is bounded by it, and expect=stderr sighup reload complete keeps it from passing
+#     on a reload that never completed.
 #   - expect=stderr peer-quiet proves the reload was APPLIED. Without it a SIGHUP that
 #     reached nobody would pass this test by changing nothing at all.
 # The driver adds the kernel half: the ESP SPIs and the tunnel's policies are read before
@@ -218,7 +221,7 @@ vpn {
 EOF_PEER_A
 
 cmd=background:seq=1:exec=env ze_test_ike_dataplane=noop ze -:stdin=peer-b:name=peer-b
-reject=stderr:pattern=ike: stopping peer
+reject=stderr:pattern=(?s)ike: stopping peer.*sighup reload complete
 reject=stderr:pattern=panic recovered
 reject=stderr:pattern=fatal error
 cmd=background:seq=2:exec=ze -:stdin=peer-a:name=peer-a
@@ -231,6 +234,7 @@ expect=stdout:contains=RELOADED:
 expect=stdout:contains=STABLE:
 expect=stdout:contains=POLICY-STABLE:
 expect=stderr:contains=peer-quiet
+expect=stderr:contains=sighup reload complete
 reject=stdout:pattern=BOUNCED
 # signal=term, not the default kill: peer-a's policies are REAL and node-wide, and the
 # release that removes them runs on the way out of runEngine. A SIGKILLed peer-a leaves
@@ -242,4 +246,6 @@ cmd=stop:seq=5:name=peer-b:signal=term
 expect=exit:code=0
 # The reload really happened: peer-quiet exists only in the second config file, and
 # reconcilePeers logs the peer name when it starts the session for it.
-# Nothing was restarted. reconcilePeers' removal loop is the only producer of this line.
+# Nothing was restarted during the reload: the reject above refuses any "ike: stopping
+# peer" logged before "sighup reload complete". Shutdown logs the same line
+# (stopAllPeers -> stopPeerSession), but only after that marker, so it is not refused.
