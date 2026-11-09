@@ -54,7 +54,9 @@ type xfrmInterfaceFacts struct {
 // xfrmInterfaceEntry is one installed SPD entry Ze holds for a bound XFRM interface,
 // the interface it was built for and the job it does, so a failed read of that
 // interface keeps its entries rather than removing them, and install and prune run
-// the roles in their order (xfrmInterfaceRoleOrder).
+// the roles in their order (xfrmInterfaceRoleOrder). Maps hold it by pointer, so a
+// range over them copies no SPParams; an entry is never changed once built, which is
+// what lets a plan and the installed set share one.
 type xfrmInterfaceEntry struct {
 	iface  string
 	role   dataplane.PolicyRole
@@ -222,7 +224,7 @@ func readXFRMInterface(name string) (xfrmInterfaceFacts, error) {
 // SPD entries, and under a DISCARD catch-all the tunnel-source guard of each interface
 // that has an IPv6 address to exempt.
 type xfrmInterfacePlan struct {
-	entries map[spdSelector]xfrmInterfaceEntry
+	entries map[spdSelector]*xfrmInterfaceEntry
 	guards  map[string]sourceGuardSpec
 }
 
@@ -241,7 +243,7 @@ type xfrmInterfacePlan struct {
 // entry built for it would sit in the node-wide SPD. A failed read keeps the interface's
 // guard as held too, while the catch-all discards. The caller holds applyMu.
 func (s *ikeEngineState) planXFRMInterfaceEntries(cfg *ipsec.IPsecConfig) xfrmInterfacePlan {
-	next := make(map[spdSelector]xfrmInterfaceEntry)
+	next := make(map[spdSelector]*xfrmInterfaceEntry)
 	plan := xfrmInterfacePlan{entries: next, guards: make(map[string]sourceGuardSpec)}
 	discards := cfg.Unmatched == dataplane.SPActionDiscard
 	for _, name := range boundXFRMInterfaces(cfg) {
@@ -273,14 +275,14 @@ func (s *ikeEngineState) planXFRMInterfaceEntries(cfg *ipsec.IPsecConfig) xfrmIn
 			// The catch-all names its SPD, and every other entry at this if_id (the
 			// Child SA policies) is named from it when the dataplane is read.
 			p.SPD = name
-			next[selectorOf(&p)] = xfrmInterfaceEntry{iface: name, role: dataplane.PolicyRoleInterfaceCatchAll, params: p}
+			next[selectorOf(&p)] = &xfrmInterfaceEntry{iface: name, role: dataplane.PolicyRoleInterfaceCatchAll, params: p}
 		}
 		if !discards {
 			continue
 		}
 		// RFC 4301 Section 4.4.1: the SPD selection function, by output interface.
 		for _, p := range xfrmInterfaceExemptions(facts) {
-			next[selectorOf(&p)] = xfrmInterfaceEntry{iface: name, role: dataplane.PolicyRoleInterfaceExemption, params: p}
+			next[selectorOf(&p)] = &xfrmInterfaceEntry{iface: name, role: dataplane.PolicyRoleInterfaceExemption, params: p}
 		}
 		if sources := guardSources(name, facts, cfg, s.log); len(sources) > 0 {
 			plan.guards[name] = sourceGuardSpec{iface: name, device: facts.device, ifIndex: facts.ifIndex, ifID: facts.ifID, sources: sources}
@@ -335,7 +337,7 @@ func (s *ikeEngineState) installXFRMInterfaceEntries(dp dataplane.Dataplane, pla
 	}
 	next := plan.entries
 	if s.xfrmEntries == nil {
-		s.xfrmEntries = make(map[spdSelector]xfrmInterfaceEntry)
+		s.xfrmEntries = make(map[spdSelector]*xfrmInterfaceEntry)
 	}
 	noIfIDSPD := catchAllUnsupported(dp)
 	// noFinalEntry names each interface whose catch-all the backend refused in this pass.
@@ -401,7 +403,7 @@ func interfaceCatchAllRefused(noFinalEntry map[string]error) error {
 
 // warnNoInterfaceCatchAll says, once per install pass that has one to place, that the
 // backend keeps no if_id SPD, so no interface catch-all is installed.
-func (s *ikeEngineState) warnNoInterfaceCatchAll(next map[spdSelector]xfrmInterfaceEntry, reason error) {
+func (s *ikeEngineState) warnNoInterfaceCatchAll(next map[spdSelector]*xfrmInterfaceEntry, reason error) {
 	for _, entry := range next {
 		if entry.role != dataplane.PolicyRoleInterfaceCatchAll {
 			continue

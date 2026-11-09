@@ -240,7 +240,7 @@ type ikeEngineState struct {
 	// own catch-all and the if_id 0 exemptions above the node catch-all. Nil until the
 	// first install fills it. Tracked for the reason installedSPD is: an address the
 	// interface lost is removed under the selector it was installed with.
-	xfrmEntries map[spdSelector]xfrmInterfaceEntry
+	xfrmEntries map[spdSelector]*xfrmInterfaceEntry
 
 	// spdApplied records whether this engine reached the SPD writers of its first
 	// apply: the IKE bypass and the catch-all (applyConfig). Ze's SPD appears there and

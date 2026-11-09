@@ -99,7 +99,7 @@ func TestDoctorApplicationOverride(t *testing.T) {
 }
 
 // TestDoctorReportsRefusedDeny proves the doctor names a deny the apply could not
-// honour, carrying the apply's own refusal, and stops once an apply succeeds.
+// put in place, with the apply's own refusal, and stops once an apply succeeds.
 //
 // VALIDATES: overrideRefusal, set by applyApplicationOverride and read by
 // checkIPsecApplicationOverride; the first apply on a host with no cgroup2 mounted
@@ -112,7 +112,7 @@ func TestDoctorReportsRefusedDeny(t *testing.T) {
 		appliedOverride.Store(previous)
 		overrideRefusal.Store(nil)
 	})
-	dp := &socketPolicyDP{bypassDP: bypassDP{guardErr: errors.New("no cgroup2 file system is mounted (mount -t cgroup2 none /sys/fs/cgroup)")}}
+	dp := &socketPolicyDP{guardErr: errors.New("no cgroup2 file system is mounted (mount -t cgroup2 none /sys/fs/cgroup)")}
 	loadFailClosedBackend(t, dp)
 
 	if err := applyApplicationOverride(dp, ipsec.ApplicationOverrideDeny); err == nil {

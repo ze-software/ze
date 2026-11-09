@@ -148,6 +148,7 @@ func TestApplyFailsWhenOverrideGuardCannotAttach(t *testing.T) {
 	for _, want := range []string{
 		"operation not permitted",
 		"CAP_BPF",
+		"Linux 6.10 or later",
 		"mount cgroup2 at /sys/fs/cgroup",
 		"set `vpn ipsec application-override allow`",
 	} {

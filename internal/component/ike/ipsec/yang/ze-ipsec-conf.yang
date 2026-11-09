@@ -156,7 +156,8 @@ module ze-ipsec-conf {
                              deny attaches a setsockopt guard to the cgroup2 root that refuses
                              those four options with EPERM to every process in Ze's network
                              namespace except Ze's own IPsec dataplane, so it needs ze to hold
-                             CAP_BPF and CAP_NET_ADMIN and a cgroup2 mount; a guard that
+                             CAP_BPF and CAP_NET_ADMIN, a cgroup2 mount and Linux 6.10 or
+                             later; a guard that
                              cannot attach fails the commit. allow attaches nothing, and Linux
                              lets any process holding CAP_NET_ADMIN set one. A process holding
                              CAP_NET_ADMIN can still write the SPD itself, which no setsockopt

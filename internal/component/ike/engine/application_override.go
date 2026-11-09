@@ -85,7 +85,8 @@ func attachOverrideGuard(dp dataplane.Dataplane) error {
 	if err != nil {
 		return fmt.Errorf("vpn ipsec application-override deny: Ze could not attach its setsockopt guard to the cgroup2 root (%w). "+
 			"Without it any process holding CAP_NET_ADMIN can exempt its sockets from the IPsec policy. "+
-			"Run ze with CAP_BPF and CAP_NET_ADMIN, mount cgroup2 at /sys/fs/cgroup, "+
+			"Run ze with CAP_BPF and CAP_NET_ADMIN on Linux 6.10 or later (an older kernel refuses the guard's "+
+			"bpf_get_ns_current_pid_tgid call), mount cgroup2 at /sys/fs/cgroup, "+
 			"or set `vpn ipsec application-override allow` to accept that risk", err)
 	}
 	return nil

@@ -120,7 +120,8 @@ func socketPolicyDiagnostics(dp dataplane.Dataplane) []rpc.DoctorCheckDiagnostic
 			Str(selectorString(p.Src)).Str(" to ").Str(selectorString(p.Dst)).
 			Str(") that overrides the SPD for its socket (").Int(int64(total)).
 			Str(" per-socket policies in all). The kernel cannot remove it and does not say which process owns it. " +
-				"Restart the applications started before Ze, or set `vpn ipsec application-override deny` and restart them.")
+				"Restart the applications started before Ze: the policy goes with its socket, and with the guard " +
+				"attached a restarted application cannot set it again.")
 		out = append(out, rpc.DoctorCheckDiagnostic{
 			Code:     diagnostic.CodeDoctorIPsecSocketPolicy,
 			Severity: severityWarning,
@@ -264,10 +265,10 @@ func spdWriters(root string, self int) (spdScan, error) {
 		if ns != own {
 			continue
 		}
-		if cmdline, cmdErr := os.ReadFile(filepath.Join(dir, "cmdline")); cmdErr != nil || len(cmdline) == 0 {
+		if cmdline, cmdErr := os.ReadFile(filepath.Join(dir, "cmdline")); cmdErr != nil || len(cmdline) == 0 { //nolint:gosec // dir is root plus a numeric pid entry, the leaf a constant
 			continue
 		}
-		status, statusErr := os.ReadFile(filepath.Join(dir, "status"))
+		status, statusErr := os.ReadFile(filepath.Join(dir, "status")) //nolint:gosec // dir is root plus a numeric pid entry, the leaf a constant
 		if statusErr != nil {
 			scan.unreadable += hiddenProcess(statusErr)
 			continue
@@ -275,7 +276,7 @@ func spdWriters(root string, self int) (spdScan, error) {
 		if !statusHasCap(string(status), capNetAdmin) {
 			continue
 		}
-		comm, commErr := os.ReadFile(filepath.Join(dir, "comm"))
+		comm, commErr := os.ReadFile(filepath.Join(dir, "comm")) //nolint:gosec // dir is root plus a numeric pid entry, the leaf a constant
 		name := strings.TrimSpace(string(comm))
 		if commErr != nil || name == "" {
 			name = "unknown command"

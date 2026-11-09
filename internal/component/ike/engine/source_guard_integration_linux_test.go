@@ -11,7 +11,7 @@
 //     leave; the nft postrouting drop stops it.
 //
 // The instrument is the WAN device's transmit counter: a dummy device transmits every
-// packet routed to it without neighbour discovery, and nft postrouting runs before.
+// packet routed to it without neighbor discovery, and nft postrouting runs before.
 // PREVENTS: the residual the IPv6 source BYPASS left, an IPv6 packet from a tunnel
 // address leaving another interface in the clear.
 
@@ -82,10 +82,10 @@ func guardTestRoute(t *testing.T, route *netlink.Route) {
 // preferred source. It answers the XFRM interface's index.
 func guardTestTopology(t *testing.T) int {
 	t.Helper()
-	if err := netlink.LinkAdd(&netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: guardTestWAN}}); err != nil {
+	if err := netlink.LinkAdd(&netlink.Dummy{Name: guardTestWAN}); err != nil {
 		t.Fatalf("add %s: %v", guardTestWAN, err)
 	}
-	if err := netlink.LinkAdd(&netlink.Xfrmi{LinkAttrs: netlink.LinkAttrs{Name: guardTestXFRMI}, Ifid: guardTestIfID}); err != nil {
+	if err := netlink.LinkAdd(&netlink.Xfrmi{Name: guardTestXFRMI, Ifid: guardTestIfID}); err != nil {
 		t.Fatalf("add %s: %v", guardTestXFRMI, err)
 	}
 	wan, xfrmi := guardTestLink(t, guardTestWAN), guardTestLink(t, guardTestXFRMI)
