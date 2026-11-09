@@ -188,11 +188,11 @@ func (e *externalEffects) expressionValue(source sourceExpr, possible bool, dept
 		result.join(child(value.Y))
 		return result
 	case *ast.IndexExpr:
-		result := child(value.X)
-		result.join(e.indexArgument(sourceExpr{value: value.Index, file: source.file, pkg: source.pkg}, possible, depth+1))
-		result.fields = nil
-		result.unresolvedFields = "indexed element field ownership requires a retained element summary"
-		return result
+		// The read holds one stored element: its proved population lends the
+		// field names, or the obligation stays (indexedValue).
+		collection := child(value.X)
+		key := e.indexArgument(sourceExpr{value: value.Index, file: source.file, pkg: source.pkg}, possible, depth+1)
+		return e.indexedValue(source, value, collection, key, depth)
 	case *ast.SliceExpr:
 		result := child(value.X)
 		result.join(child(value.Low))

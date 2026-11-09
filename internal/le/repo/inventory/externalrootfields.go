@@ -10,9 +10,9 @@ import (
 // of the capability union carried by interface alternatives or child values.
 // Indexed element fields need a separate value summary; they cannot borrow a
 // type-only empty callback field after collection flattening. A range
-// variable's value slot owns its element type only once rangeElements proves
-// the collection's whole element population, whose stored values then carry
-// the actual field values (rangedValue).
+// variable's value slot, and an index expression, own their element type only
+// once the collection's whole element population is proved, whose stored
+// values then carry the actual field values (rangedValue, indexedValue).
 func (e *externalEffects) fieldReceiverType(source sourceExpr, depth int) (sourceExpr, string) {
 	if depth >= 128 {
 		return sourceExpr{}, "root field ownership exceeds 128 source steps"
@@ -41,7 +41,7 @@ func (e *externalEffects) fieldReceiverType(source sourceExpr, depth int) (sourc
 	case *ast.StarExpr:
 		return child(value.X)
 	case *ast.IndexExpr:
-		return sourceExpr{}, "indexed element field ownership requires a retained element summary"
+		return e.indexedReceiverType(source, value, depth+1)
 	case *ast.CallExpr:
 		callee := sourceExpr{value: value.Fun, file: source.file, pkg: source.pkg}
 		if e.conversion(callee) {
@@ -87,6 +87,46 @@ func (e *externalEffects) fieldReceiverType(source sourceExpr, depth int) (sourc
 		return sourceExpr{}, "root field initializer ownership is unresolved"
 	}
 	return e.fieldReceiverType(initializer, depth+1)
+}
+
+// indexedElementType answers the declared element type of an index
+// expression from its operand's static type. Go specification, "Index
+// expressions": for an array "a[x] is the array element at index x and the
+// type of a[x] is the element type of A", for a pointer to an array "a[x] is
+// shorthand for (*a)[x]", for a slice "a[x] is the slice element at index x
+// and the type of a[x] is the element type of S", and for a map the type of
+// a[x] "is the element type of M". A string element is a byte, never a
+// struct, and a generic instantiation or a type parameter holds no element
+// this proof names, so each of those refuses.
+func (e *externalEffects) indexedElementType(source sourceExpr, index *ast.IndexExpr, depth int) (sourceExpr, string) {
+	operand, known := e.resolver.valueType(sourceExpr{value: index.X, file: source.file, pkg: source.pkg}, depth+1)
+	if !known {
+		return sourceExpr{}, "indexed collection type is unresolved"
+	}
+	shape, known := e.resolver.underlyingType(operand, depth+1)
+	if !known {
+		return sourceExpr{}, "indexed collection type is unresolved"
+	}
+	if pointer, indirect := shape.value.(*ast.StarExpr); indirect {
+		shape, known = e.resolver.underlyingType(sourceExpr{value: pointer.X, file: shape.file, pkg: shape.pkg}, depth+1)
+		if !known {
+			return sourceExpr{}, "indexed array type is unresolved"
+		}
+		array, isArray := shape.value.(*ast.ArrayType)
+		if !isArray {
+			return sourceExpr{}, "indexed pointer does not point to an array"
+		}
+		if array.Len == nil {
+			return sourceExpr{}, "indexed pointer does not point to an array"
+		}
+	}
+	switch kind := shape.value.(type) {
+	case *ast.ArrayType:
+		return sourceExpr{value: kind.Elt, file: shape.file, pkg: shape.pkg}, ""
+	case *ast.MapType:
+		return sourceExpr{value: kind.Value, file: shape.file, pkg: shape.pkg}, ""
+	}
+	return sourceExpr{}, "indexed operand is not an array, slice or map"
 }
 
 func (e *externalEffects) declaredFieldType(datatype sourceExpr, name string, depth int) (sourceExpr, string) {

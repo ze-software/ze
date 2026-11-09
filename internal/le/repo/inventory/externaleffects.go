@@ -110,6 +110,14 @@ type externalEffects struct {
 	// range variable, so formal provenance can reach its collection.
 	rangeIndexes   map[*sourcePackage]*externalRangeUses
 	rangeVariables map[*ast.Object]sourceExpr
+	// indexedRound holds, for each indexed collection (its variable, or the
+	// index expression when it is no variable), the reason its element
+	// population is not proved this round, empty once proved; beginRound
+	// clears it. indexedElements holds the element value each proved
+	// collection has joined so far, monotone across rounds, as bindings holds
+	// a range variable's (indexedValue).
+	indexedRound    map[any]string
+	indexedElements map[any]externalValue
 }
 
 func newExternalEffects(source *externalSource) *externalEffects {
@@ -136,6 +144,8 @@ func newExternalEffects(source *externalSource) *externalEffects {
 		formalInvalid:   make(map[ast.Node]string),
 		rangeIndexes:    make(map[*sourcePackage]*externalRangeUses),
 		rangeVariables:  make(map[*ast.Object]sourceExpr),
+		indexedRound:    make(map[any]string),
+		indexedElements: make(map[any]externalValue),
 	}
 }
 
@@ -440,7 +450,7 @@ func (e *externalEffects) assignment(statement *ast.AssignStmt, scope sourceExpr
 			}
 		}
 		target := sourceExpr{value: left, file: scope.file, pkg: scope.pkg}
-		location := e.value(target, possible, 0)
+		location := e.storeLocation(target, possible)
 		if len(location.locations) == 0 {
 			// Sited at the target, never the file: a file-start position
 			// orders first and would mask the target's own reason.
@@ -521,7 +531,7 @@ func (e *externalEffects) statements(node ast.Node, scope sourceExpr, owner ast.
 			e.writes[object] = target
 			return
 		}
-		location := e.value(target, possible, 0)
+		location := e.storeLocation(target, possible)
 		if len(location.locations) == 0 {
 			e.problem(target, "increment location ownership is unresolved")
 			return
@@ -557,12 +567,13 @@ func (e *externalEffects) statements(node ast.Node, scope sourceExpr, owner ast.
 }
 
 // beginRound resets the per-round state of the fixpoint: the change flag, the
-// round's preferred failure, and the read cache, whose answers hold only for
-// the round that filled them.
+// round's preferred failure, the read cache and the indexed population
+// answers, whose answers hold only for the round that filled them.
 func (e *externalEffects) beginRound() {
 	e.changed = false
 	e.failure = nil
 	clear(e.readCache)
+	clear(e.indexedRound)
 	if e.counters != nil {
 		e.counters.fixpointRounds++
 	}
@@ -628,4 +639,52 @@ func (e *externalEffects) namedResults(node ast.Node, source sourceExpr) {
 		e.returns[node] = result
 		e.changed = true
 	}
+}
+
+// storeLocation answers the locations a store to target writes: those its
+// value names, or, for a direct field of a collection element (x[i].f, or p.f
+// through p := &x[i]), the collection's storage (addressStorage). Only that
+// write may take the holder's storage, because the element population proof
+// records it as a source of field f (externalFieldStore), so a field read of
+// the element sees it; the storage keeps it in the collection's flattened
+// union for every other reader. Any other field write (s.f on a struct
+// variable, x[i].p.f through a pointer field) would reach only that union,
+// which a field read never consults, so it keeps naming no location and
+// refuses. An unknown value keeps its reason.
+func (e *externalEffects) storeLocation(target sourceExpr, possible bool) externalValue {
+	location := e.value(target, possible, 0)
+	if len(location.locations) == 0 && location.unknown == "" && externalElementFieldTarget(target) {
+		if storage, reason := e.addressStorage(target, possible, 0); reason == "" {
+			location.join(storage)
+		}
+	}
+	return location
+}
+
+// externalElementFieldTarget reports whether target is a direct field of a
+// collection element: x[i].f, or p.f where p's one declaration is p := &x[i].
+func externalElementFieldTarget(target sourceExpr) bool {
+	selector, selected := ast.Unparen(target.value).(*ast.SelectorExpr)
+	if !selected {
+		return false
+	}
+	switch holder := ast.Unparen(selector.X).(type) {
+	case *ast.IndexExpr:
+		return true
+	case *ast.Ident:
+		if holder.Obj == nil {
+			return false
+		}
+		assignment, assigned := holder.Obj.Decl.(*ast.AssignStmt)
+		if !assigned || assignment.Tok != token.DEFINE || len(assignment.Lhs) != 1 || len(assignment.Rhs) != 1 {
+			return false
+		}
+		address, addressed := ast.Unparen(assignment.Rhs[0]).(*ast.UnaryExpr)
+		if !addressed || address.Op != token.AND {
+			return false
+		}
+		_, indexed := ast.Unparen(address.X).(*ast.IndexExpr)
+		return indexed
+	}
+	return false
 }

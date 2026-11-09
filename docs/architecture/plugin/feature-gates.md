@@ -465,26 +465,75 @@ the analyzer proves the collection's whole element population. Go defines the
 second iteration value as `a[i]` or `m[k]`, so the slot holds exactly the
 stored elements, and a field read from it is the join of that field across
 every value proved stored into the collection: its literal elements, element
-stores (`m[k] = v`), `append` arguments, and the populations of the variables
-and unexported struct fields it is assigned from. The proof reads syntax and
-exact declaration identities only, from a per-package occurrence index, and
-refuses with `ranged element field ownership requires a retained element
-summary: <reason>` whenever an occurrence could change the population in a way
-no source shows: the collection is a parameter, an exported variable or field,
-a range variable, or a call result; it is aliased other than along the
-assignment the proof followed; it is passed to a call in a body the walk has
-scheduled; an element's address, method or field is written in place; or a
-type alias, defined type, conversion or positional literal could name the same
-field. A call in a body no execution reached cannot run, as everywhere in the
-walk, and the fixed point revisits the proof once the body is scheduled. The
-slot's value also joins the collection's whole flattened union and the element
-type's methods, so whole-element exposure still sees every retained callback;
-only the proved elements lend field names. An empty proved population is a
-real answer: the body never runs. The key slot, channel ranges and function
-iterators keep the obligation.
+stores (`m[k] = v`), `append` arguments, in-place field writes, and the
+populations of the variables and unexported struct fields it is assigned
+from. An in-place field write `x[i].f = v` or `x[i].f op= v` stores `v` into
+field `f` alone, so it lends that one field and the element's other fields
+come from the sources that stored whole elements; `x[i].f++` stores nothing.
+The store itself is placed in the collection's storage, so the collection's
+flattened union keeps the value for every other reader. Only a direct field
+of an element (`x[i].f`, or `p.f` through `p := &x[i]`) is placed that way,
+because only that write is also a field source. Any other field write whose
+own value names no location, `s.f` on a struct variable or `x[i].p.f`
+through a pointer field to an anonymous allocation, refuses as an unresolved
+assignment location: its value would reach only the holder's flattened
+union, which a field read never consults.
+A chain below a field, `x[i].f.g` or `x[i].f[j]` (and `p.f.g` through an
+element pointer), is judged by the declared type of `f` in the element's
+retained struct. When `f` is a pointer, map, slice, channel, function or
+interface, a write below it lands on the referent, which the ordinary
+location model judges, and a basic-typed `f` has nothing below it to write.
+When `f` is a struct or array value, or its type is unresolved, the chain is
+stored inline in the element, and the proof does not model a nested store: a
+chain that is assigned, op-assigned, incremented, has its address taken, is
+sliced, has a method called on it, or reaches past the four enclosing nodes
+the occurrence index keeps refuses (`collection element field f is written
+below the field` and its siblings). Any other context reads the chain, so
+`states[0].inner.hook` is the join of `inner.hook` across the stored elements.
+A reslice or an `append` assigned back to the same variable (`x = x[:n]`,
+`x = append(x, v)`) keeps the population: a slice of `x` shares its
+underlying array. An element address is admitted only as the single
+right-hand side of a `:=` that defines one fresh pointer, `p := &x[i]`, and
+only while every occurrence of `p` reads or writes a direct field of the
+element (`p.f`, `p.f.g`, a method call on `p.f`), increments one, or compares
+`p`: each field write through `p` is an in-place field write, a closure's
+included. The proof reads syntax and exact declaration identities only, from
+a per-package occurrence index, and refuses with `ranged element field
+ownership requires a retained element summary: <reason>` whenever an
+occurrence could change the population in a way no source shows: the
+collection is a parameter, an exported variable or field, a range variable, or
+a call result; it is aliased other than along the assignment the proof
+followed; it is passed to a call in a body the walk has scheduled; an
+element's address escapes other than into such a pointer, or its method is
+called; the pointer is passed to a call, stored, returned, reassigned,
+dereferenced, has its address taken, or selects a method or anything but a
+direct field; or a type alias, defined type, conversion or positional literal
+could name the same field. A call in a body no execution reached cannot run,
+as everywhere in the walk, and the fixed point revisits the proof once the
+body is scheduled. The slot's value also joins the collection's whole
+flattened union and the element type's methods, so whole-element exposure
+still sees every retained callback; only the proved elements lend field
+names. An empty proved population is a real answer: the body never runs. The
+key slot, channel ranges and function iterators keep the obligation.
 
-<!-- source: internal/le/repo/inventory/externalrangeelements.go -- rangeElements, rangedValue, rangedReceiverType, rangedProof -->
+An index expression `x[k]` over a slice, array, pointer to array or map
+whose element is a retained struct, or a pointer to one, has the same
+summary: Go defines `a[x]` as the element at index or key `x`, so the read
+holds one stored element. Its value is the collection's and the key's
+flattened union joined with every proved element value, and its receiver type
+is the declared element type, so `p := &states[len(states)-1]; p.mi` and
+`states[0].hook` read the fields every stored element carries. Every read of
+one collection variable shares one answer per fixed-point round and one
+element value that grows across rounds, so a swap `a[i], a[j] = a[j], a[i]`,
+whose sources read the same collection, takes the value joined so far.
+Otherwise the read refuses with `indexed element field ownership requires a
+retained element summary: <reason>`, the same reasons as above.
+
+<!-- source: internal/le/repo/inventory/externalrangeelements.go -- rangeElements, rangedValue, rangedReceiverType, rangedProof, indexedValue, indexedReceiverType, externalElementWalk.pointer, externalFieldStore, externalElementPointer, externalAssignedInPlace, externalElementWalk.belowElementField, externalEffects.belowField, externalEffects.fieldHoldsReference, externalBelowField -->
 <!-- source: internal/le/repo/inventory/externalrangeuses.go -- rangeUses, rangeFieldIdentity, rangeLiteralType -->
+<!-- source: internal/le/repo/inventory/externalrootfields.go -- externalEffects.fieldReceiverType, externalEffects.indexedElementType -->
+<!-- source: internal/le/repo/inventory/externalexpressions.go -- externalEffects.value -->
+<!-- source: internal/le/repo/inventory/externaleffects.go -- externalEffects.storeLocation, externalElementFieldTarget -->
 A channel is modelled as the same kind of reference container as a slice,
 whatever its direction (`chan T`, `chan<- T`, `<-chan T`): its possible contents
 are the flattened capability of its element type. A send stores the flattened

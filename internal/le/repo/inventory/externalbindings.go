@@ -103,7 +103,7 @@ func (e *externalEffects) indirectStores() {
 		if e.amb.unknown != "" {
 			return
 		}
-		location := e.value(store.target, true, 0)
+		location := e.storeLocation(store.target, true)
 		if e.amb.unknown != "" {
 			return
 		}

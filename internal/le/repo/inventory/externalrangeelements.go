@@ -21,15 +21,24 @@ const (
 )
 
 // externalElementSource is one expression the analysis proves is stored into
-// a ranged collection's elements: a literal element, an element store, an
-// append argument. A literal element keeps its enclosing collection layout,
-// so an element that elides its type is evaluated under the type the
+// a collection's elements: a literal element, an element store, an append
+// argument, or the value an in-place field write stores into one field of an
+// element (field set). A literal element keeps its enclosing collection
+// layout, so an element that elides its type is evaluated under the type the
 // enclosing literal states, as the capability walk evaluates it there.
 type externalElementSource struct {
 	source sourceExpr
 	owner  ast.Node
 	layout *externalLiteralLayout
+	// field names the element field an in-place write x[i].f = v, x[i].f op= v
+	// or p.f = v through p := &x[i] sets; source is then v. Empty for a
+	// whole-element source.
+	field string
 }
+
+// externalIndexedObligation is the root-selector obligation an indexed read
+// carries until its collection's element population is proved.
+const externalIndexedObligation = "indexed element field ownership requires a retained element summary"
 
 // externalRangeVariable answers the defining range clause of a range
 // variable: go/parser binds both iteration variables to a synthetic short
@@ -68,7 +77,8 @@ func externalRangeVariable(object *ast.Object) (*ast.AssignStmt, *ast.UnaryExpr,
 // chooses; neither is summarized here, and a channel keeps its received-element
 // obligation. The population is proved from syntax and exact declaration
 // identities only: a collection that escapes, comes from a call result, or is
-// filled through an alias the proof cannot follow refuses. An empty proved
+// filled through an alias the proof cannot follow refuses. An index
+// expression reads one element of the same population (indexedValue). An empty proved
 // population is a real answer: the range body never runs, so no element value
 // is invented and none is needed.
 func (e *externalEffects) rangeElements(object *ast.Object, variable sourceExpr, depth int) ([]externalElementSource, string) {
@@ -139,8 +149,15 @@ func (e *externalEffects) rangedValue(object *ast.Object, source sourceExpr, col
 
 // elementValue evaluates one proved element source in its producer's
 // execution mode, never its consumer's, as readObject evaluates a definition.
+// A field write's value lands in that one field: its fields table holds only
+// that field, and the element's other fields come from the sources that
+// stored the whole element, so the join holds every value the field can have.
 func (e *externalEffects) elementValue(element externalElementSource, depth int) externalValue {
 	possible := e.definitionPossible(externalDefinition{source: element.source, owner: element.owner})
+	if element.field != "" {
+		stored := e.value(element.source, possible, depth+1)
+		return externalValue{fields: map[string]externalValue{element.field: stored}}
+	}
 	if element.layout != nil {
 		return e.literalElement(element.source, element.source.value, *element.layout, false, possible, depth)
 	}
@@ -158,6 +175,126 @@ func (e *externalEffects) rangedReceiverType(object *ast.Object, source sourceEx
 	datatype, known := e.resolver.valueType(source, depth)
 	if !known {
 		return sourceExpr{}, "ranged element type is unresolved"
+	}
+	if pointer, indirect := ast.Unparen(datatype.value).(*ast.StarExpr); indirect {
+		datatype.value = pointer.X
+	}
+	return datatype, ""
+}
+
+// indexedValue is the value an index expression x[k] reads. Go specification,
+// "Index expressions": for an array "a[x] is the array element at index x and
+// the type of a[x] is the element type of A", for a slice "a[x] is the slice
+// element at index x and the type of a[x] is the element type of S", and for
+// a map "a[x] is the map element with key x and the type of a[x] is the
+// element type of M" (or the zero value when no entry exists). The read
+// therefore holds exactly one stored element, as a range variable's value
+// slot does, so it carries the same summary: the collection's and the key's
+// whole flattened capability union, so no retained callback is lost, joined
+// with every proved element value, which alone lends field names. Only a
+// collection of retained structs (or pointers to them) is summarized: no
+// other element has a field to read. A population that is not proved keeps
+// the root-selector obligation with its reason.
+//
+// All reads of one collection variable share one population, so they share
+// one per-round answer (indexedRound, which beginRound clears) and one
+// monotone element value (indexedElements). A read the element sources make
+// of the same collection, such as the swap a[i], a[j] = a[j], a[i], finds the
+// round's answer already started and takes the element value joined so far;
+// the next fixed-point round revisits it, as rangedValue does through
+// reading.
+func (e *externalEffects) indexedValue(source sourceExpr, index *ast.IndexExpr, collection, key externalValue, depth int) externalValue {
+	result := externalFlat(collection, 0)
+	result.join(externalFlat(key, 0))
+	if collection.unresolvedFields != "" {
+		// The collection came through a selector the analysis could not own,
+		// so its elements cannot be summarized either.
+		result.unresolvedFields = externalIndexedObligation + ": " + collection.unresolvedFields
+		return result
+	}
+	identity := e.indexedIdentity(source, index)
+	if reason, started := e.indexedRound[identity]; started {
+		if reason != "" {
+			result.unresolvedFields = externalIndexedObligation + ": " + reason
+			return result
+		}
+		result.join(e.indexedElements[identity])
+		return result
+	}
+	elements, reason := e.indexedElementSources(source, index, depth)
+	e.indexedRound[identity] = reason
+	if reason != "" {
+		result.unresolvedFields = externalIndexedObligation + ": " + reason
+		return result
+	}
+	var held externalValue
+	for _, element := range elements {
+		held.join(e.elementValue(element, depth))
+		if e.amb.unknown != "" {
+			return externalValue{unknown: e.amb.unknown}
+		}
+	}
+	current := e.indexedElements[identity]
+	if current.join(held) {
+		e.indexedElements[identity] = current
+		e.changed = true
+	}
+	result.join(held)
+	return result
+}
+
+// indexedIdentity names the population an index expression reads: the
+// collection variable, which every read of it shares, or the index expression
+// itself when the collection is no variable.
+func (e *externalEffects) indexedIdentity(source sourceExpr, index *ast.IndexExpr) any {
+	if object := e.object(sourceExpr{value: ast.Unparen(index.X), file: source.file, pkg: source.pkg}); object != nil {
+		return object
+	}
+	return index
+}
+
+// indexedElementSources answers the proved element population an index
+// expression reads from, or the reason it is not proved. The element must be
+// a retained struct, or a pointer to one, for any field to be read from it.
+func (e *externalEffects) indexedElementSources(source sourceExpr, index *ast.IndexExpr, depth int) ([]externalElementSource, string) {
+	element, reason := e.indexedElementType(source, index, depth+1)
+	if reason != "" {
+		return nil, reason
+	}
+	if pointer, indirect := ast.Unparen(element.value).(*ast.StarExpr); indirect {
+		element.value = pointer.X
+	}
+	layout, reason := e.literalLayout(element, depth+1, false)
+	if reason != "" {
+		return nil, "indexed element layout is unresolved: " + reason
+	}
+	if layout.kind != externalLiteralStruct {
+		return nil, "indexed element is not a retained struct"
+	}
+	walk := externalElementWalk{effects: e, visited: make(map[any]bool)}
+	return walk.collection(sourceExpr{value: index.X, file: source.file, pkg: source.pkg}, nil, depth+1)
+}
+
+// indexedReceiverType answers the static element type of an index
+// expression, once its collection's element population is proved, as
+// rangedReceiverType answers a range variable's. A pointer element type
+// selects the fields of the struct it points to. Go specification,
+// "Selectors": "For a value x of type T or *T where T is not a pointer or
+// interface type, x.f denotes the field or method at the shallowest depth in
+// T where there is such an f." The round's population answer is read when
+// indexedValue already gave it; otherwise the proof runs without recording
+// one, because only indexedValue evaluates and records the element values.
+func (e *externalEffects) indexedReceiverType(source sourceExpr, index *ast.IndexExpr, depth int) (sourceExpr, string) {
+	reason, answered := e.indexedRound[e.indexedIdentity(source, index)]
+	if !answered {
+		_, reason = e.indexedElementSources(source, index, depth)
+	}
+	if reason != "" {
+		return sourceExpr{}, externalIndexedObligation + ": " + reason
+	}
+	datatype, reason := e.indexedElementType(source, index, depth+1)
+	if reason != "" {
+		return sourceExpr{}, externalIndexedObligation + ": " + reason
 	}
 	if pointer, indirect := ast.Unparen(datatype.value).(*ast.StarExpr); indirect {
 		datatype.value = pointer.X
@@ -228,8 +365,14 @@ func (w *externalElementWalk) collection(source sourceExpr, owner ast.Node, dept
 			return nil, "ranged collection is another package's variable"
 		}
 		return w.field(source, value, depth+1)
+	case *ast.SliceExpr:
+		// Go specification, "Slice expressions": "Otherwise, if the result is
+		// a slice, it shares its underlying array with the operand." Every
+		// element of x[lo:hi] is an element of x, so its population is x's.
+		operand := sourceExpr{value: value.X, file: source.file, pkg: source.pkg}
+		return w.collection(operand, owner, depth+1)
 	}
-	return nil, "ranged collection source is not a retained variable, field, literal, make or append"
+	return nil, "ranged collection source is not a retained variable, field, literal, make, append or reslice"
 }
 
 // literal answers a collection literal's elements. Its keys are not elements.
@@ -339,7 +482,7 @@ func (w *externalElementWalk) identity(object *ast.Object, link sourceExpr, dept
 	// an address, or an argument to a call that can run.
 	var elements []externalElementSource
 	for _, use := range e.rangeUses(link.pkg).objects[object] {
-		stored, reason := w.use(use, object, link.value, false, depth+1)
+		stored, reason := w.use(use, link.value, false, depth+1)
 		if reason != "" {
 			return nil, reason
 		}
@@ -390,7 +533,7 @@ func (w *externalElementWalk) field(source sourceExpr, selector *ast.SelectorExp
 		if other != identity {
 			continue
 		}
-		stored, reason := w.use(use, nil, source.value, true, depth+1)
+		stored, reason := w.use(use, source.value, true, depth+1)
 		if reason != "" {
 			return nil, reason
 		}
@@ -426,13 +569,15 @@ func (w *externalElementWalk) field(source sourceExpr, selector *ast.SelectorExp
 }
 
 // use admits one occurrence of a summarized collection, and answers the
-// element sources it stores. An occurrence that can change the population in
-// a way no source shows refuses: an alias other than link, an element whose
-// address or method escapes, a call that receives the collection where that
-// call can run. A call in a body no execution has reached cannot run, the
-// same rule the capability walk applies to every call; the fixed point
-// revisits this proof once that body is scheduled.
-func (w *externalElementWalk) use(use externalRangeUse, object *ast.Object, link ast.Node, field bool, depth int) ([]externalElementSource, string) {
+// element sources it stores. A reslice or an append assigned back to the same
+// variable keeps the population, and an element address bound to one fresh
+// pointer adds that pointer's field writes. An occurrence that can change the
+// population in a way no source shows refuses: an alias other than link, an
+// element whose address or method escapes, a call that receives the
+// collection where that call can run. A call in a body no execution has
+// reached cannot run, the same rule the capability walk applies to every
+// call; the fixed point revisits this proof once that body is scheduled.
+func (w *externalElementWalk) use(use externalRangeUse, link ast.Node, field bool, depth int) ([]externalElementSource, string) {
 	occurrence := use.occurrence()
 	scope := sourceExpr{file: use.file, pkg: use.pkg}
 	switch parent := use.parents[0].(type) {
@@ -466,13 +611,27 @@ func (w *externalElementWalk) use(use externalRangeUse, object *ast.Object, link
 		}
 	case *ast.IndexExpr:
 		if parent.X == occurrence {
+			if pointer, bound := externalElementPointer(use, parent); bound {
+				return w.pointer(use, parent, pointer, depth+1)
+			}
+			if reason := w.belowElementField(use, parent, depth+1); reason != "" {
+				return nil, reason
+			}
 			return externalElementAccess(use, parent)
+		}
+	case *ast.SliceExpr:
+		// x = x[lo:hi] only drops elements, and the definitions index already
+		// holds the right-hand side, as for append in place.
+		if parent.X == occurrence {
+			if externalAssignedInPlace(w.effects, use, parent) {
+				return nil, ""
+			}
 		}
 	case *ast.BinaryExpr:
 		// A comparison with nil reads no element.
 		return nil, ""
 	case *ast.CallExpr:
-		return w.argument(use, parent, object, occurrence)
+		return w.argument(use, parent, occurrence)
 	}
 	if occurrence == link {
 		return nil, ""
@@ -484,7 +643,7 @@ func (w *externalElementWalk) use(use externalRangeUse, object *ast.Object, link
 // never add an element, and to append when the result is assigned back to the
 // same variable, which the definitions index already holds. Any other callee
 // can store into the collection, so the call refuses wherever it can run.
-func (w *externalElementWalk) argument(use externalRangeUse, call *ast.CallExpr, object *ast.Object, occurrence ast.Expr) ([]externalElementSource, string) {
+func (w *externalElementWalk) argument(use externalRangeUse, call *ast.CallExpr, occurrence ast.Expr) ([]externalElementSource, string) {
 	e := w.effects
 	if call.Fun == occurrence {
 		return nil, "ranged collection is called"
@@ -501,7 +660,7 @@ func (w *externalElementWalk) argument(use externalRangeUse, call *ast.CallExpr,
 		case externalBuiltinAppend:
 			if len(call.Args) != 0 {
 				if call.Args[0] == occurrence {
-					if externalAppendsInPlace(e, use, call, object) {
+					if externalAssignedInPlace(e, use, call) {
 						return nil, ""
 					}
 				}
@@ -533,9 +692,15 @@ func externalRangeConversion(use externalRangeUse) bool {
 	return false
 }
 
-// externalAppendsInPlace answers whether append(x, ...) is assigned back to x.
-func externalAppendsInPlace(e *externalEffects, use externalRangeUse, call *ast.CallExpr, object *ast.Object) bool {
-	if object == nil {
+// externalAssignedInPlace answers whether an operation on the variable x the
+// occurrence names, append(x, ...) or the reslice x[lo:hi], is assigned back
+// to x itself. A field occurrence is never such a variable.
+func externalAssignedInPlace(e *externalEffects, use externalRangeUse, operation ast.Expr) bool {
+	if use.selector != nil {
+		return false
+	}
+	target := e.object(sourceExpr{value: use.node, file: use.file, pkg: use.pkg})
+	if target == nil {
 		return false
 	}
 	assignment, assigned := use.parents[1].(*ast.AssignStmt)
@@ -546,20 +711,23 @@ func externalAppendsInPlace(e *externalEffects, use externalRangeUse, call *ast.
 		return false
 	}
 	for index, right := range assignment.Rhs {
-		if right != call {
+		if right != operation {
 			continue
 		}
-		return e.object(sourceExpr{value: assignment.Lhs[index], file: use.file, pkg: use.pkg}) == object
+		return e.object(sourceExpr{value: assignment.Lhs[index], file: use.file, pkg: use.pkg}) == target
 	}
 	return false
 }
 
 // externalElementAccess admits an indexed element. A read does not change
 // the population; a pointer element read out of it is then judged by the
-// ordinary location model wherever it goes. A store adds its right-hand side.
-// An element whose address is taken, whose method is called, or which is
-// itself written through a selector, index or dereference can change a stored
-// element no source shows, so it refuses.
+// ordinary location model wherever it goes. A store adds its right-hand side,
+// and an in-place field write x[i].f = v or x[i].f op= v adds v as the value
+// of field f (externalFieldStore); x[i].f++ adds nothing. A chain below an
+// inline field, x[i].f.g, is judged first by belowElementField. An element whose
+// address escapes (other than into the one fresh pointer w.pointer judges),
+// whose method is called, or which is itself written through an index or a
+// dereference can change a stored element no source shows, so it refuses.
 func externalElementAccess(use externalRangeUse, index *ast.IndexExpr) ([]externalElementSource, string) {
 	switch holder := use.parents[1].(type) {
 	case *ast.AssignStmt:
@@ -586,13 +754,17 @@ func externalElementAccess(use externalRangeUse, index *ast.IndexExpr) ([]extern
 	case *ast.SelectorExpr:
 		switch selected := use.parents[2].(type) {
 		case *ast.AssignStmt:
-			for _, left := range selected.Lhs {
+			for position, left := range selected.Lhs {
 				if left == holder {
-					return nil, "ranged collection element field is written in place"
+					return externalFieldStore(use, selected, position, holder.Sel.Name)
 				}
 			}
 		case *ast.IncDecStmt:
-			return nil, "ranged collection element field is incremented in place"
+			// Go specification, "IncDec statements": "The "++" and "--"
+			// statements increment or decrement their operands by the untyped
+			// constant 1." The field keeps a value of its own type and gains
+			// no capability.
+			return nil, ""
 		case *ast.UnaryExpr:
 			if selected.Op == token.AND {
 				return nil, "ranged collection element field address escapes"
@@ -622,4 +794,288 @@ func externalElementAccess(use externalRangeUse, index *ast.IndexExpr) ([]extern
 		return nil, "ranged collection element is a range target"
 	}
 	return nil, ""
+}
+
+// externalFieldStore answers the element source an in-place field write
+// stores. Go specification, "Assignment statements": "An assignment operation
+// x op= y where op is a binary arithmetic operator is equivalent to x = x op
+// (y) but evaluates x only once." The field then holds a value built from its
+// old value, which another source already holds, and y, so y is the source in
+// both forms; an assignment operation has exactly one operand on each side.
+func externalFieldStore(use externalRangeUse, assignment *ast.AssignStmt, position int, field string) ([]externalElementSource, string) {
+	if assignment.Tok == token.DEFINE {
+		return nil, "collection element field store form is unresolved"
+	}
+	if len(assignment.Lhs) != len(assignment.Rhs) {
+		return nil, "collection element field is written from a multi-value result"
+	}
+	return []externalElementSource{{
+		source: sourceExpr{value: assignment.Rhs[position], file: use.file, pkg: use.pkg},
+		owner:  use.owner,
+		field:  field,
+	}}, ""
+}
+
+// externalElementPointer answers the one fresh identifier p of p := &x[i],
+// the only form in which an element's address is admitted. Go specification,
+// "Address operators": "For an operand x of type T, the address operation &x
+// generates a pointer of type *T to x." Every write through p is then a write
+// into that element, which w.pointer judges at each occurrence of p.
+func externalElementPointer(use externalRangeUse, index *ast.IndexExpr) (*ast.Ident, bool) {
+	address, unary := use.parents[1].(*ast.UnaryExpr)
+	if !unary {
+		return nil, false
+	}
+	if address.Op != token.AND {
+		return nil, false
+	}
+	if address.X != index {
+		return nil, false
+	}
+	definition, assigned := use.parents[2].(*ast.AssignStmt)
+	if !assigned {
+		return nil, false
+	}
+	if definition.Tok != token.DEFINE {
+		return nil, false
+	}
+	if len(definition.Lhs) != 1 {
+		return nil, false
+	}
+	if len(definition.Rhs) != 1 {
+		return nil, false
+	}
+	if definition.Rhs[0] != address {
+		return nil, false
+	}
+	name, identifier := definition.Lhs[0].(*ast.Ident)
+	if !identifier {
+		return nil, false
+	}
+	if name.Name == "_" {
+		return nil, false
+	}
+	return name, true
+}
+
+// pointer admits p := &x[i] when every occurrence of p reads or writes a
+// direct field of the element, increments one, or compares p, and answers the
+// field writes as element sources. Each occurrence is judged wherever it sits,
+// a closure body included, so a write a closure makes later is still a source.
+// Any other use can change the element through a path no source shows, and
+// refuses with the use it met: p passed to a call, stored, returned,
+// reassigned, dereferenced, its address taken, or a method called on it.
+func (w *externalElementWalk) pointer(use externalRangeUse, index *ast.IndexExpr, name *ast.Ident, depth int) ([]externalElementSource, string) {
+	e := w.effects
+	object := e.object(sourceExpr{value: name, file: use.file, pkg: use.pkg})
+	if object == nil {
+		return nil, "collection element pointer " + name.Name + " binding is unresolved"
+	}
+	element, reason := e.indexedElementType(sourceExpr{value: index, file: use.file, pkg: use.pkg}, index, depth+1)
+	if reason != "" {
+		return nil, "collection element pointer " + name.Name + ": " + reason
+	}
+	var sources []externalElementSource
+	for _, occurrence := range e.rangeUses(use.pkg).objects[object] {
+		if occurrence.node == name {
+			continue
+		}
+		stored, reason := e.pointerUse(occurrence, name.Name, element, depth+1)
+		if reason != "" {
+			return nil, reason
+		}
+		sources = append(sources, stored...)
+	}
+	return sources, ""
+}
+
+// pointerUse judges one occurrence of an element pointer p. A selector p.f
+// must name a direct field of the element type, since a method could change
+// the element through its receiver; the field occurrence is then judged by
+// externalPointerField. A comparison reads only the pointer.
+func (e *externalEffects) pointerUse(occurrence externalRangeUse, name string, element sourceExpr, depth int) ([]externalElementSource, string) {
+	switch parent := occurrence.parents[0].(type) {
+	case *ast.SelectorExpr:
+		declared, reason := e.declaredFieldType(element, parent.Sel.Name, depth)
+		if reason != "" {
+			return nil, "collection element pointer " + name + " selects " + parent.Sel.Name + ", which is not a direct field of its element: " + reason
+		}
+		if below := e.belowField(declared, true, parent, occurrence.parents[1:], depth); below != "" {
+			return nil, below
+		}
+		return externalPointerField(occurrence, parent)
+	case *ast.BinaryExpr:
+		return nil, ""
+	case *ast.CallExpr:
+		return nil, "collection element pointer " + name + " is passed to a call"
+	case *ast.AssignStmt:
+		if slices.Contains(parent.Lhs, occurrence.node) {
+			return nil, "collection element pointer " + name + " is reassigned"
+		}
+		return nil, "collection element pointer " + name + " is stored"
+	case *ast.ReturnStmt:
+		return nil, "collection element pointer " + name + " is returned"
+	case *ast.UnaryExpr:
+		if parent.Op == token.AND {
+			return nil, "collection element pointer " + name + " has its address taken"
+		}
+	case *ast.StarExpr:
+		return nil, "collection element pointer " + name + " is dereferenced"
+	}
+	return nil, "collection element pointer " + name + " is used in a form whose effect on its element is not modeled"
+}
+
+// externalPointerField judges a field occurrence p.f of an element pointer.
+// A write p.f = v or p.f op= v adds v as the value of field f; p.f++ adds
+// nothing; &p.f lets another writer change the field, so it refuses. Every
+// other occurrence reads p.f, a selector or method call on p.f included.
+func externalPointerField(occurrence externalRangeUse, selector *ast.SelectorExpr) ([]externalElementSource, string) {
+	switch holder := occurrence.parents[1].(type) {
+	case *ast.AssignStmt:
+		for position, left := range holder.Lhs {
+			if left == selector {
+				return externalFieldStore(occurrence, holder, position, selector.Sel.Name)
+			}
+		}
+	case *ast.UnaryExpr:
+		if holder.Op == token.AND {
+			return nil, "collection element pointer field " + selector.Sel.Name + " address escapes"
+		}
+	}
+	return nil, ""
+}
+
+// belowElementField judges a chain below a field of an indexed element,
+// x[i].f.g or x[i].f[j], by the declared type of f in the element struct
+// (externalEffects.belowField). An element type the proof cannot name leaves
+// f's type unresolved, which belowField judges as an inline value.
+func (w *externalElementWalk) belowElementField(use externalRangeUse, index *ast.IndexExpr, depth int) string {
+	e := w.effects
+	selector, selected := use.parents[1].(*ast.SelectorExpr)
+	if !selected {
+		return ""
+	}
+	if selector.X != index {
+		return ""
+	}
+	element, reason := e.indexedElementType(sourceExpr{value: index, file: use.file, pkg: use.pkg}, index, depth+1)
+	if reason != "" {
+		return e.belowField(sourceExpr{}, false, selector, use.parents[2:], depth)
+	}
+	if pointer, indirect := ast.Unparen(element.value).(*ast.StarExpr); indirect {
+		element.value = pointer.X
+	}
+	declared, reason := e.declaredFieldType(element, selector.Sel.Name, depth+1)
+	return e.belowField(declared, reason == "", selector, use.parents[2:], depth)
+}
+
+// belowField judges the chain below an element field f, given f's declared
+// type when known. A field of a reference type (pointer, map, slice, channel,
+// function, interface) names a referent: a write below it lands there, and
+// the ordinary location model judges it, so the chain is not judged here; a
+// basic type has nothing below it to write. A
+// struct or array value, or a type the proof cannot resolve, is stored inline
+// in the element, so a write anywhere below f changes the element in place:
+// externalBelowField refuses it.
+func (e *externalEffects) belowField(declared sourceExpr, known bool, field *ast.SelectorExpr, above []ast.Node, depth int) string {
+	if known {
+		if e.fieldHoldsReference(declared, depth+1) {
+			return ""
+		}
+	}
+	return externalBelowField(field, above)
+}
+
+// fieldHoldsReference answers whether nothing below a field's value is
+// stored inline in the element: its declared type refers to its value (a
+// pointer, map, slice, channel, function or interface type), or is a
+// predeclared basic type, which has no part to write (a string's bytes are
+// immutable). An unresolved type answers false, so it is judged inline.
+func (e *externalEffects) fieldHoldsReference(declared sourceExpr, depth int) bool {
+	shape, known := e.resolver.underlyingType(declared, depth+1)
+	if !known {
+		return false
+	}
+	switch kind := shape.value.(type) {
+	case *ast.StarExpr, *ast.MapType, *ast.ChanType, *ast.FuncType, *ast.InterfaceType:
+		return true
+	case *ast.ArrayType:
+		return kind.Len == nil
+	case *ast.Ident:
+		_, basic := basicType(shape)
+		return basic
+	}
+	return false
+}
+
+// externalBelowField judges the chain below an inline element field f: the
+// selectors, indexes and parentheses that start at field, within the nodes
+// above it the occurrence index retained (above, nearest first). Directly
+// above f the field itself is judged elsewhere, so no chain answers "". A
+// chain that is the left side of an assignment or an assignment operation, an
+// IncDec operand, an address operand, a sliced array, or the callee of a call
+// (a method on an inline value can change it through its receiver) refuses,
+// and so does a chain whose context lies past the retained nodes, since its
+// effect cannot be seen. Any other context reads the chain.
+func externalBelowField(field *ast.SelectorExpr, above []ast.Node) string {
+	name := field.Sel.Name
+	var current ast.Expr = field
+	for position, node := range above {
+		if step := externalChainStep(node, current); step != nil {
+			current = step
+			continue
+		}
+		// Go specification, "Slice expressions": "Otherwise, if the result is
+		// a slice, it shares its underlying array with the operand." A slice
+		// of an inline array field lets a later write reach the element.
+		if sliced, slicing := node.(*ast.SliceExpr); slicing {
+			if sliced.X == current {
+				return "collection element field " + name + " is sliced below the field"
+			}
+		}
+		if position == 0 {
+			return ""
+		}
+		switch context := node.(type) {
+		case *ast.AssignStmt:
+			if slices.Contains(context.Lhs, current) {
+				return "collection element field " + name + " is written below the field"
+			}
+		case *ast.IncDecStmt:
+			return "collection element field " + name + " is incremented below the field"
+		case *ast.UnaryExpr:
+			if context.Op == token.AND {
+				return "collection element field " + name + " has an address taken below the field"
+			}
+		case *ast.CallExpr:
+			if context.Fun == current {
+				return "collection element field " + name + " has a method called below the field"
+			}
+		}
+		return ""
+	}
+	if current == field {
+		return ""
+	}
+	return "collection element field " + name + " is used below the field past the retained context"
+}
+
+// externalChainStep answers node when it continues a selector chain at
+// current, x.g, x[j] or (x), and nil otherwise.
+func externalChainStep(node ast.Node, current ast.Expr) ast.Expr {
+	switch step := node.(type) {
+	case *ast.SelectorExpr:
+		if step.X == current {
+			return step
+		}
+	case *ast.IndexExpr:
+		if step.X == current {
+			return step
+		}
+	case *ast.ParenExpr:
+		if step.X == current {
+			return step
+		}
+	}
+	return nil
 }
