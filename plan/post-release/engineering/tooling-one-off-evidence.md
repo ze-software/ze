@@ -1648,8 +1648,15 @@ Not attributed:
   assertion. A break that keeps the session up, or discarding type-2 (the
   second break the plan names), is still owed. The checker does not read the
   NLRI registry, so the shared-registry risk does not apply.
-- Untried: `checkRelayWithdrawalShape` (needs the paired `Record` and
-  `planAttr` break), `checkRFC7606MixedUpdate` (`buildCombinedUpdates` in
+- `checkRelayWithdrawalShape` / `bgp-relay-withdraw-shape-frr`, positive
+  half proved: `recordPrepend` (`wireu/aspath_slot.go`) returning before any
+  prepend fails "assertion 2: wait for FRR route 10.10.0.0/24 timed out",
+  which is FRR's enforce-first-as rejecting the advertisement whose prepend
+  was lost, as the checker's comment states; restored green passes (1m10s).
+  This replaces the panic-body positive record in
+  `rfc4271/RFC4271-5.1.2-3.json`. The negative half (a withdrawal carrying no
+  AS_PATH) still needs the paired `Record` and `planAttr` break.
+- Untried: `checkRFC7606MixedUpdate` (`buildCombinedUpdates` in
   `wireu/split.go` handles only oversized updates, so the producer the
   scenario reaches is not yet traced), `checkRouteServerASPath` (the
   prepend site the scenario reaches is not yet traced).
