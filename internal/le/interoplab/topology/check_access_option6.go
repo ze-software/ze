@@ -64,9 +64,8 @@ func checkOption6PassThrough(ctx context.Context, check *interoplab.CheckContext
 // running daemon, so the bind uses -w (return once bound, keep running), not
 // the -1 one-shot checkLease uses.
 func rebindLease(ctx context.Context, check *interoplab.CheckContext, client, device string) (dhcpcdLease, error) {
-	// With no daemon running, -x exits non-zero, which is the state this step
-	// wants; only a failure to run it at all is an error.
-	if _, err := check.Lab.Exec(ctx, client, []string{commandDHCPCD, "-4", "-x", device}, nil); err != nil {
+	_, released := check.Lab.Exec(ctx, client, []string{commandDHCPCD, "-4", "-x", device}, nil)
+	if err := releaseVerdict(released); err != nil {
 		return dhcpcdLease{}, fmt.Errorf("%s: stop dhcpcd on %s: %w", client, device, err)
 	}
 	if _, err := execOK(ctx, check, client, []string{commandDHCPCD, "-4", "-w", "-t", option6BindSeconds, device}); err != nil {
@@ -77,6 +76,38 @@ func rebindLease(ctx context.Context, check *interoplab.CheckContext, client, de
 		return dhcpcdLease{}, err
 	}
 	return parseDhcpcdLease(dump)
+}
+
+// execNotExecutable and execNotFound are the statuses `docker exec` answers
+// when the command it was asked to run could not start: the program is not
+// executable, or the image holds no such program.
+const (
+	execNotExecutable = 126
+	execNotFound      = 127
+)
+
+// releaseVerdict judges the error Exec returned for `dhcpcd -x`. On the first
+// attempt no dhcpcd runs (lan-res-c's container runs only `sleep forever`), and
+// dhcpcd then exits non-zero because it has nothing to stop, which is the state
+// the release wants: any exit dhcpcd itself ran to passes. An error that is no
+// exit (Exec refused the command, the docker client failed or hit its bound)
+// and the 126 and 127 of a dhcpcd that never started fail, because no release
+// was attempted.
+func releaseVerdict(released error) error {
+	if released == nil {
+		return nil
+	}
+	code, exited := interoplab.ExecExitCode(released)
+	if !exited {
+		return released
+	}
+	if code == execNotExecutable {
+		return released
+	}
+	if code == execNotFound {
+		return released
+	}
+	return nil
 }
 
 // dhcpcdLease is the part of `dhcpcd --dumplease` the option 6 clause reads.

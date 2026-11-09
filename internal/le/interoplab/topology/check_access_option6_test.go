@@ -1,13 +1,17 @@
 package topology
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
 // TestPassThroughAdditionsOnTheConversion proves access-up's CPE is the
@@ -164,4 +168,102 @@ func preparedCPEConfig(t *testing.T, name string) string {
 		t.Fatalf("read %s's prepared CPE configuration: %v", name, err)
 	}
 	return string(config)
+}
+
+// TestOption6RebindsWhenNoDhcpcdRuns proves access-up's option 6 clause binds
+// and judges a lease when lan-res-c runs no dhcpcd, so `dhcpcd -x` exits 1,
+// and that a release that never ran still fails before any bind. Method:
+// checkOption6PassThrough over a fixture Docker whose runner answers dhcpcd
+// as the container does, so Exec builds its real error for the exit; then
+// rebindLease with a lease holding the fallback alone, with a release that
+// exits 127 (no dhcpcd in the image), and with one the docker client never ran.
+func TestOption6RebindsWhenNoDhcpcdRuns(t *testing.T) {
+	dump := func(servers string) string {
+		return "ip_address='" + resCAddress + "'\ndomain_name_servers='" + servers + "'\n"
+	}
+	bound := []string{"-x", "-w", "--dumplease"}
+
+	runner := &dhcpcdRunner{release: 1, dump: dump(dnsPrimary + " " + dnsSecondary)}
+	if err := checkOption6PassThrough(t.Context(), option6Check(runner)); err != nil {
+		t.Fatalf("a release with no daemon to stop failed the clause: %v", err)
+	}
+	if !slices.Equal(runner.flags, bound) {
+		t.Fatalf("dhcpcd ran %v, want %v", runner.flags, bound)
+	}
+
+	runner = &dhcpcdRunner{release: 1, dump: dump(dnsPrimary)}
+	lease, err := rebindLease(t.Context(), option6Check(runner), nodeLANResC, option6Device)
+	if err != nil {
+		t.Fatalf("a release with no daemon to stop failed the rebind: %v", err)
+	}
+	if err := option6Verdict(lease, resCAddress, []string{dnsPrimary, dnsSecondary}); err == nil {
+		t.Fatal("a lease carrying the fallback alone passed the verdict")
+	}
+
+	for _, runner := range []*dhcpcdRunner{{release: execNotFound}, {refuse: true}} {
+		if _, err := rebindLease(t.Context(), option6Check(runner), nodeLANResC, option6Device); err == nil {
+			t.Errorf("a release that never ran (exit %d, refused %t) passed", runner.release, runner.refuse)
+		}
+		if !slices.Equal(runner.flags, []string{"-x"}) {
+			t.Errorf("dhcpcd ran %v after a release that never ran, want only -x", runner.flags)
+		}
+	}
+}
+
+// option6Device is the device the fixture declares lan-res-c holds on the LAN.
+const option6Device = "eth1"
+
+// option6Check is the CheckContext checkOption6PassThrough reads: lan-res-c on
+// the LAN link, and a lab whose Exec runs through runner.
+func option6Check(runner *dhcpcdRunner) *interoplab.CheckContext {
+	return &interoplab.CheckContext{
+		Lab: dockerExecLab{docker: interoplab.NewFixtureDocker(runner)},
+		Memberships: map[string][]interoplab.LinkMembership{
+			nodeLANResC: {{Link: homeLANLink, Device: option6Device}},
+		},
+	}
+}
+
+// dockerExecLab serves Exec from a fixture Docker, so an exit reaches the
+// checker as the error Exec builds for it; it serves no other call.
+type dockerExecLab struct {
+	interoplab.CheckerLab
+	docker *interoplab.Docker
+}
+
+func (l dockerExecLab) Exec(ctx context.Context, peer string, argv []string, environ []interoplab.EnvironmentVariable) (interoplab.CommandResult, error) {
+	return l.docker.Exec(ctx, peer, argv, environ)
+}
+
+// dhcpcdRunner answers lan-res-c's dhcpcd as its container does: the release
+// exits release (1 is dhcpcd finding no daemon to stop) or, with refuse, the
+// docker client fails before it runs; the bind succeeds; the dump prints dump.
+// It records each dhcpcd action flag in order.
+type dhcpcdRunner struct {
+	release int
+	refuse  bool
+	dump    string
+	flags   []string
+}
+
+func (r *dhcpcdRunner) Run(_ context.Context, command interoplab.ProcessCommand) (interoplab.ProcessResult, error) {
+	argv := command.Arguments
+	at := slices.Index(argv, commandDHCPCD)
+	if at < 0 || at+2 >= len(argv) {
+		return interoplab.ProcessResult{}, fmt.Errorf("the fixture runs only dhcpcd -4 <flag>, got %v", argv)
+	}
+	flag := argv[at+2]
+	r.flags = append(r.flags, flag)
+	switch flag {
+	case "-x":
+		if r.refuse {
+			return interoplab.ProcessResult{}, errors.New("docker client stopped by the fixture")
+		}
+		return interoplab.ProcessResult{Stderr: "dhcpcd not running", ExitCode: r.release}, nil
+	case "-w":
+		return interoplab.ProcessResult{}, nil
+	case "--dumplease":
+		return interoplab.ProcessResult{Stdout: r.dump}, nil
+	}
+	return interoplab.ProcessResult{}, fmt.Errorf("the fixture has no answer for dhcpcd %s", flag)
 }

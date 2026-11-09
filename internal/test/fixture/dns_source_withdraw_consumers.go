@@ -17,7 +17,7 @@ import (
 )
 
 // The DHCP server's subnet and configured option 6 server that
-// test/draft/plugin/show-system-dns-withdraw-dhcp-server.ci writes.
+// test/plugin/show-system-dns-withdraw-dhcp-server.ci writes.
 var (
 	withdrawDHCPSubnet = netip.MustParsePrefix("198.18.21.0/24")
 	withdrawDHCPServer = netip.MustParseAddr("198.51.100.1")
