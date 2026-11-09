@@ -637,17 +637,23 @@ of the added AVPs with offsets.
 
 ## Blocker
 
-Closure stops before commit A for two pieces of evidence the main thread owns
-(the closure agent may not run tests or guests):
+Closure stops before commit A for one piece of evidence the main thread owns
+(the closure agent may not run tests or guests). Everything else is done: the
+Review Gate artifact is recorded and checks clean, `./le rfc check` names no
+other RFC 2661 record, and `./le doc check all` reports nothing in L2TP.
 
 | What | Producer | What clears it |
 |------|----------|----------------|
-| The RFC2661-6.1-1 discrimination record is stale (producer sha `7b911f10b735d280` no longer matches) | `internal/component/l2tp/tunnel_fsm.go` `handleSCCRQ`, unit `test/l2tp/rfc2661-sccrq-mandatory-avp.ci` | `./le rfc record id RFC2661-6.1-1 polarity positive unit test/l2tp/rfc2661-sccrq-mandatory-avp.ci route revert producer internal/component/l2tp/tunnel_fsm.go::handleSCCRQ citation 'expect=stderr:contains=new tunnel created from SCCRQ'` on Linux (guest batch 7, `rwinv/out-gb7/rec-2661.log`) |
-| `TestReloadAppliesRelayRealms` (AC-11, closure review ISSUE) is written but has not run | `internal/component/l2tp/subsystem_reload.go` `Reload` (relay-realm swap), `extractFromProvider` | `./le job run -- go test ./internal/component/l2tp -run 'TestReloadAppliesRelayRealms$' -count=1` green |
+| The RFC2661-6.1-1 discrimination record is stale (`./le rfc check` on 2026-11-09: `producer-changed`, `scratch/c14-rfccheck.log`) | `internal/component/l2tp/tunnel_fsm.go` `handleSCCRQ`, unit `test/l2tp/rfc2661-sccrq-mandatory-avp.ci` | `./le rfc record id RFC2661-6.1-1 polarity positive unit test/l2tp/rfc2661-sccrq-mandatory-avp.ci route revert producer internal/component/l2tp/tunnel_fsm.go::handleSCCRQ citation 'expect=stderr:contains=new tunnel created from SCCRQ'` on Linux, observed red, in guest batch 10 (`rwinv/out-gb10/rec2661-run.log`, `rwinv/out-gb10/rec-2661.log`); batch 7's attempt (`rwinv/out-gb7/rec-2661.log`) stopped on the host's missing loopback aliases and recorded nothing |
 
-When both are in, set Status back to `in-progress` and resume closure at the
-Review Gate record (`./le spec review record`), `./le rfc check`, `./le doc
-check all`, then commits A and B.
+When the record is in (`git status rfc/discrimination/rfc2661/` shows
+`RFC2661-6.1-1.json` changed and `./le rfc check` no longer names it), set
+Status back to `in-progress`, add the record file to commit A with the spec,
+and land commits A and B. The review artifact covers
+`subsystem_reload_test.go`, the only code file a `Spec-work:
+home-cpe-14-lac-realm-relay` commit carries (519b6df3af). The realm relay code
+landed in 79e3205310, whose trailer reads `Spec-work:
+home-cpe-1-logical-interface-name`.
 
 ## Implementation Summary
 
@@ -656,7 +662,7 @@ check all`, then commits A and B.
 - Closure: `TestReloadAppliesRelayRealms` (`subsystem_reload_test.go`) for AC-11.
 
 ### Bugs Found/Fixed
-- AC-11 had no test (closure review ISSUE): fixed by `TestReloadAppliesRelayRealms`, run owed (Blocker).
+- AC-11 had no test (closure review ISSUE): fixed by `TestReloadAppliesRelayRealms`, PASS in guest batch 7 (`rwinv/out-gb7/c14-reload.log`: `ok github.com/ze-software/ze/internal/component/l2tp`).
 
 ### Documentation Updates
 - `docs/guide/l2tp.md` "Relay by realm": the stale "under construction" paragraph replaced by what proves the path (e295e416f9).
@@ -693,7 +699,7 @@ check all`, then commits A and B.
 | AC-8 | Done | `TestServiceNameRelayPrecedesRealm`, `relaySink.RealmRelayConfigured` false path | |
 | AC-9 | Done | `TestRelayRealmConfigValidation`, `test/l2tp/relay-realm-config.ci` | |
 | AC-10 | Done | `TestRelaySinkRealmMatchPlacesCallWithProxyLCP` | |
-| AC-11 | Partial | `TestReloadAppliesRelayRealms` | run owed (Blocker) |
+| AC-11 | Done | `TestReloadAppliesRelayRealms` | PASS, `rwinv/out-gb7/c14-reload.log` |
 | AC-12 | Done | `TestSessionJSONRelayRealmFields`, accel-ppp checker `checkRealmRelayAccel` | |
 | AC-13 | Done | `docs/guide/l2tp.md` | |
 | AC-14 | Done | `TestLACRealmHandoffRetransmission` (QEMU, `rwinv/out-qemu/clean-l2tp.log`) | |
@@ -703,7 +709,7 @@ check all`, then commits A and B.
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
-| every TDD row | Done | names in the TDD table; each function found by `grep -rl 'func <name>(' internal/` on 2026-11-09 | `TestReloadAppliesRelayRealms` run owed |
+| every TDD row | Done | names in the TDD table; each function found by `grep -rl 'func <name>(' internal/` on 2026-11-09 | `TestReloadAppliesRelayRealms` PASS (`rwinv/out-gb7/c14-reload.log`) |
 
 ### Files from Plan
 | File | Status | Notes |
@@ -712,8 +718,8 @@ check all`, then commits A and B.
 
 ### Audit Summary
 - **Total items:** 16 AC
-- **Done:** 15
-- **Partial:** 1 (AC-11, run owed; not a scope reduction)
+- **Done:** 16
+- **Partial:** 0
 - **Skipped:** 0
 - **Changed:** test file names (Deviations)
 
@@ -735,9 +741,9 @@ check all`, then commits A and B.
 
 | Field | Value |
 |-------|-------|
-| Artifact | not recorded: closure blocked before the record (Blocker) |
-| `./le spec review check` | not run |
-| Rounds | 1 (closure agent 1 over the committed diff); round 2 owed after `TestReloadAppliesRelayRealms` runs |
+| Artifact | `tmp/review/home-cpe-14-lac-realm-relay-7e292f27-ced0-427f-a7b6-3a931db211f9.md` (verdict clean, 1 code file: `subsystem_reload_test.go`) |
+| `./le spec review check` | `review_gate: OK (1 code files, clean, hashes match ...)` on 2026-11-09 |
+| Rounds | 2: round 1 found the AC-11 ISSUE; round 2, after `TestReloadAppliesRelayRealms` passed, found 0 BLOCKER and 0 ISSUE |
 | Reviewer lenses used | logic+wiring, security (no password logged in `RelayRealm`/`decide`), RFC 2661 Section 4.3 hiding, handoff ordering |
 
 ### Findings fixed
@@ -749,9 +755,34 @@ NOTEs (record only): `pppoe/realm_relay.go` `decide` registers the handoff in
 `r.calls` only after `RelayRealm` returns, so a PADT in that window finds no
 handoff; the quiesce of a dropped session fails and `kernel_linux.go` CDNs the
 call. The YANG realm pattern relies on anchoring; `validateRelayRealms` refuses
-`@` and whitespace regardless (`test/l2tp/relay-realm-config.ci`). Not yet
-reviewed: `ppp/relay_handoff.go`, `ppp/relay_reader_linux.go`, `callsink.go`,
-`snapshot.go`/`cmd` JSON, `check_realm_relay.go`.
+`@` and whitespace regardless (`test/l2tp/relay-realm-config.ci`). Not
+reviewed in round 1: `ppp/relay_handoff.go`, `ppp/relay_reader_linux.go`,
+`callsink.go`, `snapshot.go`/`cmd` JSON, `check_realm_relay.go`.
+
+### Run 2
+
+0 BLOCKER, 0 ISSUE, over the five files round 1 left and the new test:
+
+- `ppp/relay_handoff.go` `QuiesceSession` closes `readerQuiesce` before
+  `interruptRead`, waits on `readerGone`, `done` or `stopCh`, then re-checks the
+  session is live. `ReleaseSession` stores `released` before closing
+  `sessStop`, so `session_run.go` `run` sends no `EventSessionDown`. NOTE: when
+  `interruptRead` fails, `readerQuiesce` is already closed, so `readFrames`
+  may drop a frame on its `out`/`readerQuiesce` select; the caller then
+  refuses the subscriber (`RefuseAuth`), which ends the session.
+- `ppp/relay_reader_linux.go` `pollThenRead` tests the eventfd before the
+  channel, so no frame is read after `InterruptRead`; both descriptors are used
+  under `RawConn.Control`, so a `Close` racing a `Read` never reuses a
+  descriptor number.
+- `internal/core/callsink/callsink.go` `ProxyAuth.Response` is documented as
+  never logged; `relay_sink.go` `RelayRealm` logs only `authReason == ""`.
+- `snapshot.go` `realmCall.snapshot` reads `iccnSent` under `tunnelsMu`, which
+  `reactor.go` holds across dispatch, where `session_initiator.go` sets it.
+- `check_realm_relay.go` `lacRealmSessionVerdict` refuses a missing AC-12 key
+  and a false value separately, so an absent key cannot pass.
+- `subsystem_reload_test.go` `TestReloadAppliesRelayRealms` asserts both the
+  added and the removed binding through `Reload` and
+  `relaySink.RealmRelayConfigured`.
 
 ## Pre-Commit Verification
 
@@ -764,7 +795,8 @@ reviewed: `ppp/relay_handoff.go`, `ppp/relay_reader_linux.go`, `callsink.go`,
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
 | AC-2, AC-3 | ICCN proxy AVPs and hidden 33 | `TestWriteICCNBodyProxyAVPs`, `TestWriteICCNBodyHiddenAVP33` PASS in `rwinv/out-gb3/c15-l2tp.log` |
-| AC-11 | reload applies relay-realm | owed (Blocker) |
+| AC-11 | reload applies relay-realm | `TestReloadAppliesRelayRealms` PASS, `rwinv/out-gb7/c14-reload.log` (`ok github.com/ze-software/ze/internal/component/l2tp`) |
+| RFC2661-6.1-1 | discrimination record fresh | stale on 2026-11-09 (`scratch/c14-rfccheck.log`, `producer-changed`); the re-record runs in guest batch 10 (`rwinv/out-gb10/rec2661-run.log`, `rwinv/out-gb10/rec-2661.log`): the Blocker |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
@@ -784,4 +816,4 @@ reviewed: `ppp/relay_handoff.go`, `ppp/relay_reader_linux.go`, `callsink.go`,
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
-| `docs/guide/l2tp.md` "Relay by realm" | anchored to `check_realm_relay.go` `checkRealmRelayAccel`/`checkRealmRelayXL2TPD` and `bridge_realm_integration_linux_test.go` | yes (e295e416f9); `./le doc check all` owed at resume |
+| `docs/guide/l2tp.md` "Relay by realm" | anchored to `check_realm_relay.go` `checkRealmRelayAccel`/`checkRealmRelayXL2TPD` and `bridge_realm_integration_linux_test.go` | yes (e295e416f9); `./le doc check all` on 2026-11-09 (`scratch/c14-doccheck.log`) reports no L2TP or realm finding. Its red is the command-reference catalog (`debug`, `show config`, `monitor ping` and other commands this spec does not touch) |
