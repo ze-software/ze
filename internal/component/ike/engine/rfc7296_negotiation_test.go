@@ -207,6 +207,18 @@ func negRewriteSAInit(t *testing.T, raw []byte) []byte {
 // accepted ESP offer and seals the chain again under the responder keys.
 func negAuthResponse(t *testing.T, keyLen uint16) (*SA, []byte) {
 	t.Helper()
+	if keyLen == 0 {
+		return negAuthResponseRewritten(t, nil)
+	}
+	return negAuthResponseRewritten(t, func(p *wire.PayloadSA) { negSetKeyLength(p, keyLen) })
+}
+
+// negAuthResponseRewritten runs the handshake up to the IKE_AUTH response and returns
+// the initiator that waits for it, plus the response bytes. A non-nil rewrite changes the
+// accepted ESP offer (SAr2) the responder really built, and the chain is sealed again
+// under the responder keys, so the initiator reads the change as the peer's own answer.
+func negAuthResponseRewritten(t *testing.T, rewrite func(*wire.PayloadSA)) (*SA, []byte) {
+	t.Helper()
 	log := slogutil.DiscardLogger()
 	ikeGroup := testIKEGroup()
 	espGroup := testESPGroup()
@@ -231,7 +243,7 @@ func negAuthResponse(t *testing.T, keyLen uint16) (*SA, []byte) {
 	ps := &PeerSession{peerName: "ze", peerCfg: respPeer, ikeGroup: ikeGroup, espGroup: espGroup}
 	ps.handleAuthRequest(resp, parseMsg(t, ini.LastSentMsg), ini.LastSentMsg, nil, nil, log)
 	authResp := resp.LastSentMsg
-	if keyLen == 0 {
+	if rewrite == nil {
 		return ini, authResp
 	}
 
@@ -239,7 +251,7 @@ func negAuthResponse(t *testing.T, keyLen uint16) (*SA, []byte) {
 	if err != nil {
 		t.Fatalf("decrypt the IKE_AUTH response: %v", err)
 	}
-	negSetKeyLength(negFindSA(t, inner), keyLen)
+	rewrite(negFindSA(t, inner))
 	sealed, err := buildEncryptedMessageEx(resp, inner, 1, wire.ExchangeIKEAuth, wire.FlagResponse)
 	if err != nil {
 		t.Fatalf("seal the rewritten IKE_AUTH response: %v", err)

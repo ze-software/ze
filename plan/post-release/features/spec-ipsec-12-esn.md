@@ -5,7 +5,7 @@
 | Status | ready |
 | Priority | P3 |
 | Release reason | New ESN configuration, negotiation modes and 64-bit dataplane support remain optional; existing non-ESN response refusal belongs to the release-fix sibling. |
-| Depends | spec-ipsec-0-umbrella (native IKEv2 engine, XFRM/VPP dataplane); plan/release/fixes/spec-ipsec-esp-selection-refusal.md (existing receive-path correctness) |
+| Depends | spec-ipsec-0-umbrella (native IKEv2 engine, XFRM/VPP dataplane); spec-ipsec-esp-selection-refusal (existing receive-path correctness, closed 2026-11-09) |
 | Phase | - |
 | Updated | 2026-06-20 |
 
@@ -26,7 +26,7 @@ are historical context, not a second obligation or a completion claim.
 
 | Original obligation | Owning spec |
 |---------------------|-------------|
-| AC-6b on the existing non-ESN offer: reject missing, multiple, unknown or unoffered ESN selections before Child SA installation; the outstanding missing-transform refusal and evidence in the final amendment | `plan/release/fixes/spec-ipsec-esp-selection-refusal.md` |
+| AC-6b on the existing non-ESN offer: reject missing, multiple, unknown or unoffered ESN selections before Child SA installation; the outstanding missing-transform refusal and evidence in the final amendment | spec-ipsec-esp-selection-refusal, closed 2026-11-09: `acceptedESPESNConsistent` (`internal/component/ike/engine/initiator.go`) requires exactly one ESN transform, proven by `TestInitiatorParseAgreedESN` |
 | AC-1..AC-6, AC-7/7b, AC-8/8b, AC-9..AC-11; AC-6b extended to the new required/optional offers | This spec |
 | Existing-selection part of Data Flow step 3, R-3, `TestInitiatorParseAgreedESN`, the transform-value boundary and negotiation-phase refusal work | Release-fix sibling |
 | New ESN config, negotiated state, emission, rekey, XFRM/VPP flag plumbing, all other implementation steps, assumptions, tests, interop and documentation | This spec |
@@ -181,6 +181,20 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
 - Responder selects an ESN value from the offered transforms against local policy and echoes a
   single chosen ESN transform in SAr2.
 - `installChildSA` sets the ESN flag on both dataplane SAs.
+
+## Existing Mechanisms (MANDATORY)
+
+Recorded 2026-11-09 by the closure of spec-ipsec-esp-selection-refusal, from the
+mechanisms this spec's Current Behavior already names. It adds no design.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|---------------------------------------------------------------------|
+| Transform Type 5 constants | `internal/component/ike/crypto/transform.go` `TransformTypeESN`; `internal/component/ike/wire/payload_sa.go` `TransformTypeESN` | Name the ESN transform type at the crypto and wire layers | Extends: the new offers reuse both constants, no new type |
+| The ESP offer's single ESN value | `internal/component/ike/engine/initiator.go` `espESNNotExtended`, `wireESPOffer` | Every ESP proposal offers exactly one ESN transform, value 0 | Extends: the offer gains the configured mode's values in place of the constant |
+| Initiator accepted-offer ESN check | `internal/component/ike/engine/initiator.go` `acceptedESPESNConsistent`, called by `verifyAcceptedOffer` from `fsm.go`, `create_child.go` and `rekey.go` | Refuses an SAr2 that selects zero, several, or an unoffered ESN value, before any Child SA is installed | Extends: the check reads the values this side offered, rather than the single constant, when new offers land |
+| Proposal negotiation refusals | `internal/component/ike/crypto/proposal.go` `ErrNoProposalChosen` family | Name each NO_PROPOSAL_CHOSEN reason | Extends: an ESN mismatch on the responder wraps the same sentinel |
+| Child SA dataplane install | `internal/component/ike/dataplane/dataplane.go` `SAParams`; `xfrm_linux.go` `InstallSA`; `vpp.go` `InstallSA` | Install the negotiated SA with a replay window and no ESN flag | Extends: `SAParams` gains the negotiated ESN flag, set by both backends |
+| ESP group config model | `internal/component/ike/ipsec/types.go` `ESPProposal`; `config.go`; `yang/ze-ipsec-conf.yang` | Model ESP proposals with no ESN leaf | Extends: one `esn` leaf and enum, absent meaning disabled |
 
 ## Data Flow (MANDATORY)
 

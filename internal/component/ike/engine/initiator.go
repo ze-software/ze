@@ -479,8 +479,9 @@ var (
 	// answered with a zero proposal, which would key an SA with no cipher.
 	errAcceptedOfferUnmapped = errors.New("ike: the accepted ESP offer maps to no configured proposal")
 	// errAcceptedOfferESN reports an accepted ESP offer whose Extended Sequence Numbers
-	// selection is not the one this side offered.
-	errAcceptedOfferESN = errors.New("ike: the accepted ESP offer selects an Extended Sequence Numbers value we did not offer")
+	// selection is not the one this side offered: a value we did not offer, more than one
+	// value, or no value at all.
+	errAcceptedOfferESN = errors.New("ike: the accepted ESP offer does not select exactly the one Extended Sequence Numbers value we offered")
 )
 
 // acceptedESPESNConsistent reports whether the Transform Type 5 selection in one accepted
@@ -490,8 +491,9 @@ var (
 // offer is consistent with one of its proposals, and if not MUST terminate the exchange"
 // (rfc/full/rfc7296.txt:4906-4909). espProposalWire offers exactly one value for the
 // type, espESNNotExtended, so a responder that answers Extended Sequence Numbers has
-// answered a suite this side never proposed. Section 2.7 allows the answer one transform
-// of the type, so a second one is not a selection either.
+// answered a suite this side never proposed. Section 2.7 allows the answer exactly one
+// transform of the type, so a second one is not a selection, and neither is none: an
+// answer that carries no Transform Type 5 is refused, never read as the No-ESN default.
 //
 // crypto.NegotiateESP does not reach this: crypto.ESPProposal carries no ESN field, and
 // wireProposalsToESP drops the transform on the way in. The check therefore reads the
@@ -511,7 +513,9 @@ func acceptedESPESNConsistent(p wire.Proposal) bool {
 		}
 		esns++
 	}
-	return esns <= 1
+	// RFC 7296 Section 2.7: "The accepted cryptographic suite MUST contain exactly one
+	// transform of each type included in the proposal."
+	return esns == 1
 }
 
 // espConfigForAccepted returns the configured ESP proposal that the accepted offer agrees
@@ -860,9 +864,10 @@ func wireESPOffer(espGroup ipsec.ESPGroup, spi uint32, dh crypto.DHGroupID) ([]w
 //
 // So this value is what ze OFFERS, what it ANSWERS with, and the only value it can
 // accept from a peer. espProposalMatches (responder.go) refuses an offer that includes
-// Transform Type 5 without it, and acceptedESPESNConsistent (below) refuses a response
-// that selects anything else. Adding ESN to the datapath is plan/spec-ipsec-12-esn.md;
-// until it lands, honesty about the absence is the conformant answer.
+// Transform Type 5 without it, and acceptedESPESNConsistent (above) refuses a response
+// that selects anything else, or nothing. Adding ESN to the datapath is
+// plan/post-release/features/spec-ipsec-12-esn.md; until it lands, honesty about the
+// absence is the conformant answer.
 const espESNNotExtended uint16 = 0
 
 // espProposalWire encodes one configured ESP proposal under the given Proposal

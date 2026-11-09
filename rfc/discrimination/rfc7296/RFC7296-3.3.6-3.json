@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.3.6-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_esn_test.go::TestInitiatorParseAgreedESN",
+    "unit-sha": "07b8a213eebc439b",
+    "claim-sha": "6d7e2e251ddd909b",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/initiator.go::acceptedESPESNConsistent",
+    "producer-sha": "dc65fa597d863272",
+    "break": "line 518: \"esns == 1\" -\u003e \"esns \u003c= 1\""
+  },
+  {
+    "rid": "RFC7296-3.3.6-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_esn_test.go::TestInitiatorParseAgreedESN",
+    "unit-sha": "07b8a213eebc439b",
+    "claim-sha": "a6b71c879d62b06d",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/initiator.go::acceptedESPESNConsistent",
+    "producer-sha": "dc65fa597d863272",
+    "break": "line 518: \"esns == 1\" -\u003e \"esns == 2\""
+  }
+]

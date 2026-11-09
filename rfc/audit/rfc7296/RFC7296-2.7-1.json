@@ -4,10 +4,10 @@
   "tests": {
     "internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go::TestProposalNegotiationFirstMatch": "a6de5fb37ffc1f6e",
     "internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go::TestProposalNegotiationNoMatch": "a6de5fb37ffc1f6e",
-    "internal/component/ike/engine/rfc7296_esn_test.go::TestEsnResponderAnswersOnlyAValueTheOfferCarried": "c6cc102fdb5f482d",
-    "internal/component/ike/engine/rfc7296_esn_test.go::TestEsnResponderAnswersOnlyAValueTheOfferCarried#2": "c6cc102fdb5f482d",
-    "internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered": "d1a362a5d6f0794c",
-    "internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused": "d1a362a5d6f0794c"
+    "internal/component/ike/engine/rfc7296_esn_test.go::TestEsnResponderAnswersOnlyAValueTheOfferCarried": "3af13e7c22e4e50e",
+    "internal/component/ike/engine/rfc7296_esn_test.go::TestEsnResponderAnswersOnlyAValueTheOfferCarried#2": "3af13e7c22e4e50e",
+    "internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered": "9c68173cfda10fba",
+    "internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused": "9c68173cfda10fba"
   },
   "units": {
     "internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go::TestProposalNegotiationFirstMatch": "eb95e994924bfa94",

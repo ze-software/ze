@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/crypto"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/wire"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // esnExtended is Transform Type 5 value 1, "Extended Sequence Numbers" (RFC 7296
@@ -186,6 +187,112 @@ func TestEsnInitiatorRefusesAnESNValueItNeverOffered(t *testing.T) {
 			}
 			if !errors.Is(err, errAcceptedOfferESN) {
 				t.Fatalf("an answer of ESN %v returned %v, want the exchange to end", c.answered, err)
+			}
+		})
+	}
+}
+
+// esnUnassigned is a Transform Type 5 value RFC 7296 Section 3.3.2 does not define (it
+// defines 0 and 1). A peer that answers it has answered nothing ze can key.
+const esnUnassigned uint16 = 7
+
+// esnSetIDs replaces the Transform Type 5 values of every proposal in an SA payload with
+// the given list, in order. An empty list removes the type altogether.
+func esnSetIDs(sa *wire.PayloadSA, esnIDs []uint16) {
+	for i := range sa.Proposals {
+		kept := sa.Proposals[i].Transforms[:0]
+		for _, tr := range sa.Proposals[i].Transforms {
+			if tr.Type != wire.TransformTypeESN {
+				kept = append(kept, tr)
+			}
+		}
+		for _, id := range esnIDs {
+			kept = append(kept, wire.Transform{Type: wire.TransformTypeESN, ID: id})
+		}
+		sa.Proposals[i].Transforms = kept
+	}
+}
+
+// VALIDATES: the initiator accepts an SAr2 only when it selects exactly the one
+// Transform Type 5 value ze offered, and refuses a missing, duplicated, unknown or
+// unoffered selection before any Child SA is keyed.
+// PREVENTS: reading an answer with no ESN transform as the No-ESN default.
+// acceptedESPESNConsistent answered esns <= 1, so a responder that dropped the type was
+// accepted and the Child SA was installed from a suite that was never fully selected.
+//
+// Method: the unit half calls verifyAcceptedOffer with each answer. The boundary half
+// runs a real handshake, rewrites the SAr2 the responder built, seals it again, and hands
+// it to handleAuthResponse: a refused answer leaves the SA dead with no outbound Child SA
+// SPI adopted, and the offered value leaves it established with one.
+//
+// RFC requirement: RFC7296-3.3.6-3 negative -- RFC 7296 Section 3.3.6: "The initiator of
+// an exchange MUST check that the accepted offer is consistent with one of its proposals,
+// and if not MUST terminate the exchange." RFC 7296 Section 2.7: "The accepted
+// cryptographic suite MUST contain exactly one transform of each type included in the
+// proposal." Ze's ESP offer includes Transform Type 5, so an SAr2 carrying no ESN
+// transform, two of them, an unassigned value or Extended Sequence Numbers is refused
+// with errAcceptedOfferESN, and handleAuthResponse ends the exchange before the Child SA
+// SPI is adopted.
+// RFC requirement: RFC7296-3.3.6-3 positive -- the SAr2 that selects the single value ze
+// offered is accepted, and handleAuthResponse establishes the SA and adopts the Child SA
+// SPI, so the refusals name the ESN selection rather than the answer as such.
+func TestInitiatorParseAgreedESN(t *testing.T) {
+	log := slogutil.DiscardLogger()
+	espGroup := testESPGroup()
+
+	// The offer states what this side can key, and every case is read against it.
+	offered := esnIDsOf(buildWireESPProposals(espGroup, 0x0a0b0c0d, dhGroupNone)[0])
+	if !slices.Equal(offered, []uint16{espESNNotExtended}) {
+		t.Fatalf("the ESP offer carries ESN %v, want the single value %d ze can key",
+			offered, espESNNotExtended)
+	}
+
+	cases := []struct {
+		name     string
+		answered []uint16
+		accepted bool
+	}{
+		{name: "the-value-we-offered", answered: []uint16{espESNNotExtended}, accepted: true},
+		{name: "missing", answered: nil, accepted: false},
+		{name: "duplicated", answered: []uint16{espESNNotExtended, espESNNotExtended}, accepted: false},
+		{name: "unassigned", answered: []uint16{esnUnassigned}, accepted: false},
+		{name: "unoffered-extended", answered: []uint16{esnExtended}, accepted: false},
+	}
+	for _, c := range cases {
+		t.Run(c.name+"/verify", func(t *testing.T) {
+			_, err := verifyAcceptedOffer(esnSAPayload(t, 1, c.answered...), ipsec.IKEGroup{}, espGroup)
+			if c.accepted {
+				if err != nil {
+					t.Fatalf("an answer of ESN %v was refused: %v", c.answered, err)
+				}
+				return
+			}
+			if !errors.Is(err, errAcceptedOfferESN) {
+				t.Fatalf("an answer of ESN %v returned %v, want errAcceptedOfferESN", c.answered, err)
+			}
+		})
+		t.Run(c.name+"/ike-auth-response", func(t *testing.T) {
+			ini, answer := negAuthResponseRewritten(t, func(p *wire.PayloadSA) { esnSetIDs(p, c.answered) })
+			if ini.ChildOutboundSPI != 0 {
+				t.Fatalf("the initiator holds Child SA SPI %#x before the response, so its absence "+
+					"below proves nothing", ini.ChildOutboundSPI)
+			}
+			handleAuthResponse(ini, parseMsg(t, answer), answer, nil, nil, log)
+			if c.accepted {
+				if ini.State != StateEstablished {
+					t.Fatalf("state = %v for an SAr2 selecting ESN %v, want established", ini.State, c.answered)
+				}
+				if ini.ChildOutboundSPI == 0 {
+					t.Fatalf("an SAr2 selecting ESN %v was accepted but no Child SA SPI was adopted", c.answered)
+				}
+				return
+			}
+			if ini.State != StateDead {
+				t.Fatalf("state = %v for an SAr2 selecting ESN %v, want dead", ini.State, c.answered)
+			}
+			if ini.ChildOutboundSPI != 0 {
+				t.Fatalf("an SAr2 selecting ESN %v was refused after Child SA SPI %#x was adopted",
+					c.answered, ini.ChildOutboundSPI)
 			}
 		})
 	}
