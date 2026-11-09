@@ -199,6 +199,7 @@ func rifSender(ctx context.Context, name string) (fd, index int, err error) {
 	if !Poll(ctx, raRDNSSAttempts, raRDNSSDelay, func() bool {
 		found, err := netlink.LinkByName(name)
 		link = found
+		// refuse-by-default: guards Poll -- a failed read is "not yet", the caller polls
 		return err == nil
 	}) {
 		return -1, 0, fmt.Errorf("%s never appeared: the daemon did not create the veth pair", name)
@@ -241,10 +242,12 @@ func rifSend(fd, index int, cfg ndp.RAConfig) error {
 // link name. A failed read is "not yet": the caller polls.
 func rifHasPrefixRoute(name string, prefix netip.Prefix) bool {
 	link, err := netlink.LinkByName(name)
+	// refuse-by-default: guards Poll -- a failed read is "not yet", the caller polls
 	if err != nil {
 		return false
 	}
 	routes, err := netlink.RouteList(link, unix.AF_INET6)
+	// refuse-by-default: guards Poll -- a failed read is "not yet", the caller polls
 	if err != nil {
 		return false
 	}

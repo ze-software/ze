@@ -131,7 +131,7 @@ func followLearnedResolvers(p *sdk.Plugin, learned *dnssource.Follower, publishe
 		fresh, err := learned.Accept(event)
 		if err != nil {
 			log.Warn("dhcpserver: learned resolvers not applied; option 6 keeps the previous ones", "error", err)
-			return nil
+			return fmt.Errorf("dhcpserver: learned resolvers not applied: %w", err)
 		}
 		if fresh {
 			publisher.refresh()

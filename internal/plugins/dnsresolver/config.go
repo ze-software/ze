@@ -370,9 +370,14 @@ var forwardRefusals = []dnssource.Refusal{
 // the container is absent, else the written list, refused with the what,
 // why and fix when the resolver cannot use it.
 func parseForwardSources(r map[string]any) (dnssource.List, error) {
-	fm, ok := asMap(r, "forward")
-	if !ok {
+	raw, present := r["forward"]
+	if !present {
 		return forwardDefault, nil
+	}
+	fm, isContainer := raw.(map[string]any)
+	if !isContainer {
+		return dnssource.List{}, errors.New("service dns-resolver forward is not a container, so Ze cannot read its dns-source list\n" +
+			"run ze config validate, and write service dns-resolver forward { server <address>; } or delete service dns-resolver forward")
 	}
 	return dnssource.ParseContainer(fm, forwardDefault, dnssource.FamilyAll, dnssource.AudienceZe, forwardRefusals...)
 }

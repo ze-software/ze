@@ -8,6 +8,7 @@ package dnsresolver
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net"
 	"os"
@@ -155,6 +156,7 @@ func followLearnedResolvers(p *sdk.Plugin, res *resolver, log *slog.Logger) {
 	p.OnEvent(func(event string) error {
 		if err := res.relearn(event); err != nil {
 			log.Warn("dns-resolver: learned resolvers not applied", "error", err)
+			return fmt.Errorf("dns-resolver: learned resolvers not applied: %w", err)
 		}
 		return nil
 	})

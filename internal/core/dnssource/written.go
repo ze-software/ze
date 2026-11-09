@@ -34,6 +34,7 @@ func ReadWritten(path string, body map[string]any) (*Written, error) {
 		written.Sources = append(written.Sources, class)
 	}
 	raw, present := body["mode"]
+	// refuse-by-default: guards NewWrittenList -- an absent mode is ModeUnspecified, which NewWrittenList refuses for a multi-source list
 	if !present {
 		return written, nil
 	}
