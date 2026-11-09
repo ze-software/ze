@@ -104,7 +104,7 @@ record is the spec text at the parent of its closure commit
 | 5 | closed | `209709901c` (`spec-home-cpe-5-ike-eddsa.md`) |
 | 6 | closed | `9dabfc7a2a` (`spec-home-cpe-6-ipsec-ipv6-in-ipv4-vti.md`) |
 | 7 | closed | `cede669879` (`spec-home-cpe-7-system-small-defects.md`) |
-| 8 | open, `blocked` at closure | `spec-home-cpe-8-ipv6-cpe-chain.md`: lint cleared; nine RFC 7084 and RFC 9915 proof records went stale when the home-cpe-23b commits 83f0f6c683 and e31b2ae512 moved their producers, and need re-recording before commits A and B (its Blocker section) |
+| 8 | closed | 2026-11-09, after the nine RFC 7084 and RFC 9915 records were retaken in `8d83d8bde0` (`spec-home-cpe-8-ipv6-cpe-chain.md`) |
 | 9 | closed | `403e3256f9` (`spec-home-cpe-9-mss-clamp-to-pmtu.md`) |
 | 10 | closed | `3d1d4ecba7` (`spec-home-cpe-10-vyos-mapping-guide.md`) |
 | 11 | closed | `dcc20ffb68` (`spec-home-cpe-11-lab.md`) |

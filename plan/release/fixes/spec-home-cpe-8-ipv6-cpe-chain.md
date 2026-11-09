@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | Feature: a dual-stack home CPE on a PPPoE WAN. Owner timing: a missing RFC feature may wait until after the first release. The rows it closes are recorded gaps of enrolled RFCs (RFC 7084 G-4, G-5, WLL-2, WLL-3, L-2, L-3, L-4; RFC 5072 on the client side). |
@@ -542,36 +542,19 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output): the scoped package tests of `internal/component/l2tp/pppoeclient`, `internal/component/iface`, `internal/core/ndp`, `internal/plugins/iface/ra`, `internal/plugins/iface/dhcp` and `internal/core/routewatch` under `./le job run`, `./le test functional parse` for the three parse tests, the interop scenarios through `./le test deployment docker-pppoe-accel` and `./le test integration interop-topology pppoe-dhcpv6-pd-ze-client`, then `./le verify changed` over the closing commits
 
-## Blocker
-
-Fifth closure, 2026-11-09, handed back before commit A on stale proof records.
-The lint blocker is cleared: `rwinv/out-gb10/iface-lint.log` names no finding in
-`internal/component/iface/delegated_prefix.go` or `delegated_prefix_test.go`
-(its exit 1 is other sessions' iface files: `pppoe_client.go`,
-`rate_command.go`, `reconcile_ra.go`, `register.go` and six test files), and
-`./le spec review check` over those two files still passes. What blocks:
-`./le rfc check` (`scratch/c8close5-rfccheck.log`) reports nine of this spec's
-records `producer-changed`, because 83f0f6c683 and e31b2ae512
-(`Spec-work: home-cpe-23b-dns-source-consumers`) changed the producers after
-the fourth closure's check.
-
-| Record | Unit | Producer |
-|--------|------|----------|
-| RFC7084-4.1-5 positive, negative | `rfc7084_router_lifetime_test.go::TestRFC7084G5ImmediateZeroLifetime` | `internal/plugins/iface/ra/advertiser.go::urgent` |
-| RFC7084-4.3-13 positive, negative | `TestRFC7084L13ReplacedDelegatedPrefix`, `TestRFC7084L13RenewKeepsPrefix` | `advertiser.go::update` |
-| RFC7084-4.3-6 positive, negative | `TestRFC7084RouterLifetimeMatrix`, `TestRFC7084L3DroppedDelegationRIO` | `advertiser.go::build`, `advertiser.go::sent` |
-| RFC7084-4.3-8 positive | `internal/component/iface/rfc4861_router_configuration_test.go::TestRFC4861OnlyAnAdvertisingInterfaceSends` | `internal/component/iface/reconcile_ra.go::reconcileRA` |
-| RFC9915-6.3-2 positive, negative | `TestRFC9915AdvertisedLifetimeBound`, `TestRFC9915AdvertisedLifetimeExpired` | `advertiser.go::build` |
-
-What clears it: the main thread re-records each with `./le rfc discriminate`
-(or `./le rfc record`) over today's producers, the records land, and
-`./le rfc check` names none of rfc5072, rfc7084 or rfc9915. Then a closure
-run lands commits A and B.
-
 ## Closure history
 
 Fifth closure, 2026-11-09: lint cleared (`rwinv/out-gb10/iface-lint.log`);
-handed back on the nine stale records above.
+handed back on nine stale records (RFC7084-4.1-5, 4.3-13, 4.3-6 and 4.3-8,
+RFC9915-6.3-2), whose producers in `internal/plugins/iface/ra/advertiser.go`
+and `internal/component/iface/reconcile_ra.go` 83f0f6c683 and e31b2ae512
+(home-cpe-23b) had changed.
+
+Sixth closure, 2026-11-09: the nine records were retaken and observed red in
+8d83d8bde0 (`rwinv/out-gb11/rec-RFC7084-*.log`, `rec-RFC9915-*.log`).
+`./le rfc check` (`scratch/c8close6-rfccheck.log`) names no rfc5072, rfc7084
+or rfc9915 violation: its twelve `producer-changed` records are rfc2181,
+rfc4035 and rfc7950 records of other specs. Commits A and B land.
 
 Fourth closure, 2026-11-09: the third handback's blocker is cleared. Guest
 batch 8 (Ze kernel 7.3, `rwinv/out-gb8/c8-inguest-run.log`): `iface-verify.log`
@@ -775,9 +758,9 @@ the journal row states the red, but no log exists.
 
 | Field | Value |
 |-------|-------|
-| Artifact | written by `./le spec review record` at closure |
+| Artifact | `tmp/review/home-cpe-8-ipv6-cpe-chain-7e292f27-ced0-427f-a7b6-3a931db211f9.md`, recorded at the sixth closure over the spec, the umbrella row and the 17 code files of Run 3 |
 | `./le spec review check` | clean |
-| Rounds | 2 |
+| Rounds | 3 |
 | Reviewer lenses used | wiring and process boundary (DHCP clients run in the iface process; `iface-dhcp` refuses to run external), peer input (IPv6CP and IPCP option walks after the codec's bound checks, Protocol-Reject length; the one `BUG` panic, `clientIPv6CP.running`, is reachable only from Ze's own state), lifetimes and urgency (`advertiser`, the delegation worker), concurrency (`Sender.Update` under `raMu`, the `delegations` mutex), RFC quotes, style pass; `./le repo check` clean; `./le test weakened check base 2bebae34b5~1` clean (194 test files) |
 
 ### Findings fixed
@@ -787,6 +770,9 @@ the journal row states the red, but no log exists.
 
 ### Run 2
 Over the uncommitted `verifyDelegatedPrefixes` fix and `delegated_prefix_test.go`, written by another agent: 0 BLOCKER, 0 ISSUE. Units with no IPv6 or no entries are skipped as before; entries within a unit keep `parseDelegatedPrefixes` source order (`slices.Sort(sources)`); the first error still returns at once; interface names are unique across `allIfaceEntries` and `lo`, so name then label is a total order. The test parses afresh 100 times and asserts the whole message, which the map-order walk fails with near certainty. Style pass: no panic, no new exported name. The artifact is re-recorded over both files at commit A.
+
+### Run 3
+Sixth closure, over the 17 code files the closure gate names as this spec's change set as they stand now (57ef59e5e1, de49d91fc8, 350b91b248; the `ze-iface-conf.yang` hunk of 83f0f6c683 is home-cpe-23b's, reviewed there): 0 BLOCKER, 0 ISSUE. `delegations.record` defers `publishHeld` after the unlock defer, so it runs first, under `t.mu`, as its comment requires. `delegationSourceReference` reads `root` only and offers exactly the set `requestsDelegation` lets `verifyDelegatedPrefixes` accept; `acceptDelegationSource` accepts every value because verify refuses an unknown source with the fix. `recordIPv6CPOpened` follows every Opened transition: raised in `applyIPv6CP` and `restart`, dropped in `applyIPv6CP` on `ipv6cpClosed` (which `lowerDown` yields before an LCP restart) and by the deferred call in `keepaliveLoop`. `referenceKeyVocabulary` offers nothing for a multi-leaf key or a non-reference key. The de49d91fc8 test change tightens the L-13 renew assertion to both renewed lifetimes. Style pass: no panic, no new exported name beyond `DelegationSourceReference`, which `register_delegation.go` uses.
 
 ### Notes
 - `applyIPv6ForwardingSwitch` discards `json.Marshal` errors of fixed string structs, and `verifyDelegatedEntry` the error of `delegatedSubnetIDMax` (YANG bounds `pd length` to 48-64); neither can fail, neither carries a `//nolint:errcheck` reason.
