@@ -6,8 +6,11 @@ import (
 	"encoding/binary"
 	"net"
 	"net/netip"
+	"slices"
+	"sync"
 
 	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/dnssource"
 )
 
 // RFC 2131 Section 2: DHCP message op codes.
@@ -81,7 +84,52 @@ type dhcpHandler struct {
 	pool        *pool
 	leases      *leaseTable
 	staticByMAC map[string]netip.Addr
+	// learned holds the system-dns records the subnet's received class reads.
+	// A handler built alone holds its own empty Follower, the state before any
+	// lease; dhcpServer.install points every handler at the plugin's one.
+	learned *dnssource.Follower
+	// dropped is the last set of host-only addresses the option 6 selection
+	// refused, logged when it changes rather than on every reply.
+	dropped dnsDropLog
 }
+
+// dnsDropLog remembers the host-only addresses a subnet's selection last
+// dropped, so each change is logged once (D-16). Safe for concurrent use.
+type dnsDropLog struct {
+	mu   sync.Mutex
+	last []netip.Addr
+}
+
+// changed records dropped and reports whether it differs from the last set.
+func (d *dnsDropLog) changed(dropped []netip.Addr) bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if slices.Equal(d.last, dropped) {
+		return false
+	}
+	d.last = slices.Clone(dropped)
+	return true
+}
+
+// dnsOffer is what a subnet hands one client for name resolution: the option
+// 6 servers and the lease length the reply carries (D-9).
+type dnsOffer struct {
+	servers  []netip.Addr
+	leaseSec uint32
+}
+
+// shortLeaseSec is the lease a subnet hands out while its option 6 list waits
+// for a received entry (D-9).
+//
+// RFC 5625 Section 5.3: "Alternatively, the DHCP server might only issue very
+// short (i.e., 60 second) leases while the WAN link is down, only reverting to
+// more typical lease lengths once the WAN link is up and the upstream DNS
+// servers are known."
+const shortLeaseSec = 60
+
+// option6ServersMax is the most addresses one option 6 carries: its length
+// octet holds 255, and each address is four octets.
+const option6ServersMax = 63
 
 func newDHCPHandler(sub subnetConfig, pxe pxeConfig) *dhcpHandler {
 	p := newPool(sub.Ranges, sub.StaticMappings)
@@ -93,6 +141,13 @@ func newDHCPHandler(sub subnetConfig, pxe pxeConfig) *dhcpHandler {
 // subnet when its address plan is unchanged, so the leases survive while the
 // options and PXE settings are new. lt MUST be the lease table of p.
 func newDHCPHandlerWithTables(sub subnetConfig, pxe pxeConfig, p *pool, lt *leaseTable) *dhcpHandler {
+	// A subnet built with no list holds no written dns-source container,
+	// which is the state D-5 answers with the built-in default; parseSubnet
+	// already sets it, so this names the same default for a subnet built in
+	// code. The handler never selects from a zero List (List.IsZero).
+	if sub.Sources.IsZero() {
+		sub.Sources = subnetDNSDefault
+	}
 	staticByMAC := make(map[string]netip.Addr, len(sub.StaticMappings))
 	for _, sm := range sub.StaticMappings {
 		staticByMAC[string(sm.MAC)] = sm.IP
@@ -104,22 +159,84 @@ func newDHCPHandlerWithTables(sub subnetConfig, pxe pxeConfig, p *pool, lt *leas
 		pool:        p,
 		leases:      lt,
 		staticByMAC: staticByMAC,
+		learned:     &dnssource.Follower{},
 	}
+}
+
+// offerDNS evaluates the subnet's option 6 list now. self is Ze's address
+// inside the subnet on the receiving interface, invalid for a relayed request
+// (D-6). The lease is shortened to shortLeaseSec while the list reaches the
+// received class and finds no usable entry there (D-9); a configured lease
+// shorter than that is kept.
+func (h *dhcpHandler) offerDNS(self netip.Addr) dnsOffer {
+	list := h.subnet.Sources
+	candidates := dnssource.Candidates{
+		dnssource.ClassConfigured: h.subnet.DNSServers,
+		dnssource.ClassReceived:   list.Received(h.learned.Records(), h.leases.clock.Now()),
+	}
+	if self.IsValid() {
+		candidates[dnssource.ClassSelf] = []netip.Addr{self}
+	}
+	selection := dnssource.Select(list, candidates)
+	if h.dropped.changed(selection.Dropped) {
+		for _, addr := range selection.Dropped {
+			loggerPtr.Load().Warn("dhcpserver: host-only resolver not handed out in option 6",
+				"path", subnetDNSSourcePath, "subnet", h.subnet.Prefix, "address", addr)
+		}
+	}
+	offer := dnsOffer{servers: selection.Servers, leaseSec: h.subnet.LeaseTimeSec}
+	if len(offer.servers) > option6ServersMax {
+		loggerPtr.Load().Warn("dhcpserver: resolvers beyond what option 6 holds not handed out",
+			"path", subnetDNSSourcePath, "subnet", h.subnet.Prefix, "selected", len(offer.servers), "sent", option6ServersMax)
+		offer.servers = offer.servers[:option6ServersMax]
+	}
+	if awaitsReceived(list, selection) && offer.leaseSec > shortLeaseSec {
+		offer.leaseSec = shortLeaseSec
+	}
+	return offer
+}
+
+// awaitsReceived reports whether list reaches its received class and found no
+// usable entry there: under first-usable, no earlier class was used; under
+// merge, every class is reached. A list that does not name received, or
+// whose received class contributed, does not wait.
+func awaitsReceived(list dnssource.List, selection dnssource.Selection) bool {
+	for _, class := range list.Sources() {
+		if class == dnssource.ClassReceived {
+			return !slices.Contains(selection.Used, dnssource.ClassReceived)
+		}
+		if list.Mode() != dnssource.ModeMerge && slices.Contains(selection.Used, class) {
+			return false
+		}
+	}
+	return false
 }
 
 // commitBinding binds addr to mac in this subnet's pool and lease table and
 // answers the DHCPACK, identified by serverID. The segment decides that addr
 // is the client's and which identifier the reply carries (segment.commit);
 // this only records it.
-func (h *dhcpHandler) commitBinding(pkt []byte, mac net.HardwareAddr, addr, serverID netip.Addr) []byte {
+//
+// self is Ze's address inside the subnet on the receiving interface
+// (segment.selfAddress). The lease recorded is the one the ACK carries.
+func (h *dhcpHandler) commitBinding(pkt []byte, mac net.HardwareAddr, addr, serverID, self netip.Addr) []byte {
+	offer := h.offerDNS(self)
 	h.pool.reserve(addr, mac)
-	h.leases.add(mac, addr, h.subnet.LeaseTimeSec)
-	return h.buildReply(pkt, msgAck, addr, serverID)
+	h.leases.add(mac, addr, offer.leaseSec)
+	return h.buildOfferedReply(pkt, msgAck, addr, serverID, offer)
 }
 
 // buildReply answers req with an OFFER or ACK of yiaddr from this subnet. The
 // segment chose serverID (segment.serverID); it fills option 54 and siaddr.
-func (h *dhcpHandler) buildReply(req []byte, msgType byte, yiaddr, serverID netip.Addr) []byte {
+// self is Ze's address inside the subnet on the receiving interface, which
+// the self class of option 6 hands out (segment.selfAddress).
+func (h *dhcpHandler) buildReply(req []byte, msgType byte, yiaddr, serverID, self netip.Addr) []byte {
+	return h.buildOfferedReply(req, msgType, yiaddr, serverID, h.offerDNS(self))
+}
+
+// buildOfferedReply is buildReply with the subnet's DNS offer already
+// evaluated, so an ACK carries the lease commitBinding recorded.
+func (h *dhcpHandler) buildOfferedReply(req []byte, msgType byte, yiaddr, serverID netip.Addr, offer dnsOffer) []byte {
 	resp := make([]byte, 1500)
 	resp[0] = opReply
 	resp[1] = req[1]
@@ -157,9 +274,12 @@ func (h *dhcpHandler) buildReply(req []byte, msgType byte, yiaddr, serverID neti
 			off = safeAppendOption(resp, off, limit, optRouter, rip[:])
 		}
 
-		if len(h.subnet.DNSServers) > 0 {
-			dns := make([]byte, 0, 4*len(h.subnet.DNSServers))
-			for _, d := range h.subnet.DNSServers {
+		// RFC 2132 Section 3.8: "The minimum length for this option is 4
+		// octets, and the length MUST always be a multiple of 4." An empty
+		// selection sends no option 6, and each server is four octets.
+		if len(offer.servers) > 0 {
+			dns := make([]byte, 0, 4*len(offer.servers))
+			for _, d := range offer.servers {
 				dip := d.As4()
 				dns = append(dns, dip[:]...)
 			}
@@ -175,12 +295,12 @@ func (h *dhcpHandler) buildReply(req []byte, msgType byte, yiaddr, serverID neti
 		}
 
 		var lt [4]byte
-		binary.BigEndian.PutUint32(lt[:], h.subnet.LeaseTimeSec)
+		binary.BigEndian.PutUint32(lt[:], offer.leaseSec)
 		off = safeAppendOption(resp, off, limit, optLeaseTime, lt[:])
 
 		// RFC 2131 Section 4.4.5: T1 = 0.5 * lease, T2 = 0.875 * lease.
-		t1 := h.subnet.LeaseTimeSec / 2
-		t2 := h.subnet.LeaseTimeSec * 7 / 8
+		t1 := offer.leaseSec / 2
+		t2 := offer.leaseSec * 7 / 8
 		var t1b, t2b [4]byte
 		binary.BigEndian.PutUint32(t1b[:], t1)
 		binary.BigEndian.PutUint32(t2b[:], t2)

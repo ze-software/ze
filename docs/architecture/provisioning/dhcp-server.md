@@ -153,6 +153,29 @@ config migration is needed.
 - The segment lookup runs under the pool lock and scans linearly. That is fine
   at the current limit of ten segments. A larger limit needs a sorted search.
 
+## Option 6 and the lease time
+
+Option 6 is the subnet's `dns-source` list, evaluated when each OFFER or ACK
+is built (`dhcpHandler.offerDNS`). The `configured` class is `dns-server`, the
+`received` class reads the newest `system-dns` snapshot the plugin follows
+(`followLearnedResolvers`: a startup subscription, then a snapshot request at
+`OnStarted`, so a server that starts after the leases still sees them), and
+`self` is the receiving device's address inside the subnet
+(`segment.selfAddress`), which a relayed request does not have. The list is a
+handed-on one (`dnssource.AudienceHandedOn`), so a loopback or zone-less
+link-local server is dropped and logged once per change. The selection is cut
+at 63 addresses, the most one option holds.
+
+While the list reaches `received` and finds no usable entry there
+(`awaitsReceived`), the reply carries a 60-second lease, or the configured one
+when it is shorter, and the lease table records what the ACK carried. RFC 5625
+Section 5.3 offers this as one way to keep LAN clients from holding no server
+while the WAN is down. A client that leased while the WAN was up keeps its
+server until it renews, because the server sends no FORCERENEW.
+
+<!-- source: internal/plugins/dhcpserver/handler.go -- offerDNS, awaitsReceived -->
+<!-- source: internal/plugins/dhcpserver/register.go -- followLearnedResolvers -->
+
 ## Config reload
 
 A reload that changes nothing under `service dhcp-server` leaves the server

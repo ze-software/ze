@@ -2,6 +2,7 @@ module ze-dhcp-server-conf {
     namespace "urn:ze:dhcp-server:conf";
     prefix dhcpsrv;
 
+    import ze-types { prefix zt; }
     import ze-extensions { prefix ze; }
 
     description
@@ -213,6 +214,22 @@ module ze-dhcp-server-conf {
                             sends them in the order it reads them. A commit rejects more than 63 addresses, which is
                             what one DHCP option holds, and it rejects an address that is not IPv4.";
                         ze:help "DNS server addresses (option 6)";
+                    }
+
+                    uses zt:dns-source {
+                        refine dns-source {
+                            description "The sources of this subnet's option 6, in order. configured is dns-server;
+                                received is every IPv4 resolver Ze learned by DHCPv4, IPCP or the host's own
+                                resolv.conf; self is Ze's own address inside this subnet on the interface that
+                                received the request, none for a relayed request. radius is refused here. A loopback
+                                address is never handed out, whatever its source, and each one dropped is logged.
+                                With the container absent the default is source configured, then received, mode
+                                first-usable: the dns-server entries when any are set, otherwise the learned
+                                resolvers. While the list reaches received and no received entry is usable, replies
+                                carry a 60-second lease (a configured shorter lease is kept), so a client that leased
+                                with the WAN down renews within a minute of it coming up. Write source configured
+                                alone to keep a subnet with no dns-server from sending option 6.";
+                        }
                     }
 
                     leaf domain-name {

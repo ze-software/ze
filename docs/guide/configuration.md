@@ -4340,10 +4340,11 @@ service {
 | `range <name>` | list | (none) | Named dynamic address pool. Multiple ranges per subnet for disjoint pools. |
 | `range <name>.start` | IPv4 address | (none) | First allocatable address. |
 | `range <name>.stop` | IPv4 address | (none) | Last allocatable address. |
-| `lease-time` | uint32 | `86400` | Lease duration in seconds (60-604800). |
+| `lease-time` | uint32 | `86400` | Lease duration in seconds (60-604800). While the subnet's `dns-source` list reaches `received` and no learned resolver is usable, replies carry a 60-second lease instead, so a client that leased with the WAN down renews within a minute of it coming up (RFC 5625 Section 5.3). |
 | `default-router` | IPv4 address | (none) | Default gateway (option 3). |
 | `server-identifier` | IPv4 address | (none) | Address the server identifies itself with in this subnet's replies (option 54). Unset: the listen interface's address in the subnet (see "Several subnets on one interface"). |
-| `dns-server` | leaf-list of IPv4 address | (none) | DNS servers (option 6). |
+| `dns-server` | leaf-list of IPv4 address | (none) | DNS servers (option 6): the `configured` class of `dns-source`. |
+| `dns-source` | container | `source configured received`, `mode first-usable` | Where option 6 comes from, in order: `configured` (`dns-server`), `received` (the IPv4 resolvers Ze learned on its WAN), `self` (Ze's own address in the subnet on the interface the request arrived on; none for a relayed request). `radius` is refused. A loopback address is never handed out and each one dropped is logged. With the container absent, a subnet with no `dns-server` hands out the learned resolvers, where before it sent no option 6; write `dns-source { source configured; }` to keep it sending none. |
 | `domain-name` | string | (none) | Domain name for clients (option 15). |
 | `static-mapping <name>` | list | (none) | Static MAC-to-IP binding (excluded from dynamic allocation). |
 

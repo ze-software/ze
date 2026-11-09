@@ -171,7 +171,7 @@ func (s segment) discover(pkt []byte, mac net.HardwareAddr) []byte {
 			continue
 		}
 		if addr, ok := h.pool.allocate(mac); ok {
-			return h.buildReply(pkt, msgOffer, addr, id)
+			return h.buildReply(pkt, msgOffer, addr, id, s.selfAddress(h))
 		}
 	}
 	// RFC 2131 Section 4.3.1: if no address is available, remain silent.
@@ -373,7 +373,7 @@ func (s segment) commit(h *dhcpHandler, pkt []byte, mac net.HardwareAddr, addr n
 		o.leases.release(mac)
 		o.pool.release(previous)
 	}
-	return h.commitBinding(pkt, mac, addr, id)
+	return h.commitBinding(pkt, mac, addr, id, s.selfAddress(h))
 }
 
 // offerRequested answers the DHCPOFFER of requested from h when h's pool can
@@ -389,7 +389,7 @@ func (s segment) offerRequested(h *dhcpHandler, pkt []byte, mac net.HardwareAddr
 	if !h.pool.claim(requested, mac) {
 		return nil
 	}
-	return h.buildReply(pkt, msgOffer, requested, id)
+	return h.buildReply(pkt, msgOffer, requested, id, s.selfAddress(h))
 }
 
 // offer answers the DHCPOFFER of addr from h, or nil when h cannot name a
@@ -400,7 +400,7 @@ func (s segment) offer(h *dhcpHandler, pkt []byte, addr netip.Addr) []byte {
 		s.withheld(h, err)
 		return nil
 	}
-	return h.buildReply(pkt, msgOffer, addr, id)
+	return h.buildReply(pkt, msgOffer, addr, id, s.selfAddress(h))
 }
 
 // nak answers the DHCPNAK from h, or nil when h cannot name a server
@@ -446,10 +446,8 @@ func (s segment) serverID(h *dhcpHandler) (netip.Addr, error) {
 	// message from the client is zero), the server SHOULD select the IP
 	// address the server is using for communication on that subnet as the
 	// 'server identifier'."
-	for _, addr := range s.device {
-		if h.subnet.Prefix.Contains(addr) {
-			return addr, nil
-		}
+	if self := s.selfAddress(h); self.IsValid() {
+		return self, nil
 	}
 	// RFC 2131 Section 4.1: "If the server has received a message through a
 	// DHCP relay agent, the server SHOULD choose an address from the interface
@@ -459,6 +457,20 @@ func (s segment) serverID(h *dhcpHandler) (netip.Addr, error) {
 		return s.device[0], nil
 	}
 	return netip.Addr{}, errNoServerAddress
+}
+
+// selfAddress answers Ze's first address inside h's subnet on the receiving
+// device, which the self class of option 6 hands out (D-6), and the invalid
+// address when the device holds none there, as for a request a relay
+// forwarded from another link: the self class then offers nothing and the
+// list falls through.
+func (s segment) selfAddress(h *dhcpHandler) netip.Addr {
+	for _, addr := range s.device {
+		if h.subnet.Prefix.Contains(addr) {
+			return addr
+		}
+	}
+	return netip.Addr{}
 }
 
 // withheld records that h answers nothing for err (serverID), naming the

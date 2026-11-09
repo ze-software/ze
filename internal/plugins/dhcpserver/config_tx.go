@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"slices"
 
+	"github.com/ze-software/ze/internal/core/dnssource"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -44,6 +45,9 @@ type dhcpServer struct {
 	handlers  []*dhcpHandler
 	listeners []dhcpListener
 	log       *slog.Logger
+	// learned is the newest system-dns snapshot, which every handler's
+	// received class reads at reply time (followLearnedResolvers).
+	learned dnssource.Follower
 }
 
 // install makes cfg the running config, or returns an error and leaves the
@@ -64,6 +68,9 @@ func (s *dhcpServer) install(cfg serverConfig) error {
 	var handlers []*dhcpHandler
 	if cfg.Enabled {
 		handlers = buildHandlers(cfg, s.handlers)
+	}
+	for _, h := range handlers {
+		h.learned = &s.learned
 	}
 	served := s.listeners
 	s.closeListeners()

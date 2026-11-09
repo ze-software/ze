@@ -4,6 +4,7 @@ package dhcpserver
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -17,6 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/dnssource"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/taskguard"
@@ -98,6 +100,7 @@ func runDHCPServerPlugin(conn net.Conn) int {
 	tx := sdk.NewConfigTx(serverConfig{}, parseDHCPSections, srv.install)
 	tx.Register(p)
 	p.OnConfigure(func(sections []sdk.ConfigSection) error { return srv.configureAtBoot(tx, sections) })
+	followLearnedResolvers(p, &srv.learned, log)
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
@@ -114,6 +117,27 @@ func runDHCPServerPlugin(conn net.Conn) int {
 	srv.stop()
 	log.Info("dhcpserver plugin stopped")
 	return 0
+}
+
+// followLearnedResolvers keeps learned on the newest system-dns snapshot, so
+// each reply's option 6 reads the current learned resolvers. The startup
+// subscription and the snapshot request at OnStarted give a plugin that
+// starts after the leases the records already held (AC-13). Replies evaluate
+// the list when they are built, so a snapshot needs no other action.
+func followLearnedResolvers(p *sdk.Plugin, learned *dnssource.Follower, log *slog.Logger) {
+	p.SetStartupSubscriptionsIn(dnssource.Namespace, []string{dnssource.SnapshotEventType}, nil, "")
+	p.OnEvent(func(event string) error {
+		if _, err := learned.Accept(event); err != nil {
+			log.Warn("dhcpserver: learned resolvers not applied; option 6 keeps the previous ones", "error", err)
+		}
+		return nil
+	})
+	p.OnStarted(func(ctx context.Context) error {
+		if _, err := p.EmitEvent(ctx, dnssource.Namespace, dnssource.SnapshotRequestEventType, "", "", ""); err != nil {
+			log.Warn("dhcpserver: learned resolvers not requested; they apply at the next lease change", "error", err)
+		}
+		return nil
+	})
 }
 
 type closer interface {
