@@ -3,8 +3,6 @@
     "allow": [
       "Read(//Users/thomas/Code/codeberg.org/thomas-mangin/ze/**)",
       "Read(/Users/thomas/Code/github.com/exa-networks/exabgp/**)",
-      "Glob(*)",
-      "Grep(*)",
       "Bash(go:*)",
       "Bash(agent-browser:*)",
       "Bash(golangci-lint:*)",
