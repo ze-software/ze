@@ -2,15 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Scope | config |
 | Priority | P1 |
 | Release reason | Ze's own name lookups never follow learned resolvers: `cmd/ze/hub/main_system.go` `newResolvers` ("Called once at hub startup", from `cmd/ze/hub/main.go`) fixes ONE server, the first static `system name-server`, else the first server `resolveSystemDNS` reads once from resolv.conf. A CPE whose resolvers arrive later by DHCP or IPCP resolves with whatever the file held at boot, never fails over to a second server, and ignores a reload of `name-server`. That is incorrect behaviour on an accepted configuration (P1). The per-consumer source lists, the RADIUS-supplied subscriber DNS and the learned upstreams for the LAN resolver are the feature half, now `spec-home-cpe-23b-dns-source-consumers.md`; see "Split" below |
 | RFC gaps | - |
-| Depends | Implementation: `spec-home-cpe-13-pppoe-client-ipcp-dns.md` (the IPCP-learned `ppp` lease; the origin registry it describes is already in the tree). Depended on by `spec-home-cpe-23b-dns-source-consumers.md` |
+| Depends | Implementation: `spec-home-cpe-13-pppoe-client-ipcp-dns` (closed; the IPCP-learned `ppp` lease; the origin registry it describes is already in the tree). Depended on by `spec-home-cpe-23b-dns-source-consumers.md` |
 | Phase | 3/3 (phases 1, 2, 2a, 3; 4 to 8 moved to 23b) |
 | Handoff | - |
-| Updated | 2026-11-08 |
+| Updated | 2026-11-09 |
 
 Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md. This spec answers the
 umbrella's open decision "Learned DNS for LAN clients (child 13)".
@@ -86,7 +86,7 @@ raised, each with its reason in its row:
 | # | Decision | Reading recorded in this spec | Answers |
 |---|----------|-------------------------------|---------|
 | D-12 | Thomas: a one-off permission to claim this spec over the WIP cap to implement it (2026-11-08) | Applies to this spec only; it is not a rule and does not raise the cap | the WIP cap refusal at claim |
-| D-13 | The host's resolv.conf becomes a record of the `received` class, origin `host` | Deleting `resolveSystemDNS` (no layering) left Ze with no server where no source ever reached the registry: a Ze on a stock distribution with no `name-server` and no lease, whose `resolv-conf-path` (default `/tmp/resolv.conf`) is not the file the host manages, and web-only mode (`runWebOnly`, `cmd/ze/hub/service_web.go`), which has no daemon. This is the main session's correctness call: a Ze on a distribution host must keep resolving, and a lookup that fails where it worked before is a regression this spec would introduce. The host's `/etc/resolv.conf` is read as one `host` record, registered with `RegisterResolverOrigin` by its producer like every other origin, ranked after `ra` (400), valid until withdrawn. It is read only when it is not Ze's own `resolv-conf-path`, compared after symlinks are resolved, so Ze never reads back the file it writes. Web-only mode gets the same record. The approved YANG is unchanged: `host` is an origin inside `received`, not a class | the distribution and web-only cases the deletion of `resolveSystemDNS` left without a server |
+| D-13 | The host's resolv.conf becomes a record of the `received` class, origin `host` | Deleting `resolveSystemDNS` (no layering) left Ze with no server where no source ever reached the registry: a Ze on a stock distribution with no `name-server` and no lease, whose `resolv-conf-path` (default `/tmp/resolv.conf`) is not the file the host manages, and web-only mode (`runWebOnly`, `cmd/ze/hub/service_web.go`), which has no daemon. This is the main session's correctness call: a Ze on a distribution host must keep resolving, and a lookup that fails where it worked before is a regression this spec would introduce. The host's `/etc/resolv.conf` is read as one `host` record, registered with `RegisterResolverOrigin` by its producer like every other origin, ranked after `ra` (400), valid until withdrawn. It is read only when it is not Ze's own `resolv-conf-path`, compared after symlinks are resolved, so Ze never reads back the file it writes. Web-only mode gets the same record. The host's /etc/resolv.conf is a fallback inside `received`: its record is used only while no other received record (dhcpv4, dhcpv6, ppp, ra) is live (`RegisterFallbackResolverOrigin`, `dnssource.Record.Fallback`). The approved YANG is unchanged: `host` is an origin inside `received`, not a class | the distribution and web-only cases the deletion of `resolveSystemDNS` left without a server |
 | D-14 | The three tests of `resolveSystemDNS` are replaced only after a `ze-test-judge` verdict | `TestResolveDefaultServer`, `TestResolveSystemDNSNoPublicFallback` and `TestResolveSystemDNSFailClosed` (`internal/component/resolve/dns/resolver_test.go`) test the function this spec deletes. The replacement is one test: a resolver given no servers fails closed with `no DNS server configured`, which keeps the fail-closed and no-hardcoded-fallback guarantees. The verdict is recorded with `./le test weakened approve` before the edit (`ai/rules/testing.md`) | the test deletion `ai/rules/testing.md` gates |
 | D-15 | The lease for `test/plugin/dns-source-router-follows-lease.ci` comes from `pppoeac`'s scripted IPCP, extended to Nak with DNS | No fixture under `internal/test/` gives Ze a DHCPv4 lease with option 6 (`dhcpprobe` is a client probe), and `pppoeac` offers no DNS today (`internal/test/pppoeac/script_linux.go`, "This server offers no DNS"). Its scripted IPCP gains Primary and Secondary DNS in a Configure-Nak, so the `.ci` drives the real `ppp` lease path (the PPPoE client's `SetLease`), with the DNS stub `le mock dns --port 53` and `show dns lookup` as in `test/plugin/dns-stub-lookup.ci`. The Wiring Test row's entry point therefore reads "an IPCP lease with DNS" where it says "DHCPv4 lease with option 6" | the missing lease fixture |
 | D-16 | Moved to 23b with AC-27: a consumer that hands addresses to another host never hands out a loopback or an unscoped link-local address; the router consumer keeps both | `spec-home-cpe-23b-dns-source-consumers.md`, "Owner decisions owned here" | a host-only address handed to a LAN client or a subscriber |
@@ -128,7 +128,7 @@ list grammar are one decision; 23b reads it here.
   → Constraint: `resolver.forward` tries the `forward server` entries in order, one pass, equal time share; a reload that changes only `forward` keeps every socket. A learned-upstream change reuses that publish path (no rebind) and never serves under a half-applied list
 - [ ] `docs/features/interfaces.md` row "DNS from DHCP to `/tmp/resolv.conf`, tracked per lease"
   → Decision: `system.Resolvers` stays the only writer of resolv.conf
-- [ ] `plan/release/fixes/spec-home-cpe-13-pppoe-client-ipcp-dns.md`
+- [ ] `spec-home-cpe-13-pppoe-client-ipcp-dns` (closed; its design is in `docs/architecture/l2tp/cpe-1-pppoe-client.md`)
   → Constraint: child 13 owns the client IPCP request, the `ppp` lease and `show interface pppoe-client`; this spec consumes the lease and changes none of it
 
 ### RFC Summaries (Scope: config, with protocol consumers)
@@ -396,7 +396,7 @@ protocols. Protocols join through `RegisterResolverOrigin` and appear inside
 | A-2 | First-class-wins is what "backup" means | Thomas: "provide the configuration as a backup to the receive and vice versa" | operators expect merge | owner answer D-1: the operator states the mode, so no reading is imposed; `first-usable` is the default mode of the built-in lists only | validated (D-1) |
 | A-4 | RFC 9463 records fit the reserved fields | DNR carries a name, priority, addresses and SvcParams (from memory; the text is not in the tree) | the record grows a field at DNR time | fetch `rfc/full/rfc9463.txt` and compare before `ready` | unvalidated |
 | A-6 | The internal resolver may hold several servers with no public contract change | `resolve/dns` is internal | none | grep the callers of `ResolverConfig.Server` | unvalidated |
-| A-7 | Ze's kernel sends RDNSS options of the RAs it accepts to userspace as `RTM_NEWNDUSEROPT` on `RTNLGRP_ND_USEROPT`, with the receiving interface index, and only when `accept_ra` lets it process the RA | the constants exist in the vendored `golang.org/x/sys/unix` (`RTNLGRP_ND_USEROPT`, `RTM_NEWNDUSEROPT`); the kernel side is not read yet | the producer reads RAs from its own ICMPv6 socket instead | read `ndisc_router_discovery`, `ndisc_ra_useropt` and `ndisc_is_useropt` in `net/ipv6/ndisc.c` of Ze's kernel source before 23a's RA phase, and a QEMU integration test on Ze's kernel | unvalidated |
+| A-7 | Ze's kernel sends RDNSS options of the RAs it accepts to userspace as `RTM_NEWNDUSEROPT` on `RTNLGRP_ND_USEROPT`, with the receiving interface index, and only when `accept_ra` lets it process the RA | the constants exist in the vendored `golang.org/x/sys/unix` (`RTNLGRP_ND_USEROPT`, `RTM_NEWNDUSEROPT`); the kernel side is not read yet | the producer reads RAs from its own ICMPv6 socket instead | read `ndisc_router_discovery`, `ndisc_ra_useropt` and `ndisc_is_useropt` in `net/ipv6/ndisc.c` of Ze's kernel source before 23a's RA phase, and a QEMU integration test on Ze's kernel | confirmed by source: Linux v7.3 `net/ipv6/ndisc.c` `ndisc_router_discovery` leaves before the `nd_useropts` loop when `ipv6_accept_ra` is false, and `ndisc_ra_useropt` sends the option with the interface index on `RTNLGRP_ND_USEROPT`; QEMU proof `TestMonitorEmitsRDNSSFromAcceptedRA` (`scratch/p23rec/qemu-2a-b.log`) |
 | A-8 | The interface name a record carries is the configured name `received-interface` holds | `SetLease(iface, unit)` callers pass the configured interface name today (DHCP client, PPPoE client) | the filter compares names through the shared resolver (`docs/architecture/iface/logical-name-resolution.md`) | unit test over each producer's records | unvalidated |
 
 ### Risks
@@ -722,3 +722,30 @@ a discrimination record.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-home-cpe-23-dns-source-fall-through.md` only, in the same `./le commit create` script
+
+## Blocker
+
+Closure (`/ze-close`, 2026-11-09) stopped before commit A. Three functional
+tests that the Wiring Test and Functional Tests tables name have no run, and
+two of them were never written. Each is a deliverable, so the spec does not
+close around them (`ai/rules/completion.md`).
+
+| # | Missing | What it proves | State | What clears it |
+|---|---------|----------------|-------|----------------|
+| 1 | `test/parse/dns-source-mode-required.ci` | AC-16 and the AC-24 refusal through `ze config validate` and `ze start` (boot); user story 4 | written as `test/draft/parse/dns-source-mode-required.ci` (an ignored draft), never run, never promoted | run it with `--draft`, record its red under a broken `validateRouterDNSSourceTree` (`internal/component/config/system/dns_source.go`), promote it (`/ze-test`) |
+| 2 | `test/plugin/dns-source-router-merge.ci` | AC-17 through the daemon: lease 192.0.2.53 and `name-server 198.51.100.53` under `mode merge`; the internal resolver reaches 198.51.100.53 when 192.0.2.53 does not answer | not written | `/ze-implement`: write it on the shape of `test/pppoe/dns-source-router-follows-lease.ci` (stub DNS, `show dns lookup`), red walk, promote |
+| 3 | `test/plugin/dns-source-received-interface.ci` | AC-24 through the daemon: leases on two interfaces, `received-interface` keeps one | not written | `/ze-implement`: write it, red walk, promote |
+
+The unit tests over the same rules are committed (`TestRouterSourceMerge`,
+`TestRouterReceivedInterface`, `TestModeRequiredEachConsumer` in
+`internal/component/config/system/resolv_router_test.go`). The `.ci` rows
+prove the daemon path, which a unit test over `Resolvers` does not reach.
+
+Still owed by the closure once the three tests land:
+
+| Item | Detail |
+|------|--------|
+| Assumptions | A-1, A-4, A-6 and A-8 resolved with evidence; A-4 needs `rfc/full/rfc9463.txt` |
+| Shared design | record shape, list grammar, classes, defaults and YANG shape carried into `docs/features/dns-resolver.md` |
+| Citers of this path | `plan/post-release/features/spec-l2tp-ipv6-subscriber-dns.md`, `plan/release/fixes/spec-home-cpe-23b-dns-source-consumers.md`, `plan/release/validation/spec-doctor-coverage-2-home-cpe-batch.md` repointed |
+| Test name | `TestDefaultConfiguredBeatsReceived` is met by `TestDefaultListsReproduceToday` for the router; the audit records the name |
