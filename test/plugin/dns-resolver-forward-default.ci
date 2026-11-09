@@ -21,9 +21,11 @@
 # option, which the registry files under the same `received` class.
 #
 # DISCRIMINATION (break overlay, not yet run):
-# tmp/session/2026-11-07-104251/scratch/rwinv/c23b-forward-default/ replaces
-# config.go with a copy whose forwardDefault names configured alone. The
-# fixture must then fail at "under the default list ... never forwarded".
+# tmp/session/2026-11-07-104251/scratch/rwinv/c23b-forward-default-select/
+# replaces internal/plugins/dnsresolver/state.go with a copy whose
+# forwardUpstreams drops the received class at selection time, while the
+# config is still accepted. The fixture must then fail at the forwarding
+# step, "under the default list ... never forwarded".
 #
 # The fixture creates the stub's dummy link zerfwddns0 and deletes it when it
 # returns; the daemon removes the veth pair it created when it stops.
