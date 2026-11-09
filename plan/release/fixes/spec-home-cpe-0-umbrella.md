@@ -119,7 +119,7 @@ record is the spec text at the parent of its closure commit
 | 20 | closed | `12fb5bbfe9` (`spec-home-cpe-20-xfrm-cross-family-tunnel-state.md`) |
 | 21 | closed | `0a7cfc0ae1` (`spec-home-cpe-21-mss-clamp-not-raise.md`) |
 | 22 | closed | `5d9241eaa6` (`spec-home-cpe-22-ike-responder-reauth.md`) |
-| 23 | open, `blocked` at closure | `spec-home-cpe-23-dns-source-fall-through.md` (23a: the resolver registry, the router consumer, RFC 5625): the daemon runs of `dns-source-router-merge.ci` and `dns-source-received-interface.ci` (its Blocker section) |
+| 23 | closed | `spec-home-cpe-23-dns-source-fall-through` (23a: the resolver registry, the router consumer, RFC 5625); its design is in `docs/features/dns-resolver.md` |
 | 23b | open, `in-progress` | `spec-home-cpe-23b-dns-source-consumers.md` (the LAN resolver, DHCPv4, RA and subscriber consumers, RADIUS DNS, `show system dns`; depends on 23) |
 
 Review correction and completion (2026-11-06): the owner found eight defects

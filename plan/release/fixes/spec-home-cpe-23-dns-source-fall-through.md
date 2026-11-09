@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Scope | config |
 | Priority | P1 |
 | Release reason | Ze's own name lookups never follow learned resolvers: `cmd/ze/hub/main_system.go` `newResolvers` ("Called once at hub startup", from `cmd/ze/hub/main.go`) fixes ONE server, the first static `system name-server`, else the first server `resolveSystemDNS` reads once from resolv.conf. A CPE whose resolvers arrive later by DHCP or IPCP resolves with whatever the file held at boot, never fails over to a second server, and ignores a reload of `name-server`. That is incorrect behaviour on an accepted configuration (P1). The per-consumer source lists, the RADIUS-supplied subscriber DNS and the learned upstreams for the LAN resolver are the feature half, now `spec-home-cpe-23b-dns-source-consumers.md`; see "Split" below |
@@ -731,7 +731,7 @@ a discrimination record.
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-home-cpe-23-dns-source-fall-through.md` only, in the same `./le commit create` script
 
-## Blocker (second pass, superseded)
+## Closure history
 
 Closure (`/ze-close`, second pass, 2026-11-09) stopped before commit A
 again. The two daemon tests the Wiring Test and Functional Tests tables name
@@ -765,7 +765,8 @@ citers of this path are already handled: 23b and
 - Daemon fixtures: `dns_source_router_merge_linux.go` and `dns_source_received_interface_linux.go` (042a394a23, f16f857451). 7c86693ad0 made `resolv-conf-path` refuse a relative path, and the fixtures now write an absolute one.
 
 ### Bugs Found/Fixed
-- Review Gate run 1 found ISSUE 1, still open (Review Gate, Blocker).
+- Review Gate run 1, ISSUE 1: the internal resolver stopped at an upstream that answered SERVFAIL or REFUSED. Fixed in aad764e148: `internal/component/resolve/dns/resolver.go` `query` passes over any answer whose `Status.Authoritative()` is false, and returns the last server failure as the status when every server fails. `TestResolverPassesOverFailingServer` and `TestResolverEveryServerFailing` (`resolver_servers_test.go`) pass clean (`scratch/rwinv/resolve-dns-clean.log`) and both fail under the break that restores first-answer acceptance (`scratch/rwinv/resolve-dns-broken.log`, break `rwinv/c23-servfail-accepted`).
+- Review Gate run 1, ISSUE 2: the VyOS guide rows (Documentation Updates).
 
 ### Documentation Updates
 - This pass: `docs/guide/migrating-from-vyos.md`. Its `interfaces pppoe <n> no-peer-dns` row said Ze ranks learned servers after the static ones, and a "Dropped constructs" row said no leaf refuses IPCP DNS. `received-interface` now gives VyOS's behaviour, so the row maps it, the dropped row is gone, and a `system name-server <if>` row is added. Anchors: `ze-types.yang` grouping `dns-source`; `select.go` `List.Received`, `NewWrittenList`.
@@ -780,7 +781,7 @@ citers of this path are already handled: 23b and
 
 | Kind | What happened | What was true instead | How discovered | Action |
 |------|---------------|----------------------|----------------|--------|
-| approach | The internal resolver stops at the first answer, whatever its RCODE | RFC 1034 Section 5.3.3 step 4d drops a failing server and asks the next one, and Ze's LAN resolver already passes over an answer that is neither NOERROR nor NXDOMAIN | closure Review Gate, run 1 | fix owed (Blocker) |
+| approach | The internal resolver stops at the first answer, whatever its RCODE | RFC 1034 Section 5.3.3 step 4d drops a failing server and asks the next one, and Ze's LAN resolver already passes over an answer that is neither NOERROR nor NXDOMAIN | closure Review Gate, run 1 | fixed in aad764e148 |
 | approach | Nobody revisited the VyOS guide's `no-peer-dns` rows when `received-interface` landed | D-11 made the mapping equivalent | closure documentation review | repaired in this pass |
 
 ## Implementation Audit
@@ -790,25 +791,25 @@ citers of this path are already handled: 23b and
 |-------------|--------|----------|-------|
 | 1: three kinds of source | Done | `dnssource` classes; `resolv.go` origins; the RA origin in iface `register.go` | the RADIUS consumer is 23b's |
 | 2: each consumer gets every source (the router here) | Done | `zt:dns-source` grouping, `system dns-source` | the other consumers are 23b's |
-| 3: ordered fall-through | Partial | `dnssource.Select`; `resolver.go` `query` | ISSUE 1: an RCODE answer stops the failover |
+| 3: ordered fall-through | Done | `dnssource.Select`; `resolver.go` `query` | a transport failure and a server-failure RCODE both pass to the next server (aad764e148) |
 | 4: RADIUS pass-through | Changed | moved to 23b (D-10) | |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1 | Partial | `TestInternalResolverFollowsSelection`; `test/pppoe/dns-source-router-follows-lease.ci` | "does not answer" holds only for a transport failure (ISSUE 1) |
+| AC-1 | Done | `TestInternalResolverFollowsSelection`, `TestResolverPassesOverFailingServer`, `TestResolverEveryServerFailing`; `test/pppoe/dns-source-router-follows-lease.ci` | "does not answer" covers a transport failure and a SERVFAIL or REFUSED answer (aad764e148) |
 | AC-2 | Done | `test/reload/dns-source-reload.ci` | |
 | AC-3 | Done | `TestRecordExpiryWithdraws` | |
 | AC-4 | Done | `TestRouterSourceOrderReceivedFirst` | |
 | AC-5 | Done | `TestDefaultListsReproduceToday` | |
 | AC-16 | Done | `test/parse/dns-source-mode-required.ci` (`out-gb7/mode-required-*.log`), `TestModeRequiredEachConsumer` | |
-| AC-17 | Done | draft `dns-source-router-merge.ci`: clean PASS in `out-gb10/g10-clean.log`; each break red at its own assertion in `c23-merge-first.log` and `c23-resolver-first.log` | not promoted yet (Blocker) |
+| AC-17 | Done | `test/pppoe/dns-source-router-merge.ci`: clean PASS in `out-gb10/g10-clean.log`; each break red at its own assertion in `c23-merge-first.log` and `c23-resolver-first.log` | promoted from `test/draft/pppoe/` at closure |
 | AC-18 | Done | the `rfc5625_resolver_test.go` tags, `rfc/extraction/rfc5625.json` | `./le rfc check` owed at closure |
 | AC-19 | Done | `TestOption15AbsentWhenUnconfigured` | |
 | AC-21 | Done | `test/plugin/dns-source-router-follows-ra-rdnss.ci`, `TestRARDNSSRecordFromUserOpt` | |
 | AC-22 | Done | `TestRARDNSSLifetimeZeroWithdraws` | |
 | AC-23 | Done | `TestParseRDNSSOptionRefusesBadLength` | |
-| AC-24 | Done | draft `dns-source-received-interface.ci`: clean PASS in `g10-clean.log`, break red in `c23-recv-ignored.log`; `TestReceivedInterfaceWithoutReceivedRefused` | not promoted yet |
+| AC-24 | Done | `test/plugin/dns-source-received-interface.ci`: clean PASS in `g10-clean.log`, break red in `c23-recv-ignored.log`; `TestReceivedInterfaceWithoutReceivedRefused` | promoted from `test/draft/plugin/` at closure |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
@@ -832,8 +833,8 @@ citers of this path are already handled: 23b and
 
 ### Audit Summary
 - **Total items:** 13 ACs, 4 task points, 21 tests
-- **Done:** everything except AC-1 and task point 3
-- **Partial:** AC-1 and task point 3, both from ISSUE 1. The fix is owed; nothing is cut from scope
+- **Done:** everything (AC-1 and task point 3 since aad764e148)
+- **Partial:** none
 - **Skipped:** none
 - **Changed:** 3 (Deviations)
 
@@ -842,9 +843,9 @@ citers of this path are already handled: 23b and
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
 | The router follows learned resolvers | functional | `test/pppoe/dns-source-router-follows-lease.ci`, `test/plugin/dns-source-router-follows-ra-rdnss.ci` |
-| The operator sets the fall-through order and its mode | functional | `test/parse/dns-source-mode-required.ci`; draft `dns-source-router-merge.ci` (`out-gb10`) |
-| `received` narrowed to named interfaces | functional | draft `dns-source-received-interface.ci` (`out-gb10`) |
-| The router fails over to the next server | functional | proven for a transport failure only: `c23-resolver-first.log` goes red when it is broken. An RCODE answer does not fail over (ISSUE 1) |
+| The operator sets the fall-through order and its mode | functional | `test/parse/dns-source-mode-required.ci`; `test/pppoe/dns-source-router-merge.ci` (`out-gb10`) |
+| `received` narrowed to named interfaces | functional | `test/plugin/dns-source-received-interface.ci` (`out-gb10`) |
+| The router fails over to the next server | functional, unit | transport failure through the daemon: `dns-source-router-merge.ci`, red under its break in `c23-resolver-first.log`. SERVFAIL and REFUSED: `TestResolverPassesOverFailingServer`, `TestResolverEveryServerFailing`, red under `rwinv/c23-servfail-accepted` (`resolve-dns-broken.log`) |
 
 ## Work Not Done
 
@@ -856,18 +857,30 @@ citers of this path are already handled: 23b and
 
 | Field | Value |
 |-------|-------|
-| Artifact | not recorded: run 1 is not clean |
-| `./le spec review check` | not run |
-| Rounds | 1 |
-| Reviewer lenses used | logic and failover (`dnssource.Select`, `Resolvers.refresh`, `armExpiryLocked`, `Resolver.query`); security and bounds (`ParseRDNSS`, `raServerList`, `ValidateResolvConfPath`, `sameFile`); documentation |
+| Artifact | `tmp/review/home-cpe-23-dns-source-fall-through-7e292f27-ced0-427f-a7b6-3a931db211f9.md` (5 files, verdict clean) |
+| `./le spec review check` | OK: 4 code files, clean, hashes match |
+| Rounds | 2 |
+| Reviewer lenses used | run 1: logic and failover (`dnssource.Select`, `Resolvers.refresh`, `armExpiryLocked`, `Resolver.query`); security and bounds (`ParseRDNSS`, `raServerList`, `ValidateResolvConfPath`, `sameFile`); documentation. Run 2: the ISSUE 1 fix (aad764e148) and the two promoted daemon tests |
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
-| 1 | ISSUE | When an upstream answers SERVFAIL, REFUSED or any RCODE other than NOERROR or NXDOMAIN, the query ends there. `queryServer` returns that answer without an error, so `query` never asks the next server. RFC 1034 Section 5.3.3: "if the response shows a servers failure or other bizarre contents, delete the server from the SLIST and go back to step 3." Ze's LAN resolver already passes over such an upstream (`docs/guide/dns-resolver.md`). The daemon test proves failover only for a closed port | `internal/component/resolve/dns/resolver.go` `queryServer`, `query` | open (Blocker) |
+| 1 | ISSUE | When an upstream answers SERVFAIL, REFUSED or any RCODE other than NOERROR or NXDOMAIN, the query ends there. `queryServer` returns that answer without an error, so `query` never asks the next server. RFC 1034 Section 5.3.3: "if the response shows a servers failure or other bizarre contents, delete the server from the SLIST and go back to step 3." Ze's LAN resolver already passes over such an upstream (`docs/guide/dns-resolver.md`). The daemon test proves failover only for a closed port | `internal/component/resolve/dns/resolver.go` `queryServer`, `query` | aad764e148 (`query` passes over a non-authoritative status) |
 | 2 | ISSUE | `docs/guide/migrating-from-vyos.md` said `no-peer-dns` has no Ze leaf and that learned servers rank after the static ones, and it had no row for `system name-server <if>` | that page | this pass |
 
 NOTE: when `resolv-conf-path` moves from Ze's old file to a new path, the old file is read once as the host fallback, until the host file changes (`resolv_host.go` `sameFile` compares only against the new path).
+
+### Run 2
+
+0 BLOCKER, 0 ISSUE, over aad764e148 (`resolver.go`, `resolver_servers_test.go`, `docs/features/dns-resolver.md`) and the promoted `test/pppoe/dns-source-router-merge.ci` and `test/plugin/dns-source-received-interface.ci`, by a closure agent that wrote none of them.
+
+- Logic: `query` now asks every server until a NOERROR or NXDOMAIN answer (`Status.Authoritative`); a non-`unansweredError` error (strict DNSSEC refusal from `queryServer` via `dnssecDecision`) still ends the query, as the doc comment says. Mixed failures return the server-failure status, never an empty success, and `ResolveWithTTL` and `Resolve` cache only non-empty records, so a failure is never cached. The comment on `query` matches the code.
+- Tests: each new test counts queries per server, so a resolver that skipped the failing server or stopped at it both go red; the recorded break makes both fail.
+- Style pass (`docs/contributing/ze-go-style.md`): no `panic`, no new goroutine, no allocation on a hot path beyond the existing loop; log lines name server, name and rcode.
+- Docs: the `Server failover` row and the `merge` row in `docs/features/dns-resolver.md` match `query`.
+
+NOTE: an upstream that answers SERVFAIL logs one WARN per query, as the transport-failure path already did; a persistently failing first server is therefore noisy, not wrong.
+NOTE: in permissive DNSSEC mode a broken-chain SERVFAIL now moves to the next server, which RFC 1034 Section 5.3.3 asks for.
 
 ## Pre-Commit Verification
 
@@ -875,7 +888,7 @@ NOTE: when `resolv-conf-path` moves from Ze's old file to a new path, the old fi
 | File | Exists | Evidence |
 |------|--------|----------|
 | `test/parse/dns-source-mode-required.ci`, `test/pppoe/dns-source-router-follows-lease.ci`, `test/plugin/dns-source-router-follows-ra-rdnss.ci`, `test/reload/dns-source-reload.ci` | yes | `ls`, 2026-11-09 |
-| `test/pppoe/dns-source-router-merge.ci`, `test/plugin/dns-source-received-interface.ci` | no: drafts in `test/draft/` | promotion owed |
+| `test/pppoe/dns-source-router-merge.ci`, `test/plugin/dns-source-received-interface.ci` | yes | promoted from `test/draft/` at closure, `ls` 2026-11-09 |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
@@ -885,7 +898,8 @@ NOTE: when `resolv-conf-path` moves from Ze's old file to a new path, the old fi
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
-| `system dns-source` merge through the daemon | draft `dns-source-router-merge.ci` | guest batch 10 |
+| `system dns-source` merge through the daemon | `test/pppoe/dns-source-router-merge.ci` | guest batch 10 |
+| `system dns-source received-interface` through the daemon | `test/plugin/dns-source-received-interface.ci` | guest batch 10 |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
@@ -899,20 +913,18 @@ NOTE: when `resolv-conf-path` moves from Ze's old file to a new path, the old fi
 | `docs/plugin-overview.md`: No | the page lists no event namespaces; `system-dns` is documented in `process-protocol.md`, "The `system-dns` namespace" | yes |
 | `docs/guide/migrating-from-vyos.md` | `List.Received`, `NewWrittenList` | yes, this pass |
 
-## Blocker
+### RFC proof records
+| Stem | `./le rfc check` (2026-11-09, `scratch/c23-rfccheck.log`) | Whose |
+|------|------------------------------------------------------------|-------|
+| rfc1034 | no line: the two new resolver tests carry no `RFC requirement:` tag, so no record is owed | - |
+| rfc5625 | `RFC5625-4.4.1-1` (producer `dnsresolver/server.go` `admit`) and `RFC5625-5.2-1` positive and negative (producer `dhcpserver/handler.go` `buildReply`) report producer-changed | staled by 23b's commits 292ffc64cb and ae8ad2d589 / e31b2ae512, after 23a's records (920fe7220a, 849f901643); the re-record is owed by `plan/release/fixes/spec-home-cpe-23b-dns-source-consumers.md`, whose change moved the producers |
+| rfc8106 | `RFC8106-1.2-1` negative (producer `dnssource/select.go` `Select`) reports producer-changed | staled by 23b's fb83d97fbb / 311177442c; owed by 23b the same way |
 
-The third closure pass (2026-11-09) stopped at the Review Gate. The two
-daemon drafts are now proven in guest batch 10 (`scratch/rwinv/out-gb10/`):
-the clean run passes, and each break goes red at its own assertion. That
-clears the second pass's blocker. What blocks now:
+### Closure fourth pass (2026-11-09)
 
-| # | What | Producer | What clears it |
-|---|------|----------|----------------|
-| 1 | ISSUE 1: when an upstream answers SERVFAIL or REFUSED, the internal resolver's query ends there and never fails over to the next server | `internal/component/resolve/dns/resolver.go` `queryServer` returns any answer that is not NOERROR or NXDOMAIN as a success, so `query` stops | `/ze-implement`: pass such an answer over for the next server, as the LAN resolver does; NXDOMAIN stays final, and the DNSSEC strict rule stays. Add a unit test in `resolver_servers_test.go` in which the first server answers SERVFAIL (and, separately, REFUSED) and the second answers; it must be red before the fix. Then run the scoped `./le job run` of `./internal/component/resolve/dns/` |
-| 2 | The drafts are not promoted | `test/draft/pppoe/dns-source-router-merge.ci` moves to `test/pppoe/`, `test/draft/plugin/dns-source-received-interface.ci` to `test/plugin/` | the closure moves them in commit A; their proof is in `out-gb10` |
-| 3 | The rest of the closure | | the next closure pass: rerun the Review Gate over the fix and record it CLEAN, run `./le rfc check` (rfc5625, rfc8106), rerun `./le spec citation`, then commits A and B |
-
-`scratch/` is `tmp/session/2026-11-07-104251/scratch/`.
+ISSUE 1 was fixed in aad764e148 and Review Gate run 2 is clean. The two
+daemon drafts, proven in guest batch 10 (`scratch/rwinv/out-gb10/`), are
+promoted. `scratch/` is `tmp/session/2026-11-07-104251/scratch/`.
 
 Commit-trailer note for commit B: 8d13a9dceb is this spec's RA RDNSS work
 but carries `Spec-work: ipsec-spd-selection`, and several commits that carry

@@ -1,0 +1,83 @@
+# Test: system dns-source received-interface keeps only the resolvers learned
+#       on the interfaces it names, in resolv.conf and in Ze's own lookups.
+# Spec: spec-home-cpe-23-dns-source-fall-through -- AC-24 (the daemon half;
+#       the refusal half is test/parse/dns-source-mode-required.ci)
+# VALIDATES: the interface filter of the shared rule (List.Received,
+#            internal/core/dnssource/select.go) through the daemon. Two units
+#            with accept-ra 2 each learn a resolver from an RA's RDNSS option
+#            (raRDNSS, internal/component/iface/ra_rdnss.go): 2001:db8:53::a53
+#            on zerifa0 and 2001:db8:53::b53 on zerifb0. The config names
+#            zerifb0 alone. The compiled fixture advertises zerifa0 first and
+#            waits until the kernel installed that RA's on-link prefix route,
+#            so the kernel accepted it before zerifb0 is advertised. resolv.conf
+#            must then list 2001:db8:53::b53 alone, and `show dns lookup
+#            web.example.test type A` must answer 203.0.113.10, which only the
+#            stub on 2001:db8:53::b53 serves: the stub on 2001:db8:53::a53
+#            answers 203.0.113.77.
+# PREVENTS: a filter the registry ignores. zerifa0 sorts before zerifb0, so an
+#           ignored filter lists the dropped server first and the lookup meets
+#           its 203.0.113.77.
+#
+# The source list names one class and no mode, which AC-16 accepts. The
+# config validation refuses a relative resolv-conf-path (ze:validate
+# "resolv-conf-path", internal/component/config/validators_resolvconf.go), so the path
+# is /proc/self/cwd/<name>: absolute, yet inside the daemon's working
+# directory, the runner's fresh per-test directory. The fixture is the
+# daemon's plugin and runs in that directory too, so it reads the bare name.
+# The fixture creates the
+# stubs' dummy link zerifdns0 and deletes it when it returns; the daemon
+# removes the veth pairs it created when it stops.
+#
+# Requires Linux and CAP_NET_ADMIN (veth, dummy, accept_ra), CAP_NET_RAW (raw
+# ICMPv6) and CAP_NET_BIND_SERVICE (port 53).
+option=needs-linux:caps=net-admin,net-raw,net-bind
+option=timeout:value=90s
+
+stdin=ze-conf:terminator=EOF_CONF
+system {
+	dns-source {
+		source [ received ]
+		received-interface [ zerifb0 ]
+	}
+	dns {
+		resolv-conf-path "/proc/self/cwd/dns-source-received-interface.resolv.conf";
+	}
+}
+
+plugin {
+	external dns-source-received-interface-test {
+		run "le test fixture plugin/dns-source-received-interface"
+		encoder json
+	}
+}
+
+interface {
+	backend netlink
+
+	veth zerifa0 {
+		peer zerifa1
+		unit 0 {
+			ipv6 {
+				accept-ra 2
+			}
+		}
+	}
+
+	veth zerifb0 {
+		peer zerifb1
+		unit 0 {
+			ipv6 {
+				accept-ra 2
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=90s
+expect=exit:code=0
+
+# NO NEEDLE MAY HOLD A COLON: the runner splits a directive on ':'.
+expect=stderr:contains=web.example.test type A -> records 203.0.113.10 status NOERROR through it, with a resolver learned on zerifa0 filtered out
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

@@ -1,0 +1,95 @@
+# Test: under system dns-source mode merge, Ze lists the IPCP lease's DNS
+#       server and then system name-server, and its own lookups reach the
+#       configured server when the lease's server does not answer.
+# Spec: spec-home-cpe-23-dns-source-fall-through -- AC-17
+# VALIDATES: the merge mode of the shared rule (dnssource.Select,
+#            internal/core/dnssource/select.go) through the daemon: the
+#            registry (Resolvers.refresh, internal/component/config/system/resolv.go)
+#            writes resolv.conf and hands the same selection to the internal
+#            resolver (newResolvers, cmd/ze/hub/main_system.go), which asks each
+#            server in order. The compiled fixture first waits until the file
+#            lists the host's own /etc/resolv.conf servers then 198.51.100.53
+#            (no lease yet: the host record is the received fallback, D-13,
+#            and a QEMU guest names its slirp resolver there), then plays the access
+#            concentrator on zeac0 (internal/test/pppoeac) and Naks the client's
+#            Primary-DNS request with 192.0.2.53 (IPCPWithDNS, RFC 1877 Section
+#            1.1). The file must then list 192.0.2.53 then 198.51.100.53 (the
+#            lease's record replaces the host fallback), and
+#            only after that does the fixture ask `show dns lookup
+#            web.example.test type A`, which must answer 203.0.113.10.
+#            Nothing listens on 192.0.2.53, so that answer comes from the
+#            configured server after the first one refused.
+# PREVENTS: a merge list that stops at the first source holding a server, as
+#           first-usable does, and a resolver that asks only its first server.
+#
+# 192.0.2.53 and 198.51.100.53 sit on dummy links of the per-test namespace;
+# only 198.51.100.53 runs the stub. The lease's server is not a loopback
+# address because the PPPoE client adopts only a global unicast DNS server
+# (adoptNakDNS, internal/component/l2tp/pppoeclient/session.go). The stub
+# binds port 53 because system name-server carries no port. The daemon
+# refuses a relative resolv-conf-path at config validation (ze:validate
+# "resolv-conf-path", internal/component/config/validators_resolvconf.go), so the path
+# is /proc/self/cwd/<name>: absolute, yet inside the daemon's working
+# directory, the runner's fresh per-test directory. The fixture is the
+# daemon's plugin and runs in that directory too (ConfigDir of a stdin
+# config is the daemon's cwd), so it reads the bare name. The suite is pppoe,
+# not plugin, because only a per-test-namespace suite honours
+# option=netns-link.
+#
+# Requires Linux, CAP_NET_ADMIN for the PPP device, CAP_NET_RAW for both
+# AF_PACKET sockets and CAP_NET_BIND_SERVICE for the stub. keepalive interval
+# 3600 keeps Echo-Requests off the wire while the fixture negotiates.
+option=needs-linux:caps=net-admin,net-raw,net-bind
+option=netns-link:name=zecpe0:peer=zeac0
+option=netns-link:name=zedns0:address=192.0.2.53/32
+option=netns-link:name=zedns2:address=198.51.100.53/32
+option=timeout:value=90s
+
+stdin=ze-conf:terminator=EOF_CONF
+system {
+	name-server [ 198.51.100.53 ]
+	dns-source {
+		source [ received configured ]
+		mode merge
+	}
+	dns {
+		resolv-conf-path "/proc/self/cwd/dns-source-router-merge.resolv.conf";
+	}
+}
+
+plugin {
+	external dns-source-router-merge-test {
+		run "le test fixture pppoe/dns-source-router-merge"
+		encoder json
+	}
+}
+
+interface {
+	backend netlink
+	pppoe-client zedns1 {
+		source-interface zecpe0
+		authentication {
+			username subscriber
+			password secret
+		}
+		mtu 1450
+		keepalive {
+			interval 3600
+			failures 255
+		}
+		reconnect {
+			delay-min 1
+			delay-max 1
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le mock dns --port 53 --address 198.51.100.53
+cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=90s
+expect=exit:code=0
+
+# NO NEEDLE MAY HOLD A COLON: the runner splits a directive on ':'.
+expect=stderr:contains=web.example.test type A -> records 203.0.113.10 status NOERROR through the configured server after the lease's server refused
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
