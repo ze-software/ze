@@ -326,6 +326,13 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   overloading the shared machine. Subagents read, review and edit sources, then
   hand the required commands to the main thread; they do not run tests, builds,
   lint, formatters or other code themselves.
+- A serialized run never leaves agents idle. While a test batch, lab or record
+  run blocks the main thread, every piece of work that does not need that run
+  goes out to agents at once: diagnosing the run's partial logs as they appear,
+  preparing the next batch, writing the next tests and fixes in files the run
+  does not build, review, closure text and docs. Waiting with spare agent
+  capacity is the failure this rule exists to prevent; Thomas never has to ask
+  for more agents.
 
 ## Reports and messages
 
