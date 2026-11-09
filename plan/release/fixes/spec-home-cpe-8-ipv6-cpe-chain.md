@@ -544,18 +544,34 @@ constraints, message ordering, and every MUST/MUST NOT.
 
 ## Blocker
 
-Fourth closure, 2026-11-09, handed back before commit A on one item: the
-iface lint result. `rwinv/out-gb8/iface-lint.log` does not exist; guest batch 8
-(`rwinv/guest-batch8.log`) writes it at its end (`==host lint iface`) and was
-still running the in-guest c4 engine tests when this closure reached commit A
-(two re-checks). What clears it: that log shows no finding in
+Fifth closure, 2026-11-09, handed back before commit A on stale proof records.
+The lint blocker is cleared: `rwinv/out-gb10/iface-lint.log` names no finding in
 `internal/component/iface/delegated_prefix.go` or `delegated_prefix_test.go`
-(a finding there is fixed and the iface package test re-run); then a closure
-run re-records the review (`./le spec review record ... rounds 2` over those
-two files, this spec and `plan/post-release/features/spec-ra-vrrp-virtual-router.md`)
-and lands commits A and B. Everything else below is done.
+(its exit 1 is other sessions' iface files: `pppoe_client.go`,
+`rate_command.go`, `reconcile_ra.go`, `register.go` and six test files), and
+`./le spec review check` over those two files still passes. What blocks:
+`./le rfc check` (`scratch/c8close5-rfccheck.log`) reports nine of this spec's
+records `producer-changed`, because 83f0f6c683 and e31b2ae512
+(`Spec-work: home-cpe-23b-dns-source-consumers`) changed the producers after
+the fourth closure's check.
+
+| Record | Unit | Producer |
+|--------|------|----------|
+| RFC7084-4.1-5 positive, negative | `rfc7084_router_lifetime_test.go::TestRFC7084G5ImmediateZeroLifetime` | `internal/plugins/iface/ra/advertiser.go::urgent` |
+| RFC7084-4.3-13 positive, negative | `TestRFC7084L13ReplacedDelegatedPrefix`, `TestRFC7084L13RenewKeepsPrefix` | `advertiser.go::update` |
+| RFC7084-4.3-6 positive, negative | `TestRFC7084RouterLifetimeMatrix`, `TestRFC7084L3DroppedDelegationRIO` | `advertiser.go::build`, `advertiser.go::sent` |
+| RFC7084-4.3-8 positive | `internal/component/iface/rfc4861_router_configuration_test.go::TestRFC4861OnlyAnAdvertisingInterfaceSends` | `internal/component/iface/reconcile_ra.go::reconcileRA` |
+| RFC9915-6.3-2 positive, negative | `TestRFC9915AdvertisedLifetimeBound`, `TestRFC9915AdvertisedLifetimeExpired` | `advertiser.go::build` |
+
+What clears it: the main thread re-records each with `./le rfc discriminate`
+(or `./le rfc record`) over today's producers, the records land, and
+`./le rfc check` names none of rfc5072, rfc7084 or rfc9915. Then a closure
+run lands commits A and B.
 
 ## Closure history
+
+Fifth closure, 2026-11-09: lint cleared (`rwinv/out-gb10/iface-lint.log`);
+handed back on the nine stale records above.
 
 Fourth closure, 2026-11-09: the third handback's blocker is cleared. Guest
 batch 8 (Ze kernel 7.3, `rwinv/out-gb8/c8-inguest-run.log`): `iface-verify.log`
@@ -676,6 +692,7 @@ the journal row states the red, but no log exists.
 | approach | Phase commits carried `Spec-work: home-cpe-1-logical-interface-name` | They were this spec's work | first closure, 2026-11-08 | closure review recorded over every implementation file |
 | approach | Integration rows marked Yes (metrics, completion) and four feature pages were left for closure | A checklist row and its page go with the phase (`ai/rules/documentation.md`) | first closure | 57ef59e5e1, 176f532c5e |
 | approach | The L-13 `{gap}` stayed after the advertiser began retiring delegated /64s | A change that falsifies an annotation carries the row edit | main thread, 2026-11-09 | row moved, two tagged tests |
+| approach | Fourth closure's `./le rfc check` was clean on rfc7084 and rfc9915, and the closure waited on lint alone | 83f0f6c683 (`advertiser.go`) and e31b2ae512 (`reconcile_ra.go`), both `Spec-work: home-cpe-23b-dns-source-consumers`, landed after it and moved the producers of nine of this spec's proof records without re-recording them | fifth closure's `./le rfc check`, 2026-11-09 (`scratch/c8close5-rfccheck.log`) | handed back (Blocker) |
 
 ## Implementation Audit
 
