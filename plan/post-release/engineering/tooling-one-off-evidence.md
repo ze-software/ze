@@ -1795,7 +1795,14 @@ prepared container environment to the real logger consumer. The spec names
 
 Still owed for P-12 (c): the checker half, a scenario whose `waitLog` needle
 on the Ze peer is logged at debug level with no `ze-env` override, run in the
-interop lab.
+interop lab. Searched: every Ze-peer needle in
+`internal/le/interoplab/ipsec/checkers.go` whose producer was read is logged
+at Info or Warn ("ike: retrying IKE_SA_INIT", "ike: remote sent
+NO_PROPOSAL_CHOSEN", "ike: EAP authentication failed", "child-sa: created
+via CREATE_CHILD_SA", "child-sa: creation refused, keeping the IKE SA"); the
+narrowing and EAP-TLS refusals are error text whose logging level was not
+traced. No checker found depends on `ZE_LOG=debug`, so the half needs either
+a debug-only needle to wait on or a ruling that the unit carrier is the proof.
 
 ## P-12 (d): build-only bench staging (2026-11-09)
 
