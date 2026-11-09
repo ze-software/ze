@@ -74,7 +74,17 @@ func selectSubscriberDNS(pool *ipv4Pool, meta *l2tp.AuthMetadata, records []dnss
 		dnssource.ClassReceived:   list.Received(records, now),
 	}
 	if meta != nil {
-		candidates[dnssource.ClassRadius] = slotAddresses(meta.DNSPrimary, meta.DNSSecondary)
+		radius := slotAddresses(meta.DNSPrimary, meta.DNSSecondary)
+		// R-6: a RADIUS server that names 0.0.0.0, a multicast address or the
+		// limited broadcast names no resolver; Select skips it, and the
+		// operator reads why the subscriber did not get it.
+		for _, addr := range radius {
+			if !dnssource.Usable(addr) {
+				log.Warn("l2tp-pool: RADIUS MS DNS server is not a usable resolver and is not offered",
+					"path", list.Path(), "address", addr)
+			}
+		}
+		candidates[dnssource.ClassRadius] = radius
 	}
 	selection := dnssource.Select(list, candidates)
 	for _, addr := range selection.Dropped {

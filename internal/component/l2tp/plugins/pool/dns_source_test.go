@@ -191,3 +191,25 @@ func TestModeRequiredEachConsumer(t *testing.T) {
 		})
 	}
 }
+
+// TestPoolSkipsUnusableRadiusDNS checks R-6: a RADIUS server named as
+// 0.0.0.0 or the limited broadcast is not offered, and the usable one is.
+// Method: an Access-Accept whose primary is 0.0.0.0 and whose secondary is a
+// unicast server, then one whose only server is 255.255.255.255, which falls
+// through to the pool's dns-primary.
+func TestPoolSkipsUnusableRadiusDNS(t *testing.T) {
+	configured := netip.MustParseAddr("203.0.113.53")
+	p := learnedPlugin(newIPv4Pool(testGW, netip.MustParseAddr("10.0.0.1"), netip.MustParseAddr("10.0.0.10"),
+		configured, netip.Addr{}))
+
+	usable := netip.MustParseAddr("198.51.100.54")
+	resp := askIPCP(t, p, 9, &l2tp.AuthMetadata{DNSPrimary: netip.IPv4Unspecified(), DNSSecondary: usable})
+	if resp.DNSPrimary != usable {
+		t.Errorf("DNSPrimary = %v, want the usable RADIUS server %v", resp.DNSPrimary, usable)
+	}
+
+	resp = askIPCP(t, p, 10, &l2tp.AuthMetadata{DNSPrimary: netip.MustParseAddr("255.255.255.255")})
+	if resp.DNSPrimary != configured {
+		t.Errorf("DNSPrimary = %v, want the configured %v once RADIUS names no usable server", resp.DNSPrimary, configured)
+	}
+}
