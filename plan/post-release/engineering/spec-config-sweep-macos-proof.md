@@ -24,6 +24,16 @@ Two executions that only a macOS host can perform were left unproven when
 | 1 | `TestRepositoryConfigsValidate` (`internal/component/config/cli/validate_corpus_test.go`) under the full feature-tag set on macOS, reporting zero findings, and its log naming each host-verdict code it skipped with counts | On Linux no host-verdict skip occurs, so the darwin skip counts and the claim that every darwin-only finding is a host verdict are unobserved. The Linux run injects a plan9 schema (`TestSweepDerivesEachExclusion`, host verdict 11), which is not a macOS execution |
 | 2 | `test ui doctor-bgp-md5` | The `.ci` declares `skip-os=linux,freebsd`, so it never runs on the Linux host |
 
+Item 1 already has one known darwin finding to fix: the interface backend gate
+loses its host-verdict mark (owned row below), so the macOS run reports it as
+config-plugin-verify until that is fixed.
+
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `error-answered-with-another-errors-code.md` | 2026-11-09 | `validateBackendGate` (`iface/register.go`) drops the `diagnostic.HostVerdict` mark when it joins the gate's errors without `%w` |
+
 ## Required Reading
 
 ### Architecture Docs

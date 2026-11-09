@@ -10,6 +10,11 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/yang"
+
+	// The redistribute root's YANG registers from this package's init(). No
+	// production file of this plugin imports it (the composition root does),
+	// so without it DefaultLoader knows no `redistribute` top-level keyword.
+	_ "github.com/ze-software/ze/internal/component/config/redistribute/yang"
 )
 
 // TestImportFiltersReferenceChecked proves the policy-filter reference source
