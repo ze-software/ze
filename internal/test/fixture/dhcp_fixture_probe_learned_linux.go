@@ -242,6 +242,7 @@ func learnedUntilReply(ctx context.Context, probe *dhcpprobe.Probe, step dhcppro
 	noReload := func() error { return errors.New("BUG: dhcp/probe-learned: an exchange asked for a reload") }
 	if Poll(ctx, untilAttempts, untilDelay, func() bool {
 		lastErr = probe.Run([]dhcpprobe.Step{step}, noReload, func(line string) { lastLine = line })
+		// refuse-by-default: guards Poll -- a failed exchange is "not yet": lastErr keeps it, and the poll running out returns it
 		return lastErr == nil
 	}) {
 		fmt.Println(lastLine)
