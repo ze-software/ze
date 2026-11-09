@@ -1,7 +1,7 @@
 //go:build linux
 
 // Design: docs/architecture/dns/lan-resolver.md -- Forwarding: the upstreams the forward dns-source list picks
-// Related: dns_resolver_forward_learned_linux.go -- forwardAnswer, forwardAwaitAnswer, forwardStartConfiguredStub and the records
+// Related: dns_resolver_forward_learned_linux.go -- forwardAnswer, forwardAwaitAnswer, forwardAwaitLearned, forwardStartConfiguredStub and the records
 // Related: register_dns_resolver_forward_learned_linux.go -- the registration of the drivers below
 // Related: reload_fixture_live_stages.go -- liveStagesReload, the reload both drivers commit through
 
@@ -86,9 +86,12 @@ func dnsResolverForwardDHCPv4Default(ctx context.Context, plugin *sdk.Plugin, re
 	if err := scene.serve(runCtx); err != nil {
 		return err
 	}
-	if !forwardAwaitAnswer(runCtx, dhcpv4DefaultListener, forwardLearnedRecord, nil) {
-		return fmt.Errorf("under the default list the LAN resolver never forwarded to %s, the DNS server of the DHCPv4 lease on %s",
-			scene.leaseServer, scene.client)
+	if err := scene.awaitLease(runCtx); err != nil {
+		return err
+	}
+	if err := forwardAwaitLearned(runCtx, dhcpv4DefaultListener, learned, nil); err != nil {
+		return fmt.Errorf("under the default list the LAN resolver never forwarded to %s, the DNS server of the DHCPv4 lease on %s: %w",
+			scene.leaseServer, scene.client, err)
 	}
 	before, err := udpListenerInode(dhcpv4DefaultListener)
 	if err != nil {

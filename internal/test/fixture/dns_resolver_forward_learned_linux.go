@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"strconv"
 	"time"
 
 	mdns "github.com/miekg/dns"
@@ -173,9 +174,9 @@ func dnsResolverForwardDefault(ctx context.Context, plugin *sdk.Plugin, reloadSo
 
 	var sendErr error
 	advertise := func() { sendErr = scene.send(fd, raRDNSSLifetime) }
-	if !forwardAwaitAnswer(runCtx, forwardDefaultListener, forwardLearnedRecord, advertise) {
+	if err := forwardAwaitLearned(runCtx, forwardDefaultListener, learned, advertise); err != nil {
 		return errors.Join(fmt.Errorf("under the default list the LAN resolver never forwarded to the RDNSS server %s advertised to %s",
-			scene.server, scene.receiver), sendErr)
+			scene.server, scene.receiver), err, sendErr)
 	}
 
 	if err := liveStagesReload(runCtx, plugin, reloadSource); err != nil {
@@ -213,6 +214,43 @@ func forwardAwaitAnswer(ctx context.Context, listener netip.AddrPort, want netip
 		got, err := forwardAnswer(ctx, listener)
 		return err == nil && got == want
 	})
+}
+
+// forwardAwaitLearned waits until the resolver on listener forwards to the
+// learned stub, then asks forwardQueryName once, which MUST answer
+// forwardLearnedRecord. Attempt n runs before when it is not nil, sets
+// learned-<n>.example.test. on the stub and asks that name, which nothing
+// asked before. Until the learned server is in the resolver's list a query
+// can reach another upstream (the host fallback record names the guest's
+// own resolver, which answers NXDOMAIN), and the resolver caches that
+// negative answer against the name it asked. A fresh name per attempt keeps
+// each such answer away from the next attempt, and forwardQueryName is asked
+// only once the stub answered, so no negative answer is ever cached for it.
+func forwardAwaitLearned(ctx context.Context, listener netip.AddrPort, stub *dnsmock.Server, before func()) error {
+	attempt := 0
+	reached := Poll(ctx, raRDNSSAttempts, raRDNSSDelay, func() bool {
+		if before != nil {
+			before()
+		}
+		attempt++
+		name := "learned-" + strconv.Itoa(attempt) + ".example.test."
+		stub.Set(name, mdns.TypeA, dnsmock.Answer{Addresses: []netip.Addr{forwardLearnedRecord}})
+		got, err := forwardAnswerName(ctx, listener, name)
+		return err == nil && got == forwardLearnedRecord
+	})
+	if !reached {
+		return fmt.Errorf("the resolver on %s answered none of %d fresh names from the learned server", listener, attempt)
+	}
+	got, err := forwardAnswer(ctx, listener)
+	if err != nil {
+		return fmt.Errorf("the resolver on %s answered fresh names from the learned server, then not %s: %w",
+			listener, forwardQueryName, err)
+	}
+	if got != forwardLearnedRecord {
+		return fmt.Errorf("the resolver on %s answered %s %s, not %s from the learned server",
+			listener, forwardQueryName, got, forwardLearnedRecord)
+	}
+	return nil
 }
 
 // forwardAnswer asks the resolver on listener for forwardQueryName
