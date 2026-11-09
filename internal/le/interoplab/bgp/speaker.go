@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -357,6 +358,58 @@ func runOracleSpeaker(options speakerOptions, output io.Writer) error {
 	return nil
 }
 
+// speakerDialSpacing is the pause between two dials of a peer that refused
+// or could not be reached. The --duration deadline bounds the retries.
+const speakerDialSpacing = 250 * time.Millisecond
+
+// dialSpeakerPeer dials address until it connects or deadline passes. A
+// scenario may start the speaker with no --connect-delay while Ze's listener
+// is still coming up, so a refused or unreachable dial is retried every
+// speakerDialSpacing; any other dial error returns at once. When the deadline
+// passes, the last dial error is returned, never the context's, so the
+// verdict names what the peer answered. It never redials once connected.
+func dialSpeakerPeer(address string, deadline time.Time) (net.Conn, error) {
+	ctx, cancel := context.WithDeadline(context.Background(), deadline)
+	defer cancel()
+
+	dialer := net.Dialer{Timeout: 10 * time.Second}
+	var refusal error
+	for {
+		connection, err := dialer.DialContext(ctx, "tcp", address)
+		if err == nil {
+			return connection, nil
+		}
+		if speakerDialRetryable(err) {
+			refusal = err
+			if sleepContext(ctx, speakerDialSpacing) != nil {
+				return nil, refusal
+			}
+			continue
+		}
+		// A dial the deadline cut short reports the context, not the peer:
+		// the refusal that came before it is the answer.
+		if refusal == nil {
+			return nil, err
+		}
+		if ctx.Err() == nil {
+			return nil, err
+		}
+		return nil, refusal
+	}
+}
+
+// speakerDialRetryable reports whether a dial error means the peer is not
+// listening or not reachable yet, the states a late listener produces.
+func speakerDialRetryable(err error) bool {
+	if errors.Is(err, syscall.ECONNREFUSED) {
+		return true
+	}
+	if errors.Is(err, syscall.EHOSTUNREACH) {
+		return true
+	}
+	return errors.Is(err, syscall.ENETUNREACH)
+}
+
 func runSpeakerSession(options speakerOptions, verdict *speakerVerdict) error {
 	// The BFD responder starts BEFORE the TCP dial and outlives the BGP
 	// session, which is what draft-ietf-idr-bgp-bfd-strict-mode Section 7 asks
@@ -382,8 +435,10 @@ func runSpeakerSession(options speakerOptions, verdict *speakerVerdict) error {
 	if options.connectDelay > 0 {
 		time.Sleep(options.connectDelay)
 	}
-	dialer := net.Dialer{Timeout: 10 * time.Second}
-	connection, err := dialer.DialContext(context.Background(), "tcp", options.connect)
+	// One deadline bounds the whole run, the dial included: a peer whose
+	// listener is not yet up costs dial retries out of the same --duration.
+	deadline := time.Now().Add(options.duration)
+	connection, err := dialSpeakerPeer(options.connect, deadline)
 	if err != nil {
 		return err
 	}
@@ -395,7 +450,6 @@ func runSpeakerSession(options speakerOptions, verdict *speakerVerdict) error {
 	if _, err := connection.Write(open); err != nil {
 		return err
 	}
-	deadline := time.Now().Add(options.duration)
 	captureDeadline := deadline
 	nextKeepalive := time.Now().Add(time.Duration(options.holdTime) * time.Second / 3)
 	established, routes := false, 0

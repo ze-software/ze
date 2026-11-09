@@ -1690,7 +1690,10 @@ negative control or excuse an ExStart/SeqNumberMismatch loop.
 The capture deadline bounds reads as well as the outer loop. Expiry while
 waiting for a new header is quiet completion; an unfinished header or body,
 EOF, notification or send failure cannot certify a complete capture.
-<!-- source: internal/le/interoplab/bgp/speaker.go -- runSpeakerSession, readSpeakerMessage, readSpeakerExact -->
+The same `--duration` deadline bounds the dial: while Ze refuses the connection
+or is unreachable, the speaker redials every 250 ms, and when the deadline
+passes it fails with the last dial error.
+<!-- source: internal/le/interoplab/bgp/speaker.go -- runSpeakerSession, dialSpeakerPeer, readSpeakerMessage, readSpeakerExact -->
 If either OSPF scenario fails, its checker captures both peers' interface and
 neighbor detail, Ze's packet/drop and NSM counters, and FRR's DD packet debug
 log before container teardown. The original Full-adjacency failure remains
