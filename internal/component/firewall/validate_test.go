@@ -829,3 +829,62 @@ func TestValidateClampToPMTUHook(t *testing.T) {
 		})
 	}
 }
+
+// VALIDATES: AC-12 -- in a table of family arp every match whose lowering
+// reads the IP header or the transport header behind it is refused at verify,
+// naming the leaf and "family arp carries no IP header". The same match in an
+// ip table is accepted, so the refusal comes from the family and not the match.
+// PREVENTS: a literal source-address in an arp table lowered at IPv4 offsets
+// 12 and 16, which compares bytes of the ARP header and fires on packets the
+// operator never named.
+func TestValidateARPFamilyRefusesIPHeaderMatches(t *testing.T) {
+	irrSource := irrSetMatch("AS65000", false, true)
+	irrDest := irrSetMatch("AS-EXAMPLE", true, false)
+	domainSource := domainSetMatch("cdn", true)
+	tests := []struct {
+		name  string
+		match Match
+		leaf  string
+	}{
+		{"source-address", MatchSourceAddress{Prefix: netip.MustParsePrefix("192.0.2.0/24")}, "source-address"},
+		{"destination-address", MatchDestinationAddress{Prefix: netip.MustParsePrefix("192.0.2.1/32")}, "destination-address"},
+		{"source-port", MatchSourcePort{Ranges: []PortRange{{Lo: 53, Hi: 53}}}, "source-port"},
+		{"destination-port", MatchDestinationPort{Ranges: []PortRange{{Lo: 22, Hi: 22}}}, "destination-port"},
+		{"protocol", MatchProtocol{Protocol: "tcp"}, "protocol"},
+		{"connection-state", MatchConnState{States: ConnStateEstablished}, "connection-state"},
+		{"connection-mark", MatchConnMark{Value: 1, Mask: 0xffffffff}, "connection-mark"},
+		{"tcp-flags", MatchTCPFlags{Flags: TCPFlagSYN, Mask: TCPFlagSYN}, "tcp-flags"},
+		{"address set", MatchInSet{SetName: "v4", MatchField: SetFieldSourceAddr}, "source-address set"},
+		{"port set", MatchInSet{SetName: "ports", MatchField: SetFieldDestPort}, "destination-port set"},
+		{"irr source", irrSource, "source-asn or source-as-set"},
+		{"irr destination", irrDest, "destination-asn or destination-as-set"},
+		{"domain group", domainSource, "source-domain-group"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, family := range []TableFamily{FamilyARP, FamilyIP} {
+				tbl := makeTable(family)
+				tbl.Sets = []Set{
+					{Name: "v4", Type: SetTypeIPv4},
+					{Name: "ports", Type: SetTypeInetService},
+				}
+				tbl.Chains[0].Terms[0].Matches = []Match{tt.match}
+				err := ValidateTables([]Table{tbl})
+				if family == FamilyIP {
+					if err != nil {
+						t.Fatalf("family ip: expected accept, got %v", err)
+					}
+					continue
+				}
+				if err == nil {
+					t.Fatalf("family arp: expected refusal, got nil")
+				}
+				for _, want := range []string{tt.leaf + " match", "family arp carries no IP header"} {
+					if !strings.Contains(err.Error(), want) {
+						t.Errorf("family arp: error %q does not contain %q", err, want)
+					}
+				}
+			}
+		})
+	}
+}

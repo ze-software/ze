@@ -4,7 +4,10 @@
 
 package firewall
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // ifaceNameMaxLen mirrors the kernel's IFNAMSIZ-1 byte cap on interface
 // names. A name longer than this is truncated by the kernel when stored
@@ -109,6 +112,17 @@ func validateTerm(tbl *Table, ch *Chain, term *Term, chains map[string]bool, set
 }
 
 func validateMatch(tbl *Table, ch *Chain, term *Term, m Match, sets map[string]SetType) error {
+	// An arp table hands a rule the ARP header where the other families hand
+	// it the IP header, and the nft lowering of these matches reads fixed IP
+	// offsets (lowerAddrMatch, internal/plugins/firewall/nft/lower_linux.go).
+	// In arp those offsets land inside the ARP header, so the rule compares
+	// the wrong bytes and fires on packets the operator never named.
+	if tbl.Family == FamilyARP {
+		if leaf, readsIP := ipHeaderMatchLeaf(m); readsIP {
+			return fmt.Errorf("table %q chain %q term %q: %s match reads the IP header, and family arp carries no IP header; move the term to a table of family ip, ip6 or inet",
+				tbl.Name, ch.Name, term.Name, leaf)
+		}
+	}
 	switch v := m.(type) {
 	case MatchInSet:
 		setType, ok := sets[v.SetName]
@@ -265,6 +279,67 @@ func validateMatch(tbl *Table, ch *Chain, term *Term, m Match, sets map[string]S
 	return nil
 }
 
+// ipHeaderMatchLeaf names the config leaf of a match whose lowering reads the
+// IP header or the transport header behind it, or reports false for a match
+// that reads none (an interface, a mark, the ARP fields). The family-specific
+// IP matches (icmp-type, icmpv6-type, dscp, the TTL and quoted-header reads)
+// answer false here because validateMatch refuses them in arp with their own
+// message.
+func ipHeaderMatchLeaf(m Match) (string, bool) {
+	switch v := m.(type) {
+	case MatchSourceAddress:
+		return "source-address", true
+	case MatchDestinationAddress:
+		return "destination-address", true
+	case MatchSourcePort:
+		return "source-port", true
+	case MatchDestinationPort:
+		return "destination-port", true
+	case MatchProtocol:
+		return "protocol", true
+	case MatchConnState:
+		return "connection-state", true
+	case MatchConnMark:
+		return "connection-mark", true
+	case MatchTCPFlags:
+		return "tcp-flags", true
+	case MatchInSet:
+		return setMatchLeaf(v), true
+	}
+	return "", false
+}
+
+// setMatchLeaf names the leaf that produced a set match: the IRR and
+// domain-group leaves build their set names from irrV4Prefix and
+// domainV4Prefix (irrSetMatch, domainSetMatch), and every other set match is
+// an address or port leaf naming "@set".
+func setMatchLeaf(m MatchInSet) string {
+	source := m.MatchField == SetFieldSourceAddr || m.MatchField == SetFieldSourcePort
+	if strings.HasPrefix(m.SetName, irrV4Prefix) {
+		if source {
+			return "source-asn or source-as-set"
+		}
+		return "destination-asn or destination-as-set"
+	}
+	if strings.HasPrefix(m.SetName, domainV4Prefix) {
+		if source {
+			return "source-domain-group"
+		}
+		return "destination-domain-group"
+	}
+	switch m.MatchField {
+	case SetFieldSourceAddr:
+		return "source-address set"
+	case SetFieldDestAddr:
+		return "destination-address set"
+	case SetFieldSourcePort:
+		return "source-port set"
+	case SetFieldDestPort:
+		return "destination-port set"
+	}
+	return "set"
+}
+
 // validateSetFieldMatch rejects MatchInSet where (a) the field and
 // the referenced set's element type disagree, or (b) the set's
 // family and the parent table's family disagree. (a) catches
@@ -307,8 +382,8 @@ func validateSetFieldMatch(tbl *Table, ch *Chain, term *Term, m MatchInSet, setT
 //
 // arp/bridge/netdev are also rejected: those families dispatch on
 // non-IP headers, so an address match has no meaningful offset to
-// read. Parallel gap for literal MatchSourceAddress/DestinationAddress
-// is tracked separately (pre-existing, not introduced here).
+// read. In arp, validateMatch already refused every IP-header match,
+// literal or set, before this runs (ipHeaderMatchLeaf).
 func validateSetFamilyCompat(tbl *Table, ch *Chain, term *Term, m MatchInSet, setType SetType) error {
 	switch tbl.Family {
 	case FamilyInet:

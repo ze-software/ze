@@ -212,6 +212,16 @@ block removes its terms; the table goes with the last GTSM peer. The full list o
 
 `inet` (dual-stack), `ip`, `ip6`, `arp`, `bridge`, `netdev`.
 
+A table of family `arp` sees the ARP header where the other families see the
+IP header, so a match that reads the IP header or the transport header behind
+it is refused there at verify: `source-address`, `destination-address`,
+`source-port`, `destination-port`, `protocol`, `connection-state`,
+`connection-mark`, `tcp-flags`, a named-set match, and the IRR and
+domain-group leaves. The error names the leaf and says "family arp carries no
+IP header"; move the term to a table of family `ip`, `ip6` or `inet`.
+`icmp-type`, `icmpv6-type` and `dscp` keep their own family refusals.
+<!-- source: internal/component/firewall/validate.go -- validateMatch, ipHeaderMatchLeaf -->
+
 ### Chain Types
 
 `filter`, `nat`, `route`.

@@ -1,0 +1,35 @@
+# Test: an IP-header match in a table of family arp is refused at verify,
+# naming the leaf and the reason.
+# VALIDATES: AC-12 of spec-firewall-existing-family-and-owner-correctness --
+#            validateMatch refuses source-address (and every other match
+#            whose lowering reads the IP header) when the table family is
+#            arp, through `ze config validate`.
+# PREVENTS: a literal source-address in an arp table lowered at IPv4
+#           offsets 12 and 16, which compares bytes of the ARP header and
+#           fires on packets the operator never named.
+stdin=config:terminator=EOF_CONF
+firewall {
+	backend nft;
+	table lan-arp {
+		family arp;
+		chain output {
+			type filter;
+			hook output;
+			priority 0;
+			policy accept;
+			term from-lan {
+				from {
+					source-address 192.0.2.0/24;
+				}
+				then {
+					accept;
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=source-address match reads the IP header, and family arp carries no IP header
