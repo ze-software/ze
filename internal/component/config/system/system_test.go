@@ -233,34 +233,6 @@ func TestExtractSystemConfig_ResolvConfPath(t *testing.T) {
 	assert.Equal(t, "/etc/resolv.conf", sc.ResolvConfPath)
 }
 
-// TestExtractSystemConfig_ResolvConfPath_Relative verifies relative paths are rejected.
-//
-// VALIDATES: Relative resolv-conf-path silently disabled (returns default).
-// PREVENTS: Path traversal via relative resolv-conf-path.
-func TestExtractSystemConfig_ResolvConfPath_Relative(t *testing.T) {
-	tree := config.NewTree()
-	sys := tree.GetOrCreateContainer("system")
-	dns := sys.GetOrCreateContainer("dns")
-	dns.Set("resolv-conf-path", "../etc/resolv.conf")
-
-	sc := system.ExtractSystemConfig(tree)
-	assert.Equal(t, "", sc.ResolvConfPath)
-}
-
-// TestExtractSystemConfig_ResolvConfPath_Traversal verifies path traversal is rejected.
-//
-// VALIDATES: Path containing /../ silently disabled.
-// PREVENTS: Writing to unintended locations.
-func TestExtractSystemConfig_ResolvConfPath_Traversal(t *testing.T) {
-	tree := config.NewTree()
-	sys := tree.GetOrCreateContainer("system")
-	dns := sys.GetOrCreateContainer("dns")
-	dns.Set("resolv-conf-path", "/tmp/../etc/resolv.conf")
-
-	sc := system.ExtractSystemConfig(tree)
-	assert.Equal(t, "", sc.ResolvConfPath)
-}
-
 // TestExtractSystemConfig_ResolvConfPath_Empty verifies empty disables writing.
 //
 // VALIDATES: Empty resolv-conf-path disables resolv.conf writing.

@@ -40,8 +40,8 @@ const (
 	rifStubLink          = "zerifdns0"
 	// rifResolvConf is named relative to the runner's per-test working
 	// directory, which this fixture shares with the daemon. The .ci names it
-	// /proc/self/cwd/<this name>, because the daemon refuses a relative
-	// resolv-conf-path (sanitizeResolvConfPath) and then writes nothing.
+	// /proc/self/cwd/<this name>, because config validation refuses a
+	// relative resolv-conf-path (ze:validate "resolv-conf-path").
 	rifResolvConf = "dns-source-received-interface.resolv.conf"
 	// rifDroppedRecord is what the dropped interface's stub answers for
 	// web.example.test, so its answer can be told from the kept stub's

@@ -33,6 +33,7 @@ func RegisterValidators(reg *yang.ValidatorRegistry) {
 	reg.Register("delegation-source-url", DelegationSourceValidator())
 	reg.Register("archive-location", ArchiveLocationValidator())
 	reg.Register("archive-timeout", ArchiveTimeoutValidator())
+	reg.Register("resolv-conf-path", ResolvConfPathValidator())
 	// The interface unit `vrf` leaf has no reader, so the refusal below is what
 	// stops the config from promising isolation ze never applies.
 	reg.Register("unimplemented-vrf", unimplementedVRFValidator())

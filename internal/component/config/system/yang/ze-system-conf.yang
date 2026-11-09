@@ -69,8 +69,11 @@ module ze-system-conf {
                 default "/tmp/resolv.conf";
                 description "The default /tmp/resolv.conf suits gokrazy, whose rootfs is
                              read-only. Set /etc/resolv.conf on standard Linux. An empty
-                             string stops Ze writing the file.";
+                             string stops Ze writing the file. Any other value must be an
+                             absolute path in clean form: commit refuses a relative path,
+                             and one with a dot-dot element or a repeated slash.";
                 ze:help "Path Ze writes the DNS servers to, as a resolv.conf file.";
+                ze:validate "resolv-conf-path";
             }
 
             leaf timeout {

@@ -56,7 +56,7 @@ system {
 |--------|---------|-------------|
 | `name-server` | (none) | Static DNS servers: the `configured` source of the router's list. Under the default list, when set, they are the router's servers: the internal resolver asks them in order, and resolv.conf lists them all. |
 | `dns-source` | `source [ configured received ]`, `mode first-usable` | The ordered sources of the router's servers and how they combine (next section). |
-| `resolv-conf-path` | `/tmp/resolv.conf` | Path for resolv.conf. Default suits gokrazy (read-only rootfs). Empty disables writing. |
+| `resolv-conf-path` | `/tmp/resolv.conf` | Path for resolv.conf. Default suits gokrazy (read-only rootfs). Empty disables writing. Any other value must be an absolute path in clean form (no `..` or repeated `/`): `ze config validate` and commit refuse it otherwise, and the refusal names the path to write. |
 | `timeout` | 5 | Query timeout in seconds for each server asked (1-60) |
 | `cache-size` | 10000 | Maximum cached entries (0 disables caching) |
 | `cache-ttl` | 86400 | Maximum cache TTL in seconds (0 uses response TTL only) |
@@ -252,12 +252,13 @@ component, for RDNSS) subscribes to the typed handle
 <!-- source: internal/core/dnssource/register.go -- SnapshotEvent, SnapshotRequest -->
 
 Each consumer also publishes what its lists chose, so `show system dns` and
-`ze doctor` can read every consumer from the daemon. A consumer emits
+`show doctor` (the daemon form of `ze doctor`) can read every consumer from
+the daemon. A consumer emits
 `(system-dns, selection)` carrying a `dnssource.Publication`: its plugin
 name and one `ConsumerSelection` per list (the config path, the instance it
 belongs to, such as the subnet, the unit or the pool, the sources and mode,
 `default` while the built-in default applies, the classes used, the servers,
-and for the LAN resolver the addresses it serves DNS on). It publishes its
+`self`, the servers the `self` class contributed, and for the LAN resolver the addresses it serves DNS on). It publishes its
 whole set after it starts and whenever a selection changes, because the
 registry replaces the consumer's previous set with each publication: a list
 the operator removed leaves by being absent. The registry keys the sets by
@@ -271,6 +272,16 @@ the router first, under the consumer name `system`, then every consumer that
 has published, sorted by name. A consumer that has not published yet is
 absent: its plugin is not running or has not received its first snapshot.
 <!-- source: internal/plugins/system-dns-cmd/cmd/show_dns.go -- showSystemDNS, newSystemDNSAnswer -->
+
+`show doctor` warns, for the router and every published list, when a list
+that names `received` selected no server (`doctor-dns-source-empty`), when a
+`received-interface` entry names an interface that holds no learned record
+(`doctor-dns-source-interface-silent`), and when a `self` server is an
+address no `service dns-resolver` listener answers on
+(`doctor-dns-source-self-unserved`). Each message names the list's path and
+instance. The local `ze doctor` does not run these checks: the registry they
+read is filled only in the daemon.
+<!-- source: internal/component/config/system/doctor_dns_source.go -- dnsSourceFindings -->
 
 | Origin | Rank | Learned from |
 |--------|------|--------------|

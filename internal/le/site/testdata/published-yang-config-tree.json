@@ -26507,7 +26507,7 @@
             ]
           },
           {
-            "description": "The default /tmp/resolv.conf suits gokrazy, whose rootfs is\nread-only. Set /etc/resolv.conf on standard Linux. An empty\nstring stops Ze writing the file.",
+            "description": "The default /tmp/resolv.conf suits gokrazy, whose rootfs is\nread-only. Set /etc/resolv.conf on standard Linux. An empty\nstring stops Ze writing the file. Any other value must be an\nabsolute path in clean form: commit refuses a relative path,\nand one with a dot-dot element or a repeated slash.",
             "kind": "leaf",
             "name": "resolv-conf-path",
             "short-help": "Path Ze writes the DNS servers to, as a resolv.conf file.",

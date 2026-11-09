@@ -26,9 +26,9 @@ import (
 
 // mergeResolvConf is the file the daemon writes as resolv.conf, named
 // relative to the runner's fresh per-test working directory, so no other test
-// reads or writes it and no earlier run leaves it behind. The daemon refuses
-// a relative resolv-conf-path (sanitizeResolvConfPath) and then writes
-// nothing, so the .ci names it /proc/self/cwd/<this name>: absolute, and
+// reads or writes it and no earlier run leaves it behind. Config validation
+// refuses a relative resolv-conf-path (ze:validate "resolv-conf-path"), so
+// the .ci names it /proc/self/cwd/<this name>: absolute, and
 // inside the daemon's working directory. This fixture is the daemon's plugin
 // and runs in that same directory, so it reads the bare name.
 const mergeResolvConf = "dns-source-router-merge.resolv.conf"

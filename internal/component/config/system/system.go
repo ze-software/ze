@@ -5,7 +5,6 @@ package system
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"slices"
 	"sync"
 
@@ -230,7 +229,9 @@ func ExtractSystemConfig(tree *config.Tree) SystemConfig {
 
 	if dns := sys.GetContainer("dns"); dns != nil {
 		if v, ok := dns.Get("resolv-conf-path"); ok {
-			sc.ResolvConfPath = sanitizeResolvConfPath(v)
+			// The resolv-conf-path validator refused a relative or unclean
+			// path at commit, so the value is the operator's, unchanged.
+			sc.ResolvConfPath = v
 		}
 		if v, ok := dns.Get("timeout"); ok {
 			var n int
@@ -416,22 +417,6 @@ func extractTuning(sys *config.Tree) TuningSystemConfig {
 	}
 
 	return tc
-}
-
-// sanitizeResolvConfPath validates and cleans a resolv-conf-path value.
-// Rejects relative paths and path traversal; returns empty string (disabling
-// resolv.conf writing) for invalid input.
-func sanitizeResolvConfPath(v string) string {
-	if v == "" {
-		return ""
-	}
-	if !filepath.IsAbs(v) {
-		return ""
-	}
-	if filepath.Clean(v) != v {
-		return ""
-	}
-	return v
 }
 
 func extractSelfUpdateConfig(uc *config.Tree) SelfUpdateConfig {
