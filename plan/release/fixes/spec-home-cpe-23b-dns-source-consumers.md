@@ -76,6 +76,7 @@ valid.
 | # | Decision | Reading recorded in this spec | Answers |
 |---|----------|-------------------------------|---------|
 | D-16 | A consumer that hands addresses to another host never hands out a loopback or an unscoped link-local address, whatever its origin | The consumers that hand addresses on are DHCPv4 option 6, RA RDNSS and subscriber DNS. The LAN resolver is not one of them: it forwards from Ze itself, so a loopback upstream such as 127.0.0.53 is usable there, and its exposure to clients is `self`, which D-5 refuses on `forward dns-source`. IPv4 link-local (169.254.0.0/16) stays out of D-16 deliberately: it carries no zone to lose, and a server at such an address on the client's own link is reachable from it. A loopback address (127.0.0.0/8, ::1) and an IPv6 link-local address with no zone are wrong on all of them: a configured 127.0.0.1 is as wrong as the host's 127.0.0.53 (D-13), because either names a server only Ze itself can reach. The shared selection rule drops them for those consumers only, as part of "usable": each consumer's list states at construction whether it serves Ze or hands addresses on, and the router consumer keeps loopback and link-local, because Ze's own lookups can reach them. Each drop is logged with the consumer path and the address. It lands in 23b, as AC-27, in phases 5 (DHCPv4 option 6 and RA RDNSS) and 6 (subscriber), tested by `TestSelectDropsHostOnlyAddressesForHandedOutLists` in the core leaf and by one case in each consumer's pass-through test | a host-only address handed to a LAN client or a subscriber |
+| D-17 | The LAN resolver keeps its answer and negative caches when its forward upstream set changes, as dnsmasq does by default | A fresh `system-dns` snapshot or a reselection of `forward dns-source` replaces only the forward list of the published policy (`resolver.relearn`, `internal/plugins/dnsresolver/state.go`); the caches are emptied only by `clear dns resolver cache all` (`resolver.clearCaches`). This is dnsmasq 2.91's default: `poll_resolv` (`src/dnsmasq.c`) re-reads the upstream servers and calls `clear_cache_and_reload` only under `option_bool(OPT_RELOAD)`, which only the opt-in `--clear-on-reload` sets, documented as "Whenever /etc/resolv.conf is re-read or the upstream servers are set via DBus, clear the DNS cache." An answer cached from the old upstreams, a negative one included, is therefore served until its TTL ends. A test that queries before the learned upstream arrives asks a name no later stage asks, so the earlier upstream's negative answer cannot decide a later stage (5c6105dc87). `docs/architecture/dns/lan-resolver.md` states it | whether the LAN resolver clears its caches when its upstreams change |
 
 ### Design carried from 23a
 
@@ -447,6 +448,19 @@ Phase numbers continue 23a's, so references in either file stay valid.
 7. **Phase: Conversion** - every repository user of the changed defaults converted or re-validated (Files to Modify), in the same work as phases 5 and 6
 8. **Phase: Show, doctor, metrics, docs** - AC-11, AC-12, AC-16b
 
+### Progress
+
+Landed, by phase (each commit's body holds its evidence and the reds it names):
+
+| Phase | Commits | State |
+|-------|---------|-------|
+| Shared rule (D-16) | fb83d97fbb (a list states its audience; a handed-on list drops host-only addresses) | landed |
+| 4 LAN resolver | d66f28fe7c, 23fc8313b6, 292ffc64cb (queries held until the learned replay); fixtures 9836156bf9, be17cde719, 04d21c6207, 5c6105dc87 | landed; D-17 recorded (caches kept on upstream change) |
+| 5 DHCPv4 option 6 and RA RDNSS | ae8ad2d589, 83f0f6c683, 130c9ffb9b (RFC 7084 L-11 RDNSS half), 728c515223 | landed |
+| 6 Subscriber | 1d36bd5ec6, 1f69bc459c (R-6 log) | code landed; `rfc/short/rfc2548.md` written; its extraction walk, the two tags and their discrimination records owed; the AC-9/AC-10 `.ci` and the interop scenario owed |
+| 7 Conversion | inside each phase's commits | re-checked at closure |
+| 8 Show, doctor, metrics | fefd30ab74, a3cfaa083f, e31b2ae512 (`show system dns`, every consumer publishes its selection), 311177442c (`show doctor` checks), de1ad423ab (one reader refuses a malformed `dns-source`), 02f90959a4 (metrics) | code landed; the AC-11 consumer `.ci`, AC-12 `test/plugin/show-system-dns.ci`, the AC-16b `.ci` and a doctor `.ci` owed |
+
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
@@ -493,6 +507,7 @@ Phase numbers continue 23a's, so references in either file stay valid.
 | `self` is Ze's address on the client's interface (D-6) | the DHCP server identifier, the RA source address, the pool gateway | Thomas decided; a doctor warning covers an address no LAN resolver listener serves (R-9) |
 | 60-second DHCPv4 leases while no `received` entry is usable on a subnet whose list names `received` (D-9) | leave lease length alone | Thomas decided; RFC 5625 Section 5.3 names it as an alternative to a DNS proxy |
 | IPv6 subscriber DNS is a separate spec after the umbrella (D-4) | in this spec | Thomas: "spec of its own"; subscriber IPv6 does not come up before `spec-l2tp-ipv6-subscriber` anyway |
+| The LAN resolver keeps its caches when its upstreams change (D-17) | clear both caches on every forward-list change | dnsmasq's default, whose `--clear-on-reload` is opt-in; `clear dns resolver cache all` stays the operator's tool |
 
 The shared decisions (one registry, the event carrier, the class vocabulary,
 the explicit mode, the defaults, the `self` refusal) are 23a's "Key Design

@@ -220,6 +220,14 @@ No query is therefore answered from the empty list the plugin starts with.
 <!-- source: internal/plugins/dnsresolver/register.go -- followLearnedResolvers -->
 <!-- test: internal/plugins/dnsresolver/replay_test.go -- TestQueryWaitsForReplay, TestQueryNotHeldWithoutReplay, TestReplayWaitBounded -->
 
+A fresh snapshot replaces only the forward list of the published policy
+(`resolver.relearn`); the answer and negative caches are kept, as dnsmasq
+keeps its cache unless `--clear-on-reload` is set. An answer cached from the
+old upstreams, a negative one included, is served until its TTL ends or
+`clear dns resolver cache all` empties both caches.
+
+<!-- source: internal/plugins/dnsresolver/state.go -- relearn, clearCaches -->
+
 <!-- source: internal/plugins/dnsresolver/resolve.go -- resolver.forward, servfail -->
 <!-- source: internal/plugins/dnsresolver/state.go -- forwardUpstreams -->
 <!-- source: internal/plugins/dnsresolver/config.go -- forwardDefault, forwardRefusals, parseForwardSources -->
