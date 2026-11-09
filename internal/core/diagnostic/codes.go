@@ -44,6 +44,7 @@ const (
 	CodeDoctorAS112RedistributeNotImported         = "doctor-as112-redistribute-not-imported"
 	CodeDoctorAS112RedistributeOriginUncoordinated = "doctor-as112-redistribute-origin-uncoordinated"
 	CodeDoctorAS112WatchdogMissingWithdraw         = "doctor-as112-watchdog-missing-withdraw"
+	CodeDoctorDDoSDetectBlind                      = "doctor-ddos-detect-blind"
 	CodeDoctorDNSResolverPortUnavailable           = "doctor-dns-resolver-port-unavailable"
 	CodeDoctorDNSResolverUpstreamUnreachable       = "doctor-dns-resolver-upstream-unreachable"
 	CodeDoctorDNSSourceEmpty                       = "doctor-dns-source-empty"
@@ -355,6 +356,12 @@ var builtinCodes = []CodeMeta{
 		Title:       "DDoS characterization has no flow source",
 		Description: "ddos-detect is enabled with characterization on, but neither traffic-usage (track-ip) nor flow-export (conntrack) is configured. Detection still works, but mitigation degrades to generic-flood with no target prefix, so responders cannot install a surgical or targeted rule. Enable traffic-usage track-ip and/or flow-export conntrack.",
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ddos-detect-no-flow-source"},
+	},
+	{
+		Code:        CodeDoctorDDoSDetectBlind,
+		Title:       "DDoS detector is armed but its interface rate feed shows no traffic",
+		Description: "ddos-detect is enabled, but for a whole baseline window (baseline-window times check-interval seconds) its interface rate feed has either delivered no sample, reported no interface, or reported zero received packets and bytes on every interface. The baseline then holds only zeros: it reads as ready, its threshold sits at the absolute floor, and the detector cannot tell an attack from no traffic. The input is the per-interface receive rate from the trafficstat service (or the interface counter poll when trafficstat is unavailable), not the traffic-usage or flow-export flow sources, which only characterize an attack after detection. A lab or standby router with no traffic is a legitimate cause: the warning clears on the first sample with traffic, and `ddos detect enabled false` silences it. Otherwise check the rate feed with `ze show interface rate`, check that interfaces exist with `ze show interface`, and run ddos-detect as an internal plugin: run as an external process it never receives the feed.",
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ddos-detect-blind"},
 	},
 	{
 		Code:        "doctor-flowexport-conntrack-unavailable",
@@ -1162,12 +1169,12 @@ var builtinCodes = []CodeMeta{
 		Code:  "doctor-bgp-peer-no-role",
 		Title: "peers and dynamic groups declare no RFC 9234 role",
 		Description: "One or more peers, or dynamic groups, carry no `role { import ... }` block. A declared role states the " +
-			"relationship the session carries, and Ze then requires the peer's filter chains to name a filter " +
-			"that can refuse a path through a transit provider (RFC 7454 Section 9). A peer with no role " +
-			"declares no relationship, so nothing is implied and nothing is required: the session is accepted " +
-			"and runs with whatever filters it names. This is a warning so the omission is visible rather than " +
-			"silent. Remedy: declare `role { import provider|customer|peer|rs|rs-client }` on each peer, which " +
-			"also enables the RFC 9234 Only-To-Customer leak protection, or leave it out deliberately.",
+			"relationship the session carries, and Ze then inserts the RFC 7454 Section 9 upstream check " +
+			"(bgp-role:upstream-asn), which rejects a route whose AS path carries one of your transit " +
+			"providers' ASNs, and the RFC 9234 Only-To-Customer leak protection. A peer with no role declares " +
+			"no relationship, so neither runs on it: the session is accepted and runs with whatever filters " +
+			"it names. This is a warning so the omission is visible rather than silent. Remedy: declare " +
+			"`role { import provider|customer|peer|rs|rs-client }` on each peer, or leave it out deliberately.",
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-bgp-peer-no-role"},
 	},
 	{

@@ -589,6 +589,27 @@ configured, `ze doctor` reports `doctor-ddos-detect-no-flow-source` and mitigati
 degrades to a coarse generic-flood drop.
 <!-- source: internal/plugins/ddos/detect/doctor.go -- checkFlowSource -->
 
+Detection itself does not read the flow sources. Its input is the per-interface
+receive rate: the trafficstat rate feed, or the interface counter poll when
+trafficstat is unavailable. A rate feed that delivers nothing, or reports zero
+traffic, fills the baseline with zeros. The baseline then reads as ready, the
+threshold sits at `absolute-floor`, and the detector cannot trigger. When this
+lasts for one baseline window (`baseline-window` times `check-interval`
+seconds, 300 seconds by default), `ze doctor` reports `doctor-ddos-detect-blind`
+as a warning, and the log carries one WARN line at the onset and one INFO line
+when traffic returns. The warning names which of three cases it saw:
+
+| Case | What to check |
+|------|---------------|
+| No sample from the feed for a whole window | `ze show interface rate`. ddos-detect run as an external plugin process never receives the feed |
+| The feed reports no interface | `ze show interface` |
+| Zero received packets and bytes on every interface | `ze show interface rate`. An idle lab or standby router shows this legitimately |
+
+The warning clears on the first sample with traffic. `ddos detect enabled false`
+silences it, because a disabled detector subscribes to no feed.
+<!-- source: internal/plugins/ddos/detect/blind.go -- observeFeed, rateFeedFinding, blindMessage -->
+<!-- source: internal/plugins/ddos/detect/doctor.go -- checkRateFeed -->
+
 Prometheus metrics:
 - `ze_ddos_detect_characterize_total{family}` -- characterization outcomes per family.
 - `ze_ddos_detect_characterize_fallback_total` -- characterizations with no usable flow data.

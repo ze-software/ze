@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/trafficstat"
@@ -125,6 +126,10 @@ type detector struct {
 	// pending holds the events this tick decided to publish. Staged under d.mu,
 	// emitted by emitPending after the tick releases it.
 	pending pendingEmits
+
+	// feed records what the rate feed delivered, for the blind-detector
+	// diagnostic (blind.go). Every field is guarded by d.mu.
+	feed feedWatch
 }
 
 // pendingEmits carries the events a tick staged while holding d.mu. At most one
@@ -183,6 +188,7 @@ func newDetector(cfg *Config, bus ze.EventBus, dispatch dispatchFunc) *detector 
 	d.sm.OnDetected = d.onAttackStart
 	d.sm.OnCleared = d.emitCleared
 	d.ctx, d.cancel = context.WithCancel(context.Background())
+	d.feed.now = time.Now
 	return d
 }
 
@@ -263,9 +269,11 @@ func (d *detector) tickRates(entries []trafficstat.InterfaceEntry) pendingEmits 
 	// catch. Each is attributed to its own interface.
 	var maxPps, maxBps float64
 	var maxPpsIface, maxBpsIface string
+	ifaces := 0
 	for i := range entries {
 		e := &entries[i]
 		d.currentRxPps[e.Name] = e.RxPps
+		ifaces++
 
 		if e.RxPps > maxPps {
 			maxPps = e.RxPps
@@ -277,6 +285,7 @@ func (d *detector) tickRates(entries []trafficstat.InterfaceEntry) pendingEmits 
 		}
 	}
 
+	d.observeFeed(maxPps, maxBps, ifaces)
 	return d.tick(maxPps, maxBps, maxPpsIface, maxBpsIface)
 }
 
@@ -294,11 +303,13 @@ func (d *detector) tickInfos(infos []iface.InterfaceInfo) pendingEmits {
 
 	var maxPps, maxBps float64
 	var maxPpsIface, maxBpsIface string
+	ifaces := 0
 	for i := range infos {
 		info := &infos[i]
 		if info.Stats == nil {
 			continue
 		}
+		ifaces++
 
 		prevPkts, hasPrev := d.prevRxPackets[info.Name]
 		prevBytes := d.prevRxBytes[info.Name]
@@ -329,6 +340,7 @@ func (d *detector) tickInfos(infos []iface.InterfaceInfo) pendingEmits {
 		}
 	}
 
+	d.observeFeed(maxPps, maxBps, ifaces)
 	return d.tick(maxPps, maxBps, maxPpsIface, maxBpsIface)
 }
 

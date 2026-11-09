@@ -79,6 +79,31 @@ responder holds the firewall seam as package-level function variables
 pattern. The flowspec responder takes a `routeDispatcher` at construction, so a
 test drives announce and withdraw with no BGP session.
 
+### A blind detector is a runtime doctor check over the rate feed
+
+The detector's input is the per-interface receive rate (`trafficstat`
+`SubscribeRates`, or `iface.SubscribeCollectNotify` when trafficstat is
+unavailable). `traffic-usage` and `flow-export` only characterize an attack
+after detection, so the config-time `ddos-detect-flow-source` check cannot see
+a dead rate feed. A feed with no traffic leaves `(*baseline).Ready` true, since
+it counts samples and not their values, and the threshold at the floor, so the
+detector looks armed and can never fire.
+
+`blind.go` watches the feed under `d.mu`: the time of the last sample, the
+length of the current all-zero run and the interface count of the last sample.
+The window is `baseline-window` times `check-interval` feed samples, the moment
+the baseline holds only zeros, so an idle box warns no earlier than its
+baseline is blind. The check is declared in the SDK registration
+(`ddos-detect-rate-feed`, code `doctor-ddos-detect-blind`) and answered by the
+plugin's `OnDoctorCheck` callback, as OSPF's `ospf-state` is, because only the
+running plugin holds the detector: a check in the daemon's registry runs in the
+daemon process and sees no detector when the plugin runs external. The finding
+is a warning, the log marks each edge once, and nothing latches: the first
+sample with traffic clears it.
+<!-- source: internal/plugins/ddos/detect/blind.go -- feedWatch, observeFeed, rateFeedFinding -->
+<!-- source: internal/plugins/ddos/detect/doctor.go -- checkRateFeed, rateFeedCheckDecl -->
+<!-- source: internal/plugins/ddos/detect/register.go -- runEngine -->
+
 ## Traps
 
 - The detector's `onRate` callback receives CUMULATIVE packet counters, not

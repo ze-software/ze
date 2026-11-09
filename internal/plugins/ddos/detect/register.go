@@ -116,9 +116,14 @@ func runEngine(conn net.Conn) int {
 	var det *detector
 	var collectSubID int
 	var rateSubID int
+	// armed is the detector the doctor callback judges: the subscribed one, or
+	// nil while ddos detect is disabled. The callback runs on the SDK's own
+	// goroutine, so it reads this pointer and never det.
+	var armed atomic.Pointer[detector]
 
 	// subscribe wires the detector to the trafficstat service (preferred)
-	// or falls back to the raw iface tick.
+	// or falls back to the raw iface tick, then arms the blind-feed watch
+	// (blind.go) and publishes the detector to the doctor callback.
 	//
 	// EnsureGlobal (not Global): the trafficstat service is created lazily and
 	// nothing else guarantees it exists at detector-config time, so Global()
@@ -128,14 +133,18 @@ func runEngine(conn net.Conn) int {
 	subscribe := func(d *detector) {
 		if svc := trafficstat.EnsureGlobal(); svc != nil {
 			rateSubID = svc.SubscribeRates(d.onRates)
+			d.arm(feedTrafficstat)
 			log.Info("ddos-detect: enabled, subscribing to trafficstat")
 		} else {
 			collectSubID = iface.SubscribeCollectNotify(d.onRate)
+			d.arm(feedIfaceCounters)
 			log.Info("ddos-detect: enabled, subscribing to iface rate (trafficstat unavailable)")
 		}
+		armed.Store(d)
 	}
 
 	unsubscribe := func() {
+		armed.Store(nil)
 		if rateSubID != 0 {
 			if svc := trafficstat.Global(); svc != nil {
 				svc.UnsubscribeRates(rateSubID)
@@ -223,12 +232,17 @@ func runEngine(conn net.Conn) int {
 		return nil
 	})
 
+	p.OnDoctorCheck(func(name string) ([]rpc.DoctorCheckDiagnostic, error) {
+		return checkRateFeed(name, armed.Load())
+	})
+
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig:  []string{configRoot},
 		VerifyBudget: 2,
 		ApplyBudget:  10,
+		DoctorChecks: []rpc.DoctorCheckDecl{rateFeedCheckDecl},
 	}); err != nil {
 		log.Error("ddos-detect plugin failed", "error", err)
 		unsubscribe()
