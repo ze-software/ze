@@ -23,6 +23,11 @@ because only the first refusal of the final fixpoint round is named.
 | 562a0305cf | indexed elements carry the proved element summary; direct element-field stores (storeLocation) |
 | 75ad75aeab | interface receiver dispatches to the methods its value carries |
 | 925dac4ff0 | bare generic export keeps its declaration binding (five header fixtures now pass) |
+| 2ada4d93a0 | range copies drop the collection's own location; the FlowSpec projection's store passes the metadata write rule (family fixture now passes) |
+
+All six package fixture failures that predated this session are now fixed.
+The full package suite was last run before 2ada4d93a0: rerun it first. The
+family-fixture notes below are kept for the reasoning; both causes are fixed.
 
 Package suite (`go test` of `internal/le/repo/inventory` with the full tag set,
 skipping the five actual-root tests): one known failure left,
@@ -54,7 +59,7 @@ predates this session. Two causes, traced with probes:
 
 1. Thomas must allow restarting the actual-root run: the harness stopped the
    last one for low memory, and its rule is to restart only when asked.
-2. Fix the family fixture (above), then continue the actual-root chain. The
+2. Rerun the package suite, then continue the actual-root chain. The
    last seen stops were protobuf's validator (`impl/validate.go`,
    `st.mi.Desc.FullName()`) and `filedesc/desc_list.go` (`desc.Index()`), both
    interface method calls, which 75ad75aeab addresses; the next stop is
