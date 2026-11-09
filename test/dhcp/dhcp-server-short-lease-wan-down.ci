@@ -1,0 +1,134 @@
+# Test: a subnet with no dns-server, whose list is the default's (configured,
+#       then received, first-usable), hands out a 60-second
+#       lease and no option 6 while no learned resolver is usable, and its
+#       configured lease and the learned server once a WAN DHCPv4 lease
+#       arrives; a subnet with dns-server set keeps its configured lease
+#       throughout.
+# Spec: spec-home-cpe-23b-dns-source-consumers -- AC-25, D-9, R-2
+# VALIDATES: offerDNS -> awaitsReceived (internal/plugins/dhcpserver/handler.go)
+#            through the daemon: while the subnet's list (configured,
+#            received, first-usable) reaches received and finds no usable
+#            entry, option 51 is shortLeaseSec (60) in place of the
+#            configured 3600; once Ze's own DHCP client holds a WAN lease
+#            whose option 6 is 198.18.22.53, option 51 is 3600 and option 6
+#            carries that server alone. The subnet 10.99.23.0/24 sets
+#            dns-server 198.51.100.1, so its list stops at configured and its
+#            lease is 3600 before and after the WAN lease.
+#            The 60-second lease is the spec's D-9, its answer to the
+#            stale-server risk R-2: a client that leased with the WAN down
+#            renews within a minute of it coming up.
+# PREVENTS: a full-length lease handed out while the WAN is down (the client
+#           then waits an hour for a DNS server), a short lease kept after the
+#           WAN lease arrived, and a short lease on a subnet whose dns-server
+#           already answers.
+#
+# zedhsl (probe end zedhslp) holds 10.99.22.1/24 and 10.99.23.1/24. The
+# client 02-..-72 has a static mapping in 10.99.23.0/24, so its DISCOVER
+# selects the subnet with dns-server; 02-..-71 draws from 10.99.22.0/24.
+# The WAN pair zedhslw0/zedhslw1 is the daemon's; until wan-up gives
+# zedhslw1 its address and brings it up, the server answers nothing on it
+# (no address in the subnet), so no lease can exist when sl-down runs.
+# dhcp/probe-learned (internal/test/fixture/dhcp_fixture_probe_learned_linux.go)
+# then waits for the lease on zedhslw0, and sl-up resends its DISCOVER until
+# the OFFER follows it. The WAN subnet sets no default-router, so the lease
+# installs no default route.
+# The 10.99.22.0/24 subnet writes the default's classes and mode out, with
+# received-interface [ zedhslw0 ]: under the bare default the host's
+# /etc/resolv.conf record (the host fallback, D-13; 10.0.2.3 in the QEMU
+# guest) is a usable received entry while no lease is held, so AC-25's
+# precondition (no usable received entry) cannot hold on a host that has
+# one. awaitsReceived reads the list's classes and mode, not whether the
+# operator wrote them, so the narrowed list drives the same branch. The
+# AC's documentation address (192.0.2.53) is replaced by one no other .ci
+# holds, because the DHCP tests share the host's namespace.
+#
+# DISCRIMINATION (break overlay):
+# tmp/session/2026-11-07-104251/scratch/rwinv/c23b-dhcp-short-lease/
+# replaces internal/plugins/dhcpserver/handler.go with a copy whose offerDNS
+# never shortens the lease. The probe must then fail at sl-down with
+# "lease time (option 51) 3600, want 60". Observed red
+# (rwinv/out-gb14/b14-dhcp-short-lease.log:34), with that message.
+#
+# Requires Linux and CAP_NET_ADMIN (veth, addresses), CAP_NET_RAW (AF_PACKET,
+# the DHCP client's raw socket) and CAP_NET_BIND_SERVICE (port 67).
+
+option=needs-linux:caps=net-admin,net-raw,net-bind
+option=timeout:value=120s
+
+stdin=ze-bgp:terminator=EOF_CONF
+system {
+    dns {
+        resolv-conf-path /proc/self/cwd/dhcp-server-short-lease-wan-down.resolv.conf
+    }
+}
+
+service {
+    dhcp-server {
+        enabled true
+        listen-interface [ zedhsl zedhslw1 ]
+        shared-network lan {
+            subnet 10.99.22.0/24 {
+                range household {
+                    start 10.99.22.100
+                    stop 10.99.22.110
+                }
+                lease-time 3600
+                dns-source {
+                    source [ configured received ]
+                    received-interface [ zedhslw0 ]
+                    mode first-usable
+                }
+            }
+            subnet 10.99.23.0/24 {
+                range isolated {
+                    start 10.99.23.100
+                    stop 10.99.23.110
+                }
+                lease-time 3600
+                dns-server 198.51.100.1
+                static-mapping camera {
+                    mac-address 02:00:00:00:00:72
+                    ip-address 10.99.23.20
+                }
+            }
+        }
+        shared-network wan {
+            subnet 198.18.22.0/24 {
+                range isp {
+                    start 198.18.22.100
+                    stop 198.18.22.100
+                }
+                lease-time 3600
+                dns-server 198.18.22.53
+            }
+        }
+    }
+}
+
+interface {
+    backend netlink
+
+    veth zedhslw0 {
+        peer zedhslw1
+        unit 0 {
+            ipv4 {
+                dhcp {
+                    enabled true
+                }
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture dhcp/link zedhsl 10.99.22.1/24 10.99.23.1/24:exit=0
+cmd=background:seq=2:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=3:exec=le test fixture dhcp/probe-learned zedhsl x,sl-down,type=discover,mac=02-00-00-00-00-71,expect=offer,yiaddr=10.99.22.100,dns-count=0,lease=60 x,sl-down-set,type=discover,mac=02-00-00-00-00-72,expect=offer,yiaddr=10.99.23.20,dns=198.51.100.1,dns-count=1,lease=3600 wan-up,zedhslw1,198.18.22.1/24,zedhslw0 until,x,sl-up,type=discover,mac=02-00-00-00-00-71,expect=offer,dns=198.18.22.53,dns-count=1,lease=3600 x,sl-up-set,type=discover,mac=02-00-00-00-00-72,expect=offer,yiaddr=10.99.23.20,dns=198.51.100.1,dns-count=1,lease=3600:timeout=110s
+expect=exit:code=0
+expect=stdout:pattern=dhcp sl-down sent=discover reply=offer yiaddr=10.99.22.100 .* dns=absent .* dns-count=0 lease=60
+expect=stdout:pattern=dhcp sl-down-set sent=discover reply=offer yiaddr=10.99.23.20 .* dns=198.51.100.1 .* dns-count=1 lease=3600
+expect=stdout:contains=dhcp wan zedhslw0 leased 198.18.22.100
+expect=stdout:pattern=dhcp sl-up sent=discover reply=offer .* dns=198.18.22.53 .* dns-count=1 lease=3600
+expect=stdout:pattern=dhcp sl-up-set sent=discover reply=offer yiaddr=10.99.23.20 .* dns=198.51.100.1 .* dns-count=1 lease=3600
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

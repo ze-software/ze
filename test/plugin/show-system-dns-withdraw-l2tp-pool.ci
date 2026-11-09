@@ -1,0 +1,94 @@
+# Test: an l2tp pool the reload removes leaves show system dns.
+# Initial config: the observer plugin and an l2tp block whose ipv4 pool
+#   writes dns-primary 203.0.113.53 and no dns-source, so the pool's
+#   built-in list applies.
+# After SIGHUP: the observer plugin and the environment block alone; the
+#   l2tp root is gone, so the engine removes the l2tp-pool plugin (its only
+#   config root is l2tp) while the daemon runs.
+# Expected: show system dns lists the l2tp-pool selection at
+#   "l2tp pool ipv4 dns-source" before the reload, and after it still
+#   answers the router's selection (consumer system) but no l2tp-pool
+#   consumer at all.
+#
+# VALIDATES: spec-home-cpe-23b review round 3 ISSUE 3: the pool plugin's
+#   OnBye handler (internal/component/l2tp/plugins/pool/register.go) sends
+#   its withdrawal while the engine removes the plugin, inside the removal
+#   grace, and the registry forgets the consumer. The pool unit test in
+#   publish_test.go calls withdraw() directly, so it proves neither
+#   the wiring nor that the emit is read during removal.
+# PREVENTS: a removed pool plugin whose last selections show system dns and
+#   ze doctor keep reporting until the daemon restarts.
+#
+# DISCRIMINATION: break overlay rwinv/c23b-withdraw-pool/
+#   (poolInstance.withdraw() taken out of the OnBye handler): the registry
+#   keeps the l2tp-pool consumer and its last selection after the reload
+#   removed the plugin. Observed red (rwinv/out-gb15/b15-withdraw-pool.log:46):
+#   "the removed l2tp-pool is still listed with 1 selection(s)". The poll also
+#   requires the system consumer's "system dns-source" selection, which
+#   proves the answer it judged came from a live registry, not an empty one.
+#
+# Sequencing: the observer writes observer.initial-ok once the pool is
+#   listed; the trigger waits for it, copies config2.conf over ze-bgp.conf,
+#   sends SIGHUP and writes reload.done, after which the observer polls for
+#   the withdrawal.
+#
+# No cmd= line carries `:timeout=`: a foreground command's timeout replaces
+# option=timeout as the budget of the whole test.
+
+option=env:var=ze.l2tp.skip-kernel-probe:value=true
+option=env:var=TEST_SECRET:value=s3cr3t
+option=timeout:value=60s
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external show-system-dns-withdraw-pool-test {
+		run "le test fixture plugin/show-system-dns-withdraw-pool"
+		encoder json
+	}
+}
+l2tp {
+	enabled true
+	shared-secret s3cr3t
+	pool {
+		ipv4 {
+			gateway 10.99.8.1
+			start 10.99.8.10
+			end 10.99.8.20
+			dns-primary 203.0.113.53
+		}
+	}
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port $PORT
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	external show-system-dns-withdraw-pool-test {
+		run "le test fixture plugin/show-system-dns-withdraw-pool"
+		encoder json
+	}
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port $PORT
+		}
+	}
+}
+EOF_CONF2
+
+cmd=background:seq=1:exec=le test fixture plugin/show-system-dns-withdraw-trigger
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp
+expect=exit:code=0
+expect=stderr:contains=OK: show system dns lists the l2tp pool's default list before the reload
+expect=stderr:contains=OK: show system dns drops the removed l2tp pool and keeps the router selection
+reject=stderr:contains=reload error
+reject=stderr:pattern=panic

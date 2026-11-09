@@ -1,0 +1,128 @@
+# Test: a dns-source list naming a class its consumer refuses is refused at
+#       ze config validate, with the path, the reason and the fix
+# VALIDATES: spec-home-cpe-23b AC-11, the consumer half (the router's half is
+#            test/parse/dns-source-mode-required.ci seq 5 and 6):
+#              seq=1  service dns-resolver forward dns-source source self
+#              seq=2  service dns-resolver forward dns-source source radius
+#              seq=3  a DHCP subnet's dns-source source radius
+#              seq=4  a subnet's dns-source source self: accepted (D-6)
+#            The RA rdnss consumer is linux-only, so its refusal lives in
+#            test/draft/parse/dns-source-ra-rdnss-consumer.ci.
+#            Each refusal is dnssource.NewWrittenList with the consumer's own
+#            Refusal table (forwardRefusals, subnetDNSRefusals).
+# PREVENTS: an upstream list that makes the resolver query itself, or a
+#           handed-on list naming a subscriber's RADIUS resolvers, passing
+#           validate and selecting nothing at run time.
+# Break: tmp/session/2026-11-07-104251/scratch/rwinv/c23b-class-refusal-ignored
+#        (NewWrittenList never matches a refused class): seq 1 to 3 lose
+#        their refusal. Observed red, at seq 1, where the runner stops
+#        (rwinv/out-gb14/p14-dns-source-class-refused-broken.log): "expected
+#        exit code 1, got 0".
+
+stdin=forward-self:terminator=EOF_FWD_SELF
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 192.0.2.1
+			port 53
+		}
+		allow-from 192.0.2.0/24
+		forward {
+			server 198.51.100.53 {
+				port 53
+			}
+			dns-source {
+				source self
+			}
+		}
+	}
+}
+EOF_FWD_SELF
+
+stdin=forward-radius:terminator=EOF_FWD_RADIUS
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 192.0.2.1
+			port 53
+		}
+		allow-from 192.0.2.0/24
+		forward {
+			server 198.51.100.53 {
+				port 53
+			}
+			dns-source {
+				source radius
+			}
+		}
+	}
+}
+EOF_FWD_RADIUS
+
+stdin=subnet-radius:terminator=EOF_SUBNET_RADIUS
+service {
+    dhcp-server {
+        enabled true
+        listen-interface br0
+        shared-network LAN {
+            subnet 192.168.1.0/24 {
+                range {
+                    start 192.168.1.100
+                    stop 192.168.1.200
+                }
+                default-router 192.168.1.1
+                dns-source {
+                    source radius
+                }
+            }
+        }
+    }
+}
+EOF_SUBNET_RADIUS
+
+stdin=subnet-self:terminator=EOF_SUBNET_SELF
+service {
+    dhcp-server {
+        enabled true
+        listen-interface br0
+        shared-network LAN {
+            subnet 192.168.1.0/24 {
+                range {
+                    start 192.168.1.100
+                    stop 192.168.1.200
+                }
+                default-router 192.168.1.1
+                dns-source {
+                    source self
+                }
+            }
+        }
+    }
+}
+EOF_SUBNET_SELF
+
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=forward-self:exit=1
+expect=exit:code=1
+expect=stdout:contains=service dns-resolver forward dns-source names self
+expect=stdout:contains=the resolver cannot be its own upstream
+expect=stdout:contains=delete service dns-resolver forward dns-source source self
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=forward-radius:exit=1
+expect=exit:code=1
+expect=stdout:contains=service dns-resolver forward dns-source names radius
+expect=stdout:contains=the LAN resolver is not a subscriber
+expect=stdout:contains=delete service dns-resolver forward dns-source source radius
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=subnet-radius:exit=1
+expect=exit:code=1
+expect=stdout:contains=service dhcp-server shared-network subnet dns-source names radius
+expect=stdout:contains=a DHCP client is not a subscriber
+expect=stdout:contains=delete service dhcp-server shared-network subnet dns-source source radius
+
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=subnet-self
+expect=exit:code=0
+expect=stdout:contains=configuration valid

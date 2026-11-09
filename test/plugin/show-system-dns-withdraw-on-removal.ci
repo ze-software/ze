@@ -1,0 +1,83 @@
+# Test: a dns-resolver the reload removes leaves show system dns.
+# Initial config: the observer plugin and service dns-resolver, whose written
+#   forward list names configured with server 198.51.100.53.
+# After SIGHUP: the observer plugin alone; the service block is gone, so the
+#   engine removes the dns-resolver plugin while the daemon runs.
+# Expected: show system dns lists the dns-resolver selection at
+#   "service dns-resolver forward dns-source" before the reload, and after it
+#   still answers the router's selection (consumer system) but no dns-resolver
+#   consumer at all.
+#
+# VALIDATES: spec-home-cpe-23b review round 2 ISSUE 2: the dns-resolver's
+#   OnBye handler (internal/plugins/dnsresolver/register.go,
+#   followLearnedResolvers) sends its withdrawal while the engine removes the
+#   plugin, inside the removal grace, and the registry forgets the consumer.
+#   The unit test TestResolverWithdrawPublishesEmptySelection calls
+#   withdraw() directly, so it proves neither the wiring nor that the emit
+#   is read during removal.
+# PREVENTS: a removed resolver whose last selection show system dns and
+#   ze doctor keep reporting until the daemon restarts.
+#
+# DISCRIMINATION: with res.withdraw() taken out of the OnBye handler
+#   (break overlay tmp/session/2026-11-07-104251/scratch/rwinv/
+#   c23b-withdraw-on-bye/) the registry keeps a dns-resolver consumer, with
+#   an empty selection list, after the reload removed the plugin, so the
+#   post-reload poll never sees the consumer gone. Observed red
+#   (rwinv/out-gb14/c23b-withdraw-on-bye.log:46): "the removed dns-resolver
+#   is still listed with 0 selection(s)". The poll also requires the system
+#   consumer's "system dns-source" selection, which proves the answer it
+#   judged came from a live registry, not an empty one.
+#
+# Sequencing: the observer writes observer.initial-ok once the resolver is
+#   listed; the trigger waits for it, copies config2.conf over ze-bgp.conf,
+#   sends SIGHUP and writes reload.done, after which the observer polls for
+#   the withdrawal. The reload therefore never races the first publication.
+#
+# No cmd= line carries `:timeout=`: a foreground command's timeout replaces
+# option=timeout as the budget of the whole test.
+
+option=timeout:value=60s
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external show-system-dns-withdraw-test {
+		run "le test fixture plugin/show-system-dns-withdraw"
+		encoder json
+	}
+}
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.23.82
+			port $PORT
+		}
+		allow-from 127.0.0.0/8
+		forward {
+			server 198.51.100.53 {
+				port 53
+			}
+			dns-source {
+				source configured
+			}
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	external show-system-dns-withdraw-test {
+		run "le test fixture plugin/show-system-dns-withdraw"
+		encoder json
+	}
+}
+EOF_CONF2
+
+cmd=background:seq=1:exec=le test fixture plugin/show-system-dns-withdraw-trigger
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp
+expect=exit:code=0
+expect=stderr:contains=OK: show system dns lists the dns-resolver's configured list before the reload
+expect=stderr:contains=OK: show system dns drops the removed dns-resolver and keeps the router selection
+reject=stderr:contains=reload error
+reject=stderr:pattern=panic

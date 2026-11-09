@@ -1,0 +1,212 @@
+# Test: a subnet with no dns-server and no dns-source hands out the DNS server
+#       a WAN DHCPv4 lease carries (the D-5 pass-through default); once a
+#       dns-server is committed it hands out that server alone; once the
+#       lease is withdrawn with no dns-server, no reply carries option 6.
+# Spec: spec-home-cpe-23b-dns-source-consumers -- AC-14, D-5
+# VALIDATES: the subnet's built-in list subnetDNSDefault (configured, then
+#            received, first-usable; internal/plugins/dhcpserver/config.go)
+#            through the daemon, over a real DHCPv4 lease, and the learned
+#            snapshot dhcpserver follows (learnedSnapshotHandler,
+#            register.go). Ze's own DHCP server serves two links: zedhptw1,
+#            the peer end of the WAN veth pair the daemon creates, where
+#            subnet 198.18.21.0/24 sets dns-server 198.18.21.53 and Ze's own
+#            DHCP client on zedhptw0 leases from it; and the LAN link zedhpt
+#            (probe end zedhptp), whose subnet 10.99.21.0/24 sets neither
+#            dns-server nor dns-source.
+#            RFC 5625 Section 3: "Except when required to enforce an active
+#            security or network policy (such as maintaining a
+#            pre-authentication "walled garden"), end-users SHOULD be able to
+#            send their DNS queries to specified upstream resolvers, thereby
+#            bypassing the proxy altogether."
+# PREVENTS: a default list that never reaches the learned resolvers, one
+#           that keeps them beside an operator's dns-server, and a subnet that
+#           keeps handing out a withdrawn lease's server.
+#
+# dhcp/probe-learned (internal/test/fixture/dhcp_fixture_probe_learned_linux.go)
+# gives zedhptw1 198.18.21.1/24, brings it up and waits for the lease on
+# zedhptw0. Each until step resends its DISCOVER until the OFFER carries the
+# fields it names, because the state follows an event the daemon applies on
+# its own schedule: the lease, then each reload. config2.conf adds dns-server
+# 198.51.100.1 to the LAN subnet; config3.conf removes it again and disables
+# the DHCP client, whose teardown withdraws the lease's servers
+# (teardownV4, internal/plugins/iface/dhcp/dhcp_v4_linux.go). config3.conf
+# also writes the LAN subnet's list out as the default's own classes and mode
+# with received-interface [ zedhptw0 ]: once the lease is gone, the host's
+# /etc/resolv.conf record (the host fallback, D-13; 10.0.2.3 in the QEMU
+# guest) is a received entry again, so under the bare default option 6 would
+# carry it. Narrowed to the WAN veth, a kept lease would still show as
+# 198.18.21.53, so dns-count=0 proves the withdrawal. pt-lease and
+# pt-configured run under the bare default, which is what the break overlay
+# below changes: while the lease is held the fallback is not listed
+# (liveAddresses, internal/core/dnssource/record.go). The WAN subnet
+# sets no default-router, so the lease installs no default route. The AC's
+# documentation addresses (192.0.2.0/24) are replaced by ones no other .ci
+# holds, because the DHCP tests share the host's namespace.
+#
+# DISCRIMINATION (break overlay):
+# tmp/session/2026-11-07-104251/scratch/rwinv/c23b-dhcp-pass-through/
+# replaces internal/plugins/dhcpserver/config.go with a copy whose
+# subnetDNSDefault names configured alone. The probe must then fail at
+# pt-lease with "dns (option 6) absent, want 198.18.21.53". Observed red
+# (rwinv/out-gb14/b14-dhcp-pass-through.log:39), with that message.
+#
+# Requires Linux and CAP_NET_ADMIN (veth, addresses), CAP_NET_RAW (AF_PACKET,
+# the DHCP client's raw socket) and CAP_NET_BIND_SERVICE (port 67).
+
+option=needs-linux:caps=net-admin,net-raw,net-bind
+option=timeout:value=120s
+
+stdin=ze-bgp:terminator=EOF_CONF
+system {
+    dns {
+        resolv-conf-path /proc/self/cwd/dhcp-server-dns-pass-through.resolv.conf
+    }
+}
+service {
+    dhcp-server {
+        enabled true
+        listen-interface [ zedhpt zedhptw1 ]
+        shared-network lan {
+            subnet 10.99.21.0/24 {
+                range household {
+                    start 10.99.21.100
+                    stop 10.99.21.110
+                }
+                lease-time 3600
+            }
+        }
+        shared-network wan {
+            subnet 198.18.21.0/24 {
+                range isp {
+                    start 198.18.21.100
+                    stop 198.18.21.100
+                }
+                lease-time 3600
+                dns-server 198.18.21.53
+            }
+        }
+    }
+}
+interface {
+    backend netlink
+    veth zedhptw0 {
+        peer zedhptw1
+        unit 0 {
+            ipv4 {
+                dhcp {
+                    enabled true
+                }
+            }
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+system {
+    dns {
+        resolv-conf-path /proc/self/cwd/dhcp-server-dns-pass-through.resolv.conf
+    }
+}
+service {
+    dhcp-server {
+        enabled true
+        listen-interface [ zedhpt zedhptw1 ]
+        shared-network lan {
+            subnet 10.99.21.0/24 {
+                range household {
+                    start 10.99.21.100
+                    stop 10.99.21.110
+                }
+                lease-time 3600
+                dns-server 198.51.100.1
+            }
+        }
+        shared-network wan {
+            subnet 198.18.21.0/24 {
+                range isp {
+                    start 198.18.21.100
+                    stop 198.18.21.100
+                }
+                lease-time 3600
+                dns-server 198.18.21.53
+            }
+        }
+    }
+}
+interface {
+    backend netlink
+    veth zedhptw0 {
+        peer zedhptw1
+        unit 0 {
+            ipv4 {
+                dhcp {
+                    enabled true
+                }
+            }
+        }
+    }
+}
+EOF_CONF2
+
+tmpfs=config3.conf:terminator=EOF_CONF3
+system {
+    dns {
+        resolv-conf-path /proc/self/cwd/dhcp-server-dns-pass-through.resolv.conf
+    }
+}
+service {
+    dhcp-server {
+        enabled true
+        listen-interface [ zedhpt zedhptw1 ]
+        shared-network lan {
+            subnet 10.99.21.0/24 {
+                range household {
+                    start 10.99.21.100
+                    stop 10.99.21.110
+                }
+                lease-time 3600
+                dns-source {
+                    source [ configured received ]
+                    received-interface [ zedhptw0 ]
+                    mode first-usable
+                }
+            }
+        }
+        shared-network wan {
+            subnet 198.18.21.0/24 {
+                range isp {
+                    start 198.18.21.100
+                    stop 198.18.21.100
+                }
+                lease-time 3600
+                dns-server 198.18.21.53
+            }
+        }
+    }
+}
+interface {
+    backend netlink
+    veth zedhptw0 {
+        peer zedhptw1
+        unit 0 {
+            ipv4 {
+                dhcp {
+                    enabled false
+                }
+            }
+        }
+    }
+}
+EOF_CONF3
+
+cmd=foreground:seq=1:exec=le test fixture dhcp/link zedhpt 10.99.21.1/24:exit=0
+cmd=background:seq=2:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=3:exec=le test fixture dhcp/probe-learned zedhpt wan-up,zedhptw1,198.18.21.1/24,zedhptw0 until,x,pt-lease,type=discover,mac=02-00-00-00-00-61,expect=offer,dns=198.18.21.53,dns-count=1,lease=3600 reload,config2.conf until,x,pt-configured,type=discover,mac=02-00-00-00-00-62,expect=offer,dns=198.51.100.1,dns-count=1 reload,config3.conf until,x,pt-withdrawn,type=discover,mac=02-00-00-00-00-63,expect=offer,dns-count=0:timeout=110s
+expect=exit:code=0
+expect=stdout:contains=dhcp wan zedhptw0 leased 198.18.21.100
+expect=stdout:pattern=dhcp pt-lease sent=discover reply=offer .* dns=198.18.21.53 .* dns-count=1 lease=3600
+expect=stdout:pattern=dhcp pt-configured sent=discover reply=offer .* dns=198.51.100.1 .* dns-count=1 lease=3600
+expect=stdout:pattern=dhcp pt-withdrawn sent=discover reply=offer .* dns=absent .* dns-count=0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

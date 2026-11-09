@@ -1,0 +1,85 @@
+# Test: a DHCP server the reload removes leaves show system dns.
+# Initial config: the observer plugin and service dhcp-server on link
+#   zedhwdr, one subnet 198.18.21.0/24 whose dns-source names configured,
+#   with dns-server 198.51.100.1.
+# After SIGHUP: the observer plugin alone; the service block is gone, so the
+#   engine removes the dhcpserver plugin while the daemon runs.
+# Expected: show system dns lists the dhcpserver selection at
+#   "service dhcp-server shared-network subnet dns-source", instance
+#   198.18.21.0/24, before the reload, and after it still answers the
+#   router's selection (consumer system) but no dhcpserver consumer at all.
+#
+# VALIDATES: spec-home-cpe-23b review round 3 ISSUE 3: the DHCP server's
+#   OnBye handler (internal/plugins/dhcpserver/register.go) sends its
+#   withdrawal while the engine removes the plugin, inside the removal
+#   grace, and the registry forgets the consumer. The dhcpserver unit test
+#   in publish_test.go calls withdraw() directly, so it proves
+#   neither the wiring nor that the emit is read during removal.
+# PREVENTS: a removed DHCP server whose last selections show system dns and
+#   ze doctor keep reporting until the daemon restarts.
+#
+# DISCRIMINATION: break overlay rwinv/c23b-withdraw-dhcp/ (publisher.withdraw()
+#   taken out of the OnBye handler): the registry keeps a dhcpserver
+#   consumer, with an empty selection list, after the reload removed the
+#   plugin. Observed red (rwinv/out-gb15/b15-withdraw-dhcp.log:46): "the
+#   removed dhcpserver is still listed with 0 selection(s)". The poll also
+#   requires the system consumer's "system dns-source" selection, which
+#   proves the answer it judged came from a live registry, not an empty one.
+#
+# Sequencing: dhcp/link creates the link before ze starts, because the
+#   server publishes a subnet only once it listens there. The observer
+#   writes observer.initial-ok once the subnet is listed; the trigger waits
+#   for it, copies config2.conf over ze-bgp.conf, sends SIGHUP and writes
+#   reload.done, after which the observer polls for the withdrawal.
+#
+# No cmd= line carries `:timeout=` on ze: a foreground command's timeout
+# replaces option=timeout as the budget of the whole test.
+
+option=needs-linux:caps=net-admin,net-raw
+option=timeout:value=60s
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external show-system-dns-withdraw-dhcp-test {
+		run "le test fixture plugin/show-system-dns-withdraw-dhcp"
+		encoder json
+	}
+}
+service {
+	dhcp-server {
+		enabled true
+		listen-interface zedhwdr
+		shared-network home {
+			subnet 198.18.21.0/24 {
+				range household {
+					start 198.18.21.100
+					stop 198.18.21.110
+				}
+				lease-time 3600
+				dns-server 198.51.100.1
+				dns-source {
+					source configured
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	external show-system-dns-withdraw-dhcp-test {
+		run "le test fixture plugin/show-system-dns-withdraw-dhcp"
+		encoder json
+	}
+}
+EOF_CONF2
+
+cmd=foreground:seq=1:exec=le test fixture dhcp/link zedhwdr 198.18.21.7/24:exit=0
+cmd=background:seq=2:exec=le test fixture plugin/show-system-dns-withdraw-trigger
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp
+expect=exit:code=0
+expect=stderr:contains=OK: show system dns lists the DHCP server's subnet selection before the reload
+expect=stderr:contains=OK: show system dns drops the removed DHCP server and keeps the router selection
+reject=stderr:contains=reload error
+reject=stderr:pattern=panic

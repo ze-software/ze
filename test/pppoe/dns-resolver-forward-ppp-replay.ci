@@ -1,0 +1,158 @@
+# Test: a LAN resolver that starts while a WAN lease exists answers its first
+#       query from that lease's server, never from the empty list it starts
+#       with.
+# Spec: spec-home-cpe-23b-dns-source-consumers -- AC-13
+# VALIDATES: the startup replay of the dnsresolver plugin
+#            (followLearnedResolvers: the snapshot-request it emits once
+#            started) and the hold in admit (resolver.awaitReplay). The boot
+#            config has no service block at all, so the plugin, whose config
+#            root is service, does not run. The compiled fixture
+#            (internal/test/fixture/dns_resolver_forward_ppp_replay_linux.go)
+#            plays the access concentrator: it Naks the PPPoE client's
+#            0.0.0.0 Primary-DNS with 192.0.2.53 (RFC 1877 Section 1.1) and
+#            waits until the daemon's resolv.conf lists 192.0.2.53, so the ppp
+#            record exists. Only then does it reload config2.conf, which adds
+#            the resolver on 127.0.23.93 with no forward server, so the plugin
+#            starts after the record exists: a consumer started by a reload
+#            learns the leases from the startup replay. The same reload starts
+#            the DHCP server (it shares the service config root), whose own
+#            OnStarted also requests a snapshot, and Resolvers.PublishOn
+#            answers every subscriber, so this test proves that some startup
+#            replay reaches the resolver, not that the resolver's own request
+#            does. The first DNS reply it gives MUST be 203.0.113.10, which
+#            only the stub on 192.0.2.53 serves; a SERVFAIL or another record
+#            fails at once. A starting plugin is the restart case: its learned
+#            list is empty until the replay, exactly as after a respawn.
+# PREVENTS: a resolver plugin that starts or restarts while leases exist and
+#           answers SERVFAIL, or forwards nowhere, until the next lease change.
+#
+# The lease is PPP, not DHCPv4: Ze's DHCP server lives under service, the
+# resolver's config root, so a boot config that serves a DHCPv4 lease starts
+# the resolver from boot and the replay is never what it learns from.
+#
+# received-interface [ zedns1 ] narrows the received class to this client's
+# lease, so the guest's /etc/resolv.conf record (the host fallback, D-13)
+# cannot answer the query in its place.
+#
+# DISCRIMINATION (break overlay):
+# tmp/session/2026-11-07-104251/scratch/rwinv/c23b-replay-both/ replaces
+# internal/plugins/dnsresolver/register.go and
+# internal/plugins/dhcpserver/register.go with copies whose OnStarted handlers
+# request no snapshot, so no startup replay is sent at all. The fixture must
+# then fail at "answered before it applied the replay". Observed red
+# (rwinv/out-gb14/b14-replay-both.log:41): "the resolver started after the
+# lease answered before it applied the replay: 127.0.23.93:53 answered rcode
+# SERVFAIL". Removing only the
+# resolver's request leaves the DHCP server's in place and the test green, so
+# the resolver's own request is proven by a unit test instead
+# (internal/plugins/dnsresolver/start_requests_snapshot_test.go).
+#
+# The suite is pppoe because only a per-test-namespace suite honours
+# option=netns-link. resolv-conf-path is absolute and inside the test's own
+# directory, so the write never reaches the guest's resolv.conf.
+#
+# Requires Linux, CAP_NET_ADMIN for the PPP device, CAP_NET_RAW for both
+# AF_PACKET sockets and CAP_NET_BIND_SERVICE for the stub and the listener.
+# keepalive interval 3600 keeps Echo-Requests off the wire while the fixture
+# negotiates.
+option=needs-linux:caps=net-admin,net-raw,net-bind
+option=netns-link:name=zecpe0:peer=zeac0
+option=netns-link:name=zedns0:address=192.0.2.53/32
+option=timeout:value=120s
+
+stdin=ze-conf:terminator=EOF_CONF
+system {
+	dns {
+		resolv-conf-path /proc/self/cwd/dns-resolver-forward-ppp-replay.resolv.conf
+	}
+}
+
+plugin {
+	external dns-resolver-forward-ppp-replay-test {
+		run "le test fixture pppoe/dns-resolver-forward-ppp-replay config2.conf"
+		encoder json
+	}
+}
+
+interface {
+	backend netlink
+	pppoe-client zedns1 {
+		source-interface zecpe0
+		authentication {
+			username subscriber
+			password secret
+		}
+		mtu 1450
+		keepalive {
+			interval 3600
+			failures 255
+		}
+		reconnect {
+			delay-min 1
+			delay-max 1
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+system {
+	dns {
+		resolv-conf-path /proc/self/cwd/dns-resolver-forward-ppp-replay.resolv.conf
+	}
+}
+
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.23.93
+			port 53
+		}
+		allow-from 127.0.0.0/8
+		forward {
+			dns-source {
+				source [ received configured ]
+				received-interface [ zedns1 ]
+				mode first-usable
+			}
+		}
+	}
+}
+
+plugin {
+	external dns-resolver-forward-ppp-replay-test {
+		run "le test fixture pppoe/dns-resolver-forward-ppp-replay config2.conf"
+		encoder json
+	}
+}
+
+interface {
+	backend netlink
+	pppoe-client zedns1 {
+		source-interface zecpe0
+		authentication {
+			username subscriber
+			password secret
+		}
+		mtu 1450
+		keepalive {
+			interval 3600
+			failures 255
+		}
+		reconnect {
+			delay-min 1
+			delay-max 1
+		}
+	}
+}
+EOF_CONF2
+
+cmd=background:seq=1:exec=le mock dns --port 53 --address 192.0.2.53
+cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=120s
+expect=exit:code=0
+
+# NO NEEDLE MAY HOLD A COLON: the runner splits a directive on ':'.
+expect=stderr:contains=dns-resolver started after the PPPoE lease -> first answer from the replayed lease server 192.0.2.53
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
