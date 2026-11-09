@@ -1671,6 +1671,14 @@ Red at HEAD, owed an investigation before any break means anything:
   route before the wait, which keeps the assertion intact. Accepting an
   unselected OSPF default instead would weaken the checker and needs the
   judge.
+  Repair attempted in `b31f79495e` (judged, RFC-approved): the checker
+  deletes FRR's kernel default before the wait. The lab run on that build
+  still fails at assertion 2, with the OSPF default via 172.30.0.2 still
+  unselected and no deletion error, so the Docker default is not the only
+  cause, or not the cause. The run's dump does not include FRR's full
+  `show ip route 0.0.0.0/0 json`, and the lab keeps no containers after a
+  run, so the next step is a checker diagnostic that records that output on
+  failure (an RFC-tagged unit, so it needs the judge first).
 
 Blocked by lab readiness, not product evidence:
 
