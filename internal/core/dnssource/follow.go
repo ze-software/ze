@@ -9,7 +9,25 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+
+	"github.com/ze-software/ze/internal/core/metrics"
 )
+
+// RejectedMetricName is the counter of the system-dns snapshots a consumer
+// received and could not apply, labelled by consumer (the name it publishes its selections under). A
+// consumer that rejects a snapshot logs it at WARN, counts it here, and
+// answers its event handler with no error: a handler error ends the SDK's
+// batched delivery (pkg/plugin/sdk activateBridge, OnEvent), so a newer
+// snapshot queued behind the rejected one would never be applied.
+const RejectedMetricName = "ze_dns_source_snapshots_rejected_total"
+
+// RejectedCounter answers consumer's series of RejectedMetricName in reg.
+// Every consumer registers the same vector, which reg hands back to each.
+func RejectedCounter(reg metrics.Registry, consumer string) metrics.Counter {
+	return reg.CounterVec(RejectedMetricName,
+		"System-dns snapshots a consumer received and could not apply, by consumer.",
+		[]string{"consumer"}).With(consumer)
+}
 
 // Follower is a consumer's view of the system-dns namespace: it
 // takes each snapshot (decoded from JSON in a plugin, typed in the daemon), keeps the

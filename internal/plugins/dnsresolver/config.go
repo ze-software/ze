@@ -371,6 +371,7 @@ var forwardRefusals = []dnssource.Refusal{
 // why and fix when the resolver cannot use it.
 func parseForwardSources(r map[string]any) (dnssource.List, error) {
 	raw, present := r["forward"]
+	// refuse-by-default: guards checkEnabled -- an absent forward container leaves the built-in list (D-5) in force; forwardDefault is a stated default, so checkEnabled and the selection read it as the default, never as a miss
 	if !present {
 		return forwardDefault, nil
 	}

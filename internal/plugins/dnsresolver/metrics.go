@@ -8,6 +8,7 @@ import (
 
 	"github.com/miekg/dns"
 
+	"github.com/ze-software/ze/internal/core/dnssource"
 	"github.com/ze-software/ze/internal/core/metrics"
 )
 
@@ -95,21 +96,25 @@ type resolverMetrics struct {
 	cacheHits     metrics.Counter
 	upstreamQuery metrics.CounterVec // result
 	listenerUp    metrics.GaugeVec   // protocol, address
+	// learnedRejected counts the system-dns snapshots this plugin could
+	// not apply (dnssource.RejectedMetricName{consumer="dns-resolver"}).
+	learnedRejected metrics.Counter
 }
 
 var metricsPtr atomic.Pointer[resolverMetrics]
 
 func buildMetrics(reg metrics.Registry) *resolverMetrics {
 	return &resolverMetrics{
-		queries:       reg.CounterVec("ze_dns_resolver_queries_total", "Queries answered, by transport and response code; a dropped query is counted by ze_dns_resolver_rate_limited_total or ze_dns_resolver_dropped_total.", []string{"transport", "rcode"}),
-		refused:       reg.CounterVec("ze_dns_resolver_refused_total", "Queries refused, by reason: acl (source outside allow-from) or rd-clear (recursion not desired).", []string{"reason"}),
-		rateLimited:   reg.Counter("ze_dns_resolver_rate_limited_total", "Queries dropped because their source exceeded limit per-client-rate."),
-		dropped:       reg.Counter("ze_dns_resolver_dropped_total", "Queries dropped because limit outstanding resolutions, or limit outstanding queries waiting on one, were in progress."),
-		outstanding:   reg.Gauge("ze_dns_resolver_outstanding", "Resolutions in progress."),
-		cacheEntries:  reg.GaugeVec("ze_dns_resolver_cache_entries", "Entries held, by cache: answer or negative.", []string{"cache"}),
-		cacheHits:     reg.Counter("ze_dns_resolver_cache_hits_total", "Queries answered from the cache."),
-		upstreamQuery: reg.CounterVec("ze_dns_resolver_upstream_queries_total", "Upstream exchanges, by result.", []string{"result"}),
-		listenerUp:    reg.GaugeVec("ze_dns_resolver_listener_up", "1 while a listener socket is bound, by protocol and listen address.", []string{"protocol", "address"}),
+		queries:         reg.CounterVec("ze_dns_resolver_queries_total", "Queries answered, by transport and response code; a dropped query is counted by ze_dns_resolver_rate_limited_total or ze_dns_resolver_dropped_total.", []string{"transport", "rcode"}),
+		refused:         reg.CounterVec("ze_dns_resolver_refused_total", "Queries refused, by reason: acl (source outside allow-from) or rd-clear (recursion not desired).", []string{"reason"}),
+		rateLimited:     reg.Counter("ze_dns_resolver_rate_limited_total", "Queries dropped because their source exceeded limit per-client-rate."),
+		dropped:         reg.Counter("ze_dns_resolver_dropped_total", "Queries dropped because limit outstanding resolutions, or limit outstanding queries waiting on one, were in progress."),
+		outstanding:     reg.Gauge("ze_dns_resolver_outstanding", "Resolutions in progress."),
+		cacheEntries:    reg.GaugeVec("ze_dns_resolver_cache_entries", "Entries held, by cache: answer or negative.", []string{"cache"}),
+		cacheHits:       reg.Counter("ze_dns_resolver_cache_hits_total", "Queries answered from the cache."),
+		upstreamQuery:   reg.CounterVec("ze_dns_resolver_upstream_queries_total", "Upstream exchanges, by result.", []string{"result"}),
+		listenerUp:      reg.GaugeVec("ze_dns_resolver_listener_up", "1 while a listener socket is bound, by protocol and listen address.", []string{"protocol", "address"}),
+		learnedRejected: dnssource.RejectedCounter(reg, resolverConsumer),
 	}
 }
 

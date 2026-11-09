@@ -247,8 +247,14 @@ snapshot older than the last it kept. A plugin process receives the JSON
 form and hands it to `Accept`. A component in the daemon (the interface
 component, for RDNSS) subscribes to the typed handle
 `dnssource.SnapshotEvent`, hands the value to `AcceptSnapshot`, and emits
-`dnssource.SnapshotRequest` after it subscribes.
-<!-- source: internal/core/dnssource/follow.go -- Follower, Accept, AcceptSnapshot -->
+`dnssource.SnapshotRequest` after it subscribes. A plugin that receives a
+snapshot it cannot decode keeps its previous learned resolvers, logs the
+cause at WARN, counts it in
+`ze_dns_source_snapshots_rejected_total{consumer}`, and applies the next
+snapshot, including one delivered in the same batch.
+<!-- source: internal/core/dnssource/follow.go -- Follower, Accept, AcceptSnapshot, RejectedCounter -->
+<!-- source: internal/plugins/dnsresolver/register.go -- learnedSnapshotHandler -->
+<!-- source: internal/plugins/dhcpserver/register.go -- learnedSnapshotHandler -->
 <!-- source: internal/core/dnssource/register.go -- SnapshotEvent, SnapshotRequest -->
 
 Each consumer also publishes what its lists chose, so `show system dns` and
