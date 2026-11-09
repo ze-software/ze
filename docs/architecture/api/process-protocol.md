@@ -1903,7 +1903,7 @@ registry.
 |-------|-----------|---------|
 | `snapshot` | engine to plugin, after every change | the whole state: `sequence`, `records`, `router` |
 | `snapshot-request` | plugin to engine | none. The engine answers by publishing the current `snapshot` again |
-| `selection` | plugin to engine, after its selection changes | one consumer's `consumer` name and its `selections`, each a list as `router` is shaped plus an `instance` (the subnet, unit or pool) and, for the LAN resolver, the `serves` addresses it answers on. `withdrawn` true, with no selections, when the plugin stops. The engine keeps them for `show system dns` and `ze doctor` |
+| `selection` | plugin to engine, after its selection changes | one consumer's `consumer` name and its `selections`, each a list as `router` is shaped plus an `instance` (the subnet, unit or pool) and, for the LAN resolver, the `serves` addresses it answers on. `withdrawn` true, with no selections, from the plugin's `OnBye` handler when the engine removes it while the daemon runs (a `bye` with reason `removed`). A daemon stop sends no `bye` to a plugin, so no withdrawal is sent then, and the registry stops with the daemon. The engine keeps them for `show system dns` and `ze doctor` |
 
 ```
 {"sequence":7,
@@ -1917,6 +1917,8 @@ registry.
 <!-- source: internal/core/dnssource/record.go -- Namespace, SnapshotEventType, SnapshotRequestEventType, PublicationEventType, Record, ConsumerSelection, Publication, Snapshot -->
 <!-- source: internal/core/dnssource/register.go -- SnapshotEvent, SnapshotRequest, PublicationEvent -->
 <!-- source: internal/component/config/system/resolv.go -- (*Resolvers).PublishOn, (*Resolvers).SetPublication -->
+<!-- source: internal/component/plugin/server/startup_removal.go -- notifyPluginRemoval, the bye with reason removed -->
+<!-- source: internal/plugins/dnsresolver/register.go -- followLearnedResolvers, the OnBye withdrawal -->
 
 A `records` entry is one learned source: its `origin` and the origin's
 `rank` (a lower rank lists first), the `interface` and `unit` that learned
