@@ -28,10 +28,27 @@ Package suite (`go test` of `internal/le/repo/inventory` with the full tag set,
 skipping the five actual-root tests): one known failure left,
 `TestCommittedFamilyHelpersRetainCanonicalNames/flowspec-projection`
 ("external mutation can change registration metadata through familySet"). It
-predates this session. Suspect: a range element of `familySet` carries the
-slice's own location through rangedValue's flattened collection, and the
-location reaches the ambient pool through the exposed `family.Family.String`
-receiver. Unverified: trace with a probe before fixing.
+predates this session. Two causes, traced with probes:
+
+1. Traced: `fam`, the range copy of `familySet`, carries the slice's own
+   location (rangedValue joins the flattened collection). `fam.String()` binds
+   it to the receiver of the exported `family.Family.String`, whose receiver
+   also holds the ambient pool (origins), so `return f.name` answers the whole
+   receiver and its return grows the pool with `familySet`. An UNCOMMITTED
+   change in `externalrangeelements.go` (`withoutCollectionLocation`, called
+   from rangedValue after a proved population) drops the collection
+   variable's own location from the copy: a range copy never refers to the
+   backing array, and a stored `&x[j]` arrives through the element values.
+   With it the familySet refusal is gone. It still needs a discriminating
+   test and a red walk before it is committed.
+2. The next refusal is the metadata write rule in `externalEffects.solve`:
+   any write to an object the registration metadata reads ("external
+   registration metadata depends on a mutated retained backing location"),
+   here `names[i] = fam.String()` inside the helper. That contradicts the
+   make/range/index/return projection the test says is supported. Before
+   relaxing it, check whether the static family evaluator
+   (`familyexpressions.go`) refuses local writes it does not model; if it does
+   not, the write rule is the only guard and must stay for those writes.
 
 ## Next
 
