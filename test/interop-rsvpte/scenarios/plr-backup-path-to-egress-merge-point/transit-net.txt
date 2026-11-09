@@ -1,0 +1,4 @@
+# Ze PLR (transit.conf) for plr-backup-path-to-egress-merge-point adds no
+# route. Its protected link prot0 (VLAN 100, 10.0.14.3/24, to the freeRouter
+# egress at 10.0.14.14) is a link of the scenario, declared in labLinks
+# (internal/le/interoplab/rsvpte/rsvpte.go), never a line here.
