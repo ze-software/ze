@@ -27,7 +27,7 @@ This ownership split preserves the original obligations and evidence. Migration 
 
 | Scope | Current owner |
 |---|---|
-| RFC4301-4.4.1-5 multi-SPD and RFC4301-4.4.1-8 absent application-principal surface; original AC-1 for those rows. | `plan/post-release/features/spec-ipsec-spd-selection.md` |
+| RFC4301-4.4.1-5 multi-SPD and RFC4301-4.4.1-8 absent application-principal surface; original AC-1 for those rows. | Done and closed: spec-ipsec-spd-selection; the design is `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` |
 | RFC4301-4.4.1.1-5 and the corresponding original AC-1 evidence; mandatory named selection only. | `plan/release/fixes/spec-ipsec-spd-name-selection.md` |
 
 ## Files to Modify
@@ -42,8 +42,8 @@ and excludes optional multi-SPD and application-override leaves.
 
 | Scope | Current owner |
 |---|---|
-| RFC4301-4.4.1-5 multi-SPD and RFC4301-4.4.1-8 absent application-principal surface; original AC-1 for those rows. | `plan/post-release/features/spec-ipsec-spd-selection.md` |
+| RFC4301-4.4.1-5 multi-SPD and RFC4301-4.4.1-8 absent application-principal surface; original AC-1 for those rows. | Done and closed: spec-ipsec-spd-selection |
 
 ## Provenance and retained evidence
 
-Split from `plan/post-release/features/spec-ipsec-spd-selection.md` during the approved release-organization migration. The complete original planning record, requirements, decisions, risks, implementation narrative and evidence are retained under Historical planning record in `plan/post-release/features/spec-ipsec-spd-selection.md`. This child claims no new test result or completion.
+Split from spec-ipsec-spd-selection during the approved release-organization migration. The complete original planning record, requirements, decisions, risks, implementation narrative and evidence are retained in that spec's git history: it was closed and removed once its implementation landed. This child claims no new test result or completion.

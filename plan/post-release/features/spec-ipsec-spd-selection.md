@@ -16,6 +16,24 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Blocker
 
+Fourth closure attempt (2026-11-09): commit B (`remove` of this spec) is refused by
+the closure review gate (`./le commit create`, the Spec-work population): 66 files
+from commits carrying `Spec-work: ipsec-spd-selection` are not in the review. Most
+are other sessions' work misattributed to this spec's claim: 8d13a9dceb (dns RA
+RDNSS), 40ca9a51c7 (RA integration wait), f2fc726239 (listener v6only test),
+383ab66db9 (fixture stops the daemon), 36c64b0804 and 6183f96d11 (le tooling); the
+ipsec ones (af04d4903f, 9167d499fd, 652591fc76) are this spec's. Clears when the main
+thread decides how the misattributed trailers are handled, or a reviewer covers the
+whole population, then commits A and B are re-run (A is ready: this spec, the two
+sibling specs and the spd-role `.ci` citer edits). Everything else below is done:
+
+Fourth closure attempt (2026-11-09) cleared every row below. N1: the two fixes and
+this spec's lint landed in aed73c95b7 (the pointer-map half reverted in 5bfb990c0f,
+Mistake Log), unit run PASS in `rwinv/out-gb9/spd-n1.log`. N2: batch 8 and 9 ran,
+R1 PASS (`rwinv/out-gb8/c23-clean.log` teardown, `rwinv/out-gb9/g9-clean.log`
+peer-reload), R2 PASS (`rwinv/out-gb8/interop-*.log`). N3: review re-recorded
+(round 3), citers repointed, commits A and B.
+
 Third closure attempt (2026-11-09): R3's review steps are done. The closure
 sections, the Security Review and the Review Gate are appended below, and the
 gate is recorded at `tmp/review/ipsec-spd-selection-7e292f27-ced0-427f-a7b6-3a931db211f9.md`
@@ -849,6 +867,7 @@ implementing function quotes the Section 4.4.1, 5.1 or 5.2 sentence it performs
 | Kind | What happened | What was true instead | How discovered | Action |
 |------|---------------|----------------------|----------------|--------|
 | approach | The deny requirements (guide, YANG, refusal text) listed capabilities, cgroup2 and CONFIG_CGROUP_BPF, not the kernel version the guard's helper needs | `bpf_get_ns_current_pid_tgid` reaches a cgroup program from Linux 6.10 (`kernel/bpf/helpers.c` v6.10 `bpf_base_func_proto`; v6.9 `cg_sockopt_func_proto` has no case for it) | Closure review | Fixed in the three surfaces |
+| approach | Cleared `rangeValCopy` by holding `xfrmInterfaceEntry` by pointer (aed73c95b7) | The edit moved the fingerprints of `planXFRMInterfaceEntries` and `installXFRMInterfaceEntries`, which the RFC4301-4.4.1-3 mutant records and three audit verdicts pin, so `./le rfc check` called them stale | `./le rfc check` after the commit | Reverted in 5bfb990c0f; homed in Work Not Done |
 
 ## Implementation Audit
 
@@ -908,10 +927,10 @@ implementing function quotes the Section 4.4.1, 5.1 or 5.2 sentence it performs
 |------------------|---------------|-------------------|
 | Each interface SPD has a final DISCARD entry | kernel integration | `TestRFC4301InterfaceSPDDiscardsUnmatchedInKernel` PASS in `scratch/qemu-lx12.log`; record `rfc/discrimination/rfc4301/RFC4301-4.4.1-3.json` |
 | Explicit SPD selection function (RFC4301-4.4.1-5) | unit with discrimination | `TestRFC4301SPDSelectionByOutputInterface` and its negative; `rfc/discrimination/rfc4301/RFC4301-4.4.1-5.json` |
-| No IPv6 cleartext leak from a tunnel source | kernel integration + interop | `TestTunnelSourceGuardInKernel` PASS in `qemu-lx12.log`; interop `vti-ipv6-tunnel-source-no-cleartext-leak` under deny OWED (Blocker R2) |
+| No IPv6 cleartext leak from a tunnel source | kernel integration + interop | `TestTunnelSourceGuardInKernel` PASS in `qemu-lx12.log`; interop `vti-ipv6-tunnel-source-no-cleartext-leak` under deny PASS in `rwinv/out-gb8/interop-vti-ipv6-tunnel-source-no-cleartext-leak.log` |
 | Operator sees each entry's SPD and role | functional | `test/ipsec/dataplane-policy-spd-role.ci` PASS in `rwinv/out-gb6/ipsec-clean.log`, twelve breaks red in `rwinv/out-gb7/spd-*.log` |
 | Administrator controls application override (RFC4301-4.4.1-8) | kernel integration, security negative | `TestRFC4301ApplicationOverrideDeniedInKernel` (EPERM for a foreign process) in `scratch/p8rec/out-qemu/kernel.log`; `rfc/discrimination/rfc4301/RFC4301-4.4.1-8.json` |
-| Route-based tunnel to strongSwan works under deny | interop | `vti-unmatched-discard-interface-spd`, `vti-ipv6-inner-ipv4-outer` under deny OWED (Blocker R2) |
+| Route-based tunnel to strongSwan works under deny | interop | `vti-unmatched-discard-interface-spd`, `vti-ipv6-inner-ipv4-outer` under deny PASS in `rwinv/out-gb8/interop-<scenario>.log`; every repository `vpn ipsec` user under deny: the nine XFRM `.ci` PASS (`out-gb6/ipsec-clean.log` seven, `out-gb8/c23-clean.log` teardown, `out-gb9/g9-clean.log` peer-reload) |
 
 ## Work Not Done
 
@@ -919,6 +938,7 @@ implementing function quotes the Section 4.4.1, 5.1 or 5.2 sentence it performs
 |-------------------|-----|---------------------------|
 | RFC4301-4.4.1-3 final DISCARD for the VPP and OSPF SPDs | outside the XFRM backend this spec covers | `plan/post-release/features/spec-ipsec-spd-final-discard-vpp-ospf.md` |
 | RFC4301-4.4.1.1-5 mandatory named selection | split at the release migration | `plan/release/fixes/spec-ipsec-spd-name-selection.md` |
+| gocritic `rangeValCopy` on four map ranges this spec wrote in `engine/unmatched_xfrm_interface.go` (257, 352, 405, 429) | the fix (hold `xfrmInterfaceEntry` by pointer) moves the fingerprints of the RFC4301-4.4.1-3 records and three audit verdicts, so it lands with the spec that re-records them | `plan/post-release/features/spec-ipsec-spd-final-discard-vpp-ospf.md` |
 
 ## Security Review
 
@@ -938,8 +958,8 @@ implementing function quotes the Section 4.4.1, 5.1 or 5.2 sentence it performs
 | Field | Value |
 |-------|-------|
 | Artifact | `tmp/review/ipsec-spd-selection-7e292f27-ced0-427f-a7b6-3a931db211f9.md` (86 files, the list in `tmp/session/2026-11-07-104251/scratch/spd-review-files.txt`) |
-| `./le spec review check` | OK (80 code files, clean, hashes match), 2026-11-09 |
-| Rounds | 2 |
+| `./le spec review check` | OK (80 code files, clean, hashes match), 2026-11-09, re-recorded after round 3 |
+| Rounds | 3 |
 | Reviewer lenses used | logic and ordering (apply, prune, release), security (eBPF guard, source guard ownership), user-facing errors, docs against source, style pass (no `panic`, `fmt.Sprintf` or `go func` in the new production files) |
 
 ### Findings fixed
@@ -955,6 +975,9 @@ implementing function quotes the Section 4.4.1, 5.1 or 5.2 sentence it performs
 ### Run 2
 Over the two fixes: string changes only, the strengthened assertion matches the new text. 0 BLOCKER, 0 ISSUE.
 
+### Run 3
+Over the six files whose hashes moved after round 2. `test/ipsec/ipsec-peer-reload-leaves-tunnel-alone.ci` (53f25aa438): the reject is bounded by `sighup reload complete` (`cmd/ze/hub/main_reload.go` `reloadCompleteLine`), and the added expect stops a reload that never completed from passing; PASS in `rwinv/out-gb9/g9-clean.log`. aed73c95b7 and 5bfb990c0f: `//nolint:gosec` with its reason on the three `/proc` reads of `spdWriters` (the path is the root plus a numeric pid entry and a constant leaf), the promoted-field literals and US spelling in two tests, and `apply.go` and `unmatched_xfrm_interface.go` back to their round-2 bytes. ike/engine unit run PASS except the macOS-only `TestMobikeParallelAuth*` (127.0.0.2 cannot be bound on darwin); a linux vet of the package passes. 0 BLOCKER, 0 ISSUE.
+
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
@@ -965,7 +988,7 @@ Over the two fixes: string changes only, the strengthened assertion matches the 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
-| AC-18 | refusal names the error and every fix | `TestApplyFailsWhenOverrideGuardCannotAttach` wants list now includes "Linux 6.10 or later"; run owed to the main thread (handback) |
+| AC-18 | refusal names the error and every fix | `TestApplyFailsWhenOverrideGuardCannotAttach` wants list now includes "Linux 6.10 or later"; PASS in `rwinv/out-gb9/spd-n1.log` and in this closure's ike/engine run |
 | AC-1..AC-22 | tests exist | Blocker Verified row: 34 names found by grep |
 
 ### Wiring Verified (end-to-end)

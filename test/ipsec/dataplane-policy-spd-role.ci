@@ -1,7 +1,7 @@
 # Functional test: show vpn ipsec dataplane policy names each REAL kernel entry's SPD
 # and role.
-# Spec: plan/post-release/features/spec-ipsec-spd-selection.md (AC-9, user story 3,
-#       wiring test row 5)
+# Spec: spec-ipsec-spd-selection, closed (AC-9, user story 3, wiring test row 5);
+#       the listing is documented in docs/architecture/ike/ipsec-dataplane-inspection.md
 #
 # VALIDATES: an operator who lists the Security Policy Database through the daemon's
 #            command path (`show vpn ipsec dataplane policy`, the
