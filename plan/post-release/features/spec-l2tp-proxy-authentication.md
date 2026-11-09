@@ -19,8 +19,9 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 **This spec is the LNS half of L2TP proxy authentication only.** The LAC half,
 writing AVPs 26 to 33 (AVP 33 hidden after a Random Vector for PAP) from the LAC's
-own PPP authentication, belongs to `plan/release/fixes/spec-home-cpe-14-lac-realm-relay.md`
-(its Key Design Decisions, "AVP writer ownership"), because only that spec creates an
+own PPP authentication, was delivered by the closed `spec-home-cpe-14-lac-realm-relay`
+(its Key Design Decisions, "AVP writer ownership"; the writer is documented in
+`docs/guide/l2tp.md`, "Relay by realm"), because only that spec creates an
 authentication exchange at the LAC. As LNS, `session_fsm.go::parseICCN` stores the
 Proxy Authen AVPs and nothing authenticates from them (only `sess.username` mirrors
 the name), and `avp.go::skipHiddenAVP` skips a hidden AVP without decrypting it.

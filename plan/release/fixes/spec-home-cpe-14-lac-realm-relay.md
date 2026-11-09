@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | A new LAC mode, the way wholesale broadband LACs work: LCP and authentication with the subscriber at the LAC, the LNS chosen by the realm of the username, proxy LCP and proxy authentication AVPs in the ICCN. It also corrects a false test claim in the L2TP guide. |
@@ -635,26 +635,6 @@ of the added AVPs with offsets.
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-home-cpe-14-lac-realm-relay.md` only, in the same `./le commit create` script
 
-## Blocker
-
-Closure stops before commit A for one piece of evidence the main thread owns
-(the closure agent may not run tests or guests). Everything else is done: the
-Review Gate artifact is recorded and checks clean, `./le rfc check` names no
-other RFC 2661 record, and `./le doc check all` reports nothing in L2TP.
-
-| What | Producer | What clears it |
-|------|----------|----------------|
-| The RFC2661-6.1-1 discrimination record is stale (`./le rfc check` on 2026-11-09: `producer-changed`, `scratch/c14-rfccheck.log`) | `internal/component/l2tp/tunnel_fsm.go` `handleSCCRQ`, unit `test/l2tp/rfc2661-sccrq-mandatory-avp.ci` | `./le rfc record id RFC2661-6.1-1 polarity positive unit test/l2tp/rfc2661-sccrq-mandatory-avp.ci route revert producer internal/component/l2tp/tunnel_fsm.go::handleSCCRQ citation 'expect=stderr:contains=new tunnel created from SCCRQ'` on Linux, observed red, in guest batch 10 (`rwinv/out-gb10/rec2661-run.log`, `rwinv/out-gb10/rec-2661.log`); batch 7's attempt (`rwinv/out-gb7/rec-2661.log`) stopped on the host's missing loopback aliases and recorded nothing |
-
-When the record is in (`git status rfc/discrimination/rfc2661/` shows
-`RFC2661-6.1-1.json` changed and `./le rfc check` no longer names it), set
-Status back to `in-progress`, add the record file to commit A with the spec,
-and land commits A and B. The review artifact covers
-`subsystem_reload_test.go`, the only code file a `Spec-work:
-home-cpe-14-lac-realm-relay` commit carries (519b6df3af). The realm relay code
-landed in 79e3205310, whose trailer reads `Spec-work:
-home-cpe-1-logical-interface-name`.
-
 ## Implementation Summary
 
 ### What Was Implemented
@@ -796,7 +776,7 @@ reviewed in round 1: `ppp/relay_handoff.go`, `ppp/relay_reader_linux.go`,
 |-------|-------|----------------|
 | AC-2, AC-3 | ICCN proxy AVPs and hidden 33 | `TestWriteICCNBodyProxyAVPs`, `TestWriteICCNBodyHiddenAVP33` PASS in `rwinv/out-gb3/c15-l2tp.log` |
 | AC-11 | reload applies relay-realm | `TestReloadAppliesRelayRealms` PASS, `rwinv/out-gb7/c14-reload.log` (`ok github.com/ze-software/ze/internal/component/l2tp`) |
-| RFC2661-6.1-1 | discrimination record fresh | stale on 2026-11-09 (`scratch/c14-rfccheck.log`, `producer-changed`); the re-record runs in guest batch 10 (`rwinv/out-gb10/rec2661-run.log`, `rwinv/out-gb10/rec-2661.log`): the Blocker |
+| RFC2661-6.1-1 | discrimination record fresh | re-recorded 2026-11-09 in the Ze 7.3 guest (batch 10): `./le rfc record` broke `tunnel_fsm.go` `handleSCCRQ` and observed `test/l2tp/rfc2661-sccrq-mandatory-avp.ci` red in 420 s (`rwinv/out-gb10/rec-2661.log`), writing `rfc/discrimination/rfc2661/RFC2661-6.1-1.json` (producer-sha `bc858a8cb15b8253`), which commit A carries. `./le rfc check` on 2026-11-09 names no RFC 2661 record (`scratch/c14-rfccheck2.log`); its exit 1 comes from RFC 3101, 4724 and 7606 audit verdicts over `internal/le/interoplab/bgp/check_rfc.go`, not this spec's |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |

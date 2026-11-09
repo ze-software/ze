@@ -110,7 +110,7 @@ record is the spec text at the parent of its closure commit
 | 11 | closed | `dcc20ffb68` (`spec-home-cpe-11-lab.md`) |
 | 12 | closed | `9bad2dd6bd` (`spec-home-cpe-12-pppoe-client-lcp-renegotiation.md`); PPPoE client LCP renegotiation in every phase documented in `docs/architecture/l2tp/cpe-1-pppoe-client.md` and `docs/guide/configuration.md` ("PPPoE Client") |
 | 13 | closed | `ac001804c0` (`spec-home-cpe-13-pppoe-client-ipcp-dns.md`); IPCP-learned DNS documented in `docs/architecture/l2tp/cpe-1-pppoe-client.md` and `docs/features/dns-resolver.md` |
-| 14 | open, `blocked` at closure | `spec-home-cpe-14-lac-realm-relay.md`: a fresh RFC2661-6.1-1 discrimination record and a run of `TestReloadAppliesRelayRealms` (its Blocker section) |
+| 14 | closed | `spec-home-cpe-14-lac-realm-relay`; `TestReloadAppliesRelayRealms` passed (`rwinv/out-gb7/c14-reload.log`) and the RFC2661-6.1-1 record was re-observed red; relay by realm documented in `docs/guide/l2tp.md` ("Relay by realm") |
 | 15 | closed | `spec-home-cpe-15-lns-lcp-renegotiation`; the `l2tp proxy-lcp` leaf, its session outcome and its counter label documented in `docs/guide/l2tp.md` ("PPP negotiation") |
 | 16 | closed | `spec-home-cpe-16-lns-mru-and-auth-allow-list`; policy and MRU controls documented in `docs/guide/l2tp.md` and `docs/guide/pppoe.md` |
 | 17 | closed | `spec-home-cpe-17-pppoe-client-keepalive-config`; the `keepalive` and `reconnect` leaves documented in `docs/guide/pppoe.md` ("PPPoE client keepalive and redial") and `docs/architecture/l2tp/cpe-1-pppoe-client.md` |
@@ -422,7 +422,7 @@ Each child owns its wiring tests; the rows below name one per child from its spe
 | converted CPE configuration (`spec-home-cpe-11-lab.md`) | → | CPE load and commit verifiers | scenario `conversion` |
 | LCP Configure-Request during CHAP (`spec-home-cpe-12-pppoe-client-lcp-renegotiation`, closed) | → | renegotiation | `TestRFC1661ClientRenegotiatesLCPDuringAuth` |
 | IPCP Configure-Nak with DNS (`spec-home-cpe-13-pppoe-client-ipcp-dns`, closed; `docs/architecture/l2tp/cpe-1-pppoe-client.md`) | → | resolver lease | `TestPPPoEClientSetsResolverLease` |
-| realm relay config and subscriber (`spec-home-cpe-14-lac-realm-relay.md`) | → | realm match, proxy LCP | `TestRelaySinkRealmMatchPlacesCallWithProxyLCP` |
+| realm relay config and subscriber (`spec-home-cpe-14-lac-realm-relay`) | → | realm match, proxy LCP | `TestRelaySinkRealmMatchPlacesCallWithProxyLCP` |
 | `proxy-lcp renegotiate` (`spec-home-cpe-15-lns-lcp-renegotiation`, closed; `docs/guide/l2tp.md`) | → | non-proxy session branch | `TestL2TPProxyLCPRenegotiateReachesDriver` |
 | `l2tp { mru 1492 }` (`docs/guide/l2tp.md`, "PPP negotiation") | → | session MRU | `TestReactorPPPPolicyReloadIsolation`, `TestConfiguredMRUNakInformationFloor`; interop `l2tp-lns-mru-xl2tpd` |
 | `keepalive interval 2; failures 2` (`spec-home-cpe-17-pppoe-client-keepalive-config`, closed; `docs/guide/pppoe.md`) | → | keepalive loop | `TestPPPoEClientKeepaliveFromConfig`, `TestPPPoEClientKeepaliveConfigEndToEndDetection` |
