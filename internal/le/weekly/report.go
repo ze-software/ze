@@ -34,10 +34,10 @@ type Message struct {
 type PostReport struct {
 	// Source is the file the post was read from.
 	Source string `json:"source"`
-	// Date is the Monday the covered week starts on, and the name of the
-	// archive file.
+	// Date is the first day the post covers, and the name of the archive
+	// file.
 	Date string `json:"date"`
-	// Covers is the week the post declares.
+	// Covers is the range the post declares.
 	Covers string `json:"covers"`
 	// Status is planned, sent, skipped or failed.
 	Status string `json:"status"`

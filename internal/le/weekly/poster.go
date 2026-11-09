@@ -37,14 +37,14 @@ const (
 	StatusFailed = "failed"
 )
 
-// Stamp is whether the covered week is written into the header line. The zero
+// Stamp is whether the covered range is written into the header line. The zero
 // value defers to StaleAfterDays, which is the answer an operator wants almost
 // every time.
 type Stamp uint8
 
 const (
 	// StampAuto stamps a post published more than StaleAfterDays after its
-	// week ended, and leaves an in-time post to Discord's own timestamp.
+	// covered range ended, and leaves an in-time post to Discord's own timestamp.
 	StampAuto Stamp = iota
 	// StampOn stamps whatever the dates say.
 	StampOn
@@ -137,8 +137,8 @@ func (p *publisher) sweep(report Report, opts Options) (Report, error) {
 		var tb textbuf.Buffer
 		return report, errors.New(tb.Str("no .md files in ").Str(opts.Dir).String())
 	}
-	// The order is chronological already: every post is named for the Monday
-	// its week starts on, and filepath.Glob answers sorted names. A sort here
+	// The order is chronological already: every post is named for the first
+	// day it covers, and filepath.Glob answers sorted names. A sort here
 	// would restate that and hide where the order comes from.
 
 	postedAny := false
@@ -193,7 +193,7 @@ func (p *publisher) eligible(file string) (skipped PostReport, skip bool, err er
 	}
 	if days < 0 {
 		var tb textbuf.Buffer
-		row.Reason = tb.Str("week not over yet (covers ").Str(covers).Byte(')').String()
+		row.Reason = tb.Str("covered range not over yet (covers ").Str(covers).Byte(')').String()
 		return row, true, nil
 	}
 
@@ -223,15 +223,16 @@ func (p *publisher) publish(file string, opts Options, force bool, resumeFrom in
 		row.Status = StatusSkipped
 		var tb textbuf.Buffer
 		_, end, _ := strings.Cut(covers, "..")
-		row.Reason = tb.Str("week doesn't end until ").Str(strings.TrimSpace(end)).
-			Str(" (").Int(int64(-days)).Str(" day(s) away). Use force to override.").String()
+		row.Reason = tb.Str("the covered range doesn't end until ").Str(strings.TrimSpace(end)).
+			Str(" (").Int(int64(-days)).Str(" day(s) away); end covers on the day of the release-to commit, ").
+			Str("or use force to post early.").String()
 		return row, errors.New(row.Reason)
 	}
 
 	body := post.Body
 	row.DateStamped = stampWanted(opts.Stamp, days)
 	if row.DateStamped {
-		stamped, headerFound := ApplyDateStamp(body, date)
+		stamped, headerFound := ApplyDateStamp(body, covers)
 		if !headerFound {
 			p.say(func(tb *textbuf.Buffer) {
 				tb.Str("warning: no '**📅 Ze Weekly Update**' header line found, " +

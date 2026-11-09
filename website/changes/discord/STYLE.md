@@ -76,7 +76,8 @@ trusting the words even when the facts are right, so avoid the tells:
 
 **Three Discord messages. Four at the very most.** `./le weekly publish source
 <draft.md>` prints the count without publishing, so the budget is measured
-rather than guessed.
+rather than guessed. The budget holds whatever span the update covers: an
+update covering two weeks selects harder, it does not run longer.
 
 An update is read in a chat window, in one pass, by someone who did not ask for
 it. Every line spends attention the next line then has to earn back. The posts

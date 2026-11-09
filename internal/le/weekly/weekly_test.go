@@ -207,34 +207,46 @@ func TestAWholeBoldLineIsASectionHeader(t *testing.T) {
 	}
 }
 
-func TestApplyDateStampWritesTheWeekIntoTheHeader(t *testing.T) {
+// VALIDATES: a late post's header names the whole range it covers, whatever
+// its length, because an update covers the span since the previous one.
+// PREVENTS: a two-week update stamped "Week of <start>", which misstates the
+// second week.
+func TestApplyDateStampWritesTheCoveredRangeIntoTheHeader(t *testing.T) {
 	body := "**📅 Ze Weekly Update**\n\nSomething shipped."
 
-	got, found := ApplyDateStamp(body, "2026-08-10")
+	for _, tc := range []struct {
+		covers string
+		want   string
+	}{
+		{"2026-08-10 .. 2026-08-16", "**📅 Ze Weekly Update -- 2026-08-10 to 2026-08-16**\n\nSomething shipped."},
+		{"2026-10-26 .. 2026-11-09", "**📅 Ze Weekly Update -- 2026-10-26 to 2026-11-09**\n\nSomething shipped."},
+	} {
+		got, found := ApplyDateStamp(body, tc.covers)
 
-	if !found {
-		t.Fatal("ApplyDateStamp did not find the header it was given")
-	}
-	const want = "**📅 Ze Weekly Update -- Week of 2026-08-10**\n\nSomething shipped."
-	if got != want {
-		t.Errorf("stamped body = %q, want %q", got, want)
+		if !found {
+			t.Fatal("ApplyDateStamp did not find the header it was given")
+		}
+		if got != tc.want {
+			t.Errorf("covers %s: stamped body = %q, want %q", tc.covers, got, tc.want)
+		}
 	}
 }
 
 func TestApplyDateStampStampsOnlyTheFirstHeader(t *testing.T) {
 	body := "**📅 Ze Weekly Update**\n\nquoted below\n\n**📅 Ze Weekly Update**"
 
-	got, _ := ApplyDateStamp(body, "2026-08-10")
+	got, _ := ApplyDateStamp(body, "2026-08-10 .. 2026-08-16")
 
-	if strings.Count(got, "Week of") != 1 {
-		t.Errorf("ApplyDateStamp stamped %d headers, want 1: %q", strings.Count(got, "Week of"), got)
+	const stamp = "-- 2026-08-10 to 2026-08-16"
+	if strings.Count(got, stamp) != 1 {
+		t.Errorf("ApplyDateStamp stamped %d headers, want 1: %q", strings.Count(got, stamp), got)
 	}
 }
 
 func TestApplyDateStampReportsABodyWithNoHeader(t *testing.T) {
 	body := "No header here."
 
-	got, found := ApplyDateStamp(body, "2026-08-10")
+	got, found := ApplyDateStamp(body, "2026-08-10 .. 2026-08-16")
 
 	if found {
 		t.Error("ApplyDateStamp claims it found a header in a body with none")

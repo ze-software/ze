@@ -207,7 +207,7 @@ tooling events (recorded breaks, judge verdicts, interop red/green).
 | AC-9 | A closure prepared in a tree that is not the Ze checkout (site or wiki) | The commit is prepared through the same path validation and message contract as today, and its message carries no `No-news:` trailer | The fragment rules are skipped there, because that tree holds no specs or fragments |
 | AC-10 | `./le site build` with a fragment present | Writes the changes index, the feed and every week page from `changes/posts`, byte-identical to a build without the fragment | No generated path is derived from a fragment, because fragments are unverified claims |
 | AC-11 | `/ze-close` step 6 | Instructs writing the fragment with the six headings, or `no-news "<reason>"` on commit B | None |
-| AC-12 | `/ze-weekly-update` Phase 1 | Lists the fragments added in the range, verifies each claim at the producer, researches only what none carries, and appends one table per week to `plan/records/weekly-fragment-measure.md` | None |
+| AC-12 | `/ze-weekly-update` Phase 1 | Lists the fragments added in the range, verifies each claim at the producer, researches only what none carries, and appends one table per update (its `release-from`..`release-to` range, whatever its length) to `plan/records/weekly-fragment-measure.md` | None |
 | AC-13 | `spec-release-build` AC-25 | States that release notes are the fragments added since the previous release tag, grouped by topic | None |
 | AC-14 | `website/changes/fragments/README.md` | States the file name rule, front matter, the six headings, and that a fragment is a claim; cites `newsfragment.go` as the one declaration | None |
 

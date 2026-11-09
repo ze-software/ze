@@ -4,8 +4,10 @@
 //
 // Package weekly turns an approved weekly post into the messages Discord takes.
 //
-// A post is a file under website/changes/posts/, named for the Monday its week
-// starts on, carrying `covers: <start> .. <end>` in its front matter. Discord
+// A post is a file under website/changes/posts/, named for the first day it
+// covers, carrying `covers: <start> .. <end>` in its front matter. The range is
+// the span since the previous update, not a fixed week
+// (ai/META-DECISIONS.md, "Reports and messages"). Discord
 // refuses a message over 2000 characters, so the body is split at section
 // boundaries and never inside one: a section that arrives cut in half reads as
 // a fault to everyone in the channel, and a channel message cannot be taken
@@ -31,15 +33,15 @@ import (
 // Discord's hard cap is 2000 and it counts characters rather than bytes, which
 // matters here: a weekly update carries emoji section headers and typographic
 // dashes, so its byte length runs well ahead of its character length. The
-// margin absorbs the "-- Week of <date>" a backfilled post gains in its header.
+// margin absorbs the "-- <start> to <end>" a backfilled post gains in its header.
 const Limit = 1900
 
-// StaleAfterDays is how long after a week ends a post can still be published
-// without saying which week it describes.
+// StaleAfterDays is how long after its covered range ends a post can still be
+// published without saying which range it describes.
 //
 // A message posted inside that window is dated well enough by Discord's own
 // timestamp. Past it the timestamp lies about when the work happened, so the
-// header states the week in the text.
+// header states the range in the text.
 const StaleAfterDays = 7
 
 // statSnapshotMarker is the HTML comment an older publication flow wrote into
@@ -131,9 +133,10 @@ func EndDate(covers string) (time.Time, error) {
 	return time.Parse(time.DateOnly, firstField(trimSpace(end)))
 }
 
-// DaysSinceWeekEnd answers how many days have passed since the covered week
-// ended. It is NEGATIVE while the week is still running, which is the state
-// that refuses a post.
+// DaysSinceWeekEnd answers how many days have passed since the last day the
+// post covers. It is NEGATIVE while that day is still ahead, which is the state
+// that refuses a post. A range ending today answers zero and is publishable, so
+// an update drafted up to the current commit posts the same day.
 func DaysSinceWeekEnd(covers string, today time.Time) (int, error) {
 	end, err := EndDate(covers)
 	if err != nil {
@@ -144,22 +147,29 @@ func DaysSinceWeekEnd(covers string, today time.Time) (int, error) {
 	return int(today.Sub(end) / (24 * time.Hour)), nil
 }
 
-// ApplyDateStamp writes the covered week into the header line.
+// ApplyDateStamp writes the covered range into the header line.
+//
+// covers is the post's `<start> .. <end>` range, already validated by its
+// caller. An update covers the span since the previous one, which is not a
+// fixed week (ai/META-DECISIONS.md, "Reports and messages"), so the stamp names
+// both ends rather than a start date that implies seven days.
 //
 // The second result reports whether the header was found. A post without one is
 // returned unchanged: refusing it would block a publication over a heading, and
-// stamping nothing in silence would leave a backfilled update reading as this
-// week's, so the caller warns and continues.
-func ApplyDateStamp(body, date string) (stamped string, headerFound bool) {
+// stamping nothing in silence would leave a backfilled update reading as the
+// current one, so the caller warns and continues.
+func ApplyDateStamp(body, covers string) (stamped string, headerFound bool) {
 	if !headerLineRE.MatchString(body) {
 		return body, false
 	}
 
+	_, end, _ := strings.Cut(covers, "..")
 	var tb textbuf.Buffer
-	replacement := tb.Str("**📅 Ze Weekly Update -- Week of ").Str(date).Str("**").String()
+	replacement := tb.Str("**📅 Ze Weekly Update -- ").Str(StartDate(covers)).Str(" to ").
+		Str(firstField(trimSpace(end))).Str("**").String()
 
 	// Only the FIRST header is stamped: a body that carries the header line
-	// again later is quoting it, not declaring the week.
+	// again later is quoting it, not declaring the range.
 	stampWritten := false
 	return headerLineRE.ReplaceAllStringFunc(body, func(match string) string {
 		if stampWritten {

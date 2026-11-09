@@ -37,10 +37,15 @@ Read these before drafting:
 
 Website sources are in `website/`; the publishable artifact is generated into `../gh-pages`.
 
-## Phase 1: Establish the week
+## Phase 1: Establish the range
+
+An update is published about every two weeks, not on a calendar week. It
+covers every commit from the previous update's `release-to` to the branch tip
+when it is drafted, so its span varies, and it keeps the same length budget
+whatever the span (`ai/META-DECISIONS.md`, "Reports and messages").
 
 1. Find the newest archived Discord post in `website/changes/discord/` and the newest website post in `website/changes/posts/`.
-2. Determine the new `covers:` range from the previous post's end date unless Thomas gives a different range.
+2. Determine the new `covers:` range: it starts on the UTC committer date of `release-from` and ends on the UTC committer date of `release-to`, both resolved below. Use a different range only when Thomas gives one.
 3. Collect the pinned release comparison below before drafting.
 4. Gather what shipped during the range:
    - inspect `git log` for the range,
@@ -65,12 +70,14 @@ edits enter the report only after a commit and a new comparison.
 1. Read the previous website source post's `release-to`. When present, use that
    commit as `release-from`. The Discord archive preserves the posted body, but
    does not copy these revision fields.
-2. Resolve `release-to` at 23:59:59 UTC on the final day of `covers:`.
-   Use the current branch's first-parent history from the pinned tip.
-   For an owner-authorized in-progress update, record the exact UTC cutoff in
-   the draft body and use it instead. Never invent a cutoff or use a future day.
+2. `release-to` is the pinned branch tip itself, so the update reaches the
+   current commit and the next one starts exactly where it ends: no commit
+   falls between two updates. Use an earlier commit only when Thomas names a
+   cutoff, and record that exact UTC cutoff in the draft body. Never invent a
+   cutoff or use a future day.
 3. If no previous `release-to` exists, resolve `release-from` at 00:00:00 UTC
-   on the first day of `covers:` using that same history.
+   on the first day Thomas names, using the current branch's first-parent
+   history from the pinned tip.
 4. To resolve each time boundary, read
    `git log --first-parent --format='%H %cI' <pinned-tip>`.
    Select the first entry in first-parent order whose committer timestamp is
@@ -108,14 +115,14 @@ of those claims.
 
 ### The RFC MUST programme is a standing item
 
-Every weekly update shows how the RFC gap closed that week, because that gap is
+Every update shows how the RFC gap closed since the previous one, because that gap is
 the measure of progress toward release. One section, under the same budget as
 every other section.
 
 **Never open with a statement that the checking exists or continues** ("Ze is
 being checked against every RFC it implements, one MUST at a time. The work
 continues."). It read the same every week, and readers skip it. Show PROGRESS:
-the proven count week by week, then the work done that week to make it move (new
+the proven count update by update, then the work done in the range to make it move (new
 ways of proving a requirement, defects the checking found and fixed), then where
 the whole stands today. Per-profile or per-service figures stay out of the post
 until that feature is complete (owner instruction, 2026-10-26).
@@ -231,7 +238,7 @@ le weekly publish source website/changes/posts/<covers-start>.md channel ze-test
 ./le weekly publish source website/changes/posts/<covers-start>.md confirm
 ```
 
-The posting tool refuses incomplete weeks unless `force` is used. Do not use `force` unless Thomas explicitly asks for an in-progress week to be posted. The tool archives the exact posted text to `website/changes/discord/<covers-start>-weekly.md` after a successful post.
+The posting tool refuses a post whose `covers:` range ends after today unless `force` is used. A range that ends on the `release-to` commit's date is publishable the same day, so `force` is only for a range Thomas explicitly wants posted before its end date. If the post is published more than seven days after its range ends, the tool stamps the header with the range it covers. The tool archives the exact posted text to `website/changes/discord/<covers-start>-weekly.md` after a successful post.
 
 5. **A run that stops partway has already put messages in the channel.** Read what it printed. It names the chunk that failed and the arguments that finish the post:
 

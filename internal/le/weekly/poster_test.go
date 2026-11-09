@@ -277,9 +277,9 @@ func TestDateStampIsAutomaticOnlyPastTheStaleWindow(t *testing.T) {
 			if got := report.Posts[0].DateStamped; got != tc.stamped {
 				t.Errorf("date-stamped = %v on %s, want %v", got, tc.today, tc.stamped)
 			}
-			carries := strings.Contains(report.Posts[0].Messages[0].Text, "Week of 2026-08-10")
+			carries := strings.Contains(report.Posts[0].Messages[0].Text, "-- 2026-08-10 to 2026-08-16**")
 			if carries != tc.stamped {
-				t.Errorf("the header carries the week = %v, want %v", carries, tc.stamped)
+				t.Errorf("the header carries the covered range = %v, want %v", carries, tc.stamped)
 			}
 		})
 	}
@@ -355,7 +355,7 @@ func TestPostArchivesTheTextThatLanded(t *testing.T) {
 	// The post is months late, so it was stamped. The archive must hold the
 	// STAMPED text: it is the record of what is in the channel, not a copy of
 	// the source file.
-	if !strings.Contains(string(archived), "Week of 2026-08-10") {
+	if !strings.Contains(string(archived), "-- 2026-08-10 to 2026-08-16**") {
 		t.Errorf("the archive holds the source text rather than what was sent:\n%s", archived)
 	}
 	if !strings.Contains(string(archived), rec.sent[0]) {
