@@ -164,6 +164,15 @@ func followLearnedResolvers(p *sdk.Plugin, res *resolver, log *slog.Logger) {
 			// No replay answers a request that was never sent: stop holding queries.
 			res.replayed()
 		}
+		// The selection goes to the registry for show system dns and ze
+		// doctor. The emit outlives this callback, so it does not take its
+		// cancellation.
+		emitCtx := context.WithoutCancel(ctx)
+		res.setAnnouncer(func(body string) {
+			if _, err := p.EmitEvent(emitCtx, dnssource.Namespace, dnssource.PublicationEventType, "", "", body); err != nil {
+				log.Warn("dns-resolver: selection not published; show system dns shows the previous one", "error", err)
+			}
+		})
 		return nil
 	})
 }

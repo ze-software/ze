@@ -57,12 +57,13 @@ func newPolicy(cfg *resolverConfig, forward []upstream) *policy {
 }
 
 // forwardUpstreams evaluates cfg's dns-source list over the learned records
-// at now and answers the upstreams in the order the resolver asks them. The
+// at now and answers the upstreams in the order the resolver asks them, and
+// the selection they came from, which the resolver publishes. The
 // configured class is the forward server entries: each selected address
 // keeps every entry written for it, with its port, so a list that selects
 // configured asks exactly what forward server names. A received address
 // that no entry names is asked on port 53.
-func forwardUpstreams(cfg *resolverConfig, records []dnssource.Record, now time.Time) []upstream {
+func forwardUpstreams(cfg *resolverConfig, records []dnssource.Record, now time.Time) ([]upstream, dnssource.Selection) {
 	configured := make([]netip.Addr, len(cfg.Forward))
 	for i, u := range cfg.Forward {
 		configured[i] = u.IP
@@ -91,7 +92,7 @@ func forwardUpstreams(cfg *resolverConfig, records []dnssource.Record, now time.
 			"selected", len(out), "asked", forwardServersMax)
 		out = out[:forwardServersMax]
 	}
-	return out
+	return out, selection
 }
 
 // resolver is the LAN resolver's runtime: the published policy, the two
@@ -121,7 +122,10 @@ type resolver struct {
 	stats     resolverStats
 	listeners listenerStates           // which listener sockets are bound, for show and the gauge
 	signed    *dnsserver.SignedQueries // the signed queries the listeners read, for passThrough
-	now       func() time.Time
+	// announcement is what the resolver last published of its selection
+	// (publish.go). Guarded by publish.
+	announcement announcement
+	now          func() time.Time
 
 	// replay is closed once the plugin accepted its first system-dns
 	// snapshot, the replay the engine answers a starting plugin's request
@@ -203,7 +207,7 @@ func (r *resolver) apply(cfg *resolverConfig) {
 	defer r.publish.Unlock()
 	r.window = nil
 	r.shown.Store(&shown)
-	r.policy.Store(newPolicy(cfg, forwardUpstreams(cfg, r.learned.Records(), r.now())))
+	r.policy.Store(r.forwardPolicy(cfg))
 }
 
 // relearn takes one system-dns snapshot delivered to the plugin and, when it
@@ -232,7 +236,7 @@ func (r *resolver) relearn(event string) error {
 	if cfg == nil {
 		return nil
 	}
-	r.policy.Store(newPolicy(cfg, forwardUpstreams(cfg, r.learned.Records(), r.now())))
+	r.policy.Store(r.forwardPolicy(cfg))
 	return nil
 }
 
@@ -259,7 +263,7 @@ func (r *resolver) narrow(next *resolverConfig) runningState {
 	window := *running.shown
 	window.AllowFrom = intersectPrefixes(running.shown.AllowFrom, next.AllowFrom)
 	r.window = &window
-	r.policy.Store(newPolicy(&window, forwardUpstreams(&window, r.learned.Records(), r.now())))
+	r.policy.Store(r.forwardPolicy(&window))
 	return running
 }
 
@@ -276,7 +280,7 @@ func (r *resolver) restore(running runningState) {
 	}
 	// A learned change inside the window moved the upstreams, so the running
 	// policy is rebuilt over today's records rather than put back stale.
-	r.policy.Store(newPolicy(running.shown, forwardUpstreams(running.shown, r.learned.Records(), r.now())))
+	r.policy.Store(r.forwardPolicy(running.shown))
 }
 
 // intersectPrefixes is the prefix list that holds exactly the addresses
