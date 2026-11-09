@@ -10,7 +10,7 @@
 | Depends | Implementation: `spec-home-cpe-1-logical-interface-name.md` (the PPPoE client's kernel device carries its configured name, which every IPv6 action, the DHCPv6 lease and the delegated-prefix source name). Proof and closure: `spec-home-cpe-18-interoplab-multi-link-topology.md` (the `topology` suite and its `interop-topology` verb that run `pppoe-dhcpv6-pd-ze-client`); `plan/release/validation/spec-ppp-ipv6-link-local-never-assigned.md` (its live proof validates A-2) |
 | Phase | 5/5 |
 | Handoff | - |
-| Updated | 2026-11-08 |
+| Updated | 2026-11-09 |
 
 Parent: `plan/release/fixes/spec-home-cpe-0-umbrella.md` (child 8).
 
@@ -544,6 +544,26 @@ constraints, message ordering, and every MUST/MUST NOT.
 
 ## Blocker
 
+Third closure, 2026-11-09, handed back before commit A on one item. The
+`RFC7084-4.3-13` records landed (b161ed9edd, after an independent judge
+approved both L-13 tests and the break; the negative test was strengthened in
+de49d91fc8). A product defect was found since: `verifyDelegatedPrefixes`
+(`internal/component/iface/delegated_prefix.go`) walked units in Go map order,
+so `test/parse/iface-delegated-prefix-subnet-id-invalid.ci` passed or failed by
+chance (`rwinv/out-gb6/c8-subnet-id-clean.log`). The fix (sorted walk,
+`compareDelegatedUnits`; `delegated_prefix_test.go`
+`TestDelegatedPrefixVerifyDeterministic`) is reviewed clean (Review Gate, Run 2)
+and left uncommitted. What blocks: its evidence does not exist. Guest batch 8
+has not produced `rwinv/out-gb8/`: `iface-verify.log`,
+`c8-unknown-source-clean.log`, `c8-unknown-source-broken.log`,
+`c8-subnet-id-clean.log`, `c8-subnet-id-broken.log` and `iface-lint.log` are
+all missing. What clears it: those logs show the iface package test and lint
+green, both broken walks FAIL naming the refusal and both clean walks pass;
+then a closure run re-records the review over the two Go files and lands
+commit A (with the fix) and commit B.
+
+The second handback's record follows.
+
 Second closure, 2026-11-09, handed back before commit A on one item. Blockers
 2 to 5 of the first handback are cleared (the "Blockers cleared" table under
 Implementation Summary), the Review Gate is recorded clean
@@ -610,6 +630,7 @@ the journal row states the red, but no log exists.
 ### Bugs Found/Fixed
 - IPv6CP started only after IPCP opened, so accel-ppp `ipv6=allow` activated IPv4-only (journal `ncp-started-behind-another-ncp.md`, fixed by 5aa5b17adb; `ncp_start_test.go`, `pppoe-dhcpv6-pd-ze-client`).
 - The route watcher's setns into its own namespace needed CAP_SYS_ADMIN, so a CAP_NET_ADMIN daemon advertised Router Lifetime 0 (2652d989f8, `nosysadmin_linux_test.go`).
+- `verifyDelegatedPrefixes` walked units in the parser's map order, so a duplicate subnet-id named whichever unit came first and the subnet-id parse test passed or failed by chance (`rwinv/out-gb6/c8-subnet-id-clean.log`). Fixed by a sorted walk (`compareDelegatedUnits`), proven by `TestDelegatedPrefixVerifyDeterministic` (uncommitted until guest batch 8; see Blocker).
 
 ### Documentation Updates
 - Architecture, guide, config reference, feature pages, monitoring and comparison: commits 2bebae34b5, ee9d52da6e, 5aa5b17adb, 6e7ba09a0f, 7361ba2192, a5adb4ca2c, 57ef59e5e1, 176f532c5e. `rfc/short/rfc7084.md` L-13 row; `./le rfc update` run.
@@ -721,6 +742,9 @@ the journal row states the red, but no log exists.
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
 | - | - | no BLOCKER or ISSUE | - | - |
+
+### Run 2
+Over the uncommitted `verifyDelegatedPrefixes` fix and `delegated_prefix_test.go`, written by another agent: 0 BLOCKER, 0 ISSUE. Units with no IPv6 or no entries are skipped as before; entries within a unit keep `parseDelegatedPrefixes` source order (`slices.Sort(sources)`); the first error still returns at once; interface names are unique across `allIfaceEntries` and `lo`, so name then label is a total order. The test parses afresh 100 times and asserts the whole message, which the map-order walk fails with near certainty. Style pass: no panic, no new exported name. The artifact is re-recorded over both files at commit A.
 
 ### Notes
 - `applyIPv6ForwardingSwitch` discards `json.Marshal` errors of fixed string structs, and `verifyDelegatedEntry` the error of `delegatedSubnetIDMax` (YANG bounds `pd length` to 48-64); neither can fail, neither carries a `//nolint:errcheck` reason.
