@@ -8,10 +8,10 @@
 | Kind | daemon |
 | Scope | complete |
 | Level | experimental |
-| Components | internal/component/l2tp/cmd, internal/plugins/traffic-cmd, internal/component/bgp/plugins/cmd/rib/yang/ze-rib-poolstats-cmd.yang |
+| Components | internal/component/l2tp/cmd, internal/plugins/traffic-cmd, internal/component/bgp/plugins/rib/poolcmd/yang/ze-rib-poolstats-cmd.yang |
 | Real-path tests | test/plugin/subsystem-list.ci |
 | Docs | docs/guide/command-reference.md |
-| Doc review | 2026-10-07: commands read against YANG: observer, cqm, echo, reliable containers in ze-l2tp-cmd.yang, show traffic control in ze-traffic-cmd.yang, show metrics pool in ze-rib-poolstats-cmd.yang |
+| Doc review | 2026-11-09: docs/guide/command-reference.md now documents show l2tp session id <sid>; the observer, cqm, echo, reliable, traffic control and metrics pool commands are unchanged; the Components path to ze-rib-poolstats-cmd.yang did not exist and now names internal/component/bgp/plugins/rib/poolcmd/yang. Earlier, 2026-10-07: commands read against YANG: observer, cqm, echo, reliable containers in ze-l2tp-cmd.yang, show traffic control in ze-traffic-cmd.yang, show metrics pool in ze-rib-poolstats-cmd.yang |
 | Defect review | 2026-10-07: no journal row or immediate spec names these packages |
 | Extra criteria | supported: show l2tp observer, cqm, echo and reliable answer on a live session = test/l2tp/l2tp-runtime-diagnostics.ci; supported: show traffic control answers on a live qdisc = test/traffic/traffic-control-show.ci; supported: show metrics pool answers on a live daemon = test/plugin/metrics-pool-show.ci |
 

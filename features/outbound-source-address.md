@@ -10,7 +10,7 @@
 | Level | experimental |
 | Components | internal/core/network/network.go, internal/component/bgp/plugins/bmp/sender.go, internal/component/bgp/plugins/rpki/rtr_session.go, internal/plugins/flowexport/sender.go, internal/component/resolve/irr/client.go, internal/component/managed/client.go, internal/plugins/ldp/register.go |
 | Docs | docs/guide/configuration.md |
-| Doc review | 2026-10-07: every source anchor file exists; test/parse/source-address-*.ci only prove the config parses, so they are not listed as real-path evidence of the bind |
+| Doc review | 2026-11-09: docs/guide/configuration.md now names the IRR path policy irr; the source-address services and RealDialer claim are unchanged, every source anchor resolves, and the description still matches. Earlier, 2026-10-07: every source anchor file exists; test/parse/source-address-*.ci only prove the config parses, so they are not listed as real-path evidence of the bind |
 | Defect review | 2026-10-07: no open spec or journal row found naming source-address |
 | Extra criteria | supported: per service a functional test where the far end asserts the bound source address = none yet |
 

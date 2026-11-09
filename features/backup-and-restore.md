@@ -12,7 +12,7 @@
 | Components | internal/component/config/storage/cli, internal/component/config/storage/backup.go, internal/plugins/init |
 | Real-path tests | test/plugin/data-backup.ci, test/plugin/data-backup-live.ci, test/plugin/data-backup-refused-live.ci, test/plugin/data-restore-config.ci, test/plugin/data-restore-config-live.ci, test/plugin/data-restore-full.ci, test/plugin/data-restore-full-refused-live.ci, test/plugin/data-restore-full-resume.ci, test/managed/data-restore-client-live.ci |
 | Docs | docs/guide/command-reference.md |
-| Doc review | 2026-10-07: re-read at promotion; cmdBackup parses `<file> [spare <n>]`, backup.go creates the artifact 0600, cmdRestore takes config [name <n>] or full, open.go names the .replaced- infix, data_rpc.go takes path, init takes --sha256, config cli takes --backup; matches the row |
+| Doc review | 2026-11-09: re-read after the docs/guide/command-reference.md edits since 2026-10-07; the data backup, data restore and ze init --from rows are unchanged, every source anchor resolves, and the description still matches. Earlier, 2026-10-07: re-read at promotion; cmdBackup parses `<file> [spare <n>]`, backup.go creates the artifact 0600, cmdRestore takes config [name <n>] or full, open.go names the .replaced- infix, data_rpc.go takes path, init takes --sha256, config cli takes --backup; matches the row |
 | Defect review | 2026-10-07: no open spec or journal row found naming backup or restore |
 
 ## Description

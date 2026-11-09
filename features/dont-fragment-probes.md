@@ -11,7 +11,7 @@
 | Components | internal/core/probe, internal/component/ping, internal/component/traceroute |
 | Real-path tests | test/plugin/ping-do-not-fragment-reports-mtu.ci, test/plugin/ping-do-not-fragment-unprivileged.ci, test/plugin/doctor-icmp-probe-missing.ci |
 | Docs | docs/guide/command-reference.md |
-| Doc review | 2026-10-07: IP_RECVERR set in internal/core/probe socket options and the error queue read in errqueue_linux.go DrainErrorQueue; the IPv6 1280 floor read in errqueue_linux.go |
+| Doc review | 2026-11-09: re-read after docs/guide/command-reference.md moved the ping anchor to internal/component/ping/yang/ze-ping-cmd.yang (leaf do-not-fragment still there) and documented the daemon-served one-sample ping; the probe claims are unchanged, and every source anchor resolves. Earlier, 2026-10-07: IP_RECVERR set in internal/core/probe socket options and the error queue read in errqueue_linux.go DrainErrorQueue; the IPv6 1280 floor read in errqueue_linux.go |
 | Defect review | 2026-10-07: journal 2026-09-15 probe rows fixed; no open row or immediate spec names internal/core/probe |
 | Extra criteria | supported: show traceroute do-not-fragment over a clamped path reports next-hop-mtu = test/plugin/traceroute-do-not-fragment-reports-mtu.ci; supported: IPv6 do-not-fragment probe reports next-hop-mtu = test/plugin/ping-do-not-fragment-ipv6.ci |
 

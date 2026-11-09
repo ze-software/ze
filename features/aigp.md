@@ -13,7 +13,7 @@
 | Real-path tests | test/parse/dead-capability-rejected.ci |
 | RFCs | rfc7311 |
 | Docs | docs/guide/configuration.md |
-| Doc review | 2026-10-07: every source anchor in the Description resolves to its file and symbol; judged at HEAD: BestStepAIGP sits in internal/component/bgp/plugins/rib/bestpath.go and capability { aigp } is refused by test/parse/dead-capability-rejected.ci |
+| Doc review | 2026-11-09: re-read after the dns-source, listener and syntax edits to docs/guide/configuration.md since 2026-10-07; none touches the AIGP section, BestStepAIGP still sits in internal/component/bgp/plugins/rib/bestpath.go, and the description still matches. Earlier, 2026-10-07: every source anchor in the Description resolves to its file and symbol; judged at HEAD: BestStepAIGP sits in internal/component/bgp/plugins/rib/bestpath.go and capability { aigp } is refused by test/parse/dead-capability-rejected.ci |
 | Defect review | 2026-10-07: judged at HEAD; journal assertion-reads-state-the-scheduler-owns (flake) taken as open; another session is editing AIGP code |
 | Extra criteria | supported: configured AIGP origination reaches a peer through the daemon = test/plugin/aigp-originate.ci |
 

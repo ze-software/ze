@@ -13,7 +13,7 @@
 | Interop | ipsec/real-nat-transport-ze-initiator, ipsec/real-nat-transport-ze-responder, ipsec/real-nat-tunnel-control, ipsec/natt-transport-inner-checksum, ipsec/natt-tunnel-inner-checksum |
 | RFCs | rfc3948, rfc7296 |
 | Docs | docs/guide/ipsec.md |
-| Doc review | 2026-10-26: re-read after the IKE virtual-IP commits changed docs/guide/ipsec.md; the 20s keepalive (DefaultKeepaliveInterval in internal/component/ike/transport/keepalive.go) and the anchors ts_nat_substitute.go and nat.go still hold the described behavior |
+| Doc review | 2026-11-09: re-read after the docs/guide/ipsec.md edits since 2026-10-26 (signature method selection, Ed25519 and Ed448, interface SPD, the address a DNS name resolved to driving NAT detection); the NAT claims are unchanged and every source anchor resolves. Earlier, 2026-10-26: re-read after the IKE virtual-IP commits changed docs/guide/ipsec.md; the 20s keepalive (DefaultKeepaliveInterval in internal/component/ike/transport/keepalive.go) and the anchors ts_nat_substitute.go and nat.go still hold the described behavior |
 | Defect review | 2026-10-07: open: spec-ike-eap-rfc-defects (NAT port), spec-ipsec-nat-transport-runs-on-the-runtime-kernel; journal rows naming a Component, not each re-verified here: option-set-for-one-caller-changes-another.md:18, unwired-feature.md:37, unwired-feature.md:126 |
 | Extra criteria | supported: each journal row naming a Component re-verified as fixed or not a defect = none yet |
 

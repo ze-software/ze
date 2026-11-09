@@ -10,7 +10,7 @@
 | Level | experimental |
 | Components | internal/le/interoplab/ipsec, test/interop-ipsec |
 | Docs | docs/functional-tests.md |
-| Doc review | 2026-10-28: reviewed the IPsec entry in docs/functional-tests.md and the public Description against the native strongSwan runner, scenario registrations and waitXFRM; reviewed the five-transform kernel subset against its QEMU, deployment and checker producers and accepted amd64/KVM and arm64/HVF receipts; no full-suite pass count or maturity promotion claimed |
+| Doc review | 2026-11-09: re-read against HEAD's docs/functional-tests.md, whose IPsec interop row still runs IPSEC_INTEROP_SCENARIO through ./le test integration interop-ipsec (the working-tree edit of docs/functional-tests.md is another session's); every scenario family the description names exists under test/interop-ipsec/scenarios (multiple-auth-ze-initiator and -responder, vti-ipv6-inner-ipv4-outer, vti-unmatched-discard-interface-spd, vti-ipv6-tunnel-source-no-cleartext-leak). Earlier, 2026-10-28: reviewed the IPsec entry in docs/functional-tests.md and the public Description against the native strongSwan runner, scenario registrations and waitXFRM; reviewed the five-transform kernel subset against its QEMU, deployment and checker producers and accepted amd64/KVM and arm64/HVF receipts; no full-suite pass count or maturity promotion claimed |
 | Defect review | 2026-10-07: journal balance-assertion-vacuous-without-a-loan.md row unfixed |
 | Extra criteria | supported: a dated record of the suite's pass count = none yet |
 

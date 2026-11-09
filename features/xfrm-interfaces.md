@@ -12,7 +12,7 @@
 | Real-path tests | test/plugin/show-mtu-oversized-tunnels.ci, test/ui/doctor-ipsec-xfrm.ci |
 | Interop | ipsec/mtu-tunnel-sizing-strongswan |
 | Docs | docs/guide/ipsec.md |
-| Doc review | 2026-10-26: re-read after the IKE virtual-IP commits changed docs/guide/ipsec.md; the anchor xfrm_linux.go exists and the if-id leaf is still in internal/component/iface/yang/ze-iface-conf.yang |
+| Doc review | 2026-11-09: docs/guide/ipsec.md now says route-based forwarding needs a route through the XFRM interface, and documents the per-if_id SPD and fwd policy (RequiresForwardPolicy); the interface creation via netlink the description states is unchanged. Earlier, 2026-10-26: re-read after the IKE virtual-IP commits changed docs/guide/ipsec.md; the anchor xfrm_linux.go exists and the if-id leaf is still in internal/component/iface/yang/ze-iface-conf.yang |
 | Defect review | 2026-10-07: spec-ipsec-vti-bind-installs-if-id-zero is stale; journal rows naming a Component, not each re-verified here: unwired-feature.md:13 |
 | Extra criteria | supported: each journal row naming a Component re-verified as fixed or not a defect = none yet |
 

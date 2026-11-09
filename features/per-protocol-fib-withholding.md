@@ -11,7 +11,7 @@
 | Components | internal/component/sysrib |
 | Real-path tests | test/plugin/fib-withhold-controller-programs-no-route.ci, test/plugin/fib-withhold-one-protocol-keeps-the-other.ci |
 | Docs | docs/guide/configuration.md |
-| Doc review | 2026-10-07: every source anchor in the Description resolves to its file and symbol; the withhold list and its sweep live in internal/component/sysrib as the anchors name |
+| Doc review | 2026-11-09: re-read after the docs/guide/configuration.md edits since 2026-10-07 (comments kept by ze config fmt, repeated-block merge, session asn examples); the fib-withhold section is unchanged, every source anchor resolves, and the description still matches. Earlier, 2026-10-07: every source anchor in the Description resolves to its file and symbol; the withhold list and its sweep live in internal/component/sysrib as the anchors name |
 | Defect review | 2026-10-07: no plan/immediate spec or journal row found naming the withhold path |
 
 ## Description

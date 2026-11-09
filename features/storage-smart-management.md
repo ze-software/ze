@@ -11,7 +11,7 @@
 | Components | internal/core/smart, internal/component/storage |
 | Real-path tests | test/plugin/smart-show.ci |
 | Docs | docs/guide/configuration.md, docs/architecture/storage/smart-health.md |
-| Doc review | 2026-10-07: no exec of smartctl in internal/core/smart or internal/component/storage; rate-of-change state (prevTemp) present in internal/component/storage/manager.go; the device-level sentences are unproven rather than known false |
+| Doc review | 2026-11-09: docs/architecture/storage/smart-health.md now anchors ze-storage:show-smart, and docs/guide/configuration.md changed no storage text; every source anchor resolves and the description still matches. Earlier, 2026-10-07: no exec of smartctl in internal/core/smart or internal/component/storage; rate-of-change state (prevTemp) present in internal/component/storage/manager.go; the device-level sentences are unproven rather than known false |
 | Defect review | 2026-10-07: no journal row or immediate spec names internal/core/smart or internal/component/storage |
 | Extra criteria | supported: show storage smart values from a real ATA device = test/appliance/smart-ata-device.ci; supported: show storage smart values from a real NVMe device = test/appliance/smart-nvme-device.ci |
 

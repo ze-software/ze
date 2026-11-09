@@ -11,7 +11,7 @@
 | Components | internal/component/sysctl, internal/core/sysctl |
 | Real-path tests | test/parse/sysctl-config.ci, test/parse/sysctl-config-override.ci, test/plugin/sysctl-list.ci, test/plugin/sysctl-describe-show.ci |
 | Docs | docs/guide/configuration.md |
-| Doc review | 2026-10-07: anchors sysctl.go and profiles.go exist; the row's last source anchor is truncated at HEAD (unclosed comment), reported to the main thread |
+| Doc review | 2026-11-09: docs/guide/configuration.md now resolves a unit's profile against the same commit's class-of-service and turns on the global IPv6 forwarding switch (applyIPv6ForwardingSwitch, sysctl write and reapplyManaged); the precedence, profiles and CLI the description states are unchanged. Earlier, 2026-10-07: anchors sysctl.go and profiles.go exist; the row's last source anchor is truncated at HEAD (unclosed comment), reported to the main thread |
 | Defect review | 2026-10-07: no open spec or journal row found naming sysctl |
 | Extra criteria | supported: privileged functional test of the three precedence layers and restore on clean stop = none yet |
 

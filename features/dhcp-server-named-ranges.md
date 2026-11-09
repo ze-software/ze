@@ -13,7 +13,7 @@
 | Real-path tests | test/dhcp/dhcp-range-inside-subnet.ci, test/parse/dhcp-server-config.ci, test/parse/dhcp-server-multi-subnet.ci |
 | RFCs | rfc2131 |
 | Docs | docs/guide/configuration.md |
-| Doc review | 2026-10-07: checked list range in internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang and the per-range bitmap in pool.go |
+| Doc review | 2026-11-09: re-read after the docs/guide/configuration.md edits since 2026-10-07 (option 6 from dns-source, ranged-leaf refusals); the named-range blocks are unchanged, every source anchor resolves, and the description still matches. Earlier, 2026-10-07: checked list range in internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang and the per-range bitmap in pool.go |
 | Defect review | 2026-10-07: audit found no open immediate spec and no journal row against internal/plugins/dhcpserver |
 
 ## Description

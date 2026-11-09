@@ -11,7 +11,7 @@
 | Components | cmd/ze/tui_menu.go |
 | Real-path tests | test/ui/tui-noargs-nontty-fallback.ci |
 | Docs | docs/guide/command-reference.md |
-| Doc review | 2026-10-07: command-reference.md documents the no-argument launcher and cites runTUILauncher; only the non-TTY fallback has a functional test |
+| Doc review | 2026-11-09: re-read after the docs/guide/command-reference.md edits since 2026-10-07; none touches the no-argument menu, every source anchor resolves, and the description still matches. Earlier, 2026-10-07: command-reference.md documents the no-argument launcher and cites runTUILauncher; only the non-TTY fallback has a functional test |
 | Defect review | 2026-10-07: no open spec or journal row found naming the launcher |
 | Extra criteria | supported: the TTY menu driven under a pty = none yet |
 

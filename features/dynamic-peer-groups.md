@@ -12,7 +12,7 @@
 | Real-path tests | test/parse/bgp-dynamic-peer-group.ci, test/parse/bgp-dynamic-peer-reject-at-peer.ci, test/plugin/dynamic-peer-applies-group-filters.ci, test/plugin/dynamic-peer-gets-group-role-capability.ci, test/plugin/dynamic-peer-negotiates-configured-families.ci, test/reload/reload-dynamic-peer-survives.ci |
 | Interop | bgp/bgp-redist-late-join-dynamic-frr |
 | Docs | docs/guide/configuration.md |
-| Doc review | 2026-10-07: every source anchor in the Description resolves to its file and symbol; max-peers range 1..100000 default 1000 matches internal/component/bgp/yang/ze-bgp-conf.yang |
+| Doc review | 2026-11-09: docs/guide/configuration.md now anchors resolveDynamicGroup in internal/component/bgp/config/resolve.go and states what a dynamic group must carry; range, inheritance and max-peers are unchanged, every source anchor resolves, and the description still matches. Earlier, 2026-10-07: every source anchor in the Description resolves to its file and symbol; max-peers range 1..100000 default 1000 matches internal/component/bgp/yang/ze-bgp-conf.yang |
 | Defect review | 2026-10-07: journal gate-excludes-part-of-its-population rows 2026-08-12 (listener) and 2026-08-13 (name collision) taken as open |
 
 ## Description

@@ -12,7 +12,7 @@
 | Real-path tests | test/plugin/show-mtu-host.ci, test/plugin/show-mtu-json.ci, test/plugin/show-mtu-exhaustive.ci, test/plugin/show-mtu-ike-probe.ci, test/plugin/show-mtu-oversized-tunnels.ci, test/plugin/show-mtu-no-ipsec-component.ci |
 | Interop | ipsec/mtu-tunnel-sizing-strongswan, ipsec/mtu-negotiated-transform, ipsec/mtu-nat-installed-endpoint |
 | Docs | docs/guide/ipsec.md |
-| Doc review | 2026-10-26: re-read after the IKE virtual-IP commits changed docs/guide/ipsec.md; host and exhaustive are still the keywords of parseMTUArgs (argHost, argExhaustive in internal/component/mtu/cmd/mtu.go); the description still matches |
+| Doc review | 2026-11-09: re-read after the docs/guide/ipsec.md edits since 2026-10-26; none touches show mtu, every source anchor resolves (OpenICMP in socket.go, DrainErrorQueue in errqueue_linux.go, checkICMPProbeSocket in doctor.go), and the description still matches. Earlier, 2026-10-26: re-read after the IKE virtual-IP commits changed docs/guide/ipsec.md; host and exhaustive are still the keywords of parseMTUArgs (argHost, argExhaustive in internal/component/mtu/cmd/mtu.go); the description still matches |
 | Defect review | 2026-10-07: journal 2026-09-17 overhead.go ike import row is stale (no non-test import at HEAD); no immediate spec names internal/component/mtu |
 
 ## Description

@@ -11,7 +11,7 @@
 | Components | internal/component/bgp/yang, internal/component/bgp/reactor |
 | Real-path tests | test/plugin/prefix-count-offered.ci, test/plugin/prefix-count-installed.ci, test/plugin/prefix-count-installed-cross-family.ci, test/plugin/prefix-count-installed-reannounce.ci |
 | Docs | docs/guide/configuration.md |
-| Doc review | 2026-10-07: every source anchor in the Description resolves to its file and symbol; enum offered and installed with default offered in internal/component/bgp/yang/ze-bgp-conf.yang |
+| Doc review | 2026-11-09: re-read after docs/guide/configuration.md reformatted the prefix { maximum } examples; prefix { count offered | installed } is unchanged, every source anchor resolves, and the description still matches. Earlier, 2026-10-07: every source anchor in the Description resolves to its file and symbol; enum offered and installed with default offered in internal/component/bgp/yang/ze-bgp-conf.yang |
 | Defect review | 2026-10-07: journal invariant-enforced-by-an-absent-call-site and guard-added-to-one-half-of-a-pair (2026-10-03) rows on installed counting taken as open |
 
 ## Description

@@ -13,7 +13,7 @@
 | Interop | ipsec/psk-site-to-site, ipsec/responder-psk, ipsec/ike-padded-probe-strongswan |
 | RFCs | rfc7296 |
 | Docs | docs/guide/ipsec.md |
-| Doc review | 2026-10-26: re-read after the IKE virtual-IP commits changed docs/guide/ipsec.md; the anchored package internal/component/ike/wire exists and still codes the Configuration payload the virtual-IP lease uses (wire.PayloadCP); the payload list is unchanged |
+| Doc review | 2026-11-09: re-read after the docs/guide/ipsec.md edits since 2026-10-26; the added anchors buildCertPayloads (cert_payload.go) and proposeChildTSPayloads (rekey.go) resolve, the codec claims are unchanged, and the description still matches. Earlier, 2026-10-26: re-read after the IKE virtual-IP commits changed docs/guide/ipsec.md; the anchored package internal/component/ike/wire exists and still codes the Configuration payload the virtual-IP lease uses (wire.PayloadCP); the payload list is unchanged |
 | Defect review | 2026-10-07: audit found no open immediate spec and no journal row against the wire codec |
 
 ## Description

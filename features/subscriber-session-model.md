@@ -11,7 +11,7 @@
 | Components | internal/core/show, internal/component/plugin/server |
 | Real-path tests | test/plugin/subscriber-summary-show.ci, test/plugin/subscriber-enricher-wiring-show.ci, test/l2tp/subscriber-reader-failing-socket.ci |
 | Docs | docs/guide/l2tp.md, docs/guide/pppoe.md |
-| Doc review | 2026-10-07: every source anchor in the Description resolves to its file and symbol; the 2s enrich-show timeout is enrichShowTimeout in internal/component/plugin/server/enricher.go |
+| Doc review | 2026-11-09: re-read after docs/guide/l2tp.md (realm relay, CHAP retransmit, IPCP DNS reject) and docs/guide/pppoe.md (CHAP before PAP, IPCP DNS from dns-source) changed; the show enricher registry is unchanged, every source anchor resolves, and the description still matches. Earlier, 2026-10-07: every source anchor in the Description resolves to its file and symbol; the 2s enrich-show timeout is enrichShowTimeout in internal/component/plugin/server/enricher.go |
 | Defect review | 2026-10-07: plan/release/fixes/spec-pppoe-subscribers-produce-no-accounting-or-telemetry.md and plan/release/fixes/spec-subscriber-utilisation-has-no-operator-view.md open |
 | Extra criteria | supported: PPPoE and L2TP subscribers report the same session fields = test/plugin/subscriber-pppoe-l2tp-parity.ci |
 

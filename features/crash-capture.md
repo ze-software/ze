@@ -11,7 +11,7 @@
 | Components | internal/core/crashlog, internal/plugins/crashes, internal/appliance/kernelargs.go |
 | Real-path tests | test/ui/cli-crashes-offline-show.ci, test/ui/cli-crashes-readiness.ci, test/ui/cli-crashes-kernel-kind.ci, test/plugin/support-crashes-kernel.ci |
 | Docs | docs/guide/operations.md, docs/guide/appliance.md |
-| Doc review | 2026-10-07: ring.Recent(64) in internal/core/crashlog/crashlog.go; ze_crashes_artifacts and ze_crashes_kernel_capture_armed gauges in internal/plugins/crashes/readiness.go |
+| Doc review | 2026-11-09: re-read after the docs/guide/appliance.md (PPPoL2TP kernel cache) and docs/guide/operations.md (ze show crashes name <record>) edits; show crashes and show crashes latest are still in internal/plugins/crashes/yang/ze-crashes-cmd.yang and the operations guide, every source anchor resolves, and the description still matches. Earlier, 2026-10-07: ring.Recent(64) in internal/core/crashlog/crashlog.go; ze_crashes_artifacts and ze_crashes_kernel_capture_armed gauges in internal/plugins/crashes/readiness.go |
 | Defect review | 2026-10-07: plan/release/fixes/spec-crash-capture.md in progress (QEMU kernel-panic and warm-reboot labs unwritten); journal 2026-09-13 crashdump test row unfixed |
 | Extra criteria | supported: a kernel panic in a QEMU guest is harvested into show crashes after warm reboot = test/appliance/crash-kernel-panic-harvest.ci |
 

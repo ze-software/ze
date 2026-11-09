@@ -11,7 +11,7 @@
 | Components | internal/component/trafficstat, internal/core/portname |
 | Real-path tests | test/plugin/traffic-monitor.ci |
 | Docs | docs/guide/command-reference.md, docs/architecture/traffic/traffic-analysis-layers.md |
-| Doc review | 2026-10-07: every source anchor resolves; the amplification overlay holds 7 ports (amplificationPorts in internal/core/portname/portname.go) |
+| Doc review | 2026-11-09: re-read after the docs/guide/command-reference.md and traffic-analysis-layers.md edits since 2026-10-07; the traffic stat rows are unchanged, every source anchor resolves, and the description still matches. Earlier, 2026-10-07: every source anchor resolves; the amplification overlay holds 7 ports (amplificationPorts in internal/core/portname/portname.go) |
 | Defect review | 2026-10-07: audit found no open immediate spec against trafficstat; journal rows naming a Component, not each re-verified here: unwired-feature.md:39 |
 | Extra criteria | supported: each journal row naming a Component re-verified as fixed or not a defect = none yet |
 

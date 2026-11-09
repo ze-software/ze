@@ -11,7 +11,7 @@
 | Components | internal/component/bgp/plugins/rib, internal/core/rib/locrib |
 | Real-path tests | test/plugin/rpf-multicast.ci |
 | Docs | docs/guide/command-reference.md |
-| Doc review | 2026-10-07: every source anchor in the Description resolves to its file and symbol; the rpf command is registered in internal/component/bgp/plugins/rib |
+| Doc review | 2026-11-09: re-read after the docs/guide/command-reference.md edits since 2026-10-07; show bgp rib rpf is unchanged, every source anchor resolves, and the description still matches. Earlier, 2026-10-07: every source anchor in the Description resolves to its file and symbol; the rpf command is registered in internal/component/bgp/plugins/rib |
 | Defect review | 2026-10-07: journal command-takes-an-untyped-positional-value (rpf arguments untyped) taken as open |
 
 ## Description

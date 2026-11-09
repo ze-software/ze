@@ -11,7 +11,7 @@
 | Components | internal/component/config/stamp.go |
 | Real-path tests | test/ui/config-schema-stamp-recovers.ci |
 | Docs | docs/architecture/config/syntax.md |
-| Doc review | 2026-10-07: RecoverConfig runs only when the startup LoadConfig fails (cmd/ze/hub/main.go), walks rollback versions newest first, skips those IsNewerRelease, loads the first that parses, backs up the current config with WriteVersion, publishes the result with FormatSchemaStamp, and prunes nothing; the row now says the recovery follows a load failure |
+| Doc review | 2026-11-09: docs/architecture/config/syntax.md now documents SerializeStamped (the stamp replaced, kept on line 1 by ze config fmt), the StampedOnly evolutions and that the loader judges the parsed content's stamp; the recovery the description states (keep in history, newest rollback first, skip newer-release versions, re-stamp, prune nothing) is unchanged, and every source anchor resolves. Earlier, 2026-10-07: RecoverConfig runs only when the startup LoadConfig fails (cmd/ze/hub/main.go), walks rollback versions newest first, skips those IsNewerRelease, loads the first that parses, backs up the current config with WriteVersion, publishes the result with FormatSchemaStamp, and prunes nothing; the row now says the recovery follows a load failure |
 | Defect review | 2026-10-07: no open spec or journal row found naming the schema stamp |
 | Extra criteria | supported: a functional test loading a config stamped by a newer release = test/ui/config-schema-stamp-recovers.ci |
 

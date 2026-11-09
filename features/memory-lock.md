@@ -11,7 +11,7 @@
 | Components | internal/plugins/memlock, internal/plugins/systemd/unit.go |
 | Real-path tests | test/parse/show-plugin-list-memlock.ci |
 | Docs | docs/guide/plugins.md, docs/guide/status.md |
-| Doc review | 2026-10-08: plugins.md and status.md 2026-10-08 edits remove bgp-persist, make bgp-rib mandatory and drop the plugin count; memlock prose on both pages unchanged, 2026-10-07 review stands |
+| Doc review | 2026-11-09: re-read after the docs/guide/plugins.md and docs/guide/status.md edits since 2026-10-08 (filter-type plugin lists, show system dns); the memlock and show plugin list rows are unchanged, every source anchor resolves, and the description still matches. Earlier, 2026-10-08: plugins.md and status.md 2026-10-08 edits remove bgp-persist, make bgp-rib mandatory and drop the plugin count; memlock prose on both pages unchanged, 2026-10-07 review stands |
 | Defect review | 2026-10-07: no journal row or immediate spec names internal/plugins/memlock |
 | Extra criteria | supported: show plugin list reports memlock succeeded under a lifted RLIMIT_MEMLOCK = test/plugin/memlock-succeeded.ci |
 

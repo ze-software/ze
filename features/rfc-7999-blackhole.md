@@ -13,7 +13,7 @@
 | Interop | bgp/bgp-rfc7999-blackhole-frr, bgp/bgp-rfc7999-blackhole-readvertise-frr |
 | RFCs | rfc7999 |
 | Docs | docs/guide/configuration.md |
-| Doc review | 2026-10-07: every source anchor in the Description resolves to its file and symbol; the blackhole communities and prefixes leaves are augmented as the anchors name |
+| Doc review | 2026-11-09: re-read after docs/guide/configuration.md made its blackhole examples accept imports explicitly and quoted the static action refusal; the blackhole communities and prefixes rules are unchanged, every source anchor resolves, and the description still matches. Earlier, 2026-10-07: every source anchor in the Description resolves to its file and symbol; the blackhole communities and prefixes leaves are augmented as the anchors name |
 | Defect review | 2026-10-07: no plan/immediate spec found; rfc/short/rfc7999.md reads Partial while the audit counted its requirements covered |
 | Extra criteria | supported: a honored route becomes a VPP drop through the VPP backend = test/vpp/vpp-blackhole-drop.ci |
 

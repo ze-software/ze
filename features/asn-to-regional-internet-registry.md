@@ -11,7 +11,7 @@
 | Components | internal/component/resolve/irr/rir.go, internal/component/resolve/irr/stored.go, internal/component/resolve/cmd/rir.go |
 | Real-path tests | test/plugin/resolve-rir-lookup.ci, test/plugin/resolve-rir-refresh.ci, test/plugin/storage-rir-restart.ci |
 | Docs | docs/guide/cli.md, docs/guide/command-reference.md |
-| Doc review | 2026-10-07: every source anchor resolves (RegistryForASN, FetchDelegationTable, preferStoredDelegation, handleRIRASN, handleRIRRefresh) |
+| Doc review | 2026-11-09: re-read after the docs/guide/cli.md and docs/guide/command-reference.md edits since 2026-10-07 (daemon-served local commands, cache-clear anchors, show system dns); the resolve rir and update resolve rir rows are unchanged, every source anchor resolves, and the description still matches. Earlier, 2026-10-07: every source anchor resolves (RegistryForASN, FetchDelegationTable, preferStoredDelegation, handleRIRASN, handleRIRRefresh) |
 | Defect review | 2026-10-07: audit found no open immediate spec against the RIR lookup; journal rows naming a Component, not each re-verified here: guard-added-to-one-half-of-a-pair.md:89 |
 | Extra criteria | supported: each journal row naming a Component re-verified as fixed or not a defect = none yet |
 
