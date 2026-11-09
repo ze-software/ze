@@ -87,7 +87,8 @@ func TestRequestFrameFields(t *testing.T) {
 		optServerID, 4, 192, 168, 50, 1,
 		optRouter, 8, 172, 16, 5, 1, 172, 16, 5, 2,
 		optMask, 4, 255, 255, 255, 0,
-		optDNS, 4, 172, 16, 5, 53,
+		optDNS, 8, 172, 16, 5, 53, 172, 16, 5, 54,
+		optLease, 4, 0, 0, 14, 16,
 		optEnd,
 	})
 	got, ok := parseReply(reply)
@@ -102,8 +103,11 @@ func TestRequestFrameFields(t *testing.T) {
 		Router:   netip.MustParseAddr("172.16.5.1"),
 		Mask:     netip.MustParseAddr("255.255.255.0"),
 		DNS:      netip.MustParseAddr("172.16.5.53"),
+		DNSCount: 2,
+		LeaseSec: 3600,
 		Dest:     netip.MustParseAddrPort("172.16.5.1:67"),
 	}
+	want.LeaseCarried = true
 	if got != want {
 		t.Errorf("parseReply = %+v, want %+v", got, want)
 	}
@@ -161,7 +165,28 @@ func TestParseStep(t *testing.T) {
 	if !silent.Exchange.Silent || !silent.Exchange.Request.Broadcast {
 		t.Errorf("parsed %+v", silent)
 	}
+	counted, err := ParseStep("x,short,type=discover,mac=02-00-00-00-00-05,expect=offer,dns-count=0,lease=60")
+	if err != nil {
+		t.Fatalf("ParseStep: %v", err)
+	}
+	cx := counted.Exchange
+	if !cx.DNSCountChecked || cx.Want.DNSCount != 0 || !cx.LeaseChecked || cx.Want.LeaseSec != 60 {
+		t.Errorf("parsed %+v", counted)
+	}
+	// A reply carrying one option 6 address and a 3600-second lease fails
+	// both checks; one carrying neither option fails the lease check alone.
+	if err := cx.Check(Reply{Type: MsgOffer, DNSCount: 1, LeaseSec: 3600, LeaseCarried: true}); err == nil {
+		t.Error("Check accepted option 6 and lease 3600 against dns-count=0,lease=60")
+	}
+	if err := cx.Check(Reply{Type: MsgOffer}); err == nil {
+		t.Error("Check accepted a reply with no option 51 against lease=60")
+	}
+	if err := cx.Check(Reply{Type: MsgOffer, LeaseSec: 60, LeaseCarried: true}); err != nil {
+		t.Errorf("Check refused the reply it names: %v", err)
+	}
 	for _, bad := range []string{
+		"x,a,type=discover,mac=02-00-00-00-00-01,expect=offer,dns-count=-1",
+		"x,a,type=discover,mac=02-00-00-00-00-01,expect=offer,lease=4294967296",
 		"x,a,type=discover,mac=02-00-00-00-00-01",
 		"x,a,type=discover,mac=02-00-00-00-00-01,expect=offer,yiadr=10.0.0.1",
 		"x,a,mac=02-00-00-00-00-01,expect=offer",

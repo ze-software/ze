@@ -56,6 +56,11 @@ type Exchange struct {
 	// Silent is true when the server must not answer (expect=none).
 	Silent bool
 	Want   Reply
+	// DNSCountChecked and LeaseChecked say that the exchange names
+	// dns-count= or lease=, whose zero is a value to check (no option 6),
+	// not an absent expectation.
+	DNSCountChecked bool
+	LeaseChecked    bool
 	// Attempts is how many times the request is sent until the reply has the
 	// expected type: a client retransmits, and after a reload the first
 	// answers can still come from the replaced config. Attempts start
@@ -170,6 +175,18 @@ func parseExchange(fields []string) (Step, error) {
 				break
 			}
 			ex.Want.Type, err = parseMsgType(value)
+		case "dns-count":
+			ex.Want.DNSCount, err = strconv.Atoi(value)
+			if err == nil && ex.Want.DNSCount < 0 {
+				err = errors.New("must not be negative")
+			}
+			ex.DNSCountChecked = true
+		case "lease":
+			var sec uint64
+			sec, err = strconv.ParseUint(value, 10, 32)
+			ex.Want.LeaseSec = uint32(sec)
+			ex.Want.LeaseCarried = true
+			ex.LeaseChecked = true
 		default:
 			err = parseWant(&ex.Want, key, value)
 		}
@@ -220,7 +237,7 @@ func parseWant(want *Reply, key, value string) error {
 		want.DNS = addr
 	default:
 		return errors.New("unknown key (want type, mac, ciaddr, giaddr, requested, server-id, broadcast, " +
-			"attempts, expect, yiaddr, sid, router, mask, dns or to)")
+			"attempts, expect, yiaddr, sid, router, mask, dns, dns-count, lease or to)")
 	}
 	return nil
 }
@@ -261,6 +278,14 @@ func (e *Exchange) Check(got Reply) error {
 			errs = append(errs, errors.New(c.name+" "+addrText(c.got)+", want "+c.want.String()))
 		}
 	}
+	if e.DNSCountChecked && got.DNSCount != e.Want.DNSCount {
+		errs = append(errs, errors.New("dns (option 6) carries "+strconv.Itoa(got.DNSCount)+
+			" addresses, want "+strconv.Itoa(e.Want.DNSCount)))
+	}
+	if e.LeaseChecked && (!got.LeaseCarried || got.LeaseSec != e.Want.LeaseSec) {
+		errs = append(errs, errors.New("lease time (option 51) "+leaseText(got)+
+			", want "+strconv.Itoa(int(e.Want.LeaseSec))))
+	}
 	if e.Want.Dest.IsValid() && got.Dest != e.Want.Dest {
 		errs = append(errs, errors.New("sent to "+got.Dest.String()+", want "+e.Want.Dest.String()))
 	}
@@ -292,7 +317,19 @@ func (e *Exchange) Line(got Reply) string {
 	b.WriteString(addrText(got.DNS))
 	b.WriteString(" to=")
 	b.WriteString(got.Dest.String())
+	b.WriteString(" dns-count=")
+	b.WriteString(strconv.Itoa(got.DNSCount))
+	b.WriteString(" lease=")
+	b.WriteString(leaseText(got))
 	return b.String()
+}
+
+// leaseText answers the lease time a reply carries, or "absent".
+func leaseText(got Reply) string {
+	if !got.LeaseCarried {
+		return "absent"
+	}
+	return strconv.Itoa(int(got.LeaseSec))
 }
 
 // SilentLine answers the line the probe prints when an expected silence held.

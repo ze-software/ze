@@ -91,6 +91,13 @@ type Reply struct {
 	Router   netip.Addr
 	Mask     netip.Addr
 	DNS      netip.Addr
+	// DNSCount is how many addresses option 6 carries, zero when the reply
+	// carries no option 6. DNS is the first of them.
+	DNSCount int
+	// LeaseSec is the IP Address Lease Time (option 51), meaningful only
+	// when LeaseCarried is true.
+	LeaseSec     uint32
+	LeaseCarried bool
 	// Dest is the IP destination and UDP port the server sent the reply to.
 	Dest netip.AddrPort
 }
@@ -119,6 +126,7 @@ const (
 	optRouter    = 3
 	optDNS       = 6
 	optRequested = 50
+	optLease     = 51
 	optMsgType   = 53
 	optServerID  = 54
 	optEnd       = 255
@@ -274,6 +282,14 @@ func readOptions(options []byte, reply *Reply) {
 			reply.Mask = firstAddr(value)
 		case optDNS:
 			reply.DNS = firstAddr(value)
+			reply.DNSCount = size / 4
+		case optLease:
+			// RFC 2132 Section 9.2: "The time is in units of seconds, and is
+			// specified as a 32-bit unsigned integer." Its length is 4.
+			if size == 4 {
+				reply.LeaseSec = binary.BigEndian.Uint32(value)
+				reply.LeaseCarried = true
+			}
 		}
 	}
 }

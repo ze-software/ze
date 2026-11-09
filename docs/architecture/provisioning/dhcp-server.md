@@ -318,17 +318,30 @@ request on the probe end with AF_PACKET and reads the server's reply on the
 wire. A step `x,<label>,type=...,mac=...,expect=<type|none>` sends one
 request carrying only the fields it names (`ciaddr`, `giaddr`, `requested`,
 `server-id`, `broadcast`) and checks the reply fields it names (`yiaddr`,
-`sid`, `router`, `mask`, `dns`, `to`); MAC addresses use hyphens, because a
-`cmd=` line refuses a `:<word>=` span. Other steps add or remove a server
+`sid`, `router`, `mask`, `dns` (the first option 6 address), `dns-count`
+(how many option 6 carries, `0` for none), `lease` (option 51 in seconds),
+`to`); MAC addresses use hyphens, because a `cmd=` line refuses a
+`:<word>=` span. Other steps add or remove a server
 address, route a relay prefix, write a permanent neighbour entry for a
 unicast reply, name a sentinel client, or reload (`config2.conf` over
 `ze-bgp.conf`, then SIGHUP). An expected silence is proven by the sentinel's
 DHCPDISCOVER, which the listener answers after the silent request, or else by
 retransmitting across a three-second window. The probe needs CAP_NET_ADMIN and
 CAP_NET_RAW, so these tests carry `option=needs-linux:caps=net-admin,net-raw`.
+
+A test whose option 6 follows a learned resolver uses `le test fixture
+dhcp/probe-learned <name> <step>...` instead. Its config has Ze's own DHCP
+client lease, on a veth pair the daemon creates, from Ze's own server on the
+pair's other end. It takes the probe's steps and three more:
+`wan-up,<server-end>,<cidr>,<client-end>` addresses the server end, brings it
+up and waits for the client's lease; `reload,<file>` copies that file over
+`ze-bgp.conf` and sends SIGHUP; `until,x,...` resends an exchange until its
+reply carries every field it names, because the state follows a lease or a
+reload the daemon applies on its own schedule.
 <!-- source: internal/test/dhcpprobe/step.go -- ParseStep, Exchange.Check -->
 <!-- source: internal/test/dhcpprobe/probe_linux.go -- CreateLink, Probe.Run, Probe.silent -->
 <!-- source: internal/test/fixture/dhcp_fixture_probe_linux.go -- dhcpLinkDriver, dhcpProbeDriver -->
+<!-- source: internal/test/fixture/dhcp_fixture_probe_learned_linux.go -- dhcpProbeLearnedDriver, learnedUntilReply -->
 
 ## Related
 
