@@ -2,6 +2,17 @@
   {
     "rid": "RFC1661-3.6-2",
     "polarity": "positive",
+    "unit": "internal/component/iface/rfc1661_pppoe_packets_integration_linux_test.go::TestDialRenegotiatesLCPInNetworkPhase",
+    "unit-sha": "f4574e5dbd9fc083",
+    "claim-sha": "274caa8f9eec1653",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/pppoeclient/connected_session.go::restart",
+    "producer-sha": "7f1cc9a1fbbb51c2",
+    "break": "line 176: \"ppp.NPModeDrop\" -\u003e \"ppp.NPModePass\""
+  },
+  {
+    "rid": "RFC1661-3.6-2",
+    "polarity": "positive",
     "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened",
     "unit-sha": "bcbb01d59a6afb91",
     "claim-sha": "7a30a89126426664",
