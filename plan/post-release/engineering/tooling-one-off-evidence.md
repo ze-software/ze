@@ -1618,6 +1618,29 @@ only by a GitHub `CodeQL` workflow run on a pushed commit whose Go extraction
 log shows an authored sentinel extracted and a `gokrazy/modcache` sentinel
 absent.
 
+## P-12 (a): interop checkers (2026-11-09)
+
+Each scenario runs as `INTEROP_SCENARIO=<dir> ZE_INTEROP_SUFFIX=p12a ./le
+test integration interop` on the `ze` Colima profile. The Ze DUT image is
+rebuilt from the working tree: its image reference changes under a break.
+Every red below fails the checker's feature assertion, not a startup.
+
+| Checker / scenario | Break | Red | Restored green |
+| --- | --- | --- | --- |
+| `checkSelfNextHopWithheld` / `bgp-self-nexthop-withheld-frr` | `egressNextHopIsPeerOwn` (`reactor/forward_next_hop.go`) always false | "assertion 5: FRR decoded an UPDATE carrying 10.11.0.0/24, whose NEXT_HOP 172.30.0.3 is FRR's own address" | pass (10s); clean green before the break: pass (24s) |
+| `checkMEDAcrossAS` / `bgp-med-across-as-gobgp` | `applyFactsMED` (`reactor/forward_med.go`): the final received-MED suppression replaced by `_ = mods` | "assertion 12: GoBGP route 10.60.0.0/24 still carries Med 100" | pass (34s). The second break (stripping Ze's own MED 42) is still owed |
+
+Blocked by lab readiness, not product evidence:
+
+- `checkLocalPrefStrip` / `bgp-local-pref-strip-gobgp`: of four green runs
+  without a break, three failed at "assertion 9: wait for gobgp output timed
+  out before the peer became ready" (2m27s, 2m26s, 2m26s) and one passed
+  (1m6s); both runs under the break failed at the same step. A red there is
+  not attributable until that readiness wait is reliable.
+- `checkNoFamilyEndOfRIB` / `no-family-peer-eor-frr`: three green runs failed
+  at "assertion 4: docker exec ze-iop-frr-p12a cat /var/run/frr/bgpd.pid did
+  not finish within 30s (exit 124)", before any End-of-RIB assertion.
+
 ## P-12 (b): RTR fixtures (2026-11-09)
 
 Run with `./le test bgp plugin -p 1 -t 60s <names>` on macOS.
