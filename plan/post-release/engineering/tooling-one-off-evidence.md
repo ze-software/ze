@@ -1638,6 +1638,22 @@ Every red below fails the checker's feature assertion, not a startup.
 | `checkRFC7999Blackhole` / `bgp-rfc7999-blackhole-frr` | `blackholeRouteType` (`rib/rib_blackhole.go`) skips the authorisation cover (`false && !coveredByAuthorized(...)`) | "assertion 5: the kernel holds a discard route for the uncovered 198.51.100.1, want it forwarded through a gateway" | pass (12s). The agreement/community break is still owed |
 | `checkAddPathReadvertiseCollision` / `bgp-addpath-readvertise-collision-frr` | `generate` (`reactor/forward_path_id.go`) mints the constant 1 for every new path | "assertion 10: replayed Path Identifiers differ from live identifiers: live=map[65003:0 65004:1] replayed=map[65003:2 65004:1]" | pass (14s). Replaces the record on `bindSourcePath` as the attributed break of the minting producer |
 
+Not attributed:
+
+- `checkRFC7606TypedNLRIDiscard` / `bgp-rfc7606-typed-nlri-discard`: keeping
+  unassigned EVPN types in `RecognizeNLRI` (`nlri/evpn/rfc7606.go`) fails at
+  "assertion 2: the speaker reports established "", want "yes"", before the
+  discard assertion; restored green passes (1m25s). The break may tear the
+  session down, but a red at establishment does not prove the checker's own
+  assertion. A break that keeps the session up, or discarding type-2 (the
+  second break the plan names), is still owed. The checker does not read the
+  NLRI registry, so the shared-registry risk does not apply.
+- Untried: `checkRelayWithdrawalShape` (needs the paired `Record` and
+  `planAttr` break), `checkRFC7606MixedUpdate` (`buildCombinedUpdates` in
+  `wireu/split.go` handles only oversized updates, so the producer the
+  scenario reaches is not yet traced), `checkRouteServerASPath` (the
+  prepend site the scenario reaches is not yet traced).
+
 Red at HEAD, owed an investigation before any break means anything:
 
 - `checkNSSADefault` / `ospf-stub-nssa-frr`: three runs without a break fail
