@@ -332,6 +332,51 @@ func TestReloadAppliesRemotes(t *testing.T) {
 	require.Equal(t, "s3cr3t", got.SharedSecret)
 }
 
+// VALIDATES: spec-home-cpe-14 AC-11 -- a reload that adds a relay-realm
+// binding makes the next authentication relay (the sink reports realm relay
+// configured and the realm resolves to its remote), and a reload that removes
+// it makes the next authentication local again.
+// PREVENTS: Reload dropping the relay-realm swap, so a running LAC keeps the
+// realm bindings it started with.
+func TestReloadAppliesRelayRealms(t *testing.T) {
+	s := newStartedSubsystem(t, Parameters{
+		Enabled:       true,
+		HelloInterval: 60 * time.Second,
+		ListenAddrs:   []netip.AddrPort{netip.MustParseAddrPort("0.0.0.0:1701")},
+	})
+	sink := &relaySink{s: s}
+	remote := map[string]any{
+		"lns-a": map[string]any{"address": "203.0.113.5"},
+	}
+	require.False(t, sink.RealmRelayConfigured())
+
+	withRealm := &fakeConfigProvider{trees: map[string]map[string]any{
+		"l2tp": {
+			"remote": remote,
+			"relay-realm": map[string]any{
+				"example.net": map[string]any{"remote": "lns-a"},
+			},
+		},
+	}}
+	require.NoError(t, s.Reload(context.Background(), withRealm))
+	require.True(t, sink.RealmRelayConfigured())
+	s.mu.Lock()
+	got, ok := s.params.LookupRealmRelay("Example.NET")
+	s.mu.Unlock()
+	require.True(t, ok)
+	require.Equal(t, "lns-a", got.Remote)
+
+	withoutRealm := &fakeConfigProvider{trees: map[string]map[string]any{
+		"l2tp": {"remote": remote},
+	}}
+	require.NoError(t, s.Reload(context.Background(), withoutRealm))
+	require.False(t, sink.RealmRelayConfigured())
+	s.mu.Lock()
+	_, ok = s.params.LookupRealmRelay("example.net")
+	s.mu.Unlock()
+	require.False(t, ok)
+}
+
 // VALIDATES: AC-6 -- a relay binding to an undeclared remote is rejected on
 // the reload (provider-map) path too, not just the config.Tree path.
 func TestReloadRejectsRelayUnknownRemote(t *testing.T) {

@@ -2,15 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | blocked |
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | A new LAC mode, the way wholesale broadband LACs work: LCP and authentication with the subscriber at the LAC, the LNS chosen by the realm of the username, proxy LCP and proxy authentication AVPs in the ICCN. It also corrects a false test claim in the L2TP guide. |
 | RFC gaps | RFC2661-4.4.5-1, RFC2661-4.4.5-2, RFC2661-4.4.5-3, RFC2661-4.4.5-4, RFC2661-4.4.5-5, RFC2661-4.4.5-6, RFC2661-4.3-1, RFC2661-4.3-3 |
 | Depends | Implementation: none; the PPPoE AC allow-list is implemented (`docs/guide/pppoe.md`, "Subscriber authentication") and decides which method the LAC's own authentication starts with and refuses a fallback outside it. Closure: the two interop scenarios this spec owns need `spec-home-cpe-18-interoplab-multi-link-topology.md`. No dependency on `plan/post-release/features/spec-l2tp-proxy-authentication.md`: this spec writes every LAC-side proxy AVP itself, including hidden AVP 33 (Key Design Decisions, "AVP writer ownership") |
-| Phase | 0/5 |
+| Phase | 5/5 |
 | Handoff | - |
-| Updated | 2026-11-04 |
+| Updated | 2026-11-09 |
 
 Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
 
@@ -314,10 +314,10 @@ Configure-Request, and a CHAP peer answers the LNS's next Challenge
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Once PPPIOCBRIDGECHAN is set, frames on the PPPoE channel go to the bridged channel and no longer reach the `/dev/ppp` channel fd the driver read | Linux `ppp_generic.c` `ppp_input` checks the bridge first | the LAC's driver keeps consuming the subscriber's frames | `TestLACRealmBridgeAfterLocalLCP` (Linux integration, `internal/component/l2tp/bridge_realm_integration_linux_test.go`) | validated by `TestLACRealmBridgeAfterLocalLCP` |
-| A-2 | A subscriber waiting for CHAP Success answers a fresh Challenge from the LNS | RFC 1994 Section 4.1 ("Additional Challenge packets MUST be sent until a valid Response packet is received"), pppd behaviour, scenario `pppoe-chap-rechallenge-ze-client` for the Ze client | the session stalls at the LNS's challenge | interop `l2tp-lac-realm-relay-accel-ppp` | unvalidated |
-| A-3 | The Section 4.3 cipher in `hidden.go` is correct for an encrypting writer | `HiddenEncrypt` and `HiddenDecrypt` round-trip in `hidden_test.go` and `hidden_fuzz_test.go`; read 2026-11-02: no writer sets the H bit and no Random Vector is emitted, so the writer is built here (AC-3 holds, no fall-back) | AVP 33 is unreadable at the LNS | `TestWriteICCNBodyHiddenAVP33` decrypts with `HiddenDecrypt` and the tunnel secret; the xl2tpd scenario's LNS reads it (xl2tpd decrypts hidden AVPs) | unvalidated |
-| A-4 | The dial and the ICRQ, ICRP, ICCN exchange fit inside the subscriber's authentication patience | pppd CHAP waits several seconds per retry | subscriber retries or gives up | scenario measures nothing by time; it asserts the session comes up | unvalidated |
-| A-5 | Realm is the text after the last `@`, compared case-insensitively | common usage; DNS names are case-insensitive | a deployment uses `realm/user` or `user%realm` | Known Limitations | unvalidated |
+| A-2 | A subscriber waiting for CHAP Success answers a fresh Challenge from the LNS | RFC 1994 Section 4.1 ("Additional Challenge packets MUST be sent until a valid Response packet is received"), pppd behaviour, scenario `pppoe-chap-rechallenge-ze-client` for the Ze client | the session stalls at the LNS's challenge | interop `l2tp-lac-realm-relay-accel-ppp` | confirmed: accel-ppp runs its own LCP and CHAP after the bridge and the session comes up (`tmp/session/2026-11-07-104251/scratch/rwinv/c14-accel-clean.log`, 1 passed) |
+| A-3 | The Section 4.3 cipher in `hidden.go` is correct for an encrypting writer | `HiddenEncrypt` and `HiddenDecrypt` round-trip in `hidden_test.go` and `hidden_fuzz_test.go`; read 2026-11-02: no writer sets the H bit and no Random Vector is emitted, so the writer is built here (AC-3 holds, no fall-back) | AVP 33 is unreadable at the LNS | `TestWriteICCNBodyHiddenAVP33` decrypts with `HiddenDecrypt` and the tunnel secret; the xl2tpd scenario's LNS reads it (xl2tpd decrypts hidden AVPs) | confirmed: `TestWriteICCNBodyHiddenAVP33` PASS (`tmp/session/2026-11-07-104251/scratch/rwinv/out-gb3/c15-l2tp.log`); xl2tpd interop 1 passed (`rwinv/interop-1319-b.log`) |
+| A-4 | The dial and the ICRQ, ICRP, ICCN exchange fit inside the subscriber's authentication patience | pppd CHAP waits several seconds per retry | subscriber retries or gives up | scenario measures nothing by time; it asserts the session comes up | confirmed: both interop scenarios bring the relayed session up under pppd's default CHAP timers |
+| A-5 | Realm is the text after the last `@`, compared case-insensitively | common usage; DNS names are case-insensitive | a deployment uses `realm/user` or `user%realm` | Known Limitations | confirmed: `LookupRealmRelay` (`config.go`) folds case and the accel-ppp scenario relays `pppd@lab.example.net` by its realm; `realm/user` and `user%realm` stay a Known Limitation |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -338,8 +338,8 @@ Configure-Request, and a CHAP peer answers the LNS's next Challenge
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `relay-realm example.net { remote lns-a }` + PPPoE subscriber `cpe@example.net` | → | pppoe drain → callsink → `relaySink` realm match → `placeIncomingCall` with proxy fields | `TestRelaySinkRealmMatchPlacesCallWithProxyLCP` (`internal/component/l2tp/relay_sink_test.go`) |
-| PPPoE session with capture flag | → | ppp driver capture → `EventAuthRequest` | `TestDriverCapturesProxyLCPForRelay` (`internal/component/l2tp/ppp/manager_test.go`) |
+| `relay-realm example.net { remote lns-a }` + PPPoE subscriber `cpe@example.net` | → | pppoe drain → callsink → `relaySink` realm match → `placeIncomingCall` with proxy fields | `TestRelaySinkRealmMatchPlacesCallWithProxyLCP` (`internal/component/l2tp/relay_realm_sink_test.go`) |
+| PPPoE session with capture flag | → | ppp driver capture → `EventAuthRequest` | `TestDriverCapturesProxyLCPForRelay` (`internal/component/l2tp/ppp/relay_handoff_test.go`) |
 | ICCN for a realm call | → | `writeICCNBody` | `test/l2tp-wire/iccn-proxy-avps.ci` |
 | `ze config validate` | → | `ExtractParameters` realm checks | `test/l2tp/relay-realm-config.ci` |
 
@@ -378,22 +378,23 @@ Configure-Request, and a CHAP peer answers the LNS's next Challenge
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestRealmFromUsername` | `internal/component/l2tp/pppoe/realm_relay_test.go` | last `@`, case folding, no `@` | |
-| `TestRelaySinkRealmMatchPlacesCallWithProxyLCP` | `internal/component/l2tp/relay_sink_test.go` | wiring, AC-1 | |
-| `TestRelaySinkRealmNoMatchReturnsUnaccepted` | `internal/component/l2tp/relay_sink_test.go` | AC-5 | |
-| `TestRelaySinkRealmDialFailureReportsRefusal` | `internal/component/l2tp/relay_sink_test.go` | AC-6 | |
-| `TestDriverCapturesProxyLCPForRelay` | `internal/component/l2tp/ppp/manager_test.go` | first received, final Acked pair (including after a Nak round) | |
-| `TestDriverRelayReleaseSendsNoAuthReply` | `internal/component/l2tp/ppp/auth_dispatch_test.go` | AC-1: no Success, Failure, Ack or Terminate on release | |
-| `TestDriverRelayRefusalClosesLCP` | `internal/component/l2tp/ppp/auth_dispatch_test.go` | AC-6 | |
+| `TestRelaySinkRealmMatchPlacesCallWithProxyLCP` | `internal/component/l2tp/relay_realm_sink_test.go` | wiring, AC-1 | |
+| `TestRelaySinkRealmNoMatchReturnsUnaccepted` | `internal/component/l2tp/relay_realm_sink_test.go` | AC-5 | |
+| `TestRelaySinkRealmDialFailureReportsRefusal` | `internal/component/l2tp/relay_realm_sink_test.go` | AC-6 | |
+| `TestDriverCapturesProxyLCPForRelay` | `internal/component/l2tp/ppp/relay_handoff_test.go` | first received, final Acked pair (including after a Nak round) | |
+| `TestDriverRelayReleaseSendsNoAuthReply` | `internal/component/l2tp/ppp/relay_handoff_test.go` | AC-1: no Success, Failure, Ack or Terminate on release | |
+| `TestDriverRelayRefusalClosesLCP` | `internal/component/l2tp/ppp/relay_handoff_test.go` | AC-6 | |
 | `TestMSCHAPv2RelayRefusalIsStructured` | `internal/component/l2tp/ppp/mschapv2_test.go` | AC-6 for an MS-CHAPv2 subscriber: the refusal reaches the peer as an RFC 2759 Section 6 Failure (M= carrying the text, C= this exchange's Authenticator Challenge), then LCP Terminate-Request | |
-| `TestWriteICCNBodyProxyAVPs` | `internal/component/l2tp/session_initiator_test.go` | AC-2 byte layout, M=0, ID high octet 0. ICCN wiring is proven in three parts: this test proves the writer, `iccn-proxy-avps.ci` proves the decode, and the live call is the interop scenarios' | |
-| `TestWriteICCNBodyPAPProxyHiddenOrAbsent` | `internal/component/l2tp/session_initiator_test.go` | AC-3, AC-4 | |
-| `TestWriteICCNBodyHiddenAVP33` | `internal/component/l2tp/session_initiator_test.go` | AC-3: Random Vector precedes AVP 33, H bit on AVP 33 only, `HiddenDecrypt` with the secret yields the password (RFC2661-4.3-1, RFC2661-4.3-3) | |
-| `TestDriverQuiesceStopsReaderBeforeReturning` | `internal/component/l2tp/ppp/auth_dispatch_test.go` | step 7: quiesce returns only after the reader exited; no Echo answered after it | |
+| `TestWriteICCNBodyProxyAVPs` | `internal/component/l2tp/rfc2661_session_initiator_test.go` | AC-2 byte layout, M=0, ID high octet 0. ICCN wiring is proven in three parts: this test proves the writer, `iccn-proxy-avps.ci` proves the decode, and the live call is the interop scenarios' | |
+| `TestWriteICCNBodyPAPProxyHiddenOrAbsent` | `internal/component/l2tp/rfc2661_session_initiator_test.go` | AC-3, AC-4 | |
+| `TestWriteICCNBodyHiddenAVP33` | `internal/component/l2tp/rfc2661_session_initiator_test.go` | AC-3: Random Vector precedes AVP 33, H bit on AVP 33 only, `HiddenDecrypt` with the secret yields the password (RFC2661-4.3-1, RFC2661-4.3-3) | |
+| `TestDriverQuiesceStopsReaderBeforeReturning` | `internal/component/l2tp/ppp/relay_handoff_test.go` | step 7: quiesce returns only after the reader exited; no Echo answered after it | |
 | `TestRelayRealmHandoffCancelledInEachPhase` | `internal/component/l2tp/pppoe/realm_relay_test.go` | AC-15, one subtest per row of the handoff table with fake sink and driver | |
 | `TestLACRealmHandoffRetransmission` | `internal/component/l2tp/bridge_realm_integration_linux_test.go` (package `l2tp_test`: the PPPoE package it drives imports `l2tp`, so an in-package test would be an import cycle) | AC-14 with real pppox sockets: a frame written during quiesce is lost, its retransmission after the bridge arrives on the pppol2tp side | |
 | `TestLACRealmBridgeFailureRefuses` | `internal/component/l2tp/pppoe/realm_relay_test.go` | AC-16 with a fake bridge returning an error | |
 | `TestSessionJSONRelayRealmFields` | `internal/component/l2tp/cmd/l2tp_test.go` | AC-12: keys present for a realm call, absent for a Service-Name relay and a local session | |
 | `TestRelayRealmConfigValidation` | `internal/component/l2tp/config_test.go` | AC-9 | |
+| `TestReloadAppliesRelayRealms` | `internal/component/l2tp/subsystem_reload_test.go` | AC-11: a reload adding `relay-realm` makes the sink report realm relay configured and the realm resolve to its remote (case folded); a reload removing it reverts both | written at closure; run owed |
 | `TestServiceNameRelayPrecedesRealm` | `internal/component/l2tp/pppoe/server_test.go` | AC-7 | |
 | `TestLACRealmBridgeAfterLocalLCP` | `internal/component/l2tp/bridge_realm_integration_linux_test.go` (package `l2tp_test`, same import cycle) | A-1 with real pppox sockets | |
 
@@ -406,16 +407,16 @@ Configure-Request, and a CHAP peer answers the LNS's next Challenge
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `relay-realm-config` | drafted at `test/draft/l2tp/relay-realm-config.ci`, promotes to `test/l2tp/relay-realm-config.ci` | validate accepts a realm binding; refuses AC-9 cases | drafted, not run |
-| `iccn-proxy-avps` | drafted at `test/draft/l2tp-wire/iccn-proxy-avps.ci`, promotes to `test/l2tp-wire/iccn-proxy-avps.ci` | decoded ICCN shows AVPs 26 to 33 with explicit hex | drafted, not run |
-| `pppoe-realm-relay-nomatch` | `test/pppoe/pppoe-realm-relay-nomatch.ci` | unmatched realm terminates locally and is refused with no local users | not written: it needs a fixture that takes a PPPoE session past PADS into LCP and authentication, which no `.ci` fixture does today |
+| `relay-realm-config` | `test/l2tp/relay-realm-config.ci` | validate accepts a realm binding; refuses AC-9 cases | promoted |
+| `iccn-proxy-avps` | `test/l2tp-wire/iccn-proxy-avps.ci` | decoded ICCN shows AVPs 26 to 33 with explicit hex | promoted |
+| `pppoe-realm-relay-nomatch` | `test/pppoe/pppoe-realm-relay-nomatch.ci`, fixture `le test fixture pppoe/realm-nomatch` | unmatched realm terminates locally and is refused with no local users | passes in netns (`tmp/session/2026-11-07-104251/scratch/rwinv/out-gb6/pppoe-clean.log`); red with the realm match forced true in `config.go` `LookupRealmRelay`: step 3 finds no `ze_l2tp_relay_total{kind="realm",outcome="no-match"} 1` (`rwinv/out-gb6/c14-nomatch-broken.log`) |
 | (AC-12 on a live call) | - | a `.ci` cannot host the PPPoE subscriber and the LNS; the `l2tp-lac-realm-relay-accel-ppp` checker runs `ze show l2tp session id <id>` on the LAC and asserts the AC-12 keys | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `l2tp-lac-realm-relay-accel-ppp` | `test/interop-topology/scenarios/l2tp-lac-realm-relay-accel-ppp/` (topology suite: the LAC needs two links), registered in `internal/le/interoplab/topology/register_wholesale.go` beside `l2tp-lns-lcp-renegotiate-pppd`, reusing its pppd subscriber node with accel-ppp in place of the Ze LNS | pppd PPPoE client; accel-ppp LNS (ignores proxy AVPs, renegotiates) | realm selection, local LCP and CHAP at Ze, bridge, IPCP from the LNS, ping across; AC-12 keys on the LAC session; a second pppd (`pppd@other.example.net`) refused locally with `no auth handler configured` and never named in the LNS log | written, not run: `realmRelayChain` and `accelLNSFor` (`register_wholesale.go`, `register_wholesale_accel.go`), checker `checkRealmRelayAccel` (`check_realm_relay.go`). Producers read: accel-ppp `ppp_lcp.c` `lcp_recv_conf_req` and `lcp_recv_conf_ack`, `auth_chap_md5.c` `chap_recv_response` and `chap_send_success`; pppd 2.5.5 `chap.c` `chap_handle_status`; Ze `pppoe/drain.go` `callPPPoEAuthHandler`. Red-walk break: `matched = false` after `LookupRealmRelay` in `relay_sink.go` `RelayRealm`, not yet run |
-| `l2tp-lac-realm-relay-xl2tpd` | `test/interop-topology/scenarios/l2tp-lac-realm-relay-xl2tpd/`, registered the same way | pppd PPPoE client; xl2tpd 1.3.20 and pppd 2.5.5 LNS (image `ze-radius-subscriber-lac`) | the same against a second LNS implementation: xl2tpd logs the call established from the LAC's ICCN, and its pppd runs its own LCP and CHAP | written, not run: `xl2tpdLNS` (`register_wholesale.go`), checker `checkRealmRelayXL2TPD` (`check_realm_relay.go`). Producers read: xl2tpd `control.c` `control_finish` (ICCN, "Call established with"), `avp.c` (no handler for AVPs 26 to 28, `ignore_avp` for 29 to 33), `aaa.c` `get_secret`, `misc.c` `l2tp_log`; pppd 2.5.5 `utils.c` `dump_packet`, `chap.c` `chap_print_pkt`, `ipcp.c` `ipcp_up`. Red-walk break: `maybeBridgePPPoE` (`bridge_linux.go`) returns `true, nil` without calling `bridgeChannels`, not yet run |
+| `l2tp-lac-realm-relay-accel-ppp` | `test/interop-topology/scenarios/l2tp-lac-realm-relay-accel-ppp/` (topology suite: the LAC needs two links), registered in `internal/le/interoplab/topology/register_wholesale.go` beside `l2tp-lns-lcp-renegotiate-pppd`, reusing its pppd subscriber node with accel-ppp in place of the Ze LNS | pppd PPPoE client; accel-ppp LNS (ignores proxy AVPs, renegotiates) | realm selection, local LCP and CHAP at Ze, bridge, IPCP from the LNS, ping across; AC-12 keys on the LAC session; a second pppd (`pppd@other.example.net`) refused locally with `no auth handler configured` and never named in the LNS log | passes: `realmRelayChain` and `accelLNSFor` (`register_wholesale.go`, `register_wholesale_accel.go`), checker `checkRealmRelayAccel` (`check_realm_relay.go`). Producers read: accel-ppp `ppp_lcp.c` `lcp_recv_conf_req` and `lcp_recv_conf_ack`, `auth_chap_md5.c` `chap_recv_response` and `chap_send_success`; pppd 2.5.5 `chap.c` `chap_handle_status`; Ze `pppoe/drain.go` `callPPPoEAuthHandler`. Clean run `1 passed` (`tmp/session/2026-11-07-104251/scratch/rwinv/c14-accel-clean.log`); broken with the realm match disabled: FAIL `pppd holds 203.0.113.1`, the ze-lac log sends `pppd@lab.example.net` to `l2tp-auth-local` (`rwinv/c14-accel-broken.log`) |
+| `l2tp-lac-realm-relay-xl2tpd` | `test/interop-topology/scenarios/l2tp-lac-realm-relay-xl2tpd/`, registered the same way | pppd PPPoE client; xl2tpd 1.3.20 and pppd 2.5.5 LNS (image `ze-radius-subscriber-lac`) | the same against a second LNS implementation: xl2tpd logs the call established from the LAC's ICCN, and its pppd runs its own LCP and CHAP | passes: `xl2tpdLNS` (`register_wholesale.go`), checker `checkRealmRelayXL2TPD` (`check_realm_relay.go`). Producers read: xl2tpd `control.c` `control_finish` (ICCN, "Call established with"), `avp.c` (no handler for AVPs 26 to 28, `ignore_avp` for 29 to 33), `aaa.c` `get_secret`, `misc.c` `l2tp_log`; pppd 2.5.5 `utils.c` `dump_packet`, `chap.c` `chap_print_pkt`, `ipcp.c` `ipcp_up`. Clean run `1 passed`; broken with `maybeBridgePPPoE` (`bridge_linux.go`) returning `true, nil` without calling `bridgeChannels`: FAIL `pppd holds 203.0.113.1` (`tmp/session/2026-11-07-104251/scratch/rwinv/interop-1319-b.log`) |
 | `access-wholesale` | child 19 | Ze CPE, Ze LAC, Ze LNS | umbrella variant | |
 
 Each scenario is broken once (realm match disabled; bridge skipped) and the
@@ -633,3 +634,154 @@ of the added AVPs with offsets.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-home-cpe-14-lac-realm-relay.md` only, in the same `./le commit create` script
+
+## Blocker
+
+Closure stops before commit A for two pieces of evidence the main thread owns
+(the closure agent may not run tests or guests):
+
+| What | Producer | What clears it |
+|------|----------|----------------|
+| The RFC2661-6.1-1 discrimination record is stale (producer sha `7b911f10b735d280` no longer matches) | `internal/component/l2tp/tunnel_fsm.go` `handleSCCRQ`, unit `test/l2tp/rfc2661-sccrq-mandatory-avp.ci` | `./le rfc record id RFC2661-6.1-1 polarity positive unit test/l2tp/rfc2661-sccrq-mandatory-avp.ci route revert producer internal/component/l2tp/tunnel_fsm.go::handleSCCRQ citation 'expect=stderr:contains=new tunnel created from SCCRQ'` on Linux (guest batch 7, `rwinv/out-gb7/rec-2661.log`) |
+| `TestReloadAppliesRelayRealms` (AC-11, closure review ISSUE) is written but has not run | `internal/component/l2tp/subsystem_reload.go` `Reload` (relay-realm swap), `extractFromProvider` | `./le job run -- go test ./internal/component/l2tp -run 'TestReloadAppliesRelayRealms$' -count=1` green |
+
+When both are in, set Status back to `in-progress` and resume closure at the
+Review Gate record (`./le spec review record`), `./le rfc check`, `./le doc
+check all`, then commits A and B.
+
+## Implementation Summary
+
+### What Was Implemented
+- Realm relay at the LAC: `relay-realm` list (`yang/ze-l2tp-conf.yang`, `config.go` `validateRelayRealms`, `LookupRealmRelay`), PPPoE auth drain routing a matched realm to the relay sink (`pppoe/drain.go`, `pppoe/realm_relay.go` `decide`), proxy LCP capture and relay handoff in the PPP driver (`ppp/proxy_capture.go`, `ppp/relay_handoff.go`), ICCN proxy AVPs 26 to 33 with hidden AVP 33 (`iccn_proxy.go`), the bridge (`bridge_linux.go`, `kernel_linux.go`), AC-12 session JSON keys (`snapshot.go`, `cmd/l2tp.go`). Commits 79e3205310, b6e77fe607 (interop), e3dc7b57f5, 119e88db46, b049c10915; guide e295e416f9.
+- Closure: `TestReloadAppliesRelayRealms` (`subsystem_reload_test.go`) for AC-11.
+
+### Bugs Found/Fixed
+- AC-11 had no test (closure review ISSUE): fixed by `TestReloadAppliesRelayRealms`, run owed (Blocker).
+
+### Documentation Updates
+- `docs/guide/l2tp.md` "Relay by realm": the stale "under construction" paragraph replaced by what proves the path (e295e416f9).
+
+### Deviations from Plan
+- Test files differ from the plan's names: realm sink tests live in `relay_realm_sink_test.go`, driver handoff tests in `ppp/relay_handoff_test.go`, ICCN tests in `rfc2661_session_initiator_test.go`. The TDD and Wiring rows now name them.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The implementation phase left `docs/guide/l2tp.md` saying no test had run the realm path | Both interop scenarios and the Linux bridge tests had run | Closure documentation review | Guide fixed in e295e416f9 |
+| approach | AC-11 (reload) shipped with no test | `Reload` swaps `RelayRealms`, unproven | Closure review | `TestReloadAppliesRelayRealms` added |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Realm-selected LNS with LAC-side LCP and auth | Done | `pppoe/realm_relay.go` `decide`, `relay_sink.go` `RelayRealm` | |
+| Proxy LCP and proxy auth AVPs in ICCN | Done | `iccn_proxy.go` | |
+| Guide claim corrected | Done | `docs/guide/l2tp.md` | e295e416f9 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRelaySinkRealmMatchPlacesCallWithProxyLCP`, `TestDriverRelayReleaseSendsNoAuthReply`, interop `l2tp-lac-realm-relay-accel-ppp` | |
+| AC-2 | Done | `TestWriteICCNBodyProxyAVPs`, `test/l2tp-wire/iccn-proxy-avps.ci` | |
+| AC-3 | Done | `TestWriteICCNBodyHiddenAVP33`, `TestWriteICCNBodyPAPProxyHiddenOrAbsent` | |
+| AC-4 | Done | `TestWriteICCNBodyPAPProxyHiddenOrAbsent` | |
+| AC-5 | Done | `TestRelaySinkRealmNoMatchReturnsUnaccepted`, `test/pppoe/pppoe-realm-relay-nomatch.ci` | |
+| AC-6 | Done | `TestRelaySinkRealmDialFailureReportsRefusal`, `TestDriverRelayRefusalClosesLCP`, `TestMSCHAPv2RelayRefusalIsStructured` | |
+| AC-7 | Done | `TestServiceNameRelayPrecedesRealm` | |
+| AC-8 | Done | `TestServiceNameRelayPrecedesRealm`, `relaySink.RealmRelayConfigured` false path | |
+| AC-9 | Done | `TestRelayRealmConfigValidation`, `test/l2tp/relay-realm-config.ci` | |
+| AC-10 | Done | `TestRelaySinkRealmMatchPlacesCallWithProxyLCP` | |
+| AC-11 | Partial | `TestReloadAppliesRelayRealms` | run owed (Blocker) |
+| AC-12 | Done | `TestSessionJSONRelayRealmFields`, accel-ppp checker `checkRealmRelayAccel` | |
+| AC-13 | Done | `docs/guide/l2tp.md` | |
+| AC-14 | Done | `TestLACRealmHandoffRetransmission` (QEMU, `rwinv/out-qemu/clean-l2tp.log`) | |
+| AC-15 | Done | `TestRelayRealmHandoffCancelledInEachPhase` | |
+| AC-16 | Done | `TestLACRealmBridgeFailureRefuses` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| every TDD row | Done | names in the TDD table; each function found by `grep -rl 'func <name>(' internal/` on 2026-11-09 | `TestReloadAppliesRelayRealms` run owed |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify / Create | Done | landed in the commits named above |
+
+### Audit Summary
+- **Total items:** 16 AC
+- **Done:** 15
+- **Partial:** 1 (AC-11, run owed; not a scope reduction)
+- **Skipped:** 0
+- **Changed:** test file names (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A subscriber's realm selects the LNS and the session comes up through it | interop | `l2tp-lac-realm-relay-accel-ppp` 1 passed, red with the realm match disabled (`rwinv/c14-accel-{clean,broken}.log`); `l2tp-lac-realm-relay-xl2tpd` 1 passed, red with the bridge skipped (`rwinv/interop-1319-b.log`) |
+| The kernel bridge carries the subscriber's frames after local LCP | Linux integration | `TestLACRealmBridgeAfterLocalLCP`, `TestLACRealmHandoffRetransmission` PASS (`rwinv/out-qemu/clean-l2tp.log`), both FAIL with `bridgeChannels` not issuing the ioctl (`rwinv/out-qemu/c14-bridgechannels-no-ioctl.log`) |
+| An unmatched realm terminates locally | functional | `pppoe-realm-relay-nomatch` PASS / red (`rwinv/out-gb6/pppoe-clean.log`, `c14-nomatch-broken.log`) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | | |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | not recorded: closure blocked before the record (Blocker) |
+| `./le spec review check` | not run |
+| Rounds | 1 (closure agent 1 over the committed diff); round 2 owed after `TestReloadAppliesRelayRealms` runs |
+| Reviewer lenses used | logic+wiring, security (no password logged in `RelayRealm`/`decide`), RFC 2661 Section 4.3 hiding, handoff ordering |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | AC-11 has no test | `subsystem_reload.go` `Reload` | `TestReloadAppliesRelayRealms` (`subsystem_reload_test.go`), run owed |
+
+NOTEs (record only): `pppoe/realm_relay.go` `decide` registers the handoff in
+`r.calls` only after `RelayRealm` returns, so a PADT in that window finds no
+handoff; the quiesce of a dropped session fails and `kernel_linux.go` CDNs the
+call. The YANG realm pattern relies on anchoring; `validateRelayRealms` refuses
+`@` and whitespace regardless (`test/l2tp/relay-realm-config.ci`). Not yet
+reviewed: `ppp/relay_handoff.go`, `ppp/relay_reader_linux.go`, `callsink.go`,
+`snapshot.go`/`cmd` JSON, `check_realm_relay.go`.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/l2tp/relay-realm-config.ci`, `test/l2tp-wire/iccn-proxy-avps.ci`, `test/pppoe/pppoe-realm-relay-nomatch.ci` | yes | `ls` 2026-11-09 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-2, AC-3 | ICCN proxy AVPs and hidden 33 | `TestWriteICCNBodyProxyAVPs`, `TestWriteICCNBodyHiddenAVP33` PASS in `rwinv/out-gb3/c15-l2tp.log` |
+| AC-11 | reload applies relay-realm | owed (Blocker) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze config validate` | `test/l2tp/relay-realm-config.ci` | exists |
+| ICCN decode | `test/l2tp-wire/iccn-proxy-avps.ci` | exists |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestLACRealmBridgeAfterLocalLCP` PASS, red without the ioctl |
+| A-2 | confirmed | accel-ppp interop 1 passed |
+| A-3 | confirmed | `TestWriteICCNBodyHiddenAVP33` PASS; xl2tpd interop 1 passed |
+| A-4 | confirmed | both interop scenarios pass under default pppd timers |
+| A-5 | confirmed | `LookupRealmRelay` EqualFold; accel-ppp relays `pppd@lab.example.net` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/guide/l2tp.md` "Relay by realm" | anchored to `check_realm_relay.go` `checkRealmRelayAccel`/`checkRealmRelayXL2TPD` and `bridge_realm_integration_linux_test.go` | yes (e295e416f9); `./le doc check all` owed at resume |
