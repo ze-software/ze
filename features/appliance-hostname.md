@@ -13,8 +13,8 @@
 | Real-path tests | cmd/ze/hub/main_system_appliance_test.go::TestHostnameApplierOnlyWhenChanged, cmd/ze/hub/main_system_appliance_test.go::TestHostnameApplierSetFailureKeepsNameAndWarns |
 | Docs | docs/guide/configuration.md, docs/guide/appliance.md |
 | Doc review | 2026-11-07: the "System Host Name" section of docs/guide/configuration.md and the appliance guide's host name paragraph match reconcileKernelHostname (set only when the leaf is configured and differs from the kernel name, one warn line on a refusal, no refused commit), kernelHostnameOwned (true only under ze_appliance) and codeSystemHostNotApplied (doctor-system-host-not-applied) |
-| Defect review | 2026-11-07: open: plan/release/fixes/spec-home-cpe-7-system-small-defects.md, the spec that delivers this feature, is not closed |
-| Extra criteria | supported: booted appliance proof that uname -n follows system host at boot and on reload (./le test qemu appliance-hostname, internal/le/test/qemu/hostname.go) recorded green = none yet |
+| Defect review | 2026-11-09: spec-home-cpe-7-system-small-defects, which delivered this feature, closed with a clean review; no open journal row names cmd/ze/hub/main_system_hostname.go |
+| Extra criteria | supported: booted appliance proof that uname -n follows system host at boot and on reload, green 2026-11-09 and red under a setKernelHostname break (./le test qemu appliance-hostname) = internal/le/test/qemu/hostname.go |
 
 ## Description
 

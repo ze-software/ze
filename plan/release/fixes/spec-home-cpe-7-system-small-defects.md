@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Scope | config |
 | Priority | P1 |
 | Release reason | Release fix: (1) a listener list with `0.0.0.0` and `::` on one port passes validation, then one bind fails and is only logged, so the service runs half-bound while the commit reports success (P1); (2) `system host` never reaches the appliance's kernel hostname, which stays the image's build-time value (P2, carried here because it is small) |
@@ -224,7 +224,7 @@ hostname and Ze leaves it alone, as today.
 | `TestValidateListenerConflicts_NoConflict` (changed) | `internal/component/config/listener_test.go` | its subtest "cross-family ipv6-wildcard vs ipv4-specific" moves to the refused cases; the ipv4-wildcard vs ipv6-specific subtest stays accepted. Owes a `ze-test-judge` approval | |
 | `TestStartServesDualStackWildcardOverBothFamilies` | `internal/component/ssh/ssh_test.go` | AC-3: `Start` on `[::]` with a free port; an SSH handshake succeeds over `127.0.0.1` and over `::1` | |
 | `TestStartBindsSpecificAddressesOfBothFamilies` | `internal/component/ssh/ssh_test.go` | AC-4: `127.0.0.1` and `::1` on one port, both reachable | |
-| `TestUDPListenerV6OnlyBesideIPv4Wildcard` | `internal/component/l2tp/listener_test.go` | AC-5: `newUDPListener` on `0.0.0.0` and on `::` with one port, both `Start` without error; `IPV6_V6ONLY` read back as 1 on the `::` socket (both binds succeed without it, because `Start` also sets `SO_REUSEPORT`), and one datagram per family arrives on the listener of that family | written 2026-11-07, run owed |
+| `TestUDPListenerV6OnlyBesideIPv4Wildcard` | `internal/component/l2tp/listener_test.go` | AC-5: `newUDPListener` on `0.0.0.0` and on `::` with one port, both `Start` without error; `IPV6_V6ONLY` read back as 1 on the `::` socket (both binds succeed without it, because `Start` also sets `SO_REUSEPORT`), and one datagram per family arrives on the listener of that family | green 2026-11-09 (`c7-units`) |
 | `TestStartFailsWhenExtraListenerFails` | `internal/component/ssh/ssh_test.go` | AC-6: the error names the address; the first listener's port is free again afterwards | |
 | `TestReconfigureAllOrNone` | `internal/component/ssh/ssh_test.go` | AC-11 server half: `Reconfigure` to a set with an unbindable address fails, `Addresses` is unchanged and the old listener still completes a handshake | |
 | `TestReloadSSHListenerBindFailureKeepsPrevious` | `cmd/ze/hub/listener_migrate_ssh_test.go` | AC-11: failed-reload preservation through `listenerMigrator.reloadListeners`, with a second fake `Reconfigurable` service applied first and asserted rolled back | |
@@ -246,7 +246,7 @@ hostname and Ze leaves it alone, as today.
 |------|----------|-------------------|--------|
 | `listener-dual-wildcard-refused` | `test/parse/listener-dual-wildcard-refused.ci` | AC-1, AC-2 | |
 | `listener-dual-wildcard-v6only-accepted` | `test/parse/listener-dual-wildcard-v6only-accepted.ci` | AC-5 | |
-| `listener-migration-ssh` | `test/reload/listener-migration-ssh.ci` (drafted at `test/draft/reload/`, fixture `reload/listener-migration-ssh` in `internal/test/fixture/listener_migration_ssh_fixture.go`): the real daemon, SSH on `127.0.0.1:$PORT`, a SIGHUP reload naming `::1:$PORT2`; after the accepted verdict `::1:$PORT2` sends the SSH identification line and `127.0.0.1:$PORT` refuses. Exercises the production `attachSSH` (`cmd/ze/hub/infra_setup.go`) and the reload's `buildChanges`, which the `cmd/ze/hub` unit tests replace with a fake | AC-12 | written 2026-11-07, run and promotion owed |
+| `listener-migration-ssh` | `test/reload/listener-migration-ssh.ci` (drafted at `test/draft/reload/`, fixture `reload/listener-migration-ssh` in `internal/test/fixture/listener_migration_ssh_fixture.go`): the real daemon, SSH on `127.0.0.1:$PORT`, a SIGHUP reload naming `::1:$PORT2`; after the accepted verdict `::1:$PORT2` sends the SSH identification line and `127.0.0.1:$PORT` refuses. Exercises the production `attachSSH` (`cmd/ze/hub/infra_setup.go`) and the reload's `buildChanges`, which the `cmd/ze/hub` unit tests replace with a fake | AC-12 | promoted to `test/reload/listener-migration-ssh.ci` |
 | `appliance-hostname` | `./le test qemu appliance-hostname` (new action, `internal/le/test/qemu/hostname.go`, registered in `internal/le/test/qemu/actions.go` beside `mpls-boot`): boots an image with `system host cpe-lab`, reads `uname -n`, commits `cpe-lab2`, reads it again, then boots one with the leaf unset | AC-7, AC-8 | |
 
 ### Interop Tests (Scope: protocol)
@@ -418,15 +418,6 @@ No open row records either defect (grep of `plan/journal/` for `EADDRINUSE`, `du
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean
 
-## Blocker
-
-| What blocks | Producer | What clears it |
-|-------------|----------|----------------|
-| `./le test qemu appliance-hostname`, clean run (AC-7, AC-8, Deliverable "Hostname") | `Hostname.askHostname` (`internal/le/test/qemu/hostname.go`) asks `show host all` over SSH; its `hostname` is `os.Hostname()` (`internal/component/host/kernel_linux.go`), the kernel name | a green clean run by the main thread. The 2026-11-08 11:23 run (`tmp/session/2026-11-07-104251/scratch/rwinv/out-c2-12-netns/c7-hostname-clean.log`) failed at boot with an empty answer and "Disconnected from 127.0.0.1 port 2223", while its guest console shows the product working: "kernel host name set from system host" host=cpe-lab previous=ze. The harness was at fault, not the product: its sshpass ssh offered ssh-agent keys first and Ze's server (6 auth tries) disconnected before the password. 3c15e9b6d8 fixed it (public-key auth and agent off, `sshFailure` keeps the reason) after that run |
-| the same action, broken run (the red that proves the test discriminates) | `setKernelHostname` (`cmd/ze/hub/main_system_hostname_linux.go`) broken to return nil without `unix.Sethostname`, through `GOFLAGS=-overlay=<abs>/tmp/session/2026-11-07-104251/scratch/rwinv/c7-hostname-not-set/overlay.json` | the run must go red on "the kernel host name never became cpe-lab" with an answer of `ze`, not on an SSH failure. The 2026-11-08 11:28 broken run failed on the same SSH disconnect, so it proved nothing. On 2026-11-09 the overlay copy differs from HEAD's file in that one line only, so it has not drifted |
-
-The spec returns to `in-progress` when both runs are recorded; closure then resumes at `/ze-close` step 6 (RFC record check, commits A and B).
-
 ## Implementation Summary
 
 ### What Was Implemented
@@ -468,7 +459,7 @@ The spec returns to `in-progress` when both runs are recorded; closure then resu
 | V6ONLY registered per service | Done | `listener.go` `RegisterListenerV6Only`; `l2tp/register.go`; `web/register_listener.go` | |
 | SSH binds all or none at start | Done | `ssh.go` `bindListeners`, `Server.Start` | |
 | SSH reload moves listeners, or refuses keeping the old set | Done | `ssh.go` `Server.Reconfigure`; `listener_migrate.go` `setSSH` | |
-| appliance kernel host name follows `system host` | Done, booted proof owed | `main_system_hostname.go` `reconcileKernelHostname` | Blocker |
+| appliance kernel host name follows `system host` | Done | `main_system_hostname.go` `reconcileKernelHostname` | booted proof in Goal Validation |
 | distro leaves the host name alone | Done | `main_system_nonappliance.go` `kernelHostnameOwned` | |
 
 ### Acceptance Criteria
@@ -482,8 +473,8 @@ The spec returns to `in-progress` when both runs are recorded; closure then resu
 | AC-6 | Done | `TestStartFailsWhenExtraListenerFails` | |
 | AC-11 | Done | `TestReconfigureAllOrNone`, `TestReloadSSHListenerBindFailureKeepsPrevious` | |
 | AC-12 | Done | `TestReloadSSHListenerMoves`, `test/reload/listener-migration-ssh.ci` | |
-| AC-7 | Partial | `TestHostnameApplierOnlyWhenChanged`; booted run owed | Blocker |
-| AC-8 | Partial | `TestHostnameApplierOnlyWhenChanged`; booted run owed | Blocker |
+| AC-7 | Done | `TestHostnameApplierOnlyWhenChanged`; `./le test qemu appliance-hostname` (cpe-lab at boot, cpe-lab2 after commit, red under the `setKernelHostname` break) | |
+| AC-8 | Done | `TestHostnameApplierOnlyWhenChanged`; `./le test qemu appliance-hostname` ("system host unset: want ze, got ze") | |
 | AC-9 | Done | `TestHostnameValidation`, `TestHostnameValidationExpandsEnv` | |
 | AC-10 | Done | `TestHostnameApplierNonApplianceNeverSets` | |
 | AC-13 | Done | `TestHostnameApplierSetFailureKeepsNameAndWarns`, `TestDoctorReportsHostnameMismatch` | |
@@ -493,7 +484,7 @@ The spec returns to `in-progress` when both runs are recorded; closure then resu
 |------|--------|----------|-------|
 | listener, ssh, l2tp and system units | Done | `listener_test.go`, `ssh/listener_set_test.go`, `l2tp/listener_test.go`, `system/hostname_test.go` | green 2026-11-09 |
 | hub units under both tags | Done | `listener_migrate_ssh_test.go`, `main_system_appliance_test.go`, `main_system_nonappliance_test.go` | green 2026-11-09 |
-| `appliance-hostname` | Partial | `internal/le/test/qemu/hostname.go` | Blocker |
+| `appliance-hostname` | Done | `internal/le/test/qemu/hostname.go` | clean exit 0, broken exit 1, 2026-11-09 (`out-gb7/c7-hostname-*.log`) |
 
 ### Files from Plan
 | File | Status | Notes |
@@ -502,8 +493,8 @@ The spec returns to `in-progress` when both runs are recorded; closure then resu
 
 ### Audit Summary
 - **Total items:** 13 ACs
-- **Done:** 11
-- **Partial:** 2 (AC-7, AC-8: the booted run is owed by the main thread; no scope is cut)
+- **Done:** 13
+- **Partial:** 0
 - **Skipped:** 0
 - **Changed:** 2 (Deviations)
 
@@ -514,20 +505,19 @@ The spec returns to `in-progress` when both runs are recorded; closure then resu
 | validation refuses a dual-stack `::` beside IPv4, naming the fix | functional | `test/parse/listener-dual-wildcard-refused.ci` asserts the error text; under its break (`dualStackPair` disabled in `conflicts`) it went red: "expected exit code 1, got 0" |
 | V6ONLY services keep both families | functional | `listener-dual-wildcard-v6only-accepted.ci` PASS (2026-11-08 13:09, `scratch/c7ro.log`) |
 | SSH binds all or none, and a reload moves it or refuses | unit and functional | `TestStartFailsWhenExtraListenerFails`, `TestReconfigureAllOrNone`, `TestReloadSSHListenerBindFailureKeepsPrevious`; `test/reload/listener-migration-ssh.ci` through the real daemon |
-| the appliance kernel host name follows `system host` | QEMU boot | owed: `./le test qemu appliance-hostname`, clean and broken (Blocker) |
+| the appliance kernel host name follows `system host` | QEMU boot | `./le test qemu appliance-hostname` on the 2026-11-09 tree, exit 0: "at boot: want cpe-lab, got cpe-lab", "after commit, no reboot: want cpe-lab2, got cpe-lab2", "system host unset: want ze, got ze" (`tmp/session/2026-11-07-104251/scratch/rwinv/out-gb7/c7-hostname-clean.log`). Under the overlay `rwinv/c7-hostname-not-set` (`setKernelHostname` returns nil without `unix.Sethostname`, one line from HEAD) it went red, exit 1: "APPLIANCE-HOSTNAME-QEMU: FAIL at boot: the kernel host name never became cpe-lab ... want cpe-lab, got ze" (`out-gb7/c7-hostname-broken.log`) |
 
 ## Work Not Done
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| booted `appliance-hostname` clean and broken runs | a QEMU guest run belongs to the main thread | `plan/release/fixes/spec-home-cpe-7-system-small-defects.md` (this spec, held blocked) |
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
-| Artifact | recorded by `./le spec review record` over the reviewed files |
-| `./le spec review check` | clean |
+| Artifact | `tmp/review/home-cpe-7-system-small-defects-7e292f27-ced0-427f-a7b6-3a931db211f9.md` (CLEAN, pins `docs/guide/appliance.md`, `bmp.md`, `configuration.md`) |
+| `./le spec review check` | 2026-11-09: "review_gate: OK ... hashes match" |
 | Rounds | 2 |
 | Reviewer lenses used | logic and wiring (listener rule, SSH bind and reconfigure, migrator), security (host name input before `sethostname`, fail-open, exposure), docs and anchors, style (every `panic` is an init-time registration, none reachable by a peer) |
 
@@ -561,13 +551,13 @@ The spec returns to `in-progress` when both runs are recorded; closure then resu
 |-------|-------|----------------|
 | AC-1 to AC-6, AC-9, AC-11 | units green | `./le job run label c7-units`: ok config, config/system, ssh, l2tp (`tmp/session/2026-11-07-104251/scratch/job-c7-units-61e522ae.log`) |
 | AC-10 to AC-13 | hub units green under both tags | `c7-hub` ok `cmd/ze/hub` (`job-c7-hub-683cb718.log`); `c7-hub-appl` with `-tags ze_appliance` ok |
-| AC-7, AC-8 | booted | owed (Blocker) |
+| AC-7, AC-8 | booted | `./le test qemu appliance-hostname` clean exit 0, broken exit 1 (`tmp/session/2026-11-07-104251/scratch/rwinv/out-gb7/c7-hostname-clean.log`, `c7-hostname-broken.log`) |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
 | `ze config validate` with both wildcards | `test/parse/listener-dual-wildcard-refused.ci` | PASS in the parse run (`scratch/qemu-parse.log`), red under its break |
-| appliance boot | `./le test qemu appliance-hostname` | owed |
+| appliance boot | `./le test qemu appliance-hostname` | PASS 2026-11-09, red under its break |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
