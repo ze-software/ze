@@ -43,15 +43,7 @@ var raRDNSSRefusals = []dnssource.Refusal{
 // raParseRDNSSSources reads the dns-source container of an rdnss container,
 // or answers the built-in default when it is absent.
 func raParseRDNSSSources(rdnss map[string]any) (dnssource.List, error) {
-	body, ok := rdnss["dns-source"].(map[string]any)
-	if !ok {
-		return raRDNSSDefault, nil
-	}
-	written, err := dnssource.ReadWritten(raRDNSSSourcePath, body)
-	if err != nil {
-		return dnssource.List{}, err
-	}
-	return dnssource.NewWrittenList(raRDNSSSourcePath, dnssource.FamilyIPv6, dnssource.AudienceHandedOn, written,
+	return dnssource.ParseContainer(rdnss, raRDNSSDefault, dnssource.FamilyIPv6, dnssource.AudienceHandedOn,
 		raRDNSSRefusals...)
 }
 

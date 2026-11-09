@@ -228,9 +228,11 @@ func (r *resolver) relearn(event string) error {
 	}
 	r.publish.Lock()
 	defer r.publish.Unlock()
-	cfg := r.window
-	if cfg == nil {
-		cfg = r.shown.Load()
+	// A reload window's config is the one the next policy is built from;
+	// outside a window it is the config last applied.
+	cfg := r.shown.Load()
+	if r.window != nil {
+		cfg = r.window
 	}
 	// refuse-by-default: guards apply -- no applied config means no policy yet; the first apply reads these records
 	if cfg == nil {

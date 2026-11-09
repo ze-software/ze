@@ -36,20 +36,12 @@ var (
 		dnssource.ClassRadius, dnssource.ClassConfigured, dnssource.ClassReceived)
 )
 
-// parsePoolSources reads a pool's dns-source container at path, or answers
-// the built-in default when it is absent. Every class is allowed: the pool is
+// parsePoolSources reads a pool's dns-source container, or answers the
+// built-in default when it is absent; builtin's path names the list. Every class is allowed: the pool is
 // the one consumer with a subscriber, so radius has a meaning here, and self
 // is the pool's gateway on the subscriber's link (D-6).
-func parsePoolSources(block map[string]any, path string, builtin dnssource.List) (dnssource.List, error) {
-	body, ok := block["dns-source"].(map[string]any)
-	if !ok {
-		return builtin, nil
-	}
-	written, err := dnssource.ReadWritten(path, body)
-	if err != nil {
-		return dnssource.List{}, err
-	}
-	return dnssource.NewWrittenList(path, dnssource.FamilyIPv4, dnssource.AudienceHandedOn, written)
+func parsePoolSources(block map[string]any, builtin dnssource.List) (dnssource.List, error) {
+	return dnssource.ParseContainer(block, builtin, dnssource.FamilyIPv4, dnssource.AudienceHandedOn)
 }
 
 // subscriberDNS is the pair of resolvers one IPCP response offers. The zero

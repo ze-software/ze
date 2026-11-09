@@ -143,7 +143,11 @@ func TestParseConfigRefusals(t *testing.T) {
 			[]string{`listener "lan"`, "wildcard", "LAN or loopback"}},
 		{"AC-4 no allow-from", listener + "," + forward,
 			[]string{"refuse every client", "allow-from <"}},
-		{"empty forward list", listener + "," + allow,
+		// Under the built-in default (configured, then received) an empty
+		// forward list waits for a learned server (AC-20,
+		// TestForwardPassThroughDefault); a list naming no received source
+		// has nowhere to resolve.
+		{"empty forward list, configured only", listener + "," + allow + `,"forward":{"dns-source":{"source":["configured"]}}`,
 			[]string{"nowhere to resolve", "forward server <"}},
 		{"allow-from not a prefix", listener + `,"allow-from":["10.0.0.0"],` + forward,
 			[]string{`allow-from "10.0.0.0"`, "not an IP prefix", "allow-from 192.0.2.0/24"}},

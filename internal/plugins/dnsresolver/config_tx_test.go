@@ -204,6 +204,9 @@ func publishedForward(t *testing.T, res *resolver) []upstream {
 // server joining a configured one under the default.
 func TestForwardPassThroughDefault(t *testing.T) {
 	cfg := testConfig()
+	// checkEnabled also refuses an enabled resolver with no listener, which
+	// is not what this test is about.
+	cfg.Listeners = []listenerEndpoint{{Name: "lan", IP: netip.MustParseAddr("127.0.0.1"), Port: 53}}
 	if !cfg.Sources.Stated() {
 		t.Fatal("the default config does not carry the built-in default list")
 	}

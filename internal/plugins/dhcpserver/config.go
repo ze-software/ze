@@ -527,14 +527,6 @@ var subnetDNSRefusals = []dnssource.Refusal{
 // parseSubnetSources reads a subnet's dns-source container, or answers the
 // built-in default when it is absent.
 func parseSubnetSources(data map[string]any) (dnssource.List, error) {
-	body, ok := data["dns-source"].(map[string]any)
-	if !ok {
-		return subnetDNSDefault, nil
-	}
-	written, err := dnssource.ReadWritten(subnetDNSSourcePath, body)
-	if err != nil {
-		return dnssource.List{}, err
-	}
-	return dnssource.NewWrittenList(subnetDNSSourcePath, dnssource.FamilyIPv4, dnssource.AudienceHandedOn, written,
+	return dnssource.ParseContainer(data, subnetDNSDefault, dnssource.FamilyIPv4, dnssource.AudienceHandedOn,
 		subnetDNSRefusals...)
 }

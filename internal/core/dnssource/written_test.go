@@ -206,3 +206,39 @@ func TestReadWrittenFromPluginJSON(t *testing.T) {
 		}
 	}
 }
+
+// TestParseContainerAbsentWrittenAndMalformed: an absent container answers
+// the built-in default, a written one the written list, and a container that
+// is not an object is refused naming the path, never read as absent.
+//
+// VALIDATES: ParseContainer, the one reader every consumer's dns-source goes
+// through. PREVENTS: the default silently standing in for a list the operator
+// wrote, which the per-consumer type assertions did.
+func TestParseContainerAbsentWrittenAndMalformed(t *testing.T) {
+	builtin := StatedDefault("service dhcp-server subnet dns-source", FamilyIPv4, AudienceHandedOn,
+		ModeFirstUsable, ClassConfigured, ClassReceived)
+
+	got, err := ParseContainer(map[string]any{}, builtin, FamilyIPv4, AudienceHandedOn)
+	if err != nil {
+		t.Fatalf("absent container refused: %v", err)
+	}
+	if !got.Stated() {
+		t.Errorf("absent container: got a written list, want the built-in default")
+	}
+
+	got, err = ParseContainer(map[string]any{ContainerKey: map[string]any{"source": "self"}}, builtin, FamilyIPv4, AudienceHandedOn)
+	if err != nil {
+		t.Fatalf("written container refused: %v", err)
+	}
+	if got.Stated() || len(got.Sources()) != 1 || got.Sources()[0] != ClassSelf {
+		t.Errorf("written container: sources %v default %v, want [self] written", got.Sources(), got.Stated())
+	}
+
+	_, err = ParseContainer(map[string]any{ContainerKey: "self"}, builtin, FamilyIPv4, AudienceHandedOn)
+	if err == nil {
+		t.Fatal("a dns-source that is not a container was accepted")
+	}
+	if !strings.Contains(err.Error(), "service dhcp-server subnet dns-source is not a container") {
+		t.Errorf("refusal %q does not name the path", err)
+	}
+}

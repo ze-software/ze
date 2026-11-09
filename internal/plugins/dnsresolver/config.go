@@ -374,15 +374,7 @@ func parseForwardSources(r map[string]any) (dnssource.List, error) {
 	if !ok {
 		return forwardDefault, nil
 	}
-	body, ok := asMap(fm, "dns-source")
-	if !ok {
-		return forwardDefault, nil
-	}
-	written, err := dnssource.ReadWritten(forwardDNSSourcePath, body)
-	if err != nil {
-		return dnssource.List{}, err
-	}
-	return dnssource.NewWrittenList(forwardDNSSourcePath, dnssource.FamilyAll, dnssource.AudienceZe, written, forwardRefusals...)
+	return dnssource.ParseContainer(fm, forwardDefault, dnssource.FamilyAll, dnssource.AudienceZe, forwardRefusals...)
 }
 
 func asMap(m map[string]any, key string) (map[string]any, bool) {

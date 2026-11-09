@@ -86,3 +86,36 @@ func unknownClassError(path, word string) error {
 	return errors.New(path + " source " + word + ": not a source class, so Ze cannot tell where to take resolvers from\n" +
 		"delete " + path + " source " + word + ", and name one of " + strings.Join(names, ", "))
 }
+
+// ContainerKey is the name of the dns-source container in a consumer's config
+// JSON.
+const ContainerKey = "dns-source"
+
+// ParseContainer reads the dns-source container of parent, a consumer's
+// config object, into the list the consumer selects with. A parent that holds
+// no container answers builtin, the consumer's built-in default (D-5), whose
+// path names the container in every refusal; a container that is not an
+// object is refused rather than read as absent, because the default would
+// then stand in for a list the operator wrote. The written list is validated
+// by NewWrittenList with family, audience and the classes the consumer
+// refuses.
+func ParseContainer(parent map[string]any, builtin List, family Family, audience Audience, refused ...Refusal) (List, error) {
+	raw, present := parent[ContainerKey]
+	if present {
+		return parseWrittenContainer(builtin.Path(), raw, family, audience, refused)
+	}
+	return builtin, nil
+}
+
+// parseWrittenContainer reads one written container at path.
+func parseWrittenContainer(path string, raw any, family Family, audience Audience, refused []Refusal) (List, error) {
+	body, isObject := raw.(map[string]any)
+	if !isObject {
+		return List{}, errors.New(path + " is not a container; write it as " + path + " { source <class>; }")
+	}
+	written, err := ReadWritten(path, body)
+	if err != nil {
+		return List{}, err
+	}
+	return NewWrittenList(path, family, audience, written, refused...)
+}
