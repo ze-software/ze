@@ -1618,6 +1618,21 @@ only by a GitHub `CodeQL` workflow run on a pushed commit whose Go extraction
 log shows an authored sentinel extracted and a `gokrazy/modcache` sentinel
 absent.
 
+## P-12 (b): RTR fixtures (2026-11-09)
+
+Run with `./le test bgp plugin -p 1 -t 60s <names>` on macOS.
+
+| Fixture | Result |
+| --- | --- |
+| `rpki-revalidate-late-sync` | Green. Feature red: `route.ValidationState = d.ValState` in `applyToInstalled` (`adj_rib_in/rib_validation.go`) replaced by `_ = d.ValState`, and the observer fails as "after cache synchronization: route 10.0.1.0/24 never reached validation state 3, ineligible=true". Restored green |
+| `bgp-rr-rpki-pending-withdraw-relay`, `bgp-rs-rpki-pending-withdraw-relay`, `bgp-rr-rpki-revalidate-relay`, `bgp-rs-rpki-revalidate-relay` | Not run: each refuses before start as `loopback_address_missing` ("ensureLoopbackAlias: ioctl SIOCAIFADDR 127.0.0.2 on lo0: operation not permitted"). The alias needs `sudo ifconfig lo0 alias 127.0.0.2` or `./le setup install`, an owner action |
+
+The shared harness cut (`repositoryAnchoredBinary` answering true for
+`le mock`) is not observable with an uncommitted edit: `./le` runs a binary
+built from the committed HEAD (`bin/builds/<time>-<sha>`), so the runner never
+sees the change, and the late-sync fixture passed under it. Its red needs a
+runner built from the working tree, or the cut committed on a branch.
+
 ## P-12 (c): IPsec lab log key (2026-11-09)
 
 The repair is `163a5d1b88`: the IPsec lab sets `ZE_LOG=debug` for the Ze
