@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Priority | P3 |
 | Release reason | Ze already runs one SPD per XFRM interface if_id beside the node-wide SPD at if_id 0, so RFC 4301 Section 4.4.1 owes the selection function and each SPD its own final DISCARD entry; the shipped partial selection leaves one IPv6 cleartext path. RFC4301-4.4.1-8 (application override) is Phase 8, in implementation: Thomas answered D8-1 to D8-4 (cilium/ebpf approved for `ike/dataplane`, default `deny`, socket policies only, one switch). |
 | Scope | protocol |
@@ -10,9 +10,28 @@
 | Depends | - |
 | Phase | 8/8 |
 | Handoff | - |
-| Updated | 2026-11-08 |
+| Updated | 2026-11-09 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Blocker
+
+Closure (`/ze-close`, 2026-11-09) stopped at step 1, Deliverables review: one
+deliverable is not implemented, and two evidence runs the spec names are not on
+record. The spec returns to `/ze-implement`; the main thread sets it back to
+`in-progress`.
+
+| # | What blocks | Where it is owed | What clears it |
+|---|-------------|------------------|----------------|
+| 1 | `test/ipsec/dataplane-policy-spd-role.ci` does not exist. It is Wiring Test row 5, End-to-End User Story 3, the Functional Tests row and the "Role and SPD in the listing" deliverable. No `.ci` under `test/` asserts the `spd`, `role` or `if-index` keys (grep of `test/` for them finds none; `test/ipsec/ipsec-show-dataplane-kernel.ci` asserts none of them). The producer it must reach is `internal/component/ike/cmd/show_dataplane.go` `policyInfoToMap`, through the `ze-ike:show-vpn-ipsec-dataplane-policy` RPC | `/ze-implement`, through `/ze-test` | Write the `.ci` against the real XFRM dataplane (the rows come from the kernel dump joined in `dataplane/xfrm_linux.go` `policyInfoFromKernel`), so it declares `option=needs-linux:caps=net-admin,bpf` like the nine XFRM-backed `test/ipsec` tests of 0d3f2c696c, and prove it red then green in the Ze-kernel guest |
+| 2 | The nine XFRM-backed `test/ipsec` `.ci` tests that 0d3f2c696c and af04d4903f made able to start under the `deny` default (`ipsec-show-dataplane-kernel`, `ipsec-show-sa-counters`, `ipsec-teardown-leaves-nothing`, `ipsec-child-rekey-xfrm`, `ipsec-child-rekey-xfrm-narrowing`, `ipsec-follows-wan-address`, `ipsec-peer-reload-applies-selectors`, `ipsec-peer-reload-leaves-tunnel-alone`, `ipsec-respond-reinit-supersede`) have no green guest run on record after af04d4903f. D8-2 obliges this work to re-validate every repository user of `vpn ipsec` under `deny`, so their run is this spec's evidence | main thread (guest batch 6) | A green guest run of the nine, together with item 1's new `.ci` |
+| 3 | The interop scenarios `vti-unmatched-discard-interface-spd`, `vti-ipv6-tunnel-source-no-cleartext-leak` and `vti-ipv6-inner-ipv4-outer` were last reported green at 9c92ef159f, before phase 8 made `deny` the default (652591fc76). No run of them under `deny` is on record; the Deliverables Checklist's Interop row names them | main thread (lab) | `./le test integration interop-ipsec` for the three, green |
+
+Checked and not blocking: `./le rfc check` (2026-11-09) reports no rfc4301
+violation and no stale or shifted rfc4301 audit verdict;
+`rfc/discrimination/rfc4301/RFC4301-4.4.1-5.json` and `RFC4301-4.4.1-8.json`
+exist; RFC4301-4.4.1-3 prints as partial with its gap owned by
+`plan/post-release/features/spec-ipsec-spd-final-discard-vpp-ospf.md`.
 
 ## Task
 
