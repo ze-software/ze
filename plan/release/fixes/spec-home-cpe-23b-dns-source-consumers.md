@@ -2,15 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | config |
 | Priority | P3 |
 | Release reason | Feature half of child 23, split out by owner decision D-10 (`spec-home-cpe-23-dns-source-fall-through`, "Split"): the per-consumer source lists of the LAN resolver, DHCPv4 option 6, RA RDNSS and the subscriber pool, the RADIUS-supplied subscriber DNS, the pass-through defaults, `show system dns`, doctor and metrics. Thomas placed it in `release/fixes` after 23a (D-10), beside the other home-CPE children |
 | RFC gaps | RFC7084-4.3-12 |
 | Depends | Implementation: `spec-home-cpe-23-dns-source-fall-through` (23a, its design in `docs/features/dns-resolver.md`: the record registry, the shared selection rule, the list grammar, the `system-dns` event, the router consumer). A LAN DHCPv6 consumer exists only after `post-release/features/spec-dhcpv6-server.md` |
-| Phase | - |
+| Phase | 8/8 |
 | Handoff | - |
-| Updated | 2026-11-08 |
+| Updated | 2026-11-09 |
 
 Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md. Sibling and
 dependency: `spec-home-cpe-23-dns-source-fall-through` (23a). Every
