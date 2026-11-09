@@ -33,9 +33,12 @@ func (issue *externalIssue) Unwrap() error { return issue.cause }
 // reachable bodies and ambient references only grow. No provisional admission
 // may be consumed until solve has reached its fixed point and validated metadata.
 type externalEffects struct {
-	source          *externalSource
-	resolver        *expression
-	typeIdentities  *externalTypeIdentityIndex
+	source         *externalSource
+	resolver       *expression
+	typeIdentities *externalTypeIdentityIndex
+	// instantiations indexes written generic instantiations by base name,
+	// built on first use (instantiationSites).
+	instantiations  map[string][]externalInstantiationSite
 	receiverQueries map[externalReceiverQuery]externalReceiverResult
 	// ambient counts growths of amb, so a settled type value read from one
 	// pool is never answered once the pool has grown (growAmbient).

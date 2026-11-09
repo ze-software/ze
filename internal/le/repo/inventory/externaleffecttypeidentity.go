@@ -105,9 +105,14 @@ func externalLexicalTypeScope(source sourceExpr) *externalTypeScope {
 		var parameters *ast.FieldList
 		switch declaration := node.(type) {
 		case *ast.TypeSpec:
-			parameters = declaration.TypeParams
+			if declaration.TypeParams.NumFields() != 0 {
+				result = externalBindDeclarationTypeParameters(result, declaration, source.file, source.pkg)
+			}
 		case *ast.FuncDecl:
 			parameters = declaration.Type.TypeParams
+			if len(externalReceiverTypeParameters(declaration)) != 0 {
+				result = externalBindReceiverTypeParameters(result, declaration, source.file, source.pkg, nil)
+			}
 		}
 		if parameters.NumFields() != 0 {
 			result = externalBindTypeParameters(result, parameters, nil)
@@ -115,6 +120,24 @@ func externalLexicalTypeScope(source sourceExpr) *externalTypeScope {
 		return true
 	})
 	return result
+}
+
+// externalBindDeclarationTypeParameters binds a generic type's own parameters
+// where its declaration is read with no instantiation, as a field type
+// elems []T is read in its declaring scope. Reflection bounds each by the
+// types the program instantiates the declaration with (receiverInstantiations).
+func externalBindDeclarationTypeParameters(parent *externalTypeScope, definition *ast.TypeSpec, file *ast.File, pkg *sourcePackage) *externalTypeScope {
+	scope := externalBindTypeParameters(parent, definition.TypeParams, nil)
+	position := 0
+	for _, field := range definition.TypeParams.List {
+		for _, name := range field.Names {
+			binding := scope.parameters[name.Name]
+			binding.receiver = &externalReceiverParameter{definition: definition, file: file, pkg: pkg, position: position}
+			scope.parameters[name.Name] = binding
+			position++
+		}
+	}
+	return scope
 }
 
 func externalBindTypeParameters(parent *externalTypeScope, parameters *ast.FieldList, arguments []externalTypeArgument) *externalTypeScope {
@@ -129,6 +152,64 @@ func externalBindTypeParameters(parent *externalTypeScope, parameters *ast.Field
 			scope.parameters[name.Name] = externalTypeBinding{object: name.Obj, argument: argument}
 			index++
 		}
+	}
+	return scope
+}
+
+// externalReceiverBase answers a method's receiver base type expression and
+// the type parameter expressions it declares, as func (q *queue[T]) has base
+// queue and declares T. A receiver of a non-generic type declares none.
+func externalReceiverBase(declaration *ast.FuncDecl) (ast.Expr, []ast.Expr) {
+	if declaration.Recv == nil || len(declaration.Recv.List) != 1 {
+		return nil, nil
+	}
+	receiver := ast.Unparen(declaration.Recv.List[0].Type)
+	if pointer, indirect := receiver.(*ast.StarExpr); indirect {
+		receiver = ast.Unparen(pointer.X)
+	}
+	switch generic := receiver.(type) {
+	case *ast.IndexExpr:
+		return generic.X, []ast.Expr{generic.Index}
+	case *ast.IndexListExpr:
+		return generic.X, generic.Indices
+	}
+	return receiver, nil
+}
+
+// externalReceiverTypeParameters answers the type parameters a method of a
+// generic type declares in its receiver, as func (q *queue[T]) declares T.
+// Go specification, Method declarations: "If the receiver base type is a
+// generic type, the receiver specification must declare corresponding type
+// parameters for the method to use." go/parser declares each name in the
+// method's scope, so a use of T in the body resolves to the identifier in the
+// receiver.
+func externalReceiverTypeParameters(declaration *ast.FuncDecl) []*ast.Ident {
+	_, indices := externalReceiverBase(declaration)
+	var names []*ast.Ident
+	for _, index := range indices {
+		if name, named := index.(*ast.Ident); named {
+			names = append(names, name)
+		}
+	}
+	return names
+}
+
+// externalBindReceiverTypeParameters binds a method's receiver type
+// parameters to arguments in declaration order. With no arguments the method
+// may run for any instantiation: the ordinary capability walk gives each
+// parameter the ambient pool, and reflection bounds it by the types the
+// program instantiates it with (receiverInstantiations), which receiver names.
+func externalBindReceiverTypeParameters(parent *externalTypeScope, method *ast.FuncDecl, file *ast.File, pkg *sourcePackage, arguments []externalTypeArgument) *externalTypeScope {
+	names := externalReceiverTypeParameters(method)
+	scope := &externalTypeScope{parent: parent, parameters: make(map[string]externalTypeBinding, len(names))}
+	for index, name := range names {
+		binding := externalTypeBinding{object: name.Obj}
+		if index < len(arguments) {
+			binding.argument = arguments[index]
+		} else {
+			binding.receiver = &externalReceiverParameter{method: method, file: file, pkg: pkg, position: index}
+		}
+		scope.parameters[name.Name] = binding
 	}
 	return scope
 }
@@ -153,10 +234,11 @@ func (w *externalTypeWalk) methods(definition *ast.TypeSpec, owner sourceExpr) e
 		if receiver.definition != definition {
 			continue
 		}
-		if receiver.generic {
-			result.join(externalValue{unknown: "generic receiver method capability execution is unsupported"})
-			continue
-		}
+		// A method of a generic type executes like any other: its body binds
+		// the receiver's type parameters with no argument
+		// (externalBindReceiverTypeParameters), so a value of type T carries
+		// the ambient pool, and a method called on such a value has no
+		// declaration to resolve and refuses as an unresolved receiver.
 		if function.decl.Body == nil {
 			result.join(externalValue{unknown: "bodyless retained method capability execution is unsupported"})
 			continue

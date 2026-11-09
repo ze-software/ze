@@ -265,6 +265,29 @@ interface signature types, even though a nil interface value has no concrete
 descriptor. An unproved type kind retains ordinary value-index evaluation.
 This transfer grants neither backing storage nor ordinary callee ownership.
 <!-- source: internal/le/repo/inventory/externaltypearguments.go -- externalEffects.indexArgument, externalEffects.typeArgument -->
+
+A method of a generic type executes like any other method when its type's
+capability is exposed, as btf's encoder exposes the methods of the
+`internal.Deque[Type]` it holds. The type parameters a method declares in its
+receiver (`func (q *queue[T])`) are bound in the method's scope, as the Go
+specification declares them "for the method to use", and so are a generic
+declaration's own parameters where its body is read uninstantiated. Such a
+parameter has no argument. The ordinary capability walk gives it the ambient
+pool, the existing rule for an unbound parameter, and a parameter of that type
+takes the reference-bearing formal shape. Reflection binds an exposed method's
+signature to the instantiation that exposed it. Where nothing binds the
+parameter, reflection reads it as every type the retained source writes in
+that position of an instantiation of the type, because a value of type T has
+one of them as its dynamic type. An instantiation that names the type's own
+parameter is skipped, and a parameter whose census reaches itself refuses. A
+method called on a value of type T has no declaration and dispatches through
+the stored value's own capability. A direct call of a generic receiver's
+method and a generic function still refuse.
+<!-- source: internal/le/repo/inventory/externaleffecttypeidentity.go -- externalReceiverBase, externalReceiverTypeParameters, externalBindReceiverTypeParameters, externalBindDeclarationTypeParameters, externalTypeWalk.methods -->
+<!-- source: internal/le/repo/inventory/externaltypeindex.go -- externalTypeIdentityIndex.lexicalScope -->
+<!-- source: internal/le/repo/inventory/externalinstantiations.go -- externalEffects.instantiationSites, externalEffects.receiverInstantiations -->
+<!-- source: internal/le/repo/inventory/externalreflectiontypes.go -- externalReflectionWalk.collectMethods, externalReflectionWalk.collectInstantiations -->
+<!-- source: internal/le/repo/inventory/externalformalproof.go -- externalEffects.formalShape -->
 <!-- source: internal/le/repo/inventory/externaleffects.go -- externalEffects.expose -->
 
 A standard-library named type is external on every route that names it: a

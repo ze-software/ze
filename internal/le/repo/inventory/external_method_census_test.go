@@ -45,16 +45,21 @@ func TestExternalMethodCensusRefusalOrder(t *testing.T) {
 			reflectedNames: []string{"Later"},
 		},
 		{
-			name:      "generic before unrelated error",
-			body:      "type Root[T any] struct{}\nfunc (Root[T]) Generic() {}\nfunc (Missing) Other() {}\n",
-			ordinary:  "generic receiver method capability execution is unsupported",
-			reflected: "generic reflected receiver execution is unsupported",
+			// A generic method executes as ordinary capability. The census
+			// reads Root uninstantiated, so the reflected signature has no
+			// argument to bind its T to.
+			name:          "generic before unrelated error",
+			body:          "type Root[T any] struct{}\nfunc (Root[T]) Generic() {}\nfunc (Missing) Other() {}\n",
+			ordinary:      unresolved,
+			reflected:     "reflected generic type argument count is unresolved",
+			ordinaryNames: []string{"Generic"},
 		},
 		{
-			name:      "unrelated error before generic",
-			body:      "type Root[T any] struct{}\nfunc (Missing) Other() {}\nfunc (Root[T]) Generic() {}\n",
-			ordinary:  unresolved,
-			reflected: unresolved,
+			name:          "unrelated error before generic",
+			body:          "type Root[T any] struct{}\nfunc (Missing) Other() {}\nfunc (Root[T]) Generic() {}\n",
+			ordinary:      unresolved,
+			reflected:     unresolved,
+			ordinaryNames: []string{"Generic"},
 		},
 		{
 			name:           "unrelated bodyless and generic remain inert",
@@ -196,7 +201,7 @@ func TestExternalMethodCensusWidePackage(t *testing.T) {
 		}
 		methodCensusCompareNodes(t, ordinary.callables, wanted)
 		var part externalReflectionPart
-		reflectionWalk.collectMethods(definition, owner, &part)
+		reflectionWalk.collectMethods(definition, owner, nil, &part)
 		reflected := part.reflection
 		if reflected.unknown != "" {
 			t.Fatal(reflected.unknown)
@@ -250,7 +255,7 @@ func methodCensusCheck(t *testing.T, effects *externalEffects, definition *ast.T
 	methodCensusCompareNodes(t, ordinary.callables, methodCensusExpectedNodes(t, effects, owner.pkg, ordinaryNames))
 	reflectionWalk := externalReflectionWalk{effects: effects}
 	var part externalReflectionPart
-	reflectionWalk.collectMethods(definition, owner, &part)
+	reflectionWalk.collectMethods(definition, owner, nil, &part)
 	reflected := part.reflection
 	if reflected.unknown != reflectedCause {
 		t.Fatalf("reflected reason = %q, want %q", reflected.unknown, reflectedCause)

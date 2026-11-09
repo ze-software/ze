@@ -26,9 +26,14 @@ type externalTypeIdentityIndex struct {
 
 // A lexical entry preserves every ancestor's original containment predicates,
 // not just the parameter declaration's own span. Entries keep AST preorder.
+// An entry holds a generic function's type parameter list, a generic type
+// declaration, or a method whose receiver declares type parameters
+// (externalReceiverTypeParameters).
 type externalLexicalParameters struct {
 	span       externalLexicalSpan
 	parameters *ast.FieldList
+	method     *ast.FuncDecl
+	definition *ast.TypeSpec
 }
 
 type externalLexicalSpan struct {
@@ -67,9 +72,14 @@ func newExternalTypeIdentityIndex(snapshot *Snapshot) *externalTypeIdentityIndex
 				var fields *ast.FieldList
 				switch declaration := node.(type) {
 				case *ast.TypeSpec:
-					fields = declaration.TypeParams
+					if declaration.TypeParams.NumFields() != 0 {
+						parameters = append(parameters, externalLexicalParameters{span: span, definition: declaration})
+					}
 				case *ast.FuncDecl:
 					fields = declaration.Type.TypeParams
+					if len(externalReceiverTypeParameters(declaration)) != 0 {
+						parameters = append(parameters, externalLexicalParameters{span: span, method: declaration})
+					}
 				}
 				if fields.NumFields() != 0 {
 					parameters = append(parameters, externalLexicalParameters{span: span, parameters: fields})
@@ -124,6 +134,14 @@ func (index *externalTypeIdentityIndex) lexicalScope(source sourceExpr) *externa
 		}
 		// Preserve fresh scope identity: argument.scope participates in
 		// recursion-frame equality and cannot be interned across queries.
+		if declaration.method != nil {
+			result = externalBindReceiverTypeParameters(result, declaration.method, source.file, source.pkg, nil)
+			continue
+		}
+		if declaration.definition != nil {
+			result = externalBindDeclarationTypeParameters(result, declaration.definition, source.file, source.pkg)
+			continue
+		}
 		result = externalBindTypeParameters(result, declaration.parameters, nil)
 	}
 	return result

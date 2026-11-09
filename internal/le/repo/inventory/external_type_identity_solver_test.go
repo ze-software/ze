@@ -141,7 +141,6 @@ func TestExternalTypeIdentityReceiverQueriesKeepTheirDepth(t *testing.T) {
 func TestExternalTypeIdentityRetainsReceiverRefusals(t *testing.T) {
 	for _, scenario := range []struct{ name, text, cause string }{
 		{"bodyless", "type T int\nfunc (T) Opaque()\n", "bodyless"},
-		{"generic", "type T[P any] struct{}\nfunc (T[P]) Act() {}\n", "generic receiver"},
 		{"unrelated unresolved", "type T int\nfunc (Missing) Other() {}\n", "ownership is unresolved"},
 		{"unrelated alias cycle", "type T int\ntype A = B\ntype B = A\nfunc (A) Other() {}\n", "cyclic retained receiver"},
 	} {
@@ -161,6 +160,31 @@ func TestExternalTypeIdentityRetainsReceiverRefusals(t *testing.T) {
 				t.Fatalf("receiver census dropped its %s refusal: %+v", scenario.cause, value)
 			}
 		})
+	}
+}
+
+// TestExternalTypeIdentityExecutesGenericReceiverMethods requires a method
+// of a generic type to join the type's capability as an executed body, the
+// way a method of any other type does, now that its receiver type parameters
+// are bound in the method's scope.
+func TestExternalTypeIdentityExecutesGenericReceiverMethods(t *testing.T) {
+	const directory = "pkg/generic"
+	effects := typeIdentitySelectedSource(t, directory, map[string]string{directory + "/source.go": "package generic\ntype T[P any] struct{}\nfunc (T[P]) Act() {}\n"})
+	pkg := effects.source.snapshot.packages[directory]
+	file := typeIdentitySelectedFile(t, pkg, directory+"/source.go")
+	name := ast.NewIdent("T")
+	name.Obj = file.Scope.Lookup("T")
+	walk := externalTypeWalk{effects: effects}
+	definition, owner, reason := walk.definition(sourceExpr{value: name, file: file, pkg: pkg})
+	if reason != "" {
+		t.Fatal(reason)
+	}
+	value := walk.methods(definition, owner)
+	if value.unknown != "" {
+		t.Fatalf("generic receiver method refused: %s", value.unknown)
+	}
+	if len(value.callables) != 1 {
+		t.Fatalf("generic receiver method count = %d, want 1", len(value.callables))
 	}
 }
 

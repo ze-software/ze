@@ -39,6 +39,9 @@ type externalReflectionWalk struct {
 	active map[int32]int
 	stack  []*externalReflectionOpen
 	calls  []*externalReflectionOpen
+	// instantiating holds the receiver type parameters whose instantiations
+	// are being collected (collectInstantiations).
+	instantiating map[externalReceiverParameter]bool
 }
 
 // externalReflectionPart is the union one walk collects into: a query's
@@ -172,7 +175,12 @@ func (w *externalReflectionWalk) descriptor(source sourceExpr, scope *externalTy
 		}
 		return
 	case *ast.Ident:
-		if argument, found := scope.argument(datatype); found {
+		if binding, found := scope.binding(datatype); found {
+			argument := binding.argument
+			if argument.source.value == nil && binding.receiver != nil {
+				w.collectInstantiations(*binding.receiver, methods, valueRoot, result)
+				return
+			}
 			if argument.source.value == nil {
 				w.noteUnknown(result, "reflected type parameter has no retained argument")
 				return
@@ -351,7 +359,7 @@ func (w *externalReflectionWalk) expand(named externalReflectionNamed, arguments
 		scope = externalBindTypeParameters(scope, definition.TypeParams, arguments)
 	}
 	if methods {
-		w.collectMethods(definition, owner, part)
+		w.collectMethods(definition, owner, arguments, part)
 	}
 	w.collect(owner, scope, methods && definition.Assign.IsValid(), valueRoot, part)
 }
@@ -359,7 +367,7 @@ func (w *externalReflectionWalk) expand(named externalReflectionNamed, arguments
 // collectMethods records only ordinary reflected callable methods. Signatures
 // join this SAME traversal, so method-result chains cannot recursively launch
 // independent walkers or borrow a different lexical owner.
-func (w *externalReflectionWalk) collectMethods(definition *ast.TypeSpec, owner sourceExpr, result *externalReflectionPart) {
+func (w *externalReflectionWalk) collectMethods(definition *ast.TypeSpec, owner sourceExpr, arguments []externalTypeArgument, result *externalReflectionPart) {
 	identity := externalTypeWalk{effects: w.effects}
 	cursor := w.effects.methodCursor(owner.pkg, definition)
 	for row, present := cursor.next(); present; row, present = cursor.next() {
@@ -380,24 +388,57 @@ func (w *externalReflectionWalk) collectMethods(definition *ast.TypeSpec, owner 
 		if receiver.definition != definition {
 			continue
 		}
-		if receiver.generic {
-			w.noteUnknown(result, "generic reflected receiver execution is unsupported")
-			continue
-		}
 		if function.decl.Body == nil {
 			w.noteUnknown(result, "bodyless reflected method execution is unsupported")
 			continue
 		}
 		source := sourceExpr{value: function.decl.Name, file: function.file, pkg: owner.pkg}
+		source.value = function.decl.Type
+		scope := w.effects.typeIdentities.lexicalScope(source)
+		if receiver.generic {
+			// The method's signature names the receiver's type parameters,
+			// which this instantiation's arguments bind in declaration order.
+			if len(externalReceiverTypeParameters(function.decl)) != len(arguments) {
+				w.noteUnknown(result, "reflected generic type argument count is unresolved")
+				continue
+			}
+			scope = externalBindReceiverTypeParameters(scope, function.decl, function.file, owner.pkg, arguments)
+		}
 		if result.reflection.methods == nil {
 			result.reflection.methods = make(map[ast.Node]sourceExpr)
 		}
 		if _, found := result.reflection.methods[function.decl]; !found {
-			result.reflection.methods[function.decl] = source
+			result.reflection.methods[function.decl] = sourceExpr{value: function.decl.Name, file: function.file, pkg: owner.pkg}
 		}
-		source.value = function.decl.Type
-		w.collect(source, w.effects.typeIdentities.lexicalScope(source), true, false, result)
+		w.collect(source, scope, true, false, result)
 	}
+}
+
+// collectInstantiations reflects a method's receiver type parameter that no
+// instantiation binds, as the method runs when its function value is exposed:
+// a value of that type has one of the types the program instantiates the
+// receiver with, so each written argument is collected (receiverInstantiations).
+// A parameter already being collected on this walk refuses, because its
+// instantiations include itself through another generic type and the union
+// would be read before it is complete.
+func (w *externalReflectionWalk) collectInstantiations(parameter externalReceiverParameter, methods, valueRoot bool, result *externalReflectionPart) {
+	if w.instantiating[parameter] {
+		w.noteUnknown(result, "reflected receiver type parameter instantiates itself")
+		return
+	}
+	arguments, reason := w.effects.receiverInstantiations(parameter)
+	if reason != "" {
+		w.noteUnknown(result, reason)
+		return
+	}
+	if w.instantiating == nil {
+		w.instantiating = make(map[externalReceiverParameter]bool)
+	}
+	w.instantiating[parameter] = true
+	for _, argument := range arguments {
+		w.collect(argument.source, argument.scope, methods, valueRoot, result)
+	}
+	delete(w.instantiating, parameter)
 }
 
 // collectExternal records a standard-library named type, bare or

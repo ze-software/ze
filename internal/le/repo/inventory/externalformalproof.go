@@ -34,6 +34,12 @@ func (e *externalEffects) formalShape(source sourceExpr, depth int) (externalFor
 		// Conservatively include ambient references for instantiated data.
 		return externalFormalReferenceShape, ""
 	case *ast.Ident:
+		if _, parameter := e.typeIdentities.lexicalScope(source).binding(datatype); parameter {
+			// A type parameter may be instantiated with any type, a
+			// reference-bearing one included, so it takes the conservative
+			// shape: an exposed parameter of that type holds the ambient pool.
+			return externalFormalReferenceShape, ""
+		}
 		if datatype.Obj == nil {
 			if callablePackageBinding(source.pkg, datatype.Name) == nil {
 				if binding, found := types.Universe.Lookup(datatype.Name).(*types.TypeName); found {

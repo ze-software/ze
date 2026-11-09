@@ -27,7 +27,15 @@ func (w *externalReflectionWalk) interfaceRoot(source sourceExpr, scope *externa
 			source.value = datatype.X
 			continue
 		case *ast.Ident:
-			if argument, found := scope.argument(datatype); found {
+			if binding, found := scope.binding(datatype); found {
+				argument := binding.argument
+				if argument.source.value == nil && binding.receiver != nil {
+					// A receiver type parameter stands for every type the
+					// program instantiates it with, some of which may be
+					// concrete: the value is not proved a nil interface, so
+					// its descriptor is walked (collectInstantiations).
+					return false, ""
+				}
 				if argument.source.value == nil {
 					return false, "reflected value parameter has no retained argument"
 				}

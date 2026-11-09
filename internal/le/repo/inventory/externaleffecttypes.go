@@ -69,6 +69,9 @@ type externalTypeArgument struct {
 type externalTypeBinding struct {
 	object   *ast.Object
 	argument externalTypeArgument
+	// receiver names the method receiver parameter an argument-free binding
+	// stands for, so reflection can bound it by its instantiations.
+	receiver *externalReceiverParameter
 }
 
 // A nil scope contains no parameters. Bindings are local to one declaration;
@@ -380,6 +383,13 @@ func (w *externalTypeWalk) external(identity string, arguments []externalTypeArg
 }
 
 func (scope *externalTypeScope) argument(name *ast.Ident) (externalTypeArgument, bool) {
+	binding, found := scope.binding(name)
+	return binding.argument, found
+}
+
+// binding answers the innermost binding of name, refusing one whose object
+// is a different declaration of the same spelling.
+func (scope *externalTypeScope) binding(name *ast.Ident) (externalTypeBinding, bool) {
 	for current := scope; current != nil; current = current.parent {
 		binding, found := current.parameters[name.Name]
 		if !found {
@@ -387,12 +397,12 @@ func (scope *externalTypeScope) argument(name *ast.Ident) (externalTypeArgument,
 		}
 		if name.Obj != nil {
 			if binding.object != name.Obj {
-				return externalTypeArgument{}, false
+				return externalTypeBinding{}, false
 			}
 		}
-		return binding.argument, true
+		return binding, true
 	}
-	return externalTypeArgument{}, false
+	return externalTypeBinding{}, false
 }
 
 func externalResolvedTypeArgument(argument externalTypeArgument, depth int) externalTypeArgument {
@@ -401,11 +411,17 @@ func externalResolvedTypeArgument(argument externalTypeArgument, depth int) exte
 		if !identifier {
 			return argument
 		}
-		next, found := argument.scope.argument(name)
+		binding, found := argument.scope.binding(name)
 		if !found {
 			return argument
 		}
-		argument = next
+		if binding.argument.source.value == nil && binding.receiver != nil {
+			// A generic type's parameter read where no instantiation binds
+			// it stays the parameter, so reflection can still bound it by
+			// the type's instantiations (collectInstantiations).
+			return argument
+		}
+		argument = binding.argument
 		depth++
 	}
 	return argument
