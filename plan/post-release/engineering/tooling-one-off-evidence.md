@@ -1666,8 +1666,14 @@ Not attributed:
   prepend toward route-server clients in the route-server forward rail
   (`true || !facts.rsClient` in `reactor/forward_rs.go`) still passes (18s),
   so that rail is not the one the scenario reaches, or the checker does not
-  observe it. The producer the scenario reaches is still to be traced; no
-  claim about the checker is made.
+  observe it. Two more breaks also stay green: the same `true ||` on the
+  general forward rail (`reactor/reactor_api_forward.go`) and dropping the
+  route-server exemption from `prependApplies`
+  (`reactor/reactor_api_batch.go`). The checker's predicate
+  (`requireBIRDASPath`, `check_rfc_predicate.go`) compares BIRD's decoded
+  path to exactly "65002", so the gap is the producer: the scenario runs the
+  `bgp-rs` plugin, and the site that decides its prepend is still untraced.
+  No claim about the checker is made.
 - Untried: `checkRFC7606MixedUpdate` (`buildCombinedUpdates` in
   `wireu/split.go` handles only oversized updates, so the producer the
   scenario reaches is not yet traced), `checkRouteServerASPath` (the
