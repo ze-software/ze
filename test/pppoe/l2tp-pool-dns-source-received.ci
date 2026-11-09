@@ -1,0 +1,78 @@
+# Test: a pool with no dns-primary and no dns-source offers the subscriber the
+# resolver a WAN lease supplied.
+# VALIDATES: spec-home-cpe-23b AC-10, received half, through the LNS: the
+#   PPPoE client zedns1 learns 192.0.2.53 through IPCP from the scripted
+#   access concentrator, the RADIUS Access-Accept names no resolver and the
+#   pool has no dns-primary, so the built-in list (radius, configured,
+#   received) offers 192.0.2.53 as primary and nothing as secondary.
+# PREVENTS: a pool that never reads the learned records (Snapshot
+#   subscription), or that offers a subscriber nothing once configured is empty.
+option=needs-linux:caps=net-admin,net-raw,net-bind
+option=netns-link:name=zecpe0:peer=zeac0
+option=timeout:value=120s
+option=env:var=ze.log.l2tp:value=debug
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external l2tp-pool-dns-source-received-test {
+		run "le test fixture pppoe/l2tp-pool-dns-source-received"
+		encoder json
+	}
+}
+interface {
+	backend netlink
+	pppoe-client zedns1 {
+		source-interface zecpe0
+		authentication {
+			username subscriber
+			password secret
+		}
+		mtu 1450
+		keepalive {
+			interval 3600
+			failures 255
+		}
+		reconnect {
+			delay-min 1
+			delay-max 1
+		}
+	}
+}
+l2tp {
+	enabled true
+	shared-secret s3cr3t
+	auth-method chap-md5
+	auth {
+		radius {
+			timeout 5
+			retries 2
+			server mock {
+				address 127.0.0.1
+				port 18120
+				shared-key testing123
+			}
+		}
+	}
+	pool {
+		ipv4 {
+			gateway 10.99.7.1
+			start 10.99.7.10
+			end 10.99.7.40
+		}
+	}
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port 1701
+		}
+	}
+}
+EOF_CONF
+option=env:var=TEST_SECRET:value=s3cr3t
+cmd=background:seq=1:exec=le test fixture l2tp/pool-dns-source/radius-plain 18120 testing123
+cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=120s
+expect=exit:code=0
+expect=stderr:contains=OK: IPCP offered primary DNS 192.0.2.53 and secondary DNS none
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

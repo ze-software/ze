@@ -1,0 +1,62 @@
+# Test: show system dns answers every consumer's selection through the daemon.
+# VALIDATES: spec-home-cpe-23b AC-12: the observer plugin dispatches
+#   show system dns through the daemon dispatcher (the route REST, gRPC, MCP,
+#   SSH and the web take) and checks the router's selection, the LAN
+#   resolver's written list (used configured, server 198.51.100.53, no
+#   default marker) and the pool's built-in list (default marker,
+#   first-usable, used configured, server 203.0.113.53).
+# PREVENTS: a consumer that selects but never publishes, a default marker set
+#   on a written list or missing on a built-in one.
+option=env:var=ze.l2tp.skip-kernel-probe:value=true
+option=env:var=TEST_SECRET:value=s3cr3t
+option=timeout:value=60s
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external show-system-dns-test {
+		run "le test fixture plugin/show-system-dns"
+		encoder json
+	}
+}
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.23.81
+			port $PORT2
+		}
+		allow-from 127.0.0.0/8
+		forward {
+			server 198.51.100.53 {
+				port 53
+			}
+			dns-source {
+				source configured
+			}
+		}
+	}
+}
+l2tp {
+	enabled true
+	shared-secret s3cr3t
+	pool {
+		ipv4 {
+			gateway 10.99.7.1
+			start 10.99.7.10
+			end 10.99.7.20
+			dns-primary 203.0.113.53
+		}
+	}
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port $PORT
+		}
+	}
+}
+EOF_CONF
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=OK: show system dns answers the router, the LAN resolver's configured list and the pool's default list
+reject=stderr:pattern=panic

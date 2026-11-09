@@ -1,0 +1,53 @@
+# Test: an Access-Accept naming MS-Primary-DNS-Server and MS-Secondary-DNS-Server
+# reaches the subscriber's IPCP, ahead of the pool's own dns-primary.
+# VALIDATES: spec-home-cpe-23b AC-9 through the LNS: the pool writes no
+#   dns-source, so its built-in list (radius, configured, received,
+#   first-usable) offers the RADIUS resolvers 198.51.100.53 and 198.51.100.54
+#   in the Configure-Nak (RFC 1877 Section 1.1), not dns-primary 203.0.113.53.
+# PREVENTS: a pool that ignores AuthMetadata.DNSPrimary/DNSSecondary, or ranks
+#   configured above radius.
+stdin=config:terminator=EOF_CONF
+l2tp {
+    enabled true
+    shared-secret s3cr3t
+    auth-method chap-md5
+    auth {
+        radius {
+            timeout 5
+            retries 2
+            server mock {
+                address 127.0.0.1
+                port $PORT2
+                shared-key testing123
+            }
+        }
+    }
+    pool {
+        ipv4 {
+            gateway 10.99.7.1
+            start 10.99.7.10
+            end 10.99.7.20
+            dns-primary 203.0.113.53
+            dns-secondary 203.0.113.54
+        }
+    }
+}
+environment {
+    l2tp {
+        server main {
+            ip 127.0.0.1
+            port $PORT
+        }
+    }
+}
+EOF_CONF
+option=needs-linux:caps=net-admin
+option=env:var=ze.log.l2tp:value=debug
+option=env:var=ze.log.l2tp.auth.radius:value=debug
+option=env:var=TEST_SECRET:value=s3cr3t
+cmd=background:seq=1:exec=le test fixture l2tp/pool-dns-source/radius-ms-dns $PORT2 testing123
+cmd=background:seq=2:exec=ze -:stdin=config
+cmd=foreground:seq=3:exec=le test fixture l2tp/pool-dns-source $PORT 198.51.100.53 198.51.100.54:timeout=90s:exit=0
+expect=exit:code=0
+expect=stdout:contains=OK: IPCP offered primary DNS 198.51.100.53 and secondary DNS 198.51.100.54
+reject=stderr:pattern=panic

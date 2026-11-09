@@ -59,7 +59,7 @@ All families decode. Most encode. Use `ze show plugin list` to see the current s
 | All NLRI plugins (9) | Working -- decode and encode for their families |
 | ospf | Partial -- config schema, validators, event namespace, raw-socket enrolment skeleton |
 | dnsresolver (LAN DNS resolver) | Partial -- caching forwarder for LAN clients with allow-from, failover, answer and negative caches and work limits; upstreams from its `forward dns-source` list (configured servers, then learned resolvers); no recursion from the root, no DNSSEC validation, no interop scenario yet |
-| system-dns-cmd (`show system dns`) | Working -- answers the learned resolver records and every `dns-source` consumer's selection from the daemon; no committed functional test yet |
+| system-dns-cmd (`show system dns`) | Working -- answers the learned resolver records and every `dns-source` consumer's selection from the daemon; functional test `test/plugin/show-system-dns.ci` |
 <!-- source: internal/plugins/ospf/register.go -- OSPF registry entry and lifecycle -->
 <!-- source: internal/plugins/dnsresolver/register.go -- dnsresolver registry entry -->
 <!-- source: internal/plugins/system-dns-cmd/cmd/show_dns.go -- registerShowSystemDNS -->

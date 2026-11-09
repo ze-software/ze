@@ -1,0 +1,58 @@
+# Test: the three dns-source doctor checks reach the operator through show
+# doctor, the daemon form of ze doctor.
+# VALIDATES: spec-home-cpe-23b Integration Checklist doctor rows, D-6, D-11,
+#   R-9: the pool's received-only list with received-interface zeabsent0
+#   selects nothing (doctor-dns-source-empty) from an interface that holds no
+#   record (doctor-dns-source-interface-silent); the named pool gold hands out
+#   its gateway through self with no LAN resolver listening there
+#   (doctor-dns-source-self-unserved). The local ze doctor holds an empty
+#   registry and does not run these checks (DaemonDoctorCheck), so the
+#   observer dispatches show doctor through the daemon.
+# PREVENTS: a doctor check registered but never reached by the daemon route,
+#   or one that judges the wrong path.
+option=env:var=ze.l2tp.skip-kernel-probe:value=true
+option=env:var=TEST_SECRET:value=s3cr3t
+option=timeout:value=60s
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external doctor-dns-source-test {
+		run "le test fixture plugin/doctor-dns-source"
+		encoder json
+	}
+}
+l2tp {
+	enabled true
+	shared-secret s3cr3t
+	pool {
+		ipv4 {
+			gateway 10.99.7.1
+			start 10.99.7.10
+			end 10.99.7.20
+			dns-source {
+				source received
+				received-interface [ zeabsent0 ]
+			}
+		}
+		named-pool gold {
+			gateway 10.99.8.1
+			start 10.99.8.10
+			end 10.99.8.20
+			dns-source {
+				source self
+			}
+		}
+	}
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port $PORT
+		}
+	}
+}
+EOF_CONF
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=OK: show doctor reports doctor-dns-source-empty, doctor-dns-source-interface-silent and doctor-dns-source-self-unserved
+reject=stderr:pattern=panic

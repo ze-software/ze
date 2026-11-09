@@ -372,15 +372,18 @@ MS-Primary and MS-Secondary in `AuthMetadata` for the pool's `radius` class.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `dns-resolver-forward-received` | `test/plugin/dns-resolver-forward-received.ci` | AC-6, AC-13 | |
-| `dhcp-server-dns-source-self` | `test/dhcp/dhcp-server-dns-source-self.ci` | AC-7 | |
+| `dhcp-server-dns-source-self` | `test/dhcp/dhcp-server-dns-source-self.ci` | AC-7 | promoted; PASS in `out-gb13/g13-clean.log`, RED under break in `out-gb13/c23b-dhcp-self.log` (option 6 absent) |
 | `dns-source-class-refused` | `test/parse/dns-source-class-refused.ci` | AC-11, `radius` and `self` under `system dns-source` | |
 | `dns-source-mode-required-consumers` | `test/parse/dns-source-mode-required-consumers.ci` | AC-16b, the resolver, DHCP subnet and pool halves | |
 | `dns-source-ra-rdnss-consumer` | `test/parse/dns-source-ra-rdnss-consumer.ci` | AC-11 and AC-16b, the RA `rdnss dns-source` half; `option=skip-os:value=darwin`, because RA is Linux-only | |
 | `show-system-dns-withdraw-on-removal` | `test/plugin/show-system-dns-withdraw-on-removal.ci` | AC-12 and review round 1 item 10 (R2-2): a dns-resolver the reload removes leaves `show system dns` through its `OnBye` withdrawal | |
 | `dhcp-server-dns-pass-through` | `test/dhcp/dhcp-server-dns-pass-through.ci` | AC-14 | |
 | `dns-resolver-forward-default` | `test/plugin/dns-resolver-forward-default.ci` | AC-20 | |
-| `show-system-dns` | `test/plugin/show-system-dns.ci` | AC-12 | |
-| `l2tp-pool-dns-source-radius` | `test/l2tp/l2tp-pool-dns-source-radius.ci` | AC-9, AC-10 through the LNS | |
+| `show-system-dns` | `test/plugin/show-system-dns.ci` | AC-12 | promoted; PASS in `out-gb13/g13-clean.log`, RED under break in `out-gb13/c23b-show-consumers.log` (no dns-resolver selection) |
+| `doctor-dns-source` | `test/plugin/doctor-dns-source.ci` | operator surfaces, the `show doctor` dns-source checks | promoted; PASS in `out-gb13/g13-clean.log`, RED under each break in `out-gb13/c23b-doctor-self.log`, `c23b-doctor-silent.log`, `c23b-doctor-empty.log` (the named finding absent) |
+| `l2tp-pool-dns-source-radius` | `test/l2tp/l2tp-pool-dns-source-radius.ci` | AC-9, AC-10 through the LNS | promoted; PASS in `out-gb13/g13-clean.log`, RED under break in `out-gb13/c23b-pool-radius.log` (IPCP primary DNS 203.0.113.53, want 198.51.100.53) |
+| `l2tp-pool-dns-source-configured` | `test/l2tp/l2tp-pool-dns-source-configured.ci` | AC-10, `configured` when the Access-Accept carries no DNS | promoted; PASS in `out-gb13/g13-clean.log`, RED under break in `out-gb13/c23b-pool-configured.log` (IPCP primary DNS none) |
+| `l2tp-pool-dns-source-received` | `test/pppoe/l2tp-pool-dns-source-received.ci` | AC-10, the WAN lease's resolver reaches the subscriber | promoted; PASS in `out-gb13/g13-clean.log`, RED under break in `out-gb13/c23b-pool-received.log` (IPCP primary DNS none) |
 | `dhcp-server-short-lease-wan-down` | `test/dhcp/dhcp-server-short-lease-wan-down.ci` | AC-25 | |
 
 ### Interop Tests (Scope: protocol)
@@ -609,7 +612,7 @@ Review round 1 (`tmp/session/2026-11-07-104251/scratch/c23b-review-r1.md`) and r
 - Earlier phase commits: `docs/guide/dns-resolver.md` (forward `dns-source` rows), `docs/guide/l2tp.md` line 1163, `docs/guide/pppoe.md` line 177, `docs/guide/configuration.md` (resolver, subnet and pool `dns-source` rows with the `poolDNSDefault, selectSubscriberDNS` anchor), `docs/architecture/dns/lan-resolver.md` line 194, `docs/plugin-development/metrics.md` lines 250-252, `docs/architecture/testing/interop.md` (c85d2718f2).
 - 23c067bb8d: `docs/comparison.md` VyOS DNS-source rows (Doc checklist row 11), `features/lan-dns-resolver.md` and `features/dns-resolver.md` name `dns-source` (row 1), `docs/guide/migrating-from-vyos.md`, `docs/architecture/api/process-protocol.md`.
 - 924cd6d7c9: `docs/guide/l2tp.md` (IPCP Configure-Reject, D-20). 0b7c9ea0a7: `docs/architecture/dns/lan-resolver.md`, `docs/architecture/provisioning/dhcp-server.md`, `docs/features/dns-resolver.md` (shared replay hold, D-21). bd985af80f: `docs/architecture/provisioning/dhcp-server.md` (probe fixture).
-- **pending:** `docs/guide/status.md` says `show system dns` has "no committed functional test yet"; it changes when `test/plugin/show-system-dns.ci` lands (review round 2 ISSUE 4).
+- `docs/guide/status.md` names `test/plugin/show-system-dns.ci` as the functional test of `show system dns`, changed in the commit that promoted it (review round 2 ISSUE 4).
 
 ### Deviations from Plan
 - A-5 broke: no owner existed for `show system dns`, so the new plugin `internal/plugins/system-dns-cmd` owns it.
@@ -780,8 +783,8 @@ Batch 13 logs are in `tmp/session/2026-11-07-104251/scratch/rwinv/out-gb13/` (un
 | Item | Owed run |
 |------|----------|
 | parse drafts `dns-source-class-refused`, `dns-source-mode-required-consumers`, `dns-source-ra-rdnss-consumer` | `./le test bgp parse --draft -a`, clean and under each break, then promote to `test/parse/`; the RA draft skips darwin, so its run is owed on Linux |
-| `l2tp-pool-dns-source-received`, `show-system-dns`, `dns-resolver-forward-dhcpv4-replay`, `l2tp-pool-dns-source-radius`, `-configured`, `doctor-dns-source` | `./le test bgp pppoe --draft -a`, `./le test bgp l2tp --draft -a`, `./le test bgp plugin --draft -a`, then promote |
-| three `test/dhcp/` `.ci` | write per `/ze-test`, then `./le test functional dhcp` |
+| `dns-resolver-forward-dhcpv4-replay`, `dns-resolver-forward-ppp-replay` (drafts) | prove clean and under break, then promote (`l2tp-pool-dns-source-received`, `-radius`, `-configured`, `show-system-dns` and `doctor-dns-source` were promoted from batch 13) |
+| `dhcp-server-dns-pass-through`, `dhcp-server-short-lease-wan-down` (drafts under `test/draft/dhcp/`) | prove clean and under break, then promote (`dhcp-server-dns-source-self` was promoted from batch 13) |
 | `radius-subscriber-dns` | `./le test integration interop-radius-subscriber`, clean and under the extract break |
 | `TestRegisteredWireMethods` | `./le job run label unit-pkg command go test -tags <ze tags> -run TestRegisteredWireMethods ./internal/component/plugin/all/` |
 | hub `TestStreamingOneShotAnswersCarryData` | same form, `./cmd/ze/hub/` |

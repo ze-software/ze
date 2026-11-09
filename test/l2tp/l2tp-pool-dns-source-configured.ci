@@ -1,0 +1,51 @@
+# Test: an Access-Accept naming no resolver leaves the pool's dns-primary and
+# dns-secondary to the subscriber's IPCP.
+# VALIDATES: spec-home-cpe-23b AC-10, configured half, through the LNS: the
+#   built-in list falls from radius (empty for this session) to configured.
+# PREVENTS: a session with RADIUS metadata but no MS DNS attribute offered no
+#   resolver, or offered zeros from the empty RADIUS slots.
+stdin=config:terminator=EOF_CONF
+l2tp {
+    enabled true
+    shared-secret s3cr3t
+    auth-method chap-md5
+    auth {
+        radius {
+            timeout 5
+            retries 2
+            server mock {
+                address 127.0.0.1
+                port $PORT2
+                shared-key testing123
+            }
+        }
+    }
+    pool {
+        ipv4 {
+            gateway 10.99.7.1
+            start 10.99.7.10
+            end 10.99.7.20
+            dns-primary 203.0.113.53
+            dns-secondary 203.0.113.54
+        }
+    }
+}
+environment {
+    l2tp {
+        server main {
+            ip 127.0.0.1
+            port $PORT
+        }
+    }
+}
+EOF_CONF
+option=needs-linux:caps=net-admin
+option=env:var=ze.log.l2tp:value=debug
+option=env:var=ze.log.l2tp.auth.radius:value=debug
+option=env:var=TEST_SECRET:value=s3cr3t
+cmd=background:seq=1:exec=le test fixture l2tp/pool-dns-source/radius-plain $PORT2 testing123
+cmd=background:seq=2:exec=ze -:stdin=config
+cmd=foreground:seq=3:exec=le test fixture l2tp/pool-dns-source $PORT 203.0.113.53 203.0.113.54:timeout=90s:exit=0
+expect=exit:code=0
+expect=stdout:contains=OK: IPCP offered primary DNS 203.0.113.53 and secondary DNS 203.0.113.54
+reject=stderr:pattern=panic
