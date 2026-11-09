@@ -57,11 +57,15 @@ var (
 	// Re-sealed 2026-10-26 when test changes moved from the owner to the
 	// ze-test-judge agent: the weakened-missing-row site expects
 	// `/ze-test-judge` in place of `ask Thomas first`. No exit code changed.
+	// Re-sealed 2026-11-09 for spec-tooling-one-off-defects P-8: the
+	// rendered-rule site expects `./le ai rules update render`, the command
+	// writeRenderedRule now names; `update index` was retired with
+	// ai/rules/INDEX.md. No exit code changed.
 	fixtureSiteDigest = [sha256.Size]byte{
-		0xe6, 0x82, 0x7d, 0xc9, 0x12, 0xe2, 0xa6, 0x8b,
-		0x30, 0xfa, 0xc0, 0x03, 0x9d, 0xfc, 0x5c, 0xb8,
-		0x2d, 0x59, 0x2c, 0xd7, 0x3d, 0x6d, 0x1a, 0x05,
-		0x71, 0xde, 0x8c, 0x63, 0x2a, 0x4e, 0xda, 0xe0,
+		0x16, 0xa2, 0xcc, 0x39, 0x54, 0x05, 0x35, 0x45,
+		0x33, 0x4d, 0x65, 0xfb, 0x4f, 0x00, 0xd6, 0x98,
+		0x8d, 0x8b, 0x43, 0xf9, 0xeb, 0xc1, 0xc5, 0x54,
+		0xc6, 0x52, 0x6e, 0x52, 0x1a, 0xe2, 0x81, 0x2e,
 	}
 	// Re-sealed 2026-09-25 for the same spec, Phase 2: it hashes the site and
 	// category text above, which name the subject-first commands.
@@ -82,11 +86,14 @@ var (
 	// ze-test-judge agent: the expanded weakened-missing-row fixture carries
 	// the same `/ze-test-judge` needle as its site in place of
 	// `ask Thomas first`. No exit code changed.
+	// Re-sealed 2026-11-09 for spec-tooling-one-off-defects P-8: the expanded
+	// rendered-rule fixture carries the same `./le ai rules update render`
+	// needle as its site.
 	fixtureCatalogDigest = [sha256.Size]byte{
-		0x6e, 0x16, 0xae, 0x4b, 0xe7, 0xe9, 0xab, 0x87,
-		0xae, 0x77, 0xb2, 0x05, 0x65, 0x63, 0x85, 0x9d,
-		0xa3, 0x61, 0xb8, 0x2e, 0x14, 0x52, 0xeb, 0x0b,
-		0xce, 0x64, 0x35, 0xdd, 0xc4, 0x25, 0x10, 0xe4,
+		0xa6, 0x3f, 0x0e, 0xcd, 0x6d, 0xac, 0xfb, 0x6d,
+		0xfb, 0x81, 0xd2, 0x86, 0xb0, 0xbe, 0xd3, 0xab,
+		0x29, 0x0f, 0x3d, 0xa0, 0x93, 0xdf, 0x3f, 0xa2,
+		0x6e, 0xa4, 0x9f, 0xd1, 0xc7, 0x4e, 0x38, 0xb7,
 	}
 	// Re-sealed 2026-09-24 for spec-le-subject-first-command-tree:
 	// the design-ref producer moved from internal/le/consistency to
@@ -101,11 +108,15 @@ var (
 	// The category population and producer mappings are unchanged.
 	// Re-sealed 2026-10-23: the validate-spec allow probe names
 	// `./le verify current fast` instead of `./le verify worktree`.
+	// Re-sealed 2026-11-09 for spec-tooling-one-off-defects P-8: test-first's
+	// producer moved from writeSpecStatus, which judges spec status, to the
+	// commit gate's testCoverageProblemsSelected, and its allow and refuse
+	// values became the commit's paths.
 	fixtureCategoryDigest = [sha256.Size]byte{
-		0xdf, 0xb7, 0xb2, 0xda, 0x52, 0xa2, 0x1f, 0xbc,
-		0x41, 0xd4, 0x44, 0x37, 0x76, 0x11, 0xb8, 0x71,
-		0xc8, 0xe2, 0x8d, 0x6f, 0xba, 0x8f, 0xfd, 0x5f,
-		0xb3, 0xe0, 0x6b, 0xba, 0x18, 0x68, 0xc9, 0x3a,
+		0xa4, 0x61, 0xa1, 0xdd, 0x30, 0x8b, 0x08, 0xa9,
+		0xcd, 0xe8, 0x16, 0x7c, 0xd5, 0x5b, 0x55, 0x77,
+		0x1f, 0x88, 0x64, 0x27, 0xa4, 0xfa, 0x10, 0x3e,
+		0x0c, 0x9c, 0x84, 0xb6, 0x42, 0x22, 0x49, 0xcf,
 	}
 	// Re-sealed 2026-09-25 for spec-le-subject-first-command-tree:
 	// the weakened-test action and proposed-edit owners moved from
@@ -336,11 +347,15 @@ var (
 	// Permitted Survivors empty (internal/le/spec/one_off_proof_test.go). A spec
 	// carrying neither structure keeps its verdict, and the Existing Mechanisms
 	// verdict is unchanged.
+	// Re-sealed 2026-11-09 for spec-tooling-one-off-defects P-8: the scope
+	// gains internal/le/commit (test-first's producer), writeRenderedRule names
+	// `./le ai rules update render`, and preserveState in internal/le/session
+	// starts a snapshot only at a block start.
 	hookSourcesDigest = [sha256.Size]byte{
-		0xe1, 0x07, 0xf3, 0x05, 0x8d, 0x18, 0x3f, 0x85,
-		0x81, 0xce, 0xdc, 0xf9, 0xb3, 0xb4, 0x64, 0x6a,
-		0x71, 0x67, 0x34, 0x7d, 0x2d, 0xb4, 0xd9, 0x92,
-		0xbf, 0x1e, 0x1a, 0xc9, 0x0e, 0xfc, 0xb1, 0x2b,
+		0x8f, 0xbe, 0x67, 0x6e, 0xe1, 0x3e, 0x96, 0x82,
+		0xcd, 0x92, 0x5a, 0x5a, 0xc5, 0x33, 0xbc, 0x05,
+		0x55, 0x25, 0x56, 0x5e, 0x55, 0x8d, 0x95, 0x59,
+		0x6a, 0xa6, 0xd1, 0x96, 0x17, 0x37, 0x0d, 0x79,
 	}
 )
 
@@ -384,7 +399,7 @@ type fixtureCategory struct {
 var fixtureCategories = [...]fixtureCategory{
 	{categoryFormatAlloc, "run_format_alloc", hookWriteEditFile, "func writeGoPatterns(", "return fmt.Errorf(\"x\")", "return fmt.\u0053printf(\"%d\", n)"},
 	{categoryDesignRef, "run_design_ref", "internal/le/doc/consistency/consistency.go", "func (c *checker) checkDesignRefs(", "// Design: docs/x.md\npackage x", "package x"},
-	{categoryTestFirst, "run_test_first", hookWriteEditFile, "func writeSpecStatus(", "in-progress", "design"},
+	{categoryTestFirst, "run_test_first", commitPrepareFile, "func testCoverageProblemsSelected(", probeGoPath + " " + probeGoTestPath, probeGoPath},
 	{categoryRenderedRule, "run_rendered_rule", hookWriteEditFile, "func writeRenderedRule(", "ai/rules/points/commands/x.md", "ai/rules/commands.md"},
 	{categoryRFCLanguage, "run_rfc_language", hookWriteEditFile, "func writePointLanguage(", "The caller MUST stop.", "The caller stops."},
 	{categoryValidateSpec, "run_validate_spec", hookLifecycleFile, "func hookValidateSpec(", probeCompleteSpec, "# Spec: probe\n"},
@@ -445,6 +460,8 @@ var fixtureProducerBoundaries = [...]fixtureProducerBoundary{
 // all platforms' non-test Go files; a new authority package needs a disposition.
 var hookSourcePackages = [...]string{
 	"internal/le/arch/tier",
+	// The test-first category asks the commit gate's test-coverage refusal.
+	"internal/le/commit",
 	"internal/le/doc/consistency",
 	"internal/le/doc/index",
 	"internal/le/doc/ste",
@@ -935,10 +952,13 @@ type categoryProbe struct {
 	check     string
 	lifecycle string
 	finding   string
-	tool      string
-	file      string
-	slot      string
-	wrap      string
+	// gate names a commit gate in commitGates: the producer of a rule that
+	// `./le commit create` enforces rather than a hook.
+	gate string
+	tool string
+	file string
+	slot string
+	wrap string
 	// session is the id the payload claims. A check that resolves a session
 	// reads it before it reads the checkout, so setting it makes such a check
 	// answer about a tree the probe controls rather than about the tree the
@@ -1015,7 +1035,7 @@ func blankProbeTree(string) (string, error) {
 // sourceReadTree provides the real readable path the read probe names. A marker
 // for a nonexistent file is not evidence that any source could be read.
 func sourceReadTree(value string) (string, error) {
-	return probeTree("source-read", map[string]string{value: "package probe\n"})
+	return probeTree("source-read", map[string]string{value: probeGoSource})
 }
 
 // designGateTree records evidence through the actual lifecycle producer. It
@@ -1025,7 +1045,7 @@ func designGateTree(value string) (string, error) {
 		return probeTree("design-gate", nil)
 	}
 	root, err := probeTree("design-gate", map[string]string{
-		"internal/probe/probe.go": "package probe\n",
+		"internal/probe/probe.go": probeGoSource,
 	})
 	if err != nil {
 		return root, err
@@ -1040,16 +1060,6 @@ func designGateTree(value string) (string, error) {
 		return root, fmt.Errorf("record design probe source: code %d, found %v: %s", code, found, output)
 	}
 	return root, nil
-}
-
-// specStatusTree builds a checkout whose session claims one spec, carrying the
-// Status under test. writeSpecStatus reads the claim marker and then the spec's
-// own Status row, so a payload on its own tells it nothing.
-func specStatusTree(value string) (string, error) {
-	return probeTree("spec-status", map[string]string{
-		"tmp/session/.session-" + probeSession:           probeSpecName + "\n",
-		"plan/post-release/engineering/" + probeSpecName: "| Field | Value |\n|---|---|\n| Status | " + value + " |\n",
-	})
 }
 
 // The test file the weakening probes judge, and the edits of it they hand the
@@ -1369,8 +1379,11 @@ func claimedSpecTree(value string) (string, error) {
 		return probeTree(probeClaimedSpec, nil)
 	}
 	return probeTree(probeClaimedSpec, map[string]string{
-		"tmp/session/.session-" + probeSession:           probeSpecName + "\n",
-		"plan/post-release/engineering/" + probeSpecName: "| Status | in-progress |\n",
+		"tmp/session/.session-" + probeSession: probeSpecName + "\n",
+		// ready, not in-progress: the stop hook warns about an in-progress claim
+		// too, and that second reason would keep the delegation probe refused
+		// after the delegation reminder itself was gone.
+		"plan/post-release/engineering/" + probeSpecName: "| Status | ready |\n",
 	})
 }
 
@@ -1530,16 +1543,24 @@ const (
 //
 //nolint:gochecknoglobals // fixture data, read by the category probes
 var categoryProbes = map[string]categoryProbe{
-	categoryFormatAlloc:          {check: "writeGoPatterns", tool: toolWriteName, file: probeGoPath, slot: slotContent},
-	categoryRenderedRule:         {check: "writeRenderedRule", tool: toolWriteName, slot: slotPath},
-	categoryRFCLanguage:          {check: "writePointLanguage", tool: toolWriteName, file: "ai/rules/points/probe/probe/probe.md", slot: slotContent, wrap: "---\nkind: directive\nstage:\n---\n%s\n"},
-	categoryCISleepMarker:        {check: "writeCISleep", tool: toolWriteName, file: "./test/probe/probe.ci", slot: slotContent},
-	categoryGovernedDocEdit:      {check: "bashGovernedWrite", tool: "Bash", slot: slotCommand},
-	categoryRawJobAdmission:      {check: "bashRawHeavy", tool: "Bash", slot: slotCommand},
-	categoryYangDescription:      {check: "writeYangDescription", tool: toolWriteName, file: "internal/plugins/probe/yang/probe.yang", slot: slotContent},
-	categoryDesignGate:           {check: "writeDesignEvidence", tool: toolWriteName, file: "plan/post-release/engineering/" + probeSpecName, slot: slotContent, session: probeSession, tree: designGateTree},
-	categoryCommitGate:           {check: "postDeferral", tool: toolWriteName, file: "docs/probe.md", slot: slotContent},
-	categoryTestFirst:            {check: "writeSpecStatus", tool: toolWriteName, file: probeGoPath, slot: slotOffPayload, session: probeSession, tree: specStatusTree},
+	categoryFormatAlloc:     {check: "writeGoPatterns", tool: toolWriteName, file: probeGoPath, slot: slotContent},
+	categoryRenderedRule:    {check: "writeRenderedRule", tool: toolWriteName, slot: slotPath},
+	categoryRFCLanguage:     {check: "writePointLanguage", tool: toolWriteName, file: "ai/rules/points/probe/probe/probe.md", slot: slotContent, wrap: "---\nkind: directive\nstage:\n---\n%s\n"},
+	categoryCISleepMarker:   {check: "writeCISleep", tool: toolWriteName, file: "./test/probe/probe.ci", slot: slotContent},
+	categoryGovernedDocEdit: {check: "bashGovernedWrite", tool: "Bash", slot: slotCommand},
+	categoryRawJobAdmission: {check: "bashRawHeavy", tool: "Bash", slot: slotCommand},
+	categoryYangDescription: {check: "writeYangDescription", tool: toolWriteName, file: "internal/plugins/probe/yang/probe.yang", slot: slotContent},
+	categoryDesignGate:      {check: "writeDesignEvidence", tool: toolWriteName, file: "plan/post-release/engineering/" + probeSpecName, slot: slotContent, session: probeSession, tree: designGateTree},
+	// commit-gate's deferral refusal in ./le commit create is RETIRED, never
+	// rebuilt: a hook checks what a command, path or file is, never how a
+	// message is worded (ai/META-DECISIONS.md). The live consumer of deferral
+	// language is the postDeferral advisory, which warns and refuses nothing;
+	// TestHistoricalHookIntentHasCurrentConsumer (hookruntime) holds both.
+	categoryCommitGate: {check: "postDeferral", tool: toolWriteName, file: "docs/probe.md", slot: slotContent},
+	// test-first's edit hook was lost in the Go port. Its rule (ai/rules/testing.md,
+	// "A test MUST exist") is consumed today by the commit gate's test-coverage
+	// refusal, so the category asks that gate.
+	categoryTestFirst:            {gate: gateTestCoverage, slot: slotOffPayload, tree: commitPathsTree},
 	categoryJournalRowShape:      {check: "postJournal", tool: toolWriteName, file: probeJournalPath, slot: slotOffPayload, tree: journalTree},
 	categoryRFCTestGuard:         {check: weakeningCheckName, tool: toolWriteName, file: probeTestPath, slot: slotContent, tree: rfcGuardTree},
 	categoryRFCApproval:          {check: weakeningCheckName, tool: toolWriteName, file: probeTestPath, slot: slotContent, tree: rfcApprovalTree},
@@ -1602,6 +1623,8 @@ func askProducer(probe categoryProbe, value, root string) (int, string, error) {
 			return 0, "", fmt.Errorf("hookruntime serves no lifecycle hook named %q", probe.lifecycle)
 		}
 		return code, output, nil
+	case probe.gate != "":
+		return commitGateVerdict(probe.gate, value, root)
 	case probe.check != "":
 		code, message, found := hookruntime.Probe(probe.check, probePayload(probe, value), root)
 		if !found {
@@ -1609,7 +1632,7 @@ func askProducer(probe categoryProbe, value, root string) (int, string, error) {
 		}
 		return code, message, nil
 	default:
-		return 0, "", errors.New("the probe names no producer: set check, lifecycle or finding")
+		return 0, "", errors.New("the probe names no producer: set check, lifecycle, finding or gate")
 	}
 }
 

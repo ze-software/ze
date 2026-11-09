@@ -439,6 +439,52 @@ func TestEndSummaryMatchesTheStateFileFixtureBytes(t *testing.T) {
 	}
 }
 
+// TestEndSummaryKeepsAHandoffThatQuotesTheSnapshotHeading drives the Stop
+// summary over a handoff that quotes the "## Session:" heading in its body,
+// behind two real snapshots, and asserts the handoff survives byte for byte.
+//
+// MUTATION: restoring the old boundary predicate in preserveState,
+// `strings.HasPrefix(line, "## Session:")` with no block-start condition,
+// turns the quoted heading into a third prior snapshot: rotation drops it and
+// the handoff loses its quoted lines, so this test goes red.
+func TestEndSummaryKeepsAHandoffThatQuotesTheSnapshotHeading(t *testing.T) {
+	root := t.TempDir()
+	paths := lepath.SessionPaths{ID: "quoted", Dir: filepath.ToSlash(filepath.Join("tmp", "session", "2026-08-27-quoted"))}
+	statePath := filepath.Join(root, stateFile(paths, ""))
+	if err := os.MkdirAll(filepath.Dir(statePath), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	const handoff = "## Phase 3 handoff\n" +
+		"The Stop hook opens each snapshot with this heading:\n\n" +
+		"## Session: 2026-08-10T00:00:00Z\n\n" +
+		"Branch: `quoted`\n\n" +
+		"so a reader can tell a snapshot from a handoff."
+	prior := "# Session State\n\n" +
+		"## Session: newer\n\nBranch: `main`\n\n---\n" +
+		"## Session: older\n\nBranch: `main`\n\n---\n" +
+		handoff + "\n"
+	if err := os.WriteFile(statePath, []byte(prior), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	at := time.Date(2026, 8, 27, 11, 12, 13, 0, time.UTC)
+	if _, err := endSummary(root, paths, at, summaryQuery(true)); err != nil {
+		t.Fatal(err)
+	}
+	content, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(content)
+	if !strings.HasSuffix(text, "\n---\n"+handoff+"\n") {
+		t.Fatalf("the handoff quoting the heading was cut or moved:\n%s", text)
+	}
+	for _, kept := range []string{"## Session: 2026-08-27T11:12:13Z", "## Session: newer", "## Session: older"} {
+		if !strings.Contains(text, kept) {
+			t.Errorf("state lost snapshot %q\n%s", kept, text)
+		}
+	}
+}
+
 func TestCleanEndSummaryChangesNeitherStateNorCompactionMarker(t *testing.T) {
 	root := t.TempDir()
 	paths := lepath.SessionPaths{ID: "clean", Dir: filepath.ToSlash(filepath.Join("tmp", "session", "2026-08-27-clean"))}

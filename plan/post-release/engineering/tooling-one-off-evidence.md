@@ -1831,3 +1831,98 @@ staged ..."); staging only for a measured run fails the build-only case, whose
 image consumer then finds no staged file ("image consumer read "" (open
 ...)"), which also covers a missing staged file reaching the consumer. Both
 restored green.
+
+## P-28: handshake-classified generated UPDATEs (2026-11-09)
+
+The repair is `6e3d409685`: ze-peer's generated send-bulk and inject UPDATEs
+carry LOCAL_PREF 100 only when the OPEN exchange that session completed is
+internal, and every entry point (ordinary bulk, connmap bulk, passive inject,
+active inject) hands the builder the kind its own OPENs produced. The raw
+`action=send` arm is unchanged.
+
+Carriers, in `internal/test/peer`, over real TCP OPEN and KEEPALIVE
+exchanges with frames captured from the wire:
+`TestGeneratedBulkAttributesFollowOPEN` (16 cells: IPv4 and IPv6, iBGP and
+eBGP, active ordinary, passive ordinary, passive connmap by router-id and by
+remote IP; a raw `action=send` UPDATE carrying LOCAL_PREF 201 must arrive
+byte-exact on every cell) and `TestGeneratedInjectAttributesFollowOPEN` (8
+cells: both families, both kinds, active and passive inject). Active connmap
+is not reachable: `run` (`peer.go`) takes the `Dial` branch before `ConnMap`.
+
+Green at HEAD (`./le job run label unit-pkg command go test -race -count=1
+-tags <feature tags> ./internal/test/peer/ -run ...`): both carriers and the
+encoder tests pass. Each break below was applied by the red-walk tool, which
+then restored the file, verified its bytes and ran the carriers green again.
+
+| Break | Red (failing cell, assertion) |
+| --- | --- |
+| Ordinary bulk handoff `runMessageLoop(..., 0)` | `ipv4/ebgp/active-ordinary`: "actual OPEN-classified internal=false: LOCAL_PREF count=1 want=0" |
+| Connmap handoff `senderAS: 0 * p.ebgpSenderAS(zeOpen, c)` | `ipv4/ebgp/passive-connmap-router-id-accepted` and `-remote-ip-accepted`: the same LOCAL_PREF count. A first form (`senderAS: 0`) failed to compile and is not counted |
+| Builder handoff `buildUpdates(spec, 0)` | every eBGP bulk cell, the same assertion |
+| Passive inject `doInject(ctx, conn, 0)` | `ipv4/ebgp/passive-inject-accepted` |
+| Active inject comparison forced to internal (`true \|\|`) | `ipv4/ebgp/active-inject` |
+| IPv4 kind forced internal | IPv4 eBGP cells: "LOCAL_PREF count=1 want=0" |
+| IPv4 kind forced external | IPv4 iBGP cells: "internal=true: LOCAL_PREF count=0 want=1" |
+| IPv6 kind forced internal | IPv6 eBGP cells, MP_REACH form |
+| IPv6 kind forced external | IPv6 iBGP cells, MP_REACH form |
+
+Raw-hex control: no break above touches the raw arm, and every cell's raw
+LOCAL_PREF 201 frame stayed byte-exact in the red runs that reached it.
+
+Functional users: of the two `.ci` tests that use send-bulk,
+`show-rib-under-load` passes. `modify-oversize-suppress` is red, and not
+from this change: both its sessions are eBGP (OPENs carry AS 65001 and
+65002 against Ze's 65000), its bulk UPDATE is the same single 65535-octet
+message, and its missing `reason=overflow` line is the open forward-rail
+defect `injected-route-never-announced` 2026-10-30, owned by
+`plan/release/fixes/spec-bgp-one-off-defects.md` and dated a week before
+`6e3d409685`.
+
+Found, not caused: on eBGP the generated AS_PATH still starts with the
+spec's ASN rather than ze-peer's OPEN AS; the tests set the two equal, so a
+mismatch is never exercised.
+
+## P-8: hook intent, snapshot boundary and rendered-rule needle (2026-11-09)
+
+The earlier P-8 record was wrong: its carrier
+`TestHistoricalHookIntentHasCurrentConsumer` did not exist and three rows
+were open. Each is now repaired, and each break below was applied by the
+red-walk tool, which restored the file, verified its bytes and ran the
+carrier green again (`./le job run label unit-pkg command go test -count=1
+-run <carrier> <package>`).
+
+| Defect | Repair | Carrier | Break | Red |
+| --- | --- | --- | --- | --- |
+| Session summary cut a handoff quoting `## Session:` (2026-08-10) | `snapshotBoundary` (`internal/le/session/summary.go`) opens a snapshot only at a block start or after another snapshot | `TestEndSummaryKeepsAHandoffThatQuotesTheSnapshotHeading` | the boundary answers `true` for any heading (the old predicate) | "the handoff quoting the heading was cut or moved" |
+| Commit deferral category (2026-09-03) | retired: a hook judges a command, path or file, never wording; `postDeferral` stays advisory (exit 1, never 2) | `TestHistoricalHookIntentHasCurrentConsumer/commit-deferral-retired-advisory-only` | `postDeferral` phrase match disabled | "deferral advisory over ... = 0, want 1" |
+| Test-first category (2026-09-03) | its consumer is the commit gate's test-coverage refusal, probed through `lecommit.CoverageProblems` | `.../test-first-commit-coverage` | `testCoverageProblemsSelected` answers nothing | "a commit of Go with no test was not refused naming its file" |
+| Delegation reminder (2026-09-03) | live: the Stop hook warns when no subagent was spawned | `.../delegation-reminder-stop-warning` (fixture claim now `ready`, so delegation is the only stop reason) | the "Delegation: no subagent spawned" reason dropped | "no-subagent: stop = 0, want 1" |
+| Subagent context (2026-09-03) | live: the context names the parent's claimed spec | `.../subagent-context-names-claimed-spec` | the claimed-spec block skipped | "context names the claimed spec = false, want true" |
+| Source edit under an inactive spec (kept when the test-first probe moved) | unchanged producer `writeSpecStatus` | `TestSourceEditRefusedWhileClaimedSpecIsNotActive` | the inactive-status refusal disabled; separately, `verification` dropped from the active set | "source edit under a design spec = 0, want 2"; "source edit under a verification spec = 2, want 0" |
+| Rendered-rule needle (2026-10-26) | `writeRenderedRule` names `./le ai rules update render`, the registered target; the needle matches it | `TestRenderedRuleNeedleMatchesProducer` | the producer's old wording restored | "expects ./le ai rules update render, which the producer does not print" |
+
+The four test changes (needle, test-first binding, claimed fixture status,
+grounding test) were judged by an independent `ze-test-judge`; the first
+test-first rebinding was refused for dropping the only test of the
+inactive-status refusal, and approved once that test existed. The fixture
+digests were re-sealed after the judgement. Package runs: `session`,
+`hookruntime` and `ai/hooks` pass whole.
+
+## P-12 (a) #8: the oracle speaker dials until its deadline (2026-11-09)
+
+`bgp-rfc7606-typed-nlri-discard` failed at assertion 2 with no break: the
+oracle speaker (`internal/le/interoplab/bgp/speaker.go`) dialled Ze once
+with `--connect-delay 0` while Ze's readiness probe checks nothing, so a
+refused dial ended the run before its `established:` note. The repair:
+`dialSpeakerPeer` redials every 250 ms while the dial is refused or
+unreachable, until the run's own `--duration` deadline, and then returns the
+last dial error.
+
+| Step | Result |
+| --- | --- |
+| Green | `TestDialSpeakerPeerWaitsForLateListener` and `TestDialSpeakerPeerReturnsLastErrorAtDeadline` pass; the whole `interoplab/bgp` package passes |
+| Attributed red | retry disabled (`false && speakerDialRetryable(err)`): "dialSpeakerPeer(127.0.0.1:...): dial tcp ...: connect: connection refused", and the deadline test fails its elapsed-time floor |
+| Restored green | bytes restored; both pass |
+
+The scenario's own red walk, with the checker's EVPN discard broken, is
+still owed: it needs the lab, which the host load held back this session.

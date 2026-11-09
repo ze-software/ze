@@ -133,6 +133,9 @@ func stateFile(paths lepath.SessionPaths, spec string) string {
 	return filepath.Join(paths.Dir, "state", name)
 }
 
+// blockSeparator is the column-zero line endSummary writes between blocks.
+const blockSeparator = "---"
+
 const sharedCheckoutHeading = "Shared-checkout changes (session attribution unavailable):"
 
 func snapshotText(report SummaryReport, at time.Time) string {
@@ -184,17 +187,26 @@ func preserveState(content string, keep int) string {
 		kind = ""
 		current = nil
 	}
+	// blockStart is true where endSummary can have begun a block: the top of
+	// the file, after the "# Session State" title, and after a column-zero
+	// "---" separator, with only blank lines since. A "## Session:" line inside
+	// a handoff is the handoff's own text (one that quotes the heading), so it
+	// starts a snapshot only at a block start or inside another snapshot.
+	blockStart := true
 	for _, line := range lines {
 		if strings.TrimRight(line, " \t") == "# Session State" {
 			flush()
+			blockStart = true
 			continue
 		}
-		if strings.HasPrefix(line, "## Session:") {
+		if snapshotBoundary(line, kind, blockStart) {
 			flush()
 			kind = snapshotKind
 			current = []string{line}
+			blockStart = false
 			continue
 		}
+		blockStart = nextBlockStart(line, blockStart)
 		if kind == snapshotKind {
 			if snapshotGrammar(line) {
 				current = append(current, line)
@@ -219,11 +231,33 @@ func preserveState(content string, keep int) string {
 	return strings.Join(blocks, "\n\n---\n")
 }
 
+// snapshotBoundary reports whether line opens a snapshot endSummary wrote:
+// the heading snapshotText emits, met at a block start or after another
+// snapshot. The same heading inside a handoff block is that block's text.
+func snapshotBoundary(line, kind string, blockStart bool) bool {
+	if !strings.HasPrefix(line, "## Session:") {
+		return false
+	}
+	if kind == snapshotKind {
+		return true
+	}
+	return blockStart
+}
+
+// nextBlockStart carries the block-start state past one line: a blank line
+// keeps it, a column-zero "---" separator sets it, and any other line ends it.
+func nextBlockStart(line string, blockStart bool) bool {
+	if strings.TrimSpace(line) == "" {
+		return blockStart
+	}
+	return strings.TrimRight(line, " \t") == blockSeparator
+}
+
 func snapshotGrammar(line string) bool {
 	if strings.Trim(line, " \t") == "" {
 		return true
 	}
-	if strings.TrimRight(line, " \t") == "---" && !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "\t") {
+	if strings.TrimRight(line, " \t") == blockSeparator && !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "\t") {
 		return true
 	}
 	if strings.HasPrefix(line, "Branch:") {
@@ -249,7 +283,7 @@ func trimSnapshot(lines []string) []string {
 	for len(lines) != 0 {
 		last := strings.TrimSpace(lines[len(lines)-1])
 		if last != "" {
-			if last != "---" {
+			if last != blockSeparator {
 				break
 			}
 		}

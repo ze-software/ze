@@ -422,8 +422,11 @@ The automatic recovery snapshot is not an ownership ledger. Its Uncommitted and
 Staged paths come from the whole checkout, so it labels them
 `Shared-checkout changes (session attribution unavailable)`. That label is part
 of the snapshot grammar: rotating recovery snapshots keeps the latest three
-with their labels and preserves separately authored handoff blocks.
-<!-- source: internal/le/session/summary.go -- endSummary, snapshotText, snapshotGrammar, preserveState -->
+with their labels and preserves separately authored handoff blocks. A
+`## Session:` heading opens a snapshot only at a block start (the top of the
+file or after a column-zero `---` separator) or after another snapshot, so a
+handoff that quotes the heading in its body is kept whole.
+<!-- source: internal/le/session/summary.go -- endSummary, snapshotText, snapshotGrammar, preserveState, snapshotBoundary, nextBlockStart -->
 
 
 A handoff leads with its rationale so the owner can catch a misaligned handoff

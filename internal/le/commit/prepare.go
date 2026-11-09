@@ -615,6 +615,14 @@ func testCoverageProblemsSelected(root string, paths []string, selection hunks.S
 	return []string{"this commit carries Go and no test:\n  " + strings.Join(owing, "\n  ")}, nil
 }
 
+// CoverageProblems answers the test-first refusal `./le commit create` applies
+// to a commit of these paths as the working tree holds them: Go that owes a
+// test, and no test beside it. It is the current consumer of the retired
+// test-first edit hook, and the hook fixtures ask it rather than restate it.
+func CoverageProblems(root string, paths []string) ([]string, error) {
+	return testCoverageProblemsSelected(root, paths, nil)
+}
+
 func testCoverageRequired(path string) bool {
 	if !strings.HasSuffix(path, ".go") ||
 		strings.HasSuffix(path, "_test.go") || strings.HasSuffix(path, "_gen.go") ||

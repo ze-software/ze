@@ -2,6 +2,7 @@ package aihooks
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/hookruntime"
@@ -15,8 +16,8 @@ import (
 // it, and a category that leaves must not come back.
 //
 // Grounded means ONE thing: the verdict reaches the code that ENFORCES the
-// rule, which is hookruntime for a hook and the consistency gate for the one
-// category no hook produces. It does not mean the verdict calls a function. The
+// rule, which is hookruntime for a hook, the consistency gate for design-ref,
+// and the commit gate's own function (commitGates) for test-first. It does not mean the verdict calls a function. The
 // first version of this guard counted any non-string-library call as grounding
 // and reported five bound categories; every one of those five called a copy of
 // the producer's rule living in THIS package. A copy drifts exactly like an
@@ -90,14 +91,21 @@ func TestEveryFixtureCategoryReachesItsProducer(t *testing.T) {
 func TestEveryProbeNamesARegisteredCheck(t *testing.T) {
 	for category, probe := range categoryProbes {
 		named := 0
-		for _, producer := range []string{probe.check, probe.lifecycle, probe.finding} {
+		for _, producer := range []string{probe.check, probe.lifecycle, probe.finding, probe.gate} {
 			if producer != "" {
 				named++
 			}
 		}
 		if named != 1 {
-			t.Errorf("category %q names %d producers, want exactly one of check, lifecycle, finding",
+			t.Errorf("category %q names %d producers, want exactly one of check, lifecycle, finding, gate",
 				category, named)
+			continue
+		}
+		if probe.gate != "" {
+			if _, registered := commitGates[probe.gate]; !registered {
+				t.Errorf("category %q asks the commit gate %q, which commitGates does not map to a "+
+					"commit package function", category, probe.gate)
+			}
 			continue
 		}
 		if probe.check == "" {
@@ -134,6 +142,41 @@ func TestEveryProbeSeparatesItsAllowFromItsRefusal(t *testing.T) {
 			t.Errorf("category %q: the refusal probe could not run: %v", category.name, err)
 		case refused:
 			t.Errorf("category %q: the producer allowed the value the fixtures call refused", category.name)
+		}
+	}
+}
+
+// TestRenderedRuleNeedleMatchesProducer asks writeRenderedRule to refuse an
+// edit of a rendered rule and holds the catalog row that names its command to
+// the text the producer actually printed. Before it, the row expected a
+// command retired months earlier and nothing compared the two.
+//
+// MUTATION: restoring writeRenderedRule's old "run the native rules render
+// action" wording, or a needle naming `./le ai rules update index`, turns this
+// test red.
+func TestRenderedRuleNeedleMatchesProducer(t *testing.T) {
+	const name = "rendered-rule-case-variant-names-the-real-generator"
+	index := slices.IndexFunc(fixtureSites[:], func(site fixtureSite) bool { return site.name == name })
+	if index < 0 {
+		t.Fatalf("the catalog holds no site named %q", name)
+	}
+	site := fixtureSites[index]
+	code, message, found := hookruntime.Probe("writeRenderedRule", hookruntime.Payload{
+		ToolName:  toolWriteName,
+		ToolInput: map[string]any{"file_path": "ai/rules/commands.md", "content": "probe"},
+	}, t.TempDir())
+	if !found || code != site.expectedExit {
+		t.Fatalf("writeRenderedRule = %d, found %v, want %d: %s", code, found, site.expectedExit, message)
+	}
+	if len(site.messages) == 0 {
+		t.Fatalf("site %q names no message to compare", name)
+	}
+	for _, needle := range site.messages {
+		if needle.match != matchContains {
+			t.Fatalf("site %q message %q is %s, want %s", name, needle.text, needle.match, matchContains)
+		}
+		if !strings.Contains(message, needle.text) {
+			t.Errorf("site %q expects %q, which the producer does not print: %s", name, needle.text, message)
 		}
 	}
 }

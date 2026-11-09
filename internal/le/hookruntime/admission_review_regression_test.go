@@ -196,3 +196,44 @@ func TestFunctionalProofUsesCanonicalTestIdentity(t *testing.T) {
 		}
 	}
 }
+
+// TestSourceEditRefusedWhileClaimedSpecIsNotActive asks the registered
+// source-edit gate about a Go write under a claimed spec whose metadata table
+// is well formed. A spec still in design refuses the edit; one in verification
+// admits it, as in-progress does.
+//
+// MUTATION: deleting the `if !oneOf(status, "in-progress", "verification")`
+// check from writeSpecStatus admits the design spec, so the design case goes
+// red; narrowing it to in-progress alone turns the verification case red.
+func TestSourceEditRefusedWhileClaimedSpecIsNotActive(t *testing.T) {
+	for _, test := range []struct {
+		status string
+		want   int
+	}{
+		{"design", 2},
+		{"verification", 0},
+	} {
+		t.Run(test.status, func(t *testing.T) {
+			const session = "status-proof"
+			root := t.TempDir()
+			t.Setenv("ZE_REPO_ROOT", root)
+			t.Setenv("CLAUDE_CODE_SESSION_ID", session)
+			t.Setenv("ZE_AGENT_ID", "")
+			env.ResetCache()
+			t.Cleanup(env.ResetCache)
+			writeHookFixture(t, root, "tmp/session/.session-"+session, "spec-status-proof.md\n")
+			writeHookFixture(t, root, "plan/post-release/engineering/spec-status-proof.md",
+				"| Field | Value |\n|---|---|\n| Status | "+test.status+" |\n")
+			code, message, found := Probe("writeSpecStatus", Payload{
+				SessionID: session, ToolName: toolWrite,
+				ToolInput: map[string]any{"file_path": filepath.Join(root, "internal/probe/probe.go"), "content": "package probe\n"},
+			}, root)
+			if !found || code != test.want {
+				t.Fatalf("source edit under a %s spec = %d, found %v, want %d: %s", test.status, code, found, test.want, message)
+			}
+			if test.want == 2 && !strings.Contains(message, "is not in-progress") {
+				t.Fatalf("the refusal does not name the inactive status: %s", message)
+			}
+		})
+	}
+}

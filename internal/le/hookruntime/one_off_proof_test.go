@@ -12,8 +12,135 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
+	lecommit "github.com/ze-software/ze/internal/le/commit"
 	"github.com/ze-software/ze/internal/le/derived"
 )
+
+// historicalSession is the session every historical-intent probe claims.
+const historicalSession = "historical-intent"
+
+// historicalClaimTree builds a checkout whose session claims a ready spec, or
+// claims none. Ready, not in-progress: the stop hook also warns about an
+// in-progress claim, and that reason would hide a lost delegation reminder.
+func historicalClaimTree(t *testing.T, claimed, spawned bool) string {
+	t.Helper()
+	t.Setenv("CLAUDE_CODE_SESSION_ID", historicalSession)
+	root := t.TempDir()
+	writeHookFixture(t, root, "tmp/session/.keep", "")
+	if claimed {
+		writeHookFixture(t, root, "tmp/session/.session-"+historicalSession, "spec-probe.md\n")
+		writeHookFixture(t, root, "plan/post-release/engineering/spec-probe.md", "| Field | Value |\n|---|---|\n| Status | ready |\n")
+	}
+	if spawned {
+		writeHookFixture(t, root, "tmp/session/.agent-spawned-"+historicalSession, "")
+	}
+	return root
+}
+
+// TestHistoricalHookIntentHasCurrentConsumer gives each of the four hook
+// categories the Go port lost (plan/journal/refactor-removes-feature.md,
+// 2026-09-03) its current disposition, and asks that consumer with one
+// violating and one control input.
+//
+//   - commit deferral: RETIRED as a refusal, because a hook checks what a
+//     command, path or file is, never how a message is worded
+//     (ai/META-DECISIONS.md), and AC-8 forbids reinstating it. The permitted
+//     behavior is asserted: deferral prose is admitted, and its only live
+//     consumer, the postDeferral advisory, warns (exit 1) and refuses nothing.
+//   - test-first (ai/rules/testing.md, "A test MUST exist"): consumed by the
+//     test-coverage refusal of ./le commit create.
+//   - delegation reminder (ai/META-DECISIONS.md, "Delegate to subagents"):
+//     consumed by the Stop hook's open-state warning.
+//   - subagent context (ai/rules/planning.md): consumed by the SubagentStart
+//     hook, which names the parent's claimed spec. The retired LSP and
+//     per-message wording it once asserted are not reinstated.
+//
+// MUTATION: removing the phrase loop from postDeferral, returning nil from
+// testCoverageProblemsSelected, dropping the "Delegation: no subagent
+// spawned" reason from hookStop, or dropping the claimed-spec block from
+// hookSubagentContext each turns its subtest red.
+func TestHistoricalHookIntentHasCurrentConsumer(t *testing.T) {
+	t.Run("commit-deferral-retired-advisory-only", func(t *testing.T) {
+		for _, test := range []struct {
+			content string
+			want    int
+		}{
+			{"The remainder is deferred to later.\n", 1},
+			{"The remainder is implemented now.\n", 0},
+		} {
+			code, message, found := Probe("postDeferral", Payload{
+				ToolName:  toolWrite,
+				ToolInput: map[string]any{"file_path": "docs/probe.md", "content": test.content},
+			}, t.TempDir())
+			if !found || code != test.want {
+				t.Fatalf("deferral advisory over %q = %d, found %v, want %d: %s", test.content, code, found, test.want, message)
+			}
+			if test.want == 1 && !strings.Contains(message, "Deferral language") {
+				t.Fatalf("the advisory does not name deferral language: %s", message)
+			}
+		}
+	})
+	t.Run("test-first-commit-coverage", func(t *testing.T) {
+		root := t.TempDir()
+		writeHookFixture(t, root, "internal/probe/probe.go", "package probe\n")
+		writeHookFixture(t, root, "internal/probe/probe_test.go", "package probe\n")
+		untested, err := lecommit.CoverageProblems(root, []string{"internal/probe/probe.go"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(untested) != 1 || !strings.Contains(untested[0], "internal/probe/probe.go") {
+			t.Fatalf("a commit of Go with no test was not refused naming its file: %q", untested)
+		}
+		tested, err := lecommit.CoverageProblems(root, []string{"internal/probe/probe.go", "internal/probe/probe_test.go"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(tested) != 0 {
+			t.Fatalf("a commit carrying its test was refused: %q", tested)
+		}
+	})
+	t.Run("delegation-reminder-stop-warning", func(t *testing.T) {
+		for _, test := range []struct {
+			name    string
+			spawned bool
+			want    int
+		}{
+			{"no-subagent", false, 1},
+			{"subagent-spawned", true, 0},
+		} {
+			root := historicalClaimTree(t, true, test.spawned)
+			code, output, found := ProbeLifecycle("block-premature-stop", Payload{SessionID: historicalSession}, root)
+			if !found || code != test.want {
+				t.Fatalf("%s: stop = %d, found %v, want %d: %s", test.name, code, found, test.want, output)
+			}
+			if test.want == 1 && !strings.Contains(output, "Delegation: no subagent spawned") {
+				t.Fatalf("%s: the stop warning does not carry the delegation reason: %s", test.name, output)
+			}
+		}
+	})
+	t.Run("subagent-context-names-claimed-spec", func(t *testing.T) {
+		const named = "Spec claimed by the session that spawned you: plan/post-release/engineering/spec-probe.md"
+		for _, test := range []struct {
+			name    string
+			claimed bool
+		}{
+			{"no-claim", false},
+			{"claimed", true},
+		} {
+			root := historicalClaimTree(t, test.claimed, false)
+			code, output, found := ProbeLifecycle("subagent-context", Payload{SessionID: historicalSession}, root)
+			if !found || code != 0 {
+				t.Fatalf("%s: subagent context = %d, found %v: %s", test.name, code, found, output)
+			}
+			if strings.Contains(output, named) != test.claimed {
+				t.Fatalf("%s: context names the claimed spec = %v, want %v: %s", test.name, !test.claimed, test.claimed, output)
+			}
+			if !strings.Contains(output, "ai/rules/planning.md") {
+				t.Fatalf("%s: context lost the planning contract: %s", test.name, output)
+			}
+		}
+	})
+}
 
 // TestHookVerdictBoundaries exercises the registered write check with allowed,
 // forbidden and mixed calls, in both orders, without executing any panic.

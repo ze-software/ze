@@ -248,14 +248,17 @@ tests ran, and an advisory is not a refusal.
 | Historical intent | Current rule and consumer | Required boundary and permitted behavior |
 |---|---|---|
 | Commit deferral (`commit-gate`) | `ai/rules/completion.md`; fixture producer `postDeferral` | Deferral wording in a document can produce an advisory, never a commit refusal. Separately, `hookStop` blocks Stop for a claimed, implemented-but-unclosed spec. An unclaimed session is permitted to stop regardless of its last message; no phrase classifier decides whether a commit is owed. |
-| Test-first (`test-first`) | `ai/rules/testing.md`; fixture producer `writeSpecStatus` and the independent test judgment workflow | The rule requires an observed red before implementation. The edit-time status check refuses implementation under a non-active claim, but does not establish test-first compliance. A source edit under an active claim is permitted by this check; it does not certify a test run. |
+| Test-first (`test-first`) | `ai/rules/testing.md`; fixture producer `testCoverageProblemsSelected`, the test-coverage refusal of `./le commit create`, and the independent test judgment workflow | A commit carrying Go that owes a test, with no `_test.go`, `.ci` or `.et` beside it, is refused unless `no-test` names a truthful reason; generated, vendored, `cmd/`, `register.go`, `embed.go` and `doc.go` files owe none. No edit-time hook judges it: `writeSpecStatus` judges the claimed spec's status, not test-first, and neither check certifies an observed red. |
 | Delegation reminder (`delegation`) | `ai/rules/planning.md`; fixture producer `hookStop` and the `mark-agent-spawned` action | A claimed session with no spawned-agent marker gets a one-line warning, not a block. A recorded spawn removes that reason; with no claim, Stop is permitted. The main thread still owes the rule's phase delegation. |
 | Subagent context (`subagent-context`) | `ai/rules/planning.md`; fixture producer `hookSubagentContext` | SubagentStart emits the parent's identity and context, resolves its claim to the current category, and names an unresolved claim explicitly. The hook does not judge the prose of a Task brief; the author still owes the canonical briefing rule. |
 
 <!-- source: internal/le/hookruntime/lifecycle.go -- hookStop, hookSubagentContext, runLifecycleHook -->
 <!-- source: internal/le/hookruntime/postwrite.go -- postDeferral -->
 <!-- source: internal/le/hookruntime/writeedit.go -- writeSpecStatus -->
+<!-- source: internal/le/commit/prepare.go -- testCoverageProblemsSelected, CoverageProblems -->
 <!-- source: internal/le/ai/hooks/fixtures.go -- fixtureCategories, categoryProbes -->
+<!-- source: internal/le/ai/hooks/fixture_commit_gate.go -- commitGates, commitGateVerdict -->
+<!-- source: internal/le/hookruntime/one_off_proof_test.go -- TestHistoricalHookIntentHasCurrentConsumer -->
 
 `UserPromptSubmit` stdout reaches the model and its stderr does not.
 
