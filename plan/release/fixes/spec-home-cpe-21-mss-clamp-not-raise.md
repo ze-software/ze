@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | plugin |
 | Priority | P2 |
 | Release reason | Release validation and documentation: the reported defect (a smaller MSS is raised) does not reach the wire on Linux, because the kernel refuses to raise it, but no test proves the clamp on the state Ze installs and the policy-routing YANG text describes an unconditional rewrite |
@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-07 |
+| Updated | 2026-11-09 |
 
 Parent: `plan/release/fixes/spec-home-cpe-0-umbrella.md` (child 21).
 
@@ -213,7 +213,7 @@ recorded in this spec's closure, not through `./le rfc record`.
 | Proof | Break (producer) | Expected red | Why it discriminates |
 |-------|------------------|--------------|----------------------|
 | Lowering (AC-1) | the term's `SetTCPMSS` action is not lowered (`lowerAction` returns no expressions for it) | the 1460 SYN arrives as 1460 | a correct stack writes 1400; only an absent write leaves 1460 |
-| No raise (AC-2) | `lowerSetTCPMSS` replaces `tcpMSSWrite()` with a raw two-byte payload write at transport header offset 22 (the MSS value when MSS is the first option), inet checksum at offset 16 (`rwinv/c11-mss-raises-payload`); guest run pending | the 1300 SYN arrives as 1400 | a payload write bypasses `nft_exthdr_tcp_set_eval`, whose two-byte arm alone carries the MSS guard, so only the option write Ze installs keeps 1300. The earlier break, a four-byte option write at offset 0, is no break: Ze's 7.3 kernel refuses that rule when the table is applied (`operation not supported`, child 21's walk, 2026-11-08) |
+| No raise (AC-2) | `lowerSetTCPMSS` replaces `tcpMSSWrite()` with a raw two-byte payload write at transport header offset 22 (the MSS value when MSS is the first option), inet checksum at offset 16 (walk `c11-mss-raises-payload`, run in the home-CPE lab scenario `lan-services`, 2026-11-08: red, then green restored) | the 1300 SYN arrives as 1400 | a payload write bypasses `nft_exthdr_tcp_set_eval`, whose two-byte arm alone carries the MSS guard, so only the option write Ze installs keeps 1300. The earlier break, a four-byte option write at offset 0, is no break: Ze's 7.3 kernel refuses that rule when the table is applied (`operation not supported`, child 21's walk, 2026-11-08) |
 
 The earlier proposal, changing the configured value from 1400 to 1500, is not
 a break: 1300 stays 1300 under both values on a correct stack and on a broken
@@ -335,6 +335,7 @@ Before 2026-11-08 no journal row recorded this (grep of `plan/journal/` for `tcp
 | Kind | What happened | What was true instead | How discovered | Action |
 |------|---------------|----------------------|----------------|--------|
 | approach | the spec cited Section 3.7.1 for the upper-bound sentence | it is in 3.7.2 | closure review against rfc/full/rfc9293.txt | citations corrected |
+| approach | the AC-2 break was planned for the netns unit test, first as a four-byte option write, then as a raw payload write | Ze's 7.3 kernel refuses both rules in that test's sandbox at Apply (operation not supported, operation not permitted), so the unit run goes red before its assertion and discriminates nothing | the walks of 2026-11-08 (`rwinv/out-qb2`, `rwinv/out-gb5`) | AC-2's walk moved to the home-CPE lab scenario `lan-services`, where the payload break turns 1300 into 1400; the test and lowering comments say so |
 
 ## Evidence
 
@@ -344,7 +345,7 @@ Before 2026-11-08 no journal row recorded this (grep of `plan/journal/` for `tcp
 | `TestTCPMSSClampToPMTU` | passes on Ze's 7.3 kernel in QEMU |
 | `test/policy/policy-tcp-mss-clamp.ci` | passes on Ze's kernel in QEMU |
 | AC-1 red walk | recorded 2026-11-07: with `lowerSetTCPMSS` not called (the action not lowered), `TestTCPMSSSetClampsNeverRaises` went red; restored, green |
-| AC-2 red walk | still owed. The four-byte write break of the TDD Test Plan was run in child 11's `lan-services` lab on 2026-11-08 (walk `c11-mss-raises`): the kernel refused the rule (`firewallnft: flush: ... netlink receive: operation not supported`), so it cannot prove the no-raise clause. Child 11's replacement break, a transport-header payload write of the register over the MSS value (walk `c11-mss-raises-payload`), is the candidate for this walk too |
+| AC-2 red walk | recorded 2026-11-08 in the home-CPE lab scenario `lan-services` (walk `c11-mss-raises-payload`, on the tree after 3745936efa): with `lowerSetTCPMSS` writing the register as a raw two-byte payload write at transport offset 22, the scenario went red, "the SYN to 198.51.100.10.9102: offered MSS 1300 and arrived with MSS 1400, want 1300" (session scratch `rwinv/c11-narrow2.log`); on the restored code it passed, "[1/1] lan-services: pass (39s)" (`rwinv/out-c11-interop/clean-lan-services.log`). The unit route cannot carry this walk: in `TestTCPMSSSetClampsNeverRaises`'s sandbox Ze's 7.3 kernel refuses both raising breaks when the table is applied, the four-byte option write with "operation not supported" (`rwinv/out-qb2/c21.log`) and the payload write with "operation not permitted" (`rwinv/out-gb5/c21-payload-broken.log`), while the clean run passes (`rwinv/out-gb5/c21-payload-clean.log`). The four-byte break was refused in the lab too (walk `c11-mss-raises`) |
 
 ## Checklist
 
@@ -357,7 +358,7 @@ Before 2026-11-08 no journal row recorded this (grep of `plan/journal/` for `tcp
 - [ ] AC-1..AC-5 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] Targeted tests pass: `./le test unit plugins`; `./le test integration firewall`; on Ze's kernel, `./le test qemu run kernel tmp/kernel/build/vmlinuz packages "nftables iproute2 libcap" timeout 1200s command 'go test -tags integration -count=1 -run TestTCPMSSSetClampsNeverRaises ./internal/plugins/firewall/nft/'`; and `./le test policy` for `policy-tcp-mss-clamp`; then `./le verify changed` over the closing commits
+- [ ] Targeted tests pass: `./le test unit plugins`; `./le test integration firewall`; on Ze's kernel, `./le test qemu run kernel tmp/kernel/build/vmlinuz packages "nftables iproute2 libcap" timeout 1200s command 'go test -tags integration -count=1 -run TestTCPMSSSetClampsNeverRaises ./internal/plugins/firewall/nft/'`; and `./le test policy` for `policy-tcp-mss-clamp`; GitHub CI verifies the pushed commit
 - [ ] Both red walks of the TDD Test Plan run red and green, outputs pasted
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
@@ -372,3 +373,123 @@ Before 2026-11-08 no journal row recorded this (grep of `plan/journal/` for `tcp
 ### Closure
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean
+
+## Implementation Summary
+
+### What Was Implemented
+- `TestTCPMSSSetClampsNeverRaises` (`internal/plugins/firewall/nft/integration_linux_test.go`): one router netns with two veth pairs (`internal/test/msslab`), a SYN injected on the ingress peer, forwarded through the rule `tcp-mss-set 1400` lowers to, read on the egress peer, for IPv4 and IPv6 (f19ada1079).
+- `test/policy/policy-tcp-mss-clamp.ci` with the fixture `internal/test/fixture/netfilter_fixture_policy_mss.go`: the same three probes through policy-routing `tcp-mss 1400` run by the daemon (f19ada1079, promoted in 6d194604f9).
+- YANG descriptions and help of `tcp-mss` (`ze-policyroute-conf.yang`) and `tcp-mss-set` (`ze-firewall-conf.yang`) say the value is an upper bound that never raises; the comment above `lowerSetTCPMSS` names the kernel guard it relies on (f19ada1079, corrected in 74a691e03d and at this closure).
+
+### Bugs Found/Fixed
+- None in the product: the stack already clamps (Finding that reshapes this spec).
+
+### Documentation Updates
+- `docs/guide/firewall.md`, term actions table, row `tcp-mss-set`, and `docs/guide/policy-routing.md` ("`tcp-mss N` is an upper bound"), both in f19ada1079.
+
+### Deviations from Plan
+- AC-2's red walk runs in the home-CPE lab scenario `lan-services`, not in `TestTCPMSSSetClampsNeverRaises`: Ze's 7.3 kernel refuses both raising breaks in the unit test's sandbox at Apply, so that run goes red before its assertion (Evidence, AC-2 red walk). The unit test still asserts 1300 stays 1300 on the real rule; the lab is what proves the assertion can fail.
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| 1. Prove lowering and no-raise on Ze's kernel, IPv4 and IPv6 | Done | `integration_linux_test.go` `TestTCPMSSSetClampsNeverRaises`; lab `lan-services` (`internal/le/interoplab/topology/check_lan.go` `lanMSSProbes`) | AC-2 discriminated by the lab |
+| 2. Descriptions say clamp, never raise | Done | `ze-policyroute-conf.yang` leaf `tcp-mss`; `ze-firewall-conf.yang` leaf `tcp-mss-set`; `lower_linux.go` `lowerSetTCPMSS` | |
+| 3. Decide on set semantics | Done | Key Design Decisions | not needed |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestTCPMSSSetClampsNeverRaises` case "larger MSS is lowered"; red walk in Evidence | |
+| AC-2 | Done | case "smaller MSS is kept"; discriminated in lab `lan-services` (walk `c11-mss-raises-payload`) | Deviation recorded |
+| AC-3 | Done | case "absent MSS stays absent", header 20 octets | |
+| AC-4 | Done | `test/policy/policy-tcp-mss-clamp.ci`, six `expect=stdout` lines | |
+| AC-5 | Done | YANG description and `ze:help` of both leaves | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestLowerSetTCPMSS` | Done | `lower_linux_test.go` | kept |
+| `TestTCPMSSSetClampsNeverRaises` | Done | `integration_linux_test.go` | |
+| `policy-tcp-mss-clamp` | Done | `test/policy/policy-tcp-mss-clamp.ci` | |
+| `lan-services` MSS step | Done | `check_lan.go` `lanMSSProbes` | child 11 owns the scenario |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `ze-policyroute-conf.yang`, `ze-firewall-conf.yang` | Done | descriptions |
+| `lower_linux.go` | Done | comment only |
+| `docs/guide/firewall.md`, `docs/guide/policy-routing.md` | Done | |
+| `test/policy/policy-tcp-mss-clamp.ci` | Done | |
+| `integration_linux_test.go` | Done | test function added |
+| `core-design.md`, `policyroute/policy-routing.md`, `fw-6-firewall-vpp.md` | Changed | read, nothing became wrong (Files to Modify) |
+
+### Audit Summary
+- **Total items:** 17
+- **Done:** 16
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (the three architecture pages needed no edit; AC-2's walk route is in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The installed rule lowers a larger MSS and leaves a smaller one alone, IPv4 and IPv6 | integration test on Ze's kernel, plus a lab against third-party hosts | `TestTCPMSSSetClampsNeverRaises` passes on Ze's 7.3 kernel (`rwinv/out-gb5/c21-payload-clean.log`, "--- PASS"); AC-1 red walk (Evidence); AC-2 red walk in `lan-services` (Evidence) |
+| Every description says clamp, never raise | source | both YANG leaves, the guide rows, the `lowerSetTCPMSS` comment |
+| Set semantics are not needed | design | Key Design Decisions; RFC 9293 Section 3.7.2 |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is demonstrated | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/home-cpe-21-mss-clamp-not-raise-7e292f27-ced0-427f-a7b6-3a931db211f9.md` |
+| `./le spec review check` | clean (2 code files, hashes match) |
+| Rounds | 2 |
+| Reviewer lenses used | logic and evidence (does each comment and record match what the walks observed), security and edge cases, Go style pass (no `panic`, `go func` or discarded error in the new Go; test code only, nothing a peer reaches) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The test comment said the AC-2 payload break turns the test red at its assertion ("the 1300 SYN should arrive as 1400"), and the lowering comment named it the test's red walk; the measured run went red at Apply ("operation not permitted"), so neither comment matched what the walk did | `integration_linux_test.go` comment above `TestTCPMSSSetClampsNeverRaises`; `lower_linux.go` comment above `lowerSetTCPMSS` | both comments now name the sandbox refusal and the lab walk; run 2 found nothing |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/policy/policy-tcp-mss-clamp.ci` | Yes | `ls`: 3.5K, Nov 7 |
+| `internal/plugins/firewall/nft/integration_linux_test.go` | Yes | `grep -n TestTCPMSSSetClampsNeverRaises` finds the function |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-3 | three cases, two families | the `cases` table and family loop of `TestTCPMSSSetClampsNeverRaises` read at closure; clean run "--- PASS: TestTCPMSSSetClampsNeverRaises" |
+| AC-2 | discriminated | `lan-services` red "offered MSS 1300 and arrived with MSS 1400, want 1300", clean "1 passed, 0 failed" |
+| AC-4 | through policy routing | six `expect=stdout:contains=mss ...` lines in the `.ci` |
+| AC-5 | both leaves | `grep -n "never raises"` hits both YANG leaves |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| policy-route `tcp-mss 1400` | `test/policy/policy-tcp-mss-clamp.ci` | read: daemon started from config, fixture forwards real SYNs |
+| firewall `tcp-mss-set 1400` | `TestTCPMSSSetClampsNeverRaises` (config through `firewall.ParseFirewallConfig`) | read |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | AC-2 green on Ze's 7.3 kernel in the unit test and the lab; the payload break that escapes the guard raises 1300 to 1400 |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| guide rows say clamp, never raise | `docs/guide/firewall.md` row `tcp-mss-set` and `docs/guide/policy-routing.md` MSS paragraph, against `lowerSetTCPMSS` and the kernel guard | Yes |
+| no RFC row | no `rfc/short/` summary for RFC 9293 or 6691; `./le rfc check` names no stem of this spec (its reds are other RFCs' stale audits) | Yes |

@@ -1482,8 +1482,11 @@ func lowerTCPFlagsMatch(flags, mask firewall.TCPFlags) ([]expr.Any, error) {
 // rule when the table is applied, with "operation not supported" (measured
 // 2026-11-08 in a netns on that kernel). TestTCPMSSSetClampsNeverRaises
 // (integration_linux_test.go) asserts on a forwarded SYN that a smaller MSS
-// is kept; its red walk replaces this write with a raw two-byte payload write
-// at the MSS value's TCP header offset, which no MSS guard covers.
+// is kept. The break that proves the guard matters replaces this write with
+// a raw two-byte payload write at the MSS value's TCP header offset, which no
+// MSS guard covers: in the home-CPE lab scenario lan-services the 1300 SYN
+// then leaves with MSS 1400. That test's sandbox refuses the payload rule
+// ("operation not permitted"), so the lab is where that break is observed.
 //
 // RFC 9293 Section 3.7.2: "The TCP MSS Option specifies an upper bound for
 // the size of packets that can be received (see [43])."
