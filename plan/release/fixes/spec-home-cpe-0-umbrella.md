@@ -104,13 +104,13 @@ record is the spec text at the parent of its closure commit
 | 5 | closed | `209709901c` (`spec-home-cpe-5-ike-eddsa.md`) |
 | 6 | closed | `9dabfc7a2a` (`spec-home-cpe-6-ipsec-ipv6-in-ipv4-vti.md`) |
 | 7 | closed | `cede669879` (`spec-home-cpe-7-system-small-defects.md`) |
-| 8 | closed | 2026-11-09, after the nine RFC 7084 and RFC 9915 records were retaken in `8d83d8bde0` (`spec-home-cpe-8-ipv6-cpe-chain.md`) |
+| 8 | closed | `87c7b998ad` (`spec-home-cpe-8-ipv6-cpe-chain`), after the nine RFC 7084 and RFC 9915 records were retaken in `8d83d8bde0` |
 | 9 | closed | `403e3256f9` (`spec-home-cpe-9-mss-clamp-to-pmtu.md`) |
 | 10 | closed | `3d1d4ecba7` (`spec-home-cpe-10-vyos-mapping-guide.md`) |
 | 11 | closed | `dcc20ffb68` (`spec-home-cpe-11-lab.md`) |
 | 12 | closed | `9bad2dd6bd` (`spec-home-cpe-12-pppoe-client-lcp-renegotiation.md`); PPPoE client LCP renegotiation in every phase documented in `docs/architecture/l2tp/cpe-1-pppoe-client.md` and `docs/guide/configuration.md` ("PPPoE Client") |
 | 13 | closed | `ac001804c0` (`spec-home-cpe-13-pppoe-client-ipcp-dns.md`); IPCP-learned DNS documented in `docs/architecture/l2tp/cpe-1-pppoe-client.md` and `docs/features/dns-resolver.md` |
-| 14 | closed | `spec-home-cpe-14-lac-realm-relay`; `TestReloadAppliesRelayRealms` passed (`rwinv/out-gb7/c14-reload.log`) and the RFC2661-6.1-1 record was re-observed red; relay by realm documented in `docs/guide/l2tp.md` ("Relay by realm") |
+| 14 | closed | `4bef6da011` (`spec-home-cpe-14-lac-realm-relay`); `TestReloadAppliesRelayRealms` passed (`rwinv/out-gb7/c14-reload.log`) and the RFC2661-6.1-1 record was re-observed red; relay by realm documented in `docs/guide/l2tp.md` ("Relay by realm") |
 | 15 | closed | `spec-home-cpe-15-lns-lcp-renegotiation`; the `l2tp proxy-lcp` leaf, its session outcome and its counter label documented in `docs/guide/l2tp.md` ("PPP negotiation") |
 | 16 | closed | `spec-home-cpe-16-lns-mru-and-auth-allow-list`; policy and MRU controls documented in `docs/guide/l2tp.md` and `docs/guide/pppoe.md` |
 | 17 | closed | `spec-home-cpe-17-pppoe-client-keepalive-config`; the `keepalive` and `reconnect` leaves documented in `docs/guide/pppoe.md` ("PPPoE client keepalive and redial") and `docs/architecture/l2tp/cpe-1-pppoe-client.md` |
@@ -119,7 +119,7 @@ record is the spec text at the parent of its closure commit
 | 20 | closed | `12fb5bbfe9` (`spec-home-cpe-20-xfrm-cross-family-tunnel-state.md`) |
 | 21 | closed | `0a7cfc0ae1` (`spec-home-cpe-21-mss-clamp-not-raise.md`) |
 | 22 | closed | `5d9241eaa6` (`spec-home-cpe-22-ike-responder-reauth.md`) |
-| 23 | closed | `spec-home-cpe-23-dns-source-fall-through` (23a: the resolver registry, the router consumer, RFC 5625); its design is in `docs/features/dns-resolver.md` |
+| 23 | closed | `62c14b96ca` (`spec-home-cpe-23-dns-source-fall-through`, 23a: the resolver registry, the router consumer, RFC 5625); its design is in `docs/features/dns-resolver.md` |
 | 23b | open, `in-progress` | `spec-home-cpe-23b-dns-source-consumers.md` (the LAN resolver, DHCPv4, RA and subscriber consumers, RADIUS DNS, `show system dns`; depends on 23) |
 
 Review correction and completion (2026-11-06): the owner found eight defects
@@ -200,8 +200,9 @@ implemented: 16, 1, 2, 21, 7, 3, 17, 18, 19, 13, 14, 12, 15, 5, 4, 6, 20,
 scenario run. Children 12 and 16 come first because each makes an
 accepted configuration do the wrong thing; 12 lands its code first and closes
 once `access-wholesale-accel-lns` can run. Child 23b closes after 23, whose
-registry and grammar it consumes. Children 8, 14, 23 and 23b are the ones
-still open; the umbrella closes after them and the lab rerun (Goal Validation).
+registry and grammar it consumes. Children 8 (`87c7b998ad`), 14
+(`4bef6da011`) and 23 (`62c14b96ca`) have closed; 23b is the one still open,
+and the umbrella closes after it and the lab rerun (Goal Validation).
 
 Doc defects found during the survey, owed with the child that touches each page:
 `docs/guide/ipsec.md` (PKI example uses leaf names that do not exist; implies
@@ -542,13 +543,23 @@ Edits outside the home-CPE specs that the children owed, as checked on
 
 ## Goal Validation
 
-One row per goal of the Task. Child 11's committed Goal Validation
-(`git show dcc20ffb68^:plan/release/fixes/spec-home-cpe-11-lab.md`, "Goal
-Validation (umbrella goals)") maps each goal to its lab evidence. That lab ran
-before children 8, 14, 23 and 23b landed, so the whole-CPE lab is owed one more
-run over the converted configuration once they have: the command list is
-`tmp/session/2026-11-07-104251/scratch/rwinv/umbrella-lab.sh`, run by the main
-thread, and its log is this table's pending evidence.
+One row per goal of the Task. Child 11's Goal Validation ("Goal Validation
+(umbrella goals)" in `spec-home-cpe-11-lab`, closed `dcc20ffb68`, readable in
+that commit's parent) maps each goal to its lab evidence. That lab ran before
+children 8, 14, 23 and 23b landed, so the whole-CPE lab is owed one more run
+over the converted configuration once they have: 8, 14 and 23 have closed
+(`87c7b998ad`, `4bef6da011`, `62c14b96ca`) and 23b is still open. The command
+list is `tmp/session/2026-11-07-104251/scratch/rwinv/umbrella-lab.sh`, run by
+the main thread, and its log is this table's pending evidence.
+
+The rerun pulls the FreeRADIUS image as it is pinned since `a59d1ee848`
+(23b): `interoplab.FreeRADIUSImage` now names the 3.2.10 manifest list
+(amd64, arm64, arm/v7) rather than its amd64 manifest, which had made the
+container exit 255 with an exec format error on the arm64 docker-lab guest.
+The topology suite shares that pin: its `ze-topology-freeradius` image is
+built from `interoplab.FreeRADIUSImage`, passed in as `FREERADIUS_IMAGE`
+(`test/interop-topology/access-chain/Dockerfile.freeradius`), so the access
+scenarios in this rerun are the first topology runs on the new pin.
 
 | Goal | Evidence | State |
 |------|----------|-------|
