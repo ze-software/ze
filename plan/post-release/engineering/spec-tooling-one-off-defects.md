@@ -8,7 +8,7 @@
 | Release reason | Each row is a defect in `le`, the hooks, the commit and verify tooling, or the functional and editor test harness; none changes the shipped binary, so it does not block release correctness |
 | Depends | - |
 | Phase | 4/13 |
-| Handoff | `plan/handover/33-tooling-one-off-reboot-2026-11-06.md` |
+| Handoff | `plan/handover/35-tooling-one-off-actual-root-chain-2026-11-09.md` |
 | Updated | 2026-11-06 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.

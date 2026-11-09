@@ -92,6 +92,13 @@ Recorded in `tooling-one-off-evidence.md`, sections P-12 (a) to (d).
   Checker code runs inside `./le`, so a checker change must be committed
   before a lab run uses it.
 
+## Earlier records
+
+This is the only handover for this spec. Handovers 32, 33 and 34 were removed
+(they stay in git history); the diagnostic and unfinished-source assets 33
+carried moved to `plan/post-release/engineering/tooling-one-off-reboot-assets/`.
+The P-12 proof queue is there at `diagnostics/phase9-current-proof-queue.md`.
+
 ## Method notes
 
 - Red walks: `tmp/session/2026-11-07-095909/scratch/redwalk.py` takes a JSON

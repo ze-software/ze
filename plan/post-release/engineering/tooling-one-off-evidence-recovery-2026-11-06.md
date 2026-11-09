@@ -486,9 +486,11 @@ These failures remain open. No evaluator repair was part of this baseline.
 
 ## Reboot checkpoint and later scoped results
 
-The [reboot handoff](../../handover/33-tooling-one-off-reboot-2026-11-06.md)
-is the current continuation record. It links the inert source-only diagnostic
-and unfinished-source assets needed on another machine. Canonical inventory
+The reboot handoff of 2026-11-06 is superseded by
+[the current continuation record](../../handover/35-tooling-one-off-actual-root-chain-2026-11-09.md);
+the old record stays in git history. Its inert source-only diagnostic and
+unfinished-source assets now live in
+[tooling-one-off-reboot-assets](tooling-one-off-reboot-assets/README.md). Canonical inventory
 checkpoint `6abaa27aa6` retains the Git-only evaluator and direct consumers;
 it does not close this spec or repair the six failures above.
 
