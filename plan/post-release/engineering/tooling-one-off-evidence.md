@@ -1617,3 +1617,25 @@ The CodeQL Go-extraction sentinel of P-17 is not attempted here: it is proven
 only by a GitHub `CodeQL` workflow run on a pushed commit whose Go extraction
 log shows an authored sentinel extracted and a `gokrazy/modcache` sentinel
 absent.
+
+## P-12 (d): build-only bench staging (2026-11-09)
+
+The repair is `8664a8ee44`: `Bench.Run` (`internal/le/perf/bench.go`) stages
+Ze for a build-only run as well as a measured one, and probes the kernel only
+for a measured run. Carrier: `internal/le/perf/bench_build_staging_test.go`.
+
+| Step | Result |
+| --- | --- |
+| Green | `TestBuildOnlyStagesCurrentZeBeforeImageBuild` and `TestBuildOnlyStagingFailureStopsImageBuild` pass (`./le job run`, `go test -tags ze_le`) |
+| Attributed red | Staging condition `(steps.Build \|\| steps.Test) && runsZe(duts)` set back to `steps.Test && runsZe(duts)`: the first test fails as "image build consumed "obsolete-input", want the current staged input", the second as "image build ran after input staging failed" and "failed input staging was reported as a successful build" |
+| Restored green | Bytes restored by the red-walk tool; both pass again |
+
+`TestBuildAndMeasuredRunsShareOneValidatedStage` asserts the shared stage: a
+build-only and a measured run each make one Stage call over the checkout root,
+the image consumer reads that stage, and only the measured run's kernel probe
+runs, on the staged file. Attributed reds: probing `b.Root` instead of
+`b.stagedZe()` fails the measured case ("kernel probe read ..., want the
+staged ..."); staging only for a measured run fails the build-only case, whose
+image consumer then finds no staged file ("image consumer read "" (open
+...)"), which also covers a missing staged file reaching the consumer. Both
+restored green.

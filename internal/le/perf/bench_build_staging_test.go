@@ -87,3 +87,54 @@ func TestBuildOnlyStagingFailureStopsImageBuild(t *testing.T) {
 		t.Fatalf("build refusal lost its input failure: %+v", report)
 	}
 }
+
+// TestBuildAndMeasuredRunsShareOneValidatedStage requires a build-only run and
+// a measured run to prepare their inputs through the same staging call, so
+// the image a build-only run produces is built from the stage a measured run
+// validates: one Stage over the checkout root, and, for a measured run only,
+// the kernel probe reading that same staged file before any image consumer.
+//
+// MUTATION: (internal/le/perf/bench.go,
+// `			if err := b.Kernel(ctx, b.stagedZe()); err != nil {`,
+// `			if err := b.Kernel(ctx, b.Root); err != nil {`): the measured run's
+// probe reads another file than the stage, and the measured case fails.
+// MUTATION: (internal/le/perf/bench.go,
+// `	if (steps.Build || steps.Test) && runsZe(duts) {`,
+// `	if steps.Test && runsZe(duts) {`): the build-only run builds from no
+// stage, and the build-only case fails.
+func TestBuildAndMeasuredRunsShareOneValidatedStage(t *testing.T) {
+	for _, steps := range []perfrunner.Steps{{Build: true}, {Build: true, Test: true}} {
+		bench, _ := fixtureBench(t)
+		path := bench.stagedZe()
+		var staged []string
+		probed := 0
+		bench.Stage = func(_ context.Context, root string) error {
+			staged = append(staged, root)
+			if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+				return err
+			}
+			return os.WriteFile(path, []byte("validated-stage"), 0o600)
+		}
+		bench.Kernel = func(_ context.Context, input string) error {
+			probed++
+			if input != path {
+				t.Errorf("steps=%+v kernel probe read %q, want the staged %q", steps, input, path)
+			}
+			return nil
+		}
+		bench.Measure = func(context.Context, suite) int {
+			input, err := os.ReadFile(path)
+			if err != nil || string(input) != "validated-stage" {
+				t.Errorf("steps=%+v image consumer read %q (%v), want the validated stage", steps, input, err)
+			}
+			return 0
+		}
+		_, _ = bench.Run(t.Context(), steps, []string{"ze"})
+		if len(staged) != 1 || staged[0] != bench.Root {
+			t.Fatalf("steps=%+v staged %q, want one stage over %q", steps, staged, bench.Root)
+		}
+		if want := map[bool]int{false: 0, true: 1}[steps.Test]; probed != want {
+			t.Fatalf("steps=%+v kernel probes=%d, want %d", steps, probed, want)
+		}
+	}
+}
