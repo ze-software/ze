@@ -1662,6 +1662,12 @@ Not attributed:
   "assertion 4: wait for FRR route 10.10.0.0/24" to be absent within 90s:
   FRR keeps the route, so it did not accept the withdrawal; restored green
   passes (1m2s). Checker fully proved.
+- `checkRouteServerASPath` / `bgp-route-server-frr`: forcing the local-AS
+  prepend toward route-server clients in the route-server forward rail
+  (`true || !facts.rsClient` in `reactor/forward_rs.go`) still passes (18s),
+  so that rail is not the one the scenario reaches, or the checker does not
+  observe it. The producer the scenario reaches is still to be traced; no
+  claim about the checker is made.
 - Untried: `checkRFC7606MixedUpdate` (`buildCombinedUpdates` in
   `wireu/split.go` handles only oversized updates, so the producer the
   scenario reaches is not yet traced), `checkRouteServerASPath` (the
