@@ -43,6 +43,7 @@ const (
 	scenarioAcctRestart   = "radius-acct-restart-freeradius"
 	scenarioCoADisconnect = "radius-coa-disconnect-freeradius"
 	scenarioFramedReject  = "l2tp-radius-framed-protocol-reject"
+	scenarioSubscriberDNS = "radius-subscriber-dns"
 
 	labDirectory = "test/interop-radius-subscriber"
 
@@ -75,6 +76,7 @@ func scenarioCheckerMap(timeout time.Duration) map[string]interoplab.Checker {
 		scenarioAcctRestart:   checker(checkAcctRestart, timeout),
 		scenarioCoADisconnect: checker(checkCoADisconnect, timeout),
 		scenarioFramedReject:  checker(checkFramedReject, timeout),
+		scenarioSubscriberDNS: checker(checkSubscriberDNS, timeout),
 	}
 }
 
@@ -159,6 +161,10 @@ func scenarioPlan(root, suffix string, source interoplab.ScenarioSource) interop
 	if source.Name == scenarioFramedReject {
 		configureFramedServerPeer(source, &server)
 	}
+	lac := lacPeerConfig(root, lacContainer)
+	if source.Name == scenarioSubscriberDNS {
+		configureSubscriberDNSPeers(source, &server, &lac)
+	}
 	return interoplab.ScenarioPlan{
 		Source: source,
 		Network: interoplab.NetworkSpec{
@@ -171,7 +177,7 @@ func scenarioPlan(root, suffix string, source interoplab.ScenarioSource) interop
 		Peers: []interoplab.PeerConfig{
 			server,
 			zePeerConfig(source, zeContainer),
-			lacPeerConfig(root, lacContainer),
+			lac,
 		},
 	}
 }

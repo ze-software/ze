@@ -1,0 +1,9 @@
+# The subscriber's resolvers come from RADIUS (RFC 2548 Sections 2.7.6 and
+# 2.7.7). rlm_files' file_common moves these reply items into the
+# Access-Accept; dictionary.microsoft defines both as Microsoft (311)
+# attributes 28 and 29, type ipaddr.
+alice	Cleartext-Password := "s3cr3t"
+	Service-Type = Framed-User,
+	Framed-Protocol = PPP,
+	MS-Primary-DNS-Server = 198.51.100.53,
+	MS-Secondary-DNS-Server = 198.51.100.54

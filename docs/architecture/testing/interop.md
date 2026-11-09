@@ -3015,6 +3015,7 @@ is the Dynamic Authorization Client.
 | `radius-acct-restart-freeradius` | RFC 2866 Section 5.5 across a real restart. The Accounting-Start before ze restarts and the one after carry ids of the form tunnel-session-tag-counter, the two boot tags differ, and each Stop carries its Start's id, all read from FreeRADIUS's detail file |
 | `radius-coa-disconnect-freeradius` | Requires both kernel shaping rates to change after CoA-ACK; a mixed valid/unsupported request must NAK without changing either rate. A valid Disconnect must ACK and produce the matching Accounting-Stop |
 | `l2tp-radius-framed-protocol-reject` | Changes only FreeRADIUS's Framed-Protocol for one user: PPP must establish traffic, SLIP must produce authorization refusal and CHAP failure without Accounting-Start, then PPP must work again |
+| `radius-subscriber-dns` | RFC 2548 Sections 2.7.6 and 2.7.7 through the pool (spec-home-cpe-23b AC-9). The scenario's own users file has FreeRADIUS answer alice with MS-Primary-DNS-Server 198.51.100.53 and MS-Secondary-DNS-Server 198.51.100.54 (`dictionary.microsoft`, Microsoft attributes 28 and 29, moved into the reply by rlm_files' `file_common`), and its own pppd options add `usepeerdns`. The pool writes no `dns-source` and has its own `dns-primary` 203.0.113.53, so its built-in list (radius first) must offer the RADIUS pair: pppd's `create_resolv` writes exactly those two `nameserver` lines to `/etc/ppp/resolv.conf`, and the pool's address must not appear. Not yet run |
 
 The server listens as a stock deployment does, `type = auth` on 1812 and
 `type = acct` on 1813 (`site-default`), and ze sends accounting to a server
@@ -3054,6 +3055,7 @@ logs. This keeps the checker's CHAP-refusal observation connected to the peer.
 <!-- source: test/interop-radius-subscriber/ppp-options -- logfd -->
 <!-- source: internal/le/interoplab/radiussubscriber/check_coa_disconnect.go -- checkCoADisconnect -->
 <!-- source: internal/le/interoplab/radiussubscriber/check_framed_protocol.go -- configureFramedServerPeer, checkFramedReject, setFramedProtocol -->
+<!-- source: internal/le/interoplab/radiussubscriber/check_subscriber_dns.go -- configureSubscriberDNSPeers, checkSubscriberDNS -->
 
 ### Independent TFTP duplicate-ACK recovery
 

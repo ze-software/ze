@@ -298,7 +298,7 @@ func (s *scenarioLab) retransmittedDisconnect(ctx context.Context, sessionID str
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: s.timeout, Interval: time.Second, Description: "radclient's answer to its retransmitted request",
 	}, func(probeCtx context.Context) (string, error) {
-		return s.lab.Query(probeCtx, peerServer, []string{"cat", "/tmp/ze-retransmit.out"}, nil)
+		return s.lab.Query(probeCtx, peerServer, []string{catCommand, "/tmp/ze-retransmit.out"}, nil)
 	}, func(output string) bool { return strings.Contains(output, "Received Disconnect-ACK") })
 	if err != nil {
 		return fmt.Errorf("retransmission: radclient received no Disconnect-ACK: %w", err)
@@ -407,7 +407,7 @@ func (s *scenarioLab) waitStop(ctx context.Context, sessionID string) error {
 // records reads the server's detail file. A record is a block of
 // "\tName = value" lines ending at a blank line.
 func (s *scenarioLab) records(ctx context.Context) ([]accountingRecord, error) {
-	text, err := s.lab.Query(ctx, peerServer, []string{"cat", detailPath}, nil)
+	text, err := s.lab.Query(ctx, peerServer, []string{catCommand, detailPath}, nil)
 	if err != nil {
 		return nil, err
 	}
