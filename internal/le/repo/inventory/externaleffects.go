@@ -578,6 +578,9 @@ func (e *externalEffects) beginRound() {
 	e.changed = false
 	e.failure = nil
 	clear(e.readCache)
+	if e.counters != nil {
+		e.counters.fixpointRounds++
+	}
 }
 
 // growAmbient is the one writer of amb. Every growth advances ambient, which

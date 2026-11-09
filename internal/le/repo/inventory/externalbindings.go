@@ -137,6 +137,9 @@ func (e *externalEffects) readObject(object *ast.Object) externalValue {
 	if e.amb.unknown != "" {
 		return externalValue{unknown: e.amb.unknown}
 	}
+	if e.counters != nil {
+		e.counters.objectReads++
+	}
 	if _, formal := e.formals[object]; formal {
 		e.formalDemand[object] = true
 	}

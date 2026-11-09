@@ -68,4 +68,10 @@ func TestExternalReadObjectAnswersARoundFromItsCache(t *testing.T) {
 	if _, joined := after.callables[grown]; !joined {
 		t.Fatal("a read in a new round missed a binding that grew")
 	}
+	if effects.counters.objectReads != 4 {
+		t.Fatalf("counted %d object reads, want 4", effects.counters.objectReads)
+	}
+	if effects.counters.fixpointRounds != 1 {
+		t.Fatalf("counted %d fixpoint rounds, want 1", effects.counters.fixpointRounds)
+	}
 }
