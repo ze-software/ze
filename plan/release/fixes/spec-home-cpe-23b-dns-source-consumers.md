@@ -613,6 +613,7 @@ Review round 1 (`tmp/session/2026-11-07-104251/scratch/c23b-review-r1.md`) and r
 - 23c067bb8d: `docs/comparison.md` VyOS DNS-source rows (Doc checklist row 11), `features/lan-dns-resolver.md` and `features/dns-resolver.md` name `dns-source` (row 1), `docs/guide/migrating-from-vyos.md`, `docs/architecture/api/process-protocol.md`.
 - 924cd6d7c9: `docs/guide/l2tp.md` (IPCP Configure-Reject, D-20). 0b7c9ea0a7: `docs/architecture/dns/lan-resolver.md`, `docs/architecture/provisioning/dhcp-server.md`, `docs/features/dns-resolver.md` (shared replay hold, D-21). bd985af80f: `docs/architecture/provisioning/dhcp-server.md` (probe fixture).
 - `docs/guide/status.md` names `test/plugin/show-system-dns.ci` as the functional test of `show system dns`, changed in the commit that promoted it (review round 2 ISSUE 4).
+- `docs/architecture/api/process-protocol.md` says a consumer's dns-source withdrawal is sent only when the engine removes its plugin (the `OnBye` handler), never on daemon stop (73b3bd08fd, review round 3 NOTE 7).
 
 ### Deviations from Plan
 - A-5 broke: no owner existed for `show system dns`, so the new plugin `internal/plugins/system-dns-cmd` owns it.
@@ -648,11 +649,11 @@ Review round 1 (`tmp/session/2026-11-07-104251/scratch/c23b-review-r1.md`) and r
 | AC-10 | Partial (pending) | `TestPoolIPCPDNSRadiusAbsent`; draft `l2tp-pool-dns-source-configured` passes clean, red under break (`c23b-pool-configured.log`) | `l2tp-pool-dns-source-received` draft red (105.9 s, `g12-clean.log`) |
 | AC-11 | Partial (pending) | `TestSelfRefusedOnSystemAndForward` (0b21d66b9f), `TestDNSSourceClassRefused` | drafts `dns-source-class-refused`, `dns-source-mode-required-consumers` and `dns-source-ra-rdnss-consumer` (the RA cases, moved out of the first two, `option=skip-os:value=darwin`); `dns-source-class-refused` was red: line 10 `expected key or '{' for server, got LBRACKET` (`p-class-clean.log`) |
 | AC-12 | Partial (pending) | `internal/plugins/system-dns-cmd/cmd` unit pass (`u-resolver.log`) | draft `show-system-dns` red: `parse config: line 16 ... LBRACKET` (`g12-clean.log`); `TestRegisteredWireMethods` pending |
-| AC-13 | Partial (pending) | `dns-resolver-forward-dhcpv4-replay` draft passes clean and red (`c23b-replay.log`, out-gb11); resolver `awaitReplay` | promotion pending; review NOTE 15: dhcpserver answers before the replay, so AC-13 holds strictly for the resolver only |
+| AC-13 | Partial (pending) | resolver's own startup snapshot request: `internal/plugins/dnsresolver/start_requests_snapshot_test.go` (029d1fe65b), red under `rwinv/c23b-replay/`; reload-start replay at daemon level: draft `test/draft/pppoe/dns-resolver-forward-ppp-replay.ci` under `rwinv/c23b-replay-both/`, which removes both startup snapshot requests. The DHCP server's `OnStarted` request and the broadcast from `Resolvers.PublishOn` are a second delivery path, which kept the draft green under `c23b-replay/` (round 3 BLOCKER 1, `out-gb13/c23b-replay.log` "ALL PHASES PASSED"). The DHCP side's hold is 0b7c9ea0a7 (D-21) | `c23b-replay-both` run pending in guest batch 14 or 15 (`rwinv/out-gb14/`, `rwinv/out-gb15/`), then promotion |
 | AC-14 | Partial | `TestOption6PassThroughDefault` | `test/dhcp/dhcp-server-dns-pass-through.ci` not written; owed |
 | AC-15 | Done (unit) | `TestRDNSSPassThroughDefault` (`internal/component/iface/rfc8106_ra_dns_source_test.go`) | |
 | AC-16b | Partial (pending) | `TestModeRequiredEachConsumer` (system, dnsresolver, pool) | drafts `dns-source-class-refused`, `dns-source-mode-required-consumers` and `dns-source-ra-rdnss-consumer` (the RA half, skipped on darwin); `dns-source-mode-required-consumers` was red, same LBRACKET parse (`p-mode-clean.log`) |
-| AC-20 | Done | `TestForwardPassThroughDefault`; `dns-resolver-forward-default`, `dns-resolver-forward-dhcpv4-default` pass clean, red under break (`c23b-fwd-default.log`, `c23b-dhcpv4-default.log`) | |
+| AC-20 | Partial (pending) | `TestForwardPassThroughDefault`; `dns-resolver-forward-default`, `dns-resolver-forward-dhcpv4-default` pass clean | the earlier break `rwinv/c23b-forward-default/` (ClassReceived removed from `config.go` `forwardDefault`) made the daemon refuse its own config at startup, so every recorded red was that refusal and never the "never forwarded" assertion (round 3 ISSUE 2). The break is now `rwinv/c23b-forward-default-select/` (`state.go` `forwardUpstreams` with `dnssource.ClassReceived: nil`, selection time), named in both `.ci` DISCRIMINATION comments by ab53377411; its run is pending in guest batch 14 or 15 |
 | AC-25 | Partial | `TestLeaseShortWhileReceivedUnusable` (the bare default) | drafted as `test/draft/dhcp/dhcp-server-short-lease-wan-down.ci`, received class narrowed to the WAN veth (Deviations); run and promotion owed |
 | AC-26 | Done | `rfc/short/rfc2548.md` line 22 `Optional use cases | lns`; tags 36f54771b5; records `rfc/discrimination/rfc2548/RFC2548-2.7.6-1.json`, `RFC2548-2.7.7-1.json` (83f4316387, `rec-RFC2548-*.log`) | `./le rfc check` re-run pending (below) |
 | AC-27 | Done (unit) | `TestSelectDropsHostOnlyAddressesForHandedOutLists`, the consumer pass-through cases, RFC8106-5.1-2 record | |
@@ -674,15 +675,15 @@ Review round 1 (`tmp/session/2026-11-07-104251/scratch/c23b-review-r1.md`) and r
 
 ### Audit Summary
 - **Total items:** 16 ACs
-- **Done:** AC-6, AC-8, AC-15, AC-20, AC-26, AC-27
-- **Partial:** AC-7, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14, AC-16b, AC-25, each waiting on a pending fix or an owed `.ci`, none on a scope cut
+- **Done:** AC-6, AC-8, AC-15, AC-26, AC-27
+- **Partial:** AC-7, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14, AC-16b, AC-20, AC-25, each waiting on a pending fix or an owed `.ci`, none on a scope cut
 - **Skipped:** none
 - **Changed:** A-5, D-19 (Deviations)
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
-| Point 2 and 3, LAN resolver: falls through its own list, default pass-through | functional | `dns-resolver-forward-received`, `-default`, `-dhcpv4-default`, `-ppp-lease`: PASS in `out-gb12/g12-clean.log`, FAIL under each break (`c23b-fwd-*.log`, `c23b-dhcpv4-default.log`, `c23b-ppp-lease.log`) |
+| Point 2 and 3, LAN resolver: falls through its own list, default pass-through | functional | `dns-resolver-forward-received`, `-default`, `-dhcpv4-default`, `-ppp-lease`: PASS in `out-gb12/g12-clean.log`; `-received` and `-ppp-lease` FAIL under their breaks (`c23b-fwd-received.log`, `c23b-ppp-lease.log`); `-default` and `-dhcpv4-default` **pending** under `rwinv/c23b-forward-default-select/` (the older `c23b-fwd-default.log` and `c23b-dhcpv4-default.log` reds were the config-time refusal, round 3 ISSUE 2) |
 | Point 2 and 3, DHCPv4 option 6 and RA RDNSS | unit, functional owed | `TestOption6FromDNSSource`, `TestOption6PassThroughDefault`, `TestLeaseShortWhileReceivedUnusable`, `TestRDNSSPassThroughDefault`, `TestRDNSSWithdrawnAdvertisedLifetimeZero` pass (`u-dhcp.log`, `u-iface.log`, `u-ra.log`); the three `test/dhcp/` `.ci` are owed |
 | Point 4, RADIUS DNS reaches the subscriber | functional, interop pending | draft `l2tp-pool-dns-source-radius` PASS clean, FAIL under the extract and pool breaks; `radius-subscriber-dns` **pending**: FreeRADIUS container exited 255 before the probe (`out-gb12/interop-dns-clean.log`) |
 | Operator sees every consumer's selection | functional pending | `doctor-dns-source` draft PASS clean, red under three breaks (`c23b-doctor-*.log`); `show-system-dns` draft **pending** |
@@ -702,7 +703,7 @@ Every pending item in this closure is in scope and stays here until fixed.
 |-------|-------|
 | Artifact | not recorded yet: the gate waits for the pending fixes |
 | `./le spec review check` | not run |
-| Rounds | 2 so far (`tmp/session/2026-11-07-104251/scratch/c23b-review-r1.md`: 4 BLOCKER, 8 ISSUE, 5 NOTE; `tmp/session/2026-11-07-104251/scratch/c23b-review-r2.md`, over 80731c4ce7..bd985af80f: 1 BLOCKER, 3 ISSUE, 5 NOTE) |
+| Rounds | 3 so far (`tmp/session/2026-11-07-104251/scratch/c23b-review-r1.md`: 4 BLOCKER, 8 ISSUE, 5 NOTE; `tmp/session/2026-11-07-104251/scratch/c23b-review-r2.md`, over 80731c4ce7..bd985af80f: 1 BLOCKER, 3 ISSUE, 5 NOTE; `tmp/session/2026-11-07-104251/scratch/c23b-review-r3.md`, over the commits after bd985af80f through ad347aa9f6 and df535552bd: 1 BLOCKER, 3 ISSUE, 5 NOTE) |
 | Reviewer lenses used | logic and wiring, RFC quotes, goroutines, D-9 and D-16, docs |
 
 ### Findings fixed
@@ -727,7 +728,7 @@ NOTEs 13 to 17 recorded in the review file. NOTE 15 (the DHCP server answered be
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
 | R2-1 | BLOCKER | round-1 BLOCKER 1 still open: most 23b behaviour has no committed `.ci`, six fixture drivers have no committed caller, `radius-subscriber-dns` has never passed, and the replay hold and the IPCP Configure-Reject are unit-proven only | `test/draft/`, `internal/test/fixture/` | progress only: 9f3505b3bd (`pppoe/dns-resolver-forward-ppp-replay` fixture, split pool guards), bd985af80f (`dhcp/probe-learned` fixture, dhcpprobe option 51 and option 6 count), a59d1ee848 (FreeRADIUS 3.2.10 pinned by manifest list digest, for the container that exited 255); **pending**: the parse drafts' syntax (`server [ ... ]` refused with LBRACKET), `dhcp-server-dns-source-self.ci`, promotion of every draft, a green `radius-subscriber-dns` (Pending table) |
-| R2-2 | ISSUE | the `WithdrawsOnBye` unit tests call `withdraw()` directly, so neither the `OnBye` registrations nor the engine accepting the bye-time emit is proven | dnsresolver, dhcpserver and pool `publish_test.go` | **pending**: a `test/reload` `.ci` that removes the resolver and a DHCP server and asserts `show system dns` drops them, and the unit tests renamed to what they drive; the resolver half is drafted as `test/draft/plugin/show-system-dns-withdraw-on-removal.ci` |
+| R2-2 | ISSUE | the `WithdrawsOnBye` unit tests call `withdraw()` directly, so neither the `OnBye` registrations nor the engine accepting the bye-time emit is proven | dnsresolver, dhcpserver and pool `publish_test.go` | the `OnBye` wiring is proven daemon-level by three drafts, one per consumer: `test/draft/plugin/show-system-dns-withdraw-on-removal.ci` (resolver, fixture 920d04566d), `show-system-dns-withdraw-dhcp-server.ci` and `show-system-dns-withdraw-l2tp-pool.ci`, with breaks `rwinv/c23b-withdraw-on-bye/`, `rwinv/c23b-withdraw-dhcp/` and `rwinv/c23b-withdraw-pool/`; the three unit tests are being renamed `Test*WithdrawPublishesEmptySelection` (`ze-test-judge` verdict pending), because they call `withdraw()` directly. **pending**: the clean and break runs in guest batch 14 or 15 (`rwinv/out-gb14/`, `rwinv/out-gb15/`), promotion, the rename's commit |
 | R2-3 | ISSUE | discrimination records stale by producer change: RFC5072-4.1-4, RFC5072-4.1-6 and RFC1332-3.3-2 (`buildNakOrReject`, 924cd6d7c9), RFC5625-4.4.1-1 (dnsresolver `admit`, 0b7c9ea0a7) | `rfc/discrimination/` | **pending**: `./le rfc record` each (Pending table) |
 | R2-4 | ISSUE | round-1 ISSUE 9 rows 1 and 11 were uncommitted; `docs/guide/status.md` must change when `show-system-dns.ci` lands | `docs/comparison.md`, `features/lan-dns-resolver.md`, `docs/guide/status.md` | 23c067bb8d (rows 1 and 11); `status.md` **pending** with the `.ci` |
 | R2-5 | NOTE | a consumer that dies without a bye keeps its last selection in the registry | `internal/component/config/system/resolv.go` | recorded; engine removal is covered |
@@ -737,6 +738,23 @@ NOTEs 13 to 17 recorded in the review file. NOTE 15 (the DHCP server answered be
 | R2-9 | NOTE | round-1 NOTEs 13, 14, 16 and 17 untouched | review file | recorded |
 
 Round 2 checked clean: the RFC 1661 Section 5.4 and RFC 1877 Sections 1, 1.1 and 1.3 quotes in `ncp.go`, the RFC 8106 Section 5.1 quote above `raOnLink`, the replay hold (bounded, one timer, no goroutine, no lock on the offer path) and the withdrawal path.
+
+### Round 3 findings
+Review file `tmp/session/2026-11-07-104251/scratch/c23b-review-r3.md`. Round-2 status there: R2-1 partly fixed and open, R2-2 open, R2-3 partly fixed, R2-4 fixed (23c067bb8d, 612b02ace5), R2-5 to R2-9 unchanged.
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| R3-1 | BLOCKER | R2-1 still open: `dhcp-server-dns-pass-through` and `dhcp-server-short-lease-wan-down` red on a clean run (`out-gb13/g13-clean.log`); three parse drafts unpromoted; `dns-resolver-forward-ppp-replay` passes under `c23b-replay/` ("ALL PHASES PASSED", `out-gb13/c23b-replay.log`); the withdraw draft unpromoted; four fixture drivers without a `test/` caller; the DHCP replay hold (D-21) unit-proven only | `test/draft/`, `internal/test/fixture/` | **pending**. The replay draft now runs under `rwinv/c23b-replay-both/`, which removes both startup requests (AC-13 row); the resolver's own request is proven by `start_requests_snapshot_test.go` (029d1fe65b) under `rwinv/c23b-replay/`. The two DHCP clean reds, the parse drafts and every promotion stay in the Pending table |
+| R3-2 | ISSUE | AC-20 discrimination vacuous: `rwinv/c23b-forward-default/` made the daemon refuse its config at startup, so no red reached the "never forwarded" assertion, and the two `.ci` DISCRIMINATION comments were false | `test/plugin/dns-resolver-forward-default.ci`, `dns-resolver-forward-dhcpv4-default.ci` | ab53377411 names the selection-time break `rwinv/c23b-forward-default-select/` in both comments; AC-20 moved back to Partial; the run is **pending** (guest batch 14 or 15) |
+| R3-3 | ISSUE | R2-2 unchanged: unit tests named `WithdrawsOnBye` call `withdraw()`; no DHCP or pool daemon proof | dnsresolver, dhcpserver, pool `publish_test.go` | drafts `show-system-dns-withdraw-on-removal`, `-withdraw-dhcp-server`, `-withdraw-l2tp-pool` with breaks `c23b-withdraw-on-bye/`, `c23b-withdraw-dhcp/`, `c23b-withdraw-pool/` (R2-2 row); renames to `Test*WithdrawPublishesEmptySelection` with the judge; runs **pending** in `rwinv/out-gb14/`, `rwinv/out-gb15/` |
+| R3-4 | ISSUE | RFC5072-4.1-4, RFC5072-4.1-6, RFC1332-3.3-2 records stale after 924cd6d7c9 (producer-sha eff3a1a4f71be2a0) | `rfc/discrimination/rfc5072/`, `rfc/discrimination/rfc1332/` | **pending**: the working tree holds retaken records (producer-sha ec00bc9774199a9a), uncommitted at this edit; `./le rfc check` owed before they land |
+| R3-5 | NOTE | the DISCRIMINATION comments of `test/dhcp/dhcp-server-dns-source-self.ci` and `test/plugin/dns-resolver-forward-received.ci` say "break overlay, not yet run" although both went red at the stated assertion (`out-gb13/c23b-dhcp-self.log`, `c23b-fwd-received.log`) | those `.ci` | **pending** |
+| R3-6 | NOTE | spec rows stale after 612b02ace5 and the interop run: AC-9, AC-10, AC-11, AC-12 and the Point-4 rows still say draft or pending for promoted tests and for `radius-subscriber-dns`, which now passes clean and fails under the break (`interop-dns-clean.log`, `interop-dns-broken.log`); R2-1 calls the IPCP Configure-Reject unit-proven only, which `l2tp-pool-dns-source-received` disproves | this spec | **pending**: those rows are corrected in the edit that records the batch 14/15 results |
+| R3-7 | NOTE | `process-protocol.md` said the `withdrawn` event is sent when the plugin stops; the producer sends it only from `OnBye`, when the engine removes the plugin | `docs/architecture/api/process-protocol.md` | 73b3bd08fd |
+| R3-8 | NOTE | the pppd `ipcp_reqci` behaviour D-20 cites was not read in pppd source | D-20 | recorded: D-20 rests on RFC 1661 Section 5.4 and RFC 1877 Sections 1.1 and 1.3; quoting pppd is still owed |
+| R3-9 | NOTE | R2-5 to R2-9 carry over | review file | recorded |
+
+Round 3 checked clean: the replay hold bound and release order (DHCP and resolver), the Configure-Reject quotes, the promoted `.ci` assertions, the ad347aa9f6 renames, and the 6f34904269 refuse-by-default annotation.
 
 ## Pre-Commit Verification
 
@@ -793,6 +811,8 @@ Batch 13 logs are in `tmp/session/2026-11-07-104251/scratch/rwinv/out-gb13/` (un
 | refuse gate | `./le arch refuse-by-default check` |
 | RFC records stale in `out-gb12/rfc-check.log`: RFC7084-4.3-6, RFC7084-4.3-8, RFC9915-6.3-2 (producer-changed) and four `./le rfc move` file renames | `./le rfc check` |
 | RFC records stale by round-2 producer edits (R2-3): RFC5072-4.1-4, RFC5072-4.1-6, RFC1332-3.3-2, RFC5625-4.4.1-1 | `./le rfc record` each, then `./le rfc check` |
-| bye-time withdrawal (R2-2) | run the draft `test/draft/plugin/show-system-dns-withdraw-on-removal.ci` (`./le test bgp plugin --draft -a`), clean and with `res.withdraw()` taken out of the dnsresolver `OnBye` handler, then promote to `test/plugin/` |
+| bye-time withdrawal (R2-2, round 3 ISSUE 3) | the drafts `show-system-dns-withdraw-on-removal`, `-withdraw-dhcp-server`, `-withdraw-l2tp-pool` under `test/draft/plugin/`, clean and under `rwinv/c23b-withdraw-on-bye/`, `c23b-withdraw-dhcp/`, `c23b-withdraw-pool/` (guest batches 14/15), then promote to `test/plugin/`; commit the `Test*WithdrawPublishesEmptySelection` renames once the judge approves |
+| reload-start replay (AC-13, round 3 BLOCKER 1) | `test/draft/pppoe/dns-resolver-forward-ppp-replay.ci` under `rwinv/c23b-replay-both/`; it must go red at its forwarding assertion, then promote |
+| forward default (AC-20, round 3 ISSUE 2) | `dns-resolver-forward-default.ci`, `dns-resolver-forward-dhcpv4-default.ci` under `rwinv/c23b-forward-default-select/`, each red at the "never forwarded" line; then cite the log in the AC-20 and Goal Validation rows |
 | unit packages touched by 924cd6d7c9, 0b7c9ea0a7, bd985af80f, a59d1ee848 | scoped `./le job run` tests of `internal/component/l2tp/ppp`, `internal/core/dnssource`, `internal/plugins/dhcpserver`, `internal/plugins/dnsresolver`, `internal/test/dhcpprobe`, `internal/le/interoplab` |
 | review round 3 | `/ze-review` over the complete diff once R2-1 to R2-4 are fixed, then `./le spec review record` |
