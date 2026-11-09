@@ -87,3 +87,35 @@ func TestDHCPPublisherPublishesEachSubnet(t *testing.T) {
 		t.Fatalf("a stopped server still publishes %d selections", len(selections))
 	}
 }
+
+// TestDHCPPublisherWithdrawsOnBye proves the DHCP server's bye path sends a
+// withdrawal once it has published, and sends nothing afterwards, so a stop
+// that follows cannot list the consumer again. Method: publish one empty set
+// through a captured sender, withdraw, then serve and refresh again, and
+// decode the bodies sent.
+//
+// VALIDATES: spec-home-cpe-23b, a removed consumer leaves show system dns.
+// PREVENTS: the registry keeping a stopped DHCP server's last selections.
+func TestDHCPPublisherWithdrawsOnBye(t *testing.T) {
+	var publisher dhcpPublisher
+	var bodies []string
+	publisher.setSender(func(body string) { bodies = append(bodies, body) })
+	publisher.serve(nil, nil)
+	if len(bodies) != 1 {
+		t.Fatalf("published %d bodies before the withdrawal, want 1", len(bodies))
+	}
+
+	publisher.withdraw()
+	publisher.serve(nil, []dhcpListener{{iface: "lan", device: "lan0"}})
+	publisher.refresh()
+	if len(bodies) != 2 {
+		t.Fatalf("sent %d bodies, want the publication then only the withdrawal: %q", len(bodies), bodies)
+	}
+	var publication dnssource.Publication
+	if err := json.Unmarshal([]byte(bodies[1]), &publication); err != nil {
+		t.Fatalf("decode withdrawal: %v", err)
+	}
+	if publication.Consumer != dhcpConsumer || !publication.Withdrawn || len(publication.Selections) != 0 {
+		t.Fatalf("withdrawal = %+v, want a withdrawn %q with no selection", publication, dhcpConsumer)
+	}
+}

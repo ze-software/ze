@@ -140,3 +140,32 @@ func TestDisabledResolverPublishesNoSelection(t *testing.T) {
 		t.Fatalf("selections = %#v, want an empty set", publication.Selections)
 	}
 }
+
+// TestResolverWithdrawsOnBye proves the resolver's bye path sends a
+// withdrawal once it has published, and nothing after it, so the listener
+// down edges of the stop that follows do not list the consumer again.
+// Method: apply and start the announcer, withdraw, then feed a listener
+// edge and apply again, and decode the bodies sent.
+//
+// VALIDATES: spec-home-cpe-23b, a removed consumer leaves show system dns.
+// PREVENTS: the registry keeping a stopped resolver's last selection.
+func TestResolverWithdrawsOnBye(t *testing.T) {
+	res := newResolver(time.Now)
+	cfg := defaultConfig()
+	cfg.Enabled = true
+	cfg.Listeners = []listenerEndpoint{{Name: "lan", IP: netip.MustParseAddr("192.0.2.1"), Port: defaultPort}}
+	res.apply(&cfg)
+	var bodies []string
+	res.setAnnouncer(func(body string) { bodies = append(bodies, body) })
+
+	res.withdraw()
+	res.onListenerChange(networkUDP, netip.AddrPortFrom(cfg.Listeners[0].IP, cfg.Listeners[0].Port), true)
+	res.apply(&cfg)
+	if len(bodies) != 2 {
+		t.Fatalf("sent %d bodies, want the publication then only the withdrawal: %q", len(bodies), bodies)
+	}
+	publication := decodePublication(t, bodies[1])
+	if publication.Consumer != resolverConsumer || !publication.Withdrawn || len(publication.Selections) != 0 {
+		t.Fatalf("withdrawal = %+v, want a withdrawn %q with no selection", publication, resolverConsumer)
+	}
+}

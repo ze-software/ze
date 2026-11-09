@@ -35,6 +35,9 @@ type dhcpPublisher struct {
 	send    func(body string)
 	pending string
 	sent    string
+	// withdrawn is set once the withdrawal went out (withdraw): no later
+	// body is sent, so the stop that follows cannot list the consumer again.
+	withdrawn bool
 }
 
 // serve records the handler set and the listeners install just made the
@@ -65,8 +68,38 @@ func (p *dhcpPublisher) refresh() {
 func (p *dhcpPublisher) setSender(send func(body string)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	// A plugin removed before it started publishes nothing afterwards.
+	if p.withdrawn {
+		return
+	}
 	p.send = send
 	p.flush()
+}
+
+// withdraw sends the DHCP server's withdrawal, so the registry forgets its
+// subnets' selections, and stops every later publication. It MUST be called
+// from the plugin's bye handler, while the engine still reads the plugin's
+// emits.
+func (p *dhcpPublisher) withdraw() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	send := p.send
+	p.send = nil
+	p.withdrawn = true
+	// Nothing was ever sent, so the registry holds nothing to forget.
+	if send == nil {
+		return
+	}
+	if p.sent == "" {
+		return
+	}
+	body, err := json.Marshal(dnssource.NewWithdrawal(dhcpConsumer))
+	if err != nil {
+		loggerPtr.Load().Warn("dhcpserver: option 6 selections not withdrawn; show system dns keeps reporting them until the daemon restarts",
+			"path", subnetDNSSourcePath, "error", err)
+		return
+	}
+	send(string(body))
 }
 
 // publish builds the publication of the current handler set. The caller MUST

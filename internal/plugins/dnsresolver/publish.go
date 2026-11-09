@@ -30,6 +30,10 @@ type announcement struct {
 	// policy is built.
 	built     *resolverConfig
 	selection dnssource.Selection
+	// withdrawn is set once the withdrawal went out (withdraw): no later
+	// body is sent, so the listener down edges of the stop that follows do
+	// not list the consumer again.
+	withdrawn bool
 }
 
 // forwardPolicy builds cfg's policy over the current learned records and
@@ -103,8 +107,38 @@ func (r *resolver) announce(publication *dnssource.Publication) {
 func (r *resolver) setAnnouncer(send func(body string)) {
 	r.publish.Lock()
 	defer r.publish.Unlock()
+	// A plugin removed before it started publishes nothing afterwards.
+	if r.announcement.withdrawn {
+		return
+	}
 	r.announcement.send = send
 	r.flushAnnouncement()
+}
+
+// withdraw sends the resolver's withdrawal, so the registry forgets its
+// selection, and stops every later publication. It MUST be called from the
+// plugin's bye handler, while the engine still reads the plugin's emits,
+// and before the listeners are unbound.
+func (r *resolver) withdraw() {
+	r.publish.Lock()
+	defer r.publish.Unlock()
+	send := r.announcement.send
+	r.announcement.send = nil
+	r.announcement.withdrawn = true
+	// Nothing was ever sent, so the registry holds nothing to forget.
+	if send == nil {
+		return
+	}
+	if r.announcement.sent == "" {
+		return
+	}
+	body, err := json.Marshal(dnssource.NewWithdrawal(resolverConsumer))
+	if err != nil {
+		loggerPtr.Load().Warn("dns-resolver: selection not withdrawn; show system dns keeps reporting it until the daemon restarts",
+			"path", forwardDNSSourcePath, "error", err)
+		return
+	}
+	send(string(body))
 }
 
 // flushAnnouncement sends the pending body when one can be sent and it is

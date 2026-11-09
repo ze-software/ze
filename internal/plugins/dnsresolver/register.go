@@ -176,6 +176,13 @@ func followLearnedResolvers(p *sdk.Plugin, res *resolver, log *slog.Logger) {
 	res.expectReplay()
 	p.SetStartupSubscriptionsIn(dnssource.Namespace, []string{dnssource.SnapshotEventType}, nil, "")
 	p.OnEvent(learnedSnapshotHandler(res, learnedRejectedCounter, log))
+	// A plugin the engine removes while the daemon runs withdraws its
+	// selection, so show system dns and ze doctor stop reporting it. On
+	// daemon stop no bye arrives, and the registry stops with the daemon.
+	p.OnBye(func(string) error {
+		res.withdraw()
+		return nil
+	})
 	p.OnStarted(func(ctx context.Context) error {
 		if _, err := p.EmitEvent(ctx, dnssource.Namespace, dnssource.SnapshotRequestEventType, "", "", ""); err != nil {
 			log.Warn("dns-resolver: learned resolvers not requested; they apply at the next lease change", "error", err)

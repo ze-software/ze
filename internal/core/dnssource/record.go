@@ -287,9 +287,21 @@ func NewConsumerSelection(list List, instance string, selection Selection) Consu
 // with each publication: a list the operator removed leaves by being absent.
 // Consumer names the publisher (its plugin name); the registry keys by it and
 // names no consumer itself.
+//
+// Withdrawn marks the consumer's last publication, sent when its plugin is
+// removed (NewWithdrawal): the registry then forgets the consumer, so show
+// system dns and ze doctor stop reporting a selection nothing hands on. A
+// withdrawal carries no selections.
 type Publication struct {
 	Consumer   string              `json:"consumer"`
 	Selections []ConsumerSelection `json:"selections"`
+	Withdrawn  bool                `json:"withdrawn,omitempty"`
+}
+
+// NewWithdrawal is the publication a consumer sends when its plugin stops
+// serving, so the registry drops it rather than keep its last selections.
+func NewWithdrawal(consumer string) *Publication {
+	return &Publication{Consumer: consumer, Withdrawn: true}
 }
 
 // Snapshot is the registry's published state: every learned record, in

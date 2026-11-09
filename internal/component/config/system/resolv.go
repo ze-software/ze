@@ -435,17 +435,31 @@ func (r *Resolvers) PublishOn(bus ze.EventBus) (stop func()) {
 var errUnnamedConsumer = errors.New("a dns-source selection was published with no consumer name, so show system dns cannot attribute it\n" +
 	"the publishing plugin MUST set Publication.Consumer to its plugin name")
 
+// errWithdrawalWithSelections refuses a withdrawal that also carries
+// selections: the registry cannot both forget the consumer and keep them.
+var errWithdrawalWithSelections = errors.New("a dns-source withdrawal carried selections, so the registry kept the consumer's previous ones\n" +
+	"the publishing plugin MUST send dnssource.NewWithdrawal, which carries none, when it stops")
+
 // SetPublication replaces the selections kept for publication's consumer
 // with its set. An empty set keeps the consumer listed with no selection,
-// which is what a consumer with no list publishes. The publication is not
-// modified, and its slices are kept as they are: a publisher MUST NOT modify
-// a Publication after it emits it.
+// which is what a consumer with no list publishes. A withdrawal forgets the
+// consumer, so show system dns lists it as absent, the state of a plugin
+// that is not running; it is not counted as a selection change. The
+// publication is not modified, and its slices are kept as they are: a
+// publisher MUST NOT modify a Publication after it emits it.
 func (r *Resolvers) SetPublication(publication *dnssource.Publication) error {
 	if publication.Consumer == "" {
 		return errUnnamedConsumer
 	}
+	if publication.Withdrawn && len(publication.Selections) != 0 {
+		return errWithdrawalWithSelections
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if publication.Withdrawn {
+		delete(r.consumers, publication.Consumer)
+		return nil
+	}
 	if r.consumers == nil {
 		r.consumers = make(map[string][]dnssource.ConsumerSelection)
 	}

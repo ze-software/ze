@@ -295,6 +295,12 @@ server is offered: the `radius` class contributes nothing to it.
 the router first, under the consumer name `system`, then every consumer that
 has published, sorted by name. A consumer that has not published yet is
 absent: its plugin is not running or has not received its first snapshot.
+A plugin the engine removes while the daemon runs sends a withdrawal
+(`dnssource.NewWithdrawal`) from its `bye` handler, and the registry then
+forgets it, so its last selection is not reported after it stopped.
+<!-- source: internal/component/config/system/resolv.go -- SetPublication -->
+<!-- source: internal/core/dnssource/record.go -- NewWithdrawal -->
+
 <!-- source: internal/plugins/system-dns-cmd/cmd/show_dns.go -- showSystemDNS, newSystemDNSAnswer -->
 
 The registry exports `ze_dns_source_records{origin}`, the learned records

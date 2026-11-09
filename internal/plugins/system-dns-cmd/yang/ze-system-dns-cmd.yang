@@ -25,7 +25,8 @@ module ze-system-dns-cmd {
                              sources and mode evaluated, default true while the built-in default
                              list applies, the classes used and the servers handed on. A consumer
                              that has not published yet is absent: its plugin is not running or
-                             has not received the first snapshot.";
+                             has not received the first snapshot. A plugin removed while the
+                             daemon runs withdraws its selection, so it is absent too.";
                 ze:help "Learned DNS resolvers and each consumer's dns-source selection.";
 
                 ze:command "ze-system-dns:show-system-dns";
