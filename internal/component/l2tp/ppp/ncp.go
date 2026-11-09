@@ -618,7 +618,10 @@ func (s *pppSession) evalIPCPRequest(pkt LCPPacket) ncpRequestVerdict {
 		return ncpRequestUnacceptable
 	}
 	// DNS options in peer's CR: peer is requesting DNS values. Accept
-	// if they match our configured values; else Nak.
+	// if they match our configured values. Otherwise the request is
+	// unacceptable, and buildNakOrReject answers it: a Nak carrying
+	// the server Ze holds, or a Configure-Reject of the option when the
+	// session holds no server for that slot.
 	if opts.HasPrimary && opts.PrimaryDNS != s.dnsPrimary {
 		return ncpRequestUnacceptable
 	}
@@ -889,7 +892,7 @@ func (s *pppSession) sendNCPConfigureAck(family AddressFamily, req LCPPacket) bo
 
 // sendNCPConfigureNakOrReject inspects the peer's Request and replies
 // Nak (when we can suggest a better value) or Reject (for unknown
-// option types).
+// option types, and for an IPCP DNS option Ze holds no server for).
 func (s *pppSession) sendNCPConfigureNakOrReject(family AddressFamily, req LCPPacket) bool {
 	buf := getFrameBuf()
 	defer putFrameBuf(buf)
@@ -925,6 +928,25 @@ func (s *pppSession) buildNakOrReject(family AddressFamily, req LCPPacket, buf [
 		// Section 6's case and falls through to the Nak below.
 		if scanNCPOptions(req.Data, isKnownIPCPOption) == ncpOptionsUnknownType {
 			dataLen := copyUnknownOptions(req.Data, isKnownIPCPOption, buf, off)
+			return LCPConfigureReject, dataLen
+		}
+		// RFC 1877 Section 1.1: "By default, no primary DNS address is
+		// provided." Section 1.3: "By default, no secondary DNS address
+		// is provided." A DNS option Ze holds no server for has no value
+		// a Nak could carry, and a Nak that leaves it out answers
+		// nothing: the peer repeats the same Configure-Request until its
+		// retries run out. So it is refused instead.
+		//
+		// RFC 1661 Section 5.4: "If some Configuration Options received
+		// in a Configure-Request are not recognizable or are not
+		// acceptable for negotiation (as configured by a network
+		// administrator), then the implementation MUST transmit a
+		// Configure-Reject.  The Options field is filled with only the
+		// unacceptable Configuration Options from the
+		// Configure-Request." pppd's ipcp_reqci answers the same way
+		// (CONFREJ when ao->dnsaddr[d] is zero), and the Reject outranks
+		// any Nak the rest of the request would draw, as it does there.
+		if dataLen := copyUnknownOptions(req.Data, s.ipcpOptionServed, buf, off); dataLen > 0 {
 			return LCPConfigureReject, dataLen
 		}
 		// RFC 1661 Section 6: "If a negotiable Configuration Option is
@@ -1127,9 +1149,12 @@ func scanNCPOptions(buf []byte, known func(uint8) bool) ncpOptionScan {
 // not known (predicate returns false) into buf at off. Used to build
 // the Data field of a Configure-Reject per RFC 1661 §5.4.
 //
-// Callers reach this only after scanNCPOptions has answered
-// ncpOptionsUnknownType for the same src, so the framing guards below
-// never fire; they keep the walk inside src if that ever changes.
+// The unknown-type callers reach this only after scanNCPOptions has
+// answered ncpOptionsUnknownType for the same src. buildNakOrReject's
+// unserved-DNS call (predicate ipcpOptionServed) also runs on a list
+// scanNCPOptions answered ncpOptionsBadLength for, so the framing
+// guards below stop the walk at the first option whose Length is
+// invalid and keep it inside src.
 func copyUnknownOptions(src []byte, known func(uint8) bool, buf []byte, off int) int {
 	start := off
 	i := 0
@@ -1148,6 +1173,24 @@ func copyUnknownOptions(src []byte, known func(uint8) bool, buf []byte, off int)
 		i += l
 	}
 	return off - start
+}
+
+// ipcpOptionServed is the copyUnknownOptions predicate that picks the
+// DNS options of a peer's IPCP Configure-Request Ze holds no server for:
+// it answers false for Primary-DNS when the session has no primary
+// server and for Secondary-DNS when it has no secondary one, and true
+// for every other option, so the copy holds only the options
+// buildNakOrReject must Configure-Reject. The two DNS slots are judged
+// apart because RFC 1877 Section 1 negotiates them independently:
+// "Primary and secondary addresses are negotiated independently."
+func (s *pppSession) ipcpOptionServed(t uint8) bool {
+	if t == IPCPOptPrimaryDNS {
+		return s.dnsPrimary.IsValid()
+	}
+	if t == IPCPOptSecondaryDNS {
+		return s.dnsSecondary.IsValid()
+	}
+	return true
 }
 
 // isKnownIPv6CPOption is the scanNCPOptions predicate for IPv6CP.

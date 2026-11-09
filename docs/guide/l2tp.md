@@ -363,6 +363,9 @@ PPP negotiation proceeds through these phases:
    discarded.
 3. **IPCP** (RFC 1332) -- IPv4 address assignment + DNS options (RFC 1877).
    Dispatched to the registered pool handler (l2tp-pool plugin).
+   A DNS option the subscriber asks for and the pool holds no server for
+   (no `dns-secondary`, say) is Configure-Rejected (RFC 1661 Section 5.4),
+   so the subscriber drops it and IPCP still opens.
 4. **IPv6CP** (RFC 5072) -- interface identifier negotiation. Runs in
    parallel with IPCP when both NCPs are enabled. NCPs are independent
    (RFC 1661 S2): if the pool handler declines IPv6 (for example an
