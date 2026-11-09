@@ -7,6 +7,7 @@
 package dnsresolver
 
 import (
+	"context"
 	"log/slog"
 	"net"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/dnsserver"
+	"github.com/ze-software/ze/internal/core/dnssource"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -120,6 +122,7 @@ func runResolverPlugin(conn net.Conn) int {
 	srv := newResolverServer(log, res)
 	inst := &resolverInstaller{srv: srv, res: res, log: log}
 	registerResolverConfigTx(p, sdk.NewConfigTx(defaultConfig(), parseResolverSections, inst.install), inst)
+	followLearnedResolvers(p, res, log)
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
@@ -136,4 +139,26 @@ func runResolverPlugin(conn net.Conn) int {
 	srv.stop()
 	log.Info("dnsresolver plugin stopped")
 	return 0
+}
+
+// followLearnedResolvers subscribes the plugin to the system-dns snapshot,
+// which reaches it as JSON whether it runs in the engine process or its own,
+// and asks for the current one once started, so a resolver that starts or
+// restarts while leases exist forwards to them before the next change
+// (AC-13). Each newer snapshot republishes the forward list without
+// rebinding a listener.
+func followLearnedResolvers(p *sdk.Plugin, res *resolver, log *slog.Logger) {
+	p.SetStartupSubscriptionsIn(dnssource.Namespace, []string{dnssource.SnapshotEventType}, nil, "")
+	p.OnEvent(func(event string) error {
+		if err := res.relearn(event); err != nil {
+			log.Warn("dns-resolver: learned resolvers not applied", "error", err)
+		}
+		return nil
+	})
+	p.OnStarted(func(ctx context.Context) error {
+		if _, err := p.EmitEvent(ctx, dnssource.Namespace, dnssource.SnapshotRequestEventType, "", "", ""); err != nil {
+			log.Warn("dns-resolver: learned resolvers not requested; they apply at the next lease change", "error", err)
+		}
+		return nil
+	})
 }

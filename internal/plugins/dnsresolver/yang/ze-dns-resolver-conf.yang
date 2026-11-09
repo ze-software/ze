@@ -104,6 +104,22 @@ module ze-dns-resolver-conf {
                         ze:help "Upstream resolver port";
                     }
                 }
+
+                uses zt:dns-source {
+                    refine dns-source {
+                        description "The sources of the LAN resolver's upstreams, in order.
+                                     configured is forward server; received is every resolver
+                                     Ze learned by DHCPv4, DHCPv6, IPCP or router advertisement
+                                     RDNSS, then the host's own resolv.conf, which is listed
+                                     only while no learned record lists a server. self and
+                                     radius are refused here. A received upstream is asked on
+                                     port 53. With the container absent the default is source
+                                     configured, then received, mode first-usable: the forward
+                                     server entries when any are set, otherwise the learned
+                                     resolvers. Write source configured alone to keep a
+                                     resolver with no forward server from forwarding.";
+                    }
+                }
             }
 
             container cache {

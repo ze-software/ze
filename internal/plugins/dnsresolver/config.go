@@ -8,11 +8,13 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 	"strconv"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/configorder"
 	"github.com/ze-software/ze/internal/core/configvalue"
+	"github.com/ze-software/ze/internal/core/dnssource"
 )
 
 const (
@@ -55,11 +57,14 @@ type upstream struct {
 // resolverConfig is one parsed service dns-resolver section. Every field is
 // a typed value converted once from the YANG leaf.
 type resolverConfig struct {
-	Enabled            bool
-	Listeners          []listenerEndpoint
-	AllowFrom          []netip.Prefix
-	Mode               resolveMode
-	Forward            []upstream
+	Enabled   bool
+	Listeners []listenerEndpoint
+	AllowFrom []netip.Prefix
+	Mode      resolveMode
+	Forward   []upstream
+	// Sources is the forward dns-source list: the written one, or
+	// forwardDefault while the container is absent.
+	Sources            dnssource.List
 	CacheSize          uint32
 	CacheMaxTTL        uint32
 	CacheMaxNegTTL     uint32
@@ -73,6 +78,7 @@ type resolverConfig struct {
 func defaultConfig() resolverConfig {
 	return resolverConfig{
 		Mode:               modeForward,
+		Sources:            forwardDefault,
 		CacheSize:          defaultCacheSize,
 		CacheMaxTTL:        defaultCacheMaxTTL,
 		CacheMaxNegTTL:     defaultCacheMaxNegTTL,
@@ -125,6 +131,11 @@ func parseConfig(data string) (resolverConfig, error) {
 		return cfg, err
 	}
 	cfg.Forward = forward
+	sources, err := parseForwardSources(r)
+	if err != nil {
+		return cfg, err
+	}
+	cfg.Sources = sources
 	if err := parseBounds(r, &cfg); err != nil {
 		return cfg, err
 	}
@@ -314,11 +325,64 @@ func checkEnabled(cfg resolverConfig) error {
 		return errors.New("enabled with no allow-from prefix, so the resolver would refuse every client; " +
 			"add `allow-from <LAN or subscriber prefix>`")
 	}
-	if cfg.Mode == modeForward && len(cfg.Forward) == 0 {
-		return errors.New("mode forward with no forward server, so the resolver has nowhere to resolve; " +
-			"add `forward server <upstream resolver address>`")
+	if cfg.Mode != modeForward {
+		return nil
 	}
-	return nil
+	if len(cfg.Forward) > 0 {
+		return nil
+	}
+	// A list naming received may forward to learned servers once a lease
+	// arrives; until then the resolver answers SERVFAIL, as with no lease.
+	if slices.Contains(cfg.Sources.Sources(), dnssource.ClassReceived) {
+		return nil
+	}
+	return errors.New("mode forward with no forward server and a " + forwardDNSSourcePath +
+		" that names no received source, so the resolver has nowhere to resolve; " +
+		"add `forward server <upstream resolver address>`, or `forward dns-source source received`")
+}
+
+// forwardDNSSourcePath is the config path of the LAN resolver's dns-source
+// container, as an operator types it.
+const forwardDNSSourcePath = "service dns-resolver forward dns-source"
+
+// forwardDefault is the LAN resolver's built-in default list (D-5): the
+// forward server entries when any are set, else the learned resolvers. Its
+// servers are Ze's own upstreams, so a loopback server stays usable.
+var forwardDefault = dnssource.StatedDefault(forwardDNSSourcePath, dnssource.FamilyAll, dnssource.AudienceZe,
+	dnssource.ModeFirstUsable, dnssource.ClassConfigured, dnssource.ClassReceived)
+
+// forwardRefusals are the classes the LAN resolver's list cannot name.
+var forwardRefusals = []dnssource.Refusal{
+	{
+		Class: dnssource.ClassSelf,
+		Why:   "self is Ze's own LAN resolver, and the resolver cannot be its own upstream: its queries would loop back to itself",
+		Fix: "delete " + forwardDNSSourcePath + " source self, and set service dns-resolver forward server <address> " +
+			"or take the upstreams from the network with set " + forwardDNSSourcePath + " source received",
+	},
+	{
+		Class: dnssource.ClassRadius,
+		Why:   "radius names the resolvers a RADIUS server gives one PPP subscriber, and the LAN resolver is not a subscriber",
+		Fix:   "delete " + forwardDNSSourcePath + " source radius; the resolver takes configured (forward server) and received",
+	},
+}
+
+// parseForwardSources reads forward dns-source: the built-in default while
+// the container is absent, else the written list, refused with the what,
+// why and fix when the resolver cannot use it.
+func parseForwardSources(r map[string]any) (dnssource.List, error) {
+	fm, ok := asMap(r, "forward")
+	if !ok {
+		return forwardDefault, nil
+	}
+	body, ok := asMap(fm, "dns-source")
+	if !ok {
+		return forwardDefault, nil
+	}
+	written, err := dnssource.ReadWritten(forwardDNSSourcePath, body)
+	if err != nil {
+		return dnssource.List{}, err
+	}
+	return dnssource.NewWrittenList(forwardDNSSourcePath, dnssource.FamilyAll, dnssource.AudienceZe, written, forwardRefusals...)
 }
 
 func asMap(m map[string]any, key string) (map[string]any, bool) {

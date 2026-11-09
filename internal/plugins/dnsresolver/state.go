@@ -7,10 +7,13 @@ package dnsresolver
 
 import (
 	"net/netip"
+	"slices"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/dnsserver"
+	"github.com/ze-software/ze/internal/core/dnssource"
 )
 
 // allowLabel is the one label every allow-from prefix carries: the matcher
@@ -35,14 +38,13 @@ type policy struct {
 	maxNegTTL   uint32
 }
 
-// newPolicy converts one parsed config into the query path's policy.
-func newPolicy(cfg *resolverConfig) *policy {
+// newPolicy converts one parsed config into the query path's policy, with
+// forward the upstreams its dns-source list selected (forwardUpstreams).
+func newPolicy(cfg *resolverConfig, forward []upstream) *policy {
 	entries := make([]dnsserver.Entry, len(cfg.AllowFrom))
 	for i, p := range cfg.AllowFrom {
 		entries[i] = dnsserver.Entry{Prefix: p, Label: allowLabel}
 	}
-	forward := make([]upstream, len(cfg.Forward))
-	copy(forward, cfg.Forward)
 	return &policy{
 		allow:       dnsserver.BuildMatcher(entries),
 		forward:     forward,
@@ -54,6 +56,44 @@ func newPolicy(cfg *resolverConfig) *policy {
 	}
 }
 
+// forwardUpstreams evaluates cfg's dns-source list over the learned records
+// at now and answers the upstreams in the order the resolver asks them. The
+// configured class is the forward server entries: each selected address
+// keeps every entry written for it, with its port, so a list that selects
+// configured asks exactly what forward server names. A received address
+// that no entry names is asked on port 53.
+func forwardUpstreams(cfg *resolverConfig, records []dnssource.Record, now time.Time) []upstream {
+	configured := make([]netip.Addr, len(cfg.Forward))
+	for i, u := range cfg.Forward {
+		configured[i] = u.IP
+	}
+	selection := dnssource.Select(cfg.Sources, dnssource.Candidates{
+		dnssource.ClassConfigured: configured,
+		dnssource.ClassReceived:   cfg.Sources.Received(records, now),
+	})
+	usedConfigured := slices.Contains(selection.Used, dnssource.ClassConfigured)
+	out := make([]upstream, 0, len(selection.Servers))
+	for _, addr := range selection.Servers {
+		if usedConfigured && slices.Contains(configured, addr) {
+			for _, u := range cfg.Forward {
+				if u.IP == addr {
+					out = append(out, u)
+				}
+			}
+			continue
+		}
+		out = append(out, upstream{IP: addr, Port: defaultPort})
+	}
+	// The query path shares the timeout equally among the upstreams, so the
+	// learned ones are bounded like the written ones, in list order.
+	if len(out) > forwardServersMax {
+		loggerPtr.Load().Warn("dns-resolver: upstreams beyond the limit not asked", "path", forwardDNSSourcePath,
+			"selected", len(out), "asked", forwardServersMax)
+		out = out[:forwardServersMax]
+	}
+	return out
+}
+
 // resolver is the LAN resolver's runtime: the published policy, the two
 // caches, the in-flight table and the limits. One resolver lives for the
 // whole plugin run; a config apply replaces only the policy and the cache
@@ -62,7 +102,17 @@ func newPolicy(cfg *resolverConfig) *policy {
 // Lifecycle: newResolver, then start, which launches the one sweeper
 // goroutine; stop MUST be called once the plugin stops, and waits for it.
 type resolver struct {
-	policy    atomic.Pointer[policy]
+	policy atomic.Pointer[policy]
+	// publish serializes every store of policy and window: a config apply
+	// and a learned-record change both publish, and the second MUST build
+	// on the config the first published, never on one it replaced.
+	publish sync.Mutex
+	// window is the config a reload's narrowed window publishes, nil
+	// outside one; a learned change inside the window keeps the narrowing.
+	// Guarded by publish.
+	window *resolverConfig
+	// learned holds the newest system-dns snapshot's records.
+	learned   dnssource.Follower
 	shown     atomic.Pointer[resolverConfig] // the applied config, for show and for a reload's narrowed window (narrow)
 	answers   *lru
 	negatives *lru
@@ -98,8 +148,38 @@ func (r *resolver) apply(cfg *resolverConfig) {
 	r.answers.setLimit(int(cfg.CacheSize))
 	r.negatives.setLimit(int(cfg.CacheSize))
 	shown := *cfg
+	r.publish.Lock()
+	defer r.publish.Unlock()
+	r.window = nil
 	r.shown.Store(&shown)
-	r.policy.Store(newPolicy(cfg))
+	r.policy.Store(newPolicy(cfg, forwardUpstreams(cfg, r.learned.Records(), r.now())))
+}
+
+// relearn takes one system-dns snapshot delivered to the plugin and, when it
+// is newer than the last, publishes the running policy again with the
+// upstreams its list now selects. Nothing is rebound: only the forward list
+// the next query reads changes. Inside a reload's narrowed window the
+// window's policy is rebuilt, so the narrowing holds.
+func (r *resolver) relearn(event string) error {
+	fresh, err := r.learned.Accept(event)
+	if err != nil {
+		return err
+	}
+	if !fresh {
+		return nil
+	}
+	r.publish.Lock()
+	defer r.publish.Unlock()
+	cfg := r.window
+	if cfg == nil {
+		cfg = r.shown.Load()
+	}
+	// refuse-by-default: guards apply -- no applied config means no policy yet; the first apply reads these records
+	if cfg == nil {
+		return nil
+	}
+	r.policy.Store(newPolicy(cfg, forwardUpstreams(cfg, r.learned.Records(), r.now())))
+	return nil
 }
 
 // runningState is the published policy and shown config of the running
@@ -115,6 +195,8 @@ type runningState struct {
 // policy nothing is published: every query is answered SERVFAIL until the
 // candidate is applied. The shown config stays the running one.
 func (r *resolver) narrow(next *resolverConfig) runningState {
+	r.publish.Lock()
+	defer r.publish.Unlock()
 	running := runningState{policy: r.policy.Load(), shown: r.shown.Load()}
 	// refuse-by-default: guards apply -- no running config means no running policy, the SERVFAIL state newResolver leaves
 	if running.shown == nil {
@@ -122,15 +204,25 @@ func (r *resolver) narrow(next *resolverConfig) runningState {
 	}
 	window := *running.shown
 	window.AllowFrom = intersectPrefixes(running.shown.AllowFrom, next.AllowFrom)
-	r.policy.Store(newPolicy(&window))
+	r.window = &window
+	r.policy.Store(newPolicy(&window, forwardUpstreams(&window, r.learned.Records(), r.now())))
 	return running
 }
 
 // restore publishes the running state narrow answered again, after a
 // refused reload. The cache bound was never changed by the reload.
 func (r *resolver) restore(running runningState) {
+	r.publish.Lock()
+	defer r.publish.Unlock()
+	r.window = nil
 	r.shown.Store(running.shown)
-	r.policy.Store(running.policy)
+	if running.shown == nil {
+		r.policy.Store(running.policy)
+		return
+	}
+	// A learned change inside the window moved the upstreams, so the running
+	// policy is rebuilt over today's records rather than put back stale.
+	r.policy.Store(newPolicy(running.shown, forwardUpstreams(running.shown, r.learned.Records(), r.now())))
 }
 
 // intersectPrefixes is the prefix list that holds exactly the addresses

@@ -164,3 +164,45 @@ func TestParseClass(t *testing.T) {
 		t.Fatal(`ParseClass("dhcpv4") accepted a protocol name as a class`)
 	}
 }
+
+// TestReadWrittenFromPluginJSON: a plugin reads its dns-source container from
+// config JSON, a leaf-list as an array or a bare string, and an unknown class
+// or mode is refused naming the path and the fix.
+//
+// VALIDATES: ReadWritten, the plugin consumers' reader (spec-home-cpe-23b,
+// AC-16b's input). PREVENTS: a consumer reading a one-entry leaf-list as
+// absent and silently taking its default.
+func TestReadWrittenFromPluginJSON(t *testing.T) {
+	const path = "service dns-resolver forward dns-source"
+	written, err := ReadWritten(path, map[string]any{
+		"source": []any{"received", "configured"}, "mode": "merge", "received-interface": "eth0",
+	})
+	if err != nil {
+		t.Fatalf("ReadWritten: %v", err)
+	}
+	if want := []Class{ClassReceived, ClassConfigured}; !slices.Equal(written.Sources, want) {
+		t.Fatalf("sources = %v, want %v", written.Sources, want)
+	}
+	if written.Mode != ModeMerge {
+		t.Fatalf("mode = %v, want merge", written.Mode)
+	}
+	if want := []string{"eth0"}; !slices.Equal(written.ReceivedInterfaces, want) {
+		t.Fatalf("received-interface = %v, want %v", written.ReceivedInterfaces, want)
+	}
+	one, err := ReadWritten(path, map[string]any{"source": "received"})
+	if err != nil || !slices.Equal(one.Sources, []Class{ClassReceived}) || one.Mode != ModeUnspecified {
+		t.Fatalf("bare-string source: %+v, %v", one, err)
+	}
+	for _, body := range []map[string]any{
+		{"source": []any{"bogus"}},
+		{"source": "received", "mode": "sometimes"},
+	} {
+		_, err := ReadWritten(path, body)
+		if err == nil {
+			t.Fatalf("ReadWritten(%v) accepted", body)
+		}
+		if !strings.Contains(err.Error(), path) {
+			t.Fatalf("refusal %q does not name %q", err, path)
+		}
+	}
+}

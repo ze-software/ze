@@ -65,13 +65,16 @@ All leaves are under `service { dns-resolver { ... } }`.
 
 | Leaf | Type | Default | Description |
 |------|------|---------|-------------|
-| `enabled` | boolean | false | Binds the listeners and answers queries. true needs at least one `listener`, one `allow-from` prefix and one `forward server`. |
+| `enabled` | boolean | false | Binds the listeners and answers queries. true needs at least one `listener`, one `allow-from` prefix, and either a `forward server` or a `forward dns-source` that can take learned servers (the default can). |
 | `listener <name> ip` | IP address | (none) | A LAN or loopback address to answer on. A wildcard (0.0.0.0, ::, or its IPv4-mapped form ::ffff:0:0) is refused, because the resolver would also answer on the WAN side. |
 | `listener <name> port` | port | 53 | The port to answer on, UDP and TCP. 0 is refused. |
 | `allow-from` | leaf-list of prefixes | (none) | Source prefixes the resolver answers. Any other source gets REFUSED. |
 | `mode` | enumeration | `forward` | `forward` is the only value. |
 | `forward server <ip>` | IP address | (none) | One upstream resolver, at most 8. They are tried in the order you write them. |
 | `forward server <ip> port` | port | 53 | The upstream's port. 0 is refused. |
+| `forward dns-source source` | leaf-list: `configured`, `received` | `configured`, `received` | Where the upstreams come from, in fall-through order. `configured` is `forward server`; `received` is every resolver Ze learned by DHCPv4, DHCPv6, IPCP or RA, asked on port 53. `self` and `radius` are refused: the resolver cannot be its own upstream, and it is not a subscriber. |
+| `forward dns-source mode` | `first-usable` or `merge` | `first-usable` (default list only) | Needed once `source` names two classes. |
+| `forward dns-source received-interface` | leaf-list of interfaces | (all) | Takes `received` only from these interfaces, in this order. |
 | `cache size` | uint32, 0-10000000 | 100000 | The most entries the answer cache holds, and the most the negative cache holds. 0 disables caching. |
 | `cache max-ttl` | seconds | 86400 | The longest time a positive answer stays cached. |
 | `cache max-negative-ttl` | seconds | 3600 | The longest time an NXDOMAIN or no-data answer stays cached. |
@@ -90,10 +93,18 @@ safely, and names the fix:
 | a wildcard listener address | the resolver would answer on every address of the host, the WAN side included |
 | `enabled true` with no listener | it would answer on no address |
 | `enabled true` with no `allow-from` | it would refuse every client; answering every source would make Ze an open resolver |
-| `enabled true` with no `forward server` | it would have nowhere to resolve |
+| `enabled true` with no `forward server` and a `forward dns-source` that names no `received` | it would have nowhere to resolve |
+| `forward dns-source` naming two sources with no `mode` | Ze cannot tell whether the second is a backup or an addition |
+| `forward dns-source source self` or `radius` | the resolver would forward to itself, or to a subscriber's servers |
 | `timeout 0`, `limit outstanding 0` | every query would get SERVFAIL, or be dropped |
 
 <!-- source: internal/plugins/dnsresolver/config.go -- parseListener, checkEnabled, parseBounds -->
+
+With no `forward dns-source` written, the resolver uses its `forward server`
+entries when any are set, and the resolvers Ze learned on the WAN when none
+are: this pass-through default is new, since a resolver with no `forward
+server` used to have no upstream. Write `forward dns-source source
+configured` to keep it that way.
 
 A disabled resolver may be staged incomplete. A listener port that another
 service already uses is refused by the config's cross-service listener check.

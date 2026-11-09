@@ -190,8 +190,15 @@ gap. A pass-through query uses the client's own transport.
 
 ## Forwarding
 
-`resolver.forward` sends the question to the `forward server` entries in the
-order the operator wrote them, one pass over the list. Each attempt gets an
+`resolver.forward` sends the question to the upstreams of the published
+policy, one pass over the list. That list is what `forward dns-source`
+selects (`forwardUpstreams`): the `configured` class is the `forward server`
+entries in the order the operator wrote them, each with its port, and the
+`received` class is every resolver Ze learned, asked on port 53. With the
+container absent the default is `configured`, then `received`, mode
+`first-usable`, so a resolver with a `forward server` asks exactly those, and
+one with none asks the learned servers. At most 8 upstreams are asked; a
+selection longer than that is cut in list order and logged. Each attempt gets an
 equal share of the time left before the deadline, so every upstream is tried
 before the `timeout` ends. The next upstream is tried when one does not answer
 in its share, when the exchange fails, or when it answers with an RCODE other
@@ -202,6 +209,8 @@ A reply with TC set is asked again over TCP, to the same upstream, inside the
 same attempt.
 
 <!-- source: internal/plugins/dnsresolver/resolve.go -- resolver.forward, servfail -->
+<!-- source: internal/plugins/dnsresolver/state.go -- forwardUpstreams -->
+<!-- source: internal/plugins/dnsresolver/config.go -- forwardDefault, forwardRefusals, parseForwardSources -->
 <!-- test: internal/plugins/dnsresolver/forward_test.go -- TestFailoverAndTimeout, TestUpstreamFailureRcode, TestTCPRetryOnTC -->
 
 ## The upstream query
@@ -345,6 +354,17 @@ cache bound and shown config are published only once every listener it names
 is bound. An unchanged listener set does not rebind: a reload that changes
 only `allow-from`, `forward`, the cache or the limits keeps every socket, and a
 TCP connection open across the reload carries on under the new policy.
+
+The learned servers reach the plugin as the `system-dns` snapshot, in the
+engine process or its own (`dnssource.Follower`, `followLearnedResolvers`).
+The plugin asks for the current snapshot once started, so it forwards to the
+leases that exist before the next change. A newer snapshot republishes the
+policy from the applied config (`resolver.relearn`) and rebinds nothing; an
+older one is dropped. Inside a reload's narrowed window it rebuilds the
+window's policy, so the narrowing holds, and a refused reload restores the
+running config over the records of that moment.
+<!-- source: internal/plugins/dnsresolver/register.go -- followLearnedResolvers -->
+<!-- source: internal/plugins/dnsresolver/state.go -- resolver.relearn, resolver.narrow, resolver.restore -->
 
 A listener can name an address the host does not hold yet. The resolver sets
 `IP_FREEBIND` on every listener socket (`dnsserver.Options.Freebind`, Linux

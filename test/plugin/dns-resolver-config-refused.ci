@@ -4,8 +4,10 @@
 # Spec: spec-lan-dns-resolver (closed 2026-10-28) -- Wiring Test row 3, AC-3, AC-4
 # VALIDATES: the plugin verifier (parseConfig, internal/plugins/dnsresolver/config.go)
 #            refuses a wildcard listener, an empty allow-from and an empty
-#            forward list through `ze config validate`, which runs the verifier
-#            a commit runs.
+#            forward list whose `forward dns-source` names no received source
+#            through `ze config validate`, which runs the verifier a commit
+#            runs. Under the default list an empty forward list is accepted:
+#            the resolver takes the learned servers (spec-home-cpe-23b, D-5).
 # PREVENTS: an open resolver on 0.0.0.0, or a resolver that silently refuses
 #           every LAN host.
 
@@ -49,6 +51,11 @@ service {
 			port 53
 		}
 		allow-from 192.0.2.0/24
+		forward {
+			dns-source {
+				source configured
+			}
+		}
 	}
 }
 EOF_NOFWD
