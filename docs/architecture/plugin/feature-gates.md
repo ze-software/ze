@@ -156,7 +156,15 @@ field `f`, when `f` is declared directly in the retained, non-generic struct
 type of `x`, reached through at most one pointer. An imported name, a method,
 an embedded or promoted field, and a holder whose type is unknown stay
 untyped. So `n := (b.nBits + 7) >> 3` is a `uint8` when `b` is a `*writer`,
-and so is `i` in `for i := range n`. A variable declared or assigned from one
+and so is `i` in `for i := range n`. A variadic parameter `args ...T` has
+type `[]T` inside its function, as the Go specification says, so gopls's
+`for i, arg := range args[1:]` over `args ...string` gives `i` an `int` and
+`arg` a `string`. The parameter's type is recorded as `[]T` once, where the
+parameter is declared, so no later walk meets the `...T` spelling. A direct
+call binds the parameter as the specification passes it: separate arguments
+become the elements of a new slice, and a spread `f(s...)` passes `s`
+unchanged. Caller provenance follows the same rule, so a variadic parameter is
+grounded exactly when a `[]T` parameter called with `[]T{a, b}` or `s` is. A variable declared or assigned from one
 multi-valued call, `tok, err := d.Read()`, has the type of the callee's
 result at its own position, a result field with several names counting once
 per name, when the callee resolves as a declared function or method and is
@@ -175,7 +183,9 @@ A function with named results returns what its result variables hold as well
 as its explicit return values: a named result is a variable of its declared
 type, so a read of it yields its zero value and every assignment to it, a
 naked return's and a deferred closure's included.
-<!-- source: internal/le/repo/inventory/methods.go -- expression.method, expression.methodAt, expression.methodReceiver, expression.addressable, expression.valueType, expression.tupleType, expression.fieldType -->
+<!-- source: internal/le/repo/inventory/methods.go -- expression.method, expression.methodAt, expression.methodReceiver, expression.addressable, expression.valueType, expression.tupleType, expression.fieldType, parameterType -->
+<!-- source: internal/le/repo/inventory/externalcalls.go -- externalEffects.bindVariadic -->
+<!-- source: internal/le/repo/inventory/externalformals.go -- externalVariadicSlots, externalEffects.indexVariadicFormal -->
 <!-- source: internal/le/repo/inventory/externalrootfields.go -- externalEffects.fieldReceiverType, externalTupleOperand -->
 <!-- source: internal/le/repo/inventory/externaleffects.go -- externalEffects.namedResults, externalEffects.projectedLocalWrite -->
 <!-- source: internal/le/repo/inventory/methodpromotion.go -- expression.promotedMethod, promotedReceiver, declaredMethods, declaresField -->

@@ -134,14 +134,15 @@ func (e *externalEffects) call(source sourceExpr, call *ast.CallExpr, possible b
 			e.problem(source, "generic callable ownership is unresolved")
 			continue
 		}
-		if call.Ellipsis.IsValid() {
-			e.problem(source, "variadic argument ownership is unresolved")
-			continue
-		}
+		spread := call.Ellipsis.IsValid()
+		spreadBound := false
 		index := 0
 		for _, field := range signature.Params.List {
 			if _, variadic := field.Type.(*ast.Ellipsis); variadic {
-				e.problem(source, "variadic parameter ownership is unresolved")
+				// The variadic parameter takes every remaining argument
+				// (bindVariadic quotes the Go specification's rule).
+				spreadBound = e.bindVariadic(field, arguments[min(index, len(arguments)):], spread)
+				index = len(arguments)
 				continue
 			}
 			count := len(field.Names)
@@ -162,6 +163,11 @@ func (e *externalEffects) call(source sourceExpr, call *ast.CallExpr, possible b
 		if index != len(arguments) {
 			e.problem(source, "argument arity is unresolved")
 		}
+		if spread {
+			if !spreadBound {
+				e.problem(source, "variadic argument ownership is unresolved")
+			}
+		}
 		if assembly != nil {
 			returned := e.assemblyResult(sourceFunction{decl: assembly, file: defining.file, pkg: defining.pkg}, inputs)
 			if e.amb.unknown != "" {
@@ -176,6 +182,38 @@ func (e *externalEffects) call(source sourceExpr, call *ast.CallExpr, possible b
 		result.reflection.join(e.returnedReflection(signature, defining, depth+1))
 	}
 	return result
+}
+
+// bindVariadic binds a callee's final ...T parameter from the arguments left
+// after its other parameters. Go specification, "Passing arguments to ...
+// parameters": "Otherwise, the value passed is a new slice of type []T with a
+// new underlying array whose successive elements are the actual arguments,
+// which all must be assignable to T." So without a spread the parameter
+// holds each remaining argument as an element, joined flattened as a slice
+// literal's elements are (typedLiteralValue). "If the final argument is
+// assignable to a slice type []T and is followed by ..., it is passed
+// unchanged as the value for a ...T parameter." So with a spread the one
+// remaining argument is the parameter's value itself; any other count stays
+// unresolved for the caller to refuse, and true answers that the spread found
+// its parameter. An unnamed parameter binds nothing.
+func (e *externalEffects) bindVariadic(field *ast.Field, remaining []externalValue, spread bool) bool {
+	if spread {
+		if len(remaining) != 1 {
+			return false
+		}
+		for _, name := range field.Names {
+			e.bind(name.Obj, remaining[0])
+		}
+		return true
+	}
+	var passed externalValue
+	for index := range remaining {
+		passed.join(externalFlat(remaining[index], 0))
+	}
+	for _, name := range field.Names {
+		e.bind(name.Obj, passed)
+	}
+	return false
 }
 
 // externalRegistration identifies the package-level semantic sink by its

@@ -269,24 +269,27 @@ func (e *externalEffects) indexFormalCall(node ast.Node, receiver ast.Expr, call
 		e.formalInvalid[node] = "generic caller provenance is unsupported"
 		return
 	}
-	if call.Ellipsis.IsValid() {
-		e.formalInvalid[node] = "variadic caller provenance is unsupported"
-		return
-	}
+	spread := call.Ellipsis.IsValid()
 	slots := 0
+	var variadic *ast.Field
 	for _, field := range signature.Params.List {
-		if _, variadic := field.Type.(*ast.Ellipsis); variadic {
-			e.formalInvalid[node] = "variadic parameter provenance is unsupported"
-			return
+		if _, final := field.Type.(*ast.Ellipsis); final {
+			variadic = field
+			continue
 		}
 		slots += max(1, len(field.Names))
 	}
-	if slots != len(call.Args) {
-		e.formalInvalid[node] = "argument slot provenance is unresolved"
+	if reason := externalVariadicSlots(slots, len(call.Args), variadic != nil, spread); reason != "" {
+		e.formalInvalid[node] = reason
 		return
 	}
 	index := 0
 	for _, field := range signature.Params.List {
+		if field == variadic {
+			// The final ...T parameter takes every remaining argument.
+			e.indexVariadicFormal(field, call.Args[index:], spread, caller, owner)
+			break
+		}
 		for _, name := range field.Names {
 			source := caller
 			source.value = call.Args[index]
@@ -310,6 +313,60 @@ func (e *externalEffects) indexFormalCall(node ast.Node, receiver ast.Expr, call
 			source.value = receiver
 			e.definitions[name.Obj] = append(e.definitions[name.Obj], externalDefinition{source: source, owner: owner})
 		}
+	}
+}
+
+// externalVariadicSlots refuses a call whose arguments do not fill the
+// callee's parameters: slots counts the parameters before a final ...T one.
+// Without one, the arguments fill the slots exactly and a spread has no
+// parameter to pass. With one, a spread passes exactly one slice after the
+// slots, and otherwise any number of arguments may follow them.
+func externalVariadicSlots(slots, arguments int, variadic, spread bool) string {
+	if !variadic {
+		if spread {
+			return "variadic caller provenance is unsupported"
+		}
+		if slots != arguments {
+			return "argument slot provenance is unresolved"
+		}
+		return ""
+	}
+	if spread {
+		if arguments != slots+1 {
+			return "variadic caller provenance is unsupported"
+		}
+		return ""
+	}
+	if arguments < slots {
+		return "argument slot provenance is unresolved"
+	}
+	return ""
+}
+
+// indexVariadicFormal records what a direct call passes to the callee's final
+// ...T parameter. Go specification, "Passing arguments to ... parameters":
+// "If the final argument is assignable to a slice type []T and is followed by
+// ..., it is passed unchanged as the value for a ...T parameter." So a spread
+// argument is the parameter's definition, exactly as a []T argument is for a
+// []T parameter. "Otherwise, the value passed is a new slice of type []T with
+// a new underlying array whose successive elements are the actual arguments,
+// which all must be assignable to T." That slice is what a literal []T{a, b}
+// builds, so its provenance is its elements', recorded as proof sources
+// (formalElements) rather than as a definition of the slice: a definition is
+// also read as the parameter's value, and one element is not the slice.
+func (e *externalEffects) indexVariadicFormal(field *ast.Field, arguments []ast.Expr, spread bool, caller sourceExpr, owner ast.Node) {
+	elements := make([]sourceExpr, 0, len(arguments))
+	for _, argument := range arguments {
+		source := caller
+		source.value = argument
+		elements = append(elements, source)
+	}
+	for _, name := range field.Names {
+		if spread {
+			e.definitions[name.Obj] = append(e.definitions[name.Obj], externalDefinition{source: elements[0], owner: owner})
+			continue
+		}
+		e.formalElements[name.Obj] = append(e.formalElements[name.Obj], elements)
 	}
 }
 

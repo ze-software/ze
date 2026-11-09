@@ -80,7 +80,7 @@ func (e *externalEffects) indexDefinitions(directories []string) {
 					e.indexRangeAssignment(declaration, sourceExpr{file: file.File, pkg: pkg}, owner)
 				case *ast.Field:
 					for _, name := range declaration.Names {
-						e.types[name.Obj] = sourceExpr{value: declaration.Type, file: file.File, pkg: pkg}
+						e.types[name.Obj] = sourceExpr{value: parameterType(declaration), file: file.File, pkg: pkg}
 					}
 				}
 				return true
@@ -269,7 +269,7 @@ func (e *externalEffects) externalParameters(node ast.Node, source sourceExpr) {
 			continue
 		}
 		for _, field := range fields.List {
-			datatype := sourceExpr{value: field.Type, file: source.file, pkg: source.pkg}
+			datatype := sourceExpr{value: parameterType(field), file: source.file, pkg: source.pkg}
 			value := e.typeMethods(datatype, 0)
 			shape, reason := e.formalShape(datatype, 0)
 			if reason != "" {

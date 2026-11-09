@@ -163,6 +163,17 @@ func (proofs *externalFormalProofs) object(object *ast.Object, depth int) *exter
 	for _, definition := range e.definitions[object] {
 		proof.join(proofs.expression(definition.source, depth+1))
 	}
+	for _, elements := range e.formalElements[object] {
+		// A call passing separate arguments to a ...T parameter builds the
+		// slice as the literal []T{a, b} does, so it is grounded as literal
+		// grounds one, and each element joins its own provenance; no
+		// arguments pass nil, which is grounded too.
+		passed := &externalFormalProof{grounded: true}
+		for _, element := range elements {
+			passed.join(proofs.expression(element, depth+1))
+		}
+		proof.join(passed)
+	}
 	return proof
 }
 

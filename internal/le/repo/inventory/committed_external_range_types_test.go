@@ -192,6 +192,13 @@ func TestCommittedExternalRangeUntypedOperandRefuses(t *testing.T) {
 // MUTATION: (internal/le/repo/inventory/methods.go,
 // "if binding.Kind == ast.Fun {", "if binding.Kind == ast.Bad {") leaves a
 // declared iterator untyped: its rows go red.
+// MUTATION: (internal/le/repo/inventory/methods.go,
+// "if variadic, ok := field.Type.(*ast.Ellipsis); ok {",
+// "if variadic, ok := field.Type.(*ast.Ellipsis); ok && false {")
+// leaves a variadic parameter typed ...T: both variadic rows go red.
+// MUTATION: (internal/le/repo/inventory/methods.go,
+// "return e.sliceType(source, value, depth)", "return sourceExpr{}, false")
+// leaves every slice expression untyped: the sliced rows go red.
 func TestExternalRangeVariableTypes(t *testing.T) {
 	const declarations = "var table = map[label]int{\"a\": 1}\nvar list = []label{\"a\"}\nvar row = [1]label{\"a\"}\n" +
 		"var named = labels{\"a\"}\nvar word = \"ab\"\nvar limit count = 2\nvar queue chan label = make(chan label, 1)\n" +
@@ -215,6 +222,16 @@ func TestExternalRangeVariableTypes(t *testing.T) {
 		{"for k := range keys { _ = k }", "label", ""},
 		{"for k, v := range (func(yield func(int, string) bool) {}) { _, _ = k, v }", "int", "string"},
 		{"for k, v := range remote.Environ() { _, _ = k, v }", "?", "?"},
+		{"for k, v := range list[1:] { _, _ = k, v }", "int", "label"},
+		{"for k, v := range list[0:1:1] { _, _ = k, v }", "int", "label"},
+		{"for k, v := range named[1:] { _, _ = k, v }", "int", "label"},
+		{"for k, v := range row[:] { _, _ = k, v }", "int", "label"},
+		{"for k, v := range (&row)[:] { _, _ = k, v }", "int", "label"},
+		{"for k, v := range word[1:] { _, _ = k, v }", "int", "rune"},
+		{"for k, v := range \"ab\"[1:] { _, _ = k, v }", "int", "rune"},
+		{"for k, v := range remote.Environ()[1:] { _, _ = k, v }", "?", "?"},
+		{"_ = func(args ...label) { for k, v := range args { _, _ = k, v } }", "int", "label"},
+		{"_ = func(args ...label) { for k, v := range args[1:] { _, _ = k, v } }", "int", "label"},
 	}
 	var loops strings.Builder
 	for _, row := range rows {

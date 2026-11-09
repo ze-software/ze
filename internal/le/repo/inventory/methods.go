@@ -126,6 +126,21 @@ func (e *expression) addressable(source sourceExpr) bool {
 	return false
 }
 
+// parameterType answers the type a declared field has inside its function.
+// Go specification, "Passing arguments to ... parameters": "If f is variadic
+// with a final parameter p of type ...T, then within f the type of p is
+// equivalent to type []T." So a variadic parameter's ...T answers []T, and
+// gopls's `for i, arg := range args[1:]` over `args ...string` ranges a
+// []string. Every reader of a parameter's type takes it from here, so no
+// type walk meets the ...T spelling, which only a signature carries. Any
+// other field answers the type it declares.
+func parameterType(field *ast.Field) ast.Expr {
+	if variadic, ok := field.Type.(*ast.Ellipsis); ok {
+		return &ast.ArrayType{Lbrack: variadic.Ellipsis, Elt: variadic.Elt}
+	}
+	return field.Type
+}
+
 // valueType follows at most 64 declaration edges. It derives static types, not
 // possible dynamic values; an interface result never becomes its returned literal.
 func (e *expression) valueType(source sourceExpr, depth int) (sourceExpr, bool) {
@@ -238,7 +253,7 @@ func (e *expression) valueType(source sourceExpr, depth int) (sourceExpr, bool) 
 		}
 		switch declaration := binding.Decl.(type) {
 		case *ast.Field:
-			return sourceExpr{value: declaration.Type, file: source.file, pkg: source.pkg}, true
+			return sourceExpr{value: parameterType(declaration), file: source.file, pkg: source.pkg}, true
 		case *ast.ValueSpec:
 			if declaration.Type != nil {
 				return sourceExpr{value: declaration.Type, file: source.file, pkg: source.pkg}, true

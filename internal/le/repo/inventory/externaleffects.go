@@ -105,6 +105,10 @@ type externalEffects struct {
 	// the census cannot see.
 	formalUnbound map[ast.Node]sourceExpr
 	formalInvalid map[ast.Node]string
+	// formalElements holds, for a variadic parameter, the arguments each
+	// direct call without a spread passes as the elements of its new slice
+	// (indexVariadicFormal). They are proof sources, not the slice itself.
+	formalElements map[*ast.Object][][]sourceExpr
 	// rangeIndexes holds each package's occurrence index for the ranged
 	// element population proof; rangeVariables the scope of every fresh
 	// range variable, so formal provenance can reach its collection.
@@ -142,6 +146,7 @@ func newExternalEffects(source *externalSource) *externalEffects {
 		formalIndirect:  make(map[ast.Node]sourceExpr),
 		formalUnbound:   make(map[ast.Node]sourceExpr),
 		formalInvalid:   make(map[ast.Node]string),
+		formalElements:  make(map[*ast.Object][][]sourceExpr),
 		rangeIndexes:    make(map[*sourcePackage]*externalRangeUses),
 		rangeVariables:  make(map[*ast.Object]sourceExpr),
 		indexedRound:    make(map[any]string),
