@@ -41,6 +41,6 @@ rule's body is one Read away at the path in its row.
 | `ai/rules/spec-no-code.md` | blocking | writing or editing a spec |
 | `ai/rules/stale-comments.md` | blocking, always-on | when changing code behavior |
 | `ai/rules/terminal-demos.md` | blocking | writing, changing, or recording a terminal demo or video |
-| `ai/rules/testing.md` | blocking | writing, changing, or deleting any test, and before writing implementation code for new behavior |
+| `ai/rules/testing.md` | blocking | writing, changing, or deleting any test, before writing implementation code for new behavior, or changing plugin supervision, config reload or daemon stop |
 | `ai/rules/user-facing-errors.md` | blocking | adding or changing a message anyone sees: error, refusal, warning, log line, web UI notice, `ze doctor` report, `./le` diagnostic, API or gNMI error |
 | `ai/rules/writing.md` | blocking | writing or reviewing any prose in Ze: docs, code comments, error messages, CLI output, YANG descriptions, specs, commit messages, or a product comparison |

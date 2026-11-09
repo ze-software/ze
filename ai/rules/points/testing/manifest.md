@@ -1,6 +1,6 @@
 ---
 title: Testing
-when: writing, changing, or deleting any test, and before writing implementation code for new behavior
+when: writing, changing, or deleting any test, before writing implementation code for new behavior, or changing plugin supervision, config reload or daemon stop
 severity: blocking
 related: completion, platform-linux, rfc-compliance
 ---
@@ -15,6 +15,9 @@ fix-code-not-tests ## Fix Code, Not Tests
 the-affected-population-is-not-the-edited-population ## The Affected Population Is Not the Edited Population
   the-tests-you-write-for-a-change-are-green-by-construction
   a-behavior-change-re-validates-every-repository-user
+lifecycle-regressions ## Lifecycle Regressions
+  select-every-lifecycle-scenario-the-change-reaches
+  the-lifecycle-scenarios-and-where-each-outcome-is-declared
 mutation-testing ## Proving a Test Discriminates
   a-cached-verdict-can-hide-an-exec-reached-mutation
   verify-the-mutation-applied-before-trusting-the-run

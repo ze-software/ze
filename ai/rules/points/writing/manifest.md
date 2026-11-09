@@ -10,5 +10,6 @@ detail-budget ## Detail Budget
   write-only-what-changes-the-next-action
 documentation ## Documentation
   which-document-to-update-for-each-change
+  fix-the-tool-output-before-writing-advice-about-it
   the-rules-for-a-source-anchor
   a-path-in-a-record-is-a-fact-about-when-it-was-written

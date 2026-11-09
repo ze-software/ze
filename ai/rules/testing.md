@@ -1,6 +1,6 @@
 # Testing
 
-**When:** writing, changing, or deleting any test, and before writing implementation code for new behavior
+**When:** writing, changing, or deleting any test, before writing implementation code for new behavior, or changing plugin supervision, config reload or daemon stop
 **Severity:** blocking
 **Related:** completion, platform-linux, rfc-compliance
 
@@ -37,6 +37,28 @@
 
 - **A change to what Ze does (a default, an enforcement, a refusal, an output format) MUST convert or re-validate, in the same work, every user of that behavior the repository carries: configs, `.ci` bodies, fixtures, benchmarks, interop scenarios, pinned digests and docs.** A user left on the old contract fails in one of two ways: it goes red where nobody looks, or it stays green because the new behavior removed what it checked, such as a test that passes only because its routes are now dropped, or a benchmark that times a selection of zero.
 - **For configs, `TestRepositoryConfigsValidate` (`internal/component/config/cli/validate_corpus_test.go`) is the mechanism: it validates every Ze config the repository carries, and it MUST be run when validation tightens.** It does not read what a test expects, so the `.ci` expectations, benchmarks, `needs-linux` suites, interop checkers and pinned digests that use the behavior MUST be found by search and run.
+
+## Lifecycle Regressions
+
+- **A change to plugin start-up, plugin supervision, a plugin's failure handling, config reload or daemon stop MUST select every scenario in the table below that the change can reach, and MUST prove each selected scenario with a test that asserts the outcome its page declares.** The outcome is the plugin's resulting state, the warning or refusal the operator sees, and whether the daemon keeps running. A test that checks only that the daemon is still up proves nothing about the scenario.
+- **The proof MUST be a `.ci` test through the daemon, and a scenario whose interleaving a `.ci` cannot reproduce reliably MAY use a controlled seam in a Go test instead.** The spec names each scenario that took the seam, and why.
+- **Where the plugin runs both internal and external, each selected scenario MUST run in both modes.** The external mode crosses a process boundary that the internal mode never does, so a pass in one mode says nothing about the other.
+- **The spec MUST name each scenario in the table that the change cannot reach, with the reason.** An unnamed scenario reads the same as a forgotten one.
+
+Each row names where the expected outcome is declared, never the outcome itself, so the page stays its only statement.
+
+| Scenario | Where the expected outcome is declared |
+|----------|----------------------------------------|
+| A plugin's process ends after it declared, once for each `failure-policy` value (`restart`, `ignore`, `fatal`) | `docs/architecture/api/process-protocol.md`, "Failure-Policy Declaration" |
+| A plugin fails a startup stage after it declared | `docs/architecture/api/process-protocol.md`, "Failure-Policy Declaration" |
+| A restarting plugin passes its restart bound, within the window and over the daemon's life | `docs/architecture/api/process-protocol.md`, "A restart is bounded" |
+| The operator's `respawn` leaf disagrees with the declaration (`false` on a `restart` plugin, `true` on one that declared it must not restart) | `docs/architecture/api/process-protocol.md`, "The `respawn` leaf" |
+| A plugin exits during the stop drain or during teardown | `docs/architecture/api/process-protocol.md`, "A stop ends every restart" |
+| A signal arrives during the stop: in the config fence, in the drain, and after teardown began | `docs/architecture/hub-architecture.md`, "A signal during the stop follows one table" |
+| A reload or commit arrives after shutdown began | `docs/architecture/hub-architecture.md`, "A commit that reaches the gate after shutdown began" |
+| A plugin crashes during verify, crashes during apply, misses its deadline, or reports `broken` | `docs/architecture/config/transaction-protocol.md`, "Failure Modes" |
+| A reload's context ends during a plugin's startup handshake, or a sibling fails while the plugin waits at the tier barrier | `docs/architecture/api/process-protocol.md`, "A failure during a reload means the plugin failed" |
+| A plugin dispatches another plugin's command at startup | `docs/architecture/plugin/plugin-system.md`, "Startup phases and callbacks" |
 
 ## Proving a Test Discriminates
 
