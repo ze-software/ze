@@ -29,6 +29,12 @@ import (
 // so the answer names the upstream the resolver forwarded to.
 const (
 	forwardQueryName = "web.example.test."
+	// forwardProbeName is the name dnsResolverForwardDefault asks before any
+	// RA. It is not forwardQueryName, so a negative answer from whatever the
+	// resolver reaches first (the guest's own resolver, through the host
+	// fallback record) is cached against this name alone and cannot hide a
+	// later stage's answer. The learned stub answers it like forwardQueryName.
+	forwardProbeName = "probe.example.test."
 	// forwardQueryTimeout bounds one exchange with the LAN resolver.
 	forwardQueryTimeout = 2 * time.Second
 )
@@ -149,10 +155,13 @@ func dnsResolverForwardDefault(ctx context.Context, plugin *sdk.Plugin, reloadSo
 	}
 	defer configured.Close() //nolint:errcheck // The scenario's verdict is reached; a close error changes none.
 
-	// Before any RA the resolver knows no upstream. A resolver that answers
-	// the learned stub's record now reaches the stub by some route other
-	// than the RA, and the rest of the run could not tell the RA's effect.
-	if got, err := forwardAnswer(runCtx, forwardDefaultListener); err == nil && got == forwardLearnedRecord {
+	// Before any RA the resolver knows no learned upstream. A resolver that
+	// answers the learned stub's record now reaches the stub by some route
+	// other than the RA, and the rest of the run could not tell the RA's
+	// effect. The probe asks forwardProbeName, which the learned stub serves
+	// too, so the probe still sees that route if it exists.
+	learned.Set(forwardProbeName, mdns.TypeA, dnsmock.Answer{Addresses: []netip.Addr{forwardLearnedRecord}})
+	if got, err := forwardAnswerName(runCtx, forwardDefaultListener, forwardProbeName); err == nil && got == forwardLearnedRecord {
 		return fmt.Errorf("the LAN resolver answered %s before any RA named %s: the test cannot tell the RA's effect", got, scene.server)
 	}
 
@@ -206,12 +215,18 @@ func forwardAwaitAnswer(ctx context.Context, listener netip.AddrPort, want netip
 	})
 }
 
-// forwardAnswer asks the resolver on listener for forwardQueryName type A
-// with RD set and returns the first A record of a NOERROR reply. Any other
-// reply is an error naming its rcode, never a zero address.
+// forwardAnswer asks the resolver on listener for forwardQueryName
+// (forwardAnswerName).
 func forwardAnswer(ctx context.Context, listener netip.AddrPort) (netip.Addr, error) {
+	return forwardAnswerName(ctx, listener, forwardQueryName)
+}
+
+// forwardAnswerName asks the resolver on listener for name type A with RD
+// set and returns the first A record of a NOERROR reply. Any other reply is
+// an error naming its rcode, never a zero address.
+func forwardAnswerName(ctx context.Context, listener netip.AddrPort, name string) (netip.Addr, error) {
 	query := new(mdns.Msg)
-	query.SetQuestion(forwardQueryName, mdns.TypeA)
+	query.SetQuestion(name, mdns.TypeA)
 	query.RecursionDesired = true
 	client := &mdns.Client{Net: "udp", Timeout: forwardQueryTimeout}
 	reply, _, err := client.ExchangeContext(ctx, query, listener.String())
