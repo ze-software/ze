@@ -157,13 +157,10 @@ func TestCommittedAssemblyLeafTracksPointerArgument(t *testing.T) {
 // MUTATION (flag-expression): (assemblyleaf.go, `if !admitted {`,
 // `if !admitted && false {`): DUPOK reads as an admitted flag beside NOSPLIT
 // and the `NOSPLIT|DUPOK` leaf publishes.
-// MUTATION (noncanonical-flag): the same break leaves the `DUPOK` leaf
-// without NOSPLIT, so leafFlags still refuses it; it publishes only beside
-// (assemblyleaf.go, `if !seen["NOSPLIT"] {`, `if false {`).
+// MUTATION (noncanonical-flag): the same break admits `DUPOK` alone, and the
+// `DUPOK` leaf publishes.
 // MUTATION (noframe-frame): in leafHeader, delete the NOFRAME zero-frame
 // refusal: the `NOSPLIT|NOFRAME, $8-2` leaf publishes.
-// MUTATION (missing-nosplit): in leafFlags, delete the `!seen["NOSPLIT"]`
-// refusal: the `NOFRAME`-only leaf publishes.
 func TestCommittedAssemblyLeafControlsRefuse(t *testing.T) {
 	const header = "#include \"textflag.h\"\nTEXT ·inventoryLeaf(SB),NOSPLIT,$0-2\n"
 	for _, test := range []struct{ name, unit, cause string }{
@@ -179,12 +176,41 @@ func TestCommittedAssemblyLeafControlsRefuse(t *testing.T) {
 		{"noncanonical-flag", "#include \"textflag.h\"\nTEXT ·inventoryLeaf(SB),DUPOK,$0-2\n MOVB $0, bmi1+0(FP)\n MOVB $0, bmi2+1(FP)\n RET\n", "only canonical NOSPLIT is proved"},
 		{"flag-expression", "#include \"textflag.h\"\nTEXT ·inventoryLeaf(SB),NOSPLIT|DUPOK,$0-2\n MOVB $0, bmi1+0(FP)\n MOVB $0, bmi2+1(FP)\n RET\n", "a leaf proves only NOSPLIT and NOFRAME"},
 		{"noframe-frame", "#include \"textflag.h\"\nTEXT ·inventoryLeaf(SB),NOSPLIT|NOFRAME,$8-2\n MOVB $0, bmi1+0(FP)\n MOVB $0, bmi2+1(FP)\n RET\n", "NOFRAME requires a zero frame"},
-		{"missing-nosplit", "#include \"textflag.h\"\nTEXT ·inventoryLeaf(SB),NOFRAME,$0-2\n MOVB $0, bmi1+0(FP)\n MOVB $0, bmi2+1(FP)\n RET\n", "assembly leaf requires NOSPLIT"},
 	} {
 		for _, kind := range []string{"plugin", "yang"} {
 			t.Run(test.name+"/"+kind, func(t *testing.T) {
 				fixture := asmLeafFixture(t, kind, test.unit, asmLeafResultsDecl, "_, _ = inventoryLeaf()")
 				asmLeafRefusal(t, fixture, test.cause)
+			})
+		}
+	}
+}
+
+// TestCommittedAssemblyLeafWithoutNOSPLITPublishes requires a leaf whose
+// header lacks NOSPLIT to publish as a leaf, as klauspost/compress's
+// regenerated amd64 decoders declare `TEXT ·buildDtable_asm(SB), $0-24`: the
+// stack-split prologue the assembler then emits enters only runtime·morestack,
+// which grows the stack and re-enters the function. Method: the shared leaf
+// body under a NOFRAME-only header and under a header with no flag operand.
+//
+// MUTATION: (internal/le/repo/inventory/assemblyleaf.go,
+// `	if len(tokens) != 0 && tokens[0] == "$" {`,
+// `	if len(tokens) != 0 && tokens[0] == "-" {`): the flagless header reads
+// `$` as a flag and refuses as an unsupported TEXT flag.
+// MUTATION: (internal/le/repo/inventory/assemblyleaf.go,
+// `	return offset + 1, seen["NOFRAME"], nil`,
+// `	return offset + 1, seen["NOFRAME"], fmt.Errorf("x")`): a flagged leaf
+// refuses, so the NOFRAME-only header refuses.
+func TestCommittedAssemblyLeafWithoutNOSPLITPublishes(t *testing.T) {
+	const body = " MOVB $0, bmi1+0(FP)\n MOVB $0, bmi2+1(FP)\n RET\n"
+	for _, header := range []struct{ name, text string }{
+		{"noframe-only", "TEXT ·inventoryLeaf(SB),NOFRAME,$0-2\n"},
+		{"no-flags", "TEXT ·inventoryLeaf(SB), $0-2\n"},
+	} {
+		for _, kind := range []string{"plugin", "yang"} {
+			t.Run(header.name+"/"+kind, func(t *testing.T) {
+				fixture := asmLeafFixture(t, kind, "#include \"textflag.h\"\n"+header.text+body, asmLeafResultsDecl, "_, _ = inventoryLeaf()")
+				externalEffectsPositive(t, fixture)
 			})
 		}
 	}

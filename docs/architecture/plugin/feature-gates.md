@@ -724,12 +724,17 @@ A third proof admits a leaf body, such as `klauspost/compress`'s
 `cpuinfo.x86extensions` or `cespare/xxhash/v2`'s `writeBlocks`, decided from
 the retained `.s` text alone. Its TEXT header keeps the trampoline's entry
 symbol, with any canonical frame: `$N`, which Go assembly allows when the Go
-prototype gives the argument size, or `$N-M`. Its flags are `NOSPLIT`
-(required: without it the assembler inserts a call to `runtime·morestack`),
-optionally joined by `|` with `NOFRAME`, which needs a zero frame
-(`runtime/textflag.h`). Neither flag can change registration: each changes
-only the prologue the assembler emits, and for a zero-frame body with no
-`CALL` the amd64 assembler sets the no-frame attribute itself. Any other flag
+prototype gives the argument size, or `$N-M`. Its flags, when it has any,
+are `NOSPLIT` and `NOFRAME` joined by `|`, `NOFRAME` needing a zero frame
+(`runtime/textflag.h`); a header may name no flag at all, as klauspost's
+regenerated `TEXT ·buildDtable_asm(SB), $0-24` does. Neither flag can change
+registration: each changes only the prologue the assembler emits. Without
+`NOSPLIT` the prologue calls `runtime·morestack` when the stack is short,
+which grows the goroutine stack and enters the same function again, the
+prologue every Go function the analysis walks carries; it is runtime code
+under the trust contract and receives no value of the program. For a
+zero-frame body with no `CALL` the amd64 assembler sets the no-frame
+attribute itself. Any other flag
 refuses, `DUPOK` among them, because it lets the linker keep another
 definition. Its body reads no `TLS`, holds no `CALL`, no
 `BYTE`/`WORD`/`LONG`/`QUAD`/`DWORD`/`OCTA` data that could encode an

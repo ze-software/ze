@@ -81,16 +81,24 @@ func leafHeader(tokens []string, name string) error {
 
 // leafFlags reads a TEXT flag expression of leafTextFlags names joined by
 // `|`, each at most once, through its closing comma, and returns the tokens
-// it consumed and whether NOFRAME is set. Neither admitted flag can affect
+// it consumed and whether NOFRAME is set. A header with no flag operand
+// (`TEXT ·f(SB), $0-24`) consumes nothing. Neither admitted flag can affect
 // registration, because each changes only the prologue the assembler emits:
 //
-//   - NOSPLIT is required. Without it the assembler inserts a stack-split
-//     check that calls runtime·morestack, a transfer outside the body.
+//   - NOSPLIT removes the stack-split check. Without it the prologue calls
+//     runtime·morestack when the stack is short, which grows the goroutine
+//     stack and enters the same function again: the prologue every Go
+//     function the analysis walks carries. It is runtime code under the
+//     trust contract and receives no value of the program, so the leaf's
+//     effect model, an external call over its arguments, already covers it.
 //   - NOFRAME stops the assembler emitting the base-pointer save and frame
 //     allocation. With the zero frame leafHeader requires and no CALL in a
 //     leaf body, cmd/internal/obj/x86's preprocess sets the same no-frame
 //     attribute itself, so the emitted code is the same.
 func leafFlags(tokens []string) (int, bool, error) {
+	if len(tokens) != 0 && tokens[0] == "$" {
+		return 0, false, nil
+	}
 	seen := make(map[string]bool)
 	offset := 0
 	for {
@@ -116,9 +124,6 @@ func leafFlags(tokens []string) (int, bool, error) {
 			return 0, false, fmt.Errorf("unsupported assembly TEXT flags")
 		}
 		offset++
-	}
-	if !seen["NOSPLIT"] {
-		return 0, false, fmt.Errorf("assembly leaf requires NOSPLIT: without it the assembler inserts a call to runtime·morestack")
 	}
 	return offset + 1, seen["NOFRAME"], nil
 }
