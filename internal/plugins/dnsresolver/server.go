@@ -74,11 +74,14 @@ func (r *resolver) answer(msg, q *dns.Msg, p dnsserver.Peer) bool {
 }
 
 // admit runs the checks every query meets first, a pass-through one
-// included: a policy is published, the source is allowed, and the source is
-// under its rate. decided is true when one of them ended the query, with
+// included: the learned-resolver replay arrived (awaitReplay), a policy is
+// published, the source is allowed, and the source is under its rate. decided is true when one of them ended the query, with
 // send saying whether msg, then holding the answer, is written.
 func (r *resolver) admit(msg *dns.Msg, p dnsserver.Peer) (pol *policy, decided, send bool) {
 	transport := p.RemoteAddr().Network()
+	// A plugin that starts while leases exist answers from the replayed
+	// learned list, never from the empty one it starts with.
+	r.awaitReplay()
 	pol = r.policy.Load()
 	if pol == nil {
 		// No policy is published yet, so no answer can be built.

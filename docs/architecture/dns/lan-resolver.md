@@ -208,6 +208,18 @@ gets SERVFAIL, which is never cached.
 A reply with TC set is asked again over TCP, to the same upstream, inside the
 same attempt.
 
+The learned servers reach the plugin as the `system-dns` snapshot. A plugin
+that starts or restarts while leases exist holds no record until the engine
+answers the replay it requests once started, so `admit` holds every query
+until the first snapshot is accepted (`resolver.awaitReplay`). The hold ends
+after 2 seconds (`replayWaitMax`) if no snapshot arrives, and at once when the
+request could not be sent; every later query passes with one channel receive.
+No query is therefore answered from the empty list the plugin starts with.
+
+<!-- source: internal/plugins/dnsresolver/state.go -- expectReplay, replayed, awaitReplay, replayWaitMax -->
+<!-- source: internal/plugins/dnsresolver/register.go -- followLearnedResolvers -->
+<!-- test: internal/plugins/dnsresolver/replay_test.go -- TestQueryWaitsForReplay, TestQueryNotHeldWithoutReplay, TestReplayWaitBounded -->
+
 <!-- source: internal/plugins/dnsresolver/resolve.go -- resolver.forward, servfail -->
 <!-- source: internal/plugins/dnsresolver/state.go -- forwardUpstreams -->
 <!-- source: internal/plugins/dnsresolver/config.go -- forwardDefault, forwardRefusals, parseForwardSources -->
