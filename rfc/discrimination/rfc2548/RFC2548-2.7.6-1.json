@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2548-2.7.6-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/extract_dns_test.go::TestExtractMSDNSServers",
+    "unit-sha": "fa0cb9899165ad5d",
+    "claim-sha": "4397d6f5b70a38e0",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/extract_dns.go::extractMSDNSServers",
+    "producer-sha": "ae3335e74ff58eda",
+    "break": "line 54: \"if !primary.IsValid() {\" -\u003e \"if primary.IsValid() {\""
+  },
+  {
+    "rid": "RFC2548-2.7.6-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/pool/dns_source_test.go::TestPoolIPCPDNSFromRadius",
+    "unit-sha": "4454cd7bab93d3ba",
+    "claim-sha": "6b61f56d9e42ee65",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/pool/dns_source.go::selectSubscriberDNS",
+    "producer-sha": "d634154e0025ef4b",
+    "break": "line 75: \"slotAddresses(meta.DNSPrimary, meta.DNSSecondary)\" -\u003e \"slotAddresses(netip.Addr{}, meta.DNSSecondary)\""
+  }
+]

@@ -7,8 +7,8 @@
     "claim-sha": "372f41977004cda0",
     "route": "mutant",
     "producer": "internal/plugins/iface/ra/advertiser.go::update",
-    "producer-sha": "cd7013313435e8a5",
-    "break": "line 51: \"if !kept {\" -\u003e \"if kept {\""
+    "producer-sha": "f95874d5c4d5ac45",
+    "break": "line 96: \"if !kept {\" -\u003e \"if kept {\""
   },
   {
     "rid": "RFC7084-4.3-13",
@@ -18,7 +18,7 @@
     "claim-sha": "554265e9ea6d4aa7",
     "route": "mutant",
     "producer": "internal/plugins/iface/ra/advertiser.go::update",
-    "producer-sha": "cd7013313435e8a5",
-    "break": "line 51: \"if !kept {\" -\u003e \"if kept {\""
+    "producer-sha": "f95874d5c4d5ac45",
+    "break": "line 96: \"if !kept {\" -\u003e \"if kept {\""
   }
 ]

@@ -2,6 +2,17 @@
   {
     "rid": "RFC8106-5.1-2",
     "polarity": "positive",
+    "unit": "internal/component/iface/ra_dns_source_test.go::TestRDNSSRefusesLinkLocalOfAnotherLink",
+    "unit-sha": "42424a98378cb047",
+    "claim-sha": "e187f495d3887f3e",
+    "route": "mutant",
+    "producer": "internal/component/iface/ra_dns_source.go::raOffLink",
+    "producer-sha": "357a257e219f9bd8",
+    "break": "line 140: \"return addr.Zone() != device\" -\u003e \"return false \u0026\u0026 addr.Zone() != device\""
+  },
+  {
+    "rid": "RFC8106-5.1-2",
+    "polarity": "positive",
     "unit": "internal/component/iface/rfc8106_ra_rdnss_test.go::TestRARDNSSLinkLocalCarriesZone",
     "unit-sha": "9300b4b133048821",
     "claim-sha": "2c635a283353ddf7",
