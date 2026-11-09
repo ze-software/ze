@@ -554,7 +554,7 @@ var builtinCodes = []CodeMeta{
 	{
 		Code:        CodeDoctorDNSSourceSelfUnserved,
 		Title:       "A self DNS server is not served",
-		Description: "A consumer hands Ze's own address to clients through the self source of its dns-source list (the DHCP server identifier, the RA source address or the pool gateway), and no service dns-resolver listener answers on that address, so clients time out. Add a listener on that address, for example set service dns-resolver listener lan ip <address>, or remove self from that consumer's dns-source list.",
+		Description: "A consumer hands Ze's own address to clients through the self source of its dns-source list (for a DHCP subnet, Ze's IPv4 address inside the subnet on the interface that serves it, which can differ from a configured server identifier; for an RA unit, the first global or unique-local IPv6 address Ze holds on the advertising unit, else the one a live prefix delegation gave it, never its link-local source; for an L2TP pool, the LNS's local IPCP address on the subscriber's PPP link), and no service dns-resolver listener answers on that address, so clients time out. Add a listener on that address, for example set service dns-resolver listener lan ip <address>, or remove self from that consumer's dns-source list.",
 		Examples:    []string{"ze show doctor", "ze show system dns"},
 	},
 	{
