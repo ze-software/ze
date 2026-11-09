@@ -251,6 +251,27 @@ component, for RDNSS) subscribes to the typed handle
 <!-- source: internal/core/dnssource/follow.go -- Follower, Accept, AcceptSnapshot -->
 <!-- source: internal/core/dnssource/register.go -- SnapshotEvent, SnapshotRequest -->
 
+Each consumer also publishes what its lists chose, so `show system dns` and
+`ze doctor` can read every consumer from the daemon. A consumer emits
+`(system-dns, selection)` carrying a `dnssource.Publication`: its plugin
+name and one `ConsumerSelection` per list (the config path, the instance it
+belongs to, such as the subnet, the unit or the pool, the sources and mode,
+`default` while the built-in default applies, the classes used, the servers,
+and for the LAN resolver the addresses it serves DNS on). It publishes its
+whole set after it starts and whenever a selection changes, because the
+registry replaces the consumer's previous set with each publication: a list
+the operator removed leaves by being absent. The registry keys the sets by
+the consumer's name and names no consumer itself. The router's own
+selection stays in the snapshot.
+<!-- source: internal/core/dnssource/record.go -- ConsumerSelection, NewConsumerSelection, Publication -->
+<!-- source: internal/component/config/system/resolv.go -- PublishOn, SetPublication, Consumers -->
+
+`show system dns` answers `records` (every learned record) and `consumers`:
+the router first, under the consumer name `system`, then every consumer that
+has published, sorted by name. A consumer that has not published yet is
+absent: its plugin is not running or has not received its first snapshot.
+<!-- source: internal/plugins/system-dns-cmd/cmd/show_dns.go -- showSystemDNS, newSystemDNSAnswer -->
+
 | Origin | Rank | Learned from |
 |--------|------|--------------|
 | `dhcpv4` | 100 | DHCPv4 option 6 |

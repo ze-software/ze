@@ -1,0 +1,35 @@
+module ze-system-dns-cmd {
+    namespace "urn:ze:system-dns:cmd";
+    prefix sysdnscmd;
+    import ze-extensions { prefix ze; }
+    // The handler reads the daemon's resolver registry
+    // (internal/component/config/system Resolvers). See ai/rules/plugins.md.
+    description "The show system dns command tree, owned by the system-dns-cmd plugin.";
+    revision 2026-11-09 { description "Initial revision: the learned resolver records and every dns-source consumer's selection."; }
+
+    container show {
+        config false;
+        ze:help "Read-only commands to inspect system, protocol, and network state.";
+
+        container system {
+            config false;
+
+            container dns {
+                config false;
+                description "The answer lists every learned resolver record (its origin, interface,
+                             unit, addresses, when it was received and when it expires), then
+                             every dns-source consumer's selection: the router's own under the
+                             consumer name system, and each consumer that published one (the LAN
+                             resolver, each DHCP subnet, each RA unit, each subscriber pool). Each
+                             selection carries its config path, the instance it belongs to, the
+                             sources and mode evaluated, default true while the built-in default
+                             list applies, the classes used and the servers handed on. A consumer
+                             that has not published yet is absent: its plugin is not running or
+                             has not received the first snapshot.";
+                ze:help "Learned DNS resolvers and each consumer's dns-source selection.";
+
+                ze:command "ze-system-dns:show-system-dns";
+            }
+        }
+    }
+}

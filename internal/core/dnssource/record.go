@@ -26,6 +26,10 @@ const SnapshotEventType = "snapshot"
 // consumer that starts late or restarts never waits for the next change.
 const SnapshotRequestEventType = "snapshot-request"
 
+// PublicationEventType carries a *Publication: one consumer's current
+// selections, which the registry keeps for show system dns and ze doctor.
+const PublicationEventType = "selection"
+
 // Record is one learned set of resolver addresses: what one client of one
 // registered origin learned on one interface and unit. It is a value: it
 // holds no pointer into the producer's state, so it crosses a process
@@ -139,11 +143,16 @@ func (r *Record) lists(now time.Time) bool {
 	return len(r.Addresses) > 0
 }
 
-// RouterSelection is the router consumer's answer as it is published: the
-// list it evaluated and what that list chose.
-type RouterSelection struct {
-	// Path is the config path of the router's dns-source container.
+// ConsumerSelection is one consumer's answer as it is published: the list it
+// evaluated and what that list chose. The router's lives in Snapshot; every
+// other consumer publishes its own in a Publication.
+type ConsumerSelection struct {
+	// Path is the config path of the consumer's dns-source container.
 	Path string `json:"path"`
+	// Instance names the list among the consumer's lists at Path: the
+	// subnet, the interface unit or the pool. Empty for a consumer with one
+	// list (the router, the LAN resolver).
+	Instance string `json:"instance,omitempty"`
 	// Sources and Mode are the list evaluated, Mode in its operator word.
 	Sources []Class `json:"sources"`
 	Mode    string  `json:"mode"`
@@ -153,14 +162,21 @@ type RouterSelection struct {
 	ReceivedInterfaces []string `json:"received-interfaces,omitempty"`
 	// Used are the classes that contributed a server.
 	Used []Class `json:"used"`
-	// Servers are the router's resolvers, in the order Ze asks them.
+	// Servers are the consumer's resolvers, in the order it hands them on.
 	Servers []netip.Addr `json:"servers"`
+	// Serves are the addresses the consumer itself answers DNS queries on
+	// (the LAN resolver's listeners); empty for a consumer that answers none.
+	// A self entry another consumer hands on is reachable only when some
+	// consumer serves it.
+	Serves []netip.Addr `json:"serves,omitempty"`
 }
 
-// NewRouterSelection pairs list with what it selected.
-func NewRouterSelection(list List, selection Selection) RouterSelection {
-	return RouterSelection{
+// NewConsumerSelection pairs list with what it selected, for the list named
+// instance at list's path.
+func NewConsumerSelection(list List, instance string, selection Selection) ConsumerSelection {
+	return ConsumerSelection{
 		Path:               list.Path(),
+		Instance:           instance,
 		Sources:            list.Sources(),
 		Mode:               list.Mode().String(),
 		Default:            list.Stated(),
@@ -168,6 +184,17 @@ func NewRouterSelection(list List, selection Selection) RouterSelection {
 		Used:               slices.Clone(selection.Used),
 		Servers:            slices.Clone(selection.Servers),
 	}
+}
+
+// Publication is every current selection of one consumer. A consumer MUST
+// publish its whole set each time any of its selections changes, and once
+// after it starts, because the registry replaces the consumer's previous set
+// with each publication: a list the operator removed leaves by being absent.
+// Consumer names the publisher (its plugin name); the registry keys by it and
+// names no consumer itself.
+type Publication struct {
+	Consumer   string              `json:"consumer"`
+	Selections []ConsumerSelection `json:"selections"`
 }
 
 // Snapshot is the registry's published state: every learned record, in
@@ -180,7 +207,7 @@ func NewRouterSelection(list List, selection Selection) RouterSelection {
 // two can reach a subscriber out of order, so a subscriber MUST drop a
 // snapshot whose Sequence is below the last one it applied.
 type Snapshot struct {
-	Sequence uint64          `json:"sequence"`
-	Records  []Record        `json:"records"`
-	Router   RouterSelection `json:"router"`
+	Sequence uint64            `json:"sequence"`
+	Records  []Record          `json:"records"`
+	Router   ConsumerSelection `json:"router"`
 }

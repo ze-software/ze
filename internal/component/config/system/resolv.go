@@ -202,8 +202,11 @@ type Resolvers struct {
 	written  bool
 	last     []string           // the servers the file holds, valid when written
 	snapshot dnssource.Snapshot // the current published state
-	clock    clock.Clock        // nil: the real clock
-	expiry   clock.Timer        // armed to the earliest lease end; nil until one is bounded
+	// consumers holds each consumer's last Publication, keyed by its name;
+	// the registry names no consumer, it keeps what each one publishes.
+	consumers map[string][]dnssource.ConsumerSelection
+	clock     clock.Clock // nil: the real clock
+	expiry    clock.Timer // armed to the earliest lease end; nil until one is bounded
 
 	// notifyMu serializes delivery to watchers, so each watcher sees the
 	// snapshots in sequence order. It is taken before mu, never inside it.
@@ -396,10 +399,54 @@ func (r *Resolvers) PublishOn(bus ze.EventBus) (stop func()) {
 		current := r.Snapshot()
 		emitDNSSnapshot(bus, &current)
 	})
+	stopPublications := dnssource.PublicationEvent.Subscribe(bus, func(publication *dnssource.Publication) {
+		if err := r.SetPublication(publication); err != nil {
+			slogutil.Logger("resolv").Warn("system-dns selection not kept", "err", err)
+		}
+	})
 	return func() {
+		stopPublications()
 		stopRequests()
 		stopWatch()
 	}
+}
+
+// errUnnamedConsumer refuses a publication with no consumer name: the
+// registry could never replace it, so it would stand after the consumer left.
+var errUnnamedConsumer = errors.New("a dns-source selection was published with no consumer name, so show system dns cannot attribute it\n" +
+	"the publishing plugin MUST set Publication.Consumer to its plugin name")
+
+// SetPublication replaces the selections kept for publication's consumer
+// with its set. An empty set keeps the consumer listed with no selection,
+// which is what a consumer with no list publishes. The publication is not
+// modified, and its slices are kept as they are: a publisher MUST NOT modify
+// a Publication after it emits it.
+func (r *Resolvers) SetPublication(publication *dnssource.Publication) error {
+	if publication.Consumer == "" {
+		return errUnnamedConsumer
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.consumers == nil {
+		r.consumers = make(map[string][]dnssource.ConsumerSelection)
+	}
+	r.consumers[publication.Consumer] = publication.Selections
+	return nil
+}
+
+// Consumers answers every consumer's last publication, sorted by consumer
+// name, so show system dns and ze doctor read one stable order. The router
+// is not among them: its selection is Snapshot().Router. The slices are
+// shared; the caller MUST NOT modify them.
+func (r *Resolvers) Consumers() []dnssource.Publication {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make([]dnssource.Publication, 0, len(r.consumers))
+	for consumer, selections := range r.consumers {
+		out = append(out, dnssource.Publication{Consumer: consumer, Selections: selections})
+	}
+	slices.SortFunc(out, func(a, b dnssource.Publication) int { return strings.Compare(a.Consumer, b.Consumer) })
+	return out
 }
 
 // emitDNSSnapshot publishes one snapshot. Delivery is best effort: a failure
@@ -452,7 +499,7 @@ func (r *Resolvers) refresh() error {
 	r.snapshot = dnssource.Snapshot{
 		Sequence: r.snapshot.Sequence + 1,
 		Records:  records,
-		Router:   dnssource.NewRouterSelection(list, selection),
+		Router:   dnssource.NewConsumerSelection(list, "", selection),
 	}
 	return r.flush(serverTexts(selection.Servers))
 }

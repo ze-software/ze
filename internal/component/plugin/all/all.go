@@ -73,6 +73,7 @@ import (
 	_ "github.com/ze-software/ze/internal/plugins/static/yang"
 	_ "github.com/ze-software/ze/internal/plugins/storage-cmd/yang"
 	_ "github.com/ze-software/ze/internal/plugins/support/yang"
+	_ "github.com/ze-software/ze/internal/plugins/system-dns-cmd/yang"
 	_ "github.com/ze-software/ze/internal/plugins/traffic-cmd/yang"
 	_ "github.com/ze-software/ze/internal/plugins/update-cmd/yang"
 
@@ -116,6 +117,7 @@ import (
 	_ "github.com/ze-software/ze/internal/plugins/skills"
 	_ "github.com/ze-software/ze/internal/plugins/static"
 	_ "github.com/ze-software/ze/internal/plugins/support"
+	_ "github.com/ze-software/ze/internal/plugins/system-dns-cmd/cmd"
 	_ "github.com/ze-software/ze/internal/plugins/traffic/netlink"
 	_ "github.com/ze-software/ze/internal/plugins/update-cmd/cmd"
 

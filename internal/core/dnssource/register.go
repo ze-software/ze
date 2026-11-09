@@ -17,3 +17,8 @@ var SnapshotEvent = events.Register[*Snapshot](Namespace, SnapshotEventType)
 // MUST emit it after it subscribes, because a snapshot sent before the
 // subscription is not delivered to it.
 var SnapshotRequest = events.RegisterSignal(Namespace, SnapshotRequestEventType)
+
+// PublicationEvent carries one consumer's selections to the registry. A
+// consumer in the daemon emits the typed value; a plugin process emits its
+// JSON form, which the daemon decodes to the registered type.
+var PublicationEvent = events.Register[*Publication](Namespace, PublicationEventType)
