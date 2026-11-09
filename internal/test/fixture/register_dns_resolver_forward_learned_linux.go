@@ -3,7 +3,8 @@
 // Design: docs/architecture/dns/lan-resolver.md -- Forwarding: the upstreams the forward dns-source list picks
 // Related: dns_resolver_forward_learned_linux.go -- the scenarios registered below
 // Related: dns_resolver_forward_ppp_lease_linux.go -- the PPPoE lease scenario registered below
-// Related: dns_resolver_forward_dhcpv4_lease_linux.go -- the DHCPv4 lease scenarios registered below
+// Related: dns_resolver_forward_dhcpv4_lease_linux.go -- the DHCPv4 lease scenario registered below
+// Related: dns_resolver_forward_ppp_replay_linux.go -- the PPPoE replay scenario registered below
 
 package fixture
 
@@ -24,13 +25,17 @@ func init() {
 	Register("pppoe/dns-resolver-forward-ppp-lease",
 		observer02("dns-resolver-forward-ppp-lease-test", dnsResolverForwardPPPLease))
 	// The daemon's own DHCP server leases to its own DHCP client across the
-	// veth pair the .ci config creates (AC-20, AC-13).
+	// veth pair the .ci config creates (AC-20).
 	Register("plugin/dns-resolver-forward-dhcpv4-default",
 		reloadingDriver("plugin/dns-resolver-forward-dhcpv4-default", "dns-resolver-forward-dhcpv4-default-test",
 			dnsResolverForwardDHCPv4Default))
-	Register("plugin/dns-resolver-forward-dhcpv4-replay",
-		reloadingDriver("plugin/dns-resolver-forward-dhcpv4-replay", "dns-resolver-forward-dhcpv4-replay-test",
-			dnsResolverForwardDHCPv4Replay))
+	// The scripted access concentrator brings up the PPPoE lease, then a
+	// reload starts the resolver after it (AC-13). The lease is PPP and not
+	// DHCPv4 because the daemon's DHCP server lives under service, the
+	// resolver's config root, so it would start the resolver from boot.
+	Register("pppoe/dns-resolver-forward-ppp-replay",
+		reloadingDriver("pppoe/dns-resolver-forward-ppp-replay", "dns-resolver-forward-ppp-replay-test",
+			dnsResolverForwardPPPReplay))
 }
 
 // reloadingDriver builds the driver of a scenario that takes one argument,

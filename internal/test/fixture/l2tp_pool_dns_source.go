@@ -192,7 +192,13 @@ func (r *poolDNSRequest) negotiate(ctx context.Context, peer *tunnelAccountingPe
 			continue
 		}
 		protocol, payload, ok := tunnelL2TPPPPData(packet)
-		if !ok || protocol != 0x8021 {
+		if !ok {
+			if err := peer.handleAccountingPacket(packet); err != nil {
+				return poolDNSWant{}, err
+			}
+			continue
+		}
+		if protocol != 0x8021 {
 			if err := peer.handleAccountingPacket(packet); err != nil {
 				return poolDNSWant{}, err
 			}
@@ -224,7 +230,10 @@ func (r *poolDNSRequest) handleIPCP(peer *tunnelAccountingPeer, payload []byte) 
 	}
 	code, identifier := payload[0], payload[1]
 	length := int(binary.BigEndian.Uint16(payload[2:4]))
-	if length < 4 || length > len(payload) {
+	if length < 4 {
+		return nil
+	}
+	if length > len(payload) {
 		return nil
 	}
 	body := payload[4:length]
@@ -323,7 +332,10 @@ func poolDNSOptions(options []byte, visit func(byte, netip.Addr) error) error {
 			return errors.New("IPCP option header truncated")
 		}
 		length := int(options[offset+1])
-		if length < 2 || offset+length > len(options) {
+		if length < 2 {
+			return fmt.Errorf("IPCP option %d has length %d, shorter than its own header", options[offset], length)
+		}
+		if offset+length > len(options) {
 			return fmt.Errorf("IPCP option %d has length %d past the packet", options[offset], length)
 		}
 		if length == 6 {

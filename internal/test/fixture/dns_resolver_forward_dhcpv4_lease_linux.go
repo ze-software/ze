@@ -3,7 +3,7 @@
 // Design: docs/architecture/dns/lan-resolver.md -- Forwarding: the upstreams the forward dns-source list picks
 // Related: dns_resolver_forward_learned_linux.go -- forwardAnswer, forwardAwaitAnswer, forwardAwaitLearned, forwardStartConfiguredStub and the records
 // Related: register_dns_resolver_forward_learned_linux.go -- the registration of the drivers below
-// Related: reload_fixture_live_stages.go -- liveStagesReload, the reload both drivers commit through
+// Related: reload_fixture_live_stages.go -- liveStagesReload, the reload the driver commits through
 
 package fixture
 
@@ -28,7 +28,7 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// dhcpv4LeaseScene is the link both DHCPv4-lease scenarios run on. The
+// dhcpv4LeaseScene is the link the DHCPv4-lease scenario runs on. The
 // daemon creates the veth pair: its DHCP client runs on client, and its own
 // DHCP server listens on server, the peer end, which ze leaves without an
 // address or a carrier. The fixture gives server its subnet address and
@@ -41,7 +41,7 @@ type dhcpv4LeaseScene struct {
 }
 
 // The devices and addresses of test/plugin/dns-resolver-forward-dhcpv4-default.ci
-// (AC-20) and test/plugin/dns-resolver-forward-dhcpv4-replay.ci (AC-13).
+// (AC-20).
 var (
 	dhcpv4DefaultScene = dhcpv4LeaseScene{
 		client: "zerd40", server: "zerd41", stubLink: "zerd4dns0",
@@ -50,13 +50,6 @@ var (
 	}
 	dhcpv4DefaultListener   = netip.MustParseAddrPort("127.0.23.83:53")
 	dhcpv4DefaultConfigured = netip.MustParseAddrPort("127.0.23.84:53")
-
-	dhcpv4ReplayScene = dhcpv4LeaseScene{
-		client: "zerd4r0", server: "zerd4r1", stubLink: "zerd4rdns0",
-		serverAddress: netip.MustParsePrefix("198.51.100.1/24"),
-		leaseServer:   netip.MustParseAddr("198.51.100.53"),
-	}
-	dhcpv4ReplayListener = netip.MustParseAddrPort("127.0.23.93:53")
 )
 
 // dnsResolverForwardDHCPv4Default proves spec-home-cpe-23b AC-20 through the
@@ -117,66 +110,6 @@ func dnsResolverForwardDHCPv4Default(ctx context.Context, plugin *sdk.Plugin, re
 	var tb textbuf.Buffer
 	tb.Str("OK: dns-resolver default forward -> the DHCPv4 lease's server ").Str(scene.leaseServer.String()).
 		Str(", then the committed forward server alone, listener not rebound\n").StdErr()
-	return nil
-}
-
-// dnsResolverForwardDHCPv4Replay proves spec-home-cpe-23b AC-13 through the
-// daemon: the boot config has no `service dns-resolver`, so the resolver
-// plugin first starts, from reloadSource, after the DHCPv4 lease exists. Its
-// learned list then comes only from the replay it requests once started, and
-// its first answer MUST already use it: any answer other than the lease
-// server's record fails the run at once, where a timeout or a refused
-// connection only means the listener is not bound yet.
-func dnsResolverForwardDHCPv4Replay(ctx context.Context, plugin *sdk.Plugin, reloadSource string) error {
-	runCtx, cancel := context.WithTimeout(ctx, 100*time.Second)
-	defer cancel()
-
-	scene := dhcpv4ReplayScene
-	defer netlink.LinkDel(&netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: scene.stubLink}}) //nolint:errcheck // Cleanup after the verdict; a missing link is the goal.
-	learned, err := scene.startStub()
-	if err != nil {
-		return err
-	}
-	defer learned.Close() //nolint:errcheck // The scenario's verdict is reached; a close error changes none.
-
-	if err := scene.serve(runCtx); err != nil {
-		return err
-	}
-	if err := scene.awaitLease(runCtx); err != nil {
-		return err
-	}
-
-	if err := liveStagesReload(runCtx, plugin, reloadSource); err != nil {
-		return fmt.Errorf("reload %s: %w", reloadSource, err)
-	}
-	var first error
-	answered := Poll(runCtx, raRDNSSAttempts, raRDNSSDelay, func() bool {
-		got, err := forwardAnswer(runCtx, dhcpv4ReplayListener)
-		if err == nil {
-			if got != forwardLearnedRecord {
-				first = fmt.Errorf("the resolver's first answer was %s, not %s from the lease's server %s",
-					got, forwardLearnedRecord, scene.leaseServer)
-			}
-			return true
-		}
-		// forwardAnswer names a DNS reply that is not NOERROR this way; any
-		// other error is a socket that does not answer yet.
-		if strings.Contains(err.Error(), "answered rcode") {
-			first = fmt.Errorf("the resolver started after the lease answered before it applied the replay: %w", err)
-			return true
-		}
-		return false
-	})
-	if !answered {
-		return fmt.Errorf("the resolver started by %s never answered on %s", reloadSource, dhcpv4ReplayListener)
-	}
-	if first != nil {
-		return first
-	}
-
-	var tb textbuf.Buffer
-	tb.Str("OK: dns-resolver started after the DHCPv4 lease -> first answer from the replayed lease server ").
-		Str(scene.leaseServer.String()).Str("\n").StdErr()
 	return nil
 }
 
