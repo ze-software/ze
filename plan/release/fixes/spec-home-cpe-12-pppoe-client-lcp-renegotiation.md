@@ -16,6 +16,46 @@ Parent: plan/release/fixes/spec-home-cpe-0-umbrella.md
 
 ## Blocker
 
+Closure attempt 2026-11-09 (fourth), on HEAD `3625fc2764`. One piece of owed
+evidence has no log, so commit A is held again: row 1 below.
+
+| # | Owed | Why it is not met | What clears it |
+|---|------|-------------------|----------------|
+| 1 | `RFC1661-3.6-2` record for `TestDialRenegotiatesLCPInNetworkPhase` | the batch 7 retake failed on `/dev/ppp` permission denied because the test lacked `//ze:guest-root` (added in `65044f40ad`, judge-approved); the batch 8 retake log `rwinv/out-gb8/rec-c12-362.log` does not exist yet | that log reading "observed red", and `./le rfc check` verifying the record |
+
+Cleared in the fourth attempt:
+
+- Third attempt row 2: on Ze 7.3, `TestPPPoEConfigRenegotiatesKernelState`,
+  `TestDialRenegotiatesLCPInNetworkPhase` and `TestDialAcknowledgesFirstEagerIPCP`
+  PASS (`rwinv/out-gb7/c12-iface-k73.log`, `rwinv/out-gb7/c12-pppoeclient-k73.log`).
+- Third attempt row 3, as far as this spec owns it. The lint run
+  `rwinv/out-gb7/c12-lint.log` failed; the findings on lines this spec wrote are
+  fixed in `3625fc2764` (`receive_order_integration_linux_test.go` errcheck,
+  `pppoe_client_renegotiation_linux.go` errcheck, `newChangeSession` hugeParam).
+  The rest are not this spec's, judged by `git blame` of the finding line:
+  `proxy_mru_floor_driver_test.go` (`18ea5e830a`), `session_editor_wait_test.go`,
+  `show_interface_delegated_prefix_fixture.go`, `show_interface_pppoe_client_fixture.go`
+  line 62 (`6e7ba09a0f`) and lines 44-45 (`3a74b2473d`, `Spec-work:
+  home-cpe-1-logical-interface-name`), and the hugeParam on `NewPPPoEClient`,
+  `Dialer.Dial` and its test implementations, whose signatures predate this spec
+  (`8d2150e2c5`). Lint re-run for the fix: `./le go lint run scope
+  "./internal/component/l2tp/pppoeclient/... ./internal/component/iface/... ./internal/test/fixture/..."`;
+  it stays red on those foreign findings.
+- Stale audit verdict `RFC1661-3.6-2` (staled by the comment-only `65044f40ad`):
+  re-judged `enforced` with `./le rfc audit-stamp stem rfc1661 ... mode rejudge`;
+  `./le rfc check` then reports no rfc1661 line (`c12-rfccheck-5.log`).
+- `access-wholesale-accel-lns` red walk (second attempt row 4) still stands: no
+  commit since `57ef59e5e1` touched `internal/component/l2tp/pppoeclient/` code
+  (only `3625fc2764`, a test file). Broken under overlay `rwinv/c12-v3/auth/overlay.json`
+  (`session.go` `runClientAuth` `if !admitted {` -> `if true || !admitted {`):
+  `rwinv/c12-wholesale-broken.log` "0 passed, 1 failed"; clean
+  `rwinv/c12-wholesale-clean.log` "1 passed".
+
+When row 1 is green the closure resumes at commit A, re-recording the review
+artifact with the spec file added (Review Gate).
+
+### Blocker history (2026-11-09, third attempt)
+
 Closure attempt 2026-11-09 (third), on HEAD `dbbfd58c39`. Deliverables,
 security, documentation and the Review Gate are done (closure sections at the
 end). Commit A is held because three pieces of owed evidence have no log.
@@ -41,9 +81,6 @@ deadline exceeded", both 2026-11-09, after `57ef59e5e1`) and its row 4
 timeout", clean `rwinv/c12-wholesale-clean.log` "1 passed", 2026-11-08
 23:14-23:15, after `57ef59e5e1`). Scratch paths are under
 `tmp/session/2026-11-07-104251/scratch/`.
-
-When rows 1 to 3 are green the closure resumes at commit A. The spec file
-changes then, so the review artifact is re-recorded with it (Review Gate).
 
 ### Blocker history (2026-11-08, second attempt)
 
@@ -818,9 +855,9 @@ adding an operator option or an unrelated fallback.
 
 | Field | Value |
 |-------|-------|
-| Artifact | `tmp/review/home-cpe-12-pppoe-client-lcp-renegotiation-7e292f27-ced0-427f-a7b6-3a931db211f9.md` (31 files: every non-test file of `86bc403a4e`, `a02374d9ad` and `ba8d4732ff`, plus `docs/guide/configuration.md`); findings in `tmp/session/2026-11-07-104251/scratch/c12-review-findings.md` |
-| `./le spec review check` | clean (25 code files, hashes match), 2026-11-09 |
-| Rounds | 1 |
+| Artifact | `tmp/review/home-cpe-12-pppoe-client-lcp-renegotiation-7e292f27-ced0-427f-a7b6-3a931db211f9.md` (119 files: every file of `86bc403a4e`, `a02374d9ad` and `ba8d4732ff` outside `plan/`, test files included, all of `internal/test/pppoeac`, `docs/guide/configuration.md`, and the files of `3625fc2764`); findings in `tmp/session/2026-11-07-104251/scratch/c12-review-findings.md` (round 2 added) |
+| `./le spec review check` | clean (102 code files, hashes match), 2026-11-09, fourth attempt |
+| Rounds | 2 (round 2: test hunks and `internal/test/pppoeac`, 0 BLOCKER, 0 ISSUE, two NOTEs) |
 | Reviewer lenses used | logic and wiring (`restart`, `awaitApplied` and `acknowledge`, the `negotiateLCP` counter, `runSession` apply and `Applied`); security and edge cases (no peer-reachable panic, the two `BUG` panics guard local state; bounds are ten epochs, Max-Configure 10 and the 60 s LCP deadline, and PADT or Cleanup ends `awaitApplied`); backend ownership (`RemoveAddressP2P` exact pair) |
 
 Pre-checks: `./le repo check` all passed (`c12-close-repocheck.log`);
@@ -861,8 +898,8 @@ surface; this spec's TDD tables carry the old packet test file name.
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
-| A-1 | confirmed on 7.2.9-ze; 7.3 owed | Blocker row 2 |
-| A-2 | confirmed on 7.2.9-ze; 7.3 owed | Blocker rows 1, 2 |
+| A-1 | confirmed on 7.2.9-ze and 7.3 | `rwinv/out-gb7/c12-iface-k73.log`, `c12-pppoeclient-k73.log` |
+| A-2 | confirmed on 7.2.9-ze and 7.3; its red record owed | Blocker row 1 |
 | A-3 | confirmed on 7.3.0-ze by the netns walk (same session 44, same ifindex) | `out-gb6/pppoe-clean.log` |
 | A-4 | confirmed | `test/interop-pppoe/Dockerfile.accel` declares 1.14.0 |
 
