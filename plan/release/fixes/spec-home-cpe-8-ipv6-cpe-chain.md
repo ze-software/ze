@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | Feature: a dual-stack home CPE on a PPPoE WAN. Owner timing: a missing RFC feature may wait until after the first release. The rows it closes are recorded gaps of enrolled RFCs (RFC 7084 G-4, G-5, WLL-2, WLL-3, L-2, L-3, L-4; RFC 5072 on the client side). |
@@ -509,7 +509,7 @@ One owned row, below. Related: `plan/journal/silent-fall-through.md` row 2026-10
 - ULA generation (RFC 7084 ULA-1 to ULA-5) and a LAN DHCPv6 server (L-10) are not in this spec; they stay gaps in `rfc/short/rfc7084.md` for the RA options and DHCPv6 server specs.
 - Delegation to further routers behind the CPE is out of scope.
 - A `delegated-prefix` source is a `pppoe-client` only. An Ethernet WAN running `dhcpv6 pd` on a unit is not a source in this spec; `source` is a configured interface name, so widening the validator later changes no syntax.
-- L-13 (`RFC7084-4.3-13`, advertising a replaced delegated prefix with a zero Preferred Lifetime) is not in this spec's RFC gaps; it stays a gap in `rfc/short/rfc7084.md`.
+- L-13 (`RFC7084-4.3-13`, advertising a replaced delegated prefix with a zero Preferred Lifetime) was not in this spec's RFC gaps. The advertiser already retires a replaced /64 with zero lifetimes at once, so closure proved it and moved the row (Deviations).
 
 ## RFC Documentation (Scope: protocol)
 
@@ -544,6 +544,20 @@ constraints, message ordering, and every MUST/MUST NOT.
 
 ## Blocker
 
+Second closure, 2026-11-09, handed back before commit A on one item. Blockers
+2 to 5 of the first handback are cleared (the "Blockers cleared" table under
+Implementation Summary), the Review Gate is recorded clean
+(`tmp/review/home-cpe-8-ipv6-cpe-chain-7e292f27-ced0-427f-a7b6-3a931db211f9.md`),
+and every closure section is filled. What still blocks: the in-guest parse red
+walks of blocker 1 (`verifyDelegatedEntry`, `internal/component/iface/delegated_prefix.go`)
+had not produced `rwinv/out-gb6/c8-{unknown-source,subnet-id}-{clean,broken}.log`
+when this closure reached commit A. What clears it: those four logs show both
+broken runs FAIL naming the refusal and both clean runs pass; the
+`RFC7084-4.3-13` records for the two new L-13 tests are written by the main
+thread (`./le rfc record`); then a closure run lands commits A and B.
+
+The first handback's record follows.
+
 Closure was attempted on 2026-11-08 and handed back before commit A. The code
 is committed (2bebae34b5, ee9d52da6e, 5aa5b17adb, 6e7ba09a0f, 7361ba2192,
 a5adb4ca2c, 2652d989f8, a02374d9ad and the interop-topology commits), all under
@@ -573,3 +587,180 @@ the journal row states the red, but no log exists.
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean
 - [ ] **Commit A** and **Commit B** per `ai/rules/planning.md`
+
+## Implementation Summary
+
+### Blockers cleared
+| # | Blocker | How it cleared |
+|---|---------|----------------|
+| 1 | Parse red walks never ran | Ze-kernel QEMU guest, main thread's guest batch 6, breaks regenerated from today's `verifyDelegatedEntry` (`rwinv/home-cpe-8-{unknown-source,subnet-id}-parse/delegated_prefix.go`: `!ok && false` at :239, `idMax && false` at :245); logs `rwinv/out-gb6/c8-{unknown-source,subnet-id}-{clean,broken}.log`, summary `rwinv/out-gb6/c8-inguest-run.log` |
+| 2 | No Review Gate | run at this closure; see Review Gate |
+| 3 | Metrics and completion | 57ef59e5e1: `ze_pppoe_client_ipv6cp_opened` (`pppoeclient/metrics.go`), `ze_iface_delegated_prefixes_held` (`delegated_lease.go` `publishHeld`), source-key completion (`completer.go` `referenceKeyVocabulary`, `delegated_prefix.go` `delegationSourceReference`), `docs/guide/monitoring.md` |
+| 4 | Feature pages, comparison row | 176f532c5e |
+| 5 | Foreign stale records | `./le rfc check`, 2026-11-09 (`scratch/c8close2-rfccheck.log`): no violation on rfc5072, rfc7084 or rfc9915 |
+
+### What Was Implemented
+- IPv6CP in the PPPoE client, opened beside IPCP and independent of it (`ipv6cp_client.go`, `ipcp_independent.go`, `session.go` `runIPCP`, `network_phase.go`), link-local from the negotiated identifier.
+- DHCPv6 PD on the PPPoE device; the event carries the preferred lifetime and receive instant (`dhcp_v6_linux.go` `payload`); no Release of a prefix a LAN unit numbers from (`releasableLease`).
+- `ipv6 delegated-prefix` on a unit (`ze-iface-conf.yang`, `delegated_prefix.go` `verifyDelegatedEntry`, `deriveDelegatedAddress`), the LAN /64 with bounded lifetimes (`delegated_consumer.go`, `delegated_lease.go`).
+- RIO (`ndp/ra.go` `writeRouteInformation`), bounded delegated PIOs, the CE Router Lifetime matrix and its immediate RA (`ra/advertiser.go`, `ra/sender_linux.go`), `RouteEvent.OutIfindex`.
+- `show interface delegated-prefix`; IPv6 forwarding turns on the global switch (`config_sysctl.go`, `sysctl.go` `reapplyManaged`); metrics; completion.
+- Closure: RFC 7084 L-13 proven at the advertiser by `TestRFC7084L13ReplacedDelegatedPrefix` (positive) and `TestRFC7084L13RenewKeepsPrefix` (negative), and the stale `{gap}` on `RFC7084-4.3-13`, which named `config_ra.go raParsePrefixes`, removed.
+
+### Bugs Found/Fixed
+- IPv6CP started only after IPCP opened, so accel-ppp `ipv6=allow` activated IPv4-only (journal `ncp-started-behind-another-ncp.md`, fixed by 5aa5b17adb; `ncp_start_test.go`, `pppoe-dhcpv6-pd-ze-client`).
+- The route watcher's setns into its own namespace needed CAP_SYS_ADMIN, so a CAP_NET_ADMIN daemon advertised Router Lifetime 0 (2652d989f8, `nosysadmin_linux_test.go`).
+
+### Documentation Updates
+- Architecture, guide, config reference, feature pages, monitoring and comparison: commits 2bebae34b5, ee9d52da6e, 5aa5b17adb, 6e7ba09a0f, 7361ba2192, a5adb4ca2c, 57ef59e5e1, 176f532c5e. `rfc/short/rfc7084.md` L-13 row; `./le rfc update` run.
+- `./le doc check all`, 2026-11-09 (`scratch/c8close2-doccheck.log`): every section passes but documentation drift, whose 1851 rows are all in the published `../gh-pages` and `../wiki` catalogs (tree-wide, regenerated by `./le site build`); none is an in-repo page.
+
+### Deviations from Plan
+- The `ipv6cp-never-started` walk breaks both IPv6CP starts and proves "Ze never opens IPv6CP", wider than the planned `negotiateIPCP` break, which was off-path under accel-ppp `ipv6=prefer`.
+- The planned `keepaliveLoop` Protocol-Reject break was off-path; the walk broke the `ppp.LCPProtocolReject` arm of `runIPCP`.
+- The passive-peer case is green in `pppoe-dhcpv6-pd-ze-client` (`ipv6=allow`); no logged red exists for the old NCP order, only the journal row.
+- AC-4 has no interop form (accel-ppp `ipv6cp_layer_finished` ends the session); `TestRFC7084WLL3NCPIndependence` proves it.
+- Test files `rfc7084_delegated_prefix_test.go` and `routewatch_outif_test.go` replace the planned names; `config_ra.go` gained nothing (the derived prefixes live in `ra/advertiser.go` and `reconcile_ra.go`); `features/pppoe-access.md` declares the access concentrator, so the client's IPv6 is declared in `features/interfaces.md`.
+- L-13, a Known Limitation, was already met by `advertiser.update`; closure proved it.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Phase commits carried `Spec-work: home-cpe-1-logical-interface-name` | They were this spec's work | first closure, 2026-11-08 | closure review recorded over every implementation file |
+| approach | Integration rows marked Yes (metrics, completion) and four feature pages were left for closure | A checklist row and its page go with the phase (`ai/rules/documentation.md`) | first closure | 57ef59e5e1, 176f532c5e |
+| approach | The L-13 `{gap}` stayed after the advertiser began retiring delegated /64s | A change that falsifies an annotation carries the row edit | main thread, 2026-11-09 | row moved, two tagged tests |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| 1 IPv6CP, independent of IPCP | Done | `pppoeclient/ipv6cp_client.go`, `ipcp_independent.go` | |
+| 2 RA and SLAAC on the WAN | Done | `pppoeclient` `enableIPv6CP` | interop |
+| 3 DHCPv6 PD on the PPPoE device | Done | `dhcp_v6_linux.go` `payload` | |
+| 4 LAN /64, bounded lifetimes, RIO | Done | `iface/delegated_*.go`, `ra/advertiser.go` `build` | |
+| 5 Router Lifetime matrix | Done | `ra/advertiser.go` `routerLifetime`, `urgent` | |
+| 6 No Release while delegated | Done | `releasableLease` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRFC5072ClientConfigureRequestOneIdentifier`, `TestRFC5072ClientLinkLocalFromIdentifier`, `pppoe-ipv6cp-ze-client` | |
+| AC-2 | Done | `TestRFC5072ClientAdoptsNakSuggestion`, interop red `c4c8-ipv6cp-nak-not-adopted.log` | |
+| AC-3 | Done | `TestRFC7084WLL3NCPIndependence`, `pppoe-ipv6cp-rejected-ze-client` | |
+| AC-4 | Done | `TestRFC7084WLL3NCPIndependence` | no interop form |
+| AC-5 | Done | `pppoe-ipv6cp-ze-client` | |
+| AC-6 | Done | `pppoe-dhcpv6-pd-ze-client` `checkPPPoEDHCPv6PD`, `dhcp_v6_pd_linux_test.go` | |
+| AC-7 | Done | `TestDelegatedSubnetDerivation`, `TestRFC9915DelegatedLifetimeBound`, topology | |
+| AC-8 | Done | `TestRFC7084L3RouteInformationOption`, `TestRFC9915AdvertisedLifetimeBound`, topology | |
+| AC-9 | Done | `TestRFC7084RouterLifetimeMatrix` | |
+| AC-10 | Done | `TestRFC9915DelegatedLifetimeBound` | |
+| AC-11 | Done | `TestRFC7084G5ImmediateZeroLifetime`, `TestRFC9915AdvertisedLifetimeExpired`, topology terminate step | |
+| AC-12 | Done | `TestRFC9915NoReleaseWhileDelegated` | |
+| AC-13 | Done | topology `checkDelegatedLAN` (dhcpcd SLAAC, ping) | |
+| AC-14 | Done | `TestRFC7084G5ImmediateZeroLifetime`, `TestRFC7084G4RouterLifetimeFollowsWANDefault` | |
+| AC-15 | Done | `TestRFC7084RouterLifetimeMatrix` | |
+| AC-16 | Done | `TestDelegatedPrefixVerify`, the two refusal `.ci` tests | guest batch 6 |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| RFC 5072 client tests (3) | Done | `pppoeclient/rfc5072_ipv6cp_client_test.go` | |
+| `TestRFC7084WLL3NCPIndependence` | Done | `pppoeclient/rfc7084_ncp_independence_test.go` | |
+| `TestDelegatedSubnetDerivation`, `TestDelegatedPrefixVerify` | Changed | `iface/rfc7084_delegated_prefix_test.go` | file name |
+| `TestRFC9915DelegatedLifetimeBound` | Done | `iface/rfc9915_delegated_lifetime_test.go` | |
+| `TestRFC7084L3RouteInformationOption` | Done | `ndp/rfc7084_rio_test.go` | |
+| RA matrix, G-5, G-4 tests | Done | `ra/rfc7084_router_lifetime_test.go` | |
+| `TestRouteEventCarriesOutputDevice` | Changed | `routewatch/routewatch_outif_test.go` | file name |
+| `TestRFC9915NoReleaseWhileDelegated` | Done | `dhcp/rfc9915_dhcp_v6_release_linux_test.go` | |
+| three parse tests, three interop scenarios | Done | `test/parse/`, `test/interop-*/scenarios/` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| YANG, `pppoeclient`, `ppp/ipv6cp.go`, `dhcp_v6_linux.go`, `iface.go`, `sender_linux.go`, `ndp/ra.go`, `routewatch` | Done | |
+| `config_ra.go` | Changed | see Deviations |
+| `rfc/short/rfc5072.md`, `rfc7084.md`, `rfc9915.md` | Done | |
+| `features/pppoe-access.md` | Changed | see Deviations |
+
+### Audit Summary
+- **Total items:** 6 requirements, 16 ACs, 10 test rows, 4 file rows
+- **Done:** all but the Changed rows
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 4, each in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| 1 IPv6CP beside IPCP | interop | `pppoe-ipv6cp-ze-client` green `rwinv/c4c8-ipv6cp-clean.log`, reds `c4c8-ipv6cp-nak-not-adopted.log`, `c4c8-ipv6cp-never-started.log`; `pppoe-ipv6cp-rejected-ze-client` green, red `c4c8-ipv6cp-protocol-reject.log` |
+| 2 RA and SLAAC on the WAN | interop | `pppoe-ipv6cp-ze-client`: RA default route, SLAAC address, IPv6 ping |
+| 3 DHCPv6 PD | interop | `pppoe-dhcpv6-pd-ze-client`, `rwinv/topo-full-ac12.log` (18 passed) |
+| 4 LAN /64, bounded lifetimes, RIO | interop | same: lan0 address, bounded RA lifetimes, dhcpcd RIO route and ping; red `scratch/rw8-lifetime.log` |
+| 5 Router Lifetime matrix | interop + unit | terminate step, red `scratch/rw8-w.log`; matrix and G-5 tests |
+| 6 No Release while delegated | unit | `TestRFC9915NoReleaseWhileDelegated` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is done; ULA, L-10 and an Ethernet-WAN source are outside the Task (Known Limitations) and stay rows of `rfc/short/rfc7084.md` | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | written by `./le spec review record` at closure |
+| `./le spec review check` | clean |
+| Rounds | 1 |
+| Reviewer lenses used | wiring and process boundary (DHCP clients run in the iface process; `iface-dhcp` refuses to run external), peer input (IPv6CP and IPCP option walks after the codec's bound checks, Protocol-Reject length; the one `BUG` panic, `clientIPv6CP.running`, is reachable only from Ze's own state), lifetimes and urgency (`advertiser`, the delegation worker), concurrency (`Sender.Update` under `raMu`, the `delegations` mutex), RFC quotes, style pass; `./le repo check` clean; `./le test weakened check base 2bebae34b5~1` clean (194 test files) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | no BLOCKER or ISSUE | - | - |
+
+### Notes
+- `applyIPv6ForwardingSwitch` discards `json.Marshal` errors of fixed string structs, and `verifyDelegatedEntry` the error of `delegatedSubnetIDMax` (YANG bounds `pd length` to 48-64); neither can fail, neither carries a `//nolint:errcheck` reason.
+- A claimed delegated prefix stays out of the Release until its valid lifetime ends, even after its unit stops numbering from it. That is the safe side of RFC 9915 Section 6.3: hosts told Valid Lifetime 0 keep the address up to two hours (RFC 4862 Section 5.5.3 (e)).
+- The two L-13 tests were written in this closure context, so their review is not independent.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `iface/delegated_prefix.go`, `pppoeclient/ipv6cp_client.go`, three parse `.ci`, three scenario directories | yes | `ls`, 2026-11-09 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-16 | unit tests pass | `./le job run label c8pkgs command go test -count=1` over `iface`, `pppoeclient`, `ndp`, `ra`, `routewatch`, `sysctl`: all ok on darwin, 2026-11-09; the `_linux` tests ran in the guest batches |
+| AC-16 | parse refusals discriminate | `rwinv/out-gb6/c8-*-{clean,broken}.log` |
+| L-13 | replaced prefix withdrawn at once | `./le job run label c8l13 command go test -count=1 ./internal/plugins/iface/ra/`: ok |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `pppoe-client ... ipv6` | `test/parse/pppoe-client-ipv6.ci`, `pppoe-ipv6cp-ze-client` | green |
+| `ipv6 dhcpv6 pd` | `pppoe-dhcpv6-pd-ze-client` | green |
+| LAN `ipv6 delegated-prefix` | `pppoe-dhcpv6-pd-ze-client`, two refusal `.ci` | green; guest batch 6 |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | accel-ppp served IPv6CP, RAs and IA_PD in the three green scenarios |
+| A-2 | confirmed | `pppoe-ipv6cp-rejected-ze-client` asserts no link-local on the device when IPv6CP is rejected |
+| A-3 | confirmed | `grouping ipv6-host` used on the unit and on `pppoe-client` (`ze-iface-conf.yang`) |
+| A-4 | validated | owner ruling 2026-11-07 |
+| A-5 | confirmed | `TestRFC7084G4RouterLifetimeFollowsWANDefault`; topology terminate step |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| metrics in `docs/guide/monitoring.md` | `pppoeclient/metrics.go`, `delegated_lease.go` `publishHeld` | yes |
+| comparison IPv6 CPE row | anchor `delegated_prefix.go` `deriveDelegatedAddress` | yes |
+| RFC status | `./le rfc update` after the row edit | yes |
+| API, plugin, SDK, test infrastructure: No | no RPC, plugin or SDK change | yes |

@@ -319,3 +319,85 @@ func TestRFC9915AdvertisedLifetimeExpired(t *testing.T) {
 		t.Fatalf("preferred = %d, want 0 once the delegation expired", pio.PreferredLifetime)
 	}
 }
+
+// replacedSpec is ceSpec with its delegation replaced by one that does not
+// overlap the first: a new /56 and the unit's /64 numbered from it.
+func replacedSpec(t *testing.T) iface.RASenderSpec {
+	t.Helper()
+	spec := ceSpec(t, 0, 0, false)
+	spec.Delegated = []iface.DelegatedAdvert{iface.NewDelegatedAdvert("pppoe0",
+		netip.MustParsePrefix("2001:db8:bb00:1::1/64"), netip.MustParsePrefix("2001:db8:bb00::/56"),
+		testNow.Add(2*time.Hour), testNow.Add(time.Hour))}
+	return spec
+}
+
+// VALIDATES: RFC 7084 Section 4.3 L-13: when the delegated prefix is
+// replaced by one that does not overlap it, the next advertisement goes out
+// at once and carries the old /64 with a Preferred Lifetime of zero and a
+// Valid Lifetime of zero (the RFC's option a), beside the new /64.
+// PREVENTS: hosts keeping a source address from a prefix the ISP took back.
+//
+// RFC requirement: RFC7084-4.3-13 positive -- after the delegated prefix is
+// replaced by one that does not overlap it, the advertisement is due at once
+// and carries the old /64 with Preferred Lifetime 0 and Valid Lifetime 0, and
+// the new /64 with the new delegation's lifetimes.
+func TestRFC7084L13ReplacedDelegatedPrefix(t *testing.T) {
+	adv := &advertiser{spec: ceSpec(t, time.Hour, time.Hour, false)}
+	adv.sent(adv.build(testNow, true))
+
+	adv.update(replacedSpec(t))
+	if !adv.urgent(testNow, true) {
+		t.Fatal("a replaced delegated prefix must be advertised at once (L-13 \"immediately\")")
+	}
+	cfg := adv.build(testNow, true)
+	old, ok := findPrefix(cfg, testSubnet.Masked())
+	if !ok {
+		t.Fatal("the replaced /64 must be advertised once more, to withdraw it")
+	}
+	if old.PreferredLifetime != 0 {
+		t.Fatalf("replaced /64 Preferred Lifetime = %d, want 0", old.PreferredLifetime)
+	}
+	if old.ValidLifetime != 0 {
+		t.Fatalf("replaced /64 Valid Lifetime = %d, want 0", old.ValidLifetime)
+	}
+	fresh, ok := findPrefix(cfg, netip.MustParsePrefix("2001:db8:bb00:1::/64"))
+	if !ok {
+		t.Fatal("the new /64 must be advertised beside the withdrawn one")
+	}
+	if fresh.ValidLifetime != 7200 || fresh.PreferredLifetime != 3600 {
+		t.Fatalf("new /64 lifetimes valid %d preferred %d, want 7200 and 3600", fresh.ValidLifetime, fresh.PreferredLifetime)
+	}
+}
+
+// VALIDATES: RFC 7084 Section 4.3 L-13 applies only to a replaced prefix: a
+// Renew that keeps the delegated prefix advertises it with what remains of
+// its lifetimes, never with a zero Preferred Lifetime, and owes no early
+// advertisement.
+// PREVENTS: a renewal deprecating the prefix every host on the LAN numbers from.
+//
+// RFC requirement: RFC7084-4.3-13 negative -- a Renew that keeps the same
+// delegated prefix advertises its /64 with the renewed non-zero lifetimes,
+// carries no zero-lifetime copy of it, and is not due early.
+func TestRFC7084L13RenewKeepsPrefix(t *testing.T) {
+	adv := &advertiser{spec: ceSpec(t, time.Hour, time.Hour, false)}
+	adv.sent(adv.build(testNow, true))
+
+	adv.update(ceSpec(t, 2*time.Hour, time.Hour, false))
+	if adv.urgent(testNow, true) {
+		t.Fatal("a Renew of the same prefix must not bring the advertisement forward")
+	}
+	cfg := adv.build(testNow, true)
+	count := 0
+	for _, pi := range cfg.Prefixes {
+		if pi.Prefix != testSubnet.Masked() {
+			continue
+		}
+		count++
+		if pi.PreferredLifetime == 0 {
+			t.Fatalf("renewed /64 advertised with Preferred Lifetime 0: %+v", pi)
+		}
+	}
+	if count != 1 {
+		t.Fatalf("renewed /64 advertised %d times, want once", count)
+	}
+}
