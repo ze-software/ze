@@ -191,6 +191,21 @@ func evaluateLLGREgress(route *sdk.FilterRoute) (*sdk.FilterUpdateOutput, error)
 	return llgrEgressVerdict(keep, lost, &session, &mods), nil
 }
 
+// llgrSession is what the LLGR filters read beside the UPDATE body: on
+// import whether Ze sent the capability on the session, on export the
+// route's stale level, the source's capability fact when the route was
+// rebuilt from storage, the destination's address and AS facts, and which of the
+// communities the egress step writes the route holds as the chain left it.
+type llgrSession struct {
+	llgrAdvertised bool
+	stale          uint8
+	sourceKnown    bool // source-llgr-advertised is present: the route was rebuilt
+	sourceLLGR     bool
+	dest           filterapi.PeerFilterInfo
+	holdsLLGRStale bool
+	holdsNoExport  bool
+}
+
 // lostLLGRStale reports whether the chain took LLGR_STALE off a route the RFC
 // binds. The binding is the route's level, which llgrStaleFromSource decided at
 // ingress or decides here for a rebuilt copy, or the retention mark that goes with
@@ -252,21 +267,6 @@ func llgrEgressVerdict(keep, lost bool, session *llgrSession, mods *filterapi.Mo
 	}
 	// RFC 9494 Section 4.6
 	return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Sets: sets}
-}
-
-// llgrSession is what the LLGR filters read beside the UPDATE body: on
-// import whether Ze sent the capability on the session, on export the
-// route's stale level, the source's capability fact when the route was
-// rebuilt from storage, the destination's address and AS facts, and which of the
-// communities the egress step writes the route holds as the chain left it.
-type llgrSession struct {
-	llgrAdvertised bool
-	stale          uint8
-	sourceKnown    bool // source-llgr-advertised is present: the route was rebuilt
-	sourceLLGR     bool
-	dest           filterapi.PeerFilterInfo
-	holdsLLGRStale bool
-	holdsNoExport  bool
 }
 
 // noteCommunity records one community the route holds.

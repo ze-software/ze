@@ -50,7 +50,7 @@ split into narrower child specs"). Each child carries its own finding list.
 | Child | Doors | Findings | Packages |
 |-------|-------|----------|----------|
 | `plan/release/validation/spec-lint-backlog-1-bgp-engine.md` | bgp-engine | 53 | `internal/component/bgp/{reactor,policychain,config,cli,redistribute}` |
-| `plan/release/validation/spec-lint-backlog-2-bgp-plugins.md` | bgp-plugins | 22 | `internal/component/bgp/plugins/{filter_*,gr,role}` |
+| `spec-lint-backlog-2-bgp-plugins` (closed; implementation `f23e06435c`, role by `56bc606e5c`, Linux lint clean) | bgp-plugins | 22 | `internal/component/bgp/plugins/{filter_*,gr,role}` |
 | `plan/release/validation/spec-lint-backlog-3-test-tooling.md` | le-tooling (system for `internal/chaos`, `tools/`) | 58 | `internal/test/...`, `internal/le/...`, `internal/chaos/...`, `tools/freertr-entrypoint` |
 | `spec-lint-backlog-4-plugin-infra-and-core` (closed; scoped evidence `b0d8f62a88`, four lint flavors clean and all 14 race-package directories covered) | plugin-infra, core | 14 | `internal/component/plugin/...`, `pkg/plugin/sdk`, `internal/core/statestore` |
 | `plan/release/validation/spec-lint-backlog-5-hub-and-policy.md` | hub-engine (system for `internal/component/policy`) | 18 | `cmd/ze`, `cmd/ze/hub`, `internal/component/policy` |
