@@ -57,7 +57,7 @@ split into narrower child specs"). Each child carries its own finding list.
 | `plan/release/validation/spec-lint-backlog-6-access-and-appliance.md` | access-security, appliance | 25 | `internal/component/ike/...`, `internal/component/l2tp`, `internal/appliance`, `internal/component/config/system` |
 | `plan/release/validation/spec-lint-backlog-7-system-and-routing-plugins.md` | system-plugins, routing-protocols | 19 | `internal/plugins/{debug,help,redistribute,skills}`, `internal/plugins/{ospf,isis}/...` |
 | `spec-lint-backlog-8-api-and-commands` (closed; implementation `3895eccf22`, Linux lint clean) | api-surfaces, commands-cli | 6 | `internal/component/{web,mcp,command}` |
-| `plan/release/validation/spec-lint-backlog-9-config-and-forwarding.md` | config-yang, forwarding | 5 | `internal/component/config/{storage,yang/cli}`, `internal/plugins/iface/netlink` |
+| `spec-lint-backlog-9-config-and-forwarding` (closed; implementation `da9a5bface`, two later netlink findings fixed at closure) | config-yang, forwarding | 5 | `internal/component/config/{storage,yang/cli}`, `internal/plugins/iface/netlink` |
 
 Line numbers are those of the CI run; a child regenerates its list with its
 scoped run before it starts, because other sessions edit these files.

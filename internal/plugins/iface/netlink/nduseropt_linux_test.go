@@ -18,14 +18,17 @@ import (
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
 )
 
-// ndUserOptBody builds an RTM_NEWNDUSEROPT body the way ndisc_ra_useropt
-// does: the native-endian header, the option, padding to 4, then
-// NDUSEROPT_SRCADDR.
-func ndUserOptBody(ifindex int, icmpType uint8, option []byte, router netip.Addr) []byte {
+// ndUserOptIfindex is the interface index every test message names.
+const ndUserOptIfindex = 7
+
+// ndUserOptBody builds an RTM_NEWNDUSEROPT body on ndUserOptIfindex the way
+// ndisc_ra_useropt does: the native-endian header, the option, padding to 4,
+// then NDUSEROPT_SRCADDR.
+func ndUserOptBody(icmpType uint8, option []byte, router netip.Addr) []byte {
 	body := make([]byte, ndUserOptHeaderLen, 64)
 	body[0] = unix.AF_INET6
 	binary.NativeEndian.PutUint16(body[2:4], uint16(len(option)))
-	binary.NativeEndian.PutUint32(body[4:8], uint32(int32(ifindex)))
+	binary.NativeEndian.PutUint32(body[4:8], ndUserOptIfindex)
 	body[8] = icmpType
 	body = append(body, option...)
 	for len(body)%4 != 0 {
@@ -49,12 +52,12 @@ var rdnssWire = []byte{
 // decoding of one message as the kernel lays it out.
 func TestDecodeNDUserOpt(t *testing.T) {
 	router := netip.MustParseAddr("fe80::1")
-	msg, err := decodeNDUserOpt(ndUserOptBody(7, icmpv6RouterAdvertisement, rdnssWire, router))
+	msg, err := decodeNDUserOpt(ndUserOptBody(icmpv6RouterAdvertisement, rdnssWire, router))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if msg.ifindex != 7 {
-		t.Fatalf("ifindex %d, want 7", msg.ifindex)
+	if msg.ifindex != ndUserOptIfindex {
+		t.Fatalf("ifindex %d, want %d", msg.ifindex, ndUserOptIfindex)
 	}
 	if msg.icmpType != icmpv6RouterAdvertisement {
 		t.Fatalf("icmp type %d", msg.icmpType)
@@ -70,7 +73,7 @@ func TestDecodeNDUserOpt(t *testing.T) {
 // TestDecodeNDUserOptRefusesShortMessages checks that a body shorter than
 // its header or its own options length is an error, never a read past it.
 func TestDecodeNDUserOptRefusesShortMessages(t *testing.T) {
-	full := ndUserOptBody(7, icmpv6RouterAdvertisement, rdnssWire, netip.MustParseAddr("fe80::1"))
+	full := ndUserOptBody(icmpv6RouterAdvertisement, rdnssWire, netip.MustParseAddr("fe80::1"))
 	for _, n := range []int{0, ndUserOptHeaderLen - 1, ndUserOptHeaderLen + len(rdnssWire) - 1} {
 		if _, err := decodeNDUserOpt(full[:n]); err == nil {
 			t.Fatalf("%d octets decoded", n)
@@ -88,12 +91,12 @@ func TestDecodeNDUserOptRefusesShortMessages(t *testing.T) {
 // and that a message from another ICMPv6 type emits nothing.
 func TestHandleNDUserOptEmitsOption(t *testing.T) {
 	m, bus := newTestMonitor()
-	m.linkNames.Store(7, "wan0")
-	m.handleNDUserOpt(ndUserOptBody(7, 133, rdnssWire, netip.MustParseAddr("fe80::1")))
+	m.linkNames.Store(ndUserOptIfindex, "wan0")
+	m.handleNDUserOpt(ndUserOptBody(133, rdnssWire, netip.MustParseAddr("fe80::1")))
 	if events := bus.snapshot(); len(events) != 0 {
 		t.Fatalf("non-RA message emitted %v", events)
 	}
-	m.handleNDUserOpt(ndUserOptBody(7, icmpv6RouterAdvertisement, rdnssWire, netip.MustParseAddr("fe80::1")))
+	m.handleNDUserOpt(ndUserOptBody(icmpv6RouterAdvertisement, rdnssWire, netip.MustParseAddr("fe80::1")))
 	events := bus.snapshot()
 	if len(events) != 1 {
 		t.Fatalf("events %v, want one", events)

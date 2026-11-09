@@ -186,7 +186,7 @@ func TestP2PDeleteAbsenceIsNarrow(t *testing.T) {
 		t.Fatalf("generic deletion error = %v, want EADDRNOTAVAIL", err)
 	}
 	remover.exactPair = true
-	remover.link = &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Index: 2147483647}}
+	remover.link = &netlink.Dummy{Index: 2147483647}
 	if err := remover.Delete("missing", target); !errors.Is(err, unix.ENODEV) {
 		t.Fatalf("missing device error = %v, want ENODEV", err)
 	}

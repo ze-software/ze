@@ -8,9 +8,9 @@
 | Release reason | 5 findings of the full lint in config storage, the YANG CLI and the netlink interface backend, all in tests; the full lint holds the release (`plan/release/validation/spec-lint-backlog-0-umbrella.md`) |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 2/3 |
+| Phase | 3/3 |
 | Handoff | - |
-| Updated | 2026-11-02 |
+| Updated | 2026-11-09 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -156,7 +156,8 @@ Patched `TestRuntimeWriteDoesNotWaitForADirectorySync` with
 `assert.NoError(t, <-counted)`. The assertion is nonfatal so both workers are
 joined on the failure path. No suppression or expectation change was added.
 Scoped `git diff --check` passed; no test, lint, build or compile ran in this
-agent. AC-1 and AC-2 remain unverified; AC-3 needs no new annotation.
+agent. At this handoff AC-1 and AC-2 were unverified; the closure sections
+below record the evidence that discharged them. AC-3 needs no new annotation.
 
 The kernel cases are `TestIntegrationAddressWatchSignalsAddAndDelete` and
 `TestIntegrationNeighbourWatchSeesPreexistingEntry`. Both call `userns.Enter`;
@@ -202,6 +203,7 @@ are in this spec's per-session state handoff. No QEMU run occurred here.
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
 - [ ] Scoped lint zero; config package tests pass; explicit netlink kernel tests pass. Full-run evidence belongs to the umbrella's CI run.
+- [ ] Targeted tests: the scoped package runs of `./le test unit plugins` and the config group, as `./le job run ... go test -race -tags ...` over the three scopes (with `integration` for the netlink integration files).
 
 ## lint9 implementation evidence
 
@@ -240,3 +242,136 @@ The post-commit `repo compiles check` requirement conflicts with the whole-tree
 ban: `docs/architecture/testing/tracked-build-gate.md`, "Flavors and why each
 names a file", says it builds `./...` across flavors from an archive. It is
 left unrun; the scoped tests above compile the edited test files.
+
+## Implementation Summary
+
+### What Was Implemented
+- `da9a5bface` ("config: clear storage and netlink test lint"), five one-line test edits:
+  - `store_reader_test.go` `TestRuntimeWriteDoesNotWaitForADirectorySync`: the timeout branch asserts `assert.NoError(t, <-counted)` (errcheck). Nonfatal, so `written` is still joined.
+  - `yang_refusal_test.go` `TestYANGDataRefusalsAreReturned`: method comment `colour` to `color` (misspell). A comment; no producer text carries the word (`grep -rni colour internal/component/config/yang/cli/` is empty).
+  - `address_watch_linux_test.go` `TestIntegrationAddressWatchSignalsAddAndDelete`, `neighbor_watch_integration_linux_test.go` `TestIntegrationNeighbourWatchSeesPreexistingEntry`, `neighbor_watch_linux_test.go` `neighUpdate`: embedded `LinkAttrs`/`Neigh` literals flattened to promoted fields (modernize; `go.mod` is go 1.27.3).
+- Closure, two findings the 2026-11-09 scoped lint raised in netlink test files later commits added (`8d13a9dceb`, `a0b68101fc`), both inside this spec's scope:
+  - `nduseropt_linux_test.go` `ndUserOptBody`: unparam, `ifindex` always 7. The parameter became the named constant `ndUserOptIfindex`, which the header write, `TestDecodeNDUserOpt`'s ifindex assertion and `TestHandleNDUserOptEmitsOption`'s `linkNames.Store` all read. Every assertion keeps its value.
+  - `addr_p2p_absence_integration_linux_test.go`, the missing-device case: modernize embedlit, `&netlink.Dummy{Index: 2147483647}`.
+
+### Bugs Found/Fixed
+- None in product code. The storage timeout path discarded the runtime writer's error; it is now asserted.
+
+### Documentation Updates
+- None. No page anchors an edited test file: `grep -rlnE 'source: internal/(component/config/storage/store_reader_test|component/config/yang/cli/yang_refusal_test|plugins/iface/netlink/(address_watch_linux_test|neighbor_watch))' docs ai` hits only `docs/features/interfaces.md`, whose anchor names the unchanged product file `neighbor_watch_linux.go` (`WatchNeighbors`). `./le spec citation anchors spec plan/release/validation/spec-lint-backlog-9-config-and-forwarding.md` printed nothing, rc 0.
+
+### Foreign reds
+The 2026-11-09 `lint9-netlink` run was red in four tests in files this spec never touched. None holds this closure (`ai/rules/pre-release.md`):
+- `TestVLANQoSEgressPCPOnWire`, `TestVLANQoSDSCPFullChain`: nft `table netdev` refused; already journaled in `plan/journal/unwired-feature.md` (no `CONFIG_NF_TABLES_NETDEV`).
+- `TestBridgeSetSTPKernel`: `kernel reports IFLA_INFO_KIND "bridge\x00", want "bridge"`. The test helper `bridgeLinkInfo` keeps the kernel's trailing NUL. New row in `plan/journal/parser-refuses-a-form-its-producer-emits.md`, owned by `plan/release/validation/spec-doctor-coverage-2-home-cpe-batch.md`.
+- `TestPPPoEClientAlreadyAbsentPair`: `initial address not installed`. New row in `plan/journal/package-red-not-reproduced.md`, owned by `plan/release/fixes/spec-ppp-l2tp-aaa-one-off-defects.md`.
+
+### Deviations from Plan
+- A-1 broken: four of the five CI sites were already corrected in the working tree; only the storage receive remained.
+- Two findings outside the CI list of 2026-11-02 were fixed at closure (above): later commits added them to this spec's netlink scope, and AC-1 needs the scope at zero.
+- The netlink kernel proof runs in private user namespaces (`userns.Enter`) on the host's Ze kernel, not in a QEMU guest; R-1 did not materialise.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1: the CI list of five was current | Four sites were already fixed in the tree | Source audit, Step 2 diagnosis | Recorded; no rule change warranted |
+| assumption | The CI list was the whole scope | Later commits added two findings to the netlink scope | Scoped lint at closure, 2026-11-09 | Fixed at closure |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| errcheck `store_reader_test.go` | Done | `TestRuntimeWriteDoesNotWaitForADirectorySync` | `assert.NoError(t, <-counted)` |
+| misspell `yang_refusal_test.go` | Done | `TestYANGDataRefusalsAreReturned` comment | comment only |
+| modernize `address_watch_linux_test.go` | Done | `TestIntegrationAddressWatchSignalsAddAndDelete` | `&netlink.Dummy{Name: "aw0"}` |
+| modernize `neighbor_watch_integration_linux_test.go` | Done | `TestIntegrationNeighbourWatchSeesPreexistingEntry` | `&netlink.Veth{Name: "w0", PeerName: "w1"}` |
+| modernize `neighbor_watch_linux_test.go` | Done | `neighUpdate` | `NeighUpdate{Type, LinkIndex, IP, State}` |
+| unparam `nduseropt_linux_test.go` (closure) | Done | `ndUserOptBody`, `ndUserOptIfindex` | `const ndUserOptIfindex = 7` |
+| modernize `addr_p2p_absence_integration_linux_test.go` (closure) | Done | the missing-device `remover.link` | `&netlink.Dummy{Index: 2147483647}` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | Scoped lint rerun, 2026-11-09: `./le --name session go lint run scope "./internal/component/config/storage/... ./internal/component/config/yang/cli/... ./internal/plugins/iface/netlink/..."` exit 0 after both closure fixes: host 0 issues, GOOS=linux with `integration` 0, darwin (2 packages) 0. It ran from a session build of le, because the committed le's scoped lint refused (`plan/journal/gate-fires-outside-its-population.md`, 2026-10-21 row); same golangci-lint flavor matrix | |
+| AC-2 | Done | Scoped race runs, 2026-11-09: `lint9-config` (`go test -race -count=1`, all ze tags, storage and YANG CLI) exit 0; `lint9-netlink` (`-race -count=1 -v`, all ze tags plus `integration`) shows `TestIntegrationAddressWatchSignalsAddAndDelete`, `TestIntegrationNeighbourWatchSeesPreexistingEntry`, `TestDecodeNDUserOpt` and `TestHandleNDUserOptEmitsOption` PASS, not SKIP; its exit 1 comes from four foreign reds (see "Foreign reds") | Kernel watcher tests must PASS, not SKIP |
+| AC-3 | Done | Neither `da9a5bface` nor the closure edits add a `//nolint` | The existing `//nolint:errcheck // Close always answers nil` in `TestIntegrationNeighbourWatchSeesPreexistingEntry` predates this spec and names its linter and reason |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Existing package tests | Done | storage, storage CLI, YANG CLI, netlink | AC-2 |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| The five Task files | Done | `da9a5bface`; unchanged since (`git log da9a5bface..HEAD` over the five paths is empty) |
+| `nduseropt_linux_test.go`, `addr_p2p_absence_integration_linux_test.go` | Done | Closure edits, commit A |
+
+### Audit Summary
+- **Total items:** 7 findings + 3 ACs
+- **Done:** 10
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0 (A-1 and the two closure findings recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The three scopes carry no lint finding | scoped lint | `./le --name session go lint run scope "./internal/component/config/storage/... ./internal/component/config/yang/cli/... ./internal/plugins/iface/netlink/..."` exit 0 after both closure fixes: host 0 issues, GOOS=linux with `integration` 0, darwin (2 packages) 0. It ran from a session build of le, because the committed le's scoped lint refused (`plan/journal/gate-fires-outside-its-population.md`, 2026-10-21 row); same golangci-lint flavor matrix |
+| The fixes keep every assertion and the tests green | scoped race tests, real-kernel tests | `lint9-config` (`go test -race -count=1`, all ze tags, storage and YANG CLI) exit 0; `lint9-netlink` (`-race -count=1 -v`, all ze tags plus `integration`) shows `TestIntegrationAddressWatchSignalsAddAndDelete`, `TestIntegrationNeighbourWatchSeesPreexistingEntry`, `TestDecodeNDUserOpt` and `TestHandleNDUserOptEmitsOption` PASS, not SKIP; its exit 1 comes from four foreign reds (see "Foreign reds"); `./le test weakened check base da9a5bface~1`: "clean (no unexplained test weakening)", 1250 test files |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| None | Every finding and AC-1 to AC-3 is done | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/lint-backlog-9-config-and-forwarding-49da3d3d-44f5-443f-bc7a-73b9535a17f9.md` |
+| `./le spec review check` | OK over the seven test files (round 2) |
+| Rounds | 2: the `da9a5bface` diff, then the two closure edits |
+| Reviewer lenses used | Size, logic (both workers joined on the timeout path; the constant feeds the header, the assertion and the link-name map alike), assertion preservation, security, style (no panic, no new non-test Go, no `//nolint`). Independent closure context, inline |
+| Final result | 0 BLOCKER, 0 ISSUE |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | none | - | - |
+
+NOTE: `./le repo check` reports one ISSUE outside this diff: the number-parse allowlist for `internal/test/dhcpprobe/step.go`, from `bd985af80f`.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| The seven edited test files | Yes | All modified, none created: `git show --stat da9a5bface` (5 files) and `git diff --stat` over the two closure files |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Zero scoped findings | `./le --name session go lint run scope "./internal/component/config/storage/... ./internal/component/config/yang/cli/... ./internal/plugins/iface/netlink/..."` exit 0 after both closure fixes: host 0 issues, GOOS=linux with `integration` 0, darwin (2 packages) 0. It ran from a session build of le, because the committed le's scoped lint refused (`plan/journal/gate-fires-outside-its-population.md`, 2026-10-21 row); same golangci-lint flavor matrix |
+| AC-2 | Tests pass; the kernel tests executed | `lint9-config` (`go test -race -count=1`, all ze tags, storage and YANG CLI) exit 0; `lint9-netlink` (`-race -count=1 -v`, all ze tags plus `integration`) shows `TestIntegrationAddressWatchSignalsAddAndDelete`, `TestIntegrationNeighbourWatchSeesPreexistingEntry`, `TestDecodeNDUserOpt` and `TestHandleNDUserOptEmitsOption` PASS, not SKIP; its exit 1 comes from four foreign reds (see "Foreign reds") |
+| AC-3 | No `//nolint` added | `git show da9a5bface` and the closure diff contain no `nolint` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le go lint run scope` over the three packages | none (lint) | `./le --name session go lint run scope "./internal/component/config/storage/... ./internal/component/config/yang/cli/... ./internal/plugins/iface/netlink/..."` exit 0 after both closure fixes: host 0 issues, GOOS=linux with `integration` 0, darwin (2 packages) 0. It ran from a session build of le, because the committed le's scoped lint refused (`plan/journal/gate-fires-outside-its-population.md`, 2026-10-21 row); same golangci-lint flavor matrix |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken | Step 2 diagnosis: four sites were already fixed; Mistake Log row |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| 1-15, 17: No | A test-only diff changes no documented behaviour | Yes |
+| 16: anchors | Only `docs/features/interfaces.md`, whose anchor names the unchanged `neighbor_watch_linux.go` | Yes |

@@ -162,6 +162,7 @@ The subscriber auth registry, the metrics registry, session teardown events.
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `blanket-mechanism-hid-missing-cases` | 2026-08-31 | pppoe client LCP |
+| `package-red-not-reproduced` | 2026-11-09 | `TestPPPoEClientAlreadyAbsentPair` initial address not installed |
 | `crypto-rand-read-error-branch-is-dead-code` | 2026-09-09 | `generateIPv6CPInterfaceID` |
 | `rfc-extension-not-implemented` | 2026-10-30 | `generateIPv6CPInterfaceID` u bit never cleared |
 | `rfc-extension-not-implemented` | 2026-11-08 | LNS CHAP authenticator (ppp/chap.go runCHAPAuthPhase, auth.go waitCHAPLike) |

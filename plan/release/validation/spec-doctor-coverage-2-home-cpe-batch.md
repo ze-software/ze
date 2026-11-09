@@ -357,6 +357,7 @@ condition is not reported.
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `plan/journal/rollback-forgets-partial-apply.md` | 2026-11-08 | bridge STP undo sets `!e.STP` |
+| `plan/journal/parser-refuses-a-form-its-producer-emits.md` | 2026-11-09 | `bridgeLinkInfo` keeps the IFLA_INFO_KIND NUL |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
