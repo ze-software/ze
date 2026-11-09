@@ -20,12 +20,14 @@
 #           a DHCPv4 lease's server, a default that keeps the learned server
 #           beside an operator's forward server, and a reload that rebinds.
 #
-# DISCRIMINATION (break overlay, not yet run):
+# DISCRIMINATION (break overlay, run):
 # tmp/session/2026-11-07-104251/scratch/rwinv/c23b-forward-default-select/
 # replaces internal/plugins/dnsresolver/state.go with a copy whose
 # forwardUpstreams drops the received class at selection time, while the
 # config is still accepted. The fixture must then fail at the forwarding
 # step, "under the default list ... never forwarded".
+# Observed red at that step: tmp/session/2026-11-07-104251/scratch/rwinv/out-gb14/
+# b14-dhcpv4-default-select.log ("never forwarded to 192.0.2.53").
 #
 # The fixture deletes zerd4dns0 when it returns; the daemon removes the veth
 # pair it created when it stops.

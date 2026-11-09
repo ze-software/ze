@@ -23,11 +23,13 @@
 #
 # Wire and fixtures as in dhcpserver-server-identifier.ci.
 #
-# DISCRIMINATION (break overlay, not yet run):
+# DISCRIMINATION (break overlay, run):
 # tmp/session/2026-11-07-104251/scratch/rwinv/c23b-dhcp-self/ replaces
 # internal/plugins/dhcpserver/handler.go with a copy whose selectDNS never
 # fills the self class. The probe must then fail at self-primary with
 # "dns (option 6) absent, want 198.18.20.7".
+# Observed red at self-primary: tmp/session/2026-11-07-104251/scratch/rwinv/out-gb13/
+# c23b-dhcp-self.log.
 #
 # Requires CAP_NET_ADMIN (veth, addresses) and CAP_NET_RAW (AF_PACKET).
 

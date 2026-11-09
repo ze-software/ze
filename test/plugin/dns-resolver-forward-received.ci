@@ -29,10 +29,12 @@
 # option, which the registry files under the same `received` class. AC-13
 # (a resolver restarted while leases exist) is not driven here.
 #
-# DISCRIMINATION (break overlay, not yet run):
+# DISCRIMINATION (break overlay, run):
 # tmp/session/2026-11-07-104251/scratch/rwinv/c23b-forward-received/ replaces
 # state.go with a copy whose forwardUpstreams passes no received candidates.
 # The fixture must then fail at "never forwarded to the RDNSS server".
+# Observed red at that step: tmp/session/2026-11-07-104251/scratch/rwinv/out-gb13/
+# c23b-fwd-received.log.
 #
 # The resolver's own resolv.conf write is off (empty path): the test shares
 # the guest's filesystem. The fixture creates the stub's dummy link zerfwrdns0
