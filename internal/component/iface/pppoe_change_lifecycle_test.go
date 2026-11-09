@@ -20,7 +20,7 @@ import (
 // ownership or repeat successful address and MTU writes on the next record.
 func TestPPPoEClientChangeRouteRetry(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		h := newChangeSession(t, PPPoEClientConfig{})
+		h := newChangeSession(t, &PPPoEClientConfig{})
 		var logs bytes.Buffer
 		h.client.logger = slog.New(slog.NewTextHandler(&logs, nil))
 		h.backend.fail = "route-add"
@@ -246,7 +246,7 @@ func TestPPPoEClientNewestPendingChange(t *testing.T) {
 // retries it on an unchanged record and never removes the new gateway.
 func TestPPPoEClientOldRouteRemovalRetry(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		h := newChangeSession(t, PPPoEClientConfig{})
+		h := newChangeSession(t, &PPPoEClientConfig{})
 		h.backend.fail = "route-remove"
 		next := changedResult("192.0.2.3", "192.0.2.9", 1400)
 		h.changes <- next
@@ -274,7 +274,7 @@ func TestPPPoEClientOldRouteRemovalRetry(t *testing.T) {
 // for immediate replacement, one retained cleanup, recovery and idempotence.
 func TestPPPoEClientPendingRouteRemovalBoundsOwnership(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		h := newChangeSession(t, PPPoEClientConfig{})
+		h := newChangeSession(t, &PPPoEClientConfig{})
 		h.backend.fail = "route-remove"
 		h.changes <- changedResult("192.0.2.3", "192.0.2.9", 1400)
 		synctest.Wait()
@@ -333,7 +333,7 @@ func TestPPPoEClientPendingRouteRemovalBoundsOwnership(t *testing.T) {
 // spinning on a closed change channel or applying its zero result.
 func TestPPPoEClientClosedChangesFails(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		h := newChangeSession(t, PPPoEClientConfig{})
+		h := newChangeSession(t, &PPPoEClientConfig{})
 		close(h.changes)
 		synctest.Wait()
 		if len(h.ended) != 1 {

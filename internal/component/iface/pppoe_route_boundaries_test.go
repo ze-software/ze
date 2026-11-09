@@ -28,7 +28,7 @@ func (b *routeAddFailure) AddRoute(device, destination, gateway string, metric i
 // then retries only failed route operations on the unchanged complete result.
 func TestPPPoEClientSimultaneousRouteFailures(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		h := newChangeSession(t, PPPoEClientConfig{})
+		h := newChangeSession(t, &PPPoEClientConfig{})
 		h.backend.fail = "route-remove"
 		h.changes <- changedResult("192.0.2.2", "192.0.2.9", 1492)
 		synctest.Wait()
@@ -97,7 +97,7 @@ func TestPPPoEClientSimultaneousRouteFailures(t *testing.T) {
 // cleanup fails, then returns to the retained gateway without deleting it.
 func TestPPPoEClientRouteReturnsToPendingGateway(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		h := newChangeSession(t, PPPoEClientConfig{})
+		h := newChangeSession(t, &PPPoEClientConfig{})
 		h.backend.fail = "route-remove"
 		for _, gateway := range []string{"192.0.2.9", "192.0.2.10", "192.0.2.11"} {
 			h.backend.calls = nil

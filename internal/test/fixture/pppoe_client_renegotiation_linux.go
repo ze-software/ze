@@ -117,7 +117,7 @@ func pppoeClientRenegotiation(ctx context.Context, plugin *sdk.Plugin) error {
 	var tb textbuf.Buffer
 	tb.Str("OK: pppoe-client ").Str(renegotiationClient).Str(" renegotiated LCP, CHAP and IPCP on session ").
 		Uint(uint64(renegotiationSID)).Str(": ").Str(first.local.String()).Str(" became ").
-		Str(second.local.String()).Str(" on the same ifindex, MTU ").Uint(uint64(second.mru)).Str("\n").StdErr()
+		Str(second.local.String()).Str(" on the same ifindex, MTU ").Uint(uint64(second.mru)).Str("\n").StdErr() //nolint:errcheck // fixture output; the .ci reads it
 	return nil
 }
 

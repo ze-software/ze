@@ -22,14 +22,14 @@ func TestOrderedDescriptorDispatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer unix.Close(control[0])
-	defer unix.Close(control[1])
+	t.Cleanup(func() { _ = unix.Close(control[0]) })
+	t.Cleanup(func() { _ = unix.Close(control[1]) })
 	unit, err := unix.Socketpair(unix.AF_UNIX, unix.SOCK_DGRAM|unix.SOCK_CLOEXEC, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer unix.Close(unit[0])
-	defer unix.Close(unit[1])
+	t.Cleanup(func() { _ = unix.Close(unit[0]) })
+	t.Cleanup(func() { _ = unix.Close(unit[1]) })
 	if err := prepareClientDescriptors(control[0], unit[0]); err != nil {
 		t.Fatal(err)
 	}

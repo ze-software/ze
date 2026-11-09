@@ -15,7 +15,7 @@ import (
 // AddRoute even while removal of an older gateway keeps failing.
 func TestPPPoEClientDesiredRouteProgress(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		h := newChangeSession(t, PPPoEClientConfig{})
+		h := newChangeSession(t, &PPPoEClientConfig{})
 		var logs bytes.Buffer
 		h.client.logger = slog.New(slog.NewTextHandler(&logs, nil))
 		h.backend.fail = "route-remove"
@@ -58,7 +58,7 @@ func TestPPPoEClientDesiredRouteProgress(t *testing.T) {
 // MTU, then requires exactly one capped write for a larger completed result.
 func TestPPPoEClientChangedMTUHitsConfiguredCap(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		h := newChangeSession(t, PPPoEClientConfig{MTU: 1300})
+		h := newChangeSession(t, &PPPoEClientConfig{MTU: 1300})
 		h.changes <- changedResult("192.0.2.2", "192.0.2.1", 1200)
 		synctest.Wait()
 		if len(h.backend.calls) != 1 {

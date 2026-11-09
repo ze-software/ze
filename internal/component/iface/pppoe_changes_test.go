@@ -73,7 +73,7 @@ type changeSession struct {
 	cleanups int
 }
 
-func newChangeSession(t *testing.T, cfg PPPoEClientConfig) *changeSession {
+func newChangeSession(t *testing.T, cfg *PPPoEClientConfig) *changeSession {
 	t.Helper()
 	h := &changeSession{
 		backend: &changeBackend{},
@@ -90,7 +90,7 @@ func newChangeSession(t *testing.T, cfg PPPoEClientConfig) *changeSession {
 		Changes: h.changes, Done: make(chan struct{}),
 		Cleanup: func() { h.cleanups++ },
 	}}
-	h.client = NewPPPoEClient(cfg, dialer, h.backend, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	h.client = NewPPPoEClient(*cfg, dialer, h.backend, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	go h.run()
 	synctest.Wait()
 	if len(h.backend.calls) < 3 {
@@ -150,7 +150,7 @@ func TestPPPoEClientSessionChanges(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
-				h := newChangeSession(t, tc.cfg)
+				h := newChangeSession(t, &tc.cfg)
 				h.changes <- tc.result
 				synctest.Wait()
 				if len(h.changes) != 0 {
@@ -186,7 +186,7 @@ func TestPPPoEClientChangeApplyFailureCleansUp(t *testing.T) {
 	for _, operation := range []string{"mtu", "address-add", "address-remove"} {
 		t.Run(operation, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
-				h := newChangeSession(t, PPPoEClientConfig{})
+				h := newChangeSession(t, &PPPoEClientConfig{})
 				h.backend.fail = operation
 				h.changes <- changedResult("192.0.2.3", "192.0.2.1", 1400)
 				synctest.Wait()
