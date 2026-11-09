@@ -1769,7 +1769,9 @@ Run with `./le test bgp plugin -p 1 -t 60s <names>` on macOS.
 | Fixture | Result |
 | --- | --- |
 | `rpki-revalidate-late-sync` | Green. Feature red: `route.ValidationState = d.ValState` in `applyToInstalled` (`adj_rib_in/rib_validation.go`) replaced by `_ = d.ValState`, and the observer fails as "after cache synchronization: route 10.0.1.0/24 never reached validation state 3, ineligible=true". Restored green |
-| `bgp-rr-rpki-pending-withdraw-relay`, `bgp-rs-rpki-pending-withdraw-relay`, `bgp-rr-rpki-revalidate-relay`, `bgp-rs-rpki-revalidate-relay` | Not run: each refuses before start as `loopback_address_missing` ("ensureLoopbackAlias: ioctl SIOCAIFADDR 127.0.0.2 on lo0: operation not permitted"). The alias needs `sudo ifconfig lo0 alias 127.0.0.2` or `./le setup install`, an owner action |
+| `bgp-rr-rpki-pending-withdraw-relay`, `bgp-rs-rpki-pending-withdraw-relay` | Green once the owner added the 127.0.0.2 loopback alias. Feature red: `allow` (`reactor/session_ownership.go`) answers true instead of false for a withdrawal of a key the recipient holds no record of, and the observers fail as "the destination was sent 4 UPDATEs for paths RPKI still held, want none" (RR) and "... 5 UPDATEs ..." (RS). Restored green |
+| `bgp-rr-rpki-revalidate-relay` | Feature red: the `RelayReplayPath` delivery in `replayValidation` (`plugins/rr/validation.go`) removed, and the observer fails as "the destination never received the revalidated path 10.0.0.0/24: 0 UPDATEs sent before the release, 0 after". Restored green |
+| `bgp-rs-rpki-revalidate-relay` | The same break in `replayValidation` (`plugins/rs/server_validation.go`), the same observer failure. Restored green |
 
 The shared harness cut (`repositoryAnchoredBinary` answering true for
 `le mock`) is not observable with an uncommitted edit: `./le` runs a binary
