@@ -246,7 +246,14 @@ One monotone capability pool includes those static roots, all references passed
 externally and all retained assignments to accessible roots. Callbacks may execute
 immediately, later or concurrently; possible registration is uncertainty, never
 certain membership. Each opaque return slot and interface receiver carries the
-entire input, receiver and ambient capability union. Writable references taint
+entire input, receiver and ambient capability union. A method called on a
+retained interface-typed receiver, as protobuf's `st.mi.Desc.FullName()` is,
+runs the methods of that name the receiver's value carries, since every
+retained value carries its concrete type's methods, each bound to that value;
+the parameter-provenance index records the call as a direct call of every
+method of the name, and a value carrying none refuses as an unresolved
+callable. The registration walk still refuses an interface receiver in
+initializer code. Writable references taint
 dependent metadata and execution ownership. Returned values are not assumed fresh,
 and a named scalar's methods are not assumed harmless. Without a permanent
 ambient unknown, both branches remain analyzed; return, panic and failure paths
@@ -273,6 +280,8 @@ interface signature types, even though a nil interface value has no concrete
 descriptor. An unproved type kind retains ordinary value-index evaluation.
 This transfer grants neither backing storage nor ordinary callee ownership.
 <!-- source: internal/le/repo/inventory/externaltypearguments.go -- externalEffects.indexArgument, externalEffects.typeArgument -->
+<!-- source: internal/le/repo/inventory/externalinterfaces.go -- externalEffects.interfaceReceiver, externalEffects.interfaceMethod -->
+<!-- source: internal/le/repo/inventory/externalformals.go -- externalEffects.indexFormalSources -->
 
 A method of a generic type executes like any other method when its type's
 capability is exposed, as btf's encoder exposes the methods of the

@@ -97,6 +97,19 @@ func (e *externalEffects) indexFormalSources(directories []string) {
 				callee.value = call.Fun
 				target, _, receiver := e.formalTarget(callee)
 				if target == nil {
+					// A call through an interface receiver runs a method of
+					// that name the receiver's value carries (interfaceMethod),
+					// so each is a direct callee of this call with this
+					// receiver and these arguments. An extra caller only adds
+					// provenance a proof must ground.
+					selector, selected := call.Fun.(*ast.SelectorExpr)
+					if !selected || !e.interfaceReceiver(sourceExpr{value: selector.X, file: scope.file, pkg: scope.pkg}, 0) {
+						return true
+					}
+					for _, method := range methods[selector.Sel.Name] {
+						e.indexFormalCall(method, selector.X, call, scope, owner)
+					}
+					direct[call.Fun] = true
 					return true
 				}
 				e.indexFormalCall(target, receiver, call, scope, owner)

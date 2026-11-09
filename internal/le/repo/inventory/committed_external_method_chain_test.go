@@ -2,6 +2,7 @@
 package repoinventory
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -109,26 +110,51 @@ func TestCommittedMethodReceiverCallExecutesRegistration(t *testing.T) {
 // `if receiverIndirect != indirect {`,
 // `if receiverIndirect != indirect && false {`): the pointer method matches
 // the value call result, and the pointer-receiver case publishes.
-// No single-line break admits the interface case: concreteType's arm list
-// could admit an interface type, but an interface declares no FuncDecl, so
-// the method search would still find nothing and the case keeps refusing.
+// The interface case dispatches in the external-effects walk to the methods
+// its value carries (interfaceMethod), so its refusal is the registration
+// walk's: an interface receiver has no proved execution owner there.
 func TestCommittedExternalMethodChainUnresolvedReceiversRefuse(t *testing.T) {
-	for _, shape := range []struct{ name, declarations string }{
+	for _, shape := range []struct{ name, declarations, reason string }{
 		{"multiple results", methodChainPresence + methodChainPresent +
-			"func (p pointer) Info() (presence, error) { _ = p; return presence{size: 0}, nil }\n"},
+			"func (p pointer) Info() (presence, error) { _ = p; return presence{size: 0}, nil }\n", "root field ownership"},
 		{"interface result", methodChainPresence + methodChainPresent +
 			"type presenter interface { Present(index int) bool }\n" +
-			"func (p pointer) Info() presenter { _ = p; return presence{size: 0} }\n"},
+			"func (p pointer) Info() presenter { _ = p; return presence{size: 0} }\n", "callable receiver has unresolved execution ownership"},
 		{"pointer receiver", methodChainPresence +
 			"func (q *presence) Present(index int) bool { return index == q.size }\n" +
-			"func (p pointer) Info() presence { _ = p; return presence{size: 0} }\n"},
+			"func (p pointer) Info() presence { _ = p; return presence{size: 0} }\n", "root field ownership"},
 	} {
 		for _, kind := range []string{"plugin", "yang"} {
 			t.Run(shape.name+"/"+kind, func(t *testing.T) {
 				fixture := externalEffectsFixture(t, kind)
 				fixture.goFile(t, callableOwnerCaller, externalEffectsSource(methodChainPointer+shape.declarations, methodChainCall))
 				commitInventoryFixture(t, fixture.root)
-				externalEffectsRefusal(t, fixture, "root field ownership")
+				if shape.reason == "callable receiver has unresolved execution ownership" {
+					// The registration walk's refusal carries no "external",
+					// so externalEffectsRefusal's checks are written out here.
+					inv, reportErr := Collect(fixture.root)
+					plugins, pluginErr := Plugins(fixture.root)
+					if reportErr == nil {
+						t.Fatalf("interface receiver chain published a report: %+v", inv.Plugins)
+					}
+					if pluginErr == nil {
+						t.Fatalf("interface receiver chain published plugins: %+v", plugins)
+					}
+					if !reflect.DeepEqual(inv, Inventory{}) {
+						t.Fatalf("interface receiver refusal leaked a partial report: %+v", inv)
+					}
+					if plugins != nil {
+						t.Fatalf("interface receiver refusal leaked partial plugins: %+v", plugins)
+					}
+					for _, err := range []error{reportErr, pluginErr} {
+						if !strings.Contains(err.Error(), shape.reason) {
+							t.Fatalf("interface receiver refusal lacks %q: %v", shape.reason, err)
+						}
+						callableOwnerCause(t, err)
+					}
+					return
+				}
+				externalEffectsRefusal(t, fixture, shape.reason)
 			})
 		}
 	}

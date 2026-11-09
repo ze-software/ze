@@ -161,6 +161,9 @@ func (e *externalEffects) expressionValue(source sourceExpr, possible bool, dept
 		if len(receiver.origins) != 0 {
 			return receiver
 		}
+		if e.interfaceReceiver(sourceExpr{value: value.X, file: source.file, pkg: source.pkg}, depth) {
+			return e.interfaceMethod(value, receiver)
+		}
 		return e.projectField(source, value, receiver, depth)
 	case *ast.CallExpr:
 		return e.call(source, value, possible, depth+1)
