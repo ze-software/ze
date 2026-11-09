@@ -1279,9 +1279,13 @@ func checkNoFamilyEndOfRIB(ctx context.Context, check *interoplab.CheckContext) 
 		log     string
 		failure error
 	}
+	// Each probe reads the identity twice and the log once, about eleven
+	// docker execs; a 3s interval keeps that rate below what stalled one exec
+	// past its bound. Every fact the probe reads is cumulative, so spacing the
+	// probes loses no decode and no identity change.
 	observed, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     60 * time.Second,
-		Interval:    time.Second,
+		Interval:    3 * time.Second,
 		Description: "FRR current-session decode of the End-of-RIB marker",
 	}, func(probeCtx context.Context) (observation, error) {
 		if err := requireNoFamilyEORIdentity(probeCtx, check.Lab, zeAddress, identity); err != nil {
