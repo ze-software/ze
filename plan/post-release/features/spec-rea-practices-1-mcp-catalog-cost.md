@@ -2,19 +2,22 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | plugin |
 | Priority | P3 |
 | Release reason | Improves how well agents can use the MCP surface and proves real clients load it; it fixes no incorrect routing or config behaviour, so it does not hold the first release |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 1/4 |
 | Handoff | - |
-| Updated | 2026-11-08 |
+| Updated | 2026-11-09 |
 
 Parent: `plan/post-release/engineering/spec-rea-practices-0-umbrella.md`.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+WIP cap exception: Thomas granted a one-off claim above the cap for this spec
+on 2026-11-09 (`ZE_SPEC_WIP_CAP=25`). It applies to this spec only.
 
 ## Task
 
@@ -160,7 +163,7 @@ also gets its own spec (R-1).
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Ze's served input schemas are at most depth 2 and always carry `type` beside `enum` | `buildToolDef` and `addYANGParams` in `internal/component/mcp/tools.go` | The structural `.ci` goes red at first run, which is then a found defect to fix under this spec | First run of `mcp-tools-list-structural-limits.ci` | unvalidated |
+| A-1 | Ze's served input schemas are at most depth 2 and always carry `type` beside `enum` | `buildToolDef` and `addYANGParams` in `internal/component/mcp/tools.go` | The structural `.ci` goes red at first run, which is then a found defect to fix under this spec | First run of `mcp-tools-list-structural-limits.ci` | confirmed (2026-11-09: max-depth=2, bare-enum=0, combinators=0 over 142 served tools) |
 | A-2 | Claude Code and Codex, at their versions on the day of the lane, speak MCP `2026-07-28` | Not known; Ze accepts only that revision (`docs/architecture/mcp/overview.md`) | The clients cannot connect; the lane records the refusal and a connectivity spec is opened (R-1) | The G-3 lane's first run | unvalidated |
 | A-3 | Each client reports token usage for a headless run (Claude Code JSON output, Codex JSON events) | REA records Codex usage this way (REA `docs/mcp-catalog-evaluation.md`) | The token column records "not reported" with the client version; size is still measured by G-1 | The G-3 lane's first run | unvalidated |
 | A-4 | The 13,312-byte and ten-level limits are the right budgets | REA's measurements for Moonshot and strict-depth clients | A tighter client limit exists; the budget is lowered when a client refusal is observed | Lane results and REA's contract page | unvalidated |
@@ -336,6 +339,40 @@ also gets its own spec (R-1).
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
 ## Design Insights
+
+First measured catalog, 2026-11-09, served by `ze --mcp $PORT` with the full
+plugin set and the `.ci`'s one-peer BGP config:
+
+| Figure | Value |
+|--------|-------|
+| Tools | 142 |
+| Whole `tools` array | 109,108 bytes |
+| Largest tool | `ze_show_ospf`, 5,670 bytes |
+| Largest input schema | 4,662 bytes (35% of the 13,312-byte budget) |
+| Schema depth | 2 |
+| Bare enums, combinators | 0, 0 |
+
+The structural limits are far from binding; the open question for a reduction
+spec is total catalog bytes (about 109 KB), which only the G-3 lane can turn
+into tokens.
+
+AC-4 red phase, 2026-11-09: with `toolSchemaBytesMax` lowered to 100 in
+`internal/test/cli/cmd_mcp_calls.go`, `./le --name session test bgp plugin
+mcp-tools-list-structural-limits` failed with `stdout_mismatch`, "output
+unexpectedly contains \"tools-size violation\"", printing one violation per
+tool (for example `tools-size violation tool=ze_clear_bgp limit=schema-bytes
+value=868`). The limit was restored to 13312 and the test rerun green.
+
+AC-5 rests on a test seam: no value the registry carries can make the schema
+encoder fail (every schema value is a string, a string list or a map of
+those), so `TestGenerateToolsReportsEncodeFailure` swaps `encodeToolSchema` in
+`internal/component/mcp/tools.go`. The race-detector run of the whole package
+passed with the swap in place.
+
+The `.ci` runs `le test mcp`, which the launcher builds from HEAD, so before
+the commit lands it passes only under `./le --name session` (a working-tree
+build); the HEAD build sends `tools-size` to the daemon as a command and gets
+`unknown command`.
 
 ## Owned journal rows
 | Class file | Date | Surface (short) |

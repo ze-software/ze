@@ -12,6 +12,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"maps"
 	"net/http"
 	"slices"
@@ -165,9 +166,11 @@ func (s *Streamable) dispatchMethod(ctx context.Context, scope requestScope, req
 	case methodServerDiscover:
 		return s.serverDiscover(req)
 	case methodToolsList:
+		// allTools names the cause in its own words: the command lister's
+		// failure and a tool that cannot be built need different messages.
 		tools, err := s.allTools(scope.Capabilities)
 		if err != nil {
-			return s.fail(req.ID, rpcInternalError, "command metadata unavailable: "+err.Error())
+			return s.fail(req.ID, rpcInternalError, err.Error())
 		}
 		return s.ok(req.ID, map[string]any{"tools": tools})
 	case methodToolsCall:
@@ -220,7 +223,10 @@ func (s *Streamable) dispatchMethod(ctx context.Context, scope requestScope, req
 // requests when the underlying set of tools has not changed)".
 //
 // It returns the command lister's error rather than the handcrafted tools
-// alone, which would read as a server with no generated tool.
+// alone, which would read as a server with no generated tool. It returns the
+// error of a tool whose definition cannot be built (generateTools) rather than
+// the list without that tool, which would read as complete. Each error is
+// worded for the client that reads it as the JSON-RPC error message.
 func (s *Streamable) allTools(caps clientCapabilities) ([]map[string]any, error) {
 	if s.cfg.Provider != nil {
 		return gateUIMeta(s.cfg.Provider.Tools(), caps.UIApps), nil
@@ -233,10 +239,14 @@ func (s *Streamable) allTools(caps clientCapabilities) ([]map[string]any, error)
 	}
 	infos, err := s.cfg.Commands()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("command metadata unavailable: %w", err)
 	}
 	groups := groupCommands(infos)
-	generated := generateTools(groups, handcraftedNames())
+	generated, err := generateTools(groups, handcraftedNames())
+	if err != nil {
+		return nil, fmt.Errorf("%w. No tool is listed, because a list without this tool would look complete. "+
+			"This is a defect in Ze: report this message at https://github.com/ze-software/ze/issues", err)
+	}
 	result := make([]map[string]any, len(handcrafted), len(handcrafted)+len(generated))
 	copy(result, handcrafted)
 	result = append(result, generated...)

@@ -1,0 +1,54 @@
+# mcp-tools-list-structural-limits - the catalog a running daemon serves meets
+# the structural limits strict MCP clients enforce on a tool's input schema.
+#
+# VALIDATES: spec-rea-practices-1-mcp-catalog-cost AC-3. tools-size measures the
+# served tools/list answer and prints one summary line; every tool stays within
+# a 13,312-byte input schema, ten schema levels, no enum without a sibling type,
+# and no oneOf, allOf or anyOf, so no violation line follows the summary.
+#
+# The limits are REA's "Compact input schema profile": the byte budget was
+# measured below Moonshot's cap, and the depth limit is the one strict clients
+# refuse beyond. Ze's schemas are flat today (depth 2, type always beside enum),
+# so this is a regression guard over every command group the registry adds.
+#
+# The count must be above the two handcrafted tools (ze_execute, ze_reference):
+# an answer holding only those, or none, would pass the reject below without
+# measuring a single generated tool.
+#
+# PREVENTS: a catalog strict clients refuse, reaching a client unnoticed.
+
+stdin=mcp:terminator=EOF_MCP
+tools-size
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=le test mcp --port $PORT:stdin=mcp:timeout=30s
+expect=exit:code=0
+expect=stdout:pattern=tools-size count=([3-9]|[1-9][0-9]+) bytes=[1-9][0-9]* largest=ze_[^ ]+ largest-bytes=[1-9][0-9]* max-schema-bytes=[1-9][0-9]* max-depth=[1-9][0-9]* bare-enum=0 combinators=0
+reject=stdout:contains=tools-size violation

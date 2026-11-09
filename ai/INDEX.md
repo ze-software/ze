@@ -647,6 +647,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | BFD, bidirectional forwarding | `docs/architecture/bfd.md` |
 | resolve, origin, pipe, pipe operator, ASN to registry, RIR delegation, delegation source, mirror the registry files | `docs/architecture/resolve.md`, `ai/rules/cli.md`, `internal/component/config/system/yang/ze-system-conf.yang` (`system/rir/delegation-source`) |
 | MCP, model context protocol | `docs/architecture/mcp/`, `internal/component/mcp/` |
+| MCP real clients, Claude Code, Codex, catalog token cost, client verification lane | `docs/contributing/mcp-client-verification.md` (owner-run only); bytes side: `le test mcp` verb `tools-size` |
 | self-update, manifest, auto-update | `docs/architecture/appliance/self-update.md`, `docs/guide/self-update.md` |
 | ASPA, path verification, RTR | `docs/guide/rpki.md` (ASPA Path Verification), `internal/component/bgp/plugins/rpki/`, `docs/features/rfc-status.md` (draft-ietf-sidrops-aspa-verification) |
 | BMP, monitoring protocol | `docs/guide/bmp.md`, `internal/component/bgp/plugins/bmp/`, `docs/architecture/api/commands.md` (bmp-sessions, bmp-peers) |

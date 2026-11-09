@@ -274,20 +274,26 @@ func toolName(prefix string) string {
 
 // generateTools builds MCP tool definitions from command groups.
 // skipNames lists tool names already covered by handcrafted tools.
-func generateTools(groups []toolGroup, skipNames map[string]bool) []map[string]any {
+//
+// It stops at the first group whose definition cannot be built and returns
+// that error with no list. A list that left the tool out would read as
+// complete, and a client could not tell a missing tool from one that does not
+// exist (ai/rules/principles.md).
+func generateTools(groups []toolGroup, skipNames map[string]bool) ([]map[string]any, error) {
 	var result []map[string]any
 
 	for _, g := range groups {
 		if skipNames[toolName(g.prefix)] {
 			continue
 		}
-		tool := buildToolDef(g)
-		if tool != nil {
-			result = append(result, tool)
+		tool, err := buildToolDef(g)
+		if err != nil {
+			return nil, err
 		}
+		result = append(result, tool)
 	}
 
-	return result
+	return result, nil
 }
 
 // commandText answers the whole help of one command: its one-line summary, then
@@ -308,8 +314,19 @@ func commandText(a action) string {
 	return tb.Str(a.shortHelp).Str("\n\n").Str(a.description).String()
 }
 
-// buildToolDef creates an MCP tool definition from a command group.
-func buildToolDef(g toolGroup) map[string]any {
+// encodeToolSchema encodes a tool's input schema. It is json.Marshal, held in a
+// variable so a test can make it fail: every value buildToolDef puts in a
+// schema is a string, a []string or a map of those, which json.Marshal always
+// encodes, so no command the registry carries reaches the error path today.
+// The error path stays, because a field of another type added to the schema
+// later could fail, and then the tool must be reported rather than dropped.
+// Only a test assigns it, before any concurrent use.
+var encodeToolSchema = json.Marshal
+
+// buildToolDef creates an MCP tool definition from a command group. It returns
+// an error naming the tool when the input schema cannot be encoded, never a
+// nil tool.
+func buildToolDef(g toolGroup) (map[string]any, error) {
 	name := toolName(g.prefix)
 
 	var desc textbuf.Buffer
@@ -404,9 +421,9 @@ func buildToolDef(g toolGroup) map[string]any {
 		schema["required"] = required
 	}
 
-	schemaJSON, err := json.Marshal(schema)
+	schemaJSON, err := encodeToolSchema(schema)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("tool %s cannot be listed: its input schema does not encode as JSON: %w", name, err)
 	}
 
 	tool := map[string]any{
@@ -439,7 +456,7 @@ func buildToolDef(g toolGroup) map[string]any {
 		}
 		tool[metaKey] = map[string]any{metaKeyUI: uiMap}
 	}
-	return tool
+	return tool, nil
 }
 
 // groupUIResource returns the first non-nil UIResourceInfo from the actions.

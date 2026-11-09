@@ -1,6 +1,6 @@
 // Design: docs/architecture/testing/ci-format.md -- MCP test client
 // Detail: cmd_mcp_client.go -- MCP 2026-07-28 request construction, headers, transport
-// Detail: cmd_mcp_calls.go -- tools/call, tools/list polling and tasks/* helpers
+// Detail: cmd_mcp_calls.go -- tools/call, tools/list polling, order and size checks, tasks/* helpers
 
 package cli
 
@@ -49,6 +49,23 @@ Stdin directives (one per line):
                                       and either the index plus both tool-name
                                       sequences, or -- when only the payload
                                       moved -- the byte offset and both digests
+  tools-size                       -- call tools/list once and print
+                                      "tools-size count=<n> bytes=<total>
+                                      largest=<tool> largest-bytes=<n>
+                                      max-schema-bytes=<n> max-depth=<n>
+                                      bare-enum=<n> combinators=<n>", measured
+                                      on the served bytes, then one line
+                                      "tools-size violation tool=<name>
+                                      limit=<limit> value=<value>" per tool
+                                      per broken limit: schema-bytes above
+                                      13312, depth above 10, bare-enum (an
+                                      enum with no sibling type) or
+                                      combinators (oneOf, allOf, anyOf) above
+                                      0. Depth counts schema levels: the input
+                                      schema is 1, each properties value or
+                                      items schema one more, so an object of
+                                      flat properties is 2. Exits 0 even when
+                                      violations print
   task-call <tool> [<json args>]   -- ordinary tools/call the SERVER must answer
                                       with resultType "task"; prints the taskId.
                                       There is no client-side task opt-in: the
@@ -238,6 +255,9 @@ func (c *mcpClient) directive(line string, timeout time.Duration) error {
 	if handled, err := c.orderDirective(line); handled {
 		return err
 	}
+	if handled, err := c.sizeDirective(line); handled {
+		return err
+	}
 	if handled, err := c.elicitDirective(line); handled {
 		return err
 	}
@@ -292,6 +312,27 @@ func (c *mcpClient) orderDirective(line string) (bool, error) {
 		calls = parsed
 	}
 	out, err := c.toolsOrderStable(calls)
+	if err != nil {
+		return true, err
+	}
+	c.lastOutput = out
+	mcpPrintln(out)
+	return true, nil
+}
+
+// sizeDirective handles tools-size, reporting whether the line was it.
+//
+// The verb succeeds even when a limit is broken: it measures, and the .ci
+// decides by matching or rejecting the violation lines.
+func (c *mcpClient) sizeDirective(line string) (bool, error) {
+	verb, rest, _ := strings.Cut(line, " ")
+	if verb != "tools-size" {
+		return false, nil
+	}
+	if strings.TrimSpace(rest) != "" {
+		return true, fmt.Errorf("tools-size takes no argument, got %q: write the line as tools-size alone", rest)
+	}
+	out, err := c.toolsSizeReport()
 	if err != nil {
 		return true, err
 	}

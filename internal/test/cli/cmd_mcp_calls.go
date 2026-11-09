@@ -262,6 +262,237 @@ func firstDifference(a, b []string) (int, bool) {
 	return 0, true
 }
 
+// The structural limits real MCP clients are known to enforce on a tool's input
+// schema. Source: REA's "Compact input schema profile" (REA
+// docs/reference/mcp-contracts.md): a 13,312-byte per-tool input schema budget,
+// measured below Moonshot's cap, and a ten-level nesting limit. A value exactly
+// at a limit is within it; one above it breaks it.
+const (
+	toolSchemaBytesMax = 13312
+	toolSchemaDepthMax = 10
+)
+
+// The limit names a tools-size violation line carries. Each matches a key of
+// the summary line, so a reader maps a violation to the figure it broke.
+const (
+	toolsSizeLimitSchemaBytes = "schema-bytes"
+	toolsSizeLimitDepth       = "depth"
+	toolsSizeLimitBareEnum    = "bare-enum"
+	toolsSizeLimitCombinators = "combinators"
+)
+
+// toolsSizeViolation is one tool breaking one structural limit.
+type toolsSizeViolation struct {
+	tool  string
+	limit string
+	value int
+}
+
+// toolsSize is the measurement of one served tools array. Every byte figure
+// counts the bytes as the server sent them, never a re-encoding.
+type toolsSize struct {
+	count          int
+	bytes          int // the whole tools array, brackets and separators included
+	largest        string
+	largestBytes   int
+	schemaBytesMax int
+	depthMax       int
+	bareEnums      int // enum keywords with no sibling type, over every tool
+	combinators    int // oneOf, allOf and anyOf keywords, over every tool
+	violations     []toolsSizeViolation
+}
+
+// toolsSizeReport calls tools/list once and renders its measurement.
+func (c *mcpClient) toolsSizeReport() (string, error) {
+	snapshot, err := c.toolsList()
+	if err != nil {
+		return "", err
+	}
+	size, err := measureToolsSize(snapshot.raw)
+	if err != nil {
+		return "", err
+	}
+	return size.render(), nil
+}
+
+// measureToolsSize measures a tools array as the server served it. It is pure,
+// so a unit test feeds it canned JSON. The array is split into json.RawMessage
+// elements, and each element's inputSchema is kept raw too: json.Unmarshal
+// copies a RawMessage verbatim, so every length below is a length of served
+// bytes.
+//
+// A malformed answer is an error naming what could not be read, never a panic
+// and never a zero figure that would read as a small catalog.
+func measureToolsSize(raw []byte) (toolsSize, error) {
+	var tools []json.RawMessage
+	if err := json.Unmarshal(raw, &tools); err != nil {
+		return toolsSize{}, fmt.Errorf("tools-size: the tools/list answer is not a JSON array of tools: %w", err)
+	}
+	size := toolsSize{count: len(tools), bytes: len(raw)}
+	for index, tool := range tools {
+		var fields struct {
+			Name        string          `json:"name"`
+			InputSchema json.RawMessage `json:"inputSchema"`
+		}
+		if err := json.Unmarshal(tool, &fields); err != nil {
+			return toolsSize{}, fmt.Errorf("tools-size: tool %d is not a JSON object: %w", index, err)
+		}
+		if fields.Name == "" {
+			return toolsSize{}, fmt.Errorf("tools-size: tool %d carries no name", index)
+		}
+		if len(fields.InputSchema) == 0 {
+			return toolsSize{}, fmt.Errorf("tools-size: tool %q carries no inputSchema, which MCP requires", fields.Name)
+		}
+		shape, err := measureSchemaShape(fields.InputSchema)
+		if err != nil {
+			return toolsSize{}, fmt.Errorf("tools-size: tool %q: %w", fields.Name, err)
+		}
+		size.add(fields.Name, len(tool), len(fields.InputSchema), shape)
+	}
+	return size, nil
+}
+
+// add folds one tool's figures into the totals and records each limit it breaks.
+func (s *toolsSize) add(name string, toolBytes, schemaBytes int, shape schemaShape) {
+	if toolBytes > s.largestBytes {
+		s.largest = name
+		s.largestBytes = toolBytes
+	}
+	s.schemaBytesMax = max(s.schemaBytesMax, schemaBytes)
+	s.depthMax = max(s.depthMax, shape.depth)
+	s.bareEnums += shape.bareEnums
+	s.combinators += shape.combinators
+	if schemaBytes > toolSchemaBytesMax {
+		s.violations = append(s.violations, toolsSizeViolation{name, toolsSizeLimitSchemaBytes, schemaBytes})
+	}
+	if shape.depth > toolSchemaDepthMax {
+		s.violations = append(s.violations, toolsSizeViolation{name, toolsSizeLimitDepth, shape.depth})
+	}
+	if shape.bareEnums > 0 {
+		s.violations = append(s.violations, toolsSizeViolation{name, toolsSizeLimitBareEnum, shape.bareEnums})
+	}
+	if shape.combinators > 0 {
+		s.violations = append(s.violations, toolsSizeViolation{name, toolsSizeLimitCombinators, shape.combinators})
+	}
+}
+
+// render prints the summary line, then one line per violation in tool order.
+func (s *toolsSize) render() string {
+	var b textbuf.Buffer
+	b.Str("tools-size count=").Int(int64(s.count))
+	b.Str(" bytes=").Int(int64(s.bytes))
+	b.Str(" largest=").Str(s.largest)
+	b.Str(" largest-bytes=").Int(int64(s.largestBytes))
+	b.Str(" max-schema-bytes=").Int(int64(s.schemaBytesMax))
+	b.Str(" max-depth=").Int(int64(s.depthMax))
+	b.Str(" bare-enum=").Int(int64(s.bareEnums))
+	b.Str(" combinators=").Int(int64(s.combinators))
+	for _, v := range s.violations {
+		b.Str("\ntools-size violation tool=").Str(v.tool)
+		b.Str(" limit=").Str(v.limit)
+		b.Str(" value=").Int(int64(v.value))
+	}
+	return b.String()
+}
+
+// schemaShape is the structure of one input schema.
+type schemaShape struct {
+	depth       int
+	bareEnums   int
+	combinators int
+}
+
+// schemaNode is a schema object waiting to be walked, with its nesting level.
+type schemaNode struct {
+	schema map[string]any
+	level  int
+}
+
+// measureSchemaShape walks one input schema and returns its depth, its bare
+// enum count and its combinator count.
+//
+// Depth counts schema levels, not JSON nesting. The input schema itself is
+// level 1. A schema reached through a keyword that holds subschemas is one
+// level below the schema holding it: each value of properties,
+// patternProperties, $defs and definitions; items, additionalProperties and not
+// when they hold an object; each member of an items array, prefixItems, oneOf,
+// anyOf and allOf. Ze's served shape, an object of flat typed properties, is
+// depth 2. Only schema objects are walked, so a property NAMED enum or oneOf is
+// a name, never a keyword.
+//
+// The walk uses an explicit stack rather than recursion, because the server
+// chooses the nesting. encoding/json refuses nesting deeper than 10000, which
+// bounds the stack.
+func measureSchemaShape(raw json.RawMessage) (schemaShape, error) {
+	var root any
+	if err := json.Unmarshal(raw, &root); err != nil {
+		return schemaShape{}, fmt.Errorf("inputSchema is not valid JSON: %w", err)
+	}
+	top, ok := root.(map[string]any)
+	if !ok {
+		return schemaShape{}, errors.New("inputSchema is not a JSON object")
+	}
+	var shape schemaShape
+	stack := []schemaNode{{schema: top, level: 1}}
+	for len(stack) > 0 {
+		node := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		shape.depth = max(shape.depth, node.level)
+		_, typed := node.schema["type"]
+		if _, enumerated := node.schema["enum"]; enumerated && !typed {
+			shape.bareEnums++
+		}
+		for _, keyword := range schemaCombinators {
+			if _, present := node.schema[keyword]; present {
+				shape.combinators++
+			}
+		}
+		stack = appendSubschemas(stack, node)
+	}
+	return shape, nil
+}
+
+// schemaCombinators are the keywords strict clients refuse in an input schema.
+var schemaCombinators = []string{"oneOf", "allOf", "anyOf"}
+
+// Keywords whose value is a map of name to subschema, a single subschema, or an
+// array of subschemas. items appears twice because JSON Schema allows both
+// forms.
+var (
+	subschemaMapKeywords   = []string{"properties", "patternProperties", "$defs", "definitions"}
+	subschemaValueKeywords = []string{"items", "additionalProperties", "not"}
+	subschemaListKeywords  = []string{"items", "prefixItems", "oneOf", "anyOf", "allOf"}
+)
+
+// appendSubschemas pushes every subschema object of node, one level below it.
+// A subschema that is not an object (a boolean schema, or a malformed value)
+// has no keywords to measure and adds no level.
+func appendSubschemas(stack []schemaNode, node schemaNode) []schemaNode {
+	level := node.level + 1
+	for _, keyword := range subschemaMapKeywords {
+		members, _ := node.schema[keyword].(map[string]any)
+		for _, member := range members {
+			if schema, ok := member.(map[string]any); ok {
+				stack = append(stack, schemaNode{schema: schema, level: level})
+			}
+		}
+	}
+	for _, keyword := range subschemaValueKeywords {
+		if schema, ok := node.schema[keyword].(map[string]any); ok {
+			stack = append(stack, schemaNode{schema: schema, level: level})
+		}
+	}
+	for _, keyword := range subschemaListKeywords {
+		members, _ := node.schema[keyword].([]any)
+		for _, member := range members {
+			if schema, ok := member.(map[string]any); ok {
+				stack = append(stack, schemaNode{schema: schema, level: level})
+			}
+		}
+	}
+	return stack
+}
+
 // taskCall makes an ORDINARY tools/call and requires the server to answer with a
 // task handle.
 //

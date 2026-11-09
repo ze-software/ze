@@ -423,6 +423,21 @@ code changes.
 
 Run `tools/list` against a live daemon to see the current tool inventory. <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 
+When Ze cannot build one tool's definition, `tools/list` does not return the <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+list without it. It answers JSON-RPC error `-32603` (internal error). The
+message names the tool, says why its input schema cannot be written as JSON,
+and asks you to report the message to the Ze developers. Your client then sees
+no tool at all, not an incomplete list that looks complete. No command Ze
+registers causes this today. If you see it, report the full message at
+<https://github.com/ze-software/ze/issues>.
+
+<!-- source: internal/component/mcp/streamable_tools.go -- allTools -->
+<!-- source: internal/component/mcp/tools.go -- generateTools, buildToolDef -->
+
+Which agent clients have been checked against this tool list, and what they
+report it costs in context, is on the
+[MCP client verification](../../contributing/mcp-client-verification.md) page.
+
 The commands the local `ze` command answers on the router are tools too:
 `show env list`, `show config validation <file>`, `request support archive`,
 and `show doctor`, the daemon form of `ze doctor`, among them. The daemon runs

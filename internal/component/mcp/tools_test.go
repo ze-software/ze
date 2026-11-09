@@ -3,7 +3,9 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -126,7 +128,10 @@ func TestGenerateToolsSkipsHandcrafted(t *testing.T) {
 	}
 
 	skip := map[string]bool{"ze_show_bgp": true}
-	tools := generateTools(groups, skip)
+	tools, err := generateTools(groups, skip)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if len(tools) != 1 {
 		t.Fatalf("expected 1 tool (show bgp skipped), got %d", len(tools))
@@ -146,7 +151,10 @@ func TestBuildToolDefActionEnum(t *testing.T) {
 		},
 	}
 
-	tool := buildToolDef(g)
+	tool, err := buildToolDef(g)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if tool == nil {
 		t.Fatal("buildToolDef returned nil")
 	}
@@ -674,7 +682,10 @@ func TestBuildToolDefNoAction(t *testing.T) {
 		prefix:  "version",
 		actions: []action{{name: "", shortHelp: "Show version", full: "version"}},
 	}
-	tool := buildToolDef(g)
+	tool, err := buildToolDef(g)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if tool == nil {
 		t.Fatal("buildToolDef returned nil")
 	}
@@ -711,7 +722,10 @@ func TestBuildToolDefSingleAction(t *testing.T) {
 		prefix:  "cache",
 		actions: []action{{name: "list", shortHelp: "List cache entries", full: "cache list"}},
 	}
-	tool := buildToolDef(g)
+	tool, err := buildToolDef(g)
+	if err != nil {
+		t.Fatal(err)
+	}
 	desc, ok := tool["description"].(string)
 	if !ok {
 		t.Fatal("description not string")
@@ -727,7 +741,10 @@ func TestBuildToolDefSingleActionEmptyHelp(t *testing.T) {
 		prefix:  "cache",
 		actions: []action{{name: "list", shortHelp: "", full: "cache list"}},
 	}
-	tool := buildToolDef(g)
+	tool, err := buildToolDef(g)
+	if err != nil {
+		t.Fatal(err)
+	}
 	desc, ok := tool["description"].(string)
 	if !ok {
 		t.Fatal("description not string")
@@ -1066,7 +1083,10 @@ func TestToolDescriptor_TaskSupportField(t *testing.T) {
 		{Name: "show config dump", ShortHelp: "Dump config", TaskSupport: TaskSupportOptional},
 	}
 	groups := groupCommands(commands)
-	tools := generateTools(groups, handcraftedNames())
+	tools, err := generateTools(groups, handcraftedNames())
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(tools) == 0 {
 		t.Fatal("no tools generated")
 	}
@@ -1088,7 +1108,10 @@ func TestToolDescriptor_TaskSupportField(t *testing.T) {
 		{Name: "ping host", ShortHelp: "Ping", TaskSupport: TaskSupportForbidden},
 	}
 	groups2 := groupCommands(commands2)
-	tools2 := generateTools(groups2, handcraftedNames())
+	tools2, err := generateTools(groups2, handcraftedNames())
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(tools2) == 0 {
 		t.Fatal("no tools generated for forbidden case")
 	}
@@ -1153,7 +1176,10 @@ func TestToolDescriptor_UIMetaFromYANG(t *testing.T) {
 		}
 		t.Fatalf("show bgp group not found in %v", names)
 	}
-	tool := buildToolDef(*peerGroup)
+	tool, err := buildToolDef(*peerGroup)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if tool == nil {
 		t.Fatal("buildToolDef returned nil")
 	}
@@ -1186,7 +1212,10 @@ func TestToolDescriptor_UIMetaPermissionsAndCSP(t *testing.T) {
 	if len(groups) == 0 {
 		t.Fatal("no groups")
 	}
-	tool := buildToolDef(groups[0])
+	tool, err := buildToolDef(groups[0])
+	if err != nil {
+		t.Fatal(err)
+	}
 	if tool == nil {
 		t.Fatal("buildToolDef returned nil")
 	}
@@ -1214,7 +1243,10 @@ func TestToolDescriptor_NoUIMetaWithoutResource(t *testing.T) {
 	}
 	groups := groupCommands(commands)
 	for _, g := range groups {
-		tool := buildToolDef(g)
+		tool, err := buildToolDef(g)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if tool == nil {
 			continue
 		}
@@ -1435,7 +1467,10 @@ func TestMCPToolDefUsesSummaryAndHelp(t *testing.T) {
 		},
 	}
 
-	tool := buildToolDef(g)
+	tool, err := buildToolDef(g)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if tool == nil {
 		t.Fatal("buildToolDef returned nil")
 	}
@@ -1469,7 +1504,11 @@ func TestMCPToolDefUsesSummaryAndHelp(t *testing.T) {
 		prefix:  "show bgp",
 		actions: []action{{name: "rib", shortHelp: ribSummary, description: ribHelp, full: "show bgp rib"}},
 	}
-	desc, ok := buildToolDef(single)["description"].(string)
+	singleTool, err := buildToolDef(single)
+	if err != nil {
+		t.Fatal(err)
+	}
+	desc, ok := singleTool["description"].(string)
 	if !ok {
 		t.Fatal("description not string")
 	}
@@ -1482,7 +1521,11 @@ func TestMCPToolDefUsesSummaryAndHelp(t *testing.T) {
 		prefix:  "show version",
 		actions: []action{{name: "", shortHelp: "Print the version.", description: "The build stamp is the git SHA.", full: "show version"}},
 	}
-	bareDesc, ok := buildToolDef(bare)["description"].(string)
+	bareTool, err := buildToolDef(bare)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bareDesc, ok := bareTool["description"].(string)
 	if !ok {
 		t.Fatal("description not string")
 	}
@@ -1559,4 +1602,86 @@ func allToolsForTest(t *testing.T, s *Streamable, caps clientCapabilities) []map
 		t.Fatalf("allTools: %v", err)
 	}
 	return tools
+}
+
+// encodeFailureMarker is the action name whose schema the test encoder of
+// TestGenerateToolsReportsEncodeFailure refuses to encode.
+const encodeFailureMarker = "unencodable"
+
+// TestGenerateToolsReportsEncodeFailure covers AC-5: a command group whose
+// input schema cannot be encoded makes generateTools return an error naming the
+// tool and the encode error, with no partial list, and tools/list answers that
+// error as a JSON-RPC internal error rather than a list without the tool.
+//
+// Method: no field the command registry carries can hold a value json.Marshal
+// refuses. Every value buildToolDef writes into a schema is a string, a
+// []string or a map of those, so addYANGParams and the action enum offer no
+// real path to an encode failure. The test therefore swaps encodeToolSchema
+// for one that encodes a NaN through json.Marshal, which yields the real
+// *json.UnsupportedValueError, for the one group whose action enum carries
+// encodeFailureMarker. Every other group encodes normally, and it sorts first,
+// so a partial list would hold it.
+//
+// VALIDATES: the encode error reaches the caller, naming the tool.
+// PREVENTS: a tool silently missing from tools/list.
+func TestGenerateToolsReportsEncodeFailure(t *testing.T) {
+	encodeOK := encodeToolSchema
+	t.Cleanup(func() { encodeToolSchema = encodeOK })
+	encodeToolSchema = func(schema any) ([]byte, error) {
+		if strings.Contains(fmt.Sprint(schema), encodeFailureMarker) {
+			return json.Marshal(math.NaN())
+		}
+		return encodeOK(schema)
+	}
+
+	groups := []toolGroup{
+		{prefix: "show other", actions: []action{{name: "list", full: "show other list"}}},
+		{prefix: "show probe", actions: []action{
+			{name: "fine", full: "show probe fine"},
+			{name: encodeFailureMarker, full: "show probe " + encodeFailureMarker},
+		}},
+	}
+	tools, err := generateTools(groups, nil)
+	if err == nil {
+		t.Fatalf("generateTools returned %d tools and no error, want the encode error", len(tools))
+	}
+	if tools != nil {
+		t.Errorf("generateTools returned a partial list of %d tools beside its error", len(tools))
+	}
+	if _, ok := errors.AsType[*json.UnsupportedValueError](err); !ok {
+		t.Errorf("error %q does not wrap the encode error", err)
+	}
+	if !strings.Contains(err.Error(), "ze_show_probe") {
+		t.Errorf("error %q does not name the tool ze_show_probe", err)
+	}
+
+	// The same failure through the real tools/list dispatch: the command
+	// lister's commands group into ze_show_other and ze_show_probe.
+	s := &Streamable{cfg: StreamableConfig{
+		Commands: func() ([]CommandInfo, error) {
+			return []CommandInfo{
+				{Name: "show other list"},
+				{Name: "show other detail"},
+				{Name: "show probe fine"},
+				{Name: "show probe " + encodeFailureMarker},
+			}, nil
+		},
+	}}
+	id := json.RawMessage(`1`)
+	req := request{JSONRPC: "2.0", ID: &id, Method: methodToolsList}
+	resp := s.dispatchMethod(t.Context(), requestScope{}, &req, "198.51.100.7:4000")
+	if resp == nil || resp.Error == nil {
+		t.Fatalf("tools/list response %+v carries no JSON-RPC error", resp)
+	}
+	if resp.Error.Code != rpcInternalError {
+		t.Errorf("error code = %d, want %d", resp.Error.Code, rpcInternalError)
+	}
+	for _, want := range []string{"ze_show_probe", "unsupported value: NaN", "report this message"} {
+		if !strings.Contains(resp.Error.Message, want) {
+			t.Errorf("tools/list error %q does not contain %q", resp.Error.Message, want)
+		}
+	}
+	if strings.Contains(resp.Error.Message, "command metadata unavailable") {
+		t.Errorf("tools/list error %q blames the command lister, which succeeded", resp.Error.Message)
+	}
 }

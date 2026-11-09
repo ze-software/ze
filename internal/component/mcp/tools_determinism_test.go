@@ -79,7 +79,11 @@ func TestToolOrderDeterministic(t *testing.T) {
 			}
 		}
 
-		encoded, err := json.Marshal(generateTools(groups, handcraftedNames()))
+		tools, err := generateTools(groups, handcraftedNames())
+		if err != nil {
+			t.Fatalf("run %d: generate: %v", run, err)
+		}
+		encoded, err := json.Marshal(tools)
 		if err != nil {
 			t.Fatalf("run %d: marshal: %v", run, err)
 		}
@@ -104,7 +108,10 @@ func TestToolOrderDeterministic(t *testing.T) {
 // enum twice, and made the tool description vary between identical calls. Both
 // are invisible to a test that only compares array lengths.
 func TestGeneratedToolsHaveUniqueNamesAndEnums(t *testing.T) {
-	tools := generateTools(groupCommands(orderProbeCommands()), handcraftedNames())
+	tools, err := generateTools(groupCommands(orderProbeCommands()), handcraftedNames())
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(tools) == 0 {
 		t.Fatal("no tools generated")
 	}

@@ -426,7 +426,18 @@ loader refuses the schema), `tools/list` and `tools/call` answer a JSON-RPC <!--
 internal error (`-32603`) that names the cause. They never answer a list of
 the handcrafted tools alone, or an unknown-tool refusal.
 
+When one tool's input schema cannot be encoded as JSON, `buildToolDef` returns
+an error that names the tool and wraps the encode error, and `generateTools`
+stops there. `tools/list` then answers a JSON-RPC internal error (`-32603`) <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+that names the tool, the encode error, and that the failure is a Ze defect to
+report. It never answers the list without that tool, because a client cannot
+tell a missing tool from one that does not exist, so the other tools are not
+served in that answer either. Every schema value is a string, a string list or
+a map of those today, so no registered command reaches this path; it exists
+for a schema field of another type added later.
+
 <!-- source: internal/component/mcp/streamable_tools.go — allTools, lookupTaskSupport, findGeneratedTool -->
+<!-- source: internal/component/mcp/tools.go — generateTools, buildToolDef, encodeToolSchema -->
 
 Every group is built through one action constructor (`newAction`), so a field
 the group carries reaches each of the three grouping arms. One of those fields
@@ -487,6 +498,19 @@ to `peer` names one slot twice and is refused by name.
 
 <!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta hidden plugin command skip, anchoredParams -->
 <!-- source: internal/component/command/arguments.go -- WriteInvocation -->
+
+### Catalog limits
+
+The catalog grows with every plugin, and strict MCP clients refuse a tool
+whose input schema breaks their structural limits. The `tools-size` verb of
+`le test mcp` reads the `tools/list` answer a running daemon serves and <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+measures it against the limits those clients enforce: an input schema of at
+most 13,312 bytes for each tool, a nesting depth of at most 10, no `enum`
+without a `type` beside it, and no `oneOf`, `allOf` or `anyOf`.
+`test/plugin/mcp-tools-list-structural-limits.ci` runs it against the served
+catalog and fails when a tool breaks one of the limits. Whether real agent
+clients load the catalog is checked by hand, in the owner-run lane that
+`docs/contributing/mcp-client-verification.md` describes.
 
 ## The Tasks Extension
 

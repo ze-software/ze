@@ -126,13 +126,21 @@ package.
     a top-level field. It rides in the result `_meta`, stamped by `ok()` like every other result.
 11. **tools/list: tool generation.** `allTools` (`streamable_tools.go`) calls
     `groupCommands` (`tools.go`) to bucket every `CommandInfo` by shared prefix into
-    `toolGroup`s. Then `generateTools`/`buildToolDef` (`tools.go`, `:275`) synthesize one
+    `toolGroup`s. Then `generateTools`/`buildToolDef` (`tools.go`) synthesize one
     JSON-Schema tool per group named `ze_<prefix>` (`toolName`, `tools.go`). Each tool folds
     in typed YANG params (`addYANGParams`, `tools.go`), the group's `execution.taskSupport`
     (`groupTaskSupport`, `tools.go`), and `_meta.ui` when a `ze:ui-resource` is present
     (`groupUIResource`, `tools.go`). Handcrafted tools `ze_execute`/`ze_reference`
     (`tools.go`, schemas at `tools.go`) are prepended, and `handcraftedNames`
     (`tools.go`) excludes them from auto-generation.
+
+    Error path: `allTools` wraps a command-lister error as `command metadata unavailable:
+    <cause>`. When `encodeToolSchema` (`json.Marshal`, a variable only tests replace) fails
+    for one group, `buildToolDef` returns an error naming the tool and wrapping the encode
+    error, `generateTools` stops with no list, and `allTools` adds that the failure is a Ze
+    defect to report. `dispatchMethod` answers either one as JSON-RPC `-32603` with
+    `allTools`'s message as-is, never a list missing the tool. No registered command
+    reaches the encode path today: every schema value is a string, a string list or a map.
 12. **tools/call: dispatch to command execution.** `callTool` (`streamable_tools.go`)
     unmarshals `callParams` (`tools.go`), which no longer has a `Task` member. Task creation
     is SERVER-directed. `callTool` reads the tool's level through `lookupTaskSupport`. It

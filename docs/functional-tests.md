@@ -2066,6 +2066,37 @@ written as a pattern.
 
 <!-- source: internal/test/cli/cmd_mcp_calls.go — toolsOrderStable, toolsList, toolsDigest, firstDifference -->
 
+`tools-size` calls `tools/list` once and prints one summary line: <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+`tools-size count=<n> bytes=<total> largest=<tool> largest-bytes=<n> max-schema-bytes=<n> max-depth=<n> bare-enum=<n> combinators=<n>`.
+Every byte figure is a length of the bytes the server sent, never of a
+re-encoding: `bytes` is the whole `tools` array, `largest-bytes` the largest
+single tool, `max-schema-bytes` the largest `inputSchema`. `bare-enum` counts
+`enum` keywords with no sibling `type`, and `combinators` counts `oneOf`,
+`allOf` and `anyOf` keywords, both over the whole catalog.
+
+Depth counts schema levels, not JSON nesting. The input schema is level 1, and
+each subschema (a `properties` value, an `items` schema, a combinator member)
+is one level below its parent, so an object of flat typed properties is depth 2.
+
+After the summary comes one `tools-size violation tool=<name> limit=<limit> value=<value>`
+line per tool per broken limit. The limits are those of REA's compact input
+schema profile, the ones strict clients are known to enforce:
+
+| `limit=` | Broken when |
+|----------|-------------|
+| `schema-bytes` | the tool's `inputSchema` is above 13312 bytes |
+| `depth` | the schema is deeper than 10 levels |
+| `bare-enum` | any `enum` has no sibling `type` |
+| `combinators` | any `oneOf`, `allOf` or `anyOf` appears |
+
+A value exactly at a numeric limit is within it. The verb exits 0 even when
+violation lines print, so a `.ci` decides with `reject=stdout:contains=tools-size violation`.
+A malformed answer fails the verb with an error naming the tool and what could
+not be read. `test/plugin/mcp-tools-list-structural-limits.ci` runs it against
+a daemon.
+
+<!-- source: internal/test/cli/cmd_mcp_calls.go — measureToolsSize, measureSchemaShape, toolsSizeReport -->
+
 **Colons in expectation values.** `ParseKVPairs` splits a `.ci` directive on
 `:`, but only where a colon introduces a real key token. A real key token is a
 letter, then letters, digits, `-` or `_`, then `=`. An ordinary colon stays in

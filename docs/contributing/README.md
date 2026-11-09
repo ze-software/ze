@@ -19,6 +19,7 @@ Ze development is expected on macOS or Linux. Windows is not a supported develop
 | `running-commands.md` | How the `./le` action surface behaves: feature build tags, the changed-set selector, session scratch and binaries, verify logs, the job registry, the Bash guard |
 | `patching-the-standard-library.md` | How Ze changes a Go standard-library package at build time with `go build -overlay`, the guard that stops an unpatched build, and what to do when the Go version changes. The mechanism is designed and not built yet |
 | `documentation-testing.md` | The `./le doc check all` drift and contract checks, and how to fix failures |
+| `mcp-client-verification.md` | The real-client MCP lane Thomas runs: which agent clients (Claude Code, Codex) connect to Ze's MCP server, call `ze_reference`, and what context they report the catalog costs, with its results table |
 | `ci-test-coverage.md` | Functional `.ci`/`.et` coverage map and known gaps |
 | `navigating-the-code.md` | How to answer a question without reading a whole file: the `gopls` routes for a Go symbol, and which generated index answers which question |
 | `claude-code-cheatsheet.md` | Quick reference for the AI-assisted workflow and skills |

@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -600,5 +601,199 @@ func TestMCPReadinessScalesWithConcurrency(t *testing.T) {
 				t.Errorf("stderr = %q, want it to name the deadline %q", out, c.want)
 			}
 		})
+	}
+}
+
+// toolEntry is one served tool with the given name and raw input schema.
+func toolEntry(name, schema string) string {
+	return `{"name":"` + name + `","description":"d","inputSchema":` + schema + `}`
+}
+
+// nestedSchema builds an input schema exactly `levels` schema levels deep, each
+// level an object whose single property holds the next one.
+func nestedSchema(levels int) string {
+	schema := `{"type":"string"}`
+	for range levels - 1 {
+		schema = `{"type":"object","properties":{"p":` + schema + `}}`
+	}
+	return schema
+}
+
+// paddedSchema builds an input schema of exactly `size` bytes.
+func paddedSchema(t *testing.T, size int) string {
+	t.Helper()
+	const head = `{"type":"object","description":"`
+	const tail = `"}`
+	pad := size - len(head) - len(tail)
+	if pad < 0 {
+		t.Fatalf("paddedSchema: %d bytes is shorter than the fixed part", size)
+	}
+	return head + strings.Repeat("x", pad) + tail
+}
+
+// TestToolsSizeSummary proves the tools-size summary line is computed from the
+// served bytes and the schema structure (spec-rea-practices-1 AC-1).
+// Method: feed canned tools arrays whose lengths the test computes from the
+// very strings it serves, and compare the whole summary line.
+// PREVENTS: a figure measured on a re-encoding, a property NAMED enum counted
+// as a bare enum, and a depth that ignores items or nested properties.
+func TestToolsSizeSummary(t *testing.T) {
+	flatSchema := `{"type":"object","properties":{"action":{"type":"string","enum":["a","b"]},"enum":{"type":"string"}}}`
+	bigSchema := `{"type":"object","properties":{"peer":{"type":"string"},"arguments":{"type":"string","description":"free text"}}}`
+	nested := `{"type":"object","properties":{"list":{"type":"array","items":{"type":"object","properties":{"k":{"type":"string"}}}}}}`
+	small := toolEntry("ze_small", flatSchema)
+	big := toolEntry("ze_big", bigSchema)
+	deep := toolEntry("ze_deep", nested)
+
+	cases := []struct {
+		name  string
+		tools []string
+		want  func(raw string) string
+	}{
+		{
+			name:  "ze-shape catalog is depth 2",
+			tools: []string{small, big},
+			want: func(raw string) string {
+				return "tools-size count=2 bytes=" + strconv.Itoa(len(raw)) +
+					" largest=ze_big largest-bytes=" + strconv.Itoa(len(big)) +
+					" max-schema-bytes=" + strconv.Itoa(len(bigSchema)) +
+					" max-depth=2 bare-enum=0 combinators=0"
+			},
+		},
+		{
+			name:  "items and nested properties each add a level",
+			tools: []string{small, deep},
+			want: func(raw string) string {
+				return "tools-size count=2 bytes=" + strconv.Itoa(len(raw)) +
+					" largest=ze_deep largest-bytes=" + strconv.Itoa(len(deep)) +
+					" max-schema-bytes=" + strconv.Itoa(len(nested)) +
+					" max-depth=4 bare-enum=0 combinators=0"
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			// Whitespace between elements is served bytes too: it counts in the
+			// array total and in no tool.
+			raw := "[\n  " + strings.Join(c.tools, ",\n  ") + "\n]"
+			size, err := measureToolsSize([]byte(raw))
+			if err != nil {
+				t.Fatalf("measureToolsSize: %v", err)
+			}
+			got := size.render()
+			if want := c.want(raw); got != want {
+				t.Errorf("summary =\n  %s\nwant\n  %s", got, want)
+			}
+		})
+	}
+}
+
+// TestToolsSizeViolations proves each of the four structural limits prints
+// exactly one violation line for the tool that breaks it, and that a value
+// exactly at a numeric limit is within it (spec-rea-practices-1 AC-2, and the
+// spec's Boundary Tests: 13312 and 13313 bytes, depth 10 and 11).
+// Method: serve one tool per case and compare every line after the summary.
+// PREVENTS: an off-by-one at either limit, and a breach counted on the wrong
+// tool or not printed at all.
+func TestToolsSizeViolations(t *testing.T) {
+	cases := []struct {
+		name   string
+		schema string
+		want   []string
+	}{
+		{"schema at 13312 bytes is within the budget", paddedSchema(t, 13312), nil},
+		{"schema at 13313 bytes breaks the budget", paddedSchema(t, 13313),
+			[]string{"tools-size violation tool=ze_t limit=schema-bytes value=13313"}},
+		{"depth 10 is within the limit", nestedSchema(10), nil},
+		{"depth 11 breaks the limit", nestedSchema(11),
+			[]string{"tools-size violation tool=ze_t limit=depth value=11"}},
+		{"enum beside type is not bare", `{"type":"object","properties":{"mode":{"type":"string","enum":["a"]}}}`, nil},
+		{"enum without type is bare", `{"type":"object","properties":{"mode":{"enum":["a","b"]}}}`,
+			[]string{"tools-size violation tool=ze_t limit=bare-enum value=1"}},
+		{"oneOf is a combinator", `{"type":"object","properties":{"v":{"oneOf":[{"type":"string"},{"type":"integer"}]}}}`,
+			[]string{"tools-size violation tool=ze_t limit=combinators value=1"}},
+		{"allOf is a combinator", `{"type":"object","allOf":[{"type":"object"}]}`,
+			[]string{"tools-size violation tool=ze_t limit=combinators value=1"}},
+		{"anyOf is a combinator", `{"type":"object","properties":{"v":{"anyOf":[{"type":"string"}]}}}`,
+			[]string{"tools-size violation tool=ze_t limit=combinators value=1"}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			// A clean tool beside the breaking one proves the line names the
+			// tool that broke the limit, not merely the first or the last.
+			raw := "[" + toolEntry("ze_clean", nestedSchema(2)) + "," + toolEntry("ze_t", c.schema) + "]"
+			size, err := measureToolsSize([]byte(raw))
+			if err != nil {
+				t.Fatalf("measureToolsSize: %v", err)
+			}
+			lines := strings.Split(size.render(), "\n")
+			if !strings.HasPrefix(lines[0], "tools-size count=2 ") {
+				t.Fatalf("first line = %q, want the summary", lines[0])
+			}
+			got := lines[1:]
+			if len(got) != len(c.want) {
+				t.Fatalf("violation lines = %q, want %q", got, c.want)
+			}
+			for i := range got {
+				if got[i] != c.want[i] {
+					t.Errorf("violation line %d = %q, want %q", i, got[i], c.want[i])
+				}
+			}
+		})
+	}
+}
+
+// TestToolsSizeRefusesMalformedAnswer proves an untrusted server answer that
+// cannot be measured is an error naming what was wrong, never a panic and never
+// a summary of zeros (spec-rea-practices-1 Security Review: input validation).
+func TestToolsSizeRefusesMalformedAnswer(t *testing.T) {
+	cases := []struct {
+		name string
+		raw  string
+		want string
+	}{
+		{"not json", `[{`, "not a JSON array"},
+		{"not an array", `{"name":"ze_x"}`, "not a JSON array"},
+		{"tool not an object", `[42]`, "tool 0 is not a JSON object"},
+		{"tool without name", `[{"inputSchema":{"type":"object"}}]`, "tool 0 carries no name"},
+		{"tool without schema", `[{"name":"ze_x"}]`, `tool "ze_x" carries no inputSchema`},
+		{"schema not an object", `[{"name":"ze_x","inputSchema":[1]}]`, "inputSchema is not a JSON object"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := measureToolsSize([]byte(c.raw))
+			if err == nil {
+				t.Fatalf("measureToolsSize(%s) succeeded, want an error naming %q", c.raw, c.want)
+			}
+			if !strings.Contains(err.Error(), c.want) {
+				t.Errorf("error = %q, want it to name %q", err, c.want)
+			}
+		})
+	}
+}
+
+// TestToolsSizeDirective proves the tools-size stdin line reaches the
+// measurement through a real tools/list exchange, records its output for the
+// script, and refuses an argument rather than sending the line as a command.
+func TestToolsSizeDirective(t *testing.T) {
+	tools := "[" + toolEntry("ze_a", nestedSchema(2)) + "]"
+	client, seen := fakeMCP(t, http.StatusOK, `{"jsonrpc":"2.0","id":1,"result":{"tools":`+tools+`}}`)
+
+	if err := client.directive("tools-size", time.Second); err != nil {
+		t.Fatalf("directive: %v", err)
+	}
+	want := "tools-size count=1 bytes=" + strconv.Itoa(len(tools)) +
+		" largest=ze_a largest-bytes=" + strconv.Itoa(len(tools)-2) +
+		" max-schema-bytes=" + strconv.Itoa(len(nestedSchema(2))) +
+		" max-depth=2 bare-enum=0 combinators=0"
+	if client.lastOutput != want {
+		t.Errorf("lastOutput =\n  %s\nwant\n  %s", client.lastOutput, want)
+	}
+	if len(*seen) != 1 || (*seen)[0].body["method"] != "tools/list" {
+		t.Errorf("requests = %v, want one tools/list", *seen)
+	}
+
+	if err := client.directive("tools-size 3", time.Second); err == nil {
+		t.Errorf("tools-size with an argument succeeded, want a refusal")
 	}
 }
