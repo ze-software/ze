@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | blocked |
 | Scope | config |
 | Priority | P1 |
 | Release reason | Release fix: (1) a listener list with `0.0.0.0` and `::` on one port passes validation, then one bind fails and is only logged, so the service runs half-bound while the commit reports success (P1); (2) `system host` never reaches the appliance's kernel hostname, which stays the image's build-time value (P2, carried here because it is small) |
@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-02 |
+| Updated | 2026-11-09 |
 
 Parent: `plan/release/fixes/spec-home-cpe-0-umbrella.md` (child 7).
 
@@ -162,8 +162,8 @@ hostname and Ze leaves it alone, as today.
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
 | A-1 | Every `ze:listener` service other than L2TP binds `::` dual-stack | Go default; grep for `IPV6_V6ONLY` finds only L2TP | a V6ONLY service would get a false refusal | grep `IPV6_V6ONLY` and `ListenConfig.Control` across services at implementation | broken for web: `listenAddr` (`internal/component/web/server.go`) binds a bracketed address with `tcp6`, which Go binds IPV6_V6ONLY, so web registers V6ONLY (`internal/component/web/register_listener.go`); SSH, LG, REST, gRPC, gNMI, DNS, telemetry and BGP listen with `tcp`/`udp` (dual-stack) |
-| A-2 | Ze runs as root, or with `CAP_SYS_ADMIN` in the initial UTS namespace, on the appliance | gokrazy runs packages as root; `dropPrivileges` is a no-op without `ze.user` | `sethostname` fails EPERM | appliance boot test | unvalidated |
-| A-3 | Existing configs in `test/` and `docs/` do not list `::` with an IPv4 address on one port for a dual-stack service | none | tests go red under the new refusal | grep before Phase 2; each hit is a config that never fully worked | unvalidated |
+| A-2 | Ze runs as root, or with `CAP_SYS_ADMIN` in the initial UTS namespace, on the appliance | gokrazy runs packages as root; `dropPrivileges` is a no-op without `ze.user` | `sethostname` fails EPERM | appliance boot test | confirmed: the booted image logged "kernel host name set from system host" host=cpe-lab previous=ze (`reconcileKernelHostname`, `cmd/ze/hub/main_system_hostname.go`) in the 2026-11-08 11:23 `appliance-hostname` run, so `sethostname` succeeded |
+| A-3 | Existing configs in `test/` and `docs/` do not list `::` with an IPv4 address on one port for a dual-stack service | none | tests go red under the new refusal | grep before Phase 2; each hit is a config that never fully worked | broken: `docs/guide/bmp.md` showed BMP `ip 0.0.0.0` beside `ip "::"` on 11019; BMP binds `tcp` dual-stack (`startListenerLocked`, `internal/component/bgp/plugins/bmp/receiver.go`), so that example never bound both and is now refused; repaired at closure. `git grep` finds no other hit outside vendor |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -417,3 +417,168 @@ No open row records either defect (grep of `plan/journal/` for `EADDRINUSE`, `du
 ### Closure
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean
+
+## Blocker
+
+| What blocks | Producer | What clears it |
+|-------------|----------|----------------|
+| `./le test qemu appliance-hostname`, clean run (AC-7, AC-8, Deliverable "Hostname") | `Hostname.askHostname` (`internal/le/test/qemu/hostname.go`) asks `show host all` over SSH; its `hostname` is `os.Hostname()` (`internal/component/host/kernel_linux.go`), the kernel name | a green clean run by the main thread. The 2026-11-08 11:23 run (`tmp/session/2026-11-07-104251/scratch/rwinv/out-c2-12-netns/c7-hostname-clean.log`) failed at boot with an empty answer and "Disconnected from 127.0.0.1 port 2223", while its guest console shows the product working: "kernel host name set from system host" host=cpe-lab previous=ze. The harness was at fault, not the product: its sshpass ssh offered ssh-agent keys first and Ze's server (6 auth tries) disconnected before the password. 3c15e9b6d8 fixed it (public-key auth and agent off, `sshFailure` keeps the reason) after that run |
+| the same action, broken run (the red that proves the test discriminates) | `setKernelHostname` (`cmd/ze/hub/main_system_hostname_linux.go`) broken to return nil without `unix.Sethostname`, through `GOFLAGS=-overlay=<abs>/tmp/session/2026-11-07-104251/scratch/rwinv/c7-hostname-not-set/overlay.json` | the run must go red on "the kernel host name never became cpe-lab" with an answer of `ze`, not on an SSH failure. The 2026-11-08 11:28 broken run failed on the same SSH disconnect, so it proved nothing. On 2026-11-09 the overlay copy differs from HEAD's file in that one line only, so it has not drifted |
+
+The spec returns to `in-progress` when both runs are recorded; closure then resumes at `/ze-close` step 6 (RFC record check, commits A and B).
+
+## Implementation Summary
+
+### What Was Implemented
+- Dual-stack listener rule: `conflicts`, `dualStackPair`, `isDualStackWildcard`, `conflictError` (`internal/component/config/listener.go`); `RegisterListenerV6Only`, registered by L2TP (`internal/component/l2tp/register.go`) and web (`internal/component/web/register_listener.go`).
+- SSH all or none: `bindListeners`, `Server.Start`, `Server.Reconfigure`, `Server.Addresses` (`internal/component/ssh/ssh.go`); SSH joins the reload migration through `listenerMigrator.setSSH` and `attachSSH` (`cmd/ze/hub/listener_migrate.go`); the no-op `Server.Reload` is gone.
+- Host name: `ValidateHostName`, `validateSystemHostTree`, `ConfiguredHostName` (`internal/component/config/system/hostname.go`); `reconcileKernelHostname` with `kernelHostnameOwned` per build (`cmd/ze/hub/main_system_hostname.go`, `main_system_appliance.go`, `main_system_nonappliance.go`), called at start (`main.go`) and on reload (`main_reload.go`); doctor `checkKernelHostname`, code `doctor-system-host-not-applied`; the `appliance-hostname` QEMU action (`internal/le/test/qemu/hostname.go`).
+
+### Bugs Found/Fixed
+- `docs/guide/bmp.md` showed a dual-wildcard BMP listener pair that never bound both and is now refused (A-3): the example uses specific addresses and states the rule.
+- The `appliance-hostname` harness lost its SSH session to agent-key auth tries: fixed in 3c15e9b6d8, `TestTheApplianceSSHOffersOnlyThePassword`.
+
+### Documentation Updates
+- `docs/guide/configuration.md`: "`::` beside an IPv4 address", "SSH listeners: all or none, and on reload", "System Host Name" (7ff7614e5f); source anchors added at closure (`dualStackPair`, `bindListeners`, `Server.Reconfigure`, `setSSH`, `ValidateHostName`, `reconcileKernelHostname`, `checkKernelHostname`, `kernelHostnameOwned`).
+- `docs/guide/appliance.md`, "From a JSON config (recommended)": which name the appliance carries (7ff7614e5f); anchors added at closure.
+- `docs/guide/bmp.md`: example and dual-stack note (closure).
+- `docs/architecture/config/syntax.md` `ze:listener` row, the `ze-types.yang` `ip` description, `qemu-integration.md`, `gokrazy-build-pins.md`, `interop.md` (7ff7614e5f).
+- `./le doc check all` 2026-11-09: source anchors "all references valid"; red only on the published `../wiki` and `../gh-pages` command catalogs, none from this spec.
+
+### Deviations from Plan
+- The setter lives in `main_system_hostname_linux.go` and `_other.go`, and only the owned flag differs per build: the reconcile logic is shared and tested under both tags.
+- The doctor test is in `internal/component/config/system/hostname_test.go`, not `doctor_test.go`.
+- Web registers V6ONLY (A-1 broken for web).
+- The Goal Gates' `./le verify changed` is struck: no agent runs it (`ai/META-DECISIONS.md`); GitHub CI verifies the pushed commit.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1: every service but L2TP binds `::` dual-stack | web binds a bracketed address with `tcp6`, IPv6-only | implementation grep | web registers V6ONLY |
+| assumption | A-3: no repository config lists `::` with an IPv4 address | `docs/guide/bmp.md` did | closure grep | example repaired |
+| approach | guide sections written without source anchors | every factual doc claim carries one | closure doc review | anchors added |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| refuse `::` beside IPv4 on a dual-stack service, naming both and the fix | Done | `listener.go` `conflicts`, `conflictError` | |
+| V6ONLY registered per service | Done | `listener.go` `RegisterListenerV6Only`; `l2tp/register.go`; `web/register_listener.go` | |
+| SSH binds all or none at start | Done | `ssh.go` `bindListeners`, `Server.Start` | |
+| SSH reload moves listeners, or refuses keeping the old set | Done | `ssh.go` `Server.Reconfigure`; `listener_migrate.go` `setSSH` | |
+| appliance kernel host name follows `system host` | Done, booted proof owed | `main_system_hostname.go` `reconcileKernelHostname` | Blocker |
+| distro leaves the host name alone | Done | `main_system_nonappliance.go` `kernelHostnameOwned` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `test/parse/listener-dual-wildcard-refused.ci`, `TestValidateListenerConflicts_DualStackWildcard` | |
+| AC-2 | Done | `TestIPsConflictDualStackWildcard` | |
+| AC-3 | Done | `TestStartServesDualStackWildcardOverBothFamilies` | |
+| AC-4 | Done | `TestStartBindsSpecificAddressesOfBothFamilies` | |
+| AC-5 | Done | `TestIPsConflictV6OnlyService`, `TestUDPListenerV6OnlyBesideIPv4Wildcard`, `listener-dual-wildcard-v6only-accepted.ci` | |
+| AC-6 | Done | `TestStartFailsWhenExtraListenerFails` | |
+| AC-11 | Done | `TestReconfigureAllOrNone`, `TestReloadSSHListenerBindFailureKeepsPrevious` | |
+| AC-12 | Done | `TestReloadSSHListenerMoves`, `test/reload/listener-migration-ssh.ci` | |
+| AC-7 | Partial | `TestHostnameApplierOnlyWhenChanged`; booted run owed | Blocker |
+| AC-8 | Partial | `TestHostnameApplierOnlyWhenChanged`; booted run owed | Blocker |
+| AC-9 | Done | `TestHostnameValidation`, `TestHostnameValidationExpandsEnv` | |
+| AC-10 | Done | `TestHostnameApplierNonApplianceNeverSets` | |
+| AC-13 | Done | `TestHostnameApplierSetFailureKeepsNameAndWarns`, `TestDoctorReportsHostnameMismatch` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| listener, ssh, l2tp and system units | Done | `listener_test.go`, `ssh/listener_set_test.go`, `l2tp/listener_test.go`, `system/hostname_test.go` | green 2026-11-09 |
+| hub units under both tags | Done | `listener_migrate_ssh_test.go`, `main_system_appliance_test.go`, `main_system_nonappliance_test.go` | green 2026-11-09 |
+| `appliance-hostname` | Partial | `internal/le/test/qemu/hostname.go` | Blocker |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| every file in Files to Modify and Files to Create | Done | 7ff7614e5f, c65d67f899; the host name file split is in Deviations |
+
+### Audit Summary
+- **Total items:** 13 ACs
+- **Done:** 11
+- **Partial:** 2 (AC-7, AC-8: the booted run is owed by the main thread; no scope is cut)
+- **Skipped:** 0
+- **Changed:** 2 (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| validation refuses a dual-stack `::` beside IPv4, naming the fix | functional | `test/parse/listener-dual-wildcard-refused.ci` asserts the error text; under its break (`dualStackPair` disabled in `conflicts`) it went red: "expected exit code 1, got 0" |
+| V6ONLY services keep both families | functional | `listener-dual-wildcard-v6only-accepted.ci` PASS (2026-11-08 13:09, `scratch/c7ro.log`) |
+| SSH binds all or none, and a reload moves it or refuses | unit and functional | `TestStartFailsWhenExtraListenerFails`, `TestReconfigureAllOrNone`, `TestReloadSSHListenerBindFailureKeepsPrevious`; `test/reload/listener-migration-ssh.ci` through the real daemon |
+| the appliance kernel host name follows `system host` | QEMU boot | owed: `./le test qemu appliance-hostname`, clean and broken (Blocker) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| booted `appliance-hostname` clean and broken runs | a QEMU guest run belongs to the main thread | `plan/release/fixes/spec-home-cpe-7-system-small-defects.md` (this spec, held blocked) |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | recorded by `./le spec review record` over the reviewed files |
+| `./le spec review check` | clean |
+| Rounds | 2 |
+| Reviewer lenses used | logic and wiring (listener rule, SSH bind and reconfigure, migrator), security (host name input before `sethostname`, fail-open, exposure), docs and anchors, style (every `panic` is an init-time registration, none reachable by a peer) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | the BMP guide example lists `0.0.0.0` and `::` on 11019, refused by the new rule and never bindable | `docs/guide/bmp.md` | specific addresses and the dual-stack note |
+| 2 | ISSUE | the new guide sections carried no source anchors | `docs/guide/configuration.md`, `docs/guide/appliance.md` | anchors to the producing symbols |
+
+### Run 1
+- 0 BLOCKER, 2 ISSUE (above). Pre-checks: `./le repo check` rc 0; `./le test weakened check` clean.
+
+### Run 2
+- 0 BLOCKER, 0 ISSUE. NOTE: when `bindListeners` fails, `Server.Start` drops the unstarted `wish` server object without closing it; it holds no socket, so nothing leaks.
+
+### Security
+- Input validation: `ValidateHostName` runs at commit (`validateSystemHostTree`) and again in `reconcileKernelHostname` before `sethostname`, so an unset `$ENV_VAR` literal never reaches the kernel.
+- Fail-open: `bindListeners` closes every bound listener on the first failure; `Reconfigure` binds every addition before it closes a removal.
+- Exposure: SSH authenticates every session (the password and public-key handlers in `Server.Start`), so `setSSH` adds no `checkReloadExposure` record.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/parse/listener-dual-wildcard-refused.ci`, `test/parse/listener-dual-wildcard-v6only-accepted.ci`, `test/reload/listener-migration-ssh.ci`, `features/appliance-hostname.md` | yes | `ls` 2026-11-09 |
+| every planned test function | yes | grep for each `func Test...` 2026-11-09: none missing |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-6, AC-9, AC-11 | units green | `./le job run label c7-units`: ok config, config/system, ssh, l2tp (`tmp/session/2026-11-07-104251/scratch/job-c7-units-61e522ae.log`) |
+| AC-10 to AC-13 | hub units green under both tags | `c7-hub` ok `cmd/ze/hub` (`job-c7-hub-683cb718.log`); `c7-hub-appl` with `-tags ze_appliance` ok |
+| AC-7, AC-8 | booted | owed (Blocker) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze config validate` with both wildcards | `test/parse/listener-dual-wildcard-refused.ci` | PASS in the parse run (`scratch/qemu-parse.log`), red under its break |
+| appliance boot | `./le test qemu appliance-hostname` | owed |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken (web) | Assumptions table |
+| A-2 | confirmed | the 11:23 boot console line from `reconcileKernelHostname` |
+| A-3 | broken | `docs/guide/bmp.md`, repaired |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| configuration.md dual-stack, SSH and System Host Name sections | `conflictError` text matches the quoted error; `reconcileKernelHostname`; `kernelHostnameOwned` | yes |
+| appliance.md host name | `gokrazy/ze/config.json` `"Hostname": "ze"` | yes |
+| source anchors | `./le doc check all`: "all references valid" | yes |

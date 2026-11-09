@@ -484,6 +484,8 @@ config, which Ze applies at start and on every reload. `identity.hostname` in
 `appliance.json` names the image's CA certificate and listings, and the image
 boots as `ze` until Ze applies `system host`; with `system host` unset it stays
 `ze` (see `docs/guide/configuration.md`, "System Host Name").
+<!-- source: cmd/ze/hub/main_system_hostname.go -- applyKernelHostname, applyKernelHostnameFromMap -->
+<!-- source: gokrazy/ze/config.json -- Hostname -->
 
 Write an appliance config file (arch, kernel profile, credentials, networking):
 

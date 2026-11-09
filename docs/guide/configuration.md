@@ -4020,6 +4020,7 @@ List `::` alone to serve both families, or list specific addresses of each
 family (`192.0.2.1` and `2001:db8::1` on one port both bind). L2TP and the web
 server bind IPv6 sockets IPv6-only, so for them `0.0.0.0` and `::` on one port
 are accepted and both bind.
+<!-- source: internal/component/config/listener.go -- dualStackPair, isDualStackWildcard, conflictError, RegisterListenerV6Only -->
 
 #### SSH listeners: all or none, and on reload
 
@@ -4036,6 +4037,8 @@ previous addresses, and any other listener the same reload already moved goes
 back. Moving one port between families (`127.0.0.1:22` to `0.0.0.0:22`) cannot
 bind while the old listener holds the port, so make that change in two commits:
 add the new address on another port first, or remove the old one first.
+<!-- source: internal/component/ssh/ssh.go -- bindListeners, Server.Reconfigure -->
+<!-- source: cmd/ze/hub/listener_migrate.go -- listenerMigrator.setSSH, attachSSH -->
 
 ### System Host Name
 
@@ -4054,6 +4057,7 @@ or ending with a hyphen, at most 63 bytes per label and 64 in all (the kernel's
 limit). `ze config validate` and a commit refuse anything else, naming the value
 and the rule. A `$ENV_VAR` that is not set when the config is validated is left
 for the daemon, which keeps the literal value as Ze's identity.
+<!-- source: internal/component/config/system/hostname.go -- ValidateHostName, validateSystemHostTree -->
 
 On the appliance build, Ze also sets the kernel host name (what `uname -n`,
 syslog and the shell prompt show) from `system host` at start and on every
@@ -4061,10 +4065,13 @@ reload that changes it. With `system host` unset, the kernel keeps the image's
 name. If setting it fails (ze lacks `CAP_SYS_ADMIN`), the kernel keeps its name,
 one warn line names the value, the error and the fix, and `ze doctor` reports
 `doctor-system-host-not-applied`; the commit is not refused.
+<!-- source: cmd/ze/hub/main_system_hostname.go -- reconcileKernelHostname -->
+<!-- source: internal/component/config/system/doctor_hostname.go -- checkKernelHostname -->
 
 On a distro install (any build without the appliance tag), the operating system
 owns the host name: Ze never calls `sethostname`, and `system host` changes
 only Ze's own identity.
+<!-- source: cmd/ze/hub/main_system_nonappliance.go -- kernelHostnameOwned -->
 
 ### DNS Name Servers
 

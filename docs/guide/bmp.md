@@ -60,11 +60,11 @@ environment {
     bmp {
         enabled true;
         server ipv4 {
-            ip 0.0.0.0;
+            ip 192.0.2.1;
             port 11019;
         }
         server ipv6 {
-            ip "::";
+            ip "2001:db8::1";
             port 11019;
         }
     }
@@ -72,7 +72,12 @@ environment {
 ```
 
 Port conflicts with other ze listeners are detected at config commit time
-via the YANG `ze:listener` extension.
+via the YANG `ze:listener` extension. The BMP receiver binds `::` dual-stack,
+so `::` alone already accepts IPv4 collectors on its port; `::` beside
+`0.0.0.0` (or any IPv4 address) on one port is refused, because the IPv4
+bind could never succeed (see `docs/guide/configuration.md`, "Named Listeners").
+<!-- source: internal/component/bgp/plugins/bmp/receiver.go -- startListenerLocked -->
+<!-- source: internal/component/config/listener.go -- dualStackPair -->
 
 BMP uses unauthenticated, unencrypted TCP. Listener addresses and firewall rules
 should restrict access to the monitoring network. RFC 7854 Section 11 recommends
