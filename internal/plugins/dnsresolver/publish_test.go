@@ -149,7 +149,7 @@ func TestDisabledResolverPublishesNoSelection(t *testing.T) {
 // listener edge and apply again, and decode the bodies sent. It does not
 // drive the registered OnBye handler; the daemon-level proof that a removed
 // resolver leaves show system dns is
-// test/draft/plugin/show-system-dns-withdraw-on-removal.ci.
+// test/plugin/show-system-dns-withdraw-on-removal.ci.
 //
 // VALIDATES: spec-home-cpe-23b, the withdrawal body and the silence after it.
 // PREVENTS: a withdrawn resolver publishing its selection again.

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Scope | config |
 | Priority | P3 |
 | Release reason | Feature half of child 23, split out by owner decision D-10 (`spec-home-cpe-23-dns-source-fall-through`, "Split"): the per-consumer source lists of the LAN resolver, DHCPv4 option 6, RA RDNSS and the subscriber pool, the RADIUS-supplied subscriber DNS, the pass-through defaults, `show system dns`, doctor and metrics. Thomas placed it in `release/fixes` after 23a (D-10), beside the other home-CPE children |
@@ -375,7 +375,8 @@ MS-Primary and MS-Secondary in `AuthMetadata` for the pool's `radius` class.
 | `dhcp-server-dns-source-self` | `test/dhcp/dhcp-server-dns-source-self.ci` | AC-7 | promoted; PASS in `out-gb13/g13-clean.log`, RED under break in `out-gb13/c23b-dhcp-self.log` (option 6 absent) |
 | `dns-source-class-refused` | `test/parse/dns-source-class-refused.ci` | AC-11, the consumer half: `self` and `radius` under the resolver's forward list, `radius` under a subnet | promoted; PASS in `out-gb14/p14-dns-source-class-refused-clean.log`, RED under break in `out-gb14/p14-dns-source-class-refused-broken.log` (seq 1 validates, want exit 1) |
 | `dns-source-mode-required-consumers` | `test/parse/dns-source-mode-required-consumers.ci` | AC-16b, the resolver, DHCP subnet and pool halves | promoted; PASS in `out-gb14/p14-dns-source-mode-required-consumers-clean.log`, RED under break in `out-gb14/p14-dns-source-mode-required-consumers-broken.log` (seq 1 validates, want exit 1) |
-| `dns-source-ra-rdnss-consumer` | `test/parse/dns-source-ra-rdnss-consumer.ci` | AC-11 and AC-16b, the RA `rdnss dns-source` half; `option=skip-os:value=darwin`, because RA is Linux-only | draft, proven: PASS in `out-gb15/p-ra-clean.log`, RED under the class break in `out-gb15/p-ra-class.log` (seq 1 validates, want exit 1) and the mode break in `out-gb15/p-ra-mode.log` (seq 2); the batch 14 RA breaks stayed green because their overlays missed the guest path (`out-gb14/parse-ra-run.log`). Still in `test/draft/parse/`: promote in commit A |
+| `dns-source-ra-rdnss-consumer` | `test/parse/dns-source-ra-rdnss-consumer.ci` | AC-11 and AC-16b, the RA `rdnss dns-source` half; `option=skip-os:value=darwin`, because RA is Linux-only | promoted in commit A; on Ze's guest PASS in `out-gb17/b17-ra-clean.log`, RED under the class break in `out-gb17/b17-ra-class.log` ("seq 1: expected exit code 1, got 0") and the mode break in `out-gb17/b17-ra-mode.log` ("seq 2: expected exit code 1, got 0"); the batch 14 RA breaks stayed green because their overlays missed the guest path (`out-gb14/parse-ra-run.log`) |
+| `dhcp-server-dns-replay-hold` | `test/pppoe/dhcp-server-dns-replay-hold.ci` | AC-13 and D-21, the DHCP server's own hold: a server started after the PPPoE lease answers its first offer from the replay | promoted in commit A; PASS in `out-gb17/b17-hold-clean.log`, RED under `rwinv/c23b-dhcp-replay-hold/` (offerDNS without `AwaitReplay`) in `out-gb17/b17-hold-broken.log` ("its first offer: ... dns (option 6) absent, want 192.0.2.53", lease 60) |
 | `show-system-dns-withdraw-on-removal` | `test/plugin/show-system-dns-withdraw-on-removal.ci` | AC-12 and review round 1 item 10 (R2-2): a dns-resolver the reload removes leaves `show system dns` through its `OnBye` withdrawal | promoted; PASS in `out-gb14/g14-withdraw-clean.log`, RED under break in `out-gb14/c23b-withdraw-on-bye.log` (removed dns-resolver still listed with 0 selections) |
 | `show-system-dns-withdraw-dhcp-server` | `test/plugin/show-system-dns-withdraw-dhcp-server.ci` | AC-12 and review round 3 ISSUE 3: a DHCP server the reload removes leaves `show system dns` through its `OnBye` withdrawal | promoted; PASS in `out-gb15/b15-withdraw-clean.log`, RED under break in `out-gb15/b15-withdraw-dhcp.log` (removed dhcpserver still listed with 0 selections) |
 | `show-system-dns-withdraw-l2tp-pool` | `test/plugin/show-system-dns-withdraw-l2tp-pool.ci` | AC-12 and review round 3 ISSUE 3: an l2tp pool the reload removes leaves `show system dns` through its `OnBye` withdrawal | promoted; PASS in `out-gb15/b15-withdraw-clean.log`, RED under break in `out-gb15/b15-withdraw-pool.log` (removed l2tp-pool still listed with 1 selection) |
@@ -392,8 +393,8 @@ MS-Primary and MS-Secondary in `AuthMetadata` for the pool's `radius` class.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `radius-subscriber-dns` | `test/interop-radius-subscriber/` | FreeRADIUS replying MS-Primary-DNS-Server; read its `dictionary.microsoft` first | AC-9 on the wire | PASS clean in `out-gb13/interop-dns-clean.log`; the break run `out-gb13/interop-dns-broken.log` failed on `ip: executable file not found` in the FreeRADIUS container, before any DNS assertion, so its discrimination is not yet shown |
-| `access-up` DNS clause | child 19 | Ze CPE, Ze LNS | story 1b | |
+| `radius-subscriber-dns` | `test/interop-radius-subscriber/` | FreeRADIUS replying MS-Primary-DNS-Server; read its `dictionary.microsoft` first | AC-9 on the wire | PASS clean in `out-gb17/interop-clean.log` ("1 passed"); RED under `rwinv/c23b-pool-radius-ignored/` in `out-gb17/interop-broken.log` at "wait for pppd's resolv.conf naming the RADIUS resolvers", pppd keeping the pool's 203.0.113.53 while FreeRADIUS sent MS-Primary-DNS-Server 198.51.100.53 (the earlier `out-gb13/interop-dns-broken.log` failed in the harness, fixed by b35ac78af1) |
+| `access-up` DNS clause | child 19 | Ze CPE, Ze LNS | story 1b | check written (67c123bf95, its `rebindLease` fixed by 74a20ff92c, topology unit ok `topo-unit.log`); its lab run comes with the umbrella's whole-CPE rerun (Work Not Done) |
 
 ## Files to Modify
 - `internal/plugins/dnsresolver/yang/ze-dns-resolver-conf.yang`, and dnsresolver `config.go`, `config_tx.go`, `state.go` - `forward dns-source`
@@ -470,9 +471,9 @@ Landed, by phase (each commit's body holds its evidence and the reds it names):
 | Shared rule (D-16) | fb83d97fbb (a list states its audience; a handed-on list drops host-only addresses) | landed |
 | 4 LAN resolver | d66f28fe7c, 23fc8313b6, 292ffc64cb (queries held until the learned replay); fixtures 9836156bf9, be17cde719, 04d21c6207, 5c6105dc87 | landed; D-17 recorded (caches kept on upstream change) |
 | 5 DHCPv4 option 6 and RA RDNSS | ae8ad2d589, 83f0f6c683, 130c9ffb9b (RFC 7084 L-11 RDNSS half), 728c515223 | landed |
-| 6 Subscriber | 1d36bd5ec6, 1f69bc459c (R-6 log) | code landed; `rfc/short/rfc2548.md` written; its extraction walk, the two tags and their discrimination records owed; the AC-9/AC-10 `.ci` and the interop scenario owed |
+| 6 Subscriber | 1d36bd5ec6, 1f69bc459c (R-6 log) | landed; `rfc/short/rfc2548.md` walked (59367ae574), tagged (36f54771b5) and recorded (8d83d8bde0, 83f4316387); the AC-9/AC-10 `.ci` (612b02ace5) and `radius-subscriber-dns` (c85d2718f2, `out-gb17/`) |
 | 7 Conversion | inside each phase's commits | re-checked at closure |
-| 8 Show, doctor, metrics | fefd30ab74, a3cfaa083f, e31b2ae512 (`show system dns`, every consumer publishes its selection), 311177442c (`show doctor` checks), de1ad423ab (one reader refuses a malformed `dns-source`), 02f90959a4 (metrics) | code landed; the AC-11 consumer `.ci`, AC-12 `test/plugin/show-system-dns.ci`, the AC-16b `.ci` and a doctor `.ci` owed |
+| 8 Show, doctor, metrics | fefd30ab74, a3cfaa083f, e31b2ae512 (`show system dns`, every consumer publishes its selection), 311177442c (`show doctor` checks), de1ad423ab (one reader refuses a malformed `dns-source`), 02f90959a4 (metrics) | landed; the AC-11 and AC-16b `.ci` (e02baa76ea, commit A), `test/plugin/show-system-dns.ci` and `test/plugin/doctor-dns-source.ci` (612b02ace5) |
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -594,9 +595,13 @@ altogether.") above the pass-through defaults of the DHCPv4 and RA consumers.
 
 ## Implementation Summary
 
-Closure prepared 2026-11-09 while four agents still fix the items marked
-**pending** below. Evidence logs are under
-`tmp/session/2026-11-07-104251/scratch/rwinv/` (`out-gb11/`, `out-gb12/`).
+Closed 2026-11-09. Evidence logs are under
+`tmp/session/2026-11-07-104251/scratch/rwinv/` (`out-gb11/` to `out-gb17/`);
+each promoted `.ci` names its own logs in its DISCRIMINATION comment. Later
+commits beside the phase commits: 029d1fe65b, 404bcd9c9a, 73b3bd08fd,
+ab53377411, 5a55f60378, a9b6ff2f64 (replay-hold gate), f77b4d47fb,
+36510cc793, e02baa76ea (eight drafts promoted), 0679c0cba5, b35ac78af1,
+67c123bf95 and 74a20ff92c (access-up option 6 check and its fix).
 
 ### What Was Implemented
 - Shared rule: a list states its audience, and a handed-on list drops loopback and zone-less IPv6 link-local (D-16, fb83d97fbb), and a link-local of another link (D-19, fffefb45f9).
@@ -622,7 +627,7 @@ Review round 1 (`tmp/session/2026-11-07-104251/scratch/c23b-review-r1.md`) and r
 - A-5 broke: no owner existed for `show system dns`, so the new plugin `internal/plugins/system-dns-cmd` owns it.
 - D-19 added after review: a foreign-zone link-local is dropped on handed-on lists, beyond D-16's zone-less case.
 - The dhcpserver `self` case lives in `TestOption6FromDNSSource`, not a separate `TestSelfIsAddressOnClientInterface` (769ec28eca corrected the TDD table).
-- `TestDNSSourceClassRefused` exists only in dnsresolver, and `TestModeRequiredEachConsumer` only in config/system, dnsresolver and pool; the DHCP and RA halves of AC-11 and AC-16b rest on the pending parse drafts.
+- `TestDNSSourceClassRefused` exists only in dnsresolver, and `TestModeRequiredEachConsumer` only in config/system, dnsresolver and pool; the DHCP and RA halves of AC-11 and AC-16b rest on `test/parse/dns-source-class-refused.ci`, `dns-source-mode-required-consumers.ci` and `dns-source-ra-rdnss-consumer.ci`.
 - The parse drafts are split by platform: the router-advertisement cases moved out of `dns-source-class-refused.ci` and `dns-source-mode-required-consumers.ci` into `test/draft/parse/dns-source-ra-rdnss-consumer.ci`, which carries `option=skip-os:value=darwin` because RA is Linux-only, so the other two still run on the owner's Mac.
 - AC-25's functional test narrows the received class to the WAN veth. `test/draft/dhcp/dhcp-server-short-lease-wan-down.ci` writes the subnet's list as `source [ configured received ]`, `mode first-usable`, with `received-interface [ zedhslw0 ]`, instead of leaving the built-in default. In the test guest `/etc/resolv.conf` names slirp's 10.0.2.3, and the D-13 host fallback record (`processResolvers.hostPath`, `internal/component/config/system/resolv.go`; `liveAddresses`, `internal/core/dnssource/record.go`) makes that a usable `received` entry whenever no lease is held, so under the bare default AC-25's "no usable `received` entry" precondition cannot be met in that environment. The bare default is proven by `TestLeaseShortWhileReceivedUnusable` (`internal/plugins/dhcpserver/handler_dns_source_test.go`, on `subnetDNSDefault`: lease 60 and no option 6 with nothing learned, in the OFFER and the ACK; 3600 and option 6 after the WAN lease; 3600 throughout with `dns-server`; a configured 45 kept), which reaches `awaitsReceived` (`handler.go`) through the reply builder. The same narrowing is in config3 of `test/draft/dhcp/dhcp-server-dns-pass-through.ci` (AC-14's withdrawal step, `received-interface [ zedhptw0 ]`), so the host record does not stand in for the withdrawn lease; the bare default's withdrawal is proven by `TestOption6PassThroughDefault` in the same unit file.
 
@@ -639,26 +644,26 @@ Review round 1 (`tmp/session/2026-11-07-104251/scratch/c23b-review-r1.md`) and r
 |-------------|--------|----------|-------|
 | Point 2: every consumer has the full choice of sources | Done | resolver `parseForwardSources` (`internal/plugins/dnsresolver/config.go`), dhcpserver and iface RA `dns-source`, pool `parsePoolSources` | the router is 23a's |
 | Point 3: ordered list with fall-through | Done | `dnssource.Select` (`internal/core/dnssource/select.go`) | one shared rule |
-| Point 4: RADIUS DNS passes through | Partial | `extractAuthMetadata` (`authradius/extract.go`), `selectSubscriberDNS` (`pool/dns_source.go`); `l2tp-pool-dns-source-radius` promoted (612b02ace5); `radius-subscriber-dns` PASS clean (`out-gb13/interop-dns-clean.log`) | the interop break run failed in its harness (`interop-dns-broken.log`, `ip` missing in the container), not at the DNS assertion: an extract-break run red at the IPCP DNS check is owed |
-| Operator surfaces | Partial | `registerShowSystemDNS`, doctor `dnsSourceFindings`, metrics; `show-system-dns`, `doctor-dns-source` promoted (612b02ace5), the three `show-system-dns-withdraw-*` promoted (e02baa76ea) | the doc gate is red on `show system dns`: no command-reference rows in the CLI HTML, Markdown, llms.txt and command-equivalent indexes (`out-gb14/doc.log`) |
+| Point 4: RADIUS DNS passes through | Done | `extractAuthMetadata` (`authradius/extract.go`), `selectSubscriberDNS` (`pool/dns_source.go`); `l2tp-pool-dns-source-radius` promoted (612b02ace5); `radius-subscriber-dns` PASS clean (`out-gb17/interop-clean.log`), RED under the pool break at the pppd resolv.conf check (`out-gb17/interop-broken.log`) | |
+| Operator surfaces | Done | `registerShowSystemDNS`, doctor `dnsSourceFindings`, metrics; `show-system-dns`, `doctor-dns-source` promoted (612b02ace5), the three `show-system-dns-withdraw-*` promoted (e02baa76ea), `show-system-dns-withdraw-on-removal` rerun as edited PASS (`out-gb17/b17-reruns.log`) | known red, not 23b's code: the doc gate reports no generated site index rows for `show system dns` (CLI HTML, Markdown, llms.txt, command-equivalent indexes, `out-gb14/doc.log`); `docs/guide/command-reference.md` lines 547 and 557 carry the command, and the indexes are regenerated by the site build |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
 | AC-6 | Done | `TestForwardListFromSelectionNoRebind`; `dns-resolver-forward-received`, `dns-resolver-forward-ppp-lease` pass clean and red under break (`out-gb12/g12-clean.log`, `c23b-fwd-received.log`, `c23b-ppp-lease.log`) | |
-| AC-7 | Partial | `TestOption6FromDNSSource` (self case), `TestSelfIsAddressOnClientInterface` (iface, pool) | `test/dhcp/dhcp-server-dns-source-self.ci` not written; owed |
+| AC-7 | Done | `TestOption6FromDNSSource` (self case), `TestSelfIsAddressOnClientInterface` (iface, pool); `test/dhcp/dhcp-server-dns-source-self.ci` PASS `out-gb13/g13-clean.log`, RED `out-gb13/c23b-dhcp-self.log` (option 6 absent) | the RA half is unit-proven (no RA `.ci` in the plan) |
 | AC-8 | Done (unit) | `TestRDNSSWithdrawnAdvertisedLifetimeZero`, RFC8106-5.1-1 record (83f4316387, `rec-RFC8106-5.1-1-pos.log`) | no RA `.ci` in the plan |
-| AC-9 | Partial | `TestPoolIPCPDNSFromRadius`; `test/l2tp/l2tp-pool-dns-source-radius.ci` promoted (612b02ace5): PASS `out-gb13/g13-clean.log`, RED under break (`c23b-pool-radius.log`, `c23b-extract-ms-dns.log`); `radius-subscriber-dns` PASS clean (`out-gb13/interop-dns-clean.log`) | the interop break run failed in its harness, not at the DNS check (`out-gb13/interop-dns-broken.log`): owed |
+| AC-9 | Done | `TestPoolIPCPDNSFromRadius`; `test/l2tp/l2tp-pool-dns-source-radius.ci` promoted (612b02ace5): PASS `out-gb13/g13-clean.log`, RED under break (`c23b-pool-radius.log`, `c23b-extract-ms-dns.log`); `radius-subscriber-dns` PASS `out-gb17/interop-clean.log`, RED at the pppd resolv.conf check `out-gb17/interop-broken.log` | |
 | AC-10 | Done | `TestPoolIPCPDNSRadiusAbsent`; `test/l2tp/l2tp-pool-dns-source-configured.ci` and `test/pppoe/l2tp-pool-dns-source-received.ci` promoted (612b02ace5): PASS `out-gb13/g13-clean.log`, RED under their breaks (`out-gb13/c23b-pool-configured.log` and the received break log its Functional Tests row names) | |
-| AC-11 | Partial | `TestSelfRefusedOnSystemAndForward` (0b21d66b9f), `TestDNSSourceClassRefused`; `test/parse/dns-source-class-refused.ci` promoted (e02baa76ea): PASS `out-gb14/p14-dns-source-class-refused-clean.log`, RED `p14-dns-source-class-refused-broken.log`; RA draft PASS `out-gb15/p-ra-clean.log`, RED `out-gb15/p-ra-class.log` | the RA draft `dns-source-ra-rdnss-consumer` is proven but still in `test/draft/parse/`: promote in commit A |
-| AC-12 | Partial | `internal/plugins/system-dns-cmd/cmd` unit pass (`u-resolver.log`); `show-system-dns` promoted (612b02ace5); the three `show-system-dns-withdraw-*` promoted (e02baa76ea): PASS `out-gb14/g14-withdraw-clean.log`, `out-gb15/b15-withdraw-clean.log`, RED `out-gb14/c23b-withdraw-on-bye.log`, `out-gb15/b15-withdraw-dhcp.log`, `out-gb15/b15-withdraw-pool.log` | doc gate red on the `show system dns` command-reference rows (`out-gb14/doc.log`); `TestRegisteredWireMethods` not run in batches 14 or 15; `show-system-dns-withdraw-on-removal` was edited (15:27) after its runs (14:31), so its next run re-proves it |
-| AC-13 | Partial | resolver's own startup snapshot request: `start_requests_snapshot_test.go` (029d1fe65b), pass `out-gb15/start-clean.log`, RED `out-gb15/start-broken.log` (no snapshot-request at start). Reload-start replay: `test/pppoe/dns-resolver-forward-ppp-replay.ci` promoted (e02baa76ea), RED under `rwinv/c23b-replay-both/` in `out-gb14/b14-replay-both.log` (SERVFAIL before the replay applied), PASS with only the resolver's request removed (`out-gb14/b14-replay-own.log`, `c23b-replay.log`): the DHCP server's `OnStarted` request is the second delivery path. The DHCP side's hold is 0b7c9ea0a7 (D-21) | no unbroken run of the `.ci` as edited at 14:39: its clean PASS is `out-gb13/g13-clean.log`, before that edit; `test/draft/pppoe/dhcp-server-dns-replay-hold.ci` (fixture 5a55f60378) and `test/draft/plugin/dns-resolver-forward-dhcpv4-replay.ci` have no run yet |
+| AC-11 | Done | `TestSelfRefusedOnSystemAndForward` (0b21d66b9f), `TestDNSSourceClassRefused`; `test/parse/dns-source-class-refused.ci` promoted (e02baa76ea): PASS `out-gb14/p14-dns-source-class-refused-clean.log`, RED `p14-dns-source-class-refused-broken.log`; `test/parse/dns-source-ra-rdnss-consumer.ci` promoted in commit A: PASS `out-gb17/b17-ra-clean.log`, RED seq 1 `out-gb17/b17-ra-class.log` | |
+| AC-12 | Done | `internal/plugins/system-dns-cmd/cmd` unit pass (`u-resolver.log`); wire methods ok (`out-gb13/u-wire.log`); `show-system-dns` promoted (612b02ace5); the three `show-system-dns-withdraw-*` promoted (e02baa76ea): PASS `out-gb14/g14-withdraw-clean.log`, `out-gb15/b15-withdraw-clean.log`, RED `out-gb14/c23b-withdraw-on-bye.log`, `out-gb15/b15-withdraw-dhcp.log`, `out-gb15/b15-withdraw-pool.log`; `-withdraw-on-removal` as edited PASS `out-gb17/b17-reruns.log` | the generated site indexes lack the command (Operator surfaces row, known red) |
+| AC-13 | Done | DHCP server's own hold (D-21): `test/pppoe/dhcp-server-dns-replay-hold.ci` promoted in commit A, PASS `out-gb17/b17-hold-clean.log`, RED without `AwaitReplay` `out-gb17/b17-hold-broken.log`; refused request releases the hold: `TestStartRequestRefusedReleasesHold` ok `out-gb16/refused-clean.log`, RED without `res.learned.Replayed()` `out-gb16/refused-broken.log` (round 4 ISSUE 2); `dns-resolver-forward-ppp-replay.ci` as edited PASS `out-gb17/b17-reruns.log`. Earlier evidence: resolver's own startup snapshot request: `start_requests_snapshot_test.go` (029d1fe65b), pass `out-gb15/start-clean.log`, RED `out-gb15/start-broken.log` (no snapshot-request at start). Reload-start replay: `test/pppoe/dns-resolver-forward-ppp-replay.ci` promoted (e02baa76ea), RED under `rwinv/c23b-replay-both/` in `out-gb14/b14-replay-both.log` (SERVFAIL before the replay applied), PASS with only the resolver's request removed (`out-gb14/b14-replay-own.log`, `c23b-replay.log`): the DHCP server's `OnStarted` request is the second delivery path. The DHCP side's hold is 0b7c9ea0a7 (D-21) | the draft `dns-resolver-forward-dhcpv4-replay` was never proven red under `c23b-replay-both/` and is no longer in the tree; the DHCPv4 replay path is covered by the hold test above |
 | AC-14 | Done | `TestOption6PassThroughDefault`; `test/dhcp/dhcp-server-dns-pass-through.ci` promoted (e02baa76ea): PASS `out-gb14/g13-clean.log`, RED `out-gb14/b14-dhcp-pass-through.log` (option 6 absent, want 198.18.21.53) | |
 | AC-15 | Done (unit) | `TestRDNSSPassThroughDefault` (`internal/component/iface/rfc8106_ra_dns_source_test.go`) | |
-| AC-16b | Partial | `TestModeRequiredEachConsumer` (system, dnsresolver, pool); `test/parse/dns-source-mode-required-consumers.ci` promoted (e02baa76ea): PASS `out-gb14/p14-dns-source-mode-required-consumers-clean.log`, RED `p14-dns-source-mode-required-consumers-broken.log`; RA draft RED under the mode break `out-gb15/p-ra-mode.log` | RA draft promotion owed (commit A) |
+| AC-16b | Done | `TestModeRequiredEachConsumer` (system, dnsresolver, pool); `test/parse/dns-source-mode-required-consumers.ci` promoted (e02baa76ea): PASS `out-gb14/p14-dns-source-mode-required-consumers-clean.log`, RED `p14-dns-source-mode-required-consumers-broken.log`; RA half `test/parse/dns-source-ra-rdnss-consumer.ci` RED seq 2 under the mode break `out-gb17/b17-ra-mode.log` | |
 | AC-20 | Done | `TestForwardPassThroughDefault`; `dns-resolver-forward-default`, `dns-resolver-forward-dhcpv4-default` PASS `out-gb13/g13-clean.log`, RED under `rwinv/c23b-forward-default-select/` (`state.go` `forwardUpstreams` with `dnssource.ClassReceived: nil`, config still accepted) at the "never forwarded" assertion: `out-gb14/b14-fwd-default-select.log`, `out-gb14/b14-dhcpv4-default-select.log`; both `.ci` DISCRIMINATION comments cite them | the earlier config-time break `rwinv/c23b-forward-default/` was vacuous (round 3 ISSUE 2) |
 | AC-25 | Done | `TestLeaseShortWhileReceivedUnusable` (the bare default); `test/dhcp/dhcp-server-short-lease-wan-down.ci` promoted (e02baa76ea), received class narrowed to the WAN veth (Deviations): PASS `out-gb14/g13-clean.log`, RED `out-gb14/b14-dhcp-short-lease.log` (option 51 3600, want 60) | |
-| AC-26 | Done | `rfc/short/rfc2548.md` line 22 `Optional use cases | lns`; tags 36f54771b5; records `rfc/discrimination/rfc2548/RFC2548-2.7.6-1.json`, `RFC2548-2.7.7-1.json` (83f4316387, `rec-RFC2548-*.log`) | `./le rfc check` re-run pending (below) |
+| AC-26 | Done | `rfc/short/rfc2548.md` line 22 `Optional use cases | lns`; tags 36f54771b5; records `rfc/discrimination/rfc2548/RFC2548-2.7.6-1.json`, `RFC2548-2.7.7-1.json` (83f4316387, `rec-RFC2548-*.log`) | `./le rfc check` at closure (`scratch/c23b-close-rfc-check.log`): 23 violations, none on rfc2548, rfc8106, rfc7084, rfc5625, rfc1332, rfc5072 or rfc2181 |
 | AC-27 | Done (unit) | `TestSelectDropsHostOnlyAddressesForHandedOutLists`, the consumer pass-through cases, RFC8106-5.1-2 record | |
 
 ### Tests from TDD Plan
@@ -666,8 +671,8 @@ Review round 1 (`tmp/session/2026-11-07-104251/scratch/c23b-review-r1.md`) and r
 |------|--------|----------|-------|
 | unit tests of the TDD table | Done | located by `func` grep: dhcpserver `handler_dns_source_test.go`, iface `rfc8106_ra_dns_source_test.go`, ra `rfc8106_advertiser_rdnss_test.go`, dnsresolver `config_tx_test.go`, dnssource `self_refused_test.go`, `select_test.go`, authradius `rfc2548_extract_dns_test.go`, pool `rfc2548_dns_source_test.go` | all packages pass (`out-gb12/u-*.log`) except the three pending reds below |
 | `.ci` promoted | Done | `test/plugin/dns-resolver-forward-received.ci`, `dns-resolver-forward-default.ci`, `dns-resolver-forward-dhcpv4-default.ci`, `test/pppoe/dns-resolver-forward-ppp-lease.ci` | |
-| `.ci` drafts | pending | `test/draft/{parse,plugin,l2tp,pppoe}/` | listed under Pre-Commit "Files Exist" |
-| `.ci` not written | owed | the three `test/dhcp/` files | |
+| `.ci` promoted later | Done | 612b02ace5 (show, doctor, three l2tp pool), e02baa76ea (two parse, two dhcp, three withdraw, ppp-replay), commit A (`test/parse/dns-source-ra-rdnss-consumer.ci`, `test/pppoe/dhcp-server-dns-replay-hold.ci`) | each with its PASS and RED logs in the Functional Tests table |
+| `test/dhcp/` files | Done | `dhcp-server-dns-source-self.ci`, `dhcp-server-dns-pass-through.ci`, `dhcp-server-short-lease-wan-down.ci` | |
 
 ### Files from Plan
 | File | Status | Notes |
@@ -678,8 +683,8 @@ Review round 1 (`tmp/session/2026-11-07-104251/scratch/c23b-review-r1.md`) and r
 
 ### Audit Summary
 - **Total items:** 16 ACs
-- **Done:** AC-6, AC-8, AC-15, AC-26, AC-27
-- **Partial:** AC-7, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14, AC-16b, AC-20, AC-25, each waiting on a pending fix or an owed `.ci`, none on a scope cut
+- **Done:** all 16 (AC-8, AC-15 and AC-27 by unit tests, the plan naming no `.ci` for them)
+- **Partial:** none
 - **Skipped:** none
 - **Changed:** A-5, D-19 (Deviations)
 
@@ -688,8 +693,8 @@ Review round 1 (`tmp/session/2026-11-07-104251/scratch/c23b-review-r1.md`) and r
 |------------------|---------------|-------------------|
 | Point 2 and 3, LAN resolver: falls through its own list, default pass-through | functional | `dns-resolver-forward-received`, `-default`, `-dhcpv4-default`, `-ppp-lease`: PASS in `out-gb12/g12-clean.log`; `-received` and `-ppp-lease` FAIL under their breaks (`c23b-fwd-received.log`, `c23b-ppp-lease.log`); `-default` and `-dhcpv4-default` FAIL at "never forwarded" under `rwinv/c23b-forward-default-select/` (`out-gb14/b14-fwd-default-select.log`, `out-gb14/b14-dhcpv4-default-select.log`; the older config-time reds were vacuous, round 3 ISSUE 2) |
 | Point 2 and 3, DHCPv4 option 6 and RA RDNSS | unit, functional | `TestOption6FromDNSSource`, `TestOption6PassThroughDefault`, `TestLeaseShortWhileReceivedUnusable`, `TestRDNSSPassThroughDefault`, `TestRDNSSWithdrawnAdvertisedLifetimeZero` pass (`u-dhcp.log`, `u-iface.log`, `u-ra.log`); `test/dhcp/dhcp-server-dns-source-self.ci`, `-dns-pass-through.ci`, `-short-lease-wan-down.ci` PASS clean and RED under their breaks (Functional Tests rows); RA RDNSS has no `.ci` (AC-8) |
-| Point 4, RADIUS DNS reaches the subscriber | functional, interop | `l2tp-pool-dns-source-radius` PASS clean, FAIL under the extract and pool breaks; `radius-subscriber-dns` PASS clean (`out-gb13/interop-dns-clean.log`); its break run failed in the harness (`interop-dns-broken.log`), so a break red at the DNS check is **owed** |
-| Operator sees every consumer's selection | functional | `show-system-dns`, `doctor-dns-source` and the three `show-system-dns-withdraw-*` PASS clean and RED under their breaks (Functional Tests rows); doc gate red on the `show system dns` reference rows (`out-gb14/doc.log`) |
+| Point 4, RADIUS DNS reaches the subscriber | functional, interop | `l2tp-pool-dns-source-radius` PASS clean, FAIL under the extract and pool breaks; `radius-subscriber-dns` against FreeRADIUS PASS clean (`out-gb17/interop-clean.log`) and RED under the pool break at the pppd resolv.conf check (`out-gb17/interop-broken.log`) |
+| Operator sees every consumer's selection | functional | `show-system-dns`, `doctor-dns-source` and the three `show-system-dns-withdraw-*` PASS clean and RED under their breaks (Functional Tests rows) |
 
 ## Work Not Done
 | What was not done | Why | The spec that now owns it |
@@ -697,26 +702,25 @@ Review round 1 (`tmp/session/2026-11-07-104251/scratch/c23b-review-r1.md`) and r
 | RFC 7084 L-11 DNSSL half | out of this spec's scope from the start | `plan/post-release/features/spec-router-advertisement-options-out-of-scope.md` |
 | IPv6 subscriber DNS (RFC 6911 attribute 169, PPP RA RDNSS, DHCPv6 option 23) | D-4 | `plan/post-release/features/spec-l2tp-ipv6-subscriber-dns.md` |
 | LAN DHCPv6 DNS_SERVERS consumer (RFC 7084 L-10) | needs a LAN DHCPv6 server | `plan/post-release/features/spec-dhcpv6-server.md` |
-
-Every pending item in this closure is in scope and stays here until fixed.
+| lab run of the access-up option 6 pass-through check (story 1b, 67c123bf95 and 74a20ff92c) | it runs only inside the whole-CPE lab, which the umbrella reruns | `plan/release/fixes/spec-home-cpe-0-umbrella.md` ("Remaining before commit A", the lab rerun) |
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
-| Artifact | not recorded yet: the gate waits for the pending fixes |
-| `./le spec review check` | not run |
-| Rounds | 3 so far (`tmp/session/2026-11-07-104251/scratch/c23b-review-r1.md`: 4 BLOCKER, 8 ISSUE, 5 NOTE; `tmp/session/2026-11-07-104251/scratch/c23b-review-r2.md`, over 80731c4ce7..bd985af80f: 1 BLOCKER, 3 ISSUE, 5 NOTE; `tmp/session/2026-11-07-104251/scratch/c23b-review-r3.md`, over the commits after bd985af80f through ad347aa9f6 and df535552bd: 1 BLOCKER, 3 ISSUE, 5 NOTE) |
+| Artifact | `./le spec review record` verdict CLEAN, rounds 5, over the files commit A carries; review coverage of the earlier 23b commits is overridden by owner decision ("Override all home-cpe"), named in commit A's `review-override` and owed at push |
+| `./le spec review check` | pass at closure, over the same files |
+| Rounds | 5. Round 4 `tmp/session/2026-11-07-104251/scratch/c23b-review-r4.md`: 1 BLOCKER, 1 ISSUE, 5 NOTE. Round 5 `tmp/session/2026-11-07-104251/scratch/c23b-review-r5.md`, over a9b6ff2f64 to cbfd586029: 1 BLOCKER, 7 NOTE; its BLOCKER fixed by 74a20ff92c, checked at closure against `ExecExitCode` (`internal/le/interoplab/docker.go`) and its unit test (`scratch/topo-unit.log` ok). Earlier: 3 (`tmp/session/2026-11-07-104251/scratch/c23b-review-r1.md`: 4 BLOCKER, 8 ISSUE, 5 NOTE; `tmp/session/2026-11-07-104251/scratch/c23b-review-r2.md`, over 80731c4ce7..bd985af80f: 1 BLOCKER, 3 ISSUE, 5 NOTE; `tmp/session/2026-11-07-104251/scratch/c23b-review-r3.md`, over the commits after bd985af80f through ad347aa9f6 and df535552bd: 1 BLOCKER, 3 ISSUE, 5 NOTE) |
 | Reviewer lenses used | logic and wiring, RFC quotes, goroutines, D-9 and D-16, docs |
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
-| 1 | BLOCKER | no `.ci` reached 23b behaviour | Wiring Test rows | 67eda8e941, c85d2718f2; rest **pending** |
+| 1 | BLOCKER | no `.ci` reached 23b behaviour | Wiring Test rows | 67eda8e941, c85d2718f2, 612b02ace5, e02baa76ea, commit A (R4-1) |
 | 2 | BLOCKER | AC-26 rows untagged | `rfc/short/rfc2548.md` | 36f54771b5, 83f4316387 |
 | 3 | BLOCKER | unbounded RDNSS withdrawal queue silences the unit's RAs | `internal/plugins/iface/ra/advertiser.go` | fffefb45f9, sibling /64 queue ad3cecbf68 |
 | 4 | BLOCKER | WAN link-local RDNSS advertised on the LAN | `internal/component/iface/ra_dns_source.go` | fffefb45f9 (D-19) |
-| 5 | ISSUE | wire-methods snapshot lacks `ze-system-dns:show-system-dns` | `internal/component/plugin/all/testdata/wire-methods.snapshot` | 67f97a55f4; `TestRegisteredWireMethods` re-run **pending** (`u-wire.log`: build failed) |
+| 5 | ISSUE | wire-methods snapshot lacks `ze-system-dns:show-system-dns` | `internal/component/plugin/all/testdata/wire-methods.snapshot` | 67f97a55f4; `TestRegisteredWireMethods` ok (`out-gb13/u-wire.log`) |
 | 6 | ISSUE | resolver publishes unbound listeners and a disabled selection | `internal/plugins/dnsresolver/publish.go` | a5356d64e0 |
 | 7 | ISSUE | rejected-snapshot counter bound to the Nop registry | dhcpserver and dnsresolver `register.go` | 7d8d935e4f |
 | 8 | ISSUE | doctor-dns-source-self-unserved text contradicts D-6 | `internal/core/diagnostic/codes.go` | b525648a71 |
@@ -759,6 +763,15 @@ Review file `tmp/session/2026-11-07-104251/scratch/c23b-review-r3.md`. Round-2 s
 
 Round 3 checked clean: the replay hold bound and release order (DHCP and resolver), the Configure-Reject quotes, the promoted `.ci` assertions, the ad347aa9f6 renames, and the 6f34904269 refuse-by-default annotation.
 
+### Round 4 and 5 findings
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| R4-1 | BLOCKER | R3-1 narrowed: the RA parse breaks never applied in the guest, two withdraw breaks unrun, nothing promoted, the DHCP server's own hold unit-proven only | `test/draft/`, D-21 | e02baa76ea (eight drafts promoted on `out-gb14/`, `out-gb15/`); withdraw-dhcp and withdraw-pool RED `out-gb15/b15-withdraw-*.log`; RA draft RED seq 1 and seq 2 on Ze's guest (`out-gb17/b17-ra-*.log`) and the gated hold test a9b6ff2f64 RED `out-gb17/b17-hold-broken.log`, both promoted in commit A |
+| R4-2 | ISSUE | `TestStartRequestRefusedReleasesHold` had no red from dropping `res.learned.Replayed()` | `internal/plugins/dnsresolver/start_requests_snapshot_test.go` | `rwinv/c23b-refused-release/`: RED at :215 ("waited 2.00071s after the snapshot-request was refused", `out-gb16/refused-broken.log`), ok clean (`refused-clean.log`) |
+| R5-1 | BLOCKER | `rebindLease` failed every attempt: `dhcpcd -x` with no daemon exits non-zero and `Exec` returns that as an error | `internal/le/interoplab/topology/check_access_option6.go` | 74a20ff92c (`releaseVerdict`: any exit dhcpcd ran to passes, 126 and 127 and a non-exit error fail), unit test in `check_access_option6_test.go` |
+
+Round 4 NOTEs 3 and 4 (DISCRIMINATION comments) fixed by cbfd586029 and e02baa76ea; NOTE 5 (Alpine guest) is the open 2026-10-21 row of `plan/journal/gate-verdict-depends-on-the-machine.md`, not 23b's; NOTE 6 recorded. Round 5 NOTEs 2 to 6 need no change; NOTE 7 (stale `test/draft/` path in `internal/test/fixture/dns_source_withdraw_consumers.go`) fixed in 74a20ff92c, and the same stale path in three `publish_test.go` comments and two `test/parse/` comments fixed in commit A; NOTE 8 recorded: the cited logs live in the session scratch, and each promoted `.ci` names its break overlay so the red can be re-observed.
+
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
@@ -766,8 +779,9 @@ Round 3 checked clean: the replay hold bound and release order (DHCP and resolve
 |------|--------|----------|
 | `test/plugin/dns-resolver-forward-received.ci`, `test/plugin/dns-resolver-forward-default.ci` | yes | `ls`, 3.6K and 3.3K |
 | `test/plugin/dns-resolver-forward-dhcpv4-default.ci`, `test/pppoe/dns-resolver-forward-ppp-lease.ci` | yes | `git ls-files test` |
-| `test/parse/dns-source-class-refused.ci`, `test/l2tp/l2tp-pool-dns-source-radius.ci`, `test/plugin/show-system-dns.ci` | no, draft only | `test/draft/parse/`, `test/draft/l2tp/`, `test/draft/plugin/` |
-| `test/dhcp/dhcp-server-dns-source-self.ci`, `dhcp-server-dns-pass-through.ci`, `dhcp-server-short-lease-wan-down.ci` | no | `ls test/dhcp` holds none; owed |
+| `test/parse/dns-source-class-refused.ci`, `test/l2tp/l2tp-pool-dns-source-radius.ci`, `test/plugin/show-system-dns.ci` | yes | `git ls-files` (612b02ace5, e02baa76ea) |
+| `test/dhcp/dhcp-server-dns-source-self.ci`, `dhcp-server-dns-pass-through.ci`, `dhcp-server-short-lease-wan-down.ci` | yes | `git ls-files test/dhcp` |
+| `test/parse/dns-source-ra-rdnss-consumer.ci`, `test/pppoe/dhcp-server-dns-replay-hold.ci` | yes | `ls` at closure, 2.8K and 6.5K, added by commit A |
 | `test/interop-radius-subscriber/scenarios/radius-subscriber-dns/` | yes | `git ls-files`: `ppp-options`, `users`, `ze.conf` |
 
 ### AC Verified (grep/test)
@@ -781,9 +795,10 @@ Round 3 checked clean: the replay hold bound and release order (DHCP and resolve
 |-------------|----------|----------|
 | `forward dns-source source received` | `test/plugin/dns-resolver-forward-received.ci` | PASS clean, FAIL under break |
 | resolver with no `forward server` and no `dns-source` | `test/plugin/dns-resolver-forward-default.ci` | PASS clean, FAIL under break |
-| `system dns-source source self` | `test/draft/parse/dns-source-class-refused.ci` | **pending** |
-| Access-Accept with MS DNS | `test/draft/l2tp/l2tp-pool-dns-source-radius.ci` | PASS clean, FAIL under break; promotion **pending** |
-| subnet `dns-source source self`, pass-through, D-9 | none | owed |
+| `system dns-source source self` and the consumers' refused classes | `test/parse/dns-source-class-refused.ci`, `test/parse/dns-source-ra-rdnss-consumer.ci` | PASS clean, FAIL under break (`out-gb14/p14-*`, `out-gb17/b17-ra-*`) |
+| Access-Accept with MS DNS | `test/l2tp/l2tp-pool-dns-source-radius.ci`, interop `radius-subscriber-dns` | PASS clean, FAIL under break (`out-gb13/c23b-pool-radius.log`, `out-gb17/interop-broken.log`) |
+| subnet `dns-source source self`, pass-through, D-9 | `test/dhcp/dhcp-server-dns-source-self.ci`, `-dns-pass-through.ci`, `-short-lease-wan-down.ci` | PASS clean, FAIL under break (Functional Tests rows) |
+| DHCP server started after the lease (D-21) | `test/pppoe/dhcp-server-dns-replay-hold.ci` | PASS clean, FAIL under break (`out-gb17/b17-hold-*.log`) |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
@@ -798,26 +813,25 @@ Round 3 checked clean: the replay hold bound and release order (DHCP and resolve
 | metrics series | `docs/plugin-development/metrics.md` lines 250-252 | yes |
 | comparison and feature level | `docs/comparison.md`, `features/lan-dns-resolver.md` (23c067bb8d) | yes |
 
-### Pending: owed runs before the Review Gate can close
-Batch 13 logs are in `tmp/session/2026-11-07-104251/scratch/rwinv/out-gb13/` (unit `u-*.log`, parse drafts `p-class-*.log` and `p-mode-*.log`, `compound.log`, `refuse.log`, `doc.log`, `feature.log`); batch 14 writes to `tmp/session/2026-11-07-104251/scratch/rwinv/out-gb14/`, which did not exist at this edit. A row leaves this table only when its log has been read and is green.
+### Closure evidence, by run
+Logs under `tmp/session/2026-11-07-104251/scratch/rwinv/` (`out-gb13/` to `out-gb17/`). Each row was read at closure.
 
-| Item | Owed run |
-|------|----------|
-| parse drafts `dns-source-class-refused`, `dns-source-mode-required-consumers`, `dns-source-ra-rdnss-consumer` | **done**: the first two PASS and RED (`out-gb14/p14-*.log`), promoted e02baa76ea; the RA draft PASS `out-gb15/p-ra-clean.log`, RED `out-gb15/p-ra-class.log` (seq 1), `p-ra-mode.log` (seq 2), on Linux: promote in commit A |
-| `dns-resolver-forward-dhcpv4-replay`, `dns-resolver-forward-ppp-replay` (drafts) | ppp-replay RED under `c23b-replay-both/` (`out-gb14/b14-replay-both.log`), PASS under the resolver-only break (`b14-replay-own.log`), promoted e02baa76ea. **owed**: an unbroken run of `test/pppoe/dns-resolver-forward-ppp-replay.ci` (edited 14:39, after its clean run in `out-gb13/g13-clean.log`), and a first run of `dns-resolver-forward-dhcpv4-replay` and `test/draft/pppoe/dhcp-server-dns-replay-hold.ci` |
+| Item | Run and result |
+|------|----------------|
+| parse `dns-source-class-refused`, `dns-source-mode-required-consumers`, `dns-source-ra-rdnss-consumer` | the first two PASS and RED (`out-gb14/p14-*.log`), promoted e02baa76ea; the RA test PASS and RED seq 1, seq 2 on Ze's guest (`out-gb17/b17-ra-*.log`), promoted in commit A |
+| `dns-resolver-forward-ppp-replay`, `dhcp-server-dns-replay-hold` | ppp-replay RED under `c23b-replay-both/` (`out-gb14/b14-replay-both.log`), PASS as edited (`out-gb17/b17-reruns.log`); the hold test PASS and RED (`out-gb17/b17-hold-*.log`), promoted in commit A. The `dns-resolver-forward-dhcpv4-replay` draft was never proven red and is no longer in the tree |
 | `dhcp-server-dns-pass-through`, `dhcp-server-short-lease-wan-down` | **done**: PASS `out-gb14/g13-clean.log`; RED `out-gb14/b14-dhcp-pass-through.log` (option 6 absent), `b14-dhcp-short-lease.log` (option 51 3600, want 60); promoted e02baa76ea |
-| `radius-subscriber-dns` | PASS clean (`out-gb13/interop-dns-clean.log`); the break run failed in the harness (`ip` missing in the FreeRADIUS container, `out-gb13/interop-dns-broken.log`). **owed**: a break run red at the IPCP DNS check |
-| `TestRegisteredWireMethods` | `./le job run label unit-pkg command go test -tags <ze tags> -run TestRegisteredWireMethods ./internal/component/plugin/all/`; not run in batches 14 or 15 (no log in `out-gb14/`, `out-gb15/`): **owed** |
-| hub `TestStreamingOneShotAnswersCarryData` | same form, `./cmd/ze/hub/`; last run in batch 13 (`out-gb13/hub-guest.log`, `hub-inguest-run.log`), none in batches 14 or 15: **owed** |
+| `radius-subscriber-dns` | PASS clean (`out-gb17/interop-clean.log`), RED under the pool break at the pppd resolv.conf check (`out-gb17/interop-broken.log`) |
+| `TestRegisteredWireMethods`, hub `TestStreamingOneShotAnswersCarryData` | ok 13:36 (`out-gb13/u-wire.log`), PASS (`out-gb13/hub-guest.log`); no later commit changed their producers |
 | fixture `TestEveryDaemonStoppingFixtureDeclaresStopsDaemon` | RED in `out-gb14/u-fixture.log`: 535 fixtures across the tree lack `StopsDaemon`, a check from `internal/test/fixture/register_stops_daemon_test.go`, which another session holds untracked; not a 23b red. `internal/le/interoplab/radiussubscriber` ok |
 | compound gate (`internal/test/fixture/l2tp_pool_dns_source.go` lines 195, 227, 326) | **done** for 23b: `out-gb14/compound.log` reports 0 hits in the 23b area |
-| refuse gate | RED, 6 hits in the 23b area (`out-gb14/refuse.log`), each "miss answered as a value": `raUnitDevice` (`iface/ra_dns_source.go`), `ReadWritten` (`core/dnssource/written.go`), the `learnedSnapshotHandler` closures in `dhcpserver/register.go` and `dnsresolver/register.go`, `parseForwardSources` (`dnsresolver/config.go`), `resolver.relearn` (`dnsresolver/state.go`). **owed**: each fixed or annotated |
+| refuse gate | known red, named in commit A: 6 hits in the 23b area (`out-gb14/refuse.log`), each "miss answered as a value": `raUnitDevice` (`iface/ra_dns_source.go`), `ReadWritten` (`core/dnssource/written.go`), the `learnedSnapshotHandler` closures in `dhcpserver/register.go` and `dnsresolver/register.go`, `parseForwardSources` (`dnsresolver/config.go`), `resolver.relearn` (`dnsresolver/state.go`); not re-judged at closure |
 | RFC records stale in `out-gb12/rfc-check.log`: RFC7084-4.3-6, RFC7084-4.3-8, RFC9915-6.3-2 (producer-changed) and four `./le rfc move` file renames | **done** for 23b: `out-gb14/rfc-check.log` holds 23 violations, none on a 23b record (BGP interoplab verdicts, RFC9234, RFC7296 naming, RFC7950); RFC7084-4.3-6-neg retaken (`out-gb14/rec-RFC7084-4.3-6-neg.log`, 36510cc793) |
 | RFC records stale by round-2 producer edits (R2-3): RFC5072-4.1-4, RFC5072-4.1-6, RFC1332-3.3-2, RFC5625-4.4.1-1 | **done**: RFC1332, RFC5072 and RFC2181 observed red (`out-gb14/ppp-records.log`), landed 36510cc793; RFC5625 retaken df535552bd; `out-gb14/rfc-check.log` names none of them |
-| bye-time withdrawal (R2-2, round 3 ISSUE 3) | **done**: three drafts PASS and RED (R2-2 row), promoted e02baa76ea; renames 404bcd9c9a. `show-system-dns-withdraw-on-removal` was edited after its runs, so its next suite run re-proves it |
-| reload-start replay (AC-13, round 3 BLOCKER 1) | RED at the replay assertion under `c23b-replay-both/` (`out-gb14/b14-replay-both.log`, SERVFAIL before the replay), promoted e02baa76ea; the unbroken run of the current file is owed (replay row above) |
-| forward default (AC-20, round 3 ISSUE 2) | **done**: RED at "never forwarded" (`out-gb14/b14-fwd-default-select.log`, `b14-dhcpv4-default-select.log`); AC-20 and Goal Validation rows cite them |
+| bye-time withdrawal (R2-2, round 3 ISSUE 3) | three tests PASS and RED (R2-2 row), promoted e02baa76ea; renames 404bcd9c9a; `show-system-dns-withdraw-on-removal` as edited PASS (`out-gb17/b17-reruns.log`) |
+| forward default (AC-20, round 3 ISSUE 2) | RED at "never forwarded" (`out-gb14/b14-fwd-default-select.log`, `b14-dhcpv4-default-select.log`) |
+| unit packages touched by 924cd6d7c9, 0b7c9ea0a7, bd985af80f, a59d1ee848 (all committed by 13:31) | ok in batch 13 at 13:32 to 13:36: `l2tp/ppp` and `l2tp/plugins/pool` (`out-gb13/u-l2tp.log`), `core/dnssource` (`u-dnssource.log`), `dhcpserver` (`u-dhcp.log`), `dnsresolver` (`u-resolver.log`), `test/dhcpprobe` (`u-dhcpprobe.log`), `le/interoplab` (`u-interoplab.log`); later `dnsresolver`, `dhcpserver`, `pool` ok (`out-gb15/withdraw-unit.log`), `le/interoplab` and `topology` ok (`out-gb17/interoplab-unit.log`, `topology-unit.log`, `scratch/topo-unit.log` after 74a20ff92c) |
+| `./le rfc check` | 23 violations, none on a 23b stem (`scratch/c23b-close-rfc-check.log`) |
+| review | rounds 1 to 5 under Review Gate; the artifact recorded at closure |
 
-Drafts proven and ready to promote in commit A, from `out-gb14/` and `out-gb15/` (a clean PASS and a RED at its own assertion under its break): `test/draft/parse/dns-source-ra-rdnss-consumer.ci` (`out-gb15/p-ra-clean.log`, `p-ra-class.log`, `p-ra-mode.log`). Already promoted by e02baa76ea on the same evidence: pass-through, short-lease, the three withdraw drafts, the two split parse drafts and the replay draft. Not ready: `test/draft/pppoe/dhcp-server-dns-replay-hold.ci` and `test/draft/plugin/dns-resolver-forward-dhcpv4-replay.ci` (no run); the promoted replay `.ci` and `show-system-dns-withdraw-on-removal.ci` each owe one unbroken run of the file as now edited.
-| unit packages touched by 924cd6d7c9, 0b7c9ea0a7, bd985af80f, a59d1ee848 | scoped `./le job run` tests of `internal/component/l2tp/ppp`, `internal/core/dnssource`, `internal/plugins/dhcpserver`, `internal/plugins/dnsresolver`, `internal/test/dhcpprobe`, `internal/le/interoplab`. Partial: `dnsresolver`, `dhcpserver` and `l2tp/plugins/pool` ok (`out-gb15/withdraw-unit.log`, `start-clean.log`), `interoplab/radiussubscriber` ok (`out-gb14/u-fixture.log`); `l2tp/ppp`, `core/dnssource`, `test/dhcpprobe` not run in batches 14 or 15: **owed** |
-| review round 3 | `/ze-review` over the complete diff once R2-1 to R2-4 are fixed, then `./le spec review record` |
+R2-1, R2-3, R3-1 and R3-4, marked pending in their rows at round 3, are closed: R2-3 and R3-4 by 36510cc793 and df535552bd (`out-gb14/rfc-check.log`), R2-1 and R3-1 by R4-1.

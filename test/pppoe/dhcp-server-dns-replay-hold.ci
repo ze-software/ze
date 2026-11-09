@@ -1,0 +1,174 @@
+# Test: a DHCP server that starts while a WAN lease exists hands out that
+#       lease's DNS server in its first OFFER, never the empty option 6 of
+#       the list it starts with.
+# Spec: spec-home-cpe-23b-dns-source-consumers -- AC-13, D-21
+# VALIDATES: the DHCP server's replay hold (offerDNS, which calls
+#            dnssource.Follower.AwaitReplay; internal/plugins/dhcpserver/
+#            handler.go), released once the first system-dns snapshot is
+#            applied (learnedSnapshotHandler, register.go). The boot config
+#            has no service block at all, so the dhcpserver plugin, whose
+#            config root is service, does not run. The compiled fixture
+#            (internal/test/fixture/dhcp_server_dns_replay_hold_linux.go)
+#            plays the access concentrator: it Naks the PPPoE client's
+#            0.0.0.0 Primary-DNS with 192.0.2.53 (RFC 1877 Section 1.1) and
+#            waits until the daemon's resolv.conf lists 192.0.2.53, so the
+#            ppp record exists. It then opens the DHCP probe on zedrhp and
+#            closes its gate (dhcp_server_dns_replay_hold_gate_linux.go): it
+#            subscribes to the system-dns snapshot and snapshot-request, holds
+#            its event handler on the first delivery, and emits
+#            snapshot-requests until the engine's delivery queue for it is
+#            full. It copies config2.conf over the config, sends SIGHUP
+#            without waiting for the reload to finish, and from then sends a
+#            DHCPDISCOVER every 5 ms (dhcpprobe.Probe.First). config2.conf
+#            adds the DHCP server on zedrh. The server binds its listener when
+#            it is configured, and the snapshot-request it sends once started
+#            blocks in its delivery to the fixture, before the registry can
+#            answer it, until the gate opens 500 ms after the fixture sees
+#            port 67 bound. So DISCOVERs reach the server for 500 ms while its
+#            learned list is empty, every run. The FIRST reply is judged and
+#            no later one: it MUST come after the gate opened and carry
+#            192.0.2.53 alone in option 6 and the subnet's lease time 3600.
+#            Without the hold the server answers inside the gate, with no
+#            option 6 and the lease it shortens to 60 s while the received
+#            class it reads finds nothing (D-9).
+# PREVENTS: a DHCP server that starts or restarts while leases exist and
+#           hands its first clients no DNS server, or a 60 s lease, until
+#           the next lease change.
+#
+# The break below keeps every snapshot-request (the DHCP server's, and the
+# dns-resolver plugin's should the same reload start it under the shared
+# service root) and removes only the DHCP server's hold, so this test proves
+# the hold of the DHCP server's own replies, which the resolver's replay test
+# (test/pppoe/dns-resolver-forward-ppp-replay.ci) does not.
+#
+# The lease is PPP, not DHCPv4: a DHCPv4 lease from Ze's own server needs
+# the service block at boot, which would start the DHCP server from boot.
+#
+# received-interface [ zedns1 ] narrows the received class to this client's
+# lease, so the guest's /etc/resolv.conf record (the host fallback, D-13)
+# cannot answer in its place.
+#
+# DISCRIMINATION (break overlay, observed red in rwinv/out-gb17/b17-hold-broken.log
+# at "its first offer: ... dns (option 6) absent, want 192.0.2.53"; clean pass
+# in b17-hold-clean.log):
+# tmp/session/2026-11-07-104251/scratch/rwinv/c23b-dhcp-replay-hold/
+# replaces internal/plugins/dhcpserver/handler.go with a copy whose offerDNS
+# does not call h.learned.AwaitReplay(). The fixture must then fail at
+# "its first offer" with "dns (option 6) absent, want 192.0.2.53". The gate
+# makes that red deterministic: no snapshot can reach the server while the
+# probe's DISCOVERs are answered inside it.
+#
+# The suite is pppoe, not dhcp, because only a per-test-namespace suite
+# honours option=netns-link, and the dhcp suite runs in the guest's root
+# namespace. resolv-conf-path is absolute and inside the test's own
+# directory, so the write never reaches the guest's resolv.conf.
+#
+# Requires Linux, CAP_NET_ADMIN for the PPP device, CAP_NET_RAW for the
+# AF_PACKET sockets of the access concentrator, the probe and the DHCP server
+# and CAP_NET_BIND_SERVICE for port 67. keepalive interval 3600 keeps
+# Echo-Requests off the wire while the fixture negotiates.
+option=needs-linux:caps=net-admin,net-raw,net-bind
+option=netns-link:name=zecpe0:peer=zeac0
+option=netns-link:name=zedrh:peer=zedrhp:address=10.99.23.1/24
+option=timeout:value=120s
+
+stdin=ze-conf:terminator=EOF_CONF
+system {
+	dns {
+		resolv-conf-path /proc/self/cwd/dhcp-server-dns-replay-hold.resolv.conf
+	}
+}
+
+plugin {
+	external dhcp-server-dns-replay-hold-test {
+		run "le test fixture pppoe/dhcp-server-dns-replay-hold config2.conf"
+		encoder json
+	}
+}
+
+interface {
+	backend netlink
+	pppoe-client zedns1 {
+		source-interface zecpe0
+		authentication {
+			username subscriber
+			password secret
+		}
+		mtu 1450
+		keepalive {
+			interval 3600
+			failures 255
+		}
+		reconnect {
+			delay-min 1
+			delay-max 1
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+system {
+	dns {
+		resolv-conf-path /proc/self/cwd/dhcp-server-dns-replay-hold.resolv.conf
+	}
+}
+
+service {
+	dhcp-server {
+		enabled true
+		listen-interface [ zedrh ]
+		shared-network lan {
+			subnet 10.99.23.0/24 {
+				range household {
+					start 10.99.23.100
+					stop 10.99.23.110
+				}
+				lease-time 3600
+				dns-source {
+					source [ configured received ]
+					received-interface [ zedns1 ]
+					mode first-usable
+				}
+			}
+		}
+	}
+}
+
+plugin {
+	external dhcp-server-dns-replay-hold-test {
+		run "le test fixture pppoe/dhcp-server-dns-replay-hold config2.conf"
+		encoder json
+	}
+}
+
+interface {
+	backend netlink
+	pppoe-client zedns1 {
+		source-interface zecpe0
+		authentication {
+			username subscriber
+			password secret
+		}
+		mtu 1450
+		keepalive {
+			interval 3600
+			failures 255
+		}
+		reconnect {
+			delay-min 1
+			delay-max 1
+		}
+	}
+}
+EOF_CONF2
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=120s
+expect=exit:code=0
+
+# NO NEEDLE MAY HOLD A COLON: the runner splits a directive on ':'.
+expect=stderr:pattern=dhcp hold-first sent=discover reply=offer .* dns=192.0.2.53 .* dns-count=1 lease=3600
+expect=stderr:contains=dhcp-server listener bound, no offer while its snapshot-request was held for
+expect=stderr:contains=dhcp-server started after the PPPoE lease -> first offer carries the replayed lease server 192.0.2.53
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

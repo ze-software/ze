@@ -64,7 +64,7 @@ func TestPoolPublishesSubscriberSelection(t *testing.T) {
 // config publish that would each publish a changed set, then a second
 // setEventBus. It does not drive the registered OnBye handler; the
 // daemon-level proof that a removed pool leaves show system dns is
-// test/draft/plugin/show-system-dns-withdraw-l2tp-pool.ci.
+// test/plugin/show-system-dns-withdraw-l2tp-pool.ci.
 //
 // VALIDATES: spec-home-cpe-23b, the withdrawal body, the silence after it,
 // and the publication a new run sends.

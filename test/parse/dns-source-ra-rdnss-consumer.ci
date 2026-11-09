@@ -1,0 +1,77 @@
+# Test: a unit's RA rdnss dns-source is refused at ze config validate when it
+#       names a class the consumer refuses, or two sources and no mode
+# VALIDATES: spec-home-cpe-23b AC-11 and AC-16b, the RA rdnss consumer (the
+#            other consumers are test/parse/dns-source-class-refused.ci
+#            and test/parse/dns-source-mode-required-consumers.ci):
+#              seq=1  a unit's RA rdnss dns-source source radius (AC-11)
+#              seq=2  a unit's RA rdnss dns-source with two sources and no
+#                     mode (AC-16b)
+#            seq 1 is dnssource.NewWrittenList with raRDNSSRefusals, seq 2 is
+#            dnssource.NewList's ModeRequiredError, both reached through
+#            iface's RA reader.
+# PREVENTS: an RDNSS list naming a subscriber's RADIUS resolvers, or one whose
+#           sources Ze would have to guess are a backup or an addition,
+#           passing validate.
+# PLATFORM: the ipv6 container carries ze:os "linux", so the schema walker
+#           prunes it on other platforms. This test is linux-only.
+# Break: tmp/session/2026-11-07-104251/scratch/rwinv/c23b-class-refusal-ignored
+#        (NewWrittenList never matches a refused class): seq 1 goes red.
+#        tmp/session/2026-11-07-104251/scratch/rwinv/c23b-mode-unchecked
+#        (NewList never asks for a mode): seq 2 goes red.
+#        Observed in rwinv/out-gb17/ on Ze's guest: clean pass (b17-ra-clean.log),
+#        "seq 1: expected exit code 1, got 0" under the class break
+#        (b17-ra-class.log), "seq 2: expected exit code 1, got 0" under the
+#        mode break (b17-ra-mode.log).
+option=skip-os:value=darwin
+
+stdin=ra-radius:terminator=EOF_RA_RADIUS
+interface {
+	backend netlink;
+	ethernet eth0 {
+		unit 0 {
+			ipv6 {
+				address [ 2001:db8:1::1/64 ];
+				forwarding true;
+				router-advertisement {
+					enabled true;
+					rdnss {
+						dns-source {
+							source radius;
+						}
+					}
+				}
+			}
+		}
+	}
+}
+EOF_RA_RADIUS
+
+stdin=ra-no-mode:terminator=EOF_RA_NO_MODE
+interface {
+	backend netlink;
+	ethernet eth0 {
+		unit 0 {
+			ipv6 {
+				address [ 2001:db8:1::1/64 ];
+				forwarding true;
+				router-advertisement {
+					enabled true;
+					rdnss {
+						dns-source {
+							source [ received configured ];
+						}
+					}
+				}
+			}
+		}
+	}
+}
+EOF_RA_NO_MODE
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ra-radius:exit=1
+expect=stdout:contains=interface unit ipv6 router-advertisement rdnss dns-source names radius
+expect=stdout:contains=a host on this link is not a subscriber
+expect=stdout:contains=delete interface unit ipv6 router-advertisement rdnss dns-source source radius
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ra-no-mode:exit=1
+expect=stdout:contains=interface unit ipv6 router-advertisement rdnss dns-source names 2 sources (received, configured) and no mode

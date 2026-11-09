@@ -6,7 +6,7 @@
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | Owner decision (2026-11-08): a spec of its own, queued after the home-CPE umbrella, which it does not block. Subscriber IPv6 is itself post-release (`spec-l2tp-ipv6-subscriber.md`), so no shipped session reaches the missing resolver today |
-| Depends | `plan/post-release/features/spec-l2tp-ipv6-subscriber.md` (IPv6CP opens and the PPP RA is sent); `spec-home-cpe-23-dns-source-fall-through` (the `dns-source` grammar, `docs/features/dns-resolver.md`) and `plan/release/fixes/spec-home-cpe-23b-dns-source-consumers.md` (the `radius` class and the pool consumer); after `plan/release/fixes/spec-home-cpe-0-umbrella.md` closes |
+| Depends | `plan/post-release/features/spec-l2tp-ipv6-subscriber.md` (IPv6CP opens and the PPP RA is sent); `spec-home-cpe-23-dns-source-fall-through` (the `dns-source` grammar, `docs/features/dns-resolver.md`) and `spec-home-cpe-23b-dns-source-consumers` (closed; the `radius` class and the pool consumer, documented in `docs/features/dns-resolver.md` and `docs/guide/l2tp.md`); after `plan/release/fixes/spec-home-cpe-0-umbrella.md` closes |
 | Phase | - |
 | Updated | 2026-11-08 |
 
@@ -41,7 +41,7 @@ What it owes when it runs, carried over from child 23's O-6:
 ### Architecture Docs
 - [ ] `ai/doors/system.md`, `ai/doors/access-security.md`, `ai/doors/core.md`
 - [ ] `docs/architecture/l2tp/subscriber-session-model.md`
-- [ ] `docs/features/dns-resolver.md`, "The `dns-source` list and the learned record" (the record, the classes, the mode rule; 23a, `spec-home-cpe-23-dns-source-fall-through`), and `plan/release/fixes/spec-home-cpe-23b-dns-source-consumers.md`, "Design carried from 23a" (the pool consumer and the `radius` class)
+- [ ] `docs/features/dns-resolver.md`, "The `dns-source` list and the learned record" (the record, the classes, the mode rule; 23a, `spec-home-cpe-23-dns-source-fall-through`), and the `radius` row of its class table and the pool consumer section (built by `spec-home-cpe-23b-dns-source-consumers`, closed)
 
 ### RFC Summaries (Scope: protocol)
 - [ ] `rfc/short/rfc6911.md` (enrolment out-of-scope today; this spec decides whether a profile lists it, under the owner's RFC scope rule)

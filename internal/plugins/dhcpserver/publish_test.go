@@ -95,7 +95,7 @@ func TestDHCPPublisherPublishesEachSubnet(t *testing.T) {
 // through a captured sender, call withdraw, then serve and refresh again,
 // and decode the bodies sent. It does not drive the registered OnBye
 // handler; the daemon-level proof that a removed DHCP server leaves show
-// system dns is test/draft/plugin/show-system-dns-withdraw-dhcp-server.ci.
+// system dns is test/plugin/show-system-dns-withdraw-dhcp-server.ci.
 //
 // VALIDATES: spec-home-cpe-23b, the withdrawal body and the silence after it.
 // PREVENTS: a withdrawn DHCP server publishing its selections again.

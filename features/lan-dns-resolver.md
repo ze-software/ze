@@ -16,7 +16,7 @@
 | RFCs | rfc1035, rfc2181, rfc4035 |
 | Docs | docs/guide/dns-resolver.md, docs/architecture/dns/lan-resolver.md |
 | Doc review | 2026-11-09: rechecked this description and the `forward dns-source` rows and pass-through default of docs/guide/dns-resolver.md and the forwarding list of docs/architecture/dns/lan-resolver.md against internal/plugins/dnsresolver (config.go forwardDefault, forwardRefusals and parseForwardSources, state.go forwardUpstreams and resolver.relearn, publish.go) and internal/core/dnssource (select.go List.Received); 2026-10-28: checked every other claim against server.go answer, resolve.go forward and absorb, cache.go, limit.go and doctor.go, and the quick-start config passes ze config validate |
-| Defect review | 2026-11-09: open: plan/release/fixes/spec-dropped-error-4-system-plugins.md and plan/release/fixes/spec-home-cpe-23b-dns-source-consumers.md name internal/plugins/dnsresolver |
+| Defect review | 2026-11-09: open: plan/release/fixes/spec-dropped-error-4-system-plugins.md names internal/plugins/dnsresolver; spec-home-cpe-23b-dns-source-consumers closed 2026-11-09 |
 
 ## Description
 

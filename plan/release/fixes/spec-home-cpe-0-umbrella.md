@@ -120,7 +120,7 @@ record is the spec text at the parent of its closure commit
 | 21 | closed | `0a7cfc0ae1` (`spec-home-cpe-21-mss-clamp-not-raise.md`) |
 | 22 | closed | `5d9241eaa6` (`spec-home-cpe-22-ike-responder-reauth.md`) |
 | 23 | closed | `62c14b96ca` (`spec-home-cpe-23-dns-source-fall-through`, 23a: the resolver registry, the router consumer, RFC 5625); its design is in `docs/features/dns-resolver.md` |
-| 23b | open, `in-progress` | `spec-home-cpe-23b-dns-source-consumers.md` (the LAN resolver, DHCPv4, RA and subscriber consumers, RADIUS DNS, `show system dns`; depends on 23) |
+| 23b | closed 2026-11-09 | `spec-home-cpe-23b-dns-source-consumers` (the LAN resolver, DHCPv4, RA and subscriber consumers, RADIUS DNS, `show system dns`; depends on 23) |
 
 Review correction and completion (2026-11-06): the owner found eight defects
 in the earlier child16 closure. The follow-up
@@ -790,5 +790,5 @@ Round 2: 0 BLOCKER, 0 ISSUE.
 ### Remaining before commit A
 | Item | Owner |
 |------|-------|
-| child 23b's closure | `plan/release/fixes/spec-home-cpe-23b-dns-source-consumers.md` |
+| child 23b's closure | done: `spec-home-cpe-23b-dns-source-consumers` closed 2026-11-09; the access-up option 6 pass-through check (`internal/le/interoplab/topology/check_access_option6.go`) rides on the lab rerun below |
 | the whole-CPE lab rerun, eleven logs ending `exit=0` | main thread, `umbrella-lab.sh`; its result fills the Goal Validation pending cells |

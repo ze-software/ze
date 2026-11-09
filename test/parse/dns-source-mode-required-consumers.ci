@@ -9,7 +9,7 @@
 #              seq=5  l2tp pool named-pool dns-source, validate
 #              seq=6  the forward list with mode merge: accepted
 #            The RA rdnss consumer is linux-only, so its refusal lives in
-#            test/draft/parse/dns-source-ra-rdnss-consumer.ci.
+#            test/parse/dns-source-ra-rdnss-consumer.ci.
 #            Each refusal is dnssource.NewList's ModeRequiredError, reached
 #            through the consumer's own reader.
 # PREVENTS: a list whose sources Ze would have to guess are a backup or an

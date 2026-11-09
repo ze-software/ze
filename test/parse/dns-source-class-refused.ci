@@ -7,7 +7,7 @@
 #              seq=3  a DHCP subnet's dns-source source radius
 #              seq=4  a subnet's dns-source source self: accepted (D-6)
 #            The RA rdnss consumer is linux-only, so its refusal lives in
-#            test/draft/parse/dns-source-ra-rdnss-consumer.ci.
+#            test/parse/dns-source-ra-rdnss-consumer.ci.
 #            Each refusal is dnssource.NewWrittenList with the consumer's own
 #            Refusal table (forwardRefusals, subnetDNSRefusals).
 # PREVENTS: an upstream list that makes the resolver query itself, or a
