@@ -1754,12 +1754,13 @@ Blocked by lab readiness, not product evidence:
   judge first.
   Refuted: `f31954c25d` (judged) moved the poll to 3s, and the next run hung
   on the same first `cat /var/run/frr/bgpd.pid`, so the exec rate is not the
-  cause. A second defect shows in FRR's own log: the scenario's `daemons`
-  file sends bgpd's log to `/tmp/frr.log`, and every daemon reports "Can't
-  open log file /tmp/frr.log". Assertion 4 reads that log for the End-of-RIB
-  decode, so the checker cannot pass while FRR cannot write it, whatever the
-  exec does. Both the log path and the hang are owed a fix before a red here
-  means anything.
+  cause. FRR's own log also shows "Can't open log file /tmp/frr.log" from
+  the daemons applying the integrated `log file` line, while the scenario's
+  `daemons` file has bgpd open that same file itself; the warnings may come
+  only from the other daemons, so bgpd's log, the one assertion 4 reads, is
+  not shown to be missing. Corrected from an earlier note that called it a
+  defect. The exec hang is the blocker, and finding it needs the FRR
+  container observed while the scenario runs, which the lab does not keep.
 
 ## P-12 (b): RTR fixtures (2026-11-09)
 
