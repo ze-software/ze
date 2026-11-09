@@ -24,9 +24,13 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// mergeResolvConf is the resolv-conf-path the .ci gives the daemon. It is
-// relative, so the daemon and this fixture both resolve it in the runner's
-// fresh working directory, and no other test reads or writes it.
+// mergeResolvConf is the file the daemon writes as resolv.conf, named
+// relative to the runner's fresh per-test working directory, so no other test
+// reads or writes it and no earlier run leaves it behind. The daemon refuses
+// a relative resolv-conf-path (sanitizeResolvConfPath) and then writes
+// nothing, so the .ci names it /proc/self/cwd/<this name>: absolute, and
+// inside the daemon's working directory. This fixture is the daemon's plugin
+// and runs in that same directory, so it reads the bare name.
 const mergeResolvConf = "dns-source-router-merge.resolv.conf"
 
 // mergeConfiguredServer is the .ci's system name-server. The stub serves the
