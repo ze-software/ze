@@ -229,7 +229,12 @@ produce a completion marker. The checker revalidates both intervals, exact
 speaker identities, AS 65004/injector next hop and every LOCAL_PREF code 5,
 while retaining all three arrivals and both surviving native sessions. The
 workers keep forwarding later bytes, which are explicitly outside the proof.
+When the relay session ends on a transport error, the relay records it as
+`transport-error` in its `-result.json` file and also prints
+`extended relay transport error: <cause>` to stdout, so the speaker's docker
+logs carry it. A failed checker's dump reads both ("Debugging Failures").
 <!-- source: internal/le/interoplab/bgp/check_local_pref_wire.go -- declared-interval sequence and strict oracle -->
+<!-- source: internal/le/interoplab/bgp/extended_relay.go -- runExtendedRelay, extendedRelayDump -->
 <!-- source: internal/le/interoplab/bgp/extended_relay.go -- transparent forwarding and attributed completion -->
 
 The Extended Message FRR scenarios use a bounded, single-session relay that
@@ -4324,7 +4329,7 @@ them to the failure it returns:
 
 | Suite | What a failed checker carries |
 |-------|-------------------------------|
-| BGP (`interop`) | the last 80 log lines of each peer the scenario started (`checkerFailure`, `internal/le/interoplab/bgp/check_engine.go`), and pmacct's message log |
+| BGP (`interop`) | the last 80 log lines of each peer the scenario started (`checkerFailure`, `internal/le/interoplab/bgp/check_engine.go`), pmacct's message log, and for `speaker` and `speaker2` a section headed `extended relay files`: the relay's `-result.json` verdict and the last 8 rows of its `-ze.jsonl` and `-frr.jsonl` captures under the `extendedCaptureBase` prefix, each row cut to 512 characters and the section to its last 8192 octets. A file that does not exist is printed `missing`, and a prefix with none of the three files says so in one line. The section is read even when the speaker logged nothing (`extendedRelayDump`, `internal/le/interoplab/bgp/extended_relay.go`) |
 | IPsec (`interop-ipsec`) | the last 60 log lines of Ze, strongSwan, the NAT box and FRR, for each one the scenario started, read after the checker's own deadline has passed, all of them within one 20 s bound (`checkerFailure`, `internal/le/interoplab/ipsec/failure.go`) |
 | RSVP-TE (`interop-rsvpte`) | each peer's capture tail and the last 60 log lines (`diagnosticError`, `internal/le/interoplab/rsvpte/checkers.go`) |
 | A package test's own server (`labtest.Start`) | the last `Spec.LogLines` lines (1 to 1000) of its container, written to the test log by `t.Cleanup` when the test failed, before the container is removed (`host.release`, `internal/le/interoplab/labtest/labtest.go`) |

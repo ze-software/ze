@@ -96,20 +96,80 @@ func prepareExtendedRelayPeers(peers []interoplab.PeerConfig, relays []extendedR
 // ends. Its caller MUST pass the native configuration readiness barriers before
 // starting this process. Its transport finishes first; the retained diagnostic
 // and capture files remain available until the configured deadline or teardown.
+// A transport error is also printed to stdout, for the container's logs.
 func runExtendedRelay(options speakerOptions) error {
 	ctx, cancel := context.WithTimeout(context.Background(), options.duration)
 	defer cancel()
 	// RFC 8654 Sections 3 and 4: the transport rewrites OPEN capabilities only.
 	resultErr := runExtendedRelaySession(ctx, options)
 	diagnostic := ""
+	var stdoutErr error
 	if resultErr != nil {
 		diagnostic = resultErr.Error()
+		// The container's docker logs carry stdout, so the failure dump shows
+		// the transport error even when the checker never reads the JSON.
+		var line textbuf.Buffer
+		line.Str("extended relay transport error: ").Str(diagnostic).Byte('\n')
+		_, stdoutErr = os.Stdout.WriteString(line.String())
 	}
 	if err := writeJSON(options.result+"-result.json", map[string]string{"transport-error": diagnostic}); err != nil {
-		return errors.Join(resultErr, err)
+		return errors.Join(resultErr, stdoutErr, err)
 	}
 	<-ctx.Done()
+	if stdoutErr != nil {
+		return errors.Join(resultErr, stdoutErr)
+	}
 	return resultErr
+}
+
+// extendedRelayDumpOctetsMax bounds one speaker's relay section of a failure
+// dump. A capture row holds a hex frame of up to 131070 characters, so the
+// script also cuts each row; this cap bounds what remains.
+const extendedRelayDumpOctetsMax = 8192
+
+// extendedRelayDumpScript prints, for the relay prefix $1, its verdict file
+// and the last rows of both captures, each row cut to 512 characters. A file
+// that does not exist is printed as missing, and a prefix with none of the
+// three files says so in one line, because a speaker that runs an oracle
+// rather than the relay, or a relay that has not dialed yet, writes none.
+const extendedRelayDumpScript = `base=$1
+found=0
+for suffix in result.json ze.jsonl frr.jsonl; do
+	if [ -e "$base-$suffix" ]; then found=1; fi
+done
+if [ "$found" = 0 ]; then
+	echo "no $base-result.json, $base-ze.jsonl or $base-frr.jsonl: no extended relay ran under this prefix, or it has not dialed"
+	exit 0
+fi
+for suffix in result.json ze.jsonl frr.jsonl; do
+	echo "== $base-$suffix (last 8 rows, each cut to 512 characters)"
+	if [ -e "$base-$suffix" ]; then
+		tail -n 8 "$base-$suffix" | cut -c 1-512
+	else
+		echo "missing"
+	fi
+done
+`
+
+// extendedRelayDump answers the failure-dump section for one speaker's
+// extended relay files under extendedCaptureBase. A relay that ended on a
+// transport error records it only in its result JSON, so checkerFailure reads
+// this section whatever the speaker logged. A query error is printed in the
+// section, never dropped.
+func extendedRelayDump(ctx context.Context, lab interoplab.CheckerLab, peer string) string {
+	var section textbuf.Buffer
+	section.Str("\n--- ").Str(peer).Str(" extended relay files (").Str(extendedCaptureBase).Str("-*) ---\n")
+	output, err := lab.Query(ctx, peer, []string{"sh", "-c", extendedRelayDumpScript, "sh", extendedCaptureBase}, nil)
+	if err != nil {
+		section.Str("query error: ").Str(err.Error()).Byte('\n')
+		return section.String()
+	}
+	if len(output) > extendedRelayDumpOctetsMax {
+		section.Str("[first ").Int(int64(len(output) - extendedRelayDumpOctetsMax)).Str(" octets cut]\n")
+		output = output[len(output)-extendedRelayDumpOctetsMax:]
+	}
+	section.Str(output)
+	return section.String()
 }
 
 // runExtendedRelaySession owns exactly two socket workers for one session. Its

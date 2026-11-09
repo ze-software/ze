@@ -95,8 +95,9 @@ func (f *scenarioFailure) Error() string { return f.err.Error() }
 func (f *scenarioFailure) Unwrap() error { return f.err }
 
 // checkerFailure reports cause as the failure of assertion in scenario name,
-// with the tail of every peer's log. A cause that is already such a report is
-// answered unchanged.
+// with the tail of every peer's log, pmacct's message log, and each speaker's
+// extended relay files (extendedRelayDump). A cause that is already such a
+// report is answered unchanged.
 func checkerFailure(ctx context.Context, lab interoplab.CheckerLab, name string, assertion int, cause error) error {
 	if _, reported := errors.AsType[*scenarioFailure](cause); reported {
 		return cause
@@ -118,6 +119,12 @@ func checkerFailure(ctx context.Context, lab interoplab.CheckerLab, name string,
 			} else {
 				diagnostics.Str(queryErr.Error())
 			}
+		}
+		if peer == peerSpeaker || peer == peerSpeaker2 {
+			// A relay that stopped on a transport error may have logged
+			// nothing, so its verdict file and capture tails are read here,
+			// before the empty-log skip below.
+			diagnostics.Str(extendedRelayDump(ctx, lab, peer))
 		}
 		if strings.TrimSpace(logs.Text) == "" {
 			continue
