@@ -3548,3 +3548,26 @@ running phase while the guest answers.
 No QEMU process from these runs remained afterwards. With the earlier P-18
 sections, every native-entry phase that the observers can reach now has a
 clean leg and a red leg.
+
+## Re-audit: P-3 foreground timeout, P-5 append, P-34 Doc review, P-40 .et groups (2026-11-10)
+
+| P | Member / carrier | Break (producing file, what changed) | Red | Restored |
+| --- | --- | --- | --- | --- |
+| P-3 | the foreground-timeout return joins its owned helper before the lease is released / new `TestForegroundTimeoutJoinsOwnedHelperBeforeRelease` (`internal/test/runner`) | `runner_exec.go`: `defer owned.finish(rec, &passed)` replaced by a no-op | "child 68553 not reaped: wait4=68553, <nil>"; "port lease 25000 was released before the owned helper was reaped" | ok |
+| P-5 | an append under one tag does not duplicate an earlier block's obligation / `TestPrepareAppendMessageIsolation` (`internal/le/commit`) | `prepare.go` `Create`: on append, the earlier block's paths are fed to `linuxLimitTrailers` too | "published obligation occurs 2 times, want once" | ok |
+| P-34 | the AI reference names only served MCP tools (the `a8803f84fc` correction) / new `TestAIReferenceNamesOnlyServedMCPTools` (`internal/plugins/help`), compared against a real `mcp.NewStreamable` tools/list | `help_ai.go`: the tools/call recipe names `ze_announce` | "the AI reference names MCP tool \"ze_announce\" (tools/call example ...), which the MCP server does not serve" | ok |
+| P-34 | same / same | `help_ai.go`: the summary line names `ze_announce, ze_withdraw` | the same, for both names, from the summary line | ok |
+| P-34 | a Doc review older than its Docs page is refused / `TestCheckRefusesStaleDocReview` (`internal/le/feature`) | `staleness.go`: `if changed > reviewed` gains `&& changed == ""` | "no refusal containing \"Doc review 2026-10-07 is older than the change to docs/widget.md on 2026-10-09\"" | ok |
+| P-40 | `.et` cases of different exclusive groups run independently / `TestEditorSuiteNativeExclusive` (`internal/test/editorcase`) | `internal/test/cli/cmd_editor.go` (in place): every declared group collapses to one constant | "suite rendezvous needed watchdog" (the different group's `other.enter` never ran) | ok |
+
+P-34's real declaration is current too. Another session's `ce58dddf53` changed
+`docs/features/ai-first.md` after the `features/ai-first-design.md` Doc review,
+which made the feature check refuse it. The paragraph was re-checked against
+`Diagnostic.Fix`, `outputText`, `outputJSON` and the daemon's
+`readinessAnswer`, and one phrase was corrected. The review moved to
+2026-11-10 (`301ab01d10`), and the check no longer refuses that declaration.
+
+The `.wb` half of P-40 is open: `TestWebNativeExclusiveCleanup`'s
+different-group check stayed green under two group-collapsing breaks, the
+adapter's record and the shared lock file, so that check does not discriminate
+and is being repaired.
