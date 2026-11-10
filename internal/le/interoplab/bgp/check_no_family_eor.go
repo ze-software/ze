@@ -16,19 +16,25 @@ import (
 // writing its startup-fenced log. PID alone cannot reject process-ID reuse.
 // The zero value is invalid; readNoFamilyEORIdentity admits each native field.
 type noFamilyEORIdentity struct {
-	pid, startTicks uint64
+	pid, startTicks     uint64
 	logDevice, logInode uint64
-	session aigpRecipientFence
+	session             aigpRecipientFence
 }
 
 func readNoFamilyEORIdentity(ctx context.Context, lab interoplab.CheckerLab, address string) (noFamilyEORIdentity, error) {
 	var identity noFamilyEORIdentity
 	pidText, err := lab.Query(ctx, peerFRR, []string{cmdCat, frrBGPDPIDFile}, nil)
-	if err != nil { return identity, err }
+	if err != nil {
+		return identity, err
+	}
 	identity.pid, err = strconv.ParseUint(strings.TrimSpace(pidText), 10, 64)
-	if err != nil || identity.pid == 0 { return identity, fmt.Errorf("invalid FRR bgpd PID %q", pidText) }
+	if err != nil || identity.pid == 0 {
+		return identity, fmt.Errorf("invalid FRR bgpd PID %q", pidText)
+	}
 	statText, err := lab.Query(ctx, peerFRR, []string{cmdCat, "/proc/" + strconv.FormatUint(identity.pid, 10) + "/stat"}, nil)
-	if err != nil { return identity, err }
+	if err != nil {
+		return identity, err
+	}
 	pid, tail, ok := strings.Cut(strings.TrimSpace(statText), " (bgpd) ")
 	fields := strings.Fields(tail)
 	if !ok || pid != strconv.FormatUint(identity.pid, 10) || len(fields) < 20 {
@@ -36,19 +42,33 @@ func readNoFamilyEORIdentity(ctx context.Context, lab interoplab.CheckerLab, add
 	}
 	// proc_pid_stat(5), field 22; fields begins with field 3 (state).
 	identity.startTicks, err = strconv.ParseUint(fields[19], 10, 64)
-	if err != nil || identity.startTicks == 0 { return identity, errors.New("FRR bgpd start time is absent or invalid") }
+	if err != nil || identity.startTicks == 0 {
+		return identity, errors.New("FRR bgpd start time is absent or invalid")
+	}
 	logStat, err := lab.Query(ctx, peerFRR, []string{"stat", "-Lc", "%d:%i", frrLogPath}, nil)
-	if err != nil { return identity, err }
+	if err != nil {
+		return identity, err
+	}
 	device, inode, ok := strings.Cut(strings.TrimSpace(logStat), ":")
-	if !ok { return identity, errors.New("FRR log identity is incomplete") }
+	if !ok {
+		return identity, errors.New("FRR log identity is incomplete")
+	}
 	identity.logDevice, err = strconv.ParseUint(device, 10, 64)
-	if err != nil { return identity, fmt.Errorf("FRR log device: %w", err) }
+	if err != nil {
+		return identity, fmt.Errorf("FRR log device: %w", err)
+	}
 	identity.logInode, err = strconv.ParseUint(inode, 10, 64)
-	if err != nil || identity.logInode == 0 { return identity, errors.New("FRR log inode is absent or invalid") }
+	if err != nil || identity.logInode == 0 {
+		return identity, errors.New("FRR log inode is absent or invalid")
+	}
 	neighbor, err := lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", "show bgp neighbor " + address + " json"}, nil)
-	if err != nil { return identity, err }
+	if err != nil {
+		return identity, err
+	}
 	identity.session, err = readFRRAIGPRecipientFence(neighbor, address)
-	if err != nil { return identity, err }
+	if err != nil {
+		return identity, err
+	}
 	if identity.session.established != 1 || identity.session.dropped != 0 {
 		return identity, errors.New("FRR did not retain its original no-family session")
 	}
@@ -57,9 +77,48 @@ func readNoFamilyEORIdentity(ctx context.Context, lab interoplab.CheckerLab, add
 
 func requireNoFamilyEORIdentity(ctx context.Context, lab interoplab.CheckerLab, address string, want noFamilyEORIdentity) error {
 	got, err := readNoFamilyEORIdentity(ctx, lab, address)
-	if err != nil { return err }
-	if got != want { return fmt.Errorf("FRR no-family daemon, log or session changed: before=%+v after=%+v", want, got) }
+	if err != nil {
+		return err
+	}
+	if got != want {
+		return fmt.Errorf("FRR no-family daemon, log or session changed: before=%+v after=%+v", want, got)
+	}
 	return nil
+}
+
+// noFamilyEORObservation is one probe of the no-family End-of-RIB wait: the FRR
+// log the probe read, and the identity change a completed identity read found.
+type noFamilyEORObservation struct {
+	log     string
+	failure error
+}
+
+// String is what a timed-out wait quotes as its last output: the FRR log as
+// the peer printed it, after the identity failure when one was found.
+func (o noFamilyEORObservation) String() string {
+	if o.failure == nil {
+		return o.log
+	}
+	return o.failure.Error() + "\n" + o.log
+}
+
+// probeNoFamilyEORIdentity compares the identity inside one probe of the
+// End-of-RIB wait and carries log into the observation. A read the wait's end
+// cut short measured nothing, so its error is the probe's error: the wait then
+// keeps the last measured log and ends with its not-ready verdict. Only a read
+// that ran to its end makes the observation's failure, which ends the wait.
+func probeNoFamilyEORIdentity(ctx context.Context, lab interoplab.CheckerLab, address string, want noFamilyEORIdentity, log string) (noFamilyEORObservation, error) {
+	err := requireNoFamilyEORIdentity(ctx, lab, address, want)
+	if err == nil {
+		return noFamilyEORObservation{log: log}, nil
+	}
+	// MUTATION: returning the cut read as the observation's failure makes the
+	// verdict the expired context ("cut short by its caller's deadline"), and
+	// TestNoFamilyEORWindowVerdict goes red.
+	if ctx.Err() != nil {
+		return noFamilyEORObservation{}, err
+	}
+	return noFamilyEORObservation{log: log, failure: err}, nil
 }
 
 // FRR 10.7.1's file target prefixes a native message with local date/time,
@@ -67,11 +126,18 @@ func requireNoFamilyEORIdentity(ctx context.Context, lab interoplab.CheckerLab, 
 // embedding an apparently matching receive event.
 func noFamilyFRRLogMessage(line string) (string, bool) {
 	timestamp, message, ok := strings.Cut(line, " BGP: ")
-	if !ok { return "", false }
-	if _, err := time.Parse("2006/01/02 15:04:05", timestamp); err != nil { return "", false }
-	if !strings.HasPrefix(message, "[") { return "", false }
+	if !ok {
+		return "", false
+	}
+	if _, err := time.Parse("2006/01/02 15:04:05", timestamp); err != nil {
+		return "", false
+	}
+	if !strings.HasPrefix(message, "[") {
+		return "", false
+	}
 	uid, message, ok := strings.Cut(message[1:], "] ")
-	if !ok || strings.ContainsAny(uid, " \t[]") || uid == "" { return "", false }
+	if !ok || strings.ContainsAny(uid, " \t[]") || uid == "" {
+		return "", false
+	}
 	return message, true
 }
-

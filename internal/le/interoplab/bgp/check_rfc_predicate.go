@@ -287,6 +287,15 @@ func requireNoExternalLSA(database string) error {
 	return requireAbsentWithProof(database, []string{lsaAge}, []string{heading})
 }
 
+// noFamilyEORFRRRelease is the FRR release whose receive decoder
+// endOfRIBDecoded reads. The lab's image (interoplab.FRRImage) prints it with
+// a build suffix after an underscore, as `bgpd 10.7.1_git starting: `, so the
+// startup fence accepts the release alone or the release, an underscore and
+// any suffix (frrStartupRelease). No other release passes: its decoder lines
+// are not the ones quoted below.
+const noFamilyEORFRRRelease = "10.7.1"
+
+// RFC 4724 Section 4: "The End-of-RIB marker MUST be sent by a BGP speaker to its peer once it completes the initial routing update (including the case when there is no update to send) for an address family after the BGP session is established."
 // endOfRIBDecoded matches the startup-fenced FRR 10.7.1 receive event from
 // bgpd/bgp_packet.c:bgp_update_receive_eor (commit
 // f8c0b08dcb0c78f9e42b9b86ae70b049e4e617c1, lines 2330-2338).
@@ -308,7 +317,11 @@ func endOfRIBDecoded(log, peer string) bool {
 			if !nativeStartup {
 				continue
 			}
-			if started || version != "10.7.1" {
+			// MUTATION: requiring version == noFamilyEORFRRRelease alone
+			// refuses the lab image's own `bgpd 10.7.1_git starting: `, and
+			// TestBespokeCheckerBranches/no-family-peer-eor-frr and
+			// TestNoFamilyEORCurrentSessionConsumer go red.
+			if started || !frrStartupRelease(version, noFamilyEORFRRRelease) {
 				return false
 			}
 			started = true
@@ -319,6 +332,17 @@ func endOfRIBDecoded(log, peer string) bool {
 		}
 	}
 	return started && received
+}
+
+// frrStartupRelease reports whether the version FRR's frr_run printed at
+// startup is release, bare or followed by an underscore and a build suffix
+// (`10.7.1_git`). Another release, and a longer one sharing the text
+// (`10.7.10`), is refused: the underscore ends the release.
+func frrStartupRelease(version, release string) bool {
+	if version == release {
+		return true
+	}
+	return strings.HasPrefix(version, release+"_")
 }
 
 // frrNeighborCapabilities is FRR's `show bgp neighbor <peer> json`, cut to the one

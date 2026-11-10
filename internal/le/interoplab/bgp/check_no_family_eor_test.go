@@ -34,6 +34,8 @@ func TestNoFamilyEORCurrentSessionConsumer(t *testing.T) {
 		{name: "send direction", log: startup + strings.Replace(decode, "rcvd End-of-RIB", "send End-of-RIB", 1), generation: 1},
 		{name: "wrong producer", log: startup + strings.Replace(decode, "bgp_update_receive_eor:", "other_function:", 1), generation: 1},
 		{name: "previous daemon EOR", log: decode + startup, generation: 1},
+		{name: "lab image build suffix", log: strings.Replace(startup, "bgpd 10.7.1 ", "bgpd 10.7.1_git ", 1) + decode, generation: 1, wantOK: true},
+		{name: "another release with a build suffix", log: strings.Replace(startup, "bgpd 10.7.1 ", "bgpd 10.6.0_git ", 1) + decode, generation: 1},
 		{name: "replaced session", log: startup + decode, generation: 2, dropped: 1},
 		{name: "daemon replaced after decode", log: startup + decode, generation: 1, changeDaemon: true},
 		{name: "socket replaced after decode", log: startup + decode, generation: 1, changeSocket: true},
@@ -56,17 +58,54 @@ func TestNoFamilyEORCurrentSessionConsumer(t *testing.T) {
 	}
 }
 
+// VALIDATES: a window that closes with no decode reports the not-ready
+// verdict and FRR's last log, even when the closing deadline cuts the next
+// identity read short.
+// PREVENTS: the expired context of that cut read being reported as the
+// assertion-4 verdict, which hides the log a red must show.
+// Method: the lab ends the wait on its second log read and refuses every
+// identity read made after that, as a docker exec under a done context does.
+func TestNoFamilyEORWindowVerdict(t *testing.T) {
+	const routeOnly = "2026/11/04 12:00:00 BGP: [START-00000] bgpd 10.7.1_git starting: vty@2605\n" +
+		"2026/11/04 12:00:01 BGP: [ROUTE-00000] 172.30.0.2 rcvd UPDATE w/ attr: nexthop 172.30.0.2\n"
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	lab := &noFamilyEORConsumerLab{log: routeOnly, generation: 1, cancel: cancel, honorDeadline: true}
+	err := checkNoFamilyEndOfRIB(ctx, &interoplab.CheckContext{Lab: lab,
+		Network: interoplab.Network{IPv4: netip.MustParsePrefix("172.30.0.0/24")}})
+	if err == nil {
+		t.Fatal("a window with no End-of-RIB decode passed")
+	}
+	if lab.logReads < 2 {
+		t.Fatalf("the wait ended before the deadline cut an identity read: log reads=%d", lab.logReads)
+	}
+	for _, want := range []string{
+		"FRR current-session decode of the End-of-RIB marker timed out before the peer became ready",
+		"rcvd UPDATE w/ attr: nexthop 172.30.0.2",
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("assertion-4 verdict = %v\nwant it to carry %q", err, want)
+		}
+	}
+}
+
 type noFamilyEORConsumerLab struct {
 	recordingLab
 	log                                    string
 	generation, dropped                    uint64
 	changeDaemon, changeSocket, replaceLog bool
-	cancel                                 context.CancelFunc
-	logReads, routeReads                   int
+	// honorDeadline refuses an identity read made under a done context, as
+	// a docker exec does once the wait's deadline has passed.
+	honorDeadline        bool
+	cancel               context.CancelFunc
+	logReads, routeReads int
 }
 
-func (l *noFamilyEORConsumerLab) Query(_ context.Context, _ string, command []string, _ []interoplab.EnvironmentVariable) (string, error) {
+func (l *noFamilyEORConsumerLab) Query(ctx context.Context, _ string, command []string, _ []interoplab.EnvironmentVariable) (string, error) {
 	joined := strings.Join(command, " ")
+	if l.honorDeadline && joined != cmdCat+" "+frrLogPath && ctx.Err() != nil {
+		return "", fmt.Errorf("query %q cut short by its caller's deadline: %w", joined, ctx.Err())
+	}
 	switch {
 	case joined == "cat /tmp/frr.log":
 		l.logReads++

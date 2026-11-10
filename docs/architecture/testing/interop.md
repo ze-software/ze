@@ -1749,7 +1749,10 @@ emits the message. A table entry is not an EOR substitute.
 
 The scenario's `bgpd_options` enables file logging before integrated
 configuration, so `frr_run`'s native startup precedes the initial receive
-window. Only a decode after the sole startup is eligible. The checker brackets
+window. Only a decode after the sole startup is eligible, and that startup
+must name release 10.7.1, bare or with FRR's build suffix after an underscore:
+the lab image prints `bgpd 10.7.1_git starting: `. Another release, or a
+longer one such as `10.7.10`, does not fence the log. The checker brackets
 the log read with bgpd PID and `/proc` start ticks, log device/inode, exact
 neighbor socket ports, Established state, one connection establishment and
 zero drops. Foreign peers, address substrings, other families/VRFs, send
@@ -1757,7 +1760,7 @@ messages, pre-startup events and daemon/session/log replacement cannot certify
 this observation. The final Established check and identity comparison retain
 the original-session survival assertion.
 <!-- source: internal/le/interoplab/bgp/check_rfc.go -- checkNoFamilyEndOfRIB -->
-<!-- source: internal/le/interoplab/bgp/check_rfc_predicate.go -- endOfRIBDecoded, requireMultiprotocolAdvertisedOnly -->
+<!-- source: internal/le/interoplab/bgp/check_rfc_predicate.go -- endOfRIBDecoded, frrStartupRelease, requireMultiprotocolAdvertisedOnly -->
 <!-- source: internal/le/interoplab/bgp/check_no_family_eor.go -- readNoFamilyEORIdentity, noFamilyFRRLogMessage -->
 <!-- source: test/interop/scenarios/no-family-peer-eor-frr/daemons -- early bgpd logging -->
 

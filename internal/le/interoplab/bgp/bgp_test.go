@@ -712,6 +712,16 @@ func TestBespokeCheckerBranches(t *testing.T) {
 		if !endOfRIBDecoded(decoded, peer) {
 			t.Fatal("FRR's own End-of-RIB decode was rejected")
 		}
+		// FRR's lab image prints its release with a build suffix; another
+		// release, or a longer one sharing the text, stays refused.
+		if !endOfRIBDecoded(strings.Replace(decoded, "bgpd 10.7.1 ", "bgpd 10.7.1_git ", 1), peer) {
+			t.Fatal("the lab image's own `bgpd 10.7.1_git starting:` was rejected")
+		}
+		for _, release := range []string{"10.6.0_git", "10.7.10", "10.7.10_git", "10.7.1git", "10.7"} {
+			if endOfRIBDecoded(strings.Replace(decoded, "bgpd 10.7.1 ", "bgpd "+release+" ", 1), peer) {
+				t.Fatalf("a startup of release %q passed as FRR 10.7.1", release)
+			}
+		}
 		if endOfRIBDecoded(strings.Replace(decoded, "IPv4 Unicast", "ipv4 unicast", 1), peer) {
 			t.Fatal("a family spelling the pinned FRR decoder never emits was accepted")
 		}

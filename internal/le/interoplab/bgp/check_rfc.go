@@ -1274,11 +1274,11 @@ func checkNoFamilyEndOfRIB(ctx context.Context, check *interoplab.CheckContext) 
 	// Assertion 4. RFC 4724 Section 4: read the pinned peer's actual receive
 	// decoder, not a routing-table or GR-capability surrogate. A native startup
 	// fences the log; exact sender/family/VRF and the original daemon/session
-	// identity must survive both sides of the read.
-	type observation struct {
-		log     string
-		failure error
-	}
+	// identity must survive both sides of the read. An identity read the
+	// window's end cut short is the probe's error, not a failure, so a window
+	// with no decode ends with Wait's not-ready verdict quoting the last FRR
+	// log (noFamilyEORObservation.String), never the expired context.
+	//
 	// Each probe reads the identity twice and the log once, about eleven
 	// docker execs; a 3s interval keeps that rate below what stalled one exec
 	// past its bound. Every fact the probe reads is cumulative, so spacing the
@@ -1287,19 +1287,20 @@ func checkNoFamilyEndOfRIB(ctx context.Context, check *interoplab.CheckContext) 
 		Timeout:     60 * time.Second,
 		Interval:    3 * time.Second,
 		Description: "FRR current-session decode of the End-of-RIB marker",
-	}, func(probeCtx context.Context) (observation, error) {
-		if err := requireNoFamilyEORIdentity(probeCtx, check.Lab, zeAddress, identity); err != nil {
-			return observation{failure: err}, nil
+	}, func(probeCtx context.Context) (noFamilyEORObservation, error) {
+		before, err := probeNoFamilyEORIdentity(probeCtx, check.Lab, zeAddress, identity, "")
+		if err != nil {
+			return before, err
+		}
+		if before.failure != nil {
+			return before, nil
 		}
 		log, err := check.Lab.Query(probeCtx, peerFRR, []string{cmdCat, frrLogPath}, nil)
 		if err != nil {
-			return observation{}, err
+			return noFamilyEORObservation{}, err
 		}
-		if err := requireNoFamilyEORIdentity(probeCtx, check.Lab, zeAddress, identity); err != nil {
-			return observation{log: log, failure: err}, nil
-		}
-		return observation{log: log}, nil
-	}, func(current observation) bool {
+		return probeNoFamilyEORIdentity(probeCtx, check.Lab, zeAddress, identity, log)
+	}, func(current noFamilyEORObservation) bool {
 		return current.failure != nil || endOfRIBDecoded(current.log, zeAddress)
 	})
 	if err != nil {
