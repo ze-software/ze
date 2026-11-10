@@ -350,12 +350,29 @@ func (h *patchHunk) read(line string) bool {
 // the refusal, or "" when the hunk carries context on each side the file goes
 // on. A hunk with no old lines inserts after line oldStart; any other hunk
 // starts at line oldStart.
+//
+// An old start of zero is the start of the file. With an old count of zero
+// as well (`@@ -0,0 +c,d @@`), the old side is empty: the hunk is the whole
+// content of a file that held nothing, such as the new side of a type change
+// from a regular file to a symlink, whose section follows the deletion of
+// HEAD's lines. It sits at both ends of that empty file, so no context can
+// exist and git places it exactly; lines, which counts HEAD's blob, says
+// nothing about that file. git apply matches such a hunk only at the start
+// and the end of the file at once, so against a file that is not empty it
+// refuses rather than misplacing it.
 func (h *patchHunk) problem(path, patchFile string, lines int) string {
 	if !h.changed {
 		return ""
 	}
+	if h.oldStart == 0 {
+		if h.oldCount == 0 {
+			return ""
+		}
+	}
+	// before is the number of lines ahead of the hunk; an old start of zero
+	// leaves none, whatever the count.
 	before := h.oldStart
-	if h.oldCount > 0 {
+	if h.oldCount > 0 && h.oldStart > 0 {
 		before = h.oldStart - 1
 	}
 	side := ""

@@ -243,10 +243,15 @@ func TestSelectionRefusesMalformedEntry(t *testing.T) {
 // VALIDATES: the -U0 insertion is refused naming its hunk header and the
 // command that saves the patch with context; the same change saved with git's
 // default context applies inside the table; a default-context hunk at the
-// start of the file, which has no leading context, still applies.
-// PREVENTS: a zero-context hunk committed at the end of the file.
+// start of the file, which has no leading context, still applies; a -U0 hunk
+// whose old range is 0,0 applies, both for lines added to an empty file and
+// for the new side of a regular-file-to-symlink type change.
+// PREVENTS: a zero-context hunk committed at the end of the file, and a
+// refusal of a hunk that adds to an empty file, which has no context to give.
 // MUTATION: removing the contextProblem call in Apply lets the -U0 patch
-// apply, and the row lands after `d`.
+// apply, and the row lands after `d`. Removing the old-range-0,0 early return
+// in patchHunk.problem refuses the type change, because HEAD's blob holds one
+// line; the empty-file case alone cannot see it, since HEAD's blob is empty.
 func TestApplyRefusesZeroContextPatch(t *testing.T) {
 	root := t.TempDir()
 	gitIn(t, root, "init", "-q")
@@ -297,5 +302,51 @@ func TestApplyRefusesZeroContextPatch(t *testing.T) {
 	}
 	if string(content) != "| head |\n"+original {
 		t.Fatalf("selected content %q, want the line at the start of the file", content)
+	}
+
+	// A -U0 hunk whose old range is 0,0 adds content to a file that held
+	// nothing: it sits at both ends, so it has no context to carry and git
+	// places it exactly. First an empty file HEAD holds, then the new side of
+	// a type change from a regular file to a symlink, whose `@@ -0,0 +1 @@`
+	// section follows the deletion of HEAD's one line.
+	writeFile(t, root, "empty.md", "")
+	writeFile(t, root, "link", "regular\n")
+	gitIn(t, root, "add", "--", "empty.md", "link")
+	gitIn(t, root, "commit", "-q", "-m", "empty and regular")
+	head = strings.TrimSpace(gitIn(t, root, "rev-parse", "HEAD"))
+	const filled = "x\ny\n"
+	writeFile(t, root, "empty.md", filled)
+	fill := filepath.Join(patches, "fill.patch")
+	writeFile(t, patches, "fill.patch", gitIn(t, root, "diff", "-U0", "--", "empty.md"))
+	entry, err = Apply(root, head, "empty.md", fill)
+	if err != nil {
+		t.Fatalf("a -U0 hunk adding lines to an empty file: %v, want its entry", err)
+	}
+	content, err = Selection{"empty.md": {Entry: entry, Patch: fill}}.Read(root, "empty.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(content) != filled {
+		t.Fatalf("selected content %q, want the added lines %q", content, filled)
+	}
+
+	if err := os.Remove(filepath.Join(root, "link")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("target", filepath.Join(root, "link")); err != nil {
+		t.Fatal(err)
+	}
+	retype := filepath.Join(patches, "retype.patch")
+	retyped := gitIn(t, root, "diff", "-U0", "--", "link")
+	if !strings.Contains(retyped, "@@ -0,0 +1 @@") {
+		t.Fatalf("the type change diff %q, want its new side as @@ -0,0 +1 @@", retyped)
+	}
+	writeFile(t, patches, "retype.patch", retyped)
+	entry, err = Apply(root, head, "link", retype)
+	if err != nil {
+		t.Fatalf("a -U0 type change to a symlink, whose new side adds to an empty file: %v, want its entry", err)
+	}
+	if !strings.HasPrefix(entry, "120000 ") {
+		t.Fatalf("selected entry %q, want the symlink mode 120000", entry)
 	}
 }
