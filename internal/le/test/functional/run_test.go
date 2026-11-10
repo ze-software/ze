@@ -45,7 +45,7 @@ func TestSuiteCoverageIsSilentUntilZeCoverIsSet(t *testing.T) {
 // reads the source and refuses any call to Execute whose coverage argument is
 // not the one suiteCoverage produced.
 func TestEverySuiteRunTakesItsCoverageFromOneProducer(t *testing.T) {
-	const coverArgument = 3
+	const coverArgument = 4
 
 	found := 0
 	for _, name := range []string{"run.go", "actions.go"} {

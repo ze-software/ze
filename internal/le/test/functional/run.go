@@ -12,6 +12,7 @@
 package testfunctional
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -46,8 +47,9 @@ func sessionScratch(root string) (string, error) {
 // commandLine is the full argv one suite runs: the cap, then the binary, then
 // the suite.
 //
-// `timeout` runs the suite in its own process group and signals the whole group
-// on expiry, so leaked grandchildren (ze daemons, tacacs mocks) die with it.
+// `timeout` heads the process group Execute starts it in (gaterun.StreamContext
+// sets it up, and timeout's own setpgid keeps it) and signals the whole group on
+// expiry, so leaked grandchildren (ze daemons, tacacs mocks) die with it.
 func commandLine(suite Suite, set BinarySet) []string {
 	argv := suite.Command()
 	argv[0] = set.lePath()
@@ -58,11 +60,37 @@ func commandLine(suite Suite, set BinarySet) []string {
 	return append(full, argv...)
 }
 
+// suiteGroupBound is how long an interrupted suite's process group is given to
+// empty once the cancel's SIGKILL has reached every member. A killed process
+// exits as soon as the kernel schedules it, so the bound is only the margin a
+// loaded host needs, and it stays inside the seconds an operator waits after a
+// Ctrl-C.
+const suiteGroupBound = 5 * time.Second
+
+// interruptedCode is what a functional action answers when SIGINT or SIGTERM
+// stopped it, the shell's number for an interrupt and the verify engine's too.
+const interruptedCode = 130
+
 // Execute runs one suite and answers its exit status and how long it took.
-func Execute(tc gotoolchain.Toolchain, suite Suite, set BinarySet, cover string) (code, seconds int) {
+//
+// The suite's `timeout` heads a process group of its own (gaterun.StreamContext),
+// and every process the suite starts stays in it unless it moves itself out. A
+// canceled ctx SIGKILLs that whole group, so a suite that ignores SIGTERM, and
+// the daemons it started, stop with it, where killing le alone used to leave
+// them running to their budget. Execute then waits for the group to empty and
+// says so when it does not. The caller MUST read ctx after the call: a canceled
+// run's code is the kill's (137), never a verdict of the suite.
+func Execute(ctx context.Context, tc gotoolchain.Toolchain, suite Suite, set BinarySet, cover string) (code, seconds int) {
 	environ := coverEnvironment(set.Environment(tc), cover)
 	started := time.Now()
-	code = gaterun.Stream(commandLine(suite, set), tc.Root, environ)
+	code, group := gaterun.StreamContext(ctx, commandLine(suite, set), tc.Root, environ)
+	if ctx.Err() != nil {
+		if err := group.AwaitExit(context.WithoutCancel(ctx), suiteGroupBound); err != nil {
+			var tb textbuf.Buffer
+			gaterun.Note(tb.Str("      suite ").Str(suite.Name).Str(" was stopped, but its ").Err(err).
+				Str("; list them with `ps -A -o pid,pgid,command` and stop them by hand").String())
+		}
+	}
 	return code, int(time.Since(started).Seconds())
 }
 
@@ -326,7 +354,9 @@ func warmCITestPackages(tc gotoolchain.Toolchain) error {
 // (planRun, suitemap.go).
 //
 // One isolated binary set serves the whole run, built once and removed however
-// the run ends.
+// the run returns: a finished run, a red one, and one SIGINT or SIGTERM stopped
+// (ctx, rooted by the action). A SIGKILL or the OOM killer runs no Go code, so
+// the set outlives those.
 //
 // The run list is decided before anything is built, so the denominator every
 // progress line reads and the suites the loop starts are one decision
@@ -336,7 +366,7 @@ func warmCITestPackages(tc gotoolchain.Toolchain) error {
 // The payload is nil when the run never started.
 // A zero GatingReport is not an empty run because its Text renders "PASS all 0 suites" in green.
 // Returning it after a refused run list or failed build would falsely report a pass.
-func runGating(tc gotoolchain.Toolchain) (any, int) {
+func runGating(ctx context.Context, tc gotoolchain.Toolchain) (any, int) {
 	plan, err := planRun(tc.Root)
 	if err != nil {
 		gaterun.Note(reportLine(err))
@@ -355,26 +385,52 @@ func runGating(tc gotoolchain.Toolchain) (any, int) {
 		run.Skip(suite)
 	}
 
+	covers, err := coverRoot(tc.Root)
+	if err != nil {
+		gaterun.Note(reportLine(err))
+		return nil, 1
+	}
 	if err := warmCITestPackages(tc); err != nil {
 		gaterun.Note(reportLine(err))
 		return nil, 1
+	}
+	if ctx.Err() != nil {
+		return interrupted("before the binary set was built", len(plan.Running))
 	}
 	set, err := Prepare(tc, "functional")
 	if err != nil {
 		gaterun.Note(reportLine(err))
 		return nil, 1
 	}
+	return runPrepared(ctx, tc, plan.Running, set, covers, run, recording)
+}
+
+// runPrepared runs suites on set, in order, and removes set however the loop
+// ends.
+//
+// A canceled ctx stops the run where it is: the in-flight suite's process
+// group is killed and awaited (Execute), its raw coverage directory is removed
+// rather than reduced, and no later suite starts. Nothing is recorded or
+// published for an interrupted run, because a suite map missing the suites it
+// never ran would read as a map of the whole tree, and its payload is nil for
+// the reason the zero GatingReport is (runGating).
+func runPrepared(ctx context.Context, tc gotoolchain.Toolchain, suites []Suite, set BinarySet, covers string, run *Run, recording *suiteRecording) (any, int) {
 	defer Release(set)
 
-	covers, err := coverRoot(tc.Root)
-	if err != nil {
-		gaterun.Note(reportLine(err))
-		return nil, 1
-	}
-	for _, suite := range plan.Running {
+	for index, suite := range suites {
+		if ctx.Err() != nil {
+			return interrupted("between suites", len(suites)-index)
+		}
 		run.Announce(suite)
 		cover, reduce := suiteCoverage(tc, suite, covers)
-		code, seconds := Execute(tc, suite, set, cover)
+		code, seconds := Execute(ctx, tc, suite, set, cover)
+		if ctx.Err() != nil {
+			if cover != "" {
+				removeTree(cover)
+			}
+			var tb textbuf.Buffer
+			return interrupted(tb.Str("during suite ").Str(suite.Name).String(), len(suites)-index-1)
+		}
 		run.Record(suite, seconds, code)
 		recording.record(suite.Name, reduce())
 	}
@@ -385,6 +441,15 @@ func runGating(tc gotoolchain.Toolchain) (any, int) {
 		return report, 1
 	}
 	return report, 0
+}
+
+// interrupted says where a SIGINT or SIGTERM stopped a gating run and how many
+// suites it never started, and answers the interrupt's code with no payload.
+func interrupted(where string, notStarted int) (any, int) {
+	var tb textbuf.Buffer
+	gaterun.Note(tb.Str("functional: interrupted ").Str(where).Str("; ").Int(int64(notStarted)).
+		Str(" suite(s) not started, and no suite map was published").String())
+	return nil, interruptedCode
 }
 
 // reportLine spells one failure the way every ported le tool spells it.

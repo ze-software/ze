@@ -16,7 +16,10 @@ package testfunctional
 import (
 	"context"
 	"errors"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
@@ -151,7 +154,7 @@ func areaActions(s *session) []leaction.Action {
 	return []leaction.Action{
 		{Verb: listVerb, Summary: "list every functional suite and its budget", Why: "every suite and its budget", Alone: true, Answer: s.runList},
 		{Verb: gatingVerb, Does: runDoes, Summary: "run every gating suite under its own budget", Why: "every gating suite, under its own budget", Alone: true,
-			Answer: s.runGating},
+			Answer: signalRooted(s.runGating)},
 		{Verb: previewVerb,
 			Summary: "list the suites a gating run would start",
 			Why:     "the suites a gating run would start for this checkout, and why the rest are absent",
@@ -181,8 +184,24 @@ func (s *session) runPreview() (any, int) {
 	return plan.Report, 0
 }
 
+// signalRooted answers an action that runs under a context SIGINT and SIGTERM
+// cancel, so a stopped run kills its in-flight suite's process group and
+// removes what it built instead of dying with them still running.
+//
+// The first signal cancels ctx and also restores the default handling
+// (context.AfterFunc runs stop), so a second Ctrl-C ends le at once when an
+// operator will not wait for the group to empty.
+func signalRooted(run func(context.Context) (any, int)) func() (any, int) {
+	return func() (any, int) {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		context.AfterFunc(ctx, stop)
+		return run(ctx)
+	}
+}
+
 // runGating runs the gating suites under their own budgets.
-func (s *session) runGating() (any, int) {
+func (s *session) runGating(ctx context.Context) (any, int) {
 	if !hostReady() {
 		return nil, 1
 	}
@@ -191,7 +210,7 @@ func (s *session) runGating() (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	return runGating(tc)
+	return runGating(ctx, tc)
 }
 
 // hostReady reports whether this host can run a functional suite, after
@@ -231,9 +250,11 @@ func table(s *session) leaction.Area {
 	return leaction.New(Area, rows...)
 }
 
-// suiteRunner answers the action that runs one suite under its own cap.
+// suiteRunner answers the action that runs one suite under its own cap. A
+// SIGINT or SIGTERM kills the suite's process group (Execute) and removes its
+// raw coverage; Answer's deferred release then removes the set.
 func (s *session) suiteRunner(suite Suite) func() (any, int) {
-	return func() (any, int) {
+	return signalRooted(func(ctx context.Context) (any, int) {
 		if !hostReady() {
 			return nil, 1
 		}
@@ -259,7 +280,14 @@ func (s *session) suiteRunner(suite Suite) func() (any, int) {
 			return nil, 1
 		}
 		cover, reduce := suiteCoverage(tc, suite, covers)
-		code, seconds := Execute(tc, suite, set, cover)
+		code, seconds := Execute(ctx, tc, suite, set, cover)
+		if ctx.Err() != nil {
+			if cover != "" {
+				removeTree(cover)
+			}
+			var tb textbuf.Buffer
+			return interrupted(tb.Str("during suite ").Str(suite.Name).String(), 0)
+		}
 		reduce()
 		return SuiteRun{
 			Suite:   suite.Name,
@@ -268,7 +296,7 @@ func (s *session) suiteRunner(suite Suite) func() (any, int) {
 			Code:    code,
 			Expired: code == killedByBudget,
 		}, code
-	}
+	})
 }
 
 func (s *session) runExaBGP() (any, int) {

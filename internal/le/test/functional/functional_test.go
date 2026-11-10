@@ -906,7 +906,7 @@ func TestARunThatNeverStartedAnswersNoReport(t *testing.T) {
 	Gating = []string{"no-such-suite"}
 	defer func() { Gating = saved }()
 
-	answer, code := runGating(gotoolchain.Toolchain{})
+	answer, code := runGating(t.Context(), gotoolchain.Toolchain{})
 	if code == 0 {
 		t.Error("a run list naming no suite was accepted")
 	}

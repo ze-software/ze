@@ -874,6 +874,23 @@ nothing about the product. The same expiry lands in
 A budget that is raised and never watched creeps back to its cap, so the
 warning exists to make the creep visible while the suite is still green.
 <!-- source: internal/le/test/functional/actions.go -- Answer -->
+
+#### Stopping a run
+
+A SIGINT or SIGTERM stops `gating` and a single suite where they are. Each
+suite's `timeout` heads a process group of its own, and the stop kills that
+whole group, so a suite or a daemon that ignores SIGTERM stops with it, and le
+waits up to five seconds for the group to empty, naming any member left. The
+in-flight suite's raw coverage is removed, no later suite starts, no suite map
+is published, and the run's own throwaway binary set is removed. The run then
+prints `functional: interrupted during suite <name>; <n> suite(s) not started`
+and exits 130. The first signal restores the default handling, so a second
+Ctrl-C ends le at once. A SIGKILL or the OOM killer runs none of this, and the
+set is then left for the store trim, which removes a `testbin-pid-<pid>-<label>/`
+whose run is over (`docs/contributing/running-commands.md`, "Scratch files"). The suite's group is
+not the terminal's foreground group, so a suite reads no stdin.
+<!-- source: internal/le/test/functional/actions.go -- signalRooted -->
+<!-- source: internal/le/test/functional/run.go -- Execute, runPrepared, interrupted -->
 <!-- source: internal/le/test/functional/actions.go -- Answer -->
 
 ---
