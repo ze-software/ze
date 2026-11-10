@@ -2184,3 +2184,61 @@ HEAD say nothing about the scenario under test.
 - A guard that reads source files from disk cannot be walked through an
   overlay: the overlay changes what the compiler sees, not what the guard
   reads. Such a guard needs a fixture tree of its own to show a red.
+
+## P-12 (a) interop checkers: the four remaining walks (2026-11-10)
+
+Each scenario ran alone in the interop lab. A break is in Ze's code, never in
+the checker, so the red comes from the checker's own assertion against a Ze
+that misbehaves. The logs are under `tmp/session/2026-11-09-222002/scratch/`,
+named in each row; the Red column quotes the failing assertion line.
+
+| Obligation | Carrier | Break | Red |
+| --- | --- | --- | --- |
+| #8 an unassigned EVPN route type is discarded, not relayed | `checkRFC7606TypedNLRIDiscard`, scenario `bgp-rfc7606-typed-nlri-discard` | `RecognizeNLRI` (`nlri/evpn/rfc7606.go`) keeps unassigned EVPN types (`nlri-walk-break.log`) | "assertion 2: the speaker verdict is FAIL: [no-unrecognized-evpn-type] RFC 7606 Section 5.4: received EVPN route type 99, which is not assigned; it must have been discarded, not relayed" |
+| #7 a mixed UPDATE is split before it is relayed | `checkRFC7606MixedUpdate`, scenario `bgp-rfc7606-relay-shape-frr` | Go overlay of `reactor/forward_body.go`: `\|\| destUpdate.MixesNLRIFields()` dropped from the parsed branch (`lab2-mixed-break.log`) | "assertion 11: wait for strict split UPDATE capture through source fence never measured peer state: not an independently split seeded withdrawal: 000418c6336400144001..." |
+| #14 a peer with no negotiated family still gets End-of-RIB | `checkNoFamilyEndOfRIB`, scenario `no-family-peer-eor-frr` | Go overlay of `peer_initial_sync.go`: `sendEOR := false && !p.settings.ManualEOR` (`lab-eor-break.log`) | "assertion 4: wait for FRR current-session decode of the End-of-RIB marker timed out before the peer became ready" |
+| #2 LOCAL_PREF is not sent to an external peer (RFC4271-5.1.5-2) | `checkLocalPrefStrip`, scenario `bgp-local-pref-strip-gobgp`, through `./le rfc record` | hand-written mutant of `applyFactsLocalPref` (`reactor/forward_local_pref.go`): the `Suppress` replaced by `_ = mods` (`rfc-record-lp.log`) | "assertion 13: LOCAL_PREF appeared on the actual external destination wire" |
+
+Green runs, each on the build carrying its fixes:
+
+| Scenario | Fixes it needed | Green |
+| --- | --- | --- |
+| `bgp-rfc7606-typed-nlri-discard` | `ac1a28dc21` and `41fb15dad0` (the speaker redials while its deadline is live) | pass (3m12s), `lab2-nlri-green.log`. This is the restored-green run the #8 section above left owed |
+| `bgp-rfc7606-relay-shape-frr` | none to the checker | pass (1m36s), `lab2-mixed-green.log` |
+| `no-family-peer-eor-frr` | `bac7b11df7` (the FRR version fence accepted only `10.7.1` while the image prints `10.7.1_git`, and an identity read cut short by the window's end is no longer reported as a final exec failure; judged, RFC approval recorded) and `1c2ca3dea8` (the lab message) | pass (1m47s), `lab3-eor.log` |
+| `bgp-local-pref-strip-gobgp` | `7081cfdfa7` (observer orders by NLRI, RFC 4271 Section 4.3), `162bb3b7c5` (relay verdict in the dump), `0287ea3c8f` (a GoBGP-facing relay waits until GoBGP knows it, after GoBGP's "Can't find configuration for a new passive connection" race), `684b9f41f9` (the injector is released by assertion 16 only once Ze holds both peers), `ec0efa5c25` (a message file's await-file timeout reaches the peer) | pass (2m52s), `lab8-lp.log`; the `./le rfc record` clean pass took 3m25s, and the record is `22d430d39b` (`rfc/discrimination/rfc4271/RFC4271-5.1.5-2.json`) |
+
+Two findings correct earlier readings. The first #7 break was applied to
+`SplitWireUpdate`, which this scenario never reaches, so its green said
+nothing; the break above hits the parsed branch the scenario does take. The
+#14 "exec hang" was a wait deadline reported under the wrong name, as the
+`1c2ca3dea8` section above explains. The lab blocker met on the way, every le
+helper container panicking on a 65-character help line, is `c77a8dd2f3`
+(section above).
+
+## P-35: the GR purge, BFD join and document-too-wide members (2026-11-10)
+
+No machine load was applied: each break reinstates the cause the fix
+removed, so the red shows the carrier detects that cause rather than a
+timing accident.
+
+| Obligation | Carrier | Break | Red |
+| --- | --- | --- | --- |
+| GR purge waits until bgp-rib holds A's routes (`1f2458644f`) | `TestOwedKeyGRPurgeRecoversSurvivor` (`internal/component/bgp/reactor`), `-count=30` | overlay restoring the single retain the fix replaced (`p35w2/gr-purge-single-retain-break.log`) | "purge-stale purged 0 of A's routes, want 1" (subtest `end-of-rib/no-survivor`; the race fails in 1 of the 30 runs, so the red is statistical) |
+| A session's read loop ends without waiting for an `openMu` holder (`ece0fd6af7`) | `TestBFDNegotiatedPublicationJoinsSessionEnd` (same package) | overlay making the close path wait on `openMu` (`p35w/bfd-close-waits-openMu-break.log`) | "read loop did not finish while publication was paused" |
+| document-too-wide runs no `ze init` inside its 15s bound (`e1b7d46458`) | `TestDocumentTooWideRunsNoInit` (`internal/test/fixture`), with the fixture's behaviour test | the `ze init` start restored in place in `plugin_fixture_10_process.go`, then restored (`p35w2/fixture10-inplace-break.log`) | "starts `ze init`; the fixture's CLI needs no store" |
+
+Each restored run passed (`ok`): `reactor` 404.2s for the GR carrier,
+`reactor` 3.5s for the BFD carrier, `fixture` 0.098s. The first GR attempt
+(`p35w/`) did not build ("undefined: slices" in `internal/component/pki`,
+another session's edit), so no red was observed there. The document-too-wide
+guard reads the fixture source from disk: the overlay attempt
+(`p35w/fixture10-init-restored-break.log`) stayed green, as the walk method
+lessons predict, so this break was applied in place and its bytes restored.
+The functional case `plugin-command-document-too-wide` has not been run with
+the fix: the run was blocked by another session's le panic.
+
+`rbac-web-config-deny` and `as112-doh` are recorded in the `6852770df1`
+section above. `update-text-sr-policy-addpath` moved to
+`plan/post-release/engineering/spec-tooling-historical-evidence.md`
+(`40aad4bf6a`), because its failure output is lost.
