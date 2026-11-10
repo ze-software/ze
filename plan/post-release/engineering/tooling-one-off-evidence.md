@@ -1924,5 +1924,57 @@ last dial error.
 | Attributed red | retry disabled (`false && speakerDialRetryable(err)`): "dialSpeakerPeer(127.0.0.1:...): dial tcp ...: connect: connection refused", and the deadline test fails its elapsed-time floor |
 | Restored green | bytes restored; both pass |
 
-The scenario's own red walk, with the checker's EVPN discard broken, is
-still owed: it needs the lab, which the host load held back this session.
+Lab, on the build carrying the dial fix: the clean run passed. Breaking
+`RecognizeNLRI` (`nlri/evpn/rfc7606.go`) so it keeps unassigned EVPN types
+fails the checker's own assertion: "assertion 2: the speaker verdict is FAIL:
+[no-unrecognized-evpn-type] RFC 7606 Section 5.4: received EVPN route type 99,
+which is not assigned; it must have been discarded, not relayed". The
+restored run then failed before establishment with "dial tcp 172.30.0.2:179:
+i/o timeout": the SYN went unanswered rather than refused. `41fb15dad0`
+retries a timed-out attempt while the run's deadline is live
+(`TestSpeakerDialRetriesAnAttemptTimeout`; making the predicate answer false,
+or dropping its deadline guard, each turns it red). The restored-green lab
+run on that build is still owed.
+
+## P-12 (a) #2: the LOCAL_PREF observer ordered by UPDATE boundary (2026-11-09)
+
+`bgp-local-pref-strip-gobgp` failed at assertion 9 with no break. The relay's
+verdict, which the failure dump did not show until `162bb3b7c5`, was
+"LOCAL_PREF FIFO fence preceded all three separate subjects". Ze's capture
+toward GoBGP showed its final UPDATE carrying the third subject 10.54.2.0/24
+and the fence 10.54.255.0/24 under one identical attribute set with no
+LOCAL_PREF. RFC 4271 Section 4.3: "An UPDATE message is used to advertise
+feasible routes that share common path attributes to a peer", so the packing
+is legal: the observer was wrong, and the scenario passed only when Ze
+happened not to batch. `7081cfdfa7` orders subjects and the fence by NLRI
+across the byte stream; every per-UPDATE attribute check still covers every
+NLRI. Judged by an independent `ze-test-judge` (RFC approval for
+`bgp.checkLocalPrefStrip` recorded; weakening approval for the refactored
+`localPrefTestCapture` carried by the commit). Unit cases: batched third and
+fence accepted, fence before third in one UPDATE refused, the observed lab
+frames accepted, batched LOCAL_PREF 200 refused. The lab green run and the
+discrimination record, against `applyFactsLocalPref`
+(`reactor/forward_local_pref.go`), are still owed.
+
+## Unit red walks of landed fixes (2026-11-09)
+
+Each break was applied by the red-walk tool, which restored the file, verified
+its bytes and ran the carrier green again.
+
+| Obligation | Carrier | Break | Red |
+| --- | --- | --- | --- |
+| P-9 rule metadata | `TestRuleMetadataLevelFollowsBody` (`internal/le/ai/rules`) | the declared-level tier check disabled | "mismatched metadata violations = [], want one named point" |
+| P-9 rule metadata | same | quoted text no longer stripped before the keyword scan | "matching metadata refused: ... 'level: SHOULD' disagrees with the body, whose strongest obligation is MUST" |
+| P-11 hook probe originals | `TestWeakeningProbeTreesCommitOriginals`, `TestWeakeningProbeRejectsUnreadableOriginal` | the probe tree's original commit replaced by `git status` | "read original HEAD: ... fatal: invalid object name 'HEAD'" |
+| P-38 asset containment | `TestArtifactCheckRefusesEscapingMedia` (`internal/le/site/terminaldemo`) | `root.Open(name)` replaced by an unconfined `os.Open` | "artifact check accepted media outside its root" |
+| P-17 CodeQL cache exclusion | `TestSelect...` (`internal/le/repo/codeql`) | the cache directory dropped from the excluded prefixes | "tracked Go gokrazy/modcache/cache/cache.go: CodeQL refuses gokrazy/modcache path ..." |
+| P-17 CodeQL alias guard | `TestGuardRefusesCanonicalCache` | symlinks no longer resolved before the guard | "cache request was admitted" |
+
+Not attributable this session: `TestActivityStyleUsesTheme` (P-17 theme)
+failed on both the broken and the restored run when the harness's Chromium
+start was killed ("start owned blank page for render observation: signal:
+killed"), before any theme check ran. Still owed besides: the P-9 gap-level
+accounting, the remaining P-11 sub-cases (QEMU fixture Go version, wait-file
+marker, BFD restart store), the P-38 parent subtest that is refused before
+containment is reached, and CodeQL's real extraction, which only a GitHub
+`codeql` run on a pushed commit can show.
