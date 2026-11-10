@@ -63,6 +63,14 @@ func seedStoreAfterEntry(root, binary string, streams streams, afterEntry func()
 	if err := validateSeedEntry(root, binary, os.Environ()); err != nil {
 		return seedReport{}, 1, err
 	}
+	return seedRetainedEntry(root, binary, streams, afterEntry, job.RunProcess)
+}
+
+// seedRetainedEntry is the seeder entry beneath its outer guard: it acquires
+// the owned session's retained roots and seeds through them. It MUST confine
+// every write to the caller's own session store on its own, because a proof
+// that the outer guard works runs this entry without that guard.
+func seedRetainedEntry(root, binary string, streams streams, afterEntry func(), run func([]string, job.ProcessIO) (int, error)) (seedReport, int, error) {
 	resources, err := openSeedResources(root, binary)
 	if err != nil {
 		return seedReport{}, 1, err
@@ -78,7 +86,7 @@ func seedStoreAfterEntry(root, binary string, streams streams, afterEntry func()
 		environ:    os.Environ(),
 		random:     rand.Reader,
 		sleep:      time.Sleep,
-		run:        job.RunProcess,
+		run:        run,
 		waits:      seedWaitLimit,
 	})
 }

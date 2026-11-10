@@ -2569,3 +2569,27 @@ does not flag the first.
 | --- | --- | --- | --- |
 | `TestAFailedPublicationKeepsTheUnchangedCopy` | the publish loop's `_ze_now=$(git rev-parse ...)` becomes `break`, so a refused swap reads as published | "the block reported success past a held branch lock" | PASS |
 | `TestEmptyAttestationBlockRefusesAnyPath` | a staging step inserted between the empty block's `read-tree` and `write-tree` | "the empty block does not write its tree from an index seeded with its parent, once" | PASS |
+
+## P-16 seeder confinement and P-39 explicit guest placement (2026-11-10)
+
+`TestSeederEntryCannotReachOperatorStore` (`internal/le/session`) runs the
+seeder entry beneath its outer guard (`seedRetainedEntry`, split out of
+`seedStoreAfterEntry` with no behaviour change) with a recording child: the
+owned case seeds only the session's own `bin/ze` and `etc/ze`; a foreign
+owner, a session symlink, `etc/ze` or `bin/ze` symlinked to the operator's,
+and each config-directory override spelling refuse by name, start no child
+and leave the operator tree, foreign sessions and symlink targets unchanged.
+`TestRecordLinuxCapabilityUnitInGuest` (`internal/le/rfc`) builds the
+recorder's runner for the two GTSM units: with `kernel` the unit goes to the
+guest with exactly that kernel and `-test.run '^<unit>$'`; without it the unit
+stays on a Linux host.
+
+| Carrier | Break (Go overlay, `c3/`) | Red | Restored |
+| --- | --- | --- | --- |
+| `TestSeederEntryCannotReachOperatorStore` | `seed_root.go` accepts a foreign owner | "refused scenario started ze child [... ze init --seed]", "seeder entry without its outer guard changed protected state" | PASS |
+| `TestSeederEntryCannotReachOperatorStore` | `seed.go` ignores the config override (`configOverride(nil)`) | "refusal started 1 ze children: ze init --seed failed for .../etc/ze/database" | PASS |
+| `TestRecordLinuxCapabilityUnitInGuest` | `unitNeedsGuest` ignores an explicit kernel | "explicit kernel placement refused: ...::TestGTSMTransmittedICMPErrorCarriesTTL255 runs on this host" (and the IPv6 unit) | PASS |
+
+The symlink cases have no one-line break: removing the directory check leaves
+`os.Root` refusing the escaping link, so they prove refusal and nonmutation
+without a recorded red. P-39's guest runs themselves still need QEMU.
