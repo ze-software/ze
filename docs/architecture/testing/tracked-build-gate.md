@@ -132,6 +132,19 @@ The tree is extracted with `git archive`, not `git worktree add --detach`.
 `git archive` writes nothing into `.git/`, so a killed run leaves no worktree
 registration to prune in a checkout that several sessions share.
 
+One helper does it for every le tool: `export.Commit` in
+`internal/le/repo/export` streams `git archive` into `tar -x` inside a
+directory the caller created. This gate and `./le repo bootstraps` both call
+it, after `objects.Resolve` has turned the revision into a full commit id.
+The helper refuses a directory that is not empty, because `tar -x` never
+removes a file the commit deleted. It also refuses a revision that starts
+with `-`, which git would read as an option. After a failed export the
+directory may hold a partial tree, and the caller that made it removes it.
+<!-- source: internal/le/repo/export/export.go -- Commit, emptyDirectory -->
+<!-- source: internal/le/repo/objects/objects.go -- Resolve -->
+<!-- source: internal/le/repo/bootstraps/tracked.go -- Run -->
+<!-- source: internal/le/repo/compiles/repositorytrackedbuild.go -- Run -->
+
 `-trimpath` is load-bearing, not hygiene. Without it the compile action ID
 carries the absolute source directory, so every fresh scratch path is a full
 rebuild (measured 36s, then 36s again). With it the shared build cache is

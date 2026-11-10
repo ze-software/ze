@@ -46,7 +46,9 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
+	"github.com/ze-software/ze/internal/le/repo/export"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
+	"github.com/ze-software/ze/internal/le/repo/objects"
 )
 
 // leTree is the import-path prefix every le tool package sits under.
@@ -581,7 +583,7 @@ func setOf(names []string) map[string]bool {
 func Run(ctx context.Context, repo, rev string) (Verdict, int, error) {
 	verdict := Verdict{Rev: rev}
 
-	commit, err := resolveRev(ctx, repo, rev)
+	commit, err := objects.Resolve(ctx, repo, rev)
 	if err != nil {
 		return verdict, 2, err
 	}
@@ -593,7 +595,7 @@ func Run(ctx context.Context, repo, rev string) (Verdict, int, error) {
 	}
 	defer os.RemoveAll(dest) //nolint:errcheck // a scratch tree, removed on every exit path
 
-	if err := extract(ctx, repo, commit, dest); err != nil {
+	if err := export.Commit(ctx, repo, commit, dest); err != nil {
 		return verdict, 2, err
 	}
 
@@ -627,46 +629,6 @@ func Run(ctx context.Context, repo, rev string) (Verdict, int, error) {
 	}
 	verdict.OK = true
 	return verdict, 0, nil
-}
-
-// resolveRev turns a commit-ish into the sha the run is judging, so the verdict
-// names a commit rather than a moving name.
-func resolveRev(ctx context.Context, repo, rev string) (string, error) {
-	cmd := exec.CommandContext(ctx, "git", "rev-parse", rev) //nolint:gosec // rev is a commit-ish the operator named; git resolves it or refuses
-	cmd.Dir = repo
-	out, err := cmd.Output()
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(out)), nil
-}
-
-// extract materializes the commit into dest.
-//
-// `git archive` rather than a worktree: it reads the object store and writes
-// nothing into .git/. A worktree registration outlives a killed run and then
-// needs pruning by hand, and several sessions share this checkout.
-func extract(ctx context.Context, repo, commit, dest string) error {
-	archive := exec.CommandContext(ctx, "git", "archive", "--format=tar", commit) //nolint:gosec // commit is the sha rev-parse answered
-	archive.Dir = repo
-
-	var tarball bytes.Buffer
-	var complaint bytes.Buffer
-	archive.Stdout = &tarball
-	archive.Stderr = &complaint
-	if err := archive.Run(); err != nil {
-		var tb textbuf.Buffer
-		return errors.New(tb.Str("git archive: ").Str(strings.TrimSpace(complaint.String())).String())
-	}
-
-	untar := exec.CommandContext(ctx, "tar", "-x", "-C", dest) //nolint:gosec // dest is the scratch tree this run created
-	untar.Stdin = &tarball
-	untar.Stderr = &complaint
-	if err := untar.Run(); err != nil {
-		var tb textbuf.Buffer
-		return errors.New(tb.Str("tar: ").Str(strings.TrimSpace(complaint.String())).String())
-	}
-	return nil
 }
 
 // buildAndList builds the cmd/ze le personality from the extracted tree, runs

@@ -25,7 +25,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -36,7 +35,9 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/le/repo/export"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
+	"github.com/ze-software/ze/internal/le/repo/objects"
 )
 
 // The four run-time inputs the script took as flags. They are environment
@@ -182,10 +183,10 @@ func Run(ctx context.Context, repo string, options Options) (Report, int, error)
 	if err != nil {
 		return Report{}, 2, fmt.Errorf("resolve the repository %s: %w", repo, err)
 	}
-	commit, err := resolveRev(ctx, absRepo, options.Rev)
+	commit, err := objects.Resolve(ctx, absRepo, options.Rev)
 	if err != nil {
 		// Say WHICH failure this is. An expired deadline makes every child
-		// process fail at once, and "does not name a commit" would send the
+		// process fail at once, and "revision is unavailable" would send the
 		// reader after a bad revision that is perfectly fine.
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return Report{}, 2, fmt.Errorf(
@@ -210,7 +211,7 @@ func Run(ctx context.Context, repo string, options Options) (Report, int, error)
 		}
 	}()
 
-	if err := extract(ctx, absRepo, commit, dir); err != nil {
+	if err := export.Commit(ctx, absRepo, commit, dir); err != nil {
 		return Report{}, 2, err
 	}
 	if err := sanityCheck(ctx, absRepo, commit, dir); err != nil {
@@ -273,24 +274,6 @@ func Run(ctx context.Context, repo string, options Options) (Report, int, error)
 	return report, 0, nil
 }
 
-// resolveRev turns a commit-ish into a full sha.
-//
-// `git rev-list -n 1` is used rather than `rev-parse` for two reasons. It
-// resolves to a commit and needs no `^{commit}` suffix. It also fails on a
-// repository with no commits, which MUST be an error here: an empty build is a
-// passing build.
-func resolveRev(ctx context.Context, repo, rev string) (string, error) {
-	out, err := exec.CommandContext(ctx, "git", "-C", repo, "rev-list", "-n", "1", rev).Output() //nolint:gosec // rev is an operator-supplied commit-ish
-	if err != nil {
-		return "", fmt.Errorf("%s does not name a commit in %s", rev, repo)
-	}
-	commit := strings.TrimSpace(string(out))
-	if commit == "" {
-		return "", fmt.Errorf("%s does not name a commit in %s", rev, repo)
-	}
-	return commit, nil
-}
-
 // scratchTree answers an EMPTY directory to extract into, under this session's
 // scratch directory so two concurrent sessions never share one. Never the
 // system temp directory: this repository keeps its scratch inside the checkout
@@ -316,57 +299,6 @@ func scratchTree(ctx context.Context, repo string) (string, error) {
 		return "", fmt.Errorf("create scratch %s: %w", dir, err)
 	}
 	return dir, nil
-}
-
-// extract materializes the commit, streaming `git archive` straight into `tar`
-// so no second copy of the archive is written.
-//
-// vendor/ is INCLUDED: this module is vendored, so a tree without vendor/
-// cannot build at all.
-func extract(ctx context.Context, repo, commit, dest string) error {
-	archive := exec.CommandContext(ctx, "git", "-C", repo, "archive", "--format=tar", commit) //nolint:gosec // commit is a resolved sha
-	untar := exec.CommandContext(ctx, "tar", "-xf", "-", "-C", dest)                          //nolint:gosec // dest is ours
-
-	pipe, err := archive.StdoutPipe()
-	if err != nil {
-		return fmt.Errorf("pipe git archive: %w", err)
-	}
-	untar.Stdin = pipe
-	var archiveErr, untarErr textbuf.Buffer
-	archive.Stderr = &archiveErr
-	untar.Stderr = &untarErr
-
-	if err := archive.Start(); err != nil {
-		return fmt.Errorf("start git archive: %w", err)
-	}
-	if err := untar.Start(); err != nil {
-		if killErr := archive.Process.Kill(); killErr != nil {
-			var tb textbuf.Buffer
-			tb.Str("compiles: kill git archive: ").Err(killErr).Byte('\n').StdErr() //nolint:errcheck // CLI output
-		}
-		if waitErr := archive.Wait(); waitErr != nil {
-			var tb textbuf.Buffer
-			tb.Str("compiles: reap git archive: ").Err(waitErr).Byte('\n').StdErr() //nolint:errcheck // CLI output
-		}
-		return fmt.Errorf("start tar: %w", err)
-	}
-
-	// tar is waited on first: it is the reader. Then the pipe is drained --
-	// THIS PROCESS still holds its read end, so a tar that died early would not
-	// give `git archive` an EPIPE and it would block on a full pipe forever.
-	tarWait := untar.Wait()
-	if _, drainErr := io.Copy(io.Discard, pipe); drainErr != nil && tarWait == nil {
-		return fmt.Errorf("drain git archive output: %w", drainErr)
-	}
-	gitWait := archive.Wait()
-
-	if gitWait != nil {
-		return fmt.Errorf("git archive: %w: %s", gitWait, strings.TrimSpace(archiveErr.String()))
-	}
-	if tarWait != nil {
-		return fmt.Errorf("tar -x: %w: %s", tarWait, strings.TrimSpace(untarErr.String()))
-	}
-	return nil
 }
 
 // sanityCheck fails CLOSED. A build with nothing to compile would report a

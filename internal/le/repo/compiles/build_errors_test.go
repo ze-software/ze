@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/le/repo/export"
 )
 
 // TestBuildReportsAnExpiredDeadline keeps a silent exec failure visible without sleeping.
@@ -233,7 +235,7 @@ func TestBuildLinksTheCommittedTree(t *testing.T) {
 		t.Fatalf("working-tree link fix is not coherent: %s", working.Output)
 	}
 	dest := t.TempDir()
-	if err := extract(fixture.ctx, fixture.probe, "HEAD", dest); err != nil {
+	if err := export.Commit(fixture.ctx, fixture.probe, "HEAD", dest); err != nil {
 		t.Fatalf("extract committed link fixture: %v", err)
 	}
 	committed := Build(fixture.ctx, dest, okFlavor, nil, 1)
