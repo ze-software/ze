@@ -20,6 +20,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/arch/compoundguard"
 	_ "github.com/ze-software/ze/internal/le/arch/doctorcoverage"
 	_ "github.com/ze-software/ze/internal/le/arch/enumeration"
+	_ "github.com/ze-software/ze/internal/le/arch/errorinventory"
 	_ "github.com/ze-software/ze/internal/le/arch/errorwrap"
 	_ "github.com/ze-software/ze/internal/le/arch/fspersistence"
 	_ "github.com/ze-software/ze/internal/le/arch/ifaceresolution"
