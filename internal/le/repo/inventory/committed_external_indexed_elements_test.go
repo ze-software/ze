@@ -18,23 +18,13 @@ const parcelStateHook = "HOOK"
 const parcelInertHook = "func() {}"
 const parcelInstallingHook = "func() { install(0) }"
 
-// parcelIndexedCase writes one shape with the given callback in place of
-// parcelStateHook, then checks it: the inert callback publishes, the
-// installing one refuses as the registration it escapes to external code.
-func parcelIndexedCase(t *testing.T, fixture *asmInventoryFixture, declarations, hook string, installs bool) {
-	t.Helper()
-	program := strings.ReplaceAll(declarations, parcelStateHook, hook)
-	fixture.goFile(t, callableOwnerCaller, externalEffectsSource(parcelStateType+program, `_ = 0`+parcelHooksExposed))
-	commitInventoryFixture(t, fixture.root)
-	if installs {
-		externalEffectsRefusal(t, fixture, "registration")
-		return
-	}
-	externalEffectsPositive(t, fixture)
-}
-
 // parcelIndexedDiscriminates runs a shape with an inert and with an
-// installing callback, for both inventory kinds.
+// installing callback, for both inventory kinds. Each case writes the shape
+// with its callback in place of parcelStateHook, then checks it: the inert
+// callback publishes, the installing one refuses as the registration it
+// escapes to external code. The checks sit in the closure itself, not in a
+// further helper, so the test-sensitivity gate's two-level helper walk sees
+// the assertions the calling tests depend on.
 func parcelIndexedDiscriminates(t *testing.T, declarations string) {
 	t.Helper()
 	for _, kind := range []string{"plugin", "yang"} {
@@ -45,7 +35,14 @@ func parcelIndexedDiscriminates(t *testing.T, declarations string) {
 				installs   bool
 			}{{"inert", parcelInertHook, false}, {"installer", parcelInstallingHook, true}} {
 				t.Run(hook.name, func(t *testing.T) {
-					parcelIndexedCase(t, fixture, declarations, hook.body, hook.installs)
+					program := strings.ReplaceAll(declarations, parcelStateHook, hook.body)
+					fixture.goFile(t, callableOwnerCaller, externalEffectsSource(parcelStateType+program, `_ = 0`+parcelHooksExposed))
+					commitInventoryFixture(t, fixture.root)
+					if hook.installs {
+						externalEffectsRefusal(t, fixture, "registration")
+						return
+					}
+					externalEffectsPositive(t, fixture)
 				})
 			}
 		})

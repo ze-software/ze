@@ -59,6 +59,11 @@ func TestNonterminalOwnershipLeavesDefaultStdinAttached(t *testing.T) {
 	}
 }
 
+// TestNonterminalInputProcess is the child TestNonterminalOwnershipLeavesDefaultStdinAttached
+// runs; it returns at once unless JOB_NONTERMINAL_INPUT_MODE names a mode.
+//
+// test-asserts-nothing: subprocess entry point; its parent compares the child's
+// output byte for byte, and a failure printed here would corrupt that output.
 func TestNonterminalInputProcess(t *testing.T) {
 	mode := os.Getenv("JOB_NONTERMINAL_INPUT_MODE")
 	if mode == "" {

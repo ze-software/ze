@@ -13,6 +13,9 @@ import (
 
 // TestGeneratedReviewNativeHelper serves the real registered commit checker in
 // a subprocess, so a generated script never substitutes an echo for its gate.
+//
+// test-asserts-nothing: subprocess entry point; the tests that install it with
+// installNativeReviewChecker assert its exit status and output.
 func TestGeneratedReviewNativeHelper(t *testing.T) {
 	if os.Getenv("ZE_TEST_NATIVE_REVIEW") != "1" {
 		return

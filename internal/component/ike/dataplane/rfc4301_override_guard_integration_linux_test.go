@@ -84,6 +84,9 @@ var guardFamilies = []struct {
 
 // TestOverrideGuardHelperProcess is not a test: it is the application the kernel
 // tests start, and it returns at once unless guardHelperEnv names a mode.
+//
+// test-asserts-nothing: subprocess entry point; the kernel guard tests in this
+// file assert its exit status and output.
 func TestOverrideGuardHelperProcess(t *testing.T) {
 	mode := os.Getenv(guardHelperEnv)
 	if mode == "" {
