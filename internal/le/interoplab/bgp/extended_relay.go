@@ -44,13 +44,8 @@ type extendedRelayPeer struct {
 
 // prepareExtendedRelayPeers requires at least one relay. scenarioPeers MUST call
 // it before appending relays, and it MUST install configuration readiness first.
-// A listening BGP port is not readiness: FRR bgp_accept
-// closes a connection while BGP_PEER_START_SUPPRESSED holds. In FRR 10.3.1,
-// peer_unshut_after_cfg clears shut_during_cfg on bgp_config_end and queues
-// BGP_Start for all configured peers; bgp_start refuses suppressed peers.
-// Waiting for each daemon's last passive neighbor's Active state therefore follows
-// config-end, without consuming or replacing an evidence connection.
-// Sources: FRR bgpd/bgpd.c peer_unshut_after_cfg; bgpd/bgp_fsm.c bgp_start.
+// A listening BGP port is not readiness for either native daemon, and no probe
+// opens a BGP connection, so the relay's one session is never consumed.
 func prepareExtendedRelayPeers(peers []interoplab.PeerConfig, relays []extendedRelayPeer, network interoplab.Network) ([]interoplab.PeerConfig, error) {
 	zeIndex := -1
 	for index := range peers {
@@ -80,16 +75,52 @@ func prepareExtendedRelayPeers(peers []interoplab.PeerConfig, relays []extendedR
 		if nativeIndex < 0 {
 			return nil, fmt.Errorf("extended relay requires a configured %s peer", relay.destination)
 		}
-		peers[nativeIndex].Ready = &interoplab.ReadyProbe{
-			Command:  []string{cmdVtysh, "-c", "show bgp neighbor " + neighbor},
-			Contains: []string{"BGP neighbor is " + neighbor, "BGP state = Active (passive)"},
-			Timeout:  30 * time.Second, Interval: time.Second,
+		barrier, err := nativeRelayReady(relay.destination, neighbor)
+		if err != nil {
+			return nil, err
 		}
+		peers[nativeIndex].Ready = barrier
 	}
 	for index := range relays {
 		peers = append(peers, relays[index].peer)
 	}
 	return peers, nil
+}
+
+// nativeRelayReady is the configuration barrier of the daemon a relay dials,
+// for the relay at neighbor. It answers only once that daemon will admit the
+// relay's connection.
+//
+// FRR: bgp_accept closes a connection while BGP_PEER_START_SUPPRESSED holds. In
+// FRR 10.3.1, peer_unshut_after_cfg clears shut_during_cfg on bgp_config_end and
+// queues BGP_Start for all configured peers; bgp_start refuses suppressed peers.
+// Waiting for each daemon's last passive neighbor's Active state therefore
+// follows config-end. Sources: FRR bgpd/bgpd.c peer_unshut_after_cfg;
+// bgpd/bgp_fsm.c bgp_start.
+//
+// GoBGP: InitialConfig (pkg/config/config.go) calls StartBgp, which opens the
+// listener, before addNeighbors calls AddPeer, and passConnToPeer
+// (pkg/server/server.go) closes a connection from an address it has no peer for
+// ("Can't find configuration for a new passive connection"). `gobgp neighbor
+// <address>` lists that peer only after AddPeer, and fails with "not found
+// neighbor" before it (cmd/gobgp/neighbor.go getNeighbors, showNeighbor).
+// `gobgp global -j` is no barrier: it answers once StartBgp has run.
+func nativeRelayReady(destination, neighbor string) (*interoplab.ReadyProbe, error) {
+	switch destination {
+	case peerFRR, peerFRRSink:
+		return &interoplab.ReadyProbe{
+			Command:  []string{cmdVtysh, "-c", "show bgp neighbor " + neighbor},
+			Contains: []string{"BGP neighbor is " + neighbor, "BGP state = Active (passive)"},
+			Timeout:  30 * time.Second, Interval: time.Second,
+		}, nil
+	case peerGoBGP:
+		return &interoplab.ReadyProbe{
+			Command:  []string{cmdGoBGP, gobgpNeighbor, neighbor},
+			Contains: []string{"BGP neighbor is " + neighbor},
+			Timeout:  30 * time.Second, Interval: time.Second,
+		}, nil
+	}
+	return nil, fmt.Errorf("extended relay to %s has no configuration barrier", destination)
 }
 
 // runExtendedRelay keeps the fixture container queryable after a fatal session

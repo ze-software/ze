@@ -514,8 +514,11 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 			[]interoplab.Mount{mount(path, zeMountedConfig)}, ipv6Sysctls(), []string{"start", zeMountedConfig}, timeout))
 	}
 
-	// FRR-facing OPEN-only relays wait for both native configurations.
-	// Relays to other daemons keep their existing startup positions.
+	// A relay to a native daemon (FRR, the FRR sink, GoBGP) waits for both
+	// native configurations: each daemon drops a connection that arrives
+	// before it has configured the relay as its neighbor, and the relay never
+	// reconnects. prepareExtendedRelayPeers installs the barriers. A relay to
+	// any other daemon keeps its existing startup position.
 	var relays [2]extendedRelayPeer
 	relayCount := 0
 	for _, speaker := range []struct {
@@ -545,23 +548,25 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 			name, _, _ := strings.Cut(argument, "=")
 			return name == "--relay-peer"
 		})
-		frrRelay := ""
+		nativeRelay := ""
 		if isRelay {
 			options, parseErr := parseSpeakerOptions(command[3:])
 			if parseErr != nil {
 				return nil, parseErr
 			}
 			switch options.relayPeer {
-			case networkHostAddress(network, 3) + ":179":
-				frrRelay = peerFRR
+			case networkHostAddress(network, frrHostNumber) + ":179":
+				nativeRelay = peerFRR
 			case networkHostAddress(network, extendedSinkHost) + ":179":
-				frrRelay = peerFRRSink
+				nativeRelay = peerFRRSink
+			case networkHostAddress(network, gobgpHostNumber) + ":179":
+				nativeRelay = peerGoBGP
 			}
 		}
-		if frrRelay == "" {
+		if nativeRelay == "" {
 			peers = append(peers, peer)
 		} else {
-			relays[relayCount] = extendedRelayPeer{peer: peer, destination: frrRelay}
+			relays[relayCount] = extendedRelayPeer{peer: peer, destination: nativeRelay}
 			relayCount++
 		}
 	}
@@ -667,7 +672,7 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 			Mounts: []interoplab.Mount{mount(path, "/etc/unbound/unbound.conf")}, Ready: ready("ip", ipObjectLink)})
 	}
 	if path := filepath.Join(scenario, "gobgp.toml"); regularFile(path) {
-		peers = append(peers, interoplab.PeerConfig{Name: peerGoBGP, Container: containerName(peerGoBGP, suffix), Image: peerGoBGP, Host: 5,
+		peers = append(peers, interoplab.PeerConfig{Name: peerGoBGP, Container: containerName(peerGoBGP, suffix), Image: peerGoBGP, Host: gobgpHostNumber,
 			Mounts: []interoplab.Mount{mount(path, "/etc/gobgp/gobgp.toml")}, Capabilities: []string{capabilityNetAdmin}})
 	}
 	if relayCount > 0 {
@@ -790,9 +795,11 @@ func networkHostAddress6(network interoplab.Network, host uint8) string {
 
 // zeHostNumber and frrHostNumber are the last byte of the Ze and FRR
 // containers' lab addresses, and of the link-local each one owns.
+// gobgpHostNumber is the last byte of the GoBGP container's lab address.
 const (
-	zeHostNumber  = labconfig.ZeHost
-	frrHostNumber = labconfig.FRRHost
+	zeHostNumber    = labconfig.ZeHost
+	frrHostNumber   = labconfig.FRRHost
+	gobgpHostNumber = uint8(5)
 )
 
 // linkLocalOwner is the container a link-local placeholder names: its peer

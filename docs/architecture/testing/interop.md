@@ -305,7 +305,17 @@ environment and required stdout strings. Probes with no required strings retain
 exit-only readiness; relays to other daemons and other speaker personalities retain their startup order.
 No readiness probe opens a BGP connection, and the relay never reconnects a
 connected socket.
-<!-- source: internal/le/interoplab/bgp/extended_relay.go -- prepareExtendedRelayPeers, dialExtendedRelay -->
+
+A GoBGP-facing relay, as in `bgp-local-pref-strip-gobgp`, is gated the same way.
+GoBGP's `InitialConfig` calls `StartBgp`, which opens the listener, before it
+adds its neighbors, and `passConnToPeer` closes a connection from an address it
+has no peer for ("Can't find configuration for a new passive connection").
+GoBGP's barrier is `gobgp neighbor <relay address>`, which must print
+`BGP neighbor is <relay address>`: it fails with "not found neighbor" until
+`AddPeer` has run. `gobgp global -j` is no barrier, because it answers as soon
+as `StartBgp` has run. Ze's CLI must also list the relay peer, and the relay
+starts after GoBGP.
+<!-- source: internal/le/interoplab/bgp/extended_relay.go -- prepareExtendedRelayPeers, nativeRelayReady, dialExtendedRelay -->
 <!-- source: internal/le/interoplab/bgp/prepare.go -- scenarioPeers -->
 <!-- source: internal/le/interoplab/lab.go -- waitPeer -->
 

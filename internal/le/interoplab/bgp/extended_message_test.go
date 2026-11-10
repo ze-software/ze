@@ -366,7 +366,9 @@ func TestExtendedRelayPreparationRequiresNativePeers(t *testing.T) {
 }
 
 // TestExtendedRelayGoBGPPreparation keeps FRR-specific readiness keyed to the
-// parsed destination, not merely the presence or spelling of --relay-peer.
+// parsed destination, not merely the presence or spelling of --relay-peer, and
+// proves a GoBGP-facing relay is planned behind GoBGP's own configuration
+// barrier: GoBGP carries the neighbor probe and the relay starts after it.
 func TestExtendedRelayGoBGPPreparation(t *testing.T) {
 	for _, option := range []string{"--relay-peer 172.31.71.5:179", "--relay-peer=172.31.71.5:179"} {
 		t.Run(option, func(t *testing.T) {
@@ -380,13 +382,21 @@ func TestExtendedRelayGoBGPPreparation(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if len(peers) != 4 || peers[0].Name != "ze" || peers[1].Name != peerSpeaker ||
-				peers[2].Name != peerFRR || peers[3].Name != peerGoBGP {
-				t.Fatalf("GoBGP relay startup order changed: %+v", peers)
+			if len(peers) != 4 || peers[0].Name != "ze" || peers[1].Name != peerFRR ||
+				peers[2].Name != peerGoBGP || peers[3].Name != peerSpeaker {
+				t.Fatalf("GoBGP relay does not start after GoBGP: %+v", peers)
 			}
-			if len(peers[0].Ready.Contains) != 0 || len(peers[2].Ready.Contains) != 0 ||
-				!slices.Equal(peers[2].Ready.Command, []string{cmdVtysh, "-c", "show version"}) {
+			if len(peers[1].Ready.Contains) != 0 ||
+				!slices.Equal(peers[1].Ready.Command, []string{cmdVtysh, "-c", "show version"}) {
 				t.Fatal("GoBGP relay installed FRR-specific readiness probes")
+			}
+			if peers[2].Ready == nil ||
+				!slices.Equal(peers[2].Ready.Command, []string{cmdGoBGP, gobgpNeighbor, "172.31.71.10"}) ||
+				!slices.Equal(peers[2].Ready.Contains, []string{"BGP neighbor is 172.31.71.10"}) {
+				t.Fatalf("GoBGP has no relay-neighbor barrier: %+v", peers[2].Ready)
+			}
+			if !slices.Equal(peers[0].Ready.Contains, []string{`"172.31.71.10"`}) {
+				t.Fatalf("Ze readiness does not list the relay peer: %+v", peers[0].Ready)
 			}
 		})
 	}
