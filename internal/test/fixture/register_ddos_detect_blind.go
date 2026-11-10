@@ -4,7 +4,8 @@
 package fixture
 
 func init() {
-	// test/plugin/ddos-detect-external-blind.ci: an external ddos-detect is
+	// test/draft/plugin/ddos-detect-external-blind.ci (a draft until the
+	// forked plugin gets an event bus): an external ddos-detect is
 	// reported through show doctor, the daemon form of ze doctor, with its cause.
 	Register("plugin/doctor-ddos-detect-blind", observer02("doctor-ddos-detect-blind-test", doctorDDoSDetectBlind))
 	// test/plugin/ddos-detect-internal-blind.ci: an internal ddos-detect whose

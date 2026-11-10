@@ -88,7 +88,7 @@ commands execute inside that guest; `test qemu all` runs as root.
 
 | Command | Population |
 |---------|------------|
-| `./le test qemu netns suites <comma-separated-suites>` | The explicit kernel-dependent subset for each selected suite. `plugin` selects the seven ASPA cases, the RFC 2545 next-hop replay case and the static-into-OSPF redistribution chain case |
+| `./le test qemu netns suites <comma-separated-suites>` | The explicit kernel-dependent subset for each selected suite. `plugin` selects the seven ASPA cases, the RFC 2545 next-hop replay case, the static-into-OSPF redistribution chain case and the blind ddos-detect case |
 | `le test qemu all` | Every functional suite, the Linux unit pass, the installer phase, and every registered integration package. Six suites run in a per-test network namespace, requiring full `ip`, `setcap` and `getcap` tools |
 | `le test qemu all only needs-linux` | The same suites, each narrowed to the `.ci` tests marked `option=needs-linux`. The unit, installer and integration phases stay whole, and the report names the population it covered |
 | `le test qemu all test test/<dir>/<name>.ci` | That one `.ci`, through the suite that walks its directory (`vmSuiteFor`); a draft, `test/draft/<dir>/<name>.ci`, runs through the same suite with `--draft`. Either takes the same shim, environment and network-namespace preparation. No other suite or phase runs. `./le feature run` and `./le rfc record` reach a capability-gated test this way, through `testqemu.OneCICommand` under `docker-lab harness` |
@@ -438,6 +438,11 @@ common subnet. The fixture owns shutdown after both recipient assertions.
 It also includes `redistribute-chain-static-ospf`, which declares an `eth1`
 address of `10.0.0.1/24` because OSPFv2 opens no interface without an IPv4
 address; `test qemu all` skips it in the root namespace like the ASPA cases.
+It also includes `ddos-detect-internal-blind`, whose detector must see no
+received traffic for one baseline window: only a fresh namespace holding lo
+and a dummy `eth1` receives nothing, so it too is skipped in the root
+namespace during whole-suite runs.
+<!-- source: internal/le/test/qemu/netns_linux.go -- netnsSelections -->
 The selector does not move the whole plugin suite into namespaces.
 
 `./le test qemu netns suites <names>` is the same launcher over a named subset,

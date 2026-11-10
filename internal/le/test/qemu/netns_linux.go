@@ -59,6 +59,9 @@ var netnsSelections = map[string][]string{
 		"rpki-aspa-policy-logonly", "rpki-aspa-policy-reject", "rpki-aspa-policy-unknown-reject",
 		"adj-rib-in-replay-rfc2545-next-hop",
 		"redistribute-chain-static-ospf",
+		// option=netns-link: the namespace is the only box that receives
+		// nothing, so the zero-traffic finding forms only here.
+		"ddos-detect-internal-blind",
 	},
 }
 

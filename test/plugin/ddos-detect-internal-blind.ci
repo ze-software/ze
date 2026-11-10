@@ -1,0 +1,63 @@
+# Test: an internal ddos-detect whose interfaces receive nothing is reported blind by show doctor
+# VALIDATES: the ddos-detect-rate-feed plugin doctor check end to end, on the
+# real rate feed: the interface rate tracker (internal/component/iface/rate.go
+# collect) reads the namespace's links, trafficstat (Service.tick) hands the
+# rates to the detector (detector.go onRates, tickRates), observeFeed
+# (blind.go) counts the zero run, and checkRateFeed (doctor.go) answers
+# show doctor, the daemon form of ze doctor, through the plugin's own
+# OnDoctorCheck callback. The fixture plugin
+# (internal/test/fixture/ddos_detect_blind.go doctorDDoSDetectBlindZero) reads
+# show doctor until doctor-ddos-detect-blind carries "has reported zero
+# received packets and bytes", and returns an error otherwise. The WARN line
+# observeFeed logs at the onset of the run is asserted too.
+# PREVENTS: a detector that runs against zero traffic looking warmed and armed
+# in ze doctor, with a ready baseline that can never trigger.
+#
+# The namespace is the precondition: the test needs a box with no received
+# traffic, which a host or the shared guest root never is. option=netns-link
+# makes the runner skip the test outside a namespace the QEMU launcher prepares:
+# `./le test qemu netns suites plugin` (netnsSelections in
+# internal/le/test/qemu/netns_linux.go names it) and a one-test
+# `./le test qemu all test test/plugin/ddos-detect-internal-blind.ci` each run
+# it in a fresh namespace holding lo and the dummy eth1. A dummy link receives
+# nothing. lo carries only the fixture's own TLS connection to the daemon, so
+# the fixture stays silent for longer than one window before each read
+# (ddosBlindQuiet); it cannot poll, because a poll is received traffic.
+#
+# baseline-window 10 and check-interval 1 are the smallest values validation
+# accepts (internal/plugins/ddos/detect/config.go), so the window is 10
+# samples, one a second.
+#
+# needs-linux: ddos-detect depends on the interface plugin, which has no
+# OS-default backend on darwin (see test/plugin/ddos-detect-external-warns.ci).
+
+option=needs-linux
+option=netns-link:name=eth1
+# Serialize against every other ddos test, as
+# test/plugin/ddos-detect-external-warns.ci does: rationale in
+# test/plugin/ddos-direction.ci.
+option=exclusive:group=ddos-flood
+option=timeout:value=60s
+
+stdin=ze-conf:terminator=EOF_CONF
+ddos {
+	detect {
+		enabled true
+		baseline-window 10
+		check-interval 1
+	}
+}
+
+plugin {
+	external doctor-ddos-detect-blind-zero-test {
+		run "le test fixture plugin/doctor-ddos-detect-blind-zero"
+		encoder json
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=OK: show doctor reports doctor-ddos-detect-blind for a detector that sees no traffic
+expect=stderr:contains=has reported zero received packets and bytes on every interface for 10s
+reject=stderr:pattern=panic
