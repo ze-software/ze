@@ -22,6 +22,8 @@ package interoplab
 import (
 	"context"
 	"errors"
+	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -71,6 +73,14 @@ type LabBinary struct {
 	// the lab's Docker build context, .dockerignore admits it by negation, and
 	// .gitignore holds it because every run rewrites it.
 	Output string
+	// StartProbe is the argv, after the binary's own path, that the staged
+	// binary is started with once, after its build, to prove it starts
+	// (zebuild_probe.go). It MUST reach every check the binary runs at start,
+	// so a binary that panics at start fails the probe rather than every
+	// container that runs it. Nil declares no probe and the binary is not
+	// run: a staged daemon needs a config to start, and DockerKernel already
+	// runs the staged ze.
+	StartProbe []string
 }
 
 // StageBinaries answers the PreflightCheck that cross-compiles every declared
@@ -102,12 +112,17 @@ func StageBinaries(root string, noBuild bool, binaries ...LabBinary) PreflightCh
 		if err != nil {
 			return err
 		}
-		return stageBinaries(ctx, docker.runner, root, architecture, binaries)
+		// os.Stderr is where Suite.progress writes when a lab sets no
+		// Progress, which no lab does, so the probe's line sits among the
+		// suite's own.
+		return stageBinaries(ctx, docker, root, architecture, binaries, os.Stderr)
 	}
 }
 
-// stageBinaries cross-compiles each declared binary in declaration order and
-// stops at the first failure.
+// stageBinaries cross-compiles each declared binary in declaration order,
+// runs the start probe of each binary that declares one right after its
+// build, and stops at the first failure. Each probe writes its progress line
+// to progress.
 //
 // The toolchain comes from gotoolchain rather than from os.Environ, because
 // that is what puts GOCACHE inside the checkout and pins GOTOOLCHAIN to the one
@@ -117,7 +132,7 @@ func StageBinaries(root string, noBuild bool, binaries ...LabBinary) PreflightCh
 // tool trimming it mid-build fails this cross-compile with a wave of "no such
 // file or directory" against Go's own standard library
 // (plan/journal/full-disk-false-red.md). Measured on 2026-09-04, twice.
-func stageBinaries(ctx context.Context, runner ProcessRunner, root, architecture string, binaries []LabBinary) error {
+func stageBinaries(ctx context.Context, docker *Docker, root, architecture string, binaries []LabBinary, progress io.Writer) error {
 	toolchain, err := gotoolchain.New(root)
 	if err != nil {
 		return err
@@ -131,7 +146,10 @@ func stageBinaries(ctx context.Context, runner ProcessRunner, root, architecture
 	})
 
 	for _, binary := range binaries {
-		if err := stageBinary(ctx, runner, root, environment, binary); err != nil {
+		if err := stageBinary(ctx, docker.runner, root, environment, binary); err != nil {
+			return err
+		}
+		if err := probeBinaryStart(ctx, docker, root, binary, progress); err != nil {
 			return err
 		}
 	}

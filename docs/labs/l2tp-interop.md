@@ -401,8 +401,10 @@ separate xl2tpd interoperability scenarios.
 
 The shared `StageBinaries` preflight builds a separate static Linux `le`
 personality from the current checkout, with the same feature gates as the
-daemon. The existing Ze image copies it to `/usr/local/bin/le`; its name
-selects the registered fixture commands. The image carries no compiler,
+daemon, and starts it once with `help` before any image build, so an le that
+cannot start stops the run there (`docs/architecture/testing/interop.md`,
+"The start probe"). The existing Ze image copies it to `/usr/local/bin/le`;
+its name selects the registered fixture commands. The image carries no compiler,
 and its daemon remains the normal `ze_core` build. The checker rejects a
 missing helper, nonzero exit, usage output, or absent MTU, ICMP, CHAP,
 IPCP or cleanup evidence.

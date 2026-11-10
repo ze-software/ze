@@ -386,7 +386,7 @@ func knotPeer(suffix, directory string) interoplab.PeerConfig {
 func LabBinaries() []interoplab.LabBinary {
 	return []interoplab.LabBinary{
 		{Name: "ze", Base: "ze_core", Output: "test/interop-l2tp/ze-linux"},
-		{Name: linuxle.Name, Base: linuxle.Base, Output: "test/interop-l2tp/le-linux"},
+		{Name: linuxle.Name, Base: linuxle.Base, Output: "test/interop-l2tp/le-linux", StartProbe: linuxle.StartProbe()},
 	}
 }
 

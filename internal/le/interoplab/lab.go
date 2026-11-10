@@ -123,14 +123,20 @@ func (s Suite) progress(line *textbuf.Buffer) {
 
 // SuiteReport is the structured result for one gate invocation.
 type SuiteReport struct {
-	Images        []ImageResult    `json:"images,omitempty"`
-	Scenarios     []ScenarioResult `json:"scenarios,omitempty"`
-	Passed        int              `json:"passed"`
-	Failed        int              `json:"failed"`
-	FailedNames   []string         `json:"failed-names,omitempty"`
-	SetupError    string           `json:"setup-error,omitempty"`
-	CleanupErrors []string         `json:"cleanup-errors,omitempty"`
-	Code          int              `json:"code"`
+	Images      []ImageResult    `json:"images,omitempty"`
+	Scenarios   []ScenarioResult `json:"scenarios,omitempty"`
+	Passed      int              `json:"passed"`
+	Failed      int              `json:"failed"`
+	FailedNames []string         `json:"failed-names,omitempty"`
+	// NotRun names the scenarios an early stop skipped, in suite order. None
+	// of them is counted as passed or failed.
+	NotRun []string `json:"not-run,omitempty"`
+	// Stopped says why the run stopped before its last scenario and how to
+	// fix it; empty when every scenario ran.
+	Stopped       string   `json:"stopped,omitempty"`
+	SetupError    string   `json:"setup-error,omitempty"`
+	CleanupErrors []string `json:"cleanup-errors,omitempty"`
+	Code          int      `json:"code"`
 }
 
 // Text renders the report for a terminal, so a failing `./le test integration interop`
@@ -146,7 +152,8 @@ func (r SuiteReport) Text() string {
 	for index := range r.Scenarios {
 		scenario := &r.Scenarios[index]
 		if !scenario.Passed {
-			out.Str("interop: ").Str(scenario.Name).Str(": FAIL: ").Str(scenario.Error).Byte('\n')
+			inPhase(out.Str("interop: ").Str(scenario.Name).Str(": FAIL"), scenario.Phase).
+				Str(": ").Str(scenario.Error).Byte('\n')
 		}
 		for _, diagnostic := range scenario.Diagnostics {
 			out.Str("interop: ").Str(scenario.Name).Str(": ").Str(diagnostic)
@@ -158,7 +165,13 @@ func (r SuiteReport) Text() string {
 	for _, cleanup := range r.CleanupErrors {
 		out.Str("interop: image cleanup: ").Str(cleanup).Byte('\n')
 	}
+	if r.Stopped != "" {
+		out.Str("interop: stopped: ").Str(r.Stopped).Byte('\n')
+	}
 	out.Str("interop: ").Int(int64(r.Passed)).Str(" passed, ").Int(int64(r.Failed)).Str(" failed")
+	if len(r.NotRun) != 0 {
+		out.Str(", ").Int(int64(len(r.NotRun))).Str(" not run")
+	}
 	if len(r.FailedNames) != 0 {
 		out.Str(": ").Join(r.FailedNames, " ")
 	}
@@ -167,10 +180,12 @@ func (r SuiteReport) Text() string {
 
 // ScenarioResult records the checker verdict separately from cleanup diagnostics.
 type ScenarioResult struct {
-	Name          string   `json:"name"`
-	Passed        bool     `json:"passed"`
-	Error         string   `json:"error,omitempty"`
-	CleanupErrors []string `json:"cleanup-errors,omitempty"`
+	Name   string `json:"name"`
+	Passed bool   `json:"passed"`
+	Error  string `json:"error,omitempty"`
+	// Phase is the step the failed run reached (runScenario); empty on a pass.
+	Phase         ScenarioPhase `json:"phase,omitempty"`
+	CleanupErrors []string      `json:"cleanup-errors,omitempty"`
 	// Diagnostics holds one block per container a failed run started
 	// (diagnosePeers), read before the teardown removes them, so the report
 	// names the cause the verdict could not: an exited container, the
@@ -313,6 +328,9 @@ func (s Suite) Run(ctx context.Context) (report SuiteReport) {
 		s.progress(line.Str("interop: images ready (").Str(time.Since(preparing).Round(time.Second).String()).Byte(')'))
 	}
 	starts := imageStarts{start: make(map[string]ImageStart), probed: make(map[string]bool)}
+	// beforeChecker holds the names of the scenarios that failed in a row
+	// before their checker ran; a pass or a checker failure empties it.
+	var beforeChecker []string
 	for index, plan := range s.Scenarios {
 		line.Reset()
 		s.progress(scenarioLine(&line, index, len(s.Scenarios), plan.Source.Name).Str(": running"))
@@ -330,14 +348,37 @@ func (s Suite) Run(ctx context.Context) (report SuiteReport) {
 		if result.Passed {
 			s.progress(line.Str(": pass (").Str(elapsed).Byte(')'))
 			report.Passed++
+			beforeChecker = beforeChecker[:0]
 			continue
 		}
-		s.progress(line.Str(": FAIL (").Str(elapsed).Str("): ").Str(result.Error))
+		// The phase sits after the elapsed time, so the `: FAIL (` marker and
+		// the checker's `scenario <name> assertion N:` text that the RFC
+		// recorder reads (internal/le/rfc) are both unchanged.
+		s.progress(inPhase(line.Str(": FAIL (").Str(elapsed).Byte(')'), result.Phase).
+			Str(": ").Str(result.Error))
 		report.Failed++
 		report.FailedNames = append(report.FailedNames, result.Name)
 		if ctx.Err() != nil {
 			break
 		}
+		if !result.Phase.beforeChecker() {
+			beforeChecker = beforeChecker[:0]
+			continue
+		}
+		beforeChecker = append(beforeChecker, result.Name)
+		remaining := s.Scenarios[index+1:]
+		if len(beforeChecker) < setupFailuresBeforeStop {
+			continue
+		}
+		if len(remaining) == 0 {
+			continue
+		}
+		for skipped := range remaining {
+			report.NotRun = append(report.NotRun, remaining[skipped].Source.Name)
+		}
+		report.Stopped = s.stopReason(beforeChecker, report.NotRun)
+		s.progress(line.Reset().Str("interop: stopped: ").Str(report.Stopped))
+		break
 	}
 	if report.Failed > 0 {
 		report.Code = 1
@@ -415,6 +456,17 @@ type imageStarts struct {
 // runScenario runs one scenario. starts caches what wrapStarts reads from
 // each image, so each image is inspected and probed at most once for the run.
 func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references map[string]string, images *[]ImageResult, starts imageStarts) (result ScenarioResult) {
+	// phase is the step the run has reached. Each step sets it before it
+	// starts, and this deferred tag, registered first so it runs last, copies
+	// it onto a failed result: every return below is labeled by where it
+	// happened, never by matching its error text.
+	phase := PhaseSetup
+	defer func() {
+		if result.Passed {
+			return
+		}
+		result.Phase = phase
+	}()
 	result.Name = plan.Source.Name
 	if plan.Source.Name == "" {
 		result.Error = "scenario has no name"
@@ -505,6 +557,7 @@ func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references ma
 	lab.setPeers(peers)
 	for index := range peers {
 		peer := &peers[index]
+		phase = PhaseSetup
 		runErr := s.Docker.runContainer(ctx, network, *peer)
 		// A failed `docker run -d` can leave the container it created, so the
 		// name is this run's to remove once docker ran, unless the daemon
@@ -519,11 +572,13 @@ func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references ma
 		if peer.Ready == nil {
 			continue
 		}
+		phase = PhaseReadiness
 		if err := lab.waitPeer(ctx, *peer); err != nil {
 			result.Error = err.Error()
 			return result
 		}
 	}
+	phase = PhaseChecker
 	check := &CheckContext{Source: plan.Source, Network: network, Lab: lab, Checkout: s.Checkout,
 		Links: plan.Links, Memberships: memberships}
 	if err := plan.Source.Checker(ctx, check); err != nil {

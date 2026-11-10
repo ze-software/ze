@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P3 |
 | Release reason | Development tooling: it cuts the time a session spends proving one side of a change through a run that also exercises every other side. No shipped behaviour changes |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 1/9 |
 | Handoff | - |
 | Updated | 2026-11-10 |
 
@@ -523,6 +523,8 @@ all.
 - Replay judges checker logic only; Ze's behaviour is still proven by its producer's unit tests and one lab pass.
 
 ## Open Decisions for Thomas
+Implementation started 2026-11-10 under the recommendation of each row; Thomas may override any of them. Thomas authorised claiming this spec above the WIP cap (2026-11-10, "Ignore the cap and do them"): a one-off permission for this spec, not a cap raise.
+
 | ID | Question | Options | Recommendation |
 |----|----------|---------|----------------|
 | D1 | Setup failures repeated across scenarios (the four-in-a-row case, for causes the start probe does not catch) | (a) run a declared canary scenario before every multi-scenario run, about one scenario's cost each time; (b) stop the run after N consecutive scenarios fail in setup or readiness, listing the rest as not run; (c) phase label only | (b) with N=3: free on a healthy lab, bounded on a broken one |

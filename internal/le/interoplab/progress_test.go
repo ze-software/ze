@@ -54,7 +54,7 @@ func TestSuiteNarratesEachScenarioWhileItRuns(t *testing.T) {
 	if strings.Contains(seenDuringSecond, "[2/2] two: FAIL") {
 		t.Errorf("the second verdict was written before its checker returned:\n%s", seenDuringSecond)
 	}
-	if !strings.Contains(progress.String(), "): the peer never answered\n") || !strings.Contains(progress.String(), "interop: [2/2] two: FAIL (") {
+	if !strings.Contains(progress.String(), ") in checker: the peer never answered\n") || !strings.Contains(progress.String(), "interop: [2/2] two: FAIL (") {
 		t.Errorf("the failing scenario's line lacks its verdict and cause:\n%s", progress.String())
 	}
 }

@@ -132,10 +132,11 @@ func TestProxyMRUScenarioStagesFixtureHelper(t *testing.T) {
 	if len(prepared.Peers) != 1 || prepared.Peers[0].Name != peerZe {
 		t.Fatalf("proxy peers=%+v, want the Ze kernel namespace", prepared.Peers)
 	}
-	helper := interoplab.LabBinary{Name: linuxle.Name, Base: linuxle.Base, Output: "test/interop-l2tp/le-linux"}
+	helper := interoplab.LabBinary{Name: linuxle.Name, Base: linuxle.Base, Output: "test/interop-l2tp/le-linux",
+		StartProbe: linuxle.StartProbe()}
 	found := false
 	for _, binary := range LabBinaries() {
-		if binary == helper {
+		if reflect.DeepEqual(binary, helper) {
 			found = true
 		}
 	}

@@ -26,6 +26,17 @@ const Name = "le"
 // under `le test`.
 const Base = "ze_le"
 
+// StartProbe answers the arguments a staged linux le is started with once,
+// before any lab image carries it, to prove it starts (interoplab.LabBinary).
+// `help` reaches every check le runs at start: dispatch runs le's
+// registration checks before it reads the first word (leroot.Dispatch), and
+// those checks are what panicked in every le process in commit c77a8dd2f3.
+// Help itself reads no checkout and starts nothing, so a healthy le answers
+// it in a container that holds only the binary.
+func StartProbe() []string {
+	return []string{"help"}
+}
+
 // Tags answers the build tags of a linux le: Base and every daemon feature tag, so the container's le carries the same feature
 // set as the le on the host.
 func Tags(root string) (string, error) {

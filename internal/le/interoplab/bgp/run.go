@@ -35,7 +35,10 @@ const defaultPMACCTImage = "pmacct/pmbmpd:v1.8.0"
 // harness command under `le test`, and its file is named le inside the image
 // because cmd/ze selects its personality from that name. The feature gates are
 // added to each by the producer, from feature-gates.txt, so neither binary can
-// carry a smaller feature set than the shipped daemon.
+// carry a smaller feature set than the shipped daemon. The le build declares
+// linuxle.StartProbe, so the preflight starts it once before any image
+// carries it: an le that cannot start fails there, not in every helper
+// container's readiness wait.
 //
 // The third is the daemon again, with ze_le added: the build that compiles the
 // test seams no shipped binary carries, such as the read-path panic injection
@@ -46,7 +49,7 @@ const defaultPMACCTImage = "pmacct/pmbmpd:v1.8.0"
 func LabBinaries() []interoplab.LabBinary {
 	return []interoplab.LabBinary{
 		{Name: "ze", Base: repofeaturetags.DaemonBase, Output: "test/interop/ze-linux"},
-		{Name: linuxle.Name, Base: linuxle.Base, Output: "test/interop/le-linux"},
+		{Name: linuxle.Name, Base: linuxle.Base, Output: "test/interop/le-linux", StartProbe: linuxle.StartProbe()},
 		{Name: "ze with ze_le", Base: repofeaturetags.DaemonBase + " " + repofeaturetags.LEBase,
 			Output: "test/interop/ze-le-linux"},
 	}

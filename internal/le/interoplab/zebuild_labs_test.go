@@ -22,6 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/le/interoplab/radiussubscriber"
 	"github.com/ze-software/ze/internal/le/interoplab/rsvpte"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/le/linuxle"
 )
 
 // declaredBinaries answers every binary the five interop labs stage, which is
@@ -147,5 +148,33 @@ func TestEveryLabStagesTheZeTheKernelCheckRuns(t *testing.T) {
 		if !strings.HasPrefix(staged, "/checkout/test/interop") {
 			t.Errorf("lab %s stages no ze for the kernel check: %q", name, staged)
 		}
+	}
+}
+
+// VALIDATES: AC-3 wiring. The BGP lab declares le's start probe, and every
+// lab that stages le declares the same one (linuxle.StartProbe), so the
+// preflight runs le once before any image carries it.
+// PREVENTS: the c77a8dd2f3 class: a le that panics at start passing preflight
+// in a lab whose declaration forgot the probe.
+func TestEveryLabThatStagesLeDeclaresItsStartProbe(t *testing.T) {
+	bgpLe := slices.IndexFunc(bgp.LabBinaries(), func(binary interoplab.LabBinary) bool { return binary.Name == linuxle.Name })
+	if bgpLe < 0 {
+		t.Fatal("the BGP lab stages no le, and its helper containers run one")
+	}
+	if got := bgp.LabBinaries()[bgpLe].StartProbe; !slices.Equal(got, []string{"help"}) {
+		t.Errorf("the BGP lab's le declares start probe %q, want [help]", got)
+	}
+	staged := 0
+	for _, binary := range declaredBinaries() {
+		if binary.Name != linuxle.Name {
+			continue
+		}
+		staged++
+		if !slices.Equal(binary.StartProbe, linuxle.StartProbe()) {
+			t.Errorf("%s stages le with start probe %q, want %q", binary.Output, binary.StartProbe, linuxle.StartProbe())
+		}
+	}
+	if staged < 2 {
+		t.Errorf("found %d labs staging le, and the BGP and L2TP labs both do", staged)
 	}
 }

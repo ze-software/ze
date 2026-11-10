@@ -109,6 +109,7 @@ func TestPassedAssertionReportsCleanupFailure(t *testing.T) {
 						"name":           "cleanup-proof",
 						"passed":         false,
 						"error":          "checker failure",
+						"phase":          "checker",
 						"cleanup-errors": []any{"owned teardown refused"},
 					}},
 					"passed":       float64(0),

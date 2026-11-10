@@ -36,10 +36,9 @@ import (
 const StaticBinaryImage = "alpine:3.24.3"
 
 const (
-	// kernelProbeImage only carries the staged static ze; any Linux userland
-	// that runs a static binary answers the same, because the probes ask the
-	// kernel, not the image.
-	kernelProbeImage   = StaticBinaryImage
+	// The probe image is StaticBinaryImage (stagedBinaryContainer): any Linux
+	// userland that runs a static binary answers the same, because the probes
+	// ask the kernel, not the image.
 	kernelProbeTimeout = 2 * time.Minute
 	// kernelProbeMount is where the staged ze appears inside the probe container.
 	kernelProbeMount = "/ze"
@@ -225,7 +224,10 @@ func appArmorProfileLoaded(profiles, name string) bool {
 
 // kernelProbeCommand is what the probe container runs. It is named in every
 // refusal, so an operator can run the same question by hand.
-var kernelProbeCommand = []string{kernelProbeMount, "doctor", "--json", "kernel-capabilities"}
+var kernelProbeCommand = slices.Concat([]string{kernelProbeMount}, kernelProbeArguments)
+
+// kernelProbeArguments is what the staged ze is asked, after its own path.
+var kernelProbeArguments = []string{"doctor", "--json", "kernel-capabilities"}
 
 // kernelRow is one row of `ze doctor --json kernel-capabilities`, read at this
 // boundary as JSON. The producer is kernelcap.Row (internal/component/kernelcap).
@@ -270,13 +272,29 @@ func StagedZePath(root string, binaries []LabBinary) string {
 // It runs through RunOneShot, so it carries the owner labels and a canceled
 // probe is removed by name.
 func kernelProbeContainer(zePath string, appArmor bool) OneShotContainer {
-	arguments := make([]string, 0, 10)
+	arguments := make([]string, 0, 8)
 	arguments = append(arguments, "--cap-add", "NET_ADMIN", "--cap-add", "SYS_ADMIN", "--network", "none")
 	if appArmor {
 		arguments = append(arguments, "--security-opt", "apparmor="+kernelcap.ProbeAppArmorProfileName)
 	}
-	arguments = append(arguments, "-v", zePath+":"+kernelProbeMount+":ro")
-	return OneShotContainer{Image: kernelProbeImage, Arguments: arguments, Command: kernelProbeCommand, Timeout: kernelProbeTimeout}
+	container := stagedBinaryContainer(zePath, kernelProbeMount, kernelProbeArguments, kernelProbeTimeout)
+	container.Arguments = arguments
+	return container
+}
+
+// stagedBinaryContainer answers the one-shot that runs a staged static linux
+// binary: StaticBinaryImage, the binary bind-mounted read-only at target, and
+// target followed by arguments as the container's command. The kernel probe
+// and the lab start probe (zebuild_probe.go) both run through it, so a darwin
+// host runs a linux binary the same way for both, and a caller adds only its
+// own docker options to Arguments.
+func stagedBinaryContainer(binaryPath, target string, arguments []string, timeout time.Duration) OneShotContainer {
+	return OneShotContainer{
+		Image:   StaticBinaryImage,
+		Mounts:  []Mount{{Source: binaryPath, Target: target, ReadOnly: true}},
+		Command: slices.Concat([]string{target}, arguments),
+		Timeout: timeout,
+	}
 }
 
 // dockerAppArmor asks whether the daemon applies AppArmor to its containers. A

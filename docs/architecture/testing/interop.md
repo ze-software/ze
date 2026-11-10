@@ -582,9 +582,10 @@ via each daemon's native CLI.
 The native `internal/le/interoplab/bgp` package discovers scenario directories in
 `test/interop/scenarios/`. Before any scenario, the shared `interoplab.Suite`
 engine reports what a killed earlier run left behind ("Crash-safe teardown"
-below), runs the lab's preflight (which stages ze), checks the Docker daemon's
-kernel with that ze ("The Docker host kernel check" below), and builds the
-images. For each scenario it then:
+below), runs the lab's preflight (which stages ze and le, and runs le's start
+probe: "The start probe" below), checks the Docker daemon's kernel with that
+ze ("The Docker host kernel check" below), and builds the images. For each
+scenario it then:
 
 1. Creates an isolated Docker network, after refusing an existing container or
    network of the same name that this process did not create.
@@ -623,6 +624,45 @@ full-suite image preparation described above; the kernel probe, binary staging
 and deadlines are unchanged.
 <!-- source: internal/le/interoplab/images.go -- peerImageBuilds, Suite.preparePeerImages -->
 <!-- source: internal/le/interoplab/bgp/run.go -- suiteFor -->
+
+### The start probe
+
+A staged binary can build and still fail to start. On 2026-11-10 every le
+process panicked at start on a help line over the 60-character limit (commit
+`c77a8dd2f3`). The cross-compile passed, so the preflight passed, and every
+helper container that runs le (speaker, relay, injector) then failed its
+readiness wait. Four scenarios failed one after another, each after its image
+build, before anyone saw that no scenario had reached its checker.
+
+A `LabBinary` may declare a `StartProbe`: the arguments the staged binary is
+started with once, right after its build. `StageBinaries` runs it in a
+one-shot `alpine:3.24.3` container through `RunOneShot`, with the binary
+mounted read-only at `/lab/<name>`. The file keeps its declared name because
+cmd/ze selects its personality from that name. The container is built the
+same way as the kernel probe's (`stagedBinaryContainer`), so a darwin host
+runs the linux binary, and a probe that is cut short is removed by name.
+
+Every lab that stages le declares `linuxle.StartProbe`, which is `le help`.
+le runs its registration checks before it reads its first word
+(`leroot.DispatchWithStartup`), so `help` reaches the check that panicked,
+and `help` needs no checkout. A binary that declares no probe is not run: a
+staged daemon needs a config to start, and the kernel check already runs the
+staged ze.
+
+A probe that exits non-zero, or that Docker cannot run to an exit, stops the
+preflight before any image build. The refusal names the binary, its output
+path, the probe argv, the exit status and the first twelve lines of its
+stderr, then the fix: correct the start failure the stderr names, and run
+`./le test integration <lab>` again. Each probe prints one progress line with
+its verdict and elapsed time:
+
+```
+interop: start probe le (`le help`): pass (<elapsed>)
+```
+<!-- source: internal/le/interoplab/zebuild_probe.go -- probeBinaryStart, startProbeRefusal, startProbeStderr -->
+<!-- source: internal/le/interoplab/kernelcheck.go -- stagedBinaryContainer, kernelProbeContainer -->
+<!-- source: internal/le/interoplab/zebuild.go -- LabBinary, StageBinaries, stageBinaries -->
+<!-- source: internal/le/linuxle/linuxle.go -- StartProbe -->
 
 ### Crash-safe teardown
 
@@ -1238,6 +1278,28 @@ running` and then `pass` or `FAIL` with its elapsed time and error. They go to
 suite that hangs then names the scenario that holds it. A failed progress write
 does not fail the suite.
 <!-- source: internal/le/interoplab/lab.go -- Suite.Run, Suite.progress, scenarioLine -->
+
+A failure names the phase it happened in, after the elapsed time:
+`interop: [i/n] name: FAIL (12s) in setup: <error>`. The phase is `setup`
+(pre-clean, network, prepare, validation, images, start wrapping, a container
+run), `readiness` (a peer's declared readiness wait) or `checker`. Only a
+`checker` failure says anything about the feature: a helper that cannot start
+fails every scenario in setup or readiness. The scenario's result carries the
+same word in its `phase` field, which a pass omits, and the terminal report
+prints `name: FAIL in <phase>: <error>`. A pass line is unchanged, and the
+`: FAIL (` marker and a checker's `scenario <name> assertion N:` text are both
+where the RFC recorder reads them. `runScenario` sets the phase as the run
+advances and copies it onto a failed result, so no error text is matched.
+
+When three scenarios in a row fail in setup or readiness, the suite stops. A
+pass or a checker failure resets the count, so a run of feature reds always
+runs to the end. The report lists every scenario after the stop under
+`not-run`, counted neither passed nor failed, and `stopped` says why, with the
+fix: correct the setup cause the failures name, then run the lab again with the
+`./le` action its catalog registers (`Catalog.Action`). The summary line reads
+`interop: 0 passed, 5 failed, 2 not run: <failed names>`.
+<!-- source: internal/le/interoplab/phase.go -- ScenarioPhase, setupFailuresBeforeStop, Suite.stopReason, Suite.rerunCommand -->
+<!-- source: internal/le/interoplab/lab.go -- Suite.Run, Suite.runScenario, SuiteReport.Text, ScenarioResult -->
 
 Each local image build also creates a unique, run-owned tag. This keeps its
 image ID available when another build replaces the shared cache tag.
