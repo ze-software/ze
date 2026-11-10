@@ -34,7 +34,7 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:    "report",
-		Summary: "list every handler return site in the tree, typed, plain or pass-through",
+		Summary: "list handler return sites: typed, plain or pass-through",
 		Why:     "every refusal a registered operator handler returns, with its status, file and line, handler and registration kind, for a reader deciding which to convert and for the error inventory",
 		Answer:  runReport,
 	},
