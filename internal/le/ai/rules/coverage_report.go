@@ -14,6 +14,7 @@
 package airules
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -75,7 +76,8 @@ type CoverageReport struct {
 	Dangling []DanglingBinding `json:"dangling"`
 	Unbound  []UnboundCheck    `json:"unbound"`
 
-	// Baseline says whether any hookruntime Go source existed at git HEAD.
+	// Baseline says whether any hook or change-set check Go source existed at
+	// git HEAD.
 	// Without one the ratchets cannot fire, and the report says so.
 	Baseline     bool     `json:"baseline"`
 	Regressed    []string `json:"regressed"`
@@ -169,8 +171,8 @@ func (r *CoverageReport) Text() string {
 			tb.Str("  ").Str(line).Byte('\n')
 		}
 	} else {
-		tb.Byte('\n').Str("REGRESSED: no HEAD baseline (git could not answer, or no hookruntime ").
-			Str("Go source has a version at HEAD); not ratcheted\n")
+		tb.Byte('\n').Str("REGRESSED: no HEAD baseline (git could not answer, or no hook or ").
+			Str("change-set check Go source has a version at HEAD); not ratcheted\n")
 		r.writeNoHead(&tb)
 	}
 
@@ -263,6 +265,11 @@ func Coverage(tree string) (*CoverageReport, error) {
 	var tb textbuf.Buffer
 
 	sources, problems := nativeHookSources(tree)
+	changeSet, changeSetProblems := changeSetSources(tree)
+	problems = append(problems, changeSetProblems...)
+	roster, rosterProblems := readChangeSetRoster(changeSet)
+	problems = append(problems, rosterProblems...)
+	problems = append(problems, roster.unbound()...)
 	if len(problems) > 0 {
 		report.Refused = problems
 		for _, problem := range problems {
@@ -273,14 +280,15 @@ func Coverage(tree string) (*CoverageReport, error) {
 	}
 
 	pointsDir := filepath.Join(tree, filepath.FromSlash(pointsRel))
-	gm, err := buildGateMap(sources, pointsDir, tree)
+	gm, err := buildGateMap(sources, roster.bindings, pointsDir, tree)
 	if err != nil {
 		return nil, err
 	}
 
-	names := sortedKeys(sources)
-	head, noHeadFor, gitAnswered := headSources(tree, names)
-	haveBaseline := gitAnswered && len(head) > 0
+	head, noHeadFor, gitAnswered := headSources(tree, hookRuntimeRel+"/", sortedKeys(sources))
+	changeSetHead, changeSetNoHead, _ := headSources(tree, "", sortedKeys(changeSet))
+	noHeadFor = append(noHeadFor, changeSetNoHead...)
+	haveBaseline := gitAnswered && len(head)+len(changeSetHead) > 0
 
 	nowIDs := map[string]bool{}
 	for ref := range gm.Points {
@@ -288,7 +296,16 @@ func Coverage(tree string) (*CoverageReport, error) {
 	}
 	var regressed, declaredNone []string
 	if haveBaseline {
-		atHead, err := bindingsAtHead(head)
+		// HEAD's roster is attributed by the same rules as the tree's. A HEAD
+		// it cannot attribute is an error rather than a shorter baseline: a
+		// baseline missing a check would let its points regress unseen.
+		headRoster, headProblems := readChangeSetRoster(changeSetHead)
+		if len(headProblems) > 0 {
+			tb.Reset()
+			return nil, errors.New(tb.Str("HEAD's change-set check roster cannot be read: ").
+				Join(headProblems, "; ").String())
+		}
+		atHead, err := bindingsAtHead(head, headRoster.bindings)
 		if err != nil {
 			return nil, err
 		}

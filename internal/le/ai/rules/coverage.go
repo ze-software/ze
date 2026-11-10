@@ -4,7 +4,9 @@
 // Detail: hooktable.go -- the published claim the join is compared against
 //
 // coverage.go implements the gate-map half of internal/le/ai/rules/points.go. It
-// joins native Go `// ze point:` comments to the points on disk.
+// joins native Go `// ze point:` comments to the points on disk. Two rosters
+// carry them: the hook checks hookruntime registers (read here), and the
+// change-set checks `./le commit create` runs (read in changeset.go).
 //
 // The join produces five sets. GATED and UNGATED are measurements. An ungated
 // point is a rule that no machine enforces. DANGLING fails because its check
@@ -37,8 +39,8 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// hookRuntimeRel is the package whose native action registry runs the checks
-// measured by this join.
+// hookRuntimeRel is the package whose native action registry runs the hook
+// checks measured by this join.
 const (
 	hookRuntimeRel = "internal/le/hookruntime"
 	hookRegistry   = "nativeHookActions"
@@ -436,12 +438,14 @@ func gitOutput(root string, args ...string) (string, bool) {
 	return string(out), err == nil
 }
 
-// headSources answers each current hookruntime Go source at git HEAD, and the
-// source names HEAD does not carry.
+// headSources answers each current Go source at git HEAD, keyed as names
+// gives it, and the names HEAD does not carry. prefix joins a name to its
+// root-relative path: the hookruntime directory for the hook sources, nothing
+// for the change-set sources, which are keyed by that path already.
 //
 // ok=false means git could not answer at all. Missing individual files stay
 // visible in absent rather than silently shortening the baseline.
-func headSources(root string, names []string) (map[string]string, []string, bool) {
+func headSources(root, prefix string, names []string) (map[string]string, []string, bool) {
 	if _, ok := gitOutput(root, "rev-parse", "--verify", "HEAD"); !ok {
 		return nil, nil, false
 	}
@@ -450,7 +454,7 @@ func headSources(root string, names []string) (map[string]string, []string, bool
 	var tb textbuf.Buffer
 	for _, name := range names {
 		tb.Reset()
-		text, ok := gitOutput(root, "show", tb.Str("HEAD:").Str(hookRuntimeRel).Byte('/').Str(name).String())
+		text, ok := gitOutput(root, "show", tb.Str("HEAD:").Str(prefix).Str(name).String())
 		if ok {
 			out[name] = text
 			continue
@@ -460,23 +464,33 @@ func headSources(root string, names []string) (map[string]string, []string, bool
 	return out, absent, true
 }
 
-// bindingsAtHead answers each Go check's point ids at HEAD.
-func bindingsAtHead(sources map[string]string) (map[string]map[string]bool, error) {
+// bindingsAtHead answers each Go check's point ids at HEAD: the hook checks
+// parsed from sources, and the change-set check bindings attributed from
+// HEAD's change-set sources.
+func bindingsAtHead(sources map[string]string, changeSet []Binding) (map[string]map[string]bool, error) {
 	out := map[string]map[string]bool{}
+	bindings := slices.Clone(changeSet)
 	for _, name := range sortedKeys(sources) {
 		file, err := parseHookFile(sources[name], name)
 		if err != nil {
 			return nil, err
 		}
-		for _, binding := range file.bindings {
-			if binding.Ref == "" || binding.Ref == emptyRef || binding.Check == noCheck {
-				continue
-			}
-			if out[binding.Check] == nil {
-				out[binding.Check] = map[string]bool{}
-			}
-			out[binding.Check][binding.Ref] = true
+		bindings = append(bindings, file.bindings...)
+	}
+	for _, binding := range bindings {
+		if binding.Ref == "" {
+			continue
 		}
+		if binding.Ref == emptyRef {
+			continue
+		}
+		if binding.Check == noCheck {
+			continue
+		}
+		if out[binding.Check] == nil {
+			out[binding.Check] = map[string]bool{}
+		}
+		out[binding.Check][binding.Ref] = true
 	}
 	return out, nil
 }
@@ -636,9 +650,11 @@ func exceptionProblems(points map[string]Point) (map[string][]string, [][2]strin
 	return declared, missing
 }
 
-// buildGateMap joins native Go binding comments against the points on disk.
-// root is where a point's `rationale:` path is resolved from.
-func buildGateMap(sources map[string]string, pointsDir, root string) (gateMap, error) {
+// buildGateMap joins native Go binding comments against the points on disk:
+// the hook bindings parsed from sources, and the change-set check bindings
+// readChangeSetRoster attributed. root is where a point's `rationale:` path is
+// resolved from.
+func buildGateMap(sources map[string]string, changeSet []Binding, pointsDir, root string) (gateMap, error) {
 	onDisk, err := pointsOnDisk(pointsDir)
 	if err != nil {
 		return gateMap{}, err
@@ -659,6 +675,7 @@ func buildGateMap(sources map[string]string, pointsDir, root string) (gateMap, e
 		}
 		bindings = append(bindings, file.bindings...)
 	}
+	bindings = append(bindings, changeSet...)
 
 	gated := map[string][]Binding{}
 	var dangling, unbound []Binding

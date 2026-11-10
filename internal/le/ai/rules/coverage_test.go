@@ -177,7 +177,15 @@ func TestCurrentNativeHookChecksAreBound(t *testing.T) {
 	if len(problems) != 0 {
 		t.Fatalf("native hook roster: %v", problems)
 	}
-	gateMap, err := buildGateMap(sources,
+	changeSet, problems := changeSetSources(root)
+	if len(problems) != 0 {
+		t.Fatalf("change-set sources: %v", problems)
+	}
+	roster, problems := readChangeSetRoster(changeSet)
+	if len(problems) != 0 {
+		t.Fatalf("change-set roster: %v", problems)
+	}
+	gateMap, err := buildGateMap(sources, roster.bindings,
 		filepath.Join(root, filepath.FromSlash(pointsRel)), root)
 	if err != nil {
 		t.Fatalf("buildGateMap: %v", err)

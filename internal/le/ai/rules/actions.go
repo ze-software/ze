@@ -108,7 +108,8 @@ const reportArea = area + " report"
 const doesReport = "report"
 
 var reportActions = leaction.New(reportArea,
-	leaction.Action{Verb: "gate-map", Does: doesReport, Summary: "report which rule point each hook check enforces", Why: "which rule point each hook check enforces. Gated and ungated are " +
+	leaction.Action{Verb: "gate-map", Does: doesReport, Summary: "report which rule point each hook or commit check enforces", Why: "which rule point each hook check and each change-set check " +
+		"`./le commit create` runs enforces. Gated and ungated are " +
 		"MEASUREMENTS and exit 0: an ungated point is a rule no machine enforces yet. " +
 		"Dangling FAILS, and so do a check that named a point at HEAD and declares none " +
 		"now while that point is still on disk, and a rationale or excepted-by naming nothing",

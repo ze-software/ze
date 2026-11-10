@@ -291,9 +291,13 @@ would surface it. `./le ai rules report router` prints that last set and the cor
 it read, and `./le ai rules report payload` measures what a session loads against a
 40,000-token budget.
 
-## Binding a hook check to a point
+## Binding a check to a point
 
-A native check declares what it enforces with a `// ze point:` comment directly
+Two kinds of native check bind points: the hook checks `./le ai hooks` runs,
+and the change-set checks `./le commit create` runs over the commit it
+prepares.
+
+A hook check declares what it enforces with a `// ze point:` comment directly
 above its Go function. Only another comment may sit between the binding and the
 declaration.
 
@@ -305,7 +309,20 @@ A check that enforces nothing written in `ai/rules/` says so, with a reason:
     // ze point: none -- build hygiene; no rule states where a Go binary must be written
     func bashRootBuild(ctx context) *verdict {
 
+A change-set check is a package, not one function: its `Judge` and the text it
+refuses with sit in different functions. Every `// ze point:` comment in a
+non-test Go file of the package binds the check that package registers with
+`changecheck.Register`, under the `Name` the call gives it, which is the name a
+refusal at commit time prints (`arch error-inventory check`). The gate map
+finds these packages itself, by the `Register` call, under `internal/le`; no
+list names them. The `Name` must be a literal or a package constant, or a `+`
+of those, and a package registers one check, because otherwise the gate map
+could not say which check a binding belongs to. A binding in a package under
+`internal/le` that registers no change-set check sits above no check and
+dangles.
+
 <!-- source: internal/le/ai/rules/coverage.go -- bindingLine, noPointLine -->
+<!-- source: internal/le/ai/rules/changeset.go -- changeSetSources, readChangeSetRoster, registeredName -->
 `./le ai rules report gate-map` joins those comments against the points on disk, and
 joins the two optional link fields the same way. It reports the gated points,
 the dangling bindings, the points that regressed, the checks that declare
@@ -323,12 +340,19 @@ instruction.
 
 Every count is a measurement and exits 0 whatever its value.
 
-The files it reads come from the PreToolUse entries in `.claude/settings.json`.
-A fourth dispatcher joins the map by being wired up. A dispatcher that no entry
-runs is reported rather than skipped.
+The hook bindings it reads are every Go file in `internal/le/hookruntime`,
+checked against the `nativeHookActions` registry there: a registered check with
+no binding, a binding on a function the registry does not run, and a registry
+entry naming no function are each refused before any set is printed. A
+change-set check whose package carries no binding is refused the same way.
+Both kinds of binding count in the `bindings` and `checks` totals, and each is
+ratcheted against its version at HEAD.
+
+<!-- source: internal/le/ai/rules/coverage.go -- nativeHookSources, headSources, bindingsAtHead -->
+<!-- source: internal/le/ai/rules/changeset.go -- changeSetRoster -->
 
 The same target compares the check tables in `.claude/hooks/README.md` against
-those comments. Each table sits under a heading naming its Go source and opens
+the hook checks' comments. A change-set check owes no row there. Each table sits under a heading naming its Go source and opens
 with the `Check` and `Enforces` columns. A new check therefore owes a row, and
 a deleted check's row cannot survive it. What each check triggers on and what
 it does is documentation, and it sits in the remaining column of the same

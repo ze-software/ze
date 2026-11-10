@@ -130,6 +130,11 @@ func hookTableProblems(gm gateMap, docText string, sources map[string]string) []
 		if binding.Check == noCheck {
 			continue
 		}
+		// A change-set check's binding sits in no hookruntime source. The
+		// tables publish the hook checks, so it owes no row here.
+		if _, hook := sources[binding.File]; !hook {
+			continue
+		}
 		if rosters[binding.File] == nil {
 			rosters[binding.File] = map[string]bool{}
 		}
