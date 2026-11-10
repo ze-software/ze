@@ -831,6 +831,27 @@ executable (`os.Executable`) answers every harness exec.
 A retired standalone harness name falls in the last row.
 No program answers to it, so the step fails at the lookup.
 
+So the `le` row runs whatever code the runner's own executable holds. A direct
+`./le test <suite>` run executes the launcher's build of HEAD
+(`bin/builds/<time>-<sha>/le`), never the working tree, so an uncommitted
+fixture edit does not run. The runner says so. `Runner.Build`, on the route
+that builds `ze` (not under `LE_TEST_NO_BUILD`), reads the build commit from
+its own directory name (`gotoolchain.ParseBuildName`). It then lists the non-test Go files under
+`internal/test/` that differ between that commit and the working tree
+(`git diff --name-only <sha>` plus untracked files). When one of them does, it
+keeps those in a package le links, from `go list -deps` of `./cmd/ze` with
+le's tags. `Runner.Run` prints the result before the first test and again after
+a failing summary. The notice names the commit, up to ten paths and their
+count, and the two fixes: `./le test functional <suite>`, and
+`./le --name session` followed by the words of the run. It changes no verdict
+and no exit code. A `--name` build (`bin/le-<name>/le`) and the isolated set of
+`./le test functional` carry the tree's code, and their directory names are not
+build names, so they print nothing. So does a launcher build when no linked
+file differs. A check that cannot answer (git or go failed) prints
+`le may be stale:` with the cause, never silence.
+<!-- source: internal/test/runner/stale.go -- findStaleBuild, staleNotice, checkoutStaleSource -->
+<!-- source: internal/test/runner/runner.go -- Runner.Build, Runner.Run, printStaleNotice -->
+
 The parse steps resolve the same heads the same way (`resolveParseExec`).
 A step whose words are `le test peer` takes the
 peer role (`launchesPeer`, `internal/test/runner/harness_exec.go`): its stdin

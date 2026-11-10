@@ -165,6 +165,14 @@ type Runner struct {
 	// ze and le, and shell shims for the retired harness names. It is what goes on a test child's PATH; see
 	// setupBinShims for why the binaries' own directory must not.
 	binShimDir string
+
+	// staleSource answers the stale-build check from the checkout (stale.go);
+	// a test replaces it. stale is what Build found to say, nil for nothing,
+	// and Run prints it. invocation is the words le was given, which the
+	// notice repeats after `./le --name session`.
+	staleSource staleSource
+	stale       *staleCheck
+	invocation  []string
 }
 
 // NewRunner creates a test runner.
@@ -213,6 +221,9 @@ func NewRunner(tests *EncodingTests, baseDir string) (*Runner, error) {
 		display: NewDisplay(tests.Tests, colors),
 		report:  newReport(colors),
 		timings: LoadTimings(baseDir),
+
+		staleSource: checkoutStaleSource{},
+		invocation:  os.Args[1:],
 	}, nil
 }
 
@@ -341,10 +352,17 @@ func (r *Runner) childWorkingDirectory(binName string, args []string, rec *Recor
 // already present at r.zePath. This lets a slow target (e.g. a QEMU
 // VM whose only writable storage is a slow 9p mount) reuse binaries cross-compiled
 // on a fast host, instead of compiling the whole tree inside the VM.
+//
+// Only this direct route checks whether the runner's own le is a launcher
+// build whose linked fixture code differs from the working tree (stale.go);
+// Run prints what it found. LE_TEST_NO_BUILD is how `./le test functional`
+// runs a suite, with an le it built from the working tree.
 func (r *Runner) Build(ctx context.Context) error {
 	if NoBuild() {
 		return r.verifyPrebuilt()
 	}
+
+	r.stale = findStaleBuild(ctx, r.lePath, r.baseDir, r.staleSource)
 
 	r.display.buildStatus(true, nil)
 
@@ -438,7 +456,32 @@ func (r *Runner) verifyPrebuilt() error {
 // Run executes selected tests by delegating to ParallelRunner[*Record].
 // Runner keeps .ci-specific concerns (Build, process orchestration via runTest,
 // PrintAllFailures). Scheduling is the single ParallelRunner engine.
+//
+// A stale-build notice Build found prints before the first test and again
+// after a failing summary, where the reader of a red looks. It changes no
+// verdict.
 func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
+	r.printStaleNotice()
+	success := r.runSelected(ctx, opts)
+	if !success {
+		r.printStaleNotice()
+	}
+	return success
+}
+
+// printStaleNotice prints the notice Build found, and nothing when it found
+// none. It prints in quiet mode too: the notice says the run is not judging
+// the working tree's fixture code.
+func (r *Runner) printStaleNotice() {
+	if r.stale == nil {
+		return
+	}
+	r.display.println(staleNotice(r.stale, r.colors, r.display.label, r.invocation))
+}
+
+// runSelected runs the selected tests once; Run and every RunWithCount
+// iteration call it.
+func (r *Runner) runSelected(ctx context.Context, opts *RunOptions) bool {
 	// Set on the RUNNER, so every child inherits it -- childEnv covers only the
 	// sites that build an explicit env, and a site that leaves Cmd.Env nil hands
 	// the child this process's environment instead. Measured before this line
@@ -532,6 +575,10 @@ func (r *Runner) RunWithCount(ctx context.Context, opts *RunOptions, count int) 
 	stressOpts.Quiet = true       // Suppress verbose output per iteration
 	stressOpts.SkipTimings = true // Don't pollute baseline with stress-load timings
 
+	// Once for the whole stress run, not once per iteration: each iteration
+	// runs through runSelected, which prints no notice.
+	r.printStaleNotice()
+
 	for i := 1; i <= count; i++ {
 		// Check for cancellation before each iteration
 		select {
@@ -557,7 +604,7 @@ func (r *Runner) RunWithCount(ctx context.Context, opts *RunOptions, count int) 
 		}
 
 		// Run iteration (with quiet mode to suppress failure reports)
-		success := r.Run(ctx, &stressOpts)
+		success := r.runSelected(ctx, &stressOpts)
 
 		iterDuration := time.Since(iterStart)
 		result.IterationDurations = append(result.IterationDurations, iterDuration)
@@ -582,5 +629,8 @@ func (r *Runner) RunWithCount(ctx context.Context, opts *RunOptions, count int) 
 	}
 
 	result.TotalDuration = time.Since(totalStart)
+	if !result.AllPassed {
+		r.printStaleNotice()
+	}
 	return result
 }

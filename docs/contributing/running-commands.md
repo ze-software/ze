@@ -519,11 +519,23 @@ and `ZE_BIN` pointing at that set, as `<set>/le test <suite>`
 
 Running `le test` directly uses the current runner and rebuilds only the daemon.
 That daemon includes the test-only plugins through `Runner.Build` and
-`TestBuildTags`. A stale runner can still lack newly registered fixture helpers,
-even when the daemon is current. For a scoped plugin case, use
-`./le --name session test bgp plugin --pattern <test-name>` to rebuild the runner
-from the working tree too.
+`TestBuildTags`. The runner is the launcher's build of HEAD, so it lacks any
+uncommitted fixture code, even when the daemon is current. For a scoped plugin
+case, use `./le --name session test bgp plugin --pattern <test-name>` to rebuild
+the runner from the working tree too.
 <!-- source: internal/test/runner/runner.go -- TestBuildTags, Runner.Build, NewRunner, setupBinShims -->
+
+The direct route tells you when this happens. When a non-test Go file under
+`internal/test/`, in a package le links, differs between the build's commit and
+the working tree, the runner prints a `stale le:` notice before the first test.
+A failing summary repeats it. The notice names the commit, up to ten such files
+and their count, and the two fixes: `./le test functional <suite>`, or
+`./le --name session` followed by the words you ran. It changes no verdict and no
+exit code. `./le test functional` and a `--name` build never print it, because
+their le is built from the working tree. How the check works:
+`docs/architecture/testing/runner-architecture.md`, "Which binaries a fixture
+reaches".
+<!-- source: internal/test/runner/stale.go -- findStaleBuild, staleNotice -->
 
 | Want | Use |
 |------|-----|

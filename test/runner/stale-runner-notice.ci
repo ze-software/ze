@@ -1,0 +1,15 @@
+# A direct `le test <suite>` run whose le is a launcher build
+# (bin/builds/<time>-<sha>/le) runs that commit's fixture code, not the working
+# tree's. The runner says so before the first test and again after a failing
+# summary, naming the commit, the changed linked paths, their count, and both
+# fixes. A clean tree and a `--name` build print nothing.
+#
+# The fixture builds a throwaway checkout with one failing runner test and
+# places copies of the real le where the launcher and `--name` put theirs, so
+# the path is the real one: Runner.Build, findStaleBuild, git and go list.
+
+option=timeout:value=180s
+
+cmd=foreground:seq=1:exec=le test fixture runner/stale-runner-notice:timeout=170s
+expect=exit:code=0
+expect=stdout:contains=stale-runner-notice: named before the test and after the failing summary; silent for a clean tree and a --name build
