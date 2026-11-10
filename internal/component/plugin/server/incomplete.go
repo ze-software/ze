@@ -82,12 +82,11 @@ func (d *Dispatcher) incompleteCommand(lowerInput string) error {
 // the keyword form, as `clear bgp rib out * family ipv4/unicast`.
 func missingSelectorError(matchedCmd *Command, args []string) error {
 	var tb textbuf.Buffer
-	tb.Str(matchedCmd.Name).Str(" requires a selector")
 	if len(args) < 2 {
-		tb.Str(": ")
-		writeSelectorForm(&tb, matchedCmd)
+		writeSelectorRefusal(&tb, matchedCmd)
 		return errors.New(tb.String())
 	}
+	tb.Str(matchedCmd.Name).Str(" requires a selector")
 	keywords := make([]string, 0, len(matchedCmd.ArgDefs))
 	for i := range matchedCmd.ArgDefs {
 		if name := matchedCmd.ArgDefs[i].Name(); name != selectorLeaf {
@@ -108,6 +107,15 @@ func missingSelectorError(matchedCmd *Command, args []string) error {
 		tb.Str(", then each other value after its keyword: ").Str(strings.Join(keywords, ", "))
 	}
 	return errors.New(tb.String())
+}
+
+// writeSelectorRefusal writes the refusal of matchedCmd typed with no selector:
+// the command, that it requires one, and the line that supplies it. It is the
+// guard's own answer, and a list of faults names the missing selector with it
+// too (selectorMissing), so the operator reads one form wherever it is missing.
+func writeSelectorRefusal(tb *textbuf.Buffer, matchedCmd *Command) {
+	tb.Str(matchedCmd.Name).Str(" requires a selector: ")
+	writeSelectorForm(tb, matchedCmd)
 }
 
 // writeSelectorForm writes the line that gives matchedCmd its selector, then

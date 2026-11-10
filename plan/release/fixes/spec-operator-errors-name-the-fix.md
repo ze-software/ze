@@ -345,8 +345,8 @@ registered operator handler carries the type.
 ## Known Limitations
 - Log lines with no refusal (level misclassification rows such as `normal-state-logged-at-error.md`) are not this mechanism and are not owned here
 - Owner decision pending (2026-11-10), A-3 broken: `./le arch error-wrap check` does not see either owned double-wrap row. The reload wrap's error arrives through a function value passed as a parameter about five calls deep (`diskConfigLoaders` builds `loadBoth`, handed through `handleSIGHUPReload`, `sighupReload`, `signalReload` to `runReloadContext` as `load`), which the syntax scan counts as untraced; the validate row repeats `line %d`, a verb, not a literal segment. Both rows are fixed at the producer and guarded by `test/reload/reload-parse-error-single-prefix.ci` and `test/parse/validate-parse-error-single-prefix.ci`
+- AC-13 open edge (2026-11-10): a list of only missing arguments gets the whole command as its fix on the builtin dispatch route (`restateArgumentFaults`); the plugin-process route R9 (`routeToProcess`), the subsystem route and the local `ze <verb>` routes validate through `command.ValidateModelArgs`, hold no `*Command`, and keep each leaf's usage line with the general fix
 - Owner decision pending (2026-11-10): `./le arch operator-error check` judges returned Go errors only; a handler that answers a refusal as `plugin.Response{Status: StatusError, Error: <text>}` with a nil error is not seen (394 `StatusError` sites)
-- Owner decision pending (2026-11-10): AC-13 names every argument fault on a line (`command.ArgumentFaults`, bounded at 16) but only the first missing mandatory leaf; naming every missing leaf changes `MissingArgumentError` and its single-leaf tests
 
 ## RFC Documentation (Scope: cli)
 

@@ -63,7 +63,7 @@ func WriteInvocation(tb *textbuf.Buffer, path []string, defs []InvocationArg, va
 			}
 			placed[def.Name] = true
 			tb.Byte(' ')
-			writeInvocationValue(tb, values[def.Name])
+			WriteInvocationValue(tb, values[def.Name])
 		}
 	}
 	for j := range defs {
@@ -78,7 +78,7 @@ func WriteInvocation(tb *textbuf.Buffer, path []string, defs []InvocationArg, va
 			continue
 		}
 		tb.Byte(' ')
-		writeInvocationValue(tb, values[name])
+		WriteInvocationValue(tb, values[name])
 	}
 
 	undeclared := make([]string, 0, len(values))
@@ -91,14 +91,14 @@ func WriteInvocation(tb *textbuf.Buffer, path []string, defs []InvocationArg, va
 	slices.Sort(undeclared)
 	for _, name := range undeclared {
 		tb.Byte(' ').Str(name).Byte(' ')
-		writeInvocationValue(tb, values[name])
+		WriteInvocationValue(tb, values[name])
 	}
 	return nil
 }
 
-// writeInvocationValue writes one value as the dispatcher's tokenizer reads
+// WriteInvocationValue writes one value as the dispatcher's tokenizer reads
 // it: bare, or double-quoted when it holds a space.
-func writeInvocationValue(tb *textbuf.Buffer, value string) {
+func WriteInvocationValue(tb *textbuf.Buffer, value string) {
 	if strings.ContainsAny(value, " \t") {
 		tb.Byte('"').Str(value).Byte('"')
 		return

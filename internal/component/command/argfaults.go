@@ -16,10 +16,10 @@ import (
 
 // argumentFaultsMax bounds how many faults one refusal keeps and names. Each
 // token of a line yields at most one fault (a keyword and its value are one),
-// and so does each pre-bound value, plus one for the first missing mandatory
-// argument, so the list is bounded by the line. The cap bounds the refusal
-// text for a line no operator would type: a fault past it is counted, and the
-// refusal says how many it did not list.
+// and so does each pre-bound value, plus one for each missing mandatory
+// argument, so the list is bounded by the line and the definitions. The cap
+// bounds the refusal text for a line no operator would type: a fault past it
+// is counted, and the refusal says how many it did not list.
 const argumentFaultsMax = 16
 
 // ArgumentFaults is ValidateArgs's refusal of a call whose line holds two or
@@ -30,42 +30,84 @@ const argumentFaultsMax = 16
 //
 // Unwrap answers each fault, so errors.Is and errors.As reach every one of
 // them: a *MissingArgumentError among them is found the same way as when it
-// is the only fault. It holds at most one *MissingArgumentError (ValidateArgs
-// names the first missing leaf only), so a list always holds at least one
-// fault that is not a missing argument. A route that must tell "the selector
-// alone is missing" from "the line has other faults" asks errors.As for an
-// *ArgumentFaults first.
+// is the only fault, and errors.As answers the first. It holds one
+// *MissingArgumentError per missing leaf, so a list can hold missing
+// arguments only, all carrying the same positional binding. A route that must
+// tell "one leaf alone is missing" from "the line has several faults" asks
+// errors.As for an *ArgumentFaults first, and reads Faults to learn whether
+// any of them is not a missing argument.
+//
+// Each fault reads in the list as its own text, except a missing argument,
+// which also names the words that supply it (`required argument missing: asn,
+// as in 'asn <asn>'`); alone, a missing argument keeps its own text. A route
+// that knows more than the definitions do restates the list (Restated): the
+// daemon dispatcher names the line that supplies a missing selector, and the
+// whole command when every fault is a missing argument.
 //
 // Build it with newArgumentFaults; the zero value holds no fault and renders
 // the opererr defect text. Immutable after construction, safe for concurrent
 // use.
 type ArgumentFaults struct {
 	faults  []error
+	lines   []string
+	omitted int
 	refusal *opererr.Error
 }
 
+// argumentFaultsFix is the fix line of a list no route restated with a fix of
+// its own: the definitions alone cannot write the whole command, because they
+// do not hold its path.
+const argumentFaultsFix = "correct each fault listed above, then type the command again"
+
 // newArgumentFaults builds the refusal of faults, in the order the line was
-// read. omitted counts the faults past argumentFaultsMax that were not kept.
-// faults MUST hold two or more errors: one fault is refused as itself.
-func newArgumentFaults(faults []error, omitted int) *ArgumentFaults {
+// read, each named by the line at the same index of lines. omitted counts the
+// faults past argumentFaultsMax that were not kept. fix is the fix line, the
+// general correction when empty. faults MUST hold two or more errors, one fault
+// being refused as itself, and lines MUST hold one line per fault.
+func newArgumentFaults(faults []error, lines []string, omitted int, fix string) *ArgumentFaults {
 	if len(faults) < 2 {
 		panic("BUG: newArgumentFaults called with fewer than two faults")
+	}
+	if len(lines) != len(faults) {
+		panic("BUG: newArgumentFaults called with a line count that differs from the fault count")
+	}
+	if fix == "" {
+		fix = argumentFaultsFix
 	}
 	total := len(faults) + omitted
 	var problem textbuf.Buffer
 	problem.Str("this command has ").Int(int64(total)).Str(" faults, so Ze did not run it")
 	var why textbuf.Buffer
 	why.Str("Ze runs a command only when every word of it is valid, and each line below is one fault:")
-	for _, fault := range faults {
-		why.Str("\n- ").Err(fault)
+	for _, line := range lines {
+		why.Str("\n- ").Str(line)
 	}
 	if omitted > 0 {
 		why.Str("\n- and ").Int(int64(omitted)).Str(" more faults not listed here")
 	}
 	return &ArgumentFaults{
 		faults:  faults,
-		refusal: opererr.New(problem.String(), why.String(), "correct each fault listed above, then type the command again"),
+		lines:   lines,
+		omitted: omitted,
+		refusal: opererr.New(problem.String(), why.String(), fix),
 	}
+}
+
+// Restated answers the refusal with each fault for which restate answers an
+// error replaced by that error, named in the list by its own text, and with
+// fix as its fix line, or the general correction when fix is empty. A fault for
+// which restate answers nil keeps its place and its line. The receiver is not
+// changed. restate MUST NOT be nil.
+func (e *ArgumentFaults) Restated(restate func(fault error) error, fix string) *ArgumentFaults {
+	faults := make([]error, len(e.faults))
+	lines := make([]string, len(e.lines))
+	for i, fault := range e.faults {
+		faults[i], lines[i] = fault, e.lines[i]
+		if replacement := restate(fault); replacement != nil {
+			faults[i], lines[i] = replacement, replacement.Error()
+		}
+	}
+	return newArgumentFaults(faults, lines, e.omitted, fix)
 }
 
 // Error answers the refusal text every route prints: the problem, then each
@@ -88,6 +130,12 @@ func (e *ArgumentFaults) Unwrap() []error {
 	return append(out, e.faults...)
 }
 
+// Omitted answers how many faults the refusal counted past argumentFaultsMax
+// and did not keep.
+func (e *ArgumentFaults) Omitted() int {
+	return e.omitted
+}
+
 // Faults answers a copy of the faults the refusal names, in the order the
 // line was read.
 func (e *ArgumentFaults) Faults() []error {
@@ -97,16 +145,31 @@ func (e *ArgumentFaults) Faults() []error {
 }
 
 // faultList collects the faults ValidateArgs finds in one line, up to
-// argumentFaultsMax. Not safe for concurrent use: one call owns it.
+// argumentFaultsMax, with the line each reads as in a list. Not safe for
+// concurrent use: one call owns it.
 type faultList struct {
 	faults  []error
+	lines   []string
 	omitted int
 }
 
-// add keeps fault, or counts it once the list is full.
+// add keeps fault, named by its own text, or counts it once the list is full.
 func (l *faultList) add(fault error) {
+	l.keep(fault, fault.Error())
+}
+
+// addMissing keeps a missing argument, named with the words that supply it.
+func (l *faultList) addMissing(missing *MissingArgumentError) {
+	var line textbuf.Buffer
+	line.Str(missing.Error()).Str(", as in '").Str(missing.Usage()).Byte('\'')
+	l.keep(missing, line.String())
+}
+
+// keep keeps fault with line, or counts it once the list is full.
+func (l *faultList) keep(fault error, line string) {
 	if len(l.faults) < argumentFaultsMax {
 		l.faults = append(l.faults, fault)
+		l.lines = append(l.lines, line)
 		return
 	}
 	l.omitted++
@@ -121,5 +184,5 @@ func (l *faultList) verdict() error {
 	if len(l.faults) == 1 {
 		return l.faults[0]
 	}
-	return newArgumentFaults(l.faults, l.omitted)
+	return newArgumentFaults(l.faults, l.lines, l.omitted, "")
 }

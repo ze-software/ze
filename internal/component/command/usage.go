@@ -491,6 +491,22 @@ func writeUsageValue(tb *textbuf.Buffer, token *UsageToken) {
 	tb.Join(token.Values, "|")
 }
 
+// keywordUsage writes the words that supply def by its keyword, as the usage
+// line renders a value (`asn <asn>`, `mode <active|passive>`), or the keyword
+// alone for a flag. Every definition is bound by its keyword in ValidateArgs's
+// keyword phase, so this form fills def wherever the model anchors it.
+func keywordUsage(def *ArgDef) string {
+	var tb textbuf.Buffer
+	tb.Str(def.name)
+	if def.kind == ArgFlag {
+		return tb.String()
+	}
+	value := usageToken(def, UsageValue)
+	tb.Byte(' ')
+	writeUsageToken(&tb, &value)
+	return tb.String()
+}
+
 // usageToken builds one value token from an argument definition.
 func usageToken(def *ArgDef, kind UsageKind) UsageToken {
 	return UsageToken{Text: def.name, Values: usageValues(def), Kind: kind}

@@ -1110,13 +1110,23 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		// The last fence is what keeps `send bgp unicast 10.0.0.0/24 ...` --
 		// a command that also carries `leaf selector mandatory` -- from taking
 		// the prefix as the destination.
+		adopted := ""
 		if matchedCmd.RequiresSelector && selectors[selectorLeaf] == "" && (ctx == nil || ctx.Peer == "") {
 			if value, found := adoptablePositional(validated, argErr); found {
 				if selectors == nil {
 					selectors = make(map[string]string, 1)
 				}
 				selectors[selectorLeaf] = value
+				adopted = value
 			}
+		}
+
+		// A line with several faults is restated with what only the
+		// dispatcher knows: the line that supplies a missing selector, and the
+		// whole command when every fault is a missing argument. The guard below
+		// still reads it as a list, and the held error keeps its place.
+		if faults, several := errors.AsType[*command.ArgumentFaults](argErr); several {
+			argErr = restateArgumentFaults(matchedCmd, faults, args, selectors[selectorLeaf], adopted)
 		}
 
 		applyExtractedSelectors(ctx, selectors)
@@ -1246,15 +1256,22 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 // selector leaf from a lone spare token: from the value it returned, or from
 // its refusal when the call left another mandatory leaf missing, so that call
 // is still told which leaf is missing rather than that it "requires a
-// selector". Any other refusal binds nothing, a line with several faults
-// (*command.ArgumentFaults) included: its missing argument, if it holds one,
-// sits beside a fault the operator must repair first.
+// selector". A line that left several mandatory leaves missing and holds no
+// other fault (*command.ArgumentFaults of missing arguments only) binds the
+// same way, because every one of its missing arguments carries the same
+// binding. Any other refusal binds nothing, a line with several faults of
+// which one is not a missing argument included: that fault sits beside the
+// binding, and the operator must repair it first.
 func adoptablePositional(validated command.ValidatedArgs, argErr error) (string, bool) {
 	if argErr == nil {
 		return validated.Positional(selectorLeaf)
 	}
-	if _, several := errors.AsType[*command.ArgumentFaults](argErr); several {
-		return "", false
+	if faults, several := errors.AsType[*command.ArgumentFaults](argErr); several {
+		for _, fault := range faults.Faults() {
+			if _, missing := errors.AsType[*command.MissingArgumentError](fault); !missing {
+				return "", false
+			}
+		}
 	}
 	if missing, ok := errors.AsType[*command.MissingArgumentError](argErr); ok {
 		return missing.Positional(selectorLeaf)
@@ -1269,8 +1286,11 @@ func adoptablePositional(validated command.ValidatedArgs, argErr error) (string,
 // gets ("delete bgp peer"), and what a line whose values carry no keyword gets,
 // and for both the guard's refusal names the fix. Every other verdict names the
 // token or the leaf the operator must repair. A *command.ArgumentFaults always
-// does: it holds at most one missing argument beside at least one other fault,
-// and its refusal names each of them, the missing selector included.
+// does, even when every fault it holds is a missing argument: the guard's
+// refusal names the selector alone, while the list (restated by
+// restateArgumentFaults) names each missing leaf, the missing selector by the
+// guard's own form, so an operator who supplies the selector is not refused
+// again for the next leaf.
 func argFaultOutsideSelector(argErr error) bool {
 	if argErr == nil {
 		return false

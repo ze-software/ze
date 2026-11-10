@@ -355,8 +355,9 @@ var errNoArgDefSource = errors.New("argument definitions are not loaded in this 
 //
 // invocation is the command as the operator types it on the calling route,
 // without its arguments. A missing mandatory argument is followed by the help
-// request for that command, because the refusal names one leaf and the help
-// page names every argument the command takes: that page is the fix.
+// request for that command, because the refusal names only the leaves the line
+// left out and the help page names every argument the command takes: that page
+// is the fix. A line missing several leaves gets the hint once.
 func writeLocalRefusal(invocation string, err error) {
 	os.Stderr.WriteString(localRefusal(invocation, err)) //nolint:errcheck // CLI diagnostic
 }

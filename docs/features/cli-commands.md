@@ -59,10 +59,23 @@ consumed first, so the address is the one token left over.
 A SECOND fault in the tail (a keyword with no value, a value its leaf refuses,
 a word no leaf takes) leaves the selector unbound, and the answer names that
 fault: `create bgp peer 192.0.2.7 asn 65002 router-id` says `router-id requires
-a value`. The selector guard speaks only when the selector is what is missing.
-A line with several faults is refused once, with each fault on a line of its
-own and the fix last, so fixing the first fault does not lead to a second
-refusal for the next one:
+a value`. The selector guard speaks only when the selector is the one thing
+missing. A line with several faults is refused once, with each fault on a line
+of its own and the fix last, so fixing the first fault does not lead to a
+second refusal for the next one. Each mandatory argument the line leaves out
+is one of those faults, named with the words that supply it, so `create bgp
+peer` alone is told both that the selector and that asn are missing, and,
+because nothing else is wrong, is given the whole command to type:
+
+```
+this command has 2 faults, so Ze did not run it
+Ze runs a command only when every word of it is valid, and each line below is one fault:
+- create bgp peer requires a selector: create bgp peer <selector> (Address of the peer to create)
+- required argument missing: asn, as in 'asn <asn>'
+fix: create bgp peer <selector> asn <asn>
+```
+
+A line with a fault in a word it typed keeps the general fix:
 
 ```
 this command has 2 faults, so Ze did not run it
@@ -73,6 +86,7 @@ fix: correct each fault listed above, then type the command again
 ```
 <!-- source: internal/component/plugin/server/command.go -- Dispatch, argFaultOutsideSelector -->
 <!-- source: internal/component/command/argfaults.go -- ArgumentFaults, newArgumentFaults -->
+<!-- source: internal/component/plugin/server/arg_faults.go -- restateArgumentFaults -->
 
 A value that sits BETWEEN two keywords reaches the leaf the model anchored to
 the first of them. A leaf declared on a grouping container carries that

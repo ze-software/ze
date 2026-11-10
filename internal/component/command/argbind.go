@@ -120,17 +120,20 @@ func (v ValidatedArgs) Value(leaf string) (value string, found bool) {
 }
 
 // MissingArgumentError is ValidateArgs's refusal of a call that left a
-// mandatory definition unfilled.
+// mandatory definition unfilled. A call that left several unfilled is refused
+// with one MissingArgumentError per leaf, in declaration order, inside an
+// *ArgumentFaults.
 //
 // It carries the lone positional binding the call DID make, because the daemon
 // dispatcher chooses between two refusals on it: a command whose selector
 // arrived positionally is told which other leaf is missing, not that it
-// "requires a selector". The binding answers only that choice; a refused call
-// yields no ValidatedArgs, so no handler can run on it.
+// "requires a selector". Every MissingArgumentError of one call carries the
+// same binding. The binding answers only that choice; a refused call yields no
+// ValidatedArgs, so no handler can run on it.
 type MissingArgumentError struct {
-	// Leaf is the first mandatory definition, in declaration order, that no
-	// token filled.
+	// Leaf is a mandatory definition that no token filled.
 	Leaf       string
+	usage      string
 	bound      string
 	boundValue string
 }
@@ -139,6 +142,15 @@ type MissingArgumentError struct {
 func (e *MissingArgumentError) Error() string {
 	var tb textbuf.Buffer
 	return tb.Str("required argument missing: ").Str(e.Leaf).String()
+}
+
+// Usage answers the words that supply the missing leaf, its keyword and then
+// its value as the usage line writes it (`asn <asn>`), or the keyword alone for
+// a flag. A list of faults names it beside the leaf, and the daemon dispatcher
+// writes it into the whole command it offers as the fix. It answers "" for a
+// value ValidateArgs did not build.
+func (e *MissingArgumentError) Usage() string {
+	return e.usage
 }
 
 // Positional answers the value a lone spare positional token filled for leaf
@@ -186,8 +198,8 @@ func (e *MissingArgumentError) Positional(leaf string) (value string, found bool
 //
 // The whole line is read before the call is refused, and every fault it holds
 // is named: a keyword with no value, a value its leaf refuses, a keyword typed
-// twice, a token no definition takes, and the first missing mandatory
-// argument. A line with one fault is refused with that fault alone; a line
+// twice, a token no definition takes, and each missing mandatory argument.
+// A line with one fault is refused with that fault alone; a line
 // with more is refused with an *ArgumentFaults, whose Unwrap answers each, so
 // errors.As finds every fault kind on both shapes. The faults are in the order
 // the line was read, so the first one is the one a single-fault refusal named.
@@ -364,16 +376,15 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (V
 		return ValidatedArgs{}, faults.verdict()
 	}
 
-	// Phase 3: mandatory check. Only the first missing leaf is named, as
-	// MissingArgumentError.Leaf documents: one *MissingArgumentError per
-	// refusal is what lets the dispatcher tell a missing selector from a line
-	// with other faults (ArgumentFaults).
+	// Phase 3: mandatory check. Every missing leaf is named, each with its own
+	// *MissingArgumentError, so an operator who types the first one is not
+	// refused again for the next. A leaf whose keyword or value is at fault
+	// is matched by now, so it is never also reported missing.
 	missing := false
 	for i := range defs {
 		if defs[i].mandatory && !matched[defs[i].name] {
-			faults.add(&MissingArgumentError{Leaf: defs[i].name, bound: bound, boundValue: boundValue})
+			faults.addMissing(&MissingArgumentError{Leaf: defs[i].name, usage: keywordUsage(&defs[i]), bound: bound, boundValue: boundValue})
 			missing = true
-			break
 		}
 	}
 

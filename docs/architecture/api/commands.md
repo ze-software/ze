@@ -2033,29 +2033,43 @@ private, so only a successful call builds a non-zero value; the zero value means
 no tokens and no binding. `Tokens` answers a copy, so neither the route nor the
 handler can change what was judged. A call that leaves a mandatory leaf unfilled
 is refused with a `*command.MissingArgumentError` (`required argument missing:
-<leaf>`), which still reports the lone binding, because the dispatcher adopts a
-positional selector before it reports the missing leaf. The in-process routes
-(R2, R3, R6, R7) write the refusal to stderr, and a missing leaf is followed by
-`hint: run '<command> help' to see the arguments it takes`, because the refusal
-names one leaf and the help page names every argument (`ze` prefixes the
-command on the `ze <verb>` routes, and `ze cli -c` takes it bare).
+<leaf>`), one for each leaf it left unfilled, and each still reports the lone
+binding, because the dispatcher adopts a positional selector before it reports
+the missing leaves. The in-process routes (R2, R3, R6, R7) write the refusal to
+stderr, and a missing leaf is followed, once, by `hint: run '<command> help' to
+see the arguments it takes`, because the refusal names only the leaves the line
+left out and the help page names every argument (`ze` prefixes the command on
+the `ze <verb>` routes, and `ze cli -c` takes it bare).
 <!-- source: internal/component/command/local_data.go -- localRefusal -->
 
 The validator reads the whole line before it refuses it, and names every fault
 the line holds: a keyword with no value, a value its leaf refuses, a keyword
-typed twice, a token no definition takes, and the first missing mandatory
-leaf. A line with one fault is refused with that fault alone. A line with more
-is refused with a `*command.ArgumentFaults`, an operator error whose problem
-line counts the faults, whose next lines name each fault in the order typed,
-and whose last line is the fix. Its `Unwrap` answers the operator error and
-each fault, so `errors.As` finds a `*command.MissingArgumentError` inside it as
-it does on its own; the dispatcher asks for an `*command.ArgumentFaults` first,
-because only a lone missing argument may bind a positional selector or let the
-selector guard speak. A refusal keeps at most 16 faults and says how many more
-it did not list.
+typed twice, a token no definition takes, and each missing mandatory leaf,
+in declaration order. A leaf whose keyword or value is already at fault is not
+also named missing. A line with one fault is refused with that fault alone. A
+line with more is refused with a `*command.ArgumentFaults`, an operator error
+whose problem line counts the faults, whose next lines name each fault in the
+order typed, and whose last line is the fix. Its `Unwrap` answers the operator
+error and each fault, so `errors.As` finds a `*command.MissingArgumentError`
+inside it as it does on its own. In the list a missing leaf also names the
+words that supply it, written by the usage line's own value form
+(`required argument missing: asn, as in 'asn <asn>'`); alone, it keeps its
+text. The dispatcher asks for an `*command.ArgumentFaults` first. A list that
+holds only missing arguments binds a positional selector as a lone missing
+argument does, because each of them carries the same binding; a list with any
+other fault binds none. The selector guard speaks only for a lone missing
+argument. The dispatcher then restates the list (`ArgumentFaults.Restated`): a
+missing selector reads as the guard's own refusal, with the line that supplies
+it, and when every fault is a missing argument the fix line is the whole
+command, the operator's own tokens completed (`fix: create bgp peer <selector>
+asn <asn>`). A route that holds no command path (`ze <verb>`, the plugin
+process route R9, a subsystem) keeps the usage lines and the general fix. A
+refusal keeps at most 16 faults and says how many more it did not list.
 <!-- source: internal/component/command/argbind.go -- ValidateArgs -->
 <!-- source: internal/component/command/argfaults.go -- ArgumentFaults, argumentFaultsMax -->
 <!-- source: internal/component/plugin/server/command.go -- adoptablePositional, argFaultOutsideSelector -->
+<!-- source: internal/component/plugin/server/arg_faults.go -- restateArgumentFaults, missingArgumentsFix -->
+<!-- source: internal/component/command/usage.go -- keywordUsage -->
 
 Every route that invokes a handler calls the validator, including for a path
 whose model declares no definition: that call passes the tokens through

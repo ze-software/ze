@@ -52,7 +52,7 @@ func TestValidateArgsNamesEveryFault(t *testing.T) {
 
 		assert.Equal(t, "this command has 5 faults, so Ze did not run it\n"+
 			"Ze runs a command only when every word of it is valid, and each line below is one fault:\n"+
-			"- "+want[0]+"\n- "+want[1]+"\n- "+want[2]+"\n- "+want[3]+"\n- "+want[4]+"\n"+
+			"- "+want[0]+"\n- "+want[1]+"\n- "+want[2]+"\n- "+want[3]+"\n- "+want[4]+", as in 'selector <selector>'\n"+
 			"fix: correct each fault listed above, then type the command again", err.Error())
 
 		missing, ok := errors.AsType[*MissingArgumentError](err)
@@ -79,6 +79,99 @@ func TestValidateArgsNamesEveryFault(t *testing.T) {
 		assert.Equal(t, `unexpected argument "y", valid keywords: first, second`, got[1].Error())
 		_, missing := errors.AsType[*MissingArgumentError](err)
 		assert.False(t, missing, "a leaf a stray token was typed for is not reported missing too")
+	})
+
+	t.Run("every missing mandatory leaf is named", func(t *testing.T) {
+		_, err := ValidateArgs(nil, defs, nil)
+		require.Error(t, err)
+		faults, several := errors.AsType[*ArgumentFaults](err)
+		require.True(t, several, "a line missing two mandatory leaves holds two faults: %v", err)
+		got := faults.Faults()
+		require.Len(t, got, 2)
+		for i, leaf := range []string{"selector", "asn"} {
+			missing, ok := errors.AsType[*MissingArgumentError](got[i])
+			require.True(t, ok, "fault %d is %v, want *MissingArgumentError", i, got[i])
+			assert.Equal(t, leaf, missing.Leaf, "the missing leaves are named in declaration order")
+		}
+		assert.Equal(t, "this command has 2 faults, so Ze did not run it\n"+
+			"Ze runs a command only when every word of it is valid, and each line below is one fault:\n"+
+			"- required argument missing: selector, as in 'selector <selector>'\n"+
+			"- required argument missing: asn, as in 'asn <asn>'\n"+
+			"fix: correct each fault listed above, then type the command again", err.Error())
+		for i, fault := range got {
+			assert.NotContains(t, fault.Error(), "as in", "fault %d keeps its own text; only the list line names the usage", i)
+		}
+		first, ok := errors.AsType[*MissingArgumentError](err)
+		require.True(t, ok, "errors.As still finds a missing argument inside the list")
+		assert.Equal(t, "selector", first.Leaf)
+	})
+
+	t.Run("every missing leaf carries the lone binding", func(t *testing.T) {
+		three := []ArgDef{
+			mustArgDef(NewStringArg("selector", nil, nil, ArgOptions{Mandatory: true})),
+			mustArgDef(NewUintArg("asn", 32, nil, ArgOptions{Mandatory: true})),
+			mustArgDef(NewUintArg("hold-time", 16, nil, ArgOptions{Mandatory: true})),
+		}
+		_, err := ValidateArgs([]string{"192.0.2.7"}, three, nil)
+		require.Error(t, err)
+		faults, several := errors.AsType[*ArgumentFaults](err)
+		require.True(t, several, "%v", err)
+		got := faults.Faults()
+		require.Len(t, got, 2)
+		for i, leaf := range []string{"asn", "hold-time"} {
+			missing, ok := errors.AsType[*MissingArgumentError](got[i])
+			require.True(t, ok, "fault %d is %v, want *MissingArgumentError", i, got[i])
+			assert.Equal(t, leaf, missing.Leaf)
+			value, found := missing.Positional("selector")
+			assert.True(t, found, "missing %s lost the selector binding", leaf)
+			assert.Equal(t, "192.0.2.7", value)
+		}
+	})
+
+	t.Run("a leaf whose keyword is at fault is not also missing", func(t *testing.T) {
+		_, err := ValidateArgs([]string{"asn"}, defs, nil)
+		require.Error(t, err)
+		faults, several := errors.AsType[*ArgumentFaults](err)
+		require.True(t, several, "%v", err)
+		got := faults.Faults()
+		require.Len(t, got, 2, "asn is named once, for its missing value")
+		assert.Equal(t, missingValueError("asn").Error(), got[0].Error())
+		assert.Equal(t, "required argument missing: selector", got[1].Error())
+	})
+
+	t.Run("a missing leaf's usage is the usage line's value form", func(t *testing.T) {
+		withEnum := []ArgDef{
+			mustArgDef(NewEnumArg("mode", []string{"active", "passive"}, ArgOptions{Mandatory: true})),
+			mustArgDef(NewUintArg("asn", 32, nil, ArgOptions{Mandatory: true})),
+		}
+		_, err := ValidateArgs(nil, withEnum, nil)
+		require.Error(t, err)
+		faults, several := errors.AsType[*ArgumentFaults](err)
+		require.True(t, several, "%v", err)
+		missing, ok := errors.AsType[*MissingArgumentError](faults.Faults()[0])
+		require.True(t, ok)
+		assert.Equal(t, "mode <active|passive>", missing.Usage())
+		assert.Contains(t, err.Error(), "\n- required argument missing: mode, as in 'mode <active|passive>'\n")
+	})
+
+	t.Run("a restated list names the replacement and its fix", func(t *testing.T) {
+		_, err := ValidateArgs(nil, defs, nil)
+		faults, several := errors.AsType[*ArgumentFaults](err)
+		require.True(t, several, "%v", err)
+		replacement := errors.New("the selector line")
+		restated := faults.Restated(func(fault error) error {
+			missing, ok := errors.AsType[*MissingArgumentError](fault)
+			if ok && missing.Leaf == "selector" {
+				return replacement
+			}
+			return nil
+		}, "type the whole command")
+		assert.Equal(t, "this command has 2 faults, so Ze did not run it\n"+
+			"Ze runs a command only when every word of it is valid, and each line below is one fault:\n"+
+			"- the selector line\n"+
+			"- required argument missing: asn, as in 'asn <asn>'\n"+
+			"fix: type the whole command", restated.Error())
+		assert.Contains(t, err.Error(), "- required argument missing: selector, as in", "the receiver is not changed")
 	})
 
 	t.Run("one fault is refused as itself", func(t *testing.T) {
