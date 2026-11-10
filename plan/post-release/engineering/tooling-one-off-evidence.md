@@ -2403,3 +2403,26 @@ overlay.
 | restored | PASS 1.8s |
 
 The broken leg left no `rpki-sync.release` in the repository root.
+
+## Five owned rows fixed at their producers (2026-11-10)
+
+Each fix landed with the commit that closes its journal row; each break is a
+Go overlay through the walk tool (`rows5/`), and every restored run passed.
+
+| Row | Fix | Carrier | Break | Red |
+| --- | --- | --- | --- | --- |
+| gate-excludes-part-of-its-population 2026-11-10 | the approval unit grammar admits a dotted directory key, cut at the last dot (`rfc.SplitApprovalUnit`) | `TestWeakeningApproveNamesADottedDirectory` | the one-dot pattern restored; separately, the cut at the first dot | "unit must be <package>.<TestName>, got old-5.0.peer-flap"; "approval unit old-5.0.peer-flap has no current/parent carrier" |
+| hardcoded-count-in-test 2026-11-10 | populations derived from `netnsSelections` and judged by `validateNetnsSelection` | `TestNetnsSelectionsHaveAbsolutePopulations` | `pppoe-basic` renamed `pppoe-basic-gone` | "pppoe subset invalid; refusing to run a silently smaller gate: \"pppoe-basic-gone\": no test/pppoe/pppoe-basic-gone.ci" |
+| behavior-change-leaves-repository-users-stale 2026-11-10 | the test asserts `errors.Is` on the exported `terminaldemo.ErrAssetMismatch` | `TestHomeWebPreviewUsesVerifiedMedia` | the digest branch returns another error | "the corrupted browser screenshot was refused for the wrong reason" |
+| identity-default-hides-a-mapping 2026-11-09 | an external session's AS_PATH carries the AS ze-peer's OPEN advertised (`pathAS`) | `TestBuildUpdatesExternalPathCarriesTheOPENAS` | IPv4 builder writes `spec.ASN` again | "ipv4 external: AS_PATH starts with 65100, want 65200" |
+| gate-red-where-nothing-blocks-on-it 2026-11-09 | the kernelbuilder proof test's docker calls go through `interoplab.Docker` (`ContainersFromImage` added) | `TestContainersFromImageListsByAncestor`; `./le arch tier check` | `ps` without `-a` | "argv = [docker ps -q ...], want [docker ps -a -q ...]"; the gate now prints "no code outside internal/le/interoplab execs docker" |
+
+Three rewritten assertions (`TestNetnsSelectionsHaveAbsolutePopulations`,
+`TestHomeWebPreviewUsesVerifiedMedia`,
+`TestKernelContainerCancellationJoinsBeforeRepair`) were approved by an
+independent `ze-test-judge`. Scoped runs: `internal/le/rfc`,
+`internal/le/test/weakened`, `internal/le/test/qemu`, `internal/le/site`,
+`internal/le/site/terminaldemo`, `internal/test/peer`,
+`internal/appliance/kernelbuilder` and `internal/le/interoplab` all ok. The
+iBGP half of the AS_PATH mapping (an empty AS_PATH to internal peers, RFC 4271
+Section 5.1.2) is a new owned row, not part of this fix.

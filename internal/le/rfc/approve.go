@@ -39,11 +39,26 @@ const ApprovalTableHeader = "| Test | Reason | Target | Content |\n|------|-----
 
 const keyCommit = "commit"
 
-// approvalUnitPattern is `<package>.<TestName>`: a package directory name, one
-// dot, and a Go test name or a `.ci` file stem. A path, a space, a pipe and a
-// second dot are refused, so a unit is exactly what the gate reports and
-// what the trailer line carries.
-var approvalUnitPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$`)
+// approvalUnitPattern is `<package>.<TestName>`: a package directory name, a
+// dot, and a Go test name or a `.ci` file stem. The directory name may itself
+// hold dots (`test/exabgp-compat/old-5.0/` gives `old-5.0.<stem>`), so the
+// name is the part after the last dot (SplitApprovalUnit), and neither a Go
+// test name nor a `.ci` stem holds one. A path, a space, a pipe, an empty
+// dot-separated segment (`..`, a leading or trailing dot) and a bare name are
+// refused, so a unit is exactly what the gate reports and what the trailer
+// line carries.
+var approvalUnitPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*\.[A-Za-z0-9_-]+$`)
+
+// SplitApprovalUnit answers the directory key and the test name of a unit
+// that ValidApprovalUnit accepted, cut at the last dot: the directory key
+// may hold dots, the test name never does.
+func SplitApprovalUnit(unit string) (packageName, name string) {
+	cut := strings.LastIndexByte(unit, '.')
+	if cut < 0 {
+		return "", unit
+	}
+	return unit[:cut], unit[cut+1:]
+}
 
 // ApprovalPath answers the file one commit session's approvals live in, under
 // tmp/ where git never reads it. The commit that used a row is the record.

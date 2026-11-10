@@ -728,7 +728,7 @@ func (e *Engine) verifyDemoAssets(demoID string, names []string, expected map[st
 			return fmt.Errorf("%s: %s artifact path %q does not name its published file %q; restore the recorded manifest", demoID, name, asset.Path, filepath.Base(expected[name]))
 		}
 		if _, err := ReadAsset(root, asset); err != nil {
-			if errors.Is(err, errAssetMismatch) {
+			if errors.Is(err, ErrAssetMismatch) {
 				return fmt.Errorf("%s: %s digest mismatch", demoID, name)
 			}
 			return fmt.Errorf("%s: acquire generated %s: %w", demoID, name, err)

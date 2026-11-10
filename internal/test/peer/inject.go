@@ -59,7 +59,10 @@ type InjectSpec struct {
 	Count int
 	// NextHop must match Prefix's family.
 	NextHop netip.Addr
-	// ASN is used for a single-segment AS_SEQUENCE (4-byte encoding).
+	// ASN is the single-segment AS_SEQUENCE (4-byte encoding) on an internal
+	// session, and the AS a dialing peer's OPEN carries unless an option=asn
+	// line overrides it. On an external session the AS_PATH carries the AS
+	// ze-peer's OPEN advertised instead (buildUpdates).
 	ASN uint32
 	// EndOfRIB appends an empty UPDATE after the last message. Default true.
 	EndOfRIB bool
@@ -84,7 +87,7 @@ type InjectSpec struct {
 	// VaryAttrs adds a MULTI_EXIT_DISC and a COMMUNITIES attribute whose values
 	// derive from the message index, so no two UPDATEs carry the same
 	// attribute set and nothing downstream can share the work of one with
-	// another. The AS_PATH stays the single injector ASN, because an eBGP
+	// another. The AS_PATH stays the single sending AS, because an eBGP
 	// receiver checks that the first AS is the peer's.
 	VaryAttrs bool
 }
@@ -155,12 +158,22 @@ func buildUpdates(spec InjectSpec, senderAS uint32) ([]byte, int, error) {
 	if spec.Prefix.Addr().Is4() != spec.NextHop.Is4() {
 		return nil, 0, errors.New("prefix and next-hop family mismatch")
 	}
+	// RFC 4271 Section 5.1.2: "the originating speaker includes its own AS
+	// number in a path segment, of type AS_SEQUENCE, in the AS_PATH attribute
+	// of all UPDATE messages sent to an external peer."
+	// On an external session that number is the AS ze-peer's own OPEN
+	// advertised (senderAS), which an option=asn line can set apart from the
+	// spec's ASN; an internal session keeps the spec's ASN.
+	pathAS := spec.ASN
+	if senderAS != 0 {
+		pathAS = senderAS
+	}
 	if spec.Prefix.Addr().Is4() {
 		// RFC 4271 Section 5.1.5: preserve the negotiated session kind.
-		return buildV4Unicast(spec, senderAS == 0)
+		return buildV4Unicast(spec, pathAS, senderAS == 0)
 	}
 	// RFC 4271 Section 5.1.5: preserve the negotiated session kind.
-	return buildV6Unicast(spec, senderAS == 0)
+	return buildV6Unicast(spec, pathAS, senderAS == 0)
 }
 
 // buildV4Unicast writes ORIGIN + AS_PATH + NEXT_HOP + inline NLRI UPDATEs.
@@ -173,7 +186,7 @@ func buildUpdates(spec InjectSpec, senderAS uint32) ([]byte, int, error) {
 //	23..26   ORIGIN; 27..35 AS_PATH; 36..42 NEXT_HOP
 //	43..     Optional varied attributes, then LOCAL_PREF (7 octets, iBGP only)
 //	         NLRI follows the complete attribute block.
-func buildV4Unicast(spec InjectSpec, internal bool) ([]byte, int, error) {
+func buildV4Unicast(spec InjectSpec, pathAS uint32, internal bool) ([]byte, int, error) {
 	plen := spec.Prefix.Bits()
 	if plen < 0 || plen > 32 {
 		return nil, 0, fmt.Errorf("invalid IPv4 prefix length %d", plen)
@@ -235,7 +248,7 @@ func buildV4Unicast(spec InjectSpec, internal bool) ([]byte, int, error) {
 		// AS_PATH: AS_SEQUENCE, one 4-byte ASN
 		buf[at+27], buf[at+28], buf[at+29] = flagWKTrans, 0x02, 0x06
 		buf[at+30], buf[at+31] = 0x02, 0x01
-		binary.BigEndian.PutUint32(buf[at+32:at+36], spec.ASN)
+		binary.BigEndian.PutUint32(buf[at+32:at+36], pathAS)
 		// NEXT_HOP
 		buf[at+36], buf[at+37], buf[at+38] = flagWKTrans, 0x03, 0x04
 		copy(buf[at+39:at+43], nh[:])
@@ -296,7 +309,7 @@ func buildV4Unicast(spec InjectSpec, internal bool) ([]byte, int, error) {
 //	36..     Optional varied attributes, then LOCAL_PREF (7 octets, iBGP only)
 //	         MP_REACH follows: flags/type/length(4), AFI/SAFI(3),
 //	         next-hop length(1), next hop(16), reserved(1), then IPv6 NLRI.
-func buildV6Unicast(spec InjectSpec, internal bool) ([]byte, int, error) {
+func buildV6Unicast(spec InjectSpec, pathAS uint32, internal bool) ([]byte, int, error) {
 	plen := spec.Prefix.Bits()
 	if plen < 0 || plen > 128 {
 		return nil, 0, fmt.Errorf("invalid IPv6 prefix length %d", plen)
@@ -357,7 +370,7 @@ func buildV6Unicast(spec InjectSpec, internal bool) ([]byte, int, error) {
 		// AS_PATH 4-byte ASN single-segment
 		buf[at+27], buf[at+28], buf[at+29] = flagWKTrans, 0x02, 0x06
 		buf[at+30], buf[at+31] = 0x02, 0x01
-		binary.BigEndian.PutUint32(buf[at+32:at+36], spec.ASN)
+		binary.BigEndian.PutUint32(buf[at+32:at+36], pathAS)
 		if spec.VaryAttrs {
 			writeVaryAttrs(buf[at+36:at+36+varyAttrsLen], msgIndex)
 		}

@@ -195,7 +195,7 @@ func resolveApprovalSides(root, target, unit string) (string, []approvalCarrier,
 	oldSet := approvalPathSet(oldPaths)
 	newSet := approvalPathSet(newPaths)
 	paths := approvalPathSet(oldPaths + newPaths)
-	packageName, name, _ := strings.Cut(unit, ".")
+	packageName, name := SplitApprovalUnit(unit)
 	oldCarriers := make([]approvalCarrier, 0, 1)
 	newCarriers := make([]approvalCarrier, 0, 1)
 	unchanged := make(map[string]bool)
@@ -319,7 +319,7 @@ func ambiguousApprovalCarrier(unit string, carriers []approvalCarrier) error {
 // carries the test, the refusal names the directory key to record instead.
 // listed is the current (or target) side's path listing the resolver read.
 func noApprovalCarrier(root, target, unit, listed string) error {
-	packageName, name, _ := strings.Cut(unit, ".")
+	packageName, name := SplitApprovalUnit(unit)
 	refusal := "approval unit " + unit + " has no current/parent carrier"
 	keys := make([]string, 0, 1)
 	for path := range approvalPathSet(listed) {

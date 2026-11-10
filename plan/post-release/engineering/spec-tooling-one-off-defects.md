@@ -256,9 +256,7 @@ AC-27 was dropped on 2026-11-08 ("Scope decision" above): the incident was not i
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
-| `gate-excludes-part-of-its-population` | 2026-11-10 | `approvalUnitPattern` refuses a `.ci` unit under a dotted directory such as `old-5.0` |
-| `gate-red-where-nothing-blocks-on-it` | 2026-11-09 | kernelbuilder `container_lifetime_proof_test.go` execs raw `docker`, red in the docker-exec-route gate |
-| `identity-default-hides-a-mapping` | 2026-11-09 | ze-peer eBGP AS_PATH takes the send-bulk spec's ASN, not the AS its OPEN advertised (`internal/test/peer/inject.go`) |
+| `identity-default-hides-a-mapping` | 2026-11-10 | ze-peer iBGP UPDATE carries a one-AS AS_PATH instead of an empty one (RFC 4271 Section 5.1.2) |
 | `invariant-enforced-by-an-absent-call-site` | 2026-11-08 | 531 compiled fixtures send `request shutdown` without declaring `StopsDaemon`, so a peerless `.ci` is signaled early |
 | guard-keyed-on-a-field-its-consumer-ignores.md | 2026-11-06 | weakening gate keys a unit by directory base name, a judge by Go package name |
 | `container-build-leaves-root-owned-scratch` | 2026-11-04 | poster proof default entrypoint rewrites shared SSH config and chowns shared scratch |
@@ -274,8 +272,6 @@ AC-27 was dropped on 2026-11-08 ("Scope decision" above): the incident was not i
 | `review-pin-hashes-uncommitted-content` | 2026-10-30 | closure review pin hashes the working tree, not the landed blob |
 | `gate-verdict-depends-on-the-machine` | 2026-10-29 | dnsresolver system name-server test needs the Linux resolv.conf writer |
 | `gate-verdict-depends-on-the-machine` | 2026-10-29 | coupling check judges with the host plugin list |
-| `hardcoded-count-in-test` | 2026-11-10 | `TestNetnsSelectionsHaveAbsolutePopulations` pins 8 PPPoE selectors, `netns_linux.go` lists 10 |
-| `behavior-change-leaves-repository-users-stale` | 2026-11-10 | `TestHomeWebPreviewUsesVerifiedMedia` expects a refusal text `terminaldemo/artifact.go` no longer prints |
 | `lint-contract-not-applied` | 2026-10-27 | changed-scope lint at 043c682d24 |
 | `lint-contract-not-applied` | 2026-10-27 | changed-scope lint at 2f36373081 |
 | `plugin-list-hardcoded` | 2026-10-27 | TestHomeHeroDerivesFromTheManifest |
@@ -417,6 +413,11 @@ closed on the attributed red its evidence section records.
 | `delegation-hands-the-callee-a-different-argv` | 2026-09-04 | `refuseWrongBuildName` | `20667e8d9f`, carrier `b678c3b3de` (`BinarySet.Environment`); `TestBinarySetDropsEveryInheritedBuildName` (tooling-one-off-evidence.md, "Unit red walks of landed fixes") |
 | `acceptance-criterion-written-as-an-absence` | 2026-08-21 | AC-9 grep for `show bgp summary` | `9059161574` repaired the six specs; `fcb9fbe117`; `TestCriteriaNamePositiveBehavior` (tooling-one-off-evidence.md, "Unit red walks of landed fixes") |
 | `silent-fall-through` | 2026-10-10 | IPsec interop `zeEnvironment` | `163a5d1b88`; `TestPreparedIPsecPeerEnablesDebugLogging` (tooling-one-off-evidence.md, "P-12 (c): IPsec lab log key"); the plugin testing page's stale `ZE_LOG_LEVEL` corrected with the row's closure |
+| `gate-excludes-part-of-its-population` | 2026-11-10 | `approvalUnitPattern` dotted directory | `rfc.SplitApprovalUnit`; `TestWeakeningApproveNamesADottedDirectory` (tooling-one-off-evidence.md, "Five owned rows fixed at their producers") |
+| `gate-red-where-nothing-blocks-on-it` | 2026-11-09 | kernelbuilder raw `docker` | `interoplab.Docker` `ContainersFromImage`; `TestContainersFromImageListsByAncestor`, `./le arch tier check` docker-exec OK (same section) |
+| `identity-default-hides-a-mapping` | 2026-11-09 | ze-peer eBGP AS_PATH | `pathAS` in `buildUpdates`; `TestBuildUpdatesExternalPathCarriesTheOPENAS` (same section) |
+| `hardcoded-count-in-test` | 2026-11-10 | `TestNetnsSelectionsHaveAbsolutePopulations` | derived from `netnsSelections`, judged by `validateNetnsSelection` (same section) |
+| `behavior-change-leaves-repository-users-stale` | 2026-11-10 | `TestHomeWebPreviewUsesVerifiedMedia` | `errors.Is` on `terminaldemo.ErrAssetMismatch` (same section) |
 | `refactor-removes-feature` | 2026-08-31 | `checkNoFamilyEndOfRIB` and 14 checkers | `c5b61cf472`, `125ab22025`, `18017069a9`, `cb882fd581` gave each checker its assertions; each of the 15 red under a Ze break (tooling-one-off-evidence.md, "P-12 (a): interop checkers (2026-11-09)", "P-12 (a) interop checkers: the four remaining walks (2026-11-10)") |
 
 ## Checklist

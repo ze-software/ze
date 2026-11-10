@@ -4,7 +4,9 @@ package testqemu
 
 import (
 	"context"
+	"maps"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -180,13 +182,35 @@ func TestPPPoELinkDifferenceDetectsMissingAndDuplicateLinks(t *testing.T) {
 	}
 }
 
+// TestNetnsSelectionsHaveAbsolutePopulations proves every netns evidence
+// selection is a population of named tests: not empty, no selector twice,
+// and each one a `.ci` file of its suite rather than a numeric position, as
+// validateNetnsSelection (the check the launcher runs before it starts)
+// judges it. The population is read from netnsSelections itself, so a test
+// joining or leaving a selection needs no edit here; a selector whose file
+// is gone, a duplicate and an empty selection each go red.
+//
+// MUTATION: rename "pppoe-basic" to "pppoe-basic-gone" in netnsSelections
+// and the selection is refused; list "pppoe-vlan" twice and the duplicate is
+// named.
 func TestNetnsSelectionsHaveAbsolutePopulations(t *testing.T) {
-	t.Parallel()
-	want := map[string]int{netnsFirewall: 24, netnsPolicy: 8, netnsOSPF: 8, netnsOSPFv3: 3, netnsPPPoE: 8}
-	for suite, count := range want {
-		if got := len(netnsSelections[suite]); got != count {
-			t.Errorf("%s has %d selectors, want %d", suite, got, count)
+	t.Chdir(filepath.Join("..", "..", "..", ".."))
+	suites := slices.Sorted(maps.Keys(netnsSelections))
+	for _, suite := range suites {
+		names := netnsSelections[suite]
+		if len(names) == 0 {
+			t.Errorf("%s selects no test", suite)
 		}
+		seen := make(map[string]bool, len(names))
+		for _, name := range names {
+			if seen[name] {
+				t.Errorf("%s selects %s twice", suite, name)
+			}
+			seen[name] = true
+		}
+	}
+	if err := validateNetnsSelection(suites); err != nil {
+		t.Fatalf("netns selections: %v", err)
 	}
 }
 

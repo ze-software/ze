@@ -1,16 +1,18 @@
 //go:build linux || darwin
 
-package kernelbuilder
+package kernelbuilder_test
 
 import (
 	"context"
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/appliance/kernelbuilder"
+	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
 // TestKernelContainerCancellationJoinsBeforeRepair runs Build against an actual
@@ -21,6 +23,9 @@ import (
 // daemon boundary rather than treating the Docker CLI's death as a container stop.
 // KERNEL_CONTAINER_PROOF_IMAGE names an existing image with /bin/sh, sleep and
 // chown; no image is pulled. This is lifecycle proof, not kernel or guest proof.
+// Every docker command the test itself issues goes through interoplab.Docker,
+// so the sentinel it starts carries the owner labels `./le test integration
+// clean` judges; Build's own containers are the code under test.
 func TestKernelContainerCancellationJoinsBeforeRepair(t *testing.T) {
 	base := os.Getenv("KERNEL_CONTAINER_PROOF_IMAGE")
 	if base == "" {
@@ -29,11 +34,13 @@ func TestKernelContainerCancellationJoinsBeforeRepair(t *testing.T) {
 	if strings.ContainsAny(base, "\r\n \t") {
 		t.Fatal("proof image must be one Docker image reference")
 	}
-	probe := exec.CommandContext(t.Context(), "docker", "image", "inspect", base)
-	if output, err := probe.CombinedOutput(); err != nil {
-		t.Fatalf("required locally cached proof image unavailable: %v\n%s", err, output)
+	// The build tool client asks the daemon this process's environment names,
+	// the one Build's own docker commands reach.
+	docker := interoplab.NewBuildToolDocker()
+	if present, err := docker.ImagePresent(t.Context(), base); err != nil || !present {
+		t.Fatalf("required locally cached proof image unavailable: present=%v, %v", present, err)
 	}
-	req := qemuBuildRequest(t, backendDocker)
+	req := kernelbuilder.DockerProofRequest(t)
 	identity, err := os.CreateTemp(req.Root, "identity-")
 	if err != nil {
 		t.Fatal(err)
@@ -67,41 +74,43 @@ while :; do
   sleep 0.05
 done
 `
-	writeFixture(t, req.Root, filepath.Join(req.BuilderDir, "worker"), worker)
+	kernelbuilder.WriteProofFixture(t, req.Root, filepath.Join(req.BuilderDir, "worker"), worker)
 	dockerfile := "FROM " + base + "\nCOPY " + req.BuilderDir + "/worker /proof-worker\nRUN chmod 755 /proof-worker\nENTRYPOINT [\"/proof-worker\"]\n"
-	writeFixture(t, req.Root, filepath.Join(req.BuilderDir, "Dockerfile"), dockerfile)
+	kernelbuilder.WriteProofFixture(t, req.Root, filepath.Join(req.BuilderDir, "Dockerfile"), dockerfile)
 	foreign := "ze-kernel-foreign-" + suffix
-	if output, err := exec.CommandContext(t.Context(), "docker", "run", "-d", "--name", foreign, "--entrypoint", "/bin/sh", base, "-c", "while :; do sleep 1; done").CombinedOutput(); err != nil {
-		t.Fatalf("start foreign sentinel: %v\n%s", err, output)
+	sentinel := interoplab.DetachedContainer{
+		Name: foreign, Image: base, Entrypoint: "/bin/sh",
+		Command: []string{"-c", "while :; do sleep 1; done"},
+	}
+	if err := docker.RunDetached(t.Context(), sentinel); err != nil {
+		t.Fatalf("start foreign sentinel: %v", err)
 	}
 	defer func() {
 		cleanup, cancel := context.WithTimeout(context.WithoutCancel(t.Context()), 20*time.Second)
 		defer cancel()
-		if output, err := exec.CommandContext(cleanup, "docker", "rm", "-f", foreign).CombinedOutput(); err != nil {
-			t.Errorf("remove fixture sentinel: %v\n%s", err, output)
+		if err := docker.RemoveContainer(cleanup, foreign); err != nil {
+			t.Errorf("remove fixture sentinel: %v", err)
 		}
 		// The fixture owns this unique image and every container using it.
-		output, err := exec.CommandContext(cleanup, "docker", "ps", "-aq", "--filter", "ancestor="+req.Image).Output()
+		ids, err := docker.ContainersFromImage(cleanup, req.Image)
 		if err != nil {
 			t.Error(err)
 		}
-		for id := range strings.FieldsSeq(string(output)) {
-			if output, err := exec.CommandContext(cleanup, "docker", "rm", "-f", id).CombinedOutput(); err != nil {
-				t.Errorf("remove fixture worker: %v\n%s", err, output)
+		for _, id := range ids {
+			if err := docker.RemoveContainer(cleanup, id); err != nil {
+				t.Errorf("remove fixture worker: %v", err)
 			}
 		}
-		if output, err := exec.CommandContext(cleanup, "docker", "image", "rm", req.Image).CombinedOutput(); err != nil {
-			t.Errorf("remove fixture image: %v\n%s", err, output)
+		if err := docker.RemoveImageTagForTest(cleanup, req.Image); err != nil {
+			t.Errorf("remove fixture image: %v", err)
 		}
 	}()
 	// Space policy is not under test; preserve actual Docker commands and daemon.
-	oldFree := freeSpace
-	freeSpace = func(string) (uint64, error) { return kernelBuildFreeBytesMin, nil }
-	defer func() { freeSpace = oldFree }()
+	kernelbuilder.PinProofFreeSpace(t)
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	done := make(chan error, 1)
-	go func() { done <- Build(ctx, req) }()
+	go func() { done <- kernelbuilder.Build(ctx, req) }()
 	heartbeat := filepath.Join(req.Root, req.OutputDir, "heartbeat")
 	until := time.NewTimer(60 * time.Second)
 	defer until.Stop()
@@ -135,15 +144,14 @@ started:
 	if _, err := os.Stat(filepath.Join(req.Root, req.OutputDir, "repaired")); err != nil {
 		t.Errorf("ownership repair did not observe a joined worker: %v", err)
 	}
-	output, err := exec.CommandContext(t.Context(), "docker", "ps", "-aq", "--filter", "ancestor="+req.Image).Output()
+	survivors, err := docker.ContainersFromImage(t.Context(), req.Image)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.TrimSpace(string(output)) != "" {
-		t.Errorf("owned container survived Build verdict: %s", output)
+	if len(survivors) != 0 {
+		t.Errorf("owned container survived Build verdict: %v", survivors)
 	}
-	output, err = exec.CommandContext(t.Context(), "docker", "inspect", "--format", "{{.State.Running}}", foreign).Output()
-	if err != nil || strings.TrimSpace(string(output)) != "true" {
-		t.Errorf("Build touched foreign sentinel: %q, %v", output, err)
+	if running, err := docker.ContainerRunning(t.Context(), foreign); err != nil || !running {
+		t.Errorf("Build touched foreign sentinel: running=%v, %v", running, err)
 	}
 }

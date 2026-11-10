@@ -133,6 +133,33 @@ func TestImagePresentTellsAbsentFromUnknown(t *testing.T) {
 	}
 }
 
+// VALIDATES: ContainersFromImage lists every container created from one
+// image, exited ones included, and a failed listing is an error.
+// PREVENTS: a daemon that did not answer read as "no container survived",
+// which would pass the kernel builder's teardown proof vacuously.
+func TestContainersFromImageListsByAncestor(t *testing.T) {
+	runner := &recordingRunner{}
+	docker := newDocker(runner)
+	runner.run = func(ProcessCommand) (ProcessResult, error) { return ProcessResult{Stdout: "abc\ndef\n"}, nil }
+	ids, err := docker.ContainersFromImage(t.Context(), "ze-kernel-lifetime-x")
+	if err != nil || !slices.Equal(ids, []string{"abc", "def"}) {
+		t.Errorf("listing answered %v, %v; want [abc def]", ids, err)
+	}
+	want := []string{DockerExecutable, "ps", "-a", "-q", "--filter", "ancestor=ze-kernel-lifetime-x"}
+	if got := runner.commands[0].Arguments; !slices.Equal(got, want) {
+		t.Errorf("argv = %v, want %v", got, want)
+	}
+	runner.run = func(ProcessCommand) (ProcessResult, error) {
+		return ProcessResult{ExitCode: 1, Stderr: "Cannot connect to the Docker daemon"}, nil
+	}
+	if ids, err := docker.ContainersFromImage(t.Context(), "ze-kernel-lifetime-x"); err == nil {
+		t.Errorf("an unreachable daemon answered %v with no error", ids)
+	}
+	if _, err := docker.ContainersFromImage(t.Context(), ""); err == nil {
+		t.Error("an empty image was listed")
+	}
+}
+
 // VALIDATES: ContainerRunning reads the inspect state and tells a stopped
 // container from one the daemon could not answer for.
 // PREVENTS: a failed inspect read as "not running yet", which a wait loop

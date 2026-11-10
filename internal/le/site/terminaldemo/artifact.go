@@ -13,7 +13,11 @@ import (
 	"strings"
 )
 
-var errAssetMismatch = errors.New("artifact size or digest mismatch")
+// ErrAssetMismatch is the refusal of a demo artifact whose size or SHA-256
+// disagrees with its manifest. It is exported so a consumer that publishes
+// the artifact (the home page) can test for this refusal rather than for its
+// wording.
+var ErrAssetMismatch = errors.New("artifact size or digest mismatch")
 
 // Asset retains an acquired demonstration's immutable bytes. Its zero value is
 // uninitialized and its operations refuse it. It is safe for concurrent reading;
@@ -35,10 +39,10 @@ func ReadAsset(root *os.Root, metadata AssetMetadata) (Asset, error) {
 		return Asset{}, err
 	}
 	if asset.metadata.Bytes != metadata.Bytes {
-		return Asset{}, fmt.Errorf("%s: %w; restore the recorded media", metadata.Path, errAssetMismatch)
+		return Asset{}, fmt.Errorf("%s: %w; restore the recorded media", metadata.Path, ErrAssetMismatch)
 	}
 	if asset.metadata.SHA256 != metadata.SHA256 {
-		return Asset{}, fmt.Errorf("%s: %w; restore the recorded media", metadata.Path, errAssetMismatch)
+		return Asset{}, fmt.Errorf("%s: %w; restore the recorded media", metadata.Path, ErrAssetMismatch)
 	}
 	return asset, nil
 }
@@ -69,7 +73,7 @@ func acquireAsset(root *os.Root, name string, expected *AssetMetadata) (Asset, e
 	}
 	if expected != nil {
 		if info.Size() != expected.Bytes {
-			return Asset{}, fmt.Errorf("%s: %w; restore the recorded media", name, errAssetMismatch)
+			return Asset{}, fmt.Errorf("%s: %w; restore the recorded media", name, ErrAssetMismatch)
 		}
 	}
 	// The acquired file size bounds both allocation and reading. Growth after

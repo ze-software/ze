@@ -86,6 +86,40 @@ func TestWeakeningApproveRefusesBadUnitOrReason(t *testing.T) {
 	}
 }
 
+// TestWeakeningApproveNamesADottedDirectory proves `./le test weakened
+// approve` records a `.ci` under a directory whose name holds a dot
+// (test/exabgp-compat/old-5.0/), whose unit is `old-5.0.<stem>`, while it
+// still refuses an empty dot-separated segment and a path. The approval is
+// written and carries the unit verbatim, so a judge's verdict on such a test
+// reaches the commit gate rather than riding only in the commit body.
+//
+// MUTATION: restore the one-dot approvalUnitPattern
+// (`^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$`) and the dotted unit is refused; cut
+// the unit at its first dot in SplitApprovalUnit and it names the directory
+// `old-5` and the test `0.peer-flap`, so no carrier is found.
+func TestWeakeningApproveNamesADottedDirectory(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeApproveCarrier(t, root, "test/exabgp-compat/old-5.0/peer-flap.ci",
+		"option=timeout:value=10s\n")
+	const unit = "old-5.0.peer-flap"
+	if _, err := Approve(root, approveSession, unit, "judge: the dotted directory"); err != nil {
+		t.Fatalf("Approve(%s) = %v; want the dotted directory key accepted", unit, err)
+	}
+	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(ApprovalPath(approveSession))))
+	if err != nil {
+		t.Fatalf("read approval file: %v", err)
+	}
+	if !strings.Contains(string(content), "| "+unit+" | judge: the dotted directory |") {
+		t.Fatalf("approval file does not carry %s:\n%s", unit, content)
+	}
+	for _, refused := range []string{"old-5..peer-flap", ".old-5.peer-flap", "old-5.0.", "old-5.0/peer-flap"} {
+		if rfc.ValidApprovalUnit(refused) {
+			t.Errorf("ValidApprovalUnit(%q) = true; want an empty segment or a path refused", refused)
+		}
+	}
+}
+
 func writeApproveCarrier(t *testing.T, root, path, content string) {
 	t.Helper()
 	full := filepath.Join(root, filepath.FromSlash(path))

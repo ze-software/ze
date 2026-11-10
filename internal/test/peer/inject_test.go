@@ -644,3 +644,45 @@ func TestActiveOpenUsesOnePacker(t *testing.T) {
 		t.Fatalf("decoded %d capabilities, want 2", len(caps))
 	}
 }
+
+// TestBuildUpdatesExternalPathCarriesTheOPENAS proves the generated eBGP
+// AS_PATH starts with the AS ze-peer's own OPEN advertised, not the spec's
+// ASN, when the two differ (an option=asn line sets the OPEN apart), for
+// IPv4 and IPv6. An internal session keeps the spec's ASN. RFC 4271 Section
+// 5.1.2 puts the originating speaker's own AS in the AS_SEQUENCE sent to an
+// external peer, and that AS is the one its OPEN named.
+//
+// MUTATION: write spec.ASN rather than pathAS at buf[at+32:at+36] in
+// buildV4Unicast or buildV6Unicast and the external case reads 65100.
+func TestBuildUpdatesExternalPathCarriesTheOPENAS(t *testing.T) {
+	const specAS, openAS = uint32(65100), uint32(65200)
+	cases := []struct {
+		name, prefix, nextHop string
+		senderAS, want        uint32
+	}{
+		{"ipv4 external", "10.0.0.0/24", "172.31.0.3", openAS, openAS},
+		{"ipv6 external", "2001:db8::/48", "2001:db8::3", openAS, openAS},
+		{"ipv4 internal", "10.0.0.0/24", "172.31.0.3", 0, specAS},
+		{"ipv6 internal", "2001:db8::/48", "2001:db8::3", 0, specAS},
+	}
+	for _, tc := range cases {
+		spec := InjectSpec{
+			Prefix:  netip.MustParsePrefix(tc.prefix),
+			Count:   1,
+			NextHop: netip.MustParseAddr(tc.nextHop),
+			ASN:     specAS,
+		}
+		got, _, err := buildUpdates(spec, tc.senderAS)
+		if err != nil {
+			t.Fatalf("%s: buildUpdates: %v", tc.name, err)
+		}
+		// Offsets 27..35 are the AS_PATH attribute: flags, type, length,
+		// segment type, segment count, then the one 4-byte AS at 32..35.
+		if len(got) < 36 || got[30] != 0x02 || got[31] != 0x01 {
+			t.Fatalf("%s: no one-AS AS_SEQUENCE at offset 30: %x", tc.name, got)
+		}
+		if first := binary.BigEndian.Uint32(got[32:36]); first != tc.want {
+			t.Errorf("%s: AS_PATH starts with %d, want %d", tc.name, first, tc.want)
+		}
+	}
+}

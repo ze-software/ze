@@ -315,6 +315,23 @@ func (d *Docker) InspectImage(ctx context.Context, image string) (ImageInspectio
 	return ImageInspection{ID: record.ID, RepoTags: record.RepoTags, Labels: record.Config.Labels}, nil
 }
 
+// ContainersFromImage answers the id of every container, running or exited,
+// that the daemon holds created from image (`docker ps -a --filter
+// ancestor=<image>`). A test that owns a unique image reads through it what
+// the code under test created from that image, which carries none of this
+// wrapper's labels. A failed listing is an error, never "none".
+func (d *Docker) ContainersFromImage(ctx context.Context, image string) ([]string, error) {
+	if image == "" {
+		return nil, errors.New("container ancestor image is empty")
+	}
+	result, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, "ps", "-a", "-q",
+		dockerFilterFlag, "ancestor="+image)
+	if err != nil {
+		return nil, err
+	}
+	return strings.Fields(result.Stdout), nil
+}
+
 // ContainerRunning answers whether the named container's process is running.
 // A container that exited answers false; an inspect that fails, an absent
 // container included, is an error, so "not running" is never a guess.

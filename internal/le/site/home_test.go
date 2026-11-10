@@ -3,6 +3,7 @@ package site
 
 import (
 	"encoding/json"
+	"errors"
 	"maps"
 	"os"
 	"path/filepath"
@@ -787,7 +788,7 @@ func TestHomeWebPreviewUsesVerifiedMedia(t *testing.T) {
 	}
 	if _, err := renderHome(paths); err == nil {
 		t.Error("the homepage published a browser preview whose screenshot disagreed with its manifest")
-	} else if !strings.Contains(err.Error(), "poster artifact digest does not match its manifest") {
+	} else if !errors.Is(err, siteterminaldemo.ErrAssetMismatch) {
 		t.Errorf("the corrupted browser screenshot was refused for the wrong reason: %v", err)
 	}
 }
