@@ -5,7 +5,6 @@
 package hub
 
 import (
-	"errors"
 	"fmt"
 	"sync/atomic"
 	"time"
@@ -63,7 +62,9 @@ func confirmRevert(store storage.Storage, configPath string, reload func() error
 			return fmt.Errorf("revert unconfirmed commit: %w", err)
 		}
 		if err := reload(); err != nil {
-			return errors.Join(fmt.Errorf("revert unconfirmed commit: reload: %w", err), storage.ClearCandidate(store, configPath))
+			// The reload's error already names the reload; the cleanup failure
+			// goes above any fix line the refusal carries.
+			return withUnwind(fmt.Errorf("revert unconfirmed commit: %w", err), unwindStep{unwindCandidateCleanup, storage.ClearCandidate(store, configPath)})
 		}
 		return nil
 	}

@@ -52,14 +52,26 @@ var RunningConfigLostRestart = "If a Rollback line says ze restarted the plugin,
 	"This restarts every protocol and drops every session:\n" +
 	restartRoutes
 
+// RunningConfigLostProblem is the problem RunningConfigLost states when the
+// plugin passes none: what every caller's own problem says, without naming
+// the plugin or the part of the running config it could not restore.
+const RunningConfigLostProblem = "the plugin could not apply the new config, and could not put its running config back either"
+
 // RunningConfigLost is the operator error of an install that failed and could
-// not put the running config back: problem says what the plugin could not do,
-// cause is the install's error, and firstStep is the operator's own first
-// fix ("" when only the daemon restart repairs it). The why is
-// RunningConfigLostWhy and the fix ends with the daemon restart. errors.Is
-// finds both cause and ErrRunningConfigLost, so the transaction treats the
-// running config as not installed.
+// not put the running config back: problem says what the plugin could not do
+// (RunningConfigLostProblem when it is ""), cause is the install's error, and
+// firstStep is the operator's own first fix ("" when only the daemon restart
+// repairs it). The why is RunningConfigLostWhy and the fix ends with the
+// daemon restart. errors.Is finds both cause and ErrRunningConfigLost, so the
+// transaction treats the running config as not installed.
+//
+// It never panics: a plugin outside this repository calls it, and an empty
+// problem from that plugin is its own text, not a defect in Ze
+// (opererr.New).
 func RunningConfigLost(cause error, problem, firstStep string) error {
+	if problem == "" {
+		problem = RunningConfigLostProblem
+	}
 	fix := RunningConfigLostRestart
 	if firstStep != "" {
 		fix = firstStep + ".\n" + RunningConfigLostRestart

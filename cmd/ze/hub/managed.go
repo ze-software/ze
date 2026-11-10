@@ -4,7 +4,6 @@
 package hub
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config/confirm"
@@ -37,10 +36,7 @@ func applyManagedPush(store storage.Storage, configPath string, data []byte, rel
 		return err
 	}
 	if err := reload(); err != nil {
-		if clearErr := storage.ClearCandidate(store, configPath); clearErr != nil {
-			return fmt.Errorf("%w (candidate cleanup failed: %w)", err, clearErr)
-		}
-		return err
+		return withUnwind(err, unwindStep{unwindCandidateCleanup, storage.ClearCandidate(store, configPath)})
 	}
 	recordDaemonReloadAudit(recorder, "managed", "local", audit.System, "managed config push")
 	return nil

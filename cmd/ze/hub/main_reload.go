@@ -459,10 +459,7 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 	// walk, a missing plugin), so the reload adds only that it was a reload.
 	newTree, parsedTree, loadErr := load()
 	if loadErr != nil {
-		if clearErr := clearCandidate(); clearErr != nil {
-			return fmt.Errorf("reload: %w (candidate cleanup failed: %w)", loadErr, clearErr)
-		}
-		return fmt.Errorf("reload: %w", loadErr)
+		return withUnwind(fmt.Errorf("reload: %w", loadErr), unwindStep{unwindCandidateCleanup, clearCandidate()})
 	}
 	// The same kernel capability gate the daemon start applies (main.go,
 	// runYANGConfig). It runs BEFORE ReloadConfig, before the provider refresh
@@ -470,10 +467,7 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 	// cannot carry is refused with the running configuration still serving. The
 	// operator sees the refusal through `ze config commit`.
 	if capErr := kernelcap.Refuse(parsedTree); capErr != nil {
-		if clearErr := clearCandidate(); clearErr != nil {
-			return fmt.Errorf("reload: kernel capability: %w (candidate cleanup failed: %w)", capErr, clearErr)
-		}
-		return fmt.Errorf("reload: kernel capability: %w", capErr)
+		return withUnwind(fmt.Errorf("reload: kernel capability: %w", capErr), unwindStep{unwindCandidateCleanup, clearCandidate()})
 	}
 
 	// Number this configuration the moment it is read. The acceptance tail uses
@@ -483,10 +477,7 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 
 	pkiConfig, pkiErr := preparePKIConfig(parsedTree)
 	if pkiErr != nil {
-		if clearErr := clearCandidate(); clearErr != nil {
-			return fmt.Errorf("reload: pki config: %w (candidate cleanup failed: %w)", pkiErr, clearErr)
-		}
-		return fmt.Errorf("reload: pki config: %w", pkiErr)
+		return withUnwind(fmt.Errorf("reload: pki config: %w", pkiErr), unwindStep{unwindCandidateCleanup, clearCandidate()})
 	}
 
 	var priorProvider map[string]map[string]any
@@ -494,10 +485,7 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 		var snapErr error
 		priorProvider, snapErr = snapshotProvider(cp)
 		if snapErr != nil {
-			if clearErr := clearCandidate(); clearErr != nil {
-				return fmt.Errorf("reload: snapshot config provider: %w (candidate cleanup failed: %w)", snapErr, clearErr)
-			}
-			return fmt.Errorf("reload: snapshot config provider: %w", snapErr)
+			return withUnwind(fmt.Errorf("reload: snapshot config provider: %w", snapErr), unwindStep{unwindCandidateCleanup, clearCandidate()})
 		}
 	}
 
@@ -522,10 +510,7 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 	// single commit that added a certificate AND referenced it resolved against
 	// the PREVIOUS store and failed.
 	if err := zepki.Load(pkiConfig); err != nil {
-		if clearErr := clearCandidate(); clearErr != nil {
-			return fmt.Errorf("reload: pki config: %w (candidate cleanup failed: %w)", err, clearErr)
-		}
-		return fmt.Errorf("reload: pki config: %w", err)
+		return withUnwind(fmt.Errorf("reload: pki config: %w", err), unwindStep{unwindCandidateCleanup, clearCandidate()})
 	}
 
 	// Reject the commit when the web listener's certificate reference does not
@@ -553,13 +538,8 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 	}
 
 	if err := s.ReloadConfig(reloadCtx, newTree); err != nil {
-		if restoreErr := restorePKI(priorPKI); restoreErr != nil {
-			err = fmt.Errorf("%w (pki restore failed: %w)", err, restoreErr)
-		}
-		if clearErr := clearCandidate(); clearErr != nil {
-			return fmt.Errorf("%w (candidate cleanup failed: %w)", err, clearErr)
-		}
-		return err
+		return withUnwind(err,
+			unwindStep{unwindPKIRestore, restorePKI(priorPKI)}, unwindStep{unwindCandidateCleanup, clearCandidate()})
 	}
 
 	if cp != nil {
@@ -575,30 +555,16 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 	if accepted := acceptedLocalIdentity.Load(); accepted != nil {
 		if accepted.resolveCandidateUsers == nil {
 			err := fmt.Errorf("reload: resolve candidate local identity: %w", errNoLiveConfigProvider)
-			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI); rollbackErr != nil {
-				if clearErr := clearCandidate(); clearErr != nil {
-					return fmt.Errorf("%w (rollback failed: %w; candidate cleanup failed: %w)", err, rollbackErr, clearErr)
-				}
-				return fmt.Errorf("%w (rollback failed: %w)", err, rollbackErr)
-			}
-			if clearErr := clearCandidate(); clearErr != nil {
-				return fmt.Errorf("%w (candidate cleanup failed: %w)", err, clearErr)
-			}
-			return err
+			rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI)
+			return withUnwind(err,
+				unwindStep{unwindRollback, rollbackErr}, unwindStep{unwindCandidateCleanup, clearCandidate()})
 		}
 		candidateUsers, candidateErr := accepted.resolveCandidateUsers()
 		if candidateErr != nil {
 			err := fmt.Errorf("reload: resolve candidate local identity: %w", candidateErr)
-			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI); rollbackErr != nil {
-				if clearErr := clearCandidate(); clearErr != nil {
-					return fmt.Errorf("%w (rollback failed: %w; candidate cleanup failed: %w)", err, rollbackErr, clearErr)
-				}
-				return fmt.Errorf("%w (rollback failed: %w)", err, rollbackErr)
-			}
-			if clearErr := clearCandidate(); clearErr != nil {
-				return fmt.Errorf("%w (candidate cleanup failed: %w)", err, clearErr)
-			}
-			return err
+			rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI)
+			return withUnwind(err,
+				unwindStep{unwindRollback, rollbackErr}, unwindStep{unwindCandidateCleanup, clearCandidate()})
 		}
 		var candidateStore *authz.Store
 		if parsedTree != nil {
@@ -606,16 +572,9 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 			candidateStore, authzErr = infra.ExtractAuthzStore(parsedTree)
 			if authzErr != nil {
 				err := fmt.Errorf("reload: candidate authorization config: %w", authzErr)
-				if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI); rollbackErr != nil {
-					if clearErr := clearCandidate(); clearErr != nil {
-						return fmt.Errorf("%w (rollback failed: %w; candidate cleanup failed: %w)", err, rollbackErr, clearErr)
-					}
-					return fmt.Errorf("%w (rollback failed: %w)", err, rollbackErr)
-				}
-				if clearErr := clearCandidate(); clearErr != nil {
-					return fmt.Errorf("%w (candidate cleanup failed: %w)", err, clearErr)
-				}
-				return err
+				rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI)
+				return withUnwind(err,
+					unwindStep{unwindRollback, rollbackErr}, unwindStep{unwindCandidateCleanup, clearCandidate()})
 			}
 		}
 		// An absent API block leaves an environment- or flag-started listener
@@ -628,16 +587,9 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 			candidateAPI, _, apiErr := resolveAPIListeners(parsedTree)
 			if apiErr != nil {
 				err := fmt.Errorf("reload: resolve candidate API identity: %w", apiErr)
-				if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI); rollbackErr != nil {
-					if clearErr := clearCandidate(); clearErr != nil {
-						return fmt.Errorf("%w (rollback failed: %w; candidate cleanup failed: %w)", err, rollbackErr, clearErr)
-					}
-					return fmt.Errorf("%w (rollback failed: %w)", err, rollbackErr)
-				}
-				if clearErr := clearCandidate(); clearErr != nil {
-					return fmt.Errorf("%w (candidate cleanup failed: %w)", err, clearErr)
-				}
-				return err
+				rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI)
+				return withUnwind(err,
+					unwindStep{unwindRollback, rollbackErr}, unwindStep{unwindCandidateCleanup, clearCandidate()})
 			}
 			_, apiBlockPresent := zeconfig.ExtractAPISettings(parsedTree)
 			candidateAPITokenValue = candidateAPIToken(
@@ -689,32 +641,18 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 			// reload keeps the running one, and reports the refusal through
 			// `ze config commit` rather than through a log line nobody reads.
 			err := fmt.Errorf("reload: rebuild aaa bundle: %w", buildErr)
-			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI); rollbackErr != nil {
-				if clearErr := clearCandidate(); clearErr != nil {
-					return fmt.Errorf("%w (rollback failed: %w; candidate cleanup failed: %w)", err, rollbackErr, clearErr)
-				}
-				return fmt.Errorf("%w (rollback failed: %w)", err, rollbackErr)
-			}
-			if clearErr := clearCandidate(); clearErr != nil {
-				return fmt.Errorf("%w (candidate cleanup failed: %w)", err, clearErr)
-			}
-			return err
+			rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI)
+			return withUnwind(err,
+				unwindStep{unwindRollback, rollbackErr}, unwindStep{unwindCandidateCleanup, clearCandidate()})
 		}
 		candidateBundle = built
 	}
 
 	if eng != nil {
 		if err := eng.Reload(reloadCtx); err != nil {
-			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI); rollbackErr != nil {
-				if clearErr := clearCandidate(); clearErr != nil {
-					return fmt.Errorf("subsystem reload: %w (rollback failed: %w; candidate cleanup failed: %w)", err, rollbackErr, clearErr)
-				}
-				return fmt.Errorf("subsystem reload: %w (rollback failed: %w)", err, rollbackErr)
-			}
-			if clearErr := clearCandidate(); clearErr != nil {
-				return fmt.Errorf("subsystem reload: %w (candidate cleanup failed: %w)", err, clearErr)
-			}
-			return fmt.Errorf("subsystem reload: %w", err)
+			rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI)
+			return withUnwind(fmt.Errorf("subsystem reload: %w", err),
+				unwindStep{unwindRollback, rollbackErr}, unwindStep{unwindCandidateCleanup, clearCandidate()})
 		}
 	}
 
@@ -742,16 +680,9 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 		undo, err := lm.reloadListeners(reloadCtx, parsedTree)
 		restoreListeners = undo
 		if err != nil {
-			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI); rollbackErr != nil {
-				if clearErr := clearCandidate(); clearErr != nil {
-					return fmt.Errorf("reload: listener migration: %w (rollback failed: %w; candidate cleanup failed: %w)", err, rollbackErr, clearErr)
-				}
-				return fmt.Errorf("reload: listener migration: %w (rollback failed: %w)", err, rollbackErr)
-			}
-			if clearErr := clearCandidate(); clearErr != nil {
-				return fmt.Errorf("reload: listener migration: %w (candidate cleanup failed: %w)", err, clearErr)
-			}
-			return fmt.Errorf("reload: listener migration: %w", err)
+			rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI)
+			return withUnwind(fmt.Errorf("reload: listener migration: %w", err),
+				unwindStep{unwindRollback, rollbackErr}, unwindStep{unwindCandidateCleanup, clearCandidate()})
 		}
 	}
 
@@ -767,16 +698,9 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 			err = lm.updateLGCertificate(lgCertName)
 		}
 		if err != nil {
-			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI); rollbackErr != nil {
-				if clearErr := clearCandidate(); clearErr != nil {
-					return fmt.Errorf("reload: %w (rollback failed: %w; candidate cleanup failed: %w)", err, rollbackErr, clearErr)
-				}
-				return fmt.Errorf("reload: %w (rollback failed: %w)", err, rollbackErr)
-			}
-			if clearErr := clearCandidate(); clearErr != nil {
-				return fmt.Errorf("reload: %w (candidate cleanup failed: %w)", err, clearErr)
-			}
-			return fmt.Errorf("reload: %w", err)
+			rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI)
+			return withUnwind(fmt.Errorf("reload: %w", err),
+				unwindStep{unwindRollback, rollbackErr}, unwindStep{unwindCandidateCleanup, clearCandidate()})
 		}
 	}
 
@@ -792,12 +716,9 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 	if candidateSet {
 		if err := promoteReloadCandidate(source, store, configPath); err != nil {
 			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI); rollbackErr != nil {
-				return fmt.Errorf("reload: promote candidate: %w (rollback failed: %w)", err, rollbackErr)
+				return withUnwind(fmt.Errorf("reload: promote candidate: %w", err), unwindStep{unwindRollback, rollbackErr})
 			}
-			if clearErr := clearCandidate(); clearErr != nil {
-				return fmt.Errorf("reload: promote candidate: %w (candidate cleanup failed: %w)", err, clearErr)
-			}
-			return fmt.Errorf("reload: promote candidate: %w", err)
+			return withUnwind(fmt.Errorf("reload: promote candidate: %w", err), unwindStep{unwindCandidateCleanup, clearCandidate()})
 		}
 	}
 
@@ -970,13 +891,8 @@ func restorePKI(priorPKI *zepki.PKIConfig) error {
 // any consumer applied, so no plugin or subsystem rollback is owed: only the
 // store and the candidate need unwinding.
 func restorePKIAfter(priorPKI *zepki.PKIConfig, clearCandidate func() error, cause error) error {
-	if restoreErr := restorePKI(priorPKI); restoreErr != nil {
-		cause = fmt.Errorf("%w (pki restore failed: %w)", cause, restoreErr)
-	}
-	if clearErr := clearCandidate(); clearErr != nil {
-		return fmt.Errorf("%w (candidate cleanup failed: %w)", cause, clearErr)
-	}
-	return cause
+	return withUnwind(cause,
+		unwindStep{unwindPKIRestore, restorePKI(priorPKI)}, unwindStep{unwindCandidateCleanup, clearCandidate()})
 }
 
 // reloadWebCertificate returns the environment.web.certificate name the reloaded

@@ -657,7 +657,8 @@ func (m *listenerMigrator) migrateListeners(ctx context.Context, changes []servi
 				retryRollback := func() error {
 					return m.rollbackAppliedListeners(ctx, applied)
 				}
-				return retryRollback, fmt.Errorf("reconfigure %s: %w (listener rollback failed: %w)", label, err, rollbackErr)
+				return retryRollback, withUnwind(fmt.Errorf("reconfigure %s: %w", label, err),
+					unwindStep{unwindListenerRollback, rollbackErr})
 			}
 			return noListenerRestore, fmt.Errorf("reconfigure %s: %w", label, err)
 		}
