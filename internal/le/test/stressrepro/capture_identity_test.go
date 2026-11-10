@@ -48,9 +48,35 @@ func captureFixture(t *testing.T, root string, want []string) (string, string) {
 	return executable, starts
 }
 
+// captureStem is a capture log's name without the exclusive-creation suffix:
+// os.CreateTemp replaces the pattern's final "*" with a random number, so the
+// stem is what run itself chose from the selection and the timestamp.
+func captureStem(t *testing.T, log string) string {
+	t.Helper()
+	base, ok := strings.CutSuffix(filepath.Base(log), ".log")
+	if !ok {
+		t.Fatalf("capture log %q has no .log extension", log)
+	}
+	cut := strings.LastIndexByte(base, '-')
+	if cut < 0 {
+		t.Fatalf("capture log %q has no exclusive-creation suffix", log)
+	}
+	return base[:cut]
+}
+
 // TestCaptureIdentityRetainsLongSelectorsAndFreshStarts proves 91 selectors,
 // same-prefix lists, sanitization collisions and repeated starts retain separate
 // real files and exact child argv even within one timestamp.
+//
+// The random CreateTemp suffix alone keeps every path distinct, so distinct
+// paths prove nothing about the selection digest. The test therefore compares
+// stems, the names with that suffix removed: two selections that share a
+// bounded or sanitized readable prefix must differ there, and one selection
+// run twice must not.
+//
+// MUTATION: replacing run.go's
+// `pattern := slug + "-" + hex.EncodeToString(identity[:]) + "-" + stamp + "-*.log"`
+// with `pattern := slug + "-" + stamp + "-*.log"; _ = identity` turns it red.
 func TestCaptureIdentityRetainsLongSelectorsAndFreshStarts(t *testing.T) {
 	root := stressTree(t)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "capture-fixture-session")
@@ -72,6 +98,7 @@ func TestCaptureIdentityRetainsLongSelectorsAndFreshStarts(t *testing.T) {
 		{"spaced-argument", `'one selector with spaces'`},
 	}
 	logs := make(map[string]bool)
+	stems := make(map[string]string)
 	fixed := time.Now()
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
@@ -96,6 +123,7 @@ func TestCaptureIdentityRetainsLongSelectorsAndFreshStarts(t *testing.T) {
 				t.Fatalf("capture reused an earlier invocation's file: %q", report.Log)
 			}
 			logs[report.Log] = true
+			stems[test.name] = captureStem(t, report.Log)
 			capture, err := os.ReadFile(report.Log)
 			if err != nil {
 				t.Fatal(err)
@@ -133,5 +161,21 @@ func TestCaptureIdentityRetainsLongSelectorsAndFreshStarts(t *testing.T) {
 		if _, err := os.Stat(path); err != nil {
 			t.Fatalf("earlier evidence was replaced: %v", err)
 		}
+	}
+	stemOf := func(name string) string {
+		stem, ok := stems[name]
+		if !ok {
+			t.Fatalf("case %q recorded no capture", name)
+		}
+		return stem
+	}
+	for _, pair := range [][2]string{{"ninety-one", "same-prefix"}, {"sanitized-slash", "sanitized-hyphen"}} {
+		if stemOf(pair[0]) == stemOf(pair[1]) {
+			t.Errorf("%s and %s share capture stem %q: the selection digest is missing", pair[0], pair[1], stemOf(pair[0]))
+		}
+	}
+	if stemOf("sanitized-hyphen") != stemOf("fresh-same-selection") {
+		t.Errorf("one selection at one timestamp chose stems %q and %q: the name is not derived from the selection alone",
+			stemOf("sanitized-hyphen"), stemOf("fresh-same-selection"))
 	}
 }
