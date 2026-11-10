@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | verification |
+| Status | blocked |
 | Priority | P2 |
 | Release reason | Required evidence for shipped behavior or truthful release support claims; historical work and proof debts remain distinct. |
 | Scope | tooling |
@@ -12,6 +12,39 @@
 | Updated | 2026-11-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Blocker
+
+The main-thread `./le rfc check` after repair `e37d91f4f5` reports 127
+violations. The two rejudged gap audits and the CERTREQ naming marker are
+clear, but 65 discrimination records in this child's stems have changed
+producer fingerprints. This is missing current proof, not evidence that the
+test failed. AC-C2 and AC-C5 therefore cannot support closure.
+
+| Producer | Stale covers reported |
+|----------|-----------------------|
+| `internal/core/eap/eap_tls.go`, `newTLSMethod` | 36 |
+| `internal/core/eap/peer.go`, `startTLSClient` | 9 |
+| `internal/core/eap/revocation.go`, `checkChain` | 2 |
+| `internal/core/eap/revocation.go`, `checkChainRevocation` | 16 |
+| `internal/core/eap/revocation.go`, `currentListFrom` | 1 |
+| `internal/component/ike/engine/rekey.go`, `newRekeyedChild` | 1 |
+
+The first 64 covers are in RFC3748, RFC5216 and RFC9190; the last is
+RFC3948-5.1-1 negative. RFC3948-3.1.2-1 also has a shifted audit verdict
+after edits around the NAT-T checker functions. The implementation phase
+must re-observe each affected cover against its current producer through
+`./le rfc record`, preserving assertions and claim scope, and reseal the
+unchanged RFC3948 audit unit. Grouping by these six producers bounds the
+next proof phase; a passing ordinary test does not replace the recorded
+red. This spec retains that evidence work. Closure made no proof changes.
+
+The review also found a stale citation in
+`plan/release/fixes/spec-ike-responder-auth-malformed-request-notify.md`:
+its initiator ownership sentence points here, but the undecryptable-packet
+defect is already owned by `plan/release/fixes/spec-single-owner-lifecycle.md`
+AC-8 and its 2026-09-29 journal row. Repoint that sentence during closure,
+after proof freshness is restored; no new product scope is inferred.
 
 ## Closure handback, 2026-11-10 (historical)
 
@@ -103,6 +136,14 @@ The verdict inventory is DERIVED. No id list is committed here, because the audi
 |----------|-----------|
 | Every weak or wrong verdict in this child's scope (stem, id, verdict) | `jq -r --arg pk '^(internal/component/ike/\|internal/core/eap/\|test/parse/)' --arg own '^(rfc4301\|rfc4303)$' --arg fo '^$' 'input_filename as $f \| ($f\|ltrimstr("rfc/audit/")\|rtrimstr(".json")) as $s \| .requirements \| to_entries[] \| select(.value.verdict=="weak" or .value.verdict=="wrong") \| select(.key\|IN("RFC1071-1-4","RFC4303-2.1-1","RFC5882-4.4-1","RFC905-x-3","RFC905-x-4")\|not) \| select((($s\|test($own)) or ([(.value.tests // {})\|keys[]\|test($pk)]\|any)) and ($s\|test($fo)\|not)) \| "\($s)\t\(.key)\t\(.value.verdict)"' rfc/audit/*.json` |
 | What the arguments mean | `pk` matches a tagged test path in this child's packages; `own` adds this child's owned stems tagged from another child's packages; `fo` drops stems another child owns (`^$` matches none); the five ids are the parent's cross-group verdicts |
+
+The command above records the original aggregate-file layout. Current verdicts
+are individual objects under `rfc/audit/<stem>/<requirement-id>.json`, not
+members of a `requirements` map. The closure query reads those objects, takes
+the stem and id from each path, and applies the same package, owned-stem and
+cross-group exclusions. On 2026-11-10 it returns exactly
+RFC7296-3.13.1-1 and RFC7296-3.13.1-2, both weak and both assigned to
+`plan/release/fixes/spec-rfc4301-architecture-gaps.md` AC-13.
 
 **Wiring, 2026-09-28, at `cb4801b4cc`:** the filter returns 111 weak and 11 wrong, 122 in all, over 10 stems. This equals the Task figure, so `fefe38b68c` (it re-judged only the five cross-group verdicts, which the filter drops) and `cb4801b4cc` (it re-stamped IKE audit entries) changed no count here. `./le rfc audit-stamp` accepts `mode rejudge` (A-1). The "Blocked by" verdicts are now acceptance criteria of their blocking specs: `spec-ike-eap-rfc-defects` AC-3 and `spec-ipsec-rfc9190` AC-9 (the nine R-7 ids, to be enrolled there).
 
