@@ -221,6 +221,10 @@ may have caused it.
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `gate-verdict-depends-on-the-machine` | 2026-10-27 | verify changed at 043c682d24 load reds, update-text-sr-policy-addpath output lost (AC-5) |
+| `gate-red-where-nothing-blocks-on-it` | 2026-09-10 | lint after OSPF closure: 93 host, 104 Linux findings (AC-2) |
+| `test-type-not-backfilled` | 2026-06-14 | new test type, existing code: June technique inventory (AC-1) |
+| `test-type-not-backfilled` | 2026-06-14 | fuzz target backfill: June fuzz inventory (AC-1) |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
