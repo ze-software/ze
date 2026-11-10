@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | verification |
+| Status | blocked |
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | New capability: a protocol-neutral route policy and a gate on every source entering the Loc-RIB. No shipped behavior is defective without it; the two defects it owns (journal rows below) are post-release quality, not release blockers. |
@@ -13,6 +13,59 @@
 | Updated | 2026-11-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Blocker
+
+A-4 still owes the owner's matched before/after Mac performance evidence.
+The implementation commit `fb94aa0497` explicitly records: "Owed: A-4 perf
+on the Mac (locrib shard_bench_test.go)." No matching result was found in
+the spec or the committed owner benchmark records on 2026-11-10. The
+filter-wire A-6 record measures its SDK transport workload, not Loc-RIB
+insertion, and cannot clear this obligation.
+
+The affected producer is `internal/core/rib/locrib/manager.go::RIB.insert`,
+which calls `policy.go::admit` and stores the enlarged `candidate.go::Path`.
+`policy_test.go::TestLocRIBInsertNoChainZeroAlloc` proves allocation counts
+for updates to an existing prefix; it does not measure throughput or prove
+the promised before/after result. The existing harness is
+`shard_bench_test.go::BenchmarkShardedInsertSerial`,
+`BenchmarkShardedInsertParallel` and
+`BenchmarkShardedManyWritersDistinctShards`. Compare the same workload on
+the owner's Mac before the gate (`fb94aa0497^`) and after (`fb94aa0497`),
+preserving revisions, Go version, hardware and complete output. Reconcile
+later producer changes before treating that pair as evidence for current
+HEAD. This closure ran no performance measurement.
+
+Clear this blocker with that matched owner evidence, or an explicit owner
+decision changing the performance obligation. The owner is away and asked
+that blocked specs be handed back while work continues on the next one.
+The final closure Review Gate and closing commits remain owed.
+
+### Independent closure findings retained
+
+- The main-thread RFC check in
+  `tmp/session/2026-11-10-224742/scratch/rfc-check-after-repairs.log` has
+  127 violations globally, but none for the owned non-BGP stems 2328, 3101,
+  5187, 5305, 5308, 5709 or 5838 after `84aeccd365`. This is scoped evidence,
+  not a whole-tree green result.
+- `policy/registry.go::BuildRegistry` reads `ListNode.Filter` and separates
+  unmarked policy-routing entries; `ValidateName` refuses such an entry as
+  a non-filter. The old `ze:filter` journal finding needs its resolution
+  recorded, not a new implementation.
+- `policy/rib_compile.go::checkRouteChain` refuses unknown, external and
+  field-incompatible references before compilation;
+  `compileRIBEvaluator` refuses a missing route evaluator. `RouteChain.Evaluate`
+  propagates sets to later members and fails closed on an invalid final.
+- `locrib/manager.go::RIB.insert` rechecks the snapshot under the shard lock
+  to prevent an insertion missing a concurrent reselect. AC-16's literal
+  "one pointer load" is superseded by this correctness fence; a final closure
+  must describe the two loads accurately, without removing the fence.
+- The filter-wire closure at `0c3c86b319`, historical path
+  `plan/post-release/engineering/spec-filter-wire-0-umbrella.md`, records
+  all three BGP policy interop scenarios green/red/green and explicitly
+  retains the existing BGP policy functional population under its AC-10.
+  Its source and evidence are the phase-4 review input; this handback does
+  not claim that the route-policy final review has run.
 
 ## Closure recovery
 
