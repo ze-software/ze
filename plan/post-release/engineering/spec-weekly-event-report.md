@@ -2,17 +2,19 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P3 |
 | Release reason | Development tooling for the weekly public update; no shipped behaviour changes |
 | RFC gaps | - |
-| Depends | spec-weekly-news-fragments (the `found-by` field and the fragment parser) |
-| Phase | - |
+| Depends | spec-weekly-news-fragments (the `found-by` field and the fragment parser `parseNewsFragment`) |
+| Phase | 3/6 |
 | Handoff | - |
-| Updated | 2026-11-09 |
+| Updated | 2026-11-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+WIP cap: Thomas approved claiming this spec and `spec-weekly-news-fragments` above the in-progress cap (2026-11-09 session), a one-off permission for this pair.
 
 ## Task
 
@@ -81,6 +83,7 @@ Thomas agreed (2026-11-09 session):
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
 | Weekly command table | `internal/le/weekly/answer.go` `actions` | Declares `le weekly publish` | Extends: one `report` action |
 | Revision export | `internal/le/repo/bootstraps/tracked.go` `resolveRev`, `extract` | Materialises a commit with `git archive` into scratch | Extends: moved to a shared le helper package and called by both, so no second copy exists |
+| Revision resolver | `internal/le/repo/objects/objects.go` `Resolve` | `rev-parse --verify --end-of-options <rev>^{commit}` to a full commit ID, refusing a leading `-` | Extends: the report resolves both endpoints with it, so no second resolver exists |
 | RFC tree report | `internal/le/rfc/tree.go` `treeReport` | Mandatory proven and total over one directory | Extends: called on each exported endpoint |
 | Proof predicate | `internal/le/rfc/profilecoverage.go` `Proven`, `provenRequirements` | The one definition of a proven requirement | Extends: the newly proven set is the difference of the two endpoint sets |
 | Interop scenario mapping | `internal/le/rfc/discriminate_observe.go` `interopScenarioOf` | Maps a checker function to its scenario name | Extends: names the scenarios among newly proven records |
@@ -121,7 +124,7 @@ Thomas agreed (2026-11-09 session):
 | `Test-judge:` body line | writer | agent, by `ai/skills/ze-test-judge.md` | Hand-written | Preserved; counted as a separate figure |
 | `Test-judge:` body line | reader | the same commit-package event source | New reader | Read only |
 | News fragment `found-by` | writer | agent (`spec-weekly-news-fragments`) | New with that spec | Owned by that spec |
-| News fragment `found-by` | reader | fragment event source, using that spec's parser | New reader | Read only |
+| News fragment `found-by` | reader | fragment event source in `internal/le/commit`, using that spec's unexported parser `parseNewsFragment` (`newsFragment.Spec`, `Journal`, `Section`; `newsFoundBy`, `isNewsFragmentPath`) from the same package | New reader | Read only |
 | Report answer | writer | `internal/le/weekly` `report` action | New | Shared renderer: text, json, yaml, table |
 | Report answer | reader | `ai/skills/ze-weekly-update.md` (agent) | New | New |
 
@@ -145,7 +148,7 @@ Thomas agreed (2026-11-09 session):
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | A `git archive` export of a past revision is enough for the RFC producers (no generated or export-ignored file they need is missing) | `bootstraps` builds le from such an export | The figure at a past revision errors or differs from the ledger | `TestReportProvenMatchesTreeReport` over a fixture repository, plus one run against two real revisions compared with `./le rfc tree` at the newer | unvalidated |
-| A-2 | Two endpoint builds run in acceptable time for a weekly task | Not measured | The weekly run becomes slow | Time one run at implementation and record it in the spec | unvalidated |
+| A-2 | Two endpoint builds run in acceptable time for a weekly task | Not measured | The weekly run becomes slow | Time one run at implementation and record it in the spec | confirmed for the export: the main thread measured, on HEAD c268fa58d4 (2026-11-10), a `git archive` export at 3s (373 MB) and `./le rfc tree` on it at 8s, so about 11s per endpoint and 22s for two run one after the other. Still open: a past endpoint may need its own le compiled from the export (phase 4 feasibility, pending Thomas's decision), whose cost is not measured; phase 6 times one real run |
 | A-3 | The producers `treeReport`, `provenRequirements`, `interopScenarioOf` and `extractionStatus` can be called with an explicit directory root | Research: every producer takes a root | A producer reads `lepath.Root()` directly and needs a root parameter | Implementation reads each call path; a root parameter is added where missing | unvalidated |
 
 ### Risks
@@ -282,7 +285,7 @@ Thomas agreed (2026-11-09 session):
    - Tests: `TestWeeklyReportRefusesUnresolvableRevision`, `TestWeeklyReportFailedSourceIsNamed`, `TestWeeklyReportRemovesExports`
 4. **Phase: RFC sources** -- proven figure and sets, interop scenarios, extraction sign-offs; add a root parameter where a producer lacks one (A-3)
    - Tests: the four `internal/le/rfc/weekly_source_test.go` tests
-5. **Phase: Commit sources** -- approvals and fragments (after `spec-weekly-news-fragments` lands its parser)
+5. **Phase: Commit sources** -- approvals and fragments, the fragments source reading `parseNewsFragment` (`internal/le/commit/newsfragment.go`, landed with `spec-weekly-news-fragments`)
    - Tests: the two `internal/le/commit/weekly_source_test.go` tests
 6. **Phase: Skill and docs** -- the weekly skill's RFC section; the two pages; `./le ai sync update`; record the timing of one real run (A-2)
 

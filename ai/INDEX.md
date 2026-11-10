@@ -416,7 +416,7 @@ disagree, the manifest is right and the row is stale.
 | `./le web assets` | `internal/le/web/assets.Answer` | the per-page web asset sets derived from the markup each page renders: check them, write them, or print them |
 | `./le web htmx` | `internal/le/web/htmx.Answer` | htmx 4 upgrade findings: check the explained list against every htmx-bearing package, or report every scanner issue |
 | `./le web vendor` | `internal/le/web/vendor.Answer` | the vendored web assets: check every consumer copy against third_party/web/, update them from it, or ask npm what is newer |
-| `./le weekly` | `internal/le/weekly.Answer` | publish the weekly update to Discord; the bare command shows what would be sent |
+| `./le weekly` | `internal/le/weekly.Answer` | the weekly update: publish it to Discord (the bare command shows what would be sent), or report a release range's tooling events with `report from <rev> to <rev>` |
 | `./le worktree` | `internal/le/worktree.Answer` | bring a linked git worktree up to date with main, stashing and restoring its uncommitted work |
 | `./le yang glue` | `internal/le/yang/glue.Answer` | the generated YANG glue: check that every embed.go and register.go agrees with the .yang files beside it, or write them |
 | `./le yang migration` | `internal/le/yang/migration.Answer` | repository-wide YANG ownership and path migrations |

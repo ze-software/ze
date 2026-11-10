@@ -5,11 +5,14 @@
 // the grammar, fills every seam a publisher has from this machine, and answers the
 // engine.
 //
-// The command has ONE action, publishing the weekly update, declared in the
-// action table below, so every word after it is a modifier and a keyword always comes before a value
-// (ai/rules/cli.md). A post file named `force.md` therefore cannot be read as
-// the force keyword.
+// The command has two actions, declared in the action table below. publish is
+// the default, so a line that does not open with a verb is a publication, and
+// every word after the verb is a modifier; a keyword always comes before a
+// value (ai/rules/cli.md). A post file named `force.md` therefore cannot be
+// read as the force keyword. report answers the release range's tooling events
+// (events.go).
 //
+//	le weekly report from <rev> to <rev>            the range's tooling events
 //	le weekly                                       what would be published
 //	le weekly confirm                               publish it
 //	le weekly source website/changes/posts/2026-08-10.md
@@ -22,6 +25,7 @@
 package weekly
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -49,8 +53,11 @@ const ArchiveDirRel = "website/changes/discord"
 // in the wrong public place.
 var channels = [...]string{"ze-news", "ze-test"}
 
-// publishVerb is the one action: publishing the weekly update.
+// publishVerb is the default action: publishing the weekly update.
 const publishVerb = "publish"
+
+// reportVerb answers the tooling events of a release range (events.go).
+const reportVerb = "report"
 
 // The keywords the update takes.
 const (
@@ -62,6 +69,8 @@ const (
 	resumeFromKeyword  = "resume-from"
 	dateStampKeyword   = "date-stamp"
 	noDateStampKeyword = "no-date-stamp"
+	fromKeyword        = "from"
+	toKeyword          = "to"
 )
 
 // actions is the whole command surface, declared once, so the listing, the
@@ -93,6 +102,18 @@ var actions = leaction.New("weekly", leaction.Action{
 		{Keyword: noDateStampKeyword, Kind: leaction.KindSwitch, Help: "post without the date stamp"},
 	},
 	AnswerArgs: answerUpdate,
+}, leaction.Action{
+	Verb:    reportVerb,
+	Summary: "answer the tooling events of a release range",
+	Why: "answer the tooling events between two revisions, one section per registered source:" +
+		" the input of the update's RFC section and of its defects-found row",
+	Parameters: []leaction.Parameter{
+		{Keyword: fromKeyword, Kind: leaction.KindRevision, Value: "rev", Requirement: leaction.Required,
+			Help: "the release-from commit of the update"},
+		{Keyword: toKeyword, Kind: leaction.KindRevision, Value: "rev", Requirement: leaction.Required,
+			Help: "the release-to commit of the update"},
+	},
+	AnswerArgs: answerReport,
 })
 
 // Actions answers the command surface as data, so the listing, the Subs line
@@ -148,6 +169,32 @@ func answerUpdate(args leaction.Arguments) (any, int) {
 	}
 	return report, 0
 }
+
+// answerReport answers the tooling events of the range one parsed line names.
+// A refused revision answers 1 with the reason on stderr; a report with a
+// failed section answers its sections and 1, because it is incomplete.
+func answerReport(args leaction.Arguments) (any, int) {
+	root, err := reportCheckout()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err) //nolint:errcheck // CLI output
+		return nil, 1
+	}
+
+	run := reportRun{repo: root, export: exportEndpoints, sources: registeredSources(), diagnostics: os.Stderr}
+	report, err := run.answer(context.Background(), args.One(fromKeyword), args.One(toKeyword))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err) //nolint:errcheck // CLI output
+		return nil, 1
+	}
+	if !report.Complete() {
+		return report, 1
+	}
+	return report, 0
+}
+
+// reportCheckout answers the checkout the report reads. A test points it at a
+// fixture repository, so the action table is driven over known commits.
+var reportCheckout = lepath.Root
 
 // today answers the current day with its clock removed, so every date decision
 // this tool makes is a whole-day one and a run at 23:59 differs from a run at

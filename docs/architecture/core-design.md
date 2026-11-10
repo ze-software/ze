@@ -114,6 +114,16 @@ that function directly, and repository workflows invoke
 `./le <area> <action>`. A package must return structured answers through the
 shared renderer rather than add a private JSON mode.
 
+A tool that reports on records other tools own takes registrations from them
+rather than importing them. `le weekly` publishes the weekly update to Discord,
+and its `report from <rev> to <rev>` verb answers the release range's tooling
+events as one section per source each owner registers through
+`weekly.RegisterEventSource`, ordered by section name, with a failed source
+answered as a failed section rather than an empty one. Both endpoints are
+exported, one after the other, into one run directory under the session's
+scratch, which the report names and removes on every exit.
+<!-- source: internal/le/weekly/events.go -- RegisterEventSource, reportRun.answer, exportEndpoints -->
+
 Pipe declarations resolve at the area plus its declared action verb, so an
 action returning rows can override a document-shaped area's declaration.
 Argument values stay as the original argv, outside that metadata path; a

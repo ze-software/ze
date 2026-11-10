@@ -134,8 +134,9 @@ registration to prune in a checkout that several sessions share.
 
 One helper does it for every le tool: `export.Commit` in
 `internal/le/repo/export` streams `git archive` into `tar -x` inside a
-directory the caller created. This gate and `./le repo bootstraps` both call
-it, after `objects.Resolve` has turned the revision into a full commit id.
+directory the caller created. This gate, `./le repo bootstraps` and
+`./le weekly report` call it, after `objects.Resolve` has turned the revision
+into a full commit id.
 The helper refuses a directory that is not empty, because `tar -x` never
 removes a file the commit deleted. It also refuses a revision that starts
 with `-`, which git would read as an option. After a failed export the

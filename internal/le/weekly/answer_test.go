@@ -116,6 +116,51 @@ func TestTheBareCommandIsASweepThatPublishesNothing(t *testing.T) {
 	}
 }
 
+// TestWeeklyBareLineStillPublishes pins AC-10 of spec-weekly-event-report: a
+// second verb in the table leaves every line callers type for a publication
+// resolving to publish and parsing as before, and only a line that opens with
+// report reaches the report.
+func TestWeeklyBareLineStillPublishes(t *testing.T) {
+	listing := Actions()
+	defaults := 0
+	for _, row := range listing.Actions {
+		if row.Default {
+			defaults++
+			if row.Verb != publishVerb {
+				t.Errorf("the default verb is %q, want %q", row.Verb, publishVerb)
+			}
+		}
+	}
+	if defaults != 1 {
+		t.Fatalf("%d actions declare Default, want publish alone", defaults)
+	}
+
+	lines := [][]string{
+		nil,
+		{"confirm"},
+		{"source", "/posts/2026-08-10.md"},
+		{"source", "/posts/2026-08-10.md", "confirm", "resume-from", "3"},
+		{"source", "/posts/report.md", "channel", "ze-test", "confirm", "force", "date-stamp"},
+		{"dir", "/posts", "no-date-stamp"},
+		{"publish", "source", "/posts/2026-08-10.md", "confirm"},
+	}
+	for _, line := range lines {
+		resolved := listing.AtVerb(line)
+		if len(resolved) == 0 || resolved[0] != publishVerb {
+			t.Errorf("le weekly %v resolves to %v, want the publish verb", line, resolved)
+			continue
+		}
+		if _, err := parseOptions(resolved[1:]); err != nil {
+			t.Errorf("le weekly %v no longer parses: %v", line, err)
+		}
+	}
+
+	report := listing.AtVerb([]string{"report", "from", "abc", "to", "def"})
+	if report[0] != reportVerb {
+		t.Errorf("le weekly report ... resolves to %v, want the report verb", report)
+	}
+}
+
 func TestParseOptionsRefusesWhatTheGrammarDoesNotAllow(t *testing.T) {
 	cases := []struct {
 		name string
