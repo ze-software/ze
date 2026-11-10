@@ -37,23 +37,44 @@ the input of the area children `spec-doctor-coverage-<n>-<area>.md`.
 
 ## Areas
 
-Totals: 615 classes, 539 gaps (partial included), 67 covered, 9 owned by child 2.
+Totals: 616 class rows, 535 gaps (partial included), 69 covered, 3 judged not a problem class by an area child, 9 owned by child 2. The area children's corrections at the producer (child 6, 7, 8, 10) moved rows out of the gap column; "Defects found" lists them.
 
-| Door area | Slices | Class rows | Gap | Covered | Child 2 |
-|-----------|--------|-----------:|----:|--------:|--------:|
-| [access-security](doctor-problem-inventory/access-security.md) | A1, A2 | 114 | 89 | 19 | 6 |
-| [api-surfaces](doctor-problem-inventory/api-surfaces.md) | A3 | 13 | 13 | 0 | 0 |
-| [commands-cli](doctor-problem-inventory/commands-cli.md) | A3 | 8 | 8 | 0 | 0 |
-| [config-yang](doctor-problem-inventory/config-yang.md) | A3 | 18 | 18 | 0 | 0 |
-| [hub-engine](doctor-problem-inventory/hub-engine.md) | A4 | 22 | 21 | 1 | 0 |
-| [appliance](doctor-problem-inventory/appliance.md) | A4 | 19 | 16 | 3 | 0 |
-| [system](doctor-problem-inventory/system.md) | A4 | 21 | 17 | 4 | 0 |
-| [bgp-engine](doctor-problem-inventory/bgp-engine.md) | A5 | 47 | 45 | 2 | 0 |
-| [bgp-plugins](doctor-problem-inventory/bgp-plugins.md) | A6, A7 | 66 | 65 | 1 | 0 |
-| [forwarding](doctor-problem-inventory/forwarding.md) | A8, A9 | 99 | 86 | 10 | 3 |
-| [routing-protocols](doctor-problem-inventory/routing-protocols.md) | A11, A12 | 65 | 54 | 11 | 0 |
-| [system-plugins](doctor-problem-inventory/system-plugins.md) | A13, A14, A15 | 94 | 78 | 16 | 0 |
-| [plugin-infra](doctor-problem-inventory/plugin-infra.md) | A10 | 29 | 29 | 0 | 0 |
+| Door area | Slices | Class rows | Gap | Covered | Not a problem | Child 2 |
+|-----------|--------|-----------:|----:|--------:|--------------:|--------:|
+| [access-security](doctor-problem-inventory/access-security.md) | A1, A2 | 114 | 89 | 19 | 0 | 6 |
+| [api-surfaces](doctor-problem-inventory/api-surfaces.md) | A3 | 13 | 13 | 0 | 0 | 0 |
+| [commands-cli](doctor-problem-inventory/commands-cli.md) | A3 | 9 | 9 | 0 | 0 | 0 |
+| [config-yang](doctor-problem-inventory/config-yang.md) | A3 | 18 | 18 | 0 | 0 | 0 |
+| [hub-engine](doctor-problem-inventory/hub-engine.md) | A4 | 22 | 21 | 1 | 0 | 0 |
+| [appliance](doctor-problem-inventory/appliance.md) | A4 | 19 | 16 | 3 | 0 | 0 |
+| [system](doctor-problem-inventory/system.md) | A4 | 21 | 17 | 4 | 0 | 0 |
+| [bgp-engine](doctor-problem-inventory/bgp-engine.md) | A5 | 47 | 43 | 3 | 1 | 0 |
+| [bgp-plugins](doctor-problem-inventory/bgp-plugins.md) | A6, A7 | 66 | 64 | 1 | 1 | 0 |
+| [forwarding](doctor-problem-inventory/forwarding.md) | A8, A9 | 99 | 84 | 11 | 1 | 3 |
+| [routing-protocols](doctor-problem-inventory/routing-protocols.md) | A11, A12 | 65 | 54 | 11 | 0 | 0 |
+| [system-plugins](doctor-problem-inventory/system-plugins.md) | A13, A14, A15 | 94 | 78 | 16 | 0 | 0 |
+| [plugin-infra](doctor-problem-inventory/plugin-infra.md) | A10 | 29 | 29 | 0 | 0 | 0 |
+
+## Area children
+
+The area children were written from this inventory and checked each claim at
+the producer; where a child refuted a claim, the row here says so and cites it.
+
+| n | Area | Spec | ACs |
+|--:|------|------|----:|
+| 3 | access-security | `plan/release/validation/spec-doctor-coverage-3-access-security.md` | 104 |
+| 4 | api-surfaces | `plan/release/validation/spec-doctor-coverage-4-api-surfaces.md` | 32 |
+| 5 | appliance | `plan/release/validation/spec-doctor-coverage-5-appliance.md` | 25 |
+| 6 | bgp-engine | `plan/release/validation/spec-doctor-coverage-6-bgp-engine.md` | 61 |
+| 7 | bgp-plugins | `plan/release/validation/spec-doctor-coverage-7-bgp-plugins.md` | 85 |
+| 8 | commands-cli | `plan/release/validation/spec-doctor-coverage-8-commands-cli.md` | 14 |
+| 9 | config-yang | `plan/release/validation/spec-doctor-coverage-9-config-yang.md` | 28 |
+| 10 | forwarding | `plan/release/validation/spec-doctor-coverage-10-forwarding.md` | 106 |
+| 11 | hub-engine | `plan/release/validation/spec-doctor-coverage-11-hub-engine.md` | 34 |
+| 12 | plugin-infra | `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` | 44 |
+| 13 | routing-protocols | `plan/release/validation/spec-doctor-coverage-13-routing-protocols.md` | 81 |
+| 14 | system-plugins | `plan/release/validation/spec-doctor-coverage-14-system-plugins.md` | 88 |
+| 15 | system | `plan/release/validation/spec-doctor-coverage-15-system.md` | 29 |
 
 Merged rows. A class that two slices both listed keeps one row, under the area
 that owns the state, and the cell says what was merged:
@@ -153,7 +174,7 @@ proven by a run.
 14. `internal/component/bgp/plugins/rs/server.go` logs `"rr plugin failed"` from the route server: the message names the wrong plugin.
 15. `internal/component/iface/health.go` `CheckAllInterfaceErrors` returns 0 when the backend is nil or `ListInterfaces` fails, so the `iface` health row reads healthy for a kernel it never read (silent zero).
 16. `internal/component/iface/config_sysctl.go`: a unit `sysctl-profile` naming no profile is accepted at commit and nothing is applied.
-17. `internal/component/iface/pppoe_client.go`: an invalid PPPoE redial wait is accepted at commit and stops the client.
+17. Not a defect (refuted by child 10): an invalid PPPoE redial wait IS refused at commit, because `parsePPPoEClientTiming` runs `Validate` inside the verify parse; the `run` branch in `internal/component/iface/pppoe_client.go` is reached only by a Ze defect (child 10 AC-37).
 18. `internal/component/firewall/plugins/irr/register.go`: `firewall-irr-data-freshness` emits `doctor-firewall-irr-oversized-data` (`irr/doctor.go`) but its `Codes` omits it, so the gate cannot count it.
 19. `firewall-nftables` judges nf_tables by `/proc/modules`: a kernel with nf_tables built in (Ze's own) lists no module, likely a false warning; it should be a kernelcap capability (unverified).
 20. The firewall domain and IRR store doctor checks return nil when the store or cache cannot be opened, so the no-data class is silent when the cache is unreadable.
@@ -169,7 +190,15 @@ proven by a run.
 30. `internal/plugins/mrt` reaches the engine through `registry.SetMRTMessageCallback` / `SetMRTPeerCallback`, a registry entry point naming one plugin: an external mrt is silently inert (engine names a plugin, against the modular-engine rule).
 31. `internal/plugins/static`: `rm.skipped` is written only in `inject.go`'s apply path, so a reprogram failure after a BFD or link event is invisible to `static-route-skipped`.
 32. `internal/plugins/tftpserver/handler.go` refuses write requests while TFTP uploads are in scope (RFC 1350 receiver obligations owed): an RFC gap for the RFC owner, not a doctor class.
-33. `internal/plugins/bmp/yang/ze-bmp-conf.yang`: `statistics-timeout` is accepted while no Statistics Report is ever sent, and `route-action redistribute` acts as `monitor` (`bmp/receiver.go`): config accepted, not in effect.
+33. `internal/component/bgp/plugins/bmp`: `route-action redistribute` acts as `monitor` (`bmp/receiver.go`): config accepted, not in effect (owned by `spec-bmp-route-action-redistribute-acts-as-monitor`). The `statistics-timeout` half is not a defect: Statistics Reports ARE sent (`bmp/statistics.go`, since commit 10d66f9dbd); only the YANG description in `bmp/yang/ze-bmp-conf.yang` is stale (child 7 AC-69).
+
+Corrections the area children made at the producer, beside items 17 and 33:
+
+- IRR refresh errors DO mark entries stale: `refreshLive` (`internal/component/resolve/irr/store/store.go`) calls `markStale` on a lookup error, so `doctor-firewall-irr-stale-data` covers the class (child 10 Findings, AC-72). The proposed `doctor-firewall-irr-refresh-failing` is dropped.
+- The SSH session-close failure (`internal/component/ssh/ssh.go`) loses the transcript, not editor state: `cli.Model.Close` returns `TranscriptWriter.Close` and `History.Close` returns nothing (child 8 Findings, AC-10). The commands-cli row is split.
+- The editor-unavailable class (`unicli.NewModel`) fails only on the YANG loader (`NewCompleter`, `NewConfigValidator`); the store and draft causes belong to `newSessionEditor` (child 8 Findings, AC-11; child 11 AC-22).
+- gNMI TLS: an unreadable cert or key file made gNMI serve clear text. That is fixed in code: `Serve` refuses to listen on TLS material it cannot load (`internal/component/gnmi/tls.go`, child 11 AC-7); child 4 adds the `doctor-gnmi-tls-material` check.
+- bgp-engine C10 (unrecognized family in a prefix limit) is not an operator problem: no config reaches it, and its lines carry `doctor-internal-defect` (child 6 A-5, AC-19). C19 (GTSM kernel state not published) is covered by `gtsm-kernel-state` (child 6 AC-29).
 
 ## Shared mechanisms the area children need
 
@@ -198,6 +227,12 @@ cross-cutting codes (`doctor-internal-defect`, `doctor-plugin-stopped`,
 `doctor-plugin-setup-failed`, `doctor-plugin-external-unsupported`,
 `doctor-audit-record-failed`) are owned by plugin-infra. Codes marked child 2 are
 that spec's proposals and stay there.
+
+The rows down to `doctor-vrrp-track-unresolved` are the audit's names. The rows
+after it, sorted on their own and marked `(child <n>)`, are the codes each area
+child's acceptance criteria register that the audit had not named and that no
+Go source in the tree spells yet. Where a child named a class the table already
+named, the table's name stands and the child must use it; a row says so.
 
 | Canonical code | Owning area |
 |----------------|-------------|
@@ -250,7 +285,7 @@ that spec's proposals and stay there.
 | `doctor-cos-qos-apply-failed` | system-plugins |
 | `doctor-crash-kernel-recovered` | system-plugins |
 | `doctor-crash-records-unharvested` | system-plugins |
-| `doctor-daemon-quit-requested` | plugin-infra |
+| `doctor-daemon-quit-requested` | plugin-infra; not registered: child 12 AC-41 logs the operator's goroutine dump at Info |
 | `doctor-ddos-detect-flow-source-failing` | system-plugins |
 | `doctor-ddos-flowspec-announce-failed` | system-plugins |
 | `doctor-ddos-flowspec-rate-limited` | system-plugins |
@@ -268,7 +303,7 @@ that spec's proposals and stay there.
 | `doctor-dns-source-host-only-dropped` | appliance |
 | `doctor-dns-source-over-limit` | appliance |
 | `doctor-editor-storage-write-failed` | commands-cli |
-| `doctor-env-invalid-value` | plugin-infra |
+| `doctor-env-invalid-value` | plugin-infra; conflict: child 3 AC-54 names `doctor-l2tp-env-invalid` for an invalid `ze.l2tp.*` value and must use this name |
 | `doctor-exabgp-script-lines-dropped` | system-plugins |
 | `doctor-exabgp-script-start-failed` | system-plugins |
 | `doctor-exabgp-script-stopped` | system-plugins |
@@ -294,8 +329,8 @@ that spec's proposals and stay there.
 | `doctor-firewall-domain-group-truncated` | forwarding |
 | `doctor-firewall-drift` | forwarding |
 | `doctor-firewall-global-options-unapplied` | forwarding |
-| `doctor-firewall-irr-refresh-failing` | forwarding |
-| `doctor-firewall-legacy-tables-pending` | forwarding |
+| `doctor-firewall-irr-refresh-failing` | forwarding; dropped: the class is covered by the existing `doctor-firewall-irr-stale-data` (child 10 Findings, AC-72) |
+| `doctor-firewall-legacy-tables-pending` | forwarding; registered by child 14 AC-11 (the firewall component's runtime check) |
 | `doctor-firewall-stale-table` | forwarding |
 | `doctor-firewall-table-held-back` | forwarding |
 | `doctor-firewall-tables-left-after-stop` | forwarding |
@@ -304,7 +339,7 @@ that spec's proposals and stay there.
 | `doctor-flowexport-collector-send-failed` | system-plugins |
 | `doctor-flowexport-conntrack-read-errors` | system-plugins |
 | `doctor-flowexport-conntrack-reader` | system-plugins |
-| `doctor-flowexport-psample-unavailable` | system-plugins |
+| `doctor-flowexport-psample-unavailable` | system-plugins; no child 14 AC names it yet (the psample reader class) |
 | `doctor-flowexport-sampling-setup` | system-plugins |
 | `doctor-flowspec-rule-limit` | system-plugins |
 | `doctor-flowspec-rule-refused` | system-plugins |
@@ -466,3 +501,284 @@ that spec's proposals and stay there.
 | `doctor-vrrp-parent-down` | system-plugins |
 | `doctor-vrrp-sysctl-unapplied` | system-plugins |
 | `doctor-vrrp-track-unresolved` | system-plugins |
+| `doctor-aaa-backend-dropped` | access-security (child 3) |
+| `doctor-aaa-backend-unavailable` | hub-engine (child 11) |
+| `doctor-aaa-power-user-unavailable` | hub-engine (child 11) |
+| `doctor-authz-no-profile` | access-security (child 3) |
+| `doctor-bgp-address-watch-stopped` | bgp-engine (child 6) |
+| `doctor-bgp-adj-rib-in-stopped` | bgp-plugins (child 7) |
+| `doctor-bgp-aspath-edit-skipped` | bgp-engine (child 6) |
+| `doctor-bgp-as-set-withdrawn` | bgp-engine (child 6) |
+| `doctor-bgp-best-change-untracked` | bgp-plugins (child 7) |
+| `doctor-bgp-bfd-ebgp-no-auth` | bgp-engine (child 6) |
+| `doctor-bgp-bfd-unavailable` | bgp-engine (child 6) |
+| `doctor-bgp-blackhole-withheld` | bgp-plugins (child 7) |
+| `doctor-bgp-cache-pressure` | bgp-engine (child 6) |
+| `doctor-bgp-capture-stopped` | bgp-engine (child 6) |
+| `doctor-bgp-commit-open` | bgp-plugins (child 7) |
+| `doctor-bgp-config-not-in-effect` | bgp-engine (child 6) |
+| `doctor-bgp-context-exhausted` | bgp-engine (child 6) |
+| `doctor-bgp-default-originate-not-sent` | bgp-engine (child 6) |
+| `doctor-bgp-dynamic-peer-refused` | bgp-engine (child 6) |
+| `doctor-bgp-epe-replay-failed` | bgp-plugins (child 7) |
+| `doctor-bgp-family-not-negotiated` | bgp-engine (child 6) |
+| `doctor-bgp-family-unstorable` | bgp-plugins (child 7) |
+| `doctor-bgp-filter-failing` | bgp-engine (child 6) |
+| `doctor-bgp-filter-family-no-instance` | bgp-plugins (child 7) |
+| `doctor-bgp-filter-not-compiled` | bgp-engine (child 6) |
+| `doctor-bgp-forward-refused` | bgp-plugins (child 7) |
+| `doctor-bgp-forward-suppressed` | bgp-engine (child 6) |
+| `doctor-bgp-gr-capability-unreadable` | bgp-plugins (child 7) |
+| `doctor-bgp-gr-family-not-advertised` | bgp-plugins (child 7) |
+| `doctor-bgp-gr-marker` | bgp-engine (child 6) |
+| `doctor-bgp-gr-retention-not-sent` | bgp-plugins (child 7) |
+| `doctor-bgp-gr-rib-command-failed` | bgp-plugins (child 7) |
+| `doctor-bgp-healthcheck-down` | bgp-plugins (child 7) |
+| `doctor-bgp-healthcheck-group-unused` | bgp-plugins (child 7) |
+| `doctor-bgp-healthcheck-hook-failed` | bgp-plugins (child 7) |
+| `doctor-bgp-healthcheck-ip-unapplied` | bgp-plugins (child 7) |
+| `doctor-bgp-healthcheck-watchdog-failed` | bgp-plugins (child 7) |
+| `doctor-bgp-igp-metric-unavailable` | bgp-plugins (child 7) |
+| `doctor-bgp-inject-no-session` | bgp-plugins (child 7) |
+| `doctor-bgp-irr-as-set-invalid` | bgp-plugins (child 7) |
+| `doctor-bgp-irr-list-missing` | bgp-plugins (child 7) |
+| `doctor-bgp-irr-no-refresh` | bgp-plugins (child 7) |
+| `doctor-bgp-irr-readmit-full` | bgp-plugins (child 7) |
+| `doctor-bgp-listener-down` | bgp-engine (child 6) |
+| `doctor-bgp-llgr-egress-unloaded` | bgp-plugins (child 7) |
+| `doctor-bgp-ls-export-stale` | bgp-plugins (child 7) |
+| `doctor-bgp-malformed-from-peer` | bgp-engine (child 6) |
+| `doctor-bgp-modify-med-ignored` | bgp-plugins (child 7) |
+| `doctor-bgp-neighbor-watch-stopped` | bgp-engine (child 6) |
+| `doctor-bgp-next-hop-self-excluded` | bgp-plugins (child 7) |
+| `doctor-bgp-nlri-unsplittable` | bgp-plugins (child 7) |
+| `doctor-bgp-open-refused` | bgp-engine (child 6) |
+| `doctor-bgp-open-validation-unavailable` | bgp-engine (child 6) |
+| `doctor-bgp-paths-limit-unenforced` | bgp-engine (child 6) |
+| `doctor-bgp-peer-congested` | bgp-engine (child 6) |
+| `doctor-bgp-peer-incomplete` | bgp-engine (child 6) |
+| `doctor-bgp-peers-not-started` | bgp-engine (child 6) |
+| `doctor-bgp-peer-up-replay-incomplete` | bgp-plugins (child 7) |
+| `doctor-bgp-plugin-events-undelivered` | bgp-engine (child 6) |
+| `doctor-bgp-plugins-not-ready` | bgp-engine (child 6) |
+| `doctor-bgp-read-paused` | bgp-engine (child 6) |
+| `doctor-bgp-recovery-owner-missing` | bgp-engine (child 6) |
+| `doctor-bgp-redistribute-unsent` | bgp-engine (child 6) |
+| `doctor-bgp-relay-grant-missing` | bgp-plugins (child 7) |
+| `doctor-bgp-replay-unclaimed` | bgp-plugins (child 7) |
+| `doctor-bgp-rfc8212-no-policy` | bgp-engine (child 6) |
+| `doctor-bgp-rib-event-not-emitted` | bgp-plugins (child 7) |
+| `doctor-bgp-rib-gate-unannounced` | bgp-plugins (child 7) |
+| `doctor-bgp-role-config-unapplied` | bgp-plugins (child 7) |
+| `doctor-bgp-role-mismatch` | bgp-plugins (child 7) |
+| `doctor-bgp-role-routes-dropped` | bgp-plugins (child 7) |
+| `doctor-bgp-route-not-sent` | bgp-engine (child 6) |
+| `doctor-bgp-route-server-not-attached` | bgp-engine (child 6) |
+| `doctor-bgp-rs-flowspec-out-of-order` | bgp-plugins (child 7) |
+| `doctor-bgp-rs-forward-discarded` | bgp-plugins (child 7) |
+| `doctor-bgp-rs-replay-store-absent` | bgp-plugins (child 7) |
+| `doctor-bgp-rs-source-paused` | bgp-plugins (child 7) |
+| `doctor-bgp-send-hold-expired` | bgp-engine (child 6) |
+| `doctor-bgp-send-refused` | bgp-engine (child 6) |
+| `doctor-bgp-validation-relay-failed` | bgp-plugins (child 7) |
+| `doctor-bgp-validation-timeout` | bgp-plugins (child 7) |
+| `doctor-bgp-watchdog-refused` | bgp-plugins (child 7) |
+| `doctor-bgp-watchdog-route-dropped` | bgp-plugins (child 7) |
+| `doctor-bgp-withdrawal-untracked` | bgp-plugins (child 7) |
+| `doctor-bmp-collector-down` | bgp-plugins (child 7) |
+| `doctor-bmp-collector-slow` | bgp-plugins (child 7) |
+| `doctor-bmp-loc-rib-inert` | bgp-plugins (child 7) |
+| `doctor-bmp-loc-rib-no-identity` | bgp-plugins (child 7) |
+| `doctor-bmp-malformed-message` | bgp-plugins (child 7) |
+| `doctor-bmp-peer-not-reported` | bgp-plugins (child 7) |
+| `doctor-bmp-receiver-full` | bgp-plugins (child 7) |
+| `doctor-bmp-receiver-not-listening` | bgp-plugins (child 7) |
+| `doctor-bmp-snapshot-aborted` | bgp-plugins (child 7) |
+| `doctor-cli-transcript-write-failed` | commands-cli (child 8) |
+| `doctor-config-boot-record-failed` | hub-engine (child 11) |
+| `doctor-config-push-not-applied` | hub-engine (child 11) |
+| `doctor-config-push-reverted` | hub-engine (child 11) |
+| `doctor-config-push-revert-failed` | hub-engine (child 11) |
+| `doctor-config-reload-partial` | hub-engine (child 11) |
+| `doctor-config-reload-unwind-failed` | hub-engine (child 11) |
+| `doctor-config-restart-needed` | hub-engine (child 11) |
+| `doctor-config-web-insecure-ignored` | hub-engine (child 11) |
+| `doctor-conntrack-module-not-loaded` | appliance (child 5) |
+| `doctor-conntrack-sysctl-not-applied` | appliance (child 5) |
+| `doctor-daemon-start-failed` | hub-engine (child 11) |
+| `doctor-dhcp-client-address-not-installed` | forwarding (child 10) |
+| `doctor-dhcp-client-dad-unreported` | forwarding (child 10) |
+| `doctor-dhcp-client-mask-assumed` | forwarding (child 10) |
+| `doctor-dhcp-client-no-lease` | forwarding (child 10) |
+| `doctor-dhcp-client-not-running` | forwarding (child 10) |
+| `doctor-dhcp-client-route-pending` | forwarding (child 10) |
+| `doctor-dns-answer-truncated` | system (child 15) |
+| `doctor-dns-dnssec-unvalidated` | system (child 15) |
+| `doctor-dns-source-host-unreadable` | appliance (child 5) |
+| `doctor-dns-source-server-dropped` | appliance (child 5) |
+| `doctor-firewall-nftables-unknown` | forwarding (child 10) |
+| `doctor-gokrazy-management-unreachable` | appliance (child 5) |
+| `doctor-host-inventory-unreadable` | system (child 15) |
+| `doctor-host-sensor-alarm` | system (child 15) |
+| `doctor-host-tuning-not-applied` | system (child 15) |
+| `doctor-iface-address-dad-failed` | forwarding (child 10) |
+| `doctor-iface-address-reconcile-failed` | forwarding (child 10) |
+| `doctor-iface-apply-owed` | forwarding (child 10) |
+| `doctor-iface-delegated-prefix-unapplied` | forwarding (child 10) |
+| `doctor-iface-ipv6-forwarding-off` | forwarding (child 10) |
+| `doctor-iface-learned-dns-unwritten` | forwarding (child 10) |
+| `doctor-iface-list-failed` | forwarding (child 10) |
+| `doctor-iface-migrate-address-left` | forwarding (child 10) |
+| `doctor-iface-mirror-not-installed` | forwarding (child 10) |
+| `doctor-iface-monitor-degraded` | forwarding (child 10) |
+| `doctor-iface-name-unresolved` | forwarding (child 2; reused by child 10) |
+| `doctor-iface-netdev-left` | forwarding (child 10) |
+| `doctor-iface-offload-not-applied` | forwarding (child 10) |
+| `doctor-iface-owned-device-recreated` | forwarding (child 10) |
+| `doctor-iface-rollback-partial` | forwarding (child 10) |
+| `doctor-iface-route-held-by-other` | forwarding (child 10) |
+| `doctor-iface-rp-filter-deprecated` | forwarding (child 10) |
+| `doctor-iface-rpf-table-stale` | forwarding (child 10) |
+| `doctor-iface-sysctl-profile-unknown` | forwarding (child 10) |
+| `doctor-iface-tunnel-adopted-mismatch` | forwarding (child 10) |
+| `doctor-iface-unnumbered-unreconciled` | forwarding (child 10) |
+| `doctor-iface-vpp-name-map-empty` | forwarding (child 10) |
+| `doctor-iface-wireguard-no-handshake` | forwarding (child 10) |
+| `doctor-image-listener-down` | system-plugins (child 14) |
+| `doctor-ipsec-address-watch` | access-security (child 3) |
+| `doctor-ipsec-auth-failed` | access-security (child 3) |
+| `doctor-ipsec-bypass-missing` | access-security (child 3) |
+| `doctor-ipsec-catch-all-unsupported` | access-security (child 3) |
+| `doctor-ipsec-cert-no-remote-id` | access-security (child 3) |
+| `doctor-ipsec-cert-revoked` | access-security (child 3) |
+| `doctor-ipsec-child-sa-degraded` | access-security (child 3) |
+| `doctor-ipsec-child-sa-refused` | access-security (child 3) |
+| `doctor-ipsec-dataplane-drift` | access-security (child 3) |
+| `doctor-ipsec-dataplane-load` | access-security (child 3) |
+| `doctor-ipsec-dataplane-unknown` | access-security (child 3) |
+| `doctor-ipsec-delete-not-sent` | access-security (child 3) |
+| `doctor-ipsec-eap-failed` | access-security (child 3) |
+| `doctor-ipsec-eap-no-msk` | access-security (child 3) |
+| `doctor-ipsec-eap-tls-credential` | access-security (child 3) |
+| `doctor-ipsec-espform-receiver` | access-security (child 3) |
+| `doctor-ipsec-inbound-dropped` | access-security (child 3) |
+| `doctor-ipsec-mobike-failed` | access-security (child 3) |
+| `doctor-ipsec-multiple-auth-unsupported` | access-security (child 3) |
+| `doctor-ipsec-nat-refused` | access-security (child 3) |
+| `doctor-ipsec-negotiation-failed` | access-security (child 3) |
+| `doctor-ipsec-no-crl` | access-security (child 3) |
+| `doctor-ipsec-no-send-path` | access-security (child 3) |
+| `doctor-ipsec-peer-not-established` | access-security (child 3) |
+| `doctor-ipsec-peer-protocol-error` | access-security (child 3) |
+| `doctor-ipsec-policy-leftover` | access-security (child 3) |
+| `doctor-ipsec-policy-not-installed` | access-security (child 3) |
+| `doctor-ipsec-rekey-failed` | access-security (child 3) |
+| `doctor-ipsec-respond-name-unresolved` | access-security (child 3) |
+| `doctor-ipsec-revocation-unchecked` | access-security (child 3) |
+| `doctor-ipsec-sa-lost` | access-security (child 3) |
+| `doctor-ipsec-source-guard` | access-security (child 3) |
+| `doctor-ipsec-source-guard-skipped` | access-security (child 3) |
+| `doctor-ipsec-spd-left` | access-security (child 3) |
+| `doctor-ipsec-virtual-ip-pool-missing` | access-security (child 3) |
+| `doctor-ipsec-xfrm-entry-stale` | access-security (child 3) |
+| `doctor-irr-cache-entry-corrupt` | system (child 15) |
+| `doctor-bgp-irr-stale-data` | system (child 15 AC-19): the BGP filter_irr owner's stale IRR data, declared by its one filter_irr check; the firewall owner keeps the existing `doctor-firewall-irr-stale-data` (child 10 AC-72) |
+| `doctor-irr-cache-unpersisted` | system (child 15) |
+| `doctor-irr-peeringdb-lookup-failed` | system (child 15) |
+| `doctor-l2tp-call-capability` | access-security (child 3) |
+| `doctor-l2tp-dataplane` | access-security (child 3) |
+| `doctor-l2tp-dial-unreachable` | access-security (child 3) |
+| `doctor-l2tp-kernel-probe-skipped` | access-security (child 3) |
+| `doctor-l2tp-kernel-program-failed` | access-security (child 3) |
+| `doctor-l2tp-kernel-state-leaked` | access-security (child 3) |
+| `doctor-l2tp-no-listener` | access-security (child 3) |
+| `doctor-l2tp-no-ppp-driver` | access-security (child 3) |
+| `doctor-l2tp-peer-protocol-error` | access-security (child 3) |
+| `doctor-l2tp-relay-failed` | access-security (child 3) |
+| `doctor-l2tp-relay-no-secret` | access-security (child 3) |
+| `doctor-l2tp-restart-required` | access-security (child 3) |
+| `doctor-l2tp-send-failed` | access-security (child 3) |
+| `doctor-l2tp-session-limit` | access-security (child 3) |
+| `doctor-l2tp-tunnel-auth-failed` | access-security (child 3) |
+| `doctor-l2tp-tunnel-limit` | access-security (child 3) |
+| `doctor-l2tp-version-mismatch` | access-security (child 3) |
+| `doctor-managed-client-not-started` | hub-engine (child 11) |
+| `doctor-managed-config-not-applied` | hub-engine (child 11) |
+| `doctor-managed-listener-unbound` | plugin-infra (child 12) |
+| `doctor-managed-server-disabled` | hub-engine (child 11) |
+| `doctor-managed-session-down` | hub-engine (child 11) |
+| `doctor-managed-tls-insecure` | hub-engine (child 11) |
+| `doctor-pki-ca-ephemeral` | access-security (child 3) |
+| `doctor-plugin-no-dataplane-writer` | plugin-infra (child 12) |
+| `doctor-ppp-auth-method-refused` | access-security (child 3) |
+| `doctor-ppp-establish-failed` | access-security (child 3) |
+| `doctor-ppp-ipv6-mru` | access-security (child 3) |
+| `doctor-ppp-ipv6-no-interface-id` | access-security (child 3) |
+| `doctor-ppp-ipv6-service-failed` | access-security (child 3) |
+| `doctor-ppp-no-ncp` | access-security (child 3) |
+| `doctor-pppoe-client-ipv4-route-not-applied` | forwarding (child 10) |
+| `doctor-pppoe-client-pd-not-received` | access-security (child 2; reused by child 10) |
+| `doctor-pppoe-client-sysctl-unapplied` | forwarding (child 10) |
+| `doctor-pppoe-discovery-refused` | access-security (child 3) |
+| `doctor-pppoe-interface-not-started` | access-security (child 3) |
+| `doctor-pppoe-session-setup-failed` | access-security (child 3) |
+| `doctor-ra-default-route-not-installed` | forwarding (child 10) |
+| `doctor-ra-default-route-unknown` | forwarding (child 10) |
+| `doctor-ra-option-discarded` | forwarding (child 10) |
+| `doctor-ra-option-reader-stopped` | forwarding (child 10) |
+| `doctor-ra-rdnss-not-advertised` | forwarding (child 10) |
+| `doctor-ra-rdnss-not-published` | forwarding (child 10) |
+| `doctor-ra-send-failed` | forwarding (child 10) |
+| `doctor-ra-sender-not-running` | forwarding (child 10) |
+| `doctor-radius-accept-unusable` | access-security (child 3) |
+| `doctor-radius-accounting-counters` | access-security (child 3) |
+| `doctor-radius-accounting-failed` | access-security (child 3) |
+| `doctor-radius-admin-accept-unusable` | access-security (child 3) |
+| `doctor-radius-admin-eap-failed` | access-security (child 3) |
+| `doctor-radius-admin-secret-mismatch` | access-security (child 3) |
+| `doctor-radius-coa-failed` | access-security (child 3) |
+| `doctor-radius-coa-listener` | access-security (child 3) |
+| `doctor-radius-coa-request-invalid` | access-security (child 3) |
+| `doctor-radius-no-server` | access-security (child 3) |
+| `doctor-resolv-conf-stale` | appliance (child 5) |
+| `doctor-rir-delegation-stored-unusable` | system (child 15) |
+| `doctor-rpki-aspa-as-trans` | bgp-plugins (child 7) |
+| `doctor-rpki-cache-down` | bgp-plugins (child 7) |
+| `doctor-rpki-cache-error-report` | bgp-plugins (child 7) |
+| `doctor-rpki-peer-config-unapplied` | bgp-plugins (child 7) |
+| `doctor-rpki-table-full` | bgp-plugins (child 7) |
+| `doctor-rpki-verdict-undelivered` | bgp-plugins (child 7) |
+| `doctor-self-update-restart-outside-window` | appliance (child 5) |
+| `doctor-serial-console-getty-conflict` | appliance (child 5) |
+| `doctor-serial-console-not-applied` | appliance (child 5) |
+| `doctor-shaper-apply-failed` | access-security (child 3) |
+| `doctor-shaper-no-backend` | access-security (child 3) |
+| `doctor-storage-self-test-failed` | system (child 15) |
+| `doctor-storage-self-test-not-started` | system (child 15) |
+| `doctor-storage-smart-config-invalid` | system (child 15) |
+| `doctor-storage-smart-enable-failed` | system (child 15) |
+| `doctor-subscriber-auth-backend-mismatch` | access-security (child 3) |
+| `doctor-subscriber-consumer-stale` | access-security (child 3) |
+| `doctor-subscriber-dns-dropped` | access-security (child 3) |
+| `doctor-subscriber-local-mschapv2` | access-security (child 3) |
+| `doctor-subscriber-local-no-users` | access-security (child 3) |
+| `doctor-subscriber-no-auth-handler` | access-security (child 3) |
+| `doctor-subscriber-no-pool-handler` | access-security (child 3) |
+| `doctor-subscriber-pd-pool-exhausted` | access-security (child 3) |
+| `doctor-subscriber-pool-exhausted` | access-security (child 3) |
+| `doctor-subscriber-pool-unknown` | access-security (child 3) |
+| `doctor-sysctl-default-overridden` | forwarding (child 10) |
+| `doctor-sysctl-not-applied` | forwarding (child 10) |
+| `doctor-sysctl-profile-conflict` | forwarding (child 10) |
+| `doctor-sysctl-set-refused` | forwarding (child 10) |
+| `doctor-sysrib-feed-overflow` | forwarding (child 10) |
+| `doctor-sysrib-fib-undelivered` | forwarding (child 10) |
+| `doctor-sysrib-protocol-undeclared` | forwarding (child 10) |
+| `doctor-tacacs-accounting-failed` | access-security (child 3) |
+| `doctor-tacacs-authorization-unsupported` | access-security (child 3) |
+| `doctor-tacacs-privilege-unmapped` | access-security (child 3) |
+| `doctor-update-blocked` | appliance (child 5) |
+| `doctor-update-download-failed` | appliance (child 5) |
+| `doctor-update-fetch-failed` | appliance (child 5) |
+| `doctor-update-restart-failed` | appliance (child 5) |
+| `doctor-update-unverified-binary` | appliance (child 5) |

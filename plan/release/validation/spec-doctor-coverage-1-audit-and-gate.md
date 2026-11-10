@@ -156,7 +156,7 @@ This child owns four things, in this order:
 - 2 (amended). The `doctor-runtime-not-checked` warning names its fix by the cause the daemon did not answer, not always `ze start`: `ze start` when no daemon listens; `ze cli --user <name> -c "show doctor"` when the daemon listens but this account cannot log in; `ze status` when the listener cannot be found; `ze doctor` (no `config`) for R-5, where the named file is outside the daemon's config directories (`internal/component/doctor/local_route.go`)
 - 2c. `ze doctor` drawing a daemon answer exits 0 when the answer holds only warnings, as the local answer does; not-ready still exits 1
 - 2a (amended). The recent-events check is named `recent-events` and declares the one code `doctor-recent-events` (`internal/component/doctor/checks_recent_events.go`). A row carries the event's own code only when that code's metadata is registered (`ze show diagnostic` can explain it); otherwise the row is `doctor-recent-events` with the bus code named in its message, so no event is dropped and no row carries a code the operator cannot look up. Its fix lines are the bare commands `show errors` (an error event) and `show warnings` (an active warning)
-  → Decision: because the check declares only `doctor-recent-events`, a report-bus code counts as covered for the gate only when the check of the code's owner declares it. A transient class therefore needs its owner's check to declare the code; the recent-events row then reports it
+  → Decision: the check's own declaration is `doctor-recent-events`, and a transient code counts as covered for the gate through the transient-code registration of `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a (its AC-2): the owner registers the code with its metadata from its `init()`, and `doctor-recent-events` reads that registration and declares every registered transient code. A transient class therefore needs no runtime check of its own owner; the recent-events row reports it under its code
 - 4b. A health row (`health.Register`, `health.RegisterWhen`) is listed by the gate and never refused: the registration takes no code, so there is nothing to resolve; the audit maps each one to a doctor check by hand
   → Constraint: the gate cannot see a Warn or Error logged through a function value (dhcpserver `warnLimited`), nor a site whose message is not a literal (`internal/plugins/flowexport/register.go`, line 172); and a `code` log attribute that holds a protocol or exit code (not a doctor code) reads as code-dynamic. The audit walks these by hand
 
@@ -256,7 +256,7 @@ This child owns four things, in this order:
 
 **AC amendments, 2026-11-10 (implementation; the rows above stay as written):**
 - AC-2: the fix line names `ze start` when no daemon listens; the other causes name their own command (Data Flow step 2, amended)
-- AC-4: the printed cover reads "a `code` attribute naming a code a registered doctor check declares"; for a transient class that check is the owner's, declaring the code it raises on the report bus, which the `recent-events` check then reports. The `recent-events` check's own declaration (`doctor-recent-events`) covers no other code (Data Flow step 2a, amended)
+- AC-4: the printed cover reads "a `code` attribute naming a code a registered doctor check declares"; for a transient class the code is registered through child 12's transient-code registration (`plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a, AC-2), which `doctor-recent-events` reads and declares, and the `recent-events` check then reports the raise under it. An unregistered code is covered by no declaration (Data Flow step 2a, amended)
 - AC-11: the row carries the event's own code when its metadata is registered, else `doctor-recent-events` with the bus code in the message; its fix is `show errors` or `show warnings`
 - AC-13: the dns-source findings carry their command in `Fix`, not in the message
 
@@ -427,6 +427,33 @@ The four steps above, cut into agent work packages (`plan/handover/doctor-covera
 
 Child 2 (`plan/release/validation/spec-doctor-coverage-2-home-cpe-batch.md`) waits on P1a only, plus P1b for its R-5.
 
+### Area children
+
+The output of step 4. AC count is the number of unique AC ids in each spec on
+2026-11-10, after the consistency pass (ids a pass removed leave a gap in the
+numbering, they are not reused). The phases every area child shares live in one
+place, child 12: phase P0a (the cross-cutting codes, the transient-code
+registration read by `doctor-recent-events`, the convention that a report-bus
+raise carries its fix) and phase P0b (the report-bus raise route for a forked
+plugin). No other child builds either.
+
+| n | Area | Path | ACs |
+|---|------|------|-----|
+| 2 | home-CPE batch (pre-audit) | `plan/release/validation/spec-doctor-coverage-2-home-cpe-batch.md` | 10 |
+| 3 | access and security | `plan/release/validation/spec-doctor-coverage-3-access-security.md` | 104 |
+| 4 | API surfaces | `plan/release/validation/spec-doctor-coverage-4-api-surfaces.md` | 32 |
+| 5 | appliance | `plan/release/validation/spec-doctor-coverage-5-appliance.md` | 24 |
+| 6 | BGP engine | `plan/release/validation/spec-doctor-coverage-6-bgp-engine.md` | 61 |
+| 7 | BGP plugins | `plan/release/validation/spec-doctor-coverage-7-bgp-plugins.md` | 85 |
+| 8 | commands and CLI | `plan/release/validation/spec-doctor-coverage-8-commands-cli.md` | 12 |
+| 9 | config and YANG | `plan/release/validation/spec-doctor-coverage-9-config-yang.md` | 28 |
+| 10 | forwarding | `plan/release/validation/spec-doctor-coverage-10-forwarding.md` | 106 |
+| 11 | hub and engine | `plan/release/validation/spec-doctor-coverage-11-hub-engine.md` | 34 |
+| 12 | plugin infrastructure, core and the shared phases P0a, P0b | `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` | 44 |
+| 13 | routing protocols | `plan/release/validation/spec-doctor-coverage-13-routing-protocols.md` | 85 |
+| 14 | system plugins | `plan/release/validation/spec-doctor-coverage-14-system-plugins.md` | 88 |
+| 15 | system | `plan/release/validation/spec-doctor-coverage-15-system.md` | 29 |
+
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
@@ -471,7 +498,7 @@ Child 2 (`plan/release/validation/spec-doctor-coverage-2-home-cpe-batch.md`) wai
 |-------|----------------------------------|-------|
 | Runtime check context | a `runtime` check gets `Platform` only | Data Flow 1b |
 | Recent-events check | named `recent-events`, code `doctor-recent-events`; a row carries the event's own code only when its metadata is registered, else `doctor-recent-events` with the bus code in the message; fixes are bare `show errors` / `show warnings` | Data Flow 2a (amended), AC-11 amendment |
-| Gate cover of a transient code | the check declares only `doctor-recent-events`, so a transient code counts as covered only when its owner's check declares it | Data Flow 2a (amended), AC-4 amendment |
+| Gate cover of a transient code | a transient code counts as covered through child 12's transient-code registration (phase P0a, AC-2), which `doctor-recent-events` reads and declares | Data Flow 2a (amended), AC-4 amendment |
 | Local-route fallback fix | named by cause: `ze start`, `ze cli --user <name> -c "show doctor"`, `ze status`, `ze doctor` for R-5 | Data Flow 2 (amended), AC-2 amendment |
 | Health rows | listed by the gate, never refused: `health.Register` takes no code | Data Flow 4b |
 | Exit code | `ze doctor` exits 0 when the daemon answers only warnings | Data Flow 2c |
