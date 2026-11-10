@@ -3385,3 +3385,69 @@ These are greens for the census, not reds: the P-33 reds are the fixture-level
 walks recorded earlier. On the host, `storage-ntp-restart`,
 `storage-tc-restart` and `ospf-state-through-daemon` skip on their capability
 gates, so they are owed a run in Ze's own guest.
+
+## Re-audit: P-39 GTSM restored leg and negative controls (2026-11-10)
+
+The two GTSM guest records (`p39-gtsm4.log`, `p39-gtsm6.log`) held the clean PASS
+and the broken FAIL legs only. The restored leg ran in Ze's own guest on the
+same runtime kernel the records used: a static `-tags integration` build of
+`./internal/component/gtsm` (CGO off, as the recorder builds it), run through
+`./le test qemu docker-lab kernel <runtime vmlinuz> command "sh <script>"`. The
+four units passed with no skip: `TestGTSMTransmittedICMPErrorCarriesTTL255`,
+`TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255`, and the two unchanged
+negative controls `TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255`
+and `TestGTSMTransmittedICMPv6ErrorWithoutTheRouteMetricIsNot255`
+(`command-exit 0`, `lab-exit 0`, kernel sha256 `6d9b47fbecfa1c5c...`, the
+records' kernel). `git log e4bfeb7789..HEAD` over the test file is empty, so
+the negative controls are the ones the records judged. A first attempt with a
+cgo-linked binary exited 127 ("not found") in the guest; that run is void.
+
+## P-39: the AS_PATH paired-break record (`cd0b42213c`)
+
+Entry 2 of `rfc/discrimination/rfc4271/RFC4271-5.1.2-3.json`, added by
+`cd0b42213c` (2026-11-05) and unchanged since, records the owner-approved
+separate paired carrier:
+
+| Field | Value |
+| --- | --- |
+| Requirement | RFC4271-5.1.2-3, polarity negative, route mutant |
+| Unit | `internal/component/bgp/reactor/rfc4271_withdraw_aspath_pair_test.go::TestForwardWithdrawalDoesNotCreateASPath` (unit-sha `2a2d9ebff31b9ac6`, claim-sha `c2f608c5b48d4710`) |
+| Break 1 | `internal/component/bgp/wireu/aspath_slot.go::Record` (producer-sha `d998d54b8bd9f829`), line 159: `!PayloadAdvertisesNLRI(payload)` becomes `false`, bypassing Record's no-advertisement branch |
+| Break 2 (paired) | `internal/component/bgp/reactor/forward_build.go::planAttr` (producer-sha `dd422598bfe92228`), line 561: `!gate.advertises()` becomes `!gate.advertises() && code != uint8(attribute.AttrASPath)`, exempting only AS_PATH from the creation gate |
+| Combined | FAIL: the withdrawal gains an AS_PATH and its bytes change |
+| Solo, Record only | PASS, 60s, `lab-exit 0` |
+| Solo, planAttr only | PASS, 65s, `lab-exit 0` |
+
+The unit drives the real relay dispatch for an attribute-free IPv4 withdrawal
+to an external ASN4 peer with next-hop-self. It asserts that the bytes are
+unchanged and that no AS_PATH appears. An advertisement control asserts that
+the local AS is prepended before the source AS and that the next hop is
+rewritten, so a break that blanket-suppresses AS_PATH or next-hop rewriting
+goes red there. Each guard alone protects the withdrawal, so each solo break
+stays green. Only the pair creates the attribute, which is the paired
+discrimination P-39 asks for. Both breaks were hand-written and independently
+judged. The observation is the full relay dispatch bytes, not a captured
+network packet.
+
+The commit body names the native recorder log
+`job-rfc4271-native-paired-record-a36e0947.log`: clean PASS, combined FAIL,
+each solo PASS, zero skips, owned VM shutdown. It also names the restored run
+`job-aspath-restored-native-packet-d3b5ecfe.log` on clean build `4e555aeb`,
+where both subtests pass, on kernel SHA
+`329167c42bdff84d8cba8f3e1f5bdfadef22611836ea1da5e6748b8196f5b750`. Neither
+log is retained under `tmp/` or `~/.cache/ze` today. The record and the commit
+body are what survives. The unit and both producers are byte-identical to
+`cd0b42213c` (`git diff --stat cd0b42213c HEAD` over the three files is
+empty). Both break lines still read as recorded (aspath_slot.go:159
+`case !PayloadAdvertisesNLRI(payload):`, forward_build.go:561
+`if src == nil && !gate.advertises() {`), so the record's hashes still
+describe the tree. The 2026-11-05 paragraph earlier in this file ("The owner
+approved retaining every GTSM check ...") narrates the same run.
+
+(End of paste.) Note for the main thread: that earlier paragraph, at
+tooling-one-off-evidence.md ~line 1176, already narrates this run inside the
+2026-11-05 section. This section adds the record's own fields and today's
+check that nothing changed. For a cheap current green:
+`./le job run label unit-pkg command go test -count=1 -run '^TestForwardWithdrawalDoesNotCreateASPath$' ./internal/component/bgp/reactor/`
+(the file has no build tag, so it runs on the host. The record itself was
+observed in the native guest).
