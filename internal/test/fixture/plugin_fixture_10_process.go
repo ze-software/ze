@@ -69,6 +69,28 @@ func fixture10Environment(overrides map[string]string) []string {
 	return childEnvironment(os.Environ(), overrides)
 }
 
+// fixture10OperatorEnvironment is the environment of a `ze cli --user admin`
+// child that reaches the fixture daemon with no credential store. The CLI reads
+// the host and port from ze.ssh.host and ze.ssh.port, the user from --user and
+// the password from ze.ssh.password, which outranks a stored hash
+// (sshclient.readCredentials), so a store contributes no value to the login.
+// storeDir MUST be an empty directory: it keeps the child off the operator's
+// own store, which would otherwise be found by the default search.
+//
+// The document-too-wide fixture used to build that store with `ze init` inside
+// the 15-second fixture10ProcessTimeout. Init without --seed or --managed also
+// runs netlink interface discovery: a link dump on a socket subscribed to link
+// events, repeated up to three times when a link change interrupts it, each
+// attempt bounded by its own 5-second deadline, then one address dump per link. On a loaded host with many links
+// changing that overran the bound (exit 124, "initialize isolated CLI state",
+// 2026-10-27), for a store whose every value the environment already supplies.
+func fixture10OperatorEnvironment(storeDir string, sshPort int) map[string]string {
+	return map[string]string{
+		envConfigDir: storeDir, envSSHHost: addrLoopback,
+		envSSHPort: strconv.Itoa(sshPort), envSSHPassword: valueTestPassword,
+	}
+}
+
 func fixture10FreePort() (string, error) {
 	// The listener closes on the next line, so there is nothing to cancel.
 	listener, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
@@ -603,15 +625,7 @@ environment {
 		return err
 	}
 	defer os.RemoveAll(configDir) //nolint:errcheck // scratch cleanup on exit, so a removal failure changes no assertion
-	initInput := fmt.Sprintf("admin\ntestpass\n127.0.0.1\n%d\n", sshPort)
-	initResult := fixture10Run(ctx, map[string]string{envConfigDir: configDir}, initInput, "ze", "init")
-	if initResult.code != 0 {
-		return fmt.Errorf("initialize isolated CLI state: exit=%d stdout=%s stderr=%s", initResult.code, initResult.stdout, initResult.stderr)
-	}
-	remoteEnv := map[string]string{
-		envConfigDir: configDir, envSSHHost: addrLoopback,
-		envSSHPort: strconv.Itoa(sshPort), envSSHPassword: valueTestPassword,
-	}
+	remoteEnv := fixture10OperatorEnvironment(configDir, sshPort)
 	if !Poll(ctx, 50, 200*time.Millisecond, func() bool {
 		result := fixture10Run(ctx, remoteEnv, "", "ze", "cli", "--user", "admin", "-c", "system command list | raw")
 		return result.code == 0 && strings.Contains(result.stdout, "show test records document")
