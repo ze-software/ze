@@ -70,3 +70,24 @@ asserted in place with `action=wait-html`).
 Still waiting on Thomas: decisions 1, 2, 4, 5, 6, 7 and 9. Owned rows still
 open: helper-bypassed 2026-11-02 (2), container-cannot-see 2026-10-21 (4),
 gate-red 2026-10-05 pluginOwnershipGate (9).
+
+## Update, evening of 2026-11-10
+
+Thomas answered "go" to the recommendations. Decisions 2, 6 and 9 are done.
+Decision 2 is `752c59242a`: the RFC gate's scanner is the single inventory, and
+row helper-bypassed 2026-11-02 is closed. Decision 9 is `0c6712e570`: a
+shrink-only baseline, and row gate-red 2026-10-05 is closed. Decision 6 is
+`fd8be4cbe9`: P-18's root routes and the admission queue are observed red and
+green. It needed `f0ad6203a0` first, a fix so that a two-component kernel pin
+names its x.y.0 release.
+
+Still waiting on Thomas, all of it his own action:
+
+| # | Action | Unblocks |
+| --- | --- | --- |
+| 1 | Run `spec-inventory-fast-registry-checks.md` in a fresh session | `TestAnswerAnswersTheInventory`, P-32 |
+| 4 | The 9p symlink check on the Mac | P-10, row container-cannot-see 2026-10-21 |
+| 5 | `./le commit push '<authorisation>'` from his own terminal (it refuses a noninteractive caller), then the printed script | P-17 CodeQL member |
+| 7 | `rm internal/test/fixture/register_stops_daemon_test.go` (the hook needs his approval for a test deletion) | a local red |
+
+Then: a strict re-audit of P-1 to P-41, `/ze-review`, and the two-commit closure.
