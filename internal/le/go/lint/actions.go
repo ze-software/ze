@@ -131,8 +131,10 @@ func runHere(arguments leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return Report{Code: cannotPlan, Error: err.Error()}, cannotPlan
 	}
-	if plan.inputHash != "" {
-		if err := runner.checkPlanningInputs(plan.inputHash, "job admission"); err != nil {
+	// Admission can wait behind another lint for minutes, so the plan's own
+	// population is judged once more before its children start.
+	if plan.inputs != nil {
+		if err := runner.checkPlanningInputs(plan.inputs, "job admission"); err != nil {
 			ticket.Release(cannotPlan)
 			return runner.runPlan(plan, err)
 		}
@@ -140,7 +142,6 @@ func runHere(arguments leaction.Arguments) (any, int) {
 	if ticket.Kind == job.KindAttached {
 		return Report{Code: ticket.Code, FailingPaths: shared.paths()}, ticket.Code
 	}
-
 
 	// The slot's log is opened before the run and closed after it, because
 	// Release removes the file: a writer still holding it would keep the bytes

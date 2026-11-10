@@ -49,7 +49,7 @@ const (
 	lintFindings = 1
 	// Request only the metadata the planner consumes, not every package's
 	// transitive dependency list for every build in the matrix.
-	listFormat = "-json=Dir,ImportPath,Name,ForTest,DepOnly,GoFiles,CgoFiles,TestGoFiles,XTestGoFiles,InvalidGoFiles,EmbedFiles"
+	listFormat = "-json=Dir,ImportPath,Name,ForTest,DepOnly,GoFiles,CgoFiles,TestGoFiles,XTestGoFiles,InvalidGoFiles,EmbedFiles,EmbedPatterns"
 )
 
 var ignoreConstraint = regexp.MustCompile(`(^|[^A-Za-z0-9_])ignore([^A-Za-z0-9_]|$)`)
@@ -82,7 +82,9 @@ type LintPlan struct {
 	NeedsTagless   bool                `json:"-"`
 	reportCoverage bool
 	configContents []byte
-	inputHash      string
+
+	// inputs is nil only for a plan that ran no query, which reads nothing.
+	inputs *planInputs
 }
 
 // PassResult records one planned child and the code it returned.
@@ -135,10 +137,15 @@ type commandResult struct {
 }
 
 type runnerOps struct {
-	lookPath  func(string) (string, error)
-	capture   func(context.Context, []string, string, []string) commandResult
-	stream    func(context.Context, []string, string, []string, io.Writer) (int, error)
-	inputHash func(string) (string, error)
+	lookPath func(string) (string, error)
+	capture  func(context.Context, []string, string, []string) commandResult
+	stream   func(context.Context, []string, string, []string, io.Writer) (int, error)
+
+	// inputSnapshot records the lint inputs before the first query, and
+	// inputChanges names the paths among those the population reaches that
+	// changed since (job.SnapshotInputs, job.ChangedInputs).
+	inputSnapshot func(string) (job.InputSnapshot, error)
+	inputChanges  func(string, job.InputSnapshot, func(string) bool) ([]job.InputChange, error)
 }
 
 // listedPackage is the public go-list metadata used to distinguish authored
@@ -156,6 +163,7 @@ type listedPackage struct {
 	XTestGoFiles   []string
 	InvalidGoFiles []string
 	EmbedFiles     []string
+	EmbedPatterns  []string
 }
 
 // Runner owns the checkout, current lint configuration, toolchain, and process
@@ -206,8 +214,11 @@ func newRunner(ctx context.Context, root string, chain gotoolchain.Toolchain, op
 	if ops.lookPath == nil || ops.capture == nil || ops.stream == nil {
 		return nil, errors.New("lint process operations are incomplete")
 	}
-	if ops.inputHash == nil {
-		return nil, errors.New("lint input fingerprint operation is missing")
+	if ops.inputSnapshot == nil {
+		return nil, errors.New("lint input snapshot operation is missing")
+	}
+	if ops.inputChanges == nil {
+		return nil, errors.New("lint input change operation is missing")
 	}
 	for _, program := range []string{lintProgram, listProgram, trackedProgram} {
 		if _, err := ops.lookPath(program); err != nil {
@@ -227,11 +238,17 @@ func newRunner(ctx context.Context, root string, chain gotoolchain.Toolchain, op
 
 func realRunnerOps() runnerOps {
 	return runnerOps{
-		lookPath:  exec.LookPath,
-		capture:   captureCommand,
-		stream:    streamCommand,
-		inputHash: func(root string) (string, error) { return job.InputHash(root, job.LintLabel) },
+		lookPath:      exec.LookPath,
+		capture:       captureCommand,
+		stream:        streamCommand,
+		inputSnapshot: snapshotLintInputs,
+		inputChanges:  job.ChangedInputs,
 	}
+}
+
+// snapshotLintInputs records what the lint label reads, before planning.
+func snapshotLintInputs(root string) (job.InputSnapshot, error) {
+	return job.SnapshotInputs(root, job.LintLabel)
 }
 
 func captureCommand(ctx context.Context, argv []string, dir string, environment []string) commandResult {
@@ -324,9 +341,13 @@ func (r *Runner) plan(patterns []string, reportCoverage bool) (LintPlan, error) 
 	}
 
 	// A flavor can claim a package only because an earlier flavor did not
-	// select its files. Check the shared lint input fingerprint at each
-	// observation boundary so live edits cannot silently change that premise.
-	inputs, err := r.ops.inputHash(r.root)
+	// select its files. Check the run's own inputs at each observation
+	// boundary so live edits cannot silently change that premise. The check
+	// judges the population the queries so far have read, never the whole
+	// checkout: another session's edit or commit outside it cannot change
+	// this verdict, and refusing for it made a scoped lint unfinishable on a
+	// shared checkout.
+	start, err := r.ops.inputSnapshot(r.root)
 	if err != nil {
 		return LintPlan{}, fmt.Errorf("measure lint inputs before planning: %w", err)
 	}
@@ -337,9 +358,11 @@ func (r *Runner) plan(patterns []string, reportCoverage bool) (LintPlan, error) 
 	if !bytes.Equal(config, r.config) {
 		return LintPlan{}, errors.New("lint inputs changed before planning: configuration differs from the loaded tags; rerun with a new runner")
 	}
+	inputs := &planInputs{start: start, population: newLintPopulation(patterns)}
 	seen := make(map[string]bool)
 	for _, flavor := range basePasses() {
-		packages, files, err := r.goList(flavor, patterns)
+		packages, files, read, err := r.goList(flavor, patterns)
+		inputs.population.add(read)
 		if inputErr := r.checkPlanningInputs(inputs, flavor.Name); inputErr != nil {
 			return LintPlan{}, errors.Join(err, inputErr)
 		}
@@ -356,7 +379,8 @@ func (r *Runner) plan(patterns []string, reportCoverage bool) (LintPlan, error) 
 	}
 
 	for _, flavor := range flavors {
-		packages, files, err := r.goList(flavor, patterns)
+		packages, files, read, err := r.goList(flavor, patterns)
+		inputs.population.add(read)
 		if inputErr := r.checkPlanningInputs(inputs, flavor.Name); inputErr != nil {
 			return LintPlan{}, errors.Join(err, inputErr)
 		}
@@ -403,7 +427,7 @@ func (r *Runner) plan(patterns []string, reportCoverage bool) (LintPlan, error) 
 		TaglessConfig:  filepath.Join(r.root, filepath.FromSlash(taglessDir), taglessName+strconv.Itoa(os.Getpid())+".yml"),
 		reportCoverage: reportCoverage,
 		configContents: slices.Clone(r.config),
-		inputHash:      inputs,
+		inputs:         inputs,
 	}
 	for index := range plan.Passes {
 		if len(plan.Passes[index].TagsDropped) == 0 || plan.Passes[index].Skipped {
@@ -415,18 +439,32 @@ func (r *Runner) plan(patterns []string, reportCoverage bool) (LintPlan, error) 
 	return plan, nil
 }
 
-func (r *Runner) checkPlanningInputs(want, after string) error {
-	current, err := r.ops.inputHash(r.root)
+// checkPlanningInputs refuses when a path the plan's population reaches has
+// changed since the snapshot taken before its first query, naming the path so
+// the operator can see whose edit it was.
+func (r *Runner) checkPlanningInputs(inputs *planInputs, after string) error {
+	changed, err := r.ops.inputChanges(r.root, inputs.start, inputs.population.reaches)
 	if err != nil {
 		return fmt.Errorf("measure lint inputs after %s during planning: %w", after, err)
 	}
-	if current != want {
-		return fmt.Errorf("lint inputs changed during planning after %s; no plan was produced; rerun when source edits have stopped", after)
+	if len(changed) == 0 {
+		return nil
 	}
-	return nil
+	var text textbuf.Buffer
+	text.Reset().Str("lint inputs changed during planning after ").Str(after).Str(": ").Str(changed[0].Path)
+	if len(changed) > 1 {
+		text.Str(" and ").Int(int64(len(changed) - 1)).Str(" more")
+	}
+	text.Str(" changed, and this run lints or depends on it; no plan was produced;" +
+		" rerun when edits to the linted packages and their dependencies have stopped")
+	return errors.New(text.String())
 }
 
-func (r *Runner) goList(flavor Flavor, patterns []string) (map[string]map[string]bool, map[string]bool, error) {
+// goList answers one flavor's population: the authored files of each listed
+// package by directory, the same files as one set, and what the query read
+// inside the checkout (queryInputs: every compiler input, the dependency
+// closure included, the linted and dependency directories, the embed trees).
+func (r *Runner) goList(flavor Flavor, patterns []string) (map[string]map[string]bool, map[string]bool, queryInputs, error) {
 	tags := r.effectiveTags(flavor)
 	argv := make([]string, 0, 8+len(patterns))
 	argv = append(argv, "go", "list", "-e", "-deps", "-test", "-tags", strings.Join(tags, " "), listFormat)
@@ -438,14 +476,14 @@ func (r *Runner) goList(flavor Flavor, patterns []string) (map[string]map[string
 	})
 	result := r.ops.capture(r.ctx, argv, r.root, environment)
 	if result.err != nil {
-		return nil, nil, fmt.Errorf("run go list for lint flavor %s: %w", flavor.Name, result.err)
+		return nil, nil, queryInputs{}, fmt.Errorf("run go list for lint flavor %s: %w", flavor.Name, result.err)
 	}
 	if len(bytes.TrimSpace(result.stdout)) == 0 {
 		detail := strings.TrimSpace(string(result.stderr))
 		if detail == "" {
 			detail = "no output"
 		}
-		return nil, nil, fmt.Errorf("go list for lint flavor %s returned code %d with %s", flavor.Name, result.code, detail)
+		return nil, nil, queryInputs{}, fmt.Errorf("go list for lint flavor %s returned code %d with %s", flavor.Name, result.code, detail)
 	}
 
 	var listed []listedPackage
@@ -456,7 +494,7 @@ func (r *Runner) goList(flavor Flavor, patterns []string) (map[string]map[string
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			return nil, nil, fmt.Errorf("decode go list for lint flavor %s: %w", flavor.Name, err)
+			return nil, nil, queryInputs{}, fmt.Errorf("decode go list for lint flavor %s: %w", flavor.Name, err)
 		}
 		listed = append(listed, pkg)
 	}
@@ -473,14 +511,14 @@ func (r *Runner) goList(flavor Flavor, patterns []string) (map[string]map[string
 
 	root, err := filepath.Abs(r.root)
 	if err != nil {
-		return nil, nil, fmt.Errorf("resolve lint root: %w", err)
+		return nil, nil, queryInputs{}, fmt.Errorf("resolve lint root: %w", err)
 	}
 	var pathText textbuf.Buffer
 	prefix := pathText.Str(filepath.Clean(root)).Byte(byte(filepath.Separator)).String()
 	parentPrefix := pathText.Reset().Str("..").Byte(byte(filepath.Separator)).String()
 	packages := make(map[string]map[string]bool)
 	files := make(map[string]bool)
-	compilerInputs := make(map[string]bool)
+	read := newQueryInputs()
 	for index := range listed {
 		pkg := &listed[index]
 		if directory, ok := testMainDirs[pkg.ImportPath]; ok && pkg.Name == "main" && pkg.ForTest == "" && !pkg.DepOnly && pkg.Dir == directory {
@@ -489,6 +527,9 @@ func (r *Runner) goList(flavor Flavor, patterns []string) (map[string]map[string
 			continue
 		}
 		direct := !pkg.DepOnly && pkg.ForTest == ""
+		if dir, inside := checkoutDir(root, pkg.Dir); inside {
+			read.addPackage(dir, direct, pkg.EmbedPatterns)
+		}
 		addSources := func(names []string, authored bool) {
 			for _, name := range names {
 				path := name
@@ -504,7 +545,7 @@ func (r *Runner) goList(flavor Flavor, patterns []string) (map[string]map[string
 					continue
 				}
 				relative = filepath.ToSlash(relative)
-				compilerInputs[relative] = true
+				read.files[relative] = true
 				if !authored {
 					continue
 				}
@@ -528,13 +569,13 @@ func (r *Runner) goList(flavor Flavor, patterns []string) (map[string]map[string
 			addSources(pkg.XTestGoFiles, true)
 		}
 	}
-	if err := job.CheckLintInputs(root, compilerInputs); err != nil {
-		return nil, nil, fmt.Errorf("lint flavor %s: %w", flavor.Name, err)
+	if err := job.CheckLintInputs(root, read.files); err != nil {
+		return nil, nil, read, fmt.Errorf("lint flavor %s: %w", flavor.Name, err)
 	}
 	if len(packages) == 0 {
-		return nil, nil, fmt.Errorf("go list for lint flavor %s returned no files inside the checkout", flavor.Name)
+		return nil, nil, read, fmt.Errorf("go list for lint flavor %s returned no files inside the checkout", flavor.Name)
 	}
-	return packages, files, nil
+	return packages, files, read, nil
 }
 
 func (r *Runner) effectiveTags(flavor Flavor) []string {

@@ -222,23 +222,11 @@ func InputHash(root, label string) (string, error) {
 // diff is one blob and this fingerprint has to drop the paths inside it that
 // the label does not read.
 func writeReadPaths(sum hash.Hash, root string, ignored []string) error {
-	tracked, err := git(root, "diff", "HEAD", "--name-only", "-z")
+	paths, err := changedPaths(root, "HEAD")
 	if err != nil {
-		return fmt.Errorf("list tracked changes: %w", err)
+		return err
 	}
-	untracked, err := git(root, "ls-files", "-o", "--exclude-standard", "-z")
-	if err != nil {
-		return fmt.Errorf("list untracked files: %w", err)
-	}
-	paths := strings.Split(string(tracked), "\x00")
-	paths = append(paths, strings.Split(string(untracked), "\x00")...)
-	slices.Sort(paths)
-	paths = slices.Compact(paths)
-
 	for _, rel := range paths {
-		if rel == "" {
-			continue
-		}
 		if ignoredTree(rel, ignored) {
 			continue
 		}
@@ -254,25 +242,37 @@ func writeReadPaths(sum hash.Hash, root string, ignored []string) error {
 // writeInputFileHash keeps a proven deletion distinct from an input that
 // could not be read. Only the former can participate in a matching digest.
 func writeInputFileHash(sum hash.Hash, root, rel string) error {
+	fingerprint, err := inputFingerprint(root, rel)
+	if err != nil {
+		return err
+	}
+	addText(sum, fingerprint)
+	addText(sum, "\n")
+	return nil
+}
+
+// inputFingerprint answers the content fingerprint of one input, or the
+// MISSING sentinel for a path that does not exist, which is a measured
+// deletion. A path that exists and cannot be read, or is not a regular file,
+// is an error: unlike Fingerprint, an input measurement never turns a failed
+// read into a value a later measurement could match.
+func inputFingerprint(root, rel string) (string, error) {
 	path := filepath.Join(root, filepath.FromSlash(rel))
 	info, err := os.Stat(path)
 	if os.IsNotExist(err) {
-		addText(sum, missingFile)
-		return nil
+		return strings.TrimSpace(missingFile), nil
 	}
 	if err != nil {
-		return fmt.Errorf("stat input %s: %w", rel, err)
+		return "", fmt.Errorf("stat input %s: %w", rel, err)
 	}
 	if !info.Mode().IsRegular() {
-		return fmt.Errorf("fingerprint input %s: not a regular file", rel)
+		return "", fmt.Errorf("fingerprint input %s: not a regular file", rel)
 	}
 	content, err := fileHash(path)
 	if err != nil {
-		return fmt.Errorf("read input %s: %w", rel, err)
+		return "", fmt.Errorf("read input %s: %w", rel, err)
 	}
-	addText(sum, content)
-	addText(sum, "\n")
-	return nil
+	return content, nil
 }
 
 // ignoredTree reports whether one changed path lies under a tree this label
@@ -288,68 +288,58 @@ func ignoredTree(rel string, ignored []string) bool {
 	return false
 }
 
-// dirtyPaths lists every path that differs from HEAD: the tracked changes
-// first, then the untracked files. A path can appear twice, and each caller
-// says what it does with the repeat.
-func dirtyPaths(root string) []string {
-	tracked, _ := git(root, "diff", "HEAD", "--name-only")
-	untracked, _ := git(root, "ls-files", "-o", "--exclude-standard")
-	return append(nonEmptyLines(tracked), nonEmptyLines(untracked)...)
-}
-
 // TreeSnapshot records the whole-tree hash and each dirty path fingerprint at
 // one instant.
 type TreeSnapshot struct {
 	Hash     string
 	Manifest map[string]string
+	// ManifestErr says Git could not list the dirty paths, so Manifest holds
+	// nothing that can be compared. A reader MUST treat such a snapshot as
+	// unmeasured: an empty manifest reads as "every path matched its commit",
+	// which would certify content no stage read.
+	ManifestErr error
 }
 
 // SnapshotTree records both fingerprints used by a verification certificate.
 // The two views are intentionally produced by this package. Admission and
 // verification MUST use one definition of the checkout state.
 func SnapshotTree(root string) TreeSnapshot {
+	manifest, err := DirtyManifest(root)
 	return TreeSnapshot{
-		Hash:     TreeHash(root),
-		Manifest: DirtyManifest(root),
+		Hash:        TreeHash(root),
+		Manifest:    manifest,
+		ManifestErr: err,
 	}
 }
 
 // DirtyManifest fingerprints each path that differs from HEAD.
 //
-// A deleted path and a non-regular path both carry MISSING. Paths use the
-// spelling that Git prints because the status file format predates this port
-// and both its readers use that spelling.
-func DirtyManifest(root string) map[string]string {
-	paths := dirtyPaths(root)
-
+// A deleted path and a non-regular path both carry MISSING. Paths use Git's -z
+// spelling, which never quotes a path, so a manifest compares directly with
+// what ChangedInputs lists. A tree Git cannot list is an error, never an
+// empty manifest: ChangedInputs reads a path absent from a manifest as one that
+// matched its commit, so an empty manifest would certify content no stage read.
+func DirtyManifest(root string) (map[string]string, error) {
+	paths, err := changedPaths(root, "HEAD")
+	if err != nil {
+		return nil, fmt.Errorf("list the dirty paths for the manifest: %w", err)
+	}
 	manifest := make(map[string]string, len(paths))
 	for _, rel := range paths {
-		if _, exists := manifest[rel]; exists {
-			continue
-		}
 		manifest[rel] = Fingerprint(root, rel)
 	}
-	return manifest
+	return manifest, nil
 }
 
 // Fingerprint answers the content fingerprint a manifest row carries for one
 // path, whether or not that path differs from HEAD.
 //
-// A dirty manifest can only speak about the paths that were dirty when it was
-// taken, and a reader comparing an old manifest against today's checkout needs
-// the same measurement for a path that has since gone clean. It is the same
-// answer either way: the content decides it, and where the content is stored
-// does not.
-//
-// A path that is absent, or that is not a regular file, carries the MISSING
-// sentinel a manifest row uses, so the two views compare directly.
+// It is inputFingerprint with one difference: a path that exists and cannot be
+// measured carries the MISSING sentinel too, because a manifest row has no
+// place for an error. A reader that must refuse an unreadable input asks
+// ChangedInputs, which keeps the error.
 func Fingerprint(root, rel string) string {
-	path := filepath.Join(root, filepath.FromSlash(rel))
-	info, err := os.Stat(path)
-	if err != nil || !info.Mode().IsRegular() {
-		return strings.TrimSpace(missingFile)
-	}
-	fingerprint, err := fileHash(path)
+	fingerprint, err := inputFingerprint(root, rel)
 	if err != nil {
 		return strings.TrimSpace(missingFile)
 	}
@@ -357,18 +347,18 @@ func Fingerprint(root, rel string) string {
 }
 
 // PathsChangedBetween names every path whose content differs between two
-// commits, in git's own spelling.
+// commits, in Git's -z spelling, which never quotes a path.
 //
 // The error says the two commits cannot be compared, which is what a commit
 // that has left the checkout looks like after a rebase. A caller that cannot
 // compare has learned nothing about the paths, so it must not read the empty
 // result as "nothing changed".
 func PathsChangedBetween(root, from, to string) ([]string, error) {
-	out, err := git(root, "diff", "--name-only", from, to)
+	out, err := git(root, "diff", "--name-only", "-z", from, to)
 	if err != nil {
 		return nil, fmt.Errorf("git diff %s %s: %w", from, to, err)
 	}
-	return nonEmptyLines(out), nil
+	return nulPaths(out), nil
 }
 
 // Head returns the current commit, or Unknown when Git cannot name one.
@@ -382,17 +372,6 @@ func Head(root string) string {
 		return Unknown
 	}
 	return head
-}
-
-func nonEmptyLines(out []byte) []string {
-	lines := strings.Split(string(trimNewline(out)), "\n")
-	kept := lines[:0]
-	for _, line := range lines {
-		if line != "" {
-			kept = append(kept, line)
-		}
-	}
-	return kept
 }
 
 // add puts bytes into the stream being hashed.

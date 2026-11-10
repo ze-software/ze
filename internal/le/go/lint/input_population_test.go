@@ -39,7 +39,7 @@ func TestLintInputPopulation(t *testing.T) {
 				ctx: t.Context(), root: root, toolchain: fixtureChain(root),
 				ops: runnerOps{capture: captureCommand},
 			}
-			_, files, err := runner.goList(Flavor{Name: "host", GOOS: runtime.GOOS, GOARCH: runtime.GOARCH}, []string{"./..."})
+			_, files, _, err := runner.goList(Flavor{Name: "host", GOOS: runtime.GOOS, GOARCH: runtime.GOARCH}, []string{"./..."})
 			if !nested {
 				if err == nil {
 					t.Fatalf("lint admitted excluded real input %s (selected=%v)", relative, files)

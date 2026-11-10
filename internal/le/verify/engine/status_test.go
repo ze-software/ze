@@ -6,6 +6,7 @@ package verifyengine
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -246,6 +247,25 @@ func TestScopedFreshnessFollowsContentRatherThanHEAD(t *testing.T) {
 	got := CheckCertificate(root, []string{"other.txt"})
 	if got.Fresh || !strings.Contains(got.Reason, "changed a scoped path") {
 		t.Fatalf("scoped check after a commit reaching the scope = %#v", got)
+	}
+}
+
+// TestScopedFreshnessRefusesAnUnmeasuredManifest records a PASS whose start
+// listing failed. A scoped path dirty then and reverted later would be clean at
+// both instants and outside every commit, so an empty manifest would answer
+// FRESH for content no stage read; the unmeasured manifest answers STALE.
+func TestScopedFreshnessRefusesAnUnmeasuredManifest(t *testing.T) {
+	root := statusFixture(t)
+	start := job.SnapshotTree(root)
+	start.ManifestErr = errors.New("fixture: git could not list the dirty paths")
+	if _, err := WriteCertificate(root, WriteRequest{
+		Exit: 0, Mode: Mode, GitSHA: job.Head(root), Start: start,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got := CheckCertificate(root, []string{"changed.txt"})
+	if got.Fresh || !strings.Contains(got.Reason, "manifest was not measured") {
+		t.Fatalf("scoped check over an unmeasured manifest = %#v", got)
 	}
 }
 

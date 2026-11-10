@@ -578,15 +578,35 @@ is `testing.md`, "The builds the linter reads"; its rows are `flavorMatrix` in
 <!-- source: internal/le/go/lint/verifylint.go -- Plan, planScope, plan -->
 <!-- source: internal/le/go/lint/actions.go -- runRunner -->
 
-Before querying the matrix, after each flavor query, and after full-tree
-coverage enumeration, the planner compares the shared lint input fingerprint.
-Source content and build tags, nonignored file additions and deletions, lint
-configuration, and module and feature manifests participate. A changed
-fingerprint or a failed measurement refuses the plan before any lint child
-starts; rerun after source edits stop. It does not retry or remove packages to
-obtain a plan. These are observation checks, not an atomic filesystem snapshot.
+Before querying the matrix the planner snapshots the paths the lint label
+reads: the commit, and the content of every path that differs from it outside
+the excluded trees. After each flavor query, after full-tree coverage
+enumeration, and after job admission it asks which of those paths changed
+since, and judges only the ones its own run reads. That population is every
+compiler input inside the checkout a flavor query listed so far (the linted
+packages and their whole dependency closure, embedded files included), every
+file under a tree an embed pattern can select, every Go build source file
+(`.go`, `.s`, `.c`, `.h`, `.syso` and the other extensions go/build reads) or
+`go.mod` in a listed package's directory or under the tree of a
+`./<dir>/...` pattern (a dependency's `_test.go` excepted, because only the
+linted packages' tests compile), and the module, lint and toolchain inputs no query names
+(`go.mod`, `go.sum`, `go.work`, `vendor/modules.txt`, `.golangci.yml`,
+`.golangci/`, `feature-gates.txt`, the standard-library patches). A `./...`
+pattern, or a wildcard this planner cannot bound to one tree, reaches every
+path the label reads, so a full run still refuses for any non-excluded edit.
+The question is about content, not the commit: another session's commit moves
+HEAD, and a path it absorbed unchanged has not changed. A page, an editor's
+temporary copy or an unreadable file beside a package source is outside the
+population. A changed path in the population, a failed Git query, or an
+unreadable path the population reaches refuses the plan before any lint child
+starts, and the refusal names the path; rerun once edits to the linted packages
+and their dependencies stop. An edit or a commit outside the population never
+refuses a scoped run. The planner does not retry or remove packages to obtain a
+plan. These are observation checks, not an atomic filesystem snapshot.
 <!-- source: internal/le/go/lint/verifylint.go -- plan, checkPlanningInputs -->
-<!-- source: internal/le/job/treehash.go -- InputHash, writeReadPaths, lintIgnores -->
+<!-- source: internal/le/go/lint/planinputs.go -- toolInputs, sourceExtensions, newLintPopulation, addPackage, reaches -->
+<!-- source: internal/le/job/inputsnapshot.go -- SnapshotInputs, ChangedInputs -->
+<!-- source: internal/le/job/treehash.go -- lintIgnores -->
 
 The native action prepares that same selected plan **before** job admission
 can attach to another lint's verdict. Its single Go-list query per build uses
@@ -1314,6 +1334,12 @@ with its own cause.
 A registered verify worktree that carries uncommitted changes is preserved.
 An interrupted removal that already lost its Git registration is reclaimed from
 the tool's worktree directory, without reading the enclosing checkout's status.
+One that is still registered is finished too, when its `.owner` marker names a
+process that is gone, every status line is a plain deletion (` D` or `D `, never
+`MD` or `AD`, whose index holds content), nothing is untracked and HEAD resolves
+to a commit: `git worktree remove` deletes the files before it drops the
+registration, so a kill in between leaves exactly that tree, and git holds every
+deleted path. The run says `finished interrupted removal of <name>`.
 A dead owner's `.owner` marker is reclaimed even when its directory is already
 gone, but only after its Git registration is explicitly removed, including a
 locked entry from an interrupted add. Cleanup lists raw NUL-delimited
@@ -1329,7 +1355,7 @@ The run names each preserved worktree with its path, age, disk use and dirt:
 ```
 verify-worktree: 20260903T091500-p123-r1-abcdef012345 was abandoned but holds
 uncommitted changes, so it is left alone: /path/to/it, 8h12m0s old, 8.3G,
-0 modified, 0 untracked, 264 deleted
+0 modified, 2 untracked, 264 deleted
 ```
 
 `./le reclaim worktrees` runs this cleanup alone: it creates no worktree, builds
@@ -1342,8 +1368,11 @@ and remain visible in the structured report.
 The shape decides what to do. Modified or untracked content exists only there,
 so removing the worktree destroys it. Deletions alone are a tree somebody
 emptied, and git restores every one of them from the commit the worktree is
-detached at. Remove one by hand with `git worktree remove --force <path>` after
+detached at; the sweep finishes such a tree itself when its owner is gone, so a
+preserved one of deletions alone has no owner marker or a HEAD that does not
+resolve. Remove one by hand with `git worktree remove --force <path>` after
 reading that line, never on a schedule.
+<!-- source: internal/le/verify/cleanup.go -- onlyDeletions, headResolves -->
 
 ### A run that judged nothing
 

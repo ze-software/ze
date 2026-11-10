@@ -52,7 +52,7 @@ func TestLintDependencyInputPopulation(t *testing.T) {
 			if output, err := cmd.CombinedOutput(); err != nil {
 				t.Fatalf("real compiler did not resolve owned consumer dependency: %v\n%s", err, output)
 			}
-			packages, files, err := runner.goList(Flavor{Name: "host", GOOS: runtime.GOOS, GOARCH: runtime.GOARCH}, []string{"./live"})
+			packages, files, _, err := runner.goList(Flavor{Name: "host", GOOS: runtime.GOOS, GOARCH: runtime.GOARCH}, []string{"./live"})
 			if !testCase.allowed {
 				if err == nil {
 					t.Fatalf("scoped lint admitted excluded compiler dependency %s/probe.go (direct files=%v)", dependency, files)

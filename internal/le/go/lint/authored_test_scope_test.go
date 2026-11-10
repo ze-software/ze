@@ -40,7 +40,7 @@ func TestLintAllowedAuthoredTestScope(t *testing.T) {
 			if output, err := cmd.CombinedOutput(); err != nil {
 				t.Fatalf("real compiler did not execute allowed authored tests: %v\n%s", err, output)
 			}
-			packages, files, err := runner.goList(Flavor{Name: "host", GOOS: runtime.GOOS, GOARCH: runtime.GOARCH}, []string{"./live"})
+			packages, files, _, err := runner.goList(Flavor{Name: "host", GOOS: runtime.GOOS, GOARCH: runtime.GOARCH}, []string{"./live"})
 			if err != nil {
 				t.Fatalf("allowed authored test scope refused: %v", err)
 			}

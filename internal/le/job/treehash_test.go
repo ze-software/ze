@@ -165,7 +165,10 @@ func TestTreeHashOutsideARepositoryIsStillAnAnswer(t *testing.T) {
 // paths.
 func TestDirtyManifestMatchesTheStateFileFixture(t *testing.T) {
 	repo := fixtureRepo(t)
-	manifest := DirtyManifest(repo)
+	manifest, err := DirtyManifest(repo)
+	if err != nil {
+		t.Fatalf("DirtyManifest: %v", err)
+	}
 
 	for _, rel := range []string{"changed.txt", "untracked.txt"} {
 		want, err := fileHash(filepath.Join(repo, rel))
@@ -183,8 +186,25 @@ func TestDirtyManifestMatchesTheStateFileFixture(t *testing.T) {
 	if err := os.Remove(filepath.Join(repo, "changed.txt")); err != nil {
 		t.Fatal(err)
 	}
-	if got := DirtyManifest(repo)["changed.txt"]; got != "MISSING" {
+	after, err := DirtyManifest(repo)
+	if err != nil {
+		t.Fatalf("DirtyManifest after the deletion: %v", err)
+	}
+	if got := after["changed.txt"]; got != "MISSING" {
 		t.Errorf("deleted path fingerprint = %q, want MISSING", got)
+	}
+}
+
+// TestDirtyManifestRefusesAnUnlistedTree proves a failed listing is reported,
+// never answered as an empty manifest that every path would match.
+func TestDirtyManifestRefusesAnUnlistedTree(t *testing.T) {
+	repo := fixtureRepo(t)
+	write(t, repo, ".git/index", "not a Git index")
+	if manifest, err := DirtyManifest(repo); err == nil {
+		t.Fatalf("an unlisted tree answered the manifest %v", manifest)
+	}
+	if snapshot := SnapshotTree(repo); snapshot.ManifestErr == nil {
+		t.Fatalf("SnapshotTree hid the failed listing: %#v", snapshot)
 	}
 }
 

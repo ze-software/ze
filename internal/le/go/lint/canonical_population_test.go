@@ -51,7 +51,7 @@ func TestLintCanonicalInputPopulation(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			_, files, err := runner.goList(Flavor{Name: "host", GOOS: runtime.GOOS, GOARCH: runtime.GOARCH}, []string{"./live"})
+			_, files, _, err := runner.goList(Flavor{Name: "host", GOOS: runtime.GOOS, GOARCH: runtime.GOARCH}, []string{"./live"})
 			if err == nil {
 				t.Fatalf("lint admitted unresolved or excluded canonical compiler input %s (lexical files=%v)", target, files)
 			}

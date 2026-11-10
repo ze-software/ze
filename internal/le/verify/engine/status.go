@@ -53,7 +53,15 @@ const (
 
 	movedDuringRun = "MOVED-DURING-RUN"
 	treeMoved      = "tree-moved-during-run"
+	// manifestUnmeasured is the whole manifest a PASS records when Git could
+	// not list the dirty paths at either end of the run. Without it the
+	// manifest would be empty, and an empty manifest reads as "every path
+	// matched the commit", which certifies content no stage read.
+	manifestUnmeasured = "MANIFEST-UNMEASURED\n"
 )
+
+// errManifestUnmeasured is readManifest's answer for that marker.
+var errManifestUnmeasured = errors.New("the per-path manifest was not measured")
 
 // Certificate is the last verification verdict recorded for a checkout.
 type Certificate struct {
@@ -114,7 +122,10 @@ func WriteCertificate(root string, request WriteRequest) (Certificate, error) {
 	if end.Hash != request.Start.Hash {
 		treeHash = treeMoved
 	}
-	manifest := manifestText(request.Start.Manifest, end.Manifest)
+	manifest := manifestUnmeasured
+	if request.Start.ManifestErr == nil && end.ManifestErr == nil {
+		manifest = manifestText(request.Start.Manifest, end.Manifest)
+	}
 	if err := atomicWrite(root, ManifestPath, []byte(manifest)); err != nil {
 		return Certificate{}, fmt.Errorf("write verify manifest: %w", err)
 	}
@@ -282,6 +293,9 @@ func checkScoped(root string, certificate Certificate, paths []string) Freshness
 	if errors.Is(err, os.ErrNotExist) {
 		return stale("STALE: no per-path manifest (PASS predates scoped checking)")
 	}
+	if errors.Is(err, errManifestUnmeasured) {
+		return stale("STALE: the per-path manifest was not measured when the PASS was recorded (Git could not list the dirty paths), so no scoped path can be judged (" + agentRerun + ")")
+	}
 	if err != nil {
 		return stale("STALE: per-path manifest is unreadable, and the next verify run replaces it (" + agentRerun + ")")
 	}
@@ -309,53 +323,48 @@ func checkScoped(root string, certificate Certificate, paths []string) Freshness
 // scopedChange answers why the scoped paths no longer hold what the stages
 // read, or the empty string when they still hold it.
 //
-// The question is asked about CONTENT, and asking it any other way is what made
-// a scoped PASS worthless in a checkout that many sessions commit to. The
-// manifest is HEAD-relative, so a path the run read as dirty stops being dirty
-// the moment a commit absorbs it unchanged. Comparing dirty SETS therefore
-// calls a path stale for moving out of the worktree into a commit, and
-// comparing the certificate's commit against HEAD calls EVERY scoped path stale
-// as soon as any other session commits anything at all. Neither answer is about
-// the files the caller asked about.
+// The question is asked about CONTENT, through job.ChangedInputs, the one
+// answer the lint planner asks too. Comparing dirty SETS calls a path stale
+// for moving out of the worktree into a commit unchanged, and comparing the
+// certificate's commit against HEAD calls EVERY scoped path stale as soon as
+// any other session commits anything at all. Neither answer is about the files
+// the caller asked about.
 //
-// So a recorded row is compared against the file on disk, and the commits made
-// since the PASS are asked only about the scoped paths that carry no row. Those
-// paths were identical to the certificate's commit when the run read them, and
-// that commit is the only record of what they held.
+// A recorded row marked as moved during the run is stale before any
+// measurement: no stage judged the content it held. Otherwise the first change
+// in the order a reader acts on (a judged path rewritten, an unjudged path
+// made dirty, a commit that changed a scoped path) names the reason.
 func scopedChange(root string, certificate Certificate, recorded map[string]string, paths []string) string {
+	inScope := func(rel string) bool { return underScope(rel, paths) }
 	for rel, fingerprint := range recorded {
-		if !underScope(rel, paths) {
-			continue
-		}
-		if fingerprint == movedDuringRun {
+		if fingerprint == movedDuringRun && inScope(rel) {
 			return scopedReason("a scoped path moved while the run was in flight, so no stage judged the content it now holds", certificate)
 		}
-		if job.Fingerprint(root, rel) != fingerprint {
-			return scopedReason("a scoped path no longer holds the content the stages read", certificate)
-		}
 	}
-	for rel := range job.DirtyManifest(root) {
-		if _, judged := recorded[rel]; judged || !underScope(rel, paths) {
-			continue
-		}
-		return scopedReason("a scoped path is dirty and no stage judged it", certificate)
-	}
-
-	head := job.Head(root)
-	if head == certificate.GitSHA {
-		return ""
-	}
-	moved, err := job.PathsChangedBetween(root, certificate.GitSHA, head)
-	if err != nil {
+	changes, err := job.ChangedInputs(root, job.RecordedSnapshot(certificate.GitSHA, recorded), inScope)
+	if errors.Is(err, job.ErrCommitsIncomparable) {
 		return scopedReason("the commit this PASS read can no longer be compared with HEAD", certificate)
 	}
-	for _, rel := range moved {
-		if _, judged := recorded[rel]; judged || !underScope(rel, paths) {
-			continue
+	if err != nil {
+		return scopedReason("a scoped path could not be measured ("+err.Error()+")", certificate)
+	}
+	first := job.ChangeUnspecified
+	for _, change := range changes {
+		if first == job.ChangeUnspecified || change.Kind < first {
+			first = change.Kind
 		}
+	}
+	switch first {
+	case job.ChangeUnspecified:
+		return ""
+	case job.ChangedContent:
+		return scopedReason("a scoped path no longer holds the content the stages read", certificate)
+	case job.ChangedDirty:
+		return scopedReason("a scoped path is dirty and no stage judged it", certificate)
+	case job.ChangedCommitted:
 		return scopedReason("a commit made since the PASS changed a scoped path", certificate)
 	}
-	return ""
+	panic("BUG: job.ChangedInputs answered a change kind scopedChange does not know")
 }
 
 // scopedReason renders one stale answer. Every one of them names the PASS it
@@ -386,6 +395,9 @@ func readManifest(path string) (map[string]string, error) {
 	content, err := os.ReadFile(path) //nolint:gosec // the path is a verification artifact under the checkout root
 	if err != nil {
 		return nil, err
+	}
+	if string(content) == manifestUnmeasured {
+		return nil, errManifestUnmeasured
 	}
 	manifest := make(map[string]string)
 	for row := range strings.SplitSeq(strings.TrimSuffix(string(content), "\n"), "\n") {

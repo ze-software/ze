@@ -23,6 +23,7 @@ import (
 
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	"github.com/ze-software/ze/internal/le/go/toolchain/toolchaintest"
+	"github.com/ze-software/ze/internal/le/job"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/population"
@@ -120,11 +121,39 @@ func fixtureOps(root string, tracked []string) (runnerOps, *[]captureCall) {
 		}
 	}
 	return runnerOps{
-		lookPath:  func(name string) (string, error) { return "/bin/" + name, nil },
-		capture:   capture,
-		stream:    func(context.Context, []string, string, []string, io.Writer) (int, error) { return 0, nil },
-		inputHash: func(string) (string, error) { return "fixture-inputs", nil },
+		lookPath:      func(name string) (string, error) { return "/bin/" + name, nil },
+		capture:       capture,
+		stream:        func(context.Context, []string, string, []string, io.Writer) (int, error) { return 0, nil },
+		inputSnapshot: unchangedSnapshot,
+		inputChanges:  unchangedInputs,
 	}, &calls
+}
+
+// unchangedSnapshot and unchangedInputs are the input seam of a fixture in
+// which no input moves.
+func unchangedSnapshot(string) (job.InputSnapshot, error) { return job.InputSnapshot{}, nil }
+
+func unchangedInputs(string, job.InputSnapshot, func(string) bool) ([]job.InputChange, error) {
+	return nil, nil
+}
+
+// generationChanges is the input seam of a fixture that moves one input: once
+// generation reads "after", edited has changed. It is reported only when the
+// plan's population reaches it, exactly as job.ChangedInputs asks reaches.
+func generationChanges(generation *string, edited string) func(string, job.InputSnapshot, func(string) bool) ([]job.InputChange, error) {
+	return func(_ string, _ job.InputSnapshot, reaches func(string) bool) ([]job.InputChange, error) {
+		if *generation == "after" && reaches(edited) {
+			return []job.InputChange{{Path: edited, Kind: job.ChangedContent}}, nil
+		}
+		return nil, nil
+	}
+}
+
+// realInputs installs the real snapshot and change seam on ops.
+func realInputs(ops *runnerOps) {
+	measured := realRunnerOps()
+	ops.inputSnapshot = measured.inputSnapshot
+	ops.inputChanges = measured.inputChanges
 }
 
 func TestVerifyLintRunActionIsNativeAndGateless(t *testing.T) {
@@ -333,7 +362,7 @@ func TestPlanRefusesInputChangesBetweenFlavors(t *testing.T) {
 				root, tracked := lintFixture(t)
 				ops, calls := fixtureOps(root, tracked)
 				generation := "before"
-				ops.inputHash = func(string) (string, error) { return generation, nil }
+				ops.inputChanges = generationChanges(&generation, "pkg/p00/file.go")
 				capture := ops.capture
 				queries := 0
 				ops.capture = func(ctx context.Context, argv []string, dir string, environment []string) commandResult {
@@ -388,12 +417,19 @@ func TestPlanRefusesUnmeasuredInputs(t *testing.T) {
 			ops, _ := fixtureOps(root, tracked)
 			measured := 0
 			want := errors.New("fixture input read failed")
-			ops.inputHash = func(string) (string, error) {
+			ops.inputSnapshot = func(string) (job.InputSnapshot, error) {
 				measured++
 				if measured == failAt {
-					return "", want
+					return job.InputSnapshot{}, want
 				}
-				return "unchanged", nil
+				return job.InputSnapshot{}, nil
+			}
+			ops.inputChanges = func(string, job.InputSnapshot, func(string) bool) ([]job.InputChange, error) {
+				measured++
+				if measured == failAt {
+					return nil, want
+				}
+				return nil, nil
 			}
 			runner, err := newRunner(t.Context(), root, fixtureChain(root), ops)
 			if err != nil {
@@ -412,7 +448,7 @@ func TestPlanInputDriftPreservesQueryErrors(t *testing.T) {
 	root, tracked := lintFixture(t)
 	ops, _ := fixtureOps(root, tracked)
 	generation := "before"
-	ops.inputHash = func(string) (string, error) { return generation, nil }
+	ops.inputChanges = generationChanges(&generation, "pkg/p00/file.go")
 	want := errors.New("fixture go-list failure")
 	ops.capture = func(context.Context, []string, string, []string) commandResult {
 		generation = "after"
@@ -437,7 +473,7 @@ func TestPlanRefusesCoverageInputDrift(t *testing.T) {
 	root, tracked := lintFixture(t)
 	ops, _ := fixtureOps(root, tracked)
 	generation := "before"
-	ops.inputHash = func(string) (string, error) { return generation, nil }
+	ops.inputChanges = generationChanges(&generation, "pkg/p00/file.go")
 	capture := ops.capture
 	ops.capture = func(ctx context.Context, argv []string, dir string, environment []string) commandResult {
 		result := capture(ctx, argv, dir, environment)
@@ -525,7 +561,7 @@ func TestPlanRefusesLiveInputChanges(t *testing.T) {
 		t.Run(change.name, func(t *testing.T) {
 			root, tracked := lintInputRepository(t)
 			ops, _ := fixtureOps(root, tracked)
-			ops.inputHash = realRunnerOps().inputHash
+			realInputs(&ops)
 			capture := ops.capture
 			queries := 0
 			ops.capture = func(ctx context.Context, argv []string, dir string, environment []string) commandResult {
@@ -559,17 +595,281 @@ func TestPlanRefusesLiveInputChanges(t *testing.T) {
 	}
 }
 
+// planAfterEdit plans patterns (the whole tree when patterns is nil) over the
+// real input seam and a Git fixture, running edit once the second flavor query
+// has read its population. prepare runs before planning starts, so it shapes
+// the starting snapshot. listing, when set, replaces every go list answer.
+func planAfterEdit(t *testing.T, patterns []string, listing func(root string) []byte, prepare, edit func(*testing.T, string)) (LintPlan, error) {
+	t.Helper()
+	root, tracked := lintInputRepository(t)
+	if prepare != nil {
+		prepare(t, root)
+	}
+	ops, _ := fixtureOps(root, tracked)
+	realInputs(&ops)
+	capture := ops.capture
+	queries := 0
+	ops.capture = func(ctx context.Context, argv []string, dir string, environment []string) commandResult {
+		result := capture(ctx, argv, dir, environment)
+		if argv[0] == listProgram {
+			queries++
+			if listing != nil {
+				result = commandResult{stdout: listing(root)}
+			}
+			if queries == 2 {
+				edit(t, root)
+			}
+		}
+		return result
+	}
+	runner, err := newRunner(t.Context(), root, fixtureChain(root), ops)
+	if err != nil {
+		t.Fatalf("newRunner: %v", err)
+	}
+	if patterns == nil {
+		return runner.Plan()
+	}
+	return runner.planScope(patterns)
+}
+
+// commitFixture commits the named paths in a lint Git fixture, the way another
+// session's commit lands in the shared checkout during a plan.
+func commitFixture(t *testing.T, root string, paths ...string) {
+	t.Helper()
+	for _, argv := range [][]string{
+		append([]string{"add", "--"}, paths...),
+		{"-c", "user.name=fixture", "-c", "user.email=fixture@example.com", "commit", "--quiet", "-m", "another session"},
+	} {
+		command := exec.CommandContext(t.Context(), "git", argv...)
+		command.Dir = root
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("git %q: %v: %s", argv, err, output)
+		}
+	}
+}
+
+// TestScopedPlanIgnoresEditsOutsideItsPopulation is AC-12 of
+// spec-test-verdicts-independent-of-load: other sessions edit and commit
+// files a scoped plan never reads while it plans, and the plan is produced.
+// The whole-tree fingerprint refused every one of these.
+func TestScopedPlanIgnoresEditsOutsideItsPopulation(t *testing.T) {
+	edits := []struct {
+		name    string
+		prepare func(*testing.T, string)
+		edit    func(*testing.T, string)
+	}{
+		{"unrelated-tracked-file", nil, func(t *testing.T, root string) {
+			writeLintFile(t, root, "examples/plugin/go/main.go", "package main\n\nfunc main() {}\n")
+		}},
+		{"unrelated-new-package", nil, func(t *testing.T, root string) {
+			writeLintFile(t, root, "internal/other/other.go", "package other\n")
+		}},
+		{"unrelated-commit", nil, func(t *testing.T, root string) {
+			writeLintFile(t, root, "internal/other/other.go", "package other\n")
+			commitFixture(t, root, "internal/other/other.go")
+		}},
+		{"commit-absorbing-a-linted-file-unchanged", func(t *testing.T, root string) {
+			writeLintFile(t, root, "pkg/p00/file.go", "package fixture\n\n// Dirty before planning.\n")
+		}, func(t *testing.T, root string) {
+			commitFixture(t, root, "pkg/p00/file.go")
+		}},
+	}
+	for _, edit := range edits {
+		t.Run(edit.name, func(t *testing.T) {
+			plan, err := planAfterEdit(t, []string{"./pkg/p00"}, nil, edit.prepare, edit.edit)
+			if err != nil {
+				t.Fatalf("an edit outside the scoped population refused the plan: %v", err)
+			}
+			if len(plan.Passes) == 0 || plan.Passes[0].Skipped {
+				t.Fatalf("scoped plan lost its first pass: %#v", plan.Passes)
+			}
+		})
+	}
+}
+
+// TestScopedPlanRefusesEditsToItsOwnInputs keeps the guard for the paths a
+// scoped run does read: a linted file, a file added to a linted package, a
+// file a flavor query listed, a file a later flavor lists, the module and lint
+// configuration, and a linted file changed and committed.
+func TestScopedPlanRefusesEditsToItsOwnInputs(t *testing.T) {
+	edits := []struct {
+		name  string
+		path  string
+		after string
+		edit  func(*testing.T, string)
+	}{
+		{"linted-file", "pkg/p00/file.go", "linux-integration", func(t *testing.T, root string) {
+			writeLintFile(t, root, "pkg/p00/file.go", "//go:build freebsd\n\npackage fixture\n")
+		}},
+		{"new-file-in-linted-package", "pkg/p00/new.go", "linux-integration", func(t *testing.T, root string) {
+			writeLintFile(t, root, "pkg/p00/new.go", "package fixture\n")
+		}},
+		{"file-a-flavor-listed", "pkg/p01/file.go", "linux-integration", func(t *testing.T, root string) {
+			writeLintFile(t, root, "pkg/p01/file.go", "package changed\n")
+		}},
+		{"file-a-later-flavor-lists", "pkg/p05/file.go", "", func(t *testing.T, root string) {
+			writeLintFile(t, root, "pkg/p05/file.go", "package changed\n")
+		}},
+		{"module", "go.mod", "linux-integration", func(t *testing.T, root string) {
+			writeLintFile(t, root, "go.mod", "module fixture\n\ngo 1.27.0\n")
+		}},
+		{"ruleguard", ".golangci/ruleguard/modern.go", "linux-integration", func(t *testing.T, root string) {
+			writeLintFile(t, root, ".golangci/ruleguard/modern.go", "//go:build ruleguard\n\npackage changed\n")
+		}},
+		{"linted-file-committed", "pkg/p00/file.go", "linux-integration", func(t *testing.T, root string) {
+			writeLintFile(t, root, "pkg/p00/file.go", "package fixture\n\n// Changed and committed.\n")
+			commitFixture(t, root, "pkg/p00/file.go")
+		}},
+	}
+	for _, edit := range edits {
+		t.Run(edit.name, func(t *testing.T) {
+			plan, err := planAfterEdit(t, []string{"./pkg/p00"}, nil, nil, edit.edit)
+			if err == nil {
+				t.Fatalf("an edit to %s produced a plan: %#v", edit.path, plan)
+			}
+			want := "inputs changed during planning after " + edit.after
+			if !strings.Contains(err.Error(), want) {
+				t.Fatalf("refusal %q does not say %q", err, want)
+			}
+			if !strings.Contains(err.Error(), edit.path) {
+				t.Fatalf("refusal %q does not name the changed input %s", err, edit.path)
+			}
+			if !reflect.DeepEqual(plan, LintPlan{}) {
+				t.Fatalf("input refusal exposed a partial plan: %#v", plan)
+			}
+		})
+	}
+}
+
+// TestFullPlanRefusesAnyNonExcludedEdit proves ./... still reaches every path
+// the lint label reads: a new file no query listed refuses the plan.
+func TestFullPlanRefusesAnyNonExcludedEdit(t *testing.T) {
+	plan, err := planAfterEdit(t, nil, nil, nil, func(t *testing.T, root string) {
+		writeLintFile(t, root, "internal/other/other.go", "package other\n")
+	})
+	if err == nil {
+		t.Fatalf("a full plan accepted an edit outside every query: %#v", plan)
+	}
+	if !strings.Contains(err.Error(), "internal/other/other.go") {
+		t.Fatalf("refusal %q does not name the new file", err)
+	}
+}
+
+// TestTreePlanJudgesSourcesUnderItsTree plans ./pkg/...: a package created under
+// the tree refuses, because go list would now select it, while a page created
+// there does not.
+func TestTreePlanJudgesSourcesUnderItsTree(t *testing.T) {
+	plan, err := planAfterEdit(t, []string{"./pkg/..."}, nil, nil, func(t *testing.T, root string) {
+		writeLintFile(t, root, "pkg/zz/new.go", "package zz\n")
+	})
+	if err == nil || !strings.Contains(err.Error(), "pkg/zz/new.go") {
+		t.Fatalf("a new package under the tree = plan %#v, error %v; want a refusal naming it", plan, err)
+	}
+	if _, err := planAfterEdit(t, []string{"./pkg/..."}, nil, nil, func(t *testing.T, root string) {
+		writeLintFile(t, root, "pkg/zz/README.md", "A page is not package source.\n")
+	}); err != nil {
+		t.Fatalf("a page under the tree refused the plan: %v", err)
+	}
+}
+
+// TestNewLintPopulationClassifiesPatterns pins what each pattern shape reaches
+// before any query runs.
+func TestNewLintPopulationClassifiesPatterns(t *testing.T) {
+	tests := []struct {
+		pattern    string
+		everything bool
+		trees      []string
+		linted     []string
+	}{
+		{".", false, nil, []string{"."}},
+		{"./x", false, nil, []string{"x"}},
+		{"./x/", false, nil, []string{"x"}},
+		{"./x/...", false, []string{"x/"}, nil},
+		{"./...", true, nil, nil},
+		{"./internal/le/go...", true, nil, nil},
+		{"github.com/ze-software/ze/internal/...", true, nil, nil},
+		{"github.com/ze-software/ze/internal/x", false, nil, nil},
+	}
+	for _, test := range tests {
+		t.Run(test.pattern, func(t *testing.T) {
+			population := newLintPopulation([]string{test.pattern})
+			if population.everything != test.everything {
+				t.Fatalf("everything = %v, want %v", population.everything, test.everything)
+			}
+			if !slices.Equal(population.trees, test.trees) {
+				t.Fatalf("trees = %q, want %q", population.trees, test.trees)
+			}
+			linted := make([]string, 0, len(population.queried.linted))
+			for dir := range population.queried.linted {
+				linted = append(linted, dir)
+			}
+			slices.Sort(linted)
+			if !slices.Equal(linted, test.linted) {
+				t.Fatalf("linted = %q, want %q", linted, test.linted)
+			}
+		})
+	}
+}
+
+// dependencyListing answers a go list that lints pkg/p00 and compiles one
+// dependency, dep, whose embed pattern selects schema/*.yang.
+func dependencyListing(root string) []byte {
+	return []byte(fmt.Sprintf(`{"Dir":%q,"Name":"fixture","ImportPath":"lintfixture/pkg/p00","GoFiles":["file.go"]}`+"\n"+
+		`{"Dir":%q,"Name":"dep","ImportPath":"lintfixture/dep","DepOnly":true,"GoFiles":["dep.go"],"EmbedFiles":["schema/a.yang"],"EmbedPatterns":["schema/*.yang"]}`+"\n",
+		filepath.Join(root, "pkg", "p00"), filepath.Join(root, "dep")))
+}
+
+// TestScopedPlanJudgesDependencyDirectoriesBySource lints pkg/p00 with one
+// dependency. A dependency's source file, a new source file beside it and its
+// embedded tree are the run's inputs; the dependency's _test.go (go list
+// -deps -test never compiles it), an editor's temporary copy and a page are not.
+func TestScopedPlanJudgesDependencyDirectoriesBySource(t *testing.T) {
+	prepare := func(t *testing.T, root string) {
+		writeLintFile(t, root, "dep/dep.go", "package dep\n")
+		writeLintFile(t, root, "dep/dep_test.go", "package dep\n")
+		writeLintFile(t, root, "dep/schema/a.yang", "module a {}\n")
+	}
+	edits := []struct {
+		path    string
+		refused bool
+	}{
+		{"dep/dep.go", true},
+		{"dep/extra.go", true},
+		{"dep/schema/a.yang", true},
+		{"dep/schema/b.yang", true},
+		{"dep/dep_test.go", false},
+		{"dep/dep.go.tmp.2080310.6be011754479", false},
+		{"dep/README.md", false},
+	}
+	for _, edit := range edits {
+		t.Run(edit.path, func(t *testing.T) {
+			plan, err := planAfterEdit(t, []string{"./pkg/p00"}, dependencyListing, prepare, func(t *testing.T, root string) {
+				writeLintFile(t, root, edit.path, "changed during planning\n")
+			})
+			if !edit.refused {
+				if err != nil {
+					t.Fatalf("an edit to %s refused the plan: %v", edit.path, err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), edit.path) {
+				t.Fatalf("an edit to %s = plan %#v, error %v; want a refusal naming it", edit.path, plan, err)
+			}
+		})
+	}
+}
+
 // TestPlanStableInputsRetainExactMatrix compares the real fingerprint route
 // with the pinned planner fixture, including a concurrent documentation edit
 // that the shared lint input declaration excludes.
 func TestPlanStableInputsRetainExactMatrix(t *testing.T) {
 	root, tracked := lintInputRepository(t)
-	initialInputs, err := realRunnerOps().inputHash(root)
+	initialInputs, err := realRunnerOps().inputSnapshot(root)
 	if err != nil {
 		t.Fatalf("measure initial lint inputs: %v", err)
 	}
 	ops, _ := fixtureOps(root, tracked)
-	ops.inputHash = func(string) (string, error) { return initialInputs, nil }
+	ops.inputSnapshot = func(string) (job.InputSnapshot, error) { return initialInputs, nil }
 	runner, err := newRunner(t.Context(), root, fixtureChain(root), ops)
 	if err != nil {
 		t.Fatalf("newRunner: %v", err)
@@ -579,7 +879,7 @@ func TestPlanStableInputsRetainExactMatrix(t *testing.T) {
 		t.Fatalf("reference Plan: %v", err)
 	}
 	ops, _ = fixtureOps(root, tracked)
-	ops.inputHash = realRunnerOps().inputHash
+	realInputs(&ops)
 	capture := ops.capture
 	queries := 0
 	ops.capture = func(ctx context.Context, argv []string, dir string, environment []string) commandResult {
@@ -753,9 +1053,9 @@ func TestPopulationSkipsTestdataFixtures(t *testing.T) {
 func TestEmptyScopeRunsNoCommandsAndPrintsNothing(t *testing.T) {
 	root, tracked := lintFixture(t)
 	ops, captureCalls := fixtureOps(root, tracked)
-	ops.inputHash = func(string) (string, error) {
+	ops.inputSnapshot = func(string) (job.InputSnapshot, error) {
 		t.Fatal("empty scope measured inputs despite selecting no packages")
-		return "", nil
+		return job.InputSnapshot{}, nil
 	}
 	streamed := 0
 	ops.stream = func(context.Context, []string, string, []string, io.Writer) (int, error) {
@@ -845,7 +1145,8 @@ func TestExecuteRunsAllChildrenAndReturnsTheFirstFailureCode(t *testing.T) {
 				return 0, nil
 			}
 		},
-		inputHash: func(string) (string, error) { return "fixture-inputs", nil },
+		inputSnapshot: unchangedSnapshot,
+		inputChanges:  unchangedInputs,
 	}
 	runner, err := newRunner(t.Context(), root, fixtureChain(root), ops)
 	if err != nil {
@@ -988,7 +1289,8 @@ func TestExecuteRemovesDerivedTaglessConfiguration(t *testing.T) {
 			seen = !strings.Contains(string(content), "build-tags:")
 			return 0, nil
 		},
-		inputHash: func(string) (string, error) { return "fixture-inputs", nil },
+		inputSnapshot: unchangedSnapshot,
+		inputChanges:  unchangedInputs,
 	}
 	runner, err := newRunner(t.Context(), root, fixtureChain(root), ops)
 	if err != nil {
@@ -1091,7 +1393,8 @@ func TestExecuteCopiesChildOutputToTheSlotLog(t *testing.T) {
 			}
 			return 1, nil
 		},
-		inputHash: func(string) (string, error) { return "fixture-inputs", nil },
+		inputSnapshot: unchangedSnapshot,
+		inputChanges:  unchangedInputs,
 	}
 	runner, err := newRunner(t.Context(), root, fixtureChain(root), ops)
 	if err != nil {
@@ -1155,7 +1458,8 @@ func TestAPassThatDidNotCompleteIsNamedApartFromFindings(t *testing.T) {
 				return 0, nil
 			}
 		},
-		inputHash: func(string) (string, error) { return "fixture-inputs", nil },
+		inputSnapshot: unchangedSnapshot,
+		inputChanges:  unchangedInputs,
 	}
 	runner, err := newRunner(t.Context(), root, fixtureChain(root), ops)
 	if err != nil {
