@@ -2888,3 +2888,25 @@ release go red with "the command ran twice". Not proved: the P-4
 `ui/conf-watchdog-executable-identity` break on `runningLE` stayed green (the
 case does not reach that function), and the launcher carriers need an
 in-place edit of the shared root `ze` script.
+
+## P-4 conf-watchdog identity, OSPF stub/NSSA reliability, the le-rules-answers lead (2026-11-10)
+
+P-4: the only `le` `ui/conf-watchdog-executable-identity` starts is the
+ExaBGP server peer, which `startExaBGPServer` (`internal/test/cli/cmd_exabgp.go`)
+starts from `os.Executable()`. An overlay resolving it from the ambient PATH
+instead (`tbw/watchdog2-*`) runs the decoy `le` first on PATH: FAIL
+"registered conf-watchdog failed through .../renamed-watchdog-runner";
+restored PASS. The earlier break of `runningLE` stayed green because this case
+never runs a bare `le` from the daemon's PATH (its watchdog is the Python
+script through the ExaBGP bridge), so `runningLE` still needs a case whose
+config forks `le`.
+
+P-12: `ospf-stub-nssa-frr` passed three runs in a row (3m10s, 3m11s, 2m29s;
+`nssa/`), so the earlier 2 of 3 was not repeated.
+
+`package-red-not-reproduced` 2026-10-27 (le-rules-answers): the lead that the
+fixture's exact-name `ZE_REPO_ROOT` removal (before `738bd725a4`) let a dotted
+`ze.repo.root` override the stand-in root was tested by restoring that removal
+by overlay and running with `ze.repo.root` set to the real checkout: PASS
+38.4s (`rulesrepro/`). The lead does not reproduce the historical red, whose
+cause stays unknown.
