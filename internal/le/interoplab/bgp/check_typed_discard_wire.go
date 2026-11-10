@@ -1,4 +1,11 @@
 // Design: docs/architecture/testing/interop.md -- exact typed-NLRI retention.
+// Related: check_typed_discard_wire_nobgp.go -- what the check answers without the gate.
+//
+// The check decodes the retained EVPN NLRI with the BGP engine's own EVPN
+// codec, which feature-gates.txt keeps behind ze_bgp, so this file does too.
+
+//go:build ze_bgp
+
 package bgp
 
 import (

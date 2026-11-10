@@ -120,6 +120,7 @@
 2 internal/plugins/policyroute/config.go
 1 internal/plugins/trafficusage/config.go
 1 internal/test/cli/cmd_bgp.go
+1 internal/test/dhcpprobe/step.go
 1 internal/test/fixture/tunnel_fixture_l2tp_ppp.go
 2 internal/test/mock/dns/dns.go
 1 internal/test/mock/peeringdb/peeringdb.go

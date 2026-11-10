@@ -129,7 +129,9 @@ func Run(name string, args []string) (int, bool) {
 		// Toolchain derivation (gen.Resolve) asks the go on PATH for its
 		// GOROOT and GOVERSION. The fixture names both, so the patched tree
 		// le activates is built over a stand-in GOROOT whose bin/go is this
-		// stub, and the stub stays first on PATH after activation.
+		// stub, and the stub stays first on PATH after activation. Building
+		// that tree lists `std cmd` under both GOROOTs, so the stub answers
+		// that listing too (goListAnswer).
 		if len(args) > 0 && args[0] == "env" {
 			if len(args) == 1 {
 				fmt.Fprintln(os.Stderr, "toolstub: go env with no key has no answer: the stub answers only named keys")
@@ -142,6 +144,18 @@ func Run(name string, args []string) (int, bool) {
 					return 1, true
 				}
 				fmt.Println(value)
+			}
+			return 0, true
+		}
+		if len(args) > 0 && args[0] == "list" {
+			answer, err := goListAnswer(os.Getenv("GOROOT"), args[1:])
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				return 1, true
+			}
+			if _, err := os.Stdout.Write(answer); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				return 1, true
 			}
 			return 0, true
 		}

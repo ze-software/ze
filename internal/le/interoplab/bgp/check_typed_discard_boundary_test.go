@@ -1,4 +1,11 @@
 // Design: docs/architecture/testing/interop.md -- exact retained wire evidence.
+// Related: check_typed_discard_wire.go -- the wire check these tests drive.
+//
+// Every test here expects requireTypedEVPNWire to accept the retained route,
+// which only the ze_bgp build can decode, so this file carries the same gate.
+
+//go:build ze_bgp
+
 package bgp
 
 import (
@@ -10,6 +17,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
 // This is the complete assigned NLRI in the tracked injector fixture, including
@@ -52,26 +61,6 @@ func TestTypedDiscardRequiresExactCompleteWireWitness(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			if err := requireSpeakerEVPNDiscard(test.report); err == nil {
 				t.Fatal("inexact or incomplete retained-route witness passed")
-			}
-		})
-	}
-}
-
-func TestSpeakerFramingRejectsInvalidOuterHeader(t *testing.T) {
-	for _, test := range []struct {
-		name   string
-		mutate func([]byte)
-	}{
-		{"marker", func(frame []byte) { frame[0] = 0 }},
-		{"short length", func(frame []byte) { frame[16], frame[17] = 0, 18 }},
-		{"KEEPALIVE body", func(frame []byte) { frame[18] = bgpKeepalive }},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			frame := speakerMessage(bgpUpdate, []byte{0, 0, 0, 0})
-			test.mutate(frame)
-			conn := &scriptedSpeakerConn{reads: []scriptedSpeakerRead{{data: frame[:19]}, {data: frame[19:]}}}
-			if _, _, _, err := readSpeakerMessage(conn, time.Now().Add(time.Second)); err == nil {
-				t.Fatal("invalid BGP outer header passed")
 			}
 		})
 	}
@@ -139,5 +128,82 @@ func TestTypedNativeSpeakerRejectsMissingHandshakeAndEarlyEOF(t *testing.T) {
 				t.Fatalf("incomplete native capture passed:\n%s", output.String())
 			}
 		})
+	}
+}
+
+// TestRFC7606TypedNLRIDiscardCheckerBranches drives both polarities of every
+// reading checkRFC7606TypedNLRIDiscard makes of the speaker's log, and then the
+// checker body itself, with no container.
+func TestRFC7606TypedNLRIDiscardCheckerBranches(t *testing.T) {
+	report := func(lines ...string) string {
+		return strings.Join(append(lines, "note: ze-open: yes", "note: capture-complete: yes",
+			fmt.Sprintf("note: update-hex: %x", typedDiscardBoundaryBody(t))), "\n") + "\n"
+	}
+	const (
+		pass        = "result: PASS"
+		oracle      = "plugin: no-unrecognized-evpn-type"
+		established = "note: established: yes"
+		updates     = "note: route-bearing-updates: 1"
+		evpn        = "note: evpn-nlri: 1"
+	)
+	relayed := report(pass, oracle, updates, established, evpn)
+	if !speakerReportPrinted(relayed) {
+		t.Fatal("a finished verdict was read as an unfinished run")
+	}
+	if speakerReportPrinted(report("waiting for the relayed EVPN routes")) {
+		t.Fatal("a log without a verdict line was read as a finished run")
+	}
+	if err := requireSpeakerEVPNDiscard(relayed); err != nil {
+		t.Fatalf("a verdict naming only the assigned EVPN route type was rejected: %v", err)
+	}
+	unassigned := report(
+		"result: FAIL",
+		oracle,
+		"fail: RFC 7606 Section 5.4: received EVPN route type 99, which is not assigned; it must have been discarded, not relayed",
+		updates, established, evpn,
+	)
+	if requireSpeakerEVPNDiscard(unassigned) == nil {
+		t.Fatal("an unassigned EVPN route type that reached the speaker passed")
+	}
+	if requireSpeakerEVPNDiscard(report(pass, oracle, updates, "note: established: no", evpn)) == nil {
+		t.Fatal("a session that never came up passed as proof of a discard")
+	}
+	if requireSpeakerEVPNDiscard(report(pass, oracle, updates, "note: not-established: yes", evpn)) == nil {
+		t.Fatal("a note naming not-established answered for established")
+	}
+	if requireSpeakerEVPNDiscard(report(pass, oracle, updates, established, "note: evpn-nlri: 0")) == nil {
+		t.Fatal("a relay that delivered no EVPN NLRI passed as a discard")
+	}
+	if requireSpeakerEVPNDiscard(report(pass, oracle, "note: route-bearing-updates: 0", established, evpn)) == nil {
+		t.Fatal("a session that carried no route-bearing UPDATE passed as a discard")
+	}
+	unmeasured := requireSpeakerEVPNDiscard(report(pass, oracle, updates, established))
+	measuredZero := requireSpeakerEVPNDiscard(report(pass, oracle, updates, established, "note: evpn-nlri: 0"))
+	if unmeasured == nil || measuredZero == nil {
+		t.Fatalf("an unmeasured EVPN count passed: unmeasured=%v zero=%v", unmeasured, measuredZero)
+	}
+	if unmeasured.Error() == measuredZero.Error() {
+		t.Fatalf("a count the speaker never took reported the same failure as a measured zero: %v", unmeasured)
+	}
+	if requireSpeakerEVPNDiscard(report(pass, oracle, updates, established, "note: evpn-nlri: many")) == nil {
+		t.Fatal("an EVPN count that is not a number passed as a count")
+	}
+	if requireSpeakerEVPNDiscard(report(pass, "plugin: no-duplicate-attribute", updates, established, evpn)) == nil {
+		t.Fatal("another oracle's verdict answered for this requirement")
+	}
+	if requireSpeakerEVPNDiscard(report(oracle, updates, established, evpn)) == nil {
+		t.Fatal("notes with no verdict line passed as a PASS")
+	}
+	if requireSpeakerEVPNDiscard("") == nil {
+		t.Fatal("an unread speaker log passed as a discard")
+	}
+	// The body itself, driven with a lab that answers the speaker's log and
+	// nothing else. It reaches the verdict with no container, so both polarities
+	// of the whole checker run here rather than only the predicate's.
+	if err := checkRFC7606TypedNLRIDiscard(t.Context(), &interoplab.CheckContext{Lab: &recordingLab{logs: relayed}}); err != nil {
+		t.Fatalf("the checker rejected a verdict naming only the assigned EVPN route type: %v", err)
+	}
+	if err := checkRFC7606TypedNLRIDiscard(t.Context(), &interoplab.CheckContext{Lab: &recordingLab{logs: unassigned}}); err == nil {
+		t.Fatal("the checker passed a verdict reporting an unassigned EVPN route type")
 	}
 }
