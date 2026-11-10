@@ -2988,3 +2988,28 @@ guard.
 
 Clean: PASS 44.6s, beside `TestKernelContainerCancellationJoinsBeforeRepair`
 PASS 45.0s. No container or root-owned file remained after the runs.
+
+## P-18: native-entry cancellation observed for catalog and l2tp-scale (2026-11-10)
+
+Observer scripts (job scratch `p18obs/`, run from the main thread) start each
+entry under a child subreaper above `setsid -w`, wait for a phase's READY
+marker in the producer's own output or argv, snapshot every process in the
+entry's session, send SIGINT to the entry's `le` alone, and report exit code,
+time to exit, owned processes still alive at exit and 2s later (by pid and
+start time), processes that outlived `le` (reaped by the subreaper), whether
+a foreign sentinel survived and whether a later phase began. A phase with an
+empty snapshot is an observer error, never green. The break runs use an `le`
+built under its own name with a Go overlay that leaks the route's child on
+SIGINT. Run directories: `p18obs/<route>/<phase>-<time>/`.
+
+| Route, phase | Clean | Break | Red |
+| --- | --- | --- | --- |
+| `./le doc yang-contract doc-drift`, build (the daemon compile into `ze-catalog-daemon-N/ze`) | exit 1, leaks 0, orphans 0, foreign alive, no later phase | the daemon compile started outside the owner and abandoned on cancel | leaks 2 (the abandoned compile) |
+| same, running (`ze help command --json`, held with SIGSTOP) | exit 1, held daemon killed by its owner before `le` exited, orphans 0 | the owner's `Cancel` a no-op | held daemon outlived `le`, orphans 1 |
+| `./le test deployment l2tp-scale`, startup (`bin/ze -`) | exit 1, leaks 0, foreign alive, no later phase | ze started without context or stop | a later phase began after the interrupt |
+
+The l2tp-scale running phase cannot be observed yet: every scenario fails at
+start on this host because the harness's ze opens the operator's
+`etc/ze/database.zefs` (a defect being fixed). The first observer version read
+its process snapshots with the wrong field separator and recorded nothing, so
+its earlier greens were void and are not recorded.
