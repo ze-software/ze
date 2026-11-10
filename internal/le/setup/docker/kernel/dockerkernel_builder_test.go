@@ -43,7 +43,7 @@ func TestDockerKernelInstallAsksForTheNamedBuilder(t *testing.T) {
 // operator named, keyword before value and before `confirm`.
 // PREVENTS: a confirm that drops the backend and resolves another cache entry.
 func TestDockerKernelInstallConfirmKeepsTheBuilder(t *testing.T) {
-	release := pinnedVersion(t) + "-ze"
+	release := pinnedRelease(t) + "-ze"
 	err := installConfirmed(leaction.Arguments{dockerKernelBuilderKeyword: {"qemu"}}, release)
 	if err == nil {
 		t.Fatal("no confirm was accepted")
@@ -73,7 +73,7 @@ func TestDockerKernelRefusalsRebuildWithTheBuilder(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "proc", "modules"), nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	err := cachedKernelServesHost(cachedKernel(t, pinnedVersion(t)+"-ze", "-ze"), pinnedVersion(t)+"-ze", root, "qemu")
+	err := cachedKernelServesHost(cachedKernel(t, pinnedRelease(t)+"-ze", "-ze"), pinnedRelease(t)+"-ze", root, "qemu")
 	if err == nil {
 		t.Fatal("a kernel without PCI hotplug was accepted for a slot-named interface")
 	}

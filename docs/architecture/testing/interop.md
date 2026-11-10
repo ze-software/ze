@@ -1205,8 +1205,9 @@ route: it installs the cached runtime kernel for the host's architecture under
 `/boot` and `/lib/modules`, rebuilds the initramfs and the GRUB menu with the
 Debian tools, and saves the new entry as GRUB's default by its title. It
 refuses before any step unless `GRUB_DEFAULT=saved`, and unless the cached
-release is the version `internal/appliance/kernel.version` pins followed by the
-`CONFIG_LOCALVERSION` suffix its config declares (`-ze`, so never a bare
+release is the release the version `internal/appliance/kernel.version` pins
+builds (`7.3.0` for pin `7.3`; see `docs/architecture/appliance/kernel-profiles.md`)
+followed by the `CONFIG_LOCALVERSION` suffix its config declares (`-ze`, so never a bare
 upstream release another kernel could own, nor an entry built before a version
 bump), and unless the
 cached kernel's config builds in, or as a module, every option this host

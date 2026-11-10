@@ -71,13 +71,26 @@ const KernelVersionFile = "internal/appliance/kernel.version"
 // of the two an appliance is built for.
 var errUnsupportedArch = errors.New("unsupported appliance architecture (expected amd64 or arm64)")
 
-// PinnedKernelVersion answers the kernel release this repository pins.
+// PinnedKernelVersion answers the kernel version this repository pins, as
+// kernel.version names it. KernelRelease answers the release that version builds.
 func PinnedKernelVersion(tree string) (string, error) {
 	body, err := os.ReadFile(filepath.Join(tree, KernelVersionFile)) //nolint:gosec // a path inside the checkout this command was run in
 	if err != nil {
 		return "", err
 	}
 	return strings.TrimSpace(string(body)), nil
+}
+
+// KernelRelease answers the release a kernel built from version reports, before
+// its CONFIG_LOCALVERSION suffix: the name of its lib/modules directory and of
+// uname -r. The two differ for a series' first release. kernel.org names it with
+// two components (linux-7.3.tar.xz), while the kernel's Makefile always prints
+// VERSION.PATCHLEVEL.SUBLEVEL, and SUBLEVEL is 0 there, so pin 7.3 builds 7.3.0.
+func KernelRelease(version string) string {
+	if strings.Count(version, ".") == 1 {
+		return version + ".0"
+	}
+	return version
 }
 
 // kernelPackageProblems answers every reason pkg cannot carry this proof. It
@@ -173,8 +186,9 @@ func scanModuleTree(root string) ([]string, bool) {
 // versionProblems answers whether the package's module tree belongs to the
 // pinned kernel.
 //
-// A release matches if it IS the pinned version or begins with that version and
-// a dash. A local build uses this form for its own release suffix. Without this
+// A release matches if it IS the release the pinned version builds
+// (KernelRelease), or begins with that release and a dash. A local build uses
+// this form for its own release suffix. Without this
 // check, the code silently reuses a staged package left by a build before a
 // kernel.version bump. The appliance then boots a kernel whose modules do not
 // match it.
@@ -190,9 +204,10 @@ func versionProblems(pkg, want string) []string {
 	}
 
 	var tb textbuf.Buffer
-	local := tb.Str(want).Byte('-').String()
+	wantRelease := KernelRelease(want)
+	local := tb.Str(wantRelease).Byte('-').String()
 	for _, release := range releases {
-		if release == want || strings.HasPrefix(release, local) {
+		if release == wantRelease || strings.HasPrefix(release, local) {
 			return nil
 		}
 	}
@@ -202,7 +217,8 @@ func versionProblems(pkg, want string) []string {
 		found = "none"
 	}
 	return []string{tb.Reset().Str("kernel package ").Str(pkg).Str(" carries release(s) ").Str(found).
-		Str(", not the pinned kernel version ").Str(want).String()}
+		Str(", not the pinned kernel version ").Str(want).Str(" (which builds release ").Str(wantRelease).
+		Str(")").String()}
 }
 
 // hasMagicAt reports whether the file carries magic at offset.

@@ -246,13 +246,18 @@ option this fragment does not set (`docs/architecture/testing/interop.md`).
 <!-- source: internal/le/setup/docker/kernel/hostdeps.go -- netfilterModuleOptions, ufwModules, slotNameOptions -->
 
 The runtime fragment sets `CONFIG_LOCALVERSION="-ze"`, so the runtime kernel's
-release is the version `internal/appliance/kernel.version` pins, with that
-suffix (`<version>-ze`), and its `/boot` and `/lib/modules` entries never share a name with another kernel built from
+release is the release the version `internal/appliance/kernel.version` pins
+builds, with that suffix (`<release>-ze`), and its `/boot` and `/lib/modules` entries never share a name with another kernel built from
 the same upstream release. `le setup docker kernel install` reads the suffix
 from the cache entry's emitted `config` and refuses a release that does not end
 with it, because a reinstall removes the trees it replaces. The QEMU guest
-release check accepts the suffixed release.
+release check accepts the suffixed release. The release and the pin differ for
+a series' first release: kernel.org names that tarball with two components
+(`linux-7.3.tar.xz`), while the kernel's Makefile always prints
+`VERSION.PATCHLEVEL.SUBLEVEL`, so pin `7.3` builds release `7.3.0` and its
+modules tree is `7.3.0-ze`. A pin with three components builds itself.
 <!-- source: gokrazy/kernel/runtime.config -- CONFIG_LOCALVERSION -->
+<!-- source: internal/le/test/deployment/gokrazykernel.go -- KernelRelease, versionProblems -->
 <!-- source: internal/le/setup/docker/kernel/dockerkernel.go -- cachedKernelRelease, kernelLocalVersion -->
 <!-- source: internal/le/test/qemu/run_exec.go -- Run.assertRuntimeKernel -->
 

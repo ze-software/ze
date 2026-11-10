@@ -22,6 +22,37 @@ func pinnedVersion(t *testing.T) string {
 	return version
 }
 
+// pinnedRelease answers the release the pinned version builds, before the
+// CONFIG_LOCALVERSION suffix: the name a real cache entry's lib/modules carries.
+func pinnedRelease(t *testing.T) string {
+	t.Helper()
+	return testdeployment.KernelRelease(pinnedVersion(t))
+}
+
+// VALIDATES: a series' first release, pinned with two components as kernel.org
+// names its tarball, is accepted under the three-component release the kernel
+// build names its modules tree, and only under that name.
+// PREVENTS: the install refusing every kernel built from a pin such as 7.3,
+// whose modules tree is 7.3.0-ze, as an entry built for another version.
+func TestDockerKernelReleaseOfASeriesFirstRelease(t *testing.T) {
+	release, err := cachedKernelRelease(cachedKernel(t, "7.3.0-ze", "-ze"), "7.3", "")
+	if err != nil {
+		t.Fatalf("pin 7.3 refused its own 7.3.0-ze modules tree: %v", err)
+	}
+	if release != "7.3.0-ze" {
+		t.Errorf("release = %q, want 7.3.0-ze", release)
+	}
+	if _, err := cachedKernelRelease(cachedKernel(t, "7.3-ze", "-ze"), "7.3", ""); err == nil {
+		t.Error("pin 7.3 accepted a 7.3-ze modules tree, a name no 7.3 build produces")
+	}
+	if _, err := cachedKernelRelease(cachedKernel(t, "7.3.1-ze", "-ze"), "7.3", ""); err == nil {
+		t.Error("pin 7.3 accepted a 7.3.1-ze modules tree, a later stable release")
+	}
+	if _, err := cachedKernelRelease(cachedKernel(t, "7.2.9-ze", "-ze"), "7.2.9", ""); err != nil {
+		t.Errorf("pin 7.2.9 refused its own 7.2.9-ze modules tree: %v", err)
+	}
+}
+
 // cachedKernel writes a runtime-kernel cache entry holding the files the
 // install reads: vmlinuz, a config carrying CONFIG_LOCALVERSION=localVersion
 // (none when empty) and one lib/modules/<release> tree.
@@ -74,7 +105,7 @@ func TestDockerKernelInstallRefusesOffLinux(t *testing.T) {
 // and `cp -a` keeping the cache owner's uid on the installed modules, which
 // lets that unprivileged user swap a module root will load.
 func TestDockerKernelInstallSteps(t *testing.T) {
-	wantRelease := pinnedVersion(t) + "-ze"
+	wantRelease := pinnedRelease(t) + "-ze"
 	cache := cachedKernel(t, wantRelease, "-ze")
 	release, err := cachedKernelRelease(cache, pinnedVersion(t), "")
 	if err != nil {
@@ -115,7 +146,7 @@ func TestDockerKernelInstallSteps(t *testing.T) {
 // a removal can only reach a tree an earlier install of this build wrote.
 // PREVENTS: a removal step reaching another kernel's modules or initramfs.
 func TestDockerKernelInstallRemovesOnlyItsOwnRelease(t *testing.T) {
-	release := pinnedVersion(t) + "-ze"
+	release := pinnedRelease(t) + "-ze"
 	for _, step := range dockerKernelInstallSteps(cachedKernel(t, release, "-ze"), release) {
 		if step.Argv[1] != "rm" {
 			continue
@@ -176,7 +207,7 @@ func TestRuntimeKernelConfigDeclaresALocalVersion(t *testing.T) {
 // PREVENTS: one command running every root step on a host with passwordless
 // sudo, where sudo asks nothing.
 func TestDockerKernelInstallNeedsConfirmation(t *testing.T) {
-	release := pinnedVersion(t) + "-ze"
+	release := pinnedRelease(t) + "-ze"
 	for name, args := range map[string]leaction.Arguments{
 		"no confirm":    {},
 		"wrong release": {dockerKernelConfirmKeyword: {"7.2.0"}},
@@ -203,7 +234,7 @@ func TestDockerKernelReleaseNeedsOneModulesTree(t *testing.T) {
 	if _, err := cachedKernelRelease(t.TempDir(), version, ""); err == nil {
 		t.Error("an entry with no lib/modules answered a release")
 	}
-	cache := cachedKernel(t, version+"-ze", "-ze")
+	cache := cachedKernel(t, testdeployment.KernelRelease(version)+"-ze", "-ze")
 	if err := os.MkdirAll(filepath.Join(cache, "lib", "modules", "7.2.1-ze"), 0o750); err != nil {
 		t.Fatalf("second modules tree: %v", err)
 	}
@@ -222,7 +253,7 @@ func TestDockerKernelReleaseIsThePinnedVersion(t *testing.T) {
 	if err == nil {
 		t.Fatal("an entry built for another kernel version answered a release")
 	}
-	for _, want := range []string{"0.0.1-ze", pinnedVersion(t) + "-ze", testdeployment.KernelVersionFile, "./ze-host appliance kernel --target runtime"} {
+	for _, want := range []string{"0.0.1-ze", pinnedRelease(t) + "-ze", testdeployment.KernelVersionFile, "./ze-host appliance kernel --target runtime"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal does not name %q: %v", want, err)
 		}

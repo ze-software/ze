@@ -485,8 +485,9 @@ func runtimeKernelRebuild(builder string) string {
 }
 
 // cachedKernelRelease answers the release every installed path is named for:
-// version, the kernel this checkout pins (testdeployment.KernelVersionFile),
-// followed by the CONFIG_LOCALVERSION suffix the entry's own config declares.
+// the release version builds (testdeployment.KernelRelease), where version is
+// the kernel this checkout pins (testdeployment.KernelVersionFile), followed by
+// the CONFIG_LOCALVERSION suffix the entry's own config declares.
 // The entry's one lib/modules directory MUST be that release. A bare upstream
 // release such as 7.2.0 names files another kernel of that release owns, and a
 // reinstall removes the trees it replaces; an entry built before a
@@ -521,7 +522,7 @@ func cachedKernelRelease(cache, version, builder string) (string, error) {
 			Str(", which does not end with its CONFIG_LOCALVERSION ").Str(suffix).
 			Str(" (gokrazy/kernel/runtime.config). Rebuild it with:\n").Str(runtimeKernelRebuild(builder)).String())
 	}
-	if want := version + suffix; release != want {
+	if want := testdeployment.KernelRelease(version) + suffix; release != want {
 		var tb textbuf.Buffer
 		return "", errors.New(tb.Str("the runtime kernel in ").Str(cache).Str(" is release ").Str(release).
 			Str(", not ").Str(want).Str(", the kernel ").Str(testdeployment.KernelVersionFile).

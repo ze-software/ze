@@ -143,6 +143,31 @@ func TestALoadableModuleAndASuffixedReleaseAreAccepted(t *testing.T) {
 	}
 }
 
+// VALIDATES: a series' first release, pinned with two components as kernel.org
+// names its tarball (7.3), matches the three-component release the kernel build
+// names its modules tree (7.3.0-ze), and a 7.3.1 tree still does not.
+// PREVENTS: the gokrazy proof refusing the runtime kernel this repository just
+// built from pin 7.3 as "not the pinned kernel version", so it never boots.
+func TestASeriesFirstReleaseMatchesItsTwoComponentPin(t *testing.T) {
+	pkg := kernelFixture(t, "7.3.0-ze", "kernel/net/l2tp/l2tp_ppp.ko\n", amd64Magic, amd64Offset, false)
+	problems, err := kernelPackageProblems(pkg, ArchAMD64, "7.3")
+	if err != nil {
+		t.Fatalf("judge the package: %v", err)
+	}
+	if len(problems) != 0 {
+		t.Errorf("pin 7.3 refused its own 7.3.0-ze package: %v", problems)
+	}
+
+	later := kernelFixture(t, "7.3.1-ze", "kernel/net/l2tp/l2tp_ppp.ko\n", amd64Magic, amd64Offset, false)
+	problems, err = kernelPackageProblems(later, ArchAMD64, "7.3")
+	if err != nil {
+		t.Fatalf("judge the later package: %v", err)
+	}
+	if len(problems) != 1 || !strings.Contains(problems[0], "7.3.0") {
+		t.Errorf("pin 7.3 did not refuse a 7.3.1-ze package by naming 7.3.0: %v", problems)
+	}
+}
+
 // VALIDATES: an architecture this proof cannot boot is an error rather than a
 // list of problems.
 // PREVENTS: a caller reading "no problems" for a package nobody looked at,
