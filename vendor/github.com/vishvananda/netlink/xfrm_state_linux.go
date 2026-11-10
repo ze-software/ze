@@ -127,6 +127,14 @@ type XfrmState struct {
 	// with no selector family the outer family, so a tunnel-mode state carries
 	// inner packets of that family only.
 	AFUnspec bool
+	// NoPMTUDisc sets XFRM_STATE_NOPMTUDISC. The kernel's
+	// xfrm4_tunnel_encap_add then writes a clear DF bit into the outer IPv4
+	// header instead of copying the inner header's.
+	NoPMTUDisc bool
+	// ICMP sets XFRM_STATE_ICMP. On an inbound state, icmp_rcv and
+	// icmpv6_rcv then re-check an ICMP error that failed the inbound policy
+	// check against the header it embeds, with addresses and ports reversed.
+	ICMP     bool
 	Replay   *XfrmReplayState
 	Selector *XfrmPolicy
 }
@@ -522,6 +530,8 @@ func xfrmStateFromXfrmUsersaInfo(msg *nl.XfrmUsersaInfo) *XfrmState {
 	state.ReplayWindow = int(msg.ReplayWindow)
 	state.ESN = msg.Flags&nl.XFRM_STATE_ESN != 0
 	state.AFUnspec = msg.Flags&nl.XFRM_STATE_AF_UNSPEC != 0
+	state.NoPMTUDisc = msg.Flags&nl.XFRM_STATE_NOPMTUDISC != 0
+	state.ICMP = msg.Flags&nl.XFRM_STATE_ICMP != 0
 	lftToLimits(&msg.Lft, &state.Limits)
 	curToStats(&msg.Curlft, &msg.Stats, &state.Statistics)
 	state.Selector = &XfrmPolicy{
@@ -720,6 +730,12 @@ func xfrmUsersaInfoFromXfrmState(state *XfrmState) *nl.XfrmUsersaInfo {
 	}
 	if state.AFUnspec {
 		msg.Flags |= nl.XFRM_STATE_AF_UNSPEC
+	}
+	if state.NoPMTUDisc {
+		msg.Flags |= nl.XFRM_STATE_NOPMTUDISC
+	}
+	if state.ICMP {
+		msg.Flags |= nl.XFRM_STATE_ICMP
 	}
 	return msg
 }

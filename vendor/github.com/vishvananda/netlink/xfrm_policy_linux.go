@@ -93,11 +93,22 @@ type XfrmPolicy struct {
 	Ifid     int
 	Mark     *XfrmMark
 	Tmpls    []XfrmPolicyTmpl
-	// Masks returned by the kernel, in host byte order. Read-only: the writer
-	// continues to derive exact/any masks from the port values.
+	// Selector port masks, in host byte order. The reader fills them from the
+	// kernel. The writer sends a non-zero mask as given; a zero mask keeps the
+	// upstream rule of deriving the mask from the port value (any port for 0,
+	// exact for any other value).
 	DstPortMask uint16
 	SrcPortMask uint16
+	// ICMP sets XFRM_POLICY_ICMP and is read back from it. The kernel's
+	// xfrm_lookup refuses a policy without it to a lookup made with
+	// XFRM_LOOKUP_ICMP, the lookup icmp_route_lookup and xfrm_out_fwd_icmp
+	// make for an ICMP error on the reversed header of the packet it reports.
+	ICMP bool
 }
+
+// xfrmPolicyFlagICMP is XFRM_POLICY_ICMP of include/uapi/linux/xfrm.h, which
+// the nl package names only in a comment.
+const xfrmPolicyFlagICMP = 2
 
 func (p XfrmPolicy) String() string {
 	return fmt.Sprintf("{Dst: %v, Src: %v, Proto: %s, DstPort: %d, SrcPort: %d, Dir: %s, Priority: %d, Index: %d, Action: %s, Ifindex: %d, Ifid: %d, Mark: %s, Tmpls: %s}",
@@ -125,6 +136,16 @@ func selFromPolicy(sel *nl.XfrmSelector, policy *XfrmPolicy) {
 	}
 	if sel.Sport != 0 {
 		sel.SportMask = ^uint16(0)
+	}
+	// An explicit mask wins over the derived one. The kernel matches
+	// (flow ^ sel) & mask, so a caller can ask for exactly port 0, or for a
+	// mask-aligned block such as an ICMP code range (the kernel reads an ICMP
+	// type into the source port and its code into the destination port).
+	if policy.DstPortMask != 0 {
+		sel.DportMask = nl.Swap16(policy.DstPortMask)
+	}
+	if policy.SrcPortMask != 0 {
+		sel.SportMask = nl.Swap16(policy.SrcPortMask)
 	}
 	sel.Ifindex = int32(policy.Ifindex)
 }
@@ -162,6 +183,9 @@ func (h *Handle) xfrmPolicyAddOrUpdate(policy *XfrmPolicy, nlProto int) error {
 	msg.Index = uint32(policy.Index)
 	msg.Dir = uint8(policy.Dir)
 	msg.Action = uint8(policy.Action)
+	if policy.ICMP {
+		msg.Flags |= xfrmPolicyFlagICMP
+	}
 	msg.Lft.SoftByteLimit = nl.XFRM_INF
 	msg.Lft.HardByteLimit = nl.XFRM_INF
 	msg.Lft.SoftPacketLimit = nl.XFRM_INF
@@ -363,6 +387,7 @@ func parseXfrmPolicy(m []byte, family int) (*XfrmPolicy, error) {
 	policy.Index = int(msg.Index)
 	policy.Dir = Dir(msg.Dir)
 	policy.Action = PolicyAction(msg.Action)
+	policy.ICMP = msg.Flags&xfrmPolicyFlagICMP != 0
 
 	attrs, err := nl.ParseRouteAttr(m[msg.Len():])
 	if err != nil {

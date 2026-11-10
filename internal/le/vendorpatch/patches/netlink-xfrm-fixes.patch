@@ -12,21 +12,101 @@ flow of the other inner family. RFC 4301 Section 5.1.2: "IPsec allows the
 IP version of the encapsulating header to be different from that of the
 inner header."
 
+XfrmState gains NoPMTUDisc, which sets XFRM_STATE_NOPMTUDISC in
+xfrm_usersa_info.flags and is read back from it. Upstream exposes no general
+flags field, so a caller cannot ask the kernel to clear the DF bit of a tunnel
+header: xfrm4_tunnel_encap_add (net/xfrm/xfrm_output.c) writes
+"top_iph->frag_off = (flags & XFRM_STATE_NOPMTUDISC) || small_ipv6 ? 0 :
+(XFRM_MODE_SKB_CB(skb)->frag_off & htons(IP_DF));". RFC 4301 Section 8.1:
+"This means that it MUST be possible to configure the implementation's
+treatment of the DF bit (set, clear, copy from inner header) for each SA."
+
+XfrmState gains ICMP and XfrmPolicy gains ICMP, which set XFRM_STATE_ICMP in
+xfrm_usersa_info.flags and XFRM_POLICY_ICMP in xfrm_userpolicy_info.flags and
+are read back from them. Upstream sets neither. icmp_rcv (net/ipv4/icmp.c) and
+icmpv6_rcv re-check an ICMP error that failed the inbound policy check against
+the header it embeds only when the last state of its secpath carries
+XFRM_STATE_ICMP, and xfrm_lookup_with_ifid answers -ENOENT to an
+XFRM_LOOKUP_ICMP lookup whose policy lacks XFRM_POLICY_ICMP. RFC 4301
+Section 6.2: "Thus, an IPsec implementation MUST be configurable to check that
+this payload header information is consistent with the SA via which it
+arrives."
+
+selFromPolicy sends a non-zero XfrmPolicy.SrcPortMask or DstPortMask as
+given, in network byte order. Upstream derives each selector mask from its
+port alone, all ones for a non-zero port and zero for port 0, so neither an
+exact port 0 nor a mask-aligned block can be asked for. The kernel matches a
+selector port as (flow ^ sel) & mask (__xfrm4_selector_match,
+net/xfrm/xfrm_policy.c) and reads an ICMP type into the source port and its
+code into the destination port (xfrm_flowi_sport, xfrm_flowi_dport,
+include/net/xfrm.h), so the
+upstream rule cannot express ICMP type 0 (Echo Reply) exactly, nor a code
+range as the aligned blocks that cover it. RFC 4301 Section 4.4.1.1: "This
+16-bit selector can contain a single type and a range of codes, a single type
+and ANY code, and ANY type and ANY code." A zero mask keeps the upstream
+derivation, so every caller that sets no mask is unchanged. The reader
+already filled both masks from the kernel.
+
 diff --git a/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go b/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go
 --- a/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go
 +++ b/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go
-@@ -93,6 +93,10 @@ type XfrmPolicy struct {
+@@ -93,8 +93,23 @@ type XfrmPolicy struct {
  	Ifid     int
  	Mark     *XfrmMark
  	Tmpls    []XfrmPolicyTmpl
-+	// Masks returned by the kernel, in host byte order. Read-only: the writer
-+	// continues to derive exact/any masks from the port values.
++	// Selector port masks, in host byte order. The reader fills them from the
++	// kernel. The writer sends a non-zero mask as given; a zero mask keeps the
++	// upstream rule of deriving the mask from the port value (any port for 0,
++	// exact for any other value).
 +	DstPortMask uint16
 +	SrcPortMask uint16
++	// ICMP sets XFRM_POLICY_ICMP and is read back from it. The kernel's
++	// xfrm_lookup refuses a policy without it to a lookup made with
++	// XFRM_LOOKUP_ICMP, the lookup icmp_route_lookup and xfrm_out_fwd_icmp
++	// make for an ICMP error on the reversed header of the packet it reports.
++	ICMP bool
  }
  
++// xfrmPolicyFlagICMP is XFRM_POLICY_ICMP of include/uapi/linux/xfrm.h, which
++// the nl package names only in a comment.
++const xfrmPolicyFlagICMP = 2
++
  func (p XfrmPolicy) String() string {
-@@ -170,7 +174,14 @@ func (h *Handle) xfrmPolicyAddOrUpdate(policy *XfrmPolicy, nlProto int) error {
+ 	return fmt.Sprintf("{Dst: %v, Src: %v, Proto: %s, DstPort: %d, SrcPort: %d, Dir: %s, Priority: %d, Index: %d, Action: %s, Ifindex: %d, Ifid: %d, Mark: %s, Tmpls: %s}",
+ 		p.Dst, p.Src, p.Proto, p.DstPort, p.SrcPort, p.Dir, p.Priority, p.Index, p.Action, p.Ifindex, p.Ifid, p.Mark, p.Tmpls)
+@@ -122,6 +137,16 @@ func selFromPolicy(sel *nl.XfrmSelector, policy *XfrmPolicy) {
+ 	if sel.Sport != 0 {
+ 		sel.SportMask = ^uint16(0)
+ 	}
++	// An explicit mask wins over the derived one. The kernel matches
++	// (flow ^ sel) & mask, so a caller can ask for exactly port 0, or for a
++	// mask-aligned block such as an ICMP code range (the kernel reads an ICMP
++	// type into the source port and its code into the destination port).
++	if policy.DstPortMask != 0 {
++		sel.DportMask = nl.Swap16(policy.DstPortMask)
++	}
++	if policy.SrcPortMask != 0 {
++		sel.SportMask = nl.Swap16(policy.SrcPortMask)
++	}
+ 	sel.Ifindex = int32(policy.Ifindex)
+ }
+ 
+@@ -158,19 +183,29 @@ func (h *Handle) xfrmPolicyAddOrUpdate(policy *XfrmPolicy, nlProto int) error {
+ 	msg.Index = uint32(policy.Index)
+ 	msg.Dir = uint8(policy.Dir)
+ 	msg.Action = uint8(policy.Action)
++	if policy.ICMP {
++		msg.Flags |= xfrmPolicyFlagICMP
++	}
+ 	msg.Lft.SoftByteLimit = nl.XFRM_INF
+ 	msg.Lft.HardByteLimit = nl.XFRM_INF
+ 	msg.Lft.SoftPacketLimit = nl.XFRM_INF
+ 	msg.Lft.HardPacketLimit = nl.XFRM_INF
+ 	req.AddData(msg)
+ 
+ 	tmplData := make([]byte, nl.SizeofXfrmUserTmpl*len(policy.Tmpls))
+ 	for i, tmpl := range policy.Tmpls {
+ 		start := i * nl.SizeofXfrmUserTmpl
  		userTmpl := nl.DeserializeXfrmUserTmpl(tmplData[start : start+nl.SizeofXfrmUserTmpl])
  		userTmpl.XfrmId.Daddr.FromIP(tmpl.Dst)
  		userTmpl.Saddr.FromIP(tmpl.Src)
@@ -42,7 +122,7 @@ diff --git a/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go b/vendor
  		userTmpl.XfrmId.Proto = uint8(tmpl.Proto)
  		userTmpl.XfrmId.Spi = nl.Swap32(uint32(tmpl.Spi))
  		userTmpl.Mode = uint8(tmpl.Mode)
-@@ -315,21 +326,38 @@ func (h *Handle) xfrmPolicyGetOrDelete(policy *XfrmPolicy, nlProto int) (*XfrmPo
+@@ -315,41 +350,59 @@ func (h *Handle) xfrmPolicyGetOrDelete(policy *XfrmPolicy, nlProto int) (*XfrmPo
  	return parseXfrmPolicy(msgs[0], FAMILY_ALL)
  }
  
@@ -83,7 +163,19 @@ diff --git a/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go b/vendor
  	policy.Ifindex = int(msg.Sel.Ifindex)
  	policy.Priority = int(msg.Priority)
  	policy.Index = int(msg.Index)
-@@ -348,8 +376,8 @@ func parseXfrmPolicy(m []byte, family int) (*XfrmPolicy, error) {
+ 	policy.Dir = Dir(msg.Dir)
+ 	policy.Action = PolicyAction(msg.Action)
++	policy.ICMP = msg.Flags&xfrmPolicyFlagICMP != 0
+ 
+ 	attrs, err := nl.ParseRouteAttr(m[msg.Len():])
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 
+ 	for _, attr := range attrs {
+ 		switch attr.Attr.Type {
+ 		case nl.XFRMA_TMPL:
+ 			max := len(attr.Value)
  			for i := 0; i < max; i += nl.SizeofXfrmUserTmpl {
  				var resTmpl XfrmPolicyTmpl
  				tmpl := nl.DeserializeXfrmUserTmpl(attr.Value[i : i+nl.SizeofXfrmUserTmpl])
@@ -97,7 +189,7 @@ diff --git a/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go b/vendor
 diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
 --- a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
 +++ b/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
-@@ -123,8 +123,12 @@ type XfrmState struct {
+@@ -123,8 +123,20 @@ type XfrmState struct {
  	ESN           bool
  	DontEncapDSCP bool
  	OSeqMayWrap   bool
@@ -107,12 +199,20 @@ diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/
 +	// with no selector family the outer family, so a tunnel-mode state carries
 +	// inner packets of that family only.
 +	AFUnspec bool
++	// NoPMTUDisc sets XFRM_STATE_NOPMTUDISC. The kernel's
++	// xfrm4_tunnel_encap_add then writes a clear DF bit into the outer IPv4
++	// header instead of copying the inner header's.
++	NoPMTUDisc bool
++	// ICMP sets XFRM_STATE_ICMP. On an inbound state, icmp_rcv and
++	// icmpv6_rcv then re-check an ICMP error that failed the inbound policy
++	// check against the header it embeds, with addresses and ports reversed.
++	ICMP     bool
 +	Replay   *XfrmReplayState
 +	Selector *XfrmPolicy
  }
  
  func (sa XfrmState) String() string {
-@@ -205,6 +209,10 @@ func writeMark(m *XfrmMark) []byte {
+@@ -205,6 +217,10 @@ func writeMark(m *XfrmMark) []byte {
  	return mark.Serialize()
  }
  
@@ -123,7 +223,7 @@ diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/
  func writeReplayEsn(replayWindow int) []byte {
  	replayEsn := &nl.XfrmReplayStateEsn{
  		OSeq:         0,
-@@ -270,11 +278,14 @@ func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
+@@ -270,11 +286,14 @@ func (h *Handle) xfrmStateAddOrUpdate(st
  
  	msg := xfrmUsersaInfoFromXfrmState(state)
  
@@ -138,7 +238,7 @@ diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/
  		msg.ReplayWindow = 0
  	}
  
-@@ -307,7 +318,7 @@ func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
+@@ -307,7 +326,7 @@ func (h *Handle) xfrmStateAddOrUpdate(st
  		out := nl.NewRtAttr(nl.XFRMA_MARK, writeMark(state.Mark))
  		req.AddData(out)
  	}
@@ -147,7 +247,7 @@ diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/
  		out := nl.NewRtAttr(nl.XFRMA_REPLAY_ESN_VAL, writeReplayEsn(state.ReplayWindow))
  		req.AddData(out)
  	}
-@@ -502,22 +513,26 @@ var familyError = fmt.Errorf("family error")
+@@ -502,22 +521,28 @@ var familyError = fmt.Errorf("family err
  
  func xfrmStateFromXfrmUsersaInfo(msg *nl.XfrmUsersaInfo) *XfrmState {
  	var state XfrmState
@@ -162,6 +262,8 @@ diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/
  	state.ReplayWindow = int(msg.ReplayWindow)
 +	state.ESN = msg.Flags&nl.XFRM_STATE_ESN != 0
 +	state.AFUnspec = msg.Flags&nl.XFRM_STATE_AF_UNSPEC != 0
++	state.NoPMTUDisc = msg.Flags&nl.XFRM_STATE_NOPMTUDISC != 0
++	state.ICMP = msg.Flags&nl.XFRM_STATE_ICMP != 0
  	lftToLimits(&msg.Lft, &state.Limits)
  	curToStats(&msg.Curlft, &msg.Stats, &state.Statistics)
  	state.Selector = &XfrmPolicy{
@@ -182,7 +284,7 @@ diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/
  	}
  
  	return &state
-@@ -605,6 +620,16 @@ func parseXfrmState(m []byte, family int) (*XfrmState, error) {
+@@ -605,6 +630,16 @@ func parseXfrmState(m []byte, family int
  		case nl.XFRMA_SA_PCPU:
  			pcpuNum := native.Uint32(attr.Value)
  			state.Pcpunum = &pcpuNum
@@ -199,12 +301,18 @@ diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/
  		case nl.XFRMA_REPLAY_VAL:
  			if state.Replay == nil {
  				state.Replay = new(XfrmReplayState)
-@@ -693,5 +718,8 @@ func xfrmUsersaInfoFromXfrmState(state *XfrmState) *nl.XfrmUsersaInfo {
+@@ -693,5 +728,14 @@ func xfrmUsersaInfoFromXfrmState(state *
  	if state.Selector != nil {
  		selFromPolicy(&msg.Sel, state.Selector)
  	}
 +	if state.AFUnspec {
 +		msg.Flags |= nl.XFRM_STATE_AF_UNSPEC
++	}
++	if state.NoPMTUDisc {
++		msg.Flags |= nl.XFRM_STATE_NOPMTUDISC
++	}
++	if state.ICMP {
++		msg.Flags |= nl.XFRM_STATE_ICMP
 +	}
  	return msg
  }
