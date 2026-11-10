@@ -28,7 +28,17 @@ a new plugin is `ai/patterns/plugin.md`.
 ## Registration fields
 
 Each plugin registers exactly one `registry.Registration` from its `init()`.
+
+Registration happens only during package initialization. Go runs every
+`init()` before `main`, and `main` in `cmd/ze` calls `registry.Seal` before it
+dispatches any command, so a later `registry.Register` changes nothing and
+returns an error wrapping `registry.ErrRegistrySealed` that names the plugin.
+`TestMainSealsBeforeDispatch` (`cmd/ze/main_seal_test.go`) holds the order.
+<!-- source: internal/component/plugin/registry/seal.go -- Seal, refuseSealedLocked, ErrRegistrySealed -->
+<!-- source: cmd/ze/main.go -- main -->
+
 Four fields are required; the rest are optional.
+
 
 | Field | Type | Purpose |
 |-------|------|---------|

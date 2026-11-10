@@ -1,0 +1,34 @@
+# Test: the plugin registry refuses a registration made after start-up
+# Exercises: main (cmd/ze/main.go) -> registry.Seal before dispatchMain
+#            -> ze start -> the in-process test plugin lateregister
+#            (internal/test/plugins/lateregister) -> OnAllPluginsReady -> probe
+#            -> registry.Register -> refuseSealedLocked
+#            (internal/component/plugin/registry/seal.go); then the same plugin
+#            dispatches `show plugin list` and `request shutdown` to the daemon.
+# QUESTION:  does the REAL binary seal its registry before it runs anything, so
+#            a registering call from run-time code is refused while init()
+#            registration still works? A unit test cannot decide it: no test
+#            calls main, so only the built ze shows whether main seals.
+# VALIDATES: spec-inventory-fast-registry-checks AC-6: the late Register call
+#            meets ErrRegistrySealed, the daemon keeps answering commands, its
+#            `show plugin list` lists lateregister under its init() name and not
+#            the late name, and the daemon stops cleanly (exit 0).
+# PREVENTS:  a registry that accepts a registration after start-up, which the
+#            declared registration walk cannot see, so the binary would carry
+#            a plugin the source does not declare.
+
+option=timeout:value=30s
+
+tmpfs=ze-sealed.conf:terminator=EOF_CONF
+plugin {
+	internal lateregister {
+		use lateregister
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze start ze-sealed.conf:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=lateregister: late registration refused: registry: sealed after start-up: plugin "lateregister-after-start"
+expect=stderr:contains=lateregister: show plugin list lists lateregister and not lateregister-after-start
+reject=stderr:contains=lateregister: FAIL

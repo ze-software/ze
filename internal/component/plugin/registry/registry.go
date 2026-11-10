@@ -544,7 +544,8 @@ var (
 )
 
 // Register adds a plugin to the global registry.
-// Must be called from init() functions only.
+// MUST be called from init() functions only: after Seal it refuses with
+// ErrRegistrySealed and changes nothing.
 // Returns an error on invalid registration.
 func Register(reg Registration) error { //nolint:gocritic // hugeParam: Registration is passed by value for init()-time safety; copied internally.
 	if reg.Name == "" {
@@ -553,6 +554,10 @@ func Register(reg Registration) error { //nolint:gocritic // hugeParam: Registra
 
 	mu.Lock()
 	defer mu.Unlock()
+
+	if err := refuseSealedLocked("plugin", reg.Name); err != nil {
+		return err
+	}
 
 	if _, exists := plugins[reg.Name]; exists {
 		return fmt.Errorf("%w: %q", ErrDuplicateName, reg.Name)

@@ -53,7 +53,11 @@ the path is what keeps them apart rather than a second ownership table: every
 `internal/le/le/root/dispatch.go` resolves only that path, and `leroot.Owns` asks
 the registry for it. So `le interface` is an unknown command, not `ze`'s
 interface editor.
+Every personality enters through `main` in `cmd/ze/main.go`, which seals the
+plugin registry (`registry.Seal`) before it dispatches, so a registration made
+after the `init()` functions ran is refused.
 <!-- source: cmd/ze/ze_le_personality_test.go -- TestNormalZeLinksNoInternalLe -->
+<!-- source: cmd/ze/main.go -- main -->
 <!-- source: internal/le/le/root/leroot.go -- Owns, CommandPath -->
 
 Committed plugin metadata uses a different population from the running registry.

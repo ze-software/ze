@@ -47,7 +47,11 @@
 
 package main
 
-import "os"
+import (
+	"os"
+
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+)
 
 var (
 	version   = "dev"
@@ -65,6 +69,12 @@ func main() {
 	// The call below it is still owed: os.Exit runs no deferred function, so the
 	// ordinary path flushes for itself. Flush acts once, so the pair is safe.
 	defer flushCrashlog()
+
+	// Go has run every package initializer, and so every plugin's register.go
+	// init(), before main. Nothing registers after this point: a later
+	// registering call is refused (registry.Seal), so the binary carries
+	// exactly what the source declares.
+	registry.Seal()
 
 	code := dispatchMain(os.Args[1:])
 	flushCrashlog()

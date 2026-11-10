@@ -2,15 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P3 |
 | Release reason | Replaces a development check (the inventory's whole-tree external-effect proof) with three fast checks; the only shipped change is that the plugin registry seals after start-up and hands out copies, which hardens behaviour without changing any operator-visible answer |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 1/8 |
 | Handoff | - |
-| Updated | 2026-11-09 |
+| Updated | 2026-11-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -94,7 +94,7 @@ walk.
 - [ ] `internal/component/plugin/all/all.go` - the generated composition root: blank imports only.
 - [ ] `internal/le/repo/inventory/registrations.go` - `Snapshot.Plugins` runs `readRegistrations`, which runs `externalCertificate` and then the walk under `callProved` (or `callDiagnostic` after a refusal). `Snapshot.DeclaredPlugins` runs the same walk under `callDeclared`, where an unresolved call is opaque (operands walked, no body followed) and a bodyless function is not certified.
 - [ ] `internal/le/repo/inventory/plugins.go` - the package functions `Plugins(root)` and `DeclaredPlugins(root)`.
-- [ ] `internal/le/repo/inventory/externalcertificate.go` - decides whether the proof is needed (any non-module, dotted import) and runs `newExternalSource` and `newExternalEffects(...).solve()`.
+- [ ] `internal/le/repo/inventory/externalcertificate.go` - decides whether the proof is needed and runs `newExternalSource` and `newExternalEffects(...).solve()`. It sets `needed` for any non-module import whose first path segment holds NO dot, which is every standard-library import, so the proof runs on every real tree.
 - [ ] `internal/le/repo/inventory/source.go` - `ReadCommitted` and the `Snapshot` and `sourcePackage` fields, including the proof-only assembly population.
 - [ ] `internal/le/plugin/gatedtable/gatedtable.go` - `Derive` reads `snapshot.Plugins()`.
 - [ ] `internal/le/plugin/coupling/coupling.go` - `load` reads `snapshot.Plugins()` and builds its model from the same snapshot's sources.
