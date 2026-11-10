@@ -316,7 +316,6 @@ AC-27 was dropped on 2026-11-08 ("Scope decision" above): the incident was not i
 | `removal-leaves-the-file-on-disk` | 2026-09-19 | `sweepAbandoned` |
 | `silent-fall-through` | 2026-10-05 | `RunEngineSteps` |
 | `silent-fall-through` | 2026-09-07 | `./le qemu run` 9p mount |
-| `silent-fall-through` | 2026-09-04 | YANG resolution in test binaries |
 | `silent-fall-through` | 2026-08-15 | orphan `stdin=peer` block |
 | `silent-fall-through` | 2026-10-10 | `.et` runner options |
 | `test-gate-repeats-expensive-work` | 2026-10-07 | `./le test functional --pattern` |
@@ -418,6 +417,7 @@ closed on the attributed red its evidence section records.
 | `hardcoded-count-in-test` | 2026-11-10 | `TestNetnsSelectionsHaveAbsolutePopulations` | derived from `netnsSelections`, judged by `validateNetnsSelection` (same section) |
 | `behavior-change-leaves-repository-users-stale` | 2026-11-10 | `TestHomeWebPreviewUsesVerifiedMedia` | `errors.Is` on `terminaldemo.ErrAssetMismatch` (same section) |
 | `identity-default-hides-a-mapping` | 2026-11-10 | ze-peer iBGP AS_PATH | `writeASPath` empty on internal sessions; `TestBuildUpdatesInternalPathIsEmpty` (tooling-one-off-evidence.md, "ze-peer originates an empty AS_PATH to internal peers") |
+| `silent-fall-through` | 2026-09-04 | YANG resolution in test binaries | `5eaa197f32`; `TestDefaultLoaderReportsEveryRegisteredFailure` (tooling-one-off-evidence.md, "Unit red walks of landed fixes"); flowspec reader deleted in `1b1b36cb5f`; batch instance `295c562ace` |
 | `refactor-removes-feature` | 2026-08-31 | `checkNoFamilyEndOfRIB` and 14 checkers | `c5b61cf472`, `125ab22025`, `18017069a9`, `cb882fd581` gave each checker its assertions; each of the 15 red under a Ze break (tooling-one-off-evidence.md, "P-12 (a): interop checkers (2026-11-09)", "P-12 (a) interop checkers: the four remaining walks (2026-11-10)") |
 
 ## Checklist
