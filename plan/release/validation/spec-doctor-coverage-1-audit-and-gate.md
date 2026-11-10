@@ -2,17 +2,26 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | `ai/META-DECISIONS.md`: `ze doctor` reports every problem an operator can hit, with cause and fix; this child finds every problem class, gives runtime state a phase that cannot read healthy when unseen, and stops new classes landing without a check |
 | RFC gaps | - |
 | Depends | - |
-| Phase | design: owner questions O-1, O-2, O-3 decided 2026-11-08 (see "Owner Decisions") |
+| Phase | ready: owner questions O-1, O-2, O-3 decided 2026-11-08 (see "Owner Decisions"); design approved by the owner order of 2026-11-10; phases in "Implementation Phases" |
 | Handoff | - |
-| Updated | 2026-11-08 |
+| Updated | 2026-11-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+Owner order, 2026-11-10: Thomas ordered this spec landed ("Land P1 and P2",
+then "Complete the work"), which approves the design and permits the claim
+above the WIP cap (`ZE_SPEC_WIP_CAP=25`) for this spec only. The audit of
+this spec against the tree that day (`plan/handover/doctor-coverage-1-start.md`,
+"Audit of the spec against the tree") is folded in below as dated notes and
+added rows; no decided content was removed. Evidence is the scoped package
+tests and the named `.ci` files only: no agent runs `./le verify` or a whole
+functional suite (`ai/META-DECISIONS.md`, "Ze is pre-release").
 
 Parent: `plan/release/validation/spec-doctor-coverage-0-umbrella.md`.
 
@@ -67,6 +76,19 @@ This child owns four things, in this order:
 - [ ] `internal/component/doctor/checks_plugin_registry.go` `runPluginRegistryChecks` - bridges `registry.PluginDoctorChecks()` per phase, three fields
 - [ ] `internal/component/doctor/cmd/show.go` `HandleDoctor`, `collectPluginDoctorChecks` - daemon route, per-check timeout, three fields
 - [ ] `internal/core/report/report.go` - `Issue{Source, Code, Severity, Subject, Message, Detail}`, `RaiseWarning`, `ClearWarning`, `ClearSource`
+- [ ] `internal/core/diagnostic/doctor_daemon.go` (read 2026-11-10) - `DaemonDoctorCheck{Name, Codes, Check}`, `RegisterDaemonDoctorCheck`, `DaemonDoctorChecks`, `RunDaemonDoctorChecks`: a second, context-free registry of checks only the daemon route runs (commit 311177442c, 2026-11-09)
+- [ ] `internal/component/config/system/register.go` (read 2026-11-10) - `init()` registers the dns-source selection checks with `RegisterDaemonDoctorCheck` (`dnsSourceDoctorCheckName`, `dnsSourceDoctorCodes`, `checkDNSSourceSelections`); `test/plugin/doctor-dns-source.ci` proves them through `show doctor`
+- [ ] `internal/component/doctor/registry.go` (read 2026-11-10) - `runDoctorChecks(phase, ctx)` runs the registry checks of one phase then the plugin registry bridge; it is unexported, so `HandleDoctor` in `doctor/cmd` cannot call it
+- [ ] `internal/le/commit/changecheck/changecheck.go` (read 2026-11-10) - `Check{Name, Judge}`, `Register`, `Registered`, `Run`, `Snapshot`: the seam a change-set check registers into so `./le commit create` runs it; the commit code names no check
+- [ ] `internal/core/opererr/opererr.go` (read 2026-11-10) - `New(problem, why, fix)`: fix is the command alone, rendered on its own line after a `fix: ` label; a log line uses `Problem` as message and `LogAttrs` (`why`, `fix`) plus a caller's `code`; its doc comment already says fix is not a `Diagnostic.Repair` or `FixSafety`
+- [ ] `cmd/ze/internal/cmdutil/cmdutil.go` `RunCommand` and `internal/component/cli/sshclient/client.go` `ExecCommand` (read 2026-11-10) - a daemon command from the local CLI travels over SSH with `sshclient.Credentials`, so "the daemon answers" needs credentials as well as a running daemon
+
+**Corrections, 2026-11-10 (audit of the spec against the tree; the lines above stay as written):**
+- `collectPluginDoctorChecks` (`internal/component/doctor/cmd/show.go`) does not filter by phase: it calls every check a running plugin declared, whatever its phase. The "three fields" reading above holds. A `runtime` check declared by a forked plugin therefore already runs on the daemon route; what the local route must not do is run it (`runPluginRegistryChecks` filters by phase and stays the local bridge)
+- The text line is drawn by `outputText` (`internal/component/doctor/doctor.go`), which `renderDoctor` (`answer.go`) calls; Transformation Path step 3's "`renderDoctor` prints it" is read as `outputText` prints it, reached through `renderDoctor`
+- `runDoctorChecks` (`internal/component/doctor/registry.go`) is unexported, so `HandleDoctor` needs an exported runner of the `runtime` phase in package `doctor`
+- `HandleDoctor` today runs `diagnostic.RunDaemonDoctorChecks` (the registry in `doctor_daemon.go`) before the plugin checks; that registry is what the `runtime` phase replaces (Existing Mechanisms)
+- `TestDoctorDependencyInventory` lives in `internal/component/doctor/doctor_test.go`, not `doctor_checks_test.go` as the Existing Mechanisms row below first said
 
 **Behavior to preserve:**
 - the four existing phases and their order; every existing check and code
@@ -97,6 +119,9 @@ This child owns four things, in this order:
 | Dependency inventory test | `internal/component/doctor/doctor_checks_test.go` `TestDoctorDependencyInventory` | Expected total of dependencies | does not apply: kept as is; it counts dependencies, not problem classes |
 | Commit-time added-content refusals | `./le commit create` (journal owned-rows refusal, `plan/journal/README.md` "Owned rows") | Refuses what the commit itself adds | extends: the doctor-coverage check joins as a refusal of added sites |
 | Audit records | `plan/audits/` | Historical audit reports | extends: the inventory lands there |
+| Daemon-only doctor checks (added 2026-11-10) | `internal/core/diagnostic/doctor_daemon.go` `DaemonDoctorCheck`, `RegisterDaemonDoctorCheck`, `RunDaemonDoctorChecks` (commit 311177442c); called from `HandleDoctor`; doctor page, "Daemon doctor checks" | A second registry of context-free checks only `show doctor` runs; its one user is the dns-source selection checks (`internal/component/config/system/register.go`, proven by `test/plugin/doctor-dns-source.ci`) | REPLACES (`ai/rules/no-layering.md`): the `runtime` phase is the same idea inside the one phase set. P1a deletes `doctor_daemon.go` first, then re-registers the dns-source checks through `RegisterDoctorCheck` with `Phase: runtime`, drops the `RunDaemonDoctorChecks` call from `HandleDoctor`, and rewrites the page section as the `runtime` phase. Two registries for one fact would let a check pick the one the local route runs |
+| Change-set check seam (added 2026-11-10) | `internal/le/commit/changecheck` `Register`, `Run` (built by spec-operator-errors-name-the-fix) | `./le commit create` runs every registered check over what the commit adds; the commit code names no check | extends: the doctor-coverage gate registers its `Judge` into it from `internal/le/arch/doctorcoverage`'s own `init()`; no file under `internal/le/commit` names it. This replaces the "joins `./le commit create`" wording of the Commit-time added-content refusals row above, which stays for the refusal kind it describes |
+| Operator error (added 2026-11-10) | `internal/core/opererr` `New`, `Error()`, `LogAttrs` | problem, why, fix; fix is the command alone on its own line; log attributes `why` and `fix`, plus a caller-supplied `code` | extends: a doctor diagnostic's `Fix` holds the same thing (the command alone, no label), and the gate's A-1 reads the same `code` log key `opererr` passes through, so a problem site logged through `opererr` is covered by the same rule. No second fix convention |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -110,6 +135,12 @@ This child owns four things, in this order:
 2a. Transient classes (O-2): the `runtime` bridge check `doctor-recent-events` reads `report.Errors` and the active `report.Warnings`, and answers one warning row per recent event under the event's own code, with its subject and time in the message, so a transient problem is reported without making the box read not ready
 3. Each diagnostic carries `fix`; `renderDoctor` prints it on its own line after the message; JSON carries the `fix` key
 4. Gate: the scan parses non-test Go under `internal/component`, `internal/plugins` and `cmd/ze`, finds problem sites, resolves each site's code against the codes of every registered doctor check (in-tree and plugin), and lists the uncovered ones; the check form refuses only sites the commit adds against `HEAD^`
+
+**Additions, 2026-11-10 (audit of the spec against the tree):**
+- 1a. `HandleDoctor`'s runtime closure runs the `runtime` phase through a new exported runner in package `doctor` (`runDoctorChecks` is unexported), then `collectPluginDoctorChecks`. It no longer calls `diagnostic.RunDaemonDoctorChecks`, which is deleted with `doctor_daemon.go`; the dns-source checks reach `show doctor` as `runtime`-phase registry checks
+- 2b. O-1, the case "daemon up, operator has no credentials": the local route asks the daemon over SSH (`cmdutil.RunCommand` sends a daemon command through `sshclient.ExecCommand` with `sshclient.Credentials`). When the daemon runs but the SSH call fails (no credentials in zefs, refused login, unreachable listener), no daemon has answered: the local route answers locally and adds the `doctor-runtime-not-checked` warning, its message naming why the daemon did not answer and its fix naming the command that gets an answer (`show doctor` from an account that can log in). The local route never reads a failed ask as a healthy runtime
+- 3a. Step 3's line is drawn by `outputText` (`internal/component/doctor/doctor.go`), reached through `renderDoctor`
+- 4a. Step 4's check form reaches `./le commit create` by registering into `internal/le/commit/changecheck` from the `doctorcoverage` package's `init()`; the commit code names no check
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -125,9 +156,11 @@ This child owns four things, in this order:
 |------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
 | doctor-check output | writer | each plugin check through `pkg/plugin/sdk` doctor callback | `DoctorCheckDiagnostic` is the element type | add `fix` (omitempty); every in-tree plugin rebuilt |
 | doctor-check output | reader | `internal/component/doctor/cmd/show.go` `collectPluginDoctorChecks` | maps three fields | map `fix` too |
+| registry bridge | writer | each in-tree plugin's `registry.DoctorCheckDef.Check` (`internal/component/plugin/registry/doctor.go` `DoctorCheckFunc`, answering `[]rpc.DoctorCheckDiagnostic`) | `DoctorCheckFunc` returns the rpc element type (read 2026-11-10) | a check that has a fix sets `Fix`; the field rides the rpc type, no second type |
 | registry bridge | reader | `internal/component/doctor/checks_plugin_registry.go` `runPluginRegistryChecks` | maps three fields | map `fix` too |
 | Stage 1 doctor declaration | writer and reader | `rpc.DoctorCheckDecl.Phase`, validated by `DoctorCheckPhase.Valid` | `Valid` lists four phases | add `runtime` to the declaration and `Valid` |
 | `ze doctor --json` / `show doctor` JSON | writer | `diagnostic.Diagnostic` | `DoctorResult.Diagnostics` | add `fix` (omitempty), kebab-case |
+| `ze doctor --json` / `show doctor` JSON | reader | the local drawing (`internal/component/doctor/doctor.go` `outputJSON`, `outputText`); every API client of `show doctor` outside the repository (MCP, REST, gRPC, SSH); the `.ci` files that assert doctor output (`test/plugin/api-doctor-check.ci`, `test/plugin/doctor-dns-source.ci` and the other `test/plugin/*doctor*.ci`) | `outputText` draws code and message only (read 2026-11-10); a client that ignores unknown keys keeps working | `outputText` draws the fix line; the new key is additive (omitempty), so an outside reader that ignores unknown keys is unaffected; the implementer re-runs the census search over `test/` before P1a |
 
 ### Integration Points
 - `doctor.Answer` and the local route - ask a reachable daemon first (O-1); add the runtime-not-checked row only when no daemon answers
@@ -181,6 +214,8 @@ This child owns four things, in this order:
 | plugin doctor callback | → | `collectPluginDoctorChecks` mapping `fix` | `TestCollectPluginDoctorChecksCarriesFix` |
 | `./le arch doctor-coverage check` | → | the site scan and code resolution | `TestDoctorCoverageRefusesAddedUncoveredSite` |
 | `./le commit create` | → | the added-site refusal | `TestCommitCreateRefusesUncoveredProblemSite` |
+| `show doctor` with a dns-source fault (added 2026-11-10) | → | the dns-source checks as `runtime` registry checks | `test/plugin/doctor-dns-source.ci` (kept, unchanged expectations), `TestDNSSourceChecksRegisterRuntimePhase` |
+| `ze doctor`, daemon up, SSH ask refused (added 2026-11-10) | → | `Answer` falling back with `doctor-runtime-not-checked` | `TestDoctorLocalRouteNoCredentialsAnswersLocally` |
 
 ## Acceptance Criteria
 
@@ -198,6 +233,8 @@ This child owns four things, in this order:
 | AC-7 | Every check added under this umbrella | its unit test asserts a non-empty fix that names a `ze` command or a `set`/`delete` config path | none |
 | AC-9 | An existing check that reads daemon state while registered at `pre-config`, `parsed-config` or `post-config` | the audit lists it with its owner; it moves to `runtime` in its area child (IKE's `ipsec-virtual-ip-pool` and `ipsec-udp-encap` move in child 2), so the local route never reads that state as empty and healthy | none |
 | AC-8 | Docs | `docs/architecture/doctor-and-health-checks.md` documents the `runtime` phase, the fix field, the local-route row and the gate; `docs/plugin-development/` documents `fix` and `runtime` for plugin authors | none |
+| AC-13 (added 2026-11-10) | The dns-source selection checks after P1a, `show doctor` on a daemon whose dns-source selection is empty, silent or unserved | the same `doctor-dns-source-*` rows appear, produced by checks registered through `RegisterDoctorCheck` with `Phase: runtime`; `internal/core/diagnostic/doctor_daemon.go` is gone, and no `RegisterDaemonDoctorCheck` or `RunDaemonDoctorChecks` symbol remains in the tree; the doctor page's "Daemon doctor checks" section describes the `runtime` phase instead | none: two registries for daemon-only checks is the layering this removes |
+| AC-14 (added 2026-11-10) | `ze doctor` locally while the daemon runs, but the SSH ask fails (no credentials, refused login) (O-1) | the local checks answer, plus one `doctor-runtime-not-checked` warning whose message says the daemon did not answer and why, and whose fix line names a command that gets the daemon's answer; no runtime check runs in the local process | none |
 
 ## 🧪 TDD Test Plan
 
@@ -218,6 +255,9 @@ This child owns four things, in this order:
 | `TestDoctorLocalRouteAsksReachableDaemon` | `internal/component/doctor/answer_test.go` | AC-10: a stub daemon answer is drawn and no warning row is added; an unreachable daemon gives AC-2; a `config` file outside the daemon's directories answers locally | |
 | `TestDoctorRecentEventsRowsFromReportRing` | the `doctor-recent-events` owner's test | AC-11: rows per code from `report.Errors` and `report.Warnings`, readiness unchanged | |
 | `TestDoctorCoverageRefusesMarkedSite` | `internal/le/arch/doctorcoverage/check_test.go` | AC-12: a marker comment is not a cover | |
+| `TestDNSSourceChecksRegisterRuntimePhase` (added 2026-11-10) | `internal/component/config/system/doctor_dns_source_test.go` | AC-13: the dns-source checks are registry checks with `Phase: runtime`, and the local runner skips them | |
+| `TestDoctorLocalRouteNoCredentialsAnswersLocally` (added 2026-11-10) | `internal/component/doctor/answer_test.go` | AC-14: a stub ask that fails with a running daemon gives the local answer plus the warning row | |
+| `TestDoctorChangeCheckRegistered` (added 2026-11-10) | `internal/le/arch/doctorcoverage/register_test.go` | AC-4 through the seam: `changecheck.Registered` holds the doctor-coverage check | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -243,8 +283,20 @@ This child owns four things, in this order:
 - `docs/architecture/doctor-and-health-checks.md` - the phase, the field, the gate
 - `docs/guide/health-checks.md` - reading the fix line
 
+**Additions, 2026-11-10 (audit of the spec against the tree):**
+- `internal/core/diagnostic/doctor_daemon.go` - DELETED first in P1a (`remove` through `./le commit create`), replaced by the `runtime` phase (no-layering)
+- `internal/component/config/system/register.go` and `doctor_dns_source.go` - the dns-source checks register through `RegisterDoctorCheck` with `Phase: runtime`; their check function takes the registry's `DoctorCheckContext` and reads the live dns-source registry as before; the file comments that name the daemon doctor check are rewritten
+- `internal/component/doctor/registry.go` - an exported runner of the `runtime` phase that `HandleDoctor` calls; `runDoctorChecks` stays the local runner and never receives `runtime`
+- `internal/component/doctor/cmd/show.go` - drop the `RunDaemonDoctorChecks` call; call the exported runner, then `collectPluginDoctorChecks`
+- `internal/component/doctor/doctor.go` `outputText` - draws the fix line (Transformation Path 3a)
+- `internal/core/diagnostic/types.go` - the `Fix` doc comment states how `Fix`, `FixSafety` and `Repair` differ (Design Insights, 2026-11-10)
+- `internal/core/diagnostic/codes.go` - every new code registered up front in P1a (`doctor-runtime-not-checked`, `doctor-recent-events`); another session carried a one-line hunk in it on 2026-11-10, so the committer checks `git diff` and commits its own hunks with `hunks` if the foreign one is unsafe
+- `pkg/plugin/sdk/sdk_types.go`, `pkg/plugin/sdk/sdk_callbacks.go` - the SDK aliases and comments of the `runtime` phase (the phase list comment names four values today); `OnDoctorCheck` passes `fix` through unchanged with the rpc type
+- `docs/plugin-development/protocol.md` - `fix` and `runtime` for plugin authors (AC-8)
+- `docs/architecture/doctor-and-health-checks.md` "Daemon doctor checks" - rewritten as the `runtime` phase (AC-13)
+
 ## Files to Create
-- `internal/le/arch/doctorcoverage/` - the scan, `check` and `report` actions, registered from `init()`
+- `internal/le/arch/doctorcoverage/` - the scan, `check` and `report` actions, registered from `init()`; its `init()` also registers the check into `internal/le/commit/changecheck` (P2b), and nothing under `internal/le/commit` changes for it
 - `test/plugin/show-doctor-runtime-checks.ci`
 - `test/ui/doctor-runtime-not-checked.ci`
 - `test/plugin/doctor-local-asks-daemon.ci`
@@ -301,6 +353,21 @@ This child owns four things, in this order:
    - Output: `plan/audits/doctor-problem-inventory.md`, committed per area as each area finishes
 4. **Phase: Area children** -- write one spec per area holding gap rows, each row an AC with owner, state, route and code name
 
+### Implementation Phases (added 2026-11-10)
+
+The four steps above, cut into agent work packages (`plan/handover/doctor-coverage-1-start.md`, "Proposed phases"). One agent per package, each about 60 tool calls; `∥` marks packages that run at once. Agents read and edit only; every test, build and lint runs in the main thread, one at a time.
+
+| Phase | Owns | Covers | Depends on | Runs with |
+|-------|------|--------|------------|-----------|
+| P1a wire | `pkg/plugin/rpc/types.go` (+ test), `pkg/plugin/sdk/sdk_types.go`, `pkg/plugin/sdk/sdk_callbacks.go`; `internal/core/diagnostic/types.go`, `doctor_registry.go`, `codes.go` (every new code up front); delete `internal/core/diagnostic/doctor_daemon.go`; `internal/component/config/system/register.go`, `doctor_dns_source.go`; `internal/component/doctor/registry.go`, `checks_plugin_registry.go`, `doctor.go`; `internal/component/doctor/cmd/show.go`; the doctor page; `docs/plugin-development/protocol.md` | AC-1, AC-3, AC-7 base, AC-8 docs, AC-13 | - | ∥ P2a |
+| P2a gate scan | `internal/le/arch/doctorcoverage/**` (scan, `check`, `report`) | AC-4 check form, AC-5, AC-12, A-1, A-2 | - | ∥ P1a |
+| P1b local route (O-1) | `internal/component/doctor/answer.go`, `doctor.go` `Run`; `test/plugin/show-doctor-runtime-checks.ci`, `test/plugin/doctor-local-asks-daemon.ci`, `test/ui/doctor-runtime-not-checked.ci` | AC-2, AC-10, AC-14 | P1a | ∥ P1c |
+| P1c recent events (O-2) | new `internal/component/doctor/checks_recent_events.go` (+ test), `internal/component/doctor/register.go` | AC-11 | P1a | ∥ P1b |
+| P2b commit registration | the `doctorcoverage` `init()` registering into `internal/le/commit/changecheck` | AC-4 through `./le commit create` | P2a | - |
+| P3 audit | about 18 area agents, at most 5 at once (system-plugins split in 3, bgp-plugins in 2, routing-protocols in 2), each walking one door area from the P2a report plus the silent states; area spec numbers 3..N assigned in advance so agents never collide on a name; then one merge agent writes `plan/audits/doctor-problem-inventory.md` and the area children | AC-6, AC-9 | P2a report | - |
+
+Child 2 (`plan/release/validation/spec-doctor-coverage-2-home-cpe-batch.md`) waits on P1a only, plus P1b for its R-5.
+
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
@@ -335,6 +402,9 @@ This child owns four things, in this order:
 ## Design Insights
 
 - The daemon route re-reads the config file, so "running state" and "config on disk" can disagree; a runtime check reports live state and, where it compares against config, compares against the running configuration the owner applied.
+- 2026-11-10: `Diagnostic.Fix` (JSON `"fix"`) sits beside the existing `FixSafety` (`"fix-safety"`) and `Repair` (`"repair"`). They answer different questions, and the `Fix` doc comment in `internal/core/diagnostic/types.go` states the difference: `Fix` is the command or config statement the operator runs, alone, as `opererr` holds it, drawn on its own line; `Repair` names a candidate automated repair an agent may apply (an id and a summary); `FixSafety` grades how safe that automated repair is. A diagnostic may carry `Fix` with neither of the others, and `Fix` never holds a repair id
+- 2026-11-10: the daemon-only registry in `internal/core/diagnostic/doctor_daemon.go` (commit 311177442c) landed one day after this design and is the `runtime` phase built a second way. It is deleted, not extended, so the phase set stays the one declaration of when a check runs
+- 2026-11-10: "a daemon answers" on the local route means the SSH ask succeeded, not that a process exists; a running daemon the operator cannot log in to is the fallback case (AC-14)
 
 ## Owner Decisions
 
@@ -383,6 +453,12 @@ Thomas answered "yes to all recommendations" on 2026-11-08. No owner question re
 - [ ] AC-1..AC-12 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] The targeted tests pass in the main checkout: `./le job run label doctor command go test -tags <tags> ./internal/component/doctor/... ./pkg/plugin/rpc/...`, `./le job run label le-arch command go test ./internal/le/arch/doctorcoverage/...`, `./le test functional plugin` and `./le test functional ui` for the two `.ci` files, with the tags `./le repo changed scope print both` names
+
+**Goal Gates, corrected 2026-11-10 (the two lines above stay as written; this list governs):** no agent runs a whole functional suite or any `./le verify` command, so neither is evidence here (`ai/META-DECISIONS.md`, "Ze is pre-release"). The evidence is:
+- [ ] AC-1..AC-14 all demonstrated
+- [ ] Scoped package tests, each under `./le job run` with the tags `./le repo changed scope print both` names: `./pkg/plugin/rpc/`, `./pkg/plugin/sdk/`, `./internal/core/diagnostic/`, `./internal/component/doctor/...`, `./internal/component/config/system/`, `./internal/le/arch/doctorcoverage/`, `./internal/le/commit/changecheck/`, and the package that owns `doctor-recent-events`
+- [ ] Named `.ci` files only, each run alone: `test/plugin/show-doctor-runtime-checks.ci`, `test/plugin/doctor-local-asks-daemon.ci`, `test/ui/doctor-runtime-not-checked.ci`, and the kept `test/plugin/doctor-dns-source.ci`, plus any existing `test/plugin/*doctor*.ci` whose expected output the `fix` line changes
+- [ ] GitHub CI's `verify` run on the pushed commit is the whole-tree evidence, never a local run
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 - [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
