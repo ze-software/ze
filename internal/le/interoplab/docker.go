@@ -273,7 +273,15 @@ type commandError struct {
 func (e *commandError) Error() string {
 	var tb textbuf.Buffer
 	tb.Str(e.Operation)
+	callerDeadline, cutShort := errors.AsType[*callerDeadlineError](e.Cause)
 	switch {
+	case cutShort:
+		// The caller's deadline, not the bound, ended the command (a wait
+		// whose window closed while this probe ran), so naming the bound
+		// would report a hang that never happened.
+		tb.Str(" was cut short by its caller's deadline after ").Str(callerDeadline.Elapsed.String()).
+			Str(", before its own ").Str(e.Timeout.String()).
+			Str(" bound: the step that ran it had run out of time, so the command itself did not hang")
 	case errors.Is(e.Cause, context.DeadlineExceeded):
 		tb.Str(" did not finish within ").Str(e.Timeout.String())
 	case errors.Is(e.Cause, context.Canceled):

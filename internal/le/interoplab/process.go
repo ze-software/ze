@@ -54,8 +54,10 @@ type ProcessCommand struct {
 // ProcessResult is what a ProcessCommand left: the captured streams (empty
 // for a stream the command attached) and the exit code. A command its bound
 // ended answers the timeout exit code (124) with context.DeadlineExceeded; a
-// command whose context was canceled answers no exit code, with
-// context.Canceled, and the error is what the caller reads.
+// command its caller's context deadline ended answers 124 too, with a
+// *callerDeadlineError that wraps context.DeadlineExceeded; a command whose
+// context was canceled answers no exit code, with context.Canceled, and the
+// error is what the caller reads.
 type ProcessResult struct {
 	Stdout   string
 	Stderr   string
@@ -68,6 +70,29 @@ type ProcessRunner interface {
 	Run(context.Context, ProcessCommand) (ProcessResult, error)
 }
 
+// callerDeadlineError is what Run answers when the caller's context deadline,
+// and not the command's own bound, ended the command: a wait whose window
+// closed while its probe ran, or a step whose budget ran out. The command did
+// not hang, so its error must not name the bound it never reached. It wraps
+// context.DeadlineExceeded, so a caller that branches on a deadline still
+// takes the same branch.
+type callerDeadlineError struct {
+	// Elapsed is how long the command ran before the caller's deadline ended it.
+	Elapsed time.Duration
+}
+
+func (e *callerDeadlineError) Error() string {
+	var tb textbuf.Buffer
+	return tb.Str("the caller's deadline ended the command after ").Str(e.Elapsed.String()).
+		Str(": ").Err(context.DeadlineExceeded).String()
+}
+
+func (e *callerDeadlineError) Unwrap() error { return context.DeadlineExceeded }
+
+// errCommandBound is the cause the command's own bound records, so Run tells
+// it from a deadline the caller's context carried in.
+var errCommandBound = errors.New("the command's own bound ended it")
+
 type systemProcessRunner struct{}
 
 func (systemProcessRunner) Run(ctx context.Context, command ProcessCommand) (ProcessResult, error) {
@@ -78,7 +103,8 @@ func (systemProcessRunner) Run(ctx context.Context, command ProcessCommand) (Pro
 		return ProcessResult{}, errors.New("process command timeout must be positive")
 	}
 
-	runCtx, cancel := context.WithTimeout(ctx, command.Timeout)
+	started := time.Now()
+	runCtx, cancel := context.WithTimeoutCause(ctx, command.Timeout, errCommandBound)
 	defer cancel()
 
 	//nolint:gosec // Every argv comes from the closed Docker grammar in docker.go or the fixed Go build in zebuild.go.
@@ -126,9 +152,18 @@ func (systemProcessRunner) Run(ctx context.Context, command ProcessCommand) (Pro
 	// the caller stopping (a Ctrl-C reaching le's signal root): le killed the
 	// client, so it has no exit code of its own, and answering 124 would name a
 	// timeout for an interrupt.
+	//
+	// Two deadlines can end the command: its own bound, and one the caller's
+	// context carried in (a Wait's window closing while its probe ran). runCtx
+	// reports DeadlineExceeded for either, so the cause tells them apart: only
+	// the bound records errCommandBound. Reading ctx.Err() instead would race,
+	// since the caller's deadline can pass after the bound already fired.
 	if errors.Is(runCtx.Err(), context.DeadlineExceeded) {
 		result.ExitCode = timeoutExitCode
-		return result, runCtx.Err()
+		if errors.Is(context.Cause(runCtx), errCommandBound) {
+			return result, runCtx.Err()
+		}
+		return result, &callerDeadlineError{Elapsed: time.Since(started).Round(time.Millisecond)}
 	}
 	if runCtx.Err() != nil {
 		return result, runCtx.Err()

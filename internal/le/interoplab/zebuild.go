@@ -164,6 +164,9 @@ func stageBinary(ctx context.Context, runner ProcessRunner, root string, environ
 	}
 
 	result, err := runner.Run(ctx, command)
+	if callerDeadline, cutShort := errors.AsType[*callerDeadlineError](err); cutShort {
+		return errors.New(buildCutShortMessage(binary, callerDeadline, result))
+	}
 	if errors.Is(err, context.DeadlineExceeded) {
 		return errors.New(buildTimeoutMessage(binary, err, result))
 	}
@@ -195,6 +198,20 @@ func buildTimeoutMessage(binary LabBinary, err error, result ProcessResult) stri
 		Str("\nFix: rerun the same command; the build cache keeps every package this attempt ").
 		Str("compiled, so the next attempt starts warm. `./le scratch ensure` restores ").
 		Str("the cache link if cache/go-cache is missing.").String()
+}
+
+// buildCutShortMessage answers the refusal for a cross-compile its caller's
+// deadline ended before labBuildTimeout did: the compile did not hang, so the
+// slow-build reasons buildTimeoutMessage gives do not apply.
+func buildCutShortMessage(binary LabBinary, err *callerDeadlineError, result ProcessResult) string {
+	var tb textbuf.Buffer
+	return tb.Str("cross-compile ").Str(binary.Name).Str(" into ").Str(binary.Output).
+		Str(" was cut short by its caller's deadline after ").Str(err.Elapsed.String()).
+		Str(", before its own ").Str(labBuildTimeout.String()).Str(" bound: ").Err(err).
+		Str(": ").Str(buildDiagnostic(result)).
+		Str(".\nWhy: the step that started the compile ran out of time, so the compile itself did not hang.").
+		Str("\nFix: rerun the same command; the build cache keeps every package this attempt ").
+		Str("compiled, so the next attempt starts warm.").String()
 }
 
 // buildDiagnostic answers what the compiler said, preferring its diagnostics on

@@ -760,7 +760,16 @@ mark up, whatever its `docker rm -f` answered.
 
 A docker command le stopped is named for what stopped it. One whose own bound
 ended reads "did not finish within <bound>" and carries exit 124, as
-`timeout(1)` answers. One whose context was canceled, by an interrupt reaching
+`timeout(1)` answers. One that a deadline of its caller's context ended first
+reads "was cut short by its caller's deadline after <elapsed>, before its own
+<bound> bound": a `Wait` window that closed while its probe's exec ran is the
+usual case, and the command did not hang. It carries exit 124 and still wraps
+`context.DeadlineExceeded`, so a caller that branches on a deadline takes the
+same branch; only the text differs. The runner tells the two apart by the
+cause the command's own bound records, not by reading the caller's context
+afterwards, which a deadline passing just after the bound fired would fool. A
+lab cross-compile its caller cut short is refused the same way, without the
+slow-build reasons. One whose context was canceled, by an interrupt reaching
 the verb's signal root or by the run stopping, reads "was canceled before it
 finished" and carries no exit code, because the code would be le's own kill.
 
@@ -771,8 +780,9 @@ killed by the same signal, or by a second Ctrl-C. A command handed a terminal
 as one of its streams stays in the group of `le`, where reading the terminal
 raises no SIGTTIN ("How a suite's child processes end" in
 `runner-architecture.md`).
-<!-- source: internal/le/interoplab/process.go -- systemProcessRunner.Run, sharesTerminal -->
+<!-- source: internal/le/interoplab/process.go -- systemProcessRunner.Run, callerDeadlineError, sharesTerminal -->
 <!-- source: internal/le/interoplab/docker.go -- commandError.Error -->
+<!-- source: internal/le/interoplab/zebuild.go -- stageBinary, buildCutShortMessage -->
 
 The multi-DUT benchmark (`./le perf run`, `./le perf record evidence`) is the
 other such caller. Its network goes through `Docker.CreateNetwork` and

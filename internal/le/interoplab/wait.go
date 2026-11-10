@@ -67,9 +67,10 @@ func Wait[T any](ctx context.Context, options WaitOptions, probe func(context.Co
 		if err != nil {
 			report.TransientFailures++
 			// A probe the wait's own end cut short failed for that end, not
-			// for the peer: an exec killed at the deadline names only its own
-			// timeout. The failure of the last probe that ran to its end is
-			// kept beside it, so the red names why every probe failed.
+			// for the peer: an exec killed at the deadline names only the
+			// wait's deadline cutting it short. The failure of the last probe
+			// that ran to its end is kept beside it, so the red names why
+			// every probe failed.
 			if waitCtx.Err() == nil {
 				causeErr, cutErr = err, nil
 			} else {
