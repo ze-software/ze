@@ -10,6 +10,7 @@ package hub
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -50,11 +51,11 @@ func gnmiBuildImpl(in *gnmiBuildInputs) gnmiServer {
 
 	// Resolve enable/address/token through the always-on shared resolver
 	// (gnmi_infra.go) so the boot-time management-listener guard and this
-	// builder agree on exactly the (address, token) pair that binds. TLS
-	// cert/key stay here because the guard does not read cert files.
+	// builder agree on exactly the (address, token) pair that binds. The TLS
+	// pair comes from zeconfig.GNMITLSPaths, which the gnmi-tls-material
+	// doctor check reads too, so doctor judges the pair this builder loads.
 	gnmiAddr, gnmiToken, gnmiEnabled := resolveGNMIListeners(in.Tree)
-	gnmiTLSCert := env.Get("ze.gnmi.tls.cert")
-	gnmiTLSKey := env.Get("ze.gnmi.tls.key")
+	gnmiTLSCert, gnmiTLSKey := zeconfig.GNMITLSPaths(in.Tree)
 
 	// The extra-listener warning belongs to the ADDRESS question: only a block
 	// that asks for a listener supplies addresses at all.
@@ -63,38 +64,19 @@ func gnmiBuildImpl(in *gnmiBuildInputs) gnmiServer {
 			slog.Warn("gNMI: only first server listener is used, extra listeners ignored", "configured", len(listenCfg.Servers))
 		}
 	}
-	// The TLS paths are SETTINGS: they apply whenever the block exists, the
-	// same split resolveGNMIListeners applies to the token (gnmi_infra.go).
-	// Gating them on `enabled` served an env-started gNMI listener in plaintext
-	// over a config that named a certificate.
-	if settings, ok := zeconfig.ExtractGNMISettings(in.Tree); ok {
-		if gnmiTLSCert == "" {
-			gnmiTLSCert = settings.TLS.Cert
-		}
-		if gnmiTLSKey == "" {
-			gnmiTLSKey = settings.TLS.Key
-		}
-	}
-
 	if !gnmiEnabled {
 		return nil
 	}
 
+	// The server reads the TLS files itself, before it listens, and refuses to
+	// serve when they cannot be read or parsed (zegnmi tls.go). Reading them
+	// here left an empty PEM on a read error, and the server then served clear
+	// text over a config that asked for TLS.
 	gnmiCfg := zegnmi.Config{
 		ListenAddr: gnmiAddr,
 		Token:      gnmiToken,
-	}
-	if gnmiTLSCert != "" {
-		var err error
-		if gnmiCfg.CertPEM, err = os.ReadFile(gnmiTLSCert); err != nil { //nolint:gosec // operator-configured cert path
-			fmt.Fprintf(os.Stderr, "warning: gNMI TLS cert: %v\n", err)
-		}
-	}
-	if gnmiTLSKey != "" {
-		var err error
-		if gnmiCfg.KeyPEM, err = os.ReadFile(gnmiTLSKey); err != nil { //nolint:gosec // operator-configured key path
-			fmt.Fprintf(os.Stderr, "warning: gNMI TLS key: %v\n", err)
-		}
+		CertFile:   gnmiTLSCert,
+		KeyFile:    gnmiTLSKey,
 	}
 
 	gnmiCtx, gnmiCancel := context.WithCancel(context.Background())
@@ -112,16 +94,28 @@ func gnmiBuildImpl(in *gnmiBuildInputs) gnmiServer {
 	}
 	zegnmi.RegisterGlobal(gnmiSrv)
 
-	go serveGNMI(gnmiCtx, gnmiSrv)
+	serveFailed := make(chan error, 1)
+	go serveGNMI(gnmiCtx, gnmiSrv, serveFailed)
 	readyCtx, readyCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	gnmiReady := waitForGNMIBind(readyCtx, gnmiSrv)
+	bindErr := waitForGNMIBind(readyCtx, gnmiSrv, serveFailed)
 	readyCancel()
-	if gnmiReady {
+	if bindErr == nil {
 		fmt.Fprintf(os.Stderr, "gNMI server listening on %s\n", gnmiSrv.Address())
-	} else {
-		fmt.Fprintf(os.Stderr, "warning: gNMI server failed to bind on %s\n", gnmiAddr)
+		return &builtGNMIServer{srv: gnmiSrv, cancel: gnmiCancel}
 	}
-	return &builtGNMIServer{srv: gnmiSrv, cancel: gnmiCancel}
+	if errors.Is(bindErr, errGNMIBindPending) {
+		fmt.Fprintf(os.Stderr, "warning: gNMI server failed to bind on %s\n", gnmiAddr)
+		return &builtGNMIServer{srv: gnmiSrv, cancel: gnmiCancel}
+	}
+	// Serve returned before it bound: the TLS material did not load, or the
+	// address did not bind. Nothing listens, so nothing is served in clear
+	// text. The daemon keeps running without gNMI, as it does for the other
+	// management listeners; serveGNMI logged the error at Error.
+	gnmiCancel()
+	zegnmi.RegisterGlobal(nil)
+	activeGNMINotifier = nil
+	fmt.Fprintln(os.Stderr, "error:", bindErr.Error())
+	return nil
 }
 
 func gnmiReloadNotifyImpl() {
@@ -130,23 +124,36 @@ func gnmiReloadNotifyImpl() {
 	}
 }
 
-// serveGNMI runs the gNMI server's Serve in a background goroutine.
-// This is a one-time component startup, not a per-event goroutine.
-func serveGNMI(ctx context.Context, srv *zegnmi.Server) {
-	if serveErr := srv.Serve(ctx); serveErr != nil {
-		slogutil.Logger("gnmi.server").Error("gNMI server error", "error", serveErr)
+// errGNMIBindPending is waitForGNMIBind's answer when the server neither
+// bound nor failed before the wait ended.
+var errGNMIBindPending = errors.New("gNMI server has not bound yet")
+
+// serveGNMI runs the gNMI server's Serve in a background goroutine and hands
+// its error to failed, which MUST be buffered for one value: nothing may be
+// reading it once the builder has returned. This is a one-time component
+// startup, not a per-event goroutine.
+func serveGNMI(ctx context.Context, srv *zegnmi.Server, failed chan<- error) {
+	serveErr := srv.Serve(ctx)
+	if serveErr == nil {
+		return
 	}
+	failed <- serveErr
+	slogutil.Logger("gnmi.server").Error("gNMI server error", "error", serveErr)
 }
 
-// waitForGNMIBind polls until the gNMI server has a bound address or ctx expires.
-func waitForGNMIBind(ctx context.Context, srv *zegnmi.Server) bool {
+// waitForGNMIBind polls until the gNMI server has a bound address, Serve
+// returns, or ctx expires. It answers nil once bound, Serve's error when Serve
+// returned first, and errGNMIBindPending when ctx expired first.
+func waitForGNMIBind(ctx context.Context, srv *zegnmi.Server, failed <-chan error) error {
 	for {
 		if addr := srv.Address(); addr != "" {
-			return true
+			return nil
 		}
 		select {
+		case serveErr := <-failed:
+			return serveErr
 		case <-ctx.Done():
-			return false
+			return errGNMIBindPending
 		case <-time.After(10 * time.Millisecond):
 		}
 	}

@@ -1,0 +1,33 @@
+# Test: a gNMI listener whose TLS certificate cannot be read does not start
+# QUESTION: does the real boot path (ze reading this config, main.go calling
+# the gated gNMI builder) leave gNMI unstarted, rather than serving clear
+# text, when the configured certificate file cannot be read? The unit tests
+# drive the builder and Server.Serve directly; only a daemon run proves the
+# config leaf reaches them and the operator sees the refusal on stderr.
+# VALIDATES: spec-doctor-coverage-11-hub-engine AC-7 -- gNMI does not start,
+# the error names the file, and the daemon does not refuse to start over it.
+# PREVENTS: the clear-text fallback, where the read error left the PEM empty
+# and gNMI served its config without TLS over a config that named TLS.
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	gnmi {
+		enabled true
+		server main {
+			ip 127.0.0.1
+			port $PORT
+		}
+		tls {
+			cert /nonexistent/ze-gnmi-tls-missing.pem
+			key /nonexistent/ze-gnmi-tls-missing.key
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=20s
+await=stderr:contains=gNMI not started: TLS certificate file /nonexistent/ze-gnmi-tls-missing.pem cannot be read
+expect=stderr:contains=gNMI not started: TLS certificate file /nonexistent/ze-gnmi-tls-missing.pem cannot be read
+expect=stderr:contains=fix: restore /nonexistent/ze-gnmi-tls-missing.pem
+reject=stderr:pattern=gNMI server listening
+reject=stderr:pattern=refusing to start

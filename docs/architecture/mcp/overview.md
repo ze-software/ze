@@ -404,7 +404,9 @@ MCP listener; it does not terminate the daemon.
 
 Each address gets its own `net.Listener`. All are served by one `http.Server`
 whose handler is the `*zemcp.Streamable`. A configured certificate/key pair
-wraps the listeners with TLS 1.2 or later. Bind is all-or-nothing: if any
+wraps the listeners with TLS 1.2 or later. Naming either file asks for TLS:
+a half-named pair, or a pair `loadMCPTLSConfig` cannot load, disables the MCP
+listener, which never falls back to plain HTTP. Bind is all-or-nothing: if any
 listener fails, the already-bound listeners are
 closed. Shutdown calls `http.Server.Shutdown`, and the caller must also call
 `Close` on the handler so the task-registry GC goroutine exits.

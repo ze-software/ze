@@ -81,7 +81,18 @@ func TestGnmicInterop(t *testing.T) {
 	tree.SetContainer("bgp", bgp)
 	editor := &configSessionEditor{values: make(map[string]string)}
 	sessions := api.NewConfigSessionManager(func() (api.ConfigEditor, error) { return editor, nil })
-	srv := NewServer(Config{ListenAddr: "127.0.0.1:0", Token: gnmicToken, CertPEM: certPEM, KeyPEM: keyPEM},
+	// The server's own pair goes in a directory of its own: certs is
+	// world-readable and mounted for the client, so it holds the CA alone.
+	serverFiles := t.TempDir()
+	certFile := filepath.Join(serverFiles, "server.pem")
+	keyFile := filepath.Join(serverFiles, "server.key")
+	if err := os.WriteFile(certFile, certPEM, 0o600); err != nil {
+		t.Fatalf("write server certificate: %v", err)
+	}
+	if err := os.WriteFile(keyFile, keyPEM, 0o600); err != nil {
+		t.Fatalf("write server key: %v", err)
+	}
+	srv := NewServer(Config{ListenAddr: "127.0.0.1:0", Token: gnmicToken, CertFile: certFile, KeyFile: keyFile},
 		treeFunc(tree), sessions, yangloader.DefaultLoader, nil)
 	startTestServer(t, srv)
 	address := srv.Address()

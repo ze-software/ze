@@ -109,6 +109,7 @@ const (
 	CodeDoctorRandomSeed                           = "doctor-random-seed"
 	CodeDoctorStoreIntegrity                       = "doctor-store-integrity"
 	CodeDoctorStorePermissions                     = "doctor-store-permissions"
+	CodeDoctorGNMITLSMaterial                      = "doctor-gnmi-tls-material"
 	CodeDoctorTLSExpired                           = "doctor-tls-expired"
 	CodeDoctorTLSInvalid                           = "doctor-tls-invalid"
 	CodeDoctorStorageUnavailable                   = "doctor-storage-unavailable"
@@ -407,6 +408,18 @@ var builtinCodes = []CodeMeta{
 		Title:       "TLS certificate or key cannot be used",
 		Description: "A TLS certificate file is not valid PEM, or the DER content cannot be parsed as an X.509 certificate, or a stored certificate and key do not load as a pair. A listener whose material does not load does not start.",
 		Examples:    []string{exampleDoctorJSON},
+	},
+	{
+		Code:  CodeDoctorGNMITLSMaterial,
+		Title: "gNMI TLS material cannot serve",
+		Description: "gNMI is set to start and its TLS settings (environment gnmi tls cert and key, or the " +
+			"ze.gnmi.tls.cert and ze.gnmi.tls.key overrides) name material it cannot serve: only one of " +
+			"the two files is set, a file cannot be read, the pair does not load, or the certificate is " +
+			"expired, not yet valid or near expiry. gNMI refuses to start rather than serve its token " +
+			"and config in clear text, and the daemon logs the refusal under this code. The finding " +
+			"names the file and the fix: restore the file or point the setting at a readable PEM pair, " +
+			"then run ze signal restart.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-gnmi-tls-material"},
 	},
 	{
 		Code:  CodeDoctorTLSReference,

@@ -5,6 +5,7 @@
 // Related: subscribe.go -- Subscribe RPC handler
 // Related: path.go -- gNMI path translation
 // Related: errors.go -- sentinel errors
+// Related: tls.go -- loadTLSCredentials, the TLS material Serve refuses to serve without
 
 package gnmi
 
@@ -12,14 +13,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
-	"crypto/tls"
 	"fmt"
 	"net"
 	"sync"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
@@ -55,11 +54,25 @@ func LookupServer() *Server {
 }
 
 // Config holds gNMI server configuration.
+//
+// CertFile and KeyFile name the PEM files of the TLS transport. Both empty
+// serves gRPC without TLS. Naming either one asks for TLS, and Serve then
+// serves TLS or nothing: it never falls back to clear text (tls.go).
 type Config struct {
 	ListenAddr string
 	Token      string
-	CertPEM    []byte
-	KeyPEM     []byte
+	CertFile   string
+	KeyFile    string
+}
+
+// tlsNamed reports whether the config names any TLS material, so the
+// listener owes TLS. One named file is enough: a lone key is a broken TLS
+// config, never a request for clear text.
+func (c *Config) tlsNamed() bool {
+	if c.CertFile != "" {
+		return true
+	}
+	return c.KeyFile != ""
 }
 
 // Server implements the gNMI gRPC service.
@@ -110,7 +123,7 @@ func (s *Server) Status() ServerStatus {
 		Enabled:       true,
 		ListenAddress: s.Address(),
 		TokenSet:      s.config.Token != "",
-		TLSConfigured: len(s.config.CertPEM) > 0 && len(s.config.KeyPEM) > 0,
+		TLSConfigured: s.config.tlsNamed(), // Serve refuses to listen on material it cannot load
 	}
 	if s.notifier != nil {
 		s.notifier.mu.RLock()
@@ -157,15 +170,15 @@ func (s *Server) Serve(ctx context.Context) error {
 		grpc.ChainStreamInterceptor(stream...),
 	}
 
-	if len(s.config.CertPEM) > 0 && len(s.config.KeyPEM) > 0 {
-		cert, err := tls.X509KeyPair(s.config.CertPEM, s.config.KeyPEM)
+	// The material loads before anything listens, so a config that names TLS
+	// and a file that cannot be read or parsed leaves no socket accepting
+	// clear text: Serve returns the operator error and binds nothing.
+	if s.config.tlsNamed() {
+		creds, err := loadTLSCredentials(s.config.CertFile, s.config.KeyFile)
 		if err != nil {
-			return fmt.Errorf("gnmi: TLS key pair: %w", err)
+			return err
 		}
-		opts = append(opts, grpc.Creds(credentials.NewTLS(&tls.Config{
-			Certificates: []tls.Certificate{cert},
-			MinVersion:   tls.VersionTLS12,
-		})))
+		opts = append(opts, grpc.Creds(creds))
 	}
 
 	s.srv = grpc.NewServer(opts...)

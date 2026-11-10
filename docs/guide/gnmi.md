@@ -58,6 +58,25 @@ Or in YANG config:
 
 TLS certificates are loaded once at startup. Certificate rotation requires restarting the gNMI server.
 
+Naming either file asks for TLS, and gNMI then serves TLS or nothing. It never
+falls back to clear text. When only one of the two files is set, when a file
+cannot be read, or when the certificate and key are not a valid pair, gNMI
+does not start: nothing listens on its port, and Ze logs an error naming the
+file, why, and the fix. The rest of the daemon keeps running. Restore the file
+or correct `environment gnmi tls cert` / `key` (or `ze.gnmi.tls.cert` /
+`ze.gnmi.tls.key`), then run `ze signal restart`: a reload does not restart
+gNMI.
+
+The error carries the code `doctor-gnmi-tls-material`, and `ze doctor` reports
+the same cause before the daemon starts: its `gnmi-tls-material` check loads
+the pair gNMI would serve, environment overrides included, and names the file,
+why, and the fix. It also reports a certificate that is expired or not yet
+valid as an error, and one within 30 days of expiry as a warning. It reports nothing when gNMI does not
+start or names no TLS file. `ze show diagnostic doctor-gnmi-tls-material`
+explains the code.
+<!-- source: internal/component/gnmi/doctor.go -- checkGNMITLSMaterial, gnmiTLSDoctorCheck -->
+<!-- source: internal/component/config/loader_extract.go -- GNMIStarts, GNMITLSPaths -->
+
 ## Supported RPCs
 
 | RPC | Description |

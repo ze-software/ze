@@ -19,23 +19,20 @@ import (
 // always-on so the boot-time management-listener guard can see gNMI's
 // (address, token) pair before anything binds, and the gated builder calls the
 // SAME function so exactly one resolver exists (no drift between what the guard
-// classifies and what actually binds). TLS cert/key resolution stays in the
-// gated builder because the guard does not read cert files.
+// classifies and what actually binds). The guard does not read cert files, so
+// the gated builder alone asks zeconfig.GNMITLSPaths for the TLS pair.
 func resolveGNMIListeners(tree *zeconfig.Tree) (addr, token string, enabled bool) {
 	addr = env.Get("ze.gnmi.listen")
 	token = env.Get("ze.gnmi.token")
-	if env.IsEnabled("ze.gnmi.enabled") {
-		enabled = true
-	}
 
 	// Two questions, deliberately asked separately (see ExtractGNMISettings).
 	//
-	// START comes only from a config block that asks for a listener, so
-	// `enabled false` still means "config does not start gNMI". This question
-	// answers nothing else: a dormant block never turns itself into a listener.
-	if _, ok := zeconfig.ExtractGNMIConfig(tree); ok {
-		enabled = true
-	}
+	// START comes from ze.gnmi.enabled or from a config block that asks for a
+	// listener, so `enabled false` still means "config does not start gNMI".
+	// This question answers nothing else: a dormant block never turns itself
+	// into a listener. zeconfig.GNMIStarts is its one answer, which the
+	// gnmi-tls-material doctor check reads too.
+	enabled = zeconfig.GNMIStarts(tree)
 	// SETTINGS (token, and the address the block names) apply whenever the block
 	// exists, whatever said START. Gating them on `enabled` discarded the
 	// operator's instruction when ze.gnmi.enabled started the server: the daemon

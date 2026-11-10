@@ -681,6 +681,41 @@ func ExtractGNMIConfig(tree *Tree) (GNMIListenConfig, bool) {
 	return cfg, true
 }
 
+// GNMIStarts answers whether gNMI starts: ze.gnmi.enabled is set, or the
+// config block asks for a listener. It is the one answer to that question,
+// read by the hub resolver that binds gNMI (cmd/ze/hub gnmi_infra.go
+// resolveGNMIListeners) and by the gnmi-tls-material doctor check, so the
+// check never judges a listener the daemon would not start.
+func GNMIStarts(tree *Tree) bool {
+	if env.IsEnabled("ze.gnmi.enabled") {
+		return true
+	}
+	_, ok := ExtractGNMIConfig(tree)
+	return ok
+}
+
+// GNMITLSPaths answers the certificate and key paths gNMI serves, each one
+// from its environment override (ze.gnmi.tls.cert, ze.gnmi.tls.key) when set,
+// otherwise from the block's TLS leaves. The leaves are settings: they apply
+// whenever the block exists, whatever started gNMI, because gating them on
+// `enabled` served an env-started listener in clear text over a config that
+// named a certificate. Empty means that path is not configured. The hub
+// builder and the gnmi-tls-material doctor check both read this, so the check
+// judges exactly the pair the daemon loads.
+func GNMITLSPaths(tree *Tree) (cert, key string) {
+	cert = env.Get("ze.gnmi.tls.cert")
+	key = env.Get("ze.gnmi.tls.key")
+	if settings, ok := ExtractGNMISettings(tree); ok {
+		if cert == "" {
+			cert = settings.TLS.Cert
+		}
+		if key == "" {
+			key = settings.TLS.Key
+		}
+	}
+	return cert, key
+}
+
 // extractGNMIBlock parses environment.gnmi in full and reports both whether the
 // block exists (present) and whether it asks for a listener (enabled). It
 // applies no gate of its own; each caller above decides what its own ok value

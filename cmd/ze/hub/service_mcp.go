@@ -33,6 +33,7 @@ import (
 
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	zemcp "github.com/ze-software/ze/internal/component/mcp"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // mcpService adapts *mcpServerHandle to the Service interface. The handle
@@ -189,10 +190,11 @@ type mcpServerHandle struct {
 // Bind is all-or-nothing: if ANY listener fails to bind, the already-bound
 // listeners are closed and the function returns nil.
 //
-// When tlsCert + tlsKey are non-empty, the server serves HTTPS with the
-// PEM-encoded certificate and key file paths supplied. Setting one without
-// the other is a config error; MCPListenConfig.Validate rejects that at
-// verify time, so we trust the pair is complete here.
+// When tlsCert or tlsKey is non-empty, the server serves HTTPS with the
+// PEM-encoded certificate and key file paths supplied, or does not start.
+// Setting one without the other is a config error that
+// MCPListenConfig.Validate rejects at verify time; loadMCPTLSConfig refuses
+// it here too, so a half-named pair never serves plain HTTP.
 //
 // Speaks the MCP 2026-07-28 Streamable HTTP profile: POST-only and stateless,
 // with per-request metadata, headers and authentication, and no handshake,
@@ -213,7 +215,7 @@ func startMCPServer(addrs []string, dispatch zemcp.CommandDispatcher, commands z
 		return nil
 	}
 
-	useTLS := tlsCert != "" && tlsKey != ""
+	useTLS := tlsCert != "" || tlsKey != ""
 	srv := &http.Server{
 		// Addr is informational; multi-listener serving uses Serve(ln).
 		Addr:              addrs[0],
@@ -281,6 +283,16 @@ func startMCPServer(addrs []string, dispatch zemcp.CommandDispatcher, commands z
 // a world-readable private key on a shared host is a misconfiguration the
 // daemon should catch at startup, not a runtime quirk to document.
 func loadMCPTLSConfig(certFile, keyFile string) (*tls.Config, error) {
+	if certFile == "" {
+		return nil, opererr.New("MCP TLS key file "+keyFile+" is set without a certificate file",
+			"MCP serves HTTPS only with both files, and never falls back to plain HTTP",
+			"set environment mcp tls cert to the certificate of that key, then run ze signal restart")
+	}
+	if keyFile == "" {
+		return nil, opererr.New("MCP TLS certificate file "+certFile+" is set without a key file",
+			"MCP serves HTTPS only with both files, and never falls back to plain HTTP",
+			"set environment mcp tls key to the private key of that certificate, then run ze signal restart")
+	}
 	if err := checkKeyFilePermissions(keyFile); err != nil {
 		return nil, err
 	}
