@@ -30,9 +30,12 @@ import (
 //
 // RFC 4271 Section 5.1.5: "LOCAL_PREF is a well-known attribute that SHALL be included in all UPDATE messages that a given BGP speaker sends to other internal peers."
 // RFC 4271 Section 5.1.5: "A BGP speaker MUST NOT include this attribute in UPDATE messages it sends to external peers, except in the case of BGP Confederations [RFC3065]."
+// RFC 4271 Section 5.1.2: "the originating speaker includes an empty AS_PATH
+// attribute in all UPDATE messages sent to internal peers."
 // MUTATION: independently discard senderAS at the ordinary handshake handoff,
 // discard connWithID.senderAS at the mapped handoff, always omit LOCAL_PREF in
-// each family builder, always include it, or normalize raw send-action bytes.
+// each family builder, always include it, write the one-AS AS_PATH on an
+// internal session, or normalize raw send-action bytes.
 // Each cut must fail the corresponding captured-wire assertion, not compilation.
 func TestGeneratedBulkAttributesFollowOPEN(t *testing.T) {
 	for _, family := range []string{"ipv4", "ipv6"} {
@@ -409,8 +412,14 @@ func checkBulkOPENUpdate(t *testing.T, frame []byte, family string, internal boo
 		}
 		if code == 2 {
 			pathCount++
-			want := []byte{0x40, 2, 6, 2, 1, 0, 0, 0, 0}
-			binary.BigEndian.PutUint32(want[5:], bulkOPENExternalAS)
+			// RFC 4271 Section 5.1.2: "the originating speaker includes an
+			// empty AS_PATH attribute in all UPDATE messages sent to internal
+			// peers."
+			want := []byte{0x40, 2, 0}
+			if !internal {
+				want = []byte{0x40, 2, 6, 2, 1, 0, 0, 0, 0}
+				binary.BigEndian.PutUint32(want[5:], bulkOPENExternalAS)
+			}
 			if !bytes.Equal(rest[:header+length], want) {
 				t.Errorf("generated AS_PATH was damaged: %x", rest[:header+length])
 			}

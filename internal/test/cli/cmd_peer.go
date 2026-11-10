@@ -123,7 +123,7 @@ func zeTestParsePeerFlags(args []string) (*peer.Config, bool) {
 	fs.StringVar(&injectPrefix, "inject-prefix", "", "inject: base prefix (e.g. 10.0.0.0/24 or 2001:db8::/48)")
 	fs.IntVar(&injectCount, "inject-count", 0, "inject: number of sequential prefixes to emit")
 	fs.StringVar(&injectNextHop, "inject-nexthop", "", "inject: next-hop address (family must match --inject-prefix)")
-	fs.UintVar(&injectASN, "inject-asn", 0, "inject: origin ASN for single-segment AS_SEQUENCE")
+	fs.UintVar(&injectASN, "inject-asn", 0, "inject: AS a --dial OPEN carries; the AS_PATH carries the sent OPEN's AS on an external session and is empty on an internal one")
 	fs.DurationVar(&injectDwell, "inject-dwell", 0, "inject: hold session this long after last byte (0 = until SIGTERM)")
 	fs.IntVar(&injectPerUpdate, "inject-per-update", 0, "inject: most prefixes one UPDATE carries (0 = fill each message)")
 	fs.BoolVar(&injectVaryAttrs, "inject-vary-attrs", false, "inject: give every UPDATE its own MED and COMMUNITIES")
@@ -343,7 +343,9 @@ Inject options (required when --mode inject, unless marked optional):
   --inject-prefix P  Base prefix, e.g. 10.0.0.0/24 or 2001:db8::/48
   --inject-count N   Number of sequential prefixes to emit
   --inject-nexthop A Next-hop address (family must match --inject-prefix)
-  --inject-asn N     Origin ASN (single-segment AS_SEQUENCE, 4-byte)
+  --inject-asn N     AS a --dial OPEN carries. The AS_PATH is one AS_SEQUENCE
+                     of the sent OPEN's AS on an external session, and empty
+                     on an internal one (RFC 4271 Section 5.1.2).
   --inject-dwell D   Hold the session open this long after the last byte
                      is written (default: until SIGTERM).
   --inject-per-update N

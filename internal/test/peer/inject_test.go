@@ -648,12 +648,13 @@ func TestActiveOpenUsesOnePacker(t *testing.T) {
 // TestBuildUpdatesExternalPathCarriesTheOPENAS proves the generated eBGP
 // AS_PATH starts with the AS ze-peer's own OPEN advertised, not the spec's
 // ASN, when the two differ (an option=asn line sets the OPEN apart), for
-// IPv4 and IPv6. An internal session keeps the spec's ASN. RFC 4271 Section
-// 5.1.2 puts the originating speaker's own AS in the AS_SEQUENCE sent to an
-// external peer, and that AS is the one its OPEN named.
+// IPv4 and IPv6. RFC 4271 Section 5.1.2 puts the originating speaker's own AS
+// in the AS_SEQUENCE sent to an external peer, and that AS is the one its
+// OPEN named. The internal session's empty AS_PATH is
+// TestBuildUpdatesInternalPathIsEmpty.
 //
-// MUTATION: write spec.ASN rather than pathAS at buf[at+32:at+36] in
-// buildV4Unicast or buildV6Unicast and the external case reads 65100.
+// MUTATION: have buildUpdates pass spec.ASN rather than senderAS as the path AS
+// to buildV4Unicast or buildV6Unicast and the external case reads 65100.
 func TestBuildUpdatesExternalPathCarriesTheOPENAS(t *testing.T) {
 	const specAS, openAS = uint32(65100), uint32(65200)
 	cases := []struct {
@@ -662,8 +663,6 @@ func TestBuildUpdatesExternalPathCarriesTheOPENAS(t *testing.T) {
 	}{
 		{"ipv4 external", "10.0.0.0/24", "172.31.0.3", openAS, openAS},
 		{"ipv6 external", "2001:db8::/48", "2001:db8::3", openAS, openAS},
-		{"ipv4 internal", "10.0.0.0/24", "172.31.0.3", 0, specAS},
-		{"ipv6 internal", "2001:db8::/48", "2001:db8::3", 0, specAS},
 	}
 	for _, tc := range cases {
 		spec := InjectSpec{
@@ -683,6 +682,86 @@ func TestBuildUpdatesExternalPathCarriesTheOPENAS(t *testing.T) {
 		}
 		if first := binary.BigEndian.Uint32(got[32:36]); first != tc.want {
 			t.Errorf("%s: AS_PATH starts with %d, want %d", tc.name, first, tc.want)
+		}
+	}
+}
+
+// TestBuildUpdatesInternalPathIsEmpty proves byte for byte that an UPDATE
+// ze-peer generates on an internal session carries an empty AS_PATH (flags
+// 0x40, type 2, length 0) and that every attribute after it, the NLRI and the
+// lengths moved by the six octets the empty path saves, for IPv4 with and
+// without the varied attributes and for IPv6.
+//
+// RFC 4271 Section 5.1.2: "the originating speaker includes an empty AS_PATH
+// attribute in all UPDATE messages sent to internal peers."
+//
+// MUTATION: make writeASPath write the one-AS AS_SEQUENCE on an internal
+// session (asPathOctets answering 9 for internal, or the internal return
+// removed) and every case fails on its AS_PATH octets and its lengths.
+func TestBuildUpdatesInternalPathIsEmpty(t *testing.T) {
+	const eor = "ffffffffffffffffffffffffffffffff" + "001702" + "00000000"
+	cases := []struct {
+		name, prefix, nextHop string
+		vary                  bool
+		wantHex               string
+	}{
+		{"ipv4", "10.0.0.0/24", "172.31.0.3", false, "ffffffffffffffffffffffffffffffff" +
+			"0034" + "02" + // len=52, type=UPDATE
+			"0000" + // withdrawn routes length
+			"0015" + // total path attrs length 21
+			"40010100" + // ORIGIN IGP
+			"400200" + // AS_PATH, empty
+			"400304" + "ac1f0003" + // NEXT_HOP 172.31.0.3
+			"400504" + "00000064" + // LOCAL_PREF 100
+			"180a0000" + "180a0001" + // NLRI 10.0.0.0/24, 10.0.1.0/24
+			eor},
+		{"ipv4 varied", "10.0.0.0/24", "172.31.0.3", true, "ffffffffffffffffffffffffffffffff" +
+			"0046" + "02" + // len=70, type=UPDATE
+			"0000" +
+			"0027" + // total path attrs length 39
+			"40010100" + // ORIGIN IGP
+			"400200" + // AS_PATH, empty
+			"400304" + "ac1f0003" + // NEXT_HOP 172.31.0.3
+			"800404" + "00000000" + // MULTI_EXIT_DISC = message index 0
+			"c00808" + "fc000000" + "fc010000" + // COMMUNITIES 64512:0 64513:0
+			"400504" + "00000064" + // LOCAL_PREF 100
+			"180a0000" + "180a0001" +
+			eor},
+		{"ipv6", "2001:db8::/48", "2001:db8::3", false, "ffffffffffffffffffffffffffffffff" +
+			"004c" + "02" + // len=76, type=UPDATE
+			"0000" +
+			"0035" + // total path attrs length 53
+			"40010100" + // ORIGIN IGP
+			"400200" + // AS_PATH, empty
+			"400504" + "00000064" + // LOCAL_PREF 100
+			"900e" + "0023" + // MP_REACH flags=0x90 type=14 ext-len=35
+			"0002" + "01" + "10" + // AFI=2 SAFI=1, NH length 16
+			"20010db8000000000000000000000003" + "00" + // NH 2001:db8::3, reserved
+			"30" + "20010db80000" + "30" + "20010db80001" + // NLRI two /48
+			eor},
+	}
+	for _, tc := range cases {
+		spec := InjectSpec{
+			Prefix:    netip.MustParsePrefix(tc.prefix),
+			Count:     2,
+			NextHop:   netip.MustParseAddr(tc.nextHop),
+			ASN:       65100,
+			EndOfRIB:  true,
+			VaryAttrs: tc.vary,
+		}
+		got, nMsgs, err := buildUpdates(spec, 0)
+		if err != nil {
+			t.Fatalf("%s: buildUpdates: %v", tc.name, err)
+		}
+		if nMsgs != 2 { // 1 UPDATE with 2 NLRI + 1 EOR
+			t.Errorf("%s: msg count: got %d, want 2", tc.name, nMsgs)
+		}
+		want, err := hex.DecodeString(tc.wantHex)
+		if err != nil {
+			t.Fatalf("%s: decode want: %v", tc.name, err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Errorf("%s: byte image mismatch\n got: %s\nwant: %s", tc.name, hex.EncodeToString(got), tc.wantHex)
 		}
 	}
 }

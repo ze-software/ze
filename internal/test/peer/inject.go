@@ -46,6 +46,13 @@ const (
 	varyCommunityHigh = 64512
 	varyCommunityLow  = 64513
 
+	// asPathHeaderOctets is the AS_PATH attribute header (flags, type,
+	// length), the whole attribute when the path is empty.
+	asPathHeaderOctets = 3
+	// asPathSegmentOctets is one AS_SEQUENCE segment holding one 4-octet AS:
+	// segment type, segment length, then the AS.
+	asPathSegmentOctets = 2 + 4
+
 	keepaliveInterval = 30 * time.Second
 )
 
@@ -59,10 +66,10 @@ type InjectSpec struct {
 	Count int
 	// NextHop must match Prefix's family.
 	NextHop netip.Addr
-	// ASN is the single-segment AS_SEQUENCE (4-byte encoding) on an internal
-	// session, and the AS a dialing peer's OPEN carries unless an option=asn
-	// line overrides it. On an external session the AS_PATH carries the AS
-	// ze-peer's OPEN advertised instead (buildUpdates).
+	// ASN is the AS a dialing peer's OPEN carries unless an option=asn line
+	// overrides it. No AS_PATH reads it: an external session's AS_PATH carries
+	// the AS ze-peer's OPEN advertised, and an internal session's is empty
+	// (buildUpdates).
 	ASN uint32
 	// EndOfRIB appends an empty UPDATE after the last message. Default true.
 	EndOfRIB bool
@@ -87,8 +94,8 @@ type InjectSpec struct {
 	// VaryAttrs adds a MULTI_EXIT_DISC and a COMMUNITIES attribute whose values
 	// derive from the message index, so no two UPDATEs carry the same
 	// attribute set and nothing downstream can share the work of one with
-	// another. The AS_PATH stays the single sending AS, because an eBGP
-	// receiver checks that the first AS is the peer's.
+	// another. The AS_PATH does not vary, because an eBGP receiver checks
+	// that the first AS is the peer's.
 	VaryAttrs bool
 }
 
@@ -158,34 +165,62 @@ func buildUpdates(spec InjectSpec, senderAS uint32) ([]byte, int, error) {
 	if spec.Prefix.Addr().Is4() != spec.NextHop.Is4() {
 		return nil, 0, errors.New("prefix and next-hop family mismatch")
 	}
-	// RFC 4271 Section 5.1.2: "the originating speaker includes its own AS
-	// number in a path segment, of type AS_SEQUENCE, in the AS_PATH attribute
-	// of all UPDATE messages sent to an external peer."
-	// On an external session that number is the AS ze-peer's own OPEN
+	// On an external session the AS_PATH carries the AS ze-peer's own OPEN
 	// advertised (senderAS), which an option=asn line can set apart from the
-	// spec's ASN; an internal session keeps the spec's ASN.
-	pathAS := spec.ASN
-	if senderAS != 0 {
-		pathAS = senderAS
-	}
+	// spec's ASN; an internal session's AS_PATH is empty (writeASPath).
 	if spec.Prefix.Addr().Is4() {
-		// RFC 4271 Section 5.1.5: preserve the negotiated session kind.
-		return buildV4Unicast(spec, pathAS, senderAS == 0)
+		// RFC 4271 Sections 5.1.2 and 5.1.5: preserve the negotiated session kind.
+		return buildV4Unicast(spec, senderAS, senderAS == 0)
 	}
-	// RFC 4271 Section 5.1.5: preserve the negotiated session kind.
-	return buildV6Unicast(spec, pathAS, senderAS == 0)
+	// RFC 4271 Sections 5.1.2 and 5.1.5: preserve the negotiated session kind.
+	return buildV6Unicast(spec, senderAS, senderAS == 0)
+}
+
+// asPathOctets is the size of the AS_PATH attribute writeASPath writes: the
+// empty attribute on an internal session, one one-AS AS_SEQUENCE on an
+// external one.
+func asPathOctets(internal bool) int {
+	if internal {
+		return asPathHeaderOctets
+	}
+	return asPathHeaderOctets + asPathSegmentOctets
+}
+
+// writeASPath writes the AS_PATH attribute of a route ze-peer originates at
+// buf[off:], which MUST hold asPathOctets(internal) octets, and returns the
+// octets written. pathAS is ignored on an internal session.
+//
+// RFC 4271 Section 5.1.2: "the originating speaker includes its own AS
+// number in a path segment, of type AS_SEQUENCE, in the AS_PATH attribute
+// of all UPDATE messages sent to an external peer."
+// RFC 4271 Section 5.1.2: "the originating speaker includes an empty AS_PATH
+// attribute in all UPDATE messages sent to internal peers.  (An empty AS_PATH
+// attribute is one whose length field contains the value zero)."
+func writeASPath(buf []byte, off int, pathAS uint32, internal bool) int {
+	octets := asPathOctets(internal)
+	//nolint:gosec // octets is at most asPathHeaderOctets+asPathSegmentOctets (9)
+	buf[off], buf[off+1], buf[off+2] = flagWKTrans, 0x02, byte(octets-asPathHeaderOctets)
+	if internal {
+		return octets
+	}
+	// One AS_SEQUENCE (type 2) of one 4-octet AS (RFC 6793).
+	buf[off+3], buf[off+4] = 0x02, 0x01
+	binary.BigEndian.PutUint32(buf[off+5:off+9], pathAS)
+	return octets
 }
 
 // buildV4Unicast writes ORIGIN + AS_PATH + NEXT_HOP + inline NLRI UPDATEs.
 //
-// RFC 4271 Sections 4.3 and 5.1.5, offsets from the message start:
+// RFC 4271 Sections 4.3, 5.1.2 and 5.1.5, offsets from the message start:
 //
 //	0..18    BGP header
 //	19..20   Withdrawn Routes Length (0)
 //	21..22   Total Path Attribute Length
-//	23..26   ORIGIN; 27..35 AS_PATH; 36..42 NEXT_HOP
-//	43..     Optional varied attributes, then LOCAL_PREF (7 octets, iBGP only)
-//	         NLRI follows the complete attribute block.
+//	23..26   ORIGIN
+//	27..     AS_PATH: 3 octets (empty) on an internal session, 9 octets
+//	         (one AS_SEQUENCE of pathAS) on an external one
+//	         NEXT_HOP (7 octets), then the optional varied attributes, then
+//	         LOCAL_PREF (7 octets, iBGP only). NLRI follows the attribute block.
 func buildV4Unicast(spec InjectSpec, pathAS uint32, internal bool) ([]byte, int, error) {
 	plen := spec.Prefix.Bits()
 	if plen < 0 || plen > 32 {
@@ -193,13 +228,13 @@ func buildV4Unicast(spec InjectSpec, pathAS uint32, internal bool) ([]byte, int,
 	}
 	plBytes := (plen + 7) / 8
 	stride := 1 + plBytes
-	// Path attrs: ORIGIN(4) + AS_PATH(9) + NEXT_HOP(7), varied attributes,
+	// Path attrs: ORIGIN(4) + AS_PATH + NEXT_HOP(7), varied attributes,
 	// and LOCAL_PREF(7) only for the internal session resolved at OPEN.
 	localPrefOctets := 0
 	if internal {
 		localPrefOctets = 7
 	}
-	attrsLen := 4 + 9 + 7 + spec.varyLen() + localPrefOctets
+	attrsLen := 4 + asPathOctets(internal) + 7 + spec.varyLen() + localPrefOctets
 	maxMsg := spec.msgLen()
 	budget := maxMsg - HeaderLen - 2 - 2 - attrsLen
 	nlriPer := spec.nlriPerMsg(budget, stride)
@@ -243,27 +278,29 @@ func buildV4Unicast(spec InjectSpec, pathAS uint32, internal bool) ([]byte, int,
 		buf[at+19], buf[at+20] = 0, 0 // withdrawn routes length
 		//nolint:gosec // attrsLen is under 64 octets
 		binary.BigEndian.PutUint16(buf[at+21:at+23], uint16(attrsLen))
+		p := at + 23
 		// ORIGIN IGP
-		buf[at+23], buf[at+24], buf[at+25], buf[at+26] = flagWKTrans, 0x01, 0x01, 0x00
-		// AS_PATH: AS_SEQUENCE, one 4-byte ASN
-		buf[at+27], buf[at+28], buf[at+29] = flagWKTrans, 0x02, 0x06
-		buf[at+30], buf[at+31] = 0x02, 0x01
-		binary.BigEndian.PutUint32(buf[at+32:at+36], pathAS)
+		buf[p], buf[p+1], buf[p+2], buf[p+3] = flagWKTrans, 0x01, 0x01, 0x00
+		p += 4
+		// RFC 4271 Section 5.1.2
+		p += writeASPath(buf, p, pathAS, internal)
 		// NEXT_HOP
-		buf[at+36], buf[at+37], buf[at+38] = flagWKTrans, 0x03, 0x04
-		copy(buf[at+39:at+43], nh[:])
+		buf[p], buf[p+1], buf[p+2] = flagWKTrans, 0x03, 0x04
+		copy(buf[p+3:p+7], nh[:])
+		p += 7
 		if spec.VaryAttrs {
-			writeVaryAttrs(buf[at+43:at+43+varyAttrsLen], msgIndex)
+			writeVaryAttrs(buf[p:p+varyAttrsLen], msgIndex)
+			p += varyAttrsLen
 		}
 		// RFC 4271 Section 5.1.5: "LOCAL_PREF is a well-known attribute that SHALL be included in all UPDATE messages that a given BGP speaker sends to other internal peers."
 		// RFC 4271 Section 5.1.5: "A BGP speaker MUST NOT include this attribute in UPDATE messages it sends to external peers, except in the case of BGP Confederations [RFC3065]."
 		if internal {
-			pref := at + 43 + spec.varyLen()
-			buf[pref], buf[pref+1], buf[pref+2] = flagWKTrans, 5, 4
-			binary.BigEndian.PutUint32(buf[pref+3:pref+7], 100)
+			buf[p], buf[p+1], buf[p+2] = flagWKTrans, 5, 4
+			binary.BigEndian.PutUint32(buf[p+3:p+7], 100)
+			p += localPrefOctets
 		}
 		msgIndex++
-		return at + 43 + spec.varyLen() + localPrefOctets // NLRI starts here
+		return p // NLRI starts here
 	}
 	writeNLRI := func(at, n int) {
 		var tmp [4]byte
@@ -301,12 +338,14 @@ func buildV4Unicast(spec InjectSpec, pathAS uint32, internal bool) ([]byte, int,
 // MP_REACH always uses extended-length (flag 0x90) since its value routinely
 // exceeds 255 bytes.
 //
-// RFC 4271 Sections 4.3 and 5.1.5, offsets from the message start:
+// RFC 4271 Sections 4.3, 5.1.2 and 5.1.5, offsets from the message start:
 //
 //	0..18    BGP header; 19..20 Withdrawn Routes Length (0)
 //	21..22   Total Path Attribute Length
-//	23..26   ORIGIN; 27..35 AS_PATH
-//	36..     Optional varied attributes, then LOCAL_PREF (7 octets, iBGP only)
+//	23..26   ORIGIN
+//	27..     AS_PATH: 3 octets (empty) on an internal session, 9 octets
+//	         (one AS_SEQUENCE of pathAS) on an external one
+//	         Optional varied attributes, then LOCAL_PREF (7 octets, iBGP only)
 //	         MP_REACH follows: flags/type/length(4), AFI/SAFI(3),
 //	         next-hop length(1), next hop(16), reserved(1), then IPv6 NLRI.
 func buildV6Unicast(spec InjectSpec, pathAS uint32, internal bool) ([]byte, int, error) {
@@ -316,13 +355,13 @@ func buildV6Unicast(spec InjectSpec, pathAS uint32, internal bool) ([]byte, int,
 	}
 	plBytes := (plen + 7) / 8
 	stride := 1 + plBytes
-	// Base attrs: ORIGIN(4) + AS_PATH(9), varied attributes, and
+	// Base attrs: ORIGIN(4) + AS_PATH, varied attributes, and
 	// LOCAL_PREF(7) only for the internal session resolved at OPEN.
 	localPrefOctets := 0
 	if internal {
 		localPrefOctets = 7
 	}
-	baseAttrsLen := 4 + 9 + spec.varyLen() + localPrefOctets
+	baseAttrsLen := 4 + asPathOctets(internal) + spec.varyLen() + localPrefOctets
 	// MP_REACH fixed part: attr flags(1)+type(1)+extlen(2)+AFI(2)+SAFI(1)+nh_len(1)+nh(16)+reserved(1) = 25.
 	const mpFixed = 25
 	budget := spec.msgLen() - HeaderLen - 2 - 2 - baseAttrsLen - mpFixed
@@ -365,24 +404,25 @@ func buildV6Unicast(spec InjectSpec, pathAS uint32, internal bool) ([]byte, int,
 		attrsTotal := baseAttrsLen + mpFixed + count*stride
 		//nolint:gosec // attrsTotal bounded by bgpMaxMsgLen (4096)
 		binary.BigEndian.PutUint16(buf[at+21:at+23], uint16(attrsTotal))
+		p := at + 23
 		// ORIGIN IGP
-		buf[at+23], buf[at+24], buf[at+25], buf[at+26] = flagWKTrans, 0x01, 0x01, 0x00
-		// AS_PATH 4-byte ASN single-segment
-		buf[at+27], buf[at+28], buf[at+29] = flagWKTrans, 0x02, 0x06
-		buf[at+30], buf[at+31] = 0x02, 0x01
-		binary.BigEndian.PutUint32(buf[at+32:at+36], pathAS)
+		buf[p], buf[p+1], buf[p+2], buf[p+3] = flagWKTrans, 0x01, 0x01, 0x00
+		p += 4
+		// RFC 4271 Section 5.1.2
+		p += writeASPath(buf, p, pathAS, internal)
 		if spec.VaryAttrs {
-			writeVaryAttrs(buf[at+36:at+36+varyAttrsLen], msgIndex)
+			writeVaryAttrs(buf[p:p+varyAttrsLen], msgIndex)
+			p += varyAttrsLen
 		}
 		// RFC 4271 Section 5.1.5: "LOCAL_PREF is a well-known attribute that SHALL be included in all UPDATE messages that a given BGP speaker sends to other internal peers."
 		// RFC 4271 Section 5.1.5: "A BGP speaker MUST NOT include this attribute in UPDATE messages it sends to external peers, except in the case of BGP Confederations [RFC3065]."
 		if internal {
-			pref := at + 36 + spec.varyLen()
-			buf[pref], buf[pref+1], buf[pref+2] = flagWKTrans, 5, 4
-			binary.BigEndian.PutUint32(buf[pref+3:pref+7], 100)
+			buf[p], buf[p+1], buf[p+2] = flagWKTrans, 5, 4
+			binary.BigEndian.PutUint32(buf[p+3:p+7], 100)
+			p += localPrefOctets
 		}
 		msgIndex++
-		mp := at + 36 + spec.varyLen() + localPrefOctets
+		mp := p
 		// MP_REACH_NLRI: flags(0x90) type(14) extlen(2)
 		mpValueLen := 4 + 16 + 1 + count*stride // AFI(2)+SAFI(1)+nhlen(1)+nh(16)+reserved(1)+NLRI
 		buf[mp], buf[mp+1] = flagOptNonTransEx, 14

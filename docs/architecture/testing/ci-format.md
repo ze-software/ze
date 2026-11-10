@@ -818,6 +818,12 @@ peer's AS.
 <!-- source: internal/test/peer/message.go -- asPathAttr; defaultRoute -->
 <!-- source: internal/test/peer/open.go -- ebgpSenderAS -->
 
+`send-bulk` writes the AS_PATH of a route ze-peer originates (RFC 4271 Section
+5.1.2): on eBGP one AS_SEQUENCE holding ze-peer's own OPEN AS, on iBGP an empty
+AS_PATH, whose length field is zero. Its `origin-as` value is not written into
+either path.
+<!-- source: internal/test/peer/inject.go -- buildUpdates; writeASPath -->
+
 These two generated-route behaviors include `LOCAL_PREF=100` on iBGP and omit
 LOCAL_PREF on eBGP, including labeled `send-route` UPDATEs. The session kind
 comes from the OPEN exchange, not an option in the fixture. RFC 4271 Section

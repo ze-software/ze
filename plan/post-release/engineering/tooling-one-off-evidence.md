@@ -2426,3 +2426,21 @@ independent `ze-test-judge`. Scoped runs: `internal/le/rfc`,
 `internal/appliance/kernelbuilder` and `internal/le/interoplab` all ok. The
 iBGP half of the AS_PATH mapping (an empty AS_PATH to internal peers, RFC 4271
 Section 5.1.2) is a new owned row, not part of this fix.
+
+## ze-peer originates an empty AS_PATH to internal peers (2026-11-10)
+
+RFC 4271 Section 5.1.2 b): "the originating speaker includes an empty AS_PATH
+attribute in all UPDATE messages sent to internal peers." ze-peer's
+send-bulk and inject builders wrote a one-AS AS_SEQUENCE on every session.
+`writeASPath` now writes `40 02 00` on an internal session, and every later
+attribute is placed from the written length.
+
+| Carrier | Break | Red | Restored |
+| --- | --- | --- | --- |
+| `TestBuildUpdatesInternalPathIsEmpty` (exact images, IPv4, IPv4 varied, IPv6), `TestGeneratedBulkAttributesFollowOPEN` and `TestGeneratedInjectAttributesFollowOPEN` (real TCP sessions) | overlay of `internal/test/peer/inject.go` making `asPathOctets` and `writeASPath` treat an internal session as external (`ibgp/`) | every iBGP case: "generated AS_PATH was damaged: 400206020100000000" | PASS |
+
+The removed internal rows of `TestBuildUpdatesExternalPathCarriesTheOPENAS`
+and the internal expectation of `checkBulkOPENUpdate` asserted the one-AS
+path the RFC forbids; an independent `ze-test-judge` approved all three
+changes on that ground. Scoped run: `internal/test/peer`, `internal/test/cli`
+ok. Both `.ci` users of send-bulk run eBGP, so their bytes are unchanged.

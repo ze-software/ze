@@ -21,7 +21,8 @@ import (
 // entry therefore cannot satisfy the external captured-wire control.
 //
 // This carrier covers neither connmap injection nor the scripted raw-send arm.
-// RFC 4271 Section 5.1.5 is checked by checkBulkOPENUpdate on captured frames.
+// RFC 4271 Sections 5.1.2 (the empty internal AS_PATH) and 5.1.5 are checked
+// by checkBulkOPENUpdate on captured frames.
 // MUTATION: classify active injection with the passive mirror instead of its
 // actual sent OPEN, or drop the passive OPEN classification at doInject.
 func TestGeneratedInjectAttributesFollowOPEN(t *testing.T) {
