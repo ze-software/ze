@@ -28,6 +28,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
+	testoverlay "github.com/ze-software/ze/internal/le/test/overlay"
 	testqemu "github.com/ze-software/ze/internal/le/test/qemu"
 )
 
@@ -208,7 +209,7 @@ func requireGuestKernel(unit string, guest bool, kernel string) error {
 // a red that names no unit, which attribution refuses, the same answer a host
 // `go test` gives for a break that does not build.
 func (o *observationRunner) runInGuest(overlay, profile string) (bool, string, error) {
-	scratch, err := observationScratch(o.tree)
+	scratch, err := testoverlay.Scratch(o.tree, discriminationArea)
 	if err != nil {
 		return false, "", err
 	}
@@ -295,7 +296,7 @@ func (o *observationRunner) guestScript(binary, profile string) string {
 
 // guestRunArgv answers the command that boots the guest on the runtime kernel
 // and runs one script there. It re-executes this le binary on the qemu action,
-// as carrierArgv does for interop, so the guest lifecycle has one owner.
+// as testoverlay.ActionArgv does for interop, so the guest lifecycle has one owner.
 //
 // A unit whose test declares guestRootDirective runs under docker-lab's root
 // switch, which elevates the command and its interrupt and does nothing else.
@@ -303,7 +304,7 @@ func (o *observationRunner) guestScript(binary, profile string) string {
 // namespace maps and which a test that means something only unprivileged needs.
 func (o *observationRunner) guestRunArgv(script string) []string {
 	argv := make([]string, 0, 9)
-	argv = append(argv, o.self, leTestCommand, "qemu", "docker-lab", keyKernel, o.kernel)
+	argv = append(argv, o.self, testoverlay.LETestCommand, "qemu", "docker-lab", keyKernel, o.kernel)
 	if o.root {
 		argv = append(argv, testqemu.KeywordRoot)
 	}
@@ -365,7 +366,7 @@ func (o *observationRunner) runFunctionalInGuest(overlay string) (bool, string, 
 // overlay when one is given, and restores GOFLAGS before it returns.
 func (o *observationRunner) buildGuestDaemons(binaries, goarch, overlay string) error {
 	if overlay != "" {
-		restore, err := setGoFlagsOverlay(overlay)
+		restore, err := testoverlay.SetGoFlags(overlay)
 		if err != nil {
 			return err
 		}
@@ -384,7 +385,7 @@ func (o *observationRunner) buildGuestDaemons(binaries, goarch, overlay string) 
 // as guestRunArgv does for a Go unit. The harness gives `test qemu all` the root,
 // the mount and the guest le it requires.
 func (o *observationRunner) guestCIArgv(binaries, goarch string) []string {
-	return []string{o.self, leTestCommand, "qemu", "docker-lab", keyKernel, o.kernel,
+	return []string{o.self, testoverlay.LETestCommand, "qemu", "docker-lab", keyKernel, o.kernel,
 		testqemu.KeywordHarness, "timeout", guestCICommandTimeout,
 		"command", testqemu.OneCICommand(binaries, filepath.ToSlash(o.tag.File), goarch)}
 }

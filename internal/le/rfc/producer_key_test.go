@@ -97,15 +97,15 @@ func TestRevertBreakDisablesOnlyTheNamedMethod(t *testing.T) {
 	if err != nil {
 		t.Fatalf("revertBreak refused a method key: %v", err)
 	}
-	if strings.Count(broken.content, revertBody) != 1 {
-		t.Fatalf("the overlay disables %d bodies, want 1:\n%s", strings.Count(broken.content, revertBody), broken.content)
+	if strings.Count(broken.Content, revertBody) != 1 {
+		t.Fatalf("the overlay disables %d bodies, want 1:\n%s", strings.Count(broken.Content, revertBody), broken.Content)
 	}
 	for _, kept := range []string{"append(buf, 'c')", "append(buf, 'e')"} {
-		if !strings.Contains(broken.content, kept) {
+		if !strings.Contains(broken.Content, kept) {
 			t.Errorf("the overlay lost %q, a method the key did not name", kept)
 		}
 	}
-	if strings.Contains(broken.content, "append(buf, 'l')") {
+	if strings.Contains(broken.Content, "append(buf, 'l')") {
 		t.Error("the named method's body survived the revert")
 	}
 

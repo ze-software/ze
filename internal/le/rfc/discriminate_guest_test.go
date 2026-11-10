@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	testoverlay "github.com/ze-software/ze/internal/le/test/overlay"
 	testqemu "github.com/ze-software/ze/internal/le/test/qemu"
 )
 
@@ -221,27 +222,27 @@ func TestCIResultLineDecidesWhatWasObserved(t *testing.T) {
 		tag: Tag{File: "test/plugin/gated.ci"}, names: stem,
 		record: DiscriminationRecord{Unit: "test/plugin/gated.ci"}}
 
-	if why := runner.cleanRunUnobserved(line(ciPass)); why != "" {
+	if why := runner.cleanRunUnobserved(line(testoverlay.CIPass)); why != "" {
 		t.Errorf("clean PASS refused: %s", why)
 	}
-	for _, output := range []string{line(ciSkip), "pass 0/0\n"} {
+	for _, output := range []string{line(testoverlay.CISkip), "pass 0/0\n"} {
 		if why := runner.cleanRunUnobserved(output); why == "" {
 			t.Errorf("clean run %q accepted as green", output)
 		}
 	}
-	for _, outcome := range []string{ciFail, ciTimeout} {
+	for _, outcome := range []string{testoverlay.CIFail, testoverlay.CITimeout} {
 		if err := runner.judgeRed(false, line(outcome)); err != nil {
 			t.Errorf("red %s refused: %v", outcome, err)
 		}
 	}
-	err := runner.judgeRed(true, line(ciSkip))
+	err := runner.judgeRed(true, line(testoverlay.CISkip))
 	if err == nil || !strings.Contains(err.Error(), "did not run under the break") {
 		t.Errorf("skip under the break: %v, want the unobserved refusal", err)
 	}
 	if err := runner.judgeRed(false, "boot failed\n"); err == nil {
 		t.Error("a failing run with no result line was accepted as the red")
 	}
-	if err := runner.judgeRed(false, line(ciPass)); err == nil {
+	if err := runner.judgeRed(false, line(testoverlay.CIPass)); err == nil {
 		t.Error("a failing exit over a PASS line was accepted as the red")
 	}
 
@@ -349,7 +350,7 @@ func TestGoUnitSkipObservesNothing(t *testing.T) {
 			t.Errorf("run %q refused: %s", output, why)
 		}
 	}
-	if got := skipReason("=== RUN   TestGuard\n"); got != "it printed no reason" {
+	if got := testoverlay.SkipReason("=== RUN   TestGuard\n"); got != "it printed no reason" {
 		t.Errorf("a skip with no log line answered %q", got)
 	}
 }

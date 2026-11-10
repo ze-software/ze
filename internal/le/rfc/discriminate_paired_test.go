@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
+	testoverlay "github.com/ze-software/ze/internal/le/test/overlay"
 )
 
 const (
@@ -179,7 +180,7 @@ func TestMutantRouteAppliesEveryNamedMutant(t *testing.T) {
 	}
 	contents := map[string]string{}
 	for _, file := range broken {
-		contents[file.rel] = file.content
+		contents[file.Rel] = file.Content
 	}
 	if len(contents) != 2 || len(broken) != 2 {
 		t.Fatalf("want one overlay file per touched file, got %d: %v", len(broken), contents)
@@ -198,14 +199,14 @@ func TestMutantRouteAppliesEveryNamedMutant(t *testing.T) {
 		t.Fatalf("want one solo break set per mutant, got %d", len(solos))
 	}
 	for position, wantRel := range []string{selftestProducerPath, pairedProducerPath, selftestProducerPath} {
-		if len(solos[position]) != 1 || solos[position][0].rel != wantRel {
+		if len(solos[position]) != 1 || solos[position][0].Rel != wantRel {
 			t.Fatalf("solo %d = %+v, want only %s", position, solos[position], wantRel)
 		}
 	}
-	if alone := solos[0][0].content; !strings.Contains(alone, "return 0\n") || strings.Contains(alone, "count + 1") {
+	if alone := solos[0][0].Content; !strings.Contains(alone, "return 0\n") || strings.Contains(alone, "count + 1") {
 		t.Fatalf("the first solo must carry its own mutant and no other:\n%s", alone)
 	}
-	if alone := solos[2][0].content; strings.Contains(alone, "return 0\n") || !strings.Contains(alone, "count + 1") {
+	if alone := solos[2][0].Content; strings.Contains(alone, "return 0\n") || !strings.Contains(alone, "count + 1") {
 		t.Fatalf("the third solo must carry its own mutant and no other:\n%s", alone)
 	}
 
@@ -221,9 +222,9 @@ func TestMutantRouteAppliesEveryNamedMutant(t *testing.T) {
 func TestWriteOverlayReplacesEveryFileOfAPair(t *testing.T) {
 	tree := t.TempDir()
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "overlay-pair-sid")
-	overlay, err := writeOverlay(tree,
-		overlayFile{rel: "internal/a/edit.go", content: "package a\n"},
-		overlayFile{rel: "internal/b/edit.go", content: "package b\n"})
+	overlay, err := testoverlay.Write(tree, discriminationArea,
+		testoverlay.File{Rel: "internal/a/edit.go", Content: "package a\n"},
+		testoverlay.File{Rel: "internal/b/edit.go", Content: "package b\n"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -375,9 +376,9 @@ func TestPairedObservationRunsEachBreakAlone(t *testing.T) {
 	}
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "paired-solo-sid")
 	t.Setenv("GOFLAGS", "")
-	first := []overlayFile{{rel: "first.go", content: "package p\n"}}
-	second := []overlayFile{{rel: "second.go", content: "package p\n"}}
-	both := append(append([]overlayFile(nil), first...), second...)
+	first := []testoverlay.File{{Rel: "first.go", Content: "package p\n"}}
+	second := []testoverlay.File{{Rel: "second.go", Content: "package p\n"}}
+	both := append(append([]testoverlay.File(nil), first...), second...)
 	runner := func(t *testing.T, mode string) *observationRunner {
 		t.Setenv(rule, mode)
 		return &observationRunner{
@@ -392,7 +393,7 @@ func TestPairedObservationRunsEachBreakAlone(t *testing.T) {
 	}
 
 	t.Run("a break that reddens alone", func(t *testing.T) {
-		_, solo, err := runner(t, "first").observeBreaks(both, [][]overlayFile{first, second})
+		_, solo, err := runner(t, "first").observeBreaks(both, [][]testoverlay.File{first, second})
 		if err == nil {
 			t.Fatalf("a pair whose first break reddens alone was recorded with solo %+v", solo)
 		}
@@ -404,7 +405,7 @@ func TestPairedObservationRunsEachBreakAlone(t *testing.T) {
 	// The first break stays green alone here, so a loop that stopped after the first
 	// solo run would record the pair; only the second solo run can refuse it.
 	t.Run("a second break that reddens alone", func(t *testing.T) {
-		_, solo, err := runner(t, "second").observeBreaks(both, [][]overlayFile{first, second})
+		_, solo, err := runner(t, "second").observeBreaks(both, [][]testoverlay.File{first, second})
 		if err == nil {
 			t.Fatalf("a pair whose second break reddens alone was recorded with solo %+v", solo)
 		}
@@ -414,7 +415,7 @@ func TestPairedObservationRunsEachBreakAlone(t *testing.T) {
 	})
 
 	t.Run("a pair both breaks are needed for", func(t *testing.T) {
-		red, solo, err := runner(t, "both").observeBreaks(both, [][]overlayFile{first, second})
+		red, solo, err := runner(t, "both").observeBreaks(both, [][]testoverlay.File{first, second})
 		if err != nil {
 			t.Fatalf("a pair whose breaks are both needed was refused: %v", err)
 		}

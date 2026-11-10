@@ -797,7 +797,7 @@ its subagents' work with no file of theirs in it.
 
 The shared scratch still means one file name is one file for every agent. A tool
 that writes into it picks a per-run name (`cover-<pid>.out`, the discrimination
-`run-*/` directory in `writeOverlay`). A file you write there yourself carries
+`run-*/` directory in `overlay.Write`). A file you write there yourself carries
 a name of your own.
 <!-- source: internal/le/le/path/commitsession.go -- CommitSession, SessionCommitSession -->
 <!-- source: internal/le/le/path/session.go -- SpecClaimMarker, MarkerOwnedBy -->
@@ -805,6 +805,7 @@ a name of your own.
 <!-- source: internal/le/session/reap.go -- candidateSID -->
 <!-- source: internal/le/hookruntime/session.go -- writeParentSessionPrefix -->
 <!-- source: internal/le/test/weakened/approve.go -- ApprovalPath, approveAnswer -->
+<!-- source: internal/le/test/overlay/overlay.go -- Write -->
 
 ## When the storage stalls
 

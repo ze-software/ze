@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
+	testoverlay "github.com/ze-software/ze/internal/le/test/overlay"
 )
 
 // VALIDATES: two observations of producers that share a basename, run at once
@@ -21,11 +22,13 @@ import (
 func TestWriteOverlayStagesEachRunApart(t *testing.T) {
 	tree := t.TempDir()
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "overlay-sid")
-	first, err := writeOverlay(tree, overlayFile{rel: "internal/a/register.go", content: "package a\n"})
+	first, err := testoverlay.Write(tree, discriminationArea,
+		testoverlay.File{Rel: "internal/a/register.go", Content: "package a\n"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := writeOverlay(tree, overlayFile{rel: "internal/b/register.go", content: "package b\n"})
+	second, err := testoverlay.Write(tree, discriminationArea,
+		testoverlay.File{Rel: "internal/b/register.go", Content: "package b\n"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +128,7 @@ func TestInteropBreakLeavesSourceUntouched(t *testing.T) {
 			SelectorVariable: selector,
 		},
 	}
-	red, err := runner.requireRed(overlayFile{rel: "producer.go", content: broken})
+	red, err := runner.requireRed(testoverlay.File{Rel: "producer.go", Content: broken})
 	if err != nil {
 		t.Fatal(err)
 	}

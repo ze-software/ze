@@ -2141,7 +2141,8 @@ carrier, so every lab with a catalog can carry a record and no suite table
 exists in `internal/le/rfc`. A checker in a package no catalog declares is
 refused before anything runs, naming the registration it lacks.
 <!-- source: internal/le/rfc/carriers.go -- interopTrees, interopSuiteOf -->
-<!-- source: internal/le/rfc/discriminate_observe.go -- carrierArgv, environment, interopScenarioOf -->
+<!-- source: internal/le/rfc/discriminate_observe.go -- argv, environment, interopScenarioOf -->
+<!-- source: internal/le/test/overlay/carrier.go -- ActionArgv, ProcessEnvironment -->
 
 The compatibility runner's positional path selects exactly that file; `--pattern`
 is a substring filter and can select siblings, so the recorder does not use it.
@@ -2153,6 +2154,7 @@ Compatibility observations need the same explicit loopback setup as their native
 runner, including inside a guest; see
 [ExaBGP compatibility test ports](../functional-tests.md#exabgp-compatibility-test-ports).
 <!-- source: internal/le/rfc/discriminate_observe.go -- functionalSelection and runFunctional -->
+<!-- source: internal/le/test/overlay/carrier.go -- PrepareFunctional, ProcessEnvironment -->
 
 The scenario binding accepts both `const name = "<scenario>"` and a grouped
 `const` declaration containing `name = "<scenario>"`. In either form the named
@@ -2209,7 +2211,8 @@ test printed above it (`unitSkipped`). Before 2026-11-08 a root-gated unit run
 unprivileged in the guest skipped twice and was refused as "stayed GREEN under
 the break", which blamed the test for a run that never reached it.
 <!-- source: internal/le/rfc/discriminate_guest.go -- unitDeclaresGuestRoot, requireRootInGuest, guestRunArgv -->
-<!-- source: internal/le/rfc/discriminate_observe.go -- unitSkipped, skipReason -->
+<!-- source: internal/le/rfc/discriminate_observe.go -- unitSkipped -->
+<!-- source: internal/le/test/overlay/result.go -- GoTestLineNames, SkipReason -->
 <!-- source: internal/test/userns/userns_linux.go -- Enter fails on re-exec errors -->
 <!-- source: internal/le/rfc/discriminate_guest.go -- guestScript, guestLocalDir --> Attribution is unchanged: the red must
 name the unit. A guest proof MUST boot Ze's runtime kernel, so the recorder
@@ -2247,6 +2250,7 @@ refused as unobserved (`cleanRunUnobserved`, `brokenRunUnobserved`). Before
 second skip as "stayed GREEN under the break".
 <!-- source: internal/le/rfc/discriminate_guest.go -- functionalNeedsGuest, runFunctionalInGuest -->
 <!-- source: internal/le/rfc/discriminate_observe.go -- cleanRunUnobserved, brokenRunUnobserved -->
+<!-- source: internal/le/test/overlay/result.go -- CIResult, DescribeCIResult -->
 
 Before 2026-09-27 the unit route always ran host `go test` with no extra tags,
 so an `integration && linux` unit never compiled and its tags could not be
@@ -2262,19 +2266,21 @@ the tag's own prose names that the break's text touches, which decides what is
 offered first and nothing else: the gate never judges whether a break is a GOOD
 break.
 
-Every carrier applies the break through a Go overlay. `writeOverlay` stages the
+Every carrier applies the break through a Go overlay. `overlay.Write` stages the
 replacement and overlay in a private directory for that observation, and
 `requireRed` passes it to the carrier's runner. The shared producer is never
 modified, even while the broken run is executing. Killing an observation cannot
 leave that producer broken for another session.
-<!-- source: internal/le/rfc/discriminate_observe.go -- writeOverlay, requireRed -->
+<!-- source: internal/le/test/overlay/overlay.go -- Write, Scratch -->
+<!-- source: internal/le/rfc/discriminate_observe.go -- requireRed -->
 
 For interop, the recorder re-executes the native action with the scenario
 selector and `GOFLAGS=-overlay=<path>` in the child's environment. The native
 lab's `StageBinaries` cross-compiles on the host with that environment, and the
 Docker images copy in the resulting binaries. No source mutation or restoration
 is needed.
-<!-- source: internal/le/rfc/discriminate_observe.go -- carrierArgv, environment -->
+<!-- source: internal/le/test/overlay/carrier.go -- ActionArgv, ProcessEnvironment -->
+<!-- source: internal/le/rfc/discriminate_observe.go -- argv, environment -->
 <!-- source: internal/le/interoplab/zebuild.go -- StageBinaries, stageBinaries, stageBinary -->
 
 Child stdout and stderr stream to the recorder's stderr as they arrive, while
@@ -2282,12 +2288,20 @@ the complete combined output is retained for attribution and the record's
 excerpt. Structured result stdout stays separate. This exposes real progress to
 the job log rather than hiding it until the child exits; it adds no heartbeat,
 so a silent child stays silent.
-<!-- source: internal/le/rfc/discriminate_observe.go -- exec, judgeRed, excerpt -->
+<!-- source: internal/le/test/overlay/carrier.go -- Exec -->
+<!-- source: internal/le/test/overlay/result.go -- Excerpt -->
+<!-- source: internal/le/rfc/discriminate_observe.go -- exec, judgeRed -->
 
 An interop observation is judged by the scenario's own progress line, never by
 the exit code or the `interop: N passed, M failed` summary. The clean run must
 print `interop: [i/n] <scenario>: pass (`, and the run under the break must
-print `interop: [i/n] <scenario>: FAIL (`, and the cited number is read where
+print `interop: [i/n] <scenario>: FAIL (`. The FAIL line names the phase that
+failed after the elapsed time, `FAIL (<elapsed>) in <phase>: <error>`, where the
+phase is `setup`, `readiness` or `checker`. A red in `setup` or `readiness` is
+refused as not the cited assertion, and the refusal names the phase: the
+checker never ran, so none of its assertions fired, whatever the error text
+quotes. A line with no phase label, as logs written before the label existed
+carry, is read as before. For a checker red the cited number is read where
 the checker writes it, the anchor `scenario <scenario> assertion <citation>:`
 (`checkerFailure`, `internal/le/interoplab/bgp/check_engine.go`).
 `checkerFailure` answers a cause that is already its own report unchanged, so a
@@ -2303,6 +2317,8 @@ refused as not the record's. Before 2026-10-23 any interop red counted: a mutant
 cross-compile failed ended the run with `0 passed, 0 failed` and was sealed as
 a negative proof.
 <!-- source: internal/le/rfc/discriminate_interop.go -- interopCleanUnobserved, interopBrokenUnobserved, interopAttribution -->
+<!-- source: internal/le/test/overlay/interop.go -- ScenarioVerdict, FailPhase, CleanUnobserved, BrokenUnobserved, Attribution, NamesAssertion -->
+<!-- source: internal/le/interoplab/phase.go -- PhaseSetup, PhaseReadiness, PhaseChecker -->
 
 ## The escape, and the precondition behind each reason
 

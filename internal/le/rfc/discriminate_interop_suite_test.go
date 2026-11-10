@@ -1,5 +1,5 @@
 // Design: docs/contributing/rfc-conformance-gates.md -- discrimination routes for interop carriers
-// Related: discriminate_observe.go -- interopSuiteOf, interopScenarioOf, carrierArgv, environment
+// Related: discriminate_observe.go -- interopSuiteOf, interopScenarioOf, argv, environment
 // Related: carriers.go -- interopTrees, derived from the interoplab catalogs
 //
 // The cases prove the recorder drives a checker through the suite whose
@@ -64,7 +64,7 @@ func TestInteropCheckerResolvesThroughItsSuite(t *testing.T) {
 			}
 			runner := &observationRunner{carrier: Carrier{Kind: kindInterop}, self: "le",
 				scenario: scenario, suite: suite}
-			if argv := runner.carrierArgv(); !slices.Equal(argv, tt.argv) {
+			if argv := runner.argv("", ""); !slices.Equal(argv, tt.argv) {
 				t.Fatalf("argv = %q, want %q", argv, tt.argv)
 			}
 			want := tt.selector + "=fixture-scenario"

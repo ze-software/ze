@@ -271,7 +271,7 @@ Outside le, each route runs the same generator itself:
 `./le rfc record` still compiles a deliberately broken copy of a
 repository file through `-overlay`. That overlay names only the repository file,
 and the standard library comes from `GOROOT`, so the two never meet.
-<!-- source: internal/le/rfc/discriminate_observe.go -- writeOverlay -->
+<!-- source: internal/le/test/overlay/overlay.go -- Write -->
 
 The spec lists every site. A missed site cannot ship an unpatched binary that
 links the EAP-TLS authenticator (`internal/core/eap`), because of the guard

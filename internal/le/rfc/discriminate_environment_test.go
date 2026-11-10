@@ -10,6 +10,7 @@ import (
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
+	testoverlay "github.com/ze-software/ze/internal/le/test/overlay"
 )
 
 // VALIDATES: AC-20 for discrimination: the environment a functional
@@ -48,7 +49,7 @@ func TestDiscriminateEnvironmentCarriesThePatchedGOROOT(t *testing.T) {
 	}
 
 	t.Run("functional", func(t *testing.T) {
-		restore, err := setGoFlagsOverlay(overlay)
+		restore, err := testoverlay.SetGoFlags(overlay)
 		if err != nil {
 			t.Fatal(err)
 		}

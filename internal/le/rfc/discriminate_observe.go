@@ -6,16 +6,13 @@
 // One runner per carrier kind, and each one is the carrier's OWN runner: `go
 // test` over the tagged function, ze-test over the one tagged `.ci`, and the
 // native interop action over the one scenario the checker declares. Nothing
-// here re-implements a runner the repository already has.
+// here re-implements a runner the repository already has: the overlay, the
+// carriers' argv and environment, and the verdict readers are
+// internal/le/test/overlay's, and this file adds what a record needs.
 package rfc
 
 import (
-	"bytes"
-	"context"
-	"encoding/json"
-	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -24,10 +21,14 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	"github.com/ze-software/ze/internal/le/interoplab"
-	lepath "github.com/ze-software/ze/internal/le/le/path"
 	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
+	testoverlay "github.com/ze-software/ze/internal/le/test/overlay"
 	testrunner "github.com/ze-software/ze/internal/test/runner"
 )
+
+// discriminationArea is the session scratch subdirectory an observation
+// stages its breaks and profiles in.
+const discriminationArea = "discrimination"
 
 // observationRunner runs one tagged unit, with and without a break.
 //
@@ -70,10 +71,6 @@ type observationRunner struct {
 
 // newObservationRunner resolves everything one observation needs before any of
 // it runs, so a missing scenario or an unresolvable unit costs no `go test`.
-
-// leTestCommand is the le command every harness and integration run is under.
-const leTestCommand = "test"
-
 func newObservationRunner(tree string, reader *sourceReader, index *scopeIndex, carrier Carrier,
 	tag Tag, record *DiscriminationRecord, kernel string) (*observationRunner, error) {
 	toolchain, err := gotoolchain.New(tree)
@@ -182,8 +179,8 @@ func interopScenarioOf(tree string, reader *sourceReader, index *scopeIndex,
 // that the pair dresses up, and a break the unit never executes leaves the pair
 // behaving as the others alone, which the same runs show green. The solo runs
 // are what makes that hold on a carrier no coverage profile reaches.
-func (o *observationRunner) observeBreaks(broken []overlayFile,
-	solos [][]overlayFile) (ObservedRed, []SoloGreen, error) {
+func (o *observationRunner) observeBreaks(broken []testoverlay.File,
+	solos [][]testoverlay.File) (ObservedRed, []SoloGreen, error) {
 	if err := o.requireCleanGreen(); err != nil {
 		return ObservedRed{}, nil, err
 	}
@@ -200,7 +197,7 @@ func (o *observationRunner) observeBreaks(broken []overlayFile,
 
 // requireSoloGreen runs each break of a pair by itself and demands the unit
 // stays green under every one, answering the green runs in break order.
-func (o *observationRunner) requireSoloGreen(solos [][]overlayFile) ([]SoloGreen, error) {
+func (o *observationRunner) requireSoloGreen(solos [][]testoverlay.File) ([]SoloGreen, error) {
 	if len(solos) == 0 {
 		return nil, nil
 	}
@@ -222,8 +219,8 @@ func (o *observationRunner) requireSoloGreen(solos [][]overlayFile) ([]SoloGreen
 }
 
 // runAlone applies one break of a pair by itself and answers its green run.
-func (o *observationRunner) runAlone(alone PairedBreak, files []overlayFile) (SoloGreen, error) {
-	overlay, err := writeOverlay(o.tree, files...)
+func (o *observationRunner) runAlone(alone PairedBreak, files []testoverlay.File) (SoloGreen, error) {
+	overlay, err := testoverlay.Write(o.tree, discriminationArea, files...)
 	if err != nil {
 		return SoloGreen{}, err
 	}
@@ -237,7 +234,7 @@ func (o *observationRunner) runAlone(alone PairedBreak, files []overlayFile) (So
 		return SoloGreen{}, parseErr(tb.Str(o.record.Unit).Str(" went red under the break ").
 			Quoted(alone.Break).Str(" in ").Str(alone.Producer).Str(" applied ALONE, so the pair ").
 			Str("is not needed for the red. Nothing is written: record that break by itself, ").
-			Str("or name the breaks the red really needs:\n").Str(excerpt(output)))
+			Str("or name the breaks the red really needs:\n").Str(testoverlay.Excerpt(output)))
 	}
 	if why := o.cleanRunUnobserved(output); why != "" {
 		return SoloGreen{}, parseErr(tb.Str("the run of the break in ").Str(alone.Producer).
@@ -259,7 +256,7 @@ func (o *observationRunner) breaks() []PairedBreak {
 // runner printed otherwise.
 func (o *observationRunner) greenLine(output string) string {
 	if o.scenario != "" {
-		if verdict, ran := interopScenarioVerdict(output, o.scenario, interopVerdictPass); ran {
+		if verdict, ran := testoverlay.ScenarioVerdict(output, o.scenario, testoverlay.VerdictPass); ran {
 			return "interop: " + o.scenario + verdict
 		}
 	}
@@ -299,7 +296,7 @@ func (o *observationRunner) wantsProfile() bool {
 func (o *observationRunner) requireCleanGreen() error {
 	profile := ""
 	if o.wantsProfile() {
-		scratch, err := observationScratch(o.tree)
+		scratch, err := testoverlay.Scratch(o.tree, discriminationArea)
 		if err != nil {
 			return err
 		}
@@ -318,7 +315,7 @@ func (o *observationRunner) requireCleanGreen() error {
 		var tb textbuf.Buffer
 		return parseErr(tb.Str(o.record.Unit).Str(" is already failing before any break is ").
 			Str("applied, so no red this run produces could be attributed to one:\n").
-			Str(excerpt(output)))
+			Str(testoverlay.Excerpt(output)))
 	}
 	if why := o.cleanRunUnobserved(output); why != "" {
 		var tb textbuf.Buffer
@@ -413,8 +410,8 @@ func (o *observationRunner) requireKeyReached(covered coverageSet, key string) e
 // Naming is what makes the red this unit's. A build error, a sibling test and a
 // flake each turn a run red, and none of them says the break was discriminated
 // by the claim's own test.
-func (o *observationRunner) requireRed(broken ...overlayFile) (ObservedRed, error) {
-	overlay, err := writeOverlay(o.tree, broken...)
+func (o *observationRunner) requireRed(broken ...testoverlay.File) (ObservedRed, error) {
+	overlay, err := testoverlay.Write(o.tree, discriminationArea, broken...)
 	if err != nil {
 		return ObservedRed{}, err
 	}
@@ -427,7 +424,7 @@ func (o *observationRunner) requireRed(broken ...overlayFile) (ObservedRed, erro
 		return ObservedRed{}, err
 	}
 	return ObservedRed{Command: o.command,
-		Seconds: int(time.Since(started).Seconds()), Red: excerpt(output)}, nil
+		Seconds: int(time.Since(started).Seconds()), Red: testoverlay.Excerpt(output)}, nil
 }
 
 // judgeRed answers whether one run's result is a red this unit produced.
@@ -452,7 +449,7 @@ func (o *observationRunner) judgeRed(passed bool, output string) error {
 	}
 	if why := o.attribution(output); why != "" {
 		return parseErr(tb.Str("the run went red under the break, and ").Str(why).
-			Str(", so the failure is not this unit's. Nothing is written:\n").Str(excerpt(output)))
+			Str(", so the failure is not this unit's. Nothing is written:\n").Str(testoverlay.Excerpt(output)))
 	}
 	return nil
 }
@@ -478,11 +475,11 @@ func (o *observationRunner) attribution(output string) string {
 	if o.readsResultLine() {
 		// brokenRunUnobserved has already refused a skip and a missing line,
 		// so the line here is a PASS on a failing exit or the red itself.
-		result := ciResult(output, o.names)
-		if result == ciFail {
+		result := testoverlay.CIResult(output, o.names)
+		if result == testoverlay.CIFail {
 			return ""
 		}
-		if result == ciTimeout {
+		if result == testoverlay.CITimeout {
 			return ""
 		}
 		return tb.Str("the runner reported ").Str(o.names).Str(" as ").Str(result).
@@ -494,32 +491,10 @@ func (o *observationRunner) attribution(output string) string {
 		}
 		return tb.Str("its output does not name ").Quoted(o.names).String()
 	}
-	if goTestLineNames(output, "--- FAIL: ", o.unitName) >= 0 {
+	if testoverlay.GoTestLineNames(output, "--- FAIL: ", o.unitName) >= 0 {
 		return ""
 	}
 	return o.killedByTheBreak(output)
-}
-
-// goTestLineNames answers the byte offset of the first `go test` line that
-// opens with prefix and names unit or one of its subtests, or -1.
-//
-// `go test` indents a subtest's line, and follows the name with a space and
-// the duration, so the name is the text up to the first space.
-func goTestLineNames(output, prefix, unit string) int {
-	offset := 0
-	for line := range strings.SplitAfterSeq(output, "\n") {
-		start := offset
-		offset += len(line)
-		rest, found := strings.CutPrefix(strings.TrimLeft(line, " \t"), prefix)
-		if !found {
-			continue
-		}
-		name, _, _ := strings.Cut(strings.TrimSpace(rest), " ")
-		if name == unit || strings.HasPrefix(name, unit+"/") {
-			return start
-		}
-	}
-	return -1
 }
 
 // killedByTheBreak answers why a run that printed no `--- FAIL:` line for the
@@ -554,7 +529,7 @@ func (o *observationRunner) killedByTheBreak(output string) string {
 	if halt < 0 {
 		return tb.String()
 	}
-	started := goTestLineNames(output, "=== RUN   ", o.unitName)
+	started := testoverlay.GoTestLineNames(output, "=== RUN   ", o.unitName)
 	if started < 0 || started > halt {
 		return tb.Str(", and the break's halt fired before ").Str(o.unitName).
 			Str(" started (no `=== RUN   ").Str(o.unitName).Str("` line precedes it). ").
@@ -569,34 +544,16 @@ func (o *observationRunner) killedByTheBreak(output string) string {
 // argv answers the command that runs this tagged unit.
 func (o *observationRunner) argv(overlay, profile string) []string {
 	if o.carrier.Kind != kindUnit {
-		return o.carrierArgv()
+		// The action the suite's catalog declares runs the scenario.
+		return testoverlay.ActionArgv(o.self, o.suite.Action)
 	}
-	var tb textbuf.Buffer
-	options := make([]string, 0, 11)
-	// -v prints `=== RUN   <Name>` as the unit starts, which is what tells a
-	// crash inside the unit from one in package initialization (killedByTheBreak).
-	options = append(options, "-run", tb.Byte('^').Str(o.unitName).Byte('$').String(), "-count=1", "-v")
-	if overlay != "" {
-		options = append(options, "-overlay", overlay)
-	}
+	var cover []string
 	if profile != "" {
-		options = append(options, "-coverprofile", profile, "-coverpkg", o.coverPackages())
+		cover = []string{"-coverprofile", profile, "-coverpkg", o.coverPackages()}
 	}
-	options = append(options, tb.Reset().Str("./").
-		Str(filepath.ToSlash(filepath.Dir(o.tag.File))).String())
-	return o.toolchain.GoTest(gotoolchain.TestOptions{}, options...)
-}
-
-// carrierArgv re-executes this le binary on the action the suite's catalog
-// declares runs it, `<command> <area>/<verb>`.
-//
-// The already-built binary rather than the `./le` script, because the script
-// rebuilds itself from the tree and the tree is about to be compiled under an
-// overlay. Re-running the action the suite DECLARES is what keeps this from
-// being a second interop runner.
-func (o *observationRunner) carrierArgv() []string {
-	command, verb, _ := strings.Cut(o.suite.Action, "/")
-	return append(append([]string{o.self}, strings.Fields(command)...), verb)
+	// UnitArgv runs `-v`, whose `=== RUN   <Name>` line killedByTheBreak reads.
+	return testoverlay.UnitArgv(o.toolchain, filepath.ToSlash(filepath.Dir(o.tag.File)),
+		o.unitName, overlay, cover...)
 }
 
 // coverPackages answers the -coverpkg patterns one clean run instruments: the
@@ -631,35 +588,13 @@ func (o *observationRunner) run(overlay, profile string) (bool, string, error) {
 	return o.exec(deadline, o.argv(overlay, profile), o.environment(overlay), o.tree)
 }
 
-// exec runs one command under a deadline and answers whether it passed.
-//
-// A deadline that expires is an ERROR rather than a red, because "the break
-// reddens this unit" and "I never found out" must never be the same answer
-// (ai/rules/principles.md).
+// exec runs one command under a deadline through testoverlay.Exec, and keeps
+// the command as the one this runner last executed, so the record carries what
+// was actually run.
 func (o *observationRunner) exec(deadline time.Duration, argv, environ []string,
 	dir string) (bool, string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), deadline)
-	defer cancel()
-
 	o.command = strings.Join(argv, " ")
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // every argv value is derived from ScanTree, UnitAt and the carrier table
-	cmd.Dir = dir
-	cmd.Env = environ
-	var out bytes.Buffer
-	// Keep result stdout clean and share one writer so os/exec serializes
-	// both streams into the attribution buffer while reporting real progress.
-	output := io.MultiWriter(&out, os.Stderr)
-	cmd.Stdout = output
-	cmd.Stderr = output
-	runErr := cmd.Run()
-	if ctx.Err() != nil {
-		var tb textbuf.Buffer
-		return false, out.String(), parseErr(tb.Str("the observation of ").Str(o.record.Unit).
-			Str(" did not finish inside ").Str(deadline.String()).
-			Str(", so whether the break reddens it is unknown, and an unmeasured answer is ").
-			Str("never recorded as a proof"))
-	}
-	return runErr == nil, out.String(), nil
+	return testoverlay.Exec(deadline, argv, environ, dir, o.record.Unit)
 }
 
 // runFunctional runs ONE `.ci`, not the suite that holds it.
@@ -667,39 +602,28 @@ func (o *observationRunner) exec(deadline time.Duration, argv, environ []string,
 // The suite is the wrong unit twice over. It is slow, and it is hostage to
 // every other test in it: `./le test functional parse` was already red in this
 // checkout from another session's work, so a suite-wide run could never
-// attribute a red to this one carrier. testfunctional.Prepare builds the isolated
-// set the suite runner builds. Ordinary suites take one test's name in place of
-// --all; the compatibility runner takes its suite and an exact .ci path.
-//
-// The overlay reaches the compiler through GOFLAGS, which every Go build
-// command reads. It is set on THIS process because Prepare compiles in-process,
-// and restored straight after: the action runs one observation at a time and
-// starts no goroutine of its own, so the window belongs to nobody else.
+// attribute a red to this one carrier. testoverlay.PrepareFunctional builds the
+// isolated set the suite runner builds, under the overlay. Ordinary suites take
+// one test's name in place of --all; the compatibility runner takes its suite
+// and an exact .ci path.
 func (o *observationRunner) runFunctional(overlay string) (bool, string, error) {
-	var tb textbuf.Buffer
 	selector, held := o.functionalSelection()
 	if !held {
+		var tb textbuf.Buffer
 		return false, "", parseErr(tb.Str(o.carrier.Name).
 			Str(" names no suite `./le test functional` runs, so this .ci has no runner"))
 	}
 	label := "discrimination-clean"
 	if overlay != "" {
 		label = "discrimination-broken"
-		restore, err := setGoFlagsOverlay(overlay)
-		if err != nil {
-			return false, "", err
-		}
-		defer restore()
 	}
-	set, err := testfunctional.Prepare(o.toolchain, label)
+	run, err := testoverlay.PrepareFunctional(o.toolchain, label, overlay, selector)
 	if err != nil {
-		return false, "", parseErr(tb.Str("cannot build the isolated binaries one .ci runs ").
-			Str("against: ").Err(err))
+		return false, "", err
 	}
-	defer testfunctional.Release(set)
+	defer run.Release()
 
-	argv := append([]string{filepath.Join(set.Dir, testfunctional.LE), leTestCommand}, selector...)
-	return o.exec(carrierRunDeadline, argv, set.Environment(o.toolchain), o.tree)
+	return o.exec(carrierRunDeadline, run.Argv, run.Environ, o.tree)
 }
 
 // functionalSelection answers the native runner's arguments for exactly one .ci.
@@ -727,104 +651,17 @@ func (o *observationRunner) functionalSelection() ([]string, bool) {
 	return nil, false
 }
 
-// setGoFlagsOverlay puts the overlay where every Go compile this process starts
-// will read it, and answers the restore.
-func setGoFlagsOverlay(overlay string) (func(), error) {
-	const key = "GOFLAGS"
-	previous, held := os.LookupEnv(key)
-	var tb textbuf.Buffer
-	if err := os.Setenv(key, tb.Str("-overlay=").Str(overlay).String()); err != nil {
-		return nil, parseErr(tb.Reset().Str("cannot place the overlay in GOFLAGS: ").Err(err))
-	}
-	return func() {
-		if held {
-			os.Setenv(key, previous) //nolint:errcheck // restoring what was read a moment ago
-			return
-		}
-		os.Unsetenv(key) //nolint:errcheck // restoring what was read a moment ago
-	}, nil
-}
-
 // environment answers the environment one observation runs under.
 //
-// A unit run takes the overlay as a flag. A functional or interop run is a
-// second process that compiles for itself, so the overlay travels in GOFLAGS,
-// which every `go build` and `go test` inside it reads. Either way no file on
-// disk is modified, which is what lets this run in a checkout several sessions
-// share.
+// A unit run takes the overlay as a flag (testoverlay.UnitArgv). A functional
+// or interop run is a second process that compiles for itself, so the overlay
+// travels in GOFLAGS (testoverlay.ProcessEnvironment), with the scenario in the
+// suite's selector variable for an interop run.
 func (o *observationRunner) environment(overlay string) []string {
 	if o.carrier.Kind == kindUnit {
-		return o.toolchain.Environment(gotoolchain.EnvOptions{Test: true, Procs: true})
+		return testoverlay.UnitEnvironment(o.toolchain)
 	}
-	environ := os.Environ()
-	if overlay != "" {
-		var tb textbuf.Buffer
-		environ = append(environ, tb.Str("GOFLAGS=-overlay=").Str(overlay).String())
-	}
-	if o.scenario != "" {
-		var tb textbuf.Buffer
-		environ = append(environ, tb.Str(o.suite.SelectorVariable).Byte('=').Str(o.scenario).String())
-	}
-	return environ
-}
-
-// writeOverlay writes the replacement file and the overlay that selects it.
-//
-// Go's own overlay, which is what gomu applies its mutants through: the
-// compiler reads the replacement and the file on disk is never touched.
-//
-// Each run stages both files in a directory of its own. The session scratch is
-// shared by every subagent of the session, and a replacement keyed on the
-// producer's basename alone let one agent's break of register.go compile
-// against a sibling's (plan/journal/concurrent-session-corruption.md).
-func writeOverlay(tree string, broken ...overlayFile) (string, error) {
-	shared, err := observationScratch(tree)
-	if err != nil {
-		return "", err
-	}
-	var tb textbuf.Buffer
-	scratch, err := os.MkdirTemp(shared, "run-*")
-	if err != nil {
-		return "", parseErr(tb.Str("cannot create this run's break directory: ").Err(err))
-	}
-	// One replacement per file of a paired break, numbered so two producers
-	// sharing a basename never overwrite each other's copy.
-	replace := make(map[string]string, len(broken))
-	for position, file := range broken {
-		replacement := filepath.Join(scratch, tb.Reset().Str("broken-").Int(int64(position)).
-			Byte('-').Str(filepath.Base(file.rel)).String())
-		if err := os.WriteFile(replacement, []byte(file.content), 0o600); err != nil {
-			return "", parseErr(tb.Reset().Str("cannot write the broken source: ").Err(err))
-		}
-		replace[treePath(tree, file.rel)] = replacement
-	}
-	raw, err := json.Marshal(struct {
-		Replace map[string]string `json:"Replace"`
-	}{Replace: replace})
-	if err != nil {
-		return "", parseErr(tb.Reset().Str("cannot render the overlay: ").Err(err))
-	}
-	path := filepath.Join(scratch, "overlay.json")
-	if err := os.WriteFile(path, raw, 0o600); err != nil {
-		return "", parseErr(tb.Reset().Str("cannot write the overlay: ").Err(err))
-	}
-	return path, nil
-}
-
-// observationScratch answers this session's directory for one observation.
-func observationScratch(tree string) (string, error) {
-	paths, err := lepath.ResolveSession(tree, true)
-	if err != nil {
-		var tb textbuf.Buffer
-		return "", parseErr(tb.Str("cannot resolve this session's scratch directory, which is ").
-			Str("where a break is staged: ").Err(err))
-	}
-	directory := treePath(tree, paths.Scratch, "discrimination")
-	if err := os.MkdirAll(directory, 0o750); err != nil {
-		var tb textbuf.Buffer
-		return "", parseErr(tb.Str(relTo(tree, directory)).Str(": cannot create directory: ").Err(err))
-	}
-	return directory, nil
+	return testoverlay.ProcessEnvironment(overlay, o.suite.SelectorVariable, o.scenario)
 }
 
 // producerLineSpan answers the first and last line of one function, or the
@@ -862,30 +699,6 @@ func producerLineSpan(tree, rel, symbol string) (lineRange, string) {
 	panic("BUG: keyText answered a text no span of the same content holds")
 }
 
-// excerptLines is how much of a run's output a refusal and a record carry.
-//
-// The tail, because that is where `go test` prints the failure and where a
-// suite prints its summary. Enough to read, bounded so a record stays a record.
-const excerptLines = 40
-
-// excerpt answers the tail of one run's output.
-func excerpt(output string) string {
-	lines := strings.Split(strings.TrimRight(output, "\n"), "\n")
-	if len(lines) > excerptLines {
-		lines = lines[len(lines)-excerptLines:]
-	}
-	return strings.Join(lines, "\n")
-}
-
-// The outcome words the functional runner prints on a .ci's result line
-// (internal/test/runner/display.go, TestFinished).
-const (
-	ciPass    = "PASS"
-	ciFail    = "FAIL"
-	ciTimeout = "TIME"
-	ciSkip    = "SKIP"
-)
-
 // readsResultLine answers whether this carrier's run prints the functional
 // runner's per-test result line, which is then the evidence of what ran. The
 // ExaBGP compatibility runner prints its own report, so it keeps the name match.
@@ -894,35 +707,6 @@ func (o *observationRunner) readsResultLine() bool {
 		return false
 	}
 	return o.carrier.Name != exabgpCarrierName
-}
-
-// ciResult answers the outcome word on the runner's result line for the .ci
-// named stem, or the empty string when no line names it.
-//
-// The line is `<elapsed>  <i>/<n>  <OUTCOME>  <nick>  <name>`, and the name is
-// left out when it equals the nick, so the outcome is the third field from the
-// end or, failing that, the second.
-func ciResult(output, stem string) string {
-	for line := range strings.Lines(output) {
-		fields := strings.Fields(line)
-		if len(fields) < 3 {
-			continue
-		}
-		if fields[len(fields)-1] != stem {
-			continue
-		}
-		for _, word := range fields[len(fields)-3 : len(fields)-1] {
-			if isCIOutcome(word) {
-				return word
-			}
-		}
-	}
-	return ""
-}
-
-// isCIOutcome answers whether word is one of the runner's outcome words.
-func isCIOutcome(word string) bool {
-	return word == ciPass || word == ciFail || word == ciTimeout || word == ciSkip
 }
 
 // cleanRunUnobserved answers why a clean run that exited 0 did not observe
@@ -943,15 +727,15 @@ func (o *observationRunner) cleanRunUnobserved(output string) string {
 	if !o.readsResultLine() {
 		return ""
 	}
-	result := ciResult(output, o.names)
-	if result == ciPass {
+	result := testoverlay.CIResult(output, o.names)
+	if result == testoverlay.CIPass {
 		return ""
 	}
 	var tb textbuf.Buffer
 	return tb.Str(o.record.Unit).Str(" did not run in the clean run: ").
-		Str(describeCIResult(o.names, result)).
+		Str(testoverlay.DescribeCIResult(o.names, result)).
 		Str(". A skip is not a green, so nothing a break does to it can be observed:\n").
-		Str(excerpt(output)).String()
+		Str(testoverlay.Excerpt(output)).String()
 }
 
 // brokenRunUnobserved answers why a run under the break observed nothing
@@ -966,12 +750,14 @@ func (o *observationRunner) brokenRunUnobserved(output string) string {
 	if !o.readsResultLine() {
 		return ""
 	}
-	result := ciResult(output, o.names)
-	if result == ciSkip {
-		return describeUnobservedBreak(o.record.Unit, describeCIResult(o.names, result), output)
+	result := testoverlay.CIResult(output, o.names)
+	if result == testoverlay.CISkip {
+		return testoverlay.DescribeUnobservedBreak(o.record.Unit,
+			testoverlay.DescribeCIResult(o.names, result), output)
 	}
 	if result == "" {
-		return describeUnobservedBreak(o.record.Unit, describeCIResult(o.names, result), output)
+		return testoverlay.DescribeUnobservedBreak(o.record.Unit,
+			testoverlay.DescribeCIResult(o.names, result), output)
 	}
 	return ""
 }
@@ -992,57 +778,17 @@ func (o *observationRunner) unitSkipped(output, run string) string {
 	if o.unitName == "" {
 		return ""
 	}
-	at := goTestLineNames(output, "--- SKIP: ", o.unitName)
+	at := testoverlay.GoTestLineNames(output, "--- SKIP: ", o.unitName)
 	if at < 0 {
 		return ""
 	}
 	var tb textbuf.Buffer
 	tb.Str(o.record.Unit).Str(" observed nothing in ").Str(run).Str(": the unit skipped: ").
-		Str(skipReason(output[:at])).
+		Str(testoverlay.SkipReason(output[:at])).
 		Str(". A skip proves nothing either way, so nothing is written. Fix: run it where it does not skip")
 	if o.guest {
 		tb.Str("; a unit that skips unless it is root declares `").Str(guestRootDirective).
 			Str("` on its own line in the test function's doc comment")
 	}
-	return tb.Byte(':').Byte('\n').Str(excerpt(output)).String()
-}
-
-// skipReason answers the indented log lines `go test -v` printed directly above
-// a `--- SKIP:` line, which before holds the output up to that line. The test's
-// t.Skip text is the last of them.
-func skipReason(before string) string {
-	lines := strings.Split(strings.TrimRight(before, "\n"), "\n")
-	first := len(lines)
-	for first > 0 {
-		if !strings.HasPrefix(lines[first-1], "    ") {
-			break
-		}
-		first--
-	}
-	reason := make([]string, 0, len(lines)-first)
-	for _, line := range lines[first:] {
-		reason = append(reason, strings.TrimSpace(line))
-	}
-	if len(reason) == 0 {
-		return "it printed no reason"
-	}
-	return strings.Join(reason, " ")
-}
-
-// describeUnobservedBreak words the refusal of a broken run that did not run
-// the unit.
-func describeUnobservedBreak(unit, what, output string) string {
-	var tb textbuf.Buffer
-	return tb.Str(unit).Str(" did not run under the break: ").Str(what).
-		Str(". Nothing is written: a red this run did not observe is never recorded:\n").
-		Str(excerpt(output)).String()
-}
-
-// describeCIResult words what the runner's output said about one .ci.
-func describeCIResult(stem, result string) string {
-	var tb textbuf.Buffer
-	if result == "" {
-		return tb.Str("the output carries no result line for ").Str(stem).String()
-	}
-	return tb.Str("the runner reported ").Str(stem).Str(" as ").Str(result).String()
+	return tb.Byte(':').Byte('\n').Str(testoverlay.Excerpt(output)).String()
 }

@@ -33,6 +33,7 @@ import (
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/setup"
+	testoverlay "github.com/ze-software/ze/internal/le/test/overlay"
 )
 
 // The keywords `discriminate` and `record` take their values
@@ -402,7 +403,7 @@ func observeFor(tree string, reader *sourceReader, index *scopeIndex, carrier Ca
 // was actually applied. For a pair it also answers each break's files ALONE,
 // Producer's first, so each can be run by itself; for one break, none.
 func brokenSource(tree string, reader *sourceReader, index *scopeIndex,
-	record *DiscriminationRecord, request recordRequest) ([]overlayFile, [][]overlayFile, error) {
+	record *DiscriminationRecord, request recordRequest) ([]testoverlay.File, [][]testoverlay.File, error) {
 	if record.Route == RouteMutant {
 		return mutantBreak(tree, reader, index, record, request)
 	}
@@ -410,13 +411,7 @@ func brokenSource(tree string, reader *sourceReader, index *scopeIndex,
 	if err != nil {
 		return nil, nil, err
 	}
-	return []overlayFile{broken}, nil, nil
-}
-
-// overlayFile is one file replaced for the length of one observation.
-type overlayFile struct {
-	rel     string
-	content string
+	return []testoverlay.File{broken}, nil, nil
 }
 
 // mutantBreak answers the source the named gomu mutants produce together.
@@ -434,7 +429,7 @@ type overlayFile struct {
 // is also answered ALONE, applied to the tree's own copy of its file, for the
 // solo runs that show the set needs it.
 func mutantBreak(tree string, reader *sourceReader, index *scopeIndex,
-	record *DiscriminationRecord, request recordRequest) ([]overlayFile, [][]overlayFile, error) {
+	record *DiscriminationRecord, request recordRequest) ([]testoverlay.File, [][]testoverlay.File, error) {
 	var tb textbuf.Buffer
 	if request.report == "" || len(request.mutants) == 0 {
 		return nil, nil, parseErr(tb.Str("the ").Str(RouteMutant).
@@ -445,8 +440,8 @@ func mutantBreak(tree string, reader *sourceReader, index *scopeIndex,
 	if err != nil {
 		return nil, nil, err
 	}
-	var files []overlayFile
-	var solos [][]overlayFile
+	var files []testoverlay.File
+	var solos [][]testoverlay.File
 	named := map[string]bool{}
 	for position, selector := range request.mutants {
 		if named[selector] {
@@ -458,26 +453,26 @@ func mutantBreak(tree string, reader *sourceReader, index *scopeIndex,
 		if err != nil {
 			return nil, nil, err
 		}
-		slot := slices.IndexFunc(files, func(file overlayFile) bool { return file.rel == mutant.FilePath })
+		slot := slices.IndexFunc(files, func(file testoverlay.File) bool { return file.Rel == mutant.FilePath })
 		if slot < 0 {
 			content := reader.read(mutant.FilePath)
 			if content == nil {
 				return nil, nil, parseErr(tb.Str(mutant.FilePath).
 					Str(": the report names a file this tree does not hold"))
 			}
-			files = append(files, overlayFile{rel: mutant.FilePath, content: *content})
+			files = append(files, testoverlay.File{Rel: mutant.FilePath, Content: *content})
 			slot = len(files) - 1
 		}
-		broken, err := replaceOnLine(files[slot].content, mutant)
+		broken, err := replaceOnLine(files[slot].Content, mutant)
 		if err != nil {
 			return nil, nil, err
 		}
-		files[slot].content = broken
+		files[slot].Content = broken
 		alone, err := replaceOnLine(*reader.read(mutant.FilePath), mutant)
 		if err != nil {
 			return nil, nil, err
 		}
-		solos = append(solos, []overlayFile{{rel: mutant.FilePath, content: alone}})
+		solos = append(solos, []testoverlay.File{{Rel: mutant.FilePath, Content: alone}})
 		// The producer is read from the tree, never from the copy being broken,
 		// so an earlier mutant of the same file cannot move the function lookup.
 		producer := functionAtLine(index, *reader.read(mutant.FilePath), mutant.Line)
@@ -561,36 +556,36 @@ func replaceOnLine(content string, mutant reportMutant) (string, error) {
 // disable the producing function and confirm the test flips to red -- with the
 // disabling done mechanically and the red recorded instead of forgotten.
 func revertBreak(reader *sourceReader, index *scopeIndex,
-	record *DiscriminationRecord) (overlayFile, error) {
+	record *DiscriminationRecord) (testoverlay.File, error) {
 	var tb textbuf.Buffer
 	rel, symbol, err := fingerprintKey(record.Producer, record.Source)
 	if err != nil {
-		return overlayFile{}, err
+		return testoverlay.File{}, err
 	}
 	if symbol == "" {
-		return overlayFile{}, parseErr(tb.Str(record.Producer).
+		return testoverlay.File{}, parseErr(tb.Str(record.Producer).
 			Str(" names a whole file, and a revert disables one FUNCTION"))
 	}
 	content := reader.read(rel)
 	if content == nil {
-		return overlayFile{}, parseErr(tb.Str(rel).
+		return testoverlay.File{}, parseErr(tb.Str(rel).
 			Str(": the producer names a file this tree does not hold"))
 	}
 	text, refusal := index.keyText(rel, *content, symbol)
 	if refusal != "" {
-		return overlayFile{}, parseErr(tb.Str(refusal).
+		return testoverlay.File{}, parseErr(tb.Str(refusal).
 			Str(". A revert disables exactly one function, and an unresolved producer is the ").
 			Str("defect, never a proof of one"))
 	}
 	disabled, ok := disableBody(text)
 	if !ok {
-		return overlayFile{}, parseErr(tb.Str(record.Producer).
+		return testoverlay.File{}, parseErr(tb.Str(record.Producer).
 			Str(": cannot find the body to disable. The declaration's opening brace is ").
 			Str("expected to end its line, which is what gofmt writes"))
 	}
 	record.Break = tb.Reset().Str("body of ").Str(symbol).Str(" replaced by ").Str(revertBody).String()
 	broken := strings.Replace(*content, text, disabled, 1)
-	return overlayFile{rel: rel, content: dropOrphanedImports(rel, broken)}, nil
+	return testoverlay.File{Rel: rel, Content: dropOrphanedImports(rel, broken)}, nil
 }
 
 // dropOrphanedImports answers the source with the imports the disabled body

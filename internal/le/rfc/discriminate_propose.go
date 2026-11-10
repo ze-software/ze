@@ -28,6 +28,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	testoverlay "github.com/ze-software/ze/internal/le/test/overlay"
 )
 
 // DiscriminationCandidate is one break that could be recorded for one tag.
@@ -461,7 +462,7 @@ func mutantPackages(mutants []reportMutant) string {
 // (ai/rules/principles.md).
 func unitCoverage(tree string, toolchain gotoolchain.Toolchain, module string, tag Tag,
 	symbol, packages string) (coverageSet, error) {
-	scratch, err := observationScratch(tree)
+	scratch, err := testoverlay.Scratch(tree, discriminationArea)
 	if err != nil {
 		return nil, err
 	}
@@ -486,7 +487,7 @@ func unitCoverage(tree string, toolchain gotoolchain.Toolchain, module string, t
 	if runErr := cmd.Run(); runErr != nil {
 		return nil, parseErr(tb.Reset().Str("cannot measure what ").Str(tag.File).Str("::").
 			Str(symbol).Str(" covers, so which mutants it could redden is unknown:\n").
-			Str(excerpt(out.String())))
+			Str(testoverlay.Excerpt(out.String())))
 	}
 	raw, err := os.ReadFile(profile) // #nosec G304 -- a path this run just wrote under the session scratch
 	if err != nil {
