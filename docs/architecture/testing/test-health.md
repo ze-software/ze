@@ -252,12 +252,24 @@ concurrent checkout edits are not alternate sources. An unavailable baseline or
 blob refuses the comparison, rather than becoming an absent or empty file.
 <!-- source: internal/le/test/weakened/prospective.go -- ProspectiveTree -->
 
-The Go scanner supplies exact declaration boundaries, including receiver methods
-and package-less edit fragments. Attached comments belong to the declaration.
-Separators after its closing brace do not. Result-type braces and nested bodies
-are balanced, while comments and literals cannot introduce declarations or braces.
-Bodyless declarations end at the last signature token. The parser validates only
-that signature, so a truncated result type cannot become a complete declaration.
+Go units come from the one inventory the RFC gate reads too,
+`rfc.DeclaredUnits`, so the two gates cannot name different units. It parses
+the whole file with `go/parser`. A unit runs from its contiguous `//` doc
+comment through its closing brace, or the last signature token of a bodyless
+declaration, plus the one line ending after it; a block comment above it and
+separators after that line ending stay outside. Comments and literals cannot
+introduce declarations. An edit is judged on the whole proposed file, so a
+fragment with no package clause never reaches it, and one that did would be
+an unparsed file.
+
+A file that does not parse keeps the declarations the parser read whole
+before its first syntax error. Every declaration from that error on is
+incomplete, a declaration the parser's recovery skipped is absent rather than
+guessed, and a truncated result type cannot become a complete declaration. A
+bodyless declaration in such a file is incomplete too, because the parser ends
+it on the next token, which can be the error itself (`func TestA() )`). The
+RFC gate's readers still receive their conservative line-walk spans for such a
+file, so the partial syntax tree never moves an RFC unit.
 
 Incomplete boundaries cannot spend semantic approvals: preparation reports that
 it cannot judge them. Structural checks still judge the whole text and attribute
@@ -277,9 +289,10 @@ for every weakened unit.
 <!-- source: internal/le/test/weakened/scope.go -- weakenedUnits -->
 <!-- source: internal/le/test/weakened/proposed.go -- Proposed, proposedFindings -->
 
-A scanner diagnostic outside a closed unit does not invalidate that unit's boundary.
+A syntax error after a closed unit does not invalidate that unit's boundary.
 <!-- source: internal/le/test/weakened/scope.go -- changedUnitNames, unitsByName, weakenedUnits -->
-<!-- source: internal/le/test/weakened/scope_go.go -- goFunctionUnits, goDeclarationEnd, goBodyEnd -->
+<!-- source: internal/le/test/weakened/scope_go.go -- goUnits, goUnresolvedText -->
+<!-- source: internal/le/rfc/goscope.go -- DeclaredUnits, readFunctionUnits -->
 <!-- source: internal/le/test/weakened/testweakened.go -- Check, comparePath -->
 <!-- source: internal/le/commit/prepare.go -- checkSourceGates -->
 

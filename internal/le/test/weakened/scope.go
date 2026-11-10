@@ -32,8 +32,9 @@ func changedUnitNames(path, oldText, newText string) ([]string, error) {
 	}
 	oldUnits := unitsByName(oldText)
 	newUnits := unitsByName(newText)
-	// A lexical failure with no recoverable declaration is not an empty
-	// baseline inventory. It cannot establish which units already existed.
+	// A file that does not parse and holds no declaration the parser read is
+	// not an empty baseline inventory. It cannot establish which units
+	// already existed.
 	if len(oldUnits) == 1 {
 		if oldUnits[0].name == "" && oldUnits[0].incomplete {
 			return nil, fmt.Errorf("cannot judge Go function boundaries in %s; repair the incomplete baseline before preparing the commit", path)
@@ -59,7 +60,7 @@ func changedUnitNames(path, oldText, newText string) ([]string, error) {
 }
 
 // unitBoundaryKnown distinguishes a removed declaration from one whose boundary
-// could not be read. An unrelated scanner error cannot invalidate a closed unit.
+// could not be read. A syntax error after a closed unit cannot invalidate it.
 func unitBoundaryKnown(units []namedUnit, name string) bool {
 	uncertain := false
 	for _, unit := range units {
@@ -166,7 +167,7 @@ func verdictKind(detail string) string {
 }
 
 func unitsByName(content string) []namedUnit {
-	units := goFunctionUnits(content)
+	units := goUnits(content)
 	grouped := make([]namedUnit, 0, len(units))
 	indexes := make(map[string]int, len(units))
 	var text textbuf.Buffer

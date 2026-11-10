@@ -10,8 +10,10 @@
 package rfc
 
 import (
+	"errors"
 	"go/ast"
 	"go/parser"
+	"go/scanner"
 	"go/token"
 	"path/filepath"
 	"regexp"
@@ -450,10 +452,15 @@ func FunctionUnits(content string) []FunctionUnit {
 
 // readFunctionUnits shares declaration extraction with identity readers, which
 // must reject a conservative span when the exact declaration is unresolved.
+//
+// It is the RFC gate's projection of DeclaredUnits. Content that parses answers
+// the inventory's exact units. Content that does not parse answers the
+// conservative line-walk spans and false, which the gate's readers have always
+// received there, so the partial syntax tree the weakening check reads never
+// moves an RFC unit.
 func readFunctionUnits(content string) ([]FunctionUnit, bool) {
-	positions := token.NewFileSet()
-	file, err := parser.ParseFile(positions, "", content, parser.SkipObjectResolution)
-	if err != nil {
+	declared, parsed := DeclaredUnits(content)
+	if !parsed {
 		spans := goFuncSpans(content)
 		units := make([]FunctionUnit, 0, len(spans))
 		for _, one := range spans {
@@ -462,23 +469,97 @@ func readFunctionUnits(content string) ([]FunctionUnit, bool) {
 		}
 		return units, false
 	}
-	source := positions.File(file.Pos())
 	var units []FunctionUnit
-	for _, declaration := range file.Decls {
+	for _, unit := range declared {
+		units = append(units, FunctionUnit{Name: unit.Name, Text: unit.Text})
+	}
+	return units, true
+}
+
+// DeclaredUnit is one top-level func declaration of the Go unit inventory.
+//
+// The inventory is defined once, here, and read by the RFC gate (through
+// readFunctionUnits) and by the test-weakening check, so the two gates cannot
+// name a different population of Go test units. Text, Start and End are set
+// only when Exact: Text is content[Start:End], from the contiguous `//` doc
+// comment through the closing brace, or the last signature token of a
+// bodyless declaration, plus the one line ending that follows it.
+type DeclaredUnit struct {
+	Name  string
+	Text  string
+	Start int
+	End   int
+	Exact bool
+}
+
+// DeclaredUnits answers every top-level func declaration go/parser finds in
+// content, in file order, and whether the whole content parsed.
+//
+// Content that parses answers exact units. Content that does not parse answers
+// the declarations of the partial syntax tree, and one is exact only when the
+// first syntax error lies at or after the start of the declaration that
+// follows it: the parser read every byte of that declaration before it met an
+// error. Every declaration from the first error on is therefore inexact, the
+// last one included, and a declaration the parser's recovery skipped is absent
+// rather than guessed. A bodyless declaration in such source is never exact:
+// the parser ended it on a token it had not yet judged, which can be the
+// error itself. Source that parses keeps its bodyless declarations exact, so
+// no unit the RFC gate reads moves. Content holding nothing but white space (a deleted
+// file) parses to no declarations.
+func DeclaredUnits(content string) ([]DeclaredUnit, bool) {
+	if strings.TrimSpace(content) == "" {
+		return nil, true
+	}
+	positions := token.NewFileSet()
+	file, err := parser.ParseFile(positions, "", content, parser.SkipObjectResolution)
+	parsed := err == nil
+	// An error that carries no position leaves firstError before every
+	// declaration, so none of them is exact.
+	firstError := -1
+	var syntax scanner.ErrorList
+	if errors.As(err, &syntax) {
+		if len(syntax) != 0 {
+			firstError = syntax[0].Pos.Offset
+		}
+	}
+	var units []DeclaredUnit
+	for index, declaration := range file.Decls {
 		function, ok := declaration.(*ast.FuncDecl)
 		if !ok {
 			continue
 		}
-		start := docCommentStart(content, source.Offset(function.Pos()))
-		end := source.Offset(function.End())
-		if end+1 < len(content) && content[end:end+2] == "\r\n" {
-			end += 2
-		} else if end < len(content) && content[end] == '\n' {
-			end++
+		source := positions.File(function.Pos())
+		at := source.Offset(function.Pos())
+		unit := DeclaredUnit{Name: function.Name.Name}
+		exact := parsed
+		if !parsed {
+			// A bodyless declaration ends where the token after its last
+			// signature token is not part of a result type, so its boundary
+			// is decided by lookahead. In source that does not parse, that
+			// token may be the error ("func TestA() )"), so only a closing
+			// brace, which the declaration reads itself, proves the end.
+			if function.Body != nil && index+1 < len(file.Decls) {
+				exact = firstError >= source.Offset(file.Decls[index+1].Pos())
+			}
 		}
-		units = append(units, FunctionUnit{Name: function.Name.Name, Text: content[start:end]})
+		if exact {
+			unit = exactDeclaredUnit(content, unit.Name, at, source.Offset(function.End()))
+		}
+		units = append(units, unit)
 	}
-	return units, true
+	return units, parsed
+}
+
+// exactDeclaredUnit cuts one exact declaration out of content, from its doc
+// comment to its end offset and the line ending after it.
+func exactDeclaredUnit(content, name string, at, end int) DeclaredUnit {
+	start := docCommentStart(content, at)
+	if end+1 < len(content) && content[end:end+2] == "\r\n" {
+		end += 2
+	} else if end < len(content) && content[end] == '\n' {
+		end++
+	}
+	return DeclaredUnit{Name: name, Text: content[start:end], Start: start, End: end, Exact: true}
 }
 
 // TaggedUnit is the text one RFC tag governs and how it was resolved.

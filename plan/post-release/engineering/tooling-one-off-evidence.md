@@ -3140,3 +3140,26 @@ edge. `TestPluginOwnershipBaselineIsShrinkOnly` runs the full `Check`:
 `internal/le/arch/tier` ok. `le-placement-answers` is still red, now only for
 another session's untracked `internal/le/interoplab/ipsec/icmperror.go`
 (numberparse), after `60a781fe97` corrected this work's own allowlist count.
+
+## P-31: one Go test-unit inventory (2026-11-10)
+
+Owner decision: the RFC gate's scanner is the one inventory. The weakening
+check now reads Go test units through `rfc.DeclaredUnits`, the same
+`go/parser` parse `readFunctionUnits` runs; its lexical scanner
+(`goFunctionUnits` and eight helpers) is deleted. No discrimination record's
+unit-sha changes: that identity comes from `goFuncSpans`, untouched. In a file
+that does not parse a declaration is exact only if it has a body and the
+first syntax error lies at or after the next declaration. Nine boundary tests
+were adjusted to the shared contract (whole-file inputs, units carrying their
+line ending) and approved by an independent `ze-test-judge`; `./le test
+weakened check` is clean and its selftest passes.
+
+| Carrier | Break (Go overlay, `p31w/`) | Red |
+| --- | --- | --- |
+| `TestWeakeningAndRFCGatesReadOneGoUnitPopulation` (`internal/le/test/weakened`) | the weakening side drops each unit's trailing newline | "unit 0 is TestA \"func TestA() {}\" in the weakening check, TestA \"func TestA() {}\\n\" in the RFC gate" |
+| `TestReadFunctionUnitsKeepsConservativeSpansWhereSourceDoesNotParse` (`internal/le/rfc`) | the RFC side takes the partial inventory of an unparsed file | "source that does not parse answered exact units" |
+| `TestDeclaredUnitsAreExactOnlyBeforeTheFirstSyntaxError` | a bodyless declaration may be exact in an unparsed file | "\"package p\\nfunc TestA() )...\": exact units = [TestA], want []" |
+
+`internal/le/test/weakened` and `internal/le/rfc` ok. A fragment without a
+`package` line (a route no producer in the tree uses) now goes to whole-text
+detection, which refuses more and never accepts more.

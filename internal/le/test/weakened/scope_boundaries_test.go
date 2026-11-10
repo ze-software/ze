@@ -1,4 +1,4 @@
-// Design: docs/architecture/testing/test-health.md -- exact lexical function boundaries.
+// Design: docs/architecture/testing/test-health.md -- exact function boundaries of the shared Go unit inventory.
 // Related: semantic_scope_test.go -- approval selection against committed source.
 package testweakened
 
@@ -8,7 +8,9 @@ import (
 )
 
 // TestFunctionUnitBoundaries checks declarations with signature and body braces,
-// while keeping comments and literals out of the declaration inventory.
+// while keeping comments and literals out of the declaration inventory. The
+// unit is the RFC gate's: its contiguous `//` doc comment through the line
+// ending after its closing brace, and a block comment above it stays outside.
 func TestFunctionUnitBoundaries(t *testing.T) {
 	for _, declaration := range []string{
 		"func TestA(t *testing.T) { require.Equal(t, 1, got) }",
@@ -22,9 +24,10 @@ func TestFunctionUnitBoundaries(t *testing.T) {
 		"func TestA() { println(`\nfunc Fake() {}\n}\n`) }",
 	} {
 		t.Run(declaration, func(t *testing.T) {
-			const doc = "// Attached declaration comment.\n/* Attached block comment. */\n"
-			content := doc + declaration
-			units := unitsByName(content + "\n\n// Detached comment.\n\nvar outside = 1\n")
+			const doc = "// Attached declaration comment.\n// Second attached line.\n"
+			content := doc + declaration + "\n"
+			units := unitsByName("package p\n/* Unattached block comment. */\n" + content +
+				"\n// Detached comment.\n\nvar outside = 1\n")
 			if len(units) != 1 || units[0].name != "TestA" || units[0].text != content {
 				t.Fatalf("units = %#v, want exactly TestA with text %q", units, content)
 			}
@@ -40,7 +43,7 @@ func TestFunctionUnitInventory(t *testing.T) {
 	content := "package p\n/*\nfunc Fake() {}\n*/\nvar text = `\nfunc Fake() {}\n`\n" +
 		"var callback = func() { println(1) }\ntype Callback func()\n" + first + "\n\n" + second + "\n"
 	units := unitsByName(content)
-	if len(units) != 1 || units[0].name != "TestSame" || units[0].text != first+"\n"+second {
+	if len(units) != 1 || units[0].name != "TestSame" || units[0].text != first+"\n\n"+second+"\n" {
 		t.Fatalf("inventory = %#v", units)
 	}
 }
@@ -48,8 +51,8 @@ func TestFunctionUnitInventory(t *testing.T) {
 // TestIncompleteFunctionRetainsStructuralFinding ensures partial fragments
 // still reach the whole-text detector when exact unit attribution is impossible.
 func TestIncompleteFunctionRetainsStructuralFinding(t *testing.T) {
-	const before = "func TestA() {\nrequire.Equal(t, 1, got)\nrequire.NoError(t, err)\n"
-	const after = "func TestA() {\nrequire.Equal(t, 1, got)\n"
+	const before = "package p\nfunc TestA() {\nrequire.Equal(t, 1, got)\nrequire.NoError(t, err)\n"
+	const after = "package p\nfunc TestA() {\nrequire.Equal(t, 1, got)\n"
 	verdicts := weakenedUnits("pkg/partial_test.go", before, after)
 	if len(verdicts) != 1 || verdicts[0].name != "partial_test" ||
 		!strings.Contains(strings.Join(verdicts[0].details, "\n"), "removing assertions") {
@@ -89,12 +92,13 @@ func TestCheckIncompleteFunctionRefusesSemanticApproval(t *testing.T) {
 }
 
 // TestFunctionUnitScannerErrorsStayLocal checks that malformed unrelated bytes
-// cannot change a closed declaration, and that CRLF comments retain their bytes.
+// after a closed declaration cannot change it, and that CRLF comments retain
+// their bytes.
 func TestFunctionUnitScannerErrorsStayLocal(t *testing.T) {
-	const declaration = "// Attached.\r\n/* Block\r\n comment. */\r\nfunc TestA() {}"
+	const declaration = "// Attached.\r\n// Second line.\r\nfunc TestA() {}\r\n"
 	const following = "\n\ufffd\n"
-	before := declaration + following
-	after := declaration + "\n\n" + following
+	before := "package p\r\n" + declaration + following
+	after := "package p\r\n" + declaration + "\n" + following
 	changed, err := changedUnitNames("pkg/a_test.go", before, after)
 	if err != nil || len(changed) != 0 {
 		t.Fatalf("unrelated scanner diagnostic changed exact unit: %v, %v", changed, err)
@@ -123,10 +127,10 @@ func TestCheckIncompleteBoundaryKeepsStructuralEvidence(t *testing.T) {
 // inventory as proof that its replacement consists only of new functions.
 func TestSemanticBoundaryUnknownBaseline(t *testing.T) {
 	for _, baseline := range []string{
-		"/* unterminated",
-		"func TestA(t *testing.T) {",
+		"package a\n/* unterminated",
+		"package a\nfunc TestA(t *testing.T) {",
 	} {
-		changed, err := changedUnitNames("pkg/a_test.go", baseline, "func TestA(t *testing.T) {}")
+		changed, err := changedUnitNames("pkg/a_test.go", baseline, "package a\nfunc TestA(t *testing.T) {}")
 		if err == nil || len(changed) != 0 {
 			t.Fatalf("unknown baseline %q became known changes %v: %v", baseline, changed, err)
 		}
@@ -150,7 +154,7 @@ func TestFunctionUnitIncompleteSignatures(t *testing.T) {
 		"func TestA() { println(\"\\q\") }",
 	} {
 		t.Run(content, func(t *testing.T) {
-			units := unitsByName(content)
+			units := unitsByName("package p\n" + content)
 			if len(units) == 0 {
 				t.Fatal("incomplete declaration silently became an empty inventory")
 			}
@@ -165,6 +169,7 @@ func TestFunctionUnitIncompleteSignatures(t *testing.T) {
 
 // TestFunctionUnitBodylessDeclarations checks exact signature ends, including EOF,
 // and proves a complete external declaration does not hide a following test.
+// A unit keeps the line ending right after its last signature token.
 func TestFunctionUnitBodylessDeclarations(t *testing.T) {
 	for _, declaration := range []string{
 		"func external()",
@@ -176,12 +181,16 @@ func TestFunctionUnitBodylessDeclarations(t *testing.T) {
 	} {
 		for _, suffix := range []string{"", "\n", ";", " // Trailing comment.\n", "\nfunc TestA() {}\n"} {
 			t.Run(declaration+suffix, func(t *testing.T) {
-				units := unitsByName(declaration + suffix)
-				if len(units) == 0 || units[0].incomplete || units[0].name != "external" || units[0].text != declaration {
+				units := unitsByName("package p\n" + declaration + suffix)
+				want := declaration
+				if strings.HasPrefix(suffix, "\n") {
+					want += "\n"
+				}
+				if len(units) == 0 || units[0].incomplete || units[0].name != "external" || units[0].text != want {
 					t.Fatalf("bodyless declaration not exact: %#v", units)
 				}
 				if strings.Contains(suffix, "TestA") {
-					if len(units) != 2 || units[1].name != "TestA" || units[1].text != "func TestA() {}" {
+					if len(units) != 2 || units[1].name != "TestA" || units[1].text != "func TestA() {}\n" {
 						t.Fatalf("bodyless declaration hid later test: %#v", units)
 					}
 				}
@@ -192,6 +201,8 @@ func TestFunctionUnitBodylessDeclarations(t *testing.T) {
 
 // TestFunctionUnitTruncatedResultIsNotBodyless rejects signatures that end in a
 // semicolon but still lack a result type, rather than accepting them as external.
+// Nothing after the first syntax error is exact either, so the following test
+// cannot become a known unit beside the truncated one.
 func TestFunctionUnitTruncatedResultIsNotBodyless(t *testing.T) {
 	for _, signature := range []string{
 		"func external() pkg.",
@@ -201,27 +212,45 @@ func TestFunctionUnitTruncatedResultIsNotBodyless(t *testing.T) {
 		"func external() chan",
 	} {
 		t.Run(signature, func(t *testing.T) {
-			units := unitsByName(signature + ";\nfunc TestA() {}\n")
-			if len(units) != 1 || units[0].name != "external" || !units[0].incomplete || units[0].text != "" {
-				t.Fatalf("truncated signature became a complete declaration: %#v", units)
+			units := unitsByName("package p\n" + signature + ";\nfunc TestA() {}\n")
+			if len(units) == 0 || units[0].name != "external" {
+				t.Fatalf("truncated signature left the inventory: %#v", units)
+			}
+			for _, unit := range units {
+				if !unit.incomplete || unit.text != "" {
+					t.Fatalf("truncated signature became a complete declaration: %#v", units)
+				}
 			}
 		})
 	}
 }
 
 // TestFunctionUnitDetachedComments leaves comments across blank lines or after
-// other code outside the following declaration, and excludes anonymous funcs.
+// other code outside the following declaration. An anonymous top-level func is
+// not Go, so it names no unit and leaves the declaration after it unknown.
 func TestFunctionUnitDetachedComments(t *testing.T) {
+	const declaration = "func TestA() {}"
 	for _, prefix := range []string{
 		"// Detached.\n\n",
 		"var x = 1 // Trailing.\n",
+	} {
+		units := unitsByName("package p\n" + prefix + declaration)
+		if len(units) != 1 || units[0].name != "TestA" || units[0].text != declaration {
+			t.Fatalf("prefix %q changed declaration inventory: %#v", prefix, units)
+		}
+	}
+	for _, prefix := range []string{
 		"func() func() {}\n",
 		"func(x int) Result {}\n",
 	} {
-		const declaration = "func TestA() {}"
-		units := unitsByName(prefix + declaration)
-		if len(units) != 1 || units[0].name != "TestA" || units[0].text != declaration {
-			t.Fatalf("prefix %q changed declaration inventory: %#v", prefix, units)
+		units := unitsByName("package p\n" + prefix + declaration)
+		if len(units) == 0 {
+			t.Fatalf("prefix %q left an empty inventory", prefix)
+		}
+		for _, unit := range units {
+			if !unit.incomplete || unit.text != "" {
+				t.Fatalf("prefix %q left an exact unit after an anonymous func: %#v", prefix, units)
+			}
 		}
 	}
 }
