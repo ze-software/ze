@@ -233,3 +233,69 @@ func TestSelectionRefusesMalformedEntry(t *testing.T) {
 		t.Fatal("Blob of a path that is not selected answered a blob")
 	}
 }
+
+// TestApplyRefusesZeroContextPatch proves a patch whose hunk carries no
+// context line is refused before git applies it. git apply without
+// --unidiff-zero anchors a hunk with no trailing context at the end of the
+// file, so a `git diff -U0` insertion of a table row applied cleanly below
+// the table, and the commit carried the row where no gate looked for it.
+//
+// VALIDATES: the -U0 insertion is refused naming its hunk header and the
+// command that saves the patch with context; the same change saved with git's
+// default context applies inside the table; a default-context hunk at the
+// start of the file, which has no leading context, still applies.
+// PREVENTS: a zero-context hunk committed at the end of the file.
+// MUTATION: removing the contextProblem call in Apply lets the -U0 patch
+// apply, and the row lands after `d`.
+func TestApplyRefusesZeroContextPatch(t *testing.T) {
+	root := t.TempDir()
+	gitIn(t, root, "init", "-q")
+	const original = "a\nb\n| row1 |\nc\nd\n"
+	writeFile(t, root, "table.md", original)
+	gitIn(t, root, "add", "--", "table.md")
+	gitIn(t, root, "commit", "-q", "-m", "base")
+	head := strings.TrimSpace(gitIn(t, root, "rev-parse", "HEAD"))
+	const inserted = "a\nb\n| row1 |\n| row2 |\nc\nd\n"
+	writeFile(t, root, "table.md", inserted)
+	patches := t.TempDir()
+	zero := filepath.Join(patches, "zero.patch")
+	writeFile(t, patches, "zero.patch", gitIn(t, root, "diff", "-U0", "--", "table.md"))
+	withContext := filepath.Join(patches, "context.patch")
+	writeFile(t, patches, "context.patch", gitIn(t, root, "diff", "--", "table.md"))
+
+	_, err := Apply(root, head, "table.md", zero)
+	if err == nil {
+		t.Fatal("a -U0 insertion inside the file applied; git anchors it at the end of the file")
+	}
+	for _, want := range []string{"@@ -3,0 +4 @@", "no context line", "git diff -- table.md > " + zero} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("a -U0 insertion: %v, want the refusal to carry %q", err, want)
+		}
+	}
+	entry, err := Apply(root, head, "table.md", withContext)
+	if err != nil {
+		t.Fatalf("the same change with default context: %v, want its entry", err)
+	}
+	content, err := Selection{"table.md": {Entry: entry, Patch: withContext}}.Read(root, "table.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(content) != inserted {
+		t.Fatalf("selected content %q, want the row inside the table %q", content, inserted)
+	}
+
+	writeFile(t, root, "table.md", "| head |\n"+original)
+	start := filepath.Join(patches, "start.patch")
+	writeFile(t, patches, "start.patch", gitIn(t, root, "diff", "--", "table.md"))
+	entry, err = Apply(root, head, "table.md", start)
+	if err != nil {
+		t.Fatalf("a default-context hunk at the start of the file: %v, want its entry", err)
+	}
+	content, err = Selection{"table.md": {Entry: entry, Patch: start}}.Read(root, "table.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(content) != "| head |\n"+original {
+		t.Fatalf("selected content %q, want the line at the start of the file", content)
+	}
+}

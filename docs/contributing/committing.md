@@ -233,7 +233,10 @@ from then on, and the script commits its `git ls-files -s` line as it commits a
 The patch is refused, naming the path and the fix, when it is empty, does not
 apply to HEAD's blob, changes binary content (commit it whole with `file`),
 changes nothing, changes another path as well, or deletes the path (use
-`remove`). Git paths are read and written NUL-delimited. Spaces, quotes,
+`remove`). A hunk with no context line on a side where the file goes on, as
+`git diff -U0` writes, is refused too, because `git apply` anchors a hunk with
+no trailing context at the end of the file: save the patch with git's default
+context. Git paths are read and written NUL-delimited. Spaces, quotes,
 backslashes, non-ASCII and leading or trailing spaces retain their exact
 identity; NUL, tab, carriage return and newline are refused.
 

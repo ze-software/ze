@@ -138,8 +138,9 @@ func Content(root, path, patchFile string) ([]byte, error) {
 //
 // The patch applies to a private index read from head, never to the shared
 // index or the working tree. It MUST change path and nothing else: a patch that
-// does not apply, changes binary content, changes nothing, touches another
-// path, or deletes path is refused, each with the step that fixes it. The caller MUST record head as the
+// does not apply, changes binary content, holds a hunk with no context where
+// the file goes on, changes nothing, touches another path, or deletes path is
+// refused, each with the step that fixes it. The caller MUST record head as the
 // commit's prepared parent, so the script refuses when a peer changed path
 // after the blob was built.
 func Apply(root, head, path, patchFile string) (string, error) {
@@ -177,6 +178,17 @@ func Apply(root, head, path, patchFile string) (string, error) {
 			"\n  save it with `git diff -- " + path + " > " + patchFile + "` and delete the hunks this commit must not carry")
 	}
 	if problem := binaryProblem(path, string(stats)); problem != "" {
+		return "", errors.New(problem)
+	}
+	original, present, err := objects.ReadPath(context.Background(), root, head, path)
+	if err != nil {
+		return "", errors.New("hunks " + path + ": read the HEAD content the patch applies to: " + err.Error())
+	}
+	lines := 0
+	if present {
+		lines = lineCount(original)
+	}
+	if problem := contextProblem(path, patchFile, body, lines); problem != "" {
 		return "", errors.New(problem)
 	}
 	if _, err := git(root, index, "apply", "--cached", "--whitespace=nowarn", "--", patchFile); err != nil {
@@ -240,6 +252,188 @@ func binaryProblem(path, stats string) string {
 		}
 	}
 	return ""
+}
+
+// contextProblem answers the refusal for a patch holding a hunk with no
+// context line on a side where the file goes on, or "" when every hunk is
+// anchored. lines is the number of lines HEAD's blob of path holds, zero for
+// a path HEAD does not hold.
+//
+// git apply places a hunk by matching its context lines. Without
+// --unidiff-zero, a hunk with no trailing context must match at the end of
+// the file, and a pure insertion has no old lines to match, so a `git diff
+// -U0` insertion taken from inside the file applies cleanly after the file's
+// last line: a journal row lands below its table, and nothing reports it. A
+// hunk that starts at the first line needs no leading context, and one that
+// ends at the last line needs no trailing context, because there is nothing
+// on that side to match.
+//
+// The hunk body is read by its header's counts, never by its leading
+// characters alone, so a removed line that reads "-- x" is not taken for a
+// file header. A line the counts do not cover ends the hunk; git apply
+// --numstat has already refused a patch git cannot read.
+func contextProblem(path, patchFile string, body []byte, lines int) string {
+	var hunk patchHunk
+	inside := false
+	for line := range strings.SplitSeq(string(body), "\n") {
+		if !inside {
+			parsed, found := parseHunkHeader(line)
+			if found {
+				hunk = parsed
+				inside = true
+			}
+			continue
+		}
+		if strings.HasPrefix(line, `\`) {
+			continue
+		}
+		if !hunk.read(line) {
+			inside = false
+			continue
+		}
+		if hunk.oldLeft > 0 || hunk.newLeft > 0 {
+			continue
+		}
+		inside = false
+		if problem := hunk.problem(path, patchFile, lines); problem != "" {
+			return problem
+		}
+	}
+	return ""
+}
+
+// patchHunk is one hunk of a unified diff while its body is read: the header
+// as written, the old range, the body lines its counts still owe, and the
+// context lines before its first change and after its last.
+type patchHunk struct {
+	header   string
+	oldStart int
+	oldCount int
+	oldLeft  int
+	newLeft  int
+	leading  int
+	trailing int
+	changed  bool
+}
+
+// read takes one body line and reports whether it belongs to the hunk. An
+// empty line is a context line whose single space was stripped, as git apply
+// reads it.
+func (h *patchHunk) read(line string) bool {
+	kind := byte(' ')
+	if line != "" {
+		kind = line[0]
+	}
+	switch kind {
+	case ' ':
+		h.oldLeft--
+		h.newLeft--
+		if h.changed {
+			h.trailing++
+			return true
+		}
+		h.leading++
+		return true
+	case '-':
+		h.oldLeft--
+	case '+':
+		h.newLeft--
+	default:
+		return false
+	}
+	h.changed = true
+	h.trailing = 0
+	return true
+}
+
+// problem judges one complete hunk against a file of lines lines and answers
+// the refusal, or "" when the hunk carries context on each side the file goes
+// on. A hunk with no old lines inserts after line oldStart; any other hunk
+// starts at line oldStart.
+func (h *patchHunk) problem(path, patchFile string, lines int) string {
+	if !h.changed {
+		return ""
+	}
+	before := h.oldStart
+	if h.oldCount > 0 {
+		before = h.oldStart - 1
+	}
+	side := ""
+	if h.leading == 0 && before > 0 {
+		side = "before"
+	}
+	if h.trailing == 0 && before+h.oldCount < lines {
+		side = "after"
+	}
+	if side == "" {
+		return ""
+	}
+	return "hunks " + path + ": the patch " + patchFile + " has a hunk (" + h.header + ") with no context line " + side +
+		" its change, so git cannot tell where in " + path + " it goes: git places a hunk with no trailing context" +
+		" at the end of the file, and the commit would carry the change there" +
+		"\n  save it with `git diff -- " + path + " > " + patchFile + "` (git's default context, never -U0)" +
+		" and delete only the hunks this commit must not carry"
+}
+
+// parseHunkHeader reads a unified diff hunk header, `@@ -a[,b] +c[,d] @@`,
+// and reports whether line is one. An omitted count is one, as in diff.
+func parseHunkHeader(line string) (patchHunk, bool) {
+	rest, found := strings.CutPrefix(line, "@@ -")
+	if !found {
+		return patchHunk{}, false
+	}
+	ranges, _, found := strings.Cut(rest, " @@")
+	if !found {
+		return patchHunk{}, false
+	}
+	old, added, found := strings.Cut(ranges, " +")
+	if !found {
+		return patchHunk{}, false
+	}
+	oldStart, oldCount, valid := parseHunkRange(old)
+	if !valid {
+		return patchHunk{}, false
+	}
+	_, newCount, valid := parseHunkRange(added)
+	if !valid {
+		return patchHunk{}, false
+	}
+	header, _, _ := strings.Cut(line, " @@")
+	return patchHunk{
+		header:   header + " @@",
+		oldStart: oldStart,
+		oldCount: oldCount,
+		oldLeft:  oldCount,
+		newLeft:  newCount,
+	}, true
+}
+
+// parseHunkRange reads one `start[,count]` range of a hunk header and reports
+// whether both numbers parsed.
+func parseHunkRange(text string) (int, int, bool) {
+	startText, countText, counted := strings.Cut(text, ",")
+	start, err := strconv.Atoi(startText)
+	if err != nil {
+		return 0, 0, false
+	}
+	if !counted {
+		return start, 1, true
+	}
+	count, err := strconv.Atoi(countText)
+	if err != nil {
+		return 0, 0, false
+	}
+	return start, count, true
+}
+
+// lineCount answers the number of lines content holds, counting a last line
+// with no newline, as diff counts it.
+func lineCount(content []byte) int {
+	count := bytes.Count(content, []byte{'\n'})
+	if len(content) > 0 && content[len(content)-1] != '\n' {
+		count++
+	}
+	return count
 }
 
 // changedProblem judges the paths the patch changed, as `git diff --name-only
