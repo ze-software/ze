@@ -2294,3 +2294,39 @@ The first walk of the primary carrier (`gobgp2-a-break.log`) still printed the
 deleted refusal: its broken leg ran an `le` built before `2cb64b6350`, so it
 was discarded and rerun (`gobgp3-a-*`). CodeQL extraction (the other P-17
 member) still needs a GitHub run.
+
+## P-36: a command started inside a test guest joins the host's slot (2026-11-10)
+
+The break is a Go overlay of `internal/le/job/job.go` that skips the nested
+branch of admission (`if nested {` becomes `if false && nested {`). The host
+cross-builds the guest `le`, and an inherited `GOFLAGS` carries the overlay
+into that build, so the shared tree is never edited.
+
+| Carrier | Red | Restored |
+| --- | --- | --- |
+| `TestRunGuestCommandRunsInsideTheHostSlot` (`internal/le/test/qemu`), through `./le test redwalk check` (`p36-redwalk.log`) | "admission under the guest's parent failed: fingerprint test-firewall inputs: read HEAD: exit status 128" | PASS |
+| Real guest: `./le test qemu docker-lab ... harness command` running `le job run label p36-guest-admission command true` inside the VM, with a `git` tripwire on the guest PATH that exits 97 (`p36/{green,red,restore}.log`) | "error: fingerprint p36-guest-admission inputs: read HEAD: exit status 97", `le-exit=2`, `TRIPWIRE git rev-parse HEAD` | control and restored runs: "[p36-guest-admission] running inside qemu-held-by-host", `le-exit=0`, `NO-TRIPWIRE` |
+
+Without the nested branch the guest command fingerprints its own inputs to
+claim a slot of its own, which the tripwire turns into a fixed error before
+any registry claim. No `p36-guest-admission` job record remained after the
+runs. The first attempt passed `tmp/kernel/build/vmlinuz`, which docker-lab
+refused as not the image's runtime kernel; the runs above use the runtime
+kernel it named.
+
+## P-12: the historical fixed-row claims (2026-11-10)
+
+Go overlays through the walk tool; each restored run passed.
+
+| Claim | Carrier | Break | Red |
+| --- | --- | --- | --- |
+| RSVP-TE `buildResv` names its sender as a FILTER_SPEC | `TestRFC3209ResvNeverCarriesSenderTemplate` (`internal/plugins/rsvpte`), over the encoded RESV | `encodeFilterSpec(b, filter)` becomes `encodeSenderTemplate(b, filter)` in `build.go` | "a RESV carries no SENDER_TEMPLATE; that class belongs to the Path family" (index 5, want -1), then "the RESV carries a FILTER_SPEC" |
+| LDP `handleInit` stays non-operational until the peer's KeepAlive | `TestRFC5036OpenReceivedWaitsForPeerKeepAlive` (`internal/plugins/ldp`), over a session pipe | `s.initAccepted = true` becomes `s.initAccepted, s.state = true, StateOperational` | "state = operational, want open-received until the peer's KeepAlive" |
+| LDP `DecodeInit` refuses an unknown TLV with U clear | `TestLDPInitUnknownTLVUClearNotifies` | `skipTLV`'s error ignored unless the TLV's U bit is set | "DecodeInit error = <nil>, want unknownTLVError" |
+| LDP `DecodeInit` skips an unknown TLV with U set | `TestRFC5561UnknownCapabilityWithUBitSetIsIgnored` | `if t.IgnoreIfUnknown {` becomes `if false && t.IgnoreIfUnknown {` in `skipTLV` | "DecodeInit: ldp: unknown TLV type 0x0506 with the U bit clear" (and 0x0520) |
+
+Logs: `p12rl/` and `p12ldpu/`. The U-clear half also has a live carrier,
+`ldp-init-unknown-tlv-frr`, whose red is recorded earlier. The RSVP-TE claim
+still owes its real-capture carrier: no interop check read the class naming
+the sender in a RESV Ze built, so `transit-loose-ero-expansion` gains a
+FILTER_SPEC header check (judged before its walk).
