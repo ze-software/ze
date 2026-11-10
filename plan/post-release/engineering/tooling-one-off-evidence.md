@@ -3352,3 +3352,36 @@ prints nothing (exit 1). The current command's carriers pass:
 and `./le test bgp plugin show-bgp-summary-is-gone show-bgp-bare-runs-summary
 show-bgp-family-arg` (pass 3/3). That `show bgp summary` is refused is the
 `.ci` case `show-bgp-summary-is-gone`; no unit test carries it.
+
+## Re-audit: P-26 lint members, P-40 adapters, P-33 host census (2026-11-10)
+
+The editor and lint walks broke the file in place (the editor carriers build
+le through `./le --name`, and the linter reads source from disk), each
+restored with its bytes checked. The web walks are `go test` overlays, which
+reach the carriers because they re-execute the test binary.
+
+| P | Member / carrier | Break (producing file, what changed) | Red | Restored |
+| --- | --- | --- | --- | --- |
+| P-26 (b) | the 0723d7d26a set A gocritic member / `./le go lint run scope ./internal/component/l2tp` | `l2tp/subsystem.go` (in place): `eddb239060` reversed, methods before the type | "subsystem.go:95:1: typeDefFirst: definition of type 'Subsystem' should appear before its methods (gocritic)" | 0 issues |
+| P-26 (b) | the set A goconst member / `./le go lint run scope ./internal/le/test/qemu` | `qemu/actions.go` (in place): three `Does: doesRun` back to the literal `"run"` | "actions.go:70:47: string `run` has 3 occurrences, but such constant `doesRun` already exists (goconst)" | 0 issues |
+| P-40 (b) | editor scheduler record keeps the capability skip / `TestEditorSuiteNativeAdmission`, `TestEditorSuiteNativeCapabilityTarget` (`internal/test/editorcase`) | `internal/test/cli/cmd_editor.go` (in place): the scheduler record loses the skip reason | `TestEditorSuiteNativeAdmission/unavailable`: "wrong exit: exit status 1" (the case whose capability the host lacks fails the run instead of skipping) | ok |
+| P-40 (b) | editor discovery keeps the capability / same carriers | `cmd_editor.go` (in place): discovery parses the capability into a throwaway record | same subtest, same failure | ok |
+| P-40 (a) | web discovery keeps the capability skip / `TestWebNativeCapabilityAdmission` (`-tags integration`) | `internal/test/cli/cmd_web_discovery.go`: discovery drops the capability skip | "refused target started a server or browser" | ok |
+| P-40 (a) | web exclusive group reaches the scheduler / `TestWebNativeExclusiveCleanup` | `cmd_web_discovery.go`: the record's exclusive group blanked | "same group entered during cleanup" | ok |
+
+A gap probe, blanking `record.SkipReason` in the web adapter, stays green under
+`TestWebNativeCapabilityAdmission`: the callback returns on the admission's own
+skip, and nothing read the scheduler's verdict. `TestWebAdapterCapabilityPlacement`
+(`873f53cfb1`, section "Re-audit: new carriers and the pipe refusal") is the
+carrier that goes red on exactly that break.
+
+P-33 (b), the host members of the semantic persistence census, run after
+`9c49575bfd` changed the fixture producers they reach:
+`./le test traffic traffic-vpp-reject-prio traffic-vpp-reject-hfsc
+traffic-vpp-reject-mark traffic-vpp-reject-dscp-filter` pass 4/4 (three disk
+store readers whose `expect=key:` lines read the case's own store, and the
+memory-only control), and `./le test bgp plugin audit-config-commit` pass 1/1.
+These are greens for the census, not reds: the P-33 reds are the fixture-level
+walks recorded earlier. On the host, `storage-ntp-restart`,
+`storage-tc-restart` and `ospf-state-through-daemon` skip on their capability
+gates, so they are owed a run in Ze's own guest.
