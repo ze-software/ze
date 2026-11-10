@@ -185,7 +185,7 @@ func (d *derivedDebt) listPublished(root string) error {
 
 // logCommits lists a range, newest first, with each commit's subject.
 func logCommits(root string, revisions ...string) ([]owedCommit, error) {
-	output, err := gitOutput(root, append([]string{"log", gitNoColor, "--format=%x1e%H%x00%s"},
+	output, err := gitOutput(root, append([]string{gitLog, gitNoColor, "--format=%x1e%H%x00%s"},
 		append(revisions, "--")...)...)
 	if err != nil {
 		return nil, err

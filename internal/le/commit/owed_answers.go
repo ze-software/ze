@@ -469,6 +469,10 @@ const gitNoExtDiff = "--no-ext-diff"
 // whose message bodies a parser reads.
 const gitNoShowSignature = "--no-show-signature"
 
+// gitLog is the git verb of every argument list built as a slice before the
+// call, where the revisions are appended to it.
+const gitLog = "log"
+
 // commitShow is the start of the batched `git show` call. It pins every output
 // setting a user's git config can flip, because parseCommitFacts reads the
 // output's shape: core.quotePath quotes a non-ASCII path, color adds escapes,

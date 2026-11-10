@@ -97,6 +97,9 @@ func TestWeeklyReportAnswersEverySection(t *testing.T) {
 			t.Errorf("source %s got trees %s and %s, want from and to under the run directory %s",
 				name, got.FromDir, got.ToDir, decoded.RunDir)
 		}
+		if got.WorkDir != decoded.RunDir {
+			t.Errorf("source %s got work directory %s, want the run directory %s", name, got.WorkDir, decoded.RunDir)
+		}
 		if seenBy.fromText != "one\n" || seenBy.toText != "three\n" {
 			t.Errorf("source %s read week.txt %q at from and %q at to, want each endpoint's own tree",
 				name, seenBy.fromText, seenBy.toText)

@@ -121,8 +121,16 @@ events as one section per source each owner registers through
 `weekly.RegisterEventSource`, ordered by section name, with a failed source
 answered as a failed section rather than an empty one. Both endpoints are
 exported, one after the other, into one run directory under the session's
-scratch, which the report names and removes on every exit.
+scratch, which the report names and removes on every exit. The commit
+package registers the `approvals` and `fix-fragments` sections. The rfc
+package registers `rfc-extraction`, `rfc-interop` and `rfc-proven`, which
+run each endpoint's own le, compiled from its export into the run directory
+(`EventRange.WorkDir`) once for the three, so a past endpoint is judged by
+the RFC producers it shipped and never by today's.
 <!-- source: internal/le/weekly/events.go -- RegisterEventSource, reportRun.answer, exportEndpoints -->
+<!-- source: internal/le/commit/register.go -- weekly.RegisterEventSource -->
+<!-- source: internal/le/rfc/register.go -- weekly.RegisterEventSource -->
+<!-- source: internal/le/commit/weekly_source.go -- answerWeeklyApprovals, answerWeeklyFragments -->
 
 Pipe declarations resolve at the area plus its declared action verb, so an
 action returning rows can override a document-shaped area's declaration.

@@ -507,7 +507,7 @@ func (a *answering) carriedItems(carried carriedTrailer) []owedItem {
 // trailer names, so the attestation and the derivation key one commit the
 // same way.
 func stablePatchIDs(root string, revisions ...string) (map[string]string, error) {
-	shown, err := gitOutput(root, append([]string{"log", "-p", gitNoColor, gitNoExtDiff,
+	shown, err := gitOutput(root, append([]string{gitLog, "-p", gitNoColor, gitNoExtDiff,
 		"--no-show-signature", "--format=commit %H"}, append(revisions, "--")...)...)
 	if err != nil {
 		return nil, err

@@ -51,6 +51,11 @@ type EventRange struct {
 	// source MUST NOT write into them: every source reads the same two trees.
 	FromDir string
 	ToDir   string
+	// WorkDir is the run directory both exports live in, removed whole with
+	// them on every exit path. A source that must write (a binary it builds
+	// from an export) creates its own subdirectory here with os.MkdirTemp, so
+	// two sources never share a name and nothing outlives the run.
+	WorkDir string
 	// Commits are the first-parent commits after FromCommit up to and
 	// including ToCommit, oldest first, as full commit IDs.
 	Commits []string
@@ -353,6 +358,7 @@ func (run reportRun) answer(ctx context.Context, from, to string) (report EventR
 		ToCommit:   toCommit,
 		FromDir:    exported.fromDir,
 		ToDir:      exported.toDir,
+		WorkDir:    exported.runDir,
 		Commits:    commits,
 	}
 	report = EventReport{

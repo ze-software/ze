@@ -102,7 +102,7 @@ func weeklyCommitMessages(ctx context.Context, events weekly.EventRange) (map[st
 	if len(events.Commits) == 0 {
 		return messages, nil
 	}
-	args := append([]string{"log", gitNoShowSignature, "--no-walk=unsorted", "--format=%x1e%H%x00%B"},
+	args := append([]string{gitLog, gitNoShowSignature, "--no-walk=unsorted", "--format=%x1e%H%x00%B"},
 		events.Commits...)
 	output, err := gitOutputContext(ctx, events.Repo, append(args, "--")...)
 	if err != nil {

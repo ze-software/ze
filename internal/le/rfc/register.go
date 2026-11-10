@@ -16,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/le/derived"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 	"github.com/ze-software/ze/internal/le/spec/roadmap"
+	"github.com/ze-software/ze/internal/le/weekly"
 )
 
 func init() {
@@ -86,6 +87,13 @@ func init() {
 	// link every namespace this package's dependencies register), so the
 	// reader registers from here (roadmapcorpus.go).
 	roadmap.RegisterCorpusReader(readRoadmapCorpus)
+
+	// `le weekly report` answers a range's RFC movement through these three
+	// sources; weekly imports no owner, so they register from here
+	// (weekly_source.go).
+	weekly.RegisterEventSource(weekly.EventSource{Section: weeklyProvenSection, Answer: answerWeeklyProven})
+	weekly.RegisterEventSource(weekly.EventSource{Section: weeklyInteropSection, Answer: answerWeeklyInterop})
+	weekly.RegisterEventSource(weekly.EventSource{Section: weeklyExtractionSection, Answer: answerWeeklyExtraction})
 }
 
 // shardsRendered reports whether the run that writes the shards finished.

@@ -164,11 +164,31 @@ Read the counts live. Never copy them from a commit message or a previous post.
 | Fact | Source |
 |------|--------|
 | MUSTs proven by a recorded break, overall and per RFC | `./le rfc tree \| json` (`mandatory-proven` over `mandatory-total`) |
-| Movement over the week, and the trend | distinct `rid` values under `rfc/discrimination/` at `release-from`, at `release-to`, and at earlier posts' `release-to` (`git show`), so every point is pinned to a published revision |
+| Movement over the week: the proven figure at `release-from` and at `release-to` | the weekly report's `rfc-proven` section: the figure at each endpoint (see below) |
+| The trend | the same figure at each earlier post's `release-to`, read by the weekly report over that post's own range, so every point is pinned to a published revision |
+| Requirements newly proven in the range, and those that lost their proof | the weekly report's `rfc-proven` section: newly proven and lost requirement ids, with the blind spot its note states |
+| Interop scenarios that gained a recorded red | the weekly report's `rfc-interop` section |
+| Documents newly signed off in the range | the weekly report's `rfc-extraction` section |
 | The work that moved it | commits in the range under `internal/le/rfc` and the fix specs closed in the range, described as capabilities, never by tool or file name |
-| Defects the checking surfaced and fixed | the closed fix specs and their commits in the range, verified at the producer like any shipped claim |
+| Defects the checking surfaced and fixed | the weekly report's `fix-fragments` section: the fix fragments added in the range, grouped by `found-by`, each verified at the producer like any shipped claim |
+| Test changes an independent judge approved | the weekly report's `approvals` section. It counts only approvals that landed in a commit of the range: an approval no commit used leaves no trace, and a refusal has no record |
 | Total requirements, MUST-level, ledger count, MUSTs still owing a test | the header and "Coverage by RFC" line of `ai/RFC-REQUIREMENTS.md` |
 | Documents whose requirement list has been checked against the RFC, and those not | `./le rfc extraction report` |
+
+The weekly report answers the movement, defect and approval rows above in
+one run over the pinned range, one section per source:
+
+```sh
+./le weekly report from <release-from> to <release-to> '|' json
+```
+
+A section that failed is named as failed with its reason: the fact it carries
+is unknown, never zero, so fix the cause and run the report again. A figure
+from the report is still a claim until you verify it at its producer, like
+every other fact in the post. The report exports both endpoints, and its RFC
+sections run each endpoint's own le, compiled from that export: about two
+minutes of CPU for each endpoint. Run it
+alone, as the one CPU-intensive job of the session, and run it once per draft.
 
 Do not close the section with a stock caveat about what a green run does or
 does not prove (owner instruction, 2026-10-12): it read the same every week.

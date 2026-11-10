@@ -8,7 +8,7 @@
 | Release reason | Development tooling for the weekly public update; no shipped behaviour changes |
 | RFC gaps | - |
 | Depends | spec-weekly-news-fragments (the `found-by` field and the fragment parser `parseNewsFragment`) |
-| Phase | 4/6 |
+| Phase | 5/6 |
 | Handoff | - |
 | Updated | 2026-11-10 |
 
@@ -87,7 +87,7 @@ Pending Thomas's confirmation (asked 2026-11-10, option A or B), the main thread
 | Revision export | `internal/le/repo/bootstraps/tracked.go` `resolveRev`, `extract` | Materialises a commit with `git archive` into scratch | Extends: moved to a shared le helper package and called by both, so no second copy exists |
 | Revision resolver | `internal/le/repo/objects/objects.go` `Resolve` | `rev-parse --verify --end-of-options <rev>^{commit}` to a full commit ID, refusing a leading `-` | Extends: the report resolves both endpoints with it, so no second resolver exists |
 | le build from an export | `internal/le/repo/export/build.go` `BuildLe`, moved out of `internal/le/repo/bootstraps/tracked.go` `buildAndList` | Compiles an exported tree's own `cmd/ze` le personality with that tree's `DaemonBuildTags(tree, "ze_le")`, under the patched GOROOT le activated (inherited environment) | Extends: one helper, called by `./le repo bootstraps` and by the RFC source for an endpoint whose le the launcher has not built; no second copy |
-| Launcher builds | `internal/le/go/toolchain/builds.go` `BuildsDir`, `ParseBuildName`, `RunnableBuild`; each build's `inputs` file (`git ls-tree <commit> -- <le inputs>`, the `le` script's `le_inputs`) | One le per commit under `bin/builds/<UTC commit time>-<short sha>/`, the newest two kept | Extends: an endpoint whose `inputs` equal a runnable build's `inputs` runs that build instead of compiling (identity of content, not of name); usually HEAD |
+| Launcher builds | `internal/le/go/toolchain/builds.go` `BuildsDir`, `ParseBuildName`, `RunnableBuild`; each build's `inputs` file (`git ls-tree <commit> -- <le inputs>`, the `le` script's `le_inputs`) | One le per commit under `bin/builds/<UTC commit time>-<short sha>/`, the newest two kept | Does not apply (main-thread decision, phase 4b): matching a build needs le's input list, which only the `le` shell script declares, and a Go copy would be a second declaration of it. Every endpoint's le is compiled with `export.BuildLe` |
 | RFC tree report | `internal/le/rfc/tree.go` `treeReport`, published as `le rfc tree \| json` | Mandatory proven and total over one directory | Extends: each endpoint's OWN le answers it as a subprocess on that endpoint's export (`ZE_REPO_ROOT=<export>`), parsed from `mandatory-proven` / `mandatory-total` / `walked`, keys present at HEAD and at 5064d6db1f |
 | Proof predicate | `internal/le/rfc/profilecoverage.go` `Proven`, `provenRequirements` | The one definition of a proven requirement | Extends: the newly proven set is the difference of the two endpoint sets, each read from that endpoint's own le (`le rfc discriminate stem <stem> \| json`, `records` whose route proves) |
 | Interop scenario mapping | `internal/le/rfc/discriminate_observe.go` `interopScenarioOf` | Maps a checker function to its scenario name | Extends: names the scenarios among newly proven records, today's function reading the checker source in the `to` export |
@@ -106,14 +106,14 @@ Pending Thomas's confirmation (asked 2026-11-10, option A or B), the main thread
 1. Resolve both revisions to full SHAs; refuse an unresolvable one
 2. List the first-parent commits in the range once
 3. Export each endpoint into its own scratch directory, one after the other
-4. Call every registered event source with the two directories, the two SHAs and the commit list; each answers one named section. The RFC source, for each endpoint in turn, runs that endpoint's own le (the launcher's build whose `inputs` match, else `export.BuildLe` into the run directory) as a subprocess with `ZE_REPO_ROOT` naming the export, and reads its `| json` answers; it never runs today's corpus readers on a past tree
+4. Call every registered event source with the two directories, the two SHAs and the commit list; each answers one named section. The RFC sources, for each endpoint in turn, run that endpoint's own le (compiled once per run with `export.BuildLe` into the run directory, `EventRange.WorkDir`, and shared by the three RFC sections) as a subprocess with `ZE_REPO_ROOT` naming the export, and reads its `| json` answers; it never runs today's corpus readers on a past tree
 5. Render the sections through the shared renderer; remove both scratch directories
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Git object store → scratch tree | `git archive` export | No |
-| Today's le → an endpoint's own le | Subprocess (`<le> rfc ... \| json`, `ZE_REPO_ROOT=<export>`), its JSON answer parsed; the binary is a launcher build or `export.BuildLe` output | No |
+| Today's le → an endpoint's own le | Subprocess (`<le> rfc ... \| json`, `ZE_REPO_ROOT=<export>`), its JSON answer parsed; the binary is `export.BuildLe` output; the child's environment drops every spelling of the repository root and the launcher's build name | `TestEndpointLeRunsInTheExport` |
 | `weekly` ↔ owner packages | Registered event sources; `weekly` imports none of them | No |
 
 ### Changed-Wire Census
@@ -140,11 +140,11 @@ Pending Thomas's confirmation (asked 2026-11-10, option A or B), the main thread
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | to be filled at implementation |
-| No unintended coupling (components stay isolated) | No | to be filled: `weekly` imports no owner package |
-| No duplicated functionality (extends existing, does not recreate) | No | to be filled: one export helper, the existing RFC producers |
+| No bypassed layers (data flows through the intended path) | Yes | each endpoint's figures come from its own le's `rfc tree \| json` and `rfc discriminate stem <stem> \| json`, the published renderer (`internal/le/rfc/weekly_source.go` `weeklyRangeOf`) |
+| No unintended coupling (components stay isolated) | Yes | `weekly` imports no owner package; `rfc` imports `weekly` only to register and `repo/export` to build |
+| No duplicated functionality (extends existing, does not recreate) | Yes | one export helper, one `BuildLe`; the figure is each revision's own producer, a proving record is a verified one whose route is not the escape (`provenRequirements`' predicate), the sum is `rollupOf`'s, scenarios come from `interopScenarioOf` |
 | Zero-copy preserved where applicable (refs, not copies) | No | N-A, tooling |
-| Registration over hardcoding, outbound | No | to be filled: each section is a registered source |
+| Registration over hardcoding, outbound | Yes (RFC sections) | `rfc-extraction`, `rfc-interop`, `rfc-proven` register from `internal/le/rfc/register.go` |
 | Registration over hardcoding, inbound | No | to be filled: `weekly` holds no list of sources or trailer keys |
 
 ## Risks & Assumptions
@@ -208,6 +208,8 @@ Pending Thomas's confirmation (asked 2026-11-10, option A or B), the main thread
 | `TestReportListsNewlyProvenAndLost` | `internal/le/rfc/weekly_source_test.go` | AC-2 | |
 | `TestReportNamesInteropScenarios` | `internal/le/rfc/weekly_source_test.go` | AC-3 | |
 | `TestReportListsNewSignOffs` | `internal/le/rfc/weekly_source_test.go` | AC-4 | |
+| `TestReportRefusesAnAnswerMissingAKey` | `internal/le/rfc/weekly_source_test.go` | AC-8 (a key an endpoint's le does not publish fails all three RFC sections, never read as zero) | |
+| `TestEndpointLeRunsInTheExport` | `internal/le/rfc/weekly_source_test.go` | the subprocess boundary: argv with the pipe bar as its own word, `ZE_REPO_ROOT` the export, the build name dropped | |
 | `TestReportCountsApprovalsInRange` | `internal/le/commit/weekly_source_test.go` | AC-5 | |
 | `TestReportGroupsFragmentsByFoundBy` | `internal/le/commit/weekly_source_test.go` | AC-6 | |
 | `TestExportHelperMaterialisesCommit` | `internal/le/repo/export/export_test.go` | AC-12 | |
@@ -289,7 +291,7 @@ Pending Thomas's confirmation (asked 2026-11-10, option A or B), the main thread
    - Tests: `TestExportHelperMaterialisesCommit`, the existing bootstraps tests
 3. **Phase: Run over exports** -- resolution, sequential exports, cleanup, failed-source answers
    - Tests: `TestWeeklyReportRefusesUnresolvableRevision`, `TestWeeklyReportFailedSourceIsNamed`, `TestWeeklyReportRemovesExports`
-4. **Phase: RFC sources** -- 4a: `export.BuildLe` shared with bootstraps (done). 4b: for each endpoint, pick its le (the launcher build whose `inputs` file equals `git ls-tree <commit> -- <le inputs>`, else `export.BuildLe` into the run directory), run it as a subprocess with `ZE_REPO_ROOT=<export>`, and read the proven figure, the proven sets, the walked documents and the records' units from its `| json` answers; map units to scenarios with today's `interopScenarioOf` over the `to` export (A-3 broken: today's corpus readers are never run on a past tree)
+4. **Phase: RFC sources** -- 4a: `export.BuildLe` shared with bootstraps (done). 4b: for each endpoint, compile its le with `export.BuildLe` into the run directory (no launcher-build reuse, see Existing Mechanisms), run it as a subprocess with `ZE_REPO_ROOT=<export>`, and read the proven figure, the proven sets, the walked documents and the records' units from its `| json` answers; map units to scenarios with today's `interopScenarioOf` over the `to` export (A-3 broken: today's corpus readers are never run on a past tree)
    - Tests: the four `internal/le/rfc/weekly_source_test.go` tests
 5. **Phase: Commit sources** -- approvals and fragments, the fragments source reading `parseNewsFragment` (`internal/le/commit/newsfragment.go`, landed with `spec-weekly-news-fragments`)
    - Tests: the two `internal/le/commit/weekly_source_test.go` tests

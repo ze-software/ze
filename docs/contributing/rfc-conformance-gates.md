@@ -2002,6 +2002,18 @@ verify, and which of its tags carry no record. The gate itself runs no test, no
 mutant and no scenario: it reads the recorded proof and compares its
 fingerprints, which is what `checkAuditFreshness` already does for a verdict.
 
+`./le weekly report from <rev> to <rev>` answers how a range moved: the MUST
+figure at each endpoint, the requirements proven at `to` and not at `from` and
+those lost, the interop scenarios whose checker gained a proving record, and
+the documents signed off. Each endpoint's figures come from that revision's own
+le, compiled from its export and asked `rfc tree | json` and `rfc discriminate
+stem <stem> | json`, so the figure is the one that revision's ledger published
+even after the summary format changed. Records are compared only for the
+documents whose proven counts differ or whose record files changed in the
+range, and the section's note states that bound. Only the scenario names are
+read by today's code, `interopScenarioOf` over the `to` export.
+<!-- source: internal/le/rfc/weekly_source.go -- weeklyRangeOf, comparedStems, gainedScenarios -->
+
 ## Producing a record: the two proof routes
 
 Records are written in the implementation phase, by the agent that adds or
