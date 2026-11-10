@@ -395,14 +395,15 @@ func (i *ipsecInstaller) installLocked(ifindex int, name string, local netip.Add
 		}
 		rec.sas = append(rec.sas, *sa)
 	}
-	for _, p := range policies {
-		if err := dp.InstallPolicy(p); err != nil {
+	for index := range policies {
+		policy := &policies[index]
+		if err := dp.InstallPolicy(*policy); err != nil {
 			i.metrics.failures.With(name, "policy-install").Inc()
 			i.log.Error("ospf ipsec: install policy", "interface", name, "err", err)
 			i.rollback(dp, rec)
 			return
 		}
-		rec.policies = append(rec.policies, p)
+		rec.policies = append(rec.policies, *policy)
 	}
 	i.installed[name] = rec
 	i.setGauges(name, rec)

@@ -8,9 +8,9 @@
 | Release reason | 19 findings of the full lint in system plugins and the OSPF and IS-IS plugins; the full lint holds the release (`plan/release/validation/spec-lint-backlog-0-umbrella.md`) |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 2/3 — source fixes applied; verification owed |
+| Phase | 3/3 — closure: fixes in `383a697df9` and `e20b2ee5c8` |
 | Handoff | - |
-| Updated | 2026-11-02 |
+| Updated | 2026-11-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -103,7 +103,7 @@ goimports 2, misspell 1, godot 1, unparam 1. Line numbers are the CI run's.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The CI list is current for these packages | CI run of 2026-11-02 | Lines drifted | Source audit against the recorded findings, with the parent's instruction to run no CPU jobs | confirmed for the recorded source shapes; current scoped lint still owed |
+| A-1 | The CI list is current for these packages | CI run of 2026-11-02 | Lines drifted | Source audit against the recorded findings, with the parent's instruction to run no CPU jobs | confirmed: the scoped lint of 2026-11-10 found only five later findings, fixed at closure |
 | A-2 | The unused helpers in `redistribute/metrics_test.go` have no live caller in any build flavor | golangci-lint runs every flavor | A tagged test uses them | Package-wide source search including tagged files, and the change in 48c539ba35 | confirmed by source; independent judge approved removal before editing |
 
 ### Risks
@@ -224,4 +224,120 @@ behavior, so no architecture or guide prose changes are required.
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
-- [ ] `./le go lint run scope "<the six trees>"` zero; `./le job run label plugins command go test -race -tags <tags> <changed packages>`. Full-run evidence belongs to the umbrella's CI run.
+- [ ] `./le go lint run scope "<the six trees>"` zero; `./le job run label plugins command go test -race -tags <tags> <changed packages>`, the scoped subset of the `./le test unit plugins` group. Full-run evidence belongs to the umbrella's CI run.
+
+## Implementation Summary
+
+### What Was Implemented
+- `383a697df9`: `debug` (`optionAnswer` uses `errors.AsType`; `resultDisabled` shared by `runDeleteModule` and `runSetTimeout`), `help` (import groups in both tests), both `Consumer.Rejudge` loops range keys and read the value once, both `Register{OSPF,ISIS}Sources` reuse `ConsumerName`, the IS-IS `init` comment spelling and `applyMetricStyle` full stop, `redistribute` `prefixes` indexes the slice, `skills` `hasFlag` uses `slices.Contains`, `ospf/gr.go` comment alignment.
+- `e20b2ee5c8`: removed the uncalled `nopCounterVec`/`nopCounter` from `redistribute/metrics_test.go`, and replaced `containsStr` by `containsStubRouter` in `ospf/ri_show_test.go` (five callers, all for `"stub-router"`), each with its judge line.
+- Later in-scope commits (`1701a07631`, `e396a2e360`, `c8e036be19`) were read at closure for new findings; the scoped lint below judges them.
+- Closure fixes for five findings later commits added (first scoped lint, 2026-11-10, log `tmp/session/2026-11-09-222501/scratch/job-lint7-59c3994c.log`): `help/help_command_plugin_test.go` and `help/render_exit_test.go` import groups; `ospf/ipsec_install.go` `ipsecInstaller.installLocked` policy loop indexes the slice as its SA loop does (same values installed and recorded); `help/help_ai.go` `printRIBPipeline` and `printCommonErrors` (dupl, both directions) carry `//nolint:dupl` with the reason. The two are different authored texts (the `show bgp rib` grammar, and error-to-fix pairs) that share only the shape of 29 `rw.Line` calls, so there is no one fact to share; a table form would match dupl the same way.
+
+### Bugs Found/Fixed
+- None. Lint-only; behavior is unchanged.
+
+### Documentation Updates
+- None. The doc anchors that name a changed symbol (`docs/guide/redistribution.md` and `docs/guide/ospf.md` on `Rejudge`, `docs/architecture/isis/isis-11-redistribution.md` on `RegisterISISSources` and `Rejudge`, `docs/guide/isis.md` and `docs/architecture/isis/isis-6-lsdb.md` on `applyMetricStyle`, `docs/guide/command-reference.md` and `docs/guide/debugging-tools.md` on `runDeleteModule`) describe behavior these edits preserve. `./le spec citation anchors` exited 0 with no finding.
+
+### Deviations from Plan
+- None.
+
+## Mistake Log
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| none | | | | |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| 19 CI findings in the six trees | Done | `383a697df9`, `e20b2ee5c8` | Each Task row maps to a hunk in "Step 2 handoff" |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | Scoped lint, Pre-Commit Verification | |
+| AC-2 | Done | Race runs, Pre-Commit Verification | |
+| AC-3 | Done | `git show 383a697df9 e20b2ee5c8` carries no `nolint`; the closure adds two `//nolint:dupl // <reason>` in `help/help_ai.go` | Both name the linter and the reason |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The existing package tests | Done | the six trees | Assertions unchanged; two helper removals judge-approved |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| The Task table's files | Done | `ospf/gr.go` and `ospf/ri_functional_test.go` also changed: alignment and the renamed helper |
+
+### Audit Summary
+- **Total items:** 19 findings, 3 ACs
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
+
+## Goal Validation (BLOCKING)
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The six plugin trees carry no full-lint finding | lint run | Scoped `./le go lint run scope` over the six trees, 2026-11-10 after the closure fixes: exit 0, host 0 issues, GOOS=linux integration 0 issues, darwin 0 issues (log `tmp/session/2026-11-09-222501/scratch/job-lint7-eda2ec37.log`) |
+| Behavior and test strength preserved | race unit tests, judge | Race run (2026-11-10, main thread, `go test -race -count=1` with `ze_core` and every `ze_*` tag in `feature-gates.txt`, `ze_vrrp` and `ze_bgp` included, over the six trees): exit 0, 34 packages ok; `Weakening-approved: ospf.containsStr` and `Test-judge:` for `metrics_test.go` in `e20b2ee5c8` |
+
+## Work Not Done
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | | |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/lint-backlog-7-system-and-routing-plugins-49da3d3d-44f5-443f-bc7a-73b9535a17f9.md` (CLEAN, 19 files) |
+| `./le spec review check` | clean: `review_gate: OK (19 code files, clean, hashes match ...)` |
+| Rounds | 2 (round 2 reviews the four closure-fix files after the first scoped lint) |
+| Reviewer lenses used | logic and removed-behavior, style (`ze-go-style.md`; no `panic` added), lint-dodge, RFC-quote integrity, doc anchors, security |
+
+Pre-checks: `./le repo check` reports four issues and `./le test weakened check` one, all in other subsystems' files and none in the six trees.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | No BLOCKER or ISSUE | - | - |
+
+NOTEs: (1) both `Rejudge` loops still copy one `offer` per key; the copy is inherent, because a map value is not addressable and the loop writes the new verdict back, so this is the explicit form of the same copy, not a dodge. (2) `383a697df9` alone does not compile its OSPF tests: `ri_functional_test.go` calls `containsStubRouter`, which `e20b2ee5c8` defines. HEAD is consistent; history only. (3) The `isis/register.go` spelling and `isis/server.go` full stop sit in Ze's own prose, not in an RFC quote.
+
+### Run 2
+Scope: the closure fixes in `help/help_ai.go`, `help/help_command_plugin_test.go`, `help/render_exit_test.go` and `ospf/ipsec_install.go`. 0 BLOCKER, 0 ISSUE. The policy loop installs and records the same `SPParams` values in the same order, takes the same error path, and mirrors the SA loop above it; the name `policy` shadows no import in the file. The import edits only add the blank line before the Ze group, and no assertion changed. NOTE: the two `//nolint:dupl` lines suppress a structural match between two different authored texts. The finding is real only as a shape, and no shared function can carry two texts.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| The 15 changed files of `383a697df9` and `e20b2ee5c8` in scope | Yes | `ls` of all 15 paths printed each |
+| The four closure-fix files | Yes | `git diff --stat` names `help/help_ai.go`, `help/help_command_plugin_test.go`, `help/render_exit_test.go`, `ospf/ipsec_install.go` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Zero scoped findings | First run (`job-lint7-59c3994c.log`) found 5, fixed at closure; rerun `job-lint7-eda2ec37.log`: exit 0, 0 issues on host, linux integration and darwin |
+| AC-2 | Race tests pass | 2026-11-10 `./le job run label lint7-race` with `go test -race -count=1 -tags "ze_core <every ze_* tag>"` over the six trees: exit 0, 34 packages ok (help 38.1s with its `ze_vrrp` and `ze_bgp` files built, ospf 53.7s, isis 61.5s, isis/lsdb 205s). Log `tmp/session/2026-11-09-222501/scratch/job-lint7-race-8a8cb562.log`. After the closure fixes, 2026-11-10 `go test -race -count=1 -tags "<every ze_* tag>"` over `./internal/plugins/help/...` and `./internal/plugins/ospf/...`: exit 0, 17 packages ok, log `tmp/session/2026-11-09-222501/scratch/job-lint7-race2-c5f69355.log` |
+| AC-3 | Every `//nolint` added names its linter and reason | `git show 383a697df9 e20b2ee5c8` carries no `nolint`; `git diff -- internal/plugins/help/help_ai.go` adds two lines of the form `//nolint:dupl // authored text, ...` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le go lint run scope` | none (lint) | Yes: `job-lint7-eda2ec37.log`, exit 0 |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Source audit at closure plus the scoped lint: the CI shapes are gone, and the five findings later commits added were fixed (`job-lint7-eda2ec37.log`, 0 issues) |
+| A-2 | confirmed | `grep -rn nopCounter internal/plugins/` empty; judge line in `e20b2ee5c8` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Anchors on changed symbols | `git grep` over `docs/` for `Rejudge`, `RegisterISISSources`, `applyMetricStyle`, `runDeleteModule`: claims describe preserved behavior | Yes |

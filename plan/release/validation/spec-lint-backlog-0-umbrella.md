@@ -55,7 +55,7 @@ split into narrower child specs"). Each child carries its own finding list.
 | `spec-lint-backlog-4-plugin-infra-and-core` (closed; scoped evidence `b0d8f62a88`, four lint flavors clean and all 14 race-package directories covered) | plugin-infra, core | 14 | `internal/component/plugin/...`, `pkg/plugin/sdk`, `internal/core/statestore` |
 | `plan/release/validation/spec-lint-backlog-5-hub-and-policy.md` | hub-engine (system for `internal/component/policy`) | 18 | `cmd/ze`, `cmd/ze/hub`, `internal/component/policy` |
 | `plan/release/validation/spec-lint-backlog-6-access-and-appliance.md` | access-security, appliance | 25 | `internal/component/ike/...`, `internal/component/l2tp`, `internal/appliance`, `internal/component/config/system` |
-| `plan/release/validation/spec-lint-backlog-7-system-and-routing-plugins.md` | system-plugins, routing-protocols | 19 | `internal/plugins/{debug,help,redistribute,skills}`, `internal/plugins/{ospf,isis}/...` |
+| `spec-lint-backlog-7-system-and-routing-plugins` (closed; implementation `383a697df9` and `e20b2ee5c8`, Linux lint clean) | system-plugins, routing-protocols | 19 | `internal/plugins/{debug,help,redistribute,skills}`, `internal/plugins/{ospf,isis}/...` |
 | `spec-lint-backlog-8-api-and-commands` (closed; implementation `3895eccf22`, Linux lint clean) | api-surfaces, commands-cli | 6 | `internal/component/{web,mcp,command}` |
 | `spec-lint-backlog-9-config-and-forwarding` (closed; implementation `da9a5bface`, two later netlink findings fixed at closure) | config-yang, forwarding | 5 | `internal/component/config/{storage,yang/cli}`, `internal/plugins/iface/netlink` |
 

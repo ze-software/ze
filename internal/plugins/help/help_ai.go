@@ -504,6 +504,7 @@ func printFamilyAttributes(rw *helpfmt.RenderWriter) {
 	rw.Line("")
 }
 
+//nolint:dupl // authored text, one rw.Line per line; printCommonErrors has the same shape and different text
 func printRIBPipeline(rw *helpfmt.RenderWriter) {
 	rw.Line("## RIB Show Pipeline")
 	rw.Line("")
@@ -655,6 +656,7 @@ func printRecipes(rw *helpfmt.RenderWriter) {
 	rw.Line("")
 }
 
+//nolint:dupl // authored text, one rw.Line per line; printRIBPipeline has the same shape and different text
 func printCommonErrors(rw *helpfmt.RenderWriter) {
 	rw.Line("## Common Errors")
 	rw.Line("")
