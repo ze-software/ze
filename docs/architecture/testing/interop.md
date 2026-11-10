@@ -2378,6 +2378,56 @@ must survive both.
 
 <!-- source: internal/le/interoplab/ipsec/suspicious.go -- checkOutOfSARequestNotifiedOverSA, injectOutOfSA, countProtectedInvalidIKESPI -->
 
+### The outer DF bit and ICMP errors on a Child SA (RFC 4301)
+
+`tunnel-df-treatment` proves RFC 4301 Section 8.1 on the wire. Ze initiates with
+`df-bit clear` (`ze.conf`), then the checker reloads it with `df-bit copy`
+(`ze-copy.conf`, the same file but for that leaf) and waits for the replacement
+Child SA. In each phase Ze pings strongSwan's inner address three times with
+`-M do` (inner DF set) and three times with `-M dont` (inner DF clear).
+strongSwan counts every ESP packet from Ze in an nftables table on its input
+hook, one rule per value of the outer header's DF bit (`ip frag-off & 0x4000`),
+so the bit is read as the peer receives it. Under `clear` all six packets must
+arrive with DF clear. Under `copy` each must carry its inner bit. Each burst
+must move exactly one counter by exactly three. `show vpn ipsec dataplane sa`
+must also report the phase's `df-bit` on Ze's outbound SA, with
+`options-known` true. iptables cannot read
+the bit on Ze's kernel: its only match for an arbitrary header bit is xt_u32,
+which the kernel does not build. So the strongSwan image carries `nftables`.
+`df-bit set` is not a phase, because every dataplane refuses it at commit.
+
+`icmp-error-payload-check` proves RFC 4301 Section 6.2 for an ICMP error
+addressed to Ze itself. The checker turns forwarding on in strongSwan's
+container (the scenario sets `writesPeerSysctl`). It routes Ze's inner prefix
+there with the preferred source 10.9.9.9, which no selector covers. Ze then
+sends echo requests with TTL 1, and strongSwan answers each with Time Exceeded
+from 10.9.9.9. The consistent error embeds Ze's echo to 10.1.0.77, which
+crossed the SA. charon carries it over the SA because of `icmp = yes`
+(`XFRM_POLICY_ICMP`), and Ze must deliver it: `Icmp.InTimeExcds` moves in Ze's
+`/proc/net/snmp`, and ping prints the error. The inconsistent error embeds Ze's
+echo to 10.7.0.5, which left in the clear through `ze.conf`'s outbound bypass.
+For that step the checker adds a strongSwan out policy for 10.9.9.9, bound to
+the SA's reqid. Ze must drop the error: `Icmp.InTimeExcds` stays still. In
+both steps strongSwan's `Icmp.OutTimeExcds` must move and Ze's inbound ESP byte
+counter must advance. Without that, a dropped error could be one that never
+reached Ze over the SA. A forwarded error is out of scope
+(`LL-XFRM-ICMP-TRANSIT`, `docs/architecture/linux-limitations.md`).
+
+Each scenario owes a red run before it counts as evidence ("Prove a scenario
+discriminates"). Each break below is one line of Ze, and the harness rebuilds
+the Ze image so the break takes effect:
+
+| Scenario | Break | Expected red |
+|----------|-------|--------------|
+| `tunnel-df-treatment` | `xfrmDFFlag` answers false for `DFClear` | the clear phase's DF-set burst arrives with DF set |
+| `tunnel-df-treatment` | `xfrmDFFlag` answers true for `DFCopy` | the copy phase's DF-set burst arrives with DF clear |
+| `icmp-error-payload-check` | `xfrmStateFromParams` no longer sets `state.ICMP` | the consistent error arrives over the SA and is not delivered |
+| `icmp-error-payload-check` | `xfrmPolicyFromParams` widens the inbound protect policy's source selector to `0.0.0.0/0` | the inconsistent error is delivered |
+
+<!-- source: internal/le/interoplab/ipsec/dftreatment.go -- checkTunnelDFTreatment, installOuterDFCounters, judgeOuterDF, requireDataplaneDF -->
+<!-- source: internal/le/interoplab/ipsec/icmperror.go -- checkICMPErrorPayloadCheck, icmpErrorRoutes, carryErrorSourceOverSA, icmpErrorObservation -->
+<!-- source: test/interop-ipsec/Dockerfile.strongswan -- nftables -->
+
 ### IPsec address movement
 
 `mobike-initiator` moves Ze; `mobike-responder` moves strongSwan. Each native

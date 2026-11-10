@@ -1156,11 +1156,18 @@ func (l *scenarioLab) natInnerAddress(ctx context.Context, peer, local, remote s
 // the next field that is a uint64 byte counter would round in silence. Naming
 // the field uint32 makes the decoder do the conversion, and refuse an answer
 // whose number does not fit.
+//
+// DFBit and OptionsKnown are pointers because the producer writes null and false
+// for options it did not read back, and null on the side of an SA that cannot carry
+// the option (saInfoToMap, internal/component/ike/cmd/show_dataplane.go): a nil
+// pointer is that null, never a treatment.
 type zeDataplaneSA struct {
-	SPI  uint32 `json:"spi"`
-	Src  string `json:"src"`
-	Dst  string `json:"dst"`
-	Mode string `json:"mode"`
+	SPI          uint32  `json:"spi"`
+	Src          string  `json:"src"`
+	Dst          string  `json:"dst"`
+	Mode         string  `json:"mode"`
+	DFBit        *string `json:"df-bit"`
+	OptionsKnown *bool   `json:"options-known"`
 }
 
 // dataplaneSAs returns the kernel SAD as ZE reports it, through the Ze CLI in

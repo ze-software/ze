@@ -59,6 +59,7 @@ func TestEveryNativeScenarioHasCompleteInputs(t *testing.T) {
 		"real-nat-transport-ze-responder": {"nat.conf"},
 		"real-nat-tunnel-control":         {"nat.conf"},
 		"responder-eap-tls13":             {"strongswan.conf", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
+		"tunnel-df-treatment":             {"ze-copy.conf"},
 	}
 	for _, name := range ipsec.ScenarioNames() {
 		required := append([]string{"ze.conf", "swanctl.conf"}, extra[name]...)

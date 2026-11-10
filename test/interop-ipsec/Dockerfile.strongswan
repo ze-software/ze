@@ -66,7 +66,10 @@ FROM alpine:3.24.3
 
 # ip6tables is the WAN-side packet counter of vti-ipv6-tunnel-source-no-cleartext-leak
 # (wanCounter, internal/le/interoplab/ipsec/vtispd.go); Alpine ships it apart from iptables.
-RUN apk add --no-cache gmp iproute2 iptables ip6tables libcurl openssl sqlite-libs tini
+# nftables carries nft, which counts Ze's ESP by the DF bit of its outer header in
+# tunnel-df-treatment (installOuterDFCounters, internal/le/interoplab/ipsec/dftreatment.go):
+# iptables can read that bit only through xt_u32, which Ze's kernel does not build.
+RUN apk add --no-cache gmp iproute2 iptables ip6tables libcurl nftables openssl sqlite-libs tini
 
 COPY --from=build /out/ /
 

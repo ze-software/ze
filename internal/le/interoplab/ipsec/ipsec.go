@@ -354,7 +354,8 @@ func prepareScenario(root string, source interoplab.ScenarioSource, state *scena
 		}
 		// A checker that writes strongSwan's sysctls while the scenario runs
 		// (dropFragmentsAtPeer cuts its reassembly marks, vtiIPv6PeerInner enables
-		// IPv6 on its lab interface) needs /proc/sys writable, which Docker mounts
+		// IPv6 on its lab interface, icmpErrorRoutes turns on forwarding) needs
+		// /proc/sys writable, which Docker mounts
 		// read-only and docker-default denies; the generic lab profile then confines
 		// the writes to the peer's own network namespace. Every other scenario keeps
 		// Docker's defaults.

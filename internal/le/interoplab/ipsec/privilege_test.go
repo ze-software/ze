@@ -96,7 +96,8 @@ func ipsecPeerGrants(scenario, peer string) grantcheck.Grants {
 // VALIDATES: AC-1. No peer is privileged; the NAT box and strongSwan hold
 // NET_ADMIN, ze NET_ADMIN and BPF; the NAT box sets its sysctls through --sysctl and its script writes
 // none; strongSwan, where the scenario's checker writes its sysctls at run time
-// (cutting its reassembly marks, or enabling IPv6 on its lab interface;
+// (cutting its reassembly marks, enabling IPv6 on its lab interface, or turning
+// on forwarding;
 // writesPeerSysctl on its checker entry) and only there, gets /proc/sys
 // writable under the generic net sysctl profile, which grants every sysctl
 // those checkers write; ze gets neither, and takes no --sysctl: a scenario that

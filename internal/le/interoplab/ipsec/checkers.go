@@ -27,7 +27,7 @@ type scenarioChecker func(context.Context, *scenarioLab) error
 type scenarioCheck struct {
 	run scenarioChecker
 	// writesPeerSysctl marks a checker that writes strongSwan's sysctls while
-	// the scenario runs (dropFragmentsAtPeer, vtiIPv6PeerInner). Only that
+	// the scenario runs (dropFragmentsAtPeer, vtiIPv6PeerInner, icmpErrorRoutes). Only that
 	// scenario's strongSwan gets /proc/sys writable, under the generic net
 	// sysctl profile; every other strongSwan keeps Docker's read-only /proc/sys.
 	writesPeerSysctl bool
@@ -112,9 +112,16 @@ var scenarioCheckers = map[string]scenarioCheck{
 	// read decides it.
 	"initiator-answer-one-local-two-remote": {run: checkResponderTwoSubnets},
 	"responder-raises-child-rekey":          {run: checkResponderRaisesChildRekey},
-	"unbound-inner-address-uniqueness":      {run: checkUnboundInnerAddressUniqueness},
-	"virtual-ip-assignment":                 {run: checkVirtualIPAssignment},
-	"virtual-ip-uniqueness":                 {run: checkVirtualIPUniqueness},
+	// RFC 4301 Section 8.1: the outer DF bit of Ze's ESP, counted by strongSwan
+	// under df-bit clear and then df-bit copy (dftreatment.go).
+	"tunnel-df-treatment": {run: checkTunnelDFTreatment},
+	// RFC 4301 Section 6.2: an ICMP error to Ze on the Child SA, delivered when its
+	// payload header matches the selectors and dropped when it does not. strongSwan
+	// forwards Ze's TTL-1 echoes, so its checker turns ip_forward on (icmperror.go).
+	"icmp-error-payload-check":         {run: checkICMPErrorPayloadCheck, writesPeerSysctl: true},
+	"unbound-inner-address-uniqueness": {run: checkUnboundInnerAddressUniqueness},
+	"virtual-ip-assignment":            {run: checkVirtualIPAssignment},
+	"virtual-ip-uniqueness":            {run: checkVirtualIPUniqueness},
 	// IPv6 inside an IPv4 Child SA on vti0: the checker enables IPv6 on strongSwan's
 	// lab interface, where its policy-based tunnel decapsulates (vtiipv6.go).
 	"vti-ipv6-inner-ipv4-outer": {run: checkVTIIPv6InnerIPv4Outer, writesPeerSysctl: true},
