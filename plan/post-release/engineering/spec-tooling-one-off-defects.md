@@ -264,15 +264,12 @@ AC-27 was dropped on 2026-11-08 ("Scope decision" above): the incident was not i
 | `package-red-not-reproduced` | 2026-10-27 | le-rules-answers render-update |
 | `container-cannot-see-migrated-scratch` | 2026-10-21 | `Run.virtfsArgs` |
 | `delegation-hands-the-callee-a-different-argv` | 2026-09-07 | `le` launcher script |
-| `fixture-encodes-an-impossible-state` | 2026-09-17 | `le-qemu-run-answers.ci` |
 | `mutating-a-guard-runs-the-unguarded-path` | 2026-08-31 | forced-RED on `handlePacket` |
-| `option-set-for-one-caller-changes-another` | 2026-09-28 | `plugin/wait-file` |
 | `output-not-byte-stable` | 2026-08-24 | terminal demo poster |
 | `test-type-not-backfilled` | 2026-10-06 | RFC filename/tag convention |
 | `test-against-broken-path` | 2026-08-18 | `demos/terminal/web-config/` validator and recording drive different paths |
 | `gate-red-where-nothing-blocks-on-it` | 2026-08-30 | `./le verify lint run scope ./internal/le/site/...` 18 goconst findings |
 | `gate-red-where-nothing-blocks-on-it` | 2026-09-10 | repository check, commit audit and doc check verify red over concurrent work |
-| `gate-red-where-nothing-blocks-on-it` | 2026-09-17 | `le-docvalid-answers.ci`, `le-evidence-answers.ci` red at HEAD |
 | `gate-red-where-nothing-blocks-on-it` | 2026-10-05 | `pluginOwnershipGate` added with no baseline, `le-placement-answers` red |
 
 ## Rows found already fixed
@@ -280,7 +277,7 @@ AC-27 was dropped on 2026-11-08 ("Scope decision" above): the incident was not i
 Rows from the whole one-off sweep found fixed at HEAD on 2026-10-23 that have no
 other spec home here. Each needs its journal cell closed with this evidence by
 the agent that closes fixed rows. The rows below the first four were verified
-at source and their journal cells closed on 2026-11-09. Nineteen more,
+at source and their journal cells closed on 2026-11-09. Twenty-two more,
 above the rows this paragraph describes next, moved here from the owned table
 earlier on 2026-11-10, each verified at its producer and closed on the
 attributed red its evidence section records. The last 63, from the `guard-keyed-on-a-field-its-consumer-ignores`
@@ -362,6 +359,9 @@ the cell names no commit.
 | `mutating-a-guard-runs-the-unguarded-path` | 2026-08-10 | build recipe seed reaches operator `etc/ze` | `067bf0ad2e`: the seeder entry beneath the outer guard refuses a foreign owner, a symlinked store and a config override itself; `8f3a0dfdd9`; `TestSeederEntryCannotReachOperatorStore` (tooling-one-off-evidence.md, "P-16 seeder confinement and P-39 explicit guest placement (2026-11-10)") |
 | `helper-bypassed-by-an-open-coded-copy` | 2026-08-14 | functional runner `Record.TmpfsFiles` flattens the tmpfs block | `8bf3d33a92`: `Record.TmpfsFiles` carries `tmpfs.File` with its mode, written through `AddFileMode`; `TestTmpfsContentAndModeReachBothRoutes` (tooling-one-off-evidence.md, "Recorded reds for existing carriers, batch of 2026-11-10") |
 | `gate-red-where-nothing-blocks-on-it` | 2026-08-31 | `./le cli-grammar` is in no blocking set | `0ff53c6f82`: the gate runs as a unit test the `./...` unit stage runs, and predates the row; `TestTheRealCheckoutPassesAndWasRead` (`internal/le/cli/grammar`) (tooling-one-off-evidence.md, "Reds observed overnight, transcribed from their logs (2026-11-10)", in-place `--jobs` walk) |
+| `option-set-for-one-caller-changes-another` | 2026-09-28 | `plugin/wait-file` | `ce54d4c8ba` `waitFileDriver02`; `plugin/path-asn-filter-export-reject` and `plugin/redistribute-export-modify` red and restored (tooling-one-off-evidence.md, "Functional carriers walked through an overlaid le (2026-11-10)") |
+| `fixture-encodes-an-impossible-state` | 2026-09-17 | `le-qemu-run-answers.ci` | `a0f6613fc3` `childEnvironment`; `TestChildEnvironmentReplacesEverySpellingOfAKey`; `TestRunBuildsBootstrapSetupAndSSHCommands` unit red (same file, "Reds observed overnight, transcribed from their logs (2026-11-10)") and `ui/le-qemu-run-answers` functional red ("Functional carriers walked through an overlaid le (2026-11-10)") |
+| `gate-red-where-nothing-blocks-on-it` | 2026-09-17 | `le-docvalid-answers.ci`, `le-evidence-answers.ci`, `le-job-admits.ci` red at HEAD | `a0f6613fc3` (every key spelling replaced); `6d089f4a60`, `6324378622` (evidence); `783f54ea00` (job-admits attach rendezvous); reds recorded (same file, "P-26: le-evidence-answers answers through its entry (2026-11-10)", "Functional carriers walked through an overlaid le (2026-11-10)") |
 | `guard-keyed-on-a-field-its-consumer-ignores` | 2026-11-06 | weakening gate keys a unit by directory base name, a judge by Go package name | journal Fix names no commit: one name per unit, the directory key all readers use: `test weakened approve` resolves the unit first and refuses a package-clause ...; `TestWeakenedApproveRefusesPackageClauseAlias` |
 | `container-build-leaves-root-owned-scratch` | 2026-11-04 | poster proof default entrypoint rewrites shared SSH config and chowns shared scratch | journal Fix names no commit: the owned mount is the demo root, shared inputs read-only; native run `0119f42f` returned two equal captures as 1000:1000 |
 | `gate-red-where-nothing-blocks-on-it` | 2026-11-04 | tracked historical filter-a6 shell recipe is the new native-helper census red | journal Fix names no commit: `plan/records/filter-wire-0-a6-procedure.md` keeps the procedure as prose; `TestNoPythonLeRemains` |
