@@ -17,7 +17,7 @@ import (
 // requireIdenticalRepeat checks byte identity before overwriting the path. No
 // target-file reader may run after the subsequent read watch has been armed.
 func (proof *gobgpReloadProof) requireIdenticalRepeat(ctx context.Context, mounted string) error {
-	output, err := proof.query(ctx, "repeat-identical-config-sha256", peerGoBGP, []string{"sha256sum", gobgpReloadRunning, mounted})
+	output, err := proof.query(ctx, "repeat-identical-config-sha256", peerGoBGP, []string{cmdSha256sum, gobgpReloadRunning, mounted})
 	if err != nil {
 		return err
 	}
@@ -167,7 +167,7 @@ func (watch *gobgpReloadReadWatch) join(ctx context.Context) (int, error) {
 // never interpreted as proof that the process was absent or reaped.
 func (watch *gobgpReloadReadWatch) stopAndJoin(ctx context.Context) error {
 	command := "if test ! -f " + watch.exit() + "; then pkill -TERM -x inotifywait; status=$?; test \"$status\" -le 1; fi"
-	stopErr := watch.proof.exec(ctx, watch.base+"-stop", peerGoBGP, []string{"sh", "-c", command})
+	stopErr := watch.proof.exec(ctx, watch.base+"-stop", []string{"sh", "-c", command})
 	status, joinErr := watch.join(ctx)
 	if joinErr != nil {
 		return errors.Join(stopErr, joinErr)

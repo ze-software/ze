@@ -5,6 +5,7 @@ package rfc
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -28,7 +29,7 @@ func TestGuestUnitTransportReachesOwnSystemDispatcher(t *testing.T) {
 	if argv[2] != "qemu" {
 		t.Fatalf("unit transport lost QEMU dispatch: %q", argv)
 	}
-	args := append(argv[3:], "lab", "test integration")
+	args := slices.Concat(argv[3:], []string{"lab", "test integration"})
 	stderr, err := os.CreateTemp(root, "dispatch-refusal-")
 	if err != nil {
 		t.Fatal(err)

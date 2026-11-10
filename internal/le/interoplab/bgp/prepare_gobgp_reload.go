@@ -39,7 +39,7 @@ func prepareGoBGPReloadPeers(peers []interoplab.PeerConfig, scenario string) ([]
 	peer.Arguments = append(peer.Arguments, dockerEntrypointFlag, "tini")
 	peer.Command = []string{"--", "/bin/sh", "-c", command}
 	peer.Ready = &interoplab.ReadyProbe{
-		Command: []string{"gobgp", "global", "-j"},
+		Command: []string{cmdGoBGP, "global", "-j"},
 		// GetBgp also succeeds before StartBgp; require its configured AS field.
 		Contains: []string{`"asn":65005,`},
 		Timeout:  30 * time.Second,

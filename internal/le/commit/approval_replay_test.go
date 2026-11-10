@@ -12,7 +12,7 @@ import (
 // requires the native create entry to refuse spending that pair a second time.
 func TestPublishedApprovalTargetCannotBeRenewedWithAnotherReason(t *testing.T) {
 	root, first, _ := approvalPublicationFixture(t)
-	prepared := createApprovalPublication(t, first, approvalUnit)
+	prepared := createApprovalPublication(t, first)
 	runCommitScript(t, root, prepared.Script)
 	if payload, code := rfc.Answer([]string{"approve", "commit", first, "unit", approvalUnit,
 		"reason", "judge: another wording for the same reviewed change"}); code != 0 {

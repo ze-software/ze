@@ -195,7 +195,7 @@ func TestDirectSpecEditChecksWIP(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			code, message, found := Probe("writeSpecWIP", Payload{
 				ToolName:  toolEdit,
-				ToolInput: map[string]any{"file_path": filepath.Join(root, "plan/post-release/engineering", test.file), "old_string": test.old, "new_string": test.text},
+				ToolInput: map[string]any{"file_path": filepath.Join(root, "plan", "post-release", "engineering", test.file), "old_string": test.old, "new_string": test.text},
 			}, root)
 			if !found || code != test.want {
 				t.Fatalf("direct edit = %d, found %v, want %d: %s", code, found, test.want, message)

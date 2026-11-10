@@ -181,7 +181,7 @@ func prospectiveTree(root, head, scriptPath, script string, entries, removed []s
 func treeSelection(root, tree string, paths []string) (hunks.Selection, error) {
 	selection := make(hunks.Selection, len(paths))
 	for _, path := range paths {
-		selection[path] = hunks.Selected{Entry: "0 "+strings.Repeat("0", 40)+" 0\t"+path}
+		selection[path] = hunks.Selected{Entry: "0 " + strings.Repeat("0", 40) + " 0\t" + path}
 	}
 	if len(paths) == 0 {
 		return selection, nil
@@ -205,7 +205,7 @@ func treeSelection(root, tree string, paths []string) (hunks.Selection, error) {
 		if fields[1] != "blob" {
 			return nil, fmt.Errorf("prospective review path %s is not a blob", path)
 		}
-		selection[path] = hunks.Selected{Entry: fields[0]+" "+fields[2]+" 0\t"+path}
+		selection[path] = hunks.Selected{Entry: fields[0] + " " + fields[2] + " 0\t" + path}
 	}
 	return selection, nil
 }

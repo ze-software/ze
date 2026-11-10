@@ -93,7 +93,7 @@ func checkParsedEmptyMPFRR(ctx context.Context, check *interoplab.CheckContext) 
 			_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 				Timeout: 30 * time.Second, Interval: time.Second, Description: "FRR removes previously seeded route",
 			}, func(probe context.Context) (bool, error) {
-				output, err := check.Lab.Query(probe, peerFRR, []string{cmdVtysh, "-c", "show bgp ipv4 unicast json"}, nil)
+				output, err := check.Lab.Query(probe, peerFRR, []string{cmdVtysh, "-c", showTableJSON}, nil)
 				if err != nil {
 					return false, err
 				}
@@ -255,7 +255,7 @@ func parsedEmptyMPDiagnostics(ctx context.Context, check *interoplab.CheckContex
 			captureErr = errors.Join(captureErr, err)
 		}
 	}
-	for _, query := range []string{frrShowVersion, "show bgp ipv4 unicast json"} {
+	for _, query := range []string{frrShowVersion, showTableJSON} {
 		text, err := check.Lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", query}, nil)
 		evidence[query] = text
 		if err != nil {

@@ -40,11 +40,11 @@ func TestNativeCommandPreservesUnexpectedKill(t *testing.T) {
 // TestNativeCommandCancellationIsNotUnexpectedKill is the opposite control:
 // the actual owner kills a socket-observed process group because its root ends.
 func TestNativeCommandCancellationIsNotUnexpectedKill(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer listener.Close()
+	defer listener.Close() //nolint:errcheck // The test owns this listening socket.
 	self, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
@@ -56,7 +56,7 @@ func TestNativeCommandCancellationIsNotUnexpectedKill(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- runNativeCommand(ctx, command) }()
 	owned := acceptScaleLifetime(t, listener)
-	defer owned.Close()
+	defer owned.Close() //nolint:errcheck // The test owns this accepted socket.
 	var descendantPID int
 	if err := json.NewDecoder(owned).Decode(&descendantPID); err != nil {
 		t.Fatal(err)
@@ -67,8 +67,7 @@ func TestNativeCommandCancellationIsNotUnexpectedKill(t *testing.T) {
 		if !errors.Is(err, context.Canceled) {
 			t.Errorf("native command lost its originating cancellation: %v", err)
 		}
-		var exited *exec.ExitError
-		if errors.As(err, &exited) {
+		if _, exited := errors.AsType[*exec.ExitError](err); exited {
 			t.Errorf("owner-requested cancellation was reported as an unexpected command exit: %v", err)
 		}
 	case <-time.After(5 * time.Second):
@@ -80,7 +79,7 @@ func TestNativeCommandCancellationIsNotUnexpectedKill(t *testing.T) {
 	var one [1]byte
 	if _, err := owned.Read(one[:]); err == nil {
 		t.Error("native descendant wrote after cancellation returned")
-	} else if timeout, ok := err.(net.Error); ok && timeout.Timeout() {
+	} else if timeout, ok := errors.AsType[net.Error](err); ok && timeout.Timeout() {
 		t.Error("native descendant survived cancellation")
 	}
 }
@@ -130,18 +129,18 @@ esac
 			done := make(chan result, 1)
 			var owned net.Conn
 			if mode == "cancel" {
-				listener, err := net.Listen("tcp", "127.0.0.1:0")
+				listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 				if err != nil {
 					t.Fatal(err)
 				}
-				defer listener.Close()
+				defer listener.Close() //nolint:errcheck // The test owns this listening socket.
 				t.Setenv("SCALE_LIFETIME_ADDRESS", listener.Addr().String())
 				go func() {
 					report, code := buildcompile.BuildHost(ctx, tree)
 					done <- result{report: report, code: code}
 				}()
 				owned = acceptScaleLifetime(t, listener)
-				defer owned.Close()
+				defer owned.Close() //nolint:errcheck // The test owns this accepted socket.
 				var descendantPID int
 				if err := json.NewDecoder(owned).Decode(&descendantPID); err != nil {
 					t.Fatal(err)
@@ -184,7 +183,7 @@ esac
 				var one [1]byte
 				if _, err := owned.Read(one[:]); err == nil {
 					t.Error("compiler descendant wrote after canceled BuildHost returned")
-				} else if timeout, ok := err.(net.Error); ok && timeout.Timeout() {
+				} else if timeout, ok := errors.AsType[net.Error](err); ok && timeout.Timeout() {
 					t.Error("compiler descendant survived canceled BuildHost")
 				}
 			}

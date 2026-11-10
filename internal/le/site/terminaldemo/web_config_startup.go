@@ -78,7 +78,7 @@ func (w *webConfigWorkspace) start(ctx context.Context) (_ *runner.ServerProcess
 		return nil, err
 	}
 	logPath := filepath.Join(w.directory, "daemon.log")
-	log, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	log, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600) //nolint:gosec // logPath names a log in the workspace directory this demo created
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +89,7 @@ func (w *webConfigWorkspace) start(ctx context.Context) (_ *runner.ServerProcess
 	defer func() {
 		if err != nil {
 			err = errors.Join(err, server.Stop(syscall.SIGTERM, runner.TeardownGraceTimeout, 0))
-			output, readErr := os.ReadFile(logPath)
+			output, readErr := os.ReadFile(logPath) //nolint:gosec // logPath names a log in the workspace directory this demo created
 			err = fmt.Errorf("%w\n%s", errors.Join(err, readErr), output)
 		}
 	}()
@@ -117,7 +117,7 @@ func (w *webConfigWorkspace) run(ctx context.Context, args []string, input io.Re
 		return nil, err
 	}
 	logPath := filepath.Join(w.directory, logName)
-	log, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	log, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600) //nolint:gosec // logPath names a log in the workspace directory this demo created
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func (w *webConfigWorkspace) run(ctx context.Context, args []string, input io.Re
 	}
 	defer func() { err = errors.Join(err, process.Close()) }()
 	waitErr := process.Wait()
-	output, readErr := os.ReadFile(logPath)
+	output, readErr := os.ReadFile(logPath) //nolint:gosec // logPath names a log in the workspace directory this demo created
 	if err := errors.Join(waitErr, readErr, context.Cause(ctx)); err != nil {
 		return nil, fmt.Errorf("web-config startup ze %s: %w\n%s", strings.Join(args, " "), err, output)
 	}
@@ -148,7 +148,7 @@ func (w *webConfigWorkspace) waitReady(ctx context.Context, server *runner.Serve
 			return errors.Join(errors.New("web-config daemon exited before readiness"), server.Wait())
 		default:
 		}
-		content, err := os.ReadFile(path)
+		content, err := os.ReadFile(path) //nolint:gosec // path is the daemon log waitReady's caller created in the demo workspace
 		if err != nil {
 			return err
 		}

@@ -55,11 +55,11 @@ func TestQEMURunRootStopsTheActualBuild(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer listener.Close()
+			defer listener.Close() //nolint:errcheck // The test owns this listening socket.
 			parent := filepath.Join(t.TempDir(), "parent.job")
 			const parentBody = "LABEL=outer-proof\n"
 			if err := os.WriteFile(parent, []byte(parentBody), 0o600); err != nil {
@@ -107,7 +107,7 @@ func TestQEMURunRootStopsTheActualBuild(t *testing.T) {
 					t.Fatalf("compiler command did not start: %v; helper could not be joined", err)
 				}
 			}
-			defer connection.Close()
+			defer connection.Close() //nolint:errcheck // The test owns this accepted socket.
 			if err := connection.SetReadDeadline(time.Now().Add(10 * time.Second)); err != nil {
 				t.Fatal(err)
 			}
@@ -172,32 +172,12 @@ func TestQEMURunRootProcess(t *testing.T) {
 		return
 	}
 	if role == "compiler" {
+		// The handler stays installed until os.Exit, so a second TERM cannot
+		// replace the reported exit 143 with a signal death.
 		caught := make(chan os.Signal, 1)
 		signal.Notify(caught, syscall.SIGTERM)
-		defer signal.Stop(caught)
-		connection, err := net.DialTimeout("tcp", os.Getenv("QEMU_ROOT_PROOF_ADDRESS"), 10*time.Second)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer connection.Close()
-		parent := os.Getenv(job.ParentVariable)
-		identity, err := os.ReadFile(parent)
-		if err != nil {
-			t.Fatal(err)
-		}
-		encoder := json.NewEncoder(connection)
-		if err := encoder.Encode(qemuRootBuildObservation{os.Args, parent, string(identity)}); err != nil {
-			t.Fatal(err)
-		}
-		select {
-		case <-caught:
-			if err := encoder.Encode("stopped by TERM"); err != nil {
-				t.Fatal(err)
-			}
-			os.Exit(143)
-		case <-time.After(40 * time.Second):
-			t.Fatal("compiler fixture was never stopped")
-		}
+		awaitQEMURootCompilerStop(t, caught)
+		os.Exit(143)
 	}
 	root := os.Getenv("ZE_REPO_ROOT")
 	checkout := os.Getenv("QEMU_ROOT_PROOF_CHECKOUT")
@@ -229,4 +209,33 @@ func TestQEMURunRootProcess(t *testing.T) {
 	runSelf = func() (string, error) { return filepath.Join(os.Getenv("QEMU_ROOT_PROOF_BIN"), "qemu-reexec"), nil }
 	_, code := runQEMUHere(leaction.Arguments{keywordCommand: {"true"}})
 	os.Exit(code)
+}
+
+// awaitQEMURootCompilerStop is the compiler role of TestQEMURunRootProcess: it
+// reports its argv and job identity, then returns once TERM arrives, so its
+// deferred close runs before the caller exits the process.
+func awaitQEMURootCompilerStop(t *testing.T, caught <-chan os.Signal) {
+	dialer := net.Dialer{Timeout: 10 * time.Second}
+	connection, err := dialer.DialContext(t.Context(), "tcp", os.Getenv("QEMU_ROOT_PROOF_ADDRESS"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close() //nolint:errcheck // The process exits next; the test side observes the stream.
+	parent := os.Getenv(job.ParentVariable)
+	identity, err := os.ReadFile(parent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoder := json.NewEncoder(connection)
+	if err := encoder.Encode(qemuRootBuildObservation{os.Args, parent, string(identity)}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-caught:
+		if err := encoder.Encode("stopped by TERM"); err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(40 * time.Second):
+		t.Fatal("compiler fixture was never stopped")
+	}
 }

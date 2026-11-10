@@ -84,11 +84,11 @@ func TestTypedNativeSpeakerRejectsMissingHandshakeAndEarlyEOF(t *testing.T) {
 		{"truncated attributes", [][]byte{open, speakerKeepalive(), speakerMessage(bgpUpdate, body[:len(body)-1])}, false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer listener.Close()
+			defer listener.Close() //nolint:errcheck // the test is over; a close error changes no verdict
 			done := make(chan error, 1)
 			go func() {
 				connection, err := listener.Accept()
@@ -96,7 +96,7 @@ func TestTypedNativeSpeakerRejectsMissingHandshakeAndEarlyEOF(t *testing.T) {
 					done <- err
 					return
 				}
-				defer connection.Close()
+				defer connection.Close() //nolint:errcheck // the exchange is over; a close error changes no verdict
 				_ = connection.SetDeadline(time.Now().Add(3 * time.Second))
 				var frame [4096]byte
 				if _, err := readExtendedFrame(connection, frame[:]); err != nil {

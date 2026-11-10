@@ -142,7 +142,7 @@ func hugepagesRootMark(t *testing.T, name string) {
 // The harness observes kernel socket closure rather than requiring graceful TERM.
 func hugepagesRootSocket(t *testing.T, phase string) {
 	t.Helper()
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +161,10 @@ func hugepagesRootStopped(t *testing.T, work, phase string) {
 		t.Errorf("missing process observation for %s: %v", phase, err)
 		return
 	}
-	connection, err := net.DialTimeout("tcp", string(address), time.Second)
+	// Not t.Context(): a canceled context fails the dial, and a failed dial is
+	// this check's pass, so only the timeout may bound the probe.
+	dialer := net.Dialer{Timeout: time.Second}
+	connection, err := dialer.DialContext(context.Background(), "tcp", string(address))
 	if err == nil {
 		connection.Close() //nolint:errcheck // The successful dial is the failure being reported.
 		t.Errorf("verb returned with owned %s process still alive", phase)
@@ -172,9 +175,10 @@ func hugepagesRootStopped(t *testing.T, work, phase string) {
 // A stop receipt is written only after the descendant has actually been joined.
 func hugepagesRootBlock(t *testing.T, phase string) {
 	t.Helper()
+	// The handler is never stopped: it stays installed until os.Exit, so a
+	// second signal cannot replace the fixture's exit 0 with a signal death.
 	caught := make(chan os.Signal, 1)
 	signal.Notify(caught, syscall.SIGTERM, os.Interrupt)
-	defer signal.Stop(caught)
 	hugepagesRootSocket(t, phase)
 	child := exec.CommandContext(t.Context(), os.Getenv("HP_ROOT_SELF"), "-test.run=^TestHugepagesRootProcess$")
 	child.Env = append(os.Environ(), "HP_ROOT_ROLE=descendant", "HP_ROOT_PHASE="+phase)
@@ -208,9 +212,10 @@ func TestHugepagesRootProcess(t *testing.T) {
 		return
 	}
 	if role == "descendant" {
+		// The handler is never stopped: it stays installed until os.Exit, so a
+		// second signal cannot replace the fixture's exit 0 with a signal death.
 		caught := make(chan os.Signal, 1)
 		signal.Notify(caught, syscall.SIGTERM, os.Interrupt)
-		defer signal.Stop(caught)
 		phase := os.Getenv("HP_ROOT_PHASE")
 		hugepagesRootSocket(t, phase+"-descendant")
 		hugepagesRootMark(t, phase+"-descendant.ready")

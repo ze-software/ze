@@ -692,7 +692,7 @@ func testPath(path string) bool {
 			return true
 		}
 	}
-	if clean == "testdata" {
+	if clean == testdataDir {
 		return true
 	}
 	// A bare `test` is judged on the whole line, where it is far more often
@@ -707,7 +707,7 @@ func testPath(path string) bool {
 		if element == testElement {
 			return true
 		}
-		if element == "testdata" {
+		if element == testdataDir {
 			return true
 		}
 		if testTree && strings.Contains(element, testElement) {

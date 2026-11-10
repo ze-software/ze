@@ -148,8 +148,7 @@ func webJourneyAssertJoined(t *testing.T, pid int) {
 				t.Error(killErr)
 			}
 			if _, waitErr := process.Wait(); waitErr != nil {
-				var exited *exec.ExitError
-				if !errors.As(waitErr, &exited) {
+				if _, exited := errors.AsType[*exec.ExitError](waitErr); !exited {
 					t.Error(waitErr)
 				}
 			}
@@ -208,7 +207,7 @@ func TestWebJourneyChild(t *testing.T) {
 				continue
 			}
 			if mode == "cleanup-error" {
-				os.Exit(23)
+				os.Exit(23) //nolint:gocritic // the cleanup-error helper must exit nonzero; process exit releases the signal registration
 			}
 			return
 		case <-time.After(5 * time.Second):

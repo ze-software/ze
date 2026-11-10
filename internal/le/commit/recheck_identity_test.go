@@ -68,7 +68,7 @@ func TestGeneratedRecheckKeepsThePreparingIdentity(t *testing.T) {
 	}
 
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "recheck-identity-ambient")
-	ambient := filepath.Join(root, "tmp/review/runtime-review-recheck-identity-ambient.md")
+	ambient := filepath.Join(root, "tmp", "review", "runtime-review-recheck-identity-ambient.md")
 	if err := os.WriteFile(ambient, []byte("<!-- ze-review spec=runtime-review verdict=findings rounds=1 -->\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}

@@ -25,11 +25,11 @@ import (
 func TestNativePeerStopDistinguishesDeliberateExit(t *testing.T) {
 	for _, role := range []string{"term", "preexit"} {
 		t.Run(role, func(t *testing.T) {
-			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer listener.Close()
+			defer listener.Close() //nolint:errcheck // The test owns this listening socket.
 			self, err := os.Executable()
 			if err != nil {
 				t.Fatal(err)
@@ -47,7 +47,7 @@ func TestNativePeerStopDistinguishesDeliberateExit(t *testing.T) {
 			defer seen.wait()
 			defer process.closeNative() //nolint:errcheck // Both ordinary cleanup outcomes are asserted below.
 			connection := acceptScaleLifetime(t, listener)
-			defer connection.Close()
+			defer connection.Close() //nolint:errcheck // The test owns this accepted socket.
 			decoder := json.NewDecoder(connection)
 			var pid int
 			if err := decoder.Decode(&pid); err != nil {
@@ -102,21 +102,34 @@ func TestNativePeerExitProcess(t *testing.T) {
 	if role == "" {
 		return
 	}
+	// The handler stays installed until os.Exit, so a second TERM cannot turn
+	// the deliberate exit 1 into a signal death.
 	received := make(chan os.Signal, 1)
 	signal.Notify(received, syscall.SIGTERM)
-	defer signal.Stop(received)
-	connection, err := net.DialTimeout("tcp", os.Getenv("NATIVE_PEER_EXIT_ADDRESS"), 5*time.Second)
+	nativePeerExitHandshake(t, role, received)
+	os.Exit(1)
+}
+
+// nativePeerExitHandshake holds the peer's socket for TestNativePeerExitProcess,
+// so its deferred close runs before the caller exits the process.
+func nativePeerExitHandshake(t *testing.T, role string, received <-chan os.Signal) {
+	dialer := net.Dialer{Timeout: 5 * time.Second}
+	connection, err := dialer.DialContext(t.Context(), "tcp", os.Getenv("NATIVE_PEER_EXIT_ADDRESS"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer connection.Close()
+	defer connection.Close() //nolint:errcheck // The process exits next; the parent asserts on the stream.
 	if err := json.NewEncoder(connection).Encode(os.Getpid()); err != nil {
 		t.Fatal(err)
 	}
 	if role == "term" {
 		select {
 		case delivered := <-received:
-			if err := json.NewEncoder(connection).Encode(int(delivered.(syscall.Signal))); err != nil {
+			number, ok := delivered.(syscall.Signal)
+			if !ok {
+				t.Fatalf("delivered signal %v is not a syscall.Signal", delivered)
+			}
+			if err := json.NewEncoder(connection).Encode(int(number)); err != nil {
 				t.Fatal(err)
 			}
 		case <-time.After(10 * time.Second):
@@ -131,5 +144,4 @@ func TestNativePeerExitProcess(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	os.Exit(1)
 }

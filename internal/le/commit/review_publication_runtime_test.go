@@ -73,7 +73,7 @@ func TestGeneratedReviewUsesOriginArtifact(t *testing.T) {
 	head := strings.TrimSpace(runCommitGitOutput(t, root, "rev-parse", "HEAD"))
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "runtime-review-substitute")
 	recordFixtureReview(t, root, "spec", "runtime-review", "verdict", "clean", "rounds", "1", "file", code)
-	origin := filepath.Join(root, "tmp/review/runtime-review-runtime-review-origin.md")
+	origin := filepath.Join(root, "tmp", "review", "runtime-review-runtime-review-origin.md")
 	if err := os.WriteFile(origin, []byte("<!-- ze-review spec=runtime-review verdict=findings rounds=1 -->\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -146,7 +146,7 @@ func TestExplicitReviewBlobRemovalAndMissingObject(t *testing.T) {
 			}
 			head := strings.TrimSpace(runCommitGitOutput(t, root, "rev-parse", "HEAD"))
 			if missing {
-				if err := os.Remove(filepath.Join(root, ".git/objects", blob[:2], blob[2:])); err != nil {
+				if err := os.Remove(filepath.Join(root, ".git", "objects", blob[:2], blob[2:])); err != nil {
 					t.Fatal(err)
 				}
 			}

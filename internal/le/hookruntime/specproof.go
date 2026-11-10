@@ -6,9 +6,17 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ze-software/ze/internal/le/arch/tier"
+	archtier "github.com/ze-software/ze/internal/le/arch/tier"
 	specstatus "github.com/ze-software/ze/internal/le/spec/status"
 )
+
+// specStatusSkeleton is the status of a spec that holds an idea not yet
+// designed, which the spec gates judge more lightly than a design.
+const specStatusSkeleton = "skeleton"
+
+// testdataDir is the directory name the go tool skips when it lists
+// packages, the one Go reserves for test fixtures.
+const testdataDir = "testdata"
 
 // daemonProofProblem distinguishes the changed runtime population from tooling
 // and test-only edits. The proof may use any native functional test format.
@@ -17,7 +25,7 @@ func daemonProofProblem(root, text string) string {
 	if err != nil {
 		return "Spec metadata: " + err.Error()
 	}
-	if status == "skeleton" {
+	if status == specStatusSkeleton {
 		return ""
 	}
 	changed := markdownSection(text, "## Files to Modify") + "\n" + markdownSection(text, "## Files to Create")
@@ -94,7 +102,7 @@ func daemonProofExempt(path string) bool {
 		}
 	}
 	for segment := range strings.SplitSeq(path, "/") {
-		if segment == "testdata" {
+		if segment == testdataDir {
 			return true
 		}
 	}

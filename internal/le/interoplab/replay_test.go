@@ -173,16 +173,16 @@ func TestReplayAnswersPeerImage(t *testing.T) {
 	header := recordingHeader{Version: recordingVersion, Lab: recordLabSuite, Scenario: "records-calls",
 		AnswerOctetsMax: recordingAnswerOctetsMax}
 	before := []recordingLine{
-		{RecordedCall: RecordedCall{Method: methodExec, Peer: "ze", Argv: []string{"cat", "/ready"}, Environment: []string{"ZE_TEST_PSK"}},
-			RecordedAnswer: RecordedAnswer{Stdout: "ready\n"}},
-		{RecordedCall: RecordedCall{Method: methodQuery, Peer: "ze", Argv: []string{"show", "bgp"}}},
-		{RecordedCall: RecordedCall{Method: methodSignal, Peer: "ze", Signal: "HUP"}},
-		{RecordedCall: RecordedCall{Method: methodLogs, Peer: "ze", Lines: 5}},
+		{Method: methodExec, Peer: "ze", Argv: []string{"cat", "/ready"}, Environment: []string{"ZE_TEST_PSK"},
+			Stdout: "ready\n"},
+		{Method: methodQuery, Peer: "ze", Argv: []string{"show", "bgp"}},
+		{Method: methodSignal, Peer: "ze", Signal: "HUP"},
+		{Method: methodLogs, Peer: "ze", Lines: 5},
 	}
 	t.Run("recorded error replays", func(t *testing.T) {
 		const lost = "container inspect returned no sha256 image ID"
-		calls := append(slices.Clone(before), recordingLine{RecordedCall: RecordedCall{Method: methodPeerImage, Peer: "ze"},
-			RecordedAnswer: RecordedAnswer{Error: lost, ErrorKind: errKindOther}})
+		calls := append(slices.Clone(before), recordingLine{Method: methodPeerImage, Peer: "ze",
+			Error: lost, ErrorKind: errKindOther})
 		path := writeRecording(t, header, calls, &Verdict{Error: lost})
 		result, err := ReplayScenario(t.Context(), recordLabCheckout, path)
 		if err != nil {
@@ -193,8 +193,8 @@ func TestReplayAnswersPeerImage(t *testing.T) {
 		}
 	})
 	t.Run("another peer refuses", func(t *testing.T) {
-		calls := append(slices.Clone(before), recordingLine{RecordedCall: RecordedCall{Method: methodPeerImage, Peer: "frr"},
-			RecordedAnswer: RecordedAnswer{Stdout: phaseLabImage}})
+		calls := append(slices.Clone(before), recordingLine{Method: methodPeerImage, Peer: "frr",
+			Stdout: phaseLabImage})
 		path := writeRecording(t, header, calls, &Verdict{Passed: true})
 		result, err := ReplayScenario(t.Context(), recordLabCheckout, path)
 		refusal, isRefusal := errors.AsType[*ReplayRefusal](err)

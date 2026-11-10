@@ -19,7 +19,7 @@ import (
 func committedRegistryFixture(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
-	run := func(input string, args ...string) string {
+	run := func(input string, args ...string) {
 		t.Helper()
 		command := exec.CommandContext(t.Context(), "git", append([]string{"-C", root}, args...)...)
 		command.Stdin = strings.NewReader(input)
@@ -28,7 +28,6 @@ func committedRegistryFixture(t *testing.T) string {
 		if err != nil {
 			t.Fatalf("fixture git %v: %v: %s", args, err, output)
 		}
-		return string(output)
 	}
 	run("", "init", "-q", "--initial-branch=main")
 	files := map[string]string{
@@ -60,17 +59,17 @@ func committedRegistryFixture(t *testing.T) string {
 func TestBuildPublishesCommittedLinuxRegistryWithoutHostExecution(t *testing.T) {
 	t.Setenv("GOOS", "darwin")
 	root := committedRegistryFixture(t)
-	if err := os.MkdirAll(filepath.Join(root, "internal/plugins/example"), 0o750); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, "internal", "plugins", "example"), 0o750); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "internal/plugins/example/register_linux.go"), []byte("package example\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "internal", "plugins", "example", "register_linux.go"), []byte("package example\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	output := t.TempDir()
 	if err := publishPluginRegistry(Paths{Repository: root, Output: output}); err != nil {
 		t.Fatal(err)
 	}
-	raw, err := os.ReadFile(filepath.Join(output, "data/plugin-registry.json"))
+	raw, err := os.ReadFile(filepath.Join(output, "data", "plugin-registry.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +96,7 @@ func TestCommittedRegistryRefusesUnreadablePopulation(t *testing.T) {
 	if err := publishPluginRegistry(Paths{Repository: root, Output: output}); err == nil {
 		t.Fatal("unavailable registry was published")
 	}
-	if _, err := os.Stat(filepath.Join(output, "data/plugin-registry.json")); !errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(filepath.Join(output, "data", "plugin-registry.json")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("refusal published a registry file: %v", err)
 	}
 }
@@ -157,7 +156,7 @@ func TestCommittedRegistryRefusesReadableEmptyPopulation(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "registers no plugins") {
 		t.Fatalf("publication did not preserve empty-population refusal: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(output, "data/plugin-registry.json")); !errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(filepath.Join(output, "data", "plugin-registry.json")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("empty refusal published registry artifact: %v", err)
 	}
 }

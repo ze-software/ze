@@ -140,7 +140,7 @@ func TestGuestObservationCommands(t *testing.T) {
 	// counter directory with -test.gocoverdir=, so a child the unit re-executes
 	// writes its counters where the parent's profile is built from.
 	want := "cp '" + filepath.ToSlash(binary) + "' '/tmp/guest-1.test' && mkdir -p '/tmp/cover-guest-1.test'" +
-		" && cd '" + filepath.ToSlash(filepath.Join(tree, "internal/widget")) + "'" +
+		" && cd '" + filepath.ToSlash(filepath.Join(tree, "internal", "widget")) + "'" +
 		" && exec '/tmp/guest-1.test' -test.run '^TestWidget$'" +
 		" -test.count=1 -test.v -test.timeout 20m -test.coverprofile '" + filepath.ToSlash(profile) + "'" +
 		" -test.gocoverdir='/tmp/cover-guest-1.test'\n"

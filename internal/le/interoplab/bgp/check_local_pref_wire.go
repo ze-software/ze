@@ -308,7 +308,7 @@ func waitLocalPrefWire(ctx context.Context, lab interoplab.CheckerLab) error {
 	for _, direction := range []struct {
 		suffix string
 		source bool
-	}{{"ze", true}, {"frr", false}} {
+	}{{"ze", true}, {peerFRR, false}} {
 		var lastAnswer string
 		text, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 			Timeout: 90 * time.Second, Interval: time.Second, Description: "complete original-connection LOCAL_PREF wire interval",

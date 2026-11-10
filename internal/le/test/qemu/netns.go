@@ -272,7 +272,7 @@ func (a *allTestsRun) prepareNamespace(environ []string, suites []vmSuite) error
 
 	argv := []string{"sh", "-c", tb.String()}
 	a.note(banner("per-test network namespace preparation"))
-	if code := a.child(argv, environ, nil); code != 0 {
+	if code := a.child(argv, environ); code != 0 {
 		return fmt.Errorf("%w: exit %d", ErrNamespacePreparation, code)
 	}
 	return nil

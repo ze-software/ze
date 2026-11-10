@@ -55,7 +55,7 @@ type nssaWireRegressionLab struct {
 	noEvidenceLab
 	mode      string
 	wireReads int
-	at time.Time
+	at        time.Time
 }
 
 func (lab *nssaWireRegressionLab) Query(_ context.Context, peer string, command []string, _ []interoplab.EnvironmentVariable) (string, error) {
@@ -78,7 +78,7 @@ func (lab *nssaWireRegressionLab) Query(_ context.Context, peer string, command 
 		}
 		return "124\n", nil
 	case text == "cat /tmp/ospf-nssa-capture.started":
-		return lab.at.Add(-120*time.Second).Format(time.RFC3339Nano), nil
+		return lab.at.Add(-120 * time.Second).Format(time.RFC3339Nano), nil
 	case text == "cat /tmp/ospf-nssa-capture.finished":
 		return lab.at.Format(time.RFC3339Nano), nil
 	case text == "cat /tmp/ospf-nssa-capture.version":

@@ -16,7 +16,7 @@ func checkCopyParent(root *os.Root, directory string) error {
 		return fmt.Errorf("site destination parent %q is not local to its output root", directory)
 	}
 	prefix := "."
-	for _, component := range strings.Split(filepath.Clean(directory), string(filepath.Separator)) {
+	for component := range strings.SplitSeq(filepath.Clean(directory), string(filepath.Separator)) {
 		prefix = filepath.Join(prefix, component)
 		info, err := root.Lstat(prefix)
 		if os.IsNotExist(err) {
@@ -73,7 +73,7 @@ func openCopyParent(root *os.Root, directory string) (*os.Root, error) {
 		return nil, err
 	}
 	// Each component belongs to the finite relative filesystem path.
-	for _, component := range strings.Split(filepath.Clean(directory), string(filepath.Separator)) {
+	for component := range strings.SplitSeq(filepath.Clean(directory), string(filepath.Separator)) {
 		if component == "." {
 			continue
 		}

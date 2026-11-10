@@ -44,8 +44,7 @@ func TestOwnerRulingApprovalTerminalBoundary(t *testing.T) {
 						}
 						return
 					}
-					var refusal *human.Refusal
-					if !errors.As(err, &refusal) {
+					if _, ok := errors.AsType[*human.Refusal](err); !ok {
 						t.Errorf("owner ruling answered %v, want terminal refusal", err)
 					} else if strings.Contains(err.Error(), "full verification") || !strings.Contains(err.Error(), "./le rfc approve") {
 						t.Errorf("authorization refusal = %v", err)

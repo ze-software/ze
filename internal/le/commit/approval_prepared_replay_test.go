@@ -15,8 +15,8 @@ import (
 // message and every remaining row rather than publishing a duplicate binding.
 func TestPreparedApprovalPublicationCannotSpendAnAlreadyPublishedTarget(t *testing.T) {
 	root, first, _ := approvalPublicationFixture(t)
-	one := createApprovalPublication(t, first, approvalUnit)
-	two := createApprovalPublication(t, first, approvalUnit)
+	one := createApprovalPublication(t, first)
+	two := createApprovalPublication(t, first)
 	if one.Script == two.Script || one.Message == two.Message {
 		t.Fatal("fixture did not reserve independent script and message identities")
 	}

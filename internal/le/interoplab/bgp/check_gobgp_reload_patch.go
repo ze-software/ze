@@ -39,7 +39,7 @@ func (proof *gobgpReloadProof) identifyPatch(ctx context.Context) error {
 	if applied != string(expected) {
 		return errors.New("the running GoBGP image carries a different patch than this checkout, so this reload cannot identify its producer. " + gobgpReloadPatchFix)
 	}
-	output, err := proof.query(ctx, "gobgp-patch-sha256", peerGoBGP, []string{"sha256sum", gobgpReloadPatchPath})
+	output, err := proof.query(ctx, "gobgp-patch-sha256", peerGoBGP, []string{cmdSha256sum, gobgpReloadPatchPath})
 	if err != nil {
 		return fmt.Errorf("the running GoBGP image could not supply its patch digest, so its producer cannot be identified: %w. %s", err, gobgpReloadPatchFix)
 	}

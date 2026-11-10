@@ -633,7 +633,7 @@ func hookValidateSpec(ctx context, errOut io.Writer) int {
 	// parsed skeleton may omit the owner audit; malformed metadata may not.
 	auditOwners := true
 	if status, metadataErr := specstatus.MetadataStatus(string(body)); metadataErr == nil {
-		auditOwners = status != "skeleton"
+		auditOwners = status != specStatusSkeleton
 	}
 	if auditOwners {
 		report, auditErr := speccitation.AuditAnchors(ctx.root, ctx.path)
@@ -711,7 +711,7 @@ func validateSpecText(root, text string) ([]string, []string) {
 	// disagree with plan/README.md and with the tree: 39 committed specs carry
 	// this placeholder, so the check refused a state the repository is full of,
 	// and the author of a NEW skeleton could not write one at all.
-	if status != "skeleton" &&
+	if status != specStatusSkeleton &&
 		(strings.Contains(data, "[Where data enters") || strings.Contains(data, "[Format at entry]")) {
 		errors = append(errors, "Data Flow: Entry Point contains placeholder text. Document actual entry points!")
 	}

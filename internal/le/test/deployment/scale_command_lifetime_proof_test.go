@@ -16,11 +16,11 @@ import (
 // simulator command producer after its grandchild holds an observer socket.
 // The command must preserve cancellation and join the group before returning.
 func TestScaleSimulatorCancellationJoinsActualDescendants(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer listener.Close()
+	defer listener.Close() //nolint:errcheck // The test owns this listening socket.
 	self, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
@@ -37,7 +37,7 @@ func TestScaleSimulatorCancellationJoinsActualDescendants(t *testing.T) {
 		done <- err
 	}()
 	connection := acceptScaleLifetime(t, listener)
-	defer connection.Close()
+	defer connection.Close() //nolint:errcheck // Covers a Fatal before the checked close below is deferred.
 	var pid int
 	if err := json.NewDecoder(connection).Decode(&pid); err != nil {
 		t.Fatal(err)
@@ -69,7 +69,7 @@ func TestScaleSimulatorCancellationJoinsActualDescendants(t *testing.T) {
 	var one [1]byte
 	if _, err := connection.Read(one[:]); err == nil {
 		t.Error("simulator descendant wrote after command returned")
-	} else if timeout, ok := err.(net.Error); ok && timeout.Timeout() {
+	} else if timeout, ok := errors.AsType[net.Error](err); ok && timeout.Timeout() {
 		t.Error("simulator descendant survived the canceled command")
 	}
 }

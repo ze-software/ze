@@ -34,7 +34,7 @@ func removeContainerDefaultRoute(ctx context.Context, lab interoplab.CheckerLab,
 // FRR selected for 0.0.0.0/0 and the container's kernel routes, so a run shows
 // which route beat the OSPF default. It runs only after the wait failed, keeps
 // the original error wrapped, and bounds its own queries, so it cannot change
-// the verdict or hang past a cancelled run.
+// the verdict or hang past a canceled run.
 func nssaDefaultDiagnostic(ctx context.Context, lab interoplab.CheckerLab, cause error) error {
 	queryCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
 	defer cancel()
@@ -46,6 +46,6 @@ func nssaDefaultDiagnostic(ctx context.Context, lab interoplab.CheckerLab, cause
 		return strings.TrimSpace(result.Stdout)
 	}
 	frrDefault := answer([]string{cmdVtysh, "-c", "show ip route 0.0.0.0/0 json"})
-	kernel := answer([]string{"ip", "route", "show"})
+	kernel := answer([]string{"ip", "route", ipActionShow})
 	return fmt.Errorf("%w; FRR default routes: %s; kernel routes: %s", cause, frrDefault, kernel)
 }

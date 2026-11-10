@@ -129,7 +129,7 @@ func TestDesignEvidenceCanonicalCheckoutIdentity(t *testing.T) {
 		if err := os.Symlink(outside, filepath.Join(root, "internal", "le")); err != nil {
 			t.Fatal(err)
 		}
-		recordObservedRead(t, root, filepath.Join(root, "internal/le/producer.go"), "package outside\n", 1, 2, 2)
+		recordObservedRead(t, root, filepath.Join(root, "internal", "le", "producer.go"), "package outside\n", 1, 2, 2)
 		observedDesignGate(t, root, "# A subjectless design\n", 2)
 	})
 	t.Run("outside-symlink-subject", func(t *testing.T) {
@@ -151,10 +151,10 @@ func TestDesignEvidenceCanonicalCheckoutIdentity(t *testing.T) {
 	t.Run("internal-symlink-alias", func(t *testing.T) {
 		root := t.TempDir()
 		writeHookFixture(t, root, evidenceProbeA, "package le\n")
-		if err := os.Symlink(filepath.Join(root, "internal/le"), filepath.Join(root, "internal", "alias")); err != nil {
+		if err := os.Symlink(filepath.Join(root, "internal", "le"), filepath.Join(root, "internal", "alias")); err != nil {
 			t.Fatal(err)
 		}
-		recordObservedRead(t, root, filepath.Join(root, "internal/alias/producer_a.go"), "package le\n", 1, 2, 2)
+		recordObservedRead(t, root, filepath.Join(root, "internal", "alias", "producer_a.go"), "package le\n", 1, 2, 2)
 		observedDesignGate(t, root, "## Files to Modify\n`"+evidenceProbeA+"`\n", 0)
 	})
 	t.Run("revalidation-does-not-follow-new-escape", func(t *testing.T) {
@@ -165,10 +165,10 @@ func TestDesignEvidenceCanonicalCheckoutIdentity(t *testing.T) {
 		if err := os.Remove(filepath.Join(root, evidenceProbeA)); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.Remove(filepath.Join(root, "internal/le")); err != nil {
+		if err := os.Remove(filepath.Join(root, "internal", "le")); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.Symlink(outside, filepath.Join(root, "internal/le")); err != nil {
+		if err := os.Symlink(outside, filepath.Join(root, "internal", "le")); err != nil {
 			t.Fatal(err)
 		}
 		observedDesignGate(t, root, "# A subjectless design\n", 2)
@@ -214,9 +214,9 @@ func TestDesignEvidenceUsesObservedToolContent(t *testing.T) {
 				payload["tool_response"] = map[string]any{"filePath": filepath.Join(root, evidenceProbeA), "operation": "hover", "result": "package le"}
 				kind = "mark-lsp-invoked"
 			case "mismatched-response-path":
-				payload["tool_response"].(map[string]any)["file"].(map[string]any)["filePath"] = filepath.Join(root, evidenceProbeB)
+				observedResponseFile(t, payload)["filePath"] = filepath.Join(root, evidenceProbeB)
 			case "malformed-range":
-				payload["tool_response"].(map[string]any)["file"].(map[string]any)["numLines"] = 20
+				observedResponseFile(t, payload)["numLines"] = 20
 			}
 			if code, _, message := runHook(t, root, kind, payload); code != 0 {
 				t.Fatalf("record unusable event = %d: %s", code, message)
@@ -224,4 +224,20 @@ func TestDesignEvidenceUsesObservedToolContent(t *testing.T) {
 			observedDesignGate(t, root, "## Files to Modify\n`"+evidenceProbeA+"`\n", 2)
 		})
 	}
+}
+
+// observedResponseFile answers the file object inside a Read payload's tool
+// response, so a case can corrupt one field. A payload that lost that shape
+// fails the test by name instead of panicking.
+func observedResponseFile(t *testing.T, payload map[string]any) map[string]any {
+	t.Helper()
+	response, ok := payload["tool_response"].(map[string]any)
+	if !ok {
+		t.Fatalf("payload tool_response = %T, want an object", payload["tool_response"])
+	}
+	file, ok := response["file"].(map[string]any)
+	if !ok {
+		t.Fatalf("payload tool_response.file = %T, want an object", response["file"])
+	}
+	return file
 }

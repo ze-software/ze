@@ -1195,10 +1195,10 @@ func (d *Docker) claimName(ctx context.Context, kind resourceKind, name, suffixV
 		if suffixVariable != "" {
 			refusal.Str("set ").Str(suffixVariable).Str(" to a value no other run uses, or ")
 		}
-		if judgement.fix != "" {
-			refusal.Str(judgement.fix)
-		} else {
+		if judgement.fix == "" {
 			refusal.Str("choose a different resource name. This resource stays with the run that created it")
+		} else {
+			refusal.Str(judgement.fix)
 		}
 		return errors.New(refusal.String())
 	}

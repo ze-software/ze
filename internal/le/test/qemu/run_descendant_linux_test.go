@@ -112,12 +112,16 @@ func proveQEMUDescendant(t *testing.T) {
 	if err := os.WriteFile(reexec, []byte("#!/bin/sh\nexport QEMU_DESCENDANT_ROLE=verb\nexec \"$QEMU_DESCENDANT_SELF\" -test.run=^TestQEMURunDescendantProcess$ -- \"$@\"\n"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer listener.Close()
-	if err := listener.(*net.TCPListener).SetDeadline(time.Now().Add(30 * time.Second)); err != nil {
+	defer listener.Close() //nolint:errcheck // The test owns this listening socket.
+	tcp, ok := listener.(*net.TCPListener)
+	if !ok {
+		t.Fatalf("listener %T is not a TCP listener", listener)
+	}
+	if err := tcp.SetDeadline(time.Now().Add(30 * time.Second)); err != nil {
 		t.Fatal(err)
 	}
 	parent := filepath.Join(t.TempDir(), "outer.job")
@@ -150,7 +154,7 @@ func proveQEMUDescendant(t *testing.T) {
 		// Releasing this fixture's control socket ends an unpatched survivor.
 		// This cleanup occurs only AFTER the regression assertions below.
 		if connection != nil {
-			connection.Close()
+			connection.Close() //nolint:errcheck // Releasing the survivor; only the join below is asserted.
 		}
 		cancel()
 		select {
@@ -256,11 +260,12 @@ func holdQEMUCompilerDescendant(t *testing.T) {
 	if os.Getenv("QEMU_DESCENDANT_RESISTANCE") == "ignore-term" {
 		signal.Ignore(syscall.SIGTERM)
 	}
-	connection, err := net.DialTimeout("tcp", os.Getenv("QEMU_DESCENDANT_ADDRESS"), 10*time.Second)
+	dialer := net.Dialer{Timeout: 10 * time.Second}
+	connection, err := dialer.DialContext(t.Context(), "tcp", os.Getenv("QEMU_DESCENDANT_ADDRESS"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer connection.Close()
+	defer connection.Close() //nolint:errcheck // The test side observes the stream; this end only holds it.
 	entry := os.Getenv(job.ParentVariable)
 	body, err := os.ReadFile(entry)
 	if err != nil {

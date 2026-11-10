@@ -5,6 +5,7 @@
 package hookruntime
 
 import (
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -58,9 +59,7 @@ func TestSharedCheckoutConsumersKeepDanglingAliasAdmission(t *testing.T) {
 			probe := func(path, tool, session string, fields map[string]any, want int, message string) {
 				t.Helper()
 				input := map[string]any{"file_path": path}
-				for key, value := range fields {
-					input[key] = value
-				}
+				maps.Copy(input, fields)
 				code, got, found := Probe(test.check, Payload{SessionID: session, ToolName: tool, ToolInput: input}, root)
 				if !found || code != want || message != "" && !strings.Contains(got, message) {
 					t.Fatalf("%s(%s) = %d, found %v, want %d and %q: %s", test.check, path, code, found, want, message, got)
@@ -71,7 +70,7 @@ func TestSharedCheckoutConsumersKeepDanglingAliasAdmission(t *testing.T) {
 			// Ordinary planned files remain writable with each gate's real admission satisfied.
 			planned := filepath.Join(root, "ordinary", filepath.FromSlash(test.path))
 			if test.check == "writeSpecMechanisms" || test.check == "writeSpecWIP" {
-				planned = filepath.Join(root, "plan/post-release/engineering/spec-ordinary.md")
+				planned = filepath.Join(root, "plan", "post-release", "engineering", "spec-ordinary.md")
 			}
 			probe(planned, toolWrite, "shared-allowed", test.allowed, 0, "")
 			// The same checkout reached through its external alias still owes the named gate.

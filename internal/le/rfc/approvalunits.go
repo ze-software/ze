@@ -153,7 +153,8 @@ func resolveApprovalSides(root, target, unit string) (string, []approvalCarrier,
 		}
 		before = fields[1]
 	}
-	oldPaths, newPaths := "", ""
+	oldPaths := ""
+	var newPaths string
 	if target == "" && !insideGitCheckout(root) {
 		// Edit-time callers also judge real current carriers in fixture trees
 		// without history. This is current identity, not invented HEAD data.

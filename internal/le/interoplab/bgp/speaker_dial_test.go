@@ -13,7 +13,7 @@ import (
 // to the returned address is refused until somebody listens on it again.
 func closedLoopbackAddress(t *testing.T) string {
 	t.Helper()
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("reserve a loopback port: %v", err)
 	}
@@ -45,7 +45,7 @@ func TestDialSpeakerPeerWaitsForLateListener(t *testing.T) {
 	}()
 
 	time.Sleep(300 * time.Millisecond)
-	listener, err := net.Listen("tcp", address)
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", address)
 	if err != nil {
 		t.Fatalf("listen on %s: %v", address, err)
 	}

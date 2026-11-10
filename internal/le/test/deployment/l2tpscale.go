@@ -607,7 +607,7 @@ func ignoreL2TPScaleExit(err error) error {
 	// A command's nonzero status is a verdict, not an infrastructure error.
 	// Strip only that leaf: an exit joined with a lifecycle failure must not
 	// conceal the owner's inability to clean or observe its process group.
-	if _, ok := err.(*exec.ExitError); ok {
+	if _, ok := err.(*exec.ExitError); ok { //nolint:errorlint // A leaf test: errors.As would strip an exit joined with a lifecycle failure.
 		return nil
 	}
 	if joined, ok := err.(interface{ Unwrap() []error }); ok {

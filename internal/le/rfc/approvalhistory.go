@@ -74,7 +74,7 @@ func approvalHistoryLanded(root, history string, queries []approvalHistoryQuery)
 	if err != nil {
 		return "", -1, "cannot name the published approval carrier: " + err.Error()
 	}
-	return strings.TrimSpace(string(name)), query, ""
+	return strings.TrimSpace(name), query, ""
 }
 
 // readApprovalHistory validates one fixed-kind batch frame per retained ID.
@@ -126,7 +126,7 @@ func readApprovalHistory(reader *bufio.Reader, history string, queries []approva
 		if err != nil {
 			return "", -1, fmt.Errorf("unreadable trailing approval history: %w", err)
 		}
-		return "", -1, errors.New("Git returned trailing approval commit data")
+		return "", -1, errors.New("git returned trailing approval commit data")
 	}
 	return matched, matchedQuery, nil
 }

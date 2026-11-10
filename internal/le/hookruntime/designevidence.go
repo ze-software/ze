@@ -272,15 +272,15 @@ func observedSourceRange(body []byte, record sourceRead) (string, bool) {
 	}
 	end := 0
 	for line := range record.NumLines {
-		if next := strings.IndexByte(text[end:], '\n'); next >= 0 {
-			end += next
-			if line+1 == record.NumLines {
-				return text[:end], true
-			}
-			end++
-		} else {
+		next := strings.IndexByte(text[end:], '\n')
+		if next < 0 {
 			return text, line+1 == record.NumLines
 		}
+		end += next
+		if line+1 == record.NumLines {
+			return text[:end], true
+		}
+		end++
 	}
 	return "", false
 }
@@ -292,7 +292,7 @@ func currentSourceReads(ctx context, repository *os.Root) map[string]bool {
 		return reads
 	}
 	for _, marker := range entries {
-		body, err := os.ReadFile(marker)
+		body, err := os.ReadFile(marker) //nolint:gosec // marker comes from the glob of this checkout's own tmp/session read markers
 		if err != nil {
 			continue
 		}

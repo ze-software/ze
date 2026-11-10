@@ -20,11 +20,11 @@ import (
 // cancellation must join that descendant and preserve its originating cause.
 func TestNativeHostBuildCancellationJoinsDescendants(t *testing.T) {
 	tree, _ := stageRootedBuildTree(t)
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer listener.Close()
+	defer listener.Close() //nolint:errcheck // The test owns this listening socket.
 	self, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
@@ -44,13 +44,13 @@ func TestNativeHostBuildCancellationJoinsDescendants(t *testing.T) {
 		done <- buildHostDaemon(ctx, tree, "tmp/native-owned-build", io.Discard)
 	}()
 	owned := acceptScaleLifetime(t, listener)
-	defer owned.Close()
+	defer owned.Close() //nolint:errcheck // The release below may already have closed it.
 	var ownedPID int
 	if err := json.NewDecoder(owned).Decode(&ownedPID); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		owned.Close()
+		owned.Close() //nolint:errcheck // Releasing the descendant; only the join below is asserted.
 		cancel()
 		select {
 		case <-done:
@@ -74,7 +74,7 @@ func TestNativeHostBuildCancellationJoinsDescendants(t *testing.T) {
 	var one [1]byte
 	if _, err := owned.Read(one[:]); err == nil {
 		t.Error("native compiler descendant wrote after build return")
-	} else if timeout, ok := err.(net.Error); ok && timeout.Timeout() {
+	} else if timeout, ok := errors.AsType[net.Error](err); ok && timeout.Timeout() {
 		t.Error("native compiler descendant survived build return")
 	}
 }

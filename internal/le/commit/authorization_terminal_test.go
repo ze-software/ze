@@ -75,8 +75,7 @@ func TestCommitAuthorizationTerminalBoundary(t *testing.T) {
 									t.Errorf("terminal refusal exit = %d, want 2", code)
 								}
 							}
-							var refusal *human.Refusal
-							if !errors.As(err, &refusal) {
+							if _, ok := errors.AsType[*human.Refusal](err); !ok {
 								t.Errorf("%s answered %v, want terminal refusal", route, err)
 							} else if strings.Contains(err.Error(), "full verification") || !strings.Contains(err.Error(), command) {
 								t.Errorf("authorization refusal = %v", err)

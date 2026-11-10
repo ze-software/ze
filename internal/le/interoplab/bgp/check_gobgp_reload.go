@@ -75,15 +75,15 @@ func checkGoBGPExportReload(ctx context.Context, check *interoplab.CheckContext)
 	for step, phase := range gobgpReloadPhases[1:] {
 		step++
 		path := gobgpReloadMounted + "gobgp-reload-" + phase + ".toml"
-		if phase == "repeat" {
+		if phase == gobgpReloadPhaseRepeat {
 			if err := proof.requireIdenticalRepeat(ctx, path); err != nil {
 				return err
 			}
 		}
-		if err := proof.exec(ctx, phase+"-config-copy", peerGoBGP, []string{"cp", path, gobgpReloadRunning}); err != nil {
+		if err := proof.exec(ctx, phase+"-config-copy", []string{"cp", path, gobgpReloadRunning}); err != nil {
 			return err
 		}
-		if phase == "repeat" {
+		if phase == gobgpReloadPhaseRepeat {
 			if err := proof.repeatReload(ctx); err != nil {
 				return err
 			}
@@ -108,10 +108,11 @@ func (proof *gobgpReloadProof) query(ctx context.Context, key, peer string, comm
 	return answer, err
 }
 
-// exec records a command's actual exit status without treating successful empty
-// stdout as missing measurement. Read-only observations MUST still use query.
-func (proof *gobgpReloadProof) exec(ctx context.Context, key, peer string, command []string) error {
-	result, err := proof.check.Lab.Exec(ctx, peer, command, nil)
+// exec runs a command in the GoBGP container and records its actual exit
+// status without treating successful empty stdout as missing measurement.
+// Read-only observations MUST still use query.
+func (proof *gobgpReloadProof) exec(ctx context.Context, key string, command []string) error {
+	result, err := proof.check.Lab.Exec(ctx, peerGoBGP, command, nil)
 	proof.evidence[key+"-stdout"] = result.Stdout
 	proof.evidence[key+"-stderr"] = result.Stderr
 	proof.evidence[key+"-exit"] = strconv.Itoa(result.ExitCode)
@@ -140,17 +141,17 @@ func (proof *gobgpReloadProof) identify(ctx context.Context) error {
 		peer, key string
 		command   []string
 	}{
-		{peerGoBGP, "gobgpd-version", []string{"gobgpd", "--version"}},
-		{peerGoBGP, "gobgp-version", []string{"gobgp", "--version"}},
-		{peerGoBGP, "gobgp-binary-sha256", []string{"sha256sum", "/usr/local/bin/gobgpd", "/usr/local/bin/gobgp"}},
-		{peerGoBGP, "capture-tool-version", []string{"tcpdump", "--version"}},
-		{peerGoBGP, "timeout-tool-version", []string{"/usr/bin/timeout", "--version"}},
+		{peerGoBGP, "gobgpd-version", []string{"gobgpd", flagVersion}},
+		{peerGoBGP, "gobgp-version", []string{cmdGoBGP, flagVersion}},
+		{peerGoBGP, "gobgp-binary-sha256", []string{cmdSha256sum, "/usr/local/bin/gobgpd", "/usr/local/bin/gobgp"}},
+		{peerGoBGP, "capture-tool-version", []string{cmdTcpdump, flagVersion}},
+		{peerGoBGP, "timeout-tool-version", []string{"/usr/bin/timeout", flagVersion}},
 		{peerGoBGP, "read-observer-package-version", []string{"apk", "info", "-v", "inotify-tools", "inotify-tools-libs"}},
 		{peerFRR, "frr-version", []string{cmdVtysh, "-c", frrShowVersion}},
 		{peerFRRSink, "sink-version", []string{cmdVtysh, "-c", frrShowVersion}},
 		{peerBIRD, "bird-version", []string{cmdBirdc, "show status"}},
-		{"ze", "ze-version", []string{"ze", "--version"}},
-		{"ze", "ze-binary-sha256", []string{"sha256sum", "/usr/local/bin/ze"}},
+		{"ze", "ze-version", []string{"ze", flagVersion}},
+		{"ze", "ze-binary-sha256", []string{cmdSha256sum, zeBinaryPath}},
 	} {
 		if _, err := proof.query(ctx, query.key, query.peer, query.command); err != nil {
 			return err
@@ -172,7 +173,7 @@ func (proof *gobgpReloadProof) identify(ctx context.Context) error {
 		}
 	}
 	for _, file := range []struct{ peer, path string }{
-		{"ze", zeMountedConfig}, {peerBIRD, "/etc/bird/bird.conf"}, {peerFRR, "/etc/frr/frr.conf"}, {peerFRRSink, "/etc/frr/frr.conf"},
+		{"ze", zeMountedConfig}, {peerBIRD, "/etc/bird/bird.conf"}, {peerFRR, frrConfigPath}, {peerFRRSink, frrConfigPath},
 	} {
 		if _, err := proof.query(ctx, "rendered-"+file.peer, file.peer, []string{cmdCat, file.path}); err != nil {
 			return err
@@ -209,7 +210,7 @@ func (proof *gobgpReloadProof) snapshot(ctx context.Context, step int) (gobgpRel
 		asn  uint32
 	}{{2, 65001}, {4, 65004}, {3, 65002}, {15, 65015}} {
 		address := networkHostAddress(proof.check.Network, peer.host)
-		text, err := proof.query(ctx, key+address+"-neighbor", peerGoBGP, []string{"gobgp", "neighbor", address, "-j"})
+		text, err := proof.query(ctx, key+address+"-neighbor", peerGoBGP, []string{cmdGoBGP, gobgpNeighbor, address, "-j"})
 		if err != nil {
 			return state, err
 		}
@@ -220,7 +221,7 @@ func (proof *gobgpReloadProof) snapshot(ctx context.Context, step int) (gobgpRel
 		state.Peers[peer.host] = observed
 		switch peer.host {
 		case 2, 4:
-			text, err := proof.query(ctx, key+address+"-adj-in", peerGoBGP, []string{"gobgp", "neighbor", address, "adj-in", "-a", "ipv4", "-j"})
+			text, err := proof.query(ctx, key+address+"-adj-in", peerGoBGP, []string{cmdGoBGP, gobgpNeighbor, address, "adj-in", "-a", gobgpFamilyIPv4, "-j"})
 			if err != nil {
 				return state, err
 			}
@@ -265,10 +266,10 @@ func (proof *gobgpReloadProof) snapshot(ctx context.Context, step int) (gobgpRel
 			routeErrors = errors.Join(routeErrors, fmt.Errorf("GoBGP actual sent bookkeeping toward %s has %d prefixes, receiver contract wants %d", receiver.name, state.Peers[receiver.host].Families[0].State.Advertised, count))
 		}
 		for _, table := range []string{"adj-out", "local"} {
-			command := []string{"gobgp", "neighbor", networkHostAddress(proof.check.Network, receiver.host), table, "-a", "ipv4", "-j"}
+			command := []string{cmdGoBGP, gobgpNeighbor, networkHostAddress(proof.check.Network, receiver.host), table, "-a", gobgpFamilyIPv4, "-j"}
 			if table == "local" {
 				if proof.check.Source.Name == gobgpReloadOrdinary {
-					command = []string{"gobgp", "global", "rib", "-a", "ipv4", "-j"}
+					command = []string{cmdGoBGP, "global", "rib", "-a", gobgpFamilyIPv4, "-j"}
 				}
 			}
 			if _, err := proof.query(ctx, key+receiver.name+"-diagnostic-"+table, peerGoBGP, command); err != nil {

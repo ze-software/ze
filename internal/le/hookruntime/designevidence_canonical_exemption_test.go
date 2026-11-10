@@ -22,7 +22,7 @@ func canonicalSubjectFixture(t *testing.T) string {
 	writeHookFixture(t, root, canonicalProducerTest, "package bridge\n")
 	writeHookFixture(t, root, canonicalUnrelated, "package control\n")
 	writeHookFixture(t, root, "docs/producer-note.md", "# Producer note\n")
-	if err := os.MkdirAll(filepath.Join(root, "internal/le"), 0o750); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, "internal", "le"), 0o750); err != nil {
 		t.Fatal(err)
 	}
 	for alias, target := range map[string]string{
@@ -85,16 +85,17 @@ func TestDesignEvidenceExemptAliasesRefuseUnknownIdentity(t *testing.T) {
 					root := canonicalSubjectFixture(t)
 					recordObservedRead(t, root, filepath.Join(root, filepath.FromSlash(canonicalUnrelated)), "package control\n", 1, 2, 2)
 					alias := "internal/aliases/producer" + suffix
-					aliasDir := filepath.Join(root, "internal/aliases")
+					aliasDir := filepath.Join(root, "internal", "aliases")
 					if err := os.MkdirAll(aliasDir, 0o750); err != nil {
 						t.Fatal(err)
 					}
-					target := filepath.Join(root, "internal/missing/producer.go")
-					if failure == "outside" {
+					target := filepath.Join(root, "internal", "missing", "producer.go")
+					switch failure {
+					case "outside":
 						outside := t.TempDir()
 						writeHookFixture(t, outside, "producer.go", "package outside\n")
 						target = filepath.Join(outside, "producer.go")
-					} else if failure == "permission-denied" {
+					case "permission-denied":
 						target = filepath.Join(root, filepath.FromSlash(canonicalProducer))
 					}
 					if err := os.Symlink(target, filepath.Join(root, filepath.FromSlash(alias))); err != nil {

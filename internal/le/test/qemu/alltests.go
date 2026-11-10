@@ -193,7 +193,7 @@ var vmSuites = []vmSuite{
 	},
 	{Name: guestL2TP, Args: []string{guestL2TP, allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
 	{
-		Name: "pppoe", Args: []string{"pppoe", allTests}, Concurrency: scaledConcurrency, Namespace: perTest,
+		Name: netnsPPPoE, Args: []string{netnsPPPoE, allTests}, Concurrency: scaledConcurrency, Namespace: perTest,
 		Why: "its netns-link fixtures provision veth-bng and veth-sub and need NET_ADMIN and NET_RAW" +
 			" in a fresh namespace for each test",
 	},
@@ -534,13 +534,13 @@ func (a *allTestsRun) note(line string) {
 }
 
 // child runs one command through the run's runner, defaulted to a streaming run
-// in the workspace. tally may be nil, and is nil for every phase that reports
-// no test count of its own.
-func (a *allTestsRun) child(argv, environ []string, tally io.Writer) int {
+// in the workspace. Its callers are the phases that report no test count of
+// their own, so it hands the runner no tally writer.
+func (a *allTestsRun) child(argv, environ []string) int {
 	if a.Run == nil {
-		return gaterun.StreamTee(argv, a.Workspace, environ, tally)
+		return gaterun.StreamTee(argv, a.Workspace, environ, nil)
 	}
-	return a.Run(argv, environ, tally)
+	return a.Run(argv, environ, nil)
 }
 
 // look answers where a command lives, through the run's lookup, defaulted to
@@ -1008,7 +1008,7 @@ func (a *allTestsRun) unitPhase(environ []string) (PhaseResult, error) {
 		"./...",
 	}
 	a.note(banner(unitPhaseName))
-	return PhaseResult{Name: unitPhaseName, Command: argv, Code: a.child(argv, environ, nil)}, nil
+	return PhaseResult{Name: unitPhaseName, Command: argv, Code: a.child(argv, environ)}, nil
 }
 
 // installerPhase runs the installer initrd's own tests, which no other phase
@@ -1029,7 +1029,7 @@ func (a *allTestsRun) installerPhase(environ []string) PhaseResult {
 		"./internal/install/...",
 	}
 	a.note(banner(installerPhaseName))
-	return PhaseResult{Name: installerPhaseName, Command: argv, Code: a.child(argv, environ, nil)}
+	return PhaseResult{Name: installerPhaseName, Command: argv, Code: a.child(argv, environ)}
 }
 
 // integrationPhase runs the linux-only, integration-tagged tests.
@@ -1039,7 +1039,7 @@ func (a *allTestsRun) integrationPhase(environ []string) (PhaseResult, error) {
 		return PhaseResult{}, err
 	}
 	a.note(banner(integrationPhaseName))
-	return PhaseResult{Name: integrationPhaseName, Command: argv, Code: a.child(argv, environ, nil)}, nil
+	return PhaseResult{Name: integrationPhaseName, Command: argv, Code: a.child(argv, environ)}, nil
 }
 
 // integrationArgs builds the integration command and refuses a package list

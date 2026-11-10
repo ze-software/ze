@@ -20,10 +20,14 @@ import (
 	"github.com/ze-software/ze/internal/le/commit/hunks"
 )
 
+// unreadableHash stands in for the content hash of a reviewed file that could
+// not be read, so the review record names the file without a false digest.
+const unreadableHash = "UNREADABLE"
+
 var (
 	reviewHeaderPattern = regexp.MustCompile(`<!-- ze-review\s+[^>]*verdict=([^\s>]+)[^>]*-->`)
 	reviewStemPattern   = regexp.MustCompile(`<!--\s*ze-review\s+spec=([^\s>]+)\s`)
-	reviewFilePattern   = regexp.MustCompile(`^  ([0-9a-f]{64}|DELETED)  (100644|100755|120000|0)  (.+)$`)
+	reviewFilePattern   = regexp.MustCompile(`^ {2}([0-9a-f]{64}|DELETED) {2}(100644|100755|120000|0) {2}(.+)$`)
 )
 
 // ReviewResult is the hash-pinned verdict for one closure population.
@@ -295,7 +299,7 @@ func specWorkPopulation(root, stem, tip string) (specPopulation, error) {
 		population.Commits = append(population.Commits, commit)
 		for path := range strings.SplitSeq(names, "\x00") {
 			if strings.ContainsAny(path, "\x00\t\r\n") {
-				return specPopulation{}, fmt.Errorf("Spec-work commit %s names a path with unsupported controls: %q", commit, path)
+				return specPopulation{}, fmt.Errorf("spec-work commit %s names a path with unsupported controls: %q", commit, path)
 			}
 			if path != "" {
 				population.Paths = append(population.Paths, path)
@@ -540,7 +544,7 @@ func checkReviewArtifact(root, stem, artifact string, paths []string, selection 
 		pin, err := selectedReviewFile(root, path, selection)
 		if err != nil {
 			unreadable = append(unreadable, err.Error())
-			return spec.ReviewedFile{Path: path, Hash: "UNREADABLE"}
+			return spec.ReviewedFile{Path: path, Hash: unreadableHash}
 		}
 		return pin
 	})
@@ -672,7 +676,6 @@ func countedPaths(count int, what string, paths []string) string {
 	return text.String()
 }
 
-
 // reviewDigest answers the review pin of content read with err: DELETED for
 // an absent file, UNREADABLE for any other failure, else its SHA-256.
 func reviewDigest(content []byte, err error) string {
@@ -680,7 +683,7 @@ func reviewDigest(content []byte, err error) string {
 		return "DELETED"
 	}
 	if err != nil {
-		return "UNREADABLE"
+		return unreadableHash
 	}
 	digest := sha256.Sum256(content)
 	return hex.EncodeToString(digest[:])

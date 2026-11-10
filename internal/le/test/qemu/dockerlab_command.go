@@ -285,7 +285,7 @@ func dockerLabImageBoot(image string, kernel *dockerLabKernel) (string, error) {
 		return "", err
 	}
 	var root string
-	for _, word := range strings.Fields(string(line)) {
+	for word := range strings.FieldsSeq(string(line)) {
 		if strings.HasPrefix(word, "root=") {
 			if root != "" {
 				return "", errors.New("docker-host boot command line has multiple root devices")

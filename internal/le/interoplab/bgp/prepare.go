@@ -600,7 +600,7 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 		// failed"), which it cannot outside Docker's bounding set. NET_RAW and
 		// NET_BIND_SERVICE, which they also ask for, are in Docker's default set.
 		peers = append(peers, interoplab.PeerConfig{Name: frr.name, Container: containerName(frr.name, suffix), Image: image, Host: frr.host,
-			Mounts:       []interoplab.Mount{mount(path, "/etc/frr/frr.conf"), mount(daemons, "/etc/frr/daemons"), mount(filepath.Join(producer, "vtysh.conf"), "/etc/frr/vtysh.conf")},
+			Mounts:       []interoplab.Mount{mount(path, frrConfigPath), mount(daemons, "/etc/frr/daemons"), mount(filepath.Join(producer, "vtysh.conf"), "/etc/frr/vtysh.conf")},
 			Capabilities: []string{capabilityNetAdmin, "SYS_ADMIN"}, Arguments: ipv6Sysctls(), Ready: ready(cmdVtysh, "-c", frrShowVersion)})
 	}
 	if path := filepath.Join(scenario, "bird.conf"); regularFile(path) {

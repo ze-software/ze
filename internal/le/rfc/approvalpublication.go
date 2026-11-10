@@ -22,7 +22,7 @@ func CheckOrdinaryApprovalPublication(root, parent string, verdicts []string) er
 	if err != nil {
 		return fmt.Errorf("cannot read ordinary approval publication history: %w", err)
 	}
-	text := string(history)
+	text := history
 	first, _, _ := strings.Cut(text, "\n")
 	if first != parent {
 		return errors.New("ordinary approval publication parent is not the exact named Git commit")

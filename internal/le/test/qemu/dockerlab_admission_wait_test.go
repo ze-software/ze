@@ -70,7 +70,7 @@ func TestDockerLabBuildCancellationLeavesOccupiedAdmission(t *testing.T) {
 	command.Env = append(env.Without(os.Environ(), job.ParentKey, job.SlotsKey, "ze.repo.root"),
 		"DOCKER_WAIT_CHECKOUT="+checkout, "DOCKER_WAIT_TREE="+tree,
 		"DOCKER_WAIT_BIN="+filepath.Dir(compilerRecord), "ZE_RUN_SLOTS=1")
-	notes := &dockerLabQueueObservation{qemuQueueObservation: qemuQueueObservation{waiting: make(chan struct{})}}
+	notes := &dockerLabQueueObservation{waiting: make(chan struct{})}
 	command.Stdout, command.Stderr = notes, notes
 	plugin.KillGroupOnCancel(command)
 	if err := plugin.StartChild(command); err != nil {

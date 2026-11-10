@@ -140,7 +140,7 @@ type RunOptions struct {
 // guestCommandAsRoot answers whether the docker-lab command runs under sudo:
 // the harness needs root for `test qemu all`, and KeywordRoot asks for it alone.
 // The command wrapper and the interrupt both read this one answer, so a root
-// command is never signalled as the unprivileged user.
+// command is never signaled as the unprivileged user.
 func (o *RunOptions) guestCommandAsRoot() bool {
 	if o.GuestHarness {
 		return true

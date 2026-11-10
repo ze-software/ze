@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"syscall"
 )
 
 // processStartTime answers when pid started, in clock ticks since boot, from
@@ -19,6 +20,11 @@ import (
 func processStartTime(pid int) (int64, error) {
 	data, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/stat")
 	if errors.Is(err, os.ErrNotExist) {
+		return 0, errProcessGone
+	}
+	// A process that exits between the open and the read of its stat file
+	// answers ESRCH, so it is gone too.
+	if errors.Is(err, syscall.ESRCH) {
 		return 0, errProcessGone
 	}
 	if err != nil {

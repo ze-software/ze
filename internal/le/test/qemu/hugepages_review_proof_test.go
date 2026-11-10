@@ -159,9 +159,10 @@ func TestHugepagesReviewProcess(t *testing.T) {
 	if role != "review-vm" {
 		return
 	}
+	// The handler is never stopped: it stays installed until os.Exit, so a
+	// second signal cannot replace the fixture's exit 0 with a signal death.
 	caught := make(chan os.Signal, 1)
 	signal.Notify(caught, syscall.SIGTERM, os.Interrupt)
-	defer signal.Stop(caught)
 	hugepagesRootSocket(t, "vm")
 	child := exec.CommandContext(t.Context(), os.Getenv("HP_ROOT_SELF"), "-test.run=^TestHugepagesRootProcess$")
 	child.Env = append(os.Environ(), "HP_ROOT_ROLE=descendant", "HP_ROOT_PHASE=vm")

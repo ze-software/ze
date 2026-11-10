@@ -4,6 +4,7 @@
 package verify
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"path/filepath"
@@ -20,8 +21,8 @@ func directorylessRegistration(t *testing.T, repo fixtureRepo, name, path string
 		t.Fatal(err)
 	}
 	files := map[string]string{
-		"gitdir": filepath.Join(path, ".git") + "\n",
-		"HEAD": repo.git(t, "rev-parse", "HEAD") + "\n",
+		"gitdir":    filepath.Join(path, ".git") + "\n",
+		"HEAD":      repo.git(t, "rev-parse", "HEAD") + "\n",
 		"commondir": "../..\n",
 	}
 	if locked {
@@ -98,7 +99,7 @@ func TestReclaimPreservesUnownedRegistrations(t *testing.T) {
 				}
 			}
 			after, err := os.ReadFile(filepath.Join(admin, "gitdir"))
-			if err != nil || string(after) != string(before) {
+			if err != nil || !bytes.Equal(after, before) {
 				t.Errorf("reclamation changed unowned registration: before=%q after=%q err=%v", before, after, err)
 			}
 		})

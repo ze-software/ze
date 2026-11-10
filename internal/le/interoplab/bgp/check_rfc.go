@@ -1334,7 +1334,7 @@ func checkNoFamilyEndOfRIB(ctx context.Context, check *interoplab.CheckContext) 
 			return before, err
 		}
 		if before.failure != nil {
-			return before, nil
+			return before, nil //nolint:nilerr // before.failure is the probe's verdict, carried in the observation, not a probe error
 		}
 		log, err := check.Lab.Query(probeCtx, peerFRR, []string{cmdCat, frrLogPath}, nil)
 		if err != nil {

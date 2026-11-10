@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -536,13 +537,7 @@ func removeMissingRegistration(ctx context.Context, root, path string, git gitRu
 	if err != nil {
 		return false, err
 	}
-	registered := false
-	for _, candidate := range paths {
-		if candidate == path {
-			registered = true
-			break
-		}
-	}
+	registered := slices.Contains(paths, path)
 	current, currentErr := os.ReadFile(ownerMarker(path))
 	if currentErr != nil && !errors.Is(currentErr, os.ErrNotExist) {
 		return false, fmt.Errorf("recheck registration owner %q: %w", path, currentErr)

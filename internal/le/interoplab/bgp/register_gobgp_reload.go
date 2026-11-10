@@ -8,10 +8,14 @@ const (
 	gobgpReloadMounted   = "/etc/gobgp/reload/"
 )
 
+// gobgpReloadPhaseRepeat is the phase that loads the running config again
+// unchanged.
+const gobgpReloadPhaseRepeat = "repeat"
+
 // The phase order is part of the frozen stimulus, not inferred from daemon output.
 var gobgpReloadPhases = [...]string{
 	"initial", "accept", "attributes", "reject", "fallback", "replacement",
-	"last", "simultaneous", "repeat", "restore",
+	"last", "simultaneous", gobgpReloadPhaseRepeat, "restore",
 }
 
 var gobgpReloadPrefixes = [...]string{

@@ -24,7 +24,7 @@ import (
 // its file. prepareGoBGPReloadPeers MUST activate that capture before gobgpd.
 func (proof *gobgpReloadProof) finish(ctx context.Context) error {
 	var result error
-	if err := proof.exec(ctx, "capture-stop", peerGoBGP, []string{"pkill", "-INT", "-x", "tcpdump"}); err != nil {
+	if err := proof.exec(ctx, "capture-stop", []string{"pkill", "-INT", "-x", cmdTcpdump}); err != nil {
 		result = errors.Join(result, err)
 	}
 	if err := gobgpReloadCapture.waitCompleted(ctx, proof.check.Lab, peerGoBGP, "0", 5*time.Second); err != nil {
@@ -41,7 +41,7 @@ func (proof *gobgpReloadProof) finish(ctx context.Context) error {
 		_, err := proof.query(ctx, path, peerGoBGP, []string{cmdCat, path})
 		result = errors.Join(result, err)
 	}
-	text, err := proof.query(ctx, "capture-base64", peerGoBGP, []string{"base64", gobgpReloadCapture.file()})
+	text, err := proof.query(ctx, "capture-base64", peerGoBGP, []string{cmdBase64, gobgpReloadCapture.file()})
 	result = errors.Join(result, err)
 	if err != nil {
 		return result

@@ -89,7 +89,7 @@ func TestShippedBridgeProofReachesEveryEditTool(t *testing.T) {
 				body = strings.Replace(body, "## Data Flow", "## Existing Mechanisms\n\n| Mechanism | Source | Decision |\n|---|---|---|\n| Script bridge | `"+source+"` | Extend the existing dispatch |\n\n## Data Flow", 1)
 				body += "\n## Proof\n`" + proof + "`\n\n## Design documentation\n`docs/bridge.md`\n"
 				const file = "plan/post-release/engineering/spec-bridge-proof.md"
-				before := strings.Replace(body, source, "internal/le/probe/probe.go", -1)
+				before := strings.ReplaceAll(body, source, "internal/le/probe/probe.go")
 				writeHookFixture(t, root, file, before)
 				input := map[string]any{"file_path": filepath.Join(root, file)}
 				switch tool {

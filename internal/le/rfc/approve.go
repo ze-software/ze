@@ -53,11 +53,11 @@ var approvalUnitPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*
 // that ValidApprovalUnit accepted, cut at the last dot: the directory key
 // may hold dots, the test name never does.
 func SplitApprovalUnit(unit string) (packageName, name string) {
-	cut := strings.LastIndexByte(unit, '.')
-	if cut < 0 {
+	packageName, name, found := strings.CutLast(unit, ".")
+	if !found {
 		return "", unit
 	}
-	return unit[:cut], unit[cut+1:]
+	return packageName, name
 }
 
 // ApprovalPath answers the file one commit session's approvals live in, under

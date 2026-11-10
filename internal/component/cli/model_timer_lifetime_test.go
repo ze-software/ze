@@ -164,7 +164,8 @@ func TestModelRunningTimerOwnership(t *testing.T) {
 				m.scheduleValidation()
 			}
 			next, _ := m.Update(msg)
-			after := next.(Model)
+			after, ok := next.(Model)
+			require.True(t, ok, "Update answered %T, want Model", next)
 			if action == "expire" {
 				require.NotEmpty(t, after.ValidationErrors(), "current live expiry must validate")
 			} else {

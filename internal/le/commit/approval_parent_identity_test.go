@@ -15,7 +15,7 @@ import (
 // the replacement history, and refusal must retain all rows and its message.
 func TestPreparedApprovalPublicationRefusesARewrittenTarget(t *testing.T) {
 	root, first, _ := approvalPublicationFixture(t)
-	prepared := createApprovalPublication(t, first, approvalUnit)
+	prepared := createApprovalPublication(t, first)
 	parent := revParse(t, root, first+"^")
 	previous := revParse(t, root, "HEAD")
 	runCommitGit(t, root, "update-ref", "HEAD", parent, previous)

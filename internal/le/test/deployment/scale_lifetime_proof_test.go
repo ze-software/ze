@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"syscall"
 	"testing"
 	"time"
@@ -24,11 +25,11 @@ import (
 // grandchild of the actual scale process producer. Stop must close that socket
 // before returning; a separately owned sentinel must remain connected.
 func TestScaleStopJoinsActualDescendants(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer listener.Close()
+	defer listener.Close() //nolint:errcheck // The test owns this listening socket.
 	self, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
@@ -37,7 +38,7 @@ func TestScaleStopJoinsActualDescendants(t *testing.T) {
 	foreignCtx, stopForeign := context.WithCancel(t.Context())
 	defer stopForeign()
 	foreign := exec.CommandContext(foreignCtx, self, "-test.run=^TestScaleLifetimeProcess$")
-	foreign.Env = append(environment, "SCALE_LIFETIME_ROLE=descendant")
+	foreign.Env = slices.Concat(environment, []string{"SCALE_LIFETIME_ROLE=descendant"})
 	plugin.KillGroupOnCancel(foreign)
 	if err := plugin.StartChild(foreign); err != nil {
 		t.Fatal(err)
@@ -45,14 +46,13 @@ func TestScaleStopJoinsActualDescendants(t *testing.T) {
 	defer func() {
 		stopForeign()
 		if err := foreign.Wait(); err != nil {
-			var exited *exec.ExitError
-			if !errors.As(err, &exited) {
+			if _, exited := errors.AsType[*exec.ExitError](err); !exited {
 				t.Error(err)
 			}
 		}
 	}()
 	foreignConnection := acceptScaleLifetime(t, listener)
-	defer foreignConnection.Close()
+	defer foreignConnection.Close() //nolint:errcheck // The test owns this accepted socket.
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	process, err := (realL2TPScaleSystem{}).Start(ctx, l2tpScaleStart{
@@ -63,7 +63,7 @@ func TestScaleStopJoinsActualDescendants(t *testing.T) {
 		t.Fatal(err)
 	}
 	owned := acceptScaleLifetime(t, listener)
-	defer owned.Close()
+	defer owned.Close() //nolint:errcheck // The test owns this accepted socket.
 	var pid int
 	if err := json.NewDecoder(owned).Decode(&pid); err != nil {
 		t.Fatal(err)
@@ -77,7 +77,7 @@ func TestScaleStopJoinsActualDescendants(t *testing.T) {
 	var one [1]byte
 	if _, err := owned.Read(one[:]); err == nil {
 		t.Error("owned descendant wrote after Stop returned")
-	} else if timeout, ok := err.(net.Error); ok && timeout.Timeout() {
+	} else if timeout, ok := errors.AsType[net.Error](err); ok && timeout.Timeout() {
 		t.Error("owned descendant still holds its socket after Stop returned")
 	}
 	if err := foreignConnection.SetReadDeadline(time.Now().Add(100 * time.Millisecond)); err != nil {
@@ -90,7 +90,7 @@ func TestScaleStopJoinsActualDescendants(t *testing.T) {
 	}
 	if _, err := foreignConnection.Read(one[:]); err == nil {
 		t.Error("foreign sentinel unexpectedly wrote")
-	} else if timeout, ok := err.(net.Error); !ok || !timeout.Timeout() {
+	} else if timeout, ok := errors.AsType[net.Error](err); !ok || !timeout.Timeout() {
 		t.Errorf("scale Stop touched the foreign sentinel: %v", err)
 	}
 }
@@ -100,11 +100,11 @@ func TestScaleStopJoinsActualDescendants(t *testing.T) {
 // observer must see daemon death and an unsuccessful ordinary action exit,
 // never the signal's default process exit or a later simulator invocation.
 func TestScaleEntryCancellationStopsBeforeSimulation(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer listener.Close()
+	defer listener.Close() //nolint:errcheck // The test owns this listening socket.
 	self, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
@@ -140,7 +140,7 @@ func TestScaleEntryCancellationStopsBeforeSimulation(t *testing.T) {
 		}
 	}()
 	connection := acceptScaleLifetime(t, listener)
-	defer connection.Close()
+	defer connection.Close() //nolint:errcheck // The test owns this accepted socket.
 	var pid int
 	if err := json.NewDecoder(connection).Decode(&pid); err != nil {
 		t.Fatal(err)
@@ -164,14 +164,18 @@ func TestScaleEntryCancellationStopsBeforeSimulation(t *testing.T) {
 	var one [1]byte
 	if _, err := connection.Read(one[:]); err == nil {
 		t.Error("daemon wrote after action verdict")
-	} else if timeout, ok := err.(net.Error); ok && timeout.Timeout() {
+	} else if timeout, ok := errors.AsType[net.Error](err); ok && timeout.Timeout() {
 		t.Error("daemon survived the canceled action verdict")
 	}
 }
 
 func acceptScaleLifetime(t *testing.T, listener net.Listener) net.Conn {
 	t.Helper()
-	if err := listener.(*net.TCPListener).SetDeadline(time.Now().Add(10 * time.Second)); err != nil {
+	tcp, ok := listener.(*net.TCPListener)
+	if !ok {
+		t.Fatalf("listener %T is not a TCP listener", listener)
+	}
+	if err := tcp.SetDeadline(time.Now().Add(10 * time.Second)); err != nil {
 		t.Fatal(err)
 	}
 	connection, err := listener.Accept()
@@ -194,7 +198,7 @@ func TestScaleLifetimeProcess(t *testing.T) {
 		_, code := Answer([]string{L2TPScaleAction})
 		os.Exit(code)
 	case "parent":
-		child := exec.Command(os.Args[0], "-test.run=^TestScaleLifetimeProcess$")
+		child := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^TestScaleLifetimeProcess$")
 		child.Env = append(os.Environ(), "SCALE_LIFETIME_ROLE=descendant")
 		child.Stdout, child.Stderr = os.Stdout, os.Stderr
 		if err := child.Start(); err != nil {
@@ -205,22 +209,30 @@ func TestScaleLifetimeProcess(t *testing.T) {
 		}
 	case "descendant":
 		signal.Ignore(syscall.SIGTERM)
-		connection, err := net.DialTimeout("tcp", os.Getenv("SCALE_LIFETIME_ADDRESS"), 5*time.Second)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer connection.Close()
-		if err := json.NewEncoder(connection).Encode(os.Getpid()); err != nil {
-			t.Fatal(err)
-		}
-		if err := connection.SetReadDeadline(time.Now().Add(30 * time.Second)); err != nil {
-			t.Fatal(err)
-		}
-		var control [1]byte
-		// A test closes its own socket on failure; no recycled numeric PID is signaled.
-		if _, err := connection.Read(control[:]); err == nil {
-			t.Fatal("unexpected fixture control byte")
-		}
+		holdScaleLifetimeSocket(t)
 		os.Exit(0)
+	}
+}
+
+// holdScaleLifetimeSocket is the descendant of TestScaleLifetimeProcess: it
+// publishes its PID and holds the socket until the test side closes it. Its
+// deferred close runs before the caller exits the process.
+func holdScaleLifetimeSocket(t *testing.T) {
+	dialer := net.Dialer{Timeout: 5 * time.Second}
+	connection, err := dialer.DialContext(t.Context(), "tcp", os.Getenv("SCALE_LIFETIME_ADDRESS"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close() //nolint:errcheck // The process exits next; the test side observes the stream.
+	if err := json.NewEncoder(connection).Encode(os.Getpid()); err != nil {
+		t.Fatal(err)
+	}
+	if err := connection.SetReadDeadline(time.Now().Add(30 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	var control [1]byte
+	// A test closes its own socket on failure; no recycled numeric PID is signaled.
+	if _, err := connection.Read(control[:]); err == nil {
+		t.Fatal("unexpected fixture control byte")
 	}
 }

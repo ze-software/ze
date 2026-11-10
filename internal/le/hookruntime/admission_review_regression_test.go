@@ -48,7 +48,7 @@ func TestDaemonProofUsesCanonicalSourceBeforeExemptions(t *testing.T) {
 				writeHookFixture(t, root, "internal/le/neutral.go", "package neutral\n")
 				writeHookFixture(t, root, "internal/exabgp/bridge/bridge_status.go", "package bridge\n")
 				for name, target := range map[string]string{"runtime-alias": "../exabgp/bridge", "outside-alias": t.TempDir(), "broken-alias": "../absent-runtime"} {
-					if err := os.Symlink(target, filepath.Join(root, "internal/le", name)); err != nil {
+					if err := os.Symlink(target, filepath.Join(root, "internal", "le", name)); err != nil {
 						t.Fatal(err)
 					}
 				}
@@ -226,7 +226,7 @@ func TestSourceEditRefusedWhileClaimedSpecIsNotActive(t *testing.T) {
 				"| Field | Value |\n|---|---|\n| Status | "+test.status+" |\n")
 			code, message, found := Probe("writeSpecStatus", Payload{
 				SessionID: session, ToolName: toolWrite,
-				ToolInput: map[string]any{"file_path": filepath.Join(root, "internal/probe/probe.go"), "content": "package probe\n"},
+				ToolInput: map[string]any{"file_path": filepath.Join(root, "internal", "probe", "probe.go"), "content": "package probe\n"},
 			}, root)
 			if !found || code != test.want {
 				t.Fatalf("source edit under a %s spec = %d, found %v, want %d: %s", test.status, code, found, test.want, message)

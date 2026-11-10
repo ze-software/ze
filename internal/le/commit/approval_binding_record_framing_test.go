@@ -36,7 +36,7 @@ func assertOpaqueApprovalBindingCannotBeRepublished(t *testing.T, reason string)
 	if payload, code := rfc.Answer([]string{"approve", "commit", target, "unit", approvalUnit, "reason", reason}); code != 0 {
 		t.Fatalf("record first opaque verdict = (%#v, %d)", payload, code)
 	}
-	first := createApprovalPublication(t, target, approvalUnit)
+	first := createApprovalPublication(t, target)
 	runCommitScript(t, root, first.Script)
 	head := revParse(t, root, "HEAD")
 	message := "\n" + runCommitGitOutput(t, root, "show", "-s", "--format=%B", head) + "\n"

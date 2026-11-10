@@ -161,7 +161,7 @@ func answerReviewed(root, artifact string, facts commitFacts) error {
 		pin, err := selectedReviewFile(root, path, selection)
 		if err != nil {
 			unreadable = append(unreadable, err.Error())
-			return spec.ReviewedFile{Path: path, Hash: "UNREADABLE"}
+			return spec.ReviewedFile{Path: path, Hash: unreadableHash}
 		}
 		return pin
 	})

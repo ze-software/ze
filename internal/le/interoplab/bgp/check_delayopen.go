@@ -56,7 +56,7 @@ func checkDelayOpenFRR(ctx context.Context, check *interoplab.CheckContext) (res
 			evidence["capture-log"] = text
 			captured, captureErr := packetCaptureComplete(text, delayOpenPacketLimit)
 			resultErr = errors.Join(resultErr, readErr, captureErr)
-			encoded, readErr := check.Lab.Query(diagnostic, "ze", []string{"base64", delayOpenCapture}, nil)
+			encoded, readErr := check.Lab.Query(diagnostic, "ze", []string{cmdBase64, delayOpenCapture}, nil)
 			resultErr = errors.Join(resultErr, readErr)
 			if readErr == nil {
 				raw, decodeErr := base64.StdEncoding.DecodeString(strings.TrimSpace(encoded))
@@ -91,10 +91,10 @@ func checkDelayOpenFRR(ctx context.Context, check *interoplab.CheckContext) (res
 			command   []string
 		}{
 			{"ze", "rendered-ze.conf", []string{cmdCat, zeMountedConfig}},
-			{"ze", "ze-binary-sha256", []string{"sha256sum", "/usr/local/bin/ze"}},
+			{"ze", "ze-binary-sha256", []string{cmdSha256sum, zeBinaryPath}},
 			{"ze", "tcp-sockets", []string{"ss", "-tnp"}},
-			{peerFRR, "rendered-frr.conf", []string{cmdCat, "/etc/frr/frr.conf"}},
-			{peerFRRSink, "rendered-frr-sink.conf", []string{cmdCat, "/etc/frr/frr.conf"}},
+			{peerFRR, "rendered-frr.conf", []string{cmdCat, frrConfigPath}},
+			{peerFRRSink, "rendered-frr-sink.conf", []string{cmdCat, frrConfigPath}},
 			{peerFRR, "frr-version", []string{cmdVtysh, "-c", frrShowVersion}},
 			{peerFRRSink, "frr-sink-version", []string{cmdVtysh, "-c", frrShowVersion}},
 			{peerFRR, "frr-bgpd-pid", []string{cmdCat, frrBGPDPIDFile}},
@@ -213,7 +213,9 @@ func checkDelayOpenFRR(ctx context.Context, check *interoplab.CheckContext) (res
 func startDelayOpenCapture(ctx context.Context, lab interoplab.CheckerLab) error {
 	capture := packetCapture{base: delayOpenCaptureBase, filter: "ip and tcp port 179", seconds: 120, packets: delayOpenPacketLimit}
 	script, err := capture.command()
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	if err := lab.ExecDetached(ctx, "ze", []string{"sh", "-c", script}, nil); err != nil {
 		return err
 	}
@@ -223,7 +225,7 @@ func startDelayOpenCapture(ctx context.Context, lab interoplab.CheckerLab) error
 // stopDelayOpenCapture MUST complete before reading wire.pcap; a log without
 // the final captured/drop counters cannot support any negative timing claim.
 func stopDelayOpenCapture(ctx context.Context, lab interoplab.CheckerLab) error {
-	signal, err := lab.Exec(ctx, "ze", []string{"pkill", "-INT", "-x", "tcpdump"}, nil)
+	signal, err := lab.Exec(ctx, "ze", []string{"pkill", "-INT", "-x", cmdTcpdump}, nil)
 	if err != nil {
 		return err
 	}

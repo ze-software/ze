@@ -439,8 +439,8 @@ func copyTree(source, target string, keep func(string) bool) error {
 	if err != nil {
 		return err
 	}
-	defer sourceRoot.Close() //nolint:errcheck // Each acquisition owns its read verdict.
-	if err := os.MkdirAll(target, 0o755); err != nil {
+	defer sourceRoot.Close()                           //nolint:errcheck // Each acquisition owns its read verdict.
+	if err := os.MkdirAll(target, 0o755); err != nil { //nolint:gosec // published web content: a web server, often another account, serves these bytes
 		return err
 	}
 	targetRoot, err := os.OpenRoot(target)

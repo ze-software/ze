@@ -164,8 +164,13 @@ func assertTimeoutProcessStopped(t *testing.T, path string) {
 		t.Errorf("cannot observe child %d: %v", pid, err)
 		return
 	}
-	status, err := os.ReadFile(filepath.Join("/proc", strconv.Itoa(pid), "stat"))
+	status, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/stat")
 	if errors.Is(err, os.ErrNotExist) {
+		return
+	}
+	// A process that exits between the open and the read of its stat file
+	// answers ESRCH: it is gone, which is what this assertion wants.
+	if errors.Is(err, syscall.ESRCH) {
 		return
 	}
 	if err != nil {

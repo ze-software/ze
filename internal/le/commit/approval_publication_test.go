@@ -18,7 +18,7 @@ import (
 func TestExplicitApprovalPublicationRetainsUnselectedRows(t *testing.T) {
 	root, first, second := approvalPublicationFixture(t)
 	pending := readApprovalFile(t, root)
-	prepared := createApprovalPublication(t, "HEAD^", approvalUnit)
+	prepared := createApprovalPublication(t, "HEAD^")
 	if got := readApprovalFile(t, root); got != pending {
 		t.Fatal("preparation pruned pending approvals")
 	}
@@ -61,7 +61,7 @@ func TestFailedApprovalPublicationRetainsEveryPendingRow(t *testing.T) {
 	if got := readApprovalFile(t, root); got != pending {
 		t.Fatal("failed preparation changed pending approvals")
 	}
-	prepared := createApprovalPublication(t, first, approvalUnit)
+	prepared := createApprovalPublication(t, first)
 	before := revParse(t, root, "HEAD")
 	const refuseSwap = "#!/bin/bash\nif [ \"${1:-}\" = update-ref ]; then echo 'fixture refused publication' >&2; exit 1; fi\nexec \"$ZE_TEST_REAL_GIT\" \"$@\"\n"
 	output, err := runScriptWithGit(t, root, prepared.Script, refuseSwap)
@@ -110,9 +110,9 @@ func approvalPublicationFixture(t *testing.T) (root, first, second string) {
 	return root, first, second
 }
 
-func createApprovalPublication(t *testing.T, revision, unit string) *Prepared {
+func createApprovalPublication(t *testing.T, revision string) *Prepared {
 	t.Helper()
-	payload, code := Answer([]string{"create", "subject", "publish exact judge approval", "rfc-approval", revision, unit})
+	payload, code := Answer([]string{"create", "subject", "publish exact judge approval", "rfc-approval", revision, approvalUnit})
 	if code != 0 {
 		t.Fatalf("approval publication = (%#v, %d)", payload, code)
 	}

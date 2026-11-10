@@ -129,7 +129,8 @@ func startOrphanChild(t *testing.T, parent *Docker, suffix string, subnet int) o
 	if err != nil {
 		t.Fatalf("attribute the %s child's resources: %v", suffix, err)
 	}
-	command.Env = append(environ, orphanChildVariable+"="+suffix, "ZE_ORPHAN_TEST_SUBNET="+strconv.Itoa(subnet))
+	environ = append(environ, orphanChildVariable+"="+suffix, "ZE_ORPHAN_TEST_SUBNET="+strconv.Itoa(subnet))
+	command.Env = environ
 	command.Stderr = os.Stderr
 	stdout, err := command.StdoutPipe()
 	if err != nil {

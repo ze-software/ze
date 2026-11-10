@@ -98,7 +98,7 @@ func checkMixedUpdateWire(ctx context.Context, check *interoplab.CheckContext) e
 
 func mixedWaitBGP(ctx context.Context, lab interoplab.CheckerLab, prefix string, present bool) error {
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: 60 * time.Second, Interval: time.Second, Description: "FRR exact route " + prefix}, func(probe context.Context) (string, error) {
-		return lab.Query(probe, peerFRR, []string{cmdVtysh, "-c", "show bgp ipv4 unicast json"}, nil)
+		return lab.Query(probe, peerFRR, []string{cmdVtysh, "-c", showTableJSON}, nil)
 	}, func(answer string) bool {
 		found, measured := jsonHasRoute(answer, prefix)
 		return measured && found == present

@@ -44,6 +44,17 @@ const (
 	cmdGoBGP = "gobgp"
 	cmdCat   = "cat"
 	cmdPing  = "ping"
+	// cmdSha256sum, cmdTcpdump and cmdBase64 record a binary's identity, stop a
+	// capture and carry its octets out of the container as text.
+	cmdSha256sum = "sha256sum"
+	cmdTcpdump   = "tcpdump"
+	cmdBase64    = "base64"
+	// flagVersion asks a program for the version line the evidence records.
+	flagVersion = "--version"
+	// zeBinaryPath is where the Ze image installs the daemon binary, and
+	// frrConfigPath where an FRR container reads its rendered config.
+	zeBinaryPath  = "/usr/local/bin/ze"
+	frrConfigPath = "/etc/frr/frr.conf"
 	// leBinary is the entrypoint of a harness peer, and leTestWord the first
 	// word of its command: every harness command answers as `le test <name>`.
 	leBinary   = linuxle.Name

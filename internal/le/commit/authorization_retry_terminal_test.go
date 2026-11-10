@@ -52,7 +52,7 @@ func TestAttestationRefusalPreservesRetryOperation(t *testing.T) {
 	if problem != nil {
 		t.Fatal(problem)
 	}
-	if !sameAttestationRetryOptions(retry, options) {
+	if !sameAttestationRetryOptions(&retry, &options) {
 		t.Errorf("retry options = %+v, want %+v", retry, options)
 	}
 	t.Run("retry", func(t *testing.T) {
@@ -124,7 +124,8 @@ func TestPushRefusalPreservesRetryOperation(t *testing.T) {
 
 // sameAttestationRetryOptions compares every operand while treating nil and empty
 // slices as the same absence. Remaining fields retain full structural comparison.
-func sameAttestationRetryOptions(first, second Options) bool {
+func sameAttestationRetryOptions(firstOptions, secondOptions *Options) bool {
+	first, second := *firstOptions, *secondOptions
 	if !slices.Equal(first.Body, second.Body) {
 		return false
 	}

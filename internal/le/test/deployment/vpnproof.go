@@ -20,8 +20,8 @@ type vpnKernelReport struct {
 
 func (r vpnKernelReport) Text() string {
 	var out textbuf.Buffer
-	for _, report := range r.IPsec {
-		out.Str(report.Text()).Byte('\n')
+	for i := range r.IPsec {
+		out.Str(r.IPsec[i].Text()).Byte('\n')
 	}
 	out.Str("WireGuard kernel ping and no /sbin/modprobe: ")
 	if r.WireGuard.Code == 0 {

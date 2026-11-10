@@ -336,7 +336,11 @@ func TestLogRecentOwnsGroupedAttributes(t *testing.T) {
 		slog.Uint64("counter", 9007199254740993),
 		slog.Any("stringer", redactedStringLogSecret{Secret: "must-not-be-exposed"}),
 		slog.Any("secret", redactedLogSecret("must-not-be-exposed")))
-	details["ciphers"].([]string)[0] = "changed-after-Log"
+	ciphers, ok := details["ciphers"].([]string)
+	if !ok {
+		t.Fatalf("details ciphers: %T", details["ciphers"])
+	}
+	ciphers[0] = "changed-after-Log"
 	details["counter"] = uint64(0)
 	base.WithGroup("").Warn("ungrouped", "peer", "root")
 	right.Warn("sibling", "notify", "OTHER_REASON")
@@ -352,7 +356,10 @@ func TestLogRecentOwnsGroupedAttributes(t *testing.T) {
 		if response.Status != plugin.StatusDone {
 			t.Fatalf("log query: %s", response.Error)
 		}
-		payload := response.Data.(plugin.Map)
+		payload, ok := response.Data.(plugin.Map)
+		if !ok {
+			t.Fatalf("log query data: %T", response.Data)
+		}
 		encoded, err := json.Marshal(payload)
 		if err != nil {
 			t.Fatal(err)
@@ -381,11 +388,17 @@ func TestLogRecentOwnsGroupedAttributes(t *testing.T) {
 		if sibling.Attributes["session"] != nil || root.Attributes["session"] != nil || root.Attributes["other"] != nil {
 			t.Fatalf("group escaped its logger: %s", encoded)
 		}
-		other := sibling.Attributes["other"].(map[string]any)
+		other, ok := sibling.Attributes["other"].(map[string]any)
+		if !ok {
+			t.Fatalf("sibling group missing: %s", encoded)
+		}
 		if other["peer"] != "alternate" || root.Attributes["peer"] != "root" {
 			t.Fatalf("sibling fields changed: %s", encoded)
 		}
-		attrs := grouped.Attributes["session"].(map[string]any)
+		attrs, ok := grouped.Attributes["session"].(map[string]any)
+		if !ok {
+			t.Fatalf("grouped session missing: %s", encoded)
+		}
 		if attrs["peer"] != "responder" || attrs["notify"] != "NO_PROPOSAL_CHOSEN" ||
 			attrs["secret"] != "[REDACTED]" || attrs["stringer"] != "[REDACTED]" ||
 			attrs["empty"] != nil || attrs[""] != nil {
@@ -396,7 +409,18 @@ func TestLogRecentOwnsGroupedAttributes(t *testing.T) {
 			attrs["counter"] != json.Number("9007199254740993") {
 			t.Fatalf("captured values changed: %s", encoded)
 		}
-		entries := payload["entries"].([]map[string]any)
-		entries[2]["attributes"].(map[string]any)["session"].(map[string]any)["peer"] = "changed-query-result"
+		entries, ok := payload["entries"].([]map[string]any)
+		if !ok {
+			t.Fatalf("payload entries: %T", payload["entries"])
+		}
+		entryAttrs, ok := entries[2]["attributes"].(map[string]any)
+		if !ok {
+			t.Fatalf("entry attributes: %T", entries[2]["attributes"])
+		}
+		session, ok := entryAttrs["session"].(map[string]any)
+		if !ok {
+			t.Fatalf("entry session: %T", entryAttrs["session"])
+		}
+		session["peer"] = "changed-query-result"
 	}
 }

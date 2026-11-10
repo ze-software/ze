@@ -19,17 +19,17 @@ import (
 )
 
 type activityThemeSample struct {
-	Theme string `json:"theme"`
-	Card string `json:"card"`
-	Panel string `json:"panel"`
-	Ink string `json:"ink"`
-	Border string `json:"border"`
-	ExpectedCard string `json:"expectedCard"`
-	ExpectedPanel string `json:"expectedPanel"`
-	ExpectedInk string `json:"expectedInk"`
+	Theme          string `json:"theme"`
+	Card           string `json:"card"`
+	Panel          string `json:"panel"`
+	Ink            string `json:"ink"`
+	Border         string `json:"border"`
+	ExpectedCard   string `json:"expectedCard"`
+	ExpectedPanel  string `json:"expectedPanel"`
+	ExpectedInk    string `json:"expectedInk"`
 	ExpectedBorder string `json:"expectedBorder"`
-	Idle string `json:"idle"`
-	Active string `json:"active"`
+	Idle           string `json:"idle"`
+	Active         string `json:"active"`
 }
 
 // TestActivityStyleUsesTheme drives the generated activity page and deployed
@@ -39,18 +39,28 @@ type activityThemeSample struct {
 // fail the dark sample even when the page still contains its dark-theme rule.
 func TestActivityStyleUsesTheme(t *testing.T) {
 	paths := activityFixturePaths(t)
-	if _, err := renderActivityPage(paths); err != nil { t.Fatal(err) }
-	if err := renderCSS(paths.Source, paths.Output); err != nil { t.Fatal(err) }
-	if err := renderJS(paths.Source, paths.Output); err != nil { t.Fatal(err) }
+	if _, err := renderActivityPage(paths); err != nil {
+		t.Fatal(err)
+	}
+	if err := renderCSS(paths.Source, paths.Output); err != nil {
+		t.Fatal(err)
+	}
+	if err := renderJS(paths.Source, paths.Output); err != nil {
+		t.Fatal(err)
+	}
 	pagePath := filepath.Join(paths.Output, filepath.FromSlash(activityDest))
 	page, err := os.ReadFile(pagePath)
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	page = []byte(strings.Replace(string(page), "</body>", activityThemeObservation+"</body>", 1))
 	samples := make(chan []activityThemeSample, 1)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET "+activityRoute, func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if _, err := w.Write(page); err != nil { t.Errorf("serve activity: %v", err) }
+		if _, err := w.Write(page); err != nil {
+			t.Errorf("serve activity: %v", err)
+		}
 	})
 	mux.HandleFunc("POST /theme-observation", func(w http.ResponseWriter, r *http.Request) {
 		var observed []activityThemeSample
@@ -58,32 +68,64 @@ func TestActivityStyleUsesTheme(t *testing.T) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		select { case samples <- observed: default: t.Error("duplicate theme observation") }
+		select {
+		case samples <- observed:
+		default:
+			t.Error("duplicate theme observation")
+		}
 		w.WriteHeader(http.StatusNoContent)
 	})
 	mux.Handle("/", http.FileServer(http.Dir(paths.Output)))
 	server := httptest.NewServer(mux)
 	defer server.Close()
-	journey, err := webtesting.ParseWBFile("action=open:path="+activityRoute+"\nexpect=html:contains=theme-proof-complete\n")
-	if err != nil { t.Fatal(err) }
+	journey, err := webtesting.ParseWBFile("action=open:path=" + activityRoute + "\nexpect=html:contains=theme-proof-complete\n")
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
 	result := webtesting.RunWBCase(ctx, journey, server.URL, "")
-	if !result.Passed { t.Fatalf("activity Chromium journey: %s", result.Error) }
-	var observed []activityThemeSample
-	select { case observed = <-samples: case <-ctx.Done(): t.Fatal("Chromium did not return computed styles") }
-	if len(observed) != 2 { t.Fatalf("theme samples = %d, want light and dark", len(observed)) }
-	for idx, sample := range observed {
-		if sample.Theme != []string{"light", "dark"}[idx] { t.Errorf("theme sample %d = %q", idx, sample.Theme) }
-		if sample.Card != sample.ExpectedCard { t.Errorf("%s card = %s, theme surface %s", sample.Theme, sample.Card, sample.ExpectedCard) }
-		if sample.Panel != sample.ExpectedPanel { t.Errorf("%s panel = %s, theme surface %s", sample.Theme, sample.Panel, sample.ExpectedPanel) }
-		if sample.Ink != sample.ExpectedInk { t.Errorf("%s ink = %s, theme text %s", sample.Theme, sample.Ink, sample.ExpectedInk) }
-		if sample.Border != sample.ExpectedBorder { t.Errorf("%s border = %s, theme border %s", sample.Theme, sample.Border, sample.ExpectedBorder) }
-		if sample.Idle == sample.Active { t.Errorf("%s active and idle cells are indistinguishable", sample.Theme) }
+	if !result.Passed {
+		t.Fatalf("activity Chromium journey: %s", result.Error)
 	}
-	if observed[0].Card == observed[1].Card { t.Error("activity card did not respond to theme change") }
-	if observed[0].Ink == observed[1].Ink { t.Error("activity ink did not respond to theme change") }
-	if observed[0].Active == observed[1].Active { t.Error("activity heatmap did not respond to theme change") }
+	var observed []activityThemeSample
+	select {
+	case observed = <-samples:
+	case <-ctx.Done():
+		t.Fatal("Chromium did not return computed styles")
+	}
+	if len(observed) != 2 {
+		t.Fatalf("theme samples = %d, want light and dark", len(observed))
+	}
+	for idx, sample := range observed {
+		if sample.Theme != []string{"light", "dark"}[idx] {
+			t.Errorf("theme sample %d = %q", idx, sample.Theme)
+		}
+		if sample.Card != sample.ExpectedCard {
+			t.Errorf("%s card = %s, theme surface %s", sample.Theme, sample.Card, sample.ExpectedCard)
+		}
+		if sample.Panel != sample.ExpectedPanel {
+			t.Errorf("%s panel = %s, theme surface %s", sample.Theme, sample.Panel, sample.ExpectedPanel)
+		}
+		if sample.Ink != sample.ExpectedInk {
+			t.Errorf("%s ink = %s, theme text %s", sample.Theme, sample.Ink, sample.ExpectedInk)
+		}
+		if sample.Border != sample.ExpectedBorder {
+			t.Errorf("%s border = %s, theme border %s", sample.Theme, sample.Border, sample.ExpectedBorder)
+		}
+		if sample.Idle == sample.Active {
+			t.Errorf("%s active and idle cells are indistinguishable", sample.Theme)
+		}
+	}
+	if observed[0].Card == observed[1].Card {
+		t.Error("activity card did not respond to theme change")
+	}
+	if observed[0].Ink == observed[1].Ink {
+		t.Error("activity ink did not respond to theme change")
+	}
+	if observed[0].Active == observed[1].Active {
+		t.Error("activity heatmap did not respond to theme change")
+	}
 }
 
 // The observer selects the actual CSS theme and reports browser-resolved role

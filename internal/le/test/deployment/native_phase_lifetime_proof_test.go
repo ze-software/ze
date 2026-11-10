@@ -40,11 +40,11 @@ func TestNativeProofContextEntryAvailable(t *testing.T) {
 func TestNativeAppliancePhaseCancellationJoinsDescendants(t *testing.T) {
 	for _, phase := range []string{"database", "boot"} {
 		t.Run(phase, func(t *testing.T) {
-			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer listener.Close()
+			defer listener.Close() //nolint:errcheck // The test owns this listening socket.
 			self, err := os.Executable()
 			if err != nil {
 				t.Fatal(err)
@@ -61,14 +61,13 @@ func TestNativeAppliancePhaseCancellationJoinsDescendants(t *testing.T) {
 			defer func() {
 				stopForeign()
 				if err := foreign.Wait(); err != nil {
-					var exited *exec.ExitError
-					if !errors.As(err, &exited) {
+					if _, exited := errors.AsType[*exec.ExitError](err); !exited {
 						t.Error(err)
 					}
 				}
 			}()
 			sentinel := acceptScaleLifetime(t, listener)
-			defer sentinel.Close()
+			defer sentinel.Close() //nolint:errcheck // The test owns this accepted socket.
 			var sentinelPID int
 			if err := json.NewDecoder(sentinel).Decode(&sentinelPID); err != nil {
 				t.Fatal(err)
@@ -104,13 +103,13 @@ func TestNativeAppliancePhaseCancellationJoinsDescendants(t *testing.T) {
 				done <- err
 			}()
 			owned := acceptScaleLifetime(t, listener)
-			defer owned.Close()
+			defer owned.Close() //nolint:errcheck // The release below may already have closed it.
 			var ownedPID int
 			if err := json.NewDecoder(owned).Decode(&ownedPID); err != nil {
 				t.Fatal(err)
 			}
 			defer func() {
-				owned.Close()
+				owned.Close() //nolint:errcheck // Releasing the descendant; only the join below is asserted.
 				cancel()
 				select {
 				case <-done:
@@ -134,7 +133,7 @@ func TestNativeAppliancePhaseCancellationJoinsDescendants(t *testing.T) {
 			var one [1]byte
 			if _, err := owned.Read(one[:]); err == nil {
 				t.Error("owned descendant wrote after phase return")
-			} else if timeout, ok := err.(net.Error); ok && timeout.Timeout() {
+			} else if timeout, ok := errors.AsType[net.Error](err); ok && timeout.Timeout() {
 				t.Error("owned descendant survived production phase return")
 			}
 			if err := sentinel.SetReadDeadline(time.Now().Add(100 * time.Millisecond)); err != nil {
@@ -142,7 +141,7 @@ func TestNativeAppliancePhaseCancellationJoinsDescendants(t *testing.T) {
 			}
 			if _, err := sentinel.Read(one[:]); err == nil {
 				t.Error("foreign sentinel unexpectedly wrote")
-			} else if timeout, ok := err.(net.Error); !ok || !timeout.Timeout() {
+			} else if timeout, ok := errors.AsType[net.Error](err); !ok || !timeout.Timeout() {
 				t.Errorf("production phase touched foreign sentinel: %v", err)
 			}
 			if _, err := os.Stat(filepath.Join(bin, "later")); !errors.Is(err, os.ErrNotExist) {
