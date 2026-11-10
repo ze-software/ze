@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync/atomic"
 	"time"
 )
@@ -144,14 +145,55 @@ func GetCA(name string) *CACertEntry {
 	return get().caCerts[name]
 }
 
+// CAEntriesFor answers every configured ca entry whose certificate names the
+// same subject and holds the same public key as cert, sorted by name, and nil
+// when no entry does.
+//
+// The IKE engine asks it about each CA certificate on a peer chain it verified,
+// to find the revocation lists that speak for that CA (RFC 5280 Section 6.1.3,
+// engine/remote_cert_checks.go). A CRL's authority is its issuer name and the
+// key that signs it, so those two are what is compared, never the subject
+// alone: two CAs may share a name. Comparing the whole DER would miss a CA
+// certificate the authority reissued (same name and key, new validity or
+// serial) and the peer sent in place of the configured copy, and that CA's
+// lists would then be silently left out. Several entries may hold one CA under
+// different names, each with its own lists, so all of them are answered:
+// returning one would drop the lists of the others.
+func CAEntriesFor(cert *x509.Certificate) []*CACertEntry {
+	caCerts := get().caCerts
+	var names []string
+	for name, ca := range caCerts {
+		if ca.Certificate == nil {
+			continue
+		}
+		if !bytes.Equal(ca.Certificate.RawSubject, cert.RawSubject) {
+			continue
+		}
+		if bytes.Equal(ca.Certificate.RawSubjectPublicKeyInfo, cert.RawSubjectPublicKeyInfo) {
+			names = append(names, name)
+		}
+	}
+	if len(names) == 0 {
+		return nil
+	}
+	slices.Sort(names)
+	out := make([]*CACertEntry, 0, len(names))
+	for _, name := range names {
+		out = append(out, caCerts[name])
+	}
+	return out
+}
+
 // CRLPEM answers this CA's revocation lists concatenated as PEM documents, and
 // nil when the CA holds none.
 //
 // The two answers are read differently by the consumer, and that is the reason
 // this returns nil rather than an empty slice: no list means the CA cannot say
-// whether a certificate it issued is revoked, and an EAP-TLS 1.3 session
-// refuses on that (eap.checkChainRevocation, RFC 9190 Section 5.4). A list that
-// names no serial number says "not revoked" and completes the session.
+// whether a certificate it issued is revoked. An EAP-TLS 1.3 session refuses on
+// that (eap.checkChainRevocation, RFC 9190 Section 5.4), and an IKE peer chain
+// with no list on any of its CAs authenticates with a warning that its status
+// is unchecked (engine/remote_cert_checks.go). A list that names no serial
+// number says "not revoked" and completes either.
 func (e *CACertEntry) CRLPEM() []byte {
 	if len(e.RawCRLs) == 0 {
 		return nil

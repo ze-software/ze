@@ -462,6 +462,70 @@ SHA-1 signatures in that mode: enable RFC 7427 on the peer instead.
 <!-- source: internal/component/ike/engine/register_signature_ed448.go -- chooseEd448Signature, signEd448, verifyEd448 -->
 <!-- source: internal/component/ike/engine/auth_ecdsa.go -- signECDSAAuth -->
 
+### What a peer certificate must allow
+
+Ze refuses a peer certificate issued for another purpose, as RFC 4945 requires.
+The rules apply to the peer's own certificate, not to its CAs:
+
+| Extension in the peer certificate | Accepted when |
+|-----------------------------------|---------------|
+| no extendedKeyUsage | always |
+| extendedKeyUsage | it names id-kp-ipsecIKE (1.3.6.1.5.5.7.3.17) or anyExtendedKeyUsage, beside any other purpose |
+| no keyUsage | always |
+| keyUsage | it sets digitalSignature or nonRepudiation |
+
+A certificate whose extendedKeyUsage names only TLS purposes is refused. This
+includes a Let's Encrypt certificate (serverAuth, and on older ones
+clientAuth), and strongSwan's recipe for Windows clients,
+`pki --issue --flag serverAuth --flag ikeIntermediate`. strongSwan and
+libreswan accept such a peer, so a tunnel that worked against them can fail
+against Ze. The refusal names the extension found. To fix it, reissue the peer
+certificate with no extendedKeyUsage, or add id-kp-ipsecIKE to it. With
+openssl, put this line in the extension file given to `openssl x509 -req
+-extfile` or `openssl ca -extfile`:
+
+```
+extendedKeyUsage = 1.3.6.1.5.5.7.3.17
+```
+
+Add `serverAuth` after a comma when the same certificate also serves a Windows
+client. strongSwan's `pki --issue` cannot write id-kp-ipsecIKE: the extended key
+usages its `--flag` option writes are serverAuth, clientAuth, ikeIntermediate,
+ocspSigning and msSmartcardLogon only. Issue that certificate with openssl, or with
+strongSwan and no `--flag`, which writes no extendedKeyUsage.
+<!-- source: internal/component/ike/engine/cert_payload.go -- getRemoteCert -->
+
+### Revoking a peer certificate
+
+Ze checks a certificate peer against the revocation lists in the PKI store. To
+revoke a peer certificate, add the list its CA published to the `crl` of the
+`pki ca` entry that holds that CA:
+
+```
+pki {
+    ca corp-root { certificate "<pem>"; crl "<pem>"; }
+}
+```
+
+Ze then checks every certificate on the peer's chain, except the trust anchor,
+against the lists of each `pki ca` entry whose certificate is on that chain. A
+peer whose certificate is on a list is refused, and the log names the
+certificate, its serial number and the CA that revoked it. When the peer's
+certificate comes from an intermediate CA that the peer sends in its CERT
+payloads, add that intermediate as a `pki ca` entry with its own `crl`. It
+needs no other reference: Ze finds it on the chain.
+
+Once any `ca` on the chain holds a list, the check is strict. A certificate
+whose issuer has no current list is refused, so publish a fresh list before the
+`nextUpdate` of the one in the config passes. A list with a critical extension
+Ze cannot process (a delta CRL, an issuing distribution point) answers nothing
+and refuses the same way. When no `ca` on the chain holds a list, the peer
+authenticates and Ze logs a warning that its revocation status was not
+checked. Ze fetches no list from a CRL distribution point and asks no OCSP
+responder for an IKE peer.
+<!-- source: internal/component/pki/store.go -- CAEntriesFor -->
+<!-- source: internal/core/eap/revocation.go -- VerifyChainsNotRevoked, crlSet.currentListFrom -->
+
 An `eap-tls` peer whose EAP-TLS client sends its certificate without the
 intermediate that issued it can still authenticate. Store that intermediate as a
 PKI `ca` entry and name it in `intermediate-certificate`, a list. When Ze is the

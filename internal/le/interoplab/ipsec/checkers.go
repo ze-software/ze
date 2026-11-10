@@ -143,6 +143,14 @@ var scenarioCheckers = map[string]scenarioCheck{
 	// an Ed448 leaf from a CA Ze does not trust (eddsa.go).
 	"x509-ed448-ze-initiator": {run: checkEd448ZeSigns},
 	"x509-ed448-ze-responder": {run: checkEd448ZeVerifies},
+	// RFC 5280 Section 6.1.3 (a)(3) and RFC 4945 Section 5.1.3.12: Ze, as the
+	// initiator, checks strongSwan's certificate against its pki ca's revocation
+	// list and for its purpose. Each refusal has a twin that differs by one file
+	// and establishes (certpolicy.go).
+	"x509-crl-revoked-peer-ze-initiator":             {run: checkPeerCertificateRefused(zeRevokedCause)},
+	"x509-crl-unrevoked-peer-ze-initiator":           {run: checkPeerCertificateAccepted},
+	"x509-eku-server-auth-only-refused-ze-initiator": {run: checkPeerCertificateRefused(zeWrongPurposeCause)},
+	"x509-eku-ipsec-ike-ze-initiator":                {run: checkPeerCertificateAccepted},
 }
 
 // ScenarioNames returns every typed checker name in lexical selection order.

@@ -244,7 +244,31 @@ instead, which asks only that the implementation "MUST support the use of
 Certificate Revocation Lists (CRLs)", so a TLS 1.2 session with no list
 completes.
 
-<!-- source: internal/core/eap/revocation.go -- crlSet, parseCRLs, checkChainRevocation, crlSet.checkChain, crlSet.currentListFrom, revocationEntry -->
+**A list Ze cannot fully read answers nothing.** RFC 5280 Section 5.2: "If a CRL
+contains a critical extension that the application cannot process, then the
+application MUST NOT use that CRL to determine the status of certificates."
+Section 5.3 says the same of a critical entry extension. crypto/x509 keeps every
+CRL and entry extension with its critical flag and judges none of them, so
+`crlSet.currentListFrom` skips a list that carries any critical CRL extension
+(a delta CRL indicator, an issuing distribution point) or any critical entry
+extension, and the refusal names the extension's OID. Ze processes none of
+them, and Section 5.2.5 allows the status of a certificate the list does not
+name to be treated as unknown. Unknown is the stale-list case: under a
+configured source the chain is refused unless another current list from the
+same issuer answers. A non-critical extension Ze does not know is ignored.
+strongSwan is narrower: its `x509_crl.c` `parse` reads the delta CRL
+indicator itself and refuses a list with any other critical extension it does
+not handle (an issuing distribution point among them) while
+`x509.enforce_critical` is on, its default.
+
+**IKE certificate authentication uses the same judge.**
+`VerifyChainsNotRevoked` is the entry point the IKE engine calls for a peer
+chain, over the lists of every `pki ca` entry on that chain
+(`ipsec-6-ikev2-crypto.md`, "Peer certificate validation"). `checkChain` speaks
+for no protocol, and the EAP-TLS caller adds its own `eap-tls:` prefix and its
+RFC 9190 Section 5.4 reference.
+
+<!-- source: internal/core/eap/revocation.go -- crlSet, parseCRLs, checkChainRevocation, VerifyChainsNotRevoked, crlSet.checkChain, crlSet.currentListFrom, revocationEntry -->
 <!-- source: internal/component/ike/engine/responder_eap.go -- eapTLSServerConfig -->
 
 **One judge decides what an OCSP response says, whatever brought it.** A stapled

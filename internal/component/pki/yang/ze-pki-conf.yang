@@ -59,10 +59,16 @@ module ze-pki-conf {
                 description "Certificate revocation lists this CA issued, each an 'X509 CRL' PEM document or
                     base64-encoded DER. EAP-TLS on TLS 1.3 checks the revocation status of every certificate on a
                     peer's chain except the trust anchor. RFC 9190 Section 5.4 makes that check mandatory. An
-                    EAP-TLS peer that validates against this CA and finds no current list here is refused. Publish
-                    a fresh list before the nextUpdate of the one here passes: an expired list answers nothing
-                    about the present and refuses the same peers. A list that revokes nothing is a valid answer
-                    and is what a CA publishes while it has withdrawn no certificate.";
+                    EAP-TLS peer that validates against this CA and finds no current list here is refused. IKE
+                    certificate authentication also checks every certificate on a peer's chain, except the trust
+                    anchor, against the lists of each ca entry whose certificate is on that chain, once any such
+                    entry holds a list: a revoked certificate, or one whose issuer has no current list, is refused.
+                    An intermediate CA a peer's chain passes through is added as a ca entry with its own lists.
+                    Publish a fresh list before the nextUpdate of the one here passes: an expired list answers
+                    nothing about the present and refuses the same peers. A list that carries a critical extension
+                    Ze cannot process (a delta CRL indicator, an issuing distribution point, a critical entry
+                    extension) answers nothing either, per RFC 5280 Section 5.2. A list that revokes nothing is a
+                    valid answer and is what a CA publishes while it has withdrawn no certificate.";
                 ze:help "Certificate revocation lists this CA issued, each a PEM document or base64-encoded DER.";
             }
         }

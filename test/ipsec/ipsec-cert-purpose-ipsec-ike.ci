@@ -1,0 +1,203 @@
+# Functional test: a peer certificate whose extended key usage names serverAuth
+# AND id-kp-ipsecIKE authenticates an IKE SA, through two real ze daemons.
+# Spec: spec-ike-certificate-revocation-and-purpose, AC-2 (the permitted
+# survivor: id-kp-ipsecIKE beside any other purpose still authenticates).
+#
+# RFC 4945 Section 5.1.3.12: "If EKU present AND contains either id-kp-ipsecIKE
+# or anyExtendedKeyUsage, continue."
+#
+# ITS PAIR IS ipsec-cert-wrong-purpose.ci. The PKI differs by the responder's
+# certificate line alone: here serial 0x010003 carries serverAuth plus
+# id-kp-ipsecIKE, there serial 0x010004 carries serverAuth only, with the same
+# key, subject and SAN. This file also loads the engine-steps observer, which the
+# pair cannot use because nothing establishes there.
+#
+# Neither ca holds a crl, so this run also shows the other survivor of AC-1: a
+# peer whose chain meets no ca with a list authenticates.
+#
+# THE OBSERVABLE IS THE ESTABLISHED SA. aes-cbc appears in `show vpn ipsec sa`
+# on the initiator only once IKE_AUTH finished, which needs getRemoteCert
+# (engine/cert_payload.go) to accept the responder's certificate. A purpose check
+# that refused any EKU naming serverAuth, or that missed id-kp-ipsecIKE in a
+# list of two, turns this test red.
+option=env:var=ze_test_ike_port:value=$PORT2
+# noop dataplane: unprivileged XFRM install is EPERM-fatal by design
+# (engine/child.go); control-plane tests opt out of the kernel entirely.
+option=env:var=ze_test_ike_dataplane:value=noop
+option=timeout:value=60s
+
+# ── Responder daemon (background): x509 authentication on 127.0.0.2. Its ca
+# holds no crl, so it checks no revocation and accepts the initiator ──
+stdin=responder:terminator=EOF_RESPONDER
+pki {
+	ca ze-cert-test-ca {
+		certificate MIIBZzCCAQ2gAwIBAgIDAQABMAoGCCqGSM49BAMCMBoxGDAWBgNVBAMTD3plLWNlcnQtdGVzdC1jYTAeFw0yNjExMTAwMDAwMDBaFw00NjExMDUwMDAwMDBaMBoxGDAWBgNVBAMTD3plLWNlcnQtdGVzdC1jYTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABNhBLespVPL0EwOexWG1H7D71IdR7kZviaRhdR5qql3aTTI8ut6iUsPtjneHmx6q6xP0q0P9rAfda4hEMvm6YMijQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBQgQg6a+58PMvcN+5KThHnPEiaTZzAKBggqhkjOPQQDAgNIADBFAiBvD5g8Aac7z9aoC8lU/kxbHfMvE0EcPreXBXaCSQGL0wIhAMYosCHHJWw+EmE2xJM2464kdJSzsbzeV3z3xuSCkCM8
+	}
+	certificate ze-cert-responder {
+		certificate MIIBlzCCAT2gAwIBAgIDAQADMAoGCCqGSM49BAMCMBoxGDAWBgNVBAMTD3plLWNlcnQtdGVzdC1jYTAeFw0yNjExMTAwMDAwMDBaFw00NjExMDUwMDAwMDBaMBwxGjAYBgNVBAMTEXplLWNlcnQtcmVzcG9uZGVyMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAElvI2zWkIYG/Pd/CEZ5RE7MBdMw9ljF6mjduyA31dPHfDzLmBYvHSjAhMTCS36LW62UpbRzDYCRVs5mM7VehN8qNwMG4wHAYDVR0RBBUwE4IRemUtY2VydC1yZXNwb25kZXIwDgYDVR0PAQH/BAQDAgeAMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDETAfBgNVHSMEGDAWgBQgQg6a+58PMvcN+5KThHnPEiaTZzAKBggqhkjOPQQDAgNIADBFAiBR/h9NrkQWwTCpqo0EpNqTWgGBJoHrVW97B8/1W0WtDAIhAKfz5MifT3L1lEBRg7Dl4ISkFU51zwhTNB553m2QMHNe
+		private {
+			key MHcCAQEEIMgZHsiqQ6NBDGfi+tJaZQE4tg4hNzooTpbDXYer06PEoAoGCCqGSM49AwEHoUQDQgAElvI2zWkIYG/Pd/CEZ5RE7MBdMw9ljF6mjduyA31dPHfDzLmBYvHSjAhMTCS36LW62UpbRzDYCRVs5mM7VehN8g==
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 2.2.2.2
+			family {
+				ipv4/unicast { prefix { maximum 100; } }
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer initiator {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.2
+				remote-address 127.0.0.1
+				authentication {
+					mode x509
+					local-id "ze-cert-responder"
+					remote-id "ze-cert-initiator"
+					certificate ze-cert-responder
+					ca-certificate ze-cert-test-ca
+				}
+			}
+		}
+	}
+}
+EOF_RESPONDER
+
+# ── Initiator daemon (foreground): x509 authentication on 127.0.0.1, judging
+# the responder's certificate ──
+stdin=config:terminator=EOF_CONFIG
+plugin {
+	external engine-steps {
+		run "le mock engine-steps ./engine-steps.json"
+		encoder json
+	}
+}
+
+pki {
+	ca ze-cert-test-ca {
+		certificate MIIBZzCCAQ2gAwIBAgIDAQABMAoGCCqGSM49BAMCMBoxGDAWBgNVBAMTD3plLWNlcnQtdGVzdC1jYTAeFw0yNjExMTAwMDAwMDBaFw00NjExMDUwMDAwMDBaMBoxGDAWBgNVBAMTD3plLWNlcnQtdGVzdC1jYTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABNhBLespVPL0EwOexWG1H7D71IdR7kZviaRhdR5qql3aTTI8ut6iUsPtjneHmx6q6xP0q0P9rAfda4hEMvm6YMijQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBQgQg6a+58PMvcN+5KThHnPEiaTZzAKBggqhkjOPQQDAgNIADBFAiBvD5g8Aac7z9aoC8lU/kxbHfMvE0EcPreXBXaCSQGL0wIhAMYosCHHJWw+EmE2xJM2464kdJSzsbzeV3z3xuSCkCM8
+	}
+	certificate ze-cert-initiator {
+		certificate MIIBlzCCAT2gAwIBAgIDAQACMAoGCCqGSM49BAMCMBoxGDAWBgNVBAMTD3plLWNlcnQtdGVzdC1jYTAeFw0yNjExMTAwMDAwMDBaFw00NjExMDUwMDAwMDBaMBwxGjAYBgNVBAMTEXplLWNlcnQtaW5pdGlhdG9yMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErxoDb89FQUUzGqVpGpeeQhGjd6VFDZR9oW35DWBzOieE+4E3Zh02FPpP/0w97R4e7FOc60gQGfElGRgwDqx9rKNwMG4wHAYDVR0RBBUwE4IRemUtY2VydC1pbml0aWF0b3IwDgYDVR0PAQH/BAQDAgeAMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDETAfBgNVHSMEGDAWgBQgQg6a+58PMvcN+5KThHnPEiaTZzAKBggqhkjOPQQDAgNIADBFAiEA1us9p1EKoiJNNKMuEewEX8y9tiioIPMT0w8n+pL7vJ0CIDPRoifOqDZft8Q0a7WK4nLLMqT77GYq1IHZR9DSN+a6
+		private {
+			key MHcCAQEEIEfeLRWC9PEAtTrbIZ6AabjI+MQr8XbWb9cZJCFwC8XCoAoGCCqGSM49AwEHoUQDQgAErxoDb89FQUUzGqVpGpeeQhGjd6VFDZR9oW35DWBzOieE+4E3Zh02FPpP/0w97R4e7FOc60gQGfElGRgwDqx9rA==
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.1.1.1
+			family {
+				ipv4/unicast { prefix { maximum 100; } }
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-1 {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				authentication {
+					mode x509
+					local-id "ze-cert-initiator"
+					remote-id "ze-cert-responder"
+					certificate ze-cert-initiator
+					ca-certificate ze-cert-test-ca
+				}
+			}
+		}
+	}
+}
+EOF_CONFIG
+
+cmd=background:seq=1:exec=ze -:stdin=responder
+cmd=foreground:seq=2:exec=ze -:stdin=config:timeout=50s
+
+command=show vpn ipsec sa
+expect=output:contains=peer-1:timeout=30
+command=show vpn ipsec sa | json
+expect=output:contains=aes-cbc:timeout=30
+expect=output:contains=sha256:timeout=5
+expect=exit:code=0
+expect=stderr:contains=engine-steps: all steps passed
+reject=stderr:pattern=extended key usage
+reject=stderr:pattern=remote AUTH verification failed
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

@@ -178,3 +178,39 @@ restate them.
 <!-- source: internal/component/ike/engine/certbundle.go -- encodeCertBundle, decodeCertBundle -->
 <!-- source: internal/component/ike/engine/certurl.go -- splitHashAndURL, lookupHashAndURL, certURLDenied, certURLFetcher -->
 <!-- source: internal/component/ike/engine/cert_payload.go -- CERT and CERTREQ payload construction -->
+
+### Peer certificate validation
+
+`getRemoteCert` is the one producer of a certificate peer's identity. Every
+signature method reaches it before its AUTH check. It runs four checks in
+order, and any refusal ends IKE_AUTH with AUTHENTICATION_FAILED and installs no
+SA:
+
+1. **Path.** `x509.Certificate.Verify` builds the chain from the peer's leaf
+   through the intermediates its CERT payloads carry to the `ca-certificate`
+   anchor, and checks signatures, validity and name chaining. `KeyUsages` is
+   `ExtKeyUsageAny`, because Go cannot name id-kp-ipsecIKE there and RFC 5280
+   puts no extended key usage rule on a CA. Verify judges no purpose.
+2. **Purpose of the leaf, RFC 4945.** A keyUsage extension that is present
+   must set digitalSignature or nonRepudiation (Section 5.1.3.2). An
+   extendedKeyUsage extension that is present must name id-kp-ipsecIKE
+   (1.3.6.1.5.5.7.3.17) or anyExtendedKeyUsage (Section 5.1.3.12, "Otherwise,
+   reject cert."). A leaf with neither extension passes. A leaf whose EKU names
+   serverAuth or clientAuth alone is refused, though strongSwan and libreswan
+   accept it.
+3. **Revocation, RFC 5280 Section 6.1.3 (a)(3).** The source is the `crl`
+   leaf-list of every `pki ca` entry whose certificate is on a chain Verify
+   returned, matched by subject and public key (`pki.CAEntriesFor`), so a CA
+   certificate the authority reissued under the same name and key still finds
+   its entry. When no such entry holds a list, the peer authenticates and Ze logs
+   a Warn that names the missing source, as strongSwan's default
+   `revocation = relaxed` does. When any entry holds one, the check is strict
+   over every chain: a revoked certificate is refused (`was revoked by`), and a
+   certificate whose issuer has no current usable list is refused (`no current
+   certificate revocation list`). The anchor is never checked. The judgement is
+   the one EAP-TLS uses, `eap.VerifyChainsNotRevoked`, so a list one protocol
+   refuses the other refuses too (`ipsec-11-interop-eap.md`).
+4. **Identity.** `remote-id` binds the certificate to the configured peer.
+
+<!-- source: internal/component/ike/engine/cert_payload.go -- getRemoteCert -->
+<!-- source: internal/core/eap/revocation.go -- VerifyChainsNotRevoked, crlSet.checkChain -->

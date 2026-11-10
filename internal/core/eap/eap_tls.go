@@ -486,7 +486,7 @@ func newTLSMethod(config MethodConfig) (*tlsMethod, error) {
 	// refused peer whose certificate is in fact valid.
 	crls, err := parseCRLs(config.CRLPEM)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("eap-tls: %w", err)
 	}
 
 	pool := x509.NewCertPool()

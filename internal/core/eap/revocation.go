@@ -1,6 +1,8 @@
 // Design: docs/architecture/ike/ipsec-11-interop-eap.md -- EAP-TLS certificate revocation
 // Detail: eap_tls.go -- the authenticator's tls.Config; peer.go -- the peer's
+// Related: ../../component/ike/engine/remote_cert_checks.go -- the IKE peer chain check that calls VerifyChainsNotRevoked
 // RFC: rfc/short/rfc9190.md -- Section 5.4; rfc/short/rfc5216.md -- Section 5.4
+// RFC: rfc/short/rfc5280.md -- Sections 5.2, 5.2.5, 5.3 and 6.1.3
 
 package eap
 
@@ -73,17 +75,17 @@ func parseCRLs(pemBytes []byte) (crlSet, error) {
 			break
 		}
 		if block.Type != pemBlockCRL {
-			return crlSet{}, fmt.Errorf("eap-tls: revocation material holds a %q PEM block, want %q", block.Type, pemBlockCRL)
+			return crlSet{}, fmt.Errorf("revocation material holds a %q PEM block, want %q", block.Type, pemBlockCRL)
 		}
 		list, err := x509.ParseRevocationList(block.Bytes)
 		if err != nil {
-			return crlSet{}, fmt.Errorf("eap-tls: parse certificate revocation list: %w", err)
+			return crlSet{}, fmt.Errorf("parse certificate revocation list: %w", err)
 		}
 		set.lists = append(set.lists, list)
 	}
 
 	if !set.configured() {
-		return crlSet{}, fmt.Errorf("eap-tls: the configured revocation material holds no %q PEM block", pemBlockCRL)
+		return crlSet{}, fmt.Errorf("the configured revocation material holds no %q PEM block", pemBlockCRL)
 	}
 	return set, nil
 }
@@ -131,6 +133,51 @@ func checkChainRevocation(crls crlSet, chains [][]*x509.Certificate, version uin
 
 	for _, chain := range chains {
 		if err := crls.checkChain(chain, now); err != nil {
+			// checkChain speaks for no protocol, because IKE reaches it too
+			// (VerifyChainsNotRevoked). The role and the obligation it
+			// discharges are this caller's to name.
+			return fmt.Errorf("eap-tls: %w (RFC 9190 Section 5.4)", err)
+		}
+	}
+	return nil
+}
+
+// VerifyChainsNotRevoked checks every certificate on every chain, the trust
+// anchor of each excepted, against the revocation lists in crlPEM, and answers
+// an error naming the first certificate that is revoked or whose status the
+// lists cannot answer.
+//
+// It is the entry point for a relying party outside EAP-TLS, the IKE engine's
+// peer certificate check, and it implements RFC 5280 Section 6.1.3 (a)(3) for
+// that caller: "At the current time, the certificate is not revoked." It runs
+// the same per-certificate judgement checkChainRevocation runs for EAP-TLS, so
+// a list one protocol refuses the other refuses too.
+//
+// It never answers "not revoked" for a question it could not ask. Empty
+// material, material with no list in it, and an empty set of chains are each an
+// error: the caller decides whether a missing source is acceptable BEFORE it
+// calls, and a nil from here means every certificate was checked.
+//
+// chains are leaf first and trust anchor last, as x509.Certificate.Verify
+// returns them. Safe for concurrent use: it reads its arguments only.
+func VerifyChainsNotRevoked(crlPEM []byte, chains [][]*x509.Certificate, now time.Time) error {
+	crls, err := parseCRLs(crlPEM)
+	if err != nil {
+		return err
+	}
+	if !crls.configured() {
+		return errors.New(
+			"certificate revocation: no revocation list was given, so the revocation status of the chain cannot be checked. " +
+				"Add the issuing CA's CRL to the pki ca that holds that CA")
+	}
+	if len(chains) == 0 {
+		// The chain is what the check is ABOUT, so an empty set is a failure to
+		// check and never a clean result (ai/rules/principles.md).
+		return errors.New("certificate revocation: no verified certificate chain to check the revocation status of")
+	}
+	for _, chain := range chains {
+		// RFC 5280 Section 6.1.3
+		if err := crls.checkChain(chain, now); err != nil {
 			return err
 		}
 	}
@@ -144,53 +191,150 @@ func checkChainRevocation(crls crlSet, chains [][]*x509.Certificate, version uin
 // last, so chain[i+1] issued chain[i] and the last element is the anchor
 // Section 5.4 excepts. A chain of one element is that anchor on its own, and the
 // loop correctly asks nothing about it.
+//
+// Its messages name no protocol and cite no protocol RFC: EAP-TLS
+// (checkChainRevocation) and IKE (VerifyChainsNotRevoked) both reach it, and
+// each caller adds its own role and the obligation it discharges.
 func (s crlSet) checkChain(chain []*x509.Certificate, now time.Time) error {
 	for i := 0; i+1 < len(chain); i++ {
 		cert := chain[i]
 		issuer := chain[i+1]
 
-		list := s.currentListFrom(issuer, now)
-		if list == nil {
+		list, err := s.currentListFrom(issuer, now)
+		if err != nil {
 			return fmt.Errorf(
-				"eap-tls: no current certificate revocation list signed by %q, so the revocation status of %q cannot be checked "+
-					"(RFC 9190 Section 5.4). Add that CA's CRL, and re-add it after its nextUpdate passes",
-				issuer.Subject, cert.Subject)
+				"no current certificate revocation list signed by %q, so the revocation status of certificate %q (serial %s) is unknown: %w",
+				issuer.Subject, cert.Subject, cert.SerialNumber, err)
 		}
 
 		entry, revoked := revocationEntry(list, cert)
 		if revoked {
 			return fmt.Errorf(
-				"eap-tls: certificate %q (serial %s) was revoked by %q at %s (RFC 9190 Section 5.4)",
-				cert.Subject, cert.SerialNumber, issuer.Subject, entry.RevocationTime.UTC().Format(time.RFC3339))
+				"certificate %q (serial %s) was revoked by %q at %s, %s. Issue that party a new certificate",
+				cert.Subject, cert.SerialNumber, issuer.Subject, entry.RevocationTime.UTC().Format(time.RFC3339), crlName(list))
 		}
 	}
 	return nil
 }
 
-// currentListFrom answers the configured revocation list that issuer signed and
-// that still speaks for now, or nil when none does.
+// errNoListNamesIssuer is why an issuer's status cannot be read when no
+// configured list names it as its issuer at all.
+var errNoListNamesIssuer = errors.New(
+	"no configured list names that CA as its issuer. Add that CA's CRL to the pki ca that holds it, " +
+		"adding the CA as a pki ca with its crl when no entry holds it yet, and re-add the list after its nextUpdate passes")
+
+// currentListFrom answers the configured revocation list that issuer signed,
+// that still speaks for now, and that Ze can read in full. When no list does,
+// it answers why, so the refusal names what the operator must change.
 //
-// Three properties are required together, and any one of them alone would let an
-// unrelated document answer for this issuer. The list names the issuer as its own
-// issuer. The issuer's key signed it, so a list an attacker substituted is not
-// read. And its nextUpdate has not passed: RFC 5280 Section 5.1.2.5 defines that
-// field as "the date by which the next CRL will be issued", so a list past it
-// says nothing about the present. nextUpdate is optional in that section, and a
-// list without one never goes stale.
-func (s crlSet) currentListFrom(issuer *x509.Certificate, now time.Time) *x509.RevocationList {
+// Four properties are required together, and any one of them alone would let an
+// unrelated or partly read document answer for this issuer. The list names the
+// issuer as its own issuer. The issuer's key signed it, so a list an attacker
+// substituted is not read. Its nextUpdate has not passed: RFC 5280 Section
+// 5.1.2.5 defines that field as "the date by which the next CRL will be
+// issued", so a list past it says nothing about the present. nextUpdate is
+// optional in that section, and a list without one never goes stale. And it
+// carries no critical extension, at list level or on any entry, because Ze
+// processes none (criticalExtension).
+//
+// When several of the issuer's lists fail, the reason given is the one from the
+// list that came closest to answering: a list that failed only on a critical
+// extension says more about the fix than one signed by another key.
+func (s crlSet) currentListFrom(issuer *x509.Certificate, now time.Time) (*x509.RevocationList, error) {
+	unusable := errNoListNamesIssuer
+	closest := 0
 	for _, list := range s.lists {
 		if !bytes.Equal(list.RawIssuer, issuer.RawSubject) {
 			continue
 		}
 		if err := list.CheckSignatureFrom(issuer); err != nil {
+			if closest < 1 {
+				closest = 1
+				unusable = fmt.Errorf(
+					"a list naming that CA as its issuer is not signed by its key (%w). Add the CRL that CA itself published",
+					err)
+			}
 			continue
 		}
 		if !list.NextUpdate.IsZero() && now.After(list.NextUpdate) {
+			if closest < 2 {
+				closest = 2
+				unusable = fmt.Errorf(
+					"its %s passed its nextUpdate at %s. Publish a fresh CRL from that CA and add it to the pki ca that holds it",
+					crlName(list), list.NextUpdate.UTC().Format(time.RFC3339))
+			}
 			continue
 		}
-		return list
+		// RFC 5280 Section 5.2: "If a CRL contains a critical extension that
+		// the application cannot process, then the application MUST NOT use
+		// that CRL to determine the status of certificates."
+		// RFC 5280 Section 5.3: "If a CRL contains a critical CRL entry
+		// extension that the application cannot process, then the application
+		// MUST NOT use that CRL to determine the status of any certificates."
+		// RFC 5280 Section 5.2.5: "However, implementations that do not support
+		// this extension MUST either treat the status of any certificate not
+		// listed on this CRL as unknown or locate another CRL that does not
+		// contain any unrecognized critical extensions."
+		// Ze processes no CRL or entry extension that may be critical
+		// (issuingDistributionPoint 2.5.29.28, deltaCRLIndicator 2.5.29.27 and
+		// certificateIssuer 2.5.29.29 included), and crypto/x509 records them
+		// without judging the flag. So such a list is skipped, the next list
+		// from the issuer is located by this loop, and when none answers the
+		// status is unknown, which the caller refuses.
+		if where, critical := criticalExtension(list); critical {
+			if closest < 3 {
+				closest = 3
+				unusable = fmt.Errorf(
+					"its %s carries the critical %s, which Ze does not process, so RFC 5280 Section 5.2 forbids using that list. "+
+						"Publish a complete CRL without a delta CRL indicator or issuing distribution point and add it to the pki ca that holds that CA",
+					crlName(list), where)
+			}
+			continue
+		}
+		return list, nil
 	}
-	return nil
+	return nil, unusable
+}
+
+// criticalExtension answers the first extension of a list, at list level or on
+// one of its entries, that is marked critical, described for an operator, and
+// whether there is one.
+//
+// Every critical extension counts, whatever its OID, because Ze implements the
+// processing of none: crypto/x509 reads the CRL number and the authority key
+// identifier for its own use and records the rest unjudged
+// (x509.ParseRevocationList), and nothing in Ze reads them further. A
+// non-critical extension is ignored, which RFC 5280 Sections 5.2 and 5.3 allow.
+func criticalExtension(list *x509.RevocationList) (string, bool) {
+	for _, ext := range list.Extensions {
+		if ext.Critical {
+			return "CRL extension " + ext.Id.String(), true
+		}
+	}
+	for _, entry := range list.RevokedCertificateEntries {
+		for _, ext := range entry.Extensions {
+			if !ext.Critical {
+				continue
+			}
+			serial := "with no serial number"
+			if entry.SerialNumber != nil {
+				serial = "for serial " + entry.SerialNumber.String()
+			}
+			return "CRL entry extension " + ext.Id.String() + " on the entry " + serial, true
+		}
+	}
+	return "", false
+}
+
+// crlName names a list for an operator: its issuer is named by the caller, so
+// this adds the CRL number RFC 5280 Section 5.2.3 gives each list, which tells
+// two lists from the same issuer apart. A list without the extension is named
+// as such rather than as number zero.
+func crlName(list *x509.RevocationList) string {
+	if list.Number == nil {
+		return "CRL with no CRL number"
+	}
+	return "CRL number " + list.Number.String()
 }
 
 // revocationEntry answers the list's entry for a certificate, and whether the

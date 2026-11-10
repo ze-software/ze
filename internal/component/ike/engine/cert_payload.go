@@ -4,6 +4,7 @@
 // Related: certurl.go -- the bounded fetcher a Hash and URL payload is resolved through
 // Related: certbundle.go -- the X.509 bundle codec the encoding-13 form carries
 // Related: remote_id.go -- the identity binding applied to the certificate this returns
+// Related: remote_cert_checks.go -- the RFC 4945 purpose check and the RFC 5280 revocation check getRemoteCert runs
 
 package engine
 
@@ -262,18 +263,20 @@ func getRemoteCert(sa *SA) (*x509.Certificate, error) {
 			sa.PeerName, cert.Issuer.String())
 	}
 
-	// KeyUsages is stated rather than inherited. An empty field means
-	// ExtKeyUsageServerAuth in crypto/x509, and an IKE peer is not a TLS server. That
-	// default accepts a certificate with no extension, which is what gen-pki.sh mints,
-	// and refuses one that names clientAuth alone or strongSwan's id-kp-ipsecIKE from
-	// "pki --issue --flag ike". RFC 7296 puts no extended key usage rule on a peer
-	// certificate, so ze imposes none. internal/component/pki/store.go states the same
-	// value for the same reason.
-	if _, err := cert.Verify(x509.VerifyOptions{
+	// KeyUsages is stated rather than inherited, and it admits any purpose here
+	// because the purpose is judged after Verify, on the leaf, by RFC 4945's rule
+	// (checkIKEPurpose). An empty field means ExtKeyUsageServerAuth in crypto/x509,
+	// and an IKE peer is not a TLS server. Verify cannot judge the IKE purpose
+	// itself: Go has no ExtKeyUsage value for id-kp-ipsecIKE, so it cannot be named
+	// in KeyUsages, and Verify also requires every CA on the path to allow the
+	// purpose, an EKU nesting rule RFC 5280 does not state and RFC 4945 does not
+	// apply to the CAs above the end-entity certificate.
+	chains, err := cert.Verify(x509.VerifyOptions{
 		Roots:         pool,
 		Intermediates: intermediates,
 		KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
-	}); err != nil {
+	})
+	if err != nil {
 		// The count is the actionable part. "signed by unknown authority" with no
 		// intermediate offered means the peer must send its chain. The same text with
 		// intermediates offered means the chain does not reach ca-certificate
@@ -282,6 +285,18 @@ func getRemoteCert(sa *SA) (*x509.Certificate, error) {
 			"ike auth: remote certificate validation against %s %q, "+
 				"with %d intermediate certificate(s) supplied by peer %q: %w",
 			sa.remoteLeafName(remoteLeafCACertificate), caName, supplied, sa.PeerName, err)
+	}
+
+	// RFC 5280 Section 4.2.1.12
+	if err := checkIKEPurpose(cert); err != nil {
+		return nil, fmt.Errorf("ike auth: peer %q presented certificate %q (serial %s), and %w",
+			sa.PeerName, cert.Subject.String(), cert.SerialNumber, err)
+	}
+
+	// RFC 5280 Section 6.1.3. Every chain Verify built is checked, because the
+	// peer chooses which intermediates it sends and so which paths exist.
+	if err := checkPeerChainRevocation(sa, caName, chains); err != nil {
+		return nil, err
 	}
 
 	// The chain proves the authority issued this certificate. It does not prove the

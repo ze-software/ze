@@ -1283,7 +1283,7 @@ func (ps *PeerSession) startTLSClient() error {
 	// refused authenticator whose certificate is in fact valid.
 	crls, err := parseCRLs(ps.tlsCfg.CRLPEM)
 	if err != nil {
-		return err
+		return fmt.Errorf("eap-tls: %w", err)
 	}
 	check := &serverChainCheck{roots: rootCAs, crls: crls, requireStatus: ps.tlsCfg.CertificateStatusRequest}
 	ps.serverCheck = check

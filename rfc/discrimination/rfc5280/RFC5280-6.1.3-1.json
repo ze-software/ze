@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5280-6.1.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc5280_ike_revocation_test.go::TestRFC5280Section613RevokedIKEPeerRefused",
+    "unit-sha": "0c833080ea02079a",
+    "claim-sha": "39cc3f39ab0338c4",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/remote_cert_checks.go::checkPeerChainRevocation",
+    "producer-sha": "60ad30a342d83cfa",
+    "break": "body of checkPeerChainRevocation replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5280-6.1.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc5280_ike_revocation_test.go::TestRFC5280Section613RevokedIKEPeerRefused",
+    "unit-sha": "0c833080ea02079a",
+    "claim-sha": "c672e2c9cde6f07b",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/remote_cert_checks.go::checkPeerChainRevocation",
+    "producer-sha": "60ad30a342d83cfa",
+    "break": "body of checkPeerChainRevocation replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

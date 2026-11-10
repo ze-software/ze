@@ -67,6 +67,19 @@ whose revocation status nothing can answer, and completes for one a current list
 says nothing about. RFC 9190 Section 5.4 is what makes the check mandatory, and
 `internal/core/eap/revocation.go` performs it for both EAP-TLS roles.
 
+**IKE certificate authentication reads the same lists.** For each CA
+certificate on a peer chain it verified, the IKE engine asks `CAEntriesFor` for
+every `ca` entry holding that certificate, compared on the DER and never on the
+subject, and checks the chain against all their lists (RFC 5280 Section 6.1.3).
+An intermediate CA the peer sends in its CERT payloads is a revocation source
+only when it is also configured as a `ca` entry with its own `crl`. When no `ca`
+on the chain holds a list, the peer authenticates and Ze logs that its status
+is unchecked; once one does, a revoked certificate or an issuer with no current
+list refuses the peer (`docs/architecture/ike/ipsec-6-ikev2-crypto.md`, "Peer
+certificate validation"). There is no IKE-level revocation leaf.
+
+<!-- source: internal/component/pki/store.go -- CAEntriesFor, CACertEntry.CRLPEM -->
+
 **A certificate carries the OCSP response that speaks for IT, in an
 `ocsp-response` leaf.** A revocation list belongs to the CA that signed it and an
 OCSP response answers about one certificate, so the two live in different blocks

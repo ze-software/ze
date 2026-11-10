@@ -1,0 +1,213 @@
+# Functional test: an operator revokes a peer's certificate by adding the CA's
+# CRL to `pki ca <name> crl`, and the IKE initiator refuses that peer, through
+# two real ze daemons. Spec: spec-ike-certificate-revocation-and-purpose, AC-1,
+# user story 1.
+#
+# RFC 5280 Section 6.1.3 (a)(3): "At the current time, the certificate is not
+# revoked." Two unprivileged ze instances negotiate IKEv2 over loopback with
+# x509 authentication. The initiator's ca ze-cert-test-ca holds a CRL that
+# lists serial 0x010003, the responder's certificate ze-cert-responder. The ca
+# is on the chain the initiator verifies, so its list is the revocation source
+# getRemoteCert (engine/cert_payload.go) consults, and the certificate it lists
+# fails IKE_AUTH.
+#
+# ITS PAIR IS ipsec-cert-crl-unrevoked.ci. Its PKI is this one with the crl line
+# swapped for a list from the same CA that revokes only 0x010005, a serial no
+# certificate here carries, and there the SA establishes. A check that refused
+# every chain under a configured list would pass this test and fail that one;
+# a check that never read the list would do the reverse.
+#
+# WHAT MAKES IT FAIL. With the revocation check removed from getRemoteCert the
+# initiator accepts the responder: the await below never sees `was revoked by`
+# and times out, and the initiator logs "ike: SA established", which the reject
+# refuses. The expects name the initiator's own refusal line and the revoked
+# certificate, so a failure for another reason (a bad chain, a remote-id
+# mismatch, a dead responder) reads as a red.
+#
+# THE RESPONDER ESTABLISHES ITS SIDE. It verifies the initiator first, finds no
+# list on its own ca, and answers IKE_AUTH; only then does the initiator judge
+# the responder's certificate. So the observable is the initiator's log, never
+# an absence of SAs on both ends, and the reject names the initiator's line
+# ("ike: SA established"), which the responder's "ike: responder ..." lines do
+# not match. The needles carry no colon followed by a key, because the .ci
+# parser splits a directive there (docs/architecture/testing/ci-format.md).
+# The initiator's "ike: SA established" line, which the reject below refuses, is
+# logged at Info, and the default level is WARN.
+option=env:var=ze_log_ike:value=info
+option=env:var=ze_test_ike_port:value=$PORT2
+# noop dataplane: unprivileged XFRM install is EPERM-fatal by design
+# (engine/child.go); control-plane tests opt out of the kernel entirely.
+option=env:var=ze_test_ike_dataplane:value=noop
+option=timeout:value=60s
+
+# ── Responder daemon (background): x509 authentication on 127.0.0.2. Its ca
+# holds no crl, so it checks no revocation and accepts the initiator ──
+stdin=responder:terminator=EOF_RESPONDER
+pki {
+	ca ze-cert-test-ca {
+		certificate MIIBZzCCAQ2gAwIBAgIDAQABMAoGCCqGSM49BAMCMBoxGDAWBgNVBAMTD3plLWNlcnQtdGVzdC1jYTAeFw0yNjExMTAwMDAwMDBaFw00NjExMDUwMDAwMDBaMBoxGDAWBgNVBAMTD3plLWNlcnQtdGVzdC1jYTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABNhBLespVPL0EwOexWG1H7D71IdR7kZviaRhdR5qql3aTTI8ut6iUsPtjneHmx6q6xP0q0P9rAfda4hEMvm6YMijQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBQgQg6a+58PMvcN+5KThHnPEiaTZzAKBggqhkjOPQQDAgNIADBFAiBvD5g8Aac7z9aoC8lU/kxbHfMvE0EcPreXBXaCSQGL0wIhAMYosCHHJWw+EmE2xJM2464kdJSzsbzeV3z3xuSCkCM8
+	}
+	certificate ze-cert-responder {
+		certificate MIIBlzCCAT2gAwIBAgIDAQADMAoGCCqGSM49BAMCMBoxGDAWBgNVBAMTD3plLWNlcnQtdGVzdC1jYTAeFw0yNjExMTAwMDAwMDBaFw00NjExMDUwMDAwMDBaMBwxGjAYBgNVBAMTEXplLWNlcnQtcmVzcG9uZGVyMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAElvI2zWkIYG/Pd/CEZ5RE7MBdMw9ljF6mjduyA31dPHfDzLmBYvHSjAhMTCS36LW62UpbRzDYCRVs5mM7VehN8qNwMG4wHAYDVR0RBBUwE4IRemUtY2VydC1yZXNwb25kZXIwDgYDVR0PAQH/BAQDAgeAMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDETAfBgNVHSMEGDAWgBQgQg6a+58PMvcN+5KThHnPEiaTZzAKBggqhkjOPQQDAgNIADBFAiBR/h9NrkQWwTCpqo0EpNqTWgGBJoHrVW97B8/1W0WtDAIhAKfz5MifT3L1lEBRg7Dl4ISkFU51zwhTNB553m2QMHNe
+		private {
+			key MHcCAQEEIMgZHsiqQ6NBDGfi+tJaZQE4tg4hNzooTpbDXYer06PEoAoGCCqGSM49AwEHoUQDQgAElvI2zWkIYG/Pd/CEZ5RE7MBdMw9ljF6mjduyA31dPHfDzLmBYvHSjAhMTCS36LW62UpbRzDYCRVs5mM7VehN8g==
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 2.2.2.2
+			family {
+				ipv4/unicast { prefix { maximum 100; } }
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer initiator {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.2
+				remote-address 127.0.0.1
+				authentication {
+					mode x509
+					local-id "ze-cert-responder"
+					remote-id "ze-cert-initiator"
+					certificate ze-cert-responder
+					ca-certificate ze-cert-test-ca
+				}
+			}
+		}
+	}
+}
+EOF_RESPONDER
+
+# ── Initiator daemon (foreground): x509 authentication on 127.0.0.1, judging
+# the responder's certificate ──
+stdin=config:terminator=EOF_CONFIG
+pki {
+	ca ze-cert-test-ca {
+		certificate MIIBZzCCAQ2gAwIBAgIDAQABMAoGCCqGSM49BAMCMBoxGDAWBgNVBAMTD3plLWNlcnQtdGVzdC1jYTAeFw0yNjExMTAwMDAwMDBaFw00NjExMDUwMDAwMDBaMBoxGDAWBgNVBAMTD3plLWNlcnQtdGVzdC1jYTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABNhBLespVPL0EwOexWG1H7D71IdR7kZviaRhdR5qql3aTTI8ut6iUsPtjneHmx6q6xP0q0P9rAfda4hEMvm6YMijQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBQgQg6a+58PMvcN+5KThHnPEiaTZzAKBggqhkjOPQQDAgNIADBFAiBvD5g8Aac7z9aoC8lU/kxbHfMvE0EcPreXBXaCSQGL0wIhAMYosCHHJWw+EmE2xJM2464kdJSzsbzeV3z3xuSCkCM8
+		crl MIHrMIGSAgEBMAoGCCqGSM49BAMCMBoxGDAWBgNVBAMTD3plLWNlcnQtdGVzdC1jYRcNMjYxMTEwMDAwMDAwWhcNNDYxMTA1MDAwMDAwWjAWMBQCAwEAAxcNMjYxMTEwMDAwMDAwWqAvMC0wHwYDVR0jBBgwFoAUIEIOmvufDzL3DfuSk4R5zxImk2cwCgYDVR0UBAMCAQEwCgYIKoZIzj0EAwIDSAAwRQIhAPZChkffqHglFEDuOu3PX6e8eUIpR+YaCtAN/TfqUgcdAiBBJ3vj64iBusI+/oitGPiCx/Nlr6jnqRnnhmuK7hyxWQ==
+	}
+	certificate ze-cert-initiator {
+		certificate MIIBlzCCAT2gAwIBAgIDAQACMAoGCCqGSM49BAMCMBoxGDAWBgNVBAMTD3plLWNlcnQtdGVzdC1jYTAeFw0yNjExMTAwMDAwMDBaFw00NjExMDUwMDAwMDBaMBwxGjAYBgNVBAMTEXplLWNlcnQtaW5pdGlhdG9yMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErxoDb89FQUUzGqVpGpeeQhGjd6VFDZR9oW35DWBzOieE+4E3Zh02FPpP/0w97R4e7FOc60gQGfElGRgwDqx9rKNwMG4wHAYDVR0RBBUwE4IRemUtY2VydC1pbml0aWF0b3IwDgYDVR0PAQH/BAQDAgeAMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDETAfBgNVHSMEGDAWgBQgQg6a+58PMvcN+5KThHnPEiaTZzAKBggqhkjOPQQDAgNIADBFAiEA1us9p1EKoiJNNKMuEewEX8y9tiioIPMT0w8n+pL7vJ0CIDPRoifOqDZft8Q0a7WK4nLLMqT77GYq1IHZR9DSN+a6
+		private {
+			key MHcCAQEEIEfeLRWC9PEAtTrbIZ6AabjI+MQr8XbWb9cZJCFwC8XCoAoGCCqGSM49AwEHoUQDQgAErxoDb89FQUUzGqVpGpeeQhGjd6VFDZR9oW35DWBzOieE+4E3Zh02FPpP/0w97R4e7FOc60gQGfElGRgwDqx9rA==
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.1.1.1
+			family {
+				ipv4/unicast { prefix { maximum 100; } }
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-1 {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				authentication {
+					mode x509
+					local-id "ze-cert-initiator"
+					remote-id "ze-cert-responder"
+					certificate ze-cert-initiator
+					ca-certificate ze-cert-test-ca
+				}
+			}
+		}
+	}
+}
+EOF_CONFIG
+
+cmd=background:seq=1:exec=ze -:stdin=responder
+cmd=foreground:seq=2:exec=ze -:stdin=config:timeout=50s
+
+# THE AWAIT IS THE WAIT: ze exposes no CLI surface that reports an
+# authentication it refused, so the run is held open on the refusal line itself,
+# the shape ipsec-eap-tls13-ocsp-required.ci uses.
+await=stderr:contains=was revoked by:timeout=40s
+
+# The initiator refused the responder in IKE_AUTH, for revocation, and named the
+# certificate: its subject and its serial, printed in decimal (65539 is 0x010003).
+expect=stderr:pattern=remote AUTH verification failed.*was revoked by
+expect=stderr:pattern=remote AUTH verification failed.*ze-cert-responder
+expect=stderr:pattern=remote AUTH verification failed.*serial 65539
+reject=stderr:pattern=ike: SA established
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

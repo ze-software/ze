@@ -319,6 +319,24 @@ starts after GoBGP.
 <!-- source: internal/le/interoplab/bgp/prepare.go -- scenarioPeers -->
 <!-- source: internal/le/interoplab/lab.go -- waitPeer -->
 
+That barrier admits the relay; it does not make GoBGP's session come up in
+time for the injector. Under load GoBGP's session to the relay has reached
+Established well over a minute after Ze started, while the injector used to
+announce after four of Ze's KEEPALIVEs (about 20 s), so its burst reached
+GoBGP, if at all, through the route server's peer-up replay rather than the
+forward rail the wire capture judges. The injector therefore waits on a state:
+its `inject.msg` declares `option=await-file` with its own 240 s bound, and
+the checker writes that file into the injector's container only after FRR and
+GoBGP report their sessions Established and Ze's `show bgp peer list` holds
+both destination peers (`.3` and the relay `.10`) `established`, the state the
+forward rail reads. While it waits the injector answers Ze's KEEPALIVEs, so
+the 15 s hold does not expire. After the burst and End-of-RIB it waits for two
+more of Ze's KEEPALIVEs before the third subject, a full interval wherever the
+release fell in Ze's cycle, so the third reaches GoBGP in a later UPDATE than
+the first two.
+<!-- source: internal/le/interoplab/bgp/check_rfc.go -- releaseLocalPrefInjector, localPrefRelease -->
+<!-- source: internal/test/peer/await_file.go -- awaitFile, awaitFileBound -->
+
 Bounded readiness waits check cancellation before each probe, including the
 first. A simultaneously ready poll tick cannot admit another probe after
 cancellation is observed. Failure retains the last measured state or probe
@@ -2824,6 +2842,49 @@ establishes, and Ze logs no refusal.
 <!-- source: internal/le/interoplab/ipsec/eddsa.go -- checkEd448ZeSigns, checkEd448ZeVerifies -->
 <!-- source: internal/le/interoplab/ipsec/ipsec.go -- the optional server-untrusted mounts -->
 <!-- source: test/interop-ipsec/scenarios/x509-ed448-ze-responder/ -- the Ed448 responder fixtures -->
+
+### Peer certificate revocation and purpose (RFC 5280, RFC 4945)
+
+Four scenarios, two pairs. Ze initiates with the lab P-256 leaf
+(`client.pem`) and checks the certificate strongSwan presents with
+`send_cert = always`. The two scenarios of a pair differ by one file in `pki/`,
+so that file is the only possible cause when one is refused and the other
+establishes.
+
+| Scenario | The file that differs | Expected |
+|----------|-----------------------|----------|
+| `x509-crl-revoked-peer-ze-initiator` | `pki/ca-crl.pem`, the `crl` of Ze's `pki ca test-ca`, lists the serial number of strongSwan's `server.pem` | refused, `was revoked by` |
+| `x509-crl-unrevoked-peer-ze-initiator` | the same list, revoking nothing | established |
+| `x509-eku-server-auth-only-refused-ze-initiator` | `pki/server.pem` carries extendedKeyUsage serverAuth alone | refused, `extended key usage` |
+| `x509-eku-ipsec-ike-ze-initiator` | `pki/server.pem` carries extendedKeyUsage id-kp-ipsecIKE | established |
+
+The two `server.pem` files of the purpose pair have the key, subject and
+subjectAltName of the lab `server.pem`, no keyUsage, and the lab CA as issuer.
+openssl issued them: strongSwan's `pki --issue` cannot write id-kp-ipsecIKE,
+because `x509_generate_eku_extension` (`x509_cert.c`) knows only serverAuth,
+clientAuth, iKEIntermediate, ocspSigning and msSmartcardLogon. charon does not
+judge the purpose of its own certificate: `pubkey_authenticator.c` checks
+keyUsage only in `process`, for the peer's AUTH (`is_compliant_cert`).
+
+A refusal leaves strongSwan's SA in place. Ze sends no notification for a
+responder AUTH it refuses on the first round, and charon's responder holds an
+ESTABLISHED IKE SA from the moment it answered. So the refusing checker asserts
+nothing about strongSwan's SA list or kernel. It requires Ze's
+`ike: remote AUTH verification failed` line for `peer=swan` carrying the cause,
+charon's two `pubkey_authenticator.c` lines that show it verified Ze's AUTH and
+signed its own with the certificate under test, and no ESP state on Ze. The
+accepting checker requires Ze's ESP state and traffic both ways, which only an
+accepting Ze produces: the strongSwan SA alone would also be there after a
+refusal.
+
+Not yet walked red. The break for the revocation pair skips the revocation
+check in `getRemoteCert`: `x509-crl-revoked-peer-ze-initiator` then
+establishes, Ze logs no refusal, and the checker fails at its first wait. The
+break for the purpose pair skips the extended key usage judgement:
+`x509-eku-server-auth-only-refused-ze-initiator` fails the same way.
+<!-- source: internal/le/interoplab/ipsec/certpolicy.go -- checkPeerCertificateRefused, checkPeerCertificateAccepted -->
+<!-- source: test/interop-ipsec/scenarios/x509-crl-revoked-peer-ze-initiator/ -- the revocation fixtures -->
+<!-- source: test/interop-ipsec/scenarios/x509-eku-server-auth-only-refused-ze-initiator/ -- the purpose fixtures -->
 
 ### ESP transform kernel proof
 

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5280-5.3-1",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc5280_crl_critical_test.go::TestRFC5280Section52UnprocessedCriticalCRL",
+    "unit-sha": "872c4dac0bf2eed1",
+    "claim-sha": "681b26f2e49468b7",
+    "route": "revert",
+    "producer": "internal/core/eap/revocation.go::criticalExtension",
+    "producer-sha": "274a5d4762809e94",
+    "break": "body of criticalExtension replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5280-5.3-1",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc5280_crl_critical_test.go::TestRFC5280Section52UnprocessedCriticalCRL",
+    "unit-sha": "872c4dac0bf2eed1",
+    "claim-sha": "027ca7342098afdf",
+    "route": "revert",
+    "producer": "internal/core/eap/revocation.go::criticalExtension",
+    "producer-sha": "274a5d4762809e94",
+    "break": "body of criticalExtension replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

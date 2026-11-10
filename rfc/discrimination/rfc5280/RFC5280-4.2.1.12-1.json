@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5280-4.2.1.12-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc5280_ike_purpose_test.go::TestRFC5280Section42112IKEPurpose",
+    "unit-sha": "e49799600e7ff788",
+    "claim-sha": "dc3d4ba7e7e78bc5",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/remote_cert_checks.go::checkIKEPurpose",
+    "producer-sha": "07f37d83b7293ea1",
+    "break": "body of checkIKEPurpose replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5280-4.2.1.12-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc5280_ike_purpose_test.go::TestRFC5280Section42112IKEPurpose",
+    "unit-sha": "e49799600e7ff788",
+    "claim-sha": "16d8749bc034a6c4",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/remote_cert_checks.go::checkIKEPurpose",
+    "producer-sha": "07f37d83b7293ea1",
+    "break": "body of checkIKEPurpose replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

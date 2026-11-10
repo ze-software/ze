@@ -34,7 +34,9 @@ const (
 //
 // A CA with no list is a DIFFERENT state from one whose list revokes nothing.
 // The first cannot answer the question RFC 9190 Section 5.4 makes mandatory on
-// TLS 1.3, and the second answers "not revoked" (eap.checkChainRevocation).
+// TLS 1.3, and the second answers "not revoked" (eap.checkChainRevocation). The
+// IKE engine reads the same lists for an IKE peer chain that passes through
+// this CA (RFC 5280 Section 6.1.3, engine/remote_cert_checks.go).
 type CACertEntry struct {
 	Name        string
 	Certificate *x509.Certificate
