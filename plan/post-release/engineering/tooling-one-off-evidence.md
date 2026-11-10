@@ -3107,3 +3107,17 @@ red and its green.
 | lint-contract-not-applied, `2f36373081` (C) | the if/else chain in `internal/test/runner/exclusive_lease_test.go` | "exclusive_lease_test.go:292:3: ifElseChain: rewrite if-else to switch statement (gocritic)" |
 | lint-contract-not-applied, `e6474aa200` (B) | the unchecked assertion in `internal/plugins/log/cmd/handlers_test.go` | "handlers_test.go:339:2: Error return value is not checked (errcheck)" |
 | gate-red-where-nothing-blocks-on-it, 2026-08-30 site goconst (`c630cf08b6`) | a third `tmp` literal in `internal/le/site/seo.go` | "seo.go:58:15: string `tmp` has 3 occurrences, make it a constant (goconst)" |
+
+## The root launchers exec their binary (2026-11-10)
+
+`TestRootLaunchersExecExistingBinaryWithoutRebuild` and
+`TestRootLaunchersArePOSIXShellWithoutPython` (`cmd/ze`) read the root `ze`
+and `le` scripts themselves, so a break must edit them in place: each was
+changed for the length of one test-binary run and restored from a saved copy
+with its hash checked (both byte-identical to HEAD; `launch/`). Both pass at
+HEAD; the 2026-09-07 row's reds are gone since `2b1004b249`.
+
+| Script | Break | Red |
+| --- | --- | --- |
+| `ze` | `exec "$binary" "$@"` becomes `"$binary" "$@"` | `.../ze`: "launcher hid existing binary's terminating signal: exit status 143"; POSIX test: "ze does not reach the binary through exec with the whole argv" |
+| `le` | the final `exec "$binary" "$@"` becomes `"$binary" "$@"` | `.../le`: "launcher hid existing binary's terminating signal: exit status 143" (the POSIX check still sees `le`'s other exec lines, so it stays green under this break) |
