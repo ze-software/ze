@@ -8,7 +8,7 @@
 | Release reason | Replaces a development check (the inventory's whole-tree external-effect proof) with three fast checks; the only shipped change is that the plugin registry seals after start-up and hands out copies, which hardens behaviour without changing any operator-visible answer |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 3/8 |
+| Phase | 4/8 |
 | Handoff | - |
 | Updated | 2026-11-10 |
 
@@ -193,7 +193,7 @@ walk.
 | A-3 | No production code registers after `main` starts | Census of non-test `registry.Register` callers: 107 `register.go` files; the other hits (`plugin/server/startup.go`, `subsystem.go`, `config/schema/cli/main.go`) are other types' `Register` methods | A real runtime registration path breaks at start | Check 2 at HEAD, plus the functional suites that start the daemon (`./le test functional plugin`) | unvalidated |
 | A-4 | No hot path calls `Lookup` or `All` per route or per event | Census of 48 non-test callers: config verify, startup, autoload, help, command declarations; `bgp/server/events.go` calls `Lookup` while ordering a startup selection | Copying adds allocations per UPDATE | Read each caller in the census; allocation benchmark of `Lookup` and `All` (AC-4) | confirmed with two exceptions moved (phase 2): the per-event callers `sortByReverseDependencyTier` (`bgp/server/events.go`) and `declaresSessionReady` (`plugin/server/events.go`) read `registry.StartOrderEdges` and `registry.RegisteredSessionReady`, which answer values |
 | A-5 | No caller relies on pointer identity of a returned registration | Grep for comparisons of `Lookup` results found only nil checks | A comparison between two lookups turns false | Grep at implementation time for `==` on `*registry.Registration` values | confirmed (phase 2: no `==` on a looked-up registration) |
-| A-6 | The `ze_le` tag adds no plugin registration, and no registration file is selected by GOARCH | `DeclaredPlugins` reads the ze_le linux/amd64 context; `find` shows Linux-selected registration files only under `internal/test/fixture` (test DUT) | Check 3 reports a difference that is a context mismatch, not a defect | Check 3 green at HEAD on linux/amd64 (AC-10) | unvalidated |
+| A-6 | The `ze_le` tag adds no plugin registration, and no registration file is selected by GOARCH | `DeclaredPlugins` reads the ze_le linux/amd64 context; `find` shows Linux-selected registration files only under `internal/test/fixture` (test DUT) | Check 3 reports a difference that is a context mismatch, not a defect | Check 3 green at HEAD on linux/amd64 (AC-10) | confirmed: `TestBuiltZeRegistersTheDeclaredPlugins` green on linux/amd64 at 10a0471714, 96 plugins on both sides (the build carries `ze_core ze_distro`, the walk `ze_le`) |
 | A-7 | Every Ze package that holds a registering call is in the committed snapshot's population | `ReadCommitted` takes the transitive import graph of `cmd/ze` under the Linux le context | A registering file outside that graph escapes check 2, but it is also outside the binary | The check reports its package count; a fixture outside the graph is not reported and also not linked | confirmed for the graph (phase 3): the check reads only `Snapshot.Sources`, and the zetest-only `internal/test/plugins/lateregister`, whose engine registers at run time on purpose, is outside it and not reported |
 
 ### Risks
@@ -448,6 +448,18 @@ N-A: tooling scope, no wire-visible change.
   each site by the rule in Key Design Decisions, and runs as a verify stage
   beside `plugin declarations check`. Import aliases resolve through
   `repoinventory.Snapshot.ImportedDirectory`, a wrapper over `callableImport`.
+- Phase 4 (AC-10): `internal/le/plugin/registered` builds `ze` with
+  `DaemonBuildTags(root, DaemonBase)` and cgo off, reads
+  `ze cli -c "show plugin list | json"` (served in-process by
+  `command.ServeLocal`, so a running daemon never answers; the `| json`
+  rendering is the bare row array, not the `{plugins: [...]}` envelope), and
+  compares it with `DeclaredPlugins` in `Compare`. Green at 10a0471714 with 96
+  plugins. The binary is built from the working tree while the walk reads
+  HEAD, so a failure on a dirty checkout lists the uncommitted Go files.
+  AC-11's recorded break is prepared and not yet run: the declared walk
+  treating `bgp-hostname`'s `registry.Register` call as opaque (expected red:
+  registered at run time and absent from the declared list), and the other
+  direction, the hostname blank import dropped from `all_ze_bgp.go`.
 
 ## Known Limitations
 - Check 3 compares the fields `show plugin list` carries. The other registration fields are guarded by the declared walk's metadata refusals at the source and by the seal and copies at run time.

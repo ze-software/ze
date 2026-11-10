@@ -79,6 +79,19 @@ beside the other plugin checks.
 <!-- source: internal/le/plugin/registrationsites/registrationsites.go -- Judge, registeringFunctions, judge, initializationOnly -->
 <!-- source: internal/le/verify/engine/stages.go -- fullStages -->
 
+`TestBuiltZeRegistersTheDeclaredPlugins` (Linux) proves the static list is the
+runtime one. It builds `ze` from the checkout with the daemon tags
+(`ze_core ze_distro` and every gate in `feature-gates.txt`), cgo off, runs its
+`show plugin list` through `ze cli -c "show plugin list | json"` (answered in
+that process, never by a daemon), and requires the rows to name exactly the
+plugins `repoinventory.DeclaredPlugins` reads from HEAD, with equal
+description, RFCs, capability codes and families. A plugin on one side only is
+named with its side, and an empty or unparsable runtime list is refused rather
+than compared. The binary is built from the working tree, so on a dirty
+checkout the failure lists the uncommitted Go files.
+<!-- source: internal/le/plugin/registered/registered.go -- BuildZe, ListPlugins, ParseRows, Compare -->
+<!-- source: internal/le/plugin/registered/registered_linux_test.go -- TestBuiltZeRegistersTheDeclaredPlugins -->
+
 Four fields are required; the rest are optional.
 
 
