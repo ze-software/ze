@@ -71,14 +71,14 @@ collision was found at compile time.
 
 ## Consequences
 
-<!-- source: internal/plugins/ddos/detect/register.go -- SubscribeRates, SubscribeCollectNotify fallback -->
+<!-- source: internal/plugins/ddos/detect/register.go -- runEngine, EnsureGlobal, SubscribeRates -->
 
 - The CLI and the analytics consumers (the ddos classifier, anomaly scoring) are
   peers reading one `Snapshot` substrate. A new consumer is an `Attach` and a
   read.
-- `ddos/detect` has two rate sources: `trafficstat.SubscribeRates` when it is
-  available and `iface.SubscribeCollectNotify` as a fallback. The fallback can be
-  removed once trafficstat is always present.
+- `ddos/detect` has one rate source: `trafficstat.SubscribeRates`, on the
+  service `trafficstat.EnsureGlobal` creates when none exists yet. It never
+  answers nil, so the detector has no fallback feed.
 - Per-source-IP data needs either `traffic-usage track-ip` (IPv4, cumulative) or
   `flow-export` conntrack (v4 and v6, delta, full 5-tuple). Without either, the
   view degrades to interface rates.

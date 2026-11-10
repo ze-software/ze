@@ -265,8 +265,8 @@ server-driven mitigation commands.
 | `entropy-threshold` | `2.00` | 0.00-16.00 bits | Source-entropy at/above which an attack is logged as distributed/spoofed |
 | `policy` | (default-action `deny`) | container | Allow/deny traffic policy (see [Traffic policy](#traffic-policy)) that exempts or defends prefixes; replaces the old per-responder allowlists |
 
-**How `check-interval` works:** both rate feeds publish once a second, and the
-detector folds `check-interval` of those samples into one evaluation. The
+**How `check-interval` works:** the trafficstat rate feed publishes once a
+second, and the detector folds `check-interval` of those samples into one evaluation. The
 evaluation reads the PEAK of the interval, on the interface that carried it, so a
 one-second flood inside a 10-second interval still reaches the threshold.
 `confirm-duration`, `clear-consecutive-checks` and `baseline-window` all count
@@ -600,7 +600,7 @@ when traffic returns. The warning names which case it saw:
 
 | Case | What to check |
 |------|---------------|
-| ddos-detect runs as an external plugin process | Remove the `plugin { external ddos-detect { ... } }` block. The feed is a same-process subscription, so an external ddos-detect never receives it. This case is reported as soon as the detector is armed, with no window |
+| ddos-detect runs as an external plugin process | Remove the `plugin { external ddos-detect { ... } }` block. The feed is a same-process subscription, so an external ddos-detect never receives it. Today an external ddos-detect never arms: it fails startup with `ddos-detect: event bus not configured` in the log, because a forked plugin is handed no event bus. Once that is fixed, this case is reported as soon as the detector is armed, with no window |
 | No sample from the feed for a whole window | `ze show interface rate` |
 | The feed reports no interface | `ze show interface` |
 | Zero received packets and bytes on every interface | `ze show interface rate`. An idle lab or standby router shows this legitimately |

@@ -93,8 +93,11 @@ func init() {
 // Unlike traffic-usage/flow-export (which refuse to start entirely when
 // external, since their whole purpose depends on the same-process call
 // succeeding), ddos-detect warns rather than refuses, and the
-// ddos-detect-rate-feed doctor check (blind.go) keeps reporting the cause
-// for as long as the detector stays armed.
+// ddos-detect-rate-feed doctor check (blind.go) reports the cause for as
+// long as the detector stays armed. Today an external ddos-detect never
+// arms: loadBus refuses OnConfigure with "ddos-detect: event bus not
+// configured", because only the in-process spawn calls ConfigureEventBus
+// (plan/release/fixes/spec-plugin-event-bus-across-the-process-boundary.md).
 func warnIfExternal(isInternal bool) {
 	if isInternal {
 		return
