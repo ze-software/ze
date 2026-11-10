@@ -3,6 +3,9 @@
 package commit
 
 import (
+	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -215,17 +218,19 @@ func TestCreateSemanticApprovalAmbiguousUnit(t *testing.T) {
 	for _, path := range paths {
 		writeCommitFixture(t, root, path, strings.Replace(ledgerTestBody("TestOne"), "1, got", "2, got", 1))
 	}
-	if _, err := testweakened.Approve(root, sessionOne, "pkg.TestOne", "ambiguous verdict"); err != nil {
-		t.Fatal(err)
-	}
-	_, err := ledgerCreate(t, root, paths...)
+	// Both copies change, so the unit names no single carrier: the approval
+	// is refused when it is recorded, before any commit could spend it.
+	_, err := testweakened.Approve(root, sessionOne, "pkg.TestOne", "ambiguous verdict")
 	if err == nil {
-		t.Fatal("one semantic approval admitted two directory units")
+		t.Fatal("one semantic approval was recorded for two directory units")
 	}
-	for _, want := range []string{"pkg.TestOne", "x/pkg", "y/pkg", "split the commit"} {
+	for _, want := range []string{"pkg.TestOne", "ambiguous across carriers", paths[0], paths[1]} {
 		if !strings.Contains(err.Error(), want) {
 			t.Fatalf("refusal lacks %q: %v", want, err)
 		}
+	}
+	if _, statErr := os.Stat(filepath.Join(root, testweakened.ApprovalPath(sessionOne))); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("a refused approval wrote the approval file: %v", statErr)
 	}
 }
 

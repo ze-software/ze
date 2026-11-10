@@ -12,7 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-const fixtureLedgerHeader = "| Test | Reason |\n|------|--------|\n"
+const fixtureLedgerHeader = "| Test | Reason | Target | Content |\n|------|--------|--------|---------|\n"
 
 // selfTestSession is the commit namespace the fixture repository writes its
 // owner approvals under. Every Check call below names it, so the fixture proves
@@ -119,12 +119,15 @@ func SelfTest() SelfTestReport {
 	check(containsProblem(missing.Problems, "./le test weakened approve unit "),
 		"the refusal must print the command that records the judge's approval")
 
-	text.Reset().Str(approvalHeader)
+	// The approvals go through the one writer, so each row carries the unit
+	// content the verdict judged, as `./le test weakened approve` writes it.
+	recorded := true
 	for _, finding := range missing.Findings {
-		text.Str("| ").Str(finding.Unit()).Str(" | fixture: the owner approves this weakening |\n")
+		if _, err := Approve(root, selfTestSession, finding.Unit(), "fixture: the owner approves this weakening"); err != nil {
+			recorded = false
+		}
 	}
-	check(writeSelfTestFile(root, selfTestApprovals, text.String()) == nil,
-		"write the fixture approval file")
+	check(recorded, "record the fixture approvals through the approve writer")
 	accepted := Check(Request{Root: root, ApprovalSession: selfTestSession, Paths: paths})
 	check(accepted.ExitCode() == 0, "one owner approval for every weakening must be accepted")
 	check(len(accepted.Findings) == len(missing.Findings),
@@ -133,7 +136,7 @@ func SelfTest() SelfTestReport {
 		"every used approval must become one Weakening-approved trailer")
 
 	check(writeSelfTestFile(root, selfTestApprovals,
-		text.Reset().Str(approvalHeader).Str("| pkg.TestGone | an approval for another test |\n").String()) == nil,
+		text.Reset().Str(approvalHeader).Str("| pkg.TestGone | an approval for another test |  | none..none |\n").String()) == nil,
 		"write an approval naming another test")
 	other := Check(Request{Root: root, ApprovalSession: selfTestSession, Paths: paths})
 	check(other.ExitCode() == 1 && containsProblem(other.Problems, "no ze-test-judge approval names it"),
@@ -142,7 +145,7 @@ func SelfTest() SelfTestReport {
 	check(writeSelfTestFile(root, selfTestApprovals, "# Tests\n\nno table\n") == nil,
 		"write malformed fixture approval file")
 	malformed := Check(Request{Root: root, ApprovalSession: selfTestSession, Paths: paths})
-	check(malformed.ExitCode() == 1 && containsProblem(malformed.Problems, "has no `| Test | Reason |`"),
+	check(malformed.ExitCode() == 1 && containsProblem(malformed.Problems, "has no `| Test | Reason | Target | Content |`"),
 		"a malformed approval file must fail closed")
 
 	check(os.Remove(filepath.Join(root, filepath.FromSlash(selfTestApprovals))) == nil,
@@ -159,7 +162,7 @@ func SelfTest() SelfTestReport {
 	check(len(changedWithoutFinding.Findings) == 0,
 		"the changed negative fixture must still produce no structural finding")
 	check(changedWithoutFinding.ExitCode() == 1 &&
-		containsProblem(changedWithoutFinding.Problems, "has no `| Test | Reason |`"),
+		containsProblem(changedWithoutFinding.Problems, "has no `| Test | Reason | Target | Content |`"),
 		"a changed unit must refuse a malformed approval file even without a structural finding")
 	check(len(changedWithoutFinding.Approvals.Trailers) == 0 && len(changedWithoutFinding.Approvals.Dropped) == 0,
 		"a malformed approval file must supply no verdict or row to prune")

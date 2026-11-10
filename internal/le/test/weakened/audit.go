@@ -395,7 +395,8 @@ func acceptedRows(root, commit string) (auditApprovals, string) {
 // liveApprovalRows answers the live rows of the session's two approval files,
 // which admit what the worktree weakens, split as acceptedRows splits a
 // commit's lines. LoadApprovals refuses a malformed row, and a row whose
-// trailer already landed approves nothing further, so it is left out.
+// trailer already landed, or whose unit changed after the verdict, approves
+// nothing further, so it is left out.
 func liveApprovalRows(root, namespace string) (auditApprovals, string) {
 	accepted := auditApprovals{}
 	session, problem := approvalSession(Request{Root: root, ApprovalSession: namespace})
@@ -410,6 +411,9 @@ func liveApprovalRows(root, namespace string) (auditApprovals, string) {
 		for _, row := range rows {
 			if row.Carrier != "" {
 				continue
+			}
+			if row.Stale != "" {
+				continue // the verdict judged another change of the unit
 			}
 			accepted.weakening = append(accepted.weakening, row.Row)
 			if source.Path == rfc.ApprovalPath(session) {

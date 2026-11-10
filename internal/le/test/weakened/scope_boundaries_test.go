@@ -72,10 +72,11 @@ func TestCheckIncompleteFunctionRefusesSemanticApproval(t *testing.T) {
 		t.Run(after, func(t *testing.T) {
 			root := newParityRepository(t)
 			const path = "pkg/a_test.go"
-			writeParityFile(t, root, path, after)
+			// The judge rules before the edit, as the edit hook requires.
 			if _, err := Approve(root, fixtureSession, "pkg.TestA", "reserved verdict"); err != nil {
 				t.Fatal(err)
 			}
+			writeParityFile(t, root, path, after)
 			result := Check(Request{Root: root, ApprovalSession: fixtureSession, Paths: []string{path}})
 			if result.ExitCode() != 2 || !strings.Contains(strings.Join(result.Problems, "\n"), "cannot judge Go function boundaries") {
 				t.Fatalf("incomplete source was not refused: %#v", result)

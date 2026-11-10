@@ -166,7 +166,31 @@ opens with `Weakening-approved:` must not block every later audit. The same
 loader marks a row whose trailer a landed commit already carries, so the hook
 refuses a second edit under it and names that commit, as the commit gate does.
 
-The shared table also reads targeted RFC rows with an optional `Target` column.
+The writer resolves the unit to its one carrier before it writes anything,
+for an ordinary row as for a targeted one (`rfc.ApproveInto` calling
+`rfc.ResolveApprovalUnitContent`). An unknown or ambiguous unit is refused.
+So is a unit spelled with a Go package clause that its directory does not
+carry (`repoinventory.TestX` for a test in `internal/le/repo/inventory`): every
+reader keys the unit by the directory, so such a row would be written and never
+matched, and the refusal names the directory key to record instead.
+<!-- source: internal/le/rfc/approvalunits.go -- ResolveApprovalUnitContent, noApprovalCarrier -->
+
+Every approval file holds one table, `| Test | Reason | Target | Content |`.
+`Content` is `<base>..<current>`: the SHA-256 digests of the unit's text at
+HEAD and in the working tree when the verdict was recorded (`none` for a side
+with no carrier). The verdict judged that change, not the unit's name, so the
+loader marks an ordinary row stale once the unit no longer matches it, and a
+stale row approves nothing at the hook, the commit gate or the audit's
+worktree pass. A row recorded before the edit (its two digests equal) admits
+a change from the base the judge read, and none once HEAD's unit moves on. A
+row recorded after the edit admits only the very text the judge read; a later
+different change of the same unit needs a verdict of its own. Re-recording
+replaces the row. A table without the `Content` column, or a row without a
+digest pair, is refused, because only the approve commands write rows.
+<!-- source: internal/le/rfc/approvalunits.go -- ApprovalContentCell, ApprovalContentAdmits -->
+<!-- source: internal/le/test/weakened/ledger.go -- parseLedger, staleApproval -->
+
+The shared table also reads targeted RFC rows through its `Target` column.
 Those rows approve only their exact historical change and are never used by the
 worktree weakening gate, edit hook or ordinary current-change selection. Their
 publication is explicit (`rfc-approval <revision> <unit>`), and landed detection

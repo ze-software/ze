@@ -74,7 +74,7 @@ func TestOrdinaryApprovalRemainsNoninteractive(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := filepath.Join(root, filepath.FromSlash(ApprovalPath(approvalSession)))
-	if err := os.WriteFile(path, []byte(approvalHeader+"| pkg.TestX | owner ruling 2026-11-03 | |\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte(approvalHeader+"| pkg.TestX | owner ruling 2026-11-03 |  | none..none |\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if ruling := ownerRuling(readApprovals(t, root)); ruling != "2026-11-03" {

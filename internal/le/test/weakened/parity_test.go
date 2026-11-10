@@ -2,6 +2,8 @@
 package testweakened
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -46,6 +48,9 @@ func TestSelfTestCoversEveryDetectorVerdictThroughCheck(t *testing.T) {
 		if _, err := Approve(root, fixtureSession, "pkg.TestA", reason); err != nil {
 			t.Fatal(err)
 		}
+		// The writer resolves every unit, so the reserved verdict names a test
+		// that exists, outside the paths this Check judges.
+		writeParityFile(t, root, "pkg/later_test.go", "package a\nfunc TestLater(t *testing.T) {}\n")
 		if _, err := Approve(root, fixtureSession, "pkg.TestLater", "reserved verdict"); err != nil {
 			t.Fatal(err)
 		}
@@ -57,7 +62,7 @@ func TestSelfTestCoversEveryDetectorVerdictThroughCheck(t *testing.T) {
 		if !slices.Equal(result.Approvals.Trailers, wantTrailers) {
 			t.Fatalf("semantic trailers = %q, want %q", result.Approvals.Trailers, wantTrailers)
 		}
-		wantDropped := []string{"| pkg.TestA | " + reason + " |"}
+		wantDropped := []string{approvalRowLine(t, root, fixtureApproval, "| pkg.TestA | "+reason+" | ")}
 		if !slices.Equal(result.Approvals.Dropped, wantDropped) {
 			t.Fatalf("semantic rows selected for pruning = %q, want %q", result.Approvals.Dropped, wantDropped)
 		}
@@ -136,27 +141,32 @@ func TestCheckFailsClosedForEveryLedgerShape(t *testing.T) {
 		{
 			name:    "no header",
 			content: "# Tests\n\nno table\n",
-			problem: "tmp/commit-weakening-approved-0f1e2d3c.md has no `| Test | Reason |` table header, so no row in it can be read",
+			problem: "tmp/commit-weakening-approved-0f1e2d3c.md has no `| Test | Reason | Target | Content |` table header, so no row in it can be read; record each approval again with the command that wrote it",
 		},
 		{
-			name:    "three cells",
-			content: fixtureLedgerHeader + "| TestA | reason | extra |\n",
-			problem: "tmp/commit-weakening-approved-0f1e2d3c.md:3 has 3 cells; a row is `| Test | Reason |`",
+			name:    "five cells",
+			content: fixtureLedgerHeader + "| TestA | reason |  | none..none | extra |\n",
+			problem: "tmp/commit-weakening-approved-0f1e2d3c.md:3 has 5 cells; a row is `| Test | Reason | Target | Content |`",
+		},
+		{
+			name:    "no judged content",
+			content: fixtureLedgerHeader + "| TestA | reason |  |  |\n",
+			problem: "tmp/commit-weakening-approved-0f1e2d3c.md:3 names no judged content for TestA; only the approve command writes a row, so record the approval again with it",
 		},
 		{
 			name:    "empty name",
-			content: fixtureLedgerHeader + "| | reason |\n",
+			content: fixtureLedgerHeader + "| | reason |  | none..none |\n",
 			problem: "tmp/commit-weakening-approved-0f1e2d3c.md:3 names no test",
 		},
 		{
 			name:    "empty reason",
-			content: fixtureLedgerHeader + "| TestA | |\n",
+			content: fixtureLedgerHeader + "| TestA | |  | none..none |\n",
 			problem: "tmp/commit-weakening-approved-0f1e2d3c.md:3 gives no reason for TestA; a row with no reason accepts nothing",
 		},
 		{
 			name: "duplicate",
-			content: fixtureLedgerHeader + "| TestA | first |\n" +
-				"| TestA | second |\n",
+			content: fixtureLedgerHeader + "| TestA | first |  | none..none |\n" +
+				"| TestA | second |  | none..none |\n",
 			problem: "tmp/commit-weakening-approved-0f1e2d3c.md:4 names TestA again (already on line 3); one test, one reason",
 		},
 	}
@@ -269,4 +279,26 @@ func TestPythonFixtureStringsStayOutsideExecutableVerdicts(t *testing.T) {
 	if !strings.Contains(masked, "assert value") {
 		t.Fatalf("executableTestText() masked executable assertion: %q", masked)
 	}
+}
+
+// approvalRowLine answers the one line of the approval file that opens with
+// prefix: the exact row the writer recorded, Content digests included, so a
+// test comparing the rows a check selects for pruning still compares whole
+// lines.
+func approvalRowLine(t *testing.T, root, path, prefix string) string {
+	t.Helper()
+	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found []string
+	for line := range strings.SplitSeq(string(content), "\n") {
+		if strings.HasPrefix(line, prefix) {
+			found = append(found, line)
+		}
+	}
+	if len(found) != 1 {
+		t.Fatalf("approval rows opening %q = %q, want exactly one", prefix, found)
+	}
+	return found[0]
 }

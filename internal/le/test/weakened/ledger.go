@@ -21,31 +21,37 @@ type Row struct {
 	Name   string `json:"name"`
 	Reason string `json:"reason"`
 	Target string `json:"target,omitempty"`
-	Line   int    `json:"line"`
+	// Base and Current are the digests of the unit's content the verdict
+	// judged, before and after the change (rfc.ApprovalContentCell).
+	Base    string `json:"base"`
+	Current string `json:"current"`
+	Line    int    `json:"line"`
 }
+
+// ledgerHeaderCells is the one table header every approval file opens with
+// (rfc.ApprovalTableHeader).
+var ledgerHeaderCells = []string{"Test", "Reason", "Target", "Content"}
 
 func parseLedger(contents, path string) ([]Row, []string) {
 	lines := strings.Split(contents, "\n")
 	starts := make([]int, 0, 1)
 	for index, line := range lines {
 		cells, tableRow := tableCells(line)
-		if tableRow && len(cells) >= 2 && len(cells) <= 3 && cells[0] == "Test" && cells[1] == "Reason" {
-			if len(cells) == 3 && cells[2] != "Target" {
-				continue
-			}
+		if tableRow && slices.Equal(cells, ledgerHeaderCells) {
 			starts = append(starts, index)
 		}
 	}
 	var message textbuf.Buffer
 	if len(starts) == 0 {
 		return nil, []string{message.Str(path).
-			Str(" has no `| Test | Reason |` table header, so no row in it can be read").String()}
+			Str(" has no `| Test | Reason | Target | Content |` table header, so no row in it can be read; ").
+			Str("record each approval again with the command that wrote it").String()}
 	}
 
 	problems := make([]string, 0)
 	if len(starts) > 1 {
 		problems = append(problems, message.Reset().Str(path).Str(" has ").Int(int64(len(starts))).
-			Str(" `| Test | Reason |` tables; keep one, or the gate has two answers").String())
+			Str(" `| Test | Reason | Target | Content |` tables; keep one, or the gate has two answers").String())
 	}
 	rows := make([]Row, 0)
 	seen := make(map[string]int)
@@ -66,9 +72,13 @@ func parseLedger(contents, path string) ([]Row, []string) {
 		if separatorRow(cells) {
 			continue
 		}
-		target := ""
-		if len(cells) == 3 {
-			target = cells[2]
+		target := cells[2]
+		base, current, judged := rfc.ParseApprovalContentCell(cells[3])
+		if !judged {
+			problems = append(problems, message.Reset().Str(path).Byte(':').Int(int64(line)).
+				Str(" names no judged content for ").Str(name).
+				Str("; only the approve command writes a row, so record the approval again with it").String())
+			continue
 		}
 		if target != "" && !rfc.ValidApprovalTarget(target) {
 			problems = append(problems, path+": approval target must be a canonical full commit SHA: "+target)
@@ -93,7 +103,7 @@ func parseLedger(contents, path string) ([]Row, []string) {
 			continue
 		}
 		seen[key] = line
-		rows = append(rows, Row{Name: name, Reason: reason, Target: target, Line: line})
+		rows = append(rows, Row{Name: name, Reason: reason, Target: target, Base: base, Current: current, Line: line})
 	}
 	return rows, problems
 }
@@ -203,6 +213,10 @@ type ApprovalRow struct {
 	Text    string
 	Trailer string
 	Carrier string
+	// Stale says why a live ordinary row no longer judges its unit: the unit
+	// changed from another base, or into other content, after the verdict
+	// (rfc.ApprovalContentAdmits). A stale row approves nothing.
+	Stale string
 }
 
 // LoadApprovals reads one owner approval file the way the edit hook, the
@@ -261,9 +275,29 @@ func LoadApprovals(root string, source ApprovalSource) ([]ApprovalRow, []string)
 		if landed {
 			held.Carrier = carrier
 		}
+		if !landed && row.Target == "" {
+			held.Stale = staleApproval(root, row)
+		}
 		rows = append(rows, held)
 	}
 	return rows, problems
+}
+
+// staleApproval answers why an ordinary row's verdict no longer judges its
+// unit, or empty when it still does. The unit is read as it stands now, HEAD
+// before the change and the working tree after it, which is the content the
+// commit gate selects and the base the edit hook's change starts from. A unit
+// that no longer resolves to one carrier is stale too: the verdict judged a
+// carrier that is gone or no longer unique.
+func staleApproval(root string, row Row) string {
+	now, err := rfc.ResolveApprovalUnitContent(root, "", row.Name)
+	if err != nil {
+		return "its unit no longer resolves: " + err.Error()
+	}
+	if rfc.ApprovalContentAdmits(row.Base, row.Current, now) {
+		return ""
+	}
+	return "the unit changed after the verdict, so the verdict judged another change"
 }
 
 func tableCells(line string) ([]string, bool) {

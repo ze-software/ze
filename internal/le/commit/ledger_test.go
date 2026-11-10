@@ -20,7 +20,7 @@ const (
 
 // ledgerHeader opens a weakening approval file a fixture writes by hand, in
 // the row grammar the approve writer produces.
-const ledgerHeader = "# Test weakenings the owner approved\n\n| Test | Reason |\n|------|--------|\n"
+const ledgerHeader = "# Test weakenings the owner approved\n\n| Test | Reason | Target | Content |\n|------|--------|--------|---------|\n"
 
 // TestCreateRefusesAnUnapprovedWeakening proves the commit gate refuses a
 // weakening no owner approval of this session names (AC-6).
@@ -306,6 +306,8 @@ func TestAMovedWeakenedTestIsOneSite(t *testing.T) {
 // that drops the owner's approval of a later weakening.
 func TestScriptPrunesUsedWeakeningApprovals(t *testing.T) {
 	root := newLedgerRepository(t)
+	// The later unit exists, so its approval is of a real test (AC-31).
+	commitFixture(t, root, "later test", map[string]string{"pkg/later_test.go": ledgerTestBody("TestLater")}, nil)
 	weakenLedgerTest(t, root, "pkg/one_test.go", "TestOne")
 	if _, err := testweakened.Approve(root, sessionOne, "pkg.TestOne", "Thomas accepts the skip"); err != nil {
 		t.Fatal(err)
@@ -392,7 +394,7 @@ func TestANoFindingsCommitKeepsASiblingsUnlandedRow(t *testing.T) {
 	root := newLedgerRepository(t)
 	approvals := testweakened.ApprovalPath(sessionOne)
 	writeCommitFixture(t, root, approvals, ledgerHeader+
-		"| pkg.TestTwo | the sibling's approval, not yet used |\n")
+		"| pkg.TestTwo | the sibling's approval, not yet used |  | none..none |\n")
 
 	writeCommitFixture(t, root, "pkg/three_test.go", ledgerTestBody("TestThree"))
 	prepared, err := ledgerCreate(t, root, "pkg/three_test.go")

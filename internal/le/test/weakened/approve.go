@@ -19,7 +19,7 @@ const ApprovalTrailer = "Weakening-approved: "
 
 // approvalHeader opens a session's weakening approval file, in the row
 // grammar ParseLedger reads.
-const approvalHeader = "# Test weakenings the owner approved\n\n| Test | Reason |\n|------|--------|\n"
+const approvalHeader = "# Test weakenings the owner approved\n\n" + rfc.ApprovalTableHeader
 
 const (
 	keyUnit   = "unit"
@@ -46,7 +46,9 @@ func ApprovalTrailerLine(unit, reason string) string {
 
 // Approve writes the judge's approval of one test weakening into the
 // session's weakening approval file, with the writer and the refusals the RFC
-// approval file has (rfc.ApproveInto).
+// approval file has (rfc.ApproveInto): the unit is resolved to its one
+// carrier by its directory key before anything is written, and the row
+// records the unit content the verdict judged.
 func Approve(root, session, unit, reason string) (rfc.ApprovalReport, error) {
 	return rfc.ApproveInto(root, rfc.ApprovalFile{
 		Path: ApprovalPath(session), Header: approvalHeader, Command: "test weakened approve",

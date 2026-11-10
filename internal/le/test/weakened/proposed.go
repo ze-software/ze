@@ -624,6 +624,9 @@ func proposedApprovals(root, session, findingPath, packageName string, names []s
 				ledger.Spent = append(ledger.Spent, ProposedSpent{Name: name, Carrier: row.Carrier})
 				continue
 			}
+			if row.Stale != "" {
+				continue // the verdict judged another change; the unit stays missing
+			}
 			ledger.Matched = append(ledger.Matched, row.Row)
 			matched = true
 			break

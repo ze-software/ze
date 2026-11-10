@@ -289,6 +289,7 @@ func rfcChangeProblems(
 	}
 	claimed := make([]bool, len(changes))
 	landedBy := make([]string, len(changes))
+	staleBy := make([]string, len(changes))
 	for _, row := range rows {
 		if row.Target != "" {
 			continue
@@ -302,6 +303,16 @@ func rfcChangeProblems(
 			for index, change := range changes {
 				if testweakened.RowMatches(row.Name, change.Package, change.Name) {
 					landedBy[index] = row.Carrier
+				}
+			}
+			continue
+		}
+		if row.Stale != "" {
+			// The unit changed after the verdict (testweakened.LoadApprovals),
+			// so the row judged another change and approves none of these.
+			for index, change := range changes {
+				if testweakened.RowMatches(row.Name, change.Package, change.Name) {
+					staleBy[index] = row.Stale
 				}
 			}
 			continue
@@ -326,6 +337,9 @@ func rfcChangeProblems(
 		why := "no approval names it"
 		if landedBy[index] != "" {
 			why = "the approval row naming it was already used by commit " + landedBy[index] + ", so it approves nothing further"
+		}
+		if staleBy[index] != "" {
+			why = "the approval row naming it is stale (" + staleBy[index] + "), so it approves nothing"
 		}
 		approvals.Unapproved = append(approvals.Unapproved, change.unit())
 		problems = append(problems, fmt.Sprintf(

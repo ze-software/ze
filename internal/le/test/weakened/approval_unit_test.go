@@ -36,7 +36,7 @@ func TestABareApprovalUnitIsRefusedByEveryReader(t *testing.T) {
 		{"rfc", rfc.ApprovalPath(fixtureSession), rfc.ApproveCommand("<package>.<TestName>")},
 	} {
 		root := newParityRepository(t)
-		writeParityFile(t, root, file.path, fixtureLedgerHeader+"| TestA | a bare name |\n")
+		writeParityFile(t, root, file.path, fixtureLedgerHeader+"| TestA | a bare name |  | none..none |\n")
 		writeParityFile(t, root, "pkg/a_test.go", parityWeakening)
 		result := Check(Request{Root: root, ApprovalSession: fixtureSession, Paths: []string{"pkg/a_test.go"}})
 		problems := strings.Join(result.Problems, "\n")
@@ -57,7 +57,7 @@ func TestABareApprovalUnitIsRefusedByEveryReader(t *testing.T) {
 	newText := strings.Replace(oldText, "\trequire.NoError", "\tt.Skip(\"later\")\n\trequire.NoError", 1)
 	writeProposedFile(t, root, path, oldText)
 	commitProposedFixture(t, root)
-	writeProposedFile(t, root, fixtureApproval, fixtureLedgerHeader+"| TestA | a bare name |\n")
+	writeProposedFile(t, root, fixtureApproval, fixtureLedgerHeader+"| TestA | a bare name |  | none..none |\n")
 	report, err := proposedFixture(root, ProposedRequest{Path: path, Tool: "Edit", Old: &oldText, New: &newText})
 	if err != nil || report.ExitCode() != 2 || !strings.Contains(report.Text(), bareUnitRefusal) {
 		t.Fatalf("hook with a bare row = %#v, %v; want the edit refused", report, err)

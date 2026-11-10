@@ -346,7 +346,12 @@ The route, in order:
    `./le test weakened approve unit <package>.<TestName> reason "<the judge's verdict>"`.
    The row goes to `tmp/commit-weakening-approved-<session>.md`, keyed on the
    main thread's commit namespace, so a subagent's edit sees it too. git never
-   reads that file. On REFUSE, fix the code instead.
+   reads that file. `<package>` is the name of the directory holding the test,
+   not its Go package clause; the command refuses a unit no directory carries
+   and names the key to use. The row records the unit's content as the judge
+   read it, so it approves that change only: a different later change of the
+   same test needs a new verdict (`docs/architecture/testing/test-health.md`,
+   "One approval names one test"). On REFUSE, fix the code instead.
 3. Make the edit.
 4. Commit with `./le commit create` as usual. The message gains one
    `Weakening-approved: <package>.<TestName>: <the judge's verdict>` line per test, and

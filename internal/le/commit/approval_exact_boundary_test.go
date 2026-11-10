@@ -62,11 +62,11 @@ func TestExplicitApprovalExactOneLineBoundary(t *testing.T) {
 				// of issuance. Both immutable historical blobs stay untouched; no
 				// resolver or gate is replaced and this is not an issuance verdict.
 				writeCommitFixture(t, root, rfc.ApprovalPath(approvalSession),
-					"# Pending fixture approval\n\n| Test | Reason | Target |\n| --- | --- | --- |\n| "+unit+" | "+reason+" | "+target+" |\n")
+					"# Pending fixture approval\n\n| Test | Reason | Target | Content |\n| --- | --- | --- | --- |\n| "+unit+" | "+reason+" | "+target+" | none..none |\n")
 			}
 			const foreignReason = "judge: a foreign origin's pending verdict"
 			writeCommitFixture(t, root, rfc.ApprovalPath("feed5678"),
-				"# Foreign fixture approval\n\n| Test | Reason | Target |\n| --- | --- | --- |\n| "+unit+" | "+foreignReason+" | "+target+" |\n")
+				"# Foreign fixture approval\n\n| Test | Reason | Target | Content |\n| --- | --- | --- | --- |\n| "+unit+" | "+foreignReason+" | "+target+" | none..none |\n")
 			rows, problems := testweakened.LoadApprovals(root, testweakened.RFCApprovals(approvalSession))
 			if len(problems) != 0 {
 				t.Fatalf("pending fixture row is unreadable: %v", problems)

@@ -7,6 +7,7 @@
 package testweakened
 
 import (
+	"go/build/constraint"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -21,7 +22,6 @@ var (
 	)
 	fatalPattern              = regexp.MustCompile(`(?:\bt\.(?:Fatal|Fatalf|FailNow)|require\.)`)
 	skipPattern               = regexp.MustCompile(`\b[A-Za-z_]\w*\.Skip(?:Now|f)?[ \t]*\(`)
-	ignoreTagPattern          = regexp.MustCompile(`//(?:go:build ignore\b|[ \t]*\+build ignore\b)`)
 	tableCasePattern          = regexp.MustCompile(`\{\s*(?:name|Name)\s*:`)
 	goTestFunctionPattern     = regexp.MustCompile(`(?m)^func (Test|Fuzz|Benchmark)`)
 	commentedAssertionPattern = regexp.MustCompile(
@@ -120,7 +120,7 @@ func detect(oldText, newText, path string) detectorVerdict {
 		verdict.blocking = append(verdict.blocking,
 			countVerdict("adding t.Skip", oldSkip, newSkip, "; the test stops running"))
 	}
-	if ignoreTagPattern.MatchString(newText) && !ignoreTagPattern.MatchString(oldText) {
+	if headerBuildsIgnore(newText) && !headerBuildsIgnore(oldText) {
 		verdict.blocking = append(verdict.blocking,
 			"adding 'ignore' build tag; file dropped from the build")
 	}
@@ -448,4 +448,65 @@ func pythonStringEnd(text string, quoteAt int) (int, bool) {
 		index++
 	}
 	return 0, false
+}
+
+// headerBuildsIgnore reports whether the file's own build constraint names the
+// tag `ignore`, which no build sets, so the file leaves every build. Go reads a
+// constraint only from the line comments before the package clause
+// (`go help buildconstraint`), so only those lines are judged: a `//go:build
+// ignore` inside a fixture string, a later comment or a function body is
+// text, not a constraint, and adding one drops nothing. A negated mention
+// (`!ignore`) keeps the file in the build and is not reported.
+func headerBuildsIgnore(content string) bool {
+	inBlock := false
+	for line := range strings.SplitSeq(content, "\n") {
+		line = strings.TrimSpace(line)
+		if inBlock {
+			_, after, closed := strings.Cut(line, "*/")
+			if !closed {
+				continue
+			}
+			inBlock = false
+			line = strings.TrimSpace(after)
+		}
+		if line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "/*") {
+			if !strings.Contains(line[2:], "*/") {
+				inBlock = true
+			}
+			continue
+		}
+		if !strings.HasPrefix(line, "//") {
+			return false // the package clause, or any code, ends the header
+		}
+		if !constraint.IsGoBuild(line) && !constraint.IsPlusBuild(line) {
+			continue
+		}
+		expression, err := constraint.Parse(line)
+		if err != nil {
+			continue // go vet refuses a malformed constraint; the build ignores it
+		}
+		if namesIgnoreTag(expression) {
+			return true
+		}
+	}
+	return false
+}
+
+// namesIgnoreTag walks one parsed constraint. Recursion is bounded by the
+// expression depth of one comment line.
+func namesIgnoreTag(expression constraint.Expr) bool {
+	switch node := expression.(type) {
+	case *constraint.TagExpr:
+		return node.Tag == "ignore"
+	case *constraint.AndExpr:
+		return namesIgnoreTag(node.X) || namesIgnoreTag(node.Y)
+	case *constraint.OrExpr:
+		return namesIgnoreTag(node.X) || namesIgnoreTag(node.Y)
+	case *constraint.NotExpr:
+		return false // `!ignore` keeps the file in every build
+	}
+	return false
 }

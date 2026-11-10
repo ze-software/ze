@@ -159,7 +159,7 @@ func TestProposedInvalidUTF8LedgerFailsClosedAndBase64UsesReplacement(t *testing
 	writeProposedFile(t, root, path, oldText)
 	ledger := []byte(fixtureLedgerHeader + "| Test")
 	ledger = append(ledger, 0xff)
-	ledger = append(ledger, []byte("A | invalid name cannot approve |\n")...)
+	ledger = append(ledger, []byte("A | invalid name cannot approve |  | none..none |\n")...)
 	writeProposedBytes(t, root, fixtureApproval, ledger)
 	old64 := base64.StdEncoding.EncodeToString(append([]byte(oldText), 0xff))
 	new64 := base64.StdEncoding.EncodeToString(append([]byte(newText), 0xff))
@@ -290,6 +290,8 @@ func TestProposedWeakeningNeedsAnOwnerApproval(t *testing.T) {
 	oldText := "package a\nfunc TestA(t *testing.T) {\n\trequire.NoError(t, err)\n}\n"
 	newText := strings.Replace(oldText, "\trequire.NoError", "\tt.Skip(\"later\")\n\trequire.NoError", 1)
 	writeProposedFile(t, root, path, oldText)
+	// The other unit exists, so its approval is of a real test (AC-31).
+	writeProposedFile(t, root, "pkg/other_test.go", "package a\nfunc TestOther(t *testing.T) {\n\trequire.NoError(t, err)\n}\n")
 	commitProposedFixture(t, root)
 	request := ProposedRequest{Path: path, Tool: "Edit", Old: &oldText, New: &newText}
 

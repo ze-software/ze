@@ -352,10 +352,10 @@ var (
 	// `./le ai rules update render`, and preserveState in internal/le/session
 	// starts a snapshot only at a block start.
 	hookSourcesDigest = [sha256.Size]byte{
-		0x8f, 0xbe, 0x67, 0x6e, 0xe1, 0x3e, 0x96, 0x82,
-		0xcd, 0x92, 0x5a, 0x5a, 0xc5, 0x33, 0xbc, 0x05,
-		0x55, 0x25, 0x56, 0x5e, 0x55, 0x8d, 0x95, 0x59,
-		0x6a, 0xa6, 0xd1, 0x96, 0x17, 0x37, 0x0d, 0x79,
+		0xa5, 0x0d, 0x4d, 0xe3, 0x5d, 0x06, 0x05, 0x8d,
+		0xfc, 0x37, 0xc7, 0x16, 0xaa, 0x63, 0x47, 0x70,
+		0x2e, 0x7d, 0xb7, 0x98, 0xd8, 0x3f, 0x96, 0x6e,
+		0xf0, 0x6f, 0x59, 0xb9, 0xf9, 0x3e, 0xf6, 0x4b,
 	}
 )
 
@@ -1217,10 +1217,10 @@ func TestUnledgered(t *testing.T) {
 `
 )
 
-// probeLedgerRows is a ledger holding one row, naming probe.TestLedgered. The
-// weakening ledger and the session's RFC approval file parse through the
-// same table grammar, so one body serves both.
-const probeLedgerRows = "| Test | Reason |\n| --- | --- |\n| probe.TestLedgered | the row the probe authorizes |\n"
+// probeLedgerUnit is the one unit the probe ledger approves. The weakening
+// ledger and the session's RFC approval file parse through the same table
+// grammar, so one writer serves both.
+const probeLedgerUnit = "probe.TestLedgered"
 
 // rfcGuardTree builds a checkout holding the tagged test as it stands and no
 // RFC approval file, so an edit that changes what the tagged unit proves has
@@ -1260,7 +1260,14 @@ func probeLedgerTree(name, test string, namespace func(root string) (string, err
 	if err := os.MkdirAll(filepath.Dir(ledger), 0o750); err != nil {
 		return root, err
 	}
-	return root, os.WriteFile(ledger, []byte(probeLedgerRows), 0o600)
+	// The real writer records the row, so it carries the content digests of
+	// the committed unit the probe edit then changes (rfc.ApproveInto).
+	_, err = rfc.ApproveInto(root, rfc.ApprovalFile{
+		Path:    ledgerPath(session),
+		Header:  "# Probe approvals\n\n" + rfc.ApprovalTableHeader,
+		Command: "probe ledger",
+	}, probeLedgerUnit, "the row the probe authorizes")
+	return root, err
 }
 
 // draftIncubatorTree holds one tagged test twice, inside the draft incubator

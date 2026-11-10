@@ -73,7 +73,7 @@ func TestCheckSemanticApprovalExcludesNewUnits(t *testing.T) {
 			var trailers, dropped []string
 			if test.changeExisting {
 				trailers = []string{ApprovalTrailerLine("pkg.TestA", reason)}
-				dropped = []string{"| pkg.TestA | " + reason + " |"}
+				dropped = []string{approvalRowLine(t, root, fixtureApproval, "| pkg.TestA | "+reason+" | ")}
 			}
 			if !slices.Equal(result.Approvals.Trailers, trailers) || !slices.Equal(result.Approvals.Dropped, dropped) {
 				t.Fatalf("approval selection = trailers %q, dropped %q; want %q, %q", result.Approvals.Trailers, result.Approvals.Dropped, trailers, dropped)

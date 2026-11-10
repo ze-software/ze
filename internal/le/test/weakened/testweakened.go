@@ -174,31 +174,59 @@ func Check(request Request) Result {
 		}
 	}
 	for _, finding := range findings {
-		claimed, carrier := claimFinding(&result.Approvals, &weakening, finding)
+		claimed, why := claimFinding(&result.Approvals, &weakening, finding)
 		if !claimed {
 			var fromOwner string
 			claimed, fromOwner = claimFinding(&result.RFCApprovals, &owner, finding)
-			if carrier == "" {
-				carrier = fromOwner
+			if why == "" {
+				why = fromOwner
 			}
 		}
 		if !claimed {
-			result.Problems = append(result.Problems, unapprovedProblem(finding, carrier))
+			result.Problems = append(result.Problems, unapprovedProblem(finding, why))
 		}
 	}
 	// A semantic migration can keep or add assertions. Its judge's verdict
 	// still belongs in the commit, but an unchanged or unselected unit cannot
 	// spend it. The same row matcher preserves single-use and session scope.
+	// A unit an unlanded row names is still an approval site when the row is
+	// stale and claims nothing: the commit's shared-unit guard must see every
+	// unit a verdict names, so one row cannot be spent across two carriers.
 	for _, unit := range changed {
 		claimed, _ := claimFinding(&result.Approvals, &weakening, unit)
 		if !claimed {
 			claimed, _ = claimFinding(&result.RFCApprovals, &owner, unit)
 		}
-		if claimed {
+		site := claimed
+		if !site {
+			site = namesUnlanded(&weakening, unit)
+		}
+		if !site {
+			site = namesUnlanded(&owner, unit)
+		}
+		if site {
 			result.ApprovalSites = append(result.ApprovalSites, UnitSite{Unit: unit.Unit(), Path: unit.Path})
 		}
 	}
 	return result
+}
+
+// namesUnlanded reports whether a row of file that no commit carried and
+// that targets no commit names unit, stale or not. It claims nothing: a
+// stale row stays unspent, and only claimFinding records a trailer.
+func namesUnlanded(file *approvalFile, unit Finding) bool {
+	for _, row := range file.rows {
+		if row.Target != "" {
+			continue
+		}
+		if row.Carrier != "" {
+			continue
+		}
+		if rowMatches(row.Name, unit) {
+			return true
+		}
+	}
+	return false
 }
 
 // approvalSession answers the namespace whose approval files admit request,
@@ -238,10 +266,11 @@ func loadApprovalFile(root string, source ApprovalSource) (approvalFile, []strin
 
 // claimFinding marks the first live row of file that names finding as used,
 // recording its trailer and file line in approvals once. It answers whether a
-// live row claimed the finding and, when none did, the commit that already
-// used a row naming it.
+// live row claimed the finding and, when none did, why a row naming it
+// approves nothing: the commit that already used it, or the change after the
+// verdict that made it stale.
 func claimFinding(approvals *Approvals, file *approvalFile, finding Finding) (bool, string) {
-	carrier := ""
+	why := ""
 	for index, row := range file.rows {
 		if row.Target != "" {
 			continue
@@ -250,7 +279,11 @@ func claimFinding(approvals *Approvals, file *approvalFile, finding Finding) (bo
 			continue
 		}
 		if row.Carrier != "" {
-			carrier = row.Carrier
+			why = "the approval naming it was already used by commit " + row.Carrier + ", so it approves nothing further"
+			continue
+		}
+		if row.Stale != "" {
+			why = "the approval naming it is stale (" + row.Stale + "), so it approves nothing"
 			continue
 		}
 		if !file.used[index] {
@@ -260,19 +293,18 @@ func claimFinding(approvals *Approvals, file *approvalFile, finding Finding) (bo
 		}
 		return true, ""
 	}
-	return false, carrier
+	return false, why
 }
 
 // unapprovedProblem is the refusal for one weakened unit no live approval
 // names. It says who decides, and the exact command that records his answer.
-func unapprovedProblem(finding Finding, carrier string) string {
+func unapprovedProblem(finding Finding, why string) string {
 	var text textbuf.Buffer
 	text.Str(finding.Path).Str(" weakens ").Str(finding.Unit())
-	if carrier == "" {
+	if why == "" {
 		text.Str(", and no ze-test-judge approval names it:\n")
 	} else {
-		text.Str(", and the approval naming it was already used by commit ").Str(carrier).
-			Str(", so it approves nothing further:\n")
+		text.Str(", and ").Str(why).Str(":\n")
 	}
 	for _, detail := range finding.Details {
 		text.Str("    - ").Str(detail).Byte('\n')

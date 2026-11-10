@@ -29,7 +29,13 @@ const ApprovalForTrailer = "RFC-approved-for: "
 // approvalHeader opens a session file. The table is the row grammar
 // testweakened.ParseLedger reads, so the hook and the gate parse every
 // approval file with one reader.
-const approvalHeader = "# RFC-tagged test changes the owner approved\n\n| Test | Reason | Target |\n|------|--------|--------|\n"
+const approvalHeader = "# RFC-tagged test changes the owner approved\n\n" + ApprovalTableHeader
+
+// ApprovalTableHeader opens the one table every owner approval file holds, the
+// RFC one and the weakening one: the unit, the judge's verdict, the exact
+// commit a historical verdict binds (empty for an ordinary row), and the
+// unit's content digests the verdict judged (ApprovalContentCell).
+const ApprovalTableHeader = "| Test | Reason | Target | Content |\n|------|--------|--------|---------|\n"
 
 const keyCommit = "commit"
 
@@ -117,9 +123,6 @@ func approveTarget(root, session, target, unit, reason string) (ApprovalReport, 
 	if err := requireRulingTerminal(root, target, unit, reason); err != nil {
 		return ApprovalReport{}, err
 	}
-	if _, err := ResolveApprovalUnit(root, target, unit); err != nil {
-		return ApprovalReport{}, err
-	}
 	return ApproveInto(root, ApprovalFile{
 		Path: ApprovalPath(session), Header: approvalHeader, Command: "rfc approve", Target: target,
 	}, unit, reason)
@@ -144,8 +147,12 @@ func requireRulingAuthorization(root, reason string, operands []string) error {
 
 // ApproveInto writes the judge's approval of one unit into file, creating it,
 // replacing only the exact (target, unit) row. Ordinary rows have no target.
-// Ordinary rows retain the shared weakening writer's syntactic contract; the
-// RFC entry resolves their carrier before calling this shared writer.
+// Every row's unit is resolved to its one carrier first (ResolveApprovalUnit),
+// so a name no consumer would ever match (a Go package clause in place of the
+// directory key, an unknown or ambiguous unit) is refused before anything is
+// written, and the row records the digests of the unit's content the verdict
+// judged, so it cannot admit a later different change of the same unit
+// (ApprovalContentAdmits).
 func ApproveInto(root string, file ApprovalFile, unit, reason string) (ApprovalReport, error) {
 	report := ApprovalReport{Path: file.Path, Unit: unit, Reason: strings.TrimSpace(reason), Target: file.Target}
 	if !ValidApprovalUnit(unit) {
@@ -157,10 +164,9 @@ func ApproveInto(root string, file ApprovalFile, unit, reason string) (ApprovalR
 	if strings.ContainsAny(report.Reason, "\r\n|") {
 		return report, errors.New(file.Command + ": reason must be one line and carry no '|': it becomes one trailer line and one ledger cell")
 	}
-	if file.Target != "" {
-		if _, err := ResolveApprovalUnit(root, file.Target, unit); err != nil {
-			return report, err
-		}
+	judged, err := ResolveApprovalUnitContent(root, file.Target, unit)
+	if err != nil {
+		return report, err
 	}
 	full := filepath.Join(root, filepath.FromSlash(report.Path))
 	content, err := os.ReadFile(full) //nolint:gosec // the path is this session's own tmp/ file under the checkout root
@@ -171,15 +177,7 @@ func ApproveInto(root string, file ApprovalFile, unit, reason string) (ApprovalR
 	if err != nil {
 		return report, err
 	}
-	row := "| " + unit + " | " + report.Reason + " |"
-	targetedTable := strings.Contains(string(content), "| Test | Reason | Target |")
-	if file.Target != "" {
-		content = extendApprovalTable(content)
-		targetedTable = true
-	}
-	if targetedTable {
-		row = "| " + unit + " | " + report.Reason + " | " + file.Target + " |"
-	}
+	row := "| " + unit + " | " + report.Reason + " | " + file.Target + " | " + ApprovalContentCell(judged) + " |"
 	lines := strings.Split(strings.TrimRight(string(content), "\n"), "\n")
 	var page textbuf.Buffer
 	for _, line := range lines {
@@ -241,31 +239,6 @@ func approvalLanded(root, trailer, binding string) (carrier string, landed bool,
 	return carrier, matched >= 0, problem
 }
 
-// extendApprovalTable adds target identity to the existing table, retaining
-// ordinary rows as explicitly unbound rather than creating another ledger.
-func extendApprovalTable(content []byte) []byte {
-	if strings.Contains(string(content), "| Test | Reason | Target |") {
-		return content
-	}
-	lines := strings.Split(string(content), "\n")
-	for index, line := range lines {
-		body := strings.TrimSpace(line)
-		if !strings.HasPrefix(body, "|") {
-			continue
-		}
-		if body == "| Test | Reason |" {
-			lines[index] = "| Test | Reason | Target |"
-			continue
-		}
-		if strings.Trim(body, "|-: \t") == "" {
-			lines[index] = strings.TrimRight(body, "|") + "|--------|"
-			continue
-		}
-		lines[index] = strings.TrimRight(body, "|") + "| |"
-	}
-	return []byte(strings.Join(lines, "\n"))
-}
-
 // rowNames compares the existing table's exact target/unit key.
 func rowNames(line, target, unit string) bool {
 	body := strings.TrimSpace(line)
@@ -273,14 +246,13 @@ func rowNames(line, target, unit string) bool {
 		return false
 	}
 	cells := strings.Split(strings.Trim(body, "|"), "|")
-	if len(cells) < 2 {
+	if len(cells) != 4 {
 		return false
 	}
-	rowTarget := ""
-	if len(cells) == 3 {
-		rowTarget = strings.TrimSpace(cells[2])
+	if strings.TrimSpace(cells[0]) != unit {
+		return false
 	}
-	return strings.TrimSpace(cells[0]) == unit && rowTarget == target
+	return strings.TrimSpace(cells[2]) == target
 }
 
 // approveAnswer admits a parsed ruling before process startup can write.

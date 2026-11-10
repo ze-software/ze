@@ -132,11 +132,12 @@ func approvalRows(root, session string) (map[string]string, error) {
 	rows := map[string]string{}
 	for line := range strings.SplitSeq(string(content), "\n") {
 		cells := strings.Split(strings.TrimSpace(line), "|")
-		if len(cells) != 4 && len(cells) != 5 {
+		// `| Test | Reason | Target | Content |` splits into six pieces.
+		if len(cells) != 6 {
 			continue
 		}
-		if len(cells) == 5 && strings.TrimSpace(cells[3]) != "" {
-			continue
+		if strings.TrimSpace(cells[3]) != "" {
+			continue // a targeted row binds a historical change, not this ruling
 		}
 		unit := strings.TrimSpace(cells[1])
 		if !approvalUnitPattern.MatchString(unit) {

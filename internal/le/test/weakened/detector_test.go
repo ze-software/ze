@@ -143,3 +143,48 @@ func TestStripHeredocBodiesUnterminatedConsumesRestOfFileWithoutPanicking(t *tes
 		t.Fatalf("stripHeredocBodies() = %q, want %q", got, want)
 	}
 }
+
+// TestDetectorReadsBuildIgnoreFromHeaderOnly proves the "dropped from the
+// build" verdict reads only the file's build constraint: the line comments
+// before the package clause, parsed by go/build/constraint. A Go fixture whose
+// string carries `//go:build ignore` (the refusebydefault_test.go refusal)
+// drops nothing, while a header constraint naming `ignore`, alone, in an
+// expression, or in the legacy `+build` form, is still refused.
+//
+// MUTATION: judge the whole text again (the old ignoreTagPattern over newText,
+// or headerBuildsIgnore reading past the package clause) and the fixture-string
+// case reports a dropped file; drop the TagExpr arm and every header case
+// stops reporting.
+func TestDetectorReadsBuildIgnoreFromHeaderOnly(t *testing.T) {
+	t.Parallel()
+	const verdict = "adding 'ignore' build tag; file dropped from the build"
+	const body = "package a\n\nfunc TestA(t *testing.T) {\n\tt.Fatal(\"x\")\n}\n"
+	cases := []struct {
+		name    string
+		newText string
+		dropped bool
+	}{
+		{"fixture string", body + "\nconst fixture = `\n//go:build ignore\n\npackage b\n`\n", false},
+		{"comment after the clause", body + "\n//go:build ignore\n", false},
+		{"header constraint", "//go:build ignore\n\n" + body, true},
+		{"header after a doc comment", "// Design: x.\n\n//go:build ignore\n\n" + body, true},
+		{"expression", "//go:build linux && ignore\n\n" + body, true},
+		{"legacy form", "// +build ignore\n\n" + body, true},
+		{"negated", "//go:build !ignore\n\n" + body, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			found := detect(body, tc.newText, "pkg/a_test.go")
+			reported := false
+			for _, detail := range found.blocking {
+				if detail == verdict {
+					reported = true
+				}
+			}
+			if reported != tc.dropped {
+				t.Fatalf("dropped-from-build reported = %v, want %v; blocking = %q", reported, tc.dropped, found.blocking)
+			}
+		})
+	}
+}
