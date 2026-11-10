@@ -220,8 +220,13 @@ peer, including this fixture's peer.
 
 The wire proof covers a declared interval on that original connection, not its
 future traffic. Ze's direction must contain the original OPEN and KEEPALIVE,
-all three injected subjects (the third follows EOR), and the later, distinct
-`10.54.255.0/24` FIFO fence. Only after forwarding and recording that full fence
+all three injected subjects (the third follows EOR and arrives in a later
+UPDATE than the first two), and the `10.54.255.0/24` FIFO fence after them.
+Order is NLRI order across the byte stream: message order between UPDATEs and
+NLRI order inside one. RFC 4271 Section 4.3 lets Ze pack routes that share
+path attributes into one UPDATE, so the fence may follow the third subject in
+that subject's UPDATE; a fence ahead of any subject is refused, and the
+attribute checks apply to every NLRI an UPDATE carries. Only after forwarding and recording that full fence
 can the reverse worker begin reading its subsequent KEEPALIVE barrier. Each
 closed capture ends with its actual source/target endpoints, exact frame count
 and declared boundary. Timeout, EOF, truncation or the 256-frame limit cannot

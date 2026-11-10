@@ -36,6 +36,12 @@ func TestLocalPrefStripChecksDestinationWire(t *testing.T) {
 		{"suppressed third", strings.ReplaceAll(clean, "180a3602", "180a3603"), true},
 		{"replaced source", strings.ReplaceAll(clean, "ac1e0009", "ac1e0002"), true},
 		{"missing fence", strings.ReplaceAll(clean, "180a36ff", "180a36fe"), true},
+		// RFC 4271 Section 4.3 lets Ze pack NLRI sharing path attributes into one
+		// UPDATE, so the fence may follow the third subject inside its UPDATE.
+		{"third and fence batched", localPrefTestCaptureTail(t, -1, []byte{24, 10, 54, 2, 24, 10, 54, 255}), false},
+		{"fence before third batched", localPrefTestCaptureTail(t, -1, []byte{24, 10, 54, 255, 24, 10, 54, 2}), true},
+		{"batched leaked200", localPrefTestCaptureTail(t, 200, []byte{24, 10, 54, 2, 24, 10, 54, 255}), true},
+		{"observed batched frames", localPrefTestObservedCapture(t), false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(t.Context(), 250*time.Millisecond)
@@ -54,7 +60,16 @@ func TestLocalPrefStripChecksDestinationWire(t *testing.T) {
 	}
 }
 
+// localPrefTestCapture sends the third subject and the fence in UPDATEs of
+// their own, the unbatched order.
 func localPrefTestCapture(t *testing.T, preference int) string {
+	t.Helper()
+	return localPrefTestCaptureTail(t, preference, []byte{24, 10, 54, 2}, []byte{24, 10, 54, 255})
+}
+
+// localPrefTestCaptureTail sends OPEN, KEEPALIVE, EOR and the initial pair, then
+// one UPDATE per tail NLRI block, every UPDATE with the same attributes.
+func localPrefTestCaptureTail(t *testing.T, preference int, tail ...[]byte) string {
 	t.Helper()
 	open, err := speakerOpen(65001, 90, net.ParseIP("172.30.0.2"), nil, false, false)
 	if err != nil {
@@ -67,8 +82,32 @@ func localPrefTestCapture(t *testing.T, preference int) string {
 	frames := [][]byte{
 		open, speakerKeepalive(), speakerEOR(),
 		speakerMessage(bgpUpdate, buildSpeakerUpdate(attrs, []byte{24, 10, 54, 0, 24, 10, 54, 1})),
-		speakerMessage(bgpUpdate, buildSpeakerUpdate(attrs, []byte{24, 10, 54, 2})),
-		speakerMessage(bgpUpdate, buildSpeakerUpdate(attrs, []byte{24, 10, 54, 255})),
+	}
+	for _, nlri := range tail {
+		frames = append(frames, speakerMessage(bgpUpdate, buildSpeakerUpdate(attrs, nlri)))
+	}
+	return localPrefTestRows(t, frames, "172.30.0.2:179", "172.30.0.5:179", "local-pref-subjects-through-fifo-fence")
+}
+
+// localPrefTestObservedCapture replays the frames Ze sent toward GoBGP in a lab
+// run (2026-11-09) that batched the third subject 10.54.2.0/24 and the fence
+// 10.54.255.0/24 into one UPDATE, which the old observer refused as a fence
+// preceding the subjects.
+func localPrefTestObservedCapture(t *testing.T) string {
+	t.Helper()
+	var frames [][]byte
+	for _, text := range []string{
+		"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002B0104FDE9005AAC1E00020E020C01040001000141040000FDE9",
+		"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304",
+		"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000",
+		"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003702000000184001010040020A02020000FDE90000FDEC400304AC1E0009180A3600180A3601",
+		"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003702000000184001010040020A02020000FDE90000FDEC400304AC1E0009180A3602180A36FF",
+	} {
+		frame, err := hex.DecodeString(text)
+		if err != nil {
+			t.Fatal(err)
+		}
+		frames = append(frames, frame)
 	}
 	return localPrefTestRows(t, frames, "172.30.0.2:179", "172.30.0.5:179", "local-pref-subjects-through-fifo-fence")
 }

@@ -132,6 +132,11 @@ func (sequence *localPrefWireSequence) observe(frame []byte) error {
 		if err := sequence.attributes(update.attributes); err != nil {
 			return err
 		}
+		// Subjects and the fence are ordered by NLRI across the byte stream:
+		// message order between UPDATEs, NLRI order inside one. RFC 4271
+		// Section 4.3 lets a speaker pack routes that share path attributes into
+		// one UPDATE, so Ze may carry the fence after the third subject in that
+		// subject's UPDATE. The attribute check above covers every NLRI here.
 		before := sequence.subjects
 		for nlri := update.nlri; len(nlri) != 0; nlri = nlri[4:] {
 			if len(nlri) < 4 || !bytes.Equal(nlri[:3], []byte{24, 10, 54}) {
@@ -139,8 +144,8 @@ func (sequence *localPrefWireSequence) observe(frame []byte) error {
 			}
 			subnet := nlri[3]
 			if subnet == 255 {
-				if before != 7 || len(update.nlri) != 4 || sequence.fenced {
-					return errors.New("LOCAL_PREF FIFO fence preceded all three separate subjects")
+				if sequence.subjects != 7 || sequence.fenced {
+					return errors.New("LOCAL_PREF FIFO fence preceded all three subjects in NLRI order")
 				}
 				sequence.fenced = true
 				continue
