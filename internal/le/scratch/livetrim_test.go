@@ -39,7 +39,9 @@ func agedDir(t *testing.T, path string, now time.Time, age time.Duration) string
 
 // agedSessionDir is agedDir for a session directory: it records the owner,
 // the part of the name after the date, in .session-id before it sets the
-// mtime, because the reaper reads the owner from that file.
+// mtime, because the reaper reads the owner from that file. The file takes the
+// directory's age: a session writes it once, when it starts, and the trim
+// measures a session by the newest write in its tree.
 func agedSessionDir(t *testing.T, path string, now time.Time, age time.Duration) string {
 	t.Helper()
 	if err := os.MkdirAll(path, 0o750); err != nil {
@@ -47,6 +49,10 @@ func agedSessionDir(t *testing.T, path string, now time.Time, age time.Duration)
 	}
 	owner := filepath.Base(path)[len("2006-01-02-"):]
 	if err := os.WriteFile(filepath.Join(path, sessiondir.IDFile), []byte(owner+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	stamp := now.Add(-age)
+	if err := os.Chtimes(filepath.Join(path, sessiondir.IDFile), stamp, stamp); err != nil {
 		t.Fatal(err)
 	}
 	return agedDir(t, path, now, age)
@@ -329,6 +335,61 @@ func TestTrimSessionsAgePlusReap(t *testing.T) {
 			}
 		}
 	})
+}
+
+// TestTrimSessionsKeepsAnActiveHarnessOwnersPaths proves the session trim
+// measures a session's age by its whole tree.
+//
+// VALIDATES: a session whose owner Reap's rules cannot see (an identity taken
+// from the environment: no Claude transcript, no pid pin, no argv naming it)
+// and whose directory mtime is two days old keeps its directory, its state
+// file and its proof while it wrote them within the last day; the same layout
+// with every write two days old is removed.
+// PREVENTS: the 2026-11-06 loss (plan/journal/lifetime-ends-before-its-last-reader.md)
+// of an active harness session's proof and state paths during an automatic
+// trim, because the parent's mtime does not move when a file under state/ or
+// scratch/ is written.
+func TestTrimSessionsKeepsAnActiveHarnessOwnersPaths(t *testing.T) {
+	now := time.Now()
+	root := t.TempDir()
+	sessions := filepath.Join(root, "tmp", "session")
+	old := 48 * time.Hour
+
+	session := func(owner string, writeAge time.Duration) (dir, state, proof string) {
+		dir = filepath.Join(sessions, "2026-01-01-"+owner)
+		state = filepath.Join(dir, "state", "session-state-spec-"+owner+".md")
+		proof = filepath.Join(dir, scratchSubdir, "proof", "proof.json")
+		agedFile(t, state, now, writeAge)
+		agedFile(t, proof, now, writeAge)
+		agedDir(t, filepath.Dir(proof), now, old)
+		agedDir(t, filepath.Join(dir, scratchSubdir), now, old)
+		agedDir(t, filepath.Dir(state), now, old)
+		agedSessionDir(t, dir, now, old)
+		return dir, state, proof
+	}
+	activeDir, activeState, activeProof := session("activeharness", time.Minute)
+	idleDir, _, _ := session("idleharness", old)
+
+	var removed []string
+	rows := trimLiveness(t.Context(), root, &livenessPass{
+		now: now, processes: []procscan.Process{claudeCLI(now)}, judge: judgeIn(t, root),
+		startedAt: func(int) time.Time { return time.Time{} }, remove: recordingRemove(t, &removed),
+	})
+	if !slices.Equal(removed, []string{idleDir}) {
+		t.Errorf("removed %v, want only the idle session %s", removed, idleDir)
+	}
+	for _, kept := range []string{activeDir, activeState, activeProof} {
+		if !exists(t, kept) {
+			t.Errorf("%s was removed while its session wrote within the last day", kept)
+		}
+	}
+	if exists(t, idleDir) {
+		t.Errorf("%s was kept although nothing in it was written for two days", idleDir)
+	}
+	row := rowNamed(t, rows, sessionStore)
+	if row.EntriesRemoved != 1 || row.Kept != 1 || row.Error != "" {
+		t.Errorf("sessions row = %+v, want 1 removed, 1 kept, no error", row)
+	}
 }
 
 // TestTrimSkipsLivenessWithoutSessions proves the no-Claude guard.

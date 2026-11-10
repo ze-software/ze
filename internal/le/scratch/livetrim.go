@@ -542,7 +542,7 @@ func fileNameCharacter(character byte) bool {
 }
 
 // trimSessions removes each session directory Reap's rules would remove and
-// that is also older than sessionIdleAge, and answers the directories left
+// whose whole tree is also older than sessionIdleAge (treeIdle), and answers the directories left
 // standing, which the testbin pass walks. When no directory could be listed
 // it answers why instead, so the testbin row says so rather than reporting an
 // empty store it never looked at.
@@ -572,7 +572,7 @@ func trimSessions(ctx context.Context, row *StoreTrim, pass *livenessPass) ([]st
 			kept = append(kept, dir)
 			continue
 		}
-		info, statErr := os.Lstat(dir)
+		_, statErr := os.Lstat(dir)
 		if errors.Is(statErr, fs.ErrNotExist) {
 			continue
 		}
@@ -581,7 +581,20 @@ func trimSessions(ctx context.Context, row *StoreTrim, pass *livenessPass) ([]st
 			kept = append(kept, dir)
 			continue
 		}
-		if !olderThan(info.ModTime(), pass.now, sessionIdleAge) {
+		// The age is the newest write anywhere in the tree, never the
+		// directory's own mtime: a session writes its state file under state/
+		// and its proofs under scratch/, which leaves the parent's mtime where
+		// the session's first file put it. Reap's rules see only a Claude CLI,
+		// a pid pin, an argv or a transcript, so a harness session that took
+		// its identity from the environment is judged dead while it runs, and
+		// its recent writes are the one sign of its owner the trim can read.
+		idle, idleErr := treeIdle(dir, pass.now, sessionIdleAge)
+		if idleErr != nil {
+			row.Error = idleErr.Error()
+			kept = append(kept, dir)
+			continue
+		}
+		if !idle {
 			row.Kept++
 			kept = append(kept, dir)
 			continue

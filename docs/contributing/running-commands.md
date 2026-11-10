@@ -739,7 +739,12 @@ A session directory outlives its session, so a log written today is there
 tomorrow. Nothing removes it at session end or from a hook. `./le session clean`
 removes only session directories whose owners are provably gone, and the hourly
 store trim (see "When the disk is full") removes a directory only when those same
-rules call it dead AND its mtime is more than a day old. Inside a directory it
+rules call it dead AND nothing anywhere in its tree was written in the last day.
+The directory's own mtime is no measure: a session writes its state under
+`state/` and its proofs under `scratch/`, which leaves the parent's mtime where
+its first file put it, and a harness session that took its identity from the
+environment shows the rules no process, pin or transcript, so its recent
+writes are what keeps it. Inside a directory it
 keeps, the trim removes a `testbin-pid-<pid>-<label>/` that is more than six hours
 old and whose run is over: the pid is not running, or the process now running
 under that pid started after the directory was made. A process that has exited
