@@ -196,10 +196,12 @@ func TestRunPluginRegistryChecks_ParsedConfig(t *testing.T) {
 }
 
 // TestRunPluginRegistryChecksCarriesFix registers a plugin check whose
-// diagnostic names a fix, in the runtime phase, and runs the bridge.
+// diagnostic names a fix, in the post-config phase, and runs the bridge.
 //
 // VALIDATES: AC-3 on the registry bridge, the fix a plugin check returns
-// reaches the doctor diagnostic; the runtime phase is bridged like any other.
+// reaches the doctor diagnostic, in its own phase only. A runtime check cannot
+// be a registry.DoctorCheckDef (TestRegisterDoctorCheckValidation), so this
+// bridge carries config phases alone.
 // PREVENTS: the bridge rebuilding a diagnostic from code, severity and
 // message alone and dropping the fix command.
 func TestRunPluginRegistryChecksCarriesFix(t *testing.T) {
@@ -214,8 +216,8 @@ func TestRunPluginRegistryChecksCarriesFix(t *testing.T) {
 		CLIHandler:  stubCLI,
 		DoctorChecks: []registry.DoctorCheckDef{{
 			Name:         "bridge-fix-check",
-			Phase:        rpc.DoctorPhaseRuntime,
-			Dependencies: []string{"live-state"},
+			Phase:        rpc.DoctorPhasePostConfig,
+			Dependencies: []string{"config-loaded"},
 			Platforms:    []string{"any"},
 			Codes:        []string{"doctor-bridge-fix"},
 			Check: func(registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic {
@@ -229,10 +231,10 @@ func TestRunPluginRegistryChecksCarriesFix(t *testing.T) {
 		}},
 	}))
 
-	assert.Empty(t, runPluginRegistryChecks(doctorCheckPhasePostConfig, doctorCheckContext{}),
-		"a runtime plugin check ran in the post-config phase")
+	assert.Empty(t, runPluginRegistryChecks(doctorCheckPhasePreConfig, doctorCheckContext{}),
+		"a post-config plugin check ran in the pre-config phase")
 
-	diags := runPluginRegistryChecks(diagnostic.DoctorPhaseRuntime, doctorCheckContext{})
+	diags := runPluginRegistryChecks(doctorCheckPhasePostConfig, doctorCheckContext{})
 	require.Len(t, diags, 1)
 	assert.Equal(t, "doctor-bridge-fix", diags[0].Code)
 	assert.Equal(t, "live state is degraded", diags[0].Message)

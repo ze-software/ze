@@ -34,7 +34,7 @@ func runPluginRegistryChecks(phase doctorCheckPhase, ctx doctorCheckContext) []d
 
 // PluginDiagnostic converts one diagnostic a plugin doctor check answered
 // into the doctor's own record. It is the one mapping both plugin bridges use
-// (runPluginRegistryChecks here, collectPluginDoctorChecks on the daemon
+// (runPluginRegistryChecks here, collectDoctorChecksFrom on the daemon
 // route), so a field the plugin protocol carries, Fix included, cannot be
 // dropped on one route and kept on the other. The severity is copied as the
 // plugin wrote it: the set is open, and each bridge decides how to read a

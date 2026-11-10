@@ -752,6 +752,9 @@ func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) 
 	if err := validateDoctorCheckDecls(input.DoctorChecks); err != nil {
 		return fmt.Errorf("invalid doctor check: %w", err)
 	}
+	if err := refuseDoctorCheckDeclaredTwice(proc.Config().Name, registryRow(proc.Config()), input.DoctorChecks); err != nil {
+		return err
+	}
 	// Validate enricher declarations before proxy registration.
 	if err := validateEnricherDecls(input.Enrichers); err != nil {
 		return fmt.Errorf("invalid enricher: %w", err)
@@ -1408,6 +1411,32 @@ func validateDrainDecl(name string, budgetSeconds int, handler bool) error {
 	if budgetSeconds > 0 && !handler {
 		return fmt.Errorf("plugin %q declares drain-budget %d s (daemon drain ceiling %d s) and no drain handler",
 			name, budgetSeconds, rpc.DrainCeilingSeconds)
+	}
+	return nil
+}
+
+// refuseDoctorCheckDeclaredTwice refuses a Stage 1 doctor check whose name the
+// plugin's compiled-in registry row (row, nil for a plugin with none) already
+// declares as a registry.DoctorCheckDef. The two declarations run by different
+// routes: the row's function in the process that answers ze doctor, and the
+// Stage 1 one through the doctor callback on the daemon route. One check
+// declared both ways would run twice in one show doctor answer and list its
+// findings twice, so each check has exactly one declaration.
+func refuseDoctorCheckDeclaredTwice(pluginName string, row *registry.Registration, checks []rpc.DoctorCheckDecl) error {
+	// A plugin with no registry row registered no function, so its Stage 1
+	// declarations are the only ones it has.
+	var defs []registry.DoctorCheckDef
+	if row != nil {
+		defs = row.DoctorChecks
+	}
+	for _, decl := range checks {
+		for _, def := range defs {
+			if def.Name != decl.Name {
+				continue
+			}
+			return fmt.Errorf("plugin %q declares doctor check %q twice, in its registry.Registration DoctorChecks and in its Stage 1 sdk.Registration DoctorChecks, so show doctor would run it twice; keep one: the registry entry for a config check, the Stage 1 one answered by OnDoctorCheck for a check of live state",
+				pluginName, decl.Name)
+		}
 	}
 	return nil
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -163,4 +164,32 @@ func TestDoctorCheckDeclValidation(t *testing.T) {
 			assert.Contains(t, err.Error(), tt.errMsg)
 		})
 	}
+}
+
+// TestRefuseDoctorCheckDeclaredTwice declares one doctor check both in a
+// plugin's registry row and at Stage 1, and one only at Stage 1.
+//
+// VALIDATES: a check declared both ways is refused at Stage 1 with both
+// declarations named, and a check with one declaration passes, as does a
+// plugin with no registry row.
+// PREVENTS: show doctor running one check twice, once through the registry
+// function in doctor.Answer and once through the doctor callback, and
+// listing its findings twice.
+func TestRefuseDoctorCheckDeclaredTwice(t *testing.T) {
+	t.Parallel()
+
+	row := &registry.Registration{
+		Name:         "fixture-plugin",
+		DoctorChecks: []registry.DoctorCheckDef{{Name: "fixture-config-check"}},
+	}
+	twice := []rpc.DoctorCheckDecl{{Name: "fixture-config-check"}}
+	err := refuseDoctorCheckDeclaredTwice("fixture-plugin", row, twice)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"fixture-config-check" twice`)
+	assert.Contains(t, err.Error(), "registry.Registration DoctorChecks")
+	assert.Contains(t, err.Error(), "sdk.Registration DoctorChecks")
+
+	once := []rpc.DoctorCheckDecl{{Name: "fixture-live-check"}}
+	require.NoError(t, refuseDoctorCheckDeclaredTwice("fixture-plugin", row, once))
+	require.NoError(t, refuseDoctorCheckDeclaredTwice("external-plugin", nil, twice))
 }

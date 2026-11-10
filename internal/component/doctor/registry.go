@@ -42,9 +42,16 @@ type doctorCheckContext struct {
 	Platform  *host.PlatformInfo
 }
 
-// runDoctorChecks runs every check registered for one phase, in registry order,
-// then the checks an out-of-process plugin declared.
+// runDoctorChecks runs every check registered for one config phase, in
+// registry order, then the checks a compiled-in plugin registered as a Go
+// function (registry.DoctorCheckDef) for that phase.
 func runDoctorChecks(phase doctorCheckPhase, ctx doctorCheckContext) []diagnostic.Diagnostic {
+	return append(runRegisteredChecks(phase, ctx), runPluginRegistryChecks(phase, ctx)...)
+}
+
+// runRegisteredChecks runs every check the in-tree registry
+// (internal/core/diagnostic) holds for one phase, in registry order.
+func runRegisteredChecks(phase doctorCheckPhase, ctx doctorCheckContext) []diagnostic.Diagnostic {
 	registered := diagnostic.DoctorChecksForPhase(phase)
 
 	exportedCtx := diagnostic.DoctorCheckContext{
@@ -62,12 +69,17 @@ func runDoctorChecks(phase doctorCheckPhase, ctx doctorCheckContext) []diagnosti
 		}
 		diags = append(diags, registered[i].Check(exportedCtx)...)
 	}
-
-	return append(diags, runPluginRegistryChecks(phase, ctx)...)
+	return diags
 }
 
-// RunRuntimeChecks runs every check registered for the runtime phase, the
-// in-tree registry's then the plugin registry's, and answers their findings.
+// RunRuntimeChecks runs every check the in-tree registry holds for the
+// runtime phase and answers their findings.
+//
+// It runs no plugin check. A plugin's runtime check reads state that lives in
+// the plugin's own process, so its one owner is the doctor callback the daemon
+// route sends to the running plugin (collectDoctorChecksFrom in the show
+// doctor handler), which reaches a forked plugin too; the plugin registry
+// refuses a runtime registry.DoctorCheckDef, so no second route can run it.
 //
 // Only the daemon route MUST call it (HandleDoctor, the show doctor handler):
 // a runtime check reads the live state its owner holds in the daemon, and in
@@ -85,7 +97,7 @@ func RunRuntimeChecks() []diagnostic.Diagnostic {
 	// not repeated here; a nil platform still runs every check declared for
 	// any platform.
 	platform, _ := resolveDoctorPlatform()
-	return runDoctorChecks(diagnostic.DoctorPhaseRuntime, doctorCheckContext{Platform: platform})
+	return runRegisteredChecks(diagnostic.DoctorPhaseRuntime, doctorCheckContext{Platform: platform})
 }
 
 // doctorTree answers the config tree a registered check reads.

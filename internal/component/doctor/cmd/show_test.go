@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"net"
 	"strings"
 	"testing"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/component/doctor"
 	"github.com/ze-software/ze/internal/component/host"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -109,7 +111,7 @@ func TestDoctorDaemonRouteCarriesPluginChecks(t *testing.T) {
 	assert.NotContains(t, string(encoded), `"fixture-plugin-check"`)
 }
 
-// fakeDoctorCheckSource is a running-plugin set for collectPluginDoctorChecks:
+// fakeDoctorCheckSource is a running-plugin set for collectDoctorChecksFrom:
 // one plugin declaring one check, answering a fixed diagnostic.
 type fakeDoctorCheckSource struct {
 	answer rpc.DoctorCheckOutput
@@ -184,4 +186,77 @@ func TestDoctorRuntimePhaseRunsOnDaemonRoute(t *testing.T) {
 	assert.Equal(t, diagnostic.SeverityWarning, found.Severity)
 	assert.Equal(t, "daemon runtime state is degraded", found.Message)
 	assert.Equal(t, "show test runtime", found.Fix)
+}
+
+// countingDoctorCheckSource is a running-plugin set holding one plugin that
+// declared one runtime check at Stage 1; it counts the callbacks it answers.
+type countingDoctorCheckSource struct {
+	calls *int
+}
+
+func (countingDoctorCheckSource) DoctorCheckPlugins() map[string][]plugin.DoctorCheckRegistration {
+	return map[string][]plugin.DoctorCheckRegistration{
+		"fixture-runtime-plugin": {{Name: "fixture-runtime-check", Phase: rpc.DoctorPhaseRuntime, Platforms: []string{"any"}}},
+	}
+}
+
+func (c countingDoctorCheckSource) CallDoctorCheck(context.Context, string, string) (*rpc.DoctorCheckOutput, error) {
+	*c.calls++
+	return &rpc.DoctorCheckOutput{Diagnostics: []rpc.DoctorCheckDiagnostic{{
+		Code: "doctor-fixture-runtime", Severity: "warning", Message: "fixture live state is degraded",
+	}}}, nil
+}
+
+// TestDoctorPluginRuntimeCheckRunsOnce runs one show doctor answer for a
+// plugin whose runtime check is declared at Stage 1, after trying to register
+// the same check as a registry function too.
+//
+// VALIDATES: a plugin runtime check has one route, the doctor callback: the
+// plugin registry refuses the registry form, and one daemon answer calls the
+// check once and lists its finding once.
+// PREVENTS: RunRuntimeChecks running the plugin registry's runtime phase in
+// the daemon's process beside the callback, which ran the check twice (and,
+// for a forked plugin, over the daemon's empty copy of its state).
+func TestDoctorPluginRuntimeCheckRunsOnce(t *testing.T) {
+	snap := registry.Snapshot()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	calls := 0
+	err := registry.Register(registry.Registration{
+		Name:        "fixture-runtime-plugin",
+		Description: "runtime check counted",
+		RunEngine:   func(net.Conn) int { return 0 },
+		CLIHandler:  func([]string) int { return 0 },
+		DoctorChecks: []registry.DoctorCheckDef{{
+			Name:         "fixture-runtime-check",
+			Phase:        rpc.DoctorPhaseRuntime,
+			Dependencies: []string{"live-state"},
+			Platforms:    []string{"any"},
+			Codes:        []string{"doctor-fixture-runtime"},
+			Check: func(registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic {
+				calls++
+				return []rpc.DoctorCheckDiagnostic{{
+					Code: "doctor-fixture-runtime", Severity: "warning", Message: "fixture live state is degraded",
+				}}
+			},
+		}},
+	})
+	assert.ErrorIs(t, err, registry.ErrInvalidDoctorCheck, "the plugin registry accepted a runtime check as a registry function")
+
+	resp, err := answerDaemonDoctor(countingDoctorCheckSource{calls: &calls}, "", commandtest.Args())
+	require.NoError(t, err)
+	require.Equal(t, plugin.StatusDone, resp.Status)
+	got, ok := resp.Data.(plugin.RawJSON)
+	require.True(t, ok, "daemon data is %T, want the encoded producer answer", resp.Data)
+
+	var result diagnostic.DoctorResult
+	require.NoError(t, json.Unmarshal([]byte(got), &result))
+	listed := 0
+	for i := range result.Diagnostics {
+		if result.Diagnostics[i].Code == "doctor-fixture-runtime" {
+			listed++
+		}
+	}
+	assert.Equal(t, 1, calls, "one show doctor answer ran the plugin runtime check %d times", calls)
+	assert.Equal(t, 1, listed, "one show doctor answer listed the plugin runtime finding %d times: %s", listed, got)
 }

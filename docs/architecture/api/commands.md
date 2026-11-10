@@ -514,7 +514,7 @@ daemon route like every other caller path (`command.CallerPath`).
 <!-- source: internal/core/version/version.go -- Answer -->
 <!-- source: internal/component/iface/cli/show.go -- cmdShow -->
 <!-- source: internal/component/cli/client/main.go -- injectViewFactories -->
-<!-- source: internal/component/doctor/cmd/show.go -- HandleDoctor, collectPluginDoctorChecks -->
+<!-- source: internal/component/doctor/cmd/show.go -- HandleDoctor, collectDoctorChecksFrom -->
 <!-- source: internal/component/plugin/server/local_bridge.go -- loadLocalData, AnswerLocalData -->
 <!-- source: internal/component/ping/cmd/ping.go -- pingResults, handleShowPing -->
 <!-- source: internal/component/traceroute/cmd/traceroute.go -- tracerouteResults, handleTraceroute -->

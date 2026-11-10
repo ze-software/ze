@@ -24,13 +24,30 @@ const (
 // HandleDoctor is the RPC handler for ze-doctor:show-doctor, the daemon form
 // of `ze doctor`. It runs the one producer `ze doctor` runs locally
 // (doctor.Answer) on the daemon route, adding the checks that read this
-// daemon's live state: the runtime phase of the doctor registry
+// daemon's live state: the runtime phase of the in-tree doctor registry
 // (doctor.RunRuntimeChecks) and the doctor checks of the plugins it runs. It
 // maps the answer as the local-data bridge maps every local-data command
 // (pluginserver.AnswerLocalData).
 func HandleDoctor(cmdCtx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	source, callerName := doctorCheckSourceOf(cmdCtx)
+	return answerDaemonDoctor(source, callerName, validated)
+}
+
+// answerDaemonDoctor answers show doctor with source as the running-plugin
+// set. Each check runs once per answer, through one route: an in-tree check
+// through doctor.Answer or doctor.RunRuntimeChecks by its phase, a compiled-in
+// plugin's registry.DoctorCheckDef through doctor.Answer (config phases only:
+// the plugin registry refuses a runtime one), and a check a running plugin
+// declared at Stage 1 through its doctor callback here (the server refuses a
+// declared name the plugin's registry entry already holds). A nil source holds
+// no plugin.
+func answerDaemonDoctor(source doctorCheckSource, callerName string, validated command.ValidatedArgs) (*plugin.Response, error) {
 	runtime := func() []diagnostic.Diagnostic {
-		return append(doctor.RunRuntimeChecks(), collectPluginDoctorChecks(cmdCtx)...)
+		diags := doctor.RunRuntimeChecks()
+		if source == nil {
+			return diags
+		}
+		return append(diags, collectDoctorChecksFrom(source, callerName)...)
 	}
 	answer := func(args command.ValidatedArgs) command.LocalAnswer {
 		return doctor.Answer(args, runtime)
@@ -47,29 +64,31 @@ type doctorCheckSource interface {
 	CallDoctorCheck(ctx context.Context, pluginName, checkName string) (*rpc.DoctorCheckOutput, error)
 }
 
-// collectPluginDoctorChecks asks every plugin this daemon runs for its doctor
-// checks. A context with no server (a dispatcher built without one) holds no
-// plugin, so it answers none.
+// doctorCheckSourceOf answers the running-plugin set of a command context and
+// the name of the plugin that sent the command. A context with no server (a
+// dispatcher built without one) holds no plugin, so it answers a nil source.
 //
-// It calls every check a running plugin declared, whatever its phase: inside
-// the daemon a plugin's live state is there to read, so a runtime check and a
-// config-phase check are both answered here.
-func collectPluginDoctorChecks(cmdCtx *pluginserver.CommandContext) []diagnostic.Diagnostic {
+// The calling plugin is skipped to avoid deadlock: the caller is blocked
+// waiting for our response, so a callback to it would hang.
+func doctorCheckSourceOf(cmdCtx *pluginserver.CommandContext) (doctorCheckSource, string) {
 	if cmdCtx == nil || cmdCtx.Server == nil {
-		return nil
+		return nil, ""
 	}
-	// Skip the calling plugin to avoid deadlock: the caller is blocked
-	// waiting for our response, so a callback to it would hang.
 	var callerName string
 	if cmdCtx.Process != nil {
 		callerName = cmdCtx.Process.Name()
 	}
-	return collectDoctorChecksFrom(cmdCtx.Server, callerName)
+	return cmdCtx.Server, callerName
 }
 
 // collectDoctorChecksFrom runs every doctor check the source's plugins
 // declared, skipping callerName's, in declared order, and answers their
 // findings with the fix each plugin named.
+//
+// It calls every check a running plugin declared, whatever its phase: inside
+// the daemon a plugin's live state is there to read, so a runtime check and a
+// config-phase check are both answered here, and this is the only route that
+// runs a declared check.
 func collectDoctorChecksFrom(source doctorCheckSource, callerName string) []diagnostic.Diagnostic {
 	plugins := source.DoctorCheckPlugins()
 	if len(plugins) == 0 {

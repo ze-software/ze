@@ -66,6 +66,16 @@ func validateDoctorCheckDef(pluginName string, idx int, dc DoctorCheckDef) error
 	if !dc.Phase.Valid() {
 		return fmt.Errorf("%w: %s: invalid phase %q", ErrInvalidDoctorCheck, p, dc.Phase)
 	}
+	// A runtime check reads the plugin's live state, which lives in the
+	// plugin's own process. The function a DoctorCheckDef carries runs in the
+	// process that answers, so for a forked plugin it would read the daemon's
+	// empty copy and report a healthy box it never looked at. The one owner of a
+	// plugin runtime check is the doctor callback on the daemon route
+	// (collectDoctorChecksFrom), reached internal and forked alike.
+	if dc.Phase == rpc.DoctorPhaseRuntime {
+		return fmt.Errorf("%w: %s: phase %q cannot be a registered function: declare %q in the sdk.Registration DoctorChecks and answer it with OnDoctorCheck",
+			ErrInvalidDoctorCheck, p, dc.Phase, dc.Name)
+	}
 	if dc.Check == nil {
 		return fmt.Errorf("%w: %s: nil check function", ErrInvalidDoctorCheck, p)
 	}

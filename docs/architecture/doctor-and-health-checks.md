@@ -27,12 +27,24 @@ boot.
 Some readiness facts exist only in the running daemon: a registry its plugins
 fill at runtime, such as every consumer's dns-source selection. A check over
 such state registers in the `runtime` phase, through the same
-`diagnostic.RegisterDoctorCheck` every other check uses, or through a plugin's
-`DoctorChecks` declaration with phase `runtime`. Only `show doctor` runs it:
+`diagnostic.RegisterDoctorCheck` every other check uses, or, for a plugin,
+through the `DoctorChecks` of the `sdk.Registration` it sends at Stage 1,
+answered by its `OnDoctorCheck` handler. Only `show doctor` runs it:
 `HandleDoctor` calls `doctor.RunRuntimeChecks`, which runs the `runtime` phase
-of the in-tree registry and of the plugin registry, then asks every plugin the
-daemon runs for its declared checks (`collectPluginDoctorChecks`, which calls
-each declared check whatever its phase). The local `ze doctor` process never
+of the in-tree registry, then asks every plugin the daemon runs for its
+declared checks (`collectDoctorChecksFrom`, which calls each declared check
+whatever its phase).
+
+Each check runs once per answer, through one route. A plugin's runtime check
+reads state that lives in the plugin's own process, so its one route is the
+doctor callback, which reaches a forked plugin as well as an internal one. The
+plugin registry refuses a `registry.DoctorCheckDef` in the `runtime` phase: its
+function would run in the daemon's process, over an empty copy of a forked
+plugin's state, and beside the callback. A `registry.DoctorCheckDef` therefore
+carries a config phase only, and runs in whichever process answers, through
+`doctor.Answer`. Stage 1 refuses a declared check whose name the plugin's
+registry row already holds (`refuseDoctorCheckDeclaredTwice`), so no check
+runs on both routes. The local `ze doctor` process never
 runs the `runtime` phase itself (`runChecks` runs the four config phases
 only), because in its process that state is empty and the check would report
 a box it never looked at as healthy. It asks the daemon instead (next section).
@@ -49,10 +61,14 @@ checks would let a check pick the one the local route happens to run, so the
 phase is the only place that says when a check runs.
 <!-- source: pkg/plugin/rpc/types.go -- DoctorPhaseRuntime -->
 <!-- source: internal/component/doctor/registry.go -- RunRuntimeChecks -->
-<!-- source: internal/component/doctor/cmd/show.go -- HandleDoctor, collectPluginDoctorChecks -->
+<!-- source: internal/component/doctor/cmd/show.go -- HandleDoctor, answerDaemonDoctor, collectDoctorChecksFrom -->
+<!-- source: internal/component/plugin/registry/doctor.go -- validateDoctorCheckDef -->
+<!-- source: internal/component/plugin/server/startup.go -- refuseDoctorCheckDeclaredTwice -->
 <!-- source: internal/component/config/system/doctor_dns_source.go -- dnsSourceDoctorCheck, dnsSourceFindings -->
 <!-- test: internal/component/doctor/registry_test.go TestDoctorRuntimePhaseRunsOnlyThroughTheRuntimeRunner -->
 <!-- test: internal/component/doctor/cmd/show_test.go TestDoctorRuntimePhaseRunsOnDaemonRoute -->
+<!-- test: internal/component/doctor/cmd/show_test.go TestDoctorPluginRuntimeCheckRunsOnce -->
+<!-- test: internal/component/plugin/server/startup_doctor_test.go TestRefuseDoctorCheckDeclaredTwice -->
 <!-- test: internal/component/config/system/doctor_dns_source_test.go TestDNSSourceChecksRegisterRuntimePhase -->
 
 ## The local route asks the running daemon first
@@ -457,6 +473,19 @@ loading. These checks must accept invalid semantics and must not apply config.
 The BGP filter-reference check uses this phase so a loader refusal cannot hide
 `doctor-config-reference`. `ReadConfig` still runs all load validation; a refusal
 remains an error and prevents every `post-config` check from running.
+
+A config phase runs in whichever process answers: the operator's own process
+on the local route, and the daemon on the daemon route, where `doctor.Answer`
+runs `runChecks` too. So a check registers at the phase whose process holds
+the state it reads. Config and host state read the same from both, so a check
+over them takes a config phase. Live daemon state exists only in the daemon,
+so a check over it takes `runtime`: read from a config phase, the local route
+finds it empty and reports the box healthy. A bind probe MUST NOT judge a port
+its own running daemon holds, because inside the daemon that bind fails on
+every healthy box. The listener probe (`checkListeners`) does not tell the
+routes apart yet: on the daemon route it reports each port the daemon serves
+as a bind failure. `plan/release/validation/spec-doctor-coverage-11-hub-engine.md`
+(AC-1) owns that repair.
 <!-- source: internal/component/doctor/doctor.go -- runChecks -->
 <!-- source: internal/component/doctor/registry.go -- runDoctorChecks -->
 <!-- source: internal/component/doctor/checks_plugin_registry.go -- runPluginRegistryChecks -->
@@ -657,7 +686,12 @@ cannot be matched to a check, and is refused like a missing one.
 No marker comment exempts a site, because the scan never reads comments. A
 transient class (a peer reset that recovers, one retry) still carries its
 code: it raises its event on the report bus under that code, so the event
-is reported under it rather than only logged. The commit form registers into
+is reported under it rather than only logged. The `code` key is the doctor
+code's: the scan reads whatever value a log call gives it as a doctor code,
+so a protocol code or an exit code goes under another key, and under `code`
+it is refused like an undeclared code. A line that reports nothing wrong is
+not a problem site and logs at `Info` or `Debug`: a `Warn` that reports
+success owes a code no check could declare. The commit form registers into
 the `changecheck` seam from the package's own `register.go`, so the commit
 code never names it (`docs/contributing/committing.md`). A scan that finds fewer than
 1000 sites, or a covered set below 20 codes, exits 2: a call shape or a

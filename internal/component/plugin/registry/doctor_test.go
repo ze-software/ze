@@ -73,6 +73,11 @@ func TestRegisterDoctorCheckValidation(t *testing.T) {
 			wantErr: "invalid phase",
 		},
 		{
+			name:    "runtime phase",
+			check:   func() DoctorCheckDef { dc := validDoctorCheck(); dc.Phase = rpc.DoctorPhaseRuntime; return dc }(),
+			wantErr: "answer it with OnDoctorCheck",
+		},
+		{
 			name:    "nil check",
 			check:   func() DoctorCheckDef { dc := validDoctorCheck(); dc.Check = nil; return dc }(),
 			wantErr: "nil check function",

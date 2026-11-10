@@ -254,7 +254,12 @@ during offline `ze doctor`. Set `Fix` to the command that clears the finding,
 alone, with no `fix:` label. A check that reads live state the daemon holds
 (not the config file) declares `Phase: rpc.DoctorPhaseRuntime`; the same phase
 is open to an in-tree check registered with `diagnostic.RegisterDoctorCheck`,
-and only `show doctor` runs it. See
+and only `show doctor` runs it. A plugin's runtime check is declared here and
+answered by `OnDoctorCheck`, never as a `registry.DoctorCheckDef`: the plugin
+registry refuses that form in the `runtime` phase, because its function would
+run in the daemon's process rather than the plugin's. Each check has one
+declaration: Stage 1 refuses a name the plugin's registry row already declares.
+See
 `docs/architecture/api/process-protocol.md` for the full protocol.
 
 ### Requirements
