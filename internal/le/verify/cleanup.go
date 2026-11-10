@@ -111,6 +111,10 @@ func sweepAbandoned(ctx context.Context, root, base string, deps dependencies) s
 	for _, entry := range entries {
 		name := entry.Name()
 		directoryless := false
+		// ownerDead is set only when a marker named a process that is gone. A
+		// missing marker leaves it false, so a worktree nobody claimed is never
+		// read as a finished run's interrupted removal.
+		ownerDead := false
 		if strings.HasSuffix(name, ".owner") {
 			if entry.IsDir() {
 				continue
@@ -153,6 +157,7 @@ func sweepAbandoned(ctx context.Context, root, base string, deps dependencies) s
 			if deps.alive(pid) {
 				continue
 			}
+			ownerDead = true
 		}
 		if directoryless {
 			reclaimed, err := removeMissingRegistration(ctx, root, path, deps.git, deps.alive)
@@ -210,6 +215,30 @@ func sweepAbandoned(ctx context.Context, root, base string, deps dependencies) s
 			})
 			continue
 		}
+
+		// A dead run's worktree whose only dirt is deletions is a removal that
+		// stopped part way: `git worktree remove` deletes the files before it
+		// drops the registration, so a kill in between leaves a registered tree
+		// of thousands of ` D` lines. Nothing in it exists anywhere but the
+		// commit HEAD names, so finishing the removal destroys nothing. Two
+		// such trees (1.6G, 2026-10-18) were otherwise kept as "holds
+		// uncommitted changes" until removed by hand.
+		if ownerDead && onlyDeletions(status.Output) && headResolves(ctx, deps, path) {
+			cleanup := removeWorktree(context.WithoutCancel(ctx), root, path, deps.git)
+			if len(cleanup) != 0 {
+				for _, failure := range cleanup {
+					failure.Operation = text.Reset().Str("finish interrupted removal of ").Str(entry.Name()).
+						Str(": ").Str(failure.Operation).String()
+					failures = append(failures, failure)
+				}
+				continue
+			}
+			diagnostics = append(diagnostics, text.Reset().Str("verify-worktree: finished interrupted removal of ").
+				Str(entry.Name()).Str(", whose owner is gone and whose only changes were deletions").String())
+			removed = append(removed, path)
+			continue
+		}
+
 		if strings.TrimSpace(status.Output) != "" {
 			kept, measureErr := describePreserved(path, status.Output, deps.now())
 			preserved = append(preserved, kept)
@@ -267,7 +296,9 @@ func describePreserved(path, status string, now time.Time) (PreservedWorktree, e
 // alone are a tree somebody emptied, and git restores every one of them from the
 // commit the worktree is detached at. The 8.27 GiB worktree measured on
 // 2026-09-03 was entirely of the second kind: 264 deletions, no modified path
-// and no untracked path.
+// and no untracked path. A dead owner's tree of that kind no longer reaches this
+// function: sweepAbandoned finishes it as an interrupted removal, so a kept
+// tree of deletions alone has no owner marker, or a HEAD that does not resolve.
 func countDirt(kept *PreservedWorktree, status string) {
 	for line := range strings.SplitSeq(status, "\n") {
 		if len(line) < 3 {
@@ -283,6 +314,43 @@ func countDirt(kept *PreservedWorktree, status string) {
 			kept.Modified++
 		}
 	}
+}
+
+// onlyDeletions answers whether a porcelain status names at least one path and
+// every path it names is a plain deletion, ` D` (the work tree lost it) or `D `
+// (the index dropped it too).
+//
+// `MD` and `AD` are refused: the index holds content no commit carries, and
+// removing the worktree would destroy it. So are untracked, renamed and
+// modified paths, and any line too short to carry a status.
+func onlyDeletions(status string) bool {
+	deletions := 0
+	for line := range strings.SplitSeq(status, "\n") {
+		if line == "" {
+			continue
+		}
+		if len(line) < 3 {
+			return false
+		}
+		code := line[:2]
+		if code != " D" && code != "D " {
+			return false
+		}
+		deletions++
+	}
+	return deletions != 0
+}
+
+// headResolves answers whether the worktree's HEAD names a commit, the one git
+// restores every deleted path from. A HEAD that does not resolve, or a git that
+// cannot answer, leaves the worktree to the preserving arm.
+func headResolves(ctx context.Context, deps dependencies, path string) bool {
+	answer, err := deps.git(ctx, gitTimeoutWorktree, path, "rev-parse", "--verify", "--quiet", "HEAD^{commit}")
+	// refuse-by-default: guards sweepAbandoned -- false keeps an unanswered HEAD in the preserving arm
+	if err != nil {
+		return false
+	}
+	return answer.Code == 0 && strings.TrimSpace(answer.Output) != ""
 }
 
 // directorySize sums the regular files under path, and answers whether the entry
