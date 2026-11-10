@@ -2931,3 +2931,24 @@ recorded sources are unchanged since `e4bfeb7789`.
 `harnesstool_test.go` its blank imports without `setup/docker`; `6136c58149`
 added the import. Overlay dropping that import (`htw/`): panic "BUG: le
 namespace \"setup docker\" has no summary"; restored `ok`.
+
+## The walk tool leaves the tree untouched; October naming debts settled (2026-11-10)
+
+`mutating-a-guard-runs-the-unguarded-path` 2026-08-31 (P-16): the forced-RED
+walk is replaced by `./le test redwalk check`, which compiles a break through a
+Go overlay staged in session scratch. `TestRedwalkLeavesTheTreeUntouched`
+(`internal/le/test/redwalk`) hashes every file outside `tmp/` before, during
+and after a walk. Walked on itself through the tool, with a break making
+`walk.check` write each break file into the tree: FAIL "while the broken run
+ran pkg/a.go changed" and "after the walk pkg/a.go changed", clean PASS; the
+shared `internal/le/test/redwalk/verdict.go` hashed identical before and
+after (`redwalk-self.log`). `test/ui/le-test-redwalk.ci` drives the same entry
+to a real overlay red.
+
+`test-type-not-backfilled` 2026-10-06: the nine debts reconstructed in "Bounded
+October naming reconstruction" are settled at HEAD (five naming markers, two
+native renames whose records follow the new paths, two probes no longer test
+files). `./le rfc check` (`rfccheck.log`) names none of them; its one naming
+finding is a different file, `internal/component/ike/engine/rfc7296_certreq_test.go`,
+which another session's IKE work committed in `83a985dce0` and which is that
+work's to settle.
