@@ -1003,6 +1003,17 @@ every child, so the launcher runs the newest shared build of HEAD in
 `bin/builds/`: a suite started with `./le --name <build>` would then test a
 binary built without its working-tree edits. The
 appliance steps that exec `le test qemu ...` rely on this.
+
+**A non-harness `le` step runs at the repository root, so a `tmpfs=` file's bare
+name does not resolve on it.** `go`, `./le` and every `le` head other than a
+harness command (`le test <name>`) or a stand-in server (`le mock <name>`) run in
+the checkout, because their arguments name packages and paths there. Every other
+step runs in the test's own directory, where the runner writes the `tmpfs=`
+files. A non-harness `le` step that passes `peer.conf` by that name therefore
+looks for it at the root and fails. Put the `le` call in a `tmpfs=` script and run
+the script: it runs in the test's directory, and its `le` is the one the shim
+directory holds.
+<!-- source: internal/test/runner/runner.go -- repositoryAnchoredBinary, childWorkingDirectory -->
 <!-- source: internal/test/runner/runner_exec.go -- binNameLE head resolution -->
 <!-- source: internal/test/runner/harness_exec.go -- ownExecutable, droppedFromChild -->
 

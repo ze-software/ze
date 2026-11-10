@@ -159,6 +159,15 @@ Two more rules travel with a barrier in an observer.
 <!-- source: internal/test/fixture/fixture.go -- Dispatch, Poll, Observe -->
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- IncrUpdatesSent on the sent branch -->
 
+### A fixture's decisions are unit-tested, the `.ci` proves the path
+
+A compiled fixture's decision logic (what it parses, which answer it accepts,
+when it gives up) is proven by a unit test beside it in `internal/test/fixture`,
+which runs in seconds and names the case that broke. The `.ci` that starts the
+fixture proves the real path end to end: ze started from its config, the
+fixture reached over the real transport, the answer observed. Do not grow a
+`.ci` to cover a fixture branch a unit test can reach.
+
 ## Minimal CLI Test Template
 
 ```

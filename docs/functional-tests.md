@@ -664,6 +664,12 @@ an empty selection.
 so use the test name in saved commands. Each run prints one completion line
 per test with elapsed time, `N/TOTAL`, result, id and name, plus periodic
 progress while tests are still running.
+A direct `./le test <suite>` run executes the launcher's build of HEAD, so when a
+fixture file it links differs in the working tree it prints a `stale le:` notice
+before the first test, naming the files and the two commands that run the tree's
+code (`docs/architecture/testing/runner-architecture.md`, "Which binaries a
+fixture reaches").
+<!-- source: internal/test/runner/stale.go -- findStaleBuild -->
 <!-- source: internal/test/runner/selection.go -- Selection -->
 <!-- source: internal/test/runner/selection.go -- recordMatches, genericMatches -->
 <!-- source: internal/le/test/functional/actions.go -- refusedSelector -->
