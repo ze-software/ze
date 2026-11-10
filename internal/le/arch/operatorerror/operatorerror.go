@@ -80,11 +80,11 @@ type Status uint8
 const (
 	StatusUnspecified Status = iota
 	// StatusTyped is an error built by the opererr package: a call into it,
-	// a method chain rooted in such a call, an opererr composite literal, or
-	// an opererr sentinel.
+	// or a method chain rooted in such a call.
 	StatusTyped
-	// StatusPlain is an errors.New or fmt.Errorf built at the return: the
-	// refusal the check judges.
+	// StatusPlain is an errors.New or fmt.Errorf built at the return, or an
+	// opererr composite literal (the zero operator error, which names no fix):
+	// the refusal the check judges.
 	StatusPlain
 	// StatusPassThrough is any other error value: a callee's error variable,
 	// a call into another function, a named result. It is not a construction
@@ -400,6 +400,9 @@ func classifyError(file *sourceFile, expr ast.Expr) Status {
 	if builtByOpererr(file, expr) {
 		return StatusTyped
 	}
+	if zeroOpererr(file, expr) {
+		return StatusPlain
+	}
 	call, isCall := expr.(*ast.CallExpr)
 	if !isCall {
 		return StatusPassThrough
@@ -414,37 +417,52 @@ func classifyError(file *sourceFile, expr ast.Expr) Status {
 }
 
 // builtByOpererr reports whether expr is an error the opererr package built:
-// a call into it, a method chain whose root is such a call, the address of or
-// a composite literal of one of its types, or one of its exported values.
+// a call into it (New or Wrap, which panic with BUG on an empty part, so the
+// error names a problem, a why and a fix), or a method chain whose root is
+// such a call.
+//
+// A composite literal of an opererr type is not built by the package: Error's
+// fields are unexported, so the only literal another package can write is the
+// zero value, which opererr documents as "uninitialized and is not a valid
+// operator error" and renders as a BUG line with no fix. zeroOpererr answers
+// it. The package exports no value either, so no selector is typed.
 //
 // The walk descends a method chain one receiver per step, so it is bounded by
 // the expression's own depth, which the source author wrote.
 func builtByOpererr(file *sourceFile, expr ast.Expr) bool {
 	for {
-		switch node := ast.Unparen(expr).(type) {
-		case *ast.CallExpr:
-			selector, isSelector := node.Fun.(*ast.SelectorExpr)
-			if !isSelector {
-				return false
-			}
-			if file.importsAs(selector.X, opererrPath) {
-				return true
-			}
-			expr = selector.X
-		case *ast.UnaryExpr:
-			expr = node.X
-		case *ast.CompositeLit:
-			selector, isSelector := node.Type.(*ast.SelectorExpr)
-			if !isSelector {
-				return false
-			}
-			return file.importsAs(selector.X, opererrPath)
-		case *ast.SelectorExpr:
-			return file.importsAs(node.X, opererrPath)
-		default:
+		call, isCall := ast.Unparen(expr).(*ast.CallExpr)
+		if !isCall {
 			return false
 		}
+		selector, isSelector := call.Fun.(*ast.SelectorExpr)
+		if !isSelector {
+			return false
+		}
+		if file.importsAs(selector.X, opererrPath) {
+			return true
+		}
+		expr = selector.X
 	}
+}
+
+// zeroOpererr reports whether expr is a composite literal of an opererr type,
+// or its address: the zero operator error, a refusal that names no problem,
+// no why and no fix, so the check judges it as it judges plain text.
+func zeroOpererr(file *sourceFile, expr ast.Expr) bool {
+	node := ast.Unparen(expr)
+	if unary, isUnary := node.(*ast.UnaryExpr); isUnary {
+		node = ast.Unparen(unary.X)
+	}
+	literal, isLiteral := node.(*ast.CompositeLit)
+	if !isLiteral {
+		return false
+	}
+	selector, isSelector := literal.Type.(*ast.SelectorExpr)
+	if !isSelector {
+		return false
+	}
+	return file.importsAs(selector.X, opererrPath)
 }
 
 // resultCount answers how many results a function type declares, counting

@@ -227,8 +227,8 @@ nested function literal, and classifies it:
 
 | Status | A returned error | An error answer |
 |--------|------------------|-----------------|
-| typed | built by `opererr` | a call of `plugin.OperatorErrorResponse` |
-| plain, refused when a change adds it | `errors.New` or `fmt.Errorf` at the return | an `Error` the site wrote: a literal, a constant, a built string, no `Error` at all, or the `Error()` of an error the site built, `opererr`'s included, because that text bypasses the route |
+| typed | a call of `opererr.New` or `opererr.Wrap`, or a method chain rooted in one | a call of `plugin.OperatorErrorResponse` |
+| plain, refused when a change adds it | `errors.New` or `fmt.Errorf` at the return, or an `opererr.Error` composite literal, which is the zero operator error and names no fix | an `Error` the site wrote: a literal, a constant, a built string, no `Error` at all, or the `Error()` of an error the site built, `opererr`'s included, because that text bypasses the route |
 | pass-through, reported only | any other error value | the `Error()` of an error value the syntax does not type (a callee's error, a sentinel), or another answer's `Error` field forwarded |
 
 The scan does not read an answer a helper function builds, an answer whose

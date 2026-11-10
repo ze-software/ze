@@ -66,10 +66,10 @@ func everyLine() repochanged.ChangedLines {
 }
 
 // TestOperatorErrorRefusesPlainErrorFromHandler is AC-2: a plain errors.New
-// or fmt.Errorf returned from a function registered as an RPC handler, a
-// handler a factory returns, a config verifier, or an SDK config-verify
-// callback is refused on a changed line, and the refusal names the handler,
-// the plain error, why and the fix.
+// or fmt.Errorf, or a zero opererr.Error literal, returned from a function
+// registered as an RPC handler, a handler a factory returns, a config
+// verifier, or an SDK config-verify callback is refused on a changed line,
+// and the refusal names the handler, the plain error, why and the fix.
 func TestOperatorErrorRefusesPlainErrorFromHandler(t *testing.T) {
 	inventory := scanFixture(t)
 	report := checkLines(inventory.Sites, everyLine())
@@ -79,6 +79,7 @@ func TestOperatorErrorRefusesPlainErrorFromHandler(t *testing.T) {
 	want := []struct{ handler, expr string }{
 		{"handlePlain", `errors.New("peer not found")`},
 		{"handlePlain", `fmt.Errorf("peer %s refused"`},
+		{"handlePlain", `&opererr.Error{`},
 		{"forward (returned func literal)", `errors.New("forward refused: "`},
 		{"verifyFixture", `fmt.Errorf("fixture section invalid")`},
 		{"run (func literal)", `errors.New("verify refused")`},
@@ -109,14 +110,12 @@ func TestOperatorErrorRefusesPlainErrorFromHandler(t *testing.T) {
 }
 
 // TestOperatorErrorAcceptsTypedError is AC-3: a handler returning an error the
-// opererr package built (a call into it, a composite literal's address) is
-// typed and never a finding.
+// opererr package built (a call of New or Wrap) is typed and never a finding.
 func TestOperatorErrorAcceptsTypedError(t *testing.T) {
 	inventory := scanFixture(t)
 	for _, expected := range []struct{ handler, expr string }{
 		{"handleTyped", `opererr.New("peer not found"`},
 		{"handleTyped", `opererr.Wrap(`},
-		{"handleTyped", `&opererr.Error{`},
 		{"rpcFixture", `opererr.New("rpc refused"`},
 	} {
 		site := siteOf(t, inventory.Sites, expected.handler, expected.expr)
@@ -132,6 +131,37 @@ func TestOperatorErrorAcceptsTypedError(t *testing.T) {
 		if finding.Handler == "rpcFixture" {
 			t.Errorf("a typed return was refused: %+v", finding)
 		}
+	}
+}
+
+// TestOperatorErrorRefusesZeroOperatorError holds that an opererr.Error
+// composite literal is not typed. Its fields are unexported, so the literal is
+// the zero value, which opererr renders as a BUG line with no fix: the scan
+// classifies it plain and the check refuses it, while an opererr.New return
+// stays typed and is never refused. Method: scan the fixture, read both
+// sites' status, and check every line.
+func TestOperatorErrorRefusesZeroOperatorError(t *testing.T) {
+	inventory := scanFixture(t)
+	zero := siteOf(t, inventory.Sites, "handlePlain", `&opererr.Error{`)
+	if zero.Status != StatusPlain {
+		t.Errorf("return nil, &opererr.Error{}: status %s, want plain", zero.Status)
+	}
+	built := siteOf(t, inventory.Sites, "handleTyped", `opererr.New("peer not found"`)
+	if built.Status != StatusTyped {
+		t.Errorf("return nil, opererr.New(...): status %s, want typed", built.Status)
+	}
+	report := checkLines(inventory.Sites, everyLine())
+	refused := false
+	for _, finding := range report.Findings {
+		if finding.Line == zero.Line {
+			refused = true
+		}
+		if finding.Line == built.Line {
+			t.Errorf("the opererr.New return was refused: %+v", finding)
+		}
+	}
+	if !refused {
+		t.Errorf("the zero operator error at line %d was not refused: %+v", zero.Line, report.Findings)
 	}
 }
 
@@ -195,11 +225,11 @@ func TestOperatorErrorReportListsEverySite(t *testing.T) {
 		t.Errorf("registrations = %d, want 10: %+v", len(inventory.Registrations), inventory.Registrations)
 	}
 	report := TreeReport{Registrations: len(inventory.Registrations), Sites: inventory.Sites, Unresolved: inventory.Unresolved}
-	if got := report.count(StatusPlain); got != 5 {
-		t.Errorf("plain = %d, want 5", got)
+	if got := report.count(StatusPlain); got != 6 {
+		t.Errorf("plain = %d, want 6", got)
 	}
-	if got := report.count(StatusTyped); got != 4 {
-		t.Errorf("typed = %d, want 4", got)
+	if got := report.count(StatusTyped); got != 3 {
+		t.Errorf("typed = %d, want 3", got)
 	}
 	if got := report.count(StatusPassThrough); got != 3 {
 		t.Errorf("pass-through = %d, want 3", got)

@@ -19,17 +19,18 @@ func handlePlain(_ *pluginserver.CommandContext, args command.ValidatedArgs) (*p
 	if args.Len() == 0 {
 		return nil, errors.New("peer not found")
 	}
-	return nil, fmt.Errorf("peer %s refused", "192.0.2.1")
+	if args.Len() == 1 {
+		return nil, fmt.Errorf("peer %s refused", "192.0.2.1")
+	}
+	// The zero operator error: a literal names no problem, why or fix.
+	return nil, &opererr.Error{}
 }
 
 func handleTyped(_ *pluginserver.CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
 	if args.Len() == 0 {
 		return nil, opererr.New("peer not found", "no session is configured", "ze config edit")
 	}
-	if args.Len() == 1 {
-		return nil, opererr.Wrap(errors.New("eof"), "peer refused", "the session is down", "show bgp peer")
-	}
-	return nil, &opererr.Error{}
+	return nil, opererr.Wrap(errors.New("eof"), "peer refused", "the session is down", "show bgp peer")
 }
 
 func handlePassThrough(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {

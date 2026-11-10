@@ -62,8 +62,8 @@ func (r CheckReport) Text() string {
 			Str(verb).Str(site.Expr).Byte('\n')
 	}
 	tb.Byte('\n')
-	tb.Str("Why: a registered handler's error, and the Error text of the error response it answers, is what the operator reads on the CLI, the API or the plugin answer. Plain text says what went wrong and nothing about why or how to fix it.\n")
-	tb.Str("Fix: return an opererr.Error (internal/core/opererr) that names what went wrong, why, and the command that fixes it.\n")
+	tb.Str("Why: a registered handler's error, and the Error text of the error response it answers, is what the operator reads on the CLI, the API or the plugin answer. Plain text says what went wrong and nothing about why or how to fix it, and an opererr.Error literal is the zero operator error, which says none of the three.\n")
+	tb.Str("Fix: return an opererr.Error built by opererr.New or opererr.Wrap (internal/core/opererr), which names what went wrong, why, and the command that fixes it.\n")
 	if answers {
 		tb.Str("Fix (an error response): answer plugin.OperatorErrorResponse(opererr.New(problem, why, fix)) (internal/component/plugin/types.go), which writes the operator error whole into Response.Error.\n")
 	}
