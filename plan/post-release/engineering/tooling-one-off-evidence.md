@@ -3013,3 +3013,13 @@ start on this host because the harness's ze opens the operator's
 `etc/ze/database.zefs` (a defect being fixed). The first observer version read
 its process snapshots with the wrong field separator and recorded nothing, so
 its earlier greens were void and are not recorded.
+
+| Route, phase | Clean | Break | Red |
+| --- | --- | --- | --- |
+| `./le test qemu docker-lab`, build (the guest ze compile into `tmp/qemu/linux-<arch>/ze`) | exit 1, leaks 0, orphans 0, foreign alive, no later phase | (not broken) | |
+| same, startup (QEMU booting the docker-host image) | exit 1, leaks 0, orphans 0, no later phase | the VM started with only `Setpgid` and its stop no longer stops it | leaks 1 (the QEMU process) |
+| same, running (the guest's `le setup docker kernel check`) | exit 1 in 6s, leaks 0, orphans 0 | same | leaks 1 (the QEMU process), exit 5s |
+
+(docker-lab rows of the P-18 native-entry observation, 2026-11-10. The
+admission phase needs a deliberately occupied VM slot and waits for the
+owner's decision. No QEMU process remained after the runs.)
