@@ -2,14 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Priority | P0 |
 | Release reason | Retain remaining IPsec architecture obligations and fragment investigation without claiming an unproven vulnerability. |
 | Scope | protocol |
 | Depends | `plan/release/fixes/spec-ipsec-lifetime-volume.md` (owns the Section 4.4.2.1 byte-count SAD lifetime); `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md` (owns the `rfc4301` extraction sign-off and the ledger scope set) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-06 |
+| Updated | 2026-11-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -69,6 +69,129 @@ status is `design`, so Section 4.4.2.1 stays unmet and AC-12 cannot be reached.
 either, and that spec's own 2026-09-05 note records that whether `rfc4301`
 re-enters the support-claiming set is an owner call no session may settle by
 re-derivation. AC-12 is therefore blocked on both, not on this phase.
+
+## Session progress, 2026-11-10
+
+Phases 3, 4, 7 and 8 are written and reviewed. Their units, functional tests
+and the PMTU QEMU unit have run green in the main checkout; the two interop
+scenarios have NOT run yet (see "Evidence, 2026-11-10" below). The phase table
+of 2026-09-06 above is superseded for these four rows.
+
+| Phase | Block | State |
+|---|---|---|
+| 3 | Section 6 ICMP | units and `.ci` green; interop `icmp-error-payload-check` pending |
+| 4 | Section 4.4.1.1 ICMP type and code selectors | units and `.ci` green |
+| 7 | Section 8.1 DF copy and clear, Section 8.2 PMTU proof | units, `.ci` and QEMU IPv6 PMTU unit green; interop `tunnel-df-treatment` pending |
+| 8 | Section 5.1.2.1 outer DSCP | units and `.ci` green |
+| 2b, 9 | fragment checking, ledger closure | unchanged from 2026-09-06 |
+
+**Evidence, 2026-11-10 (main thread, main checkout, after the last fixes).**
+
+| Run | Result |
+|---|---|
+| `go test` with every feature tag: `ike/ipsec`, `ike/dataplane` (namespace units in a user namespace included), `ike/engine`, `ike/cmd` | ok |
+| `go test`: `core/sysctl`, `core/diagnostic`, `le/interoplab/ipsec`, `test/interop-ipsec` | ok |
+| `./le go lint run scope ./internal/component/ike/...` | 0 findings |
+| QEMU, root in the initial user namespace: `TestXFRMTunnelPMTUAgesBackToTheLinkMTUOverIPv6` | PASS |
+| Parse `.ci`: `ipsec-df-bit-treatment`, `ipsec-dscp-map`, `ipsec-icmp-type-selector-refused`, `ipsec-icmp-error-check` | PASS |
+| QEMU guest `.ci`: `ipsec-sa-options-kernel`, `ipsec-dscp-map-linux-refused`, `ipsec-icmp-type-selector`, `ipsec-show-dataplane-kernel` | PASS |
+| Host `.ci`: `ipsec-dataplane-show` | PASS |
+| Interop `tunnel-df-treatment`, `icmp-error-payload-check`, and their four red proofs | NOT RUN: the checkers live in `le`, which builds from committed code, so they run after the interop commit lands |
+| Re-run after the last fixes: `go test` with every feature tag of `ike/engine`, `ike/ipsec`, `ike/dataplane`, `ike/cmd`; parse `ipsec-icmp-type-selector-refused` | ok; PASS |
+| `TestLinuxLimitsCheckedAtShippedVersions` (`internal/appliance`) after `LL-XFRM-OUTER-DF-SET-DSCP` and `LL-XFRM-ICMP-TRANSIT` were re-read at Linux 7.3 | NOT RUN yet |
+| Discrimination records still to take: 22 `rfc4301` tags, and 3 `rfc7296` records (`RFC7296-2.23-12` twice, `RFC7296-2.23-2`) staled by this spec's edits to `xfrmStateFromParams` and `newChildSA` | NOT RUN: `./le rfc record` is the main thread's |
+
+**Bookkeeping, 2026-11-10.** Both Linux limitation entries this spec wrote were
+re-read against the v7.3 sources (`xfrm4_tunnel_encap_add`, the uapi
+`XFRM_STATE_*` and `XFRM_SA_XFLAG_*` lists, `__xfrm_policy_check`,
+`__xfrm_route_forward`, `xfrm_lookup_with_ifid`, `icmp_rcv`, `icmpv6_rcv`,
+`icmp_route_lookup`, `icmpv6_route_lookup`); every quoted statement holds, and
+their `Checked` lines now read Linux 7.3. An independent judge re-judged the
+four stale audit verdicts: `RFC7296-3.13.1-3` stays enforced,
+`RFC4303-3.4.4.1-2` stays unimplemented, and `RFC7296-3.13.1-1` and `-2` drop
+to `weak` (a port under a portless protocol other than 0 is committed and
+emitted). The four shifted `rfc7296` verdicts were resealed. Four defects
+found on the way are journal rows owned below.
+
+Fixes made while running: four test-setup corrections (loopback
+`disable_xfrm` and `disable_policy` in the ICMP error integration units, the
+IPv6 PMTU units' inner MTU, a direct sysctl exec in `icmperror.go`), the
+`ipsec-icmp-error-check` expectation (`ze config fmt` prints `disable`), step 3
+of `ipsec-sa-options-kernel` without a pipe, and a lint and arch cleanup
+(`unknownName`, side constants, compound-guard splits, `verifyPeerSAOptions`
+returning an operator error, range-over-int loops). An independent
+`ze-test-judge` re-judged the range-over-int rewrites and the earlier test
+changes.
+
+**Goal Validation.**
+
+| Goal | Evidence | State |
+|---|---|---|
+| Section 4.4.1.1: an operator SPD entry selects on ICMP type and code, held exactly by the kernel | `TestSPDICMPTypeControlRejectsOrAcceptsOneType`, `test/ipsec/ipsec-icmp-type-selector.ci` (read back from the real SPD) | met |
+| Section 6.2: an ICMP error on a Child SA has its payload checked, or not, per SA | `TestICMPErrorPayloadHeaderCheckedOnLocalDelivery`, `ipsec-sa-options-kernel.ci`; against strongSwan: `icmp-error-payload-check` | unit and `.ci` met; interop pending |
+| Section 8.1: the outer DF bit is copy or clear per peer, on the wire | `TestXFRMOuterHeaderCarriesTheDFTreatment`, `ipsec-sa-options-kernel.ci`; against strongSwan: `tunnel-df-treatment` | unit and `.ci` met; interop pending |
+| Section 8.2: a PMTU is learned and ages back, and a DF-clear packet is fragmented | the PMTU integration units, IPv6 aging under QEMU | met; the fragmentation rows take the kernel-producer escape |
+| Section 5.1.2.1: outer DSCP is copy or 0 on Linux, and a fixed value is refused with the fix named | `TestXFRMOuterHeaderCarriesTheOuterDSCP`, `ipsec-dscp-map-linux-refused.ci` | met |
+| A per-SA option a backend cannot apply is refused, never degraded | `TestVerifyPeerSAOptionsRefusesWhatTheBackendCannotApply`, `TestChildSAOptionRefusalIsNotKeptDegraded` | met |
+
+**Requirement rows, as `rfc/short/rfc4301.md` reads on 2026-11-10.** "Met"
+means the row carries no annotation.
+
+| Requirement | Phase | Row state |
+|---|---|---|
+| `RFC4301-4.4.1.1-4` | 4 | met |
+| `RFC4301-6-1` | 3 | `{gap}`: operator entries install in and out only, so no bypass or discard for transit ICMP can be written on a gateway; the fwd projection must first decide how a non-initial fragment is classified (Section 7) |
+| `RFC4301-6.1.1-1` | 3 | met |
+| `RFC4301-6.1.1-2` | 3 | met |
+| `RFC4301-6.1.2-1` | 3 | met |
+| `RFC4301-6.2-1` | 3 | met |
+| `RFC4301-6.2-2` | 3 | `{gap}`: holds for an ICMP error addressed to or generated by Ze; absent for a forwarded one (`LL-XFRM-ICMP-TRANSIT`) |
+| `RFC4301-6.2-3` | 3 | `{gap}`: no namespace test observes the return-SA mapping; a forwarded error is dropped by the out catch-all under `unmatched discard`; the kernel also maps an error a bypass entry would carry in clear (PENDING OWNER below) |
+| `RFC4301-6.2-4` | 3 | `{gap}`: performed for an error addressed to Ze (`TestICMPErrorPayloadHeaderCheckedOnLocalDelivery`); a forwarded one is dropped unread (`LL-XFRM-ICMP-TRANSIT`) |
+| `RFC4301-6.2-5` | 3 | `{gap}`, testing only: the forwarded case is dropped by the fwd catch-all with no namespace test observing it |
+| `RFC4301-8.1-1` | 7 | met |
+| `RFC4301-8.1-2` | 7 | `{gap}`: copy and clear per peer; set refused at commit (`LL-XFRM-OUTER-DF-SET-DSCP`). The row's text still calls the owner's choice pending, which the decision below settles; the summary text is owed that repair |
+| `RFC4301-8.2.1-1` | 7 | met |
+| `RFC4301-8.2.2-1` | 7 | `{lower-layer}`: Linux route PMTU exceptions aged by `mtu_expires` under the XFRM bundle (A-4) |
+| `RFC4301-5.1-3` | 7 | met |
+| `RFC4301-5.1.2.1-1` | 8 | `{gap}`: copy and 0 on Linux, any value on VPP; 1 to 63 refused on Linux at commit and install. The row's text still calls the owner's choice pending; same repair owed |
+
+**Tests written this session.** All but the two interop scenarios have run
+green (evidence table above).
+
+| Test | Kind | Proves |
+|---|---|---|
+| `tunnel-df-treatment` | interop, `test/interop-ipsec/scenarios/` | Section 8.1: outer DF under `clear` then `copy`, read by strongSwan's nftables counters, plus the `df-bit` readback |
+| `icmp-error-payload-check` | interop, `test/interop-ipsec/scenarios/` | Section 6.2: an ICMP error addressed to Ze over the SA, consistent delivered, inconsistent dropped |
+| `test/ipsec/ipsec-sa-options-kernel.ci` | functional | `df-bit clear`, `dscp-map 0` and `icmp-error-check false` reach the real kernel's Child SA states, read back through `show vpn ipsec dataplane sa` |
+| `test/ipsec/ipsec-dscp-map-linux-refused.ci` | functional | a commit of `dscp-map 46` on the Linux XFRM dataplane is refused, naming why and the fix |
+| `test/ipsec/ipsec-icmp-type-selector.ci` | functional | a `vpn ipsec policy` rejecting one ICMP type and permitting another, read back from the real kernel SPD |
+| `test/parse/ipsec-df-bit-treatment.ci` | parse | `df-bit copy` and `clear` accepted on a tunnel-mode IPv4 peer; every treatment no SA of the peer can apply refused |
+| `test/parse/ipsec-dscp-map.ci` | parse | `dscp-map copy`, 0 and 63 accepted; 64 and a value on a transport-mode peer refused |
+| `test/parse/ipsec-icmp-error-check.ci` | parse | `icmp-error-check` parses true and false, reads back, and refuses a non-boolean |
+| `test/parse/ipsec-icmp-type-selector-refused.ci` | parse | an ICMP type and code-range entry accepted; every ICMP selector the entry cannot carry refused |
+
+**Red proofs owed by the two scenarios**, each one line of Ze with the image
+rebuilt (`docs/architecture/testing/interop.md`, "The outer DF bit and ICMP
+errors on a Child SA (RFC 4301)"):
+
+| Scenario | Break | Expected red |
+|---|---|---|
+| `tunnel-df-treatment` | `xfrmDFFlag` answers false for `DFClear` | the clear phase's DF-set burst arrives with DF set |
+| `tunnel-df-treatment` | `xfrmDFFlag` answers true for `DFCopy` | the copy phase's DF-set burst arrives with DF clear |
+| `icmp-error-payload-check` | `xfrmStateFromParams` no longer sets `state.ICMP` | the consistent error is not delivered |
+| `icmp-error-payload-check` | `xfrmPolicyFromParams` widens the inbound protect policy's source to `0.0.0.0/0` | the inconsistent error is delivered |
+
+**Decisions.**
+
+| Decision | Who decided | Outcome |
+|---|---|---|
+| DF `set`, and a fixed DSCP 1 to 63, on Linux | owner | keep the refusal at commit; `RFC4301-8.1-2` and `RFC4301-5.1.2.1-1` stay honest `{gap}` rows |
+| VPP and `icmp-error-check` | rule (exact-or-refuse) | the default stays true, which is the RFC processing. VPP, reachable only through the test override `ze.test.ike.dataplane`, refuses at commit and names `icmp-error-check false` as the fix |
+| A per-SA option a backend cannot apply | rule (exact-or-refuse) | refused at config verify (`verifyPeerSAOptions`) and at install with `dataplane.ErrSAOptionRefused`, never kept as a degraded SA |
+| `RFC4301-6.2-3` condition: an ICMP error a bypass entry would carry in clear (an operator outbound bypass outranking a peer's protect policy, or the catch-all under `unmatched bypass`) is mapped into the return SA by Linux `icmp_route_lookup` and `icmpv6_route_lookup` | PENDING OWNER | (a) refuse the overlap at commit; (b) accept and document, the current state; (c) kernel patch, with `LL-XFRM-ICMP-TRANSIT` |
+| An ICMP message arriving on a Child SA with `icmp-error-check true` bypasses an operator inbound discard when its embedded header matches the SA (the kernel's `icmp_rcv` reverse check) | PENDING OWNER | (a) refuse the overlap at commit; (b) accept and document, the current state; (c) kernel patch in `icmp_rcv` and `icmpv6_rcv` |
+| Direction shown for Ze's own SAs: Ze sets no `XFRMA_SA_DIR`, so `show` renders the direction unknown and the options on both sides | PENDING OWNER | (a) set the SA direction at install (kernel 6.10 and later; the `verify_newsa_info` constraints are still to be read); (b) show the engine's belief; (c) leave it |
 
 ## Task
 
@@ -165,6 +288,19 @@ under that spec's rules rather than replacing them.
 - The outer tunnel header's DSCP value is mapped for the domain the packet enters.
 - PAD identity matching accepts a sub-tree for a DN, a DNS name and an RFC 822 address, and an address range.
 
+## Existing Mechanisms (MANDATORY)
+
+Each row was checked against the source on 2026-11-10.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| XFRM selector port with mask | `internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch` (adds `XfrmPolicy.SrcPortMask` and `DstPortMask`; `selFromPolicy` writes them, `parseXfrmPolicy` reads them back); `dataplane.PortMatch` (`dataplane.go`) | Carries a selector port as a value plus a mask, so a mask-aligned block is programmed exactly and read back exactly | Extends. Phase 4 puts the ICMP type in the source port and the code in the destination port with their masks (`dataplane.IsICMPProto`), and splits a code range into mask-aligned blocks, one policy each (`spdICMPMatches`, engine `spd_policy.go`). No new selector field and no rounding outward |
+| Operator SPD entry list | `internal/component/ike/ipsec/spd_policy.go` (`SPDPolicy`, `ICMPSelector`, `parseSPDPolicy`, `parseICMPSelector`); `internal/component/ike/engine/spd_policy.go` (`spdPolicyParams`, `installSPDPolicies`) | `vpn ipsec policy <name>` with action, order, direction, protocol, local and remote prefix and port, and an ICMP type and code; each entry becomes out and in policies, a both-direction entry a mirrored pair | Extends. Phase 4 added the ICMP selector to this list rather than a second one (R-3). It still installs out and in only, never fwd, which is the open `RFC4301-6-1` gap (Work Not Done) |
+| Dataplane SA and SP seam with exact-or-refuse | `dataplane.SAParams` (`DF`, `OuterDSCP`, `ICMPErrorCheck`), `dataplane.SPParams` (`ICMPErrorReturn`), `outerHeaderTreatmentError` and `ErrSAOptionRefused` (`dataplane/outer_header.go`); `xfrmNoPMTUDisc`, `xfrmDontEncapDSCP`, `xfrmStateFromParams` (`xfrm_linux.go`); `vppDFError`, `vppICMPErrorCheckError` (`vpp.go`), `vppICMPSelectorError` (`vpp_policy.go`) | Each backend programs an option exactly or refuses the install with `ErrSAOptionRefused`, which does not wrap `ErrNotSupported`, so `isXFRMUnsupported` (`engine/child.go`) refuses the Child SA rather than keeping it degraded | Extends. Phases 3, 7 and 8 added the three per-SA options and the return-SA mapping flag to the existing value types, and every refusal goes through the existing error rather than a new path |
+| Commit-time refusal of what the backend cannot enforce | `verifyUnmatchedEnforceable` (`engine/unmatched.go`, through `dataplane.CatchAllInstaller`); `verifyPeerSAOptions` (`engine/sa_options.go`, through `dataplane.SAOptionChecker`) | The catch-all check refuses `unmatched discard` at verify when the backend cannot hold it; the per-peer check refuses a `df-bit`, `dscp-map` or `icmp-error-check` value the loaded backend cannot apply, from the same predicate the install path uses | Extends. `verifyPeerSAOptions` mirrors `verifyUnmatchedEnforceable`: a backend that implements no checker has declared nothing, and anything but the defaults is refused on it |
+| Dataplane readback | `internal/component/ike/cmd/show_dataplane.go` (`saInfoToMap`, `saInfoRow`, `handleShowVPNIPsecDataplanePolicy`) | `show vpn ipsec dataplane sa` renders `df-bit`, `dscp-map`, `icmp-error-check` and `options-known`, null when unread, and null on the side an option cannot ride when the SA's direction is known | Extends. The interop checkers read the outbound SA's `df-bit` here. An SA with no recorded direction renders every option as read (PENDING OWNER row in the 2026-11-10 decisions) |
+| Kernel route PMTU exceptions | Linux `__ip_rt_update_pmtu` (net/ipv4/route.c), `rt6_do_update_pmtu` (net/ipv6/route.c), aged by `net.ipv4.route.mtu_expires` and `net.ipv6.route.mtu_expires` (registered in `internal/core/sysctl/known_linux.go`) | The kernel learns a path MTU under the XFRM bundle and expires it back to the link MTU after the period | Does not apply as a Ze mechanism to extend: Ze holds no PMTU of its own. Phase 7 relies on it for Section 8.2.2 instead of the planned `engine/pmtu.go` (A-4), with the period set through the existing sysctl surface, and records it as a kernel-producer escape |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -213,7 +349,7 @@ under that spec's rules rather than replacing them.
 | A-1 | DISCARD was absent in the 2026-08-30 baseline | original `SPAction` read | phase 2a would be smaller if already implemented | 2026-09-06 delivery record above | confirmed then cleared by phase 2a; retained as history |
 | A-2 | Ze holds no IP fragment state anywhere in the IPsec path | a case-insensitive search for `fragment` over `internal/component/ike/` returned only EAP-TLS message fragmentation, 2026-08-30 | phase 2 has an existing mechanism to extend rather than to add | re-run the search at the start of phase 2 and read every hit | confirmed |
 | A-3 | The Linux kernel may not discharge Section 7.4 for a template-free XFRM policy on its own | hypothesis from the absence of a fragment selector field; kernel reassembly and policy order remain unproven | the obligation may be kernel-delegated and need evidence rather than new fragment state | read the producing kernel path and run the QEMU non-initial-fragment scenario before selecting enforcement | unvalidated; final 2026-09-06 entry says under investigation |
-| A-4 | The Section 8.2.2 PMTU aging obligation is met by the kernel's own PMTU expiry for an XFRM route | the kernel ages a dst entry's PMTU, and Ze holds no PMTU value of its own | the phase must add a per-SA PMTU field, its aging timer and its reset period | read the producing kernel path and prove it with a QEMU test that observes the PMTU changing back after the period | unvalidated |
+| A-4 | The Section 8.2.2 PMTU aging obligation is met by the kernel's own PMTU expiry for an XFRM route | the kernel ages a dst entry's PMTU, and Ze holds no PMTU value of its own | the phase must add a per-SA PMTU field, its aging timer and its reset period | read the producing kernel path (`__ip_rt_update_pmtu`, net/ipv4/route.c; `rt6_do_update_pmtu`, net/ipv6/route.c), then the namespace tests `TestXFRMTunnelPMTUAgesBackToTheLinkMTU`, `TestXFRMPolicyPMTUAgesBackToTheLinkMTU` and `TestXFRMTunnelPMTUAgesBackToTheLinkMTUOverIPv6` (`internal/component/ike/dataplane/rfc4301_pmtu_*integration_linux_test.go`), recorded as kernel-producer escapes | validated by the kernel read this session (the path the `RFC4301-8.2.2-1` annotation cites); the three tests are written and pending run by the lead, so not confirmed until they run |
 | A-5 | The seven `{not-applicable}` annotations on `rfc/short/rfc4301.md` are void under the owner directive of 2026-07-27 and must be re-answered rather than cited | `ai/rules/rfc-compliance.md`, "Every earlier answer that pointed away from full compliance or full proof is VOID" | the annotations stand and phase 9 shrinks to a prose repair | read each annotation's producing function and record the fresh answer | unvalidated |
 | A-6 | The VPP backend can express a DISCARD policy | 2026-09-06 read of `IPSEC_API_SPD_ACTION_DISCARD` in the VPP API binding | a backend without the action must refuse rather than substitute | session evidence above | confirmed in the recorded phase 2a work |
 | A-7 | No existing interop scenario would break when `SPAction` gains a member and `SPParams` gains fields | the zero value of every new field means "as before", and `SPActionProtect` stays 0 | a landed scenario reds and the change is wider than one enum member | run the whole `test/interop-ipsec` suite at the end of phase 2 | unvalidated |
@@ -268,6 +404,11 @@ under that spec's rules rather than replacing them.
 | AC-10 | A packet enters a domain for which the inner DSCP value is not appropriate and a mapping is configured | the outer tunnel header carries the mapped value, observed on the wire |
 | AC-11 | `rfc/short/rfc4301.md` is read at closure | its prose describes the native IKEv2 engine rather than strongSwan and charon; the seven `{not-applicable}` annotations and the `{gap}` carry a fresh answer recorded from the owner; the `{single-polarity}` reason on `RFC4301-4.1-3` no longer says the child-SA path hardcodes tunnel mode |
 | AC-12 | `docs/features/rfc-status.md` and `./le rfc check` are read at closure | the RFC 4301 row reads `Supported` with a Remaining cell that claims no gap, `rfc4301` is back in `supportClaimingScope` with its pinning assertion removed, `rfc/extraction/rfc4301.json` is a sign-off the check accepts, and `./le rfc check` names `rfc4301` in no violation |
+
+AC-8 note (2026-11-10): `df-bit set` is refused at commit by owner decision,
+because neither dataplane can write a set DF bit on an ESP tunnel header
+(`LL-XFRM-OUTER-DF-SET-DSCP`). The `tunnel-df-treatment` scenario therefore
+covers `clear` and `copy`, and `RFC4301-8.1-2` keeps its `{gap}` for `set`.
 
 ## End-to-End User Stories
 
@@ -324,9 +465,9 @@ under that spec's rules rather than replacing them.
 |----------|-----------|-------------|----------------|--------|
 | `spd-discard-entry` | `test/interop-ipsec/scenarios/` | strongSwan | a discard entry drops traffic strongSwan would otherwise carry, and the tunnel beside it stays up | |
 | `bypass-fragment-forgery` | `test/interop-ipsec/scenarios/` | strongSwan | a forged non-initial fragment aimed at the bypassed IKE port range does not reach the protected side | |
-| `icmp-error-payload-check` | `test/interop-ipsec/scenarios/` | strongSwan | a transit ICMP error whose payload header contradicts the SA selectors is dropped, and a consistent one is delivered | |
+| `icmp-error-payload-check` | `test/interop-ipsec/scenarios/` | strongSwan | an ICMP error addressed to Ze (local delivery) arriving on the SA: one whose payload header is consistent with the SA selectors is delivered, an inconsistent one is dropped. A transit (forwarded) error is out of scope here and stays `LL-XFRM-ICMP-TRANSIT` | written, not run; red proofs owed |
 | `pad-subtree-identity` | `test/interop-ipsec/scenarios/` | strongSwan | a strongSwan peer whose ID_FQDN falls under a configured sub-tree authenticates, and one outside it is refused | |
-| `tunnel-df-treatment` | `test/interop-ipsec/scenarios/` | strongSwan | the outer header DF bit carries each configured treatment, read on the wire | |
+| `tunnel-df-treatment` | `test/interop-ipsec/scenarios/` | strongSwan | the outer header DF bit carries each configured treatment, read on the wire | written, not run; red proofs owed |
 
 ## Files to Modify
 - `internal/component/ike/dataplane/dataplane.go` - `SPAction` gains DISCARD; `SPParams` gains ICMP type and code selectors, a port range form, a DF treatment and a DSCP mapping; the two priority constants become a reserved band plus an operator order
@@ -506,6 +647,16 @@ phase 2a and phases 5 and 6 are delivered history and are not repeated.
 - Two annotations on that page are false at the producer as of 2026-08-30, and both were read rather than inferred. The `{gap}` on `RFC4301-4.4.1.1-1` says `SPParams` has no port or protocol field; `SrcPort`, `DstPort` and `UpperProto` all exist, and only the ICMP type and code are absent. The `{single-polarity}` reason on `RFC4301-4.1-3` says the child-SA path hardcodes tunnel mode so a peer SA can never be transport; `createFirstChildSA` sets transport mode on `sa.UseTransportMode`.
 - Seven annotations are void under the owner directive of 2026-07-27 and must be re-answered rather than cited: the `{gap}` on `RFC4301-4.4.1.1-1` and the `{not-applicable}` on `RFC4301-4.1-5`, `RFC4301-4.1-6`, `RFC4301-4.4.1-2`, `RFC4301-5.2-1`, `RFC4301-5.2-2` and `RFC4301-7-1`. Six of the seven rest on "the kernel does the per-packet half", which is an observation about where the work happens and not an answer about whether Ze meets the obligation.
 
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `guard-added-to-one-half-of-a-pair.md` | 2026-11-10 | RFC4301-6-1: operator SPD entries install out and in, never fwd |
+| `silent-fall-through.md` | 2026-11-10 | forwarded fragments (port 0) miss a port-specific Child SA policy and meet the catch-all, in clear under `unmatched bypass` |
+| `field-carries-two-meanings.md` | 2026-11-10 | protocol 135: the IKE MH-type value is installed as a port, Linux compares the bare type |
+| `two-owners-share-one-name.md` | 2026-11-10 | reqid 1 and SPI-less templates on every Child SA of a peer; a sibling's any-port fwd policy accepts a fragment of an exact-port SA |
+| `guard-enumerates-instead-of-subtracting.md` | 2026-11-10 | RFC7296-3.13.1-1/2 weak: a port under a portless protocol other than 0 is committed and emitted |
+
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
@@ -522,6 +673,24 @@ phase 2a and phases 5 and 6 are delivered history and are not repeated.
 - **It does not write `rfc/extraction/rfc4301.json`.** That artifact belongs to `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md`. Phase 9 lands it under that spec's rules and its checks.
 - **It does not answer the Section 6.1.1 MAY.** ICMP type-and-code granularity is a MAY, and `ai/rules/rfc-compliance.md` reserves a MAY to the owner. Phase 3 puts it to him with the cost of each option.
 - **It does not widen the class gate in `remoteIDMatches`.** Sub-tree matching is added inside each existing class. An asserted ID_FQDN still cannot satisfy an address-valued `remote-id`.
+
+## Work Not Done
+
+As of 2026-11-10. Each row stays owed; none is dropped.
+
+| Item | Why not done | Home |
+|------|--------------|------|
+| `RFC4301-6-1`: project operator SPD entries onto fwd, so a gateway can bypass or discard transit ICMP | needs a decision first on how a non-initial fragment, which carries no ICMP type, is classified (Section 7, phase 2b) | this spec, `plan/release/fixes/spec-rfc4301-architecture-gaps.md`; journal row `guard-added-to-one-half-of-a-pair.md` 2026-11-10, owned above |
+| Stale names in the post-release port-mask spec | kept as they are by owner decision | `plan/post-release/features/spec-ipsec-opaque-selector-port-mask.md` |
+| `RFC4301-6.2-3`: an ICMP error a bypass entry would carry in clear is mapped into the return SA | PENDING OWNER: refuse the overlap at commit, accept and document, or a kernel patch | this spec, `plan/release/fixes/spec-rfc4301-architecture-gaps.md` (2026-11-10 decisions) |
+| An ICMP message on a Child SA with `icmp-error-check true` bypasses an operator inbound discard | PENDING OWNER: refuse the overlap at commit, accept and document, or a kernel patch in `icmp_rcv` and `icmpv6_rcv` | this spec, `plan/release/fixes/spec-rfc4301-architecture-gaps.md` (2026-11-10 decisions) |
+| Direction of Ze's own SAs in `show` (no `XFRMA_SA_DIR` set) | PENDING OWNER: set the SA direction at install, show the engine's belief, or leave it | this spec, `plan/release/fixes/spec-rfc4301-architecture-gaps.md` (2026-11-10 decisions) |
+| Phase 2b, Section 7.4 stateful fragment checking | unchanged, under investigation (A-3) | this spec, `plan/release/fixes/spec-rfc4301-architecture-gaps.md` |
+| Forwarded fragments of a port-specific Child SA meet the catch-all (port 0), crossing in clear under `unmatched bypass` | found 2026-11-10 reading LL-XFRM-FRAGMENT-SELECTOR; the fix belongs with phase 2b | this spec; journal row `silent-fall-through.md` 2026-11-10, owned above |
+| Protocol 135 (MH) selector installed with the IKE value (type in the high octet) as the port | found 2026-11-10; Linux `xfrm_flowi_sport` compares the bare type | this spec; journal row `field-carries-two-meanings.md` 2026-11-10, owned above |
+| Shared reqid 1 with SPI-less templates across a peer's Child SAs | found 2026-11-10; strains Section 7.3 for fragments of an exact-port SA | this spec; journal row `two-owners-share-one-name.md` 2026-11-10, owned above |
+| RFC 7296 Section 3.13.1: a port under a portless protocol other than 0 | found by the 2026-11-10 audit re-judge (RFC7296-3.13.1-1 and -2 now `weak`) | this spec; journal row `guard-enumerates-instead-of-subtracting.md` 2026-11-10, owned above |
+| Phase 9, summary, annotations and the public row | unchanged, blocked on both Depends specs | this spec, `plan/release/fixes/spec-rfc4301-architecture-gaps.md` |
 
 ## RFC Documentation (Scope: protocol)
 

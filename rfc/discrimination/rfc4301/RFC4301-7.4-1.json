@@ -29,7 +29,7 @@
     "claim-sha": "db30674c7b5901c1",
     "route": "revert",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::policyInfoFromKernel",
-    "producer-sha": "b90ad1dcb5a4d101",
+    "producer-sha": "856c05b886dd68b8",
     "break": "body of policyInfoFromKernel replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -73,8 +73,8 @@
     "claim-sha": "48a6ff76aeb91bf5",
     "route": "revert",
     "producer": "internal/component/ike/ipsec/spd_policy.go::parseSPDPolicy",
-    "producer-sha": "633e57f6c14caa5b",
-    "break": "body of parseSPDPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "38c27713ddec4654",
+    "break": "body of parseSPDPolicy replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4301-7.4-1",
@@ -84,7 +84,7 @@
     "claim-sha": "55a4639bb8a0c218",
     "route": "revert",
     "producer": "internal/component/ike/ipsec/spd_policy.go::parseSPDPolicy",
-    "producer-sha": "633e57f6c14caa5b",
-    "break": "body of parseSPDPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "38c27713ddec4654",
+    "break": "body of parseSPDPolicy replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

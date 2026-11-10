@@ -355,6 +355,32 @@ type SAParams struct {
 	// silently drops the other, which is the quietest failure this subsystem has: the
 	// tunnel establishes and carries no traffic.
 	AcceptBothESPForms bool
+
+	// DF is what this SA writes into the DF bit of the outer IPv4 header it builds
+	// (RFC 4301 Section 8.1). It means something only on an outbound tunnel-mode SA;
+	// outerHeaderTreatmentError (outer_header.go) refuses any other SA that carries a
+	// treatment other than the DFCopy zero value, and each backend refuses a treatment
+	// its primitive cannot express.
+	DF DFTreatment
+
+	// OuterDSCP is what this SA writes into the DSCP of the outer header it builds
+	// (RFC 4301 Section 5.1.2.1 note 5): the inner value, the OuterDSCPCopy zero
+	// value, or one fixed value. Like DF it means something only on an outbound
+	// tunnel-mode SA.
+	OuterDSCP OuterDSCP
+
+	// ICMPErrorCheck asks the backend to check an ICMP error message that arrives on
+	// this INBOUND state with IP and ICMP headers no policy of this SA accepts against
+	// the header of the packet that triggered it, with source and destination addresses
+	// and ports reversed, and to deliver it only when that reversed header matches the
+	// selectors of this SA. It is meaningful on an inbound state alone: Linux refuses
+	// the flag on an SA flagged outbound (verify_newsa_info, net/xfrm/xfrm_user.c).
+	//
+	// RFC 4301 Section 6.2: "Thus, an IPsec implementation MUST be configurable to
+	// check that this payload header information is consistent with the SA via which
+	// it arrives." The Linux XFRM backend sets XFRM_STATE_ICMP. A backend that cannot
+	// perform the check MUST reject the install rather than report success.
+	ICMPErrorCheck bool
 }
 
 // PortMatch is the port half of a policy selector, as the kernel expresses it: a value
@@ -365,7 +391,10 @@ type SAParams struct {
 // matches exactly Port.
 //
 // The two-field shape is the kernel's, not a Ze invention: XfrmSelector carries Sport,
-// SportMask, Dport and DportMask. An inclusive port RANGE cannot be expressed here. The
+// SportMask, Dport and DportMask. A partial mask matches a mask-aligned block, and an
+// inclusive range becomes several such blocks (MaskedBlocks, icmp_selector.go), one policy
+// each; one PortMatch never carries a range. For ICMP and ICMPv6 the pair carries the
+// message type (SrcPort) and code (DstPort), as the kernel reads them (IsICMPProto). The
 // engine's responder narrows a proposed range to a single port before it answers (RFC
 // 7296 Section 2.9 permits narrowing), and its initiator refuses an answered range,
 // because the answer is the negotiated value and RFC 4301 Section 4.4.2 installs it
@@ -524,6 +553,20 @@ type SPParams struct {
 	//
 	// A bypass policy needs no SA and leaves it 0.
 	SAID uint32
+
+	// ICMPErrorReturn lets an outbound ICMP error message that no SA and no SPD entry
+	// would carry be mapped to this PROTECT policy when the policy matches the header
+	// of the packet that triggered it with addresses and ports reversed, which is the
+	// return traffic of that packet. It is meaningful on an outbound PROTECT policy.
+	//
+	// RFC 4301 Section 6.2: "If no SA exists that would carry the outbound ICMP message
+	// in question, and if no SPD entry would allow carriage of this outbound ICMP error
+	// message, then an IPsec implementation MUST map the message to the SA that would
+	// carry the return traffic associated with the packet that triggered the ICMP error
+	// message." The Linux XFRM backend sets XFRM_POLICY_ICMP, which xfrm_lookup_with_ifid
+	// requires of the policy an XFRM_LOOKUP_ICMP lookup finds. A backend that cannot
+	// perform the mapping MUST reject the install rather than report success.
+	ICMPErrorReturn bool
 }
 
 // SAInfo is one Security Association as the DATAPLANE holds it, returned by
@@ -574,6 +617,28 @@ type SAInfo struct {
 	// a packet, and is the zero time when it has carried none.
 	AddedAt time.Time
 	UsedAt  time.Time
+
+	// Options are the DF treatment (RFC 4301 Section 8.1), the outer DSCP treatment
+	// (Section 5.1.2.1) and the ICMP error payload check (Section 6.2) this SA holds,
+	// READ BACK from the dataplane and never taken from config: an SA installed
+	// before a reload, or by a backend that dropped a flag, holds what it holds, and
+	// that is what an operator debugging a tunnel needs to see.
+	//
+	// OptionsRead is false when the backend did not read them back, and Options is
+	// then meaningless. The guard is deliberate: copy and false are the zero values
+	// of the treatments and real treatments too, so a renderer that read Options
+	// without OptionsRead would report an unread SA as copying both fields with no
+	// ICMP check.
+	OptionsRead bool
+	Options     SAOptions
+
+	// Dir is the direction the dataplane itself records for the SA: SADirIn or
+	// SADirOut from the kernel's XFRMA_SA_DIR attribute. The zero value means the
+	// dataplane holds no direction, which is the answer for every state installed
+	// without that attribute, Ze's own included: the kernel then stores none
+	// (x->dir stays 0), and neither the addresses nor the flags say which side an
+	// SA carries. A renderer reads zero as unknown and never derives a direction.
+	Dir SADir
 }
 
 // PolicyInfo is one Security Policy as the DATAPLANE holds it, returned by
@@ -604,6 +669,11 @@ type PolicyInfo struct {
 	TunnelDst net.IP
 	Mode      uint8
 	ReqID     uint32
+
+	// ICMPErrorReturn is the RFC 4301 Section 6.2 ICMP error return mapping as the
+	// dataplane holds it on this entry (SPParams.ICMPErrorReturn): on Linux the
+	// XFRM_POLICY_ICMP flag read back from the dump, never taken from config.
+	ICMPErrorReturn bool
 
 	// Owner names the peer that installed this policy, and OwnerKnown says
 	// whether ze installed it at all.
@@ -711,6 +781,9 @@ var (
 	mu       sync.Mutex
 	backends = make(map[string]func() (Dataplane, error))
 	active   Dataplane
+	// activeName is the name active was registered and loaded under, so a message
+	// about the backend names it as the operator and Register spell it.
+	activeName string
 )
 
 // Register registers a dataplane backend factory by name.
@@ -737,6 +810,7 @@ func Load(name string) error {
 		return fmt.Errorf("dataplane: load %q: %w", name, err)
 	}
 	active = dp
+	activeName = name
 	return nil
 }
 
@@ -745,6 +819,15 @@ func Get() Dataplane {
 	mu.Lock()
 	defer mu.Unlock()
 	return active
+}
+
+// GetNamed returns the active dataplane backend with the name it was loaded under,
+// read under one lock so the two always describe the same backend. Both are zero
+// when none is loaded.
+func GetNamed() (Dataplane, string) {
+	mu.Lock()
+	defer mu.Unlock()
+	return active, activeName
 }
 
 // CloseBackend shuts down the active dataplane backend.
@@ -756,5 +839,6 @@ func CloseBackend() error {
 	}
 	err := active.Close()
 	active = nil
+	activeName = ""
 	return err
 }

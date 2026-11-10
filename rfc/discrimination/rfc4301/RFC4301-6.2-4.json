@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4301-6.2-4",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_icmp_error_integration_linux_test.go::TestICMPErrorPayloadHeaderCheckedOnLocalDelivery",
+    "unit-sha": "e2c60375533af023",
+    "claim-sha": "cb9174cf2d1f5c79",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+    "producer-sha": "aaab64b6d39ec088",
+    "break": "line 249: \"state.ICMP = true\" -\u003e \"state.ICMP = false\""
+  },
+  {
+    "rid": "RFC4301-6.2-4",
+    "polarity": "negative",
+    "unit": "internal/component/ike/dataplane/rfc4301_icmp_error_integration_linux_test.go::TestICMPErrorPayloadHeaderCheckedOnLocalDelivery",
+    "unit-sha": "e2c60375533af023",
+    "claim-sha": "1e1e8164b87b4b84",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyFromParams",
+    "producer-sha": "a8bb0cc5733c0723",
+    "break": "line 700: \"Src:     p.Src,\" -\u003e \"Src:     \u0026net.IPNet{IP: net.IPv4(10, 0, 0, 0), Mask: net.CIDRMask(13, 32)},\""
+  }
+]

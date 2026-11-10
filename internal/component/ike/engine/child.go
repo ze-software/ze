@@ -36,6 +36,14 @@ func isXFRMUnsupported(err error) bool {
 	if errors.Is(err, errChildPolicyRollback) {
 		return false
 	}
+	// A working backend refusing an option the peer configured (df-bit, dscp-map,
+	// icmp-error-check) is not a platform without XFRM: keeping that Child SA degraded
+	// would report the tunnel up while its ESP goes nowhere, so it is refused. This
+	// answer comes before the ErrNotSupported one, so a chain that joins both still
+	// refuses.
+	if errors.Is(err, dataplane.ErrSAOptionRefused) {
+		return false
+	}
 	if errors.Is(err, dataplane.ErrNotSupported) {
 		return true
 	}
@@ -90,6 +98,21 @@ type ChildSA struct {
 	// built by a test that fills the struct literally installs at the documented default
 	// instead of at rank 0, which would outrank the IKE control-plane bypass.
 	PolicyPriority uint32
+
+	// SkipICMPErrorCheck is the peer's `icmp-error-check false`
+	// (ipsec.SiteToSitePeer.SkipICMPErrorCheck). Its zero value installs the RFC 4301
+	// Section 6.2 processing, so a Child SA a test builds literally gets it too.
+	SkipICMPErrorCheck bool
+
+	// DFBit is the DF treatment of this Child SA's outbound state
+	// (ipsec.SiteToSitePeer.DFBit, RFC 4301 Section 8.1). A rekey inherits it with the
+	// rest of the peer's per-SA settings. The zero value is dataplane.DFCopy.
+	DFBit dataplane.DFTreatment
+
+	// OuterDSCP is the outer DSCP treatment of this Child SA's outbound state
+	// (ipsec.SiteToSitePeer.OuterDSCP, RFC 4301 Section 5.1.2.1 note 5). A rekey
+	// inherits it. The zero value is dataplane.OuterDSCPCopy.
+	OuterDSCP dataplane.OuterDSCP
 
 	// Owner is the configured peer this Child SA belongs to. It is the identity the
 	// dataplane uses to tell this peer's re-install of a selector from a DIFFERENT
@@ -519,6 +542,12 @@ func installChildDataplane(child, previous *ChildSA, prop ipsec.ESPProposal, dp 
 		}
 		inbound.Sel = sel
 	}
+	// RFC 4301 Section 6.2: "If an IPsec implementation receives an inbound ICMP error
+	// message on an SA, and the IP and ICMP headers of the message do not match the
+	// traffic selectors for the SA, the receiver MUST process the received message in a
+	// special fashion." The peer's icmp-error-check decides it (Section 6.2: "an IPsec
+	// implementation MUST be configurable to check").
+	inbound.ICMPErrorCheck = !child.SkipICMPErrorCheck
 	// The ports are the IKE SA's, as childEncapPorts answered them when the Child SA
 	// was built. They are set whenever UDPEncap is, and NATDetected implies UDPEncap, so
 	// every branch below that reads them finds them set.
@@ -605,6 +634,13 @@ func installChildDataplane(child, previous *ChildSA, prop ipsec.ESPProposal, dp 
 		AuthAlgo:  authAlgo,
 		AuthKey:   outInteg,
 		IsAEAD:    isAEAD,
+	}
+	// RFC 4301 Section 8.1: the encapsulator applies the configured DF treatment to the
+	// tunnel header it emits. A transport-mode SA emits none, so it keeps the default.
+	if mode == modeTunnel {
+		outbound.DF = child.DFBit
+		// RFC 4301 Section 5.1.2.1 note 5: the outer DSCP, mapped for the domain.
+		outbound.OuterDSCP = child.OuterDSCP
 	}
 
 	// The SEND form follows the NAT VERDICT, and nothing else.
@@ -856,6 +892,26 @@ func childPolicyPair(child *ChildSA, pair tsPair) (policyPair, bool) {
 	if !ok {
 		return policyPair{}, false
 	}
+	// An OPAQUE "port" under ICMP is RFC 4301 Section 4.4.1.3's "willing to send ...
+	// but NOT receive" form, and selectorPort would hand it on as exactly 0, which an
+	// ICMP selector reads as type 0 code 0 (echo reply). programmableSelector refuses
+	// OPAQUE at every negotiation, so no pair should carry it; one that does installs
+	// no PROTECT policy and its traffic meets the catch-all discard, never the wrong
+	// ICMP type.
+	if dataplane.IsICMPProto(proto) && (local.Port.Form == ipsec.PortOpaque || remote.Port.Form == ipsec.PortOpaque) {
+		return policyPair{}, false
+	}
+	// RFC 4301 Section 7.3: a single port 0, or ICMP type 0 code 0, is the selector
+	// every forwarded fragment presents to the kernel (portMatchesEveryFragment), so the
+	// SA would carry fragments Ze never negotiated. programmableSelector narrows it away
+	// at every negotiation; this is the second check, on the path that builds the policy,
+	// and a pair that fails it installs no PROTECT policy.
+	if portMatchesEveryFragment(local.Port) {
+		return policyPair{}, false
+	}
+	if portMatchesEveryFragment(remote.Port) {
+		return policyPair{}, false
+	}
 	return policyPair{
 		local:      local.Net,
 		remote:     remote.Net,
@@ -929,6 +985,17 @@ func childPairPolicy(child *ChildSA, dir dataplane.SADir, pair policyPair) datap
 	if mode == modeTransport {
 		tunnelSrc, tunnelDst = nil, nil
 	}
+	// RFC 4301 Section 4.4.1.1
+	if dataplane.IsICMPProto(pair.upperProto) {
+		// The sender's side carries the message type and code: RFC 4301 Section
+		// 4.4.1.3 gives Local's "port" selector as the ICMP type and code the system
+		// sends, and Remote's as the one it receives.
+		side := pair.localPort
+		if dir != dataplane.SADirOut {
+			side = pair.remotePort
+		}
+		srcPort, dstPort = icmpSelectorFromIKE(side)
+	}
 
 	return dataplane.SPParams{
 		Src: src,
@@ -952,7 +1019,38 @@ func childPairPolicy(child *ChildSA, dir dataplane.SADir, pair policyPair) datap
 		TunnelSrc:  tunnelSrc,
 		TunnelDst:  tunnelDst,
 		SAID:       said,
+
+		// RFC 4301 Section 6.2: "If no SA exists that would carry the outbound ICMP
+		// message in question, and if no SPD entry would allow carriage of this outbound
+		// ICMP error message, then an IPsec implementation MUST map the message to the
+		// SA that would carry the return traffic associated with the packet that
+		// triggered the ICMP error message." The outbound policy is the one that lookup
+		// finds (dataplane.SPParams.ICMPErrorReturn).
+		ICMPErrorReturn: dir == dataplane.SADirOut && !child.SkipICMPErrorCheck,
 	}
+}
+
+// icmpSelectorFromIKE converts a negotiated ICMP "port" into the type and code
+// selector the dataplane takes.
+//
+// RFC 4301 Section 4.4.1.1: "For IKE, the message type is placed in the most
+// significant 8 bits of the 16-bit selector and the code is placed in the least
+// significant 8 bits." The kernel holds the two apart, the type in the selector's
+// source port and the code in its destination port (dataplane.IsICMPProto), so the
+// IKE value cannot be written as a port: programmed that way, a selector for echo
+// request (type 8, code 0, IKE value 2048) would match only a message of type 2048,
+// which no ICMP message has.
+//
+// selectorPort produces only ANY and one exact value, and ts_narrow refuses a range,
+// so those are the two forms handled. ANY is any type and any code.
+func icmpSelectorFromIKE(p dataplane.PortMatch) (typ, code dataplane.PortMatch) {
+	if p.IsAny() {
+		return dataplane.AnyPortMatch(), dataplane.AnyPortMatch()
+	}
+	if p.Mask != 0xffff {
+		panic("BUG: a negotiated ICMP selector is neither any nor one exact type and code")
+	}
+	return dataplane.ExactPortMatch(p.Port >> 8), dataplane.ExactPortMatch(p.Port & 0xff)
 }
 
 // firstSharingSelector returns the first Child SA in keep that still answers to child's

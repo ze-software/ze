@@ -134,6 +134,55 @@ SA. `BytesHard` and `PacketsHard` are the lifetime ceilings, and zero means no
 limit.
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- saInfoFromState, hardLimitFromKernel -->
 
+## Decision: the per-SA options come from the kernel too
+
+`SAInfo.Options` carries the DF treatment (RFC 4301 Section 8.1), the outer
+DSCP treatment (Section 5.1.2.1) and the ICMP error payload check (Section
+6.2) the SA holds, and the SA row renders them as `df-bit`, `dscp-map` and
+`icmp-error-check`. They are read back, never taken from the peer's config
+(the "Configured is not negotiated" trap in `ai/doors/access-security.md`).
+The kernel can hold something else: `__xfrm_init_state`
+(`net/xfrm/xfrm_state.c`) sets `XFRM_STATE_NOPMTUDISC` on every IPv4 state
+not flagged inbound while `net.ipv4.ip_no_pmtu_disc` is set, so a `df-bit
+copy` peer's SA reads `clear` there, and that is what its tunnel header
+carries.
+
+`saOptionsFromState` inverts the install projection: `XFRM_STATE_NOPMTUDISC`
+reads as `clear` and its absence as `copy`, `XFRM_SA_XFLAG_DONT_ENCAP_DSCP` as
+a fixed `0` and its absence as `copy`, and `XFRM_STATE_ICMP` as the check. The
+dump carries all three flags, so a Linux row always sets `OptionsRead`.
+
+`copy` and `false` are real treatments and the zero values of the fields, so
+`OptionsRead` guards them: a backend that did not read the options back leaves
+it false, and the row carries `options-known: false` with the three keys null,
+the shape `counters-known` gives an unread counter. The VPP backend reads no SA
+back at all (`ListSAs` refuses with `ErrNotSupported`), so it never produces a
+row.
+
+Each option rides on one side of the SA: the ICMP error payload check on the
+state that decrypts, the DF and outer DSCP treatments on the state that
+encapsulates. The SA row's `direction` key is read only from the state's
+`XFRMA_SA_DIR` attribute (`saDirFromKernel`): `in` or `out` when the state was
+installed with a direction, `unknown` otherwise. When the direction is known,
+the side that cannot carry an option renders it null rather than its zero
+value: an `in` row has `df-bit` and `dscp-map` null, an `out` row has
+`icmp-error-check` null. With `unknown`, every option is shown as read, since
+guessing the side would hide a flag the kernel holds. Ze installs its own
+states without `XFRMA_SA_DIR`, so every row for a Ze SA reads `unknown` today
+and shows all three options; only a state another daemon installed with a
+direction reads `in` or `out`. No direction is derived from addresses or
+policies.
+
+The policy row carries `icmp-error-return`, the RFC 4301 Section 6.2 mapping of
+an outbound ICMP error onto the SA that carries the return traffic, as the
+dataplane holds it on the entry: on Linux the `XFRM_POLICY_ICMP` flag read
+back from the dump, never taken from config. Ze sets it on the outbound
+protect entry of a peer whose `icmp-error-check` is true, so only those rows
+read `true`. The VPP backend refuses the mapping at install, so its rows read
+`false`.
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- saOptionsFromState, saDirFromKernel -->
+<!-- source: internal/component/ike/cmd/show_dataplane.go -- saInfoToMap, policyInfoToMap -->
+
 ## Decision: a policy says whether ze owns it
 
 The kernel SPD holds every policy on the node, including ones another daemon or
@@ -148,6 +197,10 @@ or as a decimal port for mask `0xffff`, including `0` for exact port zero.
 Partial masks use `<decimal-port>/0x<four-lowercase-hex-digits>`, such as
 `4608/0xff00`. Both the structured response and its public renderings keep this
 spelling, so a masked selector cannot appear as one exact port.
+An ICMP (1) or ICMPv6 (58) policy also reports `icmp-type` and `icmp-code`, in
+the same spelling, because the kernel holds the message type in the source port
+and the code in the destination port (RFC 4301 Section 4.4.1.1).
+<!-- source: internal/component/ike/cmd/show_dataplane.go -- policyInfoToMap -->
 <!-- source: internal/component/ike/cmd/show_dataplane.go -- portString, policyInfoToMap -->
 
 Wildcard prefixes use the same normalized identity at installation and lookup.

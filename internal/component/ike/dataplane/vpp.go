@@ -220,6 +220,61 @@ func vppUnsupportedSA(p SAParams) error {
 			"%w: vpp: xfrm interface id %d is not implemented by this backend, and ipsec_sad_entry_v3 has no equivalent binding; installing it would program a node-wide SA",
 			ErrNotSupported, p.IfID)
 	}
+	// RFC 4301 Section 6.2: "Specifically, the receiver must extract the header of the
+	// triggering packet from the ICMP payload, and reverse fields as described above to
+	// determine if the packet is consistent with the selectors for the SA via which the
+	// ICMP error message was received." VPP's inbound path matches a packet to its SA by
+	// the outer ESP header (ipsec_input.c) and esp_decrypt.c forwards the inner packet
+	// without reading an ICMP payload, so the check would be reported and never made.
+	if err := vppICMPErrorCheckError(p.ICMPErrorCheck); err != nil {
+		return fmt.Errorf("vpp: %w", err)
+	}
+	return nil
+}
+
+// vppICMPErrorCheckError is the predicate vppUnsupportedSA, vppICMPErrorReturnError and
+// SAOptionsSupported share, so the commit-time refusal and the install-time one cannot
+// disagree.
+func vppICMPErrorCheckError(check bool) error {
+	if !check {
+		return nil
+	}
+	return fmt.Errorf(
+		"%w: the peer asks for the ICMP error processing of RFC 4301 Section 6.2, and VPP's decrypt path and SPD never read the header an ICMP error embeds; "+
+			"set the peer's icmp-error-check to false to run it without that processing, or program it on the Linux XFRM dataplane",
+		ErrSAOptionRefused)
+}
+
+// vppDFError is the DF predicate vppTunnelFlags and SAOptionsSupported share.
+//
+// RFC 4301 Section 8.1: "This means that it MUST be possible to configure the
+// implementation's treatment of the DF bit (set, clear, copy from inner header) for
+// each SA."
+func vppDFError(df DFTreatment) error {
+	switch df {
+	case DFCopy, DFClear:
+		return nil
+	case DFSet:
+		return fmt.Errorf(
+			"%w: DF set cannot be expressed: VPP's ESP encrypt path honors ENCAP_COPY_DF but never reads ENCAP_SET_DF; configure df-bit copy or clear on this peer",
+			ErrSAOptionRefused)
+	}
+	return fmt.Errorf("%w: DF treatment %d names none of copy, clear or set", ErrSAOptionRefused, df)
+}
+
+// SAOptionsSupported answers config verify for VPP from the predicates the install
+// path uses: DF copy or clear, any outer DSCP (the SAD entry's tunnel carries a fixed
+// value, or ENCAP_COPY_DSCP copies it), and no RFC 4301 Section 6.2 ICMP error
+// processing.
+func (b *vppBackend) SAOptionsSupported(o SAOptions) error {
+	// RFC 4301 Section 8.1
+	if err := vppDFError(o.DF); err != nil {
+		return fmt.Errorf("vpp: %w", err)
+	}
+	// RFC 4301 Section 6.2
+	if err := vppICMPErrorCheckError(o.ICMPErrorCheck); err != nil {
+		return fmt.Errorf("vpp: %w", err)
+	}
 	return nil
 }
 
@@ -268,6 +323,10 @@ func (b *vppBackend) InstallSA(p SAParams) error {
 	if err != nil {
 		return err
 	}
+	tunnelFlags, err := vppTunnelFlags(p)
+	if err != nil {
+		return err
+	}
 	identity, err := saIdentityOf(p.SPI, p.Dst, p.Proto)
 	if err != nil {
 		return err
@@ -303,8 +362,13 @@ func (b *vppBackend) InstallSA(p SAParams) error {
 				// from the inner header on encapsulation and back onto it on
 				// decapsulation. VPP does neither unless it is asked: the flags
 				// default to TUNNEL_API_ENCAP_DECAP_FLAG_NONE, so an unset field is a
-				// tunnel that DISCARDS the indication.
-				EncapDecapFlags: ecnFullFunctionality,
+				// tunnel that DISCARDS the indication. vppTunnelFlags adds the outer
+				// header treatment of RFC 4301 Section 8.1 to that option.
+				EncapDecapFlags: tunnelFlags,
+				// RFC 4301 Section 5.1.2.1 note 5: tunnel_build_v4_hdr and
+				// tunnel_build_v6_hdr write this value into every outer header; with
+				// ENCAP_COPY_DSCP the fixup overwrites it with the inner value.
+				Dscp: vppTunnelDSCP(p),
 			},
 			Salt:       salt,
 			UDPSrcPort: p.UDPEncapSPort,
@@ -542,6 +606,57 @@ func vppProto(proto uint8) (ipsec_types.IpsecProto, error) {
 // TUNNEL_API_ENCAP_DECAP_FLAG_NONE, so a tunnel that says nothing copies nothing.
 const ecnFullFunctionality = tunnel_types.TUNNEL_API_ENCAP_DECAP_FLAG_ENCAP_COPY_ECN |
 	tunnel_types.TUNNEL_API_ENCAP_DECAP_FLAG_DECAP_COPY_ECN
+
+// vppTunnelDSCP is the fixed outer DSCP the SA asks for, or 0 for copy, where
+// ENCAP_COPY_DSCP (vppTunnelFlags) replaces it with the inner value per packet.
+//
+// RFC 4301 Section 5.1.2.1 note 5: "If the packet will immediately enter a domain for
+// which the DSCP value in the outer header is not appropriate, that value MUST be
+// mapped to an appropriate value for the domain [NiBlBaBL98]."
+func vppTunnelDSCP(p SAParams) ip_types.IPDscp {
+	v, _ := p.OuterDSCP.Fixed()
+	return ip_types.IPDscp(v)
+}
+
+// vppTunnelFlags builds the SAD entry's tunnel encap/decap flags: the ECN option above,
+// plus the outer header treatment the SA asks for, or a refusal of a treatment VPP's
+// IPsec path cannot express.
+//
+// RFC 4301 Section 8.1: "This means that it MUST be possible to configure the
+// implementation's treatment of the DF bit (set, clear, copy from inner header) for
+// each SA."
+//
+// VPP builds the outer IPv4 header once per SA in tunnel_build_v4_hdr
+// (src/vnet/tunnel/tunnel.c), which never writes the DF bit, so with no flag the bit is
+// clear. esp_encrypt then calls tunnel_encap_fixup_4o4_w_chksum
+// (src/vnet/tunnel/tunnel_dp.h), which sets it when ENCAP_COPY_DF is present and the
+// inner header carries it. ENCAP_SET_DF exists in tunnel_types.api, but only the ipip
+// plugin reads it (src/plugins/ipip/ipip.c): the ESP encrypt path never does, so a set
+// request is refused rather than installed as a clear bit.
+//
+// VPP's behavior here CHANGED with this function. Before it, no SA carried
+// ENCAP_COPY_DF, so every VPP tunnel cleared DF. DFCopy is the zero value and the
+// RFC's mandated option, so a VPP SA that states nothing now copies, as Linux does.
+func vppTunnelFlags(p SAParams) (tunnel_types.TunnelEncapDecapFlags, error) {
+	flags := ecnFullFunctionality
+	if err := outerHeaderTreatmentError(p); err != nil {
+		return flags, fmt.Errorf("vpp: %w", err)
+	}
+	// RFC 4301 Section 5.1.2.1: the DS Field is "copied from inner hdr (5)" unless the
+	// SA fixes a value for the domain. Before this, no SA carried ENCAP_COPY_DSCP, so
+	// every VPP tunnel wrote DSCP 0 into its outer header.
+	if _, fixed := p.OuterDSCP.Fixed(); !fixed {
+		flags |= tunnel_types.TUNNEL_API_ENCAP_DECAP_FLAG_ENCAP_COPY_DSCP
+	}
+	if err := vppDFError(p.DF); err != nil {
+		return flags, fmt.Errorf("vpp: SA spi=%d: %w", p.SPI, err)
+	}
+	if p.DF == DFCopy {
+		flags |= tunnel_types.TUNNEL_API_ENCAP_DECAP_FLAG_ENCAP_COPY_DF
+	}
+	// DFClear: tunnel_build_v4_hdr writes no DF bit, and no flag adds one.
+	return flags, nil
+}
 
 // vppSAFlags derives the SAD entry flags from the parameters.
 //

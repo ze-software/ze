@@ -240,9 +240,12 @@ payloads are the negotiated values (RFC 4301 Section 4.4.2), so
 responder's narrowing `wireToSelectors`. An answered address range that is not one
 prefix becomes the exact set of prefixes tiling it (`rangePrefixes`), one pair each,
 and an answer expanding past `answerPairsMax` (64) policies is refused. A port range
-other than any port, one port or OPAQUE is refused: XFRM (`xfrmSelectorPort`) and
-VPP (`vppPortRange`) program every port or exactly one, so `tcp/1024-65535`, which
-strongSwan answers for such a policy, has no exact form short of 64512 policies. A pair
+other than any port, one port or OPAQUE is refused: a negotiated pair installs one
+policy per direction, whose selector the engine builds as every port or exactly one
+(`selectorPort`), and VPP (`vppPortRange`) programs nothing else. XFRM
+(`xfrmSelectorPort`) could carry a block aligned on a power of two, but
+`tcp/1024-65535`, which strongSwan answers for such a policy, is six such blocks and
+no single selector. A pair
 neither dataplane can program (an OPAQUE port) refuses the whole answer rather than
 being dropped. A refusal is TS_UNACCEPTABLE on IKE_AUTH, a deleted pair on a creation,
 and a Delete for the new pair on a rekey. The responder installs what it answers
@@ -332,8 +335,10 @@ corrections (Linux limitation `LL-NETLINK-XFRM-DECODE`,
   destination, which in ze is every transport-mode template. An explicit
   destination still determines the template family.
 - The policy reader preserves source and destination port masks, including partial
-  masks and an exact port zero installed by another writer. These read-only fields
-  leave the writer's existing any-port and non-zero exact-port semantics unchanged.
+  masks and an exact port zero. The writer sends a non-zero mask as given and
+  derives the mask from the port value only when the mask is zero, so Ze can
+  install an exact ICMP type or code of 0 and a mask-aligned ICMP code block
+  (RFC 4301 Section 4.4.1.1, `xfrmSelectorPort`).
 - The policy reader decodes selectors using each message's selector family.
   An all-family dump keeps `0.0.0.0/0` and `::/0` distinct, and IPv6 prefixes
   whose trailing bytes are zero retain their IPv6 identity. Tunnel endpoints use
@@ -347,6 +352,13 @@ corrections (Linux limitation `LL-NETLINK-XFRM-DECODE`,
   Upstream sets no flag but `XFRM_STATE_ESN`, so a tunnel-mode state with no
   selector could not be stored as serving both inner families (see "A tunnel-mode
   state with no selector carries `XFRM_STATE_AF_UNSPEC`" above).
+- `XfrmState` gains `NoPMTUDisc`. The state writer sets `XFRM_STATE_NOPMTUDISC`
+  when it is true, and the state reader reports the flag. It is the only way to
+  ask the kernel for a clear DF bit in the tunnel header (see "The outer header
+  DF bit" below).
+- `XfrmState` gains `ICMP` and `XfrmPolicy` gains `ICMP`. The writers set
+  `XFRM_STATE_ICMP` and `XFRM_POLICY_ICMP` when they are true, and the readers
+  report them (see "ICMP error messages carried by a Child SA" below).
 <!-- source: internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch -- XFRM state and policy decoding corrections -->
 
 `TestXFRMReadbackPolicyTunnelAddressFamily` installs an IPv4 policy with IPv6
@@ -367,6 +379,140 @@ git apply internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch
 exact corrections with their context lines. It lives in
 `internal/le/vendorpatch`; run it alone with
 `go test ./internal/le/vendorpatch -run TestNetlinkXFRMPatchApplied`.
+
+## The outer header DF bit
+
+RFC 4301 Section 8.1: "This means that it MUST be possible to configure the
+implementation's treatment of the DF bit (set, clear, copy from inner header)
+for each SA.  This applies to SAs where both inner and outer headers are IPv4."
+The peer's `df-bit` leaf (`ipsec.SiteToSitePeer.DFBit`) is that setting. The
+engine copies it onto the Child SA (`ChildSA.DFBit`, inherited by a rekey) and
+`installChildDataplane` sets `SAParams.DF` on the outbound tunnel-mode state
+only: the inbound state decapsulates and emits no header, and a transport-mode
+SA builds none.
+
+`dataplane.DFTreatment` has three values, and its zero is `DFCopy`, the option
+Section 8.1 makes mandatory and the kernel's default. A caller that states
+nothing, the RFC 4552 OSPFv3 installer included, builds the state it built
+before. `outerHeaderTreatmentError` refuses a treatment other than copy on a
+transport-mode SA, an inbound SA or an SA whose outer header is IPv6, on every
+backend.
+
+| Treatment | Linux XFRM (`xfrmNoPMTUDisc`) | VPP (`vppTunnelFlags`) |
+|-----------|-------------------------------|-------------------------|
+| copy | no flag: `xfrm4_tunnel_encap_add` copies `XFRM_MODE_SKB_CB(skb)->frag_off & htons(IP_DF)` | `ENCAP_COPY_DF`, read by `tunnel_encap_fixup_4o4_w_chksum` |
+| clear | `XFRM_STATE_NOPMTUDISC`: the same expression writes 0 | no flag: `tunnel_build_v4_hdr` never writes DF |
+| set | refused: no XFRM flag or attribute sets it (`XFRMA_IPTFS_DONT_FRAG` is IP-TFS only) | refused: `ENCAP_SET_DF` is read by the ipip plugin alone, never by `esp_encrypt` |
+
+Before this, no VPP SA carried `ENCAP_COPY_DF`, so every VPP tunnel cleared
+DF. The zero value now copies on both backends.
+
+Commit refuses `df-bit set` and a non-copy treatment on a transport-mode or
+IPv6-addressed peer (`ValidateOuterHeader`, `internal/component/ike/ipsec/outer_header.go`),
+so the backend refusals are defence in depth. Setting DF on Linux needs a
+mechanism the kernel lacks; the choice between rewriting the ESP packet after
+the transform and a kernel patch is open in
+`plan/release/fixes/spec-rfc4301-architecture-gaps.md`.
+<!-- source: internal/component/ike/dataplane/outer_header.go -- DFTreatment, outerHeaderTreatmentError -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmNoPMTUDisc -->
+<!-- source: internal/component/ike/dataplane/vpp.go -- vppTunnelFlags -->
+<!-- source: internal/component/ike/engine/child.go -- installChildDataplane -->
+
+### The outer header DSCP
+
+RFC 4301 Section 5.1.2.1 note 5: "If the packet will immediately enter a domain
+for which the DSCP value in the outer header is not appropriate, that value MUST
+be mapped to an appropriate value for the domain". The peer's `dscp-map` leaf
+(`SiteToSitePeer.OuterDSCP`) reaches `SAParams.OuterDSCP` on the outbound
+tunnel-mode state the same way as `df-bit`. `dataplane.OuterDSCP` is copy (zero)
+or `0x80 | dscp` built by `FixedOuterDSCP`.
+
+| Treatment | Linux XFRM (`xfrmDontEncapDSCP`) | VPP (`vppTunnelFlags`, `vppTunnelDSCP`) |
+|-----------|----------------------------------|------------------------------------------|
+| copy | no flag: `xfrm4_tunnel_encap_add` writes `XFRM_MODE_SKB_CB(skb)->tos` | `ENCAP_COPY_DSCP` |
+| 0 | `XFRM_SA_XFLAG_DONT_ENCAP_DSCP`: the outer DS field is written 0, ECN still encapsulated | `Dscp` 0, no copy flag |
+| 1 to 63 | refused: no flag or attribute writes another value | `Dscp` set: `tunnel_build_v4_hdr` writes `t_dscp << 2` |
+
+Before this, no VPP SA carried `ENCAP_COPY_DSCP`, so every VPP tunnel wrote
+DSCP 0 into its outer header, against the table's "copied from inner hdr".
+<!-- source: internal/component/ike/dataplane/outer_header.go -- OuterDSCP, outerDSCPError -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmDontEncapDSCP -->
+<!-- source: internal/component/ike/dataplane/vpp.go -- vppTunnelFlags, vppTunnelDSCP -->
+
+## ICMP error messages carried by a Child SA
+
+RFC 4301 Section 6.2 asks two things of an ICMP error carried by an SA: an
+inbound one whose own headers miss the SA's selectors is checked against the
+header it embeds, reversed, and dropped if that header does not match; an
+outbound one no SA or SPD entry carries goes through the SA of the return
+traffic of the packet it reports. The peer leaf `icmp-error-check` (default
+true, `ipsec.SiteToSitePeer.SkipICMPErrorCheck`) turns both on. The engine sets
+`SAParams.ICMPErrorCheck` on the inbound state and `SPParams.ICMPErrorReturn` on
+each outbound policy (`installChildSA`, `childPairPolicy`).
+
+The Linux backend lowers them to `XFRM_STATE_ICMP` and `XFRM_POLICY_ICMP`.
+With the state flag, `icmp_rcv` and `icmpv6_rcv` answer a failed inbound policy
+check by checking again on the reversed embedded header, which then meets the
+Child SA's inbound protect entry or the discard catch-all. With the policy
+flag, `icmp_route_lookup` and `icmpv6_route_lookup` may send an error the node
+generates through the outbound policy its reversed header matches; without it
+`xfrm_lookup_with_ifid` answers `-ENOENT` to that lookup. Linux refuses the
+state flag on an SA flagged outbound, and the backend refuses either flag where
+the kernel never reads it.
+
+A FORWARDED ICMP error that arrives on a Child SA is not covered: the kernel
+reads its payload only when no fwd policy matches its own headers, and Ze's
+catch-all always does (LL-XFRM-ICMP-TRANSIT in
+`docs/architecture/linux-limitations.md`). Such an error is dropped, so nothing
+inconsistent is forwarded, but a consistent one is lost too. A forwarded error
+leaving towards a Child SA is mapped to the return SA (`xfrm_out_fwd_icmp`,
+called by `__xfrm_route_forward`) only after the out lookup passed it
+untransformed: under `unmatched bypass` the catch-all does; under
+`unmatched discard` it blocks the error first. The VPP backend reads no ICMP payload on either path and refuses
+both requests (`vppUnsupportedSA`, `vppICMPErrorReturnError`).
+
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams, xfrmPolicyFromParams -->
+<!-- source: internal/component/ike/engine/child.go -- childPairPolicy -->
+<!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppICMPErrorReturnError -->
+
+## Path MTU of a Child SA
+
+RFC 4301 Section 8.2.1 maps a PMTU message to its SA and updates "the SAD PMTU
+field, taking into account the size of the AH or ESP header that will be
+applied, any crypto synchronization data, and the overhead imposed by an
+additional IP header, in the case of a tunnel mode SA." Ze holds no PMTU field
+of its own: Linux keeps it on the SA's outer route and derives the inner one
+per packet.
+
+| Step | Linux function |
+|------|----------------|
+| Map an ICMP Fragmentation Needed or Packet Too Big about an ESP packet to the SA by SPI, and lower the outer route's PMTU | `esp4_err`, `esp6_err`, `xfrmi4_err`, `xfrmi6_err`, then `ipv4_update_pmtu` / `ip6_update_pmtu` |
+| Derive the inner MTU: outer PMTU less header_len (ESP header, IV, outer IP header), ICV, block alignment and the 2-octet trailer | `xfrm_bundle_ok`, `xfrm_state_mtu` |
+| Case 1 and 3: discard and send a PMTU ICMP carrying the inner MTU | `xfrmi_xmit2` (route-based), `ip_forward` / `ip6_forward` against the bundle MTU (policy-based), `xfrm4_tunnel_check_size` / `xfrm6_tunnel_check_size` for local traffic |
+| Case 2: DF clear, encrypt, then fragment the ESP packet | `ip_finish_output` on the outer route |
+| Section 8.2.2 aging: the exception expires after `mtu_expires` and the route's MTU is the device MTU again | `__ip_rt_update_pmtu`, `ipv4_mtu`; `rt6_do_update_pmtu`, `rt6_check_expired` |
+
+The state Ze installs decides two inputs: the overhead (`xfrmStateFromParams`
+writes the ESP transform and ICV length) and whether a PMTU is learned at all
+(`xfrmNoPMTUDisc`: with `df-bit clear` an IPv4 tunnel header carries no DF, so
+routers fragment it and return nothing). The aging period is
+`net.ipv4.route.mtu_expires` and `net.ipv6.route.mtu_expires`, registered as
+known keys with the range 1 to 2147483 in `internal/core/sysctl/known_linux.go`
+and set through `sysctl { setting ... }`.
+
+`rfc4301_pmtu_integration_linux_test.go` proves the three cases, the overhead
+and the IPv4 aging between namespaces, for a route-based and a policy-based
+SA and for both outer families. The IPv6 sysctl table is not exported to a
+network namespace another user namespace owns (`ipv6_route_sysctl_table_size`),
+so the IPv6 aging leg is `rfc4301_pmtu_ipv6_integration_linux_test.go`, tagged
+`integration`, which runs as root in the QEMU guest.
+
+VPP has no equivalent. `esp_encrypt.c` holds no path MTU, `icmp4.c` acts on no
+Fragmentation Needed, and `ip_path_mtu.c` is a configured per-destination value
+with no learning and no aging, so over VPP the SA's PMTU is the egress
+interface MTU.
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmNoPMTUDisc, xfrmStateFromParams -->
+<!-- source: internal/core/sysctl/known_linux.go -- init -->
 
 ## Traps this code exists to avoid
 

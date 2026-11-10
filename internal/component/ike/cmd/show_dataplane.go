@@ -166,7 +166,53 @@ const (
 	jsonKeyMode = "mode"
 )
 
+// The per-SA option keys. Each is present on every SA row, and null with
+// options-known false when the backend did not read the options back.
+const (
+	jsonKeyDFBit          = "df-bit"
+	jsonKeyDSCPMap        = "dscp-map"
+	jsonKeyICMPErrorCheck = "icmp-error-check"
+	jsonKeyOptionsKnown   = "options-known"
+)
+
 func saInfoToMap(sa *dataplane.SAInfo) map[string]any {
+	row := saInfoRow(sa)
+	// RFC 4301 Sections 8.1, 5.1.2.1 and 6.2: the DF treatment, the outer DSCP
+	// treatment and the ICMP error payload check, as the dataplane reads them back.
+	// An unread SA keeps the keys with null rather than the copy and false zero
+	// values, which are real treatments and would read as a measurement.
+	row[jsonKeyOptionsKnown] = sa.OptionsRead
+	if !sa.OptionsRead {
+		row[jsonKeyDFBit] = nil
+		row[jsonKeyDSCPMap] = nil
+		row[jsonKeyICMPErrorCheck] = nil
+		return row
+	}
+	row[jsonKeyDFBit] = sa.Options.DF.String()
+	row[jsonKeyDSCPMap] = sa.Options.OuterDSCP.String()
+	row[jsonKeyICMPErrorCheck] = sa.Options.ICMPErrorCheck
+	// Each option rides on one side only: the ICMP error payload check on the state
+	// that decrypts (inbound), the DF and outer DSCP treatments on the state that
+	// encapsulates (outbound). The side that cannot carry an option renders it null,
+	// because its zero value (false, copy) would read as a treatment the SA applies.
+	// Only a direction the dataplane recorded (SAInfo.Dir) decides it. With none,
+	// every option is shown as read: the flags are what the dataplane holds, and
+	// guessing the side would hide one of them.
+	switch sa.Dir {
+	case dataplane.SADirIn:
+		row[jsonKeyDFBit] = nil
+		row[jsonKeyDSCPMap] = nil
+	case dataplane.SADirOut:
+		row[jsonKeyICMPErrorCheck] = nil
+	case dataplane.SADirFwd:
+		// No XFRM state carries the forward direction (XFRMA_SA_DIR names in and
+		// out only), so saDirFromKernel never yields it; every option stays as read.
+	}
+	return row
+}
+
+// saInfoRow renders the columns every SA row carries.
+func saInfoRow(sa *dataplane.SAInfo) map[string]any {
 	return map[string]any{
 		"spi":                sa.SPI,
 		"src":                ipString(sa.Src),
@@ -174,6 +220,7 @@ func saInfoToMap(sa *dataplane.SAInfo) map[string]any {
 		jsonKeyIfID:          sa.IfID,
 		"proto":              ipsecProtoName(sa.Proto),
 		jsonKeyMode:          ipsecModeName(sa.Mode),
+		"direction":          policyDirName(sa.Dir),
 		"reqid":              sa.ReqID,
 		"encryption":         sa.Encryption,
 		"encryption-keybits": sa.EncryptionKeyBits,
@@ -209,6 +256,22 @@ func handleShowVPNIPsecDataplanePolicy(_ *pluginserver.CommandContext, _ command
 }
 
 func policyInfoToMap(p *dataplane.PolicyInfo) map[string]any {
+	row := policyInfoRow(p)
+	// RFC 4301 Section 4.4.1.1: an ICMP or ICMPv6 policy holds the message type and
+	// code in its port pair (dataplane.IsICMPProto). The rows name them as such, beside
+	// the raw port columns the kernel stores.
+	if dataplane.IsICMPProto(p.UpperProto) {
+		row["icmp-type"] = portString(p.SrcPort)
+		row["icmp-code"] = portString(p.DstPort)
+	}
+	// RFC 4301 Section 6.2: whether an outbound ICMP error may be mapped back onto
+	// the SA this entry resolves to, as the dataplane holds it on the entry.
+	row["icmp-error-return"] = p.ICMPErrorReturn
+	return row
+}
+
+// policyInfoRow renders the columns every policy row carries.
+func policyInfoRow(p *dataplane.PolicyInfo) map[string]any {
 	return map[string]any{
 		"src":         prefixString(p.Src),
 		"dst":         prefixString(p.Dst),

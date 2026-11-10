@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC4301-8.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_df_linux_test.go::TestXFRMStateCarriesTheDFTreatment",
+    "unit-sha": "94a9dbb131c0afd6",
+    "claim-sha": "29e6f5b0043d4e8c",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmDFFlag",
+    "producer-sha": "01639084dd4e863a",
+    "break": "line 392: \"return false, nil\" -\u003e \"return true, nil\""
+  },
+  {
+    "rid": "RFC4301-8.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/dataplane/rfc4301_df_linux_test.go::TestXFRMStateCarriesTheDFTreatment",
+    "unit-sha": "94a9dbb131c0afd6",
+    "claim-sha": "bcb511cf936b9049",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmDFFlag",
+    "producer-sha": "01639084dd4e863a",
+    "break": "line 394: \"return true, nil\" -\u003e \"return false, nil\""
+  },
+  {
+    "rid": "RFC4301-8.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_df_vpp_test.go::TestVPPInstallSACarriesTheDFTreatment",
+    "unit-sha": "00271fd076ae7f1f",
+    "claim-sha": "cbf95a96d686a5a6",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/vpp.go::vppTunnelFlags",
+    "producer-sha": "ea824f4ef71f6ec7",
+    "break": "line 654: \"if p.DF == DFCopy {\" -\u003e \"if p.DF == DFCopy \u0026\u0026 false {\""
+  },
+  {
+    "rid": "RFC4301-8.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_outer_header_integration_linux_test.go::TestXFRMOuterHeaderCarriesTheDFTreatment",
+    "unit-sha": "00d8f6ffc699ece8",
+    "claim-sha": "3b8384a32723bdfd",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmDFFlag",
+    "producer-sha": "01639084dd4e863a",
+    "break": "line 392: \"return false, nil\" -\u003e \"return true, nil\""
+  }
+]

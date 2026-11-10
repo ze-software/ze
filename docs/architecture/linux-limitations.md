@@ -88,6 +88,31 @@ For a `library` entry, read the module in the module cache:
 
 ## Entries
 
+### LL-XFRM-OUTER-DF-SET-DSCP
+
+- **Kind:** kernel
+- **Effect:** blocks
+- **Status:** verified
+- **Checked:** Linux 7.3, 2026-11-10
+- **Limitation:** An XFRM tunnel-mode state writes the outer IPv4 DF bit as a
+  copy of the inner bit, or clear with `XFRM_STATE_NOPMTUDISC`; no flag or
+  attribute writes it set. It writes the outer DSCP as a copy of the inner one,
+  or 0 with `XFRM_SA_XFLAG_DONT_ENCAP_DSCP`; no attribute writes another value.
+  (`XFRMA_IPTFS_DONT_FRAG` applies to IP-TFS mode only.)
+- **Blocks:** `df-bit set` (RFC4301-8.1-2, "set, clear, copy from inner header")
+  and `dscp-map` 1 to 63 (RFC4301-5.1.2.1-1) on the Linux dataplane. Ze refuses
+  `df-bit set` and a DSCP 1 to 63 at commit, and again when a Child SA
+  installs from a configuration no commit judged, naming the fix. That
+  refusal is the decided behaviour: no nftables rewrite of the outer ESP
+  packet and no kernel patch is planned, so both requirements stay unmet on
+  Linux (`plan/release/fixes/spec-rfc4301-architecture-gaps.md`).
+- **Evidence:** `net/xfrm/xfrm_output.c` `xfrm4_tunnel_encap_add`:
+  `top_iph->frag_off = (flags & XFRM_STATE_NOPMTUDISC) || small_ipv6 ? 0 : (XFRM_MODE_SKB_CB(skb)->frag_off & htons(IP_DF));`
+  and `if (x->props.extra_flags & XFRM_SA_XFLAG_DONT_ENCAP_DSCP) top_iph->tos = 0; else top_iph->tos = XFRM_MODE_SKB_CB(skb)->tos;`.
+- **Re-check:** read those two statements in `xfrm4_tunnel_encap_add` and the
+  `XFRM_STATE_*` and `XFRM_SA_XFLAG_*` lists in `include/uapi/linux/xfrm.h`; the
+  entry stays while neither gains a set-DF or a DSCP-value option.
+
 ### LL-PROXY-ARP-MAC
 
 - **Kind:** kernel
@@ -288,8 +313,11 @@ For a `library` entry, read the module in the module cache:
   gets mask 0. "Exactly port 0" (OPAQUE) cannot be built through it and would
   install as any port. The kernel is not the limit: it stores the selector
   masks it is given and matches with them.
-- **Blocks:** OPAQUE port selectors. RFC4301-4.4.1.1-2, RFC 7296 Section
-  3.13.1 (RFC7296-3.13.1-3).
+- **Blocks:** nothing in a Ze build: `netlink-xfrm-fixes.patch` carries the
+  fix, which is why the entry constrains design. Without the patch, a selector
+  for exactly port 0 (an ICMP type or code of 0, an OPAQUE port) installs as
+  any port. Ze's OPAQUE support is not held back by this library any more; it
+  is a gap in Ze's own code (see Ze meanwhile).
 - **Evidence:** library, `xfrm_policy_linux.go` `selFromPolicy`:
   `if sel.Dport != 0 {` `sel.DportMask = ^uint16(0)`, and the same for
   `Sport`. Kernel (Linux 7.3), `net/xfrm/xfrm_user.c`
@@ -299,11 +327,75 @@ For a `library` entry, read the module in the module cache:
 - **Re-check:** read `selFromPolicy` in the module version `go.mod` requires.
   Lifted when the library takes a mask from the caller, or when Ze builds the
   selector itself.
-- **Ze meanwhile:** refuses OPAQUE at commit and at negotiation. The fix:
-  `plan/post-release/features/spec-ipsec-opaque-selector-port-mask.md`.
+- **Ze meanwhile:** works around it. `netlink-xfrm-fixes.patch` makes
+  `selFromPolicy` send a non-zero `SrcPortMask` or `DstPortMask` as given, and
+  Ze writes every selector's mask (`xfrmSelectorPort`, xfrm_linux.go), so an
+  exact ICMP type or code of 0 and an ICMP code block install exactly. OPAQUE
+  is still refused at commit and at negotiation: its meaning is a port that is
+  not visible in the packet, and mapping it is the work of
+  `plan/post-release/features/spec-ipsec-opaque-selector-port-mask.md`, which
+  this patch unblocks. RFC4301-4.4.1.1-2 and RFC7296-3.13.1-3 are owed by
+  that spec as a mapping missing from Ze's code, not as a library limit. A
+  selector the patch makes expressible is not always one Ze installs: exactly
+  port 0, and ICMP type 0 code 0, are what the kernel reads from every
+  fragment, so Ze refuses them where a fragment would meet them
+  (LL-XFRM-FRAGMENT-SELECTOR).
 
 <!-- source: internal/component/ike/ipsec/traffic_selector.go -- checkPortProgrammable -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmSelectorPort -->
+
+### LL-XFRM-FRAGMENT-SELECTOR
+
+- **Kind:** kernel
+- **Effect:** constrains design
+- **Status:** verified
+- **Checked:** Linux 7.3, 2026-11-10
+- **Limitation:** XFRM classifies an IP fragment, initial or not, with port 0,
+  ICMP type 0 and ICMP code 0: the flow dissector reads no transport header
+  from a fragment, and XFRM does not ask it to parse the first one. On the
+  forward path the policy lookups run before any reassembly of XFRM's own
+  (only conntrack's defragmenter, when loaded, reassembles earlier), and XFRM
+  keeps no fragment state. A selector of exactly port 0, or of ICMP type 0 with a code
+  range holding 0, therefore matches every forwarded fragment between its
+  prefixes, whatever packet the fragment belongs to.
+- **Blocks:** installing a Child SA selector of exactly port 0 or ICMP type 0
+  code 0 (RFC4301-7.3-3, RFC4301-7.3-4: such an SA would send and accept
+  fragments without NON_FIRST_FRAGMENTS_ALSO), and an outbound operator SPD
+  entry for ICMP type 0 with a code range holding 0 (the RFC4301-7.4-2
+  concern for a bypass). Both requirements stay met, because Ze refuses the
+  selector rather than install it.
+- **Evidence:** `net/core/flow_dissector.c` `__skb_flow_dissect`, IPv4:
+  `if (iph->frag_off & htons(IP_OFFSET)) {` `fdret = FLOW_DISSECT_RET_OUT_GOOD;`,
+  and for the first fragment `if (!(flags & FLOW_DISSECTOR_F_PARSE_1ST_FRAG)) {`
+  `fdret = FLOW_DISSECT_RET_OUT_GOOD;`; after the protocol step
+  `if (!(key_control->flags & FLOW_DIS_IS_FRAGMENT))` guards
+  `__skb_flow_dissect_ports`. `net/xfrm/xfrm_policy.c`
+  `__xfrm_decode_session`: `memset(&flkeys, 0, sizeof(flkeys));` then
+  `NULL, 0, 0, 0, FLOW_DISSECTOR_F_STOP_AT_ENCAP);` (no first-fragment parse);
+  `decode_session4`: `fl4->fl4_sport = flkeys->ports.src;` and
+  `fl4->fl4_icmp_type = flkeys->icmp.type;`. `net/ipv4/ip_forward.c`
+  `ip_forward`: `if (!xfrm4_policy_check(NULL, XFRM_POLICY_FWD, skb)) {` and
+  `if (!xfrm4_route_forward(skb)) {`, with no defragmentation before them;
+  `net/ipv6/ip6_output.c` `ip6_forward`:
+  `!xfrm6_policy_check(NULL, XFRM_POLICY_FWD, skb)) {` and
+  `if (!xfrm6_route_forward(skb)) {`.
+- **Re-check:** read `__xfrm_decode_session` and the fragment cases of
+  `__skb_flow_dissect`. Lifted when XFRM decodes a fragment's ports from
+  reassembly state (stateful fragment checking) or stops matching a fragment
+  against a port or ICMP selector.
+- **Ze meanwhile:** refuses. Negotiation narrows a proposed single port 0 or
+  ICMP type 0 code 0 away and refuses such an answer (`programmableSelector`,
+  `engine/ts_narrow.go`), the policy builder installs no pair carrying one
+  (`childPolicyPair`, `engine/child.go`), and commit refuses an `out` or `both`
+  operator entry for ICMP type 0 with a code range holding 0
+  (`validateICMPFragments`, `ipsec/spd_policy.go`). Traffic for Ze itself is
+  reassembled before its inbound check (`ip_local_deliver`), so an `in` entry
+  is accepted. Any port, which RFC 4301 Section 7.1 lets carry every fragment,
+  is unaffected.
+
+<!-- source: internal/component/ike/engine/ts_narrow.go -- programmableSelector, portMatchesEveryFragment -->
+<!-- source: internal/component/ike/engine/child.go -- childPolicyPair -->
+<!-- source: internal/component/ike/ipsec/spd_policy.go -- validateICMPFragments -->
 
 ### LL-RTNL-NEWLINK-NO-ALIAS
 
@@ -327,31 +419,97 @@ For a `library` entry, read the module in the module cache:
 
 <!-- source: internal/plugins/iface/netlink/macvlan_linux.go -- CreateMacvlanDevice -->
 
-### LL-XFRM-ICMP-RETURN-SA
+### LL-XFRM-ICMP-TRANSIT
 
 - **Kind:** kernel
 - **Effect:** blocks
-- **Status:** unverified
-- **Checked:** Linux 7.3, 2026-10-30
-- **Limitation:** Possibly none. The question is whether the kernel maps an
-  outbound ICMP error that no SA or SPD entry carries to the SA that carries
-  the return traffic of the packet that triggered it. The IPv4 source suggests
-  it does; the IPv6 path is not read and no test observes either.
-- **Blocks:** RFC4301-6.2-3, until settled.
-- **Evidence:** `net/ipv4/icmp.c` `icmp_route_lookup`: when the forward
-  `xfrm_lookup` returns the plain route, it runs
-  `err = xfrm_decode_session_reverse(net, skb_in, flowi4_to_flowi(&fl4_dec), AF_INET);`
-  and looks the route up again on the reversed flow of the triggering packet.
-- **Re-check:** read the rest of `icmp_route_lookup` (the second
-  `xfrm_lookup` on the reversed flow) and the IPv6 counterpart in
-  `net/ipv6/icmp.c`, then run a namespace test that provokes an ICMP error
-  toward a protected peer and reads which SA carried it. If the kernel does
-  it, this entry is removed and the RFC row becomes a lower-layer row with
-  that test.
-- **Ze meanwhile:** conformance gap with no Ze producer:
-  `plan/release/fixes/spec-rfc4301-architecture-gaps.md`.
+- **Status:** verified
+- **Checked:** Linux 7.3, 2026-11-10
+- **Limitation:** Linux performs the RFC 4301 Section 6.2 processing for an
+  ICMP error addressed to the node or generated by it, but for a FORWARDED
+  ICMP error only when no forward (inbound) or outbound (return) policy
+  matches the error's own headers. Ze's catch-all on the fwd direction
+  always matches, so a transit ICMP error that arrives on a Child SA with
+  headers no selector covers is dropped without its payload being read,
+  consistent or not. On the out direction the mapping runs only after the
+  lookup passed the error untransformed: under `unmatched bypass` the
+  catch-all does, and the error is mapped to the return SA; under
+  `unmatched discard` the catch-all blocks it first. On the out direction the
+  mapping also reaches errors Section 6.2 leaves alone, for forwarded and
+  locally generated errors alike: the kernel cannot tell a BYPASS entry from
+  no entry, because a template-free allow policy and an absent one both
+  answer the plain route. An error that an operator `vpn ipsec policy` bypass
+  entry outranking a peer's PROTECT policy, or the catch-all under
+  `unmatched bypass`, would carry in clear is sent into the return SA, where
+  the RFC maps an error only "if no SPD entry would allow carriage of this
+  outbound ICMP error message".
+  The same reversed check also overrides an inbound discard entry. An ICMP
+  message that arrives on a Child SA and that an operator `vpn ipsec policy`
+  `in` discard entry refuses is checked again on the header it carries after
+  its ICMP header, with addresses and ports reversed, when the last state of
+  its secpath carries `XFRM_STATE_ICMP` (the peer's `icmp-error-check true`,
+  the default). It is delivered when that header matches the SA, whatever the
+  discard entry says, and the kernel never checks that the message is an
+  error type. With `icmp-error-check false` on that peer the state lacks the
+  flag and the discard entry decides. ICMP arriving in the clear (the
+  unprotected side of Section 6.1.1, or the protected side of Section 6.1.2)
+  has no secpath, so a discard entry always decides it.
+- **Blocks:** RFC4301-6.2-4 and RFC4301-6.2-3 for transit ICMP errors (the
+  subject of Section 6.2), and with them RFC4301-6.2-2. Under
+  `unmatched bypass` the kernel maps the error to the return SA, which
+  RFC4301-6.2-3 asks for only when no SPD entry would carry it, and the
+  bypass catch-all is such an entry. RFC4301-6.2-3 also for any error a
+  bypass entry covers. Also an inbound discard entry refusing an ICMP type
+  that arrives on a Child SA whose peer has `icmp-error-check true`, which no
+  requirement id names: Sections 6.1.1 and 6.1.2 ask for that control over
+  ICMP arriving in the clear, where it holds.
+- **Evidence:** `net/xfrm/xfrm_policy.c` `__xfrm_policy_check` calls
+  `if (!pol && dir == XFRM_POLICY_FWD) pol = xfrm_in_fwd_icmp(skb, &fl, family, if_id);`,
+  so the reversed-payload lookup runs only when the outer lookup found no
+  policy. `__xfrm_route_forward` calls
+  `if (dst && !dst->xfrm) dst = xfrm_out_fwd_icmp(skb, &fl, family, dst);`
+  only after `xfrm_lookup` passed the error untransformed; a block policy
+  answers `-EPERM` first. The locally addressed and locally generated paths
+  have no such condition: `icmp_rcv` (`net/ipv4/icmp.c`) re-checks with
+  `xfrm4_policy_check_reverse` whenever the last state of the secpath carries
+  `XFRM_STATE_ICMP` (`icmpv6_rcv` likewise), and `icmp_route_lookup` /
+  `icmpv6_route_lookup` look the reversed flow up with `XFRM_LOOKUP_ICMP`,
+  which `xfrm_lookup_with_ifid` honours only for a policy carrying
+  `XFRM_POLICY_ICMP`. Ze sets both flags (`icmp-error-check`, default true).
+  `icmp_route_lookup` takes that reversed path whenever
+  `dst = xfrm_lookup(net, &rt->dst, flowi4_to_flowi(fl4), NULL, 0);` returns
+  the route it was given (`if (rt != rt2) return rt;` is the only exit for a
+  transformed answer), and `icmpv6_route_lookup` likewise
+  (`if (dst != dst2) return dst;`); `xfrm_lookup_with_ifid` returns that same
+  route for a policy whose action is allow and which holds no template, the
+  shape of every bypass entry, as it does when no policy matches.
+- **Re-check:** read `__xfrm_policy_check` and `__xfrm_route_forward`. Lifted
+  if either consults the reversed payload when the outer lookup finds a
+  block or template-free policy, and if `icmp_route_lookup`,
+  `icmpv6_route_lookup` and `__xfrm_route_forward` tell an allow policy from
+  no policy before they take the reversed path.
+- **Ze meanwhile:** the entry rests on the source read at Linux 7.3; no
+  namespace test observes the forwarded case yet. A forwarded ICMP error
+  whose headers no selector covers is dropped (RFC4301-6.2-5 holds); the
+  owner decides between a patch to Ze's
+  kernel (both directions) and moving the fwd catch-all to the netns policy
+  default, which lets `xfrm_in_fwd_icmp` run but leaves the outbound case
+  blocked, because `xfrm_lookup_with_ifid` answers `-EPERM` for a blocking
+  default before `xfrm_out_fwd_icmp` is reached. An error a bypass entry
+  covers is mapped into the return SA; the owner decides between refusing
+  at commit a bypass entry that overlaps a PROTECT policy's ICMP return
+  traffic, accepting and documenting the mapping, and a patch to Ze's kernel
+  (`plan/release/fixes/spec-rfc4301-architecture-gaps.md`). An inbound
+  discard entry for an ICMP type does not stop that type arriving on a Child
+  SA whose peer has `icmp-error-check true` when its payload matches the SA;
+  the guide and the `icmp-type` description say so, and the owner decides
+  between refusing at commit an ICMP discard entry that overlaps such a
+  peer's remote selectors, accepting and documenting it (the state today),
+  and a patch to Ze's kernel under which `icmp_rcv` and `icmpv6_rcv` re-check
+  only an ICMP error type, and only when the inbound refusal came from a
+  template mismatch rather than a block policy.
 
-<!-- source: rfc/short/rfc4301.md -- RFC4301-6.2-3 -->
+<!-- source: rfc/short/rfc4301.md -- RFC4301-6.2-4 -->
 
 ### LL-MPLS-FORWARD-NO-PMTU
 

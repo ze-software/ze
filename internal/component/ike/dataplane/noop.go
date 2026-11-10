@@ -33,6 +33,10 @@ func (noopDataplane) Close() error                                     { return 
 // CatchAllSupported answers yes, as every other install of this test-only backend does.
 func (noopDataplane) CatchAllSupported() error { return nil }
 
+// SAOptionsSupported answers yes, as every other install of this test-only backend
+// does: it carries no packet, so no option is left unapplied.
+func (noopDataplane) SAOptionsSupported(SAOptions) error { return nil }
+
 // AttachOverrideGuard and DetachOverrideGuard accept, as every other write of this
 // test-only backend does.
 func (noopDataplane) AttachOverrideGuard() error { return nil }

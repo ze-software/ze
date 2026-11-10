@@ -399,6 +399,17 @@ func init() {
 			Platforms:    []string{doctorPlatformAny},
 			Codes:        []string{diagnostic.CodeDoctorIPsecSPDWriter, diagnostic.CodeDoctorIPsecSPDWriterUnknown},
 			Check:        checkIPsecSPDWriters,
+		}, {
+			// RFC 4301 Section 8.1: net.ipv4.ip_no_pmtu_disc makes the kernel clear the
+			// outer DF bit of every IPv4 state, so a df-bit copy peer gets clear in
+			// silence (doctor_pmtu_disc.go).
+			Name:         "ipsec-no-pmtu-disc",
+			Phase:        rpc.DoctorPhasePostConfig,
+			Order:        738,
+			Dependencies: []string{doctorDepConfigLoaded},
+			Platforms:    []string{doctorPlatformAny},
+			Codes:        []string{diagnostic.CodeDoctorIPsecNoPMTUDisc},
+			Check:        checkIPsecNoPMTUDisc,
 		}},
 	}
 	reg.CLIHandler = func(_ []string) int { return 1 }
@@ -530,6 +541,14 @@ func runEngine(conn net.Conn) int {
 		// commit, rather than failing the apply (verifyUnmatchedEnforceable, unmatched.go).
 		if err := verifyUnmatchedEnforceable(dataplane.Get(), cfg.Unmatched); err != nil {
 			return fmt.Errorf("ike config: %w", err)
+		}
+		// A df-bit, dscp-map or icmp-error-check the loaded dataplane cannot apply is
+		// refused here too, at commit, rather than at install once IKE has negotiated
+		// the Child SA (verifyPeerSAOptions, sa_options.go). Its refusal is already an
+		// operator error naming the peer and the fix, so it passes through unwrapped.
+		dp, dpName := dataplane.GetNamed()
+		if err := verifyPeerSAOptions(dp, dpName, cfg); err != nil {
+			return err
 		}
 		// RFC 4301 Section 4.4.1: a commit that turns the default discard catch-all on
 		// without the operator writing it is refused (refuseImplicitDiscard, unmatched.go).

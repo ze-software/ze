@@ -5,20 +5,31 @@
     "unit": "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate",
     "unit-sha": "075346df146e2c73",
     "claim-sha": "dc4e72252af92db3",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyFromParams",
-    "producer-sha": "9560ce5abe6dc41e",
-    "break": "body of xfrmPolicyFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "a8bb0cc5733c0723",
+    "break": "line 704: \"SrcPort: srcPort,\" -\u003e \"SrcPort: map[bool]int{true: srcPort}[p.Dir != SADirIn],\""
   },
   {
     "rid": "RFC4301-7.3-4",
     "polarity": "negative",
     "unit": "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened",
-    "unit-sha": "8a1441ff18da4131",
-    "claim-sha": "1b11817b31938af0",
-    "route": "revert",
-    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyFromParams",
-    "producer-sha": "9560ce5abe6dc41e",
-    "break": "body of xfrmPolicyFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "unit-sha": "558e337a1774f0db",
+    "claim-sha": "803f8acadb38a790",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmSelectorPort",
+    "producer-sha": "a2b293bffd395aa5",
+    "break": "line 781: \"if p.Port\u0026^p.Mask != 0 {\" -\u003e \"if false {\""
+  },
+  {
+    "rid": "RFC4301-7.3-4",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_fragment_selector_test.go::TestNarrowingRefusesASelectorEveryFragmentMatches",
+    "unit-sha": "541bb80b0a2ca896",
+    "claim-sha": "168928e2e7cf30d5",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/ts_narrow.go::programmableSelector",
+    "producer-sha": "714ecb308a1969cf",
+    "break": "line 394: \"if portMatchesEveryFragment(s.Port) {\" -\u003e \"if false {\""
   }
 ]

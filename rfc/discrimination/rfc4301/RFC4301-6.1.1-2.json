@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC4301-6.1.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_icmp_selector_linux_test.go::TestKernelICMPSelectorDropsOnlyTheNamedMessages",
+    "unit-sha": "5075f37baa04f898",
+    "claim-sha": "b5e8dcbc8542075f",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyFromParams",
+    "producer-sha": "a8bb0cc5733c0723",
+    "break": "line 664: \"SrcPortMask: p.SrcPort.Mask,\" -\u003e \"SrcPortMask: 0,\""
+  },
+  {
+    "rid": "RFC4301-6.1.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_icmp_selector_test.go::TestSPDICMPTypeControlRejectsOrAcceptsOneType",
+    "unit-sha": "fc4f08e84be11b8f",
+    "claim-sha": "b232b8f79444dcfe",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/spd_policy.go::spdICMPMatches",
+    "producer-sha": "da4a0bbd111ff193",
+    "break": "line 96: \"typ = dataplane.ExactPortMatch(uint16(p.ICMP.Type))\" -\u003e \"typ = dataplane.ExactPortMatch(uint16(p.ICMP.Type) + 1)\""
+  },
+  {
+    "rid": "RFC4301-6.1.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_icmp_selector_test.go::TestSPDICMPTypeControlRejectsOrAcceptsOneType",
+    "unit-sha": "fc4f08e84be11b8f",
+    "claim-sha": "9291158887e77a62",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/spd_policy.go::spdICMPMatches",
+    "producer-sha": "da4a0bbd111ff193",
+    "break": "line 96: \"typ = dataplane.ExactPortMatch(uint16(p.ICMP.Type))\" -\u003e \"typ = dataplane.AnyPortMatch()\""
+  }
+]

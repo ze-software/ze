@@ -26,13 +26,82 @@ import (
 // function picks: SPDDirection's zero names neither side, so an entry carrying it
 // skipped the parser, and choosing a side here would install the operator's rule on a
 // half of the database they never named (ai/rules/principles.md).
+//
+// An entry with an ICMP code range installs one policy per mask-aligned code block in
+// each direction (spdICMPMatches), all derived here, so install, removal and shutdown
+// always act on the same set.
 func spdPolicyParams(p ipsec.SPDPolicy) []dataplane.SPParams {
-	out := make([]dataplane.SPParams, 0, 2)
-	if p.Direction == ipsec.SPDDirOut || p.Direction == ipsec.SPDDirBoth {
-		out = append(out, spdPolicyDirection(p, dataplane.SADirOut))
+	icmp := spdICMPMatches(p)
+	out := make([]dataplane.SPParams, 0, 2*max(1, len(icmp)))
+	for _, dir := range []dataplane.SADir{dataplane.SADirOut, dataplane.SADirIn} {
+		if !spdPolicyHasDirection(p.Direction, dir) {
+			continue
+		}
+		if icmp == nil {
+			out = append(out, spdPolicyDirection(p, dir))
+			continue
+		}
+		for _, m := range icmp {
+			sp := spdPolicyDirection(p, dir)
+			// RFC 4301 Section 4.4.1.1: the type and code are one selector for the
+			// message, not a source and a destination field, so they do not swap
+			// with the direction as ports do.
+			sp.SrcPort, sp.DstPort = m.typ, m.code
+			out = append(out, sp)
+		}
 	}
-	if p.Direction == ipsec.SPDDirIn || p.Direction == ipsec.SPDDirBoth {
-		out = append(out, spdPolicyDirection(p, dataplane.SADirIn))
+	return out
+}
+
+// spdPolicyHasDirection reports whether an operator direction includes one policy
+// direction.
+func spdPolicyHasDirection(d ipsec.SPDDirection, dir dataplane.SADir) bool {
+	if dir == dataplane.SADirOut {
+		return d == ipsec.SPDDirOut || d == ipsec.SPDDirBoth
+	}
+	return d == ipsec.SPDDirIn || d == ipsec.SPDDirBoth
+}
+
+// spdICMPMatch is one ICMP selector as the kernel holds it: the message type in the
+// source port of the selector and the code in its destination port
+// (dataplane.IsICMPProto).
+type spdICMPMatch struct {
+	typ, code dataplane.PortMatch
+}
+
+// spdICMPMatches projects an entry's ICMP type and code selector onto kernel selectors.
+// It answers nil for an entry with no ICMP selector, whose ports apply unchanged.
+//
+// RFC 4301 Section 4.4.1.1: "Given a policy entry with a range of Types (T-start to
+// T-end) and a range of Codes (C-start to C-end), and an ICMP packet with Type t and
+// Code c, an implementation MUST test for a match using
+//
+//	(T-start*256) + C-start <= (t*256) + c <= (T-end*256) + C-end"
+//
+// The entry carries one type (T-start equal to T-end, ValidateSPDPolicies refuses a
+// code under ANY type), so the test reduces to t equal to T and C-start <= c <= C-end.
+// The type is one exact match. The code range becomes the mask-aligned blocks of
+// dataplane.MaskedBlocks, whose union is exactly C-start..C-end, so the policies
+// together match a message exactly when the RFC's test does. ANY code is one any-code
+// match, and ANY type and ANY code is one match with neither constrained.
+func spdICMPMatches(p ipsec.SPDPolicy) []spdICMPMatch {
+	if p.ICMP.IsAny() {
+		return nil
+	}
+	if !dataplane.IsICMPProto(p.Protocol) {
+		return nil
+	}
+	typ := dataplane.AnyPortMatch()
+	if p.ICMP.HasType {
+		typ = dataplane.ExactPortMatch(uint16(p.ICMP.Type))
+	}
+	if !p.ICMP.HasCode {
+		return []spdICMPMatch{{typ: typ, code: dataplane.AnyPortMatch()}}
+	}
+	blocks := dataplane.MaskedBlocks(uint16(p.ICMP.CodeStart), uint16(p.ICMP.CodeEnd))
+	out := make([]spdICMPMatch, 0, len(blocks))
+	for _, code := range blocks {
+		out = append(out, spdICMPMatch{typ: typ, code: code})
 	}
 	return out
 }
@@ -166,6 +235,9 @@ func spdPolicySame(a, b ipsec.SPDPolicy) bool {
 		return false
 	}
 	if a.LocalPort != b.LocalPort || a.RemotePort != b.RemotePort {
+		return false
+	}
+	if a.ICMP != b.ICMP {
 		return false
 	}
 	return sameIPNet(a.LocalPrefix, b.LocalPrefix) && sameIPNet(a.RemotePrefix, b.RemotePrefix)

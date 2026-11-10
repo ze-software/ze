@@ -5,21 +5,21 @@
     "unit": "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp",
     "unit-sha": "123ec0767cac9453",
     "claim-sha": "a2cef497b7a8a50f",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-    "producer-sha": "ae4421c5d816b4b4",
-    "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer-sha": "aaab64b6d39ec088",
+    "break": "line 171: \"Spi:   int(p.SPI),\" -\u003e \"Spi:   0x1000,\""
   },
   {
     "rid": "RFC4301-4.1-9",
     "polarity": "negative",
     "unit": "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong",
     "unit-sha": "2a10a734b6939a7b",
-    "claim-sha": "4d4b0b930be9ad7c",
-    "route": "revert",
+    "claim-sha": "302229e2f5b93367",
+    "route": "mutant",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-    "producer-sha": "ae4421c5d816b4b4",
-    "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer-sha": "aaab64b6d39ec088",
+    "break": "line 280: \"if err != nil {\" -\u003e \"if err != nil \u0026\u0026 false {\""
   },
   {
     "rid": "RFC4301-4.1-9",

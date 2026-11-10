@@ -1157,6 +1157,9 @@ Child SAs define traffic selectors and the ESP proposal. Ze programs XFRM polici
 | Replay protection | Anti-replay window, default 64, the size RFC 4303 Section 3.4.3 says SHOULD be the default |
 | Lifetime | Time-based rekeying, from the ESP group's `lifetime` in seconds. Ze carries no byte lifetime, so RFC 4301 Section 4.4.2.1's simultaneous use of both is not met |
 | Policy order | `policy-priority` ranks this peer's SPD entries, lower first. See SPD ordering below |
+| DF bit | `df-bit copy` (default), `clear` or `set`: what the tunnel header carries in its DF bit. See DF bit of the tunnel header below |
+| Tunnel DSCP | `dscp-map copy` (default) or a value 0 to 63 for every tunnel header. See DSCP of the tunnel header below |
+| ICMP errors | `icmp-error-check true` (default) or `false`: whether an ICMP error a Child SA carries has its payload checked. `enable` and `disable` are accepted too, and `ze config fmt` and `show` print the value that way. See ICMP error messages below |
 
 ### SPD ordering
 
@@ -1180,6 +1183,187 @@ renegotiate. Ze refuses such a value at commit.
 <!-- source: internal/component/ike/engine/child.go -- childPolicies -->
 <!-- source: internal/component/ike/ipsec/validate.go -- ValidatePolicyOrder -->
 <!-- source: internal/component/ike/dataplane/dataplane.go -- PriorityIKEBypass, PriorityChildSA -->
+
+### ICMP error messages
+
+An ICMP error reports a packet, and its own headers name the router that sent
+it, not the flow the packet belonged to. RFC 4301 Section 6.2 therefore asks
+for two things. An error that arrives on a Child SA with headers its selectors
+do not cover is checked against the header it carries: "the receiver must
+extract the header of the triggering packet from the ICMP payload, and reverse
+fields as described above to determine if the packet is consistent with the
+selectors for the SA via which the ICMP error message was received." And an
+outbound error that no SA and no SPD entry would carry goes to "the SA that
+would carry the return traffic associated with the packet that triggered the
+ICMP error message."
+
+By default Ze does both:
+
+- an ICMP error addressed to Ze that arrives on a Child SA is delivered only
+  when its embedded header, with source and destination addresses and ports
+  reversed, falls inside the selectors of the SA it arrived on. Otherwise it is
+  dropped.
+- an ICMP error Ze generates about a packet of a tunnelled flow is sent
+  through the Child SA that carries the return traffic of that packet.
+
+To turn both off for a peer:
+
+```
+set vpn ipsec site-to-site peer branch icmp-error-check false
+```
+
+An ICMP error is then carried only where a traffic selector or a `vpn ipsec
+policy` entry covers its own headers, and every other one is dropped unread.
+RFC 4301 Section 6.2 allows this as the way to carry ICMP errors without
+inspecting their payload, by configuring an entry that explicitly carries
+them.
+
+A forwarded ICMP error, one Ze routes between two other hosts, is a different
+case on Linux. One that arrives on a Child SA with headers the selectors do not
+cover is dropped whatever the leaf says, because the kernel reads its payload
+only when no forward policy matches it, and Ze's catch-all always does. One
+leaving towards a Child SA is mapped to the return SA under `unmatched
+bypass`, and dropped under `unmatched discard`, where the catch-all blocks it
+before the mapping runs. `LL-XFRM-ICMP-TRANSIT` in
+[Linux limitations](../architecture/linux-limitations.md) has the kernel
+functions.
+
+Linux also maps an error that a bypass entry would carry in clear. Section 6.2
+maps an outbound error to the return SA only "if no SPD entry would allow
+carriage of this outbound ICMP error message", but the kernel cannot tell a
+bypass entry from no entry: whenever the lookup on the error's own headers
+finds no Child SA, it sends the error through the SA that carries the return
+traffic. So with a `vpn ipsec policy` bypass entry that covers ICMP towards
+hosts behind a peer and outranks that peer's Child SA policy, or with
+`unmatched bypass`, an error about a tunnelled packet goes into the tunnel
+rather than out in clear. `icmp-error-check false` on the peer stops that
+mapping, along with the rest of the Section 6.2 processing.
+
+The VPP dataplane performs neither check. VPP is reached only through the test
+override `ze.test.ike.dataplane`, and there commit refuses a peer whose
+`icmp-error-check` is true (the default, which keeps the RFC 4301 Section 6.2
+processing on Linux), naming `icmp-error-check false` as the fix.
+
+<!-- source: internal/component/ike/ipsec/config.go -- parseSiteToSitePeer -->
+<!-- source: internal/component/ike/engine/child.go -- installChildDataplane, childPairPolicy -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams, xfrmPolicyFromParams -->
+<!-- source: internal/component/ike/dataplane/vpp.go -- vppUnsupportedSA -->
+
+### DF bit of the tunnel header
+
+RFC 4301 Section 8.1 makes the DF treatment of each tunnel-mode SA
+configurable: "set, clear, copy from inner header". `df-bit` under a peer is
+that setting, for the IPv4 tunnel header the peer's outbound Child SAs build.
+
+```
+vpn {
+    ipsec {
+        site-to-site {
+            peer branch {
+                remote-address 198.51.100.1;
+                df-bit clear;
+            }
+        }
+    }
+}
+```
+
+| Value | Tunnel header DF bit | Linux | VPP |
+|-------|----------------------|-------|-----|
+| `copy` (default) | the inner IPv4 header's DF bit | yes | yes |
+| `clear` | always clear, so a router on the path may fragment the tunnel packet | yes | yes |
+| `set` | always set | refused at commit | refused at commit |
+
+`clear` is for a path that drops large tunnel packets and never returns
+Fragmentation Needed: the routers fragment instead, and the far end reassembles.
+Commit refuses `clear` or `set` on a `mode transport` peer, which builds no
+tunnel header, and on a peer whose `local-address` or `remote-address` is IPv6,
+whose header has no DF bit. `set` is refused on every dataplane today: the Linux
+kernel copies or clears the bit and has no flag that sets it, and VPP's ESP path
+ignores its set flag. Changing `df-bit` restarts the peer.
+
+### DSCP of the tunnel header
+
+RFC 4301 Section 5.1.2.1 copies the inner DSCP into the tunnel header, and says
+that when the packet "will immediately enter a domain for which the DSCP value
+in the outer header is not appropriate, that value MUST be mapped to an
+appropriate value for the domain". `dscp-map` under a peer is that mapping:
+`copy` (the default), or one value 0 to 63 written into every tunnel header.
+
+| Value | Linux | VPP |
+|-------|-------|-----|
+| `copy` | yes | yes (before this leaf, VPP wrote 0) |
+| `0` | yes | yes |
+| `1` to `63` | refused at commit: the kernel can only copy or write 0 | yes |
+
+Commit refuses a value on a `mode transport` peer. Changing `dscp-map`
+restarts the peer.
+
+### Path MTU of a tunnel
+
+On Linux the path MTU of a tunnel-mode SA is the path MTU of its outer route.
+When a router on the way between the tunnel endpoints sends back an ICMP
+Fragmentation Needed or Packet Too Big about an ESP packet, the kernel finds
+the SA from the SPI in the quoted packet, lowers the outer route's PMTU, and
+takes the ESP header, IV, ICV, padding and outer IP header off it to give the
+inner MTU (RFC 4301 Section 8.2.1). A packet larger than that inner MTU is then
+handled as Section 8.2.1 says:
+
+| Packet | What happens |
+|--------|--------------|
+| IPv4 with DF set | dropped, and the sender gets an ICMP Fragmentation Needed carrying the inner MTU |
+| IPv4 with DF clear | encrypted, then the ESP packet is fragmented and forwarded; no ICMP |
+| IPv6 | dropped, and the sender gets a Packet Too Big carrying the inner MTU |
+
+With the default `df-bit copy` the tunnel header carries the inner packet's DF
+bit, so the routers return Fragmentation Needed and the PMTU is learned. With
+`df-bit clear` an IPv4 tunnel header always carries DF clear, so the routers
+fragment the tunnel packets, return nothing, and no PMTU is learned from them.
+The SA's PMTU is then the MTU of the outer route: the first-hop link's, or a
+PMTU other traffic to the same tunnel endpoint learned, which ages as below.
+The table above still holds against that MTU, and a tunnel packet larger than
+a link further on is fragmented by that router and reassembled by the far end.
+The kernel also clears the DF bit of every IPv4 outbound SA when
+`net.ipv4.ip_no_pmtu_disc` is set, whatever `df-bit` says, and `show vpn ipsec
+dataplane sa` then reads `df-bit` `clear`. `ze doctor` reports it as
+`doctor-ipsec-no-pmtu-disc`, naming each IPv4 `df-bit copy` peer it affects and
+the fix, `set sysctl setting net.ipv4.ip_no_pmtu_disc value 0`.
+
+<!-- source: internal/component/ike/engine/doctor_pmtu_disc.go -- checkIPsecNoPMTUDisc -->
+
+A learned PMTU expires: after the aging period the SA's PMTU returns to the
+MTU of the first-hop link, and the next large packet finds the path MTU again
+(RFC 4301 Section 8.2.2, the RFC 1191 Section 6.3 reset). The period is the
+kernel's route PMTU expiry, 600 seconds by default, one value per address
+family of the tunnel endpoints, set like any other kernel tunable:
+
+```
+sysctl {
+    setting net.ipv4.route.mtu_expires {
+        value 300;
+    }
+    setting net.ipv6.route.mtu_expires {
+        value 300;
+    }
+}
+```
+
+Commit refuses a period below 1 second or above 2147483. The period applies to
+every PMTU the box learns, not only IPsec ones, and a PMTU already learned
+keeps the period it was learned with.
+
+The VPP dataplane learns no PMTU: VPP takes no action on an ICMP
+Fragmentation Needed or Packet Too Big about an ESP packet, and its only path
+MTU is a value configured per destination (`ip path-mtu`), which never ages.
+Over VPP the SA's PMTU is the MTU of the outgoing interface.
+
+<!-- source: internal/core/sysctl/known_linux.go -- init -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmNoPMTUDisc -->
+
+<!-- source: internal/component/ike/ipsec/outer_header.go -- parseDFBit, parseDSCPMap, ValidateOuterHeader -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmDontEncapDSCP -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmNoPMTUDisc -->
+<!-- source: internal/component/ike/dataplane/vpp.go -- vppTunnelFlags -->
 
 ## Security Policy Database entries
 
@@ -1211,6 +1395,8 @@ for it.
 | `local port` | 1 to 65535, or `any` | `any` | Local port selector |
 | `remote prefix` | CIDR | none, required | The far side of the boundary |
 | `remote port` | 1 to 65535, or `any` | `any` | Remote port selector |
+| `icmp-type` | 0 to 255, or `any` | `any` | ICMP message type, under protocol 1 or 58 |
+| `icmp-code` | 0 to 255, `start-end`, or `any` | `any` | ICMP code or inclusive code range, under one `icmp-type` |
 
 `both` installs a mirrored pair, one entry in each direction: the outbound entry
 keeps local and remote as written, and the inbound entry swaps them, because the
@@ -1222,7 +1408,7 @@ tunnels and carves its hole out of them. Raise it above 2000 to let a tunnel
 win instead. An order at or below 100 is refused at commit, for the reason
 `policy-priority` states above.
 
-Four rules are refused at commit rather than approximated at install time,
+These rules are refused at commit rather than approximated at install time,
 because a widened selector fails in both directions: a widened bypass passes
 protected traffic in the clear, and a widened discard black-holes traffic the
 operator meant to carry.
@@ -1231,10 +1417,84 @@ operator meant to carry.
   policy selector carries one family.
 - A port other than `any` needs `protocol` to name a transport that has ports:
   6 (TCP), 17 (UDP) or 132 (SCTP).
-- A port range is not accepted. The kernel selector carries a port and a mask,
-  which expresses every port or one exact port and nothing between them.
+- A port range is not accepted. An entry installs one selector, and the kernel
+  selector carries a port and a mask, which expresses a block aligned on a
+  power of two but not an arbitrary range; Ze does not split one entry into
+  several.
 - `action` has no default. A bypass written where a discard was meant passes
   exactly the traffic the entry exists to stop.
+- `icmp-type` and `icmp-code` need `protocol` 1 (ICMP) or 58 (ICMPv6), and
+  `icmp-code` needs an `icmp-type`. RFC 4301 Section 4.4.1.1 allows "a single
+  type and a range of codes, a single type and ANY code, and ANY type and ANY
+  code", and nothing else.
+- An `out` or `both` entry with `icmp-type 0` and an `icmp-code` that includes
+  0 (`any`, `0`, or a range starting at 0) is refused. Linux reads no ICMP type
+  or code from an IP fragment, so the kernel classifies every fragment as type 0
+  code 0, and it classifies forwarded traffic before reassembling it. The
+  outbound half of such an entry would also pass in the clear, or drop, every
+  forwarded ICMP fragment between its prefixes, whatever message it belongs to:
+  the hazard RFC 4301 Section 7.4 names for a bypass. Write it with `direction
+  in`, because traffic for Ze itself is reassembled before it is classified, or
+  with an `icmp-code` range that starts at 1.
+
+### ICMP type and code selectors
+
+The kernel reads an ICMP message's type into the selector's source port and its
+code into the destination port, and matches each under a mask. Ze installs a
+type as one exact match, and a code range as the fewest mask-aligned blocks that
+cover exactly that range, one kernel policy per block, added and removed
+together. RFC 4301 Section 4.4.1.1 requires the test
+`(T-start*256) + C-start <= (t*256) + c <= (T-end*256) + C-end`, and no code
+outside the range matches. An ICMP message has one type whichever way it
+travels, so a `both` entry installs the same type and code in each direction.
+
+The same entries are the ICMP controls of RFC 4301 Section 6.1. Section 6.1.1
+requires that an administrator can "accept or reject unauthenticated ICMP
+traffic", at the granularity of ICMP type. An `in` entry with `discard` rejects
+one type arriving at Ze, and with `bypass` accepts it. The Linux kernel checks
+every ICMP message delivered to Ze against the inbound policies before it
+processes it (`icmp_rcv`, `net/ipv4/icmp.c`, and its IPv6 counterpart):
+
+```
+set vpn ipsec policy no-redirect action discard
+set vpn ipsec policy no-redirect direction in
+set vpn ipsec policy no-redirect protocol 1
+set vpn ipsec policy no-redirect icmp-type 5
+set vpn ipsec policy no-redirect local prefix 0.0.0.0/0
+set vpn ipsec policy no-redirect remote prefix 0.0.0.0/0
+```
+
+Section 6.1.2 asks for controls over ICMP error messages "received on the
+protected side of the boundary, and directed to the IPsec implementation". Write
+the same kind of `in` entry with the protected-side subnet as the remote prefix,
+for example `remote prefix 10.1.0.0/16` and `icmp-type 3` to refuse Destination
+Unreachable from the hosts behind Ze. Those hosts send in the clear, so the
+entry decides every such message.
+
+An ICMP message that arrives on a Child SA is decided by that SA's peer. When
+the peer's `icmp-error-check` is true (the default) and an `in` discard entry
+refuses the message, Linux reads the header the message carries after its ICMP
+header, reverses its addresses and ports, and delivers the message when that
+header matches the SA it arrived on. The type plays no part: the kernel does not
+check that the message is an error, so a message of any type whose following
+bytes read as such a header is admitted, whatever the discard entry says. With
+`icmp-error-check false` on that peer, the entry decides. `icmp_rcv`
+(`net/ipv4/icmp.c`) and `icmpv6_rcv` (`net/ipv6/icmp.c`) make this check when
+the last state that decrypted the message carries `XFRM_STATE_ICMP`, the flag
+`icmp-error-check true` sets; `LL-XFRM-ICMP-TRANSIT` in
+[Linux limitations](../architecture/linux-limitations.md) records it.
+
+These entries install inbound and outbound policies only. ICMP that Ze forwards
+between two other hosts is decided by the Child SA forward policies and the
+catch-all entry below; an operator entry does not reach it yet.
+
+The VPP dataplane compares ports only for TCP, UDP and SCTP, so an ICMP type
+entry there would match every ICMP message. Ze refuses such an entry on VPP
+with a message naming the reason, rather than installing it wider than written.
+
+A tunnel can negotiate an ICMP selector too. IKE carries the type in the high
+eight bits of the port and the code in the low eight; Ze programs the type and
+code from the sending side's value in each direction.
 
 On Linux a discard entry is an XFRM policy with action `block` and a bypass is
 `allow` with no template. On VPP they are `IPSEC_API_SPD_ACTION_DISCARD` and
@@ -1692,6 +1952,19 @@ program exactly is narrowed FURTHER, never rounded outward: an address range tha
 prefix becomes the largest prefix inside it, and a port range that is neither all ports nor
 one port becomes its first port. A rekey is never narrowed below the scope in use.
 
+A proposed or answered selector of exactly port 0, or under ICMP of type 0 code 0 (the
+IKE port value 0), is dropped from the answer as responder and refused as initiator. Linux
+reads no port, ICMP type or ICMP code from an IP fragment, so it classifies every fragment
+as port 0, type 0 and code 0, and it classifies forwarded traffic before reassembling it.
+A Child SA with such a selector would carry every fragment between its prefixes, and RFC
+4301 Section 7.3 forbids that: "a receiver MUST discard non-initial fragments that arrive
+on an SA with non-trivial port (or ICMP type/code or MH type) selector values unless this
+feature has been negotiated." Ze negotiates no `NON_FIRST_FRAGMENTS_ALSO`. Any port, any
+other single port, and an ICMP selector of any other type or code are unaffected.
+
+<!-- source: internal/component/ike/engine/ts_narrow.go -- programmableSelector, portMatchesEveryFragment -->
+<!-- source: internal/component/ike/engine/child.go -- childPolicyPair -->
+
 Editing a peer's `traffic-selector` list and committing restarts that peer. The tunnel
 drops and comes back carrying the new selectors, and the kernel policy follows. This is
 what RFC 7296 Section 2.9.2 asks for: a rekey that would need a narrower scope means the
@@ -1722,8 +1995,9 @@ shrank and the tunnel will hard-expire unless one end is corrected.
 A port other than `any` needs `protocol` to name a protocol that defines ports, such as 6
 for TCP or 17 for UDP. Section 3.13.1 requires the port fields to be 0 and 65535 whenever
 the protocol is 0, so the combination is refused at commit rather than widened silently.
-Opaque ports are refused for the same reason: no dataplane backend can express an exact
-match on port 0, so accepting one would install an any-port policy.
+Opaque ports are refused at commit too. OPAQUE names a port that is not visible in the
+packet, and Ze does not yet map that meaning onto a dataplane selector, so it refuses
+rather than install a guess.
 
 <!-- source: internal/component/ike/ipsec/traffic_selector.go -- checkPortProgrammable, PortSelector.Wire -->
 
@@ -1849,12 +2123,35 @@ the kernel refused, a state it expired, and a policy that outlived its owner.
 
 | Command | What it reads |
 |---|---|
-| `show vpn ipsec dataplane sa [spi <spi>]` | The Security Association Database: SPI, addresses, if-id, mode, algorithms, replay window, byte and packet counters, and timestamps. `spi <spi>` selects every matching SPI, which can occur under different destinations or interfaces. SPI 0 is refused under RFC 4303 Section 2.1 |
+| `show vpn ipsec dataplane sa [spi <spi>]` | The Security Association Database: SPI, addresses, if-id, mode, algorithms, replay window, byte and packet counters, timestamps, and the `df-bit`, `dscp-map` and `icmp-error-check` the SA holds. `spi <spi>` selects every matching SPI, which can occur under different destinations or interfaces. SPI 0 is refused under RFC 4303 Section 2.1 |
 | `show vpn ipsec dataplane policy` | The Security Policy Database: selector prefixes and ports, direction, priority, upper-layer protocol, if-id, if-index, tunnel endpoints, and the peer that installed each policy. `spd` names the SPD holding the policy (`node` for if-id 0, the XFRM interface a peer binds with `vti bind`, or `if-id <n>` for one no bound interface has), and `role` names the job Ze installed it for (`catch-all`, `interface-catch-all`, `interface-exemption`, `ike-bypass`, `child-sa`, `operator`, `ospf`). A policy Ze did not install reports its owner and its role as unknown |
 | `show vpn ipsec dataplane drift` | Each expected Child SA identity absent from the kernel. The command exits non-zero when it finds drift, so a script can test it |
 <!-- source: internal/component/ike/cmd/show_dataplane.go -- handleShowVPNIPsecDataplaneSA, handleShowVPNIPsecDataplanePolicy, handleShowVPNIPsecDataplaneDrift -->
 
 RFC 4301 Section 4.4 keeps the SPD and the SAD separate, and so does this command tree.
+
+Each SA row also carries the options the SA holds, read back from the kernel, never from
+the config: `df-bit` (`copy` or `clear`, RFC 4301 Section 8.1), `dscp-map` (`copy`, or the
+fixed outer DSCP as a decimal value, Section 5.1.2.1) and `icmp-error-check` (`true` or
+`false`, Section 6.2). On Linux they come from the state's `XFRM_STATE_NOPMTUDISC`,
+`XFRM_SA_XFLAG_DONT_ENCAP_DSCP` and `XFRM_STATE_ICMP` flags. The row says what the kernel
+does, which can differ from the config: the kernel clears the DF bit of an IPv4 outbound
+SA whenever `net.ipv4.ip_no_pmtu_disc` is set, and the row then reads `df-bit` `clear`. A backend that
+cannot read them back sets `options-known: false` and the three keys to null.
+
+An SA row's `direction` is `in` or `out` only when the kernel recorded one for the state
+(its `XFRMA_SA_DIR` attribute), and `unknown` otherwise. A known direction nulls the
+options that side cannot carry: an `in` row shows `df-bit` and `dscp-map` as null, an `out`
+row shows `icmp-error-check` as null. Ze installs its states without a direction, so its own
+rows read `unknown` and show all three options as the kernel holds them.
+
+Each policy row carries `icmp-error-return` (`true` or `false`): whether the kernel may send
+an outbound ICMP error that no SA and no entry carries through the SA this entry resolves to,
+the RFC 4301 Section 6.2 mapping. On Linux it is the policy's `XFRM_POLICY_ICMP` flag, which Ze
+sets on the outbound policy of a peer with `icmp-error-check true`.
+
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- saOptionsFromState, saDirFromKernel -->
+<!-- source: internal/component/ike/cmd/show_dataplane.go -- saInfoToMap, policyInfoToMap -->
 
 A read that cannot happen is an error, never an empty table. No backend loaded, a backend
 that cannot enumerate, and a process without CAP_NET_ADMIN each get their own message. An

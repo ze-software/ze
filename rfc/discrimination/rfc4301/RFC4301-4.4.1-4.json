@@ -18,7 +18,7 @@
     "claim-sha": "e36d3498ae9ecf0a",
     "route": "revert",
     "producer": "internal/component/ike/ipsec/spd_policy.go::validate",
-    "producer-sha": "e37c9a9c013588f4",
-    "break": "body of validate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "5bbd86185befec1d",
+    "break": "body of validate replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

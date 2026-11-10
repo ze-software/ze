@@ -1,0 +1,50 @@
+[
+  {
+    "rid": "RFC4301-5.1-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_pmtu_integration_linux_test.go::TestXFRMPolicyPMTUDiscardsAndSignalsOverTheSAPMTU",
+    "unit-sha": "08aba27eb66e4469",
+    "claim-sha": "af194c31e46bb0e5",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+    "producer-sha": "aaab64b6d39ec088",
+    "break": "line 265: \"ICVLen: 128,\" -\u003e \"ICVLen: 64,\""
+  },
+  {
+    "rid": "RFC4301-5.1-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_pmtu_integration_linux_test.go::TestXFRMTunnelPMTUDiscardsAndSignalsOverAnIPv6OuterSA",
+    "unit-sha": "fb3044177e3c81fe",
+    "claim-sha": "e9be50bd67329f39",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+    "producer-sha": "aaab64b6d39ec088",
+    "break": "line 265: \"ICVLen: 128,\" -\u003e \"ICVLen: 64,\""
+  },
+  {
+    "rid": "RFC4301-5.1-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_pmtu_integration_linux_test.go::TestXFRMTunnelPMTUDiscardsAndSignalsOverTheSAPMTU",
+    "unit-sha": "eee0b35cb07a85ab",
+    "claim-sha": "947cd96d335869d2",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+    "producer-sha": "aaab64b6d39ec088",
+    "break": "line 265: \"ICVLen: 128,\" -\u003e \"ICVLen: 64,\""
+  },
+  {
+    "rid": "RFC4301-5.1-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/dataplane/rfc4301_pmtu_integration_linux_test.go::TestXFRMTunnelPMTUFragmentsADFClearPacket",
+    "unit-sha": "cd1488c116c4be69",
+    "claim-sha": "eeb25aedbe7a765d",
+    "route": "no-break",
+    "citation": "fragments it after encryption",
+    "reason": "kernel-producer",
+    "kernel-functions": [
+      "net/xfrm/xfrm_output.c::xfrm4_tunnel_check_size",
+      "net/ipv4/ip_output.c::ip_do_fragment"
+    ],
+    "later-route": "patched-kernel"
+  }
+]

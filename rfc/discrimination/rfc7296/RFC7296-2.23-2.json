@@ -7,7 +7,7 @@
     "claim-sha": "a7866fb57b3e8fe9",
     "route": "revert",
     "producer": "internal/component/ike/engine/create_child.go::newChildSA",
-    "producer-sha": "af9dfd00ccaca831",
+    "producer-sha": "d4f593daa83fadd4",
     "break": "body of newChildSA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

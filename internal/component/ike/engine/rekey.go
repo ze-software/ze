@@ -945,6 +945,13 @@ func newRekeyedChild(old *ChildSA, inSPI, outSPI uint32, keys *crypto.ChildSAKey
 		// too (RFC 4301 Section 4.4.1). A replacement that dropped it would move the
 		// entry to the default rank at the first rekey, silently reordering the SPD.
 		PolicyPriority: old.PolicyPriority,
+		// The replacement SA carries the same RFC 4301 Section 6.2 processing as the
+		// retired one: a rekey that dropped it would change what ICMP errors pass.
+		SkipICMPErrorCheck: old.SkipICMPErrorCheck,
+		// RFC 4301 Section 8.1: the replacement keeps the peer's DF treatment.
+		DFBit: old.DFBit,
+		// RFC 4301 Section 5.1.2.1: and its outer DSCP treatment.
+		OuterDSCP: old.OuterDSCP,
 		// The replacement installs the SAME policy selector as the retired pair, so it
 		// must claim it under the SAME owner. A replacement that dropped this would be
 		// refused by the dataplane as a foreign peer taking the selector over

@@ -5,8 +5,8 @@
     "internal/component/ike/engine/rfc7296_child_rekey_orientation_test.go::TestPeerInitiatedRekeyIsNarrowedInTheExchangeOrientation": "fd19f590605ac1fb",
     "internal/component/ike/engine/rfc7296_transport_one_pair_test.go::TestRFC7296TransportResponderNarrowsToFirstPair": "d8b72938b2447748",
     "internal/component/ike/engine/rfc7296_transport_test.go::TestAuthResponsePayloadsCarryTheNarrowedSelectors": "2f34f99968778d75",
-    "internal/component/ike/engine/ts_narrow_test.go::TestNarrowingIncludesFirstChoice": "f8202c6c1c2c2a71",
-    "internal/component/ike/engine/ts_narrow_test.go::TestNarrowingIncludesFirstChoice#2": "f8202c6c1c2c2a71"
+    "internal/component/ike/engine/ts_narrow_test.go::TestNarrowingIncludesFirstChoice": "042ef3718a420858",
+    "internal/component/ike/engine/ts_narrow_test.go::TestNarrowingIncludesFirstChoice#2": "042ef3718a420858"
   },
   "units": {
     "internal/component/ike/engine/rfc7296_child_rekey_orientation_test.go::TestPeerInitiatedRekeyIsNarrowedInTheExchangeOrientation": "c0a9c8efaeaceeca",

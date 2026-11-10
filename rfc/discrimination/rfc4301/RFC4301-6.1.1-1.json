@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4301-6.1.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_icmp_selector_test.go::TestSPDICMPTypeControlRejectsOrAcceptsOneType",
+    "unit-sha": "fc4f08e84be11b8f",
+    "claim-sha": "cd41b09161ee72cf",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/spd_policy.go::spdICMPMatches",
+    "producer-sha": "da4a0bbd111ff193",
+    "break": "line 96: \"typ = dataplane.ExactPortMatch(uint16(p.ICMP.Type))\" -\u003e \"typ = dataplane.AnyPortMatch()\""
+  },
+  {
+    "rid": "RFC4301-6.1.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_icmp_selector_test.go::TestSPDICMPTypeControlRejectsOrAcceptsOneType",
+    "unit-sha": "fc4f08e84be11b8f",
+    "claim-sha": "2669ea05fdcb8a38",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyDirection",
+    "producer-sha": "c4abed964f9eea9c",
+    "break": "line 131: \"Action: p.Action,\" -\u003e \"Action: dataplane.SPActionBypass,\""
+  }
+]

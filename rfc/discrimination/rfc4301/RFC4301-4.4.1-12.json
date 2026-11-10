@@ -7,8 +7,8 @@
     "claim-sha": "5a92b2feebb7bc02",
     "route": "revert",
     "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyParams",
-    "producer-sha": "3f1463ff71f043fe",
-    "break": "body of spdPolicyParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "09525a3dcbb72c53",
+    "break": "body of spdPolicyParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4301-4.4.1-12",
@@ -18,8 +18,8 @@
     "claim-sha": "228fa2d7ca5862bb",
     "route": "revert",
     "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyParams",
-    "producer-sha": "3f1463ff71f043fe",
-    "break": "body of spdPolicyParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "09525a3dcbb72c53",
+    "break": "body of spdPolicyParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4301-4.4.1-12",
@@ -29,8 +29,8 @@
     "claim-sha": "1befb34f8127fb58",
     "route": "revert",
     "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyParams",
-    "producer-sha": "3f1463ff71f043fe",
-    "break": "body of spdPolicyParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "09525a3dcbb72c53",
+    "break": "body of spdPolicyParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4301-4.4.1-12",
@@ -40,8 +40,8 @@
     "claim-sha": "9b6bf8bc91fb778a",
     "route": "revert",
     "producer": "internal/component/ike/ipsec/spd_policy.go::parseSPDPolicy",
-    "producer-sha": "633e57f6c14caa5b",
-    "break": "body of parseSPDPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "38c27713ddec4654",
+    "break": "body of parseSPDPolicy replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4301-4.4.1-12",
@@ -51,7 +51,7 @@
     "claim-sha": "e1190a80d137c732",
     "route": "revert",
     "producer": "internal/component/ike/ipsec/spd_policy.go::parseSPDPolicy",
-    "producer-sha": "633e57f6c14caa5b",
-    "break": "body of parseSPDPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "38c27713ddec4654",
+    "break": "body of parseSPDPolicy replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

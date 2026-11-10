@@ -82,6 +82,10 @@ func (d *recordingDataplane) Close() error                         { return nil 
 // CatchAllSupported answers yes: the backend holds an entry bound to no interface.
 func (d *recordingDataplane) CatchAllSupported() error { return nil }
 
+// SAOptionsSupported answers yes: the backend records SPD writes and carries no
+// packet, so no option is left unapplied.
+func (d *recordingDataplane) SAOptionsSupported(SAOptions) error { return nil }
+
 // AttachOverrideGuard records the guard as attached, so a .ci can read the state the
 // engine asked for through doctor.
 func (d *recordingDataplane) AttachOverrideGuard() error {
@@ -159,22 +163,24 @@ func (d *recordingDataplane) ListPolicies() ([]PolicyInfo, error) {
 	for key := range d.policies {
 		p := d.policies[key]
 		out = append(out, PolicyInfo{
-			Src:          p.Src,
-			Dst:          p.Dst,
-			SrcPort:      p.SrcPort,
-			DstPort:      p.DstPort,
-			Dir:          p.Dir,
-			UpperProto:   p.UpperProto,
-			Priority:     p.Priority,
-			IfIndex:      p.IfIndex,
-			IfID:         p.IfID,
-			Action:       p.Action,
-			Mode:         p.Mode,
-			ReqID:        p.ReqID,
-			Owner:        p.Owner,
-			OwnerKnown:   true,
-			Role:         p.Role,
-			SPDInterface: p.SPD,
+			Src:        p.Src,
+			Dst:        p.Dst,
+			SrcPort:    p.SrcPort,
+			DstPort:    p.DstPort,
+			Dir:        p.Dir,
+			UpperProto: p.UpperProto,
+			Priority:   p.Priority,
+			IfIndex:    p.IfIndex,
+			IfID:       p.IfID,
+			Action:     p.Action,
+			Mode:       p.Mode,
+			ReqID:      p.ReqID,
+			// The recorded entry is what the kernel would hold, the flag included.
+			ICMPErrorReturn: p.ICMPErrorReturn,
+			Owner:           p.Owner,
+			OwnerKnown:      true,
+			Role:            p.Role,
+			SPDInterface:    p.SPD,
 		})
 	}
 	nameInterfaceSPDs(out)

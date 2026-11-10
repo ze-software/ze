@@ -96,7 +96,11 @@ func newChildSA(sa *SA, localAddr, remoteAddr string, spec *childSpec) (*ChildSA
 		},
 		// RFC 4301 Section 4.4.1: the operator orders the SPD entries, and these are two
 		// of them.
-		PolicyPriority:      sa.PeerCfg.PolicyPriority,
+		PolicyPriority: sa.PeerCfg.PolicyPriority,
+		// RFC 4301 Section 6.2: the operator's choice of the ICMP error processing.
+		SkipICMPErrorCheck:  sa.PeerCfg.SkipICMPErrorCheck,
+		DFBit:               sa.PeerCfg.DFBit,     // RFC 4301 Section 8.1
+		OuterDSCP:           sa.PeerCfg.OuterDSCP, // RFC 4301 Section 5.1.2.1
 		Selectors:           spec.selectors,
 		SelectorsLocalIsTSi: spec.selectorsLocalIsTSi,
 		Mode:                spec.mode,

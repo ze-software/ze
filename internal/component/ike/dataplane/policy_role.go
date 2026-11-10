@@ -50,10 +50,15 @@ const (
 	PolicyRoleSocketOverride
 )
 
+// unknownName is the word a renderer shows for a value Ze holds no name for: a
+// role nobody recorded, a guard status nobody set, a treatment outside the set.
+// Declared once so every table in the package spells it the same way.
+const unknownName = "unknown"
+
 // policyRoleNames is the one declaration of each role's rendered name, indexed by
 // the role. The names are kebab-case because they reach JSON.
 var policyRoleNames = [...]string{
-	PolicyRoleUnspecified:        "unknown",
+	PolicyRoleUnspecified:        unknownName,
 	PolicyRoleCatchAll:           "catch-all",
 	PolicyRoleInterfaceCatchAll:  "interface-catch-all",
 	PolicyRoleInterfaceExemption: "interface-exemption",

@@ -1,0 +1,76 @@
+[
+  {
+    "rid": "RFC4301-8.2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_pmtu_integration_linux_test.go::TestXFRMPolicyPMTUDiscardsAndSignalsOverAnIPv6OuterSA",
+    "unit-sha": "933e5cd61b389267",
+    "claim-sha": "e19d8181b1b61931",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+    "producer-sha": "aaab64b6d39ec088",
+    "break": "line 265: \"ICVLen: 128,\" -\u003e \"ICVLen: 64,\""
+  },
+  {
+    "rid": "RFC4301-8.2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_pmtu_integration_linux_test.go::TestXFRMPolicyPMTUDiscardsAndSignalsOverTheSAPMTU",
+    "unit-sha": "08aba27eb66e4469",
+    "claim-sha": "1b8bb59a83bc3d05",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+    "producer-sha": "aaab64b6d39ec088",
+    "break": "line 265: \"ICVLen: 128,\" -\u003e \"ICVLen: 64,\""
+  },
+  {
+    "rid": "RFC4301-8.2.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/dataplane/rfc4301_pmtu_integration_linux_test.go::TestXFRMPolicyPMTUFragmentsADFClearPacket",
+    "unit-sha": "1f38cdbb535ec526",
+    "claim-sha": "4b01e601cd0bfef3",
+    "route": "no-break",
+    "citation": "fragments it after encryption",
+    "reason": "kernel-producer",
+    "kernel-functions": [
+      "net/xfrm/xfrm_output.c::xfrm4_tunnel_check_size",
+      "net/ipv4/ip_output.c::ip_do_fragment"
+    ],
+    "later-route": "patched-kernel"
+  },
+  {
+    "rid": "RFC4301-8.2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_pmtu_integration_linux_test.go::TestXFRMTunnelPMTUDiscardsAndSignalsOverAnIPv6OuterSA",
+    "unit-sha": "fb3044177e3c81fe",
+    "claim-sha": "f80fdbe062aa73f7",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+    "producer-sha": "aaab64b6d39ec088",
+    "break": "line 265: \"ICVLen: 128,\" -\u003e \"ICVLen: 64,\""
+  },
+  {
+    "rid": "RFC4301-8.2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_pmtu_integration_linux_test.go::TestXFRMTunnelPMTUDiscardsAndSignalsOverTheSAPMTU",
+    "unit-sha": "eee0b35cb07a85ab",
+    "claim-sha": "4188b4be0b48ea3a",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+    "producer-sha": "aaab64b6d39ec088",
+    "break": "line 265: \"ICVLen: 128,\" -\u003e \"ICVLen: 64,\""
+  },
+  {
+    "rid": "RFC4301-8.2.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/dataplane/rfc4301_pmtu_integration_linux_test.go::TestXFRMTunnelPMTUFragmentsADFClearPacket",
+    "unit-sha": "cd1488c116c4be69",
+    "claim-sha": "c7421f1db2d262cd",
+    "route": "no-break",
+    "citation": "fragments it after encryption",
+    "reason": "kernel-producer",
+    "kernel-functions": [
+      "net/xfrm/xfrm_output.c::xfrm4_tunnel_check_size",
+      "net/ipv4/ip_output.c::ip_do_fragment"
+    ],
+    "later-route": "patched-kernel"
+  }
+]

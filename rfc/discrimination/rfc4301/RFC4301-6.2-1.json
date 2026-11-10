@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC4301-6.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_icmp_error_linux_test.go::TestXFRMInboundStateCarriesICMPErrorCheck",
+    "unit-sha": "012ccfd499208d05",
+    "claim-sha": "ac647b8c451331e7",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+    "producer-sha": "aaab64b6d39ec088",
+    "break": "line 249: \"state.ICMP = true\" -\u003e \"state.ICMP = false\""
+  },
+  {
+    "rid": "RFC4301-6.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/dataplane/rfc4301_icmp_error_vpp_test.go::TestVPPSAOptionsSupportedRefusesICMPErrorProcessing",
+    "unit-sha": "3baba3916a22795d",
+    "claim-sha": "50c93b6d1b27159c",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/vpp.go::SAOptionsSupported",
+    "producer-sha": "1cf4baa559270dfc",
+    "break": "line 275: \"vppICMPErrorCheckError(o.ICMPErrorCheck); err != nil {\" -\u003e \"vppICMPErrorCheckError(o.ICMPErrorCheck); err != nil \u0026\u0026 false {\""
+  },
+  {
+    "rid": "RFC4301-6.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_outer_header_rekey_test.go::TestCreatedChildTakesThePeerSAOptions",
+    "unit-sha": "318b398d2a4240d4",
+    "claim-sha": "bbe8f2155aea92ed",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/create_child.go::newChildSA",
+    "producer-sha": "d4f593daa83fadd4",
+    "break": "line 101: \"SkipICMPErrorCheck:  sa.PeerCfg.SkipICMPErrorCheck,\" -\u003e \"SkipICMPErrorCheck:  false,\""
+  },
+  {
+    "rid": "RFC4301-6.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_outer_header_rekey_test.go::TestRekeyKeepsTheOuterHeaderTreatment",
+    "unit-sha": "a14850a812bd28e6",
+    "claim-sha": "acd0b5a51c68c084",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/rekey.go::newRekeyedChild",
+    "producer-sha": "0325e4f8b740b47a",
+    "break": "line 950: \"SkipICMPErrorCheck: old.SkipICMPErrorCheck,\" -\u003e \"SkipICMPErrorCheck: false,\""
+  },
+  {
+    "rid": "RFC4301-6.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/ipsec/rfc4301_icmp_error_check_test.go::TestPeerICMPErrorCheckLeafIsParsed",
+    "unit-sha": "d612150ab2244bb5",
+    "claim-sha": "c841599a5d1eadfc",
+    "route": "mutant",
+    "producer": "internal/component/ike/ipsec/config.go::parseSiteToSitePeer",
+    "producer-sha": "e4be0192c6a01692",
+    "break": "line 601: \"peer.SkipICMPErrorCheck = true\" -\u003e \"peer.SkipICMPErrorCheck = false\""
+  }
+]

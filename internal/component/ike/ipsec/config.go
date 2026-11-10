@@ -557,6 +557,20 @@ func parseSiteToSitePeer(name string, t *config.Tree) (SiteToSitePeer, error) {
 	if v, ok := t.Get("transport-required"); ok {
 		peer.TransportRequired = v == "true"
 	}
+	// RFC 4301 Section 8.1: the DF treatment is configurable for each SA.
+	dfBit, dfPresent := t.Get("df-bit")
+	df, err := parseDFBit(name, dfBit, dfPresent)
+	if err != nil {
+		return peer, err
+	}
+	peer.DFBit = df
+	// RFC 4301 Section 5.1.2.1 note 5: the outer DSCP is mapped for the domain entered.
+	dscpMap, dscpPresent := t.Get("dscp-map")
+	dscp, err := parseDSCPMap(name, dscpMap, dscpPresent)
+	if err != nil {
+		return peer, err
+	}
+	peer.OuterDSCP = dscp
 	if v, ok := t.Get("nat-traversal"); ok {
 		switch v {
 		case "allow":
@@ -575,6 +589,19 @@ func parseSiteToSitePeer(name string, t *config.Tree) (SiteToSitePeer, error) {
 			return peer, fmt.Errorf("ipsec peer %q policy-priority: %q is not a number: %w", name, v, err)
 		}
 		peer.PolicyPriority = uint32(n)
+	}
+
+	// RFC 4301 Section 6.2: "However, not all contexts may require such checks, so it
+	// is also necessary to allow a local administrator to configure an implementation
+	// to NOT perform such checks."
+	if v, ok := t.Get("icmp-error-check"); ok {
+		switch v {
+		case "true":
+		case "false":
+			peer.SkipICMPErrorCheck = true
+		default:
+			return peer, fmt.Errorf("ipsec peer %q icmp-error-check: unsupported value %q (valid: true, false)", name, v)
+		}
 	}
 
 	selectors, err := parseTrafficSelectors(name, t)

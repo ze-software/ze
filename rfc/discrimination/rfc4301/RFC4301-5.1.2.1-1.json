@@ -1,0 +1,112 @@
+[
+  {
+    "rid": "RFC4301-5.1.2.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/dataplane/rfc4301_dscp_linux_test.go::TestXFRMSAOptionsSupportedRefusesOuterDSCPItCannotWrite",
+    "unit-sha": "43f28aacbe9312de",
+    "claim-sha": "759638435cc97aa1",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::SAOptionsSupported",
+    "producer-sha": "f39947e652263df3",
+    "break": "line 413: \"xfrmDSCPFlag(o.OuterDSCP); err != nil {\" -\u003e \"xfrmDSCPFlag(o.OuterDSCP); err != nil \u0026\u0026 false {\""
+  },
+  {
+    "rid": "RFC4301-5.1.2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_dscp_linux_test.go::TestXFRMStateCarriesTheOuterDSCP",
+    "unit-sha": "55440673aa16703d",
+    "claim-sha": "9e8ddd548803e99e",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmDSCPFlag",
+    "producer-sha": "31344c0bb9a3a66f",
+    "break": "line 348: \"return true, nil\" -\u003e \"return false, nil\""
+  },
+  {
+    "rid": "RFC4301-5.1.2.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/dataplane/rfc4301_dscp_linux_test.go::TestXFRMStateRefusesOuterDSCPItCannotWrite",
+    "unit-sha": "662c521b767c10bc",
+    "claim-sha": "6da910ae05c2884f",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmDSCPFlag",
+    "producer-sha": "31344c0bb9a3a66f",
+    "break": "line 347: \"if v == 0 {\" -\u003e \"if true {\""
+  },
+  {
+    "rid": "RFC4301-5.1.2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_dscp_vpp_test.go::TestVPPInstallSACarriesTheOuterDSCP",
+    "unit-sha": "58c0947defed5bcb",
+    "claim-sha": "8287dfd831c2267d",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/vpp.go::vppTunnelFlags",
+    "producer-sha": "ea824f4ef71f6ec7",
+    "break": "line 648: \"!fixed {\" -\u003e \"fixed {\""
+  },
+  {
+    "rid": "RFC4301-5.1.2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_outer_header_integration_linux_test.go::TestXFRMOuterHeaderCarriesTheOuterDSCP",
+    "unit-sha": "e8d0a1b97e9a690a",
+    "claim-sha": "4cbc9fcebcee7da7",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmDSCPFlag",
+    "producer-sha": "31344c0bb9a3a66f",
+    "break": "line 348: \"return true, nil\" -\u003e \"return false, nil\""
+  },
+  {
+    "rid": "RFC4301-5.1.2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_dscp_test.go::TestOuterHeaderDSCPReachesTheBackend",
+    "unit-sha": "ba8b0b7bd6cbc7e5",
+    "claim-sha": "d95792f99a26f4f0",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/child.go::installChildDataplane",
+    "producer-sha": "634d14da7551de7b",
+    "break": "line 643: \"outbound.OuterDSCP = child.OuterDSCP\" -\u003e \"outbound.OuterDSCP = 0\""
+  },
+  {
+    "rid": "RFC4301-5.1.2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_outer_header_rekey_test.go::TestRekeyKeepsTheOuterHeaderTreatment",
+    "unit-sha": "a14850a812bd28e6",
+    "claim-sha": "f18ccdc201bef55a",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/rekey.go::newRekeyedChild",
+    "producer-sha": "0325e4f8b740b47a",
+    "break": "line 954: \"OuterDSCP: old.OuterDSCP,\" -\u003e \"OuterDSCP: 0,\""
+  },
+  {
+    "rid": "RFC4301-5.1.2.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_sa_options_test.go::TestChildSAOptionRefusalIsNotKeptDegraded",
+    "unit-sha": "7c2d685460b6805f",
+    "claim-sha": "5b9295a40d44dec1",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/child.go::createFirstChildSA",
+    "producer-sha": "505e7d653500c0bc",
+    "break": "line 408: \"if !isXFRMUnsupported(err) {\" -\u003e \"if true {\""
+  },
+  {
+    "rid": "RFC4301-5.1.2.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_sa_options_test.go::TestVerifyPeerSAOptionsRefusesWhatTheBackendCannotApply",
+    "unit-sha": "a35f3a1fae8e702e",
+    "claim-sha": "3c7b704707e69016",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/sa_options.go::verifyPeerSAOptions",
+    "producer-sha": "09b0def7caf59cc2",
+    "break": "line 56: \"checker.SAOptionsSupported(options); err != nil {\" -\u003e \"checker.SAOptionsSupported(options); err != nil \u0026\u0026 false {\""
+  },
+  {
+    "rid": "RFC4301-5.1.2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/ipsec/rfc4301_dscp_map_test.go::TestDSCPMapIsConfigurablePerPeer",
+    "unit-sha": "8759e485b4e59ac4",
+    "claim-sha": "73305c06f5ea8fdf",
+    "route": "mutant",
+    "producer": "internal/component/ike/ipsec/outer_header.go::parseDSCPMap",
+    "producer-sha": "dc37445561af3d28",
+    "break": "line 60: \"return dscp, nil\" -\u003e \"_ = dscp; return dataplane.OuterDSCPCopy, nil\""
+  }
+]

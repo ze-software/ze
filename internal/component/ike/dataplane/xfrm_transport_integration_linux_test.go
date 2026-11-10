@@ -194,28 +194,65 @@ func TestXFRMSinglePortSelectorReachesTheKernel(t *testing.T) {
 	}
 }
 
-// TestXFRMOpaquePortIsRefused pins the exact-or-reject boundary this package relies on:
-// the backend REFUSES a port match it cannot express, rather than installing an any-port
-// policy that would protect more traffic than was negotiated.
-func TestXFRMOpaquePortIsRefused(t *testing.T) {
+// TestXFRMExactPortZeroIsInstalledExactly pins the exact-or-reject boundary for the one
+// port value whose mask upstream netlink cannot carry: exactly port 0, PortMatch{Port: 0,
+// Mask: 0xffff}. Upstream derives the selector mask from the port, so port 0 would reach
+// the kernel with mask 0 and match EVERY port, protecting more traffic than was asked for
+// (docs/architecture/linux-limitations.md, LL-NETLINK-XFRM-PORT-MASK). The backend used to
+// refuse the install for that reason. The vendored netlink now sends the mask as given
+// (selFromPolicy, internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch), so the policy
+// installs, and this test reads the kernel's own selector back to prove the mask arrived:
+// port 0 under mask 0xffff, never mask 0. The RFC 7296 Section 3.13.1 OPAQUE form never
+// reaches the backend as this value: config (ipsec.checkPortProgrammable) and negotiation
+// (engine programmableSelector) both refuse it. Nor does a negotiated single port 0: the
+// kernel classifies every fragment as port 0 (docs/architecture/linux-limitations.md,
+// LL-XFRM-FRAGMENT-SELECTOR), so engine programmableSelector and childPolicyPair refuse
+// it for RFC 4301 Section 7.3. This test proves the mask reaches the kernel; the selector
+// itself is one the backend accepts and Ze's producers never hand it.
+func TestXFRMExactPortZeroIsInstalledExactly(t *testing.T) {
 	if !userns.Enter(t) {
 		return
 	}
 	b := &xfrmBackend{}
-	err := b.InstallPolicy(SPParams{
-		Src:   mustCIDR(t, "10.80.1.0/24"),
-		Dst:   mustCIDR(t, "10.80.2.0/24"),
-		Dir:   SADirOut,
-		Proto: ProtoESP,
-		Mode:  ModeTunnel,
-		ReqID: 0x7e5a,
-		// The OPAQUE port form of RFC 7296 Section 3.13.1: exactly port 0.
-		DstPort:   PortMatch{Port: 0, Mask: 0xffff},
-		TunnelSrc: net.ParseIP("10.80.0.1"),
-		TunnelDst: net.ParseIP("10.80.0.2"),
-	})
-	if err == nil {
-		_ = b.RemovePolicy(mustCIDR(t, "10.80.1.0/24"), mustCIDR(t, "10.80.2.0/24"), SADirOut)
-		t.Fatal("an opaque-port policy was installed; netlink derives the mask from the port, so it would match EVERY port and protect more traffic than was negotiated")
+	sel := SPParams{
+		Src:        mustCIDR(t, "10.80.1.0/24"),
+		Dst:        mustCIDR(t, "10.80.2.0/24"),
+		Dir:        SADirOut,
+		Proto:      ProtoESP,
+		Mode:       ModeTunnel,
+		ReqID:      0x7e5a,
+		UpperProto: 6,
+		DstPort:    PortMatch{Port: 0, Mask: 0xffff},
+		TunnelSrc:  net.ParseIP("10.80.0.1"),
+		TunnelDst:  net.ParseIP("10.80.0.2"),
+	}
+	if err := b.InstallPolicy(sel); err != nil {
+		t.Fatalf("InstallPolicy(exactly port 0): %v", err)
+	}
+	t.Cleanup(func() { _ = b.RemovePolicy(sel.Src, sel.Dst, sel.Dir) })
+
+	policies, err := netlink.XfrmPolicyList(netlink.FAMILY_ALL)
+	if err != nil {
+		t.Fatalf("XfrmPolicyList: %v", err)
+	}
+	found := false
+	for i := range policies {
+		p := &policies[i]
+		if p.Src == nil || p.Src.String() != sel.Src.String() {
+			continue
+		}
+		found = true
+		if p.DstPortMask != 0xffff {
+			t.Errorf("policy destination port mask = %#04x, want 0xffff; a mask of 0 matches EVERY port and protects more traffic than was asked for", p.DstPortMask)
+		}
+		if p.DstPort != 0 {
+			t.Errorf("policy destination port = %d, want 0", p.DstPort)
+		}
+		if p.SrcPortMask != 0 {
+			t.Errorf("policy source port mask = %#04x, want 0 (any source port was asked for)", p.SrcPortMask)
+		}
+	}
+	if !found {
+		t.Fatal("the exactly-port-0 policy just installed was not found in the kernel; the assertions above swept over nothing")
 	}
 }

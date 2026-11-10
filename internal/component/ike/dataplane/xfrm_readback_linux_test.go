@@ -500,6 +500,79 @@ func TestSAInfoMaxSPI(t *testing.T) {
 	}
 }
 
+// TestSAInfoReadsOptionsBackFromKernelFlags pins the read-back half of the per-SA
+// options: each kernel flag maps to the treatment the install path projects onto it
+// (xfrmDFFlag, xfrmDSCPFlag, the ICMP arm of xfrmState), and the absence of each flag
+// maps to copy, copy and false. Method: one state per flag combination through
+// saInfoFromState, compared field by field, so a dropped flag or a swapped pair is
+// red. OptionsRead must be true on every row: the Linux dump always carries the flags.
+func TestSAInfoReadsOptionsBackFromKernelFlags(t *testing.T) {
+	fixedZero, err := FixedOuterDSCP(0)
+	if err != nil {
+		t.Fatalf("FixedOuterDSCP(0): %v", err)
+	}
+	cases := []struct {
+		name  string
+		state netlink.XfrmState
+		want  SAOptions
+	}{
+		{"no flag", netlink.XfrmState{}, SAOptions{DF: DFCopy, OuterDSCP: OuterDSCPCopy}},
+		{"nopmtudisc", netlink.XfrmState{NoPMTUDisc: true}, SAOptions{DF: DFClear, OuterDSCP: OuterDSCPCopy}},
+		{"dont encap dscp", netlink.XfrmState{DontEncapDSCP: true}, SAOptions{DF: DFCopy, OuterDSCP: fixedZero}},
+		{"icmp", netlink.XfrmState{ICMP: true}, SAOptions{DF: DFCopy, OuterDSCP: OuterDSCPCopy, ICMPErrorCheck: true}},
+		{"every flag", netlink.XfrmState{NoPMTUDisc: true, DontEncapDSCP: true, ICMP: true},
+			SAOptions{DF: DFClear, OuterDSCP: fixedZero, ICMPErrorCheck: true}},
+	}
+	for _, tc := range cases {
+		got := saInfoFromState(&tc.state)
+		if !got.OptionsRead {
+			t.Errorf("%s: OptionsRead = false, want true: the dump carries every flag", tc.name)
+		}
+		if got.Options != tc.want {
+			t.Errorf("%s: Options = {DF %s, DSCP %s, ICMP %t}, want {DF %s, DSCP %s, ICMP %t}", tc.name,
+				got.Options.DF, got.Options.OuterDSCP, got.Options.ICMPErrorCheck,
+				tc.want.DF, tc.want.OuterDSCP, tc.want.ICMPErrorCheck)
+		}
+	}
+}
+
+// TestSAInfoReadsDirectionOnlyFromKernel pins SAInfo.Dir to the XFRMA_SA_DIR the
+// dump carries: in and out map to SADirIn and SADirOut, and a state without the
+// attribute (every state Ze installs) maps to the zero SADir, never to a direction
+// derived from its addresses or flags. Method: one state per attribute value, the
+// absent one carrying the outbound-only NOPMTUDISC flag, so a derivation from the
+// flags is red.
+func TestSAInfoReadsDirectionOnlyFromKernel(t *testing.T) {
+	cases := []struct {
+		name  string
+		state netlink.XfrmState
+		want  SADir
+	}{
+		{"in", netlink.XfrmState{SADir: netlink.XFRM_SA_DIR_IN}, SADirIn},
+		{"out", netlink.XfrmState{SADir: netlink.XFRM_SA_DIR_OUT}, SADirOut},
+		{"absent", netlink.XfrmState{NoPMTUDisc: true}, 0},
+		{"out of range", netlink.XfrmState{SADir: 7}, 0},
+	}
+	for _, tc := range cases {
+		if got := saInfoFromState(&tc.state).Dir; got != tc.want {
+			t.Errorf("%s: Dir = %d, want %d", tc.name, got, tc.want)
+		}
+	}
+}
+
+// TestPolicyInfoReadsICMPErrorReturnBack pins PolicyInfo.ICMPErrorReturn to the
+// XFRM_POLICY_ICMP flag of the dumped entry. Method: the same entry with and without
+// the flag through policyInfoFromKernel.
+func TestPolicyInfoReadsICMPErrorReturnBack(t *testing.T) {
+	b := &xfrmBackend{}
+	for _, flag := range []bool{true, false} {
+		got := b.policyInfoFromKernel(&netlink.XfrmPolicy{Dir: netlink.XFRM_DIR_OUT, ICMP: flag})
+		if got.ICMPErrorReturn != flag {
+			t.Errorf("XFRM_POLICY_ICMP %t: ICMPErrorReturn = %t", flag, got.ICMPErrorReturn)
+		}
+	}
+}
+
 // VALIDATES: only the kernel's unlimited sentinel is translated; the largest
 // finite limits survive the read boundary without narrowing or saturation.
 func TestSAInfoHardLimitSentinel(t *testing.T) {

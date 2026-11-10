@@ -1,13 +1,13 @@
 {
-  "note": "all-ports End Port 65535; single-port 443 discriminator",
+  "note": "Re-judged 2026-11-10 by an independent judge after a comment-only change to TestPortEncodingFollowsSection3131 (assertions, fixtures and producers byte-identical). Same finding as RFC7296-3.13.1-1 for End Port: the test proves ANY -> 65535 under protocol 0, with TCP 443/443 as the discriminator, but cannot fail on a port-undefined protocol other than 0. Ze emits a specific End Port there, because checkPortProgrammable and programmableSelector only treat protocol 0 as portless, while RFC 7296 Section 3.13.1 says the field MUST be 65535.",
   "requirement_sha": "95053d78048c3563",
   "tests": {
-    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "f8202c6c1c2c2a71",
-    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "f8202c6c1c2c2a71"
+    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "042ef3718a420858",
+    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "042ef3718a420858"
   },
   "units": {
-    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "9aebd2917a3a0115",
-    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "9aebd2917a3a0115"
+    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "2e0ea6846dddb242",
+    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "2e0ea6846dddb242"
   },
-  "verdict": "enforced"
+  "verdict": "weak"
 }

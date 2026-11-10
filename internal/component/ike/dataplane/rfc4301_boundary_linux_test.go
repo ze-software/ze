@@ -109,7 +109,7 @@ func TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp(t *testing.T) {
 }
 
 // RFC requirement: RFC4301-4-1 negative -- an SA whose mode the kernel cannot hold is refused and no SAD entry is built.
-// RFC requirement: RFC4301-4.1-9 negative -- an SA the kernel cannot hold builds no entry, so no second SA is ever shadowed by a malformed one.
+// RFC requirement: RFC4301-4.1-9 negative -- an SA whose mode or integrity transform the kernel cannot hold is refused and no SAD entry is built for it.
 func TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong(t *testing.T) {
 	unknownMode := boundarySA(0x1000)
 	unknownMode.Mode = 9
@@ -185,12 +185,12 @@ func TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate(t *test
 }
 
 // RFC requirement: RFC4301-3.1-1 negative -- an entry whose mode is neither tunnel nor transport is refused and no policy is built.
-// RFC requirement: RFC4301-4.4.1-10 negative -- a refused entry never reaches the kernel's ordered search at any priority.
-// RFC requirement: RFC4301-4.4.1.1-3 negative -- a port mask the selector cannot carry exactly is refused rather than widened to any port, so no entry that would admit a portless fragment is built.
-// RFC requirement: RFC4301-5.1-4 negative -- an outbound entry with a port mask the selector cannot express is refused, so no entry with a widened selector is built for the header match.
-// RFC requirement: RFC4301-5.2-2 negative -- an inbound entry with a port mask the selector cannot express is refused, so no entry with a widened selector is built for the inbound check.
-// RFC requirement: RFC4301-7.3-3 negative -- a port selector is never widened on the way to the kernel: the inexpressible mask is refused.
-// RFC requirement: RFC4301-7.3-4 negative -- an inbound port selector is never widened on the way to the kernel: the inexpressible mask is refused.
+// RFC requirement: RFC4301-4.4.1-10 negative -- an entry whose mode is neither tunnel nor transport is refused and no policy is built for the kernel's ordered search.
+// RFC requirement: RFC4301-4.4.1.1-3 negative -- a port selector with a bit outside its mask (443 under 0x00ff) is refused and no entry is built, rather than one the kernel would match on the masked bits alone, wider than the port asked for.
+// RFC requirement: RFC4301-5.1-4 negative -- an outbound entry whose port selector has a bit outside its mask (443 under 0x00ff) is refused, so no entry with a widened selector is built for the header match.
+// RFC requirement: RFC4301-5.2-2 negative -- an inbound entry whose port selector has a bit outside its mask (443 under 0x00ff) is refused, so no entry with a widened selector is built for the inbound check.
+// RFC requirement: RFC4301-7.3-3 negative -- a port selector is never widened on the way to the kernel: a port with a bit outside its mask is refused, outbound and inbound.
+// RFC requirement: RFC4301-7.3-4 negative -- an inbound port selector is never widened on the way to the kernel: a port with a bit outside its mask is refused.
 // RFC requirement: RFC4301-7.3-5 negative -- a bypass entry never carries a template, so no fragment can be handed to a transform the entry did not name.
 func TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened(t *testing.T) {
 	unknownMode := boundaryPolicy(t, ModeTunnel, SADirOut, AnyPortMatch())
@@ -198,10 +198,32 @@ func TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened(t *testing.T) {
 	if pol, err := xfrmPolicyFromParams(unknownMode); err == nil || pol != nil {
 		t.Fatalf("unknown mode: got policy %v err %v, want refusal", pol, err)
 	}
+	// The entry above keeps its tunnel endpoints, so the endpoint check refuses it
+	// too. This one carries none, so only the mode check stands between it and a
+	// built policy.
+	unknownModeNoEndpoints := boundaryPolicy(t, ModeTunnel, SADirOut, AnyPortMatch())
+	unknownModeNoEndpoints.Mode = 9
+	unknownModeNoEndpoints.TunnelSrc, unknownModeNoEndpoints.TunnelDst = nil, nil
+	if pol, err := xfrmPolicyFromParams(unknownModeNoEndpoints); err == nil || pol != nil {
+		t.Fatalf("unknown mode with no tunnel endpoints: got policy %v err %v, want refusal", pol, err)
+	}
 	for _, dir := range []SADir{SADirOut, SADirIn} {
-		partialMask := boundaryPolicy(t, ModeTunnel, dir, PortMatch{Port: 443, Mask: 0x00ff})
-		if pol, err := xfrmPolicyFromParams(partialMask); err == nil || pol != nil {
-			t.Fatalf("dir %d partial port mask: got policy %v err %v, want refusal", dir, pol, err)
+		for _, port := range []struct {
+			match PortMatch
+			why   string
+		}{
+			// 443 is 0x01bb: bit 0x0100 lies outside the mask, and the kernel would ignore it.
+			{PortMatch{Port: 443, Mask: 0x00ff}, "port 443 with bit 0x0100 outside mask 0x00ff"},
+			// 0x0100 has no bit inside the mask at all: the kernel would match it as port
+			// 0x0000 under 0x00ff, a block of 256 ports that does not hold 0x0100.
+			{PortMatch{Port: 0x0100, Mask: 0x00ff}, "port 0x0100 with every bit outside mask 0x00ff"},
+		} {
+			outsideMask := boundaryPolicy(t, ModeTunnel, dir, port.match)
+			if pol, err := xfrmPolicyFromParams(outsideMask); err == nil || pol != nil {
+				// Errorf, not Fatalf: every direction and port reports, so one red names
+				// all the widened selectors rather than the first.
+				t.Errorf("dir %d %s: got policy %v err %v, want refusal", dir, port.why, pol, err)
+			}
 		}
 	}
 	bypass := boundaryPolicy(t, ModeTunnel, SADirIn, AnyPortMatch())

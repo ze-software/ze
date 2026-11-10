@@ -380,15 +380,54 @@ func programmableSelector(s tsSelector) (tsSelector, bool) {
 	if s.Proto == 0 && s.Port.Form != ipsec.PortAny {
 		return tsSelector{}, false
 	}
-	// OPAQUE ports have no exact dataplane encoding: Linux limitation
-	// LL-NETLINK-XFRM-PORT-MASK (docs/architecture/linux-limitations.md), so
-	// "exactly port 0" cannot be built and would install as any-port -- which is WIDER than the OPAQUE set RFC 7296 Section 3.13.1
-	// describes, and Section 2.9 forbids widening. A peer that proposes OPAQUE-only
-	// therefore finds no acceptable subset and is answered with TS_UNACCEPTABLE.
+	// OPAQUE ports have no dataplane mapping yet: OPAQUE names a port that is not
+	// visible in the packet, and which kernel selector carries that meaning is the work
+	// of plan/post-release/features/spec-ipsec-opaque-selector-port-mask.md. Installing a
+	// guess could be WIDER than the OPAQUE set RFC 7296 Section 3.13.1 describes, and
+	// Section 2.9 forbids widening. A peer that proposes OPAQUE-only therefore finds no
+	// acceptable subset and is answered with TS_UNACCEPTABLE. Under ICMP it would also
+	// read as type 0 code 0 (childPolicyPair).
 	if s.Port.Form == ipsec.PortOpaque {
 		return tsSelector{}, false
 	}
+	// RFC 4301 Section 7.3 (receiver, then sender)
+	if portMatchesEveryFragment(s.Port) {
+		return tsSelector{}, false
+	}
 	return s, true
+}
+
+// portMatchesEveryFragment reports whether a negotiated port selector is the one value
+// the kernel reads from every IP fragment: exactly port 0, which under ICMP or ICMPv6 is
+// the IKE value of type 0 code 0 (RFC 4301 Section 4.4.1.1 places the type in the high
+// octet and the code in the low one).
+//
+// RFC 4301 Section 7.3: "However, a receiver MUST discard non-initial fragments that
+// arrive on an SA with non-trivial port (or ICMP type/code or MH type) selector values
+// unless this feature has been negotiated." And: "If an implementation does not
+// successfully negotiate transmission of non-initial fragments for such an SA, it MUST
+// NOT send such fragments over the SA."
+//
+// Linux builds the flow an XFRM policy is looked up with by dissecting the packet, and
+// the dissector reads no transport header from a fragment, initial or not: the IPv4 and
+// IPv6 fragment cases end the dissection before the ICMP and port steps
+// (net/core/flow_dissector.c, __skb_flow_dissect, FLOW_DIS_IS_FRAGMENT), and XFRM does
+// not ask for the first-fragment parse. decode_session4 and decode_session6
+// (net/xfrm/xfrm_policy.c) then copy the zeroed ports, ICMP type and ICMP code into the
+// flow. The forward path does this before any reassembly: ip_forward calls
+// xfrm4_policy_check for XFRM_POLICY_FWD and xfrm4_route_forward for the outbound lookup
+// (net/ipv4/ip_forward.c), and ip6_forward does the same (net/ipv6/ip6_output.c). A
+// selector of exactly 0 therefore matches every forwarded fragment between its two
+// prefixes: the inbound forward policy accepts a decrypted fragment and the outbound
+// policy sends a transit fragment into the SA. Ze negotiates no NON_FIRST_FRAGMENTS_ALSO,
+// so both are forbidden, and the selector is narrowed away like any other selector Ze
+// cannot program exactly.
+// A selector of ANY is not affected: Section 7.1 lets it carry every fragment.
+//
+// childPolicyPair applies the same predicate before a policy is built, so a pair that
+// reached it some other way installs nothing.
+func portMatchesEveryFragment(p ipsec.PortSelector) bool {
+	return p.Form == ipsec.PortSingle && p.Port == 0
 }
 
 // dedupePairs removes duplicate answers. One proposed pair can intersect several policy

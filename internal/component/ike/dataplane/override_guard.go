@@ -44,7 +44,7 @@ const (
 
 // overrideGuardStatusNames is the one declaration of each status's rendered name.
 var overrideGuardStatusNames = [...]string{
-	OverrideGuardUnspecified:   "unknown",
+	OverrideGuardUnspecified:   unknownName,
 	OverrideGuardDetached:      "detached",
 	OverrideGuardAttached:      "attached",
 	OverrideGuardNotApplicable: "not-applicable",

@@ -33,6 +33,13 @@ func (b *xfrmBackend) CatchAllSupported() error {
 	return fmt.Errorf("%w: xfrm not available on %s", ErrNotSupported, runtime.GOOS)
 }
 
+// SAOptionsSupported judges no option: off Linux InstallSA answers ErrNotSupported for
+// every SA, so the engine keeps each Child SA degraded whatever its options carry, and
+// a refusal here would refuse every peer for a reason the install never reaches.
+func (b *xfrmBackend) SAOptionsSupported(_ SAOptions) error {
+	return nil
+}
+
 func (b *xfrmBackend) InstallPolicy(_ SPParams) error {
 	return fmt.Errorf("%w: xfrm not available on %s", ErrNotSupported, runtime.GOOS)
 }

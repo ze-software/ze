@@ -195,6 +195,94 @@ func TestShowDataplaneSARendersFields(t *testing.T) {
 	require.Equal(t, "2023-11-14T22:21:40Z", row["used-at"])
 }
 
+// TestShowDataplaneSARendersOptions pins the per-SA option keys: df-bit and
+// dscp-map spelled as the config spells them (copy, clear, or the decimal DSCP),
+// and icmp-error-check as a boolean, all from what the backend read back.
+// Method: two SAs with opposite options through the handler, so a constant
+// rendering or a swapped pair is red.
+func TestShowDataplaneSARendersOptions(t *testing.T) {
+	fixedZero, err := dataplane.FixedOuterDSCP(0)
+	require.NoError(t, err)
+	useDataplane(t, &fakeDataplane{sas: []dataplane.SAInfo{
+		{SPI: 100, OptionsRead: true, Options: dataplane.SAOptions{
+			DF: dataplane.DFClear, OuterDSCP: fixedZero, ICMPErrorCheck: true,
+		}},
+		{SPI: 200, OptionsRead: true, Options: dataplane.SAOptions{
+			DF: dataplane.DFCopy, OuterDSCP: dataplane.OuterDSCPCopy, ICMPErrorCheck: false,
+		}},
+	}})
+
+	resp, err := handleShowVPNIPsecDataplaneSA(nil, commandtest.Args())
+	require.NoError(t, err)
+	rows := rowsOf(t, resp, "sas")
+	require.Len(t, rows, 2)
+
+	require.Equal(t, true, rows[0]["options-known"])
+	require.Equal(t, "clear", rows[0]["df-bit"])
+	require.Equal(t, "0", rows[0]["dscp-map"])
+	require.Equal(t, true, rows[0]["icmp-error-check"])
+
+	require.Equal(t, true, rows[1]["options-known"])
+	require.Equal(t, "copy", rows[1]["df-bit"])
+	require.Equal(t, "copy", rows[1]["dscp-map"])
+	require.Equal(t, false, rows[1]["icmp-error-check"])
+}
+
+// TestShowDataplaneSAOptionsUnknownWhenNotRead is the fail-closed half: a backend
+// that did not read the options back leaves OptionsRead false. Copy and false are
+// real treatments, so rendering them would report an unread SA as measured. The
+// keys stay present and carry null, and options-known says why.
+func TestShowDataplaneSAOptionsUnknownWhenNotRead(t *testing.T) {
+	useDataplane(t, &fakeDataplane{sas: []dataplane.SAInfo{{SPI: 100}}})
+
+	resp, err := handleShowVPNIPsecDataplaneSA(nil, commandtest.Args())
+	require.NoError(t, err)
+	rows := rowsOf(t, resp, "sas")
+	require.Len(t, rows, 1)
+
+	require.Equal(t, false, rows[0]["options-known"])
+	for _, key := range []string{"df-bit", "dscp-map", "icmp-error-check"} {
+		require.Contains(t, rows[0], key, "%s must still be present", key)
+		require.Nil(t, rows[0][key], "%s must be null, never copy or false, when the options were not read", key)
+	}
+}
+
+// TestShowDataplaneSAOptionsNullOnTheSideThatCannotCarryThem pins the direction
+// rule: the ICMP error payload check rides on the inbound state only, and the DF and
+// outer DSCP treatments on the outbound state only, so a direction the dataplane
+// recorded (SAInfo.Dir) renders the other side's options null rather than as the
+// false or copy zero value. With no recorded direction every option stays as read,
+// because the side is not known. Method: the same read options on an inbound, an
+// outbound and a direction-less SA, compared key by key.
+func TestShowDataplaneSAOptionsNullOnTheSideThatCannotCarryThem(t *testing.T) {
+	options := dataplane.SAOptions{DF: dataplane.DFCopy, OuterDSCP: dataplane.OuterDSCPCopy, ICMPErrorCheck: false}
+	useDataplane(t, &fakeDataplane{sas: []dataplane.SAInfo{
+		{SPI: 100, Dir: dataplane.SADirIn, OptionsRead: true, Options: options},
+		{SPI: 200, Dir: dataplane.SADirOut, OptionsRead: true, Options: options},
+		{SPI: 300, OptionsRead: true, Options: options},
+	}})
+
+	resp, err := handleShowVPNIPsecDataplaneSA(nil, commandtest.Args())
+	require.NoError(t, err)
+	rows := rowsOf(t, resp, "sas")
+	require.Len(t, rows, 3)
+
+	require.Equal(t, "in", rows[0]["direction"])
+	require.Nil(t, rows[0]["df-bit"], "an inbound state encapsulates nothing, so it carries no DF treatment")
+	require.Nil(t, rows[0]["dscp-map"], "an inbound state encapsulates nothing, so it carries no DSCP treatment")
+	require.Equal(t, false, rows[0]["icmp-error-check"])
+
+	require.Equal(t, "out", rows[1]["direction"])
+	require.Equal(t, "copy", rows[1]["df-bit"])
+	require.Equal(t, "copy", rows[1]["dscp-map"])
+	require.Nil(t, rows[1]["icmp-error-check"], "an outbound state receives nothing, so it carries no ICMP check")
+
+	require.Equal(t, "unknown", rows[2]["direction"])
+	require.Equal(t, "copy", rows[2]["df-bit"])
+	require.Equal(t, "copy", rows[2]["dscp-map"])
+	require.Equal(t, false, rows[2]["icmp-error-check"])
+}
+
 func TestShowDataplaneSASelectsOneSPI(t *testing.T) {
 	useDataplane(t, &fakeDataplane{sas: []dataplane.SAInfo{
 		{SPI: 100}, {SPI: 200}, {SPI: 300},
@@ -418,6 +506,25 @@ func TestShowDataplanePolicyUnknownOwnerSaysSo(t *testing.T) {
 	// A wildcard selector is named, not printed as an empty span.
 	require.Equal(t, "any", rows[0]["src"])
 	require.Equal(t, "any", rows[0]["dst"])
+}
+
+// TestShowDataplanePolicyRendersICMPErrorReturn pins the icmp-error-return key: the
+// RFC 4301 Section 6.2 return mapping as the backend read it back from the entry
+// (PolicyInfo.ICMPErrorReturn). Method: two entries with opposite flags through the
+// handler, so a constant rendering is red either way.
+func TestShowDataplanePolicyRendersICMPErrorReturn(t *testing.T) {
+	useDataplane(t, &fakeDataplane{policies: []dataplane.PolicyInfo{
+		{Dir: dataplane.SADirOut, ICMPErrorReturn: true},
+		{Dir: dataplane.SADirIn, ICMPErrorReturn: false},
+	}})
+
+	resp, err := handleShowVPNIPsecDataplanePolicy(nil, commandtest.Args())
+	require.NoError(t, err)
+	rows := rowsOf(t, resp, "policies")
+	require.Len(t, rows, 2)
+	byDir := map[any]any{rows[0]["direction"]: rows[0]["icmp-error-return"], rows[1]["direction"]: rows[1]["icmp-error-return"]}
+	require.Equal(t, true, byDir["out"], "the outbound entry holds the return mapping")
+	require.Equal(t, false, byDir["in"], "the inbound entry does not")
 }
 
 func TestShowDataplanePolicyBypassRendersAsBypass(t *testing.T) {

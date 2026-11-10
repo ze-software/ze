@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4301-6.1.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_icmp_selector_test.go::TestSPDICMPErrorControlFromTheProtectedSide",
+    "unit-sha": "ba8eabd3e562adef",
+    "claim-sha": "d3f8809e8822429c",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyDirection",
+    "producer-sha": "c4abed964f9eea9c",
+    "break": "line 124: \"src, dst = p.RemotePrefix, p.LocalPrefix\" -\u003e \"src, dst = p.LocalPrefix, p.RemotePrefix\""
+  },
+  {
+    "rid": "RFC4301-6.1.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_icmp_selector_test.go::TestSPDICMPErrorControlFromTheProtectedSide",
+    "unit-sha": "ba8eabd3e562adef",
+    "claim-sha": "f20b444fa99166b9",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyDirection",
+    "producer-sha": "c4abed964f9eea9c",
+    "break": "line 128: \"Src:    src,\" -\u003e \"Src:    func() *net.IPNet { _ = src; return \u0026net.IPNet{IP: net.IPv4zero, Mask: net.CIDRMask(0, 32)} }(),\""
+  }
+]

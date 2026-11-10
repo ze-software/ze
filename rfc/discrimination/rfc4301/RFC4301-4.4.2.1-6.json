@@ -5,10 +5,10 @@
     "unit": "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp",
     "unit-sha": "123ec0767cac9453",
     "claim-sha": "ac8561d8c9d4f430",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-    "producer-sha": "ae4421c5d816b4b4",
-    "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer-sha": "aaab64b6d39ec088",
+    "break": "line 176: \"state.ReplayWindow = int(p.ReplayWin)\" -\u003e \"state.ReplayWindow = 32\""
   },
   {
     "rid": "RFC4301-4.4.2.1-6",
@@ -18,7 +18,7 @@
     "claim-sha": "982f6829b718f82d",
     "route": "revert",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-    "producer-sha": "ae4421c5d816b4b4",
+    "producer-sha": "aaab64b6d39ec088",
     "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

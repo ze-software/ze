@@ -1,0 +1,101 @@
+[
+  {
+    "rid": "RFC4301-8.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_df_linux_test.go::TestXFRMStateCarriesTheDFTreatment",
+    "unit-sha": "94a9dbb131c0afd6",
+    "claim-sha": "9ee2fb7e36e873da",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmDFFlag",
+    "producer-sha": "01639084dd4e863a",
+    "break": "line 394: \"return true, nil\" -\u003e \"return false, nil\""
+  },
+  {
+    "rid": "RFC4301-8.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/dataplane/rfc4301_df_linux_test.go::TestXFRMStateRefusesDFItCannotExpress",
+    "unit-sha": "5be92f066f31f80b",
+    "claim-sha": "b91d51075dc36da5",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmDFFlag",
+    "producer-sha": "01639084dd4e863a",
+    "break": "line 395: \"case DFSet:\" -\u003e \"case DFSet: return false, nil; case DFSet + 100:\""
+  },
+  {
+    "rid": "RFC4301-8.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_df_vpp_test.go::TestVPPInstallSACarriesTheDFTreatment",
+    "unit-sha": "00271fd076ae7f1f",
+    "claim-sha": "8c045e95f2ac8593",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/vpp.go::vppTunnelFlags",
+    "producer-sha": "ea824f4ef71f6ec7",
+    "break": "line 654: \"if p.DF == DFCopy {\" -\u003e \"if p.DF == DFCopy || p.DF == DFClear {\""
+  },
+  {
+    "rid": "RFC4301-8.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/dataplane/rfc4301_df_vpp_test.go::TestVPPInstallSARefusesDFItCannotExpress",
+    "unit-sha": "a2061a37553fa233",
+    "claim-sha": "777ec8a127ad6b24",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/vpp.go::vppDFError",
+    "producer-sha": "a7137ac4c49319d5",
+    "break": "line 257: \"case DFSet:\" -\u003e \"case DFSet: return nil; case DFSet + 100:\""
+  },
+  {
+    "rid": "RFC4301-8.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_outer_header_integration_linux_test.go::TestXFRMOuterHeaderCarriesTheDFTreatment",
+    "unit-sha": "00d8f6ffc699ece8",
+    "claim-sha": "d186596870f0e4e3",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmDFFlag",
+    "producer-sha": "01639084dd4e863a",
+    "break": "line 394: \"return true, nil\" -\u003e \"return false, nil\""
+  },
+  {
+    "rid": "RFC4301-8.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_df_bit_test.go::TestDFBitTreatmentReachesTheBackend",
+    "unit-sha": "5297426a02044cee",
+    "claim-sha": "5464c5c9fd4729dc",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/child.go::installChildDataplane",
+    "producer-sha": "634d14da7551de7b",
+    "break": "line 641: \"outbound.DF = child.DFBit\" -\u003e \"outbound.DF = 0\""
+  },
+  {
+    "rid": "RFC4301-8.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_outer_header_rekey_test.go::TestRekeyKeepsTheOuterHeaderTreatment",
+    "unit-sha": "a14850a812bd28e6",
+    "claim-sha": "c857ff2b170b8d56",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/rekey.go::newRekeyedChild",
+    "producer-sha": "0325e4f8b740b47a",
+    "break": "line 952: \"DFBit: old.DFBit,\" -\u003e \"DFBit: 0,\""
+  },
+  {
+    "rid": "RFC4301-8.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/ipsec/rfc4301_df_bit_test.go::TestDFBitIsConfigurablePerPeer",
+    "unit-sha": "286db1a3cef1867f",
+    "claim-sha": "9e47139280ed42f1",
+    "route": "mutant",
+    "producer": "internal/component/ike/ipsec/outer_header.go::parseDFBit",
+    "producer-sha": "f338cebb2a06d7e7",
+    "break": "line 29: \"return dataplane.DFClear, nil\" -\u003e \"return dataplane.DFCopy, nil\""
+  },
+  {
+    "rid": "RFC4301-8.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/ipsec/rfc4301_df_bit_test.go::TestDFBitValidation",
+    "unit-sha": "d2827fcccf170a95",
+    "claim-sha": "970b1efa713f2895",
+    "route": "mutant",
+    "producer": "internal/component/ike/ipsec/outer_header.go::validatePeerDFBit",
+    "producer-sha": "dc8cf9fbbfa2e7cc",
+    "break": "line 108: \"if df == dataplane.DFSet {\" -\u003e \"if false {\""
+  }
+]

@@ -380,13 +380,11 @@ func TestPortEncodingFollowsSection3131(t *testing.T) {
 	// caller. A PortOpaque selector therefore encodes as 65535/0 wherever one appears.
 	//
 	// Ze never WISHES to indicate OPAQUE. That refusal is Ze's conformant behavior and
-	// not a hole. No dataplane backend can program an opaque-port policy EXACTLY.
-	//
-	// The vendored netlink derives the port mask from the port VALUE. selFromPolicy
-	// (vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go:117-124) sets DportMask
-	// only when the port is non-zero. An exact match on port 0 is therefore
-	// inexpressible, and it would install as ANY port. That is WIDER than the selector
-	// negotiated, which RFC 7296 Section 2.9 forbids.
+	// not a hole. Ze maps an opaque port onto no kernel selector yet: the carried netlink
+	// patch can write exactly port 0 (selFromPolicy takes an explicit mask), but which
+	// selector carries "a port not visible in the packet" is the work of
+	// plan/post-release/features/spec-ipsec-opaque-selector-port-mask.md, and a guess
+	// could be WIDER than the selector negotiated, which RFC 7296 Section 2.9 forbids.
 	//
 	// Ze refuses the form at commit (ipsec.checkPortProgrammable). It drops the form at
 	// negotiation (programmableSelector). That is ai/rules/protocol.md applied

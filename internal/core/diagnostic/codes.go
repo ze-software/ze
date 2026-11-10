@@ -79,6 +79,7 @@ const (
 	CodeDoctorIPsecSPDWriterUnknown                = "doctor-ipsec-spd-writer-unknown"
 	CodeDoctorIPsecVirtualIPPool                   = "doctor-ipsec-virtual-ip-pool"
 	CodeDoctorIPsecInterfaceAddress                = "doctor-ipsec-interface-address"
+	CodeDoctorIPsecNoPMTUDisc                      = "doctor-ipsec-no-pmtu-disc"
 	CodeDoctorIPsecIface                           = "doctor-ipsec-iface"
 	CodeDoctorIPsecUDPEncap                        = "doctor-ipsec-udp-encap"
 	CodeDoctorIPsecXFRMUnavailable                 = "doctor-ipsec-xfrm-unavailable"
@@ -1019,6 +1020,20 @@ var builtinCodes = []CodeMeta{
 			"source addresses is off. Lower cookie-threshold to the responding-peer count or " +
 			"below, or leave it at the default of 0 to challenge every inbound initiation.",
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-cookie-threshold"},
+	},
+	{
+		Code:  CodeDoctorIPsecNoPMTUDisc,
+		Title: "The kernel clears DF on df-bit copy IPsec peers",
+		Description: "net.ipv4.ip_no_pmtu_disc is not 0, and while it is set the Linux kernel " +
+			"(__xfrm_init_state) marks every IPv4 IPsec state Ze installs XFRM_STATE_NOPMTUDISC, " +
+			"so the tunnel header carries DF clear. A peer configured with df-bit copy, the " +
+			"default, then gets clear without any error, and the DF treatment RFC 4301 Section " +
+			"8.1 lets the operator choose per SA is not the one configured; `show vpn ipsec " +
+			"dataplane sa` reads df-bit clear. The same warning names a host where the sysctl " +
+			"cannot be read. Fix: `set sysctl setting net.ipv4.ip_no_pmtu_disc value 0` and " +
+			"commit, or set the peers to df-bit clear when clear is wanted, then rekey or restart " +
+			"the tunnels already up.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-no-pmtu-disc"},
 	},
 	{
 		Code:  CodeDoctorIPsecOverrideGuard,

@@ -67,6 +67,52 @@ func vppPortRange(m PortMatch) (start, stop uint16, err error) {
 		ErrNotSupported, m.Mask)
 }
 
+// vppICMPSelectorError refuses an ICMP or ICMPv6 policy that constrains the message
+// type or code.
+//
+// RFC 4301 Section 4.4.1.1: "If the Next Layer Protocol value is ICMP, then there is a
+// 16-bit selector for the ICMP message type and code."
+//
+// VPP's SPD has no such selector. Its policy match reads the port ranges only for TCP,
+// UDP and SCTP and returns the policy before comparing them for every other protocol
+// (src/vnet/ipsec/ipsec_output.h, ipsec_output_policy_match and
+// ipsec6_output_policy_match: "if (PREDICT_FALSE ((pr != IP_PROTOCOL_TCP) && (pr !=
+// IP_PROTOCOL_UDP) && (pr != IP_PROTOCOL_SCTP))) return p;"). An entry for one ICMP type would therefore
+// match EVERY ICMP message: a discard written for redirects would drop echo too, and a
+// bypass written for echo would pass every ICMP message in the clear. It is refused
+// rather than installed wider than written, with ErrSAOptionRefused: a working backend
+// refusing what the entry asks for, never ErrNotSupported, which the engine reads as a
+// platform without IPsec and keeps the Child SA degraded (isXFRMUnsupported).
+func vppICMPSelectorError(p SPParams) error {
+	if !IsICMPProto(p.UpperProto) {
+		return nil
+	}
+	if p.SrcPort.IsAny() && p.DstPort.IsAny() {
+		return nil
+	}
+	return fmt.Errorf(
+		"%w: vpp: a policy for protocol %d names ICMP type %d mask %#04x and code %d mask %#04x, and VPP's SPD compares ports only for TCP, UDP and SCTP, so it would match every ICMP message; "+
+			"remove icmp-type and icmp-code from the entry, or program it on the Linux XFRM dataplane",
+		ErrSAOptionRefused, p.UpperProto, p.SrcPort.Port, p.SrcPort.Mask, p.DstPort.Port, p.DstPort.Mask)
+}
+
+// vppICMPErrorReturnError refuses a policy that asks for the RFC 4301 Section 6.2
+// return-SA mapping of an outbound ICMP error.
+//
+// RFC 4301 Section 6.2: "The implementation extracts the header for the packet that
+// triggered the error (from the ICMP message payload), reverses the source and
+// destination IP address fields, extracts the protocol field, and reverses the port
+// fields (if accessible)." VPP's outbound SPD lookup classifies a packet on its own
+// header alone (ipsec_output_policy_match, src/vnet/ipsec/ipsec_output.h), and no node
+// under src/vnet/ipsec reads the header an ICMP error embeds, so an error that matches
+// no entry is never mapped to the SA of the traffic it reports.
+func vppICMPErrorReturnError(p SPParams) error {
+	if err := vppICMPErrorCheckError(p.ICMPErrorReturn); err != nil {
+		return fmt.Errorf("vpp: policy: %w", err)
+	}
+	return nil
+}
+
 // CatchAllSupported refuses, for the reason vppPolicyInterface gives: a VPP SPD takes
 // effect only on the interfaces it is bound to, so VPP holds no entry bound to no
 // interface, and the engine's catch-all is exactly that entry.
@@ -292,6 +338,15 @@ func (b *vppBackend) RemovePolicyParams(p SPParams) error {
 func (b *vppBackend) recordedEntry(p SPParams) (ipsec_types.IpsecSpdEntryV2, error) {
 	probe, err := vppSPDSelector(p)
 	if err != nil {
+		// An entry the selector check refuses (an ICMP type selector, the ICMP error
+		// return mapping) had its install refused by the same check before any write,
+		// so this backend never held it: answered as a removal from no SPD is, so the
+		// engine's ledger (policyGone) does not record it as left behind. The refusal is
+		// kept as text only, because a chain that also carried ErrSAOptionRefused would
+		// read as not removed (isXFRMUnsupported checks that sentinel first).
+		if errors.Is(err, ErrSAOptionRefused) {
+			return probe, fmt.Errorf("%w: vpp: this backend never installed the entry, its install was refused: %v", ErrNotSupported, err) //nolint:errorlint // the refusal must not join the chain, see above
+		}
 		return probe, err
 	}
 	probe.SpdID = b.spdID
@@ -624,6 +679,14 @@ func vppSPDSelector(p SPParams) (ipsec_types.IpsecSpdEntryV2, error) {
 	action := vppSPDAction(p.Action)
 	upperProto, err := vppUpperProto(p.UpperProto)
 	if err != nil {
+		return entry, err
+	}
+	// RFC 4301 Section 4.4.1.1
+	if err := vppICMPSelectorError(p); err != nil {
+		return entry, err
+	}
+	// RFC 4301 Section 6.2
+	if err := vppICMPErrorReturnError(p); err != nil {
 		return entry, err
 	}
 	localPortStart, localPortStop, err := vppPortRange(p.SrcPort)

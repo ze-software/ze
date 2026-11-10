@@ -294,6 +294,76 @@ module ze-ipsec-conf {
                         "IP protocol number the selector matches, 0 for every protocol.";
                 }
 
+                leaf icmp-type {
+                    type union {
+                        type uint8;
+                        type enumeration {
+                            enum any {
+                                ze:help "Every ICMP message type.";
+                            }
+                        }
+                    }
+                    default any;
+                    description "The ICMP message type of RFC 4301 Section 4.4.1.1: 'If the Next Layer
+                                 Protocol value is ICMP, then there is a 16-bit selector for the ICMP
+                                 message type and code.' It needs protocol 1 (ICMP) or 58 (ICMPv6), and
+                                 commit refuses it under any other protocol or beside a port other
+                                 than any.
+
+                                 An ICMP message has one type whichever way it travels, so a both entry
+                                 installs the same type in each direction. With action discard and
+                                 direction in, the entry rejects that type of ICMP arriving in the
+                                 clear at this node from the remote prefix: the per-type control of
+                                 RFC 4301 Sections 6.1.1 and 6.1.2.
+
+                                 An ICMP message arriving on a Child SA is decided by that SA's peer
+                                 on Linux. When its icmp-error-check is true (the default) and this
+                                 entry refuses the message, the kernel reads the header the message
+                                 carries after its ICMP header, reverses its addresses and ports, and
+                                 delivers the message when that header matches the SA it arrived on,
+                                 whatever this entry says and whatever the ICMP type. With
+                                 icmp-error-check false on that peer, this entry decides.
+
+                                 The VPP dataplane compares no ICMP type or code, so it refuses an
+                                 entry that names one rather than matching every ICMP message.
+
+                                 Linux classifies every IP fragment as type 0 code 0, and it
+                                 classifies forwarded traffic before reassembling it, so commit
+                                 refuses type 0 with an icmp-code that includes 0 on an out or both
+                                 entry: its outbound half would also take every forwarded ICMP
+                                 fragment between the prefixes. Use direction in, or an icmp-code
+                                 range starting at 1.";
+                    ze:help
+                        "ICMP message type the selector matches, or any.";
+                }
+
+                leaf icmp-code {
+                    type union {
+                        type uint8;
+                        type string {
+                            pattern '[0-9]{1,3}-[0-9]{1,3}';
+                        }
+                        type enumeration {
+                            enum any {
+                                ze:help "Every ICMP code of the type.";
+                            }
+                        }
+                    }
+                    default any;
+                    description "The ICMP code, one number or an inclusive range written start-end, such
+                                 as 0-3. RFC 4301 Section 4.4.1.1 allows 'a single type and a range of
+                                 codes, a single type and ANY code, and ANY type and ANY code', so a code
+                                 needs icmp-type, and commit refuses a range whose start is above its
+                                 end.
+
+                                 The kernel selector matches a value under a mask, so Ze installs a
+                                 code range as the fewest mask-aligned blocks that cover exactly that
+                                 range, one kernel policy per block, all added and removed together.
+                                 No code outside the range matches.";
+                    ze:help
+                        "ICMP code or start-end code range the selector matches, or any.";
+                }
+
                 container local {
                     description "Local is Ze's own side of the IPsec boundary. It is the source of an
                         outbound packet and the destination of an inbound one, which is the swap
@@ -993,6 +1063,75 @@ module ze-ipsec-conf {
                             "Delete the SA when the peer declines transport mode.";
                     }
 
+                    leaf df-bit {
+                        type enumeration {
+                            enum copy {
+                                ze:help "Copy the DF bit of each inner IPv4 header into the tunnel header.";
+                            }
+                            enum clear {
+                                ze:help "Write a clear DF bit, so routers on the path may fragment the tunnel packet.";
+                            }
+                            enum set {
+                                ze:help "Write a set DF bit whatever the inner header carries.";
+                            }
+                        }
+                        default copy;
+                        description "What this peer's tunnel-mode Child SAs write into the DF bit of the
+                                     outer IPv4 header they build.
+
+                                     RFC 4301 Section 8.1: 'This means that it MUST be possible to
+                                     configure the implementation's treatment of the DF bit (set,
+                                     clear, copy from inner header) for each SA.  This applies to SAs
+                                     where both inner and outer headers are IPv4.' The default copy
+                                     is the option the same section makes mandatory.
+
+                                     Clear lets a router on the path fragment a tunnel packet that
+                                     exceeds its link, at the cost of reassembly at the far end. With
+                                     copy, a router returns Fragmentation Needed for a DF-set packet
+                                     and the tunnel's path MTU is learned and aged; with clear no path
+                                     MTU is learned from the tunnel's packets, and the tunnel's MTU is
+                                     its outer route's. Commit
+                                     refuses clear or set on a transport-mode peer, which builds no
+                                     outer header, and on a peer whose local-address or remote-address
+                                     is IPv6, whose header has no DF bit. Commit refuses set on every
+                                     dataplane today: the Linux kernel copies or clears the bit and has
+                                     no flag that sets it, and VPP's ESP encrypt path ignores its set
+                                     flag. A change restarts the peer.";
+                        ze:help
+                            "DF bit of the tunnel header: copy, clear or set.";
+                    }
+
+                    leaf dscp-map {
+                        type union {
+                            type enumeration {
+                                enum copy {
+                                    ze:help "Copy the DSCP of each inner header into the tunnel header.";
+                                }
+                            }
+                            type uint8 {
+                                range "0..63";
+                            }
+                        }
+                        default copy;
+                        description "The DSCP this peer's tunnel-mode Child SAs write into the outer
+                                     header they build: copy, or one value 0 to 63 for every packet.
+
+                                     RFC 4301 Section 5.1.2.1 constructs the outer DS Field as 'copied
+                                     from inner hdr (5)', and note 5 says: 'If the packet will
+                                     immediately enter a domain for which the DSCP value in the outer
+                                     header is not appropriate, that value MUST be mapped to an
+                                     appropriate value for the domain'. A value here is that mapping
+                                     for a domain that gives all of this tunnel's traffic one class.
+
+                                     The Linux kernel can copy or write 0 and nothing else, so on the
+                                     Linux dataplane commit refuses a value from 1 to 63, and so does
+                                     the Child SA install; VPP writes any value. Commit refuses a value on a
+                                     transport-mode peer, which builds no outer header. A change
+                                     restarts the peer.";
+                        ze:help
+                            "DSCP of the tunnel header: copy, or 0 to 63.";
+                    }
+
                     leaf policy-priority {
                         type uint32 {
                             range "101..2147483647";
@@ -1025,6 +1164,49 @@ module ze-ipsec-conf {
                                      largest rank Ze can carry to a dataplane.";
                         ze:help
                             "Rank of this peer's Security Policy Database entries, lowest searched first.";
+                    }
+
+                    leaf icmp-error-check {
+                        type boolean;
+                        default true;
+                        description "Whether this peer's Child SAs carry the ICMP error processing of
+                                     RFC 4301 Section 6.2.
+
+                                     When true, an ICMP error that arrives on a Child SA with IP and
+                                     ICMP headers this peer's traffic selectors do not cover is checked
+                                     against the header of the packet that triggered it, with source and
+                                     destination addresses and ports reversed, and is dropped unless that
+                                     header matches the selectors of the SA it arrived on. An outbound
+                                     ICMP error that no SA and no Security Policy Database entry would
+                                     carry is sent through the Child SA that carries the return traffic
+                                     of the packet it reports.
+
+                                     When false, neither happens: an ICMP error is carried only where a
+                                     traffic selector or a Security Policy Database entry covers its own
+                                     headers, and every other one is dropped unread. RFC 4301 Section 6.2
+                                     names that as the way to carry ICMP errors without inspecting their
+                                     payload: configure an entry that explicitly carries them.
+
+                                     The Linux XFRM dataplane performs both for an ICMP error addressed
+                                     to Ze itself and for one Ze generates. For a forwarded ICMP error
+                                     the kernel reaches the payload check only when no forward policy
+                                     matches the error's own headers, and Ze's catch-all entry always
+                                     does: a forwarded error that arrives on a Child SA with headers the
+                                     selectors do not cover is dropped, whatever this leaf says. A
+                                     forwarded error leaving towards a Child SA is mapped to the return
+                                     SA only when the outbound lookup passes it untransformed: under
+                                     `unmatched bypass` the catch-all lets it through and the kernel then
+                                     maps it, while under `unmatched discard` the catch-all drops it
+                                     first. Linux cannot tell a bypass entry from no entry here: an
+                                     error that a vpn ipsec policy bypass entry, or the catch-all under
+                                     `unmatched bypass`, would carry in clear is still mapped to the
+                                     return SA, although Section 6.2 maps it only 'if no SPD entry would
+                                     allow carriage of this outbound ICMP error message'. The VPP
+                                     dataplane, reached only through the test override
+                                     ze.test.ike.dataplane, performs neither, so commit refuses this
+                                     leaf true there and names icmp-error-check false as the fix.";
+                        ze:help
+                            "Check the payload of an ICMP error a Child SA carries.";
                     }
 
                     list traffic-selector {

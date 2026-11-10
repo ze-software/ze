@@ -1,0 +1,50 @@
+[
+  {
+    "rid": "RFC4301-7-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_pmtu_integration_linux_test.go::TestXFRMPolicyPMTUAgesBackToTheLinkMTU",
+    "unit-sha": "d8494802e6516ebc",
+    "claim-sha": "c3eddfd571de5c2c",
+    "route": "no-break",
+    "citation": "is the first-hop link MTU again",
+    "reason": "kernel-producer",
+    "kernel-functions": [
+      "net/ipv4/route.c::__ip_rt_update_pmtu",
+      "net/ipv4/route.c::ipv4_mtu",
+      "net/xfrm/xfrm_policy.c::xfrm_bundle_ok"
+    ],
+    "later-route": "patched-kernel"
+  },
+  {
+    "rid": "RFC4301-7-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_pmtu_integration_linux_test.go::TestXFRMTunnelPMTUAgesBackToTheLinkMTU",
+    "unit-sha": "29349a17d4242090",
+    "claim-sha": "e558f2eb2f99496b",
+    "route": "no-break",
+    "citation": "is the first-hop link MTU again",
+    "reason": "kernel-producer",
+    "kernel-functions": [
+      "net/ipv4/route.c::__ip_rt_update_pmtu",
+      "net/ipv4/route.c::ipv4_mtu",
+      "net/xfrm/xfrm_policy.c::xfrm_bundle_ok"
+    ],
+    "later-route": "patched-kernel"
+  },
+  {
+    "rid": "RFC4301-7-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_pmtu_ipv6_integration_linux_test.go::TestXFRMTunnelPMTUAgesBackToTheLinkMTUOverIPv6",
+    "unit-sha": "6bea383f7d9ab725",
+    "claim-sha": "98a3ade320d5fc1d",
+    "route": "no-break",
+    "citation": "is the first-hop link MTU again",
+    "reason": "kernel-producer",
+    "kernel-functions": [
+      "net/ipv6/route.c::rt6_do_update_pmtu",
+      "net/ipv6/route.c::rt6_check_expired",
+      "net/xfrm/xfrm_policy.c::xfrm_bundle_ok"
+    ],
+    "later-route": "patched-kernel"
+  }
+]

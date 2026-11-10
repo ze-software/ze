@@ -1,13 +1,13 @@
 {
-  "note": "selectorsToWire encodes protocol-0 all-ports Start Port 0; single-port selector proves the encoder can emit non-zero",
+  "note": "Re-judged 2026-11-10 by an independent judge after a comment-only change to TestPortEncodingFollowsSection3131 (assertions, fixtures and the selectorsToWire/PortSelector.Wire producers byte-identical). The earlier enforced verdict was too wide. The test drives one fixture, protocol 0 with an ANY port, so it proves the all-ports-allowed encoding (ANY -> Start Port 0) and that the encoder can emit a non-zero port (TCP 443). It cannot fail on the 'protocols for which port is undefined' clause for any protocol other than 0, and Ze does not comply there: ipsec.checkPortProgrammable refuses a single port only when proto == 0, and engine.programmableSelector/intersectPort narrow away a specific port only under protocol 0, so a selector such as protocol 47 (GRE) with port 443, configured or proposed by a peer, reaches selectorsToWire and is emitted as 443/443 where RFC 7296 Section 3.13.1 says the field MUST be zero. Half the requirement is proven; the other half is a code defect.",
   "requirement_sha": "f9a6633b996ca03e",
   "tests": {
-    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "f8202c6c1c2c2a71",
-    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "f8202c6c1c2c2a71"
+    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "042ef3718a420858",
+    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "042ef3718a420858"
   },
   "units": {
-    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "9aebd2917a3a0115",
-    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "9aebd2917a3a0115"
+    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "2e0ea6846dddb242",
+    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "2e0ea6846dddb242"
   },
-  "verdict": "enforced"
+  "verdict": "weak"
 }

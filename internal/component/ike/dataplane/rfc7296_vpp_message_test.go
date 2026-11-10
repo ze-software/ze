@@ -911,6 +911,28 @@ func TestVPPRemovePolicyParams(t *testing.T) {
 	}
 }
 
+// VALIDATES: removing an entry whose install the selector check refuses (an ICMP type
+// selector) answers ErrNotSupported, the "never installed" answer the engine's SPD
+// ledger accepts as gone (policyGone), and never ErrSAOptionRefused, which the ledger
+// reads as an entry left behind. Method: an SPD exists (one entry installed), then the
+// removal of an ICMP type 3 entry, which reaches recordedEntry; nothing is sent.
+func TestVPPRemoveRefusedICMPSelectorIsNeverInstalled(t *testing.T) {
+	b, ch := installedPolicyBackend(t)
+	if err := b.InstallPolicy(testSPParams()); err != nil {
+		t.Fatalf("InstallPolicy: %v", err)
+	}
+	ch.sent = nil
+	p := testSPParams()
+	p.UpperProto, p.SrcPort, p.DstPort = UpperProtoICMP, ExactPortMatch(3), AnyPortMatch()
+	err := b.RemovePolicyParams(p)
+	if !errors.Is(err, ErrNotSupported) || errors.Is(err, ErrSAOptionRefused) {
+		t.Fatalf("RemovePolicyParams of a refused ICMP type entry: err = %v, want ErrNotSupported and not ErrSAOptionRefused", err)
+	}
+	if len(ch.sent) != 0 {
+		t.Errorf("sent %d messages, want none", len(ch.sent))
+	}
+}
+
 // A delete before any install is REFUSED. This backend has created no SPD, so there
 // is no database to delete from, and creating one would report success over an empty
 // one.

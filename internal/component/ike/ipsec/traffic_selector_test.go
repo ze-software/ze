@@ -59,6 +59,32 @@ func TestValidateTrafficSelectorsRejectsUnprogrammable(t *testing.T) {
 			want: "needs a protocol",
 		},
 		{
+			// RFC 4301 Section 4.4.1.1: ICMPv4 types under IPv6 prefixes match no packet.
+			name: "an ICMP type and code under protocol 1 on IPv6 prefixes",
+			peer: SiteToSitePeer{
+				Name: "p", Mode: dataplane.ModeTunnel,
+				TrafficSelectors: []TrafficSelectorPolicy{{
+					Number: "1", Protocol: dataplane.UpperProtoICMP,
+					LocalPrefix: cidr(t, "2001:db8:1::/48"), LocalPort: PortSelector{Form: PortSingle, Port: 3<<8 | 4},
+					RemotePrefix: cidr(t, "2001:db8:2::/48"), RemotePort: AnyPort(),
+				}},
+			},
+			want: "set protocol to 58",
+		},
+		{
+			// RFC 4301 Section 4.4.1.1: ICMPv6 types under IPv4 prefixes match no packet.
+			name: "an ICMP type and code under protocol 58 on IPv4 prefixes",
+			peer: SiteToSitePeer{
+				Name: "p", Mode: dataplane.ModeTunnel,
+				TrafficSelectors: []TrafficSelectorPolicy{{
+					Number: "1", Protocol: dataplane.UpperProtoICMPv6,
+					LocalPrefix: cidr(t, "10.1.0.0/16"), LocalPort: AnyPort(),
+					RemotePrefix: cidr(t, "10.2.0.0/16"), RemotePort: PortSelector{Form: PortSingle, Port: 128 << 8},
+				}},
+			},
+			want: "set protocol to 1",
+		},
+		{
 			name: "transport mode needs a single host prefix",
 			peer: SiteToSitePeer{
 				Name: "p", Mode: dataplane.ModeTransport,
@@ -148,6 +174,28 @@ func TestValidateTrafficSelectorsAcceptsProgrammable(t *testing.T) {
 					Number: "1", Protocol: 6,
 					LocalPrefix: cidr(t, "10.1.0.0/16"), LocalPort: PortSelector{Form: PortSingle, Port: 179},
 					RemotePrefix: cidr(t, "10.2.0.0/16"), RemotePort: AnyPort(),
+				}},
+			},
+		},
+		{
+			name: "an ICMP type and code under protocol 1 on IPv4 prefixes",
+			peer: SiteToSitePeer{
+				Name: "p", Mode: dataplane.ModeTunnel,
+				TrafficSelectors: []TrafficSelectorPolicy{{
+					Number: "1", Protocol: dataplane.UpperProtoICMP,
+					LocalPrefix: cidr(t, "10.1.0.0/16"), LocalPort: PortSelector{Form: PortSingle, Port: 3<<8 | 4},
+					RemotePrefix: cidr(t, "10.2.0.0/16"), RemotePort: AnyPort(),
+				}},
+			},
+		},
+		{
+			name: "an ICMP type and code under protocol 58 on IPv6 prefixes",
+			peer: SiteToSitePeer{
+				Name: "p", Mode: dataplane.ModeTunnel,
+				TrafficSelectors: []TrafficSelectorPolicy{{
+					Number: "1", Protocol: dataplane.UpperProtoICMPv6,
+					LocalPrefix: cidr(t, "2001:db8:1::/48"), LocalPort: PortSelector{Form: PortSingle, Port: 128 << 8},
+					RemotePrefix: cidr(t, "2001:db8:2::/48"), RemotePort: AnyPort(),
 				}},
 			},
 		},

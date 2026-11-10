@@ -181,6 +181,10 @@ func validateIPsecSections(sections []sdk.ConfigSection) error {
 	if err := cfg.ValidatePolicyOrder(); err != nil {
 		return err
 	}
+	// RFC 4301 Section 8.1: a DF treatment no dataplane can apply is refused here.
+	if err := cfg.ValidateOuterHeader(); err != nil {
+		return err
+	}
 	// The operator's own SPD entries take the same reserved-band rule as a peer's
 	// rank, plus the selector rules no negotiation can enforce for them: nothing
 	// narrows an operator entry, so config verify is the only gate it passes

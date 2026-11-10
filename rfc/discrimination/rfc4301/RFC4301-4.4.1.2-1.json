@@ -7,8 +7,8 @@
     "claim-sha": "09b4cbf3ba155fd1",
     "route": "revert",
     "producer": "internal/component/ike/ipsec/spd_policy.go::parseSPDPolicy",
-    "producer-sha": "633e57f6c14caa5b",
-    "break": "body of parseSPDPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "38c27713ddec4654",
+    "break": "body of parseSPDPolicy replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4301-4.4.1.2-1",
@@ -18,7 +18,7 @@
     "claim-sha": "f52706e0fb2aafe4",
     "route": "revert",
     "producer": "internal/component/ike/ipsec/spd_policy.go::parseSPDPolicy",
-    "producer-sha": "633e57f6c14caa5b",
-    "break": "body of parseSPDPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "38c27713ddec4654",
+    "break": "body of parseSPDPolicy replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
@@ -132,7 +133,36 @@ type SPDPolicy struct {
 	LocalPort    PortSelector
 	RemotePrefix *net.IPNet
 	RemotePort   PortSelector
+
+	// ICMP is the ICMP message type and code selector of Section 4.4.1.1, read only
+	// when Protocol is 1 (ICMP) or 58 (ICMPv6). Its zero value is that section's "ANY
+	// type and ANY code", which is also what an entry with neither leaf means.
+	ICMP ICMPSelector
 }
+
+// ICMPSelector is the ICMP message type and code selector of one SPD entry.
+//
+// RFC 4301 Section 4.4.1.1: "This 16-bit selector can contain a single type and a
+// range of codes, a single type and ANY code, and ANY type and ANY code." Those are
+// the three forms this type holds, and no other: a code without a type is not one of
+// them, and validate refuses it.
+//
+// The ICMP type and code are not a local or a remote field. An ICMP message carries one
+// type and one code whichever way it travels, so a both-direction entry installs the
+// same selector in each direction rather than swapping it as it swaps ports.
+type ICMPSelector struct {
+	// HasType is false for ANY type, and Type is then unused.
+	HasType bool
+	Type    uint8
+	// HasCode is false for ANY code. When it is true, CodeStart..CodeEnd is the
+	// inclusive range of codes; a single code has CodeStart equal to CodeEnd.
+	HasCode   bool
+	CodeStart uint8
+	CodeEnd   uint8
+}
+
+// IsAny reports whether the selector constrains neither the type nor the code.
+func (s ICMPSelector) IsAny() bool { return !s.HasType && !s.HasCode }
 
 // parseSPDPolicies reads the operator's policy list from the ipsec container.
 // An absent list yields no entries, which is what every configuration written
@@ -214,13 +244,19 @@ func parseSPDPolicy(name string, t *config.Tree) (SPDPolicy, error) {
 		p.Protocol = uint8(proto)
 	}
 
+	icmp, err := parseICMPSelector(name, t)
+	if err != nil {
+		return p, err
+	}
+	p.ICMP = icmp
+
 	for _, side := range []struct {
 		name   string
 		prefix **net.IPNet
 		port   *PortSelector
 	}{
-		{"local", &p.LocalPrefix, &p.LocalPort},
-		{"remote", &p.RemotePrefix, &p.RemotePort},
+		{sideLocal, &p.LocalPrefix, &p.LocalPort},
+		{sideRemote, &p.RemotePrefix, &p.RemotePort},
 	} {
 		sub := t.GetContainer(side.name)
 		if sub == nil {
@@ -243,6 +279,48 @@ func parseSPDPolicy(name string, t *config.Tree) (SPDPolicy, error) {
 	}
 
 	return p, nil
+}
+
+// parseICMPSelector reads the icmp-type and icmp-code leaves. An absent leaf and the
+// word any both mean ANY. The code is one number or a range written start-end.
+func parseICMPSelector(name string, t *config.Tree) (ICMPSelector, error) {
+	var sel ICMPSelector
+	if v, ok := t.Get("icmp-type"); ok && v != portAnyKeyword {
+		n, err := strconv.ParseUint(v, 10, 8)
+		if err != nil {
+			return sel, fmt.Errorf("%w %q: icmp-type %q is not an ICMP type; accepted values are any or a number in 0..255",
+				ErrSPDPolicy, name, v)
+		}
+		sel.HasType, sel.Type = true, uint8(n)
+	}
+	v, ok := t.Get("icmp-code")
+	// refuse-by-default: guards ICMPSelector.IsAny -- an absent icmp-code leaf is ANY code, which HasCode false records
+	if !ok {
+		return sel, nil
+	}
+	if v == portAnyKeyword {
+		return sel, nil
+	}
+	startText, endText, isRange := strings.Cut(v, "-")
+	if !isRange {
+		endText = startText
+	}
+	start, errStart := strconv.ParseUint(startText, 10, 8)
+	end, errEnd := strconv.ParseUint(endText, 10, 8)
+	if errStart != nil {
+		return sel, fmt.Errorf("%w %q: icmp-code %q is not an ICMP code; accepted values are any, a number in 0..255, or a range start-end within 0..255",
+			ErrSPDPolicy, name, v)
+	}
+	if errEnd != nil {
+		return sel, fmt.Errorf("%w %q: icmp-code %q is not an ICMP code; accepted values are any, a number in 0..255, or a range start-end within 0..255",
+			ErrSPDPolicy, name, v)
+	}
+	if start > end {
+		return sel, fmt.Errorf("%w %q: icmp-code range %q starts above its end; write the lower code first, as %d-%d",
+			ErrSPDPolicy, name, v, end, start)
+	}
+	sel.HasCode, sel.CodeStart, sel.CodeEnd = true, uint8(start), uint8(end)
+	return sel, nil
 }
 
 // parseSPDPort reads one port leaf.
@@ -331,7 +409,131 @@ func (p SPDPolicy) validate() error {
 		}
 	}
 
+	return p.validateICMP()
+}
+
+// validateICMP refuses an ICMP type or code selector the entry cannot carry.
+func (p SPDPolicy) validateICMP() error {
+	if p.ICMP.IsAny() {
+		return nil
+	}
+	// RFC 4301 Section 4.4.1.1: "If the Next Layer Protocol value is ICMP, then there
+	// is a 16-bit selector for the ICMP message type and code." The field exists only
+	// under ICMP: under any other protocol the kernel would compare the type and code
+	// against that protocol's ports (or against nothing), which is a different rule.
+	if !dataplane.IsICMPProto(p.Protocol) {
+		return fmt.Errorf(
+			"%w %q: icmp-type and icmp-code need protocol 1 (ICMP) or 58 (ICMPv6), and protocol is %d. "+
+				"Set protocol to 1 or 58, or set icmp-type and icmp-code to any",
+			ErrSPDPolicy, p.Name, p.Protocol)
+	}
+	// RFC 4301 Section 4.4.1.1: "If the Next Layer Protocol value is ICMP, then there
+	// is a 16-bit selector for the ICMP message type and code." validate has already
+	// refused a pair of two families, so the local prefix names the entry's family.
+	if family := icmpFamilyOf(p.LocalPrefix); p.Protocol != family.proto {
+		return fmt.Errorf(
+			"%w %q: icmp-type and icmp-code under protocol %d select %s messages, but local prefix %s and "+
+				"remote prefix %s are %s, which carries %s as protocol %d, so the entry would match no packet. "+
+				"Set protocol to %d, or use %s prefixes",
+			ErrSPDPolicy, p.Name, p.Protocol, family.otherMessage, p.LocalPrefix, p.RemotePrefix,
+			family.name, family.message, family.proto, family.proto, family.otherName)
+	}
+	// RFC 4301 Section 4.4.1.1: "This 16-bit selector can contain a single type and a
+	// range of codes, a single type and ANY code, and ANY type and ANY code." A code
+	// under ANY type is none of the three.
+	if p.ICMP.HasCode && !p.ICMP.HasType {
+		return fmt.Errorf(
+			"%w %q: icmp-code needs an icmp-type, because RFC 4301 Section 4.4.1.1 gives a code range only under a single type. "+
+				"Set icmp-type, or set icmp-code to any",
+			ErrSPDPolicy, p.Name)
+	}
+	return p.validateICMPFragments()
+}
+
+// validateICMPFragments refuses an entry whose outbound half would also match every
+// forwarded ICMP fragment.
+//
+// Linux reads no ICMP type or code from a fragment, initial or not, so the flow its
+// policy lookup sees carries type 0 code 0 (net/core/flow_dissector.c,
+// __skb_flow_dissect; net/xfrm/xfrm_policy.c, decode_session4 and decode_session6). On
+// the forward path the outbound lookup runs before any reassembly (ip_forward calls
+// xfrm4_route_forward, net/ipv4/ip_forward.c; ip6_forward calls xfrm6_route_forward,
+// net/ipv6/ip6_output.c), so an outbound entry for type 0 with a code range that holds 0
+// also takes every forwarded ICMP fragment between its prefixes, whatever message the
+// fragment belongs to. As a BYPASS it sends in the clear the fragments of ICMP traffic
+// another entry protects, which is the hazard RFC 4301 Section 7.4 names: "The concern
+// is that BYPASS of a cleartext, non-initial fragment arriving at an IPsec
+// implementation could undermine the security afforded IPsec-protected traffic directed
+// to the same destination." As a DISCARD it drops fragments the operator never named.
+// Either way the installed entry is wider than the one written, so it is refused.
+//
+// The inbound half is not affected: a packet for this node is reassembled before its
+// policy check (ip_local_deliver, net/ipv4/ip_input.c), and an operator entry installs
+// no forward policy (engine/spd_policy.go, spdPolicyParams).
+func (p SPDPolicy) validateICMPFragments() error {
+	if p.Direction == SPDDirIn {
+		return nil
+	}
+	if p.ICMP.matchesFragmentTypeCode() {
+		return p.icmpFragmentsError()
+	}
 	return nil
+}
+
+// icmpFragmentsError is validateICMPFragments' refusal, naming the entry, the cause and
+// both fixes.
+func (p SPDPolicy) icmpFragmentsError() error {
+	return fmt.Errorf(
+		"%w %q: icmp-type 0 with icmp-code %s includes type 0 code 0, which is what Linux reads from every IP fragment, "+
+			"and forwarded traffic is classified before it is reassembled, so the outbound half of this entry would also "+
+			"take every forwarded ICMP fragment from %s to %s, whatever message it belongs to. "+
+			"Set direction in (traffic for this node is reassembled before it is classified), or set icmp-code to a range that starts at 1",
+		ErrSPDPolicy, p.Name, p.ICMP.codeText(), p.LocalPrefix, p.RemotePrefix)
+}
+
+// matchesFragmentTypeCode reports whether the selector matches ICMP type 0 code 0, the
+// type and code the kernel reads from a fragment (validateICMPFragments).
+func (s ICMPSelector) matchesFragmentTypeCode() bool {
+	typeZero := s.HasType && s.Type == 0
+	if s.HasCode {
+		return typeZero && s.CodeStart == 0
+	}
+	return typeZero
+}
+
+// codeText renders the code selector as the operator writes it: any, one code, or a
+// start-end range.
+func (s ICMPSelector) codeText() string {
+	switch {
+	case s.HasCode && s.CodeStart == s.CodeEnd:
+		return portDecimal(uint16(s.CodeStart))
+	case s.HasCode:
+		return portDecimal(uint16(s.CodeStart)) + "-" + portDecimal(uint16(s.CodeEnd))
+	default:
+		// ANY code: HasCode false.
+		return portAnyKeyword
+	}
+}
+
+// icmpFamily is the ICMP protocol one address family carries, with the names an error
+// message gives it and the other family.
+type icmpFamily struct {
+	proto                 uint8
+	name, otherName       string
+	message, otherMessage string
+}
+
+// icmpFamilyOf answers which ICMP protocol a prefix's family carries: ICMP (1) under
+// IPv4 and ICMPv6 (58) under IPv6. The two number their message types apart (ICMPv4
+// echo request is type 8, ICMPv6 echo request is type 128), so a type and code
+// selector means something only under the protocol of its own family.
+func icmpFamilyOf(prefix *net.IPNet) icmpFamily {
+	if prefix.IP.To4() != nil {
+		return icmpFamily{proto: dataplane.UpperProtoICMP, name: "IPv4", otherName: "IPv6",
+			message: "ICMP", otherMessage: "ICMPv6"}
+	}
+	return icmpFamily{proto: dataplane.UpperProtoICMPv6, name: "IPv6", otherName: "IPv4",
+		message: "ICMPv6", otherMessage: "ICMP"}
 }
 
 // protocolCarriesPorts reports whether an IP protocol number names a transport that

@@ -7,8 +7,8 @@
     "claim-sha": "666bf6b080aaf27f",
     "route": "revert",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyFromParams",
-    "producer-sha": "9560ce5abe6dc41e",
-    "break": "body of xfrmPolicyFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "a8bb0cc5733c0723",
+    "break": "body of xfrmPolicyFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4301-5.2-8",
@@ -18,7 +18,7 @@
     "claim-sha": "4d211086fdc7e326",
     "route": "revert",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyFromParams",
-    "producer-sha": "9560ce5abe6dc41e",
-    "break": "body of xfrmPolicyFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "a8bb0cc5733c0723",
+    "break": "body of xfrmPolicyFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

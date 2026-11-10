@@ -9,7 +9,7 @@
     "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy": "6b84b68fd51da835",
     "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy#2": "6b84b68fd51da835",
     "internal/component/ike/engine/rfc4301_sad_selector_test.go::TestRFC4301InboundSADEntryCarriesTheNegotiatedSelectors": "fc51f7049086d591",
-    "internal/component/ike/engine/ts_narrow_test.go::TestNarrowedSelectorsReachTheInstalledPolicy": "f8202c6c1c2c2a71"
+    "internal/component/ike/engine/ts_narrow_test.go::TestNarrowedSelectorsReachTheInstalledPolicy": "042ef3718a420858"
   },
   "units": {
     "internal/component/ike/engine/child_test.go::TestChildSAInboundPolicyUsesNegotiatedTS": "93a9bdfaf157d80d",

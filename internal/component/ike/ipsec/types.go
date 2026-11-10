@@ -702,6 +702,39 @@ type SiteToSitePeer struct {
 	// policy; true also protects MOBIKE address updates with NO_NATS_ALLOWED.
 	ProhibitNAT bool
 
+	// DFBit, OuterDSCP and SkipICMPErrorCheck are one octet each and fill the three
+	// octets of padding between ProhibitNAT and TrafficSelectors, so they add nothing to
+	// the struct's size (types_size_test.go holds it).
+	//
+	// DFBit is the DF treatment of this peer's outbound tunnel-mode Child SAs, the
+	// df-bit leaf. RFC 4301 Section 8.1: "This means that it MUST be possible to
+	// configure the implementation's treatment of the DF bit (set, clear, copy from
+	// inner header) for each SA." The zero value is dataplane.DFCopy, the option the
+	// same section makes mandatory, so a peer that states nothing copies the bit as
+	// every peer did before the leaf existed. ValidateOuterHeader refuses a treatment
+	// no dataplane can apply.
+	DFBit dataplane.DFTreatment
+
+	// OuterDSCP is the DSCP this peer's outbound tunnel-mode Child SAs write into the
+	// outer header, the dscp-map leaf: copy (the zero value) or one fixed value.
+	// RFC 4301 Section 5.1.2.1 note 5: "If the packet will immediately enter a domain
+	// for which the DSCP value in the outer header is not appropriate, that value MUST
+	// be mapped to an appropriate value for the domain".
+	OuterDSCP dataplane.OuterDSCP
+
+	// SkipICMPErrorCheck is the operator turning the RFC 4301 Section 6.2 ICMP error
+	// processing off for this peer's Child SAs: an inbound ICMP error whose own headers
+	// match none of the SA's selectors is then dropped without its payload being read,
+	// and an outbound ICMP error no SA or SPD entry carries is not mapped to the return
+	// SA. Carriage is then decided by the SPD entries alone, which is the RFC's own
+	// convention for an administrator who wants no payload inspection.
+	//
+	// RFC 4301 Section 6.2: "However, not all contexts may require such checks, so it is
+	// also necessary to allow a local administrator to configure an implementation to NOT
+	// perform such checks." The field is negative so the zero value is the RFC's
+	// processing, which the `icmp-error-check` leaf defaults to.
+	SkipICMPErrorCheck bool
+
 	// TrafficSelectors is the operator policy RFC 7296 Section 2.9 narrows a peer's
 	// proposed TSi/TSr against. An EMPTY slice means "allow everything", which
 	// preserves the behavior of every config written before this field existed: such a

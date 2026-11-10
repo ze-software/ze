@@ -138,9 +138,11 @@ func (b *xfrmBackend) InstallSA(p SAParams) error {
 // full-functionality option for tunnels", and MUST implement the processing "to prevent
 // discarding of ECN congestion indications". Linux copies the congestion indication on
 // decapsulation UNLESS XFRM_STATE_NOECN is set in the state's flags. Nothing below sets
-// it: netlink.XfrmState carries no general flags field, only ESN and AFUnspec, which set
-// XFRM_STATE_ESN and XFRM_STATE_AF_UNSPEC alone, so the kernel default stands for every SA
-// ze installs.
+// it: netlink.XfrmState carries no general flags field, only ESN, AFUnspec, NoPMTUDisc and
+// ICMP, which set XFRM_STATE_ESN, XFRM_STATE_AF_UNSPEC, XFRM_STATE_NOPMTUDISC and
+// XFRM_STATE_ICMP alone, and DontEncapDSCP and OSeqMayWrap, which set
+// XFRM_SA_XFLAG_DONT_ENCAP_DSCP and XFRM_SA_XFLAG_OSEQ_MAY_WRAP in the separate
+// XFRMA_SA_EXTRA_FLAGS attribute, so the kernel default stands for every SA ze installs.
 //
 // It is split out of InstallSA so the mapping can be driven without a netlink socket: the
 // tests that prove Section 2.24 call THIS, not a type literal.
@@ -207,6 +209,11 @@ func xfrmStateFromParams(p SAParams) (*netlink.XfrmState, error) {
 			Proto:   netlink.Proto(p.Sel.UpperProto), // 0 = any, 89 = OSPF
 			SrcPort: srcPort,
 			DstPort: dstPort,
+
+			// The masks travel with the ports: an ICMP type or code selector of 0, and
+			// an ICMP code block, are a value the library cannot derive a mask from.
+			SrcPortMask: p.Sel.SrcPort.Mask,
+			DstPortMask: p.Sel.DstPort.Mask,
 		}
 	}
 	// A zero selector is not "any family". The kernel's copy_from_user_state
@@ -223,6 +230,25 @@ func xfrmStateFromParams(p SAParams) (*netlink.XfrmState, error) {
 		// RFC 4301 Section 5.1.2: "IPsec allows the IP version of the
 		// encapsulating header to be different from that of the inner header."
 		state.AFUnspec = true
+	}
+
+	// RFC 4301 Section 6.2: "If an IPsec implementation receives an inbound ICMP error
+	// message on an SA, and the IP and ICMP headers of the message do not match the
+	// traffic selectors for the SA, the receiver MUST process the received message in a
+	// special fashion." With XFRM_STATE_ICMP on the last state of the secpath, icmp_rcv
+	// (net/ipv4/icmp.c) and icmpv6_rcv (net/ipv6/icmp.c) answer a failed inbound policy
+	// check by checking again on the embedded header with addresses and ports reversed
+	// (xfrm4_policy_check_reverse), and __xfrm_policy_check does the same for a state
+	// selector (xfrm_selector_inner_icmp_match). Without it the message is dropped.
+	// Linux refuses the flag on an SA flagged outbound, so it rides the inbound state.
+	if p.ICMPErrorCheck {
+		if p.Dir == SADirOut {
+			// Only a Ze defect reaches this: no config sets the check per direction.
+			return nil, fmt.Errorf("xfrm: state add spi=%d: BUG: the ICMP error payload check is set on an outbound SA, and Linux performs it on an inbound SA only; "+
+				"the code that built this SAParams must set ICMPErrorCheck on the inbound state alone, as engine/child.go does, so report this as a Ze defect",
+				p.SPI)
+		}
+		state.ICMP = true
 	}
 
 	// RFC 4302 (AH) vs RFC 4303 (ESP): AH sets an integrity transform only, ESP
@@ -272,7 +298,124 @@ func xfrmStateFromParams(p SAParams) (*netlink.XfrmState, error) {
 		}
 	}
 
+	// RFC 4301 Section 8.1
+	noPMTUDisc, err := xfrmNoPMTUDisc(p)
+	if err != nil {
+		return nil, err
+	}
+	state.NoPMTUDisc = noPMTUDisc
+
+	// RFC 4301 Section 5.1.2.1
+	dontEncapDSCP, err := xfrmDontEncapDSCP(p)
+	if err != nil {
+		return nil, err
+	}
+	state.DontEncapDSCP = dontEncapDSCP
+
 	return state, nil
+}
+
+// xfrmDontEncapDSCP projects the SA's outer DSCP treatment onto the one DSCP primitive
+// Linux XFRM has, or refuses the value the kernel cannot write.
+//
+// RFC 4301 Section 5.1.2.1 note 5: "If the packet will immediately enter a domain for
+// which the DSCP value in the outer header is not appropriate, that value MUST be
+// mapped to an appropriate value for the domain".
+//
+// xfrm4_tunnel_encap_add and xfrm6_tunnel_encap_add (net/xfrm/xfrm_output.c) write the
+// outer DS field as the inner one, unless XFRM_SA_XFLAG_DONT_ENCAP_DSCP is set, when
+// they write 0; INET_ECN_encapsulate then adds the ECN bits either way. Copy and a
+// fixed 0 are therefore exact. Any other fixed value has no XFRM flag or attribute,
+// so it is refused rather than installed as 0 or as a copy.
+func xfrmDontEncapDSCP(p SAParams) (bool, error) {
+	dontEncap, err := xfrmDSCPFlag(p.OuterDSCP)
+	if err != nil {
+		return false, fmt.Errorf("xfrm: state add spi=%d: %w", p.SPI, err)
+	}
+	return dontEncap, nil
+}
+
+// xfrmDSCPFlag is the predicate xfrmDontEncapDSCP and SAOptionsSupported share, so
+// the commit-time refusal and the install-time one cannot disagree.
+//
+// RFC 4301 Section 5.1.2.1 note 5: "If the packet will immediately enter a domain for
+// which the DSCP value in the outer header is not appropriate, that value MUST be
+// mapped to an appropriate value for the domain".
+func xfrmDSCPFlag(d OuterDSCP) (bool, error) {
+	v, fixed := d.Fixed()
+	if !fixed {
+		return false, nil
+	}
+	if v == 0 {
+		return true, nil
+	}
+	return false, fmt.Errorf("%w: outer DSCP %d cannot be expressed: the Linux kernel copies the inner DSCP or writes 0 (XFRM_SA_XFLAG_DONT_ENCAP_DSCP) and has no attribute for another value; configure dscp-map copy or 0 on this peer",
+		ErrSAOptionRefused, v)
+}
+
+// xfrmNoPMTUDisc projects the SA's DF treatment onto the one DF primitive Linux XFRM
+// has, or refuses the treatment the kernel cannot express.
+//
+// RFC 4301 Section 8.1: "This means that it MUST be possible to configure the
+// implementation's treatment of the DF bit (set, clear, copy from inner header) for
+// each SA."
+//
+// The kernel builds the outer IPv4 header in xfrm4_tunnel_encap_add
+// (net/xfrm/xfrm_output.c), and the DF bit is one expression there:
+//
+//	top_iph->frag_off = (flags & XFRM_STATE_NOPMTUDISC) || small_ipv6 ?
+//		0 : (XFRM_MODE_SKB_CB(skb)->frag_off & htons(IP_DF));
+//
+// With no flag the inner bit is copied, and XFRM_STATE_NOPMTUDISC writes it clear. No
+// flag or attribute writes it set: XFRMA_IPTFS_DONT_FRAG applies to IP-TFS mode only,
+// and ze installs tunnel and transport mode. A set request is therefore refused rather
+// than installed as a copy that would carry a clear bit for every inner packet whose
+// own DF is clear.
+func xfrmNoPMTUDisc(p SAParams) (bool, error) {
+	if err := outerHeaderTreatmentError(p); err != nil {
+		return false, fmt.Errorf("xfrm: state add: %w", err)
+	}
+	noPMTUDisc, err := xfrmDFFlag(p.DF)
+	if err != nil {
+		return false, fmt.Errorf("xfrm: state add spi=%d: %w", p.SPI, err)
+	}
+	return noPMTUDisc, nil
+}
+
+// xfrmDFFlag is the predicate xfrmNoPMTUDisc and SAOptionsSupported share, so the
+// commit-time refusal and the install-time one cannot disagree.
+//
+// RFC 4301 Section 8.1: "This means that it MUST be possible to configure the
+// implementation's treatment of the DF bit (set, clear, copy from inner header) for
+// each SA."
+func xfrmDFFlag(df DFTreatment) (bool, error) {
+	switch df {
+	case DFCopy:
+		return false, nil
+	case DFClear:
+		return true, nil
+	case DFSet:
+		return false, fmt.Errorf("%w: DF set cannot be expressed: the Linux kernel's xfrm4_tunnel_encap_add copies the inner DF bit or clears it, and no XFRM flag sets it; configure df-bit copy or clear on this peer",
+			ErrSAOptionRefused)
+	}
+	return false, fmt.Errorf("%w: DF treatment %d names none of copy, clear or set",
+		ErrSAOptionRefused, df)
+}
+
+// SAOptionsSupported answers config verify for Linux XFRM from the predicates the
+// install path uses: DF copy or clear, an outer DSCP copied or fixed at 0, and the
+// RFC 4301 Section 6.2 ICMP error processing either way (XFRM_STATE_ICMP and
+// XFRM_POLICY_ICMP carry it).
+func (b *xfrmBackend) SAOptionsSupported(o SAOptions) error {
+	// RFC 4301 Section 8.1
+	if _, err := xfrmDFFlag(o.DF); err != nil {
+		return fmt.Errorf("xfrm: %w", err)
+	}
+	// RFC 4301 Section 5.1.2.1
+	if _, err := xfrmDSCPFlag(o.OuterDSCP); err != nil {
+		return fmt.Errorf("xfrm: %w", err)
+	}
+	return nil
 }
 
 // RemoveSA deletes one inbound or outbound XFRM state and stops re-presenting bare ESP
@@ -489,6 +632,14 @@ func xfrmPolicyFromParams(p SPParams) (*netlink.XfrmPolicy, error) {
 	// which is what RFC 4301 Section 7.4 calls "DISCARDing ... using the normal SPD
 	// packet classification mechanisms".
 	if p.Action.isTemplateFree() {
+		// A bypass or discard entry names no SA, so it has no SA to map an ICMP error
+		// to: the request would install nothing the caller asked for.
+		if p.ICMPErrorReturn {
+			// Only a Ze defect reaches this: no config sets the mapping on such an entry.
+			return nil, fmt.Errorf("BUG: the ICMP error return mapping is set on a template-free policy (action %d), which names no SA to carry the error; "+
+				"the code that built this SPParams must set ICMPErrorReturn on an outbound protect entry alone, as engine/child.go childPairPolicy does, so report this as a Ze defect",
+				p.Action)
+		}
 		kernelAction, err := xfrmPolicyAction(p.Action)
 		if err != nil {
 			return nil, err
@@ -502,17 +653,33 @@ func xfrmPolicyFromParams(p SPParams) (*netlink.XfrmPolicy, error) {
 			return nil, err
 		}
 		return &netlink.XfrmPolicy{
-			Src:      p.Src,
-			Dst:      p.Dst,
-			Dir:      netlink.Dir(p.Dir - 1),
-			Proto:    netlink.Proto(p.UpperProto),
-			SrcPort:  srcPort,
-			DstPort:  dstPort,
+			Src:     p.Src,
+			Dst:     p.Dst,
+			Dir:     netlink.Dir(p.Dir - 1),
+			Proto:   netlink.Proto(p.UpperProto),
+			SrcPort: srcPort,
+			DstPort: dstPort,
+
+			// RFC 4301 Section 4.4.1.1: an ICMP type and code selector travels in the
+			// port pair, and its mask is what makes type 0, code 0 and a code block
+			// exact (xfrmSelectorPort).
+			SrcPortMask: p.SrcPort.Mask,
+			DstPortMask: p.DstPort.Mask,
+
 			Ifindex:  p.IfIndex,
 			Priority: p.Priority,
 			Action:   kernelAction,
 			Ifid:     int(p.IfID),
 		}, nil
+	}
+	// The kernel reads XFRM_POLICY_ICMP only on the policy an outbound XFRM_LOOKUP_ICMP
+	// lookup finds (xfrm_lookup_with_ifid, net/xfrm/xfrm_policy.c), so the flag on an
+	// inbound or forward policy would install a request nothing performs.
+	if p.ICMPErrorReturn && p.Dir != SADirOut {
+		// Only a Ze defect reaches this: no config sets the mapping per direction.
+		return nil, fmt.Errorf("BUG: the ICMP error return mapping is set on a direction %d policy, and the kernel performs it on an outbound (%d) policy only; "+
+			"the code that built this SPParams must set ICMPErrorReturn on the outbound entry alone, as engine/child.go childPairPolicy does, so report this as a Ze defect",
+			p.Dir, SADirOut)
 	}
 	mode, ok := kernelXFRMMode(p.Mode)
 	if !ok {
@@ -532,12 +699,18 @@ func xfrmPolicyFromParams(p SPParams) (*netlink.XfrmPolicy, error) {
 		return nil, err
 	}
 	return &netlink.XfrmPolicy{
-		Src:      p.Src,
-		Dst:      p.Dst,
-		Dir:      netlink.Dir(p.Dir - 1),
-		Proto:    netlink.Proto(p.UpperProto), // upper-layer selector (0 = any, 89 = OSPF)
-		SrcPort:  srcPort,
-		DstPort:  dstPort,
+		Src:     p.Src,
+		Dst:     p.Dst,
+		Dir:     netlink.Dir(p.Dir - 1),
+		Proto:   netlink.Proto(p.UpperProto), // upper-layer selector (0 = any, 89 = OSPF)
+		SrcPort: srcPort,
+		DstPort: dstPort,
+
+		// A negotiated ICMP selector carries type and code here (RFC 4301 Section
+		// 4.4.1.1, engine/child.go childPairPolicy); the mask keeps type 0 exact.
+		SrcPortMask: p.SrcPort.Mask,
+		DstPortMask: p.DstPort.Mask,
+
 		Ifindex:  p.IfIndex, // RFC 4552 §6 interface-based selector (0 = node-wide)
 		Priority: p.Priority,
 		Tmpls: []netlink.XfrmPolicyTmpl{{
@@ -550,6 +723,14 @@ func xfrmPolicyFromParams(p SPParams) (*netlink.XfrmPolicy, error) {
 			Reqid: int(p.ReqID),
 		}},
 		Ifid: int(p.IfID),
+
+		// RFC 4301 Section 6.2: "It then uses this extracted information to locate an
+		// appropriate, active outbound SA, and transmits the error message via this SA."
+		// icmp_route_lookup (net/ipv4/icmp.c), icmpv6_route_lookup (net/ipv6/icmp.c) and
+		// xfrm_out_fwd_icmp (net/xfrm/xfrm_policy.c) make that lookup with
+		// XFRM_LOOKUP_ICMP on the reversed header, and xfrm_lookup_with_ifid answers
+		// -ENOENT to it unless the policy it finds carries XFRM_POLICY_ICMP.
+		ICMP: p.ICMPErrorReturn,
 	}, nil
 }
 
@@ -582,31 +763,27 @@ func xfrmPolicyAction(a SPAction) (netlink.PolicyAction, error) {
 // xfrmSelectorPort converts a PortMatch to the port number netlink writes into the XFRM
 // selector, and REFUSES a match the selector cannot express.
 //
-// The kernel selector is a port plus a mask, but selFromPolicy derives the mask from the
-// port: it sets a full mask only when the port is non-zero
-// (vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go, selFromPolicy). So exactly
-// two matches are expressible through this API:
+// The kernel selector is a port plus a mask and matches a flow when
+// (flow ^ sel) & mask is zero (net/xfrm/xfrm_policy.c, __xfrm4_selector_match). Every
+// PortMatch is therefore expressible, provided the mask reaches the kernel with it:
+// the caller writes p.Mask into XfrmPolicy.SrcPortMask or DstPortMask, which the
+// vendored library sends as given (internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch,
+// selFromPolicy). Upstream derives the mask from the port value instead, so exactly
+// port 0 and a partial mask would install as any port without that patch
+// (docs/architecture/linux-limitations.md, LL-NETLINK-XFRM-PORT-MASK).
 //
-//	any port      -> port 0, mask 0.
-//	one port N>=1 -> port N, mask 0xffff.
+// For ICMP and ICMPv6 the kernel reads the message type into the source port and the
+// code into the destination port (include/net/xfrm.h, xfrm_flowi_sport and
+// xfrm_flowi_dport), which is how an RFC 4301 Section 4.4.1.1 type and code selector
+// reaches this function.
 //
-// A match asking for "exactly port 0" cannot be built: writing 0 yields mask 0, which
-// matches EVERY port. That is the OPAQUE port form of RFC 7296 Section 3.13.1, and
-// installing it as any-port would protect more traffic than was negotiated. So it is
-// refused here rather than widened (ai/rules/protocol.md).
+// A port bit outside the mask is refused: the kernel would ignore it, so the value
+// would read as a constraint the installed policy does not carry.
 func xfrmSelectorPort(side string, p PortMatch) (int, error) {
-	if p.IsAny() {
-		return 0, nil
-	}
-	if p.Mask != 0xffff {
+	if p.Port&^p.Mask != 0 {
 		return 0, fmt.Errorf(
-			"xfrm: %s port mask %#04x is not expressible: the kernel selector this backend builds carries either no port constraint or one exact port, so the mask must be 0 or 0xffff",
-			side, p.Mask)
-	}
-	if p.Port == 0 {
-		return 0, fmt.Errorf(
-			"xfrm: %s port selector asks for exactly port 0, which this backend cannot express: the netlink library derives the port mask from the port value, so port 0 always matches every port (docs/architecture/linux-limitations.md, LL-NETLINK-XFRM-PORT-MASK); RFC 7296 Section 3.13.1 OPAQUE ports cannot be installed through it",
-			side)
+			"xfrm: %s port %d carries bits outside its mask %#04x, and the kernel ignores them, so the installed selector would not be the one asked for",
+			side, p.Port, p.Mask)
 	}
 	return int(p.Port), nil
 }
@@ -670,7 +847,63 @@ func saInfoFromState(s *netlink.XfrmState) SAInfo {
 		info.Integrity = s.Auth.Name
 		info.IntegrityKeyBits = len(s.Auth.Key) * 8
 	}
+	info.Options = saOptionsFromState(s)
+	info.OptionsRead = true
+	info.Dir = saDirFromKernel(s.SADir)
 	return info
+}
+
+// saDirFromKernel maps the XFRMA_SA_DIR attribute of a dumped state. The kernel
+// reports it only for a state installed with it (copy_to_user_state_extra,
+// net/xfrm/xfrm_user.c, emits it when x->dir is set), so its absence, and any value
+// outside the two directions, maps to the zero SADir: the dataplane holds no
+// direction, and none is derived.
+func saDirFromKernel(d netlink.SADir) SADir {
+	switch d {
+	case netlink.XFRM_SA_DIR_IN:
+		return SADirIn
+	case netlink.XFRM_SA_DIR_OUT:
+		return SADirOut
+	}
+	return 0
+}
+
+// saOptionsFromState reads the per-SA options back from the flags the kernel reports
+// for the state, the inverse of the projection in xfrmState (xfrmDFFlag,
+// xfrmDSCPFlag, the ICMP arm). The dump carries all three: the base message's flags
+// hold XFRM_STATE_NOPMTUDISC and XFRM_STATE_ICMP, and XFRMA_SA_EXTRA_FLAGS holds
+// XFRM_SA_XFLAG_DONT_ENCAP_DSCP (netlink parseXfrmState).
+//
+// RFC 4301 Section 8.1: "This means that it MUST be possible to configure the
+// implementation's treatment of the DF bit (set, clear, copy from inner header) for
+// each SA." xfrm4_tunnel_encap_add (net/xfrm/xfrm_output.c) writes a clear outer DF
+// under XFRM_STATE_NOPMTUDISC and copies the inner DF otherwise, so the flag reads
+// back as clear and its absence as copy. No kernel state writes DF set.
+//
+// RFC 4301 Section 5.1.2.1 note 5: "If the packet will immediately enter a domain
+// for which the DSCP value in the outer header is not appropriate, that value MUST
+// be mapped to an appropriate value for the domain". xfrm4_tunnel_encap_add and
+// xfrm6_tunnel_encap_add write outer DSCP 0 under XFRM_SA_XFLAG_DONT_ENCAP_DSCP and
+// copy the inner DSCP otherwise.
+//
+// RFC 4301 Section 6.2: "Thus, an IPsec implementation MUST be configurable to check
+// that this payload header information is consistent with the SA via which it
+// arrives." XFRM_STATE_ICMP on the last state of the secpath is that check: icmp_rcv
+// and icmpv6_rcv then run xfrm4_policy_check_reverse and xfrm6_policy_check_reverse.
+func saOptionsFromState(s *netlink.XfrmState) SAOptions {
+	options := SAOptions{DF: DFCopy, OuterDSCP: OuterDSCPCopy, ICMPErrorCheck: s.ICMP}
+	if s.NoPMTUDisc {
+		options.DF = DFClear
+	}
+	if s.DontEncapDSCP {
+		// FixedOuterDSCP refuses only a value above DSCPMax, and 0 is not.
+		fixed, err := FixedOuterDSCP(0)
+		if err != nil {
+			panic("BUG: FixedOuterDSCP refused 0: " + err.Error())
+		}
+		options.OuterDSCP = fixed
+	}
+	return options
 }
 
 // hardLimitFromKernel maps XFRM_INF to the public unlimited value.
@@ -716,8 +949,8 @@ func (b *xfrmBackend) ListPolicies() ([]PolicyInfo, error) {
 // kernel row back into the SPParams key policyOwners recorded at install time.
 //
 // The dump retains prefix families and raw port masks. Ownership therefore
-// compares the full selector, including constraints from foreign writers that
-// xfrmSelectorPort cannot install.
+// compares the full selector, including partial masks and exact port zero, which
+// ze itself installs for an ICMP type and code selector.
 //
 // A policy ze did not install resolves to no owner. That is the common case on a
 // node running another IKE daemon, and OwnerKnown false is the answer, never a
@@ -732,6 +965,9 @@ func (b *xfrmBackend) policyInfoFromKernel(p *netlink.XfrmPolicy) PolicyInfo {
 		Priority:   p.Priority,
 		IfIndex:    p.Ifindex,
 		IfID:       uint32(p.Ifid),
+		// XFRM_POLICY_ICMP, the flag xfrmPolicyFromParams sets for
+		// SPParams.ICMPErrorReturn (netlink parseXfrmPolicy reads it into ICMP).
+		ICMPErrorReturn: p.ICMP,
 	}
 	info.Dir, info.PerSocket = policyDirFromKernel(p.Dir)
 	// An ALLOW policy with no template is the SPD BYPASS disposition of RFC 4301

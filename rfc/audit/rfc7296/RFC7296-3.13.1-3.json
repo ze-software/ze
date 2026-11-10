@@ -1,13 +1,13 @@
 {
-  "note": "PortOpaque encodes 65535/0 and ANY is not emitted in that form",
+  "note": "Re-judged 2026-11-10 by an independent judge after a comment-only change to TestPortEncodingFollowsSection3131: the OPAQUE comment block now says the patched netlink can write exact port 0 and that the opaque-port dataplane mapping is post-release work, which is accurate. Assertions unchanged, and PortSelector.Wire and selectorsToWire unchanged. selectorsToWire is the only wire producer and PortSelector.Wire maps PortOpaque to 65535/0. The positive asserts exactly 65535/0; the negative asserts ANY is not emitted in that form, so an aliased encoding goes red. Ze never wishes to indicate OPAQUE (refused at commit by checkPortProgrammable, narrowed away by programmableSelector), so the encoding rule is proven where it is owned.",
   "requirement_sha": "6de0d80d4f1433e8",
   "tests": {
-    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "f8202c6c1c2c2a71",
-    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "f8202c6c1c2c2a71"
+    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "042ef3718a420858",
+    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "042ef3718a420858"
   },
   "units": {
-    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "9aebd2917a3a0115",
-    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "9aebd2917a3a0115"
+    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "2e0ea6846dddb242",
+    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "2e0ea6846dddb242"
   },
   "verdict": "enforced"
 }

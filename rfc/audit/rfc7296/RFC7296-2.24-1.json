@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/ike/dataplane/rfc7296_ecn_linux_test.go::TestEcnInstalledStateDisablesNothing": "38ec105d43e07435",
     "internal/component/ike/dataplane/rfc7296_ecn_linux_test.go::TestEcnTheScannedStateIsTheOneZeInstalls": "38ec105d43e07435",
-    "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSACopiesECN": "ddb14b46cb0e3e82",
-    "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSAECNIsOnTheSAZeInstalls": "ddb14b46cb0e3e82",
+    "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSACopiesECN": "cd45c49002c813e8",
+    "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSAECNIsOnTheSAZeInstalls": "cd45c49002c813e8",
     "internal/component/ike/engine/rfc7296_ecn_test.go::TestEcnInstalledChildSAAsksForNoECNChange": "84a6a3e42bf96d67",
     "internal/component/ike/engine/rfc7296_ecn_test.go::TestEcnTheInstalledSAsAreRealAndDirectional": "84a6a3e42bf96d67"
   },

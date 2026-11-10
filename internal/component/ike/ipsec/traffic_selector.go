@@ -55,6 +55,14 @@ type PortSelector struct {
 	Port uint16
 }
 
+// sideLocal and sideRemote name the two ends of a selector as the config spells
+// their containers, and as a refusal names the side it judged. Declared once so the
+// peer traffic-selector list and the operator SPD policy list read the same words.
+const (
+	sideLocal  = "local"
+	sideRemote = "remote"
+)
+
 // AnyPort returns the selector that matches every port.
 // portAnyKeyword is the word an operator writes for "every port", in the peer
 // traffic-selector list and in the operator SPD policy list alike. Declared once so
@@ -208,8 +216,8 @@ func parseTrafficSelector(peerName, number string, t *config.Tree) (TrafficSelec
 		prefix **net.IPNet
 		port   *PortSelector
 	}{
-		{"local", &ts.LocalPrefix, &ts.LocalPort},
-		{"remote", &ts.RemotePrefix, &ts.RemotePort},
+		{sideLocal, &ts.LocalPrefix, &ts.LocalPort},
+		{sideRemote, &ts.RemotePrefix, &ts.RemotePort},
 	} {
 		sub := t.GetContainer(side.name)
 		if sub == nil {
@@ -295,6 +303,9 @@ func validatePeerSelectors(peer SiteToSitePeer) error {
 		if ts.RemotePrefix == nil {
 			return fmt.Errorf("%w: peer %q traffic-selector %q: remote prefix is required", ErrTrafficSelectorPolicy, peer.Name, ts.Number)
 		}
+		if err := checkICMPFamily(peer.Name, ts); err != nil {
+			return err
+		}
 		if err := checkPortProgrammable(peer.Name, ts.Number, "local", ts.LocalPort, ts.Protocol); err != nil {
 			return err
 		}
@@ -309,6 +320,38 @@ func validatePeerSelectors(peer SiteToSitePeer) error {
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+// checkICMPFamily refuses an ICMP type and code selector under the ICMP protocol of
+// the other address family: protocol 1 with an IPv6 prefix, or 58 with an IPv4 one.
+// Under ICMP the "port" of a selector carries the message type and code (RFC 4301
+// Section 4.4.1.3), and the two protocols number their types apart, so such a
+// selector would install a policy that matches no packet and protects nothing.
+//
+// RFC 4301 Section 4.4.1.1: "If the Next Layer Protocol value is ICMP, then there is a
+// 16-bit selector for the ICMP message type and code."
+func checkICMPFamily(peerName string, ts TrafficSelectorPolicy) error {
+	if !dataplane.IsICMPProto(ts.Protocol) {
+		return nil
+	}
+	if ts.LocalPort.IsAny() && ts.RemotePort.IsAny() {
+		return nil
+	}
+	for _, side := range []struct {
+		name   string
+		prefix *net.IPNet
+	}{{sideLocal, ts.LocalPrefix}, {sideRemote, ts.RemotePrefix}} {
+		family := icmpFamilyOf(side.prefix)
+		if ts.Protocol == family.proto {
+			continue
+		}
+		return fmt.Errorf("%w: peer %q traffic-selector %q: the ICMP type and code in its port select %s messages "+
+			"under protocol %d, but %s prefix %s is %s, which carries %s as protocol %d, so the selector would match no packet; "+
+			"set protocol to %d, or use %s prefixes",
+			ErrTrafficSelectorPolicy, peerName, ts.Number, family.otherMessage, ts.Protocol,
+			side.name, side.prefix, family.name, family.message, family.proto, family.proto, family.otherName)
 	}
 	return nil
 }
@@ -332,13 +375,12 @@ func checkPortProgrammable(peerName, number, side string, p PortSelector, proto 
 		return nil
 	case PortOpaque:
 		// ai/rules/protocol.md. RFC 7296 Section 3.13.1 gives OPAQUE ports the
-		// encoding start 65535 / end 0, and Ze can PARSE that from a peer. It cannot
-		// PROGRAM it: Linux limitation LL-NETLINK-XFRM-PORT-MASK
-		// (docs/architecture/linux-limitations.md), so a request for exactly port 0
-		// installs as any-port, which protects more traffic than OPAQUE names.
-		// Refusing at commit is the honest answer; accepting and widening at install
-		// time is not.
-		return fmt.Errorf("%w: peer %q traffic-selector %q: %s port opaque cannot be programmed by any dataplane backend Ze has, because the netlink library Ze programs XFRM policies through derives the port mask from the port value, so an exact match on port 0 is not expressible (docs/architecture/linux-limitations.md, LL-NETLINK-XFRM-PORT-MASK); use any, or a port number in 1..65535",
+		// encoding start 65535 / end 0, and Ze can PARSE that from a peer. It does not
+		// PROGRAM it yet: OPAQUE names a port that is not visible in the packet, and
+		// which kernel selector carries that meaning is the work of
+		// plan/post-release/features/spec-ipsec-opaque-selector-port-mask.md. Refusing at
+		// commit is the honest answer; installing a guess is not.
+		return fmt.Errorf("%w: peer %q traffic-selector %q: %s port opaque is not programmed by Ze yet, because no dataplane mapping of a port that is not visible in the packet is implemented; use any, or a port number in 1..65535",
 			ErrTrafficSelectorPolicy, peerName, number, side)
 	case 0:
 		return fmt.Errorf("%w: peer %q traffic-selector %q: %s port form %d is not a form Ze can encode; accepted values are any, opaque, or a port number in 1..65535",

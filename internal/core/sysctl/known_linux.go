@@ -95,6 +95,27 @@ func init() {
 		Description: "Enable IPv6 forwarding on interface", Platform: PlatformLinux,
 	})
 
+	// Path MTU aging. A PMTU learned from an ICMP Fragmentation Needed or Packet
+	// Too Big expires after this many seconds and the route's MTU returns to the
+	// device MTU (__ip_rt_update_pmtu in net/ipv4/route.c, rt6_do_update_pmtu in
+	// net/ipv6/route.c). Each value is per network namespace. The PMTU of an
+	// IPsec tunnel-mode SA lives on its outer route, so these keys are the period
+	// RFC 4301 Section 8.2.2 asks to be configurable: "The period SHOULD be
+	// configurable." The kernel converts seconds to jiffies (proc_dointvec_jiffies)
+	// and refuses a value over INT_MAX/HZ, so the maximum holds for any HZ up to
+	// 1000. The minimum is 1 because RFC 4301 Section 8.2.2 requires that "A given
+	// PMTU has to remain in place long enough for a packet to get from the source
+	// of the SA to the peer, and to propagate an ICMP error message if the current
+	// PMTU is too big.", and 0 or less expires a PMTU the moment it is learned.
+	MustRegister(KeyDef{
+		Name: "net.ipv4.route.mtu_expires", Type: TypeIntRange, Min: 1, Max: 2147483,
+		Description: "Seconds a learned IPv4 path MTU is kept before it returns to the link MTU", Platform: PlatformLinux,
+	})
+	MustRegister(KeyDef{
+		Name: "net.ipv6.route.mtu_expires", Type: TypeIntRange, Min: 1, Max: 2147483,
+		Description: "Seconds a learned IPv6 path MTU is kept before it returns to the link MTU", Platform: PlatformLinux,
+	})
+
 	// MPLS sysctl keys (RFC 3031, RFC 3032).
 	MustRegister(KeyDef{
 		Name: "net.mpls.platform_labels", Type: TypeIntRange, Min: 0, Max: 1048575,
