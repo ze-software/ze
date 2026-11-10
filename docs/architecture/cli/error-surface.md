@@ -155,9 +155,10 @@ the obligation; this is the shape it takes.
 
 | Rule | Why |
 |------|-----|
-| Lowercase start, no trailing punctuation, single line | Go convention; errors get wrapped, joined, and grepped |
+| Lowercase start, no trailing punctuation | Go convention; errors get wrapped, joined, and grepped |
+| An operator refusal is an `opererr.Error`, with the fix on its last line | The operator reads the command to run on a line of its own; see "The operator error" below |
 | One stable leading phrase per failure kind (e.g. `reject=syslog pattern found:`) | Agents and log scanners match on it, so it is not reworded per call site |
-| Wrap the cause and add context: `fmt.Errorf("parse %s: %w", path, err)` | Preserves the `errors.Is`/`errors.As` chain; each layer adds what it knows |
+| Wrap the cause and add context: `fmt.Errorf("parse %s: %w", path, err)` | Preserves the `errors.Is`/`errors.As` chain; a layer adds only a fact the layer below did not hold, so no prefix appears twice |
 | Name the subject and the value, not just the type | "invalid value" with no value is unactionable |
 | Truncate a large blob (body, dump, hex) before embedding it | A 10 MB error is unreadable for a human and for an agent |
 | No `fmt.Sprintf`/`fmt.Errorf` on a hot path | A boundary or one-shot error may use `fmt.Errorf`; a hot path uses an append builder (`ai/rules/performance.md`) |
@@ -180,6 +181,26 @@ as an exported constant beside the table, and every surface that emits it
 references that constant rather than the string. The handler returns the code
 and structured fields rather than a finished sentence, which is what makes the
 corrective action machine-readable.
+
+## The operator error
+
+A refusal an operator reads is an `opererr.Error`
+(`internal/core/opererr`). The producer that holds the fact builds it, once,
+from three parts, all required: what went wrong, why it matters, and the
+command or config change that fixes it. An optional cause follows the explanation as evidence.
+The fix is the command alone, the exact text the operator types, never a
+repair id: a diagnostic's `Repair` and `FixSafety` name an automated repair.
+
+| Surface | What it renders |
+|---------|-----------------|
+| Go error chain, API answer, plugin RPC answer | `Error()`: the problem on line 1, the why on line 2 followed by `: <cause>` when there is one, `fix: <command>` on the last line |
+| CLI | the same text, printed unchanged by the client, in the error zone above |
+| Log line | the problem as the message, with `why`, `fix` and `error` (the cause) attributes, then a `code` attribute when the caller passes one; the type never invents a code |
+| Web notice | the problem, the why and the fix, read through `Problem`, `Why` and `Fix` |
+
+The fix is always the last line, so a layer that prepends context to line 1 never moves it.
+
+<!-- source: internal/core/opererr/opererr.go -- Error, LogAttrs, Problem, Why, Fix -->
 
 ## A value carries no marker
 

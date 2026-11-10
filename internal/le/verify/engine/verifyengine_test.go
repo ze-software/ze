@@ -30,6 +30,7 @@ func TestFullStagesMatchesNativeActionPopulation(t *testing.T) {
 		"doc check/all", "doc check/links", "doc check/retired-commands", "repo/check/tree",
 		"plugin imports/check", "plugin gated-table/check", "plugin coupling/check", "plugin declarations/check", "arch enumeration/check",
 		"arch compound-guard/check", "arch refuse-by-default/check",
+		"arch error-wrap/check", "arch operator-error/check",
 		"yang glue/check", "repo feature-tags/check",
 		"doc check/templ-output", "web vendor/check", "web assets/check",
 		"doc index/check", "ai rules/check/render",

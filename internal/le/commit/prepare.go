@@ -290,6 +290,11 @@ func Create(root string, options *Options) (Prepared, error) {
 		if err := dependencyRefusal(root, paths, removed, selection, content.before); err != nil {
 			return result, err
 		}
+		// Every registered change-set check judges what the commit adds
+		// (changechecks.go, changecheck.Register).
+		if err := changeCheckRefusal(root, paths, removed, selection, content.before); err != nil {
+			return result, err
+		}
 		carried, err := ledgerCarriedTrailers(root, options.LedgerCarried, paths, removed)
 		if err != nil {
 			return result, err

@@ -241,6 +241,17 @@ func fullStages() []Stage {
 		// spec-refuse-instead-of-defaulting and listed by `le arch
 		// refuse-by-default report`, so a tree scope would red every commit.
 		stage("arch refuse-by-default", "check"),
+		// arch error-wrap and arch operator-error judge the same unpushed LINES
+		// against the same base: a changed wrap that repeats the prefix its
+		// error already carries, and a changed return of a registered command
+		// handler, RPC handler or config verifier that hands the operator a
+		// plain error with no fix. Neither reads the published scope, so each
+		// is a full judgement of its subject in every population. The tree's
+		// existing instances are `le arch error-wrap report` and `le arch
+		// operator-error report`; a tree scope would red every commit
+		// (spec-operator-errors-name-the-fix, AC-4).
+		stage("arch error-wrap", "check"),
+		stage("arch operator-error", "check"),
 		stage("yang glue", "check"),
 		stage("repo feature-tags", "check"),
 		stage("doc check", "templ-output"),

@@ -369,6 +369,23 @@ ledger's removal. It names the package, the module, the importer and the
 command Thomas runs (`docs/contributing/dependency-approval.md`).
 <!-- source: internal/le/commit/dependencies.go -- dependencyRefusal -->
 
+`changeCheckRefusal` (`internal/le/commit/changechecks.go`) runs right after
+the dependency gate and runs every change-set check registered in the
+`changecheck` seam (`internal/le/commit/changecheck`). The commit code names
+no check: a check package calls `changecheck.Register` from its own `init()`
+with its command name and a `Judge` over a `changecheck.Change`, and the
+composition root links it. `Change.After` reads the carried selection, so a
+`hunks` commit is judged on the blob it carries, and `Change.Before` reads the
+tree the commit starts from. A check judges only what the commit adds and
+never an instance its parent already held: a refusal names the check
+(`./le arch operator-error check refused what this commit adds`) and carries
+the check's own text, and a check that cannot judge answers exit 3, never a
+pass. `arch operator-error` registers today: it refuses a plain `errors.New`
+or `fmt.Errorf` the commit adds to a registered command handler, RPC handler
+or config verifier.
+<!-- source: internal/le/commit/changechecks.go -- changeCheckRefusal -->
+<!-- source: internal/le/commit/changecheck/changecheck.go -- Register, Run -->
+
 `newsFragmentRefusal` (`internal/le/commit/newsfragment.go`) runs right after
 the Existing Mechanisms gate, in the Ze checkout only. A spec closure (the
 commit that removes the spec, as `closedSpecStem` decides) is refused unless
