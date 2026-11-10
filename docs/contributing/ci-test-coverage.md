@@ -5,7 +5,8 @@
 For current counts and uncovered RPCs, run `./le repo inventory`.
 
 The inventory reads committed `HEAD`. RPC declarations and YANG source paths
-come from `internal/`, `pkg/`, and `cmd/`, and coverage reads committed `.ci`
+come from `internal/`, `pkg/`, and `cmd/`, outside any `testdata` directory,
+whose schemas are test fixtures, and coverage reads committed `.ci`
 files under `test/`. Uncommitted edits, scratch copies, and runtime evidence do
 not change the report. A failure to read or parse a committed input stops the
 report.

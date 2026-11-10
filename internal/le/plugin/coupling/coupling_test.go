@@ -12,6 +12,48 @@ import (
 	repoinventory "github.com/ze-software/ze/internal/le/repo/inventory"
 )
 
+// VALIDATES: AC-12. The check judges the population the committed source
+// declares, read from one linux/amd64 snapshot whatever the host, so a plugin
+// that only a Linux build registers stays in it when the check runs on darwin.
+//
+// Method: load the model the check judges from the real repository, then
+// require its plugin names to equal Snapshot.DeclaredPlugins over the same
+// committed tree, and require iface-dhcp among them: it registers only from
+// internal/plugins/iface/dhcp/register.go, a //go:build linux file, so a
+// reading of the host registry on darwin would not hold it.
+func TestCouplingReadsTheDeclaredPopulation(t *testing.T) {
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatal(err)
+	}
+	built, err := load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := repoinventory.ReadCommitted(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	declared, err := snapshot.DeclaredPlugins()
+	if err != nil {
+		t.Fatal(err)
+	}
+	judged := make([]string, 0, len(built.plugins))
+	for i := range built.plugins {
+		judged = append(judged, built.plugins[i].Name)
+	}
+	names := make([]string, 0, len(declared))
+	for i := range declared {
+		names = append(names, declared[i].Name)
+	}
+	if !slices.Equal(judged, names) {
+		t.Fatalf("the check judges %d plugins, the committed source declares %d:\njudged   %v\ndeclared %v", len(judged), len(names), judged, names)
+	}
+	if !slices.Contains(judged, "iface-dhcp") {
+		t.Fatalf("iface-dhcp, registered only by a Linux build, is not in the judged population: %v", judged)
+	}
+}
+
 // VALIDATES: AC-20. Flow export subscribes to ribevents.BestChange, which only
 // bgp-rib emits, under another gate. With its optional edge to bgp-rib the
 // check is green for that pair; with the edge removed it reports flow export to
@@ -30,7 +72,7 @@ func TestCouplingCheckFlagsUndeclaredSubscriber(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plugins, err := snapshot.Plugins()
+	plugins, err := snapshot.DeclaredPlugins()
 	if err != nil {
 		t.Fatal(err)
 	}

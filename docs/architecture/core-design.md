@@ -66,7 +66,7 @@ and selects the transitive imports of the all-feature Linux le entry before
 resolving reachable registration declarations. It neither compiles an inventory
 binary nor substitutes the host registry when source resolution fails.
 <!-- source: internal/le/repo/inventory/source.go -- ReadCommitted -->
-<!-- source: internal/le/repo/inventory/registrations.go -- Snapshot.Plugins -->
+<!-- source: internal/le/repo/inventory/registrations.go -- Snapshot.DeclaredPlugins, Snapshot.declaredRegistrations -->
 
 **le compiles Ze against a patched standard library, and its own process
 environment carries it.** Ze's EAP-TLS authenticator compiles only against a

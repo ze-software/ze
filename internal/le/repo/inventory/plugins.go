@@ -34,8 +34,8 @@ func Plugins(root string) ([]Plugin, error) {
 
 // DeclaredPlugins reports the registrations the committed Linux le source
 // declares, read the way Plugins reads them but without the external-effect
-// proof, which is a check that runs in CI and never in a website build. The
-// website publishes this list; the checks that need completeness call Plugins.
+// proof. The website, the inventory report, the gated-plugin table and the
+// coupling check all read this list.
 func DeclaredPlugins(root string) ([]Plugin, error) {
 	snapshot, err := ReadCommitted(context.Background(), root)
 	if err != nil {

@@ -85,11 +85,8 @@ func (s *Snapshot) Plugins() ([]Plugin, error) {
 // It answers what the source declares, never that nothing else registers:
 // that completeness is Plugins' proof, a check that runs in CI, not here.
 func (s *Snapshot) DeclaredPlugins() ([]Plugin, error) {
-	reader, err := s.walkRegistrations(nil, callDeclared)
+	reader, err := s.declaredRegistrations()
 	if err != nil {
-		return nil, err
-	}
-	if err := s.refuseEmpty(reader); err != nil {
 		return nil, err
 	}
 	registrations := sortedRegistrations(reader)
@@ -98,6 +95,23 @@ func (s *Snapshot) DeclaredPlugins() ([]Plugin, error) {
 		result = append(result, registrations[index].plugin)
 	}
 	return result, nil
+}
+
+// declaredRegistrations walks every package initializer of the snapshot
+// through retained declarations, without the external-effect proof, and keeps
+// what the walk resolved per plugin: the registration, its YANG document, its
+// route encoder and the module identities. DeclaredPlugins and the inventory
+// report both read it, so the two cannot disagree about the population. It
+// refuses a walk that found no registration rather than answer an empty one.
+func (s *Snapshot) declaredRegistrations() (*registrations, error) {
+	reader, err := s.walkRegistrations(nil, callDeclared)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.refuseEmpty(reader); err != nil {
+		return nil, err
+	}
+	return reader, nil
 }
 
 func (s *Snapshot) registrations() ([]registeredPlugin, error) {

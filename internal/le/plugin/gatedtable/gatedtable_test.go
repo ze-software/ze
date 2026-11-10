@@ -121,7 +121,7 @@ func TestNestedGateYieldsCompoundRequirement(t *testing.T) {
 func TestNewGateWithoutRegenerationIsStale(t *testing.T) {
 	root := repositoryRoot(t)
 
-	plugins, err := repoinventory.Plugins(root)
+	plugins, err := repoinventory.DeclaredPlugins(root)
 	if err != nil {
 		t.Fatal(err)
 	}

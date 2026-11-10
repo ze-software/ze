@@ -58,7 +58,7 @@ func Derive(root string) ([]Row, error) {
 	if err != nil {
 		return nil, err
 	}
-	plugins, err := snapshot.Plugins()
+	plugins, err := snapshot.DeclaredPlugins()
 	if err != nil {
 		return nil, err
 	}

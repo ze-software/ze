@@ -16,8 +16,11 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// collect builds the report from the declared registration walk: the plugins,
+// families, capabilities, schemas and RPCs all derive from that one walk over
+// one committed snapshot.
 func (s *Snapshot) collect() (Inventory, error) {
-	reader, err := s.readRegistrations()
+	reader, err := s.declaredRegistrations()
 	if err != nil {
 		return Inventory{}, err
 	}
@@ -118,7 +121,7 @@ func (s *Snapshot) collectFiles(inv *Inventory) error {
 		if err := scanner.Err(); err != nil {
 			return fmt.Errorf("reading committed %s: %w", name, err)
 		}
-		if strings.HasSuffix(name, yangSuffix) {
+		if strings.HasSuffix(name, yangSuffix) && !underTestdata(name) {
 			statements, err := yang.Parse(string(raw), name)
 			if err != nil {
 				return fmt.Errorf("parse committed schema %s: %w", name, err)
@@ -149,4 +152,12 @@ func (s *Snapshot) collectFiles(inv *Inventory) error {
 		inv.PackageStats = append(inv.PackageStats, *stats[area])
 	}
 	return nil
+}
+
+// underTestdata answers whether a committed path sits under a testdata
+// directory. A schema there is a test fixture, which the go tool also ignores:
+// it declares no RPC of Ze, and a deliberately malformed one (the YANG
+// migration's refusal fixtures) must not stop the report.
+func underTestdata(name string) bool {
+	return slices.Contains(strings.Split(path.Dir(name), "/"), "testdata")
 }
