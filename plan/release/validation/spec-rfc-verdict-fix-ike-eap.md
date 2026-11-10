@@ -2,16 +2,50 @@
 
 | Field | Value |
 |-------|-------|
-| Status | verification |
+| Status | blocked |
 | Priority | P2 |
 | Release reason | Required evidence for shipped behavior or truthful release support claims; historical work and proof debts remain distinct. |
 | Scope | tooling |
 | Depends | `plan/release/validation/spec-rfc-verdict-test-fix-pass.md` (the parent: its `audit-stamp` `mode rejudge` phase before any re-judge here, and its narrowing-audit output for the IKE/EAP group before any row edit, parent R-11) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-11 |
+| Updated | 2026-11-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Blocker
+
+Closure handback, 2026-11-10: AC-C1 is not met. Reading the current
+per-requirement audit files returns two weak verdicts in this child's scope:
+`RFC7296-3.13.1-1` and `RFC7296-3.13.1-2`. Neither is in this spec's
+"Blocked by" exceptions. `checkPortProgrammable` in
+`internal/component/ike/ipsec/traffic_selector.go` rejects a single port only
+for protocol 0, and `programmableSelector` in
+`internal/component/ike/engine/ts_narrow.go` applies the same restriction.
+The 2026-11-10 audit identifies other protocols with undefined ports as the
+unproven clause. The defect is already owned by
+`plan/release/fixes/spec-rfc4301-architecture-gaps.md`, through its
+`guard-enumerates-instead-of-subtracting.md` journal row. Implementation must
+resolve the verdicts, or complete the P-3 transfer into that spec's acceptance
+criteria and this spec's blocked list, before closure resumes.
+
+AC-C7 also remains open as the 2026-10-27 judgment records:
+`exportEAPTLSKeys` in `internal/core/eap/eap_tls.go` derives MSK and EMSK but
+no Method-Id. The partial `RFC9190-2.3-1` and gap `RFC9190-2.3-4` need explicit
+ownership in `plan/release/validation/spec-ipsec-rfc9190.md` and this spec's
+Work Not Done table before closure; that spec's AC-9 currently lists neither.
+No implementation, test, verdict, or proof record changed during this closure
+attempt, and no Review Gate pass is claimed.
+
+The main thread ran `./le rfc check` on 2026-11-10: exit 1, 133 violations.
+Its output identifies stale audit evidence for `RFC5216-5.3-5`, scoped to
+`internal/core/eap/eap_tls.go::newTLSMethod`, and `RFC4303-3.4.4.1-2`, scoped
+to `xfrmStateFromParams`. It also reports that
+`internal/component/ike/engine/rfc7296_certreq_test.go` has no RFC7296 tag.
+Implementation must repair these owned evidence and naming defects and run
+the scoped checks before returning this spec for closure. Closure did not
+reseal or reauthor records. The main thread retained the reported lines, not
+a complete log; no claim is made about the other violations.
 
 ## Task
 
