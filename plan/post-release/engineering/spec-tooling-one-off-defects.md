@@ -256,101 +256,44 @@ AC-27 was dropped on 2026-11-08 ("Scope decision" above): the incident was not i
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
-| guard-keyed-on-a-field-its-consumer-ignores.md | 2026-11-06 | weakening gate keys a unit by directory base name, a judge by Go package name |
-| `container-build-leaves-root-owned-scratch` | 2026-11-04 | poster proof default entrypoint rewrites shared SSH config and chowns shared scratch |
-| `gate-red-where-nothing-blocks-on-it` | 2026-11-04 | tracked historical filter-a6 shell recipe is the new native-helper census red |
-| `gate-excludes-part-of-its-population` | 2026-11-04 | remaining site and PPPoE AC integration declarations after host-clock routing |
-| `container-build-leaves-root-owned-scratch` | 2026-11-04 | web-config child cwd writes root-owned audit output into checkout |
-| `error-path-discards-data-already-received` | 2026-11-04 | web-config startup failure removes its daemon diagnostic |
-| `claim-outlives-the-evidence-it-cites` | 2026-11-03 | weakening approval keyed by unit name is reused for a later change |
-| `earlier-guard-hides-the-better-error.md` | 2026-11-03 | `commit create hunks` with a zero-context patch reports an unowned row, not the patch failure |
-| `gate-fires-outside-its-population.md` | 2026-11-03 | weakening detector `ignoreTagPattern` (`internal/le/test/weakened/detector.go`), a `//go:build ignore` inside a fixture string |
+| `lifetime-ends-before-its-last-reader` | 2026-11-06 | `session.judge`, `scratch.trimSessions` remove an active harness owner's proof and state paths during automatic trim |
 | `helper-bypassed-by-an-open-coded-copy` | 2026-11-02 | weakening and RFC gates scan Go test units twice |
-| `concurrent-session-corruption` | 2026-10-30 | site build's linux le cross-compiles the live checkout |
-| `review-pin-hashes-uncommitted-content` | 2026-10-30 | closure review pin hashes the working tree, not the landed blob |
-| `gate-verdict-depends-on-the-machine` | 2026-10-29 | dnsresolver system name-server test needs the Linux resolv.conf writer |
-| `gate-verdict-depends-on-the-machine` | 2026-10-29 | coupling check judges with the host plugin list |
 | `lint-contract-not-applied` | 2026-10-27 | changed-scope lint at 043c682d24 |
 | `lint-contract-not-applied` | 2026-10-27 | changed-scope lint at 2f36373081 |
 | `plugin-list-hardcoded` | 2026-10-27 | TestHomeHeroDerivesFromTheManifest |
 | `lint-contract-not-applied` | 2026-10-27 | changed-scope lint at e6474aa200 |
-| `gate-verdict-depends-on-the-machine` | 2026-10-27 | job `InputHash` whole-tree diff killed by `gitTimeout` in the 9p QEMU guest |
-| `gate-excludes-part-of-its-population` | 2026-10-27 | `unitNeedsGuest` keeps a `//go:build linux` CAP_NET_ADMIN unit on a host that cannot unshare a namespace, so `./le rfc record` cannot re-take it there |
 | `bulk-rename-corruption` | 2026-10-27 | qemu `"run"` literal still repeated after the `-test` rename |
 | `package-red-not-reproduced` | 2026-10-27 | harnesstool `setup docker` namespace panic |
 | `package-red-not-reproduced` | 2026-10-27 | le-rules-answers render-update |
-| `commit-needs-an-uncommitted-symbol` | 2026-10-27 | rfc/full/rfc7084.txt untracked |
-| `session-never-establishes-with-the-peer` | 2026-10-27 | RPKI relay tests, `le mock rtr` never syncs a VRP |
-| `test-artifacts-land-in-the-repository-root` | 2026-10-26 | job lint-input guard encounters another session's Go backup |
-| `closed-spec-survives-on-disk` | 2026-09-12 | `./le commit create ... remove` |
 | `container-cannot-see-migrated-scratch` | 2026-10-21 | `Run.virtfsArgs` |
-| `delegation-hands-the-callee-a-different-argv` | 2026-10-20 | `conf-watchdog` helper |
-| `delegation-hands-the-callee-a-different-argv` | 2026-10-13 | `./le stress-repro` |
 | `delegation-hands-the-callee-a-different-argv` | 2026-09-07 | `le` launcher script |
-| `escape-hatch-scoped-wider-than-its-justification` | 2026-09-27 | `writeGoPatterns` |
-| `field-carries-two-meanings` | 2026-08-19 | `ZE_VERIFY_MODE` |
 | `fixture-encodes-an-impossible-state` | 2026-09-17 | `le-qemu-run-answers.ci` |
-| `gate-ignores-the-level-it-counts` | 2026-09-30 | `checkGapCountAgreement` |
-| `gate-ignores-the-level-it-counts` | 2026-10-06 | `./le rfc check` |
-| `guard-added-to-one-half-of-a-pair` | 2026-10-10 | `(*Bench).Run` |
-| `guard-added-to-one-half-of-a-pair` | 2026-09-07 | `runGating` |
-| `guard-added-to-one-half-of-a-pair` | 2026-09-05 | `le verify` cancellation |
-| `invariant-enforced-by-an-absent-call-site` | 2026-08-18 | spec WIP cap |
-| `lifetime-ends-before-its-last-reader` | 2026-10-22 | `runTest` reaping |
 | `mutating-a-guard-runs-the-unguarded-path` | 2026-08-31 | forced-RED on `handlePacket` |
 | `mutating-a-guard-runs-the-unguarded-path` | 2026-08-10 | build recipe guard |
-| `net-pipe-deadlock` | 2026-09-03 | `captureStdout` |
-| `non-idempotent-append-duplicates-the-record` | 2026-08-19 | verification-debt shard |
-| `non-idempotent-append-duplicates-the-record` | 2026-08-29 | `./le commit create append` |
-| `option-set-for-one-caller-changes-another` | 2026-10-10 | `runGokInProcess` |
 | `option-set-for-one-caller-changes-another` | 2026-09-28 | `plugin/wait-file` |
 | `output-not-byte-stable` | 2026-08-24 | terminal demo poster |
-| `owner-decision-attributed-without-the-owner` | 2026-10-18 | `./le rfc approve` |
-| `pointer-shared-across-the-names-it-indexes` | 2026-09-04 | `./le commit create ... append` |
-| `pointer-shared-across-the-names-it-indexes` | 2026-09-05 | `./le commit create` same tag |
-| `prohibition-broken-by-the-agent-that-carried-it` | 2026-08-31 | subagent `git mv` of a `.ci` |
-| `record-written-before-the-operation-succeeds` | 2026-08-19 | verification-debt shard |
-| `refactor-removes-feature` | 2026-09-03 | spec-write design gate |
-| `removal-leaves-the-file-on-disk` | 2026-10-21 | `sweepAbandoned` |
-| `removal-leaves-the-file-on-disk` | 2026-09-19 | `sweepAbandoned` |
-| `silent-fall-through` | 2026-10-05 | `RunEngineSteps` |
-| `silent-fall-through` | 2026-09-07 | `./le qemu run` 9p mount |
-| `silent-fall-through` | 2026-08-15 | orphan `stdin=peer` block |
-| `silent-fall-through` | 2026-10-10 | `.et` runner options |
-| `test-gate-repeats-expensive-work` | 2026-10-07 | `./le test functional --pattern` |
-| `test-gate-repeats-expensive-work` | 2026-09-12 | `hookSessionStart` |
-| `test-gate-repeats-expensive-work` | 2026-09-11 | session-start hook timeout |
-| `test-mutates-a-running-subject` | 2026-10-15 | `TestUnionTimeout` |
 | `test-type-not-backfilled` | 2026-10-06 | RFC filename/tag convention |
 | `helper-bypassed-by-an-open-coded-copy` | 2026-08-14 | functional runner `Record.TmpfsFiles` flattens the tmpfs block |
-| `helper-bypassed-by-an-open-coded-copy` | 2026-08-31 | `activityStyle` light literals under the dark theme |
-| `parser-refuses-a-form-its-producer-emits` | 2026-10-14 | `checkSnapshot` reads `git ls-files -s` without `-z` |
-| `stop-leaves-the-work-running` | 2026-10-11 | `runDocker` kernel container survives a stop |
-| `stop-leaves-the-work-running` | 2026-10-20 | `installStopped` always says "only partly made" |
-| `stop-leaves-the-work-running` | 2026-10-20 | `installCommand` root step waited out with no WaitDelay |
-| `stop-leaves-the-work-running` | 2026-10-20 | unrooted le verbs leave the compile or docker child running |
 | `test-against-broken-path` | 2026-08-18 | `demos/terminal/web-config/` validator and recording drive different paths |
-| `test-against-broken-path` | 2026-08-29 | `TestGeneratedPluginImportsCurrent`, `TestYANGGlueCurrent` `go run` a non-main file |
-| `unwired-feature` | 2026-09-02 | `.github/workflows/codeql.yml` `paths-ignore` ignored for Go |
-| `zero-value-as-valid-answer` | 2026-09-21 | `latestComparisonResults` keeps one of two `ze` results |
-| `zero-value-as-valid-answer` | 2026-10-15 | `listStdlib` empty listing read as no stdlib |
-| `bound-too-small-for-its-own-burst` | 2026-10-22 | stressrepro `runSlug` joins every selector into one filename |
-| `bound-too-small-for-its-own-burst` | 2026-10-25 | `le job run` stall window breaks a silent gomu run |
 | `gate-red-where-nothing-blocks-on-it` | 2026-08-30 | `./le verify lint run scope ./internal/le/site/...` 18 goconst findings |
 | `gate-red-where-nothing-blocks-on-it` | 2026-08-31 | `./le cli-grammar` is in no blocking set |
 | `gate-red-where-nothing-blocks-on-it` | 2026-09-10 | repository check, commit audit and doc check verify red over concurrent work |
 | `gate-red-where-nothing-blocks-on-it` | 2026-09-17 | `le-docvalid-answers.ci`, `le-evidence-answers.ci` red at HEAD |
 | `gate-red-where-nothing-blocks-on-it` | 2026-10-05 | `pluginOwnershipGate` added with no baseline, `le-placement-answers` red |
-| `validate-accepts-what-start-refuses` | 2026-10-26 | `./le test weakened approve` records a unit key (`airules.TestX`) the commit gate never matches |
 
 ## Rows found already fixed
 
 Rows from the whole one-off sweep found fixed at HEAD on 2026-10-23 that have no
 other spec home here. Each needs its journal cell closed with this evidence by
 the agent that closes fixed rows. The rows below the first four were verified
-at source and their journal cells closed on 2026-11-09. The last fifteen moved
-here from the owned table on 2026-11-10, each verified at its producer and
-closed on the attributed red its evidence section records.
+at source and their journal cells closed on 2026-11-09. Fifteen more,
+above the rows this paragraph describes next, moved here from the owned table
+earlier on 2026-11-10, each verified at its producer and closed on the
+attributed red its evidence section records. The last 63, from the `guard-keyed-on-a-field-its-consumer-ignores`
+row on, moved here on 2026-11-10 because their journal Fix cell already reads
+`fixed:`; each was matched to its journal row by class, date and surface, and
+its Evidence cell names the fixing commit and test that cell gives, or says
+the cell names no commit.
 
 | Class file | Date | Surface | Evidence |
 |------------|------|---------|----------|
@@ -419,6 +362,69 @@ closed on the attributed red its evidence section records.
 | `silent-fall-through` | 2026-09-04 | YANG resolution in test binaries | `5eaa197f32`; `TestDefaultLoaderReportsEveryRegisteredFailure` (tooling-one-off-evidence.md, "Unit red walks of landed fixes"); flowspec reader deleted in `1b1b36cb5f`; batch instance `295c562ace` |
 | `invariant-enforced-by-an-absent-call-site` | 2026-11-08 | fixtures stopping the daemon undeclared | `TestEveryDaemonStoppingRegistrationDeclaresStopsDaemon` (tooling-one-off-evidence.md, "Every daemon-stopping fixture declares it") |
 | `refactor-removes-feature` | 2026-08-31 | `checkNoFamilyEndOfRIB` and 14 checkers | `c5b61cf472`, `125ab22025`, `18017069a9`, `cb882fd581` gave each checker its assertions; each of the 15 red under a Ze break (tooling-one-off-evidence.md, "P-12 (a): interop checkers (2026-11-09)", "P-12 (a) interop checkers: the four remaining walks (2026-11-10)") |
+| `guard-keyed-on-a-field-its-consumer-ignores` | 2026-11-06 | weakening gate keys a unit by directory base name, a judge by Go package name | journal Fix names no commit: one name per unit, the directory key all readers use: `test weakened approve` resolves the unit first and refuses a package-clause ...; `TestWeakenedApproveRefusesPackageClauseAlias` |
+| `container-build-leaves-root-owned-scratch` | 2026-11-04 | poster proof default entrypoint rewrites shared SSH config and chowns shared scratch | journal Fix names no commit: the owned mount is the demo root, shared inputs read-only; native run `0119f42f` returned two equal captures as 1000:1000 |
+| `gate-red-where-nothing-blocks-on-it` | 2026-11-04 | tracked historical filter-a6 shell recipe is the new native-helper census red | journal Fix names no commit: `plan/records/filter-wire-0-a6-procedure.md` keeps the procedure as prose; `TestNoPythonLeRemains` |
+| `gate-excludes-part-of-its-population` | 2026-11-04 | remaining site and PPPoE AC integration declarations after host-clock routing | `7192633779`; `TestEveryIntegrationPackageIsNamed` |
+| `container-build-leaves-root-owned-scratch` | 2026-11-04 | web-config child cwd writes root-owned audit output into checkout | journal Fix names no commit: state paths resolved and children run from the private workspace; native run `77189ba0` recorded with a relative root |
+| `error-path-discards-data-already-received` | 2026-11-04 | web-config startup failure removes its daemon diagnostic | journal Fix names no commit: stop and join, keep the final log in the returned error, then remove the workspace; native run `77189ba0` red on the old runtime, green on the new |
+| `claim-outlives-the-evidence-it-cites` | 2026-11-03 | weakening approval keyed by unit name is reused for a later change | journal Fix names no commit: approval rows carry a `Content` cell (unit HEAD and working-tree digests); `TestOrdinaryApprovalRefusesChangedUnitContent` |
+| `earlier-guard-hides-the-better-error` | 2026-11-03 | `commit create hunks` with a zero-context patch reports an unowned row, not the patch failure | journal Fix names no commit: `hunks.Apply` refuses a hunk with no context where the file goes on (`contextProblem`), naming the hunk and the fix; `TestApplyRefusesZeroContextPatch` |
+| `gate-fires-outside-its-population` | 2026-11-03 | weakening detector `ignoreTagPattern` (`internal/le/test/weakened/detector.go`), a `//go:build ignore` inside a fixture string | journal Fix names no commit: `ignoreTagPattern` deleted; `TestDetectorReadsBuildIgnoreFromHeaderOnly` |
+| `concurrent-session-corruption` | 2026-10-30 | site build's linux le cross-compiles the live checkout | `0baeaa10ab`; `TestBuildPublishesCommittedLinuxRegistryWithoutHostExecution` |
+| `review-pin-hashes-uncommitted-content` | 2026-10-30 | closure review pin hashes the working tree, not the landed blob | `8c64ad2d4a`; `TestNativeReviewPublishesEarlierWholeAndHunkSnapshots` |
+| `gate-verdict-depends-on-the-machine` | 2026-10-29 | dnsresolver system name-server test needs the Linux resolv.conf writer | `52f85b136a` |
+| `gate-verdict-depends-on-the-machine` | 2026-10-29 | coupling check judges with the host plugin list | `6abaa27aa6`; `TestCouplingUsesOneCommittedMembershipManifestAndSource` |
+| `gate-verdict-depends-on-the-machine` | 2026-10-27 | job `InputHash` whole-tree diff killed by `gitTimeout` in the 9p QEMU guest | `98592039b3` |
+| `gate-excludes-part-of-its-population` | 2026-10-27 | `unitNeedsGuest` keeps a `//go:build linux` CAP_NET_ADMIN unit on a host that cannot unshare a namespace, so `./le rfc record` cannot re-take it there | `e4bfeb7789` |
+| `commit-needs-an-uncommitted-symbol` | 2026-10-27 | rfc/full/rfc7084.txt untracked | `2c1eabf7f0`, `37cf1d1d03`; `TestRFC7084TextIsCommitted` |
+| `session-never-establishes-with-the-peer` | 2026-10-27 | RPKI relay tests, `le mock rtr` never syncs a VRP | `6f40621f73` |
+| `test-artifacts-land-in-the-repository-root` | 2026-10-26 | job lint-input guard encounters another session's Go backup | `7e21d1c4ed`; `TestLintInputPopulation` |
+| `closed-spec-survives-on-disk` | 2026-09-12 | `./le commit create ... remove` | `d70bbec7fc` |
+| `delegation-hands-the-callee-a-different-argv` | 2026-10-20 | `conf-watchdog` helper | `2496442cb3` |
+| `delegation-hands-the-callee-a-different-argv` | 2026-10-13 | `./le stress-repro` | `86cb0aa071`; `TestCaptureIdentityRetainsLongSelectorsAndFreshStarts` |
+| `escape-hatch-scoped-wider-than-its-justification` | 2026-09-27 | `writeGoPatterns` | `3475223c4b`; `TestHookVerdictBoundaries` |
+| `field-carries-two-meanings` | 2026-08-19 | `ZE_VERIFY_MODE` | `479c810eb8` |
+| `gate-ignores-the-level-it-counts` | 2026-09-30 | `checkGapCountAgreement` | `697558b8ae`, `37cf1d1d03`; `TestGapLevelAccounting` |
+| `gate-ignores-the-level-it-counts` | 2026-10-06 | `./le rfc check` | `697558b8ae`; `TestParseMetaRefusesRetiredSupportCells` |
+| `guard-added-to-one-half-of-a-pair` | 2026-10-10 | `(*Bench).Run` | `8664a8ee44` |
+| `guard-added-to-one-half-of-a-pair` | 2026-09-07 | `runGating` | journal Fix names no commit: `signalRooted` roots the actions; `TestGatingStopReapsSuiteGroupAndReleasesSet` |
+| `guard-added-to-one-half-of-a-pair` | 2026-09-05 | `le verify` cancellation | `7c96f64db1`; `TestDispatchCancellationReapsInflightStage` |
+| `invariant-enforced-by-an-absent-call-site` | 2026-08-18 | spec WIP cap | `3475223c4b`; `TestDirectSpecEditChecksWIP` |
+| `lifetime-ends-before-its-last-reader` | 2026-10-22 | `runTest` reaping | `6c18acbb85`; `TestRunnerOwnedReturnPaths` |
+| `net-pipe-deadlock` | 2026-09-03 | `captureStdout` | `0c80eb8f5a` |
+| `non-idempotent-append-duplicates-the-record` | 2026-08-19 | verification-debt shard | `2688449b1b` deleted the per-commit ledger (verified at `b3c348b90c`) |
+| `non-idempotent-append-duplicates-the-record` | 2026-08-29 | `./le commit create append` | `bc987697e1` |
+| `option-set-for-one-caller-changes-another` | 2026-10-10 | `runGokInProcess` | `214f70c4a9` |
+| `owner-decision-attributed-without-the-owner` | 2026-10-18 | `./le rfc approve` | `d133892a33`, `f8c81dfa33`, `c3209670ec`; `TestOwnerRulingApprovalTerminalBoundary` |
+| `pointer-shared-across-the-names-it-indexes` | 2026-09-04 | `./le commit create ... append` | `bc987697e1` |
+| `pointer-shared-across-the-names-it-indexes` | 2026-09-05 | `./le commit create` same tag | journal Fix names no commit: FIXED 2026-09-05. `nextTag` (`internal/le/commit/script.go`) now allocates the message through `allocateMessage`, which draws a random ...; `TestTwoCreatesUnderOneTagKeepTheirOwnMessages`, `TestAppendUnderOneTagGivesEachBlockItsOwnMessage` |
+| `prohibition-broken-by-the-agent-that-carried-it` | 2026-08-31 | subagent `git mv` of a `.ci` | `3475223c4b`; `TestDelegatedRenameUsesCommitRoute` |
+| `record-written-before-the-operation-succeeds` | 2026-08-19 | verification-debt shard | `2688449b1b`, `b3c348b90c` |
+| `refactor-removes-feature` | 2026-09-03 | spec-write design gate | `3475223c4b`; `TestDesignEvidenceNamesSubjectAndFreshness` |
+| `removal-leaves-the-file-on-disk` | 2026-10-21 | `sweepAbandoned` | journal Fix names no commit: a dead owner's registered worktree of plain deletions with a resolving HEAD is removed as a finished interrupted removal (`onlyDeletions`, ...; `TestReclaimFinishesInterruptedRegisteredRemoval` |
+| `removal-leaves-the-file-on-disk` | 2026-09-19 | `sweepAbandoned` | `7c96f64db1`; `TestStandaloneReclaimWorktrees` |
+| `silent-fall-through` | 2026-10-05 | `RunEngineSteps` | `af69577952`; `TestRunEngineStepsRejectsUnknownKind` |
+| `silent-fall-through` | 2026-09-07 | `./le qemu run` 9p mount | `e86a31db73`; `TestGuestBootstrapContracts` |
+| `silent-fall-through` | 2026-08-15 | orphan `stdin=peer` block | `e8c5576aa8`; `TestOrchestratedPeerBlockNeedsConsumer` |
+| `silent-fall-through` | 2026-10-10 | `.et` runner options | `7a9da881db`, `4c8c4918e6` |
+| `test-gate-repeats-expensive-work` | 2026-10-07 | `./le test functional --pattern` | journal Fix names no commit: the suite action refuses a selector and names `./le test bgp <suite> --pattern TEXT`, which the page documents ...; `TestSuiteActionRefusesASelectorAndNamesTheRunnerThatTakesOne` |
+| `test-gate-repeats-expensive-work` | 2026-09-12 | `hookSessionStart` | `bd11ff12af`; `TestSessionStartRendersNoDeferredArtifact` |
+| `test-gate-repeats-expensive-work` | 2026-09-11 | session-start hook timeout | `88088680cf`, `2688449b1b`, `3475223c4b`; `TestSessionStartWithinHarnessBudget` |
+| `test-mutates-a-running-subject` | 2026-10-15 | `TestUnionTimeout` | `9549c1b106`; `TestUnionConfiguredBeforeStart` |
+| `helper-bypassed-by-an-open-coded-copy` | 2026-08-31 | `activityStyle` light literals under the dark theme | `719171fbc9`, `738bd725a4`; `TestActivityStyleUsesTheme` |
+| `parser-refuses-a-form-its-producer-emits` | 2026-10-14 | `checkSnapshot` reads `git ls-files -s` without `-z` | `8c64ad2d4a`; `TestPreparedPublicationPreservesRawGitPaths` |
+| `stop-leaves-the-work-running` | 2026-10-11 | `runDocker` kernel container survives a stop | `10c07359d9` |
+| `stop-leaves-the-work-running` | 2026-10-20 | `installStopped` always says "only partly made" | `4dbbcacf7b`; `TestInstallUnstartedStepDoesNotClaimChanges`, `TestInstallPlanProgress` |
+| `stop-leaves-the-work-running` | 2026-10-20 | `installCommand` root step waited out with no WaitDelay | `4dbbcacf7b`; `TestInstallSecondSignalEndsWaitingEntry` |
+| `stop-leaves-the-work-running` | 2026-10-20 | unrooted le verbs leave the compile or docker child running | `394c13cae9`, `611e4af144` |
+| `test-against-broken-path` | 2026-08-29 | `TestGeneratedPluginImportsCurrent`, `TestYANGGlueCurrent` `go run` a non-main file | `9c5f23cf0b` |
+| `unwired-feature` | 2026-09-02 | `.github/workflows/codeql.yml` `paths-ignore` ignored for Go | `2356e7395a` |
+| `zero-value-as-valid-answer` | 2026-09-21 | `latestComparisonResults` keeps one of two `ze` results | `6045b617c1`, `3b03bce805`; `TestComparisonRefusesLossBeforeSelection` |
+| `zero-value-as-valid-answer` | 2026-10-15 | `listStdlib` empty listing read as no stdlib | `c98d76f37f`; `TestEmptySuccessfulStdlibListingRefused` |
+| `bound-too-small-for-its-own-burst` | 2026-10-22 | stressrepro `runSlug` joins every selector into one filename | `86cb0aa071`; `TestCaptureIdentityRetainsLongSelectorsAndFreshStarts` |
+| `bound-too-small-for-its-own-burst` | 2026-10-25 | `le job run` stall window breaks a silent gomu run | journal Fix names no commit: removed waiter termination and foreign evidence deletion |
+| `validate-accepts-what-start-refuses` | 2026-10-26 | `./le test weakened approve` records a unit key (`airules.TestX`) the commit gate never matches | journal Fix names no commit: `rfc.ApproveInto` resolves each row's unit to its one carrier before writing, refuses a unit matching only a Go package clause, naming the ...; `TestWeakenedApproveRefusesPackageClauseAlias` |
 
 ## Checklist
 
@@ -783,13 +789,22 @@ are proposed carrier locations in the named owning package, not existing files.
 | P-37 lint input | Proposed `TestLintInputGuardMatchesProducer` in owning lint package (path unresolved) | Real selected scratch Go input versus preserved non-input backup → real input checked, backup not compiled/deleted | Glob all scratch; blanket-exclude actual input |
 | P-38 retirements | Existing retired carrier/QEMU assertion history; replacement proof map still owed | Retain retirement approvals: QEMU checked 17 names/count/order, terminal actions metadata/prose. Map those assertions to current proofs; successful dispatch is additional. Rooted artifact acquisition must feed retained verified bytes/staging to all consumers, including publication copy, as the final contract specifies | Escaping links, path swaps and in-place mutation cannot publish unverified bytes. Retirement alias tests cover a different boundary; a retained handle alone does not freeze its contents. Parent case rewritten and judged in `be0bfc2369`; its containment reds are recorded (AC-38 status). Successful-dispatch proof pending |
 
-P-12 retains the four historical fixed-row claims separately: RSVP-TE `buildResv`
-needs a real RESV capture whose FILTER_SPEC class is 10 (break: restore
-SENDER_TEMPLATE); LDP `handleInit` needs a session proof that stays non-operational
-until acceptance (break: advance before acceptance); LDP `DecodeInit` needs unknown
-mandatory-TLV refusal and optional-TLV acceptance (break: ignore the U-bit rule).
-Their exact current test carriers remain unresolved, rather than inferred from
-the repair commit. The fourth claim, unknown `.ci` directives, has P-1 above.
+P-12 retains the four historical fixed-row claims separately, and three now
+have named carriers, each red under its break and green restored. RSVP-TE
+`buildResv` names its sender as a FILTER_SPEC: `TestRFC3209ResvNeverCarriesSenderTemplate`
+over the encoded RESV, and the real capture in `transit-loose-ero-expansion`,
+whose `checkLooseExpansion` requires class 10 C-Type 7 in the RESV freeRouter
+captures from Ze (break: `encodeFilterSpec` becomes `encodeSenderTemplate`).
+LDP `handleInit` stays non-operational until the peer's KeepAlive:
+`TestRFC5036OpenReceivedWaitsForPeerKeepAlive` (break: set operational on
+acceptance). LDP `DecodeInit` refuses an unknown TLV with the U bit clear and
+skips one with it set: `TestLDPInitUnknownTLVUClearNotifies` and
+`TestRFC5561UnknownCapabilityWithUBitSetIsIgnored`, with the live U-clear
+carrier `ldp-init-unknown-tlv-frr` (break: ignore the U-bit rule either way).
+The walks are in `tooling-one-off-evidence.md`, "P-12: the historical fixed-row
+claims (2026-11-10)" and "P-12: the RSVP-TE RESV capture names its sender as a
+FILTER_SPEC (2026-11-10)". The fourth claim, unknown `.ci` directives, has P-1
+above.
 
 #### Five RTR fixtures
 

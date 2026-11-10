@@ -2503,3 +2503,50 @@ none (`sdfunc/`, `sdbase/`): plugin 17 failed, reload 3 failed and 2 timed
 out, ospf 8, static 1 timeout, flow-export 9, rsvpte 5, runner 4, vrrp 1;
 isis, ldp, bfd, ospfv3, encode, ipsec and pppoe pass. Those reds belong to
 other work.
+
+## Reds observed overnight, transcribed from their logs (2026-11-10)
+
+These walks ran at 07:24 to 07:28 through `./le job run label unit-pkg`, and
+the session state file named their reds without this file recording them. Each
+row is copied from its logs, under `tmp/session/2026-11-09-222002/scratch/`:
+the break log shows the failure quoted below and the restored log shows the
+package passing. A Go overlay names its replacement source beside the log. Two
+breaks were edited in place and their diff was not kept, so for those the red
+line alone names the state the break produced.
+
+| P | Carrier | Break | Break log | Restored log and result |
+| --- | --- | --- | --- | --- |
+| P-11 qemu plan root | `TestRunBuildsBootstrapSetupAndSSHCommands` (`internal/le/test/qemu`) | Go overlay of `run.go` (`b6/p11-qemu-plan-root-src/`): `goversionpin.DeclaredRelease(r.Tree)` becomes `DeclaredRelease("../../../..")` | `b6/p11-qemu-plan-root-break.log` | `b6/p11-qemu-plan-root-restored.log`: `ok`, 0.044s |
+| P-19 nightly verdict | `TestQEMUNightlyScheduleActionsCachesAndBudgets` (`internal/le/workflowcheck`) | In place: `continue-on-error: true` on the `needs-linux` job of `qemu-nightly.yml` | `b6/p19-nightly-verdict-break.log` | `b6/p19-nightly-verdict-restored.log`: `ok`, 0.042s |
+| P-34 homepage hero | `TestHomeHeroDerivesFromTheManifest` (`internal/le/site`) | Go overlay of `home.go` (`b6/p34-hero-src/`): `html.EscapeString(hero.Title)` becomes the literal `"Ze in a terminal"` | `b6/p34-hero-break.log` | `b6/p34-hero-restored.log`: `ok`, 0.117s |
+| P-34 `--jobs` | `TestTheRealCheckoutPassesAndWasRead` (`internal/le/cli/grammar`) | In place: `appliance kernel` parses `--jobs` without declaring it | `b6/p34-jobs-inplace-break.log` | `b6/p34-jobs-inplace-restored.log`: `ok`, 4.425s |
+| P-40 exclusive group | `TestEditorSuiteNativeExclusive` (`internal/test/editorcase`) | Go overlay of `internal/test/cli/cmd_editor.go` (`p40-group/`): `record.ExclusiveGroup = test.Admission.ExclusiveGroup` becomes `record.RequiredCaps = test.Admission.RequiredCaps` with the group discarded | `p40-group/break.log` | `p40-group/green.log`: `ok`, 15.858s |
+
+The failing lines, copied from each break log in table order:
+
+```
+run_test.go:428: the plan installs Go "1.27.3", want the "1.99.7" its go.mod declares
+run_test.go:439: setup command misses "go1.99.7.linux-amd64.tar.gz"
+
+workflowcheck_test.go:938: qemu-nightly.yml job "needs-linux" carries continue-on-error: true, so a failed run reports success
+
+home_test.go:837: the homepage carries no <strong id="hero-demo-title">Fixture hero caption</strong>
+
+cligrammar_test.go:64: this checkout fails the grammar gate:
+  [F4] appliance kernel  (internal/appliance/cmd_kernel.go:181)
+        flag --jobs is parsed but not declared -- completion offers what registry.RegisterCommandFlags holds, so this flag is invisible to the operator
+  cli-grammar: FAILED (0 grammar, 0 flag-in-yang, 0 demo-launch, 1 flag-register)
+
+--- FAIL: TestEditorSuiteNativeExclusive/success (5.22s)
+    exclusive_native_test.go:42: same-group child entered before group admission
+--- FAIL: TestEditorSuiteNativeExclusive/failure (5.17s)
+    exclusive_native_test.go:42: same-group child entered before group admission
+--- FAIL: TestEditorSuiteNativeExclusive/cancel (5.21s)
+    exclusive_native_test.go:42: same-group child entered before group admission
+```
+
+The first `--jobs` walk, a Go overlay (`b6/p34-jobs-flag-src/`), stayed green
+under the break (`b6/p34-jobs-flag-break.log`). The session state attributes that
+to the gate parsing the source files on disk, which a Go overlay does not
+change; that cause was not re-verified here. The overlay walk proves nothing,
+and the in-place walk above replaces it.
