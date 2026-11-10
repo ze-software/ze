@@ -43,13 +43,14 @@ var unprotSwanConnecting = regexp.MustCompile(`(?m)^ze: #[0-9]+, CONNECTING, IKE
 
 // unprotHoldRule is the iptables rule that holds Ze's answers back from strongSwan: every
 // datagram from Ze's UDP 4500, which carries IKE_AUTH once both sides float there.
-var unprotHoldRule = []string{"INPUT", "-s", zeIP, "-p", "udp", "--sport", "4500", "-j", "DROP"}
+var unprotHoldRule = []string{netfilterChainInput, "-s", zeIP, "-p", protocolUDP, "--sport", "4500", "-j", "DROP"}
 
 // checkResponderEAPSurvivesUnprotectedAuth proves RFC 7296 Section 2.4 against
-// strongSwan as the EAP-MSCHAPv2 client and Ze as responder and authenticator: "an
-// endpoint MUST NOT conclude that the other endpoint has failed based on any routing
-// information (e.g., ICMP messages) or IKE messages that arrive without cryptographic
-// protection".
+// strongSwan as the EAP-MSCHAPv2 client and Ze as responder and authenticator: "Since
+// IKE is designed to operate in spite of DoS attacks from the network, an endpoint MUST
+// NOT conclude that the other endpoint has failed based on any routing information
+// (e.g., ICMP messages) or IKE messages that arrive without cryptographic protection
+// (e.g., Notify messages complaining about unknown SPIs)."
 //
 // Method: the tunnel establishes once, unmolested, as the control. It is torn down and
 // re-initiated while Ze's answers from port 4500 are dropped on strongSwan's side, so Ze
@@ -88,10 +89,10 @@ func checkResponderEAPSurvivesUnprotectedAuth(ctx context.Context, lab *scenario
 	}
 	retransmitsBefore := strings.Count(swanLogs, "retransmit 1 of request with message ID 1")
 
-	if _, err := lab.exec(ctx, swanPeer, append([]string{"iptables", "-I"}, unprotHoldRule...)...); err != nil {
+	if _, err := lab.exec(ctx, swanPeer, append([]string{iptablesCommand, "-I"}, unprotHoldRule...)...); err != nil {
 		return err
 	}
-	defer lab.execQuiet(context.Background(), swanPeer, append([]string{"iptables", "-D"}, unprotHoldRule...)...)
+	defer lab.execQuiet(context.Background(), swanPeer, append([]string{iptablesCommand, "-D"}, unprotHoldRule...)...)
 	if err := lab.check.Lab.ExecDetached(ctx, swanPeer, []string{cmdSwanctl, "--initiate", "--child", "ze-child"}, nil); err != nil {
 		return err
 	}
@@ -133,7 +134,7 @@ func checkResponderEAPSurvivesUnprotectedAuth(ctx context.Context, lab *scenario
 		return fmt.Errorf("%s rose by %d, want %d: %w", unprotDropMetric, lastDrops-dropsBefore, unprotForgeries, err)
 	}
 
-	if _, err := lab.exec(ctx, swanPeer, append([]string{"iptables", "-D"}, unprotHoldRule...)...); err != nil {
+	if _, err := lab.exec(ctx, swanPeer, append([]string{iptablesCommand, "-D"}, unprotHoldRule...)...); err != nil {
 		return err
 	}
 	if err := lab.waitSA(ctx, 60*time.Second); err != nil {

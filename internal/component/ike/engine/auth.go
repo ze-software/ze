@@ -787,22 +787,27 @@ func decryptSKPayload(sa *SA, rawMsg []byte, skPayload *wire.PayloadSK) ([]byte,
 		return nil, fmt.Errorf("ike: integrity verification failed: %w", err)
 	}
 
+	// The checksum verified, so from here on the message is the peer's own: only a holder
+	// of SK_a computes it, and it covers the IV, the ciphertext, the Padding and the Pad
+	// Length (RFC 7296 Section 3.14). Every failure below is therefore marked
+	// errInnerParse, the mark of authenticated content that does not parse, and never
+	// treated as the unprotected input RFC 7296 Section 2.4 lets nothing conclude from.
 	ct := skPayload.CipherText
 	if len(ct) < integTrunc {
-		return nil, errInvalidMessage
+		return nil, fmt.Errorf("%w: %w", errInnerParse, errInvalidMessage)
 	}
 	ct = ct[:len(ct)-integTrunc]
 	padded, err := ikecrypto.DecryptAESCBCRaw(skRecvEncKey(sa), ct)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", errInnerParse, err)
 	}
 	if len(padded) == 0 {
-		return nil, errInvalidMessage
+		return nil, fmt.Errorf("%w: %w", errInnerParse, errInvalidMessage)
 	}
 	padLen := int(padded[len(padded)-1])
 	end := len(padded) - 1 - padLen
 	if end < 0 {
-		return nil, errInvalidMessage
+		return nil, fmt.Errorf("%w: %w", errInnerParse, errInvalidMessage)
 	}
 	return padded[:end], nil
 }

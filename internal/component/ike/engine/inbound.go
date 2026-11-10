@@ -290,15 +290,19 @@ func decryptAndParse(sa *SA, msg *wire.Message, raw []byte) ([]wire.PayloadEntry
 		// The distinction decides whether an error notify can go out.
 		// Only a chain that failed AFTER the integrity check passed satisfies the
 		// INVALID_SYNTAX precondition of RFC 7296 Section 3.10.1.
-		// A decrypt failure returns unwrapped and stays silent.
+		// decryptSKPayload already marks its own failures past the integrity check
+		// (padding, block alignment); a checksum or AEAD tag that fails returns
+		// unmarked and stays silent.
 		return nil, fmt.Errorf("%w: %w", errInnerParse, err)
 	}
 	return inner, nil
 }
 
-// errInnerParse marks a failure to parse the inner payload chain of a message whose
-// SK payload already decrypted and passed its integrity check. RFC 7296 Section 3.10.1
-// allows an error notification only in that case.
+// errInnerParse marks a failure to parse the encrypted content of a message whose SK
+// payload passed its integrity check: the inner payload chain, or the Padding and Pad
+// Length that decryptSKPayload reads after the checksum verified. RFC 7296 Section
+// 3.10.1 allows an error notification only in that case, and RFC 7296 Section 2.4 makes
+// it the only decrypt failure that is evidence about the peer.
 var errInnerParse = errors.New("ike: inner payload chain")
 
 // respondInnerParseError answers a request whose decrypted inner chain would not

@@ -64,5 +64,38 @@
     "producer": "internal/component/ike/engine/fsm.go::handleInbound",
     "producer-sha": "38a681e79f39dc2d",
     "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.4-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_unprotected_handshake_test.go::TestResponderAuthSurvivesUnprotectedIKEAuth",
+    "unit-sha": "c3512e9ef16c3063",
+    "claim-sha": "9767763748da31a8",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/responder_unauthenticated.go::discardUnauthenticatedHandshakeRequest",
+    "producer-sha": "fb5a937e1e637b43",
+    "break": "body of discardUnauthenticatedHandshakeRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.4-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_unprotected_handshake_test.go::TestResponderEAPEndsOnAuthenticatedMalformedRound",
+    "unit-sha": "90cba96731f756ba",
+    "claim-sha": "ca8d12cac281d9c1",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/responder_unauthenticated.go::discardUnauthenticatedHandshakeRequest",
+    "producer-sha": "fb5a937e1e637b43",
+    "break": "body of discardUnauthenticatedHandshakeRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.4-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_unprotected_handshake_test.go::TestResponderEAPSurvivesUnprotectedIKEAuth",
+    "unit-sha": "6b333314679b017d",
+    "claim-sha": "962323f061bfc14d",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/responder_unauthenticated.go::discardUnauthenticatedHandshakeRequest",
+    "producer-sha": "fb5a937e1e637b43",
+    "break": "body of discardUnauthenticatedHandshakeRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

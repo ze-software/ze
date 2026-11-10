@@ -11,7 +11,7 @@
 | Level | experimental |
 | Components | internal/core/eap, internal/component/ike/engine/eap_auth.go |
 | Real-path tests | test/ipsec/ipsec-eap-md5-challenge.ci, test/ipsec/ipsec-eap-nak-unacceptable-type.ci, test/ipsec/ipsec-eap-tls13-ocsp-required.ci, test/ipsec/ipsec-eap-tls13-ocsp-stapling.ci, test/ipsec/ipsec-eap-tls-clienthello.ci |
-| Interop | ipsec/eap-mschapv2, ipsec/eap-tls, ipsec/eap-tls13, ipsec/eap-nak-method-negotiation, ipsec/responder-eap-mschapv2, ipsec/responder-eap-tls13, ipsec/responder-eap-tls13-revoked-client |
+| Interop | ipsec/eap-mschapv2, ipsec/eap-tls, ipsec/eap-tls13, ipsec/eap-nak-method-negotiation, ipsec/responder-eap-mschapv2, ipsec/responder-eap-tls13, ipsec/responder-eap-tls13-revoked-client, ipsec/responder-eap-survives-unprotected-auth |
 | RFCs | rfc3748, rfc5216, rfc9190 |
 | Docs | docs/guide/ipsec.md |
 | Doc review | 2026-11-09: docs/guide/ipsec.md now refuses a second authentication round after an EAP first round and EAP reauthentication; the methods, the eap-md5 warning and the virtual-IP lease the description states are unchanged, and every source anchor resolves. Earlier, 2026-10-26: re-read after the IKE virtual-IP commits changed docs/guide/ipsec.md; every source anchor resolves (internal/core/eap/, nai.go anonymousNAI, eap_auth.go eapMethodType and warnKeylessEAPModes); the virtual-IP sentence matches the virtual-ip-pool leaf in ze-ipsec-conf.yang and assignVirtualIP and substituteVirtualIP in engine/cp.go, and the DNS push matches buildCFGReply |

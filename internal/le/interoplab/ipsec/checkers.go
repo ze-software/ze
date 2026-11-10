@@ -723,17 +723,17 @@ func checkResponderEAPMSCHAPv2(ctx context.Context, lab *scenarioLab) error {
 	}
 	retransmitsBefore := strings.Count(swanLogs, "retransmit 1 of request")
 	reprocessedBefore := strings.Count(zeLogs, "EAP round missing EAP payload")
-	if _, err := lab.exec(ctx, swanPeer, "iptables", "-I", "INPUT", "1", "-s", zeIP, "-p", "udp", "--sport", "4500", "-j", "DROP"); err != nil {
+	if _, err := lab.exec(ctx, swanPeer, iptablesCommand, "-I", netfilterChainInput, "1", "-s", zeIP, "-p", "udp", "--sport", "4500", "-j", "DROP"); err != nil {
 		return err
 	}
-	defer lab.execQuiet(context.Background(), swanPeer, "iptables", "-D", "INPUT", "-s", zeIP, "-p", "udp", "--sport", "4500", "-j", "DROP")
+	defer lab.execQuiet(context.Background(), swanPeer, iptablesCommand, "-D", netfilterChainInput, "-s", zeIP, "-p", "udp", "--sport", "4500", "-j", "DROP")
 	if err := lab.check.Lab.ExecDetached(ctx, swanPeer, []string{cmdSwanctl, "--initiate", "--child", "ze-child"}, nil); err != nil {
 		return err
 	}
 	if err := waitDuration(ctx, 8*time.Second); err != nil {
 		return err
 	}
-	lab.execQuiet(ctx, swanPeer, "iptables", "-D", "INPUT", "-s", zeIP, "-p", "udp", "--sport", "4500", "-j", "DROP")
+	lab.execQuiet(ctx, swanPeer, iptablesCommand, "-D", netfilterChainInput, "-s", zeIP, "-p", "udp", "--sport", "4500", "-j", "DROP")
 	zeLogs, err = lab.logs(ctx, zePeer)
 	if err != nil {
 		return err
@@ -1661,7 +1661,7 @@ type innerChecksumProbe struct {
 }
 
 var innerChecksumProbes = [...]innerChecksumProbe{
-	{protocol: "udp", port: 5555, accepted: "Udp.NoPorts", refused: "Udp.InCsumErrors"},
+	{protocol: protocolUDP, port: 5555, accepted: "Udp.NoPorts", refused: "Udp.InCsumErrors"},
 	{protocol: "tcp", port: 5556, accepted: "Tcp.OutRsts", refused: "Tcp.InCsumErrors"},
 }
 
@@ -2312,13 +2312,13 @@ func requireCounterAdvancement(before, after zeChildCounters) error {
 
 func readbackAsymmetricTraffic(ctx context.Context, lab *scenarioLab) (result error) {
 	rule := []string{"OUTPUT", "-d", zeIP, "-p", "icmp", "--icmp-type", "echo-reply", "-j", "DROP"}
-	if _, err := lab.exec(ctx, swanPeer, append([]string{"iptables", "-I"}, rule...)...); err != nil {
+	if _, err := lab.exec(ctx, swanPeer, append([]string{iptablesCommand, "-I"}, rule...)...); err != nil {
 		return err
 	}
 	defer func() {
 		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), probeWaitTimeout)
 		defer cancel()
-		_, err := lab.exec(cleanup, swanPeer, append([]string{"iptables", "-D"}, rule...)...)
+		_, err := lab.exec(cleanup, swanPeer, append([]string{iptablesCommand, "-D"}, rule...)...)
 		result = errors.Join(result, err)
 	}()
 	// Requests still cross ESP, but the peer drops only their echo replies.

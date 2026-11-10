@@ -392,25 +392,40 @@ its Child SA.
 **An IKE_AUTH that does not decrypt must not end the handshake.** Before the
 handshake authenticates, `handleAuthRequest` (the first IKE_AUTH) and
 `handleResponderEAP` (each EAP round) set `StateDead` on any error from
-`decryptAndParse`. Both SPIs and the Message ID travel in the clear, so one
-datagram built from an observed header ended the handshake of a peer that had
-done nothing wrong, against RFC 7296 Section 2.4: "an endpoint MUST NOT conclude
-that the other endpoint has failed based on any routing information (e.g., ICMP
-messages) or IKE messages that arrive without cryptographic protection".
-`discardUnauthenticatedHandshakeRequest` now drops a request that has no SK
-payload or fails its integrity check, counts it under
-`ze_ipsec_error_notify_suppressed_total{reason="handshake-unauthenticated"}`,
-sends nothing, and leaves the SA untouched, so the peer's next genuine request
-finds the exchange where it was. An inner payload chain that fails to parse after
-the integrity check passed (`errInnerParse`) is the peer's own message and still
-ends the handshake. Nothing the drop does refreshes `CreatedAt`, so the half-open
-reaper above still ends a handshake that only forgeries keep busy, and the inbound
-token bucket in `dispatchInbound` bounds how often the drop runs (RFC 7296
-Section 2.4, "Implementations MUST limit the rate at which they take actions
-based on unprotected messages"). `handleResponderAuthRound` already dropped an
-undecryptable RFC 4739 round the same way.
+`decryptAndParse`, and `handleResponderAuthRound` (the RFC 4739 second exchange)
+kept the SA but wrote a WARN line for each one and counted nothing. Both SPIs and
+the Message ID travel in the clear, so one datagram built from an observed header
+ended the handshake of a peer that had done nothing wrong, or wrote one line to the
+operator's log, against RFC 7296 Section 2.4: "Since IKE is designed to operate in
+spite of DoS attacks from the network, an endpoint MUST NOT conclude that the other
+endpoint has failed based on any routing information (e.g., ICMP messages) or IKE
+messages that arrive without cryptographic protection (e.g., Notify messages
+complaining about unknown SPIs)." All three now call
+`discardUnauthenticatedHandshakeRequest`, which drops a request that has no SK
+payload or fails its integrity check or AEAD tag, counts it under
+`ze_ipsec_error_notify_suppressed_total{reason="handshake-unauthenticated"}`, logs
+it at debug, sends nothing, and leaves the SA untouched, so the peer's next genuine
+request finds the exchange where it was.
+
+A failure after the integrity check passed is the peer's own message and still
+ends the handshake: an inner payload chain that does not parse, and, for a CBC
+cipher, a Padding, Pad Length or block alignment that is wrong, since the checksum
+covers them (RFC 7296 Section 3.14). `decryptSKPayload` and `decryptAndParse` mark
+both with `errInnerParse`, the one decrypt failure that is evidence about the peer.
+On an established SA the same mark is what lets `respondInnerParseError` answer
+with INVALID_SYNTAX. During IKE_AUTH the handshake ends with no answer, an open
+gap against RFC 7296 Section 2.21.2
+(`plan/journal/silent-fall-through.md`, 2026-11-10).
+
+Nothing the drop does refreshes `CreatedAt`, so the half-open reaper above still
+ends a handshake that only forgeries keep busy, and the inbound token bucket in
+`dispatchInbound` bounds how often the drop runs (RFC 7296 Section 2.4:
+"Implementations MUST limit the rate at which they take actions based on
+unprotected messages.").
 
 <!-- source: internal/component/ike/engine/responder_unauthenticated.go -- discardUnauthenticatedHandshakeRequest -->
+<!-- source: internal/component/ike/engine/multiple_auth.go -- handleResponderAuthRound -->
+<!-- source: internal/component/ike/engine/auth.go -- decryptSKPayload -->
 <!-- source: internal/component/ike/engine/responder_eap.go -- handleResponderEAP -->
 
 **An IP literal identity must be ID_IPV4_ADDR, not ID_FQDN.** `buildIDPayload`

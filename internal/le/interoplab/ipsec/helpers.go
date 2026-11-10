@@ -38,6 +38,14 @@ const (
 	// XFRM state and policy databases.
 	xfrmCommand = "xfrm"
 
+	// iptablesCommand is the IPv4 netfilter tool the checkers drive on a peer, and
+	// netfilterChainInput is the chain, shared with ip6tables, that a peer's
+	// inbound filter rules go in. protocolUDP is the protocol name iptables and the
+	// marker probes both take for UDP.
+	iptablesCommand     = "iptables"
+	netfilterChainInput = "INPUT"
+	protocolUDP         = "udp"
+
 	zeIP   = "172.28.0.2"
 	swanIP = "172.28.0.3"
 	frrIP  = "172.28.0.4"
@@ -852,12 +860,12 @@ func (l *scenarioLab) reloadZe(ctx context.Context, source string) error {
 }
 
 func (l *scenarioLab) breakLink(ctx context.Context) error {
-	_, err := l.exec(ctx, swanPeer, "iptables", "-I", "OUTPUT", "1", "-d", zeIP, "-j", "DROP")
+	_, err := l.exec(ctx, swanPeer, iptablesCommand, "-I", "OUTPUT", "1", "-d", zeIP, "-j", "DROP")
 	return err
 }
 
 func (l *scenarioLab) restoreLink(ctx context.Context) {
-	l.execQuiet(ctx, swanPeer, "iptables", "-D", "OUTPUT", "-d", zeIP, "-j", "DROP")
+	l.execQuiet(ctx, swanPeer, iptablesCommand, "-D", "OUTPUT", "-d", zeIP, "-j", "DROP")
 }
 
 func (l *scenarioLab) frrOutput(ctx context.Context, command string) (string, error) {
@@ -1032,7 +1040,7 @@ const rawProbe = "rawprobe"
 // retried inside the bounded wait so the first datagram cannot race the bind.
 func (l *scenarioLab) deliverMarker(ctx context.Context, protocol string, port int) error {
 	options := ""
-	if protocol == "udp" {
+	if protocol == protocolUDP {
 		options = "-u "
 	}
 	number := strconv.Itoa(port)
@@ -1947,7 +1955,7 @@ func (l *scenarioLab) exemptICMPFromClamp(ctx context.Context) error {
 // would send the target, so a Don't Fragment datagram the clamp refuses vanishes in
 // silence: the filtered path of AC-1.
 func (l *scenarioLab) dropTooBigToward(ctx context.Context, target string) error {
-	_, err := l.exec(ctx, natPeer, "iptables", "-I", "OUTPUT", "1", "-d", target, "-p", "icmp", "--icmp-type", "fragmentation-needed", "-j", "DROP")
+	_, err := l.exec(ctx, natPeer, iptablesCommand, "-I", "OUTPUT", "1", "-d", target, "-p", "icmp", "--icmp-type", "fragmentation-needed", "-j", "DROP")
 	if err != nil {
 		return fmt.Errorf("drop Fragmentation Needed toward %s on the NAT box: %w", target, err)
 	}

@@ -404,8 +404,8 @@ func (l *scenarioLab) leakWANPath(ctx context.Context) error {
 		{swanPeer, []string{"ip", "-6", ipObjectAddress, ipWordReplace, leakWANDestination + "/128", ipArgDev, "lo"}},
 		{zePeer, []string{"ip", "-6", "neigh", ipWordReplace, leakSwanWAN, "lladdr", mac, ipArgDev, containerInterface, "nud", "permanent"}},
 		{zePeer, []string{"ip", "-6", ipWordRoute, ipWordReplace, leakWANPrefix, "via", leakSwanWAN, ipArgDev, containerInterface, ipWordSrc, vtiIPv6ZeInner}},
-		{swanPeer, []string{"ip6tables", "-I", "INPUT", "-s", vtiIPv6ZeInner + "/128", "-d", leakWANDestination + "/128", "-j", "ACCEPT"}},
-		{swanPeer, []string{"ip6tables", "-I", "INPUT", "-s", leakZeWAN + "/128", "-d", leakWANDestination + "/128", "-j", "ACCEPT"}},
+		{swanPeer, []string{"ip6tables", "-I", netfilterChainInput, "-s", vtiIPv6ZeInner + "/128", "-d", leakWANDestination + "/128", "-j", "ACCEPT"}},
+		{swanPeer, []string{"ip6tables", "-I", netfilterChainInput, "-s", leakZeWAN + "/128", "-d", leakWANDestination + "/128", "-j", "ACCEPT"}},
 	}
 	for _, step := range steps {
 		if _, err := l.exec(ctx, step.peer, step.command...); err != nil {
@@ -479,7 +479,7 @@ func holdsSourceExemption(blocks []xfrmBlock, source string) bool {
 // toward the WAN-only destination, read from `ip6tables -v -S INPUT`, which prints
 // each rule with "-c <packets> <bytes>".
 func (l *scenarioLab) wanCounter(ctx context.Context, source string) (uint64, error) {
-	output, err := l.exec(ctx, swanPeer, "ip6tables", "-v", "-S", "INPUT")
+	output, err := l.exec(ctx, swanPeer, "ip6tables", "-v", "-S", netfilterChainInput)
 	if err != nil {
 		return 0, fmt.Errorf("read strongSwan's WAN counters: %w", err)
 	}

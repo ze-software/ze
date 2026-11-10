@@ -493,9 +493,11 @@ func (ps *PeerSession) answerFirstAuthExchange(sa *SA, msgID uint32, remoteSAi2 
 // the offer of the first request. RFC 4739 Section 2.4: "HDR, SK { SA, TSi, TSr }"
 // closes the exchange.
 //
-// A message that does not decrypt is dropped and the SA kept: RFC 7296 Section 2.21.4
-// lets no unprotected message change an SA's state, and the half-open reaper ends a
-// handshake the peer abandons.
+// A message without cryptographic protection is dropped and counted, with the SA kept,
+// as on the first IKE_AUTH and each EAP round: RFC 7296 Section 2.4 lets nothing be
+// concluded from it, and the half-open reaper ends a handshake the peer abandons. A
+// message that passed its integrity check but does not parse (errInnerParse) is the
+// peer's own, and it ends the handshake as it does on the other two.
 func (ps *PeerSession) handleResponderAuthRound(sa *SA, msg *wire.Message, rawMsg []byte, tr *transport.UDPTransport, remote *net.UDPAddr, log *slog.Logger) {
 	if msg.Header.MessageID != sa.ExpectedMsgID {
 		log.Debug("ike: second IKE_AUTH request at an unexpected message id, dropped",
@@ -503,8 +505,14 @@ func (ps *PeerSession) handleResponderAuthRound(sa *SA, msg *wire.Message, rawMs
 		return
 	}
 	inner, err := decryptAndParse(sa, msg, rawMsg)
+	// RFC 7296 Section 2.4: a second IKE_AUTH request that does not decrypt ends nothing.
+	if err != nil && discardUnauthenticatedHandshakeRequest(sa, err, log) {
+		return
+	}
 	if err != nil {
-		log.Warn("ike: second IKE_AUTH request does not decrypt, dropped", "peer", sa.PeerName, "error", err)
+		// Authenticated (errInnerParse), so the payloads are the peer's own and the handshake ends.
+		log.Warn("ike: second IKE_AUTH request authenticated but its payloads do not parse, handshake ended", "peer", sa.PeerName, "error", err)
+		sa.State = StateDead
 		return
 	}
 

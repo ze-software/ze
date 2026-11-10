@@ -1,13 +1,17 @@
 // Design: docs/architecture/ike/ipsec-14-responder.md -- unauthenticated input during the responder handshake
 // Related: responder_unauthenticated.go -- discardUnauthenticatedHandshakeRequest, the producer these tests hold
 // Related: rfc3748_eap_length_test.go -- eaplenExchange, the real EAP-MSCHAPv2 handshake these tests drive
+// Related: rfc4739_rounds_test.go -- maSAInitPair, the RFC 4739 two-round handshake the second-exchange tests drive
+// Related: rfc7296_encrypt_test.go -- cbcSKPair, buildCBCSKWithIVAndPad and forgePadLength
 
 package engine
 
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -279,5 +283,145 @@ func TestUnprotectedInputDoesNotExtendTheHandshake(t *testing.T) {
 	unprotDeliver(resp, unprotTampered(round2), table, myTr, peerAddr)
 	if !ps.reapStaleHandshake(resp, respTable, log) {
 		t.Fatal("a handshake past responderHandshakeTimeout was not reaped after a forgery arrived")
+	}
+}
+
+// unprotSecondExchange runs an RFC 4739 handshake whose initiator authenticates in two
+// rounds up to the responder waiting for the second IKE_AUTH request
+// (StateAuthReceived), with the responder's peer session registered so handleInbound
+// reaches it. It answers the pair and the initiator's real second request, held back.
+func unprotSecondExchange(t *testing.T) (p *maPair, req2 []byte) {
+	t.Helper()
+	p = maSAInitPair(t, maAuth(maIniLocal(), nil), maAuth(nil, maRespRemote()))
+	setActivePeers(map[string]*PeerSession{"ze": p.ps})
+	t.Cleanup(func() { setActivePeers(nil) })
+	p.respondWith(p.ini.LastSentMsg, false)
+	p.answerWith(p.resp.LastSentMsg, false)
+	if p.resp.State != StateAuthReceived {
+		t.Fatalf("responder state after the first exchange = %v, want IKE_AUTH received", p.resp.State)
+	}
+	return p, p.ini.LastSentMsg
+}
+
+// VALIDATES: an IKE_AUTH request of the RFC 4739 second exchange that arrives without
+// valid cryptographic protection is dropped the way the first IKE_AUTH and each EAP
+// round drop one: counted under handshake-unauthenticated, logged below WARN, the SA's
+// state and next Message ID unchanged, no datagram sent, and the peer's real second
+// request then establishes the SA.
+//
+// METHOD: a Ze-to-Ze handshake whose initiator runs two rounds reaches the responder's
+// StateAuthReceived. Two forgeries at the second request's Message ID reach the
+// responder through handleInbound, the dispatch goroutine's entry point: a bare header
+// with no Encrypted payload, and the real request with its checksum's last octet
+// flipped. Every log line at debug and above is captured, so a WARN would show.
+//
+// PREVENTS: handleResponderAuthRound logging a WARN for every decrypt error and counting
+// nothing, which let an off-path sender write one line to the operator's log per forged
+// datagram, the defect discardUnauthenticatedHandshakeRequest exists to refuse.
+func TestResponderSecondAuthRoundDropsUnprotectedRequestQuietly(t *testing.T) {
+	p, req2 := unprotSecondExchange(t)
+	expected := p.resp.ExpectedMsgID
+	before := errorNotifySuppressedCount(suppressedUnauthenticatedHandshake)
+	p.logs.Reset()
+
+	for _, forged := range [][]byte{unprotBareHeader(p.resp, eaplenMessageID(req2)), unprotTampered(req2)} {
+		handleInbound(p.resp, transport.Packet{Data: forged, RemoteAddr: p.peerAddr}, p.table, p.myTr, p.log)
+	}
+
+	if p.resp.State != StateAuthReceived {
+		t.Fatalf("responder state after the forgeries = %v, want IKE_AUTH received", p.resp.State)
+	}
+	if p.resp.ExpectedMsgID != expected {
+		t.Fatalf("the forgeries moved the next Message ID from %d to %d", expected, p.resp.ExpectedMsgID)
+	}
+	if got := errorNotifySuppressedCount(suppressedUnauthenticatedHandshake) - before; got != 2 {
+		t.Fatalf("%d forgeries counted under %q, want 2", got, suppressedUnauthenticatedHandshake)
+	}
+	if strings.Contains(p.logs.String(), "level=WARN") {
+		t.Fatalf("a forged second IKE_AUTH request wrote a WARN line:\n%s", p.logs.String())
+	}
+	rtxExpectSilence(t, p.peerTr, p.myTr, p.peerAddr, "an unprotected second IKE_AUTH request")
+
+	p.respondWith(req2, false)
+	if p.resp.State != StateEstablished {
+		t.Fatalf("the real second request after the forgeries left the responder %v", p.resp.State)
+	}
+}
+
+// VALIDATES: a second-exchange IKE_AUTH request that passes its cryptographic check but
+// whose inner payload chain does not parse ends the handshake, and is not counted as
+// unauthenticated.
+//
+// METHOD: as above, up to StateAuthReceived. A request sealed under the initiator's own
+// keys at the second request's Message ID carries one inner payload whose generic header
+// declares two octets, shorter than the header itself, so decryptAndParse marks the
+// failure errInnerParse.
+//
+// PREVENTS: the drop for forgeries swallowing every error, which the quiet-drop test
+// above would not notice: a message the peer demonstrably sent is evidence about it.
+func TestResponderSecondAuthRoundEndsOnAuthenticatedMalformedRequest(t *testing.T) {
+	p, req2 := unprotSecondExchange(t)
+	before := errorNotifySuppressedCount(suppressedUnauthenticatedHandshake)
+
+	// A generic payload header claiming 2 octets: ParsePayloadChain refuses a payload
+	// shorter than wire.GenericHeaderLen.
+	inner := []byte{0, 0, 0, 2}
+	var malformed []byte
+	var err error
+	if p.ini.Proposal.Encryption.IsAEAD {
+		malformed, err = buildSKMessageAEADWithMsgID(p.ini, inner, wire.PayloadTypeAUTH, eaplenMessageID(req2), wire.ExchangeIKEAuth, initiatorFlag(p.ini))
+	} else {
+		malformed, err = buildSKMessageCBCWithMsgID(p.ini, inner, wire.PayloadTypeAUTH, eaplenMessageID(req2), wire.ExchangeIKEAuth, initiatorFlag(p.ini))
+	}
+	if err != nil {
+		t.Fatalf("seal the malformed second request: %v", err)
+	}
+	handleInbound(p.resp, transport.Packet{Data: malformed, RemoteAddr: p.peerAddr}, p.table, p.myTr, p.log)
+
+	if p.resp.State != StateDead {
+		t.Fatalf("responder state after an authenticated malformed second request = %v, want dead", p.resp.State)
+	}
+	if got := errorNotifySuppressedCount(suppressedUnauthenticatedHandshake) - before; got != 0 {
+		t.Fatalf("an authenticated message was counted %d times as unauthenticated", got)
+	}
+}
+
+// VALIDATES: decryptAndParse marks a CBC message whose checksum verified but whose Pad
+// Length is wrong as errInnerParse, authenticated content that does not parse, and
+// leaves a message whose checksum fails unmarked.
+//
+// METHOD: one aligned CBC SK message is re-encrypted and re-MACed with a Pad Length of
+// 255, longer than its plaintext, so only the pad is wrong; a second copy has its
+// checksum's last octet flipped. Both go through decryptAndParse on the receiving SA.
+//
+// PREVENTS: a post-checksum failure of decryptSKPayload returning unmarked, which made
+// discardUnauthenticatedHandshakeRequest drop and count as a forgery a message only the
+// peer could have sealed, and kept the established path from answering it.
+func TestDecryptMarksAuthenticatedPaddingFailureAsInner(t *testing.T) {
+	sa, peer := cbcSKPair(t)
+	// No inner payload: fifteen pad octets and the Pad Length fill one 16-octet block.
+	raw := buildCBCSKWithIVAndPad(t, sa, nil, 3, bytes.Repeat([]byte{0x44}, 16), 15)
+	msg := parseMsg(t, raw)
+	sk, ok := msg.Payloads[0].Payload.(*wire.PayloadSK)
+	if !ok {
+		t.Fatalf("sole payload = %T, want *wire.PayloadSK", msg.Payloads[0].Payload)
+	}
+
+	overlong := forgePadLength(t, sa, peer, raw, sk, 0xff)
+	_, err := decryptAndParse(peer, parseMsg(t, overlong), overlong)
+	if !errors.Is(err, errInnerParse) {
+		t.Fatalf("an authenticated message with a Pad Length past its plaintext = %v, want errInnerParse", err)
+	}
+	if !errors.Is(err, errInvalidMessage) {
+		t.Fatalf("the authenticated padding failure lost its cause: %v, want errInvalidMessage", err)
+	}
+
+	tampered := unprotTampered(raw)
+	_, err = decryptAndParse(peer, parseMsg(t, tampered), tampered)
+	if err == nil {
+		t.Fatal("a message whose checksum fails was accepted")
+	}
+	if errors.Is(err, errInnerParse) {
+		t.Fatalf("a message whose checksum fails was marked authenticated: %v", err)
 	}
 }
