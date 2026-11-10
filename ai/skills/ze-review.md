@@ -78,6 +78,8 @@ phase itself.
 
 1. **Size the change (BEFORE any other analysis):** Count the changed lines and files. Ask "is this change bigger than the problem it solves?" A diff bigger than its problem gets ONE finding: a BLOCKER naming the smaller change. The review stops there. Auditing the details of over-engineered code ratifies it, and every fix it drives earns another pass over more of it (`ai/rules/simplicity.md`, `ai/rules/context-economy.md`). Size decides the spec and the phase sequence, and nothing else (`ai/rules/context-economy.md`). It never caps the review rounds, which `ai/rules/planning.md` "Work Phases and the Review Loop" owns. The rounds are bounded by what they FIND. `./le spec review record` refuses more than five without `rounds-reason <reason>` naming a PRODUCT defect a later round found; a sixth round also needs `owner-authorised <reason>` from Thomas.
 
+1b. **Test shape:** For each test the diff adds or grows, apply `ai/rules/testing.md`, "one question per test". A test that breaks it is an ISSUE naming the split or the cheaper route. A test the diff does not touch is never a finding.
+
 2. **Wiring verification (before any analysis of correctness):** For every new function, type, handler, route, config option, CLI command, or plugin introduced in the diff, prove it is reachable from a user entry point. It leads the correctness checks because it catches the project's most recurring defect class (see `plan/learned/RECURRING-PATTERNS.md`). If new code has no caller in production, nothing else in this review matters.
 
     For each new symbol, answer: **"What user action reaches this code?"** If you cannot name one, it is a BLOCKER.

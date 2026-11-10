@@ -332,6 +332,7 @@ Answer all three before presenting the gate. If any answer is "no", redesign.
    - Every assumption row has Basis + validation method; every risk row has early signal + mitigation
    - All reading entries have `→ Decision:` or `→ Constraint:`
    - Wiring test rows all have concrete test names
+   - Each TDD Test Plan row validates one behaviour, through the cheapest route that decides it (`ai/rules/testing.md`, "one question per test")
    - Integration Checklist and Documentation Update Checklist present, every row answered Yes (file) or N/A (reason) -- never left as empty template placeholders. The doctor-check row is answered if the feature adds any runtime dependency.
    - Review Gate section present (from the template), Run tables left empty -- it is filled at implementation time by `/ze-review`, not now
 

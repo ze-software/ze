@@ -208,6 +208,7 @@ start").
    Gate: every Wiring Test row has a registered entry point and a failing test before proceeding.
 5. **Implement feature phases:** Follow the spec's **Implementation Phases** section in order, filling in the stubs created in step 4. For each phase:
    - Write the tests listed for that phase (TDD — test must fail before implementation)
+   - A new behaviour gets a new test, never assertions appended to an existing one (`ai/rules/testing.md`, "one question per test")
    - Implement minimal code to pass
    - Run the scoped package test until green: the `go test -race` recipe under
      `./le job run` in `docs/contributing/running-commands.md`, over the packages

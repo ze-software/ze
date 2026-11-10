@@ -111,3 +111,42 @@ func TestAnEmptyLogAnswersNothing(t *testing.T) {
 		t.Errorf("an empty log answered the head %v", head)
 	}
 }
+
+// TestFailedTestsNamesEachTopLevelFailureOnce drives FailedTests over a log
+// that holds a passing package, a failing test with a failing subtest, the
+// same test failing on a second -count run, a test whose failure line carries
+// no elapsed time, and a panic. Each top-level test is named once, in the
+// order the log first names it, and no subtest or other line is taken for one.
+func TestFailedTestsNamesEachTopLevelFailureOnce(t *testing.T) {
+	log := `ok  	github.com/ze-software/ze/internal/core/env	0.012s
+=== RUN   TestCommitScript
+--- FAIL: TestCommitScript (0.02s)
+    --- FAIL: TestCommitScript/refuses_a_directory (0.00s)
+        script_test.go:12: wanted a refusal
+--- FAIL: TestReviewPin (1.10s)
+--- FAIL: TestCommitScript (0.01s)
+--- FAIL: TestBare
+FAIL	github.com/ze-software/ze/internal/le/commit	1.310s
+panic: send on closed channel
+`
+	names, err := FailedTests(strings.NewReader(log))
+	if err != nil {
+		t.Fatalf("read the log: %v", err)
+	}
+	want := []string{"TestCommitScript", "TestReviewPin", "TestBare"}
+	if strings.Join(names, ",") != strings.Join(want, ",") {
+		t.Errorf("FailedTests answered %v, want %v", names, want)
+	}
+}
+
+// TestFailedTestsOfAPassingLogIsEmpty states that a log with no failure line
+// answers no name, so a caller can refuse rather than judge nothing.
+func TestFailedTestsOfAPassingLogIsEmpty(t *testing.T) {
+	names, err := FailedTests(strings.NewReader("ok  	one	0.1s\nPASS\n"))
+	if err != nil {
+		t.Fatalf("read the log: %v", err)
+	}
+	if len(names) != 0 {
+		t.Errorf("a passing log answered %v", names)
+	}
+}

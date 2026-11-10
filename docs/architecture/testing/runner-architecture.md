@@ -949,6 +949,18 @@ alpha 0.3. After three samples the baseline drives two things:
 Baseline updates are suppressed during a contended run, so a slow run does not
 pollute the EMA.
 
+The baseline has a second reader. `./le test cost report suite <suite>` ranks a
+suite's tests by their share of the suite's recorded time, and lists those
+that are long against their suite rather than against their own history, which
+slow detection never flags. It reads the file through `runner.ReadTimings`,
+which refuses a missing or corrupt file where the runner starts afresh, and
+takes the same three-sample minimum, `runner.BaselineSamplesMin`. Because the
+baseline never holds a contended run's times, neither does the report.
+`docs/contributing/running-commands.md`, "Which tests cost the most of their
+run", documents it.
+<!-- source: internal/test/runner/timing.go -- ReadTimings, BaselineSamplesMin, TimingsPath -->
+<!-- source: internal/le/test/cost/cost.go -- rankBaseline, rankGroup -->
+
 ## Contended run verdicts
 
 <!-- source: internal/test/runner/hostload.go -- HostLoad, isNearTimeout -->

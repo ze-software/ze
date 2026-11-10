@@ -7,7 +7,7 @@
 // verification failure index and a quiet job name the same lines instead of
 // each carrying its own pattern of what a failure looks like.
 //
-// Both functions read one line at a time. A stage log of a full verification
+// Every function here reads one line at a time. A stage log of a full verification
 // run is hundreds of megabytes, so memory here is bounded by the longest line
 // plus the lines that are kept.
 package runlog
@@ -42,6 +42,42 @@ func Key(reader io.Reader, limit int) ([]string, error) {
 		return len(lines) < limit
 	})
 	return lines, err
+}
+
+// failedTestPrefix opens the line `go test` prints for a top-level test that
+// failed. A subtest's line is indented, so it does not open with this prefix:
+// re-running the top-level test runs its subtests again.
+const failedTestPrefix = "--- FAIL: "
+
+// FailedTests returns the name of every top-level test a `go test` log
+// reports failed, once each, in the order the log first names it.
+//
+// The name is the text after the prefix up to the first space, which is where
+// `go test` puts the elapsed time. A log run with -count above one names a
+// test once per run, and the answer still names it once.
+//
+// An empty result says no `--- FAIL:` line is in the log. It does not say the
+// run passed: a package that did not compile fails with no such line.
+func FailedTests(reader io.Reader) ([]string, error) {
+	var names []string
+	seen := make(map[string]bool)
+	err := forEachLine(reader, func(_ int, text string) bool {
+		rest, found := strings.CutPrefix(text, failedTestPrefix)
+		if !found {
+			return true
+		}
+		name, _, _ := strings.Cut(strings.TrimSpace(rest), " ")
+		if name == "" {
+			return true
+		}
+		if seen[name] {
+			return true
+		}
+		seen[name] = true
+		names = append(names, name)
+		return true
+	})
+	return names, err
 }
 
 // Head returns the first limit lines of a run log, unnumbered. A linter writes

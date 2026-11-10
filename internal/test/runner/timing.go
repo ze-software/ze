@@ -6,7 +6,9 @@ package runner
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"math"
 	"os"
 	"path/filepath"
@@ -30,25 +32,55 @@ type Timings map[string]map[string]TimingEntry
 // maxTimingsFileSize is the maximum size of the timings JSON file (10 MB).
 const maxTimingsFileSize = 10 << 20
 
-// LoadTimings reads timings from the baseline file. Returns empty timings on error.
+// BaselineSamplesMin is the number of recorded runs a test needs before its
+// average is read as its baseline. Below it, one cold or contended run would
+// decide the answer. IsSlow, SuggestedTimeout and the cost report
+// (internal/le/test/cost) all read this one value.
+const BaselineSamplesMin = 3
+
+// TimingsPath answers where the baseline file of the checkout at baseDir lives.
+func TimingsPath(baseDir string) string {
+	return filepath.Join(baseDir, timingsFile)
+}
+
+// LoadTimings reads timings from the baseline file. Returns empty timings on
+// error: the runner starts a fresh baseline rather than refusing to run. A
+// missing file is the normal first run; any other failure is logged at WARN.
 func LoadTimings(baseDir string) Timings {
-	path := filepath.Join(baseDir, timingsFile)
-	info, err := os.Stat(path)
+	path := TimingsPath(baseDir)
+	t, err := ReadTimings(path)
 	if err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			logger().Warn("timings file unreadable, starting fresh", "path", path, "error", err)
+		}
 		return make(Timings)
 	}
+	return t
+}
+
+// ReadTimings reads the baseline file at path and answers an error when it
+// cannot: a missing, oversized, unreadable or corrupt file. A reader that must
+// not mistake "no baseline" for "no slow tests" calls this, not LoadTimings.
+// Entries with invalid values (negative average, maximum or sample count) are
+// dropped, and a suite left empty by that is dropped too.
+func ReadTimings(path string) (Timings, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
 	if info.Size() > maxTimingsFileSize {
-		logger().Warn("timings file too large, starting fresh", "path", path, "size", info.Size())
-		return make(Timings)
+		return nil, fmt.Errorf("timings file %s is %d bytes, above the %d-byte limit", path, info.Size(), maxTimingsFileSize)
 	}
 	data, err := os.ReadFile(path) //nolint:gosec // project-local file
 	if err != nil {
-		return make(Timings)
+		return nil, err
 	}
 	var t Timings
 	if err := json.Unmarshal(data, &t); err != nil {
-		logger().Warn("timings file corrupt, starting fresh", "path", path, "error", err)
-		return make(Timings)
+		return nil, fmt.Errorf("timings file %s is corrupt: %w", path, err)
+	}
+	if t == nil {
+		t = make(Timings)
 	}
 	// Discard entries with invalid values (negative avg, negative samples).
 	for suite, tests := range t {
@@ -61,7 +93,7 @@ func LoadTimings(baseDir string) Timings {
 			delete(t, suite)
 		}
 	}
-	return t
+	return t, nil
 }
 
 // Save writes timings to the baseline file atomically (temp file + rename).
@@ -133,13 +165,13 @@ func (t Timings) Record(suite, name string, duration time.Duration) {
 }
 
 // IsSlow returns true if duration exceeds 2x the rolling average.
-// Requires at least 3 samples to avoid false positives.
+// Requires at least BaselineSamplesMin samples to avoid false positives.
 func (t Timings) IsSlow(suite, name string, duration time.Duration) (slow bool, expected time.Duration) {
 	if t[suite] == nil {
 		return false, 0
 	}
 	entry, ok := t[suite][name]
-	if !ok || entry.Samples < 3 {
+	if !ok || entry.Samples < BaselineSamplesMin {
 		return false, 0
 	}
 	ms := float64(duration.Milliseconds())
@@ -150,7 +182,7 @@ func (t Timings) IsSlow(suite, name string, duration time.Duration) (slow bool, 
 
 // SuggestedTimeout returns a per-test timeout derived from baseline data.
 // Uses min(fallback, max(floor, multiplier * baseline_avg)).
-// Returns fallback if no baseline data exists (fewer than 3 samples).
+// Returns fallback if no baseline data exists (fewer than BaselineSamplesMin samples).
 func (t Timings) SuggestedTimeout(suite, name string, fallback time.Duration) time.Duration {
 	const (
 		multiplier = 5.0
@@ -160,7 +192,7 @@ func (t Timings) SuggestedTimeout(suite, name string, fallback time.Duration) ti
 		return fallback
 	}
 	entry, ok := t[suite][name]
-	if !ok || entry.Samples < 3 {
+	if !ok || entry.Samples < BaselineSamplesMin {
 		return fallback
 	}
 	// The max(_, floor) also protects against int64 overflow from corrupted AvgMs:

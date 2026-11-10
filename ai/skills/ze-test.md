@@ -12,6 +12,12 @@ optional.
 See also: `/ze-debug` (a test is failing and you do not know why), `/ze-verify`
 (the gate, after promotion)
 
+## Step 0 — Name the one question
+
+Before drafting, write in the test's header the one question it answers and
+why a unit test cannot decide it. A `.ci` whose assertion a unit test could
+decide is the wrong route (`ai/rules/testing.md`, "one question per test").
+
 ## Step 1 — Draft it where nothing can see it (BLOCKING)
 
 **Never write or iterate on a `.ci` inside `test/<suite>/`.** That directory is
@@ -46,6 +52,10 @@ place and hope verify does not run.
 `--draft` swaps the discovery root from `test/<suite>` to
 `test/draft/<suite>` (`internal/test/runner/draft_dir.go` `SuiteDir`). Without
 the flag you get the real tests, never the drafts.
+
+After the draft run, read `./le test cost report suite <suite>`. When the
+draft is listed, answer the row's question against the step 0 question
+before promoting it (`ai/rules/testing.md`, "one question per test").
 
 ## Step 3 — Assert on STATE, never on elapsed time
 

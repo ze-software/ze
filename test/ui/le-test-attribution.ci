@@ -1,0 +1,23 @@
+# Test: le test attribution report is reachable through le's dispatch and refuses what it cannot judge
+# VALIDATES: spec-test-validation-in-smaller-units AC-15 -- the action is
+# registered at `le test attribution report`, takes its keywords (log, package,
+# tags, repeated file), and refuses with exit 2 and the fix, never an empty
+# report that reads as "none caused": a log with no failing test, a package
+# pattern, and a missing file keyword. The classification itself is decided by
+# TestAttributionClassifiesEachFailingTest with an injected runner; this test
+# answers only what a unit test cannot, that the real command line reaches it.
+# The logs are repository files: a non-harness le step runs at the checkout
+# root (repositoryAnchoredBinary, internal/test/runner/runner.go), so a tmpfs
+# file's bare name would not resolve there.
+# Exercises: answerReport -> buildRequest -> readFailed (runlog.FailedTests) -> Attributor.Attribute
+
+cmd=foreground:seq=1:exec=le test attribution report log internal/le/test/attribution/testdata/passing.log package internal/le/runlog tags ze_core file internal/le/runlog/runlog.go:exit=2
+expect=stderr:contains=names no failing test
+reject=stdout:contains=verdict:
+
+cmd=foreground:seq=2:exec=le test attribution report log internal/le/test/attribution/testdata/failing.log package internal/le/... tags ze_core file internal/le/runlog/runlog.go:exit=2
+expect=stderr:contains=name one package directory, not a pattern
+
+cmd=foreground:seq=3:exec=le test attribution report log internal/le/test/attribution/testdata/failing.log package internal/le/runlog tags ze_core:exit=2
+expect=stderr:contains=file
+expect=exit:code=2

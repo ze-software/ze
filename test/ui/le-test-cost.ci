@@ -1,0 +1,54 @@
+# Test: le test cost report ranks a suite's .ci tests by their share of the suite
+# VALIDATES: spec-test-validation-in-smaller-units AC-18 -- a test in the top 5%
+# of its suite and above the 15s floor is listed with its share and the question
+# the testing rule asks; a test with fewer than three baseline samples is listed
+# as unmeasured, never ranked; the report exits 0 and says its times are triage.
+# The fixture baseline holds suite "demo": one 60s test, one test exactly at the
+# floor, nineteen 1s tests, and a slow test with one sample.
+# Exercises (the timings arrive on stdin): answerReport -> answerSuite -> runner.ReadTimings -> rankBaseline -> Report.Text
+
+# The baseline reaches le on stdin, read through /dev/stdin: an `le` head that
+# is not a harness command runs at the repository root (repositoryAnchoredBinary,
+# internal/test/runner/runner.go), so a tmpfs file's relative name would not
+# resolve there.
+stdin=timings:terminator=EOF_TIMINGS
+{
+  "demo": {
+    "whole-path": {"avg-ms": 60000, "max-ms": 60000, "samples": 5},
+    "at-floor": {"avg-ms": 15000, "max-ms": 15000, "samples": 5},
+    "brand-new": {"avg-ms": 90000, "max-ms": 90000, "samples": 1},
+    "small-01": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
+    "small-02": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
+    "small-03": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
+    "small-04": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
+    "small-05": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
+    "small-06": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
+    "small-07": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
+    "small-08": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
+    "small-09": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
+    "small-10": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
+    "small-11": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
+    "small-12": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
+    "small-13": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
+    "small-14": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
+    "small-15": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
+    "small-16": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
+    "small-17": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
+    "small-18": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
+    "small-19": {"avg-ms": 1000, "max-ms": 1000, "samples": 5}
+  }
+}
+EOF_TIMINGS
+
+cmd=foreground:seq=1:exec=le test cost report suite demo baseline /dev/stdin:stdin=timings:exit=0
+expect=stdout:contains=demo: whole-path
+expect=stdout:contains=does its red say which behavior broke, and could a cheaper route decide it?
+expect=stdout:contains=demo: brand-new (1 samples)
+reject=stdout:contains=demo: at-floor
+expect=stdout:contains=host-dependent triage
+expect=stdout:contains=never a performance figure
+
+cmd=foreground:seq=2:exec=le test cost report suite absent baseline /dev/stdin:stdin=timings:exit=2
+expect=stderr:contains=suite absent has no timing baseline
+expect=stderr:contains=./le test absent -a
+expect=exit:code=2

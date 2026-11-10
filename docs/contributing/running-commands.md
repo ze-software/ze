@@ -1904,6 +1904,141 @@ directory goes. Two runs of one label in one session overwrite it.
 An ordinary run still streams to the terminal, which is what every wrapped
 recipe needs.
 
+## Did my files cause this red
+
+Several sessions edit one checkout, so a package run judges every session's
+edits at once, and a red in it may be another session's. `./le test
+attribution report` answers, for each test a quiet log reports failed, whether
+the files you name cause it:
+
+```
+./le job run label unit-pkg quiet command go test -race -tags "$tags" ./internal/le/commit
+./le test attribution report log tmp/session/<YYYY-MM-DD>-<HHMMSS>/scratch/job-unit-pkg.log \
+  package internal/le/commit tags "$tags" file internal/le/commit/create.go file internal/le/commit/create_test.go
+```
+
+Name every file of your change with its own `file` keyword, as `./le commit
+create` takes them. The changed-set selector cannot do it for you: it cannot
+tell your edits from another session's. The failing tests come from the log's
+`--- FAIL:` lines (`runlog.FailedTests`). A test the log reports passed is not
+re-run. Each failing test runs twice, through job admission, with the tags you
+give: once as the tree is on disk, and once with the named files put back to
+HEAD through a Go overlay. A file HEAD does not hold is deleted from that
+build. The tree on disk is never touched.
+
+| Class | On disk | Named files at HEAD | Meaning |
+|-------|---------|---------------------|---------|
+| `caused` | red | green | your files cause the red |
+| `added` | red | no such test | your files add the test that is red |
+| `not-caused` | red | red | the red is there without your files |
+| `undetermined` | | does not compile (or on disk does not) | no verdict; the row gives the compiler's first line, and usually a file of the change is not named |
+| `red-at-head-only` | green | red | the log's red did not come back, and your files fix a red |
+| `not-reproduced` | green | green | the log's red did not come back: flaky, or the tree changed since the log |
+| `not-run` | no such test | | the package does not hold the test; name the package the log ran |
+
+The report exits 1 when a row is `caused` or `added`, 2 when no row is but a
+row reached no verdict (`undetermined`, `not-run`) or the comparison could not
+start (a log with no `--- FAIL:` line, a package pattern, an unreadable file),
+and 0 otherwise. Every report states what it compared: the named files at HEAD
+against the same files on disk, with every other file as on disk. The overlay
+changes only what the compiler reads, so a test that opens a named file at run
+time reads the copy on disk. A red your files cause only together with another
+session's uncommitted edit reads as `not-caused`.
+<!-- source: internal/le/test/attribution/attribution.go -- Attributor.Attribute, unitArgv, compared -->
+<!-- source: internal/le/test/attribution/observe.go -- observe, classify, classifyRed, classifyGreen -->
+<!-- source: internal/le/test/attribution/actions.go -- answerReport, headReader, admittedRunner -->
+<!-- source: internal/le/runlog/runlog.go -- FailedTests -->
+
+## Which tests cost the most of their run
+
+`./le test cost report` lists the tests that take the largest share of their
+suite or package, as candidates to read against the testing rule's "one
+question per test" point (`ai/rules/testing.md`). It reads one run:
+
+| Line | Reads |
+|------|-------|
+| `./le test cost report suite <suite>` | that suite's entries in the `.ci` timing baseline, `tmp/test-timings.json` |
+| `./le test cost report suite <suite> baseline <path>` | the same, from another baseline file |
+| `./le test cost report log <path>` | a Go test log that kept per-test elapsed: `go test -v` (`--- PASS: TestX (1.20s)`) or `go test -json` |
+
+A test is listed when it is among the top 5% of its suite or package (rounded
+up, so a small package still names its longest test) and its time is above a
+floor: 2s for a Go test, 15s for a `.ci`. The thresholds are declared once, in
+`internal/le/test/cost/cost.go`. Each row gives the test's share, its time and
+the question to ask of it: does its red say which behaviour broke, and could a
+cheaper route decide it? A `.ci` test with fewer than three baseline samples
+is listed as unmeasured, never ranked. A share is of the group's whole
+recorded time, so it sums to 100% over a suite or package.
+
+A plain `go test` prints no time for a passing test, so a Go log must come
+from a run with `-v`. The quiet job route keeps it, and `runlog` still picks
+the same failure lines, because a passing test's line never matches them:
+
+```
+./le job run label unit-pkg quiet command go test -v -race -tags "$tags" ./internal/core/eap
+./le test cost report log tmp/session/<YYYY-MM-DD>-<HHMMSS>/scratch/job-unit-pkg.log
+```
+
+The report exits 0 whatever it lists: it is triage, never a gate. A line that
+names neither source, or both, and a source it cannot read, answer 2, because
+then it judged nothing. Its times are host-dependent triage, never a
+performance figure: do not quote, record or compare them
+(`ai/META-DECISIONS.md`, performance figures). A share compares tests from the
+same run on the same host, which is why the report names the host it ran on.
+<!-- source: internal/le/test/cost/cost.go -- topPercent, floorGo, floorCI, answerReport, rankGroup -->
+<!-- source: internal/le/test/cost/golog.go -- parseGoLog, testResultLine, packageResultLine -->
+<!-- source: internal/le/test/cost/report.go -- Report.Text, notice -->
+
+## Does my test go red under this break
+
+A red walk asks whether a test fails when the code it guards is broken.
+`./le test redwalk check` runs one walk with the shared tree untouched, for any
+test, with no RFC tag needed:
+
+| Line | Walks |
+|------|-------|
+| `./le test redwalk check break <patch> unit <Test> package <pkg>` | one Go test function, through `go test -run '^<Test>$' -v` |
+| `./le test redwalk check break <patch> ci <suite>/<name>` | one `.ci` of a functional suite, through the isolated binaries the suite builds |
+| `./le test redwalk check break <patch> scenario <lab>/<name>` | one interop scenario, through the action the lab's catalog declares |
+
+The break is a `git diff` of tracked Go files, saved to a file:
+
+```
+git diff -- internal/core/eap/method.go > tmp/session/<YYYY-MM-DD>-<HHMMSS>/scratch/break.patch
+./le test redwalk check break tmp/session/<YYYY-MM-DD>-<HHMMSS>/scratch/break.patch unit TestMethodRefuses package internal/core/eap
+```
+
+Make the edit, save the diff, then put the file back by hand before you
+walk it. The walk applies the diff in memory to the file as the working tree
+holds it, and refuses any hunk that does not match exactly. It runs the unit
+clean, then with the broken files handed to the compiler through a Go overlay
+staged in session scratch, the same overlay machinery `./le rfc record` uses
+(`internal/le/test/overlay`). It removes the overlay once the broken run ends,
+and never writes a tracked file, so a walk killed mid-run leaves no break in
+the tree: at most a `run-*` directory under the scratch area `redwalk`. The
+child runs are not admitted through `./le job run`, as `./le rfc record`'s are
+not.
+
+| Verdict | Exit | Meaning |
+|---------|------|---------|
+| `red` | 0 | clean pass, and the broken run fails as the unit's own red: its `--- FAIL: <Test>` line, the runner's `FAIL` or `TIME` for the `.ci`, or a scenario FAIL `in checker` |
+| `green` | 1 | the unit stayed green under the break: the test does not discriminate it |
+| `no-baseline` | 1 | the clean run was red, skipped, or never ran the unit (a test name `go test` did not find passes with no line) |
+| `not-a-red` | 1 | the broken run failed some other way: the broken build does not compile, a sibling test failed, or a scenario failed `in setup` or `in readiness`, before its checker ran |
+| `unobserved` | 1 | the broken run skipped the unit, printed no line for it, or did not finish inside its deadline |
+
+The report gives the clean pass line, the broken line and the files the
+overlay replaced, and for every verdict but `red` the reason, the fix and the
+tail of the run's output. A line or a break the walk refuses answers 2 before
+anything runs: a path that leaves the checkout (a symlink included), a file
+git does not track, a file the patch creates or renames, and any file that is
+not Go. A Go overlay changes only what the compiler reads, so it cannot reach
+a `.ci`, a scenario config or a file a test opens at run time, and the walk
+does not copy the tree to reach them.
+<!-- source: internal/le/test/redwalk/redwalk.go -- answerCheck, parseTarget, carrierRunner -->
+<!-- source: internal/le/test/redwalk/patch.go -- parseBreak, breakPath, applyHunks -->
+<!-- source: internal/le/test/redwalk/verdict.go -- walk.check, target.judgeClean, target.judgeBroken -->
+
 ## Which native action owns the documentation gate
 
 `./le doc check all` and `./le repo check generated` are separate actions.

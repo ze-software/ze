@@ -200,6 +200,7 @@ For every test in the changed code:
 6. Are assertions specific enough? Would a wrong implementation also pass? (e.g., assert count==2 on a map that deduplicates -- wrong parsing could also give 2)
 7. Are test inputs realistic? Do they represent actual production scenarios?
 8. Is there a functional .ci test proving the feature works end-to-end? (Ze project requires this)
+9. For each test the diff adds or grows: does it keep the "one question per test" point of ai/rules/testing.md? A test that breaks it is medium severity, naming the split or the cheaper route. A test the diff does not touch is never a finding.
 
 For each finding report:
 FILE:LINE | SEVERITY (high/medium/low) | What is not tested | What test should be written (specific inputs and expected outputs)

@@ -1,0 +1,4 @@
+=== RUN   TestRed
+--- FAIL: TestRed (0.00s)
+FAIL
+FAIL	github.com/ze-software/ze/internal/le/runlog	0.01s

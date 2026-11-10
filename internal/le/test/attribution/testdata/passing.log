@@ -1,0 +1,4 @@
+=== RUN   TestGreen
+--- PASS: TestGreen (0.00s)
+PASS
+ok  	github.com/ze-software/ze/internal/le/runlog	0.01s

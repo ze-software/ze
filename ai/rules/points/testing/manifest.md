@@ -8,6 +8,8 @@ directives ## Directives
   write-the-test-first-and-never-weaken-it
   draft-a-ci-before-it-goes-live
   read-the-one-declaration-of-a-runner-or-lab-rule
+  one-question-per-test
+  replay-a-checker-change-over-its-recording
 fix-code-not-tests ## Fix Code, Not Tests
   fix-the-code-when-a-test-fails-not-the-test
   the-weakening-the-hook-cannot-see

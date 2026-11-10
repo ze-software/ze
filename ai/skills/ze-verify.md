@@ -59,6 +59,13 @@ phase itself.
      Do not widen to `./le test unit all`, `./le test functional gating` or
      any `./le verify` command.
    - **Full:** run nothing. GitHub CI verifies the pushed commit.
+   - **Cost (targeted only):** after the scoped runs, run
+     `./le test cost report suite <suite>` for each functional suite it ran,
+     and `./le test cost report log <path>` for each package run whose log
+     kept per-test elapsed (`go test -v`). The report ends with each listed
+     row as a `NOTE:` line, never as a failure: a row is a candidate to read
+     against `ai/rules/testing.md`, "one question per test". A full-mode run
+     ran nothing, so it prints none.
 2. **Parse results:** On failure, search each run's output:
    - `grep -E "^--- FAIL|^FAIL|TEST FAILURE|✗|═══ FAIL"` over the output
    - Also check exit code
