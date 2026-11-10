@@ -68,9 +68,9 @@ accessor is the natural input to this check.
 **Premise corrected (research, 2026-11-09).** The paragraphs above say "a
 source that is configured but dead". The detector does not read the flow
 sources. Its input is the per-interface receive rate:
-`trafficstat.Service.SubscribeRates` (`onRates`), or
-`iface.SubscribeCollectNotify` (`onRate`) when trafficstat is unavailable
-(`register.go` `runEngine` `subscribe`). `traffic-usage` and `flow-export` only
+`trafficstat.Service.SubscribeRates` (`onRates`, `register.go` `runEngine`
+`subscribe`). The `iface.SubscribeCollectNotify` fallback (`onRate`) the
+research found was unreachable and is deleted. `traffic-usage` and `flow-export` only
 feed characterization after a detection (`characterize.go`). "Blind" therefore
 means the RATE FEED delivers no sample, reports no interface, or reports zero
 traffic. `checkFlowSource` stays: it answers a different question.
@@ -83,7 +83,8 @@ package and is the place the new check's unit coverage belongs.
 
 ### Architecture Docs
 - [ ] `docs/architecture/ddos/cp-survival-5-detect-0-umbrella.md` - the detector design
-  → Decision: the detector consumes the trafficstat rate feed, with the iface counter poll as fallback
+  → Decision: the detector consumes the trafficstat rate feed. `trafficstat.EnsureGlobal` never answers nil, so the iface counter poll fallback in `subscribe` was unreachable and is deleted
+  → Constraint: an external plugin process holds its own empty trafficstat service, so its samples carry no interface; the external cause is recorded at `arm` from `p.IsInternal()` and reported instead
   → Constraint: d.mu is never held across an Emit; the watch logs under d.mu and emits nothing
 - [ ] `docs/architecture/ddos/cp-survival-5-detect-5-characterization.md` - the `// Design:` page of `doctor.go`
   → Decision: it documents the flow-source check, which this spec leaves unchanged; the rate-feed check is documented on the umbrella page, which `blind.go` names
@@ -100,8 +101,8 @@ package and is the place the new check's unit coverage belongs.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/plugins/ddos/detect/register.go` - runEngine subscribes the detector to trafficstat or the iface poll; one registry doctor check
-- [ ] `internal/plugins/ddos/detect/detector.go` - tickRates/tickInfos fold each sample into tick
+- [ ] `internal/plugins/ddos/detect/register.go` - runEngine subscribes the detector to trafficstat; one registry doctor check
+- [ ] `internal/plugins/ddos/detect/detector.go` - tickRates folds each sample into tick
 - [ ] `internal/plugins/ddos/detect/baseline.go` - Ready is a sample count
 - [ ] `internal/plugins/ddos/detect/doctor.go` - checkFlowSource reads the config tree only
 - [ ] `internal/plugins/ospf/register.go` - runtime doctor check through OnDoctorCheck
@@ -121,17 +122,17 @@ package and is the place the new check's unit coverage belongs.
 | Plugin runtime doctor check | `pkg/plugin/sdk` `OnDoctorCheck`, `rpc.DoctorCheckDecl`; OSPF `ospf-state` | The engine calls the plugin's callback for a declared check and shows its diagnostics in `ze doctor` | Extends: declares `ddos-detect-rate-feed` and answers it from the running detector |
 | Registry doctor check | `registry.Registration.DoctorChecks`, `checkFlowSource` | Config-tree check run in the daemon | Does not apply to runtime state: the daemon process holds no detector when the plugin runs external. Kept for its own question |
 | Diagnostic code registry | `internal/core/diagnostic/codes.go` `builtinCodes` | `ze show diagnostic <code>` explains a code | Extends: new exported `CodeDoctorDDoSDetectBlind` and its entry |
-| Detector feed tick | `detector.go` `tickRates`, `tickInfos` | Folds each one-second sample under d.mu | Extends: reports each sample to `observeFeed` |
+| Detector feed tick | `detector.go` `tickRates` (`tickInfos` deleted with its unreachable fallback) | Folds each one-second sample under d.mu | Extends: reports each sample to `observeFeed` |
 | Baseline maturity | `plan/post-release/features/spec-ddos-baseline-warmup-maturity.md` | Not landed | Does not apply: the zero-run count answers this check without it |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- Rate feed sample (`[]trafficstat.InterfaceEntry` or `[]iface.InterfaceInfo`), once a second.
+- Rate feed sample (`[]trafficstat.InterfaceEntry`), once a second.
 - `ze doctor` run by an operator, reaching the plugin through the doctor-check callback.
 
 ### Transformation Path
-1. `tickRates`/`tickInfos` compute peak pps/bps and the interface count, call `observeFeed` under d.mu.
+1. `tickRates` computes peak pps/bps and the interface count, call `observeFeed` under d.mu.
 2. `observeFeed` updates the zero run, logs WARN at onset and INFO on recovery.
 3. The callback loads the armed detector and `checkRateFeed` maps `rateFeedFinding` to a diagnostic.
 
@@ -172,7 +173,7 @@ package and is the place the new check's unit coverage belongs.
 
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Both feeds deliver one sample a second | `detector.go` `tick` comment, trafficstat tick | Window in seconds wrong | Code read of `tick` | confirmed |
+| A-1 | The trafficstat feed delivers one sample a second | `detector.go` `tick` comment, trafficstat tick | Window in seconds wrong | Code read of `tick` | confirmed |
 | A-2 | The engine dispatches a declared SDK doctor check to the callback | OSPF precedent, `test/plugin/api-doctor-check.ci` | Check never runs | the existing .ci | confirmed |
 
 ### Risks
@@ -195,8 +196,8 @@ package and is the place the new check's unit coverage belongs.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | rate feed sample | → | `tickRates` → `observeFeed` | `TestRateFeedZeroTrafficReportedAtWindow` |
-| iface counter poll sample | → | `tickInfos` → `observeFeed` | `TestRateFeedNoInterfaceOnCounterPoll` |
 | doctor callback | → | `checkRateFeed` | `TestRateFeedCheckDeclaration`, transport `test/plugin/api-doctor-check.ci` |
+| external ddos-detect, doctor callback | → | `arm(feed, p.IsInternal())` → `rateFeedFinding` → `checkRateFeed` | `TestRateFeedExternalReportsCause`; end to end `test/draft/plugin/ddos-detect-external-blind.ci`, promoted when `spec-plugin-event-bus-across-the-process-boundary` lands |
 
 ## Acceptance Criteria
 
@@ -204,7 +205,8 @@ package and is the place the new check's unit coverage belongs.
 |-------|-------------------|-------------------|-----------------------------|
 | AC-1 | Armed detector, one window of all-zero samples with interfaces | `ze doctor` shows warning `doctor-ddos-detect-blind` naming the feed, the window and `ze show interface rate` | One sample short of the window: no warning, the baseline is not yet all zeros |
 | AC-2 | One window of samples with no interface | Warning names the missing interfaces and `ze show interface` | None |
-| AC-3 | No sample for one window since arm or since the last sample | Warning says no sample arrived and names the external-plugin cause | Less than a window: no warning |
+| AC-3 | No sample for one window since arm or since the last sample, internal plugin | Warning says no sample arrived and names `ze show interface rate` | Less than a window: no warning |
+| AC-9 | An armed detector that runs as an external plugin process | From arm, the doctor check warns `doctor-ddos-detect-blind` naming the external-process cause and the `plugin { external ddos-detect { ... } }` block to remove; its empty samples never turn it into "no interface", and log no zero-run WARN. Proven by `TestRateFeedExternalReportsCause` (5559f4a2fd). Today an external ddos-detect never arms: it fails at Config with "ddos-detect: event bus not configured" (`plan/journal/process-global-read-across-the-plugin-boundary.md`, 2026-11-10, owned by `spec-plugin-event-bus-across-the-process-boundary`), loudly, so it presents no ready state. The finding becomes reachable end to end when that spec lands | `warnIfExternal` already logs the cause at start |
 | AC-4 | First sample with pps or bps above zero after a blind run | Finding clears; one INFO log line | None |
 | AC-5 | Zero run reaches the window | Exactly one WARN log line for the run | Later idle samples log nothing, so the log is not flooded |
 | AC-6 | ddos detect disabled | Check answers with an empty diagnostic list | Disabled detector subscribes to no feed |
@@ -226,8 +228,9 @@ package and is the place the new check's unit coverage belongs.
 | `TestRateFeedZeroTrafficReportedAtWindow` | `internal/plugins/ddos/detect/doctor_test.go` | AC-1 | |
 | `TestRateFeedWindowFollowsCheckInterval` | same | AC-1 window | |
 | `TestRateFeedClearsOnTraffic` | same | AC-4 | |
-| `TestRateFeedNoInterface`, `TestRateFeedNoInterfaceOnCounterPoll` | same | AC-2 | |
+| `TestRateFeedNoInterface` | same | AC-2 | |
 | `TestRateFeedNoSample` | same | AC-3 | |
+| `TestRateFeedExternalReportsCause` | same | AC-9 | |
 | `TestRateFeedLogsEachEdgeOnce` | same | AC-4, AC-5 | |
 | `TestRateFeedDisabledDetectorReportsNothing` | same | AC-6 | |
 | `TestRateFeedRefusesUnknownCheckAndUnarmedDetector` | same | AC-7 | |
@@ -244,6 +247,7 @@ package and is the place the new check's unit coverage belongs.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `api-doctor-check` | `test/plugin/api-doctor-check.ci` | Declared plugin doctor check reaches `show doctor` | existing |
+| `ddos-detect-external-blind` | `test/draft/plugin/ddos-detect-external-blind.ci`, fixture `internal/test/fixture/ddos_detect_blind.go` | An external ddos-detect is reported blind with its cause by `show doctor` (AC-9) | draft: red until `spec-plugin-event-bus-across-the-process-boundary` lands |
 
 ## Files to Modify
 - `internal/plugins/ddos/detect/detector.go` - feed watch field, observeFeed calls
@@ -353,9 +357,26 @@ package and is the place the new check's unit coverage belongs.
 | Doctor plus edge-triggered log; not latching | Doctor only; show field | Log covers the operator who never runs doctor; latching would keep a cleared box warned. No show field: `show ddos` belongs to ddos-observe in another plugin |
 | Exact zero, not near-zero | A small threshold | Any keepalive is traffic; near-zero would need a tuning leaf |
 
+## Goal Validation
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An armed detector whose rate feed shows no traffic is reported by `ze doctor`, distinguishing "no attack" from "no traffic" | Unit tests over the real tick path, plus the transport | `TestRateFeedZeroTrafficReportedAtWindow`, `TestRateFeedNoInterface`, `TestRateFeedNoSample` drive `tickRates` and `checkRateFeed`; red proof recorded for 3c7aef2403 (handoff); transport `test/plugin/api-doctor-check.ci` |
+| The operator who never runs doctor sees it in the log, once per edge | Unit test | `TestRateFeedLogsEachEdgeOnce` |
+| An armed external detector is reported blind with its real cause (AC-9) | Unit test | `TestRateFeedExternalReportsCause` (5559f4a2fd, red proof done). No external detector arms today: it fails at Config, loudly, so it presents no ready state (journal row 2026-11-10, owned by `spec-plugin-event-bus-across-the-process-boundary`) |
+
+## Review Gate
+
+| Round | Reviewer | BLOCKER | ISSUE | Resolution |
+|-------|----------|---------|-------|------------|
+| 1 | independent reviewer | 1: an external ddos-detect was reported "no interface" | 1: no ddos-specific `.ci` | BLOCKER fixed in 5559f4a2fd (`arm` records `p.IsInternal()`, `TestRateFeedExternalReportsCause`). ISSUE answered by `test/draft/plugin/ddos-detect-external-blind.ci` and the Known Limitations entry for the external case |
+| 2 | second independent reviewer | owed | owed | Runs after the `ze-test-judge` verdict on the onRates test conversion (approved, 9 units) |
+
 ## Known Limitations
-- No ddos-specific `.ci`: a functional run on loopback carries keepalive traffic, so the zero-traffic case cannot be produced, and the no-sample case needs a 300-second wait. The transport is covered by `test/plugin/api-doctor-check.ci`, and the decision logic by unit tests over the real tick path.
-- The no-sample case has no log line: with no sample there is no tick to drive one. `ze doctor` reports it, and `warnIfExternal` already logs the external-process cause at start.
+- The internal zero-traffic and no-interface cases have no `.ci`: a functional run on loopback carries keepalive traffic, so neither can be produced. Unit tests cover them over the real tick path.
+- The external case has no passing `.ci` yet. An external ddos-detect fails at Config with "ddos-detect: event bus not configured", because `ConfigureEventBus` runs only in-process (`plan/journal/process-global-read-across-the-plugin-boundary.md`, 2026-11-10). `test/draft/plugin/ddos-detect-external-blind.ci` stays a draft and goes green when `spec-plugin-event-bus-across-the-process-boundary` lands. `test/plugin/ddos-detect-external-warns.ci` masks the Config failure: it tears down after the start warning; that spec owns it too.
+- The no-sample case has no log line: with no sample there is no tick to drive one. `ze doctor` reports it.
+- `onRate` and `tickInfos` (the cumulative-counter feed) are deleted with the fallback that called them (no-layering). The detector and characterization tests that drove them now drive `onRates`; `TestRateFeedNoInterfaceOnCounterPoll` existed only for the deleted path and is deleted. A `ze-test-judge` approved the change for all 9 units.
 
 ## Checklist
 
@@ -373,7 +394,7 @@ package and is the place the new check's unit coverage belongs.
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
 - [ ] Boundary tests for all numeric inputs
-- [ ] Functional `.ci` tests for end-to-end behavior (N-A: see Known Limitations)
+- [ ] Functional `.ci` tests for end-to-end behavior (`test/draft/plugin/ddos-detect-external-blind.ci`, a draft until `spec-plugin-event-bus-across-the-process-boundary` lands; the internal cases: see Known Limitations)
 - [ ] Interop tests for protocol features (N-A: no protocol peer)
 
 ### Closure
