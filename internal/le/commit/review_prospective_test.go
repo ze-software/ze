@@ -4,7 +4,11 @@ package commit
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/le/commit/hunks"
+	"github.com/ze-software/ze/internal/le/spec"
 )
 
 // TestClosureReviewIgnoresUnselectedConcurrentEdits records a real review then
@@ -73,4 +77,89 @@ func TestClosureReviewRejectsAnUnreviewedModeChange(t *testing.T) {
 		Remove: []string{spec}, NoTest: "fixture only changes shell file mode"}); err == nil {
 		t.Fatal("closure accepted executable mode the review artifact never pinned")
 	}
+}
+
+// TestReviewIdentityExcludesUnselectedConcurrentBytes proves that bytes another
+// session left in a file do not become part of what a review vouches for. The
+// fixture records a real `le spec review record ... hunks <path> <patch>` while
+// the working-tree file holds this session's hunk and a concurrent one, then
+// reads the pin the artifact carries: it MUST be the digest of HEAD's blob with
+// the selected patch applied, never the digest of the live file. The gate is
+// then asked both ways: over the selection the commit carries it is clean, and
+// over the whole working-tree file it refuses the path as changed after the
+// review, because no review saw the concurrent hunk.
+func TestReviewIdentityExcludesUnselectedConcurrentBytes(t *testing.T) {
+	const path = "pkg/shared.go"
+	const stem = "demo"
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "review-identity-fixture")
+	configureCommitAuthor(t, root)
+	commitFixture(t, root, "base", map[string]string{path: hunkBase}, nil)
+	patch := writeHunkPatch(t, root, path, hunkMine, hunkBoth)
+	recordFixtureReview(t, root, "spec", stem, "verdict", "clean", "rounds", "1", "hunks", path, patch)
+
+	selected := reviewDigest([]byte(hunkMine), nil)
+	live, err := spec.ReviewFile(root, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if live.Hash == selected {
+		t.Fatal("fixture: the working-tree file holds no concurrent bytes")
+	}
+	recorded := recordedReviewPin(t, root, stem, path)
+	if recorded.Hash != selected {
+		t.Fatalf("the review identity is not the selected snapshot: recorded %s, selected snapshot %s, "+
+			"working-tree file %s", recorded.Hash, selected, live.Hash)
+	}
+	if recorded.Mode != "100644" {
+		t.Fatalf("the review pinned mode %q, want the selected entry's 100644", recorded.Mode)
+	}
+
+	entry, err := hunks.Apply(root, headOf(t, root), path, patch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	selection := hunks.Selection{path: {Entry: entry, Patch: patch}}
+	if result := checkReviewSelected(root, stem, []string{path}, selection); !result.Clean {
+		t.Fatalf("the review over the selected snapshot is not clean: %#v", result)
+	}
+	whole := CheckReview(root, stem, []string{path})
+	if whole.Clean {
+		t.Fatal("the review vouched for concurrent unselected bytes it never covered")
+	}
+	if len(whole.Stale) != 1 || whole.Stale[0] != path {
+		t.Fatalf("the whole working-tree file is not refused as changed after the review: %#v", whole)
+	}
+	body, err := os.ReadFile(filepath.Join(root, path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(body) != hunkBoth {
+		t.Fatalf("recording the review changed the concurrent checkout bytes: %q", body)
+	}
+}
+
+// recordedReviewPin answers the one pin the stem's review artifact records for
+// path, parsed with the pattern the commit gate reads it through.
+func recordedReviewPin(t *testing.T, root, stem, path string) spec.ReviewedFile {
+	t.Helper()
+	relative, err := spec.ReviewArtifactPath(root, stem)
+	if err != nil {
+		t.Fatal(err)
+	}
+	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pins []spec.ReviewedFile
+	for line := range strings.SplitSeq(string(content), "\n") {
+		match := reviewFilePattern.FindStringSubmatch(line)
+		if len(match) == 4 && match[3] == path {
+			pins = append(pins, spec.ReviewedFile{Path: path, Hash: match[1], Mode: match[2]})
+		}
+	}
+	if len(pins) != 1 {
+		t.Fatalf("review artifact %s carries %d pin(s) for %s, want one:\n%s", relative, len(pins), path, content)
+	}
+	return pins[0]
 }
