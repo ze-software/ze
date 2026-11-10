@@ -1970,6 +1970,71 @@ its bytes and ran the carrier green again.
 | P-17 CodeQL cache exclusion | `TestSelect...` (`internal/le/repo/codeql`) | the cache directory dropped from the excluded prefixes | "tracked Go gokrazy/modcache/cache/cache.go: CodeQL refuses gokrazy/modcache path ..." |
 | P-17 CodeQL alias guard | `TestGuardRefusesCanonicalCache` | symlinks no longer resolved before the guard | "cache request was admitted" |
 
+Harness and capture producers (P-2, P-3, P-13), same method:
+
+| Obligation | Carrier | Break | Red |
+| --- | --- | --- | --- |
+| P-2 `.et` width reaches the screen | `TestETDimensionsReachScreens` (`internal/component/cli/testing`) | parsed width discarded | `width/file` subtest fails its width assertion |
+| P-2 browser deadline factor | `TestWBCaseContextPolicy`, `TestWBDeadlineIgnoresVerifyMode` | factor keyed to verify mode instead of concurrency | "verify=false concurrency=4 bound=1s want=3s" |
+| P-3 owned helper reaped before lease release | `TestRunnerOwnedReturnPaths`, `TestOwnedCleanupPrecedesResourceRelease` | cleanup kills without `Wait` | "cleanup returned while its output worker was still blocked"; "work removed before output joined" |
+| P-3 linger survives file-routed stdin (journal field-carries-two-meanings 2026-10-03) | `TestPeerLingerSurvivesStdinRouting` | routed stdin cleared after the file route | `file` subtest: "An error is expected but got nil" |
+| P-3 scenario cleanup error fails the run | `TestPassedAssertionReportsCleanupFailure` | per-scenario cleanup no longer sets the exit code | "single action code = 0, want 1"; "cleanup must fail the overall run" |
+| P-13 capture drains beyond pipe capacity | `TestCaptureBeyondPipeCapacity` | reader started after the writer | "capture blocked its writer before draining the pipe" |
+| P-13 union configured before start | `TestUnionConfiguredBeforeStart`, `TestUnionTimeout` under `-race` | interval written after `go u.sweepLoop()` | "WARNING: DATA RACE" |
+| P-13 chaos eviction tie-break | `TestActiveSetEvictionBreaksClockTiesByPeerIndex` | peer-index tie-break removed | "rotation 0: tied eviction kept lowest unpinned peer 1" |
+| P-13 chaos render reads the producer clock | `TestDashboardHTTPClockConsumers` | render reads `time.Now()` | "render does not contain controlled value"; "render sampled clock 0 times, want once" |
+
+From here the red-walk tool applies a Go break through `go test -overlay`,
+the route `./le rfc record` uses, so the shared source is never modified
+during a walk (the 2026-08-31 mutating-guard row records why in-place breaks
+in a shared checkout are a defect); the tool checks the source bytes are
+unchanged after each run. Results:
+
+| Obligation | Carrier | Break | Red |
+| --- | --- | --- | --- |
+| P-4 build name dropped for functional children | `TestBinarySetDropsEveryInheritedBuildName` | inherited environment passed whole | "canonical=false child inherits ZE_LE_BUILD_NAME=outer-..." |
+| P-4 generated re-check keeps the preparing identity | `TestGeneratedRecheckKeepsThePreparingIdentity` | artifact keyword commented out of the re-check argv | "the re-check refused a publication the preparing session reviewed clean" |
+| P-14 vendoring keeps owned patches | `TestVendoringStaleStampPreservesOwnedPatch` | `go mod vendor` without the staging `-o` | "stale-version refusal omitted github.com/vishvananda/netlink" |
+| P-14 every registered YANG failure reported | `TestDefaultLoaderReportsEveryRegisteredFailure` | resolve error discarded | the error does not name the second broken module |
+| P-20 empty gate set refused | `TestAManifestWithNoGateIsAnError` | the empty check disabled | "a manifest with no gate answered [], want an error" |
+| P-20 empty stdlib listing refused | `TestEmptySuccessfulStdlibListingRefused` | the empty check disabled | "a successful subprocess with no packages certified an empty standard library" |
+| P-20 comparison keeps each pass | `TestComparisonRendersBothPassesOfOneDUT` | every row keyed to the first pass | "1 rows of ze, want 2, one per pass" |
+| P-21 long selectors fit the filesystem bound | `TestCaptureIdentityRetainsLongSelectorsAndFreshStarts` | slug bound raised to 4096 | "run did not complete two real starts" |
+| P-21 every invocation starts fresh | same | capture created at a fixed name | "capture reused an earlier invocation's file" |
+| P-7 dispatcher cancels the in-flight stage | `TestDispatchCancellationReapsInflightStage` | stage spawned on a detached context | "dispatcher did not join cancellation within five seconds" |
+| P-10 required 9p mount stops the script | `TestGuestBootstrapContracts` | `|| true` after the workspace mount | "failed required mount reported success" |
+| P-10 native arm64 Linux plans KVM | `TestNativeARM64LinuxUsesKVM` | answer `hvf:tcg` | "native Linux arm64 acceleration = "hvf:tcg", want kvm:tcg" |
+| P-10 gok keeps the working directory | `TestKeepWorkingDirRestoresAfterAChdir` | restore to "." | "working directory unreadable after the run" |
+| P-10 unknown kernel probe names the probe | `TestDockerKernelUnknownIsProbeFailure` | unknown branch skipped | "the refusal does not carry ./le setup docker kernel check ..." |
+| P-18 native host build | `TestNativeHostBuildCancellationJoinsDescendants` | build on a detached context | "native build waited on surviving descendant" |
+| P-18 gokrazy build | `TestGokrazyBuildCancelEndsTheGrandchildren` | child on a detached context | "a canceled build answered no error" |
+| P-18 l2tp scale | `TestScaleStopJoinsActualDescendants`, `TestScaleEntryCancellationStopsBeforeSimulation` | child on a detached context | "context canceled" (the entry test's own assertion) |
+| P-18 docker-lab admission | `TestDockerLabBuildCancellationLeavesOccupiedAdmission` | admission on a detached context | "Docker-lab admission ignored cancellation" |
+| P-18 yangcontract catalog | `TestCatalogActionCancellation` | daemon build on a detached context | "helper did not finish its timeout stack diagnostic" |
+| P-36 guest admission inside the host slot | `TestRunGuestCommandRunsInsideTheHostSlot` | the nested (KindInside) branch skipped | "admission under the guest's parent failed: fingerprint test-firewall inputs: read HEAD" |
+| P-29 zero-context hunk refused | `TestApplyRefusesZeroContextPatch` (uncommitted fix) | the context check disabled | "a -U0 insertion inside the file applied; git anchors it at the end of the file" |
+| P-30 late approval binds its target | `TestLateApprovalAnswersOnlyItsBoundChange` | approval keyed by carrier, not target | "first change owed = true, want false" |
+| P-31 simultaneous carriers refused | `TestApprovalResolvesUniqueCarrierMovesAndRefusesSimultaneousDuplicates` | ambiguity bound raised | "simultaneous carriers exit = 0, want 2" |
+| P-16 absence-only criterion refused | `TestCriteriaNamePositiveBehavior` | negation check disabled | "Problem = "", want a refusal containing AC-1 states only an absence" |
+| P-16 seeder owner confined | `TestSeedEntryConfinement` | owner comparison disabled | the refusal does not name "owned by another-session" |
+| P-34 renamed callers reach real actions | `TestRenamedCallersReachRegisteredActions` | a retired row pointed at a missing action | "retired verify status write is renamed to verify status write, which le verify status declares no action write" |
+| P-34 lab pin is a generator | `TestLabPinReportDoesNotWrite` | registered as a report | "le lab pin is filed under reports while its update action writes" |
+| P-34 action contracts | `TestActionsCarryTheirContracts` | `check` declared a writer | "le site terminal-demo check: writes = true, want false" |
+
+Not discriminating: the P-18 hugepages break (the canceled run's error no
+longer joined with the context error) left `TestHugepagesCancellationReturnsNoPayload`
+green; either the break misses the path the test drives or the test misses
+the payload. Not attributable on this run: the P-34 hero and `--jobs`, P-19
+nightly-verdict and P-21 digest walks, whose restored runs failed to build on
+another session's uncommitted `config/yang` edit (`valueText` declared
+twice).
+
+Not attributed yet: the editor-case deadline break (W3) hung the carrier
+until Go's ten-minute test timeout instead of failing a named assertion; the
+editor admission and exclusive-group breaks (P-40) could not build `le` on
+either run, because another session's uncommitted `weekly` area carried a
+61-character summary that le's menu check refuses with a panic.
+
 Not attributable this session: `TestActivityStyleUsesTheme` (P-17 theme)
 failed on both the broken and the restored run when the harness's Chromium
 start was killed ("start owned blank page for render observation: signal:
