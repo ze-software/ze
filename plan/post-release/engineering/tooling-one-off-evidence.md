@@ -3205,3 +3205,59 @@ weakened check` is clean and its selftest passes.
 `internal/le/test/weakened` and `internal/le/rfc` ok. A fragment without a
 `package` line (a route no producer in the tree uses) now goes to whole-text
 detection, which refuses more and never accepts more.
+
+## Re-audit red walks (2026-11-10)
+
+A strict re-audit found these members without a recorded red. Each walk
+overlays one break of the producing code, runs the named carrier, then reruns
+it on the restored source. The Go unit walks and the P-14 lint walk ran
+through the walk tool, which reported the source bytes unchanged after each
+leg (`source-bytes=ok`). The P-14 lint walk is the one in-place break,
+because the linter parses source from disk. The four walks through an
+overlaid le (P-19, P-34 (a), P-34 (c)) ran an le built under its own name
+with `GOFLAGS=-overlay` first on `PATH` for the broken leg, and an le built
+clean from the working tree for the restored leg, so the shared tree was
+never written. Every break went red and every restored run passed.
+
+| P | Member / carrier | Break (producing file, what changed) | Red (the carrier's own failure text) | Restored |
+| --- | --- | --- | --- | --- |
+| P-3 | linger survives piped stdin / `TestPeerLingerSurvivesStdinRouting/pipe` (`internal/test/runner`) | `runner_exec.go`: linger also requires `!stdinPiped` | "An error is expected but got nil." | ok |
+| P-3 | orchestrated owner reaps on every return / `TestRunnerOwnedReturnPaths` | `runner_exec.go`: `defer owned.finish(...)` replaced by a no-op `Cancel` | `bad-argv`, `missing-stdin`, `start-failure`, `helper-failure`: "child 3455589 not reaped: wait4=0, <nil>" | ok |
+| P-3 | normal teardown terminates gracefully / `TestRunnerOwnedReturnPaths/normal` | `runner_exec.go`: `terminateGracefully(p)` replaced by `p.kill()` | "SIGTERM handler=\"\", open .../002/term: no such file or directory" | ok |
+| P-3 | named TERM stop runs the handler / `TestRunnerOwnedReturnPaths/named-term` | `runner_exec_util.go`: the `signalTerm` branch kills instead | "SIGTERM handler=\"\", open .../002/term: no such file or directory" | ok |
+| P-3 | named KILL stop is forced / `TestRunnerOwnedReturnPaths/named-kill` | `runner_exec_util.go`: `cmd.kill()` replaced by `terminateGracefully(cmd)` | "forced teardown ran SIGTERM handler: \"TERM\\n\", <nil>" | ok |
+| P-3 | legacy `runTest` owns its implicit peer / `TestLegacyOwnedReturnPaths/true` | `runner_exec.go`: `defer peerProc.finish(...)` replaced by a no-op `Cancel` | "child 3532180 not reaped: wait4=0, <nil>" | ok |
+| P-4 | stress launches the registered harness / `TestEverySuiteLaunchesItsRegisteredHarness` (`internal/le/test/stressrepro`) | `run.go`: loop over `registered.Name` instead of `registered.Args` | "suite encode launches le test [encode], want le test [bgp encode]" | ok |
+| P-5 | each appended block gets its own message / `TestAppendUnderOneTagGivesEachBlockItsOwnMessage` (`internal/le/commit`) | `script.go`: fixed `shared.txt` name, `O_EXCL` replaced by `O_TRUNC` | "both blocks of one script name one message: tmp/commit-msg-2d2b2e45-closure-shared.txt" | ok |
+| P-6 | no upstream refuses / `TestDerivedDebtRefusesWithoutUpstream` (`internal/le/commit`) | `owed.go`: an `@{u}` lookup error returns empty debt | "a branch with no upstream was derived" | ok |
+| P-7 | dead directoryless marker reclaimed / `TestStandaloneReclaimWorktrees` (`internal/le/reclaim`) | `verify/cleanup.go`: a directoryless entry is skipped (`continue`) | "standalone entry left its dead directoryless marker: <nil>" | ok |
+| P-9 | ordinary RFC approval needs no terminal / `TestOrdinaryApprovalRemainsNoninteractive` (`internal/le/rfc`) | `approve.go`: the owner-ruling check dropped, every approval asks for authorization | "owner authorization requires interactive stdin and stdout: neither stdin nor stdout is a terminal" | ok |
+| P-9 | ordinary review needs no terminal / `TestOrdinaryReviewCommandRemainsNoninteractive` (`internal/le/spec`) | `review_authorization.go`: the `OwnerAuthorised == ""` early return dropped | "ordinary review command under pipes exit = 2, want 0" | ok |
+| P-12 (b) | installed hop must be in the FIB / `TestInstalledRouteFieldsBelongToOneObject` (`internal/le/interoplab/bgp`) | `check_rfc_predicate.go`: `&& hop.FIB` dropped | `hop_not_in_FIB`, `state_from_another_hop`: "installed route accepted=true, want false: <nil>" | ok |
+| P-12 (b) | route must be installed / same carrier | `check_rfc_predicate.go`: the `!route.Installed` skip dropped | `not_installed`, `state_from_another_entry`, `native_not_installed`: "installed route accepted=true, want false: <nil>" | ok |
+| P-12 (b) | typed discard needs a complete capture / `TestTypedDiscardRequiresExactCompleteWireWitness` (`check_typed_discard_boundary_test.go`, full tag set) | `check_typed_discard_wire.go`: the `ze-open` and `capture-complete` field list emptied | `missing_OPEN`, `unfinished_capture`: "inexact or incomplete retained-route witness passed" | ok |
+| P-14 | unused L2TP helper refused / `./le go lint run scope ./internal/component/l2tp/...` | `internal/component/l2tp/avp.go` (in place): an unused `readAVPUint8` added | "internal/component/l2tp/avp.go:316:6: func readAVPUint8 is unused (unused)" | 0 issues |
+| P-18 (c) | an unstarted step claims no changes / `TestInstallUnstartedStepDoesNotClaimChanges` (`internal/le/setup/docker/kernel`) | `dockerkernel.go`: `installStopped(step, err, false)` passes `true` | "unstarted step diagnostic does not state that it never started: ... this step may be incomplete." | ok |
+| P-29 | closure review hashes the selected snapshot / `TestClosureReviewIgnoresUnselectedConcurrentEdits`, `TestNativeReviewPublishesEarlierWholeAndHunkSnapshots` (`internal/le/commit`) | `prepare.go`: `checkReviewSelected` gets a nil selection | "unselected concurrent edit invalidated immutable landed Spec-work: 1 reviewed file(s) changed after the review: internal/reviewed.go" | ok |
+| P-29 | review CAS check hashes the selected snapshot / `TestNativeReviewPublishesEarlierWholeAndHunkSnapshots` | `actions.go`: `checkReviewArtifact` gets a nil selection | "native whole review publication refused: exit status 1" (and `hunks`) | ok |
+| P-29 | closure covers code an earlier spec commit carried / `TestClosureRefusesCodeAnEarlierSpecCommitCarried` | `prepare.go`: `population.Paths` dropped from the covered set | "the closure was accepted with a review that covers none of the spec's code" | ok |
+| P-33 (a) | seeder session directory refuses a symlink / `TestSeederEntryCannotReachOperatorStore` (`internal/le/session`) | `seed_root.go`: the not-a-directory check and `SameFile` check removed, directory opened by path | `session_symlink`: "refused scenario started ze child [\"tmp/session/2026-11-10-120000/bin/ze\" \"init\" \"--seed\"]"; `config_symlink_to_operator_store`: "seeder entry accepted config symlink to operator store without its outer guard" | ok |
+| P-33 (a) | seeder executable refuses a symlink / same carrier | `seed_root.go`: `bin.OpenFile(... O_NOFOLLOW ...)` replaced by `os.OpenFile` by path without `O_NOFOLLOW` | `binary_symlink_to_operator_binary`: "refusal started 1 ze children: ze init --seed failed for tmp/session/2026-11-10-120000/etc/ze/database" | ok |
+| P-19 | plugin imports keep discovered plugins / `TestToolFixturesReachTheirProducer` (`internal/test/fixture`), overlaid le | `internal/le/plugin/imports/pluginimports.go`: the `append` of a discovered import dropped | "generated module did not register its authored plugins and exact embedded YANG: registered plugins = map[], want map[sample:true]" | ok |
+| P-19 | YANG glue registers module text / same carrier, overlaid le | `internal/le/yang/glue/yangglue.go`: the emitted variable sliced `[:0]` | "generated module did not register its authored plugins and exact embedded YANG: registered modules = map[\"ze-base.yang\":\"\" \"ze-sample.yang\":\"\"], want ..." | ok |
+| P-34 (a) | rules fixture drops the inherited root alias / `TestRulesFixtureRootAliasesReachOnlyOwnedTree` (`internal/test/fixture`), overlaid le | `ui_fixture_le_rules_answers.go`: `env.Without(environ, key)` loses `key` | `ze.repo.root`, `ZE.REPO.ROOT`: "FAIL: rules renderer wrote through an inherited root alias"; "FAIL: rules renderer did not update the selected fixture" | ok |
+| P-34 (c) | vendor update is marked as writing / `./le test ui le-vendor-web-answers`, overlaid le | `internal/le/web/vendor/actions.go`: `Writes: true` dropped from `update` | "ZE-OBSERVER-FAIL: FAIL: the listing does not name \"writes\"" | PASS |
+
+The `TestSpeakerDiscardRequiresCompleteCapture` obligation the plan names for
+P-12 (b) is carried by the existing `TestTypedDiscardRequiresExactCompleteWireWitness`
+in `check_typed_discard_boundary_test.go`, which already covers the plan's
+three cases. No new test of that name was written. The P-34 (a) walk counted
+here is the overlaid-le run. An earlier run of the same break had no le on
+`PATH`, so its restored leg failed too, and that run is void.
+
+These walks leave four things open, and they are not proved here. P-4 (a)
+`runningLE` has no carrier. P-18 (d), the `sudo` path attached to a terminal,
+has no carrier. P-29's "nor enter review" clause is only partly carried by the
+three P-29 rows above. The P-34 (c) pipe refusal that exits 1
+(`le-checks-answers`) is still pending: its restored leg did not pass, so it
+has no recorded red here.
