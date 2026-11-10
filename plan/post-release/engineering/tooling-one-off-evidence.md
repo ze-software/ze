@@ -2352,3 +2352,36 @@ judged the capture. A walk of a checker change runs under `./le --name
 session`, which builds `le` from the working tree. freeRouter also refuses
 such a RESV (`packRsvp.parseDatResReq` finds no class 10 C-Type 7 object), so
 the relay scenarios would go red too, but only through the peer's parser.
+
+## P-35: document-too-wide through its functional entry (2026-11-10)
+
+`./le --name session test bgp plugin plugin-command-document-too-wide` passed
+in 1.8s against its 15s bound (`p35-doc-too-wide.log`), with the fixture
+starting no `ze init` (`e1b7d46458`). The red for that fix is the in-place
+walk in the P-35 section above; this run is the restored green through the
+real entry, which the earlier attempt could not reach while another session's
+`le` panicked.
+
+## P-10: the symlinked cache builds on Linux over 9p (2026-11-10)
+
+The journal row `container-cannot-see-migrated-scratch` (2026-10-21) records
+a guest Docker build failing with "failed to xattr ...: too many levels of
+symbolic links" on the Mac, when the checkout's `cache` became a symlink.
+Here the guest boots Ze's docker-host image under KVM (`kvm-clock`) through
+`./le test qemu docker-lab ... harness command`; the command starts
+containerd and dockerd itself (command mode starts no Docker) and puts the
+host's static buildx plugin under a scratch `HOME`, because the image ships
+none. Each context is read by the guest docker CLI from `/workspace` over 9p
+(`p10/run2.log`).
+
+| Builder | Real directory (control) | `cache` a symlink to the host cache |
+| --- | --- | --- |
+| BuildKit (buildx v0.38.1, dockerd 29.9.2) | `sha256:bc868a1b...`, rc=0 | `sha256:51c34e5d...`, rc=0 |
+| classic (`DOCKER_BUILDKIT=0`) | `sha256:7f5894c3...`, rc=0 | `sha256:05d77db1...`, rc=0 |
+
+Linux reproduces nothing: the control and the symlink build under both
+builders. The ELOOP is therefore not QEMU 9p with `security_model=none` on a
+Linux host. What remains is the Mac host's 9p backend (an `O_NOFOLLOW` xattr
+read in QEMU's darwin helpers is the unverified candidate), which only a run
+on the Mac can attribute. The first attempt (`p10/run.log`) is void: command
+mode had no dockerd and no buildx, so its control failed.
