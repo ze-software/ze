@@ -120,6 +120,32 @@ Today's sites that state a lab kernel fact, as found on 2026-10-20 (an inventory
 - The VPP proofs gain a device preflight.
 - The runtime kernel gains `CONFIG_VHOST_NET`.
 
+## Existing Mechanisms (MANDATORY)
+
+Read for this section on 2026-11-10: `ai/doors/system.md`, `ai/doors/le-tooling.md`,
+`ai/doors/appliance.md`, `plan/learned/DESIGN-HISTORY.md` (no entry on lab
+kernel needs, setup machine state or AppArmor registration), and the producers
+named below.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Lab AppArmor registry | `internal/le/interoplab/apparmor.go` `RegisterAppArmorProfile`, `LookupAppArmorProfile`, `appArmorRegistry` | A lab registers a profile from `init`; the load action, the refusal and the container start read the one record; an empty or second record panics | Extends: the kernel-need registry copies this shape (init-only writes, lock-free reads, panic on a malformed or second record) |
+| Install's host dependency check | `internal/le/setup/docker/kernel/hostdeps.go` `hostDependency`, `hostDependencies`, `zeKernelServesHost`; `dockerkernel.go` `cachedKernelServesHost` | Turns host facts into `hostDependency` rows (relies, breaks, options) and refuses a cached kernel config that builds none of a row's options, before any root step | Extends: each lab record becomes one more `hostDependency` row; no second refusal path |
+| Runtime profile coverage test | `internal/le/setup/docker/kernel/hostdeps_test.go` `TestHostDependencyOptionsAreInTheRuntimeProfile` | Fails when a dependency table names an option `gokrazy/kernel/runtime.config` does not set | Extends: the lab records' options join what it checks |
+| Setup root steps | `internal/le/setup/system.go` `privilegedStep`, `usernsSteps`; `proc.go` `Shell.runPrivileged`; `setup.go` `Setup.Run` | Linux machine-state rows (`visitUserns`, `visitKvm`) that fix the running kernel and the next boot through printed root commands | Extends: the module row is one more machine-state row of this shape |
+| Setup `/dev/ppp` access row | `internal/le/setup/ppp.go` `visitPpp`, `pppSteps`, `pppModule`, `pppDevDefault` (since `55cb1821dd`, 2026-10-28) | Grants `/dev/ppp` to the `dip` group through a udev rule and group membership, on Linux, and declares `ppp_generic` and `/dev/ppp` as its own constants | Extends, with the conflict recorded below |
+| Docker kernel route | `internal/le/interoplab/kernelcheck.go` `DockerKernelRoute` | Answers the platform's next step for a kernel a lab cannot use, its command on a line of its own | Extends: every derived refusal ends with it |
+| Shared `/dev/ppp` preflight | `internal/le/interoplab/pppdevice.go` `PPPDevice`, `PPPDeviceProbe`, `PPPDeviceArguments`, `PPPDeviceMissing`, `PPPPreflightRunRefusal` | Declares the PPP device probe once for the L2TP, PPPoE and RADIUS subscriber labs; the module `ppp_generic` is literal in two strings | Replaces the literals: the `/dev/ppp` record lives here and these derive from it |
+| Lab preflights | `internal/le/interoplab/l2tp/l2tp.go` `preflightRefusal`; `internal/le/interoplab/pppoe/pppoe.go` `validatePreflightOutput`; `internal/le/interoplab/radiussubscriber/radiussubscriber.go` `preflightRefusal`; `internal/le/interoplab/rsvpte/rsvpte.go` `mplsPreflightContainer`, `mplsPreflightRefusal` | One shell probe line per feature in a one-shot container, and a refusal whose `sudo modprobe` line lists modules as literals | Replaces the literals: probe lines and refusal text derive from each lab's records |
+| Typed detached container | `internal/le/interoplab/container.go` `DetachedContainer.Devices`, `Docker.RunDetached`; `docs/architecture/testing/interop.md`, "Crash-safe teardown" | The deployment proofs start labelled containers from a typed spec; `vppIface.containerSpec` (`internal/le/test/deployment/vppiface.go`) and `L2TP.containerSpec` (`internal/le/test/deployment/l2tp.go`) list their devices as literals | Extends: `Devices` is filled from the registered records |
+| Deployment proof kernel facts | `internal/le/test/deployment/hostkernel.go` `l2tpModules`, `pppol2tpEvidence`; `internal/le/test/deployment/actions.go` the `vpp` and `vpp-iface` help text | The on-host L2TP proof loads its module list itself as root; the VPP help repeats the device names | Replaces the literals: both derive from the records |
+| Evidence container devices | `internal/test/runner/devices.go` `containerDevices`, `ContainerDevicePaths`, `DeviceHostModule`; `internal/le/verify/evidence/evidence.go` `deviceRefusal` | Maps `/dev/ppp` to `ppp_generic` for the release-candidate container and its refusal | Extends: the selection of devices stays; the module comes from the record. `internal/test/runner/runner.go` already imports `internal/le/repo/featuretags`, so the runner importing an `internal/le` leaf has precedent |
+| Runtime kernel options | `gokrazy/kernel/runtime.config`, `runtime.require` (the VHOST_NET block) | Sets `CONFIG_MACVTAP=y` and `CONFIG_VHOST_NET=y` (`81fab69967`) | Does not apply: AC-4's kernel change has landed (the pointer under Task) |
+
+**Conflicts with this spec's design, recorded and not resolved here:**
+- Current Behavior says `Setup.Run` visits `visitUserns`, `visitKvm`, then `visitLoopback`. Since `55cb1821dd` it also visits `visitPpp` (`internal/le/setup/ppp.go`), whose `pppModule` and `pppDevDefault` state the `/dev/ppp` fact on their own. The inventory table above omits that site, so a design that leaves it out declares the fact once more beside the registry; the implementation decides how the `ppp-access` row reads the record and how it orders against the new module row.
+- Current Behavior says `runtime.config` does not set `CONFIG_VHOST_NET`; it now does, and its comment cites this spec at the root of `plan/`, where the spec does not live.
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -196,7 +222,7 @@ Two labs that need one feature name one record, owned by the package that declar
 |----------|--------|
 | What breaks if this is wrong? | A developer host: setup loads a wrong module, or install refuses a kernel it should accept. On the appliance, a kernel that fails its build. Nothing a Ze user runs |
 | How is it reverted? | Single-commit revert per phase; the kernel option is one line in each of two files |
-| Who else touches this path? | `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md` (install), `plan/release/validation/spec-lab-containers-least-privilege.md` (lab grants), `plan/post-release/engineering/spec-lab-docker-cleanup-and-go-test-containers.md` (deployment verbs) |
+| Who else touches this path? | `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md` (install), `plan/release/validation/spec-lab-containers-least-privilege.md` (lab grants), `docs/architecture/testing/interop.md` "Crash-safe teardown" (the deployment verbs' labelled containers, from the closed `spec-lab-docker-cleanup-and-go-test-containers`) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -257,7 +283,7 @@ N-A: tooling with no protocol peer. The goal validation is AC-6: the VPP proofs 
 - `internal/le/setup/setup.go` - the Linux machine-state block visits the lab-kernel row.
 - `internal/le/setup/system.go` or a new file beside it - the row's state, steps and apply.
 - `internal/le/interoplab/pppdevice.go` - `/dev/ppp` becomes a record; probe and refusal derive.
-- `internal/le/interoplab/l2tp/l2tp.go`, `pppoe/pppoe.go`, `radiussubscriber/radiussubscriber.go`, `rsvpte/rsvpte.go`, and each `register_catalog.go` - records, derived probes and refusals.
+- `internal/le/interoplab/l2tp/l2tp.go`, `internal/le/interoplab/pppoe/pppoe.go`, `internal/le/interoplab/radiussubscriber/radiussubscriber.go`, `internal/le/interoplab/rsvpte/rsvpte.go`, and each `register_catalog.go` - records, derived probes and refusals.
 - `internal/le/test/deployment/vppiface.go`, `vppevidence.go`, `l2tp.go`, `hostkernel.go`, `actions.go`, and its register file - records, the VPP preflight, derived devices, modules and help text.
 - `internal/test/runner/devices.go`, `internal/le/verify/evidence/evidence.go` - the module comes from the record.
 - `gokrazy/kernel/runtime.config`, `gokrazy/kernel/runtime.require` - `CONFIG_VHOST_NET`.

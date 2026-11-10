@@ -7,9 +7,9 @@
 | Release reason | Release-independent lab docker cleanup and go test containers work; historical findings do not establish a current product defect. |
 | Scope | tooling |
 | Depends | - |
-| Phase | 4/5 |
+| Phase | 5/5 |
 | Handoff | - |
-| Updated | 2026-10-19 |
+| Updated | 2026-11-09 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -136,6 +136,21 @@ built from ITS pid, so a different pid leaves the old set untouched.
   out (`docker image ls` there) stays a named setup error with the command to
   run: it reports no verdict about any resource, so it needs no re-observation.
 
+## Existing Mechanisms (MANDATORY)
+
+Added at closure (2026-11-09): the design predates the section, and every row
+below is a mechanism the Required Reading and Key insights already named.
+
+| Mechanism | Where | What it does today | This spec |
+|-----------|-------|--------------------|-----------|
+| The Docker client wrapper | `internal/le/interoplab` `Docker` (`docker.go`, `process.go`) | Every lab's networks, peers, one-shots, builds and removals, bounded, through `processRunner` | Extends it: owner labels on every create, `CleanupOrphans`, and the MUST sites routed onto it with their own docker code deleted. testcontainers-go rejected as a second orchestrator (`ai/rules/no-layering.md`) |
+| The suite child lifetime model | `docs/architecture/testing/runner-architecture.md`, "How a suite's child processes end" | `defer`, context cancellation and `Pdeathsig` end a suite child | Extends it to containers: the signal root is the cancellation route, labels plus the next sweep stand in for `Pdeathsig` |
+| The entry-root signal context | `guestContext` (`internal/le/test/qemu/guestlabs.go`), `internal/le/test/stressrepro/run.go` | `signal.NotifyContext` on SIGINT/SIGTERM at a verb root | Reused at each lab, deployment, perf, evidence and terminal-demo root; no new helper |
+| The process start token | `session.ScanProcesses` (`internal/le/session/reap.go`), moved to `internal/le/procscan` (A-6) | Pid plus a start token that changes on pid reuse | Reused by the owner verdict; moved, not copied |
+| The conservative session cleanup | `./le session clean` (`internal/le/session`) | Removes only what a provably gone owner left | Its contract is copied for the orphan sweep; the sweep stays a separate verb (Q-1) |
+| The integration package scan | `integrationTestPackages` (`internal/le/test/qemu/integration_coverage_test.go`), `excludedIntegrationPackages` (`alltests.go`) | Derives the `integration` population from build constraints | Moved into the `internal/le/test/buildtag` leaf, which serves the `docker` population too (AC-24) |
+| The import tier gate | `./le arch tier check` (`internal/le/arch/tier`) | Placement and import refusals | Extended with the labtest refusal (AC-17) and the docker-exec route (AC-16) |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -182,7 +197,7 @@ built from ITS pid, so a different pid leaves the old set untouched.
 | A-4 | `docker build --label` gives each run's final image a distinct id while the layer cache still hits | Docker build semantics: labels are image config | if ids were shared, safety is unchanged because only the run-owned TAG is ever removed | `image_retention_integration_test.go` extended (AC-3) | confirmed 2026-10-18: two runs built the same `FROM alpine:3.21` Dockerfile with their own labels and got distinct image ids (4eba20710da2, b382d29fd516). The `image_retention` extension is phase 4 (AC-14) |
 | A-5 | Every daemon Ze labs use (Linux host, Colima, Docker Desktop, the QEMU guest's Alpine dockerd) supports `--label` and `--filter label=` on `run`, `network create`, `build`, `ps`, `network ls`, `image ls` | Docker CLI and API | the sweep cannot list; it reports a setup error naming the daemon version | the integration test on Linux; the nightly docker-lab on the guest daemon | Linux host daemon confirmed: `TestKilledLabRunIsCleanedByNextStart` passed alone 2026-10-19 (labeled `run`, `network create` and image tag; `ps`, `network ls`, `image ls` filtered on the label), and `./le test integration docker-peers` exited 0 (handover Phase 4). Colima and Docker Desktop unvalidated: they need the owner's Mac. The QEMU guest's Alpine dockerd unvalidated, not a Mac item: it needs a `./le test qemu docker-lab` run, which outlasts an agent's five-minute command bound, so the main thread or a fresh agent owes it |
 | A-6 | Importing `internal/le/session` from `interoplab` creates no cycle | `go list -deps ./internal/le/interoplab` shows no `internal/le/session` today, and session does not import interoplab | move the scanner to a leaf package | `go build ./internal/le/...` in phase 2 | broken in phase 1: no cycle, but `internal/le/session` registers `./le` actions in `register.go` and imports `internal/component/command`, so the scanner moved (not copied) to the leaf `internal/le/procscan`; session and scratch call it |
-| A-8 | The hosted `ubuntu-latest` runner's own Docker can run the `docker` population: no `labtest` peer needs a Ze-kernel feature, and Ze runs in the test process, not in a container | `ci-workflows.md` says the labs go to the guest only because the staged ze fails the Docker kernel check; `labtest` stages no ze | the job moves into `./le test qemu docker-lab`, which also needs a Go toolchain in that guest (unverified: `dockerlab.go` cross-builds on the host) | the first nightly run; Q-10 | unvalidated, not a Mac item: `./le test integration docker-peers` passes on this Linux host (exit 0, handover Phase 4), but the hosted `ubuntu-latest` runner has not run the `evidence-nightly.yml` job yet; that needs an owner-ordered push and the first nightly run id (AC-25) |
+| A-8 | The hosted `ubuntu-latest` runner's own Docker can run the `docker` population: no `labtest` peer needs a Ze-kernel feature, and Ze runs in the test process, not in a container | `ci-workflows.md` says the labs go to the guest only because the staged ze fails the Docker kernel check; `labtest` stages no ze | the job moves into `./le test qemu docker-lab`, which also needs a Go toolchain in that guest (unverified: `dockerlab.go` cross-builds on the host) | the first nightly run; Q-10 | confirmed 2026-11-09 on the hosted runner: `evidence-nightly` run 41436367757 (2026-11-02) is the first whose `docker-peers` job passed, and run 42611604084 (2026-11-09, `a971f3e586`) passed it with every package `ok` (gnmi, tacacs, core/fetch, interoplab, labtest, terminaldemo, flowexport, ntp, tftpserver). The job first ran in 39395005536 (2026-10-20), red on runner setup (the tac_plus-ng image check, the AppArmor refusal of `TestDockerBuildRetainsImageAcrossRetag`), and stayed red until 11-01 |
 | A-9 | A `ZE_`-prefixed test switch set by a `./le` verb needs no `env.MustRegister` entry, as `ZE_QEMU_LINUX_ONLY` does not | `qemu-nightly.yml` and the workflowcheck test use `ZE_QEMU_LINUX_ONLY=1` | the switch gets registered where that one is | grep for `ZE_QEMU_LINUX_ONLY`'s declaration in phase 4 | confirmed 2026-10-19 by grep: `ZE_QEMU_LINUX_ONLY` is a plain constant (`linuxOnlyKey`, `internal/le/test/qemu/alltests.go`) read through `os.Getenv`, with no `env.MustRegister`; `ZE_REQUIRE_DOCKER` is declared the same way (`requireDockerVariable` in `labtest.go` and `dockerpeers.go`, read through an injected `os.LookupEnv`) and is committed |
 | A-7 | No production package imports `internal/le/...` today | grep of non-test files under `internal/component`, `internal/plugins`, `internal/core`, `cmd/ze`, `pkg` found none | AC-17's refusal would break an existing importer | the AC-17 gate's first run | confirmed 2026-10-19: `./le arch tier check` is green on the real tree ("no shipped file imports a test-only helper package"), and a grep of non-test files under `internal/component`, `internal/plugins`, `internal/core`, `cmd/ze` and `pkg` finds no `internal/le/` import (0 files). `internal/test/...` does import `internal/le/...`, but it is a test harness, outside the production set |
 
@@ -526,7 +541,7 @@ Counts: MUST 8, SHOULD 6, NOT 11. S-2 (NTP) and S-4 (flow-export) packages are a
 | truthful removal verdicts | `TestCleanupOrphansTimedOutRemovalOfGoneResourceIsRemoved`, `...PresentResourceFails`, `...RecheckFailureIsUnknown`, `TestRemoveContainerTimedOutReobservesPresence` (red before `confirmRemoval`, green after); the post-fix `cleanup` run pasted under Functional Tests |
 | no stray docker exec | the AC-16 gate green, and red when its fixture adds one |
 | `labtest` | `TestLabtestStartsServerAndCleansUp` and the converted rpki tests, pasted |
-| `docker-peers` has a home | a pasted `./le test integration docker-peers` run, and the id of the first nightly run that executed it. 2026-10-19 on the Linux workstation: exit 0, `internal/le/interoplab` ok in 108.5s, `internal/le/interoplab/labtest` ok in 24.4s. Nightly job `docker-peers` added in `3ea96e151f`; its first run id is owed once the owner orders a push. The "no `docker` file also carries `integration`" row is enforced by `TestDockerTagNeverJoinsIntegration` (`internal/le/test/qemu/integration_coverage_test.go`) |
+| `docker-peers` has a home | a pasted `./le test integration docker-peers` run, and the id of the first nightly run that executed it. 2026-10-19 on the Linux workstation: exit 0, `internal/le/interoplab` ok in 108.5s, `internal/le/interoplab/labtest` ok in 24.4s. Nightly job `docker-peers` added in `3ea96e151f`; first nightly run 39395005536 (2026-10-20, red on runner setup), first green 41436367757 (2026-11-02), green again in 42611604084 (2026-11-09). The "no `docker` file also carries `integration`" row is enforced by `TestDockerTagNeverJoinsIntegration` (`internal/le/test/qemu/integration_coverage_test.go`) |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -639,47 +654,101 @@ Every recommended answer below is therefore the decision.
 
 ---
 
-## Closure status (2026-10-19): blocked
+## Closure status (2026-11-09)
 
-`/ze-close` stopped at its Assumptions Resolved step. The closure sections
-below are filled as far as the evidence reaches, and the spec stays open.
-What blocks closing, by the rule that demands it:
+The 2026-10-19 blockers are each resolved:
 
-| Blocker | Rule |
-|---------|------|
-| A-2, A-3, A-5 (Colima, Docker Desktop, the QEMU guest's dockerd) and A-8 are `unvalidated` | `/ze-close` step 1 "Assumptions Resolved (BLOCKING)"; `plan/templates/TEMPLATE-CLOSURE.md` "`unvalidated` is not a valid final status"; this spec's Goal Gates "Every A-N confirmed or broken" |
-| The deliverable "docker-peers has a home" names the id of the first nightly run that executed it (AC-25); none exists before an owner-ordered push | `/ze-close` step 1: a missing deliverable returns to `/ze-implement` |
-| Work Not Done rows need an owning spec by path, written in the closure commit; homing the Mac and nightly validations in another spec moves scope | `/ze-close` step 6 "Work Not Done"; `ai/rules/completion.md` (scope is the owner's) |
-| Resolved 2026-10-19: `38ccef54f5` and `9cbce6f200` reviewed clean, artifact recorded at round 6 under the owner's authorisation (Review Gate) | `/ze-close` step 5 |
-| The Mac checks (A-2, A-3, A-5 on a Mac; `./le perf run` Ctrl-C; the FreeRtr `--build-context` build) move to a follow-up spec: owner, 2026-10-19, "2 yes" | `ai/rules/completion.md` (scope is the owner's) |
-| The real Ctrl-C proofs here (owner, 2026-10-19, "3 yes") are being run | this spec's G-2 |
-| The precondition gates were not run in this phase (owner: another session owns them) | `/ze-close` Precondition and step 3 |
+| Former blocker | Resolution |
+|----------------|------------|
+| A-2, A-3, A-5 `unvalidated` | confirmed by spec-lab-docker-cleanup-on-macos (closed 2026-10-23, record in git history) and on Linux (Assumptions Resolved) |
+| A-8 and the first nightly run id (AC-25) | `evidence-nightly` 39395005536 first ran the job, 41436367757 first passed it, 42611604084 passed it on 2026-11-09 (A-8) |
+| Work Not Done rows with no owning spec | each row now names the spec that did it, or the owner's acceptance |
+| The real Ctrl-C proofs (owner, 2026-10-19, "3 yes") | recorded in `plan/handover/06-lab-docker-resources-reaped.md`, "Real Ctrl-C proofs", and in spec-lab-docker-cleanup-on-macos AC-6 and AC-8; `verify evidence release-candidate` rests on test-level evidence the owner accepted on 2026-11-09 (Goal Validation G-2) |
+| The precondition gates | no agent runs `./le verify` or a whole-tree suite (`ai/META-DECISIONS.md`); the scoped lint and race runs named under Pre-Commit Verification are the closure evidence, and GitHub CI verifies the pushed commit |
+
+## Implementation Summary
+
+### What Was Implemented
+- G-1: owner labels on every create and `Docker.CleanupOrphans` with a three-valued verdict (`internal/le/interoplab/orphans.go`), the start sweep in `Suite.Run`, the label-guarded `claimName` pre-clean, and `./le test integration clean [dry]` (`internal/le/test/integration/cleanup.go`).
+- G-2: signal roots at every lab, deployment, perf, evidence, terminal-demo, docker-peers and live-rpki entry. Docker children get their own process group, and the post-signal sweep runs in `dockerpeers.go`. `confirmRemoval`, `startsettle.go` and `awaitRemoval` keep the removal verdicts truthful.
+- G-3: `internal/le/interoplab/labtest`, the `docker` build tag, `./le test integration docker-peers` over the population `internal/le/test/buildtag` derives, `ZE_REQUIRE_DOCKER`, and the `docker-peers` and `live-rpki` nightly jobs (`3ea96e151f`).
+- G-4: MUST sites M-1..M-8 routed onto `interoplab.Docker` with their own docker code deleted; the AC-16 docker-exec-route and AC-17 labtest gates in `internal/le/arch/tier`; SHOULD rows S-1..S-4 as real-peer `docker` tests.
+
+### Bugs Found/Fixed
+- Review Gate "Findings fixed" rows 1-12, plus D-a..D-f from the real Ctrl-C proofs (handover 06), each with its red-then-green test named there.
+
+### Documentation Updates
+- `docs/architecture/testing/interop.md` ("Crash-safe teardown", Debugging, Prerequisites, Test Hierarchy), `runner-architecture.md`, `qemu-integration.md`, `ci-workflows.md`, `docs/contributing/testing.md`, `docs/architecture/module-tiers.md`, each changed in its phase's commit (handover 06).
+
+### Deviations from Plan
+- A-6 broken: the process scanner moved to `internal/le/procscan` instead of being imported from `internal/le/session`.
+- Q-3: `cleanup dry` lists unlabeled `ze-interop-retained:` tags only, not unlabeled containers or networks (Open Questions, Q-3 deviation).
+- D-5: the AC-16 gate landed in phase 4, after M-7 converted.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-6: importing `internal/le/session` from `interoplab` was taken to be harmless | session registers `./le` actions and imports `internal/component/command` | phase 1 build | scanner moved to `internal/le/procscan` |
+| approach | `RemoveContainer` took Docker 29.9's silent exit-0 answer for an absent name as a removal (D-e) | the daemon had not finished the create yet | real Ctrl-C re-run, attempt 1 | `3a1fe640ac`, both dialects tested |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| G-1 crash-safe cleanup | Done | `internal/le/interoplab/orphans.go` `Docker.CleanupOrphans` | Goal Validation G-1 |
+| G-2 clean interruption | Done | signal roots listed under AC-8 | the evidence row is owner-accepted test-level evidence |
+| G-3 `go test`-native containers with a home | Done | `internal/le/interoplab/labtest`, `internal/le/test/integration/dockerpeers.go` | nightly 41436367757, 42611604084 |
+| G-4 adoption | Done | MUST rows and S-1..S-4 | S-5, S-6 out by Q-5 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1..AC-26 | Done | Pre-Commit Verification, "AC Verified" | AC-8's `verify evidence release-candidate` half rests on owner-accepted test-level evidence |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Wiring Test table rows | Done | Pre-Commit Verification, "Wiring Verified" | every named test located by grep 2026-11-09 |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Create | Done | "Files Exist" |
+| Files to Modify | Done | `internal/le/session/reap.go` was not needed: A-6 moved the scanner to `procscan` |
+
+### Audit Summary
+- **Total items:** 4 goals, 26 ACs
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none (S-5, S-6 and the NOT rows were decided by the owner, Q-5, Q-7)
+- **Changed:** A-6, Q-3, D-5 (Deviations)
 
 ## Goal Validation (BLOCKING)
 
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
 | G-1 crash-safe cleanup | functional, real daemon | `c2b69d6519` (labels, `Docker.CleanupOrphans`), `69dd08092b`, `008afd8b65`, `d9dc1f561e`. `TestKilledLabRunIsCleanedByNextStart` (`orphans_docker_test.go`, tag `docker`), run alone 2026-10-19 07:18 UTC at `dda6f2de0c` with `ZE_REQUIRE_DOCKER=1`: PASS in 65.8 s; the SIGKILLed child's network, container and retained tag removed beside a live child's kept set (3 removed / 3 kept), then the live child's set once it ended (3 removed / 0 kept). Real `cleanup dry` and `cleanup` on the shared daemon, 2026-10-18 (Functional Tests above): the dry run removed nothing and kept the seven resources of live pid 981084, naming it; the later `cleanup`, after that run exited, exited 0 and removed only its leftover tags |
-| G-2 clean interruption | unit tests over the real entry points | `TestNativeRunnerCancelsOnSIGINT`; `TestDeploymentVerbsCancelOnSignal` and `TestPerfVerbsCancelOnSignal` (each red under its recorded mutation, "payload not canceled code 0", green restored); `TestDockerChildStopsOnSignal` (`d83fb6a817`, `dda6f2de0c`: before, back after 30 s with code 0; after, the group is killed and one sweep runs); `TestSignalSweepWaitsForTheGroup`, `TestSignalSweepNamesMembersLeft` (`2fe96cdffe`); `TestAwaitExitGroupEmptiedDuringTheListing` (`38ccef54f5`). Not observed on a real `l2tp-test`, `vpp-test`, `vpp-iface-test`, `verify evidence release-candidate`, terminal-demo build or `./le perf run dut ze` stopped with Ctrl-C (Work Not Done) |
-| G-3 `go test`-native containers with a gating home | functional, real daemon | `f7c4cd8d92` (`labtest`), `3ea96e151f` (nightly jobs). `./le test integration docker-peers` exit 0 on this host after `321ca49ce1`, after `00ad396fd0`, and after `3681720e48` (gnmi 111.8 s, tacacs 37.1 s, interoplab 145.0 s, labtest 31.8 s, flowexport 117.8 s, ntp 53.5 s). `TestDockerPeersVerbRunsEveryDockerPackage`, `TestDockerTagNeverJoinsIntegration`, `TestEvidenceNightlyScheduleActionsAndPrivileges`. The first nightly run id is owed (AC-25) |
+| G-2 clean interruption | unit tests over the real entry points | `TestNativeRunnerCancelsOnSIGINT`; `TestDeploymentVerbsCancelOnSignal` and `TestPerfVerbsCancelOnSignal` (each red under its recorded mutation, "payload not canceled code 0", green restored); `TestDockerChildStopsOnSignal` (`d83fb6a817`, `dda6f2de0c`: before, back after 30 s with code 0; after, the group is killed and one sweep runs); `TestSignalSweepWaitsForTheGroup`, `TestSignalSweepNamesMembersLeft` (`2fe96cdffe`); `TestAwaitExitGroupEmptiedDuringTheListing` (`38ccef54f5`). Real Ctrl-C runs (SIGINT to the run's process group, as a terminal sends it), recorded in `plan/handover/06-lab-docker-resources-reaped.md`, "Real Ctrl-C proofs": `l2tp-test` attempt 3 on `3a1fe640ac` (run `GWUT6TRHJATI5DJCCQENKT7BO5`: no verdict printed, nothing of the run left, `cleanup dry` 0 to remove); `./le site terminal-demo image-build` row 5 (signal landed in `docker build`, exit 1, no image or container left), plus `TestImageBuildCancelsOnSignal` after `e980769d62`; `test qemu docker-lab` rows 6 and 6'. On the owner's Mac (spec-lab-docker-cleanup-on-macos, closed 2026-10-23): `vpp-test` and `vpp-iface-test` AC-8 PASS on the `ze` Colima profile, and `./le perf run dut ze` AC-6 PASS through the guest route. `./le verify evidence release-candidate`: owner-accepted test-level evidence (Thomas, 2026-11-09), not a live-daemon proof. The real run refused before any container because the shared checkout is dirty (handover row 4). `TestReleaseCandidateCancelsOnSignal`, `TestReleaseCandidateKernelStepCancelsOnSignal` (`internal/le/verify/evidence/signalroot_test.go`) and `TestAnInterruptedRunRemovesTheContainerAndKeepsTheCaches` (`evidence_test.go`) drive the real signal-to-context path, and the Docker side runs against a recorder |
+| G-3 `go test`-native containers with a gating home | functional, real daemon | `f7c4cd8d92` (`labtest`), `3ea96e151f` (nightly jobs). `./le test integration docker-peers` exit 0 on this host after `321ca49ce1`, after `00ad396fd0`, and after `3681720e48` (gnmi 111.8 s, tacacs 37.1 s, interoplab 145.0 s, labtest 31.8 s, flowexport 117.8 s, ntp 53.5 s). `TestDockerPeersVerbRunsEveryDockerPackage`, `TestDockerTagNeverJoinsIntegration`, `TestEvidenceNightlyScheduleActionsAndPrivileges`. On the hosted runner: `evidence-nightly` 41436367757 (2026-11-02), the job's first green, and 42611604084 (2026-11-09), with `docker-peers` and `live-rpki` both passing (`TestLiveRPKIValidation` subtests PASS). The 2026-11-07 and 11-08 `docker-peers` reds were `TestSuiteRefusesDockerHostMissingAKernelFeature` after another spec's `60c615ead1`, green again on 11-09. The jobs that failed in 42611604084 (ipsec-interop, integration, interop, pppoe-interop) are separate jobs that report their own verdicts |
 | G-4 adoption | gate plus real-peer interop | MUST rows: `30ce614efd` (deployment), `f171a5d47c` (perfrunner), `a757147bb3` (evidence), `5cb877cbb6` (terminal demo), `fa4404fa13` (rpki live), `af1416e9b5` (image retention). AC-16 gate: `a73d572b19`, `e619f62e15`, `38739450f3`; `./le arch tier check` exit 0 on this tree, 2026-10-19. SHOULD rows S-1..S-4, each with a red walk (mutation, `-count=1`, red, restore, green) recorded in handover 06: TACACS+ against tac_plus-ng `321ca49ce1`, NTP against chrony `ead47ff0ce`, gNMI driven by gnmic `16051e7098`, flow-export against nfcapd and sflowtool `00ad396fd0` |
 
 ## Work Not Done
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| First nightly `docker-peers` (and `live-rpki`) run id: AC-25, A-8 | needs an owner-ordered push | none yet (closure blocker) |
+| First nightly `docker-peers` (and `live-rpki`) run id: AC-25, A-8 | needed a push | done here: `evidence-nightly` 39395005536 first ran it, 41436367757 first passed it, 42611604084 passed it on 2026-11-09 |
 | On the owner's Mac: `./le perf run dut ze` with Ctrl-C, the FreeRtr `--build-context` build, A-2 (`kern.bootsessionuuid`), A-3 (IOPlatformUUID), A-5 (Colima, Docker Desktop) | needs the owner's Mac; moved by the owner, 2026-10-19 ("2 yes") done by spec-lab-docker-cleanup-on-macos, closed 2026-10-23 (its record is in git history): AC-1, AC-2, AC-4, AC-6, AC-7 passed on the Mac; AC-3 was replaced by the unit-tested reboot verdict |
 | A-5 on the QEMU guest's Alpine dockerd (`./le test qemu docker-lab`) | outlasts an agent's five-minute bound; on macOS the labs run in that guest, so the Mac run covers it done by spec-lab-docker-cleanup-on-macos, closed 2026-10-23: its AC-5 label and cleanup half passed in the guest booting Ze's docker-host image (the guest no longer runs Alpine) |
-| Real runs stopped with Ctrl-C of `l2tp-test`, `vpp-test`, `vpp-iface-test`, `verify evidence release-candidate`, and the terminal-demo image build | not recorded in this spec or its handover | none yet (closure blocker) |
-| `./le go lint run` scoped over the packages each handover 06 section names (linux and darwin flavors), `./le test unit all`, `./le test functional gating`, `./le verify worktree` | another session owns them (owner, 2026-10-19) | owed gates, not scope |
+| Real runs stopped with Ctrl-C of `l2tp-test`, `vpp-test`, `vpp-iface-test`, `verify evidence release-candidate`, and the terminal-demo image build | the first three needed a host with `/dev/vhost-net`; release-candidate needs a clean checkout, which the shared one never is | done: `l2tp-test` and the image build in handover 06, "Real Ctrl-C proofs"; `vpp-test` and `vpp-iface-test` by spec-lab-docker-cleanup-on-macos AC-8 (closed 2026-10-23); `verify evidence release-candidate` by owner-accepted test-level evidence (Thomas, 2026-11-09, Goal Validation G-2), with no live-daemon proof claimed |
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
-| Artifact | `tmp/review/lab-docker-cleanup-and-go-test-containers-d8e7dbbf-89d5-483d-85d8-b379fee975ed.md`, CLEAN, round 10, hash-pinned over the 63 files of the 23 G-2 fix commits (`081d93a502` through `8c610178c9`), recorded 2026-10-20 |
-| `./le spec review check` | OK (59 code files, clean, hashes match), 2026-10-20 |
+| Artifact | Implementation: `tmp/review/lab-docker-cleanup-and-go-test-containers-d8e7dbbf-89d5-483d-85d8-b379fee975ed.md`, CLEAN, round 10, hash-pinned over the 63 files of the 23 G-2 fix commits (`081d93a502` through `8c610178c9`), recorded 2026-10-20. Closure: a fresh one-round review of what the closure commits carry (this spec and its citers; no code), recorded by the closure session on 2026-11-09 (owner decision, 2026-11-09). No commit carries this spec's `Spec-work:` line, and since 2026-10-20 other sessions' own commits changed 59 of the 63 pinned files (4 moved to `internal/le/setup/docker/kernel`). Those changes are theirs to review |
+| `./le spec review check` | 2026-10-20: OK (59 code files, clean, hashes match). 2026-11-09: `tmp/review/lab-docker-cleanup-and-go-test-containers-49da3d3d-44f5-443f-bc7a-73b9535a17f9.md`, CLEAN, 1 round, `./le spec review check` OK (0 code files, hashes match) over this spec, `spec-test-sandbox.md`, `spec-tooling-one-off-defects.md` and `plan/journal/gate-red-where-nothing-blocks-on-it.md` |
 | Rounds | 6, owner-authorised (Thomas, 2026-10-19, "4 yes"). Four whole-spec reviews, the third and fourth 0 BLOCKER 0 ISSUE. Round 5, on `38ccef54f5`, found the unlisted-member branch untested (fixed `9cbce6f200`). Round 6, on `38ccef54f5` and `9cbce6f200`, returned 0 BLOCKER 0 ISSUE; its one NOTE (the page did not name the unlisted-member case) is fixed by `08e49931a8`. Rounds 7 to 10, owner-authorised (Thomas, 2026-10-20), reviewed the fixes for the defects the real Ctrl-C proofs found (handover 06, "Real Ctrl-C proofs" onward). Round 7 found 4 ISSUE, round 8 1 ISSUE, round 9 7 ISSUE, each fixed test-first; round 10, limited to round 9's seven, returned 0 BLOCKER 0 ISSUE 7 NOTE. Its NOTEs N2 (`installStopped` says "partly made" when nothing ran, and gives no reboot caveat) and N6 (a root step ignoring SIGTERM cannot be forced) are journal rows |
 | Reviewer lenses used | AC conformance, docker.md destructive scope, user-facing errors, signal and teardown paths |
 
@@ -711,5 +780,49 @@ What blocks closing, by the rule that demands it:
 | A-5 | Linux host confirmed; Colima and the guest dockerd confirmed by spec-lab-docker-cleanup-on-macos (closed 2026-10-23); Docker Desktop dropped by the owner 2026-10-21 (Colima runs the same engine) | Linux: `TestKilledLabRunIsCleanedByNextStart` 2026-10-19; Colima and Docker Desktop: that spec's AC-4; the guest dockerd: its AC-5 |
 | A-6 | broken | the scanner moved to `internal/le/procscan` (`ffd98a4193`) |
 | A-7 | confirmed | `./le arch tier check` exit 0, 2026-10-19 |
-| A-8 | unvalidated | the first nightly run (AC-25) |
+| A-8 | confirmed | `evidence-nightly` 41436367757 (2026-11-02) and 42611604084 (2026-11-09): the `docker-peers` job passed on the hosted runner's own Docker (`gh run view 42611604084`, job log: every package `ok`) |
 | A-9 | confirmed | `ZE_QEMU_LINUX_ONLY` is a plain constant, as `ZE_REQUIRE_DOCKER` is |
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/interoplab/orphans.go`, `orphans_test.go`, `orphans_docker_test.go` | yes | `ls` 2026-11-09 |
+| `internal/le/interoplab/labtest/labtest.go`, `labtest_test.go`, `labtest_docker_test.go` | yes | `ls` 2026-11-09 |
+| the moved scanner, `internal/le/test/buildtag/buildtag.go` (+ `_test.go`) | yes | `ls` 2026-11-09 |
+| `internal/le/interoplab/image_retention_docker_test.go` (renamed, AC-14) | yes | `ls` 2026-11-09 |
+| SHOULD rows: `internal/component/tacacs/tacplusng_docker_test.go`, `internal/plugins/ntp/ntp_chrony_docker_test.go`, `internal/component/gnmi/gnmic_docker_test.go`, `internal/plugins/flowexport/collectors_docker_test.go` | yes | `ls` 2026-11-09 |
+| `internal/le/test/integration/dockerpeers.go`, `cleanup.go` | yes | `ls`; `cleanupVerb = "clean"`, `dockerPeersVerb`, `liveRPKIVerb` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-3, AC-9 | labels on every create; only the run-owned tag removable | `TestOwnerLabelsOnEveryCreate` (`orphans_test.go`); `TestDockerBuildRetainsImageAcrossRetag` (`image_retention_docker_test.go`) ok in nightly 42611604084 (`internal/le/interoplab` ok 23.4 s) |
+| AC-5, AC-6 | gone removed, every other verdict a named skip | `TestCleanupOrphansVerdictTable`; `TestKilledLabRunIsCleanedByNextStart` (`orphans_docker_test.go`) in the same nightly package run |
+| AC-7 | label-guarded pre-clean | `TestPreCleanRefusesLiveOrUnlabeledSameName` (`lab_test.go`) |
+| AC-8 | signal roots | `TestNativeRunnerCancelsOnSIGINT`, `TestDeploymentVerbsCancelOnSignal`, `TestPerfInterruptedRunRemovesWhatItStarted`, `TestReleaseCandidateCancelsOnSignal`, `TestRendererActionCancelsOnSIGINT`, `TestImageBuildCancelsOnSignal`, `TestDockerChildStopsOnSignal` (grep 2026-11-09); the real runs in Goal Validation G-2 |
+| AC-10 | `clean [dry]` verb | `TestLabCleanupActionDispatches`, `TestLabCleanupDryRemovesNothing` (`internal/le/test/integration/cleanup_test.go`) |
+| AC-11..AC-15 | no own docker exec at the MUST sites | `./le arch tier check`, 2026-11-09: the docker-exec-route gate lists no MUST-site file. It names only `internal/appliance/kernelbuilder/container_lifetime_proof_test.go`, added by `10c07359d9` (another spec, journal row in `plan/journal/gate-red-where-nothing-blocks-on-it.md`) |
+| AC-16 | the gate refuses a raw docker exec | the same run refuses that file, naming `interoplab.Docker` as the route; `TestNoDockerExecOutsideInteroplab` (`internal/le/arch/tier/dockerexec_test.go`) |
+| AC-17 | shipped code may not import labtest | `./le arch tier check`, 2026-11-09: "OK: no shipped file imports a test-only helper package" |
+| AC-14 | interoplab exclusion names only the kernel-check test | `excludedIntegrationPackages["internal/le/interoplab"]` (`internal/le/test/qemu/alltests.go`) names `TestDockerKernelCheckOnThisHost` only |
+| AC-22..AC-24 | derived `docker` population, no `docker`+`integration` file, one scanner | `TestDockerPeersVerbRunsEveryDockerPackage`, `TestDockerTagNeverJoinsIntegration`, `internal/le/test/buildtag` |
+| AC-25 | nightly job | `.github/workflows/evidence-nightly.yml` jobs `docker-peers` and `live-rpki`; `TestEvidenceNightlyScheduleActionsAndPrivileges` lists both in `want`; runs 41436367757 and 42611604084 |
+| AC-18, AC-19, AC-26 | labtest contract | `TestLabtestStartsServerAndCleansUp` (`labtest_docker_test.go`); `labtest.go` package doc states no `DockerKernel` check |
+| AC-20 | SHOULD rows S-1..S-4 | the four `_docker_test.go` files above, `ok` in nightly 42611604084 (tacacs, ntp, gnmi, flowexport); walks in handover 06 |
+| AC-21 | NOT rows confirmed | owner, 2026-10-18, "go" (Open Questions Q-7) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le test integration <lab>` -> `Suite.Run` sweep | none (Go test) | `TestSuiteRunCleansOrphansBeforePreflight` in `internal/le/interoplab/lab_test.go` |
+| `./le test integration clean [dry]` | none (Go test) | `TestLabCleanupActionDispatches`, `TestLabCleanupDryRemovesNothing` in `cleanup_test.go` |
+| SIGKILLed run, then any lab start | none (Go test, real daemon) | `TestKilledLabRunIsCleanedByNextStart` in `orphans_docker_test.go`, nightly-run |
+| Ctrl-C of a lab verb | none (Go test) | `TestNativeRunnerCancelsOnSIGINT` in `cleanup_test.go` |
+| `./le test integration docker-peers` and the nightly job | none (workflow) | `TestDockerPeersVerbRunsEveryDockerPackage`; `TestEvidenceNightlyScheduleActionsAndPrivileges`; run 42611604084 |
+| `./le test integration live-rpki` | none (Go test, live) | `TestLiveRPKIValidation` PASS in run 42611604084 |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| CLI and test infrastructure pages (checklist rows 3, 6, 10, 12, 16, 17) | edited in the phases that made them wrong (handover 06; the round-10 artifact pins `interop.md`, `qemu-integration.md`, `runner-architecture.md`); `./le doc check all` result recorded at commit time | yes |
+| No feature, config, API, plugin, wire or RFC change (rows 1, 2, 4, 5, 7, 8, 9, 11, 13, 14, 15) | tooling only; grep for `RFC requirement:` in the four SHOULD-row `_docker_test.go` files finds none | yes |

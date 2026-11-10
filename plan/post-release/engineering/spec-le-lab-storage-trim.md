@@ -61,7 +61,7 @@ and the Colima disk gives freed space back to the host.
   → Constraint: eviction of `<arch>/<key>/` entries takes `setup.lock`, the lock `EnsureImage` holds while it builds, so an entry being written is never removed
 - [ ] `docs/architecture/appliance/build-artifacts.md` - the XDG cache tiers under `~/.cache/ze/` and "Cache invalidation for downloads is manual"
   → Constraint: the page states downloads have no expiry; the docker-host eviction makes that false for docker-host images and the page is updated in that phase
-- [ ] `plan/post-release/engineering/spec-lab-docker-cleanup-and-go-test-containers.md` - G-1 owner labels and the orphan sweep
+- [ ] `docs/architecture/testing/interop.md` - "Crash-safe teardown": the owner labels and the orphan sweep (G-1 of `spec-lab-docker-cleanup-and-go-test-containers`)
   → Constraint: owner liveness is judged by `ownerJudge.judge` from the `ze.lab.*` labels; this spec reuses it, never a second liveness rule
 - [ ] `ai/META-DECISIONS.md` - "Many sessions share one Docker daemon: never run a host-wide destructive Docker command"
   → Constraint: every Docker removal names its object and carries `./le`'s owner label with a dead owner
@@ -104,6 +104,32 @@ and the Colima disk gives freed space back to the host.
 - A build cache bound in the docker-host image's daemon configuration
 - The Colima disk gives freed blocks back to the host
 - The stale `workDir` comment in `hugepages.go` is corrected
+
+## Existing Mechanisms (MANDATORY)
+
+Read for this section on 2026-11-10: `ai/doors/system.md`, `ai/doors/le-tooling.md`,
+`ai/doors/appliance.md`, `plan/learned/DESIGN-HISTORY.md` (no entry on store
+trim, lab owner labels or image eviction), and the producers named below.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Hourly store trim | `internal/le/scratch/storetrim.go` `storeTrimBeforeDispatch`, `trimStoresScanning` | Runs the `cleanTargets` rows, then `livenessStores`, then the test-temp row, into one report, only inside a Ze checkout (`lepath.IsCheckout`) | Extends: every new row joins `trimStoresScanning` and its report; no second cleaner |
+| Kernel cache guard | `internal/le/scratch/cacheclean.go` `heldKernelCache`, `cleanTargets`; `internal/appliance/cache.go` `KernelCacheNamespaces` | Keeps the kernel caches out of every clean and trim target | Extends: each new row calls the guard, which today runs only inside `cleanTargets` |
+| Liveness rows | `internal/le/scratch/livetrim.go` `trimLiveness`, `sessionProcessVisible`, `removeLivenessEntry`, `olderThan`, `treeIdle` | Removes launcher, session, testbin, build and agent-file entries whose owner is gone, from one process-table scan; with no Claude CLI visible it removes nothing | Extends: the QEMU run-directory and leftovers rows are liveness rows over the same scan, and inherit the no-CLI skip |
+| Process identity | `internal/le/procscan/procscan.go` `Lookup`, `exitedState` | Answers whether a pid is held and by which start token, and treats a zombie as absent | Extends: the run-directory owner marker is judged by pid plus start token through it |
+| QEMU VM record | `internal/le/test/qemu/vmrecord.go` `vmRecord`, `Run.recordVM`, `Run.reapOrphanVMs` | Writes `tmp/qemu/vm-record-<pid>.json` with the QEMU and le pids and start times, and reaps the VM of a dead le | Extends: the run-directory marker carries the same owner identity; the record names no directory, so it is not the marker. The `docker-lab-*` directories sit beside the records (`dockerlab.go`, `r.vmRecordDir()` as parent) |
+| QEMU run directories | `internal/le/test/qemu/mplsboot.go` `MPLSBoot.workDir`, `hugepages.go` `Hugepages.workDir`, `dockerlab.go` (`MkdirTemp(parent, "docker-lab-")`), `run.go` `Run.ensureScratch` | Create `run-*`, `docker-lab-*` and `go-dl` under `tmp/` with no owner marker | Extends: each creator writes the marker the trim row reads |
+| Lab owner labels and orphan sweep | `internal/le/interoplab/orphans.go` `ownerIdentity.labelArguments`, `ownerJudge.judge`, `Docker.CleanupOrphans`, `Docker.listResources`; `docs/architecture/testing/interop.md`, "Crash-safe teardown" | Labels every lab container, network and image; removes a labelled resource only when its owner is provably gone; `listResources` drops every `:<none>` row | Extends: the untagged-image row reuses `ownerJudge.judge`, never a second liveness rule, and needs the `:<none>` rows the listing skips today |
+| Retained image tags | `internal/le/interoplab/docker.go` `Docker.Build`, `Docker.ReleaseImage` | Tags each build under its shared tag and a run-owned `ze-interop-retained:<rand>` tag; release untags only the retained one | Does not apply: preserved; the shared tags `NO_BUILD=1` reuses stay out of every row |
+| Docker-host image eviction | `internal/appliance/cache.go` `EvictKeepN`, called by `internal/le/setup/docker/host/build.go` `(*builder).build` | After each image build, keeps the `evictKeepDefault` (2) newest `<key>` directories of the arch plus the one just built, sparing any entry modified within `evictGrace` | Extends, with the conflict recorded below |
+| Docker-host setup lock | `internal/le/setup/docker/host/lock.go` `lockFileName`; `actions.go` `lockedBuild`, `EnsureImage` | Holds `setup.lock` around every image build and ensure | Extends: the docker-host row takes the same lock |
+| Live Colima key | `internal/le/setup/docker/host/colima.go` `readColimaRecord` | Reads the key and image path `colima-ze.started` records for the profile | Extends: the docker-host row keeps that key |
+| Docker-host daemon settings | `internal/appliance/dockerhost/docker.go` `dockerdFixedArgv`; `docs/architecture/appliance/docker-host.md` (the dockerd unit) | Fixes dockerd's argv; every other setting reaches dockerd through `/etc/docker/daemon.json`. No Go in the tree writes that file | Extends, with the conflict recorded below |
+| Kernel builder container | `internal/appliance/kernelbuilder/recipe.go` `containerCreateArgs`, `defaultImage` | Creates the `ze-kernel-builder` worker with volumes `ze-kernel-build` and `ze-kernel-work`, none labelled | Extends: gains the owner labels so the image row can judge it |
+
+**Conflicts with this spec's design, recorded and not resolved here:**
+- Current Behavior says `(*builder).build` never evicts. Since `eead8aea7a` (2026-11-06) it calls `appliance.EvictKeepN` after every build. Its one protected `current` is the image just built, so the key `colima-ze.started` names is removed when it is neither that image nor among the two newest, against O-4. `KernelCacheNamespaces`' and `evictKeepN`'s comments say eviction runs only after a new entry is populated, never on a timer, while Data Flow step 2 runs the docker-host row from the hourly trim. The implementation settles whether the row extends this call (a second protected entry) or replaces it; a second eviction beside it is layering (`ai/rules/no-layering.md`).
+- O-3 places the build cache bound in "the docker-host image's daemon configuration". No producer in the tree writes `/etc/docker/daemon.json`, and the `containerdRoot` comment in `dockerhost/docker.go` records that Colima replaces containerd's config file. Who writes `daemon.json` on the profile, and whether a value the image carries survives Colima's provisioning, is unproven; it is established before the bound is placed.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 

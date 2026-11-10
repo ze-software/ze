@@ -50,7 +50,7 @@ and a check after each test refuses one that touched anything outside it.
 - [ ] `docs/architecture/appliance/docker-host.md` - the Ze docker-host image the lab guest boots
 - [ ] `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md` - Ze-kernel requirement for Docker hosts
   -> Constraint: only the docker-lab guest moved to Ze's image; `run`, `all-tests`, `stress` and `mobike` still boot Alpine (`internal/le/test/qemu/run_iso.go`, `alpineISOName`). The owner rule rejects Alpine for test guests, so this spec routes them to Ze's image.
-- [ ] `plan/post-release/engineering/spec-lab-docker-cleanup-and-go-test-containers.md` - run-owned Docker labels and cleanup
+- [ ] `docs/architecture/testing/interop.md` "Crash-safe teardown" (from spec-lab-docker-cleanup-and-go-test-containers, closed 2026-11-09) - run-owned Docker labels and cleanup
   -> Decision: orphaned lab networks are that spec's cleanup; this spec only leases the subnet so two live runs cannot pick the same one.
 - [ ] `plan/post-release/engineering/spec-fixit-netns-test-dut-tags.md` - the netns-test vehicle
 - [ ] `plan/release/fixes/spec-fixit-ca-root-location.md` - product use of `DefaultConfigDir`; not changed here
