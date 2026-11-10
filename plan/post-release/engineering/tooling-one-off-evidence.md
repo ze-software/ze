@@ -2752,3 +2752,20 @@ one that must not run fails if it does. Breaks through an `le` built with the
 overlay (`p15w/`): selection matching everything, FAIL "expected exit code 0,
 got 1"; the pattern dropped by the bgp command, FAIL (the selected cases'
 output missing). Restored and promoted: PASS.
+
+## P-12 (a): second breaks for four special checkers (2026-11-10)
+
+Each break is a Go overlay of Ze's own producer (no checker change), carried
+into the cross-built DUT through an inherited `GOFLAGS`, with `le` itself
+built under a separate name (`./le --name p12brk`). Clean runs used
+`./le --name session`. Logs: `p12b2/<scenario>-{clean,break}.log`.
+
+| Scenario | Second break | Red | Clean |
+| --- | --- | --- | --- |
+| `bgp-med-across-as-gobgp` | Ze strips its own MED toward external peers on both announce rails (`planBatchAttrs`, `buildRIBRouteUpdate`) | assertion 15: "GoBGP route 10.60.9.0/24 carries no Med at all, want 42" | pass 2m26s |
+| `bgp-med-remove-configured-gobgp` | the configured removal ignores its match condition (`evaluateModify`) | assertion 7: "GoBGP route 10.61.1.0/24 carries no Med at all, want 100" (the unmatched control) | pass 1m37s |
+| `bgp-rfc7999-blackhole-frr` | a covered route is discarded whatever community the session agreed (`blackholeRouteType`) | assertion 6: "the kernel holds a discard route for 10.200.0.1, which BIRD tagged on a session that agreed a different community, want it forwarded through a gateway" | pass 1m35s |
+| `bgp-wellknown-noexport-frr` | NO_EXPORT suppressed toward every peer (`wellKnownAllowsEgress`) | assertion 6: BIRD never learns 10.10.0.0/24 ("birdc show route for 10.10.0.0/24 ... Network not found") | pass 1m3s |
+
+The earlier assertions of each scenario stayed green under its break, so each
+red is the second defect alone.
