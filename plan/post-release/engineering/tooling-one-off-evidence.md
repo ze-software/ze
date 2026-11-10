@@ -2769,3 +2769,28 @@ built under a separate name (`./le --name p12brk`). Clean runs used
 
 The earlier assertions of each scenario stayed green under its break, so each
 red is the second defect alone.
+
+## Trim, argv capture, message allocation and the qemu verb constant (2026-11-10)
+
+`trimSessions` applied its age floor to the session directory's own mtime,
+which writing under `state/` or `scratch/` does not move; a harness session
+whose id comes from the environment is judged dead by `session.judge`, so once
+the directory passed a day its live proof and state paths were removed. Trim
+now judges by the newest write in the tree. `TestCaptureIdentityRetainsLongSelectorsAndFreshStarts`
+derived its expected argv from the producer's own splitter, so no splitter
+break could redden it; its words are now literal. `TestPrepareAppendMessageIsolation`
+scripts colliding message suffixes through a nonce seam and runs four real
+creates under one tag, ordinary, ordinary, replace and append. Two test
+changes approved by an independent `ze-test-judge`.
+
+| Carrier | Break (Go overlay, `apw/`) | Red |
+| --- | --- | --- |
+| `TestTrimSessionsKeepsAnActiveHarnessOwnersPaths` (`internal/le/scratch`) | idleness from the directory's own mtime again | "... activeharness was removed while its session wrote within the last day" |
+| `TestCaptureIdentityRetainsLongSelectorsAndFreshStarts` (`internal/le/test/stressrepro`, P-21) | `shellWords` splits on whitespace | "capture argv [... \"'one\" \"selector\" \"with\" \"spaces'\"], want [... \"one selector with spaces\"]" |
+| `TestPrepareAppendMessageIsolation` (`internal/le/commit`, P-5) | message allocation without `O_EXCL` | "other answered message tmp/commit-msg-...-shared-000000.txt, which an earlier preparation holds" |
+| same | allocation truncates an existing message | same refusal, caught when the reused name is answered |
+| same | the same-tag message name drops its nonce | "a second create under the tag could not allocate its own message: cannot allocate an unused commit message path" |
+
+Each restored run passed; `internal/le/scratch`, `internal/le/test/stressrepro`,
+`internal/le/test/qemu` and `internal/le/commit` ok. The qemu stress action
+now names its verb through `doesRun` (journal bulk-rename-corruption 2026-10-27).

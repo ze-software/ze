@@ -761,6 +761,11 @@ func nextTag(root, session, requested string) (string, string, error) {
 	return "", "", errors.New("no free message tag; clear old tmp/commit-msg-* files")
 }
 
+// messageNonce fills the random suffix of a message path. It is a variable so a
+// test can draw a suffix another prepared commit already holds, which is the
+// only way to observe that O_EXCL, not chance, keeps two messages apart.
+var messageNonce = rand.Read
+
 // allocateMessage creates an empty message file under a suffix no other prepared
 // commit holds, and answers its path relative to the checkout root.
 //
@@ -771,7 +776,7 @@ func nextTag(root, session, requested string) (string, string, error) {
 func allocateMessage(root, session, tag string) (string, error) {
 	for range 64 {
 		var nonce [3]byte
-		if _, err := rand.Read(nonce[:]); err != nil {
+		if _, err := messageNonce(nonce[:]); err != nil {
 			return "", err
 		}
 		relative := filepath.ToSlash(filepath.Join("tmp",

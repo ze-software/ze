@@ -74,9 +74,18 @@ func captureStem(t *testing.T, log string) string {
 // bounded or sanitized readable prefix must differ there, and one selection
 // run twice must not.
 //
+// Each case names the argv words it expects literally, never through
+// shellWords: an expectation computed by the producer's own splitter agrees
+// with any defect in it, so the evidence would match a wrong argv.
+//
 // MUTATION: replacing run.go's
 // `pattern := slug + "-" + hex.EncodeToString(identity[:]) + "-" + stamp + "-*.log"`
 // with `pattern := slug + "-" + stamp + "-*.log"; _ = identity` turns it red.
+//
+// MUTATION: replacing run.go's shellWords line
+// `split, err := shlex.Split(value, true)` with
+// `split, err := strings.Fields(value), error(nil)` turns spaced-argument red:
+// the capture records `'one`, `selector`, `with`, `spaces'` as four words.
 func TestCaptureIdentityRetainsLongSelectorsAndFreshStarts(t *testing.T) {
 	root := stressTree(t)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "capture-fixture-session")
@@ -86,49 +95,41 @@ func TestCaptureIdentityRetainsLongSelectorsAndFreshStarts(t *testing.T) {
 		selectors[index] = "shared-selector-prefix-" + strconv.Itoa(index)
 	}
 	long := strings.Join(selectors, " ")
+	tailed := append(slices.Clone(selectors[:len(selectors)-1]), selectors[len(selectors)-1]+"-different-tail")
 	cases := []struct {
-		name string
-		test string
+		name  string
+		test  string
+		words []string
 	}{
-		{"ninety-one", long},
-		{"same-prefix", long + "-different-tail"},
-		{"sanitized-slash", "alpha/beta"},
-		{"sanitized-hyphen", "alpha-beta"},
-		{"fresh-same-selection", "alpha-beta"},
-		{"spaced-argument", `'one selector with spaces'`},
+		{"ninety-one", long, selectors},
+		{"same-prefix", long + "-different-tail", tailed},
+		{"sanitized-slash", "alpha/beta", []string{"alpha/beta"}},
+		{"sanitized-hyphen", "alpha-beta", []string{"alpha-beta"}},
+		{"fresh-same-selection", "alpha-beta", []string{"alpha-beta"}},
+		{"spaced-argument", `'one selector with spaces'`, []string{"one selector with spaces"}},
 	}
 	logs := make(map[string]bool)
 	stems := make(map[string]string)
 	fixed := time.Now()
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
-			words, err := shellWords(test.test)
-			if err != nil {
-				t.Fatal(err)
-			}
-			want := append([]string{"test", "bgp", "reload", "-p", "1", "-v"}, words...)
+			want := append([]string{"test", "bgp", "reload", "-p", "1", "-v"}, test.words...)
 			executable, starts := captureFixture(t, root, want)
 			opts := baseOptions()
 			opts.Suite, opts.Test, opts.Iterations = "reload", test.test, 2
 			deps, _ := testDependencies(captureFixtureRunner{executable: executable})
 			deps.now = func() time.Time { return fixed }
 			report, code := run(context.Background(), root, opts, deps)
-			if code != 1 || report.SetupError != "" || report.Completed != 2 {
-				t.Fatalf("run did not complete two real starts: %#v, exit %d", report, code)
+			// The evidence is judged first: a child refusing a wrong argv also
+			// fails the run, and the red then names the argv it recorded.
+			if report.Log == "" {
+				t.Fatalf("run created no capture log: %#v, exit %d", report, code)
 			}
-			if len(filepath.Base(report.Log)) > 255 {
-				t.Fatalf("capture component exceeds filesystem bound: %q", report.Log)
-			}
-			if logs[report.Log] {
-				t.Fatalf("capture reused an earlier invocation's file: %q", report.Log)
-			}
-			logs[report.Log] = true
-			stems[test.name] = captureStem(t, report.Log)
 			capture, err := os.ReadFile(report.Log)
 			if err != nil {
 				t.Fatal(err)
 			}
-			found := false
+			records := 0
 			for line := range strings.SplitSeq(string(capture), "\n") {
 				if !strings.HasPrefix(line, "argv=") {
 					continue
@@ -140,11 +141,22 @@ func TestCaptureIdentityRetainsLongSelectorsAndFreshStarts(t *testing.T) {
 				if !slices.Equal(got, want) {
 					t.Fatalf("capture argv %q, want %q", got, want)
 				}
-				found = true
+				records++
 			}
-			if !found {
-				t.Fatal("capture omitted exact argv evidence")
+			if records != 1 {
+				t.Fatalf("capture holds %d argv records, want exactly 1", records)
 			}
+			if code != 1 || report.SetupError != "" || report.Completed != 2 {
+				t.Fatalf("run did not complete two real starts: %#v, exit %d", report, code)
+			}
+			if len(filepath.Base(report.Log)) > 255 {
+				t.Fatalf("capture component exceeds filesystem bound: %q", report.Log)
+			}
+			if logs[report.Log] {
+				t.Fatalf("capture reused an earlier invocation's file: %q", report.Log)
+			}
+			logs[report.Log] = true
+			stems[test.name] = captureStem(t, report.Log)
 			completed, err := os.ReadFile(starts)
 			if err != nil {
 				t.Fatal(err)

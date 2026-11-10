@@ -324,7 +324,7 @@ const quotedPathSpec = "quoted-path-proof"
 // the generated script decodes the same path.
 //
 // VALIDATES: P-17 "Git paths" of spec-tooling-one-off-defects. Each subtest is
-// a real repository where the named path sits beside NEIGHBOURS: the pieces a
+// a real repository where the named path sits beside NEIGHBORS: the pieces a
 // whitespace split would produce, and the C-quoted spelling Git prints for it
 // (`"r\303\251sum\303\251.txt"`), each a real tracked file with its own
 // working-tree edit. Create selects the path whole or by hunks; then:
@@ -333,7 +333,7 @@ const quotedPathSpec = "quoted-path-proof"
 //     newsfragment gate consult) both answer exactly the raw path;
 //   - the generated script publishes a commit whose changed paths are exactly
 //     the raw path (read NUL-framed), with the selected bytes;
-//   - every neighbour keeps its committed blob and its working-tree edit, and
+//   - every neighbor keeps its committed blob and its working-tree edit, and
 //     the shared index stays empty;
 //   - the Spec-work history reader answers exactly the raw path.
 //
@@ -349,23 +349,23 @@ const quotedPathSpec = "quoted-path-proof"
 // MUTATION: (input.go normalizePath, `if strings.ContainsAny(raw, "\x00\t\r\n") || strings.Count(raw, "\n") != 0 {`, `if strings.ContainsAny(raw, "\x00") {`): the tab, CR and LF refusals go red on every route.
 func TestQuotedPathsReachGeneratedScript(t *testing.T) {
 	cases := []struct {
-		path       string
-		neighbours []string
+		path      string
+		neighbors []string
 	}{
-		{path: "space name.txt", neighbours: []string{"space", "name.txt"}},
-		{path: " leading and trailing .txt ", neighbours: []string{"leading", "and", "trailing", ".txt"}},
-		{path: "it's.txt", neighbours: []string{"it", "s.txt", `it\'s.txt`}},
-		{path: `double"quote.txt`, neighbours: []string{`"double\"quote.txt"`, "double", "quote.txt"}},
-		{path: `back\slash.txt`, neighbours: []string{`"back\\slash.txt"`, "back", "slash.txt"}},
-		{path: "résumé.txt", neighbours: []string{`"r\303\251sum\303\251.txt"`}},
+		{path: "space name.txt", neighbors: []string{"space", "name.txt"}},
+		{path: " leading and trailing .txt ", neighbors: []string{"leading", "and", "trailing", ".txt"}},
+		{path: "it's.txt", neighbors: []string{"it", "s.txt", `it\'s.txt`}},
+		{path: `double"quote.txt`, neighbors: []string{`"double\"quote.txt"`, "double", "quote.txt"}},
+		{path: `back\slash.txt`, neighbors: []string{`"back\\slash.txt"`, "back", "slash.txt"}},
+		{path: "résumé.txt", neighbors: []string{`"r\303\251sum\303\251.txt"`}},
 	}
 	for _, tc := range cases {
 		for _, selection := range []string{"whole file", "hunks"} {
 			t.Run(tc.path+"/"+selection, func(t *testing.T) {
-				root := quotedPathFixture(t, append([]string{tc.path}, tc.neighbours...))
+				root := quotedPathFixture(t, append([]string{tc.path}, tc.neighbors...))
 				writeCommitFixture(t, root, tc.path, "selected\n")
-				for _, neighbour := range tc.neighbours {
-					writeCommitFixture(t, root, neighbour, "neighbour edit\n")
+				for _, neighbor := range tc.neighbors {
+					writeCommitFixture(t, root, neighbor, "neighbor edit\n")
 				}
 				options := Options{Subject: "publish one exact raw path", SpecWork: quotedPathSpec}
 				if selection == "whole file" {
@@ -400,8 +400,8 @@ func TestQuotedPathsReachGeneratedScript(t *testing.T) {
 				if got := runCommitGitOutput(t, root, "show", "HEAD:"+tc.path); got != "selected\n" {
 					t.Errorf("published blob of %q = %q, want the selected bytes", tc.path, got)
 				}
-				for _, neighbour := range tc.neighbours {
-					assertNeighbourUntouched(t, root, neighbour)
+				for _, neighbor := range tc.neighbors {
+					assertNeighborUntouched(t, root, neighbor)
 				}
 				if staged := runCommitGitOutput(t, root, "diff", "--cached", "--name-only", "-z"); staged != "" {
 					t.Errorf("shared index = %q, want it empty", staged)
@@ -481,18 +481,143 @@ func quotedPathFixture(t *testing.T, paths []string) string {
 	return root
 }
 
-// assertNeighbourUntouched checks that neighbour keeps its committed blob and
+// assertNeighborUntouched checks that neighbor keeps its committed blob and
 // its working-tree edit: the commit neither carried nor reverted it.
-func assertNeighbourUntouched(t *testing.T, root, neighbour string) {
+func assertNeighborUntouched(t *testing.T, root, neighbor string) {
 	t.Helper()
-	if got := runCommitGitOutput(t, root, "show", "HEAD:"+neighbour); got != "before\n" {
-		t.Errorf("neighbour %q was published as %q", neighbour, got)
+	if got := runCommitGitOutput(t, root, "show", "HEAD:"+neighbor); got != "before\n" {
+		t.Errorf("neighbor %q was published as %q", neighbor, got)
 	}
-	got, err := os.ReadFile(filepath.Join(root, neighbour)) //nolint:gosec // fixture path under t.TempDir
+	got, err := os.ReadFile(filepath.Join(root, neighbor)) //nolint:gosec // fixture path under t.TempDir
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(got) != "neighbour edit\n" {
-		t.Errorf("neighbour %q working copy = %q, want its own edit kept", neighbour, got)
+	if string(got) != "neighbor edit\n" {
+		t.Errorf("neighbor %q working copy = %q, want its own edit kept", neighbor, got)
+	}
+}
+
+// TestPrepareAppendMessageIsolation proves that same-tag preparations in one
+// session (an ordinary create, a second ordinary create, a replacement and an
+// append) each hold a message file of their own because the allocation is
+// exclusive, keep every earlier message's bytes, and publish the one
+// obligation the replaced block carries exactly once.
+//
+// The random suffix alone keeps paths apart, so distinct paths prove nothing
+// about the allocation. The method draws suffixes from a script instead: every
+// allocation after the first draws the suffix the previous one took, then a
+// fresh one, so each call meets a name another preparation holds and must step
+// over it.
+//
+// MUTATION: dropping O_EXCL from allocateMessage's OpenFile flags
+// (`os.O_CREATE|os.O_EXCL|os.O_WRONLY` -> `os.O_CREATE|os.O_WRONLY`) turns it
+// red: the second create answers the first create's message path.
+// MUTATION: replacing O_EXCL with O_TRUNC
+// (`os.O_CREATE|os.O_EXCL|os.O_WRONLY` -> `os.O_CREATE|os.O_TRUNC|os.O_WRONLY`)
+// turns it red: an earlier message is emptied and rewritten.
+// MUTATION: dropping the suffix from the message name
+// (`"-"+hex.EncodeToString(nonce[:])+".txt"` -> `".txt"`) turns it red: the
+// second create under the tag cannot allocate a message.
+func TestPrepareAppendMessageIsolation(t *testing.T) {
+	root := newOwedRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "message-isolation")
+	draws := 0
+	saved := messageNonce
+	messageNonce = func(nonce []byte) (int, error) {
+		// Draw k answers suffix k/2: 0, 0, 1, 1, 2, 2, ... The first draw of
+		// each allocation after the first is the suffix already taken.
+		value := draws / 2
+		draws++
+		for index := range nonce {
+			nonce[index] = byte(value >> (8 * index))
+		}
+		return len(nonce), nil
+	}
+	t.Cleanup(func() { messageNonce = saved })
+	base := revParse(t, root, "HEAD")
+	// written holds each message's bytes as its own create left them, so a
+	// later preparation that rewrites or truncates one is caught at the end.
+	written := make(map[string]string)
+	record := func(name string, prepared Prepared) {
+		t.Helper()
+		if earlier, taken := written[prepared.Message]; taken {
+			t.Fatalf("%s answered message %s, which an earlier preparation holds:\n%s", name, prepared.Message, earlier)
+		}
+		text, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(prepared.Message)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		written[prepared.Message] = string(text)
+	}
+
+	writeCommitFixture(t, root, linuxLimitSummary, "# Original preparation\n\n"+linuxLimitRow+linuxLimitAnnotation+"\n")
+	first, err := Create(root, &Options{Subject: "original preparation", Tag: "shared",
+		Files: []string{linuxLimitSummary}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	record("first", first)
+	writeCommitFixture(t, root, "other.txt", "other content\n")
+	other, err := Create(root, &Options{Subject: "separate preparation", Tag: "shared",
+		Files: []string{"other.txt"}})
+	if err != nil {
+		t.Fatalf("a second create under the tag could not allocate its own message: %v", err)
+	}
+	record("other", other)
+	const heading = "# Replacement preparation\n\n"
+	wantSummary := heading + linuxLimitRow + linuxLimitAnnotation + "\n"
+	writeCommitFixture(t, root, linuxLimitSummary, wantSummary)
+	replacement, err := Create(root, &Options{Subject: "replacement publication", Tag: "shared",
+		Files: []string{linuxLimitSummary}, Replace: true, Script: first.Script})
+	if err != nil {
+		t.Fatal(err)
+	}
+	record("replacement", replacement)
+	writeCommitFixture(t, root, "notes.txt", "appended content\n")
+	appended, err := Create(root, &Options{Subject: "appended publication", Tag: "shared",
+		Files: []string{"notes.txt"}, Append: true, Script: replacement.Script})
+	if err != nil {
+		t.Fatal(err)
+	}
+	record("append", appended)
+
+	prepared := []struct {
+		name    string
+		message string
+		subject string
+	}{
+		{"first", first.Message, "original preparation"},
+		{"other", other.Message, "separate preparation"},
+		{"replacement", replacement.Message, "replacement publication"},
+		{"append", appended.Message, "appended publication"},
+	}
+	for _, preparation := range prepared {
+		text, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(preparation.message)))
+		if err != nil {
+			t.Fatalf("%s message %s: %v", preparation.name, preparation.message, err)
+		}
+		if string(text) != written[preparation.message] {
+			t.Fatalf("a later preparation changed the %s message %s:\nwritten:\n%s\nnow:\n%s", preparation.name, preparation.message, written[preparation.message], text)
+		}
+		if !strings.Contains(string(text), preparation.subject) {
+			t.Fatalf("%s message %s does not carry its own subject %q:\n%s", preparation.name, preparation.message, preparation.subject, text)
+		}
+	}
+	if draws != 7 {
+		t.Fatalf("four allocations drew %d suffixes, want 7: one for the first, two for each later one", draws)
+	}
+
+	runCommitScript(t, root, first.Script)
+	if got := runCommitGitOutput(t, root, "log", "--reverse", "--format=%s", base+"..HEAD"); got != "replacement publication\nappended publication\n" {
+		t.Fatalf("published subjects = %q", got)
+	}
+	wantTrailer := trailerLinuxLimitOwed + linuxLimitRID + ": LL-EXAMPLE"
+	if got := strings.Count(runCommitGitOutput(t, root, "log", "--format=%B", base+"..HEAD"), wantTrailer); got != 1 {
+		t.Fatalf("published obligation occurs %d times, want once", got)
+	}
+	debt := deriveOwed(t, root, "")
+	assertOneItem(t, debt, revParse(t, root, "HEAD^"), owedItemLinuxLimit, linuxLimitRID)
+	if len(debt.Refusals) != 0 {
+		t.Fatalf("published history refused derivation: %v", debt.Refusals)
 	}
 }
