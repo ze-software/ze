@@ -1,6 +1,6 @@
 // Design: docs/architecture/doctor-and-health-checks.md -- memlock pre-flight check
 // Overview: memlock.go -- why the executable is locked
-// Related: memlock_linux.go -- the init() that takes the lock and records the outcome
+// Related: register_lock.go -- the init() that takes the lock and records the outcome
 
 //go:build linux
 

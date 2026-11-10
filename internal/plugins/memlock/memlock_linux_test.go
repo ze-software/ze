@@ -1,6 +1,7 @@
 // Design: docs/architecture/plugin/plugin-system.md -- memlock plugin
 // Overview: memlock.go -- why the executable is locked
-// Related: memlock_linux.go -- the init() these tests judge
+// Related: memlock_linux.go -- setupOutcome, which these tests judge
+// Related: register_lock.go -- the init() that records its outcome
 
 //go:build linux
 

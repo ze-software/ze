@@ -1,6 +1,6 @@
 // Design: docs/architecture/plugin/plugin-system.md -- memlock plugin registration
 // Overview: memlock.go -- why the executable is locked
-// Related: memlock_linux.go -- the init() that takes the lock and records the outcome
+// Related: register_lock.go -- the init() that takes the lock and records the outcome
 // Related: doctor_linux.go -- the pre-flight check this registration declares
 
 //go:build linux

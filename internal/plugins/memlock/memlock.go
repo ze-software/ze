@@ -1,5 +1,5 @@
 // Design: docs/architecture/plugin/plugin-system.md -- plugin registration
-// Detail: memlock_linux.go -- the init() that takes the lock
+// Detail: register_lock.go -- the init() that takes the lock
 // Detail: register.go -- registration, the engine run, and the doctor check
 //
 // Package memlock locks the running executable's own file-backed pages in

@@ -63,6 +63,22 @@ that seal take a `registry.Snapshot` first: it records the seal state,
 <!-- source: internal/component/plugin/registry/seal_test.go -- TestEveryRegistryWriterIsGuardedOrASeam -->
 <!-- source: cmd/ze/main.go -- main -->
 
+`./le plugin registration-sites check` proves the call sites, over the
+committed HEAD's Ze packages (never `vendor/`, whose import of the registry Go
+refuses). Its registering functions are the registry's exported functions that
+reach `refuseSealedLocked`, derived from the registry source, so a new mutator
+is judged as soon as it calls the guard. Every call to one sits in a
+`register*.go` file, is a direct call (never a function value, never inside a
+function literal or a method), and sits in `init()`, in a package-level
+initializer, or in a function whose every reference is in turn a direct call
+that only such initialization reaches, across packages:
+`policy.MustRegisterRIBImport` reaches `AddConfigRead` that way from each Loc-RIB
+importer's `init()`. A dot import of the registry is refused. On a pass it lists
+how many packages it read and every accepted site; the verify engine runs it
+beside the other plugin checks.
+<!-- source: internal/le/plugin/registrationsites/registrationsites.go -- Judge, registeringFunctions, judge, initializationOnly -->
+<!-- source: internal/le/verify/engine/stages.go -- fullStages -->
+
 Four fields are required; the rest are optional.
 
 
@@ -196,7 +212,7 @@ the silence this record exists to remove.
 The reason reaches CLI output as data, so a recording site MUST NOT put a
 secret in one.
 <!-- source: internal/component/plugin/registry/setup.go -- RecordSetup, SetupOutcome, SetupResults -->
-<!-- source: internal/plugins/memlock/memlock_linux.go -- init, the worked example -->
+<!-- source: internal/plugins/memlock/register_lock.go -- init, the worked example -->
 
 ## Two commands on the plugin noun
 
