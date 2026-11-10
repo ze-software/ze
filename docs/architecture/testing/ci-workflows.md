@@ -40,8 +40,13 @@ which goes red when the step leaves the workflow.
 
 ### CodeQL's Go population
 
-The Go job retains the patched-GOROOT bootstrap and builds the distro,
-appliance and setup tag contexts. Each build passes its actual tag argument to
+The Go job selects the patched GOROOT with `./le go stdpatch goroot` and builds
+the distro, appliance and setup tag contexts. The tree comes from le rather
+than from the bootstrap generator because the build step runs `./le` too: the
+generator run first made `cache/` a real directory, the launcher moved it aside
+to link `cache/` to `~/.cache/ze`, and the exported GOROOT went with it (run
+42915194844). Started first, le makes `cache/` the link before the tree is
+written behind it. Each build passes its actual tag argument to
 `./le repo codeql packages tags '<tags>'`; no second tag list or authored-root
 list supplies the population. The native selector derives package directories
 from tracked Go files in that complete Go build context. Vendor, the
@@ -62,6 +67,7 @@ a cache sentinel excluded and an explicit cache extraction refused. No local
 selector result discharges that CI evidence debt.
 <!-- source: internal/le/repo/codeql/population.go -- Select, Guard -->
 <!-- source: .github/workflows/codeql.yml -- Build Go shipped feature combinations -->
+<!-- source: .github/workflows/codeql.yml -- Select the patched Go standard library -->
 
 ## What every verify shard prepares
 

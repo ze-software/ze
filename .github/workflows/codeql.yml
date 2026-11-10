@@ -40,12 +40,17 @@ jobs:
 
       # ze compiles only against Ze's patched crypto/tls, so every later go
       # command in this job runs under the patched GOROOT the generator answers
-      # (docs/contributing/patching-the-standard-library.md).
+      # (docs/contributing/patching-the-standard-library.md). The tree comes
+      # from le, not from `go run ./internal/le/go/stdpatch/goroot`: the
+      # launcher links cache/ to ~/.cache/ze before it builds le, and moves a
+      # real cache/ aside. A generator run before le made cache/ a real
+      # directory, so the next step's ./le moved the exported GOROOT away and
+      # go fell back to downloading a toolchain (CodeQL run 42915194844).
       - name: Select the patched Go standard library
         if: matrix.build-mode == 'manual'
         shell: bash
         run: |
-          tree="$(go run ./internal/le/go/stdpatch/goroot)"
+          tree="$(./le go stdpatch goroot)"
           echo "GOROOT=$tree" >> "$GITHUB_ENV"
           echo "GOTOOLCHAIN=local" >> "$GITHUB_ENV"
           echo "$tree/bin" >> "$GITHUB_PATH"

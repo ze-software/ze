@@ -18,8 +18,10 @@ import (
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 
 	_ "github.com/ze-software/ze/internal/le/build/hostdriver"
+	_ "github.com/ze-software/ze/internal/le/go/stdpatch"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	_ "github.com/ze-software/ze/internal/le/perf"
+	_ "github.com/ze-software/ze/internal/le/repo/codeql"
 	_ "github.com/ze-software/ze/internal/le/setup"
 	_ "github.com/ze-software/ze/internal/le/setup/docker/kernel"
 	_ "github.com/ze-software/ze/internal/le/test/deployment"

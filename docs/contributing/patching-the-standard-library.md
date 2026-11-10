@@ -264,8 +264,17 @@ Outside le, each route runs the same generator itself:
   shares the checkout over 9p, so it first mounts a guest-only tmpfs over
   `cache/stdpatch/`: a tree linked into the guest's GOROOT never reaches the
   host's cache (`guestPatchedTree` in `internal/le/test/qemu/run.go`). The CI workflows
-  that run go directly do the same in a step after `setup-go`.
-<!-- source: le -- build_le -->
+  that run go directly export the three values in a step of their own. In a
+  job that also runs `./le`, the generator runs only after `./le` has run once:
+  the generator creates `cache/` as a real directory when nothing linked it
+  yet, and the launcher's `ensure_cache_link` moves a real `cache/` aside, so
+  the exported GOROOT would name a tree that is gone. CodeQL selects the tree
+  with `./le go stdpatch goroot` for that reason, and qemu-nightly runs the
+  generator after its `./le build host-driver run` step.
+  `TestPatchedGOROOTSurvivesTheLauncherCacheLink`
+  (`internal/le/workflowcheck`) refuses a job that breaks the order.
+<!-- source: le -- build_le, ensure_cache_link -->
+<!-- source: internal/le/workflowcheck/stdpatch_cache_link_test.go -- TestPatchedGOROOTSurvivesTheLauncherCacheLink -->
 <!-- source: internal/appliance/cmd_build.go -- SetGokGoEnv -->
 
 `./le rfc record` still compiles a deliberately broken copy of a
