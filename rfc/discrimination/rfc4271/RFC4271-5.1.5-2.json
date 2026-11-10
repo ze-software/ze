@@ -9,5 +9,17 @@
     "producer": "internal/component/bgp/reactor/peer_rib_routes.go::buildRIBRouteUpdate",
     "producer-sha": "3f86f9f49b4aa5c6",
     "break": "body of buildRIBRouteUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-5.1.5-2",
+    "polarity": "positive",
+    "unit": "internal/le/interoplab/bgp/check_rfc.go::checkLocalPrefStrip",
+    "unit-sha": "64b98f8da7a3943b",
+    "claim-sha": "abcffcd9b7bc2b17",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_local_pref.go::applyFactsLocalPref",
+    "producer-sha": "7ff68f32e189ebc3",
+    "break": "line 120: \"mods.Op(uint8(attribute.AttrLocalPref), filterapi.AttrModSuppress, nil)\" -\u003e \"_ = mods\"",
+    "citation": "13"
   }
 ]
