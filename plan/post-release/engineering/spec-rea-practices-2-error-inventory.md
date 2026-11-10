@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | tooling |
 | Priority | P3 |
 | Release reason | Measures compliance with `ai/rules/user-facing-errors.md`; it changes no shipped behaviour by itself |
@@ -66,6 +66,7 @@ would drift), and judging "what" and "why" prose (no tool can).
   → Constraint: its sites are every Warn or Error log line, report raise and health row; this spec must not count them a second time
   → Constraint: its covered set is read from the doctor check declarations in the parsed source (beb3a7e136), never from what le links; it does not judge a `diagnostic.Diagnostic` literal or its `Fix`, so no gate judges the message a doctor check prints
   → Decision: its `report` groups uncovered sites by door area and owner package (`DoorGroup`); this report reuses that grouping and its site records through `archdoctorcoverage.Scan`, which answers an `Inventory` of `Site` records
+  → Decision (2026-11-10, from this spec's option A and its "no second scanner" row, so not an owner question): doctor-coverage is extended to list every `diagnostic.Diagnostic` composite literal in non-test Go as a site of its own kind, judged covered when its `Fix` field is set to anything other than an empty string, and its change-set check refuses an added literal with no `Fix`. The population stays in the package that owns the doctor surface; this spec reads it through `Scan` like the other doctor-coverage sites
 - [ ] `ai/doors/system.md`, `ai/doors/le-tooling.md`, `ai/doors/core.md`, `ai/doors/plugin-infra.md`
   → Constraint: the check lives in `le`, and product code never imports `internal/le`; a registry is the only list, so an inventory derived from the code is refused if it copies what a registry holds into a literal (`./le arch enumeration check`); `plugin.Response.Error` is wire, so a typed error reaches a plugin answer only through a declared field, never a renamed one
   → Constraint: `le arch error-inventory` lives at `internal/le/arch/errorinventory` (`TestEveryCommandIsFoundAtThePathItsNamePredicts`); an action stays callable as Go and answers through the shared renderer, never a private JSON mode
@@ -78,7 +79,7 @@ would drift), and judging "what" and "why" prose (no tool can).
 **Key insights (research, 2026-11-10, current-state rows rechecked the same day after both release specs closed):**
 - Both overlapping specs are implemented: `internal/core/opererr` holds the operator error type, `diagnostic.Diagnostic` carries a `Fix` field (`internal/core/diagnostic/types.go`), and `internal/le/arch/operatorerror` and `internal/le/arch/doctorcoverage` both exist, both register into `internal/le/commit/changecheck`, and both declare the `user-facing-errors/directives/an-error-names-the-cause-and-the-fix` point
 - `./le arch operator-error report` (605500cf11) counts the handlers' error answers as 0 typed, 187 plain, 43 pass-through; `./le arch doctor-coverage report` (beb3a7e136) counts 2413 problem sites, 1 covered, against 191 declared doctor codes
-- A `Diagnostic` literal's `Fix` is judged by neither package, so the doctor message surface has no gate; the design below still names doctor-coverage as its population owner, which A-5 records as partly broken
+- A `Diagnostic` literal's `Fix` is judged by neither package, so the doctor message surface has no gate; A-5 records this, and the decision under doctor-coverage above closes it by extending doctor-coverage (about 245 literals in 79 non-test files, 2026-11-10)
 - A user-visible message is not one construction site: it is a surface writer, plus a wrap chain of two to four literals from different functions, plus a leaf from the OS or a library. About 57% of `fmt.Errorf` calls wrap with `%w`, so a site scan finds fragments, not the text a user reads. The status is therefore judged at the writer, by the type it receives
 - About 2% of product error construction lines and 4% of `le` lines name a command; structured cause-and-fix forms exist only ad hoc (`remedy`, `Fix`, 75 `"fix"` log attributes, 3 `remedy`, 2 `hint`)
 - No existing signal ranks harm: severity, log level, gRPC and HTTP codes and doctor exit codes classify, they do not say outage, data loss or silent misconfiguration
@@ -102,7 +103,7 @@ would drift), and judging "what" and "why" prose (no tool can).
 | Daemon commands (CLI, SSH, MCP, REST) | returned errors and `plugin.Response{Status: StatusError}` answers from a registered handler | error answers 0 typed, 187 plain, 43 pass-through (`./le arch operator-error report`); returned errors in the same `Sites` list | operator-errors spec, `archoperatorerror.Sites` |
 | Config verify | registered config verifiers (`KindConfigVerifier`, `KindSDKConfigVerify`) | in the same `Sites` list | operator-errors spec |
 | Logs, report bus, health rows | slog Warn and Error, `report.RaiseWarning`, `RaiseError`, health rows | 2413 sites, 1 covered, 191 declared codes (`./le arch doctor-coverage report`) | doctor-coverage spec, `archdoctorcoverage.Scan` |
-| `ze doctor` | `Diagnostic` literals a doctor check returns | not counted by either tool | doctor-coverage reads the checks' declared codes only; no gate judges a literal's `Fix` (A-5) |
+| `ze doctor`, config validation, `ze config fix --plan` | `diagnostic.Diagnostic` literals | about 245 (grep); counted by no tool today | doctor-coverage, extended by this spec to list each literal and judge its `Fix` (A-5 decision) |
 | Local `ze` CLI | `reportDispatchError`, `command.LocalRefusal` | 112 refusals, about 1,250 stderr writes | this spec |
 | MCP | `fail`, `ErrResult`, `refusalResult` | 69 | this spec |
 | REST | `writeError`, `writeJSONError` | 74 | this spec |
@@ -179,7 +180,7 @@ No existing wire changes. The report's text and its JSON form (through the share
 | A-2 | The operator-errors and doctor-coverage specs land before this one is implemented | Both are release work (P1, P2); this is P3 post-release; Depends names both | This spec would build its own scanner beside theirs | Their status when this spec is claimed | validated (2026-11-10): both landed and closed; `spec-operator-errors-name-the-fix` closure 41540585bb, dc5b80f1b6; `spec-doctor-coverage-1-audit-and-gate` closure c49b0b858a, 974cff10be |
 | A-3 | Harm cannot be derived; at most a pre-rank from surface tier and declared severity | No `CodeMeta`, `Issue` or exit-code field encodes operator impact | A judged field is needed, declared once on the operator error type in that spec | Thomas, 2026-11-10: the derived pre-rank is enough | confirmed |
 | A-4 | A message argument at a writer can be classified by its static type and literal fragments | `go/types` resolves the argument's type; literals are AST constants | A writer that receives a value built far away classifies as `plain` even when it carries a fix | Unit tests over testdata, then the first report run | unvalidated |
-| A-5 | `operatorerror` and `doctorcoverage` expose their site lists as Go functions | Both specs name `report` or check actions; Ze actions stay callable as Go (`le-tooling.md`) | Phase 1 adds the exported function to that package, inside its own spec's contract | Reading both packages when this spec is claimed | partly broken (2026-11-10): `archoperatorerror.Sites(tree)` answers `[]Site` and `archdoctorcoverage.Scan(tree, codesFloor, doorsOf)` answers an `Inventory` of `Site` records, so both lists exist as Go functions; but doctor-coverage's sites are log lines, report raises and health rows only, and neither package lists a `Diagnostic` literal, so the `ze doctor` message surface the design assigns to doctor-coverage has no producer of its site list |
+| A-5 | `operatorerror` and `doctorcoverage` expose their site lists as Go functions | Both specs name `report` or check actions; Ze actions stay callable as Go (`le-tooling.md`) | Phase 1 adds the exported function to that package, inside its own spec's contract | Reading both packages when this spec is claimed | partly broken (2026-11-10): `archoperatorerror.Sites(tree)` answers `[]Site` and `archdoctorcoverage.Scan(tree, codesFloor, doorsOf)` answers an `Inventory` of `Site` records, so both lists exist as Go functions; but doctor-coverage's sites are log lines, report raises and health rows only, and neither package lists a `Diagnostic` literal, so the `ze doctor` message surface the design assigns to doctor-coverage has no producer of its site list. Resolved by decision: doctor-coverage gains the `Diagnostic` literal site kind and its `Fix` judgement (AC-10), so the population keeps one owner and this spec still builds no scanner of it |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -213,11 +214,12 @@ No existing wire changes. The report's text and its JSON form (through the share
 | AC-1 | `./le arch error-inventory report` over a testdata tree holding one site per surface | Prints one row per site with surface, file:line, owner package, door area, status (`typed`, `plain-names-command` or `plain`) and pre-rank, then one line per surface `surface=<name> sites=<n> typed=<n> plain-names-command=<n> plain=<n>` | None |
 | AC-2 | A testdata site that both the operator-error list and this spec's writer scan name | It appears once, with the operator-error source's status | None |
 | AC-3 | A writer handed the operator error type with a fix; the same writer handed `errors.New("bad")`; handed a literal that contains `ze config validate` | Statuses `typed`, `plain`, `plain-names-command` | `plain-names-command` survives as its own status because the heuristic cannot prove the command fixes the problem (R-2) |
-| AC-4 | The report run on the real tree | Every open row of `plan/journal/error-names-no-fix-command.md` whose cited site still exists appears with status `plain` or `plain-names-command` | A row whose site was deleted or already fixed is absent, and the docs page says why |
+| AC-4 | A testdata tree holding the pre-fix and the fixed form of three shapes from `plan/journal/error-names-no-fix-command.md`: the local CLI client's `hint: is the daemon running?` stderr write, an `le` refusal that names no command (the `./le test qemu` cache row), and a registered handler's `StatusError` answer | Each pre-fix form reports `plain`; each fixed form reports `typed` (operator error type with a fix) or `plain-names-command` (a literal naming a `ze ` or `./le ` command), as its form declares | None. Reworked 2026-11-10: every row of that class is fixed, so a criterion over its open rows judged nothing; the fixture proves the inventory finds those shapes and tells their fixed form apart |
 | AC-5 | A change set adding `http.Error(w, "unauthorized", 401)` in a web package; adding a plain `fmt.Errorf` return from a registered command handler; adding a log line | `check` refuses the first, naming file:line, the status and the fix (hand the writer the operator error type with a fix); it does not refuse the second or third, which the operator-error and doctor-coverage checks judge | Sites already in the tree are reported, never refused, so the check can land on a tree full of plain messages |
 | AC-6 | `./le arch error-inventory report \| json` | The same rows as JSON through the shared renderer, no private JSON mode | None |
 | AC-7 | `./le commit create` with a staged change matching AC-5's first case | Refused with the check's message | None |
 | AC-8 | The check's source | Declares the cause-and-fix directive of `ai/rules/points/user-facing-errors/`; `./le ai rules report gate-map` lists it | None |
+| AC-10 | `./le arch doctor-coverage report` and `check` over a testdata tree holding a `diagnostic.Diagnostic` literal with `Fix` set, one with no `Fix`, and one with `Fix: ""`; a change set adding a literal with no `Fix` | The report lists all three as doctor-finding sites, the first covered and the other two uncovered; `check` refuses the added literal, naming file:line and the fix (set `Fix` to the command or config statement that clears the finding); a literal already in the tree is reported, never refused; `./le arch error-inventory report` shows the same three sites once each, from doctor-coverage, `typed` for the first and `plain` for the others | None |
 | AC-9 | Docs | A page under `docs/contributing/` explains the report, the three statuses, the pre-rank, the writer list and how to add a writer; `ai/rules/user-facing-errors.md` and `ai/INDEX.md` point at it | None |
 
 ## End-to-End User Stories
@@ -239,6 +241,9 @@ No existing wire changes. The report's text and its JSON form (through the share
 | `TestErrorInventoryCheckRefusesAddedPlainSite` | `internal/le/arch/errorinventory/actions_test.go` | AC-5 first case | |
 | `TestErrorInventoryCheckLeavesOtherGatesSites` | `internal/le/arch/errorinventory/actions_test.go` | AC-5 second and third cases, R-6 | |
 | `TestErrorInventoryCheckIgnoresExistingSites` | `internal/le/arch/errorinventory/actions_test.go` | AC-5 survivor: a site not in the change set is reported, not refused | |
+| `TestErrorInventoryJournalShapes` | `internal/le/arch/errorinventory/inventory_test.go` | AC-4: pre-fix and fixed forms of three journal shapes | |
+| `TestDoctorCoverageListsDiagnosticLiterals` | `internal/le/arch/doctorcoverage/doctorcoverage_test.go` | AC-10: three literals, covered only with a non-empty `Fix` | |
+| `TestDoctorCoverageCheckRefusesAddedFindingWithoutFix` | `internal/le/arch/doctorcoverage/check_test.go` | AC-10: added literal with no `Fix` refused, existing one not | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -248,7 +253,7 @@ No existing wire changes. The report's text and its JSON form (through the share
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| AC-4 real-tree run | `./le arch error-inventory report` in the main checkout, recorded in this spec | The journal's hand-found rows reappear mechanically | |
+| G-1 real-tree run | `./le arch error-inventory report` in the main checkout, per-surface count lines recorded in this spec | Thomas reads the worklist ranked by pre-rank | |
 | AC-7 | a `./le commit create` dry-run test in `internal/le/commit` beside the other change-set gate tests | The gate is wired into commits | |
 
 ### Interop Tests (Scope: protocol)
@@ -257,7 +262,9 @@ No existing wire changes. The report's text and its JSON form (through the share
 ## Files to Modify
 - `internal/le/register.go` - blank import of the new package
 - none in `internal/le/commit`: the check joins the commit through `changecheck.Register` from the new package's `init()`, as operator-error and doctor-coverage do
-- `internal/le/arch/operatorerror`, `internal/le/arch/doctorcoverage` - none for their existing lists, which are exported (A-5); the `Diagnostic` literal gap A-5 records is unassigned
+- `internal/le/arch/operatorerror` - none; its list is exported (A-5)
+- `internal/le/arch/doctorcoverage` - the `Diagnostic` literal site kind, its `Fix` judgement in report and check (AC-10), and the tests and testdata for it
+- `docs/architecture/doctor-and-health-checks.md` - doctor-coverage now judges each `Diagnostic` literal's `Fix`
 - `ai/rules/user-facing-errors.md` - point at the inventory page (through `ai/rules/rule-format.md`, then `./le ai rules update condensed`)
 - `ai/INDEX.md` - keyword row
 - `docs/contributing/README.md` - list the new page
@@ -317,19 +324,21 @@ No existing wire changes. The report's text and its JSON form (through the share
    - Tests: `TestErrorInventoryReportThroughAction`, `TestErrorInventoryCheckRefusesAddedPlainSite`
    - Files: `internal/le/arch/errorinventory/register.go`, `internal/le/register.go`
    - First: A-2 holds (both specs landed); re-read `operatorerror` `Sites` and `doctorcoverage` `Scan` for any change since 2026-11-10, and settle the `Diagnostic` literal gap A-5 records before Phase 3
-2. **Phase: Writers and classification** -- the writer table, the classifier (AC-3), pre-rank
+2. **Phase: Doctor findings in doctor-coverage** -- the `Diagnostic` literal site kind, its `Fix` judgement in report and check (AC-10), the doctor page
+   - Tests: `TestDoctorCoverageListsDiagnosticLiterals`, `TestDoctorCoverageCheckRefusesAddedFindingWithoutFix`
+3. **Phase: Writers and classification** -- the writer table, the classifier (AC-3), pre-rank
    - Tests: `TestErrorInventoryClassifiesWriterArgument`, `TestErrorInventoryPreRank`
-3. **Phase: Merge and report** -- consume both packages' site lists, merge (AC-2), render (AC-1, AC-6), real-tree run (AC-4) recorded in this spec
-   - Tests: `TestErrorInventoryMergesSourcesOnce`, `TestErrorInventoryReportThroughAction`
-4. **Phase: Check and commit gate** -- change-set scoping (AC-5), commit wiring (AC-7), point binding (AC-8)
+4. **Phase: Merge and report** -- consume both packages' site lists, merge (AC-2), render (AC-1, AC-6), journal shapes (AC-4), real-tree run recorded in this spec
+   - Tests: `TestErrorInventoryMergesSourcesOnce`, `TestErrorInventoryReportThroughAction`, `TestErrorInventoryJournalShapes`
+5. **Phase: Check and commit gate** -- change-set scoping (AC-5), commit wiring (AC-7), point binding (AC-8)
    - Tests: the three check tests, the commit dry-run test
-5. **Phase: Docs** -- AC-9, in the same phase as the code it describes where possible
+6. **Phase: Docs** -- AC-9, in the same phase as the code it describes where possible
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | Every AC-N has an implementation at file and symbol |
-| No second scanner | No code in `errorinventory` parses log calls, report raises, doctor literals or handler returns; those come only from the two packages (R-1) |
+| No second scanner | No code in `errorinventory` parses log calls, report raises, `Diagnostic` literals or handler returns; those come only from the two packages (R-1), and the `Diagnostic` literal scan lives in doctor-coverage |
 | Correctness | Status `typed` only for the operator error type carrying a non-empty fix; `plain-names-command` never counts as meeting the rule |
 | Merge | One row per file and line, with the stated precedence |
 | Check scope | Refuses only this spec's own writers, only for sites the change set adds |
@@ -393,7 +402,7 @@ No existing wire changes. The report's text and its JSON form (through the share
 - [ ] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-9 all demonstrated
+- [ ] AC-1..AC-10 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] Targeted runs pass in the main checkout: the unit tests of `internal/le/arch/errorinventory` and the touched commit tests, through `./le job run label unit-pkg command go test -tags ...`
