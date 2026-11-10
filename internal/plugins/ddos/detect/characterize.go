@@ -1,7 +1,7 @@
 // Design: docs/architecture/ddos/cp-survival-5-detect-5-characterization.md -- Stage-2 characterization.
 // Related: doctor.go -- warns when neither flow source these queries use is configured.
 // Related: metrics.go -- per-family and fallback counters incremented here.
-// On the rate-trigger active transition the detector (off the onRate hot path)
+// On the rate-trigger active transition the detector (off the onRates hot path)
 // resolves the victim prefix from trafficusage and emits the fast AttackDetected,
 // then queries the flowexport recent-flow ring, classifies the attack family and
 // the narrowest discriminating VectorTuple (proto / ports / TCP flags), ranks the
@@ -88,7 +88,7 @@ type flowRecord struct {
 	LastMs   uint64 // Unix ms of the most recent packet, for the characterize-window filter
 }
 
-// characterizeAndEmit runs once per attack on its own goroutine (off the onRate
+// characterizeAndEmit runs once per attack on its own goroutine (off the onRates
 // hot path). It resolves the victim, emits the fast AttackDetected, then
 // characterizes from the recent-flow ring and emits AttackCharacterized. Stale
 // emits (the attack cleared or a newer one started mid-query) are dropped via the
@@ -164,7 +164,7 @@ func (d *detector) emitDetected(gen uint64, ifaceName string, target ddosevent.V
 	}); err != nil {
 		logger().Warn("ddos-detect: emit detected failed", "error", err)
 	}
-	// Detected has now reached subscribers; allow onRate to emit Ongoing.
+	// Detected has now reached subscribers; allow onRates to emit Ongoing.
 	d.markDetectedEmitted(gen)
 	return true
 }

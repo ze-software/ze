@@ -37,7 +37,7 @@ source returns no destination. The change is never worse than no stage 2.
 The engine round trip runs on its own goroutine with a bounded timeout, so
 neither the rate tick nor `d.mu` waits for it. `AttackDetected` is therefore
 emitted ASYNCHRONOUSLY, while `Ongoing` and `Cleared` are emitted synchronously
-from `onRate`. A subscriber that assumes an order must account for that split.
+from `onRates`. A subscriber that assumes an order must account for that split.
 
 `detector.Stop()` cancels `d.ctx` and waits on `d.wg`, at shutdown and before a
 reconfigure replaces the detector.

@@ -1,14 +1,11 @@
 # Test: ddos-detect warns when running as an external plugin process
 # VALIDATES: ai/rules/plugins.md "Plugin Process Boundary" -- ddos-detect's
 # warnIfExternal (internal/plugins/ddos/detect/register.go) logs a warning
-# when it runs as a genuine external subprocess, since both its subscribe
-# paths (trafficstat.EnsureGlobal/SubscribeRates, and the
-# iface.SubscribeCollectNotify fallback when trafficstat is unavailable)
-# register a callback into a package-level subscriber list as a same-process
-# call that would silently no-op across the process boundary -- the detector
-# would never receive a rate signal either way. Warns rather than refuses,
-# consistent with ddos-detect's existing trafficstat-unavailable graceful
-# degradation framing.
+# when it runs as a genuine external subprocess, since its subscribe path
+# (trafficstat.EnsureGlobal/SubscribeRates) registers a callback into a
+# package-level subscriber list as a same-process call that never reaches the
+# daemon's tracker across the process boundary -- the detector would never
+# receive a rate signal. Warns rather than refuses.
 # Uses `le mock plugin-external ddos-detect`
 # (internal/test/cli/cmd_plugin_external.go) to launch the real plugin's own
 # RunEngine via a real TLS connect-back, exercising the warning through the

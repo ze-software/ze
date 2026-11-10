@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/ddosevent"
 )
 
@@ -248,14 +247,11 @@ func TestCharacterizeTargetFallbackOnNilDispatch(t *testing.T) {
 
 // floodInto drives the detector from idle to an active attack on iface "xe0".
 func floodInto(d *detector) {
-	var cumPkts uint64
 	for range 20 {
-		cumPkts += 50
-		d.onRate([]iface.InterfaceInfo{{Name: "xe0", Stats: &iface.InterfaceStats{RxPackets: cumPkts}}})
+		rateTick(d, 50)
 	}
 	for range 5 {
-		cumPkts += 100000
-		d.onRate([]iface.InterfaceInfo{{Name: "xe0", Stats: &iface.InterfaceStats{RxPackets: cumPkts}}})
+		rateTick(d, 100000)
 	}
 	d.wg.Wait()
 }
@@ -342,14 +338,11 @@ func TestOngoingGatedUntilDetected(t *testing.T) {
 		return statusDone, json.RawMessage(`{"egress-ips":[{"ip":"203.0.113.1","bytes":1}]}`), nil
 	})
 
-	var cum uint64
 	for range 20 { // baseline
-		cum += 50
-		d.onRate([]iface.InterfaceInfo{{Name: "xe0", Stats: &iface.InterfaceStats{RxPackets: cum}}})
+		rateTick(d, 50)
 	}
 	for range 5 { // flood: activate tick + ticks that would emit Ongoing
-		cum += 100000
-		d.onRate([]iface.InterfaceInfo{{Name: "xe0", Stats: &iface.InterfaceStats{RxPackets: cum}}})
+		rateTick(d, 100000)
 	}
 
 	// Detected is still blocked in the goroutine, so no event may have fired.
@@ -363,8 +356,7 @@ func TestOngoingGatedUntilDetected(t *testing.T) {
 	close(release)
 	d.wg.Wait()
 
-	cum += 100000 // one more active tick now that Detected has landed
-	d.onRate([]iface.InterfaceInfo{{Name: "xe0", Stats: &iface.InterfaceStats{RxPackets: cum}}})
+	rateTick(d, 100000) // one more active tick now that Detected has landed
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -752,19 +744,12 @@ func TestNoStaleDetectedAfterClear(t *testing.T) {
 		return statusDone, json.RawMessage(`{"egress-ips":[{"ip":"203.0.113.1","bytes":1}]}`), nil
 	})
 
-	tick := func(p uint64) {
-		d.onRate([]iface.InterfaceInfo{{Name: "xe0", Stats: &iface.InterfaceStats{RxPackets: p}}})
-	}
-
-	var cum uint64
 	for range 20 { // baseline
-		cum += 50
-		tick(cum)
+		rateTick(d, 50)
 	}
-	cum += 100000 // flood: activate, spawns the (blocked) characterization goroutine
-	tick(cum)
-	tick(cum) // delta 0 -> below: active -> clearing
-	tick(cum) // delta 0 -> below: clearing -> idle -> Cleared emitted
+	rateTick(d, 100000) // flood: activate, spawns the (blocked) characterization goroutine
+	rateTick(d, 0)      // below: active -> clearing
+	rateTick(d, 0)      // below: clearing -> idle -> Cleared emitted
 
 	close(release) // characterization completes now, after Cleared
 	d.wg.Wait()
@@ -813,25 +798,18 @@ func TestNoStaleCharacterizedAfterClear(t *testing.T) {
 		return statusDone, json.RawMessage(`[{"src-addr":"198.51.100.1","dst-addr":"203.0.113.1","src-port":53,"dst-port":1,"protocol":17,"packets":10,"tcp-state":0}]`), nil
 	})
 
-	tick := func(p uint64) {
-		d.onRate([]iface.InterfaceInfo{{Name: "xe0", Stats: &iface.InterfaceStats{RxPackets: p}}})
-	}
-
-	var cum uint64
 	for range 20 { // baseline
-		cum += 50
-		tick(cum)
+		rateTick(d, 50)
 	}
-	cum += 100000 // flood: activate; goroutine emits Detected then blocks in flow-recent
-	tick(cum)
+	rateTick(d, 100000) // flood: activate; goroutine emits Detected then blocks in flow-recent
 
 	// Wait for Detected to land (goroutine set detectedEmitted before blocking).
 	for !detectedEmittedFlag(d) {
 		runtime.Gosched()
 	}
 
-	tick(cum) // below: active -> clearing
-	tick(cum) // below: clearing -> idle -> Cleared (attackGen advanced)
+	rateTick(d, 0) // below: active -> clearing
+	rateTick(d, 0) // below: clearing -> idle -> Cleared (attackGen advanced)
 
 	close(release) // flow-recent returns now, after Cleared
 	d.wg.Wait()
@@ -873,7 +851,7 @@ func TestStopFencesCharacterization(t *testing.T) {
 // d.mu there parked the detector's own state behind a netlink round trip.
 // VALIDATES: spec-fixit-firewall-concurrency-deadlock, the L7 instance of the
 // lock-held-across-a-slow-call class.
-// PREVENTS: a wedged kernel freezing the rate loop (onRate/onRates take d.mu on
+// PREVENTS: a wedged kernel freezing the rate loop (onRates takes d.mu on
 // every tick) and Stop()/saveBaseline() with it.
 func TestEmitDetectedDoesNotHoldDetectorMuAcrossFanout(t *testing.T) {
 	entered := make(chan struct{})
@@ -896,8 +874,8 @@ func TestEmitDetectedDoesNotHoldDetectorMuAcrossFanout(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		// The rate loop: onRate takes d.mu for the whole tick.
-		d.onRate([]iface.InterfaceInfo{{Name: "xe0", Stats: &iface.InterfaceStats{RxPackets: 1}}})
+		// The rate loop: onRates takes d.mu for the whole tick.
+		rateTick(d, 0)
 		close(done)
 	}()
 
@@ -1050,23 +1028,17 @@ func TestClearedCarriesTheDetectedVictim(t *testing.T) {
 	ddosevent.Detected.Subscribe(bus, func(e *ddosevent.AttackDetected) { detected = e })
 	ddosevent.Cleared.Subscribe(bus, func(e *ddosevent.AttackCleared) { cleared = e })
 
-	var cum uint64
-	tick := func() {
-		d.onRate([]iface.InterfaceInfo{{Name: "xe0", Stats: &iface.InterfaceStats{RxPackets: cum}}})
-	}
 	for range 20 {
-		cum += 50
-		tick()
+		rateTick(d, 50)
 	}
-	cum += 100000
-	tick()
+	rateTick(d, 100000)
 	d.wg.Wait()
 	if detected == nil || !detected.Target.DstPrefix.IsValid() {
 		t.Fatalf("expected a Detected with a resolved victim, got %+v", detected)
 	}
 
-	tick() // delta 0: active -> clearing
-	tick() // delta 0: clearing -> idle, Cleared published
+	rateTick(d, 0) // below: active -> clearing
+	rateTick(d, 0) // below: clearing -> idle, Cleared published
 	d.wg.Wait()
 
 	if cleared == nil {

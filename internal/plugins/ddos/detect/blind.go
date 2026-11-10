@@ -1,5 +1,5 @@
 // Design: docs/architecture/ddos/cp-survival-5-detect-0-umbrella.md -- the blind-detector diagnostic.
-// Related: detector.go -- tickRates and tickInfos report each feed sample to observeFeed
+// Related: detector.go -- tickRates reports each feed sample to observeFeed
 // Related: doctor.go -- checkRateFeed turns a finding into a `ze doctor` warning
 // Related: register.go -- subscribe arms the watch and publishes the detector to the doctor callback
 //
@@ -17,12 +17,9 @@ import (
 	"time"
 )
 
-// The names of the two rate feeds subscribe can wire the detector to. The
-// operator reads them in the warning, so they name the feed, not the Go call.
-const (
-	feedTrafficstat   = "trafficstat interface rate feed"
-	feedIfaceCounters = "interface counter poll"
-)
+// feedTrafficstat names the rate feed subscribe wires the detector to. The
+// operator reads it in the warning, so it names the feed, not the Go call.
+const feedTrafficstat = "trafficstat interface rate feed"
 
 // feedWatch records what the rate feed delivered. Every field is guarded by
 // detector.mu.
@@ -104,7 +101,7 @@ func (d *detector) blindSamples() int {
 
 // observeFeed records one rate feed sample and logs the edges of a zero run:
 // WARN when the run first reaches the window, INFO when traffic returns.
-// Caller holds d.mu (tickRates and tickInfos do). Logging under d.mu is safe:
+// Caller holds d.mu (tickRates does). Logging under d.mu is safe:
 // nothing here reaches the event bus.
 func (d *detector) observeFeed(maxPps, maxBps float64, ifaces int) {
 	d.feed.lastSampleAt = d.feed.now()

@@ -18,8 +18,8 @@
 #   (runner_exec.go:740-744).
 #   The static surface (config leaves, nft table name `ddos-local`, log strings)
 #   is grounded in source; these runtime behaviors are proven by the QEMU run:
-#     - the iface rate collector reports `lo` RxPackets to the detector
-#       (rate.go ListInterfaces feeds all kernel links to onRate),
+#     - the trafficstat rate feed reports `lo` receive rates to the detector
+#       (the trafficstat service feeds every kernel link to onRates),
 #     - trafficusage TCX attaches to `lo` and records the destination in
 #       egress-ips (track-ip),
 #     - the loopback flood sustains > absolute-floor (1000) pps across >=2

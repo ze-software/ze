@@ -8,7 +8,7 @@ responders no measure of how sure the detector was.
 
 ## The bandwidth trigger is a second baseline instance
 
-<!-- source: internal/plugins/ddos/detect/detector.go -- baselineBps, onRate trigger -->
+<!-- source: internal/plugins/ddos/detect/detector.go -- baselineBps, onRates trigger -->
 <!-- source: internal/plugins/ddos/detect/baseline.go -- Add, Threshold, Ready -->
 
 `d.baselineBps` is another `baseline`, not a metric-agnostic type and not new

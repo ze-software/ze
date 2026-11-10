@@ -42,7 +42,7 @@ on every tick, whether or not anything is happening.
 ### The threshold is computed BEFORE the sample joins the baseline
 
 <!-- source: internal/plugins/ddos/detect/baseline.go -- Add, Threshold -->
-<!-- source: internal/plugins/ddos/detect/detector.go -- onRate trigger order -->
+<!-- source: internal/plugins/ddos/detect/detector.go -- onRates trigger order -->
 
 ftagent adds the sample first. That order poisons the baseline on the exact tick
 that should trigger: the spike raises p99 and the comparison then finds nothing
@@ -109,9 +109,9 @@ sample with traffic clears it.
 
 ## Traps
 
-- The detector's `onRate` callback receives CUMULATIVE packet counters, not
-  packets per second. PPS is the delta between consecutive calls. A test that
-  feeds the same counter value on every tick produces PPS 0 and never triggers.
+- The detector's input is `onRates`, which receives packets and bytes per
+  second already computed by the trafficstat service, not cumulative counters.
+  A test drives it with the rate it wants each tick to carry.
 - The firewall constants are not what a guess produces: `FamilyIP`, not
   `FamilyIPv4`; `ChainFilter`, not `ChainTypeFilter`; `HookInput`, not
   `ChainHookInput`.

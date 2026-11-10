@@ -86,9 +86,6 @@ type detector struct {
 	evalTicks int
 	interval  intervalPeak
 
-	prevRxPackets map[string]uint64
-	prevRxBytes   map[string]uint64
-	currentRxPps  map[string]float64
 	peakRxPps     float64
 	peakRxBps     float64
 	attackIface   string
@@ -174,15 +171,12 @@ func (p *intervalPeak) add(pps, bps float64, ppsIface, bpsIface string) {
 
 func newDetector(cfg *Config, bus ze.EventBus, dispatch dispatchFunc) *detector {
 	d := &detector{
-		cfg:           cfg,
-		bus:           bus,
-		dispatch:      dispatch,
-		baseline:      newBaseline(cfg.BaselineWindow, cfg.ThresholdMultiplier, cfg.AbsoluteFloor),
-		baselineBps:   newBaseline(cfg.BaselineWindow, cfg.BpsThresholdMultiplier, cfg.BpsFloor/8.0),
-		evalTicks:     max(1, cfg.CheckInterval),
-		prevRxPackets: make(map[string]uint64),
-		prevRxBytes:   make(map[string]uint64),
-		currentRxPps:  make(map[string]float64),
+		cfg:         cfg,
+		bus:         bus,
+		dispatch:    dispatch,
+		baseline:    newBaseline(cfg.BaselineWindow, cfg.ThresholdMultiplier, cfg.AbsoluteFloor),
+		baselineBps: newBaseline(cfg.BaselineWindow, cfg.BpsThresholdMultiplier, cfg.BpsFloor/8.0),
+		evalTicks:   max(1, cfg.CheckInterval),
 	}
 	d.sm = newStateMachine(cfg.ConfirmDuration, cfg.ClearConsecutive)
 	d.sm.OnDetected = d.onAttackStart
@@ -247,7 +241,7 @@ func (d *detector) saveBaseline() {
 }
 
 // onRates accepts pre-computed per-interface rates from the trafficstat
-// service, replacing the raw-counter diffing that onRate performs.
+// service, the detector's only rate feed.
 func (d *detector) onRates(entries []trafficstat.InterfaceEntry) {
 	if !d.cfg.Enabled {
 		return
@@ -272,7 +266,6 @@ func (d *detector) tickRates(entries []trafficstat.InterfaceEntry) pendingEmits 
 	ifaces := 0
 	for i := range entries {
 		e := &entries[i]
-		d.currentRxPps[e.Name] = e.RxPps
 		ifaces++
 
 		if e.RxPps > maxPps {
@@ -289,66 +282,12 @@ func (d *detector) tickRates(entries []trafficstat.InterfaceEntry) pendingEmits 
 	return d.tick(maxPps, maxBps, maxPpsIface, maxBpsIface)
 }
 
-func (d *detector) onRate(infos []iface.InterfaceInfo) {
-	if !d.cfg.Enabled {
-		return
-	}
-	// Fan out after tickInfos has released d.mu (see onRates).
-	d.emitPending(d.tickInfos(infos))
-}
-
-func (d *detector) tickInfos(infos []iface.InterfaceInfo) pendingEmits {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	var maxPps, maxBps float64
-	var maxPpsIface, maxBpsIface string
-	ifaces := 0
-	for i := range infos {
-		info := &infos[i]
-		if info.Stats == nil {
-			continue
-		}
-		ifaces++
-
-		prevPkts, hasPrev := d.prevRxPackets[info.Name]
-		prevBytes := d.prevRxBytes[info.Name]
-		d.prevRxPackets[info.Name] = info.Stats.RxPackets
-		d.prevRxBytes[info.Name] = info.Stats.RxBytes
-
-		if !hasPrev {
-			continue
-		}
-		var pps, bps float64
-		if info.Stats.RxPackets >= prevPkts {
-			pps = float64(info.Stats.RxPackets - prevPkts)
-		}
-		if info.Stats.RxBytes >= prevBytes {
-			bps = float64(info.Stats.RxBytes - prevBytes)
-		}
-		d.currentRxPps[info.Name] = pps
-
-		// Peak PPS and peak BPS are tracked per interface, independently: the
-		// amplified interface need not be the top-PPS one (see onRates).
-		if pps > maxPps {
-			maxPps = pps
-			maxPpsIface = info.Name
-		}
-		if bps > maxBps {
-			maxBps = bps
-			maxBpsIface = info.Name
-		}
-	}
-
-	d.observeFeed(maxPps, maxBps, ifaces)
-	return d.tick(maxPps, maxBps, maxPpsIface, maxBpsIface)
-}
-
 // tick advances the feed clock by one sample and evaluates when the sample
-// closes a check-interval. Caller holds d.mu (tickRates and tickInfos do).
+// closes a check-interval. Caller holds d.mu (tickRates does).
 //
-// Both rate feeds publish once a second and check-interval is in seconds, so
-// evalTicks samples make one interval and the evaluation reads their peak.
+// The trafficstat rate feed publishes once a second and check-interval is in
+// seconds, so evalTicks samples make one interval and the evaluation reads their
+// peak.
 // Every leaf that counts ticks against the THRESHOLD -- confirm-duration,
 // clear-consecutive-checks, baseline-window -- therefore counts evaluations, one
 // per check-interval, which is what baseline.go's slowAdaptSamples comment
@@ -496,7 +435,7 @@ func (d *detector) emitPending(p pendingEmits) {
 }
 
 // onAttackStart fires once on the idle/confirming -> active transition, under
-// d.mu (called from onRate via the state machine). It snapshots the attack
+// d.mu (called from onRates via the state machine). It snapshots the attack
 // context and launches characterization on its own goroutine so the rate tick
 // and the detector mutex are never blocked by the engine round-trip. The emit
 // happens from characterizeAndEmit once the target is resolved (or falls back).

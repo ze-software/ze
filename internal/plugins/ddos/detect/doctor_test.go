@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/trafficstat"
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -200,22 +199,6 @@ func TestRateFeedNoInterface(t *testing.T) {
 	assert.Equal(t, diagnostic.CodeDoctorDDoSDetectBlind, diags[0].Code)
 	assert.Contains(t, diags[0].Message, "reported no interface")
 	assert.Contains(t, diags[0].Message, "ze show interface")
-}
-
-func TestRateFeedNoInterfaceOnCounterPoll(t *testing.T) {
-	// VALIDATES: the interface counter poll fallback counts only interfaces
-	// with stats, so a poll of stat-less interfaces reads as no interface.
-	d, clock := newBlindTestDetector(t, 10, 1)
-	d.arm(feedIfaceCounters, true)
-	for range 10 {
-		clock.t = clock.t.Add(time.Second)
-		d.emitPending(d.tickInfos([]iface.InterfaceInfo{{Name: "eth0"}}))
-	}
-	diags, err := checkRateFeed(rateFeedCheck, d)
-	require.NoError(t, err)
-	require.Len(t, diags, 1)
-	assert.Contains(t, diags[0].Message, feedIfaceCounters)
-	assert.Contains(t, diags[0].Message, "reported no interface")
 }
 
 func TestRateFeedNoSample(t *testing.T) {

@@ -4,7 +4,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/trafficstat"
 	"github.com/ze-software/ze/internal/core/ddosevent"
 	"github.com/ze-software/ze/pkg/ze"
@@ -41,6 +40,12 @@ func (b *dtestBus) Subscribe(namespace, eventType string, handler func(any)) fun
 
 var _ ze.EventBus = (*dtestBus)(nil)
 
+// rateTick delivers one trafficstat feed sample: pps received packets a second
+// on interface xe0, and no bytes.
+func rateTick(d *detector, pps float64) {
+	d.onRates([]trafficstat.InterfaceEntry{{Name: "xe0", RxPps: pps}})
+}
+
 // VALIDATES: a sustained flood above the adaptive threshold drives the state
 // machine to active and emits AttackDetected for the hottest interface.
 // PREVENTS: regression where the detector stops firing on real volumetric floods.
@@ -60,21 +65,14 @@ func TestDetectorEmitsOnFlood(t *testing.T) {
 		detected = e
 	})
 
-	// Feed normal traffic to build baseline (cumulative counters, 50 pps)
-	var cumPkts uint64
+	// Feed normal traffic to build baseline (50 pps)
 	for range 20 {
-		cumPkts += 50
-		d.onRate([]iface.InterfaceInfo{
-			{Name: "xe0", Stats: &iface.InterfaceStats{RxPackets: cumPkts}},
-		})
+		rateTick(d, 50)
 	}
 
 	// Spike above threshold (100000 pps per tick)
 	for range 5 {
-		cumPkts += 100000
-		d.onRate([]iface.InterfaceInfo{
-			{Name: "xe0", Stats: &iface.InterfaceStats{RxPackets: cumPkts}},
-		})
+		rateTick(d, 100000)
 	}
 
 	d.wg.Wait()
@@ -291,12 +289,8 @@ func TestDetectorNoEventWhenDisabled(t *testing.T) {
 		detected = true
 	})
 
-	var pkts uint64
 	for range 50 {
-		pkts += 100000
-		d.onRate([]iface.InterfaceInfo{
-			{Name: "xe0", Stats: &iface.InterfaceStats{RxPackets: pkts}},
-		})
+		rateTick(d, 100000)
 	}
 
 	if detected {
