@@ -7,8 +7,10 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"slices"
 	"sort"
 	"sync"
@@ -279,6 +281,19 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 	return cacheCount
 }
 
+// logBatchNotDelivered records, at debug, why onMessageBatchReceived delivered
+// a batch to nobody. The level is checked first because the no-subscriber case
+// runs once per batch on the receive path, and boxing the attributes would
+// allocate even with debug off. msgs MUST NOT be empty.
+func logBatchNotDelivered(reason string, peer *plugin.PeerInfo, msgs []bgptypes.RawMessage) {
+	log := logger()
+	if !log.Enabled(context.Background(), slog.LevelDebug) {
+		return
+	}
+	log.Debug("OnMessageBatchReceived: batch not delivered", "reason", reason,
+		"peer", peer.AddrStr(), "type", msgs[0].Type.String(), "dir", msgs[0].Direction, "msgs", len(msgs))
+}
+
 // onMessageBatchReceived handles a batch of BGP messages from the same peer.
 // Subscription lookup and format-mode map are computed once for the batch.
 // Each message gets its own delivery and result collection, preserving per-message
@@ -286,7 +301,14 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 // Returns a slice of cache-consumer counts, one per message.
 func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer *plugin.PeerInfo, msgs []bgptypes.RawMessage) []int {
 	counts := make([]int, len(msgs))
-	if len(msgs) == 0 || s.Context().Err() != nil {
+	if len(msgs) == 0 {
+		return counts // An empty batch carries no message to deliver.
+	}
+	// Each early return below answers zero consumers for every message, which
+	// is the true count for a message nobody received. Zero alone cannot say
+	// why, so each one names its case through logBatchNotDelivered first.
+	if s.Context().Err() != nil {
+		logBatchNotDelivered("server shutting down", peer, msgs)
 		return counts
 	}
 
@@ -294,6 +316,7 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 	// Use the first message to determine event type (all are from same peer delivery goroutine).
 	eventType := messageTypeToEventKind(msgs[0].Type)
 	if eventType == rpc.EventKindUnspecified {
+		logBatchNotDelivered("unknown message type", peer, msgs)
 		return counts
 	}
 
@@ -303,6 +326,7 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 	procs := s.PeerScopedProcs(bgpNS(), etID, rpcDirToDir(msgs[0].Direction), peerAddr, peer.Name)
 	hasMonitors := s.Monitors().HasMonitors()
 	if len(procs) == 0 && !hasMonitors {
+		logBatchNotDelivered("no subscriber and no monitor", peer, msgs)
 		return counts
 	}
 	logger().Debug("OnMessageBatchReceived", "peer", peerAddr, "event", eventTypeStr, "dir", msgs[0].Direction, "procs", len(procs), "msgs", len(msgs))

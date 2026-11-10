@@ -2464,3 +2464,18 @@ the producer's documented contract).
 | restored | none | PASS 4.9s |
 
 Both overlaid sources were unchanged against HEAD after the runs (`evw/`).
+
+## The BGP batch path names every undelivered batch (2026-11-10)
+
+The 2026-09-04 silent-fall-through row on YANG resolution also recorded
+`onMessageBatchReceived` returning zero consumers before its debug line, so a
+batch nobody took left no trace. It now names each case (no subscriber and no
+monitor, unknown message type, server shutting down) through
+`logBatchNotDelivered`, which checks the debug level first so the receive
+path allocates nothing when debug is off. The instance has its own closed row.
+
+| Carrier | Break | Red |
+| --- | --- | --- |
+| `TestOnMessageBatchReceivedLogsEveryUndeliveredBatch` (`internal/component/bgp/server`) | overlay deleting the no-subscriber `logBatchNotDelivered` call (`b4/`) | "log \"\" lacks \"level=DEBUG\""; restored PASS |
+
+`internal/component/bgp/server` ok with the full tag set.
