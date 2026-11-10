@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-08 |
+| Updated | 2026-11-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -24,6 +24,10 @@ not investigated in the session that met it is not recorded, so an item stays
 here only while someone can still investigate it. The executable integrity
 incident (the parent's AC-27) was dropped, not moved, because another session
 may have caused it.
+
+On 2026-11-10 two more items moved here under the same rule (AC-6, AC-7).
+Each was investigated as far as the tree allows, and what remains is the state
+of a run that no longer exists.
 
 ## Required Reading
 
@@ -122,6 +126,8 @@ may have caused it.
 | AC-3 | The authentic October originals and the naming proof archive (parent AC-16, AC-34, P-16, P-34) | Recovered, or the bounded reconstruction shown authentic against a source both sides accept | None |
 | AC-4 | The wider GoBGP four-peer configurations, OPENs and captures (parent AC-12, P-12) | Recovered, so the scope beyond the proven stable-session, non-ADD-PATH unicast case is decided on evidence | The proven bounded case, which the parent keeps |
 | AC-5 | Each load-red member whose original failure output is lost (parent AC-35, P-35) | Reproduced with its exact wait, readiness event, race or resource bound, then fixed | A member shown not reproducible after a recorded attempt |
+| AC-6 | The 2026-10-27 `le-rules-answers` red at `0723d7d26a` (parent AC-34, P-34): `render-update` exited 0 and printed its status page, and the fixture's `ai/rules/aaa.md` still held the OLD rule (`internal/test/fixture/ui_fixture_le_rules_answers.go`, the `requireFile` after the `render-update` run) | The historical cause is named at its producer and a carrier goes red on it. The parent's carrier already goes red when `render-update` writes the old rule back and passes restored, and the one lead, a dotted `ze.repo.root` overriding the stand-in root, was tested and did not reproduce ([evidence](tooling-one-off-evidence.md#p-4-conf-watchdog-identity-ospf-stubnssa-reliability-the-le-rules-answers-lead-2026-11-10)). The failure text survives in `tmp/verify-worktree-logs/20261027T022750.337309046Z-p800009-r1-0723d7d26a13/changed-1676726763/12-test-functional-gating.log` (case 239, 97.9s, eight cases running at once). What is lost is the run itself: its export tree under `tmp/verify-worktree/` and the environment its `le` ran with | None: the carrier's current red and green do not name the old cause |
+| AC-7 | The 2026-09-10 post-OSPF gate population (parent AC-26, P-26): `repository check` 24 BGP wiring findings, `commit audit` 16 changed-test findings, `doc check verify` 3759 drift findings and eight summary-rule failures, of which the journal row keeps only the counts | Each member named from a recovered output and resolved against its current producer | A member the current gate already reports, named |
 
 ## 🧪 TDD Test Plan
 
@@ -225,6 +231,8 @@ may have caused it.
 | `gate-red-where-nothing-blocks-on-it` | 2026-09-10 | lint after OSPF closure: 93 host, 104 Linux findings (AC-2) |
 | `test-type-not-backfilled` | 2026-06-14 | new test type, existing code: June technique inventory (AC-1) |
 | `test-type-not-backfilled` | 2026-06-14 | fuzz target backfill: June fuzz inventory (AC-1) |
+| `package-red-not-reproduced` | 2026-10-27 | le-rules-answers render-update: historical cause unknown (AC-6) |
+| `gate-red-where-nothing-blocks-on-it` | 2026-09-10 | repository check, commit audit and doc check verify red over concurrent work: counts only (AC-7) |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
