@@ -17,7 +17,7 @@ var _ leroot.Prose = EventReport{}
 func init() {
 	leroot.Register("weekly", leroot.GroupWorkflow, Answer, registry.Meta{
 		Description: "Publish the weekly update to Discord. Without confirm it answers what would be published and posts nothing, so the bare command is always safe. `report from <rev> to <rev>` answers the tooling events of the update's release range.",
-		ShortHelp:   "publish the weekly update, or report a range's tooling events",
+		ShortHelp:   "publish the weekly update, or report a range's events",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
