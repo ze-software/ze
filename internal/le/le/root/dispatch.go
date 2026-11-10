@@ -167,8 +167,10 @@ func DispatchWithStartup(program string, args []string, startup func()) int {
 			return helpRoot(program)
 		}
 		// `ai` is the one reserved word after the help word: the reference an
-		// agent reads. The ai namespace's own page is `le ai help`.
-		if args[1] == aiWord {
+		// agent reads. A word after it that begins an ai command pages that
+		// command like any other help question (`le help ai sync update`);
+		// the ai namespace's own page is `le ai help`.
+		if asksAIReference(args[1:]) {
 			return helpAI(program, args[2:])
 		}
 		// A retired spelling asked about is refused as dispatch refuses it,
@@ -306,14 +308,15 @@ func (e *RetiredError) Error() string {
 // retiredLine answers the refusal of a typed line that opens with a retired
 // spelling, and nil when it does not. A leading help word is the question's,
 // so the spelling is matched after it and the refusal names the help
-// question; `ai` after the help word is the agent reference, never an area,
-// so nothing is matched there. The pipe chain is the renderer's, so only the
-// words before it are matched. Dispatch and completion both answer through
-// it, so Tab and a run refuse the same line the same way.
+// question; `ai` after the help word that asks for the agent reference
+// (asksAIReference) names no command, so nothing is matched there. The pipe
+// chain is the renderer's, so only the words before it are matched. Dispatch
+// and completion both answer through it, so Tab and a run refuse the same
+// line the same way.
 func retiredLine(program string, args []string) *RetiredError {
 	lead := ""
 	if len(args) > 1 && isHelpArg(args[0]) {
-		if args[1] == aiWord {
+		if asksAIReference(args[1:]) {
 			return nil
 		}
 		lead, args = args[0], args[1:]

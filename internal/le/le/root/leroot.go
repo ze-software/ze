@@ -153,6 +153,7 @@ func checkRegistrations() {
 		requireEveryAreaHasATable(owned)
 		requireEveryNamespaceHasASummary(owned)
 		requireEveryItemHasText(Commands())
+		requireNoAICommandShadowsASection(owned)
 	})
 }
 

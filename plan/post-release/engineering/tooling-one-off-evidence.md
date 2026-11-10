@@ -2724,3 +2724,31 @@ now named in `TestGuestEvidenceActionsAreNative`.
 Each restored run passed; `internal/le/commit` ok. The browser carrier
 `TestBrowserScreenshotSettlesCSSTransition` could not run here: Chrome was
 killed ("signal: killed") before the assertion, as in the P-17 theme proof.
+
+## P-38 renamed actions page, `le help ai` no longer shadows the ai area, P-15 pattern selection (2026-11-10)
+
+`TestRenamedActionsDispatchToTheirOwnPage` (`internal/le`) sends every
+retired row's current line through `leroot.Dispatch` as `le help <line>` and
+`le <line> --help`, and requires the action's own page with exit 0 (the help
+paths never call a handler, so this is the side-effect-free dispatch proof).
+It found a defect: `le help ai` was the agent-facing reference, so
+`le help ai sync update` and every other `ai` action answered "help ai has no
+section sync" with exit 2, against the owner rule that le's help covers every
+command. `asksAIReference` now routes `le help ai <ai command>` to that
+command's page (sections win; a registration spelled like a section is
+refused at startup), and the refusal names both the sections and the ai
+commands.
+
+| Carrier | Break (Go overlay, `helpw/`) | Red |
+| --- | --- | --- |
+| `TestRenamedActionsDispatchToTheirOwnPage` | `le help ai <...>` always answered by the reference again | "le help ai sync update = exit 2, page:" (and the other ai lines) |
+| `TestHelpAiPagesAnAiCommandsAction` (`internal/le/le/root`) | same | "le help ai help-page-probe show = exit 2, page:" |
+| `TestHelpAiUnknownWordNamesSectionsAndAiCommands` | the refusal drops the ai command list | "the refusal does not name \"help-page-probe\"" |
+| `TestRegistrationRefusesAnAiCommandSpelledLikeASection` | the registration check skipped | "\"ai commands probe\" was accepted, though `le help ai commands` is a section" |
+
+P-15: `test/ui/functional-selection-contract.ci` runs `le test bgp plugin
+--pattern selection-wanted` over a synthetic tree where two tests match and
+one that must not run fails if it does. Breaks through an `le` built with the
+overlay (`p15w/`): selection matching everything, FAIL "expected exit code 0,
+got 1"; the pattern dropped by the bgp command, FAIL (the selected cases'
+output missing). Restored and promoted: PASS.

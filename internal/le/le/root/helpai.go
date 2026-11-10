@@ -19,7 +19,9 @@ import (
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
-// aiWord is the one reserved word after the help word: `le help ai`.
+// aiWord is the one reserved word after the help word: `le help ai` is the
+// agent reference, and `le help ai <command> ...` pages a command of the `ai`
+// namespace (asksAIReference decides which).
 const aiWord = "ai"
 
 // The section words, in the order the index lists them.
@@ -44,6 +46,77 @@ var aiSections = []struct {
 	{sectionVerbs, "the closed verb vocabulary: each verb, its kind, its meaning, and the names that declare it", fillVerbs},
 	{sectionExitCodes, "what each exit code means, and the commands that answer another program's code", fillExitCodes},
 	{sectionLauncher, "the words the ./le launcher reads before le starts, and what each does", fillLauncher},
+}
+
+// asksAIReference reports whether words, the line after the help word, ask
+// for the agent reference rather than the page of an ai command: `ai` alone,
+// or `ai` before a section, an option, a pipe, or any word that is the first
+// word of no command under the ai namespace. The reference then refuses that
+// word, naming its sections and the ai commands (answerHelpAI). Dispatch,
+// retiredLine and JudgeCitation all decide through it, so a run, Tab and a
+// citation read one line the same way.
+func asksAIReference(words []string) bool {
+	if len(words) == 0 {
+		return false
+	}
+	if words[0] != aiWord {
+		return false
+	}
+	if len(words) == 1 {
+		return true
+	}
+	return !namesAICommand(words[1])
+}
+
+// namesAICommand reports whether word, typed after `help ai`, is the first
+// word of a registered command under the ai namespace, hidden ones included,
+// as `le help <hidden command>` pages one. A section word is answered first
+// and never names a command: requireNoAICommandShadowsASection refuses an ai
+// command spelled like a section, so the two sets cannot overlap.
+func namesAICommand(word string) bool {
+	if slices.Contains(sectionNames(), word) {
+		return false
+	}
+	prefix := textbuf.New().Str(aiWord).Byte(' ').Str(word).String()
+	for _, command := range Commands() {
+		if command.Name == prefix || strings.HasPrefix(command.Name, prefix+" ") {
+			return true
+		}
+	}
+	return false
+}
+
+// aiCommandWords answers the distinct first words of the ai namespace's
+// visible members, in the registry's order: what may follow `help ai` besides
+// a section.
+func aiCommandWords() []string {
+	words := make([]string, 0, 8)
+	for _, member := range members(aiWord) {
+		first, _, _ := strings.Cut(member, " ")
+		if !slices.Contains(words, first) {
+			words = append(words, first)
+		}
+	}
+	return words
+}
+
+// requireNoAICommandShadowsASection panics naming the first command under the
+// ai namespace whose first word after `ai` is a section of the reference.
+// `le help ai <section>` answers the section, so such a command's help page
+// would have no spelling after `help ai`: a Ze defect only its author can fix,
+// by naming the command another word.
+func requireNoAICommandShadowsASection(names []string) {
+	for _, name := range names {
+		rest, under := strings.CutPrefix(name, aiWord+" ")
+		if !under {
+			continue
+		}
+		first, _, _ := strings.Cut(rest, " ")
+		if slices.Contains(sectionNames(), first) {
+			panic("BUG: le command \"" + name + "\" is spelled like the `le help ai " + first +
+				"` section, so `le help ai " + rest + "` cannot page it: name the command another word")
+		}
+	}
 }
 
 // helpAI answers `le help ai [<section>...]`, rendered by the pipe the
@@ -83,7 +156,9 @@ func answerHelpAI(program string, words []string) (any, int) {
 		}
 		if !slices.Contains(sectionNames(), word) {
 			return nil, refuseHelpAI(program, textbuf.New().Str("help ai has no section ").Str(word).
-				Str("; it holds: ").Join(sectionNames(), " | ").String())
+				Str(" and the ai namespace holds no command ").Str(word).
+				Str("; its sections: ").Join(sectionNames(), " | ").
+				Str("; the ai commands it pages: ").Join(aiCommandWords(), " | ").String())
 		}
 		selected[word] = true
 	}
@@ -110,6 +185,7 @@ func refuseHelpAI(program, why string) int {
 	var tb textbuf.Buffer
 	tb.Str("error: ").Str(why).Byte('\n').
 		Str("usage: ").Str(program).Str(" help ai [").Join(sectionNames(), "|").Str("] ['|' json|yaml]\n").
+		Str("       ").Str(program).Str(" help ai <command> [<action> [<keyword>]]\n").
 		StdErr() //nolint:errcheck // CLI output
 	return 2
 }

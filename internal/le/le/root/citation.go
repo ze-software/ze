@@ -44,7 +44,9 @@ func JudgeCitation(words []string) error {
 		if len(words) == 0 {
 			return nil
 		}
-		if words[0] == aiWord {
+		// The agent reference names no command; `help ai <command> ...` is a
+		// help question about that command, judged as one below.
+		if asksAIReference(words) {
 			return nil
 		}
 	}

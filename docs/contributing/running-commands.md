@@ -178,9 +178,15 @@ program's; `launcher` the words the `./le` script reads before le starts
 (below); `all` every section. Render it with the pipe layer, never a flag:
 `./le help ai commands '|' json`, `./le help ai all '|' yaml`. A dash-leading word
 (`--json`, `--ai`) is refused with exit 2 and the refusal names
-`le help ai '|' json`; so is a section that does not exist. `ai` is the one
-reserved word after `help`, so the `ai` namespace's own page is
-`./le ai help`. `ze le help ai` answers the same, its program reading `ze le`.
+`le help ai '|' json`. `ai` is the one reserved word after `help`, so the
+`ai` namespace's own page is `./le ai help`. A word after `help ai` that is
+no section and begins a command of the `ai` namespace pages that command, as
+`le help` pages any other: `./le help ai sync update` prints the `ai sync
+update` action's page. A section word always answers the section, and le
+refuses to start while an `ai` command's first word after `ai` is spelled
+like a section, so no command is left without a help spelling. A word that is
+neither is refused with exit 2, naming the sections and the `ai` commands.
+`ze le help ai` answers the same, its program reading `ze le`.
 
 A verbless action, an area's sole action that the area word alone runs
 (`./le rollback`, `./le spec claim <spec>`), keeps the `verb` key with an
@@ -188,7 +194,7 @@ empty value in the JSON and always carries `does`. The text puts `(no verb)`
 where the verb goes, so the summary after it never reads as one, and ends each
 action line that declares a verb with `(does <verb>)`.
 
-<!-- source: internal/le/le/root/helpai.go -- helpAI, answerHelpAI, actionOf -->
+<!-- source: internal/le/le/root/helpai.go -- helpAI, answerHelpAI, actionOf, asksAIReference, requireNoAICommandShadowsASection -->
 <!-- source: internal/component/aihelp/reference/reference.go -- Reference, Action, VerblessColumn, writeCommands -->
 
 ### What le's exit codes mean

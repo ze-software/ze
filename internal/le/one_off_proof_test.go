@@ -1,9 +1,12 @@
 package le
 
 import (
+	"os"
+	"slices"
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/core/helpfmt"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	leretired "github.com/ze-software/ze/internal/le/le/retired"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
@@ -121,4 +124,136 @@ func liveSpelling(words []string) string {
 		return command + " " + rest[0]
 	}
 	return ""
+}
+
+// VALIDATES: P-38 of spec-tooling-one-off-defects, the successful-dispatch half
+// that TestRenamedCallersReachRegisteredActions leaves open. For every row of
+// the rename map (leretired.Renames) that names a new action, the current line
+// goes through leroot.Dispatch, the dispatcher the le binary runs, and answers
+// exit 0 with exactly that action's own page: once spelt as a caller types it
+// with a trailing `--help` (the dispatchLine route: retired-spelling refusal,
+// resolve, asksForUsage, helpTrailing), and once as `le help <line>` (the
+// helpAsked route). The QEMU names the retired TestQEMUActionsIncludeTheHostRun
+// snapshot asserted (`ipsec-mobike` among them) are rows of that map, so each
+// is judged here by its current name with no hand list.
+// PREVENTS: a renamed action that resolves in the registry but whose current
+// line dispatches somewhere else. helpTrailing answers the AREA page with exit
+// 0 for a verb its listing does not page, so a resolver or listing defect
+// would leave every caller on the area page with a green exit code.
+//
+// Method: the expected page is the action's own listing rendered by
+// leaction.List.ActionPage through the same kind of stdout file the dispatch
+// writes to, so the comparison is byte-exact. The help word is the
+// dash-leading `--help`, which the grammar never reads as a positional value
+// (trailingAsksForHelp), and the test asks List.TrailingWordAsksForHelp before
+// it dispatches, so no row can start an action's work. A forwarding row hands
+// a trailing help word to its program, so it is judged on the `le help` route
+// only. Running an action's handler is not side-effect-free for these rows (a
+// QEMU guest boot, a regeneration, a publication), so dispatch is proved up to
+// the action's own declared row, the last step before its handler.
+//
+// MUTATION: (le/root/dispatch.go helpTrailing, `if _, held := list.ActionPage(program, own[0]); !held {`, `if _, held := list.ActionPage(program, own[0]); held {`): every trailing-help line answers its area page with exit 0, and this test goes red on every non-forwarding row while TestRenamedCallersReachRegisteredActions stays green.
+// MUTATION: (le/root/dispatch.go helpAsked, `return writeActionPage(program, name, list, own[0])`, `return helpPage(program, name)`): every `le help <command> <verb>` line answers its area page with exit 0, and this test goes red on every row.
+func TestRenamedActionsDispatchToTheirOwnPage(t *testing.T) {
+	judged := 0
+	seen := make(map[string]bool)
+	for _, row := range leretired.Renames() {
+		if row.Action == "" {
+			continue
+		}
+		command, rest := longestCommand(row.New())
+		// TestRenamedCallersReachRegisteredActions refuses a row that names no
+		// command or no declared verb, so it is not judged twice here.
+		if command == "" {
+			continue
+		}
+		list, declared := leroot.ActionsOf(command)
+		// An untabled or pass-through command declares no action to page.
+		if !declared {
+			continue
+		}
+		if list.PassesWords {
+			continue
+		}
+		line := list.AtVerb(rest)
+		if len(line) == 0 {
+			continue
+		}
+		if !declaresVerb(list, line[0]) {
+			continue
+		}
+		verb := line[0]
+		if verb == "" {
+			t.Errorf("rename %q names an action of the verbless area %q, which has no action word to dispatch", strings.Join(row.Old(), " "), command)
+			continue
+		}
+		words := append(strings.Fields(command), verb)
+		key := strings.Join(words, " ")
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		judged++
+
+		page, held := list.ActionPage("le", verb)
+		if !held {
+			t.Errorf("le %s declares %q but pages no action for it", command, verb)
+			continue
+		}
+		want := pageToStdout(t, &page)
+
+		got, code := dispatchToStdout(t, append([]string{"help"}, words...)...)
+		if code != 0 || got != want {
+			t.Errorf("le help %s = exit %d, page:\n%s\nwant exit 0 and the action's own page:\n%s", key, code, got, want)
+		}
+		if actionForwards(list, verb) {
+			continue
+		}
+		if !list.TrailingWordAsksForHelp([]string{verb, "--help"}) {
+			t.Errorf("le %s --help is not read as a help question, so dispatching it would run the action", key)
+			continue
+		}
+		got, code = dispatchToStdout(t, append(slices.Clone(words), "--help")...)
+		if code != 0 || got != want {
+			t.Errorf("le %s --help = exit %d, page:\n%s\nwant exit 0 and the action's own page:\n%s", key, code, got, want)
+		}
+	}
+	if judged == 0 {
+		t.Fatal("the rename map holds no action rename that reaches a paged action, so nothing was dispatched")
+	}
+}
+
+// actionForwards reports whether verb's row hands the words after it to
+// another program, which then owns a trailing help word.
+func actionForwards(list leaction.List, verb string) bool {
+	for _, row := range list.Actions {
+		if row.Verb == verb {
+			return row.Forwards
+		}
+	}
+	return false
+}
+
+// pageToStdout renders page the way the dispatcher does (helpfmt.Page.WriteOut
+// at leaction.PageWidth of stdout), with stdout on a file as dispatchToStdout
+// sets it, and answers the bytes.
+func pageToStdout(t *testing.T, page *helpfmt.Page) string {
+	t.Helper()
+	file, err := os.CreateTemp(t.TempDir(), "page")
+	if err != nil {
+		t.Fatalf("create the page file: %v", err)
+	}
+	defer file.Close() //nolint:errcheck // a test's temporary file
+
+	saved := os.Stdout
+	os.Stdout = file
+	page.Width = leaction.PageWidth(os.Stdout)
+	page.WriteOut()
+	os.Stdout = saved
+
+	out, err := os.ReadFile(file.Name())
+	if err != nil {
+		t.Fatalf("read the page file: %v", err)
+	}
+	return string(out)
 }

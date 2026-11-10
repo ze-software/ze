@@ -1,0 +1,28 @@
+# P-15: the documented `--pattern TEXT` selector runs exactly the tests whose
+# id, name or path contains TEXT, and no other. The synthetic discovery tree
+# holds three .ci tests: two match the pattern and pass, the third does not
+# match and fails if it runs, so running it turns the outer command red.
+# /bin/false is a tripwire for accidental daemon execution: no inner test
+# starts a daemon.
+option=env:var=LE_TEST_NO_BUILD:value=1
+option=env:var=ZE_BIN:value=/bin/false
+tmpfs=go.mod:terminator=EOF_MOD
+module selection-contract-fixture
+EOF_MOD
+tmpfs=test/plugin/selection-wanted-one.ci:terminator=EOF_ONE
+cmd=foreground:seq=1:exec=echo inner-ran-wanted-one
+expect=stdout:contains=inner-ran-wanted-one
+EOF_ONE
+tmpfs=test/plugin/selection-wanted-two.ci:terminator=EOF_TWO
+cmd=foreground:seq=1:exec=echo inner-ran-wanted-two
+expect=stdout:contains=inner-ran-wanted-two
+EOF_TWO
+tmpfs=test/plugin/selection-other.ci:terminator=EOF_OTHER
+cmd=foreground:seq=1:exec=echo inner-ran-other
+expect=stdout:contains=this-text-is-never-printed
+EOF_OTHER
+cmd=foreground:seq=1:exec=le test bgp plugin --pattern selection-wanted
+expect=exit:code=0
+expect=stdout:contains=selection-wanted-one
+expect=stdout:contains=selection-wanted-two
+reject=stdout:pattern=selection-other
