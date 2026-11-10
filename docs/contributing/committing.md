@@ -238,7 +238,10 @@ changes nothing, changes another path as well, or deletes the path (use
 no trailing context at the end of the file: save the patch with git's default
 context. Git paths are read and written NUL-delimited. Spaces, quotes,
 backslashes, non-ASCII and leading or trailing spaces retain their exact
-identity; NUL, tab, carriage return and newline are refused.
+identity; NUL, tab, carriage return and newline are refused. A `hunks` path is
+validated with the `file` and `remove` paths, before the session directory or
+anything else is written, so a refused path records nothing under `tmp/`.
+<!-- source: internal/le/commit/hunks_select.go -- normalizeHunkPaths -->
 
 A selected path whose entry is not a `git ls-files -s` line for that path is an
 error at every gate that reads it, never a fall back to the working-tree file,

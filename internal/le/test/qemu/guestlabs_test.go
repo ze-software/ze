@@ -18,9 +18,12 @@ func TestGuestEvidenceActionsAreNative(t *testing.T) {
 	list := Actions()
 	wanted := map[string]bool{
 		"vrrp-keepalived": false,
-		"pppoe-accel":     false,
-		"netns":           false,
-		"pppoe":           false,
+		// The retired TestQEMUActionsIncludeTheHostRun asserted this name as
+		// ipsec-mobike-test; no other named membership carries it.
+		"ipsec-mobike": false,
+		"pppoe-accel":  false,
+		"netns":        false,
+		"pppoe":        false,
 	}
 	for _, row := range list.Actions {
 		if _, ok := wanted[row.Verb]; !ok {

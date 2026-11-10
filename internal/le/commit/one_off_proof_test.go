@@ -6,9 +6,11 @@ package commit
 
 import (
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -308,4 +310,189 @@ func tmpListing(t *testing.T, root string) []string {
 	}
 	slices.Sort(paths)
 	return paths
+}
+
+// quotedPathSession is the harness session the quoted-path fixture runs under.
+const quotedPathSession = "quoted-path-proof"
+
+// quotedPathSpec is the Spec-work stem the quoted-path commit is attributed
+// to, so the history reader (specWorkPopulation) is judged over it.
+const quotedPathSpec = "quoted-path-proof"
+
+// TestQuotedPathsReachGeneratedScript proves that a path Git would quote is
+// selected and published under its exact raw bytes, and that every reader of
+// the generated script decodes the same path.
+//
+// VALIDATES: P-17 "Git paths" of spec-tooling-one-off-defects. Each subtest is
+// a real repository where the named path sits beside NEIGHBOURS: the pieces a
+// whitespace split would produce, and the C-quoted spelling Git prints for it
+// (`"r\303\251sum\303\251.txt"`), each a real tracked file with its own
+// working-tree edit. Create selects the path whole or by hunks; then:
+//   - the block marker reader (declaredPaths, which replace consults) and the
+//     snapshot reader (scriptPaths, which append, the closure review and the
+//     newsfragment gate consult) both answer exactly the raw path;
+//   - the generated script publishes a commit whose changed paths are exactly
+//     the raw path (read NUL-framed), with the selected bytes;
+//   - every neighbour keeps its committed blob and its working-tree edit, and
+//     the shared index stays empty;
+//   - the Spec-work history reader answers exactly the raw path.
+//
+// A path holding NUL, tab, CR or LF is refused by name through file, hunks and
+// remove alike, before anything is written under tmp/ and with HEAD unmoved.
+//
+// PREVENTS: a raw entry split on whitespace, Git's quoted display kept as the
+// path, a refusal that one route omits, and two readers of one script that
+// decode its paths differently.
+//
+// MUTATION: (script.go declaredPaths, `for _, path := range parseShellWords(raw) {`, `for _, path := range strings.Fields(raw) {`): the block marker reader answers the shell-quoted words split on spaces, and every case goes red at declaredPaths.
+// MUTATION: (snapshot.go snapshotIndexEntries, `listed, err := gitIndexOutput(root, index, "ls-files", "-s", "-z")`, `listed, err := gitIndexOutput(root, index, "ls-files", "-s")`): the snapshot reads Git's newline-framed, C-quoted listing, so Create refuses every whole-file case with "snapshot holds a path this commit does not name".
+// MUTATION: (input.go normalizePath, `if strings.ContainsAny(raw, "\x00\t\r\n") || strings.Count(raw, "\n") != 0 {`, `if strings.ContainsAny(raw, "\x00") {`): the tab, CR and LF refusals go red on every route.
+func TestQuotedPathsReachGeneratedScript(t *testing.T) {
+	cases := []struct {
+		path       string
+		neighbours []string
+	}{
+		{path: "space name.txt", neighbours: []string{"space", "name.txt"}},
+		{path: " leading and trailing .txt ", neighbours: []string{"leading", "and", "trailing", ".txt"}},
+		{path: "it's.txt", neighbours: []string{"it", "s.txt", `it\'s.txt`}},
+		{path: `double"quote.txt`, neighbours: []string{`"double\"quote.txt"`, "double", "quote.txt"}},
+		{path: `back\slash.txt`, neighbours: []string{`"back\\slash.txt"`, "back", "slash.txt"}},
+		{path: "résumé.txt", neighbours: []string{`"r\303\251sum\303\251.txt"`}},
+	}
+	for _, tc := range cases {
+		for _, selection := range []string{"whole file", "hunks"} {
+			t.Run(tc.path+"/"+selection, func(t *testing.T) {
+				root := quotedPathFixture(t, append([]string{tc.path}, tc.neighbours...))
+				writeCommitFixture(t, root, tc.path, "selected\n")
+				for _, neighbour := range tc.neighbours {
+					writeCommitFixture(t, root, neighbour, "neighbour edit\n")
+				}
+				options := Options{Subject: "publish one exact raw path", SpecWork: quotedPathSpec}
+				if selection == "whole file" {
+					options.Files = []string{tc.path}
+				} else {
+					writeCommitFixture(t, root, "chosen.patch", runCommitGitOutput(t, root, "diff", "--", tc.path))
+					options.Hunks = []HunkSelection{{Path: tc.path, Patch: "chosen.patch"}}
+				}
+				prepared, err := Create(root, &options)
+				if err != nil {
+					t.Fatalf("prepare %q: %v", tc.path, err)
+				}
+				script, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(prepared.Script))) //nolint:gosec // fixture path under t.TempDir
+				if err != nil {
+					t.Fatal(err)
+				}
+				if declared := declaredPaths(string(script)); len(declared) != 1 || !declared[tc.path] {
+					t.Errorf("block marker paths = %q, want exactly %q", slices.Sorted(maps.Keys(declared)), tc.path)
+				}
+				snapshot, err := scriptPaths(prepared.Script, string(script))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !slices.Equal(snapshot, []string{tc.path}) {
+					t.Errorf("snapshot paths = %q, want exactly %q", snapshot, tc.path)
+				}
+
+				runCommitScript(t, root, prepared.Script)
+				if changed := runCommitGitOutput(t, root, "diff-tree", "-r", "-z", "--no-renames", "--name-only", "HEAD^", "HEAD"); changed != tc.path+"\x00" {
+					t.Errorf("published paths = %q, want exactly %q", changed, tc.path+"\x00")
+				}
+				if got := runCommitGitOutput(t, root, "show", "HEAD:"+tc.path); got != "selected\n" {
+					t.Errorf("published blob of %q = %q, want the selected bytes", tc.path, got)
+				}
+				for _, neighbour := range tc.neighbours {
+					assertNeighbourUntouched(t, root, neighbour)
+				}
+				if staged := runCommitGitOutput(t, root, "diff", "--cached", "--name-only", "-z"); staged != "" {
+					t.Errorf("shared index = %q, want it empty", staged)
+				}
+				population, err := specWorkPopulation(root, quotedPathSpec, "HEAD")
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !slices.Equal(population.Paths, []string{tc.path}) {
+					t.Errorf("Spec-work history paths = %q, want exactly %q", population.Paths, tc.path)
+				}
+			})
+		}
+	}
+
+	for _, raw := range []string{"nul\x00name.txt", "tab\tname.txt", "cr\rname.txt", "lf\nname.txt"} {
+		for _, route := range []string{"file", "hunks", "remove"} {
+			t.Run(strconv.Quote(raw)+"/"+route, func(t *testing.T) {
+				var tracked []string
+				// A NUL cannot name a file; every other name exists and is
+				// tracked, so the refusal is by name and not by absence.
+				if !strings.Contains(raw, "\x00") {
+					tracked = []string{raw}
+				}
+				root := quotedPathFixture(t, tracked)
+				if len(tracked) != 0 {
+					writeCommitFixture(t, root, raw, "selected\n")
+				}
+				writeCommitFixture(t, root, "chosen.patch", "")
+				before := revParse(t, root, "HEAD")
+				records := tmpListing(t, root)
+
+				options := Options{Subject: "refuse an unframeable path"}
+				switch route {
+				case "file":
+					options.Files = []string{raw}
+				case "hunks":
+					options.Hunks = []HunkSelection{{Path: raw, Patch: "chosen.patch"}}
+				case "remove":
+					options.Remove = []string{raw}
+				}
+				_, err := Create(root, &options)
+				if err == nil {
+					t.Fatalf("a %s path %q was prepared", route, raw)
+				}
+				if !strings.Contains(err.Error(), "control character") {
+					t.Fatalf("refusal %q does not name the control character", err)
+				}
+				if got := tmpListing(t, root); !slices.Equal(got, records) {
+					t.Fatalf("a refused create recorded under tmp/:\nbefore %v\nafter  %v", records, got)
+				}
+				if got := revParse(t, root, "HEAD"); got != before {
+					t.Fatalf("a refused create moved HEAD: %s -> %s", before, got)
+				}
+			})
+		}
+	}
+}
+
+// quotedPathFixture is a repository whose HEAD tracks each of paths with the
+// content "before\n", under the quoted-path session, with tmp/ present.
+func quotedPathFixture(t *testing.T, paths []string) string {
+	t.Helper()
+	root := newCommitRepository(t)
+	configureCommitAuthor(t, root)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", quotedPathSession)
+	if len(paths) != 0 {
+		for _, path := range paths {
+			writeCommitFixture(t, root, path, "before\n")
+		}
+		runCommitGit(t, root, append([]string{"add", "--"}, paths...)...)
+		runCommitGit(t, root, "commit", "-q", "-m", "quoted path baseline")
+	}
+	if err := os.MkdirAll(filepath.Join(root, "tmp"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
+// assertNeighbourUntouched checks that neighbour keeps its committed blob and
+// its working-tree edit: the commit neither carried nor reverted it.
+func assertNeighbourUntouched(t *testing.T, root, neighbour string) {
+	t.Helper()
+	if got := runCommitGitOutput(t, root, "show", "HEAD:"+neighbour); got != "before\n" {
+		t.Errorf("neighbour %q was published as %q", neighbour, got)
+	}
+	got, err := os.ReadFile(filepath.Join(root, neighbour)) //nolint:gosec // fixture path under t.TempDir
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "neighbour edit\n" {
+		t.Errorf("neighbour %q working copy = %q, want its own edit kept", neighbour, got)
+	}
 }

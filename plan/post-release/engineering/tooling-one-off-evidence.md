@@ -2693,3 +2693,34 @@ first failing assertion the break produced.
 | P-8 | `TestHookVerdictBoundaries` (`internal/le/hookruntime`) | `internal/le/hookruntime/panic.go` | registered write check = 0, found true, want 2: |
 | P-8 | `TestSessionStartWithinHarnessBudget` (`internal/le/hookruntime`) | `internal/le/hookruntime/lifecycle.go` | session start exceeded the harness budget: 6.032641331s |
 | P-8 | `TestDesignEvidenceUsesObservedToolContent` (`internal/le/hookruntime`) | `internal/le/hookruntime/designevidence.go` | design gate = 0, found true, want 2: |
+
+## P-17 quoted paths, P-13 nested chaos clocks, P-38 ipsec-mobike membership (2026-11-10)
+
+`TestQuotedPathsReachGeneratedScript` (`internal/le/commit`) drives `Create`
+and the generated script over a real repository for paths with spaces,
+quotes, a backslash and non-ASCII, beside neighbours named as their pieces
+and Git's quoted spelling: each reader returns exactly the raw path, the
+published commit lists exactly it, neighbours keep their blobs and edits. It
+found a defect: a `hunks` path holding a control character was refused only
+after `CommitSession` had written session state under `tmp/`. `Create` now
+validates `hunks` paths with the `file` and `remove` paths, before anything is
+written (`normalizeHunkPaths`).
+
+`TestDashboardNestedClockConsumers` and `TestChaosProducersReadNoWallClock`
+(`internal/chaos/web`) cover the uptime stats, the panel grid's nested time
+panels and panel content under a frozen clock, and refuse any wall-clock call
+in the chaos web and report producers. The chaos producers already read only
+the injected clock; no chaos PNG has a published producer. `ipsec-mobike` is
+now named in `TestGuestEvidenceActionsAreNative`.
+
+| Carrier | Break | Red |
+| --- | --- | --- |
+| `TestQuotedPathsReachGeneratedScript` | overlay: `hunks` paths not validated before the session is written (`hkw/`) | the four control-character `hunks` subtests: refusal "a path containing controls cannot be committed" does not name the control character |
+| `TestDashboardNestedClockConsumers` | overlay: uptime from `time.Since` (`chaosw/`) | "render does not contain controlled value \"id=\\\"uptime\\\" data-start=\\\"20\\\" ...20s\"" |
+| same | overlay: panel slots rendered at `time.Now()` | "render does not contain controlled value \"15s ago\"" |
+| same | overlay: panel chaos timeline at `time.Now()` | "render does not contain controlled value ...stat-value\\\">20s" |
+| `TestChaosProducersReadNoWallClock` | in place (the guard parses source; bytes restored): uptime from `time.Since` | "render.go:371:13: time.Since reads the wall clock; use the injected clock.Clock" |
+
+Each restored run passed; `internal/le/commit` ok. The browser carrier
+`TestBrowserScreenshotSettlesCSSTransition` could not run here: Chrome was
+killed ("signal: killed") before the assertion, as in the P-17 theme proof.

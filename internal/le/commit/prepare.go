@@ -110,6 +110,12 @@ func Create(root string, options *Options) (Prepared, error) {
 	if err != nil {
 		return result, err
 	}
+	// Every path keyword is validated here, before CommitSession below writes
+	// the session directory, so a refused path records nothing under tmp/.
+	hunkPairs, err := normalizeHunkPaths(root, options.Hunks)
+	if err != nil {
+		return result, err
+	}
 	attesting := options.Attest != ""
 	if attesting && len(slices.Concat(paths, removed))+len(options.Hunks) != 0 {
 		return result, refusedKeywords(errors.New("attest refused with a file or remove path: an attestation must not change the tree, " +
@@ -210,7 +216,7 @@ func Create(root string, options *Options) (Prepared, error) {
 	// what the commit carries for a hunks path rather than its working-tree
 	// file, which holds hunks the commit leaves behind.
 	wholePaths := paths
-	hunkPaths, selection, err := selectHunks(root, preparedHead, wholePaths, options.Hunks)
+	hunkPaths, selection, err := selectHunks(root, preparedHead, wholePaths, hunkPairs)
 	if err != nil {
 		return result, err
 	}

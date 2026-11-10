@@ -36,28 +36,44 @@ func hunkSelections(values []string) []HunkSelection {
 	return selections
 }
 
-// selectHunks validates each hunks pair and builds the blob it commits against
-// head. It answers the selected paths, in the order given, and the Selection
-// every gate reads them through. A path also named by file, or named by hunks
-// twice, is refused: it would carry two contents.
-func selectHunks(root, head string, files []string, raw []HunkSelection) ([]string, hunks.Selection, error) {
-	if len(raw) == 0 {
+// normalizeHunkPaths validates the path of each hunks pair exactly as a file
+// path is validated, and answers the pairs with their normalized paths, in the
+// order given. Create calls it beside the file and remove paths, before
+// anything is written, so a path no route can commit is refused with nothing
+// recorded under tmp/. Pairs are not deduplicated: a path named twice is
+// refused by selectHunks, never merged.
+func normalizeHunkPaths(root string, raw []HunkSelection) ([]HunkSelection, error) {
+	pairs := make([]HunkSelection, 0, len(raw))
+	for _, pair := range raw {
+		path, err := normalizePath(root, pair.Path)
+		if err != nil {
+			return nil, err
+		}
+		if err := validateAddPath(root, path); err != nil {
+			return nil, err
+		}
+		pairs = append(pairs, HunkSelection{Path: path, Patch: pair.Patch})
+	}
+	return pairs, nil
+}
+
+// selectHunks builds the blob each hunks pair commits against head. Its pairs
+// MUST come from normalizeHunkPaths, which validated every path. It answers the
+// selected paths, in the order given, and the Selection every gate reads them
+// through. A path also named by file, or named by hunks twice, is refused: it
+// would carry two contents.
+func selectHunks(root, head string, files []string, pairs []HunkSelection) ([]string, hunks.Selection, error) {
+	if len(pairs) == 0 {
 		return nil, nil, nil
 	}
 	whole := make(map[string]bool, len(files))
 	for _, path := range files {
 		whole[path] = true
 	}
-	paths := make([]string, 0, len(raw))
-	selection := make(hunks.Selection, len(raw))
-	for _, pair := range raw {
-		path, err := normalizePath(root, pair.Path)
-		if err != nil {
-			return nil, nil, err
-		}
-		if err := validateAddPath(root, path); err != nil {
-			return nil, nil, err
-		}
+	paths := make([]string, 0, len(pairs))
+	selection := make(hunks.Selection, len(pairs))
+	for _, pair := range pairs {
+		path := pair.Path
 		if whole[path] {
 			return nil, nil, errors.New("hunks " + path + ": the path is also named by file, which commits the whole file; " +
 				"name it once, with file for the whole file or hunks for some of its hunks")
