@@ -182,13 +182,13 @@ func parseOptionSkipOs(r *Record, _ string, kv map[string]string) error {
 }
 
 // parseOptionNeedsLinux reads option=needs-linux.
-func parseOptionNeedsLinux(r *Record, _ string, kv map[string]string) error {
+func parseOptionNeedsLinux(r *Record, ciFile string, kv map[string]string) error {
 	// Marks a .ci test that requires a real Linux kernel (netlink interface
 	// management, nftables, kernel sockets, ...) and therefore cannot pass
 	// natively on a non-Linux host. On such a host the test is SKIPPED with
-	// a reason pointing at the QEMU runner; inside the QEMU Alpine VM
-	// (GOOS=linux, via `./le test qemu all`) the directive is
-	// inert and the test runs normally. This is how Linux-only functional
+	// a reason naming the host command that runs it in Ze's QEMU guest
+	// (guestRouteAdvice); inside that guest (GOOS=linux, as root, via
+	// `test qemu all`) the directive is inert and the test runs normally. This is how Linux-only functional
 	// tests are validated automatically via QEMU instead of failing
 	// natively. See ai/rules/platform-linux.md "Linux-only functional tests".
 	//
@@ -229,7 +229,8 @@ func parseOptionNeedsLinux(r *Record, _ string, kv map[string]string) error {
 	}
 	if runtime.GOOS != goosLinux {
 		var tb textbuf.Buffer
-		r.SkipReason = tb.Str("needs-linux (run via ./le test qemu all; current GOOS=").Str(runtime.GOOS).Byte(')').String()
+		r.SkipReason = tb.Str("needs-linux: this host is GOOS=").Str(runtime.GOOS).
+			Str(", which has no Linux kernel to run the test on; ").Str(guestRouteAdvice(ciFile)).String()
 		return nil
 	}
 	if len(caps) > 0 {
@@ -240,7 +241,8 @@ func parseOptionNeedsLinux(r *Record, _ string, kv map[string]string) error {
 		if !present {
 			var tb textbuf.Buffer
 			r.SkipReason = tb.Str("needs-linux caps=").Str(strings.Join(caps, ",")).
-				Str(" (capability absent; run via ./le test qemu all)").String()
+				Str(": this process does not hold the capability, so the test cannot run here; ").
+				Str(guestRouteAdvice(ciFile)).String()
 			return nil
 		}
 		return applyNetnsDaemonCapsGate(r, caps)

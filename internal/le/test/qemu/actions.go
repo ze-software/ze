@@ -113,6 +113,19 @@ var actions = leaction.New(area,
 		Answer: runGuestBinariesHere,
 	},
 	leaction.Action{
+		Verb:    oneCIVerb,
+		Does:    doesRun,
+		Summary: "run one .ci test inside Ze's QEMU guest",
+		Why: "the host route for a .ci this host skips (option=needs-linux, or a caps= it does not hold):" +
+			" cross-build the guest daemons as guest-binaries does, resolve the runtime kernel Ze's image boots," +
+			" and boot the own-system carrier with harness, which runs `test qemu all test <path>` as root in the guest." +
+			" Refuses, before any build, a path no guest suite walks or a file the checkout does not hold",
+		Parameters: []leaction.Parameter{
+			{Keyword: testKeyword, Kind: leaction.KindPath, Help: "the .ci test to run, under test/ or test/draft/", Value: "test/<dir>/<name>.ci", Requirement: leaction.Required},
+		},
+		AnswerArgs: runOneCIHere,
+	},
+	leaction.Action{
 		Verb:    "installer",
 		Does:    doesRun,
 		Summary: "test the installer over HTTP in QEMU",

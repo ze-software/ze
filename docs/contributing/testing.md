@@ -307,7 +307,7 @@ They are not part of the normal development cycle.
 ```sh
 ./le test integration interop
 ./le test integration iface
-./le test qemu all
+./le test qemu ci test test/<dir>/<name>.ci   # one needs-linux test in Ze's QEMU guest
 ./le test integration live-rpki
 ./le test integration docker-peers   # every package test tagged `docker`
 ./le test integration clean dry    # what a killed lab run left, and why the rest stays

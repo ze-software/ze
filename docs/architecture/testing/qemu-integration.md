@@ -91,7 +91,7 @@ commands execute inside that guest; `test qemu all` runs as root.
 | `./le test qemu netns suites <comma-separated-suites>` | The explicit kernel-dependent subset for each selected suite. `plugin` selects the seven ASPA cases, the RFC 2545 next-hop replay case, the static-into-OSPF redistribution chain case and the blind ddos-detect case |
 | `le test qemu all` | Every functional suite, the Linux unit pass, the installer phase, and every registered integration package. Six suites run in a per-test network namespace, requiring full `ip`, `setcap` and `getcap` tools |
 | `le test qemu all only needs-linux` | The same suites, each narrowed to the `.ci` tests marked `option=needs-linux`. The unit, installer and integration phases stay whole, and the report names the population it covered |
-| `le test qemu all test test/<dir>/<name>.ci` | That one `.ci`, through the suite that walks its directory (`vmSuiteFor`); a draft, `test/draft/<dir>/<name>.ci`, runs through the same suite with `--draft`. Either takes the same shim, environment and network-namespace preparation. No other suite or phase runs. `./le feature run` and `./le rfc record` reach a capability-gated test this way, through `testqemu.OneCICommand` under `docker-lab harness` |
+| `le test qemu all test test/<dir>/<name>.ci` | That one `.ci`, run from inside the guest; the host command that boots a guest for it is `./le test qemu ci test test/<dir>/<name>.ci` ([below](#running-one-ci-test-in-a-ze-guest)). It runs through the suite that walks its directory (`vmSuiteFor`); a draft, `test/draft/<dir>/<name>.ci`, runs through the same suite with `--draft`. Either takes the same shim, environment and network-namespace preparation. No other suite or phase runs. `./le feature run` and `./le rfc record` reach a capability-gated test this way, through `testqemu.OneCICommand` under `docker-lab harness` |
 
 `test qemu all` discovers the suites' tests through the native runner, so a new
 `needs-linux` test needs no registration there. `netns` uses the explicit
@@ -179,10 +179,29 @@ cap and process-group cleanup directly, so neither spelling nor an external
 
 ### Running ONE `.ci` test in a Ze guest
 
-Boot the [own-system command carrier](#one-command-in-zes-own-system) with
-Ze's matching runtime kernel and `harness`. Cross-build the daemons first and
-pass `ZE_BIN`, `ZE_STRIPPED_BIN` and `ZE_STRIPPED_FLOW_BIN` for the selected
-build, as `./le test qemu guest-binaries` answers them:
+From the host, one command runs it:
+
+```bash
+./le test qemu ci test test/plugin/<test-name>.ci
+```
+
+That is the command a `needs-linux` skip reason ends with, with the skipped
+test's own path filled in (`runner.GuestRoute`). It refuses a path no guest
+suite walks, or a file the checkout does not hold, before it builds anything.
+Then it cross-builds the daemons as `guest-binaries` does, resolves the runtime
+kernel Ze's image boots (`GuestRuntimeKernel`), and boots the own-system
+carrier with `harness` and the guest command below (`runOneCIHere`,
+`oneCIArguments`). The runner cannot import le, so it spells the command as a
+literal, and `TestRunnerGuestRouteIsTheOneCIAction` parses the line it prints
+through this action's own parser.
+<!-- source: internal/le/test/qemu/onetest.go -- runOneCIHere, oneCIAdmits, oneCIArguments -->
+<!-- source: internal/test/runner/guest_route.go -- GuestRoute, guestRouteAdvice -->
+
+By hand, the same run is the
+[own-system command carrier](#one-command-in-zes-own-system) with Ze's
+matching runtime kernel and `harness`. Cross-build the daemons first and pass
+`ZE_BIN`, `ZE_STRIPPED_BIN` and `ZE_STRIPPED_FLOW_BIN` for the selected build,
+as `./le test qemu guest-binaries` answers them:
 
 ```bash
 ./le test qemu guest-binaries
@@ -503,9 +522,17 @@ population is printed at the START of the run as well.
 | Host | Behavior |
 |------|----------|
 | `GOOS != linux` | The runner sets `SkipReason` and the test reports SKIP, never FAIL. `./le verify worktree` and `./le test functional gating` stay green on darwin without running the test |
+| `GOOS == linux`, a `caps=` capability the process does not hold | The same: SKIP, with the missing capability in the reason |
 | `GOOS == linux`, inside the VM | The option is inert, so the same `.ci` test runs for real against the Linux kernel |
 
-<!-- source: internal/test/runner/record_parse.go -- the needs-linux option -->
+Each skip reason ends with the host command that runs that test in the guest,
+`./le test qemu ci test <path>`, never `test qemu all`, which is a guest action
+and refuses on the host that printed the reason. A declaration with no `.ci`
+behind it (an `.et` or `.wb` admission), or a `.ci` outside the checkout's
+`test/` tree, gets the command with a `test/<dir>/<name>.ci` placeholder.
+
+<!-- source: internal/test/runner/record_parse_option.go -- parseOptionNeedsLinux -->
+<!-- source: internal/test/runner/guest_route.go -- guestRouteAdvice -->
 
 ## A run boots ze's kernel when it is given one
 
@@ -547,9 +574,22 @@ The native host action cross-compiles a Linux `cmd/ze` personality with the
 Linux suite is:
 
 ```text
-./le test qemu docker-lab kernel <vmlinuz> harness timeout 3600s \
-  command '<guest-le-binary> le test qemu all'
+./le test qemu guest-binaries
+mkdir -p tmp/qemu && cp -RL "$(./le go stdpatch goroot)" tmp/qemu/_guest-go
+./le test qemu docker-lab kernel <vmlinuz> harness timeout 5400s \
+  command 'PATH=/workspace/tmp/qemu/_guest-go/bin:$PATH GOROOT=/workspace/tmp/qemu/_guest-go GOTOOLCHAIN=local GOCACHE=/workspace/tmp/qemu/go-cache GOMODCACHE=/workspace/tmp/qemu/gomodcache ZE_BIN=tmp/qemu/linux-<arch>/bin/ze ZE_STRIPPED_BIN=tmp/qemu/linux-<arch>/bin/ze-stripped ZE_STRIPPED_FLOW_BIN=tmp/qemu/linux-<arch>/bin/ze-stripped-flow <guest-le-binary> le test qemu all'
 ```
+
+The whole run compiles Go in the guest (the unit, installer and integration
+phases), and Ze's image carries no Go, so the command names the patched tree
+copied into the checkout and caches on the share. The tree to copy is the
+patched standard library that `./le go stdpatch goroot` prints, the same tree
+the nightly selects before it copies `$GOROOT`
+(`docs/contributing/patching-the-standard-library.md`); `-L` follows its links
+into the real GOROOT, which no share reaches. Why each assignment is there is
+the Go paragraph under
+[One command in Ze's own system](#one-command-in-zes-own-system).
+<!-- source: .github/workflows/qemu-nightly.yml -- the needs-linux job's guest command -->
 
 The extra `le` after the guest binary is intentional. The cross-compiled file
 has an architecture-qualified basename, so `cmd/ze` treats it as a Ze

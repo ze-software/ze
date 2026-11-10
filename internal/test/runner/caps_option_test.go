@@ -17,6 +17,7 @@
 package runner
 
 import (
+	"errors"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -86,8 +87,67 @@ func TestNeedsLinuxNetAdminSkipsWithoutCapability(t *testing.T) {
 	if r.SkipReason == "" {
 		t.Fatal("caps=net-admin ran without CAP_NET_ADMIN: the test will hang instead of skipping")
 	}
-	if !strings.Contains(r.SkipReason, "./le test qemu all") {
-		t.Fatalf("skip reason %q does not name the runner that can run this test", r.SkipReason)
+	if !strings.Contains(r.SkipReason, guestRouteCommand) {
+		t.Fatalf("skip reason %q does not name the host command that runs this test in Ze's guest", r.SkipReason)
+	}
+}
+
+// VALIDATES: both needs-linux skip reasons (no Linux kernel, a capability this
+// process lacks) end with the host command that runs THIS test in Ze's guest,
+// `./le test qemu ci test <checkout-relative path>`, and never send the reader
+// to `test qemu all`, which is a guest action and refuses on the host that
+// printed the reason.
+// METHOD: parse option=needs-linux:caps=net-admin for a .ci at an absolute path
+// under the checkout, with the capability probe forced absent, so the reason
+// fires on every host: the GOOS branch off Linux, the capability branch on it.
+// PREVENTS: a skip that names a command the reader cannot run where it printed
+// (internal/le/test/qemu/alltests.go refuses `test qemu all` with ErrNotMounted
+// outside the guest).
+func TestNeedsLinuxSkipNamesTheHostGuestRoute(t *testing.T) {
+	withCaps(t, false)
+
+	ciFile := filepath.Join(repoRootForTest(t), "test", "plugin", "gated.ci")
+	et := &EncodingTests{}
+	r := newRecord("needs-linux-route")
+	if err := et.parseLine(r, ciFile, "option=needs-linux:caps=net-admin"); err != nil {
+		t.Fatalf("parseLine: %v", err)
+	}
+	if r.SkipReason == "" {
+		t.Fatal("needs-linux with the capability absent ran instead of skipping")
+	}
+	const route = "./le test qemu ci test test/plugin/gated.ci"
+	if !strings.HasSuffix(r.SkipReason, route) {
+		t.Errorf("skip reason %q does not end with the host command %q", r.SkipReason, route)
+	}
+	if strings.Contains(r.SkipReason, "test qemu all") {
+		t.Errorf("skip reason %q names the guest-only `test qemu all`, which refuses on this host", r.SkipReason)
+	}
+}
+
+// VALIDATES: GuestRoute names a .ci relative to the checkout holding it, from an
+// absolute path and from a path relative to the working directory alike.
+// METHOD: GuestRoute over both spellings of one file under the checkout.
+// PREVENTS: a route that prints an absolute or package-relative path, which
+// `./le` run from the checkout root then refuses.
+func TestGuestRouteNamesTheCheckoutRelativePath(t *testing.T) {
+	root := repoRootForTest(t)
+	for _, ciFile := range []string{
+		filepath.Join(root, "test", "reload", "x.ci"),
+		filepath.Join("..", "..", "..", "test", "reload", "x.ci"),
+	} {
+		got, err := GuestRoute(ciFile)
+		if err != nil {
+			t.Fatalf("GuestRoute(%q): %v", ciFile, err)
+		}
+		if want := "./le test qemu ci test test/reload/x.ci"; got != want {
+			t.Errorf("GuestRoute(%q) = %q, want %q", ciFile, got, want)
+		}
+	}
+	// A .ci outside the checkout's test/ tree has no route: the guest suites
+	// walk only test/, so a line naming it would be refused by the action.
+	outside := filepath.Join(root, "internal", "test", "runner", "x.ci")
+	if got, err := GuestRoute(outside); !errors.Is(err, errNotUnderTestTree) {
+		t.Errorf("GuestRoute(%q) = %q, %v; want errNotUnderTestTree", outside, got, err)
 	}
 }
 

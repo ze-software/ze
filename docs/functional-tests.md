@@ -1100,7 +1100,9 @@ held until the owned child is reaped and case cleanup finishes.
 
 `.ci` tests tagged `option=needs-linux` skip on non-Linux hosts and unprivileged
 Linux, then run as root inside `./le test qemu all`. CAP_NET_ADMIN and real
-interfaces are available in that guest. `TestCapabilityGatedTestsHaveANativeVMHome`
+interfaces are available in that guest. The skip reason ends with the host
+command that boots the guest for that one test,
+`./le test qemu ci test test/<dir>/<name>.ci`. `TestCapabilityGatedTestsHaveANativeVMHome`
 fails when a capability-gated test has no registered QEMU path.
 <!-- source: internal/le/test/qemu/alltests.go -- allTestsRun -->
 <!-- source: internal/test/runner/record_parse_option.go -- parseOptionNeedsLinux, capability gate -->
@@ -4303,16 +4305,19 @@ excluded from all normal test targets.
 
 ### Running on macOS (QEMU)
 
-macOS cannot run these tests natively. Use the QEMU Alpine VM:
+macOS cannot run these tests natively. They run in Ze's own QEMU guest, which
+boots Ze's runtime kernel and mounts the checkout. `./le test qemu all` is the
+action that runs inside that guest; it refuses on the host. From the host, one
+skipped `.ci` runs with:
 
 ```bash
-./le test qemu all
+./le test qemu ci test test/<dir>/<name>.ci
 ```
 
-This is the standard workflow for macOS developers. The QEMU runner boots an
-Alpine Linux VM, mounts the repo via virtio-9p, and runs `go test -tags integration`
-inside the VM. First run downloads the Alpine ISO and Go toolchain (~1 min);
-subsequent runs reuse the cache (~30s boot + test time).
+That is the command each `needs-linux` skip reason ends with, with the test's
+path filled in. The whole Linux population, the integration packages included,
+runs through the own-system carrier with the guest Go tree it needs: the
+full-suite command is in [testing/qemu-integration.md](architecture/testing/qemu-integration.md#a-run-boots-zes-kernel-when-it-is-given-one).
 
 See [testing/qemu-integration.md](architecture/testing/qemu-integration.md) for
 details on how to write QEMU integration tests and add new packages.

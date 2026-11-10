@@ -186,7 +186,7 @@ func TestSkipMarkedMalformedCIStillFailsThroughParallelRunner(t *testing.T) {
 	pr.SetLabel("entry-point")
 	pr.SetQuiet(true)
 
-	const skipMarker = "needs-linux (run via ./le test qemu all; current GOOS=darwin)"
+	const skipMarker = "needs-linux: this host is GOOS=darwin, which has no Linux kernel to run the test on; run it in Ze's QEMU guest: ./le test qemu ci test test/plugin/x.ci"
 
 	// The malformed file: needs-linux was parsed off an early line, then a later
 	// line failed. Both markers are set, exactly as EncodingTests.Discover leaves
