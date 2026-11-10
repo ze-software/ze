@@ -50,7 +50,7 @@ func checkRateFeed(name string, det *detector) ([]rpc.DoctorCheckDiagnostic, err
 	switch f.state {
 	case feedStateSeeing:
 		return nil, nil
-	case feedStateNoSample, feedStateZeroTraffic, feedStateNoInterface:
+	case feedStateExternal, feedStateNoSample, feedStateZeroTraffic, feedStateNoInterface:
 		return []rpc.DoctorCheckDiagnostic{{
 			Code:     diagnostic.CodeDoctorDDoSDetectBlind,
 			Severity: "warning",

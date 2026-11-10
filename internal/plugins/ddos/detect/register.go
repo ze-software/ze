@@ -6,7 +6,6 @@ import (
 	"os"
 	"sync/atomic"
 
-	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/trafficstat"
 	"github.com/ze-software/ze/internal/core/metrics"
@@ -84,25 +83,23 @@ func init() {
 }
 
 // warnIfExternal logs a warning when ddos-detect is not running in-process.
-// Both subscribe paths below (trafficstat.EnsureGlobal/SubscribeRates, and
-// the iface.SubscribeCollectNotify fallback when trafficstat is unavailable)
-// register a callback into a package-level subscriber list as a plain Go
+// The subscribe path below (trafficstat.EnsureGlobal/SubscribeRates)
+// registers a callback into a package-level subscriber list as a plain Go
 // function call, not through DirectBridge/DispatchCommand -- that only
 // reaches the real background tracker when this plugin shares process
-// memory with it. An external ddos-detect would silently never receive a
-// rate signal on either path, with no error anywhere.
+// memory with it. An external ddos-detect never receives a rate signal: its
+// own process's trafficstat service ticks over an empty interface list.
 //
 // Unlike traffic-usage/flow-export (which refuse to start entirely when
 // external, since their whole purpose depends on the same-process call
-// succeeding), ddos-detect already frames the trafficstat-unavailable case
-// as graceful degradation rather than a hard failure, so this warns rather
-// than refuses -- consistent with that existing severity framing, even
-// though the fallback path has the identical process-boundary problem.
+// succeeding), ddos-detect warns rather than refuses, and the
+// ddos-detect-rate-feed doctor check (blind.go) keeps reporting the cause
+// for as long as the detector stays armed.
 func warnIfExternal(isInternal bool) {
 	if isInternal {
 		return
 	}
-	logger().Warn("ddos-detect: running as an external plugin process -- neither the trafficstat subscription nor the iface rate-tracker fallback can reach the engine's real background tracker (both are same-process calls), so the detector will never receive a rate signal; configure ddos-detect to run internal")
+	logger().Warn("ddos-detect: running as an external plugin process -- the trafficstat subscription is a same-process call that cannot reach the engine's real background tracker, so the detector will never receive a rate signal; remove the `plugin { external ddos-detect { ... } }` block so ze runs ddos-detect internal")
 }
 
 func runEngine(conn net.Conn) int {
@@ -114,32 +111,28 @@ func runEngine(conn net.Conn) int {
 	defer func() { _ = p.Close() }()
 
 	var det *detector
-	var collectSubID int
 	var rateSubID int
 	// armed is the detector the doctor callback judges: the subscribed one, or
 	// nil while ddos detect is disabled. The callback runs on the SDK's own
 	// goroutine, so it reads this pointer and never det.
 	var armed atomic.Pointer[detector]
 
-	// subscribe wires the detector to the trafficstat service (preferred)
-	// or falls back to the raw iface tick, then arms the blind-feed watch
-	// (blind.go) and publishes the detector to the doctor callback.
+	// subscribe wires the detector to the trafficstat service, then arms the
+	// blind-feed watch (blind.go) and publishes the detector to the doctor
+	// callback.
 	//
 	// EnsureGlobal (not Global): the trafficstat service is created lazily and
-	// nothing else guarantees it exists at detector-config time, so Global()
-	// would almost always be nil here and we would silently fall back to the raw
-	// tick -- defeating the layering. EnsureGlobal makes the detector a real
-	// consumer of the shared usage service.
+	// nothing else guarantees it exists at detector-config time. EnsureGlobal
+	// creates it on first use, so it never answers nil.
+	internal := p.IsInternal()
 	subscribe := func(d *detector) {
-		if svc := trafficstat.EnsureGlobal(); svc != nil {
-			rateSubID = svc.SubscribeRates(d.onRates)
-			d.arm(feedTrafficstat)
-			log.Info("ddos-detect: enabled, subscribing to trafficstat")
-		} else {
-			collectSubID = iface.SubscribeCollectNotify(d.onRate)
-			d.arm(feedIfaceCounters)
-			log.Info("ddos-detect: enabled, subscribing to iface rate (trafficstat unavailable)")
+		svc := trafficstat.EnsureGlobal()
+		if svc == nil {
+			panic("BUG: trafficstat.EnsureGlobal returned no service")
 		}
+		rateSubID = svc.SubscribeRates(d.onRates)
+		d.arm(feedTrafficstat, internal)
+		log.Info("ddos-detect: enabled, subscribing to trafficstat")
 		armed.Store(d)
 	}
 
@@ -150,10 +143,6 @@ func runEngine(conn net.Conn) int {
 				svc.UnsubscribeRates(rateSubID)
 			}
 			rateSubID = 0
-		}
-		if collectSubID != 0 {
-			iface.UnsubscribeCollectNotify(collectSubID)
-			collectSubID = 0
 		}
 	}
 

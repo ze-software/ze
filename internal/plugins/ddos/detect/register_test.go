@@ -11,13 +11,12 @@ import (
 )
 
 // VALIDATES: warnIfExternal logs a warning exactly when ddos-detect is not
-// running in-process -- both its subscribe paths (trafficstat.EnsureGlobal/
-// SubscribeRates, and the iface.SubscribeCollectNotify fallback when
-// trafficstat is unavailable) register a callback into a package-level
-// subscriber list as a plain Go function call, which only reaches the real
-// background tracker when this plugin shares process memory with it. An
-// external ddos-detect would silently never receive a rate signal on either
-// path, with no error anywhere until this warning.
+// running in-process -- its subscribe path (trafficstat.EnsureGlobal/
+// SubscribeRates) registers a callback into a package-level subscriber list
+// as a plain Go function call, which only reaches the real background
+// tracker when this plugin shares process memory with it. An external
+// ddos-detect would silently never receive a rate signal, with no error
+// anywhere until this warning.
 // PREVENTS: an operator running `plugin { external ddos-detect { ... } }`
 // getting no indication that detection is permanently starved of input.
 func TestWarnIfExternal(t *testing.T) {

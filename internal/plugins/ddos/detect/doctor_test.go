@@ -81,8 +81,8 @@ type blindTestClock struct{ t time.Time }
 func (c *blindTestClock) now() time.Time { return c.t }
 
 // newBlindTestDetector builds an enabled detector whose window is
-// baselineWindow*checkInterval feed samples, armed on the trafficstat feed
-// under a test clock.
+// baselineWindow*checkInterval feed samples, armed in-process on the
+// trafficstat feed under a test clock.
 func newBlindTestDetector(t *testing.T, baselineWindow, checkInterval int) (*detector, *blindTestClock) {
 	t.Helper()
 	cfg := DefaultConfig()
@@ -93,7 +93,7 @@ func newBlindTestDetector(t *testing.T, baselineWindow, checkInterval int) (*det
 	d := newDetector(cfg, newDTestBus(), nil)
 	clock := &blindTestClock{t: time.Unix(1_000_000, 0)}
 	d.feed.now = clock.now
-	d.arm(feedTrafficstat)
+	d.arm(feedTrafficstat, true)
 
 	return d, clock
 }
@@ -206,7 +206,7 @@ func TestRateFeedNoInterfaceOnCounterPoll(t *testing.T) {
 	// VALIDATES: the interface counter poll fallback counts only interfaces
 	// with stats, so a poll of stat-less interfaces reads as no interface.
 	d, clock := newBlindTestDetector(t, 10, 1)
-	d.arm(feedIfaceCounters)
+	d.arm(feedIfaceCounters, true)
 	for range 10 {
 		clock.t = clock.t.Add(time.Second)
 		d.emitPending(d.tickInfos([]iface.InterfaceInfo{{Name: "eth0"}}))
@@ -241,6 +241,35 @@ func TestRateFeedNoSample(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, diags, 1)
 	assert.Contains(t, diags[0].Message, "received no sample")
+}
+
+func TestRateFeedExternalReportsCause(t *testing.T) {
+	// VALIDATES: an external ddos-detect reports that it runs external, with
+	// the config block to remove, from the moment it is armed. Its own
+	// process's trafficstat service ticks over an empty interface list, and
+	// those empty samples must not turn the finding into "no interface",
+	// which would send the operator to `ze show interface` on a box whose
+	// daemon lists its interfaces fine. Nor do they log a zero-run WARN:
+	// warnIfExternal already logged the cause.
+	buf := captureDetectLog(t)
+	d, clock := newBlindTestDetector(t, 10, 1)
+	d.arm(feedTrafficstat, false)
+
+	diags, err := checkRateFeed(rateFeedCheck, d)
+	require.NoError(t, err)
+	require.Len(t, diags, 1)
+	assert.Equal(t, diagnostic.CodeDoctorDDoSDetectBlind, diags[0].Code)
+	assert.Equal(t, "warning", diags[0].Severity)
+	assert.Contains(t, diags[0].Message, "runs as an external plugin process")
+	assert.Contains(t, diags[0].Message, "plugin { external ddos-detect { ... } }")
+
+	feedSamples(d, clock, 25, nil)
+	diags, err = checkRateFeed(rateFeedCheck, d)
+	require.NoError(t, err)
+	require.Len(t, diags, 1)
+	assert.Contains(t, diags[0].Message, "runs as an external plugin process")
+	assert.NotContains(t, diags[0].Message, "reported no interface")
+	assert.NotContains(t, buf.String(), "level=WARN", buf.String())
 }
 
 func TestRateFeedLogsEachEdgeOnce(t *testing.T) {

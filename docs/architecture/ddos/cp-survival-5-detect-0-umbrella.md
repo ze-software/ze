@@ -82,8 +82,8 @@ test drives announce and withdraw with no BGP session.
 ### A blind detector is a runtime doctor check over the rate feed
 
 The detector's input is the per-interface receive rate (`trafficstat`
-`SubscribeRates`, or `iface.SubscribeCollectNotify` when trafficstat is
-unavailable). `traffic-usage` and `flow-export` only characterize an attack
+`SubscribeRates`; `trafficstat.EnsureGlobal` creates the service on first use,
+so there is no second feed). `traffic-usage` and `flow-export` only characterize an attack
 after detection, so the config-time `ddos-detect-flow-source` check cannot see
 a dead rate feed. A feed with no traffic leaves `(*baseline).Ready` true, since
 it counts samples and not their values, and the threshold at the floor, so the
@@ -97,8 +97,11 @@ baseline is blind. The check is declared in the SDK registration
 (`ddos-detect-rate-feed`, code `doctor-ddos-detect-blind`) and answered by the
 plugin's `OnDoctorCheck` callback, as OSPF's `ospf-state` is, because only the
 running plugin holds the detector: a check in the daemon's registry runs in the
-daemon process and sees no detector when the plugin runs external. The finding
-is a warning, the log marks each edge once, and nothing latches: the first
+daemon process and sees no detector when the plugin runs external. An external
+plugin's own trafficstat service ticks over an empty interface list, so its
+samples would read as "no interface": `arm` records `p.IsInternal()`, and an
+external detector reports that it runs external, from the moment it is armed,
+with the config block to remove. The finding is a warning, the log marks each edge once, and nothing latches: the first
 sample with traffic clears it.
 <!-- source: internal/plugins/ddos/detect/blind.go -- feedWatch, observeFeed, rateFeedFinding -->
 <!-- source: internal/plugins/ddos/detect/doctor.go -- checkRateFeed, rateFeedCheckDecl -->

@@ -3,9 +3,8 @@
 // Related: doctor.go -- checkRateFeed turns a finding into a `ze doctor` warning
 // Related: register.go -- subscribe arms the watch and publishes the detector to the doctor callback
 //
-// The detector's only input is the per-interface receive rate: the trafficstat
-// service's rates, or the interface counter poll when trafficstat is
-// unavailable. The flow sources (traffic-usage, flow-export) only characterize
+// The detector's only input is the per-interface receive rate from the
+// trafficstat service. The flow sources (traffic-usage, flow-export) only characterize
 // an attack once it is detected. A feed that delivers nothing, or delivers
 // zeros, fills the baseline with zeros: `(*baseline).Ready` counts samples and
 // not their values, and the threshold falls to the absolute floor, so the
@@ -34,6 +33,11 @@ type feedWatch struct {
 	// which is the unarmed state rateFeedFinding refuses to judge.
 	name    string
 	armedAt time.Time
+	// external is true when the plugin runs as its own process. The feed is a
+	// same-process subscription, so such a detector only sees its own process's
+	// empty feed, and rateFeedFinding reports that cause rather than the empty
+	// samples it produces.
+	external bool
 	// lastSampleAt is when the feed last delivered a sample. Zero until the
 	// first sample, and then rateFeedFinding measures silence from armedAt.
 	lastSampleAt time.Time
@@ -56,6 +60,9 @@ const (
 	feedStateUnspecified feedState = iota
 	// feedStateUnarmed: the detector was never subscribed to a feed.
 	feedStateUnarmed
+	// feedStateExternal: the plugin runs as an external process, so the
+	// same-process feed subscription can never deliver a sample.
+	feedStateExternal
 	// feedStateSeeing: traffic arrived inside the last window.
 	feedStateSeeing
 	// feedStateNoSample: no sample arrived for a whole window.
@@ -75,12 +82,14 @@ type feedFinding struct {
 	window time.Duration
 }
 
-// arm records which feed subscribe wired the detector to, and starts the
-// silence clock. subscribe MUST call it after the subscription is made.
-func (d *detector) arm(feed string) {
+// arm records which feed subscribe wired the detector to and whether the
+// plugin runs in the daemon's process, and starts the silence clock. subscribe
+// MUST call it after the subscription is made.
+func (d *detector) arm(feed string, internal bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.feed.name = feed
+	d.feed.external = !internal
 	d.feed.armedAt = d.feed.now()
 }
 
@@ -100,6 +109,12 @@ func (d *detector) blindSamples() int {
 func (d *detector) observeFeed(maxPps, maxBps float64, ifaces int) {
 	d.feed.lastSampleAt = d.feed.now()
 	d.feed.ifaces = ifaces
+	if d.feed.external {
+		// The samples an external process sees are its own empty copy of the
+		// feed, not the box's traffic. warnIfExternal logged the cause at
+		// start, and rateFeedFinding reports it, so no zero-run edge is logged.
+		return
+	}
 
 	traffic := maxPps > 0 || maxBps > 0
 	if traffic {
@@ -141,6 +156,10 @@ func (d *detector) rateFeedFinding() feedFinding {
 		f.state = feedStateUnarmed
 		return f
 	}
+	if d.feed.external {
+		f.state = feedStateExternal
+		return f
+	}
 	last := d.feed.lastSampleAt
 	if last.IsZero() {
 		// No sample yet: the silence runs from the subscription.
@@ -167,13 +186,16 @@ func (d *detector) rateFeedFinding() feedFinding {
 // diagnostic and the WARN log line.
 func blindMessage(f feedFinding) string {
 	seconds := strconv.Itoa(int(f.window / time.Second))
-	// Only the three blind states carry a message; checkRateFeed and observeFeed send no other.
+	// Only the four blind states carry a message; checkRateFeed and observeFeed send no other.
 	//exhaustive:ignore
 	switch f.state {
+	case feedStateExternal:
+		return "ddos-detect is enabled but runs as an external plugin process, so it never receives the " +
+			f.feed + " (a same-process subscription) and cannot detect an attack." +
+			" Remove the `plugin { external ddos-detect { ... } }` block from the config so ze runs ddos-detect internal"
 	case feedStateNoSample:
 		return "ddos-detect is enabled but has received no sample from the " + f.feed +
-			" for " + seconds + "s, so it cannot detect an attack. Run as an external plugin process," +
-			" ddos-detect never receives the feed. Check the feed with: ze show interface rate"
+			" for " + seconds + "s, so it cannot detect an attack. Check the feed with: ze show interface rate"
 	case feedStateNoInterface:
 		return "ddos-detect is enabled but the " + f.feed + " has reported no interface for " + seconds +
 			"s (one baseline window), so it watches nothing and cannot detect an attack." +

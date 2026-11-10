@@ -590,18 +590,18 @@ degrades to a coarse generic-flood drop.
 <!-- source: internal/plugins/ddos/detect/doctor.go -- checkFlowSource -->
 
 Detection itself does not read the flow sources. Its input is the per-interface
-receive rate: the trafficstat rate feed, or the interface counter poll when
-trafficstat is unavailable. A rate feed that delivers nothing, or reports zero
+receive rate from the trafficstat rate feed. A rate feed that delivers nothing, or reports zero
 traffic, fills the baseline with zeros. The baseline then reads as ready, the
 threshold sits at `absolute-floor`, and the detector cannot trigger. When this
 lasts for one baseline window (`baseline-window` times `check-interval`
 seconds, 300 seconds by default), `ze doctor` reports `doctor-ddos-detect-blind`
 as a warning, and the log carries one WARN line at the onset and one INFO line
-when traffic returns. The warning names which of three cases it saw:
+when traffic returns. The warning names which case it saw:
 
 | Case | What to check |
 |------|---------------|
-| No sample from the feed for a whole window | `ze show interface rate`. ddos-detect run as an external plugin process never receives the feed |
+| ddos-detect runs as an external plugin process | Remove the `plugin { external ddos-detect { ... } }` block. The feed is a same-process subscription, so an external ddos-detect never receives it. This case is reported as soon as the detector is armed, with no window |
+| No sample from the feed for a whole window | `ze show interface rate` |
 | The feed reports no interface | `ze show interface` |
 | Zero received packets and bytes on every interface | `ze show interface rate`. An idle lab or standby router shows this legitimately |
 
