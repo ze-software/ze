@@ -3056,3 +3056,21 @@ the settled lime"; restored PASS (`capw/`). This is the mechanism the
 2026-08-24 poster row suspected; the earlier "signal: killed" runs here were
 the test's 30s budget expiring under heavy host load, not a browser fault (a
 cold agent-browser start takes 3.4s).
+
+## P-17 activity theme and P-19 web-config journey, on a working browser (2026-11-10)
+
+`TestActivityStyleUsesTheme` (`internal/le/site`, integration tag): PASS 8.2s.
+Break (overlay of `activitystyle.go`): the light-only literals `719171fbc9`
+replaced put back in `activityStyle`: FAIL "light card = rgba(255, 255, 255,
+0.74), theme surface rgb(255, 255, 255)", "light panel ...", "light ink =
+rgb(9, 17, 29), theme text rgb(23, 50, 71)".
+
+`test/web/recorded-config-save.wb` (`./le --name session test web 74`), the
+one authored journey validation and recording share since `553f9543af`: PASS
+42.3s. Break (overlay of the generated `component_diff_modal_templ.go`,
+reaching the daemon the web suite builds): the diff modal's Confirm Commit no
+longer posts, a break the retired Basic-auth validator could not see: FAIL
+78.6s, the `wait-until` on "Review changes (0)" exceeding the case deadline;
+restored PASS 42.7s. The in-page clearing of the commit bar after Confirm,
+the 2026-08-18 row's symptom, is not yet asserted, because the grammar's only
+wait reloads the page.
