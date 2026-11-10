@@ -54,3 +54,19 @@ rows, then `/ze-review` for the Review Gate and the two-commit closure.
   `83a985dce0`) fails `./le rfc check`'s file-naming rule.
 - Observer scripts for P-18 live in the job scratch
   `/home/thomas/.claude/jobs/03d43e18/tmp/p18obs/` (`lib.sh` with a subreaper).
+
+## Update, later on 2026-11-10
+
+Decisions 3 and 8 were answered by the spec's own walk method for guards that
+read their source from disk (an in-place edit, restored from a saved copy with
+its hash checked): the three lint-contract rows, the 2026-08-30 site goconst
+row and the 2026-09-07 launcher row are closed on in-place reds (evidence
+sections "Fixed lint members proved red in place" and "The root launchers exec
+their binary"). The browser was never broken: headless Chrome works here, so
+P-13's capture, P-17's theme and P-19's web-config journey are proved, and the
+2026-08-18 and 2026-08-24 rows are closed (the web-config commit bar is now
+asserted in place with `action=wait-html`).
+
+Still waiting on Thomas: decisions 1, 2, 4, 5, 6, 7 and 9. Owned rows still
+open: helper-bypassed 2026-11-02 (2), container-cannot-see 2026-10-21 (4),
+gate-red 2026-10-05 pluginOwnershipGate (9).
