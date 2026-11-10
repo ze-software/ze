@@ -3526,3 +3526,25 @@ branch, hashes the working-tree file instead of the snapshot object. Red: "the
 review identity is not the earlier block's snapshot: recorded 543d21fe...,
 snapshot 2d5a7702..., working-tree file 543d21fe...". Restored ok. With the
 hunks test above, both review routes carry the "nor enter review" clause.
+
+## Re-audit: P-18 phases observed clean only, and the hugepages running phase (2026-11-10)
+
+The same observers break the three phases recorded clean only before. Each
+break starts its child with `exec.Command` and `Setpgid` alone, outside the
+shared owner (`runner.StartServerProcess`, the context and group kill), and
+abandons it on cancel. The hugepages running phase was unobservable because
+the run finished before the old READY marker appeared. The new marker is
+the memory-query `sshpass` itself: a holder SIGSTOPs it the moment it appears,
+and only when it is a descendant of the entry. That keeps le inside the
+running phase while the guest answers.
+
+| Route, phase | Clean | Break | Red |
+| --- | --- | --- | --- |
+| `./le test qemu docker-lab`, build (the guest ze compile) | recorded earlier: leaks 0 | the compile runs outside admission and the owner | leaks 2 |
+| `./le test qemu vpp-hugepages`, image (`ze appliance build`) | recorded earlier: leaks 0, no container left | the build verb starts outside the owner | leaks 2; no new container (`docker ps -a` before and after) |
+| same, startup (QEMU booting the appliance) | recorded earlier: leaks 0 | QEMU starts outside the owner and is never joined | leaks 1 (the QEMU process) |
+| same, running (the guest answering `show host memory`) | exit 1, leaks 0, orphans 0, the held query killed by its owner (`held=owner-killed`) | same | leaks 1 (the QEMU process) |
+
+No QEMU process from these runs remained afterwards. With the earlier P-18
+sections, every native-entry phase that the observers can reach now has a
+clean leg and a red leg.
