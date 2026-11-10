@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | 1/1 — implementation steps 2–4; verification owned by main |
 | Handoff | - |
-| Updated | 2026-11-02 |
+| Updated | 2026-11-09 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -254,4 +254,130 @@ Both source treatments still await the parent's scoped lint and tests.
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
-- [ ] `./le go lint run scope "<the five packages>"` zero; `./le job run label bgp-engine command go test -race -tags ze_bgp <the five packages>`. Full-run evidence belongs to the umbrella's CI run.
+- [ ] `./le go lint run scope "<the five packages>"` zero; `./le job run label bgp-engine command go test -race -tags ze_bgp <the five packages>`, the five-package subset of `./le test unit bgp`. Full-run evidence belongs to the umbrella's CI run.
+
+## Implementation Summary
+
+### What Was Implemented
+- `d4b29e9b58` (this spec) cleared the 24 sites still open at the source audit. Mechanical: `cli/register.go` `bgpModeOffline` (goconst); `slices.Contains`/`ContainsFunc` in `config/external_filters.go` `checkFilterDeclarations`, `config/templated_chain.go` `checkTemplatedMember`, `policychain/sets.go` `Sets.removesCommunity` and `policychain/sets_attributes.go` `valueList.removes`; `reflect.TypeAssert` in `config/dynamic_group_parity_test.go`; `matchWalk` moved above its methods in `policychain/match.go` (typeDefFirst); one `append` in `external_intents_test.go` `labeledReach`; `policychain/prefix_overlay.go` `Chain.dropMPReach` appends onto its own local (appendAssign) and still writes `*buf = out` only after `wireu.DropCIDREntries` succeeds; US spellings in comments of `chain.go`, `external.go`, `sets.go`, `reactor_iface_test.go` and `redistribute/consumer.go`.
+- errcheck (test files): the early-completion branches in `forward_pool_barrier_test.go` and `peer_run_test.go` now print the received error; five cleanup or deliberate-failure joins carry `//nolint:errcheck // <reason>`.
+- gosec G302: `reactor/capture_replay.go` `sessionCapture.openFile` keeps `captureFilePerm` (0o640) under a reasoned `//nolint:gosec`; no permission changed.
+- Sites cleared before this spec's commit, by other commits: `5c1aea079c` (21 reactor goimports, misspell, modernize and gocritic sites), `37a296ead9` (the two `nilerr` sites: `filter_nlri_delta.go` `nlriSectionOf` returns the MP parse error), `4abd85f6f9` (the ten `exhaustive` switches carry an empty `//exhaustive:ignore` with the reason on the line above).
+
+### Bugs Found/Fixed
+- `nlriSectionOf` read a malformed MP_REACH_NLRI or MP_UNREACH_NLRI as an absent section (the `nilerr` pair). Fixed red-first in `37a296ead9`: `TestNLRISectionOfMalformedMPIsError`, `TestNLRIDeltaRefusesMalformedMPChange` and `TestLibraryNLRIOpsRefusesStripOverMalformedMP` (`internal/component/bgp/reactor/nlri_section_test.go`) failed with the producer reverted by overlay, per that commit's body.
+- No other finding was a product defect: the errcheck sites are test channel receives, and G302 is an intended group-read mode.
+
+### Documentation Updates
+- None. The diff changes no behavior a page states: comment spellings, equivalent rewrites and lint annotations. Pages anchored to the changed files (`docs/architecture/bgp/protocol-event-capture.md`, `docs/architecture/core-design.md`, `docs/guide/redistribution.md` and others) name symbols the diff did not rename, and no page states the capture file mode (grep `0640` in `protocol-event-capture.md`: no hit).
+
+### Deviations from Plan
+- Step 1 (scoped lint before the fixes) did not run: server restarts interrupted the baseline, and the parent authorized steps 2-4 from the CI list ("Source audit and execution boundary" above).
+- 29 of the 53 sites were cleared by the three commits named above, not by this spec's commit.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1: the saved CI list described current source | 29 of 53 sites were already addressed by other commits | Source audit before implementation | Patched only the 24 open sites |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| goconst, modernize, misspell, gocritic sites in cli, config, policychain, redistribute | Done | `d4b29e9b58` | listed in What Was Implemented |
+| reactor goimports, misspell, modernize, gocritic sites | Done | `5c1aea079c`, `d4b29e9b58` | |
+| errcheck (8) | Done | `d4b29e9b58` test files | 3 print the error, 5 reasoned nolint |
+| nilerr (2) | Done | `37a296ead9` `nlriSectionOf` | real defect, red-first |
+| gosec G302 (1) | Done | `capture_replay.go` `sessionCapture.openFile` | reasoned nolint |
+| exhaustive (10) | Done | `4abd85f6f9` | reason above each directive |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | main thread 2026-11-10, `./le go lint run scope` over the five engine trees: exit 0, 0 issues in host, GOOS=linux integration and capability flavors (log `tmp/session/2026-11-09-222501/scratch/job-lint1-bb6c2f72.log`) | after the `atomicity_test.go` fix of Review Gate finding 1 |
+| AC-2 | Done, one foreign known red | main thread 2026-11-09, `./le job run label lint1-race quiet command go test -race -count=1 -tags "ze_core <every ze_* tag>"` over the five package trees (log `tmp/session/2026-11-09-222501/scratch/job-lint1-race-dbedcdc1.log`): ok reactor/loopdetect, policychain, config, cli, cli/yang, redistribute; reactor FAIL on `TestOrdinaryRefreshDoesNotDoublePrepend` alone | that test is the deliberate red of `plan/release/fixes/spec-bgp-refresh-reapplies-export-policy.md` (ready), added in `1e65b6d4bb`, journal `plan/journal/non-idempotent-append-duplicates-the-record.md` row of 2026-11-06; the lint-only edits do not reach it |
+| AC-3 | Done | each new `//nolint` names its linter and reason; each `//exhaustive:ignore` has its reason on the line above | read at every site |
+| AC-4 | Done | `nlri_section_test.go`, three tests red-first in `37a296ead9` | the only real defect |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Existing package tests | Done | `internal/component/bgp/{reactor,policychain,config,cli,redistribute}` | AC-2: all pass except the foreign known red `TestOrdinaryRefreshDoesNotDoublePrepend` |
+| Red-first test per real defect | Done | `internal/component/bgp/reactor/nlri_section_test.go` | AC-4 |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Task-table files | Done | 18 in `d4b29e9b58`, the rest in the commits named above |
+
+### Audit Summary
+- **Total items:** 6 requirements, 4 ACs
+- **Done:** 6 requirements, AC-1 to AC-4 (AC-2 with one foreign known red)
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0 (the step-order deviation is recorded)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Clear the CI lint findings in the five BGP engine packages | scoped lint | 0 issues over the five trees in every flavor, 2026-11-10 (log `job-lint1-bb6c2f72.log`) |
+| Keep wire and FSM behavior unchanged | package race tests | tagged race run 2026-11-09 green except the foreign known red `TestOrdinaryRefreshDoesNotDoublePrepend` (owned by `plan/release/fixes/spec-bgp-refresh-reapplies-export-policy.md`); red-first proof of the one behavior change in `37a296ead9` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| None | - | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/lint-backlog-1-bgp-engine-49da3d3d-44f5-443f-bc7a-73b9535a17f9.md` (the 18 files of `d4b29e9b58` and `policychain/atomicity_test.go`) |
+| `./le spec review check` | clean: 19 code files, hashes match |
+| Rounds | 2 |
+| Reviewer lenses used | logic and removed-behavior (each rewrite equivalent; `dropMPReach` still publishes the scratch buffer only on success), test proof (no assertion dropped; `./le test weakened check base d4b29e9b58~1` clean), security (G302 scope, no peer-reachable panic, no new hot-path allocation), style pass over every changed Go file |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | Run 1: 0 BLOCKER, 0 ISSUE | - | - |
+| 1 | ISSUE | The scoped lint (main thread 2026-11-09, log `tmp/session/2026-11-09-222501/scratch/job-lint1-bb6c2f72.log`) reported 4 findings in `policychain/atomicity_test.go`, which came in with `19237e47d8` after `d4b29e9b58`: gocritic dupOption on the three `atomicChain(t, prior, failed, failed, failed, gate)` calls, and exhaustive on the `attribute.AttributeCode` switch in `TestChainFailOpenMergeAtomicity` | `atomicity_test.go` | new helper `atomicFailureChain` builds the same five members in the same order (`slices.Repeat` of the one failing member, three times); the switch takes an empty `//exhaustive:ignore` with its reason on the line above. No assertion changed: `len(sets.Failures()) != 3` and the 17-operation count stay |
+
+### Run 2
+Scope: the `atomicity_test.go` edit only. 0 BLOCKER, 0 ISSUE. The chain still holds prior, three runs of the same failing member and gate, named a to e as before, so the failures still reuse the alternating overlay buffers the tests exist to exercise. `./le test weakened check` reports no finding for the file; its one finding, `internal/le/interoplab/bgp/check_local_pref_wire_test.go`, belongs to another session.
+
+NOTE 1: golangci's errcheck does not usually report a bare channel receive; if the scoped lint reports an unused `nolint` directive at those five sites, the directive goes. NOTE 2: `./le repo check` reports one foreign issue, `internal/test/dhcpprobe/step.go` (number-parse allowlist), outside this spec.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/bgp/reactor/nlri_section_test.go` | Yes | holds the three AC-4 tests (grep) |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-3 | every annotation reasoned | the ten `//exhaustive:ignore` sites each carry a reason comment on the line above (read 2026-11-09) |
+| AC-4 | nilerr fixed | `nlriSectionOf` returns `source, err` when `MPReach` or `MPUnreach` fails (`filter_nlri_delta.go`, read 2026-11-09) |
+| AC-1 | zero findings | scoped lint exit 0, 0 issues, 2026-11-10 (log `tmp/session/2026-11-09-222501/scratch/job-lint1-bb6c2f72.log`); policychain race rerun after the test fix ok (log `tmp/session/2026-11-09-222501/scratch/job-lint1-pc-8231c91d.log`) |
+| AC-2 | race tests pass | main thread run 2026-11-09, log `tmp/session/2026-11-09-222501/scratch/job-lint1-race-dbedcdc1.log`: all pass except foreign known red `TestOrdinaryRefreshDoesNotDoublePrepend` (`refresh_prepend_double_test.go`, from `1e65b6d4bb`) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le go lint run scope` over the five packages | none (lint run) | Yes: 0 issues, 2026-11-10 |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken | 29 sites already addressed; Mistake Log row |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| No page changes | anchored pages name unchanged symbols; no page states the capture mode | Yes |

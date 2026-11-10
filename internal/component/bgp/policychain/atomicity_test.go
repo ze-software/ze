@@ -26,6 +26,15 @@ func atomicChain(t *testing.T, evaluators ...Evaluator) *Chain {
 	return chain
 }
 
+// atomicFailureChain is atomicChain over prior, then three runs of the same
+// failing member, then gate: repeating one failure makes the three failures
+// reuse the alternating overlay buffers before gate reads what survived.
+func atomicFailureChain(t *testing.T, prior, failed, gate Evaluator) *Chain {
+	t.Helper()
+	evaluators := slices.Concat([]Evaluator{prior}, slices.Repeat([]Evaluator{failed}, 3), []Evaluator{gate})
+	return atomicChain(t, evaluators...)
+}
+
 func atomicRead(t *testing.T, view *policyview.View, field policy.Field) policyview.Value {
 	t.Helper()
 	reader, err := policyview.ReaderFor(field)
@@ -87,7 +96,7 @@ func TestChainFailOpenMergeAtomicity(t *testing.T) {
 		}
 		return DecisionPass, sets.MED(NumericActionSet, 77)
 	}
-	chain := atomicChain(t, prior, failed, failed, failed, gate)
+	chain := atomicFailureChain(t, prior, failed, gate)
 	var view policyview.View
 	var sets RunSets
 	view.Reset(update(t, localPref(100)), policyview.Session{}.WithImportMetadata(meta))
@@ -99,6 +108,9 @@ func TestChainFailOpenMergeAtomicity(t *testing.T) {
 	ops := applied(t, sets.Folded(), Current{})
 	var gotCommunity []byte
 	for _, op := range ops {
+		// Only the three attributes the members set carry a value to check; the
+		// operation count below pins how many operations the fold applied.
+		//exhaustive:ignore
 		switch attribute.AttributeCode(op.Code) {
 		case attribute.AttrCommunity:
 			gotCommunity = append(gotCommunity, op.Buf...)
@@ -216,7 +228,7 @@ func TestChainFailOpenOverlayAtomicity(t *testing.T) {
 				}
 				return DecisionPass, sets.MED(NumericActionSet, 77)
 			}
-			chain := atomicChain(t, prior, failed, failed, failed, gate)
+			chain := atomicFailureChain(t, prior, failed, gate)
 			meta := map[string]any{"rebuilt": false}
 			var view policyview.View
 			var sets RunSets
@@ -282,7 +294,7 @@ func TestChainFailOpenIntentMergeAtomicity(t *testing.T) {
 		}
 		return DecisionPass, sets.DropNLRI(NLRISectionAnnounce, 0)
 	}
-	chain := atomicChain(t, prior, failed, failed, failed, gate)
+	chain := atomicFailureChain(t, prior, failed, gate)
 	outcome, sets := run(t, chain, prefixUpdate(t, body, nil))
 	if outcome.Action != OutcomeAccept || len(sets.Failures()) != 3 {
 		t.Fatalf("outcome=%+v failures=%v", outcome, sets.Failures())
