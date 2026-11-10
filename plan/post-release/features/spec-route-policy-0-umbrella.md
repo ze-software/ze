@@ -2,32 +2,35 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | verification |
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | New capability: a protocol-neutral route policy and a gate on every source entering the Loc-RIB. No shipped behavior is defective without it; the two defects it owns (journal rows below) are post-release quality, not release blockers. |
 | RFC gaps | - |
 | Depends | `spec-fixit-redistribution-chain-drops-silently` (closed 2026-10-31; phase 3 needs a working redistribution chain to prove anything); `plan/release/fixes/spec-single-owner-reload-reconcile.md` (its AC-9 tests the redistribute evaluator phase 3 replaces); phase 4 sequenced with `spec-filter-wire-0-umbrella`, which implemented it and is closing |
 | Phase | 4/4 (phases 1-3 landed and reviewed clean after three rounds; phase 4 is the filter-wire redesign, which `spec-filter-wire-0-umbrella` implemented to the owner's two-path, parse-on-demand requirements, A-6 confirmed, and is closing) |
-| Handoff | - |
+| Handoff | verify |
 | Updated | 2026-11-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-## Blocker
+## Closure recovery
 
-Closure stopped at the RFC freshness check on 2026-11-10. The main thread ran
-`./le rfc check`: exit 1, 133 violations across the repository. The relevant
-failure is the STALE audit for `RFC3101-2.4-5`, whose function-scoped pin names
-`internal/le/interoplab/bgp/check_rfc.go` `checkNSSADefault`. This spec changed
-that RFC's evidence in `4ed13dbde3`; the current audit no longer pins the current
-producer. The check also reports SHIFTED verdicts for `RFC3101-2.3-3` and
-`RFC3101-x-3`.
+The 2026-11-10 closure attempt found a stale `RFC3101-2.4-5` audit and shifted
+`RFC3101-2.3-3` and `RFC3101-x-3` verdicts. A separate audit phase re-read RFC
+3101 Sections 2.4 and 2.7, all seven tagged units, and their producers.
 
-An implementation phase must re-judge the affected evidence against the current
-producer and refresh the required records. Closure checks those records; it
-does not author them. A subsequent RFC check must confirm freshness before
-closure resumes. No runtime failure is inferred from this stale audit.
+The default-origination verdict remains enforced. `checkNSSADefault` retains
+the selected, installed OSPF default assertion through `requireRouteInstalledVia`.
+Its added first-epoch capture preserves failure through `errors.Join`; removing
+Docker's competing default restores the test topology without weakening that
+assertion. `applyNSSADefaults` and `OriginateSummaries` still supply the regular
+and no-summary default paths that the unit tests assert.
+
+The main thread stamped the rejudgment and resealed both shifted verdicts, with
+zero reseal refusals. These are source-audit updates, not new runtime or mutation
+results. No code or test expectation changed. The fresh closure context checks
+these records with the main-thread RFC check before continuing.
 
 The closure review and closing commits have not run. The next pass also needs
 these record reconciliations:
@@ -51,7 +54,7 @@ these record reconciliations:
 
 | Kind | What happened | What was true instead | How discovered | Action |
 |------|---------------|----------------------|----------------|--------|
-| approach | Earlier RFC audit evidence was assumed sufficient for closure | The current producer no longer matches the RFC3101-2.4-5 audit pin | Main-thread RFC check on 2026-11-10 | Return the stale audit to implementation; keep the spec open |
+| approach | Earlier RFC audit evidence was assumed sufficient for closure | The changed interop checker no longer matched the RFC3101-2.4-5 audit pin | Main-thread RFC check on 2026-11-10 | Separate audit phase re-judged the seven tagged units; main thread stamped the verdict and resealed shifted records |
 
 ## Task
 
