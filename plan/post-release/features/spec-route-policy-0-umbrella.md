@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Scope | protocol |
 | Priority | P3 |
 | Release reason | New capability: a protocol-neutral route policy and a gate on every source entering the Loc-RIB. No shipped behavior is defective without it; the two defects it owns (journal rows below) are post-release quality, not release blockers. |
@@ -10,9 +10,48 @@
 | Depends | `spec-fixit-redistribution-chain-drops-silently` (closed 2026-10-31; phase 3 needs a working redistribution chain to prove anything); `plan/release/fixes/spec-single-owner-reload-reconcile.md` (its AC-9 tests the redistribute evaluator phase 3 replaces); phase 4 sequenced with `spec-filter-wire-0-umbrella`, which implemented it and is closing |
 | Phase | 4/4 (phases 1-3 landed and reviewed clean after three rounds; phase 4 is the filter-wire redesign, which `spec-filter-wire-0-umbrella` implemented to the owner's two-path, parse-on-demand requirements, A-6 confirmed, and is closing) |
 | Handoff | - |
-| Updated | 2026-10-31 |
+| Updated | 2026-11-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Blocker
+
+Closure stopped at the RFC freshness check on 2026-11-10. The main thread ran
+`./le rfc check`: exit 1, 133 violations across the repository. The relevant
+failure is the STALE audit for `RFC3101-2.4-5`, whose function-scoped pin names
+`internal/le/interoplab/bgp/check_rfc.go` `checkNSSADefault`. This spec changed
+that RFC's evidence in `4ed13dbde3`; the current audit no longer pins the current
+producer. The check also reports SHIFTED verdicts for `RFC3101-2.3-3` and
+`RFC3101-x-3`.
+
+An implementation phase must re-judge the affected evidence against the current
+producer and refresh the required records. Closure checks those records; it
+does not author them. A subsequent RFC check must confirm freshness before
+closure resumes. No runtime failure is inferred from this stale audit.
+
+The closure review and closing commits have not run. The next pass also needs
+these record reconciliations:
+
+- AC-12, AC-13 and AC-14 status cells and their test-table cells are superseded
+  by the Phase 3 record below.
+- AC-17 can use the committed filter-wire closure at `0c3c86b319`, including
+  its BGP policy interop green/red/green evidence; reconcile the complete
+  promised functional population before marking it complete.
+- The owned `ze:filter` journal row is already fixed in code:
+  `policy.BuildRegistry` reads `config.ListNode.Filter`, which
+  `config.hasFilterExtension` supplies. Record the implementation provenance
+  when resolving that row.
+- AC-2's Ze syntax migration was removed by `e396a2e360` under the owner's
+  pre-release config decision. Reconcile its retired tests as changed scope
+  under that decision, not missing implementation.
+- Repoint the `Design` headers in `policy/fields.go` and `policy/rib.go` to
+  durable architecture documentation before removing this spec.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Earlier RFC audit evidence was assumed sufficient for closure | The current producer no longer matches the RFC3101-2.4-5 audit pin | Main-thread RFC check on 2026-11-10 | Return the stale audit to implementation; keep the spec open |
 
 ## Task
 
