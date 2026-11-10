@@ -1,8 +1,10 @@
 // VALIDATES: the error-wrap gate refuses a changed fmt.Errorf whose literal
 // segments repeat one the wrapped error already carries, one call away, two
-// calls away and through local function literals, names both sites, leaves a
-// wrap that adds new context alone, judges only changed lines, and counts the
-// wrap whose producer arrives as a function value instead of passing it.
+// calls away, through local function literals and through a function
+// parameter to the values its callers pass, compares a segment's verbs as one
+// mark, names both sites, leaves a wrap that adds new context alone, judges
+// only changed lines, and counts the wrap whose producer it cannot name in
+// full instead of passing it.
 // PREVENTS: an operator reading "reload: parse config: parse config: ...".
 package archerrorwrap
 
@@ -131,10 +133,11 @@ func TestErrorWrapRefusesThroughLocalLiterals(t *testing.T) {
 }
 
 // TestErrorWrapCountsAFunctionValueItCannotTrace proves the check says so
-// when it cannot look: Reload's loader arrives as a parameter, so the syntax
-// names no producer, and the wrap is counted as untraced rather than
-// reported clean in silence. This is the shape of the hub's real reload,
-// whose load function is a parameter four calls from its construction.
+// when it cannot look all the way: Reload's loader arrives as a parameter of
+// an exported function, which another package may call with a loader this
+// package never sees, so the wrap is counted as untraced rather than reported
+// clean in silence. The caller the package does hold, Run passing
+// loader.Parse, is still followed, and its repeated segment is still found.
 func TestErrorWrapCountsAFunctionValueItCannotTrace(t *testing.T) {
 	report := checkHub(t, "funcparam", wholeFile)
 	if report.Wraps != 1 {
@@ -145,6 +148,59 @@ func TestErrorWrapCountsAFunctionValueItCannotTrace(t *testing.T) {
 	}
 	if !strings.Contains(report.Text(), "1 whose wrapped error could not be traced") {
 		t.Fatalf("text does not count the untraced wrap:\n%s", report.Text())
+	}
+	want := Findings{{
+		File: "hub/hub.go", Line: 14, Fn: "Reload", Segment: "parse config",
+		OriginFile: "loader/loader.go", OriginLine: 13, OriginFn: "Parse",
+	}}
+	if !slices.Equal(report.Findings, want) {
+		t.Fatalf("findings = %+v, want %+v", report.Findings, want)
+	}
+}
+
+// TestErrorWrapRefusesThroughAFunctionParameterChain is the hub reload's
+// shape: runReload calls its parameter load, whose value is a literal that
+// loaders builds and returns as its second result, Run binds, and three
+// unexported functions hand down. The trace follows the parameter to every
+// in-package caller's argument and finds loader.Parse's segment. runCheck,
+// fed the same loader, adds a segment nothing below writes and is no finding,
+// and with every caller in the package named, no wrap is untraced.
+func TestErrorWrapRefusesThroughAFunctionParameterChain(t *testing.T) {
+	report := checkHub(t, "paramchain", wholeFile)
+	want := Findings{{
+		File: "hub/hub.go", Line: 66, Fn: "runReload", Segment: "parse config",
+		OriginFile: "loader/loader.go", OriginLine: 13, OriginFn: "Parse",
+	}}
+	if !slices.Equal(report.Findings, want) {
+		t.Fatalf("findings = %+v, want %+v", report.Findings, want)
+	}
+	if report.Wraps != 2 {
+		t.Fatalf("wraps judged = %d, want 2", report.Wraps)
+	}
+	if report.Untraced != 0 {
+		t.Fatalf("untraced = %d, want 0: every caller of the chain is in the package", report.Untraced)
+	}
+}
+
+// TestErrorWrapRefusesARepeatedVerbPrefix is the config validate shape: the
+// parser writes "line %d: ..." and the renderer wraps it in "line %d: parse
+// config: %w". Verbs compare as one mark, so the repeat is found and shown
+// as "line %v". Open's "file %s" is a different segment and no finding, and
+// Name's bare "%s" names no word, so it is not judged at all.
+func TestErrorWrapRefusesARepeatedVerbPrefix(t *testing.T) {
+	report := checkHub(t, "verbprefix", wholeFile)
+	want := Findings{{
+		File: "hub/hub.go", Line: 14, Fn: "Validate", Segment: "line %v",
+		OriginFile: "loader/loader.go", OriginLine: 9, OriginFn: "Parse",
+	}}
+	if !slices.Equal(report.Findings, want) {
+		t.Fatalf("findings = %+v, want %+v", report.Findings, want)
+	}
+	if report.Wraps != 2 {
+		t.Fatalf("wraps judged = %d, want 2: Validate and Open, not Name", report.Wraps)
+	}
+	if !strings.Contains(report.Text(), `"line %v"`) {
+		t.Fatalf("text does not show the verb as %%v:\n%s", report.Text())
 	}
 }
 
@@ -186,8 +242,9 @@ func TestModulePathReadsGoMod(t *testing.T) {
 }
 
 // TestFormatSegments proves which parts of a format string are segments: the
-// literal colon-terminated parts before the first %w, and for a format with
-// no %w its verb-free parts.
+// colon-terminated parts before the first %w, and for a format with no %w all
+// its parts, each holding a word, with every verb written as one mark so
+// `line %d` and `line %5d` are the same segment.
 func TestFormatSegments(t *testing.T) {
 	cases := []struct {
 		format   string
@@ -196,13 +253,16 @@ func TestFormatSegments(t *testing.T) {
 	}{
 		{"reload: parse config: %w", []string{"reload", "parse config"}, []int{0}},
 		{"parse config: %w\n\n%s", []string{"parse config"}, []int{0}},
-		{"peer %s: parse config: %w", []string{"parse config"}, []int{1}},
+		{"peer %s: parse config: %w", []string{"peer \x00", "parse config"}, []int{1}},
 		{"failed %w", nil, []int{0}},
 		{"%w", nil, []int{0}},
-		{"line %d: unknown keyword %q", nil, nil},
+		{"line %d: unknown keyword %q", []string{"line \x00", "unknown keyword \x00"}, nil},
+		{"line %5d: parse config: %w", []string{"line \x00", "parse config"}, []int{1}},
 		{"read config: no file", []string{"read config", "no file"}, nil},
 		{"100%% done: %w", []string{"100% done"}, []int{0}},
-		{"%*d of %d: %w", nil, []int{3}},
+		{"%*d of %d: %w", []string{"\x00 of \x00"}, []int{3}},
+		{"%s: %w", nil, []int{1}},
+		{"%d/%d: %w", nil, []int{2}},
 	}
 	for _, tc := range cases {
 		form, parsed := parseFormat(tc.format)

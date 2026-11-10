@@ -5,16 +5,22 @@ package archerrorwrap
 
 import (
 	"strings"
+	"unicode"
 )
 
 // segmentSeparator is what joins one layer's context to the next in a Go
 // error chain: `reload: parse config: line 3`.
 const segmentSeparator = ": "
 
-// verbMark stands in for a formatting verb in the literal text, so a segment
-// holding one (`line %d`) is told apart from a literal one. No format string
-// in Go source carries a NUL byte, which is why it is the mark.
+// verbMark stands in for a formatting verb in the literal text. Every verb,
+// whatever its letter, flags and width, becomes the same mark, so `line %d`
+// and `line %5v` are one segment: what an operator reads twice is the words
+// around the value, and two layers that each write `line N: ` repeat it. No
+// format string in Go source carries a NUL byte, which is why it is the mark.
 const verbMark = '\x00'
+
+// verbShown is how a segment's verb mark is written for a reader.
+const verbShown = "%v"
 
 // verbModifiers are the bytes that may sit between `%` and the verb letter:
 // flags, width, precision, `*` and an explicit argument index.
@@ -22,14 +28,15 @@ const verbModifiers = "+-# 0123456789.*["
 
 // format is what one format string says about the error it builds.
 type format struct {
-	// outer is the literal segments before the first %w, in order. Each one is
-	// a whole part ending in ": " that holds no verb.
+	// outer is the segments before the first %w, in order. Each one is a
+	// whole part ending in ": ", its verbs normalised to verbMark
+	// (literalSegments says which parts count).
 	outer []string
 	// wrapped is the operand index of each %w verb, counted from the first
 	// operand after the format string.
 	wrapped []int
-	// whole is the verb-free segments of a format with no %w: an error that
-	// wraps nothing carries its whole text.
+	// whole is the segments of a format with no %w, verbs normalised the same
+	// way: an error that wraps nothing carries its whole text.
 	whole []string
 }
 
@@ -101,8 +108,11 @@ func messageSegments(text string) []string {
 	return literalSegments(strings.Split(text, segmentSeparator))
 }
 
-// literalSegments keeps the parts that are literal text, trimmed: an empty
-// part, or one holding a verb, names nothing an operator could read twice.
+// literalSegments keeps the non-empty parts, trimmed, and of those holding a
+// verb only the ones that also hold a letter or a digit. A verb part with
+// neither (a lone verb as in `%s: %w`, `%d/%d`) names no context of its own:
+// two such parts match whatever values they print, so comparing them would
+// refuse every wrap that leads with a value.
 func literalSegments(parts []string) []string {
 	var segments []string
 	for _, part := range parts {
@@ -111,9 +121,24 @@ func literalSegments(parts []string) []string {
 			continue
 		}
 		if strings.IndexByte(segment, verbMark) >= 0 {
-			continue
+			if !strings.ContainsFunc(segment, wordRune) {
+				continue
+			}
 		}
 		segments = append(segments, segment)
 	}
 	return segments
+}
+
+// wordRune reports whether r is part of a word an operator reads.
+func wordRune(r rune) bool {
+	if unicode.IsLetter(r) {
+		return true
+	}
+	return unicode.IsDigit(r)
+}
+
+// shownSegment writes a segment for a reader, each verb mark as %v.
+func shownSegment(segment string) string {
+	return strings.ReplaceAll(segment, string(verbMark), verbShown)
 }

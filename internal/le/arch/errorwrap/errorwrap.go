@@ -1,6 +1,7 @@
 // Design: docs/contributing/ze-go-style.md -- an error carries each prefix once, checked on changed code
 // Related: format.go -- the segments a format string writes
 // Related: resolve.go -- naming the function a wrapped error came from
+// Related: funcvalue.go -- the functions a called name can hold
 // Related: report.go -- the check's answer
 //
 // errorwrap.go finds the wrap that says again what its error already says:
@@ -20,8 +21,11 @@
 // the assignment that bound it, to the call that produced it, to that
 // callee's return statements, and on through every error a return passes up
 // unwrapped, collecting each segment some constructor on the way writes
-// (fmt.Errorf, errors.New). A wrap whose own segment is among them is a
-// finding.
+// (fmt.Errorf, errors.New). A called name that holds a function value is
+// followed to the values it can hold, through a function parameter to the
+// arguments its callers pass (funcvalue.go). A segment's verbs compare as one
+// mark, so `line %d: ` repeated is a repeat. A wrap whose own segment is
+// among them is a finding.
 
 package archerrorwrap
 
@@ -201,7 +205,7 @@ func (ix *index) sites(pkg *goPackage, file *sourceFile) []site {
 			if funcDecl.Body == nil {
 				continue
 			}
-			fn = &funcRef{name: funcName(funcDecl), pkg: pkg, file: file, body: funcDecl.Body}
+			fn = declaredRef(pkg, file, funcDecl)
 		}
 		found = ix.collect(fn, decl, found)
 	}
@@ -270,7 +274,7 @@ func (ix *index) judge(wrap site) (Findings, bool, error) {
 			File:       wrap.fn.file.rel,
 			Line:       wrap.line,
 			Fn:         wrap.fn.name,
-			Segment:    segment,
+			Segment:    shownSegment(segment),
 			OriginFile: at.File,
 			OriginLine: at.Line,
 			OriginFn:   at.Fn,
@@ -284,7 +288,9 @@ type trace struct {
 	ix   *index
 	held carried
 	// untraced says the wrap's own operand reached a producer the syntax
-	// cannot name: a function value, an interface method, a parameter.
+	// cannot name, or names only in part: an interface method, an error-valued
+	// parameter, a function parameter of an exported function or of a literal
+	// (funcvalue.go).
 	untraced bool
 	err      error
 }
@@ -309,7 +315,7 @@ func (tr *trace) expr(fn *funcRef, expr ast.Expr, at token.Pos, depth int) {
 		if typed.Name == "nil" {
 			return
 		}
-		value, owner := lookup(fn, typed.Name, at)
+		value, _, owner := lookup(fn, typed.Name, at)
 		if value == nil {
 			tr.markUntraced(depth)
 			return
@@ -331,19 +337,17 @@ func (tr *trace) call(fn *funcRef, call *ast.CallExpr, depth int) {
 	if depth >= depthMax {
 		return
 	}
-	callee, how, err := tr.ix.resolve(fn, call.Fun, call.Pos())
+	callees, err := tr.ix.funcValues(fn, call.Fun, call.Pos(), depth)
 	if err != nil {
 		tr.err = err
 		return
 	}
-	if how == resolutionUnnamed {
+	if !callees.complete {
 		tr.markUntraced(depth)
-		return
 	}
-	if how != resolutionFound {
-		return
+	for _, callee := range callees.refs {
+		tr.function(callee, depth+1)
 	}
-	tr.function(callee, depth+1)
 }
 
 // markUntraced records an operand the trace could not follow, when it is the

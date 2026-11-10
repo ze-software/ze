@@ -30,9 +30,11 @@ type Findings []Finding
 // among it that repeat a segment.
 //
 // Untraced is part of the answer because the trace is syntactic: a wrapped
-// error that came through a function value, an interface method or a
-// parameter has a producer this check cannot name, and a wrap it could not
-// follow is counted rather than passed in silence.
+// error that came through an interface method, an error-valued parameter, or
+// a function parameter whose callers the package does not hold in full (an
+// exported function's, a method's, a literal's) has a producer this check
+// cannot name, and a wrap it could not follow is counted rather than passed
+// in silence.
 type CheckReport struct {
 	// Base is the commit the change set was diffed against, and why that one.
 	// It is empty for `report`, which names its Scope instead.

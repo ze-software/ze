@@ -1,12 +1,14 @@
 // Design: docs/contributing/ze-go-style.md -- naming the function a wrapped error came from
 // Related: errorwrap.go -- the trace that walks what this resolves
+// Related: funcvalue.go -- following a function value to its producers
 //
 // resolve.go reads the module's packages with go/parser, as every other `le
 // arch` check does, and names a callee from the syntax alone: a function the
 // package declares, a function a module package it imports declares, a
 // function literal bound to a local, or a method whose name is unique in the
-// package. Anything else (a function value passed in, an interface method, a
-// method name two types share) is unnamed, and the caller counts it.
+// package. A name holding a function value is followed further by
+// funcvalue.go. Anything else (an interface method, a method name two types
+// share) is unnamed, and the caller counts it.
 
 package archerrorwrap
 
@@ -33,13 +35,15 @@ type sourceFile struct {
 }
 
 // goPackage is every non-test file of one directory, indexed by what a call
-// can name.
+// can name. calls is every call by a bare name in the package, keyed by that
+// name, built the first time a parameter is followed to its callers.
 type goPackage struct {
 	name    string
 	files   []*sourceFile
 	funcs   map[string]*funcRef
 	methods map[string][]*funcRef
 	vars    map[string]packageVar
+	calls   map[string][]callSite
 }
 
 // packageVar is the value a package-level var is declared with.
@@ -51,13 +55,29 @@ type packageVar struct {
 // funcRef is one function body the trace can read: a declaration or a
 // function literal. A literal holds its enclosing function as outer, and
 // where it opens, so a name it captures is looked up there.
+//
+// params is the function's parameter list, nil for a package-scope body.
+// callable is the name a call in its package types to reach it: set for a
+// plain function declaration, empty for a method or a literal, whose call
+// sites the syntax does not name.
 type funcRef struct {
-	name   string
-	pkg    *goPackage
-	file   *sourceFile
-	body   *ast.BlockStmt
-	outer  *funcRef
-	opened token.Pos
+	name     string
+	pkg      *goPackage
+	file     *sourceFile
+	body     *ast.BlockStmt
+	outer    *funcRef
+	opened   token.Pos
+	params   *ast.FieldList
+	callable string
+}
+
+// declaredRef answers a function declaration as a body the trace can read.
+func declaredRef(pkg *goPackage, file *sourceFile, decl *ast.FuncDecl) *funcRef {
+	ref := &funcRef{name: funcName(decl), pkg: pkg, file: file, body: decl.Body, params: decl.Type.Params}
+	if decl.Recv == nil {
+		ref.callable = decl.Name.Name
+	}
+	return ref
 }
 
 // resolution is how far a callee was named.
@@ -89,26 +109,33 @@ const (
 	importModule
 )
 
-// index holds every package the trace has read, and what each function's
-// errors carry once it has been traced. It is not safe for concurrent use.
+// index holds every package the trace has read, what each function's errors
+// carry once it has been traced, and the bodies each followed parameter can
+// hold (funcvalue.go). It is not safe for concurrent use.
 type index struct {
-	tree     string
-	module   string
-	fset     *token.FileSet
-	packages map[string]*goPackage
-	memo     map[*ast.BlockStmt]carried
-	open     map[*ast.BlockStmt]bool
+	tree      string
+	module    string
+	fset      *token.FileSet
+	packages  map[string]*goPackage
+	memo      map[*ast.BlockStmt]carried
+	open      map[*ast.BlockStmt]bool
+	paramMemo map[paramKey]funcSet
+	paramOpen map[paramKey]bool
+	// paramCuts counts the parameters a walk met already open higher up.
+	paramCuts int
 }
 
 // newIndex answers an empty index over tree, whose module path is module.
 func newIndex(tree, module string) *index {
 	return &index{
-		tree:     tree,
-		module:   module,
-		fset:     token.NewFileSet(),
-		packages: map[string]*goPackage{},
-		memo:     map[*ast.BlockStmt]carried{},
-		open:     map[*ast.BlockStmt]bool{},
+		tree:      tree,
+		module:    module,
+		fset:      token.NewFileSet(),
+		packages:  map[string]*goPackage{},
+		memo:      map[*ast.BlockStmt]carried{},
+		open:      map[*ast.BlockStmt]bool{},
+		paramMemo: map[paramKey]funcSet{},
+		paramOpen: map[paramKey]bool{},
 	}
 }
 
@@ -204,7 +231,7 @@ func (pkg *goPackage) declareFunc(file *sourceFile, decl *ast.FuncDecl) {
 	if decl.Body == nil {
 		return
 	}
-	ref := &funcRef{name: funcName(decl), pkg: pkg, file: file, body: decl.Body}
+	ref := declaredRef(pkg, file, decl)
 	if decl.Recv != nil {
 		pkg.methods[decl.Name.Name] = append(pkg.methods[decl.Name.Name], ref)
 		return
@@ -244,14 +271,12 @@ func (ix *index) moduleDir(importPath string) (string, bool) {
 	return rel, inModule
 }
 
-// resolve names the function a call reaches, from the call's syntax in fn.
-func (ix *index) resolve(fn *funcRef, fun ast.Expr, at token.Pos) (*funcRef, resolution, error) {
+// resolve names the function a callee expression other than a bare name
+// reaches, from its syntax in fn. A bare name is funcValues' to follow.
+func (ix *index) resolve(fn *funcRef, fun ast.Expr) (*funcRef, resolution, error) {
 	switch callee := ast.Unparen(fun).(type) {
 	case *ast.FuncLit:
 		return literal(fn, callee, fn.name+" (func literal)"), resolutionFound, nil
-	case *ast.Ident:
-		ref, how := resolveName(fn, callee.Name, at)
-		return ref, how, nil
 	case *ast.SelectorExpr:
 		return ix.resolveSelector(fn, callee)
 	default:
@@ -262,27 +287,7 @@ func (ix *index) resolve(fn *funcRef, fun ast.Expr, at token.Pos) (*funcRef, res
 // literal answers a function literal as a body the trace can read, inside
 // the function that holds it.
 func literal(outer *funcRef, lit *ast.FuncLit, name string) *funcRef {
-	return &funcRef{name: name, pkg: outer.pkg, file: outer.file, body: lit.Body, outer: outer, opened: lit.Pos()}
-}
-
-// resolveName names a call by a bare identifier: a function literal bound to
-// a local or a package var, or a function the package declares. A local bound
-// to anything else, a parameter included, is unnamed: its value is decided
-// by a caller the syntax does not follow.
-func resolveName(fn *funcRef, name string, at token.Pos) (*funcRef, resolution) {
-	value, owner := lookup(fn, name, at)
-	if value != nil {
-		lit, isLit := ast.Unparen(value).(*ast.FuncLit)
-		if !isLit {
-			return nil, resolutionUnnamed
-		}
-		return literal(owner, lit, name), resolutionFound
-	}
-	ref, declared := fn.pkg.funcs[name]
-	if !declared {
-		return nil, resolutionUnnamed
-	}
-	return ref, resolutionFound
+	return &funcRef{name: name, pkg: outer.pkg, file: outer.file, body: lit.Body, outer: outer, opened: lit.Pos(), params: lit.Type.Params}
 }
 
 // resolveSelector names a `x.Name` call: a function of an imported module
@@ -370,22 +375,24 @@ func (ix *index) importNames(spec *ast.ImportSpec, importPath, rel string, inMod
 }
 
 // lookup answers the value name was last bound to before at, in fn or a
-// function it is nested in, and the function that bound it; then a
-// package-level var. A name bound nowhere (a parameter, a declared function)
-// answers nil.
-func lookup(fn *funcRef, name string, at token.Pos) (ast.Expr, *funcRef) {
+// function it is nested in, which result of that value name holds, and the
+// function that bound it; then a package-level var. The result is the
+// target's position when one multi-value call answers several targets
+// (`a, b := f()`), and 0 otherwise. A name bound nowhere (a parameter, a
+// declared function) answers nil.
+func lookup(fn *funcRef, name string, at token.Pos) (ast.Expr, int, *funcRef) {
 	before := at
 	for scope := fn; scope != nil; scope = scope.outer {
-		if value := lastAssignment(scope.body, name, before); value != nil {
-			return value, scope
+		if value, result := lastAssignment(scope.body, name, before); value != nil {
+			return value, result, scope
 		}
 		before = scope.opened
 	}
 	declared, held := fn.pkg.vars[name]
 	if !held {
-		return nil, nil
+		return nil, 0, nil
 	}
-	return declared.value, &funcRef{name: name, pkg: fn.pkg, file: declared.file, body: &ast.BlockStmt{}}
+	return declared.value, 0, &funcRef{name: name, pkg: fn.pkg, file: declared.file, body: &ast.BlockStmt{}}
 }
 
 // lastAssignment answers the value of the last assignment to name that ENDS
@@ -396,8 +403,9 @@ func lookup(fn *funcRef, name string, at token.Pos) (ast.Expr, *funcRef) {
 // trace the call into itself. The scan is by source position, so an
 // assignment in a branch the wrap does not follow can be chosen; the trace is
 // a reading of the syntax, not of the control flow.
-func lastAssignment(body *ast.BlockStmt, name string, before token.Pos) ast.Expr {
+func lastAssignment(body *ast.BlockStmt, name string, before token.Pos) (ast.Expr, int) {
 	var found ast.Expr
+	var foundResult int
 	ast.Inspect(body, func(node ast.Node) bool {
 		if node == nil {
 			return false
@@ -412,25 +420,26 @@ func lastAssignment(body *ast.BlockStmt, name string, before token.Pos) ast.Expr
 			if stmt.End() > before {
 				return true
 			}
-			if value := assignedValue(stmt.Lhs, stmt.Rhs, name); value != nil {
-				found = value
+			if value, result := assignedValue(stmt.Lhs, stmt.Rhs, name); value != nil {
+				found, foundResult = value, result
 			}
 		case *ast.ValueSpec:
 			if stmt.End() > before {
 				return true
 			}
-			if value := declaredValue(stmt, name); value != nil {
-				found = value
+			if value, result := declaredValue(stmt, name); value != nil {
+				found, foundResult = value, result
 			}
 		}
 		return true
 	})
-	return found
+	return found, foundResult
 }
 
 // assignedValue answers the expression an assignment gives name: its own
-// right-hand side, or the one multi-value call every target shares.
-func assignedValue(targets, values []ast.Expr, name string) ast.Expr {
+// right-hand side, or the one multi-value call every target shares, with the
+// result it holds.
+func assignedValue(targets, values []ast.Expr, name string) (ast.Expr, int) {
 	for position, target := range targets {
 		ident, isIdent := target.(*ast.Ident)
 		if !isIdent {
@@ -441,31 +450,33 @@ func assignedValue(targets, values []ast.Expr, name string) ast.Expr {
 		}
 		return pickValue(values, len(targets), position)
 	}
-	return nil
+	return nil, 0
 }
 
-// declaredValue answers the expression a var declaration gives name.
-func declaredValue(spec *ast.ValueSpec, name string) ast.Expr {
+// declaredValue answers the expression a var declaration gives name, with the
+// result it holds.
+func declaredValue(spec *ast.ValueSpec, name string) (ast.Expr, int) {
 	for position, ident := range spec.Names {
 		if ident.Name != name {
 			continue
 		}
 		return pickValue(spec.Values, len(spec.Names), position)
 	}
-	return nil
+	return nil, 0
 }
 
 // pickValue answers the value of target position out of targets: its own
-// expression when each target has one, the shared call when one call answers
-// them all, and nil for a declaration without a value.
-func pickValue(values []ast.Expr, targets, position int) ast.Expr {
+// expression (result 0) when each target has one, the shared call and the
+// position as its result when one call answers them all, and nil for a
+// declaration without a value.
+func pickValue(values []ast.Expr, targets, position int) (ast.Expr, int) {
 	if len(values) == targets {
-		return values[position]
+		return values[position], 0
 	}
 	if len(values) == 1 {
-		return values[0]
+		return values[0], position
 	}
-	return nil
+	return nil, 0
 }
 
 // callsStd reports whether call is importPath.name, a function of a package
