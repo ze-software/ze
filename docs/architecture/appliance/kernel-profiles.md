@@ -31,10 +31,14 @@ The low-level Go worker invokes the kernel's `merge_config.sh`, `patch`, and
 command.
 
 Each Docker worker is created, without starting it, under a unique per-run name.
-Creation has a detached 15-second bound, so canceling the build cannot kill the
-CLI before it returns the full container ID. Ze starts and attaches to that ID,
-then uses a detached 15-second bound to force-remove that exact container after
-the CLI finishes, on success, failure or cancellation. A successful daemon
+Creation has a detached 2-minute bound (`containerLifecycleTimeout`), so
+canceling the build cannot kill the CLI before it returns the full container ID.
+The bound is not the 15-second host-probe bound: creating the ~717 MB builder
+container took 25 seconds on a loaded host whose daemon answered `docker info`
+in 0.1 seconds. Ze starts and attaches to that ID, then uses the same detached
+2-minute bound to force-remove that exact container after the CLI finishes, on
+success, failure or cancellation. A create or removal that runs out of it is
+reported as having had no answer within the 2-minute limit. A successful daemon
 removal joins the worker before output ownership repair or disk reclaim. The
 ownership-repair container follows the same create, attach and remove lifecycle.
 Ze never finds workers by image ancestry and never prunes another build's work.
@@ -100,13 +104,14 @@ build names is worded by one formatter (`kernelbuilder.LimitWords`): "the
 2-hour limit" for the kernel build, "the 10-minute limit" for a firmware
 download and for the ISO tools, and "within 15s" for each question the build
 asks the host first (`hostProbeTimeout`: QEMU's `-accel help` and
-`docker info`).
+`docker info`). Creating and removing a build container are daemon work, not
+questions, and have "the 2-minute limit" (`containerLifecycleTimeout`).
 
 An arm64 kernel is built on the Mac and an amd64 kernel on the Linux host.
 
 <!-- source: internal/appliance/cmd_kernel.go -- kernelBuildTimeout, defaultKernelBuild, downloadFirmwareBlob, firmwareDownloadFailed -->
 <!-- source: internal/appliance/kernelbuilder/stopped.go -- WithBuildLimit, buildLimit, LimitWords, errBuildStopped, stopReport -->
-<!-- source: internal/appliance/kernelbuilder/driver.go -- Build, SelectBuilder, validateRequest, runDocker, runContainer, containerFailure, repairOwnership -->
+<!-- source: internal/appliance/kernelbuilder/driver.go -- Build, SelectBuilder, validateRequest, runDocker, runContainer, containerLifecycleTimeout, namedLifecycleOverrun, containerFailure, repairOwnership -->
 <!-- source: internal/appliance/kernelbuilder/space.go -- dockerRootDir -->
 <!-- source: internal/appliance/kernelbuilder/qemu.go -- hostProbeTimeout, hardwareAccelerator, probeKVM, probeHVF, availableAccelerators, errBootFailed, buildGuestWorker, qemuNextStep, guestBuildNextStep, sshClientOptions, ensureAlpineISO, downloadNextStep, fetchKernelTarball, tarballNextStep -->
 <!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->

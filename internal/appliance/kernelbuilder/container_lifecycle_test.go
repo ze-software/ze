@@ -45,6 +45,11 @@ func fixtureContainerID(name string) string {
 	return hex.EncodeToString(digest[:])
 }
 
+// slowestContainerCreation is the slowest `docker create` of the
+// ze-kernel-builder image measured on a loaded Linux host (25.2s), the run that
+// a 15s host-probe bound killed while Docker went on to create the container.
+const slowestContainerCreation = 25200 * time.Millisecond
+
 // TestRunContainerCancellationDuringCreateRetainsIdentity cancels at the
 // acquisition boundary and proves removal uses the returned full ID, without
 // starting the worker or inheriting the caller's canceled context.
@@ -60,8 +65,11 @@ func TestRunContainerCancellationDuringCreateRetainsIdentity(t *testing.T) {
 		if err := createCtx.Err(); err != nil {
 			t.Fatalf("caller cancellation reached acquisition: %v", err)
 		}
-		if deadline, ok := createCtx.Deadline(); !ok || time.Until(deadline) > hostProbeTimeout {
+		if deadline, ok := createCtx.Deadline(); !ok || time.Until(deadline) > containerLifecycleTimeout {
 			t.Fatal("container creation has no lifecycle bound")
+		}
+		if deadline, _ := createCtx.Deadline(); time.Until(deadline) < slowestContainerCreation {
+			t.Fatalf("container creation bound is shorter than the %s a loaded host took to create the builder container", slowestContainerCreation)
 		}
 		if !slices.Equal(args, []string{"create", "--name", name, "fixture"}) {
 			t.Fatalf("creation argv = %v", args)
@@ -76,8 +84,11 @@ func TestRunContainerCancellationDuringCreateRetainsIdentity(t *testing.T) {
 		if err := removeCtx.Err(); err != nil {
 			t.Fatalf("caller cancellation reached removal: %v", err)
 		}
-		if deadline, ok := removeCtx.Deadline(); !ok || time.Until(deadline) > hostProbeTimeout {
+		if deadline, ok := removeCtx.Deadline(); !ok || time.Until(deadline) > containerLifecycleTimeout {
 			t.Fatal("container removal has no lifecycle bound")
+		}
+		if deadline, _ := removeCtx.Deadline(); time.Until(deadline) < slowestContainerCreation {
+			t.Fatalf("container removal bound is shorter than the %s a loaded host took to create the builder container", slowestContainerCreation)
 		}
 		removed = true
 		return nil
@@ -154,18 +165,23 @@ func TestRunDockerRefusesUnknownCreation(t *testing.T) {
 		name   string
 		output string
 		err    error
+		hang   bool
 	}{
 		{name: "missing ID"},
 		{name: "short ID", output: "123456"},
 		{name: "invalid full ID", output: strings.Repeat("z", 64)},
 		{name: "creation failed", err: creationFailure},
+		{name: "creation overran its bound", hang: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			req := qemuBuildRequest(t, backendDocker)
 			req.Image = "fixture"
 			pinHostWithoutAContainerStore(t)
-			oldRun, oldOutput := runCommand, runCommandOutput
-			t.Cleanup(func() { runCommand, runCommandOutput = oldRun, oldOutput })
+			oldRun, oldOutput, oldBound := runCommand, runCommandOutput, containerLifecycleTimeout
+			t.Cleanup(func() { runCommand, runCommandOutput, containerLifecycleTimeout = oldRun, oldOutput, oldBound })
+			if tc.hang {
+				containerLifecycleTimeout = 200 * time.Millisecond
+			}
 			calls := 0
 			runCommand = func(_ context.Context, _ Request, _ string, args ...string) error {
 				calls++
@@ -180,6 +196,12 @@ func TestRunDockerRefusesUnknownCreation(t *testing.T) {
 					return oldOutput(ctx, req, binary, args...)
 				}
 				name = args[2]
+				if tc.hang {
+					// Plays a Docker CLI that outlives the bound: killed at
+					// the deadline, as exec reports it.
+					<-ctx.Done()
+					return nil, errors.New("signal: killed")
+				}
 				return []byte(tc.output), tc.err
 			}
 			err := runDocker(t.Context(), req)
@@ -195,6 +217,11 @@ func TestRunDockerRefusesUnknownCreation(t *testing.T) {
 			if tc.err != nil {
 				if !errors.Is(err, tc.err) {
 					t.Errorf("lost creation cause: %v", err)
+				}
+			}
+			if tc.hang {
+				if !strings.Contains(err.Error(), "no answer within the 200ms limit: signal: killed") {
+					t.Errorf("an overrun creation is not named as one: %v", err)
 				}
 			}
 			if calls != 1 {

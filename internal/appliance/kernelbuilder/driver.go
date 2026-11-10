@@ -24,6 +24,17 @@ const (
 	ownershipRepairTimeout = 2 * time.Minute
 )
 
+// containerLifecycleTimeout bounds each detached `docker create` and
+// `docker rm --force` of a container this run owns. Both are daemon work on
+// the image's layers, not a question to the host, so hostProbeTimeout (15s) is
+// the wrong bound: creating the ~717 MB ze-kernel-builder container took 25.2s
+// and 16.2s on a loaded Linux host while `docker info` answered in 0.1s, and
+// every build failed with a container Docker went on to create. Two minutes is
+// almost five times the slowest creation measured, and it still reports a hung
+// daemon long before the 2-hour build limit. A variable so a test can play a
+// creation that never answers without waiting for it.
+var containerLifecycleTimeout = 2 * time.Minute
+
 // hostGOARCH is the arch of the machine running the build. Every kernel is
 // built on a host of its own arch, so a request for another arch is refused
 // (validateRequest). It is a variable so a test can play either host.
@@ -324,16 +335,18 @@ func containerFailure(ctx context.Context, buildErr error) error {
 // runContainer MUST remove the exact container it creates before its caller
 // repairs ownership or reclaims space. Callers MUST refuse those operations if
 // teardownErr is non-nil. It is synchronous and has no concurrent users.
-// Creation is detached and bounded: cancellation cannot lose the daemon's ID
-// response between creating the container and recording what this run owns.
-// A failed or malformed creation response is Unknown, not absence; no start or
-// output repair follows it. Only a full daemon-issued ID authorizes removal.
+// Creation is detached and bounded by containerLifecycleTimeout: cancellation
+// cannot lose the daemon's ID response between creating the container and
+// recording what this run owns. A failed, overrun or malformed creation
+// response is Unknown, not absence; no start or output repair follows it.
+// Only a full daemon-issued ID authorizes removal.
 func runContainer(ctx context.Context, req Request, name string, args []string) (runErr, teardownErr error) {
 	if err := ctx.Err(); err != nil {
 		return err, nil
 	}
-	createCtx, cancelCreate := context.WithTimeout(context.WithoutCancel(ctx), hostProbeTimeout)
+	createCtx, cancelCreate := context.WithTimeout(context.WithoutCancel(ctx), containerLifecycleTimeout)
 	output, err := runCommandOutput(createCtx, req, backendDocker, args...)
+	err = namedLifecycleOverrun(createCtx, err)
 	cancelCreate()
 	if err != nil {
 		return err, fmt.Errorf("Docker did not confirm creating container %s (%w); Ze did not start it, and output ownership repair and disk reclaim were refused. Inspect only this run's container before removing it:\ndocker container inspect %s", name, err, name)
@@ -353,14 +366,28 @@ func runContainer(ctx context.Context, req Request, name string, args []string) 
 	if runErr == nil {
 		runErr = runCommand(ctx, req, backendDocker, "start", "--attach", id)
 	}
-	removeCtx, cancelRemove := context.WithTimeout(context.WithoutCancel(ctx), hostProbeTimeout)
+	removeCtx, cancelRemove := context.WithTimeout(context.WithoutCancel(ctx), containerLifecycleTimeout)
 	defer cancelRemove()
-	if err := runCommand(removeCtx, req, backendDocker, "rm", "--force", id); err != nil {
+	if err := namedLifecycleOverrun(removeCtx, runCommand(removeCtx, req, backendDocker, "rm", "--force", id)); err != nil {
 		return runErr, fmt.Errorf("Docker did not confirm removing owned container %s (%w); it may still hold the build volumes, so output ownership repair and disk reclaim were refused. Remove only this container before another build:\ndocker rm --force %s", id, err, id)
 	}
 	// Docker's successful removal joins its worker and removes the identity,
 	// including when start was canceled while the daemon was handling it.
 	return runErr, nil
+}
+
+// namedLifecycleOverrun says when a container create or removal failed because
+// containerLifecycleTimeout ran out: the CLI killed at the deadline reports
+// only "signal: killed", which reads as a Docker failure, not a slow daemon.
+// Any other error, and a nil one, is returned unchanged.
+func namedLifecycleOverrun(callCtx context.Context, err error) error {
+	if err == nil {
+		return nil
+	}
+	if !errors.Is(callCtx.Err(), context.DeadlineExceeded) {
+		return err
+	}
+	return fmt.Errorf("no answer within the %s limit: %w", LimitWords(containerLifecycleTimeout), err)
 }
 
 func repairOwnership(ctx context.Context, req Request, platform string) error {
