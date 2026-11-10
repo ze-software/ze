@@ -174,9 +174,10 @@ func longestLocalPrefix(words []string) (LocalHandler, int) {
 // call this with the path it matched and every token it will pass: the
 // `ze <verb>` routes (R6) and the daemon-down fallback (R7).
 func InvokeLocal(path string, handler LocalHandler, args []string) int {
-	validated, err := ValidateModelArgs(path, args, nil)
+	invocation := "ze " + path
+	validated, err := validateModelArgsAs(invocation, path, args, nil)
 	if err != nil {
-		writeLocalRefusal("ze "+path, err)
+		writeLocalRefusal(invocation, err)
 		return 1
 	}
 	return handler(validated)

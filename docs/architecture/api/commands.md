@@ -2058,17 +2058,27 @@ text. The dispatcher asks for an `*command.ArgumentFaults` first. A list that
 holds only missing arguments binds a positional selector as a lone missing
 argument does, because each of them carries the same binding; a list with any
 other fault binds none. The selector guard speaks only for a lone missing
-argument. The dispatcher then restates the list (`ArgumentFaults.Restated`): a
-missing selector reads as the guard's own refusal, with the line that supplies
-it, and when every fault is a missing argument the fix line is the whole
-command, the operator's own tokens completed (`fix: create bgp peer <selector>
-asn <asn>`). A route that holds no command path (`ze <verb>`, the plugin
-process route R9, a subsystem) keeps the usage lines and the general fix. A
-refusal keeps at most 16 faults and says how many more it did not list.
+argument. Every route then restates the list through one function,
+`ArgumentFaults.RestatedForLine`, so the same line reads the same on all of
+them: when every fault is a missing argument and none was left unlisted, the
+fix line is the whole command, the operator's own tokens completed, each
+missing leaf by its keyword, written before the words of a rest-of-line leaf
+the line typed; any other list keeps each fault's line and the general fix.
+The routes differ only in the head of that line. The dispatcher writes the
+path with the selector where it reads it, and names a missing selector by the
+guard's own refusal, with the line that supplies it (`fix: create bgp peer
+<selector> asn <asn>`). Every route that judges through the model
+(`command.ValidateModelArgs`: the plugin process route R9, a subsystem, the RPC
+wrapper R4, SSH streaming R8 and the local-data route) writes the path, then
+each value it bound out of band by its keyword (`selector 192.0.2.7`); the
+`ze <verb>` routes prefix `ze`. A refusal keeps at most 16 faults and says how
+many more it did not list.
 <!-- source: internal/component/command/argbind.go -- ValidateArgs -->
 <!-- source: internal/component/command/argfaults.go -- ArgumentFaults, argumentFaultsMax -->
 <!-- source: internal/component/plugin/server/command.go -- adoptablePositional, argFaultOutsideSelector -->
-<!-- source: internal/component/plugin/server/arg_faults.go -- restateArgumentFaults, missingArgumentsFix -->
+<!-- source: internal/component/command/argfaults.go -- RestatedForLine -->
+<!-- source: internal/component/command/local_data.go -- validateModelArgsAs, modelLineHead -->
+<!-- source: internal/component/plugin/server/arg_faults.go -- restateArgumentFaults -->
 <!-- source: internal/component/command/usage.go -- keywordUsage -->
 
 Every route that invokes a handler calls the validator, including for a path

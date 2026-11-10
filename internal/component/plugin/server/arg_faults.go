@@ -3,8 +3,9 @@
 // Related: incomplete.go -- writeSelectorRefusal and writeSelectedPath, the selector forms used here
 //
 // arg_faults.go restates command.ValidateArgs's list of faults with what the
-// dispatcher knows and the definitions do not: the command's path, where its
-// selector is typed, and the tokens the operator typed.
+// dispatcher knows and the definitions do not: where the command's selector is
+// typed, and the line that supplies a missing one. The fix line itself is
+// command.ArgumentFaults.RestatedForLine's, the same on every route.
 
 package server
 
@@ -39,11 +40,14 @@ func (e *selectorMissing) Unwrap() error {
 // matchedCmd's line with, as the operator should read it.
 //
 // The missing selector of a command that requires one is named by the guard's
-// refusal, which gives the line that supplies it. When every fault is a
-// missing argument and the list omitted none, the fix line is the whole
-// command to type (missingArgumentsFix); otherwise it stays the general
-// correction, because a fault in a typed word has no form the dispatcher can
-// write for the operator.
+// refusal, which gives the line that supplies it. The fix line is chosen by
+// command.ArgumentFaults.RestatedForLine, the one function every route calls,
+// so a list of only missing arguments reads the same here as on every model
+// route: the whole command to type. What the dispatcher adds is the head of
+// that line, the path with the selector where Dispatch reads it
+// (writeSelectedPath), `<selector>` when it is one of the missing; the adopted
+// token is written there, so it is not written a second time among the typed
+// tokens.
 //
 // args are the tokens after the command path, selector the selector value
 // Dispatch holds ("" for none), and adopted the token of args Dispatch took as
@@ -56,81 +60,34 @@ func restateArgumentFaults(matchedCmd *Command, faults *command.ArgumentFaults, 
 		selectorLine = tb.String()
 	}
 
-	listed := faults.Faults()
-	onlyMissing := faults.Omitted() == 0
 	selectorAbsent := false
-	for _, fault := range listed {
+	for _, fault := range faults.Faults() {
 		missing, ok := errors.AsType[*command.MissingArgumentError](fault)
-		if !ok {
-			onlyMissing = false
-			continue
-		}
-		if missing.Leaf == selectorLeaf {
+		if ok && missing.Leaf == selectorLeaf {
 			selectorAbsent = true
 		}
 	}
 
-	fix := ""
-	if onlyMissing {
-		fix = missingArgumentsFix(matchedCmd, listed, args, selector, adopted, selectorAbsent)
+	var head textbuf.Buffer
+	placedToken, placedLeaf := "", ""
+	switch {
+	case selectorAbsent:
+		writeSelectedPath(&head, matchedCmd, "<selector>")
+		placedLeaf = selectorLeaf
+	case selector != "":
+		writeSelectedPath(&head, matchedCmd, selector)
+		placedToken = adopted
+	default:
+		// No selector is held or missing: the command declares none, or the
+		// operator typed it by keyword among the tokens written after the path.
+		head.Str(matchedCmd.Name)
 	}
-	return faults.Restated(func(fault error) error {
+	return faults.RestatedForLine(func(fault error) error {
 		missing, ok := errors.AsType[*command.MissingArgumentError](fault)
 		if ok && missing.Leaf == selectorLeaf && selectorLine != "" {
 			return &selectorMissing{missing: missing, refusal: selectorLine}
 		}
 		// A fault restated as nil keeps its own line (ArgumentFaults.Restated).
 		return nil
-	}, fix)
-}
-
-// missingArgumentsFix writes the whole command a line needs when its only
-// faults are missing arguments: the path with the selector where Dispatch
-// reads it (writeSelectedPath), `<selector>` when it is one of the missing,
-// then every token the operator typed, then each other missing leaf by its
-// keyword (command.MissingArgumentError.Usage). Every token typed was valid,
-// so the line it writes is the operator's own line completed.
-func missingArgumentsFix(matchedCmd *Command, faults []error, args []string, selector, adopted string, selectorAbsent bool) string {
-	var tb textbuf.Buffer
-	typed := args
-	switch {
-	case selectorAbsent:
-		writeSelectedPath(&tb, matchedCmd, "<selector>")
-	case selector != "":
-		// The adopted token is written where the selector is read, so it is
-		// not written a second time among the typed tokens.
-		writeSelectedPath(&tb, matchedCmd, selector)
-		typed = withoutToken(args, adopted)
-	default:
-		// No selector is held or missing: the command declares none, or the
-		// operator typed it by keyword among the tokens written below.
-		tb.Str(matchedCmd.Name)
-	}
-	for _, token := range typed {
-		tb.Byte(' ')
-		command.WriteInvocationValue(&tb, token)
-	}
-	for _, fault := range faults {
-		missing, ok := errors.AsType[*command.MissingArgumentError](fault)
-		if ok && missing.Leaf != selectorLeaf {
-			tb.Byte(' ').Str(missing.Usage())
-		}
-	}
-	return tb.String()
-}
-
-// withoutToken answers args without the first token equal to token, and args
-// itself when token is empty or not among them. args is not changed.
-func withoutToken(args []string, token string) []string {
-	if token == "" {
-		return args
-	}
-	for i, arg := range args {
-		if arg == token {
-			out := make([]string, 0, len(args)-1)
-			out = append(out, args[:i]...)
-			return append(out, args[i+1:]...)
-		}
-	}
-	return args
+	}, head.String(), args, placedToken, placedLeaf)
 }

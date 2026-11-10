@@ -10,6 +10,8 @@
 package command
 
 import (
+	"errors"
+
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -39,10 +41,12 @@ const argumentFaultsMax = 16
 //
 // Each fault reads in the list as its own text, except a missing argument,
 // which also names the words that supply it (`required argument missing: asn,
-// as in 'asn <asn>'`); alone, a missing argument keeps its own text. A route
-// that knows more than the definitions do restates the list (Restated): the
-// daemon dispatcher names the line that supplies a missing selector, and the
-// whole command when every fault is a missing argument.
+// as in 'asn <asn>'`); alone, a missing argument keeps its own text. Every
+// route that knows the command path restates the list (RestatedForLine), so a
+// list whose every fault is a missing argument reads the same on all of them,
+// with the whole command as its fix: the daemon dispatcher, which also names
+// the line that supplies a missing selector, and every route that judges
+// through the model (ValidateModelArgs).
 //
 // Build it with newArgumentFaults; the zero value holds no fault and renders
 // the opererr defect text. Immutable after construction, safe for concurrent
@@ -51,7 +55,18 @@ type ArgumentFaults struct {
 	faults  []error
 	lines   []string
 	omitted int
+	rest    restPosition
 	refusal *opererr.Error
+}
+
+// restPosition is the index in the refused line where a rest-of-line leaf's
+// words begin, its keyword or its first word (restStart). typed false means
+// the line holds none, so no word of it is free text. The whole-command fix
+// writes each missing argument before that index: after it, the leaf would
+// read them as words of its text.
+type restPosition struct {
+	typed bool
+	at    int
 }
 
 // argumentFaultsFix is the fix line of a list no route restated with a fix of
@@ -61,10 +76,11 @@ const argumentFaultsFix = "correct each fault listed above, then type the comman
 
 // newArgumentFaults builds the refusal of faults, in the order the line was
 // read, each named by the line at the same index of lines. omitted counts the
-// faults past argumentFaultsMax that were not kept. fix is the fix line, the
-// general correction when empty. faults MUST hold two or more errors, one fault
-// being refused as itself, and lines MUST hold one line per fault.
-func newArgumentFaults(faults []error, lines []string, omitted int, fix string) *ArgumentFaults {
+// faults past argumentFaultsMax that were not kept, and rest where the words
+// of a rest-of-line leaf begin. fix is the fix line, the general correction
+// when empty. faults MUST hold two or more errors, one fault being refused as
+// itself, and lines MUST hold one line per fault.
+func newArgumentFaults(faults []error, lines []string, omitted int, rest restPosition, fix string) *ArgumentFaults {
 	if len(faults) < 2 {
 		panic("BUG: newArgumentFaults called with fewer than two faults")
 	}
@@ -89,6 +105,7 @@ func newArgumentFaults(faults []error, lines []string, omitted int, fix string) 
 		faults:  faults,
 		lines:   lines,
 		omitted: omitted,
+		rest:    rest,
 		refusal: opererr.New(problem.String(), why.String(), fix),
 	}
 }
@@ -107,7 +124,95 @@ func (e *ArgumentFaults) Restated(restate func(fault error) error, fix string) *
 			faults[i], lines[i] = replacement, replacement.Error()
 		}
 	}
-	return newArgumentFaults(faults, lines, e.omitted, fix)
+	return newArgumentFaults(faults, lines, e.omitted, e.rest, fix)
+}
+
+// RestatedForLine answers the refusal as a route that knows the command line
+// restates it, and is the one place any route does: each fault for which
+// restate answers an error is replaced as Restated replaces it (nil restate
+// keeps every fault's line), and the fix line is chosen here.
+//
+// When every fault is a missing argument and the list omitted none, the fix is
+// the whole command to type: head, then each token of args but the first one
+// equal to placedToken, then each missing argument by its keyword
+// (MissingArgumentError.Usage) but placedLeaf's, which head already writes.
+// Every token typed was valid, so the line is the operator's own line
+// completed. A missing argument goes before the words of a rest-of-line leaf
+// the line typed, which would read it as text. Otherwise the fix stays the general
+// correction, because a fault in a typed word has no form a route can write
+// for the operator.
+//
+// args MUST be the tokens ValidateArgs refused, in the order it read them.
+// head is the command as the route's operator types it, with any value the
+// route bound out of band already in place. The receiver is not changed.
+func (e *ArgumentFaults) RestatedForLine(restate func(fault error) error, head string, args []string, placedToken, placedLeaf string) *ArgumentFaults {
+	if restate == nil {
+		restate = keepFault
+	}
+	fix := ""
+	if e.onlyMissing() {
+		fix = e.wholeCommand(head, args, placedToken, placedLeaf)
+	}
+	return e.Restated(restate, fix)
+}
+
+// keepFault is the restate function that keeps every fault as it is.
+func keepFault(error) error {
+	return nil
+}
+
+// onlyMissing reports whether every fault the refusal holds is a missing
+// argument, with none omitted past the cap: only then is the whole command
+// known, because an omitted fault could be a typed word at fault.
+func (e *ArgumentFaults) onlyMissing() bool {
+	if e.omitted > 0 {
+		return false
+	}
+	for _, fault := range e.faults {
+		if _, missing := errors.AsType[*MissingArgumentError](fault); !missing {
+			return false
+		}
+	}
+	return true
+}
+
+// wholeCommand writes the fix line RestatedForLine describes.
+func (e *ArgumentFaults) wholeCommand(head string, args []string, placedToken, placedLeaf string) string {
+	var tb textbuf.Buffer
+	tb.Str(head)
+	written := false
+	skipped := placedToken == ""
+	for i, token := range args {
+		if !skipped && token == placedToken {
+			skipped = true
+			continue
+		}
+		if e.rest.typed && i == e.rest.at {
+			e.writeMissing(&tb, placedLeaf)
+			written = true
+		}
+		tb.Byte(' ')
+		WriteInvocationValue(&tb, token)
+	}
+	if !written {
+		e.writeMissing(&tb, placedLeaf)
+	}
+	return tb.String()
+}
+
+// writeMissing writes each missing argument but placedLeaf's by its keyword,
+// in the order the refusal names them.
+func (e *ArgumentFaults) writeMissing(tb *textbuf.Buffer, placedLeaf string) {
+	for _, fault := range e.faults {
+		missing, ok := errors.AsType[*MissingArgumentError](fault)
+		if !ok {
+			continue
+		}
+		if missing.Leaf == placedLeaf {
+			continue
+		}
+		tb.Byte(' ').Str(missing.Usage())
+	}
 }
 
 // Error answers the refusal text every route prints: the problem, then each
@@ -151,6 +256,7 @@ type faultList struct {
 	faults  []error
 	lines   []string
 	omitted int
+	rest    restPosition
 }
 
 // add keeps fault, named by its own text, or counts it once the list is full.
@@ -184,5 +290,5 @@ func (l *faultList) verdict() error {
 	if len(l.faults) == 1 {
 		return l.faults[0]
 	}
-	return newArgumentFaults(l.faults, l.lines, l.omitted, "")
+	return newArgumentFaults(l.faults, l.lines, l.omitted, l.rest, "")
 }

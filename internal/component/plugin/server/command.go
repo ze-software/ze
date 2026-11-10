@@ -1121,10 +1121,11 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 			}
 		}
 
-		// A line with several faults is restated with what only the
-		// dispatcher knows: the line that supplies a missing selector, and the
-		// whole command when every fault is a missing argument. The guard below
-		// still reads it as a list, and the held error keeps its place.
+		// A line with several faults is restated as every route restates it
+		// (command.ArgumentFaults.RestatedForLine), with what only the
+		// dispatcher knows: where the selector is typed, and the line that
+		// supplies a missing one. The guard below still reads it as a list,
+		// and the held error keeps its place.
 		if faults, several := errors.AsType[*command.ArgumentFaults](argErr); several {
 			argErr = restateArgumentFaults(matchedCmd, faults, args, selectors[selectorLeaf], adopted)
 		}

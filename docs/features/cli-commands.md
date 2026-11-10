@@ -75,7 +75,10 @@ Ze runs a command only when every word of it is valid, and each line below is on
 fix: create bgp peer <selector> asn <asn>
 ```
 
-A line with a fault in a word it typed keeps the general fix:
+Every route gives the same fix: a plugin's command, a subsystem's, and a
+command answered in the `ze` process itself (`ze <verb>` writes the command
+with its `ze` prefix). A line with a fault in a word it typed keeps the
+general fix:
 
 ```
 this command has 2 faults, so Ze did not run it
@@ -87,6 +90,7 @@ fix: correct each fault listed above, then type the command again
 <!-- source: internal/component/plugin/server/command.go -- Dispatch, argFaultOutsideSelector -->
 <!-- source: internal/component/command/argfaults.go -- ArgumentFaults, newArgumentFaults -->
 <!-- source: internal/component/plugin/server/arg_faults.go -- restateArgumentFaults -->
+<!-- source: internal/component/command/argfaults.go -- RestatedForLine -->
 
 A value that sits BETWEEN two keywords reaches the leaf the model anchored to
 the first of them. A leaf declared on a grouping container carries that

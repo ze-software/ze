@@ -312,6 +312,16 @@ func RegisterArgDefSource(source ArgDefSource) {
 	argDefSource = source
 }
 
+// ReplaceArgDefSourceForTest installs source and answers the source it
+// replaced, which the test MUST reinstall the same way when it ends. It lets a
+// test of another package judge a command whose definitions the model does not
+// declare. Not safe for concurrent use with any route.
+func ReplaceArgDefSourceForTest(source ArgDefSource) ArgDefSource {
+	replaced := argDefSource
+	argDefSource = source
+	return replaced
+}
+
 // validateLocalArgs judges the arguments of a local-data command.
 //
 // words is the command as typed and args the tail LookupLocalData left after
@@ -334,7 +344,19 @@ func validateLocalArgs(words, args []string) (ValidatedArgs, error) {
 // A local command at an offline root is judged by the leaves of the YANG path
 // its registration declares as its daemon form (ModelPath), since no node can
 // sit at the root itself.
+//
+// A line refused for several faults is restated as every route restates it
+// (ArgumentFaults.RestatedForLine), with path as the command the operator
+// types, so a line missing only arguments is given the whole command as its
+// fix here as on the daemon dispatcher.
 func ValidateModelArgs(path string, args []string, preMatched map[string]string) (ValidatedArgs, error) {
+	return validateModelArgsAs(path, path, args, preMatched)
+}
+
+// validateModelArgsAs is ValidateModelArgs for a route whose operator types
+// the command as invocation, which may differ from its registered path (the
+// `ze <verb>` routes prefix `ze`).
+func validateModelArgsAs(invocation, path string, args []string, preMatched map[string]string) (ValidatedArgs, error) {
 	if argDefSource == nil {
 		return ValidatedArgs{}, errNoArgDefSource
 	}
@@ -342,7 +364,44 @@ func ValidateModelArgs(path string, args []string, preMatched map[string]string)
 	if err != nil {
 		return ValidatedArgs{}, fmt.Errorf("argument definitions of %q: %w", path, err)
 	}
-	return ValidateArgs(args, defs, preMatched)
+	validated, err := ValidateArgs(args, defs, preMatched)
+	faults, several := errors.AsType[*ArgumentFaults](err)
+	if !several {
+		return validated, err
+	}
+	head, written := modelLineHead(invocation, defs, preMatched)
+	if !written {
+		return validated, err
+	}
+	return validated, faults.RestatedForLine(nil, head, args, "", "")
+}
+
+// modelLineHead writes the command as typed on a model route, then each value
+// the route bound out of band (preMatched) by its keyword, in definition
+// order, since the operator who types the line must type those too. A bound
+// value whose leaf the model does not declare is not part of the line the
+// model judges, so it is not written. written is false when a bound leaf takes
+// the rest of the line: its words would swallow every word written after it,
+// so no whole command can be written and the refusal keeps the general fix.
+func modelLineHead(invocation string, defs []ArgDef, preMatched map[string]string) (head string, written bool) {
+	var tb textbuf.Buffer
+	tb.Str(invocation)
+	for i := range defs {
+		value, bound := preMatched[defs[i].name]
+		if !bound {
+			continue
+		}
+		if defs[i].rest {
+			return "", false
+		}
+		tb.Byte(' ').Str(defs[i].name)
+		if defs[i].kind == ArgFlag {
+			continue
+		}
+		tb.Byte(' ')
+		WriteInvocationValue(&tb, value)
+	}
+	return tb.String(), true
 }
 
 // errNoArgDefSource is the refusal of a process that registered no argument

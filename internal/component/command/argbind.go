@@ -146,8 +146,8 @@ func (e *MissingArgumentError) Error() string {
 
 // Usage answers the words that supply the missing leaf, its keyword and then
 // its value as the usage line writes it (`asn <asn>`), or the keyword alone for
-// a flag. A list of faults names it beside the leaf, and the daemon dispatcher
-// writes it into the whole command it offers as the fix. It answers "" for a
+// a flag. A list of faults names it beside the leaf, and every route writes it
+// into the whole command it offers as the fix (ArgumentFaults.RestatedForLine). It answers "" for a
 // value ValidateArgs did not build.
 func (e *MissingArgumentError) Usage() string {
 	return e.usage
@@ -272,6 +272,7 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (V
 		start, from := restStart(args, defs, defByName, matched, rest)
 		if start >= 0 {
 			matched[rest.name] = true
+			faults.rest = restPosition{typed: true, at: start}
 			if from < len(args) {
 				value := textbuf.Join(args[from:], " ")
 				if err := ValidateArgString(value, rest); err != nil {
