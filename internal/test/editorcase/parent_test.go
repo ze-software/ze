@@ -390,6 +390,12 @@ func TestEditorParentNormalCleanup(t *testing.T) {
 
 // TestEditorParentBlockedIO requires real blocked file/store stacks, then proves
 // reaping and removal precede publication and diagnostics survive the removal.
+// It also proves the case deadline stops the run: Run must return within the
+// case budget plus every timer it arms after the deadline, and a watchdog
+// kills a child Run no longer stops, so a hang fails here by name rather than
+// at go test's timeout.
+// MUTATION: in Run (parent.go) replace child.wait(caseCtx, files) with
+// child.wait(context.WithoutCancel(caseCtx), files).
 func TestEditorParentBlockedIO(t *testing.T) {
 	self, err := os.Executable()
 	if err != nil {
@@ -408,7 +414,28 @@ func TestEditorParentBlockedIO(t *testing.T) {
 				content = "tmpfs=test.conf:terminator=END\nbgp { router-id 1.2.3.4; }\nEND\noption=file:path=test.conf\noption=timeout:value=3s\ninput=type:text=load file absolute replace " + fifo + "\ninput=enter\n"
 				frame = "cli.readFile"
 			}
-			result := Run(context.Background(), self, content, root, 1)
+			budget, err := editortest.ContentBudget(content, 1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			// After the deadline Run waits at most the cooperative grace, then
+			// the exec WaitDelay and the reap notice window after the hard kill.
+			bound := budget + cooperativeGrace + childPipeWait + reapNoticeAfter
+			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+			defer cancel()
+			started := time.Now()
+			answer := make(chan *editortest.TestResult, 1)
+			go func() { answer <- Run(ctx, self, content, root, 1) }()
+			var result *editortest.TestResult
+			select {
+			case result = <-answer:
+			case <-ctx.Done():
+				killHungEditorChild(t, root)
+				result = <-answer
+			}
+			if elapsed := time.Since(started); elapsed > bound {
+				t.Fatalf("editor case outlived its %s deadline: Run returned after %s (bound %s)", budget, elapsed, bound)
+			}
 			if result.Passed || !strings.Contains(result.Error, "timed out") {
 				t.Fatalf("%+v", result)
 			}
@@ -442,6 +469,30 @@ func TestEditorParentBlockedIO(t *testing.T) {
 				t.Fatalf("child survived result: %v", err)
 			}
 		})
+	}
+}
+
+// killHungEditorChild kills the child of each case under root, read from the
+// pid file the fixture writes, so a Run that ignores its deadline returns and
+// the test can name the hang. A missing pid fails the test at once.
+func killHungEditorChild(t *testing.T, root string) {
+	t.Helper()
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		t.Fatalf("hung editor case: read artifacts: %v", err)
+	}
+	for _, entry := range entries {
+		pidText, err := os.ReadFile(filepath.Join(root, entry.Name(), "pid"))
+		if err != nil {
+			t.Fatalf("hung editor case left no child pid to kill: %v", err)
+		}
+		pid, err := strconv.Atoi(string(pidText))
+		if err != nil {
+			t.Fatalf("hung editor case pid %q: %v", pidText, err)
+		}
+		if err := unix.Kill(pid, unix.SIGKILL); err != nil && !errors.Is(err, unix.ESRCH) {
+			t.Fatalf("kill hung editor child %d: %v", pid, err)
+		}
 	}
 }
 

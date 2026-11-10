@@ -2242,3 +2242,37 @@ the fix: the run was blocked by another session's le panic.
 section above. `update-text-sr-policy-addpath` moved to
 `plan/post-release/engineering/spec-tooling-historical-evidence.md`
 (`40aad4bf6a`), because its failure output is lost.
+
+## P-2 and P-40: a bounded blocked-I/O case and admission on the skip reason (2026-11-10)
+
+| Obligation | Carrier | Break | Red |
+| --- | --- | --- | --- |
+| A hung editor case is bounded by its own deadline, not by go test's timeout (P-2) | `TestEditorParentBlockedIO` (`internal/test/editorcase`), now run under a 60s outer context with a watchdog that kills the hung child and an elapsed bound of budget plus cooperative grace, pipe wait and reap notice (9s) | overlay in `parent.go` making the case wait ignore cancellation: `child.wait(caseCtx, files)` becomes `child.wait(context.WithoutCancel(caseCtx), files)`, run through `./le test redwalk check` (`p2-redwalk.log`) | "editor case outlived its 3s deadline: Run returned after 1m0.123473924s (bound 9s)"; clean run PASS 8.06s |
+
+Before this change the same break hung the package until Go's ten-minute test
+timeout, so the case deadline was proved by nothing that failed by name.
+
+P-40: `Record.RequiredCaps` was written by the needs-linux parser and both
+adapters and read only by two tests; admission travels on `SkipReason`, which
+names the failing declaration's tokens. The field is deleted and the two tests
+(`TestSharedResourceGrammar`, `TestEditorDiscoverySnapshot`) now assert the
+skip reason instead. Both rewrites, and the P-2 change, were approved by an
+independent `ze-test-judge` (the commit carries the trailers). Scoped run:
+`internal/test/cli` ok; the three changed tests pass. Reds in the same run not
+caused by this work: `TestCIAcceptOnlyLint`,
+`TestParseCICorpusReadsUnderTheGenericParser` and
+`TestPeerASDerivationReachesEveryCIFile` refuse the committed
+`test/parse/dns-source-mode-required*.ci` (`cmd=foreground exit=`) and a stale
+`l2tp-bad-port.ci` baseline entry; `TestEditorParentSteps` fails "unknown path:
+bgp", which the walk's clean leg does not reach and which coincides with another
+session's uncommitted `internal/component/config/loader_extract.go`.
+
+## P-17: the GoBGP reload proof never reached its patch (2026-11-10)
+
+Both export-reload scenarios failed identically on the break and the restored
+leg, at assertion 0: "GoBGP reload proof requires actual peer-image
+observation". The checker probes its lab for image observation, and the
+recording wrapper `b2b6a36ef0` puts around every checker forwards only the
+`CheckerLab` methods, so the probe answers no on a real run. No attribution is
+possible until the probe reaches the real lab; the repair makes image
+observation part of the contract the recorder and replay carry.
