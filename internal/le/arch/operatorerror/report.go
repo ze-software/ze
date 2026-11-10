@@ -50,14 +50,23 @@ func (r CheckReport) Text() string {
 		return tb.Str("operator-error: OK\n").String()
 	}
 	tb.Str("operator-error: ").Int(int64(len(r.Findings))).Str(" refusal(s) an operator reads carry no fix:\n")
+	answers := false
 	for _, site := range r.Findings {
+		verb := ") returns "
+		if site.Form == FormResponse {
+			verb = ") answers an error response with "
+			answers = true
+		}
 		tb.Str("  ").Str(site.File).Byte(':').Int(int64(site.Line)).
 			Str(": ").Str(site.Handler).Str(" (").Str(site.Kind.String()).Str(" registered at ").Str(site.Registration).
-			Str(") returns ").Str(site.Expr).Byte('\n')
+			Str(verb).Str(site.Expr).Byte('\n')
 	}
 	tb.Byte('\n')
-	tb.Str("Why: a registered handler's error is what the operator reads on the CLI, the API or the plugin answer. A plain errors.New or fmt.Errorf says what went wrong and nothing about why or how to fix it.\n")
+	tb.Str("Why: a registered handler's error, and the Error text of the error response it answers, is what the operator reads on the CLI, the API or the plugin answer. Plain text says what went wrong and nothing about why or how to fix it.\n")
 	tb.Str("Fix: return an opererr.Error (internal/core/opererr) that names what went wrong, why, and the command that fixes it.\n")
+	if answers {
+		tb.Str("Fix (an error response): answer plugin.OperatorErrorResponse(opererr.New(problem, why, fix)) (internal/component/plugin/types.go), which writes the operator error whole into Response.Error.\n")
+	}
 	tb.Str("The sites already in the tree are listed by ./le arch operator-error report. See ai/rules/user-facing-errors.md.\n")
 	return tb.String()
 }
@@ -81,6 +90,20 @@ func (r TreeReport) count(status Status) int {
 	return total
 }
 
+// countForm answers how many sites of form hold status.
+func (r TreeReport) countForm(form Form, status Status) int {
+	total := 0
+	for _, site := range r.Sites {
+		if site.Form != form {
+			continue
+		}
+		if site.Status == status {
+			total++
+		}
+	}
+	return total
+}
+
 // Text renders the counts, one line per site, and the unresolved handlers.
 func (r TreeReport) Text() string {
 	var tb textbuf.Buffer
@@ -90,9 +113,17 @@ func (r TreeReport) Text() string {
 		Int(int64(r.count(StatusPlain))).Str(" plain, ").
 		Int(int64(r.count(StatusPassThrough))).Str(" pass-through; ").
 		Int(int64(len(r.Unresolved))).Str(" handler(s) the scan could not follow\n")
+	tb.Str("of those, error responses: ").
+		Int(int64(r.countForm(FormResponse, StatusTyped))).Str(" typed, ").
+		Int(int64(r.countForm(FormResponse, StatusPlain))).Str(" plain, ").
+		Int(int64(r.countForm(FormResponse, StatusPassThrough))).Str(" pass-through\n")
 	for _, site := range r.Sites {
 		tb.Str("  ").Str(site.Status.String()).Byte(' ').Str(site.File).Byte(':').Int(int64(site.Line)).
-			Byte(' ').Str(site.Handler).Str(" (").Str(site.Kind.String()).Str(") ").Str(site.Expr).Byte('\n')
+			Byte(' ').Str(site.Handler).Str(" (").Str(site.Kind.String())
+		if site.Form == FormResponse {
+			tb.Str(", ").Str(site.Form.String())
+		}
+		tb.Str(") ").Str(site.Expr).Byte('\n')
 	}
 	if len(r.Unresolved) > 0 {
 		tb.Str("unresolved (their return sites are unknown, not clean):\n")
@@ -188,6 +219,8 @@ func sideOverlay(paths []string, side changecheck.Side) (map[string]overlayFile,
 
 // addedSites answers the plain sites in carried files that the after side
 // holds more of than the before side, keyed by file, handler and expression.
+// An error response's expression is its Error field, so the key tells it
+// from a returned error of the same text.
 func addedSites(before, after []Site, carried []string) CheckReport {
 	isCarried := make(map[string]bool, len(carried))
 	for _, path := range carried {

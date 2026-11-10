@@ -382,7 +382,9 @@ never an instance its parent already held: a refusal names the check
 the check's own text, and a check that cannot judge answers exit 3, never a
 pass. `arch operator-error` registers today: it refuses a plain `errors.New`
 or `fmt.Errorf` the commit adds to a registered command handler, RPC handler
-or config verifier.
+or config verifier, and a `plugin.StatusError` answer whose `Error` text the
+handler wrote rather than built with `plugin.OperatorErrorResponse`
+(`docs/architecture/cli/error-surface.md`, "The operator error").
 <!-- source: internal/le/commit/changechecks.go -- changeCheckRefusal -->
 <!-- source: internal/le/commit/changecheck/changecheck.go -- Register, Run -->
 

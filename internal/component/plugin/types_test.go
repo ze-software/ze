@@ -2,10 +2,13 @@ package plugin
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 func TestMapResponseData(t *testing.T) {
@@ -76,6 +79,24 @@ func TestNewErrorResponse(t *testing.T) {
 	assert.Equal(t, StatusError, resp.Status)
 	assert.Equal(t, "connection refused", resp.Error)
 	assert.Nil(t, resp.Data)
+}
+
+// TestOperatorErrorResponseRendersWhole holds the one route an operator error
+// takes into an error answer: the answer is StatusError, carries no data, and
+// its Error is the operator error's whole text, so the fix line reaches every
+// surface that prints Response.Error. A nil operator error is a Ze defect and
+// panics with BUG rather than answering an empty refusal.
+func TestOperatorErrorResponseRendersWhole(t *testing.T) {
+	refusal := opererr.Wrap(errors.New("eof"), "peer 192.0.2.1 not found",
+		"no session is configured for that address", "show bgp peer")
+	resp := OperatorErrorResponse(refusal)
+	assert.Equal(t, StatusError, resp.Status)
+	assert.Nil(t, resp.Data)
+	assert.Equal(t, refusal.Error(), resp.Error)
+	assert.Equal(t, "peer 192.0.2.1 not found\nno session is configured for that address: eof\nfix: show bgp peer", resp.Error)
+	assert.PanicsWithValue(t, "BUG: plugin.OperatorErrorResponse called with a nil operator error", func() {
+		OperatorErrorResponse(nil)
+	})
 }
 
 func TestNewResponse(t *testing.T) {

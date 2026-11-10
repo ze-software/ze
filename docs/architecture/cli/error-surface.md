@@ -199,8 +199,43 @@ repair id: a diagnostic's `Repair` and `FixSafety` name an automated repair.
 | Web notice | the problem, the why and the fix, read through `Problem`, `Why` and `Fix` |
 
 The fix is always the last line, so a layer that prepends context to line 1 never moves it.
+A layer MUST NOT append to the text either. A refused reload whose rollback or
+candidate cleanup also failed reports those failures on a line of their own
+above the fix (`rollback failed: ...; candidate cleanup failed: ...`), so the
+fix line stays the exact command the operator copies. Behind an error that is
+not an operator error, the same note trails the text in parentheses.
 
 <!-- source: internal/core/opererr/opererr.go -- Error, LogAttrs, Problem, Why, Fix -->
+<!-- source: cmd/ze/hub/reload_unwind.go -- withUnwind, unwoundError -->
+
+A command handler can also refuse by answering: a `plugin.Response` whose
+`Status` is `plugin.StatusError`, returned with a nil Go error. `Response.Error`
+is a plain string on the wire, and it is what the operator reads, so it owes the
+same three parts. The one route an operator error takes into it is
+`plugin.OperatorErrorResponse(e *opererr.Error)`, which writes `Error()` whole
+into `Response.Error`. Its parameter type is the proof: no other field and no
+second constructor carries a typed refusal into the answer.
+
+<!-- source: internal/component/plugin/types.go -- OperatorErrorResponse -->
+
+`./le arch operator-error check` judges both forms on the lines a change adds or
+changes, at `./le commit create` and in the verify stage. `./le arch
+operator-error report` lists every instance in the tree and refuses nothing.
+The registered handlers come from their registration sites. The check reads
+each returned error, and each error answer the handler body builds outside a
+nested function literal, and classifies it:
+
+| Status | A returned error | An error answer |
+|--------|------------------|-----------------|
+| typed | built by `opererr` | a call of `plugin.OperatorErrorResponse` |
+| plain, refused when a change adds it | `errors.New` or `fmt.Errorf` at the return | an `Error` the site wrote: a literal, a constant, a built string, no `Error` at all, or the `Error()` of an error the site built, `opererr`'s included, because that text bypasses the route |
+| pass-through, reported only | any other error value | the `Error()` of an error value the syntax does not type (a callee's error, a sentinel), or another answer's `Error` field forwarded |
+
+The scan does not read an answer a helper function builds, an answer whose
+`Status` is computed at run time, or an `Error` assigned after the literal.
+
+<!-- source: internal/le/arch/operatorerror/response.go -- responseSites, classifyResponse, classifyMessage -->
+<!-- source: internal/le/arch/operatorerror/report.go -- addedSites, checkLines -->
 
 ## A value carries no marker
 

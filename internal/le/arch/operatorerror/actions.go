@@ -28,13 +28,13 @@ const registrationFloor = 300
 var actions = leaction.New(area,
 	leaction.Action{
 		Verb:    "check",
-		Summary: "refuse a changed handler line that returns a plain error",
-		Why:     "no changed return of a registered command handler, RPC handler or config verifier hands the operator a plain errors.New or fmt.Errorf, which names no fix; the sites already in the tree stay visible in report",
+		Summary: "refuse a changed handler line with a plain error",
+		Why:     "no changed return of a registered command handler, RPC handler or config verifier hands the operator a plain errors.New or fmt.Errorf, and no changed error answer carries Response.Error text that bypasses plugin.OperatorErrorResponse, which names no fix; the sites already in the tree stay visible in report",
 		Answer:  runCheck,
 	},
 	leaction.Action{
 		Verb:    "report",
-		Summary: "list handler return sites: typed, plain or pass-through",
+		Summary: "list handler error sites: typed, plain or pass-through",
 		Why:     "every refusal a registered operator handler returns, with its status, file and line, handler and registration kind, for a reader deciding which to convert and for the error inventory",
 		Answer:  runReport,
 	},

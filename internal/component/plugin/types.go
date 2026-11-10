@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -417,6 +418,27 @@ func NewResponse(status string, data ResponseData) *Response {
 	return &Response{
 		Status: status,
 		Data:   data,
+	}
+}
+
+// OperatorErrorResponse is the one route an operator error takes into a
+// command's error answer. Response.Error is wire, a plain string every
+// surface prints, so the operator error is rendered whole into it: the
+// problem, the why with its cause, and the "fix: " line last, the text a Go
+// error chain carries (docs/architecture/cli/error-surface.md, "The operator
+// error"). Taking *opererr.Error rather than error makes the type the proof,
+// so `./le arch operator-error` counts every call as typed without reading the
+// argument.
+//
+// e MUST NOT be nil: a refusal with no error is a Ze defect, and an answer
+// with an empty Error would reach the operator as a refusal that says nothing.
+func OperatorErrorResponse(e *opererr.Error) *Response {
+	if e == nil {
+		panic("BUG: plugin.OperatorErrorResponse called with a nil operator error")
+	}
+	return &Response{
+		Status: StatusError,
+		Error:  e.Error(),
 	}
 }
 

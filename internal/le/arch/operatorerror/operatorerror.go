@@ -2,6 +2,7 @@
 //
 // Detail: resolve.go -- the package index and the handler each registration names
 // Detail: report.go -- what check and report answer
+// Detail: response.go -- the error answers a handler builds
 //
 // operatorerror.go finds the refusals an operator reads. A function registered
 // as a command handler, an RPC handler or a config verifier is an operator
@@ -25,6 +26,12 @@
 //	p.OnConfigVerify(h)                                sdk-config-verify
 //	p.OnExecuteCommand(h)                              sdk-command-handler
 //
+// A handler also refuses by answering: a plugin.Response literal whose Status
+// is plugin.StatusError, built in its body with a nil Go error beside it.
+// Response.Error is what the operator reads then, so response.go reads those
+// answers as sites of their own form, and plugin.OperatorErrorResponse is the
+// one route that makes one typed.
+//
 // command.MustRegisterLocal* and MustRegisterLocalData take handlers that
 // answer an exit code or a LocalAnswer, never an error, so no return site of
 // theirs can be a plain error and they are not in this set.
@@ -47,6 +54,19 @@ const (
 	serverPath   = modulePath + "/internal/component/plugin/server"
 	registryPath = modulePath + "/internal/component/plugin/registry"
 	opererrPath  = modulePath + "/internal/core/opererr"
+	pluginPath   = modulePath + "/internal/component/plugin"
+)
+
+// The plugin package names an error answer is built from.
+const (
+	// responseType is the answer a command handler returns.
+	responseType = "Response"
+	// responseErrorStatus is the Status constant of a refusal.
+	responseErrorStatus = "StatusError"
+	// responseErrorRoute is the one declared route an operator error takes
+	// into Response.Error (internal/component/plugin/types.go). Its parameter
+	// is *opererr.Error, so a call is typed by the compiler, not by this scan.
+	responseErrorRoute = "OperatorErrorResponse"
 )
 
 // Status is what one return site of a handler answers.
@@ -88,6 +108,38 @@ func (s Status) String() string {
 // MarshalText renders the status by name in JSON and YAML.
 func (s Status) MarshalText() ([]byte, error) { return []byte(s.String()), nil }
 
+// Form is how a handler hands its refusal to the operator.
+type Form uint8
+
+// The refusal forms. The zero value is no form, so a Site nobody classified
+// cannot read as either.
+const (
+	FormUnspecified Form = iota
+	// FormError is a returned Go error: the last result of a return statement.
+	FormError
+	// FormResponse is an error answer: a plugin.Response literal whose Status
+	// is plugin.StatusError, or a call of plugin.OperatorErrorResponse, built
+	// in the handler body. The handler may return a nil Go error beside it,
+	// and Response.Error is still what the operator reads.
+	FormResponse
+)
+
+// String names the form as report prints it.
+func (f Form) String() string {
+	switch f {
+	case FormError:
+		return "error"
+	case FormResponse:
+		return "error-response"
+	case FormUnspecified:
+		return "unspecified"
+	}
+	return "unknown-form-" + strconv.Itoa(int(f))
+}
+
+// MarshalText renders the form by name in JSON and YAML.
+func (f Form) MarshalText() ([]byte, error) { return []byte(f.String()), nil }
+
 // Kind is the registration shape that made a function an operator boundary.
 type Kind uint8
 
@@ -126,11 +178,16 @@ func (k Kind) String() string {
 // MarshalText renders the kind by name in JSON and YAML.
 func (k Kind) MarshalText() ([]byte, error) { return []byte(k.String()), nil }
 
-// Site is one return statement of a registered handler that returns an
-// error value. Paths are relative to the scanned tree, slash-separated.
+// Site is one refusal of a registered handler: a return statement that
+// returns an error value (FormError), or an error answer the handler builds
+// (FormResponse). Paths are relative to the scanned tree, slash-separated.
 type Site struct {
 	File string `json:"file"`
-	Line int    `json:"line"`
+	// Line is the return statement's line for FormError, and for FormResponse
+	// the line of the literal's Error field (its opening brace when it sets
+	// none) or of the route's call.
+	Line int  `json:"line"`
+	Form Form `json:"form"`
 	// Handler is the function the return sits in: `name`, `Type.Method`, or
 	// the enclosing function with "(func literal)" for an inline handler.
 	Handler string `json:"handler"`
@@ -139,7 +196,8 @@ type Site struct {
 	// boundary (the first one, where several register it).
 	Registration string `json:"registration"`
 	Status       Status `json:"status"`
-	// Expr is the returned error expression, as source.
+	// Expr is the returned error expression, as source. For FormResponse it
+	// is `Error: <the field's value>`, `(no Error field)`, or the route's call.
 	Expr string `json:"expr"`
 }
 
@@ -222,8 +280,10 @@ func scan(tree string, overlay map[string]overlayFile) (Inventory, error) {
 			}
 			for _, target := range targets {
 				registration.Handlers = append(registration.Handlers, target.name)
-				for _, site := range returnSites(target) {
-					key := site.File + ":" + strconv.Itoa(site.Line)
+				for _, site := range slices.Concat(returnSites(target), responseSites(target)) {
+					// One line can hold both forms: an error answer returned
+					// beside the error it was built from.
+					key := site.Form.String() + " " + site.File + ":" + strconv.Itoa(site.Line)
 					if seen[key] {
 						continue
 					}
@@ -306,6 +366,7 @@ func classifyReturn(target handlerTarget, statement *ast.ReturnStmt, results int
 	site := Site{
 		File:    target.file.path,
 		Line:    target.file.index.fset.Position(statement.Return).Line,
+		Form:    FormError,
 		Handler: target.name,
 	}
 	if len(statement.Results) == 0 {

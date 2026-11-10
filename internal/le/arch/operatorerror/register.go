@@ -14,8 +14,8 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		Description: "A refusal a registered command handler, RPC handler or config verifier returns carries the operator error type, so the operator reads what went wrong, why, and the command that fixes it.",
-		ShortHelp:   "refuse a plain error returned from an operator handler",
+		Description: "A refusal a registered command handler, RPC handler or config verifier returns, or answers as a plugin.StatusError response, carries the operator error type, so the operator reads what went wrong, why, and the command that fixes it.",
+		ShortHelp:   "refuse a plain error an operator handler returns or answers",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.

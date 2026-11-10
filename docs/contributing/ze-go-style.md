@@ -445,16 +445,24 @@ loader returns `parse config: %w` and the reload that called it wraps that in
 `reload: parse config: %w`, the operator reads `reload: parse config: parse
 config: line 3`. One layer owns each segment, and the others pass the error
 through. `./le arch error-wrap check` refuses a `fmt.Errorf` on a changed line
-when one of the literal `: `-separated segments before its `%w` is already in
-the error it wraps. It traces that error back through the syntax: the
-assignment that bound it, the callee that returned it, and every return that
-passes it up unwrapped. The refusal names the wrap and the constructor that
-first wrote the segment. A producer that comes through a function value, an
-interface method or a parameter has no name in the syntax, so the check counts
-that wrap as untraced and does not pass it in silence.
-`./le arch error-wrap report` lists every such wrap in the tree.
+when one of the `: `-separated segments before its `%w` is already in the
+error it wraps. A segment's verbs compare as one mark, so `line %d: ` written
+by the parser and again by the renderer is a repeat, while a part that holds
+a verb and no word, a bare `%s: `, is no segment. The check traces the error back
+through the syntax: the assignment that bound it, the callee that returned it,
+and every return that passes it up unwrapped. A called name that holds a
+function value is followed to the values it can hold: a literal, a returned
+result, and for a function parameter the argument every call in the same
+package passes for it, as far as the trace's depth bound of 16 steps. The
+refusal names the wrap and the constructor that first wrote the segment. A
+producer the syntax cannot name in full (an interface method, an error-valued
+parameter, a parameter of an exported function, a method or a literal, whose
+callers may sit outside the package) makes the check count that wrap as
+untraced rather than pass it in silence, while it still reads every producer
+it did name. `./le arch error-wrap report` lists every such wrap in the tree.
 <!-- source: internal/le/arch/errorwrap/errorwrap.go -- Check, judge, trace -->
-<!-- source: internal/le/arch/errorwrap/format.go -- parseFormat -->
+<!-- source: internal/le/arch/errorwrap/format.go -- parseFormat, literalSegments -->
+<!-- source: internal/le/arch/errorwrap/funcvalue.go -- funcValues, argumentValues -->
 
 **An error that a registered operator handler returns is an `opererr.Error`.**
 The handler can be a command handler, an RPC handler or a config verifier.
@@ -463,7 +471,10 @@ command that fixes it. They refuse an empty part, which only a Ze defect
 produces. Context is added once, by the producer that holds the
 fact. A layer above passes the error through unwrapped, or wraps it only to add
 a fact the producer did not hold. A second `parse config:` on the same chain is
-the defect this prevents. How each surface renders the three parts:
+the defect this prevents. A handler that refuses by answering a
+`plugin.StatusError` response builds it with `plugin.OperatorErrorResponse`,
+the one route an operator error takes into `Response.Error`. How each surface
+renders the three parts, and what `./le arch operator-error check` refuses:
 `docs/architecture/cli/error-surface.md`, "The operator error".
 <!-- source: internal/core/opererr/opererr.go -- New, Wrap, Error -->
 
@@ -656,7 +667,7 @@ proposed content, not in a replacement fragment that may be inside a quote.
 | Guard, handle, return | revive `early-return`, `indent-error-flow`, `superfluous-else` | An `else` that a guard makes unnecessary |
 | One fact per guard | `./le arch compound-guard check` | A terminating `if a \|\| b` on a changed line |
 | Refuse, never default | `./le arch refuse-by-default check` | On a changed line: an unmatched switch value or a miss answered as a value, an ADD-PATH identifier compared with zero, a state answered from a literal, an error dropped with only a log line below WARN, or a `refuse-by-default:` annotation that names no guard or names the function it sits in (see "A zero value is never an answer") |
-| One layer owns each error prefix | `./le arch error-wrap check` | On a changed line: a `fmt.Errorf` whose literal segment before `%w` is already carried by the error it wraps (see "Every error is handled") |
+| One layer owns each error prefix | `./le arch error-wrap check` | On a changed line: a `fmt.Errorf` whose segment before `%w` (verbs compared as one mark) is already carried by the error it wraps (see "Every error is handled") |
 | State an invariant positively | ruleguard `negatedElse` | `if !c` or `if a != b` with an `else`. `err != nil` and the failure form of a bound stay allowed |
 | Only a named panic | `writeGoPatterns` | Each `panic(` without its own literal `BUG`, `unreachable`, `not implemented`, `unimplemented`, `TODO` or `impossible` prefix, and a malformed actual call even with a permitted prefix. Comments and quoted examples are not calls; one allowed call never exempts another. Peer reachability remains a reader check (see "Assertions, in a language that has none") |
 | No unchecked error | `errcheck` (type assertions too, `check-blank: false`), `forcetypeassert`, `nilerr`, `errorlint` | A call whose error result is ignored, an unchecked assertion, `return nil` beside a live `err`, an error compared with `==` or wrapped without `%w`. A blank discard `f, _ := open()` passes: see "Every error is handled" |
