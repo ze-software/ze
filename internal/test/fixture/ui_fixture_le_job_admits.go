@@ -80,7 +80,14 @@ func leJobAdmits(ctx context.Context) error {
 			return fmt.Errorf("close shared-run marker: %w", err)
 		}
 		fmt.Fprintln(os.Stdout, "THE-SHARED-OUTPUT") //nolint:errcheck // progress output
-		time.Sleep(3 * time.Second)
+		// The holder stays running until the driver closes its stdin, which
+		// `le job run` hands to the command it runs. The driver releases it once
+		// the follower has attached, so the overlap is a rendezvous on state,
+		// never a guessed duration. A follower that ran its own copy reads the
+		// null device here and ends at once.
+		if _, err := io.Copy(io.Discard, os.Stdin); err != nil {
+			return fmt.Errorf("wait for the driver to release the shared run: %w", err)
+		}
 		os.Exit(3)
 		return nil
 	case outcomeSuccess:
@@ -171,11 +178,17 @@ func leJobAdmits(ctx context.Context) error {
 
 	sharedEnv := uiLeJobAdmitsWithEnv(environment, leJobAdmitsHelperEnv, "shared")
 	holder := exec.CommandContext(ctx, binary, //nolint:gosec // the fixture chooses the program and its arguments
-		"job", "run", "label", "ui-shared", "command",
+		"job", "run", "label", leJobAdmitsSharedLabel, "command",
 		testBinary, "test", "fixture", "ui/le-job-admits",
 	)
 	holder.Dir = scratch
 	holder.Env = sharedEnv
+	// The holder's command blocks on this stdin (the "shared" helper above), so
+	// closing it is the one release of the shared run.
+	holderStdin, err := holder.StdinPipe()
+	if err != nil {
+		return fmt.Errorf("open holder stdin: %w", err)
+	}
 	holderStdout, err := holder.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("open holder stdout: %w", err)
@@ -186,16 +199,23 @@ func leJobAdmits(ctx context.Context) error {
 		return fmt.Errorf("start holder: %w", err)
 	}
 	holderFinished := false
+	holderDrained := make(chan struct{})
+	holderDraining := false
 	defer func() {
 		if !holderFinished && holder.Process != nil {
+			_ = holderStdin.Close()
 			_ = holder.Process.Kill()
 			_ = holder.Wait()
+		}
+		if holderDraining {
+			<-holderDrained
 		}
 	}()
 
 	reader := bufio.NewReader(holderStdout)
 	announced, readErr := reader.ReadString('\n')
 	if !strings.Contains(announced, "THE-SHARED-OUTPUT") {
+		_ = holderStdin.Close()
 		_ = holder.Process.Kill()
 		_ = holder.Wait()
 		holderFinished = true
@@ -204,17 +224,41 @@ func leJobAdmits(ctx context.Context) error {
 		}
 		return fmt.Errorf("the first job never reached its command: %q", announced)
 	}
-	go func() {
-		_, _ = io.Copy(io.Discard, reader)
+	holderDraining = true
+	go leJobAdmitsDrain(reader, holderDrained)
+
+	follower, err := leJobAdmitsStartFollower(ctx, binary, scratch, sharedEnv, testBinary)
+	if err != nil {
+		return err
+	}
+	followerFinished := false
+	defer func() {
+		if !followerFinished {
+			_ = follower.command.Process.Kill()
+			<-follower.done
+		}
 	}()
 
-	follower := runLE(ctx, sharedEnv,
-		"job", "run", "label", "ui-shared", "command",
-		testBinary, "test", "fixture", "ui/le-job-admits",
-	)
+	// The rendezvous: the holder is released when the follower has announced
+	// that it attached, when the follower ended without attaching, at the
+	// bound, or at the caller's stop. Every arm closes the holder's stdin, so no
+	// arm leaves the holder waiting.
+	var followerWaitErr error
+	release := time.NewTimer(leJobAdmitsAttachWait)
+	select {
+	case <-follower.attached:
+	case followerWaitErr = <-follower.done:
+		followerFinished = true
+	case <-release.C:
+	case <-ctx.Done():
+	}
+	release.Stop()
+	if err := holderStdin.Close(); err != nil {
+		return fmt.Errorf("release the holder: %w", err)
+	}
 
 	holderWait := make(chan error, 1)
-	go func() { holderWait <- holder.Wait() }()
+	go leJobAdmitsWait(holder, holderWait)
 	var holderWaitErr error
 	timer := time.NewTimer(60 * time.Second)
 	defer timer.Stop()
@@ -233,12 +277,27 @@ func leJobAdmits(ctx context.Context) error {
 		return ctx.Err()
 	}
 
+	if !followerFinished {
+		select {
+		case followerWaitErr = <-follower.done:
+			followerFinished = true
+		case <-timer.C:
+			_ = follower.command.Process.Kill()
+			<-follower.done
+			followerFinished = true
+			return fmt.Errorf("the follower did not finish within 60s of the release: %s", follower.stderrText())
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
 	holderCode := commandExitCode(holderWaitErr)
 	if holderCode != 3 {
 		return fmt.Errorf("the holder answered %d: %s", holderCode, holderStderr.String())
 	}
-	if follower.exitCode != 3 {
-		return fmt.Errorf("the follower answered %d, want the shared job own 3: %s", follower.exitCode, follower.stderr)
+	followerCode := commandExitCode(followerWaitErr)
+	if followerCode != 3 {
+		return fmt.Errorf("the follower answered %d, want the shared job own 3: %s", followerCode, follower.stderrText())
 	}
 
 	marker := filepath.Join(scratch, "tmp", "ran")
@@ -249,12 +308,16 @@ func leJobAdmits(ctx context.Context) error {
 	if string(markerContents) != "once\n" {
 		return errors.New("the command ran twice: the follower ran its own copy")
 	}
-	if !strings.Contains(follower.stdout, "THE-SHARED-OUTPUT") {
-		preview := follower.stdout
+	followerStdout := follower.stdout.String()
+	if !strings.Contains(followerStdout, "THE-SHARED-OUTPUT") {
+		preview := followerStdout
 		if len(preview) > 200 {
 			preview = preview[:200]
 		}
 		return fmt.Errorf("the follower did not replay the shared run: %q", preview)
+	}
+	if !follower.attachedSeen() {
+		return fmt.Errorf("the follower never attached to the running holder: %s", follower.stderrText())
 	}
 
 	entries, err := filepath.Glob(filepath.Join(scratch, "tmp", ".ze-jobs", "*.job"))
@@ -281,6 +344,124 @@ func leJobAdmits(ctx context.Context) error {
 
 	fmt.Println("OK")
 	return nil
+}
+
+// leJobAdmitsSharedLabel names the job the holder and the follower both run.
+const leJobAdmitsSharedLabel = "ui-shared"
+
+// leJobAdmitsAttachBanner is the text `le job run` writes to stderr when a job
+// attaches to an identical running one. The source is Admission.attach in
+// internal/le/job/attach.go: "[<label>] attaching to the <label> already
+// running over these inputs (pid <n>)". This copy holds the label-bound span,
+// so a change of that banner turns this fixture red rather than vacuous.
+const leJobAdmitsAttachBanner = "] attaching to the " + leJobAdmitsSharedLabel + " already running over these inputs"
+
+// leJobAdmitsAttachWait bounds how long the holder is kept running while the
+// follower has not attached. The release closes the holder's stdin on every
+// arm, so the bound ends a broken rendezvous rather than pacing a working one.
+const leJobAdmitsAttachWait = 30 * time.Second
+
+// leJobAdmitsFollower is the second identical job, started while the holder
+// runs.
+//
+// Lifecycle: leJobAdmitsStartFollower starts the process and two goroutines.
+// scan copies every stderr line and closes attached at the first line holding
+// the attach banner; it closes scanned when the pipe ends, which the process
+// exit causes. wait receives on scanned before it calls Wait, because exec
+// forbids Wait before the reads from a pipe complete, then sends the result on
+// done. The caller MUST receive from done once, killing the process first when
+// it gives up; both goroutines have ended by then. stderr is read only after
+// done has answered. Not safe for concurrent use beyond that sequence.
+type leJobAdmitsFollower struct {
+	command  *exec.Cmd
+	stdout   bytes.Buffer
+	stderr   bytes.Buffer
+	attached chan struct{}
+	scanned  chan struct{}
+	done     chan error
+}
+
+func leJobAdmitsStartFollower(ctx context.Context, binary, scratch string, env []string, testBinary string) (*leJobAdmitsFollower, error) {
+	follower := &leJobAdmitsFollower{
+		attached: make(chan struct{}),
+		scanned:  make(chan struct{}),
+		done:     make(chan error, 1),
+	}
+	follower.command = exec.CommandContext(ctx, binary, //nolint:gosec // the fixture chooses the program and its arguments
+		"job", "run", "label", leJobAdmitsSharedLabel, "command",
+		testBinary, "test", "fixture", "ui/le-job-admits",
+	)
+	follower.command.Dir = scratch
+	follower.command.Env = env
+	follower.command.Stdout = &follower.stdout
+	stderr, err := follower.command.StderrPipe()
+	if err != nil {
+		return nil, fmt.Errorf("open follower stderr: %w", err)
+	}
+	if err := follower.command.Start(); err != nil {
+		return nil, fmt.Errorf("start follower: %w", err)
+	}
+	go follower.scan(stderr)
+	go follower.wait()
+	return follower, nil
+}
+
+// scan copies the follower's stderr line by line until the pipe ends. A read
+// error other than the end of the pipe also ends the copy: the process exit
+// closes the pipe either way, and wait then answers.
+func (f *leJobAdmitsFollower) scan(stderr io.Reader) {
+	defer close(f.scanned)
+	reader := bufio.NewReader(stderr)
+	signalled := false
+	for {
+		line, err := reader.ReadString('\n')
+		f.stderr.WriteString(line)
+		if !signalled && strings.Contains(line, leJobAdmitsAttachBanner) {
+			signalled = true
+			close(f.attached)
+		}
+		if err != nil {
+			return
+		}
+	}
+}
+
+func (f *leJobAdmitsFollower) wait() {
+	<-f.scanned
+	f.done <- f.command.Wait()
+}
+
+// attachedSeen reports whether scan met the attach banner. MUST be called only
+// after done has answered.
+func (f *leJobAdmitsFollower) attachedSeen() bool {
+	select {
+	case <-f.attached:
+		return true
+	default:
+		return false
+	}
+}
+
+// stderrText is the follower's stderr. MUST be called only after done has
+// answered, when scan has stopped writing it.
+func (f *leJobAdmitsFollower) stderrText() string {
+	return f.stderr.String()
+}
+
+// leJobAdmitsDrain discards the holder's stdout after its first line, so the
+// holder never blocks on a full pipe, and closes drained when the pipe ends.
+// The holder's Wait closes the pipe, so this ends no later than that Wait.
+func leJobAdmitsDrain(reader io.Reader, drained chan<- struct{}) {
+	defer close(drained)
+	// Only the first line is judged, so the error of this copy is discarded.
+	_, _ = io.Copy(io.Discard, reader)
+}
+
+// leJobAdmitsWait bridges one process's Wait onto a channel the caller selects
+// on beside its bound. The channel holds one result, so this ends even when the
+// caller has stopped listening.
+func leJobAdmitsWait(command *exec.Cmd, result chan<- error) {
+	result <- command.Wait()
 }
 
 func commandExitCode(err error) int {

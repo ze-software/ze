@@ -2862,3 +2862,29 @@ retained L3 to L8 member were absent from their scoped runs ("P-26" batch
 logs `lint-L*.log`). The red half of a fixed lint member waits on the owner's
 ruling on how it is proved: golangci-lint reads files from disk, so no Go
 overlay reaches it, and an in-place edit of shared source is banned.
+
+## Functional carriers walked through an overlaid le (2026-11-10)
+
+Each break is a Go overlay passed as `GOFLAGS` to `./le --name tierbbrk`,
+which builds that `le` and the runner's isolated `ze` and `le` with it; the
+restored run is the same command without it (`tbw/`, `ja/`). Every carrier
+passed at HEAD first.
+
+| P | Carrier | Break | Red | Restored |
+| --- | --- | --- | --- | --- |
+| P-11 | `plugin/path-asn-filter-export-reject`, `plugin/redistribute-export-modify` | the wait-file consumer waits on a marker the producer never writes | seq=3 `plugin/wait-file`: "foreground helper did not exit within 10s" | PASS |
+| P-11, P-33 | `plugin/storage-bfd-restart` | `option=storage:value=disk` exports the memory store to the daemon | "first run never persisted a sequence: gave up after 14s" | PASS 1.7s (a first restored run failed once on "first run did not reach 'bfd plugin running'"; not investigated, and the rerun passed) |
+| P-11 | `ui/le-qemu-run-answers` | the fixture's stand-in go.mod loses its `go` line | the fixture's "qemu run exited 1" (stdpatch refuses the stand-in patch's toolchain) | PASS |
+| P-19 | `ui/le-discovery-answers` | doc wiring reads working-tree paths instead of the committed range | "doc-wiring discovered the wrong changed files" | PASS |
+| P-26 | `ui/le-docvalid-answers` | the drift needle no longer matches | "drifted claim answered exit 0, stderr \"\", issues []" | PASS |
+| P-26 | `ui/le-job-admits` | a follower may not attach (`MayAttach` false) | "the command ran twice: the follower ran its own copy" | PASS |
+| P-34 | `ui/le-rules-answers` | `render-update` writes the old rule back | "render-update wrote the wrong rule" | PASS |
+
+`ui/le-job-admits` now uses an attach rendezvous instead of a 3-second blind
+overlap: the holder blocks on its stdin, the driver releases it once the
+follower prints the attach banner, with a 30s bound; it passes in 0.7s (4.9s
+before). Both the `MayAttach` break and a holder that no longer waits for its
+release go red with "the command ran twice". Not proved: the P-4
+`ui/conf-watchdog-executable-identity` break on `runningLE` stayed green (the
+case does not reach that function), and the launcher carriers need an
+in-place edit of the shared root `ze` script.
