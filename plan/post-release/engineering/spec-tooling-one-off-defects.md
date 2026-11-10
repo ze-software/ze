@@ -257,12 +257,8 @@ AC-27 was dropped on 2026-11-08 ("Scope decision" above): the incident was not i
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `helper-bypassed-by-an-open-coded-copy` | 2026-11-02 | weakening and RFC gates scan Go test units twice |
-| `lint-contract-not-applied` | 2026-10-27 | changed-scope lint at 043c682d24 |
-| `lint-contract-not-applied` | 2026-10-27 | changed-scope lint at 2f36373081 |
-| `lint-contract-not-applied` | 2026-10-27 | changed-scope lint at e6474aa200 |
 | `container-cannot-see-migrated-scratch` | 2026-10-21 | `Run.virtfsArgs` |
 | `delegation-hands-the-callee-a-different-argv` | 2026-09-07 | `le` launcher script |
-| `gate-red-where-nothing-blocks-on-it` | 2026-08-30 | `./le verify lint run scope ./internal/le/site/...` 18 goconst findings |
 | `gate-red-where-nothing-blocks-on-it` | 2026-10-05 | `pluginOwnershipGate` added with no baseline, `le-placement-answers` red |
 
 ## Rows found already fixed
@@ -351,6 +347,10 @@ the cell names no commit.
 | `test-type-not-backfilled` | 2026-10-06 | RFC filename/tag convention | `d3e5b4a770`, `39798d536a`, `875eaecb9b`, `a184a563d1`; `./le rfc check` names none of the nine (same section) |
 | `mutating-a-guard-runs-the-unguarded-path` | 2026-08-31 | forced-RED in the shared checkout | `4e1f75421e` overlay walk tool; `TestRedwalkLeavesTheTreeUntouched` (tooling-one-off-evidence.md, "The walk tool leaves the tree untouched; October naming debts settled") |
 | `test-against-broken-path` | 2026-08-18 | web-config validator and recording | `553f9543af` one journey; `recorded-config-save.wb` with `wait-html` (tooling-one-off-evidence.md, "P-19: the commit bar clears in the page") |
+| `lint-contract-not-applied` | 2026-10-27 | changed-scope lint at 043c682d24 | members absent from scoped lints; one reintroduced in place goes red (tooling-one-off-evidence.md, "Fixed lint members proved red in place") |
+| `lint-contract-not-applied` | 2026-10-27 | changed-scope lint at 2f36373081 | members absent from scoped lints; one reintroduced in place goes red (tooling-one-off-evidence.md, "Fixed lint members proved red in place") |
+| `lint-contract-not-applied` | 2026-10-27 | changed-scope lint at e6474aa200 | members absent from scoped lints; one reintroduced in place goes red (tooling-one-off-evidence.md, "Fixed lint members proved red in place") |
+| `gate-red-where-nothing-blocks-on-it` | 2026-08-30 | site goconst | members absent; a third `tmp` literal goes red as goconst (same section) |
 | `output-not-byte-stable` | 2026-08-24 | terminal demo poster | `553f9543af` settleCapture; `TestBrowserScreenshotSettlesCSSTransition` (tooling-one-off-evidence.md, "P-13: a capture waits out CSS transitions") |
 | `refactor-removes-feature` | 2026-08-31 | `checkNoFamilyEndOfRIB` and 14 checkers | `c5b61cf472`, `125ab22025`, `18017069a9`, `cb882fd581` gave each checker its assertions; each of the 15 red under a Ze break (tooling-one-off-evidence.md, "P-12 (a): interop checkers (2026-11-09)", "P-12 (a) interop checkers: the four remaining walks (2026-11-10)") |
 | `plugin-list-hardcoded` | 2026-10-27 | TestHomeHeroDerivesFromTheManifest | `7b1b2b6cd6`, `b0da8037c5`: the hero renders from `terminaldemo.HeroDemo` and its manifest entry; the red was the test's substring match on the guide link `guides/ipsec/` and the CSS class `showcase`, corrected under judge approval in `b0da8037c5`; `TestHomeHeroDerivesFromTheManifest` (tooling-one-off-evidence.md, "Reds observed overnight, transcribed from their logs (2026-11-10)") |

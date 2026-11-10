@@ -3090,3 +3090,20 @@ Commit, that the commit bar is no longer visible: PASS 46.4s, so the
 | `TestBrowserWaitHTMLPollsInPlace` (integration, real browser; each URL served once and the page's load mark unchanged) | the wait passes without judging the page | "wait-html passed on a bar that never clears" |
 | `TestWaitHTMLRefusesMalformedCondition` | (grammar refusal; seven malformed lines) | PASS |
 | `test/web/recorded-config-save.wb` | overlay of `handler_config_commit.go`: the commit response no longer writes the out-of-band bar | "line 43: action wait-html: current page still contains \"commit-bar visible\"" (78.5s); restored PASS |
+
+## Fixed lint members proved red in place (2026-11-10)
+
+The linter reads files from disk, so a Go overlay cannot reintroduce a lint
+finding. Following this file's walk-method lessons for guards that read their
+source, one retained member of each open lint row was reintroduced in place,
+the scoped lint run, and the file restored from a saved copy with its hash
+verified (all four files byte-identical to HEAD afterwards; `lintred/`). With
+today's scoped lints showing every retained member absent, each row has its
+red and its green.
+
+| Row | Member reintroduced | Red (scoped lint) |
+| --- | --- | --- |
+| lint-contract-not-applied, `043c682d24` (D) | the `signalling` spelling in `internal/le/interoplab/bgp/check_delayopen_test.go` | "check_delayopen_test.go:473:33: `signalling` is a misspelling of `signaling` (misspell)" |
+| lint-contract-not-applied, `2f36373081` (C) | the if/else chain in `internal/test/runner/exclusive_lease_test.go` | "exclusive_lease_test.go:292:3: ifElseChain: rewrite if-else to switch statement (gocritic)" |
+| lint-contract-not-applied, `e6474aa200` (B) | the unchecked assertion in `internal/plugins/log/cmd/handlers_test.go` | "handlers_test.go:339:2: Error return value is not checked (errcheck)" |
+| gate-red-where-nothing-blocks-on-it, 2026-08-30 site goconst (`c630cf08b6`) | a third `tmp` literal in `internal/le/site/seo.go` | "seo.go:58:15: string `tmp` has 3 occurrences, make it a constant (goconst)" |
