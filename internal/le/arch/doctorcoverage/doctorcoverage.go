@@ -11,6 +11,11 @@
 // (ai/META-DECISIONS.md), so each site names a doctor code that a registered
 // doctor check declares, and that check is what answers for it.
 //
+// A diagnostic.Diagnostic composite literal is a doctor finding: the record
+// ze doctor and config validation show the operator as it is. It is a site
+// of its own kind, judged by its Fix field rather than by a code: a finding
+// that names no command clearing it tells the operator nothing to do.
+//
 // The covered codes are READ from the doctor check declarations in the same
 // parsed tree (codes.go), never from a list and never from the registries
 // linked into le: a check is a cover in the tree side that declares it, so a
@@ -44,9 +49,13 @@ const modulePath = "github.com/ze-software/ze"
 // them, constants from all of them (a code is declared in internal/core).
 var parseRoots = []string{"cmd", "internal", "pkg"}
 
-// siteRoots are the trees whose problem sites the gate judges: the product's
+// siteRoots are the trees whose call sites the gate judges: the product's
 // components, plugins and programs. internal/core holds libraries whose
 // callers decide what an operator sees, so its calls are not judged here.
+// A doctor finding is judged under every parse root instead: a
+// diagnostic.Diagnostic built in internal/core (a doctor check's own result)
+// or internal/appliance reaches the operator unchanged, so no caller decides
+// for it.
 var siteRoots = []string{"internal/component", "internal/plugins", "cmd/ze"}
 
 // excludedDirs are the subtrees under parseRoots that do not ship.
@@ -64,6 +73,9 @@ const (
 	KindReportWarning
 	KindReportError
 	KindHealthRow
+	// KindDoctorFinding is a diagnostic.Diagnostic composite literal with at
+	// least one element (sites.go, findingSite).
+	KindDoctorFinding
 )
 
 // String names the kind as report prints it.
@@ -79,6 +91,8 @@ func (k Kind) String() string {
 		return "report-error"
 	case KindHealthRow:
 		return "health-row"
+	case KindDoctorFinding:
+		return "doctor-finding"
 	case KindUnspecified:
 		return "unspecified"
 	}
@@ -109,6 +123,12 @@ const (
 	// code field, so it cannot name a code at the site; the audit maps each
 	// one to its doctor check by hand, and the check form does not refuse it.
 	StatusHealthRow
+	// StatusFixSet is a doctor finding whose Fix field is set to anything but
+	// the empty string literal: a finding that names what clears it.
+	StatusFixSet
+	// StatusNoFix is a doctor finding that sets no Fix, or sets it to the
+	// empty string literal.
+	StatusNoFix
 )
 
 // String names the status as report prints it.
@@ -124,6 +144,10 @@ func (s Status) String() string {
 		return "code-not-doctor"
 	case StatusHealthRow:
 		return "health-row"
+	case StatusFixSet:
+		return "fix-set"
+	case StatusNoFix:
+		return "no-fix"
 	case StatusUnspecified:
 		return "unspecified"
 	}
@@ -137,9 +161,24 @@ func (s Status) MarshalText() ([]byte, error) { return []byte(s.String()), nil }
 // changed line.
 func (s Status) refused() bool {
 	switch s {
-	case StatusNoCode, StatusCodeDynamic, StatusCodeNotDoctor:
+	case StatusNoCode, StatusCodeDynamic, StatusCodeNotDoctor, StatusNoFix:
 		return true
-	case StatusCovered, StatusHealthRow:
+	case StatusCovered, StatusHealthRow, StatusFixSet:
+		return false
+	case StatusUnspecified:
+		panic("BUG: doctor-coverage site judged with no status")
+	}
+	panic("BUG: doctor-coverage site with unknown status " + strconv.Itoa(int(s)))
+}
+
+// Covered reports whether a site of this status is covered: a call site whose
+// code a doctor check declares, or a doctor finding whose Fix is set. A
+// health row is not covered: the audit maps it by hand.
+func (s Status) Covered() bool {
+	switch s {
+	case StatusCovered, StatusFixSet:
+		return true
+	case StatusNoCode, StatusCodeDynamic, StatusCodeNotDoctor, StatusHealthRow, StatusNoFix:
 		return false
 	case StatusUnspecified:
 		panic("BUG: doctor-coverage site judged with no status")
@@ -157,12 +196,19 @@ type Site struct {
 	EndLine int  `json:"end-line"`
 	Kind    Kind `json:"kind"`
 	// Call is the called function as written: `log.Warn`, `report.RaiseError`.
+	// For a doctor finding it is the literal's type as written, the element
+	// type for an elided element: `diagnostic.Diagnostic`.
 	Call string `json:"call"`
-	// Message is the log message, the report message or the health row name:
-	// the literal when the source holds one, otherwise the expression.
+	// Message is the log message, the report message, the health row name or
+	// a finding's Message field: the literal when the source holds one,
+	// otherwise the expression.
 	Message string `json:"message"`
-	// CodeExpr is the code argument as written, empty when the site has none.
+	// CodeExpr is the code argument or a finding's Code field as written,
+	// empty when the site has none.
 	CodeExpr string `json:"code-expr"`
+	// FixExpr is a doctor finding's Fix field as written, empty when the
+	// literal sets none or sets the empty string literal.
+	FixExpr string `json:"fix-expr"`
 	// Code is the code CodeExpr resolves to, empty when it does not resolve.
 	Code   string `json:"code"`
 	Status Status `json:"status"`
@@ -182,8 +228,9 @@ type Inventory struct {
 }
 
 // Scan reads every shipped Go file under tree's parse roots, reads the covered
-// set from the doctor check declarations among them, finds the problem sites
-// under the site roots, and judges each site's code against that set. A
+// set from the doctor check declarations among them, finds the call sites
+// under the site roots and the doctor findings under every parse root, and
+// judges each call site's code against that set and each finding's Fix. A
 // covered set below codesFloor codes is an error (checkCodesFloor). doorsOf
 // names the door pages covering a file.
 //
@@ -209,10 +256,7 @@ func scan(tree string, overlay map[string]overlayFile, codesFloor int, doorsOf f
 	}
 	inventory := Inventory{Sites: []Site{}, Codes: len(covered)}
 	for _, file := range index.files {
-		if !underAny(file.path, siteRoots) {
-			continue
-		}
-		sites := index.sitesOf(file)
+		sites := index.sitesOf(file, underAny(file.path, siteRoots))
 		for i := range sites {
 			site := &sites[i]
 			judge(site, covered)
@@ -230,8 +274,18 @@ func scan(tree string, overlay map[string]overlayFile, codesFloor int, doorsOf f
 	return inventory, nil
 }
 
-// judge sets a site's status from its code and the covered set.
+// judge sets a site's status from its code and the covered set, and a doctor
+// finding's from its Fix alone: a finding's code needs no check declaring it,
+// because the finding itself is what the operator reads.
 func judge(site *Site, covered Covered) {
+	if site.Kind == KindDoctorFinding {
+		if site.FixExpr == "" {
+			site.Status = StatusNoFix
+			return
+		}
+		site.Status = StatusFixSet
+		return
+	}
 	if site.Kind == KindHealthRow {
 		site.Status = StatusHealthRow
 		return

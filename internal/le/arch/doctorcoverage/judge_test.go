@@ -192,7 +192,7 @@ func TestDoctorCoverageCommitLeavesHeldSitesToReport(t *testing.T) {
 }
 
 // TestDoctorCoverageCommitAdmitsEmptyChange holds that a change set carrying
-// no shipped file under the site roots is admitted without reading a side,
+// no shipped Go file is admitted without reading a side,
 // and that a carried file below a thin scan is an error, never an admit.
 func TestDoctorCoverageCommitAdmitsEmptyChange(t *testing.T) {
 	refuseRead := func(path string) (string, bool, error) {

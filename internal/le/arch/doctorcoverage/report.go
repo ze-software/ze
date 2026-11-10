@@ -41,7 +41,8 @@ func (r CheckReport) exitCode() int {
 }
 
 // ze point: user-facing-errors/directives/an-error-names-the-cause-and-the-fix
-// Text renders the scope line, one line per refused site, why, and the cover
+// Text renders the scope line, then the refused call sites and the doctor
+// findings with no Fix, each group with one line per site, why, and the cover
 // on lines of its own. It ends in a newline.
 func (r CheckReport) Text() string {
 	var tb textbuf.Buffer
@@ -49,20 +50,46 @@ func (r CheckReport) Text() string {
 	if len(r.Findings) == 0 {
 		return tb.Str("doctor-coverage: OK\n").String()
 	}
-	tb.Str("doctor-coverage: ").Int(int64(len(r.Findings))).Str(" problem site(s) name no doctor code a doctor check declares:\n")
+	var calls, findings []Site
 	for i := range r.Findings {
-		site := &r.Findings[i]
+		if r.Findings[i].Kind == KindDoctorFinding {
+			findings = append(findings, r.Findings[i])
+			continue
+		}
+		calls = append(calls, r.Findings[i])
+	}
+	if len(calls) > 0 {
+		tb.Str("doctor-coverage: ").Int(int64(len(calls))).Str(" problem site(s) name no doctor code a doctor check declares:\n")
+		refusedLines(&tb, calls)
+		tb.Str("Why: a Warn or Error log line, or a report-bus raise, is a problem the operator can hit, and ze doctor reports every problem with its cause and fix. A site whose code no registered doctor check declares has no check that answers for it. No marker comment exempts a site.\n")
+		tb.Str("Fix: give the call a code attribute naming a code a registered doctor check declares (internal/core/diagnostic/codes.go):\n")
+		tb.Str("  \"code\", diagnostic.CodeDoctor<Name>\n")
+		tb.Str("For a transient class, also raise the event on the report bus under that code, so it is reported, not only logged:\n")
+		tb.Str("  report.RaiseError(source, diagnostic.CodeDoctor<Name>, subject, message)\n")
+	}
+	if len(findings) > 0 {
+		tb.Str("doctor-coverage: ").Int(int64(len(findings))).Str(" doctor finding(s) carry no Fix:\n")
+		refusedLines(&tb, findings)
+		tb.Str("Why: a diagnostic.Diagnostic is a finding ze doctor or config validation shows the operator, and every finding names the command that clears it. A finding with no Fix leaves the operator nothing to run.\n")
+		tb.Str("Fix: ").Str(fixFinding).Str(", alone and with no label:\n")
+		tb.Str("  Fix: \"<the ze command or config statement>\",\n")
+	}
+	tb.Str("The sites already in the tree are listed by ./le arch doctor-coverage report.\n")
+	return tb.String()
+}
+
+// fixFinding is the cover of a doctor finding with no Fix, in the refusal's
+// Fix line and in each finding's reason.
+const fixFinding = "set Fix to the command or config statement that clears the finding"
+
+// refusedLines renders one line per refused site, then a blank line.
+func refusedLines(tb *textbuf.Buffer, sites []Site) {
+	for i := range sites {
+		site := &sites[i]
 		tb.Str("  ").Str(site.File).Byte(':').Int(int64(site.Line)).Str(": ").Str(site.Call).
 			Str(" \"").Str(site.Message).Str("\": ").Str(statusReason(*site)).Byte('\n')
 	}
 	tb.Byte('\n')
-	tb.Str("Why: a Warn or Error log line, or a report-bus raise, is a problem the operator can hit, and ze doctor reports every problem with its cause and fix. A site whose code no registered doctor check declares has no check that answers for it. No marker comment exempts a site.\n")
-	tb.Str("Fix: give the call a code attribute naming a code a registered doctor check declares (internal/core/diagnostic/codes.go):\n")
-	tb.Str("  \"code\", diagnostic.CodeDoctor<Name>\n")
-	tb.Str("For a transient class, also raise the event on the report bus under that code, so it is reported, not only logged:\n")
-	tb.Str("  report.RaiseError(source, diagnostic.CodeDoctor<Name>, subject, message)\n")
-	tb.Str("The sites already in the tree are listed by ./le arch doctor-coverage report.\n")
-	return tb.String()
 }
 
 // statusReason says in words why a refused site is refused.
@@ -74,7 +101,9 @@ func statusReason(site Site) string {
 		return "its code " + site.CodeExpr + " is built at run time, so no check can be matched to it; name a code constant"
 	case StatusCodeNotDoctor:
 		return "no doctor check in the tree declares its code " + site.Code
-	case StatusCovered, StatusHealthRow, StatusUnspecified:
+	case StatusNoFix:
+		return "no Fix; " + fixFinding
+	case StatusCovered, StatusHealthRow, StatusFixSet, StatusUnspecified:
 		return site.Status.String()
 	}
 	return site.Status.String()
@@ -87,6 +116,10 @@ type TreeReport struct {
 	Covered    int `json:"covered"`
 	Uncovered  int `json:"uncovered"`
 	HealthRows int `json:"health-rows"`
+	// Findings is how many of the sites are doctor findings, and
+	// FindingsFixed how many of those set their Fix (counted in Covered).
+	Findings      int `json:"findings"`
+	FindingsFixed int `json:"findings-fixed"`
 	// Codes is how many doctor codes the tree's doctor checks declared.
 	Codes int         `json:"codes"`
 	Doors []DoorGroup `json:"doors"`
@@ -116,7 +149,13 @@ func treeReport(inventory Inventory) TreeReport {
 	doors := make(map[string]map[string][]Site)
 	for i := range inventory.Sites {
 		site := &inventory.Sites[i]
-		if site.Status == StatusCovered {
+		if site.Kind == KindDoctorFinding {
+			report.Findings++
+		}
+		if site.Status == StatusFixSet {
+			report.FindingsFixed++
+		}
+		if site.Status.Covered() {
 			report.Covered++
 			continue
 		}
@@ -174,6 +213,8 @@ func (r TreeReport) Text() string {
 		Int(int64(r.Covered)).Str(" covered, ").
 		Int(int64(r.Uncovered)).Str(" uncovered, ").
 		Int(int64(r.HealthRows)).Str(" health row(s) to map; ").
+		Int(int64(r.Findings)).Str(" doctor finding(s), ").
+		Int(int64(r.FindingsFixed)).Str(" with a Fix; ").
 		Int(int64(r.Codes)).Str(" doctor code(s) declared\n")
 	for _, group := range r.Doors {
 		countLine(&tb, "", group.Door, group.Uncovered, group.HealthRows)
@@ -227,7 +268,9 @@ func checkLines(sites []Site, changed repochanged.ChangedLines) CheckReport {
 // and once as its parent holds them, and refuses each refusable site the
 // commit adds: a (file, call, message, code expression) the parent holds
 // fewer of. Moving an old uncovered line is not an addition; a new or
-// reworded one is, and so is an old one whose code the commit removes.
+// reworded one is, and so is an old one whose code the commit removes. A
+// doctor finding keys the same way, its type as the call, so a finding whose
+// Fix the commit removes is an addition too.
 //
 // Files the commit does not carry are read from the working tree, because a
 // code constant a carried site names, or the check declaring its code, may sit
@@ -243,20 +286,17 @@ func judgeChange(change changecheck.Change) (string, error) {
 // same path.
 func judgeChangeAt(change changecheck.Change, codesFloor, floor int) (string, error) {
 	carried := make([]string, 0, len(change.Paths)+len(change.Removed))
-	judged := 0
 	for _, path := range slices.Concat(change.Paths, change.Removed) {
 		if !shipped(path) {
 			continue
 		}
 		carried = append(carried, path)
-		if underAny(path, siteRoots) {
-			judged++
-		}
 	}
-	// A commit that carries no shipped file under the site roots adds no
-	// problem site, so it is admitted without a scan: only carried files'
-	// sites are judged (addedSites).
-	if judged == 0 {
+	// A commit that carries no shipped Go file adds no problem site, so it is
+	// admitted without a scan: only carried files' sites are judged
+	// (addedSites). Any shipped file counts, not only the site roots: a doctor
+	// finding is judged under every parse root.
+	if len(carried) == 0 {
 		return "", nil
 	}
 	after, err := sideOverlay(carried, change.After)
@@ -346,7 +386,7 @@ func addedSites(before, after []Site, carried []string) CheckReport {
 func changedScope(base repochanged.LineBase, changed repochanged.ChangedLines) string {
 	files := 0
 	for path := range changed {
-		if underAny(pathpkg.Clean(path), siteRoots) {
+		if shipped(pathpkg.Clean(path)) {
 			files++
 		}
 	}
@@ -355,6 +395,6 @@ func changedScope(base repochanged.LineBase, changed repochanged.ChangedLines) s
 	if base.Reason != "" {
 		tb.Str(" (").Str(strings.TrimSpace(base.Reason)).Byte(')')
 	}
-	tb.Str(", ").Int(int64(files)).Str(" changed file(s) under the site roots, changed lines only")
+	tb.Str(", ").Int(int64(files)).Str(" changed shipped Go file(s), changed lines only")
 	return tb.String()
 }

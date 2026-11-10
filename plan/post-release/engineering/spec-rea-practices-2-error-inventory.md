@@ -2,19 +2,21 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P3 |
 | Release reason | Measures compliance with `ai/rules/user-facing-errors.md`; it changes no shipped behaviour by itself |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 1/6 |
 | Handoff | - |
 | Updated | 2026-11-10 |
 
 Parent: `plan/post-release/engineering/spec-rea-practices-0-umbrella.md`.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+WIP cap exception (Thomas, 2026-11-10, this spec only): claimed at `ZE_SPEC_WIP_CAP=17` with 16 specs in progress against a cap of 12.
 
 ## Task
 
@@ -387,6 +389,7 @@ No existing wire changes. The report's text and its JSON form (through the share
 ## Known Limitations
 - "What went wrong" and "why" are not judged; only the presence of a typed fix is
 - A message built far from its writer and handed over as a plain error classifies as `plain` even when its text names a fix (A-4)
+- A `Diagnostic` finding's `Fix` is read from its literal only: a `Fix` a caller assigns afterwards is not seen (one site on 2026-11-10: `internal/component/gnmi/doctor.go` `gnmiTLSExpiryFindings` over `diagnostic.DoctorCertExpiry`), the same limit operator-error documents for an `Error` assigned after its literal. The check refuses only added literals, so it never refuses that site; the report lists the helper's literal as `no-fix`
 
 ## Checklist
 

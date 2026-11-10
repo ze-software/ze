@@ -643,20 +643,22 @@ made rather than forgotten.
 
 ## Every problem site names a doctor code
 
-<!-- source: internal/le/arch/doctorcoverage/sites.go -- sitesOf, siteOf, codeAttr, resolve -->
+<!-- source: internal/le/arch/doctorcoverage/sites.go -- sitesOf, siteOf, codeAttr, resolve, findingsOf, findingSite -->
 <!-- source: internal/le/arch/doctorcoverage/codes.go -- coveredCodes, checkDeclarations, addCheck -->
 <!-- source: internal/le/arch/doctorcoverage/report.go -- checkLines, treeReport, judgeChange, addedSites -->
 <!-- source: internal/le/arch/doctorcoverage/register.go -- changecheck.Register -->
 
 The inventory test counts dependencies. It says nothing about the problems an
 operator meets while Ze runs. `./le arch doctor-coverage` is the gate for
-those. Three kinds of call are a problem site:
+those. Three kinds of call are a problem site, and so is a finding the doctor
+or the config validator builds:
 
 | Site | Where the operator meets it | How it names its code |
 |------|-----------------------------|-----------------------|
 | A `Warn` or `Error` log line, any form (`WarnContext`, `Log` and `LogAttrs` at `slog.LevelWarn` or `slog.LevelError`) | the log | a `code` attribute: `"code", diagnostic.CodeDoctorX` among the key-value arguments, or `slog.String("code", ...)`, nested in an operator error's `LogAttrs` included |
 | `report.RaiseWarning` or `report.RaiseError` | `show warnings`, `show errors` | its code argument |
 | `health.Register` or `health.RegisterWhen` | the health endpoint | none: a health row carries a name, so the audit maps it to its check by hand |
+| a `diagnostic.Diagnostic` composite literal (a doctor finding), written plainly, with `&`, as an elided element of a `[]diagnostic.Diagnostic` literal, through an import alias, or unqualified inside `internal/core/diagnostic` | `ze doctor`, `show doctor`, config validation, `ze config fix --plan` | none: a finding is judged by its `Fix` field, not by a code |
 
 A site is covered when its code is one that a doctor check declares. The
 gate reads the covered codes from the same parsed source the sites come from,
@@ -677,11 +679,29 @@ fails when a registered check declares a code the source read misses. A code
 must be a literal or a constant the scan can read: a code built at run time
 cannot be matched to a check, and is refused like a missing one.
 
+A doctor finding is the record the operator reads as it is, so it is covered
+when it names what clears it: its `Fix` field is set to anything other than
+the empty string literal. A literal with no `Fix`, or with `Fix: ""`, is
+uncovered; a constant, a variable or a call counts as set, because only a
+literal can be read as empty. Only the literal is read: a `Fix` a caller
+assigns afterwards (`diags[i].Fix = ...` over the findings a shared helper
+built) is not seen, so the helper's literal reports `no-fix` even on the path
+whose caller sets one. A literal with no element at all is the zero
+value a function answers beside "no finding" (`return
+diagnostic.Diagnostic{}, false`), and is no site. The call sites are judged
+under the three site roots, because a library's caller decides what the
+operator sees; a finding is judged under every shipped tree,
+`internal/core` and `internal/appliance` included, because a doctor check's
+own result reaches the operator unchanged. A finding's code needs no check
+declaring it. Each site's kind and status are on `Scan`'s `Site` record
+(`Kind` `doctor-finding`, `Status` `fix-set` or `no-fix`), and
+`Status.Covered` answers covered for a call site or a finding alike.
+
 | Form | What it judges | Exit |
 |------|----------------|------|
-| `./le arch doctor-coverage check` | the sites on the lines changed since the upstream, under `internal/component`, `internal/plugins` and `cmd/ze`. A site with no code, a run-time code, or a code no check declares is refused, with its file and line and the cover. A health row is listed but not refused | 0 clean, 1 refused, 2 could not judge |
-| `./le arch doctor-coverage report` | every site in the tree that is not covered, grouped by door area and owner package, with counts. A site the change did not add is reported here and never refused | 0, or 2 |
-| `./le commit create` | the sites the commit adds: it scans the tree as the commit leaves the carried Go files and as the parent holds them, and refuses each refusable site in a carried file that the parent held fewer of, keyed by file, call, message and code expression. Moving an old uncovered line is no addition; a new or reworded one is, and so is a covered line whose code the commit removes. A commit carrying no shipped Go under the three site roots is admitted without a scan | refused, or exit 3 when the check could not judge |
+| `./le arch doctor-coverage check` | the sites on the lines changed since the upstream: call sites under `internal/component`, `internal/plugins` and `cmd/ze`, findings in any shipped Go. A site with no code, a run-time code, or a code no check declares is refused, with its file and line and the cover; so is a finding with no `Fix`, whose cover is to set `Fix` to the command or config statement that clears the finding. A health row is listed but not refused | 0 clean, 1 refused, 2 could not judge |
+| `./le arch doctor-coverage report` | every site in the tree that is not covered, grouped by door area and owner package, with counts, the doctor findings and those with a `Fix` among them. A site the change did not add is reported here and never refused | 0, or 2 |
+| `./le commit create` | the sites the commit adds: it scans the tree as the commit leaves the carried Go files and as the parent holds them, and refuses each refusable site in a carried file that the parent held fewer of, keyed by file, call (a finding's type), message and code expression. Moving an old uncovered line is no addition; a new or reworded one is, and so is a covered line whose code, or a finding whose `Fix`, the commit removes. A commit carrying no shipped Go is admitted without a scan | refused, or exit 3 when the check could not judge |
 
 No marker comment exempts a site, because the scan never reads comments. A
 transient class (a peer reset that recovers, one retry) still carries its

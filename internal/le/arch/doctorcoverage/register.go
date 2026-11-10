@@ -14,8 +14,8 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		Description: "Every Warn or Error log line and report-bus raise in the product names a doctor code that a registered doctor check declares, so ze doctor answers for every problem an operator can hit.",
-		ShortHelp:   "refuse a problem site with no doctor code",
+		Description: "Every Warn or Error log line and report-bus raise in the product names a doctor code that a registered doctor check declares, and every diagnostic.Diagnostic finding carries the Fix that clears it, so ze doctor answers for every problem an operator can hit.",
+		ShortHelp:   "refuse a problem site with no doctor code or no fix",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.

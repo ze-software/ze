@@ -1,4 +1,5 @@
-// VALIDATES: the check form of le arch doctor-coverage (AC-4, AC-12): a
+// VALIDATES: the check form of le arch doctor-coverage (AC-4, AC-12, and
+// AC-10 of spec-rea-practices-2-error-inventory for doctor findings): a
 // problem site on a changed line with no doctor code is refused, naming its
 // file and line and the cover; a covered site on a changed line passes; a
 // marker comment is no cover; a site on an unchanged line is never refused;
@@ -24,6 +25,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/le/commit/changecheck"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	repochanged "github.com/ze-software/ze/internal/le/repo/changed"
 )
@@ -93,6 +95,102 @@ func TestDoctorCoverageRefusesAddedUncoveredSite(t *testing.T) {
 		if len(refused.Findings) != 1 {
 			t.Errorf("%q (%s) on a changed line: %d findings, want 1", message, site.Status, len(refused.Findings))
 		}
+	}
+}
+
+// findingAnchor is the findings fixture line a commit side adds a function
+// after.
+const findingAnchor = "// None answers the zero value beside false: no finding, so no site.\n"
+
+// findingsSide reads the findings fixture tree from disk, with added inserted
+// before the anchor in findingFile when added is not empty.
+func findingsSide(t *testing.T, added string) changecheck.Side {
+	t.Helper()
+	return func(read string) (string, bool, error) {
+		content, err := os.ReadFile(filepath.Join(findingsTree, filepath.FromSlash(read)))
+		if err != nil {
+			return "", false, err
+		}
+		text := string(content)
+		if read == findingFile && added != "" {
+			if !strings.Contains(text, findingAnchor) {
+				t.Fatalf("fixture %s holds no %q", read, findingAnchor)
+			}
+			text = strings.Replace(text, findingAnchor, added+findingAnchor, 1)
+		}
+		return text, true, nil
+	}
+}
+
+// TestDoctorCoverageCheckRefusesAddedFindingWithoutFix is AC-10's check form:
+// a commit adding a diagnostic.Diagnostic literal with no Fix is refused,
+// naming its file and line and the fix; one adding a literal with its Fix is
+// admitted; and the findings with no Fix the parent already held are never
+// refused. The changed-lines form refuses a finding with no Fix only on a
+// changed line.
+func TestDoctorCoverageCheckRefusesAddedFindingWithoutFix(t *testing.T) {
+	content, err := os.ReadFile(filepath.Join(findingsTree, filepath.FromSlash(findingFile)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, _, found := strings.Cut(string(content), findingAnchor)
+	if !found {
+		t.Fatalf("fixture %s holds no %q", findingFile, findingAnchor)
+	}
+	// The added function's literal opens on its second line.
+	line := strings.Count(before, "\n") + 2
+	added := "func Added() diagnostic.Diagnostic {\n" +
+		"\treturn diagnostic.Diagnostic{Code: \"doctor-finding-added\", Message: \"finding: added without fix\"}\n" +
+		"}\n\n"
+	change := changecheck.Change{
+		Root:   findingsTree,
+		Paths:  []string{findingFile},
+		Before: findingsSide(t, ""),
+		After:  findingsSide(t, added),
+	}
+	text, err := judgeChangeAt(change, 0, 1)
+	if err != nil {
+		t.Fatalf("judgeChangeAt: %v", err)
+	}
+	where := findingFile + ":" + strconv.Itoa(line)
+	for _, want := range []string{where, "finding: added without fix", "set Fix to the command or config statement that clears the finding", "\nFix:", "./le arch doctor-coverage report"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("refusal does not name %q:\n%s", want, text)
+		}
+	}
+	for _, held := range []string{"finding: no fix", "finding: fix empty"} {
+		if strings.Contains(text, held) {
+			t.Errorf("refusal names %q, a finding the parent already held:\n%s", held, text)
+		}
+	}
+
+	withFix := "func Added() diagnostic.Diagnostic {\n" +
+		"\treturn diagnostic.Diagnostic{Message: \"finding: added with fix\", Fix: \"ze start\"}\n" +
+		"}\n\n"
+	change.After = findingsSide(t, withFix)
+	text, err = judgeChangeAt(change, 0, 1)
+	if err != nil {
+		t.Fatalf("judgeChangeAt: %v", err)
+	}
+	if text != "" {
+		t.Errorf("a commit adding a finding with its Fix was refused:\n%s", text)
+	}
+
+	inventory, err := Scan(findingsTree, 0, fixtureDoors)
+	if err != nil {
+		t.Fatalf("Scan: %v", err)
+	}
+	missing := siteWith(t, inventory.Sites, "finding: no fix")
+	fixed := siteWith(t, inventory.Sites, "finding: fix set")
+	if report := checkLines(inventory.Sites, changedAt(fixed)); report.exitCode() != 0 {
+		t.Errorf("a finding with its Fix on a changed line was refused: %+v", report.Findings)
+	}
+	report := checkLines(inventory.Sites, changedAt(missing))
+	if len(report.Findings) != 1 {
+		t.Fatalf("a finding with no Fix on a changed line: %d findings, want 1: %+v", len(report.Findings), report.Findings)
+	}
+	if !strings.Contains(report.Text(), findingFile+":"+strconv.Itoa(missing.Line)) {
+		t.Errorf("refusal does not name the finding's file and line:\n%s", report.Text())
 	}
 }
 

@@ -13,6 +13,15 @@
 //	report.RaiseWarning(source, code, ...)               the report bus
 //	report.RaiseError(source, code, ...)
 //	health.Register(name, ...), health.RegisterWhen(...) a health row
+//	diagnostic.Diagnostic{...}                           a doctor finding,
+//	&diagnostic.Diagnostic{...}                          its address taken,
+//	[]diagnostic.Diagnostic{{...}}                       elided elements too
+//
+// A doctor finding is a composite literal whose type is the diagnostic
+// package's Diagnostic, named through any import name of that package or
+// unqualified inside it. A literal with no element is the zero value a
+// function answers beside "no finding" (`return diagnostic.Diagnostic{},
+// false`), so it is no site. Its Fix is read from the keyed element `Fix`.
 //
 // A call on another imported package (http.Error) is no site. A method call
 // on a value is a log call when its message is a string constant, or when the
@@ -39,6 +48,13 @@ const (
 	slogPath   = "log/slog"
 	reportPath = modulePath + "/internal/core/report"
 	healthPath = modulePath + "/internal/core/health"
+
+	// diagnosticDir is the tree directory of the package whose Diagnostic
+	// literal is a doctor finding.
+	diagnosticDir  = "internal/core/diagnostic"
+	diagnosticPath = modulePath + "/" + diagnosticDir
+	// diagnosticType is the doctor finding's type name.
+	diagnosticType = "Diagnostic"
 )
 
 // codeKey is the log attribute key a site names its doctor code under.
@@ -49,27 +65,154 @@ const codeKey = "code"
 // the bound only stops a malformed tree from looping.
 const codeDepthMax = 16
 
-// sitesOf answers every problem site in one file, in source order. A call
-// nested in another call's arguments is read too.
-func (index *treeIndex) sitesOf(file *sourceFile) []Site {
+// sitesOf answers every problem site in one file, in source order: its doctor
+// findings, and its call sites when callSites holds (the file sits under the
+// site roots). A call or literal nested in another's arguments is read too.
+func (index *treeIndex) sitesOf(file *sourceFile, callSites bool) []Site {
 	var sites []Site
 	ast.Inspect(file.ast, func(node ast.Node) bool {
-		call, isCall := node.(*ast.CallExpr)
-		if !isCall {
-			return true
+		switch node := node.(type) {
+		case *ast.CompositeLit:
+			sites = append(sites, index.findingsOf(file, node)...)
+		case *ast.CallExpr:
+			if !callSites {
+				return true
+			}
+			site, isSite := index.siteOf(file, node)
+			if !isSite {
+				return true
+			}
+			site.Call = types.ExprString(node.Fun)
+			sites = append(sites, index.placed(file, site, node))
 		}
-		site, isSite := index.siteOf(file, call)
-		if !isSite {
-			return true
-		}
-		site.File = file.path
-		site.Line = index.fset.Position(call.Pos()).Line
-		site.EndLine = index.fset.Position(call.End()).Line
-		site.Call = types.ExprString(call.Fun)
-		sites = append(sites, site)
 		return true
 	})
 	return sites
+}
+
+// placed answers site with its file and the lines node spans.
+func (index *treeIndex) placed(file *sourceFile, site Site, node ast.Node) Site {
+	site.File = file.path
+	site.Line = index.fset.Position(node.Pos()).Line
+	site.EndLine = index.fset.Position(node.End()).Line
+	return site
+}
+
+// findingsOf answers the doctor findings one composite literal is or holds:
+// the literal itself when its type is the Diagnostic, or each elided element
+// of a slice, array or map literal whose element type is the Diagnostic or a
+// pointer to it. An elided element's own literal has no type, so the
+// inspection reaching it adds nothing twice.
+func (index *treeIndex) findingsOf(file *sourceFile, lit *ast.CompositeLit) []Site {
+	if lit.Type == nil {
+		return nil
+	}
+	if isDiagnosticType(file, lit.Type) {
+		site, isSite := index.findingSite(file, lit, lit.Type)
+		if !isSite {
+			return nil
+		}
+		return []Site{site}
+	}
+	var element ast.Expr
+	switch container := lit.Type.(type) {
+	case *ast.ArrayType:
+		element = container.Elt
+	case *ast.MapType:
+		element = container.Value
+	default:
+		return nil
+	}
+	if star, isStar := element.(*ast.StarExpr); isStar {
+		element = star.X
+	}
+	if !isDiagnosticType(file, element) {
+		return nil
+	}
+	var sites []Site
+	for _, value := range lit.Elts {
+		if pair, isPair := value.(*ast.KeyValueExpr); isPair {
+			value = pair.Value
+		}
+		if address, isAddress := value.(*ast.UnaryExpr); isAddress && address.Op == token.AND {
+			value = address.X
+		}
+		elided, isLit := value.(*ast.CompositeLit)
+		if !isLit {
+			continue
+		}
+		if elided.Type != nil {
+			continue
+		}
+		if site, isSite := index.findingSite(file, elided, element); isSite {
+			sites = append(sites, site)
+		}
+	}
+	return sites
+}
+
+// findingSite builds the doctor finding a Diagnostic literal is, typed as
+// written. A literal with no element is the zero value, no finding. A Fix
+// set to the empty string literal is no Fix; any other expression, a
+// constant or a variable included, is a Fix the literal sets. A positional
+// literal holds no keyed Fix, so it reads as setting none: write it keyed.
+func (index *treeIndex) findingSite(file *sourceFile, lit *ast.CompositeLit, typed ast.Expr) (Site, bool) {
+	if len(lit.Elts) == 0 {
+		return Site{}, false
+	}
+	site := Site{Kind: KindDoctorFinding, Call: types.ExprString(typed)}
+	for _, element := range lit.Elts {
+		pair, isPair := element.(*ast.KeyValueExpr)
+		if !isPair {
+			continue
+		}
+		key, isIdent := pair.Key.(*ast.Ident)
+		if !isIdent {
+			continue
+		}
+		switch key.Name {
+		case "Message":
+			site.Message = index.text(file, pair.Value)
+		case "Code":
+			site.CodeExpr = types.ExprString(pair.Value)
+			site.Code, _ = index.resolve(file, pair.Value, 0)
+		case "Fix":
+			if !emptyStringLiteral(pair.Value) {
+				site.FixExpr = types.ExprString(pair.Value)
+			}
+		}
+	}
+	return index.placed(file, site, lit), true
+}
+
+// isDiagnosticType reports whether a type expression names the diagnostic
+// package's Diagnostic: through an import name of that package, or
+// unqualified in a file of the package itself.
+func isDiagnosticType(file *sourceFile, expr ast.Expr) bool {
+	switch typed := expr.(type) {
+	case *ast.Ident:
+		return file.dir == diagnosticDir && typed.Name == diagnosticType
+	case *ast.SelectorExpr:
+		return typed.Sel.Name == diagnosticType && refersTo(file, typed.X, diagnosticPath)
+	}
+	return false
+}
+
+// emptyStringLiteral reports whether expr is a string literal holding nothing:
+// "" or “.
+func emptyStringLiteral(expr ast.Expr) bool {
+	literal, isLiteral := expr.(*ast.BasicLit)
+	if !isLiteral {
+		return false
+	}
+	if literal.Kind != token.STRING {
+		return false
+	}
+	value, err := strconv.Unquote(literal.Value)
+	if err != nil {
+		return false
+	}
+	return value == ""
 }
 
 // siteOf answers the site a call is, if it is one.

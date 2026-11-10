@@ -3,9 +3,10 @@
 // Overview: doctorcoverage.go -- the site kinds and statuses, and the scan
 //
 // The three codes stay apart: 0 for a scope whose problem sites all name a
-// doctor code, 1 for one that adds a site that does not, and 2 for a run the
-// gate could not make (a change set git cannot answer, a file that does not
-// parse, a door page with no header, a scan or covered set too thin to judge).
+// doctor code (a doctor finding, its Fix), 1 for one that adds a site that
+// does not, and 2 for a run the gate could not make (a change set git cannot
+// answer, a file that does not parse, a door page with no header, a scan or
+// covered set too thin to judge).
 
 package archdoctorcoverage
 
@@ -33,14 +34,14 @@ const coveredCodesFloor = 20
 var actions = leaction.New(area,
 	leaction.Action{
 		Verb:    "check",
-		Summary: "refuse a changed problem site with no doctor code",
-		Why:     "no changed Warn or Error log line or report-bus raise lands without a code that a registered doctor check declares, so ze doctor answers for every problem an operator can hit; the sites already in the tree stay visible in report",
+		Summary: "refuse a changed site with no doctor code or no fix",
+		Why:     "no changed Warn or Error log line or report-bus raise lands without a code that a registered doctor check declares, and no changed diagnostic.Diagnostic finding lands without the Fix that clears it, so ze doctor answers for every problem an operator can hit; the sites already in the tree stay visible in report",
 		Answer:  runCheck,
 	},
 	leaction.Action{
 		Verb:    "report",
-		Summary: "list problem sites with no doctor code, by door",
-		Why:     "every problem site the tree holds that no doctor check covers, grouped by door area and owner package with counts, for the doctor coverage audit",
+		Summary: "list sites with no doctor code or no fix, by door",
+		Why:     "every problem site the tree holds that no doctor check covers, and every diagnostic.Diagnostic finding with no Fix, grouped by door area and owner package with counts, for the doctor coverage audit",
 		Answer:  runReport,
 	},
 )

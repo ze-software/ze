@@ -132,6 +132,98 @@ func TestDoctorCoverageResolvesStaticCodes(t *testing.T) {
 	}
 }
 
+// findingsTree holds diagnostic.Diagnostic composite literals: Fix set, Fix
+// absent, Fix the empty string and Fix a non-literal expression, written as a
+// plain literal, an address-of literal, elided slice elements, through an
+// import alias and unqualified inside the diagnostic package, beside a zero
+// value that is no finding.
+const findingsTree = "testdata/findings"
+
+const (
+	findingFile = "internal/plugins/finding/finding.go"
+	aliasedFile = "internal/component/aliased/aliased.go"
+	coreFile    = "internal/core/diagnostic/types.go"
+)
+
+// TestDoctorCoverageListsDiagnosticLiterals is AC-10's report form: every
+// diagnostic.Diagnostic literal is a doctor-finding site, covered when its
+// Fix is set to anything but the empty string, in every literal shape and
+// under internal/core too, where a finding reaches the operator unchanged.
+// The zero value is no site, and the report counts the covered findings as
+// covered and lists the others.
+func TestDoctorCoverageListsDiagnosticLiterals(t *testing.T) {
+	inventory, err := Scan(findingsTree, 0, fixtureDoors)
+	if err != nil {
+		t.Fatalf("Scan: %v", err)
+	}
+	cases := []struct {
+		message string
+		file    string
+		status  Status
+	}{
+		{"finding: fix set", findingFile, StatusFixSet},
+		{"finding: no fix", findingFile, StatusNoFix},
+		{"finding: fix empty", findingFile, StatusNoFix},
+		{"finding: fix computed", findingFile, StatusFixSet},
+		{"aliased: no fix", aliasedFile, StatusNoFix},
+		{"core: own finding", coreFile, StatusFixSet},
+	}
+	for _, tc := range cases {
+		site := siteWith(t, inventory.Sites, tc.message)
+		if site.File != tc.file {
+			t.Errorf("%q: file %s, want %s", tc.message, site.File, tc.file)
+		}
+		if site.Kind != KindDoctorFinding {
+			t.Errorf("%q: kind %s, want %s", tc.message, site.Kind, KindDoctorFinding)
+		}
+		if site.Status != tc.status {
+			t.Errorf("%q: status %s, want %s", tc.message, site.Status, tc.status)
+		}
+		if site.Line == 0 {
+			t.Errorf("%q: no line", tc.message)
+		}
+	}
+	if len(inventory.Sites) != len(cases) {
+		t.Errorf("scan found %d sites, want %d (the zero value is no finding): %+v", len(inventory.Sites), len(cases), inventory.Sites)
+	}
+	fixed := siteWith(t, inventory.Sites, "finding: fix set")
+	if fixed.Call != "diagnostic.Diagnostic" {
+		t.Errorf("elided element call %q, want the element type diagnostic.Diagnostic", fixed.Call)
+	}
+	if fixed.Code != "doctor-finding-fixed" {
+		t.Errorf("finding code %q, want doctor-finding-fixed", fixed.Code)
+	}
+	if fixed.FixExpr != `"ze start"` {
+		t.Errorf("finding fix expression %q, want %q", fixed.FixExpr, `"ze start"`)
+	}
+	if empty := siteWith(t, inventory.Sites, "finding: fix empty"); empty.FixExpr != "" {
+		t.Errorf("a Fix of the empty string reads as %q, want none", empty.FixExpr)
+	}
+
+	report := treeReport(inventory)
+	if report.Covered != 3 {
+		t.Errorf("report covered %d, want 3", report.Covered)
+	}
+	if report.Uncovered != 3 {
+		t.Errorf("report uncovered %d, want 3", report.Uncovered)
+	}
+	if report.Findings != 6 {
+		t.Errorf("report findings %d, want 6", report.Findings)
+	}
+	if report.FindingsFixed != 3 {
+		t.Errorf("report findings with a Fix %d, want 3", report.FindingsFixed)
+	}
+	text := report.Text()
+	for _, want := range []string{"6 doctor finding(s), 3 with a Fix", "doctor-finding no-fix diagnostic.Diagnostic", `"finding: no fix"`, `"finding: fix empty"`, `"aliased: no fix"`} {
+		if !strings.Contains(text, want) {
+			t.Errorf("report does not list %q:\n%s", want, text)
+		}
+	}
+	if strings.Contains(text, "finding: fix set") {
+		t.Errorf("report lists a covered finding:\n%s", text)
+	}
+}
+
 // TestDoctorCoverageRefusesUnparsableFile proves a file the scan cannot
 // parse is an error, never a file with no site.
 func TestDoctorCoverageRefusesUnparsableFile(t *testing.T) {
