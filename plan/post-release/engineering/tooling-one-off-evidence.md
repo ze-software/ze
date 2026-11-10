@@ -2276,3 +2276,21 @@ recording wrapper `b2b6a36ef0` puts around every checker forwards only the
 `CheckerLab` methods, so the probe answers no on a real run. No attribution is
 possible until the probe reaches the real lab; the repair makes image
 observation part of the contract the recorder and replay carry.
+
+## P-17 GoBGP: both export-reload carriers proved (2026-11-10)
+
+With `2cb64b6350` the checker observes peer images through the recorder, so
+the walks reach the build-time GoBGP patch. Each break edits
+`test/interop/gobgp-v4.11.0-export-reload.patch` in place (the patch is not
+Go, so no overlay reaches it), rebuilds the GoBGP image, and restores the
+verified bytes before the clean leg.
+
+| Carrier | Break | Red | Restored |
+| --- | --- | --- | --- |
+| `bgp-export-reload-gobgp` | the reload resets only the IN direction: `Direction: api.ResetPeerRequest_DIRECTION_BOTH,` becomes `Direction: api.ResetPeerRequest_DIRECTION_IN,` (`gobgp3-a-break.log`) | assertion 0: "native SIGHUP phase accept (NEW successor, not historical recovery): wait for exact native GoBGP reload receiver state never measured peer state: FRR has no route for 10.240.1.0/24" | pass (2m46s) |
+| `bgp-export-reload-secondary-gobgp` | the disappearing-secondary withdrawal lands only in the discarded slice: `paths = append(paths, previous.Clone(true))` becomes `filtered = append(filtered, previous.Clone(true))` (`gobgp2-b-break.log`) | assertion 0: "native SIGHUP phase simultaneous (NEW successor, not historical recovery): wait for exact native GoBGP reload receiver state never measured peer state: FRR still has a r[oute]" | pass (3m23s) |
+
+The first walk of the primary carrier (`gobgp2-a-break.log`) still printed the
+deleted refusal: its broken leg ran an `le` built before `2cb64b6350`, so it
+was discarded and rerun (`gobgp3-a-*`). CodeQL extraction (the other P-17
+member) still needs a GitHub run.
