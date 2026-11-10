@@ -2952,3 +2952,16 @@ files). `./le rfc check` (`rfccheck.log`) names none of them; its one naming
 finding is a different file, `internal/component/ike/engine/rfc7296_certreq_test.go`,
 which another session's IKE work committed in `83a985dce0` and which is that
 work's to settle.
+
+## P-35: the DNS resolver test change judged (2026-11-10)
+
+`52f85b136a` changed `TestResolverLeavesSystemNameServers`
+(`internal/plugins/dnsresolver/disabled_test.go`) by seeding `resolv.conf`
+before `Configure`, and landed without a judge's verdict. An independent
+`ze-test-judge` approved it under clause (a): on Linux `Configure` still
+overwrites the seed (a new path leaves `r.written` false, so `flush` writes
+`nameserver 192.0.2.53`), so `fileBefore` holds the same ze-written bytes and
+every assertion is kept over the same inputs; off Linux, where the writer is a
+no-op, the test now reaches its assertions instead of failing on a missing
+file. The verdict is recorded through the approval route; the change itself is
+already in history, so no commit carries its trailer.
