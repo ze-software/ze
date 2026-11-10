@@ -2444,3 +2444,23 @@ and the internal expectation of `checkBulkOPENUpdate` asserted the one-AS
 path the RFC forbids; an independent `ze-test-judge` approved all three
 changes on that ground. Scoped run: `internal/test/peer`, `internal/test/cli`
 ok. Both `.ci` users of send-bulk run eBGP, so their bytes are unchanged.
+
+## P-26: le-evidence-answers answers through its entry (2026-11-10)
+
+`./le --name session test ui le-evidence-answers` was red at origin/main for
+two reasons in turn. The test toolchain stub answered `go list std cmd` with
+nothing, which stdpatch refuses since `c98d76f37f` (fixed in `6d089f4a60`).
+Past that, the fixture's l2tp-ppp refusal block expected a partial verdict
+(`peer`, `ze-namespace`, `proven` false), while `runL2TPPPP` answers a refused
+run through `notReached` with no verdict since `cd3474d5d2`. The block now
+asserts the exact refusal sentence on stderr and an empty JSON object;
+approved by an independent `ze-test-judge` (the old expectation contradicted
+the producer's documented contract).
+
+| Leg | Break (Go overlay, `./le --name p26brk`) | Result |
+| --- | --- | --- |
+| dirty tree | `evidence.go`: `if len(report.Dirty) > 0 {` becomes `if false && ...` | FAIL 1.8s: "a dirty tree exited 0, want 1" |
+| refused l2tp-ppp | `runL2TPPPP` reports the error and returns its partial report | FAIL 3.2s: "a refused run answered a verdict: [lac-interface lac-namespace local-address log-tail peer peer-address proven reason scenario ze-interface ze-namespace]" |
+| restored | none | PASS 4.9s |
+
+Both overlaid sources were unchanged against HEAD after the runs (`evw/`).

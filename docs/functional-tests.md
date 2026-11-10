@@ -4428,7 +4428,11 @@ answer, starts no later phase and prints no protocol verdict for an interrupted
 proof. Cleanup uses an uncanceled context for this run's resources; unrelated
 processes and labs are not cleanup targets. These routes inherit an enclosing
 `le job run` admission rather than creating another scheduler slot.
-<!-- source: internal/le/test/deployment/actions.go -- signalRooted, runL2TPPPPAt -->
+A run that cannot perform a step, the skip-kernel-probe refusal included,
+also answers 1 with no verdict: the error goes to stderr, and `| json` prints
+an empty object.
+<!-- source: internal/le/test/deployment/actions.go -- signalRooted, runL2TPPPPAt, runL2TPPPP, notReached -->
+<!-- source: internal/le/test/deployment/report.go -- proofNotReached -->
 <!-- source: internal/le/test/deployment/l2tpppp.go -- Run, observe -->
 <!-- source: internal/le/test/deployment/nativeprocess.go -- runNativeCommand -->
 <!-- source: internal/appliance/cmd_build.go -- InjectDatabase, injectZeFS -->
