@@ -380,11 +380,15 @@ tree the commit starts from. A check judges only what the commit adds and
 never an instance its parent already held: a refusal names the check
 (`./le arch operator-error check refused what this commit adds`) and carries
 the check's own text, and a check that cannot judge answers exit 3, never a
-pass. `arch operator-error` registers today: it refuses a plain `errors.New`
-or `fmt.Errorf` the commit adds to a registered command handler, RPC handler
-or config verifier, and a `plugin.StatusError` answer whose `Error` text the
-handler wrote rather than built with `plugin.OperatorErrorResponse`
-(`docs/architecture/cli/error-surface.md`, "The operator error").
+pass. Two checks register today:
+
+| Check | What it refuses in what the commit adds | Page |
+|-------|------------------------------------------|------|
+| `arch operator-error` | a plain `errors.New` or `fmt.Errorf` returned from a registered command handler, RPC handler or config verifier, and a `plugin.StatusError` answer whose `Error` text the handler wrote rather than built with `plugin.OperatorErrorResponse` | `docs/architecture/cli/error-surface.md`, "The operator error" |
+| `arch doctor-coverage` | a `Warn` or `Error` log line or report-bus raise under `internal/component`, `internal/plugins` or `cmd/ze` that names no doctor code a registered doctor check declares | `docs/architecture/doctor-and-health-checks.md`, "Every problem site names a doctor code" |
+
+<!-- source: internal/le/arch/operatorerror/report.go -- judgeChange -->
+<!-- source: internal/le/arch/doctorcoverage/report.go -- judgeChange -->
 <!-- source: internal/le/commit/changechecks.go -- changeCheckRefusal -->
 <!-- source: internal/le/commit/changecheck/changecheck.go -- Register, Run -->
 

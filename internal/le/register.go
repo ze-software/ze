@@ -18,6 +18,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/ai/tokens"
 	_ "github.com/ze-software/ze/internal/le/arch"
 	_ "github.com/ze-software/ze/internal/le/arch/compoundguard"
+	_ "github.com/ze-software/ze/internal/le/arch/doctorcoverage"
 	_ "github.com/ze-software/ze/internal/le/arch/enumeration"
 	_ "github.com/ze-software/ze/internal/le/arch/errorwrap"
 	_ "github.com/ze-software/ze/internal/le/arch/fspersistence"
