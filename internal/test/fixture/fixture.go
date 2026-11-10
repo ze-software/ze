@@ -476,8 +476,8 @@ func Poll(ctx context.Context, attempts int, delay time.Duration, predicate func
 // childEnvironment builds the environment for a child process, replacing every
 // SPELLING of each overridden key rather than one of them.
 //
-// internal/core/env reads a ze variable case-insensitively and treats a dot and
-// an underscore as one separator, so `ZE_REPO_ROOT` and `ze.repo.root` are one
+// internal/core/env reads a ze variable case-insensitively and treats a dot, an
+// underscore and a hyphen as one separator, so `ZE_REPO_ROOT` and `ze.repo.root` are one
 // key to the reader and two entries in the environment. env.Set writes the
 // canonical DOT spelling, which is deliberate and documented there, so a fixture
 // that inherits a root from a caller and sets `ZE_REPO_ROOT` beside it hands the
@@ -516,9 +516,10 @@ func childEnvironment(base []string, overrides map[string]string) []string {
 }
 
 // environmentKeyReading renders a variable name the way internal/core/env reads
-// it, so two spellings of one key compare equal here as they do there.
+// it, so two spellings of one key compare equal here as they do there. It is
+// env.Normalize, the package's own reading, so the two cannot drift.
 func environmentKeyReading(key string) string {
-	return strings.ToLower(strings.NewReplacer(".", "_", "-", "_").Replace(key))
+	return env.Normalize(key)
 }
 
 // childEnvironmentAssignments is childEnvironment for a caller that already

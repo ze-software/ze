@@ -266,12 +266,15 @@ identifier, so a dotted key (the spelling `Set()` writes) or a hyphenated key
 never reached the plugin and the plugin read the key's default. `ShellSafe()`
 rewrites a child environment so each ze key arrives once under an identifier:
 a variable in the `ze.` namespace becomes its upper-case underscore form
-(`ze.log.bgp-rib` becomes `ZE_LOG_BGP_RIB`), and a registered key in another
-namespace becomes its lower-case underscore form (`exabgp.api.ack` becomes
-`exabgp_api_ack`), the only form ExaBGP reads besides the dotted one. Where
-several spellings of one key are present, the child gets the value `Get()`
-reads: a dotted spelling wins, then the last entry. Every other variable passes
-unchanged. The live plugin start and the declaration query both build the
+(`ze.log.bgp-rib` becomes `ZE_LOG_BGP_RIB`). A spelling of a registered key in
+another namespace that a shell would drop becomes its lower-case underscore
+form (`exabgp.api.ack` becomes `exabgp_api_ack`), the only form ExaBGP reads
+besides the dotted one, since ExaBGP matches the case written. A spelling of
+such a key that is already an identifier keeps its name and case, so a
+registered upper-case alias such as `TIME` or `REV` arrives as written. Where
+several entries take one name in the child, it gets the value `Get()` reads: a
+dotted spelling wins, then the last entry. A variable that is no registered key
+and not in the `ze.` namespace passes unchanged. The live plugin start and the declaration query both build the
 child environment through it, and the live start then appends the
 `ZE_PLUGIN_*` connect-back variables, which replace any inherited value of the
 same name.

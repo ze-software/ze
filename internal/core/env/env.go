@@ -53,6 +53,16 @@ func normalize(key string) string {
 	return strings.ToLower(separators.Replace(key))
 }
 
+// Normalize answers the name this package reads a variable under: lower case,
+// with a dot, an underscore and a hyphen read as one separator. Two names that
+// Normalize to one string are one key to Get. A caller outside this package
+// that compares or keys variable names (a child environment it builds, a gate
+// over test sources) uses it, so its reading cannot drift from Get's.
+// Safe for concurrent use: it touches no package state.
+func Normalize(name string) string {
+	return normalize(name)
+}
+
 // zeNamespace is the normalized prefix of every ze key, the namespace whose
 // shell spelling is upper case (ShellSafe).
 const zeNamespace = "ze_"
@@ -66,15 +76,19 @@ const zeNamespace = "ze_"
 // one with a hyphen, so without this rewrite the plugin reads the key's
 // default and says nothing.
 //
-// Each variable in the ze namespace, and each spelling of a registered key in
-// any other namespace (exabgp.*), becomes one entry under its normalized name:
-// upper case for a ze key, the ZE_ form ze documents, and lower case for any
-// other, because ExaBGP reads only the lower-case underscore form of its own
-// settings (src/exabgp/environment/config.py, Environment.setup:
-// rep_name = env_name.replace('.', '_')). Where several spellings of one key
-// are present the value is the one Get reads: a dotted spelling wins, then the
-// last entry. Every other variable passes unchanged, in its place. environ is
-// left unchanged.
+// Each variable in the ze namespace becomes one entry under its upper-case
+// underscore name, the ZE_ form ze documents. A spelling of a registered key
+// in any other namespace that is not a shell identifier (exabgp.api.ack)
+// becomes its lower-case underscore name, because ExaBGP reads a setting only
+// under its dotted name or that name with each dot replaced by an underscore,
+// in the case written (src/exabgp/environment/config.py, Environment.setup:
+// rep_name = env_name.replace('.', '_')). A spelling of such a key that is
+// already an identifier keeps its name and case: a registered upper-case alias
+// (TIME, REV) reaches the child as the operator wrote it, never as time or rev.
+// Entries ShellSafe gives one name become one entry, holding the value Get
+// reads: a dotted spelling wins, then the last entry. Every variable that is
+// no key of this package passes unchanged, in its place. environ is left
+// unchanged.
 func ShellSafe(environ []string) []string {
 	childEnv := make([]string, 0, len(environ))
 	slots := make(map[string]int)
@@ -85,40 +99,67 @@ func ShellSafe(environ []string) []string {
 			childEnv = append(childEnv, entry)
 			continue
 		}
-		norm := normalize(name)
-		spelling, ours := shellName(norm)
+		spelling, ours := shellName(name)
 		if !ours {
 			childEnv = append(childEnv, entry)
 			continue
 		}
 		hasDot := strings.Contains(name, ".")
 		renamed := spelling + "=" + value
-		slot, seen := slots[norm]
+		slot, seen := slots[spelling]
 		if !seen {
-			slots[norm] = len(childEnv)
-			dotted[norm] = hasDot
+			slots[spelling] = len(childEnv)
+			dotted[spelling] = hasDot
 			childEnv = append(childEnv, renamed)
 			continue
 		}
-		if dotted[norm] && !hasDot {
+		if dotted[spelling] && !hasDot {
 			continue
 		}
 		childEnv[slot] = renamed
-		dotted[norm] = dotted[norm] || hasDot
+		dotted[spelling] = dotted[spelling] || hasDot
 	}
 	return childEnv
 }
 
-// shellName answers the name ShellSafe gives a variable whose normalized name
-// is norm, and whether the variable is a key this package reads at all.
-func shellName(norm string) (string, bool) {
+// shellName answers the name ShellSafe gives the variable name, and whether
+// the variable is a key this package reads at all.
+//
+// A ze key answers its upper-case underscore form whatever its spelling. A
+// registered key outside ze is renamed only when a shell would drop it, so an
+// identifier spelling keeps its case: ExaBGP reads case-sensitively, and an
+// upper-case alias lower-cased is a variable nobody reads.
+func shellName(name string) (string, bool) {
+	norm := normalize(name)
 	if strings.HasPrefix(norm, zeNamespace) {
 		return strings.ToUpper(norm), true
 	}
-	if isRegisteredSpelling(norm) {
-		return norm, true
+	if !isRegisteredSpelling(norm) {
+		return "", false
 	}
-	return "", false
+	if isShellIdentifier(name) {
+		return name, true
+	}
+	return norm, true
+}
+
+// isShellIdentifier answers whether name is a POSIX shell variable name, the
+// only kind of name dash keeps in the environment it hands a child.
+func isShellIdentifier(name string) bool {
+	if name == "" {
+		return false
+	}
+	for i, r := range name {
+		letter := r == '_' || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
+		if letter {
+			continue
+		}
+		if i > 0 && r >= '0' && r <= '9' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 // InNamespace answers whether an environment variable name sits inside a

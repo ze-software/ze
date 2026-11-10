@@ -94,9 +94,11 @@ var preamble = map[string][]string{
 		"  the diagnosis: the test asserts on elapsed time instead of on state.",
 	},
 	checkLogSubsystemName: {
-		"  A hyphenated ze.log.<subsystem> key only works when that exact",
-		"  subsystem is declared literally in Go. These match nothing, so the",
-		"  level silently stays at the WARN default:",
+		"  A ze.log.<subsystem> key reads a dot, a hyphen and an underscore as",
+		"  one separator, so ze.log.bgp-rib sets the bgp.rib logger. These",
+		"  hyphenated keys name no subsystem the Go source declares in any",
+		"  spelling, so the level silently stays at the WARN default. Name the",
+		"  logger the test observes (its engine name or its plugin's name):",
 	},
 	checkDocDriftName: {
 		"  A page carries a <!-- source: --> anchor over each claim it makes",

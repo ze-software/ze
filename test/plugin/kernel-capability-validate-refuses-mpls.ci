@@ -12,10 +12,11 @@
 #
 # The probe root is redirected through ze.test.doctor.procfs-root to a path that
 # does not exist, so /proc/sys/net/mpls/platform_labels is absent whatever the
-# host kernel holds. The key must keep its hyphen (ze.test.doctor.procfs-root or
-# ze_test_doctor_procfs-root): env.Get reads ZE_TEST_DOCTOR_PROCFS_ROOT as a
-# different key, so the probe would read the host /proc and pass on a host
-# that holds MPLS (plan/journal/silent-fall-through.md, 2026-09-24, `normalize`).
+# host kernel holds. Any spelling of the key reaches the probe: env.Get reads a
+# dot, an underscore and a hyphen as one separator, so ZE_TEST_DOCTOR_PROCFS_ROOT
+# is the same key. Before the hyphen was a separator it was a different key, and
+# the probe read the host /proc and passed on a host that holds MPLS
+# (plan/journal/silent-fall-through.md, 2026-09-24, `normalize`).
 #
 # Linux-only: the MPLS capability enrols behind //go:build linux, so nothing is
 # enrolled elsewhere and nothing here can be reached.

@@ -28,6 +28,7 @@ func TestMain(m *testing.M) {
 	MustRegister(EnvEntry{Key: "ze.test.deprecated.new", Type: "string", Description: "replacement var"})
 	MustRegister(EnvEntry{Key: "ze.test.hyphen-key", Type: "string", Description: "key holding a hyphen"})
 	MustRegister(EnvEntry{Key: "exabgp.test.shell", Type: "string", Description: "registered key outside the ze namespace"})
+	MustRegister(EnvEntry{Key: "ze.test.shell.upper-alias", Type: "string", Description: "key with an upper-case alias outside the ze namespace", Aliases: []string{"TEST_SHELL_UPPER"}})
 	os.Exit(m.Run())
 }
 
@@ -631,4 +632,25 @@ func TestDeprecatedNoWarnWhenUnset(t *testing.T) {
 	require.NoError(t, r.Close())
 
 	assert.Equal(t, 0, n, "no warning should be printed when deprecated var is not set")
+}
+
+// TestNormalizeIsTheReadingGetUses proves the exported reading other packages
+// key variable names by answers one string exactly for the spellings Get reads
+// as one key.
+//
+// VALIDATES: every case and separator spelling of a key Normalizes to one
+// string, and a key with one more segment does not.
+// PREVENTS: a caller outside env (the fixture's child environment, the
+// provision log defaults) treating two spellings Get reads as one key as two.
+func TestNormalizeIsTheReadingGetUses(t *testing.T) {
+	const key = "ze.test.hyphen-key"
+	want := Normalize(key)
+	for _, spelling := range []string{"ZE_TEST_HYPHEN_KEY", "ze_test_hyphen-key", "ZE.TEST.HYPHEN.KEY", "ze-test-hyphen-key"} {
+		if got := Normalize(spelling); got != want {
+			t.Errorf("Normalize(%q) = %q, want %q, the reading of %s", spelling, got, want, key)
+		}
+	}
+	if got := Normalize(key + ".more"); got == want {
+		t.Errorf("Normalize(%q) = %q, the reading of %s itself", key+".more", got, key)
+	}
 }

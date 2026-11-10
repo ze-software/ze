@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	docindex "github.com/ze-software/ze/internal/le/doc/index"
 	repochanged "github.com/ze-software/ze/internal/le/repo/changed"
@@ -51,9 +52,10 @@ var (
 	loadExcuseRe = regexp.MustCompile(`(?i)under load|loaded host|load average|load[- ]sensitive` +
 		`|pass(?:es|ed)? in isolation|resource contention|contended host`)
 	ciLogKeyRe = regexp.MustCompile(`ze\.log\.([A-Za-z0-9._-]+)`)
-	// hyphenLiteralRe reads every hyphen-bearing double-quoted Go string
-	// literal, which is the only form a subsystem name reaches the code in.
-	hyphenLiteralRe = regexp.MustCompile(`"([a-z0-9]{1,}(?:[.-][a-z0-9]{1,})*-[a-z0-9]{1,}(?:[.-][a-z0-9]{1,})*)"`)
+	// subsystemLiteralRe reads every double-quoted Go string literal of two
+	// or more segments joined by dots or hyphens, the shape of every
+	// subsystem name that a hyphenated key can name.
+	subsystemLiteralRe = regexp.MustCompile(`"([a-z0-9]+(?:[.-][a-z0-9]+)+)"`)
 )
 
 // goSourceRoots are the trees a subsystem name can be declared in.
@@ -313,18 +315,23 @@ func (g *checker) checkLoadExcuses() CheckResult {
 		Str(" shard(s) checked)").String()}
 }
 
-// checkLogSubsystemKeys refuses a log-level key in a .ci test that names no
-// real subsystem.
+// checkLogSubsystemKeys refuses a hyphenated log-level key in a .ci test that
+// names no subsystem in any spelling.
 //
-// The subsystem lookup splits only on dots. An internal plugin logger replaces
-// each registry-name hyphen with a dot. Therefore, a hyphenated key matches no
-// lookup and changes no level. The test then loses the log lines that it was
-// written to observe, with no error.
+// The env package reads a dot, an underscore and a hyphen as one separator
+// (env.Normalize), so ze.log.bgp-rib and ze.log.bgp.rib are one key, and the
+// level reaches the bgp.rib logger an internal plugin named bgp-rib uses. A
+// hyphenated key is still inert when no subsystem answers to it in any
+// spelling: the test then loses the log lines it was written to observe, with
+// no error.
 //
-// The check examines only hyphen-bearing subsystems because that is the failure
-// mode. A legitimate hyphenated subsystem has a literal declaration in Go
-// source. An absent literal proves that the key is inert. The check ignores
-// comment lines because one test documents the wrong form.
+// The check examines hyphen-bearing keys, the form written from a plugin's
+// registry name. A subsystem has a literal declaration in Go source, as an
+// engine logger name or as the registry name the plugin logger derives from,
+// and a key names it when the key's reading is the reading of that literal or
+// of its leading segments (the hierarchical lookup applies ze.log.bgp-filter
+// to bgp.filter.prefix). A key matching no literal so read is inert. The check
+// ignores comment lines, where a test may quote a key it does not set.
 //
 // It covers changed .ci files, like the sleep gates. The source scan is
 // tree-wide so an unrelated edit cannot legitimize an inert key elsewhere.
@@ -376,7 +383,7 @@ func (g *checker) checkLogSubsystemKeys() CheckResult {
 		return CheckResult{Skipped: true}
 	}
 
-	declared, err := hyphenatedSubsystemsInGo(g.root)
+	declared, err := subsystemReadingsInGo(g.root)
 	if err != nil {
 		return g.readFailure(checkLogSubsystemName, err)
 	}
@@ -385,24 +392,24 @@ func (g *checker) checkLogSubsystemKeys() CheckResult {
 	offenders := make(map[string]bool)
 	var tb textbuf.Buffer
 	for _, s := range suspects {
-		if declared[s.subsystem] {
+		if declared[env.Normalize(s.subsystem)] {
 			continue
 		}
 		violations = append(violations,
 			tb.Reset().Str(s.rel).Byte(':').Int(int64(s.line)).
-				Str(": ze.log.").Str(s.subsystem).Str("  (did you mean ").
-				Str(strings.ReplaceAll(s.subsystem, "-", ".")).Str("?)").String(),
+				Str(": ze.log.").Str(s.subsystem).
+				Str("  (no subsystem in internal/, pkg/ or cmd/ is named this, with dots, hyphens or underscores)").String(),
 			tb.Reset().Str("  ").Str(s.text).String())
 		offenders[s.rel] = true
 	}
 
 	if len(violations) > 0 {
 		g.declareFailureGroup(checkLogSubsystemName, sortedKeys(offenders),
-			"a .ci test sets a ze.log.<subsystem> key that matches no slog subsystem", actionRerun)
+			"a .ci test sets a ze.log.<subsystem> key that names no slog subsystem in any spelling", actionRerun)
 		return CheckResult{Failed: true, Message: "ci log-subsystem key FAILED:", Violations: violations}
 	}
 	return CheckResult{Message: tb.Reset().Str("ci log-subsystem key OK (").Int(int64(len(suspects))).
-		Str(" hyphenated key(s) declared)").String()}
+		Str(" hyphenated key(s) name a subsystem)").String()}
 }
 
 // realCIFilesIncludingDrafts answers every .ci under test/, the draft incubator
@@ -427,14 +434,17 @@ func realCIFilesIncludingDrafts(root string) ([]string, error) {
 	return files, nil
 }
 
-// hyphenatedSubsystemsInGo answers every hyphen-bearing double-quoted Go string
-// literal under the source roots.
+// subsystemReadingsInGo answers the env reading (env.Normalize) of every
+// double-quoted Go string literal of two or more dot- or hyphen-joined
+// segments under the source roots, and of each of its leading runs of two or
+// more segments.
 //
 // A subsystem name reaches the code in one of two literal forms. It is an
 // engine logger name or the plugin registry Name that the forked path uses verbatim.
 // Quoted literals cover both forms without a call-shape parser. Text absent
-// from source cannot be a subsystem name.
-func hyphenatedSubsystemsInGo(root string) (map[string]bool, error) {
+// from source cannot be a subsystem name. The leading runs are there because
+// a key also sets the level of every subsystem below it.
+func subsystemReadingsInGo(root string) (map[string]bool, error) {
 	found := make(map[string]bool)
 	for _, sub := range goSourceRoots {
 		base := filepath.Join(root, sub)
@@ -455,8 +465,8 @@ func hyphenatedSubsystemsInGo(root string) (map[string]bool, error) {
 				// is a FALSE RED rather than a fail-open, and it is still wrong.
 				return fmt.Errorf("reading %s: %w", path, err)
 			}
-			for _, m := range hyphenLiteralRe.FindAllStringSubmatch(string(raw), -1) {
-				found[m[1]] = true
+			for _, m := range subsystemLiteralRe.FindAllStringSubmatch(string(raw), -1) {
+				addSubsystemReadings(found, m[1])
 			}
 			return nil
 		})
@@ -465,6 +475,22 @@ func hyphenatedSubsystemsInGo(root string) (map[string]bool, error) {
 		}
 	}
 	return found, nil
+}
+
+// addSubsystemReadings adds to found the env reading of name and of each of its
+// leading runs of two or more segments. name is a subsystemLiteralRe match, so
+// its segments are joined by single dots or hyphens.
+func addSubsystemReadings(found map[string]bool, name string) {
+	reading := env.Normalize(name)
+	found[reading] = true
+	for i := range len(reading) {
+		if reading[i] != '_' {
+			continue
+		}
+		if strings.Contains(reading[:i], "_") {
+			found[reading[:i]] = true
+		}
+	}
 }
 
 // checkDesignRefs runs the design-reference existence gate over the whole tree.

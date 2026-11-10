@@ -307,7 +307,7 @@ These are native `./le` actions rather than Claude hooks, and Thomas's release c
 | `checkSleepRatchet` | `ci-sleep-ratchet` | How MANY pauses the `.ci` corpus holds, against a committed delta baseline. |
 | `checkSleepJustification` | `ci-sleep-justification` | How many of those pauses are UNEXPLAINED: each needs a comment above or trailing it. |
 | `checkLoadExcuses` | `known-failure-load-excuse` | A changed `plan/known-failures/` shard that blames host load. |
-| `checkLogSubsystemKeys` | `ci-log-subsystem-key` | A `ze.log.<subsystem>` key whose subsystem carries a hyphen that no Go literal declares. `getLogEnv` splits on `.` only, so `ze.log.bgp.adj-rib-in` sets nothing and the level stays at the WARN default. |
+| `checkLogSubsystemKeys` | `ci-log-subsystem-key` | A `ze.log.<subsystem>` key whose subsystem carries a hyphen and names no subsystem a Go literal declares, in any spelling. `env.Get` reads a dot, an underscore and a hyphen as one separator, so `ze.log.bgp.adj-rib-in` sets the `bgp.adj.rib.in` logger, while a key that matches no declared name (or leading run of one) sets nothing and the level stays at the WARN default. |
 | `checkDesignRefs` | `design-refs` | A `// Design:` reference naming no document. Unconditional in a repository checkout, because closing a spec orphans references in any source file. |
 | `checkDocDrift` | `doc-drift` | A commit that changed a symbol a `<!-- source: -->` anchor claims while that page stood still. It maps each diff hunk to its declaration, so an edit elsewhere in the file reports nothing. |
 

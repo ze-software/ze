@@ -53,19 +53,27 @@ func TestGetReadsHyphenAsSeparator(t *testing.T) {
 // VALIDATES: a dotted key, a hyphenated key and a registered exabgp key reach
 // a /bin/sh -c child under one identifier spelling each; when the dotted and
 // the underscore spelling of one key are both set, the child gets the dotted
-// value in either order; an unrelated variable passes unchanged; every
-// registered key, rewritten, is a shell identifier.
+// value in either order; a registered upper-case alias outside ze (as TIME,
+// REV and FUZZ are) reaches the child in the case it was written, never
+// lower-cased; an unrelated variable passes unchanged;
+// every registered key and alias, rewritten, is a shell identifier.
 // PREVENTS: a forked plugin that runs on a key's default because dash dropped
-// the only spelling the daemon carried.
+// the only spelling the daemon carried, and an alias lower-cased into a name
+// nobody reads.
 func TestShellSafeSpellsEveryZeKeyAsAnIdentifier(t *testing.T) {
 	for _, entry := range AllEntries() {
 		if strings.Contains(entry.Key, "<") {
 			continue
 		}
-		renamed := ShellSafe([]string{entry.Key + "=x"})
-		name, _, _ := strings.Cut(renamed[0], "=")
-		if !shellIdentifier.MatchString(name) {
-			t.Errorf("registered key %q is passed to a shell as %q, which is not an identifier", entry.Key, name)
+		for _, spelling := range append([]string{entry.Key}, entry.Aliases...) {
+			renamed := ShellSafe([]string{spelling + "=x"})
+			name, _, _ := strings.Cut(renamed[0], "=")
+			if !shellIdentifier.MatchString(name) {
+				t.Errorf("registered spelling %q is passed to a shell as %q, which is not an identifier", spelling, name)
+			}
+			if shellIdentifier.MatchString(spelling) && !InNamespace(spelling, "ze.") && name != spelling {
+				t.Errorf("registered identifier %q outside ze is passed to a shell as %q, want it unchanged", spelling, name)
+			}
 		}
 	}
 
@@ -79,6 +87,7 @@ func TestShellSafeSpellsEveryZeKeyAsAnIdentifier(t *testing.T) {
 			"ze.test.hyphen-key=hyphen",
 			"exabgp.test.shell=exabgp",
 			"some.other.thing=untouched",
+			"TEST_SHELL_UPPER=upper",
 		}, order...)
 
 		child := childEnvironment(t, ShellSafe(parent))
@@ -88,6 +97,7 @@ func TestShellSafeSpellsEveryZeKeyAsAnIdentifier(t *testing.T) {
 			"ZE_TEST_HYPHEN_KEY": "hyphen",
 			"exabgp_test_shell":  "exabgp",
 			"ZE_TEST_SET_VAL":    "dotted",
+			"TEST_SHELL_UPPER":   "upper",
 		}
 		for name, value := range want {
 			if got, ok := child[name]; !ok || got != value {

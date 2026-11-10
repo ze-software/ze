@@ -73,7 +73,7 @@ func TestWithInstallLogDefaults(t *testing.T) {
 
 func TestHasEnvKeyNormalization(t *testing.T) {
 	env := []string{"ZE_LOG=info", "PATH=/bin"}
-	for _, form := range []string{"ze.log", "ze_log", "ZE.LOG", "ZE_LOG"} {
+	for _, form := range []string{"ze.log", "ze_log", "ZE.LOG", "ZE_LOG", "ze-log"} {
 		if !hasEnvKey(env, form) {
 			t.Errorf("hasEnvKey did not match %q against ZE_LOG", form)
 		}

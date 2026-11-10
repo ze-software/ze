@@ -13,9 +13,9 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"strings"
 	"syscall"
 
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/rescueauth"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -425,22 +425,11 @@ func withInstallLogDefaults(environ []string) []string {
 	return out
 }
 
+// hasEnvKey answers whether environ sets key under any spelling the env
+// package reads as that key (ze.log, ze_log, ZE_LOG are one key). It asks
+// env.Without, so the reading is the env package's own and cannot drift.
 func hasEnvKey(environ []string, key string) bool {
-	want := normalizeEnvKey(key)
-	for _, e := range environ {
-		name, _, ok := strings.Cut(e, "=")
-		if ok && normalizeEnvKey(name) == want {
-			return true
-		}
-	}
-	return false
-}
-
-// normalizeEnvKey matches the env package: lookup is case-insensitive and treats
-// dots, underscores and hyphens as equivalent, so ze.log, ze_log and ZE_LOG are
-// one key.
-func normalizeEnvKey(k string) string {
-	return strings.ToLower(strings.NewReplacer(".", "_", "-", "_").Replace(k))
+	return len(env.Without(environ, key)) != len(environ)
 }
 
 func forkAndServe(config string) int {

@@ -1485,8 +1485,9 @@ long the daemon has. Both are written in the underscore spelling that `env.Get`
 reads as the same key, `ze_test_budget` and `ze_test_parallel_factor`: a daemon
 starts a plugin's `run` string through `/bin/sh -c`, and dash drops a variable
 whose name is not a shell identifier, so the dot spelling never reached a
-fixture that runs as a plugin. `env.Get` does not read a hyphen as a separator,
-so neither key carries one.
+fixture that runs as a plugin. `env.Get` reads a dot, an underscore and a hyphen
+as one separator, and the daemon now renames every ze key to its shell spelling
+before it forks a plugin (`env.ShellSafe`).
 
 The runner does NOT read the job-admission budget. `defaultSlots`
 (`internal/le/job/job.go`) gives the machine one job slot for each core share it
