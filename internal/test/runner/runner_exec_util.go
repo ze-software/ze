@@ -229,11 +229,13 @@ func childEnv(extra ...string) []string {
 // itself.
 //
 // The name is written in the underscore spelling, which env.Get reads as the
-// same key. A daemon starts a plugin's `run` string through /bin/sh -c, and
-// dash drops every variable whose name is not a shell identifier, so the dot
-// spelling never reached a fixture running as a plugin: every WaitBudget there
-// silently answered its fallback (measured 2026-09-24 in /proc/<pid>/environ of
-// audit-config-commit's observer).
+// same key. dash drops every variable whose name is not a shell identifier, so
+// the dot spelling never reached a fixture the runner itself starts through a
+// shell, and before the daemon renamed ze keys for its plugin fork
+// (env.ShellSafe in startExternal) it never reached a fixture running as a
+// plugin either: every WaitBudget there silently answered its fallback
+// (measured 2026-09-24 in /proc/<pid>/environ of audit-config-commit's
+// observer).
 func (r *Runner) testBudgetEnv(testBudget time.Duration) string {
 	var tb textbuf.Buffer
 	return tb.Str(strings.ReplaceAll(TestBudgetEnv, ".", "_")).Byte('=').
@@ -252,8 +254,8 @@ func (r *Runner) testBudgetEnv(testBudget time.Duration) string {
 // readiness wait should be out of the code that knows what it is waiting for.
 //
 // The name is written in the underscore spelling for the reason testBudgetEnv
-// gives: dash drops a name that is not a shell identifier, so a fixture running
-// as a plugin would never see the dot spelling.
+// gives: dash drops a name that is not a shell identifier, so a child the
+// runner starts through a shell would never see the dot spelling.
 func (r *Runner) parallelFactorEnv() string {
 	var tb textbuf.Buffer
 	return tb.Str(strings.ReplaceAll(ParallelFactorEnv, ".", "_")).Byte('=').Int(int64(r.parallelFactor())).String()

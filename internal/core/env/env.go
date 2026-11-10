@@ -3,14 +3,16 @@
 //
 // Package env provides centralized environment variable lookup for Ze.
 //
-// Lookup is case-insensitive and separator-agnostic. Any of these set the same
-// var, and a dotted spelling wins when several are set:
+// Lookup is case-insensitive and separator-agnostic: a dot, an underscore and a
+// hyphen are one separator. Any of these set the same var, and a dotted
+// spelling wins when several are set:
 //   - ze.plugin.hub.host
 //   - ze_plugin_hub_host
 //   - ZE_PLUGIN_HUB_HOST
 //   - ZE_plUGin_HUB_host
 //
-// All keys are normalized to lowercase underscores for matching.
+// All keys are normalized to lowercase underscores for matching, so every
+// registered key has an underscore spelling a shell carries (ShellSafe).
 // A cache is built from os.Environ() on first access and updated via Set().
 // Callers always pass the dot-notation key.
 //
@@ -39,9 +41,84 @@ var (
 	cacheMu   sync.RWMutex
 )
 
+// separators rewrites each character this package reads as a key separator to
+// the underscore. The hyphen is one because a shell identifier holds neither a
+// dot nor a hyphen: dash drops every inherited variable whose name is not an
+// identifier, so while the hyphen was kept a hyphenated key had no spelling
+// that reached a process started through /bin/sh -c.
+var separators = strings.NewReplacer(".", "_", "-", "_")
+
 // normalize converts any key form to lowercase underscores for cache lookup.
 func normalize(key string) string {
-	return strings.ToLower(strings.ReplaceAll(key, ".", "_"))
+	return strings.ToLower(separators.Replace(key))
+}
+
+// zeNamespace is the normalized prefix of every ze key, the namespace whose
+// shell spelling is upper case (ShellSafe).
+const zeNamespace = "ze_"
+
+// ShellSafe returns a child environment in which every ze key carries a name a
+// shell passes on, so a process started through /bin/sh -c reads it.
+//
+// A plugin's run string is started by a shell, and dash drops every inherited
+// variable whose name is not a shell identifier. The daemon's environment
+// holds ze keys in the dotted spelling (Set writes it) and an operator may set
+// one with a hyphen, so without this rewrite the plugin reads the key's
+// default and says nothing.
+//
+// Each variable in the ze namespace, and each spelling of a registered key in
+// any other namespace (exabgp.*), becomes one entry under its normalized name:
+// upper case for a ze key, the ZE_ form ze documents, and lower case for any
+// other, because ExaBGP reads only the lower-case underscore form of its own
+// settings (src/exabgp/environment/config.py, Environment.setup:
+// rep_name = env_name.replace('.', '_')). Where several spellings of one key
+// are present the value is the one Get reads: a dotted spelling wins, then the
+// last entry. Every other variable passes unchanged, in its place. environ is
+// left unchanged.
+func ShellSafe(environ []string) []string {
+	childEnv := make([]string, 0, len(environ))
+	slots := make(map[string]int)
+	dotted := make(map[string]bool)
+	for _, entry := range environ {
+		name, value, named := strings.Cut(entry, "=")
+		if !named {
+			childEnv = append(childEnv, entry)
+			continue
+		}
+		norm := normalize(name)
+		spelling, ours := shellName(norm)
+		if !ours {
+			childEnv = append(childEnv, entry)
+			continue
+		}
+		hasDot := strings.Contains(name, ".")
+		renamed := spelling + "=" + value
+		slot, seen := slots[norm]
+		if !seen {
+			slots[norm] = len(childEnv)
+			dotted[norm] = hasDot
+			childEnv = append(childEnv, renamed)
+			continue
+		}
+		if dotted[norm] && !hasDot {
+			continue
+		}
+		childEnv[slot] = renamed
+		dotted[norm] = dotted[norm] || hasDot
+	}
+	return childEnv
+}
+
+// shellName answers the name ShellSafe gives a variable whose normalized name
+// is norm, and whether the variable is a key this package reads at all.
+func shellName(norm string) (string, bool) {
+	if strings.HasPrefix(norm, zeNamespace) {
+		return strings.ToUpper(norm), true
+	}
+	if isRegisteredSpelling(norm) {
+		return norm, true
+	}
+	return "", false
 }
 
 // InNamespace answers whether an environment variable name sits inside a
@@ -49,7 +126,7 @@ func normalize(key string) string {
 //
 // It exists because a caller that decides something about a variable MUST
 // decide it by the same reading this package does. Get matches case-insensitively
-// and treats a dot and an underscore as one separator, and Set writes the
+// and treats a dot, an underscore and a hyphen as one separator, and Set writes the
 // canonical DOT spelling into the OS environment, so a caller comparing raw
 // names against "ZE_PLUGIN_" answers no for "ze.plugin.hub.token" while Get
 // still reads that variable. The guarantee then covers one spelling and the
@@ -113,7 +190,7 @@ var secretCleared = make(map[string]bool)
 // Get returns the value of a Ze environment variable.
 // key is the canonical dot-notation form (e.g. "ze.plugin.hub.host").
 // Aliases registered via EnvEntry.Aliases resolve to the canonical key.
-// Matching is case-insensitive and treats dots and underscores as equivalent.
+// Matching is case-insensitive and treats dots, underscores and hyphens as equivalent.
 // Aborts if the key was not registered via MustRegister (programming error).
 // For vars registered with Secret: true, the first Get() clears the var from the
 // OS environment (removes it from /proc/<pid>/environ). The value stays in cache.

@@ -27,6 +27,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/syncutil"
 	"github.com/ze-software/ze/internal/core/taskguard"
@@ -670,7 +671,15 @@ func (p *Process) startExternal() error {
 	// plugin.ChildPathEnv states why it is a fallback rather than an override,
 	// and it is shared with the declaration query, which starts the same run
 	// string and owes the same PATH (../childenv.go).
-	p.cmd.Env = os.Environ()
+	//
+	// The run string goes through a shell, and dash drops every variable whose
+	// name is not an identifier, so each ze key is passed under its shell
+	// spelling (env.ShellSafe): a dotted or hyphenated key the daemon holds
+	// then reaches the plugin rather than leaving it on the key's default. A
+	// connect-back variable the daemon inherited is renamed to the same
+	// ZE_PLUGIN_* name appended below, and exec keeps only the last value of a
+	// duplicated name, so the daemon's own value wins.
+	p.cmd.Env = env.ShellSafe(os.Environ())
 	if pathEnv := plugin.ChildPathEnv(plugin.EngineBinDir(), os.Getenv("PATH")); pathEnv != "" {
 		p.cmd.Env = append(p.cmd.Env, pathEnv)
 	}

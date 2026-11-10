@@ -22,6 +22,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -969,5 +970,46 @@ func TestQueryChildEnvDropsEveryPluginVariableSpelling(t *testing.T) {
 		if strings.Contains(entry, token) {
 			t.Fatalf("the hub token reached the queried child, in %q", entry)
 		}
+	}
+}
+
+// TestQueryChildEnvSpellsZeKeysForTheShell holds what a queried plugin reads:
+// the query starts the run string through the shell, as the live start does,
+// so a ze key the daemon holds in its dotted or hyphenated spelling reaches
+// the plugin only under its shell spelling.
+//
+// VALIDATES: a dotted, hyphenated ze key set in the daemon is read by the
+// shell's child as ZE_LOG_QUERY_SHELL_SPELLING, with the daemon's value.
+// PREVENTS: a queried plugin that declares from a key's default because dash
+// dropped the only spelling the daemon carried.
+func TestQueryChildEnvSpellsZeKeysForTheShell(t *testing.T) {
+	const value = "debug"
+	t.Setenv("ze.log.query.shell-spelling", value)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	child := exec.CommandContext(ctx, Shell, "-c", "env")
+	child.Env = queryChildEnv()
+	out, err := child.Output()
+	if err != nil {
+		t.Fatalf("%s -c env: %v", Shell, err)
+	}
+
+	var found bool
+	for line := range strings.SplitSeq(string(out), "\n") {
+		name, got, named := strings.Cut(line, "=")
+		if !named || !env.InNamespace(name, "ze.log.query.shell-spelling") {
+			continue
+		}
+		if name != "ZE_LOG_QUERY_SHELL_SPELLING" {
+			t.Errorf("the queried child reads the key as %q, want ZE_LOG_QUERY_SHELL_SPELLING", name)
+		}
+		if got != value {
+			t.Errorf("the queried child reads %s=%q, want %q", name, got, value)
+		}
+		found = true
+	}
+	if !found {
+		t.Fatalf("the queried child never received ze.log.query.shell-spelling; it read:\n%s", out)
 	}
 }

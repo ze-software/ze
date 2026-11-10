@@ -234,12 +234,13 @@ YANG-aligned key is registered as an alias (or vice versa). `Get()` and
 `Set()` resolve aliases to the canonical key transparently. Precedence:
 canonical key value > alias key value. See `ai/rules/config.md`.
 
-**OS spellings:** Lookup ignores case and treats dots and underscores as the
-same separator. A hyphen is not a separator and stays as written: the key
-`ze.test.doctor.procfs-root` answers to `ze_test_doctor_procfs-root` and to
-`ZE.TEST.DOCTOR.PROCFS-ROOT`, but `ZE_TEST_DOCTOR_PROCFS_ROOT` is a different
-name that `Get` never reads, so the value is ignored without a message
-(`plan/journal/silent-fall-through.md`, 2026-09-24). When several spellings
+**OS spellings:** Lookup ignores case and treats a dot, an underscore and a
+hyphen as one separator. The key `ze.test.doctor.procfs-root` answers to
+`ZE_TEST_DOCTOR_PROCFS_ROOT`, to `ze_test_doctor_procfs-root` and to
+`ZE.TEST.DOCTOR.PROCFS-ROOT`, so every registered key has a spelling that is a
+shell identifier and can be set with `export`. Because two keys that differ
+only by separator would read one variable, `MustRegister` panics when a key or
+an alias normalizes to the spelling of another key. When several spellings
 occur in the inherited environment, a spelling with a dot wins over one
 without, whatever their order, which is ExaBGP's own precedence for its
 `exabgp.*` settings, even when the dotted value is empty; among spellings of the
@@ -256,7 +257,27 @@ order, so the cache is invalidated only after the inherited environment is resto
 `Without()` creates a child environment with all case/separator spellings of
 the requested exact keys removed. It leaves the parent environment unchanged
 and does not remove neighboring keys or distinct registered aliases.
-<!-- source: internal/core/env/env.go -- ensureCache, Set, ResetCache, Without -->
+<!-- source: internal/core/env/env.go -- normalize, ensureCache, Set, ResetCache, Without -->
+<!-- source: internal/core/env/registry.go -- MustRegister, claimSpellings -->
+
+**The shell spelling:** a forked plugin's `run` string is started through
+`/bin/sh -c`, and dash drops every inherited variable whose name is not a shell
+identifier, so a dotted key (the spelling `Set()` writes) or a hyphenated key
+never reached the plugin and the plugin read the key's default. `ShellSafe()`
+rewrites a child environment so each ze key arrives once under an identifier:
+a variable in the `ze.` namespace becomes its upper-case underscore form
+(`ze.log.bgp-rib` becomes `ZE_LOG_BGP_RIB`), and a registered key in another
+namespace becomes its lower-case underscore form (`exabgp.api.ack` becomes
+`exabgp_api_ack`), the only form ExaBGP reads besides the dotted one. Where
+several spellings of one key are present, the child gets the value `Get()`
+reads: a dotted spelling wins, then the last entry. Every other variable passes
+unchanged. The live plugin start and the declaration query both build the
+child environment through it, and the live start then appends the
+`ZE_PLUGIN_*` connect-back variables, which replace any inherited value of the
+same name.
+<!-- source: internal/core/env/env.go -- ShellSafe, shellName -->
+<!-- source: internal/component/plugin/process/process.go -- startExternal -->
+<!-- source: internal/component/plugin/declarations.go -- queryChildEnv -->
 
 **Deprecation:** When an env var is superseded (e.g., `ze.fwd.pool.size` by
 `ze.fwd.pool.maxbytes`), mark it with `Deprecated: "replacement.key"`.

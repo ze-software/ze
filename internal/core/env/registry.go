@@ -53,9 +53,20 @@ func warnDeprecated(key string) {
 	tb.Str("WARNING: env var ").Str(key).Str(" is deprecated, use ").Str(e.Deprecated).Str(" instead\n").StdErr() //nolint:errcheck // diagnostic
 }
 
+// spellings maps the normalized spelling of every registered key and alias to
+// the canonical key it reads. Get cannot tell two keys with one normalized
+// spelling apart, so MustRegister refuses the second (claimSpellings).
+var spellings = make(map[string]string)
+
 // MustRegister adds an env var entry to the registry.
 // Called via package-level var initialization in each component.
+// Panics when the key or an alias reads as the same variable as another key,
+// such as "ze.a.b-c" beside "ze.a.b.c": one value would answer both.
 func MustRegister(e EnvEntry) EnvEntry {
+	// Every spelling is checked before any is recorded, so a refused entry
+	// leaves no trace in the registry.
+	claimSpellings(e)
+
 	registered[e.Key] = e
 
 	for _, alias := range e.Aliases {
@@ -74,6 +85,37 @@ func MustRegister(e EnvEntry) EnvEntry {
 	}
 
 	return e
+}
+
+// claimSpellings records that the normalized spelling of e's key and of each
+// alias reads e.Key, and panics, before recording any of them, when one already
+// reads another key. Registering one key twice, or an alias whose normalized
+// form is its own key's, claims nothing new.
+func claimSpellings(e EnvEntry) {
+	names := append([]string{e.Key}, e.Aliases...)
+	for _, spelling := range names {
+		if owner, claimed := spellings[normalize(spelling)]; claimed && owner != e.Key {
+			panic("BUG: env key " + spelling + " reads as the same variable as " + owner +
+				": lookup treats dots, underscores and hyphens as one separator, rename one")
+		}
+	}
+	for _, spelling := range names {
+		spellings[normalize(spelling)] = e.Key
+	}
+}
+
+// isRegisteredSpelling answers whether a normalized variable name is a
+// registered key, an alias or a name under a registered prefix pattern.
+func isRegisteredSpelling(norm string) bool {
+	if _, ok := spellings[norm]; ok {
+		return true
+	}
+	for _, p := range prefixes {
+		if strings.HasPrefix(norm, normalize(p)) {
+			return true
+		}
+	}
+	return false
 }
 
 // resolveAlias returns the canonical key if key is an alias, otherwise returns key unchanged.

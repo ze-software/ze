@@ -26,6 +26,8 @@ func TestMain(m *testing.M) {
 	MustRegister(EnvEntry{Key: "ze.test.alias.canonical", Type: "string", Description: "canonical key with alias", Aliases: []string{"ze.test.alias.alt"}})
 	MustRegister(EnvEntry{Key: "ze.test.deprecated.old", Type: "string", Description: "deprecated var", Deprecated: "ze.test.deprecated.new"})
 	MustRegister(EnvEntry{Key: "ze.test.deprecated.new", Type: "string", Description: "replacement var"})
+	MustRegister(EnvEntry{Key: "ze.test.hyphen-key", Type: "string", Description: "key holding a hyphen"})
+	MustRegister(EnvEntry{Key: "exabgp.test.shell", Type: "string", Description: "registered key outside the ze namespace"})
 	os.Exit(m.Run())
 }
 

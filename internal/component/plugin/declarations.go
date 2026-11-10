@@ -583,8 +583,13 @@ func queryOutcomeOfExit(waitErr error) queryOutcome {
 // state and impossible to get half right: the child receives no hub host, no
 // port, no token, no CA and no plugin name, so a plugin that ignores the mode
 // and starts for real fails to connect rather than joining a live daemon.
+//
+// The run string is started by a shell, as the live start is, so every other
+// ze key is passed under its shell spelling (env.ShellSafe): dash drops a
+// dotted or hyphenated name, and the queried plugin would declare from the
+// key's default.
 func queryChildEnv() []string {
-	inherited := os.Environ()
+	inherited := env.ShellSafe(os.Environ())
 	childEnv := make([]string, 0, len(inherited)+2)
 	for _, entry := range inherited {
 		name, _, named := strings.Cut(entry, "=")

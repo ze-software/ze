@@ -518,7 +518,7 @@ func childEnvironment(base []string, overrides map[string]string) []string {
 // environmentKeyReading renders a variable name the way internal/core/env reads
 // it, so two spellings of one key compare equal here as they do there.
 func environmentKeyReading(key string) string {
-	return strings.ToLower(strings.ReplaceAll(key, ".", "_"))
+	return strings.ToLower(strings.NewReplacer(".", "_", "-", "_").Replace(key))
 }
 
 // childEnvironmentAssignments is childEnvironment for a caller that already

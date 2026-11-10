@@ -437,9 +437,10 @@ func hasEnvKey(environ []string, key string) bool {
 }
 
 // normalizeEnvKey matches the env package: lookup is case-insensitive and treats
-// dots and underscores as equivalent, so ze.log, ze_log and ZE_LOG are one key.
+// dots, underscores and hyphens as equivalent, so ze.log, ze_log and ZE_LOG are
+// one key.
 func normalizeEnvKey(k string) string {
-	return strings.ToLower(strings.ReplaceAll(k, ".", "_"))
+	return strings.ToLower(strings.NewReplacer(".", "_", "-", "_").Replace(k))
 }
 
 func forkAndServe(config string) int {
