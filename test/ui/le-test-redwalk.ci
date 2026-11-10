@@ -1,0 +1,36 @@
+# Test: le test redwalk check walks a real break, and refuses a break it cannot walk
+# QUESTION: does the registered `le test redwalk check` line, typed as a person
+#   types it, run a real Go break against a real unit test and answer red with
+#   both lines and the overlay's file list, and refuse a non-Go break and a
+#   break that leaves the checkout, before any run?
+# WHY NOT A UNIT TEST: the unit tests of internal/le/test/redwalk inject the
+#   child runner; this proves the action is registered in le, that its grammar
+#   reaches answerCheck, and that a real `go test` under a real Go overlay
+#   goes red while the tracked file stays as it is.
+# VALIDATES: AC-10 (real walk), AC-14 (D2 b), and the Security Review row
+#   "a path escaping the checkout is refused", through the real entry point.
+# Exercises: answerCheck -> parseBreak -> walk.check -> overlay.Write ->
+#   overlay.UnitArgv -> go test -overlay
+# The break is written against internal/le/test/redwalk/probe/probe.go, which
+#   exists for this test; an edit there MUST update testdata/real.patch.
+# The patches are repository files under internal/le/test/redwalk/testdata: a
+#   non-harness le step runs at the checkout root, so a tmpfs name would not
+#   resolve there.
+
+option=timeout:value=300s
+
+cmd=foreground:seq=1:exec=le test redwalk check break internal/le/test/redwalk/testdata/real.patch unit TestDouble package internal/le/test/redwalk/probe:exit=0
+expect=stdout:contains=red walk: unit TestDouble in internal/le/test/redwalk/probe: red
+expect=stdout:contains=overlay: internal/le/test/redwalk/probe/probe.go
+expect=stdout:contains=clean:   --- PASS: TestDouble
+expect=stdout:contains=broken:  --- FAIL: TestDouble
+
+cmd=foreground:seq=2:exec=le test redwalk check break internal/le/test/redwalk/testdata/non-go.patch unit TestDouble package internal/le/test/redwalk/probe:exit=2
+expect=stderr:contains=go.mod: this is not a Go file
+expect=stderr:contains=cannot reach this file
+expect=stderr:contains=fix:
+
+cmd=foreground:seq=3:exec=le test redwalk check break internal/le/test/redwalk/testdata/escape.patch unit TestDouble package internal/le/test/redwalk/probe:exit=2
+expect=stderr:contains=the path leaves the checkout
+expect=stderr:contains=fix:
+expect=exit:code=2

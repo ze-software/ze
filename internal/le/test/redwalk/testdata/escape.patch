@@ -1,0 +1,5 @@
+--- a/../outside.go
++++ b/../outside.go
+@@ -1 +1 @@
+-package outside
++package broken

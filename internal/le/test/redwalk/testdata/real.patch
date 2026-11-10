@@ -1,0 +1,8 @@
+diff --git a/internal/le/test/redwalk/probe/probe.go b/internal/le/test/redwalk/probe/probe.go
+--- a/internal/le/test/redwalk/probe/probe.go
++++ b/internal/le/test/redwalk/probe/probe.go
+@@ -10,3 +10,3 @@
+ func Double(value int) int {
+-	return value * 2
++	return value * 3
+ }

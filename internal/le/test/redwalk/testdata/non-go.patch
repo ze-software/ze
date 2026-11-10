@@ -1,0 +1,6 @@
+diff --git a/go.mod b/go.mod
+--- a/go.mod
++++ b/go.mod
+@@ -1 +1 @@
+-module github.com/ze-software/ze
++module example.com/broken
