@@ -257,6 +257,12 @@ func zeTestMergePeerFileConfig(config, fileConfig *peer.Config) {
 	if fileConfig.AwaitFile != "" {
 		config.AwaitFile = fileConfig.AwaitFile
 	}
+	// The bound of that wait (option=await-file:timeout=). Dropped here, a
+	// declared timeout=240s fell back to the 15s default and an interop
+	// injector gave up before its release file was written.
+	if fileConfig.AwaitFileBound > 0 {
+		config.AwaitFileBound = fileConfig.AwaitFileBound
+	}
 	if len(fileConfig.CapabilityOverrides) > 0 {
 		config.CapabilityOverrides = fileConfig.CapabilityOverrides
 	}

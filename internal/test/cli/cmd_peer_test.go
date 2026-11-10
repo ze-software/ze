@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/test/peer"
 )
@@ -64,6 +65,38 @@ func TestPeerAwaitEOROptionReachesConfig(t *testing.T) {
 	if full.ConnMap != "remote-ip" || full.TCPConnections != 2 {
 		t.Fatalf("the peer built from the command line dropped sibling options: "+
 			"conn-map=%q tcp-connections=%d", full.ConnMap, full.TCPConnections)
+	}
+}
+
+// VALIDATES: option=await-file:path=<name>:timeout=240s in a message file
+// handed to the peer command reaches the running peer's Config.AwaitFileBound,
+// the bound awaitFile chooses, through the same entry point the interop injector
+// uses (`le test peer <inject-args> inject.msg`).
+// PREVENTS: the timeout being parsed and then dropped by the command-line merge,
+// which made bgp-local-pref-strip-gobgp's injector give up after the 15s
+// default while its inject.msg declared 240s.
+// MUTATION: delete the AwaitFileBound fold in zeTestMergePeerFileConfig and this
+// test fails with the bound at zero (the 15s default).
+func TestPeerAwaitFileTimeoutReachesConfig(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "inject.msg")
+	body := "option=await-file:path=/tmp/release-marker:timeout=240s\n"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatalf("write message file: %v", err)
+	}
+
+	config, ok := zeTestParsePeerFlags([]string{"--asn", "65001", path})
+	if !ok || config == nil {
+		t.Fatal("zeTestParsePeerFlags rejected a message file it should accept")
+	}
+	if config.AwaitFile != "/tmp/release-marker" {
+		t.Fatalf("await-file path is %q, want /tmp/release-marker", config.AwaitFile)
+	}
+	if config.AwaitFileBound != 240*time.Second {
+		t.Fatalf("await-file bound is %s, want the declared 240s: the timeout= is parsed "+
+			"and then never reaches the running peer, so the wait ends at the default", config.AwaitFileBound)
+	}
+	if _, err := peer.New(config); err != nil {
+		t.Fatalf("peer.New refused the merged config: %v", err)
 	}
 }
 
