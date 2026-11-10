@@ -182,7 +182,8 @@ func isMessage(message rsvpMessage, source, target, kind string) bool {
 // through the egress's segment address, which no subobject names, so the PATH
 // the egress receives MUST carry that address as an inserted hop ahead of the
 // loose loopback, and the LSP MUST come up: the ingress receives Ze's RESV with
-// a label and Ze holds a swap toward the egress.
+// a label and an LSP_TUNNEL_IPv4 FILTER_SPEC naming the sender
+// (isZeResvWithFilterSpec), and Ze holds a swap toward the egress.
 func checkLooseExpansion(ctx context.Context, lab interoplab.CheckerLab, timeout time.Duration) error {
 	// A PATH carries the sender's address as its IP source (RFC 2205 Section
 	// 3.1.3), so Ze's relay is the PATH whose RSVP_HOP names Ze.
@@ -209,12 +210,36 @@ func checkLooseExpansion(ctx context.Context, lab interoplab.CheckerLab, timeout
 	if !strings.Contains(strings.ToLower(ero[1]), "loose") {
 		return fmt.Errorf("egress received ERO %q: %s lost its loose bit", ero, loopbackEgress)
 	}
-	if _, err := waitMessage(ctx, lab, peerIngress, "ingress receives Ze's RESV", timeout, func(message rsvpMessage) bool {
-		return isMessage(message, addressZeTransit, addressFreeRtrIngress, "Resv Message") && strings.Contains(message.text, "Label Object")
-	}); err != nil {
+	// RFC 3209 Section 4.6.3.1
+	if _, err := waitMessage(ctx, lab, peerIngress, "ingress receives Ze's RESV with an LSP_TUNNEL_IPv4 FILTER_SPEC", timeout, isZeResvWithFilterSpec); err != nil {
 		return err
 	}
 	return waitSwap(ctx, lab, timeout)
+}
+
+// resvFilterSpecHeader is how tcpdump heads an LSP_TUNNEL_IPv4 FILTER_SPEC
+// (print-rsvp.c rsvp_obj_print: class 10 "FilterSpec", C-Type 7 "Tunnel
+// IPv4"). RFC 3209 Section 4.6.3.1 names the object a RESV carries for an LSP
+// sender: "Class = FILTER SPECIFICATION, LSP_TUNNEL_IPv4 C-Type = 7", and
+// "The format of the LSP_TUNNEL_IPv4 FILTER_SPEC object is identical to the
+// LSP_TUNNEL_IPv4 SENDER_TEMPLATE object." Because the two bodies are
+// identical, only this header tells a correct RESV from one that names its
+// sender with a SENDER_TEMPLATE (class 11), which tcpdump heads
+// "Sender Template Object (11)".
+const resvFilterSpecHeader = "FilterSpec Object (10) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7)"
+
+// isZeResvWithFilterSpec reports whether message is the RESV the Ze transit
+// sends the freeRouter ingress, carrying a LABEL and naming its sender with an
+// LSP_TUNNEL_IPv4 FILTER_SPEC. A RESV that names the sender with any other
+// object does not count.
+func isZeResvWithFilterSpec(message rsvpMessage) bool {
+	if !isMessage(message, addressZeTransit, addressFreeRtrIngress, "Resv Message") {
+		return false
+	}
+	if !strings.Contains(message.text, "Label Object") {
+		return false
+	}
+	return strings.Contains(message.text, resvFilterSpecHeader)
 }
 
 // waitSwap polls the Ze transit's MPLS table until a label forwards toward the

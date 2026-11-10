@@ -230,6 +230,40 @@ func TestSenderIs(t *testing.T) {
 	}
 }
 
+// TestIsZeResvWithFilterSpec proves the transit-loose-ero-expansion RESV wait
+// accepts Ze's RESV only when tcpdump heads its sender object as an
+// LSP_TUNNEL_IPv4 FILTER_SPEC (RFC 3209 Section 4.6.3.1, class 10 C-Type 7,
+// headed as print-rsvp.c rsvp_obj_print prints it), and refuses the same RESV
+// naming its sender with a SENDER_TEMPLATE (class 11), one with no LABEL, and
+// one another node sent.
+func TestIsZeResvWithFilterSpec(t *testing.T) {
+	const (
+		header   = "\tRSVPv1 Resv Message (2), Flags: [none], length: 132, ttl: 254, checksum: 0x0000\n"
+		filter   = "\t  FilterSpec Object (10) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12\n\t    Source Address: 172.29.81.11, LSP-ID: 0x0001\n"
+		template = "\t  Sender Template Object (11) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12\n\t    IPv4 Tunnel Sender Address: 172.29.81.11, LSP-ID: 0x0001\n"
+		label    = "\t  Label Object (16) Flags: [reject if unknown], Class-Type: Label (1), length: 8\n\t    Label: 16\n"
+	)
+	resv := func(source, text string) rsvpMessage {
+		return rsvpMessage{source: source, target: addressFreeRtrIngress, text: text}
+	}
+	if !isZeResvWithFilterSpec(resv(addressZeTransit, header+filter+label)) {
+		t.Error("Ze's RESV with an LSP_TUNNEL_IPv4 FILTER_SPEC and a LABEL was refused")
+	}
+	refused := []struct {
+		name    string
+		message rsvpMessage
+	}{
+		{"a SENDER_TEMPLATE in place of the FILTER_SPEC", resv(addressZeTransit, header+template+label)},
+		{"no LABEL", resv(addressZeTransit, header+filter)},
+		{"another node as its source", resv(addressFreeRtrIngress, header+filter+label)},
+	}
+	for _, refusal := range refused {
+		if isZeResvWithFilterSpec(refusal.message) {
+			t.Errorf("a RESV with %s was accepted", refusal.name)
+		}
+	}
+}
+
 // TestResvLabels proves the checker reads the LABEL object's value as tcpdump
 // prints it (print-rsvp.c, "Label: %u" under the object header) and nothing
 // from another object, so egress-implicit-null-penultimate-pop can tell

@@ -2330,3 +2330,25 @@ Logs: `p12rl/` and `p12ldpu/`. The U-clear half also has a live carrier,
 still owes its real-capture carrier: no interop check read the class naming
 the sender in a RESV Ze built, so `transit-loose-ero-expansion` gains a
 FILTER_SPEC header check (judged before its walk).
+
+## P-12: the RSVP-TE RESV capture names its sender as a FILTER_SPEC (2026-11-10)
+
+No interop check read the class that names the sender in a RESV Ze built:
+every Ze-built RESV was matched on "Resv Message" and "Label Object" only.
+`checkLooseExpansion` (`transit-loose-ero-expansion`) now also requires
+tcpdump's `FilterSpec Object (10) Flags: [reject if unknown], Class-Type:
+Tunnel IPv4 (7)` header in the RESV the freeRouter ingress captures from Ze.
+The change only adds a condition; an independent `ze-test-judge` approved it
+and checked the header against tcpdump's `print-rsvp.c` and the RFC 3209
+Section 4.6.3.1 quote against the RFC text.
+
+| Carrier | Break | Red | Clean |
+| --- | --- | --- | --- |
+| `transit-loose-ero-expansion` (`./le --name session test integration interop-rsvpte`) | Go overlay of `internal/plugins/rsvpte/build.go`: `encodeFilterSpec(b, filter)` becomes `encodeSenderTemplate(b, filter)` (`rsvpw/break2.log`) | "wait for ingress receives Ze's RESV with an LSP_TUNNEL_IPv4 FILTER_SPEC timed out" (2m3s) | pass (30s) |
+
+The first walk (`rsvpw/break.log`) passed under the break: the plain `./le`
+launcher ran an `le` built before the checker change, so the old predicate
+judged the capture. A walk of a checker change runs under `./le --name
+session`, which builds `le` from the working tree. freeRouter also refuses
+such a RESV (`packRsvp.parseDatResReq` finds no class 10 C-Type 7 object), so
+the relay scenarios would go red too, but only through the peer's parser.
