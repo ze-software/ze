@@ -214,6 +214,7 @@ func runAt(ctx context.Context, root string, environment interoplab.Environment,
 		Images:         images,
 		Scenarios:      plans,
 		NoBuild:        environment.NoBuild,
+		Checkout:       root,
 	}
 	suiteReport := suite.Run(ctx)
 	report := Report{SuiteReport: suiteReport}

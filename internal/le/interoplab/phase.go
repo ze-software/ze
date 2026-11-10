@@ -74,13 +74,25 @@ func (s Suite) stopReason(failed, notRun []string) string {
 }
 
 // rerunCommand answers the `./le` command that runs this suite, read from the
-// registered catalog whose scenario root holds the suite's first scenario, so
-// the command is declared once by the lab (Catalog.Action) and never spelled
-// here. It answers false when no registered catalog declares that directory,
-// which a suite built by a test is.
+// registered catalog that declares the suite (catalog), so the command is
+// declared once by the lab (Catalog.Action) and never spelled here. It
+// answers false when no registered catalog declares the suite's scenario
+// directory, which a suite built by a test is.
 func (s Suite) rerunCommand() (string, bool) {
-	if len(s.Scenarios) == 0 {
+	catalog, found := s.catalog()
+	if !found {
 		return "", false
+	}
+	return "./le " + strings.Replace(catalog.Action, "/", " ", 1), true
+}
+
+// catalog answers the registered catalog whose scenario root holds the
+// suite's first scenario, so a lab is named by its own registration and
+// never by a list here. It answers false when no registered catalog declares
+// that directory.
+func (s Suite) catalog() (Catalog, bool) {
+	if len(s.Scenarios) == 0 {
+		return Catalog{}, false
 	}
 	scenarioRoot := filepath.Dir(s.Scenarios[0].Source.Directory)
 	for _, name := range CatalogSuites() {
@@ -91,7 +103,7 @@ func (s Suite) rerunCommand() (string, bool) {
 		if filepath.Join(s.Checkout, filepath.FromSlash(catalog.ScenarioRoot)) != scenarioRoot {
 			continue
 		}
-		return "./le " + strings.Replace(catalog.Action, "/", " ", 1), true
+		return catalog, true
 	}
-	return "", false
+	return Catalog{}, false
 }

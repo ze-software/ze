@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -237,4 +238,47 @@ func (lab *localPrefWireLab) Query(_ context.Context, peer string, command []str
 		), nil
 	}
 	return "", fmt.Errorf("unexpected peer %s query %q", peer, command)
+}
+
+// localPrefRecordingDirectory holds the reviewed recording of one lab run of
+// bgp-local-pref-strip-gobgp, copied from the session scratch
+// (interoplab.RecordingDirectory) after a run in which Ze packed the third
+// subject and the fence into one UPDATE.
+const localPrefRecordingDirectory = "testdata/bgp-local-pref-strip-gobgp"
+
+// TestLocalPrefStripReplaysTheLabRecording replays the committed recording of
+// a passing lab run through the scenario's registered checker
+// (interoplab.ReplayScenario), so the checker is judged on the bytes a real
+// GoBGP run produced, with no Docker.
+// VALIDATES: AC-8. The checker passes on the recorded run exactly as the lab
+// did; on the pre-fix observer of 7081cfdfa7, which refused a fence packed
+// after the third subject in one UPDATE, the same replay fails. The
+// hand-built frames of TestLocalPrefStripChecksDestinationWire stay: they
+// cover polarities no lab run produced.
+// PREVENTS: an observer change judged only by a lab rerun, as the 7081cfdfa7
+// fix was.
+func TestLocalPrefStripReplaysTheLabRecording(t *testing.T) {
+	checkout, err := filepath.Abs(filepath.Join("..", "..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	recordings, err := filepath.Glob(filepath.Join(localPrefRecordingDirectory, "*.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(recordings) != 1 {
+		t.Fatalf("%s holds %d recordings, want exactly one. Fix: run `INTEROP_SCENARIO=bgp-local-pref-strip-gobgp ./le test integration interop`, "+
+			"copy the recording it names from <session scratch>/%s/bgp/ into %s, review it like any fixture, and commit it",
+			localPrefRecordingDirectory, len(recordings), interoplab.RecordingDirectory, localPrefRecordingDirectory)
+	}
+	result, err := interoplab.ReplayScenario(t.Context(), checkout, recordings[0])
+	if err != nil {
+		t.Fatalf("replay of %s: %v", recordings[0], err)
+	}
+	if !result.Lab.Passed {
+		t.Fatalf("the committed recording is of a failed lab run (%s); commit one of a passing run", result.Lab.Error)
+	}
+	if result.Replay != result.Lab {
+		t.Errorf("the checker replayed verdict %#v on the recording of a lab run whose verdict was %#v", result.Replay, result.Lab)
+	}
 }

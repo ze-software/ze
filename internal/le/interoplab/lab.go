@@ -94,6 +94,11 @@ type Suite struct {
 	// against the checkout rather than against the process working directory,
 	// which `go test` sets to the package directory inside the source tree.
 	Checkout string
+	// Recordings is the directory each lab's checker recordings go under
+	// (record.go). Empty resolves it as Checkout's session scratch joined
+	// with RecordingDirectory, which is what every lab run uses; a test sets
+	// it to a directory of its own.
+	Recordings string
 	// SuffixVariable is the environment variable that sets this lab's
 	// container and network name suffix (Environment.SuffixVariable). A
 	// pre-clean refusal names it as the fix; empty when the lab has none.
@@ -328,6 +333,17 @@ func (s Suite) Run(ctx context.Context) (report SuiteReport) {
 		s.progress(line.Str("interop: images ready (").Str(time.Since(preparing).Round(time.Second).String()).Byte(')'))
 	}
 	starts := imageStarts{start: make(map[string]ImageStart), probed: make(map[string]bool)}
+	// A run that cannot record still runs: recording serves a later replay
+	// test, never this run's verdict. It says so once, here, and a failed
+	// scenario then names no recording.
+	recordings, err := s.recordingPlan()
+	if err != nil {
+		s.progress(line.Reset().Str("interop: checker recordings are off: ").Err(err))
+	}
+	if err == nil && recordings.keepAllReason != nil {
+		s.progress(line.Reset().Str("interop: checker recordings: keeping every recording because the lab could not list its scenarios: ").
+			Err(recordings.keepAllReason))
+	}
 	// beforeChecker holds the names of the scenarios that failed in a row
 	// before their checker ran; a pass or a checker failure empties it.
 	var beforeChecker []string
@@ -335,7 +351,7 @@ func (s Suite) Run(ctx context.Context) (report SuiteReport) {
 		line.Reset()
 		s.progress(scenarioLine(&line, index, len(s.Scenarios), plan.Source.Name).Str(": running"))
 		started := time.Now()
-		result := s.runScenario(ctx, plan, references, &report.Images, starts)
+		result := s.runScenario(ctx, plan, references, &report.Images, starts, recordings)
 		report.Scenarios = append(report.Scenarios, result)
 		for _, cleanup := range result.CleanupErrors {
 			report.Code = 1
@@ -455,7 +471,9 @@ type imageStarts struct {
 
 // runScenario runs one scenario. starts caches what wrapStarts reads from
 // each image, so each image is inspected and probed at most once for the run.
-func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references map[string]string, images *[]ImageResult, starts imageStarts) (result ScenarioResult) {
+// recordings, when not nil, records every call the checker makes to the lab;
+// nil is the run Suite.Run announced it cannot record.
+func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references map[string]string, images *[]ImageResult, starts imageStarts, recordings *recordingPlan) (result ScenarioResult) {
 	// phase is the step the run has reached. Each step sets it before it
 	// starts, and this deferred tag, registered first so it runs last, copies
 	// it onto a failed result: every return below is labeled by where it
@@ -502,7 +520,7 @@ func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references ma
 	var hostCleanup func() error
 	defer func() {
 		if result.Error != "" {
-			result.Diagnostics = diagnosePeers(cleanupCtx, s.Docker, peers, created.containers)
+			result.Diagnostics = append(result.Diagnostics, diagnosePeers(cleanupCtx, s.Docker, peers, created.containers)...)
 		}
 		result.CleanupErrors = lab.cleanup(cleanupCtx, created)
 		if hostCleanup == nil {
@@ -581,9 +599,26 @@ func (s Suite) runScenario(ctx context.Context, plan ScenarioPlan, references ma
 	phase = PhaseChecker
 	check := &CheckContext{Source: plan.Source, Network: network, Lab: lab, Checkout: s.Checkout,
 		Links: plan.Links, Memberships: memberships}
-	if err := plan.Source.Checker(ctx, check); err != nil {
-		result.Error = err.Error()
+	// A nil plan is the run Suite.Run announced it cannot record.
+	if recordings == nil {
+		if err := plan.Source.Checker(ctx, check); err != nil {
+			result.Error = err.Error()
+			return result
+		}
+		result.Passed = true
 		return result
+	}
+	recording, err := recordings.recordChecker(ctx, plan.Source.Checker, check)
+	if err != nil {
+		result.Error = err.Error()
+		if recording != "" {
+			result.Diagnostics = append(result.Diagnostics, recording+"\n")
+		}
+		return result
+	}
+	if recording != "" {
+		var line textbuf.Buffer
+		s.progress(line.Str("interop: ").Str(result.Name).Str(": ").Str(recording))
 	}
 	result.Passed = true
 	return result

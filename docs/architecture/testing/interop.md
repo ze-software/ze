@@ -591,7 +591,9 @@ scenario it then:
    network of the same name that this process did not create.
 2. Starts Ze and the peer daemons declared by the scenario's config files.
 3. Waits for every declared readiness probe.
-4. Runs the scenario's typed checker from the package-local BGP registry.
+4. Runs the scenario's typed checker from the package-local BGP registry,
+   recording every call it makes to the lab ("Recording and replaying a
+   checker" below).
 5. Tears down the containers and the network this scenario created, including
    after setup or checker failure and after a Ctrl-C or SIGTERM, which cancel
    the run rather than end the process. A resource is recorded for teardown
@@ -2258,6 +2260,90 @@ one direction into one entry. `verifyESPDirections` now reads each simplex SA by
 its own `src`/`dst` header and takes the set of directions its caller can claim,
 and it also refuses a ping whose `% packet loss` summary is missing or non-zero.
 <!-- source: internal/le/interoplab/ipsec/helpers.go -- directed ESP counters and the lossless-ping clause -->
+
+### Which layer proves what
+
+Each layer answers one question, and a question goes to the cheapest layer
+that can decide it.
+
+| Layer | What it proves | Where |
+|-------|----------------|-------|
+| Producer unit test | Ze's product behaviour: the encoder, the FSM, the filter that makes the bytes | The producing package's `_test.go` |
+| Replay of a recording | The checker's logic: what it concludes from the answers a real lab run gave it | `interoplab.ReplayScenario`, from a test in the lab's package |
+| One lab pass per scenario | The whole path end to end, against the real peer daemon | `./le test integration <lab>` |
+| Start probe | A staged helper starts and answers ("The start probe" above) | The lab's preflight |
+
+A lab pass that is red, and a checker change meant to turn it green, are not
+judged by rerunning the lab until it passes. Record the run, then judge the
+checker over the recording. A change to a checker whose scenario has a
+committed recording carries a replay test over it
+(`ai/rules/points/testing/directives/replay-a-checker-change-over-its-recording.md`).
+Replay never replaces the lab pass for product behaviour: a scenario still owes
+one green lab run end to end.
+
+### Recording and replaying a checker
+
+`Suite.Run` hands every checker a recorder in front of the real `Lab`. The
+recorder forwards each `CheckerLab` call and writes it, in call order, as one
+JSON line to `<session scratch>/interop-recordings/<lab>/<scenario>-<run id>.jsonl`.
+The first line is a header: the format version, the lab, the scenario, and the
+network, links and memberships the `CheckContext` carried. Each call line holds
+the method, the peer, the argv, the NAMES of the environment variables the
+checker passed (never their values), the answer, the error text with its typed
+kind, and the exit code. The last line is the lab's verdict. The lab is the
+registered catalog whose scenario root holds the scenario, and the run id is
+the Docker client's.
+
+Each answer field is bounded at 1 MiB (`recordingAnswerOctetsMax`). A longer
+answer keeps its first MiB and is marked `truncated`, and an answer that is not
+UTF-8 text is marked `not-text`, because JSON cannot carry its octets unchanged.
+
+A full run, with no selector, keeps only the failed scenarios' recordings. A
+run that selects fewer scenarios than its catalog holds keeps every one. A
+failed scenario names its recording in its diagnostics
+(`interop: <scenario>: checker recording: <path>`), and a kept passing
+recording is named on the progress stream. A run that cannot resolve a
+recording directory (no checkout, no session, no registered catalog) still
+runs, and says once `interop: checker recordings are off: <reason>`.
+
+`interoplab.ReplayScenario(ctx, checkout, path)` opens a recording, finds the
+scenario's checker through its lab's registered catalog, and runs the checker
+against a lab that answers each call from the recording, in order, matched on
+the method, the peer, the argv, the environment names and the call's own
+parameter. It answers the lab's verdict beside the replayed one. It refuses,
+with a `*ReplayRefusal` naming the expected and the actual call, a call the
+recording does not hold at that position, a call past its end, a truncated or
+`not-text` answer, a recording of another version or with no verdict line, and
+a checker that returns before the recording's last call. The refusal says the
+checker must be judged by a lab run, and names the command that runs the
+scenario. A replay never guesses an answer, so a checker never passes on data
+the lab did not produce.
+
+What replay can and cannot reproduce:
+
+- A checker that reaches the lab only through `CheckerLab` replays whole. The
+  BGP relay checkers read their capture through `CheckerLab.Query`, so the
+  recording already holds the bytes they judged. A checker that reads a file
+  from its scenario directory or the checkout reads it again from the checkout.
+- A poll (`interoplab.Wait`) that ended on a ready answer replays the same
+  probes in the same order, and each unready probe still waits its real
+  interval. A poll that ended on its deadline made as many probes as its
+  timeout allowed in the lab; replay answers at once, may start one more, and
+  then refuses that call, or, when the checker's next call has the same argv,
+  answers it with that call's answer. Judge a checker whose recording ends in a
+  timed-out poll by a lab run.
+- Calls a checker makes from several goroutines are recorded in the order they
+  finished, and a replay that issues them in another order refuses.
+
+To commit a recording as a fixture, copy it from the session scratch into
+`internal/le/interoplab/<lab>/testdata/<scenario>/`, and review it before the
+commit like any fixture: it carries environment names only, but an answer can
+still print a secret, and such a recording is never committed. The BGP lab's
+`TestLocalPrefStripReplaysTheLabRecording` replays the recording of
+`bgp-local-pref-strip-gobgp`.
+<!-- source: internal/le/interoplab/record.go -- checkerRecorder, recordingPlan, recordChecker, recordingAnswerOctetsMax -->
+<!-- source: internal/le/interoplab/replay.go -- ReplayScenario, ReplayRefusal, replayLab -->
+<!-- source: internal/le/interoplab/lab.go -- Suite.Recordings, Suite.runScenario -->
 
 ### IPsec diagnostic environment
 

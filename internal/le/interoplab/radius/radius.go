@@ -222,6 +222,7 @@ func suiteFor(root string, environment interoplab.Environment, docker *interopla
 		Images:    images,
 		Scenarios: plans,
 		NoBuild:   environment.NoBuild,
+		Checkout:  root,
 	}, nil
 }
 

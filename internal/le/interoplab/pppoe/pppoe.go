@@ -130,6 +130,7 @@ func RunAt(ctx context.Context, root string, options Options) interoplab.SuiteRe
 		Images:    imageBuilds(root),
 		Scenarios: plans,
 		NoBuild:   options.NoBuild,
+		Checkout:  root,
 	}
 	return suite.Run(ctx)
 }

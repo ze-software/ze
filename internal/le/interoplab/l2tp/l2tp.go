@@ -130,6 +130,7 @@ func runAt(ctx context.Context, root, selector string, docker *interoplab.Docker
 		Images:         imageBuilds(root, plans, environment.Image),
 		Scenarios:      plans,
 		NoBuild:        environment.NoBuild,
+		Checkout:       root,
 	}
 	// The kernel probe runs FIRST where it runs at all: a machine with no
 	// PPPoL2TP module cannot run this lab, and refusing it before the

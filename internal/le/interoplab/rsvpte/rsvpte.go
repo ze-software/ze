@@ -169,6 +169,7 @@ func suiteFor(root string, environment interoplab.Environment, docker *interopla
 		Images:    interoplab.SuiteImages(imageOwner, interoplab.ImageContext{Root: root}),
 		Scenarios: plans,
 		NoBuild:   environment.NoBuild,
+		Checkout:  root,
 	}, nil
 }
 
