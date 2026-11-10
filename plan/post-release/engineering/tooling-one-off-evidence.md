@@ -3447,7 +3447,7 @@ approved retaining every GTSM check ...") narrates the same run.
 (End of paste.) Note for the main thread: that earlier paragraph, at
 tooling-one-off-evidence.md ~line 1176, already narrates this run inside the
 2026-11-05 section. This section adds the record's own fields and today's
-check that nothing changed. For a cheap current green:
-`./le job run label unit-pkg command go test -count=1 -run '^TestForwardWithdrawalDoesNotCreateASPath$' ./internal/component/bgp/reactor/`
-(the file has no build tag, so it runs on the host. The record itself was
-observed in the native guest).
+check that nothing changed. A current green, 2026-11-10:
+`TestForwardWithdrawalDoesNotCreateASPath` (`./internal/component/bgp/reactor/`,
+no build tag, run on the host) passes. The record itself was observed in the
+native guest.
