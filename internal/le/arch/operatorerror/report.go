@@ -39,10 +39,10 @@ func (r CheckReport) exitCode() int {
 	return 0
 }
 
+// ze point: user-facing-errors/directives/an-error-names-the-cause-and-the-fix
+//
 // Text renders the scope line, one line per plain refusal, and the fix. It
 // ends in a newline.
-//
-// ze point: user-facing-errors/directives/an-error-names-the-cause-and-the-fix
 func (r CheckReport) Text() string {
 	var tb textbuf.Buffer
 	tb.Str("operator-error scope: ").Str(r.Scope).Str(", ").Int(int64(r.Judged)).Str(" handler return site(s) judged\n")

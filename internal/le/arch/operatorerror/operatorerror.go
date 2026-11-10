@@ -48,6 +48,9 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// unspecifiedName is how a site prints a status, kind or form it does not know.
+const unspecifiedName = "unspecified"
+
 // The import paths the registration shapes and the accepted type live at.
 const (
 	modulePath   = "github.com/ze-software/ze"
@@ -100,7 +103,7 @@ func (s Status) String() string {
 	case StatusPassThrough:
 		return "pass-through"
 	case StatusUnspecified:
-		return "unspecified"
+		return unspecifiedName
 	}
 	return "unknown-status-" + strconv.Itoa(int(s))
 }
@@ -132,7 +135,7 @@ func (f Form) String() string {
 	case FormResponse:
 		return "error-response"
 	case FormUnspecified:
-		return "unspecified"
+		return unspecifiedName
 	}
 	return "unknown-form-" + strconv.Itoa(int(f))
 }
@@ -170,7 +173,7 @@ func (k Kind) String() string {
 	case KindSDKCommand:
 		return "sdk-command-handler"
 	case KindUnspecified:
-		return "unspecified"
+		return unspecifiedName
 	}
 	return "unknown-kind-" + strconv.Itoa(int(k))
 }
