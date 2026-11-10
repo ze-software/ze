@@ -23,7 +23,9 @@ import (
 	yangloader "github.com/ze-software/ze/internal/component/config/yang"
 	zegnmi "github.com/ze-software/ze/internal/component/gnmi"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -138,6 +140,13 @@ func serveGNMI(ctx context.Context, srv *zegnmi.Server, failed chan<- error) {
 		return
 	}
 	failed <- serveErr
+	// The refusal carries the doctor code the gnmi-tls-material check reports,
+	// so the log line and `ze doctor` name the same cause (zegnmi doctor.go).
+	if refusal, ok := errors.AsType[*opererr.Error](serveErr); ok {
+		slogutil.Logger("gnmi.server").LogAttrs(ctx, slog.LevelError, refusal.Problem(),
+			refusal.LogAttrs(slog.String("code", diagnostic.CodeDoctorGNMITLSMaterial))...)
+		return
+	}
 	slogutil.Logger("gnmi.server").Error("gNMI server error", "error", serveErr)
 }
 
