@@ -3261,3 +3261,23 @@ has no carrier. P-29's "nor enter review" clause is only partly carried by the
 three P-29 rows above. The P-34 (c) pipe refusal that exits 1
 (`le-checks-answers`) is still pending: its restored leg did not pass, so it
 has no recorded red here.
+
+## Re-audit: new carriers and the pipe refusal (2026-11-10)
+
+Three members had no test a break could turn red, so each gained one
+(`873f53cfb1`). The P-34 pipe-refusal walk needed two gates the carrier runs
+first to be green at HEAD: `4150cac980` (four fixtures without an
+iface-resolution allowlist entry) and `f0fe267d9b` (the test-sensitivity count
+at 118 over its baseline of 111). Each walk ran as the ordinary user, so the
+capability test did not skip.
+
+| P | Member / carrier | Break (producing file, what changed) | Red (the carrier's own failure text) | Restored |
+| --- | --- | --- | --- | --- |
+| P-4 (a) | the le a helper reaches is this executable / `TestRunningLEIsThisExecutableNotPATH` (`internal/test/cli`) | `cmd_exabgp.go`: `os.Executable()` replaced by `exec.LookPath("le")` | "runningLE answered the decoy le found on PATH (.../001/le), not this executable (.../cli.test)" | ok |
+| P-18 (d) | sudo keeps the operator's terminal / `TestInstallCommandKeepsTheTerminalAttached` (`internal/le/setup/docker/kernel`) | `dockerkernel.go`: the install step gains `SysProcAttr{Setpgid: true}` | "install step runs in its own process group (Setpgid): sudo leaves the terminal's foreground group" | ok |
+| P-40 (a) | web adapter places a capability skip / `TestWebAdapterCapabilityPlacement` (`internal/test/cli`) | `cmd_web_discovery.go`: `webAdmissionRecord` blanks `record.SkipReason` | "the scheduler ran the execution callback of a case whose capability the host lacks"; "scheduler verdict = success, want StateSkip" | ok |
+| P-34 (c) | a pipe refusal is a usage error / `./le test ui le-checks-answers`, overlaid le | `internal/le/le/root/leroot.go`: the pre-run pipe-chain refusal returns 1 | "ZE-OBSERVER-FAIL: FAIL: `le config claims \| count` exited 1, want the usage refusal 2" | PASS |
+
+The P-34 (c) break targets the pre-run chain check in `runWithStartup`. The
+post-run `IsPipeError` branch is never reached for a declared-shape refusal: an
+earlier break there left both builds exiting 2.
