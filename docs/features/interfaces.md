@@ -246,6 +246,12 @@ therefore accepts that refusal with a warning, so an unprivileged ze still
 applies its interfaces. A config that asks for an IPv6 check still fails
 without the capability.
 
+The table name is reserved for the reverse-path check: a firewall table named
+`iface_rpf` (kernel name `ze_iface_rpf`) is refused at verify, naming the
+owner `iface-rpf`, because the firewall backend and the reverse-path check
+would each delete and recreate the shared table.
+<!-- source: internal/plugins/iface/netlink/register_tables.go -- rpfTableName, rpfTableOwner -->
+
 | Family | netlink backend | vpp backend |
 |--------|-----------------|-------------|
 | IPv4 | `net.ipv4.conf.<dev>.rp_filter`, written by the sysctl phase; `ReplaceIPv4RPF` installs nothing more | `urpf_update` on the receive path of the VPP interface (strict or loose), read back with `urpf_interface_dump` so a check no longer configured is turned off. The sysctl still reaches the Linux Control Plane tap, which judges only what VPP punts to the host |

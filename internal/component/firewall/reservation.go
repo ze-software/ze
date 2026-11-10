@@ -26,9 +26,12 @@ var tableReservations = struct {
 
 // MustReserveTableNames records that owner alone may register each named
 // table. ApplyAll merges same-name tables of different owners into one kernel
-// table, so a name two owners use gives one table two owners' chains; a
-// reserved name is refused to every other owner by RegisterTables, and to the
-// operator's firewall config at verify.
+// table, so a name two registry owners use gives one table two owners' chains,
+// and a producer that writes its table outside the registry (the iface
+// backend's ze_iface_rpf) and the nft backend each delete and recreate the
+// shared table, wiping the other's chains. A reserved name is refused to every
+// other owner by RegisterTables, and to the operator's firewall config at
+// verify.
 //
 // A name another owner already reserved, or one without the ze_ ownership
 // prefix, is a defect in the calling package, so it panics. MUST be called
@@ -68,7 +71,7 @@ func refuseForeignReservations(owner string, tables []Table) error {
 		if holder == owner {
 			continue
 		}
-		return fmt.Errorf("firewall: owner %q registered table %q, which owner %q reserved; two owners in one kernel table would merge their chains, so the registration is refused and %q keeps its tables",
+		return fmt.Errorf("firewall: owner %q registered table %q, which owner %q reserved; two owners in one kernel table would overwrite each other's chains, so the registration is refused and %q keeps its tables",
 			owner, tables[i].Name, holder, holder)
 	}
 	return nil
@@ -84,7 +87,7 @@ func refuseReservedTableNames(tables []Table) error {
 		if !held {
 			continue
 		}
-		return fmt.Errorf("firewall table %q: its kernel name %q is reserved by owner %q, and two owners in one kernel table would merge their chains; rename the table",
+		return fmt.Errorf("firewall table %q: its kernel name %q is reserved by owner %q, and two owners in one kernel table would overwrite each other's chains; rename the table",
 			StripZeTablePrefix(tables[i].Name), tables[i].Name, holder)
 	}
 	return nil
