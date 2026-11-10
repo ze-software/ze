@@ -360,3 +360,152 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 - [ ] `/ze-review` gate clean
 - [ ] **Commit A:** code + tests + docs + edited spec
 - [ ] **Commit B:** `remove` the spec
+
+## Implementation Summary
+
+### What Was Implemented
+- Code commit fbdd9a82e7 ("ike: refuse a revoked or wrong-purpose peer certificate").
+- `internal/core/eap/revocation.go`: `currentListFrom` skips a list carrying any critical CRL or entry extension (`criticalExtension`) and says why when no list answers. `checkChain`'s messages are role-neutral, and `checkChainRevocation` adds the `eap-tls:` prefix and the RFC 9190 Section 5.4 reference. New export `VerifyChainsNotRevoked`.
+- `internal/component/pki/store.go`: new `CAEntriesFor`, which matches an entry by subject and public key.
+- `internal/component/ike/engine/remote_cert_checks.go` (new) holds the checks that `getRemoteCert` (`cert_payload.go`) runs after Verify. `checkIKEPurpose` applies RFC 4945 Sections 5.1.3.2 and 5.1.3.12. `checkPeerChainRevocation` and `chainRevocationSource` cover RFC 5280 Section 6.1.3 (a)(3): every verified chain is checked, the check is strict once a pki ca on the chain holds a list, and a Warn fires when none does.
+- `rfc/short/rfc5280.md`: gaps removed for 4.2.1.12-1, 4.2.1.12-2, 5.2-1, 5.2.5-1, 5.3-1 and 6.1.3-1. Rows 4.2-2 and 6.1-1 now carry `verifyEntryChain` only. Six discrimination records cover both polarities of each row.
+
+### Bugs Found/Fixed
+- The comment in `getRemoteCert` claimed that strongSwan's `--flag ike` writes id-kp-ipsecIKE. strongSwan has no such flag (`issue.c` `parse_flag`). The comment is corrected.
+- The two-daemon EAP `.ci` fixtures used a serverAuth-only IKE certificate, which RFC 4945 Section 5.1.3.12 refuses. They are reissued with id-kp-ipsecIKE, approved by the judge.
+
+### Documentation Updates
+- `docs/guide/ipsec.md`: two new sections, "What a peer certificate must allow" and "Revoking a peer certificate".
+- `docs/architecture/ike/ipsec-6-ikev2-crypto.md`: new subsection "Peer certificate validation".
+- `docs/architecture/ike/ipsec-11-interop-eap.md`: the critical-extension rule, and IKE's use of the same judge.
+- `docs/architecture/pki/pki-store.md`: who consumes `crl`.
+- `docs/architecture/testing/interop.md`: the four scenarios and the recorded red run.
+- `internal/component/pki/yang/ze-pki-conf.yang`: the `crl` description.
+
+### Deviations from Plan
+- `pki.CAEntriesFor` returns every matching entry (the plan had `CAEntryFor`, one entry), and matches by subject and key rather than by DER. Several entries can hold one CA, and the authority may reissue its certificate.
+- RFC5280-4.2.1.12-1 is tagged and has its gap removed as well. Its gap text named the same producer and became false.
+- AC-1 is reworded for the initiator role. That role sends no notification, which RFC 7296 Section 2.21.2 allows (MAY).
+- The `.ci` pairs became four files: a positive twin for each negative.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | The skeleton said strongSwan `--flag ike` writes id-kp-ipsecIKE | strongSwan writes iKEIntermediate (1.3.6.1.5.5.8.2.2) with `--flag ikeIntermediate`, and cannot write id-kp-ipsecIKE at all | strongSwan `issue.c`, `oid.txt` | The comment and the docs are corrected. Lab certificates are issued with openssl |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| RFC5280-6.1.3-1 | Done | `remote_cert_checks.go::checkPeerChainRevocation`, called from `getRemoteCert` (`cert_payload.go`) | strict once a source exists |
+| RFC5280-4.2.1.12-2 | Done | `remote_cert_checks.go::checkIKEPurpose`, called from `getRemoteCert` | 4.2.1.12-1 too |
+| RFC5280-5.2-1, 5.2.5-1, 5.3-1 | Done | `revocation.go::currentListFrom`, `criticalExtension` | both EAP-TLS and IKE |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRFC5280Section613RevokedIKEPeerRefused`, `ipsec-cert-revoked.ci`, `ipsec-cert-crl-unrevoked.ci`, interop `x509-crl-revoked-peer-ze-initiator` / `x509-crl-unrevoked-peer-ze-initiator` | |
+| AC-2 | Done | `TestRFC5280Section42112IKEPurpose`, `ipsec-cert-wrong-purpose.ci`, `ipsec-cert-purpose-ipsec-ike.ci`, interop `x509-eku-*` | |
+| AC-3 | Done | `TestRFC5280Section52UnprocessedCriticalCRL` | the EAP and IKE paths share `checkChain` |
+| AC-4 | Done | `rfc/short/rfc5280.md`, `rfc/discrimination/rfc5280/` (6 files) | `./le rfc check` reports no rfc5280 finding |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestRFC5280Section613RevokedIKEPeerRefused` | Done | `internal/component/ike/engine/rfc5280_ike_revocation_test.go` | 7 subtests |
+| `TestRFC5280Section42112IKEPurpose` | Done | `internal/component/ike/engine/rfc5280_ike_purpose_test.go` | includes an empty key usage case |
+| `TestRFC5280Section52UnprocessedCriticalCRL` | Done | `internal/core/eap/rfc5280_crl_critical_test.go` | |
+| `TestEkuPeerCertificateIsNotJudgedByTLSExtendedKeyUsage` | Changed | `remote_cert_eku_test.go` | judge approved |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `cert_payload.go`, `revocation.go`, `store.go`, `ze-pki-conf.yang`, `rfc5280.md`, the four docs | Done | in fbdd9a82e7 |
+| `ze-ipsec-conf.yang` | Not needed | no new leaf, as the design decided |
+
+### Audit Summary
+- **Total items:** 13
+- **Done:** 12
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1, recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A revoked IKE peer certificate does not authenticate | interop + functional + unit | `x509-crl-revoked-peer-ze-initiator` PASS against strongSwan. With `checkPeerChainRevocation` reverted it FAILS ("ze did not refuse strongSwan's certificate"), and with the file restored it passes. Its twin `x509-crl-unrevoked-peer-ze-initiator` PASS. `ipsec-cert-revoked.ci` is red under the break and green after. Stress: 80 iterations, no failure. Record `RFC5280-6.1.3-1.json` |
+| A certificate issued for another purpose does not authenticate | interop + functional + unit | `x509-eku-server-auth-only-refused-ze-initiator` PASS. It goes red under the `checkIKEPurpose` break and green after. `x509-eku-ipsec-ike-ze-initiator` PASS. `ipsec-cert-wrong-purpose.ci` is red under the break and green after. Records `RFC5280-4.2.1.12-1.json` and `RFC5280-4.2.1.12-2.json` |
+| A CRL with an unprocessed critical extension decides nothing | unit | `TestRFC5280Section52UnprocessedCriticalCRL`. Records for 5.2-1, 5.2.5-1 and 5.3-1 (revert of `criticalExtension`) |
+| Existing certificate peers keep working | interop + functional | `x509-ed25519` (both roles), `x509-legacy-rsa-signature` (both roles), `multiple-auth-ze-initiator`, `eap-tls`, `eap-tls13`, `responder-eap-tls13`, `responder-eap-tls13-revoked-client` and `responder-eap-tls12` all PASS. `ipsec-eap-*` 6/6 PASS |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every row and AC of this spec is done. The RFC5280-4.2-2 and RFC5280-6.1-1 gaps that remain bind `verifyEntryChain`, which is not one of this spec's rows | n/a |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | recorded by `./le spec review record` at closure |
+| `./le spec review check` | run by `./le commit create` on the closure commit |
+| Rounds | 2 |
+| Reviewer lenses used | Round 1: an independent ze-read agent covered fail-open, OIDs, RFC quotes, messages, tag claims, stale comments, docs and interop checkers. Round 2: inline over the round-1 fix hunks |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | No discrimination records | `rfc/discrimination/rfc5280/` | 6 records written by `./le rfc record`, in fbdd9a82e7 |
+| 2 | ISSUE | Interop and `.ci` pairs never walked red | `docs/architecture/testing/interop.md` | Red run recorded (2026-11-10) |
+| 3 | ISSUE | The 6.1.3-1 positive asserted only `revocation-root` | `rfc5280_ike_revocation_test.go` | Now asserts `pki ca revocation-root` |
+| 4 | ISSUE | Detecting key usage presence by OID was untested | `rfc5280_ike_purpose_test.go` | `emptyKeyUsageLeaf` case |
+| 5 | ISSUE | The doc overstated what strongSwan refuses | `ipsec-11-interop-eap.md` | Narrowed, from `x509_crl.c` `parse` |
+| 6 | ISSUE | The fix text was unusable for an intermediate with no entry | `revocation.go` `errNoListNamesIssuer` | Now says to add the CA as a pki ca |
+
+Round 2 read the round-1 fix hunks against source and found 0 BLOCKER and 0 ISSUE.
+- `CAEntriesFor` matching by subject and key only adds candidate lists. `currentListFrom` still requires the chain issuer's name and signature.
+- The empty key usage leaf parses to `KeyUsage == 0`, and `checkIKEPurpose` refuses it through `hasCertExtension`.
+- NOTEs left as they are:
+  - The RFC 9190 reference comes after the fix sentence in EAP messages.
+  - Row 6.1.3-1 carries no pointer to the no-source Warn. The Warn is recorded under 6.1-1.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| the four `test/ipsec/ipsec-cert-*.ci`, the three new unit test files, `rfc/full/rfc4945.txt` | yes | `ls` on 2026-11-10 printed each path |
+| the four `test/interop-ipsec/scenarios/x509-{crl,eku}-*` directories | yes | `ls -d` listed all four |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | revocation runs on every chain | `getRemoteCert` calls `checkPeerChainRevocation(sa, caName, chains)`. Coordinator run: the engine package passes and the interop revoked scenario passes |
+| AC-2 | purpose check runs on the leaf | `getRemoteCert` calls `checkIKEPurpose(cert)`. The interop EKU pair passes |
+| AC-3 | a critical extension skips the list | `currentListFrom` calls `criticalExtension(list)`. The eap package passes |
+| AC-4 | the gaps are removed and records exist | rows RFC5280-5.2-1 and RFC5280-6.1.3-1 carry no `{gap}`. Six files under `rfc/discrimination/rfc5280/` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| IKE_AUTH with a revoked peer certificate | `test/ipsec/ipsec-cert-revoked.ci` | two daemons in x509 mode, a `crl` listing serial 65539. It expects `was revoked by` and fails under the break |
+| IKE_AUTH with a leaf whose EKU excludes IKE | `test/ipsec/ipsec-cert-wrong-purpose.ci` | a serverAuth-only responder certificate. It expects `extended key usage` and fails under the break |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | openssl survey of the lab certificates. strongSwan `issue.c` `parse_flag` |
+| A-2 | confirmed | `pubkey_authenticator.c` `is_compliant_cert`. Interop: strongSwan accepts Ze's clientAuth leaf |
+| A-3 | confirmed | `TestRFC5280Section52UnprocessedCriticalCRL` passes with critical `ExtraExtensions` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Guide: the purpose rule, revocation, the Warn | `remote_cert_checks.go::checkIKEPurpose`, `checkPeerChainRevocation` | yes |
+| ipsec-6: matching by subject and key | `pki/store.go::CAEntriesFor` | yes |
+| ipsec-11: strongSwan's critical-extension handling | strongSwan `x509_crl.c` `parse` (cases DELTA_CRL_INDICATOR; default refuses critical) | yes |
+| interop.md: the red run | coordinator run on 2026-11-10 after fbdd9a82e7 | yes |

@@ -2939,11 +2939,14 @@ accepting checker requires Ze's ESP state and traffic both ways, which only an
 accepting Ze produces: the strongSwan SA alone would also be there after a
 refusal.
 
-Not yet walked red. The break for the revocation pair skips the revocation
-check in `getRemoteCert`: `x509-crl-revoked-peer-ze-initiator` then
-establishes, Ze logs no refusal, and the checker fails at its first wait. The
-break for the purpose pair skips the extended key usage judgement:
-`x509-eku-server-auth-only-refused-ze-initiator` fails the same way.
+The red run, on 2026-11-10, after fbdd9a82e7: with an early `return nil` at
+the top of `checkIKEPurpose` and of `checkPeerChainRevocation`
+(`internal/component/ike/engine/remote_cert_checks.go`) and the Ze image
+rebuilt, both refusing scenarios FAIL with "ze did not refuse strongSwan's
+certificate: wait for ze log \"ike: remote AUTH verification failed\" timed out
+before the peer became ready": Ze established with the revoked certificate and
+with the serverAuth-only one. With the file restored byte-exact both pass
+again, and both accepting twins pass throughout.
 <!-- source: internal/le/interoplab/ipsec/certpolicy.go -- checkPeerCertificateRefused, checkPeerCertificateAccepted -->
 <!-- source: test/interop-ipsec/scenarios/x509-crl-revoked-peer-ze-initiator/ -- the revocation fixtures -->
 <!-- source: test/interop-ipsec/scenarios/x509-eku-server-auth-only-refused-ze-initiator/ -- the purpose fixtures -->
