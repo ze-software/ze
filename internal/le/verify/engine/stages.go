@@ -219,6 +219,9 @@ func fullStages() []Stage {
 		// no declared edge, runs silently empty in a build without that gate.
 		stage("plugin coupling", "check"),
 		stage("plugin declarations", "check"),
+		// Every registering call of the plugin registry sits in package
+		// initialization of a register file, so none can run after the seal.
+		stage("plugin registration-sites", "check"),
 	), []Stage{
 		// arch enumeration judges the CHANGE SET rather than the tree: the copies
 		// already in the tree are `le arch enumeration report`, and this stage's red

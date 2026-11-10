@@ -28,7 +28,7 @@ func TestFullStagesMatchesNativeActionPopulation(t *testing.T) {
 		"go staticcheck/check/part/6/of/6",
 		"repo compiles/check", "go vet-platforms/darwin/freebsd/openbsd", "doc wiring",
 		"doc check/all", "doc check/links", "doc check/retired-commands", "repo/check/tree",
-		"plugin imports/check", "plugin gated-table/check", "plugin coupling/check", "plugin declarations/check", "arch enumeration/check",
+		"plugin imports/check", "plugin gated-table/check", "plugin coupling/check", "plugin declarations/check", "plugin registration-sites/check", "arch enumeration/check",
 		"arch compound-guard/check", "arch refuse-by-default/check",
 		"arch error-wrap/check", "arch operator-error/check",
 		"yang glue/check", "repo feature-tags/check",

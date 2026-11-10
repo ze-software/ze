@@ -165,6 +165,21 @@ func callableAliasBinding(binding *ast.Object) bool {
 	return false
 }
 
+// ImportedDirectory answers the committed directory the package operand of
+// selector names in file, through the lexical import binding callableImport
+// proves for the registration walk, so a reader outside this package resolves
+// an aliased import the way the walk does. The directory is empty for a
+// standard-library import. It answers false when the operand is not exactly one
+// import of file: a local value, a binding that shadows the import, or a file
+// this snapshot did not select.
+func (s *Snapshot) ImportedDirectory(file SourceFile, selector *ast.SelectorExpr) (string, bool) {
+	pkg, selected := s.packages[path.Dir(file.Path)]
+	if !selected {
+		return "", false
+	}
+	return s.evaluator().callableImport(sourceExpr{file: file.File, pkg: pkg}, selector)
+}
+
 // callableImport MUST prove the selector's lexical import binding before an
 // empty directory can mean the existing external-standard-library boundary.
 func (e *expression) callableImport(source sourceExpr, selector *ast.SelectorExpr) (string, bool) {

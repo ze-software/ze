@@ -8,7 +8,7 @@
 | Release reason | Replaces a development check (the inventory's whole-tree external-effect proof) with three fast checks; the only shipped change is that the plugin registry seals after start-up and hands out copies, which hardens behaviour without changing any operator-visible answer |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 1/8 |
+| Phase | 3/8 |
 | Handoff | - |
 | Updated | 2026-11-10 |
 
@@ -188,13 +188,13 @@ walk.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | No vendored package receives a registry reference from Ze code | The registry is under `internal/`, so no third-party import compiles (Go internal-package rule); owner's framing | Vendored code could register or mutate after the declared walk ran | Check 2 itself, green at HEAD (AC-7) | unvalidated |
-| A-2 | The registry can be sealed without breaking tests that register late | 89 test files call `registry.Register`, 67 call `Reset` or `Restore`; none goes through `cmd/ze` `main`, which is the only caller of the seal | Tests panic or fail after an unrelated test sealed | Grep: no test calls the seal function except the registry's own unit tests, which restore through `Snapshot`/`Restore`; scoped runs of `internal/component/plugin/...` and `cmd/ze` | unvalidated |
+| A-1 | No vendored package receives a registry reference from Ze code | The registry is under `internal/`, so no third-party import compiles (Go internal-package rule); owner's framing | Vendored code could register or mutate after the declared walk ran | Check 2 itself, green at HEAD (AC-7) | unvalidated: at d53989cfad the check refused only the two sites phase 3 moved; green owed once those moves are committed |
+| A-2 | The registry can be sealed without breaking tests that register late | 89 test files call `registry.Register`, 67 call `Reset` or `Restore`; none goes through `cmd/ze` `main`, which is the only caller of the seal | Tests panic or fail after an unrelated test sealed | Grep: no test calls the seal function except the registry's own unit tests, which restore through `Snapshot`/`Restore`; scoped runs of `internal/component/plugin/...` and `cmd/ze` | confirmed (phase 2: 90 test files call `Register`, 68 `Reset`/`Restore`, none reaches `main`; registry, plugin/server, bgp/server and cmd/ze scoped runs green) |
 | A-3 | No production code registers after `main` starts | Census of non-test `registry.Register` callers: 107 `register.go` files; the other hits (`plugin/server/startup.go`, `subsystem.go`, `config/schema/cli/main.go`) are other types' `Register` methods | A real runtime registration path breaks at start | Check 2 at HEAD, plus the functional suites that start the daemon (`./le test functional plugin`) | unvalidated |
-| A-4 | No hot path calls `Lookup` or `All` per route or per event | Census of 48 non-test callers: config verify, startup, autoload, help, command declarations; `bgp/server/events.go` calls `Lookup` while ordering a startup selection | Copying adds allocations per UPDATE | Read each caller in the census; allocation benchmark of `Lookup` and `All` (AC-4) | unvalidated |
-| A-5 | No caller relies on pointer identity of a returned registration | Grep for comparisons of `Lookup` results found only nil checks | A comparison between two lookups turns false | Grep at implementation time for `==` on `*registry.Registration` values | unvalidated |
+| A-4 | No hot path calls `Lookup` or `All` per route or per event | Census of 48 non-test callers: config verify, startup, autoload, help, command declarations; `bgp/server/events.go` calls `Lookup` while ordering a startup selection | Copying adds allocations per UPDATE | Read each caller in the census; allocation benchmark of `Lookup` and `All` (AC-4) | confirmed with two exceptions moved (phase 2): the per-event callers `sortByReverseDependencyTier` (`bgp/server/events.go`) and `declaresSessionReady` (`plugin/server/events.go`) read `registry.StartOrderEdges` and `registry.RegisteredSessionReady`, which answer values |
+| A-5 | No caller relies on pointer identity of a returned registration | Grep for comparisons of `Lookup` results found only nil checks | A comparison between two lookups turns false | Grep at implementation time for `==` on `*registry.Registration` values | confirmed (phase 2: no `==` on a looked-up registration) |
 | A-6 | The `ze_le` tag adds no plugin registration, and no registration file is selected by GOARCH | `DeclaredPlugins` reads the ze_le linux/amd64 context; `find` shows Linux-selected registration files only under `internal/test/fixture` (test DUT) | Check 3 reports a difference that is a context mismatch, not a defect | Check 3 green at HEAD on linux/amd64 (AC-10) | unvalidated |
-| A-7 | Every Ze package that holds a registering call is in the committed snapshot's population | `ReadCommitted` takes the transitive import graph of `cmd/ze` under the Linux le context | A registering file outside that graph escapes check 2, but it is also outside the binary | The check reports its package count; a fixture outside the graph is not reported and also not linked | unvalidated |
+| A-7 | Every Ze package that holds a registering call is in the committed snapshot's population | `ReadCommitted` takes the transitive import graph of `cmd/ze` under the Linux le context | A registering file outside that graph escapes check 2, but it is also outside the binary | The check reports its package count; a fixture outside the graph is not reported and also not linked | confirmed for the graph (phase 3): the check reads only `Snapshot.Sources`, and the zetest-only `internal/test/plugins/lateregister`, whose engine registers at run time on purpose, is outside it and not reported |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -422,12 +422,32 @@ N-A: tooling scope, no wire-visible change.
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | Replace the whole-tree proof with three fast checks | Keep fixing the proof's refusals one vendored construct at a time | Owner decision ("yes replace"); the proof cost an hour and 32 GB per run and never went green |
-| Where a registering call may sit: in a `register.go` file, inside its `init()` or inside a function of that file whose every reference is a direct call from initialization (an `init()` or a package-level variable initializer); never in a function literal | The owner's literal wording, `init()` of `register.go` only | The literal rule is red at HEAD (R-1): seven plugins register from a named helper their `init()` calls. Two sites sit outside `register.go` (the BGP message package's builtin families, from a package-variable initializer in another file, and the policy component's `AddConfigRead`, which other packages' `init()` reach through its Loc-RIB import registration); under either rule those move or the rule names them. Pending confirmation by the main thread; the literal rule is the fallback, with the seven helpers inlined into `init()` |
+| Where a registering call may sit: in a `register*.go` file (the convention the edit hook's init() rule already holds, `internal/le/hookruntime/writeedit.go`), as a direct call never inside a function literal or a method, inside `init()`, a package-level initializer, or a plain function whose every reference is in turn a direct call that only such initialization of a `register*.go` file reaches, followed across Ze packages; an exported function under `pkg/` never qualifies; the registry is never dot-imported | The owner's literal wording, `init()` of `register.go` only; the earlier reading here, which stopped at one helper level inside the same file | Phase 3 implemented this reading (`internal/le/plugin/registrationsites`, `judge`, `initializationOnly`) and the main thread still confirms it. The literal rule is red at HEAD (R-1) on the seven helpers. The one-level reading is red on the policy chain: `AddConfigRead` (`policy/register.go` `addPolicyConfigRead`) is reached from `policy.MustRegisterRIBImport` (`rib.go`), which the Loc-RIB importers call from their own `register.go` `init()`; the policy package cannot know those roots at its own init, so moving the call would make each importer write another plugin's registration. The check at HEAD refused exactly two sites under this reading, both moved in phase 3 with behaviour kept: `bgp/message/family.go` `registerBuiltinFamilies` to `register_families.go` (same package-variable initializer), and the memlock lock-and-record `init()` from `memlock_linux.go` to `register_lock.go` |
 | The registering-function set is the registry functions that call the seal guard | A hand-kept list of names in the check | One declaration (`ai/rules/principles.md`): a new mutator is covered when it calls the guard, and the security checklist makes skipping the guard visible |
 | Seal in `cmd/ze` `main`, not in the plugin server's start | Seal when the plugin server starts | `main` is reached only after every `init()`, in every personality, and no test calls it, so test registrations keep working; the server start is later and leaves a window |
 | `Lookup` and `All` return pointers to clones | Return `Registration` values | Keeps the 48 callers' nil checks and signatures; the clone gives the same protection |
 | Check 3 reads `show plugin list` from a built `ze` | Compare `registry.All()` inside the le process | The owner named the built binary; the shipped personality, not le, is what must match |
 | Check 3 is a Linux build-tagged test, not a verify stage | A stage that refuses on darwin | A stage red on the Mac is a machine-dependent verdict; the test does not compile off Linux, which states the platform scope in the build itself |
+
+## Phase results
+
+- Phase 2 (AC-4), go1.27.3 linux/amd64, 110 synthetic registrations with one
+  element in every slice and map (so it over-states real registrations):
+  `Lookup` 3419 B/op and 81 allocs/op, `All` 378792 B/op and 8912 allocs/op
+  (`BenchmarkLookupAndAll`). Census of the 46 non-test callers: start-up
+  (plugin/inprocess, resolve, server startup and autoload, declarations, boot),
+  config (plugin_verify, graph, optional_provider, bgp/config, bgp/plugin
+  insertion set), command and help (command/declared, plugin/cli, plugins/help,
+  aihelp, le tooling), one warning path (reactor `rsRelayProcessName`). The two
+  per-event callers moved to value accessors (A-4).
+- Phase 2: `SetNTPSyncProvider` stays a runtime seam because AC-2 names it one,
+  although its only caller is `internal/plugins/ntp/register.go` `init()`.
+- Phase 3 (AC-7 to AC-9): `./le plugin registration-sites check`
+  (`internal/le/plugin/registrationsites`) derives the registering functions
+  as the registry's exported functions that reach `refuseSealedLocked`, judges
+  each site by the rule in Key Design Decisions, and runs as a verify stage
+  beside `plugin declarations check`. Import aliases resolve through
+  `repoinventory.Snapshot.ImportedDirectory`, a wrapper over `callableImport`.
 
 ## Known Limitations
 - Check 3 compares the fields `show plugin list` carries. The other registration fields are guarded by the declared walk's metadata refusals at the source and by the seal and copies at run time.
