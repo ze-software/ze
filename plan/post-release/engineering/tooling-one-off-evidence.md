@@ -2794,3 +2794,61 @@ changes approved by an independent `ze-test-judge`.
 Each restored run passed; `internal/le/scratch`, `internal/le/test/stressrepro`,
 `internal/le/test/qemu` and `internal/le/commit` ok. The qemu stress action
 now names its verb through `doesRun` (journal bulk-rename-corruption 2026-10-27).
+
+
+## Recorded reds for existing carriers, second batch of 2026-11-10
+
+Forty-three more breaks, prepared from the strict re-audit's list of members
+with a carrier and no recorded red. Each is a Go overlay of the named producer
+(in place where marked: a guard that parses its source, or a non-Go data file;
+bytes verified restored), run through the walk tool; every break failed on
+the carrier's own assertion and every restored run passed (`ta/<name>-break.log`,
+`ta/<name>-restored.log`). Three P-9 breaks move a terminal gate after the
+write it guards, so the carrier's "changed files or directories" check is
+what goes red.
+
+| P | Carrier | Broken producer | Red |
+| --- | --- | --- | --- |
+| P-1 | `TestParseCIRefusesUnknownDirective` (`internal/test/runner`) | `internal/test/runner/parsing.go` | directive "expect=stdout:regex=ze [0-9]" parsed without error; it must be refused |
+| P-1 | `TestCIMustFailFixturesAllFail` (`internal/test/runner`) | `internal/test/runner/record_parse.go` | unknown-directive.ci "failed for a reason it does not name; a must-fail fixture that goes red for a new reason asserts nothing" |
+| P-2 | `(TestETWaitTimerExpiresAndRestoresConfiguration|TestETWaitTimerDrainAppliesRealPing)` (`internal/component/cli/testing`) | `internal/component/cli/testing/headless.go` | Error:      	Should be true |
+| P-2 | `TestEditorParentBlockedIO` (`internal/test/editorcase`) | `internal/test/editorcase/parent.go` | child survived result: <nil> |
+| P-2 | `TestWBWaitLoadRefusesNonsettling` (`internal/component/web/testing`) | `internal/component/web/testing/runner.go` | nonsettling state did not fail at deadline: <nil> |
+| P-2 | `TestWBCaseKeepsExecutionAndCleanupFailures` (`internal/component/web/testing`) | `internal/component/web/testing/runner.go` | result "browser session \"owned-both-errors\" cleanup incomplete: exit status 13" lost "option=timeout" |
+| P-2 | `TestWBCaseDeadlineBoundaryOutcomes` (`internal/component/web/testing`) | `internal/component/web/testing/runner.go` | canceled case "": &{Passed:true Error: Skipped:false SkipReason: Steps:[]} |
+| P-2 | `TestWBCaseDeadlineBoundaryOutcomes` (`internal/component/web/testing`) | `internal/component/web/testing/runner.go` | canceled case "action=wait:ms=1\n": &{Passed:false Error:line 1: action wait: context canceled Skipped:false SkipReason: Steps:[{Step:1 Line:1 Kind:action Assert:wait Pas |
+| P-3 | `TestRunnerOwnedReturnPaths` (`internal/test/runner`) | `internal/test/runner/runner_exec.go` | child 797611 not reaped: wait4=0, <nil> |
+| P-4 | `TestRefuseWrongBuildNameGuardsANamedSession` (`cmd/ze`) | `cmd/ze/le_build_name.go` | refuseWrongBuildName() = 0, want 2 (stderr "") |
+| P-6 | `TestObligationsFollowSuccessfulPublication` (`internal/le/commit`) | `internal/le/commit/owed.go` | with only the retired shard: refusals [retired shard: plan/verification-debt/5184512c.md], want none |
+| P-7 | `TestReclaimDirectorylessOwnerAndInterruptedRemoval` (`internal/le/verify`) | `internal/le/verify/cleanup.go` | owned abandoned artifact remains: … <nil> |
+| P-7 | `TestReclaimDirectorylessOwnerAndInterruptedRemoval` (`internal/le/verify`) | `internal/le/verify/cleanup.go` | reclaim failed: [{Operation:sweep interrupted: git worktree remove Message:git worktree remove exited 128: fatal: '… is not a working tree}] |
+| P-7 | `TestReclaimRefusesUnknownOwnerAndPreservesLiveOwner` (`internal/le/verify`) | `internal/le/verify/cleanup.go` | reclaimed unowned or live resource: {Removed:[… Preserved:[] Diagnostics:[verify-worktree: swept orphaned preserved, which git no longer reports as a worktree root] Failu |
+| P-7 | `TestReclaimRefusesUnknownOwnerAndPreservesLiveOwner` (`internal/le/verify`) | `internal/le/verify/cleanup.go` | reclaimed unowned or live resource: {Removed:[… Preserved:[] Diagnostics:[verify-worktree: swept orphaned preserved, which git no longer reports as a worktree root] Failu |
+| P-7 | `TestReclaimRefusesUnknownOwnerAndPreservesLiveOwner` (`internal/le/verify`) | `internal/le/verify/cleanup.go` | resource did not survive: … lstat … no such file or directory |
+| P-7 | `TestReclaimRemovesLockedDirectorylessRegistration` (`internal/le/verify`) | `internal/le/verify/cleanup.go` | owned locked reclamation failed: {Action:reclaim Commit: Worktree: Code:1 Kept:false Swept:[] Preserved:[] Diagnostics:[reclaim worktrees: unregister directoryless worktr |
+| P-7 | `TestReclaimPreservesUnownedRegistrations` (`internal/le/verify`) | `internal/le/verify/cleanup.go` | reclamation changed unowned registration: before="… after="" err=open … no such file or directory |
+| P-9 | `TestOwnerRulingApprovalTerminalBoundary` (`internal/le/rfc`) | `internal/le/rfc/approve.go` | owner ruling answered <nil>, want terminal refusal |
+| P-9 | `TestOwnerRulingApprovalTerminalBoundary` (`internal/le/rfc`) | `internal/le/rfc/approve.go` | refused owner ruling changed files or directories |
+| P-9 | `TestCommitAuthorizationTerminalBoundary` (`internal/le/commit`) | `internal/le/commit/prepare.go` | attest answered <nil>, want terminal refusal |
+| P-9 | `TestCommitAuthorizationTerminalBoundary` (`internal/le/commit`) | `internal/le/commit/prepare.go` | refused authorization changed files or directories |
+| P-9 | `TestCommitAuthorizationTerminalBoundary` (`internal/le/commit`) | `internal/le/commit/push.go` | terminal refusal exit = 0, want 2 |
+| P-9 | `TestCommitAuthorizationTerminalBoundary` (`internal/le/commit`) | `internal/le/commit/push.go` | refused authorization changed files or directories |
+| P-9 | `TestPreparedPushScriptRemainsNoninteractive` (`internal/le/commit`) | `internal/le/commit/push.go` | prepared script under pipes: exit status 2 |
+| P-9 | `TestOwnerReviewTerminalBoundary` (`internal/le/spec`) | `internal/le/spec/review.go` | owner review answered <nil>, want terminal refusal |
+| P-9 | `TestOwnerReviewTerminalBoundary` (`internal/le/spec`) | `internal/le/spec/review.go` | refused owner review changed files or directories |
+| P-12 | `TestRouteJSONRequiresPinnedSchema` (`internal/le/interoplab/bgp`) | `internal/le/interoplab/bgp/check_engine.go` | route observation accepted=true, want false: <nil>; answer {"vrfId":0,"vrfName":"other","tableVersion":0,"routerId":"172.30.0.3","routes":{}} |
+| P-18 | `TestInstallPlanProgress` (`internal/le/setup/docker/kernel`) | `internal/le/setup/docker/kernel/dockerkernel.go` | diagnostic lacks truthful completed prefix "Completed install steps (3/8):": |
+| P-18 | `TestInstallPlanProgress` (`internal/le/setup/docker/kernel`) | `internal/le/setup/docker/kernel/dockerkernel.go` | reboot-sensitive diagnostic lacks "Do not reboot": setup docker kernel: install the kernel image: … -test.run=^TestInstallPlanProgress$ -- complete 0 |
+| P-20 | `TestComparisonRefusesLossBeforeSelection` (`internal/perf/report`) | `internal/perf/report/trend.go` | lossy raw row was ranked |
+| P-20 | `TestTrackCommandValidatesBeforeLast` (`internal/perf/cli`) | `internal/perf/cli/cmd_track.go` | --md exit = 0, want 1 |
+| P-25 | `TestOwnedDocumentDisposition` (`internal/le/rfc`) | `rfc/short/rfc8247.md` (in place) | Digital Signature method 14 must remain an optional SHOULD row |
+| P-25 | `TestOwnedDocumentDisposition` (`internal/le/rfc`) | `internal/le/rfc/meta.go` | unlisted document rfc5080 entered the counted population |
+| P-29 | `TestApplyRefusesZeroContextPatch` (`internal/le/commit/hunks`) | `internal/le/commit/hunks/hunks.go` | a -U0 type change to a symlink, whose new side adds to an empty file: hunks link: the patch … has a hunk (@@ -0,0 +1 @@) with no context line after its change, so git can |
+| P-30 | `TestPreparedApprovalPublicationRefusesARewrittenTarget` (`internal/le/commit`) | `internal/le/commit/rfcchange.go` | prepared script published a target outside its actual parent history: [ebf104b] publish exact judge approval |
+| P-30 | `TestPreparedApprovalPublicationCannotSpendAnAlreadyPublishedTarget` (`internal/le/commit`) | `internal/le/commit/rfcchange.go` | second prepared script spent the already-published target: [37335cb] publish exact judge approval |
+| P-33 | `TestNoFixtureAppendsAConfigRootOntoTheInheritedEnvironment` (`internal/test/fixture`) | `internal/test/fixture/register_storage_history.go` (in place) | register_storage_history.go:305:35: append(os.Environ(), ze_config_dir...) sets the config root beside the inherited dotted one: use daemonRootEnvironment or daemonEnviro |
+| P-33 | `TestPersistenceFixturesUseOneEffectiveStore` (`internal/test/fixture`) | `internal/test/fixture/daemon_store.go` | ZE_TEST_STORAGE=memory: err = <nil>, want a refusal naming option=storage:value=disk |
+| P-34 | `TestPartialHealthExplainsScopedEvidence` (`internal/le/test/health`) | `internal/le/test/health/collect_rfc.go` | tab, nonbreaking-space, next-line and em-space: "annotation split {} sums to 0, but the model's annotated count sums to 1 ..." |
+| P-36 | `TestAWaiterPreservesOldForeignReceipts` (`internal/le/job`) | `internal/le/job/registry.go` | foreign file did not survive: … open … no such file or directory |
+| P-38 | `TestGuestEvidenceActionsAreNative` (`internal/le/test/qemu`) | `internal/le/test/qemu/actions.go` | missing guest action ipsec-mobike |
+| P-40 | `TestSharedResourceGrammar` (`internal/test/runner`) | `internal/test/runner/record_parse_option.go` | skip does not name missing capability: |
