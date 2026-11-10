@@ -391,6 +391,10 @@ var excludedIntegrationPackages = map[string]string{
 	"internal/le/site/terminaldemo": "TestWebConfigPosterUsesAuthoredInputs routes its compiled test binary" +
 		" through the pinned Docker renderer with private networking; the QEMU guest lacks agent-browser." +
 		" Run the named host test as documented in docs/contributing/terminal-demos.md",
+	"internal/le/site": "TestActivityStyleUsesTheme (activity_theme_integration_test.go) reads the" +
+		" activity page's computed styles through host agent-browser and Chromium; the QEMU guest lacks" +
+		" agent-browser. Run it on the host through ./le job run label unit-pkg command go test -tags" +
+		" integration -run TestActivityStyleUsesTheme ./internal/le/site/",
 	"internal/component/web/testing": "native observer and capture integration proofs require host agent-browser" +
 		" and Chromium; run the host package as documented in docs/architecture/testing/runner-architecture.md",
 	"internal/chaos/web": "live producer-clock capture proofs require host agent-browser, Chromium and an owned session root;" +
