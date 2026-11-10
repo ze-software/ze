@@ -2385,3 +2385,21 @@ Linux host. What remains is the Mac host's 9p backend (an `O_NOFOLLOW` xattr
 read in QEMU's darwin helpers is the unverified candidate), which only a run
 on the Mac can attribute. The first attempt (`p10/run.log`) is void: command
 mode had no dockerd and no buildx, so its control failed.
+
+## P-12 (b): a stand-in server runs beside its test (2026-11-10)
+
+`repositoryAnchoredBinary` gives an `le mock <name>` step the test's own
+directory (`leMockArea`), because the test's observer writes that server's
+file arguments beside the test. The break is a Go overlay of
+`internal/test/runner/runner.go`, `if leMockArea(args) {` becoming
+`if false && leMockArea(args) {`, run through `./le --name session test bgp
+plugin rpki-revalidate-late-sync` (`p12b/`), which builds `le` with the
+overlay.
+
+| Leg | Result |
+| --- | --- |
+| clean | PASS 1.8s |
+| broken | FAIL 12.9s: "ZE-OBSERVER-FAIL: the RTR cache never synced a VRP": `le mock rtr --sync-release rpki-sync.release` ran from the repository root and never saw the release file the observer wrote beside the test |
+| restored | PASS 1.8s |
+
+The broken leg left no `rpki-sync.release` in the repository root.

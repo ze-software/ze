@@ -367,8 +367,8 @@ Enable debug logging with ze's hierarchical log system:
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromEnv -->
 
 ```bash
-# Set log level for your plugin
-export ZE_LOG_LEVEL=debug
+# Set the base log level (ze.log); ze.log.<subsystem> sets one subsystem
+export ZE_LOG=debug
 ./my-plugin
 ```
 

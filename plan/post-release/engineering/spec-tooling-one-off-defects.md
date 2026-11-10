@@ -288,28 +288,21 @@ AC-27 was dropped on 2026-11-08 ("Scope decision" above): the incident was not i
 | `commit-needs-an-uncommitted-symbol` | 2026-10-27 | rfc/full/rfc7084.txt untracked |
 | `session-never-establishes-with-the-peer` | 2026-10-27 | RPKI relay tests, `le mock rtr` never syncs a VRP |
 | `test-artifacts-land-in-the-repository-root` | 2026-10-26 | job lint-input guard encounters another session's Go backup |
-| `acceptance-criterion-written-as-an-absence` | 2026-08-21 | AC-9 grep for `show bgp summary` |
 | `closed-spec-survives-on-disk` | 2026-09-12 | `./le commit create ... remove` |
 | `container-cannot-see-migrated-scratch` | 2026-10-21 | `Run.virtfsArgs` |
 | `delegation-hands-the-callee-a-different-argv` | 2026-10-20 | `conf-watchdog` helper |
 | `delegation-hands-the-callee-a-different-argv` | 2026-10-13 | `./le stress-repro` |
 | `delegation-hands-the-callee-a-different-argv` | 2026-09-07 | `le` launcher script |
-| `delegation-hands-the-callee-a-different-argv` | 2026-09-04 | `refuseWrongBuildName` |
 | `escape-hatch-scoped-wider-than-its-justification` | 2026-09-27 | `writeGoPatterns` |
 | `field-carries-two-meanings` | 2026-08-19 | `ZE_VERIFY_MODE` |
-| `fixture-encodes-an-impossible-state` | 2026-10-05 | `internal/le/ai/hooks/fixtures.go` |
 | `fixture-encodes-an-impossible-state` | 2026-09-17 | `le-qemu-run-answers.ci` |
 | `gate-ignores-the-level-it-counts` | 2026-09-30 | `checkGapCountAgreement` |
 | `gate-ignores-the-level-it-counts` | 2026-10-06 | `./le rfc check` |
-| `gate-owed-a-clearance-no-command-writes` | 2026-11-02 | `RFC-approval-owed:` cleared only by attestation |
 | `guard-added-to-one-half-of-a-pair` | 2026-10-10 | `(*Bench).Run` |
-| `guard-added-to-one-half-of-a-pair` | 2026-10-26 | `runMessageLoop` generated bulk UPDATE attributes |
 | `guard-added-to-one-half-of-a-pair` | 2026-09-07 | `runGating` |
 | `guard-added-to-one-half-of-a-pair` | 2026-09-05 | `le verify` cancellation |
 | `invariant-enforced-by-an-absent-call-site` | 2026-08-18 | spec WIP cap |
-| `invariant-enforced-by-an-absent-call-site` | 2026-08-19 | `.et` wall clock |
 | `lifetime-ends-before-its-last-reader` | 2026-10-22 | `runTest` reaping |
-| `lifetime-ends-before-its-last-reader` | 2026-10-23 | interop image cleanup |
 | `mutating-a-guard-runs-the-unguarded-path` | 2026-08-31 | forced-RED on `handlePacket` |
 | `mutating-a-guard-runs-the-unguarded-path` | 2026-08-10 | build recipe guard |
 | `net-pipe-deadlock` | 2026-09-03 | `captureStdout` |
@@ -317,7 +310,6 @@ AC-27 was dropped on 2026-11-08 ("Scope decision" above): the incident was not i
 | `non-idempotent-append-duplicates-the-record` | 2026-08-29 | `./le commit create append` |
 | `option-set-for-one-caller-changes-another` | 2026-10-10 | `runGokInProcess` |
 | `option-set-for-one-caller-changes-another` | 2026-09-28 | `plugin/wait-file` |
-| `output-not-byte-stable` | 2026-08-15 | chaos web golden capture |
 | `output-not-byte-stable` | 2026-08-24 | terminal demo poster |
 | `owner-decision-attributed-without-the-owner` | 2026-10-18 | `./le rfc approve` |
 | `pointer-shared-across-the-names-it-indexes` | 2026-09-04 | `./le commit create ... append` |
@@ -325,19 +317,13 @@ AC-27 was dropped on 2026-11-08 ("Scope decision" above): the incident was not i
 | `prohibition-broken-by-the-agent-that-carried-it` | 2026-08-31 | subagent `git mv` of a `.ci` |
 | `record-written-before-the-operation-succeeds` | 2026-08-19 | verification-debt shard |
 | `refactor-removes-feature` | 2026-09-03 | spec-write design gate |
-| `refactor-removes-feature` | 2026-08-31 | `checkNoFamilyEndOfRIB` and 14 checkers |
 | `removal-leaves-the-file-on-disk` | 2026-10-21 | `sweepAbandoned` |
 | `removal-leaves-the-file-on-disk` | 2026-09-19 | `sweepAbandoned` |
-| `replacement-written-before-it-is-validated` | 2026-09-08 | `go mod vendor` |
-| `rule-metadata-values-disagree-with-linter` | 2026-09-12 | rule corpus level |
 | `silent-fall-through` | 2026-10-05 | `RunEngineSteps` |
 | `silent-fall-through` | 2026-09-07 | `./le qemu run` 9p mount |
 | `silent-fall-through` | 2026-09-04 | YANG resolution in test binaries |
 | `silent-fall-through` | 2026-08-15 | orphan `stdin=peer` block |
-| `silent-fall-through` | 2026-10-08 | `le test qemu run` arm64 accel |
 | `silent-fall-through` | 2026-10-10 | `.et` runner options |
-| `silent-fall-through` | 2026-10-10 | `processCmdWithDepth` tick cost |
-| `silent-fall-through` | 2026-10-10 | IPsec interop `zeEnvironment` |
 | `test-gate-repeats-expensive-work` | 2026-10-07 | `./le test functional --pattern` |
 | `test-gate-repeats-expensive-work` | 2026-09-12 | `hookSessionStart` |
 | `test-gate-repeats-expensive-work` | 2026-09-11 | session-start hook timeout |
@@ -346,7 +332,6 @@ AC-27 was dropped on 2026-11-08 ("Scope decision" above): the incident was not i
 | `helper-bypassed-by-an-open-coded-copy` | 2026-08-14 | functional runner `Record.TmpfsFiles` flattens the tmpfs block |
 | `helper-bypassed-by-an-open-coded-copy` | 2026-08-31 | `activityStyle` light literals under the dark theme |
 | `parser-refuses-a-form-its-producer-emits` | 2026-10-14 | `checkSnapshot` reads `git ls-files -s` without `-z` |
-| `policy-change-never-re-evaluates-what-it-admitted` | 2026-10-22 | GoBGP `UpdateConfig` export change not re-advertised (lab peer) |
 | `stop-leaves-the-work-running` | 2026-10-11 | `runDocker` kernel container survives a stop |
 | `stop-leaves-the-work-running` | 2026-10-20 | `installStopped` always says "only partly made" |
 | `stop-leaves-the-work-running` | 2026-10-20 | `installCommand` root step waited out with no WaitDelay |
@@ -354,7 +339,6 @@ AC-27 was dropped on 2026-11-08 ("Scope decision" above): the incident was not i
 | `test-against-broken-path` | 2026-08-18 | `demos/terminal/web-config/` validator and recording drive different paths |
 | `test-against-broken-path` | 2026-08-29 | `TestGeneratedPluginImportsCurrent`, `TestYANGGlueCurrent` `go run` a non-main file |
 | `unwired-feature` | 2026-09-02 | `.github/workflows/codeql.yml` `paths-ignore` ignored for Go |
-| `zero-value-as-valid-answer` | 2026-08-26 | le toolchain derived feature tag set answers empty |
 | `zero-value-as-valid-answer` | 2026-09-21 | `latestComparisonResults` keeps one of two `ze` results |
 | `zero-value-as-valid-answer` | 2026-10-15 | `listStdlib` empty listing read as no stdlib |
 | `bound-too-small-for-its-own-burst` | 2026-10-22 | stressrepro `runSlug` joins every selector into one filename |
@@ -371,7 +355,9 @@ AC-27 was dropped on 2026-11-08 ("Scope decision" above): the incident was not i
 Rows from the whole one-off sweep found fixed at HEAD on 2026-10-23 that have no
 other spec home here. Each needs its journal cell closed with this evidence by
 the agent that closes fixed rows. The rows below the first four were verified
-at source and their journal cells closed on 2026-11-09.
+at source and their journal cells closed on 2026-11-09. The last fifteen moved
+here from the owned table on 2026-11-10, each verified at its producer and
+closed on the attributed red its evidence section records.
 
 | Class file | Date | Surface | Evidence |
 |------------|------|---------|----------|
@@ -416,6 +402,22 @@ at source and their journal cells closed on 2026-11-09.
 | `test-against-broken-path` | 2026-09-01 | zz probe files | `16efe2aa68` deleted both |
 | `test-against-broken-path` | 2026-09-05 | `requireEveryJobAdvisory` | `6df62d6f73`; `TestEvidenceNightlyScheduleActionsAndPrivileges` |
 | `test-against-broken-path` | 2026-09-28 | `gitChangedFiles` | `3815463353` removed it |
+| `gate-owed-a-clearance-no-command-writes` | 2026-11-02 | `RFC-approval-owed:` cleared only by attestation | `8c64ad2d4a` `create rfc-approval <revision> <unit>`; `TestLateApprovalAnswersOnlyItsBoundChange` (tooling-one-off-evidence.md, "Unit red walks of landed fixes") |
+| `guard-added-to-one-half-of-a-pair` | 2026-10-26 | `runMessageLoop` generated bulk UPDATE attributes | `6e3d409685`; `TestGeneratedBulkAttributesFollowOPEN`, `TestGeneratedInjectAttributesFollowOPEN` (`internal/test/peer`) (tooling-one-off-evidence.md, "P-28: handshake-classified generated UPDATEs") |
+| `policy-change-never-re-evaluates-what-it-admitted` | 2026-10-22 | GoBGP `UpdateConfig` export change not re-advertised (lab peer) | patch `test/interop/gobgp-v4.11.0-export-reload.patch` (`96ead494aa`), reached by `2cb64b6350`; `bgp-export-reload-gobgp`, `bgp-export-reload-secondary-gobgp` (tooling-one-off-evidence.md, "P-17 GoBGP: both export-reload carriers proved") |
+| `replacement-written-before-it-is-validated` | 2026-09-08 | `go mod vendor` | `47340d61c5` `vendorGoDeps` stages and patches before publishing; `TestVendoringStaleStampPreservesOwnedPatch` (tooling-one-off-evidence.md, "Unit red walks of landed fixes") |
+| `rule-metadata-values-disagree-with-linter` | 2026-09-12 | rule corpus level | `4e11ce4cc8`; `TestRuleMetadataLevelFollowsBody` (tooling-one-off-evidence.md, "Unit red walks of landed fixes") |
+| `silent-fall-through` | 2026-10-08 | `le test qemu run` arm64 accel | `e86a31db73`; `TestNativeARM64LinuxUsesKVM` (unit proof, no arm64 Linux host booted) (tooling-one-off-evidence.md, "Unit red walks of landed fixes") |
+| `silent-fall-through` | 2026-10-10 | `processCmdWithDepth` tick cost | `4c8c4918e6` drops the per-Tick wait; `6f6c0e0ad9` restores the 10s budget (runs of 3.2s, 3.1s, 3.0s); bound proved by `TestEditorParentBlockedIO` (tooling-one-off-evidence.md, "P-2 and P-40: a bounded blocked-I/O case and admission on the skip reason") |
+| `zero-value-as-valid-answer` | 2026-08-26 | le toolchain derived feature tag set answers empty | `93cd4c1e4a` port, `New` (`internal/le/go/toolchain/gotoolchain.go`, moved by `6012e7243d`); `TestAManifestWithNoGateIsAnError` (tooling-one-off-evidence.md, "Unit red walks of landed fixes") |
+| `fixture-encodes-an-impossible-state` | 2026-10-05 | `internal/le/ai/hooks/fixtures.go` | `af69577952`; `TestWeakeningProbeTreesCommitOriginals`, `TestWeakeningProbeRejectsUnreadableOriginal` (tooling-one-off-evidence.md, "Unit red walks of landed fixes") |
+| `invariant-enforced-by-an-absent-call-site` | 2026-08-19 | `.et` wall clock | `93c53a73e6` `editorcase.Run`; `TestEditorParentBlockedIO` (`ec503075b4`) (tooling-one-off-evidence.md, "P-2 and P-40: a bounded blocked-I/O case and admission on the skip reason") |
+| `lifetime-ends-before-its-last-reader` | 2026-10-23 | interop image cleanup | `9549c1b106`; `TestPassedAssertionReportsCleanupFailure` (`internal/le/interoplab`) (tooling-one-off-evidence.md, "Unit red walks of landed fixes") |
+| `output-not-byte-stable` | 2026-08-15 | chaos web golden capture | `368d42ae36`; `TestDashboardHTTPClockConsumers`, `TestActiveSetEvictionBreaksClockTiesByPeerIndex` (`internal/chaos/web`) (tooling-one-off-evidence.md, "Unit red walks of landed fixes") |
+| `delegation-hands-the-callee-a-different-argv` | 2026-09-04 | `refuseWrongBuildName` | `20667e8d9f`, carrier `b678c3b3de` (`BinarySet.Environment`); `TestBinarySetDropsEveryInheritedBuildName` (tooling-one-off-evidence.md, "Unit red walks of landed fixes") |
+| `acceptance-criterion-written-as-an-absence` | 2026-08-21 | AC-9 grep for `show bgp summary` | `9059161574` repaired the six specs; `fcb9fbe117`; `TestCriteriaNamePositiveBehavior` (tooling-one-off-evidence.md, "Unit red walks of landed fixes") |
+| `silent-fall-through` | 2026-10-10 | IPsec interop `zeEnvironment` | `163a5d1b88`; `TestPreparedIPsecPeerEnablesDebugLogging` (tooling-one-off-evidence.md, "P-12 (c): IPsec lab log key"); the plugin testing page's stale `ZE_LOG_LEVEL` corrected with the row's closure |
+| `refactor-removes-feature` | 2026-08-31 | `checkNoFamilyEndOfRIB` and 14 checkers | `c5b61cf472`, `125ab22025`, `18017069a9`, `cb882fd581` gave each checker its assertions; each of the 15 red under a Ze break (tooling-one-off-evidence.md, "P-12 (a): interop checkers (2026-11-09)", "P-12 (a) interop checkers: the four remaining walks (2026-11-10)") |
 
 ## Checklist
 
@@ -859,7 +861,7 @@ The key is **class / date / surface and symptom**, not table position. Class nam
 resolve under `plan/journal/` (the historical `.md` suffix on the tool-help entry
 names the same class). Every row inherits the P-number of each listed AC. Multiple
 ACs require all those proofs. Package letters are research/implementation owners
-within this spec, not transfers to another spec. Every entry remains open for proof;
+within this spec, not transfers to another spec. Every entry remains open for proof until its discriminator names the evidence that proved it;
 the S/R distinctions above govern its evidence. Repeated dates are intentionally
 retained. The extra symptom text distinguishes journal occurrences and hidden
 sub-obligations where the short original surface collapsed them.
@@ -899,7 +901,7 @@ sub-obligations where the short original surface collapsed them.
 | artifact-bytes-disagree-with-identity | 2026-10-26 | native corruption: startup and embedded-schema executables | I | 27 |
 | test-artifacts-land-in-the-repository-root | 2026-10-26 | lint-input guard and foreign Go backup | C | 37 |
 | tool-help-contradicts-owner-rule | 2026-10-25 | verify changed guidance; superseded host-specific restriction | E | 15 |
-| acceptance-criterion-written-as-an-absence | 2026-08-21 | show bgp summary survivors; six stale spec criteria | E | 16 |
+| acceptance-criterion-written-as-an-absence | 2026-08-21 | show bgp summary survivors; six stale spec criteria (proved: tooling-one-off-evidence.md, "Unit red walks of landed fixes") | E | 16 |
 | blanket-mechanism-hid-missing-cases | 2026-08-10 | Stop hook classifier categories | E | 8 |
 | bulk-rename-corruption | 2026-08-10 | l2tp exported-to-unused population | C | 14 |
 | closed-spec-survives-on-disk | 2026-09-12 | closure remove leaves spec copy | A | 5 |
@@ -907,28 +909,28 @@ sub-obligations where the short original surface collapsed them.
 | delegation-hands-the-callee-a-different-argv | 2026-10-20 | conf-watchdog PATH helper identity | C | 4 |
 | delegation-hands-the-callee-a-different-argv | 2026-10-13 | stress-repro reload namespace AND reused verdict | C | 4, 21 |
 | delegation-hands-the-callee-a-different-argv | 2026-09-07 | launcher existing binary and POSIX argv fixtures | C | 4 |
-| delegation-hands-the-callee-a-different-argv | 2026-09-04 | refuseWrongBuildName shared helper | C | 4 |
+| delegation-hands-the-callee-a-different-argv | 2026-09-04 | refuseWrongBuildName shared helper (proved: tooling-one-off-evidence.md, "Unit red walks of landed fixes") | C | 4 |
 | delegation-hands-the-callee-a-different-argv | 2026-09-05 | generated commit review-check ambient session | A | 4, 29 |
 | error-answered-with-another-errors-code | 2026-10-10 | DockerKernelRoute unknown versus absent | D | 10 |
 | escape-hatch-scoped-wider-than-its-justification | 2026-09-27 | one allowed panic exempts whole edit | E | 8 |
 | field-carries-two-meanings | 2026-10-03 | runOrchestrated original script versus routed stdin | B | 3 |
 | field-carries-two-meanings | 2026-08-19 | ZE_VERIFY_MODE boolean versus former mode argument | E | 15 |
-| fixture-encodes-an-impossible-state | 2026-10-05 | hook probeTree: three allow probes need committed HEAD | E | 11 |
+| fixture-encodes-an-impossible-state | 2026-10-05 | hook probeTree: three allow probes need committed HEAD (proved: tooling-one-off-evidence.md, "Unit red walks of landed fixes") | E | 11 |
 | fixture-encodes-an-impossible-state | 2026-09-05 | le-qemu-run-answers missing go directive | D | 11 |
 | fixture-encodes-an-impossible-state | 2026-09-17 | le-qemu-run-answers reads wrong root/version | D | 11 |
 | gate-ignores-the-level-it-counts | 2026-09-30 | checkGapCountAgreement SHOULD counted as MUST | F | 9 |
 | gate-ignores-the-level-it-counts | 2026-10-06 | RFC9256 and RFC9552 optional gaps | F | 9 |
-| gate-owed-a-clearance-no-command-writes | 2026-11-02 | late RFC-approved publication | A | 30 |
+| gate-owed-a-clearance-no-command-writes | 2026-11-02 | late RFC-approved publication (proved: tooling-one-off-evidence.md, "Unit red walks of landed fixes") | A | 30 |
 | gate-owed-a-clearance-no-command-writes | 2026-09-08 | debt-discharge cannot supersede foreign bad record | A | 6 |
 | gate-owed-a-clearance-no-command-writes | 2026-09-07 | debt-clear review/RFC writer plus unknown-gate clearance | A | 6 |
 | guard-added-to-one-half-of-a-pair | 2026-10-10 | Bench.Run build-only staging | G | 12 |
-| guard-added-to-one-half-of-a-pair | 2026-10-26 | generated bulk UPDATE session attributes | G | 28 |
+| guard-added-to-one-half-of-a-pair | 2026-10-26 | generated bulk UPDATE session attributes (proved: tooling-one-off-evidence.md, "P-28: handshake-classified generated UPDATEs") | G | 28 |
 | guard-added-to-one-half-of-a-pair | 2026-09-07 | runGating signal cleanup, binary set/raw coverage, child groups | D | 7, 18 |
 | guard-added-to-one-half-of-a-pair | 2026-09-05 | verify dispatch loses cancellation before stage | D | 7 |
 | invariant-enforced-by-an-absent-call-site | 2026-08-18 | WIP cap direct edit and unclaimed transition | E | 15 |
-| invariant-enforced-by-an-absent-call-site | 2026-08-19 | editor wall clock plus et/wb caps and exclusive groups | B | 2, 40 |
+| invariant-enforced-by-an-absent-call-site | 2026-08-19 | editor wall clock plus et/wb caps and exclusive groups (proved: tooling-one-off-evidence.md, "P-2 and P-40: a bounded blocked-I/O case and admission on the skip reason") | B | 2, 40 |
 | lifetime-ends-before-its-last-reader | 2026-10-22 | runTest/runOrchestrated timeout Kill without Wait before lease release | B | 3 |
-| lifetime-ends-before-its-last-reader | 2026-10-23 | interop assertion pass followed by image-cleanup error | B | 3 |
+| lifetime-ends-before-its-last-reader | 2026-10-23 | interop assertion pass followed by image-cleanup error (proved: tooling-one-off-evidence.md, "Unit red walks of landed fixes") | B | 3 |
 | mutating-a-guard-runs-the-unguarded-path | 2026-08-31 | handlePacket forced-red live guard mutation | E | 16 |
 | mutating-a-guard-runs-the-unguarded-path | 2026-08-10 | build recipe seed reaches operator etc/ze | E | 16, 33 |
 | net-pipe-deadlock | 2026-09-03 | captureStdout beyond pipe capacity | B | 13 |
@@ -937,7 +939,7 @@ sub-obligations where the short original surface collapsed them.
 | option-set-for-one-caller-changes-another | 2026-10-10 | runGokInProcess changes cwd; relative image injection | D | 10 |
 | option-set-for-one-caller-changes-another | 2026-09-28 | wait-file and path-asn-filter-export-reject / redistribute-export-modify | B | 11 |
 | option-set-for-one-caller-changes-another | 2026-10-19 | storage-bfd-restart persistent sequence | B | 11, 33 |
-| output-not-byte-stable | 2026-08-15 | chaos golden relative clock; include total peer ordering audit | H | 13 |
+| output-not-byte-stable | 2026-08-15 | chaos golden relative clock; include total peer ordering audit (proved: tooling-one-off-evidence.md, "Unit red walks of landed fixes") | H | 13 |
 | output-not-byte-stable | 2026-08-24 | web-config poster render stability | H | 13, 19 |
 | owner-decision-attributed-without-the-owner | 2026-10-18 | rfc approve reason AND summary annotation authority | F | 9 |
 | pointer-shared-across-the-names-it-indexes | 2026-09-04 | append: random script but shared message | A | 5 |
@@ -947,22 +949,22 @@ sub-obligations where the short original surface collapsed them.
 | record-written-before-the-operation-succeeds | 2026-08-19 | debt append before subject validation | A | 5, 6 |
 | refactor-removes-feature | 2026-09-03 | four gates: commit deferral, test-first, delegation reminder, subagent context | E | 8 |
 | refactor-removes-feature | 2026-09-03 | design subject/freshness gate AND daemon-scoped .ci demand | E | 8, 24 |
-| refactor-removes-feature | 2026-08-31 | checkNoFamilyEndOfRIB and fourteen sibling checker bodies/oracles | G | 12 |
+| refactor-removes-feature | 2026-08-31 | checkNoFamilyEndOfRIB and fourteen sibling checker bodies/oracles (proved: tooling-one-off-evidence.md, "P-12 (a): interop checkers (2026-11-09)", "P-12 (a) interop checkers: the four remaining walks (2026-11-10)") | G | 12 |
 | removal-leaves-the-file-on-disk | 2026-10-21 | sweeper interrupted-removal dirty-state classification | D | 7 |
 | removal-leaves-the-file-on-disk | 2026-09-19 | sweeper directoryless marker AND standalone entry point | D | 7 |
 | removal-leaves-the-file-on-disk | 2026-09-12 | renderSharedIndexRepair closure fourth instance | A | 5 |
 | removal-leaves-the-file-on-disk | 2026-09-07 | renderSharedIndexRepair closure recurrence | A | 5 |
 | removal-leaves-the-file-on-disk | 2026-09-06 | remove only drops index entry | A | 5 |
-| replacement-written-before-it-is-validated | 2026-09-08 | go mod vendor reverts owned patches | C | 14 |
-| rule-metadata-values-disagree-with-linter | 2026-09-12 | rule corpus MUST metadata versus SHOULD body | E | 9 |
+| replacement-written-before-it-is-validated | 2026-09-08 | go mod vendor reverts owned patches (proved: tooling-one-off-evidence.md, "Unit red walks of landed fixes") | C | 14 |
+| rule-metadata-values-disagree-with-linter | 2026-09-12 | rule corpus MUST metadata versus SHOULD body (proved: tooling-one-off-evidence.md, "Unit red walks of landed fixes") | E | 9 |
 | silent-fall-through | 2026-10-05 | engine-step file/stdin decoding and direct execution | B | 1 |
 | silent-fall-through | 2026-09-08 | zeTestParseRunCLI unknown verb succeeds | B | 1 |
 | silent-fall-through | 2026-09-07 | QEMU required 9p mount falls through | D | 10 |
 | silent-fall-through | 2026-09-04 | YANG domain registration in test binaries | C | 14 |
 | silent-fall-through | 2026-08-15 | orphan positive stdin=peer block; retain line-parser refusal | B | 1 |
-| silent-fall-through | 2026-10-08 | arm64 Linux acceleration omits KVM | D | 10 |
+| silent-fall-through | 2026-10-08 | arm64 Linux acceleration omits KVM (proved: tooling-one-off-evidence.md, "Unit red walks of landed fixes") | D | 10 |
 | silent-fall-through | 2026-10-10 | editor options: timeout, width, height, wait | B | 2 |
-| silent-fall-through | 2026-10-10 | processCmdWithDepth actual tick cost | B | 2 |
+| silent-fall-through | 2026-10-10 | processCmdWithDepth actual tick cost (proved: tooling-one-off-evidence.md, "P-2 and P-40: a bounded blocked-I/O case and admission on the skip reason") | B | 2 |
 | silent-fall-through | 2026-10-10 | IPsec zeEnvironment log key consumer | G | 12 |
 | test-gate-repeats-expensive-work | 2026-10-07 | functional --pattern documented but refused | E | 15 |
 | test-gate-repeats-expensive-work | 2026-09-12 | hookSessionStart derived-artifact work | E | 8 |
@@ -974,7 +976,7 @@ sub-obligations where the short original surface collapsed them.
 | helper-bypassed-by-an-open-coded-copy | 2026-08-14 | main .ci TmpfsFiles mode loss; retain parse-path predecessor proof | B | 17 |
 | helper-bypassed-by-an-open-coded-copy | 2026-08-31 | activityStyle light literals in dark theme | H | 17 |
 | parser-refuses-a-form-its-producer-emits | 2026-10-14 | checkSnapshot quoted Git paths | A | 17 |
-| policy-change-never-re-evaluates-what-it-admitted | 2026-10-22 | GoBGP export UpdateConfig/OUT reconciliation | G | 17 |
+| policy-change-never-re-evaluates-what-it-admitted | 2026-10-22 | GoBGP export UpdateConfig/OUT reconciliation (proved: tooling-one-off-evidence.md, "P-17 GoBGP: both export-reload carriers proved") | G | 17 |
 | stop-leaves-the-work-running | 2026-10-11 | runDocker kernel container survives CLI kill | D | 18 |
 | stop-leaves-the-work-running | 2026-10-20 | installStopped inaccurate progress/reboot guidance | D | 18 |
 | stop-leaves-the-work-running | 2026-10-20 | installCommand TERM-ignore wait AND second interrupt | D | 18 |
@@ -985,7 +987,7 @@ sub-obligations where the short original surface collapsed them.
 | test-against-broken-path | 2026-09-05 | requireEveryJobAdvisory versus evidence-nightly | H | 19 |
 | test-against-broken-path | 2026-09-28 | le-discovery-answers compares working tree, producer unpushed range | H | 19 |
 | unwired-feature | 2026-09-02 | CodeQL Go extraction ignores paths-ignore | H | 17 |
-| zero-value-as-valid-answer | 2026-08-26 | le toolchain empty derived feature tags | C | 20 |
+| zero-value-as-valid-answer | 2026-08-26 | le toolchain empty derived feature tags (proved: tooling-one-off-evidence.md, "Unit red walks of landed fixes") | C | 20 |
 | zero-value-as-valid-answer | 2026-09-21 | comparison drops second ze pass AND convergence publishing | C | 20 |
 | zero-value-as-valid-answer | 2026-10-15 | listStdlib empty successful listing | C | 20 |
 | bound-too-small-for-its-own-burst | 2026-10-22 | runSlug full selector list filename | C | 21 |
