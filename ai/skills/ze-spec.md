@@ -111,6 +111,9 @@ feature type:
 - **Integration Checklist** -- YANG schema + validation, CLI grammar, completion,
   functional test, env var, **doctor check + diagnostic code**, Prometheus counters,
   and the BGP family surface (answered in `ai/patterns/bgp-family.md`, not inline).
+  The doctor row names, for each problem class the feature can produce (a runtime
+  dependency, a refusal, a `Warn`/`Error` log line, a transient report-bus event),
+  the doctor check and the code that reports it, and the phase it runs at.
 - **Documentation Update Checklist** (17 rows) -- `features/<id>.md` (its level read from `./le feature report`), command/API/plugin
   docs, source anchors. The rows name the pages each implementation PHASE updates as it
   codes, never a queue of writing for closure (`ai/rules/documentation.md`). `/ze-close`

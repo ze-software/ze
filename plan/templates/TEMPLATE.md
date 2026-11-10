@@ -247,6 +247,7 @@ repository, such as a peer or a third-party plugin, is still a row.
 | Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/cli.md` |
 | Env var registration | | YANG leaves under `environment/` need a matching `ze.<name>.<leaf>` via `env.MustRegister()` |
 | Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
+| Doctor code per problem class | | For each problem class the feature can produce (refusal, `Warn`/`Error` log line, transient report-bus event): the doctor check, its code and its phase (`ai/rules/user-facing-errors.md`, `docs/architecture/doctor-and-health-checks.md`) |
 | Prometheus counters/metrics | | Observable state: define, register, and list the metric names and labels here |
 | BGP family surface (new SAFI / capability / attribute) | | The 12-section checklist in `ai/patterns/bgp-family.md` -- read it and record the answers there, not inline |
 
@@ -303,6 +304,7 @@ repository, such as a peer or a third-party plugin, is still a row.
 | Correctness | [feature-specific, for example "merge order correct", "error messages name the offending value"] |
 | Naming | [feature-specific, for example "JSON keys kebab-case", "YANG leaf matches env var leaf"] |
 | Data flow | [feature-specific, for example "resolution in X only, reactor unaware of Y"] |
+| Operator errors and doctor codes | Every refusal is an `opererr` error with its fix on the last line, every `Warn`/`Error` line and raise names the code the Integration Checklist's doctor row lists, and each doctor check carries `Fix` at the phase that holds its state (`ai/rules/user-facing-errors.md`) |
 | Rule: [relevant rule] | [what to check] |
 
 ### Deliverables Checklist

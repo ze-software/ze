@@ -11,6 +11,7 @@ directives ## Directives
   cross-a-boundary-with-value-types-only
   bound-and-clean-every-declared-text
   answer-a-declaration-without-activating
+  a-plugin-answers-its-own-runtime-doctor-check
 registration-based-dispatch ## Registration-Based Dispatch
   dispatch-subcommands-by-registration-not-switch
 feature-gate-registration ## Feature-Gate Registration

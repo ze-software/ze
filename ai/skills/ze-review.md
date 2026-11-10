@@ -231,6 +231,7 @@ phase itself.
 | Config parsing | `config.md` -- fail on unknown keys, no version numbers |
 | New data wrapper/struct | `architecture.md` -- lazy over eager, no identity wrappers |
 | Any new abstraction, option, layer, or parameter | `simplicity.md` -- the simplest fully correct answer, and nothing beyond it |
+| A refusal, error answer, `Warn`/`Error` log line, report-bus raise, or doctor check | `user-facing-errors.md` -- every operator refusal is an `opererr` error whose fix is the exact command on its last line, a daemon error answer goes through `plugin.OperatorErrorResponse`, and context lands on line 1 with no repeated prefix; every `Warn`/`Error` line and raise names a declared doctor code under `code` (no other value under that key, a transient problem also raised), and a line reporting nothing wrong is `Info`/`Debug`. A doctor finding carries `Fix`, and the check sits at the phase whose process holds what it reads: live daemon state at `runtime` only, a plugin's runtime check answered by its own `OnDoctorCheck`, no bind probe judging a port its own daemon holds (`docs/architecture/doctor-and-health-checks.md`). Read the diff for each; the gates catch only part of it |
 | Any changed Go file | `docs/contributing/ze-go-style.md` -- the style pass below |
 
     **Style pass (every changed Go file).** These six are judgement calls that no linter and no other step in this review makes. Each maps to a section of `docs/contributing/ze-go-style.md`.

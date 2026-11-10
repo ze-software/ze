@@ -8,3 +8,5 @@ directives ## Directives
   an-error-names-the-cause-and-the-fix
   a-host-condition-is-refused-up-front-and-diagnosed-by-ze-doctor
   a-message-is-plain-easy-to-scan-and-uses-color-sparingly
+  an-operator-refusal-is-an-operator-error
+  every-warning-names-a-doctor-code
