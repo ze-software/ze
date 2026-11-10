@@ -32,6 +32,10 @@ load-red members joined AC-5 beside `update-text-sr-policy-addpath`:
 `api-peer-create-delete-rib`, `debug-toggle` and `peer-admin-shutdown`. Only
 their failure headers survive (cases 41, 289 and 618 in the "D functional"
 excerpt of `tooling-one-off-evidence.md`), with neither a red nor a cause.
+The isolated `rbac-web-config-deny` failure of the same run (a web terminal
+POST timeout when the case ran alone) joined them too: its output is lost,
+the parent's `6852770df1` fixes only a port collision under concurrency, and
+it passes when run alone (3 of 3 runs, 2026-11-10).
 
 ## Required Reading
 
@@ -231,7 +235,7 @@ excerpt of `tooling-one-off-evidence.md`), with neither a red nor a cause.
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
-| `gate-verdict-depends-on-the-machine` | 2026-10-27 | verify changed at 043c682d24 load reds, update-text-sr-policy-addpath, api-peer-create-delete-rib, debug-toggle and peer-admin-shutdown output lost (AC-5) |
+| `gate-verdict-depends-on-the-machine` | 2026-10-27 | verify changed at 043c682d24 load reds, update-text-sr-policy-addpath, api-peer-create-delete-rib, debug-toggle, peer-admin-shutdown and the isolated rbac-web-config-deny timeout output lost (AC-5) |
 | `gate-red-where-nothing-blocks-on-it` | 2026-09-10 | lint after OSPF closure: 93 host, 104 Linux findings (AC-2) |
 | `test-type-not-backfilled` | 2026-06-14 | new test type, existing code: June technique inventory (AC-1) |
 | `test-type-not-backfilled` | 2026-06-14 | fuzz target backfill: June fuzz inventory (AC-1) |
