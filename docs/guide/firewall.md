@@ -225,9 +225,11 @@ IP header"; move the term to a table of family `ip`, `ip6` or `inet`.
 A table name a feature installs is reserved for that feature, in every
 family, whether or not the feature is configured. A table of yours whose
 kernel name (`ze_` + its name) is one of them, such as `vrrp`,
-`vrrp_owner_arp`, `vrrp_owner_nd` or `copp`, is refused at verify with the
-owner that holds it: two owners in one kernel table would merge their chains.
-Rename the table. The reserved names are listed in
+`vrrp_owner_arp`, `vrrp_owner_nd`, `copp` or `iface_rpf`, is refused at
+verify with the owner that holds it: two owners in one kernel table would
+merge their chains. Rename the table. The reserved set depends on the
+features your build includes, because a feature compiled out of the build
+reserves nothing. The reserved names are listed in
 [table ownership](../architecture/firewall/table-ownership-and-shutdown-flush.md),
 Rule 2.
 <!-- source: internal/component/firewall/reservation.go -- refuseReservedTableNames -->

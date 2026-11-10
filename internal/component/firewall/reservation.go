@@ -11,10 +11,12 @@ import (
 )
 
 // tableReservations maps a kernel table name to the registry owner that
-// reserved it. Each producer fills it from the init() of its own register.go
-// through MustReserveTableNames, so the firewall component names no producer:
-// a compiled-out producer reserves nothing, and no table of its name can then
-// exist. Safe for concurrent use.
+// reserved it. Each producer fills it through MustReserveTableNames from the
+// init() of its own register_tables.go (the firewall engine's conntrack-helper
+// tables from its register.go), so the firewall component names no producer:
+// a compiled-out producer reserves nothing, and it then installs no producer
+// table for another owner's table of that name to merge with. Safe for
+// concurrent use.
 var tableReservations = struct {
 	mu     sync.RWMutex
 	owners map[string]string

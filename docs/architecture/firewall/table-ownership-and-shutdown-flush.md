@@ -59,6 +59,7 @@ rules quietly.
 | VRRP accept filter | `vrrp` | `ze_vrrp` | `acceptFilterTableName` |
 | VRRP owner filter | `vrrp-owner` | `ze_vrrp_owner_arp`, `ze_vrrp_owner_nd` | `ownerFilterARPTableName`, `ownerFilterNDTableName` |
 | VRRP backup filter | `vrrp-backup` | `ze_vrrp_backup` | `backupFilterTableName` |
+| IPv6 reverse-path check | `iface-rpf`, reservation only | `ze_iface_rpf` | `rpfTableName` |
 
 <!-- source: internal/component/firewall/registry.go -- RegisterTables -->
 <!-- source: internal/component/firewall/conntrack_helpers.go -- conntrackHelperTableInet -->
@@ -71,6 +72,13 @@ rules quietly.
 <!-- source: internal/plugins/ddos/local/responder.go -- tableName -->
 <!-- source: internal/plugins/flowspec-firewall/state.go -- tableName -->
 <!-- source: internal/plugins/anomaly/shape/match.go -- tableNameV4 -->
+<!-- source: internal/plugins/iface/netlink/register_tables.go -- rpfTableName, rpfTableOwner -->
+<!-- source: internal/plugins/iface/netlink/rpf_linux.go -- ReplaceIPv6RPF -->
+
+The IPv6 reverse-path check is the one producer outside the registry: the
+iface netlink backend writes its ip6 table directly over netlink
+(`ReplaceIPv6RPF`) and never calls `RegisterTables`, so the nft backend never
+reconciles it. Its owner exists only to reserve the name (Rule 2b).
 
 Four producers shipped bare names: copp, ddos-local, the FlowSpec bridge and
 anomaly-shape. Each leaked its table. The other three carried the prefix from
@@ -88,9 +96,11 @@ merged into the VRRP owner table, giving one kernel table two owners' base
 chains. Each producer above except firewall-domain therefore reserves its own
 names with `firewall.MustReserveTableNames(owner, names...)`, called from the
 `init()` of its own `register_tables.go` (the firewall engine reserves the
-conntrack-helper tables from `register.go`). The firewall component holds no
-list of producers: a producer that is compiled out reserves nothing, and no
-table of its name can then exist.
+conntrack-helper tables from `register.go`, and the iface netlink backend
+reserves `ze_iface_rpf`, which it writes without the registry). The firewall
+component holds no list of producers: a producer that is compiled out reserves
+nothing, and it then installs no table for an operator table of that name to
+merge with.
 
 Two checks read the reservation:
 

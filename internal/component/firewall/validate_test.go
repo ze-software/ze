@@ -888,3 +888,28 @@ func TestValidateARPFamilyRefusesIPHeaderMatches(t *testing.T) {
 		})
 	}
 }
+
+// VALIDATES: AC-12 -- the arp guard refuses only what reads the IP header: a
+// match on packet metadata (input-interface, mark) stays accepted in a table
+// of family arp, so VRRP's owner filter and an operator's interface rule keep
+// working there.
+// PREVENTS: the guard widened into a refusal of every match in family arp.
+func TestValidateARPFamilyAcceptsMetadataMatches(t *testing.T) {
+	tests := []struct {
+		name  string
+		match Match
+	}{
+		{"input-interface", MatchInputInterface{Name: "eth0"}},
+		{"input-interface wildcard", MatchInputInterface{Name: "eth", Wildcard: true}},
+		{"mark", MatchMark{Value: 1, Mask: 0xffffffff}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tbl := makeTable(FamilyARP)
+			tbl.Chains[0].Terms[0].Matches = []Match{tt.match}
+			if err := ValidateTables([]Table{tbl}); err != nil {
+				t.Fatalf("family arp: expected accept, got %v", err)
+			}
+		})
+	}
+}

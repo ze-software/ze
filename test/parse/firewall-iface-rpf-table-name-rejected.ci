@@ -1,0 +1,32 @@
+# Test: an operator table named after the IPv6 reverse-path check's kernel
+# table is refused at verify, naming the table, its kernel name and the owner.
+# VALIDATES: AC-15 of spec-firewall-existing-family-and-owner-correctness --
+#            the firewall engine refuses `table iface_rpf`, whose kernel name
+#            ze_iface_rpf the iface netlink backend reserved, although that
+#            backend writes the table over netlink and never registers it.
+# PREVENTS: the nft backend deleting and recreating ze_iface_rpf on apply,
+#           wiping the reverse-path chain and its strict and loose sets, and
+#           the iface backend's next rebuild wiping the operator's rules.
+stdin=config:terminator=EOF_CONF
+firewall {
+	backend nft;
+	table iface_rpf {
+		family ip6;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy accept;
+			term all {
+				then {
+					accept;
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=kernel name "ze_iface_rpf" is reserved by owner "iface-rpf"

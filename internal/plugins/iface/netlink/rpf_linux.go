@@ -38,8 +38,12 @@ import (
 // and the per-packet cost does not grow with the interface count. The table is
 // rebuilt whole on every call, in one netlink batch, so the kernel never holds
 // a half-built table and never keeps a member the config no longer names.
+//
+// The table is written here over netlink, not through firewall.RegisterTables,
+// so its name is reserved from register_tables.go: an operator firewall table
+// `iface_rpf` would otherwise share the kernel table, and each writer would
+// delete the other's chains on its next apply.
 const (
-	rpfTableName   = "ze_iface_rpf"
 	rpfChainName   = "prerouting"
 	rpfStrictSet   = "strict"
 	rpfLooseSet    = "loose"
