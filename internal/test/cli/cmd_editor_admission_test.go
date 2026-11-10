@@ -77,8 +77,11 @@ func TestEditorDiscoverySnapshot(t *testing.T) {
 	if test.Admission.ExclusiveGroup != "" {
 		t.Fatal("editor acquired an implicit group")
 	}
-	if len(test.Admission.RequiredCaps) != 0 {
-		t.Fatal("editor acquired implicit capabilities")
+	if test.Admission.SkipReason != "" {
+		t.Fatalf("embedded capability text became a skip verdict: %s", test.Admission.SkipReason)
+	}
+	if test.Admission.ParseFailed {
+		t.Fatal("embedded capability text became a parse failure")
 	}
 	if err := os.WriteFile(path, []byte("invalid-action=changed\n"), 0o600); err != nil {
 		t.Fatal(err)

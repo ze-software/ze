@@ -110,7 +110,6 @@ func webAdmissionRecord(record *runner.Record, test *zeTestWebTest) {
 
 func webResourceRecord(record, admission *runner.Record) {
 	record.NeedsLinux = admission.NeedsLinux
-	record.RequiredCaps = admission.RequiredCaps
 	record.ExclusiveGroup = admission.ExclusiveGroup
 	record.SkipReason = admission.SkipReason
 }

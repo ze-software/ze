@@ -225,7 +225,6 @@ func runEditorTests(tests *runner.EditorTests, baseDir string, verbose, quiet bo
 			return true, nil
 		})
 		record.NeedsLinux = test.Admission.NeedsLinux
-		record.RequiredCaps = test.Admission.RequiredCaps
 		record.ExclusiveGroup = test.Admission.ExclusiveGroup
 		record.SkipReason = test.Admission.SkipReason
 		record.ParseFailed = test.Admission.ParseFailed

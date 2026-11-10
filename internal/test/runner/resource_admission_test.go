@@ -85,11 +85,11 @@ func TestSharedResourceGrammar(t *testing.T) {
 	if !rec.NeedsLinux {
 		t.Fatal("lost Linux requirement")
 	}
-	if !slices.Equal(rec.RequiredCaps, []string{capsNetAdmin, capsSysTime}) {
-		t.Fatalf("caps: %v", rec.RequiredCaps)
-	}
 	if !strings.Contains(rec.SkipReason, capsSysTime) {
 		t.Fatalf("skip does not name missing capability: %s", rec.SkipReason)
+	}
+	if strings.Contains(rec.SkipReason, capsNetAdmin) {
+		t.Fatalf("skip names a capability the host holds: %s", rec.SkipReason)
 	}
 	if rec.ExclusiveGroup != "admission" {
 		t.Fatalf("group: %s", rec.ExclusiveGroup)

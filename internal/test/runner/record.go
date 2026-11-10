@@ -275,9 +275,6 @@ type Record struct {
 	// run ONLY these tests and skip everything else.
 	NeedsLinux bool
 
-	// RequiredCaps retains validated capability tokens for suite adapters.
-	RequiredCaps []string
-
 	// NetnsLinks are interfaces the runner provisions inside this test's per-test
 	// network namespace (option=netns-link) before spawning ze. Populated at parse
 	// time; consumed only under netns mode (ZE_TEST_NETNS), so the option is inert

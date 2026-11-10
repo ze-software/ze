@@ -227,7 +227,6 @@ func parseOptionNeedsLinux(r *Record, _ string, kv map[string]string) error {
 			caps = append(caps, c)
 		}
 	}
-	r.RequiredCaps = append(r.RequiredCaps, caps...)
 	if runtime.GOOS != goosLinux {
 		var tb textbuf.Buffer
 		r.SkipReason = tb.Str("needs-linux (run via ./le test qemu all; current GOOS=").Str(runtime.GOOS).Byte(')').String()

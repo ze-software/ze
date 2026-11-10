@@ -161,7 +161,9 @@ calls is not yet established.
 Editor discovery validates the complete `.et` snapshot and its timeout with
 parallel headroom before execution. Resource options use `recordOptionArms` and
 the same capability registry as `.ci`. The scheduler receives the declared
-Linux requirement, capabilities, exclusive group, skip reason, and parse error.
+Linux requirement, exclusive group, skip reason, and parse error. A capability
+reaches it only as that skip reason, which names the absent capability: the
+host probe runs at parse time, so the scheduler has no capability list to read.
 Execution uses that snapshot, so editing the file after discovery cannot bypass
 its admission decision. No editor family privilege or exclusive group is implicit.
 Failures while waiting for a group report the scheduler's error even though the
