@@ -237,11 +237,21 @@ func TestTheZeledonPageReadsAsThePublishedPage(t *testing.T) {
 
 // VALIDATES: AC-4's parity target, for a hand-authored page WITH a sidebar.
 //
-// The labs index is the sidebar case: page-links.json states its groups, so a
-// sidebar rendered from stale data or dropped altogether shows up as a
-// difference in the link targets.
+// Captured content is controlled input: the editorial source may evolve without
+// changing these goldens. The input's deliberately stale sidebar must be replaced
+// from page-links.json; leaving it or dropping the sidebar changes the links.
 func TestTheLabsIndexPageReadsAsThePublishedPage(t *testing.T) {
-	assertAuthoredPageParity(t, "labs/index.html", "published-labs-index.html", "published-labs-index.md")
+	authored := readTestdata(t, "published-labs-index.html")
+	before, sidebar, ok := strings.Cut(authored, `<aside class="page-sidebar"`)
+	if !ok {
+		t.Fatal("published labs fixture has no sidebar")
+	}
+	_, after, ok := strings.Cut(sidebar, "</aside>")
+	if !ok {
+		t.Fatal("published labs fixture sidebar has no closing tag")
+	}
+	authored = before + `<aside class="page-sidebar"><a href="/retired-sidebar/">Retired sidebar</a></aside>` + after
+	assertAuthoredPageContentParity(t, "labs/index.html", authored, "published-labs-index.html", "published-labs-index.md")
 }
 
 // assertAuthoredPageParity renders one authored page of the real checkout and
@@ -250,15 +260,23 @@ func assertAuthoredPageParity(t *testing.T, name, pageFixture, mirrorFixture str
 	t.Helper()
 	root := repositoryRoot(t)
 	source := filepath.Join(root, "website")
-	links, err := loadPageLinks(source)
-	if err != nil {
-		t.Fatalf("read the sidebar data: %v", err)
-	}
 	authored, err := os.ReadFile(filepath.Join(source, filepath.FromSlash(name)))
 	if err != nil {
 		t.Fatalf("read the authored page: %v", err)
 	}
-	page, err := authoredShellPage(string(authored), name, links)
+	assertAuthoredPageContentParity(t, name, string(authored), pageFixture, mirrorFixture)
+}
+
+// assertAuthoredPageContentParity checks controlled or current authored content
+// against the captured visible text, link targets and complete Markdown mirror.
+func assertAuthoredPageContentParity(t *testing.T, name, authored, pageFixture, mirrorFixture string) {
+	t.Helper()
+	source := filepath.Join(repositoryRoot(t), "website")
+	links, err := loadPageLinks(source)
+	if err != nil {
+		t.Fatalf("read the sidebar data: %v", err)
+	}
+	page, err := authoredShellPage(authored, name, links)
 	if err != nil {
 		t.Fatalf("render %s: %v", name, err)
 	}

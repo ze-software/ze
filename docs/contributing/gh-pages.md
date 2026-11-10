@@ -448,6 +448,11 @@ external-link isolation, Markdown content and mirrors, shells and media,
 date ordering, draft and undated feed exclusions, and page ownership and cleanup.
 Do not refresh a prose snapshot to make a source edit pass.
 
+The labs parity test uses captured content with a deliberately stale sidebar
+as its authored input. It retains exact visible-text, ordered-link and Markdown
+comparisons while allowing the current labs introduction to change.
+<!-- source: internal/le/site/authored_test.go -- TestTheLabsIndexPageReadsAsThePublishedPage, assertAuthoredPageContentParity -->
+
 Check the painted page as well as its DOM text. The shared reveal animation
 starts on any viewport intersection: a long command reference cannot expose a
 fixed fraction of its total height. DOM text alone does not prove the section
