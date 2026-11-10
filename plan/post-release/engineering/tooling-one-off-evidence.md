@@ -3023,3 +3023,13 @@ its earlier greens were void and are not recorded.
 (docker-lab rows of the P-18 native-entry observation, 2026-11-10. The
 admission phase needs a deliberately occupied VM slot and waits for the
 owner's decision. No QEMU process remained after the runs.)
+
+| Route, phase | Clean | Break | Red |
+| --- | --- | --- | --- |
+| `./le test qemu vpp-hugepages`, build (the host ze compile) | exit 1, leaks 0, orphans 0, foreign alive | the host ze compile started outside the owner and abandoned on cancel | leaks 2 |
+| same, image (`ze appliance build`) | exit 1, leaks 0, no new container left | (not broken) | |
+| same, startup (QEMU booting the appliance) | exit 1, leaks 0, orphans 0 | (not broken) | |
+| same, running | unobserved: the run finished and passed before its READY marker appeared | | |
+
+(hugepages rows of the P-18 native-entry observation, 2026-11-10; no QEMU
+process remained.)

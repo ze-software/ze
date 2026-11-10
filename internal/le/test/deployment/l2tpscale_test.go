@@ -5,11 +5,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/paths"
 )
 
 func TestL2TPScaleScenarioRegistryIsExact(t *testing.T) {
@@ -153,14 +159,188 @@ func TestL2TPScaleRunsItsOwnExecutable(t *testing.T) {
 	}
 }
 
+// l2tpScaleResolvedStore answers the directory a ze started with environ and
+// argv opens its store in: the ze.config.dir it reads (any spelling, dotted
+// winning, as env.Get reads it), else the directory beside its binary, which
+// is what paths.DefaultConfigDir falls back to.
+func l2tpScaleResolvedStore(start l2tpScaleStart) string {
+	if dir := env.LookupIn(start.environ, l2tpScaleConfigDirKey); dir != "" {
+		return dir
+	}
+	return paths.ConfigDirFromBinary(start.argv[0])
+}
+
+// TestL2TPScaleZeNeverResolvesTheRepositoryStore proves each scenario's ze
+// opens a store the run owns, never the checkout's etc/ze.
+// Method: run the registry twice through the recorder, once with an inherited
+// environment that names the operator's etc/ze under both spellings and once
+// with none; resolve each ze's store the way ze does; then read the order in
+// which the stores were created, ze stopped and the stores removed.
+//
+// VALIDATES: no ze start resolves /repo/etc/ze, each resolves the fresh store
+// under /repo/tmp/evidence made for its scenario, and that store is removed
+// after its ze stops. PREVENTS: the harness ze opening the operator's store
+// (`blob artifact .../etc/ze/database.zefs is not a live store`).
+func TestL2TPScaleZeNeverResolvesTheRepositoryStore(t *testing.T) {
+	operator := "/repo/etc/ze"
+	inherited := map[string][]string{
+		"operator store inherited": {"PATH=/fixture/bin", "ZE_CONFIG_DIR=" + operator, "ze.config.dir=" + operator},
+		"no store inherited":       {"PATH=/fixture/bin"},
+	}
+	for name, environ := range inherited {
+		t.Run(name, func(t *testing.T) {
+			system := newL2TPScaleRecorder()
+			system.environ = environ
+			report, code := runL2TPScaleAt(context.Background(), "/repo", l2tpScaleRunOptions{}, system)
+			if code != 0 || report.Failed != 0 {
+				t.Fatalf("run = code %d report %#v", code, report)
+			}
+			if len(system.starts) != len(l2tpScaleScenarioRegistry) || len(system.stores) != len(system.starts) {
+				t.Fatalf("%d ze starts and %d stores, want one store for each of %d scenarios",
+					len(system.starts), len(system.stores), len(l2tpScaleScenarioRegistry))
+			}
+			if operator != paths.ConfigDirFromBinary(system.starts[0].argv[0]) {
+				t.Fatalf("fixture: bin/ze resolves %q beside it, want %q", paths.ConfigDirFromBinary(system.starts[0].argv[0]), operator)
+			}
+			var want []string
+			for index, start := range system.starts {
+				resolved := l2tpScaleResolvedStore(start)
+				if resolved == operator {
+					t.Fatalf("scenario %d: ze resolves the repository store %s; environ %q", index, resolved, start.environ)
+				}
+				if resolved != system.stores[index] {
+					t.Fatalf("scenario %d: ze resolves %q, want its own store %q", index, resolved, system.stores[index])
+				}
+				if !strings.HasPrefix(resolved, "/repo/tmp/evidence/") {
+					t.Fatalf("scenario %d: store %q is not under the tree's scratch", index, resolved)
+				}
+				want = append(want, "store "+resolved, "stop", "remove "+resolved)
+			}
+			if !slices.Equal(system.events, want) {
+				t.Fatalf("store lifecycle = %q, want %q", system.events, want)
+			}
+		})
+	}
+}
+
+// TestL2TPScaleStoreFailuresNameTheFixAndClean proves a store the run cannot
+// make stops the scenario before ze starts, and a ze that cannot start still
+// has its store removed.
+// Method: a recorder whose store creation fails, then one whose start fails.
+//
+// VALIDATES: no ze start without its own store; the failure names the
+// directory and the command to rerun; a failed start removes the store.
+func TestL2TPScaleStoreFailuresNameTheFixAndClean(t *testing.T) {
+	system := newL2TPScaleRecorder()
+	system.storeErr = errors.New("no space left on device")
+	report, code := runL2TPScaleAt(context.Background(), "/repo", l2tpScaleRunOptions{Scenario: "slow-radius"}, system)
+	if code == 0 || len(system.starts) != 0 {
+		t.Fatalf("code %d with %d ze starts, want a refusal before ze starts", code, len(system.starts))
+	}
+	failure := report.Scenarios[0].Failure
+	for _, part := range []string{"/repo/tmp/evidence", "no space left on device", "./le test deployment l2tp-scale"} {
+		if !strings.Contains(failure, part) {
+			t.Fatalf("failure %q does not name %q", failure, part)
+		}
+	}
+
+	system = newL2TPScaleRecorder()
+	system.startErr = errors.New("exec format error")
+	report, _ = runL2TPScaleAt(context.Background(), "/repo", l2tpScaleRunOptions{Scenario: "slow-radius"}, system)
+	if report.Scenarios[0].Passed || !slices.Equal(system.removed, system.stores) || len(system.stores) != 1 {
+		t.Fatalf("failed start: report %#v, stores %q, removed %q", report.Scenarios[0], system.stores, system.removed)
+	}
+}
+
+// TestL2TPScaleRealStoreIsLiveAndRemoved proves the real system's store is a
+// live ze store under the tree's scratch, and that removal leaves nothing.
+// Method: zeStore in a temporary tree, storage.Open on the answer, removeStore.
+func TestL2TPScaleRealStoreIsLiveAndRemoved(t *testing.T) {
+	root := t.TempDir()
+	system := realL2TPScaleSystem{}
+	dir, err := system.zeStore(root, "2k-sessions")
+	if err != nil {
+		t.Fatalf("zeStore: %v", err)
+	}
+	if filepath.Dir(dir) != filepath.Join(root, "tmp", "evidence") {
+		t.Fatalf("store %q is not directly under %s/tmp/evidence", dir, root)
+	}
+	store, err := storage.Open(dir)
+	if err != nil {
+		t.Fatalf("ze could not open the store the run made: %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+	if err := system.removeStore(dir); err != nil {
+		t.Fatalf("removeStore: %v", err)
+	}
+	if _, err := os.Lstat(dir); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("store %s still exists after removeStore: %v", dir, err)
+	}
+}
+
+// TestL2TPScaleTextSaysWhyEachScenarioFailed proves the text form carries
+// each failed scenario's failure, the same text the JSON form carries.
+// Method: render a report with one passed and two failed scenarios, one of
+// whose failures spans two lines, and compare the exact text; then check each
+// JSON failure field's lines appear in the text.
+func TestL2TPScaleTextSaysWhyEachScenarioFailed(t *testing.T) {
+	storeless := "ze exited early: error: config storage unavailable: blob artifact /repo/etc/ze/database.zefs is not a live store; run ze init --from /repo/etc/ze/database.zefs\n"
+	report := l2tpScaleReport{
+		Action: L2TPScaleAction, Passed: 1, Failed: 2, Code: 1,
+		Scenarios: []L2TPScaleScenarioReport{
+			{Name: "2k-sessions", Failure: storeless},
+			{Name: "clean-teardown", Passed: true},
+			{Name: "pool-exhaustion", Failure: "sessions: 300/254\nsecond line"},
+		},
+	}
+	want := "FAIL  1 passed, 2 failed: 2k-sessions pool-exhaustion\n" +
+		"  2k-sessions: " + strings.TrimRight(storeless, "\n") + "\n" +
+		"  pool-exhaustion: sessions: 300/254\n" +
+		"    second line"
+	text := report.Text()
+	if text != want {
+		t.Fatalf("text =\n%s\nwant\n%s", text, want)
+	}
+	content, err := json.Marshal(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded l2tpScaleReport
+	if err := json.Unmarshal(content, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	for _, scenario := range decoded.Scenarios {
+		if scenario.Passed {
+			if strings.Contains(text, scenario.Name+":") {
+				t.Fatalf("passed scenario %q printed a failure line", scenario.Name)
+			}
+			continue
+		}
+		for line := range strings.SplitSeq(strings.TrimRight(scenario.Failure, "\n"), "\n") {
+			if !strings.Contains(text, line) {
+				t.Fatalf("text form lacks %q from the JSON failure of %q", line, scenario.Name)
+			}
+		}
+	}
+}
+
 type l2tpScaleRecorder struct {
 	executableErr error
+	storeErr      error
+	startErr      error
 	files         map[string]bool
 	env           map[string]string
+	environ       []string
 	starts        []l2tpScaleStart
 	commands      []l2tpScaleCommand
 	stops         int
 	port          int
+	stores        []string
+	removed       []string
+	// events is the order of store creation, ze stop and store removal.
+	events []string
 }
 
 func newL2TPScaleRecorder() *l2tpScaleRecorder {
@@ -181,7 +361,30 @@ func (r *l2tpScaleRecorder) FileExists(path string) bool { return r.files[path] 
 
 func (r *l2tpScaleRecorder) Getenv(key string) string { return r.env[key] }
 
-func (r *l2tpScaleRecorder) Environ() []string { return []string{"PATH=/fixture/bin"} }
+func (r *l2tpScaleRecorder) Environ() []string {
+	if r.environ != nil {
+		return slices.Clone(r.environ)
+	}
+	return []string{"PATH=/fixture/bin"}
+}
+
+// zeStore answers a fresh directory under root's scratch, as the real system
+// does, without touching the disk.
+func (r *l2tpScaleRecorder) zeStore(root, scenario string) (string, error) {
+	if r.storeErr != nil {
+		return "", r.storeErr
+	}
+	dir := filepath.Join(root, "tmp", "evidence", "l2tp-scale-"+scenario+"-"+strconv.Itoa(len(r.stores)))
+	r.stores = append(r.stores, dir)
+	r.events = append(r.events, "store "+dir)
+	return dir, nil
+}
+
+func (r *l2tpScaleRecorder) removeStore(dir string) error {
+	r.removed = append(r.removed, dir)
+	r.events = append(r.events, "remove "+dir)
+	return nil
+}
 
 func (r *l2tpScaleRecorder) freeUDPPort() (int, error) {
 	r.port++
@@ -195,6 +398,9 @@ func (r *l2tpScaleRecorder) Start(
 	r.starts = append(r.starts, l2tpScaleStart{
 		argv: slices.Clone(start.argv), environ: slices.Clone(start.environ), stdin: slices.Clone(start.stdin),
 	})
+	if r.startErr != nil {
+		return nil, r.startErr
+	}
 	return &l2tpScaleRecordedProcess{recorder: r}, nil
 }
 
@@ -242,6 +448,7 @@ func (*l2tpScaleRecordedProcess) Exited() (bool, int, []byte, error) {
 
 func (p *l2tpScaleRecordedProcess) Stop() error {
 	p.recorder.stops++
+	p.recorder.events = append(p.recorder.events, "stop")
 	return nil
 }
 

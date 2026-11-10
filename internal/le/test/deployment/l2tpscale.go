@@ -13,11 +13,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
@@ -44,6 +44,13 @@ var _ = env.MustRegister(env.EnvEntry{
 // none. The simulator needs no variable: it is `le test scale l2tp`, run from
 // this process's own executable.
 const l2tpScaleZeEnv = "ZE_BINARY"
+
+// l2tpScaleConfigDirKey roots the store each scenario's ze opens. Without it ze
+// resolves the store beside its binary, which for bin/ze is the operator's own
+// etc/ze in the checkout (paths.DefaultConfigDir, ConfigDirFromBinary). The
+// key is registered without aliases, so env.Without with this spelling removes
+// every spelling an inherited environment carries, ZE_CONFIG_DIR included.
+const l2tpScaleConfigDirKey = "ze.config.dir"
 
 // l2tpScaleRunOptions selects one exact scenario. An empty selection runs the registry.
 type l2tpScaleRunOptions struct {
@@ -93,13 +100,24 @@ type l2tpScaleReport struct {
 	Warnings []string `json:"warnings,omitempty"`
 }
 
-// Text answers one line for each warning, then the former runner's summary.
+// Text answers one line for each warning, then the former runner's summary,
+// then one line for each failed scenario carrying its failure exactly as the
+// JSON form's failure field does, so the text form says why each one failed.
+// A failure that spans lines keeps its later lines, indented under its name.
 func (r l2tpScaleReport) Text() string {
 	var tb textbuf.Buffer
 	for _, warning := range r.Warnings {
 		tb.Str("warning: ").Str(warning).Byte('\n')
 	}
-	return tb.Str(r.summary()).String()
+	tb.Str(r.summary())
+	for _, scenario := range r.Scenarios {
+		if scenario.Passed {
+			continue
+		}
+		failure := strings.TrimRight(scenario.Failure, "\n")
+		tb.Str("\n  ").Str(scenario.Name).Str(": ").Str(strings.ReplaceAll(failure, "\n", "\n    "))
+	}
+	return tb.String()
 }
 
 // summary preserves the former runner's summary contract.
@@ -213,7 +231,7 @@ func runL2TPScaleAt(
 	}
 
 	for _, scenario := range selected {
-		result := runL2TPScaleScenario(ctx, system, zeBinary, harness, scenario)
+		result := runL2TPScaleScenario(ctx, system, root, zeBinary, harness, scenario)
 		report.Scenarios = append(report.Scenarios, result)
 		if result.Passed {
 			report.Passed++
@@ -250,9 +268,14 @@ func l2tpScaleBinaryFromEnv(system l2tpScaleSystem, envName string) string {
 	return path
 }
 
+// runL2TPScaleScenario runs one scenario against a ze that owns its config
+// store: a fresh store under the tree's scratch, removed once ze has stopped.
+// ze reads its configuration from stdin, so the store holds nothing the
+// scenario loads; it exists so ze never opens the operator's etc/ze.
 func runL2TPScaleScenario(
 	ctx context.Context,
 	system l2tpScaleSystem,
+	root string,
 	zeBinary string,
 	harness string,
 	scenario l2tpScaleScenario,
@@ -267,8 +290,26 @@ func runL2TPScaleScenario(
 	if scenario.poolExhausted {
 		config = exhaustedL2TPScaleConfig(port)
 	}
-	environ := slices.Clone(system.Environ())
-	environ = append(environ, "ze.log.l2tp=warn", "ze.l2tp.skip-kernel-probe=true")
+
+	store, err := system.zeStore(root, scenario.name)
+	if err != nil {
+		report.Failure = "cannot create this scenario's own ze config store under " +
+			filepath.Join(root, "tmp", "evidence") + ", so ze has no store of its own to start with: " +
+			err.Error() + "; free disk space or fix the directory's permissions, then run: ./le test deployment l2tp-scale"
+		return report
+	}
+	// This runs after the deferred Stop below, so the store is removed only
+	// once ze no longer holds it, and it decides the verdict last.
+	defer func() {
+		if removeErr := system.removeStore(store); removeErr != nil && report.Failure == "" {
+			report.Failure = "cannot remove this scenario's ze config store " + store +
+				", so it stays on disk: " + removeErr.Error() + "; remove it with: rm -r " + store
+		}
+		report.Passed = report.Failure == ""
+	}()
+
+	environ := append(env.Without(system.Environ(), l2tpScaleConfigDirKey),
+		l2tpScaleConfigDirKey+"="+store, "ze.log.l2tp=warn", "ze.l2tp.skip-kernel-probe=true")
 	ze, err := system.Start(ctx, l2tpScaleStart{
 		argv: []string{zeBinary, "-"}, environ: environ, stdin: []byte(config),
 	})
@@ -280,7 +321,6 @@ func runL2TPScaleScenario(
 		if stopErr := ze.Stop(); stopErr != nil && report.Failure == "" {
 			report.Failure = "stop ze: " + stopErr.Error()
 		}
-		report.Passed = report.Failure == ""
 	}()
 	if err := system.Sleep(ctx, l2tpScaleStartupWait); err != nil {
 		report.Failure = "ze startup wait canceled"
@@ -487,6 +527,12 @@ type l2tpScaleSystem interface {
 	Getenv(key string) string
 	Environ() []string
 	freeUDPPort() (int, error)
+	// zeStore creates the config store one scenario's ze opens, and answers
+	// its directory. The caller MUST call removeStore on it once ze stopped.
+	zeStore(root, scenario string) (string, error)
+	// removeStore removes a directory zeStore answered. It MUST be called
+	// after the ze that used the store has stopped.
+	removeStore(dir string) error
 	Start(context.Context, l2tpScaleStart) (l2tpScaleProcess, error)
 	Run(context.Context, l2tpScaleCommand) (l2tpScaleCommandResult, error)
 	Sleep(context.Context, time.Duration) error
@@ -523,6 +569,28 @@ func (realL2TPScaleSystem) freeUDPPort() (port int, err error) {
 	}
 	return localAddress.Port, nil
 }
+
+// zeStore makes a fresh directory under the tree's scratch (tmp/evidence) and
+// creates an empty live store in it, the store `ze init` would leave before
+// any configuration is imported. A directory with no store would also start
+// `ze -`, but storeless: ze then prints one warning for each feature that
+// needs a store, and those lines would bury the error of a ze that exits early.
+func (realL2TPScaleSystem) zeStore(root, scenario string) (string, error) {
+	dir, err := scratchDir(root, "l2tp-scale-"+scenario+"-")
+	if err != nil {
+		return "", err
+	}
+	store, err := storage.Create(dir)
+	if err != nil {
+		return "", errors.Join(fmt.Errorf("create an empty ze store in %s: %w", dir, err), os.RemoveAll(dir))
+	}
+	if err := store.Close(); err != nil {
+		return "", errors.Join(fmt.Errorf("close the new ze store in %s: %w", dir, err), os.RemoveAll(dir))
+	}
+	return dir, nil
+}
+
+func (realL2TPScaleSystem) removeStore(dir string) error { return os.RemoveAll(dir) }
 
 func (realL2TPScaleSystem) Start(
 	ctx context.Context,

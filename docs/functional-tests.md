@@ -4549,6 +4549,15 @@ group before returning. Nonzero simulator exit codes and exact output bytes
 remain part of the scenario report; unexpected startup and lifecycle errors fail
 the run.
 
+Each scenario's Ze reads its configuration from stdin and keeps its config
+store in a directory the run owns: a fresh empty live store under
+`tmp/evidence/l2tp-scale-<scenario>-*`, named by `ze.config.dir` (every
+inherited spelling of that variable, `ZE_CONFIG_DIR` included, is replaced).
+Without it Ze would open the store beside `bin/ze`, which is the operator's own
+`etc/ze`. The directory is removed once that Ze has stopped. The text form
+prints the summary line, then one line for each failed scenario with the same
+failure text the `| json` form carries in that scenario's `failure` field.
+
 ```bash
 ./le test deployment l2tp-scale
 L2TP_SCALE_SCENARIO=2k-sessions ./le test deployment l2tp-scale
@@ -4564,6 +4573,7 @@ le test scale l2tp --help
 
 <!-- source: internal/test/cli/cmd_l2tp_scale.go -- LAC simulator + mock RADIUS -->
 <!-- source: internal/le/test/deployment/l2tpscale.go -- native scale registry and runner -->
+<!-- source: internal/le/test/deployment/l2tpscale.go -- runL2TPScaleScenario, zeStore, l2tpScaleReport.Text -->
 
 ---
 
