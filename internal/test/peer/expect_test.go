@@ -192,7 +192,7 @@ func TestLoadExpectFileSendBulkBoundaries(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			opt := "option=update:value=send-bulk:prefix=10.0.0.0/24:count=10:next-hop=10.0.0.1:origin-as=65001"
+			opt := "option=update:value=send-bulk:prefix=10.0.0.0/24:count=10:next-hop=10.0.0.1"
 			if tt.maxMsg != "" {
 				opt += ":max-msg=" + tt.maxMsg
 			}
@@ -220,10 +220,9 @@ func TestLoadExpectFileSendBulkBoundaries(t *testing.T) {
 // because no route was ever offered (ai/rules/evidence.md).
 func TestLoadExpectFileSendBulkRejectsBadSpec(t *testing.T) {
 	base := map[string]string{
-		"prefix":    "10.0.0.0/24",
-		"count":     "10",
-		"next-hop":  "10.0.0.1",
-		"origin-as": "65001",
+		"prefix":   "10.0.0.0/24",
+		"count":    "10",
+		"next-hop": "10.0.0.1",
 	}
 	tests := []struct {
 		name string
@@ -237,8 +236,6 @@ func TestLoadExpectFileSendBulkRejectsBadSpec(t *testing.T) {
 		{"count not a number", "count", "many"},
 		{"missing next-hop", "next-hop", ""},
 		{"next-hop not an address", "next-hop", "nowhere"},
-		{"missing origin-as", "origin-as", ""},
-		{"origin-as past 32 bits", "origin-as", "4294967296"},
 	}
 
 	for _, tt := range tests {

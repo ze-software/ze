@@ -47,7 +47,7 @@ option=linger:value=true
 # One UPDATE at the RFC 8654 ceiling. eor is omitted: ze's own initial-sync EOR
 # is what the expect below matches, and a second EOR from the peer would not
 # change the forwarding decision under test.
-option=update:value=send-bulk:prefix=10.0.0.0/24:count=16373:next-hop=10.0.0.1:origin-as=65001:max-msg=65535
+option=update:value=send-bulk:prefix=10.0.0.0/24:count=16373:next-hop=10.0.0.1:max-msg=65535
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_SOURCE
 

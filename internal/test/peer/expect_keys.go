@@ -64,7 +64,7 @@ var peerValueArms = map[string]map[string]peerOptionArm{
 		optOpenPathsLimit:         {keys: []string{"limit", keyFamily}, parse: parseOpenPathsLimit},
 	},
 	"update": {
-		"send-bulk":          {keys: []string{keyPrefix, "count", "next-hop", "origin-as", "max-msg", "eor"}, parse: parseUpdateSendBulk},
+		"send-bulk":          {keys: []string{keyPrefix, "count", "next-hop", "max-msg", "eor"}, parse: parseUpdateSendBulk},
 		"send-default-route": {parse: parseUpdateSendDefaultRoute},
 		"send-route": {
 			keys: []string{

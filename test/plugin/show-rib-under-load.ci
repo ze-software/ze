@@ -62,7 +62,7 @@ stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=50s
 option=linger:value=true
-option=update:value=send-bulk:prefix=10.0.0.0/24:count=200000:next-hop=10.0.0.1:origin-as=65001:max-msg=512:eor=true
+option=update:value=send-bulk:prefix=10.0.0.0/24:count=200000:next-hop=10.0.0.1:max-msg=512:eor=true
 # ze has nothing of its own to advertise, so its End-of-RIB is the only frame it
 # sends. Expecting it is what makes ze-peer bind a listening socket at all: a
 # check-mode peer with no ze-peer-consumed expectation exits before it listens.

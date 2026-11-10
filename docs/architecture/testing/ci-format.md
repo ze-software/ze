@@ -803,7 +803,7 @@ expectations.
 |-------|------|-------------|
 | `send-default-route` | none | Send one UPDATE for `0.0.0.0/32` via `192.0.2.1`, an address no test host holds, so the route passes the RFC 4271 Section 6.3 next-hop check |
 | `send-route` | `prefix`, `origin-as`, `next-hop`, and optionally `as-path`, `as-set`, `originator-id`, `cluster-list`, `label` | Send one UPDATE for one prefix. Repeat the line for more |
-| `send-bulk` | `prefix`, `count`, `next-hop`, `origin-as`, and optionally `max-msg`, `eor` | Generate `count` sequential prefixes from `prefix` and send them as whole BGP messages |
+| `send-bulk` | `prefix`, `count`, `next-hop`, and optionally `max-msg`, `eor` | Generate `count` sequential prefixes from `prefix` and send them as whole BGP messages |
 <!-- source: internal/test/peer/expect_keys.go -- peerValueArms "update"; internal/test/peer/expect.go -- parseBulkSpec -->
 
 `send-default-route` and `send-route` build the AS_PATH that a real speaker
@@ -820,8 +820,8 @@ peer's AS.
 
 `send-bulk` writes the AS_PATH of a route ze-peer originates (RFC 4271 Section
 5.1.2): on eBGP one AS_SEQUENCE holding ze-peer's own OPEN AS, on iBGP an empty
-AS_PATH, whose length field is zero. Its `origin-as` value is not written into
-either path.
+AS_PATH, whose length field is zero. It takes no `origin-as` key, and refuses
+one as it refuses any key it does not read.
 <!-- source: internal/test/peer/inject.go -- buildUpdates; writeASPath -->
 
 These two generated-route behaviors include `LOCAL_PREF=100` on iBGP and omit
@@ -835,7 +835,7 @@ unchanged, so a test can still send deliberately malformed attributes.
 **Generating one oversize UPDATE (`max-msg`):**
 
 ```
-option=update:value=send-bulk:prefix=10.0.0.0/24:count=16373:next-hop=10.0.0.1:origin-as=65001:max-msg=65535
+option=update:value=send-bulk:prefix=10.0.0.0/24:count=16373:next-hop=10.0.0.1:max-msg=65535
 ```
 
 `max-msg` caps one generated message, header included. It defaults to the RFC

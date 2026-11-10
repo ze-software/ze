@@ -15,7 +15,8 @@ import (
 // VALIDATES: each option ze-peer claims refuses a key it does not read, per
 // option and per open=/update= value, and send-route refuses a number or an
 // address that does not parse; the error names the line, the directive, the key
-// and the accepted keys.
+// and the accepted keys. send-bulk refuses origin-as, which it no longer reads:
+// its AS_PATH comes from the OPEN exchange, so the value never reached the wire.
 // PREVENTS: option=update:value=send-route:origin-as=6500x sending AS 0, and
 // option=open:value=router-id:code=5 ignoring code= in silence. Both used to
 // parse and leave the test asserting against a session it never configured.
@@ -33,7 +34,8 @@ func TestParseExpectRefusesUnknownOptionKey(t *testing.T) {
 		{"option=open:value=send-unknown-message:bogus=1", []string{"option=open:value=send-unknown-message", `"bogus"`, "accepts value"}},
 		{"option=update:value=send-default-route:prefix=1", []string{"option=update:value=send-default-route", `"prefix"`}},
 		{"option=update:value=send-route:prefix=10.0.0.0/24:bogus=1", []string{"option=update:value=send-route", `"bogus"`}},
-		{"option=update:value=send-bulk:prefix=10.0.0.0/24:count=1:next-hop=1.1.1.1:origin-as=1:bogus=1", []string{"option=update:value=send-bulk", `"bogus"`}},
+		{"option=update:value=send-bulk:prefix=10.0.0.0/24:count=1:next-hop=1.1.1.1:bogus=1", []string{"option=update:value=send-bulk", `"bogus"`}},
+		{"option=update:value=send-bulk:prefix=10.0.0.0/24:count=1:next-hop=1.1.1.1:origin-as=65001", []string{"option=update:value=send-bulk", `"origin-as"`, "accepts count, eor, max-msg, next-hop, prefix, value"}},
 		{"option=update:value=send-route:prefix=10.0.0.0/24:origin-as=6500x", []string{"origin-as", `"6500x"`}},
 		{"option=update:value=send-route:prefix=10.0.0.0/24:as-path=1,x", []string{"as-path", `"x"`}},
 		{"option=update:value=send-route:prefix=10.0.0.0/24:originator-id=1.2.3", []string{"originator-id", `"1.2.3"`}},

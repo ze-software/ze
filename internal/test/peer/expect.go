@@ -517,8 +517,11 @@ func parseUpdateSendBulk(config *Config, kv map[string]string) error {
 
 // parseBulkSpec reads option=update:value=send-bulk into an InjectSpec.
 //
-// Keys: prefix, count, next-hop, origin-as, max-msg (optional, default 4096),
-// eor (optional, "true" appends an End-of-RIB marker).
+// Keys: prefix, count, next-hop, max-msg (optional, default 4096), eor
+// (optional, "true" appends an End-of-RIB marker). There is no origin-as key:
+// buildUpdates writes the AS_PATH of a route ze-peer originates from the
+// session's OPEN exchange, so no value here could reach the wire, and the key
+// table refuses it as it refuses any key it does not list.
 //
 // Every key is validated and a bad one is an error rather than a zero value: a
 // spec that silently degrades to count=0 sends nothing, and a test asserting
@@ -544,12 +547,6 @@ func parseBulkSpec(kv map[string]string) (InjectSpec, error) {
 		return spec, fmt.Errorf("send-bulk next-hop %q: %w", kv["next-hop"], err)
 	}
 	spec.NextHop = nextHop
-
-	asn, err := strconv.ParseUint(kv["origin-as"], 10, 32)
-	if err != nil {
-		return spec, fmt.Errorf("send-bulk origin-as %q: want a 32-bit ASN", kv["origin-as"])
-	}
-	spec.ASN = uint32(asn) //nolint:gosec // G115: bounded by ParseUint's 32-bit width
 
 	if v := kv["max-msg"]; v != "" {
 		maxMsg, err := strconv.Atoi(v)
