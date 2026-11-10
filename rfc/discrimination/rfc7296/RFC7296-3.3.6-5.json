@@ -58,11 +58,11 @@
     "rid": "RFC7296-3.3.6-5",
     "polarity": "positive",
     "unit": "internal/component/ike/engine/rfc7296_unknown_transform_test.go::TestRFC7296UnacceptableTransformLeavesSiblingsOnOffer",
-    "unit-sha": "47f933e96f3c244e",
+    "unit-sha": "37d2e9d0342c0e4f",
     "claim-sha": "e99f643e9eef28b7",
     "route": "revert",
     "producer": "internal/component/ike/engine/initiator.go::appendIKECombinations",
     "producer-sha": "2f8c5f7c0ec79a25",
-    "break": "body of appendIKECombinations replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of appendIKECombinations replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
