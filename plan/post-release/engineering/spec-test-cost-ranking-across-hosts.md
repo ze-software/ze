@@ -140,8 +140,8 @@ encodes the replaced rule (`ai/META-DECISIONS.md`, test changes).
 | AC-2 | The 20-test example (A 40%, B 30%, C 14%, seventeen sharing 16%) | A and B listed, C not |
 | AC-3 | A group of three or fewer tests | No ranked row; the text says the group is too small to rank |
 | AC-4 | The same group with every time scaled by a constant | The same rows are listed |
-| AC-5 | One functional suite and one Go package, each run on two hosts of known performance (the owner's Mac and a real Linux host, `ai/META-DECISIONS.md`, performance figures) | The ranked rows of `./le test cost report` on the two hosts are compared, and the result is recorded: the same tests are ranked, or the difference is named |
-| AC-6 | AC-5 finds the ranking differs between the hosts | `shareFactor` or the page change so a reader is not misled, in the same work |
+| AC-5 (moved to `spec-test-cost-ranking-mac-validation` AC-1 at closure, on Thomas's instruction) | One functional suite and one Go package, each run on two hosts of known performance (the owner's Mac and a real Linux host, `ai/META-DECISIONS.md`, performance figures) | The ranked rows of `./le test cost report` on the two hosts are compared, and the result is recorded: the same tests are ranked, or the difference is named |
+| AC-6 (moved to `spec-test-cost-ranking-mac-validation` AC-2 at closure) | AC-5 finds the ranking differs between the hosts | `shareFactor` or the page change so a reader is not misled, in the same work |
 | AC-7 | Any change above | `docs/contributing/running-commands.md`, "Which tests cost the most of their run", states the share rule, the small-group case and the absent floor, in the same change |
 
 ## Files to Modify
@@ -157,7 +157,7 @@ encodes the replaced rule (`ai/META-DECISIONS.md`, test changes).
 | ID | Assumption | Validation | Status |
 |----|------------|------------|--------|
 | A-1 | No caller outside `internal/le/test/cost` reads `floor-seconds`, `top-percent`, `topPercent`, `floorGo`, `floorCI` or `route.floor` | grep over the tree, excluding plan/ | confirmed 2026-11-10: only the package itself and the `<!-- source: -->` anchor in `running-commands.md` |
-| A-2 | A-8 of the parent spec: shares are stable across hosts | AC-5 on two known hosts | unvalidated |
+| A-2 | A-8 of the parent spec: shares are stable across hosts | AC-5 on two known hosts | moved, not confirmed: it is A-1 of `spec-test-cost-ranking-mac-validation`, with AC-5 and AC-6 |
 
 | ID | Risk | Mitigation |
 |----|------|------------|
@@ -170,6 +170,31 @@ encodes the replaced rule (`ai/META-DECISIONS.md`, test changes).
 | 1 | Rewrite the unit cases and `le-test-cost.ci` for the share rule (tests only) | main thread: the tests go red against the current rule; `ze-test-judge` verdict on each rewrite |
 | 2 | Share bar in `rankGroup`, `Report.ShareFactor`, delete the old constants, restate `Why`, comments and the page (AC-7) | main thread: scoped package test and `./le test ui le-test-cost` green |
 | 3 | AC-5 and AC-6 on the two known hosts | owner-run reports, compared |
+
+## Deliverables Checklist
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| Share bar in `rankGroup`, old cut-offs deleted | `grep -n -E 'topPercent|floorGo|floorCI|FloorSeconds|TopPercent' internal/le/test/cost/*.go` finds nothing |
+| Unit tests for AC-1 to AC-4 | `./le job run label unit-pkg quiet command go test -race -tags "$tags" ./internal/le/test/cost/` exit 0 |
+| `.ci` over the real entry point | `./le test ui --pattern le-test-cost` passes against `le` built from HEAD |
+| Page states the rule (AC-7) | `docs/contributing/running-commands.md`, "Which tests cost the most of their run" |
+| AC-5, AC-6 homed | `plan/post-release/engineering/spec-test-cost-ranking-mac-validation.md`, handover `plan/handover/37-test-cost-ranking-mac-validation.md` |
+
+## Security Review Checklist
+
+| Concern | What to check |
+|---------|---------------|
+| Untrusted input | The baseline and the Go log are read from paths the caller names; a huge value in either cannot overflow the integer bar comparison into a wrong verdict at realistic sizes, and an absurd one only misranks a triage report that exits 0 |
+| Division by zero | A group whose recorded time is zero ranks nothing (`TestCostGroupWithNoRecordedTimeRanksNothing`) |
+
+## Documentation Update Checklist
+
+| Category | Update? | Where |
+|----------|---------|-------|
+| Test infrastructure | Yes | `docs/contributing/running-commands.md`, "Which tests cost the most of their run", in `3cfda91c17` |
+| CLI reference | Yes | the action's `Why` text in `internal/le/test/cost/cost.go`, rendered by `le help test cost` |
+| Every other category | No | the change is le tooling with no config, wire, RFC, plugin or operator surface |
 
 ## Critical Review Checklist
 
@@ -208,3 +233,136 @@ the top-5%-and-floor rule on Thomas's approval, after the review that found
 the count cut-off hides a dominant second test and the seconds floor makes the
 ranking depend on the host. Only the cross-host comparison is reported; no
 time or share is recorded as a performance figure.
+
+## Implementation Summary
+
+### What Was Implemented
+- `3cfda91c17`: `rankGroup` (`internal/le/test/cost/cost.go`) lists a measured test when `elapsed*N >= shareFactor*total` in integer nanoseconds, `N` counting every test of the group; `tooFewToRank` makes a group of `N <= shareFactor` rank nothing; `topPercent`, `floorGo`, `floorCI` and `route.floor` are deleted. `Report.ShareFactor` and `Report.SmallGroups` (`report.go`) replace `FloorSeconds` and `TopPercent`, and `Report.Text` states the share rule and each too-small group. The action's `Why` derives its text from `shareFactor`. Tests and `test/ui/le-test-cost.ci` rewritten; page updated.
+- `8735f42cba`: `TestCostGroupWithNoRecordedTimeRanksNothing` pins the `total == 0` guard in `rankGroup`.
+
+### Bugs Found/Fixed
+- None found at closure.
+
+### Documentation Updates
+- `docs/contributing/running-commands.md`, "Which tests cost the most of their run": the share rule, the small-group case and the absent floor, source anchors `shareFactor, answerReport, rankGroup` and `Report, SmallGroup, Report.Text, notice` (in `3cfda91c17`).
+- `docs/architecture/testing/runner-architecture.md` describes the report as ranking by share with no threshold named: still true, unchanged.
+- `./le doc check all`, run by the main thread: red only on the wiki command catalog drift and a stale anchor in `docs/architecture/api/text-format.md`, neither from this change.
+
+### Deviations from Plan
+- AC-5 and AC-6 moved to `plan/post-release/engineering/spec-test-cost-ranking-mac-validation.md` on Thomas's instruction to close and hand the Mac-only work over (`plan/handover/37-test-cost-ranking-mac-validation.md`).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The first draft of the Mac handover ran the Linux half through `./le test qemu run kernel <path>` | That action boots an Alpine guest whatever kernel it is given; Ze's own system is `./le test qemu docker-lab command ... harness` (`runDockerLabHere`, `internal/le/test/qemu/actions.go`) | Closure review read the action's `Why` and parameters | Handover step 4 and the new spec's mechanism row corrected before they landed |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Replace the top-5% count and the seconds floors with one share bar | Done | `internal/le/test/cost/cost.go` `rankGroup`, `shareFactor` | |
+| Validate A-8 for the new rule on two hosts | Changed | `plan/post-release/engineering/spec-test-cost-ranking-mac-validation.md` AC-1, AC-2 | moved on Thomas's instruction |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestCostRanksCITestsByShare`, `TestCostBarIsInclusive`, `TestCostBarCountsUnmeasuredTests`, `TestCostRanksGoTestsByShare` | |
+| AC-2 | Done | `TestCostRanksCITestsByShare`, `test/ui/le-test-cost.ci` seq 1 | |
+| AC-3 | Done | `TestCostSmallGroupRanksNothing` | text line asserted |
+| AC-4 | Done | `TestCostRankingIgnoresScale` | scales 1, 7, 1000 |
+| AC-5 | Changed | moved to `spec-test-cost-ranking-mac-validation` AC-1 | Work Not Done |
+| AC-6 | Changed | moved to `spec-test-cost-ranking-mac-validation` AC-2 | Work Not Done |
+| AC-7 | Done | `docs/contributing/running-commands.md`, "Which tests cost the most of their run" | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestCostRanksCITestsByShare` rewritten | Done | `internal/le/test/cost/cost_test.go` | judge-approved |
+| bar boundary | Done | `TestCostBarIsInclusive` | |
+| group of three | Done | `TestCostSmallGroupRanksNothing` | |
+| scale | Done | `TestCostRankingIgnoresScale` | |
+| `TestCostRanksGoTestsByShare` rewritten | Done | `internal/le/test/cost/cost_test.go` | judge-approved |
+| `le-test-cost` rewritten | Done | `test/ui/le-test-cost.ci` | judge-approved |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/le/test/cost/cost.go` | Done | `3cfda91c17` |
+| `internal/le/test/cost/report.go` | Done | `3cfda91c17` |
+| `internal/le/test/cost/golog.go` | Done | `3cfda91c17`, `millisecondsOf` comment |
+| `internal/le/test/cost/cost_test.go` | Done | `3cfda91c17`, `8735f42cba` |
+| `test/ui/le-test-cost.ci` | Done | `3cfda91c17` |
+| `docs/contributing/running-commands.md` | Done | `3cfda91c17` |
+
+### Audit Summary
+- **Total items:** 21
+- **Done:** 19
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (AC-5, AC-6 moved, recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A test is listed on its share alone, so a dominant second test is named and the count follows cost, not suite size | functional | `./le test ui --pattern le-test-cost` PASS against le build `20261110T221758Z-3cfda91c17`: `demo: A` (40%) and `demo: B` (30%) listed, `demo: C` (14%) rejected; every new unit test was red against the old rule before the code changed (main thread log `tmp/session/2026-11-10-121211/scratch/job-unit-pkg-5f20139d.log`) |
+| The verdict reads no seconds, so it cannot flip with host speed | unit | `TestCostRankingIgnoresScale` ranks X, Y at scales 1, 7 and 1000; nothing in `rankGroup` compares a duration with a constant |
+| A-8 holds on two hosts | cross-host comparison | not done here: `plan/post-release/engineering/spec-test-cost-ranking-mac-validation.md` AC-1 |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| AC-5: compare the ranked rows on two hosts of known performance | needs the owner's Mac; this session ran on the Linux development VM; Thomas ordered closure with a Mac-only handover | `plan/post-release/engineering/spec-test-cost-ranking-mac-validation.md` |
+| AC-6: change `shareFactor` or the page if the rankings differ | depends on AC-5 | `plan/post-release/engineering/spec-test-cost-ranking-mac-validation.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/test-cost-ranking-across-hosts-ca636815-7415-4846-b553-86ca52f89c23.md` (9 files, verdict clean) |
+| `./le spec review check` | clean |
+| Rounds | 1 |
+| Reviewer lenses used | wiring, removed-behavior audit (the floor's div-by-zero guard is re-established as `total == 0`), boundary arithmetic and overflow bound, untrusted input (baseline negatives dropped by `runner.ReadTimings`, Go log negatives by the regex and `Elapsed < 0`), Go style pass (no new `panic`, loops bounded by input), stale comments, page drift; pre-checks `./le repo check` all passed, `./le test weakened check base 3cfda91c17~1` clean |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | none | 0 BLOCKER, 0 ISSUE over the code diff | | |
+
+NOTEs: a report whose only groups are too small prints both the "no test takes at least 3x" line and the too-few line, accurate and left as is; a baseline `avg-ms` past `time.Duration`'s range converts implementation-defined, as before this change, and only misranks a report that exits 0.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/test/cost/{cost,report,golog,cost_test}.go` | yes | `ls internal/le/test/cost/` |
+| `test/ui/le-test-cost.ci` | yes | `ls test/ui/le-test-cost.ci` |
+| `plan/post-release/engineering/spec-test-cost-ranking-mac-validation.md`, `plan/handover/37-test-cost-ranking-mac-validation.md` | yes | carried in commit A |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-4 | the share bar, the boundary, the small group, the scale | main thread: `./le job run label unit-pkg quiet command go test -race -tags "$tags" ./internal/le/test/cost/` exit 0 |
+| AC-1 | old cut-offs gone | `grep -c -E 'topPercent|floorGo|floorCI|FloorSeconds|TopPercent' internal/le/test/cost/*.go` is 0 in every file |
+| AC-7 | page states the rule | `running-commands.md` carries "A group of three tests or fewer ranks nothing" |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le test cost report suite <suite>` | `test/ui/le-test-cost.ci` | read: seq 1 runs `le test cost report suite demo baseline /dev/stdin` through `answerReport`; PASS |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | grep outside `plan/` finds no reader of the old names or JSON fields |
+| A-2 | moved, not confirmed | A-1 of `spec-test-cost-ranking-mac-validation` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Test infrastructure page | `rankGroup`, `tooFewToRank`, `shareFactor` read at closure | yes |
+| CLI reference (`Why`) | `cost.go` `actions` derives the text from `shareFactor` | yes |
