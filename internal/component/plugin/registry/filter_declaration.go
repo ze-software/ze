@@ -168,7 +168,11 @@ var filterDeclarations struct {
 // subsystem that runs the filters, which the plugin server cannot import.
 // Called from init() by that subsystem; nil removes it. It answers the judge
 // it replaced, so a test that installs its own restores the one before it.
+// After Seal it panics and installs nothing: the judge is registration.
 func SetFilterDeclarationCheck(fn func(pluginName string, declared []DeclaredFilter) error) func(string, []DeclaredFilter) error {
+	mu.RLock()
+	defer mu.RUnlock()
+	panicIfSealedLocked("SetFilterDeclarationCheck", "filter declaration check", "judge")
 	filterDeclarations.mu.Lock()
 	defer filterDeclarations.mu.Unlock()
 	previous := filterDeclarations.check
@@ -221,6 +225,9 @@ func CheckFilterDeclarations(pluginName string, filters []rpc.FilterDecl) error 
 // process's Stage 1 filter declarations, so a config reload judges a chain
 // naming an external filter against what that plugin declared. Called once at
 // plugin server startup; nil removes it.
+//
+// It is a runtime seam, callable after Seal: the plugin server starts after
+// the registry is sealed.
 func SetRuntimeFilterDeclarations(fn func(process string) ([]DeclaredFilter, bool)) {
 	filterDeclarations.mu.Lock()
 	defer filterDeclarations.mu.Unlock()
@@ -252,6 +259,9 @@ type ProcessFilterInsertions struct {
 // filter insertions of every running process that no compiled registration
 // describes: a third-party plugin, whose insertions no registry.All() entry
 // carries. Called once at plugin server startup; nil removes it.
+//
+// It is a runtime seam, callable after Seal: the plugin server starts after
+// the registry is sealed.
 func SetRuntimeFilterInsertions(fn func() []ProcessFilterInsertions) {
 	filterDeclarations.mu.Lock()
 	defer filterDeclarations.mu.Unlock()
@@ -278,6 +288,9 @@ func RuntimeFilterInsertions() []ProcessFilterInsertions {
 // each name its config files it by (an alias's `use` included). Config load
 // places a compiled-in plugin's filter insertions only where that plugin
 // runs (LoadedPlugins). Called once at plugin server startup; nil removes it.
+//
+// It is a runtime seam, callable after Seal: the plugin server starts after
+// the registry is sealed.
 func SetRuntimeLoadedPlugins(fn func() []string) {
 	filterDeclarations.mu.Lock()
 	defer filterDeclarations.mu.Unlock()

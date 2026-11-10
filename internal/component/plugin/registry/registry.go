@@ -24,6 +24,7 @@ import (
 	"maps"
 	"net"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -547,7 +548,9 @@ var (
 // MUST be called from init() functions only: after Seal it refuses with
 // ErrRegistrySealed and changes nothing.
 // Returns an error on invalid registration.
-func Register(reg Registration) error { //nolint:gocritic // hugeParam: Registration is passed by value for init()-time safety; copied internally.
+// The registry stores a deep clone, so a caller that later writes into a
+// slice or map it passed changes nothing the registry holds.
+func Register(reg Registration) error { //nolint:gocritic // hugeParam: Registration is passed by value for init()-time safety; cloned internally.
 	if reg.Name == "" {
 		return ErrEmptyName
 	}
@@ -634,8 +637,7 @@ func Register(reg Registration) error { //nolint:gocritic // hugeParam: Registra
 		}
 	}
 
-	r := reg // copy
-	plugins[reg.Name] = &r
+	plugins[reg.Name] = cloneRegistration(&reg)
 	for _, ft := range reg.FilterTypes {
 		filterTypes[ft] = reg.Name
 	}
@@ -659,6 +661,9 @@ func FilterTypesMap() map[string]string {
 // Called by the config loader after creating the Prometheus registry, which is
 // AFTER the plugin processes have been spawned (see metricsPending). The drain
 // is what makes a plugin's counters exist at all.
+//
+// It is a runtime seam, callable after Seal: the registry is created while
+// the daemon starts, after the registry is sealed.
 func SetMetricsRegistry(reg metrics.Registry) {
 	mu.Lock()
 	metricsRegistry = reg
@@ -697,6 +702,9 @@ func SetMetricsRegistry(reg metrics.Registry) {
 // hook there is what left every plugin's counters unregistered for the process
 // lifetime. Idempotent per plugin name -- the second caller is a no-op, so a
 // plugin spawned after the registry exists is never configured twice.
+//
+// It is a runtime seam, callable after Seal: a plugin is spawned after
+// the registry is sealed.
 func InjectPluginMetrics(name string, fn func(metrics.Registry)) {
 	if fn == nil {
 		return
@@ -728,6 +736,9 @@ func GetMetricsRegistry() metrics.Registry {
 // SetEventBus stores the EventBus instance for plugin injection.
 // Called by the engine after creating the plugin server (which implements
 // ze.EventBus).
+//
+// It is a runtime seam, callable after Seal: the plugin server is created
+// after the registry is sealed.
 func SetEventBus(eventBus ze.EventBus) {
 	mu.Lock()
 	defer mu.Unlock()
@@ -742,6 +753,9 @@ func GetEventBus() ze.EventBus {
 }
 
 // SetPluginServer stores the plugin server instance for injection into plugins.
+//
+// It is a runtime seam, callable after Seal: the plugin server is created
+// after the registry is sealed.
 func SetPluginServer(server PluginServerAccessor) {
 	mu.Lock()
 	pluginServerInstance = server
@@ -779,6 +793,10 @@ func DaemonStopping() bool {
 
 // SetNTPSyncProvider registers a function that returns NTP sync info.
 // Called by the NTP plugin at init time.
+//
+// It is a runtime seam, callable after Seal: the provider is process wiring
+// for show system date, not registration metadata, so the seal does not judge
+// it.
 func SetNTPSyncProvider(fn func() map[string]any) {
 	mu.Lock()
 	defer mu.Unlock()
@@ -797,14 +815,24 @@ func GetNTPSyncInfo() map[string]any {
 	return fn()
 }
 
-// Lookup returns the registration for a named plugin, or nil if not found.
+// Lookup returns a clone of the registration for a named plugin, or nil if
+// not found. The clone shares no slice or map with the registry
+// (cloneRegistration), so a caller that writes into it changes nothing the
+// next Lookup or All answers. A per-event caller that needs one field reads it
+// through an accessor that answers a value (StartOrderEdges,
+// RegisteredSessionReady) rather than paying for the clone.
 func Lookup(name string) *Registration {
 	mu.RLock()
 	defer mu.RUnlock()
-	return plugins[name]
+	reg, found := plugins[name]
+	if !found {
+		return nil
+	}
+	return cloneRegistration(reg)
 }
 
-// All returns all registrations sorted by name.
+// All returns a clone of every registration, sorted by name. Like Lookup, it
+// shares nothing with the registry.
 func All() []*Registration {
 	mu.RLock()
 	defer mu.RUnlock()
@@ -817,7 +845,7 @@ func All() []*Registration {
 
 	result := make([]*Registration, len(names))
 	for i, name := range names {
-		result[i] = plugins[name]
+		result[i] = cloneRegistration(plugins[name])
 	}
 	return result
 }
@@ -843,13 +871,50 @@ func Has(name string) bool {
 	return ok
 }
 
+// StartOrderEdges answers the three edge lists of the registration filed
+// under name, in the order Dependencies, OptionalDependencies, StartAfter, as
+// copies the caller may keep. registered is false when no registration is
+// filed under name, and the edges are then empty. It exists for a per-event
+// caller (the BGP server orders state delivery by these edges on every peer
+// state change), which a Lookup clone of the whole registration would cost an
+// allocation per field. Safe for concurrent use.
+func StartOrderEdges(name string) (edges [3][]string, registered bool) {
+	mu.RLock()
+	defer mu.RUnlock()
+	reg, found := plugins[name]
+	if !found {
+		return edges, false
+	}
+	return [3][]string{
+		slices.Clone(reg.Dependencies),
+		slices.Clone(reg.OptionalDependencies),
+		slices.Clone(reg.StartAfter),
+	}, true
+}
+
+// RegisteredSessionReady answers Registration.SignalsSessionReady of the
+// registration filed under name. registered is false when none is, and the
+// caller MUST then ask elsewhere: unlike SignalsSessionReady, it never asks
+// the runtime seam, so the seam itself may call it without recursing. Safe
+// for concurrent use.
+func RegisteredSessionReady(name string) (signals, registered bool) {
+	mu.RLock()
+	defer mu.RUnlock()
+	reg, found := plugins[name]
+	if !found {
+		return false, false
+	}
+	return reg.SignalsSessionReady, true
+}
+
 // RegisterBuiltinFamilies records engine-builtin families (e.g., ipv4/unicast)
 // that are not part of a plugin but should appear in FamilyMap. Called from
 // init() in the engine's family package. The source identifies the origin
-// (e.g., "builtin").
+// (e.g., "builtin"). After Seal it panics and records nothing.
 func RegisterBuiltinFamilies(source string, families []string) {
 	mu.Lock()
 	defer mu.Unlock()
+	panicIfSealedLocked("RegisterBuiltinFamilies", "builtin families", source)
 
 	for _, f := range families {
 		builtinFamilies[f] = source
@@ -960,9 +1025,16 @@ func YANGSchemas() map[string]string {
 // policy plugin reads every root that declares a Loc-RIB import attachment,
 // and each of those packages imports policy, so policy registers first.
 // Adding a root already read is a no-op. An unregistered name is an error.
+// After Seal it refuses with ErrRegistrySealed and changes nothing.
+//
+// It stores a new registration rather than writing the stored one, so a
+// Snapshot taken before it keeps the registration it recorded.
 func AddConfigRead(name, root string) error {
 	mu.Lock()
 	defer mu.Unlock()
+	if err := refuseSealedLocked("plugin "+strconv.Quote(name)+" config read", root); err != nil {
+		return err
+	}
 	reg, ok := plugins[name]
 	if !ok {
 		return fmt.Errorf("plugin %q is not registered, so it cannot read config root %q", name, root)
@@ -970,7 +1042,10 @@ func AddConfigRead(name, root string) error {
 	if slices.Contains(reg.ConfigReads, root) {
 		return nil
 	}
-	reg.ConfigReads = append(slices.Clone(reg.ConfigReads), root)
+	updated := cloneRegistration(reg)
+	updated.ConfigReads = append(updated.ConfigReads, root)
+	plugins[name] = updated
+	rebuildFamilyIndexLocked()
 	return nil
 }
 
@@ -1121,6 +1196,9 @@ func SignalsSessionReady(name string) bool {
 //
 // Called once at server startup. Passing nil removes the seam, which returns
 // every external process to "declares nothing".
+//
+// It is a runtime seam, callable after Seal: the plugin server starts after
+// the registry is sealed.
 func SetRuntimeSessionReady(fn func(process string) bool) {
 	mu.Lock()
 	defer mu.Unlock()
@@ -1131,6 +1209,9 @@ func SetRuntimeSessionReady(fn func(process string) bool) {
 // the registry names its config uses, so a declaration made by a compile-time
 // Registration reaches a process the operator attached under an alias
 // (FencesLiveForwards). Called once at server startup; nil removes it.
+//
+// It is a runtime seam, callable after Seal: the plugin server starts after
+// the registry is sealed.
 func SetRuntimeRegistryNames(fn func(process string) []string) {
 	mu.Lock()
 	defer mu.Unlock()
@@ -1146,10 +1227,11 @@ var rpcHandlers = make(map[string]func(json.RawMessage) (any, error))
 
 // AddRPCHandlers registers RPC method handlers. Called from init() in packages
 // that provide codec/decode handlers (e.g., bgp/server). Thread-safe: protected
-// by the package mutex.
+// by the package mutex. After Seal it panics and records nothing.
 func AddRPCHandlers(handlers map[string]func(json.RawMessage) (any, error)) {
 	mu.Lock()
 	defer mu.Unlock()
+	panicIfSealedLocked("AddRPCHandlers", "RPC handlers", textbuf.Join(slices.Sorted(maps.Keys(handlers)), ","))
 	maps.Copy(rpcHandlers, handlers)
 }
 
@@ -1440,10 +1522,12 @@ func writeUsage(w io.Writer) error {
 	return nil
 }
 
-// Reset clears the registry. Only for use in tests.
+// Reset clears the registry and its seal. Only for use in tests: a test that
+// sealed MUST restore or reset, so the next test can register.
 func Reset() {
 	mu.Lock()
 	defer mu.Unlock()
+	sealed = false
 	plugins = make(map[string]*Registration)
 	familyIndex = make(map[string]*Registration)
 	filterTypes = make(map[string]string)
@@ -1474,6 +1558,9 @@ type RegistrySnapshot struct {
 	rpcHandlers      map[string]func(json.RawMessage) (any, error)
 	eventBusInstance ze.EventBus
 	ntpSyncProvider  func() map[string]any
+	// sealed is the seal state the snapshot was taken under, so a test that
+	// seals and restores leaves the registry open to the next test.
+	sealed bool
 }
 
 // Snapshot returns a copy of the current registry state. Only for use in tests.
@@ -1488,7 +1575,11 @@ func Snapshot() RegistrySnapshot {
 	maps.Copy(sr, setupResults)
 	rh := make(map[string]func(json.RawMessage) (any, error), len(rpcHandlers))
 	maps.Copy(rh, rpcHandlers)
-	return RegistrySnapshot{plugins: ps, setupResults: sr, rpcHandlers: rh, eventBusInstance: eventBusInstance, ntpSyncProvider: ntpSyncProvider}
+	return RegistrySnapshot{
+		plugins: ps, setupResults: sr, rpcHandlers: rh,
+		eventBusInstance: eventBusInstance, ntpSyncProvider: ntpSyncProvider,
+		sealed: sealed,
+	}
 }
 
 // Restore replaces the registry with a previously saved snapshot. Only for use in tests.
@@ -1500,6 +1591,7 @@ func Restore(snap RegistrySnapshot) {
 	rpcHandlers = snap.rpcHandlers
 	eventBusInstance = snap.eventBusInstance
 	ntpSyncProvider = snap.ntpSyncProvider
+	sealed = snap.sealed
 	// Rebuild filterTypes from the restored plugins slice.
 	filterTypes = make(map[string]string)
 	for name, reg := range plugins {

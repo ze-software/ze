@@ -22,6 +22,9 @@ var insertionsChanged struct {
 // its config transaction lock, so the rebuild never interleaves with a
 // reload: the listener MUST NOT start a config transaction, which that lock
 // would refuse.
+//
+// It is a runtime seam, callable after Seal: the BGP engine installs it when
+// it starts, after the registry is sealed.
 func SetFilterInsertionsChanged(fn func()) {
 	insertionsChanged.mu.Lock()
 	defer insertionsChanged.mu.Unlock()

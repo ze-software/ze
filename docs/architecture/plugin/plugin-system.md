@@ -34,7 +34,33 @@ Registration happens only during package initialization. Go runs every
 dispatches any command, so a later `registry.Register` changes nothing and
 returns an error wrapping `registry.ErrRegistrySealed` that names the plugin.
 `TestMainSealsBeforeDispatch` (`cmd/ze/main_seal_test.go`) holds the order.
-<!-- source: internal/component/plugin/registry/seal.go -- Seal, refuseSealedLocked, ErrRegistrySealed -->
+The other functions that only `init()` calls refuse after the seal the same
+way: `AddConfigRead` returns the sealed error naming the plugin and the root,
+and `RegisterBuiltinFamilies`, `AddRPCHandlers`, `RegisterSessionFact`,
+`RegisterDoctorPlatforms`, `RecordSetup`, `RegisterReactorFactory`,
+`SetPacketDecoder`, `SetRIBDumpCallback`, `SetMRTMessageCallback`,
+`SetMRTPeerCallback` and `SetFilterDeclarationCheck`, which return nothing,
+panic with a `BUG:` message naming the function. A refused call writes
+nothing. The setters the daemon calls while it starts (`SetEventBus`,
+`SetPluginServer`, `SetMetricsRegistry`, `InjectPluginMetrics`, the
+`SetRuntime*` seams, `SetFilterInsertionsChanged`, `SetNTPSyncProvider`,
+`RunBootEffects`) are runtime seams and stay callable; each says so in its
+doc comment, and `TestEveryRegistryWriterIsGuardedOrASeam` derives both sets
+from the package source and refuses an exported writer that is neither.
+
+`registry.Lookup` and `registry.All` hand out deep clones, and `Register`
+stores one: no slice or map of a returned registration, nested ones included,
+is shared with the registry, so a caller that writes into one changes nothing
+the next reader sees. Function values are shared, since a copy cannot change
+them. A per-event caller that needs one field reads it through an accessor
+that answers a value (`registry.StartOrderEdges`,
+`registry.RegisteredSessionReady`) rather than paying for the clone. Tests
+that seal take a `registry.Snapshot` first: it records the seal state,
+`Restore` puts it back, and `Reset` clears it.
+<!-- source: internal/component/plugin/registry/seal.go -- Seal, refuseSealedLocked, panicIfSealedLocked, ErrRegistrySealed -->
+<!-- source: internal/component/plugin/registry/registration_clone.go -- cloneRegistration -->
+<!-- source: internal/component/plugin/registry/registry.go -- Lookup, All, StartOrderEdges, RegisteredSessionReady, Snapshot, Restore -->
+<!-- source: internal/component/plugin/registry/seal_test.go -- TestEveryRegistryWriterIsGuardedOrASeam -->
 <!-- source: cmd/ze/main.go -- main -->
 
 Four fields are required; the rest are optional.

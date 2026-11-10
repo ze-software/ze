@@ -87,7 +87,11 @@ var (
 // side importing the other and without the always-on hub naming a BGP package
 // (that import used to pin internal/component/bgp into every binary and defeat
 // //go:build ze_bgp). Nil is ignored so a caller cannot clear a live provider.
+// After Seal it panics and installs nothing: the provider is registration.
 func SetRIBDumpCallback(cb RIBDumpCallback) {
+	mu.RLock()
+	defer mu.RUnlock()
+	panicIfSealedLocked("SetRIBDumpCallback", "RIB dump callback", "provider")
 	if cb == nil {
 		return
 	}
@@ -116,8 +120,12 @@ var (
 // (bgp/config createReactorFromCoordinator) picks the bridge up via
 // GetMRTMessageCallback without the always-on hub importing internal/plugins/mrt
 // -- that import used to pin MRT into every binary and defeat //go:build ze_bgp.
-// Nil is ignored so a caller cannot clear a live bridge.
+// Nil is ignored so a caller cannot clear a live bridge. After Seal it panics
+// and installs nothing: the bridge is registration.
 func SetMRTMessageCallback(cb MessageCallback) {
+	mu.RLock()
+	defer mu.RUnlock()
+	panicIfSealedLocked("SetMRTMessageCallback", "MRT message callback", "bridge")
 	if cb == nil {
 		return
 	}
@@ -135,8 +143,12 @@ func GetMRTMessageCallback() MessageCallback {
 }
 
 // SetMRTPeerCallback registers the MRT peer-lifecycle bridge (FSM state-change
-// records). Same init()-registration contract as SetMRTMessageCallback.
+// records). Same init()-registration contract as SetMRTMessageCallback,
+// refused after Seal the same way.
 func SetMRTPeerCallback(cb PeerLifecycleCallback) {
+	mu.RLock()
+	defer mu.RUnlock()
+	panicIfSealedLocked("SetMRTPeerCallback", "MRT peer callback", "bridge")
 	if cb == nil {
 		return
 	}
@@ -165,8 +177,12 @@ var (
 
 // SetPacketDecoder registers the BGP hex-packet decoder. Called from the gated
 // BGP CLI package's init(); the web tool page reaches the decoder through this
-// seam so cmd/ze/hub never imports internal/component/bgp/cli.
+// seam so cmd/ze/hub never imports internal/component/bgp/cli. After Seal it
+// panics and installs nothing: the decoder is registration.
 func SetPacketDecoder(fn PacketDecoderFunc) {
+	mu.RLock()
+	defer mu.RUnlock()
+	panicIfSealedLocked("SetPacketDecoder", "packet decoder", "decoder")
 	if fn == nil {
 		return
 	}
@@ -248,8 +264,13 @@ var (
 	reactorFactory   ReactorFactoryFunc
 )
 
-// RegisterReactorFactory sets the BGP reactor factory function.
+// RegisterReactorFactory sets the BGP reactor factory function. The BGP
+// config package MUST call it from init(); after Seal it panics and installs
+// nothing.
 func RegisterReactorFactory(fn ReactorFactoryFunc) {
+	mu.RLock()
+	defer mu.RUnlock()
+	panicIfSealedLocked("RegisterReactorFactory", "reactor factory", "factory")
 	reactorFactoryMu.Lock()
 	defer reactorFactoryMu.Unlock()
 	reactorFactory = fn

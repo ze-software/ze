@@ -86,7 +86,8 @@ var setupResults = make(map[string]SetupResult)
 
 // RecordSetup records what a plugin's setup achieved. Call it from the
 // plugin's own init(), with the outcome and, for a failure, the reason an
-// operator acts on. A second record for one plugin replaces the first.
+// operator acts on. A second record for one plugin replaces the first. After
+// Seal it panics and records nothing: a setup record is registration.
 //
 // The reason reaches CLI output as data, so a recording site MUST NOT put a
 // secret in it.
@@ -108,6 +109,7 @@ func RecordSetup(plugin string, outcome SetupOutcome, reason string) {
 
 	mu.Lock()
 	defer mu.Unlock()
+	panicIfSealedLocked("RecordSetup", "setup record of plugin", plugin)
 	setupResults[plugin] = SetupResult{Plugin: plugin, Outcome: outcome, Reason: reason}
 }
 

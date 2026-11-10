@@ -133,7 +133,7 @@ func (s *Server) declaresSessionReady(process string) bool {
 	}
 
 	for _, name := range plugin.RegistryNames(proc.Config()) {
-		if impl := registry.Lookup(name); impl != nil && impl.SignalsSessionReady {
+		if signals, registered := registry.RegisteredSessionReady(name); registered && signals {
 			return true
 		}
 	}

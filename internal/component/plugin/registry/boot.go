@@ -20,6 +20,9 @@ var (
 // it read that text from. The daemon start path MUST call it exactly once,
 // after host tuning; a later call runs nothing, so a config reload cannot
 // repeat a boot effect. Safe for concurrent use.
+//
+// It is a runtime seam, callable after Seal: the daemon runs the effects
+// while it starts, after the registry is sealed.
 func RunBootEffects(configName string, configData []byte) {
 	bootMu.Lock()
 	if bootEffectsRan {

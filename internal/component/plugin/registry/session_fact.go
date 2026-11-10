@@ -21,8 +21,12 @@ var sessionFacts struct {
 // condition may name. The owner MUST be able to answer the fact for a peer
 // from its config, or from its OPEN for a dynamic peer: a fact known only per
 // route (the source of an exported route) is not a condition of a peer.
-// Registering a name twice is a defect of the owner and panics.
+// Registering a name twice is a defect of the owner and panics, and so is
+// registering one after Seal: the owner MUST call it from init().
 func RegisterSessionFact(name string) {
+	mu.RLock()
+	defer mu.RUnlock()
+	panicIfSealedLocked("RegisterSessionFact", "session fact", name)
 	sessionFacts.mu.Lock()
 	defer sessionFacts.mu.Unlock()
 	if slices.Contains(sessionFacts.names, name) {

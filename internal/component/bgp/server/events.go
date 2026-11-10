@@ -579,10 +579,8 @@ func sortByReverseDependencyTier(procs []*process.Process) {
 		if _, exists := declared[name]; exists {
 			continue
 		}
-		var edges [3][]string
-		if reg := registry.Lookup(name); reg != nil {
-			edges = [3][]string{reg.Dependencies, reg.OptionalDependencies, reg.StartAfter}
-		}
+		// An unregistered name orders by no edge: it declares none here.
+		edges, _ := registry.StartOrderEdges(name)
 		declared[name] = edges
 	}
 

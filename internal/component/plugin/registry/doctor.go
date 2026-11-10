@@ -114,10 +114,12 @@ func validateDoctorCheckDef(pluginName string, idx int, dc DoctorCheckDef) error
 var validDoctorPlatforms = map[string]struct{}{"any": {}}
 
 // RegisterDoctorPlatforms adds valid platform names for doctor check validation.
-// Called from host package init() to register platform type strings.
+// Called from host package init() to register platform type strings. After
+// Seal it panics and records nothing.
 func RegisterDoctorPlatforms(platforms []string) {
 	mu.Lock()
 	defer mu.Unlock()
+	panicIfSealedLocked("RegisterDoctorPlatforms", "doctor platforms", textbuf.Join(platforms, ","))
 	for _, p := range platforms {
 		validDoctorPlatforms[p] = struct{}{}
 	}
