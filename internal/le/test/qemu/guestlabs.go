@@ -74,7 +74,7 @@ var (
 		netnsOSPF:     "OSPFv2: demux, multi-AF, NBMA, point-to-multipoint",
 		netnsOSPFv3:   "OSPFv3: virtual link, NBMA, point-to-multipoint",
 		netnsPPPoE:    "PPPoE: sessions, L2TP, service name, VLAN, floods",
-		netnsPlugin:   "RPKI ASPA, Adj-RIB-In replay, redistribution, DDoS blind detector",
+		netnsPlugin:   "ASPA, Adj-RIB-In replay, redistribution, DDoS blind detector",
 	}
 )
 
