@@ -1,6 +1,6 @@
 # Doctor problem inventory: routing-protocols
 
-Part of [the doctor problem inventory](../doctor-problem-inventory.md) (2026-11-10), the AC-6 audit of `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md`. Door: `ai/doors/routing-protocols.md`. Slices: A11, A12. 65 class rows: 54 gap (partial included), 11 covered, 0 owned by child 2. Source sites name files only; `./le arch doctor-coverage report` keeps the per-site list (R-3).
+Part of [the doctor problem inventory](../doctor-problem-inventory.md) (2026-11-10), the AC-6 audit of `spec-doctor-coverage-1-audit-and-gate`. Door: `ai/doors/routing-protocols.md`. Slices: A11, A12. 65 class rows: 54 gap (partial included), 11 covered, 0 owned by child 2. Source sites name files only; `./le arch doctor-coverage report` keeps the per-site list (R-3).
 
 | Area | Owner package | Class | State it reads | Route (local/runtime) | Existing check and code, or gap | Source sites |
 |------|---------------|-------|----------------|-----------------------|---------------------------------|--------------|

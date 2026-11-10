@@ -8,7 +8,7 @@
 | Release reason | `ai/META-DECISIONS.md`: `ze doctor` reports every problem an operator can hit, with cause and fix; this child finds every problem class, gives runtime state a phase that cannot read healthy when unseen, and stops new classes landing without a check |
 | RFC gaps | - |
 | Depends | - |
-| Phase | P1a, P1b, P1c, P2a, P2b landed (commit fc96556110 the gate, commit ce58dddf53 the doctor phases); P3 audit section files written, merge and area children in progress. Owner questions O-1, O-2, O-3 decided 2026-11-08 (see "Owner Decisions"); design approved by the owner order of 2026-11-10; phases in "Implementation Phases" |
+| Phase | every phase landed: P1a, P1b, P1c in ce58dddf53; P2a, P2b in fc96556110, 49176ac2ce and beb3a7e136 (the gate reads covered codes from source); P3 inventory in e820ef5cfe; the 13 area children and their journal rows in 94f8de0b56; closure 2026-11-10. Owner questions O-1, O-2, O-3 decided 2026-11-08 (see "Owner Decisions"); design approved by the owner order of 2026-11-10; phases in "Implementation Phases" |
 | Handoff | - |
 | Updated | 2026-11-10 |
 
@@ -60,6 +60,7 @@ This child owns four things, in this order:
   → Constraint: a registry holds value types and is the only list; the gate reads the doctor registries, never a copied list of codes
 - [ ] `ai/doors/le-tooling.md` - le tools
   → Constraint: a tool is one package under `internal/le/` at the path its name predicts (`le arch doctor-coverage` is `internal/le/arch/doctorcoverage`), registered from `init()`; `le` may link `internal/component/plugin/all` to read what `ze` registers
+  → Amendment (beb3a7e136, 2026-11-10): the gate does not use that permission for its covered set. Linked registries miss a check in a package the composition root does not import (`internal/component/gnmi`) and a check the judged commit adds, so the gate reads every check declaration from the parsed source of the side it judges; only its oracle test links the product
 - [ ] `ai/rules/user-facing-errors.md`
   → Constraint: the fixing command sits on a line of its own; JSON carries no color
 - [ ] `ai/META-DECISIONS.md`
@@ -158,13 +159,14 @@ This child owns four things, in this order:
 - 2a (amended). The recent-events check is named `recent-events` and declares the one code `doctor-recent-events` (`internal/component/doctor/checks_recent_events.go`). A row carries the event's own code only when that code's metadata is registered (`ze show diagnostic` can explain it); otherwise the row is `doctor-recent-events` with the bus code named in its message, so no event is dropped and no row carries a code the operator cannot look up. Its fix lines are the bare commands `show errors` (an error event) and `show warnings` (an active warning)
   → Decision: the check's own declaration is `doctor-recent-events`, and a transient code counts as covered for the gate through the transient-code registration of `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a (its AC-2): the owner registers the code with its metadata from its `init()`, and `doctor-recent-events` reads that registration and declares every registered transient code. A transient class therefore needs no runtime check of its own owner; the recent-events row reports it under its code
 - 4b. A health row (`health.Register`, `health.RegisterWhen`) is listed by the gate and never refused: the registration takes no code, so there is nothing to resolve; the audit maps each one to a doctor check by hand
+- 4c (amended, beb3a7e136). Step 4's "codes of every registered doctor check" is read from source, not from registries linked into le: `coveredCodes` (`internal/le/arch/doctorcoverage/codes.go`) reads every composite literal of a doctor check declaration type (`diagnostic.DoctorCheck`, `registry.DoctorCheckDef`, `rpc.DoctorCheckDecl` and its SDK alias, `kernelcap.Capability`) in the parsed tree of the side judged. A check in a package no composition root imports covers its codes, and a commit that adds a check with its first use is admitted. `TestDoctorCoverageSourceHoldsEveryRegisteredCode` links the product and fails when a registered check declares a code the source read misses
   → Constraint: the gate cannot see a Warn or Error logged through a function value (dhcpserver `warnLimited`), nor a site whose message is not a literal (`internal/plugins/flowexport/register.go`, line 172); and a `code` log attribute that holds a protocol or exit code (not a doctor code) reads as code-dynamic. The audit walks these by hand
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Engine to plugin | `ze-plugin-callback:doctor-check` output gains `fix`; Stage 1 declaration may carry phase `runtime` | No: census below |
-| le to product registries | le links `internal/component/plugin/all` and reads `diagnostic.DoctorChecksForPhase` and `registry.PluginDoctorChecks` | No |
+| le to product registries | le links `internal/component/plugin/all` and reads `diagnostic.DoctorChecksForPhase` and `registry.PluginDoctorChecks` | Superseded (beb3a7e136): the gate crosses no product registry; it reads check declarations from source (Data Flow 4c). Only `TestDoctorCoverageSourceHoldsEveryRegisteredCode` links the product, to hold the source read to `diagnostic.DoctorChecks` and `registry.PluginDoctorChecks` |
 
 ### Changed-Wire Census
 
@@ -192,7 +194,7 @@ This child owns four things, in this order:
 | No duplicated functionality (extends existing, does not recreate) | Yes | Existing Mechanisms table |
 | Zero-copy preserved where applicable (refs, not copies) | Yes | no hot path |
 | Registration over hardcoding, outbound | Yes | runtime checks register with the existing registry |
-| Registration over hardcoding, inbound | Yes | the gate derives covered codes from the two doctor registries; it holds no code list |
+| Registration over hardcoding, inbound | Yes | the gate derives covered codes from every doctor check declaration in the source (beb3a7e136); it holds no code list. Its table of declaration types is a second copy of what the registries hold, and `TestDoctorCoverageSourceHoldsEveryRegisteredCode` compares the two |
 
 ## Risks & Assumptions
 
@@ -200,8 +202,8 @@ This child owns four things, in this order:
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | A problem site can name its code statically: a report raise takes the code as an argument, and a log line can carry a `code` attribute whose value is an exported code constant | `report.Issue.Code`; slog attributes are key-value pairs | the scan cannot resolve a code built at run time | gate unit test over fixtures with constant, variable and missing codes | validated 2026-11-10: `TestDoctorCoverageResolvesStaticCodes`, `TestDoctorCoverageRefusesUnparsableFile` (`internal/le/arch/doctorcoverage/doctorcoverage_test.go`); limits in Data Flow 4b |
-| A-2 | le can read every registered doctor check's codes by linking the composition root | `ai/doors/le-tooling.md`: le may link `internal/component/plugin/all` | the gate misses plugin codes | `TestDoctorCoverageReadsPluginCodes` | validated 2026-11-10: `TestDoctorCoverageReadsPluginCodes`, `TestDoctorCoverageThinCoveredSetRefused` (`internal/le/arch/doctorcoverage/check_test.go`) |
-| A-3 | The daemon's in-process components (L2TP, iface, IKE) run their `runtime` checks in the daemon process, so a registry check there reads live state | L2TP and PPPoE are `Engine.RegisterSubsystem` subsystems (`ai/doors/hub-engine.md`); IKE runs in the daemon through DirectBridge (`ai/doors/plugin-infra.md`, Traps) | a check reads an empty copy | each owner's check test runs against the live owner state; a forked plugin uses the plugin callback instead | unvalidated |
+| A-2 | le can read every registered doctor check's codes by linking the composition root | `ai/doors/le-tooling.md`: le may link `internal/component/plugin/all` | the gate misses plugin codes | `TestDoctorCoverageReadsPluginCodes` | broken 2026-11-10: linking misses `internal/component/gnmi` (no composition root imports it) and a check the judged commit adds, found when the gate refused 537b3a87f9's coded line. Replaced in beb3a7e136 by a source read of every check declaration; validated by `TestDoctorCoverageReadsCodesFromSource`, `TestDoctorCoverageSourceHoldsEveryRegisteredCode`, `TestDoctorCoverageCommitAdmitsCheckAddedWithItsSite`, `TestDoctorCoverageThinCoveredSetRefused` (`internal/le/arch/doctorcoverage/check_test.go`, `judge_test.go`) |
+| A-3 | The daemon's in-process components (L2TP, iface, IKE) run their `runtime` checks in the daemon process, so a registry check there reads live state | L2TP and PPPoE are `Engine.RegisterSubsystem` subsystems (`ai/doors/hub-engine.md`); IKE runs in the daemon through DirectBridge (`ai/doors/plugin-infra.md`, Traps) | a check reads an empty copy | each owner's check test runs against the live owner state; a forked plugin uses the plugin callback instead | confirmed 2026-11-10 for the mechanism: `RunRuntimeChecks` runs only inside `HandleDoctor`, and `test/plugin/show-doctor-runtime-checks.ci` and `test/plugin/doctor-dns-source.ci` read the daemon's live dns-source registry through a runtime check. The L2TP, iface and IKE runtime checks are written by their area children (AC-9 moves), each owing its own live-state test |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -301,6 +303,9 @@ This child owns four things, in this order:
 | `TestDNSSourceChecksRegisterRuntimePhase` | `internal/component/config/system/doctor_dns_source_test.go` | AC-13 |
 | `TestDoctorCoverageResolvesStaticCodes`, `TestDoctorCoverageRefusesUnparsableFile` | `internal/le/arch/doctorcoverage/doctorcoverage_test.go` | A-1 |
 | `TestDoctorCoverageThinCoveredSetRefused` | `internal/le/arch/doctorcoverage/check_test.go` | A-2: a covered set too thin to be the registry is refused, not read as "nothing covered" |
+| `TestDoctorCoverageReadsCodesFromSource` (replaces `TestDoctorCoverageReadsPluginCodes`, beb3a7e136) | `internal/le/arch/doctorcoverage/check_test.go` | A-2: every declaration shape in the fixture tree, a package no composition root imports included, covers its codes |
+| `TestDoctorCoverageSourceHoldsEveryRegisteredCode` | `internal/le/arch/doctorcoverage/check_test.go` | A-2 oracle: over the real checkout, every code a linked in-tree or plugin check declares is in the source-read covered set, and `gnmi-tls-material` is covered |
+| `TestDoctorCoverageCommitAdmitsCheckAddedWithItsSite` | `internal/le/arch/doctorcoverage/judge_test.go` | the commit form reads each side's covered set from that side's tree, so a check and its first use land together |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -356,7 +361,7 @@ This child owns four things, in this order:
 - `plan/release/validation/spec-doctor-coverage-<n>-<area>.md` - one per door area with gaps, all release work, P2 (O-3)
 
 **Additions, 2026-11-10 (implementation, P1 and P2 as landed):**
-- `internal/core/diagnostic/doctor_registry_list.go` - `DoctorChecks`, every registered check of every phase, which the gate reads for its covered codes
+- `internal/core/diagnostic/doctor_registry_list.go` - `DoctorChecks`, every registered check of every phase; since beb3a7e136 the gate reads its covered codes from source and only its oracle test reads this list
 - `internal/le/hookruntime/doors_covering.go` - `DoorsCovering`, the door lookup the read gate uses, exposed so the gate's report groups sites by door area by the same rule; the file declares `docs/architecture/core-design.md` as its design page
 - `internal/component/doctor/local_route.go` - the local route's ask of the daemon and its fallback row (O-1)
 - `internal/component/doctor/checks_recent_events.go` (+ test) - the `recent-events` check (O-2)
@@ -505,6 +510,7 @@ plugin). No other child builds either.
 | dns-source findings | the command moves from the message into `Fix` | AC-13 amendment |
 
 → Decision: the doctor-coverage gate's baseline on 2026-11-10 is 2412 problem sites, 0 covered, 10 health rows, 175 registered doctor codes. The audit (P3) starts from it, and the area children's ACs move the covered count
+→ Decision (closure, 2026-11-10): after beb3a7e136 and ad9fc4abe2 the baseline is 2413 problem sites, 1 covered (the coded gNMI TLS refusal line), 10 health rows, 191 doctor codes declared (`./le arch doctor-coverage report`). The code count rose because the source read sees checks the linked registries missed, `gnmi-tls-material` among them
 → Constraint: the known gate limits (function-value logging, non-literal messages, a `code` attribute holding a protocol or exit code) are walked by hand in the audit, and each is a site the area child of its owner fixes by naming a doctor code
 
 ## Owner Decisions
@@ -574,3 +580,152 @@ Thomas answered "yes to all recommendations" on 2026-11-08. No owner question re
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
 - [ ] **Commit A:** code + tests + docs + edited spec
 - [ ] **Commit B:** `remove plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` only
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- The `runtime` doctor phase in the one phase declaration (`rpc.DoctorPhaseRuntime`, `DoctorCheckPhase.Valid`), run only by `doctor.RunRuntimeChecks` from `HandleDoctor`; `internal/core/diagnostic/doctor_daemon.go` deleted, the dns-source checks re-registered at `runtime` (ce58dddf53)
+- `Diagnostic.Fix` and `rpc.DoctorCheckDiagnostic.Fix` (`fix`, omitempty), carried by both plugin bridges through `doctor.PluginDiagnostic` and drawn by `outputText` on its own `fix:` line (ce58dddf53)
+- The local route asks the daemon (`answerLocalWith`, `askDaemonOverSSH`, `local_route.go`) and falls back with `doctor-runtime-not-checked`, its fix named by cause (ce58dddf53)
+- The `recent-events` runtime check over `report.Errors` and `report.Warnings` (`checks_recent_events.go`, ce58dddf53)
+- The doctor-coverage gate: `./le arch doctor-coverage check` and `report`, and the `changecheck` registration `./le commit create` runs (fc96556110, 49176ac2ce); covered codes read from source declarations (beb3a7e136)
+- The audit: `plan/audits/doctor-problem-inventory.md` and 13 area files (e820ef5cfe); 13 area children `spec-doctor-coverage-3..15` with 38 journal rows (94f8de0b56)
+
+### Bugs Found/Fixed
+- gNMI and MCP served plaintext when their TLS material could not load: fixed in 537b3a87f9 (refuse to serve, `gnmi-tls-material` check), covered by `test/plugin/gnmi-tls-unreadable-cert-not-started.ci`, `TestGNMITLSMaterial`; coded refusal line in ad9fc4abe2
+- The gate read covered codes from registries linked into le, so it missed `internal/component/gnmi` and refused a check committed with its first use: fixed in beb3a7e136, covered by `TestDoctorCoverageSourceHoldsEveryRegisteredCode`, `TestDoctorCoverageCommitAdmitsCheckAddedWithItsSite`
+- The audit's other defects are journal rows owned by the area children (94f8de0b56)
+
+### Documentation Updates
+- `docs/architecture/doctor-and-health-checks.md`: runtime phase, fix field, local route, recent events, gate (ce58dddf53, fc96556110, beb3a7e136)
+- `docs/architecture/api/commands.md`, `docs/architecture/api/process-protocol.md`, `docs/plugin-development/protocol.md`, `docs/guide/health-checks.md`, `docs/features/ai-first.md`, `docs/features/dns-resolver.md`, `docs/contributing/committing.md` (ce58dddf53, fc96556110)
+- Closure: `features/system-readiness.md` gains the runtime phase, fix line, local route and recent events, with source anchors, and the three new `.ci` as real-path tests (Documentation row 1)
+
+### Deviations from Plan
+- A-2 broken: the gate reads covered codes from source, not linked registries (Data Flow 4c)
+- Runtime checks get `Platform` only (Data Flow 1b); fallback fix by cause (step 2 amended); recent-events code rule (2a amended); health rows listed, never refused (4b)
+- Test locations: "Test locations as implemented" table governs
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2: linking the composition root gives every check's codes | a component outside `plugin/all` (gnmi) and a check added by the judged commit are invisible to linked registries | the gate refused the coded gNMI line of 537b3a87f9 | beb3a7e136 reads declarations from source; oracle test holds it to the registries |
+| approach | Documentation row 1 (feature declaration) was marked Yes and not written by the implementation phases | `features/system-readiness.md` still described offline checks only | closure documentation review | written at closure, in commit A |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| 1 runtime phase, fix field, local-route answer | Done | `pkg/plugin/rpc/types.go` `DoctorPhaseRuntime`; `internal/component/doctor/registry.go` `RunRuntimeChecks`; `local_route.go` | ce58dddf53 |
+| 2 gate | Done | `internal/le/arch/doctorcoverage/` | fc96556110, beb3a7e136 |
+| 3 audit inventory | Done | `plan/audits/doctor-problem-inventory.md` + 13 area files | e820ef5cfe, 94f8de0b56 |
+| 4 area children | Done | `plan/release/validation/spec-doctor-coverage-3..15-*.md` | 94f8de0b56 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestDoctorRuntimePhaseRunsOnDaemonRoute`, `test/plugin/show-doctor-runtime-checks.ci` | |
+| AC-2 | Done | `TestDoctorRuntimePhaseNotRunLocally`, `test/ui/doctor-runtime-not-checked.ci` | fix `ze start` |
+| AC-3 | Done | `TestCollectPluginDoctorChecksCarriesFix`, `TestRunPluginRegistryChecksCarriesFix`, `TestRenderDoctorPrintsFixOnItsOwnLine`, `show-doctor-runtime-checks.ci` (`"fix"` key) | |
+| AC-4 | Done | `TestDoctorCoverageRefusesAddedUncoveredSite`, `TestCommitCreateRefusesUncoveredProblemSite`, `TestDoctorCoverageCommitRefusesAddedUncoveredSite` | |
+| AC-5 | Done | `TestDoctorCoverageReportGroupsByOwner`, `TestDoctorCoverageScansTheCheckout` | |
+| AC-6 | Done | inventory + 13 children, each `Priority` P2 (grep at closure) | |
+| AC-7 | Done | `TestDoctorRecentEventsRowsFromReportRing` (fix `show errors`/`show warnings`), `TestDNSSourceChecksRegisterRuntimePhase`, `TestGNMITLSMaterial` | checks added under this child |
+| AC-8 | Done | doctor page sections; `docs/plugin-development/protocol.md`; `docs/architecture/api/process-protocol.md` | |
+| AC-9 | Done | inventory "AC-9" section, 17 entries; moves owned by children 2..15 | |
+| AC-10 | Done | `TestDoctorLocalRouteAsksReachableDaemon`, `test/plugin/doctor-local-asks-daemon.ci` | |
+| AC-11 | Done | `TestDoctorRecentEventsRowsFromReportRing`, `TestDoctorRecentEventsSubjectsAreSeparateRows`, `TestDoctorRecentEventsCodeWithoutMetadata` | |
+| AC-12 | Done | `TestDoctorCoverageRefusesMarkedSite` | |
+| AC-13 | Done | `TestDNSSourceChecksRegisterRuntimePhase`, `test/plugin/doctor-dns-source.ci`; `git grep RegisterDaemonDoctorCheck` empty | |
+| AC-14 | Done | `TestDoctorLocalRouteNoCredentialsAnswersLocally` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| every row of the TDD plan | Done | the "Test locations as implemented" table | `TestDoctorCoverageReadsPluginCodes` Changed: replaced by `TestDoctorCoverageReadsCodesFromSource` and `TestDoctorCoverageSourceHoldsEveryRegisteredCode` |
+| `show-doctor-runtime-checks`, `doctor-runtime-not-checked`, `doctor-local-asks-daemon` | Done | `test/plugin/`, `test/ui/` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify and Files to Create, every entry | Done | ce58dddf53, fc96556110, beb3a7e136, e820ef5cfe, 94f8de0b56 |
+| `internal/core/diagnostic/doctor_daemon.go` | Done (deleted) | ce58dddf53 |
+
+### Audit Summary
+- **Total items:** 4 task items, 14 ACs
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** A-2 (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| 1 runtime state has a phase that cannot read healthy when unseen, and every finding carries its fix | functional | `test/plugin/show-doctor-runtime-checks.ci` (daemon runs a runtime check, JSON `"fix": "show system dns"`), `test/ui/doctor-runtime-not-checked.ci` (no daemon: `doctor-runtime-not-checked` with fix `ze start`), `test/plugin/doctor-local-asks-daemon.ci` (local `ze doctor` draws the daemon's runtime row), `test/plugin/doctor-dns-source.ci` |
+| 2 no new problem class lands without a doctor code | tooling test over the real checkout | `TestCommitCreateRefusesUncoveredProblemSite` (the registered change check refuses an added uncovered Warn in the checkout), `TestDoctorCoverageSourceHoldsEveryRegisteredCode`; the gate refused 537b3a87f9's uncoded line in practice, and admitted ad9fc4abe2 once coded |
+| 3 every problem class found | audit record | `plan/audits/doctor-problem-inventory.md`: 616 class rows, 535 gaps (partial included), 69 covered (its Totals line, after the children's corrections); baseline `./le arch doctor-coverage report` 2413 sites, 1 covered, 191 codes |
+| 4 gaps stay visible as specs | spec listing | 13 area children `spec-doctor-coverage-3..15`, each P2, plus child 2; 38 journal rows owned by them (94f8de0b56) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Covering the 2402 uncovered problem sites and the inventory's gap rows with doctor checks | AC-6 makes them the area children's work, not this child's | `plan/release/validation/spec-doctor-coverage-0-umbrella.md` (children 2..15 listed in "Area children") |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | the hash-pinned record `./le spec review record spec doctor-coverage-1-audit-and-gate verdict CLEAN rounds 1` wrote at closure over every commit-A file; `./le commit create` checks it |
+| `./le spec review check` | clean |
+| Rounds | 1 |
+| Reviewer lenses used | logic and wiring (runtime runner, both bridges, local route), security (SSH ask, fix lines carry no secret, gNMI TLS refusal), gate correctness (source read, oracle), stale comments, docs against source |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | no BLOCKER, no ISSUE | - | - |
+
+NOTEs (do not block): (1) the `checkDeclarations` doc comment was attached to `checkNameField` and named it `nameField`; moved and renamed at closure, comment only (`internal/le/arch/doctorcoverage/codes.go`). (2) `HandleDoctor` runs plugin-registry `runtime` checks through `RunRuntimeChecks` and every running plugin's checks through `collectPluginDoctorChecks`; no in-tree plugin declares a runtime check today, and the same structure already holds for the config phases. (3) `plan/post-release/engineering/spec-rea-practices-2-error-inventory.md` still calls the fix field "designed, not built"; its own spec's text.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/arch/doctorcoverage/`, `internal/component/doctor/local_route.go`, `checks_recent_events.go`, `render_fix_test.go` | Yes | `git show --stat` of fc96556110, ce58dddf53 |
+| `test/plugin/show-doctor-runtime-checks.ci`, `test/plugin/doctor-local-asks-daemon.ci`, `test/ui/doctor-runtime-not-checked.ci`, `test/plugin/doctor-dns-source.ci` | Yes | `ls` at closure |
+| `plan/audits/doctor-problem-inventory.md` and `plan/audits/doctor-problem-inventory/*.md` (13) | Yes | `ls` at closure |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-14 | tests named in the Implementation Audit pass | main thread, 2026-11-10: doctorcoverage (incl. real-checkout tests), `internal/le/hookruntime`, `pkg/plugin/rpc`, `pkg/plugin/sdk`, `internal/core/diagnostic`, `internal/component/doctor/...`, `internal/component/config/system`, `internal/component/cli/sshclient` (all feature tags), `internal/component/gnmi`, `cmd/ze/hub -run GNMI\|MCP`, config: green |
+| AC-1, AC-2, AC-10, AC-13 | functional | `doctor-dns-source`, `doctor-local-asks-daemon`, `show-doctor-runtime-checks`, ui `doctor-runtime-not-checked`, `gnmi-tls-unreadable-cert-not-started`: green |
+| AC-5 | report runs over the tree | `./le arch doctor-coverage report`: 2413 sites, 1 covered, 2402 uncovered, 10 health rows, 191 codes |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `show doctor` runtime row with fix | `test/plugin/show-doctor-runtime-checks.ci` | read: `ze cli -c "show doctor \| json"`, expects `doctor-dns-source-interface-silent` and `"fix": "show system dns"` |
+| `ze doctor`, no daemon | `test/ui/doctor-runtime-not-checked.ci` | green in main thread |
+| `ze doctor`, daemon running | `test/plugin/doctor-local-asks-daemon.ci` | green in main thread |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestDoctorCoverageResolvesStaticCodes`, `TestDoctorCoverageRefusesUnparsableFile`; limits in Data Flow 4b |
+| A-2 | broken | Mistake Log; replaced in beb3a7e136 (Data Flow 4c) |
+| A-3 | confirmed | `RunRuntimeChecks` only from `HandleDoctor`; `show-doctor-runtime-checks.ci` reads the daemon's live dns-source registry |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| doctor page gate section: covered codes from source | `codes.go` `coveredCodes`, `checkDeclarations` | Yes |
+| doctor page runtime phase and local route | `registry.go` `RunRuntimeChecks`; `local_route.go` `askDaemonOverSSH` | Yes |
+| `features/system-readiness.md` new sentences | `local_route.go` `runtimeNotChecked`; `checks_recent_events.go` `recentEventsCheck`; `doctor.go` `outputText` | Yes, `./le doc check all` at closure |

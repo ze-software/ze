@@ -1,6 +1,6 @@
 # Doctor problem inventory: system-plugins
 
-Part of [the doctor problem inventory](../doctor-problem-inventory.md) (2026-11-10), the AC-6 audit of `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md`. Door: `ai/doors/system-plugins.md`. Slices: A13, A14, A15. 94 class rows: 78 gap (partial included), 16 covered, 0 owned by child 2. Source sites name files only; `./le arch doctor-coverage report` keeps the per-site list (R-3).
+Part of [the doctor problem inventory](../doctor-problem-inventory.md) (2026-11-10), the AC-6 audit of `spec-doctor-coverage-1-audit-and-gate`. Door: `ai/doors/system-plugins.md`. Slices: A13, A14, A15. 94 class rows: 78 gap (partial included), 16 covered, 0 owned by child 2. Source sites name files only; `./le arch doctor-coverage report` keeps the per-site list (R-3).
 
 | Area | Owner package | Class | State it reads | Route (local/runtime) | Existing check and code, or gap | Source sites |
 |------|---------------|-------|----------------|-----------------------|---------------------------------|--------------|

@@ -7,11 +7,11 @@ follows them). P2 has not been started: no claim, no code. Thomas then said
 "Complete the work", so the same session runs P2 next; this page is its plan
 and the recovery point if that session ends first.
 
-Spec: `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md`
+Spec: `spec-doctor-coverage-1-audit-and-gate`
 (status design; owner questions O-1, O-2, O-3 decided 2026-11-08). Thomas's
 order approves the design and the claim above the WIP cap for this spec:
 claim it with `ZE_SPEC_WIP_CAP=25 ./le spec claim
-plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` after
+spec-doctor-coverage-1-audit-and-gate` after
 marking it `ready`, and record that in the spec as P1 did.
 
 ## Audit of the spec against the tree (2026-11-10, read-only)

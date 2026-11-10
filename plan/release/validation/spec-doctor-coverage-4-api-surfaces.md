@@ -7,14 +7,14 @@
 | Priority | P2 |
 | Release reason | `ai/META-DECISIONS.md` (Goal and scope): `ze doctor` reports every problem an operator can hit, each with its cause and the command that fixes it; O-3 of the parent makes every area child release work |
 | RFC gaps | - |
-| Depends | `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` (the `runtime` phase, `Diagnostic.Fix`, the recent-events check and the gate, landed in commits ce58dddf53 and fc96556110); `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phases P0a (the cross-cutting codes `doctor-internal-defect`, `doctor-plugin-*`, `doctor-audit-record-failed`) and P0b (the plugin report-bus raise route and the raise-carries-fix convention); `plan/release/validation/spec-doctor-coverage-11-hub-engine.md` (what `cmd/ze/hub` decides at boot when a listener fails to bind, the split of the doctor `listeners` bind probe, and AC-7, the gNMI TLS refusal landed in 537b3a87f9); `plan/release/validation/spec-doctor-coverage-9-config-yang.md` for `doctor-config-password-weak` (AC-5) and the store row's code; `plan/release/validation/spec-doctor-coverage-8-commands-cli.md` keeps the SSH editor-storage row |
+| Depends | `spec-doctor-coverage-1-audit-and-gate` (the `runtime` phase, `Diagnostic.Fix`, the recent-events check and the gate, landed in commits ce58dddf53 and fc96556110); `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phases P0a (the cross-cutting codes `doctor-internal-defect`, `doctor-plugin-*`, `doctor-audit-record-failed`) and P0b (the plugin report-bus raise route and the raise-carries-fix convention); `plan/release/validation/spec-doctor-coverage-11-hub-engine.md` (what `cmd/ze/hub` decides at boot when a listener fails to bind, the split of the doctor `listeners` bind probe, and AC-7, the gNMI TLS refusal landed in 537b3a87f9); `plan/release/validation/spec-doctor-coverage-9-config-yang.md` for `doctor-config-password-weak` (AC-5) and the store row's code; `plan/release/validation/spec-doctor-coverage-8-commands-cli.md` keeps the SSH editor-storage row |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-11-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-Parent: `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` (AC-6, AC-9).
+Parent: `spec-doctor-coverage-1-audit-and-gate` (AC-6, AC-9).
 Inventory: `plan/audits/doctor-problem-inventory/api-surfaces.md` (slice A3 api-surfaces), plus the SSH rows of `plan/audits/doctor-problem-inventory/commands-cli.md` (listener, login failures, user list unreadable, public key invalid, audit record). The cross-child decision assigns those here: this child owns every per-protocol listener class (SSH, web, MCP, REST, gRPC, gNMI, LG, telemetry), the TLS material checks and the management auth failure classes. The commands-cli child keeps the SSH editor-storage row.
 
 ## Task
@@ -53,7 +53,7 @@ when its configured TLS material cannot be read, is fixed by child 11 AC-7
 - [ ] `ai/doors/core.md`, `ai/doors/plugin-infra.md`, `ai/doors/le-tooling.md` - doors of the paths this spec names
   → Constraint: new codes go in `internal/core/diagnostic/codes.go` and nowhere else; a registry is the only list
   → Constraint: `ze` never links `internal/le`; the gate reads codes from the registries
-- [ ] `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` - Data Flow 1b, 2a (amended), 2b, 4b
+- [ ] `spec-doctor-coverage-1-audit-and-gate` - Data Flow 1b, 2a (amended), 2b, 4b
   → Decision: a `runtime` check receives `Platform` only; it reads its owner's live state, never `Tree` or `ConfigDir`
   → Decision: a transient code counts as covered only when the check of the code's owner declares it; `recent-events` then reports the bus event under that code
 - [ ] `plan/release/validation/spec-doctor-coverage-3-access-security.md` - AAA backend rows

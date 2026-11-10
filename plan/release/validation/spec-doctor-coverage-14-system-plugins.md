@@ -7,14 +7,14 @@
 | Priority | P2 |
 | Release reason | `ai/META-DECISIONS.md` (Goal and scope): `ze doctor` reports every problem an operator can hit, each with its cause and the command that fixes it; O-3 of `spec-doctor-coverage-1-audit-and-gate` makes every area child release work |
 | RFC gaps | - |
-| Depends | `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` (the `runtime` phase, `Diagnostic.Fix`, the doctor-coverage gate, the `recent-events` check: landed in commits ce58dddf53 and fc96556110); `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` for the cross-cutting codes (`doctor-internal-defect`, `doctor-plugin-stopped`, `doctor-plugin-crashed`, `doctor-plugin-config-unapplied`, `doctor-plugin-setup-failed`, `doctor-plugin-external-unsupported`, `doctor-plugin-stop-cleanup-late`), the registration field that declares a plugin runs only in the daemon's process (phase P0a, with the transient-code registration and a raise carrying its fix), and the plugin-protocol route for a forked plugin to raise on the daemon's report bus (phase P0b); `plan/release/validation/spec-doctor-coverage-10-forwarding.md` for `doctor-firewall-drift` and `doctor-firewall-apply-behind`; `plan/release/validation/spec-doctor-coverage-5-appliance.md` for the `doctor-dns-source-*` check and the `ConsumerSelection` fields of its AC-19 (AC-31, AC-32) |
+| Depends | `spec-doctor-coverage-1-audit-and-gate` (the `runtime` phase, `Diagnostic.Fix`, the doctor-coverage gate, the `recent-events` check: landed in commits ce58dddf53 and fc96556110); `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` for the cross-cutting codes (`doctor-internal-defect`, `doctor-plugin-stopped`, `doctor-plugin-crashed`, `doctor-plugin-config-unapplied`, `doctor-plugin-setup-failed`, `doctor-plugin-external-unsupported`, `doctor-plugin-stop-cleanup-late`), the registration field that declares a plugin runs only in the daemon's process (phase P0a, with the transient-code registration and a raise carrying its fix), and the plugin-protocol route for a forked plugin to raise on the daemon's report bus (phase P0b); `plan/release/validation/spec-doctor-coverage-10-forwarding.md` for `doctor-firewall-drift` and `doctor-firewall-apply-behind`; `plan/release/validation/spec-doctor-coverage-5-appliance.md` for the `doctor-dns-source-*` check and the `ConsumerSelection` fields of its AC-19 (AC-31, AC-32) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-11-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-Parent: `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` (AC-6, AC-9).
+Parent: `spec-doctor-coverage-1-audit-and-gate` (AC-6, AC-9).
 Source: the A13, A14 and A15 slices of the doctor problem inventory, merged in `plan/audits/doctor-problem-inventory/system-plugins.md`, and the canonical code table of the merge.
 
 ## Task
@@ -54,7 +54,7 @@ No row of this area is owned by child 2 (`spec-doctor-coverage-2-home-cpe-batch.
   → Constraint: a removed root arrives as `{}`; a check never reads nil config as "nothing configured" when the root is present
 - [ ] `docs/architecture/doctor-and-health-checks.md` - phases, owners, the `runtime` phase
   → Constraint: a `runtime` check is handed the platform alone and reads its owner's live state, never a config tree (`RunRuntimeChecks`)
-- [ ] `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` - O-1, O-2, O-3, Data Flow 2a and 4b amendments
+- [ ] `spec-doctor-coverage-1-audit-and-gate` - O-1, O-2, O-3, Data Flow 2a and 4b amendments
   → Decision (O-1): the local route asks a reachable daemon; the daemon's answer then runs every phase in the daemon process
   → Decision (O-2): every Warn and Error line carries a doctor code; a transient class is a report-bus raise shown by `recent-events`
   → Constraint: a health row takes no code; the audit maps each row to a check by hand (Data Flow 4b)

@@ -61,7 +61,7 @@ the failure policy in `failure_policy.go`.
 | Plugin failure policy | `failure_policy.go` `pluginFailurePolicy`, `stopDaemonOnStartupFailure`; `registry.Registration.FatalOnConfigError` | Stops ze for a fatal plugin; a non-fatal one is dropped | Kept or extended: to decide against the owner ruling |
 | Phase-1 refusal | `runPluginStartup` sets `startupErr` on a config-path failure | ze does not run half-started | Candidate for phase 2 |
 | Plugin doctor checks | `DoctorCheckPlugins` (`server.go`), `internal/component/doctor` | Lists the checks of running plugins | Extends, or a daemon doctor check beside it: to design |
-| Doctor coverage audit | `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` | Inventories problem classes doctor misses | This class is one of them; the code lands here |
+| Doctor coverage audit | `spec-doctor-coverage-1-audit-and-gate` | Inventories problem classes doctor misses | This class is one of them; the code lands here |
 
 ## Required Reading
 

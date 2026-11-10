@@ -7,14 +7,14 @@
 | Priority | P2 |
 | Release reason | Thomas's rule that `ze doctor` reports every problem an operator can hit, each with its cause and the command that fixes it (`ai/META-DECISIONS.md`, Goal and scope), and owner decision O-3 of `spec-doctor-coverage-1-audit-and-gate.md`: every area child is release work |
 | RFC gaps | - |
-| Depends | `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` (the `runtime` phase, `Diagnostic.Fix`, the local route asking the daemon, the `recent-events` check, the doctor-coverage gate; landed in commits ce58dddf53 and fc96556110); `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a (cross-cutting codes `doctor-plugin-stopped`, `doctor-internal-defect`, the transient-code registration, a raise carrying its fix) and phase P0b (the plugin report route phase S2 uses); `plan/release/validation/spec-doctor-coverage-10-forwarding.md` for the fib-kernel MPLS codes |
+| Depends | `spec-doctor-coverage-1-audit-and-gate` (the `runtime` phase, `Diagnostic.Fix`, the local route asking the daemon, the `recent-events` check, the doctor-coverage gate; landed in commits ce58dddf53 and fc96556110); `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a (cross-cutting codes `doctor-plugin-stopped`, `doctor-internal-defect`, the transient-code registration, a raise carrying its fix) and phase P0b (the plugin report route phase S2 uses); `plan/release/validation/spec-doctor-coverage-10-forwarding.md` for the fib-kernel MPLS codes |
 | Phase | ready |
 | Handoff | - |
 | Updated | 2026-11-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-Parent: `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` (AC-6, AC-9).
+Parent: `spec-doctor-coverage-1-audit-and-gate` (AC-6, AC-9).
 Door: `ai/doors/routing-protocols.md`. Inventory rows: `plan/audits/doctor-problem-inventory/routing-protocols.md` (65 class rows: 54 gap or partial, 11 covered, none owned by child 2).
 
 ## Task
@@ -49,7 +49,7 @@ area's packages names its doctor code (owner decision O-2 of the parent), so
   → Constraint: a `.ci` that needs a Linux kernel feature carries `option=needs-linux`; a scoped package test runs through `./le job run` with its feature tags
 - [ ] `ai/doors/system-plugins.md` - redistribution consumers share `internal/plugins`
   → Constraint: every plugin can run in another process; reach the engine through the SDK, the bus, or a command
-- [ ] `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` - Task, O-1 to O-3, AC-6, AC-9, Data Flow amendments
+- [ ] `spec-doctor-coverage-1-audit-and-gate` - Task, O-1 to O-3, AC-6, AC-9, Data Flow amendments
   → Decision: a `runtime` registry check receives `Platform` only (Data Flow 1b); a runtime check reads its owner's live state
   → Decision: a transient code counts as covered for the gate only when its owner's check declares it; the `recent-events` check then reports the report-bus event (Data Flow 2a, amended)
   → Decision: the local route asks the daemon first and answers locally only when no daemon answers (O-1)

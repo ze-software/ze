@@ -7,14 +7,14 @@
 | Priority | P2 |
 | Release reason | `ai/META-DECISIONS.md` (Goal and scope): `ze doctor` reports every problem an operator can hit, each with its cause and the command that fixes it; O-3 of the parent makes every area child release work |
 | RFC gaps | - |
-| Depends | `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` (the `runtime` phase, the `Fix` field, the recent-events check and the gate, landed in commits ce58dddf53 and fc96556110); `plan/release/validation/spec-doctor-coverage-2-home-cpe-batch.md` for the rows it owns (Existing Mechanisms) and the L2TP per-peer record it adds; `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a for `doctor-plugin-stopped`, `doctor-plugin-crashed`, `doctor-plugin-external-unsupported` and `doctor-internal-defect` (and the transient-code registration), and its AC-35 (phase P6) for `doctor-env-invalid-value` (AC-54); `plan/release/validation/spec-doctor-coverage-5-appliance.md` for `doctor-dns-source-host-only-dropped` |
+| Depends | `spec-doctor-coverage-1-audit-and-gate` (the `runtime` phase, the `Fix` field, the recent-events check and the gate, landed in commits ce58dddf53 and fc96556110); `plan/release/validation/spec-doctor-coverage-2-home-cpe-batch.md` for the rows it owns (Existing Mechanisms) and the L2TP per-peer record it adds; `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a for `doctor-plugin-stopped`, `doctor-plugin-crashed`, `doctor-plugin-external-unsupported` and `doctor-internal-defect` (and the transient-code registration), and its AC-35 (phase P6) for `doctor-env-invalid-value` (AC-54); `plan/release/validation/spec-doctor-coverage-5-appliance.md` for `doctor-dns-source-host-only-dropped` |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-11-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-Parent: `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` (AC-6, AC-9).
+Parent: `spec-doctor-coverage-1-audit-and-gate` (AC-6, AC-9).
 Inventory: `plan/audits/doctor-problem-inventory/access-security.md` (slices A1 IKE, AAA and PKI; A2 L2TP, PPP, PPPoE and the subscriber plugins).
 
 ## Task
@@ -46,7 +46,7 @@ Rows owned by child 2 stay there and are not respecified here.
   → Constraint: L2TP and PPPoE boot through `Engine.RegisterSubsystem` (`registerBNGSubsystems`); a check that reads the subsystem runs in the daemon
   → Constraint: a field name in `rpc` is wire; this spec adds no field, only codes
   → Constraint: `ze` never links `internal/le`; the gate reads codes from the registries
-- [ ] `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` - Data Flow 1b, 2a (amended), 4b
+- [ ] `spec-doctor-coverage-1-audit-and-gate` - Data Flow 1b, 2a (amended), 4b
   → Decision: a `runtime` check receives `Platform` only; it reads its owner's live state, never `Tree` or `ConfigDir`
   → Decision: a transient code counts as covered only when the check of the code's owner declares it; the `recent-events` check then reports the bus event under that code when its metadata is registered
   → Constraint: health rows take no code; each is mapped to a doctor check by hand

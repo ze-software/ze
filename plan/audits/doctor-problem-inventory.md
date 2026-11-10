@@ -3,7 +3,7 @@
 Every problem an operator can hit in Ze, grouped by problem class and owner, with
 the doctor check and code that reports it today or `gap` where none does. It is
 the audit that acceptance criterion AC-6 of
-`plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` names, and
+`spec-doctor-coverage-1-audit-and-gate` names, and
 the input of the area children `spec-doctor-coverage-<n>-<area>.md`.
 
 - Date: 2026-11-10.

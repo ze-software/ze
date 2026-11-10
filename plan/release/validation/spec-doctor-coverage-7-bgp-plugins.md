@@ -7,14 +7,14 @@
 | Priority | P2 |
 | Release reason | Thomas's rule that `ze doctor` reports every problem an operator can hit, each with its cause and the command that fixes it (`ai/META-DECISIONS.md`, "Goal and scope"), and owner decision O-3 of the parent: every area child is release work, P2 in `plan/release/validation/`, whatever release profile its feature sits in |
 | RFC gaps | - |
-| Depends | `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md`: the `runtime` doctor phase, `Diagnostic.Fix` and the doctor-coverage gate (landed in commits ce58dddf53 and fc96556110), and its `doctor-recent-events` check (`internal/component/doctor/checks_recent_events.go`). `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a (the cross-cutting codes, the transient-code registration that `doctor-recent-events` reads, a raise carrying its fix) and phase P0b (the plugin-protocol report-bus raise route a forked plugin uses; it replaces the P0 raise route this spec once planned for itself). From child 12 also the codes it owns: `doctor-internal-defect`, `doctor-plugin-setup-failed`, `doctor-plugin-stopped`, `doctor-plugin-external-unsupported` and its "runs in-process only" registration field (inventory, "Shared mechanisms", item 6). `plan/release/fixes/spec-bmp-route-action-redistribute-acts-as-monitor.md` owns the BMP `route-action redistribute` row |
+| Depends | `spec-doctor-coverage-1-audit-and-gate`: the `runtime` doctor phase, `Diagnostic.Fix` and the doctor-coverage gate (landed in commits ce58dddf53 and fc96556110), and its `doctor-recent-events` check (`internal/component/doctor/checks_recent_events.go`). `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a (the cross-cutting codes, the transient-code registration that `doctor-recent-events` reads, a raise carrying its fix) and phase P0b (the plugin-protocol report-bus raise route a forked plugin uses; it replaces the P0 raise route this spec once planned for itself). From child 12 also the codes it owns: `doctor-internal-defect`, `doctor-plugin-setup-failed`, `doctor-plugin-stopped`, `doctor-plugin-external-unsupported` and its "runs in-process only" registration field (inventory, "Shared mechanisms", item 6). `plan/release/fixes/spec-bmp-route-action-redistribute-acts-as-monitor.md` owns the BMP `route-action redistribute` row |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-11-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-Parent: `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` (AC-6, AC-9). Umbrella: `plan/release/validation/spec-doctor-coverage-0-umbrella.md`.
+Parent: `spec-doctor-coverage-1-audit-and-gate` (AC-6, AC-9). Umbrella: `plan/release/validation/spec-doctor-coverage-0-umbrella.md`.
 
 ## Task
 
@@ -60,7 +60,7 @@ Every runtime check here reads the plugin's own state inside the plugin's own pr
   → Constraint: a unit test in the owning package proves the check fires only on its condition and emits its registered code; a functional test exposes it through `show doctor` or `ze doctor --json`
 - [ ] `ai/rules/user-facing-errors.md`
   → Constraint: problem, why, then the fixing command on its own line (`Diagnostic.Fix`, the command alone)
-- [ ] `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md`, Data Flow amendments
+- [ ] `spec-doctor-coverage-1-audit-and-gate`, Data Flow amendments
   → Decision: 2a (amended): `doctor-recent-events` renders a report-bus event under its own code only when that code is registered in `internal/core/diagnostic/codes.go`; a bus code counts as covered for the gate only when its owner's check declares it
   → Decision: 1b: a `runtime` registry check gets only `Platform`; a runtime check reads its owner's live state, never a config tree
 

@@ -54,7 +54,7 @@ gap:
 - [ ] `docs/architecture/doctor-and-health-checks.md` - phases, owners, the `runtime` phase, the fix line
   → Decision: a `runtime` check receives `Platform` only and reads its owner's live state, never `Tree` (parent spec, Data Flow 1b)
   → Constraint: a transient code counts as covered only when its owner's check declares it; `recent-events` then reports it (parent spec, Data Flow 2a)
-- [ ] `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` - Task, O-1 to O-3, AC-6, AC-9, AC-14, Data Flow amendments
+- [ ] `spec-doctor-coverage-1-audit-and-gate` - Task, O-1 to O-3, AC-6, AC-9, AC-14, Data Flow amendments
   → Decision: O-1, the local route asks the daemon over SSH and falls back with `doctor-runtime-not-checked`; O-2, no transient marker; O-3, release work
   → Constraint: AC-9, a check that reads daemon state from a non-runtime phase moves to `runtime` or splits, so no route reads empty or self-held state as healthy
 - [ ] `plan/release/validation/spec-doctor-coverage-2-home-cpe-batch.md` - sibling child

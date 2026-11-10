@@ -31,7 +31,7 @@ a work item too large for one spec:
 
 | Child | Spec | Work it owns | Status |
 |-------|------|--------------|--------|
-| 1 | `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` | The audit of the whole tree, the inventory file, the `runtime` check phase, the fix field, the local route asking the daemon, and the gate that refuses a new problem class with no doctor check | design |
+| 1 | `spec-doctor-coverage-1-audit-and-gate` | The audit of the whole tree, the inventory file, the `runtime` check phase, the fix field, the local route asking the daemon, and the gate that refuses a new problem class with no doctor check | design |
 | 2 | `plan/release/validation/spec-doctor-coverage-2-home-cpe-batch.md` | The eight classes the home-CPE lab found, one registered check each | design |
 | 3..N | `plan/release/validation/spec-doctor-coverage-<n>-<area>.md`, one per door area (`ai/doors/README.md`) holding inventory gaps | The remaining gaps of that area, each a registered check | created by child 1 at the end of its audit (child 1 AC-6) |
 
@@ -115,11 +115,7 @@ audit's output. Child 1 owes their creation, so the work stays visible as specs
 
 ### Changed-Wire Census
 
-**Search evidence:** the umbrella changes no wire itself; child 1 owns the one wire change (`rpc.DoctorCheckDiagnostic` gains a fix field, and the phase set gains `runtime`) and carries its census.
-
-| Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
-|------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
-| none at umbrella level | - | - | children carry their own census | preserve |
+**Search evidence:** the umbrella changes no wire itself, so it carries no census rows; child 1 owned the one wire change (`rpc.DoctorCheckDiagnostic` gains a fix field, and the phase set gains `runtime`, landed in ce58dddf53 with its census), and each area child carries the census of the wires it changes.
 
 ### Integration Points
 - `doctor.Answer` and `HandleDoctor` - every child's checks reach the operator through them
@@ -170,7 +166,7 @@ audit's output. Child 1 owes their creation, so the work stays visible as specs
 |-------|-------------------|-------------------|-----------------------------|
 | AC-1 | Child 1 closed | the inventory file lists every problem class of the tree with owner, state read, and check or gap; the gate refuses a commit that adds an uncovered problem site | none |
 | AC-2 | Child 2 closed | the eight home-CPE classes each report through `ze doctor` and `show doctor` with cause and fix command | none |
-| AC-3 | Every area child closed | no inventory row reads gap | a row whose state Linux cannot provide, named with evidence (`ai/META-DECISIONS.md`) |
+| AC-3 | Every area child closed | every inventory row names the doctor check and code that reports its class, and `./le arch doctor-coverage report` lists no uncovered site; no row reads gap | a row whose state Linux cannot provide, named with evidence (`ai/META-DECISIONS.md`) |
 | AC-4 | Any check in any child | states the cause in plain words and the exact fixing command on its own line, reaches every surface through the daemon, and has a test that goes red when the condition is not reported | none |
 
 ## 🧪 TDD Test Plan
@@ -195,7 +191,7 @@ audit's output. Child 1 owes their creation, so the work stays visible as specs
 - children name their own files
 
 ## Files to Create
-- `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md`
+- `spec-doctor-coverage-1-audit-and-gate`
 - `plan/release/validation/spec-doctor-coverage-2-home-cpe-batch.md`
 
 ### Integration Checklist

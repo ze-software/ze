@@ -5,16 +5,16 @@
 | Status | ready |
 | Scope | tooling |
 | Priority | P2 |
-| Release reason | `ai/META-DECISIONS.md`, "Goal and scope": `ze doctor` reports every problem an operator can hit, each with its cause and the command that fixes it; O-3 of `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` makes every area child release work |
+| Release reason | `ai/META-DECISIONS.md`, "Goal and scope": `ze doctor` reports every problem an operator can hit, each with its cause and the command that fixes it; O-3 of `spec-doctor-coverage-1-audit-and-gate` makes every area child release work |
 | RFC gaps | - |
-| Depends | `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md`: the `runtime` doctor phase, `Diagnostic.Fix`, the `doctor-recent-events` check and the doctor-coverage gate, landed in commits ce58dddf53 and fc96556110. `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a (the cross-cutting codes, `doctor-internal-defect` among them; the event-code registration; the report-bus fix convention) and phase P0b (the plugin report route): this spec uses them and builds neither. `plan/release/validation/spec-doctor-coverage-14-system-plugins.md` AC-31 and AC-32 fill the two selection fields this spec adds (AC-19). `plan/release/validation/spec-doctor-coverage-15-system.md` AC-3 renames `self-update` and `update-available` to their doctor codes (this spec's AC-1 and AC-2 build on the renamed codes), and its AC-27 refuses the invalid self-update config (immediate with time, a bad HH:MM) before it reaches `startBackend`: this spec builds neither. `plan/release/validation/spec-doctor-coverage-10-forwarding.md` AC-25 and AC-26 raise under the dns-source codes this spec declares (AC-14, AC-17) |
+| Depends | `spec-doctor-coverage-1-audit-and-gate`: the `runtime` doctor phase, `Diagnostic.Fix`, the `doctor-recent-events` check and the doctor-coverage gate, landed in commits ce58dddf53 and fc96556110. `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a (the cross-cutting codes, `doctor-internal-defect` among them; the event-code registration; the report-bus fix convention) and phase P0b (the plugin report route): this spec uses them and builds neither. `plan/release/validation/spec-doctor-coverage-14-system-plugins.md` AC-31 and AC-32 fill the two selection fields this spec adds (AC-19). `plan/release/validation/spec-doctor-coverage-15-system.md` AC-3 renames `self-update` and `update-available` to their doctor codes (this spec's AC-1 and AC-2 build on the renamed codes), and its AC-27 refuses the invalid self-update config (immediate with time, a bad HH:MM) before it reaches `startBackend`: this spec builds neither. `plan/release/validation/spec-doctor-coverage-10-forwarding.md` AC-25 and AC-26 raise under the dns-source codes this spec declares (AC-14, AC-17) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-11-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-Parent: `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` (AC-6, AC-9).
+Parent: `spec-doctor-coverage-1-audit-and-gate` (AC-6, AC-9).
 Inventory: `plan/audits/doctor-problem-inventory/appliance.md` (19 class rows: 16 gap, 3 covered).
 
 ## Task

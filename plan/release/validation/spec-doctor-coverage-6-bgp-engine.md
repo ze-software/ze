@@ -50,7 +50,7 @@ C47) and 2 are covered (C18, C20a). This spec closes every gap:
 - [ ] `docs/architecture/doctor-and-health-checks.md` - phases, owners, the `runtime` phase, the fix line
   → Decision: a `runtime` check receives `Platform` only and reads its owner's live state, never `Tree` (parent spec, Data Flow 1b)
   → Constraint: a transient code counts as covered only when its owner's check declares it; `recent-events` then reports it (parent spec, Data Flow 2a amended)
-- [ ] `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` - Task, O-1 to O-3, AC-6, AC-9, Data Flow amendments
+- [ ] `spec-doctor-coverage-1-audit-and-gate` - Task, O-1 to O-3, AC-6, AC-9, Data Flow amendments
   → Decision: O-2, no transient marker; a transient class is a recent-event row from the report bus
   → Constraint: a health row takes no code and is never refused by the gate; the audit maps it to a check by hand (Data Flow 4b)
 - [ ] `plan/release/validation/spec-doctor-coverage-2-home-cpe-batch.md` - sibling child

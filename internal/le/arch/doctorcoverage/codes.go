@@ -49,17 +49,17 @@ type checkDeclaration struct {
 	addedCodes []string
 }
 
-// checkDeclarations are the types a doctor check is declared as. This is a
-// second copy of what the product registries hold, so
-// TestDoctorCoverageSourceHoldsEveryRegisteredCode compares the two over the
-// checkout: a new declaration shape that registers a check this table misses
-// fails it.
-// nameField is the field most declaration types name their check in.
+// checkNameField is the field most declaration types name their check in.
 const checkNameField = "Name"
 
 // codesField is the list field every declaration type but kernelcap names its codes in.
 var codesField = []string{"Codes"}
 
+// checkDeclarations are the types a doctor check is declared as. This is a
+// second copy of what the product registries hold, so
+// TestDoctorCoverageSourceHoldsEveryRegisteredCode compares the two over the
+// checkout: a new declaration shape that registers a check this table misses
+// fails it.
 var checkDeclarations = []checkDeclaration{
 	// An in-tree check, given to diagnostic.RegisterDoctorCheck.
 	{dir: "internal/core/diagnostic", name: "DoctorCheck", nameField: checkNameField, listFields: codesField},

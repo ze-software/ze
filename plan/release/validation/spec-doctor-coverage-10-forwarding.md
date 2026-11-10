@@ -7,14 +7,14 @@
 | Priority | P2 |
 | Release reason | `ai/META-DECISIONS.md` (Goal and scope): `ze doctor` reports every problem an operator can hit, each with its cause and the command that fixes it; O-3 of `spec-doctor-coverage-1-audit-and-gate` makes every area child release work |
 | RFC gaps | - |
-| Depends | `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` (the `runtime` phase, `Diagnostic.Fix`, the doctor-coverage gate, the `recent-events` check: landed in commits ce58dddf53 and fc96556110); AC-7 also `plan/release/validation/spec-doctor-coverage-2-home-cpe-batch.md` phase 4 (its name-resolver check); the cross-cutting plugin codes (`doctor-plugin-stopped`, `doctor-plugin-config-unapplied`, `doctor-plugin-setup-failed`, `doctor-plugin-external-unsupported`, `doctor-internal-defect`), the event-code registration and the report-bus fix convention are `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a; AC-25 and AC-26 raise under `doctor-dns-source-consumer-stale` and `doctor-resolv-conf-stale`, declared by the `dns-source-selection` check of `plan/release/validation/spec-doctor-coverage-5-appliance.md` (its AC-14, AC-17, AC-18). This spec builds none of them |
+| Depends | `spec-doctor-coverage-1-audit-and-gate` (the `runtime` phase, `Diagnostic.Fix`, the doctor-coverage gate, the `recent-events` check: landed in commits ce58dddf53 and fc96556110); AC-7 also `plan/release/validation/spec-doctor-coverage-2-home-cpe-batch.md` phase 4 (its name-resolver check); the cross-cutting plugin codes (`doctor-plugin-stopped`, `doctor-plugin-config-unapplied`, `doctor-plugin-setup-failed`, `doctor-plugin-external-unsupported`, `doctor-internal-defect`), the event-code registration and the report-bus fix convention are `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a; AC-25 and AC-26 raise under `doctor-dns-source-consumer-stale` and `doctor-resolv-conf-stale`, declared by the `dns-source-selection` check of `plan/release/validation/spec-doctor-coverage-5-appliance.md` (its AC-14, AC-17, AC-18). This spec builds none of them |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-11-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-Parent: `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` (AC-6, AC-9).
+Parent: `spec-doctor-coverage-1-audit-and-gate` (AC-6, AC-9).
 Source: the A8 (interfaces, sysctl, system RIB) and A9 (firewall, traffic, VPP, FIB writers, policy routing) slices of the doctor problem inventory, and the canonical code table of the merge.
 
 ## Task
@@ -45,7 +45,7 @@ Rows child 2 owns stay there and get no AC here: interface backend not loaded (c
 - [ ] `docs/architecture/doctor-and-health-checks.md` - phases, owners, the `runtime` phase, kernel capability enrolment
   → Decision: a kernel feature a configured subsystem cannot work without is a `kernelcap.Capability` from the owning package; `/proc/modules` cannot answer it because a built-in feature lists no module
   → Constraint: a `runtime` check is handed the platform alone and reads its owner's live state, never a config tree (`RunRuntimeChecks`)
-- [ ] `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` - O-1, O-2, O-3, Data Flow 2a and 4b amendments
+- [ ] `spec-doctor-coverage-1-audit-and-gate` - O-1, O-2, O-3, Data Flow 2a and 4b amendments
   → Decision: a report-bus code counts as covered only when its owner's check declares it; the `recent-events` check then shows each event under that code (Data Flow 2a, amended)
   → Constraint: a health row takes no code; the audit maps each row to a check by hand (Data Flow 4b)
 - [ ] `plan/release/validation/spec-doctor-coverage-2-home-cpe-batch.md` - the rows it owns
