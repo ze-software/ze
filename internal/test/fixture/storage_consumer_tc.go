@@ -1,19 +1,25 @@
 // Design: docs/architecture/traffic/tc-original-qdisc-restore.md -- real kernel restart evidence.
+// Related: storage_consumer_tc_other.go -- the refusal every other platform answers
+
+//go:build linux
+
 package fixture
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"time"
 
+	"github.com/vishvananda/netlink"
+
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
-// qdiscKindHTB is the root qdisc kind the daemon installs, as tc reports it.
+// qdiscKindHTB is the root qdisc kind the daemon installs, as the kernel
+// reports it.
 const qdiscKindHTB = "htb"
 
 func storageTCRestart(ctx context.Context, dir string) error {
@@ -32,39 +38,55 @@ func storageTCRestart(ctx context.Context, dir string) error {
 	if _, err := run("ip", "link", "set", name, "up"); err != nil {
 		return err
 	}
-	if _, err := run("tc", "qdisc", "replace", "dev", name, "root", "handle", "7:", "fq_codel", "limit", "321", "quantum", "777"); err != nil {
-		return err
+	// The qdisc is programmed and read through netlink, as the traffic plugin's
+	// own adapter does: Ze's guest ships busybox tc, which cannot replace a
+	// root qdisc and has no JSON output.
+	link, err := netlink.LinkByName(name)
+	if err != nil {
+		return fmt.Errorf("find dummy link %s: %w", name, err)
 	}
+	custom := netlink.NewFqCodel(netlink.QdiscAttrs{
+		LinkIndex: link.Attrs().Index,
+		Handle:    netlink.MakeHandle(7, 0),
+		Parent:    netlink.HANDLE_ROOT,
+	})
+	custom.Limit = 321
+	custom.Quantum = 777
+	if err := netlink.QdiscReplace(custom); err != nil {
+		return fmt.Errorf("install fq_codel limit 321 quantum 777 as root 7: on %s: %w", name, err)
+	}
+	// qdisc is the root qdisc as the kernel reports it. Limit and Quantum are
+	// read from an fq_codel only, and stay zero for any other kind.
 	type qdisc struct {
-		Kind    string `json:"kind"`
-		Handle  string `json:"handle"`
-		Root    bool   `json:"root"`
-		Options struct {
-			Limit   int `json:"limit"`
-			Quantum int `json:"quantum"`
-		} `json:"options"`
+		Kind    string
+		Handle  uint32
+		Limit   uint32
+		Quantum uint32
 	}
 	root := func() (qdisc, error) {
-		out, err := run("tc", "-j", "qdisc", "show", "dev", name)
+		rows, err := netlink.QdiscList(link)
 		if err != nil {
-			return qdisc{}, err
-		}
-		var rows []qdisc
-		if err := json.Unmarshal(out, &rows); err != nil {
-			return qdisc{}, err
+			return qdisc{}, fmt.Errorf("list qdiscs on %s: %w", name, err)
 		}
 		for _, row := range rows {
-			if row.Root {
-				return row, nil
+			attrs := row.Attrs()
+			if attrs.Parent != netlink.HANDLE_ROOT {
+				continue
 			}
+			found := qdisc{Kind: row.Type(), Handle: attrs.Handle}
+			if codel, ok := row.(*netlink.FqCodel); ok {
+				found.Limit = codel.Limit
+				found.Quantum = codel.Quantum
+			}
+			return found, nil
 		}
-		return qdisc{}, fmt.Errorf("no root qdisc: %s", out)
+		return qdisc{}, fmt.Errorf("no root qdisc on %s among %d qdiscs", name, len(rows))
 	}
 	original, err := root()
 	if err != nil {
 		return err
 	}
-	if original.Kind != "fq_codel" || original.Options.Limit != 321 || original.Options.Quantum != 777 {
+	if original.Kind != "fq_codel" || original.Handle != custom.Handle || original.Limit != 321 || original.Quantum != 777 {
 		return fmt.Errorf("custom original qdisc absent: %+v", original)
 	}
 	config := resolveRIRConfig("") + fmt.Sprintf(`traffic { control { backend tc; interface %s { qdisc { type htb; default-class default; class default { rate 10mbit; ceil 10mbit; priority 1; } } } } }`, name)

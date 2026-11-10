@@ -2,6 +2,7 @@ package fixture
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"syscall"
 	"time"
@@ -24,7 +25,12 @@ func trafficReloadQdisc(ctx context.Context, _ []string) error {
 	if !sleepContext(ctx, 500*time.Millisecond) {
 		return ctx.Err()
 	}
-	before, _ := netfilterCommandOutput(ctx, "tc", "qdisc", "show", "dev", "eth0")
+	// A failed show MUST stop the fixture: an empty tc-after.txt would satisfy
+	// the .ci's not-contains=htb with no kernel state read.
+	before, err := netfilterCommandOutput(ctx, "tc", "qdisc", "show", "dev", "eth0")
+	if err != nil {
+		return fmt.Errorf("tc qdisc show dev eth0 before reload: %w", err)
+	}
 	if err := os.WriteFile("tc-before.txt", []byte(before), 0o600); err != nil {
 		return err
 	}
@@ -37,7 +43,10 @@ func trafficReloadQdisc(ctx context.Context, _ []string) error {
 	if !sleepContext(ctx, 2*time.Second) {
 		return ctx.Err()
 	}
-	after, _ := netfilterCommandOutput(ctx, "tc", "qdisc", "show", "dev", "eth0")
+	after, err := netfilterCommandOutput(ctx, "tc", "qdisc", "show", "dev", "eth0")
+	if err != nil {
+		return fmt.Errorf("tc qdisc show dev eth0 after reload: %w", err)
+	}
 	if err := os.WriteFile("tc-after.txt", []byte(after), 0o600); err != nil {
 		return err
 	}

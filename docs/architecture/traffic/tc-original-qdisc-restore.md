@@ -102,7 +102,9 @@ snapshot key must then be absent.
 
 The carrier is `test/traffic/storage-tc-restart.ci`, gated
 `option=needs-linux:caps=net-admin`. It requires Linux, `CAP_NET_ADMIN`, and
-`iproute2`, so a host without those capabilities skips it and the disposable
-QEMU guest (`./le test qemu all`) runs it. It changes only its own dummy
-interface.
+an `ip` command to create the dummy link, so a host without those capabilities
+skips it and the disposable QEMU guest (`./le test qemu all`) runs it. It
+installs and reads the root qdisc through netlink, as the traffic plugin's own
+adapter does, and needs no `tc` binary: the guest's busybox `tc` cannot replace
+a root qdisc and has no JSON output. It changes only its own dummy interface.
 <!-- source: internal/test/fixture/storage_consumer_tc.go -- storageTCRestart -->
