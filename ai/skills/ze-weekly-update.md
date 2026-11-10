@@ -186,8 +186,9 @@ A section that failed is named as failed with its reason: the fact it carries
 is unknown, never zero, so fix the cause and run the report again. A figure
 from the report is still a claim until you verify it at its producer, like
 every other fact in the post. The report exports both endpoints, and its RFC
-sections run each endpoint's own le, compiled from that export: about two
-minutes of CPU for each endpoint. Run it
+sections run each endpoint's own le, compiled from that export. A two-week
+range took 13 minutes (2026-11-10): two compiles, then one record query per
+endpoint for each document whose proof moved. Run it
 alone, as the one CPU-intensive job of the session, and run it once per draft.
 
 Do not close the section with a stock caveat about what a green run does or

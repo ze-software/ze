@@ -8,7 +8,7 @@
 | Release reason | Development tooling for the weekly public update; no shipped behaviour changes |
 | RFC gaps | - |
 | Depends | spec-weekly-news-fragments (the `found-by` field and the fragment parser `parseNewsFragment`) |
-| Phase | 5/6 |
+| Phase | 6/6 |
 | Handoff | - |
 | Updated | 2026-11-10 |
 
@@ -145,7 +145,7 @@ Pending Thomas's confirmation (asked 2026-11-10, option A or B), the main thread
 | No duplicated functionality (extends existing, does not recreate) | Yes | one export helper, one `BuildLe`; the figure is each revision's own producer, a proving record is a verified one whose route is not the escape (`provenRequirements`' predicate), the sum is `rollupOf`'s, scenarios come from `interopScenarioOf` |
 | Zero-copy preserved where applicable (refs, not copies) | No | N-A, tooling |
 | Registration over hardcoding, outbound | Yes (RFC sections) | `rfc-extraction`, `rfc-interop`, `rfc-proven` register from `internal/le/rfc/register.go` |
-| Registration over hardcoding, inbound | No | to be filled: `weekly` holds no list of sources or trailer keys |
+| Registration over hardcoding, inbound | Yes | `weekly` holds no list of sources or trailer keys: `internal/le/weekly/events.go` `registeredSources` orders whatever `RegisterEventSource` received; the trailer keys are `rfc.ApprovalTrailer` and `testweakened.ApprovalTrailer`, read in `internal/le/commit/weekly_source.go` `weeklyApprovalLines` |
 
 ## Risks & Assumptions
 
@@ -153,7 +153,7 @@ Pending Thomas's confirmation (asked 2026-11-10, option A or B), the main thread
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | A `git archive` export of a past revision is enough for the RFC producers (no generated or export-ignored file they need is missing) | `bootstraps` builds le from such an export | The figure at a past revision errors or differs from the ledger | `TestReportProvenMatchesTreeReport` over a fixture repository, plus one run against two real revisions compared with `./le rfc tree` at the newer | confirmed for HEAD (main thread, 2026-11-10): `le rfc tree` on the export equals it on the checkout except for uncommitted and gitignored files, namely a dirty `rfc7296` record and the gitignored `iso-iec-10589` text, both absent from what git holds by design. `TestReportProvenMatchesTreeReport` still owed (phase 4b) |
-| A-2 | Two endpoint builds run in acceptable time for a weekly task | Not measured | The weekly run becomes slow | Time one run at implementation and record it in the spec | confirmed for the export: the main thread measured, on HEAD c268fa58d4 (2026-11-10), a `git archive` export at 3s (373 MB) and `./le rfc tree` on it at 8s, so about 11s per endpoint and 22s for two run one after the other. A past endpoint's own le (option A) measured on 5064d6db1f: about 100s to compile its `cmd/ze` le personality from the export (patched GOROOT required: a plain toolchain fails on `tls.ZeServerChoosesSessionID`), then 11s for its `le rfc tree \| json` on its export. HEAD's le is usually already a launcher build, so a weekly run costs about one compile plus two tree answers; phase 6 times one real run |
+| A-2 | Two endpoint builds run in acceptable time for a weekly task | Not measured | The weekly run becomes slow | Time one run at implementation and record it in the spec | confirmed for the export: the main thread measured, on HEAD c268fa58d4 (2026-11-10), a `git archive` export at 3s (373 MB) and `./le rfc tree` on it at 8s, so about 11s per endpoint and 22s for two run one after the other. A past endpoint's own le (option A) measured on 5064d6db1f: about 100s to compile its `cmd/ze` le personality from the export (patched GOROOT required: a plain toolchain fails on `tls.ZeServerChoosesSessionID`), then 11s for its `le rfc tree \| json` on its export. No launcher build is reused, so both endpoints compile. One real run, `./le weekly report from 5064d6db1f to HEAD '\|' json` at 226de36ff1 (2026-11-10, 2531 commits, a two-week range): 784s, every section answered, the run directory removed. The two compiles and two tree answers take about four minutes; the rest is one `rfc discriminate stem` per endpoint for each of the 155 documents whose proof moved. Acceptable for a task run once per draft; the skill states the measured cost |
 | A-3 | The producers `treeReport`, `provenRequirements`, `interopScenarioOf` and `extractionStatus` can be called with an explicit directory root | Research: every producer takes a root | A producer reads `lepath.Root()` directly and needs a root parameter | Implementation reads each call path; a root parameter is added where missing | BROKEN (main thread, 2026-11-10): the producers take a root, but today's corpus readers refuse a past endpoint whose summary format changed in the range. On the 5064d6db1f export today's le answers "Meta field `Support status` is retired ... refusing to publish an incomplete requirement population". Each endpoint's figures therefore come from that endpoint's own le (Key Design Decisions); `interopScenarioOf` reads only checker source and stays in-process |
 
 ### Risks
@@ -343,7 +343,7 @@ Pending Thomas's confirmation (asked 2026-11-10, option A or B), the main thread
 |----------|------------------------|-----------|
 | Derived report over existing records | New append-only event log | Every fact declared once; a shared log collides between sessions |
 | Export each endpoint and run the existing producers | Diff record files only; blob-backed RFC readers | Only the producers give the published figure; blob readers are a large refactor |
-| RFC figures at each endpoint come from that endpoint's own le (the launcher's build whose `inputs` match, else built from its export with `export.BuildLe`), run as a subprocess with `ZE_REPO_ROOT=<export>` and read through its `\| json` answer (option A, pending Thomas's confirmation) | Today's producers on the export (refuses a past summary format: A-3); the previous post's published figure (option B: approximate, no per-requirement movement, and Thomas may still choose it) | The figure is the one that revision's ledger published, whatever format its summaries used; the JSON keys read (`mandatory-proven`, `mandatory-total`, `walked`, `records`) exist at HEAD and at 5064d6db1f; the cost is one compile per past endpoint (A-2) |
+| RFC figures at each endpoint come from that endpoint's own le (built from its export with `export.BuildLe`; no launcher build is reused, see Existing Mechanisms), run as a subprocess with `ZE_REPO_ROOT=<export>` and read through its `\| json` answer (option A, pending Thomas's confirmation) | Today's producers on the export (refuses a past summary format: A-3); the previous post's published figure (option B: approximate, no per-requirement movement, and Thomas may still choose it) | The figure is the one that revision's ledger published, whatever format its summaries used; the JSON keys read (`mandatory-proven`, `mandatory-total`, `walked`, `records`) exist at HEAD and at 5064d6db1f; the cost is one compile per past endpoint (A-2) |
 | No record of test-judge refusals | One tracked file per refusal | The public post bans internal process; a refusal that matters shows through the fix's fragment (`found-by: test-judge`) |
 | `found-by` on fragments marks defects found by a check | A journal column across every class file | The agent who fixed it knows; no migration of the journal |
 | Sections are registered sources | One function in `weekly` calling each producer | `weekly` imports no owner, as `roadmap.RegisterCorpusReader` already does |
@@ -381,3 +381,139 @@ Pending Thomas's confirmation (asked 2026-11-10, option A or B), the main thread
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
 - [ ] **Commit A:** code + tests + docs + edited spec
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` with `no-news "tooling: no operator-visible change"`
+
+## Implementation Summary
+
+### What Was Implemented
+- `le weekly report from <rev> to <rev>` (`internal/le/weekly/answer.go` `reportVerb`, `answerReport`; `internal/le/weekly/events.go` `reportRun.answer`, `RegisterEventSource`, `exportEndpoints`): resolves both revisions, lists the first-parent commits, exports both endpoints into one run directory under the session scratch, asks every registered source, removes the run directory on every exit (3f7ee0e16d, 8ae8531a2d, af6128f072)
+- Shared export helper `export.Commit` and `export.BuildLe` (`internal/le/repo/export/`), used by `./le repo bootstraps`, `./le repo compiles` and the report (3f7ee0e16d, 303123897f)
+- Sections `approvals` and `fix-fragments` (`internal/le/commit/weekly_source.go`, 93face9542); `rfc-proven`, `rfc-interop`, `rfc-extraction` (`internal/le/rfc/weekly_source.go`, 226de36ff1), each endpoint's figures read from that endpoint's own le
+- `ai/skills/ze-weekly-update.md`: the RFC table's movement, defects and approvals rows read the report; the paragraph after it states the measured cost (226de36ff1 and closure commit A)
+
+### Bugs Found/Fixed
+- None in this spec's code. Another session's over-long `Summary` made `le help` panic at HEAD and was fixed in 6c129c64a7 to unblock the launcher; it is not this spec's code
+
+### Documentation Updates
+- `docs/architecture/core-design.md` weekly paragraph, anchors `internal/le/weekly/events.go`, `internal/le/commit/register.go`, `internal/le/rfc/register.go`, `internal/le/commit/weekly_source.go` (8ae8531a2d, 226de36ff1)
+- `docs/contributing/rfc-conformance-gates.md` after "The discrimination record", anchor `internal/le/rfc/weekly_source.go -- weeklyRangeOf, comparedStems, gainedScenarios` (226de36ff1)
+- `docs/architecture/testing/tracked-build-gate.md` one export helper and `BuildLe`, anchors `export.go -- Commit, emptyDirectory`, `build.go -- BuildLe` (3f7ee0e16d, 303123897f)
+- `./le doc check all` at closure: source anchors "all references valid" (4403 code paths), rules and discovery index fresh; its one failure is the `../wiki/command-catalog.md` drift against the live command catalog (`./le cli catalog update`), another surface's, not this spec's
+
+### Deviations from Plan
+- A-3 broken: today's corpus readers refuse a past endpoint whose summary format changed, so each endpoint's figures come from that endpoint's own le, built from its export and run as a subprocess (option A). Thomas was asked A vs B on 2026-11-10 and has not answered; the main thread proceeds under A, which is implemented and proven by the real run
+- No launcher build is reused (Existing Mechanisms, "Launcher builds"): a Go copy of the `le` script's input list would be a second declaration, so both endpoints compile
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-3: the producers were assumed callable on any past tree with a root parameter | Today's corpus readers refuse a past summary format ("Meta field `Support status` is retired") | Phase 2 feasibility run on the 5064d6db1f export | Design changed to each endpoint's own le (Key Design Decisions); owner confirmation of option A pending |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Requirements proven by a recorded break | Done | `internal/le/rfc/weekly_source.go` `answerWeeklyProven` | |
+| Interop scenarios that gained a recorded red | Done | `internal/le/rfc/weekly_source.go` `answerWeeklyInterop`, `gainedScenarios` | |
+| Documents whose requirement list was signed off | Done | `internal/le/rfc/weekly_source.go` `answerWeeklyExtraction` | |
+| Test-judge approvals | Done | `internal/le/commit/weekly_source.go` `answerWeeklyApprovals` | landed approvals only, stated in the note |
+| Defects the checking surfaced | Done | `internal/le/commit/weekly_source.go` `answerWeeklyFragments` | grouped by `found-by` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestWeeklyReportAnswersEverySection` | |
+| AC-2 | Done | `TestReportProvenMatchesTreeReport`, `TestReportListsNewlyProvenAndLost` | |
+| AC-3 | Done | `TestReportNamesInteropScenarios` | |
+| AC-4 | Done | `TestReportListsNewSignOffs` | |
+| AC-5 | Done | `TestReportCountsApprovalsInRange` | |
+| AC-6 | Done | `TestReportGroupsFragmentsByFoundBy` | |
+| AC-7 | Done | `TestWeeklyReportRefusesUnresolvableRevision` | |
+| AC-8 | Done | `TestWeeklyReportFailedSourceIsNamed`, `TestReportRefusesAnAnswerMissingAKey` | |
+| AC-9 | Done | `TestWeeklyReportRemovesExports`; real run removed its run directory | |
+| AC-10 | Done | `TestWeeklyBareLineStillPublishes` | |
+| AC-11 | Done | `ai/skills/ze-weekly-update.md`, the RFC fact-to-source table and the paragraph after it | |
+| AC-12 | Done | `TestExportHelperMaterialisesCommit`, bootstraps tests (short) | non-short `TestTheCheckoutsOwnHeadIsClean` owed |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The 14 tests of the TDD plan | Done | `internal/le/weekly/events_test.go`, `answer_test.go`, `internal/le/rfc/weekly_source_test.go`, `internal/le/commit/weekly_source_test.go`, `internal/le/repo/export/export_test.go` | all present by name (`grep -n '^func Test'`) |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Every file in Files to Modify and Files to Create | Done | all exist; `docs/architecture/testing/tracked-build-gate.md` also edited |
+
+### Audit Summary
+- **Total items:** 31
+- **Done:** 31
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (A-3 design, recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The weekly writer reads the range's tooling events instead of `git show` by hand | user workflow, real entry point | `./le weekly report from 5064d6db1f to HEAD '\|' json` at 226de36ff1: every section answered in 784s; rfc-proven 2082/5079 at from, 2226/5171 at to, 168 newly proven, 6 lost, 155 documents compared; rfc-interop 6 scenarios; rfc-extraction 3 newly signed off (rfc2548, rfc5625, rfc7084); approvals 489 RFC-approved, 1431 Weakening-approved, 210 Test-judge; fix-fragments 2 with no found-by |
+| The published figure (MUSTs proven) at a past revision is the one its ledger published | data correctness | `TestReportProvenMatchesTreeReport` compares with `rollupOf` over the same tree; the real run read 5064d6db1f's figure from that revision's own le |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is implemented; option A vs B is an owner confirmation of an implemented design, not unfinished work | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/weekly-event-report-12fcb467-e181-40cc-ae6e-0686684200e0.md` (untracked; the spec and the skill, hash-pinned) |
+| `./le spec review check` | clean |
+| Rounds | 1 |
+| Reviewer lenses used | logic and wiring, security (argv, revision refusal, scratch removal), edge cases (empty range, missing JSON keys, RID collisions across stems), Go style |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | No BLOCKER or ISSUE | - | - |
+
+### Run 1 (final, independent reviewer, did not author the code)
+- 0 BLOCKER, 0 ISSUE. `./le test weakened check base 3f7ee0e16d^`: no finding in this spec's files (the 10 findings are other sessions' files). `./le repo check`: no finding in this spec's files
+- Style pass: the only `panic` is `weekly.RegisterEventSource` at `init()` time, reachable from no input; every child gets argv, never a shell; a missing JSON key is refused by name, never read as zero
+- NOTE: `fix-fragments` lists every fragment added, not only fixes; one with no `found-by` lands in the total, as AC-6 permits, and the note's "the defect each one fixes" wording reads slightly wider than that
+- NOTE: a binary linking no source answers zero sections as complete; its text says so, and `le` links all five
+- NOTE: requirement ids carry their RFC prefix (`RFC4271-10-1`), so `provenRIDs` comparing by RID alone cannot collide across documents
+- NOTE: the stated bound of `comparedStems` (equal counts, no record file changed) is disclosed in the section note and the gates page
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| the nine files of Files to Create | Yes | `ls` at closure listed all nine |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-10 | unit tests pass | main thread 2026-11-10: `go test -race ./internal/le/weekly/` ok; `-run 'TestReport\|TestEndpointLe' ./internal/le/rfc/` ok; commit `-run 'TestReport\|TestNewsFragment\|TestCreateNoNews'` ok |
+| AC-11 | skill reads the report | `grep -n 'weekly report' ai/skills/ze-weekly-update.md` hits the RFC table rows and the run paragraph |
+| AC-12 | one export helper | `grep -rn '"archive"' internal/le` names only `export.Commit` in `internal/le/repo/export/export.go`; export, bootstraps (short), compiles, objects ok |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `le weekly report from <a> to <b>` | none (le tooling; `TestWeeklyReportAnswersEverySection` drives the action table) | the real run through `./le` answered every section; `./le cli grammar` OK; `TestEveryNamespaceIsDescribedInTheMenu` ok |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | export equals checkout for HEAD except uncommitted and gitignored files; `TestReportProvenMatchesTreeReport` |
+| A-2 | confirmed | 784s real run, two-week range (row A-2) |
+| A-3 | broken | past summary format refused by today's readers; design changed to each endpoint's own le (Mistake Log, Deviations) |
+
+### Owed to the main thread
+- Non-short `./le job run label unit-pkg command go test ./internal/le/repo/bootstraps/` (`TestTheCheckoutsOwnHeadIsClean`), red before only from the other session's Summary defect fixed in 6c129c64a7, not rerun since
+- `./le repo compiles check` is not owed: commit A carries no Go
