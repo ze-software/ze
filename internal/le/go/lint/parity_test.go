@@ -75,6 +75,9 @@ func lintFixture(t *testing.T) (string, []string) {
 	writeLintFile(t, root, "examples/plugin/go/main.go", "package main\n")
 	writeLintFile(t, root, "tools.go", "//go:build tools\n\npackage tools\n")
 	writeLintFile(t, root, ".golangci/ruleguard/modern.go", "//go:build ruleguard\n\npackage ruleguard\n")
+	// The input guard asks git which selected inputs it ignores, so the
+	// fixture is its own work tree, never one an enclosing directory holds.
+	lintGuardGit(t, root, "init", "--quiet")
 	return root, files
 }
 

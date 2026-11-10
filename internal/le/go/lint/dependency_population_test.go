@@ -42,6 +42,7 @@ func TestLintDependencyInputPopulation(t *testing.T) {
 				writeLintFile(t, root, "live/live.go", "package live\nconst Value = 7\n")
 				writeLintFile(t, root, "live/live_test.go", "package "+testCase.testPackage+"\nimport (\"testing\"; \"lintfixture/"+dependency+"\")\nfunc TestImportedValue(t *testing.T) { if probe.Value != 9 { t.Fatal(probe.Value) } }\n")
 			}
+			lintGuardGit(t, root, "init", "--quiet")
 			runner := &Runner{
 				ctx: t.Context(), root: root, toolchain: fixtureChain(root),
 				ops: runnerOps{capture: captureCommand},

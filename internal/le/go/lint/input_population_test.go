@@ -35,6 +35,7 @@ func TestLintInputPopulation(t *testing.T) {
 				body = "preserved evidence, deliberately not a Go package\n"
 			}
 			writeLintFile(t, root, relative, body)
+			lintGuardGit(t, root, "init", "--quiet")
 			runner := &Runner{
 				ctx: t.Context(), root: root, toolchain: fixtureChain(root),
 				ops: runnerOps{capture: captureCommand},

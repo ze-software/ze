@@ -30,6 +30,7 @@ func TestLintAllowedAuthoredTestScope(t *testing.T) {
 				value = "live.Value"
 			}
 			writeLintFile(t, root, "live/live_test.go", "package "+testPackage+"\n"+imports+"func TestAllowedValues(t *testing.T) { if "+value+" != 7 { t.Fatal(\"wrong live value\") }; if probe.Value != 11 { t.Fatal(\"wrong dependency value\") } }\n")
+			lintGuardGit(t, root, "init", "--quiet")
 			runner := &Runner{
 				ctx: t.Context(), root: root, toolchain: fixtureChain(root),
 				ops: runnerOps{capture: captureCommand},

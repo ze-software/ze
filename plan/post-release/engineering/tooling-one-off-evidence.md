@@ -2612,3 +2612,24 @@ restored run passed.
 
 The P-1 engine carrier lives in `internal/test/cli`, because the file and
 stdin entry (`CmdEngineSteps`) is there and `cli` imports `runner`.
+
+## P-37: the lint input guard matches its producer, and refuses git-ignored inputs (2026-11-10)
+
+Writing `TestLintInputGuardMatchesProducer` exposed a gap: `job.CheckLintInputs`
+refused only selected inputs under `lintIgnores`, while the lint fingerprint
+(`InputHash`) also leaves out every file git ignores. A real Go input `go list`
+selects from a git-ignored tree with no nested `go.mod` passed the guard but
+never reached the fingerprint, so an edit to it did not void a shared lint
+verdict. `CheckLintInputs` now passes the selected canonical paths through
+`git check-ignore -z --stdin` and refuses each one it names, saying why and
+how to fix it; the lint fixtures gain `git init`. A real scoped lint of
+`internal/le/job` and `internal/le/go/lint` ran with no refusal, so the live
+checkout selects no ignored input.
+
+| Carrier | Break (Go overlay, `p37w/`) | Red |
+| --- | --- | --- |
+| `TestLintInputGuardMatchesProducer` | `goList` passes no inputs to the guard | "lint admitted excluded real input backups/probe.go" |
+| same | the lint fingerprint also ignores `live/` | "an edit to selected input live/live.go did not change the lint fingerprint" |
+| `TestLintRefusesAGitIgnoredInput` | the check-ignore refusal skipped | "lint admitted git-ignored real input scratch/probe.go" |
+
+Each restored run passed; `internal/le/go/lint` and `internal/le/job` ok.

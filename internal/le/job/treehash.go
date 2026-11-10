@@ -23,6 +23,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"hash"
 	"io"
@@ -121,14 +122,15 @@ var labelIgnores = map[string][]string{
 }
 
 // CheckLintInputs refuses actual checkout-relative compiler inputs omitted from
-// the lint fingerprint, including a selected symlink's canonical target.
-// Callers MUST pass the complete producer-selected compiler population before
+// the lint fingerprint, including a selected symlink's canonical target and an
+// input git ignores. The root MUST be a git work tree. Callers MUST pass the complete producer-selected compiler population before
 // admitting work that may attach to a shared verdict. Resolution errors refuse.
 func CheckLintInputs(root string, selected map[string]bool) error {
 	canonicalRoot, err := filepath.EvalSymlinks(root)
 	if err != nil {
 		return fmt.Errorf("resolve lint checkout %s: %w", root, err)
 	}
+	canonicals := make([]string, 0, len(selected))
 	for path := range selected {
 		if ignoredTree(path, lintIgnores) {
 			return fmt.Errorf("lint input %s belongs to a tree excluded from the lint fingerprint; correct the input declaration before sharing a verdict", path)
@@ -151,8 +153,51 @@ func CheckLintInputs(root string, selected map[string]bool) error {
 		if ignoredTree(relative, lintIgnores) {
 			return fmt.Errorf("lint input %s resolves to excluded compiler input %s; correct the input declaration before sharing a verdict", path, relative)
 		}
+		canonicals = append(canonicals, relative)
 	}
-	return nil
+	return refuseGitIgnoredInputs(root, canonicals)
+}
+
+// refuseGitIgnoredInputs refuses a selected compiler input that git ignores.
+// InputHash reads only the paths git reports (tracked changes and untracked
+// files git does not ignore), so an ignored input is outside the lint
+// fingerprint: an edit to it would not void a shared verdict. The paths are
+// canonical and checkout-relative, because git judges a path beyond a symlink
+// as an error and fingerprints the target, not the link's directory.
+func refuseGitIgnoredInputs(root string, canonicals []string) error {
+	if len(canonicals) == 0 {
+		return nil
+	}
+	slices.Sort(canonicals)
+	var input bytes.Buffer
+	for _, relative := range canonicals {
+		input.WriteString(relative)
+		input.WriteByte(0)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
+	defer cancel()
+
+	//nolint:gosec // every argument is a literal; only the directory and stdin vary
+	cmd := exec.CommandContext(ctx, "git", "check-ignore", "-z", "--stdin")
+	cmd.Dir = root
+	cmd.Stdin = &input
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if exit, isExit := errors.AsType[*exec.ExitError](err); isExit {
+		// refuse-by-default: guards CheckLintInputs -- exit 1 is git check-ignore's verdict that it ignores no selected input
+		if exit.ExitCode() == 1 {
+			return nil
+		}
+	}
+	if err != nil {
+		return fmt.Errorf("ask git which lint inputs it ignores in %s: %w: %s", root, err, strings.TrimSpace(stderr.String()))
+	}
+	ignored := nulPaths(out)
+	if len(ignored) == 0 {
+		return fmt.Errorf("git check-ignore in %s reported ignored lint inputs and named none; rerun the lint", root)
+	}
+	return fmt.Errorf("lint input %s is ignored by git, so the lint fingerprint never reads it and an edit to it would not void a shared verdict; give its directory its own go.mod to keep it out of lint, or stop ignoring it in .gitignore", strings.Join(ignored, ", "))
 }
 
 // InputHash returns the fingerprint of the inputs one label's work reads.
