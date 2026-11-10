@@ -2,14 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Priority | P0 |
 | Release reason | Existing ARP IP-header misreads and cross-producer table collisions can defeat accepted firewall and VRRP protection. |
 | Scope | config |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-09 |
+| Updated | 2026-11-10 |
 
 ## Task
 
@@ -232,9 +232,9 @@ None.
 
 ## Work Not Done
 
-| Scope | Current owner |
-|---|---|
-| New leaves: AC-1..11, AC-13..14, AC-17..21; all feature design outside the release correction. | `plan/post-release/features/spec-firewall-arp-nd-matches.md` |
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| New leaves: AC-1..11, AC-13..14, AC-17..21; all feature design outside the release correction | Split out as post-release feature work before this spec started | `plan/post-release/features/spec-firewall-arp-nd-matches.md` |
 
 ## Checklist
 
@@ -256,9 +256,159 @@ None.
 - [ ] **Commit A:** code + tests + docs + edited spec + journal rows
 - [ ] **Commit B:** remove the spec
 
+## Implementation Summary
+
+### What Was Implemented
+- AC-12 (6da2c99b2c): `validateMatch` (`internal/component/firewall/validate.go`) refuses, in family arp and ahead of the type switch, every match `ipHeaderMatchLeaf` names, with "<leaf> match reads the IP header, and family arp carries no IP header; move the term to a table of family ip, ip6 or inet".
+- AC-15 and AC-22 (29c4f94f8e): `internal/component/firewall/reservation.go` (`MustReserveTableNames`, `refuseForeignReservations`, `refuseReservedTableNames`); `RegisterTables` refuses a name another owner reserved before it changes the registry (`registry.go`); `parseAndVerifyFirewallSections` and the configure closure refuse an operator table on a reserved kernel name (`engine.go`); every `RegisterTables` producer reserves its own names from its own `register_tables.go` `init()` (vrrp, flowspec-firewall, copp, policyroute, ddos/local, anomaly/shape, gtsm, ike/engine, firewall/plugins/irr), and the firewall engine reserves its conntrack-helper tables from `register.go`.
+- AC-16 (29c4f94f8e): `TestVRRPOwnerSurvivesOperatorARPTable` (QEMU) proves an operator arp accept beside the VRRP owner table does not override the owner drop.
+- Review round-2 fix (the wording commit after 3853a00b92, see Review Gate): the two reservation refusals and the firewall guide say two owners in one kernel table "would overwrite each other's chains", true both for registry owners merged by `ApplyAll` and for `ze_iface_rpf`, whose two writers delete and recreate the table; `docs/features/interfaces.md` names the reserved `iface_rpf`.
+- Review round-1 fix (3853a00b92, see Review Gate): the IPv6 reverse-path table `ze_iface_rpf`, written directly over netlink by `ReplaceIPv6RPF` (`internal/plugins/iface/netlink/rpf_linux.go`) and never registered, is reserved for owner `iface-rpf` from `internal/plugins/iface/netlink/register_tables.go`, which now holds `rpfTableName` untagged.
+
+### Bugs Found/Fixed
+- Family-arp IP-header misreads (journal `guard-added-to-one-half-of-a-pair.md`): covered by `TestValidateARPFamilyRefusesIPHeaderMatches` and `test/parse/firewall-arp-ip-header-match-rejected.ci`.
+- Operator table merged into a producer table (journal `two-owners-share-one-name.md`): covered by the reservation tests and `test/parse/firewall-reserved-table-name-rejected.ci`.
+- `ze_iface_rpf` unreserved (review round 1 ISSUE): covered by `TestRPFTableIsReserved` and `test/parse/firewall-iface-rpf-table-name-rejected.ci`.
+
+### Documentation Updates
+- `docs/architecture/firewall/table-ownership-and-shutdown-flush.md`: the Rule 2 producer table lists every producer, with the `iface-rpf` row and a paragraph on the writer outside the registry; Rule 2b states the reservation. Anchors: `reservation.go -- MustReserveTableNames, refuseForeignReservations, refuseReservedTableNames`, `engine.go -- parseAndVerifyFirewallSections`, `iface/netlink/register_tables.go -- rpfTableName, rpfTableOwner`, `iface/netlink/rpf_linux.go -- ReplaceIPv6RPF`.
+- `docs/guide/firewall.md`, Table Families: the arp refusal (anchor `validate.go -- validateMatch, ipHeaderMatchLeaf`) and the reserved-name refusal, which names `iface_rpf` and says the reserved set depends on the build's features (anchor `reservation.go -- refuseReservedTableNames`).
+- `./le doc check all`: owed to the main thread; the closure agent runs no checks.
+
+### Deviations from Plan
+- Round 1 found a twelfth table writer outside the registry (`ze_iface_rpf`). It is reserved the same way, from its owning package, with no list in the firewall component. Files to Modify gains `internal/plugins/iface/netlink/rpf_linux.go`; Files to Create gains `internal/plugins/iface/netlink/register_tables.go`, `internal/plugins/iface/netlink/reservation_test.go` and `test/parse/firewall-iface-rpf-table-name-rejected.ci`.
+- `internal/plugins/flowspec-firewall/state_test.go` registered owner `flowspec-prefix-test` on the reserved `ze_flowspec`; it now uses the real owner `flowspec`. An independent `ze-test-judge` approved the change.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The producer census for Rule 2b was taken from `RegisterTables` callers only | `ReplaceIPv6RPF` writes a `ze_` table over netlink without the registry, so it had no reservation | Independent review round 1 | Reserved from `iface/netlink/register_tables.go`. A grep of every `google/nftables` importer under `internal/` finds no other direct writer of a `ze_` name: flowexport's `ze-conntrack` uses a hyphen, `support/collect_linux.go` only reads, the rest are tests and fixtures |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Correct accepted family-arp matches that read IP offsets | Done | `internal/component/firewall/validate.go` `validateMatch` | AC-12 |
+| Prevent operator/producer table-name collisions | Done | `internal/component/firewall/reservation.go`; `registry.go` `RegisterTables`; `engine.go` `parseAndVerifyFirewallSections` and the configure closure | AC-15, AC-22, and `ze_iface_rpf` |
+| AC-16 on the current operator match surface | Done | `internal/plugins/vrrp/owner_operator_arp_integration_linux_test.go` `TestVRRPOwnerSurvivesOperatorARPTable` | no new leaf used |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-12 | Done | `TestValidateARPFamilyRefusesIPHeaderMatches`, `TestValidateARPFamilyAcceptsMetadataMatches`, `test/parse/firewall-arp-ip-header-match-rejected.ci` | survivors input-interface and mark proven accepted |
+| AC-15 | Done | `TestOperatorTableRefusedOnAReservedName`, `TestOwnerTablesAreReserved`, `TestRPFTableIsReserved`, `test/parse/firewall-reserved-table-name-rejected.ci`, `test/parse/firewall-iface-rpf-table-name-rejected.ci` | |
+| AC-16 | Done | `TestVRRPOwnerSurvivesOperatorARPTable` | its control phase is the discrimination |
+| AC-22 | Done | `TestRegisterTablesRefusesAReservedName`, `TestRegisterTablesAcceptsSetsIntoAnUnreservedName`, `TestMustReserveTableNamesPanicsOnASecondOwner`, `TestConntrackHelperTablesAreReserved` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestValidateARPFamilyRefusesIPHeaderMatches` | Done | `internal/component/firewall/validate_test.go` | |
+| `TestValidateARPFamilyAcceptsMetadataMatches` | Done | `internal/component/firewall/validate_test.go` | added by round 1, NOTE 1 |
+| `TestRegisterTablesRefusesAReservedName` | Done | `internal/component/firewall/reservation_test.go` | |
+| `TestRegisterTablesAcceptsSetsIntoAnUnreservedName` | Done | `internal/component/firewall/reservation_test.go` | |
+| `TestOperatorTableRefusedOnAReservedName` | Done | `internal/component/firewall/reservation_test.go` | |
+| `TestMustReserveTableNamesPanicsOnASecondOwner` | Done | `internal/component/firewall/reservation_test.go` | |
+| `TestOwnerTablesAreReserved` | Done | `internal/plugins/vrrp/reservation_test.go` | |
+| `TestRPFTableIsReserved` | Done | `internal/plugins/iface/netlink/reservation_test.go` | added by round 1 |
+| `test/parse/firewall-arp-ip-header-match-rejected.ci` | Done | `test/parse/` | |
+| `test/parse/firewall-reserved-table-name-rejected.ci` | Done | `test/parse/` | |
+| `test/parse/firewall-iface-rpf-table-name-rejected.ci` | Done | `test/parse/` | added by round 1 |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/firewall/validate.go` | Done | 6da2c99b2c |
+| `internal/component/firewall/registry.go`, `engine.go`, `register.go`, `reservation.go`, `reservation_test.go` | Done | 29c4f94f8e; the `reservation.go` comment is reworded in 3853a00b92, and its refusal text and `MustReserveTableNames` comment in the round-2 wording commit |
+| producer `register_tables.go` files | Done | 29c4f94f8e, plus `internal/plugins/iface/netlink/register_tables.go` in 3853a00b92 |
+| `internal/plugins/vrrp/owner_operator_arp_integration_linux_test.go` | Done | 29c4f94f8e |
+| both docs | Done | 6da2c99b2c, 29c4f94f8e, 3853a00b92, and the round-2 wording commit (which also edits `docs/features/interfaces.md`) |
+| both journal rows | Done | closed with `fixed:` cells in 6da2c99b2c and 29c4f94f8e |
+
+### Audit Summary
+- **Total items:** 4 AC, 3 task requirements, 11 tests, 6 file groups
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** the `ze_iface_rpf` reservation and the flowspec test owner (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An arp table no longer accepts a match the kernel reads at IPv4 offsets of the ARP header | functional (`ze config validate`) + unit | `test/parse/firewall-arp-ip-header-match-rejected.ci` passes, and with the guard removed it went red: "expected exit code 1, got 0 ... configuration valid"; `TestValidateARPFamilyRefusesIPHeaderMatches` red without the guard |
+| An operator table cannot share a kernel table with a producer | functional (`ze config validate`) + unit | `test/parse/firewall-reserved-table-name-rejected.ci` passes, red without `refuseReservedTableNames` ("expected exit code 1, got 0"); `TestOperatorTableRefusedOnAReservedName` red without it ("expected a refusal for a reserved operator table name, got nil"); for the netlink-written table, `test/parse/firewall-iface-rpf-table-name-rejected.ci` and `TestRPFTableIsReserved` pass after 3853a00b92 (main-thread run: full-tag tests of `internal/plugins/iface/netlink`, `internal/component/firewall` and `internal/plugins/vrrp`, and all ten firewall parse `.ci` files), and both go red with the `ze_iface_rpf` reservation removed (main-thread red proof) |
+| A producer cannot register another owner's table | unit | `TestRegisterTablesRefusesAReservedName` red without `refuseForeignReservations` ("expected a refusal for a name another owner reserved, got nil") |
+| The VRRP owner filter survives an operator arp accept, on the current match surface | kernel integration (QEMU, real nft) | `TestVRRPOwnerSurvivesOperatorARPTable` PASS (2.20s); its control phase, operator table alone, sees the physical MAC, so the owner-drop assertion discriminates |
+
 ## Review Gate
 
-Pending.
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/firewall-existing-family-and-owner-correctness-f90e7822-ecbf-462e-ac37-c494b4c2c988.md` |
+| `./le spec review check` | owed to the main thread over the closure commit's files, after the round-3 artifact is recorded |
+| Rounds | 3, all by independent reviewers |
+| Reviewer lenses used | round 1: independent reviewer, covering logic, wiring, the producer census and docs; round 2: independent reviewer over 3853a00b92, confirming each round-1 fix and re-reading the refusal text, the guide and the ownership page; round 3: independent reviewer over 7d2ecf5c70, confirming the wording fix and the interfaces page |
+
+### Run 1 (independent reviewer): 0 BLOCKER, 1 ISSUE, 4 NOTE
+- NOTE 1: no accept rows proved input-interface and mark stay accepted in family arp. Fixed: `TestValidateARPFamilyAcceptsMetadataMatches`.
+- NOTE 2: the guide did not say the reserved set depends on the build's features. Fixed: `docs/guide/firewall.md`, Table Families.
+- NOTE 3: the `tableReservations` comment said "its own register.go" and "no table of its name can then exist". Fixed: it names `register_tables.go` and says no producer table remains to merge with; Rule 2b carries the same correction.
+- NOTE 4: flowexport's `ze-conntrack` is a direct nft writer but safe (hyphen, no `ze_` prefix). Confirmed by grep; no change.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `ze_iface_rpf` is written directly over netlink and never reserved: an operator ip6 table `iface_rpf` shares it, the nft backend's apply deletes and recreates it (wiping the RPF chain and the strict and loose sets), and `ReplaceIPv6RPF` then wipes the operator's rules | `internal/plugins/iface/netlink/rpf_linux.go` `ReplaceIPv6RPF`, `rpfTableName` | `internal/plugins/iface/netlink/register_tables.go` reserves it for `iface-rpf`; `TestRPFTableIsReserved`; `test/parse/firewall-iface-rpf-table-name-rejected.ci`; the Rule 2 row |
+
+### Run 2 (independent reviewer, over 3853a00b92): 0 BLOCKER, 1 ISSUE, 2 NOTE
+All four round-1 findings confirmed fixed. An earlier round 2 was a re-read by the agent that wrote the round-1 fixes; it is not independent and is superseded by this run.
+- ISSUE: `refuseForeignReservations`, `refuseReservedTableNames` (`internal/component/firewall/reservation.go`) and `docs/guide/firewall.md`, Table Families, said "two owners in one kernel table would merge their chains", false for `ze_iface_rpf`: `queueIPv6RPF` (`internal/plugins/iface/netlink/rpf_linux.go`) adds and deletes the table and the nft backend's apply deletes and recreates it, so each writer wipes the other. Fixed in the wording commit after 3853a00b92: both refusals and the guide say "would overwrite each other's chains", and the `MustReserveTableNames` comment names both outcomes. No test asserts the clause.
+- NOTE 1: an operator table cannot be named `iface_rpf`, and the interface pages did not say so. `docs/features/interfaces.md`, Reverse-path check, now says so in the wording commit. `docs/guide/configuration.md` is left as is: it carries another session's uncommitted hunk.
+- NOTE 2: the ddos-local owner string in `docs/architecture/firewall/table-ownership-and-shutdown-flush.md`, Rule 2 table. Checked: the owner is `ze_ddos-local` (`internal/plugins/ddos/local/register_tables.go` reserves under `tableName`, `responder.go` sets it to `ze_ddos-local`), as the page says. No change.
+
+### Run 3 (independent reviewer, over 7d2ecf5c70): 0 BLOCKER, 0 ISSUE, 0 NOTE
+The round-2 ISSUE is confirmed fixed. `queueIPv6RPF` adds, deletes and re-adds `ze_iface_rpf`, and the nft backend's `Apply` deletes every desired-named `ze_` table and recreates it, so "would overwrite each other's chains" holds for both the registry case and the out-of-registry case. No reservation refusal or guide still says "merge their chains". The `docs/features/interfaces.md` paragraph matches `register_tables.go` and `refuseReservedTableNames`.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/firewall/reservation.go`, `reservation_test.go` | yes | `git show --stat 29c4f94f8e` |
+| `internal/plugins/vrrp/owner_operator_arp_integration_linux_test.go` | yes | `git show --stat 29c4f94f8e` |
+| `test/parse/firewall-arp-ip-header-match-rejected.ci` | yes | `git show --stat 6da2c99b2c` |
+| `test/parse/firewall-reserved-table-name-rejected.ci` | yes | `git show --stat 29c4f94f8e` |
+| `internal/plugins/iface/netlink/register_tables.go`, `reservation_test.go`, `test/parse/firewall-iface-rpf-table-name-rejected.ci` | yes | `git show --stat 3853a00b92` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-12 | arp guard ahead of the type switch | `validateMatch`: `if leaf, readsIP := ipHeaderMatchLeaf(m); readsIP {` before `switch v := m.(type)` |
+| AC-15 | operator refusal on verify and configure | `parseAndVerifyFirewallSections` and the configure closure in `engine.go` each call `refuseReservedTableNames(cfg.Tables)` before `ValidateTables` |
+| AC-16 | owner drop survives operator accept | `--- PASS: TestVRRPOwnerSurvivesOperatorARPTable (2.20s)` |
+| AC-22 | registry refusal before the registry changes | `RegisterTables` calls `refuseForeignReservations(owner, tables)` ahead of `tableRegistry.mu.Lock()` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze config validate` with an arp table using `source-address` | `test/parse/firewall-arp-ip-header-match-rejected.ci` | read: `exec=ze config validate -`, expects exit 1 and the arp refusal text |
+| `ze config validate` with a table named `vrrp_owner_arp` | `test/parse/firewall-reserved-table-name-rejected.ci` | read: expects exit 1 and `kernel name "ze_vrrp_owner_arp" is reserved by owner "vrrp-owner"` |
+| `ze config validate` with a table named `iface_rpf` | `test/parse/firewall-iface-rpf-table-name-rejected.ci` | read: expects exit 1 and `kernel name "ze_iface_rpf" is reserved by owner "iface-rpf"` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 (a compiled-out producer reserves nothing) | confirmed | every reservation is an `init()` in the producer's own package (grep of `MustReserveTableNames` callers); a package the build does not link runs no `init()` and installs no table |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Rule 2 table lists every producer, `iface-rpf` included | grep of `MustReserveTableNames` callers matches the rows; firewall-domain reserves nothing, as the page says | yes |
+| Guide: the arp refusal text and the reserved-name refusal | `validateMatch` and `refuseReservedTableNames` message text | yes |
+| Feature list, CLI, API, YANG, wire format, RFC | no YANG, command or wire change | No update needed |
 
 ## Provenance and retained evidence
 
