@@ -36,7 +36,7 @@ func runInfraHookOwner(params infra.HookParams, done chan<- struct{}) {
 	close(done)
 }
 
-func stopInfraHookOwner(owner *pluginserver.Server, start <-chan struct{}, cleanupEnded <-chan struct{}, joined chan<- bool, done chan<- struct{}) {
+func stopInfraHookOwner(owner *pluginserver.Server, start, cleanupEnded <-chan struct{}, joined chan<- bool, done chan<- struct{}) {
 	<-start
 	owner.Stop()
 	select {
@@ -48,19 +48,31 @@ func stopInfraHookOwner(owner *pluginserver.Server, start <-chan struct{}, clean
 	close(done)
 }
 
+// waitInfraHookStopSnapshot waits until owner has started Stop, observed as
+// OnStop refusing a new hook. It answers ctx's error if that never happens.
 func waitInfraHookStopSnapshot(ctx context.Context, owner *pluginserver.Server, ticks <-chan time.Time) error {
 	for {
-		withdraw, err := owner.OnStop(func() {})
-		if err != nil {
+		if infraHookStopRefused(owner) {
 			return nil
 		}
-		withdraw()
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticks:
 		}
 	}
+}
+
+// infraHookStopRefused reports whether owner refuses a new stop hook, which
+// Server.OnStop does only once Stop has started: the refusal is the snapshot
+// the caller waits for, not a failure. An accepted probe hook is withdrawn.
+func infraHookStopRefused(owner *pluginserver.Server) bool {
+	withdraw, err := owner.OnStop(func() {})
+	if err != nil {
+		return true
+	}
+	withdraw()
+	return false
 }
 
 func requireInfraHookPending(t *testing.T, done <-chan struct{}, operation string) {

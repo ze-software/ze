@@ -8,9 +8,9 @@
 | Release reason | 18 findings of the full lint in `cmd/ze` and the policy component; the full lint holds the release (`plan/release/validation/spec-lint-backlog-0-umbrella.md`) |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 2/3 |
+| Phase | 3/3 |
 | Handoff | - |
-| Updated | 2026-11-02 |
+| Updated | 2026-11-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -223,4 +223,125 @@ tag would hide the finding without restoring a use.
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
-- [ ] `./le go lint run scope "./cmd/ze/... ./internal/component/policy/..."` zero; `./le job run label hub command go test -tags <tags> ./cmd/ze/hub/ ./cmd/ze/ ./internal/component/policy/`. Full-run evidence belongs to the umbrella's CI run.
+- [ ] `./le go lint run scope "./cmd/ze/... ./internal/component/policy/..."` zero; `./le job run label hub command go test -race -tags "$tags" ./cmd/ze/ ./cmd/ze/hub/ ./internal/component/policy/` with every feature tag (`docs/contributing/running-commands.md` recipe), and `./cmd/ze/hub/` again with that set minus `ze_ssh` for the SSH-absent tests. These are the scoped subset of `./le test unit all`; `./le test weakened check` is clean for the scope. Full-run evidence belongs to the umbrella's CI run.
+
+## Implementation Summary
+
+### What Was Implemented
+- `ea96c574f2`: `internal/component/policy/chain.go` declares `chainFilterContainer`, `chainFiltersLeaf`, `chainFinalLeaf`, `chainFinalAccept` and `chainFinalReject`. `ExtractChain` and `ParseChainFinal` (`chain.go`), `ExportChainPath` and `CompileExportChain` (`export_chain.go`), `chainLeafAt` and `ribMemberCheck` (`reference_source.go`), `readRIBChain` (`rib_compile.go`) and `MustRegisterRouteChainPath` (`route_chain_path.go`) read them. Every value is the literal it replaced; `ribFinalAccept` folds into `chainFinalAccept`.
+- `e20b2ee5c8`: the uncalled `wireToPathsForTest` leaves `cmd/ze/schema_helpers_test.go` (`Weakening-approved: ze.wireToPathsForTest`). The live helper and its caller in the `cmdutil` test package stay.
+- The seven hub findings were already fixed in source: `_ = cmd.Process.Kill()` and `_ = logFile.Close()` in the cleanup of `build_tag_ssh_absent_test.go`, indexed loops in `matchMandatoryArgs`, `registerStage1Commands` and `collectCommandRegistrations`, `strings.Cut` in `bashRootNames`, and `matchValue` naming all five `command.ArgKind` members.
+
+- Closure: the three findings `7ff7614e5f` added to `cmd/ze/hub` tests after step 2 (Review Gate, finding 1), in `infra_hook_owner_test.go` and `main_system_nonappliance_test.go`.
+
+### Bugs Found/Fixed
+- None: lint findings only, no product defect.
+
+### Documentation Updates
+- None. `./le spec citation anchors spec plan/release/validation/spec-lint-backlog-5-hub-and-policy.md` exits 0.
+
+### Deviations from Plan
+- Step 2 found the hub findings already fixed (A-1 broken), so only the policy literals and the helper changed.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1: every saved CI finding still needed an edit | The seven hub findings were already rewritten in source | Step 2 source audit | Recorded in Deviations; the fresh scoped lint is the evidence |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Hub errcheck x2 | Done | `cmd/ze/hub/build_tag_ssh_absent_test.go`, the daemon cleanup | Already in source |
+| Hub gocritic and exhaustive (local bridge) | Done | `cmd/ze/hub/local_bridge_match_test.go` `matchMandatoryArgs`, `matchValue` | Already in source |
+| Hub modernize and gocritic x2 (surface parity) | Done | `cmd/ze/hub/surface_parity_test.go` `bashRootNames`, `registerStage1Commands`, `collectCommandRegistrations` | Already in source |
+| `cmd/ze` unused helper | Done | `e20b2ee5c8` | Judge-approved removal |
+| Policy goconst x10 | Done | `ea96c574f2` | Shared chain tokens |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | Scoped lint, Pre-Commit Verification | Main thread run |
+| AC-2 | Done | Tagged package tests, Pre-Commit Verification | Main thread run |
+| AC-3 | Done | `ea96c574f2` and `e20b2ee5c8` add no `//nolint` | `git show` of both |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Existing package tests | Done | `cmd/ze`, `cmd/ze/hub`, `internal/component/policy` | No test added: the fixes keep behavior |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Task-table files | Done | Policy five in `ea96c574f2`, helper in `e20b2ee5c8`, hub seven unchanged |
+
+### Audit Summary
+- **Total items:** 5 requirement groups, 3 ACs
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (hub findings already fixed; Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Clear the 18 CI findings in `cmd/ze`, `cmd/ze/hub` and `internal/component/policy` | scoped lint | `./le go lint run scope "./cmd/ze/... ./internal/component/policy/..."`: main thread 2026-11-10, 0 issues in host, Linux integration, darwin, capability, distro, appliance, personalities, tinygo, setup-standalone and compile-out (`job-lint5d-6d1ecc05.log`). One flavor's single typecheck error, `undefined: fixture10OperatorEnvironment` in `internal/test/fixture/plugin_fixture_10_process.go`, was another session's uncommitted fixture edit caught mid-write: foreign and transient, outside the scope |
+| Keep policy selection and hub surface proof unchanged | tagged package tests | `TestLocalCommandDaemonMatchesLocal`, `TestEveryCommandOnEverySurface`, `TestExtractChain`, `TestRIBImportCompilesAndJudges`, `TestRIBImportRefusals`: main thread 2026-11-10, `go test -race -count=1` with every ze tag over `./cmd/ze/` and `./cmd/ze/hub/` exit 0 after the closure hub edits (`job-lint5-ze-a9dc106d.log`); `./internal/component/policy/` ok (`job-lint5-tests-501a8ea3.log`, unchanged since); SSH-absent hub (every tag but `ze_ssh`) ok (`job-lint5-nossh-20c3c357.log`); `./le repo compiles check` exit 0 |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | Every Task row is done | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/lint-backlog-5-hub-and-policy-49da3d3d-44f5-443f-bc7a-73b9535a17f9.md` (the five policy files of `ea96c574f2`, `cmd/ze/schema_helpers_test.go`, and the two hub test files of finding 1) |
+| `./le spec review check` | clean: 8 code files, hashes match |
+| Rounds | 2 |
+| Reviewer lenses used | logic (each constant holds the literal it replaced, so every config read and error text is unchanged), test proof (helper removal judged; `./le test weakened check` clean), security (no new input path; the `panic` in `MustRegisterRouteChainPath` fires at init-time registration, not from a peer), style pass over the six changed Go files |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | Run 1: 0 BLOCKER, 0 ISSUE | - | - |
+| 1 | ISSUE | The scoped lint (main thread 2026-11-10, log `tmp/session/2026-11-09-222501/scratch/job-lint5-6d1ecc05.log`, host, Linux integration and darwin alike) reported 3 findings that `7ff7614e5f` brought in after this spec's fixes: gocritic paramTypeCombine on `stopInfraHookOwner`, nilerr in `waitInfraHookStopSnapshot` (both `infra_hook_owner_test.go`), and unused `warnLines` (`main_system_hostname_fake_test.go`) | `cmd/ze/hub` | `start, cleanupEnded <-chan struct{}` merged. The nilerr site was correct: `Server.OnStop` refuses only once Stop has started (`stopHooks.add` answers `errServerStopped`), and that refusal is the event the test waits for, so the probe moves into `infraHookStopRefused`, which answers it as a bool with the reason in its comment; same calls, same order, same withdrawal. `warnLines` had one caller, the `ze_appliance` test, so the untagged fake file left it unused in every other flavor: `TestHostnameApplierNonApplianceNeverSets` now also asserts the distro path logs no WARN line (`reconcileKernelHostname` returns before any log when `kernelHostnameOwned` is false), which adds a check and removes none |
+
+### Run 2
+Scope: the two edited hub test files. 0 BLOCKER, 0 ISSUE. `TestInfraHookJoinsRefusedSSHOwner` still waits on the real `OnStop` refusal and fails on the context error as before; the hostname test keeps its three kernel assertions and gains the no-warning one. `./le test weakened check` lists neither file (its findings are in `internal/le/test/weakened`, another session's). Style pass: each new helper has a doc comment stating its contract; no panic, no new allocation path.
+
+NOTE 1: `"import"` stays a literal three times in policy (`reference_source.go`, `rib_compile.go`) beside `exportDirection`; CI did not list it and the scoped lint judges it. NOTE 2: the tokens mirror YANG leaf and enum names that the package reads as plain map keys; no runtime declaration exists to read them from. NOTE 3: `./le repo check` reports only foreign issues (`internal/le/weekly/events.go`, `internal/test/dhcpprobe/step.go`).
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/policy/chain.go` | yes | `grep -n chainFinalAccept internal/component/policy/*.go` hits `chain.go`, `export_chain.go`, `rib_compile.go` and `reference_source.go` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Zero scoped findings | 0 issues across the full flavor matrix after the closure hub fixes (`tmp/session/2026-11-09-222501/scratch/job-lint5d-6d1ecc05.log`); the one foreign transient typecheck error is named in Goal Validation |
+| AC-2 | Tagged tests pass | Race tests with every ze tag: `./cmd/ze/` and `./cmd/ze/hub/` ok (`job-lint5-ze-a9dc106d.log`), policy ok (`job-lint5-tests-501a8ea3.log`), SSH-absent hub ok (`job-lint5-nossh-20c3c357.log`), all logs under `tmp/session/2026-11-09-222501/scratch/` |
+| AC-3 | No suppression added | `git show ea96c574f2 e20b2ee5c8` adds no `nolint` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le go lint run scope` | none (lint) | yes: scoped run over `./cmd/ze/...` and `./internal/component/policy/...`, 0 issues (`job-lint5d-6d1ecc05.log`) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken | Hub sources already carry the rewrites (Implementation Audit rows 1-3) |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| 16: source anchors | `./le spec citation anchors spec plan/release/validation/spec-lint-backlog-5-hub-and-policy.md` exit 0 | yes |
