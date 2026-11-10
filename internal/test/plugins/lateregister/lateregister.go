@@ -68,14 +68,20 @@ func probe(p *sdk.Plugin) {
 }
 
 // attemptLateRegistration calls registry.Register after start-up and reports
-// whether the seal refused it.
+// whether the seal refused it. The registration offered is a renamed copy of
+// this plugin's own (Lookup answers a clone), so it is complete and valid in
+// every field: the only reason left to refuse it is the seal. Building it from
+// the copy rather than a second Registration literal also keeps this package
+// at one plugin's declaration, which the plugin-declarations gate pairs.
 func attemptLateRegistration() {
-	reg := registry.Registration{
-		Name:        lateName,
-		Description: "registered after start-up; the seal MUST refuse it",
-		RunEngine:   func(net.Conn) int { return 0 },
-		CLIHandler:  func([]string) int { return 0 },
+	own := registry.Lookup(Name)
+	if own == nil {
+		logLine("lateregister: FAIL its own registration is not in the registry")
+		return
 	}
+	reg := *own
+	reg.Name = lateName
+	reg.Description = "registered after start-up; the seal MUST refuse it"
 	err := registry.Register(reg)
 	if err == nil {
 		logLine("lateregister: FAIL registered " + lateName + " after start-up")
