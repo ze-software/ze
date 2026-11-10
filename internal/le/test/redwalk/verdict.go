@@ -170,8 +170,7 @@ func (w *walk) check() (Report, error) {
 	passed, output, err := w.run("")
 	if err != nil {
 		reason := err.Error()
-		var build *buildError
-		if errors.As(err, &build) {
+		if _, built := errors.AsType[*buildError](err); built {
 			report.conclude(verdictNoBaseline, "the tree does not build as it is: "+reason, output)
 			return report, nil
 		}
@@ -195,8 +194,7 @@ func (w *walk) check() (Report, error) {
 	}
 
 	if err != nil {
-		var build *buildError
-		if errors.As(err, &build) {
+		if _, built := errors.AsType[*buildError](err); built {
 			report.conclude(verdictNotARed, "the broken build does not compile, so the failure is not a red "+
 				"of the unit: "+err.Error(), output)
 			return report, nil
