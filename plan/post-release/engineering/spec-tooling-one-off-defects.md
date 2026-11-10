@@ -260,7 +260,6 @@ AC-27 was dropped on 2026-11-08 ("Scope decision" above): the incident was not i
 | `lint-contract-not-applied` | 2026-10-27 | changed-scope lint at 043c682d24 |
 | `lint-contract-not-applied` | 2026-10-27 | changed-scope lint at 2f36373081 |
 | `lint-contract-not-applied` | 2026-10-27 | changed-scope lint at e6474aa200 |
-| `package-red-not-reproduced` | 2026-10-27 | harnesstool `setup docker` namespace panic |
 | `container-cannot-see-migrated-scratch` | 2026-10-21 | `Run.virtfsArgs` |
 | `delegation-hands-the-callee-a-different-argv` | 2026-09-07 | `le` launcher script |
 | `mutating-a-guard-runs-the-unguarded-path` | 2026-08-31 | forced-RED on `handlePacket` |
@@ -352,6 +351,7 @@ the cell names no commit.
 | `invariant-enforced-by-an-absent-call-site` | 2026-11-08 | fixtures stopping the daemon undeclared | `TestEveryDaemonStoppingRegistrationDeclaresStopsDaemon` (tooling-one-off-evidence.md, "Every daemon-stopping fixture declares it") |
 | `lifetime-ends-before-its-last-reader` | 2026-11-06 | `trimSessions` age floor | tree age (`treeIdle`); `TestTrimSessionsKeepsAnActiveHarnessOwnersPaths` (tooling-one-off-evidence.md, "Trim, argv capture, message allocation and the qemu verb constant") |
 | `bulk-rename-corruption` | 2026-10-27 | qemu `"run"` literal | `22f782e1c2` names; `doesRun` in the stress action; scoped lint clean (tooling-one-off-evidence.md, "Trim, argv capture, message allocation and the qemu verb constant") |
+| `package-red-not-reproduced` | 2026-10-27 | harnesstool `setup docker` panic | `6136c58149` adds the blank import; red with it dropped (tooling-one-off-evidence.md, "P-39 guest re-records and the harnesstool namespace panic") |
 | `refactor-removes-feature` | 2026-08-31 | `checkNoFamilyEndOfRIB` and 14 checkers | `c5b61cf472`, `125ab22025`, `18017069a9`, `cb882fd581` gave each checker its assertions; each of the 15 red under a Ze break (tooling-one-off-evidence.md, "P-12 (a): interop checkers (2026-11-09)", "P-12 (a) interop checkers: the four remaining walks (2026-11-10)") |
 | `plugin-list-hardcoded` | 2026-10-27 | TestHomeHeroDerivesFromTheManifest | `7b1b2b6cd6`, `b0da8037c5`: the hero renders from `terminaldemo.HeroDemo` and its manifest entry; the red was the test's substring match on the guide link `guides/ipsec/` and the CSS class `showcase`, corrected under judge approval in `b0da8037c5`; `TestHomeHeroDerivesFromTheManifest` (tooling-one-off-evidence.md, "Reds observed overnight, transcribed from their logs (2026-11-10)") |
 | `mutating-a-guard-runs-the-unguarded-path` | 2026-08-10 | build recipe seed reaches operator `etc/ze` | `067bf0ad2e`: the seeder entry beneath the outer guard refuses a foreign owner, a symlinked store and a config override itself; `8f3a0dfdd9`; `TestSeederEntryCannotReachOperatorStore` (tooling-one-off-evidence.md, "P-16 seeder confinement and P-39 explicit guest placement (2026-11-10)") |

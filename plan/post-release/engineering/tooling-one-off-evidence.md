@@ -2910,3 +2910,24 @@ fixture's exact-name `ZE_REPO_ROOT` removal (before `738bd725a4`) let a dotted
 by overlay and running with `ze.repo.root` set to the real checkout: PASS
 38.4s (`rulesrepro/`). The lead does not reproduce the historical red, whose
 cause stays unknown.
+
+## P-39 guest re-records and the harnesstool namespace panic (2026-11-10)
+
+P-39: both GTSM units were re-recorded through today's recorder, which places
+a unit named with `kernel` in the guest (`TestRecordLinuxCapabilityUnitInGuest`),
+on the docker-host runtime kernel `7.3-runtime-amd64-runtime-docker-a9caebdd-0d1d6496`
+(`./le rfc record id RFC5082-3-2 polarity positive unit ... route mutant
+report gtsm-hoplimit-zero.json mutant internal/component/gtsm/route_linux.go:96:2#1
+kernel <runtime vmlinuz>`, break written by hand: `route.Hoplimit = int(p.HopLimit)`
+becomes `route.Hoplimit = 0`). In the guest,
+`TestGTSMTransmittedICMPErrorCarriesTTL255` passed clean (2.00s) and failed
+broken (1.95s); `TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255` passed
+clean (1.80s) and failed broken (1.24s) (`p39-gtsm4.log`, `p39-gtsm6.log`).
+`rfc/discrimination/rfc5082/RFC5082-3-2.json` rewrote byte-identical, as the
+recorded sources are unchanged since `e4bfeb7789`.
+
+`package-red-not-reproduced` 2026-10-27 (harnesstool): the red at the time was
+`b209677569` registering the `setup docker` namespace after `93e3bfbfbd` gave
+`harnesstool_test.go` its blank imports without `setup/docker`; `6136c58149`
+added the import. Overlay dropping that import (`htw/`): panic "BUG: le
+namespace \"setup docker\" has no summary"; restored `ok`.
