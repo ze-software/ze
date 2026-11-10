@@ -300,6 +300,25 @@ func TestWebNativeExclusiveCleanup(t *testing.T) {
 			if result.Error != "" || !result.Reaped || result.Steps != 1 {
 				t.Fatalf("different group did not finish independently: %+v", result)
 			}
+			// A finished run alone does not prove independence: were the groups one
+			// lease, the different case would simply wait out the holder's case
+			// deadline and then pass. The holder releases its server port before its
+			// group lease, so a different case that finished while the port is still
+			// held cannot have waited for the holder's group.
+			select {
+			case err := <-holder.done:
+				holder.done <- err
+				t.Fatalf("different group finished only after the holder exited: %v", err)
+			default:
+			}
+			reservation, acquired, err = runner.LockPort(port)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if acquired {
+				reservation.Release()
+				t.Fatal("different group finished only after the holder released its leases")
+			}
 			releaseOnce.Do(func() { close(release) })
 			result = holder.result(t)
 			if !result.Reaped {

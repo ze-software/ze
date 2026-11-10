@@ -3571,3 +3571,19 @@ The `.wb` half of P-40 is open: `TestWebNativeExclusiveCleanup`'s
 different-group check stayed green under two group-collapsing breaks, the
 adapter's record and the shared lock file, so that check does not discriminate
 and is being repaired.
+
+**P-40 `.wb`, different groups independent.** `TestWebNativeExclusiveCleanup`'s
+different-group check required only that the other group's case eventually
+finished. Under a collapsed lease it waited out the holder's 30s deadline and
+then passed, so two group-collapsing breaks left it green. The test now also
+requires that the case finished while the holder was still running and still
+owned its port lease. The existing assertions are unchanged.
+
+| Break | Red | Restored |
+| --- | --- | --- |
+| `internal/test/runner/exclusive.go` `leaseExclusiveGroupIn`: every group hashes to one lock file | `success`, `failure`, `cancel`: "different group finished only after the holder exited: <nil>" | ok |
+
+The holder's line-309 "cleanup incomplete: signal: killed" seen under the
+earlier breaks is that break's consequence, not a second defect: the holder
+missed its deadline because the test could not release it while `other` was
+blocked.
