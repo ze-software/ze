@@ -2021,13 +2021,14 @@ unchanged after each run. Results:
 | P-34 lab pin is a generator | `TestLabPinReportDoesNotWrite` | registered as a report | "le lab pin is filed under reports while its update action writes" |
 | P-34 action contracts | `TestActionsCarryTheirContracts` | `check` declared a writer | "le site terminal-demo check: writes = true, want false" |
 
-Not discriminating: the P-18 hugepages break (the canceled run's error no
-longer joined with the context error) left `TestHugepagesCancellationReturnsNoPayload`
-green; either the break misses the path the test drives or the test misses
-the payload. Not attributable on this run: the P-34 hero and `--jobs`, P-19
-nightly-verdict and P-21 digest walks, whose restored runs failed to build on
-another session's uncommitted `config/yang` edit (`valueText` declared
-twice).
+The P-18 hugepages break first tried here (the canceled run's error no longer
+joined with the context error) left `TestHugepagesCancellationReturnsNoPayload`
+green. A break that clears the error outright turns it red; it is recorded in
+the next section and replaces this entry. Not attributable on this run: the
+P-34 hero and `--jobs`, P-19 nightly-verdict and P-21 digest walks, whose
+restored runs failed to build on another session's uncommitted `config/yang`
+edit (`valueText` declared twice). The P-21 digest walk is attributed in the
+next section, after its carrier was strengthened.
 
 Not attributed yet: the editor-case deadline break (W3) hung the carrier
 until Go's ten-minute test timeout instead of failing a named assertion; the
@@ -2042,4 +2043,144 @@ killed"), before any theme check ran. Still owed besides: the P-9 gap-level
 accounting, the remaining P-11 sub-cases (QEMU fixture Go version, wait-file
 marker, BFD restart store), the P-38 parent subtest that is refused before
 containment is reached, and CodeQL's real extraction, which only a GitHub
-`codeql` run on a pushed commit can show.
+`codeql` run on a pushed commit can show. The P-9 gap-level accounting and the
+P-38 containment cases are attributed in the next section; the rest stay owed.
+
+## Attributed red walks, night of 2026-11-09 to 2026-11-10
+
+Every Go break below was applied by the red-walk tool through
+`go test -overlay`, so the shared source was never modified, and every restored
+run of the same carrier passed (`ok`). The logs are
+`<name>-break.log` and `<name>-restored.log` under the session scratch
+directory `tmp/session/2026-11-09-222002/scratch/` (subdirectories `batch3`,
+`p33w`, `p33n`, `rbacw`, `b5`, `p30w`, `p19w`, `p7a`). The Red column quotes
+the first failing assertion of the break log.
+
+### Gap levels, repository root and the hugepages payload (P-9, P-11, P-18)
+
+| Obligation | Carrier | Break | Red |
+| --- | --- | --- | --- |
+| P-9 a gap keeps its level | `TestGapLevelAccounting` (`internal/le/rfc`, carrier from `37cf1d1d03`) | `Requirement.Gated` also counts an annotated gap as gated | "mandatory denominator=3, want 1" |
+| P-11 le honours a named repository root | `TestRootPrefersTheEnvironment` (`internal/le/le/path`) | the `ZE_REPO_ROOT` entry ignored | "Root answered /home/thomas/Code/github.com/ze-software/ze/main, want the named .../TestRootPrefersTheEnvironment.../001: the environment was ignored" |
+| P-18 a canceled hugepages run renders no payload | `TestHugepagesCancellationReturnsNoPayload` (`internal/le/test/qemu`), all five subtests | `err = errors.Join(err, ctx.Err())` replaced by `err = nil` | "canceled registered action retained a renderable payload: {"verdict":"unspecified","arch":"amd64",...}" |
+
+Not attributed in the same batch: the P-11 QEMU plan-root and wait-file marker
+breaks did not build ("[build failed]" in `internal/le/test/qemu` and
+`internal/test/fixture`) while other sessions' edits broke those packages, so
+no red was observed; both stay owed.
+
+### P-33: persistence fixtures open the daemon's one store (`9c49575bfd`)
+
+| Obligation | Carrier | Break | Red |
+| --- | --- | --- | --- |
+| P-33 the disk arm strips the memory selector | `TestPersistenceFixturesUseOneEffectiveStore` (`internal/test/fixture`) | disk environment built from the inherited one without removing `runner.DUTStoreKey` | "disk environment selects store "memory", want none" (`TestLGServedCertificateIsTheSeededOne` failed too) |
+| P-33 a missing root is refused | same | `requireDaemonRoot` returns nil on an empty root | "no root: err = <nil>, want a refusal naming ze.config.dir" |
+| P-33 overrides keep the store on disk | `TestDaemonOverridesKeepTheStoreOnDiskUnderTheRoot` | overrides no longer blank the store selector | "extra1Environment: selector entry "ZE_TEST_STORAGE=memory" survives, want it empty" |
+| P-33 the root replaces every spelling | `TestDaemonRootEnvironmentReplacesEveryRootSpelling` | root appended to the inherited environment as `ZE_CONFIG_DIR=` | "ze.config.dir: env.LookupIn reads root ".../002", want ".../001"" |
+| P-33 `LookupIn` reads what `Get` reads | `TestLookupInReadsWhatGetReads` (`internal/core/env`) | key lower-cased instead of normalized | "dotted: LookupIn = "", Get = "a"" |
+| P-33 the LG serves the seeded certificate | `TestLGServedCertificateIsTheSeededOne` | fingerprint comparison disabled | "substituted certificate: err = <nil>, want a refusal naming the seeded fingerprint" |
+
+Not attributed: the source guard `TestNoFixtureAppendsAConfigRootOntoTheInheritedEnvironment`
+stayed green under its break, because it scans the source files on disk and an
+overlay does not change them; the selector-spelling break did not compile
+("[build failed]"), so no red was observed.
+
+Functional, on the working-tree le (`./le --name session`): the 15 plugin, 2 ui
+and 3 parse `.ci` cases the commit converted all pass. Two timed out once under
+load (`data-check-history`, "timeout 1", 133.3s; `gr-marker-restart`,
+"timeout 1", 34.5s) and passed on rerun. This is green evidence for the `.ci`
+changes, not a red walk.
+
+### P-35: rbac-web-config-deny and as112-doh take leased ports (`6852770df1`)
+
+| Obligation | Carrier | Break | Red |
+| --- | --- | --- | --- |
+| P-35 the rbac config uses the leased web port | `TestRBACWebFixtureTakesTheLeasedWebPort` (`internal/test/fixture`) | config `port` fixed at 18443 | "web server port = 18443, want the leased 25001" |
+| P-35 the rbac requests use the leased web port | same, and `TestRBACWebFixtureWaitsForTheReportedListener` | request base URL fixed at 18443 | "request base port = 18443, want the leased 25001" |
+| P-35 as112-doh uses its leased port | `TestAS112DoHFixtureTakesTheLeasedPort` | DoH address fixed at 18443 | "as112-doh address = 127.0.0.1:18443, want 127.0.0.1:25001" |
+
+`rbac-web-config-deny` and `as112-doh` pass on the working-tree le
+(`./le --name session`). This closes one P-35 member only.
+
+### Cancellation, capture identity, containment and integration naming (P-7, P-21, P-38, P-19)
+
+| Obligation | Carrier | Break | Red |
+| --- | --- | --- | --- |
+| P-7 reclaim finishes an interrupted removal (`b44bbf3718`) | `TestReclaimFinishesInterruptedRegisteredRemoval` (`internal/le/verify`) | the interrupted-removal branch disabled | "interrupted removal left .../tmp/verify-worktree/interrupted behind: <nil>" |
+| P-7 a signal stops gating and its suite groups (`6a61f92286`) | `TestGatingStopReapsSuiteGroupAndReleasesSet` (`internal/le/test/functional`) | suites run through plain `gaterun.Stream`, with no context | "the canceled gating run did not return within 10s" |
+| P-21 different selections get different stems (`508d0a8a2b`) | `TestCaptureIdentityRetainsLongSelectorsAndFreshStarts` (`internal/le/test/stressrepro`) | selector digest dropped from the capture pattern | "ninety-one and same-prefix share capture stem "reload-shared-selector-prefix-0-...": the selection digest is missing" |
+| P-38 media opened inside the artifact root (`be0bfc2369`) | `TestDemoArtifactRootRejectsEscapingLinks` (`internal/le/site`) | `root.Open(name)` replaced by `os.Open(filepath.Join(root.Name(), name))` | "page accepted media acquired outside its artifact root" |
+| P-38 the media root is reached through the output anchor | same | `OpenMediaRoot` replaced by `os.OpenRoot(catalog.assetRoot())` | "page accepted media acquired outside its artifact root" |
+| P-38 retirement stays inside its anchor | `TestRetireDeletedStaysInsideItsAnchor` (`internal/le/site/terminaldemo`) | `outer.OpenRoot(relative)` replaced by `os.OpenRoot(media)` | "retirement removed media outside its anchor: stat .../demos/old.cast: no such file or directory" |
+| P-19 every integration-tagged package runs somewhere (`b5903722a0`) | `TestEveryIntegrationPackageIsNamed` (`internal/le/test/qemu`) | the `internal/le/site` exclusion entry removed | "internal/le/site holds integration-tagged tests and no runner names it, so they execute nowhere; add it to integrationPackages or give excludedIntegrationPackages a reason" |
+
+The P-38 test was rewritten in `be0bfc2369` (judged): its old parent case was
+refused by the published-name check before acquisition and never reached
+containment.
+
+### Approvals bind their unit and content (P-30, P-31, `4aafc843c0`)
+
+| Obligation | Carrier | Break | Red |
+| --- | --- | --- | --- |
+| P-31 a package-clause alias is refused before writing | `TestWeakenedApproveRefusesPackageClauseAlias` (`internal/le/test/weakened`) | the unit resolution error discarded | "Approve(repoinventory.TestX) = <nil>; want a refusal naming inventory.TestX" |
+| P-31 the refusal names the directory key | same | the package-clause comparison always taken | "Approve(repoinventory.TestX) = approval unit repoinventory.TestX has no current/parent carrier; want a refusal naming inventory.TestX" |
+| Build-ignore read from the file header only | `TestDetectorReadsBuildIgnoreFromHeaderOnly` | header parse replaced by a whole-file `//go:build ignore` substring match | "dropped-from-build reported = false, want true; blocking = []" |
+| P-30 a row whose unit content moved on is stale | `TestOrdinaryApprovalRefusesChangedUnitContent` | the content check always admits | "changed again: rows [...Stale:}], problems []; want the row stale" |
+| P-30 a verdict from a moved base is refused | same | the recorded-base comparison disabled | "a verdict recorded before the edit must not admit a change from a moved base" |
+
+Not done: the 2026-11-02 row in `plan/journal/helper-bypassed-by-an-open-coded-copy.md`
+(`goFunctionUnits` in the weakening detector beside `rfc.FunctionUnits`). Which
+scanner becomes the one inventory is waiting on Thomas.
+
+### P-12 (a) #14: the deadline that ended a lab command (`1c2ca3dea8`)
+
+| Obligation | Carrier | Break | Red |
+| --- | --- | --- | --- |
+| A caller's deadline is not reported as the command's own timeout | `TestProcessRunnerNamesTheDeadlineThatEndedTheCommand` (`internal/le/interoplab`) | every deadline treated as the command's own bound | "caller-deadline run error = context deadline exceeded (context.deadlineExceededError), want *callerDeadlineError" |
+| The same for the lab's cross-compile step | `TestStageBinaryCutShortNamesTheCallersDeadline` | the caller-deadline branch skipped | "the refusal does not say "cross-compile le into test/interop/le-linux was cut short by its caller's deadline after 2s, before its own 15m0s bound"" |
+
+Diagnosis of `no-family-peer-eor-frr` assertion 4. Before the message fix the
+lab reported "docker exec ze-iop-frr-p12a cat /var/run/frr/bgpd.pid did not
+finish within 30s (exit 124): context deadline exceeded", read until then as
+an exec hang. With the fix the same failure reads "... was cut short by its
+caller's deadline after 0s, before its own 30s bound: the step that ran it had
+run out of time, so the command itself did not hang (exit 124)": the checker's
+60-second wait window ended, and no command hung. The window found no decode
+because the checker accepted only the FRR startup line for release `10.7.1`
+exactly, while the lab image prints `10.7.1_git` ("watchfrr 10.7.1_git
+starting"). The checker fix accepts `10.7.1` followed by an underscore build
+suffix and still refuses other releases (`10.7.10`, `10.6.0_git`), and turns an
+identity read cut short by the window's end into the probe's error, so the
+not-ready verdict quotes the last FRR log. That fix is judged but was not
+committed when this was written, and no green lab run with it is recorded here.
+
+### Changes proved without a replayed break (P-26, P-29)
+
+| Obligation | Change | Evidence |
+| --- | --- | --- |
+| P-26 tracked shell tooling removed | `54ab426716` removes `test/perf/filter-a6/measure.sh` and keeps its procedure as prose in `plan/records/filter-wire-0-a6-procedure.md` | `TestNoPythonLeRemains` (`internal/le`) passes after the removal ("ok ... internal/le 1.227s"). The refusal it answered is named in the commit body; no break was replayed |
+| P-29 a hunk adding to an empty file is accepted | `15abb6254e`, follow-up to `dfee230f18` (whose zero-context walk is in the table above) | The commit body records the walk: removing the `0,0` early return makes `TestApplyRefusesZeroContextPatch` refuse the type change to a symlink; restored green. It also clears `TestLinuxLimitCreateRefusesSelectedAncestorSymlink` (`internal/le/commit`), which `dfee230f18` had turned red. The red text itself was not retained |
+
+### Lab finding: every le helper container panicked (`c77a8dd2f3`)
+
+`711f1293d8` gave the plugin netns selection a 65-character help line. le's
+registration check refuses anything over 60 with a panic at start, so every le
+process failed: unit tests that build the le root, and every interop lab helper
+container (speaker, relay, injector), which made each BGP interop scenario fail
+on a readiness wait. `c77a8dd2f3` shortens the line to 60 characters;
+`TestRootOrdinaryAuthorizationControlsStayNoninteractive` passes, after
+panicking at HEAD with "le value "plugin" of "test qemu netns suites" has a
+ValueHelp line of 65 characters". Interop reds observed while that panic was in
+HEAD say nothing about the scenario under test.
+
+### Walk method lessons
+
+- A functional `.ci` run uses the committed le under `bin/builds` unless it is
+  started as `./le --name session`, which builds le from the working tree. An
+  uncommitted fixture or le change is invisible to a plain `./le test` run, so
+  its green or red says nothing about the change.
+- A Go break is applied with `go test -overlay`, never by editing the shared
+  source; the tool checks the source bytes are unchanged after each run.
+- A guard that reads source files from disk cannot be walked through an
+  overlay: the overlay changes what the compiler sees, not what the guard
+  reads. Such a guard needs a fixture tree of its own to show a red.
