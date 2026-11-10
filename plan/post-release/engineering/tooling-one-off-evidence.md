@@ -3033,3 +3033,13 @@ owner's decision. No QEMU process remained after the runs.)
 
 (hugepages rows of the P-18 native-entry observation, 2026-11-10; no QEMU
 process remained.)
+
+| Route, phase | Clean | Break | Red |
+| --- | --- | --- | --- |
+| `./le test deployment l2tp-scale`, running (the simulator `le test scale l2tp --target 127.0.0.1:...`) | exit 1, leaks 0, orphans 0, foreign alive, no later phase | ze started without context or stop | leaks 4, a later scenario began after the interrupt |
+
+(l2tp-scale running row, observable once `cb839bbd70` gave each scenario its
+own store; the clean leg needs the launcher's build of that commit. The
+scenarios themselves report real shortfalls on this host, for example
+"2k-sessions: tunnels: 0/10", which is the route's own measurement, not a
+cancellation result.)
