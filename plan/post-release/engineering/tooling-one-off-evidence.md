@@ -3074,3 +3074,19 @@ longer posts, a break the retired Basic-auth validator could not see: FAIL
 restored PASS 42.7s. The in-page clearing of the commit bar after Confirm,
 the 2026-08-18 row's symptom, is not yet asserted, because the grammar's only
 wait reloads the page.
+
+## P-19: the commit bar clears in the page (2026-11-10)
+
+The `.wb` grammar's only wait, `wait-until:path=`, re-opens a page, so no
+journey could see an in-page out-of-band swap. `action=wait-html:not-contains=`
+and `:contains=` now poll the current page's DOM without navigating, bounded
+by the step and case deadlines, and refuse a malformed condition by name.
+`test/web/recorded-config-save.wb` asserts with it, right after Confirm
+Commit, that the commit bar is no longer visible: PASS 46.4s, so the
+2026-08-18 symptom does not reproduce at HEAD.
+
+| Carrier | Break | Red |
+| --- | --- | --- |
+| `TestBrowserWaitHTMLPollsInPlace` (integration, real browser; each URL served once and the page's load mark unchanged) | the wait passes without judging the page | "wait-html passed on a bar that never clears" |
+| `TestWaitHTMLRefusesMalformedCondition` | (grammar refusal; seven malformed lines) | PASS |
+| `test/web/recorded-config-save.wb` | overlay of `handler_config_commit.go`: the commit response no longer writes the out-of-band bar | "line 43: action wait-html: current page still contains \"commit-bar visible\"" (78.5s); restored PASS |

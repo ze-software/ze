@@ -23,6 +23,8 @@ import (
 var (
 	errPressActionRequiresKeyParameter  = errors.New("press action requires key= parameter")
 	errWaitUntilRequiresPathAndContains = errors.New("wait-until action requires path= and contains= parameters")
+	errWaitHTMLRequiresOneCondition     = errors.New("wait-html action takes exactly one of contains=<text> or not-contains=<text>, " +
+		"for example action=wait-html:not-contains=commit-bar visible")
 )
 
 // WBTestResult holds the outcome of a single .wb test.
@@ -201,6 +203,72 @@ func (b *Browser) waitUntil(path, want string) error {
 		}
 		return nil
 	})
+}
+
+// waitHTML polls the page the browser ALREADY holds until its body contains,
+// or no longer contains, one text. It is the in-page counterpart of waitUntil:
+// it never opens, reloads or navigates, so it judges what an htmx response did
+// to the current DOM (an out-of-band swap, a class that goes away), which a
+// re-opened page cannot show because the fresh render answers from the server.
+//
+// A negative expectation cannot stand in for it. `expect=html:not-contains=`
+// states an absence (expect.go: negatives deliberately do not poll), and the
+// only retry it gets is checkExpectationRetry's expectRetryDeadline, shorter
+// than the budget a slow commit answer needs in a loaded suite. This action
+// names the state the step waits for and polls it under expectDeadline, the
+// budget waitUntil uses.
+//
+// It takes exactly one condition, and refuses any other key: a misspelled key
+// would otherwise leave a step that waits for nothing and passes.
+//
+// The retry deadline and every command inside it inherit the case deadline.
+func (b *Browser) waitHTML(values map[string]string) error {
+	if len(values) != 1 {
+		return errWaitHTMLRequiresOneCondition
+	}
+	if text, ok := values["contains"]; ok {
+		return b.waitHTMLState(text, true)
+	}
+	if text, ok := values["not-contains"]; ok {
+		return b.waitHTMLState(text, false)
+	}
+	return errWaitHTMLRequiresOneCondition
+}
+
+// waitHTMLState re-reads the current page body until text's presence equals
+// present. At the deadline it answers the last page it judged, with the page
+// excerpt, even when the deadline killed the read in progress: that read's
+// error says nothing about the page, and alone it would hide the verdict.
+func (b *Browser) waitHTMLState(text string, present bool) error {
+	if text == "" {
+		return errWaitHTMLRequiresOneCondition
+	}
+	var judged error
+	err := b.retryCommand(func() error {
+		html, htmlErr := b.getHTML()
+		if htmlErr != nil {
+			return fmt.Errorf("html: %w", htmlErr)
+		}
+		if strings.Contains(html, text) == present {
+			return nil
+		}
+		if present {
+			judged = fmt.Errorf("current page still does not contain %q%s", text, htmlEvidence(html))
+			return judged
+		}
+		judged = fmt.Errorf("current page still contains %q%s", text, htmlEvidence(html))
+		return judged
+	})
+	if err == nil {
+		return nil
+	}
+	if judged == nil {
+		return err
+	}
+	if errors.Is(err, judged) {
+		return err
+	}
+	return errors.Join(judged, err)
 }
 
 // setViewport resizes the browser viewport (agent-browser set viewport <w> <h>)
@@ -911,6 +979,8 @@ func executeAction(b *Browser, a *WBAction) error {
 		return b.waitLoad()
 	case "wait-until":
 		return b.waitUntil(a.Values["path"], a.Values["contains"])
+	case "wait-html":
+		return b.waitHTML(a.Values)
 	case "back":
 		return b.Back()
 	case "forward":

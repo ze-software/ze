@@ -40,6 +40,9 @@ expect=html:contains=Review changes (1)
 expect=html:contains=system host edge-demo
 action=wait:ms=6000
 action=click:text=Confirm Commit
+action=wait-html:not-contains=commit-bar visible
+# The commit answer clears the bar on the page in hand by an out-of-band swap;
+# the readback below re-renders from the server and cannot see that swap.
 # Re-fetch the server's pending diff, not the filled DOM or a cached page.
 action=wait-until:path=/config/diff:contains=Review changes (0)
 expect=html:not-contains=system host edge-demo

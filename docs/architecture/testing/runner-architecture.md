@@ -598,12 +598,14 @@ against the peer address has two values to compare.
 | `press` | `key` (+ optional `id`/`text`) | Press a key, optionally focused on an element |
 | `wait` | `ms` (or none) | Wait `ms` milliseconds, or for in-flight network to settle. A wait longer than 30s touches the browser between sleeps: the `agent-browser` daemon reaps itself after 60s with no command and takes the page with it, so a pure sleep of a minute returned to a browser holding nothing |
 | `wait-until` | `path` + `contains` | Re-open `path` until the page it serves contains the text. Stops polling at `expectDeadline`. **Leaves the browser on `path`** |
+| `wait-html` | exactly one of `contains` or `not-contains` | Re-read the body of the page the browser already holds until it contains, or no longer contains, the text. Never opens, reloads or navigates, so it judges what an htmx answer did to the current DOM (an out-of-band swap, a class removed). Stops polling at `expectDeadline` under the case deadline, and fails naming the text with an excerpt of the last page it read. Any other key, an empty value or both keys together is refused |
 | `login` | `user` + `password` | Submit the real login form once and wait for a loaded authenticated page before continuing |
 | `back` | none | The browser's own back button. The only way to prove what a pushed URL does when the operator returns to it: htmx 2 restores its own history cache, htmx 4 keeps none and the browser navigates for real |
 | `forward` | none | The browser's own forward button. htmx 4 traverses the Navigation API, which holds entries on both sides of the current one, and the entry AHEAD is reached by a second traversal that `back` cannot make |
 | `screenshot` | `file` | Save a screenshot only after two render frames, loaded fonts, finite animations and fetch/XHR work settle under the case deadline |
 
-<!-- source: internal/component/web/testing/runner.go -- executeAction: open/click/fill/hover/press/wait/wait-until/login/back/forward/screenshot -->
+<!-- source: internal/component/web/testing/runner.go -- executeAction: open/click/fill/hover/press/wait/wait-until/wait-html/login/back/forward/screenshot -->
+<!-- source: internal/component/web/testing/runner.go -- waitHTML, waitHTMLState -->
 
 `wait:ms=` is a blind wait and asserts on elapsed time, which is what
 `ai/rules/completion.md` bans: it passes on a quiet host and fails on a busy one.
@@ -613,12 +615,22 @@ Reach for the wait that names the state instead.
 |--------------------|-----|
 | A render the browser drives (an htmx swap, a JS update) | Nothing. A positive `expect=` polls the DOM until it lands |
 | A mutation to reach the SERVER | `action=wait-until:path=<readback>:contains=<text>` |
+| A text to leave the page in hand (an out-of-band swap clearing a bar) | `action=wait-html:not-contains=<text>` |
 | In-flight requests to drain, with no assertion after | `action=wait` |
 
 A positive `expect=` cannot stand in for `wait-until`: it re-reads the DOM the page
 already holds, so a readback the browser never fetched again reports the state that
 was true before the action. `action=wait` cannot either, because its idle predicate
 is true both before a request begins and after it ends.
+
+`wait-until` cannot judge an in-page swap either: it re-opens the page, and the
+fresh render answers from the server, so a swap the browser never applied is
+invisible to it. `expect=html:not-contains=` states an absence and gets only the
+short `expectRetryDeadline` retry, so an answer slower than that window fails the
+step without naming a state it waited for. `wait-html` names the state the step waits for
+and polls the page in hand for it. `test/web/recorded-config-save.wb` uses it
+after Confirm Commit, where the commit answer's out-of-band `#commit-bar` must
+drop its `visible` class.
 
 Login waits for a complete authenticated document, not fetch/XHR idleness.
 The form submits a native POST, which those counters do not observe. An
