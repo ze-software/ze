@@ -124,9 +124,9 @@ func TestChildSAPolicyEndpointsAreSpecified(t *testing.T) {
 
 func policyForDir(t *testing.T, policies []dataplane.SPParams, dir dataplane.SADir) dataplane.SPParams {
 	t.Helper()
-	for _, p := range policies {
-		if p.Dir == dir {
-			return p
+	for i := range policies {
+		if policies[i].Dir == dir {
+			return policies[i]
 		}
 	}
 	t.Fatalf("no policy installed for direction %d", dir)

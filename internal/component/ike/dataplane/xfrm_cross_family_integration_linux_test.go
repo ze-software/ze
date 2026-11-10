@@ -27,6 +27,7 @@
 package dataplane
 
 import (
+	"bytes"
 	"net"
 	"os"
 	"strconv"
@@ -142,7 +143,7 @@ func crossFamilyExchange(t *testing.T, tc crossFamilyCase) {
 		t.Fatalf("side b received no request from %s through the %s-outer SA: %v; xfrm_stat moved: %s",
 			innerA, crossFamilyFamily(outerA), err, moved())
 	}
-	if string(buf[:n]) != string(request) || !from.IP.Equal(innerA) {
+	if !bytes.Equal(buf[:n], request) || !from.IP.Equal(innerA) {
 		t.Fatalf("side b received %q from %v, want %q from %s", buf[:n], from, request, innerA)
 	}
 	reply := []byte("ze cross-family reply")
@@ -157,7 +158,7 @@ func crossFamilyExchange(t *testing.T, tc crossFamilyCase) {
 		t.Fatalf("side a received no reply from %s through the %s-outer SA: %v; xfrm_stat moved: %s",
 			innerB, crossFamilyFamily(outerA), err, moved())
 	}
-	if string(buf[:n]) != string(reply) {
+	if !bytes.Equal(buf[:n], reply) {
 		t.Fatalf("side a received %q, want %q", buf[:n], reply)
 	}
 
@@ -230,14 +231,16 @@ func crossFamilyAddr(t *testing.T, link netlink.Link, ip net.IP, bits int) {
 func crossFamilyInstall(t *testing.T, local, remote, inner net.IP, outSPI, inSPI uint32) {
 	t.Helper()
 	b := &xfrmBackend{}
-	for _, p := range []SAParams{
+	states := []SAParams{
 		{SPI: outSPI, Src: local, Dst: remote},
 		{SPI: inSPI, Src: remote, Dst: local},
-	} {
+	}
+	for i := range states {
+		p := &states[i]
 		p.Proto, p.Mode = ProtoESP, ModeTunnel
 		p.IfID, p.ReqID, p.ReplayWin = crossFamilyIfID, crossFamilyReqID, 32
 		p.EncAlgo, p.EncKey, p.IsAEAD = "aes256gcm", encapTestAEADKey, true
-		if err := b.InstallSA(p); err != nil {
+		if err := b.InstallSA(*p); err != nil {
 			t.Fatalf("install SA spi=%#x %s -> %s: %v", p.SPI, p.Src, p.Dst, err)
 		}
 	}
@@ -246,14 +249,16 @@ func crossFamilyInstall(t *testing.T, local, remote, inner net.IP, outSPI, inSPI
 	if bits == 32 {
 		anyInner.IP = net.IPv4zero.To4()
 	}
-	for _, p := range []SPParams{
+	policies := []SPParams{
 		{Dir: SADirOut, TunnelSrc: local, TunnelDst: remote},
 		{Dir: SADirIn, TunnelSrc: remote, TunnelDst: local},
-	} {
+	}
+	for i := range policies {
+		p := &policies[i]
 		p.Src, p.Dst = anyInner, anyInner
 		p.Proto, p.Mode, p.IfID, p.ReqID = ProtoESP, ModeTunnel, crossFamilyIfID, crossFamilyReqID
 		p.Owner, p.Priority = "cross-family", PriorityChildSA
-		if err := b.InstallPolicy(p); err != nil {
+		if err := b.InstallPolicy(*p); err != nil {
 			t.Fatalf("install %s policy dir=%d: %v", crossFamilyFamily(inner), p.Dir, err)
 		}
 	}

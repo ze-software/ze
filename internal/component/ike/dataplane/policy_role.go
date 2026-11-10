@@ -68,7 +68,7 @@ var policyRoleNames = [...]string{
 // socketPolicyRole names a per-socket policy from its priority, the mark Ze writes
 // into its own (PriorityESPFormSocket). A process that copies the mark is listed as
 // Ze's; doctor still counts every socket policy, so the copy is not hidden there.
-func socketPolicyRole(priority int) PolicyRole {
+func socketPolicyRole(priority int) PolicyRole { //nolint:unused // called only by the Linux backend (xfrm_linux.go policyInfoFromKernel); a non-Linux lint pass sees no caller
 	if priority == PriorityESPFormSocket {
 		return PolicyRoleESPFormSocket
 	}

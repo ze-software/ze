@@ -49,6 +49,10 @@ const codeConfigPlatformMismatch = "doctor-config-platform-mismatch"
 // registers.
 const doctorComponentSystem = "system"
 
+// doctorDependencyConfigTree names the config-tree doctor check that every
+// check reading the parsed config depends on.
+const doctorDependencyConfigTree = "config-tree"
+
 // The resolv.conf path each platform expects. The gokrazy path is the YANG
 // default (ze-system-conf.yang, dns/resolv-conf-path), because that rootfs is
 // read-only under /etc.
@@ -100,7 +104,7 @@ var systemDoctorChecks = []diagnostic.DoctorCheck{{
 	Phase:        diagnostic.DoctorPhasePostConfig,
 	Order:        2240,
 	Component:    doctorComponentSystem,
-	Dependencies: []string{"config-tree"},
+	Dependencies: []string{doctorDependencyConfigTree},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes:        []string{codeConfigPlatformMismatch},
 	Check:        checkUpdateBackendConfig,
@@ -111,7 +115,7 @@ var systemDoctorChecks = []diagnostic.DoctorCheck{{
 	Phase:        diagnostic.DoctorPhasePostConfig,
 	Order:        2290,
 	Component:    doctorComponentSystem,
-	Dependencies: []string{"config-tree"},
+	Dependencies: []string{doctorDependencyConfigTree},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes:        []string{codeConfigPlatformMismatch},
 	Check:        checkResolvConfPath,

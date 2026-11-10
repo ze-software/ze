@@ -40,11 +40,12 @@ const (
 func orderedInstall(t *testing.T, entries []dataplane.SPParams) {
 	t.Helper()
 	dp := dataplane.Get()
-	for _, p := range entries {
+	for i := range entries {
+		p := &entries[i]
 		if p.Dir != dataplane.SADirIn {
 			continue
 		}
-		if err := dp.InstallPolicy(p); err != nil {
+		if err := dp.InstallPolicy(*p); err != nil {
 			t.Fatalf("install inbound entry %s -> %s: %v", p.Src, p.Dst, err)
 		}
 		t.Cleanup(func() {

@@ -51,7 +51,7 @@ type signatureScheme struct {
 	// AlgorithmIdentifier chose h and the certificate chose this family, and the two
 	// can disagree (an id-Ed25519 AUTH from an ECDSA certificate).
 	verify func(pub crypto.PublicKey, input, signature []byte, h crypto.Hash) error
-	// algorithms are every algorithm the family recognises in a received AUTH.
+	// algorithms are every algorithm the family recognizes in a received AUTH.
 	algorithms []signatureAlgorithm
 	// certificateKey reads the family's public key out of a certificate's DER
 	// SubjectPublicKeyInfo, for a key type crypto/x509 does not parse (it leaves

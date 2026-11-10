@@ -243,7 +243,9 @@ func TestESPAddedCipherBoundaries(t *testing.T) {
 		{"3des", ""}, {"3des", "md5"}, {"chacha20poly1305", "sha1"},
 		{"chacha20poly1305", "sha256"},
 	} {
-		parseErr(t, makeESPTree("ESP-X", "", "", map[string][2]string{"1": pair}))
+		// parseErr fails the test when the tree is accepted; a refusal of any
+		// wording is what this boundary asserts, so the error itself is not read.
+		_ = parseErr(t, makeESPTree("ESP-X", "", "", map[string][2]string{"1": pair}))
 	}
 	for hash, name := range hashNames {
 		if HashImplementedESP(hash) != slices.Contains(crypto.SupportedESPIntegrityNames(), name) {

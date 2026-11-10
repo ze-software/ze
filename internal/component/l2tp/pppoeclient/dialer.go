@@ -85,7 +85,7 @@ type Dialer struct{}
 // Dial performs PPPoE discovery (RFC 2516 Section 5) and kernel session
 // setup. Returns a PPPoESession with open file descriptors. The caller
 // must invoke Cleanup when the session is no longer needed.
-func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logger *slog.Logger) (iface.PPPoESession, error) {
+func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logger *slog.Logger) (iface.PPPoESession, error) { //nolint:gocritic // hugeParam: iface.PPPoEDialer fixes the value signature; one copy per dial, off the data plane
 	// RFC 2516 Section 7: the session MTU bounds the MRU LCP negotiates.
 	mtu, err := pppoeSessionMTU(cfg.MTU)
 	if err != nil {

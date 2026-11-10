@@ -85,7 +85,7 @@ done
 		if err != nil {
 			t.Error(err)
 		}
-		for _, id := range strings.Fields(string(output)) {
+		for id := range strings.FieldsSeq(string(output)) {
 			if output, err := exec.CommandContext(cleanup, "docker", "rm", "-f", id).CombinedOutput(); err != nil {
 				t.Errorf("remove fixture worker: %v\n%s", err, output)
 			}
@@ -115,7 +115,7 @@ started:
 		case <-until.C:
 			t.Fatal("actual Docker container did not reach heartbeat boundary")
 		case <-poll.C:
-			if body, err := os.ReadFile(heartbeat); err == nil && len(strings.TrimSpace(string(body))) > 0 {
+			if body, err := os.ReadFile(heartbeat); err == nil && strings.TrimSpace(string(body)) != "" {
 				break started
 			}
 		}

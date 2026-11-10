@@ -65,8 +65,14 @@ func (s *guardSim) run(t *testing.T, insns asm.Instructions) uint64 {
 		if op.Source() == asm.RegSource {
 			operand = r[ins.Src]
 		}
+		// The simulator covers only the classes the guard program emits; any other
+		// class fails the test in default rather than being simulated.
+		//exhaustive:ignore
 		switch op.Class() {
 		case asm.ALU64Class:
+			// Only the ALU ops the guard program emits are simulated; any other op
+			// fails the test in default.
+			//exhaustive:ignore
 			switch op.ALUOp() {
 			case asm.Mov:
 				r[ins.Dst] = operand
@@ -96,11 +102,14 @@ func (s *guardSim) run(t *testing.T, insns asm.Instructions) uint64 {
 				s.call(t, &stack, &r, ins.Constant)
 				continue
 			}
-			target, labelled := symbols[ins.Reference()]
-			if !labelled {
+			target, labeled := symbols[ins.Reference()]
+			if !labeled {
 				t.Fatalf("instruction %d: jump to unknown label %q", pc-1, ins.Reference())
 			}
 			taken := false
+			// Exit and Call are handled above; only the conditional jumps the guard
+			// program emits are simulated, and any other op fails the test in default.
+			//exhaustive:ignore
 			switch op.JumpOp() {
 			case asm.Ja:
 				taken = true

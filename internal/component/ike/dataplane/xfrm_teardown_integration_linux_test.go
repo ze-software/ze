@@ -68,8 +68,8 @@ func teardownPolicyInstalled(t *testing.T, b *xfrmBackend, want SPParams) bool {
 	if err != nil {
 		t.Fatalf("ListPolicies: %v", err)
 	}
-	for _, p := range policies {
-		if p.ReqID == want.ReqID && p.Dir == want.Dir {
+	for i := range policies {
+		if policies[i].ReqID == want.ReqID && policies[i].Dir == want.Dir {
 			return true
 		}
 	}

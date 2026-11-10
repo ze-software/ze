@@ -10,6 +10,7 @@ package ppp
 
 import (
 	"encoding/binary"
+	"slices"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -264,13 +265,12 @@ func (s *pppSession) acceptProxyPolicy(proxy proxyLCPResult) bool {
 	if method == AuthMethodNone {
 		return false
 	}
-	for _, allowed := range s.authFallbackOrder {
-		if method == allowed {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(s.authFallbackOrder, method)
 }
+
+// authFailureReasonTimeout is the EventAuthFailure reason sent when the
+// auth-timeout fires before an auth handler answered.
+const authFailureReasonTimeout = "timeout"
 
 // authMethodToLCPOptions returns the AuthProto value and AuthData
 // bytes to populate in LCPOptions when building a local CONFREQ.
@@ -397,7 +397,7 @@ func (s *pppSession) authDecisionTimedOut(label string, timeout time.Duration) (
 	s.sendAuthEvent(eventAuthFailure{
 		TunnelID:  s.tunnelID,
 		SessionID: s.sessionID,
-		Reason:    "timeout",
+		Reason:    authFailureReasonTimeout,
 	})
 	return authResponseMsg{}, false
 }
@@ -561,7 +561,7 @@ func waitCHAPLike[T any](
 				s.sendAuthEvent(eventAuthFailure{
 					TunnelID:  s.tunnelID,
 					SessionID: s.sessionID,
-					Reason:    "timeout",
+					Reason:    authFailureReasonTimeout,
 				})
 				return zero, false
 			}
@@ -579,7 +579,7 @@ func waitCHAPLike[T any](
 			s.sendAuthEvent(eventAuthFailure{
 				TunnelID:  s.tunnelID,
 				SessionID: s.sessionID,
-				Reason:    "timeout",
+				Reason:    authFailureReasonTimeout,
 			})
 			return zero, false
 		}

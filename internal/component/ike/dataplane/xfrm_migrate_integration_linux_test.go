@@ -89,8 +89,8 @@ func migrationKernelFixture(t *testing.T, window uint8, esn bool) (*xfrmMobikeBa
 			Owner: "migration-peer", Priority: PriorityChildSA, TunnelSrc: m.OldLocal, TunnelDst: m.OldRemote,
 			UpperProto: 6, SrcPort: ExactPortMatch(50100), DstPort: ExactPortMatch(179)},
 	}
-	for _, p := range m.Policies {
-		if err := b.InstallPolicy(p); err != nil {
+	for i := range m.Policies {
+		if err := b.InstallPolicy(m.Policies[i]); err != nil {
 			t.Fatal(err)
 		}
 	}

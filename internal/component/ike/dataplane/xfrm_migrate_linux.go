@@ -306,7 +306,8 @@ func (b *xfrmMobikeBackend) prepareMigration(m TunnelMigration) ([2]xfrmStateMov
 	}
 	policies := make([]*netlink.XfrmPolicy, 0, len(m.Policies))
 	var inbound, outbound bool
-	for _, p := range m.Policies {
+	for i := range m.Policies {
+		p := &m.Policies[i]
 		if p.Action != SPActionProtect || p.Mode != ModeTunnel || p.Proto != ProtoESP || p.IfID != m.IfID || p.ReqID != m.ReqID {
 			return moves, nil, fmt.Errorf("xfrm: migration policy does not belong to the tunnel")
 		}
@@ -324,14 +325,14 @@ func (b *xfrmMobikeBackend) prepareMigration(m TunnelMigration) ([2]xfrmStateMov
 		if !p.TunnelSrc.Equal(oldSrc[index]) || !p.TunnelDst.Equal(oldDst[index]) {
 			return moves, nil, fmt.Errorf("xfrm: migration policy endpoints changed")
 		}
-		owner, known := b.policies.ownerOf(p)
+		owner, known := b.policies.ownerOf(*p)
 		if !known {
 			return moves, nil, fmt.Errorf("xfrm: migration policy has no owner record")
 		}
 		if owner != p.Owner {
-			return moves, nil, &PolicyOwnedError{Selector: policyKey(p), HeldBy: owner, Wanted: p.Owner}
+			return moves, nil, &PolicyOwnedError{Selector: policyKey(*p), HeldBy: owner, Wanted: p.Owner}
 		}
-		want, err := xfrmPolicyFromParams(p)
+		want, err := xfrmPolicyFromParams(*p)
 		if err != nil {
 			return moves, nil, err
 		}

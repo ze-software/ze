@@ -216,16 +216,13 @@ func readProxyAuthenID(value []byte) (ProxyAuthenIDValue, error) {
 	return ProxyAuthenIDValue{ChapID: value[1]}, nil
 }
 
-// writeAVPProxyAuthenID writes the Proxy Authen ID AVP.
-func writeAVPProxyAuthenID(buf []byte, off int, mandatory bool, v ProxyAuthenIDValue) int {
+// writeAVPProxyAuthenID writes the Proxy Authen ID AVP, M-bit clear.
+func writeAVPProxyAuthenID(buf []byte, off int, v ProxyAuthenIDValue) int {
 	valueOff := off + AVPHeaderLen
 	buf[valueOff] = 0 // reserved
 	buf[valueOff+1] = v.ChapID
-	flags := AVPFlags(0)
-	if mandatory {
-		flags |= FlagMandatory
-	}
 	total := AVPHeaderLen + 2
-	WriteAVPHeader(buf, off, flags, 0, AVPProxyAuthenID, total)
+	// RFC 2661 Section 4.4.5: "The M-bit for this AVP MUST be set to 0."
+	WriteAVPHeader(buf, off, 0, 0, AVPProxyAuthenID, total)
 	return total
 }

@@ -90,8 +90,9 @@ func lifecyclePeer(t *testing.T, state *ikeEngineState, dp dataplane.Dataplane) 
 	child.TSLocal = local
 	child.TSRemote = remote
 	for _, dir := range []dataplane.SADir{dataplane.SADirIn, dataplane.SADirOut} {
-		for _, p := range childPolicies(child, dir) {
-			if err := dp.InstallPolicy(p); err != nil {
+		policies := childPolicies(child, dir)
+		for i := range policies {
+			if err := dp.InstallPolicy(policies[i]); err != nil {
 				t.Fatalf("install the Child SA's %s entry: %v", dirName(dir), err)
 			}
 		}
@@ -108,8 +109,9 @@ func lifecyclePeer(t *testing.T, state *ikeEngineState, dp dataplane.Dataplane) 
 func childKeys(child *ChildSA) map[spKey]bool {
 	keys := map[spKey]bool{}
 	for _, dir := range []dataplane.SADir{dataplane.SADirIn, dataplane.SADirOut} {
-		for _, p := range childPolicies(child, dir) {
-			keys[keyOf(p)] = true
+		policies := childPolicies(child, dir)
+		for i := range policies {
+			keys[keyOf(policies[i])] = true
 		}
 	}
 	return keys
@@ -143,8 +145,8 @@ func catchAllKeys(t *testing.T) map[spKey]bool {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, p := range policies {
-			keys[keyOf(p)] = true
+		for i := range policies {
+			keys[keyOf(policies[i])] = true
 		}
 	}
 	return keys

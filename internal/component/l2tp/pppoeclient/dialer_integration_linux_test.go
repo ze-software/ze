@@ -29,7 +29,7 @@ func isPermErr(err error) bool {
 
 // dialWithWatchdog runs Dial in a goroutine and fails if it does not return
 // within the timeout, so a stop-signal regression cannot hang the suite.
-func dialWithWatchdog(t *testing.T, cfg iface.PPPoEClientConfig) error {
+func dialWithWatchdog(t *testing.T, cfg *iface.PPPoEClientConfig) error {
 	t.Helper()
 	stop := make(chan struct{})
 	close(stop) // already stopped: Dial must not block waiting for a PADO
@@ -37,7 +37,7 @@ func dialWithWatchdog(t *testing.T, cfg iface.PPPoEClientConfig) error {
 	ch := make(chan result, 1)
 	go func() {
 		d := &Dialer{}
-		_, err := d.Dial(cfg, stop, slog.Default())
+		_, err := d.Dial(*cfg, stop, slog.Default())
 		ch <- result{err}
 	}()
 	select {
@@ -50,7 +50,7 @@ func dialWithWatchdog(t *testing.T, cfg iface.PPPoEClientConfig) error {
 }
 
 func TestDialBogusInterface(t *testing.T) {
-	err := dialWithWatchdog(t, iface.PPPoEClientConfig{SourceInterface: "ze-nope-xyz0", Timing: testDialTiming})
+	err := dialWithWatchdog(t, &iface.PPPoEClientConfig{SourceInterface: "ze-nope-xyz0", Timing: testDialTiming})
 	if err == nil {
 		t.Error("Dial on a non-existent interface should return an error")
 	}
@@ -60,7 +60,7 @@ func TestDialLoopbackDiscovery(t *testing.T) {
 	if !userns.Enter(t) {
 		return
 	}
-	err := dialWithWatchdog(t, iface.PPPoEClientConfig{SourceInterface: "lo", Timing: testDialTiming})
+	err := dialWithWatchdog(t, &iface.PPPoEClientConfig{SourceInterface: "lo", Timing: testDialTiming})
 	if err == nil {
 		t.Error("Dial on loopback with no PPPoE server should return an error")
 	}

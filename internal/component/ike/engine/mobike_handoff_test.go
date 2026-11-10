@@ -304,8 +304,8 @@ func (d *mbHandoffDP) MigrateTunnel(m dataplane.TunnelMigration) error {
 		}
 		d.endpoints[spi] = state
 	}
-	for _, policy := range m.Policies {
-		key := spdKeyOf(policy)
+	for i := range m.Policies {
+		key := spdKeyOf(m.Policies[i])
 		current, ok := d.policies[key]
 		if !ok {
 			return fmt.Errorf("policy %v does not exist", key)

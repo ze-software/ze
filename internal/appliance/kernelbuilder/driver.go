@@ -349,17 +349,17 @@ func runContainer(ctx context.Context, req Request, name string, args []string) 
 	err = namedLifecycleOverrun(createCtx, err)
 	cancelCreate()
 	if err != nil {
-		return err, fmt.Errorf("Docker did not confirm creating container %s (%w); Ze did not start it, and output ownership repair and disk reclaim were refused. Inspect only this run's container before removing it:\ndocker container inspect %s", name, err, name)
+		return err, fmt.Errorf("Docker did not confirm creating container %s (%w); Ze did not start it, and output ownership repair and disk reclaim were refused. Inspect only this run's container before removing it:\ndocker container inspect %s", name, err, name) //nolint:staticcheck // ST1005: starts with the proper noun Docker
 	}
 	id := strings.TrimSpace(string(output))
 	if len(id) != 64 {
-		return errors.New("Docker did not return a full container ID"),
-			fmt.Errorf("Docker returned %q for container %s; Ze did not start it, and output ownership repair and disk reclaim were refused. Inspect only this run's container before removing it:\ndocker container inspect %s", id, name, name)
+		return errors.New("Docker did not return a full container ID"), //nolint:staticcheck // ST1005: starts with the proper noun Docker
+			fmt.Errorf("Docker returned %q for container %s; Ze did not start it, and output ownership repair and disk reclaim were refused. Inspect only this run's container before removing it:\ndocker container inspect %s", id, name, name) //nolint:staticcheck // ST1005: starts with the proper noun Docker
 	}
 	for _, ch := range id {
 		if !strings.ContainsRune("0123456789abcdef", ch) {
-			return errors.New("Docker returned an invalid container ID"),
-				fmt.Errorf("Docker returned %q for container %s; Ze did not start it, and output ownership repair and disk reclaim were refused. Inspect only this run's container before removing it:\ndocker container inspect %s", id, name, name)
+			return errors.New("Docker returned an invalid container ID"), //nolint:staticcheck // ST1005: starts with the proper noun Docker
+				fmt.Errorf("Docker returned %q for container %s; Ze did not start it, and output ownership repair and disk reclaim were refused. Inspect only this run's container before removing it:\ndocker container inspect %s", id, name, name) //nolint:staticcheck // ST1005: starts with the proper noun Docker
 		}
 	}
 	runErr = ctx.Err()
@@ -369,7 +369,7 @@ func runContainer(ctx context.Context, req Request, name string, args []string) 
 	removeCtx, cancelRemove := context.WithTimeout(context.WithoutCancel(ctx), containerLifecycleTimeout)
 	defer cancelRemove()
 	if err := namedLifecycleOverrun(removeCtx, runCommand(removeCtx, req, backendDocker, "rm", "--force", id)); err != nil {
-		return runErr, fmt.Errorf("Docker did not confirm removing owned container %s (%w); it may still hold the build volumes, so output ownership repair and disk reclaim were refused. Remove only this container before another build:\ndocker rm --force %s", id, err, id)
+		return runErr, fmt.Errorf("Docker did not confirm removing owned container %s (%w); it may still hold the build volumes, so output ownership repair and disk reclaim were refused. Remove only this container before another build:\ndocker rm --force %s", id, err, id) //nolint:staticcheck // ST1005: starts with the proper noun Docker
 	}
 	// Docker's successful removal joins its worker and removes the identity,
 	// including when start was canceled while the daemon was handling it.

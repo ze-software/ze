@@ -78,7 +78,7 @@ func verifyE2fsck(ctx context.Context, permImg string, execute func(context.Cont
 		slog.Warn("e2fsck not found, skipping structural check")
 		return nil //nolint:nilerr // intentional: skip when e2fsck not installed
 	}
-	if _, err := runInjectionCommand(ctx, execute, e2fsck, "-f", "-n", permImg); err != nil {
+	if err := runInjectionCommand(ctx, execute, e2fsck, "-f", "-n", permImg); err != nil {
 		return fmt.Errorf("ext4 structural check failed: %w", err)
 	}
 	return nil
@@ -120,7 +120,7 @@ func tryLoopbackVerify(
 	// An interrupted mount can already have taken effect. Cleanup MUST be
 	// installed before attempting it and MUST finish before releasing mountDir.
 	defer func() {
-		_, err := runInjectionCommand(context.WithoutCancel(ctx), execute, "umount", mountDir)
+		err := runInjectionCommand(context.WithoutCancel(ctx), execute, "umount", mountDir)
 		if err == nil {
 			return
 		}
@@ -142,7 +142,7 @@ func tryLoopbackVerify(
 		slog.Warn("cleanup after refused optional mount", "error", cleanupErr)
 	}()
 
-	_, mountErr = runInjectionCommand(ctx, execute, "mount", "-o", "loop,ro", permImg, mountDir)
+	mountErr = runInjectionCommand(ctx, execute, "mount", "-o", "loop,ro", permImg, mountDir)
 	if mountErr != nil {
 		if errors.Is(mountErr, context.Canceled) {
 			return mountErr

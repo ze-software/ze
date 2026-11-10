@@ -106,7 +106,7 @@ func TestReloadKeepsChildlessSessionForESPGroupChange(t *testing.T) {
 	rcxRunLoop(t, link, bus)
 
 	reloaded := rcxReloadedESPGroup()
-	reconcilePeers(rcxConfig(ps, ps.ikeGroup, reloaded), active, NewSATable(), nil, nil, nil, slog.Default())
+	reconcilePeers(rcxConfig(ps, ps.ikeGroup, reloaded), active, NewSATable(), slog.Default())
 	if active[ps.peerName] != ps {
 		t.Fatal("an esp-group change restarted a childless session, want the IKE SA kept")
 	}
@@ -225,7 +225,7 @@ func TestReloadRestartsSessionOutsideTheChildlessESPChange(t *testing.T) {
 			rcxStopRestarted(t, active, ps)
 			rcxRunLoop(t, link, &sepBus{})
 
-			reconcilePeers(rcxConfig(ps, tc.ike(ps.ikeGroup), tc.esp), active, NewSATable(), nil, nil, nil, slog.Default())
+			reconcilePeers(rcxConfig(ps, tc.ike(ps.ikeGroup), tc.esp), active, NewSATable(), slog.Default())
 			if active[ps.peerName] == ps {
 				t.Fatal("the reload kept the running session, want it restarted")
 			}

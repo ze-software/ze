@@ -110,7 +110,7 @@ func (g *overrideGuard) attach() error {
 	if err != nil {
 		return err
 	}
-	root, err := cgroup2Root("/proc/self/mountinfo")
+	root, err := cgroup2Root()
 	if err != nil {
 		return err
 	}
@@ -251,13 +251,16 @@ func kernelDev(statDev uint64) uint64 {
 // errNoCgroup2 is the answer when no cgroup2 file system is mounted.
 var errNoCgroup2 = errors.New("no cgroup2 file system is mounted (mount -t cgroup2 none /sys/fs/cgroup)")
 
+// selfMountinfo is the calling process's mount table (proc(5)).
+const selfMountinfo = "/proc/self/mountinfo"
+
 // cgroup2Root answers the mount point of the cgroup2 hierarchy, read from
-// mountinfo rather than assumed: a distribution host with a hybrid cgroup layout
+// selfMountinfo rather than assumed: a distribution host with a hybrid cgroup layout
 // mounts it at /sys/fs/cgroup/unified, and gokrazy at /sys/fs/cgroup.
-func cgroup2Root(mountinfo string) (string, error) {
-	f, err := os.Open(mountinfo)
+func cgroup2Root() (string, error) {
+	f, err := os.Open(selfMountinfo)
 	if err != nil {
-		return "", fmt.Errorf("read %s to find the cgroup2 mount: %w", mountinfo, err)
+		return "", fmt.Errorf("read %s to find the cgroup2 mount: %w", selfMountinfo, err)
 	}
 	defer f.Close() //nolint:errcheck // read only
 	return cgroup2RootFrom(f)

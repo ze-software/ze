@@ -376,7 +376,7 @@ const dialChanDepth = 16
 func (r *l2tpReactor) placePendingCallLocked(t *L2TPTunnel, now time.Time) []sendRequest {
 	calls := t.pendingCalls
 	t.pendingCalls = nil
-	var sends []sendRequest
+	sends := make([]sendRequest, 0, len(calls)) // one ICRQ/OCRQ per queued call
 	for _, pc := range calls {
 		sends = append(sends, r.placeOnePendingCallLocked(t, pc, now)...)
 	}

@@ -63,7 +63,7 @@ func buildICCNWithProxy(txSpeed, framingType uint32) []byte {
 	off += WriteAVPUint16(buf[:], off, false, AVPProxyAuthenType, 2) // CHAP
 	off += WriteAVPString(buf[:], off, false, AVPProxyAuthenName, "user1")
 	off += WriteAVPBytes(buf[:], off, false, 0, AVPProxyAuthenChallenge, []byte{0xAA, 0xBB})
-	off += writeAVPProxyAuthenID(buf[:], off, false, ProxyAuthenIDValue{ChapID: 42})
+	off += writeAVPProxyAuthenID(buf[:], off, ProxyAuthenIDValue{ChapID: 42})
 	off += WriteAVPBytes(buf[:], off, false, 0, AVPProxyAuthenResponse, []byte{0xCC, 0xDD})
 	return buf[:off]
 }
@@ -220,7 +220,7 @@ func TestSession_IncomingLNS_ICCNMissingTxSpeed(t *testing.T) {
 	// Through Process with Nr=1, as a peer sends it: the acknowledgement of
 	// our ICRP frees the one-packet slow-start window (RFC 2661 Appendix A),
 	// so the CDN leaves at once and carries the ICCN's acknowledgement.
-	wire := sessionMsgWire(sess.localSID, 0, 1, badICCN)
+	wire := sessionMsgWire(sess.localSID, badICCN)
 	hdr, err := ParseMessageHeader(wire)
 	if err != nil {
 		t.Fatalf("parse ICCN header: %v", err)
@@ -270,7 +270,7 @@ func TestSession_MaxSessionsEnforced(t *testing.T) {
 	// Second ICRQ rejected. It goes through Process with Nr=1, as a peer
 	// sends it: the acknowledgement of the first ICRP frees the one-packet
 	// slow-start window (RFC 2661 Appendix A), so the CDN leaves at once.
-	wire := sessionMsgWire(0, 0, 1, buildICRQ(501, 1002))
+	wire := sessionMsgWire(0, buildICRQ(501, 1002))
 	hdr, err := ParseMessageHeader(wire)
 	if err != nil {
 		t.Fatalf("parse ICRQ header: %v", err)

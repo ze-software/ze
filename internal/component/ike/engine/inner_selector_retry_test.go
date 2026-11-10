@@ -100,8 +100,9 @@ func (g *gatedRemoveDP) RemovePolicyParams(p dataplane.SPParams) error {
 func (g *gatedRemoveDP) owns(child *ChildSA, owner string) bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	for _, p := range append(childPolicies(child, dataplane.SADirOut), childPolicies(child, dataplane.SADirIn)...) {
-		if got, ok := g.live[selectorOf(&p)]; !ok || got != owner {
+	policies := append(childPolicies(child, dataplane.SADirOut), childPolicies(child, dataplane.SADirIn)...)
+	for i := range policies {
+		if got, ok := g.live[selectorOf(&policies[i])]; !ok || got != owner {
 			return false
 		}
 	}

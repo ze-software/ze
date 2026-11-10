@@ -8,9 +8,9 @@
 | Release reason | 25 findings of the full lint in IKE, L2TP and the appliance; the full lint holds the release (`plan/release/validation/spec-lint-backlog-0-umbrella.md`) |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 2-3/4: source fixes written; RFC audit stamp and serialized verification pending |
+| Phase | 4/4: closure open; CI-list fixes landed in `85a33a3887`, `4abd85f6f9` and `34549af4be`; later in-scope findings in the interim commit; scoped lint pending |
 | Handoff | - |
-| Updated | 2026-11-02 |
+| Updated | 2026-11-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -224,3 +224,235 @@ ID mapping in `rules/rulelist.go`.
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
 - [ ] `./le go lint run scope "<the four trees>"` zero; `./le job run label access command go test -race -tags <tags> <changed packages>`; `./le test functional l2tp` if the FSM changed. Full-run evidence belongs to the umbrella's CI run.
+- [ ] The changed packages (`ike/engine`, `ike/dataplane`, `internal/appliance`) belong to no named `./le test unit` group other than `all`; the closure evidence is the scoped tagged race run above, not `./le test unit all`. The L2TP FSM did not change, so `./le test functional l2tp` is not owed.
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `85a33a3887` ("lint(access): annotate appliance modes and check IKE join
+  errors"):
+  - gosec: two G302 reasons on the `secretsDirPerm` (0o700) chmods in
+    `runInit` and `initOneFromBatch` (`cmd_init.go`), and three G301 reasons
+    on the `cacheDirPerm` (0o755) `MkdirAll` calls in
+    `defaultInitrdMakeBuild` (`cmd_initrd.go`), `defaultKernelBuild` and
+    `downloadFirmwareBlob` (`cmd_kernel.go`).
+  - errcheck: `TestLeaseReleasedWhenRunEstablishedExits` now fails on a
+    non-nil `runEstablished` error, and `TestLeaseReleasedOnResponderDeadBranch`
+    fails unless `runResponder` answers `errStopped` (`cp_close_test.go`).
+    `TestDprUnansweredProbeIsRetransmitted` fails on a non-nil `maintainSA`
+    error after stop (`dpd_retransmit_test.go`). Three joins on an
+    already-failing path carry a reasoned `//nolint:errcheck`:
+    `TestDprSilentPeerStillTimesOut`, `TestRFC4301SADLifetimeHardTimeTerminatesTheSA`
+    and `TestPolicyOwnerHoldsTheSelectorAcrossTheKernelDelete`.
+  - gocritic: `routeSourceTo` (`mobike_route_linux.go`) ranges by index.
+  - modernize: `mobikeRouteNetns` (`mobike_route_linux_test.go`) sets the
+    promoted `Name` field of `netlink.Dummy`.
+  - The `RFC4301-4.4.2.1-11` and `RFC3948-5.2-1` audit unit hashes are
+    restamped over these comment-only edits to their tagged units.
+- `34549af4be` carries the five G301 reasons in `internal/appliance/cache.go`
+  (lines 392, 479, 522, 581 and 708).
+- `4abd85f6f9` ("lint: keep exhaustive directive arguments empty") placed the
+  seven exhaustive reasons on the line above an empty `//exhaustive:ignore`:
+  `doctor.go` (platform switch), `eapMethodType` (`eap_auth.go`),
+  `mutateForTest` (`reconcile_test.go`), the session-state metric switch
+  (`metrics.go`) and the ICRQ, ICCN and OCRQ AVP projections
+  (`session_fsm.go`).
+
+### Interim commit (2026-11-10): later findings in the four trees
+- The closure's scoped lint found about 100 new findings in the four trees,
+  from other sessions' commits after 2026-11-02. Three fix agents cleared
+  them (28 IKE files, 27 L2TP files, 13 appliance and config/system files),
+  and the interim commit lands them while the spec stays open.
+  - They are mechanical: rangeValCopy by index (`installIKEBypass`,
+    `installChildDataplane`, `rollbackChildPolicies`, `installSPDPolicies`,
+    and the rest), unparam (`writeAVPProxyAuthenID` always writes the M-bit
+    clear, which RFC 2661 Section 4.4.5 requires and every caller already
+    passed; `cgroup2Root`, `reconcilePeers`, `removeByPeerExcept`), goconst,
+    misspell, typeDefFirst moves (`ikeEngineState`), and reasoned errcheck
+    directives.
+  - `injection_lifetime_proof_test.go` drops a `defer connection.Close()` that
+    could never run before the descendant's `os.Exit(0)`.
+- Evidence (main thread):
+  - `go test -race` with every feature tag over l2tp, the appliance and
+    config/system: 20 packages `ok` (`job-lint6-l2tp-app-f0fc5b18.log`).
+  - The same over ike, l2tp and kernelbuilder: 10 `ok`
+    (`job-lint6-ike2-02d19dff.log`).
+  - ike/engine after the last pass: `ok` (`job-lint6-ike3-886ba6d4.log`).
+  - `./le repo compiles check`: exit 0.
+- RFC records:
+  - Resealed, because the edits shifted these verdicts: rfc1661 5.4-5;
+    rfc2661 4.1-2, 4.1-3, 9-1, 10-1, 10-2; rfc3948 5.1-1; rfc4301 4.4.1-3,
+    4.4.1-10, 4.4.2-2; rfc5176 3.3-1, 3.4-4, 3.5-1.
+  - `RFC2661-4.1-1` was rejudged `enforced` by this closure agent, which did
+    not author the change: `TestAVPCatalogRoundTrip` lost only the `false`
+    argument, and its reserved-bit assertion is unchanged.
+- Still open. The scoped lint cannot settle while another IKE session edits
+  `ike/engine`:
+  - gocritic rangeValCopy in `rfc4301_unmatched_xfrm_interface_test.go`,
+    `rfc7296_child_rekey_initiator_answer_test.go` and `source_guard_test.go`.
+  - Whatever the lint's cap of ten findings per linter still hides.
+  - `unmatched.go` and `unmatched_xfrm_interface.go` belong to
+    `plan/post-release/features/spec-ipsec-spd-final-discard-vpp-ospf.md`.
+
+### Bugs Found/Fixed
+- None in product code. The three strengthened joins were test gaps: a loop
+  that returned an unexpected error on stop passed before.
+
+### Documentation Updates
+- None. Every edit is a comment, a lint directive, a test assertion or a
+  by-index loop with the same result. `./le spec citation anchors spec
+  plan/release/validation/spec-lint-backlog-6-access-and-appliance.md` printed
+  nothing and exited 0. The one page anchoring a changed producer,
+  `docs/architecture/ike/ipsec-7-ikev2-engine.md` (`routeSourceTo`), describes
+  the route lookup, which is unchanged.
+
+### Deviations from Plan
+- The seven exhaustive sites and the five `cache.go` sites were not edited in
+  this spec's commit: `4abd85f6f9` and `34549af4be` had already landed them.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1: the CI list needed an edit at every site | The seven exhaustive sites were already annotated, and `34549af4be` carried the `cache.go` reasons | Source audit and `git blame` | Implemented the rest in `85a33a3887`; kept all four trees in the acceptance runs |
+| approach | `85a33a3887` landed unlinted and untested before a host shutdown | Its body names the owed runs | Closure triage | Closure runs the scoped lint and the tagged race runs |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| `cache.go` gosec x5 | Done | `internal/appliance/cache.go` lines 392, 479, 522, 581, 708 | By `34549af4be`; G301 reasons, mode unchanged |
+| `cmd_init.go` gosec x2 | Done | `runInit`, `initOneFromBatch` | G302 reasons |
+| `cmd_initrd.go` gosec | Done | `defaultInitrdMakeBuild` | G301 reason |
+| `cmd_kernel.go` gosec x2 | Done | `defaultKernelBuild`, `downloadFirmwareBlob` | G301 reasons; the CI lines 658 and 712 drifted to 698 and 757 |
+| exhaustive x7 | Done | `doctor.go`, `eap_auth.go` `eapMethodType`, `reconcile_test.go` `mutateForTest`, `metrics.go`, `session_fsm.go` x3 | By `4abd85f6f9`; reason on the line above each empty directive |
+| errcheck x6 | Done | `cp_close_test.go` x2, `dpd_retransmit_test.go` x2, `rfc4301_sad_lifetime_action_test.go`, `rfc3948_policy_owner_test.go` | Three assert, three carry a reasoned nolint on an already-failing path |
+| gocritic | Done | `mobike_route_linux.go` `routeSourceTo` | rangeValCopy |
+| modernize | Done | `mobike_route_linux_test.go` `mobikeRouteNetns` | Promoted field |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | OWED | The main thread's scoped lint over the four trees | Filled from its log |
+| AC-2 | Done | `./le job run label lint6-race quiet command go test -race -count=1 -tags "ze_core <every ze_* tag in feature-gates.txt>"` over `ike/engine`, `ike/dataplane`, `internal/appliance`, 2026-11-10: exit 0; engine `ok` (242s), dataplane `ok` (63s), appliance `ok` (248s) | Log `tmp/session/2026-11-09-222501/scratch/job-lint6-race-e9b268bd.log`; the strengthened joins in `cp_close_test.go` and `dpd_retransmit_test.go` passed |
+| AC-3 | Done | `git show 85a33a3887` and the `cache.go` lines: every `//nolint` names gosec or errcheck and a reason; each `//exhaustive:ignore` has its reason on the line above | The exhaustive analyzer rejects text on its directive line (`4abd85f6f9`) |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The existing package tests | Done | `internal/component/ike/{engine,dataplane}`, `internal/appliance` | The AC-2 run, three `ok` lines |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| The 25 Task-table sites | Done | 9 files by `85a33a3887`, `cache.go` by `34549af4be`, 5 files by `4abd85f6f9` |
+
+### Audit Summary
+- **Total items:** 8 requirement rows, 3 ACs
+- **Done:** 8 requirement rows, AC-2, AC-3 (AC-1 waits for the scoped lint)
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The 25 CI lint findings in IKE, L2TP, the appliance and config/system are cleared | Scoped lint | OWED: the scoped lint over the four trees |
+| IKE, L2TP and appliance behavior is preserved | Package tests | The tagged race run of the three changed packages, 2026-11-10: exit 0, `ike/engine`, `ike/dataplane` and `internal/appliance` all `ok` (log `job-lint6-race-e9b268bd.log`); L2TP and config/system carry comment-only edits |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| None | Every Task-table finding is fixed | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | recorded at closure |
+| `./le spec review check` | recorded at closure |
+| Rounds | 1 |
+| Reviewer lenses used | /ze-review inline over `git show 85a33a3887` and the `cache.go` and exhaustive sites: wiring, removed behavior, logic, test strength, security, style, RFC records |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | none | No BLOCKER or ISSUE | - | - |
+
+### Run 1
+- 0 BLOCKER, 0 ISSUE. Size: 9 code files, +26/-12, in proportion to 13 findings.
+- Logic: `maintainSA` (`established.go`) returns nil on `<-ps.stopCh`, and
+  `runResponder` (`fsm.go`) returns `errStopped` there, so the new assertions
+  state the producers' contract. `routeSourceTo` returns the same `route.Src`
+  slice by index as by value.
+- Test strength: three joins now fail on an unexpected error; the three
+  annotated joins sit on a path that ends in an unconditional `t.Fatal`.
+  `./le test weakened check base 85a33a3887~1` names only another session's
+  DDoS detector tests. An independent `ze-test-judge` approved the
+  `rfc4301_sad_lifetime_action_test.go` edit.
+- Security: no mode, path or argv changed; 0o755 cache directories hold public
+  build artifacts and 0o700 is the secrets directory. No secret enters argv.
+- Style: no new `panic`, no new function; each directive names its linter and
+  reason.
+- RFC records: `./le rfc check` names neither `RFC4301-4.4.2.1-11` nor
+  `RFC3948-5.2-1`; its IKE reds (RFC3748-4-5, RFC7296-2.4-3, RFC3948-1-1,
+  RFC7296-1.3.1-1, RFC7296-2.20-1, RFC7296-2.21.2-3) judge
+  `handleAuthRequest`, `handleResponderEAP` and the unprotected-handshake
+  tests, none of which this diff touched.
+- NOTE: `./le repo check` reports only other sessions' findings
+  (`SetInt`/`SetBool`, `DirtyManifest`/`Fingerprint`, a DHCP probe parse).
+
+### Run 2 (interim commit)
+- Over the fix agents' edits in the 68 interim files: 0 BLOCKER, 0 ISSUE.
+- IKE engine sources:
+  - `apply.go` moves `ikeEngineState` unchanged above its first method.
+  - `bypass.go`, `child.go` and `spd_policy.go` range by index and pass `*p`,
+    so the same values reach `InstallPolicy` and `removeZePolicy`.
+    `rollbackChildPolicies` still walks `installed` backwards.
+  - `table.go` `removeByPeerExcept` lost a count no caller read.
+  - `reconcile.go` `reconcilePeers` lost the parameters that every test
+    caller passed as nil.
+- `cgroup2Root` reads its one constant path. The orderedInstall cleanup now
+  reads through a pointer into its slice, and its two callers do not change
+  the slice afterwards.
+- `writeAVPProxyAuthenID`: every caller passed `false`, so the bytes on the
+  wire are unchanged. The RFC 2661 Section 4.4.5 quote is byte-exact.
+- `injection_lifetime_proof_test.go`: the removed `defer connection.Close()`
+  sat before `os.Exit(0)`, so it never ran. The new type-assertion check in
+  `acceptInjectionLifetime` adds a failure arm, and no assertion is weaker.
+- NOTE: every edit to an RFC-tagged unit is mechanical, and its record was
+  resealed or rejudged above.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/ike/engine/mobike_route_linux.go` | Yes | `grep -n "route := &routes\[i\]"` hits `routeSourceTo` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Zero scoped lint findings | OWED |
+| AC-2 | Tagged race tests pass | `go test -race -count=1` with every feature tag under `./le job run`, 2026-11-10: three `ok` lines, exit 0 |
+| AC-3 | Every directive names its linter and reason | `grep -n "nolint:gosec // G30[12]" internal/appliance/*.go` lists ten sites, each with its reason |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le go lint run scope` over the four trees | None: a lint run | OWED |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken | `4abd85f6f9` and `34549af4be` had cleared twelve sites; Mistake Log row 1 |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Row 16, source anchors | `ipsec-7-ikev2-engine.md` anchors `routeSourceTo`, whose route choice is unchanged; `./le spec citation anchors` printed nothing | Yes |

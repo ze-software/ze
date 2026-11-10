@@ -149,9 +149,7 @@ func TestRuntimeKernelCLIAloneMaterializesStage(t *testing.T) {
 					if calls != wantCalls {
 						t.Errorf("native builds=%d, want %d", calls, wantCalls)
 					}
-					if action != "resolve" {
-						assertRuntimeKernelSentinel(t, staged)
-					} else {
+					if action == "resolve" {
 						stageBytes, stageErr := os.ReadFile(staged)
 						cacheBytes, cacheErr := os.ReadFile(filepath.Join(cached, "vmlinuz"))
 						if stageErr != nil || cacheErr != nil || !bytes.Equal(stageBytes, cacheBytes) {
@@ -160,6 +158,8 @@ func TestRuntimeKernelCLIAloneMaterializesStage(t *testing.T) {
 						if bytes.Equal(stageBytes, []byte(runtimeKernelRequestedSentinel)) {
 							t.Error("CLI output still holds the old staged input rather than selected kernel")
 						}
+					} else {
+						assertRuntimeKernelSentinel(t, staged)
 					}
 					if outputKind != "default" {
 						assertRuntimeKernelSentinel(t, requested)

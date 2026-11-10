@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"slices"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -650,8 +649,9 @@ func installChildDataplane(child, previous *ChildSA, prop ipsec.ESPProposal, dp 
 	// Linux checks decrypted transit traffic against FWD, not IN. Install both
 	// receive paths before OUT so no traffic leaves before its reply is accepted.
 	policies := childInstalledPolicies(child)
-	for i, p := range policies {
-		err := dp.InstallPolicy(p)
+	for i := range policies {
+		p := &policies[i]
+		err := dp.InstallPolicy(*p)
 		if err == nil {
 			continue
 		}
@@ -681,14 +681,16 @@ func rollbackChildPolicies(previous *ChildSA, installed []dataplane.SPParams, dp
 	}
 	var left []dataplane.SPParams
 	var rollbackErr error
-	for _, policy := range slices.Backward(installed) {
+	for i := len(installed) - 1; i >= 0; i-- {
+		policy := &installed[i]
 		shared := false
-		for _, old := range oldPolicies {
-			if old.Dir != policy.Dir || old.Owner != policy.Owner || !samePolicyEntry(old, policy) {
+		for j := range oldPolicies {
+			old := &oldPolicies[j]
+			if old.Dir != policy.Dir || old.Owner != policy.Owner || !samePolicyEntry(*old, *policy) {
 				continue
 			}
 			shared = true
-			if err := dp.InstallPolicy(old); err != nil {
+			if err := dp.InstallPolicy(*old); err != nil {
 				atomic.StoreUint32(&previous.policyRestoreFailed, 1)
 				rollbackErr = errors.Join(rollbackErr, fmt.Errorf("%w: restore %s policy %v -> %v: %w",
 					errChildPolicyRollback, dirLabel(old.Dir), old.Src, old.Dst, err))
@@ -701,8 +703,8 @@ func rollbackChildPolicies(previous *ChildSA, installed []dataplane.SPParams, dp
 		if shared {
 			continue
 		}
-		if err := removeZePolicy(dp, policy); !policyGone(err) {
-			left = append(left, policy)
+		if err := removeZePolicy(dp, *policy); !policyGone(err) {
+			left = append(left, *policy)
 			rollbackErr = errors.Join(rollbackErr, fmt.Errorf("%w: remove %s policy %v -> %v: %w",
 				errChildPolicyRollback, dirLabel(policy.Dir), policy.Src, policy.Dst, err))
 			log.Warn("could not remove a failed tunnel's policy; it still reserves the protected traffic",
@@ -1174,11 +1176,13 @@ func removeChildSAOutgoing(child *ChildSA, dp dataplane.Dataplane, log *slog.Log
 		// foreign delete on (dataplane.SPParams.Owner). A refusal here means another
 		// peer owns the selector, which is a takeover the install should already have
 		// stopped, so it is logged at Warn rather than swallowed.
-		for _, p := range childPolicies(child, dataplane.SADirOut) {
-			if err := removeZePolicy(dp, p); err != nil {
+		outbound := childPolicies(child, dataplane.SADirOut)
+		for i := range outbound {
+			p := &outbound[i]
+			if err := removeZePolicy(dp, *p); err != nil {
 				logPolicyRemoveFailure(log, "outbound", child, err)
 				if !policyGone(err) {
-					left = append(left, p)
+					left = append(left, *p)
 				}
 			}
 		}
@@ -1207,11 +1211,13 @@ func removeChildSAIncoming(child *ChildSA, dp dataplane.Dataplane, log *slog.Log
 	setChildRemoving(child, true)
 	var left []dataplane.SPParams
 	if dropPolicy {
-		for _, p := range childReceivePolicies(child) {
-			if err := removeZePolicy(dp, p); err != nil {
+		receive := childReceivePolicies(child)
+		for i := range receive {
+			p := &receive[i]
+			if err := removeZePolicy(dp, *p); err != nil {
 				logPolicyRemoveFailure(log, dirLabel(p.Dir), child, err)
 				if !policyGone(err) {
-					left = append(left, p)
+					left = append(left, *p)
 				}
 			}
 		}

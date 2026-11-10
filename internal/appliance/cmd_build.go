@@ -489,7 +489,7 @@ func injectZeFS(
 	debugfs := e2fsDebugfs
 
 	fmt.Fprintf(os.Stderr, "formatting /perm partition...\n")
-	if _, err := runInjectionCommand(ctx, execute, mkfs, "-q", "-F", "-O", "^metadata_csum",
+	if err := runInjectionCommand(ctx, execute, mkfs, "-q", "-F", "-O", "^metadata_csum",
 		"-b", "4096",
 		"-E", "offset="+strconv.FormatInt(permOff, 10),
 		imgPath, strconv.FormatInt(permBlocks, 10)); err != nil {
@@ -515,13 +515,13 @@ func injectZeFS(
 		return exitError
 	}
 
-	if _, err := runInjectionCommand(ctx, execute, debugfs, "-w", "-R", "mkdir ze", permImg); err != nil {
+	if err := runInjectionCommand(ctx, execute, debugfs, "-w", "-R", "mkdir ze", permImg); err != nil {
 		fmt.Fprintf(os.Stderr, "error: debugfs mkdir: %v\n", err)
 		return exitError
 	}
 
 	writeCmd := fmt.Sprintf("write %s ze/database.zefs", dbPath)
-	if _, err := runInjectionCommand(ctx, execute, debugfs, "-w", "-R", writeCmd, permImg); err != nil {
+	if err := runInjectionCommand(ctx, execute, debugfs, "-w", "-R", writeCmd, permImg); err != nil {
 		fmt.Fprintf(os.Stderr, "error: debugfs write: %v\n", err)
 		return exitError
 	}
@@ -537,7 +537,7 @@ func injectZeFS(
 		"set_inode_field ze/database.zefs uid 0",
 		"set_inode_field ze/database.zefs gid 0",
 	} {
-		if _, err := runInjectionCommand(ctx, execute, debugfs, "-w", "-R", command, permImg); err != nil {
+		if err := runInjectionCommand(ctx, execute, debugfs, "-w", "-R", command, permImg); err != nil {
 			fmt.Fprintf(os.Stderr, "error: debugfs seed permissions: %v\n", err)
 			return exitError
 		}
@@ -546,7 +546,7 @@ func injectZeFS(
 	if manifestPath != "" {
 		var tb textbuf.Buffer
 		manifestCmd := tb.Str("write ").Str(manifestPath).Str(" ze/build.json").String()
-		if _, err := runInjectionCommand(ctx, execute, debugfs, "-w", "-R", manifestCmd, permImg); err != nil {
+		if err := runInjectionCommand(ctx, execute, debugfs, "-w", "-R", manifestCmd, permImg); err != nil {
 			if errors.Is(err, context.Canceled) {
 				return exitError
 			}

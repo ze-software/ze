@@ -62,8 +62,9 @@ func clearLedgerAfter(t *testing.T, child *ChildSA) {
 // ledgerNames reports whether the SPD ledger still names any policy of child.
 func ledgerNames(child *ChildSA) bool {
 	left := spdLeft.describe(&xfrmCommandDP{})
-	for _, p := range append(childPolicies(child, dataplane.SADirOut), childPolicies(child, dataplane.SADirIn)...) {
-		if slices.Contains(left, dataplane.XFRMPolicyDeleteCommand(&p)) {
+	policies := append(childPolicies(child, dataplane.SADirOut), childPolicies(child, dataplane.SADirIn)...)
+	for i := range policies {
+		if slices.Contains(left, dataplane.XFRMPolicyDeleteCommand(&policies[i])) {
 			return true
 		}
 	}
@@ -210,7 +211,7 @@ func TestStrandedRecordRetriedOnReconcile(t *testing.T) {
 	if got := table.innerSelectors.holdings(); got != 1 {
 		t.Fatalf("setup: registry holds %d Child SAs after both removals failed, want 1", got)
 	}
-	reconcilePeers(&ipsec.IPsecConfig{}, map[string]*PeerSession{}, table, nil, nil, nil, log)
+	reconcilePeers(&ipsec.IPsecConfig{}, map[string]*PeerSession{}, table, log)
 	if got := table.innerSelectors.holdings(); got != 0 {
 		t.Fatalf("registry holds %d Child SAs after a commit retried the removal, want 0", got)
 	}

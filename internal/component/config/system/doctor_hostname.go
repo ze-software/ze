@@ -1,6 +1,6 @@
 // Design: docs/guide/configuration.md -- System Host Name: the doctor finding when the kernel name differs
 // Related: hostname.go -- ConfiguredHostName, the leaf this check compares
-// Related: register_hostname_appliance.go -- registers the check on the appliance build only
+// Related: register_hostname_appliance.go -- declares and registers the check on the appliance build only
 
 package system
 
@@ -18,20 +18,6 @@ const codeSystemHostNotApplied = "doctor-system-host-not-applied"
 // kernelHostname reads the kernel host name. A variable so a test can stand in
 // a kernel; nothing else assigns it.
 var kernelHostname = os.Hostname
-
-// hostnameDoctorCheck is registered only by the appliance build: on a distro
-// the operating system owns the host name and a different one is expected.
-var hostnameDoctorCheck = diagnostic.DoctorCheck{
-	// Runs after the resolv.conf path check (2290, doctor.go).
-	Name:         "system-host-name",
-	Phase:        diagnostic.DoctorPhasePostConfig,
-	Order:        2295,
-	Component:    doctorComponentSystem,
-	Dependencies: []string{"config-tree"},
-	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{codeSystemHostNotApplied},
-	Check:        checkKernelHostname,
-}
 
 // checkKernelHostname reports a kernel host name that differs from the
 // configured `system host`. An unset leaf reports nothing: the kernel keeps

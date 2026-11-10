@@ -221,7 +221,7 @@ func TestAVPCatalogRoundTrip(t *testing.T) {
 			size int
 		}{AVPSequencingRequired, 6}},
 		{"ProxyAuthenID", func(b []byte, o int) int {
-			return writeAVPProxyAuthenID(b, o, false, ProxyAuthenIDValue{ChapID: 7})
+			return writeAVPProxyAuthenID(b, o, ProxyAuthenIDValue{ChapID: 7})
 		}, struct {
 			attr AVPType
 			size int

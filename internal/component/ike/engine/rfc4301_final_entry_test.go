@@ -39,7 +39,8 @@ func finalEntriesFor(tb testing.TB, value string) []dataplane.SPParams {
 	if len(dp.installed) != 6 {
 		tb.Fatalf("unmatched %q: installed %d entries, want 3 directions x 2 families", value, len(dp.installed))
 	}
-	for _, p := range dp.installed {
+	for i := range dp.installed {
+		p := &dp.installed[i]
 		if p.Priority != dataplane.PriorityUnmatched {
 			tb.Fatalf("unmatched %q dir %d: priority %d, want the final rank %d",
 				value, p.Dir, p.Priority, uint32(dataplane.PriorityUnmatched))

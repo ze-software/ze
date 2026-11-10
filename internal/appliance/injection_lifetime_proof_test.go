@@ -28,11 +28,12 @@ import (
 // The consumer must preserve cancellation, join that descendant, retain a foreign
 // sentinel and start no debugfs command. No filesystem is formatted or mounted.
 func TestInjectionConsumerCancellationJoinsDescendants(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	var listen net.ListenConfig
+	listener, err := listen.Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer listener.Close()
+	defer listener.Close() //nolint:errcheck // Test listener; no assertion reads its close.
 	self, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
@@ -81,14 +82,13 @@ func TestInjectionConsumerCancellationJoinsDescendants(t *testing.T) {
 	defer func() {
 		stopForeign()
 		if err := foreign.Wait(); err != nil {
-			var exited *exec.ExitError
-			if !errors.As(err, &exited) {
+			if _, exited := errors.AsType[*exec.ExitError](err); !exited {
 				t.Error(err)
 			}
 		}
 	}()
 	sentinel := acceptInjectionLifetime(t, listener)
-	defer sentinel.Close()
+	defer sentinel.Close() //nolint:errcheck // Test socket; no assertion reads its close.
 	var sentinelPID int
 	if err := json.NewDecoder(sentinel).Decode(&sentinelPID); err != nil {
 		t.Fatal(err)
@@ -111,13 +111,13 @@ func TestInjectionConsumerCancellationJoinsDescendants(t *testing.T) {
 		}
 	}()
 	owned := acceptInjectionLifetime(t, listener)
-	defer owned.Close()
+	defer owned.Close() //nolint:errcheck // Test socket; no assertion reads its close.
 	var ownedPID int
 	if err := json.NewDecoder(owned).Decode(&ownedPID); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		owned.Close()
+		owned.Close() //nolint:errcheck // Releases the fixture descendant; no assertion reads its close.
 		cancel()
 		select {
 		case <-done:
@@ -141,7 +141,7 @@ func TestInjectionConsumerCancellationJoinsDescendants(t *testing.T) {
 	var one [1]byte
 	if _, err := owned.Read(one[:]); err == nil {
 		t.Error("injection descendant wrote after consumer return")
-	} else if timeout, ok := err.(net.Error); ok && timeout.Timeout() {
+	} else if timeout, ok := errors.AsType[net.Error](err); ok && timeout.Timeout() {
 		t.Error("injection descendant survived consumer return")
 	}
 	if err := sentinel.SetReadDeadline(time.Now().Add(100 * time.Millisecond)); err != nil {
@@ -149,7 +149,7 @@ func TestInjectionConsumerCancellationJoinsDescendants(t *testing.T) {
 	}
 	if _, err := sentinel.Read(one[:]); err == nil {
 		t.Error("foreign sentinel unexpectedly wrote")
-	} else if timeout, ok := err.(net.Error); !ok || !timeout.Timeout() {
+	} else if timeout, ok := errors.AsType[net.Error](err); !ok || !timeout.Timeout() {
 		t.Errorf("injection cancellation touched foreign sentinel: %v", err)
 	}
 	if _, err := os.Stat(later); !errors.Is(err, os.ErrNotExist) {
@@ -174,7 +174,11 @@ func executeInjectionLifetime(ctx context.Context, name string, args ...string) 
 
 func acceptInjectionLifetime(t *testing.T, listener net.Listener) net.Conn {
 	t.Helper()
-	if err := listener.(*net.TCPListener).SetDeadline(time.Now().Add(10 * time.Second)); err != nil {
+	tcp, ok := listener.(*net.TCPListener)
+	if !ok {
+		t.Fatalf("injection lifetime listener is %T, want *net.TCPListener", listener)
+	}
+	if err := tcp.SetDeadline(time.Now().Add(10 * time.Second)); err != nil {
 		t.Fatal(err)
 	}
 	connection, err := listener.Accept()
@@ -192,7 +196,7 @@ func acceptInjectionLifetime(t *testing.T, listener net.Listener) net.Conn {
 func TestInjectionLifetimeProcess(t *testing.T) {
 	switch os.Getenv("INJECT_LIFETIME_ROLE") {
 	case "parent":
-		child := exec.Command(os.Args[0], "-test.run=^TestInjectionLifetimeProcess$")
+		child := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^TestInjectionLifetimeProcess$")
 		child.Env = append(os.Environ(), "INJECT_LIFETIME_ROLE=descendant")
 		child.Stdout, child.Stderr = os.Stdout, os.Stderr
 		if err := child.Start(); err != nil {
@@ -203,11 +207,13 @@ func TestInjectionLifetimeProcess(t *testing.T) {
 		}
 	case "descendant":
 		signal.Ignore(syscall.SIGTERM)
-		connection, err := net.DialTimeout("tcp", os.Getenv("INJECT_LIFETIME_ADDRESS"), 5*time.Second)
+		dialer := net.Dialer{Timeout: 5 * time.Second}
+		connection, err := dialer.DialContext(t.Context(), "tcp", os.Getenv("INJECT_LIFETIME_ADDRESS"))
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer connection.Close()
+		// The process exit below, or the test failure that ends this process,
+		// closes the connection: a deferred Close would never run before os.Exit.
 		if err := json.NewEncoder(connection).Encode(os.Getpid()); err != nil {
 			t.Fatal(err)
 		}

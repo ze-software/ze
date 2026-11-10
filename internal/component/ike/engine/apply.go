@@ -58,6 +58,105 @@ func natTraversalMobile() bool {
 	return mobile && ikeTestPortFn() == ""
 }
 
+// ikeEngineState is the running state one IKE engine owns across the configurations it
+// is given: the two sockets, the peer sessions, the SA table, the operator's SPD
+// entries and the remote-access address pool.
+//
+// Two goroutines write it: the SDK dispatch goroutine (applyConfig, from OnConfigure and
+// OnConfigApply, and OnAllPluginsReady) and the address worker (followAddress,
+// dynamic_wan.go). Each holds applyMu for its whole step, so the members need no lock of
+// their own. The peers map is the exception, and it is guarded by peersMu because the
+// shared dispatch goroutine reads it too.
+//
+// peers is the SAME map object as activePeersMap, which operator `clear` relies on:
+// TerminateAllSAs deletes from that map and calls reEstablishFn, and the reconcile then
+// sees the peer absent and starts a fresh session (TestTerminateAllSAsReinitiates).
+type ikeEngineState struct {
+	table   *SATable
+	peers   map[string]*PeerSession
+	metrics *IPsecMetrics
+	log     *slog.Logger
+
+	// applyMu serializes every writer of this state: an apply, the deferred startup
+	// reconcile, and the address worker's re-plan.
+	applyMu sync.Mutex
+
+	// listeners is the primary pair: the interface's address under `interface`, else
+	// the one pair every peer holds (peerPlan).
+	listeners ikeListeners
+
+	// literalPairs are the pairs of peers whose own local-address differs from the
+	// interface's current address, keyed by that address. An interface address event
+	// never touches them (AC-5).
+	literalPairs map[string]*ikeListeners
+
+	// sharedNATT is the one wildcard port-4500 socket every pair holds when live XFRM
+	// migration is available (openPair). Nil otherwise, and before the first bind.
+	sharedNATT *transport.UDPTransport
+
+	// applied is the configuration as the operator wrote it, before the interface
+	// address was filled in. The address worker re-plans from it (planPeers).
+	applied *ipsec.IPsecConfig
+
+	// ifAddr is the interface address the current plan was derived for, empty when the
+	// interface has none or does not exist.
+	ifAddr string
+
+	// ifMissing records that the last read found the configured interface absent
+	// (iface.ErrInterfaceNotFound), so readInterfaceAddr logs an absence once, when it
+	// begins. Written under applyMu.
+	ifMissing bool
+
+	// plan is the current plan, the one the running sessions follow.
+	plan *peerPlan
+
+	// worker follows interface addresses and refreshes `respond` names. Nil in a unit
+	// test that starts none; kickAddressWorker then does nothing.
+	worker *addressWorker
+
+	// installedSPD is the operator's SPD entries as currently installed. It is tracked
+	// rather than re-derived from the live configuration because the removal half needs
+	// the PREVIOUS selectors: the kernel identifies a policy by its selector alone, so
+	// an entry whose prefix was edited can only be removed under the prefix it was
+	// installed with (installSPDPolicies, spd_policy.go).
+	installedSPD map[string]ipsec.SPDPolicy
+
+	// xfrmEntries is the SPD entries of the bound XFRM interfaces as currently
+	// installed, keyed by selector (unmatched_xfrm_interface.go): each interface SPD's
+	// own catch-all and the if_id 0 exemptions above the node catch-all. Nil until the
+	// first install fills it. Tracked for the reason installedSPD is: an address the
+	// interface lost is removed under the selector it was installed with.
+	xfrmEntries map[spdSelector]xfrmInterfaceEntry
+
+	// spdApplied records whether this engine reached the SPD writers of its first
+	// apply: the IKE bypass and the catch-all (applyConfig). Ze's SPD appears there and
+	// is released as one unit on exit (releaseSPD), so an engine that never applied a
+	// configuration holds no SPD entry, and an early SDK startup failure removes no
+	// policy it never managed.
+	spdApplied bool
+
+	// ikeBypassInstalled records that an apply installed the IKE bypass, once, after
+	// the catch-all it follows.
+	ikeBypassInstalled bool
+
+	// discardInForce is true once an apply installed a DISCARD catch-all, and false
+	// after one installed a BYPASS. The commit check reads it on the SDK's verify path
+	// (refuseImplicitDiscard, unmatched.go), so it is atomic.
+	discardInForce atomic.Bool
+
+	// startupCfg carries the daemon's first plan across to OnAllPluginsReady, which is
+	// where its peers start. It is nil once those peers run, and it stays nil for every
+	// reload. An address that moves before then re-plans it in place (adoptPlan).
+	//
+	// The sessions are what the running peers were started from (reconcilePeers); plan
+	// above is the derivation they were started by, which the next re-plan replaces.
+	startupCfg *peerPlan
+
+	// reCtx is read by the operator `clear` path on another goroutine, so it is atomic
+	// where the members above are not.
+	reCtx atomic.Pointer[reEstablishCtx]
+}
+
 // openPair binds whichever socket of l is absent and starts its receive loop. The IKE
 // listener follows host. The NAT-T listener follows host too, unless it is mobile, when
 // the pair takes the engine's one wildcard socket. Closing existing listeners is a
@@ -170,105 +269,6 @@ func (l *ikeListeners) closeSockets(log *slog.Logger) {
 type reEstablishCtx struct {
 	cfg     *ipsec.IPsecConfig
 	sockets peerSockets
-}
-
-// ikeEngineState is the running state one IKE engine owns across the configurations it
-// is given: the two sockets, the peer sessions, the SA table, the operator's SPD
-// entries and the remote-access address pool.
-//
-// Two goroutines write it: the SDK dispatch goroutine (applyConfig, from OnConfigure and
-// OnConfigApply, and OnAllPluginsReady) and the address worker (followAddress,
-// dynamic_wan.go). Each holds applyMu for its whole step, so the members need no lock of
-// their own. The peers map is the exception, and it is guarded by peersMu because the
-// shared dispatch goroutine reads it too.
-//
-// peers is the SAME map object as activePeersMap, which operator `clear` relies on:
-// TerminateAllSAs deletes from that map and calls reEstablishFn, and the reconcile then
-// sees the peer absent and starts a fresh session (TestTerminateAllSAsReinitiates).
-type ikeEngineState struct {
-	table   *SATable
-	peers   map[string]*PeerSession
-	metrics *IPsecMetrics
-	log     *slog.Logger
-
-	// applyMu serializes every writer of this state: an apply, the deferred startup
-	// reconcile, and the address worker's re-plan.
-	applyMu sync.Mutex
-
-	// listeners is the primary pair: the interface's address under `interface`, else
-	// the one pair every peer holds (peerPlan).
-	listeners ikeListeners
-
-	// literalPairs are the pairs of peers whose own local-address differs from the
-	// interface's current address, keyed by that address. An interface address event
-	// never touches them (AC-5).
-	literalPairs map[string]*ikeListeners
-
-	// sharedNATT is the one wildcard port-4500 socket every pair holds when live XFRM
-	// migration is available (openPair). Nil otherwise, and before the first bind.
-	sharedNATT *transport.UDPTransport
-
-	// applied is the configuration as the operator wrote it, before the interface
-	// address was filled in. The address worker re-plans from it (planPeers).
-	applied *ipsec.IPsecConfig
-
-	// ifAddr is the interface address the current plan was derived for, empty when the
-	// interface has none or does not exist.
-	ifAddr string
-
-	// ifMissing records that the last read found the configured interface absent
-	// (iface.ErrInterfaceNotFound), so readInterfaceAddr logs an absence once, when it
-	// begins. Written under applyMu.
-	ifMissing bool
-
-	// plan is the current plan, the one the running sessions follow.
-	plan *peerPlan
-
-	// worker follows interface addresses and refreshes `respond` names. Nil in a unit
-	// test that starts none; kickAddressWorker then does nothing.
-	worker *addressWorker
-
-	// installedSPD is the operator's SPD entries as currently installed. It is tracked
-	// rather than re-derived from the live configuration because the removal half needs
-	// the PREVIOUS selectors: the kernel identifies a policy by its selector alone, so
-	// an entry whose prefix was edited can only be removed under the prefix it was
-	// installed with (installSPDPolicies, spd_policy.go).
-	installedSPD map[string]ipsec.SPDPolicy
-
-	// xfrmEntries is the SPD entries of the bound XFRM interfaces as currently
-	// installed, keyed by selector (unmatched_xfrm_interface.go): each interface SPD's
-	// own catch-all and the if_id 0 exemptions above the node catch-all. Nil until the
-	// first install fills it. Tracked for the reason installedSPD is: an address the
-	// interface lost is removed under the selector it was installed with.
-	xfrmEntries map[spdSelector]xfrmInterfaceEntry
-
-	// spdApplied records whether this engine reached the SPD writers of its first
-	// apply: the IKE bypass and the catch-all (applyConfig). Ze's SPD appears there and
-	// is released as one unit on exit (releaseSPD), so an engine that never applied a
-	// configuration holds no SPD entry, and an early SDK startup failure removes no
-	// policy it never managed.
-	spdApplied bool
-
-	// ikeBypassInstalled records that an apply installed the IKE bypass, once, after
-	// the catch-all it follows.
-	ikeBypassInstalled bool
-
-	// discardInForce is true once an apply installed a DISCARD catch-all, and false
-	// after one installed a BYPASS. The commit check reads it on the SDK's verify path
-	// (refuseImplicitDiscard, unmatched.go), so it is atomic.
-	discardInForce atomic.Bool
-
-	// startupCfg carries the daemon's first plan across to OnAllPluginsReady, which is
-	// where its peers start. It is nil once those peers run, and it stays nil for every
-	// reload. An address that moves before then re-plans it in place (adoptPlan).
-	//
-	// The sessions are what the running peers were started from (reconcilePeers); plan
-	// above is the derivation they were started by, which the next re-plan replaces.
-	startupCfg *peerPlan
-
-	// reCtx is read by the operator `clear` path on another goroutine, so it is atomic
-	// where the members above are not.
-	reCtx atomic.Pointer[reEstablishCtx]
 }
 
 // applyConfig is the ONE place a parsed configuration becomes running state, and both

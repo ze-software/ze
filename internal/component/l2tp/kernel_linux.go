@@ -153,6 +153,26 @@ type sessionKey struct {
 	sessionID uint16
 }
 
+// errRealmCallCancelled is the setup failure of a realm call the subscriber
+// abandoned before the bridge completed (before quiesce, or while the
+// kernel worker bridged it: realmCall.markBridged); the session is then
+// torn down with CDN.
+var errRealmCallCancelled = errors.New("l2tp: realm call abandoned by the subscriber before the bridge completed")
+
+// quiesceRealmSubscriber asks the PPPoE side to stop reading the subscriber's
+// channel before PPPIOCBRIDGECHAN, so only one reader owns the channel at any
+// instant. It returns an error when the subscriber left, and the caller then
+// tears the session down instead of bridging.
+func quiesceRealmSubscriber(rc *realmCall) error {
+	if rc.isCancelled() {
+		return errRealmCallCancelled
+	}
+	if err := rc.handoff.Quiesce(); err != nil {
+		return fmt.Errorf("l2tp: realm %q subscriber could not be quiesced: %w", rc.realm, err)
+	}
+	return nil
+}
+
 // kernelWorker is a long-lived goroutine that processes kernel setup
 // and teardown events. It owns the Generic Netlink connection and all
 // kernel-side state. Communication with the reactor is exclusively via

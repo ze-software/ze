@@ -15,6 +15,10 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// errReadInterrupted is what an interruptible channel file returns from Read
+// once InterruptRead ran. It is sticky: every later Read returns it too.
+var errReadInterrupted = errors.New("ppp: channel read interrupted for a relay handoff")
+
 // interruptibleFDFile is the channel file of a session that may be handed
 // to a realm relay. A blocking read(2) on /dev/ppp is woken only by a frame,
 // the channel unregistering, or a signal (ppp_read), so closing the

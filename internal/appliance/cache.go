@@ -202,7 +202,7 @@ func zeImportClosure(root string, seeds []string, skipPkg string) ([]string, boo
 
 // zeModulePath answers the module path go.mod declares.
 func zeModulePath(root string) (string, bool) {
-	data, err := os.ReadFile(filepath.Join(root, "go.mod"))
+	data, err := os.ReadFile(filepath.Join(root, "go.mod")) //nolint:gosec // G304: root is the Ze checkout the cache key hashes, never external input.
 	if err != nil {
 		return "", false
 	}

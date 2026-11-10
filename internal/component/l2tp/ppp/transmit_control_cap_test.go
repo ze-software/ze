@@ -31,8 +31,8 @@ func TestControlRepliesRespectTransmitCap(t *testing.T) {
 				s.maxMRU = tc.cap
 				data := bytes.Repeat([]byte{0x5a}, MaxFrameLen-lcpHeaderLen)
 				request := LCPPacket{Code: 99, Identifier: 0x61, Data: data}
-				proto := uint16(ProtoLCP)
-				code := uint8(LCPCodeReject)
+				proto := ProtoLCP
+				code := LCPCodeReject
 				switch kind {
 				case "lcp":
 					if s.handleLCPPacket(request) {
@@ -76,7 +76,8 @@ func TestControlRepliesRespectTransmitCap(t *testing.T) {
 				if got.Proto != proto || got.Pkt.Code != code {
 					t.Fatalf("reply protocol/Code = %#x/%d, want %#x/%d", got.Proto, got.Pkt.Code, proto, code)
 				}
-				if code == LCPCodeReject {
+				switch code {
+				case LCPCodeReject:
 					if len(got.Pkt.Data) < lcpHeaderLen || got.Pkt.Data[0] != request.Code || got.Pkt.Data[1] != request.Identifier {
 						t.Fatal("Code-Reject lost the rejected packet's header")
 					}
@@ -86,11 +87,11 @@ func TestControlRepliesRespectTransmitCap(t *testing.T) {
 					if !bytes.Equal(got.Pkt.Data[4:], data[:len(got.Pkt.Data)-4]) {
 						t.Fatal("Code-Reject did not retain the head of the rejected Data")
 					}
-				} else if code == LCPProtocolReject {
+				case LCPProtocolReject:
 					if rejectedProtocol(t, got.Pkt) != protoMPLSCP || !bytes.Equal(got.Pkt.Data[2:], data[:len(got.Pkt.Data)-2]) {
 						t.Fatal("Protocol-Reject lost the protocol or leading Information field")
 					}
-				} else {
+				default:
 					if got.Pkt.Identifier != request.Identifier || binary.BigEndian.Uint32(got.Pkt.Data[:4]) != s.magic {
 						t.Fatal("Echo-Reply lost the request Identifier or local Magic-Number")
 					}

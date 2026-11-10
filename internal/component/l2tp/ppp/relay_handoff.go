@@ -17,10 +17,6 @@ import (
 // a blocked read.
 var errChannelNotQuiescable = errors.New("ppp: session channel cannot be quiesced; only a session started with CaptureProxyLCP can hand its subscriber to a realm relay")
 
-// errReadInterrupted is what an interruptible channel file returns from Read
-// once InterruptRead ran. It is sticky: every later Read returns it too.
-var errReadInterrupted = errors.New("ppp: channel read interrupted for a relay handoff")
-
 // readInterrupter is a channel file whose blocked Read can be woken.
 // relay_reader_linux.go implements it for /dev/ppp.
 type readInterrupter interface {

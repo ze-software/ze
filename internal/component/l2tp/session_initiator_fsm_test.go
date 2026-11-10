@@ -20,12 +20,14 @@ func ocrpBody(assignedSID uint16) []byte {
 }
 
 // sessionMsgWire wraps a session-message body in a control datagram whose
-// header carries the given destination Session ID and Ns/Nr, so a tunnel-level
-// test can feed it through Process (which runs the reliable engine's Nr
-// processing before dispatching -- the ACK that opens the send window).
-func sessionMsgWire(sid, ns, nr uint16, body []byte) []byte {
+// header carries the given destination Session ID, Ns 0 (the peer's first
+// message) and Nr 1 (acknowledging the tunnel's first message), so a
+// tunnel-level test can feed it through Process (which runs the reliable
+// engine's Nr processing before dispatching -- the ACK that opens the send
+// window).
+func sessionMsgWire(sid uint16, body []byte) []byte {
 	pkt := make([]byte, ControlHeaderLen+len(body))
-	WriteControlHeader(pkt, 0, uint16(ControlHeaderLen+len(body)), 0, sid, ns, nr)
+	WriteControlHeader(pkt, 0, uint16(ControlHeaderLen+len(body)), 0, sid, 0, 1)
 	copy(pkt[ControlHeaderLen:], body)
 	return pkt
 }
@@ -63,7 +65,7 @@ func TestPlaceIncomingCall_Handshake(t *testing.T) {
 	// Peer answers ICRP (assigning SID 707) via the reliable engine: Ns=0
 	// (peer's first delivered message), Nr=1 (acks our ICRQ). Feeding it
 	// through Process exercises the ACK that opens the send window for ICCN.
-	icrpWire := sessionMsgWire(localSID, 0, 1, icrpBody(707))
+	icrpWire := sessionMsgWire(localSID, icrpBody(707))
 	rhdr, err := ParseMessageHeader(icrpWire)
 	require.NoError(t, err)
 	out2 := tun.Process(rhdr, icrpWire[rhdr.PayloadOff:rhdr.Length], now, TunnelDefaults{}, nil)
@@ -126,7 +128,7 @@ func TestICRP_Malformed_SendsCDN(t *testing.T) {
 	require.Len(t, out, 1, "ICRQ emitted")
 	require.NotNil(t, tun.lookupSession(localSID))
 
-	wire := sessionMsgWire(localSID, 0, 1, malformedICRPBody())
+	wire := sessionMsgWire(localSID, malformedICRPBody())
 	hdr, err := ParseMessageHeader(wire)
 	require.NoError(t, err)
 	out = tun.Process(hdr, wire[hdr.PayloadOff:hdr.Length], now, TunnelDefaults{}, nil)
@@ -156,7 +158,7 @@ func TestICRP_Malformed_FullWindowQueuesCDN(t *testing.T) {
 	require.Nil(t, tun.lookupSession(localSID), "session removed after CDN")
 
 	// The peer's ZLB acknowledges the ICRQ (Nr=1) and opens the window.
-	zlb := sessionMsgWire(0, 0, 1, nil)
+	zlb := sessionMsgWire(0, nil)
 	zhdr, err := ParseMessageHeader(zlb)
 	require.NoError(t, err)
 	out = tun.Process(zhdr, zlb[zhdr.PayloadOff:zhdr.Length], now, TunnelDefaults{}, nil)

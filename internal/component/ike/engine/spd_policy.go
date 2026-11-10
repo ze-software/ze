@@ -106,8 +106,10 @@ func installSPDPolicies(dp dataplane.Dataplane, previous, next map[string]ipsec.
 		if _, kept := next[name]; kept && spdPolicySame(previous[name], next[name]) {
 			continue
 		}
-		for _, sp := range spdPolicyParams(previous[name]) {
-			if err := removeZePolicy(dp, sp); err != nil {
+		entries := spdPolicyParams(previous[name])
+		for i := range entries {
+			sp := &entries[i]
+			if err := removeZePolicy(dp, *sp); err != nil {
 				log.Debug("ike: remove spd policy", "policy", name, "dir", sp.Dir, "error", err)
 			}
 		}
@@ -117,8 +119,10 @@ func installSPDPolicies(dp dataplane.Dataplane, previous, next map[string]ipsec.
 		if _, held := previous[name]; held && spdPolicySame(previous[name], next[name]) {
 			continue
 		}
-		for _, sp := range spdPolicyParams(next[name]) {
-			if err := dp.InstallPolicy(sp); err != nil {
+		entries := spdPolicyParams(next[name])
+		for i := range entries {
+			sp := &entries[i]
+			if err := dp.InstallPolicy(*sp); err != nil {
 				if isXFRMUnsupported(err) {
 					log.Debug("ike: spd policies unavailable on this platform", "error", err)
 					return
@@ -141,8 +145,10 @@ func removeSPDPolicies(dp dataplane.Dataplane, policies map[string]ipsec.SPDPoli
 		return
 	}
 	for name := range policies {
-		for _, sp := range spdPolicyParams(policies[name]) {
-			if err := removeZePolicy(dp, sp); err != nil {
+		entries := spdPolicyParams(policies[name])
+		for i := range entries {
+			sp := &entries[i]
+			if err := removeZePolicy(dp, *sp); err != nil {
 				log.Debug("ike: remove spd policy", "policy", name, "dir", sp.Dir, "error", err)
 			}
 		}

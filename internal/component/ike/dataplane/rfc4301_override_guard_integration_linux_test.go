@@ -91,7 +91,7 @@ func TestOverrideGuardHelperProcess(t *testing.T) {
 	}
 	runtime.LockOSThread()
 	if err := runGuardHelper(mode, os.Stdout, os.Stdin); err != nil {
-		fmt.Fprintf(os.Stdout, "error %v\n", err)
+		fmt.Fprintf(os.Stdout, "error %v\n", err) //nolint:errcheck // exit status 1 reports the failure whether or not this line reaches the parent
 		os.Exit(1)
 	}
 	os.Exit(0)
@@ -103,25 +103,40 @@ func runGuardHelper(mode string, out io.Writer, in io.Reader) error {
 		if err := unix.Setns(3, unix.CLONE_NEWNET); err != nil {
 			return fmt.Errorf("join the test's network namespace: %w", err)
 		}
-		fds := tryOverrides(out)
+		fds, err := tryOverrides(out)
+		if err != nil {
+			return err
+		}
 		defer closeFDs(fds)
-		fmt.Fprintf(out, "probe %s\n", errnoName(unix.Sendto(fds[0], []byte("ze-guard-probe"), 0,
-			&unix.SockaddrInet4{Port: guardTestPort, Addr: [4]byte(net.ParseIP(guardTestPeer4).To4())})))
-		fmt.Fprintln(out, "ready")
-		_, err := io.Copy(io.Discard, in)
+		if _, err := fmt.Fprintf(out, "probe %s\n", errnoName(unix.Sendto(fds[0], []byte("ze-guard-probe"), 0,
+			&unix.SockaddrInet4{Port: guardTestPort, Addr: [4]byte(net.ParseIP(guardTestPeer4).To4())}))); err != nil {
+			return fmt.Errorf("report the probe: %w", err)
+		}
+		if _, err := fmt.Fprintln(out, "ready"); err != nil {
+			return fmt.Errorf("report ready: %w", err)
+		}
+		_, err = io.Copy(io.Discard, in)
 		return err
 	case guardHelperOtherNetns:
 		if err := unix.Unshare(unix.CLONE_NEWNET); err != nil {
 			return fmt.Errorf("make a network namespace: %w", err)
 		}
-		closeFDs(tryOverrides(out))
-		fmt.Fprintln(out, "ready")
+		fds, err := tryOverrides(out)
+		if err != nil {
+			return err
+		}
+		closeFDs(fds)
+		if _, err := fmt.Fprintln(out, "ready"); err != nil {
+			return fmt.Errorf("report ready: %w", err)
+		}
 		return nil
 	case guardHelperOwner:
 		if err := unix.Setns(3, unix.CLONE_NEWNET); err != nil {
 			return fmt.Errorf("join the test's network namespace: %w", err)
 		}
-		fmt.Fprintf(out, "pid %d\n", os.Getpid())
+		if _, err := fmt.Fprintf(out, "pid %d\n", os.Getpid()); err != nil {
+			return fmt.Errorf("report the pid: %w", err)
+		}
 		b := &xfrmBackend{}
 		if err := b.AttachOverrideGuard(); err != nil {
 			return fmt.Errorf("attach the guard: %w", err)
@@ -133,8 +148,12 @@ func runGuardHelper(mode string, out io.Writer, in io.Reader) error {
 			return fmt.Errorf("open the ESP form socket: %w", err)
 		}
 		defer conn.Close() //nolint:errcheck // a probe socket
-		fmt.Fprintf(out, "esp-form %s\n", errnoName(espFormBypassInboundPolicy(conn)))
-		fmt.Fprintln(out, "ready")
+		if _, err := fmt.Fprintf(out, "esp-form %s\n", errnoName(espFormBypassInboundPolicy(conn))); err != nil {
+			return fmt.Errorf("report the ESP form policy: %w", err)
+		}
+		if _, err := fmt.Fprintln(out, "ready"); err != nil {
+			return fmt.Errorf("report ready: %w", err)
+		}
 		_, err = io.Copy(io.Discard, in)
 		return err
 	}
@@ -143,22 +162,29 @@ func runGuardHelper(mode string, out io.Writer, in io.Reader) error {
 
 // tryOverrides sets an ALLOW out policy through each option on a socket of each
 // family, reports each result as "call <family>/<option> <errno>", and answers the
-// sockets, IPv4 first, still open.
-func tryOverrides(out io.Writer) []int {
+// sockets, IPv4 first, still open. A report that cannot be written closes the
+// sockets and answers the write error.
+func tryOverrides(out io.Writer) ([]int, error) {
 	var fds []int
 	for _, f := range guardFamilies {
 		fd, err := unix.Socket(f.family, unix.SOCK_DGRAM|unix.SOCK_CLOEXEC, 0)
 		if err != nil {
-			fmt.Fprintf(out, "socket %s %s\n", f.name, errnoName(err))
+			if _, werr := fmt.Fprintf(out, "socket %s %s\n", f.name, errnoName(err)); werr != nil {
+				closeFDs(fds)
+				return nil, fmt.Errorf("report the socket: %w", werr)
+			}
 			continue
 		}
 		fds = append(fds, fd)
 		for _, o := range guardOptions {
 			err := unix.SetsockoptString(fd, o.level, o.opt, string(socketOverridePolicy(f.family).Serialize()))
-			fmt.Fprintf(out, "call %s/%s %s\n", f.name, o.name, errnoName(err))
+			if _, werr := fmt.Fprintf(out, "call %s/%s %s\n", f.name, o.name, errnoName(err)); werr != nil {
+				closeFDs(fds)
+				return nil, fmt.Errorf("report the call: %w", werr)
+			}
 		}
 	}
-	return fds
+	return fds, nil
 }
 
 func closeFDs(fds []int) {
@@ -187,8 +213,7 @@ func errnoName(err error) string {
 	if err == nil {
 		return "ok"
 	}
-	var errno syscall.Errno
-	if errors.As(err, &errno) {
+	if errno, ok := errors.AsType[syscall.Errno](err); ok {
 		if name := unix.ErrnoName(errno); name != "" {
 			return name
 		}
@@ -207,7 +232,9 @@ type guardHelper struct {
 // extra clone flags, and reads its report up to "ready".
 func startGuardHelper(t *testing.T, mode string, nsFile *os.File, cloneFlags uintptr) *guardHelper {
 	t.Helper()
-	cmd := exec.Command(os.Args[0], "-test.run=^TestOverrideGuardHelperProcess$", "-test.count=1")
+	// No deadline: stop, from the test's cleanup, ends the helper by closing its
+	// stdin and judges its exit, which a context canceled at test end would preempt.
+	cmd := exec.CommandContext(context.Background(), os.Args[0], "-test.run=^TestOverrideGuardHelperProcess$", "-test.count=1")
 	cmd.Env = append(os.Environ(), guardHelperEnv+"="+mode)
 	cmd.ExtraFiles = []*os.File{nsFile}
 	cmd.SysProcAttr = &syscall.SysProcAttr{Cloneflags: cloneFlags}
@@ -299,7 +326,7 @@ func enterGuardNetns(t *testing.T) *os.File {
 	if err := netlink.LinkSetUp(lo); err != nil {
 		t.Fatalf("bring lo up: %v", err)
 	}
-	if err := netlink.LinkAdd(&netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: guardTestLink}}); err != nil {
+	if err := netlink.LinkAdd(&netlink.Dummy{Name: guardTestLink}); err != nil {
 		t.Fatalf("add %s: %v", guardTestLink, err)
 	}
 	link, err := netlink.LinkByName(guardTestLink)
@@ -331,7 +358,7 @@ func guardCatchAll(t *testing.T, b *xfrmBackend) {
 
 // threadXfrmStat reads one counter of the test thread's own network namespace:
 // /proc/net follows the thread group leader, which stayed outside.
-func threadXfrmStat(t *testing.T, name string) int {
+func threadXfrmStat(t *testing.T, name string) int { //nolint:unparam // a reader of any xfrm_stat counter; renaming it to the one counter read today would change the bodies of two RFC-recorded units
 	t.Helper()
 	raw, err := os.ReadFile("/proc/thread-self/net/xfrm_stat")
 	if err != nil {
@@ -359,9 +386,9 @@ func socketRows(t *testing.T, b *xfrmBackend) []PolicyInfo {
 		t.Fatalf("list policies: %v", err)
 	}
 	var rows []PolicyInfo
-	for _, p := range all {
-		if p.PerSocket {
-			rows = append(rows, p)
+	for i := range all {
+		if all[i].PerSocket {
+			rows = append(rows, all[i])
 		}
 	}
 	return rows

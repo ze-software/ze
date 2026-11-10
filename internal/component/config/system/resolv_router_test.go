@@ -235,7 +235,7 @@ func TestLeaseValidityCountsOnTheRegistryClock(t *testing.T) {
 // usable server is the router's answer alone, whichever order is written.
 //
 // VALIDATES: AC-4 (spec-home-cpe-23) and its mirror, user story 2.
-// PREVENTS: the written order being ignored in favour of the default's.
+// PREVENTS: the written order being ignored in favor of the default's.
 func TestRouterSourceOrderReceivedFirst(t *testing.T) {
 	r := &Resolvers{}
 	list := routerList(t, dnssource.Written{

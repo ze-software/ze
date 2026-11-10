@@ -269,9 +269,9 @@ func (f *fakeL2TPService) LookupTunnel(localTID uint16) (l2tp.TunnelSnapshot, bo
 }
 func (f *fakeL2TPService) LookupSession(localSID uint16) (l2tp.SessionSnapshot, bool) {
 	for i := range f.snap.Tunnels {
-		for _, session := range f.snap.Tunnels[i].Sessions {
-			if session.LocalSID == localSID {
-				return session, true
+		for j := range f.snap.Tunnels[i].Sessions {
+			if f.snap.Tunnels[i].Sessions[j].LocalSID == localSID {
+				return f.snap.Tunnels[i].Sessions[j], true
 			}
 		}
 	}

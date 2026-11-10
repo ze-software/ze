@@ -53,7 +53,7 @@ func TestAuthenticationResultTransmitCap(t *testing.T) {
 						ProxyLCPInitialRecv: peer, ProxyLCPLastRecv: peer, ProxyLCPLastSent: local,
 					}
 					identifier := uint8(0x5a)
-					wireProto := uint16(ProtoPAP)
+					wireProto := ProtoPAP
 					if method == AuthMethodPAP {
 						if _, err := pair.peerEnd.Write(papAuthRequestFrame()); err != nil {
 							t.Fatal(err)
@@ -109,6 +109,8 @@ func TestAuthenticationResultTransmitCap(t *testing.T) {
 					limit := int(min(tc.cap, tc.peer))
 					var want string
 					switch method {
+					case AuthMethodNone:
+						t.Fatal("AuthMethodNone sends no auth result to cap")
 					case AuthMethodPAP:
 						want = message[:min(len(message), papMaxFieldLen, limit-papHeaderLen-1)]
 						if len(result.Data) != 1+len(want) || int(result.Data[0]) != len(want) || string(result.Data[1:]) != want {

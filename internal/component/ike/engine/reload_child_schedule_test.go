@@ -37,7 +37,7 @@ func TestReloadOfMissingESPGroupRestartsChildlessSession(t *testing.T) {
 
 	cfg := rcxConfig(ps, ps.ikeGroup, testESPGroup())
 	cfg.ESPGroups = map[string]ipsec.ESPGroup{}
-	reconcilePeers(cfg, active, NewSATable(), nil, nil, nil, slog.Default())
+	reconcilePeers(cfg, active, NewSATable(), slog.Default())
 	if active[ps.peerName] == ps {
 		t.Fatal("a reload whose esp-group no longer exists kept the childless session")
 	}

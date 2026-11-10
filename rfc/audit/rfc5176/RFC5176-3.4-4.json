@@ -2,7 +2,7 @@
   "note": "Rejudged 2026-10-28 after the leaf rename to coa-require-message-authenticator (field CoARequireMessageAuthenticator); test bodies otherwise unchanged. Forbidden: treating the MAY as a MUST by discarding a request without Message-Authenticator by default. TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault asserts Disconnect-ACK and one teardown with no Message-Authenticator; TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired asserts discard only with the leaf set. Negative now carries a mutant record (coa.go admitRequest drop condition forced false goes red).",
   "requirement_sha": "76d3f6211fedecf1",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired": "a2c1dcc341814d4b",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired": "fd727898db37d6c6",
     "internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go::TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault": "46ab3e035ce543fd"
   },
   "units": {

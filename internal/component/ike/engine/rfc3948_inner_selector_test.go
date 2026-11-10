@@ -100,8 +100,8 @@ func selectorPolicy(t *testing.T, remote, local string, proto uint8, remotePort 
 
 func policiesNaming(dp *mockDP, cidr string) int {
 	n := 0
-	for _, p := range dp.policies {
-		if p.Src.String() == cidr || p.Dst.String() == cidr {
+	for i := range dp.policies {
+		if dp.policies[i].Src.String() == cidr || dp.policies[i].Dst.String() == cidr {
 			n++
 		}
 	}

@@ -105,7 +105,7 @@ func addNoDADAddr(t *testing.T, link netlink.Link, cidr string) {
 // second IPv6 address on loopback for the negative case, and answers its index.
 func setupXFRMInterface(t *testing.T) int {
 	t.Helper()
-	link := &netlink.Xfrmi{LinkAttrs: netlink.LinkAttrs{Name: xfrmiTestLink}, Ifid: xfrmiTestIfID}
+	link := &netlink.Xfrmi{Name: xfrmiTestLink, Ifid: xfrmiTestIfID}
 	if err := netlink.LinkAdd(link); err != nil {
 		t.Fatalf("add xfrm interface %s: %v", xfrmiTestLink, err)
 	}

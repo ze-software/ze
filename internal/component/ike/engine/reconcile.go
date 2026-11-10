@@ -610,17 +610,16 @@ func (ps *PeerSession) StopGraceful() {
 // all subsequent traffic from port 4500" has a socket to send from.
 type peerSockets func(name string) (ike, natt *transport.UDPTransport, host string)
 
-// reconcilePeers is reconcilePeersWith where every peer holds the one pair tr and natt.
+// reconcilePeers is reconcilePeersWith with no socket pair and no event bus, the shape
+// the reconcile tests drive.
 func reconcilePeers(
 	newCfg *ipsec.IPsecConfig,
 	active map[string]*PeerSession,
 	table *SATable,
-	tr, natt *transport.UDPTransport,
-	bus ze.EventBus,
 	log *slog.Logger,
 ) {
-	onePair := func(string) (*transport.UDPTransport, *transport.UDPTransport, string) { return tr, natt, "" }
-	reconcilePeersWith(newCfg, active, table, onePair, bus, log)
+	onePair := func(string) (*transport.UDPTransport, *transport.UDPTransport, string) { return nil, nil, "" }
+	reconcilePeersWith(newCfg, active, table, onePair, nil, log)
 }
 
 // reconcilePeersWith diffs the new config against running peers and starts/stops peer

@@ -164,7 +164,7 @@ func writeICCNProxyCHAP(buf []byte, off int, p *iccnProxy) int {
 	off += WriteAVPBytes(buf, off, false, 0, AVPProxyAuthenChallenge, p.auth.Challenge)
 	// RFC 2661 Section 4.4.5: "The Proxy Authen ID AVP MUST be present for
 	// Proxy authen types 2, 3 and 5."
-	off += writeAVPProxyAuthenID(buf, off, false, ProxyAuthenIDValue{ChapID: p.auth.Identifier})
+	off += writeAVPProxyAuthenID(buf, off, ProxyAuthenIDValue{ChapID: p.auth.Identifier})
 	// RFC 2661 Section 4.4.5: "This AVP MUST be present for Proxy authen
 	// types 1, 2, 3 and 5."
 	off += WriteAVPBytes(buf, off, false, 0, AVPProxyAuthenResponse, p.auth.Response)
@@ -185,7 +185,7 @@ func writeICCNProxyPAP(buf []byte, off int, p *iccnProxy) int {
 	off += WriteAVPString(buf, off, false, AVPProxyAuthenName, p.name)
 	// RFC 2661 Section 4.4.5: "For 3, it is the Identifier value of the
 	// Authenticate-Request."
-	off += writeAVPProxyAuthenID(buf, off, false, ProxyAuthenIDValue{ChapID: p.auth.Identifier})
+	off += writeAVPProxyAuthenID(buf, off, ProxyAuthenIDValue{ChapID: p.auth.Identifier})
 	// RFC 2661 Section 4.3: "If the H bit is set in any AVP(s) in a given
 	// control message, a Random Vector AVP must also be present in the
 	// message and MUST precede the first AVP having an H bit of 1."

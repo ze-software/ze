@@ -232,7 +232,7 @@ func TestRealmCallCancelOrdersAgainstBridge(t *testing.T) {
 	rc := newCall()
 	rc.Cancel()
 	require.Empty(t, got, "Cancel before the bridge tears nothing down")
-	require.False(t, rc.markBridged(4, 9), "a cancelled call MUST NOT be marked bridged")
+	require.False(t, rc.markBridged(4, 9), "a canceled call MUST NOT be marked bridged")
 	require.True(t, rc.isCancelled())
 
 	got = nil

@@ -106,11 +106,7 @@ func TestMSCHAPv2UnstructuredFailureDriverCap(t *testing.T) {
 			if captured.err != nil {
 				t.Fatalf("capturing the channel until teardown: %v", captured.err)
 			}
-			if !structured {
-				if len(captured.data) != 0 {
-					t.Errorf("unstructured oversized rejection transmitted a complete or truncated Failure: %x", captured.data)
-				}
-			} else {
+			if structured {
 				wireProto, payload, _, err := ParseFrame(captured.data)
 				if err != nil || wireProto != ProtoCHAP {
 					t.Fatalf("structured control wire protocol = %#x, error = %v", wireProto, err)
@@ -120,6 +116,8 @@ func TestMSCHAPv2UnstructuredFailureDriverCap(t *testing.T) {
 				if err != nil || result.Code != MSCHAPv2CodeFailure || result.Identifier != challenge.Identifier || string(result.Data) != want || len(payload) != int(MinIPv4MRU) {
 					t.Fatalf("structured fitting control lost its full error fields or cap: %+v, payload %d, error %v", result, len(payload), err)
 				}
+			} else if len(captured.data) != 0 {
+				t.Errorf("unstructured oversized rejection transmitted a complete or truncated Failure: %x", captured.data)
 			}
 			if len(d.EventsOut()) != 2 {
 				t.Fatalf("lifecycle events = %d, want only LCP-up and one failure", len(d.EventsOut()))

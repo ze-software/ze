@@ -44,7 +44,7 @@ func TestReconcilePeersAdded(t *testing.T) {
 	peer := testPeer()
 	cfg := testIPsecConfig(peer)
 
-	reconcilePeers(cfg, active, table, nil, nil, nil, log)
+	reconcilePeers(cfg, active, table, log)
 
 	if len(active) != 1 {
 		t.Fatalf("expected 1 active peer, got %d", len(active))
@@ -66,14 +66,14 @@ func TestReconcilePeersRemoved(t *testing.T) {
 
 	peer := testPeer()
 	cfg := testIPsecConfig(peer)
-	reconcilePeers(cfg, active, table, nil, nil, nil, log)
+	reconcilePeers(cfg, active, table, log)
 
 	if len(active) != 1 {
 		t.Fatalf("setup: expected 1 active peer, got %d", len(active))
 	}
 
 	emptyCfg := testIPsecConfig()
-	reconcilePeers(emptyCfg, active, table, nil, nil, nil, log)
+	reconcilePeers(emptyCfg, active, table, log)
 
 	if len(active) != 0 {
 		t.Fatalf("expected 0 active peers after removal, got %d", len(active))
@@ -87,14 +87,14 @@ func TestReconcilePeersChanged(t *testing.T) {
 
 	peer := testPeer()
 	cfg := testIPsecConfig(peer)
-	reconcilePeers(cfg, active, table, nil, nil, nil, log)
+	reconcilePeers(cfg, active, table, log)
 
 	oldPS := active["test-peer"]
 
 	changedPeer := peer
 	changedPeer.RemoteAddress = "198.51.100.1"
 	newCfg := testIPsecConfig(changedPeer)
-	reconcilePeers(newCfg, active, table, nil, nil, nil, log)
+	reconcilePeers(newCfg, active, table, log)
 
 	if len(active) != 1 {
 		t.Fatalf("expected 1 active peer, got %d", len(active))
@@ -117,11 +117,11 @@ func TestReconcilePeersUnchanged(t *testing.T) {
 
 	peer := testPeer()
 	cfg := testIPsecConfig(peer)
-	reconcilePeers(cfg, active, table, nil, nil, nil, log)
+	reconcilePeers(cfg, active, table, log)
 
 	oldPS := active["test-peer"]
 
-	reconcilePeers(cfg, active, table, nil, nil, nil, log)
+	reconcilePeers(cfg, active, table, log)
 
 	if active["test-peer"] != oldPS {
 		t.Fatal("unchanged peer should keep the same PeerSession")
@@ -149,7 +149,7 @@ func TestTerminateAllSAsReinitiates(t *testing.T) {
 
 	peer := testPeer() // connection-type initiate, so it re-initiates on reconcile
 	cfg := testIPsecConfig(peer)
-	reconcilePeers(cfg, active, table, nil, nil, nil, log)
+	reconcilePeers(cfg, active, table, log)
 	first := active[peer.Name]
 	if first == nil {
 		t.Fatal("setup: peer session was not started")
@@ -157,7 +157,7 @@ func TestTerminateAllSAsReinitiates(t *testing.T) {
 
 	// reEstablish re-runs reconcile against the SAME active map (as runEngine's closure
 	// does), so a peer TerminateAllSAs removed is started again.
-	reEst := func() { reconcilePeers(cfg, active, table, nil, nil, nil, log) }
+	reEst := func() { reconcilePeers(cfg, active, table, log) }
 	reEstablishFn.Store(&reEst)
 	t.Cleanup(func() { reEstablishFn.Store(nil) })
 
@@ -436,7 +436,7 @@ func TestStartPeerSessionWritesTheFreshConfig(t *testing.T) {
 	peer := testPeer()
 	peer.TrafficSelectors = []ipsec.TrafficSelectorPolicy{testSelectorPolicy(t, "1", "10.1.0.0/16", "10.2.0.0/16")}
 	cfg := testIPsecConfig(peer)
-	reconcilePeers(cfg, active, table, nil, nil, nil, log)
+	reconcilePeers(cfg, active, table, log)
 
 	before := active["test-peer"]
 	if before == nil {
@@ -446,7 +446,7 @@ func TestStartPeerSessionWritesTheFreshConfig(t *testing.T) {
 	narrowed := testPeer()
 	narrowed.TrafficSelectors = []ipsec.TrafficSelectorPolicy{testSelectorPolicy(t, "1", "10.1.0.0/24", "10.2.0.0/16")}
 	newCfg := testIPsecConfig(narrowed)
-	reconcilePeers(newCfg, active, table, nil, nil, nil, log)
+	reconcilePeers(newCfg, active, table, log)
 
 	after := active["test-peer"]
 	if after == nil {
@@ -563,7 +563,7 @@ func TestReconcilePeersRestartsOnGroupRotation(t *testing.T) {
 	log := slog.Default()
 
 	cfg := testIPsecConfig(testPeer())
-	reconcilePeers(cfg, active, table, nil, nil, nil, log)
+	reconcilePeers(cfg, active, table, log)
 	before := active["test-peer"]
 	if before == nil {
 		t.Fatal("setup: peer session was not started")
@@ -574,7 +574,7 @@ func TestReconcilePeersRestartsOnGroupRotation(t *testing.T) {
 	group.Proposals[0].Encryption = ipsec.EncryptionAES128
 	rotated.IKEGroups["test-ike"] = group
 
-	reconcilePeers(rotated, active, table, nil, nil, nil, log)
+	reconcilePeers(rotated, active, table, log)
 
 	after := active["test-peer"]
 	if after == nil {

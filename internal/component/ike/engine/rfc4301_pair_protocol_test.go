@@ -19,8 +19,9 @@ var pprPort80 = ipsec.PortSelector{Form: ipsec.PortSingle, Port: 80}
 func pprProtocols(child *ChildSA) []uint8 {
 	var out []uint8
 	for _, dir := range []dataplane.SADir{dataplane.SADirIn, dataplane.SADirOut} {
-		for _, sp := range childPolicies(child, dir) {
-			out = append(out, sp.UpperProto)
+		policies := childPolicies(child, dir)
+		for i := range policies {
+			out = append(out, policies[i].UpperProto)
 		}
 	}
 	return out

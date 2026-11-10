@@ -200,7 +200,7 @@ func TestRFC1661ClientDropsRejectedDNSOptions(t *testing.T) {
 // TestRFC1661ClientFailsOnRejectedIPAddress: a Reject of IP-Address, alone
 // or beside a DNS option, ends IPCP with an error.
 //
-// VALIDATES: AC-5, the behaviour kept from before DNS was requested.
+// VALIDATES: AC-5, the behavior kept from before DNS was requested.
 // PREVENTS: a session opened with no address.
 func TestRFC1661ClientFailsOnRejectedIPAddress(t *testing.T) {
 	for _, rejected := range [][]byte{

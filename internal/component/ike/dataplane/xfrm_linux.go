@@ -403,7 +403,7 @@ func (b *xfrmBackend) InstallPolicy(p SPParams) error {
 		}
 		return fmt.Errorf("xfrm: policy update: %w", err)
 	}
-	// Labelled only once the kernel holds the entry, so a refused install leaves no
+	// Labeled only once the kernel holds the entry, so a refused install leaves no
 	// role behind for a read to show.
 	b.policies.label(p)
 	return nil

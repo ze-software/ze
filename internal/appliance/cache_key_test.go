@@ -334,11 +334,12 @@ func TestKernelCacheKeyRefusesWhatItCannotHash(t *testing.T) {
 			if !errors.Is(err, fs.ErrNotExist) {
 				t.Errorf("missing config refusal lost its missing-file cause: %v", err)
 			}
-			var pathErr *fs.PathError
-			if !errors.As(err, &pathErr) {
+			if pathErr, ok := errors.AsType[*fs.PathError](err); ok {
+				if want := filepath.Join(root, "fixture.config"); filepath.Clean(pathErr.Path) != want {
+					t.Errorf("missing config refusal names %q, want selected input %q", pathErr.Path, want)
+				}
+			} else {
 				t.Errorf("missing config refusal lost its path error: %v", err)
-			} else if want := filepath.Join(root, "fixture.config"); filepath.Clean(pathErr.Path) != want {
-				t.Errorf("missing config refusal names %q, want selected input %q", pathErr.Path, want)
 			}
 		case 2:
 			for _, missing := range []string{kernelBuilderDir, kernelBuilderPkg} {

@@ -111,8 +111,9 @@ func (d *crossingDP) policyMissing(child *ChildSA) bool {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	for _, dir := range []dataplane.SADir{dataplane.SADirOut, dataplane.SADirIn} {
-		for _, p := range childPolicies(child, dir) {
-			if !d.policies[policyKey{selectorKey(p.Src, p.Dst), dir}] {
+		policies := childPolicies(child, dir)
+		for i := range policies {
+			if !d.policies[policyKey{selectorKey(policies[i].Src, policies[i].Dst), dir}] {
 				return true
 			}
 		}

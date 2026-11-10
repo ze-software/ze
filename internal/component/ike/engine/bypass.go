@@ -131,8 +131,10 @@ func installIKEBypass(dp dataplane.Dataplane, log *slog.Logger) {
 		return
 	}
 	for _, family := range ikeBypassFamilies {
-		for _, p := range ikeBypassPolicies(family) {
-			if err := dp.InstallPolicy(p); err != nil {
+		policies := ikeBypassPolicies(family)
+		for i := range policies {
+			p := &policies[i]
+			if err := dp.InstallPolicy(*p); err != nil {
 				if isXFRMUnsupported(err) {
 					log.Debug("ike: bypass policies unavailable on this platform", "error", err)
 					return
@@ -170,8 +172,10 @@ func removeIKEBypass(dp dataplane.Dataplane, log *slog.Logger) {
 		return
 	}
 	for _, family := range ikeBypassFamilies {
-		for _, p := range ikeBypassPolicies(family) {
-			if err := removeZePolicy(dp, p); err != nil {
+		policies := ikeBypassPolicies(family)
+		for i := range policies {
+			p := &policies[i]
+			if err := removeZePolicy(dp, *p); err != nil {
 				log.Debug("ike: remove IKE bypass policy", "dir", p.Dir, "error", err)
 			}
 		}

@@ -22,14 +22,15 @@ import (
 // it here.
 func portScopedBypasses(policies []dataplane.SPParams) []dataplane.SPParams {
 	out := make([]dataplane.SPParams, 0, len(policies))
-	for _, p := range policies {
+	for i := range policies {
+		p := &policies[i]
 		if p.Action != dataplane.SPActionBypass {
 			continue
 		}
 		if p.SrcPort.IsAny() && p.DstPort.IsAny() {
 			continue
 		}
-		out = append(out, p)
+		out = append(out, *p)
 	}
 	return out
 }

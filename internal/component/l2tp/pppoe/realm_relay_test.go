@@ -117,13 +117,13 @@ type realmHarness struct {
 
 // newRealmHarness registers a fake sink and returns a relay that has
 // accepted one CHAP request from cpe@example.net.
-func newRealmHarness(t *testing.T, sinkErr error) *realmHarness {
+func newRealmHarness(t *testing.T) *realmHarness {
 	t.Helper()
 	callsink.Unregister()
 	t.Cleanup(callsink.Unregister)
 	h := &realmHarness{
 		driver: newFakeRelayDriver(),
-		sink:   &fakeRealmSink{canceled: make(chan struct{}, 1), err: sinkErr},
+		sink:   &fakeRealmSink{canceled: make(chan struct{}, 1)},
 		ended:  make(chan uint16, 1),
 	}
 	callsink.Register(h.sink)
@@ -201,7 +201,7 @@ func waitReleased(t *testing.T, h *realmHarness) {
 // leads to its row's outcome, and the handoff goroutine ends.
 func TestRelayRealmHandoffCancelledInEachPhase(t *testing.T) {
 	t.Run("placing, subscriber leaves", func(t *testing.T) {
-		h := newRealmHarness(t, nil)
+		h := newRealmHarness(t)
 		h.relay.subscriberGone(3, 5)
 		waitSignal(t, h.sink.canceled, "the call cancel")
 		h.relay.stopAll()
@@ -210,7 +210,7 @@ func TestRelayRealmHandoffCancelledInEachPhase(t *testing.T) {
 		}
 	})
 	t.Run("placing, LNS ends the call", func(t *testing.T) {
-		h := newRealmHarness(t, nil)
+		h := newRealmHarness(t)
 		h.handoff().Ended("CDN from the LNS")
 		if msg := h.waitRefusal(t); !strings.Contains(msg, "example.net") {
 			t.Fatalf("refusal %q does not name the realm", msg)
@@ -221,7 +221,7 @@ func TestRelayRealmHandoffCancelledInEachPhase(t *testing.T) {
 		}
 	})
 	t.Run("quiesced, subscriber leaves", func(t *testing.T) {
-		h := newRealmHarness(t, nil)
+		h := newRealmHarness(t)
 		if err := h.handoff().Quiesce(); err != nil {
 			t.Fatalf("Quiesce: %v", err)
 		}
@@ -237,7 +237,7 @@ func TestRelayRealmHandoffCancelledInEachPhase(t *testing.T) {
 		}
 	})
 	t.Run("bridged, LNS ends the call", func(t *testing.T) {
-		h := newRealmHarness(t, nil)
+		h := newRealmHarness(t)
 		h.handoff().Bridged(nil)
 		h.handoff().Ended("StopCCN")
 		if sid := waitSignal(t, h.ended, "the PPPoE session end"); sid != 5 {
@@ -252,7 +252,7 @@ func TestRelayRealmHandoffCancelledInEachPhase(t *testing.T) {
 		// The Bridged row: a PADT after the bridge MUST reach the sink,
 		// which tears the L2TP session down with CDN (callsink.RealmCall).
 		// Twice reported (PADT, then a PPP session-down) is one cancel.
-		h := newRealmHarness(t, nil)
+		h := newRealmHarness(t)
 		h.handoff().Bridged(nil)
 		waitReleased(t, h)
 		h.relay.subscriberGone(3, 5)
@@ -269,7 +269,7 @@ func TestRelayRealmHandoffCancelledInEachPhase(t *testing.T) {
 		}
 	})
 	t.Run("placing, daemon stops", func(t *testing.T) {
-		h := newRealmHarness(t, nil)
+		h := newRealmHarness(t)
 		h.relay.stopAll()
 		waitSignal(t, h.sink.canceled, "the call cancel")
 	})
@@ -279,7 +279,7 @@ func TestRelayRealmHandoffCancelledInEachPhase(t *testing.T) {
 // quiesce cancels the call and refuses the subscriber naming its realm; the
 // PPP session is never released into a bridge that does not exist.
 func TestLACRealmBridgeFailureRefuses(t *testing.T) {
-	h := newRealmHarness(t, nil)
+	h := newRealmHarness(t)
 	if err := h.handoff().Quiesce(); err != nil {
 		t.Fatalf("Quiesce: %v", err)
 	}

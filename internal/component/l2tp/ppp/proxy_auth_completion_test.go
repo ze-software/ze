@@ -24,29 +24,29 @@ func TestProxyLCPDisallowedPAPAuthenticatesWithCHAP(t *testing.T) {
 	defer d.Stop()
 
 	const (
-		tunnelID = 19
-		sessionID = 4
+		tunnelID       = 19
+		sessionID      = 4
 		proxiedPeerMRU = 1400
-		actualPeerMRU = 1380
-		secret = "proxy-policy-chap-secret"
+		actualPeerMRU  = 1380
+		secret         = "proxy-policy-chap-secret"
 	)
 	proxiedPeer := optStream(mruOpt(proxiedPeerMRU), magicOpt(0x11223344))
 	proxiedLocal := optStream(mruOpt(1492), magicOpt(0x01020304), authProtoOpt(authProtoPAP))
 	d.SessionsIn() <- StartSession{
-		TunnelID: tunnelID,
-		SessionID: sessionID,
-		ChanFD: 19301,
-		UnitFD: 19302,
-		UnitNum: 8,
-		MaxMRU: 1492,
-		AuthMethod: AuthMethodCHAPMD5,
-		AuthFallbackOrder: []AuthMethod{AuthMethodCHAPMD5},
-		AuthRequired: true,
-		DisableIPCP: true,
-		DisableIPv6CP: true,
+		TunnelID:            tunnelID,
+		SessionID:           sessionID,
+		ChanFD:              19301,
+		UnitFD:              19302,
+		UnitNum:             8,
+		MaxMRU:              1492,
+		AuthMethod:          AuthMethodCHAPMD5,
+		AuthFallbackOrder:   []AuthMethod{AuthMethodCHAPMD5},
+		AuthRequired:        true,
+		DisableIPCP:         true,
+		DisableIPv6CP:       true,
 		ProxyLCPInitialRecv: proxiedPeer,
-		ProxyLCPLastRecv: proxiedPeer,
-		ProxyLCPLastSent: proxiedLocal,
+		ProxyLCPLastRecv:    proxiedPeer,
+		ProxyLCPLastSent:    proxiedLocal,
 	}
 
 	request := readPolicyLCP(t, pair.peerEnd)
@@ -107,7 +107,7 @@ func TestProxyLCPDisallowedPAPAuthenticatesWithCHAP(t *testing.T) {
 	}
 	identifier := challengePacket[1]
 	challenge := challengePacket[chapHeaderLen+1 : chapHeaderLen+1+chapChallengeValueLen]
-	var peerInput [1+len(secret)+chapChallengeValueLen]byte
+	var peerInput [1 + len(secret) + chapChallengeValueLen]byte
 	peerInput[0] = identifier
 	copy(peerInput[1:], secret)
 	copy(peerInput[1+len(secret):], challenge)
@@ -131,7 +131,7 @@ func TestProxyLCPDisallowedPAPAuthenticatesWithCHAP(t *testing.T) {
 		}
 		// The test backend independently verifies the callback's response using
 		// the known subscriber secret, rather than unconditionally accepting it.
-		var backendInput [1+len(secret)+chapChallengeValueLen]byte
+		var backendInput [1 + len(secret) + chapChallengeValueLen]byte
 		backendInput[0] = req.Identifier
 		copy(backendInput[1:], secret)
 		copy(backendInput[1+len(secret):], req.Challenge)

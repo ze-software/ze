@@ -273,7 +273,7 @@ func (c *clientIPv6CP) receiveRequest(w io.Writer, buf []byte, pkt ppp.LCPPacket
 	if err != nil {
 		// RFC 1661 Section 6: an option list whose lengths overrun the packet,
 		// or a second Interface-Identifier, is discarded unanswered.
-		return ipv6cpUnchanged, nil
+		return ipv6cpUnchanged, nil //nolint:nilerr // RFC 1661 Section 6: a malformed option list is discarded unanswered.
 	}
 	event := ipv6cpUnchanged
 	// Only the states this input changes are listed; the rest keep their state.
@@ -443,7 +443,7 @@ func (c *clientIPv6CP) receiveNak(w io.Writer, buf []byte, pkt ppp.LCPPacket) (i
 	}
 	suggested, present, err := ppp.ParseIPv6CPInterfaceID(pkt.Data)
 	if err != nil {
-		return ipv6cpUnchanged, nil
+		return ipv6cpUnchanged, nil //nolint:nilerr // RFC 1661 Section 6: a malformed option list is discarded unanswered.
 	}
 	if present && ppp.ValidIPv6CPInterfaceID(suggested) {
 		if c.hasNakSent && suggested == c.nakSent {

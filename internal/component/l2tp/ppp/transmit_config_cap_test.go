@@ -16,8 +16,8 @@ func TestConfigureRepliesRespectTransmitCap(t *testing.T) {
 			s.maxMRU = MinIPv4MRU
 			s.negotiatedMRU = 1500
 			send := s.sendConfigureAck
-			proto := uint16(ProtoLCP)
-			code := uint8(LCPConfigureAck)
+			proto := ProtoLCP
+			code := LCPConfigureAck
 			switch kind {
 			case "lcp Ack":
 			case "ipcp Ack":
