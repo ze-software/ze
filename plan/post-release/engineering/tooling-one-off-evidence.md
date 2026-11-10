@@ -3515,3 +3515,14 @@ and a whole-file check calls the path stale.
 This carries the hunks route. An earlier block's whole-snapshot route has no
 identity assertion of its own. `TestNativeReviewPublishesEarlierWholeAndHunkSnapshots`
 checks only what that route publishes.
+
+**P-29, the earlier block's whole snapshot.** `TestReviewIdentityOfAnEarlierWholeSnapshotExcludesLaterEdits`
+(`internal/le/commit`) records a blob review of an earlier script block's
+whole-file snapshot while the working tree already holds a later concurrent
+edit. It proves the recorded pin hashes the snapshot object, that the selection
+check served from the snapshot entry is clean, and that a whole-tree check
+calls the path stale. Break: `internal/le/spec/review.go` `recordedFile`, blob
+branch, hashes the working-tree file instead of the snapshot object. Red: "the
+review identity is not the earlier block's snapshot: recorded 543d21fe...,
+snapshot 2d5a7702..., working-tree file 543d21fe...". Restored ok. With the
+hunks test above, both review routes carry the "nor enter review" clause.

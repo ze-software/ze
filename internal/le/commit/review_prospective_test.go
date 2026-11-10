@@ -139,6 +139,89 @@ func TestReviewIdentityExcludesUnselectedConcurrentBytes(t *testing.T) {
 	}
 }
 
+// TestReviewIdentityOfAnEarlierWholeSnapshotExcludesLaterEdits is the blob
+// route's twin of TestReviewIdentityExcludesUnselectedConcurrentBytes. An
+// earlier script block snapshots the whole file; another session then edits
+// the working-tree copy before the review is recorded. The fixture records a
+// real `le spec review record ... blob <path> <object> mode <path> 100644` over
+// the earlier block's snapshot object and reads the pin the artifact carries:
+// it MUST be the digest of the snapshot bytes, never the digest of the live
+// file. The gate is then asked both ways: over the selection the earlier block
+// carries it is clean, and over the whole working-tree file it refuses the path
+// as changed after the review, because no review saw the later edit.
+func TestReviewIdentityOfAnEarlierWholeSnapshotExcludesLaterEdits(t *testing.T) {
+	const path = "internal/reviewed.go"
+	const stem = "earlier-whole"
+	root := newCommitRepository(t)
+	configureCommitAuthor(t, root)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "earlier-whole-identity-fixture")
+	commitFixture(t, root, "the live spec", map[string]string{"plan/release/fixes/spec-earlier-whole.md": "# Spec: earlier-whole\n"}, nil)
+	const selected = "package internal\n\nconst Reviewed = 1\n"
+	const concurrent = selected + "const Concurrent = 2\n"
+	writeCommitFixture(t, root, path, selected)
+	earlier, err := Create(root, &Options{Subject: "reviewed earlier block", Files: []string{path},
+		NoTest: "fixture constant has no runtime behavior", SpecWork: stem})
+	if err != nil {
+		t.Fatal(err)
+	}
+	script, err := os.ReadFile(filepath.Join(root, earlier.Script))
+	if err != nil {
+		t.Fatal(err)
+	}
+	blob, entry := "", ""
+	if err := walkScriptBlocks(earlier.Script, string(script), func(line string) error {
+		object, named, err := snapshotEntryFields(line)
+		if named == path {
+			blob, entry = object, line
+		}
+		return err
+	}, func([]string) {}); err != nil {
+		t.Fatal(err)
+	}
+	if blob == "" {
+		t.Fatal("fixture: the earlier block carries no whole snapshot of the reviewed file")
+	}
+	writeCommitFixture(t, root, path, concurrent)
+	recordFixtureReview(t, root, "spec", stem, "verdict", "clean", "rounds", "1",
+		"blob", path, blob, "mode", path, "100644")
+
+	snapshot := reviewDigest([]byte(selected), nil)
+	live, err := spec.ReviewFile(root, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if live.Hash == snapshot {
+		t.Fatal("fixture: the working-tree file holds no later concurrent bytes")
+	}
+	recorded := recordedReviewPin(t, root, stem, path)
+	if recorded.Hash != snapshot {
+		t.Fatalf("the review identity is not the earlier block's snapshot: recorded %s, snapshot %s, "+
+			"working-tree file %s", recorded.Hash, snapshot, live.Hash)
+	}
+	if recorded.Mode != "100644" {
+		t.Fatalf("the review pinned mode %q, want the snapshot entry's 100644", recorded.Mode)
+	}
+
+	selection := hunks.Selection{path: {Entry: entry}}
+	if result := checkReviewSelected(root, stem, []string{path}, selection); !result.Clean {
+		t.Fatalf("the review over the earlier block's snapshot is not clean: %#v", result)
+	}
+	whole := CheckReview(root, stem, []string{path})
+	if whole.Clean {
+		t.Fatal("the review vouched for later concurrent bytes it never covered")
+	}
+	if len(whole.Stale) != 1 || whole.Stale[0] != path {
+		t.Fatalf("the whole working-tree file is not refused as changed after the review: %#v", whole)
+	}
+	body, err := os.ReadFile(filepath.Join(root, path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(body) != concurrent {
+		t.Fatalf("recording the review changed the concurrent checkout bytes: %q", body)
+	}
+}
+
 // recordedReviewPin answers the one pin the stem's review artifact records for
 // path, parsed with the pattern the commit gate reads it through.
 func recordedReviewPin(t *testing.T, root, stem, path string) spec.ReviewedFile {
