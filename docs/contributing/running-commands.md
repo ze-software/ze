@@ -1972,14 +1972,25 @@ question per test" point (`ai/rules/testing.md`). It reads one run:
 | `./le test cost report suite <suite> baseline <path>` | the same, from another baseline file |
 | `./le test cost report log <path>` | a Go test log that kept per-test elapsed: `go test -v` (`--- PASS: TestX (1.20s)`) or `go test -json` |
 
-A test is listed when it is among the top 5% of its suite or package (rounded
-up, so a small package still names its longest test) and its time is above a
-floor: 2s for a Go test, 15s for a `.ci`. The thresholds are declared once, in
+A test is listed when its share of its suite or package is at least three
+times an even share: `3/N` for a group of `N` tests, so 30% of a ten-test
+suite and 15% of a twenty-test one. `N` counts every test of the group,
+unmeasured ones included, the same tests whose time makes up the share. A
+share is of the group's whole recorded time, so it sums to 100% over a suite
+or package. The factor is declared once, as `shareFactor` in
 `internal/le/test/cost/cost.go`. Each row gives the test's share, its time and
-the question to ask of it: does its red say which behaviour broke, and could a
+the question to ask of it: does its red say which behavior broke, and could a
 cheaper route decide it? A `.ci` test with fewer than three baseline samples
-is listed as unmeasured, never ranked. A share is of the group's whole
-recorded time, so it sums to 100% over a suite or package.
+is listed as unmeasured, never ranked.
+
+A group of three tests or fewer ranks nothing, because three times an even
+share is then 100% or more. The report names each such group as too few to
+rank; read it whole instead.
+
+The rule reads shares only, never seconds, so the same run ranks the same
+tests on a fast host and a slow one. It has no floor in seconds, and that has
+a cost: a package whose whole run takes under a second can list the test that
+dominates it. The row shows its seconds, so such a row is one to dismiss.
 
 A plain `go test` prints no time for a passing test, so a Go log must come
 from a run with `-v`. The quiet job route keeps it, and `runlog` still picks
@@ -1996,9 +2007,9 @@ then it judged nothing. Its times are host-dependent triage, never a
 performance figure: do not quote, record or compare them
 (`ai/META-DECISIONS.md`, performance figures). A share compares tests from the
 same run on the same host, which is why the report names the host it ran on.
-<!-- source: internal/le/test/cost/cost.go -- topPercent, floorGo, floorCI, answerReport, rankGroup -->
+<!-- source: internal/le/test/cost/cost.go -- shareFactor, answerReport, rankGroup -->
 <!-- source: internal/le/test/cost/golog.go -- parseGoLog, testResultLine, packageResultLine -->
-<!-- source: internal/le/test/cost/report.go -- Report.Text, notice -->
+<!-- source: internal/le/test/cost/report.go -- Report, SmallGroup, Report.Text, notice -->
 
 ## Does my test go red under this break
 

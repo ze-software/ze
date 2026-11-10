@@ -2,12 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Priority | P3 |
 | Release reason | Development tooling: it changes which tests `le test cost report` names, and checks the names hold on two machines. No shipped behaviour changes |
 | Scope | tooling |
 | Depends | - |
-| Phase | - |
+| Phase | 3/3 |
+| WIP cap | claimed above the cap (19/19) on Thomas's one-off exception for this spec |
 | Handoff | - |
 | Updated | 2026-11-10 |
 
@@ -150,6 +151,36 @@ encodes the replaced rule (`ai/META-DECISIONS.md`, test changes).
 - `internal/le/test/cost/cost_test.go` - the cases above
 - `test/ui/le-test-cost.ci` - rewritten for the share rule
 - `docs/contributing/running-commands.md` - AC-7
+
+## Risks & Assumptions
+
+| ID | Assumption | Validation | Status |
+|----|------------|------------|--------|
+| A-1 | No caller outside `internal/le/test/cost` reads `floor-seconds`, `top-percent`, `topPercent`, `floorGo`, `floorCI` or `route.floor` | grep over the tree, excluding plan/ | confirmed 2026-11-10: only the package itself and the `<!-- source: -->` anchor in `running-commands.md` |
+| A-2 | A-8 of the parent spec: shares are stable across hosts | AC-5 on two known hosts | unvalidated |
+
+| ID | Risk | Mitigation |
+|----|------|------------|
+| R-1 | Fast packages list a dominant test that costs under a second | The row shows its seconds; recorded as a decision |
+
+## Implementation Phases
+
+| Phase | Work | Verify |
+|-------|------|--------|
+| 1 | Rewrite the unit cases and `le-test-cost.ci` for the share rule (tests only) | main thread: the tests go red against the current rule; `ze-test-judge` verdict on each rewrite |
+| 2 | Share bar in `rankGroup`, `Report.ShareFactor`, delete the old constants, restate `Why`, comments and the page (AC-7) | main thread: scoped package test and `./le test ui le-test-cost` green |
+| 3 | AC-5 and AC-6 on the two known hosts | owner-run reports, compared |
+
+## Critical Review Checklist
+
+| Check | What to verify |
+|-------|----------------|
+| One set | The share's denominator and `N` count the same tests |
+| No seconds in the verdict | Nothing in `rankGroup` compares a duration with a constant |
+| No layering | `topPercent`, `floorGo`, `floorCI`, `route.floor`, `FloorSeconds`, `TopPercent` are gone, not kept |
+| Small group | `N <= 3` lists nothing and the text says why |
+| Exact boundary | A share exactly at `3/N` is listed; the comparison is not distorted by float rounding in a way a test can observe |
+| Page | `running-commands.md` states the rule the code applies, with no 5% or floor left |
 
 ## Implementation Steps
 1. Rewrite the unit cases and `le-test-cost.ci` for the share rule; confirm they go red against the current rule (paste output); get the `ze-test-judge` verdict on each rewrite

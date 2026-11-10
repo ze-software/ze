@@ -1,6 +1,8 @@
 package testcost
 
 import (
+	"maps"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -36,60 +38,75 @@ func hasRow(report Report, test string) bool {
 	return false
 }
 
-// TestCostRanksCITestsByShare proves the `.ci` half of AC-18: over one
-// suite's baseline, only tests in the top 5% of the suite AND above the 15 s
-// floor are ranked, by share, and a test with fewer baseline samples than the
+// rankedTests answers the names of the ranked rows, in report order.
+func rankedTests(report Report) []string {
+	var names []string
+	for _, row := range report.Rows {
+		if row.Status == statusRanked {
+			names = append(names, row.Test)
+		}
+	}
+	return names
+}
+
+// scaledSuite builds one suite whose every time is base milliseconds times
+// scale, all with enough samples to rank.
+func scaledSuite(base map[string]int, scale int) map[string]runner.TimingEntry {
+	suite := make(map[string]runner.TimingEntry, len(base))
+	for name, ms := range base {
+		suite[name] = ciEntry(time.Duration(ms*scale)*time.Millisecond, 5)
+	}
+	return suite
+}
+
+// TestCostRanksCITestsByShare proves AC-1 and AC-2 over a `.ci` baseline: in
+// a suite of 20 tests, every test whose share of the suite is at least 3/20
+// (15%) is ranked, by share, and a test with fewer baseline samples than the
 // runner's minimum is listed as unmeasured, never ranked.
 //
-// Method: a suite of 40 tests, so the top 5% is two tests. Two long tests sit
-// in the top two; a third test exactly at the floor is in neither (it is third,
-// and at the floor is not above it). A second suite pins the floor boundary on
-// its own: one test exactly at 15 s and one a millisecond above it. A new test
-// with two samples is the slowest of all and must still not be ranked.
+// Method: the spec's example, over 170 s of recorded time: A 68 s (40%), B
+// 51 s (30%), C 23.8 s (14%), and seventeen tests of 1.6 s sharing the rest
+// (16%), one of them with a single sample. A and B are ranked, A first; C is
+// above any absolute floor and still under the bar, so it is not listed. The
+// share is of the whole suite, the unmeasured test included.
 func TestCostRanksCITestsByShare(t *testing.T) {
 	suite := map[string]runner.TimingEntry{
-		"whole-path":   ciEntry(60*time.Second, 5),
-		"reload-chain": ciEntry(30*time.Second, 5),
-		"at-floor":     ciEntry(floorCI, 5),
-		"brand-new":    ciEntry(120*time.Second, runner.BaselineSamplesMin-1),
+		"A":         ciEntry(68*time.Second, 5),
+		"B":         ciEntry(51*time.Second, 5),
+		"C":         ciEntry(23800*time.Millisecond, 5),
+		"brand-new": ciEntry(1600*time.Millisecond, runner.BaselineSamplesMin-1),
 	}
-	for i := range 36 {
-		suite["small-"+string(rune('a'+i%26))+string(rune('a'+i/26))] = ciEntry(time.Second, 5)
+	for i := range 16 {
+		suite["small-"+string(rune('a'+i))] = ciEntry(1600*time.Millisecond, 5)
 	}
-	timings := runner.Timings{"ui": suite}
+	if len(suite) != 20 {
+		t.Fatalf("fixture holds %d tests, want 20", len(suite))
+	}
 
-	report, err := rankBaseline(timings, "ui", "fixture")
+	report, err := rankBaseline(runner.Timings{"ui": suite}, "ui", "fixture")
 	if err != nil {
 		t.Fatalf("rankBaseline: %v", err)
 	}
 
-	ranked := 0
-	for _, row := range report.Rows {
-		if row.Status == statusRanked {
-			ranked++
-		}
+	if got, want := rankedTests(report), []string{"A", "B"}; !slices.Equal(got, want) {
+		t.Fatalf("ranked %v, want %v (share at least 3/20 of the suite, by share): %+v", got, want, report.Rows)
 	}
-	if ranked != 2 {
-		t.Fatalf("ranked %d rows, want 2 (top 5%% of 39 measured tests): %+v", ranked, report.Rows)
+	first := report.Rows[0]
+	// 68 / 170 seconds: the unmeasured test's 1.6 s is in the total.
+	if diff := first.SharePercent - 40; diff > 0.01 || diff < -0.01 {
+		t.Errorf("A share %.3f%%, want 40%%", first.SharePercent)
 	}
-	first, second := report.Rows[0], report.Rows[1]
-	if first.Test != "whole-path" || second.Test != "reload-chain" {
-		t.Fatalf("rows not sorted by share: %s then %s", first.Test, second.Test)
-	}
-	// The share is of the suite's whole recorded time, unmeasured tests included:
-	// 60 / (60 + 30 + 15 + 120 + 36) seconds.
-	wantShare := 100 * 60.0 / 261.0
-	if diff := first.SharePercent - wantShare; diff > 0.01 || diff < -0.01 {
-		t.Errorf("whole-path share %.3f%%, want %.3f%%", first.SharePercent, wantShare)
-	}
-	if first.Seconds != 60 {
-		t.Errorf("whole-path seconds %v, want 60", first.Seconds)
+	if first.Seconds != 68 {
+		t.Errorf("A seconds %v, want 68", first.Seconds)
 	}
 	if first.Question != question {
 		t.Errorf("row question %q, want %q", first.Question, question)
 	}
-	if hasRow(report, "at-floor") {
-		t.Errorf("at-floor is third and at the floor, so it is not ranked")
+	if diff := report.Rows[1].SharePercent - 30; diff > 0.01 || diff < -0.01 {
+		t.Errorf("B share %.3f%%, want 30%%", report.Rows[1].SharePercent)
+	}
+	if hasRow(report, "C") {
+		t.Errorf("C takes 14%% of the suite, under the 15%% bar, so it is not listed")
 	}
 
 	unmeasured := rowNamed(t, report, "brand-new")
@@ -99,71 +116,207 @@ func TestCostRanksCITestsByShare(t *testing.T) {
 	if unmeasured.Samples != runner.BaselineSamplesMin-1 {
 		t.Errorf("brand-new samples %d, want %d", unmeasured.Samples, runner.BaselineSamplesMin-1)
 	}
+}
 
-	// The floor boundary, alone: a two-test suite ranks its top test (5% of two
-	// rounds up to one), so each case decides only the floor.
-	atFloor := runner.Timings{"edge": {
-		"exactly": ciEntry(floorCI, 5),
-		"tiny":    ciEntry(time.Second, 5),
-	}}
-	report, err = rankBaseline(atFloor, "edge", "fixture")
+// TestCostUnmeasuredTestIsNeverRanked proves a `.ci` test with fewer baseline
+// samples than the runner's minimum is listed as unmeasured and never ranked,
+// however large its share of the suite.
+//
+// Method: ten tests over 9900 ms (bar 30%). "brand-new" has one sample short
+// of the minimum and takes 9000 ms, 90.9% of the suite and the largest test
+// by far, so a ranking that judged the share before the sample count would
+// rank it.
+func TestCostUnmeasuredTestIsNeverRanked(t *testing.T) {
+	suite := scaledSuite(map[string]int{
+		"r1": 100, "r2": 100, "r3": 100, "r4": 100, "r5": 100, "r6": 100, "r7": 100, "r8": 100, "r9": 100,
+	}, 1)
+	suite["brand-new"] = ciEntry(9000*time.Millisecond, runner.BaselineSamplesMin-1)
+
+	report, err := rankBaseline(runner.Timings{"fresh": suite}, "fresh", "fixture")
 	if err != nil {
-		t.Fatalf("rankBaseline at floor: %v", err)
+		t.Fatalf("rankBaseline: %v", err)
 	}
-	if hasRow(report, "exactly") {
-		t.Errorf("a test exactly at the %v floor is not above it, so it is not ranked", floorCI)
+	if slices.Contains(rankedTests(report), "brand-new") {
+		t.Errorf("brand-new has too few samples, so it is not ranked: ranked %v", rankedTests(report))
 	}
-	aboveFloor := runner.Timings{"edge": {
-		"above": ciEntry(floorCI+time.Millisecond, 5),
-		"tiny":  ciEntry(time.Second, 5),
-	}}
-	report, err = rankBaseline(aboveFloor, "edge", "fixture")
-	if err != nil {
-		t.Fatalf("rankBaseline above floor: %v", err)
+	unmeasured := rowNamed(t, report, "brand-new")
+	if unmeasured.Status != statusUnmeasured {
+		t.Errorf("brand-new status %q, want %q", unmeasured.Status, statusUnmeasured)
 	}
-	if !hasRow(report, "above") {
-		t.Errorf("a test a millisecond above the %v floor is ranked", floorCI)
+	if unmeasured.Samples != runner.BaselineSamplesMin-1 {
+		t.Errorf("brand-new samples %d, want %d", unmeasured.Samples, runner.BaselineSamplesMin-1)
+	}
+}
+
+// TestCostBarIsInclusive proves the AC-1 boundary: a test whose share is
+// exactly 3/N is ranked, and one just under it is not.
+//
+// Method: a suite of ten tests over 1000 ms, so the bar is 30%. "edge" takes
+// 300 ms, exactly 30%, a share a float holds exactly; in the second suite it
+// takes 299 ms (29.9%) and a neighbor takes the millisecond. Both times are
+// far under any absolute floor, so only the share decides.
+func TestCostBarIsInclusive(t *testing.T) {
+	rest := map[string]int{
+		"r1": 100, "r2": 100, "r3": 100, "r4": 100, "r5": 100,
+		"r6": 50, "r7": 50, "r8": 50, "r9": 50,
 	}
 
+	atBar := map[string]int{"edge": 300}
+	maps.Copy(atBar, rest)
+	report, err := rankBaseline(runner.Timings{"edge": scaledSuite(atBar, 1)}, "edge", "fixture")
+	if err != nil {
+		t.Fatalf("rankBaseline at the bar: %v", err)
+	}
+	if got := rankedTests(report); !slices.Equal(got, []string{"edge"}) {
+		t.Errorf("a test at exactly 3/10 of its suite is ranked, alone: ranked %v", got)
+	}
+
+	underBar := map[string]int{"edge": 299}
+	maps.Copy(underBar, rest)
+	underBar["r1"] = 101
+	report, err = rankBaseline(runner.Timings{"edge": scaledSuite(underBar, 1)}, "edge", "fixture")
+	if err != nil {
+		t.Fatalf("rankBaseline under the bar: %v", err)
+	}
+	if got := rankedTests(report); len(got) != 0 {
+		t.Errorf("a test a millisecond under 3/10 of its suite is not ranked: ranked %v", got)
+	}
+}
+
+// TestCostBarCountsUnmeasuredTests proves the one-set decision of AC-1: N,
+// like the share's denominator, counts every test of the group, unmeasured
+// ones included.
+//
+// Method: ten tests over 1000 ms, one of them unmeasured (40 ms, in the
+// total). "edge" takes 320 ms
+// (32%). Counting all ten, the bar is 30% and edge is ranked; counting only
+// the nine measured tests, the bar would be 33.3% and edge would not be.
+func TestCostBarCountsUnmeasuredTests(t *testing.T) {
+	measuredMs := map[string]int{"edge": 320, "r1": 100, "r2": 100, "r3": 100, "r4": 100}
+	maps.Copy(measuredMs, map[string]int{"r5": 60, "r6": 60, "r7": 60, "r8": 60})
+	suite := scaledSuite(measuredMs, 1)
+	suite["brand-new"] = ciEntry(40*time.Millisecond, runner.BaselineSamplesMin-1)
+
+	report, err := rankBaseline(runner.Timings{"set": suite}, "set", "fixture")
+	if err != nil {
+		t.Fatalf("rankBaseline: %v", err)
+	}
+	if got := rankedTests(report); !slices.Equal(got, []string{"edge"}) {
+		t.Errorf("edge takes 32%% of ten tests, over the 3/10 bar, so it is ranked: ranked %v", got)
+	}
+	if rowNamed(t, report, "brand-new").Status != statusUnmeasured {
+		t.Errorf("brand-new is listed as unmeasured")
+	}
+}
+
+// TestCostSmallGroupRanksNothing proves AC-3: a group of three or fewer tests
+// ranks nothing however its time splits, because 3x an even share is 100% or
+// more, and the text says the group is too small; a group of four still ranks.
+//
+// Method: three tests at 980 s, 10 s and 10 s rank nothing, though the first
+// takes 98% and is far above any absolute floor; the text names the group as
+// too small. Four tests at 980/10/10/10 s rank the first (bar 75%).
+func TestCostSmallGroupRanksNothing(t *testing.T) {
+	three := scaledSuite(map[string]int{"big": 980, "s1": 10, "s2": 10}, 1000)
+	report, err := rankBaseline(runner.Timings{"small": three}, "small", "fixture")
+	if err != nil {
+		t.Fatalf("rankBaseline three: %v", err)
+	}
+	if got := rankedTests(report); len(got) != 0 {
+		t.Errorf("a group of three tests ranks nothing: ranked %v", got)
+	}
+	const tooSmall = "  small: 3 tests, too few to rank (3x an even share is 100% or more)\n"
+	if text := report.Text(); !strings.Contains(text, tooSmall) {
+		t.Errorf("text does not say the group is too small, want %q in:\n%s", tooSmall, text)
+	}
+
+	four := scaledSuite(map[string]int{"big": 980, "s1": 10, "s2": 10, "s3": 10}, 1000)
+	report, err = rankBaseline(runner.Timings{"small": four}, "small", "fixture")
+	if err != nil {
+		t.Fatalf("rankBaseline four: %v", err)
+	}
+	if got := rankedTests(report); !slices.Equal(got, []string{"big"}) {
+		t.Errorf("a group of four ranks a test above its 75%% bar: ranked %v", got)
+	}
+}
+
+// TestCostRankingIgnoresScale proves AC-4: the verdict reads shares only, so
+// the same suite with every time multiplied by a constant ranks the same rows.
+//
+// Method: ten tests in milliseconds (X 400, Y 310, Z 110, seven sharing 180;
+// bar 30%), so every time is far under the old 2 s and 15 s floors, then the
+// same suite times 7 and times 1000, which puts X and Y far above them. Each
+// scale ranks X then Y.
+func TestCostRankingIgnoresScale(t *testing.T) {
+	base := map[string]int{
+		"X": 400, "Y": 310, "Z": 110,
+		"r1": 30, "r2": 30, "r3": 30, "r4": 30, "r5": 20, "r6": 20, "r7": 20,
+	}
+	for _, scale := range []int{1, 7, 1000} {
+		report, err := rankBaseline(runner.Timings{"scale": scaledSuite(base, scale)}, "scale", "fixture")
+		if err != nil {
+			t.Fatalf("rankBaseline at scale %d: %v", scale, err)
+		}
+		if got, want := rankedTests(report), []string{"X", "Y"}; !slices.Equal(got, want) {
+			t.Errorf("at scale %d ranked %v, want %v", scale, got, want)
+		}
+	}
+}
+
+// TestCostRefusesASuiteWithNoBaseline proves a suite the baseline does not
+// hold answers an error, never an empty report that reads as "nothing costs".
+func TestCostRefusesASuiteWithNoBaseline(t *testing.T) {
+	timings := runner.Timings{"ui": {"A": ciEntry(time.Second, 5)}}
 	if _, err := rankBaseline(timings, "missing", "fixture"); err == nil {
 		t.Errorf("a suite with no baseline answered a report instead of an error")
 	}
 }
 
-// goTextLog is a `go test -v` log over two packages. Subtest lines are
-// indented and must not count; a test run twice (-count=2) sums.
+// goTextLog is a `go test -v` log over two packages of five tests each, every
+// time far under a second. Subtest lines are indented and must not count; a
+// test run twice (-count=2) sums; a failed test counts like a passed one.
 const goTextLog = `=== RUN   TestSlow
---- PASS: TestSlow (9.00s)
+--- PASS: TestSlow (0.35s)
 === RUN   TestTable
-    --- PASS: TestTable/case (8.00s)
---- PASS: TestTable (1.00s)
---- PASS: TestQuick (0.50s)
---- PASS: TestSlow (9.00s)
+    --- PASS: TestTable/case (0.08s)
+--- PASS: TestTable (0.075s)
+--- PASS: TestQuick (0.075s)
+--- PASS: TestOne (0.075s)
+--- PASS: TestTwo (0.075s)
+--- PASS: TestSlow (0.35s)
 PASS
-ok  	example.com/alpha	19.600s
---- FAIL: TestAtFloor (2.00s)
---- PASS: TestRest (0.10s)
+ok  	example.com/alpha	1.100s
+--- FAIL: TestBroken (0.20s)
+--- PASS: TestEven1 (0.20s)
+--- PASS: TestEven2 (0.20s)
+--- PASS: TestEven3 (0.20s)
+--- PASS: TestEven4 (0.20s)
 FAIL
-FAIL	example.com/beta	2.200s
+FAIL	example.com/beta	1.100s
 `
 
 // goJSONLog is the same shape as `go test -json`: only a top-level test's
 // pass or fail event carries the elapsed that counts.
 const goJSONLog = `{"Action":"run","Package":"example.com/gamma","Test":"TestBig"}
-{"Action":"output","Package":"example.com/gamma","Test":"TestBig","Output":"--- PASS: TestBig (3.00s)\n"}
-{"Action":"pass","Package":"example.com/gamma","Test":"TestBig","Elapsed":3}
-{"Action":"pass","Package":"example.com/gamma","Test":"TestBig/sub","Elapsed":2.9}
-{"Action":"pass","Package":"example.com/gamma","Test":"TestSmall","Elapsed":1}
-{"Action":"pass","Package":"example.com/gamma","Elapsed":3.3}
+{"Action":"output","Package":"example.com/gamma","Test":"TestBig","Output":"--- PASS: TestBig (0.80s)\n"}
+{"Action":"pass","Package":"example.com/gamma","Test":"TestBig","Elapsed":0.8}
+{"Action":"pass","Package":"example.com/gamma","Test":"TestBig/sub","Elapsed":0.79}
+{"Action":"pass","Package":"example.com/gamma","Test":"TestSmall1","Elapsed":0.05}
+{"Action":"pass","Package":"example.com/gamma","Test":"TestSmall2","Elapsed":0.05}
+{"Action":"pass","Package":"example.com/gamma","Test":"TestSmall3","Elapsed":0.05}
+{"Action":"pass","Package":"example.com/gamma","Test":"TestSmall4","Elapsed":0.05}
+{"Action":"pass","Package":"example.com/gamma","Elapsed":1.1}
 `
 
-// TestCostRanksGoTestsByShare proves the Go half of AC-18: per-test elapsed
+// TestCostRanksGoTestsByShare proves AC-1 over a Go log: per-test elapsed
 // read from a `-v` log and from a `-json` log, grouped by the package that
-// ran them, ranked by share above the 2 s floor.
+// ran them, ranked by the same 3/N bar however short the times.
 //
-// Method: alpha's TestSlow ran twice for 18 s of 19.5 s; beta's TestAtFloor
-// takes exactly the 2 s floor and is refused; gamma comes from -json and its
-// subtest's elapsed is not counted twice.
+// Method: three packages of five tests (bar 60%), each 1 s in all. alpha's
+// TestSlow ran twice for 0.7 s (70%; one run alone would be 53.8%, under the
+// bar). beta splits evenly, its failed test included, so nothing is ranked.
+// gamma comes from -json: TestBig takes 0.8 s (80%), and counting its
+// subtest as a sixth test would drop it to 44.7% of a 50% bar.
 func TestCostRanksGoTestsByShare(t *testing.T) {
 	tests, err := parseGoLog(strings.NewReader(goTextLog + goJSONLog))
 	if err != nil {
@@ -171,45 +324,67 @@ func TestCostRanksGoTestsByShare(t *testing.T) {
 	}
 	report := rankGo(tests, "fixture.log")
 
-	if len(report.Rows) != 2 {
-		t.Fatalf("rows %+v, want TestSlow and TestBig", report.Rows)
+	if got, want := rankedTests(report), []string{"TestBig", "TestSlow"}; !slices.Equal(got, want) {
+		t.Fatalf("ranked %v, want %v: %+v", got, want, report.Rows)
 	}
-	slow := report.Rows[0]
-	if slow.Test != "TestSlow" || slow.Group != "example.com/alpha" {
-		t.Fatalf("first row %s in %s, want TestSlow in example.com/alpha", slow.Test, slow.Group)
+	big := report.Rows[0]
+	if big.Group != "example.com/gamma" {
+		t.Errorf("TestBig in %s, want example.com/gamma", big.Group)
 	}
-	wantShare := 100 * 18.0 / 19.5
-	if diff := slow.SharePercent - wantShare; diff > 0.01 || diff < -0.01 {
-		t.Errorf("TestSlow share %.3f%%, want %.3f%%", slow.SharePercent, wantShare)
+	if diff := big.SharePercent - 80; diff > 0.01 || diff < -0.01 {
+		t.Errorf("TestBig share %.3f%%, want 80%%", big.SharePercent)
 	}
-	if slow.Seconds != 18 {
-		t.Errorf("TestSlow seconds %v, want 18 (two runs summed)", slow.Seconds)
+	if big.Seconds != 0.8 {
+		t.Errorf("TestBig seconds %v, want 0.8 (the subtest is inside it)", big.Seconds)
 	}
-	big := report.Rows[1]
-	if big.Test != "TestBig" || big.Group != "example.com/gamma" {
-		t.Errorf("second row %s in %s, want TestBig in example.com/gamma", big.Test, big.Group)
+	slow := report.Rows[1]
+	if slow.Group != "example.com/alpha" {
+		t.Errorf("TestSlow in %s, want example.com/alpha", slow.Group)
 	}
-	if big.Seconds != 3 {
-		t.Errorf("TestBig seconds %v, want 3 (the subtest is inside it)", big.Seconds)
+	if diff := slow.SharePercent - 70; diff > 0.01 || diff < -0.01 {
+		t.Errorf("TestSlow share %.3f%%, want 70%%", slow.SharePercent)
 	}
-	if hasRow(report, "TestAtFloor") {
-		t.Errorf("TestAtFloor takes exactly the %v floor, so it is not ranked", floorGo)
+	if slow.Seconds != 0.7 {
+		t.Errorf("TestSlow seconds %v, want 0.7 (two runs summed)", slow.Seconds)
 	}
-	if report.Tests != 7 {
-		t.Errorf("tests %d, want 7 distinct top-level tests", report.Tests)
+	if report.Tests != 15 {
+		t.Errorf("tests %d, want 15 distinct top-level tests", report.Tests)
 	}
+}
 
-	// A millisecond above the floor is ranked.
-	above, err := parseGoLog(strings.NewReader("--- PASS: TestEdge (2.001s)\n--- PASS: TestTiny (0.01s)\nok  \texample.com/edge\t2.1s\n"))
-	if err != nil {
-		t.Fatalf("parseGoLog above floor: %v", err)
-	}
-	if !hasRow(rankGo(above, "edge.log"), "TestEdge") {
-		t.Errorf("a test a millisecond above the %v floor is ranked", floorGo)
-	}
-
+// TestCostRefusesALogWithNoTestTimes proves a Go log that holds no per-test
+// elapsed answers an error, never an empty report.
+func TestCostRefusesALogWithNoTestTimes(t *testing.T) {
 	if _, err := parseGoLog(strings.NewReader("ok  \texample.com/quiet\t0.3s\n")); err == nil {
 		t.Errorf("a log with no per-test elapsed answered tests instead of an error")
+	}
+}
+
+// TestCostTextStatesTheShareRule proves the rendered report states the rule
+// it applied: the header names the 3x-even-share bar for the route's group
+// word, and a report that ranks nothing says no test reached the bar.
+//
+// Method: a Go log of one package of five even tests ranks nothing, so its
+// text carries the header and the nothing-ranked line for a package.
+func TestCostTextStatesTheShareRule(t *testing.T) {
+	tests, err := parseGoLog(strings.NewReader(goTextLog))
+	if err != nil {
+		t.Fatalf("parseGoLog: %v", err)
+	}
+	var even []measured
+	for _, test := range tests {
+		if test.group == "example.com/beta" {
+			even = append(even, test)
+		}
+	}
+	text := rankGo(even, "even.log").Text()
+	for _, want := range []string{
+		"  5 tests; listed: a test whose share of its package is at least 3x an even share (3/N)\n",
+		"  no test takes at least 3x an even share of its package\n",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("text does not carry %q:\n%s", want, text)
+		}
 	}
 }
 

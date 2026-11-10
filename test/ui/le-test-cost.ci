@@ -1,10 +1,14 @@
 # Test: le test cost report ranks a suite's .ci tests by their share of the suite
-# VALIDATES: spec-test-validation-in-smaller-units AC-18 -- a test in the top 5%
-# of its suite and above the 15s floor is listed with its share and the question
-# the testing rule asks; a test with fewer than three baseline samples is listed
-# as unmeasured, never ranked; the report exits 0 and says its times are triage.
-# The fixture baseline holds suite "demo": one 60s test, one test exactly at the
-# floor, nineteen 1s tests, and a slow test with one sample.
+# VALIDATES: spec-test-cost-ranking-across-hosts AC-1, AC-2 -- in a suite of N
+# tests, a test whose share of the suite is at least 3/N (3x an even share) is
+# listed with its share and the question the testing rule asks, and a test
+# under that bar is not; a test with fewer than three baseline samples is
+# listed as unmeasured, never ranked; the header states the share rule; the
+# report exits 0 and says its times are triage.
+# The fixture baseline holds suite "demo", 20 tests over 170s (bar 15%): A 68s
+# (40%), B 51s (30%), C 23.8s (14%), and seventeen 1.6s tests sharing 16%, one
+# of them (brand-new) with one sample. A and B are listed, C is not. Suite
+# "fresh" holds a one-sample test at 90.9% of its suite: unmeasured, never ranked.
 # Exercises (the timings arrive on stdin): answerReport -> answerSuite -> runner.ReadTimings -> rankBaseline -> Report.Text
 
 # The baseline reaches le on stdin, read through /dev/stdin: an `le` head that
@@ -14,41 +18,59 @@
 stdin=timings:terminator=EOF_TIMINGS
 {
   "demo": {
-    "whole-path": {"avg-ms": 60000, "max-ms": 60000, "samples": 5},
-    "at-floor": {"avg-ms": 15000, "max-ms": 15000, "samples": 5},
-    "brand-new": {"avg-ms": 90000, "max-ms": 90000, "samples": 1},
-    "small-01": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
-    "small-02": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
-    "small-03": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
-    "small-04": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
-    "small-05": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
-    "small-06": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
-    "small-07": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
-    "small-08": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
-    "small-09": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
-    "small-10": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
-    "small-11": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
-    "small-12": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
-    "small-13": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
-    "small-14": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
-    "small-15": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
-    "small-16": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
-    "small-17": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
-    "small-18": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
-    "small-19": {"avg-ms": 1000, "max-ms": 1000, "samples": 5}
+    "A": {"avg-ms": 68000, "max-ms": 68000, "samples": 5},
+    "B": {"avg-ms": 51000, "max-ms": 51000, "samples": 5},
+    "C": {"avg-ms": 23800, "max-ms": 23800, "samples": 5},
+    "brand-new": {"avg-ms": 1600, "max-ms": 1600, "samples": 1},
+    "small-01": {"avg-ms": 1600, "max-ms": 1600, "samples": 5},
+    "small-02": {"avg-ms": 1600, "max-ms": 1600, "samples": 5},
+    "small-03": {"avg-ms": 1600, "max-ms": 1600, "samples": 5},
+    "small-04": {"avg-ms": 1600, "max-ms": 1600, "samples": 5},
+    "small-05": {"avg-ms": 1600, "max-ms": 1600, "samples": 5},
+    "small-06": {"avg-ms": 1600, "max-ms": 1600, "samples": 5},
+    "small-07": {"avg-ms": 1600, "max-ms": 1600, "samples": 5},
+    "small-08": {"avg-ms": 1600, "max-ms": 1600, "samples": 5},
+    "small-09": {"avg-ms": 1600, "max-ms": 1600, "samples": 5},
+    "small-10": {"avg-ms": 1600, "max-ms": 1600, "samples": 5},
+    "small-11": {"avg-ms": 1600, "max-ms": 1600, "samples": 5},
+    "small-12": {"avg-ms": 1600, "max-ms": 1600, "samples": 5},
+    "small-13": {"avg-ms": 1600, "max-ms": 1600, "samples": 5},
+    "small-14": {"avg-ms": 1600, "max-ms": 1600, "samples": 5},
+    "small-15": {"avg-ms": 1600, "max-ms": 1600, "samples": 5},
+    "small-16": {"avg-ms": 1600, "max-ms": 1600, "samples": 5}
+  },
+  "fresh": {
+    "big": {"avg-ms": 90000, "max-ms": 90000, "samples": 1},
+    "r1": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
+    "r2": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
+    "r3": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
+    "r4": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
+    "r5": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
+    "r6": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
+    "r7": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
+    "r8": {"avg-ms": 1000, "max-ms": 1000, "samples": 5},
+    "r9": {"avg-ms": 1000, "max-ms": 1000, "samples": 5}
   }
 }
 EOF_TIMINGS
 
 cmd=foreground:seq=1:exec=le test cost report suite demo baseline /dev/stdin:stdin=timings:exit=0
-expect=stdout:contains=demo: whole-path
+expect=stdout:contains=20 tests; listed: a test whose share of its suite is at least 3x an even share (3/N)
+expect=stdout:contains=40.0%     68.0s  demo: A
+expect=stdout:contains=30.0%     51.0s  demo: B
 expect=stdout:contains=does its red say which behavior broke, and could a cheaper route decide it?
+reject=stdout:contains=demo: C
 expect=stdout:contains=demo: brand-new (1 samples)
-reject=stdout:contains=demo: at-floor
 expect=stdout:contains=host-dependent triage
 expect=stdout:contains=never a performance figure
 
-cmd=foreground:seq=2:exec=le test cost report suite absent baseline /dev/stdin:stdin=timings:exit=2
+# Suite "fresh": ten tests over 99s (bar 30%); "big" takes 90.9% with one
+# sample, so it is listed as unmeasured and never as a ranked row.
+cmd=foreground:seq=2:exec=le test cost report suite fresh baseline /dev/stdin:stdin=timings:exit=0
+expect=stdout:contains=fresh: big (1 samples)
+reject=stdout:pattern=%\s+[0-9.]+s\s+fresh: big
+
+cmd=foreground:seq=3:exec=le test cost report suite absent baseline /dev/stdin:stdin=timings:exit=2
 expect=stderr:contains=suite absent has no timing baseline
 expect=stderr:contains=./le test absent -a
 expect=exit:code=2

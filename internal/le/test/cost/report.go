@@ -41,16 +41,24 @@ type Row struct {
 	Question     string  `json:"question"`
 }
 
-// Report is the whole answer of one run.
+// SmallGroup is a suite or package with too few tests to rank: at
+// ShareFactor tests or fewer, ShareFactor times an even share is 100% or more.
+type SmallGroup struct {
+	Group string `json:"group"`
+	Tests int    `json:"tests"`
+}
+
+// Report is the whole answer of one run. ShareFactor is the bar: a test is
+// listed when its share of its group is at least ShareFactor/N.
 type Report struct {
-	Source       string  `json:"source"`
-	Host         string  `json:"host"`
-	Route        string  `json:"route"`
-	FloorSeconds float64 `json:"floor-seconds"`
-	TopPercent   int     `json:"top-percent"`
-	Tests        int     `json:"tests"`
-	Rows         []Row   `json:"rows"`
-	Notice       string  `json:"notice"`
+	Source      string       `json:"source"`
+	Host        string       `json:"host"`
+	Route       string       `json:"route"`
+	ShareFactor int          `json:"share-factor"`
+	Tests       int          `json:"tests"`
+	Rows        []Row        `json:"rows"`
+	SmallGroups []SmallGroup `json:"small-groups"`
+	Notice      string       `json:"notice"`
 }
 
 // Text renders the report for a person. It ends in a newline.
@@ -60,8 +68,8 @@ type Report struct {
 func (r Report) Text() string {
 	var tb textbuf.Buffer
 	tb.Str("test cost: ").Str(r.Source).Str(", host ").Str(r.Host).Byte('\n')
-	tb.Str("  ").Int(int64(r.Tests)).Str(" tests; listed: the top ").Int(int64(r.TopPercent)).
-		Str("% of each ").Str(r.groupWord()).Str(" above ").Float(r.FloorSeconds, 0).Str("s\n")
+	tb.Str("  ").Int(int64(r.Tests)).Str(" tests; listed: a test whose share of its ").Str(r.groupWord()).
+		Str(" is at least ").Int(int64(r.ShareFactor)).Str("x an even share (").Int(int64(r.ShareFactor)).Str("/N)\n")
 
 	ranked := 0
 	for _, row := range r.Rows {
@@ -74,8 +82,12 @@ func (r Report) Text() string {
 		tb.Str("          ").Str(row.Question).Byte('\n')
 	}
 	if ranked == 0 {
-		tb.Str("  no test is in the top ").Int(int64(r.TopPercent)).Str("% of its ").Str(r.groupWord()).
-			Str(" and above ").Float(r.FloorSeconds, 0).Str("s\n")
+		tb.Str("  no test takes at least ").Int(int64(r.ShareFactor)).Str("x an even share of its ").
+			Str(r.groupWord()).Byte('\n')
+	}
+	for _, small := range r.SmallGroups {
+		tb.Str("  ").Str(small.Group).Str(": ").Int(int64(small.Tests)).Str(" tests, too few to rank (").
+			Int(int64(r.ShareFactor)).Str("x an even share is 100% or more)\n")
 	}
 
 	header := false

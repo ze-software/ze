@@ -163,8 +163,9 @@ func secondsOf(text string) (time.Duration, bool) {
 }
 
 // millisecondsOf converts seconds to a duration rounded to the millisecond, the
-// precision both log forms print at, so 2.001s stays above a 2s floor and
-// 2.00s stays exactly on it.
+// precision both log forms print at. The share bar is compared in integer
+// nanoseconds, so a test whose printed time puts it exactly at shareFactor/N
+// stays on the bar instead of a float's rounding moving it under.
 func millisecondsOf(seconds float64) time.Duration {
 	return time.Duration(math.Round(seconds*1000)) * time.Millisecond
 }

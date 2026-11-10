@@ -13,8 +13,10 @@ package testcost
 import (
 	"cmp"
 	"errors"
+	"maps"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -33,22 +35,21 @@ const (
 	keyBaseline = "baseline"
 )
 
-// The thresholds a test must pass to be listed, declared once (AC-18). A test
-// is listed when it is among the topPercent longest tests of its own suite or
-// package AND its time is above the floor of its route. The floor keeps a
-// suite of fast tests from listing its least-fast one; the share keeps a suite
-// of slow tests from listing all of them.
-const (
-	topPercent = 5
-	floorGo    = 2 * time.Second
-	floorCI    = 15 * time.Second
-)
+// shareFactor is the one threshold a test must pass to be listed, declared
+// once (AC-18): its share of its group's recorded time is at least shareFactor
+// times an even share, shareFactor/N for a group of N tests. The rule reads
+// shares only, so the verdict is the same on a fast host and a slow one, the
+// stability the report relies on to rank across hosts (A-8). What it gives up
+// is an absolute floor: a package whose whole run takes under a second can
+// list the test that dominates it. "Cheap" is a time, so no host-independent
+// floor exists; the row shows its seconds, and the reader dismisses it.
+const shareFactor = 3
 
 // question is what a reader asks of each listed test. The criteria behind it
 // live in the testing rule's one-question-per-test point, never here.
 const question = "does its red say which behavior broke, and could a cheaper route decide it?"
 
-// route is where a test's time came from, which decides its floor.
+// route is where a test's time came from, which the report names.
 type route uint8
 
 const (
@@ -56,19 +57,6 @@ const (
 	routeGo
 	routeCI
 )
-
-// floor answers the time a test of this route must be above to be listed.
-func (r route) floor() time.Duration {
-	switch r {
-	case routeGo:
-		return floorGo
-	case routeCI:
-		return floorCI
-	case routeUnspecified:
-		panic("BUG: cost route unspecified: every measured test is built with its route")
-	}
-	panic("BUG: cost route out of range")
-}
 
 // name answers the route as the report prints it.
 func (r route) name() string {
@@ -100,7 +88,8 @@ var actions = leaction.New(area, leaction.Action{
 	Verb:    "report",
 	Default: true,
 	Summary: "rank tests by their share of their suite or package run",
-	Why: "list the tests in the top 5% of their suite or package run and above a floor (2s for Go, 15s for .ci), " +
+	Why: "list the tests whose share of their suite or package run is at least " + strconv.Itoa(shareFactor) +
+		"x an even share (" + strconv.Itoa(shareFactor) + "/N for N tests, with no floor in seconds), " +
 		"each with its share, its time and the question the testing rule asks of it. Times are host-dependent " +
 		"triage, never a performance figure; the report always exits 0 once it has read its input",
 	Parameters: []leaction.Parameter{
@@ -244,29 +233,45 @@ func newReport(r route, source string, tests []measured) Report {
 		groups[test.group] = append(groups[test.group], test)
 	}
 	rows := make([]Row, 0, len(tests))
-	for _, group := range groups {
-		rows = append(rows, rankGroup(r, group)...)
+	small := make([]SmallGroup, 0)
+	for _, name := range slices.Sorted(maps.Keys(groups)) {
+		group := groups[name]
+		if tooFewToRank(group) {
+			small = append(small, SmallGroup{Group: name, Tests: len(group)})
+		}
+		rows = append(rows, rankGroup(group)...)
 	}
 	slices.SortFunc(rows, compareRows)
 	return Report{
-		Source:       source,
-		Host:         hostName(),
-		Route:        r.name(),
-		FloorSeconds: r.floor().Seconds(),
-		TopPercent:   topPercent,
-		Tests:        len(tests),
-		Rows:         rows,
-		Notice:       notice,
+		Source:      source,
+		Host:        hostName(),
+		Route:       r.name(),
+		ShareFactor: shareFactor,
+		Tests:       len(tests),
+		Rows:        rows,
+		SmallGroups: small,
+		Notice:      notice,
 	}
 }
 
+// tooFewToRank says a group ranks nothing: with N <= shareFactor tests the bar
+// shareFactor/N is 100% or more, which only a lone test holding all the time
+// reaches, and a group that small is read whole without a report.
+func tooFewToRank(group []measured) bool {
+	return len(group) <= shareFactor
+}
+
 // rankGroup answers the rows of one suite or package: its unmeasured tests,
-// then the ranked tests in its top topPercent whose time is above the floor.
+// then each measured test whose share of the group is at least shareFactor/N.
 //
-// The share is of the group's whole recorded time, unmeasured tests included,
-// because they ran too. The top count is over the ranked tests and rounds up,
-// so a group of fewer than twenty tests still names its longest one.
-func rankGroup(r route, group []measured) []Row {
+// N and the share's denominator count the same set, every test of the group,
+// unmeasured ones included, because they ran too. The bar is compared as
+// elapsed*N >= shareFactor*total in integer nanoseconds, so a share exactly at
+// the bar is listed with no float rounding: a time read at millisecond
+// precision is a whole number of nanoseconds. Neither product overflows while
+// total*N stays under 2^63 ns (about 292 years), since elapsed <= total and
+// shareFactor < N here: a thousand tests would need a run of over 106 days.
+func rankGroup(group []measured) []Row {
 	var total time.Duration
 	var candidates []measured
 	var rows []Row
@@ -285,16 +290,17 @@ func rankGroup(r route, group []measured) []Row {
 			Question: unmeasuredQuestion,
 		})
 	}
-	slices.SortFunc(candidates, func(a, b measured) int {
-		if c := cmp.Compare(b.elapsed, a.elapsed); c != 0 {
-			return c
-		}
-		return strings.Compare(a.test, b.test)
-	})
-	top := (len(candidates)*topPercent + 99) / 100
-	for _, test := range candidates[:top] {
-		// A time above the floor is above zero, so total is not zero here.
-		if test.elapsed <= r.floor() {
+	if tooFewToRank(group) {
+		return rows
+	}
+	// A group with no recorded time has no share to rank: 0 >= 0 would list
+	// every test at a share of 0/0.
+	if total == 0 {
+		return rows
+	}
+	count := time.Duration(len(group))
+	for _, test := range candidates {
+		if test.elapsed*count < shareFactor*total {
 			continue
 		}
 		rows = append(rows, Row{
