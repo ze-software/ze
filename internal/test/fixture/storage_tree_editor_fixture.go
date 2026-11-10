@@ -110,7 +110,9 @@ const editorRouterID = "2.2.2.2"
 // storageAssertActive reads the active config named by path from the tree in
 // its folder and checks it holds editorRouterID.
 func storageAssertActive(path string) error {
-	store, err := storage.OpenReadOnly(filepath.Dir(path), filepath.Dir(path))
+	// The daemon that owns this store inherited this process environment
+	// (extra1Environment, or the runner's DUT), so its root is read from it.
+	store, err := openDaemonStoreReadOnly(os.Environ(), filepath.Dir(path))
 	if err != nil {
 		return err
 	}

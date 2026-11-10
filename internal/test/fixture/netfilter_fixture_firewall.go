@@ -290,7 +290,7 @@ func firewallCLIShow(ctx context.Context, _ []string) error {
 		return err
 	}
 	defer os.RemoveAll(clientDir) //nolint:errcheck // fixture cleanup
-	env := append(os.Environ(), "ze.config.dir="+clientDir, "ze.ssh.insecure=true")
+	env := append(daemonRootEnvironment(os.Environ(), clientDir), "ze.ssh.insecure=true")
 	initCmd := exec.CommandContext(ctx, "ze", "init")
 	initCmd.Env = env
 	initCmd.Stdin = strings.NewReader("operator\ntestpass\n127.0.0.1\n2222\n")

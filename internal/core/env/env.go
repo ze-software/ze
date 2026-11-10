@@ -205,22 +205,40 @@ func Without(environ []string, keys ...string) []string {
 // file > default"), and the dotted form is the one Set writes.
 func ensureCache() {
 	cacheOnce.Do(func() {
-		cache = make(map[string]string)
-		dotted := make(map[string]bool)
-		for _, entry := range os.Environ() {
-			envKey, envVal, ok := strings.Cut(entry, "=")
-			if !ok {
-				continue
-			}
-			norm := normalize(envKey)
-			hasDot := strings.Contains(envKey, ".")
-			if dotted[norm] && !hasDot {
-				continue
-			}
-			cache[norm] = envVal
-			dotted[norm] = dotted[norm] || hasDot
-		}
+		cache = effectiveValues(os.Environ())
 	})
+}
+
+// effectiveValues maps each normalized key in environ to the value Get reads
+// for it: a dotted spelling wins over one without a dot, whatever their order,
+// and among spellings of one kind the last entry wins. The cache and LookupIn
+// both read through it, so the two cannot answer one environment differently.
+func effectiveValues(environ []string) map[string]string {
+	values := make(map[string]string)
+	dotted := make(map[string]bool)
+	for _, entry := range environ {
+		envKey, envVal, ok := strings.Cut(entry, "=")
+		if !ok {
+			continue
+		}
+		norm := normalize(envKey)
+		hasDot := strings.Contains(envKey, ".")
+		if dotted[norm] && !hasDot {
+			continue
+		}
+		values[norm] = envVal
+		dotted[norm] = dotted[norm] || hasDot
+	}
+	return values
+}
+
+// LookupIn answers the value a process started with environ reads for key
+// through Get: any case and separator spelling, a dotted one winning. It reads
+// a CHILD's environment, so key need not be registered in this process; the
+// child's own registry owns it. A key environ does not carry answers empty.
+// Safe for concurrent use: it touches no package state.
+func LookupIn(environ []string, key string) string {
+	return effectiveValues(environ)[normalize(key)]
 }
 
 // secretCleared tracks which Secret keys have already been cleared from OS env.

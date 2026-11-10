@@ -3,6 +3,7 @@
 # found (0755) and the repair (chmod 0700), the run exits non-zero, and the
 # tree is neither repaired nor replaced.
 # PREVENTS: a loose-mode tree read as healthy, or silently chmod-ed, by doctor.
+option=storage:value=disk
 option=timeout:value=90s
 cmd=foreground:seq=1:exec=le test fixture storage/tree doctor-refuses-loose-mode:timeout=90s:exit=0
 expect=exit:code=0

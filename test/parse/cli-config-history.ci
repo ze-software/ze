@@ -1,6 +1,8 @@
 # Test: ze config history reports no revisions in an initialized empty store.
 # VALIDATES: a config with no snapshots reports the empty history, not an error.
 # PREVENTS: the empty-history path being hidden behind missing-store refusal.
+# ISOLATION: the store is the per-test working directory; storage/empty-tree
+#            seeds it only under a named config root (requireDaemonRoot).
 tmpfs=test.conf:terminator=EOF_FILE
 bgp {
 	filter {
@@ -35,6 +37,8 @@ bgp {
 }
 EOF_FILE
 
+
+option=env:var=ze.config.dir:value=.
 
 cmd=foreground:seq=1:exec=le test fixture storage/empty-tree:exit=0
 cmd=foreground:seq=2:exec=ze config history test.conf

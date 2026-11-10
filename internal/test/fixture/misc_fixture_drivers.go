@@ -13,8 +13,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
-	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
 func init() {
@@ -126,7 +124,7 @@ func pipeLocalCommandDriver(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	env := miscEnvironment(map[string]string{envConfigDir: work})
+	env := miscEnvironment(daemonOverrides(work))
 	run := func(name string, args ...string) ([]byte, error) {
 		return commandOutput(ctx, work, env, "", name, args...)
 	}
@@ -141,7 +139,7 @@ func pipeLocalCommandDriver(ctx context.Context, args []string) error {
 	// A data command never creates a live store (storage-1, owner decision 1:
 	// storage.Create is called by ze init and ze start alone), so the work
 	// directory holds one before the runtime-store keys are seeded.
-	store, err := storage.Create(work)
+	store, err := createDaemonStore(env, work)
 	if err != nil {
 		return fmt.Errorf("create the work directory live store: %w", err)
 	}

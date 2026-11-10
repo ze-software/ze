@@ -400,6 +400,15 @@ option line in each file since.
 <!-- source: internal/test/runner/record_dut_store.go -- dutStore, parseOptionStorage, env -->
 <!-- source: internal/test/runner/runner_exec.go -- runTest, runOrchestrated -->
 
+The `test/parse` suite is the exception. Its own execution sets neither the
+store selector nor the config root on a child, so an absent store there is the
+disk store, and `option=storage` is not in its dialect (a parse file that
+carries it fails at discovery). A parse `.ci` that seeds the store through a
+fixture names the root itself, `option=env:var=ze.config.dir:value=.`, because
+the fixture's opener refuses an environment with no root (below).
+<!-- source: internal/test/runner/parsing.go -- runOneCommand, ciDirectives -->
+<!-- test: test/parse/cli-config-history.ci -->
+
 The store lives under the child's config root, `ze.config.dir`: the test's
 work directory, or the daemon's config directory in an orchestrated test. A
 child holds that key under one spelling only. `env.Get` reads `ze.config.dir`,
@@ -413,20 +422,48 @@ the developer's shell never reaches any test child (`droppedFromChild`). A `.ci`
 <!-- source: internal/test/runner/harness_exec.go -- droppedFromChild -->
 <!-- source: internal/test/runner/record_dut_store_root_test.go -- TestDUTRootIsOneAcrossSpellings -->
 
-No check derives which tests need the disk store. The dependence is a
-run-time fact that the `.ci` text does not show: a reader needs the disk only
-when the DUT created the store. A store seeded first (`ze init`, a fixture) is
-on disk under either selector, so `storage/tree data-backup` reads its store on
-the memory default. One fixture name serves cases of both kinds
-(`storage/tree` runs five cases on disk and sixteen on memory), and two
-orchestrated DUTs may share one config directory at the same time. The
-`option=storage` line is therefore the author's declaration. A missing one shows
-as a read of an absent store or as state lost across a restart.
+A compiled fixture that seeds or reads the store a ze daemon persists opens
+it through one helper (`internal/test/fixture/daemon_store.go`:
+`openDaemonStore`, `openDaemonStoreReadOnly`, `openDaemonTree`,
+`createDaemonStore`, `createDaemonStorePopulated`). Each takes the daemon's
+environment and the directory, and refuses three ways before it touches the
+disk:
+
+- the environment selects the memory store under any spelling of
+  `ze.test.storage`, so the error names `option=storage:value=disk`;
+- the environment names no `ze.config.dir`, so the daemon would open the
+  operator's store beside its binary;
+- the root that environment resolves (`env.LookupIn`, the reading `env.Get`
+  makes, so a dotted spelling wins) is another directory.
+
+A fixture that reads the runner's DUT passes its own environment, which the
+runner built with `dutEnv`, so every `.ci` reaching such a fixture declares the
+disk store, and a missing declaration is a refusal rather than a read of an
+absent store. A fixture that starts its own daemon builds that daemon's
+environment with `daemonEnvironment(base, root, store)`, which replaces every
+spelling of the root and sets or strips the selector: `daemonStoreDisk` for a
+daemon whose store the fixture seeds or reads, `daemonStoreMemory` for one
+that persists nothing, which keeps its memory isolation and which no opener
+accepts. `daemonOverrides(root)` is the disk form as a map, for the builders that
+take one (`extra1Environment`, `miscEnvironment`). A fixture that only needs its
+daemon or CLI to resolve a root, and reads no store itself, uses
+`daemonRootEnvironment(base, root)`, which replaces every spelling of the root
+and leaves the selector to the `.ci`. Appending `ZE_CONFIG_DIR=` (or any
+spelling of the root) onto `os.Environ()` is refused by
+`TestNoFixtureAppendsAConfigRootOntoTheInheritedEnvironment`: the inherited
+dotted root wins in the child, so seed and start resolved two roots. A storage scenario that never reaches an opener
+(`storage/tree start-refuses-*`, `data-restore-full-resume`,
+`offline-file-without-store`) keeps the memory default.
+<!-- source: internal/test/fixture/daemon_store.go -- requireDaemonRoot, daemonEnvironment, daemonRootEnvironment, daemonOverrides -->
+<!-- source: internal/test/fixture/daemon_store_guard_test.go -- TestNoFixtureAppendsAConfigRootOntoTheInheritedEnvironment -->
+<!-- source: internal/core/env/env.go -- LookupIn, effectiveValues -->
+<!-- source: internal/test/fixture/one_off_proof_test.go -- TestPersistenceFixturesUseOneEffectiveStore -->
 
 ### Looking-glass certificate persistence
 
-The LG TLS fixture seeds a known certificate and key through `storage.Open`
-after `ze init`, then closes the store before startup. Its HTTPS request checks
+The LG TLS fixture seeds a known certificate and key through `openDaemonStore`,
+under the disk daemon environment it starts ze with, after `ze init`, then
+closes the store before startup. Its HTTPS request checks
 the actual peer certificate's DER SHA-256 fingerprint against that seed.
 After shutdown, it reopens the store and requires both PEM values to match
 exactly. These checks supplement the HTTPS banner, API `router_id`, handshake,
@@ -435,11 +472,15 @@ when a memory store generates a usable certificate.
 <!-- source: internal/test/fixture/plugin_fixture_09_shell.go -- lgTLSDefaultOn09, lgTLSStatusBody09, lgTLSSeed09, lgTLSPersisted09 -->
 
 Initialization and both explicit config files use the fixture's owned `admin`
-directory. The child environment removes every case/dot/underscore spelling of
-`ze.config.dir` through `env.Without`, then sets that one root. The inherited
-storage selector remains intact, so this checks reuse of a seeded disk store
-even under the ordinary memory default.
+directory. The child environment is `daemonEnvironment(os.Environ(), admin,
+daemonStoreDisk)`: every case, dot, underscore and hyphen spelling of
+`ze.config.dir` and of `ze.test.storage` is removed, and the one root is set,
+so the seed, the start and the read after shutdown resolve one store on disk.
+`TestLGServedCertificateIsTheSeededOne` proves the seed refuses a memory daemon
+environment, the read back refuses a pair never seeded, and the HTTPS check
+refuses a served certificate other than the seeded one.
 <!-- source: internal/test/fixture/plugin_fixture_09_shell.go -- lgTLSDefaultOn09 -->
+<!-- source: internal/test/fixture/one_off_proof_test.go -- TestLGServedCertificateIsTheSeededOne -->
 
 ### Readiness markers between fixture processes
 

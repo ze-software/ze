@@ -39,7 +39,7 @@ func schemaStampSeed(_ context.Context, args []string) error {
 		return errors.New("config/schema-stamp-seed takes no arguments")
 	}
 
-	store, err := storage.Create(".")
+	store, err := createDaemonStore(os.Environ(), ".")
 	if err != nil {
 		return fmt.Errorf("create the live store: %w", err)
 	}

@@ -225,13 +225,13 @@ func startRecordDriver(ctx context.Context) (*recordDriver, error) {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
-	initEnv := append(os.Environ(), "ZE_CONFIG_DIR="+driver.configDir)
+	initEnv := daemonRootEnvironment(os.Environ(), driver.configDir)
 	initInput := fmt.Sprintf("admin\ntestpass\n127.0.0.1\n%s\n", port)
 	code, _, initErr, runErr := runCaptured(ctx, initEnv, initInput, "ze", "init")
 	if runErr != nil || code != 0 {
 		return nil, fmt.Errorf("ze init exit=%d: %w %s", code, runErr, initErr)
 	}
-	driver.cliEnv = append(os.Environ(), "ZE_CONFIG_DIR="+driver.configDir, "ZE_SSH_PASSWORD=testpass")
+	driver.cliEnv = append(daemonRootEnvironment(os.Environ(), driver.configDir), "ZE_SSH_PASSWORD=testpass")
 	cleanup = false
 	return driver, nil
 }

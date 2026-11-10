@@ -105,6 +105,7 @@ func storageConsumerDaemonEnv(ctx context.Context, dir, config, logName string, 
 }
 
 func storageConsumerKey(dir, key string) ([]byte, error) {
+	// By path: `ze start <dir>/router.conf` keeps its store in dir, whatever the root.
 	store, err := storage.OpenReadOnly(dir, dir)
 	if err != nil {
 		return nil, err

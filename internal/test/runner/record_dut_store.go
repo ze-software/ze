@@ -28,10 +28,19 @@ const (
 	dutStoreDisk
 )
 
-// dutStoreEnvMemory is what the DUT build reads (cmd/ze/register_store_zetest.go,
-// ze.test.storage) to create an absent store in process memory. A store the
-// test seeded on disk is opened, never replaced, whatever this says.
-const dutStoreEnvMemory = "ze.test.storage=memory"
+// DUTStoreKey and DUTStoreMemory are the selector the DUT build reads
+// (cmd/ze/register_store_zetest.go, testStorageKey) to create an absent store
+// in process memory. A store the test seeded on disk is opened, never
+// replaced, whatever this says. They are exported for the compiled fixtures,
+// which refuse to read a store a daemon was told to keep in memory
+// (internal/test/fixture/daemon_store.go).
+const (
+	DUTStoreKey    = "ze.test.storage"
+	DUTStoreMemory = "memory"
+)
+
+// dutStoreEnvMemory is the environment entry that selects the memory store.
+const dutStoreEnvMemory = DUTStoreKey + "=" + DUTStoreMemory
 
 // errOptionStorageValue names the value a .ci wrote and the two that work.
 var errOptionStorageValue = errors.New("option=storage takes value=disk (the live store on disk, for a test that restarts ze or reads its store) or value=memory (the default)")

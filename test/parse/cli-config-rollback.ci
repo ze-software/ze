@@ -2,6 +2,8 @@
 # VALIDATES: revision 5 against an initialized store with no versions is refused.
 # PREVENTS: regressions where config rollback silently accepts an invalid
 #           revision or drops the bounds-check diagnostic.
+# ISOLATION: the store is the per-test working directory; storage/empty-tree
+#            seeds it only under a named config root (requireDaemonRoot).
 tmpfs=test.conf:terminator=EOF_FILE
 bgp {
 	router-id 10.0.0.1
@@ -28,6 +30,8 @@ bgp {
 }
 EOF_FILE
 
+
+option=env:var=ze.config.dir:value=.
 
 cmd=foreground:seq=1:exec=le test fixture storage/empty-tree:exit=0
 cmd=foreground:seq=2:exec=ze config rollback 5 test.conf

@@ -13,6 +13,7 @@
 # The fixture seeds the two keys into the tree store under the working
 # directory the runner gives this test, and the doctor opens that store.
 
+option=storage:value=disk
 option=env:var=ZE_CONFIG_DIR:value=.
 
 tmpfs=web.conf:terminator=EOF_CONF

@@ -245,6 +245,13 @@ occur in the inherited environment, a spelling with a dot wins over one
 without, whatever their order, which is ExaBGP's own precedence for its
 `exabgp.*` settings, even when the dotted value is empty; among spellings of the
 same kind the last entry wins. This is separate from registered alias precedence.
+`LookupIn(environ, key)` answers the same reading over a child's environment
+rather than this process's: one function (`effectiveValues`) builds both the
+cache and its answer, so a parent that checks what its child will read cannot
+disagree with the child's `Get`. It resolves no alias and needs no
+registration, because the key belongs to the child's registry; the compiled
+test fixtures use it to find the store root a daemon they start will open.
+<!-- source: internal/core/env/env.go -- LookupIn, effectiveValues -->
 `Set()` removes other spellings of the canonical key and publishes one canonical
 OS entry, so a cache reset or a child process sees the value just written.
 `ResetCache()` rereads the environment; it does not remove inherited values.

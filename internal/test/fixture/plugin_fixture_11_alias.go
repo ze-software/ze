@@ -188,10 +188,9 @@ func startFixtureDaemon(ctx context.Context, args []string, config string) (*fix
 	}
 	sshAddr := filepath.Join(workdir, "ssh.addr")
 	ready := filepath.Join(workdir, "ready")
-	env := append(os.Environ(),
+	env := append(daemonRootEnvironment(os.Environ(), workdir),
 		"ZE_SSH_EPHEMERAL="+sshAddr,
 		"ZE_READY_FILE="+ready,
-		"ZE_CONFIG_DIR="+workdir,
 		envTestBGPPort+"="+strconv.Itoa(bgpPort),
 	)
 	daemon := &fixtureDaemon{
@@ -240,7 +239,7 @@ func startFixtureDaemon(ctx context.Context, args []string, config string) (*fix
 		_ = daemon.stop()
 		return nil, nil, fmt.Errorf("bad SSH address %q: %w", address, err)
 	}
-	cliEnv := append(os.Environ(), "ZE_SSH_HOST="+host, "ZE_SSH_PORT="+port, "ZE_SSH_USERNAME=ci", "ZE_SSH_PASSWORD=secret", "ZE_CONFIG_DIR="+workdir)
+	cliEnv := append(daemonRootEnvironment(os.Environ(), workdir), "ZE_SSH_HOST="+host, "ZE_SSH_PORT="+port, "ZE_SSH_USERNAME=ci", "ZE_SSH_PASSWORD=secret")
 	keepWorkdir = true
 	return daemon, cliEnv, nil
 }

@@ -46,7 +46,7 @@ func init() {
 }
 
 func storageEmptyTree(_ context.Context, _ []string) error {
-	store, err := storage.Create(".")
+	store, err := createDaemonStore(os.Environ(), ".")
 	if err != nil {
 		return err
 	}
@@ -162,7 +162,7 @@ func storageInitScenario(ctx context.Context) error {
 	if _, err := storageRequireCommand(ctx, "admin\nsecret123\n127.0.0.1\n2222\n\n", "init", "--web-cert", "127.0.0.1"); err != nil {
 		return err
 	}
-	store, err := storage.OpenReadOnly(".", ".")
+	store, err := openDaemonStoreReadOnly(os.Environ(), ".")
 	if err != nil {
 		return err
 	}
@@ -217,7 +217,7 @@ func storageStartScenario(ctx context.Context, existing bool) error {
 	if !bytes.Contains(output, []byte("OK: storage probe authenticated")) {
 		return fmt.Errorf("daemon never authenticated probe:\n%s", output)
 	}
-	store, err := storage.OpenReadOnly(".", ".")
+	store, err := openDaemonStoreReadOnly(os.Environ(), ".")
 	if err != nil {
 		return err
 	}
@@ -305,7 +305,7 @@ func storageInitFromBlob(ctx context.Context) error {
 	if !bytes.Contains(output, []byte("--seed")) {
 		return fmt.Errorf("--from with --seed was not refused by name: %w\n%s", err, output)
 	}
-	owner, err := storage.Open(".")
+	owner, err := openDaemonStore(os.Environ(), ".")
 	if err != nil {
 		return err
 	}
@@ -359,7 +359,7 @@ func storageArchives(blob string) ([]string, error) {
 // storageTreeEqualsBlob compares the published tree with the retired archive
 // key by key, and with the values the scenario seeded.
 func storageTreeEqualsBlob(archive string, values map[string][]byte) error {
-	tree, err := storage.OpenReadOnly(".", ".")
+	tree, err := openDaemonStoreReadOnly(os.Environ(), ".")
 	if err != nil {
 		return err
 	}
@@ -546,7 +546,7 @@ func storageDoctorScenario(ctx context.Context, corrupt bool) error {
 }
 
 func storageSeedCorrupt() error {
-	store, err := storage.Create(".")
+	store, err := createDaemonStore(os.Environ(), ".")
 	if err != nil {
 		return err
 	}
@@ -603,7 +603,7 @@ func storageDataScenario(ctx context.Context) error {
 // dangling entry and keeps the orphan, and the repaired tree checks clean but
 // for the orphan warning.
 func storageHistoryCheckScenario(ctx context.Context) error {
-	store, err := storage.Create(".")
+	store, err := createDaemonStore(os.Environ(), ".")
 	if err != nil {
 		return err
 	}
@@ -673,7 +673,7 @@ func storageBackupScenario(ctx context.Context) error {
 		"object/" + historyDigest:         []byte("history"),
 		"future/ab/cdef":                  []byte("future namespace"),
 	}
-	store, err := storage.Create(".")
+	store, err := createDaemonStore(os.Environ(), ".")
 	if err != nil {
 		return err
 	}
@@ -734,7 +734,7 @@ func storageBackupScenario(ctx context.Context) error {
 	if _, err := os.Lstat("database.zefs"); !errors.Is(err, fs.ErrNotExist) {
 		return errors.Join(errors.New("refused backup left database.zefs"), err)
 	}
-	owner, err := storage.OpenTree(storageTreeName, true)
+	owner, err := openDaemonTree(os.Environ(), ".", true)
 	if err != nil {
 		return err
 	}
@@ -797,7 +797,7 @@ func storageEphemeralScenario(ctx context.Context) error {
 			}
 		}
 	}
-	store, err := storage.Create(".")
+	store, err := createDaemonStore(os.Environ(), ".")
 	if err != nil {
 		return err
 	}
@@ -818,7 +818,7 @@ func storageEphemeralScenario(ctx context.Context) error {
 	if _, err := os.Stat("ca-fingerprint"); !errors.Is(err, fs.ErrNotExist) {
 		return errors.Join(errors.New("plugin started despite corrupt persistent CA"), err)
 	}
-	store, err = storage.OpenReadOnly(".", ".")
+	store, err = openDaemonStoreReadOnly(os.Environ(), ".")
 	if err != nil {
 		return err
 	}
@@ -844,7 +844,7 @@ func storageExplicitRestart(ctx context.Context) error {
 	if _, err := storageRequireCommand(ctx, "", "start", "router.conf"); err != nil {
 		return err
 	}
-	store, err := storage.OpenReadOnly(".", ".")
+	store, err := openDaemonStoreReadOnly(os.Environ(), ".")
 	if err != nil {
 		return err
 	}
@@ -938,7 +938,7 @@ func storageOSPFRestart(ctx context.Context) error {
 		if _, err := storageRequireCommand(ctx, "", "start", "ospf.conf"); err != nil {
 			return err
 		}
-		store, err := storage.OpenReadOnly(".", ".")
+		store, err := openDaemonStoreReadOnly(os.Environ(), ".")
 		if err != nil {
 			return err
 		}

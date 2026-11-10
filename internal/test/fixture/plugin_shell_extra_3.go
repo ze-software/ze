@@ -20,7 +20,6 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/ze-software/ze/internal/component/cli/sshclient"
-	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -76,7 +75,7 @@ func delayedDaemonStopExtra3(delay time.Duration) Driver {
 
 func writeGRMarkerExtra3(timestamp int64) Driver {
 	return func(_ context.Context, _ []string) error {
-		store, err := storage.Create(".")
+		store, err := createDaemonStore(os.Environ(), ".")
 		if err != nil {
 			return fmt.Errorf("create marker store: %w", err)
 		}

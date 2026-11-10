@@ -93,8 +93,10 @@ func runManagedScenario(ctx context.Context, name string, hubPort, pluginPort in
 	}
 	defer os.RemoveAll(cfgDir) //nolint:errcheck // fixture cleanup
 	dbPath := filepath.Join(cfgDir, "database")
-	env := miscEnvironment(map[string]string{
-		envConfigDir:              cfgDir,
+	// The managed daemon starts on the store `ze init --managed` seeds under
+	// cfgDir and this fixture reads it after the push, so the daemon keeps it on
+	// disk, rooted at cfgDir under every spelling (daemonEnvironment).
+	env := childEnvironment(daemonEnvironment(os.Environ(), cfgDir, daemonStoreDisk), map[string]string{
 		"ZE_MANAGED_TLS_INSECURE": valueTrue,
 		envNoColor:                "1",
 		envTestBGPPort:            strconv.Itoa(pluginPort + 1000),
@@ -173,7 +175,7 @@ func runManagedScenario(ctx context.Context, name string, hubPort, pluginPort in
 	} else if !strings.Contains(activeText, "router-id 2.2.2.2") {
 		return fmt.Errorf("accepted push did not update active config:\n%s", activeText)
 	}
-	store, err := storage.OpenReadOnly(cfgDir, cfgDir)
+	store, err := openDaemonStoreReadOnly(env, cfgDir)
 	if err != nil {
 		return err
 	}

@@ -99,7 +99,7 @@ func historyDigest(data []byte) string {
 func storageHistoryRollback(ctx context.Context) error {
 	older := historyConfigFor("10.0.0.1")
 	newer := historyConfigFor("10.0.0.2")
-	store, err := storage.Create(".")
+	store, err := createDaemonStore(os.Environ(), ".")
 	if err != nil {
 		return err
 	}
@@ -134,7 +134,7 @@ func storageHistoryRollback(ctx context.Context) error {
 	}
 
 	// Replace the older version's object with bytes of another hash.
-	store, err = storage.Open(".")
+	store, err = openDaemonStore(os.Environ(), ".")
 	if err != nil {
 		return err
 	}
@@ -172,7 +172,7 @@ func storageHistoryRollback(ctx context.Context) error {
 // absent is refused naming the hash, before anything is written.
 func storageHistoryRestoreConfig(ctx context.Context) error {
 	device := "ze.conf"
-	if err := storageWriteTree(".", map[string][]byte{"file/active/" + device: []byte("old config\n")}); err != nil {
+	if err := storageWriteTree(daemonStoreCreator(os.Environ()), ".", map[string][]byte{"file/active/" + device: []byte("old config\n")}); err != nil {
 		return err
 	}
 	yesterday := []byte("bgp { router-id 10.0.0.7; session { asn { local 65000; } } }\n")
@@ -217,7 +217,7 @@ func storageHistoryRestoreConfig(ctx context.Context) error {
 // pointer when versioned is set, else the direct mirror a pointer-free store
 // holds.
 func storageActiveEquals(device string, want []byte, versioned bool) error {
-	store, err := storage.OpenTree(storageTreeName, false)
+	store, err := openDaemonTree(os.Environ(), ".", false)
 	if err != nil {
 		return err
 	}
@@ -293,6 +293,7 @@ func storageHistoryRepairedStart(ctx context.Context) error {
 			return fmt.Errorf("repair report does not name %q\n%s", want, output)
 		}
 	}
+	// Not a daemon store: `ze data repair --output` wrote this tree by path.
 	if err := storageHistoryPointers(repaired, name, stampS, stampC, stampR); err != nil {
 		return err
 	}
@@ -301,7 +302,8 @@ func storageHistoryRepairedStart(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	output, err = storageCommandEnv(ctx, []string{"ZE_CONFIG_DIR=" + configDir}, "start")
+	startEnv := daemonRootEnvironment(os.Environ(), configDir)
+	output, err = storageCommandEnv(ctx, startEnv, "start")
 	startExit, startExited := errors.AsType[*exec.ExitError](err)
 	if !startExited {
 		return errors.Join(fmt.Errorf("stored-source start did not exit 1\n%s", output), err)
@@ -316,6 +318,11 @@ func storageHistoryRepairedStart(ctx context.Context) error {
 	}
 	if bytes.Contains(output, []byte(historyObserverPrefix)) {
 		return fmt.Errorf("stored-source start served a config\n%s", output)
+	}
+	// The bare start found its store through ze.config.dir, so check that root
+	// is the tree read here before reading it.
+	if err := requireDaemonRoot(startEnv, configDir); err != nil {
+		return err
 	}
 	if err := storageHistoryPointers(repaired, name, stampS, stampC, stampR); err != nil {
 		return err
@@ -343,21 +350,24 @@ func storageHistoryRepairedStart(ctx context.Context) error {
 			return fmt.Errorf("explicit start did not log the rebuild naming %q\n%s", want, output)
 		}
 	}
+	// `ze start <file>` opens the store beside the file (resolve.StoreDir),
+	// whatever ze.config.dir says, so repaired is that daemon's store by path.
 	return storageHistoryRecovered(repaired, explicit, name, stampR, stampS, stampC, configR, configF)
 }
 
-// storageCommandEnv runs the daemon binary with extra environment entries.
-func storageCommandEnv(ctx context.Context, extra []string, args ...string) ([]byte, error) {
+// storageCommandEnv runs the daemon binary under environment.
+func storageCommandEnv(ctx context.Context, environment []string, args ...string) ([]byte, error) {
 	deadline, cancel := context.WithTimeout(ctx, WaitBudget(75, 25*time.Second))
 	defer cancel()
 	command := exec.CommandContext(deadline, "ze", args...) //nolint:gosec // the fixture chooses the program and its arguments
-	command.Env = childEnvironmentAssignments(os.Environ(), extra...)
+	command.Env = environment
 	return command.CombinedOutput()
 }
 
 // storageHistoryPointers asserts the active, candidate and rollback pointers
 // of the tree at path.
 func storageHistoryPointers(path, name, active, candidate, rollback string) error {
+	// By path: the repair output, or a tree whose daemon root the caller proved.
 	store, err := storage.OpenTree(path, false)
 	if err != nil {
 		return err
@@ -385,6 +395,7 @@ func storageHistoryPointers(path, name, active, candidate, rollback string) erro
 // R's raw entry and object still hold R's digest and bytes, S and C stay
 // dropped, and the loose file is still F.
 func storageHistoryRecovered(path, explicit, name, stampR, stampS, stampC string, configR, configF []byte) error {
+	// By path: the explicit-file daemon keeps its store beside the file.
 	store, err := storage.OpenTree(path, false)
 	if err != nil {
 		return err

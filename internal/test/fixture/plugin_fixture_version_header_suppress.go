@@ -189,7 +189,7 @@ func versionHeaderSuppress(ctx context.Context, _ []string) error {
 	var answers textbuf.Buffer
 	answers.Str("admin\ntestpass\n127.0.0.1\n").Int(int64(sshPort)).Byte('\n')
 
-	environment := append(os.Environ(), "ZE_CONFIG_DIR="+adminDir)
+	environment := daemonRootEnvironment(os.Environ(), adminDir)
 	initCommand := exec.CommandContext(ctx, "ze", "init")
 	initCommand.Env = environment
 	initCommand.Stdin = strings.NewReader(answers.String())

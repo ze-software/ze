@@ -28,7 +28,7 @@ func runUIDoctorWebTLSPair(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("read foreign.key: %w", err)
 	}
-	store, err := storage.CreatePopulated(".", func(seed storage.Storage) error {
+	store, err := createDaemonStorePopulated(os.Environ(), ".", func(seed storage.Storage) error {
 		if err := seed.WriteFile(zefs.KeyWebCert.Pattern, cert, 0); err != nil {
 			return err
 		}

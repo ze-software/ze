@@ -182,7 +182,7 @@ func storageLiveArtifact(ctx context.Context, artifact, configName string) error
 		return err
 	}
 	key := zefs.KeyFileActive.Key(configName)
-	tree, err := storage.OpenReadOnly(".", ".")
+	tree, err := openDaemonStoreReadOnly(os.Environ(), ".")
 	if err != nil {
 		return err
 	}

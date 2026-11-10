@@ -69,9 +69,11 @@ type storagePriorFixture struct {
 	Inode   uint64 `json:"inode,omitempty"`
 }
 
-// storageWriteTree creates the live tree under dir holding exactly values.
-func storageWriteTree(dir string, values map[string][]byte) error {
-	store, err := storage.Create(dir)
+// storageWriteTree creates the tree under dir holding exactly values. create
+// is createDaemonStore's form (daemonStoreCreator) for the store a daemon
+// starts on, and storage.Create for an offline tree no daemon opens.
+func storageWriteTree(create func(string) (storage.Storage, error), dir string, values map[string][]byte) error {
+	store, err := create(dir)
 	if err != nil {
 		return err
 	}
@@ -97,13 +99,30 @@ func storageWriteBlob(path string, values map[string][]byte) error {
 	return store.Close()
 }
 
-// storageTreeEquals opens the tree at path read-only and requires exactly values.
+// storageTreeEquals opens the offline tree at path, one a restore retired or
+// staged and no daemon opens, read-only and requires exactly values.
 func storageTreeEquals(path string, values map[string][]byte) error {
 	store, err := storage.OpenTree(path, false)
 	if err != nil {
 		return err
 	}
 	defer store.Close() //nolint:errcheck // read-only comparison.
+	return storageStoreEquals(store, path, values)
+}
+
+// storageDaemonTreeEquals is storageTreeEquals for the live tree under the
+// working directory, the store the daemon starts on.
+func storageDaemonTreeEquals(values map[string][]byte) error {
+	store, err := openDaemonTree(os.Environ(), ".", false)
+	if err != nil {
+		return err
+	}
+	defer store.Close() //nolint:errcheck // read-only comparison.
+	return storageStoreEquals(store, storageTreeName, values)
+}
+
+// storageStoreEquals requires store, shown as path, to hold exactly values.
+func storageStoreEquals(store storage.Storage, path string, values map[string][]byte) error {
 	keys, err := store.ListKeys("")
 	if err != nil {
 		return err
@@ -166,7 +185,7 @@ func storageRestoreFullScenario(ctx context.Context) error {
 		"file/20260926-101500.000/r.conf": []byte("sha256:" + historyDigest),
 		"object/" + historyDigest:         []byte("history"),
 	}
-	if err := storageWriteTree(".", old); err != nil {
+	if err := storageWriteTree(daemonStoreCreator(os.Environ()), ".", old); err != nil {
 		return err
 	}
 	if err := storageWriteBlob("backup.zefs", backup); err != nil {
@@ -185,7 +204,7 @@ func storageRestoreFullScenario(ctx context.Context) error {
 	if output, err := restore("bad.zefs"); err == nil {
 		return fmt.Errorf("a corrupt artifact was restored:\n%s", output)
 	}
-	owner, err := storage.OpenTree(storageTreeName, true)
+	owner, err := openDaemonTree(os.Environ(), ".", true)
 	if err != nil {
 		return err
 	}
@@ -200,7 +219,7 @@ func storageRestoreFullScenario(ctx context.Context) error {
 	if closeErr != nil {
 		return closeErr
 	}
-	if err := storageTreeEquals(storageTreeName, old); err != nil {
+	if err := storageDaemonTreeEquals(old); err != nil {
 		return fmt.Errorf("a refused restore changed the tree: %w", err)
 	}
 	// The unrelated seed arrives by rename: CreateBlob refuses the canonical
@@ -228,7 +247,7 @@ func storageRestoreFullScenario(ctx context.Context) error {
 	if err := storageRequireOutput(output, "6 keys", "database.replaced-"); err != nil {
 		return err
 	}
-	if err := storageTreeEquals(storageTreeName, backup); err != nil {
+	if err := storageDaemonTreeEquals(backup); err != nil {
 		return err
 	}
 	retired, err := storageRetiredNames(".", storageTreeName)
@@ -308,7 +327,7 @@ func storageInterruptedRestore(dir, state string, old, backup map[string][]byte)
 	if err != nil {
 		return "", err
 	}
-	if err := storageWriteTree(folder, old); err != nil {
+	if err := storageWriteTree(storage.Create, folder, old); err != nil {
 		return "", err
 	}
 	source := filepath.Join(folder, "backup.zefs")
@@ -443,7 +462,7 @@ func storageRestoreResumeScenario(ctx context.Context) error {
 // other key of the tree stay byte-unchanged.
 func storageRestoreConfigScenario(ctx context.Context) error {
 	device := resolve.DefaultConfigName
-	if err := storageWriteTree(".", map[string][]byte{
+	if err := storageWriteTree(daemonStoreCreator(os.Environ()), ".", map[string][]byte{
 		"file/active/" + device:    []byte("old config\n"),
 		storageKeyPassword:         []byte("device secret"),
 		zefs.KeySSHDefault.Pattern: []byte(storageRestoreEndpoint),
@@ -463,7 +482,7 @@ func storageRestoreConfigScenario(ctx context.Context) error {
 	if err := storageRequireOutput(output, "committed as "+device); err != nil {
 		return err
 	}
-	store, err := storage.OpenTree(storageTreeName, false)
+	store, err := openDaemonTree(os.Environ(), ".", false)
 	if err != nil {
 		return err
 	}

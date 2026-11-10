@@ -144,7 +144,7 @@ func storageInitFromRemote(ctx context.Context, source, digest string, values ma
 	if err := storageInitFromLeftovers(); err != nil {
 		return err
 	}
-	tree, err := storage.OpenReadOnly(".", ".")
+	tree, err := openDaemonStoreReadOnly(os.Environ(), ".")
 	if err != nil {
 		return err
 	}
@@ -195,7 +195,7 @@ func storageInitFromRefused(ctx context.Context, _ []string) error {
 			return fmt.Errorf("stat %s: %w", storageTreeName, err)
 		}
 	}
-	existing, err := storage.Create(".")
+	existing, err := createDaemonStore(os.Environ(), ".")
 	if err != nil {
 		return err
 	}
@@ -264,7 +264,7 @@ func storageInitFromStart(ctx context.Context) error {
 	if !bytes.Contains(output, []byte("OK: storage probe authenticated")) {
 		return fmt.Errorf("daemon on the imported tree never authenticated the probe:\n%s", output)
 	}
-	tree, err := storage.OpenReadOnly(".", ".")
+	tree, err := openDaemonStoreReadOnly(os.Environ(), ".")
 	if err != nil {
 		return err
 	}

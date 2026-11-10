@@ -18,7 +18,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/resolve/irr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/zefs"
@@ -146,7 +145,7 @@ func resolveRIRLookup(ctx context.Context, args []string) error {
 	}
 	fmt.Fprintln(os.Stderr, "OK: the host answers from the embedded seed, with no daemon and no stored copy")
 
-	code, _, stderr, err := runCaptured(ctx, extra1Environment(map[string]string{envConfigDir: workDir}), "",
+	code, _, stderr, err := runCaptured(ctx, extra1Environment(daemonOverrides(workDir)), "",
 		"ze", "resolve", "rir", resolveRIRUndelegatedASN)
 	if err != nil {
 		return err
@@ -161,9 +160,7 @@ func resolveRIRLookup(ctx context.Context, args []string) error {
 
 	// No delegation source: this scenario reads the shipped seed, and a source
 	// would be a file it never fetches.
-	daemon, port, err := extra1RunDaemonIn(ctx, workDir, "resolve-rir-lookup.conf", extra1DaemonLog, resolveRIRConfig(""), map[string]string{
-		envConfigDir: workDir,
-	})
+	daemon, port, err := extra1RunDaemonIn(ctx, workDir, "resolve-rir-lookup.conf", extra1DaemonLog, resolveRIRConfig(""), daemonOverrides(workDir))
 	if err != nil {
 		return err
 	}
@@ -228,9 +225,7 @@ func resolveRIRRefresh(ctx context.Context, args []string) error {
 	}
 	defer stopRegistries()
 
-	daemon, port, err := extra1RunDaemonIn(ctx, workDir, "resolve-rir-refresh.conf", extra1DaemonLog, resolveRIRConfig(base), map[string]string{
-		envConfigDir: workDir,
-	})
+	daemon, port, err := extra1RunDaemonIn(ctx, workDir, "resolve-rir-refresh.conf", extra1DaemonLog, resolveRIRConfig(base), daemonOverrides(workDir))
 	if err != nil {
 		return err
 	}
@@ -321,7 +316,7 @@ func resolveRIRRefresh(ctx context.Context, args []string) error {
 // resolveRIRStoreCopyBytes answers the delegation table a store holds, so a
 // later run can be compared against it byte for byte.
 func resolveRIRStoreCopyBytes(path string) ([]byte, error) {
-	store, err := storage.OpenReadOnly(path, path)
+	store, err := openDaemonStoreReadOnly(extra1Environment(daemonOverrides(path)), path)
 	if err != nil {
 		return nil, fmt.Errorf("open the store at %s: %w", path, err)
 	}
@@ -363,7 +358,7 @@ func resolveRIRStoreCopy(path string) error {
 		return err
 	}
 
-	store, err := storage.Create(path)
+	store, err := createDaemonStore(extra1Environment(daemonOverrides(path)), path)
 	if err != nil {
 		return err
 	}
@@ -377,7 +372,7 @@ func resolveRIRStoreCopy(path string) error {
 // resolveRIRStoredCopyUnchanged reads the delegation key back and compares it
 // with what was stored before the refresh ran.
 func resolveRIRStoredCopyUnchanged(path string, want []byte) error {
-	store, err := storage.OpenReadOnly(path, path)
+	store, err := openDaemonStoreReadOnly(extra1Environment(daemonOverrides(path)), path)
 	if err != nil {
 		return err
 	}

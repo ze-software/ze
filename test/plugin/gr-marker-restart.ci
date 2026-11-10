@@ -18,6 +18,7 @@
 # The fixture seeds the marker through the same tree store the daemon opens.
 
 # Enable GR subsystem logging so marker detection is visible (also outside peer block).
+option=storage:value=disk
 option=env:var=ze.log.bgp.gr:value=info
 tmpfs=.gr-marker-workdir:terminator=EOF_WORKDIR
 restart

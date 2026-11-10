@@ -18,8 +18,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ze-software/ze/internal/component/config/storage"
-	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/selfcert"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -129,8 +127,8 @@ func lgTLSStatusBody09(ctx context.Context, port int, fingerprint [sha256.Size]b
 
 // lgTLSSeed09 writes a fresh, known pair through the live store API. Its owner
 // lock MUST be released before the daemon starts.
-func lgTLSSeed09(dir string, cert, key []byte) (err error) {
-	store, err := storage.Open(dir)
+func lgTLSSeed09(environment []string, dir string, cert, key []byte) (err error) {
+	store, err := openDaemonStore(environment, dir)
 	if err != nil {
 		return err
 	}
@@ -143,8 +141,8 @@ func lgTLSSeed09(dir string, cert, key []byte) (err error) {
 
 // lgTLSPersisted09 opens the store only after shutdown and compares both PEM
 // values exactly. Certificate existence alone cannot prove reuse.
-func lgTLSPersisted09(dir string, cert, key []byte) (err error) {
-	store, err := storage.Open(dir)
+func lgTLSPersisted09(environment []string, dir string, cert, key []byte) (err error) {
+	store, err := openDaemonStore(environment, dir)
 	if err != nil {
 		return err
 	}
@@ -213,7 +211,10 @@ func lgTLSDefaultOn09(ctx context.Context, _ []string) error {
 	if err := os.WriteFile(plaintextPath, []byte(plaintextConfig), 0o600); err != nil {
 		return err
 	}
-	environment := append(env.Without(os.Environ(), "ze.config.dir"), "ze.config.dir="+adminDir)
+	// The daemon starts on the pair seeded here and the fixture reads the store
+	// back after shutdown, so the daemon keeps it on disk under adminDir, with
+	// every spelling of the root and of the store selector replaced.
+	environment := daemonEnvironment(os.Environ(), adminDir, daemonStoreDisk)
 	initCommand := exec.CommandContext(ctx, "ze", "init")
 	initCommand.Env = environment
 	initCommand.Stdin = strings.NewReader(fmt.Sprintf("admin\ntestpass\n127.0.0.1\n%d\n", sshPort))
@@ -231,7 +232,7 @@ func lgTLSDefaultOn09(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	if err := lgTLSSeed09(adminDir, cert, key); err != nil {
+	if err := lgTLSSeed09(environment, adminDir, cert, key); err != nil {
 		return fmt.Errorf("seed looking glass certificate: %w", err)
 	}
 
@@ -262,7 +263,7 @@ func lgTLSDefaultOn09(ctx context.Context, _ []string) error {
 	fmt.Fprintln(os.Stderr, "OK: looking glass served the seeded certificate")
 	stopProcess09(daemon)
 	daemon = nil
-	if err := lgTLSPersisted09(adminDir, cert, key); err != nil {
+	if err := lgTLSPersisted09(environment, adminDir, cert, key); err != nil {
 		return fmt.Errorf("reopen looking glass store after shutdown: %w", err)
 	}
 	fmt.Fprintln(os.Stderr, "OK: looking glass certificate and key persisted unchanged")
