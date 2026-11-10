@@ -236,8 +236,11 @@ func TestAttestWithFileRefused(t *testing.T) {
 
 // TestEmptyAttestationBlockRefusesAnyPath validates AC-28: the empty block
 // builds on its parent's tree, and a block whose diff names a path is refused
-// with HEAD unchanged. The second half edits the generated script so the
-// commit takes another tree, which only a defect could produce.
+// with HEAD unchanged. The empty block seeds its private index from the parent
+// and writes the tree straight from it (renderEmptyPublish), so the tree it
+// commits is the parent's with nothing staged between the two steps. The second
+// half edits the generated script so the index is seeded from another commit,
+// and the commit takes another tree, which only a defect could produce.
 func TestEmptyAttestationBlockRefusesAnyPath(t *testing.T) {
 	humantest.Streams(t, "terminal")
 	root := newOwedRepository(t)
@@ -249,10 +252,15 @@ func TestEmptyAttestationBlockRefusesAnyPath(t *testing.T) {
 	}
 	script := filepath.Join(root, filepath.FromSlash(prepared.Script))
 	text := readScript(t, root, prepared.Script)
-	if !strings.Contains(text, `"$_ze_parent^{tree}"`) {
-		t.Fatalf("the empty block does not build on its parent's tree:\n%s", text)
+	seed := `GIT_INDEX_FILE="$_ze_index" git read-tree "$_ze_parent"` + "\n" +
+		`_ze_tree=$(GIT_INDEX_FILE="$_ze_index" git write-tree)`
+	if strings.Count(text, seed) != 1 {
+		t.Fatalf("the empty block does not write its tree from an index seeded with its parent, once:\n%s", text)
 	}
-	stray := strings.Replace(text, `"$_ze_parent^{tree}"`, `"$(git rev-parse 'HEAD~1^{tree}')"`, 1)
+	if !strings.Contains(text, `git commit-tree ${_ze_sign:+-S} -p "$_ze_parent" "$_ze_tree")`) {
+		t.Fatalf("the empty block does not commit the tree it wrote from its parent:\n%s", text)
+	}
+	stray := strings.Replace(text, seed, strings.Replace(seed, `"$_ze_parent"`, `'HEAD~1'`, 1), 1)
 	if err := os.WriteFile(script, []byte(stray), 0o700); err != nil { //nolint:gosec // the test runs the script it rewrote
 		t.Fatal(err)
 	}

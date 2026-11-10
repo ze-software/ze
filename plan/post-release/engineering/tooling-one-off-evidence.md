@@ -2550,3 +2550,22 @@ under the break (`b6/p34-jobs-flag-break.log`). The session state attributes tha
 to the gate parsing the source files on disk, which a Go overlay does not
 change; that cause was not re-verified here. The overlay walk proves nothing,
 and the in-place walk above replaces it.
+
+## P-5 and P-30: two commit-tooling carriers repaired and walked (2026-11-10)
+
+Both tests were red at HEAD, and both for a stale test, not a regressed
+producer. `TestAFailedPublicationKeepsTheUnchangedCopy` picked the ref backend
+with `git rev-parse --show-ref-format`, which the host's git 2.43 echoes back
+with exit 0, so it planted a reftable lock in a files repository; it now
+reads the backend from `.git/reftable` and fails on an unexpected stat error.
+`TestEmptyAttestationBlockRefusesAnyPath` checked for `"$_ze_parent^{tree}"`,
+which `renderEmptyPublish` stopped emitting in `8c64ad2d4a` (it seeds a private
+index from the parent and commits `"$_ze_tree"`); it now asserts that seed and
+write pair once and the commit of `"$_ze_tree"`, and its stray seeds from
+`HEAD~1`. An independent `ze-test-judge` approved the second; the detector
+does not flag the first.
+
+| Carrier | Break (Go overlay of `internal/le/commit/script.go`, `cw/`) | Red | Restored |
+| --- | --- | --- | --- |
+| `TestAFailedPublicationKeepsTheUnchangedCopy` | the publish loop's `_ze_now=$(git rev-parse ...)` becomes `break`, so a refused swap reads as published | "the block reported success past a held branch lock" | PASS |
+| `TestEmptyAttestationBlockRefusesAnyPath` | a staging step inserted between the empty block's `read-tree` and `write-tree` | "the empty block does not write its tree from an index seeded with its parent, once" | PASS |

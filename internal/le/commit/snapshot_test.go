@@ -1,6 +1,8 @@
 package commit
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -542,8 +544,16 @@ func TestAFailedPublicationKeepsTheUnchangedCopy(t *testing.T) {
 	head := strings.TrimSpace(runCommitGitOutput(t, root, "rev-parse", "HEAD"))
 	// The files backend locks the branch's own ref file; reftable, which a
 	// git configured with init.defaultRefFormat creates, locks its table list.
+	// The backend is read from the repository itself: a reftable repository
+	// always holds .git/reftable, and a files one never does. `git rev-parse
+	// --show-ref-format` is not used because git before 2.45 does not know it
+	// and echoes the flag back with exit 0, which read as reftable on a files
+	// repository and planted a lock in a directory that does not exist.
 	lock := filepath.Join(root, ".git", "reftable", "tables.list.lock")
-	if format := strings.TrimSpace(runCommitGitOutput(t, root, "rev-parse", "--show-ref-format")); format == "files" {
+	if _, err := os.Stat(filepath.Dir(lock)); err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			t.Fatalf("cannot tell the fixture's ref backend: %v", err)
+		}
 		branch := strings.TrimSpace(runCommitGitOutput(t, root, "symbolic-ref", "HEAD"))
 		lock = filepath.Join(root, ".git", filepath.FromSlash(branch)+".lock")
 	}
