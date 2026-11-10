@@ -1142,6 +1142,7 @@ tests. Prometheus metrics at `/metrics`.
 | The SSE partial renderer and the initial page renderer must produce structurally identical markup | chaos `renderStats()` and `writeLayout()` | Two code paths render the same fragment, so updating one leaves the page correct until the first SSE swap. The failure appears seconds after load. (154) |
 | New peer-status values are appended, never inserted | chaos `PeerStatus` iota | Inserting shifts existing values and breaks integer comparisons and stored state. Every transition must decrement the state it leaves and increment the one it enters, or counters go negative. (307) |
 | The default table formatter is APPENDED at the end of the pipe pipeline, never prepended | `ProcessPipesDefaultTable` | Prepending makes `\| count` count table lines instead of data items. `HasFormatOp` must exclude `count` for the same reason. (383) |
+| An operator refusal is an `opererr.Error` built by the producer that holds the cause, and a layer above adds only a fact the producer did not hold | `internal/core/opererr`; `config.LineError`, `parseConfigError`; `le arch operator-error check` run by `./le commit create` | Two layers each believed they owned the context (`reload: parse config: parse config:`, `line N: line N:`), and a text stripper was added to undo the second. A YANG `error-message` survives goyang's parse but not the resolved type, so it reaches a refusal only through `yang/constraint_message.go`. (spec-operator-errors-name-the-fix, 2026-11-10) |
 
 ---
 

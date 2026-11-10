@@ -7,7 +7,7 @@
 | Priority | P3 |
 | Release reason | Measures compliance with `ai/rules/user-facing-errors.md`; it changes no shipped behaviour by itself |
 | RFC gaps | - |
-| Depends | `plan/release/fixes/spec-operator-errors-name-the-fix.md`, `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` |
+| Depends | `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-11-10 |
@@ -57,9 +57,9 @@ would drift), and judging "what" and "why" prose (no tool can).
 ### Architecture Docs
 - [ ] `ai/rules/user-facing-errors.md` - the rule the inventory measures
   → Constraint: a message meets the rule only when it says what went wrong in the reader's terms, why it matters, and the exact fix command; "what" and "why" are judgments of prose, only "names a fix" is a property a tool can read
-- [ ] `plan/release/fixes/spec-operator-errors-name-the-fix.md` (P1, design) - one operator error type with cause, why and fix, rendered by each boundary, plus a change-set check that a refusal from a registered operator handler carries the type
-  → Constraint: that spec owns the error shape and the boundary check; this spec must consume its site list, never scan beside it
-  → Constraint: its `internal/le/arch/operatorerror` must expose its full site list (every registered command handler, RPC handler and config verifier return site, with whether it returns the type) as a Go function, not only change-set refusals; if it ships only `check`, adding that function is phase 1 of this spec
+- [ ] `internal/core/opererr` (`New`, `Wrap`) and `internal/le/arch/operatorerror` (`Sites`, `Scan`), built by spec-operator-errors-name-the-fix (closed 2026-11-10); `docs/architecture/cli/error-surface.md`, "The operator error" - one operator error type with problem, why, fix and cause, rendered by each boundary, plus a change-set check that a refusal from a registered operator handler carries the type
+  → Constraint: that type and check own the error shape and the boundary check; this spec must consume the check's site list, never scan beside it
+  → Constraint: `archoperatorerror.Sites(tree)` already exposes the full site list (every registered command handler, RPC handler and config verifier return site, with Status typed, plain or pass-through) as a Go function; a refusal answered as `plugin.Response.Error` with a nil Go error is not in it (the check judges returned Go errors only)
 - [ ] `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md` (P2, design) - a `fix` field on every doctor diagnostic, a scan of every Warn or Error log line, report raise and health row, and an inventory file under `plan/audits/`
   → Constraint: the log, report-bus and doctor surfaces are already that spec's population; this spec must not count them a second time
   → Decision: its `./le arch doctor-coverage report` (AC-5) groups uncovered sites by owner package and door area; this report reuses that grouping and its site records through `internal/le/arch/doctorcoverage`
@@ -111,7 +111,7 @@ would drift), and judging "what" and "why" prose (no tool can).
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
-| Operator error type and boundary check (designed, not built) | `plan/release/fixes/spec-operator-errors-name-the-fix.md`, `internal/le/arch/operatorerror` | Designs one error type with cause, why and fix, and `./le arch operator-error check` over registered handler boundaries | Extends: its site list is the inventory's command, RPC and verifier population, and its type is what "meets the rule" means at every writer |
+| Operator error type and boundary check (built, 728fb3b57e) | `internal/core/opererr` `New`, `Wrap`; `internal/le/arch/operatorerror` `Sites`, `Scan` | One error type with problem, why, fix and cause, and `./le arch operator-error check` over registered handler boundaries, also run by `./le commit create` through `internal/le/commit/changecheck` | Extends: its site list is the inventory's command, RPC and verifier population, and its type is what "meets the rule" means at every writer |
 | Doctor fix field and problem-site scan (designed, not built) | `plan/release/validation/spec-doctor-coverage-1-audit-and-gate.md`, `internal/le/arch/doctorcoverage` | Designs `fix` on every diagnostic, `./le arch doctor-coverage` over log lines, report raises and health rows, and `plan/audits/doctor-problem-inventory.md` | Extends: its report is the inventory's log, report-bus and doctor population; not re-scanned here |
 | Diagnostic code registry | `internal/core/diagnostic/registry.go` `CodeMeta`, `Register`; `codes.go` `builtinCodes` | A code declares title, description and examples once; `ze show diagnostic` renders it | Extends: a coded row names its code, so the reader follows it to its declaration; nothing is copied |
 | Diagnostic record | `internal/core/diagnostic/types.go` `Diagnostic` | Shared by doctor, config validation and `ze config fix --plan` | Extends, through the fix field the doctor-coverage spec adds; its severity feeds the pre-rank |

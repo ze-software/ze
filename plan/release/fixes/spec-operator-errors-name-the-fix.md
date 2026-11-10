@@ -152,7 +152,7 @@ registered operator handler carries the type.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Ze's YANG loader carries `error-message` from a `range` or `pattern` to the refusal text | goyang parses the statement; Ze's use unread | the specific message cannot move to the constraint; the validator must run first instead | a test loading a leaf with `range ... { error-message }` and reading the refusal | broken, then fixed (2026-11-10): goyang read `error-message` but the resolved type dropped it and no validator spoke it; `internal/component/config/yang/constraint_message.go` now carries it on the tree, parse and RPC-argument paths (`TestYANGRangeErrorMessageReachesRefusal`, `TestLeafListPatternRefusalSpeaksTheMessage`) |
 | A-2 | Registered handlers are found from registration call arguments by AST | `register.go` convention | the boundary set is incomplete; derive from the runtime registry in a test instead | compare the AST set against `registry` contents in a linked test | confirmed after one fix (2026-11-10): `TestASTBoundarySetCoversRuntimeRegistry` first missed 9 loop-built `ze-host:show-*` RPCs; the scan now records the literal wire prefix; 397 builtin RPCs and 32 config verifiers all read |
-| A-3 | One-level callee resolution finds the double wraps that occur | both owned rows are one level apart | deeper chains escape; extend to the wrap chain | fixture of a two-level chain | broken (2026-11-10): the two-level fixture is caught; neither owned row is (Known Limitations) |
+| A-3 | One-level callee resolution finds the double wraps that occur | both owned rows are one level apart | deeper chains escape; extend to the wrap chain | fixture of a two-level chain | broken (2026-11-10): the two-level fixture is caught and neither owned row was; fixed in 81eb233e20, which follows a function parameter to its callers' arguments and compares verb-holding segments, so both owned rows are caught |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -344,9 +344,9 @@ registered operator handler carries the type.
 
 ## Known Limitations
 - Log lines with no refusal (level misclassification rows such as `normal-state-logged-at-error.md`) are not this mechanism and are not owned here
-- Owner decision pending (2026-11-10), A-3 broken: `./le arch error-wrap check` does not see either owned double-wrap row. The reload wrap's error arrives through a function value passed as a parameter about five calls deep (`diskConfigLoaders` builds `loadBoth`, handed through `handleSIGHUPReload`, `sighupReload`, `signalReload` to `runReloadContext` as `load`), which the syntax scan counts as untraced; the validate row repeats `line %d`, a verb, not a literal segment. Both rows are fixed at the producer and guarded by `test/reload/reload-parse-error-single-prefix.ci` and `test/parse/validate-parse-error-single-prefix.ci`
-- AC-13 open edge (2026-11-10): a list of only missing arguments gets the whole command as its fix on the builtin dispatch route (`restateArgumentFaults`); the plugin-process route R9 (`routeToProcess`), the subsystem route and the local `ze <verb>` routes validate through `command.ValidateModelArgs`, hold no `*Command`, and keep each leaf's usage line with the general fix
-- Owner decision pending (2026-11-10): `./le arch operator-error check` judges returned Go errors only; a handler that answers a refusal as `plugin.Response{Status: StatusError, Error: <text>}` with a nil error is not seen (394 `StatusError` sites)
+- `./le arch operator-error check` reads a `plugin.Response{Status: StatusError, Error: ...}` answer only where the handler body builds it as a literal outside a nested function literal (605500cf11). An answer a helper function or a nested function literal builds, one whose `Status` is computed at run time, and one whose `Error` is assigned after the literal are not read (`docs/architecture/cli/error-surface.md`). On the tree it reports 0 typed, 187 plain and 43 pass-through answers; existing plain answers are reported, and only an added one is refused at commit
+- On a model route (plugin process, subsystem, RPC wrapper, streaming, local data, local `ze <verb>`), a line missing only its selector reads `required argument missing: selector, as in 'selector <selector>'`, where the builtin dispatch route answers with the dispatcher guard's own refusal (37c3a2abb1). Both name the missing word; the wording differs
+- `./le arch error-wrap check` still leaves wraps it cannot trace: 1737 of 8728 on the tree after 81eb233e20, which reports 178 findings (155 before). An untraced wrap is counted and reported, never passed as clean. A segment written more than `depthMax` (16) steps from its wrap is not seen (`internal/le/arch/errorwrap/errorwrap.go`)
 
 ## RFC Documentation (Scope: cli)
 
@@ -420,3 +420,166 @@ On 2026-10-23 every owned producer read still produced the recorded message.
 - [ ] `/ze-review` gate clean
 - [ ] **Commit A:** code + tests + docs + edited spec + journal rows re-pointed
 - [ ] **Commit B:** `remove plan/release/fixes/spec-operator-errors-name-the-fix.md` only
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `internal/core/opererr`: `New`, `Wrap`, `Error` (problem, why with cause, `fix:` line), `LogAttrs`; all three parts required (728fb3b57e)
+- `le arch error-wrap` (`internal/le/arch/errorwrap`) and `le arch operator-error` (`internal/le/arch/operatorerror`, `Sites`, `Scan`), both in the verify stage list (`internal/le/verify/engine/stages.go`), and the change-set seam `internal/le/commit/changecheck` that `./le commit create` runs (`changeCheckRefusal`, `internal/le/commit/changechecks.go`) (728fb3b57e, 6c129c64a7)
+- Every owned row's producer, phases 2 to 7 (3e94cb7c40): `config.LineError`, `parseConfigError`, `SplitLine`; reload wraps `reload: ` only; stray `}`; `registry.CompiledOutValueError`, `KeywordHint`; TACACS+ `allServersFailed`; `nextHopRefusal`; `daemonUnreachable`, `sshclient.CredentialsUnavailable`; `sdk.RunningConfigLost` in seven plugins; YANG `error-message` (`yang/constraint_message.go`); `ArgumentFaults`; `sendNotPermitted`; `decode.DiffPart`; `serverUnsynchronized`; `editorCommands`; `danglingScratchLink`; `rowOperatorRefusal`
+- `MissingDependencyError` and `UnloadedDependencyError` (fdf90dd99e); every fault of an argument list named with its usage and the whole command (3af4462e82)
+- Issues found along the way, fixed on Thomas's order: `withUnwind` keeps a refused reload's fix line last and `sdk.RunningConfigLost` no longer panics on an empty problem (d131605aa4); error-wrap follows function parameters and verb prefixes (81eb233e20); operator-error reads `StatusError` answers and `plugin.OperatorErrorResponse` is the typed route (605500cf11); `ArgumentFaults.RestatedForLine` restates a missing-only argument list alike on every route (37c3a2abb1)
+
+### Bugs Found/Fixed
+- No-session `discard <path>` discarded everything (`editor_discard_path.go`), fixed in 3e94cb7c40 with its test
+- `le help` panicked at 728fb3b57e on a 72-character summary; 6c129c64a7 (another session) shortened it
+
+### Documentation Updates
+- In the implementation commits: `docs/architecture/cli/error-surface.md` ("The operator error"), `docs/contributing/ze-go-style.md`, `docs/architecture/api/commands.md`, `docs/architecture/api/process-protocol.md`, `docs/architecture/config/{syntax,transaction-protocol,yang-config-design}.md`, `docs/architecture/testing/{ci-format,qemu-integration,verify-freshness-scope}.md`, `docs/functional-tests.md`, `docs/guide/{configuration,config-editor,tacacs,plugins,ospf,config-reload}.md`, `docs/features/cli-commands.md`
+- Closure grep for every old text (`is the daemon running`, `parse config: parse config`, `got RBRACE`, `all TACACS+ servers unreachable`, `kiss of death`, `next-hop incompatible`, `Revert all`) over `docs/`: no hit
+- In the follow-up commits: `docs/architecture/api/process-protocol.md` (d131605aa4); `docs/architecture/cli/error-surface.md`, `docs/architecture/testing/verify-freshness-scope.md`, `docs/contributing/{committing,ze-go-style}.md` (605500cf11); `docs/architecture/api/commands.md`, `docs/features/cli-commands.md` (37c3a2abb1)
+
+### Deviations from Plan
+- A-1 broken: goyang kept `error-message` but nothing spoke it; `yang/constraint_message.go` was added
+- A-3 broken, then fixed: error-wrap did not see either owned double-wrap row; 81eb233e20 follows a function parameter to its callers' arguments and compares verb-holding segments, and both rows stay guarded by their `.ci` tests
+- AC-4 read under the no-`./le verify` rule: `stages_operatorerrors_test.go` proves the stage lines, and the commit seam runs operator-error
+- The isis system-id validator became completion only (`ValidateFn` nil): one guard, the YANG pattern
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1: `error-message` on a `range` reaches the refusal | goyang parsed it, the resolved type dropped it | `TestYANGRangeErrorMessageReachesRefusal` red | `constraint_message.go` carries it on every path |
+| assumption | A-3: one-level callee resolution finds the owned double wraps | the reload error arrives through a function value, the validate prefix holds a verb | fixture run against the owned rows | 81eb233e20 (`funcvalue.go`, verb-normalised segments) |
+| approach | 728fb3b57e shipped a 72-character menu summary | the menu line holds 60, and `le help` panicked | the launcher set the builds aside | 6c129c64a7 |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| One operator error type with what, why, fix, cause | Done | `internal/core/opererr/opererr.go` `New`, `Wrap` | |
+| Context added once by the producer | Done | `config/line_error.go` `LineError`, `parseConfigError`; `cmd/ze/hub/main_reload.go` `runReloadContext` | |
+| One guard per input, message on the constraint | Done | `config/yang/constraint_message.go`; `zt:vlan-id`; isis `system-id` pattern | |
+| Double-wrap check | Done | `internal/le/arch/errorwrap` | sees both owned rows since 81eb233e20 |
+| Handler check | Done | `internal/le/arch/operatorerror`, `internal/le/commit/changecheck` | returned errors and `StatusError` answers (605500cf11); unread shapes in Known Limitations |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestErrorWrapRefusesRepeatedPrefix` | |
+| AC-2 | Done | `TestOperatorErrorRefusesPlainErrorFromHandler` | |
+| AC-3 | Done | `TestOperatorErrorAcceptsTypedError` | |
+| AC-4 | Done | `stages_operatorerrors_test.go`; `changeCheckRefusal` | see Deviations |
+| AC-5 | Done | `reload-parse-error-single-prefix.ci`, `validate-parse-error-single-prefix.ci`, `TestSplitLineNamesTheLineOnce` | |
+| AC-6 | Done | `TestTacacsAllServersFailedNamesEachCauseAndFix` | |
+| AC-7 | Done | `TestNextHopIncompatibleNamesFamiliesAndFix` (resolves the fix line against the schema) | |
+| AC-8 | Done | `TestParserStrayBraceNamesTheFix`, `TestMigrateStrayBraceNamesTheFix`, old-5.0 `conf-extended-attributes.ci` | |
+| AC-9 | Done | `TestCLINoDaemonNamesEndpointAndFix` | |
+| AC-10 | Done | `config-compiled-out-feature-names-tag.ci`, `TestCompiledOutRootNamesItsBuildTag`, `TestMissingDependencyErrorNamesTag`, `TestUnloadedDependencyErrorNamesWhatToConfigure` | |
+| AC-11 | Done | `TestInstallRefusedReloadReturnsAFailedRegistrationRestore`, `TestRunningConfigLostCarriesWhyAndFix` | |
+| AC-12 | Done | `iface-unit-out-of-range-message.ci`, `TestISISSystemIDPatternIsTheOneGuard`, `TestYANGRangeErrorMessageReachesRefusal`, `TestLeafListPatternRefusalSpeaksTheMessage` | |
+| AC-13 | Done | `TestCacheForwardRefusalNamesTheAttachBlock`, `TestDispatchTerminalNounSelectorNamesTheRealFault`, `TestValidateArgsNamesEveryFault`, `cli-argument-refused-plugin-route.ci` | every route alike since 37c3a2abb1 (`TestRoutesRestateArgumentFaultsAlike`) |
+| AC-14 | Done | `TestMismatchDiffReportsAMissingPartNotInvalidHex` | |
+| AC-15 | Done | `TestEditorHelpDerivesFromRegisteredHelp`, `TestEditorDiscardBareRejected`; `ze-cli-clear-api.yang` `rpc dns-cache` | |
+| AC-16 | Done | `TestNTPUnsynchronisedNotKissOfDeath`, `TestNTPClientRejectsUnsynchronisedChrony` | |
+| AC-17 | Done | `TestDockerKernelUnknownIsProbeFailure` (4dbbcacf7b) | Rows found already fixed |
+| AC-18 | Done | `TestDanglingScratchLinkNamesLinkTargetAndFix` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestErrorWrapRefusesRepeatedPrefix`, `TestErrorWrapAcceptsNewContext` | Done | `internal/le/arch/errorwrap/errorwrap_test.go` | |
+| `TestOperatorErrorRefusesPlainErrorFromHandler`, `TestOperatorErrorAcceptsTypedError` | Done | `internal/le/arch/operatorerror/` | |
+| `TestOperatorErrorRendersThreeParts` | Done | `internal/core/opererr/opererr_test.go` | |
+| `TestTacacsAllServersFailedNamesEachCauseAndFix` | Done | `internal/component/tacacs/client_test.go` | |
+| `TestNextHopIncompatibleNamesFamiliesAndFix` | Done | `internal/component/bgp/reactor/peer_test.go` | |
+| `TestParserStrayBraceNamesTheFix` | Done | `internal/component/config/parser_test.go` | |
+| `TestYANGRangeErrorMessageReachesRefusal` | Done | `internal/component/config/yang/constraint_message_test.go` | |
+| `TestEditorHelpDerivesFromRegisteredHelp` | Done | `internal/component/cli/editor_help_test.go` | |
+| `TestNTPUnsynchronisedNotKissOfDeath` | Done | `internal/plugins/ntp/ntp_test.go` | |
+| Four functional tests | Done | `test/reload/`, `test/parse/`, `test/plugin/`, `test/ui/` | `config-compiled-out-feature-names-tag.ci` lives in `test/ui/`, not `test/parse/` |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| every file in Files to Modify | Done | `git show --stat` of 728fb3b57e, 3e94cb7c40, fdf90dd99e, 3af4462e82 |
+| `internal/core/opererr/`, `internal/le/arch/errorwrap/`, `internal/le/arch/operatorerror/` | Done | |
+
+### Audit Summary
+- **Total items:** 18 ACs, 5 requirements, 10 test rows
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** AC-4 proof route, the isis validator, A-1 and A-3 (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An operator reads what went wrong, why, and the fix | functional | `reload-parse-error-single-prefix.ci`, `validate-parse-error-single-prefix.ci`, `iface-unit-out-of-range-message.ci`, `config-compiled-out-feature-names-tag.ci`, `cli-argument-refused-plugin-route.ci` through the real `ze` entry points (3e94cb7c40, 3af4462e82 bodies: green) |
+| Context added once | functional | the two single-prefix `.ci` tests assert `parse config` and `line N` once |
+| The specific guard speaks | functional | `iface-unit-out-of-range-message.ci` (VLAN message through the RPC validator) |
+| The family does not return | unit + commit seam | `TestOperatorErrorRefusesPlainErrorFromHandler`, `TestErrorWrapRefusesRepeatedPrefix`; `changeCheckRefusal` runs operator-error on every commit |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | the issues found along the way landed in d131605aa4, 81eb233e20, 605500cf11 and 37c3a2abb1; what remains is stated in Known Limitations | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/operator-errors-name-the-fix-ad9def1f-df41-4fcc-bc2d-9569a17e6b8c.md` (244 files: every file of the commits carrying `Spec-work: operator-errors-name-the-fix` and the closure files, verdict clean) |
+| `./le spec review check` | clean |
+| Rounds | 2: round 1 over the implementation (two NOTEs); round 2, by a second closer, over d131605aa4, 81eb233e20, 605500cf11, 37c3a2abb1 and 7c05adcdcf (`withUnwind` keeps the fix line last and `Unwrap` reaches every step; `RestatedForLine` writes each missing leaf once, the placed one excluded) and this closure text, no finding |
+| Reviewer lenses used | logic and wiring (producers of every owned row), security (TACACS+ secret, panics on operator input), style (`opererr.New` panics are author-input only) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| N1 | NOTE | `runReloadContext`'s `(candidate cleanup failed: ...)` landed after the opererr fix line | `cmd/ze/hub/main_reload.go` | d131605aa4 (`withUnwind`, `cmd/ze/hub/reload_unwind.go`, `TestWithUnwindKeepsFixLineLast`) |
+| N2 | NOTE | public `sdk.RunningConfigLost` panicked on an empty problem from a third-party caller | `pkg/plugin/sdk/config_tx.go` | d131605aa4 (`TestRunningConfigLostEmptyProblem`) |
+
+No BLOCKER or ISSUE was found.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/core/opererr/opererr.go`, `internal/le/arch/errorwrap/`, `internal/le/arch/operatorerror/` | Yes | read at closure |
+| `test/reload/reload-parse-error-single-prefix.ci`, `test/parse/validate-parse-error-single-prefix.ci`, `test/plugin/iface-unit-out-of-range-message.ci`, `test/ui/config-compiled-out-feature-names-tag.ci` | Yes | `git grep` at closure lists each with its VALIDATES line |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-4 | checks refuse their fixtures | 728fb3b57e body: `go test -race` green for opererr, errorwrap, operatorerror, verify/engine |
+| AC-5 to AC-18 | owned producers fixed | 3e94cb7c40 body: 40 packages and 29 functional tests; fdf90dd99e and 3af4462e82 bodies: registry, server, command, peer, rib, mcp green |
+| AC-12, AC-15 | `config/yang` and `cli` tests | main thread, 2026-11-10, green: `config/yang -run Constraint\|ErrorMessage\|TestYANGRange`, `cli -run TestEditor\|TestPeerMissingFieldHint` |
+| AC-2, AC-3, AC-11, AC-13, A-3 | follow-up commits | main thread, 2026-11-10, green: `cmd/ze/hub` Confirm\|Revert\|TestWithUnwind\|TestReload; `pkg/plugin/sdk` and `internal/plugins/as112` TestRunningConfigLost\|TestConfigTx; full packages `internal/component/command`, `internal/component/plugin/server` (all feature tags), `internal/component/plugin`, `internal/le/arch/operatorerror`, `internal/le/arch/errorwrap`; functional `policy-test-errors`, `metrics-name-show`, `reload-parse-error-single-prefix`, ui `cli-argument-refused-plugin-route`, ui `debug-help`. Foreign red: `internal/le` root vocabulary tests on `reclaim worktrees` and `commit approval-check`, another session's |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| hub reload of a refused file | `test/reload/reload-parse-error-single-prefix.ci` | green, 3e94cb7c40 |
+| `ze config validate` set file | `test/parse/validate-parse-error-single-prefix.ci` | green, 3e94cb7c40 |
+| `./le arch error-wrap check`, `operator-error check`, TACACS+ | unit tests in the Wiring Test table | green, 728fb3b57e and 3e94cb7c40 |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken, then fixed | `constraint_message.go`; Mistake Log |
+| A-2 | confirmed | `TestASTBoundarySetCoversRuntimeRegistry`: 397 RPCs, 32 verifiers |
+| A-3 | broken, then fixed | 81eb233e20: `TestErrorWrapRefusesThroughAFunctionParameterChain`, `TestErrorWrapRefusesARepeatedVerbPrefix`; Mistake Log |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| error surface and operator error | `docs/architecture/cli/error-surface.md` against `opererr.Error.Error` | Yes |
+| `clear dns cache`, `discard` | `docs/guide/command-reference.md` L1571-1577 against `ze-cli-clear-api.yang`; `editorCommands` | Yes |
+| no page quotes an old message | closure grep over `docs/`, no hit | Yes |

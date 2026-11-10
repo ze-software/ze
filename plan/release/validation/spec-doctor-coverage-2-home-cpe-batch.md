@@ -107,7 +107,7 @@ condition is not reported.
 | netlink backend doctor | `internal/plugins/iface/netlink/doctor.go` (`iface-macvlan`) | Backend-owned check | extends: class 5 registers beside it |
 | Static route skipped check | `doctor-static-route-skipped` | Reports a route skipped at apply | does not apply: class 7 excludes static next-hops, which that check covers |
 | System DNS sources | `spec-home-cpe-23b-dns-source-consumers` (closed; built the producer of `show system dns`, `internal/plugins/system-dns-cmd`, and a check for an empty router selection, over the registry `spec-home-cpe-23-dns-source-fall-through` builds) | Fixes the resolver's behavior | extends: class 3 reads the same producer and adds the three resolver states; the check spec-23 plans is one of class 3's codes, not a second check |
-| Operator error text | `plan/release/fixes/spec-operator-errors-name-the-fix.md`, journal row `plan/journal/error-names-no-fix-command.md` 2026-11-07 (`ErrNoBackendLoaded`) | Fixes the error text | extends: class 4 reports the state; both name one fix command, declared once in `iface` |
+| Operator error text | `internal/component/iface/dispatch.go` `ErrNoBackendLoaded` (an `opererr.Error`, spec-operator-errors-name-the-fix, closed), journal row `plan/journal/error-names-no-fix-command.md` 2026-11-07 (`ErrNoBackendLoaded`) | Fixes the error text | extends: class 4 reports the state; both name one fix command, declared once in `iface` |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
