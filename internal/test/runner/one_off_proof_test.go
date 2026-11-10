@@ -213,3 +213,101 @@ func TestTmpfsContentAndModeReachBothRoutes(t *testing.T) {
 		require.Equal(t, "plain\n", string(dataMode), "a block with no mode= and no executable extension stays non-executable")
 	})
 }
+
+// unusedPeerExpect is a wire expectation the stand-in peer must receive
+// verbatim on the legacy route.
+const unusedPeerExpect = "expect=bgp:conn=1:seq=1:hex=ffffffffffffffffffffffffffffffff001304"
+
+// TestUnusedPeerBlockRefused proves a peer block no ze-peer reads fails the
+// file at parse time, and the legacy route that does read the block still hands
+// its wire expectation to the peer it starts.
+//
+// VALIDATES: P-1 (peer blocks) of spec-tooling-one-off-defects, through
+// parseAndAdd, the parse every `le test <suite>` discovery runs, and runTest:
+//   - orchestrated positive orphan: a file with cmd= lines whose `peer` block
+//     carries an expect=bgp no peer command names is refused, naming the block.
+//   - orchestrated negative orphan: the same block with a reject=bgp is refused
+//     for the rejection nothing reads.
+//   - ordinary negative orphan: a file with no cmd= lines carrying a reject=bgp
+//     in its `peer` block is refused the same way, because the legacy route
+//     forwards only expect= and action= lines.
+//   - orchestrated consumed: the positive orphan's block, named by a peer
+//     command, is accepted, so the refusals key on the missing consumer.
+//   - ordinary consumed (legacy): a file with no cmd= lines is accepted, and
+//     the runner starts the legacy peer with a file holding the expectation.
+//
+// PREVENTS: a wire assertion or rejection that reads as checked while no peer
+// ever receives it.
+//
+// MUTATION: (peer_contract.go, `if !read && len(r.RunCommands) > 0 {`, `if false && !read && len(r.RunCommands) > 0 {`): the orchestrated positive orphan subtest goes red, because the file parses.
+// MUTATION: (peer_contract.go, `if len(rejects) > 0 && !read {`, `if false && len(rejects) > 0 && !read {`): both negative orphan subtests go red: the ordinary file parses, and the orchestrated one is refused for another reason.
+// MUTATION: (runner_exec.go, `if len(rec.RunCommands) > 0 {`, `if true {`): the legacy subtest goes red, because no peer is started and no expectation file reaches it.
+func TestUnusedPeerBlockRefused(t *testing.T) {
+	const orphanBlock = "stdin=peer:terminator=EOF_PEER\n" + unusedPeerExpect + "\nEOF_PEER\n"
+	const rejectBlock = "stdin=peer:terminator=EOF_PEER\n" + unusedPeerExpect + "\n" +
+		"reject=bgp:conn=1:pattern=deadbeef\nEOF_PEER\n"
+	const helper = "cmd=foreground:seq=2:exec=true\n"
+	const peerCommand = "cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer\n"
+
+	for _, tc := range []struct {
+		name    string
+		content string
+		refusal string
+	}{
+		{"orchestrated positive orphan", orphanBlock + helper, "stdin=peer block has no peer consumer"},
+		{"orchestrated negative orphan", rejectBlock + helper, "reject=bgp is read by ze-peer"},
+		{"ordinary negative orphan", rejectBlock, "reject=bgp is read by ze-peer"},
+		{"orchestrated consumed", orphanBlock + peerCommand + helper, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := parseUnusedPeerCI(t, NewEncodingTests(t.TempDir()), tc.content)
+			if tc.refusal == "" {
+				require.NoError(t, err, "a block a peer command names must be accepted")
+				return
+			}
+			require.Error(t, err, "a peer block nothing reads must fail the file")
+			require.Contains(t, err.Error(), tc.refusal)
+		})
+	}
+
+	t.Run("ordinary consumed (legacy)", func(t *testing.T) {
+		baseDir := t.TempDir()
+		tests := NewEncodingTests(baseDir)
+		r, err := NewRunner(tests, baseDir)
+		require.NoError(t, err)
+		t.Cleanup(r.Cleanup)
+		rec, err := parseUnusedPeerCI(t, tests, orphanBlock+"option=timeout:value=10s\n")
+		require.NoError(t, err, "the legacy peer block must be accepted")
+		require.Empty(t, rec.RunCommands, "the fixture must take the legacy route")
+		rec.Active = true
+
+		// The stand-in peer copies the file its last argument names (the runner
+		// deletes it at cleanup), binds, and exits. The stand-in daemon runs
+		// until SIGTERM.
+		seen := t.TempDir()
+		blockFile := filepath.Join(seen, "block")
+		r.lePath = filepath.Join(seen, "peer")
+		peerScript := "#!/bin/sh\n" +
+			"for arg; do last=$arg; done\n" +
+			"if [ -f \"$last\" ]; then cat \"$last\" > '" + blockFile + "'; fi\n" +
+			"echo '" + peerListeningPattern + " 127.0.0.1'\n"
+		require.NoError(t, os.WriteFile(r.lePath, []byte(peerScript), 0o700))
+		r.zePath = filepath.Join(seen, "daemon")
+		daemonScript := "#!/bin/sh\ntrap 'exit 0' TERM\nwhile :; do sleep 0.05; done\n"
+		require.NoError(t, os.WriteFile(r.zePath, []byte(daemonScript), 0o700))
+
+		r.runTest(t.Context(), rec, &RunOptions{})
+		block, err := os.ReadFile(blockFile) //nolint:gosec // path under t.TempDir
+		require.NoError(t, err, "the legacy route started no peer with an expectation file: %v", rec.Error)
+		require.Contains(t, strings.Split(string(block), "\n"), unusedPeerExpect,
+			"the legacy peer did not receive the block's wire expectation")
+	})
+}
+
+// parseUnusedPeerCI writes content as a .ci file and parses it with tests.
+func parseUnusedPeerCI(t *testing.T, tests *EncodingTests, content string) (*Record, error) {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "unused-peer.ci")
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+	return tests.parseAndAdd(path)
+}

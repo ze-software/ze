@@ -2593,3 +2593,22 @@ stays on a Linux host.
 The symlink cases have no one-line break: removing the directory check leaves
 `os.Root` refusing the escaping link, so they prove refusal and nonmutation
 without a recorded red. P-39's guest runs themselves still need QEMU.
+
+## P-1 engine steps and orphan peer blocks, P-6 obligations after publication (2026-11-10)
+
+New carriers; the producers already refused, so each break reintroduces the
+defect the spec names. Go overlays through the walk tool (`c1/`); every
+restored run passed.
+
+| Carrier | Break | Red |
+| --- | --- | --- |
+| `TestEngineStepUnknownKindRefused` (`internal/test/cli`; file, stdin and direct entries) | `UnmarshalEngineSteps` stops refusing an unknown kind | file and stdin: the output does not name "unknown kind 0" (the run proceeds to a hub connect-back instead) |
+| same | `RunEngineSteps` stops refusing an unknown kind | direct: "missing: an unknown kind ran to success" |
+| `TestUnusedPeerBlockRefused` (`internal/test/runner`) | the positive orphan peer check disabled | the orchestrated positive orphan is accepted (require.Error fails) |
+| same | the negative orphan check disabled | ordinary and orchestrated negative orphans accepted |
+| same | the legacy route starts the peer path for every record | legacy subtest fails |
+| `TestObligationsFollowSuccessfulPublication` (`internal/le/commit`; invalid subject, invalid tag, failed publication, retry, foreign predecessor record) | a refused create allocates a tag first | "a refused create recorded under tmp/" |
+| same | the publication prunes its approval before publishing | "a failed publication spent the approval" |
+
+The P-1 engine carrier lives in `internal/test/cli`, because the file and
+stdin entry (`CmdEngineSteps`) is there and `cli` imports `runner`.
