@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/command/commandtest"
+	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -24,7 +25,7 @@ import (
 // skipWithoutBackend skips when the response is the no-backend refusal.
 func skipWithoutBackend(t *testing.T, resp *plugin.Response) {
 	t.Helper()
-	if resp.Status == "error" && resp.Error == "iface: no backend loaded" {
+	if resp.Status == "error" && resp.Error == iface.ErrNoBackendLoaded.Error() {
 		t.Skip("iface backend not available in test environment")
 	}
 }

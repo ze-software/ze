@@ -107,7 +107,7 @@ func (p *Parser) parseListFieldBlock(tree *Tree, name string, node *ListNode, ke
 			if err := nodeOfAnotherOS(node, name, fieldName, tok.line); err != nil {
 				return err
 			}
-			return p.errorf(tok, "unknown field in %s: %s%s (line %d)", name, fieldName, UnknownKeywordHint(fieldName, node.Children()), tok.line)
+			return p.errorf(tok, "unknown field in %s: %s%s", name, fieldName, KeywordHint(p.path, fieldName, node.Children()))
 		}
 
 		if markInactive {
@@ -427,7 +427,7 @@ func (p *Parser) parseMultiLeaf(tree *Tree, name string, node *MultiLeafNode) er
 		return p.errorf(token{line: p.tok.line}, "expected value for %s, got ';'", name)
 	}
 	joined := textbuf.Join(words, " ")
-	if err := validateValuePatterns(node.Type, node.Patterns, joined); err != nil {
+	if err := validateValuePatterns(node.Type, node.Patterns, node.Constraint, joined); err != nil {
 		return p.errorf(token{line: p.tok.line}, "invalid value for %s: %v", name, err)
 	}
 	tree.SetSlice(name, words)
@@ -485,7 +485,7 @@ func (p *Parser) parseBracketLeafList(tree *Tree, name string, node *BracketLeaf
 // two addresses. An ordered SEQUENCE (ze:ordered) preserves duplicates.
 func (p *Parser) storeBracketLeafList(tree *Tree, name string, node *BracketLeafListNode, items []string, tok token) error {
 	for _, item := range items {
-		if err := validateValuePatterns(node.Type, node.Patterns, item); err != nil {
+		if err := validateValuePatterns(node.Type, node.Patterns, node.Constraint, item); err != nil {
 			return p.errorf(tok, "invalid value for %s: %v", name, err)
 		}
 	}
@@ -578,7 +578,7 @@ func (p *Parser) storeValueOrArray(tree *Tree, name string, node *ValueOrArrayNo
 		}
 	}
 	for _, item := range clean {
-		if err := validateValuePatterns(node.Type, node.Patterns, item); err != nil {
+		if err := validateValuePatterns(node.Type, node.Patterns, node.Constraint, item); err != nil {
 			return p.errorf(tok, "invalid value for %s: %v", name, err)
 		}
 	}
@@ -634,10 +634,10 @@ func validateInlineListChildValue(list *ListNode, childName, value string) error
 	case *LeafNode:
 		return ValidateLeafValue(n, value)
 	case *MultiLeafNode:
-		return validateValuePatterns(n.Type, n.Patterns, value)
+		return validateValuePatterns(n.Type, n.Patterns, n.Constraint, value)
 	case *BracketLeafListNode:
 		for _, item := range inlineValueItems(value) {
-			if err := validateValuePatterns(n.Type, n.Patterns, item); err != nil {
+			if err := validateValuePatterns(n.Type, n.Patterns, n.Constraint, item); err != nil {
 				return err
 			}
 		}
@@ -646,7 +646,7 @@ func validateInlineListChildValue(list *ListNode, childName, value string) error
 			if n.ValidValues != nil && !containsString(n.ValidValues, item) {
 				return fmt.Errorf("invalid enum: %q (expected one of: %s)", item, textbuf.Join(n.ValidValues, ", "))
 			}
-			if err := validateValuePatterns(n.Type, n.Patterns, item); err != nil {
+			if err := validateValuePatterns(n.Type, n.Patterns, n.Constraint, item); err != nil {
 				return err
 			}
 		}

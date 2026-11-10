@@ -159,7 +159,7 @@ refuses one of its values (an IS-IS hostname outside 7-bit ASCII, an invalid
 NET, an unregistered internal plugin name). The reload fails on the same branch,
 the staged candidate is cleared, and the daemon keeps the configuration it is
 already running. There is no override and no force flag. The message is
-`reload error: reload: parse config: config validation failed: ...` and it names
+`reload error: reload: config validation failed: ...` and it names
 the section, the leaf and the rule. See "Upgrading from a release that validated
 only on demand" in `docs/guide/configuration.md`.
 <!-- source: internal/component/config/loader.go -- LoadConfig refuses through ValidateCustomSections -->

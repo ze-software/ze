@@ -182,6 +182,39 @@ func TestCacheForwardEntryPointRefusesAnUnattachedProcess(t *testing.T) {
 	require.Len(t, env.items(), 1, "the attached process must be served")
 }
 
+// TestCacheForwardRefusalNamesTheAttachBlock holds what an unattached process
+// reads when it forwards a cached UPDATE, through the registered command.
+//
+// GOAL: the refusal names the actual fault, a process the destination does not
+// permit, why, and the attach statement that permits it, never "requires a
+// selector" or a bare sentinel.
+// METHOD: dispatch `send bgp <destination> cached 41` from a process no peer
+// attaches and require the whole message, on the error and on the answer.
+//
+// VALIDATES: AC-13 of spec-operator-errors-name-the-fix (journal
+// earlier-guard-hides-the-better-error, 2026-09-05 row).
+// PREVENTS: a refusal that leaves the process author guessing which config
+// grants the send.
+func TestCacheForwardRefusalNamesTheAttachBlock(t *testing.T) {
+	resetSendPermissionMetrics(t)
+	env := railFixture(t)
+	cacheReflectableUpdate(t, env.cache, 41)
+
+	refused := railServer(t, env.api, plugin.ProcessSender(railRefused))
+	resp, err := refused.Server.Dispatcher().Dispatch(refused, "send bgp "+railDest+" cached 41")
+	require.ErrorIs(t, err, errSendNotPermitted)
+
+	const want = "process stranger may not send update messages to selector 10.0.0.2\n" +
+		"a peer takes a message from a process only when its attach block names the process" +
+		" and lists the message type under send: send refused: no peer this selector names attaches" +
+		" this process with the required send permission: selector 10.0.0.2, process stranger, send type update\n" +
+		"fix: add 'attach process stranger { send [ update ]; }' to each peer the process sends to"
+	assert.Equal(t, want, err.Error())
+	require.NotNil(t, resp)
+	assert.Equal(t, "forward failed: "+want, resp.Error)
+	assert.Empty(t, env.items(), "a refused forward must put nothing on the destination's wire")
+}
+
 // TestPeerRawEntryPointNeedsTheRawSendWord drives `send bgp <addr> raw` through the
 // registered command.
 //

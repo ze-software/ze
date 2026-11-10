@@ -10,7 +10,6 @@ package config
 
 import (
 	"bufio"
-	"fmt"
 	"slices"
 	"strings"
 
@@ -45,12 +44,19 @@ const (
 //	delete neighbor 192.0.2.1 peer-as
 type SetParser struct {
 	schema       *Schema
-	preMigration bool     // collect unknown fields as warnings for migration (not final parse)
-	warnings     []string // unknown field warnings from pre-migration parse
+	preMigration bool // skip unknown fields and record them, for the refusal that names them all (not a final parse)
+	// unknown holds each field the pre-migration parse skipped, typed with
+	// its line, so parseSetConfig names each line once (unknownFieldsError).
+	unknown []*LineError
 	// nopLine is true while a `nop` line is walked, so a bracket leaf-list
 	// reads `nop <path> <member>` as the deactivation of a member the list
 	// line already set (nopBracketMember), never as a new list.
 	nopLine bool
+	// lineTokens is the path of the line being parsed, its verb left out, so
+	// an unknown keyword's refusal can name the keywords before it
+	// (keywordsBefore) and ask KeywordHint whether a compiled-out plugin owns
+	// that position.
+	lineTokens []string
 }
 
 // NewSetParser creates a new set-style parser with the given schema.
@@ -58,16 +64,23 @@ func NewSetParser(schema *Schema) *SetParser {
 	return &SetParser{schema: schema}
 }
 
-// SetPreMigration enables pre-migration mode: unknown fields are collected
-// as warnings instead of causing parse errors. This allows parsing configs
-// with stale fields so that tree-level migrations can remove them.
+// SetPreMigration enables pre-migration mode: an unknown field is skipped
+// and recorded (UnknownFields) instead of ending the parse, so one parse
+// finds every unknown field of a config.
 func (p *SetParser) SetPreMigration(v bool) {
 	p.preMigration = v
 }
 
-// Warnings returns warnings collected during pre-migration parsing.
-func (p *SetParser) Warnings() []string {
-	return p.warnings
+// UnknownFields answers each field the pre-migration parse skipped, in the
+// order of the config's lines, each carrying its own line.
+func (p *SetParser) UnknownFields() []*LineError {
+	return p.unknown
+}
+
+// skipUnknownField records name, unknown on line lineNum, and lets the
+// pre-migration parse go on.
+func (p *SetParser) skipUnknownField(lineNum int, name string) {
+	p.unknown = append(p.unknown, unknownFieldLine(lineNum, name))
 }
 
 // Parse parses the input string into a config tree.
@@ -98,7 +111,7 @@ func (p *SetParser) Parse(input string) (*Tree, error) {
 func (p *SetParser) parseLine(tree *Tree, line string, lineNum int) error {
 	tokens, err := splitQuotedTokens(line)
 	if err != nil {
-		return fmt.Errorf("line %d: %w", lineNum, err)
+		return newLineError(lineNum, err)
 	}
 	if len(tokens) == 0 {
 		return nil
@@ -106,6 +119,7 @@ func (p *SetParser) parseLine(tree *Tree, line string, lineNum int) error {
 
 	cmd := tokens[0]
 	tokens = tokens[1:]
+	p.lineTokens = tokens
 
 	switch cmd {
 	case cmdSet:
@@ -117,7 +131,7 @@ func (p *SetParser) parseLine(tree *Tree, line string, lineNum int) error {
 	case cmdInactive:
 		return p.parseInactive(tree, tokens, lineNum)
 	default:
-		return fmt.Errorf("line %d: unknown command: %s (expected set/nop/delete/inactive)", lineNum, cmd)
+		return lineErrorf(lineNum, "unknown command: %s (expected set/nop/delete/inactive)", cmd)
 	}
 }
 
@@ -134,7 +148,7 @@ func bracketMembers(bracket *BracketLeafListNode, tokens []string) ([]string, er
 	items := bracketItems(tokens)
 	var firstErr error
 	for _, item := range items {
-		if err := validateValuePatterns(bracket.Type, bracket.Patterns, item); err != nil {
+		if err := validateValuePatterns(bracket.Type, bracket.Patterns, bracket.Constraint, item); err != nil {
 			firstErr = err
 			break
 		}
@@ -150,7 +164,7 @@ func bracketMembers(bracket *BracketLeafListNode, tokens []string) ([]string, er
 		return nil, firstErr
 	}
 	for _, word := range words {
-		if err := validateValuePatterns(bracket.Type, bracket.Patterns, word); err != nil {
+		if err := validateValuePatterns(bracket.Type, bracket.Patterns, bracket.Constraint, word); err != nil {
 			return nil, firstErr
 		}
 	}
@@ -174,7 +188,7 @@ func isMemberLeafList(node Node) bool {
 // configs (work-in-progress editing) to load without failing.
 func (p *SetParser) parseSet(tree *Tree, tokens []string, lineNum int) error {
 	if len(tokens) < 1 {
-		return fmt.Errorf("line %d: set requires at least a path", lineNum)
+		return lineErrorf(lineNum, "set requires at least a path")
 	}
 
 	// Walk the schema to find where to set the value
@@ -198,11 +212,10 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 	node := resolveSchemaNode(p.schema, parent, name)
 	if node == nil {
 		if p.preMigration {
-			var bw textbuf.Buffer
-			p.warnings = append(p.warnings, bw.Reset().Str("line ").Int(int64(lineNum)).Str(": unknown field: ").Str(name).Str(" (needs migration)").String())
+			p.skipUnknownField(lineNum, name)
 			return nil
 		}
-		return p.unknownField(lineNum, name, parent)
+		return p.unknownField(lineNum, name, parent, tokens)
 	}
 
 	//nolint:gocritic // if-else chain preferred over type switch for exhaustive node handling
@@ -210,21 +223,21 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 		if leaf.Type == TypeEmpty {
 			// "type empty" leaves are presence flags: "set no-default-route".
 			if len(tokens) != 0 {
-				return fmt.Errorf("line %d: leaf %s is a flag and takes no value", lineNum, name)
+				return lineErrorf(lineNum, "leaf %s is a flag and takes no value", name)
 			}
 			tree.Set(name, configTrue)
 			return nil
 		}
 		if len(tokens) != 1 {
-			return fmt.Errorf("line %d: leaf %s expects exactly one value", lineNum, name)
+			return lineErrorf(lineNum, "leaf %s expects exactly one value", name)
 		}
 		// A $9$ key decodes as it does in the hierarchical form (parseLeaf).
 		value, err := decodeSecretLeaf(tree, name, leaf, tokens[0])
 		if err != nil {
-			return fmt.Errorf("line %d: %w", lineNum, err)
+			return newLineError(lineNum, err)
 		}
 		if err := ValidateLeafValue(leaf, value); err != nil {
-			return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
+			return lineErrorf(lineNum, "invalid value for %s: %w", name, err)
 		}
 		tree.Set(name, NormalizeLeafValue(leaf.Type, value))
 		return nil
@@ -232,11 +245,11 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 
 	if multi, ok := node.(*MultiLeafNode); ok {
 		if len(tokens) < 1 {
-			return fmt.Errorf("line %d: multi-leaf %s expects at least one value", lineNum, name)
+			return lineErrorf(lineNum, "multi-leaf %s expects at least one value", name)
 		}
 		value := textbuf.Join(tokens, " ")
-		if err := validateValuePatterns(multi.Type, multi.Patterns, value); err != nil {
-			return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
+		if err := validateValuePatterns(multi.Type, multi.Patterns, multi.Constraint, value); err != nil {
+			return lineErrorf(lineNum, "invalid value for %s: %w", name, err)
 		}
 		tree.Set(name, value)
 		return nil
@@ -253,7 +266,7 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 		// parser reads `[ a "b c" ]`, so the two parsers agree on the members.
 		items, err := bracketMembers(bracket, tokens)
 		if err != nil {
-			return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
+			return lineErrorf(lineNum, "invalid value for %s: %w", name, err)
 		}
 		// Members plus the scalar mirror, the store the hierarchical parser
 		// fills (storeBracketLeafList), so a set-format load hands the editor
@@ -261,7 +274,7 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 		// one. A set line states the whole list, so a later line for the same
 		// leaf replaces an earlier one.
 		if err := setBracketLine(tree, name, items); err != nil {
-			return fmt.Errorf("line %d: %s: %w", lineNum, name, err)
+			return lineErrorf(lineNum, "%s: %w", name, err)
 		}
 		return nil
 	}
@@ -306,7 +319,7 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 			// Key-only: create empty list entry (incomplete config tolerance).
 			key := tokens[0]
 			if err := ValidateListKey(list, key); err != nil {
-				return fmt.Errorf("line %d: invalid key for %s: %w", lineNum, name, err)
+				return lineErrorf(lineNum, "invalid key for %s: %w", name, err)
 			}
 			entries := tree.GetList(name)
 			if entries == nil || entries[key] == nil {
@@ -344,14 +357,14 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 		return p.walkAndSetInlineListEntry(tree, il, name, tokens, lineNum)
 	}
 
-	return fmt.Errorf("line %d: unknown node type %T for %s", lineNum, node, name)
+	return lineErrorf(lineNum, "unknown node type %T for %s", node, name)
 }
 
 // parseNop handles: nop <path...> [<value>].
 // Sets the value (like parseSet) and marks the resolved node inactive in one step.
 func (p *SetParser) parseNop(tree *Tree, tokens []string, lineNum int) error {
 	if len(tokens) < 1 {
-		return fmt.Errorf("line %d: nop requires at least a path", lineNum)
+		return lineErrorf(lineNum, "nop requires at least a path")
 	}
 	p.nopLine = true
 	err := p.walkAndSet(tree, p.schema.root, tokens, lineNum)
@@ -525,7 +538,7 @@ func (p *SetParser) markNopInactive(tree *Tree, parent Node, tokens []string) {
 // prefix and the one-shot CLI verbs.
 func (p *SetParser) parseInactive(tree *Tree, tokens []string, lineNum int) error {
 	if len(tokens) < 1 {
-		return fmt.Errorf("line %d: inactive requires a path", lineNum)
+		return lineErrorf(lineNum, "inactive requires a path")
 	}
 	return p.walkAndMarkInactive(tree, p.schema.root, tokens, lineNum)
 }
@@ -536,7 +549,7 @@ func (p *SetParser) parseInactive(tree *Tree, tokens []string, lineNum int) erro
 //nolint:cyclop // exhaustive node-type handling, mirrors walkAndDelete
 func (p *SetParser) walkAndMarkInactive(tree *Tree, parent Node, tokens []string, lineNum int) error {
 	if len(tokens) == 0 {
-		return fmt.Errorf("line %d: incomplete inactive path", lineNum)
+		return lineErrorf(lineNum, "incomplete inactive path")
 	}
 
 	name := tokens[0]
@@ -544,20 +557,19 @@ func (p *SetParser) walkAndMarkInactive(tree *Tree, parent Node, tokens []string
 
 	node := resolveSchemaNode(p.schema, parent, name)
 	if node == nil {
-		// In pre-migration mode unknown fields are warnings rather than
-		// errors so that a renamed YANG path can still parse and the
-		// migration step can rewrite it. Mirror the set / delete paths.
+		// In pre-migration mode an unknown field is skipped and recorded
+		// rather than ending the parse, so the refusal names every unknown
+		// field. Mirror the set / delete paths.
 		if p.preMigration {
-			var bw textbuf.Buffer
-			p.warnings = append(p.warnings, bw.Reset().Str("line ").Int(int64(lineNum)).Str(": unknown field: ").Str(name).Str(" (needs migration)").String())
+			p.skipUnknownField(lineNum, name)
 			return nil
 		}
-		return p.unknownField(lineNum, name, parent)
+		return p.unknownField(lineNum, name, parent, tokens)
 	}
 
 	if _, ok := node.(*LeafNode); ok {
 		if len(tokens) != 0 {
-			return fmt.Errorf("line %d: unexpected tokens after leaf %s", lineNum, name)
+			return lineErrorf(lineNum, "unexpected tokens after leaf %s", name)
 		}
 		tree.SetLeafInactive(name, true)
 		return nil
@@ -577,11 +589,11 @@ func (p *SetParser) walkAndMarkInactive(tree *Tree, parent Node, tokens []string
 			return nil
 		case 1:
 			if present, _ := tree.MultiValueMemberState(name, tokens[0]); !present {
-				return fmt.Errorf("line %d: inactive %s %s names no member of %s; set the member in the %s list first", lineNum, name, tokens[0], name, name)
+				return lineErrorf(lineNum, "inactive %s %s names no member of %s; set the member in the %s list first", name, tokens[0], name, name)
 			}
 			return tree.DeactivateMultiValue(name, tokens[0])
 		}
-		return fmt.Errorf("line %d: inactive on leaf-list expects either no value or one value, got %d", lineNum, len(tokens))
+		return lineErrorf(lineNum, "inactive on leaf-list expects either no value or one value, got %d", len(tokens))
 	}
 
 	// valueOrArray: a final token denotes a single leaf-list value
@@ -594,7 +606,7 @@ func (p *SetParser) walkAndMarkInactive(tree *Tree, parent Node, tokens []string
 			tree.SetLeafInactive(name, true)
 			return nil
 		}
-		return fmt.Errorf("line %d: inactive on leaf-list expects either no value or one value, got %d", lineNum, len(tokens))
+		return lineErrorf(lineNum, "inactive on leaf-list expects either no value or one value, got %d", len(tokens))
 	}
 
 	// Container: mark via the Tree-level inactive bool.
@@ -615,11 +627,11 @@ func (p *SetParser) walkAndMarkInactive(tree *Tree, parent Node, tokens []string
 	// into the entry's fields.
 	if list, ok := node.(*ListNode); ok {
 		if len(tokens) == 0 {
-			return fmt.Errorf("line %d: inactive on list %s requires a key", lineNum, name)
+			return lineErrorf(lineNum, "inactive on list %s requires a key", name)
 		}
 		addr, err := ParseListAddress(name, list, tokens)
 		if err != nil {
-			return fmt.Errorf("line %d: %w", lineNum, err)
+			return newLineError(lineNum, err)
 		}
 		entry := EnsureListEntry(tree, name, addr)
 		if len(tokens) == addr.Tokens {
@@ -642,13 +654,13 @@ func (p *SetParser) walkAndMarkInactive(tree *Tree, parent Node, tokens []string
 		return p.walkAndMarkInactive(child, flex, tokens, lineNum)
 	}
 
-	return fmt.Errorf("line %d: inactive not supported on %T (%s)", lineNum, node, name)
+	return lineErrorf(lineNum, "inactive not supported on %T (%s)", node, name)
 }
 
 // parseDelete handles: delete <path...>.
 func (p *SetParser) parseDelete(tree *Tree, tokens []string, lineNum int) error {
 	if len(tokens) < 1 {
-		return fmt.Errorf("line %d: delete requires path", lineNum)
+		return lineErrorf(lineNum, "delete requires path")
 	}
 
 	return p.walkAndDelete(tree, p.schema.root, tokens, lineNum)
@@ -659,7 +671,7 @@ func (p *SetParser) parseDelete(tree *Tree, tokens []string, lineNum int) error 
 //nolint:cyclop // exhaustive node type handling
 func (p *SetParser) walkAndDelete(tree *Tree, parent Node, tokens []string, lineNum int) error {
 	if len(tokens) == 0 {
-		return fmt.Errorf("line %d: incomplete delete path", lineNum)
+		return lineErrorf(lineNum, "incomplete delete path")
 	}
 
 	name := tokens[0]
@@ -668,11 +680,10 @@ func (p *SetParser) walkAndDelete(tree *Tree, parent Node, tokens []string, line
 	node := resolveSchemaNode(p.schema, parent, name)
 	if node == nil {
 		if p.preMigration {
-			var bw textbuf.Buffer
-			p.warnings = append(p.warnings, bw.Reset().Str("line ").Int(int64(lineNum)).Str(": unknown field: ").Str(name).Str(" (needs migration)").String())
+			p.skipUnknownField(lineNum, name)
 			return nil
 		}
-		return p.unknownField(lineNum, name, parent)
+		return p.unknownField(lineNum, name, parent, tokens)
 	}
 
 	// Leaf-list member delete: `delete <path> <member>` removes one member, of
@@ -685,7 +696,7 @@ func (p *SetParser) walkAndDelete(tree *Tree, parent Node, tokens []string, line
 	// Leaf-like types: delete the value directly.
 	if isLeafLike(node) {
 		if len(tokens) != 0 {
-			return fmt.Errorf("line %d: unexpected tokens after leaf %s", lineNum, name)
+			return lineErrorf(lineNum, "unexpected tokens after leaf %s", name)
 		}
 		tree.Delete(name)
 		return nil
@@ -738,7 +749,7 @@ func (p *SetParser) walkAndDelete(tree *Tree, parent Node, tokens []string, line
 		return p.deleteFromInlineList(tree, il, name, tokens, lineNum)
 	}
 
-	return fmt.Errorf("line %d: unknown node type %T for %s", lineNum, node, name)
+	return lineErrorf(lineNum, "unknown node type %T for %s", node, name)
 }
 
 // isLeafLike returns true for terminal node types that store a single value.
@@ -756,10 +767,10 @@ func isLeafLike(node Node) bool {
 func validateValueOrArrayItems(node *ValueOrArrayNode, name string, items []string, lineNum int) error {
 	for _, item := range items {
 		if node.ValidValues != nil && !containsString(node.ValidValues, item) {
-			return fmt.Errorf("line %d: invalid value for %s: %q (valid: %s)", lineNum, name, item, textbuf.Join(node.ValidValues, ", "))
+			return lineErrorf(lineNum, "invalid value for %s: %q (valid: %s)", name, item, textbuf.Join(node.ValidValues, ", "))
 		}
-		if err := validateValuePatterns(node.Type, node.Patterns, item); err != nil {
-			return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
+		if err := validateValuePatterns(node.Type, node.Patterns, node.Constraint, item); err != nil {
+			return lineErrorf(lineNum, "invalid value for %s: %w", name, err)
 		}
 	}
 	return nil
@@ -778,7 +789,7 @@ func (p *SetParser) deleteFromList(tree *Tree, list *ListNode, name string, toke
 	}
 	addr, err := ParseListAddress(name, list, tokens)
 	if err != nil {
-		return fmt.Errorf("line %d: %w", lineNum, err)
+		return newLineError(lineNum, err)
 	}
 	tokens = tokens[addr.Tokens:]
 	entries := tree.GetList(name)
@@ -803,7 +814,7 @@ func deleteFreeformEntry(tree *Tree, name string, tokens []string, lineNum int) 
 		return nil
 	}
 	if len(tokens) != 1 {
-		return fmt.Errorf("line %d: freeform delete expects 0 or 1 key after %s", lineNum, name)
+		return lineErrorf(lineNum, "freeform delete expects 0 or 1 key after %s", name)
 	}
 	child := tree.GetContainer(name)
 	if child == nil {
@@ -906,15 +917,15 @@ func resolveSchemaNode(schema *Schema, parent Node, name string) Node {
 
 // unknownField refuses a name the schema does not hold under parent: as a node
 // of another OS when the build pruned it for its ze:os, else as an unknown
-// field with unknownFieldHint's hint.
-func (p *SetParser) unknownField(lineNum int, name string, parent Node) error {
+// field with unknownFieldHint's hint. rest is what follows name on the line.
+func (p *SetParser) unknownField(lineNum int, name string, parent Node, rest []string) error {
 	if parent == nil {
 		parent = p.schema.root
 	}
 	if err := nodeOfAnotherOS(parent, parentLabel(p.schema, parent), name, lineNum); err != nil {
 		return err
 	}
-	return fmt.Errorf("line %d: unknown field: %s%s", lineNum, name, p.unknownFieldHint(name, parent))
+	return lineErrorf(lineNum, "unknown field: %s%s", name, p.unknownFieldHint(name, parent, rest))
 }
 
 // parentLabel names a schema node in a refusal: "the top level" for the
@@ -927,19 +938,34 @@ func parentLabel(schema *Schema, parent Node) string {
 }
 
 // unknownFieldHint answers what the refusal of an unknown field adds after its
-// name. At the schema root (parent nil or the root container) the field is a
-// top-level keyword, so a root a compiled-out plugin owns names its build tag
-// (TopLevelKeywordHint); below it, the closest key or a retired keyword's
-// replacement (UnknownKeywordHint).
-func (p *SetParser) unknownFieldHint(name string, parent Node) string {
+// name: KeywordHint over the keywords the line holds before it, so a keyword a
+// compiled-out plugin owns there names its build tag, at the top level and
+// below it. When the line does not hold name where rest says
+// (keywordsBefore), the position is unknown and the hint is the closest key or
+// a retired keyword's replacement alone (UnknownKeywordHint): a guessed
+// position could name a tag for a plugin that does not own the keyword.
+func (p *SetParser) unknownFieldHint(name string, parent Node, rest []string) string {
 	known := schemaChildNames(p.schema, parent)
-	if parent == nil {
-		return TopLevelKeywordHint(name, known)
+	before, ok := p.keywordsBefore(name, rest)
+	if !ok {
+		return UnknownKeywordHint(name, known)
 	}
-	if root, ok := parent.(*ContainerNode); ok && root == p.schema.root {
-		return TopLevelKeywordHint(name, known)
+	return KeywordHint(before, name, known)
+}
+
+// keywordsBefore answers the tokens of the line being parsed that come before
+// name, when rest is what follows name on that line, and false when the line
+// does not hold name at that position. A list key among them makes the path
+// match no gated root, which is the answer for a keyword inside a list entry.
+func (p *SetParser) keywordsBefore(name string, rest []string) ([]string, bool) {
+	at := len(p.lineTokens) - len(rest) - 1
+	if at < 0 {
+		return nil, false
 	}
-	return UnknownKeywordHint(name, known)
+	if p.lineTokens[at] != name {
+		return nil, false
+	}
+	return p.lineTokens[:at], true
 }
 
 // schemaChildNames lists the keys valid under parent (the schema root when

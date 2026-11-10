@@ -136,6 +136,13 @@ config is what breaks it. This holds for ze's own plugins as it holds for an
 operator's program: a config that loads `bgp-rib` and attaches it to no peer
 stores no route.
 
+A refused send answers the process with three lines: which process may not send
+which message type to what it addressed, that the attach block grants the
+right (followed by the `send refused: no peer this selector names attaches this
+process ...` detail a plugin matches on), and `fix: add 'attach process <name>
+{ send [ <type> ]; }' to each peer the process sends to`.
+<!-- source: internal/component/bgp/reactor/send_permission.go -- sendNotPermitted -->
+
 ### Configuration Syntax
 
 ```
@@ -896,6 +903,7 @@ type PathAttributes struct {
 
 `RouteNextHop` is resolved at **peer level** in `internal/component/bgp/reactor/peer.go` via `resolveNextHop()`:
 <!-- source: internal/component/bgp/reactor/peer.go -- resolveNextHop, ErrNextHopUnset, ErrNextHopSelfNoLocal, ErrNextHopIncompatible -->
+<!-- source: internal/component/bgp/reactor/peer_nexthop_refusal.go -- nextHopIncompatible, nextHopRefusal -->
 
 | Policy | Behavior |
 |--------|----------|
@@ -906,7 +914,7 @@ type PathAttributes struct {
 **Errors:**
 - `ErrNextHopUnset` - zero value `RouteNextHop`
 - `ErrNextHopSelfNoLocal` - Self policy but `LocalAddress` not configured
-- `ErrNextHopIncompatible` - Self address incompatible with NLRI family (no Extended NH)
+- `ErrNextHopIncompatible` - the self or explicit next hop is incompatible with the NLRI family (no Extended NH). The returned error is an operator error with `ErrNextHopIncompatible` as its cause (`errors.Is` matches): it names the next hop, the route family, the session's address family and the peer, and the fix line offers a next hop of the route's family (IPv4-mapped, `::ffff:<IPv4>`, for an IPv6 route on an IPv4 session), `nhop set self` on a session of the route's family, or `set bgp peer <name> session capability nexthop <family> nhafi <afi>`
 
 **Extended Next Hop (RFC 5549/8950):** Cross-family next-hop (e.g., IPv6 next-hop for IPv4 NLRI) allowed when `peer.sendCtx.ExtendedNextHopFor(family) != 0`.
 

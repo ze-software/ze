@@ -455,15 +455,18 @@ func yangToNodeOfAnyOS(entry *gyang.Entry, path string) Node {
 	case "multi-leaf":
 		node := multiLeaf(yangTypeToValueType(entry.Type))
 		node.Patterns = patternsFromType(entry.Type)
+		node.Constraint = yang.LeafConstraintMessages(entry, entry.Type)
 		return node
 	case "bracket":
 		node := bracketLeafList(yangTypeToValueType(entry.Type))
 		node.Patterns = patternsFromType(entry.Type)
+		node.Constraint = yang.LeafConstraintMessages(entry, entry.Type)
 		node.Ordered = getOrderedExtension(entry)
 		return node
 	case "value-or-array":
 		node := valueOrArray(yangTypeToValueType(entry.Type))
 		node.Patterns = patternsFromType(entry.Type)
+		node.Constraint = yang.LeafConstraintMessages(entry, entry.Type)
 		node.Ordered = getOrderedExtension(entry)
 		return node
 	}
@@ -479,11 +482,13 @@ func yangToNodeOfAnyOS(entry *gyang.Entry, path string) Node {
 			if entry.Type != nil && entry.Type.Kind == gyang.Yenum && entry.Type.Enum != nil {
 				node := valueOrArrayEnum(entry.Type.Enum.Names())
 				node.Patterns = patternsFromType(entry.Type)
+				node.Constraint = yang.LeafConstraintMessages(entry, entry.Type)
 				node.Ordered = getOrderedExtension(entry)
 				return node
 			}
 			node := valueOrArray(yangTypeToValueType(entry.Type))
 			node.Patterns = patternsFromType(entry.Type)
+			node.Constraint = yang.LeafConstraintMessages(entry, entry.Type)
 			node.Ordered = getOrderedExtension(entry)
 			return node
 		}
@@ -791,7 +796,8 @@ func yangToLeaf(entry *gyang.Entry, path string) *LeafNode {
 	node.Ranges = numericRangesFromType(entry.Type, path)
 	node.Patterns = patternsFromType(entry.Type)
 	node.Lengths = lengthRangesFromType(entry.Type)
-	node.Union = unionMembersFromType(entry.Type)
+	node.Constraint = yang.LeafConstraintMessages(entry, entry.Type)
+	node.Union = unionMembersFromType(entry, entry.Type)
 	for _, ext := range entry.Exts {
 		if ext.Keyword == "ze:required" || strings.HasSuffix(ext.Keyword, ":required") {
 			recordSchemaBuildError(fmt.Errorf("at %s: ze:required on a leaf is invalid (use mandatory true instead)", path))
@@ -970,7 +976,10 @@ func patternsFromType(typ *gyang.YangType) []string {
 // RFC 7950 Section 9.12: "A member type can be of any built-in or derived
 // type." A member that is itself a union recurses; the depth is bounded by the
 // type nesting the loaded YANG modules declare.
-func unionMembersFromType(typ *gyang.YangType) []UnionMember {
+//
+// leaf is the leaf whose type statements declare each member's error-message
+// strings (yang.LeafConstraintMessages).
+func unionMembersFromType(leaf *gyang.Entry, typ *gyang.YangType) []UnionMember {
 	if typ == nil {
 		return nil
 	}
@@ -982,15 +991,16 @@ func unionMembersFromType(typ *gyang.YangType) []UnionMember {
 	}
 	members := make([]UnionMember, 0, len(typ.Type))
 	for _, member := range typ.Type {
-		leaf := Leaf(yangTypeToValueType(member))
-		leaf.Ranges = numericRangesFromType(member, "")
-		leaf.Patterns = patternsFromType(member)
-		leaf.Lengths = lengthRangesFromType(member)
+		node := Leaf(yangTypeToValueType(member))
+		node.Ranges = numericRangesFromType(member, "")
+		node.Patterns = patternsFromType(member)
+		node.Lengths = lengthRangesFromType(member)
+		node.Constraint = yang.LeafConstraintMessages(leaf, member)
 		if member.Kind == gyang.Yenum && member.Enum != nil {
-			leaf.Enums = member.Enum.Names()
+			node.Enums = member.Enum.Names()
 		}
-		leaf.Union = unionMembersFromType(member)
-		members = append(members, UnionMember{TypeName: member.Name, Leaf: leaf})
+		node.Union = unionMembersFromType(leaf, member)
+		members = append(members, UnionMember{TypeName: member.Name, Leaf: node})
 	}
 	return members
 }

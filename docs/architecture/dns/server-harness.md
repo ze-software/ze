@@ -210,7 +210,8 @@ and the orchestrator restarts the plugin, which binds leniently at Stage 2.
 While broken, a later apply of the running config is installed rather than
 skipped as unchanged, and the harness's signature is cleared so that apply
 binds. The error reaches the operator only after the rollback ran, so its
-text claims neither outcome: the installer appends `sdk.RunningConfigLostNext`
+text claims neither outcome: the installer answers the operator error
+`sdk.RunningConfigLost` builds, with the listener first step
 (the rollback binds again or restarts the plugin; free the port, then, if a
 listener stays down, stop the whole daemon and start it again by the routes of
 `sdk.RestartSteps()`, which restarts every protocol and drops every session;
@@ -226,7 +227,7 @@ names its policy, tests included: no entry point binds leniently by default.
 
 <!-- source: internal/core/dnsserver/secure.go -- BindPolicy, reconcile, restorePrevious, bindListeners, ApplyWithSecure, keptSecure, buildSecureTLS -->
 <!-- source: internal/plugins/as112/config_tx.go -- as112Installer.install, refuse, configureAtBoot -->
-<!-- source: pkg/plugin/sdk/config_tx.go -- ErrRunningConfigLost, RunningConfigLostNext, ConfigTx.Apply, ConfigTx.Rollback -->
+<!-- source: pkg/plugin/sdk/config_tx.go -- ErrRunningConfigLost, RunningConfigLost, ConfigTx.Apply, ConfigTx.Rollback -->
 <!-- source: internal/plugins/geodns/config_tx.go -- geodnsInstaller.install, configureAtBoot -->
 
 ## Freebind

@@ -23,9 +23,10 @@ of Ze brings the raw kernel counts back.";
     ze:help "Reset RX/TX counters on one or all interfaces.";
   }
   rpc dns-cache {
-    description "This RPC empties every cached record and it takes no argument.
-The hit and miss counters keep their values. Two sibling commands act more
-narrowly. 'clear dns cache stats' zeroes the counters and keeps the records,
+    description "clear dns cache all empties every cached record and resets all
+four counters (hits, misses, evictions and expired). It takes no argument. The
+bare clear dns cache is refused, because it names no target. Two sibling
+commands act more narrowly. 'clear dns cache stats' zeroes the counters and keeps the records,
 and 'clear dns cache record <name>' deletes one name.";
     ze:help "Flush DNS cache entries or reset cache counters.";
   }

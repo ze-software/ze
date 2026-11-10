@@ -4,18 +4,14 @@
 
 package config
 
-import (
-	"fmt"
-
-	"github.com/ze-software/ze/internal/core/textbuf"
-)
+import "github.com/ze-software/ze/internal/core/textbuf"
 
 // setFreeformValue stores a freeform key-value pair.
 // Format: set <path> <freeform-name> <key> [value]
 // Stored as container[name] -> Tree with key=value (or key="true" for flags).
 func setFreeformValue(tree *Tree, name string, tokens []string, lineNum int) error {
 	if len(tokens) < 1 {
-		return fmt.Errorf("line %d: freeform %s requires at least a key", lineNum, name)
+		return lineErrorf(lineNum, "freeform %s requires at least a key", name)
 	}
 	child := tree.GetOrCreateContainer(name)
 	key := tokens[0]
@@ -107,11 +103,11 @@ func ensureFlexListEntry(tree *Tree, name, key string) *Tree {
 // walkAndSetListEntry creates or finds a list entry and recurses.
 func (p *SetParser) walkAndSetListEntry(tree *Tree, list *ListNode, name string, tokens []string, lineNum int) error {
 	if err := ValidateListKey(list, tokens[0]); err != nil {
-		return fmt.Errorf("line %d: invalid key for %s: %w", lineNum, name, err)
+		return lineErrorf(lineNum, "invalid key for %s: %w", name, err)
 	}
 	addr, err := ParseListAddress(name, list, tokens)
 	if err != nil {
-		return fmt.Errorf("line %d: %w", lineNum, err)
+		return newLineError(lineNum, err)
 	}
 	entry := EnsureListEntry(tree, name, addr)
 	return p.walkAndSet(entry, list, tokens[addr.Tokens:], lineNum)

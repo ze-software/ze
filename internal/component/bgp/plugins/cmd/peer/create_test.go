@@ -143,11 +143,11 @@ func TestCreateBgpPeerTakesTheAddressAndTheASAlone(t *testing.T) {
 // PREVENTS: a partial create, which is worse than no create: the session is up
 // and it is the wrong one.
 //
-// It does NOT assert the message. Five of these eight are answered by the
-// dispatcher's terminal-selector guard rather than by the handler, and that
-// guard says "requires a selector" over a line that gave one. The row is in
-// plan/journal/earlier-guard-hides-the-better-error.md, and the message this
-// command owns is asserted in the test below.
+// It does NOT assert the message. Several of these eight are refused by the
+// dispatcher's argument validation before the handler runs: the message the
+// dispatcher speaks for them is asserted in
+// TestCreateBgpPeerDispatchNamesTheFaultNotTheSelector, and the message this
+// command owns in TestCreateBgpPeerNamesTheKeywordItRefuses.
 func TestCreateBgpPeerCreatesNoPeerFromARefusedLine(t *testing.T) {
 	for _, command := range []string{
 		"create bgp peer 192.0.2.7 asn 65002 md5 secret",
@@ -212,6 +212,32 @@ func TestCreateBgpPeerNamesTheKeywordItRefuses(t *testing.T) {
 			assert.Empty(t, reactor.appliedConfigs, "a refused line creates no peer")
 		})
 	}
+}
+
+// TestCreateBgpPeerDispatchNamesTheFaultNotTheSelector holds the dispatcher's
+// half of the refusal, through the registered command.
+//
+// GOAL: a line that types the peer address and one other fault is told that
+// fault, not that the command "requires a selector".
+// METHOD: dispatch `create bgp peer <address> asn <asn> router-id`, a keyword
+// left with no value, and require the whole refusal.
+//
+// VALIDATES: AC-13 of spec-operator-errors-name-the-fix (journal
+// earlier-guard-hides-the-better-error, 2026-09-06 row), on the command the row
+// was found on.
+// PREVENTS: the selector guard answering over a line that gave a selector.
+func TestCreateBgpPeerDispatchNamesTheFaultNotTheSelector(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := newDispatchContext(reactor)
+
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "create bgp peer 192.0.2.7 asn 65002 router-id")
+	require.Error(t, err)
+	const want = "router-id requires a value: it is the last word, so nothing follows it to read as its value;" +
+		" write the value right after the keyword, as in 'router-id <router-id>'"
+	assert.Equal(t, want, err.Error())
+	require.NotNil(t, resp)
+	assert.Equal(t, want, resp.Error)
+	assert.Empty(t, reactor.appliedConfigs, "a refused line creates no peer")
 }
 
 // TestCreateBgpPeerKeywordsAreDeclaredInYANG pairs the two declarations of the

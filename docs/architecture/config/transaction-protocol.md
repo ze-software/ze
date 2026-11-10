@@ -217,8 +217,12 @@ exception is an apply that could not undo its partial work: it returns an
 error wrapping `sdk.ErrRunningConfigLost`, which opens the gate too, so the
 rollback reaches the handler. The handler repairs the state or answers an
 error, which the bridge acks `CodeBroken`, and the orchestrator restarts the
-plugin.
+plugin. OSPF's apply is such a handler: when its engines cannot be put back to
+the running config, its error is the operator error `sdk.RunningConfigLost`
+builds, whose first step sends the operator to `ze doctor` (or `ze init`) for
+the runtime state store an engine reads before it starts.
 <!-- source: pkg/plugin/sdk/config_tx_gate.go -- configTxGate -->
+<!-- source: internal/plugins/ospf/state.go -- runningEnginesLost, runningStateFix -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigApply, OnConfigRollback, configApplyCallback -->
 
 A plugin whose whole config is one parsed value takes the transaction from
@@ -240,15 +244,18 @@ again and fails when that install fails, and until an install succeeds apply
 skips the comparison, so a later apply of the running config installs it. A
 commit of the running config does not reach that apply: it has no diff, so the
 reload stops at "no changes" before any transaction. The repair is the
-rollback itself, or the restart that follows it. A lost-listener error says so
-by appending `sdk.RunningConfigLostNext`, which names what the engine does next
-and the operator's fix (free the port; for a listener a restarted plugin could
-not bind, stop the whole daemon and start it again by the routes of
-`sdk.RestartSteps()`, one per line, which restarts every protocol and drops
-every session), and claims neither rollback outcome, because the operator reads
-it only after the rollback ran. No command restarts one plugin, and
+rollback itself, or the restart that follows it. A lost-listener error says so:
+it is the operator error `sdk.RunningConfigLost` builds, whose why
+(`sdk.RunningConfigLostWhy`) names what the engine does next and whose fix
+names the operator's repair, one first step of the plugin's own
+(`sdk.RunningConfigLostListenerFix` for a listener) then the daemon restart
+(`sdk.RunningConfigLostRestart`). The operator frees the port and, for a
+listener a restarted plugin could not bind, stops the whole daemon and starts
+it again by the routes of `sdk.RestartSteps()`, one per line, which restarts
+every protocol and drops every session. The error claims neither rollback
+outcome, because the operator reads it only after the rollback ran. No command restarts one plugin, and
 `ze signal restart` is not a route: it leaves ze stopped.
-<!-- source: pkg/plugin/sdk/config_tx.go -- ConfigTx, RunningConfigLostNext -->
+<!-- source: pkg/plugin/sdk/config_tx.go -- ConfigTx, RunningConfigLost, RunningConfigLostWhy, RunningConfigLostListenerFix, RunningConfigLostRestart -->
 <!-- source: pkg/plugin/sdk/restart_text.go -- RestartSteps, restartRouteLines -->
 
 Only the engine emits `(config, rollback)`. A failing plugin emits

@@ -88,7 +88,7 @@ EOF_SCRIPT
 
 cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=40s
 
-expect=stderr:contains=reload error: reload: parse config:
+expect=stderr:contains=reload error: reload: 
 expect=stderr:contains=system dns-source names 2 sources (received, configured) and no mode
 expect=stderr:contains=set system dns-source mode first-usable
 expect=stderr:contains=DNS-SOURCE-RELOAD: refused reload processed, daemon still answering

@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/ze-software/ze/internal/component/config/infra"
 
@@ -242,14 +241,17 @@ func runValidation(input, path string) *validationResult {
 		panic("BUG: unknown detected config format")
 	}
 	if err != nil {
-		line := extractLine(err.Error())
+		// The parser names the line once (config.LineError); the diagnostic
+		// holds it in its own field and every printer writes it back, so the
+		// message is the refusal with that line left out.
+		line, message := config.SplitLine(err)
 		// A node the schema carries only on another OS (ze:os) is a verdict
 		// about this host, not about the config, so it carries its own code.
 		code := "config-parse"
 		if _, ok := errors.AsType[*config.NodeOfAnotherOSError](err); ok {
 			code = diagnostic.CodeConfigNodeOtherOS
 		}
-		result.addErrorLine(code, withoutLinePrefix(err.Error(), line), line)
+		result.addErrorLine(code, message, line)
 		return result
 	}
 
@@ -736,30 +738,4 @@ func diagsBySeverity(diags []diagnostic.Diagnostic, sev diagnostic.Severity) []d
 		}
 	}
 	return out
-}
-
-// withoutLinePrefix drops the leading "line N: " the parser writes, because
-// the diagnostic carries the line in its own field and every printer adds it
-// back: kept, the operator read "line 18: line 18: ...".
-func withoutLinePrefix(errMsg string, line int) string {
-	if line <= 0 {
-		return errMsg
-	}
-	var b textbuf.Buffer
-	prefix := b.Str("line ").Int(int64(line)).Str(": ").String()
-	return strings.TrimPrefix(errMsg, prefix)
-}
-
-func extractLine(errMsg string) int {
-	// Extract line number from "line N:" format.
-	idx := strings.Index(errMsg, "line ")
-	if idx < 0 {
-		return 0
-	}
-	var line int
-	// Best effort extraction - if it fails, return 0.
-	if n, err := fmt.Sscanf(errMsg[idx:], "line %d", &line); n != 1 || err != nil {
-		return 0
-	}
-	return line
 }

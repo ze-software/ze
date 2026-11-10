@@ -1,0 +1,31 @@
+# Test: a nested block a compiled-out plugin owns names the build tag and both fixes
+# accept-only: the registered native fixture enforces this scenario's behavioral contract
+#
+# VALIDATES: spec-operator-errors-name-the-fix AC-10 (unknown field). ze-stripped
+# is built with "ze_core ze_ssh", so fib is present and fib-vpp (ze_vpp) is not.
+# `fib { vpp { } }` is refused with the plugin line and a fix line naming
+# ze_vpp or removing the block; `fib { vppqx { } }` keeps the typo hint.
+# The unknown-backend half of AC-10 (`backend vpp`) is refused at validate by
+# its ConfigNeed (test/ui/ze-stripped-optional-provider.ci); LoadBackend's own
+# refusal is TestLoadBackendCompiledOutNamesTag.
+#
+# PREVENTS: `unknown field in fib: vpp` with no tag, so the operator cannot
+# tell a typo from a missing feature.
+
+tmpfs=fib-vpp.conf:terminator=EOF_FIB_VPP
+fib {
+    vpp {
+    }
+}
+EOF_FIB_VPP
+
+tmpfs=fib-typo.conf:terminator=EOF_FIB_TYPO
+fib {
+    vppqx {
+    }
+}
+EOF_FIB_TYPO
+
+cmd=foreground:seq=1:exec=le test fixture ui/config-compiled-out-feature-names-tag:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=compiled-out nested block names ze_vpp; typo names no tag

@@ -920,3 +920,52 @@ func TestSyncWorkerConvergesWhenServerAppears(t *testing.T) {
 	assert.True(t, w.synced.Load(), "worker converged to synced without a restart")
 	assert.GreaterOrEqual(t, clockSet.Load(), int32(1), "clock should be set on sync")
 }
+
+// TestNTPUnsynchronisedNotKissOfDeath proves last-error names an
+// unsynchronized server as unsynchronized, not as a kiss of death.
+//
+// VALIDATES: spec-operator-errors-name-the-fix AC-16. Method: doSync is driven
+// through the ntpQueryFn seam with the reply an unsynchronized chrony serves
+// (leap indicator alarm, stratum 0, a reference id that is no kiss code), a
+// leap-alarm reply at stratum 2, and a real kiss-o'-death (stratum 0, kiss code
+// RATE); the server's last-error is read back.
+// PREVENTS: beevik/ntp Validate, which tests stratum 0 first, telling the
+// operator a server refused them when it only has no time to give.
+func TestNTPUnsynchronisedNotKissOfDeath(t *testing.T) {
+	cases := []struct {
+		name      string
+		stratum   uint8
+		kissCode  string
+		lastError string
+	}{
+		{"unsynchronized stratum 0", 0, "", lastErrorUnsynchronized},
+		{"unsynchronized stratum 2", 2, "", lastErrorUnsynchronized},
+		{"real kiss of death", 0, "RATE", ntp.ErrKissOfDeath.Error()},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			restoreNTPSeams(t)
+			setClockFn = func(time.Time) error {
+				t.Error("clock set from a rejected reply")
+				return nil
+			}
+			ntpQueryFn = func(string) (*ntp.Response, error) {
+				resp := validNTPResponse(5 * time.Millisecond)
+				resp.Leap = ntp.LeapNotInSync
+				resp.Stratum = tc.stratum
+				resp.KissCode = tc.kissCode
+				return resp, nil
+			}
+
+			w := newSyncWorker(ntpConfig{Enabled: true, Servers: []string{"srv"}}, nil)
+			assert.False(t, w.doSync(loggerPtr.Load()), "doSync synced from a rejected reply")
+
+			w.mu.Lock()
+			defer w.mu.Unlock()
+			ps, ok := w.peers["srv"]
+			require.True(t, ok, "doSync recorded no state for the server")
+			assert.Equal(t, tc.lastError, ps.LastError)
+			assert.Equal(t, uint8(0), ps.Reach, "a rejected reply must not count as reached")
+		})
+	}
+}

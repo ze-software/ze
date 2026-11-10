@@ -4,10 +4,13 @@
 package command
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
 	"unicode/utf8"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // maxArgLength is the most bytes a token may hold for a leaf whose model
@@ -67,11 +70,26 @@ func validateUint(arg string, def *ArgDef) error {
 			}
 		}
 		if len(def.ranges) == 1 {
-			return fmt.Errorf("value %d out of range %d..%d", v, def.ranges[0].Min, def.ranges[0].Max)
+			var refusal textbuf.Buffer
+			refusal.Str("value ").Uint(v).Str(" out of range ").Uint(def.ranges[0].Min).Str("..").Uint(def.ranges[0].Max)
+			return refusalWithMessage(refusal.String(), def.rangeMessage)
 		}
-		return fmt.Errorf("value %d out of allowed ranges", v)
+		var refusal textbuf.Buffer
+		refusal.Str("value ").Uint(v).Str(" out of allowed ranges ").Str(joinRanges(def.ranges))
+		return refusalWithMessage(refusal.String(), def.rangeMessage)
 	}
 	return nil
+}
+
+// refusalWithMessage is the refusal of a value its YANG restriction refused:
+// the generic refusal, then the error-message the restriction declares.
+//
+// RFC 7950 Section 7.5.4.1: "If the constraint evaluates to "false", the string is passed as <error-message> in the <rpc-error> in NETCONF."
+func refusalWithMessage(refusal, message string) error {
+	if message == "" {
+		return errors.New(refusal)
+	}
+	return errors.New(refusal + ": " + message)
 }
 
 // validateString judges a string argument against its YANG length and every
@@ -82,16 +100,25 @@ func validateString(arg string, def *ArgDef) error {
 		// of Unicode characters in the string."
 		length := uint64(utf8.RuneCountInString(arg))
 		if !inRanges(length, def.lengths) {
+			if def.lengthMessage != "" {
+				var refusal textbuf.Buffer
+				refusal.Str("invalid value ").Str(strconv.Quote(echoValue(arg))).Str(", length ").Uint(length).Str(" out of range ").Str(joinRanges(def.lengths))
+				return refusalWithMessage(refusal.String(), def.lengthMessage)
+			}
 			return fmt.Errorf("invalid value %q, length %d out of range %s: give %s a value of %s characters", echoValue(arg), length, joinRanges(def.lengths), def.name, joinRanges(def.lengths))
 		}
 	}
 	// RFC 7950 Section 9.4.5: "If the type has multiple "pattern" statements,
 	// the expressions are ANDed together, i.e., all such expressions have to
 	// match."
-	for _, pattern := range def.patterns {
-		if !pattern.MatchString(arg) {
-			return fmt.Errorf("invalid value %q, does not match expected pattern", arg)
+	for i, pattern := range def.patterns {
+		if pattern.MatchString(arg) {
+			continue
 		}
+		if i < len(def.patternMessages) && def.patternMessages[i] != "" {
+			return refusalWithMessage("invalid value "+strconv.Quote(arg), def.patternMessages[i])
+		}
+		return fmt.Errorf("invalid value %q, does not match expected pattern", arg)
 	}
 	return nil
 }

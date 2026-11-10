@@ -32,9 +32,16 @@ module ze-isis-conf {
         // RFC 1195: the System ID is a fixed 6-octet field. The pattern enforces
         // the canonical dotted-hex form xxxx.xxxx.xxxx; when omitted it is derived
         // from the NET.
+        // RFC 7950 Section 7.5.4.1: "If the constraint evaluates to "false", the
+        // string is passed as <error-message> in the <rpc-error> in NETCONF." The
+        // pattern is the one guard on the form, so it carries the operator's
+        // message. The ze:validate name below is completion-only and refuses
+        // nothing.
         leaf system-id {
             type string {
-                pattern "[0-9a-fA-F]{4}\\.[0-9a-fA-F]{4}\\.[0-9a-fA-F]{4}";
+                pattern "[0-9a-fA-F]{4}\\.[0-9a-fA-F]{4}\\.[0-9a-fA-F]{4}" {
+                    error-message "An IS-IS system-id is 6 octets in hex, written as three groups of 4 hex digits, such as 0000.0000.0001. Write it in that form, or delete system-id so that Ze takes it from net.";
+                }
             }
             ze:validate "isis-system-id";
             description "When this leaf is not set, Ze takes the System ID from the 6 octets before the NSEL of the first

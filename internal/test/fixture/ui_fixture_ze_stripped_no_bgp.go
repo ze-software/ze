@@ -43,7 +43,7 @@ func runZEStrippedNoBGP(ctx context.Context) error {
 	}
 
 	// 3. The refusal names the build tag that carries the root, read from the
-	// generated gated-plugin table (config.TopLevelKeywordHint), so the operator
+	// generated gated-plugin table (config.KeywordHint), so the operator
 	// learns why the keyword is unknown and how to get it. A plain "unknown
 	// top-level keyword" with no tag fails this step.
 	if !strings.Contains(bad.output, "build tag ze_bgp") {

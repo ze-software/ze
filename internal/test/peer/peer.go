@@ -962,7 +962,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn, senderAS uint3
 
 		if !matched {
 			expected, received := p.checker.lastMismatch()
-			diff := decode.Diff(expected, received)
+			diff := mismatchDiff(expected, received)
 			// Every marker accepted in silence that a remaining expectation
 			// matched is repeated here. When THIS mismatch is the consequence of
 			// one of them, the diff alone names two innocent frames.

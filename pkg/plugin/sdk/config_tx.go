@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
+
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // ErrConfigApplyUnverified refuses a config-apply that no accepted
@@ -27,22 +29,43 @@ var ErrConfigApplyUnverified = errors.New("config apply requires a verified cand
 // skipping it as unchanged.
 var ErrRunningConfigLost = errors.New("the running config could not be put back, so it is not fully running")
 
-// RunningConfigLostNext is what an error that wraps ErrRunningConfigLost for
-// a lost listener tells the operator after the facts: what the engine does
-// next, and the operator's own fix. The error reaches the operator only after
-// the rollback ran, and the engine appends the rollback's outcome to it
-// (transaction.TxCoordinator), so this text claims neither outcome. A commit
-// of the running config is not the fix: it has no diff, so no apply reaches
-// the plugin. No command restarts one plugin, so the last repair is a daemon
-// restart, by the routes RestartSteps names; `ze signal restart` is not one,
-// because it leaves ze stopped (restart_text.go).
-var RunningConfigLostNext = "ze rolls the commit back: the rollback binds the running config again, " +
-	"and restarts the plugin when that fails too; the Rollback line of the reload answer says which happened.\n" +
-	"Fix: stop the program that holds the address and port named above, or give the interface its address back.\n" +
-	"If a Rollback line says ze restarted the plugin, its listeners on a port that was still in use stay down. " +
+// RunningConfigLostWhy is why an error that wraps ErrRunningConfigLost
+// matters, in the operator's terms: what the engine does next. The error
+// reaches the operator only after the rollback ran, and the engine appends the
+// rollback's outcome to it (transaction.TxCoordinator), so this text claims
+// neither outcome.
+const RunningConfigLostWhy = "ze rolls the commit back: the rollback binds the running config again, " +
+	"and restarts the plugin when that fails too; the Rollback line of the reload answer says which happened"
+
+// RunningConfigLostListenerFix is the operator's own first step when the
+// running config's listener could not be bound again: the firstStep a plugin
+// hands RunningConfigLost for a lost listener. A commit of the running
+// config is not the fix: it has no diff, so no apply reaches the plugin.
+const RunningConfigLostListenerFix = "stop the program that holds the address and port named above, " +
+	"or give the interface its address back"
+
+// RunningConfigLostRestart is the last repair. No command restarts one
+// plugin, so it is a daemon restart, by the routes RestartSteps names; `ze
+// signal restart` is not one, because it leaves ze stopped (restart_text.go).
+var RunningConfigLostRestart = "If a Rollback line says ze restarted the plugin, its listeners on a port that was still in use stay down. " +
 	"No command restarts one plugin: once the port is free, stop the whole ze daemon and start it again. " +
 	"This restarts every protocol and drops every session:\n" +
 	restartRoutes
+
+// RunningConfigLost is the operator error of an install that failed and could
+// not put the running config back: problem says what the plugin could not do,
+// cause is the install's error, and firstStep is the operator's own first
+// fix ("" when only the daemon restart repairs it). The why is
+// RunningConfigLostWhy and the fix ends with the daemon restart. errors.Is
+// finds both cause and ErrRunningConfigLost, so the transaction treats the
+// running config as not installed.
+func RunningConfigLost(cause error, problem, firstStep string) error {
+	fix := RunningConfigLostRestart
+	if firstStep != "" {
+		fix = firstStep + ".\n" + RunningConfigLostRestart
+	}
+	return opererr.Wrap(fmt.Errorf("%w (%w)", cause, ErrRunningConfigLost), problem, RunningConfigLostWhy, fix)
+}
 
 // ConfigParser reads a plugin's config from the sections of one delivery. It
 // reports present false when the sections carry nothing the plugin reads (its

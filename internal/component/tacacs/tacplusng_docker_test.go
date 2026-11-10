@@ -187,9 +187,11 @@ func TestTacPlusNGInterop(t *testing.T) {
 	// discarded and an ERROR signaled"), and Section 4.4 has the client behave
 	// as if the server could not be connected to. So no login succeeds, and
 	// the answer is an unreachable server rather than a rejection: the chain
-	// goes on to the next backend. The client's log names the bad secret,
-	// which is how the test knows the server answered and was not merely
-	// absent.
+	// goes on to the next backend. The error names the server, says its reply
+	// does not decode with the configured key, and gives the config line that
+	// sets the key, without echoing either secret (spec AC-6). The client's
+	// log names the bad secret too, which is how the test knows the server
+	// answered and was not merely absent.
 	t.Run("shared secret mismatch", func(t *testing.T) {
 		var clientLog bytes.Buffer
 		logger := slog.New(slog.NewTextHandler(&clientLog, nil))
@@ -198,7 +200,13 @@ func TestTacPlusNGInterop(t *testing.T) {
 			Username: tacPlusNGUser, Password: tacPlusNGPassword,
 			RemoteAddr: tacPlusNGRemote, Service: "ssh",
 		})
-		require.EqualError(t, err, "tacacs: all TACACS+ servers unreachable for authentication")
+		require.EqualError(t, err, "tacacs: no TACACS+ server answered the authentication request\n"+
+			"Ze tried each configured server in order, and each one failed: "+
+			address.String()+" sent a reply that does not decode with the configured key\n"+
+			"fix: set system authentication tacacs server "+address.Addr().String()+
+			" key <the server's shared secret>")
+		assert.NotContains(t, err.Error(), "not-the-servers-shared-secret-0123")
+		assert.NotContains(t, err.Error(), tacPlusNGKey)
 		assert.Equal(t, aaa.AuthResult{}, result)
 		assert.Contains(t, clientLog.String(), ErrBadSecret.Error())
 	})

@@ -35,7 +35,7 @@
 #   test/reload/signal-quit.ci, which pairs action=sigterm with exit code 0.
 #
 # The refusal route carries no new machinery. LoadConfig returns an error,
-# runReload (cmd/ze/hub/main_reload.go) turns it into "reload: parse config",
+# runReload (cmd/ze/hub/main_reload.go) prefixes it with "reload: ",
 # clears the staged candidate, and returns before ReloadConfig, the provider
 # refresh, or engine.Reload run. handleSIGHUPReload prints it and loops.
 
@@ -150,7 +150,7 @@ cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s
 
 # The daemon refused the reload ...
-expect=stderr:contains=reload: parse config: config validation failed
+expect=stderr:contains=reload error: reload: config validation failed
 expect=stderr:contains=is not a registered internal plugin
 # ... and was still there afterwards to take the SIGTERM and shut down cleanly.
 # runYANGConfig returns 0 only from the signal loop's shutdown path

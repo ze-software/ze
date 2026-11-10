@@ -56,10 +56,23 @@ which is what makes `delete bgp peer 127.0.0.1` work, and
 `create bgp peer 127.0.0.1 asn 65001` with it: the keyword-value pairs are
 consumed first, so the address is the one token left over.
 
-A SECOND fault in the tail leaves more than one spare token, so the selector is
-never bound and the answer says the command "requires a selector" over a line
-that gave one. The row is in
-`plan/journal/earlier-guard-hides-the-better-error.md`.
+A SECOND fault in the tail (a keyword with no value, a value its leaf refuses,
+a word no leaf takes) leaves the selector unbound, and the answer names that
+fault: `create bgp peer 192.0.2.7 asn 65002 router-id` says `router-id requires
+a value`. The selector guard speaks only when the selector is what is missing.
+A line with several faults is refused once, with each fault on a line of its
+own and the fix last, so fixing the first fault does not lead to a second
+refusal for the next one:
+
+```
+this command has 2 faults, so Ze did not run it
+Ze runs a command only when every word of it is valid, and each line below is one fault:
+- invalid value "x", expected unsigned integer
+- router-id requires a value: it is the last word, so nothing follows it to read as its value; write the value right after the keyword, as in 'router-id <router-id>'
+fix: correct each fault listed above, then type the command again
+```
+<!-- source: internal/component/plugin/server/command.go -- Dispatch, argFaultOutsideSelector -->
+<!-- source: internal/component/command/argfaults.go -- ArgumentFaults, newArgumentFaults -->
 
 A value that sits BETWEEN two keywords reaches the leaf the model anchored to
 the first of them. A leaf declared on a grouping container carries that
@@ -92,7 +105,17 @@ twenty paths. A plugin process declares the other eleven in its startup
 message: six under `show bgp rpki`, two under `show bgp rs`, two under
 `show bgp adj-rib-in`, and `show bgp healthcheck`. An undeclared command still
 refuses what it cannot support, from the answer it has in hand, after it runs.
+No operator selects one list out of an answer that holds several, so that
+refusal names the route the CLI does offer: a row operator placed after
+`| text` acts on the rendered lines.
+
+```
+match needs rows, and this answer has none: it holds several lists (edges, nodes)
+no pipe operator selects one of these lists, but after '| text' match acts on the rendered lines instead
+fix: | text | match peer/upstream
+```
 <!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
+<!-- source: internal/component/command/pipe.go -- rowOperatorRefusal -->
 <!-- source: internal/component/command/answer_shape.go -- RegisterShape, RegisterAddressFields, RegisterPluginShapes -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerShapes -->
 <!-- source: internal/component/plugin/server/startup.go -- registerPluginShapes -->

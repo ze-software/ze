@@ -7,8 +7,8 @@
 # VALIDATES: each old spelling is refused by `ze config validate`, and the
 #            refusal names the leaf, the words it takes, and the exact line
 #            that replaces it (leafValueFix, internal/component/config/parser.go).
-#            The parser's "line N:" is printed once (withoutLinePrefix,
-#            internal/component/config/cli/cmd_validate.go).
+#            The parser's "line N:" is printed once (config.LineError,
+#            internal/component/config/line_error.go).
 # PREVENTS: an old spelling accepted again, or refused with a message that
 #           leaves the operator to guess the new one.
 #

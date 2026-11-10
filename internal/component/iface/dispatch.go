@@ -9,13 +9,22 @@ import (
 	"fmt"
 	"net/netip"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/rtproto"
 )
 
 // ErrNoBackendLoaded is the answer of every by-name read when no interface
 // backend is active. A caller that serves configured state in place of live
 // state MUST do so only for this error, never for a failed read.
-var ErrNoBackendLoaded = errors.New("iface: no backend loaded")
+//
+// It is the one declaration of this problem, its cause and its fix: a check
+// that reports the same problem (a `ze doctor` check) reads Why and Fix from
+// it rather than writing its own text.
+var ErrNoBackendLoaded = opererr.New(
+	"iface: no backend loaded",
+	"Ze loads an interface backend only when the config has an interface section, so it cannot read or change an interface",
+	"set interface backend netlink",
+)
 
 // backendOrErr returns the active backend or an error if none is loaded.
 func backendOrErr() (Backend, error) {

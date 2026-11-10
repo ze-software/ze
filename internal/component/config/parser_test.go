@@ -1119,7 +1119,7 @@ func TestParserSensitiveLeafStillDecodesSecret(t *testing.T) {
 // says ze_bgp carries each; `bgpp` is owned by nothing.
 func TestCompiledOutRootNamesItsBuildTag(t *testing.T) {
 	for _, root := range []string{"bgp", "mrt"} {
-		got := TopLevelKeywordHint(root, []string{"system"})
+		got := KeywordHint(nil, root, []string{"system"})
 		if !strings.Contains(got, root+" is configured by a plugin this build of ze was compiled without") {
 			t.Errorf("%s hint does not say why:\n%s", root, got)
 		}
@@ -1127,13 +1127,13 @@ func TestCompiledOutRootNamesItsBuildTag(t *testing.T) {
 			t.Errorf("%s hint does not end with the fix naming ze_bgp:\n%s", root, got)
 		}
 	}
-	if got, want := TopLevelKeywordHint("systen", []string{"system"}), UnknownKeywordHint("systen", []string{"system"}); got != want {
+	if got, want := KeywordHint(nil, "systen", []string{"system"}), UnknownKeywordHint("systen", []string{"system"}); got != want {
 		t.Errorf("typo hint = %q, want the unknown-keyword hint %q", got, want)
 	}
 }
 
 // TestParseRefusesCompiledOutRootWithItsTag proves the brace parser's top-level
-// refusal carries TopLevelKeywordHint, through the loader's own parse
+// refusal carries KeywordHint, through the loader's own parse
 // (ParseTreeForValidation, the parse LoadConfig and `ze config validate` run).
 // Method: this package's test binary links no mrt module, so `mrt { }` is
 // unknown, exactly as in a build without ze_bgp.
@@ -1186,5 +1186,55 @@ func TestContainerGivenValueNamesReplacement(t *testing.T) {
 		value, ok := tree.GetContainer("add-path").GetContainer("limit").Get("receive")
 		require.True(t, ok, "%q lost receive", input)
 		assert.Equal(t, "10", value)
+	}
+}
+
+// TestParserStrayBraceNamesTheFix proves a '}' that closes no block is refused
+// in the operator's words, with its line, why, and the fix on its own line,
+// not as the lexer token name RBRACE. Method: one block opened and closed,
+// then one '}' more, through the brace parser every file and `ze exabgp
+// migrate` use (Parser.Parse, parseBody); the full text is compared, and
+// SplitLine must hand `ze config validate` the line apart from the message.
+func TestParserStrayBraceNamesTheFix(t *testing.T) {
+	schema := NewSchema()
+	schema.Define("system", Container())
+	_, err := NewParser(schema).Parse("system {\n}\n}\n")
+	if err == nil {
+		t.Fatal("a stray } parsed")
+	}
+	const message = "this '}' closes no section\n" +
+		"every '}' ends a block that a '{' before it opened, and no block is open at this point\n" +
+		"fix: delete this '}'"
+	if got, want := err.Error(), "line 3: "+message; got != want {
+		t.Errorf("refusal =\n%s\nwant\n%s", got, want)
+	}
+	if strings.Contains(err.Error(), "RBRACE") {
+		t.Errorf("refusal names the lexer token:\n%v", err)
+	}
+	line, got := SplitLine(err)
+	if line != 3 || got != message {
+		t.Errorf("SplitLine = %d, %q; want 3, %q", line, got, message)
+	}
+}
+
+// TestKeywordHintNamesNestedCompiledOutRoot proves a nested keyword that a
+// gated plugin's config root holds names its build tag and both fixes, and a
+// keyword inside a list entry or a typo does not. Method: `fib vpp` is the
+// root fib-vpp owns under ze_vpp in the generated table; `anomaly` holds only
+// gated roots below it; `fib vppp` and `fib peer x vpp` match no root.
+func TestKeywordHintNamesNestedCompiledOutRoot(t *testing.T) {
+	got := KeywordHint([]string{"fib"}, "vpp", []string{"kernel"})
+	want := "\n  vpp is configured by a plugin this build of ze was compiled without, so the keyword is unknown here\n" +
+		"  fix: rebuild ze with build tag ze_vpp added to its -tags list, or remove the vpp block from the config"
+	if got != want {
+		t.Errorf("fib vpp hint =\n%q\nwant\n%q", got, want)
+	}
+	if got := KeywordHint(nil, "anomaly", nil); !strings.Contains(got, "fix: rebuild ze with build tag ze_anomaly added") {
+		t.Errorf("anomaly hint does not name ze_anomaly:\n%s", got)
+	}
+	for _, parent := range [][]string{{"fib", "peer", "x"}, {"fibx"}} {
+		if got, want := KeywordHint(parent, "vpp", nil), UnknownKeywordHint("vpp", nil); got != want {
+			t.Errorf("KeywordHint(%v, vpp) = %q, want the unknown-keyword hint %q", parent, got, want)
+		}
 	}
 }

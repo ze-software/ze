@@ -198,8 +198,7 @@ func (a *reactorAPIAdapter) RelayStoredRoute(destination netip.Addr, routes []rp
 	permitted, refused := filterPermittedPeers(matchingPeers, origin)
 	a.r.mu.RUnlock()
 	if refused > 0 {
-		return fmt.Errorf("%w: destination %s, process %s, send type %s",
-			errSendNotPermitted, destination, origin.sender, origin.sendType)
+		return sendNotPermitted("destination "+destination.String(), origin)
 	}
 	matchingPeers = permitted
 

@@ -455,12 +455,14 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 		return errors.Join(err, acceptReload(err == nil))
 	}
 
+	// The loader names the stage that refused (parse config, a validation
+	// walk, a missing plugin), so the reload adds only that it was a reload.
 	newTree, parsedTree, loadErr := load()
 	if loadErr != nil {
 		if clearErr := clearCandidate(); clearErr != nil {
-			return fmt.Errorf("reload: parse config: %w (candidate cleanup failed: %w)", loadErr, clearErr)
+			return fmt.Errorf("reload: %w (candidate cleanup failed: %w)", loadErr, clearErr)
 		}
-		return fmt.Errorf("reload: parse config: %w", loadErr)
+		return fmt.Errorf("reload: %w", loadErr)
 	}
 	// The same kernel capability gate the daemon start applies (main.go,
 	// runYANGConfig). It runs BEFORE ReloadConfig, before the provider refresh

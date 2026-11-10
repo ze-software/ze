@@ -1462,6 +1462,16 @@ order is. A message whose content matches only a non-front needle consumes
 nothing and is reported as a mismatch.
 <!-- source: internal/test/peer/checker.go -- parseExpectRule, consumeMatches, consumeOrdered -->
 
+A received message that meets no expectation fails the test with `message
+mismatch`, reported against the first expectation still owed. A `hex=`
+expectation is a whole message, so both messages are decoded and their
+attributes compared. Every other form holds part of a message, so the report
+names the line's key and its needle, decodes the message that arrived, and ends
+with `Missing: the received message does not match contains=<hex>, so the
+expected message has not arrived`. A needle is never decoded as a message.
+<!-- source: internal/test/peer/checker.go -- mismatchDiff -->
+<!-- source: internal/test/decode/decode.go -- Diff, DiffPart -->
+
 `announced=` matches byte-aligned bytes only in the legacy NLRI or an
 MP_REACH_NLRI's NLRI field. `withdrawn=` matches only in Withdrawn Routes or an
 MP_UNREACH_NLRI's NLRI field. Neither searches path attributes or next hops.

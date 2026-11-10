@@ -2,16 +2,45 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | cli |
 | Priority | P1 |
 | Release reason | Operators of the shipped binary meet refusals that name no fix, repeat a prefix, misname the cause, or are hidden behind a less specific guard; `ai/rules/user-facing-errors.md` binds every interface and the shipped ones fail it |
 | Depends | - |
-| Phase | - |
+| Phase | 7/7 |
 | Handoff | - |
-| Updated | 2026-10-23 |
+| Updated | 2026-11-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+Owner order, 2026-11-10: Thomas ordered this spec landed ("Land P1 and P2"),
+which approves the design and permits the claim above the WIP cap
+(`ZE_SPEC_WIP_CAP=25`) for this spec only. AC-4 is read under the current
+rule that no agent runs `./le verify`: it is proven by a unit test that the
+verify stage list carries both checks, and by `./le commit create` running
+them where the change-set arch checks run.
+
+Audit at claim, 2026-11-10 (main thread, sources re-read):
+- TACACS+ (corrected 2026-11-10 after the AC-6 phase read the source): two
+  bad-secret paths exist. A reply whose unencrypted flag disagrees with the
+  configured key (`errObfuscationMismatch`) is answered as a FAIL status, per
+  RFC 8907 Section 10.5.2: "process the response in the same way that a
+  TAC_PLUS_AUTHEN_STATUS_FAIL ... or TAC_PLUS_AUTHOR_STATUS_FAIL ... was
+  received." When both sides hold a key and the keys differ, the body fails
+  to decrypt to its length and `ErrBadSecret` (`internal/component/tacacs/reply.go`)
+  still reaches `sendToServers`' final error (`allServersFailed`). AC-6
+  therefore stands as written: the final error names each server's cause,
+  bad secret included
+- NTP: `last-error` "kiss of death received" comes from beevik/ntp
+  `Response.Validate` (`syncWorker.doSync`, `internal/plugins/ntp/ntp.go`); the
+  separate RFC 5905 kiss-code row (2026-10-26) is not owned here
+- `rpc dns-cache` description did NOT read correctly (corrected 2026-11-10, the
+  AC-15 phase): its counters sentence said the counters keep their values, while
+  the clear resets all four. It is fixed in this work, in
+  `internal/component/cmd/clear/yang/ze-cli-clear-api.yang`; the command YANG
+  `ze-resolve-cmd.yang` and `docs/guide/command-reference.md` were already right.
+  Editor help still said `discard` "Revert all changes"
+  (`internal/component/cli/model_render.go`), fixed in the same phase
 
 ## Task
 
@@ -121,9 +150,9 @@ registered operator handler carries the type.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Ze's YANG loader carries `error-message` from a `range` or `pattern` to the refusal text | goyang parses the statement; Ze's use unread | the specific message cannot move to the constraint; the validator must run first instead | a test loading a leaf with `range ... { error-message }` and reading the refusal | unvalidated |
-| A-2 | Registered handlers are found from registration call arguments by AST | `register.go` convention | the boundary set is incomplete; derive from the runtime registry in a test instead | compare the AST set against `registry` contents in a linked test | unvalidated |
-| A-3 | One-level callee resolution finds the double wraps that occur | both owned rows are one level apart | deeper chains escape; extend to the wrap chain | fixture of a two-level chain | unvalidated |
+| A-1 | Ze's YANG loader carries `error-message` from a `range` or `pattern` to the refusal text | goyang parses the statement; Ze's use unread | the specific message cannot move to the constraint; the validator must run first instead | a test loading a leaf with `range ... { error-message }` and reading the refusal | broken, then fixed (2026-11-10): goyang read `error-message` but the resolved type dropped it and no validator spoke it; `internal/component/config/yang/constraint_message.go` now carries it on the tree, parse and RPC-argument paths (`TestYANGRangeErrorMessageReachesRefusal`, `TestLeafListPatternRefusalSpeaksTheMessage`) |
+| A-2 | Registered handlers are found from registration call arguments by AST | `register.go` convention | the boundary set is incomplete; derive from the runtime registry in a test instead | compare the AST set against `registry` contents in a linked test | confirmed after one fix (2026-11-10): `TestASTBoundarySetCoversRuntimeRegistry` first missed 9 loop-built `ze-host:show-*` RPCs; the scan now records the literal wire prefix; 397 builtin RPCs and 32 config verifiers all read |
+| A-3 | One-level callee resolution finds the double wraps that occur | both owned rows are one level apart | deeper chains escape; extend to the wrap chain | fixture of a two-level chain | broken (2026-11-10): the two-level fixture is caught; neither owned row is (Known Limitations) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -315,6 +344,9 @@ registered operator handler carries the type.
 
 ## Known Limitations
 - Log lines with no refusal (level misclassification rows such as `normal-state-logged-at-error.md`) are not this mechanism and are not owned here
+- Owner decision pending (2026-11-10), A-3 broken: `./le arch error-wrap check` does not see either owned double-wrap row. The reload wrap's error arrives through a function value passed as a parameter about five calls deep (`diskConfigLoaders` builds `loadBoth`, handed through `handleSIGHUPReload`, `sighupReload`, `signalReload` to `runReloadContext` as `load`), which the syntax scan counts as untraced; the validate row repeats `line %d`, a verb, not a literal segment. Both rows are fixed at the producer and guarded by `test/reload/reload-parse-error-single-prefix.ci` and `test/parse/validate-parse-error-single-prefix.ci`
+- Owner decision pending (2026-11-10): `./le arch operator-error check` judges returned Go errors only; a handler that answers a refusal as `plugin.Response{Status: StatusError, Error: <text>}` with a nil error is not seen (394 `StatusError` sites)
+- Owner decision pending (2026-11-10): AC-13 names every argument fault on a line (`command.ArgumentFaults`, bounded at 16) but only the first missing mandatory leaf; naming every missing leaf changes `MissingArgumentError` and its single-leaf tests
 
 ## RFC Documentation (Scope: cli)
 
@@ -348,9 +380,11 @@ No protocol code changes. The `error-message` use cites RFC 7950 Section 7.5.4.1
 
 ## Rows found already fixed
 
-| Class file | Date | Surface (short) | Evidence (2026-10-23) |
-|------------|------|-----------------|-----------------------|
-| none | | | every owned producer read today still produces the recorded message |
+| Class file | Date | Surface (short) | Evidence |
+|------------|------|-----------------|----------|
+| `error-answered-with-another-errors-code.md` | 2026-10-10 | AC-17: Docker lab kernel probe answers `unknown` with kernel-config advice | 2026-11-10: commit 4dbbcacf7b gave `unknown` its own advice in `checkDockerKernel` (`internal/le/interoplab/kernelcheck.go`); proven by the existing `TestDockerKernelUnknownIsProbeFailure`; `docs/architecture/testing/interop.md` L979 documents it. The row is not in "Owned journal rows": AC-17 maps to it |
+
+On 2026-10-23 every owned producer read still produced the recorded message.
 
 ## Checklist
 

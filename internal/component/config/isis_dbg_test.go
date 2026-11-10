@@ -1,10 +1,13 @@
-// VALIDATES: the isis-net / isis-system-id custom validators are reachable via
-// the explicit Validate(path, value) entry point (the editor/path-validation
-// route), complementing the leaf-list walkTree coverage in
-// isis_net_validate_test.go. Pins that the ze:validate names resolve through the
-// registry built by RegisterValidators.
-// PREVENTS: a regression where the isis validators are defined but not
-// registered, so a path-based validate silently accepts a bad NET / system-id.
+// VALIDATES: the isis-net custom validator is reachable via the explicit
+// Validate(path, value) entry point (the editor/path-validation route),
+// complementing the leaf-list walkTree coverage in isis_net_validate_test.go,
+// and the isis-system-id name stays declared for completion with no ValidateFn.
+// Pins that both ze:validate names resolve through the registry built by
+// RegisterValidators. The system-id refusal is the YANG pattern's, proven in
+// isis_system_id_message_test.go.
+// PREVENTS: a regression where the isis-net validator is defined but not
+// registered, so a path-based validate silently accepts a bad NET; and a
+// system-id ValidateFn coming back to speak a second refusal behind the pattern.
 package config
 
 import (
@@ -29,6 +32,5 @@ func TestISISValidatorsRegisteredAndReachable(t *testing.T) {
 
 	assert.NoError(t, netV.ValidateFn("isis/net", "49.0001.0000.0000.0001.00"))
 	assert.Error(t, netV.ValidateFn("isis/net", "49.0001.00"))
-	assert.NoError(t, sysV.ValidateFn("isis/system-id", "0000.0000.0001"))
-	assert.Error(t, sysV.ValidateFn("isis/system-id", "zzzz.0000.0001"))
+	assert.Nil(t, sysV.ValidateFn, "isis-system-id must be completion-only: the YANG pattern is its one guard")
 }

@@ -134,7 +134,7 @@ func (p *Parser) parseFlex(tree *Tree, name string, node *FlexNode) error {
 
 			fieldNode := node.Get(fieldName)
 			if fieldNode == nil {
-				return p.errorf(tok, "unknown field in %s: %s (line %d)", name, fieldName, tok.line)
+				return p.errorf(tok, "unknown field in %s: %s", name, fieldName)
 			}
 
 			if err := p.parseNode(child, fieldName, fieldNode); err != nil {
@@ -325,7 +325,7 @@ func (p *Parser) parseInlineList(tree *Tree, name string, node *InlineListNode) 
 
 			fieldNode := node.Get(fieldName)
 			if fieldNode == nil {
-				return p.errorf(tok, "unknown field in %s: %s (line %d)", name, fieldName, tok.line)
+				return p.errorf(tok, "unknown field in %s: %s", name, fieldName)
 			}
 
 			if err := p.parseNode(entry, fieldName, fieldNode); err != nil {

@@ -528,6 +528,11 @@ func runQEMUBinary(goarch string) string {
 }
 
 func (r *Run) ensureScratch() error {
+	// A dangling tmp or tmp/qemu link would fail MkdirAll with "file exists",
+	// naming neither the link nor its target.
+	if err := danglingScratchLink(r.Tree); err != nil {
+		return err
+	}
 	for _, name := range []string{"", "go-dl", "gomodcache"} {
 		dir := filepath.Join(r.Tree, "tmp", "qemu", name)
 		if err := r.ops.FS.MkdirAll(dir, 0o750); err != nil {
@@ -650,6 +655,11 @@ func (r *Run) arm64BIOS() (string, error) {
 // mounts the checkout at GuestWorkspace; docker-lab mounts it at its own host
 // path, so a relative link resolves against that path in its guest.
 func (r *Run) scratchShares(workspace string) ([]tmplink.Share, error) {
+	// tmplink.Shares and cacheShare answer a dangling link only as "resolve
+	// <link>: no such file or directory", with no target and no fix.
+	if err := danglingScratchLink(r.Tree); err != nil {
+		return nil, err
+	}
 	shares, err := tmplink.Shares(r.Tree, workspace)
 	if err != nil {
 		return nil, fmt.Errorf("find the tmp directories relocated out of the checkout: %w", err)

@@ -255,11 +255,6 @@ func OSDeviceNameValidator() yang.CustomValidator {
 	}
 }
 
-// isisSystemIDPattern validates the IS-IS System ID dotted-hex form
-// xxxx.xxxx.xxxx (6 octets = three 4-hex-digit groups). RFC 1195 / ISO/IEC
-// 10589 section 1.4: the System ID is a fixed 6-octet field.
-var isisSystemIDPattern = regexp.MustCompile(`^[0-9a-fA-F]{4}\.[0-9a-fA-F]{4}\.[0-9a-fA-F]{4}$`)
-
 // ISISNETValidator validates an IS-IS Network Entity Title in dotted-hex text
 // form (e.g. 49.0001.0000.0000.0001.00). Inline (no isis import, to avoid a
 // cycle since the isis component imports config), mirroring the mac-address
@@ -322,23 +317,22 @@ var (
 	errBadNETHex     = errors.New("NET contains a non-hex digit")
 )
 
-// ISISSystemIDValidator validates the IS-IS System ID dotted-hex form
-// xxxx.xxxx.xxxx. The YANG leaf also carries the same pattern, so this is the
-// custom-validator hook for completion (the isis component registers the
-// CompleteFn via yang.RegisterCompleteFn).
+// ISISSystemIDValidator declares the isis-system-id name for completion only,
+// so it carries no ValidateFn and refuses nothing.
+//
+// The system-id leaf's YANG pattern is the one guard on its shape. Every path
+// judges the leaf's type before any custom validator (ValidateLeafValue on the
+// parse and set paths, validateEntry ahead of applyCustomValidators on the tree
+// walk), and the pattern's error-message tells the operator the form and the
+// fix. A ValidateFn here re-checked the same shape: on the parse path it was
+// never reached, and on the tree walk it spoke a second refusal for the same
+// value.
+//
+// The name stays declared here because the isis component fills its CompleteFn
+// through yang.RegisterCompleteFn, which needs a validator config already
+// holds, and config cannot import isis without a cycle.
 func ISISSystemIDValidator() yang.CustomValidator {
-	return yang.CustomValidator{
-		ValidateFn: func(path string, value any) error {
-			str, ok := value.(string)
-			if !ok {
-				return fmt.Errorf("expected string, got %T", value)
-			}
-			if !isisSystemIDPattern.MatchString(str) {
-				return fmt.Errorf("%q is not a valid IS-IS system-id for %s (expected xxxx.xxxx.xxxx)", str, path)
-			}
-			return nil
-		},
-	}
+	return yang.CustomValidator{}
 }
 
 // IS-IS dynamic hostname bounds (TLV 137 value, RFC 5301 section 3 and RFC 2181

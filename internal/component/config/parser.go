@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -28,6 +29,11 @@ type Parser struct {
 	// landed in, recorded by the parse that stored it so commentScope.end
 	// attaches the statement's comments there. A leaf statement leaves it nil.
 	stmtTree *Tree
+	// path holds the keywords from the top level down to the node being
+	// parsed, list keys left out, so an unknown keyword's refusal can ask
+	// KeywordHint whether a compiled-out plugin owns it there. parseNode
+	// pushes and pops it; ParseAt seeds it with the context.
+	path []string
 }
 
 // NewParser creates a new parser with the given schema.
@@ -40,6 +46,7 @@ func (p *Parser) Parse(input string) (*Tree, error) {
 	p.tok = newTokenizer(input)
 	p.warnings = nil
 	p.stmtTree = nil
+	p.path = nil
 	tree, err := p.parseRoot()
 	return p.refuseUnterminated(tree, err)
 }
@@ -82,11 +89,14 @@ func (p *Parser) ParseAt(input string, contextPath []string) (*Tree, error) {
 	p.warnings = nil
 	p.stmtTree = nil
 	context := slices.Clip(slices.Clone(contextPath))
+	p.path = slices.Clone(context)
 	var known []string
 	if parent, ok := p.schema.LookupTokenPath(context).(ChildProvider); ok {
 		known = parent.Children()
 	}
-	tree, err := p.refuseUnterminated(p.parseBody("unknown keyword", UnknownKeywordHint, known, func(name string) Node {
+	tree, err := p.refuseUnterminated(p.parseBody("unknown keyword", func(name string, known []string) string {
+		return KeywordHint(context, name, known)
+	}, known, func(name string) Node {
 		return p.schema.LookupTokenPath(append(context, name))
 	}))
 	if err != nil {
@@ -97,9 +107,10 @@ func (p *Parser) ParseAt(input string, contextPath []string) (*Tree, error) {
 
 // parseRoot parses the top level of the config. An unknown top-level keyword
 // that a compiled-out plugin owns is refused naming the build tag that carries
-// it (TopLevelKeywordHint).
+// it (KeywordHint).
 func (p *Parser) parseRoot() (*Tree, error) {
-	return p.parseBody("unknown top-level keyword", TopLevelKeywordHint, p.schema.Children(), p.schema.Get)
+	topLevelHint := func(name string, known []string) string { return KeywordHint(nil, name, known) }
+	return p.parseBody("unknown top-level keyword", topLevelHint, p.schema.Children(), p.schema.Get)
 }
 
 // parseBody parses statements until EOF, resolving each keyword through
@@ -117,6 +128,15 @@ func (p *Parser) parseBody(unknown string, hint func(name string, known []string
 			break
 		}
 
+		// A '}' here closes no block: the file holds one '}' more than it
+		// opens '{'. Named as the operator wrote it, not by its token kind,
+		// in the words ExaBGP 6.0 uses for the same refusal.
+		if tok.kind == tokenRBrace {
+			return nil, newLineError(tok.line, opererr.New(
+				"this '}' closes no section",
+				"every '}' ends a block that a '{' before it opened, and no block is open at this point",
+				"delete this '}'"))
+		}
 		if tok.kind != tokenWord {
 			return nil, p.errorf(tok, "expected keyword, got %s", tok.kind)
 		}
@@ -246,7 +266,7 @@ func (p *Parser) parseInactiveBracketMember(tree *Tree, name string, node *Brack
 		return member, nil
 	}
 	if !present {
-		if err := validateValuePatterns(node.Type, node.Patterns, member); err != nil {
+		if err := validateValuePatterns(node.Type, node.Patterns, node.Constraint, member); err != nil {
 			return "", p.errorf(tok, "invalid value for %s: %v", name, err)
 		}
 		tree.AddMultiValueMember(name, member)
@@ -303,7 +323,10 @@ func applyInactive(tree *Tree, name string, node Node, p *Parser, line int) {
 // parseNode dispatches parsing based on schema node type.
 // Every known node type is handled explicitly; unknown types return an error.
 func (p *Parser) parseNode(tree *Tree, name string, node Node) error {
-	return prependSyntaxPath(p.parseNodeValue(tree, name, node), name)
+	p.path = append(p.path, name)
+	err := p.parseNodeValue(tree, name, node)
+	p.path = p.path[:len(p.path)-1]
+	return prependSyntaxPath(err, name)
 }
 
 func (p *Parser) parseNodeValue(tree *Tree, name string, node Node) error {
@@ -525,7 +548,7 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 			if err := nodeOfAnotherOS(node, name, fieldName, tok.line); err != nil {
 				return err
 			}
-			return p.errorf(tok, "unknown field in %s: %s%s (line %d)", name, fieldName, UnknownKeywordHint(fieldName, node.Children()), tok.line)
+			return p.errorf(tok, "unknown field in %s: %s%s", name, fieldName, KeywordHint(p.path, fieldName, node.Children()))
 		}
 
 		if markInactive {
@@ -616,8 +639,7 @@ func (p *Parser) parsePresenceParenthesized(tree *Tree, name string) error {
 	return nil
 }
 
-// errorf creates a formatted error with line info.
+// errorf creates the refusal of the line tok sits on (LineError).
 func (p *Parser) errorf(tok token, format string, args ...any) error {
-	msg := fmt.Sprintf(format, args...)
-	return fmt.Errorf("line %d: %s", tok.line, msg)
+	return lineErrorf(tok.line, format, args...)
 }

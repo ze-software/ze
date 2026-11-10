@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -1040,7 +1041,7 @@ func applyMatch(input, pattern string) (string, string) {
 	if err := decodePipeJSON(strings.NewReader(strings.TrimSpace(input)), &data); err == nil {
 		rows, keys, key, ok := rowsInKeyed(data)
 		if !ok {
-			return "", rowOperatorRefusal("match", data)
+			return "", rowOperatorRefusal("match", pattern, data)
 		}
 		keep := make([]int, 0, len(rows))
 		for i, row := range rows {
@@ -1155,22 +1156,40 @@ func rowsForOperator(input, operator string) (rows []any, isJSON bool, errMsg st
 	if ok {
 		return rows, true, ""
 	}
-	return nil, true, rowOperatorRefusal(operator, data)
+	return nil, true, rowOperatorRefusal(operator, "", data)
 }
 
 // rowOperatorRefusal says why a row operator cannot apply, and what to do about
 // it. An operator the answer cannot support is refused BY NAME: accepting it
 // and answering something is worse, because the answer looks plausible.
-func rowOperatorRefusal(operator string, data any) string {
-	var tb textbuf.Buffer
-	tb.Str(operator).Str(" needs rows, and this answer has none: ")
+//
+// The fix is the one route the surface offers: no pipe operator selects one
+// named list out of a document (`path` is not an operator, and the catalog
+// holds no selector), while every row operator placed after a format operator
+// acts on the rendered lines (ApplyPipes, lineFormatExecuted). The advice used
+// to say "select one first", which an operator who followed it could not do.
+// arg is the operator's own argument, so the fix reads as the operator types
+// it; it is empty for an operator that takes none.
+func rowOperatorRefusal(operator, arg string, data any) string {
+	var problem, why textbuf.Buffer
+	problem.Str(operator).Str(" needs rows, and this answer has none: ")
 	if keys := rowKeys(data); len(keys) > 1 {
 		slices.Sort(keys)
-		tb.Str("it holds several lists (").Str(textbuf.Join(keys, ", ")).Str("), so select one first")
-		return tb.String()
+		problem.Str("it holds several lists (").Str(textbuf.Join(keys, ", ")).Str(")")
+		why.Str("no pipe operator selects one of these lists")
+	} else {
+		problem.Str("it holds one document")
+		why.Str(operator).Str(" acts on the rows of a list")
 	}
-	tb.Str("it holds one document")
-	return tb.String()
+	why.Str(", but after '| ").Str(pipeNameText).Str("' ").Str(operator).
+		Str(" acts on the rendered lines instead")
+
+	var fix textbuf.Buffer
+	fix.Str("| ").Str(pipeNameText).Str(" | ").Str(operator)
+	if arg != "" {
+		fix.Str(" ").Str(arg)
+	}
+	return opererr.New(problem.String(), why.String(), fix.String()).Error()
 }
 
 // isFormatOp reports whether the operator decides the shape of the answer.
@@ -1279,7 +1298,7 @@ func applyTake(input, arg, operator string, fromEnd bool) (string, string) {
 	}
 	rows, keys, key, ok := rowsInKeyed(data)
 	if !ok {
-		return "", rowOperatorRefusal(operator, data)
+		return "", rowOperatorRefusal(operator, arg, data)
 	}
 	keep := make([]int, 0, n)
 	for i := range rows {

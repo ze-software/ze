@@ -43,6 +43,12 @@ type ArgDef struct {
 	unionDefs  []ArgDef         // ArgUnion members, tried in order
 	mandatory  bool
 
+	// The error-message of each restriction (ArgOptions): rangeMessage of the
+	// ranges, lengthMessage of the lengths, patternMessages[i] of patterns[i].
+	rangeMessage    string
+	lengthMessage   string
+	patternMessages []string
+
 	// rest marks a free-text leaf, from its ze:rest-of-line statement: it takes
 	// every word left on the line, joined by one space, and no word it takes is
 	// read as a keyword (ValidateArgs). Only an ArgString can carry it, and a
@@ -86,6 +92,12 @@ type ArgOptions struct {
 	Description string // the YANG description
 	Anchor      string // the keyword of the container above the command that declares the leaf
 	Rest        bool   // the leaf has ze:rest-of-line: it takes every remaining word
+
+	// The RFC 7950 Section 7.5.4.1 error-message of each restriction, which a
+	// refusal of that restriction carries after its own text. "" declares none.
+	RangeMessage    string   // of the ArgUint range
+	LengthMessage   string   // of the ArgString length
+	PatternMessages []string // of each ArgString pattern, in the patterns' order; nil declares none
 }
 
 // NewStringArg builds an ArgString definition. lengths are character-count
@@ -108,9 +120,15 @@ func NewStringArg(name string, lengths []UintRange, patterns []*regexp.Regexp, o
 			return ArgDef{}, fmt.Errorf("%w: %s: pattern %d is nil", ErrArgDef, name, i)
 		}
 	}
+	// A message list that does not pair one message with each pattern would
+	// give a refusal another pattern's message.
+	if opts.PatternMessages != nil && len(opts.PatternMessages) != len(patterns) {
+		return ArgDef{}, fmt.Errorf("%w: %s: %d pattern messages for %d patterns", ErrArgDef, name, len(opts.PatternMessages), len(patterns))
+	}
 	def := newArgDef(name, ArgString, opts)
 	def.lengths = slices.Clone(lengths)
 	def.patterns = slices.Clone(patterns)
+	def.patternMessages = slices.Clone(opts.PatternMessages)
 	return def, nil
 }
 
@@ -194,14 +212,16 @@ func NewFlagArg(name string, opts ArgOptions) (ArgDef, error) {
 // payload. Every constructor starts from it, after its checks passed.
 func newArgDef(name string, kind ArgKind, opts ArgOptions) ArgDef {
 	return ArgDef{
-		name:        name,
-		kind:        kind,
-		mandatory:   opts.Mandatory,
-		shortHelp:   opts.ShortHelp,
-		description: opts.Description,
-		anchor:      opts.Anchor,
-		rest:        opts.Rest,
-		constructed: true,
+		name:          name,
+		kind:          kind,
+		mandatory:     opts.Mandatory,
+		shortHelp:     opts.ShortHelp,
+		description:   opts.Description,
+		anchor:        opts.Anchor,
+		rest:          opts.Rest,
+		rangeMessage:  opts.RangeMessage,
+		lengthMessage: opts.LengthMessage,
+		constructed:   true,
 	}
 }
 

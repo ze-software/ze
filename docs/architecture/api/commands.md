@@ -2041,6 +2041,22 @@ names one leaf and the help page names every argument (`ze` prefixes the
 command on the `ze <verb>` routes, and `ze cli -c` takes it bare).
 <!-- source: internal/component/command/local_data.go -- localRefusal -->
 
+The validator reads the whole line before it refuses it, and names every fault
+the line holds: a keyword with no value, a value its leaf refuses, a keyword
+typed twice, a token no definition takes, and the first missing mandatory
+leaf. A line with one fault is refused with that fault alone. A line with more
+is refused with a `*command.ArgumentFaults`, an operator error whose problem
+line counts the faults, whose next lines name each fault in the order typed,
+and whose last line is the fix. Its `Unwrap` answers the operator error and
+each fault, so `errors.As` finds a `*command.MissingArgumentError` inside it as
+it does on its own; the dispatcher asks for an `*command.ArgumentFaults` first,
+because only a lone missing argument may bind a positional selector or let the
+selector guard speak. A refusal keeps at most 16 faults and says how many more
+it did not list.
+<!-- source: internal/component/command/argbind.go -- ValidateArgs -->
+<!-- source: internal/component/command/argfaults.go -- ArgumentFaults, argumentFaultsMax -->
+<!-- source: internal/component/plugin/server/command.go -- adoptablePositional, argFaultOutsideSelector -->
+
 Every route that invokes a handler calls the validator, including for a path
 whose model declares no definition: that call passes the tokens through
 unchanged. Each route then invokes the handler only with the tokens of the

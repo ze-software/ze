@@ -366,8 +366,7 @@ func runBGP(args []string) int {
 		if code, served := runOfflineFallback(*runCmd); served {
 			return code
 		}
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		fmt.Fprintf(os.Stderr, "hint: is the daemon running?\n")
+		fmt.Fprintf(os.Stderr, "error: %v\n", sshclient.CredentialsUnavailable(err))
 		return 1
 	}
 
@@ -378,7 +377,7 @@ func runBGP(args []string) int {
 	// An authorization refusal proves the daemon is running -- only treat
 	// connection-level failures as unreachable. A profile that denies `show
 	// version` must not send the operator to the offline fallback with
-	// "is the daemon running?".
+	// "cannot reach the daemon".
 	if _, err := client.SendCommand("show version"); err != nil {
 		if !strings.Contains(err.Error(), plugin.UnauthorizedMessage) {
 			// Daemon unreachable: try an in-process offline fallback before
@@ -388,8 +387,7 @@ func runBGP(args []string) int {
 			if code, served := runOfflineFallback(*runCmd); served {
 				return code
 			}
-			fmt.Fprintf(os.Stderr, "error: cannot connect to daemon: %v\n", err)
-			fmt.Fprintf(os.Stderr, "hint: is the daemon running?\n")
+			fmt.Fprintf(os.Stderr, "error: %v\n", daemonUnreachable(creds.Host, creds.Port, err))
 			return 1
 		}
 	}

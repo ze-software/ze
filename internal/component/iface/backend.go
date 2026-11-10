@@ -11,6 +11,7 @@ import (
 	"net/netip"
 	"sync"
 
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/rtproto"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -372,6 +373,13 @@ func LoadBackend(name string) error {
 func loadBackendLocked(name string) error {
 	factory, ok := backends[name]
 	if !ok {
+		// A backend whose provider was compiled out names the build tag and
+		// both fixes (registry.CompiledOutValueError), from the same
+		// ConfigNeed the config doors refuse it by (register.go). The owner is
+		// the registration name, which is what the registry looks it up by.
+		if compiledOut := registry.CompiledOutValueError(componentNameInterface, name); compiledOut != nil {
+			return compiledOut
+		}
 		registered := make([]string, 0, len(backends))
 		for k := range backends {
 			registered = append(registered, k)

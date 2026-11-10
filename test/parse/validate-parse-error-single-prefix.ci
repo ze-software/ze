@@ -1,0 +1,23 @@
+# Test: ze config validate names a set-format parse error's line once and parse config once
+#
+# VALIDATES: spec-operator-errors-name-the-fix AC-5 (validate row). The set
+# parser refuses line 1 with a config.LineError; the loader adds "parse
+# config" once (parseConfigError); runValidation takes the line apart with
+# config.SplitLine, and the printer writes "line 1: " once.
+# PREVENTS: `line 1: parse config: line 1: ...`, which withoutLinePrefix could
+# not trim because the loader's segment came first, and the field named twice
+# (`zzqqxx (needs migration): line 1: unknown field: zzqqxx`) by the lenient
+# and the strict parse.
+
+stdin=config:terminator=EOF_CONF
+set zzqqxx 1
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=  line 1: parse config: config contains fields unknown to this build
+expect=stdout:contains=unknown field: zzqqxx
+expect=stdout:contains=fix: remove or correct each field named above
+reject=stdout:contains=needs migration
+reject=stdout:contains=line 1: parse config: line 1:
+reject=stdout:contains=parse config: parse config

@@ -3,6 +3,7 @@ package reactor
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"net"
 	"net/netip"
 	"sync/atomic"
@@ -16,10 +17,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/rib"
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 func mustParseAddr(s string) netip.Addr {
@@ -1109,6 +1112,72 @@ func TestResolveNextHop_Self(t *testing.T) {
 		got, err := peer.resolveNextHop(peer.session, nh, fam)
 		require.NoError(t, err)
 		require.Equal(t, netip.MustParseAddr("127.0.0.1"), got)
+	}
+}
+
+// TestNextHopIncompatibleNamesFamiliesAndFix reads the refusal of a next hop
+// the session cannot carry, for an explicit IPv6 next hop on an IPv4 route
+// and for self on an IPv4 session announcing an IPv6 route.
+//
+// VALIDATES: AC-7 -- the error names the route family, the next hop, the
+// session family and the peer, and the three fixes (a next hop of the route's
+// family, IPv4-mapped for an IPv6 route; nhop set self on a session of the
+// route's family; the extended next hop capability); it is an operator error;
+// errors.Is still finds ErrNextHopIncompatible; the capability fix is a config
+// line the BGP schema accepts.
+// PREVENTS: "next-hop incompatible with family", which named no family, no
+// next hop and no fix.
+func TestNextHopIncompatibleNamesFamiliesAndFix(t *testing.T) {
+	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
+	settings.Name = "peer1"
+	peer := NewPeer(settings)
+	peer.session, _ = newConnectedLocalSession(t, settings, "127.0.0.1")
+
+	tests := []struct {
+		name string
+		nh   bgptypes.RouteNextHop
+		fam  family.Family
+		want string
+		line string // the capability fix as a set line
+	}{
+		{
+			name: "explicit IPv6 next hop for an IPv4 route",
+			nh:   bgptypes.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
+			fam:  family.IPv4Unicast,
+			want: "next hop 2001:db8::1 cannot be sent for route family ipv4/unicast to peer peer1\n" +
+				"the IPv4 session did not negotiate the extended next hop capability (RFC 8950) for ipv4/unicast " +
+				"with next-hop family IPv6, and without it route family ipv4/unicast takes only an IPv4 next hop: " +
+				"next-hop incompatible with family\n" +
+				"fix: nhop set <an IPv4 address>, or nhop set self on an IPv4 session, or " +
+				"set bgp peer peer1 session capability nexthop ipv4/unicast nhafi ipv6",
+			line: "set bgp peer peer1 session capability nexthop ipv4/unicast nhafi ipv6",
+		},
+		{
+			name: "self on an IPv4 session for an IPv6 route",
+			nh:   bgptypes.NewNextHopSelf(),
+			fam:  family.IPv6Unicast,
+			want: "next hop 127.0.0.1 cannot be sent for route family ipv6/unicast to peer peer1\n" +
+				"the IPv4 session did not negotiate the extended next hop capability (RFC 8950) for ipv6/unicast " +
+				"with next-hop family IPv4, and without it route family ipv6/unicast takes only an IPv6 next hop: " +
+				"next-hop incompatible with family\n" +
+				"fix: nhop set ::ffff:127.0.0.1, or nhop set self on an IPv6 session, or " +
+				"set bgp peer peer1 session capability nexthop ipv6/unicast nhafi ipv4",
+			line: "set bgp peer peer1 session capability nexthop ipv6/unicast nhafi ipv4",
+		},
+	}
+	schema, err := config.YANGSchema()
+	require.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := peer.resolveNextHop(peer.session, tt.nh, tt.fam)
+			require.ErrorIs(t, err, ErrNextHopIncompatible)
+			require.Equal(t, tt.want, err.Error())
+			var operr *opererr.Error
+			require.True(t, errors.As(err, &operr), "the refusal is an operator error")
+			require.Contains(t, operr.Fix(), tt.line)
+			_, parseErr := config.NewSetParser(schema).Parse(tt.line + "\n")
+			require.NoError(t, parseErr, "the fix %q is a config line the schema accepts", tt.line)
+		})
 	}
 }
 

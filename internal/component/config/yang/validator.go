@@ -172,8 +172,48 @@ func (v *Validator) ValidateLeafType(path string, leaf *yang.Entry, yangType *ya
 
 // validateLeafValue validates against yang.YangType from processed schema.
 // leaf is the leaf (or leaf-list) holding the value, which a leafref's
-// relative path starts from.
+// relative path starts from, and whose type statements carry the
+// error-message of each constraint (LeafConstraintMessages).
 func (v *Validator) validateLeafValue(path string, leaf *yang.Entry, yangType *yang.YangType, value any) error {
+	err := v.validateKind(path, leaf, yangType, value)
+	if leaf == nil {
+		return err
+	}
+	var refusal *ValidationError
+	if !errors.As(err, &refusal) {
+		return err
+	}
+	speakConstraintMessage(refusal, LeafConstraintMessages(leaf, yangType))
+	return err
+}
+
+// speakConstraintMessage adds to refusal the error-message that the refusing
+// range, length or pattern declares.
+//
+// RFC 7950 Section 7.5.4.1: "If the constraint evaluates to "false", the string is passed as <error-message> in the <rpc-error> in NETCONF."
+// A pattern refusal with a message drops the regular expression: the
+// author's message says what the value must look like in the operator's
+// words, and the expression is what the operator cannot read.
+func speakConstraintMessage(refusal *ValidationError, messages ConstraintMessages) {
+	// Only the three restrictions RFC 7950 gives an error-message refuse with
+	// one; every other refusal keeps its text.
+	//exhaustive:ignore
+	switch refusal.Type {
+	case ErrTypeRange:
+		refusal.Message = WithConstraintMessage(refusal.Message, messages.Range())
+	case ErrTypeLength:
+		refusal.Message = WithConstraintMessage(refusal.Message, messages.Length())
+	case ErrTypePattern:
+		message := messages.Pattern(refusal.Expected)
+		if message == "" {
+			return
+		}
+		refusal.Message = WithConstraintMessage("invalid value "+strconv.Quote(refusal.Got), message)
+	}
+}
+
+// validateKind judges value against yangType by the type's kind.
+func (v *Validator) validateKind(path string, leaf *yang.Entry, yangType *yang.YangType, value any) error {
 	switch yangType.Kind {
 	case yang.Ystring:
 		return v.validateString(path, yangType, value)

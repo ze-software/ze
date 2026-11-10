@@ -122,8 +122,11 @@ var (
 	// (connectedLocalAddress).
 	ErrNextHopSelfNoLocal = errors.New("next-hop self: the session has no local address")
 
-	// ErrNextHopIncompatible is returned when Self address is incompatible
-	// with the NLRI family and Extended Next Hop is not negotiated.
+	// ErrNextHopIncompatible is the cause of the operator error resolveNextHop
+	// returns when the next hop (self or explicit) is incompatible with the
+	// NLRI family and Extended Next Hop is not negotiated: nextHopIncompatible
+	// wraps it with the families, the next hop and the fixes, so callers match
+	// it with errors.Is.
 	ErrNextHopIncompatible = errors.New("next-hop incompatible with family")
 
 	// ErrNextHopLinkLocalOnly is returned when the next hop resolves to an IPv6
@@ -1768,7 +1771,7 @@ func (p *Peer) resolveNextHop(session *Session, nh bgptypes.RouteNextHop, fam fa
 		// relevant AFI/SAFI pair."
 		// RFC 8950 Section 3: the gate covers only the families it extends.
 		if rfc8950Family(fam) && addr.Is6() && !p.canUseNextHopFor(addr, fam) {
-			return netip.Addr{}, ErrNextHopIncompatible
+			return netip.Addr{}, p.nextHopIncompatible(session, addr, fam)
 		}
 	case bgptypes.NextHopSelf:
 		addr = connectedLocalAddress(session)
@@ -1776,7 +1779,7 @@ func (p *Peer) resolveNextHop(session *Session, nh bgptypes.RouteNextHop, fam fa
 			return netip.Addr{}, ErrNextHopSelfNoLocal
 		}
 		if !p.canUseNextHopFor(addr, fam) {
-			return netip.Addr{}, ErrNextHopIncompatible
+			return netip.Addr{}, p.nextHopIncompatible(session, addr, fam)
 		}
 	case bgptypes.NextHopUnset:
 		return netip.Addr{}, ErrNextHopUnset

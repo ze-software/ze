@@ -219,6 +219,78 @@ func TestApplyCountRefusesWhatItCannotCount(t *testing.T) {
 	}
 }
 
+// TestRowOperatorRefusalNamesAFixThatWorks holds the row-operator refusal to
+// advice the surface can carry out. It once said "select one first", and no
+// operator selects a list, so an operator who followed it could not proceed
+// (plan/journal/guard-message-teaches-the-violation.md, 2026-08-24).
+// Method: each refusal is read whole (problem, why, fix lines), then the fix
+// line's chain is run on the same answer and must answer without a refusal.
+func TestRowOperatorRefusalNamesAFixThatWorks(t *testing.T) {
+	const lists = `{"peers":[{"name":"alpha"}],"routes":[{"name":"bravo"}],"total":2}`
+	const document = `{"version":"ze dev","built":"alpha"}`
+	tests := []struct {
+		name     string
+		input    string
+		chain    string
+		refusal  string
+		fixKeeps string
+		fixDrops string
+	}{
+		{
+			name:  "match over several lists",
+			input: lists,
+			chain: "match alpha",
+			refusal: "match needs rows, and this answer has none: it holds several lists (peers, routes)\n" +
+				"no pipe operator selects one of these lists, but after '| text' match acts on the rendered lines instead\n" +
+				"fix: | text | match alpha",
+			fixKeeps: "alpha",
+			fixDrops: "bravo",
+		},
+		{
+			name:  "first over several lists",
+			input: lists,
+			chain: "first 1",
+			refusal: "first needs rows, and this answer has none: it holds several lists (peers, routes)\n" +
+				"no pipe operator selects one of these lists, but after '| text' first acts on the rendered lines instead\n" +
+				"fix: | text | first 1",
+		},
+		{
+			name:  "count over one document",
+			input: document,
+			chain: "count",
+			refusal: "count needs rows, and this answer has none: it holds one document\n" +
+				"count acts on the rows of a list, but after '| text' count acts on the rendered lines instead\n" +
+				"fix: | text | count",
+			fixKeeps: `{"count":`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, ops := ParsePipe("show test | " + tt.chain)
+			out, msg := ApplyPipes(tt.input, ops, nil, nil)
+			if msg != tt.refusal {
+				t.Fatalf("refusal = %q (answer %q), want %q", msg, out, tt.refusal)
+			}
+
+			fix := strings.TrimPrefix(msg[strings.LastIndex(msg, "\n")+1:], "fix: ")
+			_, fixOps := ParsePipe("show test " + fix)
+			fixed, fixMsg := ApplyPipes(tt.input, fixOps, nil, nil)
+			if fixMsg != "" {
+				t.Fatalf("the advised chain %q was refused too: %s", fix, fixMsg)
+			}
+			if strings.TrimSpace(fixed) == "" {
+				t.Fatalf("the advised chain %q answered nothing", fix)
+			}
+			if !strings.Contains(fixed, tt.fixKeeps) {
+				t.Errorf("the advised chain %q answered %q, want it to hold %q", fix, fixed, tt.fixKeeps)
+			}
+			if tt.fixDrops != "" && strings.Contains(fixed, tt.fixDrops) {
+				t.Errorf("the advised chain %q kept %q, a line without the pattern: %q", fix, tt.fixDrops, fixed)
+			}
+		})
+	}
+}
+
 // TestApplyTakeKeepsTheEnvelope proves first and last shorten the ROWS and
 // leave the aggregates beside them. `show bgp | first 1` answered the whole
 // payload, because the old truncateItems unwrapped a map of exactly one key

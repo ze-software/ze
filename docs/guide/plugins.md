@@ -1463,9 +1463,11 @@ Dependencies are declared in the plugin's registration, not in config. The engin
 A block whose whole plugin was compiled out of the binary, such as `mrt { }`
 or `bgp { }` in a build without `ze_bgp`, fails at parse, because the build has
 no schema for it. The refusal says the keyword belongs to a plugin this build
-lacks and names the build tag to rebuild with, on a `fix:` line. A keyword no
-build knows (a typo) keeps the closest-keyword hint.
-<!-- source: internal/component/config/compiled_out_root.go -- TopLevelKeywordHint -->
+lacks and names the build tag to rebuild with, on a `fix:` line. The same holds
+for a nested block a compiled-out plugin owns, such as `fib { vpp { } }` in a
+build without `ze_vpp`. A keyword no build knows (a typo) keeps the
+closest-keyword hint.
+<!-- source: internal/component/config/compiled_out_root.go -- KeywordHint -->
 
 ### The `policy` dependency
 

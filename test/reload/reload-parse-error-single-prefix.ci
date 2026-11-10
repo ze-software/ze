@@ -1,0 +1,56 @@
+# Test: a reload of a file the parser refuses names parse config once and the line once
+#
+# VALIDATES: spec-operator-errors-name-the-fix AC-5 (reload row). The parser
+# refuses line 7 (config.LineError), the loader adds "parse config" once
+# (parseTreeWithYANG, parseConfigError), and runReloadContext adds only
+# "reload: ". The daemon keeps running: the next reload of a valid file applies.
+# PREVENTS: `reload: parse config: parse config: line 7: ...`.
+
+option=timeout:value=40s
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+zzqqxx 1;
+EOF_CONF2
+
+tmpfs=config3.conf:terminator=EOF_CONF3
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+EOF_CONF3
+
+tmpfs=stages.script:terminator=EOF_SCRIPT
+reload config2.conf
+has show reload-status => "last-outcome":"failed"
+say RELOAD-PARSE-ERROR: refused reload processed, daemon still answering
+reload config3.conf
+has show reload-status => "last-outcome":"applied"
+say RELOAD-PARSE-ERROR: valid reload applied
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=40s
+
+expect=stderr:contains=reload error: reload: parse config: line 7: unknown top-level keyword: zzqqxx
+reject=stderr:contains=parse config: parse config
+reject=stderr:contains=line 7: line 7
+expect=stderr:contains=RELOAD-PARSE-ERROR: refused reload processed, daemon still answering
+expect=stderr:contains=RELOAD-PARSE-ERROR: valid reload applied
+reject=stderr:pattern=LIVE-STAGES line
+reject=stderr:pattern=panic

@@ -1125,8 +1125,18 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		if _, ok := selectors[selectorLeaf]; ok {
 			explicitSelector = true
 		}
+		// One guard per input: the selector guard speaks only when the selector
+		// is the fault. When the held argErr names a fault of its own (a keyword
+		// with no value, a value its leaf refuses, a word no leaf takes), that
+		// fault is why no lone token was left to adopt, and fixing it lets the
+		// selector resolve; the guard's "requires a selector" would name a
+		// selector the operator typed. The held error is then reported at its
+		// place below, after authorization and the flag check, and the handler
+		// never runs on it.
 		if matchedCmd.RequiresSelector && !explicitSelector && (ctx == nil || ctx.Peer == "") {
-			return nil, missingSelectorError(matchedCmd, args)
+			if !argFaultOutsideSelector(argErr) {
+				return nil, missingSelectorError(matchedCmd, args)
+			}
 		}
 
 		// Authorization check, after command resolution, before execution.
@@ -1236,15 +1246,42 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 // selector leaf from a lone spare token: from the value it returned, or from
 // its refusal when the call left another mandatory leaf missing, so that call
 // is still told which leaf is missing rather than that it "requires a
-// selector". Any other refusal binds nothing.
+// selector". Any other refusal binds nothing, a line with several faults
+// (*command.ArgumentFaults) included: its missing argument, if it holds one,
+// sits beside a fault the operator must repair first.
 func adoptablePositional(validated command.ValidatedArgs, argErr error) (string, bool) {
 	if argErr == nil {
 		return validated.Positional(selectorLeaf)
+	}
+	if _, several := errors.AsType[*command.ArgumentFaults](argErr); several {
+		return "", false
 	}
 	if missing, ok := errors.AsType[*command.MissingArgumentError](argErr); ok {
 		return missing.Positional(selectorLeaf)
 	}
 	return "", false
+}
+
+// argFaultOutsideSelector reports whether argErr, the verdict
+// command.ValidateArgs gave a command the selector guard is about to refuse,
+// names a fault other than the absent selector. A *MissingArgumentError is the
+// one verdict that does not: it is what a line with nothing after the path
+// gets ("delete bgp peer"), and what a line whose values carry no keyword gets,
+// and for both the guard's refusal names the fix. Every other verdict names the
+// token or the leaf the operator must repair. A *command.ArgumentFaults always
+// does: it holds at most one missing argument beside at least one other fault,
+// and its refusal names each of them, the missing selector included.
+func argFaultOutsideSelector(argErr error) bool {
+	if argErr == nil {
+		return false
+	}
+	if _, several := errors.AsType[*command.ArgumentFaults](argErr); several {
+		return true
+	}
+	if _, missing := errors.AsType[*command.MissingArgumentError](argErr); missing {
+		return false
+	}
+	return true
 }
 
 // selectorLeaf is the YANG leaf name every peer-scoped command uses for its

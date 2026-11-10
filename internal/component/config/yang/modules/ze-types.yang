@@ -266,6 +266,19 @@ module ze-types {
         description "TCP/UDP port number";
     }
 
+    // RFC 7950 Section 7.5.4.1: "If the constraint evaluates to "false", the
+    // string is passed as <error-message> in the <rpc-error> in NETCONF." The
+    // range carries the operator's message, so the first guard to refuse a VLAN
+    // ID (the YANG range, ahead of any handler) speaks the reason and the fix.
+    typedef vlan-id {
+        type uint16 {
+            range "1..4094" {
+                error-message "IEEE 802.1Q reserves VLAN ID 0 and 4095, so a VLAN ID is 1 to 4094. Give a VLAN ID from 1 to 4094.";
+            }
+        }
+        description "An IEEE 802.1Q VLAN ID. 0 and 4095 are reserved, so the range is 1 to 4094.";
+    }
+
     typedef listener-port {
         type uint16 {
             range "0..65535";

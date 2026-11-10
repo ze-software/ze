@@ -1,8 +1,8 @@
 // Design: docs/architecture/plugin/feature-gates.md -- naming a plugin the build left out
 // Related: retired.go -- UnknownKeywordHint, the hint every other unknown keyword carries
 // Related: optional_provider.go -- writeBuildTags, the fix-line wording this hint shares
-// Related: parser.go -- parseRoot, the brace parser's top-level refusal
-// Related: setparser.go -- walkAndSet, the set parser's top-level refusal
+// Related: parser.go -- parseBody and parseContainer, the brace parser's refusals
+// Related: setparser.go -- unknownFieldHint, the set parser's refusal
 
 package config
 
@@ -12,19 +12,27 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
-// TopLevelKeywordHint answers the text a parse error carries after an unknown
-// top-level keyword. A root that a gated plugin owns is unknown only because
-// this build was compiled without that plugin, so the hint says so and names
-// the build tags that carry it (registry.GatedConfigRootRequirements, from the
-// generated table every build compiles). Any other name is a keyword no build
-// of ze knows, and gets UnknownKeywordHint: a retired keyword's replacement or
-// the closest valid keyword.
+// KeywordHint answers the text a parse error carries after an unknown keyword
+// written under parent (nil at the top level). A keyword that a gated plugin's
+// config root holds is unknown only because this build was compiled without
+// that plugin, so the hint says so and names the build tags that carry it
+// (registry.GatedConfigRootRequirements, from the generated table every build
+// compiles). That holds at the top level (`bgp`, `mrt`) and below it, where a
+// gated plugin owns a nested root (`fib vpp`, `environment bmp`). Any other
+// name is a keyword no build of ze knows, and gets UnknownKeywordHint: a
+// retired keyword's replacement or the closest valid keyword.
 //
-// Only the top level asks the table: a root is a config root a plugin owns,
-// and a nested unknown field inside a present module is a typo, never a
-// compiled-out plugin.
-func TopLevelKeywordHint(name string, known []string) string {
-	requirements, gated := registry.GatedConfigRootRequirements(name)
+// parent holds the keywords from the top level down, list keys left out, the
+// form the table's roots take; a path that crosses a list matches no root, so
+// a typo inside a list entry is never answered as a compiled-out plugin.
+func KeywordHint(parent []string, name string, known []string) string {
+	var path strings.Builder
+	for _, keyword := range parent {
+		path.WriteString(keyword)
+		path.WriteByte('/')
+	}
+	path.WriteString(name)
+	requirements, gated := registry.GatedConfigRootRequirements(path.String())
 	if !gated {
 		return UnknownKeywordHint(name, known)
 	}

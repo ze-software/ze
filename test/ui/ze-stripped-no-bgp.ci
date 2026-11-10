@@ -16,7 +16,7 @@
 #
 # ALSO VALIDATES: the bgp refusal names the build tag that carries the root
 # ("build tag ze_bgp", from the generated gated-plugin table read by
-# config.TopLevelKeywordHint), not a bare "unknown top-level keyword".
+# config.KeywordHint), not a bare "unknown top-level keyword".
 #
 # Why ze-stripped: internal/le/test/functional/binaries.go builds it with tags
 # "ze_core ze_ssh", so ze_bgp is off. The runner puts that binary dir first on

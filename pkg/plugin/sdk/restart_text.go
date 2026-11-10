@@ -28,5 +28,5 @@ func RestartSteps() string {
 }
 
 // restartRoutes is restartRouteLines joined, one route per line, with no
-// trailing newline. RestartSteps and RunningConfigLostNext append it.
+// trailing newline. RestartSteps and RunningConfigLostRestart append it.
 var restartRoutes = strings.Join(restartRouteLines, "\n")

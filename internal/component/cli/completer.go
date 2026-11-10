@@ -192,30 +192,9 @@ func isOpenString(leaf *gyang.Entry) bool {
 	return leaf.Type != nil && leaf.Type.Kind == gyang.Ystring
 }
 
-// commands returns the available editor commands.
-var commands = []Completion{
-	{Text: cmdSet, ShortHelp: "Set a configuration value", Type: completionCommand},
-	{Text: cmdDelete, ShortHelp: "Delete a configuration value", Type: completionCommand},
-	{Text: cmdEdit, ShortHelp: "Enter a subsection context", Type: completionCommand},
-	{Text: cmdShow, ShortHelp: "Display configuration", Type: completionCommand},
-	{Text: cmdOption, ShortHelp: "Display settings (columns, errors)", Type: completionCommand},
-	{Text: cmdCommit, ShortHelp: "Apply, verify, accept or abort the candidate", Type: completionCommand},
-	{Text: cmdSave, ShortHelp: "Snapshot work-in-progress", Type: completionCommand},
-	{Text: cmdDiscard, ShortHelp: "Revert all changes", Type: completionCommand},
-	{Text: cmdTop, ShortHelp: "Return to root context", Type: completionCommand},
-	{Text: cmdUp, ShortHelp: "Go up one level", Type: completionCommand},
-	{Text: cmdRollback, ShortHelp: "Restore from backup", Type: completionCommand},
-	{Text: cmdExit, ShortHelp: "Exit current mode", Type: completionCommand},
-	{Text: cmdHelp, ShortHelp: "Show help", Type: completionCommand},
-	{Text: cmdRun, ShortHelp: "Run operational command", Type: completionCommand},
-	{Text: cmdWho, ShortHelp: "List active editing sessions", Type: completionCommand},
-	{Text: cmdDisconnect, ShortHelp: "Remove another session", Type: completionCommand},
-	{Text: cmdDeactivate, ShortHelp: "Mark a config block inactive", Type: completionCommand},
-	{Text: cmdActivate, ShortHelp: "Reactivate an inactive config block", Type: completionCommand},
-	{Text: cmdRename, ShortHelp: "Rename a list entry", Type: completionCommand},
-	{Text: cmdCopy, ShortHelp: "Copy a list entry", Type: completionCommand},
-	{Text: cmdInsert, ShortHelp: "Insert into a leaf-list at position", Type: completionCommand},
-}
+// commands is the available editor commands, derived from editorCommands
+// (editor_help.go), the one table the help overlay also renders.
+var commands = editorCompletions()
 
 // Complete returns completions for the given input at cursor position.
 // tree is the caller's candidate config, which list keys and backend

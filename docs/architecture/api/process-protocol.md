@@ -1253,6 +1253,16 @@ site.
 | `resolver-cache-clear` | `ResolverCacheClearInput` | `ResolverCacheClearOutput` | Clear one declared resolver cache |
 | `enrich-show` | `EnrichShowInput` | `EnrichShowOutput` | Show command enrichment |
 
+A Go plugin whose `config-apply` failed and could not put its running config
+back answers with `sdk.RunningConfigLost(cause, problem, firstStep)`. The
+error text the engine receives is the operator error's three parts, one per
+line: the problem, then the SDK's why (`sdk.RunningConfigLostWhy`) with the
+cause, then `fix: ` with the plugin's first step and the daemon restart
+(`sdk.RunningConfigLostRestart`), which spans several lines. The wire format
+does not change: the answer carries that text as its error string, and
+`errors.Is(err, sdk.ErrRunningConfigLost)` still opens the rollback. A plugin
+in another language writes the same three parts into its error string.
+<!-- source: pkg/plugin/sdk/config_tx.go -- RunningConfigLost, RunningConfigLostWhy, RunningConfigLostRestart -->
 
 `config-complete` runs on the same serialized callback path as config operations
 over either transport. The Go SDK's `OnConfigComplete` declares support and

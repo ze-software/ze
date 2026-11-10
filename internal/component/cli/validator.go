@@ -428,7 +428,7 @@ func (v *ConfigValidator) validatePeer(peerAddr, groupName string, peerTree, gro
 	// ToMap() produces string leaf values; ValidateTree converts them via YANG types.
 	// Mandatory-missing -> warning (don't block editing). Value errors -> error.
 	peerMap := resolved.ToMap()
-	yangErrs := v.yangValidator.ValidateTree("bgp/peer", peerMap)
+	yangErrs := v.yangValidator.ValidateTree(peerYANGPath, peerMap)
 	for i := range yangErrs {
 		field := yangLeafName(yangErrs[i].Path)
 		severity := severityError
@@ -437,7 +437,7 @@ func (v *ConfigValidator) validatePeer(peerAddr, groupName string, peerTree, gro
 		}
 		ve := ConfigValidationError{
 			Line:     findErrorLine(lines, peerAddr, field, yangErrs[i].Type),
-			Message:  formatPeerError(peerAddr, field, yangErrs[i]),
+			Message:  formatPeerError(peerAddr, groupName, field, yangErrs[i]),
 			Severity: severity,
 		}
 		if severity == severityWarning {
@@ -595,13 +595,31 @@ func yangLeafName(path string) string {
 	return path
 }
 
+// peerYANGPath is the schema path the peer walk validates under. Every path a
+// ValidationError of that walk carries starts with it, slash-separated.
+const peerYANGPath = "bgp/peer"
+
 // formatPeerError formats a YANG validation error for a peer with clear, non-redundant messaging.
-func formatPeerError(peerAddr, field string, yerr yang.ValidationError) string {
+//
+// A missing mandatory field names its path under the peer and the editor
+// command that sets it, in the editor's own spelling: words separated by
+// spaces, the peer's key after `peer`, and `group <name>` before it for a peer
+// inside a group. The walk's paths are slash-separated (validateContainerEntry),
+// so the hint is built from the path's segments, never by rewriting the path.
+func formatPeerError(peerAddr, groupName, field string, yerr yang.ValidationError) string {
 	var tb textbuf.Buffer
 	if yerr.Type == yang.ErrTypeMissing {
-		setPath := strings.ReplaceAll(yerr.Path, ".", " ")
-		setPath = strings.Replace(setPath, "bgp peer", tb.Str("bgp peer ").Str(peerAddr).String(), 1)
-		return tb.Reset().Str("peer ").Str(peerAddr).Str(": missing required field \"").Str(field).Str("\" (set ").Str(setPath).Str(" <value>)").String()
+		under, found := strings.CutPrefix(yerr.Path, peerYANGPath+config.PathSep)
+		if !found {
+			// A path outside the peer walk has no editor form to propose.
+			return tb.Str("peer ").Str(peerAddr).Str(": missing required field \"").Str(yerr.Path).Byte('"').String()
+		}
+		tb.Str("peer ").Str(peerAddr).Str(": missing required field \"").Str(under).Str("\" (set bgp ")
+		if groupName != "" {
+			tb.Str(keyGroup).Byte(' ').Str(groupName).Byte(' ')
+		}
+		return tb.Str(keyPeer).Byte(' ').Str(peerAddr).Byte(' ').
+			Str(strings.ReplaceAll(under, config.PathSep, " ")).Str(" <value>)").String()
 	}
 	if yerr.Type == yang.ErrTypeEnum {
 		if yerr.Expected != "" {

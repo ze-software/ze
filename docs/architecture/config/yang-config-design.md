@@ -46,12 +46,20 @@ but no variables.
 
 | Kind | Examples |
 |------|----------|
-| Typedefs | `ipv4-address`, `asn`, `port`, `prefix-ipv4`, `community`, `address-family` |
+| Typedefs | `ipv4-address`, `asn`, `port`, `prefix-ipv4`, `community`, `address-family`, `vlan-id` |
 | Groupings | `route-attributes`, `peer-info`, `command-info`, `transaction-result` |
 
 Other modules import it: `import ze-types { prefix zt; }` and reference its types:
 `leaf as { type zt:asn; }`.
 
+A typedef carries the operator's message on its own restriction, so every leaf
+that uses it refuses in the same words. `zt:vlan-id` is a `uint16` with range
+`1..4094` and an `error-message` that says IEEE 802.1Q reserves 0 and 4095. The
+interface unit `vlan-id` leaf and the `vid` arguments of the interface commands
+and RPCs use it ("Constraint error messages", in section 4).
+
+<!-- source: internal/component/config/yang/modules/ze-types.yang -- typedef vlan-id -->
+<!-- source: internal/component/config/yang/constraint_message.go -- LeafConstraintMessages -->
 ### Extensions: `ze-extensions.yang`
 
 Defines ze-specific YANG extensions (RFC 7950 Section 7.19). These are annotations that
@@ -448,6 +456,53 @@ reason in the message.
 <!-- source: internal/component/config/yang/validator_reference.go -- validateLeafref, validateIdentityref, validateInstanceIdentifier -->
 <!-- source: internal/component/config/yang/validator_instance.go -- ValidateReferences, checkLeafrefInstance, checkInstanceIdentifierInstance, canonicalValue, sameValue, canonicalKey -->
 <!-- source: internal/component/config/validate_sections.go -- ValidateCustomSections, referenceFailures -->
+
+#### Constraint error messages
+
+A `range`, `length` or `pattern` restriction may carry an `error-message`
+substatement, and Ze speaks it when that restriction refuses a value.
+
+RFC 7950 Section 7.5.4.1: "If the constraint evaluates to "false", the string is passed as <error-message> in the <rpc-error> in NETCONF."
+
+The refusal keeps what was refused and adds the module author's reason and
+fix:
+
+| Restriction | The refusal the operator reads |
+|-------------|--------------------------------|
+| `range` | the out-of-range text, then `: ` and the message |
+| `length` | the length text, then `: ` and the message |
+| `pattern` | `invalid value "<value>": ` and the message, with no regular expression |
+
+A restriction with no `error-message` keeps its generic text. goyang parses the
+statement but drops it from the resolved type, so
+`LeafConstraintMessages` reads it from the type statements: the leaf's own
+type, a typedef it derives from, or a union member. Along a typedef chain a
+range or length takes the message of the nearest statement that declares one,
+because a derived restriction replaces its base's, and each pattern keeps the
+message of its own statement, because patterns add up.
+
+All three validators speak it:
+
+| Path | Where the message is read |
+|------|---------------------------|
+| The tree walk (`ze config validate`, the daemon load, the editor commit) | `validateLeafValue` in `config/yang/validator.go` |
+| The parsers and the `set` path, a single leaf and each union member | `LeafNode.Constraint`, filled by `yangToLeaf` and `unionMembersFromType` |
+| The parsers and the `set` path, each member of a leaf-list, a multi-value leaf or a bracket leaf-list | the node's `Constraint` (`ValueOrArrayNode`, `MultiLeafNode`, `BracketLeafListNode`), filled in `yangToNodeOfAnyOS`, read by `validateValuePatterns` |
+| Command arguments, through the RPC validator | `ArgOptions.RangeMessage`, `LengthMessage` and `PatternMessages`, filled by `yangTypeToArgDef` |
+
+
+One input gets one guard. The constraint is the first check on every path, so
+its `error-message` is where the operator's message goes. A `ze:validate`
+behind it that re-checks the same shape is either never reached, because the
+constraint refused first, or speaks a second refusal for the same value. The
+IS-IS `system-id` pattern and `zt:vlan-id` are the worked examples.
+
+<!-- source: internal/component/config/yang/constraint_message.go -- ConstraintMessages, LeafConstraintMessages, typeConstraintMessages, WithConstraintMessage -->
+<!-- source: internal/component/config/yang/validator.go -- validateLeafValue, speakConstraintMessage -->
+<!-- source: internal/component/config/schema.go -- LeafNode.Constraint, MultiLeafNode.Constraint, BracketLeafListNode.Constraint, ValueOrArrayNode.Constraint, validateLeafPatterns, validateValuePatterns, validateLengths -->
+<!-- source: internal/component/config/yang_schema.go -- yangToNodeOfAnyOS, yangToLeaf, unionMembersFromType -->
+<!-- test: internal/component/config/leaflist_pattern_message_test.go TestLeafListPatternRefusalSpeaksTheMessage -->
+<!-- source: internal/component/command/argvalidate.go -- refusalWithMessage -->
 
 ### Layer 2: Custom Validators (`ze:validate`)
 

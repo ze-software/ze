@@ -99,8 +99,7 @@ func cmdPluginCLI(args []string) int {
 	// Load SSH credentials.
 	creds, err := sshclient.LoadCredentialsWithFlags(*user)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		fmt.Fprintf(os.Stderr, "hint: is the daemon running?\n")
+		fmt.Fprintf(os.Stderr, "error: %v\n", sshclient.CredentialsUnavailable(err))
 		return 1
 	}
 

@@ -1190,17 +1190,23 @@ line 1: unknown top-level keyword: mrt
 ```
 
 `registry.GatedConfigRootRequirements(root)` answers the tag sets that carry
-an owner of the root. A root several plugins own keeps only the smallest sets:
+an owner of the root, or of a root below it: `anomaly` exists only through the
+gated `anomaly/*` owners, so a build without them names their tags for the
+keyword `anomaly` too. A root several plugins own keeps only the smallest sets:
 `bgp` is owned by `bgp` (`ze_bgp`) and by `bgp-bmp` (`ze_bgp`, `ze_bmp`), so the
 answer is `ze_bgp` alone. Disjoint sets are printed as alternatives.
-`config.TopLevelKeywordHint` writes the hint for the brace parser's top-level
-refusal (`parseRoot`) and for the set parser's root fields
-(`SetParser.unknownFieldHint`). A name no gated plugin owns, a typo for
-instance, keeps the closest-key hint (`UnknownKeywordHint`), and no tag is
-guessed. Only the top level asks: a nested unknown field is a typo inside a
-module that is present.
+`config.KeywordHint` writes the hint for every unknown-keyword refusal: the
+brace parser's top level (`parseRoot`), a block (`parseContainer`), a list
+entry, an editor context (`ParseAt`), and the set parser
+(`SetParser.unknownFieldHint`). It asks the table for the keyword's whole path
+from the top level, so a nested root a gated plugin owns names its tag too:
+`fib { vpp { } }` in a build without `ze_vpp` is refused as
+`unknown field in fib: vpp`, then the plugin line and the `fix:` line naming
+`ze_vpp`. A name no gated plugin owns at that path, a typo for instance, keeps
+the closest-key hint (`UnknownKeywordHint`), and no tag is guessed. A path
+through a list entry matches no root, because no gated root sits below a list.
 
-<!-- source: internal/component/config/compiled_out_root.go -- TopLevelKeywordHint -->
+<!-- source: internal/component/config/compiled_out_root.go -- KeywordHint -->
 <!-- source: internal/component/plugin/registry/gated_plugins.go -- GatedConfigRootRequirements -->
 <!-- source: internal/le/plugin/gatedtable/gatedtable.go -- renderConfigRoots -->
 

@@ -607,10 +607,14 @@ As a helper (RFC 3623 §3), on receiving a Grace-LSA that passes every §3.1 che
 second store or require a separate `ze.config.dir` setting. Runtime initialization
 durably increments the boot count and reads restart state before packet processing.
 A failed state request stops initialization; there is no clock-derived fallback.
+A reload whose new engines cannot read that state, and whose engines of the
+running config cannot read it again either, says so: the error tells you to run
+`ze doctor` and fix the store problem it reports, or `ze init` when ze has no
+persistent store, and it names the daemon restart as the last repair.
 Restart writes wait for the daemon's durable acknowledgement. Reads distinguish
 absent state from unavailable or corrupt state.
 <!-- source: internal/plugins/ospf/auth_keystore.go -- loadOSPFBootCount -->
-<!-- source: internal/plugins/ospf/state.go -- initializeState -->
+<!-- source: internal/plugins/ospf/state.go -- initializeState, runningEnginesLost, runningStateFix -->
 <!-- source: internal/plugins/ospf/gr_nvs.go -- restartFact, writeRestartFact, readRestartFact -->
 <!-- source: internal/plugins/ospf/gr_preserve.go -- capturePrefixLSIDs, restoreInterfaceIDs, v6OriginateGraceLSA -->
 <!-- source: internal/plugins/ospf/packet/grace_lsa.go -- GraceLSA, EncodeGraceLSA, DecodeGraceLSA -->

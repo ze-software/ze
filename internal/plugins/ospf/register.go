@@ -602,7 +602,7 @@ func runOSPFEngine(conn net.Conn) int {
 			cfgMu.Lock()
 			enginesLost = true
 			cfgMu.Unlock()
-			return fmt.Errorf("ospf: %w; putting the running config back failed: %w: %w", applyErr, undoErr, sdk.ErrRunningConfigLost)
+			return runningEnginesLost(applyErr, undoErr)
 		}
 		return applyErr
 	})

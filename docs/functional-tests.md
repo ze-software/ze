@@ -2730,7 +2730,7 @@ expect=json:conn=1:seq=1:json={...}
 | `cmd=` | `cmd=api:conn=1:seq=1:text=...` | API command |
 | `cmd=background:...:name=` | `cmd=background:seq=1:exec=ze -:name=responder` | Start a background process under a handle |
 | `cmd=stop:` | `cmd=stop:seq=3:name=responder[:signal=kill\|term]` | Terminate a named background process mid-test (SIGKILL default) |
-| `expect=bgp:` | `expect=bgp:conn=1:seq=1:hex=...` | Expected wire bytes |
+| `expect=bgp:` | `expect=bgp:conn=1:seq=1:hex=...` | Expected wire bytes. `prefix=`, `contains=`, `announced=`, `withdrawn=` and `ordered=` expect part of a message: when none arrives, the failure says `Missing: the received message does not match <key>=<hex>`, not a decode error (`docs/architecture/testing/ci-format.md`, "BGP Wire Expectations") |
 | `expect=json:` | `expect=json:conn=1:seq=1:json=...` | Expected JSON |
 | `expect=stdout:` | `expect=stdout:contains=text` | Substring match in the stdout of the `cmd=` above it, never its stderr |
 | `expect=stderr:` | `expect=stderr:pattern=...` or `contains=...` | Regex or substring match in the stderr of the `cmd=` above it |

@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 
@@ -93,7 +94,7 @@ func TestUnitVIDBoundIsTheModels(t *testing.T) {
 			// backend seam. No backend is loaded in a unit test, and that is
 			// the error it answers with: not a VLAN ID complaint.
 			require.NoError(t, dispatchErr)
-			assert.Equal(t, "iface: no backend loaded", resp.Error)
+			assert.Equal(t, iface.ErrNoBackendLoaded.Error(), resp.Error)
 		})
 	}
 }

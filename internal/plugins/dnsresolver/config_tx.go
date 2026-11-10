@@ -93,7 +93,9 @@ func (in *resolverInstaller) install(cfg resolverConfig) error {
 			in.res.listeners.prune(running.shown.Listeners)
 		}
 		if errors.Is(err, dnsserver.ErrPreviousListenersLost) {
-			return fmt.Errorf("dns-resolver: %w (%w).\n%s", err, sdk.ErrRunningConfigLost, sdk.RunningConfigLostNext)
+			return sdk.RunningConfigLost(err,
+				"dns-resolver could not apply the new config, and could not bind the running config's listeners again",
+				sdk.RunningConfigLostListenerFix)
 		}
 		return fmt.Errorf("dns-resolver: %w", err)
 	}

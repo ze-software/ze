@@ -159,7 +159,9 @@ func TestOSPFFailedApplyRestoresExportChain(t *testing.T) {
 
 // TestOSPFFailedApplyThatCannotUndoHandsTheRepairToRollback proves an apply
 // that fails and cannot put the engines back says so with
-// ErrRunningConfigLost, so the SDK sends it the rollback, and that the
+// ErrRunningConfigLost, so the SDK sends it the rollback, that the operator
+// reads the whole operator error (the problem, the SDK's why over both
+// causes, the state-store first step and the daemon restart), and that the
 // rollback tries the repair again and answers an error when it fails too,
 // which is what restarts the plugin. Method: config A runs instance 5;
 // config B replaces it with instance 6 while the engine refuses every
@@ -219,6 +221,16 @@ func TestOSPFFailedApplyThatCannotUndoHandsTheRepairToRollback(t *testing.T) {
 	}
 	if !strings.Contains(apply.Error, sdk.ErrRunningConfigLost.Error()) {
 		t.Fatalf("config-apply error %q does not say the running config is lost", apply.Error)
+	}
+	// Both the failed apply (instance 6) and the failed undo (instance 5)
+	// stop at the refused boot-count increment.
+	stateErr := "ospf: initialize durable boot count: " + (&rpc.StateError{Status: rpc.StatePersistFailed}).Error()
+	want := "OSPF could not apply the new config, and could not put its engines back to the running config either\n" +
+		sdk.RunningConfigLostWhy + ": " + stateErr + "; putting the running config back: " + stateErr +
+		" (" + sdk.ErrRunningConfigLost.Error() + ")\n" +
+		"fix: " + runningStateFix + ".\n" + sdk.RunningConfigLostRestart
+	if apply.Error != want {
+		t.Errorf("config-apply error =\n%s\nwant\n%s", apply.Error, want)
 	}
 
 	// The rollback handler's error reaches the engine as an RPC error.

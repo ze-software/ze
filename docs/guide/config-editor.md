@@ -90,12 +90,25 @@ result. Separate sessions keep independent whole snapshots, not merged history.
 | `commit accept` | Make a pending confirmed commit permanent |
 | `commit abort` | Roll back a pending confirmed commit immediately |
 | `commit verify` | Validate the candidate and apply nothing |
+| `discard all` | Drop every pending change (in an editing session, every change of this session) |
+| `discard <path>` | Drop the pending changes at or under the path, and keep every other change |
 | `rollback <N>` | Restore revision N |
 | `top` | Navigate to config root |
 | `up` | Navigate up one level |
 | `edit <path>` | Navigate into a section |
 | `exit` | Exit editor |
 <!-- source: internal/component/cli/editor_commands.go -- editor commands (set, delete, show, diff, commit, rollback) -->
+<!-- source: internal/component/cli/editor_help.go -- editorCommands, EditorHelpEntries -->
+
+In an editing session a bare `discard` is refused and names both forms above.
+Without an editing session, a bare
+`discard` drops every change, and `discard <path>` puts back the committed
+content at the path, or removes what the path holds when the committed
+config has nothing there.
+<!-- source: internal/component/cli/editor_discard_path.go -- DiscardPath, restoreElement -->
+<!-- source: internal/component/config/tree_restore.go -- RestoreValue -->
+The help overlay (`help`), Tab completion and `ze config edit --help` all read
+one command table, so their wording for a command is the same.
 
 `commit` always takes a subcommand: a bare `commit`, a bare `force`, or an
 unknown word is refused with the list of subcommands, so a typo never applies a

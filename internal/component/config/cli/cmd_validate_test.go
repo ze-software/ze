@@ -119,51 +119,6 @@ func TestValidateRunStdin(t *testing.T) {
 	assert.Equal(t, 0, code, "valid stdin should return exit code 0")
 }
 
-// TestValidateExtractLine verifies line number extraction from error messages.
-//
-// VALIDATES: Line numbers extracted correctly from parser errors.
-// PREVENTS: Missing line info in error output.
-func TestValidateExtractLine(t *testing.T) {
-	tests := []struct {
-		input string
-		want  int
-	}{
-		{"line 5: unexpected token", 5},
-		{"line 123: syntax error", 123},
-		{"error at line 42: missing semicolon", 42},
-		{"no line number here", 0},
-		{"", 0},
-	}
-
-	for _, tt := range tests {
-		got := extractLine(tt.input)
-		assert.Equal(t, tt.want, got, "extractLine(%q)", tt.input)
-	}
-}
-
-// TestValidateWithoutLinePrefix verifies the parser's own "line N: " prefix is
-// dropped once the line is held in the diagnostic's field.
-//
-// VALIDATES: the operator reads the line number once.
-// PREVENTS: "line 18: line 18: ..." in `ze config validate` output, which every
-// parse error printed until 2026-10-11.
-func TestValidateWithoutLinePrefix(t *testing.T) {
-	tests := []struct {
-		input string
-		line  int
-		want  string
-	}{
-		{"line 18: expected value", 18, "expected value"},
-		{"error at line 42: missing semicolon", 42, "error at line 42: missing semicolon"},
-		{"line 5: x", 0, "line 5: x"},
-	}
-
-	for _, tt := range tests {
-		got := withoutLinePrefix(tt.input, tt.line)
-		assert.Equal(t, tt.want, got, "withoutLinePrefix(%q, %d)", tt.input, tt.line)
-	}
-}
-
 // TestValidateResultValid verifies validation result for valid config.
 //
 // VALIDATES: Valid config produces Valid=true result.
@@ -668,4 +623,37 @@ func TestValidateConfigNamesABadArgumentCount(t *testing.T) {
 	payload, code = payloadAnswer.Payload, payloadAnswer.Code
 	assert.Nil(t, payload)
 	assert.Equal(t, exitError, code)
+}
+
+// TestValidateNamesParseLineOnce verifies a parse refusal's line is held in
+// the diagnostic's field and nowhere in its message, for both file formats.
+//
+// VALIDATES: the operator reads the line number once, and a set-format file's
+// "parse config" once (spec-operator-errors-name-the-fix AC-5).
+// PREVENTS: "line 18: line 18: ..." (every parse error until 2026-10-11) and
+// "line 1: parse config: line 1: ..." (a set-format file until this spec).
+func TestValidateNamesParseLineOnce(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		line    int
+		message string
+	}{
+		{"set format", "set zzqqxx 1\n", 1, "parse config: config contains fields unknown to this build\n"},
+		{"stray brace", "system {\n}\n}\n", 3, "this '}' closes no section\n" +
+			"every '}' ends a block that a '{' before it opened, and no block is open at this point\n" +
+			"fix: delete this '}'"},
+	}
+
+	for _, tt := range tests {
+		result := runValidation(tt.input, "-")
+		if !assert.Len(t, result.Diagnostics, 1, tt.name) {
+			continue
+		}
+		d := result.Diagnostics[0]
+		assert.Equal(t, tt.line, d.Line, "%s: line", tt.name)
+		assert.True(t, strings.HasPrefix(d.Message, tt.message), "%s: message %q does not open with %q", tt.name, d.Message, tt.message)
+		assert.NotContains(t, d.Message, "line ", "%s: message names a line", tt.name)
+		assert.LessOrEqual(t, strings.Count(d.Message, "parse config"), 1, "%s: parse config repeated", tt.name)
+	}
 }

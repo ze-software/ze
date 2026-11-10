@@ -130,12 +130,12 @@ func TestOperatorErrorConstructorRefusesEmptyParts(t *testing.T) {
 		build func()
 		want  string
 	}{
-		{"New empty problem", func() { New("", testWhy, testFix) }, "BUG: opererr.New called with an empty problem"},
-		{"New empty why", func() { New(testProblem, "", testFix) }, "BUG: opererr.New called with an empty why for: " + testProblem},
-		{"New empty fix", func() { New(testProblem, testWhy, "") }, "BUG: opererr.New called with an empty fix for: " + testProblem},
-		{"Wrap empty problem", func() { Wrap(errors.New("x"), "", testWhy, testFix) }, "BUG: opererr.New called with an empty problem"},
-		{"Wrap empty why", func() { Wrap(errors.New("x"), testProblem, "", testFix) }, "BUG: opererr.New called with an empty why for: " + testProblem},
-		{"Wrap empty fix", func() { Wrap(errors.New("x"), testProblem, testWhy, "") }, "BUG: opererr.New called with an empty fix for: " + testProblem},
+		{"New empty problem", func() { _ = New("", testWhy, testFix) }, "BUG: opererr.New called with an empty problem"},
+		{"New empty why", func() { _ = New(testProblem, "", testFix) }, "BUG: opererr.New called with an empty why for: " + testProblem},
+		{"New empty fix", func() { _ = New(testProblem, testWhy, "") }, "BUG: opererr.New called with an empty fix for: " + testProblem},
+		{"Wrap empty problem", func() { _ = Wrap(errors.New("x"), "", testWhy, testFix) }, "BUG: opererr.New called with an empty problem"},
+		{"Wrap empty why", func() { _ = Wrap(errors.New("x"), testProblem, "", testFix) }, "BUG: opererr.New called with an empty why for: " + testProblem},
+		{"Wrap empty fix", func() { _ = Wrap(errors.New("x"), testProblem, testWhy, "") }, "BUG: opererr.New called with an empty fix for: " + testProblem},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

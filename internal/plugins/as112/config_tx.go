@@ -151,11 +151,16 @@ func (in *as112Installer) install(cfg as112Config) error {
 func (in *as112Installer) refuse(prev *as112State, cause error) error {
 	storeState(prev)
 	if rerr := applyAddressRegistration(in.running, in.register, in.unregister); rerr != nil {
-		return fmt.Errorf("as112: %w; the running config's loopback address registration could not be "+
-			"restored either (%w), %w", cause, rerr, sdk.ErrRunningConfigLost)
+		// Only the daemon restart repairs a registration that could not be put
+		// back, so the SDK's next step carries no first step of as112's own.
+		return sdk.RunningConfigLost(fmt.Errorf("%w; restoring the registration: %w", cause, rerr),
+			"as112 could not apply the new config, and could not restore the running config's "+
+				"loopback address registration either", "")
 	}
 	if errors.Is(cause, dnsserver.ErrPreviousListenersLost) {
-		return fmt.Errorf("as112: %w (%w).\n%s", cause, sdk.ErrRunningConfigLost, sdk.RunningConfigLostNext)
+		return sdk.RunningConfigLost(cause,
+			"as112 could not apply the new config, and could not bind the running config's listeners again",
+			sdk.RunningConfigLostListenerFix)
 	}
 	return fmt.Errorf("as112: %w", cause)
 }

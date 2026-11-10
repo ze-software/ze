@@ -215,7 +215,15 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 		if m.editor.HasSession() {
 			return m.cmdDiscardSession(args)
 		}
-		return m.cmdDiscard()
+		// Without a session, bare discard and `discard all` drop every change,
+		// and `discard <path>` drops only the changes under that path.
+		if len(args) == 0 {
+			return m.cmdDiscard()
+		}
+		if args[0] == cmdAll {
+			return m.cmdDiscard()
+		}
+		return m.cmdDiscardPath(args)
 
 	case cmdRollback:
 		return m.cmdRollback(args)

@@ -86,6 +86,31 @@ type syncWorker struct {
 	peers    map[string]*serverState
 }
 
+// lastErrorUnsynchronized is the last-error of a server whose reply carries
+// the leap indicator alarm: the server has no time to give, so the operator
+// fixes the server's own time source or names another server.
+const lastErrorUnsynchronized = "server is not synchronized (leap indicator alarm): it has no time source of its own, so its time is not used; fix the time source on that server, or add another server under environment ntp server"
+
+// serverUnsynchronized reports a reply from a server that is not synchronized
+// itself. beevik/ntp Response.Validate tests stratum 0 before the leap
+// indicator and answers "kiss of death received" for such a reply, which
+// sends the operator after a refusal that never happened. A stratum 0 reply
+// that carries a printable kiss code is a real kiss-o'-death packet, and
+// Validate keeps naming it.
+//
+// RFC 5905 Section 7.3: "3     | unknown (clock unsynchronized)".
+// RFC 5905 Section 7.3: "For packet stratum 0 (unspecified or invalid), this
+// is a four-character ASCII [RFC1345] string, called the "kiss code",".
+func serverUnsynchronized(resp *ntp.Response) bool {
+	if resp.Leap != ntp.LeapNotInSync {
+		return false
+	}
+	if resp.Stratum != 0 {
+		return true
+	}
+	return resp.KissCode == ""
+}
+
 func newSyncWorker(cfg ntpConfig, eb ze.EventBus) *syncWorker {
 	return &syncWorker{
 		cfg:      cfg,
@@ -193,6 +218,16 @@ func (w *syncWorker) doSync(logger *slog.Logger) bool {
 			ps.Reach = reachShift(ps.Reach, false)
 			ps.LastError = "absurd timestamp year " + strconv.Itoa(resp.Time.Year())
 			logger.Warn("ntp: response rejected (absurd timestamp)", "server", addr, "year", resp.Time.Year())
+			continue
+		}
+
+		// RFC 5905 Section 7.3: the leap indicator alarm is checked before
+		// Validate, which tests stratum 0 first and names this reply a kiss
+		// of death.
+		if serverUnsynchronized(resp) {
+			ps.Reach = reachShift(ps.Reach, false)
+			ps.LastError = lastErrorUnsynchronized
+			logger.Warn("ntp: server is not synchronized", "server", addr, "stratum", resp.Stratum)
 			continue
 		}
 

@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/command/commandtest"
+	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -64,7 +65,7 @@ func TestHandleClearInterfaceCounters_Scopes(t *testing.T) {
 				return
 			}
 			assert.Equal(t, plugin.StatusError, resp.Status)
-			assert.Equal(t, "iface: no backend loaded", resp.Error, "the form was refused before it reached the reset")
+			assert.Equal(t, iface.ErrNoBackendLoaded.Error(), resp.Error, "the form was refused before it reached the reset")
 		})
 	}
 }

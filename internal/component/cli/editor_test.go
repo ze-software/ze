@@ -2571,7 +2571,7 @@ func TestEditorDiscardBareRejected(t *testing.T) {
 	m := Model{editor: ed}
 	_, cmdErr := m.cmdDiscardSession(nil)
 	require.Error(t, cmdErr, "bare discard should be rejected")
-	assert.Contains(t, cmdErr.Error(), "discard requires path or 'all'")
+	assert.Equal(t, "discard needs a target in an editing session: type 'discard all' to drop every pending change, or 'discard <path>' to drop the changes under one path", cmdErr.Error())
 }
 
 // TestEditorDiscardPathBoundary verifies discard uses word boundaries, not raw prefix.

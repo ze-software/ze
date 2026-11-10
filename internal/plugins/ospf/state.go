@@ -6,6 +6,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // initializeState MUST complete before subscribing to interface events or opening
@@ -36,4 +38,26 @@ func (e *engine) incrementBootCount() (uint32, error) {
 	ctx, cancel := context.WithTimeout(e.ctx, 5*time.Second)
 	defer cancel()
 	return loadOSPFBootCount(ctx, e.state)
+}
+
+// runningStateFix is the operator's first step when an apply could not put
+// the engines back to the running config. The only error applyEngines answers
+// is initializeState's, through instanceManager.reconcile and
+// v6EngineSet.apply: an engine the undo recreates must read its boot count and
+// restart state from the daemon's store again. The daemon's store refuses with
+// statestore.ErrUnavailable, whose text names `ze init`, when it has none, and
+// `ze doctor` reports a store it cannot read, a corrupt one, or a full disk.
+const runningStateFix = "OSPF starts an engine only after it reads its boot count and graceful restart state " +
+	"from ze's runtime state store: run `ze doctor` and fix the store problem it reports, " +
+	"or run `ze init` if the error above says ze has no persistent store"
+
+// runningEnginesLost is the error of an apply that failed with applyErr and
+// whose undo, the apply of the running config, failed with undoErr. It wraps
+// sdk.ErrRunningConfigLost, so the SDK opens the rollback gate and
+// OnConfigRollback tries the repair again, and it carries the problem, the
+// SDK's why and the fix, whose last step is the daemon restart.
+func runningEnginesLost(applyErr, undoErr error) error {
+	return sdk.RunningConfigLost(fmt.Errorf("%w; putting the running config back: %w", applyErr, undoErr),
+		"OSPF could not apply the new config, and could not put its engines back to the running config either",
+		runningStateFix)
 }

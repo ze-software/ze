@@ -6,12 +6,14 @@ package reactor
 
 import (
 	"errors"
+	"fmt"
 	"net/netip"
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -77,6 +79,33 @@ func rawOrigin(sender plugin.Sender) sendOrigin {
 // in the wrapped message, because the process that issued the command is the
 // one reader who can fix it (ai/rules/cli.md).
 var errSendNotPermitted = errors.New("send refused: no peer this selector names attaches this process with the required send permission")
+
+// sendPermissionWhy is the reason every send-permission refusal gives: the
+// grant lives in the peer's config, so the operator knows where to look.
+const sendPermissionWhy = "a peer takes a message from a process only when its attach block names the process and lists the message type under send"
+
+// sendNotPermitted builds the refusal a rail answers when every peer it
+// addressed refused origin. target is what the caller addressed, in its own
+// words ("selector 10.0.0.2", "3 destinations", "peer 10.0.0.2"), because only
+// the caller holds it.
+//
+// errSendNotPermitted and its detail stay the cause, their text unchanged: a
+// plugin receives the refusal as an RPC error string and recognizes it by that
+// text (filter_irr sendNotPermittedText), and errors.Is still finds the
+// sentinel in process. The operator error adds what the bare refusal never
+// said: which process may not send what, that the peer's attach block is what
+// grants it, and the statement that does.
+func sendNotPermitted(target string, origin sendOrigin) error {
+	cause := fmt.Errorf("%w: %s, process %s, send type %s",
+		errSendNotPermitted, target, origin.sender, origin.sendType)
+	process := origin.sender.String()
+	var problem, fix textbuf.Buffer
+	problem.Str("process ").Str(process).Str(" may not send ").Str(origin.sendType).
+		Str(" messages to ").Str(target)
+	fix.Str("add 'attach process ").Str(process).Str(" { send [ ").Str(origin.sendType).
+		Str(" ]; }' to each peer the process sends to")
+	return opererr.Wrap(cause, problem.String(), sendPermissionWhy, fix.String())
+}
 
 // errSendNoSender is returned when a send command reaches the resolver and
 // nothing said who issued it. There is no attach block to consult for an

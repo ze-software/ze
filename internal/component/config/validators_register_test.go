@@ -18,8 +18,8 @@ func TestISISHostnameValidatorRegistered(t *testing.T) {
 	reg := yang.NewValidatorRegistry()
 	RegisterValidators(reg)
 
-	// The name the isis hostname leaf carries in ze-isis-conf.yang.
-	for _, name := range []string{"isis-hostname", "isis-net", "isis-system-id"} {
+	// The names the isis hostname and net leaves carry in ze-isis-conf.yang.
+	for _, name := range []string{"isis-hostname", "isis-net"} {
 		cv := reg.Get(name)
 		if cv == nil {
 			t.Fatalf("validator %q is not registered: a ze:validate leaf naming it accepts every value", name)
@@ -27,5 +27,12 @@ func TestISISHostnameValidatorRegistered(t *testing.T) {
 		if cv.ValidateFn == nil {
 			t.Errorf("validator %q has a nil ValidateFn: it cannot refuse anything", name)
 		}
+	}
+
+	// The system-id leaf's ze:validate name is completion-only: its YANG
+	// pattern refuses a malformed value first on every path, so the name is
+	// declared for the CompleteFn alone (isis_system_id_message_test.go).
+	if reg.Get("isis-system-id") == nil {
+		t.Fatal(`validator "isis-system-id" is not declared: CheckAllValidatorsRegistered reports the system-id leaf`)
 	}
 }

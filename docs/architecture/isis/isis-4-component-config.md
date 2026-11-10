@@ -26,12 +26,19 @@ component outside itself is the generated composition root.
 
 ## Decision: the NET validators live centrally, the completion locally
 
-The `ValidateFn` for the NET and the system ID are registered in the config
+The `ze:validate` names of the NET and the system ID are declared in the config
 component (`isis-net`, `isis-system-id`), because the config package cannot
 import the IS-IS component without an import cycle. The IS-IS component registers
 only the `CompleteFn` guidance from its own registration. This split keeps
 `ze:validate "isis-net"` self-contained for completion while breaking the cycle
 for validation.
+
+Only `isis-net` carries a `ValidateFn`. The system ID's form is refused by the
+leaf's YANG `pattern`, whose `error-message` names the form and the fix, and
+the pattern runs before any custom validator on every path. `isis-system-id` is
+therefore declared with no `ValidateFn`, for completion alone: one guard, one
+message (`docs/architecture/config/yang-config-design.md`, "Constraint error
+messages").
 
 <!-- source: internal/component/config/validators.go -- ISISNETValidator, ISISSystemIDValidator -->
 

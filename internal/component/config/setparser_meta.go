@@ -197,7 +197,7 @@ func extractMeta(line string) (MetaEntry, string) {
 func (p *SetParser) parseLineWithMeta(tree *Tree, meta *MetaTree, line string, entry MetaEntry, lineNum int) error {
 	tokens, err := splitQuotedTokens(line)
 	if err != nil {
-		return fmt.Errorf("line %d: %w", lineNum, err)
+		return newLineError(lineNum, err)
 	}
 	if len(tokens) == 0 {
 		return nil
@@ -205,6 +205,7 @@ func (p *SetParser) parseLineWithMeta(tree *Tree, meta *MetaTree, line string, e
 
 	cmd := tokens[0]
 	tokens = tokens[1:]
+	p.lineTokens = tokens
 
 	switch cmd {
 	case cmdSet:
@@ -223,21 +224,21 @@ func (p *SetParser) parseLineWithMeta(tree *Tree, meta *MetaTree, line string, e
 			return err
 		}
 		if err := p.recordDeleteMeta(meta, entry, tokens); err != nil {
-			return fmt.Errorf("line %d: %w", lineNum, err)
+			return newLineError(lineNum, err)
 		}
 		return nil
 	case cmdInactive:
 		return p.parseInactive(tree, tokens, lineNum)
 	}
 
-	return fmt.Errorf("line %d: unknown command: %s (expected set/nop/delete/inactive)", lineNum, cmd)
+	return lineErrorf(lineNum, "unknown command: %s (expected set/nop/delete/inactive)", cmd)
 }
 
 // parseSetWithMeta handles: set <path...> <value> and records metadata along the path.
 // Tolerates structural-only commands (incomplete config) like parseSet.
 func (p *SetParser) parseSetWithMeta(tree *Tree, meta *MetaTree, entry MetaEntry, tokens []string, lineNum int) error {
 	if len(tokens) < 1 {
-		return fmt.Errorf("line %d: set requires at least a path", lineNum)
+		return lineErrorf(lineNum, "set requires at least a path")
 	}
 
 	return p.setSyntaxRefusal(tokens, p.walkAndSetWithMeta(tree, meta, p.schema.root, entry, tokens, lineNum))
@@ -257,11 +258,10 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 	node := resolveSchemaNode(p.schema, parent, name)
 	if node == nil {
 		if p.preMigration {
-			var bw textbuf.Buffer
-			p.warnings = append(p.warnings, bw.Reset().Str("line ").Int(int64(lineNum)).Str(": unknown field: ").Str(name).Str(" (needs migration)").String())
+			p.skipUnknownField(lineNum, name)
 			return nil
 		}
-		return fmt.Errorf("line %d: unknown field: %s%s", lineNum, name, p.unknownFieldHint(name, parent))
+		return lineErrorf(lineNum, "unknown field: %s%s", name, p.unknownFieldHint(name, parent, tokens))
 	}
 
 	hasMetadata := entry.User != "" || !entry.Time.IsZero() || entry.Source != ""
@@ -277,23 +277,23 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 
 	if leaf, ok := node.(*LeafNode); ok {
 		if len(tokens) != 1 {
-			return fmt.Errorf("line %d: leaf %s expects exactly one value", lineNum, name)
+			return lineErrorf(lineNum, "leaf %s expects exactly one value", name)
 		}
 		// A $9$ key decodes as it does in the hierarchical form (parseLeaf).
 		// The session entry holds the decoded key too, as the tree does: the
 		// editor replays and compares entries against tree values.
 		value, err := decodeSecretLeaf(tree, name, leaf, tokens[0])
 		if err != nil {
-			return fmt.Errorf("line %d: %w", lineNum, err)
+			return newLineError(lineNum, err)
 		}
 		// The ^previous key is written in the $9$ form too (encodeSecretMeta),
 		// and the editor compares it with the committed key.
 		entry.Previous, _, err = DecodeSecretText(name, leaf, entry.Previous)
 		if err != nil {
-			return fmt.Errorf("line %d: previous value: %w", lineNum, err)
+			return lineErrorf(lineNum, "previous value: %w", err)
 		}
 		if err := ValidateLeafValue(leaf, value); err != nil {
-			return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
+			return lineErrorf(lineNum, "invalid value for %s: %w", name, err)
 		}
 		setLeafMeta(NormalizeLeafValue(leaf.Type, value))
 		return nil
@@ -301,11 +301,11 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 
 	if multi, ok := node.(*MultiLeafNode); ok {
 		if len(tokens) < 1 {
-			return fmt.Errorf("line %d: multi-leaf %s expects at least one value", lineNum, name)
+			return lineErrorf(lineNum, "multi-leaf %s expects at least one value", name)
 		}
 		value := textbuf.Join(tokens, " ")
-		if err := validateValuePatterns(multi.Type, multi.Patterns, value); err != nil {
-			return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
+		if err := validateValuePatterns(multi.Type, multi.Patterns, multi.Constraint, value); err != nil {
+			return lineErrorf(lineNum, "invalid value for %s: %w", name, err)
 		}
 		setLeafMeta(value)
 		return nil
@@ -324,13 +324,13 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 		// (bracketValue), so it reads back as members too.
 		items, err := bracketMembers(bracket, tokens)
 		if err != nil {
-			return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
+			return lineErrorf(lineNum, "invalid value for %s: %w", name, err)
 		}
 		// Members plus the scalar mirror, as walkAndSet stores them. A later
 		// line for the same leaf replaces an earlier one: a committed file
 		// carries a leaf's earlier value as its own line, before the current.
 		if err := setBracketLine(tree, name, items); err != nil {
-			return fmt.Errorf("line %d: %s: %w", lineNum, name, err)
+			return lineErrorf(lineNum, "%s: %w", name, err)
 		}
 		if hasMetadata {
 			entry.Value = JoinLeafListMembers(items)
@@ -388,11 +388,11 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 			return nil // structural-only: list node declared, no entries
 		}
 		if err := ValidateListKey(list, tokens[0]); err != nil {
-			return fmt.Errorf("line %d: invalid key for %s: %w", lineNum, name, err)
+			return lineErrorf(lineNum, "invalid key for %s: %w", name, err)
 		}
 		addr, err := ParseListAddress(name, list, tokens)
 		if err != nil {
-			return fmt.Errorf("line %d: %w", lineNum, err)
+			return newLineError(lineNum, err)
 		}
 		treeEntry := EnsureListEntry(tree, name, addr)
 		if len(tokens) == addr.Tokens {
@@ -488,7 +488,7 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 		return p.walkAndSetWithMeta(treeEntry, entryMeta, il, entry, tokens, lineNum)
 	}
 
-	return fmt.Errorf("line %d: unknown node type %T for %s", lineNum, node, name)
+	return lineErrorf(lineNum, "unknown node type %T for %s", node, name)
 }
 
 // recordDeleteMeta walks the meta tree along the same path as a delete command

@@ -15,6 +15,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -90,7 +91,7 @@ func loadConfig(input, configPath string, cliPlugins []string, publish func(*Tre
 	//
 	// Refusing here is also what makes the reload refuse, with no machinery of
 	// its own: runReload (cmd/ze/hub/main_reload.go) turns this error into
-	// "reload: parse config", clears the staged candidate and returns before
+	// "reload: ", clears the staged candidate and returns before
 	// ReloadConfig, the provider refresh and engine.Reload run, so the daemon
 	// keeps serving the config it already has (Thomas, 2026-08-11).
 	if err := refuseInvalidCustomSections(tree); err != nil {
@@ -299,14 +300,14 @@ func parseTreeWithYANG(input string, pluginYANG map[string]string) (*Tree, *Sche
 		tree, err = p.Parse(input)
 		if err != nil {
 			if hint := detectLegacySyntaxHint(input, err); hint != "" {
-				return nil, nil, fmt.Errorf("parse config: %w\n\n%s", err, hint)
+				return nil, nil, &parseConfigError{cause: err, hint: hint}
 			}
 		}
 	default:
 		panic("BUG: invalid detected config format")
 	}
 	if err != nil {
-		return nil, nil, fmt.Errorf("parse config: %w", err)
+		return nil, nil, &parseConfigError{cause: err}
 	}
 
 	// Prune inactive containers and list entries before extracting environment
@@ -359,8 +360,13 @@ func parseSetConfig(schema *Schema, input string, hasMeta bool) (*Tree, error) {
 		return nil, err
 	}
 
-	if ws := lenient.Warnings(); len(ws) > 0 {
-		return nil, fmt.Errorf("config contains fields unknown to this build (a feature compiled out of this binary, or a legacy field this schema no longer defines); refusing to load a config that would silently drop them: %s: %w", textbuf.Join(ws, "; "), strictErr)
+	if fields := lenient.UnknownFields(); len(fields) > 0 {
+		// The strict refusal names the first field with its hint, and the
+		// other fields follow, each line named once (unknownFieldsError).
+		return nil, opererr.Wrap(newUnknownFieldsError(strictErr, fields),
+			"config contains fields unknown to this build",
+			"a feature compiled out of this binary owns them, or this schema no longer defines them, and loading would silently drop them",
+			"remove or correct each field named above, or rebuild ze with the build tag a field names")
 	}
 
 	return nil, strictErr

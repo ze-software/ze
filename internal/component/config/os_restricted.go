@@ -31,10 +31,17 @@ type NodeOfAnotherOSError struct {
 
 // Error names the node, the OS that carries it, and the fix.
 func (e *NodeOfAnotherOSError) Error() string {
-	var b textbuf.Buffer
 	if e.Line > 0 {
-		b.Str("line ").Int(int64(e.Line)).Str(": ")
+		var b textbuf.Buffer
+		return b.Str("line ").Int(int64(e.Line)).Str(": ").Str(e.message()).String()
 	}
+	return e.message()
+}
+
+// message is the refusal without its leading "line N: ", for a surface that
+// prints the line apart (SplitLine).
+func (e *NodeOfAnotherOSError) message() string {
+	var b textbuf.Buffer
 	b.Str(e.Name)
 	if e.Parent != "" {
 		b.Str(" in ").Str(e.Parent)

@@ -3,7 +3,10 @@
 
 package registry
 
-import "slices"
+import (
+	"slices"
+	"strings"
+)
 
 // GatedPluginTags answers the build tags that must all be set for a binary to
 // carry the plugin called name, and whether a feature gate covers that name at
@@ -39,13 +42,27 @@ func GatedPluginTags(name string) (tags []string, gated bool) {
 // gated false means no gated plugin owns the root: the keyword is unknown to
 // every build of this tree (a typo), or an ungated owner provides it. A caller
 // MUST NOT name a tag then.
+//
+// root is a config path in the table's form, keywords joined by "/"
+// ("fib/vpp"). A path that is no root itself but holds gated roots below it
+// answers for them too: `anomaly` exists in a build only through its gated
+// `anomaly/*` owners, so a build without them refuses the keyword `anomaly`
+// and the answer names every tag set that would carry one of them. A caller
+// asks only for a keyword its schema does not hold: a path an ungated owner
+// also provides is always in the schema, so it is never asked about.
 func GatedConfigRootRequirements(root string) (requirements [][]string, gated bool) {
-	owners, gated := gatedConfigRoots[root]
+	below := root + "/"
+	for path, owners := range gatedConfigRoots {
+		if path != root && !strings.HasPrefix(path, below) {
+			continue
+		}
+		gated = true
+		for _, owner := range owners {
+			requirements = appendSmallestRequirement(requirements, gatedPluginTags[owner])
+		}
+	}
 	if !gated {
 		return nil, false
-	}
-	for _, owner := range owners {
-		requirements = appendSmallestRequirement(requirements, gatedPluginTags[owner])
 	}
 	slices.SortFunc(requirements, slices.Compare[[]string])
 

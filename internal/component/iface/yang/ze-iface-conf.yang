@@ -302,9 +302,7 @@ module ze-iface-conf {
             }
 
             leaf vlan-id {
-                type uint16 {
-                    range "1..4094";
-                }
+                type zt:vlan-id;
                 description "The range is 1 to 4094, which is what IEEE 802.1Q allows. Ze creates a
                              kernel 802.1Q subinterface named <parent>.<vlan-id>. An L3 tunnel refuses
                              a unit that carries this leaf, because only gretap and ip6gretap carry

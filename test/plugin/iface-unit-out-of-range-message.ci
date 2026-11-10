@@ -1,0 +1,67 @@
+# Test: a VLAN ID outside 1 to 4094 on a unit command is refused by the
+# argument validator, before the handler, with the range and the 802.1Q reason.
+# VALIDATES: AC-12 of spec-operator-errors-name-the-fix, through the real entry
+# point: `ze cli -c` reaches the daemon dispatcher, command.ValidateArgs judges
+# the vid leaf against zt:vlan-id (internal/component/config/yang/modules/
+# ze-types.yang), and the refusal carries that range's RFC 7950 Section 7.5.4.1
+# error-message. The delete form is used because its parent carries no
+# ze:ensure-exists, so no interface is created and no CAP_NET_ADMIN is needed.
+# PREVENTS: the bare `value 9999 out of range 1..4094`, which names neither why
+# the range holds nor what to type, and a refusal spoken by the handler instead
+# of the declared constraint.
+#
+# Method: the daemon runs one SSH server on 127.0.0.1 $PORT, which the CLI dials.
+
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT
+EOF_INIT
+
+tmpfs=unit.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start unit.conf:name=daemon:ready=Ze running.
+
+# 9999: far above the range.
+cmd=foreground:seq=3:exec=ze cli -c "delete interface name zetest9 unit 9999"
+expect=stderr:contains=value 9999 out of range 1..4094: IEEE 802.1Q reserves VLAN ID 0 and 4095, so a VLAN ID is 1 to 4094. Give a VLAN ID from 1 to 4094.
+
+# 4095: one above the range, reserved by 802.1Q.
+cmd=foreground:seq=4:exec=ze cli -c "delete interface name zetest9 unit 4095"
+expect=stderr:contains=value 4095 out of range 1..4094: IEEE 802.1Q reserves VLAN ID 0 and 4095
+
+# 0: one below the range, reserved by 802.1Q.
+cmd=foreground:seq=5:exec=ze cli -c "delete interface name zetest9 unit 0"
+expect=stderr:contains=value 0 out of range 1..4094: IEEE 802.1Q reserves VLAN ID 0 and 4095
+
+# 4094: at the bound, the value passes the validator and reaches the handler,
+# which fails for its own reason (no interface zetest9, or no backend loaded).
+cmd=foreground:seq=6:exec=ze cli -c "delete interface name zetest9 unit 4094"
+reject=stderr:contains=out of range
+
+cmd=stop:seq=7:name=daemon:signal=term

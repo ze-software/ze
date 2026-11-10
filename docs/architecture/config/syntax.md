@@ -54,8 +54,9 @@ the hub with `ze show pki local-ca pem`).
 
 Every unknown-key refusal, from the hierarchical parser at the root, in a
 block, in a list entry or at an editor context, and from the set parser, names
-the closest key valid at that position: `unknown field in bgp: router-idd (did
-you mean router-id?) (line 2)`. A retired keyword gets its replacement instead,
+the closest key valid at that position: `line 2: unknown field in bgp:
+router-idd (did you mean router-id?)`. The line is named once, by the parser
+that read it (`LineError`). A retired keyword gets its replacement instead,
 and a name close to no valid key gets no hint. The distance is the one the CLI
 uses for a mistyped command, `suggest.Command`.
 <!-- source: internal/component/config/retired.go -- UnknownKeywordHint -->

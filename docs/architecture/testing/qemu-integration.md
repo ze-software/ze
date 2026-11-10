@@ -581,7 +581,16 @@ share a lab that cross-compiles inside the guest meets the link dangling and
 stops with `mkdir /workspace/cache: file exists`; the `le` launcher alone then
 falls back to `tmp/go-cache` (`gotoolchain.BootstrapCache`). The kernel builder
 runs no le-driven build in its guest and takes no cache share.
+
+A link that dangles on the host itself (its target directory was removed) is
+refused before the run creates its cache directories or builds its shares:
+`danglingScratchLink` checks `tmp/`, each `tmplink.Migratable` child of a real
+`tmp/`, and `cache`, and the refusal names the link, its missing target, and
+`mkdir -p '<target>'` as the fix. Neither `./le scratch ensure` nor
+`./le scratch migrate` creates a missing child target, so the directory is the
+fix.
 <!-- source: internal/le/test/qemu/run.go -- setupCommand, ensureScratch -->
+<!-- source: internal/le/test/qemu/scratchlink.go -- danglingScratchLink, linkTargetMissing, danglingLinkRefusal -->
 <!-- source: internal/le/test/qemu/run_exec.go -- keepAliveProfile -->
 <!-- source: internal/le/go/toolchain/gotoolchain.go -- BootstrapCache -->
 <!-- source: internal/core/tmplink/tmplink.go -- Shares -->

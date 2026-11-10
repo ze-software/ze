@@ -2,8 +2,8 @@
 //
 // VALIDATES: TestISISNETValidator -- the isis-net custom validator accepts valid
 // NETs and rejects bad hex / NSEL / length, including the 8..20-octet length
-// boundary (ISO/IEC 10589 section 6.2). TestISISSystemIDValidator -- the
-// isis-system-id validator accepts xxxx.xxxx.xxxx and rejects malformed forms.
+// boundary (ISO/IEC 10589 section 6.2). The isis-system-id form is refused by
+// its YANG pattern alone: TestISISSystemIDPatternIsTheOneGuard.
 package config
 
 import (
@@ -77,29 +77,6 @@ func TestISISNETValidator(t *testing.T) {
 	// Non-string input is rejected.
 	if err := v.ValidateFn("isis/net", 49); err == nil {
 		t.Error("ISISNETValidator(int) = nil, want type error")
-	}
-}
-
-func TestISISSystemIDValidator(t *testing.T) {
-	v := ISISSystemIDValidator()
-	require.NotNil(t, v.ValidateFn)
-
-	assert.NoError(t, v.ValidateFn("isis/system-id", "0000.0000.0001"))
-	assert.NoError(t, v.ValidateFn("isis/system-id", "abcd.ef01.2345"))
-
-	for name, s := range map[string]string{
-		"too few groups":  "0000.0001",
-		"too many groups": "0000.0000.0000.0001",
-		"short group":     "000.0000.0001",
-		"non-hex":         "zzzz.0000.0001",
-		"colons":          "0000:0000:0001",
-		"empty":           "",
-	} {
-		t.Run(name, func(t *testing.T) {
-			if err := v.ValidateFn("isis/system-id", s); err == nil {
-				t.Errorf("ISISSystemIDValidator(%q) = nil, want error", s)
-			}
-		})
 	}
 }
 

@@ -1041,7 +1041,7 @@ A next hop of the other address family follows ExaBGP's three rules
 |-------|----------|--------------|
 | IPv6 unicast, multicast, labeled, VPN, flow, mup | an IPv4 address | the address IPv4-mapped, `::ffff:<ipv4>`, 16 octets (VPN: behind its zero RD), as ExaBGP's encoder and its `MupNextHop` map it. RFC 2545 Section 3 gives an IPv6 next hop no four octet form |
 | IPv6 mcast-vpn, sr-policy | an IPv4 address | the four octets, which these families' next hop allows |
-| IPv6 | `self` on an IPv4 session | nothing: the engine refuses the session's address for the route's family (`next-hop incompatible with family`, `resolveNextHop` in `reactor/peer.go`), and the script is answered an error, as ExaBGP answers it one |
+| IPv6 | `self` on an IPv4 session | nothing: the engine refuses the session's address for the route's family (`next hop <address> cannot be sent for route family ipv6/unicast to peer <name>`, with the fixes on its last line, `resolveNextHop` in `reactor/peer.go`), and the script is answered an error, as ExaBGP answers it one |
 | IPv4 | an IPv6 address | the route, only to a peer that negotiated the Extended Next Hop capability for the family (RFC 8950 Section 4); otherwise the script is answered an error |
 
 ExaBGP 4.2 and 5.0 sent the four octets of an IPv4 next hop in an AFI 2

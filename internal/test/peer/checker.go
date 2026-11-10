@@ -14,6 +14,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/test/ci"
+	"github.com/ze-software/ze/internal/test/decode"
 )
 
 // Action type identifiers used in .ci test files.
@@ -723,6 +724,22 @@ func (c *Checker) lastMismatch() (expected, received string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.lastExpected, c.lastReceived
+}
+
+// mismatchDiff renders the report for a received message that met no
+// expectation, against expected, the first expectation still owed.
+//
+// A whole-message expectation (`hex=`) is held as bare hex, which the parser
+// strips of every colon, so it is decoded beside the received message
+// (decode.Diff). Every other form is held as `<key>:<needle>` (`contains:`,
+// `prefix:`, `announced:`, `withdrawn:`, `ordered:`): the needle is a part of a
+// message, so it is reported as the part the test asked for (decode.DiffPart).
+// Decoding it whole read a correct `contains=` line as invalid hex.
+func mismatchDiff(expected, received string) string {
+	if key, needle, ok := strings.Cut(expected, ":"); ok {
+		return decode.DiffPart(key, needle, received)
+	}
+	return decode.Diff(expected, received)
 }
 
 func (c *Checker) updateMessagesIfRequired() {

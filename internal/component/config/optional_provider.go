@@ -251,10 +251,5 @@ func writeAlternatives(b *strings.Builder, absent []absentProvider) {
 // writeBuildTags writes "build tag ze_bgp" for one tag and "build tags ze_bgp
 // and ze_bmp" for a nested gate, whose tags must all be set together.
 func writeBuildTags(b *strings.Builder, tags []string) {
-	if len(tags) == 1 {
-		b.WriteString("build tag ")
-	} else {
-		b.WriteString("build tags ")
-	}
-	b.WriteString(strings.Join(tags, " and "))
+	b.WriteString(registry.BuildTagsPhrase(tags))
 }

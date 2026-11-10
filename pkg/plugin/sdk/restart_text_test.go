@@ -52,30 +52,30 @@ func TestRestartStepsNamesEveryRouteAndNeverSignalRestart(t *testing.T) {
 	}
 }
 
-// TestRunningConfigLostNextNamesTheDaemonRestart pins the fix a lost-listener
-// error gives. Method: check the text says the restart takes the whole daemon
-// down, carries each restart route of RestartSteps on a line of its own, and
-// never names `ze signal restart`.
+// TestRunningConfigLostRestartNamesTheDaemonRestart pins the restart every
+// running-config-loss fix ends with. Method: check the text says the restart
+// takes the whole daemon down, carries each restart route of RestartSteps on a
+// line of its own, and never names `ze signal restart`.
 //
 // VALIDATES: review round 4 ISSUE-2. No command restarts one plugin, so the
 // fix is a daemon restart, and the operator is told what it costs.
 // PREVENTS: advice to run `ze signal restart`, which leaves ze stopped under
 // systemd (it exits cleanly and the unit restarts only on failure), with no
 // word that every protocol and session goes down with it.
-func TestRunningConfigLostNextNamesTheDaemonRestart(t *testing.T) {
-	text := RunningConfigLostNext
+func TestRunningConfigLostRestartNamesTheDaemonRestart(t *testing.T) {
+	text := RunningConfigLostRestart
 	if strings.Contains(text, "signal restart") {
-		t.Errorf("RunningConfigLostNext names ze signal restart, which leaves ze stopped:\n%s", text)
+		t.Errorf("RunningConfigLostRestart names ze signal restart, which leaves ze stopped:\n%s", text)
 	}
 	for _, want := range []string{"No command restarts one plugin", "every protocol", "every session"} {
 		if !strings.Contains(text, want) {
-			t.Errorf("RunningConfigLostNext does not say %q:\n%s", want, text)
+			t.Errorf("RunningConfigLostRestart does not say %q:\n%s", want, text)
 		}
 	}
 	lines := strings.Split(text, "\n")
 	for _, route := range restartRouteLines {
 		if !slices.Contains(lines, route) {
-			t.Errorf("RunningConfigLostNext does not carry the route %q on its own line:\n%s", route, text)
+			t.Errorf("RunningConfigLostRestart does not carry the route %q on its own line:\n%s", route, text)
 		}
 	}
 }

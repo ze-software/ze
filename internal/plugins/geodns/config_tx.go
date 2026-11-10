@@ -100,7 +100,9 @@ func (in *geodnsInstaller) install(cfg geodnsConfig) error {
 			storeState(prev)
 			gmetrics().reloadTotal.With("error").Inc()
 			if errors.Is(aerr, dnsserver.ErrPreviousListenersLost) {
-				return fmt.Errorf("geodns: %w (%w).\n%s", aerr, sdk.ErrRunningConfigLost, sdk.RunningConfigLostNext)
+				return sdk.RunningConfigLost(aerr,
+					"geodns could not apply the new config, and could not bind the running config's listeners again",
+					sdk.RunningConfigLostListenerFix)
 			}
 			return fmt.Errorf("geodns: %w", aerr)
 		}

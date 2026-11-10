@@ -184,6 +184,14 @@ func (e *MissingArgumentError) Positional(leaf string) (value string, found bool
 // make it. A call that left a mandatory definition unfilled is refused with a
 // *MissingArgumentError, which carries that binding for the same reason.
 //
+// The whole line is read before the call is refused, and every fault it holds
+// is named: a keyword with no value, a value its leaf refuses, a keyword typed
+// twice, a token no definition takes, and the first missing mandatory
+// argument. A line with one fault is refused with that fault alone; a line
+// with more is refused with an *ArgumentFaults, whose Unwrap answers each, so
+// errors.As finds every fault kind on both shapes. The faults are in the order
+// the line was read, so the first one is the one a single-fault refusal named.
+//
 // No definitions is a legitimate answer from the model, not a skipped check:
 // every phase iterates the definitions, so the tokens pass through unchanged.
 // Every route calls this function, including for a path that declares none.
@@ -225,36 +233,42 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (V
 	// A value the token matcher bound by keyword or by anchor is judged here,
 	// with every other argument, and not by the matcher: a matcher that refused
 	// it answered "unknown command" for a command the operator typed correctly
-	// with one bad value. Definitions are walked in order, so the refusal named
-	// is the same on every run.
+	// with one bad value. Definitions are walked in order, so the faults named
+	// are in the same order on every run.
+	//
+	// Every fault of the line is collected rather than the first one returned:
+	// an operator who fixes the one fault a refusal named and is then refused
+	// for the next has been sent round twice. A leaf whose keyword or value is
+	// at fault counts as matched from then on, so the same leaf is never also
+	// reported missing.
+	var faults faultList
 	for i := range defs {
 		value, bound := preMatched[defs[i].name]
 		if !bound {
 			continue
 		}
 		if err := ValidateArgString(value, &defs[i]); err != nil {
-			return ValidatedArgs{}, err
+			faults.add(err)
 		}
 	}
 
 	// The rest-of-line leaf takes its words before any keyword is read, so the
-	// phases below see only the tokens in front of it.
+	// phases below see only the tokens in front of it, whether or not its value
+	// is valid.
 	all := args
 	if rest != nil && !matched[rest.name] {
 		start, from := restStart(args, defs, defByName, matched, rest)
 		if start >= 0 {
-			if from >= len(args) {
-				return ValidatedArgs{}, missingValueError(rest.name)
-			}
-			value := textbuf.Join(args[from:], " ")
-			if err := ValidateArgString(value, rest); err != nil {
-				return ValidatedArgs{}, err
-			}
 			matched[rest.name] = true
-			if keyed == nil {
-				keyed = make(map[string]string)
+			if from < len(args) {
+				value := textbuf.Join(args[from:], " ")
+				if err := ValidateArgString(value, rest); err != nil {
+					faults.add(err)
+				}
+				keyed = keyedWith(keyed, rest.name, value)
+			} else {
+				faults.add(missingValueError(rest.name))
 			}
-			keyed[rest.name] = value
 			args = args[:start]
 		}
 	}
@@ -267,13 +281,21 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (V
 		if !ok {
 			continue
 		}
-		if matched[def.name] {
-			return ValidatedArgs{}, fmt.Errorf("duplicate keyword %q", args[i])
-		}
 		consumed[i] = true
+		if matched[def.name] {
+			// The second keyword and the value after it are one fault: the
+			// operator deletes the pair. Its value is not judged, because the
+			// leaf already holds the value the first keyword gave it.
+			faults.add(fmt.Errorf("duplicate keyword %q", args[i]))
+			if def.kind != ArgFlag && i+1 < len(args) {
+				i++
+				consumed[i] = true
+			}
+			continue
+		}
+		matched[def.name] = true
 		if def.kind == ArgFlag {
 			// A flag is the keyword alone; the next token is its own argument.
-			matched[def.name] = true
 			if flags == nil {
 				flags = make(map[string]bool)
 			}
@@ -281,18 +303,16 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (V
 			continue
 		}
 		if i+1 >= len(args) {
-			return ValidatedArgs{}, missingValueError(def.name)
+			faults.add(missingValueError(def.name))
+			continue
 		}
 		i++
 		consumed[i] = true
 		if err := ValidateArgString(args[i], def); err != nil {
-			return ValidatedArgs{}, err
+			faults.add(err)
+			continue
 		}
-		matched[def.name] = true
-		if keyed == nil {
-			keyed = make(map[string]string)
-		}
-		keyed[def.name] = args[i]
+		keyed = keyedWith(keyed, def.name, args[i])
 	}
 
 	spare := 0
@@ -328,31 +348,58 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (V
 
 	// A token that filled no definition is a bad VALUE only when every such
 	// token can be attributed to a definition of its own: as many tokens left
-	// over as definitions still open, or fewer. More tokens than open
-	// definitions means at least one of them is a value for nothing, so it is
-	// the keyword half of a group the command's own grammar declares and this
-	// validator does not hold (`update <hex>` on `show policy test peer`). The
-	// dispatcher then has no ground to name any token as the fault, and the
-	// missing mandatory argument below is what is certainly wrong with the call.
+	// over as definitions still open, or fewer. Each such token is then a fault
+	// of its own, and the definitions they were typed for are not also reported
+	// missing. More tokens than open definitions means at least one of them is
+	// a value for nothing, so it is the keyword half of a group the command's
+	// own grammar declares and this validator does not hold (`update <hex>` on
+	// `show policy test peer`). The dispatcher then has no ground to name any
+	// token as the fault, and the missing mandatory argument below is what is
+	// certainly wrong with the call.
 	open := unmatchedDefCount(defs, matched)
 	if len(unplaced) > 0 && open > 0 && len(unplaced) <= open {
-		return ValidatedArgs{}, positionalError(unplaced[0], defs, matched)
+		for _, arg := range unplaced {
+			faults.add(positionalError(arg, defs, matched))
+		}
+		return ValidatedArgs{}, faults.verdict()
 	}
 
-	// Phase 3: mandatory check.
+	// Phase 3: mandatory check. Only the first missing leaf is named, as
+	// MissingArgumentError.Leaf documents: one *MissingArgumentError per
+	// refusal is what lets the dispatcher tell a missing selector from a line
+	// with other faults (ArgumentFaults).
+	missing := false
 	for i := range defs {
 		if defs[i].mandatory && !matched[defs[i].name] {
-			return ValidatedArgs{}, &MissingArgumentError{Leaf: defs[i].name, bound: bound, boundValue: boundValue}
+			faults.add(&MissingArgumentError{Leaf: defs[i].name, bound: bound, boundValue: boundValue})
+			missing = true
+			break
 		}
 	}
 
-	// Every mandatory definition is filled, so a token left over is the only
-	// fault the call has, and naming it is the whole answer.
-	if len(unplaced) > 0 && open > 0 {
-		return ValidatedArgs{}, positionalError(unplaced[0], defs, matched)
+	// Every mandatory definition is filled, so each token left over is a
+	// fault of the call.
+	if !missing && len(unplaced) > 0 && open > 0 {
+		for _, arg := range unplaced {
+			faults.add(positionalError(arg, defs, matched))
+		}
 	}
 
+	if err := faults.verdict(); err != nil {
+		return ValidatedArgs{}, err
+	}
 	return ValidatedArgs{tokens: slices.Clone(all), bound: bound, boundValue: boundValue, keyed: keyed, flags: flags, positional: positional}, nil
+}
+
+// keyedWith answers keyed with leaf bound to value, allocating the map on the
+// first value a leaf takes by name (keyed stays nil until then, see
+// ValidatedArgs).
+func keyedWith(keyed map[string]string, leaf, value string) map[string]string {
+	if keyed == nil {
+		keyed = make(map[string]string)
+	}
+	keyed[leaf] = value
+	return keyed
 }
 
 // restStart answers where the rest-of-line leaf rest begins on args: start is

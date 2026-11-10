@@ -211,9 +211,13 @@ func TestTacacsClientAllServersDown(t *testing.T) {
 	})
 
 	reply, err := client.Authenticate("admin", "secret", "ssh", "10.0.0.1")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, reply)
-	assert.Contains(t, err.Error(), "unreachable")
+	assert.Equal(t, "no TACACS+ server answered the authentication request\n"+
+		"Ze tried each configured server in order, and each one failed: "+
+		"127.0.0.1:1 refused the connection; 127.0.0.1:2 refused the connection\n"+
+		"fix: set system authentication tacacs server 127.0.0.1 port <the port the server listens on>",
+		err.Error())
 }
 
 // TestTacacsClientRejectsBadResponseHeader verifies that a syntactically valid

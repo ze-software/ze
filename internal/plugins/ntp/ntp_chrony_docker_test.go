@@ -252,5 +252,8 @@ func TestNTPClientRejectsUnsynchronisedChrony(t *testing.T) {
 	if server.LastError == "" {
 		t.Error("last error is empty: the operator is not told why the server was rejected")
 	}
+	if server.LastError != lastErrorUnsynchronized {
+		t.Errorf("last error = %q, want %q: the server is unsynchronized, not refusing", server.LastError, lastErrorUnsynchronized)
+	}
 	t.Logf("reference id %08x; Ze reports %q", served.ReferenceID, server.LastError)
 }

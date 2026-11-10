@@ -435,13 +435,7 @@ func Diff(expected, received string) string {
 	}
 
 	sb.Byte('\n')
-
-	if rcvErr != nil {
-		sb.Str("Received (decode error): ").Err(rcvErr).Byte('\n')
-		sb.Str("  Raw: ").Str(received).Byte('\n')
-	} else {
-		sb.Str("Received: ").Str(rcvMsg.String())
-	}
+	writeReceived(&sb, rcvMsg, rcvErr, received)
 
 	if expErr == nil && rcvErr == nil {
 		sb.Str("\nDifferences:\n")
@@ -495,6 +489,39 @@ func Diff(expected, received string) string {
 	}
 
 	return sb.String()
+}
+
+// DiffPart reports a received message that does not hold the part of a message
+// a test expected: the needle of a `contains=` or `prefix=` expectation, or of a
+// scoped `announced=` or `withdrawn=` one. key is the .ci key that carried the
+// needle, so the report names the line the author wrote.
+//
+// A needle is a fragment, never a whole message, so it is shown as the text the
+// test asked for and is never decoded: Diff would read it as a malformed
+// message and report invalid hex for a test line that is correct. The received
+// message is decoded as Diff decodes it.
+func DiffPart(key, needle, received string) string {
+	rcvMsg, rcvErr := DecodeMessage(received)
+
+	var sb textbuf.Buffer
+	sb.Str("\n--- Expected vs Received ---\n")
+	sb.Str("Expected: a message matching ").Str(key).Byte('=').Str(needle).Byte('\n')
+	sb.Byte('\n')
+	writeReceived(&sb, rcvMsg, rcvErr, received)
+	sb.Str("\nMissing: the received message does not match ").Str(key).Byte('=').Str(needle).
+		Str(", so the expected message has not arrived\n")
+	return sb.String()
+}
+
+// writeReceived writes the received half of a Diff or DiffPart report: the
+// decoded message, or the decode error and the raw hex when it does not decode.
+func writeReceived(sb *textbuf.Buffer, rcvMsg *DecodedMessage, rcvErr error, received string) {
+	if rcvErr != nil {
+		sb.Str("Received (decode error): ").Err(rcvErr).Byte('\n')
+		sb.Str("  Raw: ").Str(received).Byte('\n')
+		return
+	}
+	sb.Str("Received: ").Str(rcvMsg.String())
 }
 
 // FindByteDiff finds the first differing bytes between two hex strings.

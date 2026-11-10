@@ -492,8 +492,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 	a.r.mu.RUnlock()
 
 	if len(permittedPeers) == 0 && refused > 0 {
-		return fmt.Errorf("%w: selector %s, process %s, send type %s",
-			errSendNotPermitted, sel, origin.sender, origin.sendType)
+		return sendNotPermitted("selector "+sel.String(), origin)
 	}
 
 	// Fail CLOSED before considering destinations: without the source peer we

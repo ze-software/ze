@@ -1050,45 +1050,10 @@ func wrapForBox(text string, width, linesMax int) []string {
 func (m Model) renderHelpOverlay(base string) string {
 	var help string
 	if m.hasEditor() {
-		help = `Commands:
-  set <path> <value>   Set a configuration value
-  delete <path>        Delete a configuration value
-  rename <p> <old> to <new>  Rename a list entry
-  copy <p> <src> to <dst>    Copy a list entry
-  edit <path>          Enter a subsection context
-  edit <list> *        Edit template for all entries
-  top                  Return to root context
-  up                   Go up one level
-  show                 Display configuration (scrollable)
-  show confirmed       Display committed (on-disk) config
-  show saved           Display saved draft file
-  show | blame         Annotate with authorship
-  show | changes [all] Pending changes (session or all)
-  show | compare       Diff against committed config
-  show | compare saved Diff against saved draft
-  show | compare rollback N  Diff against backup N
-  show | compare <user>      Diff against user's changes
-  show | errors        Validation issues
-  show | format config Display as set commands
-  show | history       List rollback revisions
-  option <col> enable  Enable display column (author/date/source/changes)
-  option <col> disable Disable display column
-  option all / none    Enable/disable all columns
-  option errors hints  Toggle inline diagnostic hints
-  option errors hide   Hide error annotations
-  commit now           Apply changes (warnings and conflicts block)
-  commit now force     Apply despite warnings and conflicts (errors still block)
-  commit confirmed <N> Apply, auto-revert unless accepted within N seconds
-  commit confirmed <N> force  Force + auto-revert
-  commit accept        Keep a pending confirmed commit
-  commit abort         Revert a pending confirmed commit now
-  commit verify        Validate the candidate, apply nothing
-  discard              Revert all changes
-  rollback <N>         Restore backup N
-  exit                 Return to operational mode
-
+		// The command lines derive from editorCommands, the table completion
+		// reads, so the overlay never carries a second copy of a command's help.
+		help = editorHelpCommands() + `
 Modes:
-  run <cmd>            Execute operational command (stays in config mode)
   configure            Enter config mode (from operational mode)
   (config commands in operational mode auto-switch to config mode)
 

@@ -20,8 +20,10 @@ import (
 )
 
 var (
-	errUsageRollbackNumber        = errors.New("usage: rollback <number>")
-	errDiscardRequiresPathOrAllIn = errors.New("discard requires path or 'all' in session mode")
+	errUsageRollbackNumber = errors.New("usage: rollback <number>")
+	// The refusal names both forms the session discard takes, so the operator
+	// types the fix rather than looking it up.
+	errDiscardRequiresPathOrAllIn = errors.New("discard needs a target in an editing session: type 'discard all' to drop every pending change, or 'discard <path>' to drop the changes under one path")
 )
 
 func (m *Model) cmdHistory() (commandResult, error) {
@@ -537,6 +539,25 @@ func (m *Model) cmdDiscardSession(args []string) (commandResult, error) {
 
 	return commandResult{
 		statusMessage: msg,
+		configView:    m.configViewAtPath(m.contextPath),
+		revalidate:    true,
+	}, nil
+}
+
+// cmdDiscardPath drops the pending changes under path, outside an editing
+// session, and keeps every other change.
+func (m *Model) cmdDiscardPath(path []string) (commandResult, error) {
+	before := m.editor.Diff()
+	if err := m.editor.DiscardPath(path); err != nil {
+		return commandResult{}, err
+	}
+	m.searchCache = "" // tree changed, invalidate cached set-view
+	// The row names what the discard dropped, never the changes it kept.
+	m.recordConfigDiscard(audit.DroppedDiff(before, m.editor.Diff()))
+
+	var tb textbuf.Buffer
+	return commandResult{
+		statusMessage: tb.Str("Discarded: ").Join(path, " ").String(),
 		configView:    m.configViewAtPath(m.contextPath),
 		revalidate:    true,
 	}, nil

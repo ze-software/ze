@@ -164,6 +164,10 @@ type LeafNode struct {
 	Union       []UnionMember  // Member types of a YANG union, in declared order; nil for any other type
 	Backend     []string       // ze:backend — supporting backends; nil = unrestricted (see backend_gate.go)
 	Related     []*RelatedTool // ze:related — operator tools attached to this leaf (see related.go)
+
+	// Constraint holds the error-message of the range, the length and each
+	// pattern (RFC 7950 Section 7.5.4.1), which their refusals speak.
+	Constraint configyang.ConstraintMessages
 }
 
 // UnionMember is one member type of a YANG union leaf: the type's name for the
@@ -665,6 +669,9 @@ func Freeform() *FreeformNode {
 type MultiLeafNode struct {
 	Type     ValueType
 	Patterns []string
+	// Constraint holds the error-message of each pattern (RFC 7950 Section
+	// 7.5.4.1), which a pattern refusal speaks.
+	Constraint configyang.ConstraintMessages
 }
 
 func (n *MultiLeafNode) Kind() NodeKind { return NodeLeaf }
@@ -679,6 +686,9 @@ func multiLeaf(typ ValueType) *MultiLeafNode {
 type BracketLeafListNode struct {
 	Type     ValueType
 	Patterns []string
+	// Constraint holds the error-message of each pattern (RFC 7950 Section
+	// 7.5.4.1), which a pattern refusal speaks.
+	Constraint configyang.ConstraintMessages
 	// Ordered marks this leaf-list as an ordered SEQUENCE whose duplicate values
 	// are meaningful rather than a set. Set from the ze:ordered YANG extension;
 	// the parser preserves duplicates instead of deduplicating. See
@@ -699,6 +709,9 @@ type ValueOrArrayNode struct {
 	Type        ValueType
 	ValidValues []string // If non-nil, each item must be one of these values (YANG enum)
 	Patterns    []string
+	// Constraint holds the error-message of each pattern (RFC 7950 Section
+	// 7.5.4.1), which a pattern refusal speaks.
+	Constraint configyang.ConstraintMessages
 	// Ordered marks this leaf-list as an ordered SEQUENCE whose duplicate values
 	// are meaningful (AS_PATH prepends, MPLS label stacks) rather than a set. Set
 	// from the ze:ordered YANG extension; the parser preserves duplicates instead
@@ -912,7 +925,7 @@ func ValidateLeafValue(node *LeafNode, value string) error {
 		// A whole number too large for the type is outside every range the
 		// leaf declares, and the range is what the operator can write.
 		if len(node.Ranges) > 0 && allDigits(value) {
-			return outsideRange(value, node.Ranges)
+			return outsideRange(value, node.Ranges, node.Constraint.Range())
 		}
 		return err
 	}
@@ -924,15 +937,38 @@ func ValidateLeafValue(node *LeafNode, value string) error {
 		return fmt.Errorf("invalid enum: %q (expected one of: %s)", value, expected)
 	}
 	if len(node.Ranges) > 0 {
-		if err := validateNumericRanges(node.Type, value, node.Ranges); err != nil {
+		if err := validateNumericRanges(node.Type, value, node.Ranges, node.Constraint.Range()); err != nil {
 			return err
 		}
 	}
-	if err := validateLengths(value, node.Lengths); err != nil {
+	if err := validateLengths(value, node.Lengths, node.Constraint.Length()); err != nil {
 		return err
 	}
-	if err := validatePatterns(value, node.Patterns); err != nil {
+	if err := validateLeafPatterns(value, node.Patterns, node.Constraint); err != nil {
 		return err
+	}
+	return nil
+}
+
+// validateLeafPatterns enforces a leaf's YANG patterns, and a refusal by a
+// pattern that declares an error-message speaks that message in place of the
+// regular expression the operator cannot read.
+//
+// RFC 7950 Section 7.5.4.1: "If the constraint evaluates to "false", the string is passed as <error-message> in the <rpc-error> in NETCONF."
+func validateLeafPatterns(value string, patterns []string, messages configyang.ConstraintMessages) error {
+	for _, pattern := range patterns {
+		matched, err := configyang.MatchPattern(pattern, value)
+		if err != nil {
+			return fmt.Errorf("invalid pattern %q: %w", pattern, err)
+		}
+		if matched {
+			continue
+		}
+		message := messages.Pattern(pattern)
+		if message == "" {
+			return fmt.Errorf("value %q does not match pattern %q", value, pattern)
+		}
+		return errors.New(configyang.WithConstraintMessage("invalid value "+strconv.Quote(value), message))
 	}
 	return nil
 }
@@ -967,7 +1003,10 @@ func validateUnionValue(members []UnionMember, value string) error {
 // Length is checked BEFORE pattern: for an over-long value the length is the
 // operator's actual mistake, and a pattern message about a 4096-character
 // string is unreadable.
-func validateLengths(value string, lengths []NumericRange) error {
+//
+// message is the error-message the length declares, "" for none; it replaces
+// the generic fix, because the module author wrote it for this leaf.
+func validateLengths(value string, lengths []NumericRange, message string) error {
 	if len(lengths) == 0 {
 		return nil
 	}
@@ -987,6 +1026,10 @@ func validateLengths(value string, lengths []NumericRange) error {
 		}
 	}
 	allowed := formatNumericRanges(lengths)
+	if message != "" {
+		return errors.New(configyang.WithConstraintMessage(
+			textbuf.StrIntStr("value length ", n, " is outside allowed length ")+allowed, message))
+	}
 	return fmt.Errorf("value length %d is outside allowed length %s; write a value of %s characters",
 		n, allowed, allowed)
 }
@@ -1001,31 +1044,22 @@ func ValidateListKey(node *ListNode, key string) error {
 	return ValidateValue(node.KeyType, key)
 }
 
-func validateValuePatterns(typ ValueType, patterns []string, value string) error {
+// validateValuePatterns judges one value of a leaf-list, multi-leaf or
+// bracket node against the node's type and patterns; a pattern refusal speaks
+// the pattern's error-message from messages, as a single leaf's does
+// (validateLeafPatterns).
+func validateValuePatterns(typ ValueType, patterns []string, messages configyang.ConstraintMessages, value string) error {
 	if err := ValidateValue(typ, value); err != nil {
 		return err
 	}
-	return validatePatterns(value, patterns)
-}
-
-func validatePatterns(value string, patterns []string) error {
-	for _, pattern := range patterns {
-		matched, err := configyang.MatchPattern(pattern, value)
-		if err != nil {
-			return fmt.Errorf("invalid pattern %q: %w", pattern, err)
-		}
-		if !matched {
-			return fmt.Errorf("value %q does not match pattern %q", value, pattern)
-		}
-	}
-	return nil
+	return validateLeafPatterns(value, patterns, messages)
 }
 
 func stringIn(values []string, value string) bool {
 	return slices.Contains(values, value)
 }
 
-func validateNumericRanges(typ ValueType, value string, ranges []NumericRange) error {
+func validateNumericRanges(typ ValueType, value string, ranges []NumericRange, message string) error {
 	parsed, err := parseNumericRangeValue(typ, value)
 	if err != nil {
 		return err
@@ -1045,13 +1079,18 @@ func validateNumericRanges(typ ValueType, value string, ranges []NumericRange) e
 			return nil
 		}
 	}
-	return outsideRange(value, ranges)
+	return outsideRange(value, ranges, message)
 }
 
 // outsideRange is the refusal of value for a leaf whose ranges it is outside.
-// It names the ranges as the fix.
-func outsideRange(value string, ranges []NumericRange) error {
+// It names the ranges as the fix, or speaks message, the error-message the
+// range declares (RFC 7950 Section 7.5.4.1), when the module wrote one.
+func outsideRange(value string, ranges []NumericRange, message string) error {
 	allowed := formatNumericRanges(ranges)
+	if message != "" {
+		return errors.New(configyang.WithConstraintMessage(
+			"value "+strconv.Quote(value)+" outside range "+allowed, message))
+	}
 	return fmt.Errorf("value %q outside range %s: set a value in %s", value, allowed, allowed)
 }
 

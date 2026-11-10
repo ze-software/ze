@@ -1887,8 +1887,7 @@ func (a *reactorAPIAdapter) getMatchingPeersSel(sel *selector.Selector, origin s
 	// sendOrigin.sender.
 	permitted, refused := filterPermittedPeers(matched, origin)
 	if len(permitted) == 0 && refused > 0 {
-		return nil, fmt.Errorf("%w: selector %s, process %s, send type %s",
-			errSendNotPermitted, sel, origin.sender, origin.sendType)
+		return nil, sendNotPermitted("selector "+sel.String(), origin)
 	}
 	return permitted, nil
 }
@@ -2055,8 +2054,7 @@ func (a *reactorAPIAdapter) SendRawMessage(peerAddr netip.Addr, msgType uint8, p
 		return ErrPeerNotFound
 	}
 	if !permitted {
-		return fmt.Errorf("%w: peer %s, process %s, send type %s",
-			errSendNotPermitted, peerAddr, origin.sender, origin.sendType)
+		return sendNotPermitted("peer "+peerAddr.String(), origin)
 	}
 
 	return peer.SendRawMessage(msgType, payload)

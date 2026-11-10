@@ -10,6 +10,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -145,6 +146,12 @@ func LoadBackend(name string) error {
 
 	factory, ok := backends[name]
 	if !ok {
+		// A backend whose provider was compiled out names the build tag and
+		// both fixes (registry.CompiledOutValueError), from the same
+		// ConfigNeed the config doors refuse it by.
+		if compiledOut := registry.CompiledOutValueError("traffic", name); compiledOut != nil {
+			return compiledOut
+		}
 		registered := make([]string, 0, len(backends))
 		for k := range backends {
 			registered = append(registered, k)

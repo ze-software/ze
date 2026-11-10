@@ -18,10 +18,13 @@ import (
 	"log/slog"
 	"net"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/bufpool"
 	"github.com/ze-software/ze/internal/core/network"
+	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // TACACS+ pool sizing. Ze bounds a body to 65535 bytes; the wire length is
@@ -238,6 +241,7 @@ func (c *TacacsClient) sendToServers(buf []byte, marshalBody func([]byte) (int, 
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", errRequestInvalid, err)
 	}
+	var failures serverFailures
 	for index, srv := range c.config.Servers {
 		if index > 0 {
 			// The preceding exchange overwrote the plaintext in this buffer.
@@ -283,13 +287,141 @@ func (c *TacacsClient) sendToServers(buf []byte, marshalBody func([]byte) (int, 
 			}
 			c.logger.Warn("TACACS+ server unreachable",
 				"purpose", purpose, "server", srv.Address, "error", sendErr)
+			failures = append(failures, serverFailure{address: srv.Address, err: sendErr})
 			continue
 		}
 
 		return replyData, nil
 	}
 
-	return nil, fmt.Errorf("all TACACS+ servers unreachable for %s", purpose)
+	return nil, c.allServersFailed(purpose, failures)
+}
+
+// allServersFailed builds the operator error sendToServers returns when no
+// server gave a usable answer. The error names each server tried, in order,
+// with its cause, and the fix for the first server's cause: the first server
+// is the one the configuration asks to answer. Unwrap reaches every server's
+// own error, so errors.Is still sees ErrBadSecret or a refused connection.
+func (c *TacacsClient) allServersFailed(purpose string, failures serverFailures) error {
+	if len(failures) == 0 {
+		// Build refuses to make the TACACS+ backend from an empty server
+		// list, so only a client built by hand reaches this.
+		var problem textbuf.Buffer
+		problem.Str("no TACACS+ server is configured, so the ").Str(purpose).Str(" request was not sent")
+		return opererr.New(problem.String(),
+			"the TACACS+ backend needs one server or more to send a request to",
+			"set system authentication tacacs server <address> key <shared secret>")
+	}
+	var problem textbuf.Buffer
+	problem.Str("no TACACS+ server answered the ").Str(purpose).Str(" request")
+	return opererr.Wrap(failures, problem.String(),
+		"Ze tried each configured server in order, and each one failed",
+		failures[0].fix())
+}
+
+// serverFailure is why one TACACS+ server gave no usable answer. It holds the
+// server's address and the transport or decode error, never the shared
+// secret: no error a server exchange returns carries the key.
+type serverFailure struct {
+	address string // host:port, as net.JoinHostPort built it
+	err     error
+}
+
+// serverFailures is the cause of allServersFailed's error: one failure per
+// server tried, in order. Error renders one clause per server, separated by
+// "; ", so the operator error keeps its three lines. Unwrap answers every
+// server's error. Not safe for concurrent mutation; sendToServers owns it.
+type serverFailures []serverFailure
+
+func (f serverFailures) Error() string {
+	var b textbuf.Buffer
+	for i, failure := range f {
+		if i > 0 {
+			b.Str("; ")
+		}
+		failure.describe(&b)
+	}
+	return b.String()
+}
+
+func (f serverFailures) Unwrap() []error {
+	errs := make([]error, len(f))
+	for i, failure := range f {
+		errs[i] = failure.err
+	}
+	return errs
+}
+
+// failureClass is the cause class of one server's failure. The zero value is
+// failureOther, the class every error not named below falls into.
+type failureClass uint8
+
+const (
+	failureOther     failureClass = iota // any other transport or decode error
+	failureRefused                       // nothing listens on the server's port
+	failureTimeout                       // no answer within the configured timeout
+	failureBadSecret                     // the reply does not de-obfuscate with the configured key
+)
+
+// class sorts the failure's error into the cause the operator acts on.
+func (f serverFailure) class() failureClass {
+	if errors.Is(f.err, ErrBadSecret) {
+		return failureBadSecret
+	}
+	if errors.Is(f.err, syscall.ECONNREFUSED) {
+		return failureRefused
+	}
+	var netErr net.Error
+	if errors.As(f.err, &netErr) && netErr.Timeout() {
+		return failureTimeout
+	}
+	return failureOther
+}
+
+// host answers the server's host without its port, as the config key of
+// `system authentication tacacs server` holds it.
+func (f serverFailure) host() string {
+	host, _, err := net.SplitHostPort(f.address)
+	if err != nil {
+		// Config builds every address with net.JoinHostPort; only a client
+		// built by hand holds another form, and the address itself is then
+		// the best name for the server.
+		return f.address
+	}
+	return host
+}
+
+// describe appends the server and its cause in plain words. A class the
+// operator cannot recognize from the words alone carries the Go error after
+// them as evidence.
+func (f serverFailure) describe(b *textbuf.Buffer) {
+	b.Str(f.address)
+	switch f.class() {
+	case failureRefused:
+		b.Str(" refused the connection")
+	case failureTimeout:
+		b.Str(" did not answer in time")
+	case failureBadSecret:
+		b.Str(" sent a reply that does not decode with the configured key")
+	case failureOther:
+		b.Str(" failed (").Err(f.err).Byte(')')
+	}
+}
+
+// fix answers the command that fixes this failure's cause.
+func (f serverFailure) fix() string {
+	var b textbuf.Buffer
+	switch f.class() {
+	case failureRefused:
+		b.Str("set system authentication tacacs server ").Str(f.host()).Str(" port <the port the server listens on>")
+	case failureTimeout:
+		b.Str("show ping ").Str(f.host())
+	case failureBadSecret:
+		b.Str("set system authentication tacacs server ").Str(f.host()).Str(" key <the server's shared secret>")
+	case failureOther:
+		b.Str("ze doctor")
+	}
+	return b.String()
 }
 
 // sendReceive connects to a server (or reuses a pooled single-connect TCP),

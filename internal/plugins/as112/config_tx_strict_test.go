@@ -2,6 +2,7 @@ package as112
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"reflect"
 	"slices"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/dnsserver"
+	"github.com/ze-software/ze/internal/core/opererr"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -124,9 +126,52 @@ func TestInstallRefusedReloadReturnsAFailedRegistrationRestore(t *testing.T) {
 	if !errors.Is(err, sdk.ErrRunningConfigLost) {
 		t.Fatalf("refused reload whose registration restore failed: %v, want sdk.ErrRunningConfigLost", err)
 	}
-	for _, want := range []string{"reload refused", "loopback address registration could not be restored", "owned by another plugin"} {
+	var operr *opererr.Error
+	if !errors.As(err, &operr) {
+		t.Fatalf("refused reload whose registration restore failed: %v, want an operator error", err)
+	}
+	if got, want := operr.Problem(), "as112 could not apply the new config, and could not restore the running "+
+		"config's loopback address registration either"; got != want {
+		t.Errorf("problem = %q, want %q", got, want)
+	}
+	if got, want := operr.Why(), sdk.RunningConfigLostWhy; got != want {
+		t.Errorf("why = %q, want the SDK's %q", got, want)
+	}
+	// AC-11: the registration branch carries the SDK's next step for
+	// running-config loss, the daemon restart, with no first step of its own.
+	if got, want := operr.Fix(), sdk.RunningConfigLostRestart; got != want {
+		t.Errorf("fix = %q, want the SDK's restart %q", got, want)
+	}
+	for _, want := range []string{"reload refused", "restoring the registration: ", "owned by another plugin"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error %q does not contain %q", err, want)
 		}
+	}
+}
+
+// VALIDATES: AC-11. A refused reload whose running listeners could not be
+// bound again answers the SDK's running-config-loss operator error: the
+// problem names what as112 could not do, the why is the SDK's, and the fix is
+// the SDK's listener step followed by the daemon restart.
+// PREVENTS: the listener branch and the registration branch giving the
+// operator different next steps for the same loss.
+// Not parallel: stateP is package state.
+func TestRefuseListenersLostCarriesTheSDKNextStep(t *testing.T) {
+	regs := &registrations{}
+	inst, _, _ := refusedReloadFixture(t, regs)
+	lost := fmt.Errorf("bind 127.0.0.1:53: %w", dnsserver.ErrPreviousListenersLost)
+
+	err := inst.refuse(loadState(), lost)
+	if !errors.Is(err, sdk.ErrRunningConfigLost) {
+		t.Fatalf("refuse = %v, want sdk.ErrRunningConfigLost", err)
+	}
+	if !errors.Is(err, dnsserver.ErrPreviousListenersLost) {
+		t.Fatalf("refuse = %v, want dnsserver.ErrPreviousListenersLost", err)
+	}
+	want := "as112 could not apply the new config, and could not bind the running config's listeners again\n" +
+		sdk.RunningConfigLostWhy + ": " + lost.Error() + " (" + sdk.ErrRunningConfigLost.Error() + ")\n" +
+		"fix: " + sdk.RunningConfigLostListenerFix + ".\n" + sdk.RunningConfigLostRestart
+	if err.Error() != want {
+		t.Errorf("refuse =\n%s\nwant\n%s", err, want)
 	}
 }

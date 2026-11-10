@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var maxForwardDestinations = env.GetInt("ze.fwd.dest.cap", 4096)
@@ -117,8 +118,7 @@ func (a *reactorAPIAdapter) ForwardUpdatesDirect(updateIDs []uint64, destination
 	a.r.mu.RUnlock()
 	if len(permitted) == 0 && refused > 0 {
 		a.ackBatch(updateIDs, pluginName)
-		return fmt.Errorf("%w: %d destinations, process %s, send type %s",
-			errSendNotPermitted, len(destinations), origin.sender, origin.sendType)
+		return sendNotPermitted(textbuf.StrIntStr("", int64(len(destinations)), " destinations"), origin)
 	}
 	matchingPeers = permitted
 

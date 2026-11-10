@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/iface"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 
 	// Trigger every module and RPC registration, so the dispatcher under test
@@ -55,5 +56,5 @@ func TestClearInterfaceCountersBareIsRefused(t *testing.T) {
 	require.False(t, errors.As(err, &incomplete), "the whole form was refused as incomplete: %v", err)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
-	assert.Equal(t, "iface: no backend loaded", resp.Error, "the whole form did not reach the handler")
+	assert.Equal(t, iface.ErrNoBackendLoaded.Error(), resp.Error, "the whole form did not reach the handler")
 }

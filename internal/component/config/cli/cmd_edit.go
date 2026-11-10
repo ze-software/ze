@@ -350,21 +350,9 @@ func cmdEditWithStorage(store storage.Storage, args []string) int {
 					{Name: "--web <port>", Desc: "Start web UI on given port (ephemeral daemon)"},
 					{Name: "--insecure-web", Desc: "Disable web auth (binds localhost)"},
 				}},
-				{Title: "Commands", Entries: []helpfmt.HelpEntry{
-					{Name: "set <path> <value>", Desc: "Set a configuration value"},
-					{Name: "delete <path>", Desc: "Delete a configuration value"},
-					{Name: "edit <path>", Desc: "Enter a subsection (narrowed context)"},
-					{Name: "edit <list> *", Desc: "Edit template for all entries (inheritance)"},
-					{Name: "top", Desc: "Return to root context"},
-					{Name: "up", Desc: "Go up one level"},
-					{Name: "show [section]", Desc: "Display current configuration"},
-					{Name: "show | <filter>", Desc: "Pipe: blame, changes, compare, errors, history"},
-					{Name: "commit", Desc: "Save changes (creates backup)"},
-					{Name: "discard", Desc: "Revert all changes"},
-					{Name: "rollback <N>", Desc: "Restore backup N"},
-					{Name: "run <command>", Desc: "Execute operational command"},
-					{Name: "exit/quit", Desc: "Exit (prompts if unsaved changes)"},
-				}},
+				// The editor's own command table, the one its completion and
+				// help overlay read, so this page never drifts from the editor.
+				{Title: "Commands", Entries: cli.EditorHelpEntries()},
 				{Title: "Mode switching", Entries: []helpfmt.HelpEntry{
 					{Name: "command", Desc: "Switch to operational command mode"},
 					{Name: "edit", Desc: "Switch back to config edit mode (in command mode)"},

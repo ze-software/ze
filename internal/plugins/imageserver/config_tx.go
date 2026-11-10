@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -134,9 +135,10 @@ func (s *imageServer) restore(served []imageListener, cause error) error {
 	if len(lost) == 0 {
 		return cause
 	}
-	return fmt.Errorf("%w\n%w: the image server could not bind %d of the %d interface(s) it served again, "+
-		"so they stopped serving (%w).\n%s",
-		cause, sdk.ErrRunningConfigLost, len(lost), len(served), errors.Join(lost...), sdk.RunningConfigLostNext)
+	return sdk.RunningConfigLost(fmt.Errorf("%w; binding the running interfaces again: %w", cause, errors.Join(lost...)),
+		"the image server could not apply the new config, and could not bind "+strconv.Itoa(len(lost))+
+			" of the "+strconv.Itoa(len(served))+" interface(s) it served again, so they stopped serving",
+		sdk.RunningConfigLostListenerFix)
 }
 
 // lostImageTarget names a served target restore could not bind again. An

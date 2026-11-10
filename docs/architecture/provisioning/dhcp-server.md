@@ -210,7 +210,9 @@ rolls back with the leases intact. The replaced listeners are bound one by one,
 so when another process takes the port of one of them in that window, the
 others still serve. The error then wraps `sdk.ErrRunningConfigLost`, says how
 many of the interfaces that served are lost and names each one with its cause,
-and ends with `sdk.RunningConfigLostNext`: the rollback binds the running
+and is the operator error
+`sdk.RunningConfigLost` builds (problem, why, fix), whose why and fix the SDK
+defines: the rollback binds the running
 config again and restarts the plugin if that fails too, the reload answer's
 `Rollback:` line says which happened, and the fix is to free the port, then,
 for a listener a restarted plugin could not bind, to stop the whole daemon and

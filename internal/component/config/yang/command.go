@@ -648,7 +648,8 @@ func hasRestOfLineExtension(leaf *gyang.Entry) bool {
 
 // yangTypeToArgDef converts a goyang YangType into an ArgDef. declared is the
 // type statement goyang resolved yt from (declared.YangType is yt), or nil
-// when no statement is at hand.
+// when no statement is at hand. A range, length or pattern refusal of the
+// definition carries the error-message declared reads (typeConstraintMessages).
 //
 // An enumeration's names are read from declared, in the order of the values
 // RFC 7950 assigns them (parseEnumAssignment): goyang's own EnumType numbers
@@ -688,17 +689,29 @@ func (patterns compiledPatterns) yangTypeToArgDef(name string, yt *gyang.YangTyp
 		def, err = command.NewFlagArg(name, opts)
 
 	case gyang.Yuint8:
+		opts.RangeMessage = typeConstraintMessages(declared).Range()
 		def, err = command.NewUintArg(name, 8, uintRanges(yt.Range), opts)
 	case gyang.Yuint16:
+		opts.RangeMessage = typeConstraintMessages(declared).Range()
 		def, err = command.NewUintArg(name, 16, uintRanges(yt.Range), opts)
 	case gyang.Yuint32:
+		opts.RangeMessage = typeConstraintMessages(declared).Range()
 		def, err = command.NewUintArg(name, 32, uintRanges(yt.Range), opts)
 	case gyang.Yuint64:
+		opts.RangeMessage = typeConstraintMessages(declared).Range()
 		def, err = command.NewUintArg(name, 64, uintRanges(yt.Range), opts)
 
 	case gyang.Ystring:
 		// goyang resolves the typedef chain: Length is the most restricted
 		// length along it, and Pattern holds every pattern of every type in it.
+		// The error-message of each restriction rides with it
+		// (typeConstraintMessages), one message per pattern in the same order.
+		messages := typeConstraintMessages(declared)
+		opts.LengthMessage = messages.Length()
+		opts.PatternMessages = make([]string, len(yt.Pattern))
+		for i, pattern := range yt.Pattern {
+			opts.PatternMessages[i] = messages.Pattern(pattern)
+		}
 		def, err = command.NewStringArg(name, uintRanges(yt.Length), patterns.compiled(name, yt.Pattern), opts)
 
 	case gyang.Yunion:
