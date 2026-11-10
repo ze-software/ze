@@ -119,6 +119,7 @@ func Build(ctx context.Context, options BuildOptions) (BuildReport, error) {
 	// Retirement MUST follow media seeding, and precede every page consumer.
 	if err := siteterminaldemo.New(siteterminaldemo.Options{
 		Root: paths.Repository, ArtifactRoot: filepath.Join(paths.Output, "assets", "demos"),
+		ArtifactAnchor: paths.Output,
 	}).RetireDeleted(); err != nil {
 		return BuildReport{}, err
 	}

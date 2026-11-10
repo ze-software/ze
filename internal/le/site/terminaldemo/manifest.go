@@ -65,12 +65,28 @@ func (e *Engine) loadManifest() (Manifest, map[string]Demo, error) {
 
 // readJSON decodes one demo manifest. Both roots publish it under the same name.
 func readJSON(rootPath string, value any) error {
-	const name = "manifest.json"
 	root, err := os.OpenRoot(rootPath)
 	if err != nil {
 		return err
 	}
 	defer root.Close() //nolint:errcheck // The decoded file owns the read verdict.
+	return readRootJSON(root, value)
+}
+
+// readArtifactJSON decodes the artifact manifest through the engine's anchored
+// media root, so a link that leads out of the anchor is refused.
+func (e *Engine) readArtifactJSON(value any) error {
+	root, err := e.openArtifactRoot(false)
+	if err != nil {
+		return err
+	}
+	defer root.Close() //nolint:errcheck // The decoded file owns the read verdict.
+	return readRootJSON(root, value)
+}
+
+// readRootJSON decodes the manifest that root holds. The caller owns root.
+func readRootJSON(root *os.Root, value any) error {
+	const name = "manifest.json"
 	handle, err := root.Open(name)
 	if err != nil {
 		return err
@@ -83,7 +99,7 @@ func readJSON(rootPath string, value any) error {
 	var trailing any
 	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
 		if err == nil {
-			return fmt.Errorf("%s: expected one JSON value", filepath.Join(rootPath, name))
+			return fmt.Errorf("%s: expected one JSON value", filepath.Join(root.Name(), name))
 		}
 		return err
 	}
@@ -554,7 +570,7 @@ func hashFile(path string) (string, error) {
 
 func (e *Engine) loadArtifactManifest(manifest Manifest) (artifactManifest, error) {
 	var generated artifactManifest
-	err := readJSON(e.artifactRoot, &generated)
+	err := e.readArtifactJSON(&generated)
 	if err == nil {
 		if generated.Schema == manifestSchema && generated.Demos != nil {
 			return generated, nil
@@ -567,14 +583,11 @@ func (e *Engine) loadArtifactManifest(manifest Manifest) (artifactManifest, erro
 }
 
 func (e *Engine) writeArtifactManifest(generated artifactManifest) error {
-	if err := os.MkdirAll(e.artifactRoot, 0o755); err != nil { // #nosec G301 -- Public website artifacts must be traversable by the web server.
-		return err
-	}
 	data, err := json.MarshalIndent(artifactJSONValue(generated), "", "  ")
 	if err != nil {
 		return err
 	}
-	root, err := os.OpenRoot(e.artifactRoot)
+	root, err := e.openArtifactRoot(true)
 	if err != nil {
 		return err
 	}
@@ -615,7 +628,7 @@ func artifactJSONValue(generated artifactManifest) map[string]any {
 
 func (e *Engine) verifyAssets(manifest Manifest, indexed map[string]Demo, selected []string, release string, definitionOnly bool) error {
 	var generated artifactManifest
-	if err := readJSON(e.artifactRoot, &generated); err != nil {
+	if err := e.readArtifactJSON(&generated); err != nil {
 		return err
 	}
 	if generated.Schema != manifestSchema {
@@ -683,29 +696,43 @@ func (e *Engine) verifyAssets(manifest Manifest, indexed map[string]Demo, select
 		if err != nil {
 			return err
 		}
-		for _, name := range names {
-			asset, exists := entry.Assets[name]
-			if !exists {
-				return fmt.Errorf("%s: missing %s metadata", demoID, name)
-			}
-			if asset.Path == "" {
-				return fmt.Errorf("%s: missing %s metadata", demoID, name)
-			}
-			if asset.Path != filepath.Base(expected[name]) {
-				return fmt.Errorf("%s: %s artifact path %q does not name its published file %q; restore the recorded manifest", demoID, name, asset.Path, filepath.Base(expected[name]))
-			}
-			if _, err := ReadAsset(e.artifactRoot, asset); err != nil {
-				if errors.Is(err, errAssetMismatch) {
-					return fmt.Errorf("%s: %s digest mismatch", demoID, name)
-				}
-				return fmt.Errorf("%s: acquire generated %s: %w", demoID, name, err)
-			}
+		if err := e.verifyDemoAssets(demoID, names, expected, entry); err != nil {
+			return err
 		}
 	}
 	var buffer textbuf.Buffer
 	if _, err := fmt.Fprintln(e.output, buffer.Str("Ze demo artifacts verified: ").
 		Join(selected, ", ").String()); err != nil {
 		return fmt.Errorf("write artifact verification result: %w", err)
+	}
+	return nil
+}
+
+// verifyDemoAssets acquires each declared asset of one demo through the
+// anchored media root and checks it against its recorded size and digest.
+func (e *Engine) verifyDemoAssets(demoID string, names []string, expected map[string]string, entry ArtifactEntry) error {
+	root, err := e.openArtifactRoot(false)
+	if err != nil {
+		return fmt.Errorf("%s: open generated media: %w", demoID, err)
+	}
+	defer root.Close() //nolint:errcheck // Each acquisition owns its read verdict.
+	for _, name := range names {
+		asset, exists := entry.Assets[name]
+		if !exists {
+			return fmt.Errorf("%s: missing %s metadata", demoID, name)
+		}
+		if asset.Path == "" {
+			return fmt.Errorf("%s: missing %s metadata", demoID, name)
+		}
+		if asset.Path != filepath.Base(expected[name]) {
+			return fmt.Errorf("%s: %s artifact path %q does not name its published file %q; restore the recorded manifest", demoID, name, asset.Path, filepath.Base(expected[name]))
+		}
+		if _, err := ReadAsset(root, asset); err != nil {
+			if errors.Is(err, errAssetMismatch) {
+				return fmt.Errorf("%s: %s digest mismatch", demoID, name)
+			}
+			return fmt.Errorf("%s: acquire generated %s: %w", demoID, name, err)
+		}
 	}
 	return nil
 }

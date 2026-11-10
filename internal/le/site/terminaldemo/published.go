@@ -19,10 +19,12 @@ import (
 //
 // root is the checkout, whose demos/terminal/manifest.json states what a demo
 // is. artifactRoot is the directory a render wrote its media into, whose own
-// manifest.json states each file's size and digest. Nothing is verified here;
-// the caller checks each asset it publishes.
-func Published(root, artifactRoot string) (Manifest, map[string]ArtifactEntry, error) {
-	engine := New(Options{Root: root, ArtifactRoot: artifactRoot})
+// manifest.json states each file's size and digest; it is read through anchor,
+// the directory artifactRoot MUST lie inside (OpenMediaRoot), so a link that
+// leads out of anchor is refused. Nothing is verified here; the caller checks
+// each asset it publishes, through the same anchor.
+func Published(root, anchor, artifactRoot string) (Manifest, map[string]ArtifactEntry, error) {
+	engine := New(Options{Root: root, ArtifactRoot: artifactRoot, ArtifactAnchor: anchor})
 	var manifest Manifest
 	if err := readJSON(engine.demoRoot, &manifest); err != nil {
 		return Manifest{}, nil, fmt.Errorf("terminal demo source manifest: %w", err)
@@ -34,7 +36,7 @@ func Published(root, artifactRoot string) (Manifest, map[string]ArtifactEntry, e
 		return Manifest{}, nil, errors.New("terminal demo source manifest states no gallery-page")
 	}
 	var generated artifactManifest
-	if err := readJSON(artifactRoot, &generated); err != nil {
+	if err := engine.readArtifactJSON(&generated); err != nil {
 		return Manifest{}, nil, fmt.Errorf("terminal demo artifact manifest in %s: %w", artifactRoot, err)
 	}
 	if generated.Schema != manifestSchema {

@@ -24,10 +24,13 @@ type Asset struct {
 	metadata AssetMetadata
 }
 
-// ReadAsset acquires a file through rootPath and verifies the retained payload,
-// not a path that a parser or publisher would have to reopen.
-func ReadAsset(rootPath string, metadata AssetMetadata) (Asset, error) {
-	asset, err := acquireAsset(rootPath, metadata.Path, &metadata)
+// ReadAsset acquires a file through root and verifies the retained payload,
+// not a path that a parser or publisher would have to reopen. The caller opens
+// root through the anchor the media must stay inside (OpenMediaRoot), and
+// publishes through the same root, so a link that leads out of that anchor is
+// refused before any byte is read.
+func ReadAsset(root *os.Root, metadata AssetMetadata) (Asset, error) {
+	asset, err := acquireAsset(root, metadata.Path, &metadata)
 	if err != nil {
 		return Asset{}, err
 	}
@@ -40,12 +43,12 @@ func ReadAsset(rootPath string, metadata AssetMetadata) (Asset, error) {
 	return asset, nil
 }
 
-func acquireAsset(rootPath, name string, expected *AssetMetadata) (Asset, error) {
-	root, err := os.OpenRoot(rootPath)
-	if err != nil {
-		return Asset{}, err
+// acquireAsset reads name through root, which refuses a link that leads out
+// of it. The caller owns root and closes it.
+func acquireAsset(root *os.Root, name string, expected *AssetMetadata) (Asset, error) {
+	if root == nil {
+		return Asset{}, errors.New("demo acquisition root is absent")
 	}
-	defer root.Close() //nolint:errcheck // The retained payload owns the read verdict.
 	handle, err := root.Open(name)
 	if err != nil {
 		return Asset{}, err
@@ -91,6 +94,42 @@ func acquireAsset(rootPath, name string, expected *AssetMetadata) (Asset, error)
 	return Asset{content: content.String(), metadata: AssetMetadata{
 		Path: name, Bytes: info.Size(), SHA256: hex.EncodeToString(digest.Sum(nil)),
 	}}, nil
+}
+
+// OpenMediaRoot opens the media directory every acquisition and publication
+// goes through. With an anchor, media MUST lie inside it: the anchor is opened
+// and media is reached from it, so a link at media or at any directory between
+// the two that leads outside the anchor is refused ("path escapes from
+// parent") rather than followed. An empty anchor makes media its own boundary,
+// as for the render actions' operator-chosen output directory. create makes
+// the directory first, through the same anchor. The caller closes the root.
+func OpenMediaRoot(anchor, media string, create bool) (*os.Root, error) {
+	if anchor == "" {
+		if create {
+			if err := os.MkdirAll(media, 0o755); err != nil { // #nosec G301 -- Public website artifacts must be traversable by the web server.
+				return nil, err
+			}
+		}
+		return os.OpenRoot(media)
+	}
+	relative, err := filepath.Rel(anchor, media)
+	if err != nil {
+		return nil, fmt.Errorf("demo media %s is not inside %s: %w", media, anchor, err)
+	}
+	if !filepath.IsLocal(relative) {
+		return nil, fmt.Errorf("demo media %s is not inside %s; set the artifact root inside the site output", media, anchor)
+	}
+	outer, err := os.OpenRoot(anchor)
+	if err != nil {
+		return nil, err
+	}
+	defer outer.Close() //nolint:errcheck // The opened media root holds its own descriptor.
+	if create {
+		if err := outer.MkdirAll(relative, 0o755); err != nil { // #nosec G301 -- Public website artifacts must be traversable by the web server.
+			return nil, err
+		}
+	}
+	return outer.OpenRoot(relative)
 }
 
 func assetFromText(name, content string) Asset {

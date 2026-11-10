@@ -21,7 +21,7 @@ func TestRetainedAssetPublishesVerifiedBytes(t *testing.T) {
 				t.Fatal(err)
 			}
 			digest := sha256.Sum256([]byte(original))
-			asset, err := ReadAsset(source, AssetMetadata{Path: "recording.cast", Bytes: int64(len(original)), SHA256: hex.EncodeToString(digest[:])})
+			asset, err := ReadAsset(openTestRoot(t, source), AssetMetadata{Path: "recording.cast", Bytes: int64(len(original)), SHA256: hex.EncodeToString(digest[:])})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -65,7 +65,7 @@ func TestRetainedAssetRefusesInvalidMetadataAndZero(t *testing.T) {
 		{Path: "asset", Bytes: 8, SHA256: hex.EncodeToString(digest[:])},
 		{Path: "asset", Bytes: 7, SHA256: "incorrect"},
 	} {
-		if _, err := ReadAsset(source, metadata); err == nil {
+		if _, err := ReadAsset(openTestRoot(t, source), metadata); err == nil {
 			t.Fatalf("accepted invalid metadata: %+v", metadata)
 		}
 	}
@@ -75,4 +75,15 @@ func TestRetainedAssetRefusesInvalidMetadataAndZero(t *testing.T) {
 	if err := (Asset{}).Publish(nil, "asset"); err == nil {
 		t.Fatal("uninitialized asset published")
 	}
+}
+
+// openTestRoot opens dir as an acquisition root and closes it when the test ends.
+func openTestRoot(t *testing.T, dir string) *os.Root {
+	t.Helper()
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = root.Close() }) //nolint:errcheck // Test cleanup cannot change the verdict.
+	return root
 }

@@ -4,50 +4,145 @@ package site
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
 // TestDemoArtifactRootRejectsEscapingLinks exercises the page entry against real
-// media whose valid manifest bytes live outside the artifact root.
+// media whose valid manifest bytes live outside the artifact root. Each case
+// first proves the page accepts the untouched fixture, then plants one link
+// and asserts the refusal names its cause:
+//
+//   - file: launcher.cast itself is a link to an outside copy. MUTATION:
+//     replacing the rooted open in acquireAsset (root.Open) with
+//     os.Open(filepath.Join(assetRoot, name)) follows the link, and the page
+//     accepts the outside bytes.
+//   - media-root: assets/demos, the media directory, is a link to an outside
+//     copy of it. The refusal comes from the anchor at the site output, and no
+//     outside file is replaced, so nothing is published outside. MUTATION:
+//     replacing the anchor in openMedia with os.OpenRoot(catalog.assetRoot())
+//     follows the directory link, reads the outside media and publishes back
+//     into it.
+//   - unbound-path: the manifest names a path through an escaping directory
+//     link. It is refused before any acquisition because the path is not the
+//     demo's published file name; it proves the name binding, not containment.
 func TestDemoArtifactRootRejectsEscapingLinks(t *testing.T) {
-	for _, parentLink := range []bool{false, true} {
-		t.Run(map[bool]string{false: "file", true: "parent"}[parentLink], func(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		refusal string
+	}{
+		{name: "file", refusal: "path escapes from parent"},
+		{name: "media-root", refusal: "path escapes from parent"},
+		{name: "unbound-path", refusal: "does not name its published file"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 			paths := demoFixture(t)
 			catalog := newDemoCatalog(paths)
 			if err := catalog.load(); err != nil {
 				t.Fatal(err)
 			}
+			if _, err := catalog.heroMount("launcher"); err != nil {
+				t.Fatalf("control: page refused its untouched media: %v", err)
+			}
 			outside := t.TempDir()
 			original := filepath.Join(catalog.assetRoot(), "launcher.cast")
-			content, err := os.ReadFile(original)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := os.WriteFile(filepath.Join(outside, "launcher.cast"), content, 0o600); err != nil {
-				t.Fatal(err)
-			}
-			entry := catalog.built["launcher"]
-			metadata := entry.Assets[demoCast]
-			if parentLink {
-				if err := os.Symlink(outside, filepath.Join(catalog.assetRoot(), "escape")); err != nil {
+			var published map[string]os.FileInfo
+			switch tc.name {
+			case "file":
+				content, err := os.ReadFile(original)
+				if err != nil {
 					t.Fatal(err)
 				}
-				metadata.Path = "escape/launcher.cast"
-			} else {
+				if err := os.WriteFile(filepath.Join(outside, "launcher.cast"), content, 0o600); err != nil {
+					t.Fatal(err)
+				}
 				if err := os.Remove(original); err != nil {
 					t.Fatal(err)
 				}
 				if err := os.Symlink(filepath.Join(outside, "launcher.cast"), original); err != nil {
 					t.Fatal(err)
 				}
+			case "media-root":
+				moved := filepath.Join(outside, "demos")
+				if err := os.Rename(catalog.assetRoot(), moved); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink(moved, catalog.assetRoot()); err != nil {
+					t.Fatal(err)
+				}
+				published = outsideFiles(t, moved)
+			case "unbound-path":
+				content, err := os.ReadFile(original)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(outside, "launcher.cast"), content, 0o600); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink(outside, filepath.Join(catalog.assetRoot(), "escape")); err != nil {
+					t.Fatal(err)
+				}
+				entry := catalog.built["launcher"]
+				metadata := entry.Assets[demoCast]
+				metadata.Path = "escape/launcher.cast"
+				entry.Assets[demoCast] = metadata
+				catalog.built["launcher"] = entry
 			}
-			entry.Assets[demoCast] = metadata
-			catalog.built["launcher"] = entry
-			if _, err := catalog.heroMount("launcher"); err == nil {
+			_, err := catalog.heroMount("launcher")
+			if err == nil {
 				t.Fatal("page accepted media acquired outside its artifact root")
+			}
+			if !strings.Contains(err.Error(), tc.refusal) {
+				t.Fatalf("refusal %q does not name %q", err, tc.refusal)
+			}
+			if published == nil {
+				return
+			}
+			after := outsideFiles(t, filepath.Join(outside, "demos"))
+			if len(after) != len(published) {
+				t.Fatalf("outside media gained or lost files: %d before, %d after", len(published), len(after))
+			}
+			for name, before := range published {
+				now, present := after[name]
+				if !present {
+					t.Fatalf("outside media lost %s", name)
+				}
+				if !os.SameFile(before, now) {
+					t.Fatalf("outside media %s was replaced: a publication wrote outside the site output", name)
+				}
 			}
 		})
 	}
+}
+
+// outsideFiles answers each entry of dir by name, so a later call can tell a
+// replaced file (a new inode from a publication's rename) from an untouched one.
+func outsideFiles(t *testing.T, dir string) map[string]os.FileInfo {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	files := make(map[string]os.FileInfo, len(entries))
+	for _, entry := range entries {
+		info, err := os.Lstat(filepath.Join(dir, entry.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		files[entry.Name()] = info
+	}
+	return files
+}
+
+// catalogMedia opens the catalog's anchored media root for one test.
+func catalogMedia(t *testing.T, catalog *demoCatalog) *os.Root {
+	t.Helper()
+	media, err := catalog.openMedia()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = media.Close() }) //nolint:errcheck // Test cleanup cannot change the verdict.
+	return media
 }
 
 // TestVerifiedDemoFactsSurviveSourceMutation changes the real recording after
@@ -60,7 +155,7 @@ func TestVerifiedDemoFactsSurviveSourceMutation(t *testing.T) {
 			if err := catalog.load(); err != nil {
 				t.Fatal(err)
 			}
-			asset, err := catalog.verifyAsset("launcher", demoCast, catalog.built["launcher"])
+			asset, err := catalog.verifyAsset(catalogMedia(t, catalog), "launcher", demoCast, catalog.built["launcher"])
 			if err != nil {
 				t.Fatal(err)
 			}

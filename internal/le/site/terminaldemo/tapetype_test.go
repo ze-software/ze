@@ -72,7 +72,7 @@ func TestTypedCommandIsPaintedBeforeEnter(t *testing.T) {
 	if _, err := driveTape(tape, output, 80, 24); err != nil {
 		t.Fatalf("drive tape: %v", err)
 	}
-	asset, err := acquireAsset(filepath.Dir(output), filepath.Base(output), nil)
+	asset, err := acquireAsset(openTestRoot(t, filepath.Dir(output)), filepath.Base(output), nil)
 	if err != nil {
 		t.Fatalf("acquire cast: %v", err)
 	}

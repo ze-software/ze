@@ -140,6 +140,14 @@ func (catalog *demoCatalog) assetRoot() string {
 	return filepath.Join(catalog.paths.Output, "assets", "demos")
 }
 
+// openMedia opens assetRoot through the site output, so a link at
+// assets/demos, or at assets, that leads out of the output is refused rather
+// than followed: acquisition and publication then stay inside the artifact
+// this build publishes. The caller closes the root.
+func (catalog *demoCatalog) openMedia() (*os.Root, error) {
+	return siteterminaldemo.OpenMediaRoot(catalog.paths.Output, catalog.assetRoot(), false)
+}
+
 // load reads the two manifests once and indexes the demonstrations by id.
 func (catalog *demoCatalog) load() error {
 	if catalog.loaded {
@@ -150,7 +158,7 @@ func (catalog *demoCatalog) load() error {
 		catalog.err = errDemoMediaAbsent
 		return catalog.err
 	}
-	manifest, built, err := siteterminaldemo.Published(catalog.paths.Repository, catalog.assetRoot())
+	manifest, built, err := siteterminaldemo.Published(catalog.paths.Repository, catalog.paths.Output, catalog.assetRoot())
 	if err != nil {
 		catalog.err = err
 		return err
@@ -354,9 +362,16 @@ func (catalog *demoCatalog) verifyAssets(id, kind string, entry siteterminaldemo
 	if !known {
 		return nil, fmt.Errorf("terminal demo %s has an unknown kind: %q", id, kind)
 	}
+	// One anchored media root serves acquisition and publication, so the bytes
+	// are read from and written back to the same directory inside the output.
+	media, err := catalog.openMedia()
+	if err != nil {
+		return nil, fmt.Errorf("terminal demo %s media: %w", id, err)
+	}
+	defer media.Close() //nolint:errcheck // Each retained payload owns its publication verdict.
 	published := make(map[string]siteterminaldemo.Asset, len(names))
 	for _, name := range names {
-		path, err := catalog.verifyAsset(id, name, entry)
+		path, err := catalog.verifyAsset(media, id, name, entry)
 		if err != nil {
 			return nil, err
 		}
@@ -367,24 +382,20 @@ func (catalog *demoCatalog) verifyAssets(id, kind string, entry siteterminaldemo
 			return nil, fmt.Errorf("terminal demo %s is a %s demo and must not publish %s", id, kind, name)
 		}
 	}
-	root, err := os.OpenRoot(catalog.assetRoot())
-	if err != nil {
-		return nil, err
-	}
-	defer root.Close() //nolint:errcheck // Each retained payload owns its publication verdict.
 	// Every declared path and payload MUST pass before any file is replaced.
 	for _, name := range names {
 		asset := published[name]
-		if err := asset.Publish(root, asset.Metadata().Path); err != nil {
+		if err := asset.Publish(media, asset.Metadata().Path); err != nil {
 			return nil, err
 		}
 	}
 	return published, nil
 }
 
-// verifyAsset acquires through the media root and retains the checked bytes.
-// Every parser and publisher MUST use this payload rather than reopen its path.
-func (catalog *demoCatalog) verifyAsset(id, name string, entry siteterminaldemo.ArtifactEntry) (siteterminaldemo.Asset, error) {
+// verifyAsset acquires through media, the root openMedia anchored at the site
+// output, and retains the checked bytes. Every parser and publisher MUST use
+// this payload rather than reopen its path.
+func (catalog *demoCatalog) verifyAsset(media *os.Root, id, name string, entry siteterminaldemo.ArtifactEntry) (siteterminaldemo.Asset, error) {
 	metadata, present := entry.Assets[name]
 	if !present {
 		return siteterminaldemo.Asset{}, fmt.Errorf("terminal demo %s is missing its %s artifact", id, name)
@@ -407,7 +418,7 @@ func (catalog *demoCatalog) verifyAsset(id, name string, entry siteterminaldemo.
 	if metadata.Path != path {
 		return siteterminaldemo.Asset{}, fmt.Errorf("terminal demo %s %s artifact path %q does not name its published file %q; restore the recorded manifest", id, name, metadata.Path, path)
 	}
-	asset, err := siteterminaldemo.ReadAsset(catalog.assetRoot(), metadata)
+	asset, err := siteterminaldemo.ReadAsset(media, metadata)
 	if err != nil {
 		return siteterminaldemo.Asset{}, fmt.Errorf("terminal demo %s %s: %w", id, name, err)
 	}

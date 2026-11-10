@@ -392,8 +392,15 @@ definitions without changing their output.
 
 A presentation change does not make an old recording current. Preserve its
 recorded source, definition, binary and release identities. The site publisher
-acquires media through its rooted artifact directory, checks size and digest on
-the retained payload, and uses that same payload for parsing and publication.
+opens the media directory `assets/demos` from the site output, so a link at that
+directory, at `assets`, or at a media file that leads out of the output is
+refused ("path escapes from parent") rather than followed. It acquires media
+through that one root, checks size and digest on the retained payload, uses that
+same payload for parsing, and publishes it back through the same root, so
+nothing is read from or written to a directory outside the output. A site
+build's retirement and the renderer's own artifact reads and writes reach the
+media the same way (`OpenMediaRoot`); the render actions' operator-chosen output
+directory is its own boundary.
 Each manifest path must name that demo's canonical kind-specific file, which is
 also the filename its player and download URLs serve. A mismatched path is
 refused before that payload is acquired or any demo asset is republished.
@@ -405,7 +412,8 @@ replacement keeps its preceding bytes. This is not a multi-file transaction.
 The separate `./le site terminal-demo check artifacts` action also checks current
 recorder sources and refuses stale recordings. Do not replace those digests to
 make a presentation-only change pass.
-<!-- source: internal/le/site/demo.go -- demoCatalog.verifyAssets, demoCatalog.verifyAsset -->
+<!-- source: internal/le/site/demo.go -- demoCatalog.verifyAssets, demoCatalog.verifyAsset, demoCatalog.openMedia -->
+<!-- source: internal/le/site/terminaldemo/artifact.go -- OpenMediaRoot, ReadAsset -->
 <!-- source: internal/le/site/terminaldemo/render.go -- Engine.checkAll -->
 <!-- source: internal/le/site/terminaldemo/manifest.go -- nativeRecorderSources, Engine.verifyAssets -->
 

@@ -565,12 +565,17 @@ func (e *Engine) renderDemo(manifest Manifest, demo Demo, release string) (Artif
 	if err := e.runDemoContainer(&demo, command); err != nil {
 		return ArtifactEntry{}, err
 	}
+	stageRoot, err := os.OpenRoot(stage)
+	if err != nil {
+		return ArtifactEntry{}, err
+	}
+	defer stageRoot.Close() //nolint:errcheck // Each acquisition owns its read verdict.
 	payloads := make(map[string]Asset, len(names))
 	for _, name := range names {
 		if name == transcriptLabel {
 			continue
 		}
-		asset, err := acquireAsset(stage, filepath.Base(expected[name]), nil)
+		asset, err := acquireAsset(stageRoot, filepath.Base(expected[name]), nil)
 		if err != nil {
 			return ArtifactEntry{}, fmt.Errorf("%s: acquire generated %s: %w", demo.ID, name, err)
 		}
@@ -582,7 +587,12 @@ func (e *Engine) renderDemo(manifest Manifest, demo Demo, release string) (Artif
 		}
 		payloads[name] = asset
 	}
-	transcript, err := acquireAsset(e.demoRoot, filepath.Join(filepath.Dir(demo.Source), transcriptFilename), nil)
+	demoRoot, err := os.OpenRoot(e.demoRoot)
+	if err != nil {
+		return ArtifactEntry{}, err
+	}
+	defer demoRoot.Close() //nolint:errcheck // The acquisition owns its read verdict.
+	transcript, err := acquireAsset(demoRoot, filepath.Join(filepath.Dir(demo.Source), transcriptFilename), nil)
 	if err != nil {
 		return ArtifactEntry{}, err
 	}
@@ -611,10 +621,7 @@ func (e *Engine) renderDemo(manifest Manifest, demo Demo, release string) (Artif
 	if err != nil {
 		return ArtifactEntry{}, err
 	}
-	if err := os.MkdirAll(e.artifactRoot, 0o755); err != nil {
-		return ArtifactEntry{}, err
-	}
-	root, err := os.OpenRoot(e.artifactRoot)
+	root, err := e.openArtifactRoot(true)
 	if err != nil {
 		return ArtifactEntry{}, err
 	}
@@ -645,6 +652,11 @@ func (e *Engine) removeSupersededAssets(demo Demo) ([]string, error) {
 	for _, path := range keepPaths {
 		keep[filepath.Ext(path)] = struct{}{}
 	}
+	root, err := e.openArtifactRoot(false)
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close() //nolint:errcheck // Each removal owns its verdict.
 	all := []string{castExtension, textExtension, posterExtension, ".webm", ".mp4", ".png"}
 	removed := make([]string, 0)
 	for _, extension := range all {
@@ -653,14 +665,23 @@ func (e *Engine) removeSupersededAssets(demo Demo) ([]string, error) {
 		}
 		var buffer textbuf.Buffer
 		filename := buffer.Str(demo.ID).Str(extension).String()
-		path := filepath.Join(e.artifactRoot, filename)
-		if !regularFile(path) {
+		// An absent superseded name has nothing to remove, and a name that is
+		// not a regular file is not this demo's media, so both are left alone.
+		// A link that leads out of the media root is refused by the root.
+		info, statErr := root.Stat(filename)
+		if errors.Is(statErr, os.ErrNotExist) {
 			continue
 		}
-		if err := os.Remove(path); err != nil {
+		if statErr != nil {
+			return nil, fmt.Errorf("superseded artifact %s: %w", filename, statErr)
+		}
+		if !info.Mode().IsRegular() {
+			continue
+		}
+		if err := root.Remove(filename); err != nil {
 			return nil, err
 		}
-		removed = append(removed, path)
+		removed = append(removed, filepath.Join(e.artifactRoot, filename))
 	}
 	slices.Sort(removed)
 	return removed, nil

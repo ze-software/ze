@@ -14,7 +14,7 @@ import (
 func (e *Engine) RetireDeleted() error {
 	return e.withLock(func() error {
 		var generated artifactManifest
-		if err := readJSON(e.artifactRoot, &generated); err != nil {
+		if err := e.readArtifactJSON(&generated); err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				// No inventory means this tree owns no retired media.
 				return nil
@@ -83,7 +83,7 @@ func (e *Engine) retireDeletedAssets(generated *artifactManifest, indexed map[st
 	if len(retired) == 0 {
 		return nil
 	}
-	root, err := os.OpenRoot(e.artifactRoot)
+	root, err := e.openArtifactRoot(false)
 	if err != nil {
 		return err
 	}

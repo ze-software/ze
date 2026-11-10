@@ -298,7 +298,7 @@ func TestTheFixtureCastParsesAsAsciicastV2(t *testing.T) {
 		t.Fatal(err)
 	}
 	entry := catalog.built["launcher"]
-	cast, err := catalog.verifyAsset("launcher", demoCast, entry)
+	cast, err := catalog.verifyAsset(catalogMedia(t, catalog), "launcher", demoCast, entry)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -309,7 +309,7 @@ func TestTheFixtureCastParsesAsAsciicastV2(t *testing.T) {
 	if facts.Columns != 100 || facts.Rows != 25 || facts.Seconds != 7.25 {
 		t.Errorf("the recording states %dx%d over %v seconds", facts.Columns, facts.Rows, facts.Seconds)
 	}
-	transcript, err := catalog.verifyAsset("launcher", demoTranscript, entry)
+	transcript, err := catalog.verifyAsset(catalogMedia(t, catalog), "launcher", demoTranscript, entry)
 	if err != nil {
 		t.Fatal(err)
 	}

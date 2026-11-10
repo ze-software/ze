@@ -68,7 +68,7 @@ func TestTranscriptCopyFailureKeepsPreviousPublication(t *testing.T) {
 		t.Fatal(err)
 	}
 	source := t.TempDir()
-	asset, err := acquireAsset(filepath.Dir(source), filepath.Base(source), nil)
+	asset, err := acquireAsset(openTestRoot(t, filepath.Dir(source)), filepath.Base(source), nil)
 	if err == nil {
 		err = copyFile(asset, target)
 	}
