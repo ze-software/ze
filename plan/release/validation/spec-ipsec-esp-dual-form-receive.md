@@ -738,8 +738,18 @@ loss in both directions.
 `IP_XFRM_POLICY`. It is the bound `engine/bypass.go` already names for ze's IKE sockets.
 A global "inbound ESP" exemption was rejected: it would exempt every peer's ESP from the
 check that proves a packet arrived through the configured SA. The cryptography is
-untouched, and XFRM keeps the replay window and the inbound policy check on the
-re-presented datagram.
+untouched, and XFRM keeps the replay window.
+
+**Correction 2026-11-10: the inbound policy check does NOT run on the
+re-presented datagram.** The earlier sentence here said XFRM keeps it, and that
+was never measured. The re-presented datagram is sent to Ze's own address, goes
+out `lo`, and is decapsulated with `skb->dev` set to `lo`, whose
+`disable_policy=1` sets `IPSKB_NOPOLICY`, so `__xfrm_policy_check2` returns
+before any policy is read. Bare ESP on a templated SA is therefore delivered
+with no RFC 4301 Section 5.2 selector check. Measured by interop
+`icmp-error-payload-check` (red with strongSwan sending bare ESP, green with
+`encap = yes`). The defect and its fix are owned by
+`plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md`.
 
 **After the fix**, same lab: 0% packet loss both ways, raw-socket drops 0,
 `XfrmInTmplMismatch` gone, and `XfrmInStateMismatch` still rising once per datagram,

@@ -6,7 +6,7 @@
 | Priority | P0 |
 | Release reason | Retain remaining IPsec architecture obligations and fragment investigation without claiming an unproven vulnerability. |
 | Scope | protocol |
-| Depends | `plan/release/fixes/spec-ipsec-lifetime-volume.md` (owns the Section 4.4.2.1 byte-count SAD lifetime); `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md` (owns the `rfc4301` extraction sign-off and the ledger scope set) |
+| Depends | `plan/release/fixes/spec-ipsec-lifetime-volume.md` (owns the Section 4.4.2.1 byte-count SAD lifetime); `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md` (owns the `rfc4301` extraction sign-off and the ledger scope set); `plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md` (the dual-form SPD bypass that turns `icmp-error-payload-check` red; its red proofs (c) and (d) wait on that fix) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-11-10 |
@@ -73,15 +73,18 @@ re-derivation. AC-12 is therefore blocked on both, not on this phase.
 ## Session progress, 2026-11-10
 
 Phases 3, 4, 7 and 8 are written and reviewed. Their units, functional tests
-and the PMTU QEMU unit have run green in the main checkout; the two interop
-scenarios have NOT run yet (see "Evidence, 2026-11-10" below). The phase table
+and the PMTU QEMU unit have run green in the main checkout. Of the two interop
+scenarios, `tunnel-df-treatment` passes, and `icmp-error-payload-check` is red
+because of a defect outside this spec, the dual-form receive SPD bypass, so the
+spec stays in progress, blocked on that defect (see "Evidence, 2026-11-10"
+below). The phase table
 of 2026-09-06 above is superseded for these four rows.
 
 | Phase | Block | State |
 |---|---|---|
-| 3 | Section 6 ICMP | units and `.ci` green; interop `icmp-error-payload-check` pending |
+| 3 | Section 6 ICMP | units and `.ci` green; interop `icmp-error-payload-check` RED as committed, from the dual-form SPD bypass (not a defect of this spec's code), and green with strongSwan `encap = yes`; BLOCKED on `plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md` |
 | 4 | Section 4.4.1.1 ICMP type and code selectors | units and `.ci` green |
-| 7 | Section 8.1 DF copy and clear, Section 8.2 PMTU proof | units, `.ci` and QEMU IPv6 PMTU unit green; interop `tunnel-df-treatment` pending |
+| 7 | Section 8.1 DF copy and clear, Section 8.2 PMTU proof | units, `.ci` and QEMU IPv6 PMTU unit green; interop `tunnel-df-treatment` PASS, both red proofs red |
 | 8 | Section 5.1.2.1 outer DSCP | units and `.ci` green |
 | 2b, 9 | fragment checking, ledger closure | unchanged from 2026-09-06 |
 
@@ -96,10 +99,16 @@ of 2026-09-06 above is superseded for these four rows.
 | Parse `.ci`: `ipsec-df-bit-treatment`, `ipsec-dscp-map`, `ipsec-icmp-type-selector-refused`, `ipsec-icmp-error-check` | PASS |
 | QEMU guest `.ci`: `ipsec-sa-options-kernel`, `ipsec-dscp-map-linux-refused`, `ipsec-icmp-type-selector`, `ipsec-show-dataplane-kernel` | PASS |
 | Host `.ci`: `ipsec-dataplane-show` | PASS |
-| Interop `tunnel-df-treatment`, `icmp-error-payload-check`, and their four red proofs | NOT RUN: the checkers live in `le`, which builds from committed code, so they run after the interop commit lands |
+| Interop `tunnel-df-treatment`, le built at eec854d922 | PASS |
+| `tunnel-df-treatment` red proof (a): `xfrmDFFlag` answers false for `DFClear`, image rebuilt | RED at the first check, the `show` readback: "ze reports df-bit ... on its outbound SA, want ...". The wire-counter check was not reached. File restored |
+| `tunnel-df-treatment` red proof (b): `xfrmDFFlag` answers true for `DFCopy`, image rebuilt | RED at the same `show` readback check; the wire-counter check was not reached. File restored |
+| Interop `icmp-error-payload-check`, as committed (strongSwan sends bare ESP) | RED: "the error embedding 10.2.0.1 -> 10.7.0.5, outside the SA's selectors: ze delivered 3 Time Exceeded (Icmp.InTimeExcds), want the error dropped" (`tmp/session/2026-11-09-222726/scratch/ab-plain.log`). Cause: the dual-form receive path re-presents bare ESP over `lo`, where no inbound policy check runs; not a defect of this spec's code. Owned by `plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md` |
+| Interop `icmp-error-payload-check` with strongSwan `encap = yes` | PASS (`tmp/session/2026-11-09-222726/scratch/ab-encap.log`) |
+| `icmp-error-payload-check` red proofs (c) and (d) | NOT RUN: they cannot discriminate until the scenario is green as committed, which waits on the bypass fix |
 | Re-run after the last fixes: `go test` with every feature tag of `ike/engine`, `ike/ipsec`, `ike/dataplane`, `ike/cmd`; parse `ipsec-icmp-type-selector-refused` | ok; PASS |
-| `TestLinuxLimitsCheckedAtShippedVersions` (`internal/appliance`) after `LL-XFRM-OUTER-DF-SET-DSCP` and `LL-XFRM-ICMP-TRANSIT` were re-read at Linux 7.3 | NOT RUN yet |
-| Discrimination records still to take: 22 `rfc4301` tags, and 3 `rfc7296` records (`RFC7296-2.23-12` twice, `RFC7296-2.23-2`) staled by this spec's edits to `xfrmStateFromParams` and `newChildSA` | NOT RUN: `./le rfc record` is the main thread's |
+| `TestLinuxLimitsCheckedAtShippedVersions` (`internal/appliance`) after `LL-XFRM-OUTER-DF-SET-DSCP` and `LL-XFRM-ICMP-TRANSIT` were re-read at Linux 7.3 | PASS |
+| Discrimination records: 156 `rfc4301`, and 3 `rfc7296` (`RFC7296-2.23-12` twice, `RFC7296-2.23-2`) staled by this spec's edits to `xfrmStateFromParams` and `newChildSA` | all taken |
+| The `RED PROOF` breaks named in this spec's `.ci` files | NOT RUN |
 
 **Bookkeeping, 2026-11-10.** Both Linux limitation entries this spec wrote were
 re-read against the v7.3 sources (`xfrm4_tunnel_encap_add`, the uapi
@@ -128,8 +137,8 @@ changes.
 | Goal | Evidence | State |
 |---|---|---|
 | Section 4.4.1.1: an operator SPD entry selects on ICMP type and code, held exactly by the kernel | `TestSPDICMPTypeControlRejectsOrAcceptsOneType`, `test/ipsec/ipsec-icmp-type-selector.ci` (read back from the real SPD) | met |
-| Section 6.2: an ICMP error on a Child SA has its payload checked, or not, per SA | `TestICMPErrorPayloadHeaderCheckedOnLocalDelivery`, `ipsec-sa-options-kernel.ci`; against strongSwan: `icmp-error-payload-check` | unit and `.ci` met; interop pending |
-| Section 8.1: the outer DF bit is copy or clear per peer, on the wire | `TestXFRMOuterHeaderCarriesTheDFTreatment`, `ipsec-sa-options-kernel.ci`; against strongSwan: `tunnel-df-treatment` | unit and `.ci` met; interop pending |
+| Section 6.2: an ICMP error on a Child SA has its payload checked, or not, per SA | `TestICMPErrorPayloadHeaderCheckedOnLocalDelivery`, `ipsec-sa-options-kernel.ci`; against strongSwan: `icmp-error-payload-check` | unit and `.ci` met; interop RED as committed from the dual-form SPD bypass, PASS with `encap = yes`; blocked on `spec-ipsec-dual-form-receive-spd-bypass` |
+| Section 8.1: the outer DF bit is copy or clear per peer, on the wire | `TestXFRMOuterHeaderCarriesTheDFTreatment`, `ipsec-sa-options-kernel.ci`; against strongSwan: `tunnel-df-treatment` | met: interop PASS, red proofs (a) and (b) red at the `show` readback (the wire-counter check not reached by a break) |
 | Section 8.2: a PMTU is learned and ages back, and a DF-clear packet is fragmented | the PMTU integration units, IPv6 aging under QEMU | met; the fragmentation rows take the kernel-producer escape |
 | Section 5.1.2.1: outer DSCP is copy or 0 on Linux, and a fixed value is refused with the fix named | `TestXFRMOuterHeaderCarriesTheOuterDSCP`, `ipsec-dscp-map-linux-refused.ci` | met |
 | A per-SA option a backend cannot apply is refused, never degraded | `TestVerifyPeerSAOptionsRefusesWhatTheBackendCannotApply`, `TestChildSAOptionRefusalIsNotKeptDegraded` | met |
@@ -156,8 +165,9 @@ means the row carries no annotation.
 | `RFC4301-5.1-3` | 7 | met |
 | `RFC4301-5.1.2.1-1` | 8 | `{gap}`: copy and 0 on Linux, any value on VPP; 1 to 63 refused on Linux at commit and install. The row's text still calls the owner's choice pending; same repair owed |
 
-**Tests written this session.** All but the two interop scenarios have run
-green (evidence table above).
+**Tests written this session.** All have run green except
+`icmp-error-payload-check`, red from the dual-form SPD bypass (evidence table
+above).
 
 | Test | Kind | Proves |
 |---|---|---|
@@ -175,12 +185,12 @@ green (evidence table above).
 rebuilt (`docs/architecture/testing/interop.md`, "The outer DF bit and ICMP
 errors on a Child SA (RFC 4301)"):
 
-| Scenario | Break | Expected red |
-|---|---|---|
-| `tunnel-df-treatment` | `xfrmDFFlag` answers false for `DFClear` | the clear phase's DF-set burst arrives with DF set |
-| `tunnel-df-treatment` | `xfrmDFFlag` answers true for `DFCopy` | the copy phase's DF-set burst arrives with DF clear |
-| `icmp-error-payload-check` | `xfrmStateFromParams` no longer sets `state.ICMP` | the consistent error is not delivered |
-| `icmp-error-payload-check` | `xfrmPolicyFromParams` widens the inbound protect policy's source to `0.0.0.0/0` | the inconsistent error is delivered |
+| Proof | Scenario | Break | Expected red | Observed |
+|---|---|---|---|---|
+| (a) | `tunnel-df-treatment` | `xfrmDFFlag` answers false for `DFClear` | the clear phase's DF-set burst arrives with DF set | RED at the earlier `show` readback ("ze reports df-bit ... on its outbound SA, want ..."); the wire-counter check was not reached |
+| (b) | `tunnel-df-treatment` | `xfrmDFFlag` answers true for `DFCopy` | the copy phase's DF-set burst arrives with DF clear | RED at the same `show` readback; the wire-counter check was not reached |
+| (c) | `icmp-error-payload-check` | `xfrmStateFromParams` no longer sets `state.ICMP` | the consistent error is not delivered | NOT RUN: waits on the dual-form SPD bypass fix |
+| (d) | `icmp-error-payload-check` | `xfrmPolicyFromParams` widens the inbound protect policy's source to `0.0.0.0/0` | the inconsistent error is delivered | NOT RUN: the scenario already delivers it as committed |
 
 **Decisions.**
 
@@ -465,9 +475,9 @@ covers `clear` and `copy`, and `RFC4301-8.1-2` keeps its `{gap}` for `set`.
 |----------|-----------|-------------|----------------|--------|
 | `spd-discard-entry` | `test/interop-ipsec/scenarios/` | strongSwan | a discard entry drops traffic strongSwan would otherwise carry, and the tunnel beside it stays up | |
 | `bypass-fragment-forgery` | `test/interop-ipsec/scenarios/` | strongSwan | a forged non-initial fragment aimed at the bypassed IKE port range does not reach the protected side | |
-| `icmp-error-payload-check` | `test/interop-ipsec/scenarios/` | strongSwan | an ICMP error addressed to Ze (local delivery) arriving on the SA: one whose payload header is consistent with the SA selectors is delivered, an inconsistent one is dropped. A transit (forwarded) error is out of scope here and stays `LL-XFRM-ICMP-TRANSIT` | written, not run; red proofs owed |
+| `icmp-error-payload-check` | `test/interop-ipsec/scenarios/` | strongSwan | an ICMP error addressed to Ze (local delivery) arriving on the SA: one whose payload header is consistent with the SA selectors is delivered, an inconsistent one is dropped. A transit (forwarded) error is out of scope here and stays `LL-XFRM-ICMP-TRANSIT` | RED as committed from the dual-form SPD bypass, PASS with `encap = yes`; red proofs wait on that fix |
 | `pad-subtree-identity` | `test/interop-ipsec/scenarios/` | strongSwan | a strongSwan peer whose ID_FQDN falls under a configured sub-tree authenticates, and one outside it is refused | |
-| `tunnel-df-treatment` | `test/interop-ipsec/scenarios/` | strongSwan | the outer header DF bit carries each configured treatment, read on the wire | written, not run; red proofs owed |
+| `tunnel-df-treatment` | `test/interop-ipsec/scenarios/` | strongSwan | the outer header DF bit carries each configured treatment, read on the wire | PASS; both red proofs red at the `show` readback |
 
 ## Files to Modify
 - `internal/component/ike/dataplane/dataplane.go` - `SPAction` gains DISCARD; `SPParams` gains ICMP type and code selectors, a port range form, a DF treatment and a DSCP mapping; the two priority constants become a reserved band plus an operator order

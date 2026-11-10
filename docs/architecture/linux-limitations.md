@@ -297,8 +297,12 @@ For a `library` entry, read the module in the module cache:
 - **Re-check:** read the encapsulation check in `xfrm_input` and the lookup in
   `xfrm_state_add`. `TestEncapKernelBindsOneESPFormPerState` and the dual-form
   integration test measure it on a real kernel.
-- **Ze meanwhile:** works around it. A raw `IPPROTO_ESP` reader receives the
-  form the state refuses and re-presents it.
+- **Ze meanwhile:** works around it, with a known security defect. A raw
+  `IPPROTO_ESP` reader receives the form the state refuses and re-presents it
+  to Ze's own address. That datagram arrives on `lo`, whose `disable_policy`
+  sets `IPSKB_NOPOLICY`, so `__xfrm_policy_check2` skips the inbound policy:
+  bare ESP re-presented this way gets no RFC 4301 Section 5.2 selector check.
+  `plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md` owns the fix.
 
 <!-- source: internal/component/ike/dataplane/espform_linux.go -- espFormReceiver -->
 

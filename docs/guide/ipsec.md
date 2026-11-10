@@ -1825,8 +1825,16 @@ mid-session, with no rekey and no delete.
 The reader carries a per-socket inbound policy exemption. Linux applies the inbound IPsec
 policy check before it queues a packet to a raw socket. Ze's own Child SA policy refuses
 exactly the datagrams this reader exists to recover. The exemption reaches that one socket.
-XFRM still decrypts, still owns the replay window, and still applies the inbound policy to
-the re-presented datagram.
+XFRM still decrypts and still owns the replay window.
+
+**Known defect: the inbound policy is not applied to the re-presented datagram.** Ze sends
+it to its own address, so it arrives on the loopback interface, where Linux skips the
+inbound IPsec policy check. Bare ESP received on a Child SA whose installed form is
+UDP-encapsulated (a Child SA on port 4500 with no NAT, when the peer sends bare ESP) is
+delivered without the RFC 4301 Section 5.2 selector check, so its traffic selectors and
+`unmatched discard` do not hold for that traffic. A peer that encapsulates ESP (strongSwan
+`encap = yes`) keeps its packets on the checked path, but nothing stops an authenticated
+peer from sending bare ESP instead, so that setting is no defense against the peer itself.
 
 <!-- source: internal/component/ike/dataplane/espform_linux.go -- espFormBypassInboundPolicy -->
 

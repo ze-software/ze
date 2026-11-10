@@ -226,10 +226,16 @@ func (r *espFormReceiver) running() bool {
 // "inbound ESP" globally would exempt every peer's ESP from the policy check,
 // which is the check that proves a packet arrived through the SA the operator
 // configured. This exemption reaches only datagrams delivered to this one raw
-// socket, and the cryptography is untouched: XFRM still decrypts, still owns the
-// replay window, and still applies the inbound policy to the re-presented datagram.
-// It is the same bound strongSwan takes for its own sockets (engine/bypass.go
-// records the shape).
+// socket, and the cryptography is untouched: XFRM still decrypts and still owns the
+// replay window. It is the same bound strongSwan takes for its own sockets
+// (engine/bypass.go records the shape).
+//
+// KNOWN DEFECT: no inbound policy check runs on the re-presented datagram. run sends
+// it to ze's own address, so it arrives on lo, whose disable_policy=1 sets
+// IPSKB_NOPOLICY, and __xfrm_policy_check2 returns before any policy is read. Bare
+// ESP on a templated SA is therefore delivered with no RFC 4301 Section 5.2 selector
+// check (interop icmp-error-payload-check). Owned by
+// plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md.
 //
 // RFC 4301 Section 4.4.1: BYPASS is an SPD disposition, and this is one, scoped to
 // a socket ze owns.
