@@ -256,7 +256,6 @@ AC-27 was dropped on 2026-11-08 ("Scope decision" above): the incident was not i
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
-| `invariant-enforced-by-an-absent-call-site` | 2026-11-08 | 531 compiled fixtures send `request shutdown` without declaring `StopsDaemon`, so a peerless `.ci` is signaled early |
 | guard-keyed-on-a-field-its-consumer-ignores.md | 2026-11-06 | weakening gate keys a unit by directory base name, a judge by Go package name |
 | `container-build-leaves-root-owned-scratch` | 2026-11-04 | poster proof default entrypoint rewrites shared SSH config and chowns shared scratch |
 | `gate-red-where-nothing-blocks-on-it` | 2026-11-04 | tracked historical filter-a6 shell recipe is the new native-helper census red |
@@ -418,6 +417,7 @@ closed on the attributed red its evidence section records.
 | `behavior-change-leaves-repository-users-stale` | 2026-11-10 | `TestHomeWebPreviewUsesVerifiedMedia` | `errors.Is` on `terminaldemo.ErrAssetMismatch` (same section) |
 | `identity-default-hides-a-mapping` | 2026-11-10 | ze-peer iBGP AS_PATH | `writeASPath` empty on internal sessions; `TestBuildUpdatesInternalPathIsEmpty` (tooling-one-off-evidence.md, "ze-peer originates an empty AS_PATH to internal peers") |
 | `silent-fall-through` | 2026-09-04 | YANG resolution in test binaries | `5eaa197f32`; `TestDefaultLoaderReportsEveryRegisteredFailure` (tooling-one-off-evidence.md, "Unit red walks of landed fixes"); flowspec reader deleted in `1b1b36cb5f`; batch instance `295c562ace` |
+| `invariant-enforced-by-an-absent-call-site` | 2026-11-08 | fixtures stopping the daemon undeclared | `TestEveryDaemonStoppingRegistrationDeclaresStopsDaemon` (tooling-one-off-evidence.md, "Every daemon-stopping fixture declares it") |
 | `refactor-removes-feature` | 2026-08-31 | `checkNoFamilyEndOfRIB` and 14 checkers | `c5b61cf472`, `125ab22025`, `18017069a9`, `cb882fd581` gave each checker its assertions; each of the 15 red under a Ze break (tooling-one-off-evidence.md, "P-12 (a): interop checkers (2026-11-09)", "P-12 (a) interop checkers: the four remaining walks (2026-11-10)") |
 
 ## Checklist

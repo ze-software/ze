@@ -17,7 +17,7 @@ import (
 func init() {
 	Register("plugin/local-as-replace-as-announce-partition", func(ctx context.Context, _ []string) error {
 		return Observe(ctx, "local-as-announce", &sdk.Registration{}, ObserverScenario(localASAnnouncePartition))
-	})
+	}, StopsDaemon)
 }
 
 // localASAnnouncePartition announces one prefix to every established peer, after

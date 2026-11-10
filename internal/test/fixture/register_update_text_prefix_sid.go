@@ -18,7 +18,7 @@ import (
 func init() {
 	Register("plugin/update-text-prefix-sid", func(ctx context.Context, _ []string) error {
 		return Observe(ctx, "update-text-prefix-sid", &sdk.Registration{}, ObserverScenario(updateTextPrefixSID))
-	})
+	}, StopsDaemon)
 }
 
 // updateTextPrefixSID announces one labeled route carrying a label-index BGP

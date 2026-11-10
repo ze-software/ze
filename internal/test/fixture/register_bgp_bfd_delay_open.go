@@ -15,7 +15,7 @@ import (
 )
 
 func init() {
-	Register("plugin/bgp-bfd-delay-open", bgpBFDDelayOpen)
+	Register("plugin/bgp-bfd-delay-open", bgpBFDDelayOpen, StopsDaemon)
 }
 
 // bgpBFDDelayOpen keeps BFD Down through the OPEN exchange, checks the public

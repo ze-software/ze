@@ -6,5 +6,5 @@ package fixture
 // back from the daemon rather than taken from an answer, are
 // plugin_fixture_13_peer_lifecycle.go.
 func init() {
-	Register("plugin/api-peer-create-delete-rib", peerCreateDeleteRIB13)
+	Register("plugin/api-peer-create-delete-rib", peerCreateDeleteRIB13, StopsDaemon)
 }

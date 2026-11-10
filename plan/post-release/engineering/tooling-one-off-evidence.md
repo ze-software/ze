@@ -2479,3 +2479,27 @@ path allocates nothing when debug is off. The instance has its own closed row.
 | `TestOnMessageBatchReceivedLogsEveryUndeliveredBatch` (`internal/component/bgp/server`) | overlay deleting the no-subscriber `logBatchNotDelivered` call (`b4/`) | "log \"\" lacks \"level=DEBUG\""; restored PASS |
 
 `internal/component/bgp/server` ok with the full tag set.
+
+## Every daemon-stopping fixture declares it (2026-11-10)
+
+`fixturedecl.StopsDaemon` (`383ab66db9`) tells the runner a fixture stops the
+daemon itself, so the runner waits `selfStopGrace` before signaling a peerless
+test; only two registrations declared it. 525 registration sites now do, and
+the helpers that register a caller's driver (`registerFixture`,
+`registerPassed`) pass `properties ...Property` on.
+`TestEveryDaemonStoppingRegistrationDeclaresStopsDaemon` follows each
+registration's driver through the package's functions, methods and variables
+and refuses a missing, undue or dropped declaration;
+`TestStopsDaemonWalkJudgesEveryShape` pins 17 shapes.
+
+| Carrier | Break | Red |
+| --- | --- | --- |
+| `TestEveryDaemonStoppingRegistrationDeclaresStopsDaemon` | `StopsDaemon` removed from `Register("reload/live-stages", ...)`, in place because the guard parses source from disk (`sdwalk/`, bytes restored) | "1 registration(s) pass a driver that reaches \"request shutdown\" without declaring StopsDaemon" |
+
+Suites the changed teardown reaches, run with the change and again with the
+fixture package at HEAD through a Go overlay (verified: under it the new guard
+test does not exist), produced the same reds both ways, so the change adds
+none (`sdfunc/`, `sdbase/`): plugin 17 failed, reload 3 failed and 2 timed
+out, ospf 8, static 1 timeout, flow-export 9, rsvpte 5, runner 4, vrrp 1;
+isis, ldp, bfd, ospfv3, encode, ipsec and pppoe pass. Those reds belong to
+other work.

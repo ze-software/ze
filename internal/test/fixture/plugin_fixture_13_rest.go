@@ -17,10 +17,10 @@ import (
 )
 
 func init() {
-	Register("plugin/rest-api-commands", restAPICommands13)
-	Register("plugin/rest-execute", restExecute13)
-	Register("plugin/rest-no-auth-readonly", restNoAuthReadonly13)
-	Register("plugin/rest-peer-set-delete-lifecycle", restPeerLifecycle13)
+	Register("plugin/rest-api-commands", restAPICommands13, StopsDaemon)
+	Register("plugin/rest-execute", restExecute13, StopsDaemon)
+	Register("plugin/rest-no-auth-readonly", restNoAuthReadonly13, StopsDaemon)
+	Register("plugin/rest-peer-set-delete-lifecycle", restPeerLifecycle13, StopsDaemon)
 }
 
 type httpResult13 struct {

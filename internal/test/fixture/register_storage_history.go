@@ -41,7 +41,7 @@ func init() {
 	Register("storage/history-rollback-object", historyScenario("history-rollback-object", storageHistoryRollback))
 	Register("storage/history-restore-config-object", historyScenario("history-restore-config-object", storageHistoryRestoreConfig))
 	Register("storage/history-repaired-store-start", historyScenario("history-repaired-store-start", storageHistoryRepairedStart))
-	Register("storage/history-observer", storageHistoryObserver)
+	Register("storage/history-observer", storageHistoryObserver, StopsDaemon)
 }
 
 // historyScenario wraps a scenario taking no arguments and prints

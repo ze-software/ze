@@ -7,7 +7,7 @@ package fixture
 func init() {
 	// spec-home-cpe-23b review round 2 ISSUE 2: a dns-resolver the reload
 	// removes withdraws its selection from show system dns.
-	Register("plugin/show-system-dns-withdraw", observer02("show-system-dns-withdraw-test", showSystemDNSWithdraw))
+	Register("plugin/show-system-dns-withdraw", observer02("show-system-dns-withdraw-test", showSystemDNSWithdraw), StopsDaemon)
 	// The trigger waits for the observer's observer.initial-ok, then reloads.
 	Register("plugin/show-system-dns-withdraw-trigger", reloadTrigger13)
 }

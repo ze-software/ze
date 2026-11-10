@@ -4,7 +4,7 @@
 package fixture
 
 func init() {
-	Register("plugin/failure-policy-restart", failurePolicyRestartDriver)
+	Register("plugin/failure-policy-restart", failurePolicyRestartDriver, StopsDaemon)
 	Register("plugin/failure-policy-fatal", failurePolicyFatalDriver)
 	Register("plugin/failure-policy-disagree", failurePolicyDisagreeDriver)
 }

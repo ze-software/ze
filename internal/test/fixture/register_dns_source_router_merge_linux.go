@@ -10,9 +10,9 @@ func init() {
 	// The access concentrator is scripted on the far end of the .ci's
 	// netns-link veth pair, inside the test's own namespace.
 	Register("pppoe/dns-source-router-merge",
-		observer02("dns-source-router-merge-test", dnsSourceRouterMerge))
+		observer02("dns-source-router-merge-test", dnsSourceRouterMerge), StopsDaemon)
 	// The daemon creates both veth pairs; the fixture advertises from their
 	// far ends, in the guest's own namespace.
 	Register("plugin/dns-source-received-interface",
-		observer02("dns-source-received-interface-test", dnsSourceReceivedInterface))
+		observer02("dns-source-received-interface-test", dnsSourceReceivedInterface), StopsDaemon)
 }

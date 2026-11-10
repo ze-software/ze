@@ -18,7 +18,7 @@ import (
 )
 
 func init() {
-	Register("plugin/rfc9774-as-set-accept-migrated", asSetAcceptMigrated)
+	Register("plugin/rfc9774-as-set-accept-migrated", asSetAcceptMigrated, StopsDaemon)
 }
 
 // asSetAcceptPrefix is the route test/plugin/rfc9774-as-set-accept-migrated.ci

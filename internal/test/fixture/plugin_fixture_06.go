@@ -51,7 +51,7 @@ func init() {
 	for name, scenario := range observers {
 		Register(name, func(ctx context.Context, _ []string) error {
 			return Observe(ctx, name, fixture06Registration(name), scenario)
-		})
+		}, StopsDaemon)
 	}
 
 	// The one fixture06 observer that wants the bgp root reads no leaf, so it
@@ -59,7 +59,7 @@ func init() {
 	Register("plugin/errors-config-abort-show", func(ctx context.Context, _ []string) error {
 		registration := sdk.Registration{WantsConfig: []string{namespaceBGP}}
 		return observeConfigured(ctx, "plugin/errors-config-abort-show", &registration, declareObserverAppliesNothing, fixture06ErrorsConfigAbort)
-	})
+	}, StopsDaemon)
 	Register("plugin/enricher-external-show-provider", fixture06EnricherExternalProvider)
 	Register("plugin/exabgp-bridge-helper", fixture06ExaBGPHelper)
 	Register("plugin/exabgp-bridge-bare-helper", fixture06ExaBGPBareHelper)

@@ -13,7 +13,7 @@ import (
 func init() {
 	Register("plugin/srv6-service-export-control", func(ctx context.Context, _ []string) error {
 		return Observe(ctx, "plugin/srv6-service-export-control", &sdk.Registration{}, srv6ServiceExportControl)
-	})
+	}, StopsDaemon)
 }
 
 func srv6ServiceExportControl(ctx context.Context, p *sdk.Plugin) error {

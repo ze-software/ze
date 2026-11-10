@@ -22,17 +22,17 @@ import (
 const pluginShellExtra4PasswordHash = "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO" //nolint:gosec // the bcrypt hash of the fixture account, which exists only in this test
 
 func init() {
-	Register("plugin/ssh-remote-hash-rejected", pluginShellExtra4RemoteHash)
-	Register("plugin/ssh-user-login-yang", pluginShellExtra4UserLogin)
-	Register("plugin/startup-unreachable-services", pluginShellExtra4StartupUnreachable)
-	Register("plugin/tacacs-acct", pluginShellExtra4TacacsAccounting)
-	Register("plugin/tacacs-auth", pluginShellExtra4TacacsAuth)
-	Register("plugin/tacacs-author", pluginShellExtra4TacacsAuthor)
-	Register("plugin/tacacs-fallback", pluginShellExtra4TacacsFallback)
+	Register("plugin/ssh-remote-hash-rejected", pluginShellExtra4RemoteHash, StopsDaemon)
+	Register("plugin/ssh-user-login-yang", pluginShellExtra4UserLogin, StopsDaemon)
+	Register("plugin/startup-unreachable-services", pluginShellExtra4StartupUnreachable, StopsDaemon)
+	Register("plugin/tacacs-acct", pluginShellExtra4TacacsAccounting, StopsDaemon)
+	Register("plugin/tacacs-auth", pluginShellExtra4TacacsAuth, StopsDaemon)
+	Register("plugin/tacacs-author", pluginShellExtra4TacacsAuthor, StopsDaemon)
+	Register("plugin/tacacs-fallback", pluginShellExtra4TacacsFallback, StopsDaemon)
 	Register("plugin/aaa-local-failover", pluginShellExtra4AAALocalFailover)
-	Register("plugin/tacacs-local-only", pluginShellExtra4TacacsLocalOnly)
-	Register("plugin/tacacs-readonly", pluginShellExtra4TacacsReadonly)
-	Register("plugin/tacacs-singleconnect", pluginShellExtra4TacacsSingleConnect)
+	Register("plugin/tacacs-local-only", pluginShellExtra4TacacsLocalOnly, StopsDaemon)
+	Register("plugin/tacacs-readonly", pluginShellExtra4TacacsReadonly, StopsDaemon)
+	Register("plugin/tacacs-singleconnect", pluginShellExtra4TacacsSingleConnect, StopsDaemon)
 }
 
 func pluginShellExtra4Observe(ctx context.Context, name string, args []string, want int, scenario func(context.Context, *sdk.Plugin, []string) error) error {

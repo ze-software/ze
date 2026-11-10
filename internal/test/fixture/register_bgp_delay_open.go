@@ -15,7 +15,7 @@ import (
 )
 
 func init() {
-	Register("plugin/bgp-delay-open", bgpDelayOpen)
+	Register("plugin/bgp-delay-open", bgpDelayOpen, StopsDaemon)
 }
 
 // bgpDelayOpen proves both release conditions through the configured listener:

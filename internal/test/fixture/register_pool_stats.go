@@ -7,5 +7,5 @@ package fixture
 // Related: test/plugin/bgp-pool-stats.ci -- the run
 
 func init() {
-	Register("plugin/bgp-pool-stats", observe04(poolStats))
+	Register("plugin/bgp-pool-stats", observe04(poolStats), StopsDaemon)
 }

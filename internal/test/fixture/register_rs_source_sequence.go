@@ -16,7 +16,7 @@ import (
 )
 
 func init() {
-	Register("plugin/rs-source-sequence", rsSourceSequence)
+	Register("plugin/rs-source-sequence", rsSourceSequence, StopsDaemon)
 }
 
 // The step keywords of an rs-source-sequence argument list.

@@ -9,7 +9,7 @@ package fixture
 // the daemon is asked to stop. The metric itself is asserted on the wire by each .ci.
 func init() {
 	Register("plugin/modify-increment-med-from-route-value",
-		rsObserver09("modify-increment-med-from-route-value", 2))
+		rsObserver09("modify-increment-med-from-route-value", 2), StopsDaemon)
 	Register("plugin/modify-increment-localpref",
-		rsObserver09("modify-increment-localpref", 2))
+		rsObserver09("modify-increment-localpref", 2), StopsDaemon)
 }

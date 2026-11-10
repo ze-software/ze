@@ -18,7 +18,7 @@ import (
 func init() {
 	Register("plugin/prefixsid-announce-rail-boundary", func(ctx context.Context, _ []string) error {
 		return Observe(ctx, "prefixsid-announce", &sdk.Registration{}, ObserverScenario(prefixSIDAnnounceRail))
-	})
+	}, StopsDaemon)
 }
 
 // prefixSIDAnnounceRail announces one prefix carrying a BGP Prefix-SID attribute

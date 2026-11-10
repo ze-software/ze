@@ -26,7 +26,7 @@ const (
 
 func init() {
 	Register("flow-export/sflow-agent-address-daemon", sflowAgentAddressDaemon)
-	Register("flow-export/sflow-agent-address-receiver", sflowAgentAddressReceiver)
+	Register("flow-export/sflow-agent-address-receiver", sflowAgentAddressReceiver, StopsDaemon)
 }
 
 // sflowAgentAddressDaemon supplies real routed interfaces before Ze configures

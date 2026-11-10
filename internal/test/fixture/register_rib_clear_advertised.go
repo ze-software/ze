@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	Register("plugin/rib-clear-advertised", ribClearAdvertised)
+	Register("plugin/rib-clear-advertised", ribClearAdvertised, StopsDaemon)
 }
 
 // ribClearAdvertisedRoute is the one route the driver announces and then

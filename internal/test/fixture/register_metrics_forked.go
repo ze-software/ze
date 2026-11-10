@@ -16,7 +16,7 @@ import (
 )
 
 func init() {
-	Register("plugin/metrics-forked", metricsForked)
+	Register("plugin/metrics-forked", metricsForked, StopsDaemon)
 }
 
 const (

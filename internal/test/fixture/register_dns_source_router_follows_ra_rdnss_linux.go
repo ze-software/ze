@@ -9,5 +9,5 @@ func init() {
 	// The daemon creates the veth pair from the .ci config; the fixture
 	// advertises on its far end and creates the stub's dummy link.
 	Register("plugin/dns-source-router-follows-ra-rdnss",
-		observer02("dns-source-router-follows-ra-rdnss-test", dnsSourceRouterFollowsRARDNSS))
+		observer02("dns-source-router-follows-ra-rdnss-test", dnsSourceRouterFollowsRARDNSS), StopsDaemon)
 }

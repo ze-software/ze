@@ -8,5 +8,5 @@ package fixture
 // Related: test/plugin/ping-do-not-fragment-unprivileged.ci -- the run without CAP_NET_RAW
 
 func init() {
-	Register("plugin/ping-do-not-fragment", pingDoNotFragment)
+	Register("plugin/ping-do-not-fragment", pingDoNotFragment, StopsDaemon)
 }

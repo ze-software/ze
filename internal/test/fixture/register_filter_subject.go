@@ -5,5 +5,5 @@ package fixture
 // The filter-subject driver. Its body, and why the fields are checked in
 // compiled code rather than in the .ci file, are plugin_fixture_filter_subject.go.
 func init() {
-	Register("plugin/filter-subject-names-every-attribute", filterSubjectObserver)
+	Register("plugin/filter-subject-names-every-attribute", filterSubjectObserver, StopsDaemon)
 }

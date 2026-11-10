@@ -25,7 +25,7 @@ func init() {
 		hups:         1,
 		requireReady: true,
 	}))
-	Register("reload/rsvpte-reload", routingObserver("rsvpte-reload", rsvpteReloadScenario))
+	Register("reload/rsvpte-reload", routingObserver("rsvpte-reload", rsvpteReloadScenario), StopsDaemon)
 }
 
 // rsvpteInterfaceNames reports the interface names `show rsvp-te interface` lists.

@@ -2783,11 +2783,18 @@ its Go body, which no text of the `.ci` shows, so it declares it at
 registration: `Register(name, driver, StopsDaemon)`. The runner reads both: it
 scans the embedded files for the command, and it finds every fixture the `.ci`
 starts, in the `run` of an `external` plugin block in any embedded
-configuration and in an `exec=` step, and asks that declaration. Today only
-`reload/live-stages` declares `StopsDaemon`. Other fixtures that send
-`request shutdown` themselves, most of them through `Observe`, do not declare
-it yet, so a test with no peer that uses one can be signaled before it ends.
+configuration and in an `exec=` step, and asks that declaration. Every
+registration whose driver reaches `request shutdown`, through `Observe` or by
+dispatching it itself, declares `StopsDaemon`, and no other one does: a unit
+test of the fixture package
+(`TestEveryDaemonStoppingRegistrationDeclaresStopsDaemon`) follows each
+driver a registration passes through the functions, methods and variables of
+the package it names, and refuses a declaration missing or undue. A helper
+that registers a driver its caller passes in (`registerFixture`,
+`registerPassed`) takes a final `properties ...Property` parameter and hands
+it on, so the caller declares; the test refuses a helper that drops them.
 <!-- source: internal/test/fixture/fixture.go -- Register, StopsDaemon -->
+<!-- test: internal/test/fixture/register_stops_daemon_guard_test.go -- TestEveryDaemonStoppingRegistrationDeclaresStopsDaemon, TestStopsDaemonWalkJudgesEveryShape -->
 <!-- source: internal/test/fixture/register_live_stages.go -- init -->
 <!-- source: internal/test/fixturedecl/fixturedecl.go -- DeclareStopsDaemon, StopsDaemon, FixtureOf -->
 <!-- source: internal/test/runner/self_stop_fixture.go -- recordStartsSelfStoppingFixture -->

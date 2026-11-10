@@ -14,8 +14,8 @@ import (
 )
 
 func init() {
-	Register("plugin/srv6-invalid-sid-ineligible", observer02("srv6-ineligible-test", srv6InvalidSIDIneligible02))
-	Register("plugin/prefixsid-malformed-receive", routeServerReplay13("shutdown-after-forward", "10.0.7.0/24", false))
+	Register("plugin/srv6-invalid-sid-ineligible", observer02("srv6-ineligible-test", srv6InvalidSIDIneligible02), StopsDaemon)
+	Register("plugin/prefixsid-malformed-receive", routeServerReplay13("shutdown-after-forward", "10.0.7.0/24", false), StopsDaemon)
 }
 
 // srv6InvalidSIDIneligible02 checks RFC 9252 Section 7 from the RIB: the

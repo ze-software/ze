@@ -21,7 +21,7 @@ func registerPlugin08(name, pluginName string, scenario plugin08Scenario) {
 			return fmt.Errorf("%s: unexpected arguments: %v", name, args)
 		}
 		return Observe(ctx, pluginName, &sdk.Registration{}, scenario)
-	})
+	}, StopsDaemon)
 }
 
 func command08(ctx context.Context, p *sdk.Plugin, command string) (string, json.RawMessage, error) {

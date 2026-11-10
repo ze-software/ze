@@ -11,15 +11,15 @@ func init() {
 	// declare. That is what makes them evidence: one number changes and the
 	// prefix changes hands.
 	Register("static/static-distance-beats-ebgp",
-		observer02("static-distance-test", staticDistanceWinner02(protocolStatic)))
+		observer02("static-distance-test", staticDistanceWinner02(protocolStatic)), StopsDaemon)
 	Register("static/static-distance-loses-to-ebgp",
-		observer02("static-distance-test", staticDistanceWinner02("bgp")))
+		observer02("static-distance-test", staticDistanceWinner02("bgp")), StopsDaemon)
 
 	// The named-table driver is the boundary's other side: a route in a named
 	// table never enters the Loc-RIB, so no distance arbitrates it.
 	Register("static/static-named-table-unchanged-setup", staticNamedTableSetup)
 	Register("static/static-named-table-unchanged",
-		observer02("static-named-table-test", staticNamedTableUnchanged))
+		observer02("static-named-table-test", staticNamedTableUnchanged), StopsDaemon)
 
 	// The kernel drivers read what the FIB plugin programmed, not only what the
 	// system RIB chose: the distance pair repeats the arbitration and asserts the
@@ -28,20 +28,20 @@ func init() {
 	// Loc-RIB.
 	Register("static/static-kernel-setup", staticKernelSetup)
 	Register("static/static-kernel-distance-static-wins",
-		observer02("static-kernel-test", staticKernelDistanceWinner(protocolStatic, kernelStaticGateway)))
+		observer02("static-kernel-test", staticKernelDistanceWinner(protocolStatic, kernelStaticGateway)), StopsDaemon)
 	Register("static/static-kernel-distance-bgp-wins",
-		observer02("static-kernel-test", staticKernelDistanceWinner("bgp", kernelBGPGateway)))
+		observer02("static-kernel-test", staticKernelDistanceWinner("bgp", kernelBGPGateway)), StopsDaemon)
 	Register("static/static-kernel-distance-reload",
-		observer02("static-kernel-test", staticKernelDistanceReload))
+		observer02("static-kernel-test", staticKernelDistanceReload), StopsDaemon)
 	Register("static/static-kernel-distance-route-override",
-		observer02("static-kernel-test", staticKernelDistanceRouteOverride))
+		observer02("static-kernel-test", staticKernelDistanceRouteOverride), StopsDaemon)
 	Register("static/static-kernel-weighted-multipath",
-		observer02("static-kernel-test", staticKernelWeightedMultipath))
+		observer02("static-kernel-test", staticKernelWeightedMultipath), StopsDaemon)
 	Register("static/static-kernel-interface-nexthop",
-		observer02("static-kernel-test", staticKernelInterfaceNextHop))
+		observer02("static-kernel-test", staticKernelInterfaceNextHop), StopsDaemon)
 
 	// The interior-cost driver uses static routes as the interior routes to two
 	// BGP next hops, so a reload of one static metric is an IGP cost change.
 	Register("static/static-kernel-igp-cost-reselect",
-		observer02("static-kernel-test", staticKernelIGPCostReselect))
+		observer02("static-kernel-test", staticKernelIGPCostReselect), StopsDaemon)
 }

@@ -12,5 +12,5 @@ func init() {
 	// DHCPv4 lease from Ze's own server needs the service block at boot.
 	Register("pppoe/dhcp-server-dns-replay-hold",
 		reloadingDriver("pppoe/dhcp-server-dns-replay-hold", "dhcp-server-dns-replay-hold-test",
-			dhcpServerDNSReplayHold))
+			dhcpServerDNSReplayHold), StopsDaemon)
 }

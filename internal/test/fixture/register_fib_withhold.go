@@ -6,7 +6,7 @@ package fixture
 
 func init() {
 	Register("plugin/fib-withhold-one-protocol-keeps-the-other",
-		observer02("fib-withhold-test", fibWithholdOneProtocol))
+		observer02("fib-withhold-test", fibWithholdOneProtocol), StopsDaemon)
 	Register("plugin/fib-withhold-controller-programs-no-route",
-		observer02("fib-withhold-controller", fibWithholdController))
+		observer02("fib-withhold-controller", fibWithholdController), StopsDaemon)
 }

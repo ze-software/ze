@@ -15,17 +15,17 @@ import (
 )
 
 func init() {
-	Register("encode/watchdog-encode", observeDriver("service-watchdog", watchdogScenario))
+	Register("encode/watchdog-encode", observeDriver("service-watchdog", watchdogScenario), StopsDaemon)
 	Register("managed/config-push-transactional-observer", managedRejectObserver)
 	Register("parse/healthcheck-parse", idleDriver)
-	Register("reload/mgmt-guard-reload-auth-rebuild", reloadRESTObserver("mgmt-auth-rebuild-test", reloadRESTAuthRebuild))
-	Register("reload/mgmt-guard-reload-refuses-unauth", reloadRESTObserver("mgmt-refuses-unauth-test", reloadRESTRefusesUnauth))
-	Register("reload/mgmt-guard-reload-unbuilt-transport", reloadRESTObserver("mgmt-unbuilt-transport-test", reloadRESTUnbuiltTransport))
-	Register("reload/reload-import-policy-applies", observeDriver("reload-policy-applies", reloadPolicyScenario))
-	Register("reload/reload-prefix-updated-clears-stale", observeDriver("prefix-stale-reload", reloadPrefixScenario))
-	Register("reload/signal-quit", observeDriver("quit-test", signalQuitScenario))
-	Register("runner/json-assertion-survives-sink-peer", observeDriver("sink-json", sinkJSONScenario))
-	Register("vpp/vpp-fib-route-lookup-observer", observeDriver("lookup-test", vppLookupScenario))
+	Register("reload/mgmt-guard-reload-auth-rebuild", reloadRESTObserver("mgmt-auth-rebuild-test", reloadRESTAuthRebuild), StopsDaemon)
+	Register("reload/mgmt-guard-reload-refuses-unauth", reloadRESTObserver("mgmt-refuses-unauth-test", reloadRESTRefusesUnauth), StopsDaemon)
+	Register("reload/mgmt-guard-reload-unbuilt-transport", reloadRESTObserver("mgmt-unbuilt-transport-test", reloadRESTUnbuiltTransport), StopsDaemon)
+	Register("reload/reload-import-policy-applies", observeDriver("reload-policy-applies", reloadPolicyScenario), StopsDaemon)
+	Register("reload/reload-prefix-updated-clears-stale", observeDriver("prefix-stale-reload", reloadPrefixScenario), StopsDaemon)
+	Register("reload/signal-quit", observeDriver("quit-test", signalQuitScenario), StopsDaemon)
+	Register("runner/json-assertion-survives-sink-peer", observeDriver("sink-json", sinkJSONScenario), StopsDaemon)
+	Register("vpp/vpp-fib-route-lookup-observer", observeDriver("lookup-test", vppLookupScenario), StopsDaemon)
 }
 
 func observeDriver(pluginName string, scenario ObserverScenario) Driver {

@@ -4,6 +4,6 @@
 package fixture
 
 func init() {
-	Register("plugin/filter-wire-cases-fence", filterWireCasesFence)
-	Register("plugin/filter-wire-cases-invalid-fence", filterWireCasesInvalidFence)
+	Register("plugin/filter-wire-cases-fence", filterWireCasesFence, StopsDaemon)
+	Register("plugin/filter-wire-cases-invalid-fence", filterWireCasesInvalidFence, StopsDaemon)
 }

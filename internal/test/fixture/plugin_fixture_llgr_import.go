@@ -11,7 +11,7 @@ import (
 )
 
 func init() {
-	Register("plugin/llgr-import-no-llgr", llgrImportNoLLGR)
+	Register("plugin/llgr-import-no-llgr", llgrImportNoLLGR, StopsDaemon)
 }
 
 func llgrImportNoLLGR(ctx context.Context, _ []string) error {

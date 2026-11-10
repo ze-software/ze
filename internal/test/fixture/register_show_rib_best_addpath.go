@@ -18,7 +18,7 @@ import (
 )
 
 func init() {
-	Register("plugin/show-rib-best-addpath", observer02("show-rib-best-addpath-test", showRIBBestAddPath02))
+	Register("plugin/show-rib-best-addpath", observer02("show-rib-best-addpath-test", showRIBBestAddPath02), StopsDaemon)
 }
 
 // addPathTestPrefix is the prefix both ADD-PATH paths of the test announce.

@@ -24,13 +24,13 @@ import (
 func init() {
 	Register("plugin/ddos-transit-forward-drop-setup", fixture06DDOSTransitSetup)
 	Register("plugin/ddos-transit-forward-drop-driver", fixture06DDOSTransitDriver)
-	Register("plugin/ddos-local-max-duration-driver", fixture06DDOSLocalMaxDuration)
-	Register("plugin/ddos-announce-rate-limit-driver", fixture06DDOSAnnounceRateLimit)
-	Register("plugin/ddos-local-cap-survives-reload-driver", fixture06DDOSLocalCapSurvivesReload)
-	Register("plugin/ddos-local-config-removed-driver", fixture06DDOSLocalConfigRemoved)
-	Register("plugin/ddos-parent-config-removed-driver", fixture06DDOSParentConfigRemoved)
+	Register("plugin/ddos-local-max-duration-driver", fixture06DDOSLocalMaxDuration, StopsDaemon)
+	Register("plugin/ddos-announce-rate-limit-driver", fixture06DDOSAnnounceRateLimit, StopsDaemon)
+	Register("plugin/ddos-local-cap-survives-reload-driver", fixture06DDOSLocalCapSurvivesReload, StopsDaemon)
+	Register("plugin/ddos-local-config-removed-driver", fixture06DDOSLocalConfigRemoved, StopsDaemon)
+	Register("plugin/ddos-parent-config-removed-driver", fixture06DDOSParentConfigRemoved, StopsDaemon)
 	Register("plugin/ddos-stale-table-plant", fixture06PlantStaleDropRule)
-	Register("plugin/ddos-stale-table-swept-driver", fixture06DDOSStaleTableSwept)
+	Register("plugin/ddos-stale-table-swept-driver", fixture06DDOSStaleTableSwept, StopsDaemon)
 }
 
 func fixture06DDOSTransitSetup(context.Context, []string) error {

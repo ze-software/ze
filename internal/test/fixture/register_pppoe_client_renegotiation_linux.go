@@ -9,5 +9,5 @@ func init() {
 	// The access concentrator is scripted on the far end of the .ci's
 	// netns-link veth pair, inside the test's own namespace.
 	Register("pppoe/pppoe-client-lcp-renegotiation",
-		observer02("pppoe-client-renegotiation-test", pppoeClientRenegotiation))
+		observer02("pppoe-client-renegotiation-test", pppoeClientRenegotiation), StopsDaemon)
 }

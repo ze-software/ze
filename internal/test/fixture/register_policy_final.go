@@ -2,6 +2,6 @@
 package fixture
 
 func init() {
-	Register("plugin/policy-final-disposition", policyFinalDriver)
-	Register("reload/bgp-policy-final-reload", policyFinalReloadDriver)
+	Register("plugin/policy-final-disposition", policyFinalDriver, StopsDaemon)
+	Register("reload/bgp-policy-final-reload", policyFinalReloadDriver, StopsDaemon)
 }

@@ -23,8 +23,8 @@ func init() {
 	// The subscriber: the LNS port, then the expected primary and secondary.
 	Register("l2tp/pool-dns-source", poolDNSSubscriber)
 	// AC-12: show system dns through the daemon.
-	Register("plugin/show-system-dns", observer02("show-system-dns-test", showSystemDNSConsumers))
+	Register("plugin/show-system-dns", observer02("show-system-dns-test", showSystemDNSConsumers), StopsDaemon)
 	// The three dns-source doctor checks through show doctor, the daemon
 	// form of ze doctor.
-	Register("plugin/doctor-dns-source", observer02("doctor-dns-source-test", doctorDNSSourceFindings))
+	Register("plugin/doctor-dns-source", observer02("doctor-dns-source-test", doctorDNSSourceFindings), StopsDaemon)
 }

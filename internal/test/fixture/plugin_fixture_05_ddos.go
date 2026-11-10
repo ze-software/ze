@@ -18,14 +18,14 @@ import (
 )
 
 func init() {
-	Register("plugin/ddos-bps-amplification", p05DDoSBPSAmplification)
+	Register("plugin/ddos-bps-amplification", p05DDoSBPSAmplification, StopsDaemon)
 	Register("plugin/ddos-detect-characterize", p05DDoSDetectCharacterize)
 	Register("plugin/ddos-detect-mitigate", p05DDoSDetectMitigate)
-	Register("plugin/ddos-direction", p05DDoSDirection)
-	Register("plugin/ddos-firewall-concurrency", p05DDoSFirewallConcurrency)
-	Register("plugin/ddos-incident-confidence", p05DDoSIncidentConfidence)
-	Register("plugin/ddos-policy", p05DDoSPolicy)
-	Register("plugin/ddos-timing-leaves", p05DDoSTimingLeaves)
+	Register("plugin/ddos-direction", p05DDoSDirection, StopsDaemon)
+	Register("plugin/ddos-firewall-concurrency", p05DDoSFirewallConcurrency, StopsDaemon)
+	Register("plugin/ddos-incident-confidence", p05DDoSIncidentConfidence, StopsDaemon)
+	Register("plugin/ddos-policy", p05DDoSPolicy, StopsDaemon)
+	Register("plugin/ddos-timing-leaves", p05DDoSTimingLeaves, StopsDaemon)
 }
 
 type p05FloodSockets struct {

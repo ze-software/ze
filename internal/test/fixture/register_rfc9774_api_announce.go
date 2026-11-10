@@ -18,7 +18,7 @@ import (
 func init() {
 	Register("plugin/rfc9774-as-set-api-not-advertised", func(ctx context.Context, _ []string) error {
 		return Observe(ctx, "rfc9774-api-announce", &sdk.Registration{}, ObserverScenario(rfc9774APIAnnounce))
-	})
+	}, StopsDaemon)
 }
 
 // rfc9774APIAnnounce announces one prefix whose AS_PATH holds an AS_SET, then a

@@ -13,7 +13,7 @@ import (
 func init() {
 	Register("plugin/evpn-config-self", func(ctx context.Context, _ []string) error {
 		return Observe(ctx, "plugin/evpn-config-self", &sdk.Registration{}, evpnConfigSelf)
-	})
+	}, StopsDaemon)
 }
 
 func evpnConfigSelf(ctx context.Context, p *sdk.Plugin) error {

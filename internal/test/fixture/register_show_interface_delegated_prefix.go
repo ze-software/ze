@@ -8,5 +8,5 @@ func init() {
 	// (static/static-kernel-setup), where no access concentrator answers, so
 	// no lease ever delegates a prefix.
 	Register("plugin/show-interface-delegated-prefix",
-		observer02("show-interface-delegated-prefix-test", showInterfaceDelegatedPrefix))
+		observer02("show-interface-delegated-prefix-test", showInterfaceDelegatedPrefix), StopsDaemon)
 }

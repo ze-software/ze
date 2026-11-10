@@ -24,8 +24,11 @@ func uiDriver(driver any) Driver {
 	}
 }
 
-func registerFixture(name string, driver any) {
-	Register(name, uiDriver(driver))
+// registerFixture registers a UI driver of any shape uiDriver accepts. It
+// hands properties on to Register, so a caller declares what its driver does
+// (TestEveryDaemonStoppingRegistrationDeclaresStopsDaemon).
+func registerFixture(name string, driver any, properties ...Property) {
+	Register(name, uiDriver(driver), properties...)
 }
 
 // uiLEFeatureTags answers the le personality's build tags for the checkout at

@@ -8,10 +8,10 @@
 package fixture
 
 func init() {
-	Register("plugin/gr-peer-restart-time-drives-timer", grSenderFactsDriver(grPeerRestartTimeDrivesTimer))
-	Register("plugin/gr-peer-families-drive-mark-stale", grSenderFactsDriver(grPeerFamiliesDriveMarkStale))
-	Register("plugin/llgr-transition", llgrLifecycle("transition"))
-	Register("plugin/llgr-rib-stale", llgrLifecycle("eor"))
-	Register("plugin/llgr-readvertise", llgrLifecycle("wire"))
-	Register("plugin/llgr-peer-stale-time-drives-timer", llgrLifecycle("timer"))
+	Register("plugin/gr-peer-restart-time-drives-timer", grSenderFactsDriver(grPeerRestartTimeDrivesTimer), StopsDaemon)
+	Register("plugin/gr-peer-families-drive-mark-stale", grSenderFactsDriver(grPeerFamiliesDriveMarkStale), StopsDaemon)
+	Register("plugin/llgr-transition", llgrLifecycle("transition"), StopsDaemon)
+	Register("plugin/llgr-rib-stale", llgrLifecycle("eor"), StopsDaemon)
+	Register("plugin/llgr-readvertise", llgrLifecycle("wire"), StopsDaemon)
+	Register("plugin/llgr-peer-stale-time-drives-timer", llgrLifecycle("timer"), StopsDaemon)
 }

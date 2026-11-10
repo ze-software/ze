@@ -72,7 +72,7 @@ func init() {
 		return Observe(ctx, "iface-link-flap-during-commit", &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
 			return ifaceLinkFlap08(ctx, p, args[0])
 		})
-	})
+	}, StopsDaemon)
 }
 
 func readTrimmed08(path string) (string, bool) {

@@ -10,10 +10,10 @@ package fixture
 //          show-mtu-oversized-tunnels.ci, show-mtu-ike-probe.ci -- the runs
 
 func init() {
-	Register("plugin/show-mtu-host", showMTUHost)
-	Register("plugin/show-mtu-exhaustive", showMTUExhaustive)
-	Register("plugin/show-mtu-json", showMTUJSON)
-	Register("plugin/show-mtu-no-tunnels", showMTUNoTunnels)
-	Register("plugin/show-mtu-oversized", showMTUOversized)
-	Register("plugin/show-mtu-ike-probe", showMTUIKEProbe)
+	Register("plugin/show-mtu-host", showMTUHost, StopsDaemon)
+	Register("plugin/show-mtu-exhaustive", showMTUExhaustive, StopsDaemon)
+	Register("plugin/show-mtu-json", showMTUJSON, StopsDaemon)
+	Register("plugin/show-mtu-no-tunnels", showMTUNoTunnels, StopsDaemon)
+	Register("plugin/show-mtu-oversized", showMTUOversized, StopsDaemon)
+	Register("plugin/show-mtu-ike-probe", showMTUIKEProbe, StopsDaemon)
 }

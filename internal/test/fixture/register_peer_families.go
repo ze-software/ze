@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	Register("plugin/peer-families-show", peerFamiliesShow)
+	Register("plugin/peer-families-show", peerFamiliesShow, StopsDaemon)
 }
 
 // commandShowRSPeers is the route server's peer command.

@@ -93,9 +93,9 @@ func init() {
 				return Observe(ctx, observer.pluginName, &observer.registration, observer.scenario)
 			}
 			return fixture10Observe(ctx, &observer)
-		})
+		}, StopsDaemon)
 	}
-	Register("plugin/plugin-check", fixture10PluginCheck)
+	Register("plugin/plugin-check", fixture10PluginCheck, StopsDaemon)
 }
 
 func fixture10Observe(ctx context.Context, driver *fixture10Driver) error {

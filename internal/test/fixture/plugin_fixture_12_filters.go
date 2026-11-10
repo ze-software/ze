@@ -27,10 +27,10 @@ type p12FilterState struct {
 }
 
 func p12RegisterFilterFixtures() {
-	Register("plugin/redistribute-chain-order", p12FilterChainDriver())
-	Register("plugin/redistribute-declare", p12FilterDeclareDriver())
-	Register("plugin/redistribute-export-modify", p12FilterExportModifyDriver())
-	Register("plugin/redistribute-export-reject", p12FilterExportRejectDriver())
+	Register("plugin/redistribute-chain-order", p12FilterChainDriver(), StopsDaemon)
+	Register("plugin/redistribute-declare", p12FilterDeclareDriver(), StopsDaemon)
+	Register("plugin/redistribute-export-modify", p12FilterExportModifyDriver(), StopsDaemon)
+	Register("plugin/redistribute-export-reject", p12FilterExportRejectDriver(), StopsDaemon)
 	Register("plugin/redistribute-import-accept", p12FilterImportDriver(
 		"filter-accept-test",
 		"accept-all",
@@ -38,7 +38,7 @@ func p12RegisterFilterFixtures() {
 		sdk.FilterAccept,
 		"filter called %d time(s)",
 		false,
-	))
+	), StopsDaemon)
 	Register("plugin/redistribute-import-modify", p12FilterImportDriver(
 		"filter-modify-test",
 		"set-localpref",
@@ -46,7 +46,7 @@ func p12RegisterFilterFixtures() {
 		sdk.FilterModify,
 		"filter modified %d route(s)",
 		true,
-	))
+	), StopsDaemon)
 	Register("plugin/redistribute-import-reject", p12FilterImportDriver(
 		"filter-reject-test",
 		"reject-all",
@@ -54,7 +54,7 @@ func p12RegisterFilterFixtures() {
 		sdk.FilterReject,
 		"filter rejected %d route(s)",
 		false,
-	))
+	), StopsDaemon)
 }
 
 func p12FilterDriver(name string, registration *sdk.Registration, handler sdk.FilterEvaluator, scenario p12Scenario) Driver {

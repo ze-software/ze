@@ -22,7 +22,7 @@ import (
 )
 
 func init() {
-	Register("plugin/drain-signaler", drainSignaler)
+	Register("plugin/drain-signaler", drainSignaler, StopsDaemon)
 	Register("plugin/drain-show", drainShow)
 	Register("plugin/drain-exits", drainExits)
 	Register("plugin/drain-group", drainGroup)

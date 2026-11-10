@@ -19,16 +19,16 @@ func init() {
 	Register("plugin/teardown-session-peer", plugin16L2TPSessionPeer)
 	Register("plugin/teardown-tunnel", func(ctx context.Context, _ []string) error {
 		return Observe(ctx, "teardown-tunnel-test", &sdk.Registration{}, plugin16TeardownTunnel)
-	})
+	}, StopsDaemon)
 	Register("plugin/teardown-tunnel-all", func(ctx context.Context, _ []string) error {
 		return Observe(ctx, "teardown-tunnel-all-test", &sdk.Registration{}, plugin16TeardownTunnelAll)
-	})
+	}, StopsDaemon)
 	Register("plugin/teardown-session", func(ctx context.Context, _ []string) error {
 		return Observe(ctx, "teardown-session-test", &sdk.Registration{}, plugin16TeardownSession)
-	})
+	}, StopsDaemon)
 	Register("plugin/teardown-session-all", func(ctx context.Context, _ []string) error {
 		return Observe(ctx, "teardown-session-all-test", &sdk.Registration{}, plugin16TeardownSessionAll)
-	})
+	}, StopsDaemon)
 }
 
 func plugin16L2TPArgs(args []string, withSession bool) (*net.UDPAddr, uint16, uint16, error) {

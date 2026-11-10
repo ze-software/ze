@@ -41,7 +41,7 @@ func init() {
 			}
 		}
 		return Observe(ctx, "plugin/bgpls-export-lifecycle", &sdk.Registration{}, bgplsExportLifecycle)
-	})
+	}, StopsDaemon)
 }
 
 func bgplsExportLifecycle(ctx context.Context, p *sdk.Plugin) error {

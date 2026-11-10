@@ -25,7 +25,7 @@ func init() {
 	// spec-home-cpe-23b AC-10, the received half: a pool with no dns-primary
 	// and no dns-source offers the resolver a WAN lease supplied.
 	Register("pppoe/l2tp-pool-dns-source-received",
-		observer02("l2tp-pool-dns-source-received-test", poolDNSReceived))
+		observer02("l2tp-pool-dns-source-received-test", poolDNSReceived), StopsDaemon)
 }
 
 // poolDNSReceived brings up a PPPoE lease whose IPCP names leaseDNSServer,

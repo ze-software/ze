@@ -18,7 +18,7 @@ import (
 )
 
 func init() {
-	Register("static/static-rollback-keeps-committed", observeDriver("static-rollback-driver", staticRollbackKeepsCommitted))
+	Register("static/static-rollback-keeps-committed", observeDriver("static-rollback-driver", staticRollbackKeepsCommitted), StopsDaemon)
 }
 
 // staticRollbackFailer is the plugin block of the participant that refuses

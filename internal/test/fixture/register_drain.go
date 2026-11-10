@@ -19,7 +19,7 @@ import (
 func init() {
 	Register("plugin/drain-responder", drainResponder)
 	Register("plugin/drain-budget-over-ceiling", drainBudgetOverCeiling)
-	Register("plugin/drain-requester", drainRequester)
+	Register("plugin/drain-requester", drainRequester, StopsDaemon)
 	Register("plugin/drain-never-replies", drainNeverReplies)
 	Register("plugin/drain-zero-wait", drainZeroWait)
 }

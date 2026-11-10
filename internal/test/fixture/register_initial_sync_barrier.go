@@ -29,7 +29,7 @@ const rawUpdateWire = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF" +
 	"00300200000015400101004002004003040A0001FE400504000000C8180A0001"
 
 func init() {
-	Register("plugin/initial-sync-barrier-raw", initialSyncBarrierRaw)
+	Register("plugin/initial-sync-barrier-raw", initialSyncBarrierRaw, StopsDaemon)
 }
 
 // initialSyncBarrierRaw starts a raw injection as soon as the peer establishes,

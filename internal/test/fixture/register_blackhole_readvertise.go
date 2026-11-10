@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	Register("plugin/rfc7999-blackhole-readvertise-agreement", plugin14Observer("test-blackhole-agreement", blackholeReadvertiseFence))
+	Register("plugin/rfc7999-blackhole-readvertise-agreement", plugin14Observer("test-blackhole-agreement", blackholeReadvertiseFence), StopsDaemon)
 }
 
 // blackholeReadvertiseSessions is the number of sessions the RFC 7999

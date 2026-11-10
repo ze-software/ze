@@ -15,7 +15,7 @@ import (
 )
 
 func init() {
-	Register("plugin/addpath-identifier-zero", observer02("addpath-identifier-zero-test", addPathIdentifierZero02))
+	Register("plugin/addpath-identifier-zero", observer02("addpath-identifier-zero-test", addPathIdentifierZero02), StopsDaemon)
 }
 
 // addPathZeroKey is the Adj-RIB-In key of 10.0.0.0/24 learned under Path

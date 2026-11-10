@@ -16,7 +16,7 @@ const policyOnlyBootProbe = "show bgp peer"
 func init() {
 	Register("plugin/policy-only-boot", func(ctx context.Context, _ []string) error {
 		return Observe(ctx, "plugin/policy-only-boot", &sdk.Registration{}, policyOnlyBoot)
-	})
+	}, StopsDaemon)
 }
 
 // policyOnlyBoot runs once every plugin the policy-only config selected is

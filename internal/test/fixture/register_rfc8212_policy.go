@@ -2,9 +2,9 @@
 package fixture
 
 func init() {
-	Register("plugin/rfc8212-ebgp-no-import-policy", rfc8212PolicyDriver(rfc8212DirectionImport))
-	Register("plugin/rfc8212-ebgp-no-export-policy", rfc8212PolicyDriver(directionExport))
-	Register("plugin/rfc8212-ibgp-no-policy-unchanged", rfc8212PolicyDriver("ibgp"))
-	Register("plugin/rfc8212-policy-status", rfc8212PolicyStatus)
+	Register("plugin/rfc8212-ebgp-no-import-policy", rfc8212PolicyDriver(rfc8212DirectionImport), StopsDaemon)
+	Register("plugin/rfc8212-ebgp-no-export-policy", rfc8212PolicyDriver(directionExport), StopsDaemon)
+	Register("plugin/rfc8212-ibgp-no-policy-unchanged", rfc8212PolicyDriver("ibgp"), StopsDaemon)
+	Register("plugin/rfc8212-policy-status", rfc8212PolicyStatus, StopsDaemon)
 	Register("plugin/rfc8212-policy-bridge", rfc8212PolicyBridge)
 }

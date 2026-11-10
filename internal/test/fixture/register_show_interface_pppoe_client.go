@@ -7,5 +7,5 @@ func init() {
 	// The client's source interface is the static scenarios' setup link
 	// (static/static-kernel-setup), where no access concentrator answers.
 	Register("plugin/show-interface-pppoe-client",
-		observer02("show-interface-pppoe-client-test", showInterfacePPPoEClient))
+		observer02("show-interface-pppoe-client-test", showInterfacePPPoEClient), StopsDaemon)
 }

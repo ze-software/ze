@@ -21,23 +21,23 @@ import (
 type eventScenario02 func(context.Context, *sdk.Plugin, <-chan string, <-chan struct{}) error
 
 func init() {
-	Register("plugin/attach-process-dynamic-group", dynamicGroupDriver02)
+	Register("plugin/attach-process-dynamic-group", dynamicGroupDriver02, StopsDaemon)
 	Register("plugin/attach-process-dynamic-group-wait", dynamicGroupWait02)
 	Register("plugin/wait-file", waitFileDriver02)
-	Register("plugin/attach-process-receive-filter-state", eventObserver02("receive-filter-state", []string{eventUpdate, eventState}, receiveFilterState02))
-	Register("plugin/attach-process-receive-filter-update", eventObserver02("receive-filter-update", []string{eventUpdate, eventState}, receiveFilterUpdate02))
-	Register("plugin/labeled-withdraw-event", eventObserver02("labeled-withdraw-event", []string{eventUpdate}, labeledWithdrawEvent02))
-	Register("plugin/addpath-withdraw-event", eventObserver02("addpath-withdraw-event", []string{eventUpdate}, addPathWithdrawEvent02))
-	Register("plugin/family-key-merge-event", eventObserver02("family-key-merge-event", []string{eventUpdate}, familyKeyMergeEvent02))
-	Register("plugin/attach-process-reload-kept", eventObserver02("reload-kept", []string{eventState, bgpevents.EventKeepalive}, reloadKept02))
-	Register("plugin/attach-process-reload-added", eventObserver02("reload-added", []string{eventState}, reloadAdded02))
-	Register("plugin/attach-receive-only-live", eventObserver02("attach-receive-only-live", []string{eventUpdate, eventState}, attachReceiveOnlyLive02))
-	Register("plugin/attach-process-runtime-subscribe", eventObserver02("runtime-subscribe", []string{eventState}, runtimeSubscribe02))
+	Register("plugin/attach-process-receive-filter-state", eventObserver02("receive-filter-state", []string{eventUpdate, eventState}, receiveFilterState02), StopsDaemon)
+	Register("plugin/attach-process-receive-filter-update", eventObserver02("receive-filter-update", []string{eventUpdate, eventState}, receiveFilterUpdate02), StopsDaemon)
+	Register("plugin/labeled-withdraw-event", eventObserver02("labeled-withdraw-event", []string{eventUpdate}, labeledWithdrawEvent02), StopsDaemon)
+	Register("plugin/addpath-withdraw-event", eventObserver02("addpath-withdraw-event", []string{eventUpdate}, addPathWithdrawEvent02), StopsDaemon)
+	Register("plugin/family-key-merge-event", eventObserver02("family-key-merge-event", []string{eventUpdate}, familyKeyMergeEvent02), StopsDaemon)
+	Register("plugin/attach-process-reload-kept", eventObserver02("reload-kept", []string{eventState, bgpevents.EventKeepalive}, reloadKept02), StopsDaemon)
+	Register("plugin/attach-process-reload-added", eventObserver02("reload-added", []string{eventState}, reloadAdded02), StopsDaemon)
+	Register("plugin/attach-receive-only-live", eventObserver02("attach-receive-only-live", []string{eventUpdate, eventState}, attachReceiveOnlyLive02), StopsDaemon)
+	Register("plugin/attach-process-runtime-subscribe", eventObserver02("runtime-subscribe", []string{eventState}, runtimeSubscribe02), StopsDaemon)
 	Register("plugin/attach-process-runtime-subscribe-trigger", runtimeSubscribeTrigger02)
-	Register("plugin/attach-process-send-permission", eventObserver02("send-permission-injector", []string{eventUpdate, eventState}, sendPermission02))
-	Register("plugin/attach-process-unattached-served", eventObserver02("unattached-served", []string{eventUpdate, eventState}, unattachedServed02))
-	Register("plugin/attach-process-unattached-silent", eventObserver02("unattached-silent", []string{eventUpdate, eventState}, unattachedSilent02))
-	Register("plugin/audit-config-commit", observer02("audit-commit-test", auditConfigCommit02))
+	Register("plugin/attach-process-send-permission", eventObserver02("send-permission-injector", []string{eventUpdate, eventState}, sendPermission02), StopsDaemon)
+	Register("plugin/attach-process-unattached-served", eventObserver02("unattached-served", []string{eventUpdate, eventState}, unattachedServed02), StopsDaemon)
+	Register("plugin/attach-process-unattached-silent", eventObserver02("unattached-silent", []string{eventUpdate, eventState}, unattachedSilent02), StopsDaemon)
+	Register("plugin/audit-config-commit", observer02("audit-commit-test", auditConfigCommit02), StopsDaemon)
 }
 
 func eventObserver02(name string, events []string, scenario eventScenario02) Driver {

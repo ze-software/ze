@@ -49,11 +49,11 @@ func init() {
 		n, s := name, scenario
 		Register(n, func(ctx context.Context, _ []string) error {
 			return Observe(ctx, n, &sdk.Registration{}, s)
-		})
+		}, StopsDaemon)
 	}
-	Register("plugin/filter-irr", filterIRRDecision07)
-	Register("plugin/filter-irr-readmit", filterIRRReadmit07)
-	Register("plugin/filter-wire-irr-unresolved", filterIRRUnresolved07)
+	Register("plugin/filter-irr", filterIRRDecision07, StopsDaemon)
+	Register("plugin/filter-irr-readmit", filterIRRReadmit07, StopsDaemon)
+	Register("plugin/filter-wire-irr-unresolved", filterIRRUnresolved07, StopsDaemon)
 	Register("plugin/fib-vpp-coexist-with-fib-kernel", fibVPPCoexist07)
 	Register("plugin/fib-vpp-plugin-load", fibVPPLoad07)
 	Register("plugin/firewall-metrics-registered", firewallMetrics07)

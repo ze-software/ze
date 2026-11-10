@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	Register("plugin/peer-up-replay-claim-permission", eventObserver02("claim-permission", []string{eventState}, observeReplayClaimPermissions))
+	Register("plugin/peer-up-replay-claim-permission", eventObserver02("claim-permission", []string{eventState}, observeReplayClaimPermissions), StopsDaemon)
 }
 
 // observeReplayClaimPermissions consumes the actual onPeerStateChange JSON, not

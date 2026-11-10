@@ -41,8 +41,8 @@ const (
 func init() {
 	Register("storage/empty-tree", storageEmptyTree)
 	Register("storage/tree", storageTreeScenario)
-	Register("storage/probe", storageProbe)
-	Register("storage/state-observer", storageStateObserver)
+	Register("storage/probe", storageProbe, StopsDaemon)
+	Register("storage/state-observer", storageStateObserver, StopsDaemon)
 }
 
 func storageEmptyTree(_ context.Context, _ []string) error {

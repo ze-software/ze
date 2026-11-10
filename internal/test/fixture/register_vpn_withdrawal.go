@@ -15,7 +15,7 @@ import (
 )
 
 func init() {
-	Register("plugin/vpn-withdrawal-inventory", vpnWithdrawalInventory)
+	Register("plugin/vpn-withdrawal-inventory", vpnWithdrawalInventory, StopsDaemon)
 }
 
 // vpnWithdrawalInventory releases each source action only after the destination

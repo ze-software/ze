@@ -72,14 +72,17 @@ func init() {
 	registerPassed("install/ze-kernel-overlay", kernelBuildOwnershipFixture)
 }
 
-func registerPassed(name string, driver Driver) {
+// registerPassed registers driver under name, printing OK once it passes. It
+// hands properties on to Register, so a caller declares what its driver does
+// (TestEveryDaemonStoppingRegistrationDeclaresStopsDaemon).
+func registerPassed(name string, driver Driver, properties ...Property) {
 	Register(name, func(ctx context.Context, args []string) error {
 		if err := driver(ctx, args); err != nil {
 			return err
 		}
 		fmt.Println("OK")
 		return nil
-	})
+	}, properties...)
 }
 func installDockerStub(args []string) int {
 	logPath := os.Getenv("ZE_INSTALL_DOCKER_LOG")

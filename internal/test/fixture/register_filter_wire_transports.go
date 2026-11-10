@@ -3,5 +3,5 @@
 package fixture
 
 func init() {
-	Register("plugin/filter-wire-transports", filterWireTransports)
+	Register("plugin/filter-wire-transports", filterWireTransports, StopsDaemon)
 }

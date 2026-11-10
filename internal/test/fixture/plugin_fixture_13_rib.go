@@ -15,17 +15,17 @@ import (
 )
 
 func init() {
-	Register("plugin/bgp-as-notation", bgpASNotation13)
-	Register("plugin/rib-advertised-user-path", ribAdvertisedUserPath13)
-	Register("plugin/rib-best-selection", ribBestSelection13)
-	Register("plugin/rib-clear-out-family", ribClearOutFamily13)
-	Register("plugin/rib-filter-show", ribFilterShow13)
-	Register("plugin/rib-forward-handle-observed", ribForwardObserved13)
-	Register("plugin/rib-graph-best", ribGraphBest13)
-	Register("plugin/rib-graph-filtered", ribGraphFiltered13)
-	Register("plugin/rib-graph", ribGraph13)
-	Register("plugin/rib-inject-rfc5549", ribInjectRFC5549)
-	Register("plugin/rib-pipe-filter", ribPipeFilter13)
+	Register("plugin/bgp-as-notation", bgpASNotation13, StopsDaemon)
+	Register("plugin/rib-advertised-user-path", ribAdvertisedUserPath13, StopsDaemon)
+	Register("plugin/rib-best-selection", ribBestSelection13, StopsDaemon)
+	Register("plugin/rib-clear-out-family", ribClearOutFamily13, StopsDaemon)
+	Register("plugin/rib-filter-show", ribFilterShow13, StopsDaemon)
+	Register("plugin/rib-forward-handle-observed", ribForwardObserved13, StopsDaemon)
+	Register("plugin/rib-graph-best", ribGraphBest13, StopsDaemon)
+	Register("plugin/rib-graph-filtered", ribGraphFiltered13, StopsDaemon)
+	Register("plugin/rib-graph", ribGraph13, StopsDaemon)
+	Register("plugin/rib-inject-rfc5549", ribInjectRFC5549, StopsDaemon)
+	Register("plugin/rib-pipe-filter", ribPipeFilter13, StopsDaemon)
 }
 
 func ribReady13(ctx context.Context, plugin *sdk.Plugin) error {

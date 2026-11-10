@@ -12,5 +12,5 @@ func init() {
 	Register("bfd/bfd-first-packet-link-local-setup", bfdFirstPacketLinkLocalSetup)
 	Register("bfd/bfd-first-packet-link-local-teardown", bfdFirstPacketLinkLocalTeardown)
 	Register("bfd/bfd-first-packet-link-local",
-		bfdObserver("bfd-first-packet-link-local-test", bfdFirstPacketLinkLocalScenario))
+		bfdObserver("bfd-first-packet-link-local-test", bfdFirstPacketLinkLocalScenario), StopsDaemon)
 }

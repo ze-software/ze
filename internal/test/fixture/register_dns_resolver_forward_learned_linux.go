@@ -19,23 +19,23 @@ func init() {
 	// The daemon creates each veth pair from the .ci config; the fixtures
 	// advertise on its far end and create the stubs.
 	Register("plugin/dns-resolver-forward-received",
-		observer02("dns-resolver-forward-received-test", dnsResolverForwardReceived))
-	Register("plugin/dns-resolver-forward-default", dnsResolverForwardDefaultDriver)
+		observer02("dns-resolver-forward-received-test", dnsResolverForwardReceived), StopsDaemon)
+	Register("plugin/dns-resolver-forward-default", dnsResolverForwardDefaultDriver, StopsDaemon)
 	// The scripted access concentrator brings up the PPPoE lease (AC-6).
 	Register("pppoe/dns-resolver-forward-ppp-lease",
-		observer02("dns-resolver-forward-ppp-lease-test", dnsResolverForwardPPPLease))
+		observer02("dns-resolver-forward-ppp-lease-test", dnsResolverForwardPPPLease), StopsDaemon)
 	// The daemon's own DHCP server leases to its own DHCP client across the
 	// veth pair the .ci config creates (AC-20).
 	Register("plugin/dns-resolver-forward-dhcpv4-default",
 		reloadingDriver("plugin/dns-resolver-forward-dhcpv4-default", "dns-resolver-forward-dhcpv4-default-test",
-			dnsResolverForwardDHCPv4Default))
+			dnsResolverForwardDHCPv4Default), StopsDaemon)
 	// The scripted access concentrator brings up the PPPoE lease, then a
 	// reload starts the resolver after it (AC-13). The lease is PPP and not
 	// DHCPv4 because the daemon's DHCP server lives under service, the
 	// resolver's config root, so it would start the resolver from boot.
 	Register("pppoe/dns-resolver-forward-ppp-replay",
 		reloadingDriver("pppoe/dns-resolver-forward-ppp-replay", "dns-resolver-forward-ppp-replay-test",
-			dnsResolverForwardPPPReplay))
+			dnsResolverForwardPPPReplay), StopsDaemon)
 }
 
 // reloadingDriver builds the driver of a scenario that takes one argument,

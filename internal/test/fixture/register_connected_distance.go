@@ -9,7 +9,7 @@ func init() {
 	// of what a connected win means: it takes the prefix, and it takes it by Ze
 	// installing nothing.
 	Register("plugin/connected-distance-arbitration",
-		observer02("connected-distance-test", connectedDistanceWinner02("connected", false)))
+		observer02("connected-distance-test", connectedDistanceWinner02("connected", false)), StopsDaemon)
 	Register("plugin/connected-distance-raised-loses",
-		observer02("connected-distance-test", connectedDistanceWinner02("bgp", true)))
+		observer02("connected-distance-test", connectedDistanceWinner02("bgp", true)), StopsDaemon)
 }

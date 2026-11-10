@@ -7,5 +7,5 @@ package fixture
 // Related: test/plugin/traceroute-source-af.ci -- the test that runs it
 
 func init() {
-	Register("plugin/traceroute-source-af", tracerouteSourceAF)
+	Register("plugin/traceroute-source-af", tracerouteSourceAF, StopsDaemon)
 }
