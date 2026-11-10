@@ -47,7 +47,6 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 	"github.com/ze-software/ze/internal/le/repo/export"
-	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 	"github.com/ze-software/ze/internal/le/repo/objects"
 )
 
@@ -645,20 +644,8 @@ func buildAndList(ctx context.Context, dest string) ([]string, error) {
 	defer os.RemoveAll(probeDir) //nolint:errcheck // the extracted tree is scratch space
 
 	binary := filepath.Join(probeDir, "le")
-
-	tags, err := repofeaturetags.DaemonBuildTags(dest, "ze_le")
-	if err != nil {
+	if err := export.BuildLe(ctx, dest, binary); err != nil {
 		return nil, err
-	}
-	build := exec.CommandContext(ctx, "go", "build", "-tags", tags, "-o", binary, "./cmd/ze") //nolint:gosec // binary is inside the scratch tree
-	build.Dir = dest
-	build.Env = append(os.Environ(), "GOFLAGS=-mod=vendor", "CGO_ENABLED=0")
-
-	var complaint bytes.Buffer
-	build.Stderr = &complaint
-	if err := build.Run(); err != nil {
-		var tb textbuf.Buffer
-		return nil, errors.New(tb.Str("go build ./cmd/ze le personality: ").Str(strings.TrimSpace(complaint.String())).String())
 	}
 
 	// `help` writes the page and exits 0, which is what makes it the cheapest

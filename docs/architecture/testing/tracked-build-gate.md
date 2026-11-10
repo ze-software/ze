@@ -146,6 +146,18 @@ directory may hold a partial tree, and the caller that made it removes it.
 <!-- source: internal/le/repo/bootstraps/tracked.go -- Run -->
 <!-- source: internal/le/repo/compiles/repositorytrackedbuild.go -- Run -->
 
+The same package compiles an exported tree's own le. `export.BuildLe` runs
+the `./cmd/ze` compile inside the tree with the tree's own
+`DaemonBuildTags(tree, "ze_le")`, appending `GOFLAGS=-mod=vendor` and
+`CGO_ENABLED=0` to the inherited environment. It sets no `GOROOT`: the child
+inherits the patched standard library that le's root handler activated before
+dispatch (`docs/contributing/patching-the-standard-library.md`), without which
+Ze does not compile. `./le repo bootstraps` builds through it, and so does a
+tool that needs the answer a past commit's own le gives, such as the RFC
+figures of `./le weekly report`.
+<!-- source: internal/le/repo/export/build.go -- BuildLe -->
+<!-- source: internal/le/repo/bootstraps/tracked.go -- buildAndList -->
+
 `-trimpath` is load-bearing, not hygiene. Without it the compile action ID
 carries the absolute source directory, so every fresh scratch path is a full
 rebuild (measured 36s, then 36s again). With it the shared build cache is

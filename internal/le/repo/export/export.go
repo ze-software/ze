@@ -1,8 +1,10 @@
 // Design: docs/architecture/testing/tracked-build-gate.md -- the one `git archive` export every le tool uses
 //
 // Package export materializes a commit into a directory, so a tool can judge
-// what git holds rather than what the working tree holds. It is a helper
-// library and registers no command.
+// what git holds rather than what the working tree holds, and builds that
+// tree's own le personality (BuildLe, build.go) for a tool that must run the
+// le of the commit rather than today's. It is a helper library and registers
+// no command.
 //
 // A revision is resolved with objects.Resolve (internal/le/repo/objects), the
 // one revision resolver le's committed-source readers share; this package
