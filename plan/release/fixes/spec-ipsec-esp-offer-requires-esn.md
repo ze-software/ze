@@ -129,14 +129,14 @@ the missing-type half was still open, and this spec owns it.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ipsec-sa-installed` | `test/ipsec/ipsec-sa-installed.ci` | AC-3: two daemons establish a Child SA through the responder's selection | to run |
-| `ipsec-child-rekey` | `test/ipsec/ipsec-child-rekey.ci` | AC-3: a Child SA rekey passes the same reader | to run |
+| `ipsec-sa-installed` | `test/ipsec/ipsec-sa-installed.ci` | AC-3: two daemons establish a Child SA through the responder's selection | pass (main thread, 2026-11-10) |
+| `ipsec-child-rekey` | `test/ipsec/ipsec-child-rekey.ci` | AC-3: a Child SA rekey passes the same reader | pass (main thread, 2026-11-10) |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `psk-site-to-site` | `test/interop-ipsec/scenarios/psk-site-to-site` | strongSwan | AC-3: an ordinary offer still establishes | to run |
-| `esn-both-offered` | `test/interop-ipsec/scenarios/esn-both-offered` | strongSwan | ESN 0 and 1 offered, Ze selects 0 | to run |
+| `psk-site-to-site` | `test/interop-ipsec/scenarios/psk-site-to-site` | strongSwan | AC-3: an ordinary offer still establishes | pass (main thread, 2026-11-10, after an orphaned lab container was cleaned) |
+| `esn-both-offered` | `test/interop-ipsec/scenarios/esn-both-offered` | strongSwan | ESN 0 and 1 offered, Ze selects 0 | pass (main thread, 2026-11-10) |
 
 ## Files to Modify
 - `internal/component/ike/engine/responder.go` - `espProposalMatches`
@@ -187,7 +187,7 @@ the missing-type half was still open, and this spec owns it.
 | Responder refuses an ESP offer with no ESN | read `engine/responder.go` | `espProposalMatches`: `usableTypes&mandatory != mandatory` returns false, after the `offeredTypes != usableTypes` drop; the ESN value check keeps `len(esns) > 0` |
 | Tagged test over all three responder paths | read `rfc7296_esp_mandatory_type_test.go` | `TestRFC7296ResponderRefusesESPOfferMissingESN`: ike-auth, create-child and child-rekey refusals, both next-proposal subtests, ESN 0 rekey control |
 | Fixtures carry ESN so each refusal stays its own | `git show affa3d8684` | `espESNTransform()` added to every hand-built offer in the three changed test files; judge approvals in affa3d8684 and da3ff616f6 |
-| Proof records and audit verdicts current | `./le rfc check` | audits for RFC4301-4.2-1, RFC4303-1-2, RFC4303-3.2-1, RFC5282-8-1, RFC7296-3.3-1, RFC7296-3.3.6-5 re-judged and stamped; only the RFC7296-3.3.6-5 positive record still reads unit-changed (see Pre-Commit Verification) |
+| Proof records and audit verdicts current | `./le rfc check` | audits for RFC4301-4.2-1, RFC4303-1-2, RFC4303-3.2-1, RFC5282-8-1, RFC7296-3.3-1, RFC7296-3.3.6-5 re-judged and stamped; the RFC7296-3.3.6-5 positive record, stale after the fixture edit, was re-recorded in 83faa3dabe; the records and audits landed in b4e4f7d67d |
 
 ## Security Review Checklist
 
@@ -231,7 +231,7 @@ the missing-type half was still open, and this spec owns it.
 | Kind | What happened | What was true instead | How discovered | Action |
 |------|---------------|----------------------|----------------|--------|
 | approach | affa3d8684 dropped the `len(esns) > 0` conjunct, so a missing ESN was refused twice and deleting the mask left every test green | the claim that the mask refuses was unproven until the conjunct came back | review round 1 ISSUE | fixed in da3ff616f6; red proof re-run by the main thread |
-| approach | the test fixture edits staled the RFC7296-3.3.6-5 positive revert record (`appendIKECombinations` break, unit-changed) and it was not re-recorded with the others | every record whose tagged unit changed is owed a re-record, not only those whose producer is `espProposalMatches` | `./le rfc check` at closure | re-record owed before commit A (NEED RUN in the closure report) |
+| approach | the test fixture edits staled the RFC7296-3.3.6-5 positive revert record (`appendIKECombinations` break, unit-changed) and it was not re-recorded with the others | every record whose tagged unit changed is owed a re-record, not only those whose producer is `espProposalMatches` | `./le rfc check` at closure | re-recorded by the main thread (revert of `initiator.go::appendIKECombinations`, unit red under the revert), committed as 83faa3dabe |
 
 ## Implementation Audit
 
@@ -248,15 +248,15 @@ the missing-type half was still open, and this spec owns it.
 |-------|--------|-----------------|-------|
 | AC-1 | Done | `TestRFC7296ResponderRefusesESPOfferMissingESN/ike-auth-refuses`, `/create-child-refuses`, `/child-rekey-refuses` | NO_PROPOSAL_CHOSEN mapping and no replacement Child SA asserted |
 | AC-2 | Done | `/ike-auth-takes-the-next-proposal`, `/create-child-takes-the-next-proposal` | Proposal Num 2 asserted |
-| AC-3 | Partial | Ze against Ze: `test/ipsec/ipsec-sa-installed.ci`, `test/ipsec/ipsec-child-rekey.ci`; Ze against strongSwan: `psk-site-to-site`, `esn-both-offered` | runs owed by the main thread; interop failed to start on a Docker address-pool overlap (infrastructure), commit B is held until it passes |
+| AC-3 | Done | Ze against Ze: `test/ipsec/ipsec-sa-installed.ci`, `test/ipsec/ipsec-child-rekey.ci` PASS; Ze against strongSwan: `psk-site-to-site`, `esn-both-offered` PASS (main thread, 2026-11-10) | the first interop attempt failed to start on a Docker address-pool overlap (infrastructure); it passed after an orphaned lab container was cleaned |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
 | `TestRFC7296ResponderRefusesESPOfferMissingESN` | Done | `internal/component/ike/engine/rfc7296_esp_mandatory_type_test.go` | green; mask-only break turns 5 subtests red |
 | `TestEsnResponderAnswersOnlyAValueTheOfferCarried` | Done | `internal/component/ike/engine/rfc7296_esn_test.go` | unchanged, green in the package run |
-| `ipsec-sa-installed`, `ipsec-child-rekey` | Partial | `test/ipsec/` | run owed |
-| interop `psk-site-to-site`, `esn-both-offered` | Partial | `test/interop-ipsec/scenarios/` | infrastructure failure, retry owed before commit B |
+| `ipsec-sa-installed`, `ipsec-child-rekey` | Done | `test/ipsec/` | PASS, main thread 2026-11-10 |
+| interop `psk-site-to-site`, `esn-both-offered` | Done | `test/interop-ipsec/scenarios/` | PASS, main thread 2026-11-10 (`IPSEC_INTEROP_SCENARIO=<name>`) |
 
 ### Files from Plan
 | File | Status | Notes |
@@ -271,8 +271,8 @@ the missing-type half was still open, and this spec owns it.
 
 ### Audit Summary
 - **Total items:** 18
-- **Done:** 15
-- **Partial:** 3 (AC-3 and its two test rows: runs pending, not scope reduction; commit B waits for them)
+- **Done:** 18
+- **Partial:** 0
 - **Skipped:** 0
 - **Changed:** 0
 
@@ -282,7 +282,7 @@ the missing-type half was still open, and this spec owns it.
 |------------------|---------------|-------------------|
 | A peer's ESP offer without ESN is refused with NO_PROPOSAL_CHOSEN on every responder path | unit over the product entry points, with recorded red | `TestRFC7296ResponderRefusesESPOfferMissingESN` green under full tags; deleting only the `MandatoryTransformTypesESP` check turns the three refusal and both next-proposal subtests red while `child-rekey-accepts-esn-0` stays green (main thread, 2026-11-10); discrimination record `rfc/discrimination/rfc7296/RFC7296-3.3.6-4.json` |
 | Other proposals in the same SA payload are still processed | unit | the two takes-the-next-proposal subtests assert Proposal Num 2 is selected |
-| Real tunnels still establish and rekey | functional and interop | owed: `ipsec-sa-installed`, `ipsec-child-rekey`, interop `psk-site-to-site`, `esn-both-offered`; commit B is held until they pass |
+| Real tunnels still establish and rekey | functional and interop | `test/ipsec/ipsec-sa-installed.ci` and `test/ipsec/ipsec-child-rekey.ci` PASS (two Ze daemons, IKE_AUTH and a Child SA rekey through the responder selection); interop against strongSwan `psk-site-to-site` PASS (an ordinary offer still establishes) and `esn-both-offered` PASS (ESN 0 and 1 offered, Ze selects 0); main thread, 2026-11-10 |
 
 ## Work Not Done
 
@@ -322,13 +322,13 @@ the missing-type half was still open, and this spec owns it.
 |-------|-------|----------------|
 | AC-1 | refused on three paths | test body read: `errors.Is(err, crypto.ErrNoProposalChosen)` on `selectResponderESP`, `selectNewChildESP`, `respondChildRekey`; `notifyForRefusal` maps to `NotifyNoProposalChosen`; main-thread run green |
 | AC-2 | next proposal taken | `sa.ChildProposalNum != 2` and `number != 2` assertions; green |
-| AC-3 | tunnels establish | pending runs, commit B held |
+| AC-3 | tunnels establish | `ipsec-sa-installed`, `ipsec-child-rekey`, interop `psk-site-to-site`, `esn-both-offered` all PASS (main thread, 2026-11-10) |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
 | IKE_AUTH SAi2 / CREATE_CHILD_SA / rekey without ESN | unit over `selectResponderESP`, `selectNewChildESP`, `respondChildRekey` | Yes, product entry points, not the matcher alone |
-| Two daemons, IKE_AUTH and Child SA rekey | `test/ipsec/ipsec-sa-installed.ci` (12 ESP lines), `test/ipsec/ipsec-child-rekey.ci` (16) | files exist and drive ESP; run owed |
+| Two daemons, IKE_AUTH and Child SA rekey | `test/ipsec/ipsec-sa-installed.ci` (12 ESP lines), `test/ipsec/ipsec-child-rekey.ci` (16) | Yes: both files drive ESP and PASS (main thread, 2026-11-10) |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
