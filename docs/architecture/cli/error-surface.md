@@ -234,8 +234,14 @@ nested function literal, and classifies it:
 The scan does not read an answer a helper function builds, an answer whose
 `Status` is computed at run time, or an `Error` assigned after the literal.
 
+The package exports its site list for `./le arch error-inventory`
+(`docs/contributing/error-inventory.md`): `Sites` over the working tree, and
+`SitesOnSide` over one side of a commit, so that check's commit judge leaves
+a writer call on a handler's return line to this one.
+
 <!-- source: internal/le/arch/operatorerror/response.go -- responseSites, classifyResponse, classifyMessage -->
-<!-- source: internal/le/arch/operatorerror/report.go -- addedSites, checkLines -->
+<!-- source: internal/le/arch/operatorerror/report.go -- addedSites, checkLines, SitesOnSide -->
+<!-- source: internal/le/arch/operatorerror/operatorerror.go -- Sites -->
 
 ## A value carries no marker
 

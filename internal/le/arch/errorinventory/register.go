@@ -8,6 +8,7 @@ package archerrorinventory
 import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/le/commit/changecheck"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
@@ -28,4 +29,7 @@ func init() {
 	// Every answer carries the rows AND the counts that summarize them, so a
 	// reader of an empty row set still sees every surface counted.
 	leroot.RegisterShape(area, command.ShapeDoc)
+
+	// `./le commit create` judges the plain writer rows the commit adds.
+	changecheck.Register(changecheck.Check{Name: area + " check", Judge: judgeChange})
 }

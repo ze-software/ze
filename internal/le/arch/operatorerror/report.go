@@ -204,6 +204,23 @@ func judgeChangeAt(change changecheck.Change, floor int) (string, error) {
 	return report.Text(), nil
 }
 
+// SitesOnSide is Sites over tree with each carried path read from one side of
+// a commit (changecheck.Change.Before or After) instead of the working tree.
+// A path the side does not hold is absent from the scan. It is the list the
+// error inventory's commit judge reads, so it never refuses a writer call
+// that is also a return or answer of a registered handler this package judges.
+func SitesOnSide(tree string, carried []string, side changecheck.Side) ([]Site, error) {
+	overlay, err := sideOverlay(carried, side)
+	if err != nil {
+		return nil, err
+	}
+	inventory, err := scan(tree, overlay)
+	if err != nil {
+		return nil, err
+	}
+	return inventory.Sites, nil
+}
+
 // sideOverlay reads each carried path from one side of the commit.
 func sideOverlay(paths []string, side changecheck.Side) (map[string]overlayFile, error) {
 	overlay := make(map[string]overlayFile, len(paths))

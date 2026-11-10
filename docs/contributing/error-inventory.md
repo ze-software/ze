@@ -5,8 +5,9 @@ reaches a user, and says for each one whether it meets
 `ai/rules/user-facing-errors.md`: the message names what went wrong, why, and
 the exact command that fixes it.
 
-The command is being built. `report` lists every site from the three sources
-below; `check` refuses no commit yet.
+`report` lists every site from the three sources below. `check` and the
+commit gate refuse only a plain message a change adds at one of this
+package's own writers ("The check and the commit gate").
 
 | Action | What it answers |
 |--------|-----------------|
@@ -102,3 +103,61 @@ variable of type `error` cannot be seen from the syntax, and reads as plain.
 <!-- source: internal/le/arch/errorinventory/writers.go -- writers -->
 <!-- source: internal/le/arch/errorinventory/classify.go -- classify, carries, namesCommand -->
 <!-- source: internal/le/arch/errorinventory/inventory.go -- preRankOf -->
+
+### Adding a writer
+
+A new helper that hands a message to a user (an answer function on a new
+surface, a refusal type in `./le`) is one row in `writers`, and nothing
+else in the package changes. The row says:
+
+| Field | What it holds |
+|-------|---------------|
+| `surface` | the surface the message reaches; a new surface is a new `Surface` value and its count line |
+| `shape` | how the writer is called: a function (`shapeCall`), a method on a named receiver (`shapeMethod`, with `receiver`), a print to `os.Stderr` (`shapeStderrPrint`, `shapeStderrMethod`), a composite literal of a type (`shapeLiteral`) |
+| `path`, `ident` | the import path and name the call or type resolves to; an unexported helper is matched in its own package |
+| `message` | the span of arguments or literal elements that carry the message: from `first` up to but excluding `last`, `last` 0 meaning through the end |
+| `within` | optional: limit the row to these directories, placed before a broader row of the same writer |
+
+The row for `./le` action refusals reads `{surface: SurfaceTooling, shape:
+shapeCall, path: leactionPath, ident: "ReportError", message: span{0, 1}}`.
+Add a case for the new writer to `TestErrorInventoryFindsEachWriter`
+(`classify_test.go`) in the same change, so the row is proved to match.
+
+## The check and the commit gate
+
+`./le arch error-inventory check` judges the lines your unpushed commits and
+working tree changed, against the same base the other line-scoped `arch`
+checks read. `./le commit create` runs the same judgement over the commit it
+prepares, because the package registers it into the change-set seam
+(`changecheck.Register`, listed in `docs/contributing/committing.md`). The
+commit form scans the tree twice, with the carried Go files as the commit
+leaves them and as its parent holds them, and refuses a row the commit adds:
+a file, writer and message the parent holds fewer of. Moving an old plain
+line is not an addition; a new or reworded one is. A commit that carries no
+shipped Go file is admitted without a scan.
+
+It refuses a row only when all of these hold:
+
+| Condition | Why |
+|-----------|-----|
+| The row comes from this package's writer table | A handler refusal is `./le arch operator-error check`'s to judge, and a log line, report raise, health row or doctor finding is `./le arch doctor-coverage check`'s |
+| No other source names the same file and line | The merge gives such a line to the gate that owns it, so a registered handler returning a plain gRPC status error is refused by operator-error, never twice |
+| Its status is `plain` or `plain-names-command` | Only `typed` meets the rule |
+| The change adds it | A site already in the tree is the worklist's, listed by `report`, never refused |
+
+The refusal names each site's file and line, surface, status, writer and
+message, then why, then the fix: hand the writer an operator error built
+with `opererr.New(problem, why, fix)`, rendered with `.Error()` where the
+writer takes a string, or for a `plugin.Response` error answer, built with
+`plugin.OperatorErrorResponse`.
+
+The commit form reads the other two gates' sites over the side the commit
+leaves (`archoperatorerror.SitesOnSide`, `archdoctorcoverage.ScanSide`), and
+only when its own writer scan found a row the commit adds. A commit adding no
+plain writer row costs two parses of the tree, the writer scan of each side;
+one adding one costs two more, one for each other source, and no source is
+scanned twice.
+<!-- source: internal/le/arch/errorinventory/report.go -- judgeChange, addedRows, unowned, refused, CheckReport.Text -->
+<!-- source: internal/le/arch/errorinventory/inventory.go -- ownedRows -->
+<!-- source: internal/le/arch/errorinventory/register.go -- init -->
+<!-- source: internal/le/arch/errorinventory/actions.go -- runCheck -->

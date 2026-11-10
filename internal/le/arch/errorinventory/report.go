@@ -40,6 +40,8 @@ func (r CheckReport) exitCode() int {
 	return 0
 }
 
+// ze point: user-facing-errors/directives/an-error-names-the-cause-and-the-fix
+//
 // Text renders the scope line, one line per refused site, why, and the fix
 // on lines of its own. It ends in a newline.
 func (r CheckReport) Text() string {
@@ -57,8 +59,9 @@ func (r CheckReport) Text() string {
 	}
 	tb.Byte('\n')
 	tb.Str("Why: a message a user reads names what went wrong, why, and the exact command that fixes it (ai/rules/user-facing-errors.md). A plain string carries no fix the code declares, and a command its text names is not proven to fix the problem.\n")
-	tb.Str("Fix: hand the writer the operator error type with a fix (internal/core/opererr):\n")
+	tb.Str("Fix: hand the writer an operator error that carries the fix (internal/core/opererr), rendered with .Error() where the writer takes a string:\n")
 	tb.Str("  opererr.New(problem, why, fix)\n")
+	tb.Str("A plugin.Response error answer is built from one with plugin.OperatorErrorResponse.\n")
 	tb.Str("The sites already in the tree are listed by ./le arch error-inventory report.\n")
 	return tb.String()
 }
@@ -102,23 +105,141 @@ func checkLines(rows []Row, changed repochanged.ChangedLines) CheckReport {
 // (changecheck.Check.Judge). It answers the refusal text, or "" when the
 // change adds no refused site.
 //
-// It finds no site yet: the inventory lists none (Scan), so no added row
-// exists to refuse. It still refuses to judge a change whose carried side
-// cannot be read, because a judge that cannot look is never an admission.
+// It scans the tree twice, once with the carried Go files as the commit
+// leaves them and once as its parent holds them, and refuses each refused
+// writer row the commit adds: a (file, writer, message) the parent holds
+// fewer of (addedRows). Moving an old plain line is not an addition; a new or
+// reworded one is, and so is an old typed one the commit makes plain. Files
+// the commit does not carry are read from the working tree, because a
+// function or constant a carried writer's argument names may sit in a file
+// the commit leaves alone. A commit carrying no shipped Go adds no writer row,
+// so it is admitted without a scan.
+//
+// An added row on a line the operator-error or doctor-coverage scan also
+// names on the commit's side is theirs to judge, the line the report's merge
+// gives them (mergeRows), so it is never refused here (R-6 of the spec). Those
+// two scans run only when the writer scan found an addition, and only over
+// the side the commit leaves: a commit adding no plain writer row costs this
+// package's parse of each side, two in all, and one adding one costs two more,
+// operator-error's and doctor-coverage's of the carried side. Neither of their
+// sites is scanned in this package.
 func judgeChange(change changecheck.Change) (string, error) {
-	report := CheckReport{Scope: "the Go files the change carries", Findings: []Row{}}
-	for _, path := range change.Paths {
+	carried := make([]string, 0, len(change.Paths)+len(change.Removed))
+	for _, path := range slices.Concat(change.Paths, change.Removed) {
 		if !shippedGo(path) {
 			continue
 		}
-		if _, _, err := change.After(path); err != nil {
-			return "", err
-		}
+		carried = append(carried, path)
 	}
+	if len(carried) == 0 {
+		return "", nil
+	}
+	after, err := sideOverlay(carried, change.After)
+	if err != nil {
+		return "", err
+	}
+	before, err := sideOverlay(carried, change.Before)
+	if err != nil {
+		return "", err
+	}
+	afterRows, err := writerRows(change.Root, after)
+	if err != nil {
+		return "", err
+	}
+	if err := checkFloor(SourceWriter, len(afterRows), checkoutFloors.WriterRows); err != nil {
+		return "", err
+	}
+	beforeRows, err := writerRows(change.Root, before)
+	if err != nil {
+		return "", err
+	}
+	report := addedRows(beforeRows, afterRows, carried)
+	if len(report.Findings) == 0 {
+		return "", nil
+	}
+	owned, err := ownedRows(change.Root, carried, change.After, checkoutFloors, noDoors)
+	if err != nil {
+		return "", err
+	}
+	report.Findings = unowned(report.Findings, owned)
 	if len(report.Findings) == 0 {
 		return "", nil
 	}
 	return report.Text(), nil
+}
+
+// unowned keeps the rows that share no file and line with an owned row: the
+// writer rows the report's merge keeps as this package's (mergeRows).
+func unowned(rows, owned []Row) []Row {
+	ownedLines := make(map[siteKey]bool, len(owned))
+	for i := range owned {
+		ownedLines[siteKey{file: owned[i].File, line: owned[i].Line}] = true
+	}
+	kept := make([]Row, 0, len(rows))
+	for i := range rows {
+		if ownedLines[siteKey{file: rows[i].File, line: rows[i].Line}] {
+			continue
+		}
+		kept = append(kept, rows[i])
+	}
+	return kept
+}
+
+// noDoors answers no door for any file: the commit refusal names no door, so
+// the judge does not read the door pages.
+func noDoors(string) []string { return nil }
+
+// sideOverlay reads each carried path from one side of the commit.
+func sideOverlay(paths []string, side changecheck.Side) (map[string]overlayFile, error) {
+	overlay := make(map[string]overlayFile, len(paths))
+	for _, path := range paths {
+		text, present, err := side(path)
+		if err != nil {
+			return nil, err
+		}
+		overlay[path] = overlayFile{text: text, present: present}
+	}
+	return overlay, nil
+}
+
+// addedRows answers the refused rows in carried files that the after side
+// holds more of than the before side, keyed by file, writer and message. A
+// row the parent already held is the audit's, listed by report, never the
+// commit's.
+func addedRows(before, after []Row, carried []string) CheckReport {
+	isCarried := make(map[string]bool, len(carried))
+	for _, path := range carried {
+		isCarried[path] = true
+	}
+	key := func(row *Row) string {
+		return row.File + "\x00" + row.Writer + "\x00" + row.Message
+	}
+	held := make(map[string]int)
+	for i := range before {
+		row := &before[i]
+		if !refused(row) {
+			continue
+		}
+		held[key(row)]++
+	}
+	report := CheckReport{Findings: []Row{}}
+	report.Scope = "the files this commit carries against its parent (" + strconv.Itoa(len(carried)) + " Go file(s))"
+	for i := range after {
+		row := &after[i]
+		if !isCarried[row.File] {
+			continue
+		}
+		report.Judged++
+		if !refused(row) {
+			continue
+		}
+		if held[key(row)] > 0 {
+			held[key(row)]--
+			continue
+		}
+		report.Findings = append(report.Findings, *row)
+	}
+	return report
 }
 
 // shippedGo reports whether path is a Go source file that is not a test.

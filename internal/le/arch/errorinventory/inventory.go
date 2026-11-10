@@ -23,6 +23,7 @@ import (
 
 	archdoctorcoverage "github.com/ze-software/ze/internal/le/arch/doctorcoverage"
 	archoperatorerror "github.com/ze-software/ze/internal/le/arch/operatorerror"
+	"github.com/ze-software/ze/internal/le/commit/changecheck"
 	"github.com/ze-software/ze/internal/le/hookruntime"
 )
 
@@ -344,18 +345,8 @@ func Scan(root string, floors Floors) (Inventory, error) {
 	if err != nil {
 		return Inventory{}, err
 	}
-	operatorSites, err := archoperatorerror.Sites(root)
+	owned, err := ownedRows(root, nil, nil, floors, doorsOf)
 	if err != nil {
-		return Inventory{}, err
-	}
-	if err := checkFloor(SourceOperatorError, len(operatorSites), floors.OperatorErrorSites); err != nil {
-		return Inventory{}, err
-	}
-	doctor, err := archdoctorcoverage.Scan(root, floors.DoctorCodes, doorsOf)
-	if err != nil {
-		return Inventory{}, err
-	}
-	if err := checkFloor(SourceDoctorCoverage, len(doctor.Sites), floors.DoctorCoverageSites); err != nil {
 		return Inventory{}, err
 	}
 	written, err := writerRows(root, nil)
@@ -365,17 +356,41 @@ func Scan(root string, floors Floors) (Inventory, error) {
 	if err := checkFloor(SourceWriter, len(written), floors.WriterRows); err != nil {
 		return Inventory{}, err
 	}
-	operatorRows, err := operatorErrorRows(operatorSites)
-	if err != nil {
-		return Inventory{}, err
-	}
-	doctorRows, err := doctorCoverageRows(doctor.Sites)
-	if err != nil {
-		return Inventory{}, err
-	}
-	rows := mergeRows(slices.Concat(operatorRows, doctorRows, written))
+	rows := mergeRows(slices.Concat(owned, written))
 	for i := range rows {
 		rows[i].Doors = append([]string{}, doorsOf(rows[i].File)...)
 	}
 	return Inventory{Rows: rows}, nil
+}
+
+// ownedRows answers the rows the two other gates own, mapped as the report
+// shows them: archoperatorerror's handler refusals and archdoctorcoverage's
+// log lines, report raises, health rows and doctor findings, each source held
+// to its floor. Each carried path is read from side, one side of a commit;
+// with no carried path (nil) both scans read the working tree and side is
+// never called. Neither scan is repeated here: each is its own package's.
+func ownedRows(root string, carried []string, side changecheck.Side, floors Floors, doorsOf func(file string) []string) ([]Row, error) {
+	operatorSites, err := archoperatorerror.SitesOnSide(root, carried, side)
+	if err != nil {
+		return nil, err
+	}
+	if err := checkFloor(SourceOperatorError, len(operatorSites), floors.OperatorErrorSites); err != nil {
+		return nil, err
+	}
+	doctor, err := archdoctorcoverage.ScanSide(root, carried, side, floors.DoctorCodes, doorsOf)
+	if err != nil {
+		return nil, err
+	}
+	if err := checkFloor(SourceDoctorCoverage, len(doctor.Sites), floors.DoctorCoverageSites); err != nil {
+		return nil, err
+	}
+	operatorRows, err := operatorErrorRows(operatorSites)
+	if err != nil {
+		return nil, err
+	}
+	doctorRows, err := doctorCoverageRows(doctor.Sites)
+	if err != nil {
+		return nil, err
+	}
+	return slices.Concat(operatorRows, doctorRows), nil
 }

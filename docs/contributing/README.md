@@ -27,6 +27,7 @@ Ze development is expected on macOS or Linux. Windows is not a supported develop
 | `terminal-demos.md` | What a terminal demo or video shows and how it sounds: the owner's decisions on sectioned config loads, the five beats, the two audiences, and the sales-engineer tone |
 | `rfc-implementation-guide.md` | How to implement an RFC: reading, summarising, and compliance evidence |
 | `rfc-conformance-gates.md` | What `./le rfc check` measures: the artifacts, the nine ratchets, the public ledger guards, the superseded marker, the extraction sign-off, and the claim-discrimination record |
+| `error-inventory.md` | What `./le arch error-inventory` lists: every place a message reaches a user, its status (`typed`, `plain-names-command`, `plain`), the pre-rank that orders the worklist, and the surface writer table |
 
 For architecture-level testing design (CI format, interop, QEMU), see
 `../architecture/testing/`.

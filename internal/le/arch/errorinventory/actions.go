@@ -30,8 +30,9 @@ var checkoutRoot = lepath.Root
 // codes, and over 1,500 writer rows (stderr writes and http.Error alone).
 // DoctorCoverageSites and DoctorCodes are doctor-coverage's own floors
 // (siteFloor, coveredCodesFloor in internal/le/arch/doctorcoverage/actions.go),
-// which that package does not export. It is a variable so the action tests
-// scan a testdata tree with no floor.
+// which that package does not export. The commit judge (judgeChange) holds
+// the carried side to the same floors. It is a variable so the action and
+// judge tests scan a testdata tree with no floor.
 var checkoutFloors = Floors{
 	OperatorErrorSites:  150,
 	DoctorCoverageSites: 1000,

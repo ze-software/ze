@@ -329,6 +329,20 @@ func judgeChangeAt(change changecheck.Change, codesFloor, floor int) (string, er
 // the seam does not read the door pages.
 func noDoors(string) []string { return nil }
 
+// ScanSide is Scan over tree with each carried path read from one side of a
+// commit (changecheck.Change.Before or After) instead of the working tree. A
+// path the side does not hold is absent from the scan. It is the inventory
+// the error inventory's commit judge reads, so it never refuses a writer call
+// that shares its line with a log line, report raise, health row or doctor
+// finding this package judges.
+func ScanSide(tree string, carried []string, side changecheck.Side, codesFloor int, doorsOf func(file string) []string) (Inventory, error) {
+	overlay, err := sideOverlay(carried, side)
+	if err != nil {
+		return Inventory{}, err
+	}
+	return scan(tree, overlay, codesFloor, doorsOf)
+}
+
 // sideOverlay reads each carried path from one side of the commit.
 func sideOverlay(paths []string, side changecheck.Side) (map[string]overlayFile, error) {
 	overlay := make(map[string]overlayFile, len(paths))

@@ -8,7 +8,7 @@
 | Release reason | Measures compliance with `ai/rules/user-facing-errors.md`; it changes no shipped behaviour by itself |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 1/6 |
+| Phase | 6/6 |
 | Handoff | - |
 | Updated | 2026-11-10 |
 
@@ -181,7 +181,7 @@ No existing wire changes. The report's text and its JSON form (through the share
 | A-1 | Most user-visible messages can be found mechanically from the code | REA builds its inventory by hand; Ze's rule forbids a hand copy | The inventory needs a registration point for messages, a larger change | Research survey of error construction sites | partly broken (2026-11-10): every writer and about 97% of construction sites are found by AST with their literal text, but the text a user reads is a wrap chain no site scan resolves; only a typed error at the writer makes "meets the rule" mechanical, so status is judged by type at the writer |
 | A-2 | The operator-errors and doctor-coverage specs land before this one is implemented | Both are release work (P1, P2); this is P3 post-release; Depends names both | This spec would build its own scanner beside theirs | Their status when this spec is claimed | validated (2026-11-10): both landed and closed; `spec-operator-errors-name-the-fix` closure 41540585bb, dc5b80f1b6; `spec-doctor-coverage-1-audit-and-gate` closure c49b0b858a, 974cff10be |
 | A-3 | Harm cannot be derived; at most a pre-rank from surface tier and declared severity | No `CodeMeta`, `Issue` or exit-code field encodes operator impact | A judged field is needed, declared once on the operator error type in that spec | Thomas, 2026-11-10: the derived pre-rank is enough | confirmed |
-| A-4 | A message argument at a writer can be classified by its static type and literal fragments | `go/types` resolves the argument's type; literals are AST constants | A writer that receives a value built far away classifies as `plain` even when it carries a fix | Unit tests over testdata, then the first report run | unvalidated |
+| A-4 | A message argument at a writer can be classified by its static type and literal fragments | `go/types` resolves the argument's type; literals are AST constants | A writer that receives a value built far away classifies as `plain` even when it carries a fix | Unit tests over testdata, then the first report run | partly broken (2026-11-10): classification is syntactic, not `go/types` (the siblings parse without type-checking); `TestErrorInventoryClassifiesWriterArgument` proves typed for an opererr call, a name or parameter of that type and a helper answering only operator errors, and the real-tree run classifies 5945 sites. Broken half as recorded under "If wrong": an operator error passed up the stack as a plain `error` reads plain (the real `./le test qemu` `ReportError` site), and Known Limitations keeps it |
 | A-5 | `operatorerror` and `doctorcoverage` expose their site lists as Go functions | Both specs name `report` or check actions; Ze actions stay callable as Go (`le-tooling.md`) | Phase 1 adds the exported function to that package, inside its own spec's contract | Reading both packages when this spec is claimed | partly broken (2026-11-10): `archoperatorerror.Sites(tree)` answers `[]Site` and `archdoctorcoverage.Scan(tree, codesFloor, doorsOf)` answers an `Inventory` of `Site` records, so both lists exist as Go functions; but doctor-coverage's sites are log lines, report raises and health rows only, and neither package lists a `Diagnostic` literal, so the `ze doctor` message surface the design assigns to doctor-coverage has no producer of its site list. Resolved by decision: doctor-coverage gains the `Diagnostic` literal site kind and its `Fix` judgement (AC-10), so the population keeps one owner and this spec still builds no scanner of it |
 
 ### Risks
@@ -255,8 +255,8 @@ No existing wire changes. The report's text and its JSON form (through the share
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| G-1 real-tree run | `./le arch error-inventory report` in the main checkout, per-surface count lines recorded in this spec | Thomas reads the worklist ranked by pre-rank | |
-| AC-7 | a `./le commit create` dry-run test in `internal/le/commit` beside the other change-set gate tests | The gate is wired into commits | |
+| G-1 real-tree run | `./le arch error-inventory report` in the main checkout, per-surface count lines recorded in this spec | Thomas reads the worklist ranked by pre-rank | run 2026-11-10, counts in Design Insights |
+| AC-7 | `TestErrorInventoryChangeCheckRegistered` and `TestCommitCreateRefusesAddedPlainWebSite` in `internal/le/arch/errorinventory/register_test.go`: a test in `internal/le/commit` importing this package is an import cycle (the package depends on `internal/le/commit`), so the test sits where the two sibling gates prove their wiring, and runs the registered check through `changecheck.Run`, the call `./le commit create` makes | The gate is wired into commits | |
 
 ### Interop Tests (Scope: protocol)
 - N-A: tooling with no protocol peer.
@@ -372,6 +372,28 @@ No existing wire changes. The report's text and its JSON form (through the share
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
 ## Design Insights
+
+Real-tree run, 2026-11-10 (commit fdd671e32f plus the working tree), `./le arch error-inventory report`, 16 s:
+
+| Surface | Sites | Typed | Plain names command | Plain |
+|---------|-------|-------|---------------------|-------|
+| daemon-command | 668 | 0 | 1 | 667 |
+| config-verify | 121 | 0 | 0 | 121 |
+| log | 2413 | 0 | 43 | 2370 |
+| doctor | 227 | 7 | 9 | 211 |
+| local-cli | 1426 | 3 | 97 | 1326 |
+| mcp | 67 | 0 | 0 | 67 |
+| rest | 72 | 0 | 0 | 72 |
+| web | 216 | 0 | 2 | 214 |
+| gnmi | 36 | 0 | 2 | 34 |
+| grpc | 30 | 0 | 0 | 30 |
+| le | 669 | 0 | 9 | 660 |
+
+- The log and doctor rows agree with `./le arch doctor-coverage report` (2640 sites = 2413 call sites + 227 findings)
+- `grpc` is a surface the design table did not name: its "gNMI 66" counted 36 gNMI calls and 30 in the gRPC API server
+- The first real-tree run did not finish in ten minutes: the literal-text walk re-resolved a buffer's own name for each earlier write, exponential in the writes; fixed in fdd671e32f (`TestErrorInventoryReadsEveryBufferWrite` times out on the old walk)
+- AC-8's second clause cannot hold as written: `./le ai rules report gate-map` reads `// ze point:` bindings only from `internal/le/hookruntime` (`internal/le/ai/rules/coverage.go`, `hookRuntimeRel`, `nativeHookSources`), so it lists no change-set check; the bindings operator-error and doctor-coverage already carry are absent from it too. The binding is declared (`internal/le/arch/errorinventory/report.go`); how to make the gate map read it is put to Thomas
+- operator-error typed a zero `&opererr.Error{}` literal; fixed in 03eba266ff with an independent test-judge approval, because this inventory takes operator-error's status where both name a site
 
 ## Owned journal rows
 | Class file | Date | Surface (short) |

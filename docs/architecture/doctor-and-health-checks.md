@@ -696,6 +696,10 @@ own result reaches the operator unchanged. A finding's code needs no check
 declaring it. Each site's kind and status are on `Scan`'s `Site` record
 (`Kind` `doctor-finding`, `Status` `fix-set` or `no-fix`), and
 `Status.Covered` answers covered for a call site or a finding alike.
+`ScanSide` is `Scan` over one side of a commit; `./le arch error-inventory`
+reads it there, so its commit judge leaves a writer call on a line this scan
+names to this gate (`docs/contributing/error-inventory.md`).
+<!-- source: internal/le/arch/doctorcoverage/report.go -- ScanSide -->
 
 | Form | What it judges | Exit |
 |------|----------------|------|
