@@ -9,7 +9,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-09 |
+| Updated | 2026-11-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -195,7 +195,7 @@ package and is the place the new check's unit coverage belongs.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| rate feed sample | → | `tickRates` → `observeFeed` | `TestRateFeedZeroTrafficReportedAtWindow`; end to end `test/draft/plugin/ddos-detect-internal-blind.ci` (promoted after its red proof) |
+| rate feed sample | → | `tickRates` → `observeFeed` | `TestRateFeedZeroTrafficReportedAtWindow`; end to end `test/plugin/ddos-detect-internal-blind.ci` (promoted after its red proof) |
 | doctor callback | → | `checkRateFeed` | `TestRateFeedCheckDeclaration`, transport `test/plugin/api-doctor-check.ci` |
 | external ddos-detect, doctor callback | → | `arm(feed, p.IsInternal())` → `rateFeedFinding` → `checkRateFeed` | `TestRateFeedExternalReportsCause`; end to end `test/draft/plugin/ddos-detect-external-blind.ci`, promoted when `spec-plugin-event-bus-across-the-process-boundary` lands |
 
@@ -248,7 +248,7 @@ package and is the place the new check's unit coverage belongs.
 |------|----------|-------------------|--------|
 | `api-doctor-check` | `test/plugin/api-doctor-check.ci` | Declared plugin doctor check reaches `show doctor` | existing |
 | `ddos-detect-external-blind` | `test/draft/plugin/ddos-detect-external-blind.ci`, fixture `internal/test/fixture/ddos_detect_blind.go` | An external ddos-detect is reported blind with its cause by `show doctor` (AC-9) | draft: red until `spec-plugin-event-bus-across-the-process-boundary` lands |
-| `ddos-detect-internal-blind` | `test/draft/plugin/ddos-detect-internal-blind.ci`, fixture `doctorDDoSDetectBlindZero` in `internal/test/fixture/ddos_detect_blind.go` | An internal ddos-detect on a box that receives nothing is reported blind by `show doctor` (AC-1, AC-5) | draft: run, red proof, stress, then promote and add to `netnsSelections[netnsPlugin]` |
+| `ddos-detect-internal-blind` | `test/plugin/ddos-detect-internal-blind.ci`, fixture `doctorDDoSDetectBlindZero` in `internal/test/fixture/ddos_detect_blind.go` | An internal ddos-detect on a box that receives nothing is reported blind by `show doctor` (AC-1, AC-5) | live: passed in a Ze guest, red proof recorded, promoted and named in `netnsSelections[netnsPlugin]` |
 
 ## Files to Modify
 - `internal/plugins/ddos/detect/detector.go` - feed watch field, observeFeed calls
@@ -358,23 +358,155 @@ package and is the place the new check's unit coverage belongs.
 | Doctor plus edge-triggered log; not latching | Doctor only; show field | Log covers the operator who never runs doctor; latching would keep a cleared box warned. No show field: `show ddos` belongs to ddos-observe in another plugin |
 | Exact zero, not near-zero | A small threshold | Any keepalive is traffic; near-zero would need a tuning leaf |
 
-## Goal Validation
+## Implementation Summary
+
+### What Was Implemented
+- `blind.go`: the feed watch. `arm` records the feed, whether the plugin runs internal, and the arm time; `observeFeed` (called from `tickRates` under d.mu) counts the zero run and logs one WARN at the window and one INFO when traffic returns; `rateFeedFinding` judges the last window; `blindMessage` is the operator text for both surfaces (3c7aef2403, 5559f4a2fd).
+- `doctor.go` `checkRateFeed` and `rateFeedCheckDecl`: the `ddos-detect-rate-feed` plugin doctor check, declared in the SDK registration and answered by `OnDoctorCheck` from the `armed` atomic pointer in `register.go` `runEngine`.
+- `internal/core/diagnostic/codes.go` `CodeDoctorDDoSDetectBlind` and its entry.
+- The unreachable `iface.SubscribeCollectNotify` fallback, `onRate` and `tickInfos` deleted; their tests drive `onRates` (e4529a2ef1).
+- Fixture `plugin/doctor-ddos-detect-blind-zero` (`internal/test/fixture/ddos_detect_blind.go` `doctorDDoSDetectBlindZero`) and the live `test/plugin/ddos-detect-internal-blind.ci`, named in `netnsSelections[netnsPlugin]` (`internal/le/test/qemu/netns_linux.go`) (f9c8beeec7, closure commit A).
+
+### Bugs Found/Fixed
+- An external ddos-detect was reported "no interface" (round 1 BLOCKER): `arm` records `p.IsInternal()`, covered by `TestRateFeedExternalReportsCause`.
+
+### Documentation Updates
+- `docs/guide/ddos-mitigation.md` (blind-detector section, check-interval paragraph), `docs/architecture/ddos/cp-survival-5-detect-0-umbrella.md`, `docs/architecture/traffic/traffic-usage-monitor.md` Consequences (one feed, anchor `register.go -- runEngine, EnsureGlobal, SubscribeRates`): landed in 3c7aef2403, 5559f4a2fd, e4529a2ef1, f9c8beeec7.
+- Closure: `docs/architecture/testing/qemu-integration.md` (command table `plugin` row; plugin-selection paragraph with anchor `netns_linux.go -- netnsSelections`) and `docs/architecture/testing/ci-workflows.md` (plugin subset list) name the new case. `internal/le/test/qemu/guestlabs.go` `netnsSuiteHelp` for `plugin` names it, and redistribution, which it had omitted.
+- `./le doc check all`: owed to the main thread (not run in the closure agent).
+
+### Deviations from Plan
+- The internal `.ci` has no stress run under load: no QEMU form of the stress-repro exists, and on the host the test is skipped (Known Limitations).
+- The no-interface case has no `.ci`: a namespace always holds lo.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The promotion plan named only `qemu-integration.md` as the page listing the `plugin` netns selection | `ci-workflows.md` and the `netnsSuiteHelp` help text list it too | Closure grep for the selection's members (`redistribute-chain-static-ospf`) | All three updated in closure commit A |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| The signal: sustained zero over a window | Done | `blind.go` `observeFeed`, `blindSamples` | Window = baseline-window x check-interval samples |
+| The surface: doctor plus edge log | Done | `doctor.go` `checkRateFeed`; `blind.go` `observeFeed` | No show field (Key Design Decisions) |
+| What it says: names the feed and the fix command | Done | `blind.go` `blindMessage` | |
+| Idle-box false positive: warning, clears, suppressible | Done | `checkRateFeed` severity `warning`; `observeFeed` resets on traffic; disabled publishes nil | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRateFeedZeroTrafficReportedAtWindow`, `TestRateFeedWindowFollowsCheckInterval`, `test/plugin/ddos-detect-internal-blind.ci` | |
+| AC-2 | Done | `TestRateFeedNoInterface` | No `.ci` (Deviations) |
+| AC-3 | Done | `TestRateFeedNoSample` | |
+| AC-4 | Done | `TestRateFeedClearsOnTraffic`, `TestRateFeedLogsEachEdgeOnce` | |
+| AC-5 | Done | `TestRateFeedLogsEachEdgeOnce`; `.ci` asserts the WARN text on stderr | |
+| AC-6 | Done | `TestRateFeedDisabledDetectorReportsNothing` | |
+| AC-7 | Done | `TestRateFeedRefusesUnknownCheckAndUnarmedDetector` | |
+| AC-8 | Done | `TestRateFeedCheckDeclaration`; `codes.go` entry | |
+| AC-9 | Done | `TestRateFeedExternalReportsCause` | Not reachable end to end until the event bus crosses the process boundary (Work Not Done) |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The ten `TestRateFeed*` units | Done | `internal/plugins/ddos/detect/doctor_test.go` | |
+| `ddos-detect-internal-blind` | Done | `test/plugin/ddos-detect-internal-blind.ci` | Passed in a Ze guest, red recorded |
+| `ddos-detect-external-blind` | Changed | `test/draft/plugin/ddos-detect-external-blind.ci` (untracked draft) | Red until the event-bus spec lands |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `detector.go`, `register.go`, `doctor.go`, `blind.go`, `codes.go` | Done | 3c7aef2403, 5559f4a2fd, e4529a2ef1, f9c8beeec7 |
+| `docs/guide/ddos-mitigation.md`, `cp-survival-5-detect-0-umbrella.md` | Done | same commits |
+
+### Audit Summary
+- **Total items:** 4 requirements, 9 ACs, 12 tests, 7 files
+- **Done:** all but one test
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1, the external `.ci` stays a draft (Deviations, Work Not Done)
+
+## Goal Validation (BLOCKING)
 
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
-| An armed detector whose rate feed shows no traffic is reported by `ze doctor`, distinguishing "no attack" from "no traffic" | Functional test end to end on the real rate feed, plus unit tests over the tick path | `test/draft/plugin/ddos-detect-internal-blind.ci` (fixture `doctorDDoSDetectBlindZero`): an internal ddos-detect in a fresh namespace whose links receive nothing is reported by `show doctor` with the zero-traffic text, and the onset WARN is logged; run and red proof owed (handoff), then promoted to `test/plugin/` and added to the `netnsPlugin` selection. Units `TestRateFeedZeroTrafficReportedAtWindow`, `TestRateFeedNoInterface`, `TestRateFeedNoSample` drive `tickRates` and `checkRateFeed`; red proof recorded for 3c7aef2403 (handoff) |
-| The operator who never runs doctor sees it in the log, once per edge | Unit test, plus the onset WARN asserted by the `.ci` | `TestRateFeedLogsEachEdgeOnce`; `ddos-detect-internal-blind.ci` `expect=stderr:contains` |
-| An armed external detector is reported blind with its real cause (AC-9) | Unit test | `TestRateFeedExternalReportsCause` (5559f4a2fd, red proof done). No external detector arms today: `loadBus` refuses Config, ze logs ERROR and keeps running without the plugin, and `show doctor` is clean (`plan/journal/failed-start-reads-as-absent.md`, owned by `spec-doctor-reports-failed-plugin-startup`; the bus itself by `spec-plugin-event-bus-across-the-process-boundary`) |
+| An armed detector whose rate feed shows no traffic is reported by `ze doctor`, distinguishing "no attack" from "no traffic" | Functional test end to end on the real rate feed, in a Ze guest, with a recorded red | `test/plugin/ddos-detect-internal-blind.ci` (fixture `doctorDDoSDetectBlindZero`), run on its draft path by the main thread: `./le test qemu docker-lab kernel ~/.cache/ze/runtime-kernel/7.3-runtime-amd64-runtime-docker-a9caebdd-0d1d6496/vmlinuz harness timeout 1800s command "ZE_BIN=tmp/qemu/linux-amd64/bin/ze ... tmp/qemu/linux-amd64/le test qemu all test test/draft/plugin/ddos-detect-internal-blind.ci"` gave `16.0s 1/1 PASS 18 ddos-detect-internal-blind ... ALL PHASES PASSED`. Red: `traffic := maxPps > 0 \|\| maxBps > 0` replaced by `traffic := true` in `blind.go` `observeFeed`, guest binaries rebuilt: FAIL (41.8s) `ZE-OBSERVER-FAIL: show doctor lacks doctor-ddos-detect-blind naming "has reported zero received packets and bytes" after 3 reads, each after 13s of silence`; file restored byte-exact and binaries rebuilt. Units `TestRateFeedZeroTrafficReportedAtWindow`, `TestRateFeedNoInterface`, `TestRateFeedNoSample` drive `tickRates` and `checkRateFeed` |
+| The operator who never runs doctor sees it in the log, once per edge | Unit test, plus the onset WARN asserted by the `.ci` | `TestRateFeedLogsEachEdgeOnce`; `ddos-detect-internal-blind.ci` `expect=stderr:contains=has reported zero received packets and bytes on every interface for 10s`, a text the fixture never prints, so only the daemon's WARN line (`observeFeed`) satisfies it |
+| An armed external detector is reported blind with its real cause (AC-9) | Unit test | `TestRateFeedExternalReportsCause` (5559f4a2fd, red proof done). No external detector arms today: `loadBus` refuses Config, ze logs ERROR and keeps running without the plugin, and `show doctor` is clean (`plan/journal/failed-start-reads-as-absent.md`) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| End-to-end proof of AC-9: promote `ddos-detect-external-blind.ci` | A forked plugin is handed no event bus, so an external ddos-detect fails Config and never arms | `plan/release/fixes/spec-plugin-event-bus-across-the-process-boundary.md` |
+| `show doctor` names a non-fatal plugin that failed startup | The failed plugin is removed and its checks are no longer listed, so doctor reads clean | `plan/release/fixes/spec-doctor-reports-failed-plugin-startup.md` |
 
 ## Review Gate
 
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/ddos-blind-detector-diagnostic-f90e7822-ecbf-462e-ac37-c494b4c2c988.md` (8 files, verdict clean) |
+| `./le spec review check` | clean |
+| Rounds | 3 |
+| Reviewer lenses used | Round 1: logic and wiring. Round 2: docs against producers, startup path, `.ci` coverage. Round 3 (closure agent, which authored none of the six landed commits; the promotion edits are its own and are the smallest part of the diff): f9c8beeec7, d293a82e4a and the promotion; wiring of the new selection entry against `validateNetnsSelection`, fixture timing against the 60s timeout, comment accuracy, style pass over the changed Go |
+
 | Round | Reviewer | BLOCKER | ISSUE | Resolution |
 |-------|----------|---------|-------|------------|
-| 1 | independent reviewer | 1: an external ddos-detect was reported "no interface" | 1: no ddos-specific `.ci` | BLOCKER fixed in 5559f4a2fd (`arm` records `p.IsInternal()`, `TestRateFeedExternalReportsCause`). ISSUE answered by `test/draft/plugin/ddos-detect-external-blind.ci` and the Known Limitations entry for the external case |
-| 2 | second independent reviewer | 0 | 4: "fails loudly" half true (doctor clean after the startup failure); guide and `codes.go` claimed the external case "is reported"; stale two-feed docs after e4529a2ef1; no `.ci` for the internal blind finding. 3 NOTE: the `warnIfExternal` comment, explicit-phase failure skipping phases 3 to 5, and the fixture generalization | ISSUE 1: verified at the producers (`deliverConfigRPC`, `runPluginPhaseWithin`, `stopRemovedProcess`, `DoctorCheckPlugins`); journal rows `failed-start-reads-as-absent` and `one-failure-skips-independent-startup-work` owned by the new `spec-doctor-reports-failed-plugin-startup`; AC-9, Goal Validation and Known Limitations reworded. ISSUE 2 and NOTE 6: guide, `codes.go` and the `warnIfExternal` comment say an external ddos-detect fails startup today. ISSUE 3: guide check-interval paragraph and `traffic-usage-monitor.md` Consequences rewritten for one feed. ISSUE 4: `test/draft/plugin/ddos-detect-internal-blind.ci` with fixture `plugin/doctor-ddos-detect-blind-zero`; run, red proof and promotion owed |
+| 1 | independent reviewer | 1: an external ddos-detect was reported "no interface" | 1: no ddos-specific `.ci` | BLOCKER fixed in 5559f4a2fd. ISSUE answered by the external draft and the Known Limitations entry |
+| 2 | second independent reviewer | 0 | 4: "fails loudly" half true; guide and `codes.go` claimed the external case "is reported"; stale two-feed docs after e4529a2ef1; no `.ci` for the internal blind finding. 3 NOTE | Fixed in d293a82e4a (journal rows, owning spec, reworded AC-9) and f9c8beeec7 (docs, comment, fixture); the `.ci` promoted at closure |
+| 3 | closure agent | 0 | 0 | 3 NOTE, below |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | External detector reported "no interface" | `blind.go` `arm`, `rateFeedFinding` | 5559f4a2fd |
+| 2 | ISSUE | Doctor reads clean after a failed plugin start; the claim said it failed loudly | spec AC-9, guide | d293a82e4a; owned by `spec-doctor-reports-failed-plugin-startup` |
+| 3 | ISSUE | Guide and `codes.go` said the external case is reported | `docs/guide/ddos-mitigation.md`, `codes.go` | f9c8beeec7 |
+| 4 | ISSUE | Two-feed docs stale after the fallback's deletion | guide, `traffic-usage-monitor.md` | f9c8beeec7 |
+| 5 | ISSUE | No `.ci` for the internal finding | `test/plugin/ddos-detect-internal-blind.ci` | f9c8beeec7 fixture, closure promotion |
+
+Round 3 NOTEs: (1) `register_ddos_detect_blind.go` named the external test at the live path `test/plugin/ddos-detect-external-blind.ci`, which does not exist; it now names the draft path. (2) The external draft lives only in the gitignored `test/draft/plugin/`, and `test/draft/README.md` admits no tracked exception for a test that is "not ready", so the event-bus spec rebuilds it from the committed fixture `plugin/doctor-ddos-detect-blind` if the file is lost. (3) The `.ci` header said the test runs only under `./le test qemu netns`; a one-test `./le test qemu all test` also prepares its namespace (`allTestsRun.executeOne`), and the header now says so.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/plugins/ddos/detect/blind.go` | Yes | 207 lines, holds `observeFeed` |
+| `test/plugin/ddos-detect-internal-blind.ci` | Yes | moved from `test/draft/plugin/` at closure |
+| `test/plugin/api-doctor-check.ci` | Yes | `ls` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-9 | Each test exists | `grep -n '^func Test' doctor_test.go` lists the ten `TestRateFeed*` |
+| AC-1, AC-5 | End to end | the guest PASS and the red in Goal Validation |
+| AC-8 | Code registered | `codes.go` constant `CodeDoctorDDoSDetectBlind` and its `builtinCodes` entry |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| rate feed sample → `tickRates` → `observeFeed` | `test/plugin/ddos-detect-internal-blind.ci` | `detector.go` `tickRates` calls `observeFeed`; the `.ci` arms the detector with `baseline-window 10`, `check-interval 1`, and the red with `observeFeed` broken failed |
+| doctor callback → `checkRateFeed` | `test/plugin/api-doctor-check.ci` | `register.go` `runEngine`: `OnDoctorCheck` calls `checkRateFeed`, and the `sdk.Registration` declares `rateFeedCheckDecl` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `detector.go` `tick` comment; the guest run formed the 10-sample finding inside the fixture's 13s silence (`ddosBlindQuiet`), which a slower feed could not have done |
+| A-2 | confirmed | `test/plugin/api-doctor-check.ci`; the guest run reached `checkRateFeed` through `show doctor` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Guide blind-detector table and check-interval paragraph | `blind.go` `blindMessage`; `register.go` `subscribe` | Yes |
+| QEMU and CI pages name the case in the `plugin` selection | `netns_linux.go` `netnsSelections[netnsPlugin]` | Yes |
+| No other page lists the selection | `git grep -ln "redistribute-chain-static-ospf\|seven ASPA" -- docs ai .github website`: only those two pages | Yes |
 
 ## Known Limitations
 - The internal zero-traffic case is proven end to end only in a fresh network namespace (`ddos-detect-internal-blind.ci`, `option=netns-link`): a host or the shared guest root always receives traffic. lo still carries the fixture's TLS connection, so the fixture reads `show doctor` only after a silence longer than one window. The no-interface case has no `.ci`: a namespace always holds lo. Unit tests cover it over the real tick path.
+- No stress run under load proves the internal `.ci`. The `ze-test` stress-repro runs on the host, where this `needs-linux` and `netns-link` test is skipped, and no QEMU form of the stress run exists. Its proof is one passing Ze-guest run and one recorded red.
 - The external case has no passing `.ci` yet. An external ddos-detect fails at Config with "ddos-detect: event bus not configured", because `ConfigureEventBus` runs only in-process (`plan/journal/process-global-read-across-the-plugin-boundary.md`, 2026-11-10). ze logs it at ERROR and keeps running without the plugin, and `show doctor` is then clean, because a removed plugin's checks are no longer listed (`plan/journal/failed-start-reads-as-absent.md`, owned by `spec-doctor-reports-failed-plugin-startup`). `test/draft/plugin/ddos-detect-external-blind.ci` stays a draft and goes green when `spec-plugin-event-bus-across-the-process-boundary` lands. `test/plugin/ddos-detect-external-warns.ci` masks the Config failure: it tears down after the start warning; that spec owns it too.
 - The no-sample case has no log line: with no sample there is no tick to drive one. `ze doctor` reports it.
 - `onRate` and `tickInfos` (the cumulative-counter feed) are deleted with the fallback that called them (no-layering). The detector and characterization tests that drove them now drive `onRates`; `TestRateFeedNoInterfaceOnCounterPoll` existed only for the deleted path and is deleted. A `ze-test-judge` approved the change for all 9 units.
@@ -395,7 +527,7 @@ package and is the place the new check's unit coverage belongs.
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
 - [ ] Boundary tests for all numeric inputs
-- [ ] Functional `.ci` tests for end-to-end behavior (`ddos-detect-internal-blind.ci`, run by `./le test qemu all test test/draft/plugin/ddos-detect-internal-blind.ci`, then promoted; `test/draft/plugin/ddos-detect-external-blind.ci`, a draft until `spec-plugin-event-bus-across-the-process-boundary` lands)
+- [ ] Functional `.ci` tests for end-to-end behavior (`test/plugin/ddos-detect-internal-blind.ci`, run by `./le test qemu all test` on its draft path, then promoted; `test/draft/plugin/ddos-detect-external-blind.ci`, a draft until `spec-plugin-event-bus-across-the-process-boundary` lands)
 - [ ] Interop tests for protocol features (N-A: no protocol peer)
 
 ### Closure
