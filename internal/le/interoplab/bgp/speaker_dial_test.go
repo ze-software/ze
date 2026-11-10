@@ -1,6 +1,7 @@
 package bgp
 
 import (
+	"context"
 	"errors"
 	"net"
 	"syscall"
@@ -93,5 +94,41 @@ func TestDialSpeakerPeerReturnsLastErrorAtDeadline(t *testing.T) {
 	}
 	if elapsed >= 3*time.Second {
 		t.Fatalf("dialSpeakerPeer returned after %v, long past the 600 ms deadline", elapsed)
+	}
+}
+
+// dialAttemptTimeoutError is a dial error that reports a timeout, the shape a
+// dropped SYN produces.
+type dialAttemptTimeoutError struct{}
+
+func (dialAttemptTimeoutError) Error() string   { return "dial tcp 172.30.0.2:179: i/o timeout" }
+func (dialAttemptTimeoutError) Timeout() bool   { return true }
+func (dialAttemptTimeoutError) Temporary() bool { return true }
+
+// TestSpeakerDialRetriesAnAttemptTimeout proves a timed-out dial attempt is
+// retried while the run's deadline is live and is the answer once it is not.
+// Method: ask speakerDialAttemptTimedOut about a timeout error under a live
+// context, a canceled context, and about a refusal, which is not a timeout.
+//
+// MUTATION: dropping speakerDialAttemptTimedOut from dialSpeakerPeer's retry
+// condition leaves this test green, so the lab carries that half: the
+// bgp-rfc7606-typed-nlri-discard run whose dial ended in "i/o timeout".
+// Making speakerDialAttemptTimedOut answer false turns the live case red;
+// dropping its ctx.Err() guard turns the canceled case red.
+func TestSpeakerDialRetriesAnAttemptTimeout(t *testing.T) {
+	live := t.Context()
+
+	if !speakerDialAttemptTimedOut(live, dialAttemptTimeoutError{}) {
+		t.Fatal("a timed-out attempt under a live deadline was not retried")
+	}
+
+	gone, cancelGone := context.WithCancel(t.Context())
+	cancelGone()
+
+	if speakerDialAttemptTimedOut(gone, dialAttemptTimeoutError{}) {
+		t.Fatal("a timeout after the run's deadline was retried instead of answered")
+	}
+	if speakerDialAttemptTimedOut(live, syscall.ECONNREFUSED) {
+		t.Fatal("a refusal was classified as an attempt timeout")
 	}
 }

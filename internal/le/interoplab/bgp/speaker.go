@@ -379,7 +379,7 @@ func dialSpeakerPeer(address string, deadline time.Time) (net.Conn, error) {
 		if err == nil {
 			return connection, nil
 		}
-		if speakerDialRetryable(err) {
+		if speakerDialRetryable(err) || speakerDialAttemptTimedOut(ctx, err) {
 			refusal = err
 			if sleepContext(ctx, speakerDialSpacing) != nil {
 				return nil, refusal
@@ -408,6 +408,22 @@ func speakerDialRetryable(err error) bool {
 		return true
 	}
 	return errors.Is(err, syscall.ENETUNREACH)
+}
+
+// speakerDialAttemptTimedOut reports whether one dial attempt timed out while
+// the run's own deadline is still live. A peer whose address is not reachable
+// yet drops the SYN instead of refusing it, so the attempt ends in an i/o
+// timeout: the same not-yet-up state as a refusal. Once the run's deadline
+// itself has passed, a timeout is the answer, not a reason to retry.
+func speakerDialAttemptTimedOut(ctx context.Context, err error) bool {
+	if ctx.Err() != nil {
+		return false
+	}
+	var timeout interface{ Timeout() bool }
+	if !errors.As(err, &timeout) {
+		return false
+	}
+	return timeout.Timeout()
 }
 
 func runSpeakerSession(options speakerOptions, verdict *speakerVerdict) error {
