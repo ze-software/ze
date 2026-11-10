@@ -8,7 +8,7 @@
 | Release reason | 25 findings of the full lint in IKE, L2TP and the appliance; the full lint holds the release (`plan/release/validation/spec-lint-backlog-0-umbrella.md`) |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 4/4: closure open; CI-list fixes landed in `85a33a3887`, `4abd85f6f9` and `34549af4be`; later in-scope findings in the interim commit; scoped lint pending |
+| Phase | 4/4: closure; CI-list fixes landed in `85a33a3887`, `4abd85f6f9` and `34549af4be`; later findings in `7eb86b64a2`; the last 13 rangeValCopy findings in the closure commit |
 | Handoff | - |
 | Updated | 2026-11-10 |
 
@@ -288,13 +288,50 @@ ID mapping in `rules/rulelist.go`.
   - `RFC2661-4.1-1` was rejudged `enforced` by this closure agent, which did
     not author the change: `TestAVPCatalogRoundTrip` lost only the `false`
     argument, and its reserved-bit assertion is unchanged.
-- Still open. The scoped lint cannot settle while another IKE session edits
-  `ike/engine`:
-  - gocritic rangeValCopy in `rfc4301_unmatched_xfrm_interface_test.go`,
-    `rfc7296_child_rekey_initiator_answer_test.go` and `source_guard_test.go`.
-  - Whatever the lint's cap of ten findings per linter still hides.
-  - `unmatched.go` and `unmatched_xfrm_interface.go` belong to
-    `plan/post-release/features/spec-ipsec-spd-final-discard-vpp-ospf.md`.
+- Left after the interim commit: 13 gocritic rangeValCopy findings in
+  `ike/engine`. Thomas decided they are fixed before release, the production
+  ones included, so the earlier routing of `unmatched.go` and
+  `unmatched_xfrm_interface.go` to
+  `plan/post-release/features/spec-ipsec-spd-final-discard-vpp-ospf.md` is
+  withdrawn. The closure commit fixes all 13 (next section).
+
+### Closure commit (2026-11-10): the last 13 rangeValCopy findings
+- A fix agent edited six `ike/engine` files:
+  - `unmatched.go`: `installUnmatched` and `removeUnmatched` range the
+    catch-all policies by index and pass `*p`, so the same `SPParams` reach
+    `InstallPolicy` and `RemovePolicyParams`.
+  - `unmatched_xfrm_interface.go` and `apply.go`: the plan map and
+    `ikeEngineState.xfrmEntries` hold `*xfrmInterfaceEntry`.
+    `planXFRMInterfaceEntries` builds each entry once, from the by-index
+    element of a local `interfaceSPDCatchAll` or `xfrmInterfaceExemptions`
+    slice. No code changes an entry after it is built:
+    `installXFRMInterfaceEntries` stores the plan's pointer, and
+    `pruneXFRMInterfaceEntries` only reads and deletes, so a plan and the
+    installed set may share one.
+  - The test helpers (`liveExemptions`, `liveCatchAll`,
+    `liveInterfaceCatchAll`, `installedPolicyScope`, `guardRecorder.deleteRule`)
+    range by key or index, with the same values read.
+- RFC records:
+  - `RFC4301-4.4.1-3` positive (`TestApplyInstallsInterfaceSPDCatchAllAndGuard`)
+    and negative (`TestInterfaceSPDCatchAllInstallFailureFailsTheApply`) were
+    re-recorded by the main thread from hand-written breaks, both observed red:
+    `range catchAll[:0]` in `planXFRMInterfaceEntries`, and the dropped
+    `noFinalEntry[entry.iface] = err` in `installXFRMInterfaceEntries`. They
+    are the stale records' breaks on the loops' new form. This closure agent,
+    which wrote neither the fix nor the breaks, judged the break text under
+    `ze-test-judge`: each removes exactly what its claim names (no interface
+    final entry planned; a refused interface catch-all reported applied). The
+    rejudge of 4.4.1-3 was stamped.
+  - The fix agent resealed `RFC7296-1.3.3-4` and `RFC7296-2.9-1` over the
+    `installedPolicyScope` edit, and re-judged `RFC4301-5.2-1` and
+    `RFC4301-5.2-9`: unimplemented, and they stand. Its reseal of
+    `RFC7296-2.7-1` pins another session's uncommitted
+    `internal/le/interoplab/ipsec/checkers.go`, so it stays out of this
+    commit and lands with that edit.
+- Tests (main thread): `ike/engine` with every ze tag, all pass but
+  `TestEkuPeerCertificateIsNotJudgedByTLSExtendedKeyUsage`, which another
+  session is editing (`remote_cert_eku_test.go`, RFC 4945 EKU work, not in this
+  commit). Log `job-lint6-ike4-886ba6d4.log`.
 
 ### Bugs Found/Fixed
 - None in product code. The three strengthened joins were test gaps: a loop
@@ -318,6 +355,7 @@ ID mapping in `rules/rulelist.go`.
 |------|---------------|----------------------|----------------|--------|
 | assumption | A-1: the CI list needed an edit at every site | The seven exhaustive sites were already annotated, and `34549af4be` carried the `cache.go` reasons | Source audit and `git blame` | Implemented the rest in `85a33a3887`; kept all four trees in the acceptance runs |
 | approach | `85a33a3887` landed unlinted and untested before a host shutdown | Its body names the owed runs | Closure triage | Closure runs the scoped lint and the tagged race runs |
+| scope | The interim commit routed the `unmatched.go` and `unmatched_xfrm_interface.go` rangeValCopy findings to a post-release IPsec spec | Findings in the four trees are this spec's; moving them was a scope change only Thomas decides, and he kept them before release | Thomas's decision at closure | The closure commit fixes all 13 |
 
 ## Implementation Audit
 
@@ -336,7 +374,7 @@ ID mapping in `rules/rulelist.go`.
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1 | OWED | The main thread's scoped lint over the four trees | Filled from its log |
+| AC-1 | Done (committed tree) | `./le go lint run scope` over `ike/...`, `l2tp/...`, `internal/appliance/...`, `config/system/...`, 2026-11-10 (`job-lint6f-21412b75.log`): the 13 rangeValCopy findings are gone; freebsd, distro and appliance flavors 0 issues | The 22 findings left in the other flavors (14 hugeParam, 5 intrange, 3 goconst) all come from another session's uncommitted RFC 4301 DF and ICMP-selector work (`ike/ipsec` edits, untracked `icmp_selector_test.go`, `rfc4301_icmp_selector_test.go`, `outer_header.go`); that session owes its own lint |
 | AC-2 | Done | `./le job run label lint6-race quiet command go test -race -count=1 -tags "ze_core <every ze_* tag in feature-gates.txt>"` over `ike/engine`, `ike/dataplane`, `internal/appliance`, 2026-11-10: exit 0; engine `ok` (242s), dataplane `ok` (63s), appliance `ok` (248s) | Log `tmp/session/2026-11-09-222501/scratch/job-lint6-race-e9b268bd.log`; the strengthened joins in `cp_close_test.go` and `dpd_retransmit_test.go` passed |
 | AC-3 | Done | `git show 85a33a3887` and the `cache.go` lines: every `//nolint` names gosec or errcheck and a reason; each `//exhaustive:ignore` has its reason on the line above | The exhaustive analyzer rejects text on its directive line (`4abd85f6f9`) |
 
@@ -352,7 +390,7 @@ ID mapping in `rules/rulelist.go`.
 
 ### Audit Summary
 - **Total items:** 8 requirement rows, 3 ACs
-- **Done:** 8 requirement rows, AC-2, AC-3 (AC-1 waits for the scoped lint)
+- **Done:** 8 requirement rows, AC-1 (over the committed tree), AC-2, AC-3
 - **Partial:** 0
 - **Skipped:** 0
 - **Changed:** 0
@@ -361,8 +399,8 @@ ID mapping in `rules/rulelist.go`.
 
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
-| The 25 CI lint findings in IKE, L2TP, the appliance and config/system are cleared | Scoped lint | OWED: the scoped lint over the four trees |
-| IKE, L2TP and appliance behavior is preserved | Package tests | The tagged race run of the three changed packages, 2026-11-10: exit 0, `ike/engine`, `ike/dataplane` and `internal/appliance` all `ok` (log `job-lint6-race-e9b268bd.log`); L2TP and config/system carry comment-only edits |
+| The 25 CI lint findings in IKE, L2TP, the appliance and config/system are cleared | Scoped lint | `job-lint6f-21412b75.log`, 2026-11-10: no finding from committed code in the four trees; the 22 left belong to another session's uncommitted RFC 4301 work |
+| IKE, L2TP and appliance behavior is preserved | Package tests | The tagged race run of the three changed packages, 2026-11-10: exit 0, `ike/engine`, `ike/dataplane` and `internal/appliance` all `ok` (log `job-lint6-race-e9b268bd.log`); the interim commit's runs over l2tp, the appliance, config/system and kernelbuilder (`job-lint6-l2tp-app-f0fc5b18.log`, `job-lint6-ike2-02d19dff.log`); after the closure fixes, `ike/engine` with every ze tag (`job-lint6-ike4-886ba6d4.log`): every test passes except `TestEkuPeerCertificateIsNotJudgedByTLSExtendedKeyUsage`, another session's in-flight RFC 4945 EKU work in `remote_cert_eku_test.go`, outside this commit |
 
 ## Work Not Done
 
@@ -374,9 +412,9 @@ ID mapping in `rules/rulelist.go`.
 
 | Field | Value |
 |-------|-------|
-| Artifact | recorded at closure |
-| `./le spec review check` | recorded at closure |
-| Rounds | 1 |
+| Artifact | `tmp/review/lint-backlog-6-access-and-appliance-49da3d3d-44f5-443f-bc7a-73b9535a17f9.md` (83 files: the six `ike/engine` files, six RFC records, the umbrella and the IPsec spec of the closure commit, plus the HEAD blobs of the interim commit's other 69 Go files, which Run 2 reviewed and no later commit changed) |
+| `./le spec review check` | `review_gate: OK (6 code files, clean, hashes match ...)` |
+| Rounds | 3 |
 | Reviewer lenses used | /ze-review inline over `git show 85a33a3887` and the `cache.go` and exhaustive sites: wiring, removed behavior, logic, test strength, security, style, RFC records |
 
 ### Findings fixed
@@ -428,6 +466,27 @@ ID mapping in `rules/rulelist.go`.
 - NOTE: every edit to an RFC-tagged unit is mechanical, and its record was
   resealed or rejudged above.
 
+### Run 3 (closure commit)
+- Over the six `ike/engine` files of the closure commit, by this closure
+  agent, which authored none of them: 0 BLOCKER, 0 ISSUE.
+- Logic: `installUnmatched` and `removeUnmatched` pass `*p`, the same value the
+  range copy held. `planXFRMInterfaceEntries` sets `SPD` on the element of a
+  slice it owns, as it set it on the copy before, then builds the entry from
+  `*p`. Holding `*xfrmInterfaceEntry` is safe because nothing writes through
+  it: `installXFRMInterfaceEntries` reads `entry.params` and stores the
+  pointer, `pruneXFRMInterfaceEntries` reads and deletes, and the failed-read
+  path copies the held pointer into the plan. No package outside `ike/engine`
+  names the type or the map.
+- Tests: the helpers read the same map values by key and the same slice
+  elements by index; no assertion changed.
+- RFC records: the two hand-written `RFC4301-4.4.1-3` breaks remove exactly
+  the behavior each claim names (`ze-test-judge` reading, recorded above).
+- Style: no new function, no `panic`, no directive; the `xfrmInterfaceEntry`
+  comment now states the pointer and never-mutated contract.
+- NOTE: the map-range helpers in the tests still copy one `SPParams` per
+  key, since a map value is not addressable; the lint accepts it and the
+  cost is a test's.
+
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
@@ -438,14 +497,14 @@ ID mapping in `rules/rulelist.go`.
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
-| AC-1 | Zero scoped lint findings | OWED |
+| AC-1 | Zero scoped lint findings | `job-lint6f-21412b75.log`: freebsd, distro, appliance 0 issues; the other flavors' 22 findings are another session's uncommitted files |
 | AC-2 | Tagged race tests pass | `go test -race -count=1` with every feature tag under `./le job run`, 2026-11-10: three `ok` lines, exit 0 |
 | AC-3 | Every directive names its linter and reason | `grep -n "nolint:gosec // G30[12]" internal/appliance/*.go` lists ten sites, each with its reason |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
-| `./le go lint run scope` over the four trees | None: a lint run | OWED |
+| `./le go lint run scope` over the four trees | None: a lint run | Yes, `job-lint6f-21412b75.log` |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |

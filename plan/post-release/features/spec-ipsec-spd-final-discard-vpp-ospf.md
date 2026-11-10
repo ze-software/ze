@@ -206,7 +206,7 @@ Tests owed on the row: RFC4301-4.4.1-3 positive and negative over the VPP SPD an
 - `internal/component/ike/dataplane/policy_role.go` - a role if a new one is needed
 - `rfc/short/rfc4301.md` - remove `{partial}` from RFC4301-4.4.1-3; narrow RFC4301-5.2-1 and RFC4301-5.2-9
 - `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`, `docs/guide/ipsec.md`, `docs/guide/vpp.md` - what each SPD holds
-- `internal/component/ike/engine/unmatched_xfrm_interface.go`, `apply.go` - hold `xfrmInterfaceEntry` by pointer in its maps, clearing the four gocritic `rangeValCopy` findings (lines 257, 352, 405, 429) spec-ipsec-spd-selection left. Inherited from that spec's Work Not Done: the change moves the fingerprints of `planXFRMInterfaceEntries` and `installXFRMInterfaceEntries`, which the RFC4301-4.4.1-3 mutant records and the RFC4301-5.2-1, 4.4.1-3 and 5.2-9 audit verdicts pin, so it lands here, where those proofs are re-recorded anyway
+- Done elsewhere: spec-lint-backlog-6-access-and-appliance's closure commit holds `xfrmInterfaceEntry` by pointer (`unmatched_xfrm_interface.go`, `apply.go`) and ranges `unmatched.go` by index, clearing the gocritic `rangeValCopy` findings once inherited here, and re-recorded the RFC4301-4.4.1-3 mutant records and the 4.4.1-3, 5.2-1 and 5.2-9 audit verdicts
 
 ## Files to Create
 - Tests named in the design.

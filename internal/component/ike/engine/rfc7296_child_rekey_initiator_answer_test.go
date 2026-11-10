@@ -95,7 +95,8 @@ func installedInitiatorScope(child *ChildSA) []tsPair {
 // tells their policies apart.
 func installedPolicyScope(dp *mockDP, child *ChildSA) string {
 	var scope []string
-	for _, p := range dp.policies {
+	for i := range dp.policies {
+		p := &dp.policies[i]
 		if p.Dir != dataplane.SADirOut {
 			continue
 		}

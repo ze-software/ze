@@ -55,7 +55,8 @@ func exemptionKey(p *dataplane.SPParams) string {
 // liveExemptions answers the exemption entries the fake backend holds now.
 func liveExemptions(dp *catchAllDP) []string {
 	var keys []string
-	for _, p := range dp.live {
+	for key := range dp.live {
+		p := dp.live[key]
 		if p.Priority == dataplane.PriorityUnmatchedXFRMInterface {
 			keys = append(keys, exemptionKey(&p))
 		}
@@ -68,7 +69,8 @@ func liveExemptions(dp *catchAllDP) []string {
 // SPD (if_id 0), never an interface SPD's catch-all, which discards under both values.
 func liveCatchAll(t *testing.T, dp *catchAllDP) dataplane.SPAction {
 	t.Helper()
-	for _, p := range dp.live {
+	for key := range dp.live {
+		p := dp.live[key]
 		if p.Priority == int(dataplane.PriorityUnmatched) && p.IfID == 0 && p.Dir == dataplane.SADirOut && p.Src.IP.To4() != nil {
 			return p.Action
 		}
@@ -299,7 +301,8 @@ func interfaceCatchAllKey(p *dataplane.SPParams) string {
 func liveInterfaceCatchAll(t *testing.T, dp *catchAllDP) []string {
 	t.Helper()
 	var keys []string
-	for _, p := range dp.live {
+	for key := range dp.live {
+		p := dp.live[key]
 		if p.Priority != int(dataplane.PriorityUnmatched) || p.IfID == 0 {
 			continue
 		}

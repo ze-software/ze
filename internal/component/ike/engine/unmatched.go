@@ -121,13 +121,14 @@ func installUnmatched(dp dataplane.Dataplane, action dataplane.SPAction, log *sl
 		if err != nil {
 			return fmt.Errorf("ike: build the SPD catch-all entry: %w", err)
 		}
-		for _, p := range policies {
+		for i := range policies {
+			p := &policies[i]
 			// RFC 4301 Section 4.4.1: "Every SPD SHOULD have a nominal, final entry
 			// that matches anything that is otherwise unmatched, and discards it."
 			// RFC 4301 Section 5.2: "If there is no match, discard the traffic." The
 			// entry is what makes every inbound packet meet an SPD-I entry, so one that
 			// did not reach the dataplane refuses the configuration.
-			if err := dp.InstallPolicy(p); err != nil {
+			if err := dp.InstallPolicy(*p); err != nil {
 				return fmt.Errorf("ike: install the SPD catch-all %s entry (dir %d): %w; "+
 					"the daemon needs CAP_NET_ADMIN and a kernel with XFRM (CONFIG_XFRM_USER) to hold it",
 					unmatchedActionName(action), p.Dir, err)
@@ -301,8 +302,9 @@ func removeUnmatched(dp dataplane.Dataplane, log *slog.Logger) {
 			log.Error("ike: could not build the SPD catch-all entry for removal", "error", err)
 			return
 		}
-		for _, p := range policies {
-			if err := dp.RemovePolicyParams(p); err != nil {
+		for i := range policies {
+			p := &policies[i]
+			if err := dp.RemovePolicyParams(*p); err != nil {
 				log.Debug("ike: remove SPD catch-all entry", "dir", p.Dir, "error", err)
 			}
 		}

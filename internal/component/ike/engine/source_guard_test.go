@@ -63,7 +63,8 @@ func (r *guardRecorder) addRule(rule iprule.Source) error {
 
 func (r *guardRecorder) deleteRule(rule iprule.Source) error {
 	if r.dp != nil {
-		for _, p := range r.dp.live {
+		for key := range r.dp.live {
+			p := r.dp.live[key]
 			if p.Priority == dataplane.PriorityUnmatchedXFRMInterface && p.Src.String() == rule.From.String() {
 				r.unguardedAtRuleDelete = append(r.unguardedAtRuleDelete, rule.From.String())
 			}
