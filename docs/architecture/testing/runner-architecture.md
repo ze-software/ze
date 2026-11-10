@@ -447,6 +447,18 @@ outlasts the daemon's socket use.
 <!-- source: internal/test/fixture/ui_fixture_local_command_ssh.go -- localCommandDaemonSSH -->
 <!-- source: internal/test/fixture/ui_fixture_pipe_alias_completion.go -- pipeAliasCompletion -->
 
+A fixture whose daemon serves a second listener takes that port from the
+same lease. The rbac-web-config-deny fixture receives `$PORT` for BGP and
+`$PORT2` for the web server it configures, and it waits for the daemon's
+ready file, then requires the daemon's `web server listening on` line for
+that port, instead of polling a fixed address. The as112-doh test gives its
+DoH listener `$PORT2` in its config and passes the same port to its observer
+plugin. A fixed listener port is shared by every test that names it, so two
+such tests running at once collide however the lease spans fall.
+<!-- source: internal/test/fixture/plugin_fixture_12_rbac.go -- p12WebRBAC, p12WaitWebListener, p12WebRBACEnvironment -->
+<!-- source: internal/test/fixture/plugin_fixture_02.go -- as112DoH02, as112DoHAddress02 -->
+<!-- test: internal/test/fixture/plugin_fixture_12_rbac_test.go -- TestRBACWebFixtureTakesTheLeasedWebPort, TestRBACWebFixtureWaitsForTheReportedListener, TestAS112DoHFixtureTakesTheLeasedPort -->
+
 These are same-host, same-user advisory leases for processes sharing `/tmp`,
 not universal socket reservations. They cannot exclude a nonparticipating
 process that binds after probing, or coordinate isolated lock filesystems.

@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -17,7 +18,20 @@ import (
 	"time"
 )
 
-func p12WebRBAC(ctx context.Context, _ []string) error {
+// p12WebRBAC drives rbac-web-config-deny. Its two arguments are the
+// runner-leased $PORT and $PORT2: the BGP port and the web listener port. A
+// fixed web port collided with every other test that bound 18443 at the same
+// time (as112-doh), so both ports come from the runner's lease, which outlasts
+// this function and therefore the daemon it stops and reaps.
+func p12WebRBAC(ctx context.Context, args []string) error {
+	bgpPort, err := parsePort(args, 0)
+	if err != nil {
+		return err
+	}
+	webPort, err := parsePort(args, 1)
+	if err != nil {
+		return err
+	}
 	configDir, err := os.MkdirTemp("", "ze-web-rbac-")
 	if err != nil {
 		return err
@@ -49,10 +63,14 @@ func p12WebRBAC(ctx context.Context, _ []string) error {
 	}
 
 	configPath := filepath.Join(configDir, "web-rbac-deny.conf")
-	if err := os.WriteFile(configPath, []byte(p12WebRBACConfig), 0o600); err != nil {
+	if err := os.WriteFile(configPath, []byte(p12WebRBACConfigFor(webPort)), 0o600); err != nil {
 		return err
 	}
-	env = childEnvironment(env, map[string]string{"ze_test_bgp_port": strconv.Itoa(12000 + os.Getpid()%40000)})
+	readyFile := filepath.Join(configDir, "ready")
+	env = childEnvironment(env, map[string]string{
+		envTestBGPPort:  strconv.Itoa(bgpPort),
+		"ZE_READY_FILE": readyFile,
+	})
 	daemonLog, err := os.Create("daemon.log")
 	if err != nil {
 		return err
@@ -65,10 +83,16 @@ func p12WebRBAC(ctx context.Context, _ []string) error {
 		daemonLog.Close() //nolint:errcheck // the start failure below is the error worth reporting
 		return fmt.Errorf("start ze: %w", err)
 	}
-	done := make(chan error, 1)
-	go func() { done <- daemon.Wait() }()
+	done := make(chan struct{})
+	go func() {
+		_ = daemon.Wait()
+		close(done)
+	}()
 
-	checkErr := p12WebRBACCheck(ctx)
+	checkErr := p12WaitWebListener(ctx, done, readyFile, "daemon.log", webPort)
+	if checkErr == nil {
+		checkErr = p12WebRBACCheck(ctx, p12WebRBACBase(webPort))
+	}
 	_ = daemon.Process.Signal(syscall.SIGTERM)
 	select {
 	case <-done:
@@ -87,6 +111,71 @@ func p12RunCommand(ctx context.Context, env []string, stdin io.Reader, stdout io
 	command.Stdout = stdout
 	command.Stderr = os.Stderr
 	return command.Run()
+}
+
+// p12WebRBACListenerLine is the line the daemon prints once its web server has
+// bound (startWebServer, cmd/ze/hub/service_web.go), before it writes the
+// ready file.
+const p12WebRBACListenerLine = "web server listening on "
+
+// p12WebRBACBase is the URL of the web listener on the leased port.
+func p12WebRBACBase(webPort int) string {
+	return "https://" + net.JoinHostPort("127.0.0.1", strconv.Itoa(webPort))
+}
+
+// p12WebRBACConfigFor is the daemon config with the web server on webPort.
+func p12WebRBACConfigFor(webPort int) string {
+	return p12WebRBACConfig + p12WebRBACEnvironment(webPort) + p12WebRBACBGP
+}
+
+// p12WebRBACEnvironment is the config's environment block: the one web server,
+// on the leased port.
+func p12WebRBACEnvironment(webPort int) string {
+	return `environment {
+	web {
+		enabled true;
+		server main {
+			ip 127.0.0.1;
+			port ` + strconv.Itoa(webPort) + `;
+		}
+	}
+}
+`
+}
+
+// p12WaitWebListener returns once the daemon has reported its web listener on
+// the leased port. The daemon writes the ready file after startup completes,
+// and it prints the listener line before that, once the web server has bound,
+// so the ready file is the event and the line is what it reports. A daemon
+// that started without its web server (a bind failure prints a warning and
+// carries on) is refused here, naming the log, rather than polled.
+func p12WaitWebListener(ctx context.Context, done <-chan struct{}, readyFile, logPath string, webPort int) error {
+	ready := false
+	for range WaitAttempts(75, daemonReadyDelay, daemonReadyFallback) {
+		if _, err := os.Stat(readyFile); err == nil {
+			ready = true
+			break
+		}
+		select {
+		case <-done:
+			return fmt.Errorf("ze exited before it was ready; see %s", logPath)
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(daemonReadyDelay):
+		}
+	}
+	if !ready {
+		return fmt.Errorf("ze did not write its ready file %s; see %s", readyFile, logPath)
+	}
+	log, err := os.ReadFile(logPath) //nolint:gosec // the fixture's own daemon log
+	if err != nil {
+		return err
+	}
+	want := p12WebRBACListenerLine + p12WebRBACBase(webPort) + "/"
+	if !strings.Contains(string(log), want) {
+		return fmt.Errorf("ze is ready but did not report %q in %s", want, logPath)
+	}
+	return nil
 }
 
 const p12WebRBACConfig = `system {
@@ -108,16 +197,9 @@ const p12WebRBACConfig = `system {
 	}
 }
 
-environment {
-	web {
-		enabled true;
-		server main {
-			ip 127.0.0.1;
-			port 18443;
-		}
-	}
-}
+`
 
+const p12WebRBACBGP = `
 bgp {
 	router-id 1.2.3.4
 	peer peer1 {
@@ -150,7 +232,7 @@ bgp {
 }
 `
 
-func p12WebRBACCheck(ctx context.Context) error {
+func p12WebRBACCheck(ctx context.Context, base string) error {
 	transport := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}} //nolint:gosec // local fixture uses an ephemeral self-signed certificate
 	client := &http.Client{Transport: transport, Timeout: 5 * time.Second}
 	defer transport.CloseIdleConnections()
@@ -160,7 +242,7 @@ func p12WebRBACCheck(ctx context.Context) error {
 		if fields != nil {
 			body = strings.NewReader(fields.Encode())
 		}
-		req, err := http.NewRequestWithContext(ctx, method, "https://127.0.0.1:18443"+path, body)
+		req, err := http.NewRequestWithContext(ctx, method, base+path, body)
 		if err != nil {
 			return 0, nil, err
 		}
@@ -177,11 +259,14 @@ func p12WebRBACCheck(ctx context.Context) error {
 		return resp.StatusCode, data, readErr
 	}
 
-	if !Poll(ctx, 20, 500*time.Millisecond, func() bool {
-		status, _, err := request(http.MethodGet, "/show/environment/daemon/", nil)
-		return err == nil && status >= 200 && status < 300
-	}) {
-		return fmt.Errorf("web show page did not become available")
+	// The listener is reported bound and startup is complete, so the show
+	// page answers now: no poll.
+	status, _, err := request(http.MethodGet, "/show/environment/daemon/", nil)
+	if err != nil {
+		return fmt.Errorf("web show page: %w", err)
+	}
+	if status < 200 || status >= 300 {
+		return fmt.Errorf("web show page status=%d, want 2xx", status)
 	}
 	fmt.Fprintln(os.Stderr, "OK: read-only web user can view show page")
 

@@ -21,14 +21,14 @@ service {
 		enabled true
 		doh {
 			enabled true
-			listen-port 18443
+			listen-port $PORT2
 		}
 	}
 }
 
 plugin {
 	external as112-doh-test {
-		run "le test fixture plugin/as112-doh"
+		run "le test fixture plugin/as112-doh $PORT2"
 		encoder json
 	}
 }

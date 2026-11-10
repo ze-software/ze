@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,9 +24,7 @@ func init() {
 	Register("plugin/api-subscribe", observer02("subscribe-test", apiSubscribe02))
 	Register("plugin/api-unsubscribe", observer02("unsubscribe-test", apiUnsubscribe02))
 	Register("plugin/as112-disable", observer02("as112-disable-test", as112Disable02))
-	Register("plugin/as112-doh", observer02("as112-doh-test", func(ctx context.Context, plugin *sdk.Plugin) error {
-		return as112Enabled02(ctx, plugin, "127.0.0.1:18443", 20, "doh-bound")
-	}))
+	Register("plugin/as112-doh", as112DoH02)
 	Register("plugin/as112-dot-pki", observer02("as112-dot-pki-test", as112DotPKI02))
 	Register("plugin/as112-dot", observer02("as112-dot-test", func(ctx context.Context, plugin *sdk.Plugin) error {
 		return as112Enabled02(ctx, plugin, "127.0.0.1:18853", 20, "dot-bound")
@@ -62,6 +61,32 @@ func observer02(name string, scenario ObserverScenario) Driver {
 		}
 		return Observe(ctx, name, &sdk.Registration{}, scenario)
 	}
+}
+
+// as112DoH02 drives as112-doh. Its argument is the runner-leased $PORT2, the
+// port the test's config gives the DoH listener: a fixed port collided with
+// every other test that bound 18443 at the same time (rbac-web-config-deny).
+func as112DoH02(ctx context.Context, args []string) error {
+	address, err := as112DoHAddress02(args)
+	if err != nil {
+		return err
+	}
+	return Observe(ctx, "as112-doh-test", &sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
+		return as112Enabled02(ctx, plugin, address, 20, "doh-bound")
+	})
+}
+
+// as112DoHAddress02 is the loopback address as112-doh expects its DoH listener
+// on: the one port the test passes, never a fixed one.
+func as112DoHAddress02(args []string) (string, error) {
+	if len(args) != 1 {
+		return "", fmt.Errorf("plugin/as112-doh takes one argument, the DoH listen port, got %d", len(args))
+	}
+	port, err := parsePort(args, 0)
+	if err != nil {
+		return "", err
+	}
+	return net.JoinHostPort("127.0.0.1", strconv.Itoa(port)), nil
 }
 
 func command02(ctx context.Context, plugin *sdk.Plugin, command string) (string, json.RawMessage, error) {
