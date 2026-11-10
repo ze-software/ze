@@ -2633,3 +2633,63 @@ checkout selects no ignored input.
 | `TestLintRefusesAGitIgnoredInput` | the check-ignore refusal skipped | "lint admitted git-ignored real input scratch/probe.go" |
 
 Each restored run passed; `internal/le/go/lint` and `internal/le/job` ok.
+
+
+## Recorded reds for existing carriers, batch of 2026-11-10
+
+Each carrier existed with no recorded red. Each break is a Go overlay of the
+named producer (the P-14 census walk edits its file in place because the
+guard parses source from disk; bytes verified restored), run through the walk
+tool; every one of the 47 breaks failed and every restored run passed
+(`pw/<name>-break.log`, `pw/<name>-restored.log`). The red column is the
+first failing assertion the break produced.
+
+| P | Carrier | Broken producer | Red |
+| --- | --- | --- | --- |
+| P-1 | `TestBgpUnknownVerbFails` (`internal/test/cli`) | `internal/test/cli/cmd_bgp.go` | unknown suite verb returned success |
+| P-14 | `TestEverySchemaResolvingCallerChecksTheResolveError` (`internal/component/config/yang`) | `internal/component/plugin/server/all_import_test.go` | 57 packages resolve the schema through 5 derived functions |
+| P-14 | `TestThisBinaryLinksEveryModuleItsSchemaImports` (`internal/component/config/cli`) | `internal/component/bgp/yang/register.go` | this binary's schema does not resolve, so a module it imports is not linked; add the blank import of the package that registers it to all_import_test.go: resolve YANG mod |
+| P-15 | `TestDirectSpecEditChecksWIP` (`internal/le/hookruntime`) | `internal/le/hookruntime/specwip.go` | direct edit = 0, found true, want 2: |
+| P-15 | `TestSessionStartDebtLineNeverNamesVerify` (`internal/le/hookruntime`) | `internal/le/commit/push.go` | the debt warning "push debt: 1 refusal(s); ./le commit push refuses until they clear; run ./le verify changed to clear them\n  commit 72d214f carries a malformed Review-o |
+| P-15 | `TestParallelRunnerVerifyModeEmitsBothGroupsAndReport` (`internal/test/runner`) | `internal/test/runner/parallel.go` | missing VERIFY FAILURE GROUP in output: |
+| P-16 | `TestDelegatedRenameUsesCommitRoute` (`internal/le/hookruntime`) | `internal/le/hookruntime/bash.go` | git mv old.go new.go = 0, want 2: |
+| P-17 | `TestTmpfsContentAndModeReachBothRoutes` (`internal/test/runner`) | `internal/test/runner/runner_exec.go` | Error:      	Should be true |
+| P-18 | `TestInstallSecondSignalEndsWaitingEntry` (`internal/le/setup/docker/kernel`) | `internal/le/setup/docker/kernel/dockerkernel.go` | second interrupt was suppressed while the owned step ignored TERM |
+| P-2 | `TestETBudgetRejectsNonpositiveAndOverflow` (`internal/component/cli/testing`) | `internal/component/cli/testing/runner.go` | Error:      	An error is expected but got nil. |
+| P-2 | `TestETDimensionsReachScreens` (`internal/component/cli/testing`) | `internal/component/cli/testing/runner.go` | Error:      	Should be true |
+| P-2 | `TestETWaitTimerExpiresAndRestoresConfiguration` (`internal/component/cli/testing`) | `internal/component/cli/testing/headless_wait.go` | Error:      	Should be true |
+| P-20 | `TestArtifactCopyFailurePreservesPublishedBytes` (`internal/le/site`) | `internal/le/site/build.go` | failed publication removed its valid predecessor: open … no such file or directory |
+| P-20 | `TestComparisonConvergencePresence` (`internal/perf/report`) | `internal/perf/result.go` | missing convergence ranked as zero |
+| P-20 | `TestCompareCommandConvergencePresence` (`internal/perf/cli`) | `internal/perf/result.go` | missing convergence: exit 0, output "## \n\n/ DUT / Version / Convergence / +/- / Throughput / +/- / p99 / +/- / Withdrawal / +/- / Pass /\n/-----/---------/------------- |
+| P-20 | `TestComparisonOutputsKeepLatestResultPerDUT` (`internal/perf/report`) | `internal/perf/report/markdown.go` | expected exactly one ze row, got 2 |
+| P-20 | `TestCompareCommandRefusesLoss` (`internal/perf/cli`) | `internal/perf/result.go` | [… … exit = 0, want 1 |
+| P-20 | `TestComparisonRefusesLossBeforeSelection` (`internal/perf/report`) | `internal/perf/result.go` | lossy raw row was ranked |
+| P-22 | `TestSessionStateLabelsSharedCheckout` (`internal/le/session`) | `internal/le/session/summary.go` | whole-tree edits lack their attribution limit: |
+| P-23 | `TestNotEnrolledWriterReaderAgreement` (`internal/le/rfc`) | `internal/le/rfc/meta.go` | not-enrolled documents entered counted set: map[iso-iec-10589:true] |
+| P-24 | `TestWireCensusIncludesNonGoSpeakers` (`internal/le/spec`) | `internal/le/spec/mechanisms/census.go` | omitting the shell reader: Problem = "", want "wire `status.json` has a writer row and no reader row" |
+| P-25 | `TestOwnedDocumentDisposition` (`internal/le/rfc`) | `internal/le/rfc/check_ratchets.go` | native retirement reader lost correction provenance for DRAFT-IETF-SIDROPS-8210BIS-5.12-2 |
+| P-29 | `TestGeneratedReviewRechecksEveryCASAttempt` (`internal/le/commit`) | `internal/le/commit/script.go` | retry published an unreviewed prospective tree: |
+| P-29 | `TestNativeReviewPublishesEarlierWholeAndHunkSnapshots` (`internal/le/commit`) | `internal/le/commit/review.go` | 1 reviewed file(s) changed after the review: internal/reviewed.sh |
+| P-29 | `TestGeneratedReviewUsesOriginArtifact` (`internal/le/commit`) | `internal/le/commit/actions.go` | ambient clean artifact substituted for refused originating review: |
+| P-29 | `TestNativeReviewPinsExecutableMode` (`internal/le/commit`) | `internal/le/commit/review.go` | 1 reviewed file(s) changed after the review: internal/reviewed.sh |
+| P-29 | `TestExplicitReviewBlobRemovalAndMissingObject` (`internal/le/commit`) | `internal/le/spec/review.go` | 1 reviewed file(s) changed after the review: internal/reviewed.sh |
+| P-3 | `TestPassedAssertionReportsCleanupFailure` (`internal/le/interoplab`) | `internal/le/interoplab/lab.go` | structured report = {"scenarios":[{"name":"cleanup-proof","passed":true}],"passed":1,"failed":0,"code":1}, want map[string]interface {}{"code":1, "failed":0, "passed":1,  |
+| P-3 | `TestPeerLingerSurvivesStdinRouting` (`internal/test/runner`) | `internal/test/runner/runner_exec.go` | Error:      	An error is expected but got nil. |
+| P-36 | `TestRunContextEndsTheWaitForASlot` (`internal/le/job`) | `internal/le/job/job.go` | RunContext kept waiting for a slot after its root ended |
+| P-36 | `TestAStalledHolderIsBrokenOnItsSilence` (`internal/le/job`) | `internal/le/job/registry.go` | waiter never reported two observations of "has not grown for": [probe] waiting: quiet-holder running (pid 2636287, 0s elapsed); entry tmp/.ze-jobs/quiet-holder.2636287.jo |
+| P-36 | `TestUnreadableParentIdentityRefusesWork` (`internal/le/job`) | `internal/le/job/job.go` | unreadable identity admitted work: code=0 report={Label:probe Command:[sh -c touch "$1" sh … Admission:claimed Tree:8c2e2f2c83b4f1ac93bc244811c1315e53069df481ebe926d9c3dc |
+| P-38 | `TestRenamedCallersReachRegisteredActions` (`internal/le`) | `internal/le/le/retired/retired.go` | retired "verify status write" is renamed to "verify status recorded", which le verify status declares no action recorded |
+| P-41 | `TestRFC7084TextIsCommitted` (`internal/le/rfc`) | `internal/le/rfc/check_baseline.go` | local-only source was accepted as committed evidence |
+| P-5 | `TestAClosureLeavesNoSpecBehind` (`internal/le/commit`) | `internal/le/commit/script.go` | the closed spec is still on disk |
+| P-5 | `TestARemovedDirectoryIsKeptAndTheScriptFinishes` (`internal/le/commit`) | `internal/le/commit/script.go` | a file under the removed directory was deleted: notes/a.txt |
+| P-5 | `TestADivergentWorkingTreeCopySurvivesTheRemoval` (`internal/le/commit`) | `internal/le/commit/script.go` | the divergent copy was deleted: open … no such file or directory |
+| P-5 | `TestAFailedPublicationKeepsTheUnchangedCopy` (`internal/le/commit`) | `internal/le/commit/script.go` | the block reported success past a held branch lock: |
+| P-5 | `TestAModeOnlyDifferenceLeavesTheFile` (`internal/le/commit`) | `internal/le/commit/script.go` | a copy differing in mode only was deleted |
+| P-5 | `TestARemovalDeletesTheWorkingTreeCopyItCommitted` (`internal/le/commit`) | `internal/le/commit/script.go` | the removed file is still on disk |
+| P-5 | `TestTwoCreatesUnderOneTagKeepTheirOwnMessages` (`internal/le/commit`) | `internal/le/commit/script.go` | both creates answered one message path: tmp/commit-msg-bc247c70-shared-.txt |
+| P-8 | `TestDaemonPathDemandsFunctionalProof` (`internal/le/hookruntime`) | `internal/le/hookruntime/specproof.go` | daemon spec = 0, want 2: ⚠ Spec: 4 warnings |
+| P-8 | `TestSessionStartRendersNoDeferredArtifact` (`internal/le/hookruntime`) | `internal/le/hookruntime/postwrite.go` | the session start rendered plan/release/roadmap.md, which is deferred to the command that names it |
+| P-8 | `TestDesignEvidenceNamesSubjectAndFreshness` (`internal/le/hookruntime`) | `internal/le/hookruntime/designevidence.go` | design gate = 0, found true, want 2: |
+| P-8 | `TestHookVerdictBoundaries` (`internal/le/hookruntime`) | `internal/le/hookruntime/panic.go` | registered write check = 0, found true, want 2: |
+| P-8 | `TestSessionStartWithinHarnessBudget` (`internal/le/hookruntime`) | `internal/le/hookruntime/lifecycle.go` | session start exceeded the harness budget: 6.032641331s |
+| P-8 | `TestDesignEvidenceUsesObservedToolContent` (`internal/le/hookruntime`) | `internal/le/hookruntime/designevidence.go` | design gate = 0, found true, want 2: |
