@@ -195,7 +195,7 @@ package and is the place the new check's unit coverage belongs.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| rate feed sample | → | `tickRates` → `observeFeed` | `TestRateFeedZeroTrafficReportedAtWindow` |
+| rate feed sample | → | `tickRates` → `observeFeed` | `TestRateFeedZeroTrafficReportedAtWindow`; end to end `test/draft/plugin/ddos-detect-internal-blind.ci` (promoted after its red proof) |
 | doctor callback | → | `checkRateFeed` | `TestRateFeedCheckDeclaration`, transport `test/plugin/api-doctor-check.ci` |
 | external ddos-detect, doctor callback | → | `arm(feed, p.IsInternal())` → `rateFeedFinding` → `checkRateFeed` | `TestRateFeedExternalReportsCause`; end to end `test/draft/plugin/ddos-detect-external-blind.ci`, promoted when `spec-plugin-event-bus-across-the-process-boundary` lands |
 
@@ -206,7 +206,7 @@ package and is the place the new check's unit coverage belongs.
 | AC-1 | Armed detector, one window of all-zero samples with interfaces | `ze doctor` shows warning `doctor-ddos-detect-blind` naming the feed, the window and `ze show interface rate` | One sample short of the window: no warning, the baseline is not yet all zeros |
 | AC-2 | One window of samples with no interface | Warning names the missing interfaces and `ze show interface` | None |
 | AC-3 | No sample for one window since arm or since the last sample, internal plugin | Warning says no sample arrived and names `ze show interface rate` | Less than a window: no warning |
-| AC-9 | An armed detector that runs as an external plugin process | From arm, the doctor check warns `doctor-ddos-detect-blind` naming the external-process cause and the `plugin { external ddos-detect { ... } }` block to remove; its empty samples never turn it into "no interface", and log no zero-run WARN. Proven by `TestRateFeedExternalReportsCause` (5559f4a2fd). Today an external ddos-detect never arms: it fails at Config with "ddos-detect: event bus not configured" (`plan/journal/process-global-read-across-the-plugin-boundary.md`, 2026-11-10, owned by `spec-plugin-event-bus-across-the-process-boundary`), loudly, so it presents no ready state. The finding becomes reachable end to end when that spec lands | `warnIfExternal` already logs the cause at start |
+| AC-9 | An armed detector that runs as an external plugin process | From arm, the doctor check warns `doctor-ddos-detect-blind` naming the external-process cause and the `plugin { external ddos-detect { ... } }` block to remove; its empty samples never turn it into "no interface", and log no zero-run WARN. Proven by `TestRateFeedExternalReportsCause` (5559f4a2fd). Today an external ddos-detect never arms: `loadBus` refuses `OnConfigure` with "ddos-detect: event bus not configured" (`plan/journal/process-global-read-across-the-plugin-boundary.md`, 2026-11-10, owned by `spec-plugin-event-bus-across-the-process-boundary`). ze logs that line at ERROR, removes the plugin and keeps running, because ddos-detect is not a fatal plugin; `show doctor` then lists no ddos-detect check and is clean (`plan/journal/failed-start-reads-as-absent.md`, 2026-11-10, owned by `spec-doctor-reports-failed-plugin-startup`). The finding becomes reachable end to end when the event-bus spec lands | `warnIfExternal` already logs the cause at start |
 | AC-4 | First sample with pps or bps above zero after a blind run | Finding clears; one INFO log line | None |
 | AC-5 | Zero run reaches the window | Exactly one WARN log line for the run | Later idle samples log nothing, so the log is not flooded |
 | AC-6 | ddos detect disabled | Check answers with an empty diagnostic list | Disabled detector subscribes to no feed |
@@ -248,6 +248,7 @@ package and is the place the new check's unit coverage belongs.
 |------|----------|-------------------|--------|
 | `api-doctor-check` | `test/plugin/api-doctor-check.ci` | Declared plugin doctor check reaches `show doctor` | existing |
 | `ddos-detect-external-blind` | `test/draft/plugin/ddos-detect-external-blind.ci`, fixture `internal/test/fixture/ddos_detect_blind.go` | An external ddos-detect is reported blind with its cause by `show doctor` (AC-9) | draft: red until `spec-plugin-event-bus-across-the-process-boundary` lands |
+| `ddos-detect-internal-blind` | `test/draft/plugin/ddos-detect-internal-blind.ci`, fixture `doctorDDoSDetectBlindZero` in `internal/test/fixture/ddos_detect_blind.go` | An internal ddos-detect on a box that receives nothing is reported blind by `show doctor` (AC-1, AC-5) | draft: run, red proof, stress, then promote and add to `netnsSelections[netnsPlugin]` |
 
 ## Files to Modify
 - `internal/plugins/ddos/detect/detector.go` - feed watch field, observeFeed calls
@@ -361,20 +362,20 @@ package and is the place the new check's unit coverage belongs.
 
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
-| An armed detector whose rate feed shows no traffic is reported by `ze doctor`, distinguishing "no attack" from "no traffic" | Unit tests over the real tick path, plus the transport | `TestRateFeedZeroTrafficReportedAtWindow`, `TestRateFeedNoInterface`, `TestRateFeedNoSample` drive `tickRates` and `checkRateFeed`; red proof recorded for 3c7aef2403 (handoff); transport `test/plugin/api-doctor-check.ci` |
-| The operator who never runs doctor sees it in the log, once per edge | Unit test | `TestRateFeedLogsEachEdgeOnce` |
-| An armed external detector is reported blind with its real cause (AC-9) | Unit test | `TestRateFeedExternalReportsCause` (5559f4a2fd, red proof done). No external detector arms today: it fails at Config, loudly, so it presents no ready state (journal row 2026-11-10, owned by `spec-plugin-event-bus-across-the-process-boundary`) |
+| An armed detector whose rate feed shows no traffic is reported by `ze doctor`, distinguishing "no attack" from "no traffic" | Functional test end to end on the real rate feed, plus unit tests over the tick path | `test/draft/plugin/ddos-detect-internal-blind.ci` (fixture `doctorDDoSDetectBlindZero`): an internal ddos-detect in a fresh namespace whose links receive nothing is reported by `show doctor` with the zero-traffic text, and the onset WARN is logged; run and red proof owed (handoff), then promoted to `test/plugin/` and added to the `netnsPlugin` selection. Units `TestRateFeedZeroTrafficReportedAtWindow`, `TestRateFeedNoInterface`, `TestRateFeedNoSample` drive `tickRates` and `checkRateFeed`; red proof recorded for 3c7aef2403 (handoff) |
+| The operator who never runs doctor sees it in the log, once per edge | Unit test, plus the onset WARN asserted by the `.ci` | `TestRateFeedLogsEachEdgeOnce`; `ddos-detect-internal-blind.ci` `expect=stderr:contains` |
+| An armed external detector is reported blind with its real cause (AC-9) | Unit test | `TestRateFeedExternalReportsCause` (5559f4a2fd, red proof done). No external detector arms today: `loadBus` refuses Config, ze logs ERROR and keeps running without the plugin, and `show doctor` is clean (`plan/journal/failed-start-reads-as-absent.md`, owned by `spec-doctor-reports-failed-plugin-startup`; the bus itself by `spec-plugin-event-bus-across-the-process-boundary`) |
 
 ## Review Gate
 
 | Round | Reviewer | BLOCKER | ISSUE | Resolution |
 |-------|----------|---------|-------|------------|
 | 1 | independent reviewer | 1: an external ddos-detect was reported "no interface" | 1: no ddos-specific `.ci` | BLOCKER fixed in 5559f4a2fd (`arm` records `p.IsInternal()`, `TestRateFeedExternalReportsCause`). ISSUE answered by `test/draft/plugin/ddos-detect-external-blind.ci` and the Known Limitations entry for the external case |
-| 2 | second independent reviewer | owed | owed | Runs after the `ze-test-judge` verdict on the onRates test conversion (approved, 9 units) |
+| 2 | second independent reviewer | 0 | 4: "fails loudly" half true (doctor clean after the startup failure); guide and `codes.go` claimed the external case "is reported"; stale two-feed docs after e4529a2ef1; no `.ci` for the internal blind finding. 3 NOTE: the `warnIfExternal` comment, explicit-phase failure skipping phases 3 to 5, and the fixture generalization | ISSUE 1: verified at the producers (`deliverConfigRPC`, `runPluginPhaseWithin`, `stopRemovedProcess`, `DoctorCheckPlugins`); journal rows `failed-start-reads-as-absent` and `one-failure-skips-independent-startup-work` owned by the new `spec-doctor-reports-failed-plugin-startup`; AC-9, Goal Validation and Known Limitations reworded. ISSUE 2 and NOTE 6: guide, `codes.go` and the `warnIfExternal` comment say an external ddos-detect fails startup today. ISSUE 3: guide check-interval paragraph and `traffic-usage-monitor.md` Consequences rewritten for one feed. ISSUE 4: `test/draft/plugin/ddos-detect-internal-blind.ci` with fixture `plugin/doctor-ddos-detect-blind-zero`; run, red proof and promotion owed |
 
 ## Known Limitations
-- The internal zero-traffic and no-interface cases have no `.ci`: a functional run on loopback carries keepalive traffic, so neither can be produced. Unit tests cover them over the real tick path.
-- The external case has no passing `.ci` yet. An external ddos-detect fails at Config with "ddos-detect: event bus not configured", because `ConfigureEventBus` runs only in-process (`plan/journal/process-global-read-across-the-plugin-boundary.md`, 2026-11-10). `test/draft/plugin/ddos-detect-external-blind.ci` stays a draft and goes green when `spec-plugin-event-bus-across-the-process-boundary` lands. `test/plugin/ddos-detect-external-warns.ci` masks the Config failure: it tears down after the start warning; that spec owns it too.
+- The internal zero-traffic case is proven end to end only in a fresh network namespace (`ddos-detect-internal-blind.ci`, `option=netns-link`): a host or the shared guest root always receives traffic. lo still carries the fixture's TLS connection, so the fixture reads `show doctor` only after a silence longer than one window. The no-interface case has no `.ci`: a namespace always holds lo. Unit tests cover it over the real tick path.
+- The external case has no passing `.ci` yet. An external ddos-detect fails at Config with "ddos-detect: event bus not configured", because `ConfigureEventBus` runs only in-process (`plan/journal/process-global-read-across-the-plugin-boundary.md`, 2026-11-10). ze logs it at ERROR and keeps running without the plugin, and `show doctor` is then clean, because a removed plugin's checks are no longer listed (`plan/journal/failed-start-reads-as-absent.md`, owned by `spec-doctor-reports-failed-plugin-startup`). `test/draft/plugin/ddos-detect-external-blind.ci` stays a draft and goes green when `spec-plugin-event-bus-across-the-process-boundary` lands. `test/plugin/ddos-detect-external-warns.ci` masks the Config failure: it tears down after the start warning; that spec owns it too.
 - The no-sample case has no log line: with no sample there is no tick to drive one. `ze doctor` reports it.
 - `onRate` and `tickInfos` (the cumulative-counter feed) are deleted with the fallback that called them (no-layering). The detector and characterization tests that drove them now drive `onRates`; `TestRateFeedNoInterfaceOnCounterPoll` existed only for the deleted path and is deleted. A `ze-test-judge` approved the change for all 9 units.
 
@@ -394,7 +395,7 @@ package and is the place the new check's unit coverage belongs.
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
 - [ ] Boundary tests for all numeric inputs
-- [ ] Functional `.ci` tests for end-to-end behavior (`test/draft/plugin/ddos-detect-external-blind.ci`, a draft until `spec-plugin-event-bus-across-the-process-boundary` lands; the internal cases: see Known Limitations)
+- [ ] Functional `.ci` tests for end-to-end behavior (`ddos-detect-internal-blind.ci`, run by `./le test qemu all test test/draft/plugin/ddos-detect-internal-blind.ci`, then promoted; `test/draft/plugin/ddos-detect-external-blind.ci`, a draft until `spec-plugin-event-bus-across-the-process-boundary` lands)
 - [ ] Interop tests for protocol features (N-A: no protocol peer)
 
 ### Closure
