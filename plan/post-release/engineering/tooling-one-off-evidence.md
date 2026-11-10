@@ -3480,3 +3480,38 @@ Two defects met on the way, both fixed:
 A first guest attempt with `docker-lab command` (no `harness`) ran as uid
 1000 with no Go toolchain, and one with a kernel other than the image's own was
 refused. Both are void.
+
+## Re-audit: P-26 scope and placement, P-29 review identity (2026-11-10)
+
+**P-26 (c), the 16-package scope.** CI run 41071626530 closed 85 lint members
+(sets A to D) across 16 packages, the set `scratch/p26-ci-closed.txt` lists.
+Eight of those packages had a recorded scoped lint (batches L1-L8). The other
+eight ran together today: `./le go lint run scope` over `internal/appliance`,
+`internal/component/bgp/plugins/nlri/mvpn`, `.../nlri/vpn`,
+`internal/component/ike/engine`, `internal/component/plugin/server`,
+`internal/le/interoplab/radiussubscriber`, `internal/le/job` and
+`internal/plugins/iface/dhcp`. All 11 members CI closed in those packages are
+gone (`members 11 still 0 gone 11`). The run reports two findings outside the
+closed set, both in other work and outside P-26: an `unparam` in
+`plugin/server/startup_autoload.go` (`9327138364`) and a gofmt finding in
+`internal/le/job/contention_test.go`.
+
+**P-26 (a), `ui/le-placement-answers`.** It was red at HEAD on another session's
+`internal/le/interoplab/ipsec/icmperror.go`, first untracked and then
+committed (`eec854d922`) with a reqid `ParseUint` and no numberparse allowlist
+line. With `2163c58ffb`, `./le repo check tree` passes and
+`./le test ui le-placement-answers` passes 1/1.
+
+**P-29, the review identity side.** `TestReviewIdentityExcludesUnselectedConcurrentBytes`
+(`internal/le/commit`, `ed47ac6a10`) records a real hunks review while an
+unselected concurrent hunk sits on disk. It proves three things: the recorded
+pin hashes HEAD's blob plus the selected patch, the selection check is clean,
+and a whole-file check calls the path stale.
+
+| Break | Red | Restored |
+| --- | --- | --- |
+| `internal/le/spec/review.go` `recordedFile`, hunks branch: `selection.Read(root, path)` replaced by reading the working-tree file | "the review identity is not the selected snapshot: recorded 7616752c..., selected snapshot e4cb94bd..., working-tree file 7616752c..." | ok |
+
+This carries the hunks route. An earlier block's whole-snapshot route has no
+identity assertion of its own. `TestNativeReviewPublishesEarlierWholeAndHunkSnapshots`
+checks only what that route publishes.
