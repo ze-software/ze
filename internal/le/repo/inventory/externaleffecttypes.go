@@ -148,7 +148,7 @@ func (w *externalTypeWalk) shape(source sourceExpr, scope *externalTypeScope, me
 			}
 			result.join(externalFlat(value, 0))
 			if len(field.Names) == 0 {
-				name := externalEmbeddedTypeName(field.Type)
+				name := embeddedTypeName(field.Type)
 				if name == "" {
 					result.join(externalValue{unknown: "embedded type capability ownership is unresolved"})
 					continue
@@ -428,24 +428,4 @@ func externalResolvedTypeArgument(argument externalTypeArgument, depth int) exte
 		depth++
 	}
 	return argument
-}
-
-func externalEmbeddedTypeName(value ast.Expr) string {
-	for range 128 {
-		switch datatype := value.(type) {
-		case *ast.Ident:
-			return datatype.Name
-		case *ast.SelectorExpr:
-			return datatype.Sel.Name
-		case *ast.StarExpr:
-			value = datatype.X
-		case *ast.IndexExpr:
-			value = datatype.X
-		case *ast.IndexListExpr:
-			value = datatype.X
-		default:
-			return ""
-		}
-	}
-	return ""
 }

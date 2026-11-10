@@ -2,6 +2,7 @@
 package repoinventory
 
 import (
+	"context"
 	"errors"
 	"strconv"
 	"strings"
@@ -59,4 +60,51 @@ func (s *Snapshot) externalCertificate() (externalProof, error) {
 		return externalProof{sites: sites, refusal: err}, nil
 	}
 	return externalProof{sites: analysis.admitted}, nil
+}
+
+// Plugins reports the committed Linux le population after the external-effect
+// proof certified it. It lives with the proof and goes with it: every reader
+// outside this file reads DeclaredPlugins.
+func Plugins(root string) ([]Plugin, error) {
+	snapshot, err := ReadCommitted(context.Background(), root)
+	if err != nil {
+		return nil, err
+	}
+	return snapshot.Plugins()
+}
+
+// Plugins answers the declared registrations only once the external-effect
+// proof admitted the tree. It returns no partial list when the proof refuses.
+func (s *Snapshot) Plugins() ([]Plugin, error) {
+	reader, err := s.readRegistrations()
+	if err != nil {
+		return nil, err
+	}
+	registrations := sortedRegistrations(reader)
+	result := make([]Plugin, 0, len(registrations))
+	for index := range registrations {
+		result = append(result, registrations[index].plugin)
+	}
+	return result, nil
+}
+
+// readRegistrations runs the declared walk under the external-effect proof.
+// A walk refusal is reported first, because it names a retained source; the
+// proof's own refusal then prevents publication of a walk that succeeded.
+func (s *Snapshot) readRegistrations() (*registrations, error) {
+	certificate, err := s.externalCertificate()
+	if err != nil {
+		return nil, err
+	}
+	reader, err := s.walkRegistrations()
+	if err != nil {
+		return nil, err
+	}
+	if certificate.refusal != nil {
+		return nil, certificate.refusal
+	}
+	if err := s.refuseEmpty(reader); err != nil {
+		return nil, err
+	}
+	return reader, nil
 }

@@ -156,7 +156,7 @@ func (e *externalEffects) literalLayout(source sourceExpr, depth int, positional
 					if positional {
 						return externalLiteralLayout{}, "positional embedded field layout is unresolved"
 					}
-					name := externalEmbeddedTypeName(field.Type)
+					name := embeddedTypeName(field.Type)
 					if name == "" {
 						return externalLiteralLayout{}, "embedded field ownership is unresolved"
 					}

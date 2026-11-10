@@ -78,7 +78,7 @@ func (e *expression) promotedMethod(receiver sourceExpr, selector *ast.SelectorE
 				if !retained {
 					return methodCall{}, false
 				}
-				name := externalEmbeddedTypeName(field.Type)
+				name := embeddedTypeName(field.Type)
 				if name == "" {
 					return methodCall{}, false
 				}
@@ -196,7 +196,7 @@ func declaresField(definition *ast.TypeSpec, name string) bool {
 	}
 	for _, field := range structure.Fields.List {
 		if len(field.Names) == 0 {
-			if externalEmbeddedTypeName(field.Type) == name {
+			if embeddedTypeName(field.Type) == name {
 				return true
 			}
 			continue

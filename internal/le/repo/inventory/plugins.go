@@ -22,19 +22,8 @@ const modulePrefix = "github.com/ze-software/ze/"
 // yangDirectory is the directory name a package keeps its YANG modules in.
 const yangDirectory = "yang"
 
-// Plugins reports the complete committed Linux le population, independent of
-// the host registry and dirty working-tree files.
-func Plugins(root string) ([]Plugin, error) {
-	snapshot, err := ReadCommitted(context.Background(), root)
-	if err != nil {
-		return nil, err
-	}
-	return snapshot.Plugins()
-}
-
 // DeclaredPlugins reports the registrations the committed Linux le source
-// declares, read the way Plugins reads them but without the external-effect
-// proof. The website, the inventory report, the gated-plugin table and the
+// declares. The website, the inventory report, the gated-plugin table and the
 // coupling check all read this list.
 func DeclaredPlugins(root string) ([]Plugin, error) {
 	snapshot, err := ReadCommitted(context.Background(), root)

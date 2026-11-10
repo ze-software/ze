@@ -213,7 +213,8 @@ Format: `<afi>/<safi>` — always slash-separated, lowercase.
 | IPv4 Labeled | `ipv4/nlri-mpls` |
 | IPv6 Labeled | `ipv6/nlri-mpls` |
 | IPv4 RTC | `ipv4/rtc` |
-<!-- source: internal/component/bgp/message/family.go -- builtinFamilies, registerBuiltinFamilies -->
+<!-- source: internal/component/bgp/message/family.go -- builtinFamilies -->
+<!-- source: internal/component/bgp/message/register_families.go -- registerBuiltinFamilies -->
 
 ### Complete Current Format Examples
 

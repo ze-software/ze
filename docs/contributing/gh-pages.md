@@ -594,7 +594,8 @@ a call the reader cannot follow, is not a step of `./le site build`. The
 `plugin gated-table check` and `plugin coupling check` stages and the
 inventory report read the same declared list; only the inventory package's
 own unit tests run the proof, through `repoinventory.Plugins`.
-<!-- source: internal/le/repo/inventory/plugins.go -- DeclaredPlugins, Plugins -->
+<!-- source: internal/le/repo/inventory/plugins.go -- DeclaredPlugins -->
+<!-- source: internal/le/repo/inventory/externalcertificate.go -- Plugins -->
 <!-- source: internal/le/verify/engine/stages.go -- fullStages -->
 
 The command catalog and the configuration tree below need no container: a

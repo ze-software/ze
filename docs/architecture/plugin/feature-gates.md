@@ -90,25 +90,28 @@ registration metadata refuses the inventory instead of publishing a smaller
 host-dependent list. Source reads do not export or compile a checkout.
 <!-- source: internal/le/repo/inventory/source.go -- ReadCommitted, linuxContext, Snapshot.selectPackage -->
 <!-- source: internal/le/repo/inventory/expressions.go -- expression.text, expression.texts -->
-<!-- source: internal/le/repo/inventory/registrations.go -- Snapshot.Plugins, registrations.metadata -->
+<!-- source: internal/le/repo/inventory/registrations.go -- Snapshot.DeclaredPlugins, Snapshot.walkRegistrations, registrations.metadata -->
 <!-- source: internal/le/repo/inventory/familyexpressions.go -- expression.familyName, expression.familyProjection -->
 
 Executable calls use one bounded normalized callee for parentheses and immutable
 declaration aliases, then dispatch its retained function or closure in the
 defining file and package. Arguments keep their caller scope. A function value
-merely passed or returned is not executed. Aliases of the registration APIs
-still refuse when their execution ownership is unsupported. An opaque callee
-or local, parameter, indexed, returned or import-shadowing receiver cannot
-inherit the standard-library boundary from a missing import lookup: a package
-selector must prove its lexical import binding. Unsupported owners refuse
-without publishing partial membership; this is not a method or value interpreter.
-Following a callable initializer also requires an immutable binding: a reused
+merely passed or returned is not executed. A call the walk cannot resolve to a
+retained declaration (an alias of a registration API, an opaque callee, a
+local, parameter, indexed, returned or import-shadowing receiver), and a
+bodyless function, is opaque: its operands are still walked, so a registration
+among them is read, and no body is followed for the call itself. A registration
+reached only through such a call is not in the declared list, and the
+comparison with the built `ze`'s registry names that missing plugin. This is
+not a method or value interpreter. Following a callable initializer also requires an immutable binding: a reused
 short declaration is a write to its existing object, and an escaping address
-refuses rather than guessing which function a pointer write installs.
-A local closure `name := func(...) {...}` whose name is used only as a callee
-executes its own literal; any other use of the name (a copy, a reassignment,
-an address) leaves the call a closure alias, which refuses.
-<!-- source: internal/le/repo/inventory/externalformals.go -- externalClosureBinding, closureCalledOnly -->
+leaves the call opaque rather than guessing which function a pointer write
+installs. A local closure `name := func(...) {...}` whose name is used only as
+a callee executes its own literal; any other use of the name (a copy, a
+reassignment, an address) leaves the call a closure alias, which is opaque.
+<!-- source: internal/le/repo/inventory/registrations.go -- registrations.node -->
+<!-- source: internal/le/plugin/registered/registered.go -- Compare -->
+<!-- source: internal/le/repo/inventory/callsites.go -- closureBinding, closureCalledOnly -->
 <!-- source: internal/le/repo/inventory/callablealiases.go -- registrations.callableSource, registrations.callableImport -->
 <!-- source: internal/le/repo/inventory/registrations.go -- registrations.node -->
 <!-- source: internal/le/repo/inventory/mutations.go -- expression.callableImmutable, expression.writes -->
@@ -641,7 +644,8 @@ A local closure declared as `name := func(...) {...}` is a direct callee: each
 call `name(args)` writes its argument equations as a call of the literal does,
 and its declaration is not a use. Any other use of the name (a copy, a
 reassignment, a reused short declaration) is indirect and refuses.
-<!-- source: internal/le/repo/inventory/externalformals.go -- externalClosureBinding, externalEffects.formalTarget -->
+<!-- source: internal/le/repo/inventory/callsites.go -- closureBinding -->
+<!-- source: internal/le/repo/inventory/externalformals.go -- externalEffects.formalTarget -->
 Primitive scalar
 parameters acquire their own type methods without borrowing ambient references;
 reference-bearing parameters exposed externally retain the full ambient union.
@@ -943,7 +947,8 @@ runs the proof, and only the inventory package's own tests call it. Building
 the website renders data and runs no check.
 <!-- source: internal/le/repo/inventory/collectactualfiles.go -- Snapshot.collect, Snapshot.collectFiles -->
 <!-- source: internal/le/repo/inventory/registrations.go -- registrations.registerModule -->
-<!-- source: internal/le/repo/inventory/registrations.go -- Snapshot.DeclaredPlugins, callAuthority, Snapshot.walkRegistrations -->
+<!-- source: internal/le/repo/inventory/registrations.go -- Snapshot.DeclaredPlugins, Snapshot.walkRegistrations -->
+<!-- source: internal/le/repo/inventory/externalcertificate.go -- Snapshot.Plugins -->
 <!-- source: internal/le/repo/inventory/registrations.go -- Snapshot.declaredRegistrations -->
 <!-- source: internal/le/plugin/coupling/coupling.go -- load, buildSnapshotModel -->
 <!-- source: internal/le/plugin/gatedtable/gatedtable.go -- Derive -->

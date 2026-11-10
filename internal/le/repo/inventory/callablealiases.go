@@ -56,7 +56,7 @@ func (r *registrations) callableSource(call *ast.CallExpr, scope initializationS
 				// its own literal, as zstd's fatalErr(binary.Read(...))
 				// does; any other use of the name keeps the alias refusal.
 				if !aliased {
-					if literal, bound := externalClosureBinding(value); bound {
+					if literal, bound := closureBinding(value); bound {
 						if closureCalledOnly(source.file, binding) {
 							return sourceExpr{value: literal, file: source.file, pkg: source.pkg}, true, nil
 						}
