@@ -3043,3 +3043,16 @@ own store; the clean leg needs the launcher's build of that commit. The
 scenarios themselves report real shortfalls on this host, for example
 "2k-sessions: tunnels: 0/10", which is the route's own measurement, not a
 cancellation result.)
+
+## P-13: a capture waits out CSS transitions (2026-11-10)
+
+`TestBrowserScreenshotSettlesCSSTransition` (`internal/component/web/testing`,
+integration tag, real Chromium through agent-browser) starts a 1200ms
+background-color transition from red to lime and captures; the pixel at
+(100,100) must be exactly lime. Clean PASS 8.0s. Break (Go overlay of
+`capture.go`): `captureReadyExpr` no longer waits for running finite
+animations: FAIL "captured inside the CSS transition: R=38293 G=27242 B=0, want
+the settled lime"; restored PASS (`capw/`). This is the mechanism the
+2026-08-24 poster row suspected; the earlier "signal: killed" runs here were
+the test's 30s budget expiring under heavy host load, not a browser fault (a
+cold agent-browser start takes 3.4s).
