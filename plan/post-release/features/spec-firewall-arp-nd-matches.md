@@ -9,7 +9,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-28 |
+| Updated | 2026-11-10 |
 
 ## Task
 
@@ -45,13 +45,33 @@ This ownership split preserves the original obligations and evidence. Migration 
 | Scope | Current owner |
 |---|---|
 | New leaves: AC-1..11, AC-13..14, AC-17..21; all feature design outside the release correction. | `plan/post-release/features/spec-firewall-arp-nd-matches.md` |
-| Existing match-family correctness and reserved-table ownership: AC-12, AC-15, AC-16, AC-22. | `plan/release/fixes/spec-firewall-existing-family-and-owner-correctness.md` |
+| Existing match-family correctness and reserved-table ownership: AC-12, AC-15, AC-16, AC-22. | `spec-firewall-existing-family-and-owner-correctness`, closed (6da2c99b2c, 29c4f94f8e, 3853a00b92) |
 
 ## Work Not Done
 
 | Scope | Current owner |
 |---|---|
-| Existing match-family correctness and reserved-table ownership: AC-12, AC-15, AC-16, AC-22. | `plan/release/fixes/spec-firewall-existing-family-and-owner-correctness.md` |
+| Existing match-family correctness and reserved-table ownership: AC-12, AC-15, AC-16, AC-22. | `spec-firewall-existing-family-and-owner-correctness`, closed (6da2c99b2c, 29c4f94f8e, 3853a00b92) |
+
+## Existing Mechanisms (MANDATORY)
+
+Each row is a mechanism the historical Current Behavior below already names, read in the code on 2026-11-10.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|---------------------------------------------------------------------|
+| ARP and ND match types | `internal/component/firewall/model.go`, `ARPOperation`, `MatchARPOperation`, `MatchARPSenderAddress`, `MatchNDTargetAddress` | Model the opcode, the sender protocol address and the ND target; each is documented daemon-only, produced only by the VRRP owner filter | Extends: the three types gain config leaves, and three sibling types (`MatchARPTargetAddress`, `MatchARPSenderHardwareAddress`, `MatchARPTargetHardwareAddress`) are added the same way |
+| `from` block parsing | `internal/component/firewall/config.go`, `parseFromBlock` | Maps each `from` leaf, read by string key, to one Match | Extends: six key reads beside `icmpv6-type`, no second parser |
+| `from-block` grouping and the `arp` family | `internal/component/firewall/yang/ze-firewall-conf.yang`, grouping `from-block`, typedef `table-family` | Offers `family arp` for a table and no ARP or ND leaf | Extends: six leaves in the existing grouping; no new family or container |
+| Match validation | `internal/component/firewall/validate.go`, `validateMatch`, `ipHeaderMatchLeaf` | Refuses the existing ARP and ND types outside their families and validates their addresses; refuses IP-header matches in family arp | Extends: cases for the three new types and the ND type rule (AC-11); the arp-family refusal is reused unchanged |
+| nft ARP and ND lowering | `internal/plugins/firewall/nft/lower_linux.go`, `lowerARPOperationMatch`, `lowerARPSenderAddressMatch`, `arpEthernetIPv4`, `lowerNDTargetAddressMatch` | Lowers the opcode at offset 6, the sender address behind the Ethernet/IPv4 layout compare, and the ND target with no ICMPv6 type restriction | Extends: three new lowerings reuse `arpEthernetIPv4` and the sender's guard shape; `lowerNDTargetAddressMatch` gains the 135-to-136 restriction (D-2) |
+| arp hook mapping and readback | `internal/plugins/firewall/nft/lower_linux.go`, `lowerARPHook`; `internal/plugins/firewall/nft/readback_linux.go`, `raiseHook` | Maps arp input and output hooks to `NF_ARP_IN` and `NF_ARP_OUT` and back | Does not apply: reused unchanged |
+| Match display | `internal/component/firewall/cmd/show.go`, `formatMatch`, `matchTypeName`; `internal/component/web/page_firewall.go`, `matchSummary` | `show firewall` prints the three existing matches in words; the web page has no ARP or ND case and prints the Go type name | Extends both switches with the six matches (AC-19) |
+| Kernel capability enrolment | `internal/component/kernelcap/kernelcap.go`, `Capability`, `MustRegister` | One enrolment from the owning package feeds start, reload, `ze config validate` and doctor | Extends: the nft backend package enrolls CONFIG_NF_TABLES_ARP (AC-14) |
+| nf_tables doctor check | `internal/plugins/firewall/nft/doctor_linux.go`, `checkFirewallNftables` | Warns when nf_tables is not loaded for an nft-backend firewall | Does not apply: the arp-family need goes through `kernelcap.MustRegister`, not a second hand-written check |
+| Table registry | `internal/component/firewall/registry.go`, `RegisterTables`, `ApplyAll`, `mergeSameNameTables` | Requires the `ze_` prefix, refuses a name another owner reserved, merges same-name tables of different owners | Does not apply: the name reservation (AC-15, AC-22) landed with `spec-firewall-existing-family-and-owner-correctness`; this spec relies on it unchanged |
+| VRRP owner filter | `internal/plugins/vrrp/ownerfilter.go`, `ownerARPReplyTerm` | The one producer of the existing ARP and ND matches today | Does not apply: its tables and terms are preserved (R-6) |
+| vpp firewall verifier | `internal/plugins/firewall/vpp/verify.go`, `Verify` | Refuses matches it has no lowering for | Does not apply: `ze:backend "nft"` refuses the leaves at commit; the daemon-side refusal stays with `plan/release/fixes/spec-vrrp-owner-arp-rfc-defects.md` D2 |
+| Table snapshot fixture | `internal/test/fixture/netfilter_fixture.go`, `registerTableSnapshot` | Registers an `nft list table` snapshot for a `.ci` to assert against | Extends: two registrations for the new functional tests |
 
 ## Historical planning record
 
@@ -204,7 +224,7 @@ them (the rows are in `plan/journal/`):
 - `parseFromBlock` - six new key reads beside `icmpv6-type`
 - `validateMatch` - cases for the three new types; arp-family refusals for the IP, transport and conntrack match types; the ND type check reads the term's `MatchICMPv6Type`
 - `lowerMatch` - three new cases; `lowerNDTargetAddressMatch` gains the type restriction
-- `formatMatch`, `matchTypeName` (`cmd/show.go`) and `matchSummary` (`web/page_firewall.go`) - cases for the new types, and for the existing three on the web page
+- `formatMatch`, `matchTypeName` (`internal/component/firewall/cmd/show.go`) and `matchSummary` (`internal/component/web/page_firewall.go`) - cases for the new types, and for the existing three on the web page
 - `kernelcap.MustRegister` - new enrolment in the nft backend package
 - Table registry - a name reservation beside `RegisterTables`, read by `ValidateTables` and by `RegisterTables`
 
@@ -384,7 +404,7 @@ New model types (all family arp only, lowered with the Ethernet/IPv4 layout guar
 | `MatchARPTargetHardwareAddress` | Addr | 6-octet array | ARP target hardware address; same shape |
 
 #### Files to Create
-- `internal/plugins/firewall/nft/kernelcap_linux.go` - `kernelcap.MustRegister` for CONFIG_NF_TABLES_ARP, InUse and Probe
+- `kernelcap_linux.go` (new, in package directory `internal/plugins/firewall/nft/`) - `kernelcap.MustRegister` for CONFIG_NF_TABLES_ARP, InUse and Probe
 - `internal/plugins/firewall/nft/kernelcap_linux_test.go`
 - `test/firewall/firewall-arp-match.ci`, `test/firewall/firewall-nd-target-match.ci`
 - `test/parse/firewall-arp-matches-accepted.ci`, `firewall-arp-in-inet-rejected.ci`, `firewall-arp-target-address-rejected.ci`, `firewall-nd-target-in-ip-rejected.ci`, `firewall-nd-target-type-rejected.ci`, `firewall-arp-source-address-rejected.ci`, `firewall-arp-leaf-vpp-rejected.ci`, `firewall-arp-kernelcap-absent.ci`, `firewall-table-name-reserved-rejected.ci`
@@ -401,7 +421,7 @@ New model types (all family arp only, lowered with the Ethernet/IPv4 layout guar
 | Functional test for new RPC/API | Yes | `test/firewall/*.ci` and `test/parse/*.ci` listed above |
 | Pipe completeness | N-A | No command output added |
 | Env var registration | N-A | Per-term match data, not a tunable |
-| Doctor check for runtime dependencies | Yes | CONFIG_NF_TABLES_ARP via `kernelcap.MustRegister` in `internal/plugins/firewall/nft/kernelcap_linux.go`, codes in `internal/core/diagnostic/codes.go` |
+| Doctor check for runtime dependencies | Yes | CONFIG_NF_TABLES_ARP via `kernelcap.MustRegister` in the new `kernelcap_linux.go` of package directory `internal/plugins/firewall/nft/`, codes in `internal/core/diagnostic/codes.go` |
 | Prometheus counters/metrics | No | Per-rule counters already exist through the `counter` action |
 | BGP family surface (new SAFI / capability / attribute) | N-A | Not BGP |
 
