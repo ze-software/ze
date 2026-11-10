@@ -414,6 +414,7 @@ Each row was checked against the source on 2026-11-10.
 | AC-10 | A packet enters a domain for which the inner DSCP value is not appropriate and a mapping is configured | the outer tunnel header carries the mapped value, observed on the wire |
 | AC-11 | `rfc/short/rfc4301.md` is read at closure | its prose describes the native IKEv2 engine rather than strongSwan and charon; the seven `{not-applicable}` annotations and the `{gap}` carry a fresh answer recorded from the owner; the `{single-polarity}` reason on `RFC4301-4.1-3` no longer says the child-SA path hardcodes tunnel mode |
 | AC-12 | `docs/features/rfc-status.md` and `./le rfc check` are read at closure | the RFC 4301 row reads `Supported` with a Remaining cell that claims no gap, `rfc4301` is back in `supportClaimingScope` with its pinning assertion removed, `rfc/extraction/rfc4301.json` is a sign-off the check accepts, and `./le rfc check` names `rfc4301` in no violation |
+| AC-13 | A configured or peer-proposed selector names a port under a protocol with undefined ports, including 47 and 50 as well as 0 | Refuse or narrow the selector without emitting a specific port; RFC7296-3.13.1-1 and RFC7296-3.13.1-2 have discriminating tests and independent enforced verdicts. Owns the weak verdicts transferred under P-3 from spec-rfc-verdict-fix-ike-eap |
 
 AC-8 note (2026-11-10): `df-bit set` is refused at commit by owner decision,
 because neither dataplane can write a set DF bit on an ESP tunnel header

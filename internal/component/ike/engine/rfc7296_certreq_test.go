@@ -1,5 +1,7 @@
 package engine
 
+// RFC naming: untagged -- tests Ze's configured-CA CERTREQ request policy and PSK omission for strongSwan interoperability; no whole RFC requirement is claimed.
+
 import (
 	"bytes"
 	"crypto/sha1" //nolint:gosec // the CERTREQ authority is SHA-1 (RFC 7296 Section 3.7)

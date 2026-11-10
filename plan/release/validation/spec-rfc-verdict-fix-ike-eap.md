@@ -2,18 +2,18 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | verification |
 | Priority | P2 |
 | Release reason | Required evidence for shipped behavior or truthful release support claims; historical work and proof debts remain distinct. |
 | Scope | tooling |
 | Depends | `plan/release/validation/spec-rfc-verdict-test-fix-pass.md` (the parent: its `audit-stamp` `mode rejudge` phase before any re-judge here, and its narrowing-audit output for the IKE/EAP group before any row edit, parent R-11) |
-| Phase | - |
+| Phase | independent closure |
 | Handoff | - |
 | Updated | 2026-11-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-## Blocker
+## Closure handback, 2026-11-10 (historical)
 
 Closure handback, 2026-11-10: AC-C1 is not met. Reading the current
 per-requirement audit files returns two weak verdicts in this child's scope:
@@ -46,6 +46,22 @@ Implementation must repair these owned evidence and naming defects and run
 the scoped checks before returning this spec for closure. Closure did not
 reseal or reauthor records. The main thread retained the reported lines, not
 a complete log; no claim is made about the other violations.
+
+## Closure evidence repair, 2026-11-10
+
+The P-3 transfers now name RFC7296-3.13.1-1/-2 in
+`plan/release/fixes/spec-rfc4301-architecture-gaps.md` AC-13, and
+RFC9190-2.3-1/-4 in `plan/release/validation/spec-ipsec-rfc9190.md` AC-10.
+Their weak, partial and unimplemented status remains explicit; no producer
+behavior or test assertion changed. The CERTREQ regression file now explains
+its untagged scope through the standard RFC naming marker.
+
+The two stale gap verdicts were independently re-read against the RFC text
+and all cited producer bodies. Their native-stamped judgments retain `unimplemented`:
+preconfigured intermediate certificates do not implement AIA retrieval, and
+installing SA state does not prove lower-layer padding inspection. Native
+stamping succeeded for both rows; the main thread still owes the follow-up
+RFC check before closure.
 
 ## Task
 
@@ -404,6 +420,8 @@ Each id below was checked on 2026-09-28: a weak or wrong verdict in `rfc/audit/<
 
 | ID | Verdict | Blocking spec |
 |----|---------|---------------|
+| RFC7296-3.13.1-1, RFC7296-3.13.1-2 | weak, 2026-11-10 | `plan/release/fixes/spec-rfc4301-architecture-gaps.md` AC-13: portless-protocol selector guards |
+| RFC9190-2.3-1, RFC9190-2.3-4 | partial / unimplemented, 2026-11-10 | `plan/release/validation/spec-ipsec-rfc9190.md` AC-10: Method-Id and Session-Id |
 | RFC3948-2.1-2 | wrong | `spec-ike-eap-rfc-defects` |
 | RFC5216-2.1.1-4 | wrong | `spec-ike-eap-rfc-defects` |
 | RFC5216-2.1.2-1 | weak | `spec-ike-eap-rfc-defects` (AC-4, 2026-09-29) |
@@ -465,6 +483,13 @@ Each id below was checked on 2026-09-28: a weak or wrong verdict in `rfc/audit/<
 
 **Behavior to change:**
 - the tagged tests, rows, tags and verdicts named in this spec's tables and in the derived listing; D-8 producer fixes where a test exposes a verified defect
+
+## Existing Mechanisms
+
+| Mechanism | Location | Current behavior | Use in this repair |
+|-----------|----------|------------------|--------------------|
+| Independent verdict stamping | `internal/le/rfc/audit_stamp.go` | Computes fingerprints from an auditor's pending verdict | Rejudge the two changed gap producers without changing their verdict |
+| P-3 ownership transfer | This spec, Blocked by | Moves unresolved producer work into its owning spec's acceptance criteria | Name the selector-port and Method-Id requirements explicitly |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -713,7 +738,7 @@ A D-8 fix adds `// RFC NNNN Section X.Y: "<quoted requirement>"` above the enfor
 ### Goal Gates (MUST pass)
 - [ ] AC-C1..AC-C7 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] Scoped `./le verify changed` evidence recorded after closing commits; full verification remains Thomas's separate release check
+- [ ] Scoped test evidence recorded for the changes; GitHub CI performs verification after an authorized push
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 - [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
@@ -796,7 +821,8 @@ acceptance evidence, not newly certified discrimination or a current ledger chec
 |-------------------|-----|---------------------------|
 | RFC3948-2.1-2, RFC5216-2.1.1-4, RFC5216-2.1.1-5, RFC5216-2.1.2-1 | producer defects (P-3) | `spec-ike-eap-rfc-defects` (closed 2026-10-21, `plan/learned/032-ike-eap-rfc-defects.md`) |
 | RFC4301-4.4.2.1-3 | Ze keeps no byte-count lifetime | `plan/release/fixes/spec-ipsec-lifetime-volume.md` AC-7 |
-| Scoped committed verification | No scoped certificate is claimed for this work | This spec; `./le verify changed` is owed after closing commits. Full verification is Thomas's separate release check |
+| RFC7296-3.13.1-1, RFC7296-3.13.1-2 | Portless-protocol selector defect; weak verdicts remain explicit | `plan/release/fixes/spec-rfc4301-architecture-gaps.md` AC-13 |
+| RFC9190-2.3-1, RFC9190-2.3-4 | Method-Id and Session-Id remain absent; MSK/EMSK evidence is partial only | `plan/release/validation/spec-ipsec-rfc9190.md` AC-10 |
 
 ## Review Gate
 

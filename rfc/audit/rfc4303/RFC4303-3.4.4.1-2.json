@@ -2,9 +2,9 @@
   "code": {
     "internal/component/ike/dataplane/vpp.go::InstallSA": "b0c652e23d7fd98d",
     "internal/component/ike/dataplane/vpp.go::vppSAFlags": "75c15129e87bb04b",
-    "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams": "b0ad9cc5c6b13396"
+    "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams": "97278232d4a38a5b"
   },
-  "note": "Re-judged 2026-11-10 by an independent judge after the RFC 4301 architecture-gaps work changed the cited producers. xfrm_linux.go::xfrmStateFromParams now also sets selector port masks, XFRM_STATE_ICMP (RFC 4301 Section 6.2), NoPMTUDisc (Section 8.1) and DontEncapDSCP (Section 5.1.2.1). vpp.go::InstallSA now writes tunnel EncapDecapFlags from vppTunnelFlags (DF/DSCP copy) and a fixed Dscp. vpp.go::vppSAFlags is unchanged. None of these asks either layer to inspect the Padding field, and Ze's Go still performs no ESP decryption. RFC 4303 Section 3.4.4.1: \"If the default padding scheme (see Section 2.4) has been employed, the receiver SHOULD inspect the Padding field before removing the padding prior to passing the decrypted data to the next layer.\" The {gap} stands; no test tags the row, which is correct for a gap.",
+  "note": "Re-judged 2026-11-10 independently of producer authors. RFC 4303 Section 3.4.4.1 step 3 says the receiver SHOULD inspect default Padding before removal and delivery. xfrmStateFromParams builds SA selectors, replay, transforms, UDP encapsulation and PMTU/DSCP flags but requests no padding inspection. vppBackend.InstallSA builds the SAD request and vppSAFlags selects direction, tunnel, replay and UDP flags; neither requests padding-byte inspection. Ze performs no ESP decryption at these boundaries. No observed lower-layer proof establishes inspection, so the existing explicit gap remains unimplemented; no support claim is upgraded.",
   "requirement_sha": "dea07385ec5c5f6a",
   "verdict": "unimplemented"
 }
