@@ -3451,3 +3451,32 @@ check that nothing changed. A current green, 2026-11-10:
 `TestForwardWithdrawalDoesNotCreateASPath` (`./internal/component/bgp/reactor/`,
 no build tag, run on the host) passes. The record itself was observed in the
 native guest.
+
+## Re-audit: P-33 guest members of the persistence census (2026-11-10)
+
+The three capability-gated restart cases skip on the host, so they ran in Ze's
+own guest as root with prebuilt daemons (`./le test qemu guest-binaries`, then
+`./le test qemu docker-lab kernel <the image's runtime vmlinuz> harness ...
+command "... le test qemu all test <path>"`, the route `testqemu.OneCICommand`
+builds, and after `4119ee0ee0` through `./le test qemu ci test <path>`).
+
+| Case | Store | Result |
+| --- | --- | --- |
+| `test/plugin/storage-ntp-restart.ci` | disk, restart | PASS 3.4s (`command-exit 0`) |
+| `test/plugin/ospf-state-through-daemon.ci` | disk, restart (`storage/tree`) | PASS 4.2s |
+| `test/traffic/storage-tc-restart.ci` | disk, kill and restart | PASS 3.1s, after `49b981e94c` |
+| `test/traffic/traffic-reload-qdisc-tc.ci` | (control for the tc change) | PASS 4.5s |
+
+Two defects met on the way, both fixed:
+- **`storage-tc-restart` never reached its persistence check in the guest.** Its
+  fixture ran iproute2's `tc`, and Ze's guest ships busybox `tc`, which refuses
+  `qdisc replace ... root` ("tc: invalid argument 'root' to 'command'").
+  `49b981e94c` moved the fixture to netlink, as ze's traffic backend does.
+- **The runner's skip message named a command that fails where it prints.** It
+  pointed host readers at `./le test qemu all`, which is a guest action and
+  refuses on the host with `ErrNotMounted`. `4119ee0ee0` added
+  `./le test qemu ci test <path>`, and both skip messages now name it.
+
+A first guest attempt with `docker-lab command` (no `harness`) ran as uid
+1000 with no Go toolchain, and one with a kernel other than the image's own was
+refused. Both are void.
