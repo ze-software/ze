@@ -8,6 +8,7 @@
 package archdoctorcoverage
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -48,11 +49,11 @@ func addingLine(t *testing.T, line string) (changecheck.Side, int) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	at := strings.Index(string(content), fixtureAnchor)
-	if at < 0 {
+	before, _, found := bytes.Cut(content, []byte(fixtureAnchor))
+	if !found {
 		t.Fatalf("fixture %s holds no %q", fixtureSites, fixtureAnchor)
 	}
-	lineNumber := strings.Count(string(content[:at]), "\n") + 2
+	lineNumber := bytes.Count(before, []byte("\n")) + 2
 	return fixtureSide(t, fixtureSites, fixtureAnchor, fixtureAnchor+"\t"+line+"\n"), lineNumber
 }
 
