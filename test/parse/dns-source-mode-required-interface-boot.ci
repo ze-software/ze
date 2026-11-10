@@ -1,0 +1,18 @@
+# Test: boot refuses the interface-without-received DNS source configuration with exit 1.
+# VALIDATES: the daemon startup entry point reports the DNS source refusal.
+# A unit test cannot prove the launched daemon exits with that diagnostic.
+# PREVENTS: a later successful validate command masking this startup failure.
+# Companion validation and accepted forms: dns-source-mode-required.ci
+
+stdin=interface-without-received:terminator=EOF_IFACE
+system {
+	dns-source {
+		source [ configured ]
+		received-interface [ eth0 ]
+	}
+}
+EOF_IFACE
+
+cmd=foreground:seq=1:exec=ze -:stdin=interface-without-received:timeout=30s
+expect=exit:code=1
+expect=stderr:contains=system dns-source names received-interface eth0 but its source list does not name received

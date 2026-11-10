@@ -1,0 +1,18 @@
+# Test: boot refuses the no-mode DNS source configuration with exit 1.
+# VALIDATES: the daemon startup entry point reports the DNS source refusal.
+# A unit test cannot prove the launched daemon exits with that diagnostic.
+# PREVENTS: a later successful validate command masking this startup failure.
+# Companion validation and accepted forms: dns-source-mode-required.ci
+
+stdin=no-mode:terminator=EOF_NO_MODE
+system {
+	name-server [ 198.51.100.53 ]
+	dns-source {
+		source [ configured received ]
+	}
+}
+EOF_NO_MODE
+
+cmd=foreground:seq=1:exec=ze -:stdin=no-mode:timeout=30s
+expect=exit:code=1
+expect=stderr:contains=system dns-source names 2 sources (configured, received) and no mode

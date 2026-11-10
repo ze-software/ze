@@ -1,0 +1,30 @@
+# Test: boot refuses the forward DNS source configuration with exit 1.
+# VALIDATES: the daemon startup entry point reports the DNS source refusal.
+# A unit test cannot prove the launched daemon exits with that diagnostic.
+# PREVENTS: a later successful validate command masking this startup failure.
+# Companion validation and accepted forms: dns-source-mode-required-consumers.ci
+
+stdin=forward:terminator=EOF_FWD
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 192.0.2.1
+			port 53
+		}
+		allow-from 192.0.2.0/24
+		forward {
+			server 198.51.100.53 {
+				port 53
+			}
+			dns-source {
+				source [ configured received ]
+			}
+		}
+	}
+}
+EOF_FWD
+
+cmd=foreground:seq=1:exec=ze -:stdin=forward:timeout=30s
+expect=exit:code=1
+expect=stderr:contains=service dns-resolver forward dns-source names 2 sources (configured, received) and no mode

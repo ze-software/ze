@@ -69,7 +69,6 @@ test/parse/healthcheck-parse.ci
 test/parse/hub-config-multi-listen.ci
 test/parse/hub-config-valid.ci
 test/parse/ipv6-route-priority.ci
-test/parse/l2tp-bad-port.ci
 test/parse/l2tp-remote-relay-config.ci
 test/parse/listener-no-conflict.ci
 test/parse/local-remote-basic.ci

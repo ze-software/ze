@@ -1,24 +1,10 @@
-# Test: a consumer's dns-source with two sources and no mode is refused at
-#       ze config validate and at boot, naming the path and both fixes
-# VALIDATES: spec-home-cpe-23b AC-16b (the router's half is 23a AC-16,
-#            test/parse/dns-source-mode-required.ci):
-#              seq=1  service dns-resolver forward dns-source, validate
-#              seq=2  the same config booted with ze -
-#              seq=3  a DHCP subnet's dns-source, validate
-#              seq=4  l2tp pool ipv4 dns-source, validate
-#              seq=5  l2tp pool named-pool dns-source, validate
-#              seq=6  the forward list with mode merge: accepted
-#            The RA rdnss consumer is linux-only, so its refusal lives in
-#            test/parse/dns-source-ra-rdnss-consumer.ci.
-#            Each refusal is dnssource.NewList's ModeRequiredError, reached
-#            through the consumer's own reader.
-# PREVENTS: a list whose sources Ze would have to guess are a backup or an
-#           addition passing validate on any consumer.
-# Break: tmp/session/2026-11-07-104251/scratch/rwinv/c23b-mode-unchecked
-#        (NewList never asks for a mode): seq 1 to 5 lose their refusal.
-#        Observed red, at seq 1, where the runner stops
-#        (rwinv/out-gb14/p14-dns-source-mode-required-consumers-broken.log):
-#        "expected exit code 1, got 0".
+# Test: DNS source validation refuses ambiguous or inapplicable sources
+# and accepts the explicitly supported forms.
+# VALIDATES: each operator-facing ze config validate exit and diagnostic.
+# A unit test cannot prove the CLI dispatch, stdout and process exit together.
+# PREVENTS: validation accepting a source list the consumer cannot evaluate.
+# Boot refusals are separate tests so each daemon exit is checked independently.
+# Boot companion: dns-source-mode-required-consumers-boot.ci
 
 stdin=forward:terminator=EOF_FWD
 service {
@@ -125,23 +111,20 @@ expect=stdout:contains=service dns-resolver forward dns-source names 2 sources (
 expect=stdout:contains=Ze cannot tell whether a later source is a backup or an addition
 expect=stdout:contains=set service dns-resolver forward dns-source mode first-usable
 
-cmd=foreground:seq=2:exec=ze -:stdin=forward:timeout=30s:exit=1
-expect=exit:code=1
-expect=stderr:contains=service dns-resolver forward dns-source names 2 sources (configured, received) and no mode
 
-cmd=foreground:seq=3:exec=ze config validate -:stdin=subnet:exit=1
+cmd=foreground:seq=2:exec=ze config validate -:stdin=subnet:exit=1
 expect=exit:code=1
 expect=stdout:contains=service dhcp-server shared-network LAN subnet 192.168.1.0/24 dns-source names 2 sources (self, received) and no mode
 
 
-cmd=foreground:seq=4:exec=ze config validate -:stdin=pool:exit=1
+cmd=foreground:seq=3:exec=ze config validate -:stdin=pool:exit=1
 expect=exit:code=1
 expect=stdout:contains=l2tp pool ipv4 dns-source names 2 sources (radius, received) and no mode
 
-cmd=foreground:seq=5:exec=ze config validate -:stdin=named-pool:exit=1
+cmd=foreground:seq=4:exec=ze config validate -:stdin=named-pool:exit=1
 expect=exit:code=1
 expect=stdout:contains=l2tp pool named-pool gold dns-source names 2 sources (configured, received) and no mode
 
-cmd=foreground:seq=6:exec=ze config validate -:stdin=forward-merge
+cmd=foreground:seq=5:exec=ze config validate -:stdin=forward-merge
 expect=exit:code=0
 expect=stdout:contains=configuration valid

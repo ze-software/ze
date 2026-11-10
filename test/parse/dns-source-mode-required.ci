@@ -1,23 +1,11 @@
-# Test: system dns-source is refused at ze config validate and at boot when
-#       Ze cannot evaluate it, and the forms it can evaluate are accepted
-# VALIDATES: spec-home-cpe-23, the router consumer's refusals, each through
-#            the operator path and with the what, why and fix the spec states.
-#              seq=1  two sources and no mode, ze config validate (AC-16)
-#              seq=2  the same config booted with ze - (AC-16, boot)
-#              seq=3  received-interface with no received source (AC-24)
-#              seq=4  the same config booted with ze - (AC-24, boot)
-#              seq=5  self, which would make Ze its own upstream (AC-11)
-#              seq=6  radius, which belongs to a PPP subscriber (AC-11)
-#              seq=7  one source and no mode: accepted (AC-16)
-#              seq=8  two sources with mode merge and received-interface:
-#                     accepted (AC-16, AC-24)
-#            Every refusal is the system-dns-source tree validator
-#            (internal/component/config/system/dns_source.go), which
-#            config.ValidateCustomSections runs for validate, commit, boot
-#            and reload, so one check gives the one verdict everywhere.
-# PREVENTS: a list of two sources whose meaning Ze would have to guess, a
-#           filter that selects nothing, or a loop to Ze's own resolver
-#           passing validate and then failing, or resolving nothing, at boot.
+# Test: DNS source validation refuses ambiguous or inapplicable sources
+# and accepts the explicitly supported forms.
+# VALIDATES: each operator-facing ze config validate exit and diagnostic.
+# A unit test cannot prove the CLI dispatch, stdout and process exit together.
+# PREVENTS: validation accepting a source list the consumer cannot evaluate.
+# Boot refusals are separate tests so each daemon exit is checked independently.
+# Boot companion: dns-source-mode-required-boot.ci
+# Boot companion: dns-source-mode-required-interface-boot.ci
 
 stdin=no-mode:terminator=EOF_NO_MODE
 system {
@@ -79,32 +67,26 @@ expect=stdout:contains=system dns-source names 2 sources (configured, received) 
 expect=stdout:contains=Ze cannot tell whether a later source is a backup or an addition
 expect=stdout:contains=set system dns-source mode first-usable
 
-cmd=foreground:seq=2:exec=ze -:stdin=no-mode:timeout=30s:exit=1
-expect=exit:code=1
-expect=stderr:contains=system dns-source names 2 sources (configured, received) and no mode
 
-cmd=foreground:seq=3:exec=ze config validate -:stdin=interface-without-received:exit=1
+cmd=foreground:seq=2:exec=ze config validate -:stdin=interface-without-received:exit=1
 expect=exit:code=1
 expect=stdout:contains=system dns-source names received-interface eth0 but its source list does not name received
 expect=stdout:contains=set system dns-source source received, or delete system dns-source received-interface eth0
 
-cmd=foreground:seq=4:exec=ze -:stdin=interface-without-received:timeout=30s:exit=1
-expect=exit:code=1
-expect=stderr:contains=system dns-source names received-interface eth0 but its source list does not name received
 
-cmd=foreground:seq=5:exec=ze config validate -:stdin=self:exit=1
+cmd=foreground:seq=3:exec=ze config validate -:stdin=self:exit=1
 expect=exit:code=1
 expect=stdout:contains=system dns-source names self
 expect=stdout:contains=Ze cannot be its own upstream
 
-cmd=foreground:seq=6:exec=ze config validate -:stdin=radius:exit=1
+cmd=foreground:seq=4:exec=ze config validate -:stdin=radius:exit=1
 expect=exit:code=1
 expect=stdout:contains=system dns-source names radius
 
-cmd=foreground:seq=7:exec=ze config validate -:stdin=one-source
+cmd=foreground:seq=5:exec=ze config validate -:stdin=one-source
 expect=exit:code=0
 expect=stdout:contains=configuration valid
 
-cmd=foreground:seq=8:exec=ze config validate -:stdin=merge
+cmd=foreground:seq=6:exec=ze config validate -:stdin=merge
 expect=exit:code=0
 expect=stdout:contains=configuration valid
