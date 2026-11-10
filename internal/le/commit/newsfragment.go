@@ -314,9 +314,9 @@ func newsFragmentNameProblem(path string) string {
 
 // newsFragment is one news fragment whose front matter and headings passed
 // every check parseNewsFragment makes. Only parseNewsFragment builds one, so a
-// value in hand is a valid fragment; the zero value is no fragment. A reader
-// outside this package (the weekly event report, the release notes) exports
-// what it needs when it lands.
+// value in hand is a valid fragment; the zero value is no fragment. The weekly
+// event report reads it from inside this package (weekly_source.go); a reader
+// outside it (the release notes) exports what it needs when it lands.
 type newsFragment struct {
 	path     string
 	spec     string

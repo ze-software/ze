@@ -465,6 +465,10 @@ const gitNoColor = "--no-color"
 // derivation parses, so the output is git's own.
 const gitNoExtDiff = "--no-ext-diff"
 
+// gitNoShowSignature keeps a configured log.showSignature out of every log
+// whose message bodies a parser reads.
+const gitNoShowSignature = "--no-show-signature"
+
 // commitShow is the start of the batched `git show` call. It pins every output
 // setting a user's git config can flip, because parseCommitFacts reads the
 // output's shape: core.quotePath quotes a non-ASCII path, color adds escapes,
@@ -553,7 +557,13 @@ func parseCommitFacts(shown string) map[string]commitFacts {
 
 // gitOutput runs one read-only git query and answers its stdout.
 func gitOutput(root string, args ...string) (string, error) {
-	command := exec.CommandContext(context.Background(), "git", args...) // #nosec G204 -- fixed Git queries; every value is an argv operand.
+	return gitOutputContext(context.Background(), root, args...)
+}
+
+// gitOutputContext is gitOutput bounded by ctx, for a caller that holds one
+// (the weekly report sources, weekly_source.go).
+func gitOutputContext(ctx context.Context, root string, args ...string) (string, error) {
+	command := exec.CommandContext(ctx, "git", args...) // #nosec G204 -- fixed Git queries; every value is an argv operand.
 	command.Dir = root
 	var stdout, complaint bytes.Buffer
 	command.Stdout = &stdout

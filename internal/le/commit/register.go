@@ -5,6 +5,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
+	"github.com/ze-software/ze/internal/le/weekly"
 )
 
 // The prepared-commit payload renders itself. Text has a pointer receiver, so
@@ -23,4 +24,8 @@ func init() {
 	})
 	leroot.RegisterActions(area, Actions)
 	leroot.RegisterShape(area, command.ShapeMap)
+	// The approval lines and the news fragments are records this package
+	// owns, so it answers their sections of `le weekly report` (weekly_source.go).
+	weekly.RegisterEventSource(weekly.EventSource{Section: weeklyApprovalsSection, Answer: answerWeeklyApprovals})
+	weekly.RegisterEventSource(weekly.EventSource{Section: weeklyFragmentsSection, Answer: answerWeeklyFragments})
 }

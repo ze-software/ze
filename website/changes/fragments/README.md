@@ -8,6 +8,12 @@ pages are built from `website/changes/posts/` only
 trims this directory from the artifact it deploys (`sourceOnlyDirectories`,
 `internal/le/site/paths.go`).
 
+`./le weekly report from <rev> to <rev>` reads them too: its `fix-fragments`
+section lists the fragments a range adds, grouped by `found-by` with each
+one's spec or journal row, and counts the ones with no `found-by` as one
+total. A fragment that does not parse fails that section, naming its path.
+<!-- source: internal/le/commit/weekly_source.go -- answerWeeklyFragments, weeklyAddedFragments -->
+
 ## A fragment is a claim
 
 A fragment records what its author believed when the change landed. It is
