@@ -1,24 +1,24 @@
 [
   {
     "rid": "RFC7296-1.3.1-1",
-    "polarity": "positive",
-    "unit": "internal/component/ike/engine/rfc7296_transport_test.go::TestUseTransportModeNotifyIsEchoedOnlyWhenAccepted",
-    "unit-sha": "17b48632679b4a12",
-    "claim-sha": "a6f9aec01bf46079",
-    "route": "mutant",
-    "producer": "internal/component/ike/engine/responder.go::handleAuthRequest",
-    "producer-sha": "73ea3f13894f4e36",
-    "break": "line 663: \"sa.UseTransportMode = \" -\u003e \"_ = \""
-  },
-  {
-    "rid": "RFC7296-1.3.1-1",
     "polarity": "negative",
     "unit": "internal/component/ike/engine/rfc7296_transport_test.go::TestUseTransportModeNotifyIsEchoedOnlyWhenAccepted",
     "unit-sha": "17b48632679b4a12",
     "claim-sha": "ae5d23bbbd3ea90b",
     "route": "mutant",
     "producer": "internal/component/ike/engine/responder.go::handleAuthRequest",
-    "producer-sha": "73ea3f13894f4e36",
-    "break": "line 663: \"== modeTransport\" -\u003e \"!= modeTransport\""
+    "producer-sha": "a233732b0b0040de",
+    "break": "line 670: \"== modeTransport\" -\u003e \"!= modeTransport\""
+  },
+  {
+    "rid": "RFC7296-1.3.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_transport_test.go::TestUseTransportModeNotifyIsEchoedOnlyWhenAccepted",
+    "unit-sha": "17b48632679b4a12",
+    "claim-sha": "a6f9aec01bf46079",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/responder.go::handleAuthRequest",
+    "producer-sha": "a233732b0b0040de",
+    "break": "line 670: \"sa.UseTransportMode = \" -\u003e \"_ = \""
   }
 ]

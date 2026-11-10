@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-09 |
+| Updated | 2026-11-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -47,8 +47,9 @@ control exchange and a count of bounded actions under repeated unprotected input
 
 This spec does not own remote-access admission, virtual-address assignment, a
 broader EAP feature expansion, or the initiator half (`handleAuthResponse`,
-`handleEAPResponse` in `fsm.go`), which the 2026-09-29 journal row assigns to
-`plan/release/validation/spec-rfc-verdict-fix-ike-eap.md`.
+`handleEAPResponse` in `fsm.go`), whose 2026-09-29 journal row is owned by
+`plan/release/fixes/spec-single-owner-lifecycle.md` (its owned journal rows table;
+the row's Spec cell names `spec-rfc-verdict-fix-ike-eap` as provenance).
 
 ## Required Reading
 
@@ -162,7 +163,7 @@ broader EAP feature expansion, or the initiator half (`handleAuthResponse`,
 |----------|--------|
 | What breaks if this is wrong? | a responder handshake either dies on forgeries (old behavior) or ignores a malformed authenticated request |
 | How is it reverted? | single commit revert |
-| Who else touches this path? | `spec-rfc-verdict-fix-ike-eap` (initiator half in `fsm.go`) |
+| Who else touches this path? | `spec-single-owner-lifecycle` (initiator half in `fsm.go`) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -218,7 +219,7 @@ broader EAP feature expansion, or the initiator half (`handleAuthResponse`,
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `responder-eap-survives-unprotected-auth` | `test/interop-ipsec/scenarios/` | strongSwan | AC-5: forged IKE_AUTH mid-EAP is counted, never acted on, and the real client completes | green 2026-11-09 (`IPSEC_INTEROP_SCENARIO=responder-eap-survives-unprotected-auth ./le test integration interop-ipsec`, images rebuilt from the tree); reverted-red run owed |
+| `responder-eap-survives-unprotected-auth` | `test/interop-ipsec/scenarios/` | strongSwan | AC-5: forged IKE_AUTH mid-EAP is counted, never acted on, and the real client completes | green 2026-11-09 (`IPSEC_INTEROP_SCENARIO=responder-eap-survives-unprotected-auth ./le test integration interop-ipsec`, images rebuilt from the tree); red with the fix reverted 2026-11-10 (Goal Validation) |
 
 ## Files to Modify
 - `internal/component/ike/engine/responder.go` - `handleAuthRequest` calls the drop helper
@@ -349,12 +350,9 @@ broader EAP feature expansion, or the initiator half (`handleAuthResponse`,
 | Route `handleResponderAuthRound` through the helper, StateDead on `errInnerParse` | keep its drop-everything with a WARN | the WARN let a forgery write the log; an authenticated malformed request is the peer's own (RFC 7296 Section 2.4 limits only unprotected input) |
 | Mark post-checksum CBC failures `errInnerParse` in `decryptSKPayload` | state the residue in the helper's comment | the checksum covers the IV, ciphertext, Padding and Pad Length (RFC 7296 Section 3.14), so these messages are authenticated; one mark at the producer serves every caller, and the established path's INVALID_SYNTAX meets Section 3.10.1's precondition |
 | RFC 7296 Section 2.21.2 notify on `errInnerParse` during IKE_AUTH left to its own spec | reuse `respondInnerParseError` here | it sends to the configured peer through `respondError`, while the handshake answers the observed source through `sendReplyFrom`; not a one-call reuse |
-| Route `handleResponderAuthRound` through the helper, StateDead on `errInnerParse` | keep its drop-everything with a WARN | the WARN let a forgery write the log; an authenticated malformed request is the peer's own (RFC 7296 Section 2.4 limits only unprotected input) |
-| Mark post-checksum CBC failures `errInnerParse` in `decryptSKPayload` | state the residue in the helper's comment | the checksum covers the IV, ciphertext, Padding and Pad Length (RFC 7296 Section 3.14), so these messages are authenticated; one mark at the producer serves every caller, and the established path's INVALID_SYNTAX meets Section 3.10.1's precondition |
-| RFC 7296 Section 2.21.2 notify on `errInnerParse` during IKE_AUTH left to its own spec | reuse `respondInnerParseError` here | it sends to the configured peer through `respondError`, while the handshake answers the observed source through `sendReplyFrom`; not a one-call reuse |
 
 ## Known Limitations
-- The initiator half (`fsm.go`) is owned by `plan/release/validation/spec-rfc-verdict-fix-ike-eap.md` (journal row 2026-09-29).
+- The initiator half (`fsm.go`) is owned by `plan/release/fixes/spec-single-owner-lifecycle.md` (journal row 2026-09-29 in its owned journal rows table). Until it lands, `RFC7296-2.4-3` stays `{partial}` with gap "an endpoint".
 - The RFC 7296 Section 2.21.2 notify an authenticated malformed IKE_AUTH request is owed (it ends the handshake with no answer today) is owned by `plan/release/fixes/spec-ike-responder-auth-malformed-request-notify.md` (journal row 2026-11-10 in `silent-fall-through.md`).
 
 ## RFC Documentation (Scope: protocol)
@@ -402,3 +400,162 @@ broader EAP feature expansion, or the initiator half (`handleAuthResponse`,
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `discardUnauthenticatedHandshakeRequest` (`internal/component/ike/engine/responder_unauthenticated.go`): drops an IKE_AUTH request whose `decryptAndParse` error is not `errInnerParse`, counts it under `ze_ipsec_error_notify_suppressed_total{reason="handshake-unauthenticated"}`, logs at debug, touches no SA field (31f16fc038).
+- Called from `handleAuthRequest` (`responder.go`), `handleResponderEAP` (`responder_eap.go`) and, after review, `handleResponderAuthRound` (`multiple_auth.go`); each ends the handshake (`StateDead`, WARN) on `errInnerParse` (31f16fc038, 7f6d281b6d).
+- `decryptSKPayload` (`auth.go`) wraps its four post-checksum CBC failures in `errInnerParse` (7f6d281b6d).
+- Interop scenario `responder-eap-survives-unprotected-auth` (`checkResponderEAPSurvivesUnprotectedAuth` in `internal/le/interoplab/ipsec/unprotected_eap.go`, registered in the `checkers.go` scenario table, configs under `test/interop-ipsec/scenarios/`).
+- Seven unit tests in `rfc7296_unprotected_handshake_test.go`; three `RFC7296-2.4-3` discrimination records (7f6d281b6d).
+- Closure: the records the two commits staled were re-recorded by the main thread (RFC5282-5.1-1, RFC5282-5.1-2, RFC7296-3.14-3, RFC7296-3.14-6 on `auth.go::decryptSKPayload`; RFC7296-2.20-1, RFC7296-2.21.2-3 on `responder.go::handleAuthRequest`; moved mutants RFC3948-1-1, RFC7296-1.3.1-1), and the shifted audits RFC7296-2.7-1 and RFC3948-3.1.2-1 were resealed.
+
+### Bugs Found/Fixed
+- RFC 7296 Section 2.4 violation on the responder: one forged IKE_AUTH set `StateDead` (journal `unprotected-message-changes-sa-state.md` 2026-08-14). Covered by `TestResponderEAPSurvivesUnprotectedIKEAuth`, `TestResponderAuthSurvivesUnprotectedIKEAuth`.
+- `handleResponderAuthRound` wrote a WARN per forged datagram and counted nothing, and kept the SA on an authenticated malformed request. Covered by `TestResponderSecondAuthRoundDropsUnprotectedRequestQuietly`, `TestResponderSecondAuthRoundEndsOnAuthenticatedMalformedRequest`.
+- Post-checksum CBC padding failures returned unmarked, so the drop counted the peer's own messages as forgeries and the established path stayed silent where Section 3.10.1 allows INVALID_SYNTAX. Covered by `TestDecryptMarksAuthenticatedPaddingFailureAsInner`.
+
+### Documentation Updates
+- `docs/architecture/ike/ipsec-14-responder.md` (31f16fc038, 7f6d281b6d), with a source anchor on `responder_unauthenticated.go -- discardUnauthenticatedHandshakeRequest`.
+- `ai/doors/access-security.md` trap row (31f16fc038).
+- `features/ipsec-eap-authentication.md` Interop row gains `ipsec/responder-eap-survives-unprotected-auth` (7f6d281b6d).
+- `rfc/short/rfc7296.md` RFC7296-2.4-3 `{partial}` with gap "an endpoint" (7f6d281b6d); `./le rfc update` at closure changed no tracked output.
+- News fragment `website/changes/fragments/ike-responder-eap-preserves-state-on-unauthenticated-input.md`.
+
+### Deviations from Plan
+- `handleResponderAuthRound`, `decryptSKPayload` and the `inbound.go` comments were added after review (Files to Modify lists them).
+- `RFC7296-2.4-3` closes `{partial}`, not enforced: the obligation binds every endpoint and the initiator half is owned by `spec-single-owner-lifecycle`.
+- The spec named `spec-rfc-verdict-fix-ike-eap` as owner of the initiator half; the owned journal rows table that lists the 2026-09-29 row is `spec-single-owner-lifecycle`'s, so the closure repointed it.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1: every non-`errInnerParse` decrypt error carries no proof of origin | four `decryptSKPayload` failures follow the verified checksum | review round 1 (NOTE 1) | marked at the producer, `TestDecryptMarksAuthenticatedPaddingFailureAsInner` |
+| approach | the first fix covered two of the three responder handshake handlers | `handleResponderAuthRound` had the same class (`guard-added-to-one-half-of-a-pair`) | review round 1 (ISSUE 1) | routed through the helper in 7f6d281b6d |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Keep the SA and EAP progress on an unprotected datagram | Done | `discardUnauthenticatedHandshakeRequest`, called by `handleResponderEAP`, `handleAuthRequest`, `handleResponderAuthRound` | |
+| Keep the handling of authenticated malformed payloads | Done | `errInnerParse` branch of the helper; `decryptSKPayload` marks | |
+| Valid exchanges complete, cached replay kept | Done | `replayCachedResponse` untouched | |
+| Half-open timeout stays effective | Done | the helper touches no SA field; `TestUnprotectedInputDoesNotExtendTheHandshake` | |
+| Rate of actions bounded (RFC7296-2.4-12) | Done | `dispatchInbound` token bucket, unchanged | |
+| Interop with strongSwan, bounded count | Done | `checkResponderEAPSurvivesUnprotectedAuth` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestResponderEAPSurvivesUnprotectedIKEAuth` | |
+| AC-2 | Done | `TestResponderAuthSurvivesUnprotectedIKEAuth` | |
+| AC-3 | Done | `TestResponderEAPEndsOnAuthenticatedMalformedRound` | |
+| AC-4 | Done | `TestUnprotectedInputDoesNotExtendTheHandshake` | |
+| AC-5 | Done | interop `responder-eap-survives-unprotected-auth`, green and reverted-red | |
+| AC-6 | Done | existing `TestEapRtx*` in the full-tag engine run; `ipsec-eap-md5-challenge.ci` | the `.ci` run is owed to the main thread at closure |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| the seven unit tests of the TDD plan | Done | `rfc7296_unprotected_handshake_test.go` | all seven `func Test` present |
+| `ipsec-eap-md5-challenge` | Done | `test/ipsec/ipsec-eap-md5-challenge.ci` | existing file, unchanged |
+| `responder-eap-survives-unprotected-auth` | Done | `test/interop-ipsec/scenarios/responder-eap-survives-unprotected-auth/` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `responder.go`, `responder_eap.go`, `multiple_auth.go`, `auth.go`, `inbound.go` | Done | 31f16fc038, 7f6d281b6d |
+| `responder_unauthenticated.go`, `rfc7296_unprotected_handshake_test.go` | Done | created |
+| `checkers.go`, `unprotected_eap.go` (and `helpers.go`, `vtispd.go` for goconst) | Done | |
+| `ipsec-14-responder.md`, `access-security.md`, `features/ipsec-eap-authentication.md` | Done | |
+| `unprotected-message-changes-sa-state.md`, `silent-fall-through.md` | Done | 2026-08-14 row fixed; 2026-11-10 row owned by `spec-ike-responder-auth-malformed-request-notify` |
+| scenario `swanctl.conf`, `ze.conf` | Done | |
+
+### Audit Summary
+- **Total items:** 6 requirements, 6 ACs, 9 tests, 6 file groups
+- **Done:** all
+- **Partial:** none in this spec's scope; `RFC7296-2.4-3` stays `{partial}` for the initiator half, owned elsewhere
+- **Skipped:** none
+- **Changed:** see Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A forged IKE_AUTH does not end the responder's EAP handshake | interop | `IPSEC_INTEROP_SCENARIO=responder-eap-survives-unprotected-auth ./le test integration interop-ipsec` PASS against strongSwan (images rebuilt from the tree): 20 forgeries counted, the tunnel then establishes and passes traffic. Reverted red: `discardUnauthenticatedHandshakeRequest` `return true` set to `return false`, image rebuilt, FAIL "ze_ipsec_error_notify_suppressed_total{reason=\"handshake-unauthenticated\"} rose by 1, want 20": the first forgery killed the handshake; file restored byte-exact |
+| Authenticated malformed input still ends the handshake | unit, discrimination | `TestResponderEAPEndsOnAuthenticatedMalformedRound`, `TestResponderSecondAuthRoundEndsOnAuthenticatedMalformedRequest`; `RFC7296-2.4-3` positive record red under the revert |
+| Proof runs through the daemon's wire dispatch and fails under the old transition | unit, discrimination | the unit tests deliver through `handleInbound`; three `RFC7296-2.4-3` records in `rfc/discrimination/rfc7296/RFC7296-2.4-3.json` (producer `discardUnauthenticatedHandshakeRequest`), each unit red under the revert |
+| Unprotected input cannot keep a handshake alive | unit | `TestUnprotectedInputDoesNotExtendTheHandshake` (CreatedAt and next Message ID unchanged after 50 forgeries, the reaper ends it) |
+| Bounded count of actions under repeated input | interop | exact rise of 20 in the scenario above; token bucket in `dispatchInbound` |
+| Full-tag package tests | unit | full-tag `go test ./internal/component/ike/engine/` ok (197 s); `./internal/le/interoplab/ipsec/` ok after the `protocolUDP` change |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Initiator half: `handleAuthResponse`, `handleEAPResponse` (`fsm.go`) set `StateDead` on a response that fails its integrity check | out of this spec's scope (Task) | `plan/release/fixes/spec-single-owner-lifecycle.md` |
+| RFC 7296 Section 2.21.2 notify owed to an authenticated malformed IKE_AUTH request | found in review; not a one-call reuse of `respondInnerParseError` | `plan/release/fixes/spec-ike-responder-auth-malformed-request-notify.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/ike-responder-eap-preserves-state-on-unauthenticated-input-f90e7822-ecbf-462e-ac37-c494b4c2c988.md` (21 files: the eleven code files of 31f16fc038 and 7f6d281b6d, and the ten RFC record and audit files of commit A) |
+| `./le spec review check` | OK, verdict clean, hashes match |
+| Rounds | 2 |
+| Reviewer lenses used | round 1 (independent agent, over 31f16fc038): logic, wiring, RFC quotes, security; round 2 (the closure agent, which authored neither commit, over 7f6d281b6d): the three handler branches and the `errInnerParse` mark, AEAD versus CBC post-tag paths, the established-path INVALID_SYNTAX reach, test vacuity, style pass over the changed Go (no `panic`, no WARN a forger reaches) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `handleResponderAuthRound` logged a WARN per undecryptable request and counted nothing, so a forger wrote the operator's log; it also kept the SA on `errInnerParse` | `multiple_auth.go` `handleResponderAuthRound` | 7f6d281b6d, routed through `discardUnauthenticatedHandshakeRequest` |
+| 2 | ISSUE | RFC 7296 Section 2.4 quotes were partial sentences, not byte-exact whole sentences | `responder_unauthenticated.go`, `unprotected_eap.go` | 7f6d281b6d |
+
+### Run 2
+0 BLOCKER, 0 ISSUE. NOTEs: the AEAD path has no post-tag check of its own (`OpenIKEAEAD` returns only the tag failure), so every AEAD failure is correctly unmarked; the spec named the wrong owner of the initiator half and carried three duplicated decision rows, fixed in the closure edit.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/ike/engine/responder_unauthenticated.go` | Yes | defines `discardUnauthenticatedHandshakeRequest` |
+| `internal/component/ike/engine/rfc7296_unprotected_handshake_test.go` | Yes | seven `func Test` |
+| `internal/le/interoplab/ipsec/unprotected_eap.go` | Yes | defines `checkResponderEAPSurvivesUnprotectedAuth` |
+| `test/interop-ipsec/scenarios/responder-eap-survives-unprotected-auth/` | Yes | `ls`: swanctl.conf, ze.conf |
+| `test/ipsec/ipsec-eap-md5-challenge.ci` | Yes | `ls` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2, AC-3 | handlers call the helper and end on `errInnerParse` | grep finds the call in `handleResponderEAP`, `handleAuthRequest`, `handleResponderAuthRound`; three tests carry `RFC requirement: RFC7296-2.4-3` |
+| AC-4 | the helper writes no SA field | `discardUnauthenticatedHandshakeRequest` reads `sa.PeerName` and `sa.State` only |
+| AC-5 | interop green and reverted red | main-thread runs quoted in Goal Validation |
+| AC-6 | genuine exchange unchanged | full-tag engine package run ok; `ipsec-eap-md5-challenge.ci` run owed at closure |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| IKE_AUTH through `handleInbound` (three states) | unit tests call `handleInbound`, which routes a responder SA to `handleResponderInbound` | Yes |
+| Two daemons, Ze responder as EAP authenticator | `test/ipsec/ipsec-eap-md5-challenge.ci` | file read: the responder is the EAP authenticator, both ends `eap-md5` |
+| Forged IKE_AUTH on UDP 4500 | interop `responder-eap-survives-unprotected-auth` | the `checkers.go` scenario table registers it; the checker injects through `injectOutOfSA` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken | Mistake Log row 1; `decryptSKPayload` marks |
+| A-2 | confirmed | interop PASS |
+| A-3 | confirmed | exact rise of 20 in the PASS run; rise of 1 in the reverted run |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `ipsec-14-responder.md` names the helper and the reason label | `suppressedUnauthenticatedHandshake` is `handshake-unauthenticated` (`responder_unauthenticated.go`) | Yes |
+| `features/ipsec-eap-authentication.md` Interop row | lists `ipsec/responder-eap-survives-unprotected-auth`, registered in the `checkers.go` table | Yes |
+| RFC status | `./le rfc update` left tracked outputs unchanged; `./le rfc check` lists `RFC7296-2.4-3` only under `partial` with gap "an endpoint", and no finding on a record or audit this work touched | Yes |
+| No user guide change | `docs/guide/ipsec.md` names the series and "the name of that guard" without listing reasons | Yes |
