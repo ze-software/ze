@@ -57,6 +57,7 @@ func TestAeadMixInOneProposalIsRefused(t *testing.T) {
 		Transforms: []wire.Transform{
 			espEncTransform(encID, keyLen),
 			{Type: wire.TransformTypeINTG, ID: integ},
+			espESNTransform(),
 		},
 	}
 	if espProposalMatches(mixed, encID, keyLen, 0, true, espDHMatch{}) {
@@ -74,7 +75,7 @@ func TestAeadAloneInItsOwnProposalIsAccepted(t *testing.T) {
 
 	absent := wire.Proposal{
 		ProtocolID: wire.ProtocolESP,
-		Transforms: []wire.Transform{espEncTransform(encID, keyLen)},
+		Transforms: []wire.Transform{espEncTransform(encID, keyLen), espESNTransform()},
 	}
 	if !espProposalMatches(absent, encID, keyLen, 0, true, espDHMatch{}) {
 		t.Error("an AEAD proposal carrying no integrity transform was refused")
@@ -85,6 +86,7 @@ func TestAeadAloneInItsOwnProposalIsAccepted(t *testing.T) {
 		Transforms: []wire.Transform{
 			espEncTransform(encID, keyLen),
 			{Type: wire.TransformTypeINTG, ID: 0},
+			espESNTransform(),
 		},
 	}
 	if !espProposalMatches(explicitNone, encID, keyLen, 0, true, espDHMatch{}) {

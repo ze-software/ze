@@ -131,6 +131,20 @@ fails its own comparison (`ErrTransformUnspecified`).
 <!-- source: internal/component/ike/engine/responder.go -- espProposalMatches -->
 <!-- source: internal/component/ike/wire/payload_sa.go -- Transform.AttrsUnderstood -->
 
+**An ESP offer missing a mandatory Transform Type is refused.** RFC 7296 Section
+3.3.3 makes ENCR and ESN mandatory for ESP, and Section 3.3.6 makes a proposal
+missing a mandatory type unacceptable. `espProposalMatches` compares the types left
+after the drop above with `MandatoryTransformTypesESP`, which reads the Section 3.3.3
+table in `protocolTransformTypes`, so an ESP proposal with no Extended Sequence
+Numbers transform does not match. The responder then tries the peer's next proposal,
+on IKE_AUTH (`selectResponderESP`), a new Child SA (`selectNewChildESP`) and a Child
+SA rekey alike, and answers NO_PROPOSAL_CHOSEN when none is left. An offer that
+carries ESN but not value 0 is refused too, because value 0 is the only one Ze keys.
+
+<!-- source: internal/component/ike/crypto/proposal.go -- MandatoryTransformTypesESP, protocolTransformTypes -->
+<!-- source: internal/component/ike/engine/responder.go -- espProposalMatches, selectResponderESP -->
+<!-- source: internal/component/ike/engine/create_child.go -- selectNewChildESP -->
+
 **PKCS#7 unpadding is constant time.** IKEv2 encrypts then MACs, so a padding
 oracle is not reachable in practice. The constant-time form is still what ships,
 because the cost is nil and the property does not depend on the caller.

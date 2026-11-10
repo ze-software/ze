@@ -18,6 +18,15 @@ func espEncTransform(id, keyLen uint16) wire.Transform {
 	return t
 }
 
+// espESNTransform builds the Extended Sequence Numbers transform of the value ze keys.
+// RFC 7296 Section 3.3.3 makes ESN a mandatory type for ESP, and espProposalMatches
+// refuses an offer without one, so every offer built from espEncTransform carries it.
+// An offer that lacked it would be refused for that reason alone, and a refusal the test
+// expects for another reason would then prove nothing.
+func espESNTransform() wire.Transform {
+	return wire.Transform{Type: wire.TransformTypeESN, ID: espESNNotExtended}
+}
+
 // espOurs returns the configured proposal the tests below match against, plus the three
 // values espProposalMatches compares.
 func espOurs(t *testing.T) (encID, keyLen, integID uint16) {
@@ -56,6 +65,7 @@ func TestEspAltKeyLengthDoesNotCrossTransforms(t *testing.T) {
 			espEncTransform(otherEnc, keyLen),
 			espEncTransform(encID, 0),
 			{Type: wire.TransformTypeINTG, ID: integID},
+			espESNTransform(),
 		},
 	}
 	if espProposalMatches(offer, encID, keyLen, integID, false, espDHMatch{}) {
@@ -78,6 +88,7 @@ func TestEspAltFirstTransformStillMatches(t *testing.T) {
 			espEncTransform(encID+1, keyLen), // an alternative ze does not want
 			{Type: wire.TransformTypeINTG, ID: integID},
 			{Type: wire.TransformTypeINTG, ID: integID + 1},
+			espESNTransform(),
 		},
 	}
 	if !espProposalMatches(offer, encID, keyLen, integID, false, espDHMatch{}) {
@@ -99,6 +110,7 @@ func TestEspAltComparisonIsNotRelaxed(t *testing.T) {
 			espEncTransform(encID, keyLen),
 			{Type: wire.TransformTypeINTG, ID: integID + 1},
 			{Type: wire.TransformTypeINTG, ID: integID},
+			espESNTransform(),
 		},
 	}
 	if !espProposalMatches(matching, encID, keyLen, integID, false, espDHMatch{}) {
@@ -112,6 +124,7 @@ func TestEspAltComparisonIsNotRelaxed(t *testing.T) {
 			espEncTransform(encID+1, keyLen),
 			espEncTransform(encID+2, keyLen),
 			{Type: wire.TransformTypeINTG, ID: integID + 1},
+			espESNTransform(),
 		},
 	}
 	if espProposalMatches(foreign, encID, keyLen, integID, false, espDHMatch{}) {
@@ -125,6 +138,7 @@ func TestEspAltComparisonIsNotRelaxed(t *testing.T) {
 		Transforms: []wire.Transform{
 			espEncTransform(encID, keyLen/2),
 			{Type: wire.TransformTypeINTG, ID: integID},
+			espESNTransform(),
 		},
 	}
 	if espProposalMatches(wrongLen, encID, keyLen, integID, false, espDHMatch{}) {
@@ -147,6 +161,7 @@ func TestEspAltSelectionSeesAlternatives(t *testing.T) {
 			espEncTransform(encID, keyLen),
 			espEncTransform(encID+1, keyLen),
 			{Type: wire.TransformTypeINTG, ID: integID},
+			espESNTransform(),
 		},
 	}}}
 

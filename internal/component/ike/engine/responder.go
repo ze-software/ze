@@ -847,8 +847,9 @@ func logKeyLengthUpgrade(log *slog.Logger, peer string, chosen crypto.IKEProposa
 // Type 5 value ze can key.
 //
 // RFC 7296 Section 3.3.6 makes a proposal that carries a Transform Type the responder does
-// not understand unacceptable. RFC 7296 Section 3.3.3 gives ESP the types ENCR and ESN,
-// with INTEG and D-H optional. A proposal that carries any other type does not match.
+// not understand, or that misses a mandatory one, unacceptable. RFC 7296 Section 3.3.3
+// gives ESP the mandatory types ENCR and ESN, with INTEG and D-H optional. A proposal
+// that carries any other type, or lacks ENCR or ESN, does not match.
 //
 // DELIBERATE DEVIATION, Section 3.3.5. The implementation note there says an implementer
 // "SHOULD accept values that they deem to supply greater security", which covers ESP as
@@ -942,16 +943,28 @@ func espProposalMatches(p wire.Proposal, encID, keyLen, integID uint16, aead boo
 	if offeredTypes != usableTypes {
 		return false
 	}
+	// RFC 7296 Section 3.3.6: "If the responder receives a proposal that contains a
+	// Transform Type it does not understand, or a proposal that is missing a mandatory
+	// Transform Type, it MUST consider this proposal unacceptable; however, other
+	// proposals in the same SA payload are processed as usual."
+	// Section 3.3.3 makes ENCR and ESN mandatory for ESP. An offer with no Transform
+	// Type 5 is therefore refused here, and selectResponderESP and selectNewChildESP go
+	// on to the peer's next proposal; with none left they answer NO_PROPOSAL_CHOSEN.
+	// Accepting it was the defect: espProposalWire answers with an ESN transform, so the
+	// peer was handed a transform its proposal never offered.
+	if mandatory := crypto.MandatoryTransformTypesESP(); usableTypes&mandatory != mandatory {
+		return false
+	}
 	if !slices.Contains(encs, espEnc{id: encID, keyLen: keyLen}) {
 		return false
 	}
 	// RFC 7296 Section 2.7: "The accepted cryptographic suite MUST contain exactly one
 	// transform of each type included in the proposal" (rfc/full/rfc7296.txt:1976-1980).
 	// espProposalWire (initiator.go) answers Transform Type 5 with espESNNotExtended
-	// and ze can key nothing else, so an offer that includes the type without that value
-	// has no answer ze can honor. Section 3.3.2 says the same from the peer's side: a
-	// proposal carrying a single ESN transform of value 1 "means that using normal
-	// (non-extended) sequence numbers is not acceptable".
+	// and ze can key nothing else, so an offer whose ESN transforms (the mandatory check
+	// above guarantees at least one) lack that value has no answer ze can honor. Section
+	// 3.3.2 says the same from the peer's side: a proposal carrying a single ESN
+	// transform of value 1 "means that using normal (non-extended) sequence numbers is not acceptable".
 	//
 	// Refusing here reaches the peer as NO_PROPOSAL_CHOSEN, which RFC 7296 Section 2.7
 	// names as the answer when no proposal is acceptable (selectResponderESP returns
@@ -959,7 +972,7 @@ func espProposalMatches(p wire.Proposal, encID, keyLen, integID uint16, aead boo
 	// peer that offered only ESN 1 was the alternative, and it establishes a tunnel that
 	// carries nothing: the peer counts 64 bits where ze counts 32, so every packet ze
 	// sends fails the peer's anti-replay check.
-	if len(esns) > 0 && !slices.Contains(esns, espESNNotExtended) {
+	if !slices.Contains(esns, espESNNotExtended) {
 		return false
 	}
 	if !espDHAcceptable(dhs, dh) {

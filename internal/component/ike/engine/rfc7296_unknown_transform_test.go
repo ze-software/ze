@@ -115,14 +115,17 @@ func TestRFC7296UnacceptableTransformLeavesSiblingsOnOffer(t *testing.T) {
 		}
 	}
 
+	// Each offer carries the ESN transform, mandatory for ESP (RFC 7296 Section 3.3.3),
+	// so the proposal is refused or matched for its ENCR and INTEG siblings alone.
 	our, espEncr, espInteg := utESPPolicy(t)
+	esn := espESNTransform()
 	espUnknownID := wire.Transform{Type: wire.TransformTypeENCR, ID: utUnknownEncrID}
 	espCases := map[string][][]wire.Transform{
-		"unknown transform id": {{espUnknownID, espEncr, espInteg}, {espEncr, espUnknownID, espInteg}},
-		"unknown attribute":    {{utWithUnknownAttr(espEncr), espEncr, espInteg}, {espEncr, utWithUnknownAttr(espEncr), espInteg}},
+		"unknown transform id": {{espUnknownID, espEncr, espInteg, esn}, {espEncr, espUnknownID, espInteg, esn}},
+		"unknown attribute":    {{utWithUnknownAttr(espEncr), espEncr, espInteg, esn}, {espEncr, utWithUnknownAttr(espEncr), espInteg, esn}},
 		"unknown integrity attribute": {
-			{espEncr, utWithUnknownAttr(espInteg), espInteg},
-			{espEncr, espInteg, utWithUnknownAttr(espInteg)},
+			{espEncr, utWithUnknownAttr(espInteg), espInteg, esn},
+			{espEncr, espInteg, utWithUnknownAttr(espInteg), esn},
 		},
 	}
 	for name, orders := range espCases {

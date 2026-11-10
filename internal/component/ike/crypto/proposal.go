@@ -114,6 +114,24 @@ func TransformTypeUnderstoodESP(tt TransformType) bool {
 	return transformTypeUnderstood(protoESP, tt)
 }
 
+// MandatoryTransformTypesESP returns the Transform Types every ESP proposal must carry,
+// one bit per type (bit n is Transform Type n), read from protocolTransformTypes. The
+// responder's reader of a wire ESP proposal (espProposalMatches, ike/engine/responder.go)
+// compares it with the types the proposal offered.
+//
+// RFC 7296 Section 3.3.3: "An SA payload proposing the establishment of an SA has the
+// following mandatory and optional Transform Types." The table there gives ESP the
+// mandatory types ENCR and ESN.
+func MandatoryTransformTypesESP() uint32 {
+	var mask uint32
+	for tt, use := range protocolTransformTypes[protoESP] {
+		if use == transformTypeRequired {
+			mask |= uint32(1) << tt
+		}
+	}
+	return mask
+}
+
 // transformTypeMandatory reports whether this protocol requires this transform
 // type in every proposal (RFC 7296 Section 3.3.3).
 func transformTypeMandatory(proto protocolID, tt TransformType) bool {
@@ -466,9 +484,10 @@ func negotiateIKE(remote, local []IKEProposal, rule keyLengthRule) (IKEProposal,
 // transform types this type can express. RFC 7296 Section 3.3.3 makes ENCR and ESN
 // mandatory for ESP. The Extended Sequence Numbers transform is carried outside
 // this type. Only the encryption transform is therefore checked here, and the ESN
-// selection is checked on the wire proposal instead: acceptedESPESNConsistent
+// transform is checked on the wire proposal instead: acceptedESPESNConsistent
 // (ike/engine/initiator.go) on the initiator's answer, espProposalMatches
-// (ike/engine/responder.go) on the responder's offer.
+// (ike/engine/responder.go) on the responder's offer, which refuses an offer missing
+// any type MandatoryTransformTypesESP names.
 func espProposalComplete(p *ESPProposal) error {
 	if p.UnknownTransformType != 0 {
 		return ErrTransformTypeNotUnderstood
