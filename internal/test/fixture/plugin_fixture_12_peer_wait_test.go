@@ -142,7 +142,7 @@ func parseFixturePackage12(t *testing.T) fixturePackage12 {
 	for _, file := range family {
 		ast.Inspect(file, func(node ast.Node) bool {
 			call, ok := node.(*ast.CallExpr)
-			if !ok || len(call.Args) != 2 {
+			if !ok || len(call.Args) < 2 {
 				return true
 			}
 			if callee, ok := call.Fun.(*ast.Ident); !ok || callee.Name != "Register" {

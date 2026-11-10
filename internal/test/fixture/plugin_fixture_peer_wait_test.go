@@ -486,7 +486,7 @@ func (source *observerPackage) findRegistrars() {
 		params := parameterNames(decl.Type)
 		ast.Inspect(decl.Body, func(node ast.Node) bool {
 			call, ok := node.(*ast.CallExpr)
-			if !ok || len(call.Args) != 2 {
+			if !ok || len(call.Args) < 2 {
 				return true
 			}
 			if callee, ok := call.Fun.(*ast.Ident); !ok || callee.Name != "Register" {
@@ -571,9 +571,17 @@ func (source *observerPackage) readRegistrations(family string, file *ast.File) 
 // register records one registration call.
 func (source *observerPackage) register(family string, enclosing *ast.FuncDecl, loops []*ast.RangeStmt, registrar string, index int, call *ast.CallExpr) error {
 	var drivers []ast.Expr
-	for other, arg := range call.Args {
-		if other != index {
-			drivers = append(drivers, arg)
+	if registrar == "Register" {
+		if len(call.Args) < 2 {
+			return errors.New("Register has no driver argument")
+		}
+		// Register's trailing arguments declare properties, not runnable drivers.
+		drivers = call.Args[1:2]
+	} else {
+		for other, arg := range call.Args {
+			if other != index {
+				drivers = append(drivers, arg)
+			}
 		}
 	}
 	var registrars []string
@@ -604,7 +612,7 @@ func (source *observerPackage) register(family string, enclosing *ast.FuncDecl, 
 	if table == nil {
 		return errors.New(registrar + " in " + enclosing.Name.Name + " ranges over a table this scan cannot read")
 	}
-	whole, fields := source.passedRowParts(loop, call)
+	whole, fields := source.passedRowParts(loop, drivers)
 	for _, row := range table.Elts {
 		key, value := row, row
 		if pair, ok := row.(*ast.KeyValueExpr); ok {
@@ -628,7 +636,7 @@ func (source *observerPackage) register(family string, enclosing *ast.FuncDecl, 
 // runs or returns it, or called or handed on to a package function that runs
 // it inside an inline driver. A whole row handed to a package function counts
 // for the fields that function runs.
-func (source *observerPackage) passedRowParts(loop *ast.RangeStmt, call *ast.CallExpr) (whole bool, fields map[string]bool) {
+func (source *observerPackage) passedRowParts(loop *ast.RangeStmt, drivers []ast.Expr) (whole bool, fields map[string]bool) {
 	fields = map[string]bool{}
 	value, ok := loop.Value.(*ast.Ident)
 	if !ok {
@@ -731,7 +739,7 @@ func (source *observerPackage) passedRowParts(loop *ast.RangeStmt, call *ast.Cal
 			})
 		}
 	}
-	for _, arg := range call.Args {
+	for _, arg := range drivers {
 		consider(arg)
 	}
 	return whole, fields
