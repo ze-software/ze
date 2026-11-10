@@ -137,26 +137,74 @@ func gitExit(tree string, args ...string) (string, int, string) {
 	return "", code, "`git " + strings.Join(args, " ") + "` failed: " + strings.TrimSpace(err.Error()+" "+stderr.String())
 }
 
-// insideGitCheckout answers whether tree or a directory above it holds a
-// `.git` entry: a directory in a clone, a file in a worktree. A path that
-// cannot be made absolute answers true, so git is asked and answers
+// insideGitCheckout answers whether Git's discovery boundary holds a `.git`
+// entry: a directory in a clone, a file in a worktree. GIT_CEILING_DIRECTORIES
+// excludes ancestors, never the current directory or an explicit GIT_DIR.
+// A path that cannot be resolved answers true, so git is asked and answers
 // unreadable rather than the checkout passing as absent.
 func insideGitCheckout(tree string) bool {
-	dir, err := filepath.Abs(tree)
+	// Git reads this external environment variable itself, including an empty
+	// value; only Git can decide whether the explicitly selected directory works.
+	if _, explicit := os.LookupEnv("GIT_DIR"); explicit {
+		return true
+	}
+	// Resolve before making absolute: cleaning a symlink followed by ".."
+	// first would walk a different tree from the git command's working directory.
+	dir, err := filepath.EvalSymlinks(tree)
 	// refuse-by-default: guards priorRevisionState -- true sends the tree to git, which answers unreadable, never absent
 	if err != nil {
 		return true
 	}
+	dir, err = filepath.Abs(dir)
+	// refuse-by-default: guards priorRevisionState -- true sends the tree to git, which answers unreadable, never absent
+	if err != nil {
+		return true
+	}
+	ceilings := gitDiscoveryCeilings()
 	for {
-		if _, err := os.Lstat(filepath.Join(dir, ".git")); err == nil {
+		_, err := os.Lstat(filepath.Join(dir, ".git"))
+		if err == nil {
+			return true
+		}
+		// refuse-by-default: guards priorRevisionState -- failed inspection is handed to git, never counted as absent
+		if !errors.Is(err, os.ErrNotExist) {
 			return true
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
 			return false
 		}
+		if ceilings[parent] {
+			return false
+		}
 		dir = parent
 	}
+}
+
+// gitDiscoveryCeilings reads the same external environment as gitExit's child.
+// Git ignores relative and unresolvable entries. An empty entry says that
+// subsequent paths have no symlinks, so those paths need only lexical cleaning.
+func gitDiscoveryCeilings() map[string]bool {
+	ceilings := make(map[string]bool)
+	resolveLinks := true
+	for _, path := range filepath.SplitList(os.Getenv("GIT_CEILING_DIRECTORIES")) {
+		if path == "" {
+			resolveLinks = false
+			continue
+		}
+		if !filepath.IsAbs(path) {
+			continue
+		}
+		if resolveLinks {
+			resolved, err := filepath.EvalSymlinks(path)
+			if err != nil {
+				continue
+			}
+			path = resolved
+		}
+		ceilings[filepath.Clean(path)] = true
+	}
+	return ceilings
 }
 
 // priorEvidence reads what the ratchet compares against: the HEAD^

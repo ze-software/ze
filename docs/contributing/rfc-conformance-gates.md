@@ -388,6 +388,18 @@ until they are backfilled:
   the named command answers. Only an absent `HEAD^` judges every row as
   untouched, and `./le rfc check` prints a line saying so.
 
+Repository discovery respects Git's `GIT_CEILING_DIRECTORIES`: it stops
+before entering a listed ancestor. The current directory and an explicit
+`GIT_DIR` remain eligible, so a ceiling cannot hide a corrupt checkout there.
+Absolute ceiling paths resolve symlinks unless an earlier empty list entry
+disables that resolution, as in Git; relative entries are ignored. A fixture
+that intentionally has no history sets its parent as the ceiling, preventing
+an unrelated enclosing checkout or sandbox marker from becoming its history.
+For parallel tests that cannot change their process environment, supply the
+temporary storage roots in `GIT_CEILING_DIRECTORIES` when launching the test
+process. A fixture's own `.git` below those roots remains visible.
+<!-- source: internal/le/rfc/check_evidence_prior.go -- insideGitCheckout -->
+
 <!-- source: internal/le/rfc/check_evidence.go -- checkExclusionEvidence, evidenceRowIsNew, evidenceReader -->
 <!-- source: internal/le/rfc/check_evidence_prior.go -- priorEvidence, priorRevisionState, committedBacklogAt, pushedFingerprints, pushedBranchPresent -->
 <!-- source: internal/le/rfc/notapplicable_roles.go -- checkNotApplicableRoles, genericRoleWords, roleKey -->

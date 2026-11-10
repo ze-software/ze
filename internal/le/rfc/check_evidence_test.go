@@ -340,7 +340,9 @@ func TestPriorRevisionState(t *testing.T) {
 			t.Errorf("the refusal %q does not end with its own fix %q alone", errs, fix)
 		}
 	}
-	if state, _ := priorRevisionState(t.TempDir()); state != priorAbsent {
+	outside := t.TempDir()
+	t.Setenv("GIT_CEILING_DIRECTORIES", filepath.Dir(outside))
+	if state, _ := priorRevisionState(outside); state != priorAbsent {
 		t.Errorf("a directory with no git answered %v, want absent", state)
 	}
 	root := t.TempDir()

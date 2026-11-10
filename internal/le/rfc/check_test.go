@@ -37,6 +37,9 @@ func checkFixtureTree(t *testing.T, extra map[string]string) string {
 	maps.Copy(files, extra)
 
 	root := t.TempDir()
+	// A fixture owns its history; Git must not discover a repository or
+	// sandbox marker above its temporary directory.
+	t.Setenv("GIT_CEILING_DIRECTORIES", filepath.Dir(root))
 	for rel, body := range files {
 		path := filepath.Join(root, filepath.FromSlash(rel))
 		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
