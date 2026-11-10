@@ -78,7 +78,7 @@ func TestNativeReviewUsesGitOwnerExecuteMode(t *testing.T) {
 				t.Fatal(err)
 			}
 			recordFixtureReview(t, root, "spec", "runtime-review", "verdict", "clean", "rounds", "1", "file", code)
-			prepared, err := Create(root, &Options{Subject: "close unchanged mode-reviewed work", Files: []string{code}, Remove: []string{spec}})
+			prepared, err := Create(root, &Options{Subject: "close unchanged mode-reviewed work", Files: []string{code}, Remove: []string{spec}, NoNews: "fixture: no operator-visible change"})
 			if err != nil {
 				t.Fatalf("fresh unchanged ordinary review disagreed with Git mode %s: %v", test.want, err)
 			}

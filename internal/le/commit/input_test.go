@@ -110,7 +110,7 @@ func TestMessageWritesOwedTrailers(t *testing.T) {
 		configureCommitAuthor(t, root)
 		commitFixture(t, root, "the spec lands", map[string]string{owedSpecPath: specText("in-progress", "")}, nil)
 		prepared, err := Create(root, &Options{Subject: "close the spec", Remove: []string{owedSpecPath},
-			ReviewOverride: "no reviewer free", DryRun: true})
+			ReviewOverride: "no reviewer free", NoNews: "fixture: no operator-visible change", DryRun: true})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -132,5 +132,21 @@ func assertTrailer(t *testing.T, prepared *Prepared, trailer string) {
 	t.Helper()
 	if !strings.Contains(prepared.MessageText, "\n"+trailer+"\n") {
 		t.Fatalf("the message does not carry %q as one line:\n%s", trailer, prepared.MessageText)
+	}
+}
+
+// TestHandWrittenNoNewsTrailerRefused proves the no-news admission cannot be
+// forged from prose: a body line `No-news: <reason>` is refused by the
+// hand-written trailer check, and the refusal names the no-news keyword, the
+// one route that writes the trailer (AC-8, R-7).
+// PREVENTS: a closure that skips the news-fragment gate by writing the
+// trailer the gate would have admitted.
+func TestHandWrittenNoNewsTrailerRefused(t *testing.T) {
+	_, err := Message("plan: close x", []string{"a body", trailerNoNews + "tooling: no operator-visible change"}, nil)
+	if err == nil {
+		t.Fatal("a hand-written No-news: line was accepted")
+	}
+	if !strings.Contains(err.Error(), keywordNoNews+` "<reason>"`) {
+		t.Fatalf("the refusal does not name the %s keyword: %v", keywordNoNews, err)
 	}
 }

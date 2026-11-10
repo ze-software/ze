@@ -62,7 +62,7 @@ func TestGeneratedRecheckKeepsThePreparingIdentity(t *testing.T) {
 	if err := os.Chmod(filepath.Join(root, "le"), 0o700); err != nil { //nolint:gosec // executable native test bridge
 		t.Fatal(err)
 	}
-	prepared, err := Create(root, &Options{Subject: "close recheck-identity spec", Remove: []string{specPath}})
+	prepared, err := Create(root, &Options{Subject: "close recheck-identity spec", Remove: []string{specPath}, NoNews: "fixture: no operator-visible change"})
 	if err != nil {
 		t.Fatal(err)
 	}

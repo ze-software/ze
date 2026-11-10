@@ -47,19 +47,47 @@ whatever the span (`ai/META-DECISIONS.md`, "Reports and messages").
 1. Find the newest archived Discord post in `website/changes/discord/` and the newest website post in `website/changes/posts/`.
 2. Determine the new `covers:` range: it starts on the UTC committer date of `release-from` and ends on the UTC committer date of `release-to`, both resolved below. Use a different range only when Thomas gives one.
 3. Collect the pinned release comparison below before drafting.
-4. Gather what shipped during the range:
+4. List the news fragments added in the range. The agent that closed a spec, or
+   fixed a defect operators see, wrote one file per change under
+   `website/changes/fragments/` (format: `website/changes/fragments/README.md`):
+
+   ```sh
+   git log --diff-filter=A --name-only --format= <release-from>..<release-to> -- website/changes/fragments/
+   ```
+
+   Read each listed file at `<release-to>`. **A fragment is a claim, never
+   evidence.** It says where to look and which facts its author knew. Verify
+   every claim you use at its producing function in the `release-to` tree, as
+   step 5 requires of a commit, before it enters the post. A claim that fails
+   verification stays out of the post and is recorded as failed in the
+   measure (step 9). A change with no fragment is still in the range: the
+   commit log of step 5 finds it.
+5. Gather what shipped during the range:
    - inspect `git log` for the range,
    - read the touched source, docs, specs, or tests needed to understand user-visible behavior,
    - verify the behavior at its producing function in the selected `release-to` tree,
    - leave design and planning work out: the update carries no forward-looking section.
-5. Group the week by user-facing theme. Fold small commits into one capability when they serve one story.
-6. A commit message describes the moment it was written. A quoted number can describe a defect before its fix. Read the producer before claiming delivery, including for removed release work items.
-7. Collect the facts the `STYLE.md` "How much detail" rules need, because none of them can be written from the commit log alone:
+6. Group the week by user-facing theme. Fold small commits into one capability when they serve one story.
+7. A commit message, like a fragment, describes the moment it was written. A quoted number can describe a defect before its fix. Read the producer before claiming delivery, including for removed release work items.
+8. Verify the fragment claims, then research only what no fragment carries. `STYLE.md` "How much detail" needs these facts, and none of them can be written from the commit log alone. The fragments of step 4 carry them as their authors knew them, under the Before, After, Corrects, Exposure, Upstream and Asked by headings. Verify each fragment claim you use at the producer. Research the fact below only when no fragment carries it, a fragment that says `none` included when the item needs the fact:
+   - **before and after:** what an operator hit before the change and what they see now, read at the fix's or the feature's producer;
    - **earlier claims:** for each fix in the range, grep `website/changes/discord/` for an earlier post that announced the behavior. A hit makes the fix a correction of that post (name its date) or a "works again"; no hit means the fix carries no qualifier;
    - **security exposure:** for each security fix, read the fix to learn which configurations were exposed and which were not;
    - **upstream reports:** grep the range for bugs found in another implementation or a library and reported or fixed upstream;
    - **a measured number:** only from a `./le perf` result Thomas ran on his Mac, recorded in the range. Never from a commit message;
    - **who asked:** an outside request (a GitHub issue, a Discord thread) behind a headline feature, credited by role.
+9. Record, for each item selected for the post, where each of the five facts
+   came from: what an operator hit before (with what they see after), the
+   earlier ze-news claim it corrects, the security exposure, the upstream
+   report, and who asked. Each fact is `fragment` (a fragment carried it and
+   it passed verification), `research` (no fragment carried it, so step 8
+   found it), `failed` (a fragment carried it and the producer refuted it), or
+   `n/a` (the item has no such fact). Once the post is published (Phase 3),
+   append one table for this update to
+   `plan/records/weekly-fragment-measure.md`, in the shape that file sets,
+   headed by the update's `release-from`..`release-to` range whatever its
+   length. The table measures whether fragments carry the facts. It is never
+   published.
 
 ### Collect release progress
 
@@ -248,6 +276,8 @@ The posting tool refuses a post whose `covers:` range ends after today unless `f
 
 Never answer a partial send by running the command again without `resume-from`. The archive is written only after the last chunk lands, so nothing records the week as posted, and a fresh run sends every chunk that already arrived a second time.
 
+6. Append this update's measure table to `plan/records/weekly-fragment-measure.md` (Phase 1, step 9).
+
 ## Phase 4: Update the website
 
 In `website/`, apply the checklist from `AI.md`:
@@ -283,10 +313,11 @@ Report only grounded facts:
 - which site files or data files changed,
 - the `./le site build` and `./le site check` results,
 - the pinned `release-from` and `release-to`, and any authorized UTC cutoff,
+- the measure table appended to `plan/records/weekly-fragment-measure.md`,
 - any intentionally skipped drift item, with the reason.
 
-Do not say the update is done unless the Discord post, archive, generated site, homepage card, feed, and native site checks are all accounted for.
+Do not say the update is done unless the Discord post, archive, generated site, homepage card, feed, native site checks and the fragment measure are all accounted for.
 
 ## Done when
 
-Done when the Phase 5 report accounts for the Discord post, the archive, the generated site, the homepage card, the feed, and the `./le site build` and `./le site check` results.
+Done when the Phase 5 report accounts for the Discord post, the archive, the generated site, the homepage card, the feed, the fragment measure, and the `./le site build` and `./le site check` results.

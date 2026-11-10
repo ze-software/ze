@@ -197,6 +197,29 @@ The main thread sets the spec back to `in-progress` when the blocker clears.
      is parked in a row, so closure removes no shard.
      **Dropping the item instead of homing it is the owner's decision, never
      yours** (`ai/rules/completion.md`).
+
+   **A news fragment, or `no-news`.** `./le commit create` refuses commit B
+   unless the closure says whether operators see a change. Pick exactly one:
+   - **Operators see a change:** write `website/changes/fragments/<stem>.md`,
+     where `<stem>` is the spec's file name without `.md`, and carry it in
+     commit A. Its front matter names the spec, a `topic` (a tag family from
+     `website/data/topics.json`), and, where they apply, the feature id and
+     `found-by`. Its body has the six fixed headings, in order. Write `none`
+     under a heading whose fact is truly absent, never under Before or After.
+     The format, and the one declaration the gate reads, are in
+     `website/changes/fragments/README.md`.
+   - **Operators see nothing:** add `no-news "<reason>"` to commit B. The
+     commit carries it as a `No-news:` trailer. Never write that line by hand.
+
+   A fragment and `no-news` together are refused, because the closure would
+   say both. Write the fragment for an operator who reads the weekly update:
+   what they hit before, what they see now, which configurations were exposed,
+   what earlier ze-news text it corrects, what was reported upstream, and who
+   outside the project asked for it. It carries no agent lessons: those go to
+   their governing surface (step a). The gate accepts only a fragment written
+   by this spec's work or this script, so a same-named file from an earlier
+   spec does not satisfy it.
+
    Running the commit script finishes the closure. There is no step 7. Every
    change below MUST be in that single script; the only things after it are
    releasing the claim (6e) and the report of the evidence (6f).
@@ -261,9 +284,9 @@ The main thread sets the spec back to `in-progress` when the blocker clears.
 
         After the script has run, `./le spec citation` is green. A closure that
         leaves it red is not closed.
-      - **Commit A (implementation + spec):** run `./le commit create replace` with `file <path>` for every implementation file (code, tests, docs, schema), `file plan/journal/<class>.md` when step 6a wrote a journal row, and `file <spec-path>` using its actual work-folder path to preserve all implementation edits in git history.
+      - **Commit A (implementation + spec):** run `./le commit create replace` with `file <path>` for every implementation file (code, tests, docs, schema), `file plan/journal/<class>.md` when step 6a wrote a journal row, `file website/changes/fragments/<stem>.md` when the closure writes a fragment, and `file <spec-path>` using its actual work-folder path to preserve all implementation edits in git history.
       - **Sweep EVERY journal row this session wrote, not only step 6a's.** Run `git status --porcelain plan/journal/` and add `file <path>` for each row whose text this session added: a defect met while implementing is written the moment it is found, and it then waits, uncommitted, for a commit that names it. Rows belonging to another session stay out. An uncommitted row lives in one working tree and dies at the next clean or checkout, so a closure that leaves them behind loses the knowledge the closure exists to preserve (`ai/rules/completion.md`, "Recording").
-      - **Commit B (spec closure):** run `./le commit create append remove <spec-path>` using the same actual path with the spec closure commit message. Leave the spec file on disk: once commit B succeeds, the script deletes it, because commit A's `file <spec-path>` committed exactly that content. A copy edited after `create` ran is kept and named on stderr (`NOTE: kept <path>`); decide about that copy, never delete it blind.
+      - **Commit B (spec closure):** run `./le commit create append remove <spec-path>` using the same actual path with the spec closure commit message, plus `no-news "<reason>"` when commit A carries no fragment. Leave the spec file on disk: once commit B succeeds, the script deletes it, because commit A's `file <spec-path>` committed exactly that content. A copy edited after `create` ran is kept and named on stderr (`NOTE: kept <path>`); decide about that copy, never delete it blind.
       - The native command owns the session ID, message files, executable script, ignored-path rejection, the commit itself, and journal-row checks.
    e. Run the generated script yourself, with `bash` and the path from its `script=` line. Then release this session's spec claim, `./le spec release`, which also frees a slot against the WIP cap (`./le spec wip`). Report the resulting commit SHA(s), the script path, message files, commit subjects, and included files.
    f. **No verify run over the closing commits.** No agent runs any `./le

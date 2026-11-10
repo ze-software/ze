@@ -841,8 +841,18 @@ destroys.
 
 | Commit | Carries |
 |--------|---------|
-| A | All code, tests, docs and the spec file itself with every implementation edit, plus any journal rows owed by the work |
-| B | `remove <the spec's path in its bucket>` only |
+| A | All code, tests, docs and the spec file itself with every implementation edit, plus any journal rows owed by the work, plus the news fragment `website/changes/fragments/<stem>.md` when operators see the change |
+| B | `remove <the spec's path in its bucket>`, plus `no-news "<reason>"` when commit A carries no fragment |
+
+Every closure says whether operators see a change. `./le commit create`
+refuses commit B unless the prospective tree holds a valid
+`website/changes/fragments/<stem>.md` that this spec's work or this script
+wrote, or the commit carries `no-news "<reason>"`, which becomes a `No-news:`
+trailer. Carrying both is refused. A fragment's presence is never read as
+proof that a spec closed: closure is still the removed spec. The fragment
+format is `website/changes/fragments/README.md`, and the refusal is in
+`docs/contributing/committing.md`.
+<!-- source: internal/le/commit/newsfragment.go -- newsFragmentRefusal -->
 
 Forcing the deletion of a spec that was never committed discards the uncommitted
 edits silently. Commit the spec first, always.

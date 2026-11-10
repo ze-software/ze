@@ -470,3 +470,85 @@ func TestTheChangesClaimOnlyPublishedRoutes(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: a news fragment under changes/fragments/ is never published
+// (AC-10 of spec-weekly-news-fragments).
+//
+// A fragment is an unverified claim that the weekly writer and the release
+// notes read, so no page may be derived from it and it may not ship as a file.
+// Method, in two halves. The producer: build the changelog from one source
+// tree, add a fragment shaped like a valid week (so a producer that scanned it
+// would publish a page rather than fail), build again into a fresh artifact,
+// and compare every file of the two artifacts byte for byte, together with the
+// routes each build claims. The deployment: stage the fragment into an
+// artifact at the path Build's staging writes it to, and require the
+// source-only trim to remove it and the site check to name it while it is
+// there.
+func TestFragmentsAreNotPublished(t *testing.T) {
+	const fragmentDirectory = "changes/fragments"
+	const fragment = fragmentDirectory + "/2026-08-31.md"
+	const marker = "FRAGMENT-MARKER-UNPUBLISHED"
+
+	paths := changesPaths(t)
+	without, err := renderChanges(paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reference := artifactTree(t, paths.Output)
+
+	writeArtifactFile(t, paths.Source, fragment,
+		"---\ncovers: 2026-08-31 .. 2026-09-06\ntags: CLI\n---\n\n"+
+			"**Ze Weekly Update**\n\n"+marker+"\n\n**CLI**\n"+marker+"\n")
+	paths.Output = t.TempDir()
+	with, err := renderChanges(paths)
+	if err != nil {
+		t.Fatalf("a fragment beside the posts broke the changes build: %v", err)
+	}
+	if !slices.Equal(with, without) {
+		t.Errorf("the fragment changed the claimed routes: %v, without it %v", with, without)
+	}
+	built := artifactTree(t, paths.Output)
+	for name, content := range built {
+		if strings.Contains(content, marker) {
+			t.Errorf("%s publishes the fragment's text", name)
+		}
+		expected, present := reference[name]
+		if !present {
+			t.Errorf("%s exists only in the build with the fragment", name)
+			continue
+		}
+		if content != expected {
+			t.Errorf("%s differs from the build without the fragment", name)
+		}
+	}
+	for name := range reference {
+		if _, present := built[name]; !present {
+			t.Errorf("%s is missing from the build with the fragment", name)
+		}
+	}
+	for _, name := range []string{changesIndexDest, changesFeedDest, changesLegacyFeedDest, changesIndexFile} {
+		if _, present := built[name]; !present {
+			t.Errorf("the comparison did not cover %s, so it proves nothing about it", name)
+		}
+	}
+
+	if !isSourceOnly(fragment) {
+		t.Fatalf("%s is not source-only, so the build stages it into the artifact and publishes it", fragment)
+	}
+	staged := t.TempDir()
+	writeArtifactFile(t, staged, fragment, marker)
+	writeArtifactFile(t, staged, fragmentDirectory+"/README.md", marker)
+	found, err := publishedSourceOnly(staged)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(found, []string{fragmentDirectory}) {
+		t.Errorf("the site check reports %v for a staged fragment directory, want [%s]", found, fragmentDirectory)
+	}
+	if err := removeSourceOnly(staged); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(staged, filepath.FromSlash(fragmentDirectory))); !os.IsNotExist(err) {
+		t.Errorf("the source-only trim left %s in the artifact: %v", fragmentDirectory, err)
+	}
+}

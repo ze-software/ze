@@ -140,7 +140,7 @@ func prepareSpecWorkClosure(t *testing.T, root string, pinned ...string) (Prepar
 	}
 	writeReviewArtifact(t, root, "x", pinned...)
 	return Create(root, &Options{Subject: "plan: close x", Remove: []string{specWorkSpecPath},
-		Append: true, SpecWork: "x"})
+		Append: true, SpecWork: "x", NoNews: "fixture: no operator-visible change"})
 }
 
 // TestClosureRefusesCodeAnEarlierSpecCommitCarried drives the closure gate

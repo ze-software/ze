@@ -84,9 +84,14 @@ func pathWithin(parent, child string) bool {
 // ("make le a ze personality and retire make and scripts") -- and it is kept
 // anyway, because TestSourceOnlyBoundary pins presentations/tools/bundle.go
 // and dropping the entry would mean deleting that case to make the list tidy.
+//
+// `changes/fragments` holds the news fragments an agent writes when it closes a
+// change (website/changes/fragments/README.md). A fragment is an unverified
+// claim, read by the weekly writer and the release notes, so the build stages
+// it with every other source file and this entry trims it before deployment.
 var sourceOnlyDirectories = []string{
 	".claude", ".github", "assets/css", "assets/js", "blog/posts",
-	"changes/posts", "presentations/tools", "tools",
+	"changes/fragments", "changes/posts", "presentations/tools", "tools",
 }
 
 var sourceOnlyFiles = map[string]bool{

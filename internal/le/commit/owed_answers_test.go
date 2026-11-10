@@ -424,3 +424,25 @@ func TestCommitCacheLoadsEveryCommitInOneBatch(t *testing.T) {
 		}
 	}
 }
+
+// TestNoNewsTrailerOwesNothingAtPush pins that the no-news statement is a
+// record with no person act behind it.
+//
+// VALIDATES: a commit carrying `No-news: <reason>` beside its attribution
+// derives no malformed-trailer refusal and no owed item, and its push is
+// admitted (AC-3, the push owes nothing for it).
+// PREVENTS: the push parser shape-checking `No-news:` as `<subject>: <reason>`
+// and holding every no-news closure's push.
+func TestNoNewsTrailerOwesNothingAtPush(t *testing.T) {
+	root := newOwedRepository(t)
+	commitOwed(t, root, "a change that says operators see nothing", map[string]string{"a.txt": "a\n"}, nil,
+		trailerNoNews+"tooling: no operator-visible change", trailerSpecWork+"x")
+
+	derived := deriveOwed(t, root, "")
+	if len(derived.Items) != 0 || len(derived.Refusals) != 0 {
+		t.Fatalf("the no-news statement owes something: items %+v, refusals %q", derived.Items, derived.Refusals)
+	}
+	if err := derived.pushRefusal(); err != nil {
+		t.Fatalf("a commit carrying the no-news statement refused its push: %v", err)
+	}
+}

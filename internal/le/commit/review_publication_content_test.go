@@ -50,7 +50,7 @@ func TestNativeReviewPublishesEarlierWholeAndHunkSnapshots(t *testing.T) {
 			recordFixtureReview(t, root, "spec", "runtime-review", "verdict", "clean", "rounds", "1",
 				"blob", code, blob, "mode", code, "100644")
 			writeCommitFixture(t, root, code, concurrent)
-			closure, err := Create(root, &Options{Subject: "close earlier reviewed work", Remove: []string{spec}, Append: true})
+			closure, err := Create(root, &Options{Subject: "close earlier reviewed work", Remove: []string{spec}, Append: true, NoNews: "fixture: no operator-visible change"})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -84,7 +84,7 @@ func TestNativeReviewPinsExecutableMode(t *testing.T) {
 	blob := strings.TrimSpace(runCommitGitOutput(t, root, "hash-object", "-w", "--", code))
 	recordFixtureReview(t, root, "spec", "runtime-review", "verdict", "clean", "rounds", "1",
 		"blob", code, blob, "mode", code, "100755")
-	prepared, err := Create(root, &Options{Subject: "close reviewed executable", Files: []string{code}, Remove: []string{spec}})
+	prepared, err := Create(root, &Options{Subject: "close reviewed executable", Files: []string{code}, Remove: []string{spec}, NoNews: "fixture: no operator-visible change"})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -39,7 +39,11 @@ type Options struct {
 	NoTest         string          `json:"no-test,omitempty"`
 	ReviewOverride string          `json:"review-override,omitempty"`
 	RFCChangeOK    string          `json:"rfc-change-ok,omitempty"`
-	DryRun         bool            `json:"dry-run"`
+	// NoNews is the reason a spec closure carries no news fragment: operators
+	// see no change. newsFragmentRefusal judges it and Create writes it as the
+	// No-news: trailer.
+	NoNews string `json:"no-news,omitempty"`
+	DryRun bool   `json:"dry-run"`
 	// Attest is the commit an attestation answers and AttestWords the owner's
 	// words. An attestation names no file and no remove path (D-7).
 	Attest      string `json:"attest,omitempty"`
@@ -243,6 +247,10 @@ func Create(root string, options *Options) (Prepared, error) {
 	}
 
 	reviewCheck := ""
+	// noNews is the No-news: trailer the news-fragment gate admitted, or ""
+	// when the commit carries none. It records a fact rather than a person
+	// act, so it stays out of result.Trailers, as Spec-work: does.
+	noNews := ""
 	switch {
 	case attesting:
 		// An empty commit changes no byte, so no source or verification gate
@@ -269,6 +277,12 @@ func Create(root string, options *Options) (Prepared, error) {
 		// (ai/META-DECISIONS.md, "How agents work"). It runs after the review
 		// gate, so a closure still learns first that it owes its review.
 		if err := specMechanismsRefusal(root, paths, removed, selection, content.before); err != nil {
+			return result, err
+		}
+		// A spec closure owes a news fragment or a no-news reason, and a
+		// carried fragment owes a valid shape (newsfragment.go).
+		noNews, err = newsFragmentRefusal(root, options, paths, removed, selection, content)
+		if err != nil {
 			return result, err
 		}
 		// A third-party import is approved only for its approved use
@@ -329,8 +343,12 @@ func Create(root string, options *Options) (Prepared, error) {
 		}
 		result.Trailers = append(result.Trailers, owed...)
 		trailers := slices.Concat(result.RFCApprovals.Trailers, result.WeakeningApprovals.Trailers, result.Trailers)
-		// The attribution owes nothing, so it stays out of result.Trailers,
-		// which lists person acts, and closes the message.
+		// No-news: and the attribution owe nothing, so they stay out of
+		// result.Trailers, which lists person acts, and close the message in
+		// that order.
+		if noNews != "" {
+			trailers = append(trailers, noNews)
+		}
 		if options.SpecWork != "" {
 			trailers = append(trailers, trailerSpecWork+options.SpecWork)
 		}

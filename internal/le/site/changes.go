@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/site/topics"
 )
 
 // The changelog is registered from here, so a build discovers it through
@@ -54,8 +55,9 @@ const (
 const changesIndexDescription = "What shipped in Ze: update reports, newest first."
 
 // topicsVocabularyFile is the controlled tag vocabulary: every tag family a
-// week may carry, and the category that colors its chip.
-const topicsVocabularyFile = "data/topics.json"
+// week may carry, and the category that colors its chip. The topics package
+// declares the path and reads the file.
+const topicsVocabularyFile = topics.File
 
 // categoryFilterOrder is the order the chips, the filter buttons and each
 // week's category list are written in.
@@ -202,21 +204,16 @@ func loadTopicVocabulary(source string) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	var vocabulary struct {
-		Tags map[string]string `json:"tags"`
+	vocabulary, err := topics.Parse(path, content)
+	if err != nil {
+		return nil, err
 	}
-	if err := json.Unmarshal(content, &vocabulary); err != nil {
-		return nil, fmt.Errorf("read %s: %w", path, err)
-	}
-	if len(vocabulary.Tags) == 0 {
-		return nil, fmt.Errorf("%s states no tag", path)
-	}
-	for family, category := range vocabulary.Tags {
+	for family, category := range vocabulary {
 		if err := validateCategory(category); err != nil {
 			return nil, fmt.Errorf("%s maps tag %q: %w", path, family, err)
 		}
 	}
-	return vocabulary.Tags, nil
+	return vocabulary, nil
 }
 
 // loadChangeWeeks reads every weekly post, newest first.

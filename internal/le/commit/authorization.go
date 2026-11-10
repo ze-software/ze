@@ -30,7 +30,7 @@ func requireAttestationTerminal(root string, options *Options) error {
 	for _, pair := range []struct{ keyword, value string }{
 		{keywordSession, options.Session}, {keywordTag, options.Tag}, {keywordScript, options.Script},
 		{keywordNoTest, options.NoTest}, {keywordReviewOverride, options.ReviewOverride},
-		{keywordRFCChangeOK, options.RFCChangeOK},
+		{keywordRFCChangeOK, options.RFCChangeOK}, {keywordNoNews, options.NoNews},
 	} {
 		if pair.value != "" {
 			arguments = append(arguments, pair.keyword, pair.value)

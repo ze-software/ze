@@ -2,17 +2,19 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P3 |
 | Release reason | Development tooling for the weekly public update and the release notes; no shipped behaviour changes |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 6/6 |
 | Handoff | - |
-| Updated | 2026-11-09 |
+| Updated | 2026-11-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+WIP cap: Thomas approved claiming this spec and `spec-weekly-event-report` above the in-progress cap (2026-11-09 session), a one-off permission for this pair.
 
 ## Task
 
@@ -161,11 +163,11 @@ tooling events (recorded breaks, judge verdicts, interop red/green).
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Judging at commit B over the spec's `Spec-work:` population is enough | `review.go`: commit A is indistinguishable | Spec work landed without a claim is missed | `TestNewsFragmentClosureFindsFragmentFromEarlierSpecCommit` | unvalidated |
-| A-2 | Agents write specific fragments when the format demands operator-visible Before and After | Thomas's agreement | Fragments become filler | The two-week measure | unvalidated |
-| A-3 | Fixes outside a spec are covered well enough by the skill instruction | Thomas's choice; no marker exists | Many user-visible fixes reach the week with no fragment | Count fragment-less fixes in the two measured weeks | unvalidated |
-| A-4 | No site check scans every Markdown file under `website/`, so fragments are neither published nor refused | `changes.go` reads `changes/posts` only | `./le site check` refuses or publishes fragments | `TestFragmentsAreNotPublished` plus one `./le site build` | unvalidated |
-| A-5 | Importing the topic reader from `internal/le/commit` does not pull the site renderer | Not read | Commit tooling grows a heavy dependency | Implementation reads the import graph; moves the reader to a leaf package if needed | unvalidated |
+| A-1 | Judging at commit B over the spec's `Spec-work:` population is enough | `review.go`: commit A is indistinguishable | Spec work landed without a claim is missed | `TestNewsFragmentClosureFindsFragmentFromEarlierSpecCommit` | confirmed: the test passes, and goes red when `newsFragmentWrittenBySpec` skips `specWorkPopulation` (main thread, 2026-11-09) |
+| A-2 | Agents write specific fragments when the format demands operator-visible Before and After | Thomas's agreement | Fragments become filler | The two-week measure | moved: needs two weekly updates; `plan/post-release/engineering/spec-weekly-fragment-measure-verdict.md` A-1 owns it |
+| A-3 | Fixes outside a spec are covered well enough by the skill instruction | Thomas's choice; no marker exists | Many user-visible fixes reach the week with no fragment | Count fragment-less fixes in the two measured weeks | moved: needs two weekly updates; `plan/post-release/engineering/spec-weekly-fragment-measure-verdict.md` A-2 owns it |
+| A-4 | No site check scans every Markdown file under `website/`, so fragments are neither published nor refused | `changes.go` reads `changes/posts` only | `./le site check` refuses or publishes fragments | `TestFragmentsAreNotPublished` plus one `./le site build` | broken: the build stages every `website/` file and only `sourceOnlyDirectories` (`internal/le/site/paths.go`) trims; fixed by adding `changes/fragments`, proved by `TestFragmentsAreNotPublished` (red without the entry) |
+| A-5 | Importing the topic reader from `internal/le/commit` does not pull the site renderer | Not read | Commit tooling grows a heavy dependency | Implementation reads the import graph; moves the reader to a leaf package if needed | broken: `internal/le/site` non-test files import goldmark (`changes.go`, `markdown.go`, `blog.go`, `doctransform.go`, `yang.go`, `rfccompliance.go`) and its `init()` registers producers, and `loadTopicVocabulary` calls the site-only `validateCategory`; the reader moves to a leaf package that parses `topics.json` bytes, so the gate can read them from the prospective tree (AC-4 survivor). Resolved: `internal/le/site/topics` (`Parse`, `File`) imports only `encoding/json`, `errors` and `fmt`; `loadTopicVocabulary` calls `topics.Parse` and keeps `validateCategory`, which needs the site's colors; `newsTopicVocabulary` in `newsfragment.go` calls the same `Parse` on the bytes `committedText` reads from `content.tree` |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -226,10 +228,13 @@ tooling events (recorded breaks, judge verdicts, interop red/green).
 | `TestNewsFragmentTopicAddedInSameCommitAccepted` | `internal/le/commit/newsfragment_test.go` | AC-4 survivor | |
 | `TestNewsFragmentFoundByJudged` | `internal/le/commit/newsfragment_test.go` | AC-4a, each declared value accepted, an unknown one refused, absence accepted | |
 | `TestNewsFragmentHeadingsJudged` | `internal/le/commit/newsfragment_test.go` | AC-5, table over each heading, empty and "none" | |
-| `TestNewsFragmentStaleSameNameRefused` | `internal/le/commit/newsfragment_test.go` | AC-6, R-4 | |
+| `TestNewsFragmentStaleSameNameRefused` | `internal/le/commit/newsfragment_test.go` | AC-6, R-4; the same stale fragment with `no-news` is prepared, because it is an earlier spec's text, not this closure's news | |
+| `TestNewsFragmentClosureNamesItsSpecRefused` | `internal/le/commit/newsfragment_test.go` | AC-1, the closing fragment's `spec` key names the closed stem | |
+| `TestNoNewsOnNonClosureRefused` | `internal/le/commit/newsfragment_test.go` | `no-news` on a commit that closes no spec is refused, naming the keyword to drop | |
 | `TestNewsFragmentValidatedOnNonClosure` | `internal/le/commit/newsfragment_test.go` | AC-7 | |
 | `TestNewsFragmentSkippedOutsideCheckout` | `internal/le/commit/newsfragment_test.go` | AC-9 | |
 | `TestNewsFragmentUnreadableCouldNotRun` | `internal/le/commit/newsfragment_test.go` | R-6 | |
+| `TestParseReadsTheTagFamilies` | `internal/le/site/topics/topics_test.go` | A-5, the one topic reader | |
 | `TestHandWrittenNoNewsTrailerRefused` | `internal/le/commit/input_test.go` | AC-8 | |
 | `TestNoNewsTrailerOwesNothingAtPush` | `internal/le/commit/owed_answers_test.go` | AC-3 | |
 | `TestFragmentsAreNotPublished` | `internal/le/site/changes_test.go` | AC-10, A-4 | |
@@ -247,7 +252,8 @@ tooling events (recorded breaks, judge verdicts, interop red/green).
 ## Files to Modify
 - `internal/le/commit/prepare.go` - call `newsFragmentRefusal`; carry the `no-news` reason as a trailer
 - `internal/le/commit/actions.go` - `no-news` in `createParameters` and `createPolicy`, `Options` field, `No-news:` in `declaredTrailers`
-- `internal/le/site/changes.go` - export the topic vocabulary reader (or move it to a leaf package, A-5)
+- `internal/le/site/changes.go` - `loadTopicVocabulary` calls `topics.Parse`, keeping the site-only category check (A-5)
+- `internal/le/site/paths.go` - `sourceOnlyDirectories` gains `changes/fragments`, so a build never stages a fragment for deployment (A-4)
 - `ai/skills/ze-close.md` - step 6 writes the fragment or picks `no-news`
 - `ai/skills/ze-weekly-update.md` - Phase 1 reads fragments, verifies, records the measure; step 7 rewritten
 - `plan/journal/README.md` - where a row's Fix cell turns `fixed: `, the fixing agent also writes `website/changes/fragments/<journal-class>-<slug>.md` when operators see the fix (no skill owns journal fixes; this page is where the marker is documented)
@@ -261,6 +267,8 @@ tooling events (recorded breaks, judge verdicts, interop red/green).
 ## Files to Create
 - `internal/le/commit/newsfragment.go` - `newsFragmentRefusal`, the heading declaration and the parser
 - `internal/le/commit/newsfragment_test.go` - its tests
+- `internal/le/site/topics/topics.go` - `Parse`, the one reader of `website/data/topics.json` in le, a leaf the commit tooling imports without the site renderer (A-5)
+- `internal/le/site/topics/topics_test.go` - `TestParseReadsTheTagFamilies`
 - `website/changes/fragments/README.md` - the format, for agents
 
 ### Integration Checklist
@@ -410,3 +418,173 @@ tooling events (recorded breaks, judge verdicts, interop red/green).
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
 - [ ] **Commit A:** code + tests + docs + edited spec + this spec's own fragment or none
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` with `no-news "tooling: no operator-visible change"` unless a fragment was written
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `internal/le/commit/newsfragment.go`: `newsFragmentRefusal` (called from `Create`'s native arm after `specMechanismsRefusal`), `newsFragmentsCarried` and `parseNewsFragment` (shape of every carried fragment), `newsFragmentWrittenBySpec` (this commit, `specWorkPopulation`, or `scriptPaths` when appending), `newsFragmentClosureProblem` (spec key names the stem), `newsFragmentOwed` (AC-2 text); the one declaration of `newsHeadings`, `newsFoundBy` and the front matter keys
+- `actions.go`: `no-news` reason keyword, `createPolicy` row, `No-news:` in `declaredTrailers` (`OwesNothing`); `prepare.go`: `Options.NoNews`, trailer written before `Spec-work:`; `authorization.go`: keyword preserved
+- `internal/le/site/topics` (leaf): `Parse`, the one reader of `topics.json`; `loadTopicVocabulary` calls it and keeps `validateCategory`
+- `internal/le/site/paths.go`: `changes/fragments` in `sourceOnlyDirectories`
+- Skills: `ze-close` step 6 (fragment or `no-news`), `ze-weekly-update` Phase 1 steps 4, 8, 9 and the measure; `website/changes/fragments/README.md`; `plan/records/weekly-fragment-measure.md`; `plan/journal/README.md` fix guidance; `spec-release-build` AC-25 restated
+
+### Bugs Found/Fixed
+- Three journal-row tests in `commit_test.go` were red from 3475223c4b's stale fixtures (no metadata table); fixtures repaired, row in `plan/journal/behavior-change-leaves-repository-users-stale.md`
+- A-4: fragments would have been deployed verbatim; fixed in `paths.go`, covered by `TestFragmentsAreNotPublished`
+
+### Documentation Updates
+- `docs/contributing/committing.md`: `no-news` keyword row, `No-news:` fact trailer, the gate and its refusals; anchors `newsFragmentRefusal, newsHeadings, newsFragmentOwed, newsFragmentWrittenBySpec, newsFragmentClosureProblem`, `newsFragmentsCarried, parseNewsFragment, newsFoundBy`, `topics.go -- Parse`
+- `docs/contributing/spec-workflow.md` "Closing a spec": commit A/B rows; anchor `newsFragmentRefusal`
+- `website/AI.md` Update Report Checklist and `website/changes/fragments/README.md`: anchors `changesSourceDirectory`, `sourceOnlyDirectories`
+- `./le doc check all`: only failure is the wiki command-catalog drift from other sessions' `show interface pppoe-client|delegated-prefix`, `show system dns` (main thread, 2026-11-09)
+
+### Deviations from Plan
+- The topic reader moved to the leaf package `internal/le/site/topics` (A-5 broken), not an export from `site`
+- `internal/le/site/paths.go` added to Files to Modify (A-4 broken)
+- Fragment front matter has its own strict parser (closed key set); the site's parser lives in the renderer package
+- A stale same-named fragment with `no-news` is admitted: it is an earlier spec's text, so only a fragment this spec's work wrote contradicts `no-news`
+- `no-news` on a commit that closes no spec is refused (a silent drop would be a silent wrong)
+- Closure review: the parser API, exported for future readers that do not exist yet, was unexported (`./le repo check` unwired exports)
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-4: fragments stay unpublished because `changes.go` reads `changes/posts` only | The build stages all of `website/`; only `sourceOnlyDirectories` trims | Phase 4 read of `build.go` `stageSources` | `paths.go` entry, `TestFragmentsAreNotPublished`; README and `website/AI.md` now cite both producers |
+| assumption | A-5: `commit` can import the site's topic reader | `internal/le/site` pulls goldmark and registers producers in `init()` | Phase 1 import read | Leaf package `internal/le/site/topics` |
+| approach | Phase 2 exported `ParseNewsFragment`, `NewsFragment`, `IsNewsFragmentPath`, `NewsFoundByValues` for future consumers | No cross-package caller exists; `./le repo check` refuses unwired exports | Closure Review Gate, `./le repo check` | Unexported; a consumer exports what it needs when it lands |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Closing agent writes one fragment | Done | `ai/skills/ze-close.md` step 6 | |
+| Every closure owes a fragment or `no-news` | Done | `newsfragment.go` `newsFragmentRefusal` | |
+| Fixes outside a spec: instruction only | Done | `plan/journal/README.md`, `website/changes/fragments/README.md` | |
+| Storage under `website/changes/fragments/`, unpublished | Done | `paths.go` `sourceOnlyDirectories` | |
+| Shape: front matter and six headings | Done | `newsfragment.go` `newsHeadings`, `parseNewsFragment` | |
+| `found-by` closed list | Done | `newsfragment.go` `newsFoundBy` | |
+| Weekly skill starts from fragments | Done | `ai/skills/ze-weekly-update.md` Phase 1 steps 4, 8 | |
+| Release notes from fragments | Done | `plan/release/delivery/spec-release-build.md` AC-25 | |
+| Measure over two updates | Changed | `ai/skills/ze-weekly-update.md` step 9, `plan/records/weekly-fragment-measure.md` | Recording is wired; judging it needs two updates: `spec-weekly-fragment-measure-verdict` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestNewsFragmentClosureAccepted`, `TestNewsFragmentClosureFindsFragmentFromEarlierSpecCommit`, `TestNewsFragmentCarriedEarlierInSameScript`, `TestNewsFragmentClosureNamesItsSpecRefused` | |
+| AC-2 | Done | `TestCreateRefusesClosureWithoutNewsFragment` | |
+| AC-3 | Done | `TestCreateNoNewsWritesTrailer`, `TestNewsFragmentAndNoNewsTogetherRefused`, `TestNoNewsTrailerOwesNothingAtPush` | |
+| AC-4 | Done | `TestNewsFragmentUnknownTopicRefused`, `TestNewsFragmentTopicAddedInSameCommitAccepted` | |
+| AC-4a | Done | `TestNewsFragmentFoundByJudged` | |
+| AC-5 | Done | `TestNewsFragmentHeadingsJudged` | |
+| AC-6 | Done | `TestNewsFragmentStaleSameNameRefused` | |
+| AC-7 | Done | `TestNewsFragmentValidatedOnNonClosure` | |
+| AC-8 | Done | `TestHandWrittenNoNewsTrailerRefused` | |
+| AC-9 | Done | `TestNewsFragmentSkippedOutsideCheckout` | |
+| AC-10 | Done | `TestFragmentsAreNotPublished` | `./le site build` + `./le site check` with a fragment present owed to the main thread |
+| AC-11 | Done | `ai/skills/ze-close.md` step 6 | |
+| AC-12 | Done | `ai/skills/ze-weekly-update.md` Phase 1 steps 4, 8, 9 | |
+| AC-13 | Done | `plan/release/delivery/spec-release-build.md` AC-25 | |
+| AC-14 | Done | `website/changes/fragments/README.md` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| 16 `newsfragment_test.go` tests in the plan, plus `TestNewsFragmentClosureNamesItsSpecRefused`, `TestNoNewsOnNonClosureRefused` | Done | `internal/le/commit/newsfragment_test.go` | |
+| `TestParseReadsTheTagFamilies` | Done | `internal/le/site/topics/topics_test.go` | |
+| `TestHandWrittenNoNewsTrailerRefused` | Done | `internal/le/commit/input_test.go` | |
+| `TestNoNewsTrailerOwesNothingAtPush` | Done | `internal/le/commit/owed_answers_test.go` | |
+| `TestFragmentsAreNotPublished` | Done | `internal/le/site/changes_test.go` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `prepare.go`, `actions.go`, `changes.go`, `paths.go` | Done | |
+| `ai/skills/ze-close.md`, `ai/skills/ze-weekly-update.md` | Done | |
+| `plan/journal/README.md`, `spec-release-build.md`, `committing.md`, `spec-workflow.md`, `website/AI.md` | Done | |
+| `docs/architecture/core-design.md`, `docs/features/ai-first.md` | Done | No change: publishing unchanged; ai-first lists no closure contents |
+| `newsfragment.go`, `newsfragment_test.go`, `topics.go`, `topics_test.go`, `website/changes/fragments/README.md` | Done | Created |
+
+### Audit Summary
+- **Total items:** 15 AC, 9 requirements
+- **Done:** all AC; 8 requirements
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (the measure's verdict needs two updates; spec of its own)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The closing agent records the five facts at the moment it knows them | wiring test through `Create` | `TestCreateRefusesClosureWithoutNewsFragment` refuses a closure with neither; `TestNewsFragmentClosureAccepted` prepares one with a valid fragment; mutation reds recorded by the main thread on `newsFragmentWrittenBySpec` |
+| The weekly writer starts from fragments and verifies them | skill text | `ai/skills/ze-weekly-update.md` Phase 1 steps 4 and 8; hard gates unchanged |
+| Fragments are never published | unit test over the build | `TestFragmentsAreNotPublished` green, red without the `paths.go` entry |
+| Release notes derive from fragments | spec text | `spec-release-build` AC-25 |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Judge A-2 and A-3 from the two-week measure | Needs two weekly updates written after this lands | `plan/post-release/engineering/spec-weekly-fragment-measure-verdict.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | recorded by `./le spec review record` at closure (path in the closure report) |
+| `./le spec review check` | run at closure |
+| Rounds | 2 |
+| Reviewer lenses used | logic and wiring of `newsFragmentRefusal`, security (paths fixed by stem, fail closed), style pass, docs against producers, `./le repo check`, `./le test weakened check` |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Five exported symbols with no cross-package caller (`./le repo check`) | `newsfragment.go` | Unexported; unused accessors `Path`, `Topic`, `Feature` and `NewsFoundByValues` removed |
+| 2 | ISSUE | README and `website/AI.md` cite only `changesSourceDirectory` as why fragments are unpublished, which A-4 proved insufficient | `website/changes/fragments/README.md`, `website/AI.md` | Both name `sourceOnlyDirectories` too |
+| 3 | ISSUE | `spec-release-build` cites this spec's path, which commit B removes | `plan/release/delivery/spec-release-build.md` | Repointed at the README; bare stem |
+| 4 | ISSUE | Deleting a misnamed file in the fragment directory was refused | `newsFragmentsCarried` | Name judged only for a present file |
+
+NOTEs: `newsFragmentOwed` spells `"## "` beside `newsHeadingPrefix`; `topicsVocabularyFile` aliases `topics.File`; `no-news` outside the checkout is dropped silently, as AC-9 and committing.md state.
+
+### Run 2
+Over the fixes: the renames are mechanical (grep shows no capitalised name left), the reorder keeps every carried present file judged. 0 BLOCKER, 0 ISSUE.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/commit/newsfragment.go`, `newsfragment_test.go` | yes | `ls -la`: 24369, 27403 bytes |
+| `internal/le/site/topics/topics.go`, `topics_test.go` | yes | 1693, 1325 bytes |
+| `website/changes/fragments/README.md`, `plan/records/weekly-fragment-measure.md` | yes | 3493, 1714 bytes |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-9 | Gate behaviour | `go test -race ./internal/le/commit/` (main thread): every news-fragment test passes; the rename and reorder owe a rerun |
+| AC-10 | Unpublished | `TestFragmentsAreNotPublished` green, red without the entry |
+| AC-11..AC-14 | Text | `grep -n fragments ai/skills/ze-close.md ai/skills/ze-weekly-update.md`; README present |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le commit create ... remove <spec>` | none: `TestCreateRefusesClosureWithoutNewsFragment` drives `Create` in a temporary repository | `prepare.go` native arm calls `newsFragmentRefusal` |
+| `... no-news "<reason>"` | none: `TestCreateNoNewsWritesTrailer` | message ends `No-news: <reason>`, `Spec-work: x` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | mutation red on `specWorkPopulation` branch |
+| A-2, A-3 | moved | `spec-weekly-fragment-measure-verdict` A-1, A-2 |
+| A-4 | broken | Mistake Log; `paths.go` fix |
+| A-5 | broken | Mistake Log; leaf package |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| committing.md gate and refusals | `newsFragmentRefusal`, `newsFragmentsCarried` read at closure | yes |
+| README unpublished claim | `paths.go` `sourceOnlyDirectories` holds `changes/fragments` | yes |
+| `./le doc check all` | wiki catalog drift only, other sessions | yes |

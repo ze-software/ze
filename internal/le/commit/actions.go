@@ -69,6 +69,9 @@ const (
 	// keywordLedgerCarried names one person-act row the ledger-deletion
 	// commit carries as a Ledger-carried: trailer (D-4).
 	keywordLedgerCarried = "ledger-carried"
+	// keywordNoNews states that a spec closure carries no news fragment
+	// because operators see no change: a No-news: trailer (newsfragment.go).
+	keywordNoNews = "no-news"
 )
 
 // The commit message trailers that record a person act or an admission. Each
@@ -89,6 +92,9 @@ const (
 	// prepared the commit had claimed. It owes nothing; a closure reads it to
 	// gather the spec's change set (specWorkPopulation).
 	trailerSpecWork = "Spec-work: "
+	// trailerNoNews is `No-news: <reason>`: why a spec closure carries no
+	// news fragment. It owes nothing; the weekly writer reads it.
+	trailerNoNews = "No-news: "
 )
 
 // declaredTrailers is every trailer create writes itself, with the one route
@@ -114,6 +120,7 @@ var declaredTrailers = []struct {
 	{rfc.ApprovalTrailer, "create from ./le rfc approve", false},
 	{rfc.ApprovalForTrailer, "create rfc-approval <revision> <unit>", true},
 	{testweakened.ApprovalTrailer, "create from ./le test weakened approve", false},
+	{trailerNoNews, `the spec closure: create ... remove <spec> ` + keywordNoNews + ` "<reason>"`, true},
 	{trailerSpecWork, "./le commit create under a claim (./le spec claim), from the claimed spec", true},
 }
 
@@ -506,6 +513,7 @@ var createParameters = []leaction.Parameter{
 	reasonParameter(keywordNoTest, "the reason the commit carries no test evidence"),
 	reasonParameter(keywordReviewOverride, "why a closure commits with no clean review (Review-owed:)"),
 	reasonParameter(keywordRFCChangeOK, "why the commit changes an unapproved RFC-tagged test unit"),
+	reasonParameter(keywordNoNews, "why a spec closure carries no news fragment (No-news:)"),
 	{Keyword: keywordDryRun, Kind: leaction.KindSwitch, Help: "print the message and the script and write neither"},
 	{Keyword: keywordPush, Retired: `./le commit push "<owner authorisation>"`},
 	{Keyword: "unverified", Retired: noVerifyOwed},
@@ -553,6 +561,7 @@ var createPolicy = map[string]keywordPolicy{
 	keywordNoTest:         {Given: givenText(func(o *Options) string { return o.NoTest })},
 	keywordReviewOverride: {Given: givenText(func(o *Options) string { return o.ReviewOverride })},
 	keywordRFCChangeOK:    {Given: givenText(func(o *Options) string { return o.RFCChangeOK })},
+	keywordNoNews:         {Given: givenText(func(o *Options) string { return o.NoNews })},
 	keywordDryRun:         {Given: func(o *Options) bool { return o.DryRun }, WithAttest: true},
 	keywordAttest:         {Given: givenText(func(o *Options) string { return o.Attest }), WithAttest: true},
 	keywordLedgerCarried:  {Given: func(o *Options) bool { return len(o.LedgerCarried) != 0 }},
@@ -606,6 +615,7 @@ func optionsOf(args leaction.Arguments) (Options, error) {
 		NoTest:         args.One(keywordNoTest),
 		ReviewOverride: args.One(keywordReviewOverride),
 		RFCChangeOK:    args.One(keywordRFCChangeOK), DryRun: args.Has(keywordDryRun),
+		NoNews: args.One(keywordNoNews),
 		Attest: attest[0], AttestWords: attest[1], LedgerCarried: args.Values(keywordLedgerCarried),
 		RFCApprovalSelections: approvals,
 	}, nil

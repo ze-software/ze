@@ -694,6 +694,16 @@ Trigger: a new `changes/posts/<start-date>.md` lands (the Discord
 is now for occasional editorial articles, not the update report). Work through
 this before considering the update done.
 
+The starting material is `changes/fragments/`: one file per change, written by
+the agent that closed a spec or fixed a defect operators see
+(`changes/fragments/README.md`). A fragment is a claim, never evidence, so
+every claim used in the post is verified at its producer first
+(`ai/skills/ze-weekly-update.md`, Phase 1). The site does not publish
+fragments: the changes pages are built from `changes/posts/` alone, and the
+build trims `changes/fragments/` from the artifact it deploys.
+<!-- source: internal/le/site/changes.go -- changesSourceDirectory -->
+<!-- source: internal/le/site/paths.go -- sourceOnlyDirectories -->
+
 0. **Tag the week.** Give the new post a `tags:` front-matter line (comma-
    separated) drawn from `data/topics.json`: one atomic tag per protocol or
    subsystem the week actually touched (`BGP`, `IS-IS`, `L2TP`, `Web UI`,

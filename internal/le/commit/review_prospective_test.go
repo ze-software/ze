@@ -33,7 +33,7 @@ func TestClosureReviewIgnoresUnselectedConcurrentEdits(t *testing.T) {
 			const concurrent = "package internal\n\nconst Reviewed = 1\nconst Concurrent = 2\n"
 			writeCommitFixture(t, root, code, concurrent)
 			prepared, err := Create(root, &Options{Subject: "close reviewed spec", Remove: []string{spec},
-				Append: origin == "earlier script block"})
+				Append: origin == "earlier script block", NoNews: "fixture: no operator-visible change"})
 			if err != nil {
 				t.Fatalf("unselected concurrent edit invalidated immutable %s: %v", origin, err)
 			}

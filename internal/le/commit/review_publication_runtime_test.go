@@ -66,7 +66,7 @@ func runtimeReviewFixture(t *testing.T) (string, string, string) {
 // goes stale even if a different ambient session has a clean substitute.
 func TestGeneratedReviewUsesOriginArtifact(t *testing.T) {
 	root, code, spec := runtimeReviewFixture(t)
-	prepared, err := Create(root, &Options{Subject: "close origin-reviewed spec", Remove: []string{spec}})
+	prepared, err := Create(root, &Options{Subject: "close origin-reviewed spec", Remove: []string{spec}, NoNews: "fixture: no operator-visible change"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +93,7 @@ func TestGeneratedReviewUsesOriginArtifact(t *testing.T) {
 // bytes, which the real checker must refuse before a second publication.
 func TestGeneratedReviewRechecksEveryCASAttempt(t *testing.T) {
 	root, code, spec := runtimeReviewFixture(t)
-	prepared, err := Create(root, &Options{Subject: "close CAS-reviewed spec", Remove: []string{spec}})
+	prepared, err := Create(root, &Options{Subject: "close CAS-reviewed spec", Remove: []string{spec}, NoNews: "fixture: no operator-visible change"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +102,7 @@ func TestGeneratedReviewRechecksEveryCASAttempt(t *testing.T) {
 		t.Fatal(err)
 	}
 	bin := t.TempDir()
-	wrapper := "#!/bin/bash\nif [ \"${1:-}\" = update-ref ] && [ ! -e \"$ZE_TEST_CAS_DONE\" ]; then\n  : > \"$ZE_TEST_CAS_DONE\"\n  ( unset GIT_INDEX_FILE; \"$ZE_TEST_REAL_GIT\" read-tree HEAD; printf '%s' 'peer unreviewed bytes' > "+shellQuote(code)+"; \"$ZE_TEST_REAL_GIT\" add -- "+shellQuote(code)+"; \"$ZE_TEST_REAL_GIT\" -c commit.gpgsign=false commit -q -m 'peer review change' )\nfi\nexec \"$ZE_TEST_REAL_GIT\" \"$@\"\n"
+	wrapper := "#!/bin/bash\nif [ \"${1:-}\" = update-ref ] && [ ! -e \"$ZE_TEST_CAS_DONE\" ]; then\n  : > \"$ZE_TEST_CAS_DONE\"\n  ( unset GIT_INDEX_FILE; \"$ZE_TEST_REAL_GIT\" read-tree HEAD; printf '%s' 'peer unreviewed bytes' > " + shellQuote(code) + "; \"$ZE_TEST_REAL_GIT\" add -- " + shellQuote(code) + "; \"$ZE_TEST_REAL_GIT\" -c commit.gpgsign=false commit -q -m 'peer review change' )\nfi\nexec \"$ZE_TEST_REAL_GIT\" \"$@\"\n"
 	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0o700); err != nil { //nolint:gosec // executable Git forwarding fixture
 		t.Fatal(err)
 	}
@@ -129,7 +129,7 @@ func TestExplicitReviewBlobRemovalAndMissingObject(t *testing.T) {
 	for _, missing := range []bool{false, true} {
 		t.Run(map[bool]string{false: "removal", true: "missing blob"}[missing], func(t *testing.T) {
 			root, code, spec := runtimeReviewFixture(t)
-			options := &Options{Subject: "close explicit-source review", Remove: []string{spec, code}}
+			options := &Options{Subject: "close explicit-source review", Remove: []string{spec, code}, NoNews: "fixture: no operator-visible change"}
 			args := []string{"spec", "runtime-review", "verdict", "clean", "rounds", "1", "remove", code}
 			blob := ""
 			if missing {

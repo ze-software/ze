@@ -53,6 +53,14 @@ repaired. An occurrence still broken, partly repaired, designed or owed is
 open defect. A row without a marker is `unmarked-fix`: the report refuses its
 class, and validate names the line, whether the row is new or already at HEAD.
 
+When a fix outside a spec turns a row's Fix cell to `fixed: ` and operators
+see the fix, the fixing agent also writes the news fragment
+`website/changes/fragments/<journal-class>-<slug>.md` in the same commit:
+`<journal-class>` is the class file's name without `.md`, and `<slug>` a short
+name for the fix. Its format is `website/changes/fragments/README.md`. A
+spec's fix is covered by the spec's own fragment at closure instead. This is
+an instruction only: no check refuses a `fixed:` row without a fragment.
+
 ## Owned rows
 
 Every `open:` row is listed in the owned journal rows table of the spec that

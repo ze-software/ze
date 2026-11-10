@@ -9,7 +9,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-28 |
+| Updated | 2026-11-09 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -24,7 +24,7 @@ Agreed scope (owner, 2026-09-28):
 |------|----------|
 | Target matrix | The tuios matrix (linux, darwin, windows, freebsd, openbsd x amd64, arm64, arm, 386, minus windows/arm, windows/arm64, freebsd/arm, openbsd/arm), declared once. Targets that do not compile today are listed as unsupported with the reason and refused by name. On 2026-09-28 only linux and darwin on amd64 and arm64 compiled |
 | Version | CalVer with a four-digit year, `YYYY.MM.DD` (owner, 2026-09-28, replacing the two-digit `YY.MM.DD`), never `vX.Y.Z`. A same-day rebuild needs a counter (owner, 2026-09-28): proposed `YYYY.MM.DD.N`, dot-separated because a hyphen means the package revision in dpkg and is forbidden in an RPM version. This reverses spec-release-distribution's "no correction suffix" decision and needs the runtime version parser to accept it; exact form settled at the DESIGN gate |
-| Artifacts | Per-target archives, `checksums.txt`, a changelog grouped by commit prefix, `.deb` and `.rpm` for the Linux targets, a Homebrew formula for a `ze-software` tap, and `install.sh` |
+| Artifacts | Per-target archives, `checksums.txt`, a changelog (owner, 2026-11-09, replacing "grouped by commit prefix": the news fragments added since the previous release tag, grouped by topic, never commit subjects), `.deb` and `.rpm` for the Linux targets, a Homebrew formula for a `ze-software` tap, and `install.sh` |
 | Packaging tool | nFPM used as a Go library; no GoReleaser, no external packaging binary |
 | Signing | GPG, a release subkey on a hardware key, signs `checksums.txt` on the maintainer's machine. No signing key exists in CI. Sigstore is not used |
 | Verification | The maintainer builds locally and uploads a draft GitHub release. A read-only CI job rebuilds from the tag and compares every artifact hash. `le` publishes the draft only once that check is green |
@@ -56,6 +56,11 @@ Reference implementation studied: tuios (github.com/Gaurav-Gosain/tuios), its
 - [ ] `plan/release/delivery/spec-release-distribution.md` - the heavier release design this spec runs ahead of
   → Decision: reuse its package-managed update marker idea and its nFPM-only-for-assembly decision; defer its repositories, bootstrap, transaction state machine and nightlies
   → Constraint: its steps 8 and 9 name `/etc/ze/database.zefs` as the live store. That is wrong: the live store is the directory `/etc/ze/database/` and `database.zefs` is the import/export blob (`internal/component/config/storage/open.go`, `treeName` and `blobName`). Correct it when its scope is amended
+
+- [ ] `website/changes/fragments/README.md` - the news fragments the release notes are made of
+  → Decision: `CHANGELOG.md` is the fragments added since the previous release tag, grouped by topic, never commit subjects (owner, 2026-11-09; AC-25)
+  → Constraint: a fragment is read through the one parser in `internal/le/commit/newsfragment.go`; the changelog keeps no second copy of the heading list or of the topic vocabulary (`website/data/topics.json`)
+  → Constraint: a fragment's release membership comes from git (`--diff-filter=A` between the tags), never from its front matter, which carries no date
 
 ### External References
 - [ ] nFPM v2.47.0 (github.com/goreleaser/nfpm/v2), MIT - deb and rpm assembly as a Go library
@@ -122,6 +127,26 @@ Reference implementation studied: tuios (github.com/Gaurav-Gosain/tuios), its
 - Version format becomes `YYYY.MM.DD` with an optional `.N` same-day counter, parsed strictly and compared numerically
 - Config directory resolution learns the Homebrew Cellar layout
 - Self-update refuses, with a message naming the package manager, when Ze was installed by deb, rpm or Homebrew
+
+## Existing Mechanisms (MANDATORY)
+
+Rows other than the news fragment rows restate this spec's Current Behavior
+section above; the symbols were confirmed present on 2026-11-09, and the
+behavior each row states is that section's reading, owed a re-read at the
+producer when its phase starts.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Go toolchain environment | `internal/le/go/toolchain/gotoolchain.go` `New` | Stamps version and build date through `-X`, from the local clock | Extends: a constructor taking version and date explicitly, so a release build is reproducible |
+| Daemon build tags | `internal/le/repo/featuretags/daemontags.go` `DaemonBuildTags` | Derives the daemon `-tags` from `feature-gates.txt` | Extends: the release build reads its tags here, no second list |
+| Shared build runner | `internal/le/build/compile/build.go` | Runs the ze-host and installer builds | Extends: the release targets run through it, no second runner |
+| Release version parser | `internal/core/version/version.go` `IsValidRelease` | Accepts the two-digit CalVer form | Extends: `YYYY.MM.DD` and `.N`, compared numerically |
+| Config directory from binary | `internal/core/paths/paths.go` `ConfigDirFromBinary` | Maps `<prefix>/bin/ze` to `<prefix>/etc/ze` | Extends: the Homebrew Cellar layout |
+| systemd unit builder | `internal/plugins/systemd/unit.go` `buildUnitFile` | Builds the unit `ze install systemd` writes | Extends: the package unit is generated from it, declared once |
+| Update backend choice | `internal/component/config/system/backend.go` `NewBackend` | Picks gokrazy A/B or in-place self-update by platform | Extends: an install-method marker makes self-update refuse for packaged installs |
+| Site build | `internal/le/site/build.go` `Build` | Stages `website/` into the Pages artifact | Extends: publishes `install.sh` and the release key |
+| News fragments | `website/changes/fragments/README.md`; parsed by `parseNewsFragment` (unexported until this spec's changelog needs it) in `internal/le/commit/newsfragment.go` (spec-weekly-news-fragments, closed) | One operator-facing file per closed change, validated at commit and kept unpublished | Extends: `CHANGELOG.md` is built from the fragments added since the previous release tag (AC-25), read through that one parser |
+| Commit subjects as release notes | none: no producer exists | The earlier AC-25 planned a changelog grouped by subject prefix | Replaced before it was built: subjects are a second, weaker account of what fragments carry (owner, 2026-11-09) |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -239,7 +264,7 @@ Reference implementation studied: tuios (github.com/Gaurav-Gosain/tuios), its
 | AC-22 | The install-method file holds any other value, or cannot be read | Update refused, naming the file and its content or error |
 | AC-23 | No install-method file | In-place self-update behaves exactly as before |
 | AC-24 | `ze doctor` | Reports the install method (`deb`, `rpm`, `homebrew`, or `direct` when absent); an unknown or unreadable file is an error with its own diagnostic code |
-| AC-25 | `CHANGELOG.md` | Lists commits since the previous release tag, grouped by the subject prefix before the colon, groups sorted by name; the first release holds one line saying it is the first |
+| AC-25 | `CHANGELOG.md` | Lists the news fragments (`website/changes/fragments/*.md`, its `README.md` excluded) added between the previous release tag and `<T>`, as `git log --diff-filter=A` over that directory answers, each read at `<T>` through the one fragment parser `internal/le/commit/newsfragment.go` declares; one entry per fragment, grouped by the fragment's `topic`, groups sorted by name; no line is taken from a commit subject; a fragment that does not parse refuses the build, naming its path; the first release holds one line saying it is the first |
 | AC-26 | `draft tag <T>` | Creates a draft release on the tag with `CHANGELOG.md` as notes and uploads every asset; re-running replaces assets while it is a draft; refuses if the release is already published |
 | AC-27 | Tag push reaches GitHub | `release-rebuild.yml` runs with `contents: read` only, runs `./le build release rebuild tag <T>`, and uploads a hash list recording tag, commit, Go version, run id and the SHA-256 of every unsigned artifact (RPMs hashed after the signature header) |
 | AC-28 | `publish tag <T>` with a matching hash list | Publishes the draft and pushes `ze.rb` to `ze-software/homebrew-tap` |
@@ -287,7 +312,7 @@ Reference implementation studied: tuios (github.com/Gaurav-Gosain/tuios), its
 | `TestRPMHashSkipsSignatureHeader` | `internal/le/build/release/compare_test.go` | AC-12, AC-27 | |
 | `TestChecksumsCoverEveryAsset` | `internal/le/build/release/checksums_test.go` | AC-18 | |
 | `TestFormulaCoversSupportedTargets` | `internal/le/build/release/formula_test.go` | AC-19, AC-34 | |
-| `TestChangelogGroupsByPrefix`, `TestChangelogFirstRelease` | `internal/le/build/release/changelog_test.go` | AC-25 | |
+| `TestChangelogGroupsFragmentsByTopic`, `TestChangelogIgnoresCommitSubjects`, `TestChangelogRefusesUnparsableFragment`, `TestChangelogFirstRelease` | `internal/le/build/release/changelog_test.go` | AC-25: only fragments added in the tag range appear (one added before the previous tag and the README stay out), grouped and sorted by topic; a commit in the range with no fragment adds no line; a malformed fragment refuses, naming its path | |
 | `TestDraftUploadsAndIsRerunnable` | `internal/le/build/release/github_test.go` | AC-26 | |
 | `TestRebuildHashListMatchesBuild` | `internal/le/build/release/compare_test.go` | AC-27 | |
 | `TestPublishPublishesOnMatch`, `TestPublishRefusesMismatch`, `TestPublishRetriesTapOnly` | `internal/le/build/release/github_test.go` | AC-28, AC-29, AC-30 | |
@@ -404,7 +429,7 @@ N-A: tooling, no protocol behavior changes.
    - Tests: `TestPackagePayload`, `TestPackageUnitMatchesSystemdBuilder`, `TestRPMHashSkipsSignatureHeader`
    - Files: `go.mod`, `vendor/`, `packages.go`, `scripts/`, `sign.go`, `compare.go`, `unit.go`
 6. **Phase: Formula and changelog**
-   - Tests: `TestFormulaCoversSupportedTargets`, `TestChangelogGroupsByPrefix`, `TestChangelogFirstRelease`
+   - Tests: `TestFormulaCoversSupportedTargets`, `TestChangelogGroupsFragmentsByTopic`, `TestChangelogIgnoresCommitSubjects`, `TestChangelogRefusesUnparsableFragment`, `TestChangelogFirstRelease`
    - Files: `formula.go`, `changelog.go`
 7. **Phase: GitHub** -- `draft`, the read-only `release-rebuild.yml`, `publish` with comparison and tap push, smoke tests
    - Tests: `TestDraftUploadsAndIsRerunnable`, `TestRebuildHashListMatchesBuild`, `TestPublishPublishesOnMatch`, `TestPublishRefusesMismatch`, `TestPublishRetriesTapOnly`, `TestReleaseWorkflowCallsRegisteredActions`

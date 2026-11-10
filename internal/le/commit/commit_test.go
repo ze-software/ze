@@ -530,11 +530,29 @@ func closureStemOnHead(root string, paths, removed []string) (string, error) {
 	return closureStem(root, paths, removed, specjournal.Base{})
 }
 
-// ownedRowsSpec renders a spec whose owned journal rows table lists one date of
-// the native.md class.
+// ownedRowsSpec renders an in-progress spec whose owned journal rows table
+// lists one date of the native.md class.
 func ownedRowsSpec(date string) string {
-	return "# Spec: native\n\n## Owned journal rows\n\n| Class file | Date | Surface (short) |\n" +
+	return nativeSpec("in-progress", ownedRowsTable(date))
+}
+
+// ownedRowsTable renders the owned journal rows section listing one date of the
+// native.md class.
+func ownedRowsTable(date string) string {
+	return "## Owned journal rows\n\n| Class file | Date | Surface (short) |\n" +
 		"|------------|------|-----------------|\n| `native.md` | " + date + " | cli |\n"
+}
+
+// nativeSpec renders a spec that passes specMechanismsRefusal, so a commit
+// carrying it reaches the journal ownership check these tests target: a
+// metadata table declaring status, and an Existing Mechanisms section with one
+// data row, which a status from design onward owes (specmechanisms.Problem).
+// body follows those sections.
+func nativeSpec(status, body string) string {
+	return "# Spec: native\n\n| Field | Value |\n|-------|-------|\n| Status | " + status + " |\n\n" +
+		"## Existing Mechanisms (MANDATORY)\n\n| Mechanism | Where | What it does today | This spec |\n" +
+		"|-----------|-------|--------------------|-----------|\n" +
+		"| journal ownership | specjournal | owns open rows | does not apply: fixture |\n\n" + body
 }
 
 // TestCreateRefusesAnOpenJournalRowNoSpecOwns drives row ownership through the
@@ -592,23 +610,23 @@ func TestCreateJudgesAnAppendedClosureAgainstItsEarlierBlocks(t *testing.T) {
 	header := "| Date | Spec | Surface | Symptom | Fix |\n|------|------|---------|---------|-----|\n"
 	openRow := header + "| 2026-08-04 | - | cli | symptom | open: owed |\n"
 	fixedRow := header + "| 2026-08-04 | - | cli | symptom | fixed: repaired |\n"
-	noTable := "# Spec: native\n\nStatus: in-progress\n"
+	noOwnedRows := nativeSpec("in-progress", "")
 	tests := []struct {
 		name    string
 		blockA  map[string]string
 		refused bool
 	}{
-		{name: "commit A fixes the row", blockA: map[string]string{journalPath: fixedRow, specPath: noTable}},
+		{name: "commit A fixes the row", blockA: map[string]string{journalPath: fixedRow, specPath: noOwnedRows}},
 		// The spec stays as HEAD holds it, so only the class-file overlay can
 		// clear B: without it the row reads open and B removes its only owner.
 		{name: "commit A fixes the row and leaves the spec", blockA: map[string]string{journalPath: fixedRow}},
 		{name: "commit A moves the entry to another spec", blockA: map[string]string{
-			specPath: noTable, otherPath: ownedRowsSpec("2026-08-04"),
+			specPath: noOwnedRows, otherPath: ownedRowsSpec("2026-08-04"),
 		}},
 		// Commit A keeps the entry, so A itself is owned; B then removes the
 		// only spec that lists the row.
 		{name: "commit A leaves the row open and not re-homed", blockA: map[string]string{
-			specPath: "Status: done\n\n" + ownedRowsSpec("2026-08-04"),
+			specPath: nativeSpec("done", ownedRowsTable("2026-08-04")),
 		}, refused: true},
 	}
 	for _, test := range tests {
@@ -633,7 +651,7 @@ func TestCreateJudgesAnAppendedClosureAgainstItsEarlierBlocks(t *testing.T) {
 			}
 			_, err := Create(root, &Options{
 				Subject: "plan: close native, commit B", Remove: []string{specPath}, Append: true,
-				ReviewOverride: "fixture repository carries no review",
+				ReviewOverride: "fixture repository carries no review", NoNews: "fixture: no operator-visible change",
 			})
 			if !test.refused {
 				if err != nil {

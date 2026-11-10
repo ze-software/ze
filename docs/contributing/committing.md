@@ -56,6 +56,7 @@ Write a bullet as `body "* item"`, or put a word before the dash, as in
 | `attest` | no | Two values: a commit and the owner's words, `attest <commit> "<owner words>"`. Prepares an EMPTY commit (its parent's tree) whose message carries `Owner-attested: <stable patch-id>: <owner words>`, which answers every person act the named commit owes. Takes no `file` or `remove`: an attestation that changed the tree would carry code the owner never judged. Takes no `no-test`, `review-override`, `rfc-change-ok` or `ledger-carried` either: each acts on a commit that changes files, and an attestation changes none and runs no gate, so the value would be recorded nowhere. The refusal is derived from the create grammar (`createParameters`) and its policy (`createPolicy`), so a keyword added to the grammar is refused with `attest` until its policy declares it allowed. Refused for a commit already on the upstream, one not on this branch, and one carrying no owed trailer |
 | `ledger-carried` | yes | Only on the ledger-deletion commit (`remove` paths, no `file`): `"<sha> <gate key>: <reason>"`, the gate key `review-override` or `rfc-change-ok`. Writes one `Ledger-carried:` trailer. A row on a commit already on the upstream carries no patch-id and is audit only; a row on an unpushed commit carries that commit's stable patch-id, computed here and never given, and holds the push until it is answered |
 | `no-test` | no | The reason a commit carries no test evidence |
+| `no-news` | no | The reason a spec closure carries no news fragment, because operators see no change: `no-news "tooling: no operator-visible change"`. Given on commit B, the commit that removes the spec, it writes the `No-news: <reason>` trailer just before `Spec-work:`. Outside the Ze checkout it records nothing. "What the command refuses" names the fragment a closure owes otherwise |
 | `rfc-change-ok` | no | The reason a commit changes an RFC-tagged test unit the owner has not approved yet. Instead of refusing, the message carries one `RFC-approval-owed: <package>.<TestName>: <reason>` trailer per unapproved unit, and the push derivation holds the push until the owner answers |
 <!-- source: internal/le/commit/actions.go -- createParameters, createPolicy -->
 <!-- source: internal/le/commit/prepare.go -- refuseAttestAdmission -->
@@ -139,7 +140,13 @@ after the approvals (`Prepared.Trailers`):
 | `rfc-change-ok "<reason>"` | `RFC-approval-owed: <package>.<TestName>: <reason>`, one per unit | yes, until a unique same-carrier `RFC-approved:` plus `RFC-approved-for: <fullSHA> <unit>` binds the verdict to that exact change, or the owner's attestation answers it. An unbound `RFC-approved:` answers only its own carrier |
 | Automatic when a selected summary adds or rewords `{linux-limit: LL-ID; reason}` | `Linux-limit-owed: <RID>: <LL-id>`, one per changed annotation | yes, until the owner's attestation of that commit; an RFC approval or review does not answer it |
 
-One more trailer records a fact rather than an admission. A native commit that
+Two trailers record a fact rather than an admission. A spec closure given
+`no-news "<reason>"` carries `No-news: <reason>`, which `Create` writes from
+`newsFragmentRefusal`'s answer directly before `Spec-work:`. The push
+derivation owes nothing for it (`OwesNothing` in `declaredTrailers`), and a
+hand-written `No-news:` line is refused like any declared key.
+
+The other is the attribution. A native commit that
 changes files, prepared while the session claims a spec (`./le spec claim`, or
 the parent's claim for an agent that claimed none), ends with
 `Spec-work: <spec stem>`. The action layer reads the claim through
@@ -161,7 +168,7 @@ An admission no gate used records nothing. A reason spanning lines is refused,
 because a trailer is one line. `Message` refuses a subject or a body line that
 starts with any declared trailer key (`declaredTrailers` in
 `internal/le/commit/actions.go`, which also lists `Owner-attested:`,
-`Ledger-carried:` and `Spec-work:`), naming the line and the one route that writes it: a
+`Ledger-carried:`, `No-news:` and `Spec-work:`), naming the line and the one route that writes it: a
 trailer is a record the derivation reads back, never the author's prose.
 
 Linux-limit approval needs no admission keyword. `create` compares the selected
@@ -359,6 +366,50 @@ ledger's removal. It names the package, the module, the importer and the
 command Thomas runs (`docs/contributing/dependency-approval.md`).
 <!-- source: internal/le/commit/dependencies.go -- dependencyRefusal -->
 
+`newsFragmentRefusal` (`internal/le/commit/newsfragment.go`) runs right after
+the Existing Mechanisms gate, in the Ze checkout only. A spec closure (the
+commit that removes the spec, as `closedSpecStem` decides) is refused unless
+the tree the commit produces holds `website/changes/fragments/<spec stem>.md`
+written by this spec's work, or the closure gives `no-news "<reason>"`. The
+refusal names the file to write, its front matter (`spec`, `topic`, optional
+`feature` and `found-by`) and the six headings `## Before`, `## After`,
+`## Corrects`, `## Exposure`, `## Upstream` and `## Asked by`, which
+`newsHeadings` declares once; `website/changes/fragments/README.md` is the
+format page and is never judged as a fragment. Carry the fragment in commit A
+of the closure script: the gate reads the tree the commit produces, earlier
+script blocks included, never the working tree, so a fragment left
+uncommitted does not count. A fragment the gate cannot read answers exit 3,
+never a pass.
+
+"Written by this spec's work" means a commit carrying `Spec-work: <stem>`
+touched the fragment, an earlier block of the script the closure appends to
+carries it, or the closure commit itself does: the same population the closure
+review covers. The closure's fragment must also name the stem in its `spec`
+key. Four more refusals follow from that rule. A fragment at the stem's path
+that no work of the spec touched is stale, left by an earlier spec of the same
+name; the refusal names the path, and a closure that gives `no-news` instead
+is prepared, since that text is not its news. A closure that carries its own
+fragment and also gives `no-news` says two opposite things and is refused. A
+fragment whose `spec` key names another spec is refused, naming the key to
+set. `no-news` on a commit that closes no spec states nothing and is refused,
+naming the keyword to drop; a spec relocation or rename is not a closure.
+
+Every commit that carries a file under `website/changes/fragments/`, a closure
+or not, has each one judged, so a fix outside a spec owes a valid fragment
+too. One refusal names every fragment at fault and, for each, what is wrong
+and the fix: a file that is not one `<name>.md` directly in the directory; a
+missing or unclosed front matter, an unknown, repeated or empty key; neither or
+both of `spec` and `journal`; no `topic`, or one that is not a tag family of
+`website/data/topics.json`, read from the tree the commit produces, so a family
+the same commit adds is accepted; a `found-by` outside the closed list
+`newsFoundBy` declares, which the refusal lists; text before the first heading,
+a heading that is missing, empty, unknown, repeated or out of order, and
+`none` alone under `## Before` or `## After`. `none` is accepted under the
+other four.
+<!-- source: internal/le/commit/newsfragment.go -- newsFragmentRefusal, newsHeadings, newsFragmentOwed, newsFragmentWrittenBySpec, newsFragmentClosureProblem -->
+<!-- source: internal/le/commit/newsfragment.go -- newsFragmentsCarried, parseNewsFragment, newsFoundBy -->
+<!-- source: internal/le/site/topics/topics.go -- Parse -->
+
 A list keyword buys one thing: a population too large to type stays explicit. It
 broadens nothing else. Every line is validated as its own path, and the script
 spells each one in its block marker and in its index entries. Write the list
@@ -470,8 +521,11 @@ on its parent's tree and refuses it if the diff names any path.
   append \
   script tmp/commit-<session>-<tag>-<random>.sh \
   subject "spec: close spec-widget" \
-  remove plan/release/fixes/spec-widget.md
+  remove plan/release/fixes/spec-widget.md \
+  no-news "tooling: no operator-visible change"
 ```
+
+Leave `no-news` off when commit A carried the spec's news fragment.
 
 The `script=` line the command prints is the only authoritative path. Its name
 carries a random suffix, so no guess reaches another agent's script. Copy it;
