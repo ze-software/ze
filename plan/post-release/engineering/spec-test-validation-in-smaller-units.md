@@ -260,7 +260,7 @@ all.
 | A-5 | Moving the recorder's overlay code to a shared package changes no recorder verdict | the code is moved, not edited | a recorder test goes red | the whole `internal/le/rfc` package test after the move | confirmed: the 62 discriminate tests in `internal/le/rfc` pass after the move; the whole package runs past 10 minutes on its corpus tests, and none of them failed |
 | A-6 | `internal/test/runner` may import `internal/le/go/toolchain` | `internal/test/fixture/ui_fixture_le_checks_answers.go` already imports it | the build-name parse needs a home outside `internal/le` | `./le arch tier check` | confirmed: `internal/test/runner` imports the toolchain build-name parse (`gotoolchain.ParseBuildName`), and the tier check shows no finding on it |
 | A-7 | A unit group run or a `./le job run ... go test` run can keep per-test elapsed (`go test -json` `Elapsed`, or the `--- PASS: X (Ns)` lines of `-v`) in its log without changing how its verdict and failure lines are read | `go help testflag`; `runlog` reads lines by prefix | the Go half of the cost report needs the run to write a second, `-json` log beside the quiet one | read `gaterun.Run`'s argv and a unit group log | partly confirmed: a `-v` log keeps per-test elapsed and its runlog failure lines still read; `-json` would break runlog; `./le test unit <group>` adds neither, so the cost report reads the log of a `./le job run ... go test -v` run |
-| A-8 | A test's share of its own suite or package run is stable enough across hosts to rank candidates, where its absolute time is not | the ranking compares tests run on the same host in the same run | ranking flips between hosts; the report names the host it read and stays a hint, which it already is | compare one suite's ranking on two machines | unvalidated: needs two machines; the report names the host it read |
+| A-8 | A test's share of its own suite or package run is stable enough across hosts to rank candidates, where its absolute time is not | the ranking compares tests run on the same host in the same run | ranking flips between hosts; the report names the host it read and stays a hint, which it already is | compare one suite's ranking on two machines | not validated here, and owned now: it needs two machines and the session had one, so the comparison is `plan/post-release/engineering/spec-test-cost-ranking-across-hosts.md` (Work Not Done); the report names the host it read and stays a hint |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -402,7 +402,7 @@ all.
 | YANG validation constraints | N-A | no YANG |
 | YANG custom validators | N-A | no YANG |
 | CLI commands/flags | Yes | `internal/le/test/redwalk`, `internal/le/test/attribution` registrations |
-| CLI grammar (keyword before value) | Yes | keywords `break`, `unit`, `package`, `ci`, `scenario`, `log`, `tags`, `files`; `./le cli grammar` |
+| CLI grammar (keyword before value) | Yes | keywords `break`, `unit`, `package`, `ci`, `scenario`, `log`, `tags`, `file` (repeated), `suite`, `baseline`; `./le cli grammar` |
 | Editor autocomplete | N-A | le completion derives from registration |
 | Functional test for new RPC/API | Yes | `test/ui/le-test-redwalk.ci`, `test/ui/le-test-attribution.ci` |
 | Pipe completeness | Yes | both actions answer through the shared renderer, so `| json` works |
@@ -574,3 +574,186 @@ Implementation started 2026-11-10 under the recommendation of each row; Thomas m
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- Phase label and fail-fast: `ScenarioResult.Phase`, `runScenario`'s deferred phase tag, ` in <phase>` after the elapsed time on a FAIL line, a stop after `setupFailuresBeforeStop` (3) consecutive setup or readiness failures listing the rest as not run (`internal/le/interoplab/lab.go`, `phase.go`; `b8a9870fc3`)
+- Start probe: `LabBinary.StartProbe`, run after staging in a read-only one-shot container (`internal/le/interoplab/zebuild_probe.go`, `kernelcheck.go`, `internal/le/linuxle/linuxle.go`; `b8a9870fc3`)
+- Overlay machinery moved to `internal/le/test/overlay` (`Write`, carriers, `.ci`/`go test`/interop verdict readers); `internal/le/rfc` calls it and keeps no writer of its own (`d53ce38504`)
+- Stale runner notice on the direct `le test <suite>` route (`internal/test/runner/stale.go` `findStaleBuild`, `staleNotice`; `runner.go`; `2fd7aa7c0e`)
+- Checker recording and replay at the `CheckerLab` boundary (`internal/le/interoplab/record.go`, `replay.go`), `Checkout` set on every lab suite, one committed recording of `bgp-local-pref-strip-gobgp` (`b2b6a36ef0`)
+- `le test cost report`, `le test redwalk check`, `le test attribution report`; `runlog.FailedTests`; the two testing rule points and six skill steps (`4e1f75421e`, `6d9218f7ab`, `07692610e1`)
+- Docs and evidence (`a17c2f20a0`)
+
+### Bugs Found/Fixed
+- None found by the closure review.
+
+### Documentation Updates
+- `docs/architecture/testing/interop.md`: "The start probe", phase and stop paragraphs, "Which layer proves what", "Recording and replaying a checker" (`b8a9870fc3`, `b2b6a36ef0`)
+- `docs/contributing/running-commands.md`: "Did my files cause this red", "Which tests cost the most of their run", "Does my test go red under this break", the stale `le` notice (`2fd7aa7c0e`, `4e1f75421e`)
+- `docs/architecture/testing/runner-architecture.md`: the notice (anchor `internal/test/runner/stale.go -- findStaleBuild, staleNotice, checkoutStaleSource`) and the baseline's second reader
+- `docs/contributing/rfc-conformance-gates.md`: overlay prose and anchors repointed; every symbol its `discriminate_observe.go` and `discriminate_interop.go` anchors name still exists there (checked by grep at closure)
+- `ai/patterns/functional-test.md`, `docs/functional-tests.md`, `docs/architecture/testing/ci-format.md` (`a17c2f20a0`)
+- `./le doc check all`: owed by the main thread at closure (this agent runs no check)
+
+### Deviations from Plan
+- `le test attribution report` takes a repeated `file <path>` keyword, not `files <path>...`: le has no trailing-list keyword kind, and `./le commit create` uses the same repetition. AC-15 and the Integration Checklist now say `file`.
+- `TestWriteOverlayStagesEachRunApart` and `TestWriteOverlayReplacesEveryFileOfAPair` stay in `internal/le/rfc`, calling `testoverlay.Write`, rather than moving to the overlay package: a move is a test deletion for the weakening audit, and calling the moved function keeps every assertion.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Draft `.ci` files read `tmpfs=` files by bare name from a non-harness `le` step | A non-harness `le` step runs at the checkout root (`repositoryAnchoredBinary`) | Draft runs went red | Recorded in `docs/architecture/testing/ci-format.md` and in Design Insights |
+| approach | A new le action's help text can exceed le's 60-character start check and panic every le process | `checkRegistrations` runs before any answer | The `c77a8dd2f3` class this spec's start probe catches | Recorded in Design Insights; the start probe now refuses such a le before any image build |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Goal 1: broken helper refused before images; failure names its phase | Done | `interoplab/zebuild_probe.go`, `lab.go` `runScenario`, `phase.go` | |
+| Goal 2: checker judged offline against a real recording | Done | `interoplab/record.go`, `replay.go`, `bgp/testdata/bgp-local-pref-strip-gobgp/` | |
+| Goal 3: direct route names a stale runner | Done | `internal/test/runner/stale.go` | |
+| Goal 4: attribution of a package red to the session's files | Done | `internal/le/test/attribution/` | |
+| Goal 5: red walk of any Go break, no RFC tag, tree untouched | Done | `internal/le/test/redwalk/`, `internal/le/test/overlay/` | |
+| Goal 6: test shape caught by the skills | Done | `ai/rules/points/testing/directives/one-question-per-test.md`, six `ai/skills/*.md` steps | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestScenarioFailureNamesItsPhase`, `TestSuiteStopsAfterRepeatedSetupFailures` | red walk recorded |
+| AC-2 | Done | `TestInteropVerdictReadsAPhaseLabelledLine` | red walk recorded |
+| AC-3 | Done | `TestStageBinariesRefusesABinaryThatCannotStart` | red walk recorded |
+| AC-4 | Done | `TestStageBinariesProbesOnlyDeclaredBinaries`; a real lab run printed `interop: start probe le (le help): pass` | |
+| AC-5 | Done | `TestRunScenarioRecordsCheckerCalls`; every lab suite sets `Checkout` | |
+| AC-6 | Done | `TestReplayGivesTheLabVerdict` | |
+| AC-7 | Done | `TestReplayRefusesAnUnrecordedCall` | red walk recorded |
+| AC-8 | Done | `TestLocalPrefStripReplaysTheLabRecording` over the committed recording; red on the pre-`7081cfdfa7` observer | |
+| AC-9 | Done | `TestRunnerNamesAStaleBuild`, `test/runner/stale-runner-notice.ci` | red walk recorded |
+| AC-10 | Done | `TestRedwalkCheckUnitRoute`, `TestRedwalkLeavesTheTreeUntouched`, `test/ui/le-test-redwalk.ci` | |
+| AC-11 | Done | `TestRedwalkCheckUnitRoute` | |
+| AC-12 | Done | `TestRedwalkCheckUnitRoute` | |
+| AC-13 | Done | `TestRedwalkInteropCountsOnlyTheChecker` | |
+| AC-14 | Done | `TestRedwalkRefusesABreakItCannotWalk`, `test/ui/le-test-redwalk.ci` | |
+| AC-15 | Done | `TestAttributionClassifiesEachFailingTest`, `test/ui/le-test-attribution.ci` | red walk recorded |
+| AC-16 | Done | the `internal/le/rfc` recorder tests after the move; no `writeOverlay` in `internal/le/rfc` | |
+| AC-17 | Done | the pages listed under Documentation Updates | |
+| AC-18 | Done | `TestCostRanksCITestsByShare`, `TestCostRanksGoTestsByShare`, `test/ui/le-test-cost.ci` | red walk recorded |
+| AC-19 | Done | `ai/rules/points/testing/directives/one-question-per-test.md`, manifest row, regenerated `ai/rules/testing.md` | |
+| AC-20 | Done | `ai/skills/ze-spec.md`, `ai/skills/ze-implement.md` | |
+| AC-21 | Done | `ai/skills/ze-test.md` | |
+| AC-22 | Done | `ai/skills/ze-review.md` step 1b, `ai/skills/ze-review-deep.md` Agent 4 | |
+| AC-23 | Done | `ai/skills/ze-verify.md` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestStageBinariesRefusesABinaryThatCannotStart`, `TestStageBinariesProbesOnlyDeclaredBinaries` | Done | `internal/le/interoplab/zebuild_probe_test.go` | |
+| `TestScenarioFailureNamesItsPhase` | Done | `internal/le/interoplab/lab_phase_test.go` | |
+| `TestInteropVerdictReadsAPhaseLabelledLine` | Done | `internal/le/test/overlay/interop_test.go` | |
+| `TestRunScenarioRecordsCheckerCalls` | Done | `internal/le/interoplab/record_test.go` | |
+| `TestReplayGivesTheLabVerdict`, `TestReplayRefusesAnUnrecordedCall` | Done | `internal/le/interoplab/replay_test.go` | |
+| `TestLocalPrefStripReplaysTheLabRecording` | Done | `internal/le/interoplab/bgp/check_local_pref_wire_test.go` | |
+| `TestRunnerNamesAStaleBuild` | Done | `internal/test/runner/stale_test.go` | |
+| `TestRedwalkCheckUnitRoute`, `TestRedwalkLeavesTheTreeUntouched` | Done | `internal/le/test/redwalk/redwalk_test.go` | |
+| `TestAttributionClassifiesEachFailingTest` | Done | `internal/le/test/attribution/attribution_test.go` | |
+| `TestOverlayDeletesAFileHeadLacks` | Done | `internal/le/test/overlay/overlay_test.go` | |
+| `TestCostRanksCITestsByShare`, `TestCostRanksGoTestsByShare` | Done | `internal/le/test/cost/cost_test.go` | |
+| four functional `.ci` | Done | `test/runner/stale-runner-notice.ci`, `test/ui/le-test-{redwalk,attribution,cost}.ci` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify and Files to Create, every row | Done | each in the commits named under What Was Implemented; `internal/le/test/unit/actions.go` unchanged, because A-7 found a `./le job run ... go test -v` log already keeps per-test elapsed |
+
+### Audit Summary
+- **Total items:** 6 goals, 23 ACs, 15 unit tests, 4 functional tests
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| 1. Broken helper refused in seconds; failure names its phase | unit + real lab | `TestStageBinariesRefusesABinaryThatCannotStart` and `TestScenarioFailureNamesItsPhase`, both red under their recorded breaks; a real lab run printed the probe's pass line |
+| 2. Checker judged offline against a real recording | real lab + replay | `bgp-local-pref-strip-gobgp` ran against GoBGP and its recording is committed; `TestLocalPrefStripReplaysTheLabRecording` passes on it and goes red on the pre-`7081cfdfa7` observer |
+| 3. Direct route says its runner is stale | functional | `test/runner/stale-runner-notice.ci` passes; `TestRunnerNamesAStaleBuild` red under its break |
+| 4. Attribution of a package's reds | functional + unit | `test/ui/le-test-attribution.ci` passes; `TestAttributionClassifiesEachFailingTest` covers all seven classes and went red under its break |
+| 5. Red walk of any Go break through one action | functional | `test/ui/le-test-redwalk.ci` walks a real break of `internal/le/test/redwalk/probe/probe.go` through the entry point and reads `: red` |
+| 6. Test shape caught during normal development | rule + skills + tool | the rule point and its regenerated `ai/rules/testing.md` lines; the six skill steps; `test/ui/le-test-cost.ci` passes, red under its recorded break |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| A-8: compare the cost report's ranking on two hosts | the session had one host | `plan/post-release/engineering/spec-test-cost-ranking-across-hosts.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/test-validation-in-smaller-units-bfe0e27e-c19b-4d21-9e45-d7b6d83c97af.md` (98 files, verdict clean) |
+| `./le spec review check` | run by `./le commit create` on commit A |
+| Rounds | 1 |
+| Reviewer lenses used | logic and wiring (phase tag, fail-fast, recorder and replay matching), security (patch path escape, symlinks, recordings' secrets, scratch-only writes), test strength (moved-test renames, no assertion removed), docs anchors, Go style (every `panic` is a `BUG:` invariant in development tooling, unreachable from a peer) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | 0 BLOCKER, 0 ISSUE | - | - |
+
+### NOTEs (do not block)
+- `overlay.Write` leaves its `run-*` directory in session scratch when a write fails after `MkdirTemp` (`internal/le/test/overlay/overlay.go` `Write`); scratch only, never the tree.
+- A recording keeps argv and answers verbatim (`internal/le/interoplab/record.go` `checkerRecorder`), so a secret passed in argv or printed by a peer lands in scratch at mode 0600; the testing rule point requires review before commit, and the committed recording holds only the environment name `ZE_SSH_PASSWORD`, no value.
+- `observe` (`internal/le/test/attribution/observe.go`) reads a run that skipped the test as passed, so a red test now skipped classifies as `not-reproduced`.
+- The Integration Checklist named a `files` keyword; corrected to the repeated `file` keyword at closure.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/test/{overlay,redwalk,attribution,cost}/` | Yes | `ls` at closure lists each package's sources and tests |
+| `ai/rules/points/testing/directives/one-question-per-test.md` | Yes | `ls` at closure |
+| `test/runner/stale-runner-notice.ci`, `test/ui/le-test-{redwalk,attribution,cost}.ci` | Yes | `ls` at closure |
+| `internal/le/interoplab/bgp/testdata/bgp-local-pref-strip-gobgp/bgp-local-pref-strip-gobgp-UIYSVYU5KP45REAV3CAV7EZJQQ.jsonl` | Yes | `ls` at closure |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-23 | each test named in the Implementation Audit exists | `grep -rln "func <Test>("` at closure found every one in the file the TDD plan names |
+| AC-1 to AC-18 | the touched packages' tests pass | main thread's scoped package runs (closure brief), all touched packages green; known foreign reds listed in the closure commit |
+| AC-16 | no overlay writer in `internal/le/rfc` | `grep -n "func writeOverlay\|func setGoFlagsOverlay" internal/le/rfc/*.go` finds nothing |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `le test <suite>` direct, stale build | `test/runner/stale-runner-notice.ci` | passes (main thread) |
+| `./le test redwalk check` | `test/ui/le-test-redwalk.ci` | passes; its seq 1 walks a real break of a tracked file |
+| `./le test attribution report` | `test/ui/le-test-attribution.ci` | passes |
+| `./le test cost report suite` | `test/ui/le-test-cost.ci` | passes |
+| `Suite.Run` record and replay | lab run of `bgp-local-pref-strip-gobgp`, then `TestLocalPrefStripReplaysTheLabRecording` | lab passed and wrote the committed recording |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `leroot.DispatchWithStartup` runs `checkRegistrations` first; real probe pass line |
+| A-2 | confirmed (one refused exception) | `ipsec/mobike_netns_process_linux.go` runs `exec` outside `CheckerLab`; its replay is refused |
+| A-3 | confirmed with a documented limit | a deadline-ended poll is judged by a lab run (`interop.md`, replay limits) |
+| A-4 | confirmed | `TestOverlayDeletesAFileHeadLacks` |
+| A-5 | confirmed | the `internal/le/rfc` discriminate tests pass after the move |
+| A-6 | confirmed | `./le arch tier check` showed no finding |
+| A-7 | confirmed in part | a `-v` log keeps per-test elapsed and runlog still reads it; `-json` is not used |
+| A-8 | not validated; owned by `plan/post-release/engineering/spec-test-cost-ranking-across-hosts.md` | needs a second host |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `rfc-conformance-gates.md` anchors on `discriminate_observe.go` and `discriminate_interop.go` | each named symbol found by `grep -cE "func ..."` at closure | Yes |
+| `interop.md` start probe, phase, recording sections | `grep -n` found "The start probe", "Which layer proves what", "Recording and replaying a checker" | Yes |
+| `running-commands.md` cost report caveat | "host-dependent triage, never a performance figure" in "Which tests cost the most of their run" | Yes |
+| CLI reference for le | `le help` derives from registration; no hand list | Yes |
