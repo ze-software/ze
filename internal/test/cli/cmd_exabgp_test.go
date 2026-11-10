@@ -306,3 +306,34 @@ func TestParseExaBGPCIEnvOption(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: P-4(a). runningLE answers this process's own executable, the le
+// running the suite, even when PATH names another le first. Method: put an
+// executable decoy `le` alone on PATH, then compare runningLE with
+// os.Executable and with the decoy.
+// PREVENTS: a helper a config runs as `le` reaching another build's le found on
+// PATH, because exaBGPClientEnv puts runningLE's directory first on the PATH
+// the daemon's children inherit.
+func TestRunningLEIsThisExecutableNotPATH(t *testing.T) {
+	decoyDir := t.TempDir()
+	decoy := filepath.Join(decoyDir, "le")
+	if err := os.WriteFile(decoy, []byte("#!/bin/sh\nexit 97\n"), 0o700); err != nil { //nolint:gosec // the decoy must be executable for a PATH lookup to find it
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", decoyDir)
+	want, err := os.Executable()
+	if err != nil {
+		t.Fatalf("this test binary cannot name itself: %v", err)
+	}
+
+	got, err := runningLE()
+	if err != nil {
+		t.Fatalf("runningLE: %v", err)
+	}
+	if got == decoy {
+		t.Fatalf("runningLE answered the decoy le found on PATH (%s), not this executable (%s)", got, want)
+	}
+	if got != want {
+		t.Fatalf("runningLE = %q, want this executable %q", got, want)
+	}
+}

@@ -153,3 +153,38 @@ func awaitInstallSignalEvent(t *testing.T, ctx context.Context, events <-chan st
 		t.Fatalf("waiting for %s: %v", want, ctx.Err())
 	}
 }
+
+// VALIDATES: P-18(d). installCommand keeps a root step on the operator's
+// terminal: its stdin and stderr are le's own, and it stays in le's process
+// group and session. Method: build the command for a `sudo true` step and read
+// its fields; nothing is started.
+// PREVENTS: a step moved into its own process group or session. sudo there
+// reads the terminal from a background group, so its password prompt stops on
+// SIGTTIN or finds no terminal, and the operator's Ctrl-C never reaches it
+// (spec P-18: "a terminal-sharing child cannot blindly be put in a background
+// process group").
+func TestInstallCommandKeepsTheTerminalAttached(t *testing.T) {
+	step := installStep{Why: "prove the terminal stays attached", Argv: []string{"sudo", "true"}}
+	command := installCommand(context.Background(), step)
+
+	if command.Stdin != os.Stdin {
+		t.Fatalf("install step stdin = %v, want le's own os.Stdin so sudo can prompt for a password", command.Stdin)
+	}
+	if command.Stderr != os.Stderr {
+		t.Fatalf("install step stderr = %v, want le's own os.Stderr so sudo's prompt reaches the operator", command.Stderr)
+	}
+	if attr := command.SysProcAttr; attr != nil {
+		if attr.Setpgid {
+			t.Errorf("install step runs in its own process group (Setpgid): sudo leaves the terminal's foreground group")
+		}
+		if attr.Setsid {
+			t.Errorf("install step runs in its own session (Setsid): sudo loses the controlling terminal")
+		}
+		if attr.Foreground {
+			t.Errorf("install step takes the terminal's foreground group (Foreground): le no longer receives the operator's Ctrl-C")
+		}
+		if attr.Noctty {
+			t.Errorf("install step detaches the controlling terminal (Noctty): sudo cannot prompt")
+		}
+	}
+}
