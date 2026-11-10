@@ -3121,3 +3121,22 @@ HEAD; the 2026-09-07 row's reds are gone since `2b1004b249`.
 | --- | --- | --- |
 | `ze` | `exec "$binary" "$@"` becomes `"$binary" "$@"` | `.../ze`: "launcher hid existing binary's terminating signal: exit status 143"; POSIX test: "ze does not reach the binary through exec with the whole argv" |
 | `le` | the final `exec "$binary" "$@"` becomes `"$binary" "$@"` | `.../le`: "launcher hid existing binary's terminating signal: exit status 143" (the POSIX check still sees `le`'s other exec lines, so it stays green under this break) |
+
+## The plugin-ownership gate has a baseline (2026-11-10)
+
+Owner decision: a baseline of today's edges, any new edge refused.
+`pluginOwnershipGate` now reads `internal/le/arch/tier/testdata/plugin_ownership_baseline.txt`
+through the reader the core import-direction baseline already uses, and
+refuses a new edge, a stale row and a malformed row; the baseline is empty,
+since `./le arch tier check` prints "plugin ownership OK" with no crossing
+edge. `TestPluginOwnershipBaselineIsShrinkOnly` runs the full `Check`:
+
+| Break (Go overlay of `ownership.go`, `ownw/`) | Red |
+| --- | --- |
+| a new edge accepted beside the baseline | "new edge accepted beside the baseline" |
+| stale baseline rows accepted | "stale baseline row accepted" |
+| the baseline ignored | "baselined edge refused" |
+
+`internal/le/arch/tier` ok. `le-placement-answers` is still red, now only for
+another session's untracked `internal/le/interoplab/ipsec/icmperror.go`
+(numberparse), after `60a781fe97` corrected this work's own allowlist count.

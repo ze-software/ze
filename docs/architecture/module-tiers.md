@@ -91,7 +91,9 @@ import direction, disable-ability, build-tag drift, plugin import ownership,
 test-only helper imports, and the docker route.
 Grandfathered core import pairs are non-code data in
 `internal/le/arch/tier/testdata/core_import_baseline.txt`; a new pair and a stale
-row both fail. Plugin ownership has **no baseline**.
+row both fail. Grandfathered plugin ownership edges use the same mechanism and
+format in `internal/le/arch/tier/testdata/plugin_ownership_baseline.txt`, which
+holds no rows, so every ownership edge is refused ("Plugin import ownership").
 
 `internal/le/arch/tier/testdata/tier_migration_baseline.txt` lists engines scheduled
 to move. The gate fails on a new violation and on a stale entry, so the file
@@ -198,6 +200,18 @@ fixtures; package tests also dispatch the registered command and distinguish
 registration from functional imports. Ownership failures name each importing
 file and imported package in deterministic order.
 
+The edges are compared against
+`internal/le/arch/tier/testdata/plugin_ownership_baseline.txt`, read by the
+core import-direction check's reader in its format: one
+`<importer-file> <imported-package> <fix-route>: <rationale>` row per pair, the
+fix route one of `hand-fixable`, `generator-fixable` and `needs-design`. The
+file can only shrink. An edge it does not name fails, a row whose import is gone
+fails as stale, and a row without a legal fix route fails as malformed. The
+baseline held the edges that existed when it was added, and there were none, so
+the file holds no rows and every crossing edge is refused.
+`TestPluginOwnershipBaselineIsShrinkOnly` proves the new, stale and malformed
+verdicts through the complete check.
+
 This graph check does **not** prove full feature ownership or runtime
 removeability. In particular, copied role policy such as reactor logic reading
 `RSClient` can violate the plugin rule without importing the route-server plugin.
@@ -205,7 +219,9 @@ The process-local-call heuristic and generated-import freshness check enforce
 different properties; neither substitutes for ownership checks.
 
 <!-- source: internal/le/plugin/imports/pluginimports.go -- PluginSearchRoots -->
-<!-- source: internal/le/arch/tier/ownership.go -- pluginOwner, pluginOwnershipGate, compositionRegistration, schemaDependency -->
+<!-- source: internal/le/arch/tier/ownership.go -- pluginOwner, pluginOwnershipGate, pluginOwnershipViolations, compositionRegistration, schemaDependency -->
+<!-- source: internal/le/arch/tier/gates.go -- PluginOwnershipBaseline, readPairBaseline, pairsNotIn -->
+<!-- source: internal/le/arch/tier/ownership_test.go -- TestPluginOwnershipBaselineIsShrinkOnly -->
 
 ## Related documents
 

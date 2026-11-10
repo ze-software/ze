@@ -39,6 +39,10 @@ const (
 	// internal/core, at pair granularity so a new pair in an existing file is
 	// still caught.
 	CoreImportBaseline = "internal/le/arch/tier/testdata/core_import_baseline.txt"
+	// PluginOwnershipBaseline holds grandfathered production imports across a
+	// plugin ownership boundary, in the core baseline's pair format, so a new
+	// edge and a stale row both fail. It held no rows when it was added.
+	PluginOwnershipBaseline = "internal/le/arch/tier/testdata/plugin_ownership_baseline.txt"
 	// FeatureGatesManifest is the single declaration point for the
 	// compile-out-able features.
 	FeatureGatesManifest = "feature-gates.txt"
@@ -84,9 +88,10 @@ const CoreAreaPrefix = "internal/core/"
 // CoreForbidden are the two areas internal/core must not import.
 var CoreForbidden = [...]string{AreaComponent, AreaPlugins}
 
-// CoreFixRoutes are the routes a baselined upward import must name, so nothing
-// can be baselined without one.
-var CoreFixRoutes = [...]string{"hand-fixable", "generator-fixable", "needs-design"}
+// BaselineFixRoutes are the routes a baselined import pair must name, in the
+// core import-direction and the plugin ownership baselines alike, so nothing can
+// be baselined without one.
+var BaselineFixRoutes = [...]string{"hand-fixable", "generator-fixable", "needs-design"}
 
 // ---------------------------------------------------------------------------
 // Engine placement
@@ -517,10 +522,11 @@ func coreDirectionViolations(module string, edges Edges) []corePair {
 	return pairs
 }
 
-// readCoreImportBaseline parses the shrink-only baseline. An illegal fix route
-// is a problem, so nothing can be baselined without a named route.
-func readCoreImportBaseline(tree string) ([]corePair, []string, error) {
-	raw, err := os.ReadFile(filepath.Join(tree, CoreImportBaseline)) //nolint:gosec // a baseline of the tree the caller named
+// readPairBaseline parses a shrink-only pair baseline, the tree-relative file
+// name names which. An illegal fix route is a problem, so nothing can be
+// baselined without a named route.
+func readPairBaseline(tree, name string) ([]corePair, []string, error) {
+	raw, err := os.ReadFile(filepath.Join(tree, name)) //nolint:gosec // a baseline of the tree the caller named
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil, nil
 	}
@@ -528,8 +534,8 @@ func readCoreImportBaseline(tree string) ([]corePair, []string, error) {
 		return nil, nil, err
 	}
 
-	legal := make(map[string]bool, len(CoreFixRoutes))
-	for _, route := range CoreFixRoutes {
+	legal := make(map[string]bool, len(BaselineFixRoutes))
+	for _, route := range BaselineFixRoutes {
 		legal[route] = true
 	}
 
@@ -543,16 +549,16 @@ func readCoreImportBaseline(tree string) ([]corePair, []string, error) {
 		}
 		parts := splitN(trimmed, 3)
 		if len(parts) != 3 {
-			problems = append(problems, coreProblem(lineNumber,
-				"expected '<core-file> <imported-package> <fix-route>: <rationale>'"))
+			problems = append(problems, baselineProblem(name, lineNumber,
+				"expected '<importer-file> <imported-package> <fix-route>: <rationale>'"))
 			continue
 		}
 		route, _, _ := strings.Cut(parts[2], ":")
 		route = strings.TrimSpace(route)
 		if !legal[route] {
 			var tb textbuf.Buffer
-			problems = append(problems, coreProblem(lineNumber, tb.Str("fix route ").Str(textrepr.Quote(route)).
-				Str(" not one of ").Str(textrepr.List(sortedCopy(CoreFixRoutes[:]))).String()))
+			problems = append(problems, baselineProblem(name, lineNumber, tb.Str("fix route ").Str(textrepr.Quote(route)).
+				Str(" not one of ").Str(textrepr.List(sortedCopy(BaselineFixRoutes[:]))).String()))
 			continue
 		}
 		pairs = append(pairs, corePair{File: parts[0], Package: parts[1]})
@@ -561,17 +567,17 @@ func readCoreImportBaseline(tree string) ([]corePair, []string, error) {
 	return pairs, problems, nil
 }
 
-// coreProblem renders one baseline problem, which names the file and the line.
-func coreProblem(line int, detail string) string {
+// baselineProblem renders one baseline problem, which names the file and the line.
+func baselineProblem(name string, line int, detail string) string {
 	var tb textbuf.Buffer
-	return tb.Str(CoreImportBaseline).Byte(':').Int(int64(line)).Str(": ").Str(detail).String()
+	return tb.Str(name).Byte(':').Int(int64(line)).Str(": ").Str(detail).String()
 }
 
 // coreDirectionGate compares the upward imports against the shrink-only
 // baseline: a new pair and a stale row both fail.
 func coreDirectionGate(tree, module string, edges Edges) (CheckResult, error) {
 	current := coreDirectionViolations(module, edges)
-	baseline, problems, err := readCoreImportBaseline(tree)
+	baseline, problems, err := readPairBaseline(tree, CoreImportBaseline)
 	if err != nil {
 		return CheckResult{}, err
 	}
@@ -938,7 +944,11 @@ func Check(tree string) (CheckReport, error) {
 	if err != nil {
 		return CheckReport{}, err
 	}
-	report.Checks = append(report.Checks, pluginOwnershipGate(module, graph),
+	ownership, err := pluginOwnershipGate(tree, module, graph)
+	if err != nil {
+		return CheckReport{}, err
+	}
+	report.Checks = append(report.Checks, ownership,
 		testOnlyImportGate(module, graph.edges), dockerExecGate(&graph.docker))
 	report.Failed = firstFailure(report.Checks)
 	return report, nil

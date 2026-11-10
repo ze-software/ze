@@ -1,0 +1,10 @@
+# Plugin ownership baseline -- TRANSITIONAL, not a permanent allowlist.
+# A production file must not import another plugin's implementation; it depends
+# on a shared contract or on component infrastructure instead. Each row is one
+# grandfathered (importer-file, imported-package) pair with its fix route; the
+# gate FAILS on a NEW pair and on a STALE row (import gone but row kept), so
+# this file can only shrink. It held today's edges when it was added, and
+# today's edges were none: an empty file means every edge is refused.
+# Read by pluginOwnershipGate (internal/le/arch/tier/ownership.go) in the
+# format of core_import_baseline.txt.
+# columns: <importer-file>\t<imported-package>\t<fix-route>: <rationale>

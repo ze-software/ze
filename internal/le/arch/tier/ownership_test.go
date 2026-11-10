@@ -51,11 +51,7 @@ func TestPluginOwnershipEdges(t *testing.T) {
 			files := ownershipFixture()
 			files[tc.file] = tc.source
 			files["internal/component/bgp/plugins/nlri/flowspec/register.go"] = "package flowspec\n"
-			graph, err := collectSourceEdges(fixtureTree(t, files), fixtureModule)
-			if err != nil {
-				t.Fatal(err)
-			}
-			result := pluginOwnershipGate(fixtureModule, graph)
+			result := ownershipVerdict(t, fixtureTree(t, files))
 			if (result.Code != 0) != tc.bad {
 				t.Fatalf("code %d, bad=%v: %s", result.Code, tc.bad, result.Diagnosis)
 			}
@@ -178,11 +174,7 @@ func TestStandalonePluginAndHostChildEdges(t *testing.T) {
 			files[target+"/register.go"] = "package implementation\n"
 			const importer = "internal/component/bfd/use.go"
 			files[importer] = blankImport("bfd", target)
-			graph, err := collectSourceEdges(fixtureTree(t, files), fixtureModule)
-			if err != nil {
-				t.Fatal(err)
-			}
-			result := pluginOwnershipGate(fixtureModule, graph)
+			result := ownershipVerdict(t, fixtureTree(t, files))
 			if result.Code != 2 || !strings.Contains(result.Diagnosis, importer+" imports "+target) {
 				t.Fatalf("missing ownership violation: %+v", result)
 			}
@@ -217,14 +209,110 @@ func TestOwnershipDiagnosticsAreSorted(t *testing.T) {
 	files["pkg/z/use.go"] = blankImport("z", target)
 	files["pkg/a/use.go"] = blankImport("a", target)
 	files["cmd/ze/wrapper.go"] = blankImport("main", "pkg/z")
-	graph, err := collectSourceEdges(fixtureTree(t, files), fixtureModule)
-	if err != nil {
-		t.Fatal(err)
-	}
-	result := pluginOwnershipGate(fixtureModule, graph)
+	result := ownershipVerdict(t, fixtureTree(t, files))
 	first := strings.Index(result.Diagnosis, "pkg/a/use.go imports "+target)
 	second := strings.Index(result.Diagnosis, "pkg/z/use.go imports "+target)
 	if result.Code != 2 || first < 0 || second <= first {
 		t.Fatalf("expected both offending edges in path order: %+v", result)
+	}
+}
+
+// ownershipVerdict runs the ownership gate over a fixture checkout, baseline
+// file included, and fails the test on a read error.
+func ownershipVerdict(t *testing.T, root string) CheckResult {
+	t.Helper()
+	graph, err := collectSourceEdges(root, fixtureModule)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := pluginOwnershipGate(root, fixtureModule, graph)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return result
+}
+
+// ownershipCheck answers the plugin-ownership result of the complete Check, so
+// the baseline is proved read from PluginOwnershipBaseline by the entry point.
+func ownershipCheck(t *testing.T, root string) CheckResult {
+	t.Helper()
+	report, err := Check(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, result := range report.Checks {
+		if result.Name == "plugin-ownership" {
+			return result
+		}
+	}
+	t.Fatalf("no plugin-ownership result in %+v", report.Checks)
+	return CheckResult{}
+}
+
+// TestPluginOwnershipBaselineIsShrinkOnly proves the baseline grandfathers
+// exactly the edges it names. Method: one baselined edge passes and is
+// counted; a NEW edge beside it fails and names only itself; removing the
+// baselined import fails as a stale row; a row with no legal fix route fails
+// as malformed. Each step runs the complete Check over a fixture checkout.
+func TestPluginOwnershipBaselineIsShrinkOnly(t *testing.T) {
+	const target = "internal/component/bgp/plugins/nlri/ls"
+	const named = "package use\nimport codec \"example.com/m/" + target + "\"\nvar Value = codec.Value\n"
+	const baselined = "internal/component/bgp/reactor/use.go"
+	const arrived = "pkg/helper/use.go"
+	row := baselined + "\t" + target + "\tneeds-design: fixture edge awaiting a shared contract\n"
+
+	files := ownershipFixture()
+	files[baselined] = named
+	files[PluginOwnershipBaseline] = "# fixture baseline\n" + row
+	root := fixtureTree(t, files)
+
+	held := ownershipCheck(t, root)
+	if held.Code != 0 {
+		t.Fatalf("baselined edge refused: %+v", held)
+	}
+	if !strings.Contains(held.Page, "1 edge(s) in 1 file(s) baselined") {
+		t.Fatalf("baselined edge not counted: %+v", held)
+	}
+
+	if err := writeFixture(root, map[string]string{arrived: named}); err != nil {
+		t.Fatal(err)
+	}
+	fresh := ownershipCheck(t, root)
+	if fresh.Code != 2 {
+		t.Fatalf("new edge accepted beside the baseline: %+v", fresh)
+	}
+	if !strings.Contains(fresh.Diagnosis, arrived+" imports "+target) {
+		t.Fatalf("new edge not named: %s", fresh.Diagnosis)
+	}
+	if strings.Contains(fresh.Diagnosis, baselined+" imports") {
+		t.Fatalf("baselined edge reported as new: %s", fresh.Diagnosis)
+	}
+
+	if err := os.Remove(filepath.Join(root, arrived)); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(root, baselined)); err != nil {
+		t.Fatal(err)
+	}
+	stale := ownershipCheck(t, root)
+	if stale.Code != 2 {
+		t.Fatalf("stale baseline row accepted: %+v", stale)
+	}
+	if !strings.Contains(stale.Diagnosis, "stale plugin ownership baseline row") {
+		t.Fatalf("stale row not reported as stale: %s", stale.Diagnosis)
+	}
+	if !strings.Contains(stale.Diagnosis, baselined+" imports "+target) {
+		t.Fatalf("stale row not named: %s", stale.Diagnosis)
+	}
+
+	if err := writeFixture(root, map[string]string{
+		baselined:               named,
+		PluginOwnershipBaseline: baselined + "\t" + target + "\tlater: no route\n",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	malformed := ownershipCheck(t, root)
+	if malformed.Code != 2 || !strings.Contains(malformed.Diagnosis, PluginOwnershipBaseline+":1: fix route") {
+		t.Fatalf("row without a legal fix route accepted: %+v", malformed)
 	}
 }

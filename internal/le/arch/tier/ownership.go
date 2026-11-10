@@ -134,18 +134,79 @@ func pluginNonProduction(rel string) bool {
 	return hasAnyPrefix(rel, DisableableNonProdPrefixes[:])
 }
 
-// pluginOwnershipGate has no baseline. Shared contracts belong outside the owned
-// subtree; calling a child package "api" does not make deleting its owner safe.
-// This checks dependency edges, not copied feature logic or runtime removeability.
-func pluginOwnershipGate(module string, graph sourceGraph) CheckResult {
+// pluginOwnershipGate compares the production edges that cross a plugin
+// ownership boundary against the shrink-only PluginOwnershipBaseline, read by
+// the core import-direction baseline's reader in its format: a new edge and a
+// stale row both fail. Shared contracts belong outside the owned subtree;
+// calling a child package "api" does not make deleting its owner safe. This
+// checks dependency edges, not copied feature logic or runtime removeability.
+func pluginOwnershipGate(tree, module string, graph sourceGraph) (CheckResult, error) {
 	roots := PluginDirs()
 	result := CheckResult{Name: "plugin-ownership"}
 	if len(roots) == 0 {
 		result.Code = 2
 		result.Diagnosis = "FAIL: plugin search roots contain no ownership boundaries\n"
-		return result
+		return result, nil
 	}
+	current := pluginOwnershipViolations(module, roots, graph)
+	baseline, problems, err := readPairBaseline(tree, PluginOwnershipBaseline)
+	if err != nil {
+		return CheckResult{}, err
+	}
+
+	var diagnosis textbuf.Buffer
+	if len(problems) > 0 {
+		diagnosis.Str("FAIL: ").Str(PluginOwnershipBaseline).Str(" malformed:\n")
+		for _, problem := range problems {
+			diagnosis.Str("  ").Str(problem).Byte('\n')
+		}
+		result.Code = 2
+		result.Diagnosis = diagnosis.String()
+		return result, nil
+	}
+
+	arrived := pairsNotIn(current, baseline)
+	stale := pairsNotIn(baseline, current)
+	if len(arrived) > 0 {
+		diagnosis.Str("FAIL: production imports cross plugin ownership boundaries:\n")
+		for _, violation := range arrived {
+			diagnosis.Str("  ").Str(violation.File).Str(" imports ").Str(violation.Package).Byte('\n')
+		}
+		diagnosis.Str("  Depend on shared contracts or component infrastructure, not another plugin's implementation (ai/rules/plugins.md).\n")
+	}
+	if len(stale) > 0 {
+		diagnosis.Str("FAIL: stale plugin ownership baseline row(s) -- the import is gone, remove from ").
+			Str(PluginOwnershipBaseline).Str(":\n")
+		for _, pair := range stale {
+			diagnosis.Str("  ").Str(pair.File).Str(" imports ").Str(pair.Package).Byte('\n')
+		}
+	}
+	if len(arrived) > 0 || len(stale) > 0 {
+		result.Code = 2
+		result.Diagnosis = diagnosis.String()
+		return result, nil
+	}
+
+	if len(current) == 0 {
+		result.Page = "plugin ownership OK\n"
+		return result, nil
+	}
+	files := make(map[string]bool, len(current))
+	for _, pair := range current {
+		files[pair.File] = true
+	}
+	var page textbuf.Buffer
+	page.Str("plugin ownership OK; ").Int(int64(len(current))).Str(" edge(s) in ").
+		Int(int64(len(files))).Str(" file(s) baselined (pending fix).\n")
+	result.Page = page.String()
+	return result, nil
+}
+
+// pluginOwnershipViolations answers every production (importer file, imported
+// package) pair that crosses a plugin ownership boundary, once each and sorted.
+func pluginOwnershipViolations(module string, roots []string, graph sourceGraph) []corePair {
 	var violations []corePair
+	seen := make(map[corePair]bool)
 	prefix := module + "/"
 	for imported, importers := range graph.edges {
 		rel := strings.TrimPrefix(imported, prefix)
@@ -163,21 +224,14 @@ func pluginOwnershipGate(module string, graph sourceGraph) CheckResult {
 			if graph.registrations[corePair{File: importer, Package: imported}] {
 				continue
 			}
-			violations = append(violations, corePair{File: importer, Package: rel})
+			violation := corePair{File: importer, Package: rel}
+			if seen[violation] {
+				continue
+			}
+			seen[violation] = true
+			violations = append(violations, violation)
 		}
 	}
-	if len(violations) == 0 {
-		result.Page = "plugin ownership OK\n"
-		return result
-	}
 	sortPairs(violations)
-	var diagnosis textbuf.Buffer
-	diagnosis.Str("FAIL: production imports cross plugin ownership boundaries:\n")
-	for _, violation := range violations {
-		diagnosis.Str("  ").Str(violation.File).Str(" imports ").Str(violation.Package).Byte('\n')
-	}
-	diagnosis.Str("  Depend on shared contracts or component infrastructure, not another plugin's implementation (ai/rules/plugins.md).\n")
-	result.Code = 2
-	result.Diagnosis = diagnosis.String()
-	return result
+	return violations
 }
