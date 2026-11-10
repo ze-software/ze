@@ -69,7 +69,7 @@ func TestDoctorCoverageCommitRefusesAddedUncoveredSite(t *testing.T) {
 		Before: fixtureSide(t, "", "", ""),
 		After:  after,
 	}
-	text, err := judgeChangeAt(change, fixtureCovered(), 1)
+	text, err := judgeChangeAt(change, fixtureCodesFloor, 1)
 	if err != nil {
 		t.Fatalf("judgeChangeAt: %v", err)
 	}
@@ -87,7 +87,7 @@ func TestDoctorCoverageCommitRefusesAddedUncoveredSite(t *testing.T) {
 }
 
 // TestDoctorCoverageCommitAdmitsAddedCoveredSite holds that a commit adding a
-// Warn line whose code a registered check declares is admitted.
+// Warn line whose code a doctor check in the tree declares is admitted.
 func TestDoctorCoverageCommitAdmitsAddedCoveredSite(t *testing.T) {
 	after, _ := addingLine(t, `log.Warn("fixture: added covered", "code", diagnostic.CodeDoctorFixtureCovered)`)
 	change := changecheck.Change{
@@ -96,12 +96,66 @@ func TestDoctorCoverageCommitAdmitsAddedCoveredSite(t *testing.T) {
 		Before: fixtureSide(t, "", "", ""),
 		After:  after,
 	}
-	text, err := judgeChangeAt(change, fixtureCovered(), 1)
+	text, err := judgeChangeAt(change, fixtureCodesFloor, 1)
 	if err != nil {
 		t.Fatalf("judgeChangeAt: %v", err)
 	}
 	if text != "" {
 		t.Errorf("a commit adding a covered site was refused:\n%s", text)
+	}
+}
+
+// addedCheckFile is a file the commit fixture adds with a doctor check in it,
+// in a package no file of the tree imports. Only the After side holds it.
+const addedCheckFile = "internal/component/added/doctor.go"
+
+// addedCheck is addedCheckFile's text: one check declaring one code.
+const addedCheck = "package added\n\n" +
+	"import \"github.com/ze-software/ze/internal/core/diagnostic\"\n\n" +
+	"var addedDoctorCheck = diagnostic.DoctorCheck{\n" +
+	"\tName:  \"fixture-added-check\",\n" +
+	"\tCodes: []string{\"doctor-fixture-added\"},\n" +
+	"}\n"
+
+// TestDoctorCoverageCommitAdmitsCheckAddedWithItsSite holds that a commit
+// adding a doctor check and the first site naming its code, together, is
+// admitted: the After side's covered set is read from the tree the commit
+// leaves, which declares the check. The same site committed without the check
+// is refused, because no check in that tree declares its code.
+func TestDoctorCoverageCommitAdmitsCheckAddedWithItsSite(t *testing.T) {
+	withSite, line := addingLine(t, `log.Warn("fixture: added with its check", "code", "doctor-fixture-added")`)
+	unchanged := fixtureSide(t, "", "", "")
+	after := func(path string) (string, bool, error) {
+		if path == addedCheckFile {
+			return addedCheck, true, nil
+		}
+		return withSite(path)
+	}
+	before := func(path string) (string, bool, error) {
+		if path == addedCheckFile {
+			return "", false, nil
+		}
+		return unchanged(path)
+	}
+	together := changecheck.Change{Root: fixtureTree, Paths: []string{fixtureSites, addedCheckFile}, Before: before, After: after}
+	text, err := judgeChangeAt(together, fixtureCodesFloor, 1)
+	if err != nil {
+		t.Fatalf("judgeChangeAt: %v", err)
+	}
+	if text != "" {
+		t.Errorf("a commit adding a doctor check and its first site was refused:\n%s", text)
+	}
+
+	alone := changecheck.Change{Root: fixtureTree, Paths: []string{fixtureSites}, Before: unchanged, After: withSite}
+	text, err = judgeChangeAt(alone, fixtureCodesFloor, 1)
+	if err != nil {
+		t.Fatalf("judgeChangeAt: %v", err)
+	}
+	where := fixtureSites + ":" + strconv.Itoa(line)
+	for _, want := range []string{where, "fixture: added with its check", "no doctor check in the tree declares its code doctor-fixture-added"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("a site whose code no check declares: refusal does not name %q:\n%s", want, text)
+		}
 	}
 }
 
@@ -112,7 +166,7 @@ func TestDoctorCoverageCommitAdmitsAddedCoveredSite(t *testing.T) {
 func TestDoctorCoverageCommitLeavesHeldSitesToReport(t *testing.T) {
 	unchanged := fixtureSide(t, "", "", "")
 	change := changecheck.Change{Root: fixtureTree, Paths: []string{fixtureSites}, Before: unchanged, After: unchanged}
-	text, err := judgeChangeAt(change, fixtureCovered(), 1)
+	text, err := judgeChangeAt(change, fixtureCodesFloor, 1)
 	if err != nil {
 		t.Fatalf("judgeChangeAt: %v", err)
 	}
@@ -128,7 +182,7 @@ func TestDoctorCoverageCommitLeavesHeldSitesToReport(t *testing.T) {
 		`log.Warn("fixture: covered literal", "code", "doctor-fixture-covered")`,
 		`log.Warn("fixture: covered literal")`)
 	stripping := changecheck.Change{Root: fixtureTree, Paths: []string{fixtureSites}, Before: unchanged, After: stripped}
-	text, err = judgeChangeAt(stripping, fixtureCovered(), 1)
+	text, err = judgeChangeAt(stripping, fixtureCodesFloor, 1)
 	if err != nil {
 		t.Fatalf("judgeChangeAt: %v", err)
 	}
@@ -147,7 +201,7 @@ func TestDoctorCoverageCommitAdmitsEmptyChange(t *testing.T) {
 	}
 	for _, paths := range [][]string{nil, {"docs/guide/x.md", "internal/plugins/fixture/sites_test.go"}} {
 		change := changecheck.Change{Root: fixtureTree, Paths: paths, Before: refuseRead, After: refuseRead}
-		text, err := judgeChangeAt(change, fixtureCovered(), 1)
+		text, err := judgeChangeAt(change, fixtureCodesFloor, 1)
 		if err != nil {
 			t.Fatalf("judgeChangeAt %v: %v", paths, err)
 		}
@@ -158,7 +212,7 @@ func TestDoctorCoverageCommitAdmitsEmptyChange(t *testing.T) {
 
 	unchanged := fixtureSide(t, "", "", "")
 	clean := changecheck.Change{Root: fixtureTree, Paths: []string{fixtureSites}, Before: unchanged, After: unchanged}
-	if _, err := judgeChangeAt(clean, fixtureCovered(), 1000); err == nil {
+	if _, err := judgeChangeAt(clean, fixtureCodesFloor, 1000); err == nil {
 		t.Error("a commit judged over a thin scan was admitted")
 	}
 }

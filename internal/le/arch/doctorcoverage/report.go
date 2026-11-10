@@ -49,7 +49,7 @@ func (r CheckReport) Text() string {
 	if len(r.Findings) == 0 {
 		return tb.Str("doctor-coverage: OK\n").String()
 	}
-	tb.Str("doctor-coverage: ").Int(int64(len(r.Findings))).Str(" problem site(s) name no doctor code a registered check declares:\n")
+	tb.Str("doctor-coverage: ").Int(int64(len(r.Findings))).Str(" problem site(s) name no doctor code a doctor check declares:\n")
 	for i := range r.Findings {
 		site := &r.Findings[i]
 		tb.Str("  ").Str(site.File).Byte(':').Int(int64(site.Line)).Str(": ").Str(site.Call).
@@ -73,7 +73,7 @@ func statusReason(site Site) string {
 	case StatusCodeDynamic:
 		return "its code " + site.CodeExpr + " is built at run time, so no check can be matched to it; name a code constant"
 	case StatusCodeNotDoctor:
-		return "no registered doctor check declares its code " + site.Code
+		return "no doctor check in the tree declares its code " + site.Code
 	case StatusCovered, StatusHealthRow, StatusUnspecified:
 		return site.Status.String()
 	}
@@ -87,7 +87,7 @@ type TreeReport struct {
 	Covered    int `json:"covered"`
 	Uncovered  int `json:"uncovered"`
 	HealthRows int `json:"health-rows"`
-	// Codes is how many doctor codes the registries declared.
+	// Codes is how many doctor codes the tree's doctor checks declared.
 	Codes int         `json:"codes"`
 	Doors []DoorGroup `json:"doors"`
 }
@@ -174,7 +174,7 @@ func (r TreeReport) Text() string {
 		Int(int64(r.Covered)).Str(" covered, ").
 		Int(int64(r.Uncovered)).Str(" uncovered, ").
 		Int(int64(r.HealthRows)).Str(" health row(s) to map; ").
-		Int(int64(r.Codes)).Str(" doctor code(s) registered\n")
+		Int(int64(r.Codes)).Str(" doctor code(s) declared\n")
 	for _, group := range r.Doors {
 		countLine(&tb, "", group.Door, group.Uncovered, group.HealthRows)
 		for _, owner := range group.Packages {
@@ -230,19 +230,18 @@ func checkLines(sites []Site, changed repochanged.ChangedLines) CheckReport {
 // reworded one is, and so is an old one whose code the commit removes.
 //
 // Files the commit does not carry are read from the working tree, because a
-// code constant a carried site names may sit in a file the commit leaves
-// alone. The covered set is read from the registries this le links.
+// code constant a carried site names, or the check declaring its code, may sit
+// in a file the commit leaves alone. Each side's covered set is read from that
+// side's own tree (scan), so a commit that adds a doctor check and its first
+// use together is judged against the check it adds.
 func judgeChange(change changecheck.Change) (string, error) {
-	covered := CoveredCodes()
-	if err := checkCodesFloor(covered, coveredCodesFloor); err != nil {
-		return "", err
-	}
-	return judgeChangeAt(change, covered, siteFloor)
+	return judgeChangeAt(change, coveredCodesFloor, siteFloor)
 }
 
-// judgeChangeAt is judgeChange with the covered set and the site floor as
-// arguments, so a fixture tree of a few sites is judged by the same path.
-func judgeChangeAt(change changecheck.Change, covered Covered, floor int) (string, error) {
+// judgeChangeAt is judgeChange with the covered-set floor and the site floor
+// as arguments, so a fixture tree of a few sites and codes is judged by the
+// same path.
+func judgeChangeAt(change changecheck.Change, codesFloor, floor int) (string, error) {
 	carried := make([]string, 0, len(change.Paths)+len(change.Removed))
 	judged := 0
 	for _, path := range slices.Concat(change.Paths, change.Removed) {
@@ -268,14 +267,14 @@ func judgeChangeAt(change changecheck.Change, covered Covered, floor int) (strin
 	if err != nil {
 		return "", err
 	}
-	afterInventory, err := scan(change.Root, after, covered, noDoors)
+	afterInventory, err := scan(change.Root, after, codesFloor, noDoors)
 	if err != nil {
 		return "", err
 	}
 	if err := checkSitesFloor(afterInventory, floor); err != nil {
 		return "", err
 	}
-	beforeInventory, err := scan(change.Root, before, covered, noDoors)
+	beforeInventory, err := scan(change.Root, before, codesFloor, noDoors)
 	if err != nil {
 		return "", err
 	}

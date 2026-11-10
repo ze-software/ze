@@ -5,7 +5,7 @@
 // The three codes stay apart: 0 for a scope whose problem sites all name a
 // doctor code, 1 for one that adds a site that does not, and 2 for a run the
 // gate could not make (a change set git cannot answer, a file that does not
-// parse, a door page with no header, a scan or registry read too thin to judge).
+// parse, a door page with no header, a scan or covered set too thin to judge).
 
 package archdoctorcoverage
 
@@ -24,8 +24,9 @@ const area = "arch doctor-coverage"
 // below this matched a shape that no longer exists.
 const siteFloor = 1000
 
-// coveredCodesFloor is the fewest codes the doctor registries may declare.
-// The tree registered over 60 doctor checks when the gate was written.
+// coveredCodesFloor is the fewest codes the tree's doctor check declarations
+// may list. The tree registered over 60 doctor checks when the gate was
+// written.
 const coveredCodesFloor = 20
 
 // actions is the whole command surface.
@@ -98,20 +99,16 @@ func runReport() (any, int) {
 	return treeReport(inventory), 0
 }
 
-// scanCheckout reads the covered set and the doors, scans the checkout, and
-// refuses a thin covered set or a thin scan.
+// scanCheckout reads the doors, scans the checkout with the covered set its
+// own doctor check declarations list, and refuses a thin covered set or a
+// thin scan.
 func scanCheckout(tree string) (Inventory, int) {
-	covered := CoveredCodes()
-	if err := checkCodesFloor(covered, coveredCodesFloor); err != nil {
-		leaction.ReportError(err)
-		return Inventory{}, 2
-	}
 	doorsOf, err := hookruntime.DoorsCovering(tree)
 	if err != nil {
 		leaction.ReportError(err)
 		return Inventory{}, 2
 	}
-	inventory, err := Scan(tree, covered, doorsOf)
+	inventory, err := Scan(tree, coveredCodesFloor, doorsOf)
 	if err != nil {
 		leaction.ReportError(err)
 		return Inventory{}, 2

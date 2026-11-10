@@ -22,11 +22,9 @@ const (
 	fixtureOther  = "internal/component/other/other.go"
 )
 
-// fixtureCovered is the covered set the fixture's registered checks would
-// declare: one code, held by one check.
-func fixtureCovered() Covered {
-	return Covered{"doctor-fixture-covered": {"fixture-check"}}
-}
+// fixtureCodesFloor is the covered-set floor a fixture scan is held to: the
+// fixture declares a handful of codes, not the tree's 20.
+const fixtureCodesFloor = 1
 
 // fixtureDoors maps the fixture's two owner trees to two door pages.
 func fixtureDoors(file string) []string {
@@ -39,10 +37,11 @@ func fixtureDoors(file string) []string {
 	return nil
 }
 
-// scanFixture scans the fixture tree with the fixture covered set.
+// scanFixture scans the fixture tree, whose own doctor check declarations
+// give the covered set.
 func scanFixture(t *testing.T) Inventory {
 	t.Helper()
-	inventory, err := Scan(fixtureTree, fixtureCovered(), fixtureDoors)
+	inventory, err := Scan(fixtureTree, fixtureCodesFloor, fixtureDoors)
 	if err != nil {
 		t.Fatalf("Scan: %v", err)
 	}
@@ -138,7 +137,7 @@ func TestDoctorCoverageResolvesStaticCodes(t *testing.T) {
 func TestDoctorCoverageRefusesUnparsableFile(t *testing.T) {
 	tree := t.TempDir()
 	writeTreeFile(t, tree, "internal/plugins/broken/broken.go", "package broken\n\nfunc {\n")
-	if _, err := Scan(tree, fixtureCovered(), fixtureDoors); err == nil {
+	if _, err := Scan(tree, 0, fixtureDoors); err == nil {
 		t.Fatal("Scan of an unparsable file answered no error")
 	}
 }

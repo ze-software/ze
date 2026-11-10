@@ -1,7 +1,7 @@
 // Design: docs/architecture/doctor-and-health-checks.md -- the doctor-coverage gate
 //
 // Detail: sites.go -- which calls are problem sites, and the code each names
-// Detail: codes.go -- the constant index and the covered codes the registries declare
+// Detail: codes.go -- the covered codes the tree's doctor check declarations list
 // Detail: report.go -- what check and report answer
 //
 // doctorcoverage.go finds the problems an operator can hit. A Warn or Error
@@ -11,9 +11,11 @@
 // (ai/META-DECISIONS.md), so each site names a doctor code that a registered
 // doctor check declares, and that check is what answers for it.
 //
-// The covered codes are READ from the two doctor registries in this process
-// (codes.go), never from a list: a check that registers is a cover the moment
-// it links. There is no exempt or transient marker: a transient class raises
+// The covered codes are READ from the doctor check declarations in the same
+// parsed tree (codes.go), never from a list and never from the registries
+// linked into le: a check is a cover in the tree side that declares it, so a
+// commit adding a check and its first use is judged against that check. There
+// is no exempt or transient marker: a transient class raises
 // its event on the report bus under its code, so the event is reported under
 // it rather than only logged. A comment is never
 // read, so no comment can exempt a site.
@@ -93,14 +95,15 @@ type Status uint8
 // cannot read as covered.
 const (
 	StatusUnspecified Status = iota
-	// StatusCovered names a code a registered doctor check declares.
+	// StatusCovered names a code a doctor check declaration in the tree lists.
 	StatusCovered
 	// StatusNoCode names no code: a log line with no `code` attribute.
 	StatusNoCode
 	// StatusCodeDynamic names a code the scan cannot read from the source: a
 	// variable, a call, a field. Only a literal or a constant can be judged.
 	StatusCodeDynamic
-	// StatusCodeNotDoctor names a code no registered doctor check declares.
+	// StatusCodeNotDoctor names a code no doctor check declaration in the tree
+	// lists.
 	StatusCodeNotDoctor
 	// StatusHealthRow is a health registration. It carries a row name and no
 	// code field, so it cannot name a code at the site; the audit maps each
@@ -178,22 +181,30 @@ type Inventory struct {
 	Codes int `json:"codes"`
 }
 
-// Scan reads every shipped Go file under tree's parse roots, finds the
-// problem sites under the site roots, and judges each site's code against
-// covered. doorsOf names the door pages covering a file.
+// Scan reads every shipped Go file under tree's parse roots, reads the covered
+// set from the doctor check declarations among them, finds the problem sites
+// under the site roots, and judges each site's code against that set. A
+// covered set below codesFloor codes is an error (checkCodesFloor). doorsOf
+// names the door pages covering a file.
 //
 // A file that does not parse is an error rather than a file with no site: a
 // gate that skips what it cannot read reports a clean tree for it.
-func Scan(tree string, covered Covered, doorsOf func(file string) []string) (Inventory, error) {
-	return scan(tree, nil, covered, doorsOf)
+func Scan(tree string, codesFloor int, doorsOf func(file string) []string) (Inventory, error) {
+	return scan(tree, nil, codesFloor, doorsOf)
 }
 
 // scan is Scan with an overlay: each overlaid file is read from the overlay
 // instead of the working tree, so the commit seam can scan the tree as the
-// commit leaves it and as its parent holds it (report.go, judgeChange).
-func scan(tree string, overlay map[string]overlayFile, covered Covered, doorsOf func(file string) []string) (Inventory, error) {
+// commit leaves it and as its parent holds it (report.go, judgeChange). The
+// covered set comes from the same overlaid tree, so each side is judged by the
+// checks that side declares.
+func scan(tree string, overlay map[string]overlayFile, codesFloor int, doorsOf func(file string) []string) (Inventory, error) {
 	index, err := indexTree(tree, overlay)
 	if err != nil {
+		return Inventory{}, err
+	}
+	covered := index.coveredCodes()
+	if err := checkCodesFloor(covered, codesFloor); err != nil {
 		return Inventory{}, err
 	}
 	inventory := Inventory{Sites: []Site{}, Codes: len(covered)}
@@ -260,11 +271,15 @@ type treeIndex struct {
 	files []*sourceFile
 	// constants maps a directory to the constants its files declare.
 	constants map[string]map[string]constRef
+	// variables maps a directory to the package-level variables its files
+	// declare with a value: a doctor check's code list may be one (codes.go).
+	variables map[string]map[string]constRef
 	// packageNames maps a directory to the package name its files declare.
 	packageNames map[string]string
 }
 
-// constRef is one declared constant: its value expression and its file.
+// constRef is one declared constant or package-level variable: its value
+// expression and its file.
 type constRef struct {
 	expr ast.Expr
 	file *sourceFile
@@ -302,6 +317,7 @@ func indexTree(tree string, overlay map[string]overlayFile) (*treeIndex, error) 
 	index := &treeIndex{
 		fset:         token.NewFileSet(),
 		constants:    make(map[string]map[string]constRef),
+		variables:    make(map[string]map[string]constRef),
 		packageNames: make(map[string]string),
 	}
 	for _, path := range paths {
@@ -319,7 +335,7 @@ func indexTree(tree string, overlay map[string]overlayFile) (*treeIndex, error) 
 		file := &sourceFile{path: path, dir: dirOf(path), ast: parsed}
 		index.files = append(index.files, file)
 		index.packageNames[file.dir] = parsed.Name.Name
-		index.addConstants(file)
+		index.addValues(file)
 	}
 	for _, file := range index.files {
 		file.imports = index.importNames(file.ast)
@@ -327,16 +343,20 @@ func indexTree(tree string, overlay map[string]overlayFile) (*treeIndex, error) 
 	return index, nil
 }
 
-// addConstants records every constant a file declares with a value. A
-// constant with no value of its own (an iota repetition) is not a string a
-// code can be, so it is not recorded.
-func (index *treeIndex) addConstants(file *sourceFile) {
+// addValues records every constant and package-level variable a file
+// declares with a value. One with no value of its own (an iota repetition, a
+// variable declared by type) is not a string or a list a code can be read
+// from, so it is not recorded.
+func (index *treeIndex) addValues(file *sourceFile) {
 	for _, decl := range file.ast.Decls {
 		gen, isGen := decl.(*ast.GenDecl)
 		if !isGen {
 			continue
 		}
-		if gen.Tok != token.CONST {
+		values := index.constants
+		if gen.Tok == token.VAR {
+			values = index.variables
+		} else if gen.Tok != token.CONST {
 			continue
 		}
 		for _, spec := range gen.Specs {
@@ -348,10 +368,10 @@ func (index *treeIndex) addConstants(file *sourceFile) {
 				if i >= len(value.Values) {
 					break
 				}
-				if index.constants[file.dir] == nil {
-					index.constants[file.dir] = make(map[string]constRef)
+				if values[file.dir] == nil {
+					values[file.dir] = make(map[string]constRef)
 				}
-				index.constants[file.dir][name.Name] = constRef{expr: value.Values[i], file: file}
+				values[file.dir][name.Name] = constRef{expr: value.Values[i], file: file}
 			}
 		}
 	}

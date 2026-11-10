@@ -44,20 +44,24 @@ func TestDoctorChangeCheckRegistered(t *testing.T) {
 // TestCommitCreateRefusesUncoveredProblemSite runs the registered check the
 // way the commit flow does (changecheck.Run) over the real checkout: a commit
 // adding a file to internal/plugins/ntp with one Warn line naming no code and
-// one naming a code a registered doctor check declares is refused for the
+// one naming a code a doctor check in the checkout declares is refused for the
 // first, at its file and line, and not for the second.
 func TestCommitCreateRefusesUncoveredProblemSite(t *testing.T) {
 	root, err := lepath.Root()
 	if err != nil {
 		t.Fatalf("checkout root: %v", err)
 	}
-	covered := CoveredCodes()
+	index, err := indexTree(root, nil)
+	if err != nil {
+		t.Fatalf("indexTree: %v", err)
+	}
+	covered := index.coveredCodes()
 	codes := make([]string, 0, len(covered))
 	for code := range covered {
 		codes = append(codes, code)
 	}
 	if len(codes) == 0 {
-		t.Fatal("the linked product declared no doctor code")
+		t.Fatal("the checkout declared no doctor code")
 	}
 	slices.Sort(codes)
 

@@ -82,7 +82,7 @@ func TestDoctorCoverageReportGroupsByOwner(t *testing.T) {
 }
 
 // TestDoctorCoverageScansTheCheckout scans the real checkout with the real
-// covered set and doors: the scan clears its floor, every file maps to a
+// covered set and doors: the scan clears its floors, every file maps to a
 // door, and the report's counts add up.
 func TestDoctorCoverageScansTheCheckout(t *testing.T) {
 	root, err := lepath.Root()
@@ -93,7 +93,7 @@ func TestDoctorCoverageScansTheCheckout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("doors: %v", err)
 	}
-	inventory, err := Scan(root, CoveredCodes(), doorsOf)
+	inventory, err := Scan(root, coveredCodesFloor, doorsOf)
 	if err != nil {
 		t.Fatalf("Scan: %v", err)
 	}

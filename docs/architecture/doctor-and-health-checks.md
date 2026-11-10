@@ -615,7 +615,7 @@ made rather than forgotten.
 ## Every problem site names a doctor code
 
 <!-- source: internal/le/arch/doctorcoverage/sites.go -- sitesOf, siteOf, codeAttr, resolve -->
-<!-- source: internal/le/arch/doctorcoverage/codes.go -- CoveredCodes -->
+<!-- source: internal/le/arch/doctorcoverage/codes.go -- coveredCodes, checkDeclarations, addCheck -->
 <!-- source: internal/le/arch/doctorcoverage/report.go -- checkLines, treeReport, judgeChange, addedSites -->
 <!-- source: internal/le/arch/doctorcoverage/register.go -- changecheck.Register -->
 
@@ -629,13 +629,24 @@ those. Three kinds of call are a problem site:
 | `report.RaiseWarning` or `report.RaiseError` | `show warnings`, `show errors` | its code argument |
 | `health.Register` or `health.RegisterWhen` | the health endpoint | none: a health row carries a name, so the audit maps it to its check by hand |
 
-A site is covered when its code is one that a registered doctor check
-declares in `Codes`. The gate reads the covered codes from both registries
-(`diagnostic.DoctorChecks` and `registry.PluginDoctorChecks`) in its own
-process, behind the blank import of `internal/component/plugin/all`. It holds
-no list of codes. A code must be a literal or a constant the scan can read:
-a code built at run time cannot be matched to a check, and is refused like a
-missing one.
+A site is covered when its code is one that a doctor check declares. The
+gate reads the covered codes from the same parsed source the sites come from,
+never from the registries linked into `le`: every composite literal of a
+doctor check declaration type (`diagnostic.DoctorCheck`,
+`registry.DoctorCheckDef`, `rpc.DoctorCheckDecl` and its SDK alias, and
+`kernelcap.Capability`, whose check `kernel-capability-<Subsystem>` declares
+its `CodeAbsent` and `CodeUnknown`), whatever registers it. Each code in its
+`Codes` list resolves the way a site's code does (a literal, a constant of its
+package, an exported constant of another tree package), and the list may be a
+package-level variable. So a check in a package no composition root imports
+covers its codes, and the commit form reads each side's covered set from that
+side's tree: a commit that adds a check and its first use is admitted. The
+gate holds no list of codes. Its list of declaration types is a second copy
+of what the registries hold, so
+`TestDoctorCoverageSourceHoldsEveryRegisteredCode` links the product and
+fails when a registered check declares a code the source read misses. A code
+must be a literal or a constant the scan can read: a code built at run time
+cannot be matched to a check, and is refused like a missing one.
 
 | Form | What it judges | Exit |
 |------|----------------|------|
@@ -650,7 +661,8 @@ is reported under it rather than only logged. The commit form registers into
 the `changecheck` seam from the package's own `register.go`, so the commit
 code never names it (`docs/contributing/committing.md`). A scan that finds fewer than
 1000 sites, or a covered set below 20 codes, exits 2: a call shape or a
-registry the gate no longer matches would otherwise read as a clean tree.
+declaration type the gate no longer matches would otherwise read as a clean
+tree, or refuse every new line.
 
 ## Recent events: the report bus in show doctor
 
