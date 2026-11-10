@@ -193,6 +193,21 @@ func (r *messageReader) readMessage() ([]byte, []byte, error) {
 	return header, body, nil
 }
 
+// partial returns a copy of the bytes of the frame readMessage has begun and
+// not completed, header first, so a caller that stops using this reader can
+// hand them to the reader that follows (awaitFile). It is nil between frames.
+func (r *messageReader) partial() []byte {
+	if r.headerRead == 0 {
+		return nil
+	}
+	consumed := make([]byte, 0, r.headerRead+r.bodyRead)
+	consumed = append(consumed, r.header[:r.headerRead]...)
+	if r.body != nil {
+		consumed = append(consumed, r.body[:r.bodyRead]...)
+	}
+	return consumed
+}
+
 // KeepaliveMsg returns a BGP KEEPALIVE message.
 func KeepaliveMsg() []byte {
 	msg := make([]byte, 19)

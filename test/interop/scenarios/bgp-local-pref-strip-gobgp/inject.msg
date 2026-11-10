@@ -34,9 +34,15 @@ option=timeout:value=300s
 # measured on 2026-08-04 -- so whatever delivered it there was not the rail
 # under test. The wait is what makes every prefix travel that rail.
 #
-# Ze sends a KEEPALIVE every 5 s at the 15 s hold ze.conf sets, so four of them
-# is a 20 s wait. FRR and GoBGP both reach Established inside that on the lab
-# bridge, and the internal/le/interoplab/bgp checker waits on each session besides.
+# The wait is a state, not a clock. The checker (releaseLocalPrefInjector,
+# internal/le/interoplab/bgp/check_rfc.go) writes the file below only once FRR
+# and GoBGP report their sessions Established AND Ze holds both destination
+# peers Established, the state its forward rail reads. A fixed count of Ze's
+# KEEPALIVEs used to stand in for it and lost the race under load: GoBGP's
+# session to the relay came up 77 s after Ze started, long after a 20 s
+# count. While it waits, the injector answers Ze's KEEPALIVEs, so the 15 s hold
+# ze.conf sets never expires. The bound sits inside this file's 300 s timeout.
+option=await-file:path=/tmp/local-pref-strip-destinations-established:timeout=240s
 #
 # EACH PREFIX IS ANNOUNCED ONCE. A re-announce used to sit at the end of this
 # file to hide a Ze defect: the announce reached nobody and logged `BUG:
@@ -48,26 +54,26 @@ option=timeout:value=300s
 # announce's cache entry before bgp-rs flushed it. Fixed in
 # plugin/coordinator.go. A test shaped around a bug is not evidence, so the
 # repeat is gone.
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
-expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
-expect=bgp:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
-
 # (1) Announce 10.54.0.0/24 and 10.54.1.0/24, then End-of-RIB.
 action=send:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001B4001010040020602010000FDEC400304AC1E0009400504000000C8180A3600180A3601
 action=send:conn=1:seq=6:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
-# (2) Announce 10.54.2.0/24 a KEEPALIVE later. An UPDATE that follows the
+# (2) Announce 10.54.2.0/24 two KEEPALIVEs later. An UPDATE that follows the
 # End-of-RIB takes the same live forward path, and a scenario whose only
-# announce sits in the initial burst would not say so.
+# announce sits in the initial burst would not say so. Two, because the
+# release lands anywhere in Ze's 5 s KEEPALIVE cycle: the first may arrive at
+# once, the second is a full interval later, so Ze has forwarded the first two
+# subjects before the third reaches it and cannot pack all three into one
+# UPDATE (the wire check needs the third in a later one).
 expect=bgp:conn=1:seq=7:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
-action=send:conn=1:seq=8:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDEC400304AC1E0009400504000000C8180A3602
+expect=bgp:conn=1:seq=8:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
+action=send:conn=1:seq=9:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDEC400304AC1E0009400504000000C8180A3602
 
 # The distinct non-subject FIFO fence follows the third, post-EOR subject in
 # a separate full UPDATE. The transparent destination relay seals only after
 # forwarding all three subjects and this fence on the original connection.
 # This defines the captured interval; later connection traffic is not claimed.
-action=send:conn=1:seq=9:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDEC400304AC1E0009400504000000C8180A36FF
+action=send:conn=1:seq=10:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDEC400304AC1E0009400504000000C8180A36FF
 
 # Hold the session open while the internal/le/interoplab/bgp checker polls both daemons. A peer
 # whose script

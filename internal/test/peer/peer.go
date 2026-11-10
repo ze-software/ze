@@ -250,8 +250,13 @@ type Config struct {
 	// session: ze forwards nothing to a peer it does not yet hold Established,
 	// and a route that arrives first reaches the receiver later through a
 	// peer-up replay instead of the forward path the test asserts. The wait is
-	// bounded by awaitFileMax and fails with a message naming the file.
+	// bounded by AwaitFileBound and fails with a message naming the file.
+	// While it waits, ze-peer answers the daemon's KEEPALIVEs (awaitFile).
 	AwaitFile string
+	// AwaitFileBound is the bound of the AwaitFile wait
+	// (option=await-file:timeout=<duration>). Zero means the option declared
+	// none, and awaitFileMax applies.
+	AwaitFileBound time.Duration
 	// IPv6: bind to IPv6 instead of IPv4
 	IPv6 bool
 	// Decode: decode messages to human-readable format in output
@@ -779,8 +784,11 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn, senderAS uint3
 	// marked records that this session wrote its established-file marker.
 	marked := false
 
-	// Hold every send until the awaited file exists (option=await-file).
-	if err := p.awaitFile(ctx); err != nil {
+	// Hold every send until the awaited file exists (option=await-file). The
+	// wait may hand back a connection that replays a frame it read, so every
+	// read below goes through the connection it returns.
+	conn, err := p.awaitFile(ctx, conn)
+	if err != nil {
 		return Result{Success: false, Error: err}
 	}
 

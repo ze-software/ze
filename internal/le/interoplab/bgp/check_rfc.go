@@ -145,6 +145,15 @@ func checkLocalPrefStrip(ctx context.Context, check *interoplab.CheckContext) er
 		}
 	}
 
+	// Assertion 16, numbered after the fifteen it precedes so their numbers
+	// stay those earlier failure reports cite. Release the injector only now.
+	// Ze's forward rail skips a destination it does not hold Established, so a
+	// burst sent before both sessions are up reaches GoBGP, if at all, through
+	// the route server's peer-up replay rather than the rail under test.
+	if err := releaseLocalPrefInjector(ctx, check.Lab, localPrefReleaseTimeout); err != nil {
+		return fail(16, err)
+	}
+
 	// Assertions 4 to 9. Every prefix at both destinations. This is what stops the
 	// absence assertions from being vacuous: "GoBGP carries no LOCAL_PREF" is
 	// satisfied just as well by "GoBGP carries nothing at all".
@@ -190,6 +199,38 @@ func checkLocalPrefStrip(ctx context.Context, check *interoplab.CheckContext) er
 		if err := runOperation(ctx, check.Network, check.Lab, &sessions[index]); err != nil {
 			return fail(index+14, err)
 		}
+	}
+	return nil
+}
+
+// localPrefRelease is the file bgp-local-pref-strip-gobgp/inject.msg names in
+// its option=await-file. The injector sends nothing until it exists, and
+// releaseLocalPrefInjector is its only writer.
+const localPrefRelease = "/tmp/local-pref-strip-destinations-established"
+
+// localPrefReleaseTimeout bounds each wait for Ze to hold one destination
+// Established after that destination's daemon reports its session.
+const localPrefReleaseTimeout = 60 * time.Second
+
+// releaseLocalPrefInjector writes localPrefRelease in the injector's container
+// once Ze holds both destination peers Established: FRR at .3 and the
+// GoBGP-facing relay at .10. The daemons' own Established, which the caller
+// has already read, is not enough: Peer.runOnce publishes the forwarding facts
+// the forward rail reads before it publishes PeerStateEstablished, so Ze's
+// peer state is the barrier the rail obeys (waitZePeerState). Nothing is
+// written when either wait fails, and the injector's own bound then fails it.
+func releaseLocalPrefInjector(ctx context.Context, lab interoplab.CheckerLab, timeout time.Duration) error {
+	for _, destination := range []string{baseIPv4Prefix + "3", baseIPv4Prefix + "10"} {
+		if err := waitZePeerState(ctx, lab, destination, timeout); err != nil {
+			return fmt.Errorf("ze never held destination %s Established, so the injector stays held: %w", destination, err)
+		}
+	}
+	result, err := lab.Exec(ctx, peerInject, []string{"sh", "-c", ": > " + localPrefRelease}, nil)
+	if err != nil {
+		return fmt.Errorf("write the injector release %s: %w", localPrefRelease, err)
+	}
+	if result.ExitCode != 0 {
+		return fmt.Errorf("write the injector release %s exited %d, stderr %q", localPrefRelease, result.ExitCode, result.Stderr)
 	}
 	return nil
 }

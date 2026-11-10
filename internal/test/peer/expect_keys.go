@@ -36,7 +36,7 @@ type peerOptionArm struct {
 // to the runner's parser, which refuses its own unknown keys.
 var peerOptionArms = map[string]peerOptionArm{
 	"asn":              {keys: []string{keyValue, "peer"}, parse: parsePeerOptionASN},
-	"await-file":       {keys: []string{"path"}, parse: parsePeerOptionAwaitFile},
+	"await-file":       {keys: []string{"path", "timeout"}, parse: parsePeerOptionAwaitFile},
 	"await_eor":        {keys: []string{keyValue}, parse: parsePeerOptionAwaitEOR},
 	"bind":             {keys: []string{keyValue}, parse: parsePeerOptionBind},
 	"conn_map":         {keys: []string{keyValue}, parse: parsePeerOptionConnMap},

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -55,6 +56,39 @@ func TestLocalPrefStripChecksDestinationWire(t *testing.T) {
 			}
 			if !tc.bad && lab.wireReads == 0 {
 				t.Fatal("checker certified stripping without reading the destination connection")
+			}
+		})
+	}
+}
+
+// TestLocalPrefStripHoldsInjectorUntilZeEstablished proves assertion 16
+// through the whole checker: with either destination short of Established in
+// Ze's own peer list, checkLocalPrefStrip fails at assertion 16, names that
+// destination, never releases the injector and never reads the wire.
+//
+// Method: the stripped capture that passes TestLocalPrefStripChecksDestinationWire,
+// with one destination reported in connect. Both daemons still report their
+// sessions Established, so only Ze's peer state can hold the release.
+func TestLocalPrefStripHoldsInjectorUntilZeEstablished(t *testing.T) {
+	for _, destination := range []string{"172.30.0.3", "172.30.0.10"} {
+		t.Run(destination, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(t.Context(), 250*time.Millisecond)
+			defer cancel()
+			lab := &localPrefWireLab{wire: localPrefTestCapture(t, -1), reverse: localPrefTestReverse(t), notEstablished: destination}
+			err := checkLocalPrefStrip(ctx, &interoplab.CheckContext{
+				Network: interoplab.Network{IPv4: netip.MustParsePrefix("172.30.0.0/24")}, Lab: lab,
+			})
+			if err == nil {
+				t.Fatalf("destination %s not Established in ze, and the checker passed", destination)
+			}
+			if !strings.Contains(err.Error(), "assertion 16:") || !strings.Contains(err.Error(), destination) {
+				t.Fatalf("err=%v, want assertion 16 naming %s", err, destination)
+			}
+			if lab.releases != 0 {
+				t.Fatalf("injector released %d times while %s was not Established", lab.releases, destination)
+			}
+			if lab.wireReads != 0 {
+				t.Fatalf("checker read the destination wire %d times past a failed release", lab.wireReads)
 			}
 		})
 	}
@@ -139,13 +173,42 @@ func localPrefTestRows(t *testing.T, frames [][]byte, source, target, boundary s
 	return capture.String()
 }
 
+// localPrefWireLab answers every query checkLocalPrefStrip makes. Ze's peer
+// list holds both destinations Established unless notEstablished names one,
+// which it then reports in connect. The injector accepts only the release
+// write, counted in releases.
 type localPrefWireLab struct {
 	noEvidenceLab
-	wire, reverse string
-	wireReads     int
+	wire, reverse  string
+	notEstablished string
+	wireReads      int
+	releases       int
+}
+
+func (lab *localPrefWireLab) Exec(_ context.Context, peer string, command []string, _ []interoplab.EnvironmentVariable) (interoplab.CommandResult, error) {
+	if peer == peerInject && slices.Equal(command, []string{"sh", "-c", ": > " + localPrefRelease}) {
+		lab.releases++
+		return interoplab.CommandResult{}, nil
+	}
+	return interoplab.CommandResult{}, fmt.Errorf("unexpected peer %s exec %q", peer, command)
 }
 
 func (lab *localPrefWireLab) Query(_ context.Context, peer string, command []string, _ []interoplab.EnvironmentVariable) (string, error) {
+	if peer == "ze" {
+		if !slices.Equal(command, zeCommand("show bgp peer list")) {
+			return "", fmt.Errorf("unexpected ze query %q", command)
+		}
+		states := map[string]string{"172.30.0.3": peerStateEstablished, "172.30.0.10": peerStateEstablished}
+		if lab.notEstablished != "" {
+			states[lab.notEstablished] = "connect"
+		}
+		document := map[string]map[string]map[string]string{"peers": {}}
+		for address, state := range states {
+			document["peers"][address] = map[string]string{"state": state}
+		}
+		body, err := json.Marshal(document)
+		return string(body), err
+	}
 	if peer == peerSpeaker {
 		lab.wireReads++
 		switch strings.Join(command, " ") {

@@ -20,6 +20,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/family"
@@ -367,6 +368,18 @@ func parsePeerOptionAwaitFile(config *Config, kv map[string]string) error {
 		return errors.New("option=await-file needs path=<name>, the file ze-peer waits for before its first send (another peer block's established-file)")
 	}
 	config.AwaitFile = kv["path"]
+	timeout, declared := kv["timeout"]
+	if !declared {
+		return nil
+	}
+	bound, err := time.ParseDuration(timeout)
+	if err != nil {
+		return fmt.Errorf("option=await-file:timeout=%q is not a duration, so the wait would have no bound; write one such as timeout=240s: %w", timeout, err)
+	}
+	if bound <= 0 {
+		return fmt.Errorf("option=await-file:timeout=%q is not positive, so the wait would end before it began; write one such as timeout=240s, or leave timeout= out for the %s default", timeout, awaitFileMax)
+	}
+	config.AwaitFileBound = bound
 	return nil
 }
 
