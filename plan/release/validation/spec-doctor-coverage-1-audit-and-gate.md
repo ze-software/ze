@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | `ai/META-DECISIONS.md`: `ze doctor` reports every problem an operator can hit, with cause and fix; this child finds every problem class, gives runtime state a phase that cannot read healthy when unseen, and stops new classes landing without a check |
 | RFC gaps | - |
 | Depends | - |
-| Phase | ready: owner questions O-1, O-2, O-3 decided 2026-11-08 (see "Owner Decisions"); design approved by the owner order of 2026-11-10; phases in "Implementation Phases" |
+| Phase | P1a, P1b, P1c, P2a, P2b landed (commit fc96556110 the gate, commit ce58dddf53 the doctor phases); P3 audit section files written, merge and area children in progress. Owner questions O-1, O-2, O-3 decided 2026-11-08 (see "Owner Decisions"); design approved by the owner order of 2026-11-10; phases in "Implementation Phases" |
 | Handoff | - |
 | Updated | 2026-11-10 |
 
@@ -22,6 +22,14 @@ this spec against the tree that day (`plan/handover/doctor-coverage-1-start.md`,
 added rows; no decided content was removed. Evidence is the scoped package
 tests and the named `.ci` files only: no agent runs `./le verify` or a whole
 functional suite (`ai/META-DECISIONS.md`, "Ze is pre-release").
+
+Claim, 2026-11-10: claimed with `ZE_SPEC_WIP_CAP=25` under Thomas's orders
+"Land P1 and P2", "Complete the work" and "Fix the issues found along the way
+and continue with P2". P1 and P2 landed in commits fc96556110 (the gate) and
+ce58dddf53 (the runtime phase, the fix line, the local route asking the
+daemon, the recent-events check). What implementation decided is recorded in
+"Implementation Record, 2026-11-10" below; where it changes a step or an AC,
+the step or AC carries an amendment line and keeps its original text.
 
 Parent: `plan/release/validation/spec-doctor-coverage-0-umbrella.md`.
 
@@ -142,6 +150,16 @@ This child owns four things, in this order:
 - 3a. Step 3's line is drawn by `outputText` (`internal/component/doctor/doctor.go`), reached through `renderDoctor`
 - 4a. Step 4's check form reaches `./le commit create` by registering into `internal/le/commit/changecheck` from the `doctorcoverage` package's `init()`; the commit code names no check
 
+**Amendments, 2026-11-10 (implementation; the steps above stay as written):**
+- 1b. A `runtime` registry check receives only `Platform` in its `DoctorCheckContext`: the daemon route holds no config tree to hand it, so a runtime check reads its owner's live state and never `Tree` or `ConfigDir` (`RunRuntimeChecks`, `internal/component/doctor/registry.go`)
+  → Decision: A-3 holds in this shape: a runtime check's context is the platform alone
+- 2 (amended). The `doctor-runtime-not-checked` warning names its fix by the cause the daemon did not answer, not always `ze start`: `ze start` when no daemon listens; `ze cli --user <name> -c "show doctor"` when the daemon listens but this account cannot log in; `ze status` when the listener cannot be found; `ze doctor` (no `config`) for R-5, where the named file is outside the daemon's config directories (`internal/component/doctor/local_route.go`)
+- 2c. `ze doctor` drawing a daemon answer exits 0 when the answer holds only warnings, as the local answer does; not-ready still exits 1
+- 2a (amended). The recent-events check is named `recent-events` and declares the one code `doctor-recent-events` (`internal/component/doctor/checks_recent_events.go`). A row carries the event's own code only when that code's metadata is registered (`ze show diagnostic` can explain it); otherwise the row is `doctor-recent-events` with the bus code named in its message, so no event is dropped and no row carries a code the operator cannot look up. Its fix lines are the bare commands `show errors` (an error event) and `show warnings` (an active warning)
+  → Decision: because the check declares only `doctor-recent-events`, a report-bus code counts as covered for the gate only when the check of the code's owner declares it. A transient class therefore needs its owner's check to declare the code; the recent-events row then reports it
+- 4b. A health row (`health.Register`, `health.RegisterWhen`) is listed by the gate and never refused: the registration takes no code, so there is nothing to resolve; the audit maps each one to a doctor check by hand
+  → Constraint: the gate cannot see a Warn or Error logged through a function value (dhcpserver `warnLimited`), nor a site whose message is not a literal (`internal/plugins/flowexport/register.go`, line 172); and a `code` log attribute that holds a protocol or exit code (not a doctor code) reads as code-dynamic. The audit walks these by hand
+
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
@@ -181,8 +199,8 @@ This child owns four things, in this order:
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | A problem site can name its code statically: a report raise takes the code as an argument, and a log line can carry a `code` attribute whose value is an exported code constant | `report.Issue.Code`; slog attributes are key-value pairs | the scan cannot resolve a code built at run time | gate unit test over fixtures with constant, variable and missing codes | unvalidated |
-| A-2 | le can read every registered doctor check's codes by linking the composition root | `ai/doors/le-tooling.md`: le may link `internal/component/plugin/all` | the gate misses plugin codes | `TestDoctorCoverageReadsPluginCodes` | unvalidated |
+| A-1 | A problem site can name its code statically: a report raise takes the code as an argument, and a log line can carry a `code` attribute whose value is an exported code constant | `report.Issue.Code`; slog attributes are key-value pairs | the scan cannot resolve a code built at run time | gate unit test over fixtures with constant, variable and missing codes | validated 2026-11-10: `TestDoctorCoverageResolvesStaticCodes`, `TestDoctorCoverageRefusesUnparsableFile` (`internal/le/arch/doctorcoverage/doctorcoverage_test.go`); limits in Data Flow 4b |
+| A-2 | le can read every registered doctor check's codes by linking the composition root | `ai/doors/le-tooling.md`: le may link `internal/component/plugin/all` | the gate misses plugin codes | `TestDoctorCoverageReadsPluginCodes` | validated 2026-11-10: `TestDoctorCoverageReadsPluginCodes`, `TestDoctorCoverageThinCoveredSetRefused` (`internal/le/arch/doctorcoverage/check_test.go`) |
 | A-3 | The daemon's in-process components (L2TP, iface, IKE) run their `runtime` checks in the daemon process, so a registry check there reads live state | L2TP and PPPoE are `Engine.RegisterSubsystem` subsystems (`ai/doors/hub-engine.md`); IKE runs in the daemon through DirectBridge (`ai/doors/plugin-infra.md`, Traps) | a check reads an empty copy | each owner's check test runs against the live owner state; a forked plugin uses the plugin callback instead | unvalidated |
 
 ### Risks
@@ -236,6 +254,12 @@ This child owns four things, in this order:
 | AC-13 (added 2026-11-10) | The dns-source selection checks after P1a, `show doctor` on a daemon whose dns-source selection is empty, silent or unserved | the same `doctor-dns-source-*` rows appear, produced by checks registered through `RegisterDoctorCheck` with `Phase: runtime`; `internal/core/diagnostic/doctor_daemon.go` is gone, and no `RegisterDaemonDoctorCheck` or `RunDaemonDoctorChecks` symbol remains in the tree; the doctor page's "Daemon doctor checks" section describes the `runtime` phase instead | none: two registries for daemon-only checks is the layering this removes |
 | AC-14 (added 2026-11-10) | `ze doctor` locally while the daemon runs, but the SSH ask fails (no credentials, refused login) (O-1) | the local checks answer, plus one `doctor-runtime-not-checked` warning whose message says the daemon did not answer and why, and whose fix line names a command that gets the daemon's answer; no runtime check runs in the local process | none |
 
+**AC amendments, 2026-11-10 (implementation; the rows above stay as written):**
+- AC-2: the fix line names `ze start` when no daemon listens; the other causes name their own command (Data Flow step 2, amended)
+- AC-4: the printed cover reads "a `code` attribute naming a code a registered doctor check declares"; for a transient class that check is the owner's, declaring the code it raises on the report bus, which the `recent-events` check then reports. The `recent-events` check's own declaration (`doctor-recent-events`) covers no other code (Data Flow step 2a, amended)
+- AC-11: the row carries the event's own code when its metadata is registered, else `doctor-recent-events` with the bus code in the message; its fix is `show errors` or `show warnings`
+- AC-13: the dns-source findings carry their command in `Fix`, not in the message
+
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
@@ -258,6 +282,25 @@ This child owns four things, in this order:
 | `TestDNSSourceChecksRegisterRuntimePhase` (added 2026-11-10) | `internal/component/config/system/doctor_dns_source_test.go` | AC-13: the dns-source checks are registry checks with `Phase: runtime`, and the local runner skips them | |
 | `TestDoctorLocalRouteNoCredentialsAnswersLocally` (added 2026-11-10) | `internal/component/doctor/answer_test.go` | AC-14: a stub ask that fails with a running daemon gives the local answer plus the warning row | |
 | `TestDoctorChangeCheckRegistered` (added 2026-11-10) | `internal/le/arch/doctorcoverage/register_test.go` | AC-4 through the seam: `changecheck.Registered` holds the doctor-coverage check | |
+
+**Test locations as implemented, 2026-11-10 (where a row above names another file, this list governs):**
+
+| Test | File | Validates |
+|------|------|-----------|
+| `TestRenderDoctorPrintsFixOnItsOwnLine` | `internal/component/doctor/render_fix_test.go` | AC-3 text shape |
+| `TestCommitCreateRefusesUncoveredProblemSite` | `internal/le/arch/doctorcoverage/register_test.go` (over the real checkout) | AC-4 through the commit entry |
+| `TestDoctorRuntimePhaseNotRunLocally` | `internal/component/doctor/answer_test.go` | AC-2 |
+| `TestDoctorLocalRouteAsksReachableDaemon` | `internal/component/doctor/answer_test.go` | AC-10, R-5 |
+| `TestDoctorLocalRouteNoCredentialsAnswersLocally` | `internal/component/doctor/answer_test.go` | AC-14 |
+| `TestDecodeDaemonDoctorRefusesAForeignAnswer` | `internal/component/doctor/answer_test.go` | the local route never draws an answer whose schema it does not know |
+| `TestDoctorRecentEventsRowsFromReportRing` | `internal/component/doctor/checks_recent_events_test.go` | AC-11 |
+| `TestDoctorRecentEventsSubjectsAreSeparateRows` | `internal/component/doctor/checks_recent_events_test.go` | AC-11, R-6: one row per (source, code, subject) |
+| `TestDoctorRecentEventsCodeWithoutMetadata` | `internal/component/doctor/checks_recent_events_test.go` | AC-11: an unregistered bus code reports as `doctor-recent-events` |
+| `TestDoctorRecentEventsEmptyBus` | `internal/component/doctor/checks_recent_events_test.go` | AC-11: no event, no row |
+| `TestDoctorRecentEventsRegisteredRuntimePhase` | `internal/component/doctor/checks_recent_events_test.go` | AC-11: registered at `runtime` |
+| `TestDNSSourceChecksRegisterRuntimePhase` | `internal/component/config/system/doctor_dns_source_test.go` | AC-13 |
+| `TestDoctorCoverageResolvesStaticCodes`, `TestDoctorCoverageRefusesUnparsableFile` | `internal/le/arch/doctorcoverage/doctorcoverage_test.go` | A-1 |
+| `TestDoctorCoverageThinCoveredSetRefused` | `internal/le/arch/doctorcoverage/check_test.go` | A-2: a covered set too thin to be the registry is refused, not read as "nothing covered" |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -295,6 +338,15 @@ This child owns four things, in this order:
 - `docs/plugin-development/protocol.md` - `fix` and `runtime` for plugin authors (AC-8)
 - `docs/architecture/doctor-and-health-checks.md` "Daemon doctor checks" - rewritten as the `runtime` phase (AC-13)
 
+**Additions, 2026-11-10 (implementation, P1 and P2 as landed):**
+- `internal/component/cli/sshclient/client.go` - exported `DaemonAddress`, which tells the local route "no daemon listens" from "this account cannot log in"; the file declares `docs/architecture/system-architecture.md` as its design page
+- `internal/component/plugin/registration.go` - the `DoctorCheckRegistration.Phase` comment names `runtime` among the phases
+- `docs/architecture/api/process-protocol.md` - `fix` and `runtime` in the doctor-check payload
+- `docs/features/dns-resolver.md` - the dns-source doctor rows carry their command as a fix line
+- `docs/features/ai-first.md` - the diagnostic record gains `fix` (Documentation row 16)
+- `docs/guide/health-checks.md` - reading the fix line
+- `internal/component/doctor/answer_test.go` - the local-route tests (AC-2, AC-10, AC-14)
+
 ## Files to Create
 - `internal/le/arch/doctorcoverage/` - the scan, `check` and `report` actions, registered from `init()`; its `init()` also registers the check into `internal/le/commit/changecheck` (P2b), and nothing under `internal/le/commit` changes for it
 - `test/plugin/show-doctor-runtime-checks.ci`
@@ -302,6 +354,13 @@ This child owns four things, in this order:
 - `test/plugin/doctor-local-asks-daemon.ci`
 - `plan/audits/doctor-problem-inventory.md` - the inventory
 - `plan/release/validation/spec-doctor-coverage-<n>-<area>.md` - one per door area with gaps, all release work, P2 (O-3)
+
+**Additions, 2026-11-10 (implementation, P1 and P2 as landed):**
+- `internal/core/diagnostic/doctor_registry_list.go` - `DoctorChecks`, every registered check of every phase, which the gate reads for its covered codes
+- `internal/le/hookruntime/doors_covering.go` - `DoorsCovering`, the door lookup the read gate uses, exposed so the gate's report groups sites by door area by the same rule; the file declares `docs/architecture/core-design.md` as its design page
+- `internal/component/doctor/local_route.go` - the local route's ask of the daemon and its fallback row (O-1)
+- `internal/component/doctor/checks_recent_events.go` (+ test) - the `recent-events` check (O-2)
+- `internal/component/doctor/render_fix_test.go` - the fix-line rendering test
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -405,6 +464,21 @@ Child 2 (`plan/release/validation/spec-doctor-coverage-2-home-cpe-batch.md`) wai
 - 2026-11-10: `Diagnostic.Fix` (JSON `"fix"`) sits beside the existing `FixSafety` (`"fix-safety"`) and `Repair` (`"repair"`). They answer different questions, and the `Fix` doc comment in `internal/core/diagnostic/types.go` states the difference: `Fix` is the command or config statement the operator runs, alone, as `opererr` holds it, drawn on its own line; `Repair` names a candidate automated repair an agent may apply (an id and a summary); `FixSafety` grades how safe that automated repair is. A diagnostic may carry `Fix` with neither of the others, and `Fix` never holds a repair id
 - 2026-11-10: the daemon-only registry in `internal/core/diagnostic/doctor_daemon.go` (commit 311177442c) landed one day after this design and is the `runtime` phase built a second way. It is deleted, not extended, so the phase set stays the one declaration of when a check runs
 - 2026-11-10: "a daemon answers" on the local route means the SSH ask succeeded, not that a process exists; a running daemon the operator cannot log in to is the fallback case (AC-14)
+
+### Implementation Record, 2026-11-10
+
+| Topic | Decision taken in implementation | Where |
+|-------|----------------------------------|-------|
+| Runtime check context | a `runtime` check gets `Platform` only | Data Flow 1b |
+| Recent-events check | named `recent-events`, code `doctor-recent-events`; a row carries the event's own code only when its metadata is registered, else `doctor-recent-events` with the bus code in the message; fixes are bare `show errors` / `show warnings` | Data Flow 2a (amended), AC-11 amendment |
+| Gate cover of a transient code | the check declares only `doctor-recent-events`, so a transient code counts as covered only when its owner's check declares it | Data Flow 2a (amended), AC-4 amendment |
+| Local-route fallback fix | named by cause: `ze start`, `ze cli --user <name> -c "show doctor"`, `ze status`, `ze doctor` for R-5 | Data Flow 2 (amended), AC-2 amendment |
+| Health rows | listed by the gate, never refused: `health.Register` takes no code | Data Flow 4b |
+| Exit code | `ze doctor` exits 0 when the daemon answers only warnings | Data Flow 2c |
+| dns-source findings | the command moves from the message into `Fix` | AC-13 amendment |
+
+→ Decision: the doctor-coverage gate's baseline on 2026-11-10 is 2412 problem sites, 0 covered, 10 health rows, 175 registered doctor codes. The audit (P3) starts from it, and the area children's ACs move the covered count
+→ Constraint: the known gate limits (function-value logging, non-literal messages, a `code` attribute holding a protocol or exit code) are walked by hand in the audit, and each is a site the area child of its owner fixes by naming a doctor code
 
 ## Owner Decisions
 
