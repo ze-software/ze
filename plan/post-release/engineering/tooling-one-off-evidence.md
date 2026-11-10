@@ -2965,3 +2965,26 @@ every assertion is kept over the same inputs; off Linux, where the writer is a
 no-op, the test now reaches its assertions instead of failing on a missing
 file. The verdict is recorded through the approval route; the change itself is
 already in history, so no commit carries its trailer.
+
+## P-18: an interrupted `ze appliance kernel` removes the containers it started (2026-11-10)
+
+`TestKernelCommandInterruptRemovesOwnedContainers` (`internal/appliance`)
+runs `runKernel`, the real `ze appliance kernel` handler, through its
+`signal.NotifyContext` stop route and the real `kernelbuilder.Build` against
+the local Docker daemon, with the builder image retagged to a unique tag over
+a cached `alpine:3.24.3` (`KERNEL_CONTAINER_PROOF_IMAGE`; it skips without it)
+and the space policy pinned off. It sends itself SIGINT once the worker's
+heartbeat appears and requires exit 1, no "kernel ready", "the kernel build
+was canceled", the worker joined before the ownership repair, no container
+of the unique image left, and a foreign sentinel still running. It is a Go
+test rather than a `.ci` because a `.ci` could only drive the shipped binary,
+which forces the shared `ze-kernel-builder` image and the live 40G space
+guard.
+
+| Break (Go overlay, `kcw/`) | Red | Restored |
+| --- | --- | --- |
+| `runContainer` returns on a cancelled context before removing the owned container | "ownership repair did not observe a joined worker", "owned container survived the command's verdict" | PASS |
+| `defaultKernelBuild` loses its stop route (`context.WithCancel` instead of `signal.NotifyContext`) | "interrupt did not stop `ze appliance kernel` within 20s" | PASS |
+
+Clean: PASS 44.6s, beside `TestKernelContainerCancellationJoinsBeforeRepair`
+PASS 45.0s. No container or root-owned file remained after the runs.

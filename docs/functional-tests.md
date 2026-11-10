@@ -2528,7 +2528,18 @@ returns, the originating cancellation must remain detectable, and a foreign
 sentinel must still be running. This proves container lifecycle only, not a
 kernel compilation, guest boot or architecture result.
 
+`TestKernelCommandInterruptRemovesOwnedContainers` (`internal/appliance`) takes
+the same image and the same worker one layer up, through the operator's stop of
+`ze appliance kernel --builder docker`: the test runs the command in its own
+process over a minimal installer registry and sends itself SIGINT once the
+worker beats. The command must exit with status 1, name the cancellation on
+stderr, print no `kernel ready` line, and remove every container its build
+created before it returns, while the foreign sentinel keeps running. The only
+substitution is a unique builder image tag, so the shared `ze-kernel-builder`
+image is never retagged. Without the variable it skips.
+
 <!-- source: internal/appliance/kernelbuilder/container_lifetime_proof_test.go -- TestKernelContainerCancellationJoinsBeforeRepair -->
+<!-- source: internal/appliance/kernel_container_cancel_test.go -- TestKernelCommandInterruptRemovesOwnedContainers -->
 
 <!-- source: internal/le/test/install/register.go -- the install suite command -->
 <!-- source: internal/test/fixture/install_fixture.go -- hostKernelArch, syntheticBuildRequest -->
