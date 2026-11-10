@@ -29,12 +29,9 @@ func init() {
 		panic("BUG: system dns-source validator registration refused: " + err.Error())
 	}
 	// The dns-source selection checks read the registry the consumers
-	// publish into, which only the daemon fills, so only show doctor runs them.
-	if err := diagnostic.RegisterDaemonDoctorCheck(diagnostic.DaemonDoctorCheck{
-		Name:  dnsSourceDoctorCheckName,
-		Codes: dnsSourceDoctorCodes,
-		Check: checkDNSSourceSelections,
-	}); err != nil {
+	// publish into, which only the daemon fills, so they register in the
+	// runtime phase: show doctor runs them, the local ze doctor never does.
+	if err := diagnostic.RegisterDoctorCheck(dnsSourceDoctorCheck); err != nil {
 		panic("BUG: dns-source doctor check registration refused: " + err.Error())
 	}
 }

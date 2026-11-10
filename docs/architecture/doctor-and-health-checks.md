@@ -4,7 +4,7 @@ Ze has three tiers of self-diagnosis, and they differ by WHEN they answer.
 
 | Tier | Command | When the fact is produced |
 |------|---------|---------------------------|
-| Readiness | `ze doctor`, and its daemon form `show doctor` | At read time, by re-probing config and the environment. `ze doctor` runs in the operator's own process; `show doctor` runs the same producer (`doctor.Answer`) inside the daemon, and adds the daemon doctor checks and the doctor checks of the plugins the daemon runs |
+| Readiness | `ze doctor`, and its daemon form `show doctor` | At read time, by re-probing config and the environment. `ze doctor` runs in the operator's own process; `show doctor` runs the same producer (`doctor.Answer`) inside the daemon, and adds the `runtime`-phase checks and the doctor checks of the plugins the daemon runs |
 | Live health | `show health` | At read time, inside the daemon, by running a registered probe now |
 | Recorded setup outcome | `show plugin list` | Once, in a plugin's own `init()`, before `main()`. The `outcome` and `reason` columns replay it |
 
@@ -22,20 +22,107 @@ reaches `run`, so no `ze` invocation is refused by it: the command that tells
 the operator what is wrong keeps working on a host where the daemon will not
 boot.
 
-## Daemon doctor checks
+## The runtime phase: checks only the daemon runs
 
 Some readiness facts exist only in the running daemon: a registry its plugins
 fill at runtime, such as every consumer's dns-source selection. A check over
-such a registry registers with `diagnostic.RegisterDaemonDoctorCheck`, and only
-`show doctor` runs it (`diagnostic.RunDaemonDoctorChecks`, called from
-`HandleDoctor`). The local `ze doctor` does not, because in its process that
-registry is empty and the check would report a box it never looked at as
-healthy. The dns-source checks (`doctor-dns-source-empty`,
+such state registers in the `runtime` phase, through the same
+`diagnostic.RegisterDoctorCheck` every other check uses, or through a plugin's
+`DoctorChecks` declaration with phase `runtime`. Only `show doctor` runs it:
+`HandleDoctor` calls `doctor.RunRuntimeChecks`, which runs the `runtime` phase
+of the in-tree registry and of the plugin registry, then asks every plugin the
+daemon runs for its declared checks (`collectPluginDoctorChecks`, which calls
+each declared check whatever its phase). The local `ze doctor` process never
+runs the `runtime` phase itself (`runChecks` runs the four config phases
+only), because in its process that state is empty and the check would report
+a box it never looked at as healthy. It asks the daemon instead (next section).
+
+A `runtime` check only reads, and applies nothing. It is handed the platform
+alone, never a config tree: the daemon route loads the config file from the
+store, not the running configuration, so the check reads its owner's live
+state where it lives. The dns-source checks (`doctor-dns-source-empty`,
 `doctor-dns-source-interface-silent`, `doctor-dns-source-self-unserved`) are
 the first such checks, owned by `internal/component/config/system`.
-<!-- source: internal/core/diagnostic/doctor_daemon.go -- RegisterDaemonDoctorCheck, RunDaemonDoctorChecks -->
-<!-- source: internal/component/doctor/cmd/show.go -- HandleDoctor -->
-<!-- source: internal/component/config/system/doctor_dns_source.go -- dnsSourceFindings -->
+
+There is one phase set and one registry. A second registry of daemon-only
+checks would let a check pick the one the local route happens to run, so the
+phase is the only place that says when a check runs.
+<!-- source: pkg/plugin/rpc/types.go -- DoctorPhaseRuntime -->
+<!-- source: internal/component/doctor/registry.go -- RunRuntimeChecks -->
+<!-- source: internal/component/doctor/cmd/show.go -- HandleDoctor, collectPluginDoctorChecks -->
+<!-- source: internal/component/config/system/doctor_dns_source.go -- dnsSourceDoctorCheck, dnsSourceFindings -->
+<!-- test: internal/component/doctor/registry_test.go TestDoctorRuntimePhaseRunsOnlyThroughTheRuntimeRunner -->
+<!-- test: internal/component/doctor/cmd/show_test.go TestDoctorRuntimePhaseRunsOnDaemonRoute -->
+<!-- test: internal/component/config/system/doctor_dns_source_test.go TestDNSSourceChecksRegisterRuntimePhase -->
+
+## The local route asks the running daemon first
+
+`ze doctor` answers for the box, and the runtime rows exist only in the
+running daemon, so the local route asks the daemon before it answers alone
+(`answerLocalWith`). It resolves the daemon's SSH address as every `ze <verb>`
+daemon command does (`sshclient.DaemonAddress`), connects to it, logs in with
+the credentials `ze init` stored (`sshclient.LoadCredentialsNoPrompt`, which
+never prompts), and sends `show doctor | raw`. When the daemon answers, its
+answer, runtime and plugin rows included, is drawn by the local renderer with
+the local exit code, and `--json` stays a local drawing flag. A daemon
+"answers" only when that ask returns a doctor result of this schema: a
+process that exists but refuses the login has not answered.
+
+When no daemon answers, the local route runs its own checks and adds one
+`doctor-runtime-not-checked` warning. Its message says the runtime checks need
+the running daemon and why none answered; its fix line is the command that
+gets an answer:
+
+| Why no daemon answered | Fix |
+|------------------------|-----|
+| Nothing listens at the daemon's SSH address | `ze start` |
+| A daemon listens, but this account has no stored credentials, or the login or the ask failed | `ze cli --user <name> -c "show doctor"` |
+| The daemon's answer is not a doctor result this `ze` reads | `ze show doctor` |
+| The daemon's SSH address could not be read from the store | `ze status` |
+| `config <file>` names standard input or a file outside the daemon's config directories | `ze doctor` |
+
+The last row keeps the answer about the file the operator named: the daemon
+reads a config file only from its own config directories
+(`command.CallerPath`), so it would refuse the file or answer for another.
+The local route sends `show doctor config <file>` only for a file the daemon
+route admits, and otherwise answers that file itself, with the row. The row is
+a warning, so it never makes a box not ready on its own.
+
+```
+WARN  [doctor-runtime-not-checked] runtime checks did not run: they need the running daemon, and none answered: no daemon listens at 127.0.0.1:2222 (...); this answer holds only the checks ze doctor runs in its own process
+      fix: ze start
+```
+<!-- source: internal/component/doctor/local_route.go -- answerLocalWith, askDaemonDoctor, askDaemonOverSSH, runtimeNotChecked -->
+<!-- source: internal/component/cli/sshclient/client.go -- DaemonAddress -->
+<!-- test: internal/component/doctor/answer_test.go TestDoctorRuntimePhaseNotRunLocally -->
+<!-- test: internal/component/doctor/answer_test.go TestDoctorLocalRouteAsksReachableDaemon -->
+<!-- test: internal/component/doctor/answer_test.go TestDoctorLocalRouteNoCredentialsAnswersLocally -->
+
+## Every finding names the command that fixes it
+
+A doctor diagnostic carries `fix`: the command or config statement the
+operator runs to clear the problem, alone and with no label, as an operator
+error holds its fix (`internal/core/opererr`). The text report draws it on a
+line of its own under the finding, behind a `fix: ` label; JSON carries it
+under the `fix` key, omitted when the finding names none, on `ze doctor --json`
+and on `show doctor` through every surface. A plugin's doctor-check answer
+carries the same `fix` key, and both plugin bridges keep it through one
+mapping (`doctor.PluginDiagnostic`).
+
+```
+ERROR [doctor-fixture-down] fixture is down
+      fix: ze start
+```
+
+`fix` is not `repair` or `fix-safety`. `repair` names a candidate automated
+repair an agent may apply (an id and a summary), and `fix-safety` grades how
+safe that repair is. A finding may carry `fix` with neither, and `fix` never
+holds a repair id.
+<!-- source: internal/core/diagnostic/types.go -- Diagnostic -->
+<!-- source: internal/component/doctor/doctor.go -- outputText -->
+<!-- source: internal/component/doctor/checks_plugin_registry.go -- PluginDiagnostic -->
+<!-- test: internal/component/doctor/render_fix_test.go TestRenderDoctorPrintsFixOnItsOwnLine -->
+<!-- test: internal/component/doctor/cmd/show_test.go TestCollectPluginDoctorChecksCarriesFix -->
 
 ## Usable disk capacity
 
@@ -356,7 +443,9 @@ second, because it runs in the operator's own process rather than the daemon's.
 
 Every check declares the phase it runs in, and `runChecks` runs the phases in
 order: `pre-config`, `missing-config` (only when no config is found),
-`parsed-config`, `post-config`. The phase set is declared once, in
+`parsed-config`, `post-config`. The fifth phase, `runtime`, never runs there:
+only the daemon route runs it (see "The runtime phase: checks only the daemon
+runs"). The phase set is declared once, in
 `pkg/plugin/rpc` (`DoctorCheckPhase`), and `internal/core/diagnostic` aliases
 it, so a check registered in the tree and one a plugin declares name the same
 phases, and a plugin can declare every phase an in-tree check can use. Each
@@ -406,9 +495,11 @@ Two constraints hold this together:
   doctor test that asserts a schema listener's probe runs with the full tag
   set.
 
-`ze doctor` and the daemon's `show doctor` run one producer, `doctor.Answer`.
-The local route runs it in the operator's own process with no plugin check,
-because no plugin runs there. `doctor` is an offline root, not a verb, so it
+`ze doctor` and the daemon's `show doctor` read one request (`answerDoctor`)
+and run one set of checks. The local route asks the running daemon for its
+answer and runs the checks in the operator's own process only when no daemon
+answers, with no plugin check, because no plugin runs there (see "The local
+route asks the running daemon first"). `doctor` is an offline root, not a verb, so it
 has no daemon path of its own: its registration names `show doctor` as its
 daemon form (`registry.Meta.DaemonPath`), and every daemon surface offers
 `show doctor` in its place. The daemon registers one RPC (`HandleDoctor`),
@@ -520,6 +611,77 @@ failure cannot grow it without bound.
 `TestDoctorDependencyInventory` holds an expected total. Adding a runtime
 dependency without a doctor check fails it, which forces the decision to be
 made rather than forgotten.
+
+## Every problem site names a doctor code
+
+<!-- source: internal/le/arch/doctorcoverage/sites.go -- sitesOf, siteOf, codeAttr, resolve -->
+<!-- source: internal/le/arch/doctorcoverage/codes.go -- CoveredCodes -->
+<!-- source: internal/le/arch/doctorcoverage/report.go -- checkLines, treeReport, judgeChange, addedSites -->
+<!-- source: internal/le/arch/doctorcoverage/register.go -- changecheck.Register -->
+
+The inventory test counts dependencies. It says nothing about the problems an
+operator meets while Ze runs. `./le arch doctor-coverage` is the gate for
+those. Three kinds of call are a problem site:
+
+| Site | Where the operator meets it | How it names its code |
+|------|-----------------------------|-----------------------|
+| A `Warn` or `Error` log line, any form (`WarnContext`, `Log` and `LogAttrs` at `slog.LevelWarn` or `slog.LevelError`) | the log | a `code` attribute: `"code", diagnostic.CodeDoctorX` among the key-value arguments, or `slog.String("code", ...)`, nested in an operator error's `LogAttrs` included |
+| `report.RaiseWarning` or `report.RaiseError` | `show warnings`, `show errors` | its code argument |
+| `health.Register` or `health.RegisterWhen` | the health endpoint | none: a health row carries a name, so the audit maps it to its check by hand |
+
+A site is covered when its code is one that a registered doctor check
+declares in `Codes`. The gate reads the covered codes from both registries
+(`diagnostic.DoctorChecks` and `registry.PluginDoctorChecks`) in its own
+process, behind the blank import of `internal/component/plugin/all`. It holds
+no list of codes. A code must be a literal or a constant the scan can read:
+a code built at run time cannot be matched to a check, and is refused like a
+missing one.
+
+| Form | What it judges | Exit |
+|------|----------------|------|
+| `./le arch doctor-coverage check` | the sites on the lines changed since the upstream, under `internal/component`, `internal/plugins` and `cmd/ze`. A site with no code, a run-time code, or a code no check declares is refused, with its file and line and the cover. A health row is listed but not refused | 0 clean, 1 refused, 2 could not judge |
+| `./le arch doctor-coverage report` | every site in the tree that is not covered, grouped by door area and owner package, with counts. A site the change did not add is reported here and never refused | 0, or 2 |
+| `./le commit create` | the sites the commit adds: it scans the tree as the commit leaves the carried Go files and as the parent holds them, and refuses each refusable site in a carried file that the parent held fewer of, keyed by file, call, message and code expression. Moving an old uncovered line is no addition; a new or reworded one is, and so is a covered line whose code the commit removes. A commit carrying no shipped Go under the three site roots is admitted without a scan | refused, or exit 3 when the check could not judge |
+
+No marker comment exempts a site, because the scan never reads comments. A
+transient class (a peer reset that recovers, one retry) still carries its
+code: it raises its event on the report bus under that code, so the event
+is reported under it rather than only logged. The commit form registers into
+the `changecheck` seam from the package's own `register.go`, so the commit
+code never names it (`docs/contributing/committing.md`). A scan that finds fewer than
+1000 sites, or a covered set below 20 codes, exits 2: a call shape or a
+registry the gate no longer matches would otherwise read as a clean tree.
+
+## Recent events: the report bus in show doctor
+
+A transient problem (a peer reset that recovered, one failed retry) is no
+state a check can probe after the fact. Its producer raises it on the report
+bus (`internal/core/report`): an error event into the bounded error ring, or an
+active warning until the producer clears it. `show errors` and `show warnings`
+print that store. The `recent-events` check, owned by `internal/component/doctor`
+because the bus is core and has no component, reads the same store
+(`report.Errors` and `report.Warnings`) and keeps no copy of its own.
+
+It runs in the `runtime` phase, so only `show doctor` runs it: in the local
+`ze doctor` process the bus is always empty. It answers one row per producer
+code and subject, error events and active warnings apart, newest first:
+
+| Part of the row | What it holds |
+|-----------------|---------------|
+| Code | the event's own code, when `ze show diagnostic` describes it; otherwise `doctor-recent-events`, with the event's code written in the message |
+| Severity | `warning`, whatever the event's: the event already happened and its owner may have recovered, so the row never makes the box read not ready |
+| Message | the source, error event or warning, the subject, how many times it happened and when it last did (RFC 3339, UTC), and the newest event's message |
+| `fix` | `show errors` for error events, `show warnings` for warnings: each lists every event behind the row |
+
+The check declares `doctor-recent-events` alone in `Codes`. Like the plugin
+bridge, it renders codes another check declares, so a transient class is
+covered by a code its own owner's check declares, and raising the event on the
+bus is what makes this check report it.
+<!-- source: internal/component/doctor/checks_recent_events.go -- recentEventsCheck, checkRecentEvents, groupRecentEvents, recentEventsDiagnostic -->
+<!-- source: internal/component/doctor/register.go -- init -->
+<!-- source: internal/core/report/report.go -- Errors, Warnings -->
+<!-- test: internal/component/doctor/checks_recent_events_test.go TestDoctorRecentEventsRowsFromReportRing -->
+<!-- test: internal/component/doctor/checks_recent_events_test.go TestDoctorRecentEventsCodeWithoutMetadata -->
 
 ## Which check a new dependency needs
 

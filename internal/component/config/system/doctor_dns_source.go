@@ -1,11 +1,11 @@
 // Design: docs/features/dns-resolver.md -- the doctor checks over every consumer's dns-source selection
-// Overview: register.go -- the init() that registers these as a daemon doctor check
+// Overview: register.go -- the init() that registers these as a runtime doctor check
 // Related: resolv.go -- Resolvers, the registry whose snapshot and publications these read
 //
 // These checks judge what the running daemon selected, so they read the
 // registry the consumers publish into (Resolvers.Snapshot and
 // Resolvers.Consumers). That registry is filled only in the daemon, so they
-// register as a daemon doctor check (diagnostic.RegisterDaemonDoctorCheck):
+// register in the runtime doctor phase (diagnostic.DoctorPhaseRuntime):
 // `show doctor` runs them, and the local `ze doctor`, whose registry is empty,
 // does not.
 
@@ -20,7 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// dnsSourceDoctorCheckName is the name the daemon doctor check registers as.
+// dnsSourceDoctorCheckName is the name the runtime doctor check registers as.
 const dnsSourceDoctorCheckName = "dns-source-selection"
 
 // dnsSourceDoctorCodes are the codes checkDNSSourceSelections emits.
@@ -30,9 +30,25 @@ var dnsSourceDoctorCodes = []string{
 	diagnostic.CodeDoctorDNSSourceSelfUnserved,
 }
 
-// checkDNSSourceSelections is the daemon doctor check: the findings over the
-// process registry's current state.
-func checkDNSSourceSelections() []diagnostic.Diagnostic {
+// dnsSourceDoctorCheck is the runtime doctor check over every dns-source
+// selection. It reads live daemon state, never the config tree, so the
+// context it is handed carries nothing it needs.
+var dnsSourceDoctorCheck = diagnostic.DoctorCheck{
+	Name:         dnsSourceDoctorCheckName,
+	Phase:        diagnostic.DoctorPhaseRuntime,
+	Order:        100,
+	Component:    doctorComponentSystem,
+	Dependencies: []string{"dns-source-registry"},
+	Platforms:    []string{diagnostic.DoctorPlatformAny},
+	Codes:        dnsSourceDoctorCodes,
+	Check:        checkDNSSourceSelections,
+}
+
+// checkDNSSourceSelections is the runtime doctor check: the findings over the
+// process registry's current state. It reads the live registry, never
+// ctx.Tree, because the daemon route loads the config file rather than the
+// running configuration.
+func checkDNSSourceSelections(diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	resolvers := ProcessResolvers()
 	return dnsSourceFindings(resolvers.Snapshot(), resolvers.Consumers())
 }
@@ -62,22 +78,22 @@ func dnsSourceFindings(snapshot dnssource.Snapshot, consumers []dnssource.Public
 		selection := &selections[i]
 		if len(selection.Servers) == 0 && slices.Contains(selection.Sources, dnssource.ClassReceived) {
 			diags = append(diags, dnsSourceWarning(diagnostic.CodeDoctorDNSSourceEmpty, selection,
-				"the list names received and selected no resolver, so this consumer offers none; run show system dns"))
+				"the list names received and selected no resolver, so this consumer offers none", dnsSourceFixShow))
 		}
 		for _, name := range selection.ReceivedInterfaces {
 			if interfaceHoldsRecord(snapshot.Records, name) {
 				continue
 			}
 			diags = append(diags, dnsSourceWarning(diagnostic.CodeDoctorDNSSourceInterfaceSilent, selection,
-				"received-interface "+name+" holds no learned resolver, so the list never selects from it; run show system dns"))
+				"received-interface "+name+" holds no learned resolver, so the list never selects from it", dnsSourceFixShow))
 		}
 		for _, self := range selection.Self {
 			if slices.Contains(served, self) {
 				continue
 			}
 			diags = append(diags, dnsSourceWarning(diagnostic.CodeDoctorDNSSourceSelfUnserved, selection,
-				"hands out "+self.String()+" through self, and no service dns-resolver listener answers on it; "+
-					"run set service dns-resolver listener <name> ip "+self.String()))
+				"hands out "+self.String()+" through self, and no service dns-resolver listener answers on it",
+				"set service dns-resolver listener <name> ip "+self.String()))
 		}
 	}
 	return diags
@@ -93,8 +109,15 @@ func interfaceHoldsRecord(records []dnssource.Record, name string) bool {
 	return false
 }
 
-// dnsSourceWarning builds one finding, naming the list's path and instance.
-func dnsSourceWarning(code string, selection *dnssource.ConsumerSelection, reason string) diagnostic.Diagnostic {
+// dnsSourceFixShow is the fix of a finding whose cause is which resolvers
+// were learned where: show system dns lists every learned record and each
+// consumer's selection.
+const dnsSourceFixShow = "show system dns"
+
+// dnsSourceWarning builds one finding, naming the list's path and instance,
+// with the command that fixes it on its own line (Diagnostic.Fix), never
+// inside the message.
+func dnsSourceWarning(code string, selection *dnssource.ConsumerSelection, reason, fix string) diagnostic.Diagnostic {
 	var tb textbuf.Buffer
 	tb.Str(selection.Path)
 	if selection.Instance != "" {
@@ -106,5 +129,6 @@ func dnsSourceWarning(code string, selection *dnssource.ConsumerSelection, reaso
 		Severity: diagnostic.SeverityWarning,
 		Message:  tb.String(),
 		Path:     selection.Path,
+		Fix:      fix,
 	}
 }

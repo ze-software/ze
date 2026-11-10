@@ -553,6 +553,27 @@ func LoadCredentialsNoPrompt() (Credentials, error) {
 	return readCredentials(dbPath, "", "", "", false)
 }
 
+// DaemonAddress answers the host and port this client dials to reach the
+// daemon, resolved as LoadCredentials resolves them (the ze.ssh.host and
+// ze.ssh.port env pair, then the store's default pointer, then the built-in
+// default), without reading any credential. A caller that must tell "no
+// daemon listens" from "this account cannot log in" probes this address
+// before it loads credentials: the local ze doctor does.
+func DaemonAddress() (host, port string, err error) {
+	dbPath := ResolveStoreDir("")
+	if dbPath == "" {
+		return "", "", errCannotDetermineDatabaseLocation
+	}
+	store, err := openStoreIfReadable(dbPath)
+	if err != nil && !errors.Is(err, errStoreUnavailable) {
+		return "", "", err
+	}
+	if store != nil {
+		defer store.Close() //nolint:errcheck // read-only access
+	}
+	return resolveHostPort(store)
+}
+
 // LoadCredentialsWithFlags reads SSH credentials from the default zefs
 // database, applying a CLI-flag username override when non-empty.
 // See ReadCredentialsWithFlags for the full precedence rules.

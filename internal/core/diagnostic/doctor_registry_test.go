@@ -175,3 +175,36 @@ func TestDoctorChecksForPhaseOrdering(t *testing.T) {
 		t.Errorf("first check = %q, want a-first (lower order)", checks[0].Name)
 	}
 }
+
+// TestRegisterDoctorCheckRuntimePhase registers two runtime checks and lists
+// them by phase.
+//
+// VALIDATES: the runtime phase registers and sorts like the other phases.
+// PREVENTS: a runtime check refused at registration, or the phase-rank sort
+// panicking on a phase it does not know.
+func TestRegisterDoctorCheckRuntimePhase(t *testing.T) {
+	ResetDoctorChecksForTest()
+	defer ResetDoctorChecksForTest()
+
+	for _, name := range []string{"runtime-b", "runtime-a"} {
+		check := DoctorCheck{
+			Name: name, Phase: DoctorPhaseRuntime, Component: "test",
+			Dependencies: []string{"x"}, Platforms: []string{DoctorPlatformAny},
+			Codes: []string{"doctor-" + name}, Check: func(DoctorCheckContext) []Diagnostic { return nil },
+		}
+		if err := RegisterDoctorCheck(check); err != nil {
+			t.Fatalf("register %s: %v", name, err)
+		}
+	}
+
+	checks := DoctorChecksForPhase(DoctorPhaseRuntime)
+	if len(checks) != 2 {
+		t.Fatalf("runtime checks = %d, want 2", len(checks))
+	}
+	if checks[0].Name != "runtime-a" {
+		t.Errorf("first runtime check = %q, want runtime-a", checks[0].Name)
+	}
+	if got := DoctorChecksForPhase(DoctorPhasePostConfig); len(got) != 0 {
+		t.Errorf("post-config checks = %d, want 0: a runtime check leaked into another phase", len(got))
+	}
+}

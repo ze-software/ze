@@ -1,0 +1,60 @@
+# Test: show doctor on a running daemon answers a runtime-phase row with the
+#       command that fixes it under its own fix key.
+# Spec: spec-doctor-coverage-1-audit-and-gate AC-1, AC-3, AC-13
+# VALIDATES: HandleDoctor (internal/component/doctor/cmd/show.go) runs the
+#   runtime phase (doctor.RunRuntimeChecks), so the dns-source check, which
+#   registers in that phase and reads the daemon's live registry, answers on
+#   the daemon route; its finding carries "fix" apart from the message.
+# PREVENTS: a runtime check registered but never run by the daemon, and a fix
+#   command left inside the message where no surface draws it on its own line.
+#
+# The runtime row: `system dns-source` selects only resolvers received on
+# zeabsent0, an interface that holds no learned record, so the dns-source
+# check reports doctor-dns-source-interface-silent for it
+# (internal/component/config/system/doctor_dns_source.go). show doctor
+# answers a not-ready result as data, so the command exits 0 either way.
+
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT
+EOF_INIT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+	dns-source {
+		source [ received ]
+		received-interface [ zeabsent0 ]
+	}
+	dns {
+		resolv-conf-path "/proc/self/cwd/show-doctor-runtime-checks.resolv.conf";
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start running.conf:name=daemon:ready=Ze running.
+
+cmd=foreground:seq=3:exec=ze cli -c "show doctor | json":exit=0
+expect=stdout:contains="code": "doctor-dns-source-interface-silent"
+expect=stdout:contains="message": "system dns-source: received-interface zeabsent0 holds no learned resolver, so the list never selects from it"
+expect=stdout:contains="fix": "show system dns"

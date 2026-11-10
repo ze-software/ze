@@ -6,8 +6,8 @@
 #   record (doctor-dns-source-interface-silent); the named pool gold hands out
 #   its gateway through self with no LAN resolver listening there
 #   (doctor-dns-source-self-unserved). The local ze doctor holds an empty
-#   registry and does not run these checks (DaemonDoctorCheck), so the
-#   observer dispatches show doctor through the daemon.
+#   registry and does not run these checks (they register in the runtime
+#   phase), so the observer dispatches show doctor through the daemon.
 # PREVENTS: a doctor check registered but never reached by the daemon route,
 #   or one that judges the wrong path.
 option=env:var=ze.l2tp.skip-kernel-probe:value=true

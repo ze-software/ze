@@ -33,9 +33,11 @@ import (
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
-// Run answers `ze doctor` the way its local route does: the one producer
-// (Answer) on the caller's own host, drawn by renderDoctor. It prints, so it is
-// the route, never the handler: the registered handler is answerLocal.
+// Run answers `ze doctor` the way its local route does, drawn by
+// renderDoctor: the running daemon's show doctor answer when a daemon answers
+// the SSH ask, otherwise the local checks of the caller's own host plus the
+// doctor-runtime-not-checked row (local_route.go). It prints, so it is the
+// route, never the handler: the registered handler is answerLocal.
 func Run(validated command.ValidatedArgs) int {
 	return command.PrintLocalAnswerWith(doctorPath, command.AnswerLocal(answerLocal, validated), renderDoctor)
 }
@@ -178,6 +180,15 @@ func outputJSON(result diagnostic.DoctorResult) int {
 	return 0
 }
 
+// doctorFixIndent aligns a fix line under the message after the six-column
+// severity tag ("ERROR ", "WARN  ", "INFO  ").
+const doctorFixIndent = "      "
+
+// doctorFixLabel opens a fix line, the same label an operator error draws
+// before its fix (internal/core/opererr), so one word means "run this"
+// everywhere.
+const doctorFixLabel = "fix: "
+
 // outputText draws the readiness result as the text report on stdout, and
 // answers exit 1 when the box is not ready.
 func outputText(result diagnostic.DoctorResult) int {
@@ -209,6 +220,13 @@ func outputText(result diagnostic.DoctorResult) int {
 			b.Str("INFO  ")
 		}
 		b.Str("[").Str(diags[i].Code).Str("] ").Str(diags[i].Message).Byte('\n')
+		// The command that fixes the finding sits on a line of its own, under
+		// the message it answers, so an operator who scans for what to run
+		// finds it (ai/rules/user-facing-errors.md). A finding with no fix
+		// draws no line.
+		if diags[i].Fix != "" {
+			b.Str(doctorFixIndent).Str(doctorFixLabel).Str(diags[i].Fix).Byte('\n')
+		}
 	}
 
 	b.Byte('\n')

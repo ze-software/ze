@@ -205,15 +205,20 @@ type DoctorCheckDecl = rpc.DoctorCheckDecl
 type DoctorCheckPhase = rpc.DoctorCheckPhase
 
 // DoctorCheckPhase values: wire form is "pre-config", "missing-config",
-// "parsed-config", "post-config".
+// "parsed-config", "post-config", "runtime". A runtime check reads the
+// running plugin's live state and runs only on the daemon route (show doctor),
+// never in a local ze doctor process.
 const (
 	DoctorPhasePreConfig     = rpc.DoctorPhasePreConfig
 	DoctorPhaseMissingConfig = rpc.DoctorPhaseMissingConfig
 	DoctorPhaseParsedConfig  = rpc.DoctorPhaseParsedConfig
 	DoctorPhasePostConfig    = rpc.DoctorPhasePostConfig
+	DoctorPhaseRuntime       = rpc.DoctorPhaseRuntime
 )
 
 // DoctorCheckDiagnostic is a single diagnostic result from a plugin doctor check.
+// Its Fix carries the command that clears the problem, alone, drawn on its
+// own line by every surface.
 type DoctorCheckDiagnostic = rpc.DoctorCheckDiagnostic
 
 // FilterDecl declares a named route filter the plugin offers.

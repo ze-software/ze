@@ -27,6 +27,9 @@ const (
 	DoctorPhaseMissingConfig = rpc.DoctorPhaseMissingConfig
 	DoctorPhaseParsedConfig  = rpc.DoctorPhaseParsedConfig
 	DoctorPhasePostConfig    = rpc.DoctorPhasePostConfig
+	// DoctorPhaseRuntime checks read live daemon state. Only the daemon route
+	// (show doctor) runs them; the local ze doctor process never does.
+	DoctorPhaseRuntime = rpc.DoctorPhaseRuntime
 )
 
 // DoctorPlatformAny matches all platforms.
@@ -35,6 +38,10 @@ const DoctorPlatformAny = "any"
 // DoctorCheckContext is the runtime context passed to each doctor check.
 // Tree is typed as any to avoid a cycle between diagnostic and config;
 // check functions that need *config.Tree should type-assert.
+//
+// A runtime-phase check is handed Platform alone: it reads its owner's live
+// state, never a config tree, store or directory, so every other field is
+// empty for it by design.
 type DoctorCheckContext struct {
 	Tree      any
 	ConfigDir string
@@ -273,6 +280,8 @@ func doctorPhaseRank(phase DoctorCheckPhase) int {
 		return 2
 	case DoctorPhasePostConfig:
 		return 3
+	case DoctorPhaseRuntime:
+		return 4
 	default:
 		panic("BUG: invalid registered doctor phase")
 	}

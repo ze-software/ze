@@ -458,7 +458,7 @@ type EnrichShowOutput struct {
 // Declared during Stage 1 registration; invoked at runtime via callback.
 type DoctorCheckDecl struct {
 	Name         string           `json:"name"`                   // Check name (kebab-case, e.g. "rpki-cache-reachable")
-	Phase        DoctorCheckPhase `json:"phase"`                  // When to run: pre-config, missing-config, parsed-config, post-config
+	Phase        DoctorCheckPhase `json:"phase"`                  // When to run: pre-config, missing-config, parsed-config, post-config, runtime
 	Order        int              `json:"order,omitempty"`        // Ordering within phase (0-9999)
 	Dependencies []string         `json:"dependencies,omitempty"` // Other check names that must run first
 	Platforms    []string         `json:"platforms,omitempty"`    // Platform filter (empty = "any")
@@ -477,12 +477,18 @@ const (
 	// Checks MUST accept semantically invalid input and MUST NOT apply config.
 	DoctorPhaseParsedConfig DoctorCheckPhase = "parsed-config"
 	DoctorPhasePostConfig   DoctorCheckPhase = "post-config"
+	// DoctorPhaseRuntime checks read the live state of a running daemon.
+	// They run only on the daemon route (show doctor): the local ze doctor
+	// process holds no live state, so it MUST NOT run them, and it says so
+	// instead of reading empty state as healthy. A runtime check MUST only
+	// read; it applies nothing.
+	DoctorPhaseRuntime DoctorCheckPhase = "runtime"
 )
 
 // Valid reports whether the phase is a known doctor check phase.
 func (phase DoctorCheckPhase) Valid() bool {
 	switch phase {
-	case DoctorPhasePreConfig, DoctorPhaseMissingConfig, DoctorPhaseParsedConfig, DoctorPhasePostConfig:
+	case DoctorPhasePreConfig, DoctorPhaseMissingConfig, DoctorPhaseParsedConfig, DoctorPhasePostConfig, DoctorPhaseRuntime:
 		return true
 	default:
 		// Plugin declarations are open; reject an unknown phase without panicking.
@@ -496,10 +502,15 @@ type DoctorCheckInput struct {
 }
 
 // DoctorCheckDiagnostic is a single diagnostic result from a plugin doctor check.
+// Fix is the command or config statement the operator runs to clear the
+// problem, alone and with no label (e.g. "show rpki cache" or
+// "set bgp rpki cache 192.0.2.1 port 3323"); the renderer draws it on its own
+// line after the message. It is empty only when no command fixes the problem.
 type DoctorCheckDiagnostic struct {
-	Code     string `json:"code"`     // Diagnostic code (e.g. "doctor-rpki-cache-unreachable")
-	Severity string `json:"severity"` // "error" or "warning"
-	Message  string `json:"message"`  // Human-readable description
+	Code     string `json:"code"`          // Diagnostic code (e.g. "doctor-rpki-cache-unreachable")
+	Severity string `json:"severity"`      // "error" or "warning"
+	Message  string `json:"message"`       // Human-readable description
+	Fix      string `json:"fix,omitempty"` // The fixing command alone, drawn on its own line
 }
 
 // DoctorCheckOutput is the output for ze-plugin-callback:doctor-check.

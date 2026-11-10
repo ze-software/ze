@@ -18,6 +18,13 @@ const exampleDoctorJSON = "ze doctor --json"
 // operator to run, so the three that name it name one string.
 const exampleConfigValidate = "ze config validate ze.conf"
 
+// exampleShowDoctor is the daemon's doctor answer, which the runtime-phase
+// codes name because only the daemon route runs their checks.
+const exampleShowDoctor = "ze show doctor"
+
+// exampleShowSystemDNS shows the resolver list the dns-source codes judge.
+const exampleShowSystemDNS = "ze show system dns"
+
 // The spelling of a code, declared once so that no other package writes it out.
 //
 // A code is an operator-facing surface: `ze show diagnostic <code>` looks it up by this
@@ -55,6 +62,8 @@ const (
 	CodeDoctorConfigClaimsUnavailable              = "doctor-config-claims-unavailable"
 	CodeDoctorConfigRootUnclaimed                  = "doctor-config-root-unclaimed"
 	CodeDoctorDiskSpace                            = "doctor-disk-space"
+	CodeDoctorRecentEvents                         = "doctor-recent-events"
+	CodeDoctorRuntimeNotChecked                    = "doctor-runtime-not-checked"
 	CodeDoctorIfaceSelectorAmbiguous               = "doctor-iface-selector-ambiguous"
 	CodeDoctorIfaceSelectorUnmatched               = "doctor-iface-selector-unmatched"
 	CodeDoctorL2TPUnavailable                      = "doctor-l2tp-unavailable"
@@ -541,6 +550,18 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON},
 	},
 	{
+		Code:        CodeDoctorRecentEvents,
+		Title:       "A problem happened recently and may have recovered",
+		Description: "A component raised an event on the report bus, such as a peer session reset or a failed retry, and the event is still in the recent-event ring. The row names the event's own code, its subject, how many times it happened and when it last happened. It does not make the box read not ready, because the component may have recovered. Run show errors and show warnings to see each event, and ze show diagnostic <code> for the event's own code.",
+		Examples:    []string{exampleShowDoctor, "ze show errors", "ze show warnings"},
+	},
+	{
+		Code:        CodeDoctorRuntimeNotChecked,
+		Title:       "Runtime checks did not run",
+		Description: "Some doctor checks read the live state of the running daemon (the runtime phase). This ze doctor answered in its own process, because no daemon answered it: the daemon is not running, or the SSH login to it failed. Those checks did not run, so this answer says nothing about the daemon's live state. Start the daemon with ze start, then run show doctor from an account that can log in to it.",
+		Examples:    []string{"ze start", exampleShowDoctor},
+	},
+	{
 		Code:        "doctor-dns-resolver",
 		Title:       "No DNS resolver responding",
 		Description: "None of the name servers configured under system/name-server responded to a query.",
@@ -550,19 +571,19 @@ var builtinCodes = []CodeMeta{
 		Code:        CodeDoctorDNSSourceEmpty,
 		Title:       "A dns-source list selected no resolver",
 		Description: "A consumer's dns-source list (written, or its built-in default) names received, and the list selected no server, so that consumer offers no DNS resolver: no lease, router advertisement or PPP session has supplied one, and no later class in the list holds a usable server. Run show system dns to see the records and each selection. Add a fallback, for example set system name-server <address> and the source configured, or check why no interface learned a resolver.",
-		Examples:    []string{"ze show doctor", "ze show system dns"},
+		Examples:    []string{exampleShowDoctor, exampleShowSystemDNS},
 	},
 	{
 		Code:        CodeDoctorDNSSourceInterfaceSilent,
 		Title:       "A received-interface holds no learned resolver",
 		Description: "A dns-source list narrows received to interfaces named under received-interface, and one of them holds no learned resolver record, so the list never selects from it. The interface may not have learned yet (no DHCP lease, no RA, no PPP session), or the name is wrong. Run show system dns to see which interfaces hold records, then correct the received-interface entry or bring the interface up.",
-		Examples:    []string{"ze show doctor", "ze show system dns"},
+		Examples:    []string{exampleShowDoctor, exampleShowSystemDNS},
 	},
 	{
 		Code:        CodeDoctorDNSSourceSelfUnserved,
 		Title:       "A self DNS server is not served",
 		Description: "A consumer hands Ze's own address to clients through the self source of its dns-source list (for a DHCP subnet, Ze's IPv4 address inside the subnet on the interface that serves it, which can differ from a configured server identifier; for an RA unit, the first global or unique-local IPv6 address Ze holds on the advertising unit, else the one a live prefix delegation gave it, never its link-local source; for an L2TP pool, the LNS's local IPCP address on the subscriber's PPP link), and no service dns-resolver listener answers on that address, so clients time out. Add a listener on that address, for example set service dns-resolver listener lan ip <address>, or remove self from that consumer's dns-source list.",
-		Examples:    []string{"ze show doctor", "ze show system dns"},
+		Examples:    []string{exampleShowDoctor, exampleShowSystemDNS},
 	},
 	{
 		Code:        "doctor-iface-down",
@@ -724,7 +745,7 @@ var builtinCodes = []CodeMeta{
 		Code:        CodeDoctorPolicyIGPImportHidesNextHop,
 		Title:       "IGP import filter hides the route a next hop resolves through",
 		Description: "An IS-IS or OSPF import chain (or the central `rib filter import` chain) hid a prefix the IGP learned, and that prefix is the most specific cover of the next hop of a route this router selected. The IGP still floods the prefix, so routers downstream keep sending its traffic here, while this router resolves the next hop through a shorter prefix or not at all: transit traffic is blackholed or loops. The check reads the running daemon's Loc-RIB, so only `show doctor` inside the daemon reports it; `ze doctor` before a start has no RIB to read. Run `show rib candidates prefix <prefix>` to see the hidden path and the chain that hid it, then let the chain accept that prefix, or stop originating it in the IGP instead of filtering it locally.",
-		Examples:    []string{"ze show doctor", "ze show rib candidates prefix 10.1.0.0/24", "ze show diagnostic doctor-policy-igp-import-hides-nexthop"},
+		Examples:    []string{exampleShowDoctor, "ze show rib candidates prefix 10.1.0.0/24", "ze show diagnostic doctor-policy-igp-import-hides-nexthop"},
 	},
 	{
 		Code:        "doctor-iface-macvlan",

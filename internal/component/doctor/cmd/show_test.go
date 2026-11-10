@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -15,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 func TestPlatformMatchesEmpty(t *testing.T) {
@@ -105,4 +107,81 @@ func TestDoctorDaemonRouteCarriesPluginChecks(t *testing.T) {
 	encoded, err = json.Marshal(without.Payload)
 	require.NoError(t, err)
 	assert.NotContains(t, string(encoded), `"fixture-plugin-check"`)
+}
+
+// fakeDoctorCheckSource is a running-plugin set for collectPluginDoctorChecks:
+// one plugin declaring one check, answering a fixed diagnostic.
+type fakeDoctorCheckSource struct {
+	answer rpc.DoctorCheckOutput
+}
+
+func (fakeDoctorCheckSource) DoctorCheckPlugins() map[string][]plugin.DoctorCheckRegistration {
+	return map[string][]plugin.DoctorCheckRegistration{
+		"fixture-plugin": {{Name: "fixture-check", Phase: rpc.DoctorPhaseRuntime, Platforms: []string{"any"}}},
+	}
+}
+
+func (f fakeDoctorCheckSource) CallDoctorCheck(context.Context, string, string) (*rpc.DoctorCheckOutput, error) {
+	return &f.answer, nil
+}
+
+// TestCollectPluginDoctorChecksCarriesFix asks a running plugin for its
+// doctor check and reads what the daemon route builds from the answer.
+//
+// VALIDATES: AC-3 on the daemon route, the fix a plugin's doctor-check answer
+// carries reaches the doctor diagnostic unchanged.
+// PREVENTS: the callback bridge rebuilding a diagnostic from code, severity
+// and message alone and dropping the fix command.
+func TestCollectPluginDoctorChecksCarriesFix(t *testing.T) {
+	source := fakeDoctorCheckSource{answer: rpc.DoctorCheckOutput{Diagnostics: []rpc.DoctorCheckDiagnostic{{
+		Code: "doctor-fixture-degraded", Severity: "error", Message: "fixture state is degraded", Fix: "show fixture state",
+	}}}}
+	diags := collectDoctorChecksFrom(source, "")
+	require.Len(t, diags, 1)
+	assert.Equal(t, "doctor-fixture-degraded", diags[0].Code)
+	assert.Equal(t, diagnostic.SeverityError, diags[0].Severity)
+	assert.Equal(t, "fixture state is degraded", diags[0].Message)
+	assert.Equal(t, "show fixture state", diags[0].Fix)
+}
+
+// TestDoctorRuntimePhaseRunsOnDaemonRoute registers a runtime-phase check and
+// runs show doctor's handler.
+//
+// VALIDATES: AC-1, the daemon route runs a registered runtime check and its
+// diagnostic reaches the answer with code, severity, message and fix.
+// PREVENTS: a runtime check that no route runs.
+func TestDoctorRuntimePhaseRunsOnDaemonRoute(t *testing.T) {
+	const name = "test-daemon-runtime"
+	check := diagnostic.DoctorCheck{
+		Name: name, Phase: diagnostic.DoctorPhaseRuntime, Component: "test",
+		Dependencies: []string{"x"}, Platforms: []string{diagnostic.DoctorPlatformAny},
+		Codes: []string{"doctor-test-daemon-runtime"},
+		Check: func(diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+			return []diagnostic.Diagnostic{{
+				Code: "doctor-test-daemon-runtime", Severity: diagnostic.SeverityWarning,
+				Message: "daemon runtime state is degraded", Fix: "show test runtime",
+			}}
+		},
+	}
+	require.NoError(t, diagnostic.RegisterDoctorCheck(check))
+	t.Cleanup(func() { diagnostic.UnregisterDoctorCheckForTest(name) })
+
+	resp, err := HandleDoctor(&pluginserver.CommandContext{}, commandtest.Args())
+	require.NoError(t, err)
+	require.Equal(t, plugin.StatusDone, resp.Status)
+	got, ok := resp.Data.(plugin.RawJSON)
+	require.True(t, ok, "daemon data is %T, want the encoded producer answer", resp.Data)
+
+	var result diagnostic.DoctorResult
+	require.NoError(t, json.Unmarshal([]byte(got), &result))
+	var found *diagnostic.Diagnostic
+	for i := range result.Diagnostics {
+		if result.Diagnostics[i].Code == "doctor-test-daemon-runtime" {
+			found = &result.Diagnostics[i]
+		}
+	}
+	require.NotNil(t, found, "show doctor did not run the runtime check: %s", got)
+	assert.Equal(t, diagnostic.SeverityWarning, found.Severity)
+	assert.Equal(t, "daemon runtime state is degraded", found.Message)
+	assert.Equal(t, "show test runtime", found.Fix)
 }

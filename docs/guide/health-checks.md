@@ -31,8 +31,17 @@ row is `present`. It is how a host is checked before it runs Ze's Docker labs.
 <!-- source: internal/component/doctor/kernel_capabilities.go -- writeKernelCapabilities -->
 
 Each check produces a diagnostic with a code (e.g., `doctor-config-reference`),
-severity (`error` or `warning`), and message. Use `ze show diagnostic <code>` for
-remediation guidance.
+severity (`error` or `warning`), and message. When a command clears the
+problem, the finding also names it as its fix, drawn on a line of its own under
+the message (JSON carries it under `fix`):
+
+```
+ERROR [doctor-fixture-down] fixture is down
+      fix: ze start
+```
+
+Use `ze show diagnostic <code>` for remediation guidance.
+<!-- source: internal/component/doctor/doctor.go -- outputText -->
 
 ### Checks
 
@@ -232,6 +241,7 @@ p.OnDoctorCheck(func(name string) ([]rpc.DoctorCheckDiagnostic, error) {
                 Code:     "doctor-my-cache-unreachable",
                 Severity: "error",
                 Message:  "cache server not reachable: " + err.Error(),
+                Fix:      "show my-cache status",
             }}, nil
         }
     }
@@ -240,8 +250,12 @@ p.OnDoctorCheck(func(name string) ([]rpc.DoctorCheckDiagnostic, error) {
 ```
 
 The engine invokes plugin checks only at runtime (`show doctor`), not
-during offline `ze doctor`. See `docs/architecture/api/process-protocol.md`
-for the full protocol.
+during offline `ze doctor`. Set `Fix` to the command that clears the finding,
+alone, with no `fix:` label. A check that reads live state the daemon holds
+(not the config file) declares `Phase: rpc.DoctorPhaseRuntime`; the same phase
+is open to an in-tree check registered with `diagnostic.RegisterDoctorCheck`,
+and only `show doctor` runs it. See
+`docs/architecture/api/process-protocol.md` for the full protocol.
 
 ### Requirements
 

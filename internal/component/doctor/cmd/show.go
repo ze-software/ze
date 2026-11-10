@@ -13,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 const (
@@ -23,12 +24,13 @@ const (
 // HandleDoctor is the RPC handler for ze-doctor:show-doctor, the daemon form
 // of `ze doctor`. It runs the one producer `ze doctor` runs locally
 // (doctor.Answer) on the daemon route, adding the checks that read this
-// daemon's runtime state (diagnostic.RunDaemonDoctorChecks) and the doctor
-// checks of the plugins it runs, and maps the answer as the local-data bridge
-// maps every local-data command (pluginserver.AnswerLocalData).
+// daemon's live state: the runtime phase of the doctor registry
+// (doctor.RunRuntimeChecks) and the doctor checks of the plugins it runs. It
+// maps the answer as the local-data bridge maps every local-data command
+// (pluginserver.AnswerLocalData).
 func HandleDoctor(cmdCtx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
 	runtime := func() []diagnostic.Diagnostic {
-		return append(diagnostic.RunDaemonDoctorChecks(), collectPluginDoctorChecks(cmdCtx)...)
+		return append(doctor.RunRuntimeChecks(), collectPluginDoctorChecks(cmdCtx)...)
 	}
 	answer := func(args command.ValidatedArgs) command.LocalAnswer {
 		return doctor.Answer(args, runtime)
@@ -36,23 +38,42 @@ func HandleDoctor(cmdCtx *pluginserver.CommandContext, validated command.Validat
 	return pluginserver.AnswerLocalData("doctor", answer, validated)
 }
 
+// doctorCheckSource is the running-plugin set the daemon route asks for doctor
+// checks: the declarations of the plugins it runs and the callback that runs
+// one of them. *pluginserver.Server is the one implementation; a test holds a
+// fixture.
+type doctorCheckSource interface {
+	DoctorCheckPlugins() map[string][]plugin.DoctorCheckRegistration
+	CallDoctorCheck(ctx context.Context, pluginName, checkName string) (*rpc.DoctorCheckOutput, error)
+}
+
 // collectPluginDoctorChecks asks every plugin this daemon runs for its doctor
 // checks. A context with no server (a dispatcher built without one) holds no
 // plugin, so it answers none.
+//
+// It calls every check a running plugin declared, whatever its phase: inside
+// the daemon a plugin's live state is there to read, so a runtime check and a
+// config-phase check are both answered here.
 func collectPluginDoctorChecks(cmdCtx *pluginserver.CommandContext) []diagnostic.Diagnostic {
 	if cmdCtx == nil || cmdCtx.Server == nil {
 		return nil
 	}
-	plugins := cmdCtx.Server.DoctorCheckPlugins()
-	if len(plugins) == 0 {
-		return nil
-	}
-
 	// Skip the calling plugin to avoid deadlock: the caller is blocked
 	// waiting for our response, so a callback to it would hang.
 	var callerName string
 	if cmdCtx.Process != nil {
 		callerName = cmdCtx.Process.Name()
+	}
+	return collectDoctorChecksFrom(cmdCtx.Server, callerName)
+}
+
+// collectDoctorChecksFrom runs every doctor check the source's plugins
+// declared, skipping callerName's, in declared order, and answers their
+// findings with the fix each plugin named.
+func collectDoctorChecksFrom(source doctorCheckSource, callerName string) []diagnostic.Diagnostic {
+	plugins := source.DoctorCheckPlugins()
+	if len(plugins) == 0 {
+		return nil
 	}
 
 	platform, _ := host.DetectPlatform()
@@ -80,7 +101,7 @@ func collectPluginDoctorChecks(cmdCtx *pluginserver.CommandContext) []diagnostic
 	var diags []diagnostic.Diagnostic
 	for _, pc := range pending {
 		ctx, cancel := context.WithTimeout(context.Background(), perCheckTimeout)
-		out, err := cmdCtx.Server.CallDoctorCheck(ctx, pc.plugin, pc.check.Name)
+		out, err := source.CallDoctorCheck(ctx, pc.plugin, pc.check.Name)
 		cancel()
 		if err != nil {
 			diags = append(diags, diagnostic.Diagnostic{
@@ -100,12 +121,9 @@ func collectPluginDoctorChecks(cmdCtx *pluginserver.CommandContext) []diagnostic
 			})
 		}
 		for _, d := range out.Diagnostics[:count] {
-			sev := normalizeSeverity(d.Severity)
-			diags = append(diags, diagnostic.Diagnostic{
-				Code:     d.Code,
-				Severity: sev,
-				Message:  d.Message,
-			})
+			diag := doctor.PluginDiagnostic(d)
+			diag.Severity = normalizeSeverity(d.Severity)
+			diags = append(diags, diag)
 		}
 	}
 	return diags

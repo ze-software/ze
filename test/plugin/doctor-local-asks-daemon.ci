@@ -1,0 +1,69 @@
+# Test: ze doctor on a box whose daemon runs draws the daemon's show doctor
+#       answer, its runtime rows included, with no not-checked row.
+# Spec: spec-doctor-coverage-1-audit-and-gate AC-10 (O-1)
+# VALIDATES: the local route (internal/component/doctor/local_route.go,
+#   askDaemonOverSSH) finds the daemon's SSH listener, logs in with the
+#   credentials ze init stored, asks `show doctor | raw`, and draws that
+#   answer locally: the runtime-phase dns-source rows, which only the daemon's
+#   live registry produces, appear with their fix line, in text and JSON.
+# PREVENTS: a local ze doctor that answers from its own process while a
+#   daemon runs, and so never shows the daemon's live state.
+#
+# The runtime rows: `system dns-source` selects only resolvers received on
+# zeabsent0, an interface that holds no learned record, so the daemon's
+# dns-source check reports doctor-dns-source-interface-silent for it
+# (internal/component/config/system/doctor_dns_source.go). The local process
+# holds no dns-source registry, so these rows can come only from the daemon.
+#
+# EXIT CODE: the drawn answer exits 1 when the daemon's answer holds an error;
+# the value below is UNVERIFIED and is set from the first draft run.
+
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT
+EOF_INIT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+	dns-source {
+		source [ received ]
+		received-interface [ zeabsent0 ]
+	}
+	dns {
+		resolv-conf-path "/proc/self/cwd/doctor-local-asks-daemon.resolv.conf";
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start running.conf:name=daemon:ready=Ze running.
+
+cmd=foreground:seq=3:exec=ze doctor:exit=0
+expect=stdout:contains=WARN  [doctor-dns-source-interface-silent] system dns-source: received-interface zeabsent0 holds no learned resolver, so the list never selects from it
+expect=stdout:contains=fix: show system dns
+reject=stdout:contains=doctor-runtime-not-checked
+
+cmd=foreground:seq=4:exec=ze doctor --json:exit=0
+expect=stdout:contains="code": "doctor-dns-source-interface-silent"
+expect=stdout:contains="fix": "show system dns"
+reject=stdout:contains=doctor-runtime-not-checked

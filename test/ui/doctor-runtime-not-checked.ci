@@ -1,0 +1,27 @@
+# Test: ze doctor with no daemon running says the runtime checks did not run,
+#       why, and the command that starts the daemon.
+# Spec: spec-doctor-coverage-1-audit-and-gate AC-2 (O-1)
+# VALIDATES: the local route (internal/component/doctor/local_route.go,
+#   askDaemonOverSSH) probes the daemon's SSH listener, finds none, answers
+#   its own checks and adds one doctor-runtime-not-checked warning naming why,
+#   with `ze start` on the fix line, in the text and the JSON drawings.
+# PREVENTS: a local ze doctor that reads a box whose daemon it never asked as
+#   healthy at runtime, in silence.
+#
+# ze.ssh.port points the ask at the runner's $PORT, where nothing listens, so
+# another session's daemon on the default port cannot answer it. The empty
+# config root holds no store, so doctor-config-missing is an error and both
+# commands exit 1: the warning row itself never makes the box not ready.
+
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=ze.ssh.port:value=$PORT
+
+cmd=foreground:seq=1:exec=ze doctor:exit=1
+expect=stdout:contains=WARN  [doctor-runtime-not-checked] runtime checks did not run: they need the running daemon, and none answered: no daemon listens at 127.0.0.1:
+expect=stdout:contains=fix: ze start
+expect=stdout:contains=ERROR [doctor-config-missing]
+
+cmd=foreground:seq=2:exec=ze doctor --json:exit=1
+expect=stdout:contains="code": "doctor-runtime-not-checked"
+expect=stdout:contains="severity": "warning"
+expect=stdout:contains="fix": "ze start"

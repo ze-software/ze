@@ -3,6 +3,7 @@ package system
 import (
 	"net/netip"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -63,8 +64,11 @@ func TestDNSSourceDoctorFindings(t *testing.T) {
 	// Empty: the router names received and selected nothing.
 	empty := snapshot
 	empty.Router.Servers = nil
-	if got := findingCodes(dnsSourceFindings(empty, healthy)); !slices.Equal(got, []string{diagnostic.CodeDoctorDNSSourceEmpty}) {
+	emptyFindings := dnsSourceFindings(empty, healthy)
+	if got := findingCodes(emptyFindings); !slices.Equal(got, []string{diagnostic.CodeDoctorDNSSourceEmpty}) {
 		t.Errorf("empty router selection: findings %v, want [%s]", got, diagnostic.CodeDoctorDNSSourceEmpty)
+	} else if emptyFindings[0].Fix != "show system dns" || strings.Contains(emptyFindings[0].Message, "run ") {
+		t.Errorf("empty router selection: message %q fix %q, want the fix %q on its own field", emptyFindings[0].Message, emptyFindings[0].Fix, "show system dns")
 	}
 	// An empty selection of a list that does not name received is the
 	// operator's choice, not a finding.
@@ -81,8 +85,11 @@ func TestDNSSourceDoctorFindings(t *testing.T) {
 	if !slices.Equal(findingCodes(got), []string{diagnostic.CodeDoctorDNSSourceInterfaceSilent}) {
 		t.Fatalf("silent interface: findings %v, want [%s]", findingCodes(got), diagnostic.CodeDoctorDNSSourceInterfaceSilent)
 	}
-	if want := routerDNSSourcePath + ": received-interface wan9 holds no learned resolver, so the list never selects from it; run show system dns"; got[0].Message != want {
+	if want := routerDNSSourcePath + ": received-interface wan9 holds no learned resolver, so the list never selects from it"; got[0].Message != want {
 		t.Errorf("silent interface message = %q, want %q", got[0].Message, want)
+	}
+	if want := "show system dns"; got[0].Fix != want {
+		t.Errorf("silent interface fix = %q, want %q", got[0].Fix, want)
 	}
 
 	// Self not served: the resolver listens elsewhere.
@@ -93,8 +100,11 @@ func TestDNSSourceDoctorFindings(t *testing.T) {
 	if !slices.Equal(findingCodes(got), []string{diagnostic.CodeDoctorDNSSourceSelfUnserved}) {
 		t.Fatalf("self unserved: findings %v, want [%s]", findingCodes(got), diagnostic.CodeDoctorDNSSourceSelfUnserved)
 	}
-	if want := "service dhcp-server subnet dns-source (192.0.2.0/24): hands out 192.0.2.1 through self"; len(got[0].Message) < len(want) || got[0].Message[:len(want)] != want {
-		t.Errorf("self unserved message = %q, want prefix %q", got[0].Message, want)
+	if want := "service dhcp-server subnet dns-source (192.0.2.0/24): hands out 192.0.2.1 through self, and no service dns-resolver listener answers on it"; got[0].Message != want {
+		t.Errorf("self unserved message = %q, want %q", got[0].Message, want)
+	}
+	if want := "set service dns-resolver listener <name> ip 192.0.2.1"; got[0].Fix != want {
+		t.Errorf("self unserved fix = %q, want %q", got[0].Fix, want)
 	}
 
 	// Disabled resolver: it publishes an empty selection set, binds nothing
@@ -106,21 +116,34 @@ func TestDNSSourceDoctorFindings(t *testing.T) {
 	}
 }
 
-// TestDNSSourceDoctorCheckRunsOnlyOnTheDaemonRoute proves the check is
-// registered as a daemon doctor check and as no ordinary one, so the local
-// ze doctor, whose registry is empty, never answers "fine" for it.
-func TestDNSSourceDoctorCheckRunsOnlyOnTheDaemonRoute(t *testing.T) {
+// TestDNSSourceChecksRegisterRuntimePhase proves the dns-source checks are
+// ordinary registry checks in the runtime phase and in no other phase, so the
+// local ze doctor, whose dns-source registry is empty, never runs them and
+// show doctor does.
+//
+// VALIDATES: AC-13, the check registers through RegisterDoctorCheck with
+// Phase runtime, and each code it emits resolves through Lookup.
+// PREVENTS: a second registry of daemon-only checks, or the check landing in
+// a phase the local route runs.
+func TestDNSSourceChecksRegisterRuntimePhase(t *testing.T) {
 	found := false
-	for _, check := range diagnostic.DaemonDoctorChecks() {
+	for _, check := range diagnostic.DoctorChecksForPhase(diagnostic.DoctorPhaseRuntime) {
 		if check.Name == dnsSourceDoctorCheckName {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatalf("daemon doctor checks lack %s", dnsSourceDoctorCheckName)
+		t.Fatalf("runtime doctor checks lack %s", dnsSourceDoctorCheckName)
 	}
-	if slices.Contains(diagnostic.DoctorCheckNames(), dnsSourceDoctorCheckName) {
-		t.Errorf("%s is also an ordinary doctor check: the local route would run it over an empty registry", dnsSourceDoctorCheckName)
+	for _, phase := range []diagnostic.DoctorCheckPhase{
+		diagnostic.DoctorPhasePreConfig, diagnostic.DoctorPhaseMissingConfig,
+		diagnostic.DoctorPhaseParsedConfig, diagnostic.DoctorPhasePostConfig,
+	} {
+		for _, check := range diagnostic.DoctorChecksForPhase(phase) {
+			if check.Name == dnsSourceDoctorCheckName {
+				t.Errorf("%s is registered in phase %s: the local route would run it over an empty registry", dnsSourceDoctorCheckName, phase)
+			}
+		}
 	}
 	diagnostic.RegisterBuiltinCodes()
 	for _, code := range dnsSourceDoctorCodes {

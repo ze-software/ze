@@ -493,7 +493,7 @@ registered itself. The two routes call one producer, so they cannot drift:
 
 | Command | Producer | Local route | Daemon route |
 |---------|----------|-------------|--------------|
-| `doctor` (daemon path `show doctor`) | `doctor.Answer` | the local-data handler `ze doctor` runs, with no plugin check (no plugin runs in the caller's process) | `HandleDoctor`, the RPC for `ze-doctor:show-doctor`, adding the doctor checks of the plugins the daemon runs |
+| `doctor` (daemon path `show doctor`) | `doctor.Answer` | the local-data handler `ze doctor` runs: it asks the running daemon's `show doctor` over SSH and draws that answer, and only when no daemon answers runs the checks in the caller's process, with no plugin check, plus a `doctor-runtime-not-checked` warning (`docs/architecture/doctor-and-health-checks.md`) | `HandleDoctor`, the RPC for `ze-doctor:show-doctor`, adding the runtime-phase checks and the doctor checks of the plugins the daemon runs |
 | `show ping` | `pingResults` | `showPingLocal` prints it | `handleShowPing` |
 | `show traceroute` | `tracerouteResults` | `showTracerouteLocal` prints it | `handleTraceroute` |
 | `show interface` | `iface.ListInterfaces`, `iface.GetInterface` | `cmdShow` renders the list or one interface (`--json` prints the payload) | `handleShowInterface`, `handleShowInterfaceDetail` answer it as data |

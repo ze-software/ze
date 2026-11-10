@@ -2,6 +2,7 @@
 // Overview: doctor.go -- the readiness checks and the local drawing
 // Related: kernel_capabilities.go -- the kernel-capabilities answer
 // Related: register.go -- the local-data registration of doctor
+// Related: local_route.go -- the local route asks the running daemon first
 
 package doctor
 
@@ -20,10 +21,13 @@ import (
 // doctorPath is the command the local route answers and the refusals name.
 const doctorPath = "doctor"
 
-// RuntimeChecks answers the doctor checks of the plugins a running daemon
-// holds. The daemon route passes the dispatcher's; the local route passes nil,
-// because the caller's own process runs no plugin, so it has no plugin check to
-// ask. Answer reads nil as that fact, never as a failure to look.
+// RuntimeChecks answers the checks that read a running daemon's live state:
+// the runtime phase of the doctor registry and the doctor checks of the
+// plugins the daemon runs. The daemon route passes the dispatcher's. The
+// local route never calls Answer: it asks the daemon for its answer instead
+// (answerLocalWith), because the caller's own process holds no live state to
+// read. Answer reads nil as "no runtime check to add", which only a test
+// passes, never as a failure to look.
 type RuntimeChecks func() []diagnostic.Diagnostic
 
 // readinessAnswer is the answer of the readiness checks. It marshals as the
@@ -51,19 +55,40 @@ type doctorRequest struct {
 }
 
 // answerLocal is the local-data handler of doctor: the readiness answer of
-// the caller's own host, with no plugin check, since no plugin runs here.
+// the caller's own host, asked of the daemon over SSH when one answers
+// (local_route.go), and answered here with the doctor-runtime-not-checked row
+// when none does.
 func answerLocal(validated command.ValidatedArgs) command.LocalAnswer {
-	return Answer(validated, nil)
+	return answerLocalWith(validated, askDaemonOverSSH)
 }
 
-// Answer is the one producer of the doctor answer. `ze doctor` reaches it
-// through the local-data route, and the daemon's `show doctor` reaches it
-// through internal/component/doctor/cmd with the plugin checks the dispatcher
-// holds. It writes nothing: refusals and the help page ride in the
+// readinessFunc answers the readiness checks of one request, once its words
+// are read and its config path is resolved for the route. Answer and the
+// local route differ only here: where the readiness checks run.
+type readinessFunc func(request doctorRequest, configPath string) command.LocalAnswer
+
+// Answer is the daemon's producer of the doctor answer: `show doctor` reaches
+// it through internal/component/doctor/cmd with the runtime checks the
+// dispatcher holds, and `ze doctor` draws its answer when the daemon answers
+// the local route's ask (local_route.go). Both share answerDoctor and
+// runChecks. It writes nothing: refusals and the help page ride in the
 // Diagnostic, and a not-ready result is a payload with code 0, so the daemon
 // route answers it as data, as `show doctor` always did. The local drawing
 // (renderDoctor) exits 1 for it.
 func Answer(validated command.ValidatedArgs, runtime RuntimeChecks) command.LocalAnswer {
+	return answerDoctor(validated, func(request doctorRequest, configPath string) command.LocalAnswer {
+		diags := runChecks(configPath)
+		if runtime != nil {
+			diags = append(diags, runtime()...)
+		}
+		return readinessPayload(diags, request.asJSON)
+	})
+}
+
+// answerDoctor reads the request, answers the help page, a refusal and the
+// kernel-capabilities mode itself, resolves the config path for the route,
+// and hands the readiness request to readiness.
+func answerDoctor(validated command.ValidatedArgs, readiness readinessFunc) command.LocalAnswer {
 	route := validated.Route()
 	tokens := validated.Tokens()
 	request, err := readDoctorRequest(tokens)
@@ -95,11 +120,13 @@ func Answer(validated command.ValidatedArgs, runtime RuntimeChecks) command.Loca
 		configPath = resolved
 	}
 
-	diags := runChecks(configPath)
-	if runtime != nil {
-		diags = append(diags, runtime()...)
-	}
-	return command.LocalAnswer{Payload: readinessAnswer{DoctorResult: diagnostic.NewDoctorResult(readyOf(diags), diags), asJSON: request.asJSON}}
+	return readiness(request, configPath)
+}
+
+// readinessPayload is the readiness answer over diags, ready when none is an
+// error.
+func readinessPayload(diags []diagnostic.Diagnostic, asJSON bool) command.LocalAnswer {
+	return command.LocalAnswer{Payload: readinessAnswer{DoctorResult: diagnostic.NewDoctorResult(readyOf(diags), diags), asJSON: asJSON}}
 }
 
 // readyOf answers whether no diagnostic is an error.

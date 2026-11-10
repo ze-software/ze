@@ -675,7 +675,7 @@ and invokes them via the `doctor-check` callback when `show doctor` runs.
 | Field | Type | Description |
 |-------|------|-------------|
 | `doctor-checks[].name` | string | Check name (kebab-case, 1-128 chars) |
-| `doctor-checks[].phase` | enum | `pre-config`, `missing-config`, or `post-config` |
+| `doctor-checks[].phase` | enum | `pre-config`, `missing-config`, `parsed-config`, `post-config`, or `runtime`. A `runtime` check reads the plugin's live state and runs only on the daemon route |
 | `doctor-checks[].order` | int | Ordering within phase (0-9999, default 0) |
 | `doctor-checks[].dependencies` | list | Other check names that must run first |
 | `doctor-checks[].platforms` | list | Platform filter (empty defaults to `any`) |
@@ -684,6 +684,14 @@ and invokes them via the `doctor-check` callback when `show doctor` runs.
 Offline `ze doctor` does not invoke plugin doctor checks (plugins are runtime
 processes). Plugin checks cover runtime health; Go-registered checks cover
 pre-start readiness.
+
+The `doctor-check` answer (`DoctorCheckOutput`) lists `diagnostics`, each with
+`code`, `severity` (`error` or `warning`), `message`, and `fix`: the command or
+config statement the operator runs to clear the problem, alone and with no
+label. `fix` is omitted when no command fixes the problem. The daemon carries
+it unchanged into the `show doctor` answer, where the text report draws it on
+a line of its own.
+<!-- source: pkg/plugin/rpc/types.go -- DoctorCheckDiagnostic, DoctorPhaseRuntime -->
 
 <!-- source: pkg/plugin/rpc/types.go -- DoctorCheckDecl -->
 <!-- source: internal/component/plugin/server/startup.go -- registrationFromRPC doctor checks, validateDoctorCheckDecls -->

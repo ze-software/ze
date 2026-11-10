@@ -168,7 +168,7 @@ type FilterRegistration struct {
 // DoctorCheckRegistration holds a doctor check declaration from Stage 1.
 type DoctorCheckRegistration struct {
 	Name         string               // Check name (kebab-case)
-	Phase        rpc.DoctorCheckPhase // When to run: pre-config, missing-config, parsed-config, post-config
+	Phase        rpc.DoctorCheckPhase // When to run: pre-config, missing-config, parsed-config, post-config, runtime
 	Order        int                  // Ordering within phase (0-9999)
 	Dependencies []string             // Other check names that must run first
 	Platforms    []string             // Platform filter (empty = "any")

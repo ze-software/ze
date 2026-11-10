@@ -66,6 +66,28 @@ func runDoctorChecks(phase doctorCheckPhase, ctx doctorCheckContext) []diagnosti
 	return append(diags, runPluginRegistryChecks(phase, ctx)...)
 }
 
+// RunRuntimeChecks runs every check registered for the runtime phase, the
+// in-tree registry's then the plugin registry's, and answers their findings.
+//
+// Only the daemon route MUST call it (HandleDoctor, the show doctor handler):
+// a runtime check reads the live state its owner holds in the daemon, and in
+// any other process that state is empty, so a check run there would read a box
+// it never looked at as healthy. runChecks, the local route, never asks for
+// this phase.
+//
+// A runtime check is handed the platform alone. It reads its owner's live
+// state, never a config tree: the daemon route loads the config file from the
+// store, not the running configuration, so a tree here would be a second,
+// possibly different, answer to what is running.
+func RunRuntimeChecks() []diagnostic.Diagnostic {
+	// The answer this runs beside already reports a platform detection
+	// failure (runChecks, through resolveDoctorPlatform), so its findings are
+	// not repeated here; a nil platform still runs every check declared for
+	// any platform.
+	platform, _ := resolveDoctorPlatform()
+	return runDoctorChecks(diagnostic.DoctorPhaseRuntime, doctorCheckContext{Platform: platform})
+}
+
 // doctorTree answers the config tree a registered check reads.
 //
 // A nil Tree is a legitimate value: the missing-config phase runs with no

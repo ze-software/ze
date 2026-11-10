@@ -132,6 +132,7 @@ func showDNSSelection(answer *showSystemDNSAnswer, consumer, path string) *dnsso
 type doctorDNSSourceWant struct {
 	code string
 	path string
+	fix  string
 }
 
 // doctorDNSSourceFindings proves the three dns-source doctor checks through
@@ -142,9 +143,10 @@ type doctorDNSSourceWant struct {
 // out the pool gateway with no LAN resolver listening there (self-unserved).
 func doctorDNSSourceFindings(ctx context.Context, p *sdk.Plugin) error {
 	wants := []doctorDNSSourceWant{
-		{code: diagnostic.CodeDoctorDNSSourceEmpty, path: showDNSPoolPath},
-		{code: diagnostic.CodeDoctorDNSSourceInterfaceSilent, path: showDNSPoolPath},
-		{code: diagnostic.CodeDoctorDNSSourceSelfUnserved, path: doctorDNSNamedPoolPath},
+		{code: diagnostic.CodeDoctorDNSSourceEmpty, path: showDNSPoolPath, fix: "show system dns"},
+		{code: diagnostic.CodeDoctorDNSSourceInterfaceSilent, path: showDNSPoolPath, fix: "show system dns"},
+		// The named pool's gateway, which its self list hands out.
+		{code: diagnostic.CodeDoctorDNSSourceSelfUnserved, path: doctorDNSNamedPoolPath, fix: "set service dns-resolver listener <name> ip 10.99.8.1"},
 	}
 	var missing []doctorDNSSourceWant
 	var last map[string]any
@@ -179,7 +181,9 @@ func doctorMissing(data map[string]any, wants []doctorDNSSourceWant) []doctorDNS
 			if !isMap {
 				continue
 			}
-			if entry["code"] == want.code && entry["path"] == want.path {
+			// The fix is the command alone under its own key, never a
+			// "run ..." clause inside the message.
+			if entry["code"] == want.code && entry["path"] == want.path && entry["fix"] == want.fix {
 				found = true
 			}
 		}

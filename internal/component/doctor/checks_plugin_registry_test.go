@@ -194,3 +194,47 @@ func TestRunPluginRegistryChecks_ParsedConfig(t *testing.T) {
 	_ = runPluginRegistryChecks(diagnostic.DoctorPhaseParsedConfig, ctx)
 	assert.Len(t, phases, 1, "a parsed-config check must run in parsed-config")
 }
+
+// TestRunPluginRegistryChecksCarriesFix registers a plugin check whose
+// diagnostic names a fix, in the runtime phase, and runs the bridge.
+//
+// VALIDATES: AC-3 on the registry bridge, the fix a plugin check returns
+// reaches the doctor diagnostic; the runtime phase is bridged like any other.
+// PREVENTS: the bridge rebuilding a diagnostic from code, severity and
+// message alone and dropping the fix command.
+func TestRunPluginRegistryChecksCarriesFix(t *testing.T) {
+	snap := registry.Snapshot()
+	t.Cleanup(func() { registry.Restore(snap) })
+	registry.Reset()
+
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:        "test-bridge-fix",
+		Description: "bridge fix test",
+		RunEngine:   stubEngine,
+		CLIHandler:  stubCLI,
+		DoctorChecks: []registry.DoctorCheckDef{{
+			Name:         "bridge-fix-check",
+			Phase:        rpc.DoctorPhaseRuntime,
+			Dependencies: []string{"live-state"},
+			Platforms:    []string{"any"},
+			Codes:        []string{"doctor-bridge-fix"},
+			Check: func(registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic {
+				return []rpc.DoctorCheckDiagnostic{{
+					Code:     "doctor-bridge-fix",
+					Severity: "warning",
+					Message:  "live state is degraded",
+					Fix:      "show bridge state",
+				}}
+			},
+		}},
+	}))
+
+	assert.Empty(t, runPluginRegistryChecks(doctorCheckPhasePostConfig, doctorCheckContext{}),
+		"a runtime plugin check ran in the post-config phase")
+
+	diags := runPluginRegistryChecks(diagnostic.DoctorPhaseRuntime, doctorCheckContext{})
+	require.Len(t, diags, 1)
+	assert.Equal(t, "doctor-bridge-fix", diags[0].Code)
+	assert.Equal(t, "live state is degraded", diags[0].Message)
+	assert.Equal(t, "show bridge state", diags[0].Fix)
+}

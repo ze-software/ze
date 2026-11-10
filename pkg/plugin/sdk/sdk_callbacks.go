@@ -100,6 +100,8 @@ type FilterEvaluator func(route *FilterRoute) (*FilterUpdateOutput, error)
 type FilterRoute = rpc.FilterRoute
 
 // DoctorCheckHandler handles doctor check requests. Receives the check name, returns diagnostics.
+// Each diagnostic sets Fix to the command that clears it; the answer carries
+// Fix to the daemon unchanged.
 type DoctorCheckHandler func(name string) ([]rpc.DoctorCheckDiagnostic, error)
 
 // EnrichShowHandler handles show enrichment requests. Receives the command, key, mode

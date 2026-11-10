@@ -28,5 +28,10 @@ func init() {
 		DaemonPath: "show doctor",
 	}, renderDoctor)
 	registerDoctorOwnedChecks()
+	// The report bus is core and owns no component, so the check that reads
+	// its recent events back into show doctor lives here (checks_recent_events.go).
+	if err := diagnostic.RegisterDoctorCheck(recentEventsCheck); err != nil {
+		panic("BUG: recent-events doctor check registration refused: " + err.Error())
+	}
 	diagnostic.RegisterDoctorProvider(runChecks)
 }

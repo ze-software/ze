@@ -43,7 +43,20 @@ type Diagnostic struct {
 	Expected any `json:"expected,omitempty"`
 	Actual   any `json:"actual,omitempty"`
 
-	Help      string    `json:"help,omitempty"`
+	Help string `json:"help,omitempty"`
+
+	// Fix, FixSafety and Repair answer three different questions.
+	//
+	// Fix is the command or config statement the operator runs to clear the
+	// problem, alone and with no label, as an internal/core/opererr fix holds
+	// it ("ze start", "set system name-server 192.0.2.53"). Every surface draws
+	// it on a line of its own after the message, and a log line carries it
+	// under the "fix" key beside the "code" key. Fix never holds a repair id.
+	//
+	// Repair names a candidate automated repair an agent may apply (an id and
+	// a summary), and FixSafety grades how safe that automated repair is. A
+	// diagnostic may carry Fix with neither of them.
+	Fix       string    `json:"fix,omitempty"`
 	FixSafety FixSafety `json:"fix-safety,omitempty"`
 	Repair    *Repair   `json:"repair,omitempty"`
 	Related   []Related `json:"related,omitempty"`

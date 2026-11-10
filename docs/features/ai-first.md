@@ -97,6 +97,12 @@ probe), for example.
 Where a repair is available, its diagnostic can carry a stable repair ID and a
 safety label such as `format-only`, `section-local`, `behavior-preserving` or
 `requires-human-review`. A diagnostic does not always have an automatic repair.
+
+A doctor diagnostic can also carry `fix`: the command or config statement the
+operator runs to clear the problem, alone and with no label. It is not a repair
+ID and carries no safety label; the text report draws it on a line of its own
+under the finding, and JSON carries it under `fix` when the check names one.
+<!-- source: internal/core/diagnostic/types.go -- Diagnostic -->
 <!-- source: internal/component/config/cli/cmd_fix.go -- resolveFixPlan -->
 
 ## Bundled Skills

@@ -478,3 +478,48 @@ func TestCommandDeclOmitsTheExplanationItDoesNotDeclare(t *testing.T) {
 	assert.NotContains(t, keys, "description", "an undeclared explanation stays off the wire")
 	assert.NotContains(t, keys, "help")
 }
+
+// TestDoctorPhaseRuntimeValid verifies the runtime phase is part of the one
+// phase declaration, and an unknown phase still answers invalid.
+//
+// VALIDATES: DoctorPhaseRuntime is "runtime" and Valid accepts it.
+// PREVENTS: a plugin declaring a runtime check refused at Stage 1.
+func TestDoctorPhaseRuntimeValid(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, DoctorCheckPhase("runtime"), DoctorPhaseRuntime)
+	assert.True(t, DoctorPhaseRuntime.Valid())
+	assert.False(t, DoctorCheckPhase("live").Valid())
+}
+
+// TestDoctorCheckDiagnosticFix verifies the fix key on a doctor-check answer:
+// present when the check names a fix, absent when it names none.
+//
+// VALIDATES: DoctorCheckDiagnostic.Fix round-trips under the "fix" key, omitempty.
+// PREVENTS: a plugin's fix command dropped on the wire.
+func TestDoctorCheckDiagnosticFix(t *testing.T) {
+	t.Parallel()
+
+	withFix := DoctorCheckDiagnostic{
+		Code:     "doctor-rpki-cache-unreachable",
+		Severity: "warning",
+		Message:  "RPKI cache 192.0.2.1 does not answer",
+		Fix:      "show rpki cache",
+	}
+	data, err := json.Marshal(withFix)
+	require.NoError(t, err)
+
+	var raw map[string]any
+	require.NoError(t, json.Unmarshal(data, &raw))
+	assert.Equal(t, "show rpki cache", raw["fix"])
+
+	var decoded DoctorCheckDiagnostic
+	require.NoError(t, json.Unmarshal(data, &decoded))
+	assert.Equal(t, withFix, decoded)
+
+	data, err = json.Marshal(DoctorCheckDiagnostic{Code: "doctor-x", Severity: "error", Message: "m"})
+	require.NoError(t, err)
+	raw = map[string]any{}
+	require.NoError(t, json.Unmarshal(data, &raw))
+	assert.NotContains(t, raw, "fix")
+}
