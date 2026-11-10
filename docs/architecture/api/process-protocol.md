@@ -718,7 +718,14 @@ startup phase loaded: auto-load resolves a compiled-in plugin's registry
 dependencies and starts them in the same phase, so `bgp-gr` auto-loaded for
 `bgp { }` finds the `bgp-rib` started beside it. An external program's
 dependencies are resolved by nobody, so the operator configures them. The
-engine keeps the
+refusal is a `*registry.MissingDependencyError` (`errors.Is`
+`ErrMissingDependency`) whose fix names what to write: the
+`internal <name> { use <name>; }` block for a plugin this build carries, an
+`external <name> { run ...; }` block for a name no build carries, or the build
+tags for a plugin this build was compiled without (`plugin-system.md`,
+"Dependencies").
+<!-- source: internal/component/plugin/registry/missing_dependency.go -- UnloadedDependencyError -->
+The engine keeps the
 three with the process's registration. State events are delivered in reverse
 dependency order, and a process that runs an external program takes its edges
 from this declaration alone, never from a registration that shares its name.

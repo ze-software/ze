@@ -1457,7 +1457,7 @@ Dependencies are declared in the plugin's registration, not in config. The engin
 
 | Kind | Field | Behavior if missing |
 |------|-------|----------------------|
-| Hard | `Dependencies` | Ze refuses to start, before any plugin runs, at boot, at a config reload and for an explicit `plugin {}` block. `ze config validate` and a commit refuse the same config with the same message, so a config that validates is one the daemon can start. The message names the plugin, the dependency and the build tags to rebuild with (or says the name is unknown to this build), and ends with the fix on its own line. |
+| Hard | `Dependencies` | Ze refuses to start, before any plugin runs, at boot, at a config reload and for an explicit `plugin {}` block. `ze config validate` and a commit refuse the same config with the same message, so a config that validates is one the daemon can start. The message names the plugin, the dependency and the build tags to rebuild with (or says the name is unknown to every build), and ends with the fix on its own line: rebuild with the tags, or remove the configuration that loads the plugin. A dependency an external program declares that nothing loads is refused at its startup, with the `plugin { internal ... }` or `plugin { external ... }` block to add as the fix. |
 | Optional | `OptionalDependencies` | Silently skipped. Plugin owner handles runtime absence (typically a one-shot WARN + feature disabled). |
 
 A block whose whole plugin was compiled out of the binary, such as `mrt { }`

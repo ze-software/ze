@@ -256,6 +256,7 @@ AC-27 was dropped on 2026-11-08 ("Scope decision" above): the incident was not i
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `gate-excludes-part-of-its-population` | 2026-11-10 | `approvalUnitPattern` refuses a `.ci` unit under a dotted directory such as `old-5.0` |
 | `gate-red-where-nothing-blocks-on-it` | 2026-11-09 | kernelbuilder `container_lifetime_proof_test.go` execs raw `docker`, red in the docker-exec-route gate |
 | `identity-default-hides-a-mapping` | 2026-11-09 | ze-peer eBGP AS_PATH takes the send-bulk spec's ASN, not the AS its OPEN advertised (`internal/test/peer/inject.go`) |
 | `invariant-enforced-by-an-absent-call-site` | 2026-11-08 | 531 compiled fixtures send `request shutdown` without declaring `StopsDaemon`, so a peerless `.ci` is signaled early |

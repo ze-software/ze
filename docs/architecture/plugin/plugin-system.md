@@ -255,21 +255,37 @@ the file names no plugin.
 | `OptionalDependencies` | Soft. The resolver skips the plugin in silence when it is not registered. When it is registered, it is pulled unless a `ConfigNeeds` entry of the owner lists it: then it is pulled only when the config holds one of those needs that names it alone. A need naming several providers is a set of alternatives and pulls none (anomaly and DDoS detection name flow export and traffic usage), because pulling every alternative would start sources nobody configured, each with its own hard dependencies. A config that holds a need whose provider is absent is refused before resolution, at load, validate and commit |
 | `StartAfter` | Order only. Never expands the selected set; orders the owner after a named plugin only when both are selected |
 
-The refusal is written for the operator. It names the plugin, the dependency
-and the build tags that carry the dependency, read from the generated
-gated-plugin table (`registry.GatedPluginTags`, see
+The refusal is written for the operator, as an operator error
+(`internal/core/opererr`, reached with `errors.As`). It names the plugin, the
+dependency and the build tags that carry the dependency, read from the
+generated gated-plugin table (`registry.GatedPluginTags`, see
 `docs/architecture/plugin/feature-gates.md`, "Naming a plugin the build left
-out"), and puts the fix on its own last line:
+out"), and puts both fixes on its own last line:
 
 ```
-plugin "a" needs plugin "bgp-bmp", and this build of ze does not include it.
-"a" does not work without "bgp-bmp", so ze refuses to start it.
-Fix: rebuild ze with the build tags ze_bgp ze_bmp added to -tags, or remove the configuration that loads "a".
+plugin "a" needs plugin "bgp-bmp", and this build of ze was compiled without it
+"a" does not work without "bgp-bmp", so ze refuses to start it
+fix: rebuild ze with ze_bgp ze_bmp added to its -tags list, or remove the configuration that loads "a"
 ```
 
-A dependency that no gate covers and no build registers (an external name, a
-typo) is named as unknown to this build, with no tag: the fix line then says to
-remove the configuration that loads the plugin and to report the name.
+A dependency that no gate covers and no build registers (a defect in the
+plugin's registration) is named as unknown to every build, with no tag: the
+fix line then says to remove the configuration that loads the plugin and to
+report the name.
+
+A dependency a plugin declares at Stage 1 is checked against the plugins the
+daemon runs (`process-protocol.md`, "Ordering Declaration"), and its refusal,
+`registry.UnloadedDependencyError`, is the same error with a fix that names
+what to configure:
+
+| The dependency is | The fix line names |
+|-------------------|--------------------|
+| In this build, not loaded | `add 'plugin { internal <name> { use <name>; } }' to the config` |
+| In no build of ze | `add 'plugin { external <name> { run "<the command that starts <name>>"; } }' to the config` |
+| Compiled out of this build | The build tags, as above |
+
+Every row also keeps the other fix: remove the configuration that loads the
+plugin.
 
 Boot resolves every auto-load set before the first plugin starts. The family
 set and the custom event and send type sets load after the explicit plugins, so
@@ -331,7 +347,7 @@ under `config-plugin-extract` in `ze config validate`.
 <!-- source: internal/component/config/validate_semantic.go -- ValidateSemantics -->
 <!-- source: internal/component/cli/validator.go -- editorReportsPluginVerifyError, pluginVerifyTransitionError -->
 <!-- source: internal/component/config/cli/cmd_validate.go -- runValidation -->
-<!-- source: internal/component/plugin/registry/missing_dependency.go -- MissingDependencyError, newMissingDependencyError -->
+<!-- source: internal/component/plugin/registry/missing_dependency.go -- MissingDependencyError, newMissingDependencyError, UnloadedDependencyError -->
 <!-- source: internal/component/plugin/registry/registry.go -- ResolveDependencies, PluginsForConfigPaths -->
 <!-- source: internal/component/config/plugin_verify.go -- refuseUnresolvableDependencies, verifyTree -->
 <!-- source: internal/component/config/loader.go -- dependencyRequest, ExpandDependencies -->

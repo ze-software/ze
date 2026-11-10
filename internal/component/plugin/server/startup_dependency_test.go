@@ -68,7 +68,9 @@ func TestStage1DependencyAcceptsAutoLoadedProvider(t *testing.T) {
 // TestStage1DependencyRefusesAbsentProvider proves the Stage 1 check still
 // refuses a dependency nothing configured and nothing started.
 //
-// VALIDATES: the refusal names the plugin and the dependency it lacks.
+// VALIDATES: the refusal names the plugin and the dependency it lacks, and,
+// since the provider is in this build, the internal block that loads it
+// (spec-operator-errors-name-the-fix AC-10), as an ErrMissingDependency.
 // PREVENTS: the auto-load acceptance above turning into accepting any name.
 // Method: a startup phase holding the dependent alone.
 func TestStage1DependencyRefusesAbsentProvider(t *testing.T) {
@@ -85,5 +87,12 @@ func TestStage1DependencyRefusesAbsentProvider(t *testing.T) {
 		{Name: dependent, Internal: true, Encoder: plugin.EncodingJSON},
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), `missing dependency: plugin "stage1-absent-dependent" requires "stage1-absent-provider"`)
+	require.ErrorIs(t, err, registry.ErrMissingDependency)
+	var missing *registry.MissingDependencyError
+	require.ErrorAs(t, err, &missing)
+	assert.Equal(t, `plugin "stage1-absent-dependent" needs plugin "stage1-absent-provider", and the configuration does not load it`+"\n"+
+		`"stage1-absent-dependent" does not work without "stage1-absent-provider", so ze refuses to start it`+"\n"+
+		`fix: add 'plugin { internal stage1-absent-provider { use stage1-absent-provider; } }' to the config, `+
+		`or remove the configuration that loads "stage1-absent-dependent"`, missing.Error())
+	assert.Contains(t, err.Error(), missing.Error())
 }

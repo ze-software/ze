@@ -804,14 +804,16 @@ func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) 
 	// dependencies (registry.ResolveDependencies) and starts them in the same
 	// phase, which marks every member loaded before any Stage 1 begins
 	// (runPluginPhaseWithin). An external program's dependency is resolved by
-	// nobody, so the operator configures it or this refuses.
+	// nobody, so the operator configures it or this refuses, with the
+	// *registry.MissingDependencyError that names what to configure, or the
+	// build tags when this build was compiled without the dependency.
 	for _, dep := range input.Dependencies {
 		if s.hasConfiguredPlugin(dep) {
 			continue
 		}
 		if !s.isPluginLoaded(dep) {
 			logger().Error("rpc startup: dependency not configured", "plugin", proc.Name(), "dependency", dep)
-			return fmt.Errorf("missing dependency: plugin %q requires %q", proc.Config().Name, dep)
+			return registry.UnloadedDependencyError(proc.Config().Name, dep)
 		}
 	}
 

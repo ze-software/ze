@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -1402,38 +1403,41 @@ func TestRegisterRefusesNeedOutsideOptionalDependencies(t *testing.T) {
 }
 
 // TestMissingDependencyErrorNamesTag verifies the hard-edge refusal names the
-// plugin, the dependency and the build tags that carry it, with the fix on its
-// own line, and never guesses a tag for a name no build registers.
+// plugin, the dependency and the build tags that carry it, with both fixes on
+// the last line, and never guesses a tag for a name no build registers.
 //
 // VALIDATES: spec-plugin-optional-dependency-refusal AC-22 (the message every
 // load path shows names the tag from the generated table) and AC-23 (an
-// ungated, unregistered dependency is named as unknown to this build).
+// ungated, unregistered dependency is named as unknown to every build);
+// spec-operator-errors-name-the-fix AC-10 (a compiled-out dependency names the
+// ze_ build tags and both fixes, in the opererr three-part layout).
 // PREVENTS: an operator told only "missing dependency" with no way to know which
 // build carries it, and a refusal that invents a tag for a typo.
 // METHOD: resolve a plugin whose dependency is the real gated name bgp-bmp
 // (two nested tags in gated_plugins_gen.go), then one whose dependency no
-// build of this tree registers.
+// build of this tree registers, and compare the whole rendered text.
 func TestMissingDependencyErrorNamesTag(t *testing.T) {
 	cases := []struct {
 		name       string
 		dependency string
 		tags       []string
-		wantText   []string
-		wantFix    string
+		want       string
 	}{
 		{
 			name:       "gated dependency names its nested tags",
 			dependency: "bgp-bmp",
 			tags:       []string{"ze_bgp", "ze_bmp"},
-			wantText:   []string{`plugin "a" needs plugin "bgp-bmp"`, "this build of ze does not include it"},
-			wantFix:    `Fix: rebuild ze with the build tags ze_bgp ze_bmp added to -tags, or remove the configuration that loads "a".`,
+			want: `plugin "a" needs plugin "bgp-bmp", and this build of ze was compiled without it` + "\n" +
+				`"a" does not work without "bgp-bmp", so ze refuses to start it` + "\n" +
+				`fix: rebuild ze with ze_bgp ze_bmp added to its -tags list, or remove the configuration that loads "a"`,
 		},
 		{
 			name:       "unknown dependency names no tag",
 			dependency: "no-such-plugin",
 			tags:       nil,
-			wantText:   []string{`plugin "a" needs plugin "no-such-plugin"`, "unknown to this build"},
-			wantFix:    `Fix: remove the configuration that loads "a", and report the unknown dependency "no-such-plugin" to the ze developers.`,
+			want: `plugin "a" needs plugin "no-such-plugin", and no build of ze includes a plugin called "no-such-plugin"` + "\n" +
+				`"a" does not work without "no-such-plugin", so ze refuses to start it` + "\n" +
+				`fix: remove the configuration that loads "a", and report the unknown dependency "no-such-plugin" to the ze developers`,
 		},
 	}
 	for _, tc := range cases {
@@ -1463,19 +1467,15 @@ func TestMissingDependencyErrorNamesTag(t *testing.T) {
 			if !slices.Equal(missing.Tags, tc.tags) {
 				t.Errorf("Tags = %v, want %v", missing.Tags, tc.tags)
 			}
-
-			text := err.Error()
-			for _, want := range tc.wantText {
-				if !strings.Contains(text, want) {
-					t.Errorf("message lacks %q:\n%s", want, text)
-				}
+			if got := err.Error(); got != tc.want {
+				t.Errorf("message:\n got %q\nwant %q", got, tc.want)
 			}
-			lines := strings.Split(text, "\n")
-			if lines[len(lines)-1] != tc.wantFix {
-				t.Errorf("last line = %q, want the fix on its own line %q", lines[len(lines)-1], tc.wantFix)
+			var operator *opererr.Error
+			if !errors.As(err, &operator) {
+				t.Fatalf("errors.As(err, *opererr.Error) = false, err = %v", err)
 			}
-			if len(tc.tags) == 0 && strings.Contains(text, "ze_") {
-				t.Errorf("message for an ungated dependency names a tag:\n%s", text)
+			if operator.Error() != tc.want {
+				t.Errorf("operator error:\n got %q\nwant %q", operator.Error(), tc.want)
 			}
 		})
 	}
