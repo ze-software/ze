@@ -1,0 +1,213 @@
+# Test: the icmp-error-check peer leaf parses true and false, reads back from the
+# config serializer, and refuses a value that is not a boolean.
+# Spec: plan/release/fixes/spec-rfc4301-architecture-gaps.md (RFC 4301 Section 6.2).
+#
+# VALIDATES: `site-to-site peer <name> icmp-error-check` (ze-ipsec-conf.yang, boolean,
+#   default true; read by ipsec/config.go into SiteToSitePeer.SkipICMPErrorCheck):
+#   seq=1 a config with one peer at true and one at false passes the ike plugin's
+#         offline verifier;
+#   seq=2 the same config formatted by `ze config fmt` (the file form, as
+#         test/parse/cli-config-fmt.ci) still carries the peer's false, printed
+#         `icmp-error-check disable` because every config serializer writes a
+#         stored boolean as enable or disable (config/serialize.go normalizeBool),
+#         so the non-default value survives the YANG tree round trip an operator's
+#         `show` and commit go through. Only false is asserted: true is the leaf's
+#         default, and whether a formatter keeps a written default is not what this
+#         test is about, while losing false silently turns the check back on;
+#   seq=3 icmp-error-check maybe is refused by the YANG boolean type.
+# PREVENTS: the leaf vanishing from the schema, or being dropped on serialization so
+#   a saved config silently returns to the default.
+#
+# WHAT THIS DOES NOT PROVE. It is the config surface only. That `false` reaches the
+# kernel (the inbound state without XFRM_STATE_ICMP; engine/child.go
+# `inbound.ICMPErrorCheck = !child.SkipICMPErrorCheck`) is
+# test/ipsec/ipsec-sa-options-kernel.ci, which reads the inbound state back through
+# `show vpn ipsec dataplane sa` key icmp-error-check.
+#
+# Every cmd asserts its own exit with exit=. Needles carry no ':'.
+#
+# RED PROOF:
+#   seq=1 and seq=2 delete `leaf icmp-error-check` from ze-ipsec-conf.yang: validate
+#         and fmt refuse an unknown leaf and exit nonzero, red.
+#   seq=3 change the leaf's type from boolean to string: exit 0 from YANG, then
+#         config.go's own `unsupported value` refusal holds it red, so seq=3 goes
+#         green only when that second guard (config.go line `return peer,
+#         fmt.Errorf("ipsec peer %q icmp-error-check: unsupported value ...`) is
+#         deleted as well.
+
+stdin=both:terminator=EOF_BOTH
+vpn {
+	ipsec {
+		esp-group esp-default {
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer checked {
+				ike-group ike-default
+				esp-group esp-default
+				local-address 10.0.0.1
+				remote-address 10.0.0.2
+				mode tunnel
+				icmp-error-check true
+				traffic-selector 1 {
+					local {
+						prefix 10.1.0.0/16
+					}
+					remote {
+						prefix 10.2.0.0/16
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+			peer unchecked {
+				ike-group ike-default
+				esp-group esp-default
+				local-address 10.0.0.1
+				remote-address 10.0.0.3
+				mode tunnel
+				icmp-error-check false
+				traffic-selector 1 {
+					local {
+						prefix 10.5.0.0/16
+					}
+					remote {
+						prefix 10.3.0.0/16
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_BOTH
+
+# The same configuration as a file, for `ze config fmt`, which reads a path.
+tmpfs=both.conf:terminator=EOF_BOTH_FILE
+vpn {
+	ipsec {
+		esp-group esp-default {
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer checked {
+				ike-group ike-default
+				esp-group esp-default
+				local-address 10.0.0.1
+				remote-address 10.0.0.2
+				mode tunnel
+				icmp-error-check true
+				traffic-selector 1 {
+					local {
+						prefix 10.1.0.0/16
+					}
+					remote {
+						prefix 10.2.0.0/16
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+			peer unchecked {
+				ike-group ike-default
+				esp-group esp-default
+				local-address 10.0.0.1
+				remote-address 10.0.0.3
+				mode tunnel
+				icmp-error-check false
+				traffic-selector 1 {
+					local {
+						prefix 10.5.0.0/16
+					}
+					remote {
+						prefix 10.3.0.0/16
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_BOTH_FILE
+
+stdin=bogus:terminator=EOF_BOGUS
+vpn {
+	ipsec {
+		esp-group esp-default {
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer bogus {
+				ike-group ike-default
+				esp-group esp-default
+				local-address 10.0.0.1
+				remote-address 10.0.0.2
+				mode tunnel
+				icmp-error-check maybe
+				traffic-selector 1 {
+					local {
+						prefix 10.1.0.0/16
+					}
+					remote {
+						prefix 10.2.0.0/16
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_BOGUS
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=both:exit=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=2:exec=ze config fmt both.conf:exit=0
+expect=stdout:contains=icmp-error-check disable
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=bogus:exit=1
+expect=stdout:contains=icmp-error-check
+expect=stdout:contains=maybe

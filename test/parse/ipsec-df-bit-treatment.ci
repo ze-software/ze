@@ -1,0 +1,269 @@
+# Test: ze config validate accepts df-bit copy and clear on a tunnel-mode IPv4 peer,
+# and refuses every DF treatment no SA of the peer can apply.
+# Spec: plan/release/fixes/spec-rfc4301-architecture-gaps.md (RFC 4301 Section 8.1).
+#
+# VALIDATES: RFC 4301 Section 8.1: "This means that it MUST be possible to configure
+#   the implementation's treatment of the DF bit (set, clear, copy from inner
+#   header) for each SA.  This applies to SAs where both inner and outer headers are
+#   IPv4." The leaf is `site-to-site peer <name> df-bit`, judged by
+#   IPsecConfig.ValidateOuterHeader -> validatePeerDFBit (ipsec/outer_header.go),
+#   which the ike plugin's offline verifier runs (engine/config.go
+#   validateIPsecSections):
+#   seq=1 df-bit copy on a tunnel-mode IPv4 peer loads;
+#   seq=2 df-bit clear on a tunnel-mode IPv4 peer loads;
+#   seq=3 df-bit set is refused on every dataplane: Linux XFRM copies or clears the
+#         bit and has no flag that sets it, and VPP's ESP encrypt path ignores its
+#         set-DF flag (the owner's decision (c) for this spec: refuse, not patch);
+#   seq=4 df-bit clear on a transport-mode peer is refused: no outer header;
+#   seq=5 df-bit clear on a peer whose endpoints are IPv6 is refused: an IPv6
+#         header has no DF bit.
+# PREVENTS: a DF treatment that commits and is then dropped, defaulted or refused at
+#   the first Child SA install, which leaves a peer that commits and never carries
+#   traffic.
+#
+# The kernel half (the outbound state carries XFRM_STATE_NOPMTUDISC for clear, read
+# back as df-bit clear) is test/ipsec/ipsec-sa-options-kernel.ci.
+#
+# NOT REACHED HERE: the backend half of config verify (engine/sa_options.go
+# verifyPeerSAOptions, run from the ike plugin's OnConfigVerify in engine/register.go).
+# `ze config validate` loads no dataplane, so only the dataplane-independent refusals
+# of ValidateOuterHeader are judged. The backend half on Linux XFRM is
+# test/ipsec/ipsec-dscp-map-linux-refused.ci.
+#
+# Every cmd asserts its own exit with exit=. Needles carry no ':'.
+#
+# RED PROOF:
+#   seq=2 make validatePeerDFBit refuse clear (return an error in place of the
+#         `return nil` after the IPv6 loop): exit 1, red.
+#   seq=3 delete the `if df == dataplane.DFSet` block of validatePeerDFBit: exit 0,
+#         red.
+#   seq=4 delete the `if mode == dataplane.ModeTransport` block: exit 0, red.
+#   seq=5 change `if addr.Unmap().Is4()` to `if true`: exit 0, red.
+
+stdin=copy:terminator=EOF_COPY
+vpn {
+	ipsec {
+		esp-group esp-default {
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer df-copy {
+				ike-group ike-default
+				esp-group esp-default
+				local-address 10.0.0.1
+				remote-address 10.0.0.2
+				mode tunnel
+				df-bit copy
+				traffic-selector 1 {
+					local {
+						prefix 10.1.0.0/16
+					}
+					remote {
+						prefix 10.2.0.0/16
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_COPY
+
+stdin=clear:terminator=EOF_CLEAR
+vpn {
+	ipsec {
+		esp-group esp-default {
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer df-clear {
+				ike-group ike-default
+				esp-group esp-default
+				local-address 10.0.0.1
+				remote-address 10.0.0.2
+				mode tunnel
+				df-bit clear
+				traffic-selector 1 {
+					local {
+						prefix 10.1.0.0/16
+					}
+					remote {
+						prefix 10.2.0.0/16
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_CLEAR
+
+stdin=set:terminator=EOF_SET
+vpn {
+	ipsec {
+		esp-group esp-default {
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer df-set {
+				ike-group ike-default
+				esp-group esp-default
+				local-address 10.0.0.1
+				remote-address 10.0.0.2
+				mode tunnel
+				df-bit set
+				traffic-selector 1 {
+					local {
+						prefix 10.1.0.0/16
+					}
+					remote {
+						prefix 10.2.0.0/16
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_SET
+
+stdin=transport:terminator=EOF_TRANSPORT
+vpn {
+	ipsec {
+		esp-group esp-default {
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer df-transport {
+				ike-group ike-default
+				esp-group esp-default
+				local-address 10.0.0.1
+				remote-address 10.0.0.2
+				mode transport
+				df-bit clear
+				traffic-selector 1 {
+					local {
+						prefix 10.0.0.1/32
+					}
+					remote {
+						prefix 10.0.0.2/32
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_TRANSPORT
+
+stdin=ipv6:terminator=EOF_IPV6
+vpn {
+	ipsec {
+		esp-group esp-default {
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer df-ipv6 {
+				ike-group ike-default
+				esp-group esp-default
+				local-address 2001:db8::1
+				remote-address 2001:db8::2
+				mode tunnel
+				df-bit clear
+				traffic-selector 1 {
+					local {
+						prefix 2001:db8:1::/48
+					}
+					remote {
+						prefix 2001:db8:2::/48
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_IPV6
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=copy:exit=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=clear:exit=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=set:exit=1
+expect=stdout:contains=df-bit set cannot be applied by any dataplane Ze drives
+expect=stdout:contains=Configure df-bit copy or df-bit clear
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=transport:exit=1
+expect=stdout:contains=df-bit clear needs a tunnel-mode Child SA
+expect=stdout:contains=Remove df-bit or set mode tunnel
+
+cmd=foreground:seq=5:exec=ze config validate -:stdin=ipv6:exit=1
+expect=stdout:contains=df-bit clear applies only where the outer header is IPv4
+expect=stdout:contains=whose header has no DF bit

@@ -1,0 +1,411 @@
+# Test: ze config validate accepts an ICMP type and code-range SPD entry and refuses
+# every ICMP selector the entry cannot carry.
+# Spec: plan/release/fixes/spec-rfc4301-architecture-gaps.md (RFC 4301 Section 4.4.1.1).
+#
+# VALIDATES: the operator path of `vpn ipsec policy <name> icmp-type / icmp-code`,
+#   through the ike plugin's offline verifier (engine/config.go validateIPsecSections
+#   -> IPsecConfig.ValidateSPDPolicies -> SPDPolicy.validate / validateICMP, and
+#   parseICMPSelector in ipsec/spd_policy.go):
+#   seq=1 protocol 1, icmp-type 3, icmp-code 0-3 loads (the accepted counterpart, so
+#         the refusals below cannot all pass against a verifier that refuses
+#         everything);
+#   seq=2 icmp-type under protocol 6 is refused: RFC 4301 Section 4.4.1.1 gives the
+#         type and code selector only "If the Next Layer Protocol value is ICMP";
+#   seq=3 icmp-type beside a port is refused: ICMP carries no port, and the port
+#         check names that;
+#   seq=4 icmp-type 256 is refused: the selector is 8 bits of type;
+#   seq=5 icmp-code with no icmp-type is refused: Section 4.4.1.1 allows "a single
+#         type and a range of codes, a single type and ANY code, and ANY type and
+#         ANY code", and a code under ANY type is none of the three;
+#   seq=6 a code range written high-low is refused rather than read as empty;
+#   seq=7 an SPD entry with icmp-type under protocol 1 and IPv6 prefixes is refused,
+#         and seq=8 one under protocol 58 and IPv4 prefixes: ICMP and ICMPv6 number
+#         their types apart, so the entry would match no packet (SPDPolicy.validateICMP,
+#         icmpFamilyOf);
+#   seq=9 a peer traffic-selector with protocol 1, IPv6 prefixes and a port (the ICMP
+#         type and code, RFC 4301 Section 4.4.1.3) is refused, and seq=10 one with
+#         protocol 58 and IPv4 prefixes (traffic_selector.go checkICMPFamily, reached
+#         through ValidateTrafficSelectors -> validatePeerSelectors).
+#   The accepted config of seq=1 also carries the matching-family forms of seq=7 to
+#   seq=10 (protocol 58 under IPv6 prefixes for an SPD entry, protocol 1 and 58 each
+#   under its own family for a traffic-selector), so those refusals cannot pass
+#   against a check that refuses every ICMP selector.
+# PREVENTS: an ICMP selector widened or reinterpreted on its way to the kernel, where
+#   a type compared against TCP ports, or a DISCARD that matches more codes than the
+#   operator wrote, fails silently, and a selector of the wrong ICMP family installed
+#   as a policy that protects or discards nothing.
+#
+# Every cmd asserts its own exit with exit=, because expect=exit:code= reads only
+# the last command (docs/architecture/testing/ci-format.md). Needles carry no ':'.
+#
+# RED PROOF, one break per refusal:
+#   seq=2 delete the `if !dataplane.IsICMPProto(p.Protocol)` block of
+#         SPDPolicy.validateICMP (ipsec/spd_policy.go): exit 0, red.
+#   seq=3 delete the `if !protocolCarriesPorts(p.Protocol)` block of
+#         SPDPolicy.validate: exit 0, red.
+#   seq=4 is guarded twice, by YANG `type uint8` on icmp-type and by
+#         strconv.ParseUint(v, 10, 8) in parseICMPSelector. It goes red only when
+#         both are widened (uint16 in both places).
+#   seq=5 delete the `if p.ICMP.HasCode && !p.ICMP.HasType` block of
+#         validateICMP: exit 0, red.
+#   seq=6 delete the `if start > end` block of parseICMPSelector: exit 0, red.
+#   seq=7 and seq=8 delete the `if family := icmpFamilyOf(p.LocalPrefix);
+#         p.Protocol != family.proto` block of SPDPolicy.validateICMP: exit 0, red.
+#   seq=9 and seq=10 delete the `if err := checkICMPFamily(peer.Name, ts)` block of
+#         validatePeerSelectors (traffic_selector.go), or make checkICMPFamily's
+#         `if ts.Protocol == family.proto` test always true: exit 0, red.
+#   seq=1 goes red if icmpFamilyOf answers the wrong family (swap its two returns):
+#         the matching-family entries are then refused.
+
+stdin=accepted:terminator=EOF_ACCEPTED
+vpn {
+	ipsec {
+		unmatched bypass
+		policy unreach-in {
+			action discard
+			direction in
+			protocol 1
+			icmp-type 3
+			icmp-code 0-3
+			local {
+				prefix 198.18.244.0/24
+			}
+			remote {
+				prefix 198.18.245.0/24
+			}
+		}
+		policy echo-request-v6-in {
+			action discard
+			direction in
+			protocol 58
+			icmp-type 128
+			local {
+				prefix 2001:db8:1::/48
+			}
+			remote {
+				prefix 2001:db8:2::/48
+			}
+		}
+		esp-group esp-default {
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer icmp-v4 {
+				ike-group ike-default
+				esp-group esp-default
+				local-address 10.0.0.1
+				remote-address 10.0.0.2
+				mode tunnel
+				traffic-selector 1 {
+					protocol 1
+					local {
+						prefix 10.1.0.0/16
+						port 2048
+					}
+					remote {
+						prefix 10.2.0.0/16
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+			peer icmp-v6 {
+				ike-group ike-default
+				esp-group esp-default
+				local-address 2001:db8::1
+				remote-address 2001:db8::2
+				mode tunnel
+				traffic-selector 1 {
+					protocol 58
+					local {
+						prefix 2001:db8:1::/48
+						port 32768
+					}
+					remote {
+						prefix 2001:db8:2::/48
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_ACCEPTED
+
+stdin=spd-v1-on-v6:terminator=EOF_SPD_V1_ON_V6
+vpn {
+	ipsec {
+		unmatched bypass
+		policy icmp-on-v6 {
+			action discard
+			direction in
+			protocol 1
+			icmp-type 128
+			local {
+				prefix 2001:db8:1::/48
+			}
+			remote {
+				prefix 2001:db8:2::/48
+			}
+		}
+	}
+}
+EOF_SPD_V1_ON_V6
+
+stdin=spd-v6-on-v4:terminator=EOF_SPD_V6_ON_V4
+vpn {
+	ipsec {
+		unmatched bypass
+		policy icmpv6-on-v4 {
+			action discard
+			direction in
+			protocol 58
+			icmp-type 3
+			local {
+				prefix 198.18.244.0/24
+			}
+			remote {
+				prefix 198.18.245.0/24
+			}
+		}
+	}
+}
+EOF_SPD_V6_ON_V4
+
+stdin=ts-v1-on-v6:terminator=EOF_TS_V1_ON_V6
+vpn {
+	ipsec {
+		esp-group esp-default {
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer ts-icmp-on-v6 {
+				ike-group ike-default
+				esp-group esp-default
+				local-address 2001:db8::1
+				remote-address 2001:db8::2
+				mode tunnel
+				traffic-selector 1 {
+					protocol 1
+					local {
+						prefix 2001:db8:1::/48
+						port 32768
+					}
+					remote {
+						prefix 2001:db8:2::/48
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_TS_V1_ON_V6
+
+stdin=ts-v6-on-v4:terminator=EOF_TS_V6_ON_V4
+vpn {
+	ipsec {
+		esp-group esp-default {
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer ts-icmpv6-on-v4 {
+				ike-group ike-default
+				esp-group esp-default
+				local-address 10.0.0.1
+				remote-address 10.0.0.2
+				mode tunnel
+				traffic-selector 1 {
+					protocol 58
+					local {
+						prefix 10.1.0.0/16
+						port 2048
+					}
+					remote {
+						prefix 10.2.0.0/16
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_TS_V6_ON_V4
+
+stdin=tcp:terminator=EOF_TCP
+vpn {
+	ipsec {
+		unmatched bypass
+		policy icmp-under-tcp {
+			action discard
+			direction in
+			protocol 6
+			icmp-type 3
+			local {
+				prefix 198.18.244.0/24
+			}
+			remote {
+				prefix 198.18.245.0/24
+			}
+		}
+	}
+}
+EOF_TCP
+
+stdin=port:terminator=EOF_PORT
+vpn {
+	ipsec {
+		unmatched bypass
+		policy icmp-with-port {
+			action discard
+			direction in
+			protocol 1
+			icmp-type 3
+			local {
+				prefix 198.18.244.0/24
+				port 80
+			}
+			remote {
+				prefix 198.18.245.0/24
+			}
+		}
+	}
+}
+EOF_PORT
+
+stdin=above:terminator=EOF_ABOVE
+vpn {
+	ipsec {
+		unmatched bypass
+		policy icmp-type-above {
+			action discard
+			direction in
+			protocol 1
+			icmp-type 256
+			local {
+				prefix 198.18.244.0/24
+			}
+			remote {
+				prefix 198.18.245.0/24
+			}
+		}
+	}
+}
+EOF_ABOVE
+
+stdin=codeonly:terminator=EOF_CODEONLY
+vpn {
+	ipsec {
+		unmatched bypass
+		policy code-without-type {
+			action discard
+			direction in
+			protocol 1
+			icmp-code 0-3
+			local {
+				prefix 198.18.244.0/24
+			}
+			remote {
+				prefix 198.18.245.0/24
+			}
+		}
+	}
+}
+EOF_CODEONLY
+
+stdin=reversed:terminator=EOF_REVERSED
+vpn {
+	ipsec {
+		unmatched bypass
+		policy code-reversed {
+			action discard
+			direction in
+			protocol 1
+			icmp-type 3
+			icmp-code 3-0
+			local {
+				prefix 198.18.244.0/24
+			}
+			remote {
+				prefix 198.18.245.0/24
+			}
+		}
+	}
+}
+EOF_REVERSED
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=accepted:exit=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=tcp:exit=1
+expect=stdout:contains=icmp-type and icmp-code need protocol 1 (ICMP) or 58 (ICMPv6), and protocol is 6
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=port:exit=1
+expect=stdout:contains=a port selector needs a protocol that carries ports, and protocol is 1
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=above:exit=1
+expect=stdout:contains=icmp-type
+expect=stdout:contains=invalid value "256"
+
+cmd=foreground:seq=5:exec=ze config validate -:stdin=codeonly:exit=1
+expect=stdout:contains=icmp-code needs an icmp-type
+
+cmd=foreground:seq=6:exec=ze config validate -:stdin=reversed:exit=1
+expect=stdout:contains=starts above its end
+
+cmd=foreground:seq=7:exec=ze config validate -:stdin=spd-v1-on-v6:exit=1
+expect=stdout:contains=icmp-type and icmp-code under protocol 1 select ICMP messages
+expect=stdout:contains=are IPv6, which carries ICMPv6 as protocol 58
+
+cmd=foreground:seq=8:exec=ze config validate -:stdin=spd-v6-on-v4:exit=1
+expect=stdout:contains=icmp-type and icmp-code under protocol 58 select ICMPv6 messages
+expect=stdout:contains=are IPv4, which carries ICMP as protocol 1
+
+cmd=foreground:seq=9:exec=ze config validate -:stdin=ts-v1-on-v6:exit=1
+expect=stdout:contains=the ICMP type and code in its port select ICMP messages under protocol 1
+expect=stdout:contains=local prefix 2001:db8:1::/48 is IPv6, which carries ICMPv6 as protocol 58
+
+cmd=foreground:seq=10:exec=ze config validate -:stdin=ts-v6-on-v4:exit=1
+expect=stdout:contains=the ICMP type and code in its port select ICMPv6 messages under protocol 58
+expect=stdout:contains=local prefix 10.1.0.0/16 is IPv4, which carries ICMP as protocol 1

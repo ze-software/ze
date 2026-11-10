@@ -1,0 +1,214 @@
+# Test: ze config validate accepts dscp-map copy, 0 and 63 on tunnel-mode peers,
+# and refuses 64 and a value on a transport-mode peer.
+# Spec: plan/release/fixes/spec-rfc4301-architecture-gaps.md (RFC 4301 Section
+#       5.1.2.1 note 5; boundary row "DSCP value 0 to 63").
+#
+# VALIDATES: RFC 4301 Section 5.1.2.1 note 5: "If the packet will immediately enter
+#   a domain for which the DSCP value in the outer header is not appropriate, that
+#   value MUST be mapped to an appropriate value for the domain". The leaf is
+#   `site-to-site peer <name> dscp-map`, a union of `copy` and uint8 0..63
+#   (ze-ipsec-conf.yang), read by parseDSCPMap and judged by
+#   IPsecConfig.ValidateOuterHeader (ipsec/outer_header.go):
+#   seq=1 three tunnel-mode peers with dscp-map copy, 0 and 63 load (copy is the
+#         default, 0 the first and 63 the last valid value);
+#   seq=2 dscp-map 64 is refused by the YANG range (first invalid value above);
+#   seq=3 dscp-map 46 on a transport-mode peer is refused: a transport-mode SA
+#         builds no outer header.
+# PREVENTS: a DSCP outside six bits truncated into the field, and a mapping that
+#   commits on a peer that can never apply it.
+#
+# NOT ASSERTED HERE: a value 1..63 on the Linux XFRM dataplane. The kernel copies
+# the inner DSCP or writes 0 and nothing else, so the running daemon's config verify
+# refuses such a value at commit (engine/sa_options.go verifyPeerSAOptions ->
+# xfrm_linux.go SAOptionsSupported -> xfrmDSCPFlag). `ze config validate` loads no
+# dataplane and does not reach that half, so 46 passes here on a tunnel-mode peer and
+# is refused only by a daemon whose loaded backend cannot write it. That
+# operator-visible refusal is test/ipsec/ipsec-dscp-map-linux-refused.ci.
+#
+# Every cmd asserts its own exit with exit=. Needles carry no ':'.
+#
+# RED PROOF:
+#   seq=1 narrow the YANG range to "0..62": the dscp-63 peer is refused, exit 1, red.
+#   seq=2 widen the YANG range to "0..255". parseDSCPMap then reaches
+#         dataplane.FixedOuterDSCP(64), which refuses above DSCPMax, so seq=2 stays
+#         red only while that second guard holds: break both (range and the DSCPMax
+#         test in FixedOuterDSCP) to see exit 0.
+#   seq=3 delete the `if peer.OuterDSCP != dataplane.OuterDSCPCopy && peer.Mode ==
+#         dataplane.ModeTransport` block of ValidateOuterHeader: exit 0, red.
+
+stdin=accepted:terminator=EOF_ACCEPTED
+vpn {
+	ipsec {
+		esp-group esp-default {
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer dscp-copy {
+				ike-group ike-default
+				esp-group esp-default
+				local-address 10.0.0.1
+				remote-address 10.0.0.2
+				mode tunnel
+				dscp-map copy
+				traffic-selector 1 {
+					local {
+						prefix 10.1.0.0/16
+					}
+					remote {
+						prefix 10.2.0.0/16
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+			peer dscp-zero {
+				ike-group ike-default
+				esp-group esp-default
+				local-address 10.0.0.1
+				remote-address 10.0.0.3
+				mode tunnel
+				dscp-map 0
+				traffic-selector 1 {
+					local {
+						prefix 10.5.0.0/16
+					}
+					remote {
+						prefix 10.3.0.0/16
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+			peer dscp-max {
+				ike-group ike-default
+				esp-group esp-default
+				local-address 10.0.0.1
+				remote-address 10.0.0.4
+				mode tunnel
+				dscp-map 63
+				traffic-selector 1 {
+					local {
+						prefix 10.6.0.0/16
+					}
+					remote {
+						prefix 10.4.0.0/16
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_ACCEPTED
+
+stdin=above:terminator=EOF_ABOVE
+vpn {
+	ipsec {
+		esp-group esp-default {
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer dscp-above {
+				ike-group ike-default
+				esp-group esp-default
+				local-address 10.0.0.1
+				remote-address 10.0.0.2
+				mode tunnel
+				dscp-map 64
+				traffic-selector 1 {
+					local {
+						prefix 10.1.0.0/16
+					}
+					remote {
+						prefix 10.2.0.0/16
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_ABOVE
+
+stdin=transport:terminator=EOF_TRANSPORT
+vpn {
+	ipsec {
+		esp-group esp-default {
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer dscp-transport {
+				ike-group ike-default
+				esp-group esp-default
+				local-address 10.0.0.1
+				remote-address 10.0.0.2
+				mode transport
+				dscp-map 46
+				traffic-selector 1 {
+					local {
+						prefix 10.0.0.1/32
+					}
+					remote {
+						prefix 10.0.0.2/32
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_TRANSPORT
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=accepted:exit=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=above:exit=1
+expect=stdout:contains=dscp-map
+expect=stdout:contains=invalid value "64"
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=transport:exit=1
+expect=stdout:contains=dscp-map 46 needs a tunnel-mode Child SA
+expect=stdout:contains=Remove dscp-map or set mode tunnel

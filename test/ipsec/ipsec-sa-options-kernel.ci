@@ -1,0 +1,216 @@
+# Functional test: an operator sets a tunnel's three per-SA options (df-bit clear,
+# dscp-map 0, icmp-error-check false), and the REAL kernel's Child SA states carry
+# each of them, read back through `show vpn ipsec dataplane sa`.
+# Spec: plan/release/fixes/spec-rfc4301-architecture-gaps.md (RFC 4301 Sections 8.1,
+#       5.1.2.1 and 6.2; user story 6). The commit-time halves are
+#       test/parse/ipsec-df-bit-treatment.ci, test/parse/ipsec-dscp-map.ci,
+#       test/parse/ipsec-icmp-error-check.ci and
+#       test/ipsec/ipsec-dscp-map-linux-refused.ci.
+#
+# RFC 4301 Section 8.1: "This means that it MUST be possible to configure the
+# implementation's treatment of the DF bit (set, clear, copy from inner header) for
+# each SA.  This applies to SAs where both inner and outer headers are IPv4."
+# RFC 4301 Section 5.1.2.1 note 5: "If the packet will immediately enter a domain for
+# which the DSCP value in the outer header is not appropriate, that value MUST be
+# mapped to an appropriate value for the domain".
+# RFC 4301 Section 6.2: "Thus, an IPsec implementation MUST be configurable to check
+# that this payload header information is consistent with the SA via which it
+# arrives."
+#
+# VALIDATES: the three leaves of a tunnel-mode IPv4 responder reach the kernel. The
+#            readback comes from the kernel's own flags (dataplane/xfrm_linux.go
+#            saOptionsFromState), never from what the engine asked for:
+#              - outbound state (src 127.0.0.2, dst 127.0.0.1): df-bit "clear", which
+#                is XFRM_STATE_NOPMTUDISC (xfrmDFFlag), and dscp-map "0", which is
+#                XFRM_SA_XFLAG_DONT_ENCAP_DSCP (xfrmDSCPFlag);
+#              - inbound state (src 127.0.0.1, dst 127.0.0.2): icmp-error-check
+#                false, the state without XFRM_STATE_ICMP (engine/child.go
+#                `inbound.ICMPErrorCheck = !child.SkipICMPErrorCheck`).
+#            Each asserted row also reads options-known true, so a backend that
+#            never read the flags (null keys) cannot pass.
+# PREVENTS: a clear or a 0 installed as copy (the outer header then follows the inner
+#           packet the operator asked to override), and icmp-error-check false
+#           installed as the default check, which drops the ICMP errors the operator
+#           chose to accept.
+#
+# DEPENDS ON the df-bit, dscp-map, icmp-error-check and options-known keys of
+# `show vpn ipsec dataplane sa` (cmd/show_dataplane.go saInfoToMap) and the kernel
+# readback that fills them (SAInfo.Options, SAInfo.OptionsRead), which land with the
+# same RFC 4301 work.
+#
+# WHY THE DAEMON STARTS WITH THE OPTIONS. Config verify judges a commit, and no verify
+# runs on the configuration a daemon starts with, so these leaves reach the install
+# path directly. Linux XFRM accepts all three values (SAOptionsSupported), so a
+# commit would accept them too; the refusal side is ipsec-dscp-map-linux-refused.ci.
+#
+# WHY ONE DATAPLANE AND NOT TWO. Both ends of one Child SA are the same two kernel
+# states, so a second XfrmStateAdd answers EEXIST. The RESPONDER runs the real xfrm
+# backend and carries the options; the initiator runs the noop one
+# (ipsec-show-dataplane-kernel.ci).
+#
+# WHY EACH ASSERTION BINDS ITS KEYS ON ONE ROW. An SA row's JSON keys are sorted
+# (added-at, bytes, bytes-hard, df-bit, dscp-map, dst, encryption, ...,
+# icmp-error-check, if-id, ..., options-known, ..., src, used-at), and no value of a
+# row is an object, so `[^}]*` keeps one match inside one row. The ` ?` takes compact
+# and indented JSON alike.
+#
+# WHY THESE PREFIXES. The policies are real and node-wide for the life of the test,
+# so the selectors use RFC 2544 benchmarking ranges (198.18.248.0/23) no other ipsec
+# test installs.
+#
+# RED PROOF, one break per option (each still installs the SA, so only the readback
+# reds):
+#   df-bit    in internal/component/ike/dataplane/xfrm_linux.go xfrmDFFlag, change
+#             `case DFClear: return true, nil` to `return false, nil` (clear
+#             installed as copy). The outbound row reads df-bit "copy": the first
+#             assertion fails.
+#   dscp-map  in xfrmDSCPFlag, change `if v == 0 { return true, nil }` to
+#             `return false, nil` (0 installed as copy). The outbound row reads
+#             dscp-map "copy": the first assertion fails.
+#   icmp      in internal/component/ike/engine/child.go, change
+#             `inbound.ICMPErrorCheck = !child.SkipICMPErrorCheck` to
+#             `inbound.ICMPErrorCheck = true`. The inbound row reads
+#             icmp-error-check true: the second assertion fails.
+#
+# Gated option=needs-linux:caps=net-admin,bpf: the responder programs real XFRM
+# state, so this SKIPs on a host without CAP_NET_ADMIN and runs as root in the QEMU
+# VM, where `fsuite ipsec` in internal/le/test/qemu/alltests.go executes the suite.
+
+# bpf: the default `vpn ipsec application-override deny` loads a cgroup setsockopt guard.
+option=needs-linux:caps=net-admin,bpf
+# Serialize against every other real-XFRM ipsec test: the SAD is NODE-WIDE.
+option=exclusive:group=ipsec-xfrm
+option=env:var=ze_test_ike_port:value=$PORT2
+option=timeout:value=120s
+option=env:var=ze_log_ike:value=info
+
+# ── Responder daemon (REAL xfrm, engine-steps executor): 127.0.0.2 ──
+stdin=responder:terminator=EOF_RESPONDER
+plugin {
+	external engine-steps {
+		run "le mock engine-steps ./engine-steps.json"
+		encoder json
+	}
+}
+
+vpn {
+	ipsec {
+		unmatched bypass
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer initiator {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.2
+				remote-address 127.0.0.1
+				mode tunnel
+				df-bit clear
+				dscp-map 0
+				icmp-error-check false
+				traffic-selector 1 {
+					local {
+						prefix 198.18.248.0/24
+					}
+					remote {
+						prefix 198.18.249.0/24
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_RESPONDER
+
+# ── Initiator daemon (background, noop dataplane): 127.0.0.1 ──
+stdin=initiator:terminator=EOF_INITIATOR
+vpn {
+	ipsec {
+		unmatched bypass
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-1 {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				mode tunnel
+				traffic-selector 1 {
+					local {
+						prefix 198.18.249.0/24
+					}
+					remote {
+						prefix 198.18.248.0/24
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_INITIATOR
+
+cmd=background:seq=1:exec=env ze_test_ike_dataplane=noop ze -:stdin=initiator
+# The responder carries the executor: the engine steps end with `request shutdown`,
+# so this process exits when they are done, and teardown then stops the initiator.
+cmd=foreground:seq=2:exec=ze -:stdin=responder:timeout=110s
+
+# ── Engine steps, dispatched inside the responder ──
+
+# Establishment gate. aes-cbc appears in the SA row only once IKE_AUTH has
+# completed, and the responder installs both states before it answers IKE_AUTH.
+command=show vpn ipsec sa | json
+expect=output:contains=aes-cbc:timeout=60
+
+# No `| json`: dispatch-command answers the JSON data field already, and the
+# dispatcher does not strip a pipe, so on this command (it declares a spi leaf)
+# the words after the pipe would be judged as arguments and refused.
+command=show vpn ipsec dataplane sa
+# The outbound state: df-bit clear and dscp-map 0, read from the kernel's flags.
+expect=output:matches="df-bit": ?"clear",[^}]*"dscp-map": ?"0",[^}]*"dst": ?"127\.0\.0\.1",[^}]*"options-known": ?true,[^}]*"src": ?"127\.0\.0\.2":timeout=30
+# The inbound state: icmp-error-check false, the state without XFRM_STATE_ICMP.
+expect=output:matches="dst": ?"127\.0\.0\.2",[^}]*"icmp-error-check": ?false,[^}]*"options-known": ?true,[^}]*"src": ?"127\.0\.0\.1":timeout=10
+
+expect=exit:code=0
+expect=stderr:contains=engine-steps: all steps passed
+reject=stderr:pattern=dataplane refused the ESP state
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
