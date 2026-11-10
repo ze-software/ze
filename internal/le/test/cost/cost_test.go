@@ -360,6 +360,37 @@ func TestCostRefusesALogWithNoTestTimes(t *testing.T) {
 	}
 }
 
+// TestCostGroupWithNoRecordedTimeRanksNothing proves a group whose recorded
+// time sums to zero ranks no test: with no time there is no share, and the bar
+// elapsed*N >= 3*total would read 0 >= 0 and list every test at a share of 0/0.
+//
+// Method: a `go test -v` log of one package with five top-level tests, each
+// printed as (0.00s), the common case of instant tests. Five tests are above
+// the too-few bar, so only the zero-total guard keeps them out. The report
+// holds no row at all (Go log tests are all measured, so none is unmeasured)
+// and still counts the five tests it read.
+func TestCostGroupWithNoRecordedTimeRanksNothing(t *testing.T) {
+	const instantLog = `--- PASS: TestA (0.00s)
+--- PASS: TestB (0.00s)
+--- PASS: TestC (0.00s)
+--- PASS: TestD (0.00s)
+--- PASS: TestE (0.00s)
+PASS
+ok  	example.com/instant	0.010s
+`
+	tests, err := parseGoLog(strings.NewReader(instantLog))
+	if err != nil {
+		t.Fatalf("parseGoLog: %v", err)
+	}
+	report := rankGo(tests, "instant.log")
+	if len(report.Rows) != 0 {
+		t.Errorf("a group with no recorded time listed rows: %+v", report.Rows)
+	}
+	if report.Tests != 5 {
+		t.Errorf("tests %d, want 5 top-level tests read", report.Tests)
+	}
+}
+
 // TestCostTextStatesTheShareRule proves the rendered report states the rule
 // it applied: the header names the 3x-even-share bar for the route's group
 // word, and a report that ranks nothing says no test reached the bar.
