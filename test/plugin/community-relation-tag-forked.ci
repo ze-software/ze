@@ -21,8 +21,9 @@
 # The ORDER is the point. Run before the role annotation, the relation member
 # would read a key nothing had written and write no tag at all.
 
-# The forked process reads its own level from the underscore form, as
-# stage-filter-forked.ci does: the dotted form does not reach it.
+# The forked process reads its own level from this key. The daemon hands a
+# forked plugin every ze key under its shell name (ZE_LOG_...), so the dotted
+# form reaches it too (forked-plugin-reads-dotted-env-key.ci).
 option=env:var=ze_log_bgp_filter_community:value=info
 # The forked copy logs to its own stderr. The relay passes its INFO lines on
 # (ze.log.relay), and the daemon's relay logger writes them (ze.log.plugin.relay).

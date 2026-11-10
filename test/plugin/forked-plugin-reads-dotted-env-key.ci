@@ -1,0 +1,52 @@
+# Test: a forked plugin reads the ze keys the daemon was started with, in the
+# dotted spelling and with a hyphen in the key (spec-plugin-fork-environment).
+# VALIDATES: the daemon's own environment holds ze.test.fork.environment.dotted
+#            (dotted) and ze.test.fork-environment.hyphen-key (dotted and
+#            hyphenated). The observer runs as a forked plugin, started by
+#            (*Process).startExternal through /bin/sh -c, and reads both keys
+#            with env.Get from its own process environment. Nothing else in
+#            the daemon reads these keys or sends them to the plugin, so its
+#            OK line proves both crossed the shell into the child.
+# PREVENTS: startExternal handing the child the daemon's environment as it
+#           is. dash drops every variable whose name is not a shell
+#           identifier, so a dotted key never reached a forked plugin, and a
+#           hyphenated key had no spelling that did: the plugin read the
+#           key's default and said nothing.
+#
+# DISCRIMINATION: replacing env.ShellSafe(os.Environ()) with os.Environ() in
+# startExternal (internal/component/plugin/process/process.go) turns this
+# red: the observer reads both keys as "" and fails, naming the key.
+#
+# An earlier draft asserted the as-path filter decision lines instead. Those
+# are written by the match reporter in the daemon (policychain), which reads
+# the daemon's own dotted keys, so it stayed green with the fix removed.
+
+option=env:var=ze.test.fork.environment.dotted:value=dotted
+option=env:var=ze.test.fork-environment.hyphen-key:value=hyphen
+option=timeout:value=30s
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external fork-environment {
+		run "le test fixture plugin/fork-environment"
+		encoder json
+	}
+}
+policy {
+	prefix-list CUSTOMERS {
+		entry 10.0.0.0/8 {
+			ge 16
+			le 24
+			action accept
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=OK: the forked plugin read ze.test.fork.environment.dotted=dotted ze.test.fork-environment.hyphen-key=hyphen
+reject=stderr:pattern=did not reach it through the shell
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
