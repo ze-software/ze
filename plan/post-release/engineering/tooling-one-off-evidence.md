@@ -3021,8 +3021,9 @@ its earlier greens were void and are not recorded.
 | same, running (the guest's `le setup docker kernel check`) | exit 1 in 6s, leaks 0, orphans 0 | same | leaks 1 (the QEMU process), exit 5s |
 
 (docker-lab rows of the P-18 native-entry observation, 2026-11-10. The
-admission phase needs a deliberately occupied VM slot and waits for the
-owner's decision. No QEMU process remained after the runs.)
+admission phase, which needs a deliberately occupied VM slot, is recorded in
+"P-18: root routes and the docker-lab admission queue observed". No QEMU
+process remained after the runs.)
 
 | Route, phase | Clean | Break | Red |
 | --- | --- | --- | --- |
@@ -3043,6 +3044,47 @@ own store; the clean leg needs the launcher's build of that commit. The
 scenarios themselves report real shortfalls on this host, for example
 "2k-sessions: tunnels: 0/10", which is the route's own measurement, not a
 cancellation result.)
+
+## P-18: root routes and the docker-lab admission queue observed (2026-11-10)
+
+The same observers, extended for the two routes that need Linux root and for a
+deliberately held VM slot (owner decision 6). A root route runs an `le` built
+under its own name as the invoking user and started through `sudo -n`. SIGINT
+goes to the root `le` process. A foreign network namespace and a dummy link
+must survive each phase. Every file that becomes root-owned under the checkout
+or the user's cache is chowned back after the phase, and the result is
+reported as `rootleft`. The breaks start the route's child outside the shared
+process owner and never join it (l2tp-ppp: ze; gokrazy: QEMU). The admission
+break makes the slot wait use `context.Background()` for its claim and its
+pause, so the wait ignores the caller.
+
+| Route, phase | Clean | Break | Red |
+| --- | --- | --- | --- |
+| `./le test deployment l2tp-ppp` (root), startup | exit 1, leaks 0, orphans 0, foreign netns and link alive, rootleft 0 | ze started outside the owner, never joined | leaks 3 |
+| same, running | exit 1, leaks 0, orphans 0, rootleft 0 | same | leaks 3, orphans 1 |
+| `./le test deployment gokrazy-l2tp-ppp` (root), startup | exit 1 in 1s, leaks 0, orphans 0, rootleft 0 | QEMU started outside the owner, never joined | leaks 3, exit 44s |
+| same, running | exit 1 in 1s, leaks 0, orphans 0, rootleft 0 | same | leaks 3, exit 60s |
+| `./le test qemu docker-lab`, admission (queued behind an observer-held slot) | exit 1 at once, the stop note printed, claim released, holder released, leaks 0 | the slot wait ignores cancellation | no exit until the observer's timeout (29s), no stop note, leaks 1 |
+
+Each route needed one finding resolved first:
+- **gokrazy-l2tp-ppp:** the route refused the runtime kernel it had just
+  built: "carries release(s) 7.3.0-ze, not the pinned kernel version 7.3".
+  Fixed in `f0ad6203a0`: a two-component pin names release x.y.0, in both the
+  proof's check and the docker kernel install.
+- **The first gokrazy observer:** it passed the user's Go module cache to the
+  root run. The image build resolves offline from `gokrazy/modcache` only when
+  `GOMODCACHE` is unset, so `go get` of `cmd/heartbeat` failed. That was an
+  observer defect, not le's, and the observer no longer sets it.
+- **The l2tp-ppp warm-up:** the warm-up pass ran while the patched toolchain
+  compiled as root, and once reported "ze L2TP listener did not start". A
+  direct root run of the route afterwards passed end to end: PPP, the dataplane
+  ping, the route inject and a clean teardown.
+
+The root runs wrote the patched toolchain (13438 files) and image build trees
+into the user's cache and the checkout, and every file was chowned back. The
+first l2tp-ppp phase also handed back 161 root-owned files that an earlier root
+run left under `bin/le-orchestration` and `etc/ze/crash/.pending`. Run
+directories: `p18obs/{l2tp-ppp,gokrazy-l2tp-ppp,docker-lab}/`.
 
 ## P-13: a capture waits out CSS transitions (2026-11-10)
 
