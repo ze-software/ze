@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Labs - Ze</title>
-        <meta name="description" content="Real interop and QEMU proof labs you can run yourself." />
+        <meta name="description" content="Run Ze with other routing daemons and test its Linux behavior in Docker or QEMU." />
         <meta property="og:title" content="Labs - Ze" />
-        <meta property="og:description" content="Real interop and QEMU proof labs you can run yourself." />
+        <meta property="og:description" content="Run Ze with other routing daemons and test its Linux behavior in Docker or QEMU." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -45,8 +45,8 @@
                     <span class="journey-eyebrow">Testing labs</span>
                     <h1 id="labs-title">Testing labs.</h1>
                     <p>
-                        These aren't browser demos. Each lab runs Ze for
-                        real, on your own machine.
+                        Each lab runs Ze on your own machine so you can
+                        examine its behavior and repeat the checks.
                     </p>
                 </div>
                 <div class="section-note reveal">
@@ -55,9 +55,9 @@
                         accel-ppp, strongSwan), or boot Ze in a VM using
                         Docker or QEMU. Some need Docker with host-kernel
                         features Docker Desktop on macOS doesn't provide; a
-                        QEMU path is noted where one exists. This is what
-                        "evidence over claims" means in practice. For speed
-                        rather than correctness, see
+                        QEMU path is noted where one exists. The lab pages
+                        describe what each run checks and its limitations.
+                        Measurements of speed are covered under
                         <a href="../performance/">Performance</a>.
                     </p>
                 </div>
@@ -67,7 +67,7 @@
                         <span class="card-label">Daemon</span>
                         <span class="card-label concept-software">Docker</span>
                         <ul>
-                            <li>Real <strong><span class="concept-software">FRR</span>, <span class="concept-software">BIRD</span>, and <span class="concept-software">GoBGP</span></strong> sessions, not mocks</li>
+                            <li>BGP sessions with <strong><span class="concept-software">FRR</span>, <span class="concept-software">BIRD</span>, and <span class="concept-software">GoBGP</span></strong></li>
                             <li>68 scenarios across core protocol and <strong>extensions</strong></li>
                         </ul>
                     </article>
@@ -88,7 +88,7 @@
                         <span class="card-label concept-software">QEMU</span>
                         <ul>
                             <li>Ze's PPPoE client vs real <strong class="concept-software">accel-ppp</strong> access concentrator</li>
-                            <li>The dominant <strong>open-source BRAS/AC</strong>, not a stub</li>
+                            <li><strong>Discovery and PPP negotiation</strong> checked against the access concentrator</li>
                         </ul>
                     </article>
                     <article class="card">
@@ -105,8 +105,8 @@
                         <span class="card-label">Daemon</span>
                         <span class="card-label">AF_PACKET</span>
                         <ul>
-                            <li>802.1p <strong>PCP tagging</strong> actually on the wire</li>
-                            <li>Not just kernel-state <strong>acceptance</strong></li>
+                            <li>Packet captures check 802.1p <strong>PCP tags</strong></li>
+                            <li>nftables counters check ingress <strong>priority classification</strong></li>
                         </ul>
                     </article>
                     <article class="card">
@@ -115,7 +115,7 @@
                         <span class="card-label">Browsable</span>
                         <ul>
                             <li>Realistic UK topology, real external <strong>ASNs</strong></li>
-                            <li>The one lab that's actually <strong>visual</strong> today</li>
+                            <li>A <strong>browser graph</strong> for inspecting AS paths</li>
                         </ul>
                     </article>
                     <article class="card">

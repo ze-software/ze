@@ -1,6 +1,6 @@
 # Browser `.wb` and Editor `.et` Tests
 
-Ze has two UI functional formats. `.wb` drives the web interface through a real browser session. `.et` drives the interactive configuration editor through the CLI testing harness. Use them when the contract is what a person sees or types, not a helper function hidden under that interface.
+Ze has two formats for testing its interfaces. A `.wb` file drives the web interface through a browser session, while an `.et` file drives the interactive configuration editor through the CLI testing harness. Both exercise the actions a person takes and the responses they see.
 
 <!-- source: ../main/docs/architecture/testing/runner-architecture.md -- web runner architecture -->
 <!-- source: ../main/internal/component/web/testing/parser.go -- web parser -->

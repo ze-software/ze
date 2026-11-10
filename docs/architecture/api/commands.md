@@ -35,22 +35,22 @@ identity is injected only by trusted transport wiring.
 
 ## Command Verb Taxonomy
 
-Commands follow a **verb-first** convention: `<action> <module> [args...]`.
-The action verb determines the command's behavior; the module implements it.
+Commands follow a verb-first convention: `<action> <module> [args...]`.
+The verb identifies the action, and the module implements it.
+<!-- source: internal/component/command/verbs.go -- Verbs -->
 
 `command.Verbs` is the vocabulary, and it gives each verb one of three roles:
 `RoleRead` for `show`, `monitor` and `resolve`, `RoleMutation` for `set` and
 `delete`, and `RoleAction` for every other verb. A token the map does not hold
 answers `RoleUnspecified`, which is what `IsVerb` reads.
+<!-- source: internal/component/command/verbs.go -- Verbs, IsVerb -->
 
-What each verb PROMISES an operator, which selector it takes, and what a new
-command under it must look like are one table on one page, and this page does
-not carry a second copy of it: `docs/architecture/cli/command-verbs.md`.
+The [command verb reference](../cli/command-verbs.md) describes each verb's
+behavior, its selectors, and the requirements for commands that use it.
 
-`IsReadOnlyPath` decides which authorization section a command lands in, and it
-asks `command.IsReadOnlyVerb` for the verb half rather than holding a list of
-read verbs. The five noun-first roots that predate the verb-first grammar are
-the rest of its answer.
+`IsReadOnlyPath` selects the authorization section for a command. It uses
+`command.IsReadOnlyVerb` to identify read verbs and also accepts five legacy
+noun-first roots as read-only commands.
 <!-- source: internal/component/command/verbs.go -- Verbs, verbRole, IsVerb, IsReadOnlyVerb -->
 <!-- source: internal/component/plugin/server/command.go -- IsReadOnlyPath, legacyReadRoots -->
 <!-- source: internal/component/cmd/show/doc.go -- show verb -->
@@ -91,14 +91,14 @@ produce continuously-updating output.
 
 ### Dispatch keys are YANG paths
 
-The daemon registers each built-in handler under its **YANG command path**, derived
+The daemon registers each built-in handler under its YANG command path, derived
 from the tree (`LoadBuiltins`: `d.RegisterWithOptions(wireToPath[wireMethod], ...)`).
-The path — not the wire method — is the dispatch key. Moving a `ze:command` container
-in the YANG tree therefore renames the command and breaks anything that sends the old
-path. Operator commands are safe to migrate; commands a plugin sends by their bare
-path (over `dispatch-command` or an interactive plugin CLI session) are a wire break.
-Before a verb-first migration of a noun-first built-in, grep for senders. See
-`ai/rules/cli.md` "Migrating a Built-in Command's Path".
+Because dispatch uses that path, moving a `ze:command` container renames the
+command. Callers that still send the old path will fail, including plugins using
+`dispatch-command` or an interactive plugin CLI session. Before migrating a
+noun-first command to verb-first syntax, search for its senders and update them
+too. See `ai/rules/cli.md`, "Migrating a Built-in Command's Path".
+<!-- source: internal/component/plugin/server/command.go -- LoadBuiltins, RegisterWithOptions -->
 
 A dispatch key has one holder. `Dispatcher.RegisterWithOptions` refuses a name
 already registered, compared case-insensitively, with `ErrCommandHeld` naming the
@@ -150,9 +150,9 @@ arrives while the daemon stops starts nothing.
 
 ### Offline fallback (read-only commands without a daemon)
 
-Some read-only `show` commands must work with **no daemon reachable** — `show crashes`
-(you inspect a crash precisely when the daemon has died) and `show host` (hardware
-inventory before the daemon is up). Their owner registers an in-process handler with
+Some read-only `show` commands are useful when the daemon is unreachable:
+`show crashes` helps investigate a stopped daemon, and `show host` provides
+hardware inventory before startup. Their owner registers an in-process handler with
 `command.MustRegisterOfflineFallback(path, handler)` from its `init()`. The CLI serves the command from the
 daemon when it is reachable and calls the fallback **only after a connection failure**,
 so the fallback never shadows the daemon. Because `cmdutil.RunCommand` rejects commands
@@ -648,8 +648,8 @@ and no automatic filters.
 | `ze-mtu:show-mtu` | `handleShowMTU` in `internal/component/mtu/cmd/mtu.go` | one document: `status`, `measurements` (rows of `target`, `label`, `outcome`, `path-mtu`, `method`, `probes`, `lossy`, `prober`, `exchanges`, `ike-confirmed`, `ike-declined`, `caveats`, `cached-path-mtu`), `tunnels` (rows of `peer`, `remote`, `interface`, `mode`, `encapsulation`, `transform`, `path-mtu`, `assumed`, `current-mtu`, `ceiling`, `recommended`, `mss`, `verdict`, `octets`, `sized`, `reason`), `commands`, `notes`, `caveats`; `inventory`, `verdict`, `reference` on a run over the peers; `underlay` once read; `tcp-mtu-probing` once read. Keys and presence rules: `docs/architecture/diagnostics/path-mtu.md` |
 | `ze-static:show-static` | `forwardShowStatic` in `internal/plugins/static/cmd_show.go` | JSON array of configured static routes (proxy to static plugin) |
 | `ze-policyroute:show-policy-routes` | `forwardShowPolicyRoutes` in `internal/plugins/policyroute/cmd_show.go` | JSON array of PBR policy routes (proxy to policyroute plugin) |
-| `ze-bgp:show-policy-chain` | `handleShowPolicyChain` in `internal/component/bgp/plugins/cmd/policy/handler.go` | `{"chains": [{"peer": "...", "name": "...", "import": {"filters": [{"name": "...", "canonical": "..."}], "final": "accept"}, "export": {"filters": null, "final": "reject"}}]}` — effective policies with the direction's effective `final`: the configured final; `reject` with `"final-source": "rfc8212"` for an EBGP direction with no policy (RFC 8212 Section 3); `undetermined` for an absent direction on a dynamic peer not yet established. An IBGP direction with no policy has no `final`, and is omitted when it has no automatic filters. <!-- source: internal/component/bgp/plugins/cmd/policy/handler.go -- policyChain, handleShowPolicyChain --> <!-- source: internal/component/bgp/reactor/reactor_api.go -- policyInfo --> |
-| `ze-bgp:show-policy-test` | `handleShowPolicyTest` in `internal/component/bgp/plugins/cmd/policy/handler.go` | `{"direction": "...", "peer": "...", "action": "accept\|reject\|modify\|undetermined", "trace": [PolicyTraceEntry], "text-before": "...", "text-after": "...", "changed-attrs": [...], "wire-changes": ["AS_PATH set", ...], "policy": {"filters": [...], "final": "reject", "final-source": "rfc8212"}}` — read-only policy dry-run. The action includes the effective final decision, including after a raw rewrite. `reason` is present for an unresolved remote AS. <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun, traceUncompiledChain --> |
+| `ze-bgp:show-policy-chain` | `handleShowPolicyChain` in `internal/component/bgp/plugins/cmd/policy/handler.go` | `{"chains": [{"peer": "...", "name": "...", "import": {"filters": [{"name": "...", "canonical": "..."}], "final": "accept"}, "export": {"filters": null, "final": "reject"}}]}` shows effective policies with the direction's effective `final`: the configured final; `reject` with `"final-source": "rfc8212"` for an EBGP direction with no policy (RFC 8212 Section 3); `undetermined` for an absent direction on a dynamic peer not yet established. An IBGP direction with no policy has no `final`, and is omitted when it has no automatic filters. <!-- source: internal/component/bgp/plugins/cmd/policy/handler.go -- policyChain, handleShowPolicyChain --> <!-- source: internal/component/bgp/reactor/reactor_api.go -- policyInfo --> |
+| `ze-bgp:show-policy-test` | `handleShowPolicyTest` in `internal/component/bgp/plugins/cmd/policy/handler.go` | `{"direction": "...", "peer": "...", "action": "accept\|reject\|modify\|undetermined", "trace": [PolicyTraceEntry], "text-before": "...", "text-after": "...", "changed-attrs": [...], "wire-changes": ["AS_PATH set", ...], "policy": {"filters": [...], "final": "reject", "final-source": "rfc8212"}}` reports a read-only policy dry-run. The action includes the effective final decision, including after a raw rewrite. `reason` is present for an unresolved remote AS. <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun, traceUncompiledChain --> |
 | `ze-bgp:show-bmp-sessions` | `forwardShowBMPSessions` in `internal/component/bgp/plugins/bmp/cmd_show.go` | JSON array of BMP receiver sessions (proxy to BMP plugin) |
 | `ze-bgp:show-bmp-peers` | `forwardShowBMPPeers` in `internal/component/bgp/plugins/bmp/cmd_show.go` | JSON array of BMP monitored peers (proxy to BMP plugin) |
 | `ze-bgp:show-bmp-collectors` | `forwardShowBMPCollectors` in `internal/component/bgp/plugins/bmp/cmd_show.go` | JSON array of BMP sender collectors (proxy to BMP plugin) |
@@ -1184,7 +1184,12 @@ Plugin.ReleaseCached(ctx, ids []uint64) error
 
 Both methods round-trip via `DirectBridge` when the plugin is in-process (zero socket I/O, no tokenisation, no command-registry lookup) and fall back to the `ze-plugin-engine:forward-cached` / `:release-cached` methods over the newline-framed plugin RPC connection when the plugin is out-of-process. The engine handler is `reactorAPIAdapter.ForwardUpdatesDirect` / `ReleaseUpdates`.
 
-Destinations are peer addresses (`netip.AddrPort`). Port-0 entries match any peer instance with the same address. Cap: 4096 destinations per call (override via `ze.fwd.dest.cap`); exceeding the cap is an explicit error, not silent truncation. Empty destination list returns an error too, guarding against an accidental wildcard broadcast — use `ReleaseCached` to ack without forwarding.
+Destinations are peer addresses (`netip.AddrPort`). Port-0 entries match any peer
+instance with the same address. A call accepts up to 4096 destinations, configurable
+through `ze.fwd.dest.cap`, and returns an error if the list exceeds that limit.
+An empty destination list also returns an error to prevent an accidental broadcast.
+Use `ReleaseCached` to acknowledge an UPDATE without forwarding it.
+<!-- source: internal/component/bgp/reactor/reactor_api_forward_batch.go -- ForwardUpdatesDirect, ReleaseUpdates, maxForwardDestinations -->
 
 Per-source ordering, egress filter chains, AS-PATH prepend, next-hop policy, replay-on-new-peer, and every other forwarding invariant are preserved. Only the transport differs from the text-RPC path.
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.ForwardCached, Plugin.ReleaseCached -->
@@ -1232,8 +1237,8 @@ The `!<ip>` negated selector is useful for route reflection:
 send bgp !upstream1 cached 12345
 ```
 
-> **Note:** Filter selectors (`[local-as ...]`, `[peer-as ...]`) from ExaBGP multi-session
-> draft are not supported — the draft never became an RFC.
+> **Note:** Filter selectors (`[local-as ...]`, `[peer-as ...]`) from the ExaBGP
+> multi-session draft are unsupported. The draft never became an RFC.
 
 Not every command takes every selector. A command whose handler resolves its
 selector through `ResolveSinglePeer` acts on one peer: the selector must resolve
@@ -1592,19 +1597,19 @@ Attributes are flat keyword-value pairs (no `set` keyword). Both short and long 
 API text output uses short forms; config output uses long forms.
 
 ```
-next <ip>                        # Next-hop IP (required) — long: next-hop
+next <ip>                        # Next-hop IP (required), long form: next-hop
 origin igp|egp|incomplete        # Origin attribute
-path <asn>,<asn>,...             # AS path — long: as-path
-pref <int>                       # Local preference — long: local-preference
+path <asn>,<asn>,...             # AS path, long form: as-path
+pref <int>                       # Local preference, long form: local-preference
 med <int>                        # Multi-exit discriminator
-s-com <comm>,<comm>,...          # Standard communities — long: community
-x-com <ext>,<ext>,...            # Extended communities — long: extended-community
-l-com <lc>,<lc>,...              # Large communities — long: large-community
+s-com <comm>,<comm>,...          # Standard communities, long form: community
+x-com <ext>,<ext>,...            # Extended communities, long form: extended-community
+l-com <lc>,<lc>,...              # Large communities, long form: large-community
 originator-id <ip>               # Originator ID
 cluster-list <ip>,<ip>,...       # Cluster list
 label <label>                    # MPLS label (per-NLRI-section modifier)
 rd <rd>                          # Route distinguisher (per-NLRI-section modifier)
-info <id>                        # ADD-PATH path ID, decimal or dotted a.b.c.d (per-NLRI-section modifier) — long: path-information
+info <id>                        # ADD-PATH path ID, decimal or dotted a.b.c.d (per-NLRI-section modifier), long form: path-information
 atomic-aggregate                 # Atomic aggregate flag
 aggregator <asn> <ip>            # Aggregator
 aigp <value>                     # AIGP
@@ -2334,7 +2339,7 @@ never shadows a builtin at the completion layer (mirroring dispatch precedence).
 
 - **SSH** rebuilds the tree per session and merges eagerly
   (`session_factory.go` `mergePluginCommands`), so each session reflects the
-  current registry — a plugin that has exited is simply absent next session.
+  current registry. A plugin that has exited is absent from the next session.
 - **Web** builds a throwaway overlay from the current registry for each
   `/cli/complete` request (`web_completer.go` `pluginAwareCommandCompleter`).
   The shared YANG tree stays immutable. The hub binds the web listener after
@@ -2366,13 +2371,14 @@ every hidden plugin command.
 
 ### Quiesce Barrier (test synchronization)
 
-`request quiesce` (`ze-plugin:system-quiesce`) **blocks until every registered
-subsystem has drained its pending asynchronous work, then replies** — a barrier
-tests use in place of a fixed `time.sleep`. It is the general form of
+`request quiesce` (`ze-plugin:system-quiesce`) waits for every registered
+subsystem to drain its pending asynchronous work before replying. Tests use
+this barrier in place of a fixed `time.sleep`. It is the general form of
 `ze-bgp:peer-flush`: the control plane is already synchronous (a command reply
 lands after its handler runs), but downstream effects (routes flushed to peer
 sockets, and later FIB/tc/listeners) complete after the reply, so a test does
 `send(change); request quiesce; assert on-wire` with no sleep.
+<!-- source: internal/component/plugin/server/quiesce.go -- handleQuiesce -->
 
 Subsystems register a `Quiescer` at runtime (they need a live reference such as
 the reactor), and the handler discovers them through the registry, with no

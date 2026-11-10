@@ -1,11 +1,23 @@
 # BFD: Bidirectional Forwarding Detection
 
-**Status:** the plugin is live, the production transport is hardened
-(GTSM, IP_TTL=255 outbound, SO_BINDTODEVICE for single-hop and multi-VRF,
-RFC 5880 §6.8.7 TX jitter), the BGP peer opt-in is wired through the
-reactor lifecycle, and the Stage 4 operator surface (`show bfd
-sessions`, `show bfd session <peer>`, `show bfd profile`, Prometheus
-`ze_bfd_*` metrics) is available. Adding `bfd { ... }` inside a
+BFD monitors connectivity between two systems so routing protocols can react
+to a forwarding failure before their own hold timers expire. Ze runs BFD as
+a plugin whose session service is used by BGP, OSPF, and static-route monitors.
+<!-- source: internal/component/bfd/api/registry.go -- SetService, GetService -->
+<!-- source: internal/component/bgp/reactor/peer_bfd.go -- startBFDClient, runBFDSubscriber -->
+<!-- source: internal/plugins/ospf/bfd_client.go -- bfdNeighborFull, startBFDSession, runBFDSubscriber -->
+<!-- source: internal/plugins/static/inject.go -- setupBFDLocked -->
+
+The transport uses GTSM, outbound IP_TTL=255, SO_BINDTODEVICE for single-hop
+and multi-VRF sockets, and RFC 5880 §6.8.7 transmit jitter. You can inspect
+sessions with `show bfd sessions` and `show bfd session address <peer>`, view
+profiles with `show bfd profile`, and monitor Prometheus `ze_bfd_*` metrics.
+<!-- source: internal/component/bfd/cmd/bfd.go -- handleShowSessions, handleShowSession, handleShowProfile -->
+<!-- source: internal/component/bfd/metrics.go -- bindMetricsRegistry -->
+<!-- source: internal/component/bfd/transport/udp_linux.go -- applySocketOptions -->
+<!-- source: internal/component/bfd/engine/loop.go -- passesTTLGate, tick -->
+
+Adding `bfd { ... }` inside a
 `bgp peer connection` block opens a per-peer BFD session on
 Established and tears the BGP session down with RFC 9384 Cease
 subcode 10 ("BFD Down") when BFD reports the forwarding path lost.
@@ -20,14 +32,6 @@ BGP session is held out of Established until BFD is Up.
 <!-- source: internal/component/bfd/transport/udp_linux.go — IP_RECVTTL, IP_TTL, SO_BINDTODEVICE -->
 <!-- source: internal/component/bgp/reactor/peer_bfd.go — startBFDClient, stopBFDClient, runBFDSubscriber -->
 
-BFD (RFC 5880) is a low-overhead liveness protocol that detects forwarding
-failures between a pair of systems in tens to hundreds of milliseconds,
-one or two orders of magnitude faster than BGP keepalives or OSPF hellos.
-In ze, BFD runs as a plugin that exposes a session service to other
-components: BGP, OSPF (when added), and static-route monitors call it to
-track peer liveness, and tear down their own adjacencies when BFD reports
-a session down.
-
 ## When to use it
 
 | Scenario | BFD value |
@@ -35,7 +39,7 @@ a session down.
 | eBGP transit session | Sub-second failure detection without waiting for BGP hold time (default 90 s) |
 | iBGP over a loopback | Multi-hop BFD can accelerate route reconvergence if the IGP alone is too slow |
 | Static route to a gateway | Withdraw the route when the gateway stops forwarding, even if the physical link is up |
-| OSPF adjacency (when ze has OSPF) | Collapse the hello-based timeout from 40 s to 150 ms |
+| OSPF adjacency | Detect a forwarding failure before the OSPF dead timer expires |
 
 Do not use BFD between two routers where the IGP already runs fast BFD;
 the redundant sessions double the packet rate and can amplify instability.
@@ -209,7 +213,7 @@ Authentication failures increment `ze_bfd_auth_failures_total{mode}`.
 
 ### Enabling BFD on a BGP peer
 
-The common path. Adding a `bfd { ... }` container inside a BGP peer's
+Adding a `bfd { ... }` container inside a BGP peer's
 `connection { ... }` block opts that peer into BFD. On session
 Established, the reactor calls the BFD plugin's `api.Service.EnsureSession`
 with the peer's local / remote address and the configured mode; on
@@ -239,9 +243,8 @@ the same session inside that window revives it, discriminator included.
 <!-- source: internal/component/bfd/engine/engine.go -- ReleaseSession, retireReleasedLocked, reviveReleasedLocked -->
 <!-- source: internal/component/bfd/session/fsm.go -- AdminDown, adminDownTransmitDetectionTimes -->
 
-Two of those sentences are about the peer WITHOUT `strict true`. A strict
-peer opens its BFD session before the BGP FSM starts and keeps it across
-every retry, releasing it only when the peer itself stops
+With `strict true`, the peer opens its BFD session before the BGP FSM starts
+and keeps it across every retry, releasing it only when the peer itself stops
 (draft-ietf-idr-bgp-bfd-strict-mode Section 7). "BFD strict mode" below
 carries the whole difference.
 
@@ -711,10 +714,9 @@ takes effect then.
 
 ## Observing state
 
-Stage 4 adds three operator-facing commands served by a snapshot of
-the engine's live session state. The handlers live in
-`internal/component/bfd/cmd/bfd.go` and publish JSON payloads so
-scripts can parse the output while the interactive CLI renders them.
+The BFD commands show the engine's live session state and configured
+profiles. Their handlers return JSON payloads for scripts, which the
+interactive CLI can also render.
 <!-- source: internal/component/bfd/cmd/bfd.go — handleShowSessions, handleShowSession, handleShowProfile -->
 <!-- source: internal/component/bfd/engine/snapshot.go — Loop.Snapshot, Loop.SessionDetail -->
 

@@ -1,6 +1,6 @@
 # Developers
 
-Extend Ze through its public plugin SDK and contribute changes through the same tested workflows used by the project.
+The public plugin SDK lets you extend Ze. These pages explain how plugins communicate with the daemon and how to contribute a change to the project.
 
 ## Build extensions
 
@@ -16,7 +16,7 @@ Extend Ze through its public plugin SDK and contribute changes through the same 
 
 - [Developer setup](../contribute/developer-setup/): build, test, and debug the source tree.
 - [Contributor guide](../contribute/guide/): prepare and submit a change.
-- [Contributor testing](../contribute/testing/): choose the right proof layer.
+- [Contributor testing](../contribute/testing/): choose tests that exercise the behavior you changed.
 - [RFC implementation guide](../contribute/rfc-implementation-guide/): implement and verify a standard.
 - [Documentation testing](../contribute/documentation-testing/): keep examples tied to executable evidence.
 - [Style guide](../style-guide/): follow the website's visual and content conventions.

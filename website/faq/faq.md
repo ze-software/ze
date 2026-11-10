@@ -1,6 +1,6 @@
 # Frequently asked questions
 
-Straight answers about what Ze does, where it is ready, and what adopting it involves. Ask on [Discord](https://discord.gg/T8s7CjPDne) or open an [issue](https://github.com/ze-software/ze/issues) when your question is missing.
+These answers cover what Ze does, its release status, and what adopting it involves. If your question is missing, you can ask on [Discord](https://discord.gg/T8s7CjPDne) or open an [issue](https://github.com/ze-software/ze/issues).
 
 <nav class="faq-index" aria-label="FAQ sections">
   <a href="#product" class="cat-meta">
@@ -40,8 +40,8 @@ Straight answers about what Ze does, where it is ready, and what adopting it inv
       <details class="faq-card cat-meta" id="ready">
         <summary>Is Ze ready for production?</summary>
         <div>
-          <p>No. Ze is pre-release software. The BGP engine is substantial and heavily tested, but production exposure remains limited, and both APIs and configuration syntax can still change.</p>
-          <p>Use Ze in a lab today. Build a route server, migrate an ExaBGP configuration, run the interop labs against FRR or BIRD, and report failures. The <a href="../project/roadmap/">roadmap</a> lists the release work, while the <a href="../quality/">quality pages</a> show the evidence already available.</p>
+          <p>No. Ze is pre-release software. The BGP engine has automated tests, but production exposure remains limited, and both APIs and configuration syntax can still change.</p>
+          <p>A lab is a useful place to try Ze today, whether you want to build a route server, migrate an ExaBGP configuration, or test it against FRR or BIRD. Reports of failures help us find what those tests miss. The <a href="../project/roadmap/">roadmap</a> lists the release work, while the <a href="../quality/">quality pages</a> describe the available tests and their limits.</p>
         </div>
       </details>
       <details class="faq-card cat-meta" id="today">
@@ -54,8 +54,8 @@ Straight answers about what Ze does, where it is ready, and what adopting it inv
       <details class="faq-card cat-meta" id="compare">
         <summary>Why would I use Ze instead of BIRD, FRR, or GoBGP?</summary>
         <div>
-          <p>Choose a mature daemon when you need an established production platform today. Ze is worth evaluating when you want its configuration model, generated operator surfaces, plugin architecture, ExaBGP migration path, or built-in evidence tooling.</p>
-          <p>The core remains protocol-agnostic, and each subsystem brings its own YANG model. One schema drives configuration, validation, CLI, web, generated reference, and MCP. The <a href="../compare/">comparison pages</a> show where Ze leads, where it differs, and where the mature projects remain ahead.</p>
+          <p>A mature daemon is the better choice when you need an established production platform today. Ze may be worth evaluating if you want a shared configuration model across its CLI, web interface, and APIs, or if its plugins and ExaBGP migration tools fit your deployment. Its <a href="../quality/">quality pages</a> also make the test methods and evidence available for review.</p>
+          <p>Each subsystem supplies a YANG model that defines its configuration and supplies the CLI, validation, web editor, reference pages, and MCP tools. The <a href="../compare/">comparison pages</a> describe the differences between Ze and other projects, including features Ze still lacks.</p>
         </div>
       </details>
     </div>
@@ -94,7 +94,7 @@ Straight answers about what Ze does, where it is ready, and what adopting it inv
       <details class="faq-card cat-operate" id="config-stability">
         <summary>Will my configuration keep working as Ze changes?</summary>
         <div>
-          <p>Treat configuration syntax as unstable until the first release. Breaking changes belong in the <a href="../project/changes/">change log</a> and should arrive with an automatic migration or a clear error. Silent reinterpretation is a bug.</p>
+          <p>Configuration syntax can change before the first release, and changes are described in the <a href="../project/changes/">change log</a>. An existing configuration may need editing when you update Ze. Silent reinterpretation is a bug.</p>
           <p>Configuration stability is an explicit milestone on the <a href="../project/roadmap/">roadmap</a>.</p>
         </div>
       </details>
@@ -140,9 +140,9 @@ Straight answers about what Ze does, where it is ready, and what adopting it inv
       <details class="faq-card cat-meta" id="ai-development">
         <summary>How is AI used to develop Ze?</summary>
         <div>
-          <p>Ze is written with AI coding agents, and the project uses them to reach quality. To get there, we built a framework that constrains and guides how an agent develops a feature: a spec is agreed before any code, tests are written before the implementation, a separate agent that did not write the change reviews it, and gates refuse a commit that breaks a rule. These rules live in the repository next to the code, so every agent session works under the same ones. <a href="../project/ai-development/">How Ze is developed with AI</a> explains the process and where it came from.</p>
+          <p>AI coding agents write Ze's code under a process we developed to guide their work and check the result. We agree on a spec before implementation, write tests first, and ask a separate agent to review the change. Commit gates check the repository's rules. Keeping the instructions beside the code gives each new session the same requirements. <a href="../project/ai-development/">How Ze is developed with AI</a> explains how this process developed.</p>
           <p>As with human development, the process is iterative, and the first version of something is often not fully correct. Proving a feature takes many passes and a lot of time and compute. For an RFC, every requirement has to be found, tested, and shown to fail when the code is broken, and that coverage keeps growing after the first implementation is published. The <a href="../quality/rfc-compliance/">RFC compliance pages</a> show what is proven and what is still missing.</p>
-          <p>The website is where this shows the most. An RFC defines behaviour in clear, strict terms, so a test can check that Ze follows it. The same can not be said of a web page: free text has no specification to test against, which is why the site is likely to carry more mistakes than the code. Still, we generate most of the site's information from the code itself, so that figures, feature lists, and references reflect the actual state of the software. We revise it often, and between passes some pages will not be fully right. If you spot a mistake on the site or in Ze, please tell us on <a href="https://discord.gg/T8s7CjPDne">Discord</a> or the <a href="https://github.com/ze-software/ze/issues">issue tracker</a>.</p>
+          <p>The website is harder to check automatically. An RFC can define behavior precisely enough for a test, while free text leaves more room for unclear explanations and mistakes. Most of the site's figures, feature lists, and references are generated from the code, but the prose still needs review and is likely to contain more mistakes than the code. We revise it as we find them. If you spot a mistake on the site or in Ze, we would appreciate a report on <a href="https://discord.gg/T8s7CjPDne">Discord</a> or the <a href="https://github.com/ze-software/ze/issues">issue tracker</a>.</p>
         </div>
       </details>
       <details class="faq-card cat-meta" id="help">

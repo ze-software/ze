@@ -256,12 +256,12 @@ func rfcGatedCardLabel(entry *rfcLedgerStem) string {
 // rfcGatedCardNote is the sentence beneath it.
 func rfcGatedCardNote(entry *rfcLedgerStem) string {
 	if entry.Enrolled {
-		return "MUST-level requirements the gate HOLDS. A population, not a result: the " +
-			"counts beside it are what says how Ze stands"
+		return "MUST-level requirements checked by the gate. This is the total being " +
+			"assessed; the counts beside it show the recorded status of those requirements."
 	}
-	return "MUST-level requirements this summary DECLARES. The gate holds none of them, " +
-		"because this RFC is not enrolled (" + entry.Disposition.Kind + "), so every count " +
-		"below reads what the summary records rather than what the gate enforces"
+	return "MUST-level requirements declared in this summary. This RFC is not enrolled " +
+		"(" + entry.Disposition.Kind + "), so the gate does not check these requirements. " +
+		"The counts below show what the summary records."
 }
 
 // rfcAuditTone says how the audit card reads: bad where a reader judged the

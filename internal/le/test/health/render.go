@@ -159,12 +159,10 @@ func renderMarkdown(metrics []Metric, history []object) string {
 		"test would be routed around rather than read. Ratchets are enforced from the " +
 		"tree itself, not from this page.")
 	add("")
-	//nolint:misspell // This generated prose deliberately uses British spelling.
-	add("This page answers **is our testing correct**, not *is our testing large*. " +
-		"Those are different questions. A suite can grow forever while the share of " +
-		"behaviour it would actually catch a regression in falls, and no count of " +
-		"tests can show that. Every metric below belongs to one of three questions; " +
-		"anything belonging to none is volume and is deliberately absent.")
+	add("These measures help assess whether Ze's tests would catch a regression. A growing " +
+		"suite can cover a smaller share of the program as the code changes, so its test " +
+		"count alone says little about the faults it would detect. Each measure addresses " +
+		"one of the three questions below.")
 	add("")
 
 	renderAttention(add, metrics)
@@ -275,8 +273,9 @@ func renderTrends(add func(string), history []object) {
 	add("")
 	if len(history) < minSamples {
 		add(tb.Str("Insufficient data: ").Int(int64(len(history))).Str(" recorded sample(s), ").
-			Int(minSamples).Str(" needed before a trend is drawn. A line through three points " +
-			"is noise with a direction. Append a sample with `./le test health record`.").String())
+			Int(minSamples).Str(" needed before a trend is drawn. With too few samples, a line " +
+			"can suggest a change that is only variation between runs. Append a sample with " +
+			"`./le test health record`.").String())
 		add("")
 		return
 	}

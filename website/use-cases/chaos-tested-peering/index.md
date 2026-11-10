@@ -6,13 +6,13 @@ Use `le chaos run` before deployment to prove that a peer configuration converge
 
 ## Start from a validated peer
 
-Build the intended peer or group with the [BGP peering guide](../../guides/bgp-peering/). Validate the configuration and run ordinary interop or lab checks first. Chaos testing is useful after the normal path works, not as a substitute for basic configuration validation.
+Build the intended peer or group with the [BGP peering guide](../../guides/bgp-peering/). Validate the configuration and run ordinary interop or lab checks first. Once those pass, chaos testing can check how the deployment recovers from faults.
 
 ## Run one complete reproducible scenario
 
 Use a fixed seed and keep the generated configuration beside the event log.
 This sequence first makes the configuration inspectable, validates it, then
-runs the same four-peer shape:
+runs the same four-peer topology:
 
 ```console
 mkdir -p evidence/seed-42
@@ -94,4 +94,4 @@ Before accepting the peer configuration:
 5. The final route and peer state is clean after recovery.
 6. The test records the Ze version and scenario inputs.
 
-A scenario that remains green when the protected behaviour is broken is observation, not proof.
+A scenario must fail when the behavior it is meant to protect is deliberately broken. Otherwise, a passing result cannot establish that the behavior works.

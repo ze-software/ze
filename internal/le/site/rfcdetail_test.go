@@ -1139,7 +1139,7 @@ func TestAStemPageOpensWithTheCardGridTheIndexCarries(t *testing.T) {
 		t.Errorf("the leading population card reads %q, so it looks like a result",
 			cards[0].Tone)
 	}
-	if !strings.Contains(cards[0].Note, "A population, not a result") {
+	if !strings.Contains(cards[0].Note, "This is the total being assessed") {
 		t.Errorf("the leading card does not say it is a population: %q", cards[0].Note)
 	}
 	// The standing cards are counts since the owner retired every percentage
@@ -2377,17 +2377,17 @@ func TestAnUnenrolledPageNeverClaimsTheGateHoldsIt(t *testing.T) {
 		body := rfcDetailBody(entry)
 		if entry.Enrolled {
 			enrolled++
-			if !strings.Contains(body, "the gate HOLDS") {
+			if !strings.Contains(body, "requirements checked by the gate") {
 				t.Errorf("the %s page does not say the gate holds its requirements", entry.Stem)
 			}
 			continue
 		}
 		declined++
-		if strings.Contains(body, "the gate HOLDS") {
+		if strings.Contains(body, "requirements checked by the gate") {
 			t.Errorf("%s is not enrolled and its page says the gate holds its requirements",
 				entry.Stem)
 		}
-		if !strings.Contains(body, "The gate holds none of them") {
+		if !strings.Contains(body, "gate does not check these requirements") {
 			t.Errorf("%s is not enrolled and its page does not say the gate holds none of it",
 				entry.Stem)
 		}

@@ -1,6 +1,6 @@
 # Reference
 
-Use these pages when you know what you need to look up. They are generated from live command, configuration, plugin, and standards data wherever possible.
+These pages describe Ze's commands, configuration, plugins, and standards support. Where possible, the reference is generated from the definitions in the code so that a change appears in the documentation on the next site build.
 
 - [CLI reference](cli/): every generated Ze command in one searchable catalog.
 - [Configuration reference](configuration/): the complete YANG configuration tree.

@@ -1180,16 +1180,16 @@ const rfcEnrolledSectionsTitle = "How the enrolled RFCs' requirements are answer
 // last sentences say what the figure this block replaced counted
 // (spec-rfc-figures-sectioned-presentation, AC-15).
 func rfcEnrolledScope() string {
-	return rfcValueMirror(rfcEnrolledSubject, "rfcs") + " enrolled RFCs, of which " +
-		rfcValueMirror(rfcEnrolledSubject, "not-walked") + " not walked, so their rows count in no " +
-		"figure above. Ze implements " + rfcValueMirror(rfcEnrolledSubject, "implemented") +
-		" of them: the enrolled RFCs that render a public row. Behind them, rfc/short/ holds " + rfcValueMirror(rfcAllSubject, "rfcs") +
-		" summary files, enrolled or not and including those that declare no requirement, " +
-		"listing " + rfcValueMirror(rfcAllSubject, "requirements") + " requirements at every " +
-		"level: the size of the lists, not a measure of Ze. Until 2026-10-31 this page led " +
-		"with Gated MUSTs, which counted every MUST row of the enrolled RFCs, annotated rows " +
-		"included, and a percentage proven by test taken over it. The sections replace both: each " +
-		"MUST row of a walked enrolled RFC sits in exactly one of them."
+	return "Of the " + rfcValueMirror(rfcEnrolledSubject, "rfcs") + " enrolled RFCs, " +
+		rfcValueMirror(rfcEnrolledSubject, "not-walked") + " have not been walked, so their rows " +
+		"are excluded from the figures above. Ze implements " + rfcValueMirror(rfcEnrolledSubject, "implemented") +
+		" of the enrolled RFCs, each with a public support entry. The rfc/short/ directory holds " + rfcValueMirror(rfcAllSubject, "rfcs") +
+		" summary files, including unenrolled RFCs and summaries that declare no requirements. " +
+		"They list " + rfcValueMirror(rfcAllSubject, "requirements") + " requirements across all " +
+		"levels. These totals describe the inventory. Until 2026-10-31 this page led with Gated " +
+		"MUSTs, which counted every MUST row of the enrolled RFCs, including annotated rows, " +
+		"and showed the percentage of that total proven by tests. The sections above replace " +
+		"those figures by classifying each MUST row of a walked enrolled RFC in exactly one section."
 }
 
 // rfcMarkedHTML escapes text for a page and turns each mirror mark in it into
@@ -1248,8 +1248,8 @@ func rfcProofCard(proven, units, escapes, stale int, where string) rfcCard {
 			"re-run. A test pair is not a proof until one has been observed",
 		Tone: rfcToneOK,
 		Rule: "green at every value: an observed break is the outcome the discrimination gate " +
-			"exists to produce. It counts TAGGED UNITS, not obligations, so this " +
-			"count is not one of the parts above"}
+			"exists to produce. This card counts tagged units separately, so its total cannot " +
+			"be added to the requirement counts above"}
 }
 
 // rfcGateWord and rfcGateTone answer the verdict the card and the status block
@@ -1306,8 +1306,8 @@ const (
 		"{not-applicable} annotation says it never bound; a {feature-declined} annotation says " +
 		"its condition is an optional feature Ze does not offer, and quotes the RFC sentence " +
 		"that makes it optional. An annotation whose evidence fails is not counted here: the " +
-		"figures count it as a Ze gap. Scope, not coverage: it is counted in the gated whole " +
-		"the cards on this page add up to"
+		"figures count it as a Ze gap. This classification records applicability and forms " +
+		"part of the gated total accounted for by the cards on this page"
 )
 
 // rfcNonBindingOf sums the buckets whose obligation does not bind Ze, over one

@@ -1,6 +1,6 @@
 # Verify and Debugging Workflow
 
-Use this page when `./le verify current` fails, when a test needs to be rerun narrowly, or when debug logging should be enabled without turning the whole run into noise.
+When a test fails, its failure report should identify the next command to run. This page explains how to read those reports and enable logging for the part of Ze under investigation.
 
 <!-- source: ../main/internal/le/verify/engine/run.go -- verify entry point -->
 <!-- source: ../main/internal/le/verify/lock/register.go -- verify lock -->
@@ -8,7 +8,7 @@ Use this page when `./le verify current` fails, when a test needs to be rerun na
 <!-- source: ../main/internal/test/trace/trace.go -- per-step trace output -->
 <!-- source: ../main/docs/guide/debugging-tools.md -- debugging tools -->
 
-`./le verify current` is the normal pre-handoff gate. It is staged, locked, and designed to tell a developer where to rerun. The changed-only command is useful during development, but a finished change should pass the shared gate that would catch cross-package and functional regressions.
+`./le verify current` is a release check, also run by GitHub CI on pushed commits. It is staged, locked, and reports commands for reproducing failures. During development, a change is checked with the tests for the packages and behavior it reaches; a full verification run is scheduled by the maintainer.
 
 ```bash
 ./le verify current fast
@@ -55,11 +55,11 @@ Functional runners emit per-step trace records. Human output shows the line and 
 VERIFY STEP: {"file":"test/web/foo.wb","step":13,"kind":"expect","status":"fail"}
 ```
 
-Trace output is available for `.ci`, `.wb`, and `.et`. Use it to locate the first broken transition, not the last assertion that happened to fail.
+Trace output is available for `.ci`, `.wb`, and `.et`. The first broken transition usually explains later assertion failures, so it is the useful place to begin.
 
 ## Debug logging
 
-Ze logging is controlled per subsystem through environment variables. Enable the narrow log that matches the failing surface.
+Ze logging is controlled per subsystem through environment variables. Enable the log for the subsystem involved in the failure.
 
 <table>
 <thead><tr><th>Surface</th><th>Example</th></tr></thead>
@@ -81,4 +81,4 @@ Flakes should be fixed at the source. Replace timing guesses with readiness chec
 
 ## Debugging order
 
-Use the failure index first, rerun the narrow command second, enable one debug log third, and escalate to QEMU or interop only when the contract needs that environment. After the fix, rerun the narrow command and then the gate that would have caught the regression.
+The failure index gives you a command for reproducing the problem. If its output is insufficient, enable logging for the affected subsystem. A kernel-dependent failure needs Linux, while a disagreement with another daemon needs the interoperability lab. After the fix, rerun the failing test and the other tests reached by the change; CI supplies the full verification.

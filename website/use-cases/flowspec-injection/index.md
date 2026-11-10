@@ -6,7 +6,7 @@ Use Ze to inject or relay BGP FlowSpec rules when an automation system must dist
 
 ## Choose the deployment shape
 
-Two common shapes are:
+The router can take either of these roles:
 
 1. A FlowSpec route reflector receives rules from an authorised controller and reflects them to clients.
 2. A protected router receives FlowSpec and translates accepted rules into local firewall actions.

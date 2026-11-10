@@ -165,7 +165,7 @@ func renderDependencies(paths Paths) ([]string, error) {
 		return nil, err
 	}
 
-	description := "Every direct Go dependency Ze ships with and why, generated from go.mod -- " +
+	description := "Ze's direct Go dependencies and why each is used, with versions from go.mod: " +
 		strconv.Itoa(data.total()) + " packages across " + strconv.Itoa(len(data.Categories)) + " groups."
 	shell := pageShell{
 		Title:       "Dependencies - Ze",
@@ -185,10 +185,9 @@ func renderDependencies(paths Paths) ([]string, error) {
 // dependenciesLead is the sentence the hero and the mirror both open with. The
 // code span is the one difference between the two, so it is a parameter.
 func dependenciesLead(codeSpan string, total int) string {
-	return "Ze is Go, and Go code leans on packages. " + strconv.Itoa(total) +
-		" direct dependencies, read straight from " + codeSpan +
-		" so the list and versions can't drift -- each one with a plain-English reason it's " +
-		"there, grounded in where it's actually imported, not its own pitch."
+	return "Ze uses " + strconv.Itoa(total) + " direct Go dependencies. The list and " +
+		"versions come from " + codeSpan + ", and each entry explains how Ze uses that " +
+		"dependency, with references to the code that imports it."
 }
 
 // dependenciesBody renders the page under <main>: the hero, the filter box, and

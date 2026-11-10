@@ -68,7 +68,7 @@ const homeTemplate = `        <div class="site-home">
                                             </dd>
                                         </div>
                                     </dl>
-                                    <p>Built on a configuration and protocol engine. Run it as a
+                                    <p>Ze is built on a configuration and protocol engine, and runs as a
                                         <a href="architecture/">daemon</a> or an
                                         <a href="guides/appliance/">immutable appliance</a>.</p>
                                 </div>
@@ -91,7 +91,7 @@ const homeTemplate = `        <div class="site-home">
                                     <div class="screen-media" data-cast-poster="43">{hero_demo}</div>
                                     <figcaption class="screen-description">
                                         <strong id="hero-demo-title">{hero_demo_title}</strong>
-                                        <p>Watch Ze at work: follow a real terminal lab, with its transcript alongside it.</p>
+                                        <p>The recording follows a terminal lab, and the transcript lets you read the commands and their output.</p>
                                         <a href="demos/terminal/">Watch the other demos →</a>
                                         <p class="capture-caption">Enlarged preview from the recording. Play shows the full terminal. Use full screen for a closer look.</p>
                                     </figcaption>
@@ -209,9 +209,9 @@ const homeTemplate = `        <div class="site-home">
                             Tests help catch changes that break existing behavior.
                             Go tests, end-to-end scenarios, protocol checks,
                             fuzzing and interoperability tests cover different
-                            failure modes. The figures describe the test suite
-                            and its coverage. Each card explains what is checked
-                            and links to how those checks work. Ze is written
+                            failure modes. The figures below describe the test suite
+                            and its coverage, with links explaining what each kind
+                            of test checks. Ze is written
                             with AI agents working under a quality process
                             based on ISO management systems;
                             <a href="project/ai-development/">how Ze is developed with AI</a>
@@ -220,7 +220,7 @@ const homeTemplate = `        <div class="site-home">
                     </div>
                     <div class="home-proof-actions">
                         <a class="button" href="quality/rfc-compliance/profiles/">See completion by use case</a>
-                        <a class="button" href="quality/">Read the evidence map</a>
+                        <a class="button" href="quality/">How Ze is tested</a>
                         <a class="button" href="demos/terminal/">Watch product demos</a>
                     </div>
                 </div>
@@ -349,10 +349,10 @@ const homeTemplate = `        <div class="site-home">
                         <span class="cat">Decision</span>
                         <h3><a href="project/why-ze/">Reasons to consider Ze</a></h3>
                         <p>
-                            Start here for the selling points: powerful CLI,
-                            operator protocols, in-engine IRR filtering,
-                            PeeringDB data, looking glass APIs, one YANG model,
-                            and when to choose another NOS instead.
+                            The overview explains the CLI and operator protocols,
+                            in-engine IRR filtering, PeeringDB data, looking glass
+                            APIs and shared YANG model. It also describes when
+                            another NOS may be a better choice.
                         </p>
                     </article>
                     <article class="card usp-card cat-platform">
@@ -375,7 +375,7 @@ const homeTemplate = `        <div class="site-home">
                     </article>
                     <article class="card usp-card cat-automate">
                         <span class="cat">Modular</span>
-                        <h3><a href="reference/plugins/">Plugins keep their own contract</a></h3>
+                        <h3><a href="reference/plugins/">Extend Ze with plugins</a></h3>
                         <p>
                             Plugins can be compiled Go modules or external
                             processes. Compiled modules load their YANG into the
@@ -389,8 +389,7 @@ const homeTemplate = `        <div class="site-home">
                 <div class="section-head reveal">
                     <h2 id="core-title">Documentation that matches the code.</h2>
                     <div class="reference-intro">
-                        <p>Read the generated references before you run Ze.</p>
-                        <p>The same YANG schema and command definitions drive Ze and its references. Each website build brings changes into the documentation, including configuration supplied by plugins.</p>
+                        <p>The configuration and command references come from the definitions used by Ze itself. When those definitions change, the next website build updates the reference, including settings supplied by plugins.</p>
                     </div>
                 </div>
                 <div class="reference-grid reveal">
@@ -443,9 +442,9 @@ const homeTemplate = `        <div class="site-home">
                 <div class="section-head reveal">
                     <h2 id="audience-title">Safe ways to try Ze before the first release.</h2>
                     <p>
-                        Ze is early enough that routing feedback can still
-                        change the system. These cards give each reader a
-                        low-risk starting point.
+                        Feedback from trying Ze can still influence its design.
+                        A lab, a migrated ExaBGP script or spare hardware gives
+                        you a way to try it before relying on it in production.
                     </p>
                 </div>
                 <div class="audience home-usecase-grid reveal">
@@ -455,8 +454,8 @@ const homeTemplate = `        <div class="site-home">
 
             <section id="try" class="home-section-panel home-section-panel-try" aria-labelledby="try-title">
                 <div class="section-head reveal cat-meta">
-                    <h2 id="try-title">First paths for routing feedback.</h2>
-                    <p>The BGP lab, ExaBGP migration, and appliance install are good starting points.</p>
+                    <h2 id="try-title">Getting started with Ze.</h2>
+                    <p>You can start with the BGP lab, try your ExaBGP configuration, or install the appliance on spare hardware.</p>
                 </div>
                 <div class="terminal-panel reveal">
                     <div class="terminal" aria-label="Quick start commands">
@@ -484,9 +483,10 @@ const homeTemplate = `        <div class="site-home">
                     <div class="terminal-note">
                         <span class="tag">Good starting points</span>
                         <p>
-                            A lab peer, a migrated ExaBGP config, or a
-                            looking-glass instance can produce useful reports
-                            from people who know routing operations.
+                            If you already run BGP, trying a lab peer, an ExaBGP
+                            configuration or a looking glass can help you judge
+                            how Ze fits your network. Reports of what went wrong
+                            help us improve it.
                         </p>
                         <div class="link-list">
                             <a href="labs/bgp-interop/"
@@ -518,8 +518,8 @@ const homeTemplate = `        <div class="site-home">
                 <div class="section-head reveal">
                     <h2 id="blog-teaser-title">Recent engineering notes.</h2>
                     <p>
-                        Update reports come from git history and Discord's
-                        <code>ze-news</code>. They stay specific and technical.
+                        The update reports describe changes recorded in git
+                        and shared in Discord's <code>ze-news</code> channel.
                     </p>
                 </div>
                 <div class="cards reveal">

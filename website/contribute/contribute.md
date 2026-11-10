@@ -1,11 +1,11 @@
 # Contributing to Ze
 
-Ze takes code, documentation, bug reports, and real-world interop reports. The repositories are public, the issue tracker is public, and development happens in the open.
+Contributions to Ze can be code, documentation, bug reports, or results from trying it with other routers. Development happens in the public repository and issue tracker.
 
 <div class="contribute-intro">
   <article class="contribute-route cat-meta">
     <span class="contribute-route-kicker">Code</span>
-    <h2>Fix the thing you can reproduce</h2>
+    <h2>Contribute a fix</h2>
     <p>Small, well-proven changes are welcome: parser fixes, command output fixes, protocol edge cases, docs corrections, and test coverage that catches real behavior.</p>
   </article>
   <article class="contribute-route cat-observe">
@@ -25,13 +25,13 @@ Ze takes code, documentation, bug reports, and real-world interop reports. The r
 <div class="contribute-contract cat-meta">
   <div>
     <span class="contribute-label">Hard requirement</span>
-    <h3>No signed CLA, no merge.</h3>
+    <h3>Every contribution requires a sign-off.</h3>
     <p>Contributions require signing off commits with <code>git commit -s</code>, which signifies agreement to Ze's <a href="https://github.com/ze-software/ze/blob/main/CLA.md">Contributor License Agreement</a>.</p>
     <p>You keep your copyright. What you grant is a broad, non-exclusive license for the Maintainer to use your contribution, including the right to relicense it, alone or combined with the rest of the project, under different license terms.</p>
   </div>
   <aside>
     <strong>Why this exists</strong>
-    <p>It keeps the project legally movable. Ze itself stays AGPLv3 for everyone, and the CLA avoids tracking down every past contributor if a commercial license ever helps the project reach more people.</p>
+    <p>The CLA lets the maintainer offer a commercial license without seeking fresh permission from every past contributor. Ze remains available to everyone under AGPLv3.</p>
   </aside>
 </div>
 
@@ -40,7 +40,7 @@ Ze takes code, documentation, bug reports, and real-world interop reports. The r
 <div class="contribute-funding cat-meta">
   <div>
     <span class="contribute-label">Stewardship</span>
-    <h3>Backed work, public project</h3>
+    <h3>Supported by Exa Networks</h3>
     <p>Ze is currently developed by Thomas Mangin, with his time on the project supported by <a href="https://exa.net.uk">Exa Networks</a>. There is no subscription tier, no paid support contract, and no separate commercial entity behind it today.</p>
     <p><a href="https://exa.net.uk">Exa Networks</a> has been backing this work since 2009, when it started with <a href="https://github.com/Exa-Networks/exabgp">ExaBGP</a>, Ze's predecessor.</p>
   </div>
@@ -62,7 +62,7 @@ Ze takes code, documentation, bug reports, and real-world interop reports. The r
   </a>
   <a class="contribute-action cat-meta" href="https://discord.gg/T8s7CjPDne">
     <span>Discussion</span>
-    <strong>Ask before guessing</strong>
+    <strong>Discuss a contribution</strong>
     <small>There is no formal good-first-issue program yet. Ask where help is most useful right now.</small>
   </a>
 </div>

@@ -232,11 +232,10 @@ func healthBody(record healthRecord, lookup *factLookup) string {
 	var body textbuf.Buffer
 	body.Str("            <section aria-labelledby=\"test-health-title\" class=\"md-content reveal cat-observe\">\n")
 	body.Str(pageHero("Testing Health",
-		"Not how many tests exist, but whether a regression would be caught. A suite can grow "+
-			//nolint:misspell // Recovered published prose: the page says "behaviour".
-			"forever while the share of behaviour it actually pins falls, and no count of tests can "+
-			"show that. Every metric here belongs to one of three questions; anything belonging to "+
-			"none is volume, and is deliberately absent.",
+		"These measures help assess whether Ze's tests would catch a regression. A growing "+
+			"suite can cover a smaller share of the program as the code changes, so its test "+
+			"count alone says little about the faults it would detect. Each measure addresses "+
+			"one of the three questions below.",
 		"Observe", ` id="test-health-title"`, heroClasses)).Byte('\n')
 	body.Str(healthStyle)
 	body.Str(healthAttention(record.Metrics, lookup))
@@ -484,9 +483,9 @@ func healthBucketTable(metric healthMetric, lookup *factLookup) (string, bool) {
 func healthTrends(history []map[string]any, lookup *factLookup) string {
 	var out textbuf.Buffer
 	out.Str(`<section class="th-trends"><h2>Evolution over time</h2>`).
-		Str("<p>Each row shows its sample count. A statistic without its <em>n</em> is ").
-		Str("an assertion, not a measurement, and a trend drawn through three points is ").
-		Str("noise with a direction.</p>").Str("<table><thead><tr><th>Series</th><th>Trend</th><th>Latest</th>").
+		Str("<p>Each row shows how many samples are available, so you can judge how much ").
+		Str("history supports the trend. With too few samples, a line can suggest a change ").
+		Str("that is only variation between runs.</p>").Str("<table><thead><tr><th>Series</th><th>Trend</th><th>Latest</th>").
 		Str("<th>Samples</th></tr></thead><tbody>")
 	for _, series := range testhealth.TrendSeries() {
 		values := healthSeriesValues(history, series.Key)

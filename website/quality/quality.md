@@ -1,6 +1,6 @@
 # Code Quality
 
-Ze's quality work has one rule: when something fails, the output should show what broke and what to run next. This page follows that path from a small Go test to the full release evidence.
+Ze uses different tests for package logic, running daemons, and behavior that depends on Linux or another router. This page explains which test fits a change and how a failure points to the next check.
 
 <!-- source: ../main/internal/le/testunit/actions.go -- unit and race actions -->
 <!-- source: ../main/internal/le/functional/actions.go -- functional suite actions -->
@@ -18,14 +18,14 @@ Ze's quality work has one rule: when something fails, the output should show wha
 <div class="quality-hero">
   <div class="quality-hero-card">
     <span class="quality-hero-kicker concept-evidence">Quality model</span>
-    <p>Ze uses several test layers because bugs show up in different places. Local Go tests check package behavior. Fuzz tests are Go tests that try many generated inputs. gomu changes the code and runs the same tests, which shows whether the assertions are strong. Functional transcripts check what an operator, peer, browser, or editor can see. QEMU and interop check the cases that need Linux or real peer daemons.</p>
-    <p>The layers can overlap, but each one has a job. A parser bug should leave behind a Go test or fuzz corpus entry. A survived gomu mutation means either the changed code was equivalent or the test did not check the behavior tightly enough. A CLI or daemon bug should become a functional transcript. A kernel bug should run in QEMU.</p>
+    <p>A package test can check a parser without starting Ze, but it cannot show that the daemon applies a new configuration or sends a route to another router. Functional transcripts exercise those operations through the running program. QEMU provides the Linux environment for kernel-dependent tests, while interoperability tests exchange messages with other implementations.</p>
+    <p>Fuzzing extends the inputs a Go test tries, and mutation testing with gomu checks whether its assertions detect a deliberate code change. A parser failure can then become a saved regression case. If a mutation survives, the reviewer must establish whether the changed code behaves equivalently or whether the test missed a defect.</p>
   </div>
   <div class="quality-meter" aria-label="Quality layers">
     <div class="quality-meter-row"><strong class="concept-evidence">Local</strong><span>Go tests, race runs, coverage, fuzz targets, and gomu run before the expensive gates.</span></div>
     <div class="quality-meter-row"><strong class="concept-evidence">Process</strong><span><code>.ci</code>, <code>.wb</code>, and <code>.et</code> files run Ze the way an operator, peer, browser, or editor would use it.</span></div>
     <div class="quality-meter-row"><strong class="concept-evidence">Linux</strong><span>QEMU runs the same tests where netlink, nftables, eBPF, PPP, and namespaces exist.</span></div>
-    <div class="quality-meter-row"><strong class="concept-evidence">Release</strong><span>Interop, deployment, performance, chaos, and release evidence compose the slow proof.</span></div>
+    <div class="quality-meter-row"><strong class="concept-evidence">Release</strong><span>Interop, deployment, performance, and chaos runs check behavior that package tests cannot establish.</span></div>
   </div>
 </div>
 
@@ -45,12 +45,12 @@ Ze's quality work has one rule: when something fails, the output should show wha
   <article class="quality-stage">
     <span class="quality-stage-number">3</span>
     <h3>Prove Linux behavior</h3>
-    <p>Linux behavior is tested on Linux, not guessed from macOS. A functional file can mark itself <code>option=needs-linux</code> and then run inside the QEMU Alpine image.</p>
+    <p>Tests that depend on the Linux kernel run on Linux. From macOS, a functional file marked <code>option=needs-linux</code> can run in QEMU using Ze's kernel and system image.</p>
   </article>
   <article class="quality-stage">
     <span class="quality-stage-number">4</span>
     <h3>Prove release behavior</h3>
-    <p>Before broad evidence is claimed, Ze runs real peer daemons, deployment checks, performance gates, chaos scenarios, and release reports instead of trusting local fixtures.</p>
+    <p>Release checks include peer daemons, deployment tests, performance measurements, and chaos scenarios. Together these exercise interactions and failure conditions beyond the fixtures used in package tests.</p>
   </article>
 </div>
 
@@ -81,7 +81,7 @@ Ze's quality work has one rule: when something fails, the output should show wha
 <tr><td>Rendered web UI behavior or interactive editor behavior</td><td><code>.wb</code> under <code>test/web/</code>, <code>.et</code> under <code>test/editor/</code></td><td><a href="browser-editor/">Browser and editor tests</a></td></tr>
 <tr><td>Linux kernel behavior, real peer compatibility, deployment, or release evidence</td><td>QEMU, Docker interop, deployment scripts, perf gates</td><td><a href="qemu-interop-release/">QEMU, interop, and release evidence</a></td></tr>
 <tr><td>A failing verify run that needs a clear rerun command</td><td>Verify stages, failure groups, trace output, debug logs</td><td><a href="verify-debugging/">Verify and debugging workflow</a></td></tr>
-<tr><td>Whether the suite would actually catch a regression, not how large it is</td><td>Proof density, tests that cannot fail, tests nothing runs, ratchets, KPI history</td><td><a href="health/">Testing health</a></td></tr>
+<tr><td>Whether the suite would catch a regression</td><td>Proof density, tests that cannot fail, tests nothing runs, ratchets, KPI history</td><td><a href="health/">Testing health</a></td></tr>
 <tr><td>RFC requirement coverage, public gap disclosure, or AI agent test-change guards</td><td><code>./le rfc check</code>, RFC test tags, status-ledger agreement, audit freshness</td><td><a href="rfc-compliance/">RFC compliance gate</a></td></tr>
 </tbody>
 </table>
@@ -98,8 +98,8 @@ go run github.com/sivchari/gomu/cmd/gomu run --incremental --base-branch=main --
 ./le test bgp plugin 42 -v</code></pre>
   </article>
   <article class="quality-command">
-    <h3>Handoff gate</h3>
-    <p>Use the shared gate before handing over normal work.</p>
+    <h3>Release verification</h3>
+    <p>GitHub CI runs full verification on pushed commits. The maintainer can also schedule a release check; day-to-day changes use the tests they reach.</p>
     <pre><code>./le verify current
 ./le verify current fast
 ./le repo check</code></pre>
@@ -116,11 +116,11 @@ go run github.com/sivchari/gomu/cmd/gomu run --incremental --base-branch=main --
 
 ## How a failure becomes useful
 
-`./le verify current` is more than a command wrapper. It takes a lock so two heavy runs do not corrupt each other, writes per-stage logs under `tmp/`, groups related failures, and prints the rerun commands. The functional runner adds per-step traces for `.ci`, `.wb`, and `.et` files. BGP expectations decode wire messages before showing differences, so a failed UPDATE is reported as protocol structure instead of a long hex string.
+`./le verify current` writes per-stage logs under `tmp/`, groups related failures, and prints the rerun commands. Its lock prevents overlapping verification runs. The functional runner adds per-step traces for `.ci`, `.wb`, and `.et` files. BGP expectations decode wire messages before showing differences, so a failed UPDATE is reported as protocol fields that can be compared.
 
 <div class="quality-panel">
   <h3>The rule</h3>
-  <p>Do not hide a failure with a skip or a loose assertion. Move the proof to the layer that can see the real behavior, rerun the narrow command, then rerun the gate that should have caught the regression.</p>
+  <p>A failure needs a test that can observe the required behavior. After correcting the cause, rerun that test while preserving its assertions. Wider verification belongs in CI and the release check.</p>
 </div>
 
 ## File formats

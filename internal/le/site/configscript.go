@@ -93,7 +93,7 @@ const configBrowserScript = `        <script>
                                 esc(y.file) + "</code></a>";
                         }).join(", ");
                         return "<code>" + esc(p.name) + "</code>" +
-                            (links ? " &mdash; " + links : "");
+                            (links ? ": " + links : "");
                     }
                     if (o.plugins.length === 1)
                         return '<p class="config-owner-detail">Provided by ' +
@@ -107,8 +107,8 @@ const configBrowserScript = `        <script>
                     var ctx = ownerContext(pathStr);
                     if (ctx.owner) return ownerLine(ctx.owner);
                     if (ctx.core)
-                        return '<p class="config-owner-detail">Core configuration ' +
-                            "&mdash; no plugin owner.</p>";
+                        return '<p class="config-owner-detail">This configuration belongs to ' +
+                            "the core.</p>";
                     return '<p class="config-owner-detail">Part of a plugin-shared ' +
                         "container (" + esc(ctx.shared.label) + ").</p>";
                 }

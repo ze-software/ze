@@ -1,6 +1,6 @@
 # Local Go Tests, Fuzzing, and gomu
 
-Use this page for the local Go test layer: named `_test.go` cases, race runs, coverage, fuzz targets, and gomu mutation testing. These checks are one system. They all ask whether package-level behavior is proved well enough before the slower gates run.
+This page covers package tests in Go and ways to examine their coverage and assertions. Named `_test.go` cases establish expected results, fuzz targets try more inputs, and gomu changes the code to see whether the tests detect a mistake. Race runs check for unsafe concurrent access.
 
 <!-- source: ../main/internal/le/testunit/actions.go -- unit test actions -->
 <!-- source: ../main/internal/le/fuzz/actions.go -- fuzz actions -->
@@ -24,7 +24,7 @@ Start with a normal Go test. It names the behavior and fixes the expected result
 </tbody>
 </table>
 
-Fuzzing without a clear rule is just random input. gomu without real assertions only proves that code was executed. The normal example test gives both tools something precise to extend.
+Fuzzing needs an assertion that should hold across its generated inputs. Mutation testing needs assertions that distinguish correct behavior from the deliberate mistake. A named example test is a useful starting point for both.
 
 ## Example tests
 
@@ -65,7 +65,7 @@ go run github.com/sivchari/gomu/cmd/gomu run --incremental=false --fail-on-gate=
 ./le test mutation record report mutation-report.json
 ```
 
-This complements fuzzing. Fuzzing changes the inputs and keeps the implementation fixed. gomu changes the implementation and keeps the tests fixed. Together they show whether a test is broad enough and sharp enough.
+Fuzzing and mutation testing expose different weaknesses. Fuzzing may find an input the author overlooked, while gomu may show that an existing assertion accepts an incorrect result. Using both helps reviewers examine what the tests actually establish.
 
 <table>
 <thead><tr><th>gomu result</th><th>Meaning</th><th>Response</th></tr></thead>

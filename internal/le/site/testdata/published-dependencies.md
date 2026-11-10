@@ -1,6 +1,6 @@
 # Dependencies
 
-Ze is Go, and Go code leans on packages. 42 direct dependencies, read straight from `go.mod` so the list and versions can't drift -- each one with a plain-English reason it's there, grounded in where it's actually imported, not its own pitch.
+Ze uses 42 direct Go dependencies. The list and versions come from `go.mod`, and each entry explains how Ze uses that dependency, with references to the code that imports it.
 
 ## Terminal, Web & SSH Interfaces (9)
 

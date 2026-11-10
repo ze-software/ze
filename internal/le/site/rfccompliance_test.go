@@ -582,7 +582,7 @@ func TestTheRFCComplianceMirrorReadsAsThePublishedMirror(t *testing.T) {
 		"| Enrolled RFCs | 1 |",
 		// rfc.Implements over the fixture: rfc9998 is enrolled and renders a
 		// public row, so the count the retired proof share took is 1.
-		"Ze implements 1 of them: the enrolled RFCs that render a public row.",
+		"Ze implements 1 of the enrolled RFCs, each with a public support entry.",
 		"| Resolved test tags | 3,595 |",
 		"| Declared gaps | 518 |",
 		"| RFCs with declared gaps | 80 |",

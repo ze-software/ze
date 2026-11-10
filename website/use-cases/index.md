@@ -2,7 +2,7 @@
 
 Use these pages when you want Ze to play a concrete role in a network.
 
-They are deployment examples: the Ze config, the neighbouring network config, and the lab evidence behind each setup. Feature guides explain every knob. Use-case pages show how the knobs fit together.
+Each example brings together the Ze configuration, the neighboring router configuration, and the lab checks for that setup. The feature guides describe individual settings; these pages explain how to combine them for a network role.
 
 To see how complete each use case is, the [completion by use case](../quality/rfc-compliance/profiles/) page counts the RFC requirements its tests prove.
 
@@ -21,7 +21,7 @@ To see how complete each use case is, the [completion by use case](../quality/rf
 
 ## What belongs here
 
-Use-case pages are for complete operator shapes:
+Each use case includes:
 
 - A topology with clear addresses and ASNs.
 - A full Ze config for the role.
