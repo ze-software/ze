@@ -51,8 +51,8 @@
     "claim-sha": "2a29546007121e1d",
     "route": "revert",
     "producer": "internal/component/ike/engine/responder.go::espProposalMatches",
-    "producer-sha": "bec5a1b2e45da33e",
-    "break": "body of espProposalMatches replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "6a205e2f2f9e5798",
+    "break": "body of espProposalMatches replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7296-3.3.6-5",
