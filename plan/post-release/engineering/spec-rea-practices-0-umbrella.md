@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-09 |
+| Updated | 2026-11-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -27,7 +27,7 @@ REA practices compared with Ze on 2026-11-08, and where each one goes:
 | # | REA practice | REA source | Ze today | Home |
 |---|--------------|------------|----------|------|
 | 1 | The MCP tool catalog is measured as context cost on real agent clients, compatibility profiles keep it loadable, and per-client lanes prove a real client loads it | REA `docs/mcp-catalog-evaluation.md`, `docs/development/client-verification.md`, `docs/reference/mcp-contracts.md` "Compact input schema profile" | Every operator command reaches MCP as a derived tool (`ai/META-DECISIONS.md`), and nothing measures what the catalog costs an agent or tests a real client | `plan/post-release/features/spec-rea-practices-1-mcp-catalog-cost.md` |
-| 2 | An inventory of every user-visible error, ranked by harm, with current copy, proposed copy, status and verification | REA `docs/user-visible-errors.csv` (126 rows) | `ai/rules/user-facing-errors.md` states the rule; nothing measures which messages meet it | `plan/post-release/engineering/spec-rea-practices-2-error-inventory.md` |
+| 2 | An inventory of every user-visible error, ranked by harm, with current copy, proposed copy, status and verification | REA `docs/user-visible-errors.csv` (126 rows) | `ai/rules/user-facing-errors.md` states the rule; nothing measures which messages meet it | Done: `spec-rea-practices-2-error-inventory`, closed 2026-11-10; `./le arch error-inventory report` and `check` (`docs/contributing/error-inventory.md`) |
 | 3 | A lifecycle regression scenario list that each start-up, cancellation or cleanup change selects from | REA `docs/development/testing.md` "Lifecycle regressions" | `ai/rules/goroutine-lifecycle.md` covers goroutines, not plugin process supervision or reload scenarios | Done: `ai/rules/testing.md`, "Lifecycle Regressions" (points under `ai/rules/points/testing/lifecycle-regressions/`), and the testing trigger now names plugin supervision, config reload and daemon stop |
 | 4 | Fix the tool's result before writing skill or doc advice about it | REA `AGENTS.md` "Tool and Test Changes" | Close to `ai/rules/user-facing-errors.md`, not stated for MCP and agent-facing output | Done: `ai/rules/writing.md`, "Documentation", point `fix-the-tool-output-before-writing-advice-about-it` |
 
@@ -43,7 +43,7 @@ are committed.
 | Child | Owns |
 |-------|------|
 | `plan/post-release/features/spec-rea-practices-1-mcp-catalog-cost.md` | Item 1 |
-| `plan/post-release/engineering/spec-rea-practices-2-error-inventory.md` | Item 2 |
+| `spec-rea-practices-2-error-inventory` (closed 2026-11-10) | Item 2 |
 
 ## Required Reading
 

@@ -446,3 +446,163 @@ Real-tree run, 2026-11-10 (commit fdd671e32f plus the working tree), `./le arch 
 - [ ] `/ze-review` gate clean
 - [ ] **Commit A:** code + tests + docs + edited spec
 - [ ] **Commit B:** `remove plan/post-release/engineering/spec-rea-practices-2-error-inventory.md` only
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `internal/le/arch/errorinventory` (fdd671e32f, 0866eb06f6): the `writers` table (writers.go), the syntactic classifier (classify.go `classify`, `carries`, `isOperatorError`, `namesCommand`), the tree parse (scan.go `writerRows`, `indexTree`), the merge of the two sibling site lists (merge.go `operatorErrorRows`, `doctorCoverageRows`, `mergeRows`, `checkFloor`), `Scan` and `preRankOf` (inventory.go), the `report` and `check` actions (actions.go), and the commit judge `judgeChange` registered through `changecheck.Register` (register.go, report.go); one blank import in `internal/le/register.go`
+- `internal/le/arch/doctorcoverage` (10c6647f6d): `KindDoctorFinding` sites from `diagnostic.Diagnostic` literals (sites.go `findingsOf`, `findingSite`), judged `fix-set` or `no-fix` (doctorcoverage.go `judge`), refused when added with no `Fix`; `ScanSide` export (0866eb06f6)
+- `internal/le/arch/operatorerror` (03eba266ff): a zero `opererr.Error` literal is plain (`zeroOpererr`); `SitesOnSide` export (0866eb06f6)
+- `internal/le/ai/rules/changeset.go` (9f61958693): the gate map discovers every `changecheck.Register` under `internal/le` and binds that package's `// ze point:` comments to the check
+
+### Bugs Found/Fixed
+- Exponential literal-text walk over buffer writes (classify.go `chainArgFragments`), covered by `TestErrorInventoryReadsEveryBufferWrite`
+- operator-error typed a zero `&opererr.Error{}` literal (operatorerror.go `zeroOpererr`), covered by the judge-approved `operatorerror_test.go` change in 03eba266ff
+- The gate map bound no change-set check, so the `// ze point:` comments in operator-error and doctor-coverage were dead text (changeset.go), covered by `changeset_test.go`
+
+### Documentation Updates
+- `docs/contributing/error-inventory.md` (new), `docs/contributing/README.md`, `ai/INDEX.md`, `ai/rules/user-facing-errors.md` and its point file, `docs/contributing/committing.md` (three change-set checks), `docs/architecture/doctor-and-health-checks.md` (doctor findings, `ScanSide`), `docs/architecture/cli/error-surface.md` (zero literal is plain, `SitesOnSide`), `docs/contributing/rule-authoring.md` (change-set bindings)
+- At closure: `docs/contributing/error-inventory.md` "Adding a writer" corrected; `shapeMethod` matches the method name inside the package on any receiver (writers.go `matchesCall`), and `shapeFinding` was missing from the table
+- `./le doc check all`: only the pre-existing wiki command-catalog drift of another session (main thread run)
+
+### Deviations from Plan
+- The AC-7 test sits in `internal/le/arch/errorinventory/register_test.go`, not `internal/le/commit`: the package imports `internal/le/commit`, so a test there is an import cycle. It runs the registered check through `changecheck.Run`, the call `./le commit create` makes
+- AC-8 needed the gate-map change in `internal/le/ai/rules` (Design Insights)
+- A `grpc` surface, split from gNMI by directory (writers.go `gnmiDir`)
+- A-4: classification is syntactic, not `go/types`
+
+## Mistake Log
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-4 assumed `go/types` classification | The sibling scans parse without type-checking; classification is syntactic | Phase 3 | Known Limitations row; stated on the page |
+| assumption | A-5 assumed doctor-coverage listed `Diagnostic` literals | Neither sibling listed them | Phase 1 re-read | AC-10 added to doctor-coverage |
+| approach | The first literal-text walk was exponential in buffer writes | It re-resolved the buffer's own name for each earlier write | The real-tree run did not finish in 10 minutes | `chainArgFragments`, red-first test |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| G-1 report of every site with surface, location, owner, door, status, pre-rank, counts | Done | inventory.go `Scan`; report.go `treeReport`, `TreeReport.Text` | Real-tree counts in Design Insights |
+| G-2 status read from the code | Done | classify.go `classify`; merge.go `operatorErrorStatus`, `doctorCoverageStatus` | |
+| G-3 check refuses an added plain writer message | Done | report.go `judgeChange`, `refused`, `addedRows`; actions.go `runCheck` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestErrorInventoryReportThroughAction` | |
+| AC-2 | Done | `TestErrorInventoryMergesSourcesOnce` | |
+| AC-3 | Done | `TestErrorInventoryClassifiesWriterArgument` | |
+| AC-4 | Done | `TestErrorInventoryJournalShapes` | testdata/journal |
+| AC-5 | Done | `TestErrorInventoryCheckRefusesAddedPlainSite`, `TestErrorInventoryCheckLeavesOtherGatesSites`, `TestErrorInventoryCheckIgnoresExistingSites` | |
+| AC-6 | Done | `TestErrorInventoryReportThroughAction` (JSON through the shared renderer) | |
+| AC-7 | Done | `TestErrorInventoryChangeCheckRegistered`, `TestCommitCreateRefusesAddedPlainWebSite` | Deviation: test location |
+| AC-8 | Done | binding above report.go `CheckReport.Text`; gate map lists `arch error-inventory check` under the cause-and-fix point (main thread run: 70 bindings, 46 checks) | |
+| AC-9 | Done | `docs/contributing/error-inventory.md`; pointers in `ai/rules/user-facing-errors.md`, `ai/INDEX.md`, `docs/contributing/README.md` | |
+| AC-10 | Done | `TestDoctorCoverageListsDiagnosticLiterals`, `TestDoctorCoverageCheckRefusesAddedFindingWithoutFix`; the inventory side over `testdata/findings` in `inventory_test.go` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestErrorInventoryReportThroughAction` | Done | `internal/le/arch/errorinventory/actions_test.go` | |
+| `TestErrorInventoryMergesSourcesOnce` | Done | `internal/le/arch/errorinventory/inventory_test.go` | |
+| `TestErrorInventoryClassifiesWriterArgument` | Done | `internal/le/arch/errorinventory/classify_test.go` | |
+| `TestErrorInventoryPreRank` | Done | `internal/le/arch/errorinventory/inventory_test.go` | Ranks 0 and 4 refused |
+| `TestErrorInventoryCheckRefusesAddedPlainSite` | Done | `internal/le/arch/errorinventory/actions_test.go` | |
+| `TestErrorInventoryCheckLeavesOtherGatesSites` | Done | `internal/le/arch/errorinventory/actions_test.go` | |
+| `TestErrorInventoryCheckIgnoresExistingSites` | Done | `internal/le/arch/errorinventory/actions_test.go` | |
+| `TestErrorInventoryJournalShapes` | Done | `internal/le/arch/errorinventory/inventory_test.go` | |
+| `TestDoctorCoverageListsDiagnosticLiterals` | Done | `internal/le/arch/doctorcoverage/doctorcoverage_test.go` | |
+| `TestDoctorCoverageCheckRefusesAddedFindingWithoutFix` | Done | `internal/le/arch/doctorcoverage/check_test.go` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/le/register.go` | Done | blank import |
+| `internal/le/arch/doctorcoverage` | Done | 10c6647f6d |
+| `internal/le/arch/errorinventory/` | Done | fdd671e32f, 0866eb06f6 |
+| `docs/contributing/error-inventory.md` | Done | |
+| `docs/architecture/doctor-and-health-checks.md` | Done | |
+| `ai/rules/user-facing-errors.md`, `ai/INDEX.md`, `docs/contributing/README.md` | Done | 0866eb06f6 |
+| `internal/le/arch/operatorerror` | Changed | planned none; zero-literal fix and `SitesOnSide` |
+| `internal/le/ai/rules/changeset.go` | Changed | not planned; AC-8 |
+
+### Audit Summary
+- **Total items:** 3 requirements, 10 ACs, 10 tests, 8 file rows
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 file rows, recorded in Deviations
+
+## Goal Validation (BLOCKING)
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| G-1 | real-tree run | `./le --name session arch error-inventory report` rc=0 in 16 s, per-surface counts in Design Insights; the log and doctor rows agree with `./le arch doctor-coverage report` (2640 = 2413 + 227) |
+| G-2 | unit test over fixtures | `TestErrorInventoryClassifiesWriterArgument`, `TestErrorInventoryJournalShapes` (pre-fix forms plain, fixed forms typed or plain-names-command) |
+| G-3 | commit seam test | `TestCommitCreateRefusesAddedPlainWebSite` runs the registered judge through `changecheck.Run`; `TestErrorInventoryCheckLeavesOtherGatesSites` proves R-6 |
+
+## Work Not Done
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is done | - |
+
+## Review Gate
+| Field | Value |
+|-------|-------|
+| Artifact | recorded by `./le spec review record` at closure (path in the closure report) |
+| `./le spec review check` | clean |
+| Rounds | 2 |
+| Reviewer lenses used | wiring and logic (classifier, merge, judge), guard audit (fails closed: floors, unspecified enums refused, unparsable file is an error), docs against source; `./le test weakened check base 67e4057227^` clean over 25 test files |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The page said `shapeMethod` matches a method on a named receiver; `matchesCall` matches the method name on any receiver inside the package, and `receiver` only labels the row. `shapeFinding` was absent from the table | `docs/contributing/error-inventory.md` "Adding a writer" against writers.go `matchesCall` | Page row rewritten at closure |
+
+### NOTEs (do not block)
+- merge.go `mergeRows` keys by file and line within one source too, so two writer calls or two elided finding literals on one line count once in `report`; the commit judge (report.go `addedRows`) is not merged and still sees both
+- classify.go `localBinding` also walks function literals' parameters, and a name declared `*opererr.Error` reads typed without its value; both lean typed only in contrived code
+- The commit judge parses the whole tree twice per Go commit and answers exit 3 on any unparsable working-tree file, as its two siblings do
+
+### Run 2
+- Re-read the edited page row against writers.go `matchesCall` and `literalWriter`: 0 BLOCKER, 0 ISSUE
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/arch/errorinventory/` (register, actions, writers, classify, scan, inventory, merge, report, tests, testdata) | Yes | `git show --stat fdd671e32f 0866eb06f6` |
+| `docs/contributing/error-inventory.md` | Yes | `git show --stat fdd671e32f` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-7, AC-10 | the named tests exist | `grep -rln "func <name>(" internal/le/` found each in the file the audit names |
+| all | package tests green | main thread: `./le job run label unit-pkg command go test -race` ok for errorinventory, operatorerror, doctorcoverage, `internal/le/ai/rules/...`, and `-run TestChangeCheck ./internal/le/commit/` |
+| AC-8 | gate map lists the check | main thread: `./le ai rules report gate-map`, the cause-and-fix point lists all three arch checks |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le arch error-inventory report` | none (le tool, action test) | register.go `init` registers `Answer`; `TestErrorInventoryReportThroughAction` runs the registered action |
+| `./le commit create` | none | register.go `changecheck.Register(... judgeChange)`; `TestCommitCreateRefusesAddedPlainWebSite` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken (partly) | status judged by type at the writer; Mistake Log |
+| A-2 | confirmed | both release specs closed (closure SHAs in the row) |
+| A-3 | confirmed | Thomas, 2026-11-10 |
+| A-4 | broken (partly) | syntactic classification; Known Limitations |
+| A-5 | broken (partly) | resolved by AC-10 in doctor-coverage |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| CLI command added (le) | actions.go `actions` verbs `check`, `report`; the page's action table | Yes |
+| Commit gate list | `docs/contributing/committing.md` row `arch error-inventory` against register.go | Yes |
+| Writer table and statuses | the page against writers.go `writers` and classify.go `namesCommand` | Yes, after the closure fix |
+| No product page | the spec ships nothing in `ze` (Behavior to preserve) | Yes |

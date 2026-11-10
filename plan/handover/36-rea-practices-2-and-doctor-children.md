@@ -10,7 +10,7 @@ and all that can be done". Nothing is pushed; a push needs his order.
 
 | # | Work | State | First action |
 |---|------|-------|--------------|
-| 1 | `plan/post-release/engineering/spec-rea-practices-2-error-inventory.md` (code-derived user-visible error inventory, option A, harm pre-rank) | `design`; both dependencies closed; current-state text refreshed (aa8c59a0aa) | Apply the two decisions below, set `ready`, claim, implement |
+| 1 | `spec-rea-practices-2-error-inventory`, closed 2026-11-10 (code-derived user-visible error inventory, option A, harm pre-rank) | `design`; both dependencies closed; current-state text refreshed (aa8c59a0aa) | Apply the two decisions below, set `ready`, claim, implement |
 | 2 | `plan/post-release/engineering/spec-rea-practices-0-umbrella.md` | `skeleton`; closes after children 1 and 2 | Close once 1 and 3 are done |
 | 3 | `plan/post-release/features/spec-rea-practices-1-mcp-catalog-cost.md` | `in-progress`; code landed (a6199d11d8); only AC-7 owed | AC-7 is Thomas's real-client lane run; close the spec after he records the result row |
 | 4 | Doctor area children `plan/release/validation/spec-doctor-coverage-<n>-<area>.md`, n = 3..15, plus the existing child 2 (`home-cpe-batch`) | all `ready`, P2 release work, about 650 ACs | Child 12 (plugin-infra) first: every other child depends on its phases P0a (cross-cutting codes, transient-code registration, a raise carrying its fix) and P0b (the plugin-protocol report-bus route). One spec per session |

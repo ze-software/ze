@@ -113,7 +113,7 @@ else in the package changes. The row says:
 | Field | What it holds |
 |-------|---------------|
 | `surface` | the surface the message reaches; a new surface is a new `Surface` value and its count line |
-| `shape` | how the writer is called: a function (`shapeCall`), a method on a named receiver (`shapeMethod`, with `receiver`), a print to `os.Stderr` (`shapeStderrPrint`, `shapeStderrMethod`), a composite literal of a type (`shapeLiteral`) |
+| `shape` | how the writer is called: a function (`shapeCall`), an unexported method (`shapeMethod`: any call of that method name inside the package at `path`, on any receiver expression, because the syntax cannot name the receiver's type; `receiver` only names the row in the report), a print to `os.Stderr` (`shapeStderrPrint`, `shapeStderrMethod`), a composite literal of a type (`shapeLiteral`), or a composite literal of an `./le` struct type whose name ends in `Finding` (`shapeFinding`) |
 | `path`, `ident` | the import path and name the call or type resolves to; an unexported helper is matched in its own package |
 | `message` | the span of arguments or literal elements that carry the message: from `first` up to but excluding `last`, `last` 0 meaning through the end |
 | `within` | optional: limit the row to these directories, placed before a broader row of the same writer |
