@@ -1,4 +1,4 @@
-// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- RFC 7296 Section 3.3.6 on the responder's Child SA selection.
+// Design: docs/architecture/ike/ipsec-6-ikev2-crypto.md -- RFC 7296 Section 3.3.6, an ESP offer missing a mandatory Transform Type.
 // Related: rfc7296_esn_test.go -- the ESN values the responder answers and the initiator accepts.
 
 package engine
@@ -16,11 +16,13 @@ import (
 // mandatory Transform Type, it MUST consider this proposal unacceptable" (RFC 7296 Section
 // 3.3.6). RFC 7296 Section 3.3.3 makes ENCR and ESN the mandatory types of ESP, so an ESP
 // proposal that carries ze's suite but no Extended Sequence Numbers transform is refused
-// with NO_PROPOSAL_CHOSEN by both responder selections: selectResponderESP (the Child SA of
-// IKE_AUTH) and selectNewChildESP (a new Child SA by CREATE_CHILD_SA).
+// with NO_PROPOSAL_CHOSEN by every responder selection: selectResponderESP (the Child SA of
+// IKE_AUTH), selectNewChildESP (a new Child SA by CREATE_CHILD_SA) and respondChildRekey (a
+// Child SA rekey by CREATE_CHILD_SA).
 // RFC requirement: RFC7296-3.3.6-4 positive -- "however, other proposals in the same SA
 // payload are processed as usual": with that proposal first and the same suite plus ESN 0
-// second, both selections accept the second, and the Proposal Num they echo is its.
+// second, both new-SA selections accept the second, and the Proposal Num they echo is its.
+// The rekey accepts the same suite with ESN 0, so its refusal is the missing type alone.
 //
 // Method: the product selection entry points over hand-built SA payloads. The two offers
 // differ only in the ESN transform, so a refusal of the first names the missing type.
@@ -71,4 +73,39 @@ func TestRFC7296ResponderRefusesESPOfferMissingESN(t *testing.T) {
 			t.Errorf("selected proposal %d, want the complete second one", number)
 		}
 	})
+
+	t.Run("child-rekey-refuses", func(t *testing.T) {
+		sa, old, dp, log := peerRekeyFixture(t)
+		_, child, err := respondChildRekey(sa, esnRekeyRequest(t, missing), old, 5, dp, log)
+		if !errors.Is(err, crypto.ErrNoProposalChosen) {
+			t.Fatalf("a Child SA rekey offer with no ESN transform was answered with %v, want NO_PROPOSAL_CHOSEN", err)
+		}
+		if child != nil {
+			t.Error("a replacement Child SA was installed for a refused rekey offer")
+		}
+	})
+
+	t.Run("child-rekey-accepts-esn-0", func(t *testing.T) {
+		sa, old, dp, log := peerRekeyFixture(t)
+		complete := esnSAPayload(t, 1, espESNNotExtended)
+		_, child, err := respondChildRekey(sa, esnRekeyRequest(t, complete), old, 5, dp, log)
+		if err != nil {
+			t.Fatalf("the same rekey offer with ESN 0 was refused, so the refusal above is not the missing type: %v", err)
+		}
+		if child == nil {
+			t.Fatal("the rekey offer with ESN 0 installed no replacement Child SA")
+		}
+	})
+}
+
+// esnRekeyRequest builds the CREATE_CHILD_SA rekey a peer sends with the given SA payload,
+// inside the scope peerRekeyFixture has in use. The peer sent Ni, so its own side is TSi.
+func esnRekeyRequest(t *testing.T, offer *wire.PayloadSA) []wire.PayloadEntry {
+	t.Helper()
+	return []wire.PayloadEntry{
+		{Payload: offer},
+		{Payload: &wire.PayloadNonce{NonceData: testNonce(3)}},
+		{Payload: tsPayload(t, wire.PayloadTypeTSi, "10.2.0.0/24")},
+		{Payload: tsPayload(t, wire.PayloadTypeTSr, "10.1.0.0/24")},
+	}
 }

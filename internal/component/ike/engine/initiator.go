@@ -864,8 +864,10 @@ func wireESPOffer(espGroup ipsec.ESPGroup, spi uint32, dh crypto.DHGroupID) ([]w
 //
 // So this value is what ze OFFERS, what it ANSWERS with, and the only value it can
 // accept from a peer. espProposalMatches (responder.go) refuses an offer that includes
-// Transform Type 5 without it, and acceptedESPESNConsistent (above) refuses a response
-// that selects anything else, or nothing. Adding ESN to the datapath is
+// Transform Type 5 without it, and an offer with no Transform Type 5 at all, which
+// misses a type RFC 7296 Section 3.3.3 makes mandatory for ESP. acceptedESPESNConsistent
+// (above) refuses a response that selects anything else, or nothing. Adding ESN to the
+// datapath is
 // plan/post-release/features/spec-ipsec-12-esn.md; until it lands, honesty about the
 // absence is the conformant answer.
 const espESNNotExtended uint16 = 0

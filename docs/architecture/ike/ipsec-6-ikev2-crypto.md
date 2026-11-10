@@ -140,6 +140,9 @@ Numbers transform does not match. The responder then tries the peer's next propo
 on IKE_AUTH (`selectResponderESP`), a new Child SA (`selectNewChildESP`) and a Child
 SA rekey alike, and answers NO_PROPOSAL_CHOSEN when none is left. An offer that
 carries ESN but not value 0 is refused too, because value 0 is the only one Ze keys.
+The two refusals stay apart: the mandatory-type mask owns the presence of ESN
+(Sections 3.3.3 and 3.3.6), and the value check, which runs only when the offer
+carries an ESN transform, owns its value (Section 3.3.2).
 
 <!-- source: internal/component/ike/crypto/proposal.go -- MandatoryTransformTypesESP, protocolTransformTypes -->
 <!-- source: internal/component/ike/engine/responder.go -- espProposalMatches, selectResponderESP -->

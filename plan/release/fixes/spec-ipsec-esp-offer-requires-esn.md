@@ -107,6 +107,7 @@ the missing-type half was still open, and this spec owns it.
 |-------------|---|--------------|------|
 | IKE_AUTH SAi2 that omits ESN | → | `selectResponderESP` → `espProposalMatches` | `TestRFC7296ResponderRefusesESPOfferMissingESN/ike-auth-refuses` |
 | CREATE_CHILD_SA SA that omits ESN | → | `selectNewChildESP` → `espProposalMatches` | `TestRFC7296ResponderRefusesESPOfferMissingESN/create-child-refuses` |
+| CREATE_CHILD_SA Child SA rekey that omits ESN | → | `respondChildRekey` → `matchOfferedESP` → `espProposalMatches` | `TestRFC7296ResponderRefusesESPOfferMissingESN/child-rekey-refuses` |
 | Two daemons negotiating IKE_AUTH and a Child SA rekey | → | the same reader over Ze's own offer, which carries ESN 0 | `test/ipsec/ipsec-sa-installed.ci`, `test/ipsec/ipsec-child-rekey.ci` |
 
 ## Acceptance Criteria
@@ -122,7 +123,7 @@ the missing-type half was still open, and this spec owns it.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestRFC7296ResponderRefusesESPOfferMissingESN` | `internal/component/ike/engine/rfc7296_esp_mandatory_type_test.go` | AC-1, AC-2 on IKE_AUTH and CREATE_CHILD_SA | written, not run |
+| `TestRFC7296ResponderRefusesESPOfferMissingESN` | `internal/component/ike/engine/rfc7296_esp_mandatory_type_test.go` | AC-1, AC-2 on IKE_AUTH and CREATE_CHILD_SA; AC-1 on a Child SA rekey | written, not run |
 | `TestEsnResponderAnswersOnlyAValueTheOfferCarried` | `internal/component/ike/engine/rfc7296_esn_test.go` | ESN value behavior preserved | unchanged |
 
 ### Functional Tests
@@ -151,7 +152,7 @@ the missing-type half was still open, and this spec owns it.
 ## Implementation Steps
 
 1. Export the mandatory half of `protocolTransformTypes` for ESP
-2. Refuse in `espProposalMatches` when the usable types miss a mandatory one; drop the `len(esns) > 0` conjunct it makes dead
+2. Refuse in `espProposalMatches` when the usable types miss a mandatory one; keep the `len(esns) > 0` conjunct on the ESN value check, so the mask alone owns the presence of ESN (Sections 3.3.3, 3.3.6) and the value check owns its value (Section 3.3.2). Deleting only the mask then turns the missing-ESN subtests red
 3. Add an ESN 0 transform to every hand-built ESP offer the responder reader judges, positive and negative alike, so each still fails or passes for its own reason
 4. Add the tagged test over both responder selections; record it and re-record the records whose producer changed
 
@@ -163,7 +164,7 @@ the missing-type half was still open, and this spec owns it.
 
 ## Key Design Decisions
 
-- The mandatory set is read from `protocolTransformTypes` rather than written as a test of `esns`: the Section 3.3.3 table is declared once, and the same check covers ENCR.
+- The mandatory set is read from `protocolTransformTypes` rather than written as a test of `esns`: the Section 3.3.3 table is declared once, and the same check covers ENCR. A missing ENCR is also refused by the encryption comparison that follows, so the mask is the sole refusal only for a missing ESN, and that is the case its tests prove.
 - Negative fixtures gain ESN too: without it they would go on refusing, but for the missing type, and stop proving their own refusal.
 - strongSwan's and libreswan's source is not in this checkout, so their offer was not read; the interop scenarios are the evidence that strongSwan offers ESN.
 

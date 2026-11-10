@@ -961,10 +961,15 @@ func espProposalMatches(p wire.Proposal, encID, keyLen, integID uint16, aead boo
 	// RFC 7296 Section 2.7: "The accepted cryptographic suite MUST contain exactly one
 	// transform of each type included in the proposal" (rfc/full/rfc7296.txt:1976-1980).
 	// espProposalWire (initiator.go) answers Transform Type 5 with espESNNotExtended
-	// and ze can key nothing else, so an offer whose ESN transforms (the mandatory check
-	// above guarantees at least one) lack that value has no answer ze can honor. Section
-	// 3.3.2 says the same from the peer's side: a proposal carrying a single ESN
-	// transform of value 1 "means that using normal (non-extended) sequence numbers is not acceptable".
+	// and ze can key nothing else, so an offer whose ESN transforms lack that value has
+	// no answer ze can honor. RFC 7296 Section 3.3.2 says the same from the peer's side:
+	// "A proposal containing a single ESN transform with value "1" means that using
+	// normal (non-extended) sequence numbers is not acceptable."
+	//
+	// This check owns the ESN VALUE (Section 3.3.2), and the mandatory-type mask above
+	// owns its PRESENCE (Sections 3.3.3 and 3.3.6). The len(esns) > 0 conjunct keeps the
+	// two apart: an offer with no Transform Type 5 passes here and is refused by the mask
+	// alone, so the mask's refusal is the one a test of a missing ESN observes.
 	//
 	// Refusing here reaches the peer as NO_PROPOSAL_CHOSEN, which RFC 7296 Section 2.7
 	// names as the answer when no proposal is acceptable (selectResponderESP returns
@@ -972,7 +977,7 @@ func espProposalMatches(p wire.Proposal, encID, keyLen, integID uint16, aead boo
 	// peer that offered only ESN 1 was the alternative, and it establishes a tunnel that
 	// carries nothing: the peer counts 64 bits where ze counts 32, so every packet ze
 	// sends fails the peer's anti-replay check.
-	if !slices.Contains(esns, espESNNotExtended) {
+	if len(esns) > 0 && !slices.Contains(esns, espESNNotExtended) {
 		return false
 	}
 	if !espDHAcceptable(dhs, dh) {
