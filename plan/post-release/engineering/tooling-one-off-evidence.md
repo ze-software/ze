@@ -3281,3 +3281,74 @@ capability test did not skip.
 The P-34 (c) break targets the pre-run chain check in `runWithStartup`. The
 post-run `IsPipeError` branch is never reached for a declared-shape refusal: an
 earlier break there left both builds exiting 2.
+
+## Re-audit: P-12 lab walks (2026-11-10)
+
+Each break ran with `GOFLAGS=-overlay=<json>` on the broken leg, so it reached
+both le's build and the DUT ze it builds. The restored leg ran the same entry
+through the session build with no overlay.
+
+| P | Member / carrier | Break (producing file, what changed) | Red | Restored |
+| --- | --- | --- | --- | --- |
+| P-12 (a) | the shared RTR harness, all five fixtures / `./le test bgp plugin bgp-rr-rpki-pending-withdraw-relay bgp-rr-rpki-revalidate-relay bgp-rs-rpki-pending-withdraw-relay bgp-rs-rpki-revalidate-relay rpki-revalidate-late-sync` | `internal/test/runner/runner.go`: `leMockArea(args)` short-circuited to false | `fail 0/5`, each "ZE-OBSERVER-FAIL: the RTR cache never synced a VRP" | pass 5/5 |
+| P-12 (c) AddPath | new identifiers on replay / interop `bgp-addpath-readvertise-collision-frr` | `reactor/forward_path_id.go`: both identifier cache hits disabled, so every lookup mints | "assertion 10: replayed Path Identifiers differ from live identifiers: live=map[65003:0 65004:1] replayed ..." | pass |
+| P-12 (c) SelfNextHop | control route suppressed / `bgp-self-nexthop-withheld-frr` | `reactor/forward_next_hop.go`: `egressNextHopIsPeerOwn` answers true | "assertion 3: wait for FRR decode of the control route timed out" | pass |
+| P-12 (c) RFC2545 | link-local on the off-link route / `bgp-rfc2545-linklocal-nexthop-frr` | `reactor/egress_inject_filter.go`: the egress gate appends the configured link-local when the off-link check returns none | "assertion 6: off-link route: FRR decoded 2 next-hop addresses, want 1" | pass |
+| P-12 (c) RFC7606Mixed | duplicate NEXT_HOP / `bgp-rfc7606-relay-shape-frr` | `message/update_split.go`: a second NEXT_HOP attribute appended to each split announcement | "assertion 11: ... split announcement repeat[s attribute 3]" | pass |
+| P-12 (c) RFC7606Mixed | dropped withdrawal / same scenario | `message/update_split.go`: `if hasWithdrawn` short-circuited to false | "assertion 9: wait for FRR installs 198.51.101.0/24 timed out" | pass |
+| P-12 (c) TypedNLRI | type-2 retained / `bgp-rfc7606-typed-nlri-discard` | `plugins/nlri/evpn/rfc7606.go`: `RecognizeNLRI` also discards route type 2 | "assertion 2: the speaker received no route-bearing UPDATE, so ze relayed nothing and the discard is unproven" | pass |
+
+The first RFC2545 break, in `reactor/link_scope.go` (`linkLocalNextHop` returning
+the configured link-local when the next hop shares no subnet), stayed green: it
+fires on the static off-link route, but the egress gate re-judges every
+next hop (`normalizeOrdinaryNextHop`, `egress_inject_filter.go`) and trims an
+off-link 32-octet field back to 16 octets before the UPDATE leaves. That walk
+is recorded as masked by the downstream guard, not as a checker gap; the gate
+break above is the one that decides. MEDAcrossAS, MEDRemoval, RFC7999 and
+NoExportBoundary second breaks are in `c1e6060b68`.
+## P-16: the six historical spec repairs at `9059161574`, checked against `show bgp` (2026-11-10)
+
+`9059161574` (2026-08-21, "docs(plan): six specs stop asking for a command that
+is gone") is the Review Gate ISSUE-3 repair of `spec-cli-show-bgp-is-the-command`.
+Besides that spec (AC-9 rewritten from an absence into a criterion with an
+exception list) and one `plan/verification-debt/ca1b4c65.md` row, it edits
+exactly six specs. Counting `show bgp summary` in each file at `9059161574^` and
+at `9059161574` (git show, read-only):
+
+| Spec at the commit | Before | After | What the repair changed | Fate |
+| --- | --- | --- | --- | --- |
+| `plan/future/spec-cli-operator-defined-aliases.md` | 1 | 0 | the problem statement's "the `show bgp summary` payload happens to split into" names `show bgp` | survives as `plan/post-release/features/spec-cli-operator-defined-aliases.md` (moved `4831b585d9`) |
+| `plan/future/spec-fixit-migrate-sleeps-infra.md` | 1 | 0 | the RS bucket waits all-peers `eor-sent` via `show bgp` | closed `e905ef5f41` (2026-09-05) |
+| `plan/spec-bgp-filtered-route-storage.md` | 1 | 0 | AC-1: `show bgp` reports routes_filtered = M | survives as `plan/post-release/features/spec-bgp-filtered-route-storage.md` |
+| `plan/spec-bgp-per-peer-received-counter.md` | 9 | 0 | Task, data-flow entry point, wiring row, AC-1, AC-2, AC-4 and user story 1; the argument form becomes `show bgp <afi/safi>` | survives as `plan/release/fixes/spec-bgp-per-peer-received-counter.md` |
+| `plan/spec-fixit-redistribute-establishment-stall.md` | 1 | 0 | the established -> eor-sent step reads `show bgp` | closed `8f3a80bf9e` (2026-08-23) |
+| `plan/spec-lg-deferred-birdwatcher-route-counts.md` | 2 | 0 | data-flow step 1 and the LG -> engine boundary row name `show bgp` | closed `a8a604d816` (2026-09-05) |
+
+The 15 occurrences match the commit body's count.
+
+The current command: `show bgp` is `ze-bgp:overview`, handled by
+`handleBgpOverview` (`internal/component/bgp/plugins/cmd/peer/summary.go`). With
+no token it answers the per-peer table through `handleBgpSummary`. With one
+token that names a registered family (full `afi/safi`, or the `ipv4`, `ipv6`
+and `l2vpn` shorthands) it answers the family-scoped table. Any other token,
+`summary` included, and any second token are refused as an unknown command
+(`unknownBgpPath`). `show bgp summary` is registered nowhere, and
+`test/plugin/show-bgp-summary-is-gone.ci` holds that.
+
+The three survivors today (`git grep`, HEAD): none contains `show bgp summary`.
+Each live mention names `show bgp`: aliases line 31; filtered-route storage AC-1
+(line 271); per-peer received counter lines 111, 164, 175, 236, 242, 243, 245
+and 252, with the family form `show bgp <afi/safi>` at 175 and 245. Each
+mention is the per-peer table or its family-scoped form, which is what
+`handleBgpOverview` answers, so every survivor still asks for a live command.
+The per-peer spec's planned `test/plugin/bgp-summary-received-prepolicy.ci`
+does not exist yet. That is the spec's own unimplemented deliverable, not a
+repair defect.
+
+Confirmed 2026-11-10: `git grep -c 'show bgp summary'` over the three survivors
+prints nothing (exit 1). The current command's carriers pass:
+`TestBgpSummary_FilterByFamily`, `TestBgpSummary_FamilyShorthand` and
+`TestShowBgpRefusesATokenAfterTheFamily` (`internal/component/bgp/plugins/cmd/peer`),
+and `./le test bgp plugin show-bgp-summary-is-gone show-bgp-bare-runs-summary
+show-bgp-family-arg` (pass 3/3). That `show bgp summary` is refused is the
+`.ci` case `show-bgp-summary-is-gone`; no unit test carries it.
