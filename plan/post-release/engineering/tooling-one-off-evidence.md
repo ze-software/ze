@@ -2852,3 +2852,13 @@ what goes red.
 | P-36 | `TestAWaiterPreservesOldForeignReceipts` (`internal/le/job`) | `internal/le/job/registry.go` | foreign file did not survive: … open … no such file or directory |
 | P-38 | `TestGuestEvidenceActionsAreNative` (`internal/le/test/qemu`) | `internal/le/test/qemu/actions.go` | missing guest action ipsec-mobike |
 | P-40 | `TestSharedResourceGrammar` (`internal/test/runner`) | `internal/test/runner/record_parse_option.go` | skip does not name missing capability: |
+
+## P-14 and the lint rows: scoped greens (2026-11-10)
+
+`./le go lint run scope "./internal/component/l2tp/..."` reported 0 issues on
+every flavor (`lint-l2tp.log`), the green half of P-14's l2tp member; earlier
+today the site package's historical goconst members (2026-08-30) and every
+retained L3 to L8 member were absent from their scoped runs ("P-26" batch
+logs `lint-L*.log`). The red half of a fixed lint member waits on the owner's
+ruling on how it is proved: golangci-lint reads files from disk, so no Go
+overlay reaches it, and an in-place edit of shared source is banned.
