@@ -41,6 +41,7 @@ const (
 	methodQuery        labMethod = "query"
 	methodLogs         labMethod = "logs"
 	methodPeerPID      labMethod = "peer-pid"
+	methodPeerImage    labMethod = "peer-image"
 	methodSignal       labMethod = "signal"
 	methodPause        labMethod = "pause"
 	methodUnpause      labMethod = "unpause"
@@ -67,7 +68,8 @@ type RecordedCall struct {
 
 // RecordedAnswer is what the lab answered one call.
 type RecordedAnswer struct {
-	// Stdout is an exec's stdout, a query's answer, or a logs call's text.
+	// Stdout is an exec's stdout, a query's answer, a logs call's text, or a
+	// peer-image call's image ID.
 	Stdout   string `json:"stdout,omitempty"`
 	Stderr   string `json:"stderr,omitempty"`
 	ExitCode int    `json:"exit-code,omitempty"`
@@ -318,6 +320,15 @@ func (r *checkerRecorder) PeerPID(ctx context.Context, peer string) (int, error)
 	pid, err := r.lab.PeerPID(ctx, peer)
 	r.write(&RecordedCall{Method: methodPeerPID, Peer: peer}, &RecordedAnswer{PID: pid}, err)
 	return pid, err
+}
+
+// PeerImage forwards to the lab and records the call and the image ID.
+func (r *checkerRecorder) PeerImage(ctx context.Context, peer string) (string, error) {
+	identity, err := r.lab.PeerImage(ctx, peer)
+	var answer RecordedAnswer
+	answer.Stdout = answer.bound(identity)
+	r.write(&RecordedCall{Method: methodPeerImage, Peer: peer}, &answer, err)
+	return identity, err
 }
 
 // Signal forwards to the lab and records the call.

@@ -368,6 +368,12 @@ func (l *replayLab) PeerPID(_ context.Context, peer string) (int, error) {
 	return answer.PID, err
 }
 
+// PeerImage answers the recorded image ID.
+func (l *replayLab) PeerImage(_ context.Context, peer string) (string, error) {
+	answer, err := l.reply(&RecordedCall{Method: methodPeerImage, Peer: peer})
+	return answer.Stdout, err
+}
+
 // Signal answers the recorded error.
 func (l *replayLab) Signal(_ context.Context, peer, signal string) error {
 	_, err := l.reply(&RecordedCall{Method: methodSignal, Peer: peer, Signal: signal})

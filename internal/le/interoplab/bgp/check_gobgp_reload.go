@@ -128,14 +128,8 @@ func (proof *gobgpReloadProof) exec(ctx context.Context, key, peer string, comma
 func (proof *gobgpReloadProof) identify(ctx context.Context) error {
 	proof.evidence["scope"] = "NEW stable-session non-ADD-PATH IPv4-unicast successor; original four-peer configs/OPENs/captures remain missing; no fifteen-checker obligation discharged"
 	proof.evidence["declared-producer"] = "github.com/osrg/gobgp/v4@v4.11.0 with build-time gobgp-v4.11.0-export-reload.patch; applied patch bytes, digest and actual consumed image IDs are separately observed"
-	images, ok := proof.check.Lab.(interface {
-		PeerImage(context.Context, string) (string, error)
-	})
-	if !ok {
-		return errors.New("GoBGP reload proof requires actual peer-image observation")
-	}
 	for _, peer := range []string{"ze", peerGoBGP, peerFRR, peerFRRSink, peerBIRD} {
-		identity, err := images.PeerImage(ctx, peer)
+		identity, err := proof.check.Lab.PeerImage(ctx, peer)
 		if err != nil {
 			proof.evidence["image-"+peer+"-error"] = err.Error()
 			return fmt.Errorf("observe %s consumed image: %w", peer, err)

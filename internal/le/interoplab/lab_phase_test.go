@@ -20,17 +20,25 @@ const (
 	phaseLabAction   = "test integration/interop-phase-test"
 )
 
-// phaseRunner answers the Docker kernel check, and answers every docker exec
+// phaseRunner answers the Docker kernel check, answers every docker exec
 // with ready on stdout, so a readiness probe that wants "ready" passes and
-// one that wants anything else waits until its deadline.
+// one that wants anything else waits until its deadline, and answers a
+// container's consumed image with phaseLabImage.
 func phaseRunner() *recordingRunner {
 	return &recordingRunner{run: kernelAnswering(func(command ProcessCommand) (ProcessResult, error) {
 		if slices.Contains(command.Arguments, dockerExecVerb) {
 			return ProcessResult{Stdout: "ready\n"}, nil
 		}
+		if slices.Contains(command.Arguments, "{{.Image}}") {
+			return ProcessResult{Stdout: phaseLabImage + "\n"}, nil
+		}
 		return ProcessResult{}, nil
 	})}
 }
+
+// phaseLabImage is the image ID the scripted runner answers for every
+// container's `docker inspect --format {{.Image}}`, the call Lab.PeerImage makes.
+const phaseLabImage = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
 // phasePlan is one scenario under the test catalog's root whose only peer
 // starts with no readiness probe.

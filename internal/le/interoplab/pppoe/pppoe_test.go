@@ -90,6 +90,10 @@ func (f *fakeLab) PeerPID(context.Context, string) (int, error) {
 	return 0, errors.New("unexpected PeerPID")
 }
 
+func (f *fakeLab) PeerImage(context.Context, string) (string, error) {
+	return "", errors.New("fake lab observes no peer image")
+}
+
 func (f *fakeLab) Pause(context.Context, string) error {
 	return errors.New("unexpected Pause")
 }

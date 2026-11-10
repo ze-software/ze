@@ -134,6 +134,11 @@ func (l *recordingLab) PeerPID(_ context.Context, peer string) (int, error) {
 	return 0, errors.New("unexpected peer PID query")
 }
 
+func (l *recordingLab) PeerImage(_ context.Context, peer string) (string, error) {
+	l.calls = append(l.calls, recordedCall{operation: "peer-image", peer: peer})
+	return "", errors.New("fake lab observes no peer image")
+}
+
 func (l *recordingLab) Pause(_ context.Context, peer string) error {
 	l.calls = append(l.calls, recordedCall{operation: "pause", peer: peer})
 	return nil

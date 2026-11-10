@@ -76,6 +76,9 @@ func (*fakeCheckerLab) Unpause(context.Context, string) error        { return ni
 func (*fakeCheckerLab) PeerPID(context.Context, string) (int, error) {
 	return 0, errors.New("unexpected peer PID query")
 }
+func (*fakeCheckerLab) PeerImage(context.Context, string) (string, error) {
+	return "", errors.New("fake lab observes no peer image")
+}
 
 func fakeCommandKey(peer string, argv []string) string {
 	return peer + "\x00" + strings.Join(argv, "\x00")

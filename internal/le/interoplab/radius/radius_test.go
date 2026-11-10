@@ -286,6 +286,9 @@ func (s *stubLab) ExecDetached(_ context.Context, peer string, argv []string, _ 
 func (s *stubLab) PeerPID(context.Context, string) (int, error) {
 	return 0, errors.New("stub lab has no process")
 }
+func (s *stubLab) PeerImage(context.Context, string) (string, error) {
+	return "", errors.New("fake lab observes no peer image")
+}
 func (s *stubLab) Signal(context.Context, string, string) error {
 	return errors.New("stub lab signals nothing")
 }

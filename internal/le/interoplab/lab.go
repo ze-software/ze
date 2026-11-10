@@ -199,13 +199,20 @@ type ScenarioResult struct {
 }
 
 // CheckerLab is the protocol-neutral surface a leaf checker consumes. A leaf
-// test can implement this interface without starting Docker.
+// test can implement this interface without starting Docker. Every capability
+// a checker uses is a method here, never an optional interface a checker
+// type-asserts its Lab for: the recorder Suite.Run puts in front of the Lab,
+// and the replay lab, implement exactly this set, so an asserted method would
+// vanish behind them.
 type CheckerLab interface {
 	Exec(context.Context, string, []string, []EnvironmentVariable) (CommandResult, error)
 	ExecDetached(context.Context, string, []string, []EnvironmentVariable) error
 	Query(context.Context, string, []string, []EnvironmentVariable) (string, error)
 	Logs(context.Context, string, int) (LogResult, error)
 	PeerPID(context.Context, string) (int, error)
+	// PeerImage answers the image ID the peer's running container actually
+	// consumed, never the tag the scenario declared for it.
+	PeerImage(context.Context, string) (string, error)
 	Signal(context.Context, string, string) error
 	Pause(context.Context, string) error
 	Unpause(context.Context, string) error

@@ -304,6 +304,18 @@ func (l *mobikeNativeLab) PeerPID(ctx context.Context, name string) (int, error)
 	return peer.process.command.Process.Pid, nil
 }
 
+// PeerImage refuses: a native MOBIKE peer is a host process in a network
+// namespace, so no container image exists to observe, and no tag stands in.
+func (l *mobikeNativeLab) PeerImage(ctx context.Context, name string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	if _, err := l.peer(name); err != nil {
+		return "", err
+	}
+	return "", fmt.Errorf("native MOBIKE peer %s runs as a host process with no container image to observe", name)
+}
+
 func (l *mobikeNativeLab) Signal(ctx context.Context, name, signal string) error {
 	if _, err := l.PeerPID(ctx, name); err != nil {
 		return err

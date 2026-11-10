@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -137,4 +138,75 @@ func TestReplayRefusesAnUnrecordedCall(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestReplayAnswersPeerImage records the record test lab's records-calls
+// scenario through Suite.Run, whose checker reads the ze peer's consumed
+// image through the recorder in front of the real Lab, then replays it, and
+// replays hand-written recordings of the same checker whose peer-image line
+// names another peer or carries an error.
+// VALIDATES: a peer-image call is recorded with its image ID and replayed with
+// that ID, so the replayed checker passes as the lab's did; a recorded
+// peer-image error is handed back to the checker, whose verdict then carries
+// the lab's error text; a peer-image call the recording holds for another
+// peer is refused with a *ReplayRefusal naming both calls.
+// PREVENTS: a lab capability a checker reaches by a type assertion on its Lab,
+// which the recorder and the replay lab hide, so the checker fails at its
+// first assertion in every lab run (bgp-export-reload-gobgp, 2026-11-09).
+func TestReplayAnswersPeerImage(t *testing.T) {
+	t.Run("recorded identity replays", func(t *testing.T) {
+		recordings := t.TempDir()
+		var progress bytes.Buffer
+		report := recordSuite(&progress, recordings, "records-calls").Run(t.Context())
+		if report.Passed != 1 {
+			t.Fatalf("report %#v, want one pass\nprogress:\n%s", report, progress.String())
+		}
+		result, err := ReplayScenario(t.Context(), recordLabCheckout, recordingPath(recordings, "records-calls"))
+		if err != nil {
+			t.Fatalf("replay refused: %v", err)
+		}
+		if !result.Replay.Passed || result.Replay != result.Lab {
+			t.Errorf("replayed verdict %#v, the lab's %#v", result.Replay, result.Lab)
+		}
+	})
+	registerRecordLab()
+	header := recordingHeader{Version: recordingVersion, Lab: recordLabSuite, Scenario: "records-calls",
+		AnswerOctetsMax: recordingAnswerOctetsMax}
+	before := []recordingLine{
+		{RecordedCall: RecordedCall{Method: methodExec, Peer: "ze", Argv: []string{"cat", "/ready"}, Environment: []string{"ZE_TEST_PSK"}},
+			RecordedAnswer: RecordedAnswer{Stdout: "ready\n"}},
+		{RecordedCall: RecordedCall{Method: methodQuery, Peer: "ze", Argv: []string{"show", "bgp"}}},
+		{RecordedCall: RecordedCall{Method: methodSignal, Peer: "ze", Signal: "HUP"}},
+		{RecordedCall: RecordedCall{Method: methodLogs, Peer: "ze", Lines: 5}},
+	}
+	t.Run("recorded error replays", func(t *testing.T) {
+		const lost = "container inspect returned no sha256 image ID"
+		calls := append(slices.Clone(before), recordingLine{RecordedCall: RecordedCall{Method: methodPeerImage, Peer: "ze"},
+			RecordedAnswer: RecordedAnswer{Error: lost, ErrorKind: errKindOther}})
+		path := writeRecording(t, header, calls, &Verdict{Error: lost})
+		result, err := ReplayScenario(t.Context(), recordLabCheckout, path)
+		if err != nil {
+			t.Fatalf("replay refused: %v", err)
+		}
+		if result.Replay.Passed || result.Replay.Error != lost {
+			t.Errorf("replayed verdict %#v, want the recorded peer-image error %q", result.Replay, lost)
+		}
+	})
+	t.Run("another peer refuses", func(t *testing.T) {
+		calls := append(slices.Clone(before), recordingLine{RecordedCall: RecordedCall{Method: methodPeerImage, Peer: "frr"},
+			RecordedAnswer: RecordedAnswer{Stdout: phaseLabImage}})
+		path := writeRecording(t, header, calls, &Verdict{Passed: true})
+		result, err := ReplayScenario(t.Context(), recordLabCheckout, path)
+		refusal, isRefusal := errors.AsType[*ReplayRefusal](err)
+		if !isRefusal {
+			t.Fatalf("replay answered %#v, error %v, want a *ReplayRefusal", result, err)
+		}
+		text := refusal.Error()
+		for _, want := range []string{"refused call 5", "does not hold at this position",
+			"expected peer-image frr []", "actual peer-image ze []", "must be judged by a lab run"} {
+			if !strings.Contains(text, want) {
+				t.Errorf("refusal %q lacks %q", text, want)
+			}
+		}
+	})
 }

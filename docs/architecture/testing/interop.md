@@ -2204,7 +2204,8 @@ do not print this build identity.
 The GoBGP export-reload successor also records the actual image ID of each
 registered live peer container before reading versions or configuration. Its
 `proof.json` carries `image-<peer>` identities, including pulled peers whose
-suite build result still names a tag. `Lab.PeerImage` inspects that container's
+suite build result still names a tag. `CheckerLab.PeerImage`, which the real
+`Lab` answers, inspects that container's
 consumed image and refuses missing or malformed IDs; it never substitutes the
 current shared tag. This records the current run's provenance and does not
 recover an earlier run's missing image identity.
@@ -2294,6 +2295,13 @@ kind, and the exit code. The last line is the lab's verdict. The lab is the
 registered catalog whose scenario root holds the scenario, and the run id is
 the Docker client's.
 
+The recorder and the replay lab implement `CheckerLab` and nothing more, so
+every lab capability a checker uses is a `CheckerLab` method, `PeerImage`
+included (recorded as `peer-image`, the image ID as its answer). A checker
+never type-asserts its `Lab` for a method outside that interface: the recorder
+in front of the real `Lab` does not carry it, and the checker would lose the
+capability in every lab run.
+
 Each answer field is bounded at 1 MiB (`recordingAnswerOctetsMax`). A longer
 answer keeps its first MiB and is marked `truncated`, and an answer that is not
 UTF-8 text is marked `not-text`, because JSON cannot carry its octets unchanged.
@@ -2343,7 +2351,7 @@ still print a secret, and such a recording is never committed. The BGP lab's
 `bgp-local-pref-strip-gobgp`.
 <!-- source: internal/le/interoplab/record.go -- checkerRecorder, recordingPlan, recordChecker, recordingAnswerOctetsMax -->
 <!-- source: internal/le/interoplab/replay.go -- ReplayScenario, ReplayRefusal, replayLab -->
-<!-- source: internal/le/interoplab/lab.go -- Suite.Recordings, Suite.runScenario -->
+<!-- source: internal/le/interoplab/lab.go -- CheckerLab, Suite.Recordings, Suite.runScenario -->
 
 ### IPsec diagnostic environment
 

@@ -27,7 +27,8 @@ const (
 )
 
 // recordLabCheckers are the record test lab's scenarios. records-calls makes
-// one call of each kind the fake Docker runner answers; passes and
+// one call of each kind the fake Docker runner answers, and judges the exec
+// and the consumed image it read; passes and
 // asserts-red make one exec and judge it.
 var recordLabCheckers = map[string]Checker{
 	"records-calls": func(ctx context.Context, check *CheckContext) error {
@@ -45,6 +46,13 @@ var recordLabCheckers = map[string]Checker{
 		check.Lab.Signal(ctx, "ze", "HUP")
 		//nolint:errcheck // the recording, not the answer, is under test
 		check.Lab.Logs(ctx, "ze", 5)
+		identity, err := check.Lab.PeerImage(ctx, "ze")
+		if err != nil {
+			return err
+		}
+		if identity != phaseLabImage {
+			return errors.New("scenario records-calls assertion 2: consumed image " + identity + ", want " + phaseLabImage)
+		}
 		return nil
 	},
 	"passes": func(ctx context.Context, check *CheckContext) error {
@@ -139,7 +147,8 @@ func readRecordingLines(t *testing.T, path string) []map[string]any {
 // Suite.Run, the entry point every interop lab reaches, with a scripted
 // Docker runner, and reads the recordings it leaves.
 // VALIDATES: AC-5. Every CheckerLab call the checker makes is written in call
-// order, after a version header and before the lab's verdict; an environment
+// order, after a version header and before the lab's verdict, the real Lab's
+// PeerImage included, with the image ID it observed as its answer; an environment
 // variable's name is written and its value is not; a selector run keeps a
 // passing scenario's recording and names it on the progress stream; a full
 // run removes the passing recordings, keeps the failed one, and names it in
@@ -178,9 +187,12 @@ func TestRunScenarioRecordsCheckerCalls(t *testing.T) {
 			method, _ := line["method"].(string)
 			methods = append(methods, method)
 		}
-		want := []string{"exec", "query", "signal", "logs"}
+		want := []string{"exec", "query", "signal", "logs", "peer-image"}
 		if !slices.Equal(methods, want) {
 			t.Errorf("recorded methods %v, want %v in call order", methods, want)
+		}
+		if image := lines[len(lines)-2]; image["peer"] != "ze" || image["stdout"] != phaseLabImage {
+			t.Errorf("peer-image line %v, want peer ze and the consumed image %s as its answer", image, phaseLabImage)
 		}
 		verdict, _ := lines[len(lines)-1]["verdict"].(map[string]any)
 		if verdict["passed"] != true {

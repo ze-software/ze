@@ -1939,6 +1939,13 @@ func (r *recordingLab) PeerPID(context.Context, string) (int, error) {
 	return 4242, nil
 }
 
+func (r *recordingLab) PeerImage(context.Context, string) (string, error) {
+	if r.failure != nil {
+		return "", r.failure
+	}
+	return "", errors.New("fake lab observes no peer image")
+}
+
 func (r *recordingLab) Signal(context.Context, string, string) error {
 	r.reads++
 	return r.failure
@@ -1986,6 +1993,10 @@ func (noEvidenceLab) Logs(context.Context, string, int) (interoplab.LogResult, e
 
 func (noEvidenceLab) PeerPID(context.Context, string) (int, error) {
 	return 0, errNoPeerEvidence
+}
+
+func (noEvidenceLab) PeerImage(context.Context, string) (string, error) {
+	return "", errNoPeerEvidence
 }
 
 func (noEvidenceLab) Signal(context.Context, string, string) error {

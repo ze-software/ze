@@ -67,32 +67,41 @@ func (lab *gobgpReloadImageLab) Query(context.Context, string, []string, []inter
 	return "", lab.observed
 }
 
-// TestGoBGPReloadRefusesUnmeasuredImages supplies a working query boundary but
-// no container-image capability. Version strings cannot substitute for the
-// absent image observation, so identify must refuse before making any query.
+// TestGoBGPReloadRefusesUnmeasuredImages supplies a working query boundary
+// whose image observation fails. Version strings cannot substitute for the
+// absent image observation, so identify must refuse, naming the peer whose
+// consumed image it could not observe, before making any query.
 func TestGoBGPReloadRefusesUnmeasuredImages(t *testing.T) {
-	lab := &gobgpReloadUnmeasuredLab{}
+	lab := &gobgpReloadUnmeasuredLab{unobserved: errors.New("lab observes no peer image")}
 	proof := gobgpReloadProof{check: &interoplab.CheckContext{Lab: lab}, evidence: make(map[string]string)}
 	err := proof.identify(t.Context())
 	if err == nil {
 		t.Fatal("identity-free lab supplied a reload proof")
 	}
-	if !strings.Contains(err.Error(), "requires actual peer-image observation") {
-		t.Fatalf("missing capability was not named: %v", err)
+	if !strings.Contains(err.Error(), "observe ze consumed image") {
+		t.Fatalf("missing image observation was not named: %v", err)
+	}
+	if !errors.Is(err, lab.unobserved) {
+		t.Fatalf("image observation failure was lost: %v", err)
 	}
 	if lab.queries != 0 {
 		t.Fatalf("missing image identity fell back to %d version/config queries", lab.queries)
 	}
-	for key := range proof.evidence {
-		if strings.HasPrefix(key, "image-") {
-			t.Fatalf("missing capability fabricated image evidence %s", key)
+	for _, peer := range []string{"ze", peerGoBGP, peerFRR, peerFRRSink, peerBIRD} {
+		if identity, fabricated := proof.evidence["image-"+peer]; fabricated {
+			t.Fatalf("missing image observation fabricated image evidence for %s: %q", peer, identity)
 		}
 	}
 }
 
 type gobgpReloadUnmeasuredLab struct {
 	interoplab.CheckerLab
-	queries int
+	unobserved error
+	queries    int
+}
+
+func (lab *gobgpReloadUnmeasuredLab) PeerImage(context.Context, string) (string, error) {
+	return "", lab.unobserved
 }
 
 func (lab *gobgpReloadUnmeasuredLab) Query(context.Context, string, []string, []interoplab.EnvironmentVariable) (string, error) {

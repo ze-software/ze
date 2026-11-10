@@ -53,6 +53,9 @@ func (r *releaseLab) Logs(context.Context, string, int) (interoplab.LogResult, e
 	return interoplab.LogResult{}, errors.New("no logs")
 }
 func (r *releaseLab) PeerPID(context.Context, string) (int, error) { return 0, errors.New("no pid") }
+func (r *releaseLab) PeerImage(context.Context, string) (string, error) {
+	return "", errors.New("fake lab observes no peer image")
+}
 func (r *releaseLab) Signal(context.Context, string, string) error { return errors.New("no signal") }
 func (r *releaseLab) Pause(context.Context, string) error          { return errors.New("no pause") }
 func (r *releaseLab) Unpause(context.Context, string) error        { return errors.New("no unpause") }
