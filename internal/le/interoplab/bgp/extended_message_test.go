@@ -378,7 +378,7 @@ func TestExtendedRelayGoBGPPreparation(t *testing.T) {
 			writeFixture(t, filepath.Join(scenario, "gobgp.toml"), "[global.config]\n")
 			writeFixture(t, filepath.Join(scenario, "speaker-args"), option+"\n--duration 180\n--result /tmp/extended\n")
 			network := interoplab.Network{IPv4: netip.MustParsePrefix("172.31.71.0/24")}
-			peers, err := scenarioPeers(t.TempDir(), scenario, "gobgp-relay-test", network)
+			peers, err := scenarioPeers(t.TempDir(), scenario, "gobgp-relay-test", network, scenarioRendering{})
 			if err != nil {
 				t.Fatal(err)
 			}

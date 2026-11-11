@@ -434,7 +434,7 @@ func TestScenarioPreparerBuildsOrderedPeers(t *testing.T) {
 	writeFixture(t, filepath.Join(scenario, "gobgp.toml"), "[global.config]\n")
 	writeFixture(t, filepath.Join(scenario, "speaker-args"), "--asn 65010\n")
 	network := interoplab.Network{Name: "lab", IPv4: netip.MustParsePrefix("172.31.22.0/24")}
-	peers, err := scenarioPeers(producer, scenario, "fixture", network)
+	peers, err := scenarioPeers(producer, scenario, "fixture", network, scenarioRendering{})
 	if err != nil {
 		t.Fatal(err)
 	}

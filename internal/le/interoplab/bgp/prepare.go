@@ -267,11 +267,12 @@ func prepareScenario(root, producer, suffix string, prepare interoplab.PrepareCo
 	if err := os.RemoveAll(rendered); err != nil {
 		return interoplab.PreparedScenario{}, err
 	}
-	linkLocals, renderErr := renderScenario(prepare.Source.Directory, rendered, prepare.Network)
+	rendering, renderErr := renderScenario(prepare.Source.Directory, rendered, prepare.Network)
 	if renderErr != nil {
 		return interoplab.PreparedScenario{Cleanup: func() error { return os.RemoveAll(rendered) }}, renderErr
 	}
-	peers, err := scenarioPeers(producer, rendered, suffix, prepare.Network)
+	linkLocals := rendering.linkLocals
+	peers, err := scenarioPeers(producer, rendered, suffix, prepare.Network, rendering)
 	cleanup := func() error { return os.RemoveAll(rendered) }
 	prestarts, prestartErr := renderPrestarts(prepare.Source.Name, scenarioPrestarts[prepare.Source.Name], linkLocals, prepare.Network)
 	if prestartErr != nil {
@@ -305,10 +306,30 @@ func prepareScenario(root, producer, suffix string, prepare interoplab.PrepareCo
 	return interoplab.PreparedScenario{Peers: peers, Cleanup: cleanup}, nil
 }
 
+// scenarioRendering is what renderScenario substituted into a scenario's
+// files, so a question about a rendered file's addresses is answered from the
+// render that wrote them rather than by reading the file back.
+type scenarioRendering struct {
+	// linkLocals records which link-local placeholders any file carried.
+	linkLocals renderedLinkLocals
+	// ipv6Files holds, by slash-separated path relative to the scenario, each
+	// file into which the render wrote a lab IPv6 address: the base IPv6
+	// prefix replaced by the lab network's, or a link-local placeholder
+	// rendered from it. A file absent from it carries no lab IPv6 address.
+	ipv6Files map[string]bool
+}
+
+// rendersIPv6 reports whether the render wrote a lab IPv6 address into the
+// file at relative, a slash-separated path inside the scenario.
+func (rendering scenarioRendering) rendersIPv6(relative string) bool {
+	return rendering.ipv6Files[relative]
+}
+
 // renderScenario copies a scenario's files to target with the lab's addresses
-// filled in, and reports which link-local placeholders any file carried.
-func renderScenario(source, target string, network interoplab.Network) (renderedLinkLocals, error) {
-	var linkLocals renderedLinkLocals
+// filled in, and reports what it substituted: which link-local placeholders
+// any file carried, and which files received a lab IPv6 address.
+func renderScenario(source, target string, network interoplab.Network) (scenarioRendering, error) {
+	rendering := scenarioRendering{ipv6Files: map[string]bool{}}
 	ipv4 := network.IPv4.Addr().As4()
 	ipv4Addr := netip.AddrFrom4([4]byte{ipv4[0], ipv4[1], ipv4[2], 0})
 	var rendered textbuf.Buffer
@@ -321,7 +342,7 @@ func renderScenario(source, target string, network interoplab.Network) (rendered
 	}
 	sourceRoot, err := os.OpenRoot(source)
 	if err != nil {
-		return linkLocals, err
+		return rendering, err
 	}
 	walkErr := fs.WalkDir(sourceRoot.FS(), ".", func(relative string, entry fs.DirEntry, err error) error {
 		if err != nil {
@@ -338,8 +359,9 @@ func renderScenario(source, target string, network interoplab.Network) (rendered
 		content := data
 		if utf8.Valid(data) {
 			text := strings.ReplaceAll(string(data), baseIPv4Prefix, ipv4Token)
-			if ipv6Token != "" {
+			if ipv6Token != "" && strings.Contains(text, baseIPv6Prefix) {
 				text = strings.ReplaceAll(text, baseIPv6Prefix, ipv6Token)
+				rendering.ipv6Files[relative] = true
 			}
 			var carried renderedLinkLocals
 			var renderErr error
@@ -348,7 +370,8 @@ func renderScenario(source, target string, network interoplab.Network) (rendered
 				return fmt.Errorf("%s: %w", relative, renderErr)
 			}
 			for owner := range carried {
-				linkLocals[owner] = linkLocals[owner] || carried[owner]
+				rendering.linkLocals[owner] = rendering.linkLocals[owner] || carried[owner]
+				rendering.ipv6Files[relative] = rendering.ipv6Files[relative] || carried[owner]
 			}
 			if relative == "inject.msg" {
 				text = renderInjectedNextHops(text, ipv4)
@@ -373,10 +396,14 @@ func renderScenario(source, target string, network interoplab.Network) (rendered
 		}
 		return os.Chmod(targetPath, info.Mode())
 	})
-	return linkLocals, errors.Join(walkErr, sourceRoot.Close())
+	return rendering, errors.Join(walkErr, sourceRoot.Close())
 }
 
-func scenarioPeers(producer, scenario, suffix string, network interoplab.Network) ([]interoplab.PeerConfig, error) {
+// scenarioPeers builds the peer containers a rendered scenario's files call
+// for. rendering is what renderScenario substituted into those files; a
+// caller that prepares an unrendered fixture passes the zero value, which
+// says no file received a lab IPv6 address.
+func scenarioPeers(producer, scenario, suffix string, network interoplab.Network, rendering scenarioRendering) ([]interoplab.PeerConfig, error) {
 	if !regularFile(filepath.Join(scenario, zeConfigFile)) {
 		return nil, fmt.Errorf("missing ze.conf in %s", filepath.Base(scenario))
 	}
@@ -622,11 +649,14 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 			Capabilities: []string{capabilityNetAdmin, "SYS_ADMIN"}, Arguments: ipv6Sysctls(), Ready: ready(cmdVtysh, "-c", frrShowVersion)})
 	}
 	if path := filepath.Join(scenario, "bird.conf"); regularFile(path) {
-		// A bird.conf naming a lab IPv6 address runs a session over IPv6, so
-		// the container gets the same IPv6 sysctls FRR runs with. One naming
-		// none keeps the arguments every IPv4-only BIRD scenario ran with.
+		// A bird.conf the render wrote a lab IPv6 address into runs a session
+		// over IPv6, so the container gets the same IPv6 sysctls FRR runs
+		// with. The answer is the render's own record, so it holds on every
+		// lab subnet: the rendered file names the lab's prefix, never the
+		// base one. One that received none keeps the arguments every
+		// IPv4-only BIRD scenario ran with.
 		var arguments []string
-		if configContains(path, baseIPv6Prefix) {
+		if rendering.rendersIPv6("bird.conf") {
 			arguments = ipv6Sysctls()
 		}
 		peers = append(peers, interoplab.PeerConfig{Name: peerBIRD, Container: containerName(peerBIRD, suffix), Image: peerBIRD, Host: 4,
@@ -711,11 +741,6 @@ func ipv6Sysctls() []string {
 func regularFile(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && info.Mode().IsRegular()
-}
-
-func configContains(path, token string) bool {
-	data, err := os.ReadFile(path) //nolint:gosec // the path is a scenario config inside the tracked checkout
-	return err == nil && strings.Contains(string(data), token)
 }
 
 func readArguments(directory, name string) ([]string, error) {

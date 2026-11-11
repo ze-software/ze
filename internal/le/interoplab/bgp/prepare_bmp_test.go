@@ -44,7 +44,7 @@ func TestScenarioBMPCollectorFollowsParsedSender(t *testing.T) {
 		t.Run(scenario.name, func(t *testing.T) {
 			source := t.TempDir()
 			writeFixture(t, filepath.Join(source, zeConfigFile), scenario.zeConfig)
-			peers, err := scenarioPeers(t.TempDir(), source, "fixture", network)
+			peers, err := scenarioPeers(t.TempDir(), source, "fixture", network, scenarioRendering{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -67,7 +67,7 @@ func TestScenarioPeersRefusesUnusableZeConfig(t *testing.T) {
 	t.Run("invalid", func(t *testing.T) {
 		source := t.TempDir()
 		writeFixture(t, filepath.Join(source, zeConfigFile), "bgp {\n\tbmp {\n\t\tsender {\n")
-		_, err := scenarioPeers(t.TempDir(), source, "fixture", network)
+		_, err := scenarioPeers(t.TempDir(), source, "fixture", network, scenarioRendering{})
 		if err == nil || !strings.Contains(err.Error(), zeConfigFile) {
 			t.Fatalf("scenarioPeers error = %v, want a parse error naming %s", err, zeConfigFile)
 		}
@@ -82,7 +82,7 @@ func TestScenarioPeersRefusesUnusableZeConfig(t *testing.T) {
 		if err := os.Chmod(path, 0); err != nil {
 			t.Fatal(err)
 		}
-		_, err := scenarioPeers(t.TempDir(), source, "fixture", network)
+		_, err := scenarioPeers(t.TempDir(), source, "fixture", network, scenarioRendering{})
 		if err == nil || !strings.Contains(err.Error(), zeConfigFile) {
 			t.Fatalf("scenarioPeers error = %v, want a read error naming %s", err, zeConfigFile)
 		}

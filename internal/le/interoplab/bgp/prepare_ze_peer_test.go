@@ -88,7 +88,7 @@ func TestZePeerConfigRefusesFRRBeside(t *testing.T) {
 	writeFixture(t, filepath.Join(source, zeConfigFile), "bgp {\n}\n")
 	writeFixture(t, filepath.Join(source, zePeerConfigFile), "bgp {\n}\n")
 	writeFixture(t, filepath.Join(source, frrConfigFile), "router bgp 65002\n")
-	_, err := scenarioPeers(t.TempDir(), source, "fixture", interoplab.Network{IPv4: netip.MustParsePrefix("172.30.44.0/24")})
+	_, err := scenarioPeers(t.TempDir(), source, "fixture", interoplab.Network{IPv4: netip.MustParsePrefix("172.30.44.0/24")}, scenarioRendering{})
 	if err == nil {
 		t.Fatal("a scenario with frr.conf and ze-peer.conf was prepared")
 	}

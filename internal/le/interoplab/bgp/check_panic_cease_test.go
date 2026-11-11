@@ -23,7 +23,7 @@ func zeContainer(t *testing.T, extra ...string) (interoplab.PeerConfig, error) {
 		writeFixture(t, filepath.Join(scenario, name), "\n")
 	}
 	network := interoplab.Network{Name: "lab", IPv4: netip.MustParsePrefix("172.31.22.0/24")}
-	peers, err := scenarioPeers(t.TempDir(), scenario, "fixture", network)
+	peers, err := scenarioPeers(t.TempDir(), scenario, "fixture", network, scenarioRendering{})
 	if err != nil {
 		return interoplab.PeerConfig{}, err
 	}

@@ -1406,15 +1406,18 @@ host uses, which a guest cannot stand in for.
 
 Daemons start conditionally: FRR if `frr.conf` exists, BIRD if `bird.conf` exists,
 GoBGP if `gobgp.toml` exists. This means each scenario only runs the daemons it needs.
-BIRD starts with IPv6 enabled, as FRR always does, only when its `bird.conf` names a
-lab IPv6 address.
+BIRD starts with IPv6 enabled, as FRR always does, only when rendering wrote a
+lab IPv6 address into its `bird.conf`: the base prefix `fd00:1e:0::` replaced by
+the lab network's, or a link-local placeholder. The render records each file it
+wrote one into (`scenarioRendering`), and the decision reads that record rather
+than the rendered text, which names the lab's prefix and not the base one.
 A `ze-peer.conf` starts a second Ze daemon, the peer `ze-peer`, where no
 third-party daemon can serve the scenario (`ospf-multiaf-v4-frr`: FRR ospf6d has
 no IPv4-unicast address family). It starts the way the Ze under test does
 (`zeDaemonPeer`), with the CLI user the checkers log in as appended to its
 config, and takes FRR's host 3, so a scenario carrying both `frr.conf` and
 `ze-peer.conf` is refused.
-<!-- source: internal/le/interoplab/bgp/prepare.go -- ipv6Sysctls, zeDaemonPeer, scenarioPeers -->
+<!-- source: internal/le/interoplab/bgp/prepare.go -- ipv6Sysctls, zeDaemonPeer, scenarioPeers, scenarioRendering, renderScenario -->
 
 **A scenario directory is NAMED, never numbered** (owner directive, 2026-08-24).
 Run order is lexical by scenario directory name and no scenario depends on it.
@@ -3650,8 +3653,16 @@ vsftpd active-only, curl, bash), registered from
 `ze-topology-wireguard`, registered from the deployment proof's
 `Dockerfile.wireguard`.
 <!-- source: internal/le/interoplab/topology/register_home_lab.go -- homeLab, convertedCPE, dnsServer, swanResponder, wgClient -->
-<!-- source: internal/le/interoplab/topology/home_lab_render.go -- renderHomeCPE, issueLab, preparePlan -->
+<!-- source: internal/test/labconfig/homecpe/render.go -- Render, issueLab -->
+<!-- source: internal/le/interoplab/topology/home_lab_render.go -- preparePlan -->
 <!-- source: internal/le/interoplab/topology/check_conversion.go -- checkConversion, homeCPEScenariosConverted -->
+
+The config corpus renders the converted CPE through the same issuer and
+placeholder substitution as the topology lab. Both readers use the lab values
+and fresh certificate material. The corpus validates that rendered config,
+rather than accepting or excluding its unresolved placeholders.
+<!-- source: internal/component/config/cli/validate_corpus_test.go -- sweepContext.renderScenario -->
+<!-- source: internal/test/labconfig/homecpe/render.go -- Render -->
 
 The access chain is the first end-to-end proof that a subscriber's PPP
 session crosses Ze's LAC (`relay ""`) and terminates on Ze's LNS: the LAC

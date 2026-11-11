@@ -46,7 +46,7 @@ func TestVRRPLabZeRunsUnderItsAppArmorProfile(t *testing.T) {
 `)
 	writeFixture(t, filepath.Join(scenario, "keepalived.conf"), "vrrp_instance VI_1 {}\n")
 	network := interoplab.Network{Name: "lab", IPv4: netip.MustParsePrefix("172.31.22.0/24")}
-	peers, err := scenarioPeers(t.TempDir(), scenario, "fixture", network)
+	peers, err := scenarioPeers(t.TempDir(), scenario, "fixture", network, scenarioRendering{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +73,7 @@ func TestNonVRRPLabZeNamesNoAppArmorProfile(t *testing.T) {
 	scenario := t.TempDir()
 	writeFixture(t, filepath.Join(scenario, "ze.conf"), "bgp {}\n")
 	network := interoplab.Network{Name: "lab", IPv4: netip.MustParsePrefix("172.31.22.0/24")}
-	peers, err := scenarioPeers(t.TempDir(), scenario, "fixture", network)
+	peers, err := scenarioPeers(t.TempDir(), scenario, "fixture", network, scenarioRendering{})
 	if err != nil {
 		t.Fatal(err)
 	}

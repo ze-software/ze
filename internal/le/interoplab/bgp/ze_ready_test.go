@@ -50,7 +50,7 @@ func TestZeReadinessWaitsForPassiveListener(t *testing.T) {
 		t.Run(scenario.name, func(t *testing.T) {
 			source := t.TempDir()
 			writeFixture(t, filepath.Join(source, zeConfigFile), scenario.zeConfig)
-			peers, err := scenarioPeers(t.TempDir(), source, "fixture", network)
+			peers, err := scenarioPeers(t.TempDir(), source, "fixture", network, scenarioRendering{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -94,7 +94,7 @@ func TestZePeerReadinessReadsItsOwnConfig(t *testing.T) {
 	source := t.TempDir()
 	writeFixture(t, filepath.Join(source, zeConfigFile), "bgp {\n"+zeReadyFixturePeer("peer", "ip 172.30.44.3;", "ip 172.30.44.2;")+"}\n")
 	writeFixture(t, filepath.Join(source, zePeerConfigFile), "bgp {\n"+zeReadyFixturePeer("ze", "ip 172.30.44.2; connect false;", "ip 172.30.44.3;")+"}\n")
-	peers, err := scenarioPeers(t.TempDir(), source, "fixture", network)
+	peers, err := scenarioPeers(t.TempDir(), source, "fixture", network, scenarioRendering{})
 	if err != nil {
 		t.Fatal(err)
 	}

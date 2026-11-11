@@ -32,7 +32,7 @@ func TestScenarioFRRImagePinsItsRelease(t *testing.T) {
 	network := interoplab.Network{Name: "lab", IPv4: netip.MustParsePrefix("172.31.22.0/24")}
 
 	for scenario, want := range map[string]string{pinned: frrImageName(reference), plain: peerFRR} {
-		peers, err := scenarioPeers(producer, scenario, "fixture", network)
+		peers, err := scenarioPeers(producer, scenario, "fixture", network, scenarioRendering{})
 		if err != nil {
 			t.Fatal(err)
 		}
