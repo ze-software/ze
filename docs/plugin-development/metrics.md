@@ -144,6 +144,7 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_rpki_vrps_cached` | Gauge | | bgp-rpki |
 | `ze_rpki_sessions_active` | Gauge | | bgp-rpki |
 | `ze_rpki_validation_outcomes_total` | CounterVec | result | bgp-rpki |
+| `ze_rpki_updates_refused_total` | CounterVec | reason | bgp-rpki: JSON UPDATEs refused before validation, with `unknown-peer-as` or `malformed-peer-as` |
 | `ze_role_route_rejects_total` | CounterVec | reason | bgp-role |
 | `ze_role_route_suppressions_total` | CounterVec | reason | bgp-role |
 | `ze_filter_path_asn_rejects_total` | CounterVec | direction, position, reason | bgp-filter-path-asn |
@@ -270,6 +271,7 @@ under load: the worker was behind and the event path still carried every
 interface to its final state. The resync counter moving is the one that says a
 transition never arrived at all.
 
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- SetMetricsRegistry, handleEvent -->
 <!-- source: internal/component/iface/rate.go -- ownedDevices gauge registration -->
 <!-- source: internal/component/iface/link_queue.go -- coalesced and resync counters -->
 <!-- source: internal/component/iface/resolve.go -- onLinkEvent and sendLatest, the discard counter -->

@@ -3,6 +3,15 @@
 Ze validates received BGP routes against RPKI ROA data. By default, Invalid routes remain in Adj-RIB-In with their received attributes but are ineligible for selection and export. The feature connects to RTR cache servers (RFC 8210), downloads Validated ROA Payloads (VRPs), and applies the RFC 6811 origin validation algorithm to each received prefix.
 <!-- source: internal/component/bgp/plugins/rpki/register.go -- bgp-rpki registration, RFCs 6811/8210 -->
 
+An UPDATE must name the negotiated peer AS before RPKI validates its routes.
+The JSON handler refuses an unknown or malformed peer AS before it records
+routes or emits validation results. It counts each refused UPDATE in
+`ze_rpki_updates_refused_total`, with reason `unknown-peer-as` or
+`malformed-peer-as`. These refusals do not contribute per-prefix validation
+outcomes. A session-down event still removes retained routes when its peer AS
+is unknown.
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- handleEvent, SetMetricsRegistry -->
+
 ## Configuration
 
 Add the `bgp-rpki` and `bgp-adj-rib-in` plugins, then configure one or more RTR cache servers under `bgp { rpki { ... } }`.

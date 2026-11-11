@@ -81,12 +81,12 @@ func drainRequests(ch chan validationRequest) []validationRequest {
 
 // memberPeerJSON is the peer object the engine emits for a session a listen-range
 // group accepted: a real address, and the group's name.
-func memberPeerJSON(t *testing.T, addr, group string) json.RawMessage {
+func memberPeerJSON(t *testing.T, addr, group string, peerASN uint32) json.RawMessage {
 	t.Helper()
 	raw, err := json.Marshal(bgp.PeerInfoJSON{
 		Name:   "ix-" + addr,
 		Group:  group,
-		Remote: bgp.PeerRemoteInfo{Address: addr},
+		Remote: bgp.PeerRemoteInfo{Address: addr, AS: peerASN},
 	})
 	require.NoError(t, err)
 	return raw
@@ -99,7 +99,7 @@ func TestJSONRailCarriesTheGroupIntoTheValidationRequest(t *testing.T) {
 
 	rp.handleEvent(&bgp.Event{
 		Message: &bgp.MessageInfo{Type: rpc.EventKindUpdate, ID: 7},
-		Peer:    memberPeerJSON(t, "192.0.2.50", "ix"),
+		Peer:    memberPeerJSON(t, "192.0.2.50", "ix", 64511),
 		ASPath:  []uint32{64511},
 		FamilyOps: map[family.Family][]bgp.FamilyOperation{
 			family.IPv4Unicast: {
@@ -239,7 +239,7 @@ func TestASPAJSONRailKeepsSegmentTypes(t *testing.T) {
 	rp.cache.Add(makeVRP("10.0.0.0/24", 24, 300))
 	event := &bgp.Event{
 		Message: &bgp.MessageInfo{Type: rpc.EventKindUpdate, ID: 71},
-		Peer:    memberPeerJSON(t, "192.0.2.50", "ix"),
+		Peer:    memberPeerJSON(t, "192.0.2.50", "ix", 100),
 		ASPath:  []uint32{100, 200, 300},
 		RawAttributeBytes: []byte{
 			0x40, 0x02, 16,
@@ -286,7 +286,7 @@ func TestASPASessionDownStopsRevalidation(t *testing.T) {
 		aspaMPReachBody(1, 1, []byte{192, 0, 2, 50}, []byte{24, 10, 0, 0}))
 	rp.handleEvent(&bgp.Event{
 		Message: &bgp.MessageInfo{Type: rpc.EventKindState},
-		Peer:    memberPeerJSON(t, "192.0.2.50", "ix"),
+		Peer:    memberPeerJSON(t, "192.0.2.50", "ix", 0),
 		State:   "down",
 	})
 	rp.aspaCache.Set(300, []uint32{200})

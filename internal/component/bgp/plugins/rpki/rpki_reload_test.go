@@ -195,6 +195,10 @@ func startRPKIReloadReceiver(t *testing.T, ctx context.Context) *rpc.DirectBridg
 		_ = engineEnd.Close()
 		select {
 		case <-done:
+			// The fixture's receiver has joined, which ends its daemon lifetime.
+			// Release its lookup so later tests start ungated. Production keeps
+			// a stopped owner's refusal until its daemon stops.
+			ribevents.RegisterValidationLookup(nil, nil)
 		case <-time.After(5 * time.Second):
 			t.Error("Adj-RIB-In did not stop")
 		}

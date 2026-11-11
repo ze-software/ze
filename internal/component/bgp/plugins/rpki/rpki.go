@@ -60,6 +60,7 @@ type rpkiMetrics struct {
 	sessionsActive     metrics.Gauge      // active RTR sessions
 	validationOutcomes metrics.CounterVec // origin validation results (labels: result)
 	aspaOutcomes       metrics.CounterVec // ASPA path verification results (labels: result)
+	updatesRefused     metrics.CounterVec // UPDATEs refused before validation (labels: reason)
 }
 
 // rpkiMetricsPtr stores RPKI metrics, set by SetMetricsRegistry.
@@ -73,6 +74,7 @@ func SetMetricsRegistry(reg metrics.Registry) {
 		sessionsActive:     reg.Gauge("ze_rpki_sessions_active", "Active RTR cache sessions."),
 		validationOutcomes: reg.CounterVec("ze_rpki_validation_outcomes_total", "RPKI origin validation outcomes.", []string{"result"}),
 		aspaOutcomes:       reg.CounterVec("ze_rpki_aspa_outcomes_total", "ASPA path verification outcomes.", []string{"result"}),
+		updatesRefused:     reg.CounterVec("ze_rpki_updates_refused_total", "RPKI UPDATEs refused before validation.", []string{"reason"}),
 	}
 	rpkiMetricsPtr.Store(m)
 	rpkiPanics().guard.SetMetricsRegistry(reg)
@@ -789,6 +791,23 @@ func (rp *rPKIPlugin) handleEvent(event *bgp.Event) {
 		return
 	}
 
+	// Established UPDATEs need a negotiated peer identity. Read the typed
+	// authority before the JSON projection can turn an absent AS into AS 0.
+	peerAS, err := event.GetPeerASN()
+	if err != nil {
+		if m := rpkiMetricsPtr.Load(); m != nil {
+			m.updatesRefused.With("malformed-peer-as").Inc()
+		}
+		return
+	}
+	peerASN, peerASKnown := peerAS.ASN()
+	if !peerASKnown {
+		if m := rpkiMetricsPtr.Load(); m != nil {
+			m.updatesRefused.With("unknown-peer-as").Inc()
+		}
+		return
+	}
+
 	var peer bgp.PeerInfoJSON
 	if err := json.Unmarshal(event.Peer, &peer); err != nil || peer.Remote.Address == "" {
 		return
@@ -842,9 +861,9 @@ func (rp *rPKIPlugin) handleEvent(event *bgp.Event) {
 	// AS paths are used only when the event carries no raw attributes.
 	aspaState := aspaStateNone
 	var normalizedPath []uint32
-	if rp.aspaEnabled.Load() && (peer.Local == nil || peer.Remote.AS != peer.Local.AS) {
+	if rp.aspaEnabled.Load() && (peer.Local == nil || peerASN != peer.Local.AS) {
 		mode := rp.aspaModeForPeer(peerAddr, peerName, peerGroup)
-		neighbor := rp.aspaNeighborForPeer(peerAddr, peerName, peerGroup, peer.Remote.AS)
+		neighbor := rp.aspaNeighborForPeer(peerAddr, peerName, peerGroup, peerASN)
 		if len(raw) > 0 || event.RawAttributes != "" {
 			if asp != nil {
 				aspaState, normalizedPath = aspaStateForPath(rp.aspaCache, asp.Segments, mode)
@@ -913,16 +932,16 @@ func (rp *rPKIPlugin) handleEvent(event *bgp.Event) {
 						return
 					}
 					rp.originTracker.Track(key, originRoute{
-						peerGroup: peerGroup, peerName: peerName, peerASN: peer.Remote.AS,
+						peerGroup: peerGroup, peerName: peerName, peerASN: peerASN,
 						originAS: originAS, state: state, aspaState: familyASPA,
 						blackhole: blackhole, msgID: event.GetMsgID(), unavailable: cacheEmpty,
 					})
 					if familyASPA != aspaStateNone {
 						rp.aspaTracker.Track(trackedRoute{
-							key: key, peerName: peerName, peerGroup: peerGroup, peerASN: peer.Remote.AS,
+							key: key, peerName: peerName, peerGroup: peerGroup, peerASN: peerASN,
 							msgID: event.GetMsgID(), path: normalizedPath, aspaState: familyASPA,
 							mode:     rp.aspaModeForPeer(peerAddr, peerName, peerGroup),
-							neighbor: rp.aspaNeighborForPeer(peerAddr, peerName, peerGroup, peer.Remote.AS),
+							neighbor: rp.aspaNeighborForPeer(peerAddr, peerName, peerGroup, peerASN),
 						})
 					}
 				}
@@ -937,7 +956,7 @@ func (rp *rPKIPlugin) handleEvent(event *bgp.Event) {
 		}
 	}
 	if len(results) > 0 {
-		rp.emitRPKIEvent(peerAddr, peerName, peer.Remote.AS, event.GetMsgID(), results, cacheEmpty, eventASPA)
+		rp.emitRPKIEvent(peerAddr, peerName, peerASN, event.GetMsgID(), results, cacheEmpty, eventASPA)
 	}
 }
 
