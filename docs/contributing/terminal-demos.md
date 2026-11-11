@@ -140,9 +140,12 @@ the owned browser's CDP endpoint; it carries no second configuration workflow.
 
 On a Linux development host, run the actual three-capture poster proof with
 `./le job run label web-config-poster command env CGO_ENABLED=0 go test -tags integration -run '^TestWebConfigPosterUsesAuthoredInputs$' ./internal/le/site/terminaldemo`.
-Build the demo binaries and renderer image first with
-`./le site terminal-demo build binaries` and
-`./le site terminal-demo build image`.
+Build the renderer image first with `./le site terminal-demo build image`.
+The test builds its own `ze` from the tree under test, with the recipe of
+`./le site terminal-demo build binaries`, into its private demo root, and the
+child refuses to run when another `ze` comes first on its PATH: the shared
+`tmp/terminal-demos/bin` copy is rebuilt only by hand, so driving it would judge
+code older than the tree.
 The test uses the existing renderer preflight, lock and owned container runner;
 it does not start the network-configuring daemon on the host. Its compiled test
 binary runs inside the pinned image with a private network and artifact mount.
@@ -152,7 +155,8 @@ shared runtime inputs are read-only. It never rewrites shared SSH configuration
 or walks shared scratch to change its ownership.
 The QEMU integration runner excludes this package because that guest lacks the
 browser dependencies and cannot substitute for this Docker execution route.
-<!-- source: internal/le/site/terminaldemo/web_config_poster_integration_test.go -- TestWebConfigPosterUsesAuthoredInputs, runWebConfigPosterInRenderer -->
+<!-- source: internal/le/site/terminaldemo/web_config_poster_integration_test.go -- TestWebConfigPosterUsesAuthoredInputs, runWebConfigPosterInRenderer, buildPosterZe -->
+<!-- source: internal/le/site/terminaldemo/web_config_poster_binary_test.go -- posterZeIsOwned -->
 <!-- source: internal/le/test/qemu/alltests.go -- excludedIntegrationPackages -->
 
 ### 5. The tone of a sales engineer

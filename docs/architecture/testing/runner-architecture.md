@@ -706,7 +706,7 @@ the page discard redirects to never held the pending change anyway. When you wan
 the previous page back, `action=open` there yourself.
 
 **The case deadline also bounds the command in progress.** Inner retry limits
-cannot extend that deadline. A `waitLoad` that does not settle fails with the
+cannot extend that deadline. A `waitLoad` has no limit of its own: a click waits for its requests as long as the case may run, because a commit's durable store write can legitimately outlast any fixed bound on a loaded host. One that does not settle by the case deadline fails naming each request still pending (kind, method, URL, age) and the
 last observed cause. Cleanup has a separate context. A failed owned browser
 close makes the case fail and preserves its completed steps. Server cleanup
 also propagates errors and joins its sole process owner. Native subprocess tests
@@ -748,7 +748,8 @@ drain after exit or cancellation. A retained pipe becomes a cleanup error rather
 than an unbounded wait. This does not establish that detached Chrome or browser
 daemon descendants have exited.
 <!-- source: internal/component/web/testing/runner.go -- agentPipeWaitDelay, runAgentCore, runAgentOutput -->
-<!-- source: internal/component/web/testing/runner.go -- waitUntil, waitLoad, inflightIdleExpr -->
+<!-- source: internal/component/web/testing/runner.go -- waitUntil, waitLoad -->
+<!-- source: internal/component/web/testing/inflight.go -- inflightIdleExpr, inflightPendingExpr, describePending -->
 <!-- source: internal/component/web/testing/expect.go -- retryPositive, retryCommand, expectDeadline -->
 
 ### Expectations

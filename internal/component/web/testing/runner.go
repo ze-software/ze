@@ -97,16 +97,22 @@ func (b *Browser) runAgentEnsureDaemon(args ...string) error {
 // keeps a persistent EventSource(/events) open, so `wait --load networkidle`
 // never settles and burns a fixed ~1.44s on every call. Instead we poll an
 // in-flight counter registered through the native SDK before navigation, with
-// `eval` polling under a hard wall-clock deadline. Missing observation and a
-// request that never settles fail rather than looking idle.
+// `eval` polling. Missing observation and a request that never settles fail
+// rather than looking idle.
+//
+// The wait is bounded by the case deadline (b.ctx, which runWBCase refuses to
+// run without), never by a fixed wall-clock limit of its own. A click's request
+// is legitimate work for as long as the case may run: a commit's durable store
+// write took 5.1s on a loaded host, and a fixed 5s bound failed that correct
+// click as "did not settle". When the case deadline passes, the error names
+// every request still pending (describePending), so a request that never
+// answers is reported by method and URL rather than as a bare "false".
 func (b *Browser) waitLoad() error {
-	restore := b.bounded(waitLoadDeadline)
-	defer restore()
 	var lastErr error
 	for {
 		out, err := b.runAgentOutput("eval", inflightIdleExpr)
 		if b.ctx.Err() != nil {
-			return errors.Join(lastErr, err, context.Cause(b.ctx))
+			return errors.Join(lastErr, err, b.describePending(), context.Cause(b.ctx))
 		}
 		if err == nil && strings.TrimSpace(out) == "true" {
 			return context.Cause(b.ctx)
@@ -116,14 +122,14 @@ func (b *Browser) waitLoad() error {
 		}
 		lastErr = err
 		if waitErr := waitContext(b.ctx, waitLoadPoll); waitErr != nil {
-			return errors.Join(err, waitErr)
+			return errors.Join(err, b.describePending(), waitErr)
 		}
 	}
 }
 
 const (
-	waitLoadDeadline = 5 * time.Second
-	waitLoadPoll     = 40 * time.Millisecond
+	waitLoadPoll        = 40 * time.Millisecond
+	pendingReadDeadline = 2 * time.Second
 )
 
 // browserIdleWindow is how long the agent-browser daemon lives with no command.
@@ -700,58 +706,6 @@ func (b *Browser) runAgentOutput(args ...string) (string, error) {
 	}
 	return string(out), nil
 }
-
-// inflightInitJS instruments fetch, XHR and finite HTMX request lifetimes before
-// navigation through the native daemon's addinitscript action. EventSource is
-// deliberately left alone. Generic fetch settles when Response headers arrive;
-// HTMX retains its body processing and awaited swap until finally:request, so
-// the counter pairs htmx:before:request with htmx:finally:request. HTMX awaits
-// the hx-sse extension's promise before finally:request: by default hx-sse
-// releases it at once for an element with hx-sse:connect, so that stream
-// releases at once, and holds other text/event-stream responses until they
-// end, so those count as finite work until they end.
-const inflightInitJS = `(function () {
-  if (window.__zeWaitInstalled) return;
-  window.__zeWaitInstalled = true;
-  window.__zeInflight = 0;
-  window.__zeLastChange = performance.now();
-  function mark() { window.__zeLastChange = performance.now(); }
-  // Capture sees cancellation in a later application listener and completion
-  // rehomed to document when the source element has been disconnected.
-  var htmxRequests = new WeakSet();
-  document.addEventListener('htmx:before:request', function (event) {
-    var ctx = event.detail && event.detail.ctx;
-    if (!ctx || typeof ctx !== 'object' || htmxRequests.has(ctx)) return;
-    htmxRequests.add(ctx);
-    window.__zeInflight++; mark();
-  }, true);
-  document.addEventListener('htmx:finally:request', function (event) {
-    var ctx = event.detail && event.detail.ctx;
-    if (!ctx || typeof ctx !== 'object' || !htmxRequests.has(ctx)) return;
-    htmxRequests.delete(ctx);
-    window.__zeInflight--; mark();
-  }, true);
-  var origFetch = window.fetch;
-  if (origFetch) {
-    window.fetch = function () {
-      window.__zeInflight++; mark();
-      return origFetch.apply(this, arguments).finally(function () { window.__zeInflight--; mark(); });
-    };
-  }
-  var origSend = XMLHttpRequest.prototype.send;
-  XMLHttpRequest.prototype.send = function () {
-    window.__zeInflight++; mark();
-    this.addEventListener('loadend', function () { window.__zeInflight--; mark(); });
-    return origSend.apply(this, arguments);
-  };
-})();
-`
-
-// inflightIdleExpr is the predicate waitLoad polls: no finite fetch/XHR/HTMX work
-// and quiet for a short debounce. The debounce bridges chained requests --
-// cli.js issues fetch(/cli) -> htmx refresh -> fetch(/config/changes) in
-// sequence, so the counter dips to zero for a microtask between them.
-const inflightIdleExpr = `window.__zeWaitInstalled===true && Number.isFinite(window.__zeInflight) && Number.isFinite(window.__zeLastChange) && window.__zeInflight===0 && (performance.now()-window.__zeLastChange)>=120`
 
 func (b *Browser) agentEnv() []string {
 	inherited := os.Environ()

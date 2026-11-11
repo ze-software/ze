@@ -201,10 +201,19 @@ func rendererGOARCH() (string, error) {
 	}
 	return strings.TrimSpace(string(output)), nil
 }
+
+// buildCommand answers the build of the ze every demo drives, written to the
+// shared demo bin directory the renderer container puts on PATH.
 func buildCommand(root string, toolchain gotoolchain.Toolchain, arch, tags string) (Command, BuildReport) {
+	return zeBuildCommand(root, toolchain, arch, tags, filepath.Join(root, "tmp", "terminal-demos", "bin", "ze"))
+}
+
+// zeBuildCommand is buildCommand's recipe with the output path named by the
+// caller, so a proof that must drive the ze of the tree under test (the web
+// poster test) builds its own copy with the same tags, flags and target.
+func zeBuildCommand(root string, toolchain gotoolchain.Toolchain, arch, tags, output string) (Command, BuildReport) {
 	ldflags := []string{"-ldflags", toolchain.LDFlags()}
 	action := "terminal-demo build binaries"
-	output := filepath.Join(root, "tmp", "terminal-demos", "bin", "ze")
 	args := make([]string, 0, 7+len(ldflags))
 	args = append(args, "go", goCommandBuild, "-tags", tags)
 	args = append(args, ldflags...)

@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +15,7 @@ import (
 	"testing"
 
 	webtesting "github.com/ze-software/ze/internal/component/web/testing"
+	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	"github.com/ze-software/ze/internal/test/runner"
 	"github.com/ze-software/ze/internal/test/sessionpath"
 )
@@ -32,6 +34,10 @@ func TestWebConfigPosterUsesAuthoredInputs(t *testing.T) {
 		if _, err := exec.LookPath(executable); err != nil {
 			t.Fatalf("actual poster proof requires %s: %v", executable, err)
 		}
+	}
+	// ZE_DEMO_ROOT is still the container root the parent set; it changes below.
+	if err := posterZeIsOwned(demoBinary("ze")); err != nil {
+		t.Fatal(err)
 	}
 	source, err := filepath.Abs("../../../..")
 	if err != nil {
@@ -195,8 +201,15 @@ func runWebConfigPosterInRenderer(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(artifacts, "tmp"), 0o750); err != nil {
 		t.Fatal(err)
 	}
+	// The child drives a ze built here from the tree under test, never the
+	// hand-built shared tmp/terminal-demos/bin copy. It sits where the child's
+	// demoBinary("ze") resolves under ZE_DEMO_ROOT=insideRoot, and the child
+	// refuses any other ze it finds first on PATH (posterZeIsOwned).
+	if err := buildPosterZe(ctx, source, filepath.Join(artifacts, "tmp", "terminal-demos", "bin", "ze")); err != nil {
+		t.Fatal(err)
+	}
 	container := engine.containerCommand(manifest.Renderer, grants, "/bin/sh", "-c",
-		"export PATH=/src/tmp/terminal-demos/bin:$PATH; cd /src/internal/le/site/terminaldemo && exec /run/web-config-poster.test -test.v -test.run '^TestWebConfigPosterUsesAuthoredInputs$'")
+		"export PATH="+insideRoot+"/tmp/terminal-demos/bin:$PATH; cd /src/internal/le/site/terminaldemo && exec /run/web-config-poster.test -test.v -test.run '^TestWebConfigPosterUsesAuthoredInputs$'")
 	for index := 1; index < len(container.Arguments); index++ {
 		if container.Arguments[index-1] == "--volume" &&
 			container.Arguments[index] != artifacts+":"+insideRoot {
@@ -211,4 +224,36 @@ func runWebConfigPosterInRenderer(t *testing.T) {
 	if err := engine.withLock(func() error { return engine.runDemoContainer(&demo, container) }); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// buildPosterZe builds the ze the poster child drives, from the tree under
+// test, at the path the child resolves as demoBinary("ze") inside the
+// renderer container (output is that path on the host side of the mount).
+// It is buildCommand's recipe (zeBuildCommand), so tags, flags and target
+// match `./le site terminal-demo build binaries`. Go's build cache makes a
+// rebuild of an unchanged tree cheap, and building every run is what makes a
+// binary older than the tree impossible: the shared tmp/terminal-demos/bin
+// copy is rebuilt only by hand and was five days old when it judged the poster.
+func buildPosterZe(ctx context.Context, root, output string) error {
+	toolchain, err := gotoolchain.New(root)
+	if err != nil {
+		return fmt.Errorf("poster ze toolchain: %w", err)
+	}
+	arch, err := rendererGOARCH()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(output), 0o750); err != nil {
+		return fmt.Errorf("poster ze directory: %w", err)
+	}
+	command, _ := zeBuildCommand(root, toolchain, arch, demoTags(toolchain), output)
+	process := exec.CommandContext(ctx, command.Args[0], command.Args[1:]...) // #nosec G204 -- the fixed Go toolchain build recipe of this package.
+	process.Dir = command.Dir
+	process.Env = command.Env
+	process.Stdout = os.Stderr
+	process.Stderr = os.Stderr
+	if err := process.Run(); err != nil {
+		return fmt.Errorf("build the poster ze from the tree under test (%s): %w", strings.Join(command.Args, " "), err)
+	}
+	return nil
 }
