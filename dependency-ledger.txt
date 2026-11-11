@@ -93,6 +93,8 @@ github.com/miekg/dns	internal/test/dnsquery	in use when the ledger was seeded
 github.com/miekg/dns	internal/test/fixture	in use when the ledger was seeded
 github.com/miekg/dns	internal/test/mock/cymru	in use when the ledger was seeded
 github.com/miekg/dns	internal/test/mock/dns	in use when the ledger was seeded
+github.com/moby/patternmatcher	internal/le/interoplab	apply .dockerignore exactly as Docker does when Ze writes a lab build context as a tar
+github.com/moby/patternmatcher/ignorefile	internal/le/interoplab	read .dockerignore files the way the docker CLI does for the same build context
 github.com/muesli/reflow/ansi	internal/component/cli	in use when the ledger was seeded
 github.com/openconfig/gnmi/proto/gnmi	internal/component/gnmi	in use when the ledger was seeded
 github.com/openconfig/goyang/pkg/yang	internal/component/aihelp	in use when the ledger was seeded

@@ -205,7 +205,7 @@ func kernelSuite(runner *recordingRunner, stagedZe string, preflight PreflightCh
 		Docker:    newDocker(runner),
 		Preflight: preflight,
 		StagedZe:  stagedZe,
-		Images:    []ImageBuild{{Name: "ze", Tag: "ze-kernel-test", Dockerfile: "/checkout/Dockerfile.ze", Context: "/checkout", Required: true}},
+		Images:    []ImageBuild{{Name: "ze", Tag: "ze-kernel-test", Context: "testdata", Required: true}},
 		Scenarios: []ScenarioPlan{{Source: ScenarioSource{Name: "unreached", Checker: func(context.Context, *CheckContext) error { return nil }}}},
 	}
 }

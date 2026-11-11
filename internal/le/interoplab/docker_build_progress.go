@@ -18,7 +18,9 @@ import (
 // or the mutable cache tag. Docker's image inspect Id is content-addressable:
 // https://github.com/moby/moby/blob/master/api/types/image/image_inspect.go.
 // A failed streamed build releases its own tag even if cancellation raced export.
-func (d *Docker) buildWithProgress(ctx context.Context, image ImageResult, command ProcessCommand, progress io.Writer) (ImageResult, error) {
+// The build context arrives on the command's stdin from source, and a context
+// that could not be sent whole fails the build the same way.
+func (d *Docker) buildWithProgress(ctx context.Context, image ImageResult, command ProcessCommand, source buildContext, progress io.Writer) (ImageResult, error) {
 	if d.endpointRefusal != nil {
 		return image, d.endpointRefusal
 	}
@@ -27,10 +29,13 @@ func (d *Docker) buildWithProgress(ctx context.Context, image ImageResult, comma
 	stderr := tail.New(outputExcerptBytesMax)
 	command.Stdout = io.MultiWriter(stdout, output)
 	command.Stderr = io.MultiWriter(stderr, output)
-	result, err := d.run(ctx, command)
-	result.Stdout = stdout.String()
-	result.Stderr = stderr.String()
-	_, err = commandOutcome(result, err, command.Timeout, commandOperation(command.Arguments), command.Arguments)
+	_, err := streamBuildContext(source, func(stdin io.Reader) (ProcessResult, error) {
+		command.Stdin = stdin
+		result, err := d.run(ctx, command)
+		result.Stdout = stdout.String()
+		result.Stderr = stderr.String()
+		return commandOutcome(result, err, command.Timeout, commandOperation(command.Arguments), command.Arguments)
+	})
 	output.mu.Lock()
 	err = errors.Join(err, output.err)
 	output.mu.Unlock()

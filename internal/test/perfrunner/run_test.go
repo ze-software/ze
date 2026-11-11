@@ -178,6 +178,11 @@ func (r *dockerRecorder) recorded() []string {
 func fixtureRunner(t *testing.T, stderr io.Writer) (*Runner, *dockerRecorder) {
 	t.Helper()
 	runner := New(t.TempDir(), testReporter, io.Discard, stderr)
+	// An image build reads its context before docker runs, so the interop
+	// directory the non-ze DUTs build from exists, as it does in a checkout.
+	if err := os.MkdirAll(runner.interopDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
 	runner.LinuxTags = "ze_le ze_bgp"
 	runner.Run = func(context.Context, io.Writer, io.Writer, string, []string, []string) error { return nil }
 	recorder := &dockerRecorder{results: runner.resultsDir}

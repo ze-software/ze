@@ -1,10 +1,14 @@
 package labtest
 
 import (
+	"archive/tar"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/netip"
+	"os"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
@@ -76,11 +80,18 @@ type scriptedRunner struct {
 	// absent answers a verb the way the daemon answers an inspect of a
 	// reference it does not hold, before exits is read.
 	absent map[string]bool
+	// buildContext is the archive `docker build` read on its stdin, read to
+	// its end as docker reads it.
+	buildContext []byte
+	buildReadErr error
 }
 
 func (r *scriptedRunner) Run(_ context.Context, command interoplab.ProcessCommand) (interoplab.ProcessResult, error) {
 	r.commands = append(r.commands, command.Arguments)
 	verb := command.Arguments[1]
+	if verb == "build" && command.Stdin != nil {
+		r.buildContext, r.buildReadErr = io.ReadAll(command.Stdin)
+	}
 	if r.absent[verb] {
 		reference := command.Arguments[len(command.Arguments)-1]
 		return interoplab.ProcessResult{Stderr: "Error response from daemon: No such image: " + reference, ExitCode: 1}, nil
@@ -125,6 +136,57 @@ func fixtureHost(runner *scriptedRunner, docker bool, environment map[string]str
 		},
 		moduleRoot: func() (string, error) { return "/module", nil },
 		suffix:     func() string { return "fixture" },
+	}
+}
+
+// collectorsDockerfile is the Dockerfile dockerfileModule writes.
+const collectorsDockerfile = "FROM scratch\n# collectors fixture\n"
+
+// dockerfileModule writes a module root holding
+// test/interop-collectors/Dockerfile and a sibling, plus a file above that
+// directory, and answers it as the host's module root.
+func dockerfileModule(t *testing.T) func() (string, error) {
+	t.Helper()
+	root := t.TempDir()
+	directory := filepath.Join(root, "test", "interop-collectors")
+	if err := os.MkdirAll(directory, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	files := map[string]string{
+		filepath.Join(directory, "Dockerfile"): collectorsDockerfile,
+		filepath.Join(directory, "sibling"):    "beside the Dockerfile\n",
+		filepath.Join(root, "above"):           "above the Dockerfile's directory\n",
+	}
+	for path, body := range files {
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return func() (string, error) { return root, nil }
+}
+
+// buildContextEntries parses the archive the fixture's `docker build` read,
+// answering each entry's bytes by name.
+func buildContextEntries(t *testing.T, runner *scriptedRunner) map[string]string {
+	t.Helper()
+	if runner.buildReadErr != nil {
+		t.Fatalf("reading the build's stdin: %v", runner.buildReadErr)
+	}
+	entries := make(map[string]string)
+	reader := tar.NewReader(strings.NewReader(string(runner.buildContext)))
+	for {
+		header, err := reader.Next()
+		if errors.Is(err, io.EOF) {
+			return entries
+		}
+		if err != nil {
+			t.Fatalf("the build's stdin is not a tar archive: %v", err)
+		}
+		body, err := io.ReadAll(reader)
+		if err != nil {
+			t.Fatalf("read %s from the build context: %v", header.Name, err)
+		}
+		entries[header.Name] = string(body)
 	}
 }
 
@@ -418,7 +480,9 @@ func TestLabtestBuildsADockerfileImage(t *testing.T) {
 	spec := fixtureSpec()
 	spec.Image = "ze-collectors:test"
 	spec.Dockerfile = "test/interop-collectors/Dockerfile"
-	runStart(t, tester, fixtureHost(runner, true, nil), spec)
+	h := fixtureHost(runner, true, nil)
+	h.moduleRoot = dockerfileModule(t)
+	runStart(t, tester, h, spec)
 	if tester.fatal != "" {
 		t.Fatalf("start failed: %s", tester.fatal)
 	}
@@ -426,8 +490,23 @@ func TestLabtestBuildsADockerfileImage(t *testing.T) {
 		t.Fatalf("docker verbs = %v, want exactly %v", runner.verbs(), want)
 	}
 	build := strings.Join(runner.commands[1], " ")
-	if !strings.Contains(build, "-f /module/test/interop-collectors/Dockerfile /module/test/interop-collectors") {
-		t.Errorf("build argv %q does not build the Dockerfile from the module root in its own directory", build)
+	// The context arrives on stdin as a tar, so `-f` names the Dockerfile
+	// inside it: the Dockerfile at the root of its own directory.
+	if !strings.HasSuffix(build, "-f Dockerfile -") {
+		t.Errorf("build argv %q does not build the Dockerfile at the root of the context on stdin", build)
+	}
+	// The context is the Dockerfile's directory under the module root: the
+	// archive holds that Dockerfile's bytes and its sibling, and nothing from
+	// the module root above it.
+	entries := buildContextEntries(t, runner)
+	if entries["Dockerfile"] != collectorsDockerfile {
+		t.Errorf("the build context's Dockerfile = %q, want the module root's test/interop-collectors/Dockerfile", entries["Dockerfile"])
+	}
+	if _, ok := entries["sibling"]; !ok {
+		t.Errorf("the build context lacks the Dockerfile's sibling: %v", entries)
+	}
+	if _, ok := entries["above"]; ok {
+		t.Errorf("the build context holds the module root, not the Dockerfile's directory: %v", entries)
 	}
 	if !strings.Contains(build, "-t ze-collectors:test") {
 		t.Errorf("build argv %q does not tag the spec's image", build)
@@ -444,7 +523,9 @@ func TestLabtestFailsWhenTheBuildFails(t *testing.T) {
 	spec := fixtureSpec()
 	spec.Image = "ze-collectors:test"
 	spec.Dockerfile = "test/interop-collectors/Dockerfile"
-	runStart(t, tester, fixtureHost(runner, true, nil), spec)
+	h := fixtureHost(runner, true, nil)
+	h.moduleRoot = dockerfileModule(t)
+	runStart(t, tester, h, spec)
 	if !strings.Contains(tester.fatal, "cannot build ze-collectors:test from test/interop-collectors/Dockerfile") {
 		t.Fatalf("failure %q does not name the image and its Dockerfile", tester.fatal)
 	}

@@ -57,7 +57,7 @@ func TestDockerBuildStreamsBeforeReturning(t *testing.T) {
 		}
 	}}
 	docker := newDocker(runner)
-	image, err := docker.Build(t.Context(), ImageBuild{Tag: "shared:latest", Progress: &output})
+	image, err := docker.Build(t.Context(), ImageBuild{Tag: "shared:latest", Context: t.TempDir(), Progress: &output})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +89,7 @@ func TestDockerBuildProgressFailureKeepsBoundedDiagnostics(t *testing.T) {
 		writeBuildProgress(t, command.Stderr, strings.Repeat("x", 65536)+"\ncompiler refused source\n")
 		return ProcessResult{ExitCode: 7}, nil
 	}}
-	image, err := newDocker(runner).Build(t.Context(), ImageBuild{Tag: "shared:latest", Progress: &output})
+	image, err := newDocker(runner).Build(t.Context(), ImageBuild{Tag: "shared:latest", Context: t.TempDir(), Progress: &output})
 	var failure *commandError
 	if !errors.As(err, &failure) {
 		t.Fatalf("error = %v, want commandError", err)
@@ -129,7 +129,7 @@ func TestDockerBuildProgressRefusesUnreadableIdentity(t *testing.T) {
 				removed = true
 				return ProcessResult{}, nil
 			}}
-			image, err := newDocker(runner).Build(t.Context(), ImageBuild{Tag: "shared:latest", Progress: io.Discard})
+			image, err := newDocker(runner).Build(t.Context(), ImageBuild{Tag: "shared:latest", Context: t.TempDir(), Progress: io.Discard})
 			if err == nil || image.Built || image.Reference != "" || !removed {
 				t.Fatalf("unreadable identity: image=%+v error=%v removed=%v", image, err, removed)
 			}
@@ -143,7 +143,7 @@ func TestDockerBuildProgressCancellationPreservesCause(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	runner := &cancelBuildRunner{t: t, cancel: cancel}
-	image, err := newDocker(runner).Build(ctx, ImageBuild{Tag: "shared:latest", Progress: io.Discard})
+	image, err := newDocker(runner).Build(ctx, ImageBuild{Tag: "shared:latest", Context: t.TempDir(), Progress: io.Discard})
 	if !errors.Is(err, context.Canceled) || image.Built || !runner.removed {
 		t.Fatalf("canceled build: image=%+v error=%v removed=%v", image, err, runner.removed)
 	}
@@ -189,7 +189,7 @@ func TestDockerBuildProgressProcessCancellation(t *testing.T) {
 	defer cancel()
 	progress := &cancelBuildProgress{cancel: cancel}
 	runner := &buildProcessFixture{t: t}
-	image, err := newDocker(runner).Build(ctx, ImageBuild{Tag: "shared:latest", Progress: progress})
+	image, err := newDocker(runner).Build(ctx, ImageBuild{Tag: "shared:latest", Context: t.TempDir(), Progress: progress})
 	if !errors.Is(err, context.Canceled) || image.Built || !runner.removed {
 		t.Fatalf("child cancellation: image=%+v error=%v removed=%v", image, err, runner.removed)
 	}
@@ -212,7 +212,7 @@ func TestDockerBuildProgressPreservesWriterFailure(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			runner := &buildProcessFixture{t: t, script: "printf 'build output\\n'; exit 7"}
 			image, err := newDocker(runner).Build(t.Context(), ImageBuild{
-				Tag: "shared:latest", Progress: &failedBuildProgress{err: test.err},
+				Tag: "shared:latest", Context: t.TempDir(), Progress: &failedBuildProgress{err: test.err},
 			})
 			var failure *commandError
 			if !errors.As(err, &failure) || failure.ExitCode != 7 {
@@ -280,7 +280,7 @@ func TestDockerBuildProgressPreservesCleanupFailure(t *testing.T) {
 		}
 		return ProcessResult{ExitCode: 1, Stderr: "daemon refused cleanup"}, nil
 	}}
-	_, err := newDocker(runner).Build(t.Context(), ImageBuild{Tag: "shared:latest", Progress: io.Discard})
+	_, err := newDocker(runner).Build(t.Context(), ImageBuild{Tag: "shared:latest", Context: t.TempDir(), Progress: io.Discard})
 	if err == nil {
 		t.Fatal("failed build and cleanup answered success")
 	}
@@ -298,7 +298,7 @@ func TestDockerBuildProgressKeepsEndpointRefusal(t *testing.T) {
 	docker := newDocker(runner)
 	refusal := errors.New("no lab Docker endpoint")
 	docker.endpointRefusal = refusal
-	_, err := docker.Build(t.Context(), ImageBuild{Tag: "shared:latest", Progress: io.Discard})
+	_, err := docker.Build(t.Context(), ImageBuild{Tag: "shared:latest", Context: t.TempDir(), Progress: io.Discard})
 	if !errors.Is(err, refusal) || len(runner.commands) != 0 {
 		t.Fatalf("endpoint refusal: error=%v commands=%v", err, runner.commands)
 	}
@@ -314,7 +314,7 @@ func TestDockerBuildProgressKeepsStdoutOnlyFailure(t *testing.T) {
 		writeBuildProgress(t, command.Stdout, strings.Repeat("x", 65536)+"\nlegacy build failure")
 		return ProcessResult{ExitCode: 2}, nil
 	}}
-	_, err := newDocker(runner).Build(t.Context(), ImageBuild{Tag: "shared:latest", Progress: io.Discard})
+	_, err := newDocker(runner).Build(t.Context(), ImageBuild{Tag: "shared:latest", Context: t.TempDir(), Progress: io.Discard})
 	var failure *commandError
 	if !errors.As(err, &failure) {
 		t.Fatalf("error = %v, want commandError", err)

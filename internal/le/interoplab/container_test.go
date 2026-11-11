@@ -198,14 +198,15 @@ func TestBuildRendersNamedContexts(t *testing.T) {
 	runner := &recordingRunner{}
 	runner.run = func(ProcessCommand) (ProcessResult, error) { return ProcessResult{Stdout: "sha256:abc\n"}, nil }
 	docker := newDocker(runner)
-	build := ImageBuild{Name: "freertr", Tag: "freertr-interop", Dockerfile: "Dockerfile.freertr", Context: "/repo",
+	build := ImageBuild{Name: "freertr", Tag: "freertr-interop", Context: t.TempDir(),
 		NamedContexts: []NamedBuildContext{{Name: "freertr", Path: "/src/rtr"}}}
 	if _, err := docker.Build(t.Context(), build); err != nil {
 		t.Fatalf("Build: %v", err)
 	}
 	argv := runner.commands[len(runner.commands)-1].Arguments
 	at := slices.Index(argv, "--build-context")
-	if at < 0 || argv[at+1] != "freertr=/src/rtr" || at > slices.Index(argv, "/repo") {
+	// The main context arrives on stdin, so `-` stands where its path stood.
+	if at < 0 || argv[at+1] != "freertr=/src/rtr" || at > slices.Index(argv, "-") {
 		t.Errorf("argv %v lacks --build-context freertr=/src/rtr before the main context", argv)
 	}
 	ran := len(runner.commands)
@@ -236,7 +237,7 @@ func TestBuildRefusesNamedContextsWithoutBuildKit(t *testing.T) {
 		return ProcessResult{Stdout: "sha256:abc\n"}, nil
 	}
 	docker := newDocker(runner)
-	build := ImageBuild{Name: "freertr", Tag: "freertr-interop", Dockerfile: "Dockerfile.freertr", Context: "/repo",
+	build := ImageBuild{Name: "freertr", Tag: "freertr-interop", Context: t.TempDir(),
 		NamedContexts: []NamedBuildContext{{Name: "freertr", Path: "/src/rtr"}}}
 	_, err := docker.Build(t.Context(), build)
 	if err == nil {

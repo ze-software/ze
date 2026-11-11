@@ -4503,6 +4503,29 @@ A consequence: `docker build -f test/interop/Dockerfile.ze .` on a clean checkou
 now fails at the `COPY` until `./le test integration interop` has run its preflight.
 Each converted Dockerfile's header names the action that writes its binary.
 
+`Docker.Build` never hands docker the context as a directory. Ze walks it,
+applies its ignore file, writes it as a tar stream, and runs
+`docker build -f <Dockerfile inside the context> -` with that stream on stdin.
+The reason is the macOS host. There the QEMU guest sees the checkout over 9p,
+and QEMU's darwin 9p backend answers `llistxattr` and `lgetxattr` on a symlink
+with ELOOP. BuildKit's directory walker accepts only ENOTSUP from those calls,
+so a guest build whose context held a symlink (the checkout's `cache`, the
+migrated `tmp/` children) failed with `too many levels of symbolic links`,
+even with `cache/` in `.dockerignore`. Ze's walk reads each entry with lstat
+and readlink and sends a symlink as a link entry, never following it, and it
+reads no extended attribute. The ignore file is the one Docker would read:
+`<Dockerfile>.dockerignore` beside the Dockerfile wins over the context's
+`.dockerignore`. An excluded directory is not entered unless a `!` pattern
+could match inside it, and the Dockerfile and the ignore file are always
+sent. Owners are sent as root, as the docker CLI sends them. A socket is
+skipped, also as the docker CLI does, while a device or a named pipe fails
+the build with its path. A Dockerfile outside the context is refused, because
+the stream carries the context alone. A walk that fails part way fails the
+build with its cause, so a truncated context is never built. A named context
+(`--build-context`) is still passed as a path.
+<!-- source: internal/le/interoplab/docker_build_context.go -- prepareBuildContext, contextIgnoreMatcher, streamBuildContext, writeEntry -->
+<!-- source: internal/le/interoplab/docker.go -- Build -->
+
 Each build is bounded at 90 minutes, and `BUILD_TIMEOUT` sets that bound in whole
 seconds for a machine slower or faster than that one. The bound stops a wedged
 Docker daemon and is not a budget for the build, so a build that finishes returns

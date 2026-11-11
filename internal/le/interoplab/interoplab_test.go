@@ -144,10 +144,9 @@ func TestDockerNetworkOverlapSelectsUsableSubnet(t *testing.T) {
 func TestDockerBuildRejectsEmptyImageID(t *testing.T) {
 	docker := newDocker(&recordingRunner{})
 	_, err := docker.Build(t.Context(), ImageBuild{
-		Name:       "ze",
-		Tag:        "ze-interop",
-		Dockerfile: "Dockerfile.ze",
-		Context:    "/repo",
+		Name:    "ze",
+		Tag:     "ze-interop",
+		Context: t.TempDir(),
 	})
 	if err == nil {
 		t.Fatal("Build accepted empty stdout as an image reference")
@@ -172,11 +171,10 @@ func TestDockerBuildUsesDeclaredTimeout(t *testing.T) {
 	}
 	for i, answer := range answers {
 		_, err := docker.Build(t.Context(), ImageBuild{
-			Name:       "peer",
-			Tag:        "peer-image",
-			Dockerfile: "Dockerfile.peer",
-			Context:    "/peer",
-			Timeout:    answer.declared,
+			Name:    "peer",
+			Tag:     "peer-image",
+			Context: t.TempDir(),
+			Timeout: answer.declared,
 		})
 		if err != nil {
 			t.Fatalf("Build with timeout %s returned an error: %v", answer.declared, err)
@@ -224,7 +222,7 @@ func TestDockerBuildTakesTheMachineBudget(t *testing.T) {
 	}}
 	docker := newDocker(runner)
 	docker.buildTimeout = 45 * time.Minute
-	if _, err := docker.Build(t.Context(), ImageBuild{Name: "ze", Tag: "ze-interop", Dockerfile: "Dockerfile.ze", Context: "/src"}); err != nil {
+	if _, err := docker.Build(t.Context(), ImageBuild{Name: "ze", Tag: "ze-interop", Context: t.TempDir()}); err != nil {
 		t.Fatalf("Build returned an error: %v", err)
 	}
 	if runner.commands[0].Timeout != 45*time.Minute {

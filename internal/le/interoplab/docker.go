@@ -468,6 +468,12 @@ func architectureToken(value string) bool {
 // before `docker build` runs otherwise (requireBuildKit). A Dockerfile that
 // builds a peer from source more than one month old is refused, or has its
 // followed checkout updated, before `docker build` runs (RequireFreshSource).
+// The main context is never handed to docker as a directory: Ze walks it,
+// applies its ignore file, and streams it as a tar on the stdin of
+// `docker build -`, so a symlink in it is sent as a link and docker reads no
+// extended attribute. A macOS host's 9p share answers those reads on a
+// symlink with ELOOP, which failed every guest build (docker_build_context.go).
+// A named context keeps its path argument.
 func (d *Docker) Build(ctx context.Context, build ImageBuild) (ImageResult, error) {
 	image := ImageResult{Name: build.Name, Tag: build.Tag}
 	if build.Timeout < 0 {
@@ -507,12 +513,29 @@ func (d *Docker) Build(ctx context.Context, build ImageBuild) (ImageResult, erro
 			return image, err
 		}
 	}
-	arguments = append(arguments, "-t", image.retainedTag, "-f", build.Dockerfile, build.Context)
-	if build.Progress != nil {
-		return d.buildWithProgress(ctx, image, ProcessCommand{Arguments: arguments, Timeout: timeout}, build.Progress)
+	// No context is read for a daemon the endpoint selection refused.
+	if d.endpointRefusal != nil {
+		return image, d.endpointRefusal
 	}
-	arguments = append(arguments, "-q")
-	result, err := d.command(ctx, timeout, arguments...)
+	source, err := prepareBuildContext(build.Context, build.Dockerfile)
+	if err != nil {
+		return image, err
+	}
+	// A quiet build prints only the image id, which is what it reads.
+	if build.Progress == nil {
+		arguments = append(arguments, "-q")
+	}
+	// The context arrives on stdin as the tar Ze writes, so `-f` names the
+	// Dockerfile inside that archive (docker_build_context.go says why).
+	arguments = append(arguments, "-t", image.retainedTag, "-f", source.dockerfile, "-")
+	if build.Progress != nil {
+		return d.buildWithProgress(ctx, image, ProcessCommand{Arguments: arguments, Timeout: timeout}, source, build.Progress)
+	}
+	result, err := streamBuildContext(source, func(stdin io.Reader) (ProcessResult, error) {
+		command := ProcessCommand{Arguments: arguments, Timeout: timeout, Stdin: stdin}
+		result, err := d.run(ctx, command)
+		return commandOutcome(result, err, timeout, commandOperation(arguments), arguments)
+	})
 	if err != nil {
 		return image, err
 	}
