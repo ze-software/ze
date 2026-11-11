@@ -425,8 +425,15 @@ of the snapshot grammar: rotating recovery snapshots keeps the latest three
 with their labels and preserves separately authored handoff blocks. A
 `## Session:` heading opens a snapshot only at a block start (the top of the
 file or after a column-zero `---` separator) or after another snapshot, so a
-handoff that quotes the heading in its body is kept whole.
-<!-- source: internal/le/session/summary.go -- endSummary, snapshotText, snapshotGrammar, preserveState, snapshotBoundary, nextBlockStart -->
+handoff that quotes the heading in its body is kept whole. A `# Session State`
+title further down than the first line is authored text too. Inside a Markdown
+code fence (at most three spaces of indentation, three or more backticks or
+tildes, closed by a run of the same character at least as long) every line is
+quoted: a fenced heading or separator neither opens a snapshot, takes a
+retention slot, nor splits the handoff. Each column-zero `---` ends the block
+before it, so rotation writes one separator between blocks and never adds
+another.
+<!-- source: internal/le/session/summary.go -- endSummary, snapshotText, snapshotGrammar, preserveState, snapshotBoundary, nextBlockStart, fenceMarker, closesFence -->
 
 
 A handoff leads with its rationale so the owner can catch a misaligned handoff

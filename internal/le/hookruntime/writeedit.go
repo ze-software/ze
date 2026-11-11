@@ -138,7 +138,7 @@ func writeRenderedRule(ctx context) *verdict {
 		return nil
 	}
 	return &verdict{2, red + bold + "❌ BLOCKED: ai/rules/" + tail + " is generated" + reset +
-		"\n  Edit the rule's point under ai/rules/points/<rule>/, then run ./le ai rules update render.\n  See ai/rules/repo-maintenance.md, Canonical Sources and Sync Direction"}
+		"\n  Edit the rule's point under ai/rules/points/<rule>/, then regenerate the rule and session payload:\n    ./le ai rules update render\n    ./le ai rules update condensed\n  See ai/rules/repo-maintenance.md, Canonical Sources and Sync Direction"}
 }
 
 // ze point: never-destroy-work/forbidden-without-explicit-permission/ask-before-deleting-or-overwriting-user-work

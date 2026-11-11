@@ -193,8 +193,40 @@ func preserveState(content string, keep int) string {
 	// a handoff is the handoff's own text (one that quotes the heading), so it
 	// starts a snapshot only at a block start or inside another snapshot.
 	blockStart := true
-	for _, line := range lines {
-		if strings.TrimRight(line, " \t") == "# Session State" {
+	// fence is the marker of the Markdown code fence an authored block holds
+	// open, or empty outside one. Every line inside a fence is quoted text: a
+	// quoted "## Session:" heading, "---" separator or title neither opens a
+	// snapshot nor splits the block that quotes it.
+	fence := ""
+	for index, line := range lines {
+		// Only the first line is endSummary's title. The same heading further
+		// down is authored text and stays in its block.
+		if index == 0 && strings.TrimRight(line, " \t") == "# Session State" {
+			continue
+		}
+		if fence != "" {
+			current = append(current, line)
+			if closesFence(line, fence) {
+				fence = ""
+			}
+			continue
+		}
+		if opening := fenceMarker(line); opening != "" {
+			if kind == snapshotKind {
+				flush()
+			}
+			if kind == "" {
+				kind = "other"
+			}
+			fence = opening
+			blockStart = false
+			current = append(current, line)
+			continue
+		}
+		// The separator endSummary writes between blocks ends the block it
+		// follows. Kept inside the block, it would be written again by the join
+		// below, and every rotation would add one more.
+		if strings.TrimRight(line, " \t") == blockSeparator {
 			flush()
 			blockStart = true
 			continue
@@ -244,20 +276,68 @@ func snapshotBoundary(line, kind string, blockStart bool) bool {
 	return blockStart
 }
 
-// nextBlockStart carries the block-start state past one line: a blank line
-// keeps it, a column-zero "---" separator sets it, and any other line ends it.
+// nextBlockStart carries the block-start state past one line that is neither
+// a separator nor a fence, which preserveState handles first: a blank line
+// keeps it and any other line ends it.
 func nextBlockStart(line string, blockStart bool) bool {
 	if strings.TrimSpace(line) == "" {
 		return blockStart
 	}
-	return strings.TrimRight(line, " \t") == blockSeparator
+	return false
+}
+
+// fenceMarker returns the run of backticks or tildes that opens or closes a
+// Markdown code fence on line, or "" when line is no fence. CommonMark allows
+// at most three spaces of indentation and needs at least three marker
+// characters, and a backtick fence's info string holds no backtick, which is
+// what keeps an inline span such as ```x``` ordinary text.
+func fenceMarker(line string) string {
+	text := strings.TrimLeft(line, " ")
+	if len(line)-len(text) > 3 {
+		return ""
+	}
+	if text == "" {
+		return ""
+	}
+	marker := text[0]
+	if marker != '`' {
+		if marker != '~' {
+			return ""
+		}
+	}
+	width := 0
+	for width < len(text) {
+		if text[width] != marker {
+			break
+		}
+		width++
+	}
+	if width < 3 {
+		return ""
+	}
+	if marker == '`' {
+		if strings.ContainsRune(text[width:], '`') {
+			return ""
+		}
+	}
+	return text[:width]
+}
+
+// closesFence reports whether line closes the fence opening began: the same
+// marker character, a run at least as long, and nothing after it but spaces.
+func closesFence(line, opening string) bool {
+	closing := fenceMarker(line)
+	if len(closing) < len(opening) {
+		return false
+	}
+	if closing[0] != opening[0] {
+		return false
+	}
+	return strings.TrimSpace(line) == closing
 }
 
 func snapshotGrammar(line string) bool {
 	if strings.Trim(line, " \t") == "" {
-		return true
-	}
-	if strings.TrimRight(line, " \t") == blockSeparator && !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "\t") {
 		return true
 	}
 	if strings.HasPrefix(line, "Branch:") {

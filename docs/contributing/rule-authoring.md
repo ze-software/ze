@@ -18,6 +18,8 @@ depth is fixed at two, so a point id is always `<rule>/<section>/<slug>`.
 
 An Edit to any generated file is refused by `writeRenderedRule` in
 `internal/le/hookruntime/writeedit.go`. The refusal names the point directory.
+It also names both regeneration commands, in source order: render the edited
+points, then regenerate the session payload from the rendered rules.
 
 A `##` heading is a section DIRECTORY, not a point file. A `###` or `####`
 heading stays a point inside its section: it is sub-structure within a section
