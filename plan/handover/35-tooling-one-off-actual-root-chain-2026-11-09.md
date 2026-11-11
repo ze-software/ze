@@ -1,5 +1,95 @@
 # Tooling one-off defects: the actual-root fix chain, 2026-11-09
 
+## Saved state after the Mac port — 2026-11-11
+
+This section supersedes the old Next and Last run sections below. Work on this
+spec continued by accident on the Mac checkout for nine commits and some
+uncommitted work, stopped on 2026-11-10. That work has been carried to this
+checkout by re-implementing each change against current code. **None of it is
+committed here yet**: every item below is working-tree state on this checkout.
+The spec stays open; Review Gate and the two-commit closure have not happened,
+and no scope was dropped.
+
+### The nine Mac commits
+
+| Mac commit | Work | Here |
+| --- | --- | --- |
+| `2fa7ad5808` | CodeQL patched-Go bootstrap | Adapted: `2300efb0f9` already selected Go through `./le go stdpatch goroot`; added `Initialize CodeQL` after the Select step, `CGO_ENABLED=0`, and the two bootstrap tests |
+| `9bd860189a` | Stop-hook recovery blocks, fences, both rule generators | Adapted into this checkout's `preserveState`; fence handling, the second generator needle, seals renewed |
+| `15fb445289` | Inventory interface result types | **Not ported** (see below) |
+| `8dcbf9ff62` | CodeQL extraction entries and finalized-database checker | Ported |
+| `64a2928e2f` | Rule metadata polarity proof | Ported |
+| `3514e9c43b` | Weakening approval validated before writes | Adapted: this checkout's writer already resolved the unit (`4aafc843c0`); only the registered action's read-only preparation was ported. P-31's red walk here is owed |
+| `35fc637fca` | Trailing child help words forwarded unchanged | Ported |
+| `2290209274` | Finite inventory field equations | **Not ported** (see below) |
+| `6362c8fbd5` | Typed-NLRI listener readiness, current-session EOR | Mostly already here: listener readiness is solved by the speaker redial (`ac1a28dc21`, `41fb15dad0`); the cancelled-identity test and one doc sentence were ported |
+
+**The inventory work is not ported, and the actual-root chain is closed by
+supersession, not by a result.** `spec-inventory-fast-registry-checks` deletes
+the whole-tree external-effect proof (`Snapshot.externalCertificate`, every
+`external*` and `assembly*` file) and replaces it with three fast registry
+checks; its Design Insights mark the actual-root refusal chain, this
+handover's old "Next" items 1 and 2 and "Last run" actual-root stop, and the
+completeness half of AC-32/P-32 superseded. Porting `15fb445289`, `2290209274`
+or the Mac's uncommitted ambient-capture repair would layer work onto code
+that spec deletes (`ai/rules/no-layering.md`). The Mac's 30-minute timeout of
+`TestAnswerAnswersTheInventory`, its CPU profile and the fixture-population
+pass are history of that proof only; do not run the actual-root command from
+the Mac record.
+
+### The Mac's uncommitted work, as carried here
+
+The evidence file's section "Mac working-tree evidence of 2026-11-10, ported
+(2026-11-11)" records each item and what it owes. In short:
+
+- P-18: `TestGokrazyBuildCancelEndsTheGrandchildren` has the approved bounded
+  wait; no baseline, cut or restored run yet. The guest (`d3195649`),
+  Yangcontract (`191ba60d`) and hugepages (`58756b12`) cleanup proposals are
+  approved but not applied or run; their unsafe cuts must not run first.
+- P-13: the broadcast-interleaving test and the two HTMX capture tests are
+  carried, unrun; the Mac's browser repair proposal is not applied.
+- P-16: both positive-criteria entry tests are carried, unrun.
+- P-14: the real vendor publication test is carried, unrun.
+- P-24: `design-admission.json` carries the completed fixture, with the
+  `ze-spec.md` range corrected to this checkout's lines (`211-275`). A model
+  found a real nil-input scope defect in that completion; the fix proposal
+  `p24-model-proof/nil-preservation-proposal.json` is not judged or applied.
+  Do not certify the fixture complete.
+- P-25: the `RFC7296-2.1-1` provenance assertion in `TestOwnedDocumentDisposition`
+  is carried, unrun.
+- P-12 (a) LOCAL_PREF, **open decision**: Thomas authorized the Mac's exact
+  repair ("Authorize this exact repair and approval record"), independently
+  judged APPROVE(b) for `bgp.checkLocalPrefStrip`, which accepts the final
+  subject and fence in one UPDATE in either NLRI order. This checkout instead
+  landed `7081cfdfa7`, which accepts the fence after the third subject in one
+  UPDATE but refuses it before. The batch test is carried adapted to
+  `7081cfdfa7`. Adopting the authorized design means applying
+  `tmp/mac-port/logs/10/p12-local-pref-batching-proposal.patch` to
+  `check_local_pref_wire.go`, flipping this port's "fence then third" case
+  and `TestLocalPrefStripChecksDestinationWire`'s "fence before third batched"
+  case, under a fresh `ze-test-judge` verdict for this checkout's code (the
+  Mac's pending approval row was written on the Mac and does not apply here).
+- P-35: the Mac's bounded BFD batch is a second observation of a carrier this
+  checkout already walked (evidence, "P-35: the GR purge, BFD join and
+  document-too-wide members").
+
+Mac logs, proposals and the P-24 payloads used above are in
+`tmp/mac-port/logs/`; the rest of the Mac scratch
+(`tmp/session/2026-11-10-002721/scratch/` on the Mac) is not on this host.
+
+### Resume order
+
+1. Run the scoped tests the port owes (each package touched above) and commit
+   the port in pieces through `./le commit create`, with `./le repo compiles
+   check` after each Go commit.
+2. Decide the LOCAL_PREF design above, then prove it.
+3. Run the owed walks: P-31 here, P-18 gokrazy, P-13, P-16, P-14, P-25.
+4. Complete every remaining P-1 through P-41 proof, the Review Gate and the
+   two-commit closure. AC-32 and P-32 are restated by
+   `spec-inventory-fast-registry-checks` AC-17 when that spec lands.
+
+## Earlier handover record (superseded by the saved state above)
+
 Spec: `plan/post-release/engineering/spec-tooling-one-off-defects.md` (claimed,
 in progress). Goal set by Thomas: close the spec, every AC met by its proof
 obligation P-1 to P-41 through the real entry with attributed red, repair and
@@ -57,6 +147,9 @@ predates this session. Two causes, traced with probes:
 
 ## Next
 
+Items 1 and 2 are superseded by `spec-inventory-fast-registry-checks`, which
+deleted the external-effect proof this chain repaired; do not run them.
+
 1. Thomas must allow restarting the actual-root run: the harness stopped the
    last one for low memory, and its rule is to restart only when asked.
 2. Rerun the package suite, then continue the actual-root chain. The
@@ -96,7 +189,9 @@ Recorded in `tooling-one-off-evidence.md`, sections P-12 (a) to (d).
 
 - Package suite (`go test` of `internal/le/repo/inventory` with the full tag
   set, skipping the five actual-root tests): **green**, `ok` in 949s.
-- Actual root (`TestAnswerAnswersTheInventory`): refuses at
+- Actual root (superseded by `spec-inventory-fast-registry-checks`: the proof
+  that refused is deleted, and `TestAnswerAnswersTheInventory` passes on the
+  declared walk) (`TestAnswerAnswersTheInventory`): refused at
   `vendor/google.golang.org/protobuf/compiler/protogen/protogen.go`
   (the 654th line), "external registration capability is unknown: returned
   root field ownership is unresolved". That is the next analyzer fix:

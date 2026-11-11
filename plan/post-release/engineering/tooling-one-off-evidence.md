@@ -1908,6 +1908,27 @@ inactive-status refusal, and approved once that test existed. The fixture
 digests were re-sealed after the judgement. Package runs: `session`,
 `hookruntime` and `ai/hooks` pass whole.
 
+## P-8: fenced recovery blocks and both rule generators (2026-11-11)
+
+Ported from Mac `9bd860189a`, not yet committed on SERVER. The 2026-11-09 record above
+already holds the historical-consumer carriers and the block-start boundary,
+so this adds only what that record lacked.
+
+| Defect | Repair | Carrier | Break | Red |
+| --- | --- | --- | --- | --- |
+| A handoff quoting `---` or `## Session:` inside a Markdown code fence was split, or its quoted heading took a retention slot | `preserveState` (`internal/le/session/summary.go`) keeps every line of a fence inside its block; `fenceMarker` and `closesFence` follow CommonMark (at most three spaces of indent, three or more backticks or tildes, no backtick in a backtick info string, a close at least as long) | `TestStopSummaryPreservesQuotedSnapshotHeading/fenced-*` (`internal/le/hookruntime`) | fence branches removed from `preserveState` | owed |
+| A closing-looking marker indented four or more spaces closed the fence | three-space limit in `fenceMarker` | `TestStopSummaryPreservesIndentedFenceContents`, paired with `TestStopSummaryClosesFencesIndentedAtMostThreeSpaces` | indent limit removed | owed |
+| An inline span such as ```` ```x``` ```` opened a false fence and swallowed the snapshots after it | a backtick in a backtick info string is no fence | `TestStopSummaryKeepsInlineBackticksOutsideFenceState` | backtick test removed | owed |
+| A `# Session State` line below the first was read as the title and cut the block holding it | only line one is the title | `TestStopSummaryPreservesQuotedSnapshotHeading/fenced-title` | title matched on any line | owed |
+| The separator after an authored block stayed inside it and the join wrote a second one, one more per rotation | a column-zero `---` ends the block before it | `TestStopSummaryWritesOneSeparatorBetweenBlocks` | separator no longer flushes the block | owed |
+| `writeRenderedRule` named only `./le ai rules update render`, so an edited rule left `CORE.md` and `TRIGGERS.md` stale | the refusal names `./le ai rules update render` then `./le ai rules update condensed`, each on its own line; the catalog site requires both | `TestRenderedRuleRefusalNamesBothGenerators`, `TestRenderedRuleNeedleMatchesProducer` | the single-command wording restored | owed |
+
+The catalog site gains a second required needle and keeps its exit-2
+refusal, so it proves more than before. The three seals
+(`fixtureSiteDigest`, `fixtureCatalogDigest`, `hookSourcesDigest`) are
+renewed over these bytes. Package runs owed: `internal/le/session`,
+`internal/le/hookruntime`, `internal/le/ai/hooks`.
+
 ## P-12 (a) #8: the oracle speaker dials until its deadline (2026-11-09)
 
 `bgp-rfc7606-typed-nlri-discard` failed at assertion 2 with no break: the
@@ -3587,3 +3608,316 @@ The holder's line-309 "cleanup incomplete: signal: killed" seen under the
 earlier breaks is that break's consequence, not a second defect: the holder
 missed its deadline because the test could not release it while `other` was
 blocked.
+
+## P-17: CodeQL initializes after the patched Go selection (2026-11-10)
+
+Ported from Mac `2fa7ad5808`, not yet committed on SERVER.
+
+`2300efb0f9` already moved the CodeQL Select step to `./le go stdpatch goroot`
+so the launcher links `cache/` before the tree is written (CodeQL run
+42915194844). On the Mac checkout the same failure was CodeQL run
+[42722330869](https://github.com/ze-software/ze/actions/runs/42722330869) at
+`31f16fc`: `cache/` moved to `cache.stale-20261109T234105Z-3553`, then
+`verifying module: missing GOSUMDB`. The producing sequence is `gen.CacheDir`
+(`internal/le/go/stdpatch/gen/stdpatch.go`) creating a real cache, then
+`build_le` calling `ensure_cache_link` in the root launcher. Adding a checksum
+setting would hide the moved toolchain rather than preserve it.
+
+Two defects remained: CodeQL initialized before the patched Go was on PATH, so
+its Go-path capture and tracing wrapper recorded the runner's Go; and only a
+static scan (`TestPatchedGOROOTSurvivesTheLauncherCacheLink`) pinned the cache
+order. `internal/le/repo/codeql/bootstrap_cache_test.go` adds two regressions:
+
+| Test | What it proves |
+| --- | --- |
+| `TestCodeQLInitializationSeesSelectedToolchain` | the Select step precedes `Initialize CodeQL` |
+| `TestWorkflowBootstrapKeepsSelectedGOROOT` | executes the workflow Select body with the real cache resolver and the launcher's own `ensure_cache_link`, then a second acquisition, and requires the selected `go.env` to survive |
+
+On the Mac checkout both failed before the repair and passed after it
+(`job-codeql-p17-bootstrap-red-54d68564.log`,
+`job-codeql-p17-bootstrap-green-54d68564.log`, Mac session
+`2026-11-10-002721`; those logs are not on this host). The repair here moves
+`Initialize CodeQL` after the Select step and runs the selection as
+`CGO_ENABLED=0 ./le go stdpatch goroot`. `workflowBuildBody` was refactored
+into `workflowSteps` and `workflowStepBody` (Weakening-approved on the Mac
+commit: the same step, read and parse failures, missing-step refusal and all
+five `TestWorkflowTrackedPopulation` stimuli stay).
+
+Server evidence, owed (no SERVER log yet):
+
+```sh
+tags="ze_core ze_le $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')"
+CGO_ENABLED=0 ./le job run label codeql-p17-bootstrap quiet command \
+  go test -tags "$tags" \
+  -run '^(TestWorkflowBootstrapKeepsSelectedGOROOT|TestCodeQLInitializationSeesSelectedToolchain)$' \
+  -count=1 -v ./internal/le/repo/codeql
+```
+
+This repairs a bootstrap prerequisite; it does not prove CodeQL extraction or
+close P-17. No push or workflow trigger ran.
+
+## P-17: extraction entry and finalized-database checker
+
+Ported from Mac `8dcbf9ff62`, not yet committed on SERVER.
+
+The new registered `repo codeql prepare` and `repo codeql check` actions reuse
+BuildContext, Guard and canonical cache boundaries. Preparation reserves a new
+manifest before cache writes, creates a tiny owned cache sentinel and records
+the actual Guard refusal. The independent tracked authored sentinel is
+`test/codeql/authored_sentinel.go`; normal workflow builds must extract it.
+
+Checking validates manifest identities and paths before invoking CodeQL, queries
+GoFile AST records from the finalized database, validates every decoded row,
+requires the exact authored sentinel, rejects canonical cache inputs including
+older/aliased paths, and rechecks source hashes after query/decode. Empty relative
+paths remain in the absolute-path census. Query and QL pack use only the selected
+bundle's Go library with owned empty common/compilation caches; no package install
+or download is requested. Intermediate BQRS and compiler/common caches are
+removed. The small query, manifest, decoded answer and result are CI evidence.
+Normal security analysis/upload and the three maintained build contexts remain.
+
+| Step | Observed result |
+| --- | --- |
+| New native entries, before implementation | On the Mac checkout, all six extraction roots refused unknown prepare/check actions (`job-codeql-extraction-entry-red-a97563cf.log`); after strengthening the older-cache fixture to a distinct source, the same roots failed for the intended missing verbs (`job-p8-seal-and-codeql-entry-red-ae519100.log`). |
+| Independent source review | Found a writer misfiled as GroupReport and an explicit library path ending `codeql/qlpacks` instead of the selected bundle's `qlpacks`. Boundary tests were added before the repair. |
+| Boundary red | Mac `job-inventory-restored-codeql-boundary-red-2600a696.log`: both selected-bundle cases failed at the wrong search path; the existing `TestReportAreasWriteNothing` reported the writing report area. |
+| Repair | GroupSuite follows the maintained purpose ladder. The checker resolves and confines the actual bundled Go library, uses its exact local search path and isolated caches, and refuses missing libraries before execution. |
+| Package green, Mac | All extraction, boundary, selection, Guard, bootstrap and workflow roots passed in `job-codeql-extraction-package-green-a697b795.log`, package statement coverage 76.4%. |
+| Package green, this host | owed: the command below has not yet run on this host. The Mac logs above are not on this host. |
+
+```sh
+tags="ze_core ze_le $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')"
+CGO_ENABLED=0 ./le job run label codeql-extraction-package-green quiet command \
+  go test -tags "$tags" -count=1 -v ./internal/le/repo/codeql
+```
+
+These tests use stand-in executables to prove checker behavior; they do not
+prove actual QL library resolution or extraction. The successful CI database
+proof at the named implementation commit remains owed. No push or workflow
+trigger is authorized or executed by this record.
+
+## P-9: metadata/body polarity through the maintained checker
+
+The September 12 rule point was repaired by `4e11ce4cc8`: metadata on
+`testing/rfc-tagged-tests-blocking/reindex-after-moving-a-tagged-test` changed
+from MUST to MUST NOT, matching its body. The current point is unchanged.
+The actual carrier is
+`internal/le/ai/rules/one_off_metadata_test.go:TestRuleMetadataLevelFollowsBody`,
+which builds a synthetic point corpus and calls the maintained
+checkPointFiles/checkPoint/strongestTier chain. Two additive polarity cases
+preserve the five existing cases.
+
+| Step | Native observation |
+| --- | --- |
+| Clean | `job-p9-metadata-clean-fe9e9474.log`: all seven cases pass. |
+| Attributed cut | `job-p9-metadata-red-e1e1bfa4.log`: disabling only the metadata/body mismatch arm makes three mismatched cases fail as `violations = [], want one named point`. Four matching/quoted controls pass. |
+| Executed restoration | `job-p9-metadata-restored-fe9e9474.log`: all seven pass without the overlay, using `-count=1`. |
+
+MAIN used the full manifest tag set plus ze_core/ze_le through
+`./le --name tooling-oneoff-current job run`, running
+`go test -tags "$tags" -run '^TestRuleMetadataLevelFollowsBody$' -count=1 -v ./internal/le/ai/rules`.
+The cut alone adds explicit Go `-overlay` with the task-owned
+`p9-causal-overlay/metadata-disabled.json` map. It changes the compiled mismatch
+case to `false && len(tier) > 0 && !slices.Contains(tier, declared)` and carries
+MUTATION-APPLIED. No launcher, hook, point, rendered rule or live checker file
+is edited.
+
+SHA-256: original lint source
+`d6d77f5335e87df1a5b6ea1c579a04cc8631f804c6d59dab6ee7715502b098b3`;
+replacement
+`191efa80d154b19f1e77665d430f4d387bd1d0a905bd13342f088e16c46f1234`;
+seven-case carrier
+`c41918ca6ee316ff433b47b1b0e64b5844c2f7053f66c5e946854237fa8ce5b1`.
+This discharges the remaining metadata component of P-9; the earlier terminal
+and gap-level chains retain their separate recorded scope.
+
+The proof ran on the Mac checkout, where the native logs were written under
+`tmp/session/2026-11-10-002721/scratch/`; copies are kept on this checkout at
+`tmp/mac-port/logs/5/`. Both files the proof names hash identically here (the
+checker `lint.go` at the original lint source digest above, the carrier at the
+seven-case digest), so the result carries over. After verifying these
+identities/results and finding no open users, MAIN removed the task-owned
+`p9-causal-overlay/` and `p9-causal-overlay-generator/` directories. The three
+small native logs retain the proof without a duplicate source copy.
+
+The additive carrier and this proof are ported from Mac `64a2928e2f`, not yet committed on SERVER.
+`job-metadata-p9-committed-compile-3fef8394.log` records the Mac's immediate
+native `repo compiles check` after that commit: all five committed-source
+flavors pass. The SERVER port owes its own `./le repo compiles check`.
+
+## P-31: canonical weakening approval before writes (2026-11-10)
+
+Ported from Mac `3514e9c43b`, not yet committed on SERVER.
+
+SERVER's writer already resolved the unit before writing: `rfc.ApproveInto`
+calls `rfc.ResolveApprovalUnitContent` (`4aafc843c0`), so the callable
+`Approve` and the old fixture repairs needed no port. What the registered
+action lacked is now ported from Mac `3514e9c43b`: `./le test weakened approve`
+is a `PrepareArgs` action. Its preparation resolves the unit with
+`rfc.ResolveApprovalUnit` and checks the reason while nothing has been written;
+only the admitted answer creates the main thread's commit namespace and calls
+`Approve`, which keeps the writer's own guard. It introduces no second carrier
+scanner.
+
+The additive carrier is
+`internal/le/test/weakened/approve_identity_test.go`. Its 24 negative leaves
+exercise callable, registered and prepared entry against unknown directories,
+unknown declarations, package-clause aliases, ambiguous directory keys and
+invalid reasons. Every refusal requires the entire synthetic tree unchanged.
+Two positive directory-key cases reach both actual `Proposed` edit and `Check`
+commit consumers, which still detect the weakening and spend exactly one row.
+Valid preparation remains read-only until admitted execution.
+
+The Mac record, for reference (logs in `tmp/mac-port/logs/6/`): the intended
+red `job-p31-p4-entry-red-da98634f.log` (on the Mac's older writer, unknown,
+alias and ambiguous identities were accepted and written; registered invalid
+reasons changed the namespace; the action had no read-only preparer), focused
+green `job-p31-green-p4-copy-red-b7769260.log` and
+`job-p31-p4-copy-restored-1be4a805.log`, regressions
+`job-p31-commit-p4-parser-regression-c0c0fe20.log` and
+`job-p31-p4-entry-resolver-regression-007e2cb3.log`, and the native
+`test weakened selftest` reporting `SELFTEST PASS` in
+`job-p31-native-weakening-selftest-68879cce.log`. On SERVER only the
+registered and prepared leaves can go red, because the callable writer
+already refused: owed. The SERVER red walk (making the prepared answer skip `ResolveApprovalUnit` and the reason checks, then `go test ./internal/le/test/weakened/ -run 'TestWeakeningApproval' -count=1`, where the `prepared/*` and `registered/*reason*` leaves must fail, then restored green) has not run. The package is red on SERVER today with "approval identity: git ls-tree ... not a git repository" in tests that call the unchanged `Approve`, from SERVER's own approval-identity change, not from this port.
+
+The repair is ported from Mac `3514e9c43b`, not yet committed on SERVER; on the Mac it carried all thirteen independent verdicts, and the Mac's immediate native committed-source check passed all five flavors in `job-p31-committed-compile-3fef8394.log`.
+
+## P-4: child help words cross the actual argv boundary
+
+Ported from Mac `35fc637fca`, not yet committed on SERVER. The logs in the
+table are the Mac's native runs; the SERVER runs are owed.
+
+`KindArgv` after a keyword now gives every remaining word to the child. Its
+trailing `help`, `--help`, `-h` and `-help` are child data. A lone positional
+argv retains its action's help behavior, including `commit push --help`.
+The independent judge approved correcting the old keyword-argv expectation;
+the positional assertions remain unchanged.
+
+The carrier `internal/le/job_forwarded_help_test.go` uses the maintained full
+top-level composition in owned subprocesses and a real child. Each help word
+must preserve the complete executable argv including an argument with spaces,
+write exact JSON plus a sentinel to the durable quiet log and return child exit
+23. The action's own help returns zero without starting a child or creating a
+child job log. No replacement namespace or fake dispatcher is installed.
+
+| Stage | Native observation |
+| --- | --- |
+| Attributed red | `job-p31-green-p4-copy-red-b7769260.log`: three trailing option forms return usage/zero instead of executing the child and returning 23. Bare help and action-owned help controls pass. The earlier incomplete-composition panic is a fixture error, not this proof. |
+| Restored green | `job-p31-p4-copy-restored-1be4a805.log`: all four child words and own-help control pass after the parameter-position repair. |
+| Existing population | `job-p31-commit-p4-parser-regression-c0c0fe20.log`: full action/root/commit packages pass, retaining positional-help and grammar refusals. `job-p31-p4-entry-resolver-regression-007e2cb3.log` reruns actual composition, prepared help and every published verb's own table successfully. |
+| Literal launcher invocation | `job-p4-native-forwarded-help-29dfe888.log`: the real `./le --name tooling-oneoff-current job run label p4-native-forwarded-help quiet command /usr/bin/printf '%s\n' 'argument with spaces' --help` exits zero and logs exactly the two requested lines. |
+
+The production change distinguishes keyword-forwarded argv from lone positional
+argv in the maintained parameter classifier. Documentation at the existing
+core-design source anchor and the developer's job recipe follows that boundary.
+The regression commands, tags, timeouts and log root are the same native jobs
+recorded under P-31 above. This closes the child-help component of P-4; the
+other argv/session/executable proof chains retain their independent scope.
+
+## Mac working-tree evidence of 2026-11-10, ported (2026-11-11)
+
+The Mac checkout carried uncommitted work after its last commit. This is
+what SERVER now holds of it, ported and not yet committed, and what each piece
+still owes. Mac logs and proposals named here are copied to
+`tmp/mac-port/logs/10/`; logs not listed there exist only on the Mac.
+
+| Item | On SERVER | Proof state |
+| --- | --- | --- |
+| P-18 gokrazy cancellation carrier | `TestGokrazyBuildCancelEndsTheGrandchildren` (`internal/le/test/deployment/gokrazyroot_test.go`) waits on `owned.Done()` for at most 10s, and a timeout joins owned cleanup through `owned.Close()` before it fails | The Mac's independently approved proposal (`p18-gokrazy-bounded-wait-proposal.patch`) is applied; bounded baseline, cut and restored runs owed |
+| P-13 broadcast interleaving | `internal/chaos/web/broadcast_snapshot_interleaving_test.go`, verbatim; the package's non-test source is identical to the Mac's | Native cut and restored runs owed; the Mac's hash-bound overlay generator is not on this host |
+| P-13 HTMX request lifetime | `capture_htmx_body_integration_test.go` and `capture_htmx_lifecycle_integration_test.go` (`internal/component/web/testing`, build tag `integration`), verbatim | The Mac's source-only proposal `p13-htmx-lifecycle-proposal.patch` was never applied there and is not ported; actual browser baseline, red, repair and restored owed |
+| P-16 positive criteria at both entries | `TestPositiveCriteriaReachCarriedCommit` (`internal/le/commit`) and `TestPositiveCriteriaReachPreWriteHook` (`internal/le/hookruntime`), verbatim; their fixtures and `internal/le/spec/mechanisms/criteria.go` are identical to the Mac's | Runs owed |
+| P-24 design-admission fixture | `internal/le/spec/testdata/design-admission.json` completed as recorded below; its `ai/skills/ze-spec.md` range is `211-275` here, because SERVER's `ze-spec.md` has three more lines above that section than the Mac's. The fixture here is SHA256 `4633cf2562f177c2b77b0cdd8cce43fa020488365ff8c5a5f129b33f347d316c`, not the Mac's `938f2f52...` | The observations below ran on the Mac's bytes |
+| P-14 real vendor publication | `internal/le/setup/vendor_real_publication_test.go`, verbatim; `internal/le/setup` and `internal/le/vendorpatch` are identical to the Mac's | Runs owed |
+| RFC 7296 correction provenance | `TestOwnedDocumentDisposition` (`internal/le/rfc`) also requires `RFC7296-2.1-1` retired, which `rfc/corrections/rfc7296.md` records | Run owed |
+| P-12 (a) LOCAL_PREF batching | `internal/le/interoplab/bgp/check_local_pref_batch_test.go`, adapted: SERVER's observer (`7081cfdfa7`) orders the fence and the third subject by NLRI inside one UPDATE, so the port expects "fence then third" refused with "LOCAL_PREF FIFO fence preceded all three subjects in NLRI order" | Open decision: the Mac's design, an independently approved proposal Thomas authorized (`p12-local-pref-batching-proposal.patch`), accepts either NLRI order inside one UPDATE. Adopting it changes `check_local_pref_wire.go`, this port's case and the "fence before third batched" case of `TestLocalPrefStripChecksDestinationWire`, which needs a `ze-test-judge` verdict |
+
+Not ported. The P-32 ambient capture work (the generation guard in
+`externaleffects.go` and `externalrangeelements.go`, its counter, the two
+`external_ambient_capture_*_test.go` carriers and the `feature-gates.md`
+paragraph) and the actual-root timeout and profile record:
+`spec-inventory-fast-registry-checks` deletes the whole-tree external-effect
+proof they belong to. The P-35 bounded BFD batch: the section "P-35: the GR
+purge, BFD join and document-too-wide members" already records a red and a
+restored run of `TestBFDNegotiatedPublicationJoinsSessionEnd` here, so the
+Mac batch is a second observation of the same carrier, its logs on the Mac
+only.
+
+### P-24: independent semantic admission observations (Mac)
+
+MAIN checked decoded equality of the four neutral payload files against the
+maintained `frozen-model-inputs`, and exact equality of the reviewer instruction.
+Fresh contexts read only that instruction, one payload and either the five
+historical or five current canonical extracts; no expected verdict, case mapping
+or prior observation entered those contexts. The exact source ranges, hashes
+and complete supplied bytes are copied to `tmp/mac-port/logs/10/p24-model-proof/`.
+
+| Fresh independent context | Instructions / input | Actual result |
+| --- | --- | --- |
+| `/root/design_observation_01` | Historical / a | REWORK for missing mandatory alternatives and wiring/boundary planning. Explicitly says omitting the shell reader from the census is not independently disqualifying because it is mentioned elsewhere. |
+| `/root/design_observation_02` | Historical / b | REWORK for the same unrelated design omissions. Explicitly says the omitted Python census row alone establishes no canonical violation. |
+| `/root/design_observation_03` | Current / a | REWORK naming the missing `reader.sh` jq census entry despite other mentions, plus missing alternatives. |
+
+These are actual harness-model observations, not native CLI judgments. Context
+task identities are retained; the harness did not expose an exact serving-model
+build identifier. The source-derived census finding discriminates, but the
+fixture's unrelated missing mandatory design sections prevent a clean corrected
+control. No overall historical ACCEPT or completed P-24 proof is claimed.
+The independently approved additive completion is now applied to the maintained
+fixture, preserving every original Task, AC-1, source/search/census and expected
+finding. Absence-only retains its one negative criterion; missing-survivor omits
+both the preservation list and added AC-2. Three stale canonical range strings
+are corrected separately under independent approval. Initial patch admission
+failed on redundant hunk markers before modifying the fixture; removing only
+those markers reproduces the previously judged payload bytes exactly.
+
+`job-p24-maintained-model-inputs-627380d6.log` validates the entire repaired
+JSON tree against pinned original `9e7e3ac202e1797bcbe55847866f2a010194c0aa83ee440966b27f180c909a13`
+and approved common additions `7dc645a83ef0fdc14948cd3b1fd6f55149f028eff8c91f8de30303059861a0c1`.
+It exclusively extracts all seven literal frozen values, with a source recheck
+and final completion marker. The fixture at that execution is SHA256
+`938f2f522384065540034934d66003ef20f9533837bfc5217e1f1be93eb8c71c`.
+Exact neutral payload bytes and hashes are copied to `tmp/mac-port/logs/10/p24-model-proof/maintained-inputs/`;
+no expected assertion or MAIN-only mapping enters any fresh reviewer context.
+
+| Fresh context | Instruction set / maintained input | Actual verdict |
+| --- | --- | --- |
+| `/root/design_observation_04` | Current / 06 corrected | ACCEPT; accounts for all three source sites, positive output, survivors, alternatives and actual-file wiring |
+| `/root/design_observation_05` | Current / 04 missing shell | REWORK solely naming the missing `reader.sh` jq census entry despite other mentions |
+| `/root/design_observation_06` | Current / 05 missing Python | REWORK solely naming `reader.py installed_prefixes` as a known reader missing its census disposition |
+| `/root/design_observation_07` | Historical / the same 04 bytes | ACCEPT; reader coverage elsewhere suffices under the old instructions |
+| `/root/design_observation_08` | Historical / the same 05 bytes | ACCEPT; both actual consumers are mentioned elsewhere |
+| `/root/design_observation_09` | Current / 07 unavailable | UNJUDGEABLE; refuses acceptance without actual producer/reader evidence |
+| `/root/design_observation_10` | Current / 01 absence-only | REWORK naming the missing useful installed-route outcome and AC-1 survivor rationale |
+| `/root/design_observation_11` | Current / 03 missing Go writer | REWORK naming `writer.go PublishRoutes` independently of its presence elsewhere |
+| `/root/design_observation_12` | Current / 02 missing survivor | REWORK naming its missing rationale, and a separate common nil-input scope defect |
+| `/root/design_observation_13` | Historical / the same 03 bytes | ACCEPT; the writer appears elsewhere in the design |
+
+The nil-input finding is real: the supplied old producer passes nil through to
+JSON `null`, whereas the new fixture completion requires a non-nil array and
+successful empty readers despite the unchanged Task's `No other behavior
+changes`. The corrected-control reviewer did not catch that common discrepancy.
+MAIN is retaining every observation and obtaining a source-only scope-preserving
+fixture correction; it will not certify the whole P-24 corpus from that one
+ACCEPT. Future model execution still takes the maintained frozen input without
+runtime completion or expected verdicts. This remains a probabilistic manual
+harness judgment, not a deterministic native CLI analyzer.
+
+### P-18: fault-run cleanup admission (Mac)
+
+Source review caught six unsafe proposed cuts before execution: the guest
+command's detached one-hour limit; both YANG contract gates in separate owned
+process groups; and the hugepages compiler, appliance and SSH descendants whose
+self-expiry can outlive failure cleanup. None of those cuts has run. The guest
+bounded-observation/transport-release proposal has independent APPROVE(a),
+preserving every old assertion and input; it is not yet applied. YANG and
+hugepages proposals initially had independent-review blockers, including
+unexpected helper death before a completion receipt and a verb returning before
+its separately owned phase. Revised exact source-only proposals now have
+APPROVE(a): Yangcontract `191ba60d` and hugepages `58756b12`, with the guest
+`d3195649` approval intact. MAIN has not applied or executed them. Go's test
+timeout is not accepted as child cleanup.
+
+The proposals are copied to `tmp/mac-port/logs/10/`. Of them only the gokrazy
+bounded-wait proposal is applied on SERVER (row above).
