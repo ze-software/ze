@@ -58,7 +58,7 @@
     "internal/component/bgp/reactor/rfc7911_forward_path_id_test.go::TestForwardPathIDStableAcrossUpdates": "8e4558cf2659911f",
     "internal/component/bgp/reactor/rfc7911_forward_path_id_test.go::TestForwardPathIDsDifferForCollidingSources": "8e4558cf2659911f",
     "internal/component/bgp/reactor/rfc7911_zz_pathid_growth_probe_test.go::TestPathIDKeyFollowsWhatTheSourceFramed": "f27c8fc1cc7a38e0",
-    "internal/le/interoplab/bgp/check_rfc.go::checkAddPathReadvertiseCollision": "5d6de7c759aceba0",
+    "internal/le/interoplab/bgp/check_rfc.go::checkAddPathReadvertiseCollision": "a19bf492823e14b9",
     "test/plugin/adj-rib-in-replay-addpath-source.ci": "10543a0ef239d49a"
   },
   "units": {

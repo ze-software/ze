@@ -12,6 +12,17 @@
   },
   {
     "rid": "RFC4271-5.1.5-2",
+    "polarity": "negative",
+    "unit": "internal/le/interoplab/bgp/check_local_pref_negative_test.go::TestLocalPrefExternalWireViolationRefused",
+    "unit-sha": "b40a459b52090648",
+    "claim-sha": "bba9f6c91d1b829d",
+    "route": "mutant",
+    "producer": "internal/le/interoplab/bgp/check_local_pref_wire.go::requireLocalPrefInterval",
+    "producer-sha": "abdd3d7e425eff8d",
+    "break": "line 322: \"return localPrefWireSemanticError(\\\"LOCAL_PREF appeared on the actual external destination wire\\\")\" -\u003e \"return nil\""
+  },
+  {
+    "rid": "RFC4271-5.1.5-2",
     "polarity": "positive",
     "unit": "internal/le/interoplab/bgp/check_rfc.go::checkLocalPrefStrip",
     "unit-sha": "64b98f8da7a3943b",

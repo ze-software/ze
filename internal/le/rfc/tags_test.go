@@ -167,7 +167,7 @@ func TestTheFirstMatchingCarrierWinsAndTheIncubatorIsSkipped(t *testing.T) {
 		{path: "test/editor/x.et", want: "editor-editor", held: true},
 		{path: "test/nosuite/x.et", want: "editor-unrun", held: true},
 		{path: "test/exabgp-compat/x.ci", want: "functional-exabgp", held: true},
-		{path: "internal/le/interoplab/bgp/scenario_test.go", want: "interop-bgp", held: true},
+		{path: "internal/le/interoplab/bgp/scenario_test.go", want: "unit", held: true},
 		{path: "internal/le/interoplab/new/scenario_test.go", want: "interop-unrun", held: true},
 		{path: "test/draft/x.ci", held: false},
 		{path: "internal/x/x.go", held: false},

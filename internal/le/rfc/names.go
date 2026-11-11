@@ -340,7 +340,7 @@ func tagStem(rid string, stemByRID map[string]string, stems map[string]bool) str
 // testFileNameVerdicts walks the test roots and answers every unit test file
 // the naming rule refuses, sorted by path. Only `_test.go` files the unit
 // carrier holds are judged: interop carriers, test/draft/, internal/le/,
-// testdata/ and vendor/ are not (CarrierFor, skipDirs).
+// testdata/ and vendor/ are not (developmentToolsPrefix, CarrierFor, skipDirs).
 //
 // tags MUST hold both the proof and the gap tags (Collected.Tags and GapTags):
 // a gap tag cites its stem for naming just as a proof tag does.
@@ -368,6 +368,9 @@ func testFileNameVerdicts(tree string, carriers []Carrier, tags []Tag, requireme
 				return nil
 			}
 			rel := relTo(tree, full)
+			if strings.HasPrefix(rel, developmentToolsPrefix) {
+				return nil
+			}
 			if !strings.HasSuffix(rel, testFileSuffix) {
 				return nil
 			}

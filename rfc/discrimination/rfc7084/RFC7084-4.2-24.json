@@ -7,7 +7,7 @@
     "claim-sha": "c2507f4ec68f6251",
     "route": "revert",
     "producer": "internal/component/plugin/server/startup_autoload.go::getConfigPathPlugins",
-    "producer-sha": "234825f909cb3f6e",
+    "producer-sha": "e201e002f494fed2",
     "break": "body of getConfigPathPlugins replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

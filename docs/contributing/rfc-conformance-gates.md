@@ -2156,6 +2156,15 @@ refused before anything runs, naming the registration it lacks.
 <!-- source: internal/le/rfc/discriminate_observe.go -- argv, environment, interopScenarioOf -->
 <!-- source: internal/le/test/overlay/carrier.go -- ActionArgv, ProcessEnvironment -->
 
+Within a registered interop catalog's package, a tagged `*_test.go` function
+uses the existing `unit/verify` carrier and runs as a Go test. It does not need
+a scenario constant, and its result proves the unit's assertion rather than a
+new exchange with a foreign daemon. Native checker functions retain the
+catalog's interop carrier and workflow-derived tier. An unregistered interop
+tree remains `unknown/unrun`, even for Go test files; development-tool tests
+outside interoplab remain excluded from RFC evidence.
+<!-- source: internal/le/rfc/carriers.go -- CarrierFor, carriersFor, interopCarriers -->
+
 The compatibility runner's positional path selects exactly that file; `--pattern`
 is a substring filter and can select siblings, so the recorder does not use it.
 The suite comes from the tagged file's directory, not the ordinary functional

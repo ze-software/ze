@@ -280,8 +280,9 @@ func legacyInteropCarriers(scheduled map[string]string) []Carrier {
 
 // carriers answers the whole table for one checkout.
 //
-// It is ORDERED: the first entry whose prefix AND suffix match wins, so the
-// specific scenario trees are declared before the unclassified catch-all.
+// It is ORDERED: the first entry whose prefix AND suffix match wins, except
+// that a known interop tree's Go tests use the existing unit row. Specific
+// scenario trees precede the unclassified catch-all, which refuses unknown labs.
 //
 // It is computed per call rather than once, because two of its rows are read
 // off the tree: a checkout whose workflows changed under a long-lived process
@@ -360,17 +361,40 @@ func carriersFor(suites []string, scheduled map[string]string) []Carrier {
 // when the shape carries no tags.
 //
 // test/draft/ and development-tool tests outside interoplab answer false.
-// Interoplab tests exercise foreign implementations and can carry protocol
-// evidence when their native action is scheduled.
+// A registered interop tree's Go tests use the unit carrier; its native
+// checkers keep their workflow-derived interop carrier. An unregistered tree
+// keeps its unknown/unrun carrier, including for Go test files.
 func CarrierFor(rel string, carriers []Carrier) (Carrier, bool) {
 	if strings.HasPrefix(rel, draftPrefix) ||
 		(strings.HasPrefix(rel, developmentToolsPrefix) && !strings.HasPrefix(rel, "internal/le/interoplab/")) {
 		return Carrier{}, false
 	}
 	for _, one := range carriers {
-		if strings.HasPrefix(rel, one.Prefix) && strings.HasSuffix(rel, one.Suffix) {
+		if !strings.HasPrefix(rel, one.Prefix) {
+			continue
+		}
+		if !strings.HasSuffix(rel, one.Suffix) {
+			continue
+		}
+		if one.Kind != kindInterop {
 			return one, true
 		}
+		if !strings.HasSuffix(rel, "_test.go") {
+			return one, true
+		}
+		for _, unit := range carriers {
+			if unit.Kind != kindUnit {
+				continue
+			}
+			if !strings.HasPrefix(rel, unit.Prefix) {
+				continue
+			}
+			if !strings.HasSuffix(rel, unit.Suffix) {
+				continue
+			}
+			return unit, true
+		}
+		return Carrier{}, false
 	}
 	return Carrier{}, false
 }

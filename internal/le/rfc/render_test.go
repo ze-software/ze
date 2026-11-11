@@ -277,7 +277,7 @@ func TestARequirementProvenOnlyByNightlyEvidenceIsMarkedOnItsOwnRow(t *testing.T
 	// Nothing in HEAD is nightly-only, so the marker never renders there. It is
 	// the distinction between "a tag exists" and "a merge blocks on it".
 	in := renderFixture(t, map[string]string{
-		"internal/le/interoplab/bgp/scenario_test.go": "// " + rfcTagMarker + " RFC9999-2-1 positive\n" +
+		"internal/le/interoplab/bgp/check_scenario.go": "// " + rfcTagMarker + " RFC9999-2-1 positive\n" +
 			"// " + rfcTagMarker + " RFC9999-2-1 negative\n",
 		".github/workflows/nightly.yml": "on:\n  schedule:\n    - cron: '0 3 * * *'\n" +
 			"jobs:\n  a:\n    steps:\n      - run: ./le test integration interop\n",

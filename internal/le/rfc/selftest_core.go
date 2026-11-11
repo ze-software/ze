@@ -193,11 +193,11 @@ func updatedBySelftestHolds() (bool, error) {
 
 func runCarrierSelftest() ([]leroot.SelftestResult, error) {
 	files := map[string]string{
-		selftestWorkflowRel:                         selftestWorkflow,
-		selftestTestPath:                            "package sample\n// RFC requirement: RFC9999-2-1 positive\nfunc TestWidget() {}\n",
-		"test/plugin/widget.ci":                     "# RFC requirement: RFC9999-2-2 negative\n",
-		"test/editor/widget.et":                     "# RFC requirement: RFC9999-2-3 positive\n",
-		"internal/le/interoplab/bgp/widget_test.go": "package bgp\n// RFC requirement: RFC9999-2-4 positive\nfunc TestInteropWidget() {}\n",
+		selftestWorkflowRel:                          selftestWorkflow,
+		selftestTestPath:                             "package sample\n// RFC requirement: RFC9999-2-1 positive\nfunc TestWidget() {}\n",
+		"test/plugin/widget.ci":                      "# RFC requirement: RFC9999-2-2 negative\n",
+		"test/editor/widget.et":                      "# RFC requirement: RFC9999-2-3 positive\n",
+		"internal/le/interoplab/bgp/check_widget.go": "package bgp\n// RFC requirement: RFC9999-2-4 positive\nfunc checkInteropWidget() {}\n",
 	}
 	root, err := newSelftestTree("rfc-selftest-carriers-", files)
 	if err != nil {
@@ -215,10 +215,10 @@ func runCarrierSelftest() ([]leroot.SelftestResult, error) {
 	}
 
 	wanted := map[string]string{
-		selftestTestPath:                            kindUnit,
-		"test/plugin/widget.ci":                     kindFunctional,
-		"test/editor/widget.et":                     "editor",
-		"internal/le/interoplab/bgp/widget_test.go": kindInterop,
+		selftestTestPath:                             kindUnit,
+		"test/plugin/widget.ci":                      kindFunctional,
+		"test/editor/widget.et":                      "editor",
+		"internal/le/interoplab/bgp/check_widget.go": kindInterop,
 	}
 	found := map[string]string{}
 	for _, tag := range tags {
@@ -231,7 +231,7 @@ func runCarrierSelftest() ([]leroot.SelftestResult, error) {
 	for path, kind := range wanted {
 		allKinds = allKinds && found[path] == kind
 	}
-	interop, interopHeld := CarrierFor("internal/le/interoplab/bgp/widget_test.go", carriers)
+	interop, interopHeld := CarrierFor("internal/le/interoplab/bgp/check_widget.go", carriers)
 	unrun, unrunHeld := CarrierFor("test/nosuite/widget.ci", carriers)
 	_, draftHeld := CarrierFor("test/draft/widget.ci", carriers)
 
