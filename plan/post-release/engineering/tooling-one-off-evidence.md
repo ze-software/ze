@@ -4225,3 +4225,18 @@ P-13's poster stability is not walked. `TestWebConfigPosterUsesAuthoredInputs`
 fails at HEAD, alone and every time: "recorded-config-save.wb ... action click:
 browser requests did not settle". The fault is this spec's own `7b5d645b94`
 HTMX settle wait, and it is being fixed.
+
+## P-13: poster bytes are stable for equal inputs (2026-11-11)
+
+`TestWebConfigPosterUsesAuthoredInputs` (`internal/le/site/terminaldemo`, `-tags
+integration`, in the pinned renderer container) failed at HEAD every time with
+"browser requests did not settle". The page was right. The harness bounded a
+click's settle wait by a fixed 5s, while a config commit's durable store writes
+took up to 5.1s on a loaded host. The poster proof also drove a stale shared
+`ze`. `1acd3d7341` bounds the wait by the case deadline, names any requests
+still pending when that passes, and has the poster build its own `ze`.
+
+| Walk | Break | Result |
+| --- | --- | --- |
+| broken | `demos/terminal/web-config/demo.cjs` writes `Date.now()` and a random number into the page before the CDP screenshot (in place) | "equal authored inputs produced different actual WebP poster bytes" |
+| restored | the bytes as committed | `ok` (176.5s, load average 21). The walk's own back-to-back restored leg ran out of its 90s case budget at line 49 under that load; the rerun alone passed |
