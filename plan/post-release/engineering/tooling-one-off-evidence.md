@@ -1980,9 +1980,23 @@ the three subjects, and the independent judge approved the change for
 in that commit). Unit cases: batched third and fence accepted, fence before
 third in one UPDATE accepted, a fence in an earlier UPDATE than the third
 subject refused, the observed lab frames accepted, batched LOCAL_PREF 200
-refused. The lab red walk on `bgp-local-pref-strip-gobgp` (break the rule in
-the checker or in `applyFactsLocalPref` (`reactor/forward_local_pref.go`),
-rebuild, red, restore, green) and the discrimination record are still owed.
+refused.
+
+Lab walk on SERVER (2026-11-11), through `./le rfc record id RFC4271-5.1.5-2
+polarity positive unit internal/le/interoplab/bgp/check_rfc.go::checkLocalPrefStrip
+route mutant`, on a `le` built from a HEAD carrying `d645d0357b`: the clean run
+passed (4m6s); with `applyFactsLocalPref` (`reactor/forward_local_pref.go`)
+no longer suppressing LOCAL_PREF, the overlay rebuilt the Ze image and the run
+failed in checker, "assertion 13: LOCAL_PREF appeared on the actual external
+destination wire". The record it wrote,
+`rfc/discrimination/rfc4271/RFC4271-5.1.5-2.json`, is byte-identical to the
+committed one from `22d430d39b`, so it re-observes that proof under the
+repaired checker. The overlay never touched the tree, so the clean run is the
+restored state. A checker-side break cannot be walked in the lab, because a
+scenario walk does not rebuild the host `le` that runs the checker, and Ze's
+observed packing (third subject, then fence, in one UPDATE) passes the old
+rule anyway; its unit walk is in "SERVER unit red walks of the ported
+carriers". Logs: `tmp/session/2026-11-11-004732/scratch/walks/lp-record2.log`.
 
 ## Unit red walks of landed fixes (2026-11-09)
 
@@ -3705,6 +3719,20 @@ These tests use stand-in executables to prove checker behavior; they do not
 prove actual QL library resolution or extraction. The successful CI database
 proof at the named implementation commit remains owed. No push or workflow
 trigger is authorized or executed by this record.
+
+**The bundle layout the action installs (`a4b8575d14`).** CodeQL Advanced
+built and extracted on `44797abe31`, then `./le repo codeql check` failed its
+last step: run 42933954502 shows `lstat .../x64/qlpacks: no such file or
+directory` for the executable `.../x64/codeql/codeql`, because
+`extractionBundlePacks` took the bundle two levels above the executable while
+the installed bundle keeps `qlpacks` beside it. The derivation now takes the
+executable's own directory and keeps every refusal.
+`TestExtractionBundlePacksFollowsTheArchiveLayout` pins the real layout with a
+decoy one level up. The red is recorded only in the commit body: with the old
+derivation the new test and the bundle and recheck tests go red; no walk log is
+kept on this host. Two fixture moves carry independent `ze-test-judge`
+approvals in that commit. The extraction itself is still proved only by a
+`codeql` run on a pushed commit.
 
 ## P-9: metadata/body polarity through the maintained checker
 

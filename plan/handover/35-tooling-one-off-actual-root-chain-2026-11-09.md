@@ -99,11 +99,9 @@ Mac logs, proposals and the P-24 payloads used above are in
    ./le rfc record id RFC4271-5.1.5-2 polarity positive unit internal/le/interoplab/bgp/check_rfc.go::checkLocalPrefStrip route mutant report tmp/session/2026-11-11-004732/scratch/walks/lp-mutant.json mutant internal/component/bgp/reactor/forward_local_pref.go:120:2#1 citation 13
    ```
 
-   On 2026-11-11 its clean run passed (4m11s); the broken run never started
-   because another session's uncommitted edit left
-   `internal/le/interoplab/topology` not compiling (`undefined: cpeIKEName`),
-   and the overlay build compiles the working tree. The checker half is
-   already walked at unit level (evidence, "SERVER unit red walks").
+   Done 2026-11-11: clean pass, then red at assertion 13 with the strip
+   removed; the record is byte-identical to the committed one. The checker
+   half is walked at unit level (evidence, "SERVER unit red walks").
 3. Done on 2026-11-11, each recorded in the evidence file: P-18 (three
    cleanups applied in `c408086726`, seven cuts red), P-13 HTMX repair
    (`7b5d645b94`) and broadcast walk, P-16, P-14, P-25, P-8 and P-28 walks,
