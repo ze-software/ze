@@ -4,6 +4,7 @@ package site
 const activityGrowthStyle = `<style>
     .activity-widget .activity-tabs {
         display: flex;
+        flex-direction: column;
         align-self: center;
         gap: 0.3rem;
         width: fit-content;
@@ -44,6 +45,14 @@ const activityGrowthStyle = `<style>
         gap: 1rem;
         min-width: 0;
     }
+    .activity-calendar-footer {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    .activity-widget .activity-calendar-footer .pill { max-width: 100%; white-space: normal; }
+    .activity-widget .activity-calendar-footer .legend { margin: 0; }
     .activity-growth p {
         margin: 0;
         color: var(--muted);

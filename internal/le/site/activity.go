@@ -166,7 +166,7 @@ func activityWidgetHTML(window *reporewrite.ActivityWindow, surface activitySurf
 	}
 	out.Str(`                    <div class="dashboard-grid">`).Byte('\n')
 	out.Str(`                        <div class="left-stack">`).Byte('\n')
-	out.Str(activityChartHTML(window))
+	out.Str(activityChartHTML(window, surface))
 	out.Str(activityGoPanelHTML(window.Go))
 	out.Str("                        </div>\n")
 	out.Str("                    </div>\n")
@@ -251,7 +251,9 @@ func activitySummaryHTML(lines activityMetric, rangeText string, days int, surfa
 	out.Str(`                <button type="button" data-metric="lines" aria-pressed="true">Added Lines</button>`).Byte('\n')
 	out.Str(`                <button type="button" data-metric="commits" aria-pressed="false">Commits</button>`).Byte('\n')
 	out.Str("            </div>\n")
-	out.Str(`            <div class="pill">`).Str(html.EscapeString(rangeText)).Str("</div>\n")
+	if surface == activitySurfaceSlide {
+		out.Str(`            <div class="pill">`).Str(html.EscapeString(rangeText)).Str("</div>\n")
+	}
 	out.Str("        </div>\n")
 	out.Str("    </section>\n")
 	return out.String()
@@ -265,12 +267,13 @@ func activityStatHTML(name, label, value string) string {
 }
 
 // activityChartHTML renders the calendar: the month row, the weekday column,
-// the grid of day cells, and the level legend under them.
+// the grid of day cells, and the level legend under them. The published page
+// places the window's date range to the left of that legend.
 //
 // The grid is one image to a screen reader rather than a year of focusable
 // squares with no shared meaning, so it states role="img" and a label naming
 // the span it covers.
-func activityChartHTML(window *reporewrite.ActivityWindow) string {
+func activityChartHTML(window *reporewrite.ActivityWindow, surface activitySurface) string {
 	var out textbuf.Buffer
 	out.Reset().Str(`<div class="chart-scroll">`).Byte('\n')
 	out.Str(`            <div class="chart">`).Byte('\n')
@@ -288,7 +291,14 @@ func activityChartHTML(window *reporewrite.ActivityWindow) string {
 	out.Str("                </div>\n")
 	out.Str("            </div>\n")
 	out.Str("        </div>\n")
+	if surface == activitySurfacePage {
+		out.Str(`<div class="activity-calendar-footer">`).Byte('\n')
+		out.Str(`<div class="pill">`).Str(html.EscapeString(activityRangeText(window))).Str("</div>\n")
+	}
 	out.Str(activityLegendHTML)
+	if surface == activitySurfacePage {
+		out.Str("</div>\n")
+	}
 	return out.String()
 }
 

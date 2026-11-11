@@ -674,8 +674,9 @@ Zero activity uses `--line`; borders use `--line-strong`. Its panels and text
 use the shared theme surfaces so low activity remains visible in dark mode.
 <!-- source: internal/le/site/activitystyle.go -- activityStyle -->
 
-The published page has Calendar and Growth tabs at the left of its summary
-cards; the deck embed retains its calendar. Growth sums the daily commits and
+The published page stacks Calendar/Growth at the left of its summary cards and
+Added Lines/Commits at the right. The date range sits to the left of the
+calendar's Less/More legend. The deck embed retains its calendar. Growth sums the daily commits and
 added lines already carried by the calendar cells, starting at the beginning of
 the displayed window. Two charts
 use separate scales, and a shared date readout follows the pointer, the date

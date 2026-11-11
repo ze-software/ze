@@ -6,7 +6,7 @@ import (
 	reporewrite "github.com/ze-software/ze/internal/le/repo/rewrite"
 )
 
-const activityTabsHTML = `<div class="activity-tabs" role="tablist" aria-label="Activity representation" hidden>
+const activityTabsHTML = `<div class="activity-tabs" role="tablist" aria-label="Activity representation" aria-orientation="vertical" hidden>
     <button type="button" id="activity-tab-calendar" role="tab" aria-controls="activity-calendar" aria-selected="true" tabindex="0">Calendar</button>
     <button type="button" id="activity-tab-growth" role="tab" aria-controls="activity-growth" aria-selected="false" tabindex="-1">Growth</button>
 </div>
@@ -143,8 +143,8 @@ const activityGrowthScript = `<script>
         tab.addEventListener('click', () => selectTab(tab));
         tab.addEventListener('keydown', event => {
             let next;
-            if (event.key === 'ArrowLeft') next = (index + tabs.length - 1) % tabs.length;
-            else if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
+            if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (index + tabs.length - 1) % tabs.length;
+            else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (index + 1) % tabs.length;
             else if (event.key === 'Home') next = 0;
             else if (event.key === 'End') next = tabs.length - 1;
             else return;

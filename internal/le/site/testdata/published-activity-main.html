@@ -5,12 +5,11 @@
                     <p>A year of commits, added lines, and Go composition regenerated from the repository.</p>
                 </div>
                 <div class="activity-widget reveal" aria-label="Activity heatmap">
-<div class="activity-tabs" role="tablist" aria-label="Activity representation" hidden>
+<section class="stats" aria-label="Summary">
+<div class="activity-tabs" role="tablist" aria-label="Activity representation" aria-orientation="vertical" hidden>
     <button type="button" id="activity-tab-calendar" role="tab" aria-controls="activity-calendar" aria-selected="true" tabindex="0">Calendar</button>
     <button type="button" id="activity-tab-growth" role="tab" aria-controls="activity-growth" aria-selected="false" tabindex="-1">Growth</button>
 </div>
-<div class="activity-view" id="activity-calendar" role="tabpanel" aria-labelledby="activity-tab-calendar">
-<section class="stats" aria-label="Summary">
         <div class="stat"><span id="total-label">Total added lines</span><strong id="total-value">2,639,913</strong></div>
         <div class="stat"><span id="active-label">Days with added lines</span><strong id="active-value">248</strong></div>
         <div class="stat"><span id="peak-label">Peak line day</span><strong id="peak-value">68,057</strong></div>
@@ -20,9 +19,9 @@
                 <button type="button" data-metric="lines" aria-pressed="true">Added Lines</button>
                 <button type="button" data-metric="commits" aria-pressed="false">Commits</button>
             </div>
-            <div class="pill">2025-08-26 to 2026-08-25</div>
         </div>
     </section>
+<div class="activity-view" id="activity-calendar" role="tabpanel" aria-labelledby="activity-tab-calendar">
                     <div class="dashboard-grid">
                         <div class="left-stack">
 <div class="chart-scroll">
@@ -460,7 +459,10 @@
                 </div>
             </div>
         </div>
+<div class="activity-calendar-footer">
+<div class="pill">2025-08-26 to 2026-08-25</div>
         <div class="legend"><span>Less</span><span class="day-cell" data-level="0"></span><span class="day-cell" data-level="1"></span><span class="day-cell" data-level="2"></span><span class="day-cell" data-level="3"></span><span class="day-cell" data-level="4"></span><span class="day-cell" data-level="5"></span><span>More</span></div>
+</div>
 <section class="panel go-panel" aria-label="Go code stats">
         <h2>Go code composition</h2>
         <div class="go-breakdown">

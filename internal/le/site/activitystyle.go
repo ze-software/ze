@@ -142,7 +142,7 @@ const activityStyle = `        <style>
             align-items: stretch;
         }
         .activity-widget .stats:where(:has(.activity-tabs:not([hidden]))) {
-            grid-template-columns: auto repeat(4, minmax(0, 1fr)) minmax(11rem, auto);
+            grid-template-columns: auto repeat(4, minmax(0, 1fr)) auto;
         }
         .activity-widget .stat {
             position: relative;
@@ -189,10 +189,11 @@ const activityStyle = `        <style>
             justify-items: end;
             align-content: center;
             gap: 0.45rem;
-            min-width: 10.5rem;
+            min-width: 0;
         }
         .activity-widget .metric-switch {
             display: inline-flex;
+            flex-direction: column;
             gap: 0.3rem;
             padding: 0.32rem;
             border: 2px solid var(--activity-border);
