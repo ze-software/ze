@@ -219,6 +219,29 @@ func LookupLocalData(words []string) (LocalDataHandler, []string) {
 	return nil, nil
 }
 
+// AddLocalDataForTest registers handler under path for one test and answers
+// the function that takes it out again, putting back whatever path held
+// before. The caller MUST run the returned function when its test ends,
+// normally through t.Cleanup, so the handler never reaches another test of
+// the binary. Only LookupLocalData sees it: no plain local handler, metadata
+// or listing entry is registered, so help, ListLocal and the startup checks
+// that read them never meet the path. Safe for concurrent use.
+func AddLocalDataForTest(path string, handler LocalDataHandler) (restore func()) {
+	localData.Lock()
+	defer localData.Unlock()
+	previous, held := localData.handlers[path]
+	localData.handlers[path] = handler
+	return func() {
+		localData.Lock()
+		defer localData.Unlock()
+		if held {
+			localData.handlers[path] = previous
+			return
+		}
+		delete(localData.handlers, path)
+	}
+}
+
 // ResetLocalDataForTest clears every registered data handler.
 func ResetLocalDataForTest() {
 	localData.Lock()

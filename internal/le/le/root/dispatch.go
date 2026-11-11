@@ -46,20 +46,6 @@ func Commands() []registry.RootCommand {
 	return mine
 }
 
-// Usage writes the root page to stderr, beside a refusal: the reader typed a
-// command le does not hold, and the page names every one it does. program
-// supplies the page name, "le" for the binary and "ze le" for a ze_le build, so
-// every line a reader copies is valid for the active program.
-//
-// The page is the manifest's own (manifest.go), so the page beside a refusal,
-// the page `le help` answers and the payload a bare invocation answers name one
-// command set.
-func Usage(program string) {
-	page := manifestOf(program).page()
-	page.Width = leaction.PageWidth(os.Stderr)
-	page.WriteErr()
-}
-
 // helpRoot writes the root page to stdout: `le help` and `le --help` asked a
 // question, so the answer goes where a bare `le` puts it, byte for byte.
 func helpRoot(program string) int {
@@ -227,10 +213,7 @@ func dispatchLine(program string, args []string, fromMenu bool, startup func()) 
 	}
 
 	start(startup)
-	var tb textbuf.Buffer
-	tb.Str("unknown command: ").Str(args[0]).Byte('\n').StdErr() //nolint:errcheck // CLI output
-	Usage(program)
-	return 2
+	return refuseUnknown(program, args)
 }
 
 // start preserves the no-startup contract of direct dispatcher callers.
@@ -360,10 +343,7 @@ func helpAsked(program string, words []string) int {
 		// A namespace holds commands without being one, so it has no handler to
 		// resolve and its page is still worth printing.
 		if len(members(words[0])) == 0 {
-			var tb textbuf.Buffer
-			tb.Str("unknown command: ").Str(words[0]).Byte('\n').StdErr() //nolint:errcheck // CLI output
-			Usage(program)
-			return 2
+			return refuseUnknown(program, words)
 		}
 		return helpPage(program, words[0])
 	}

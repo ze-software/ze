@@ -54,13 +54,6 @@ func TestManifestTextIsTheRootHelpAReaderSeesToday(t *testing.T) {
 	if text != rootHelpToday {
 		t.Errorf("the manifest renders\n%q\nwant the page a reader sees today\n%q", text, rootHelpToday)
 	}
-
-	// Usage is the same page on stderr, so the refusal a reader meets and the
-	// payload the root answers cannot describe two different command sets.
-	page := captureStderr(t, func() { Usage("le") })
-	if page != manifestOf("le").Text() {
-		t.Errorf("Usage renders\n%q\nand the manifest renders\n%q", page, manifestOf("le").Text())
-	}
 }
 
 func TestManifestNamesEveryRegisteredAreaAndItsGroup(t *testing.T) {

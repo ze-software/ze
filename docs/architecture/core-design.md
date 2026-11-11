@@ -184,8 +184,21 @@ dispatcher prints that namespace's page: every member with the summary it
 registered. The exit code is 0, as for a bare `le`. A word after the token that
 names no member, as in `le spec nosuch`, is a mistake: it is refused with the
 members it could have been, and exit 2, le's usage code. A first word that
-holds no members is `unknown command`, exit 2.
+holds no members is an unknown command: exit 2, nothing runs, nothing reaches
+stdout, and two lines reach stderr, `error: unknown command: <word>. Nearest:
+le <name>` and `List every command: le help`. `le help <word>` answers the
+same two lines. The nearest names are read from the registry, every command
+that is not hidden and every namespace token, so a command that registers is a
+candidate with no edit here. Three ranks are tried in turn and the first that
+finds a name decides: the same words in another order or joined by hyphens
+(`le unit test` names `le test unit`), the trailing words of a command (`le
+lint` names `le go lint`), and a spelling of the first word within two edits,
+a swap of two neighbors counting as one, and under half its length (`le
+comit` names the commit commands). At most three are listed, in name order,
+and the rest are counted; a word near nothing gets the first line with no
+nearest clause. The answer names the command and never runs it.
 <!-- source: internal/le/le/root/dispatch.go -- Dispatch -->
+<!-- source: internal/le/le/root/nearest.go -- refuseUnknown, nearestNames, nearestCandidates -->
 
 **A namespace can nest under an area, and a command is at most three words.**
 `setup` is an area, and `setup docker` is a namespace inside it holding

@@ -212,7 +212,7 @@ The same rule over the ROOT namespace, and the gate that enforces it, live in
 The development tool `le` follows the same rule, subject first:
 `le go lint`, not `le go-lint`. A bare `le` namespace token answers its
 members with exit 0, and an old le command name answers `unknown command` and
-exit 1, because the rename finished and no alias survives. Both are described in
+exit 2, because the rename finished and no alias survives. Both are described in
 [`core-design.md`](../core-design.md).
 
 ## Filters are keyword grammar, never `--flags`
