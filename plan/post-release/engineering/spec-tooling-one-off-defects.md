@@ -354,6 +354,39 @@ on the owner and are not findings.
 | 4 | NOTE | P-13: the walk's back-to-back restored leg ran out of its 90s case budget at load average 21, and the green came from a lone rerun. The evidence states this. The poster proof is load-sensitive | noted |
 | 5 | NOTE | The spec's `## Security Review` section does not point at the evidence file's "Security Review (2026-11-11)" | open (record) |
 
+### Round 3 (2026-11-11): NOT CLEAN
+
+Scope: round 2's findings and the commits since it, `21518736f5` (the
+expectation fixture), `da8d5a132b` (status lines, Security Review pointer)
+and `ebb5d8e173` (the P-36 carrier, the P-20 table walk and the evidence
+section "P-20 table and SVG, P-36 any signal (2026-11-11)"); every
+proof-matrix status line against the evidence. Independent reviewer. Run
+in this round: `TestWBExpectationNestedAllowance` and
+`TestWBExpectationSequentialAllowances` (pass, 9 subtests; every command
+list runs `open about:blank`, the owned open, 54 to 143 queries, `get url`
+and one final `close`), `TestAForeignQuietHolderIsNeverSignalled` and
+`TestAStalledHolderIsBrokenOnItsSilence` (pass), `./internal/perf/report/`
+(pass), and `./le test weakened check base 0d088e9a5e` (clean).
+
+Round 2's findings:
+
+| # | Resolution |
+|---|------------|
+| 1 | resolved: `21518736f5` changes only the fixture (the rendezvous accepts `open about:blank`, and `installExpectationAgentBrowser` prepends the shared `installFakeObserver` bootstrap the runner and directive fixtures use); no assertion changed, both tests now reach their allowance, retry and cleanup assertions, and the commit carries the judge's `Weakening-approved:` line |
+| 2 | resolved for P-1, P-2, P-13, P-15, P-23, P-25, P-32, P-37, P-40, P-41; P-20 and P-36 are finding 2 below |
+| 3 | resolved: `TestAForeignQuietHolderIsNeverSignalled` asserts alive, not stopped (ps state), no trapped signal but the test's own barrier, and the registry unchanged; its three `reportBusy` walks (SIGTERM, SIGSTOP, SIGSTOP then SIGCONT) are attributed in the evidence. `reportBusy` sends no signal in source; the only `Signal` calls in `internal/le/job` are to the job's own child (`job.go`) |
+| 4 | noted, nothing owed |
+| 5 | resolved: the Security Review section points at the evidence |
+
+The P-20 claim holds: `writeHTMLTable` and `writeSVGChart` (`internal/perf/report/html.go`) have no caller but `HTML()`, which calls `ValidateResults` first, so the recorded `html.go` walk covers both.
+
+| # | Severity | Finding | State |
+|---|----------|---------|-------|
+| 1 | ISSUE | P-18's status line ends "Remaining: OPEN, the three stale generator cuts (`scale-simulator`, docker-lab command startup, installer first stop) bind source this tree has changed and are not walked" (evidence, "P-18: the three cleanups applied and seven cuts walked"). This is an OPEN outside P-10 and P-17, and round 2 did not list it. Re-derive the three cuts against the current producers and walk them, or name the recorded red that already breaks each same producer site, then set the line | open |
+| 2 | NOTE | The P-20 and P-36 status lines still say OPEN ("the SVG and table outputs as such"; "a signal that does not kill the holder") although `ebb5d8e173` walks both | open (record) |
+| 3 | NOTE | Test-only: `foreignSignals` is described as every trappable non-killing signal but omits SIGURG and SIGCHLD, which neither kill, stop nor trap-record, so a waiter sending one stays green. The barrier also assumes traps run in arrival order, while a shell runs pending traps in signal-number order (USR2 before TERM), so a signal still pending with the barrier could be recorded after it. The waiter has exited before the barrier is sent, so the recorded reds stand | noted |
+| 4 | NOTE | The header's Phase field still says "Review Gate round 1" | open (record) |
+
 ## Executable integrity incident
 
 AC-27 was dropped on 2026-11-08 ("Scope decision" above): the incident was not investigated in the session that met it, so it is not recorded (`ai/META-DECISIONS.md`), and its journal class file `plan/journal/artifact-bytes-disagree-with-identity.md` is removed.
