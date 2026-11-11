@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | Shipped producers answer a default, a zero or a constant where they cannot answer, so operators and peers act on values Ze never measured; several rows are RFC defects in implemented capabilities (RADIUS, LDP, IS-IS, ADD-PATH, LLGR) |
@@ -15,13 +15,24 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Remaining verification
 
-The current launcher panics during command registration before dispatch because
+At the final NTP phase boundary, the repair is committed as `cb44713011` with
+the scoped race tests and actual daemon functional test passing, as recorded
+below. Independent source/docs review is clean. The final combined scoped lint
+run could not produce a plan: foreign `setup/setup.go` changed after its wasip1
+stage. No lint success is claimed. Resume with stable inputs for that scoped
+check, then finish the already-recorded full pipeline package, functional,
+corpus, ADD-PATH/LDP and AC-7 report obligations. NTP is fixed; the full refusal
+spec remains open and blocked on its remaining verification.
+
+The earlier launcher attempt panicked during command registration before dispatch because
 `internal/le/test/unit/pkg.go` supplies Help strings longer than the 60-character
 limit (the first reported string is 83 characters at line 86). This file is
 foreign dirty work owned by `spec-agent-economy-2-scoped-test`, session
 `f4d858bd` and agent `a438d3331bd8f1e98`. The owning session must shorten its
-Help strings, then the main thread must rebuild the named launcher from current
-source and rerun the blocked commands. No stale binary supplies proof.
+Help strings before a current-source launcher could dispatch. That registration
+blocker was subsequently cleared and the named launcher rebuilt for the NTP
+proof below. The other commands listed here remain owed; no stale binary
+supplies proof.
 
 All four corpus fixtures passed their named draft runs, were promoted, and
 landed in `e7a77d6e73`. The shared CPE renderer's focused race proof remains

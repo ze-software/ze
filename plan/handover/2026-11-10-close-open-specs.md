@@ -6,6 +6,38 @@ access remains claimed by another session. All four handback claims are released
 **Goal:** close the open specs whose implementation is already committed. The
 owner asked that locked or blocked specs not stop progress on the others.
 
+## NTP follow-up completed, 2026-11-11
+
+This section supersedes the pending NTP decision, owner-terminal requirement,
+and old launcher blocker below. Thomas ran the review-record script and then
+instructed "fix NTP". No additional spec is closed; no push was performed.
+
+- `cb44713011` fixes NTP in the refusal spec. An absent state provider now
+  refuses `show system date`; a registered inactive provider still permits
+  date-only success. Measured false/zero values are preserved. Source/docs
+  review is clean and the two existing-test migrations have independent native
+  approvals. All nine selected race tests passed across show, registry snapshot,
+  NTP-present and NTP-absent builds; the actual daemon `system-date-show` passed
+  1/1. Logs in the existing session scratch:
+  `job-ntp-provider-green-8e407612.log`,
+  `job-ntp-provider-absent-fe550150.log`, and
+  `job-ntp-system-date-functional-a1dd9b1c.log`.
+- The old launcher Help panic is repaired. The owner-created reload review
+  artifact passes the native coverage/hash check: 39 paths, 29 code files.
+- Final combined reload/NTP scoped lint could not produce a plan because
+  another session changed `internal/le/setup/setup.go` during planning after
+  `wasip1`. No lint verdict is claimed. No Go source was changed by this session
+  during that final attempt. Retry once those dependency edits settle.
+- Reload handback `1fe1fd7ca7` retains complete guest/race/review evidence and
+  commits its news fragment and durable citations. Final stable scoped lint is
+  its only remaining blocker. Both phase claims are released.
+
+The NTP scope question is resolved and its producer/test patches have landed;
+the retained scratch drafts are historical comparisons. The refusal spec's
+other outstanding package, functional, corpus, ADD-PATH/LDP and AC-7 checks
+remain recorded in that spec. Do not repeat the passing NTP tests merely to
+refresh timestamps.
+
 ## Model-switch checkpoint, 2026-11-11
 
 ### Latest continuation after the switch
