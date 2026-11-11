@@ -1,15 +1,15 @@
 {
-  "note": "Re-judged 2026-09-29. Positive: rfc9069_verdict_test.go::TestLocallySourcedRouteIsConveyedWithTheLocRIBPeerType (empty AS_PATH best change, Peer Type 3 on Peer Up and on the Route Monitoring carrying 10.20.30.0/24) and rfc9069_test.go::TestLocRIBFeedConveysRoutesWithTheLocRIBPeerType. Negative (R1(b), inputs pushed toward the violation): ::TestLocallySourcedRouteIsNotConveyedUnderTheMonitoredPeer gives the locally sourced route the monitored peer's address 10.0.0.1 as next hop and requires, on both Peer Up and Route Monitoring, Peer Type 3, a zero peer address and the router's own AS 65000 and BGP ID; a producer attributing the route to that peer fails it. The neighbour-rule negative TestMonitoredPeerRouteMonitoringIsNotTheLocRIBPeerType no longer carries this tag. Records observed red for all three units (locRIBPeerHeader break).",
+  "note": "Re-read RFC 9069 section 4.2 and all three tagged tests. The feed test requires Peer Type 3 on the Peer Up and Route Monitoring. The locally sourced positive and negative now carry an explicit present empty AS_PATH in their complete stored attributes, matching their empty flattened summary, so they still exercise a valid local route. They require the advertised 10.20.30.0/24 prefix and Peer Type 3 at the collector. The negative deliberately gives that local route the monitored BGP peer's next hop and additionally requires zero peer address plus the router's own ASN and BGP ID on both headers: attributing it to that monitored peer fails. These inputs isolate locally sourced route attribution rather than relying on malformed or absent mandatory attributes. locRIBPeerHeader and both Peer Up producers preserve that identity independently of the path's source peer.",
   "requirement_sha": "409f2be4a86b366f",
   "tests": {
-    "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBFeedConveysRoutesWithTheLocRIBPeerType": "7d8d00fe3cf1f61e",
-    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocallySourcedRouteIsConveyedWithTheLocRIBPeerType": "ef925362dfcc8685",
-    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocallySourcedRouteIsNotConveyedUnderTheMonitoredPeer": "ef925362dfcc8685"
+    "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBFeedConveysRoutesWithTheLocRIBPeerType": "119f73b21ea4173d",
+    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocallySourcedRouteIsConveyedWithTheLocRIBPeerType": "7ebe9a7011816bcf",
+    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocallySourcedRouteIsNotConveyedUnderTheMonitoredPeer": "7ebe9a7011816bcf"
   },
   "units": {
     "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBFeedConveysRoutesWithTheLocRIBPeerType": "77e479748bdf19c7",
-    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocallySourcedRouteIsConveyedWithTheLocRIBPeerType": "ebeb81b1f7e76f34",
-    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocallySourcedRouteIsNotConveyedUnderTheMonitoredPeer": "4a4732b8c33ff425"
+    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocallySourcedRouteIsConveyedWithTheLocRIBPeerType": "f7c6cfa6cc24c986",
+    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocallySourcedRouteIsNotConveyedUnderTheMonitoredPeer": "c08cb75a00f736d8"
   },
   "verdict": "enforced"
 }

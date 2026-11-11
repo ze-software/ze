@@ -18,7 +18,7 @@
     "claim-sha": "0c1e92dde0e8d50a",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_build.go::buildWithdrawalPayload",
-    "producer-sha": "487093bd95f7150c",
+    "producer-sha": "df64b5ed8966474e",
     "break": "body of buildWithdrawalPayload replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

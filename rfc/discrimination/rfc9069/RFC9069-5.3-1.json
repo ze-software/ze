@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9069-5.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo",
+    "unit-sha": "f1001b59a0dbfd46",
+    "claim-sha": "dfacf57b377befb1",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_locrib.go::sendLocRIBPeerDown",
+    "producer-sha": "67d7cac81b4bbfdb",
+    "break": "body of sendLocRIBPeerDown replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

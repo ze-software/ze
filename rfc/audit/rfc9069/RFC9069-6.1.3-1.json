@@ -2,9 +2,9 @@
   "note": "Re-judged 2026-09-29. rfc9069_verdict_test.go::TestBehaviorChangeBouncesTheLocRIBEmulatedPeer applies a route-monitoring-policy change through applySenderConfig on a session with the Loc-RIB Peer Up sent, and requires the Peer Type 3 messages to be exactly [Peer Down, Peer Up]; TestBehaviorChangeBouncesThePeersOfALocRIBSession requires the monitored BGP peer's Peer Down then Peer Up; TestAConfigurationThatAltersNoBehaviorBouncesNothing requires no bounce on a reload that moves no behavior leaf. Row prose now names these units. Table names: ze has the one fixed name 'global', so no rename input exists.",
   "requirement_sha": "68d0851c52687085",
   "tests": {
-    "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestAConfigurationThatAltersNoBehaviorBouncesNothing": "7d8d00fe3cf1f61e",
-    "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestBehaviorChangeBouncesThePeersOfALocRIBSession": "7d8d00fe3cf1f61e",
-    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestBehaviorChangeBouncesTheLocRIBEmulatedPeer": "ef925362dfcc8685"
+    "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestAConfigurationThatAltersNoBehaviorBouncesNothing": "119f73b21ea4173d",
+    "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestBehaviorChangeBouncesThePeersOfALocRIBSession": "119f73b21ea4173d",
+    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestBehaviorChangeBouncesTheLocRIBEmulatedPeer": "7ebe9a7011816bcf"
   },
   "units": {
     "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestAConfigurationThatAltersNoBehaviorBouncesNothing": "64581dcdd7e8cac6",

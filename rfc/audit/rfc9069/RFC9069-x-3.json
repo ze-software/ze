@@ -1,11 +1,11 @@
 {
-  "note": "Re-judged 2026-10-23. TestHandleBestChangeEmitsPeerUpThenRM changed by fixture only: the replayed best change carries Attributes (ORIGIN IGP) so the Route Monitoring after the Peer Up is encoded rather than refused. The Received OPEN assertions are unchanged: an empty SentOpenMsg is Fatal and SentOpenMsg != ReceivedOpenMsg is Errorf, so a received OPEN that is not a repeat of the sent one goes red. Single-polarity annotation stands: both producers pass one fabricateLocRIBOpen result to both fields.",
+  "note": "Re-read RFC 9069 section 5.2 and the current TestHandleBestChangeEmitsPeerUpThenRM after its fixture gained the complete stored four-octet AS_PATH for the same ASN 65001. The collector must read a Peer Up with a nonempty sent OPEN, byte-identical received OPEN, decodable BGP OPEN, the local router-id, ASN4 capability and a family capability before Route Monitoring. Empty OPENs, a different received OPEN, undecodable bytes or lost capabilities fail exact assertions. The single-polarity annotation is valid: ensureLocRIBPeerUp and primeLocRIBPeerUp each build one fabricateLocRIBOpen result and pass that same byte slice to both OPEN fields; there is no separate valid input selecting a received OPEN. The fixture repair changes neither these assertions nor their coverage.",
   "requirement_sha": "3e9c25ed3e737992",
   "tests": {
-    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestHandleBestChangeEmitsPeerUpThenRM": "5fc3b343f5d0ee61"
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestHandleBestChangeEmitsPeerUpThenRM": "f6a68e60002f0542"
   },
   "units": {
-    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestHandleBestChangeEmitsPeerUpThenRM": "410e0913b4f95504"
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestHandleBestChangeEmitsPeerUpThenRM": "0ff3595da9d49c04"
   },
   "verdict": "enforced"
 }

@@ -1,11 +1,11 @@
 {
-  "note": "Forbidden: a Loc-RIB Peer Down with a reason other than 6. internal/component/bgp/plugins/bmp/rfc8671_test.go::TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo: down.Reason != PeerDownTLVData Errorf, on the Loc-RIB peer type, read off the socket. Single-polarity marker.",
+  "note": "Re-read RFC 9069 section 5.3, the checklist single-polarity annotation, sendLocRIBPeerDown and the full current TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo. The fixture now installs a real test event bus before runtime startup, requires startup to establish its subscription, and wraps the actual unsubscribe callback instead of replacing an absent subscription with a counter. The same real SDK reload disables Loc-RIB and the collector must read a Loc-RIB Peer Down with reason exactly PeerDownTLVData (constant 6), followed by Termination. The test also requires the real subscription to be removed and the announced state cleared. A missing Peer Down, wrong peer type, reason other than 6, or a reload that fails to stop the feed fails an exact assertion. The single-polarity annotation remains valid: sendLocRIBPeerDown is the one Loc-RIB Peer Down producer and always supplies reason 6; the existing separate monitored-peer reason assertions exclude misuse outside this conditional Loc-RIB requirement. The new bus fixture supplies the live-feed precondition introduced by runtime admission without weakening any original expectation. The main-thread native producer-halt record establishes only dependence on sendLocRIBPeerDown (the halt is reached at initial configuration); the reason-code judgment rests on the primary RFC text, the unchanged actual wire assertion after reload, and the reviewed constant 6 supplied by the real producer, not on that panic.",
   "requirement_sha": "4e4bb033f3c40bfb",
   "tests": {
-    "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo": "67be1e681b41a82f"
+    "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo": "4da8e49081b6ecf6"
   },
   "units": {
-    "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo": "4e838aa5423203c5"
+    "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo": "525cef4e6f2a5ac4"
   },
   "verdict": "enforced"
 }
