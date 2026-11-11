@@ -9,6 +9,12 @@ The named-profile layer above these maps is
 [`../traffic/cos-plugin.md`](../traffic/cos-plugin.md). This page is the
 mechanism the interface component owns.
 
+The interface schema owns inline maps on Ethernet, dummy, veth and bridge
+units. These maps remain available when the named-profile plugin is compiled
+out. Other interface kinds do not gain QoS leaves through the shared unit
+grouping. The profile references remain in the CoS plugin's schema.
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- qos-maps, the four unit augments -->
+
 <!-- source: internal/plugins/iface/netlink/manage_linux.go -- CreateVLAN, UpdateVLANQoSMap, qosReplaceMaps, validateQoSMap -->
 <!-- source: internal/component/iface/iface.go -- IngressQoSMap, EgressQoSMap -->
 

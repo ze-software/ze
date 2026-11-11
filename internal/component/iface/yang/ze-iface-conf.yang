@@ -282,6 +282,77 @@ module ze-iface-conf {
         }
     }
 
+    grouping qos-maps {
+        description "Inline 802.1p QoS maps for VLAN sub-interfaces.
+                     Maps translate between the 3-bit PCP field of the
+                     802.1Q tag header and kernel-internal priority.";
+
+        list ingress-qos-map {
+            key "pcp";
+            description "The map needs vlan-id. A frame whose PCP value has no entry keeps
+priority 0.";
+            ze:help "Map the 802.1p PCP value of a received tagged frame to an internal priority.";
+
+            leaf pcp {
+                type uint8 {
+                    range "0..7";
+                }
+                description "IEEE 802.1Q defines the Priority Code Point field, which is
+3 bits wide and holds a value from 0 to 7.";
+                ze:help "PCP value in the 802.1Q header of the received frame.";
+            }
+
+            leaf priority {
+                type uint8 {
+                    range "0..7";
+                }
+                mandatory true;
+                description "The value runs from 0 to 7.";
+                ze:help "Internal priority Ze gives to a matching frame.";
+            }
+        }
+
+        list egress-qos-map {
+            key "priority";
+            description "Ze stamps the PCP value in the 802.1Q header. The map needs vlan-id.
+Ze sends a priority with no entry as PCP 0.";
+            ze:help "Map the internal priority of an outgoing packet to the 802.1p PCP value.";
+
+            leaf priority {
+                type uint8 {
+                    range "0..7";
+                }
+                description "The value runs from 0 to 7.";
+                ze:help "Internal priority of the outgoing packet.";
+            }
+
+            leaf pcp {
+                type uint8 {
+                    range "0..7";
+                }
+                mandatory true;
+                description "IEEE 802.1Q defines the Priority Code Point field, which is
+3 bits wide and holds a value from 0 to 7.";
+                ze:help "PCP value Ze stamps in the 802.1Q header.";
+            }
+        }
+    }
+
+    // Keep the original inline-map surface on these four interface kinds.
+    // Other users of interface-unit do not acquire VLAN QoS configuration.
+    augment "/iface:interface/iface:ethernet/iface:unit" {
+        uses qos-maps;
+    }
+    augment "/iface:interface/iface:dummy/iface:unit" {
+        uses qos-maps;
+    }
+    augment "/iface:interface/iface:veth/iface:unit" {
+        uses qos-maps;
+    }
+    augment "/iface:interface/iface:bridge/iface:unit" {
+        uses qos-maps;
+    }
+
     grouping interface-unit {
         description "Logical interface unit properties";
 

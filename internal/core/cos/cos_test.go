@@ -80,7 +80,7 @@ func TestParseFilterID(t *testing.T) {
 }
 
 func TestResolveNoResolverRefusesProfile(t *testing.T) {
-	t.Cleanup(ClearResolver)
+	t.Cleanup(ClearResolverForTest)
 
 	ingress, egress, err := Resolve(nil, "residential", "", false)
 	require.Error(t, err)
@@ -93,7 +93,7 @@ func TestResolveNoResolverRefusesProfile(t *testing.T) {
 // TestResolveWithResolver proves Resolve hands the resolver the profile set
 // it was given, not the installed registry, which here is empty.
 func TestResolveWithResolver(t *testing.T) {
-	t.Cleanup(func() { clearProfiles(); ClearResolver() })
+	t.Cleanup(func() { clearProfiles(); ClearResolverForTest() })
 
 	set := map[string]Profile{"res": {
 		IngressMap: map[uint32]uint32{6: 6},

@@ -75,8 +75,9 @@ func RegisterResolver(fn ResolverFunc) {
 	mu.Unlock()
 }
 
-// ClearResolver removes the registered resolver.
-func ClearResolver() {
+// ClearResolverForTest removes the resolver a test registered. Production
+// providers register once at init and never remove their resolver.
+func ClearResolverForTest() {
 	mu.Lock()
 	resolver = nil
 	mu.Unlock()
@@ -135,8 +136,8 @@ func Resolve(set map[string]Profile, parentCoS, unitCoS string, hasInlineMaps bo
 	}
 	return nil, nil, opererr.New(
 		"class-of-service profile \""+name+"\" needs the missing class-of-service plugin",
-		"the interface cannot apply this profile without its resolver; set this unit to opt out of profile inheritance",
-		"class-of-service none")
+		"the interface cannot apply this profile without its resolver; inline VLAN maps remain available without a profile",
+		"remove class-of-service from this interface and its units")
 }
 
 const filterPrefix = "cos:"

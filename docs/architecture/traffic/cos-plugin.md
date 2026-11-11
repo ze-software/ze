@@ -57,6 +57,16 @@ inline maps remain the interface component's responsibility.
 
 <!-- source: internal/core/cos/cos.go -- Resolve -->
 
+The absent-provider integration tests use a real daemon built with `ze_core`
+and without `ze_cos`. Build `./cmd/ze` into a session scratch path, then run
+`ZE_BIN=/absolute/path/to/ze go test -race -tags ze_core ./internal/test/cosabsent`.
+The tests check the binary's build tags before invoking `config validate`:
+a named profile must fail, while inline VLAN maps must succeed. A separate
+resolved-schema assertion retains exactly the four interface kinds that already
+supported those maps. An absent or unusable binary fails the proof.
+
+<!-- source: internal/test/cosabsent/cos_absent_integration_test.go -- validateWithoutCoS, TestInlineQoSSchemaKeepsItsFourInterfaceKindsWithoutCoS -->
+
 ### The interface resolves against the candidate's profiles
 
 <!-- source: internal/component/iface/register.go -- ConfigReads -->

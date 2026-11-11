@@ -3082,7 +3082,7 @@ an existing VLAN resolves to, through an inline map edit or an edit to the
 profile the unit uses, reprograms that VLAN in place, and a commit that fails
 afterwards writes the previous maps back.
 
-<!-- source: internal/plugins/cos/yang/ze-cos-conf.yang -- ingress-qos-map, egress-qos-map lists (qos-maps grouping) -->
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- ingress-qos-map, egress-qos-map lists (qos-maps grouping) -->
 <!-- source: internal/plugins/iface/netlink/manage_linux.go -- CreateVLAN IngressQosMap/EgressQosMap, UpdateVLANQoSMap -->
 <!-- source: internal/component/iface/config_apply.go -- applyConfig, indexUnitQoS -->
 
