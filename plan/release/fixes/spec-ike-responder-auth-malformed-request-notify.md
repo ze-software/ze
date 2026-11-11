@@ -121,7 +121,7 @@ handshake.
 |----------|--------|
 | What breaks if this is wrong? | One handshake that already ends would end with a wrong or missing notify |
 | How is it reverted? | single commit revert |
-| Who else touches this path? | `spec-rfc-verdict-fix-ike-eap` (initiator side, `fsm.go`) |
+| Who else touches this path? | `plan/release/fixes/spec-single-owner-lifecycle.md` AC-8 (initiator side, `fsm.go`) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -200,4 +200,4 @@ handshake.
 | `plan/journal/silent-fall-through.md` | 2026-11-10 | IKE responder IKE_AUTH errInnerParse sends no notify |
 
 ## Known Limitations
-- The initiator side (`fsm.go`) is owned by `plan/release/validation/spec-rfc-verdict-fix-ike-eap.md`.
+- The initiator side (`fsm.go`) is owned by `plan/release/fixes/spec-single-owner-lifecycle.md` AC-8, including the undecryptable IKE_AUTH and EAP datagrams.

@@ -7,19 +7,19 @@
 | Release reason | Required evidence for shipped behavior or truthful release support claims; historical work and proof debts remain distinct. |
 | Scope | tooling |
 | Depends | `plan/release/validation/spec-rfc-verdict-test-fix-pass.md` (the parent: its `audit-stamp` `mode rejudge` phase before any re-judge here, and its narrowing-audit output for the IKE/EAP group before any row edit, parent R-11) |
-| Phase | independent closure |
+| Phase | independent closure review complete |
 | Handoff | - |
 | Updated | 2026-11-11 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-## Blocker
+## Resolved freshness blocker
 
 The 2026-11-10 closure check after repair `e37d91f4f5` reported 65 stale
 discrimination covers and a shifted RFC3948 audit. Implementation resumed
 to refresh that evidence; the closure phase did not write proof records.
 The native replay and follow-up ledger check are complete as described below.
-Independent closure still needs the citation repair and acceptance review.
+Independent closure has completed the citation repair and acceptance review.
 
 ## Discrimination evidence refresh, 2026-11-11
 
@@ -851,7 +851,8 @@ Written from `plan/handover/rfc-verdict-test-fix-pass/` (QUEUE.md, HANDOFF.md) a
 | `48591f88d5`, `b57b47161d` | EAP peer certificate; EAP reassembly L-bit |
 
 ### Deviations from Plan
-- None beyond the naming marker above.
+- The existing P-3 failure route transfers selector defects to `spec-rfc4301-architecture-gaps` AC-13 and RFC9190 Method-Id/Session-Id to `spec-ipsec-rfc9190` AC-10. The latter stem stays un-enrolled; partial key evidence earns no whole-row claim.
+- The 2026-11-11 refresh restores existing record freshness only. Its 64 EAP producer-halt covers are dependency evidence, not new clause discrimination.
 
 ## Mistake Log
 | Kind | What happened | What was true instead | How discovered | Action |
@@ -878,7 +879,33 @@ count, pending-decision list or freshness certificate. AC-C7 records the bounded
 | AC-C6 | Rows done, verdicts owed | "Row work outcomes, 2026-10-11": every row of the row-quality table has an outcome; twelve RFC7296 rows and `RFC4301-4.4.1-6` widened or re-quoted with a dated correction each; mistagged units moved earlier (`1075b8992f` and the 2026-09-30 corrections) | thirteen STALE verdicts wait for an independent judge; four level rows wait for the owner (`RFC7296-1.4-1`, `RFC2759-x-3`, `x-10`, `x-12`) |
 | AC-C7 | Independent judgments recorded; whole-row condition open | Current table above records all five R-7 judgments. `49000ee303` proves both key halves and corrects ticket issuance attribution | RFC9190-2.3-1 remains partial because Method-Id is absent; RFC9190 is not enrolled, so no audit file or whole-requirement credit is claimed |
 
+### Current closure acceptance review, 2026-11-11
+
+| AC ID | Current result | Producer or durable evidence |
+|-------|----------------|------------------------------|
+| AC-C1 | Met under the existing P-3 routing | Main-thread individual-record query returns only the two weak RFC7296-3.13.1 selector rows; architecture-gaps AC-13 names both. |
+| AC-C2 | Existing judgments retained; freshness repaired | `e62246b71e` changes only producer fingerprints and break descriptions in 65 covers. Unit, claim, polarity and producer identities remain fixed. The six producers and replay observations are listed above; no EAP verdict is upgraded by a producer halt. |
+| AC-C3 | Met | Current individual audits for RFC4555-3.6-2, 3.6-3, 4.2.6-1 and RFC4301-4.4.1-6 are enforced. RFC4303-3.4.4.1-2 remains truthfully unimplemented after independent correction `e37d91f4f5`; RFC3748-2.3-1 has its dated correction. |
+| AC-C4 | Met by explicit ownership | Lifetime-volume AC-7, architecture-gaps AC-13, and RFC9190 AC-9/AC-10 retain the producer work; closure changes no producer. The former four EAP-defects rows are now enforced by their completed owner. |
+| AC-C5 | Met | Main post-`e62246b71e` check reports the same 63 global violations and zero in the eleven owned stems: `rfc-check-post-e62246b71e.log`. No added violation or owned stale evidence; no globally clean ledger claim. |
+| AC-C6 | Met | Current audits and dated row corrections supersede the historical pending list. `e37d91f4f5` fixes the CERTREQ naming marker without changing assertions, and corrects AIA retrieval and ESP-padding claims without asserting support. |
+| AC-C7 | Met through the approved P-3 exception | RFC9190 AC-9 owns the R-7 rows and AC-10 explicitly owns Method-Id/Session-Id. The five bounded independent judgments remain recorded above; RFC9190 stays un-enrolled and its partial evidence earns no whole-row enforced claim. |
+
+The current review found no source, security or style defect in the closure
+repair population. The only Go hunk is the CERTREQ naming comment; there is
+no new panic, wire parser, allocation, authentication path or external
+dependency. The targeted rekey break still removes `newRekeyedChild`'s
+`innerGuard` inheritance, and its two-role test checks registry ownership
+after retiring the old pair. No producer halt is substituted for that break.
+
 ## Goal Validation (BLOCKING)
+
+Current closure review, 2026-11-11: the main-thread derived listing contains
+exactly `RFC7296-3.13.1-1` and `RFC7296-3.13.1-2`, both weak and owned by
+`spec-rfc4301-architecture-gaps` AC-13. Reading the individual audit records
+confirms the former four `spec-ike-eap-rfc-defects` rows are now enforced;
+`RFC4301-4.4.2.1-3` is unimplemented and remains lifetime-volume AC-7.
+The earlier five-row count below is historical, not the closure count.
 
 These rows retain the 2026-10-11 evidence report. The old-host logs for the
 18/18 interop result were unavailable to the current reviewer; it is historical
@@ -893,7 +920,6 @@ acceptance evidence, not newly certified discrimination or a current ledger chec
 ## Work Not Done
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| RFC3948-2.1-2, RFC5216-2.1.1-4, RFC5216-2.1.1-5, RFC5216-2.1.2-1 | producer defects (P-3) | `spec-ike-eap-rfc-defects` (closed 2026-10-21, `plan/learned/032-ike-eap-rfc-defects.md`) |
 | RFC4301-4.4.2.1-3 | Ze keeps no byte-count lifetime | `plan/release/fixes/spec-ipsec-lifetime-volume.md` AC-7 |
 | RFC7296-3.13.1-1, RFC7296-3.13.1-2 | Portless-protocol selector defect; weak verdicts remain explicit | `plan/release/fixes/spec-rfc4301-architecture-gaps.md` AC-13 |
 | RFC9190-2.3-1, RFC9190-2.3-4 | Method-Id and Session-Id remain absent; MSK/EMSK evidence is partial only | `plan/release/validation/spec-ipsec-rfc9190.md` AC-10 |
@@ -902,11 +928,56 @@ acceptance evidence, not newly certified discrimination or a current ledger chec
 
 | Field | Value |
 |-------|-------|
-| Artifact | |
-| `./le spec review check` | not run |
-| Rounds | |
-| Reviewer lenses used | |
+| Artifact | `tmp/review/rfc-verdict-fix-ike-eap-e7e52401-a0f1-4060-b345-df140a0c6c5e.md` (39 files) |
+| `./le spec review check` | OK: clean, one code file, hashes match the 39-file artifact; metadata and citation files are also recorded. |
+| Rounds | 1 current independent closure pass; historical implementation reviews retained separately |
+| Reviewer lenses used | Producer logic and wiring, proof identity and limits, requirement ownership, security, Go style, documentation and citations |
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
+
+Closure notes: historical counts and pending judgments are explicitly dated;
+the current table above supplies the closure result. The initiator defect
+citation is repointed to single-owner-lifecycle AC-8; RFC9190 AC-9 retains
+only the closed spec's bare-name provenance. These are record corrections,
+not additional product-review rounds.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| 30 refreshed discrimination files and RFC3948 audit | Yes | `e62246b71e` exact 32-path manifest at `tmp/session/2026-11-10-224742/scratch/ike-eap-proof-commit-files.txt`, including the spec; individual records read during independent review. |
+| Destination specs | Yes | architecture-gaps AC-13, lifetime-volume AC-7 and RFC9190 AC-9/AC-10 read from their current work-folder files. |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-C1 | Only owned exceptions remain weak/wrong | Main individual-audit query returns exactly RFC7296-3.13.1-1 and -2; both destination AC-13 entries read. |
+| AC-C2 | Refreshed records preserve judgment identity | `git show e62246b71e` contains only producer-sha/break changes for discrimination; all 65 baseline/broken observations completed in the main thread. |
+| AC-C3 | Row outcomes recorded | Current RFC4555/RFC4301 audit records enforced; ESP-padding unimplemented correction and RFC3748 dated correction read. |
+| AC-C4 | Producer defects stay with their owners | Current destination ACs read; no producer change in closure or proof refresh. |
+| AC-C5 | No owned stale evidence | Main postcommit `rfc-check-post-e62246b71e.log` exits 1 with the same 63 global violations and zero owned-stem lines; no added violation. |
+| AC-C6 | Tag and row-quality corrections judged | `e37d91f4f5` naming-only Go hunk and two bounded audit corrections read; current audit rows supersede historical pending entries. |
+| AC-C7 | Unresolved R-7 obligations have explicit P-3 ownership | RFC9190 AC-9 and AC-10 read; no RFC9190 enrollment or whole-row credit asserted. |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Native RFC record/check | Not a .ci route | Main replay invokes each named producer's existing unit, observes baseline pass and broken-producer failure, then native check reads the current ledger. The rekey test exercises both roles and old-pair retirement. |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | Confirmed | Native rejudge repair `e37d91f4f5` and successful native refresh `e62246b71e`; no audit record was hand-deleted. |
+| A-2 | Confirmed with updated enumeration | The current two-row listing maps exactly to architecture-gaps AC-13; un-enrolled RFC9190 gaps map separately to AC-9/AC-10 under P-3. The historical five-row count is not reused. |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| RFC support remains bounded | Refresh changes no claim/verdict; `rfc update` left generated outputs unchanged; RFC9190 remains un-enrolled. | Yes |
+| CLI/config/API/wire and dependency surfaces | Reviewed `e37d91f4f5` and `e62246b71e`: naming comment, audit/proof metadata and ownership records only; no runtime surface changed. | Yes |
+| Global documentation check | Main `closure-doc-check.log`: 446 YANG commands validated, 3043 digest anchors resolve; two unrelated published command-catalog drifts in sibling wiki/gh-pages checkouts. | Scoped result only; no global PASS |
+| Global weakening check | Main `closure-weakened-check.log`: six unexplained foreign inventory-test findings, none in this repair population. | No owned finding; no global PASS |
+| Repository structural checks | Main repaired rerun `closure-repo-check-repaired.log`: all checks passed after the separately owned fixes. | PASS |
