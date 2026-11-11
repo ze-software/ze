@@ -481,14 +481,15 @@ func bashLossyPipe(ctx context) *verdict {
 	}
 	// The tree goes first so that, where both refuse, the advice is the
 	// parsed command and not a text segment cut at a quoted bar (AC-15).
-	if words, filter, found := treeLossyPipe(command, ctx.commandParse()); found {
-		return lossyPipeRefusal(commandIdentityPrefix(ctx), filter, words)
+	if words, written, filter, found := treeLossyPipe(command, ctx.commandParse()); found {
+		return lossyPipeRefusal(commandIdentityPrefix(ctx), filter, words, written)
 	}
 	filter, segment, found := textLossyPipe(command)
 	if !found {
 		return nil
 	}
-	return lossyPipeRefusal(commandIdentityPrefix(ctx), filter, beforeRedirection(programWords(segment)))
+	words := beforeRedirection(programWords(segment))
+	return lossyPipeRefusal(commandIdentityPrefix(ctx), filter, words, quotedWords(words))
 }
 
 // textLossyPipe is the piped-command guard's text judgment, its verdict at
@@ -541,16 +542,19 @@ func commandSegments(command string) []string {
 // admittedCommand writes the job-admission form of a command a refusal
 // advises: `./le job run label <label> quiet command <argv>`. Every refusal
 // advises the quiet form: quiet sends the child's output to this session's
-// scratch log rather than the transcript (ai/rules/commands.md).
-func admittedCommand(label string, tokens []string) string {
+// scratch log rather than the transcript (ai/rules/commands.md). argv holds
+// the command's words already written back as shell words, one each
+// (parsedCommand.written, quotedWords): a value the caller quoted
+// (`-run 'TestA|TestB'`) is advised as the same argument, and a word the
+// shell expands (`./internal/le/$p`) as typed, so the shell expands it again
+// when the advice runs where the command stood.
+func admittedCommand(label string, argv []string) string {
 	var advice strings.Builder
 	advice.WriteString("./le job run label " + label + " quiet")
 	advice.WriteString(" command")
-	// Each word is written back as one shell word, so a value the caller
-	// quoted (`-run 'TestA|TestB'`) is advised as the same argument.
-	for _, token := range tokens {
+	for _, word := range argv {
 		advice.WriteByte(' ')
-		advice.WriteString(quotedWord(token))
+		advice.WriteString(word)
 	}
 	return advice.String()
 }

@@ -40,8 +40,11 @@ const verifyArea = "verify"
 // command starts with so that following it is not refused again. words are
 // the refused command's words from its program on, with no redirection:
 // read from the tree on a line that parses (treeLossyPipe), and from the
-// text segment otherwise.
-func lossyPipeRefusal(identity, filter string, words []string) *verdict {
+// text segment otherwise. written holds each of words as the refusal writes
+// it back, one shell word each (parsedCommand.written, quotedWords), so a
+// word the shell expands is advised as typed. MUST be called with written
+// as long as words.
+func lossyPipeRefusal(identity, filter string, words, written []string) *verdict {
 	head := "❌ Blocked: piping an expensive command's output through a lossy filter (" + filter + ")\n" +
 		"  -- The filter drops the lines that say why a run failed, and what it keeps is what you would judge the run by.\n"
 	if len(words) == 0 {
@@ -58,7 +61,7 @@ func lossyPipeRefusal(identity, filter string, words []string) *verdict {
 	}
 	advice := head +
 		"  -- Run it with no filter, redirect or tee, in the quiet admitted form (ai/rules/commands.md). Its output goes to this session's scratch log, and the answer carries the exit code, the log's path and the failure lines:\n" +
-		"     " + identity + admittedCommand(lossyPipeLabel(words), words) + "\n"
+		"     " + identity + admittedCommand(lossyPipeLabel(words), written) + "\n"
 	if goTest(words) {
 		advice += "  -- For one package with its feature tags, the short form: " + shortPackageForm + "\n"
 	}
@@ -78,7 +81,8 @@ func lossyPipeRefusal(identity, filter string, words []string) *verdict {
 //
 // It answers the expensive command's program words, from its parsed tokens,
 // so a redirection is never one of them and an expensive command of another
-// statement is never advised in its place (AC-15, review I2), and the
+// statement is never advised in its place (AC-15, review I2), with each of
+// them as the refusal writes it back (parsedCommand.written), and the
 // filter's command word; found is false for a line that does not parse or
 // holds no such pipeline.
 //
@@ -87,19 +91,19 @@ func lossyPipeRefusal(identity, filter string, words []string) *verdict {
 // line the hook failed to read is never cleared, as the reader-line
 // predicate answers it (review I4). readTreeLossyPipe is the walk itself,
 // which the fuzz target calls without this recover.
-func treeLossyPipe(command string, parse commandParse) (words []string, filter string, found bool) {
+func treeLossyPipe(command string, parse commandParse) (words, written []string, filter string, found bool) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
-			words, filter, found = nil, "unknown: a line the hook failed to read ("+fmt.Sprint(recovered)+")", true
+			words, written, filter, found = nil, nil, "unknown: a line the hook failed to read ("+fmt.Sprint(recovered)+")", true
 		}
 	}()
 	return readTreeLossyPipe(command, parse)
 }
 
 // readTreeLossyPipe is treeLossyPipe without its recover.
-func readTreeLossyPipe(command string, parse commandParse) ([]string, string, bool) {
+func readTreeLossyPipe(command string, parse commandParse) (words, written []string, filter string, found bool) {
 	if !parse.parsed() {
-		return nil, "", false
+		return nil, nil, "", false
 	}
 	commands := everyCommand(command, parse.file.Stmts)
 	for index, candidate := range commands {
@@ -112,11 +116,13 @@ func readTreeLossyPipe(command string, parse commandParse) ([]string, string, bo
 				continue
 			}
 			if lossyFilter(later.commandWord()) {
-				return program, later.commandWord(), true
+				// programTokens answers a suffix of the tokens, so the
+				// program's written words are the same suffix of written.
+				return program, candidate.written[len(candidate.tokens)-len(program):], later.commandWord(), true
 			}
 		}
 	}
-	return nil, "", false
+	return nil, nil, "", false
 }
 
 // lossyFilter reports a program that drops lines of what it reads: the

@@ -57,8 +57,10 @@ func textRawHeavy(command, root string) rawRefusal {
 // string handed to a shell is never opened.
 //
 // It answers the first heavy command in source order, with the directory
-// changes before it, written from its parsed words, so a redirection is
-// never read as one of its words and a quoted bar never cuts it (AC-15), and
+// changes before it, written from its parsed words (parsedCommand.written,
+// a word the shell expands as typed), so a redirection is never read as one
+// of its words, a quoted bar never cuts it, and the advice runs what the
+// caller ran (AC-15), and
 // a zero what for a line that does not parse or runs no heavy job.
 //
 // A panic inside the walk is answered as a refusal that says so
@@ -95,7 +97,7 @@ func readTreeRawHeavy(command string, parse commandParse, root string) rawRefusa
 			moves = append(moves, parsed.segment())
 			continue
 		}
-		if refusal := rawHeavyWords(parsed.tokens, moves, root); refusal.what != "" {
+		if refusal := rawHeavyWords(parsed.tokens, parsed.written, moves, root); refusal.what != "" {
 			return refusal
 		}
 	}
@@ -104,20 +106,25 @@ func readTreeRawHeavy(command string, parse commandParse, root string) rawRefusa
 
 // rawHeavy answers the refusal for a segment that runs a heavy job raw, and
 // a zero what for any other segment: rawHeavyWords over the segment's words
-// as the text judgment reads them (shellWords).
+// as the text judgment reads them (shellWords), each written back through
+// quotedWord, there being no parse to say which of them the shell expands.
 func rawHeavy(segment string, moves []string, root string) rawRefusal {
-	return rawHeavyWords(shellWords(segment), moves, root)
+	words := shellWords(segment)
+	return rawHeavyWords(words, quotedWords(words), moves, root)
 }
 
 // rawHeavyWords is the word judgment of the raw-job guard, the one the text
 // judgment applies to a segment's words and the tree judgment to a parsed
 // command's tokens. It answers the refusal for words that run a heavy job
-// raw, and a zero what for any other words. moves holds the text of each
+// raw, and a zero what for any other words. written holds each token as the
+// refusal writes it back, one shell word each (parsedCommand.written), so
+// the advice runs the words the agent typed. moves holds the text of each
 // directory change the line makes before them, as typed: a relative package
 // then names a directory the short action, which runs at the checkout root,
 // would not test, and the long form carries them as `env -C`, or names those
 // it cannot carry (keptArgv). root is the checkout the short action runs in.
-func rawHeavyWords(tokens, moves []string, root string) rawRefusal {
+// MUST be called with written as long as tokens.
+func rawHeavyWords(tokens, written, moves []string, root string) rawRefusal {
 	if len(tokens) == 0 {
 		return rawRefusal{}
 	}
@@ -146,15 +153,18 @@ func rawHeavyWords(tokens, moves []string, root string) rawRefusal {
 	if len(tokens) == 0 {
 		return rawRefusal{}
 	}
-	kept, uncarried := keptArgv(moves, prefix, tokens)
+	kept, uncarried := keptArgv(moves, prefix, written)
 	prefixed := len(moves) != 0 || len(prefix) != 0
+	// The prefix words are the first ones, so the program's own written
+	// words are the rest.
+	program := written[len(prefix):]
 	if goTest(tokens) {
-		refusal := packageRefusal("`go test`", testLabel, prefixed, tokens, kept, root)
+		refusal := packageRefusal("`go test`", testLabel, prefixed, tokens, program, kept, root)
 		refusal.uncarried = uncarried
 		return refusal
 	}
 	if goVet(tokens) {
-		refusal := packageRefusal("`go vet`", vetLabel, prefixed, tokens, kept, root)
+		refusal := packageRefusal("`go vet`", vetLabel, prefixed, tokens, program, kept, root)
 		refusal.uncarried = uncarried
 		return refusal
 	}
@@ -180,16 +190,19 @@ func assignmentWord(word string) bool {
 	return strings.Contains(strings.Split(word, "/")[0], "=")
 }
 
-// keptArgv answers the argv the long admitted form runs for a segment, so it
-// runs what the caller typed (review I1), and the directory changes it could
-// not carry, as typed, or "" when it carried them all. The directory the
-// line's changes reach goes in front of the program as `env -C <dir>`
-// (moveDirectory): the form holds no separator, which the hook's quote-blind
-// split would cut at, so following the advice is not refused again (review
+// keptArgv answers the argv the long admitted form runs for a segment, as
+// shell words, so it runs what the caller typed (review I1), and the
+// directory changes it could not carry, as typed, or "" when it carried them
+// all. prefix holds the tokens in front of the program (rawHeavyWords), and
+// written the shell words of the prefix and the program, as the refusal
+// writes them back. The directory the line's changes reach goes in front of
+// the program as `env -C <dir>` (moveDirectory, which admits only a literal
+// word): the form holds no separator, which the hook's quote-blind split
+// would cut at, so following the advice is not refused again (review
 // ISSUE). An assignment in front of the program goes through `env`, which
 // sets it the same way; a launcher stays as typed.
-func keptArgv(moves, prefix, program []string) ([]string, string) {
-	argv := make([]string, 0, 4+len(prefix)+len(program))
+func keptArgv(moves, prefix, written []string) ([]string, string) {
+	argv := make([]string, 0, 4+len(written))
 	uncarried := ""
 	if len(moves) != 0 {
 		directory, carried := moveDirectory(moves)
@@ -203,8 +216,7 @@ func keptArgv(moves, prefix, program []string) ([]string, string) {
 	if len(argv) == 0 && len(prefix) != 0 && assignmentWord(prefix[0]) {
 		argv = append(argv, "env")
 	}
-	argv = append(argv, prefix...)
-	return append(argv, program...), uncarried
+	return append(argv, written...), uncarried
 }
 
 // moveDirectory answers the directory a line's directory changes reach,
@@ -315,10 +327,12 @@ func PackageActionWords() map[string]string {
 // (spec-agent-economy-2-scoped-test AC-7). The long form is quiet, as the
 // piped-command refusal's is, so the run's output goes to the job log and not
 // into the caller's context (spec-agent-economy-6-shell-parser AC-20).
-func packageRefusal(what, label string, prefixed bool, tokens, kept []string, root string) rawRefusal {
+// written holds each token of the program as the refusal writes it back,
+// and kept the long form's argv as shell words (keptArgv).
+func packageRefusal(what, label string, prefixed bool, tokens, written, kept []string, root string) rawRefusal {
 	vet := goVet(tokens)
 	if !prefixed {
-		if form, exact := shortPackageAction(tokens, root); exact {
+		if form, exact := shortPackageAction(tokens, written, root); exact {
 			return rawRefusal{what: what, use: form, vet: vet}
 		}
 	}
@@ -336,8 +350,19 @@ func packageRefusal(what, label string, prefixed bool, tokens, kept []string, ro
 // package (go then tests the current directory), the whole tree (which the
 // action refuses), a package the action's own judgment does not run
 // (actionRuns), and a value the refusal cannot write as one shell word all
-// answer false. MUST be called with words goTest or goVet accepts.
-func shortPackageAction(tokens []string, root string) (string, bool) {
+// answer false. So does a word the refusal writes back by its source text
+// (writtenByValue), one the shell expands: the action's judgment and the
+// words this form writes read the value the hook holds, the typed text,
+// while the shell passes the expanded one, so only the long form, which
+// writes that word as typed, runs what the caller ran. written holds each
+// token as the refusal writes it back (parsedCommand.written). MUST be
+// called with words goTest or goVet accepts, and written as long.
+func shortPackageAction(tokens, written []string, root string) (string, bool) {
+	for index, token := range tokens {
+		if !writtenByValue(token, written[index]) {
+			return "", false
+		}
+	}
 	vet := goVet(tokens)
 	var packages []string
 	run, runGiven := "", false
@@ -378,8 +403,8 @@ func shortPackageAction(tokens []string, root string) (string, bool) {
 		if !actionRuns(root, name) {
 			return "", false
 		}
-		word, written := shellWord(name)
-		if !written {
+		word, quoted := shellWord(name)
+		if !quoted {
 			return "", false
 		}
 		form.WriteString(" " + pkgPathKeyword + " " + word)
@@ -393,8 +418,8 @@ func shortPackageAction(tokens []string, root string) (string, bool) {
 		if strings.HasPrefix(run, "-") {
 			return "", false
 		}
-		word, written := shellWord(run)
-		if !written {
+		word, quoted := shellWord(run)
+		if !quoted {
 			return "", false
 		}
 		form.WriteString(" " + pkgRunKeyword + " " + word)

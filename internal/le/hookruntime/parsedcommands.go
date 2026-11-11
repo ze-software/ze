@@ -30,6 +30,14 @@ type parsedCommand struct {
 	// text judgment reads the same words. tokens[len(assigns)] is the command
 	// word.
 	tokens []string
+	// written holds each token as a refusal writes it back, one shell word
+	// each (admittedCommand): a value the hook reads exactly through
+	// quotedWord, and any other word by its own source text as typed, quotes
+	// included, so the shell expands it when the advice runs, as it did when
+	// the agent's line ran. A word's expanded value is never written: the
+	// hook does not know it, and the source text adds nothing the agent did
+	// not type. written[i] is tokens[i] written back.
+	written []string
 	// source is the command's own text from its first assignment or word
 	// to its last word, as typed, with no redirection.
 	source string
@@ -227,13 +235,16 @@ func (walk *readerWalk) parsedCall(call *syntax.CallExpr) parsedCommand {
 	}
 	for _, assign := range call.Assigns {
 		command.assigns = append(command.assigns, walk.text(assign))
-		command.tokens = append(command.tokens, walk.assignToken(assign))
+		token, exact := walk.assignToken(assign)
+		command.tokens = append(command.tokens, token)
+		command.written = append(command.written, walk.writtenToken(assign, token, exact))
 	}
 	for _, argument := range call.Args {
 		value, err := readWord(argument)
 		if err != nil {
 			command.readable = false
 			command.tokens = append(command.tokens, typedToken(walk.text(argument)))
+			command.written = append(command.written, walk.text(argument))
 			continue
 		}
 		token := value.text
@@ -242,37 +253,71 @@ func (walk *readerWalk) parsedCall(call *syntax.CallExpr) parsedCommand {
 			token = typedToken(walk.text(argument))
 		}
 		command.tokens = append(command.tokens, token)
+		command.written = append(command.written, walk.writtenToken(argument, token, !value.expands))
 		command.words = append(command.words, value.text)
 	}
 	return command
+}
+
+// writtenToken answers one token of a command as a refusal writes it back
+// (parsedCommand.written): quotedWord of the token when exact reports that
+// the hook read its value exactly, and otherwise node's own source text as
+// typed, which the shell expands again when the advice runs.
+func (walk *readerWalk) writtenToken(node syntax.Node, token string, exact bool) string {
+	if exact {
+		return quotedWord(token)
+	}
+	return walk.text(node)
+}
+
+// quotedWords writes each of values as one shell word (quotedWord): the
+// written form of the words a text judgment read, which no parse says the
+// shell expands.
+func quotedWords(values []string) []string {
+	written := make([]string, 0, len(values))
+	for _, value := range values {
+		written = append(written, quotedWord(value))
+	}
+	return written
+}
+
+// writtenByValue reports that a refusal writes token back by its value,
+// through quotedWord, rather than by its source text as typed
+// (writtenToken), which it does for a word the shell expands or the hook
+// cannot read. The two forms never coincide: quotedWord writes a literal word
+// or single-quoted strings joined by `\'`, and a word typed in that form
+// neither expands nor fails to read, so it is written by its value.
+func writtenByValue(token, written string) bool {
+	return written == quotedWord(token)
 }
 
 // assignToken reads one assignment in front of a command as the token the
 // word judgments read (parsedCommand.tokens): `name=value` with the value
 // read exactly when nothing in it expands, and the assignment's typed text
 // otherwise, so `ZE_ADMIT_RAW="$why"` keeps a value that is not empty, as
-// the text judgment reads it.
-func (walk *readerWalk) assignToken(assign *syntax.Assign) string {
+// the text judgment reads it. exact reports the first form, a value read
+// exactly, which a refusal may write back by its value (writtenToken).
+func (walk *readerWalk) assignToken(assign *syntax.Assign) (token string, exact bool) {
 	if assign.Name == nil {
-		return typedToken(walk.text(assign))
+		return typedToken(walk.text(assign)), false
 	}
 	if assign.Value == nil {
-		return typedToken(walk.text(assign))
+		return typedToken(walk.text(assign)), false
 	}
 	if assign.Append {
-		return typedToken(walk.text(assign))
+		return typedToken(walk.text(assign)), false
 	}
 	if assign.Index != nil {
-		return typedToken(walk.text(assign))
+		return typedToken(walk.text(assign)), false
 	}
 	value, err := readWord(assign.Value)
 	if err != nil {
-		return typedToken(walk.text(assign))
+		return typedToken(walk.text(assign)), false
 	}
 	if value.expands {
-		return typedToken(walk.text(assign))
+		return typedToken(walk.text(assign)), false
 	}
-	return assign.Name.Value + "=" + value.text
+	return assign.Name.Value + "=" + value.text, true
 }
 
 // typedToken reads one word's typed text as the text judgment reads a

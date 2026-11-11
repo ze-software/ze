@@ -1174,6 +1174,12 @@
 {"line":"for p in a b; do go test ./internal/$p; done","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"for p in a b; do grep -c x a | tail -3; done","caller":"main","refused-by":[],"reader-line":false}
 {"line":"for p in a b; do grep -c x a | tail -3; done","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":true,"proof":"TestReaderLineReachesThroughConstructs","waives":["bashAgentIdentity"]}
+{"line":"for p in a; do go test \"./x/$p\" -run \"Test$p\"; done","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"for p in a; do go test \"./x/$p\" -run \"Test$p\"; done","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"for p in a; do go test ./$p | tail -3; done","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":false}
+{"line":"for p in a; do go test ./$p | tail -3; done","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":false}
+{"line":"for p in hookruntime; do go test ./internal/le/$p; done","caller":"main","refused-by":["bashRawHeavy"],"reader-line":false}
+{"line":"for p in hookruntime; do go test ./internal/le/$p; done","caller":"subagent","refused-by":["bashRawHeavy","bashAgentIdentity"],"reader-line":false}
 {"line":"git -C /repo rm --cached internal/foo/foo_test.go","caller":"main","refused-by":["bashDestructiveGit","bashTestDeletion"],"reader-line":false}
 {"line":"git -C /repo rm --cached internal/foo/foo_test.go","caller":"subagent","refused-by":["bashDestructiveGit","bashTestDeletion","bashAgentIdentity"],"reader-line":false}
 {"line":"git -C /srv/checkout log --oneline","caller":"main","refused-by":[],"reader-line":false}

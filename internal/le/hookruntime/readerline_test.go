@@ -363,9 +363,50 @@ func TestIdentityLineBeforeAReaderLineStillLifts(t *testing.T) {
 // inside a group, which only the tree judgment refuses (AC-9, AC-10): the
 // text split cuts the group at the quoted bar into pieces that start with
 // `{` and with `TestB'`, and neither guard's text judgment refuses either.
+// A word the shell expands is written back by its source text as typed, so
+// the advice pasted where the agent's command stood runs what it ran: in a
+// loop, `./internal/le/$p` is advised as typed, by the raw-job refusal in
+// the long form (the short action judges a package by the value the hook
+// holds, which is not the one the shell passes) and by the piped-command
+// refusal alike.
 // PREVENTS: the advice being cut at a quoted bar, or carrying `2>&1` as an
-// argument of the advised command.
+// argument of the advised command, or single-quoting an expanded word, which
+// would run the literal path `./internal/le/$p`.
 func TestRefusalAdvisesTheParsedCommand(t *testing.T) {
+	raw, lossy := "run raw, outside job admission", "through a lossy filter"
+	for _, row := range []struct{ command, guard, advised, quoted string }{
+		{
+			`for p in hookruntime; do go test ./internal/le/$p; done`, raw,
+			"-- Use: ./le job run label unit-pkg quiet command go test ./internal/le/$p\n",
+			`'./internal/le/$p'`,
+		},
+		{
+			`for p in a; do go test ./$p | tail -3; done`, lossy,
+			"     ./le job run label unit-pkg quiet command go test ./$p\n",
+			`'./$p'`,
+		},
+		{
+			`for p in a; do go test "./x/$p" -run "Test$p"; done`, raw,
+			`-- Use: ./le job run label unit-pkg quiet command go test "./x/$p" -run "Test$p"` + "\n",
+			`'./x/$p'`,
+		},
+	} {
+		code, message := runMainBash(t, row.command)
+		if code != 2 {
+			t.Errorf("%q: code=%d, want 2", row.command, code)
+			continue
+		}
+		if !strings.Contains(message, row.guard) {
+			t.Errorf("%q: not the refusal %q: %s", row.command, row.guard, message)
+		}
+		if !strings.Contains(message, row.advised) {
+			t.Errorf("%q: the advice does not write the expanded word as typed, want %q: %s", row.command, row.advised, message)
+		}
+		if strings.Contains(message, row.quoted) {
+			t.Errorf("%q: the advice single-quotes an expanded word (%s): %s", row.command, row.quoted, message)
+		}
+	}
+
 	advised := "quiet command go test -run 'TestA|TestB' ./x"
 	for _, command := range []string{
 		`grep -n '#' f; go test -run 'TestA|TestB' ./x | tail -5`,
