@@ -948,6 +948,7 @@ Plugins call the engine during runtime through these SDK methods:
 | `ze-plugin-engine:inject-wire-route` | `InjectWireRoute` | `InjectWireRouteInput` | None | Inject a raw BGP UPDATE |
 | `ze-plugin-engine:batch-validate` | `BatchValidate` | `BatchValidateInput` | `BatchValidateResult` | Submit route validation decisions |
 | `ze-plugin-engine:metrics-publish` | `MetricsRegistry`, `SetMetricsInterval`, `FlushMetrics` | `MetricsPublishInput` | `MetricsPublishOutput` | Declare metrics and publish their changes, at the plugin's interval (`docs/plugin-development/metrics.md`) |
+| `ze-plugin-engine:report-issue` | `RaiseIssue`, `ClearIssue` | `ReportIssueInput` | None | Raise or clear a problem on the daemon's report bus, where `show doctor` reads it (`docs/architecture/api/process-protocol.md`, "Plugin problems") |
 | `ze-plugin-engine:dispatch-command` | `DispatchCommand` | `DispatchCommandInput` | `DispatchCommandOutput` | Dispatch a command string |
 | `ze-plugin-engine:dispatch-command-args` | `DispatchCommandArgs` | `DispatchCommandArgsInput` | `DispatchCommandOutput` | Dispatch a command and pre-tokenized arguments |
 | `ze-plugin-engine:emit-event` | `EmitEvent` | `EmitEventInput` | `EmitEventOutput` | Emit an event |

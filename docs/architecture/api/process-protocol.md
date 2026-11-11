@@ -1597,6 +1597,7 @@ filter-update answer").
 | `state-list` | `StateInput` | `StateOutput` | Enumerate owned keys beneath a prefix |
 | `state-increment` | `StateInput` | `StateOutput` | Atomically advance a durable big-endian uint32 counter |
 | `metrics-publish` | `MetricsPublishInput` | `MetricsPublishOutput` | Declare metrics and publish their changes since the last publish (see "Plugin metrics" below) |
+| `report-issue` | `ReportIssueInput` | - | Raise or clear one problem on the daemon's report bus under the plugin's own name (see "Plugin problems" below) |
 | `dispatch-command` | `DispatchCommandInput` | `DispatchCommandOutput` | Inter-plugin command |
 | `dispatch-command-args` | `DispatchCommandArgsInput` | `DispatchCommandOutput` | Exact inter-plugin command with pre-tokenized args |
 | `emit-event` | `EmitEventInput` | `EmitEventOutput` | Push event to subscribers |
@@ -1652,6 +1653,51 @@ process that declared them, as an in-process plugin's do.
 <!-- source: pkg/plugin/rpc/metrics.go -- MetricsPublishInput, ValidateMetricsPublish -->
 <!-- source: internal/component/plugin/server/dispatch_metrics.go -- opMetricsPublish, pluginMetricSet, replayBuckets -->
 <!-- source: internal/core/metrics/shape.go -- Shape, ShapeReader -->
+
+#### Plugin problems
+
+A plugin reports a problem to the operator by raising it on the daemon's
+report bus, where `show warnings`, `show errors` and `show doctor` read it.
+A forked plugin has its own copy of `internal/core/report` in its process,
+which nothing reads, so it raises with `report-issue`; the SDK's
+`Plugin.RaiseIssue` and `Plugin.ClearIssue` send it on both transports. Like
+the state methods it is sent after the handshake, from `OnStarted` or a later
+callback.
+
+| Field | Meaning |
+|-------|---------|
+| `action` | `raise` adds an error event, or adds or refreshes the active warning of its code and subject; `clear` removes that warning |
+| `severity` | On a raise, `warning` (active until cleared) or `error` (an event the error ring keeps; it cannot be cleared) |
+| `code` | A registered event code (`diagnostic.RegisterEventCode`), at most 64 octets |
+| `subject` | What the problem is about, at most 256 octets |
+| `message` | On a raise, what is wrong, at most 1024 octets |
+| `fix` | On a raise, the command that fixes the subject, at most 256 octets; `show doctor` prints it as the row's fix line |
+
+The engine names the source itself, from the plugin's configured name, so a
+plugin cannot raise or clear under another owner; the request has no source
+field. It refuses, with an error answer naming the field and the bound:
+
+- a request above 4 KiB, or one that does not decode
+- a missing or oversized field, an unknown action or severity, and a clear
+  of an error
+- a request from a plugin that has not finished its startup handshake
+- a code that is not a registered event code: the recent-events check
+  declares exactly those codes, so `show doctor` renders the raise under its
+  own code and `ze show diagnostic` describes it. A code another check owns,
+  or one the daemon was not built with, is refused
+- more than `rpc.ReportRaisesPerWindow` (60) raises from one plugin in one
+  `rpc.ReportRaiseWindow` (a minute). The first refused raise in a window is
+  logged at WARN and raised once as the error event
+  `doctor-plugin-request-refused`, subject the plugin, so the operator learns
+  that the plugin flooded the bus. A clear is never refused by this bound
+
+The field bounds are the report bus's own, so a raise the engine accepts is
+never dropped by the bus.
+
+<!-- source: pkg/plugin/rpc/report.go -- MethodReportIssue, ReportIssueInput, ValidateReportIssue, ReportRaisesPerWindow -->
+<!-- source: pkg/plugin/sdk/report.go -- Issue, RaiseIssue, ClearIssue -->
+<!-- source: internal/component/plugin/server/dispatch_report.go -- opReportIssue, raiseReported, pluginReportRate -->
+<!-- test: internal/component/plugin/server/dispatch_report_test.go TestReportRaiseRouteBothTransports -->
 
 #### Panic containment
 

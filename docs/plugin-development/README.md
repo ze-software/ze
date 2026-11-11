@@ -272,8 +272,17 @@ The Go SDK (`pkg/plugin/sdk`) provides:
 | `DecodeMPReach(ctx, hex, addPath)` | Decode MP_REACH_NLRI attribute |
 | `DecodeMPUnreach(ctx, hex, addPath)` | Decode MP_UNREACH_NLRI attribute |
 | `DecodeUpdate(ctx, hex, addPath)` | Decode full UPDATE message body |
+| `RaiseIssue(ctx, Issue)` | Raise a problem on the daemon's report bus under the plugin's name, with the command that fixes it; `show doctor` reports it |
+| `ClearIssue(ctx, code, subject)` | Clear the active warning `RaiseIssue` raised |
 
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- all exported methods -->
+<!-- source: pkg/plugin/sdk/report.go -- Issue, RaiseIssue, ClearIssue -->
+
+A plugin reports a problem with `RaiseIssue`, never with
+`internal/core/report` directly: a forked plugin's own report bus is a copy in
+its process that nothing reads. `Issue.Code` is a registered event code, and
+the engine refuses any other, a field past its bound and a raise flood
+(`docs/architecture/api/process-protocol.md`, "Plugin problems").
 
 ### Lifecycle
 
@@ -283,6 +292,28 @@ The Go SDK (`pkg/plugin/sdk`) provides:
 | `Close()` | Close connections. Safe to call multiple times |
 
 <!-- source: pkg/plugin/sdk/sdk.go -- Run, Close -->
+
+Every error `Run` returns before stage 5 completes is a `*sdk.StartupError`
+naming the stage (`Stage`, `Method`) and wrapping the cause; no error after it
+is. Tell a plugin that never started from one that started and then stopped
+with `errors.As`, never by reading the message, and log each under its own
+doctor code: `doctor-plugin-startup-phase-failed` for a startup failure,
+`doctor-plugin-stopped` for a later one. A connection the engine closes during
+stage 5 is a clean shutdown, and `Run` returns `nil`.
+
+```go
+if err := p.Run(ctx, &sdk.Registration{}); err != nil {
+	if _, startup := errors.AsType[*sdk.StartupError](err); startup {
+		log.Error("plugin startup failed", "code", "doctor-plugin-startup-phase-failed", "error", err)
+	} else {
+		log.Error("plugin stopped", "code", "doctor-plugin-stopped", "error", err)
+	}
+}
+```
+
+<!-- source: pkg/plugin/sdk/startup_error.go -- StartupError, startupFailure -->
+<!-- test: pkg/plugin/sdk/startup_error_test.go TestRunMarksStartupFailure -->
+<!-- test: pkg/plugin/sdk/startup_error_test.go TestRunPostReadyFailureUnmarked -->
 
 ### Complete Example
 

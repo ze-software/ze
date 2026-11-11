@@ -133,6 +133,19 @@ module ze-plugin-engine {
             }
         }
     }
+    rpc report-issue {
+        ze:method "ze-plugin-engine:report-issue";
+        ze:help "Raise or clear one problem on the daemon's report bus, under the plugin's own name.";
+        description "Sent after the startup handshake. The engine names the source from the plugin's authenticated name. It refuses a code that is not a registered event code, a field past its bound, a clear of an error, and more than 60 raises from one plugin in one minute, each with an error naming the cause. A raise lands on the bus show warnings, show errors and show doctor read; a clear removes the active warning of its code and subject.";
+        input {
+            leaf action { type enumeration { enum raise; enum clear; } mandatory true; ze:help "Raise the problem, or clear its active warning"; }
+            leaf severity { type enumeration { enum warning; enum error; } ze:help "Raise: a warning stays active until cleared, an error is an event"; }
+            leaf code { type string { length "1..64"; } mandatory true; ze:help "A registered event code (ze show diagnostic describes it)"; }
+            leaf subject { type string { length "1..256"; } mandatory true; ze:help "What the problem is about"; }
+            leaf message { type string { length "1..1024"; } ze:help "Raise: what is wrong"; }
+            leaf fix { type string { length "0..256"; } ze:help "Raise: the command that fixes the subject"; }
+        }
+    }
     rpc state-increment {
         ze:method "ze-plugin-engine:state-increment";
         ze:help "Atomically advance a durable uint32 counter.";

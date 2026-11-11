@@ -74,7 +74,8 @@ type rpcParams struct {
 // Server manages API connections and command dispatch.
 type Server struct {
 	config            *ServerConfig
-	pluginMetrics     pluginMetricSet // metrics plugins publish over the protocol (dispatch_metrics.go)
+	pluginMetrics     pluginMetricSet  // metrics plugins publish over the protocol (dispatch_metrics.go)
+	pluginReports     pluginReportRate // each plugin's report-issue raise bound (dispatch_report.go)
 	reactor           plugin.ReactorLifecycle
 	dispatcher        *Dispatcher
 	rpcDispatcher     *ipc.RPCDispatcher                            // Wire method dispatch for socket clients

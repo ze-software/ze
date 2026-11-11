@@ -449,7 +449,10 @@ func (p *Plugin) Close() error {
 var errNilRegistration = errors.New("plugin declaration is nil: the engine needs the plugin's registration at stage 1; pass &sdk.Registration{...}")
 
 // Run executes the 5-stage startup protocol and enters the event loop.
-// Returns nil on clean shutdown, or error on failure. A clean shutdown is
+// Returns nil on clean shutdown, or error on failure. Every error returned
+// before stage 5 completes is a *StartupError naming the stage, and none
+// after it is, so a caller tells a startup failure from a later stop with
+// errors.As (startup_error.go). A clean shutdown is
 // either a successful `bye` (the plugin's live removal) or the engine closing
 // the connection, which is how a daemon stop ends every plugin: no `bye` comes
 // then (docs/architecture/api/process-protocol.md, "Shutdown"), so cleanup a
@@ -462,7 +465,7 @@ var errNilRegistration = errors.New("plugin declaration is nil: the engine needs
 // declaration is refused with an error rather than a panic.
 func (p *Plugin) Run(ctx context.Context, declaration *Registration) error {
 	if declaration == nil {
-		return errNilRegistration
+		return startupFailure(1, "declare-registration", errNilRegistration)
 	}
 	reg := *declaration
 	if p.bridge != nil {
@@ -508,17 +511,17 @@ func (p *Plugin) Run(ctx context.Context, declaration *Registration) error {
 	reg.ProtocolVersion = rpc.ProtocolVersion
 	answer, err := p.callEngineWithResult(ctx, rpc.MethodDeclareRegistration, &reg)
 	if err != nil {
-		return fmt.Errorf("stage 1 (declare-registration): %w", err)
+		return startupFailure(1, "declare-registration", err)
 	}
 	if err := acceptProtocolVersion(answer); err != nil {
-		return fmt.Errorf("stage 1 (declare-registration): %w", err)
+		return startupFailure(1, "declare-registration", err)
 	}
 
 	// Stage 2: wait for configure from engine. The extractor runs here and
 	// nowhere else, so a runtime configure redelivery cannot rewrite the
 	// declaration Stage 3 sends.
 	if err := p.serveOne(ctx, callbackConfigure, p.handleStartupConfigure); err != nil {
-		return fmt.Errorf("stage 2 (configure): %w", err)
+		return startupFailure(2, "configure", err)
 	}
 
 	// Stage 3: declare-capabilities
@@ -531,12 +534,12 @@ func (p *Plugin) Run(ctx context.Context, declaration *Registration) error {
 	p.mu.Unlock()
 
 	if err := p.callEngine(ctx, "ze-plugin-engine:declare-capabilities", caps); err != nil {
-		return fmt.Errorf("stage 3 (declare-capabilities): %w", err)
+		return startupFailure(3, "declare-capabilities", err)
 	}
 
 	// Stage 4: wait for share-registry from engine
 	if err := p.serveOne(ctx, "ze-plugin-callback:share-registry", p.handleShareRegistry); err != nil {
-		return fmt.Errorf("stage 4 (share-registry): %w", err)
+		return startupFailure(4, "share-registry", err)
 	}
 
 	// Stage 5: ready (with optional startup subscriptions and transport negotiation)
@@ -558,7 +561,7 @@ func (p *Plugin) Run(ctx context.Context, declaration *Registration) error {
 		if isConnectionClosed(err) {
 			return nil
 		}
-		return fmt.Errorf("stage 5 (ready): %w", err)
+		return startupFailure(5, "ready", err)
 	}
 
 	// Activate direct transport bridge if discovered during construction.

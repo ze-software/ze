@@ -801,6 +801,16 @@ by a code its own owner's check declares, and raising the event on the bus is
 what makes this check report it. Registering a code whose sites only log, and
 never raise, would declare a row this check never shows: every site carrying
 a registered event code raises it.
+
+A plugin raises through `sdk.Plugin.RaiseIssue`, which sends `report-issue`
+to the daemon, never through `internal/core/report` directly: a forked
+plugin's own bus is a copy in its process that this check never reads. The
+daemon raises it under the plugin's configured name with the fix the plugin
+gave, and refuses a code that is not a registered event code, so a plugin can
+raise only a code this check declares (`docs/architecture/api/process-protocol.md`,
+"Plugin problems").
+<!-- source: internal/component/plugin/server/dispatch_report.go -- opReportIssue -->
+<!-- source: pkg/plugin/sdk/report.go -- RaiseIssue, ClearIssue -->
 <!-- source: internal/core/diagnostic/event_codes.go -- EventCode, RegisterEventCode, EventCodes, describedCode -->
 <!-- source: internal/core/diagnostic/doctor_registry.go -- DoctorCheck, listedDoctorCheckReg -->
 <!-- source: internal/component/doctor/checks_recent_events.go -- recentEventsCheck, checkRecentEvents, groupRecentEvents, recentEventsDiagnostic -->
