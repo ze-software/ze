@@ -149,17 +149,54 @@ ze cli -c "request peer transit teardown 2" # one-shot command
 ```
 <!-- source: internal/component/cli/client/main.go -- Run -->
 
-### Override Host/Port
+An operator can use a standalone or downloaded Ze binary without creating a
+local database. Supply the remote endpoint and username explicitly, with the
+password in `ZE_SSH_PASSWORD` or the interactive password prompt:
 
 ```bash
-# Environment variables
-export ZE_SSH_HOST=10.0.0.1
-export ZE_SSH_PORT=2222
-
-# Per-command flags
-ze signal reload --host 10.0.0.1 --port 2222
+ZE_SSH_PASSWORD='your-password' ./ze cli --remote 127.0.0.1:2222 --user operator -c "show version"
 ```
-<!-- source: internal/component/cli/sshclient/client.go -- ze.ssh.host, ze.ssh.port env vars -->
+
+An available local store is an optional credential source. A nonempty store
+that is corrupt or unsafe still causes an error; explicit credentials do not
+bypass its validation or the remote host-key checks.
+<!-- source: internal/component/cli/sshclient/client.go -- readCredentials, openStoreIfReadable -->
+
+### Override Host/Port
+
+An SSH tunnel is an alternative when Ze listens only on the device's loopback
+interface. The example below assumes
+the daemon's SSH listener is `127.0.0.1:2222` on a Linux host reachable through
+the host's ordinary SSH service:
+
+```bash
+# Keep this tunnel running in a separate terminal.
+ssh -N -L 12222:127.0.0.1:2222 operator@router.example
+
+# In the operator terminal:
+export ZE_SSH_HOST=127.0.0.1
+export ZE_SSH_PORT=12222
+export ZE_SSH_USERNAME=operator
+
+# Prompts for the Ze account's password unless ZE_SSH_PASSWORD is set.
+ze signal reload --host 127.0.0.1 --port 12222
+```
+
+For direct remote access, Ze verifies the server against the current user's
+OpenSSH `~/.ssh/known_hosts`. Use `ZE_SSH_KNOWN_HOSTS=/absolute/path/to/known_hosts`
+to select another trust file. Provision that file from a trusted source and
+compare the server fingerprint with your trusted device inventory or operator
+before trusting it. Ze refuses unknown, changed, or revoked keys and never
+enrolls a key automatically. OpenSSH hashed hosts and `[host]:port` entries
+work through the same parser. Loopback keeps its existing local trust policy;
+`ze.ssh.insecure` remains an explicit verification override.
+
+```bash
+ZE_SSH_KNOWN_HOSTS="$HOME/.ssh/known_hosts" ZE_SSH_PASSWORD='your-password' \
+    ./ze cli --remote router.example:2222 --user operator -c "show version"
+```
+<!-- source: internal/component/cli/sshclient/host_keys.go -- knownHostsPath, knownHostKeyCallback, knownHostKeyError -->
+<!-- source: internal/component/cli/sshclient/client.go -- hostKeyCallback, resolveHostPort -->
 
 ## Signals
 
@@ -337,9 +374,11 @@ ze env get ze.log              # details for one var
 | `ze.log.relay` | `warn` | Plugin stderr relay threshold |
 | `ze.ssh.host` | -- | Override SSH host for CLI commands |
 | `ze.ssh.port` | -- | Override SSH port for CLI commands |
+| `ze.ssh.known.hosts` | `~/.ssh/known_hosts` | OpenSSH trust file for remote SSH |
 | `ze.config.dir` | -- | Override config directory |
 <!-- source: internal/core/slogutil/slogutil.go -- ze.log registration -->
 <!-- source: internal/component/cli/sshclient/client.go -- ze.ssh.host/port -->
+<!-- source: internal/component/cli/sshclient/host_keys.go -- ze.ssh.known.hosts -->
 <!-- source: internal/core/paths/paths.go -- ze.config.dir -->
 
 ## CLI Flags

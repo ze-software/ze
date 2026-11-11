@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net"
 	"os"
 	"strings"
 	"time"
@@ -28,8 +29,6 @@ import (
 
 // envTypeString is the EnvEntry type name for a string-valued variable.
 const envTypeString = "string"
-
-var errCannotDetermineDatabaseLocation = errors.New("cannot determine database location")
 
 var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.host", Type: envTypeString, Default: "127.0.0.1", Description: "Override SSH host"})
@@ -369,7 +368,8 @@ func readCredentials(dbPath, cliUser, remoteHost, remotePort string, allowPrompt
 var errStoreUnavailable = errors.New("credential store unavailable")
 
 // openStoreIfReadable opens the credential store, returning errStoreUnavailable
-// when the store is missing or this user cannot read it.
+// when no store path is selected, the store is missing, or this user cannot
+// read it. An unselected path MUST NOT be interpreted as the current directory.
 //
 // Any other failure is returned as-is. A corrupt or truncated store is a real
 // problem and must surface as one -- silently downgrading it to "no credentials"
@@ -378,6 +378,9 @@ var errStoreUnavailable = errors.New("credential store unavailable")
 // node or mode INSIDE the store, with the repair, and the operator must see it.
 // Only a bare fs.ErrPermission says this user lacks access.
 func openStoreIfReadable(dbPath string) (storage.Storage, error) {
+	if dbPath == "" {
+		return nil, fmt.Errorf("%w: no local credential store path was selected", errStoreUnavailable)
+	}
 	store, err := storage.OpenReadOnly(dbPath, dbPath)
 	switch {
 	case err == nil:
@@ -507,10 +510,13 @@ func readKey(store storage.Storage, key string) (string, error) {
 	return string(data), nil
 }
 
-// hostKeyCallback returns an appropriate host key callback for the given host.
-// Localhost connections skip host key verification since the daemon runs on the
-// same machine. Remote connections reject by default unless ze.ssh.insecure=true.
-func hostKeyCallback(host string) (ssh.HostKeyCallback, error) {
+// hostKeyCallback retains local trust and explicit insecure opt-in. Every
+// other target uses the operator's OpenSSH known_hosts trust file.
+func hostKeyCallback(target string) (ssh.HostKeyCallback, error) {
+	host, _, err := net.SplitHostPort(target)
+	if err != nil {
+		host = target
+	}
 	switch host {
 	case "127.0.0.1", "::1", "localhost":
 		return ssh.InsecureIgnoreHostKey(), nil //nolint:gosec // ze owns the host; localhost resolution trusted
@@ -518,7 +524,7 @@ func hostKeyCallback(host string) (ssh.HostKeyCallback, error) {
 		if env.IsEnabled("ze.ssh.insecure") {
 			return ssh.InsecureIgnoreHostKey(), nil //nolint:gosec // explicit opt-in via ze.ssh.insecure
 		}
-		return nil, fmt.Errorf("remote SSH host %q: host key verification required (set ze.ssh.insecure=true to override)", host)
+		return knownHostKeyCallback(target)
 	}
 }
 
@@ -547,9 +553,6 @@ func LoadCredentials() (Credentials, error) {
 // "no password source" instead, letting the caller degrade quietly.
 func LoadCredentialsNoPrompt() (Credentials, error) {
 	dbPath := ResolveStoreDir("")
-	if dbPath == "" {
-		return Credentials{}, errCannotDetermineDatabaseLocation
-	}
 	return readCredentials(dbPath, "", "", "", false)
 }
 
@@ -561,9 +564,6 @@ func LoadCredentialsNoPrompt() (Credentials, error) {
 // before it loads credentials: the local ze doctor does.
 func DaemonAddress() (host, port string, err error) {
 	dbPath := ResolveStoreDir("")
-	if dbPath == "" {
-		return "", "", errCannotDetermineDatabaseLocation
-	}
 	store, err := openStoreIfReadable(dbPath)
 	if err != nil && !errors.Is(err, errStoreUnavailable) {
 		return "", "", err
@@ -579,18 +579,13 @@ func DaemonAddress() (host, port string, err error) {
 // See ReadCredentialsWithFlags for the full precedence rules.
 func LoadCredentialsWithFlags(cliUser string) (Credentials, error) {
 	dbPath := ResolveStoreDir("")
-	if dbPath == "" {
-		return Credentials{}, errCannotDetermineDatabaseLocation
-	}
 	return ReadCredentialsWithFlags(dbPath, cliUser)
 }
 
 // LoadCredentialsForRemote reads SSH credentials for a specific remote
-// host:port from the default zefs database. Used by --remote flag handlers.
+// host:port, using the optional default store and explicit credentials. A
+// standalone executable needs no installation prefix for --remote login.
 func LoadCredentialsForRemote(cliUser, host, port string) (Credentials, error) {
 	dbPath := ResolveStoreDir("")
-	if dbPath == "" {
-		return Credentials{}, errCannotDetermineDatabaseLocation
-	}
 	return ReadCredentialsForRemote(dbPath, cliUser, host, port)
 }

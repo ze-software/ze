@@ -121,6 +121,17 @@ See [logging.md](../../guide/logging.md) for the full list. Config-block
 
 ---
 
+## SSH Client Trust
+
+The SSH client's host-key trust file is caller-side bootstrap input.
+`ze.ssh.known.hosts` (`ZE_SSH_KNOWN_HOSTS`) selects the file before any remote
+configuration is read, so this setting is env-only and has no daemon YANG leaf.
+See [Operations](../../guide/operations.md#override-hostport) for the default
+trust path and verification guidance.
+<!-- source: internal/component/cli/sshclient/host_keys.go -- knownHostsPath, knownHostKeyCallback -->
+
+---
+
 ## Listener Service Variables
 
 Listener services (web, MCP, looking glass, API) use compound

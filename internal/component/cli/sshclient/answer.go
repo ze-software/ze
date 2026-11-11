@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"strings"
 
 	"golang.org/x/crypto/ssh"
@@ -213,7 +214,8 @@ func answerMessage(answer Answer, text string) string {
 // dialDaemon opens the SSH connection every helper in this package works over.
 // The caller MUST close the returned client.
 func dialDaemon(creds Credentials) (*ssh.Client, error) {
-	hkCb, err := hostKeyCallback(creds.Host)
+	addr := net.JoinHostPort(creds.Host, creds.Port)
+	hkCb, err := hostKeyCallback(addr)
 	if err != nil {
 		return nil, err
 	}
@@ -226,8 +228,6 @@ func dialDaemon(creds Credentials) (*ssh.Client, error) {
 		Timeout:         dialTimeout,
 	}
 
-	var tb textbuf.Buffer
-	addr := tb.Str(creds.Host).Byte(':').Str(creds.Port).String()
 	client, err := ssh.Dial("tcp", addr, config)
 	if err != nil {
 		return nil, fmt.Errorf("connect to %s: %w", addr, err)
