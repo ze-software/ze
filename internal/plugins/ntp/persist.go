@@ -15,8 +15,8 @@ import (
 
 // saveTime persists t as RFC3339 text into the shared zefs store under the NTP
 // last-time key. Best-effort: statestore is a no-op when no store is registered,
-// so an absent store returns nil. The caller logs failures at debug and never
-// treats them as fatal.
+// so an absent store returns nil. A periodic save failure leaves synchronization
+// running; the final shutdown save returns its failure to the plugin runner.
 func saveTime(t time.Time) error {
 	buf, err := t.MarshalText()
 	if err != nil {

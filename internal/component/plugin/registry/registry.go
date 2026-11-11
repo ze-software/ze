@@ -542,7 +542,7 @@ var (
 
 	// ntpSyncProvider returns NTP sync info as map[string]any for show system date.
 	// Set by the NTP plugin at init time. Returns nil when NTP is not configured.
-	ntpSyncProvider func() map[string]any
+	ntpSyncProvider NTPSyncProvider
 )
 
 // Register adds a plugin to the global registry.
@@ -792,13 +792,21 @@ func DaemonStopping() bool {
 	return !server.Running()
 }
 
-// SetNTPSyncProvider registers a function that returns NTP sync info.
+// CommandQuery reads one command's document through the caller's daemon
+// request context. It preserves cancellation and authorization on nested reads.
+type CommandQuery func(command string) (map[string]any, error)
+
+// NTPSyncProvider reads synchronization metadata through a command query. Nil
+// metadata with no refusal is an authoritative inactive client, not missing state.
+type NTPSyncProvider func(CommandQuery) (map[string]any, *opererr.Error)
+
+// SetNTPSyncProvider registers the NTP owner's synchronization reader.
 // Called by the NTP plugin at init time.
 //
 // It is a runtime seam, callable after Seal: the provider is process wiring
 // for show system date, not registration metadata, so the seal does not judge
 // it.
-func SetNTPSyncProvider(fn func() map[string]any) {
+func SetNTPSyncProvider(fn NTPSyncProvider) {
 	mu.Lock()
 	defer mu.Unlock()
 	ntpSyncProvider = fn
@@ -807,7 +815,7 @@ func SetNTPSyncProvider(fn func() map[string]any) {
 // GetNTPSyncInfo reads the registered NTP state provider. An absent provider
 // refuses the read; nil metadata with no refusal is the registered provider's
 // answer that NTP is unconfigured or disabled.
-func GetNTPSyncInfo() (map[string]any, *opererr.Error) {
+func GetNTPSyncInfo(query CommandQuery) (map[string]any, *opererr.Error) {
 	mu.RLock()
 	fn := ntpSyncProvider
 	mu.RUnlock()
@@ -817,7 +825,7 @@ func GetNTPSyncInfo() (map[string]any, *opererr.Error) {
 			"An unavailable reader does not mean NTP is disabled. Install a build with NTP support, then retry the command.",
 			"ze show system date")
 	}
-	return fn(), nil
+	return fn(query)
 }
 
 // Lookup returns a clone of the registration for a named plugin, or nil if
@@ -1565,7 +1573,7 @@ type RegistrySnapshot struct {
 	setupResults     map[string]SetupResult
 	rpcHandlers      map[string]func(json.RawMessage) (any, error)
 	eventBusInstance ze.EventBus
-	ntpSyncProvider  func() map[string]any
+	ntpSyncProvider  NTPSyncProvider
 	// sealed is the seal state the snapshot was taken under, so a test that
 	// seals and restores leaves the registry open to the next test.
 	sealed bool

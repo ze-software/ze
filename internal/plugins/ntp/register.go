@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	ntpevents "github.com/ze-software/ze/internal/plugins/ntp/events"
 	ntpyang "github.com/ze-software/ze/internal/plugins/ntp/yang"
@@ -61,6 +62,7 @@ func init() {
 		ConfigRoots:             []string{configPathNTP},
 		InProcessConfigVerifier: verifyNTPConfig,
 		RunEngine:               runNTPPlugin,
+		Commands:                commandDecls(),
 	}
 	registry.SetNTPSyncProvider(ntpSyncInfo)
 
@@ -75,12 +77,14 @@ func init() {
 
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-ntp:show-system-ntp",
-			Handler:    handleShowSystemNTP,
+			WireMethod:    "ze-ntp:show-system-ntp",
+			Handler:       forwardShowSystemNTP,
+			PluginCommand: commandNTPStatus,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-ntp:show-system-ntp-peers",
-			Handler:    handleShowSystemNTPPeers,
+			WireMethod:    "ze-ntp:show-system-ntp-peers",
+			Handler:       forwardShowSystemNTPPeers,
+			PluginCommand: commandNTPPeers,
 		},
 	)
 
@@ -189,6 +193,7 @@ func runNTPPlugin(conn net.Conn) int {
 
 	p := sdk.NewWithConn("ntp", conn)
 	defer func() { _ = p.Close() }()
+	p.OnExecuteCommand(executeNTPCommand)
 
 	var worker *syncWorker
 	var unsubscribe func()
@@ -206,9 +211,13 @@ func runNTPPlugin(conn net.Conn) int {
 		}
 		if !cfg.Enabled {
 			log.Debug("ntp: disabled in config")
-			storeState(&syncState{Enabled: false})
+			storeState(&syncState{Enabled: cfg.Enabled})
 			return
 		}
+		// A replacement worker MUST publish before a reader can use its state.
+		// Clearing the old snapshot makes the asynchronous first publication
+		// an explicit unknown, rather than a stale enabled or disabled answer.
+		storeState(nil)
 		worker = newSyncWorker(cfg, getEventBus())
 		worker.start()
 		log.Info("ntp: sync worker started",
@@ -270,7 +279,8 @@ func runNTPPlugin(conn net.Conn) int {
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	if err := p.Run(ctx, &sdk.Registration{
+	runErr := p.Run(ctx, &sdk.Registration{
+		Commands:     commandDecls(),
 		WantsConfig:  []string{configRootEnvironment},
 		VerifyBudget: 2,
 		// ApplyBudget in seconds (orchestrator sums per-tier maxima). The
@@ -280,28 +290,48 @@ func runNTPPlugin(conn net.Conn) int {
 		// comfortable headroom over that residual one-query wait while dead
 		// servers keep the phase-2 retry loop busy (startup-resilience FIX 1).
 		ApplyBudget: 10,
-	}); err != nil {
-		log.Error("ntp plugin failed", "error", err)
-		return 1
-	}
+	})
 
 	// Shutdown: save time and stop worker.
-	if worker != nil {
-		// persist-path is vestigial: a non-empty value enables the final save; the
-		// store location is the shared zefs store, not the path.
-		if worker.cfg.PersistPath != "" {
-			if err := saveTime(currentTime()); err != nil {
-				log.Debug("ntp: final time save failed", "err", err)
-			}
-		}
-		worker.stopAndWait()
-	}
+	shutdownErr := finishNTPWorker(worker)
 	if unsubscribe != nil {
 		unsubscribe()
+	}
+	refusal := shutdownErr
+	if runErr != nil {
+		if shutdownErr != nil {
+			runErr = errors.Join(runErr, shutdownErr)
+		}
+		refusal = opererr.Wrap(runErr, "NTP plugin failed",
+			"The plugin could not complete startup or runtime. Its configured worker and subscriptions have been stopped.",
+			"ze show doctor")
+	}
+	if refusal != nil {
+		_, _ = fmt.Fprintln(os.Stderr, refusal.Error())
+		return 1
 	}
 
 	log.Info("ntp plugin stopped")
 	return 0
+}
+
+// finishNTPWorker stops the worker even when its final managed-store write
+// fails. A failed save is a failed shutdown, with its original cause retained;
+// the caller releases its remaining resources before rendering the refusal.
+func finishNTPWorker(worker *syncWorker) *opererr.Error {
+	if worker == nil {
+		return nil
+	}
+	defer worker.stopAndWait()
+	// persist-path enables the final save; the shared store owns its location.
+	if worker.cfg.PersistPath != "" {
+		if err := saveTime(currentTime()); err != nil {
+			return opererr.Wrap(err, "NTP shutdown could not save the last-known time",
+				"The managed state store refused the write, so the next boot cannot rely on a fresh saved clock. Inspect the store and restore write access before restarting NTP.",
+				"ze show doctor")
+		}
+	}
+	return nil
 }
 
 // currentTime returns the current system time.
@@ -309,17 +339,63 @@ func currentTime() time.Time {
 	return time.Now()
 }
 
-// ntpSyncInfo returns NTP sync metadata for show system date enrichment.
-func ntpSyncInfo() map[string]any {
-	st := loadState()
-	if st == nil || !st.Enabled {
-		return nil
+// ntpSyncInfo reads the NTP owner's runtime answer, including when that owner
+// is forked. Only an explicit inactive answer permits a date without metadata.
+func ntpSyncInfo(query registry.CommandQuery) (map[string]any, *opererr.Error) {
+	if query == nil {
+		return nil, ntpReadRefusal(errors.New("the daemon command reader is unavailable"))
+	}
+	data, err := query(commandNTPStatus)
+	if err != nil {
+		return nil, ntpReadRefusal(err)
+	}
+	metadata, err := ntpReplyMetadata(data)
+	if err != nil {
+		return nil, ntpReadRefusal(err)
+	}
+	return metadata, nil
+}
+
+// ntpReplyMetadata validates the synchronization fields before projecting them.
+// An explicit inactive answer needs no measurements; missing enabled is unknown.
+func ntpReplyMetadata(data map[string]any) (map[string]any, error) {
+	enabled, ok := data[fieldEnabled].(bool)
+	if !ok {
+		return nil, errors.New("the NTP response has no boolean enabled field")
+	}
+	if !enabled {
+		return nil, nil
+	}
+	synced, ok := data["synced"].(bool)
+	if !ok {
+		return nil, errors.New("the active NTP response has no boolean synced field")
+	}
+	source, ok := data["source"].(string)
+	if !ok {
+		return nil, errors.New("the active NTP response has no string source field")
+	}
+	offset, ok := data["offset"].(string)
+	if !ok {
+		return nil, errors.New("the active NTP response has no string offset field")
+	}
+	if _, err := time.ParseDuration(offset); err != nil {
+		return nil, fmt.Errorf("the active NTP offset is unreadable: %w", err)
 	}
 	return map[string]any{
-		"ntp-synced": st.Synced,
-		"ntp-source": st.Source,
-		"ntp-offset": st.Offset.String(),
-	}
+		"ntp-synced": synced,
+		"ntp-source": source,
+		"ntp-offset": offset,
+	}, nil
+}
+
+func ntpReadRefusal(cause error) *opererr.Error {
+	return ntpCommandReadRefusal("show system date", cause)
+}
+
+func ntpCommandReadRefusal(name string, cause error) *opererr.Error {
+	return opererr.New(name+" cannot read NTP state",
+		cause.Error()+" The NTP state must be read from its running owner before this command can succeed.",
+		"ze show system ntp")
 }
 
 // fieldEnabled is the YANG leaf that switches NTP on, and the JSON key the
@@ -330,10 +406,7 @@ const fieldEnabled = "enabled"
 func handleShowSystemNTP(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	st := loadState()
 	if st == nil {
-		return &plugin.Response{
-			Status: plugin.StatusDone,
-			Data:   plugin.Map{fieldEnabled: false},
-		}, nil
+		return plugin.OperatorErrorResponse(ntpStateUnavailable()), nil
 	}
 	if !st.Enabled {
 		return &plugin.Response{
@@ -358,7 +431,14 @@ func handleShowSystemNTP(_ *pluginserver.CommandContext, _ command.ValidatedArgs
 // handleShowSystemNTPPeers returns per-server NTP state.
 func handleShowSystemNTPPeers(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	st := loadState()
-	if st == nil || len(st.Servers) == 0 {
+	if st == nil {
+		return plugin.OperatorErrorResponse(ntpStateUnavailable()), nil
+	}
+	if !st.Enabled {
+		return plugin.OperatorErrorResponse(ntpCommandReadRefusal(commandNTPPeers,
+			errors.New("the NTP worker is disabled while the daemon is reading an active client"))), nil
+	}
+	if len(st.Servers) == 0 {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
 			Data:   plugin.Map{"peers": []map[string]any{}, "count": 0},

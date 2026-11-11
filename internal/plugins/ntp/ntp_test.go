@@ -331,9 +331,11 @@ func TestShowSystemNTPWiring(t *testing.T) {
 	// Deliberately NOT parallel: the handler reads the package-global state
 	// and parallel siblings publish it. Sequential tests run while parallel
 	// bodies are parked, so resetting here is race-free.
-	storeState(nil)
+	previous := loadState()
+	t.Cleanup(func() { storeState(previous) })
+	storeState(&syncState{Enabled: false})
 
-	// No state published -> disabled.
+	// An explicitly disabled snapshot is a known inactive client.
 	resp, err := handleShowSystemNTP(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -350,9 +352,11 @@ func TestShowSystemNTPWiring(t *testing.T) {
 func TestShowSystemNTPPeersWiring(t *testing.T) {
 	// Sequential for the same reason as TestShowSystemNTPWiring: the
 	// handler reads package-global state that parallel siblings publish.
-	storeState(nil)
+	previous := loadState()
+	t.Cleanup(func() { storeState(previous) })
+	storeState(&syncState{Enabled: true})
 
-	// No state published -> empty peers.
+	// An initialized active worker can have a measured empty server set.
 	resp, err := handleShowSystemNTPPeers(nil, commandtest.Args())
 	require.NoError(t, err)
 	require.NotNil(t, resp)

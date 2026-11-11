@@ -117,7 +117,9 @@ func TestPublishStateRoundTrip(t *testing.T) {
 	prev := globalState.Load()
 	t.Cleanup(func() { globalState.Store(prev) })
 
-	w := newSyncWorker(defaultConfig(), nil)
+	cfg := defaultConfig()
+	cfg.Enabled = true
+	w := newSyncWorker(cfg, nil)
 	w.getOrCreatePeer("a.example")
 
 	w.publishState(false, "", 0, 0)
@@ -159,24 +161,37 @@ func TestVerifyNTPConfig(t *testing.T) {
 }
 
 func TestNTPSyncInfo(t *testing.T) {
-	prev := globalState.Load()
-	t.Cleanup(func() { globalState.Store(prev) })
-
-	// No state -> nil.
-	globalState.Store(nil)
-	if got := ntpSyncInfo(); got != nil {
-		t.Errorf("ntpSyncInfo(nil state) = %v, want nil", got)
+	// An unavailable runtime reader does not establish an inactive client.
+	got, refusal := ntpSyncInfo(nil)
+	if refusal == nil {
+		t.Errorf("ntpSyncInfo(nil reader) = %v, want a refusal", got)
+	}
+	if got != nil {
+		t.Errorf("ntpSyncInfo(nil reader) returned metadata %v, want nil", got)
 	}
 
-	// Disabled -> nil.
-	storeState(&syncState{Enabled: false, Synced: true})
-	if got := ntpSyncInfo(); got != nil {
+	// Explicitly disabled -> nil metadata, no refusal.
+	got, refusal = ntpSyncInfo(func(string) (map[string]any, error) {
+		return map[string]any{fieldEnabled: false, "synced": true}, nil
+	})
+	if refusal != nil {
+		t.Fatalf("inactive client was refused: %s", refusal)
+	}
+	if got != nil {
 		t.Errorf("ntpSyncInfo(disabled) = %v, want nil", got)
 	}
 
-	// Enabled -> populated map.
-	storeState(&syncState{Enabled: true, Synced: true, Source: "a.example", Offset: 7 * time.Millisecond})
-	got := ntpSyncInfo()
+	// Enabled runtime reply -> populated map with the same synchronization facts.
+	got, refusal = ntpSyncInfo(func(name string) (map[string]any, error) {
+		if name != commandNTPStatus {
+			t.Errorf("queried %q, want %q", name, commandNTPStatus)
+		}
+		return map[string]any{fieldEnabled: true, "synced": true,
+			"source": "a.example", "offset": (7 * time.Millisecond).String()}, nil
+	})
+	if refusal != nil {
+		t.Fatalf("active client was refused: %s", refusal)
+	}
 	if got == nil {
 		t.Fatal("ntpSyncInfo(enabled) = nil, want map")
 	}

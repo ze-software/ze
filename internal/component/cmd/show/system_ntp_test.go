@@ -7,6 +7,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // TestSystemDateRefusesAbsentNTPProvider proves an unavailable state reader
@@ -43,7 +44,7 @@ func TestSystemDateRefusesAbsentNTPProvider(t *testing.T) {
 func TestSystemDateAcceptsInactiveNTPProvider(t *testing.T) {
 	snapshot := registry.Snapshot()
 	t.Cleanup(func() { registry.Restore(snapshot) })
-	registry.SetNTPSyncProvider(func() map[string]any { return nil })
+	registry.SetNTPSyncProvider(func(registry.CommandQuery) (map[string]any, *opererr.Error) { return nil, nil })
 	response, err := handleShowSystemDate(nil, commandtest.Args())
 	if err != nil {
 		t.Fatalf("handler transport error: %v", err)
@@ -71,8 +72,8 @@ func TestSystemDateAcceptsInactiveNTPProvider(t *testing.T) {
 func TestSystemDateCarriesMeasuredNTPState(t *testing.T) {
 	snapshot := registry.Snapshot()
 	t.Cleanup(func() { registry.Restore(snapshot) })
-	registry.SetNTPSyncProvider(func() map[string]any {
-		return map[string]any{"ntp-synced": false, "ntp-source": "clock.example", "ntp-offset": "0s"}
+	registry.SetNTPSyncProvider(func(registry.CommandQuery) (map[string]any, *opererr.Error) {
+		return map[string]any{"ntp-synced": false, "ntp-source": "clock.example", "ntp-offset": "0s"}, nil
 	})
 	response, err := handleShowSystemDate(nil, commandtest.Args())
 	if err != nil {

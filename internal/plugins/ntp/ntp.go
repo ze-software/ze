@@ -332,7 +332,7 @@ func (w *syncWorker) peerSlice() []serverState {
 // publishState stores a syncState snapshot for the show handlers.
 func (w *syncWorker) publishState(synced bool, source string, offset time.Duration, stratum uint8) {
 	st := &syncState{
-		Enabled:      true,
+		Enabled:      w.cfg.Enabled,
 		Synced:       synced,
 		Source:       source,
 		Offset:       offset,

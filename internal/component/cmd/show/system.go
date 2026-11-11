@@ -8,6 +8,7 @@ package show
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"maps"
 	"runtime"
 	"time"
@@ -122,7 +123,7 @@ func handleShowSystemPlatform(_ *pluginserver.CommandContext, _ command.Validate
 // handleShowSystemDate reports the daemon's current wall-clock view in
 // RFC3339, Unix seconds, and the configured timezone name. An absent NTP state
 // provider refuses the command; a registered inactive provider adds no metadata.
-func handleShowSystemDate(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
+func handleShowSystemDate(ctx *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	now := time.Now()
 	zone, offset := now.Zone()
 	data := map[string]any{
@@ -132,7 +133,9 @@ func handleShowSystemDate(_ *pluginserver.CommandContext, _ command.ValidatedArg
 		"timezone":        zone,
 		"utc-offset-secs": offset,
 	}
-	ntp, refusal := registry.GetNTPSyncInfo()
+	ntp, refusal := registry.GetNTPSyncInfo(func(name string) (map[string]any, error) {
+		return querySystemMap(ctx, name)
+	})
 	if refusal != nil {
 		return plugin.OperatorErrorResponse(refusal), nil
 	}
@@ -141,4 +144,48 @@ func handleShowSystemDate(_ *pluginserver.CommandContext, _ command.ValidatedArg
 		Status: plugin.StatusDone,
 		Data:   plugin.Map(data),
 	}, nil
+}
+
+// querySystemMap reads a nested show document with the original request's
+// cancellation and authorization. Runtime plugin replies are raw JSON; daemon
+// replies can already be maps. Neither absence nor a failed reply is a document.
+func querySystemMap(ctx *pluginserver.CommandContext, name string) (map[string]any, error) {
+	if ctx == nil {
+		return nil, errors.New("the command has no daemon request context")
+	}
+	dispatcher := ctx.Dispatcher()
+	if dispatcher == nil {
+		return nil, errors.New("the daemon command dispatcher is unavailable")
+	}
+	response, err := dispatcher.Dispatch(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+	if response == nil {
+		return nil, fmt.Errorf("command %q returned no response", name)
+	}
+	if response.Status != plugin.StatusDone {
+		if response.Error != "" {
+			return nil, errors.New(response.Error)
+		}
+		return nil, fmt.Errorf("command %q returned status %q", name, response.Status)
+	}
+	switch data := response.Data.(type) {
+	case plugin.Map:
+		if data == nil {
+			return nil, fmt.Errorf("command %q returned no data", name)
+		}
+		return map[string]any(data), nil
+	case plugin.RawJSON:
+		var document map[string]any
+		if err := json.Unmarshal([]byte(data), &document); err != nil {
+			return nil, fmt.Errorf("decode command %q document: %w", name, err)
+		}
+		if document == nil {
+			return nil, fmt.Errorf("command %q returned a null document", name)
+		}
+		return document, nil
+	default:
+		return nil, fmt.Errorf("command %q returned %T, expected a document", name, response.Data)
+	}
 }

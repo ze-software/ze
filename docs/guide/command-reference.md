@@ -565,11 +565,28 @@ Each response is a flat JSON map with kebab-case keys:
 `show system date` refuses when the NTP state provider is unavailable, including
 a build without NTP support. Install a build with NTP support and retry
 `ze show system date`. A registered but unconfigured or disabled NTP client
-still permits the date answer, without synchronization metadata. An enabled
-client reports its measured synchronization state, including `false` and a
-zero offset.
+still permits the date answer, without synchronization metadata. The daemon
+uses its accepted configuration to distinguish that inactive client from an
+enabled client whose state cannot be read. An enabled client reports its
+published synchronization state, including `false` and a zero offset.
 <!-- source: internal/component/plugin/registry/registry.go -- GetNTPSyncInfo -->
 <!-- source: internal/plugins/ntp/register.go -- ntpSyncInfo -->
+
+The NTP status, peers and date metadata come from the running NTP process,
+whether it runs inside the daemon or as an external plugin. An active client
+with no published snapshot, a disabled worker that disagrees with the accepted
+configuration, a failed command connection or a malformed reply is refused.
+The initial unsynchronized snapshot can carry a zero offset before any server
+exchange; it does not claim a successful synchronization.
+<!-- source: internal/plugins/ntp/register_commands.go -- forwardNTPCommand, executeNTPCommand -->
+<!-- source: internal/plugins/ntp/register.go -- ntpReplyMetadata, handleShowSystemNTP, handleShowSystemNTPPeers -->
+<!-- source: internal/plugins/ntp/ntp.go -- syncWorker.run, syncWorker.publishState -->
+
+If the final write of the last-known time fails, the NTP plugin exits with an
+error that retains the storage cause and asks for write access to be restored.
+It stops its worker and releases its subscriptions before returning, including
+when startup fails after configuration.
+<!-- source: internal/plugins/ntp/register.go -- runNTPPlugin, finishNTPWorker -->
 
 The `hardware` subobject under `memory` and `cpu` mirrors the data
 returned by `show host memory` / `show host cpu`. Both paths are
