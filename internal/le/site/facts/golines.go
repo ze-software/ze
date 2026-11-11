@@ -9,6 +9,7 @@ import (
 const (
 	GoSourceLinesKey = "repo.go_source_lines"
 	GoTestLinesKey   = "repo.go_test_lines"
+	GoVendorLinesKey = "repo.go_vendor_lines"
 )
 
 // FormatGoLines states a line total to the nearest hundredth of a thousand or
@@ -42,7 +43,7 @@ func FormatGoLines(count int) string {
 // the new compact display.
 func displayedFact(name string, count int) string {
 	switch name {
-	case GoSourceLinesKey, GoTestLinesKey:
+	case GoSourceLinesKey, GoTestLinesKey, GoVendorLinesKey:
 		return FormatGoLines(count)
 	default:
 		// Fact names are an open JSON vocabulary; old and unknown counts retain

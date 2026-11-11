@@ -17,13 +17,14 @@ import (
 )
 
 // TestTheBrowserFillsHomeProjectMetrics reloads the actual site script with two
-// snapshots and checks all four marked values, including nested compact strings.
+// snapshots and checks all five marked values, including nested compact strings.
 func TestTheBrowserFillsHomeProjectMetrics(t *testing.T) {
 	dir := t.TempDir()
 	writeFixtureSite(t, dir)
 	const metrics = `<section id="project-metrics">
 <span data-ze-stat="repo.go_source_lines_display">fallback</span>
 <span data-ze-stat="repo.go_test_lines_display">fallback</span>
+<span data-ze-stat="repo.go_vendor_lines_display">fallback</span>
 <span data-ze-stat="plugin_registrations">fallback</span>
 <span data-ze-stat="cli_commands">fallback</span>
 </section>`
@@ -32,8 +33,8 @@ func TestTheBrowserFillsHomeProjectMetrics(t *testing.T) {
 		t.Fatal(err)
 	}
 	versions := []struct{ body, text string }{
-		{`{"repo":{"go_source_lines_display":"1.57 million","go_test_lines_display":"1.84 million"},"plugin_registrations":96,"cli_commands":499}`, "1.57 million|1.84 million|96|499"},
-		{`{"repo":{"go_source_lines_display":"2.35 million","go_test_lines_display":"3.46 million"},"plugin_registrations":87,"cli_commands":612}`, "2.35 million|3.46 million|87|612"},
+		{`{"repo":{"go_source_lines_display":"1.57 million","go_test_lines_display":"1.84 million","go_vendor_lines_display":"2.00 million"},"plugin_registrations":96,"cli_commands":499}`, "1.57 million|1.84 million|2.00 million|96|499"},
+		{`{"repo":{"go_source_lines_display":"2.35 million","go_test_lines_display":"3.46 million","go_vendor_lines_display":"4.57 million"},"plugin_registrations":87,"cli_commands":612}`, "2.35 million|3.46 million|4.57 million|87|612"},
 	}
 	var version atomic.Int32
 	var requests atomic.Int32

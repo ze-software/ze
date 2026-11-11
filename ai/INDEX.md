@@ -388,7 +388,7 @@ disagree, the manifest is right and the row is stale.
 | `./le setup` | `internal/le/setup.Answer` | install and verify every tool a Ze dev or test workflow needs |
 | `./le setup docker host` | `internal/le/setup/docker/host.DockerHostAnswer` | run Ze's docker-host image on macOS |
 | `./le setup docker kernel` | `internal/le/setup/docker/kernel.DockerKernelAnswer` | check or install Ze's Docker host kernel |
-| `./le site facts` | `internal/le/site/facts.Answer` | the numbers the website publishes about this repository, including homepage Go source and test line metrics: derive them into website/data/repo-facts.json, or check what has gone stale in it |
+| `./le site facts` | `internal/le/site/facts.Answer` | the numbers the website publishes about this repository, including homepage Go source, test and third-party line metrics: derive them into website/data/repo-facts.json, or check what has gone stale in it |
 | `./le site release` | `internal/le/site/release.Answer` | the releases the website publishes: read them from the forge into website/data/github-releases.json, which the site build reads instead of reaching the network |
 | `./le site terminal-demo` | `internal/le/site/terminaldemo.Answer` | check demo artifacts, release identity or validation; build the renderer image or binaries; render one demo or all; record a tape or drive a program through `pty` |
 | `./le spec citation` | `internal/le/spec/citation.Answer` | a plan/spec-*.md citing a sibling spec absent on disk fails, unless the target is grandfathered in plan/.citation-baseline; a path:line citation whose backtick-quoted token drifted off that line warns |

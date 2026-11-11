@@ -454,9 +454,11 @@ recording for `homeTemplate`'s `data-cast-poster`.
 
 
 The hero's project-size band replaces its repeated navigation tiles. It shows
-lines of Go source code, lines of Go test code, plugins and CLI commands through
-marked `data/site-facts.json` values. The line figures include comments and blank lines,
-exclude third-party dependencies, and count development tooling as source.
+lines of Go source code, lines of Go test code, lines of third-party Go code,
+plugins and CLI commands through marked `data/site-facts.json` values. The line
+figures include comments and blank lines. Source and test lines exclude
+dependencies; the separate third-party figure counts tracked vendored Go files.
+Source includes development tooling.
 They come from the recorded repository facts, using the activity page's Go
 inventory definition; the activity page itself still measures the current
 checkout. Each line figure links to activity, while plugins and commands link
@@ -465,6 +467,27 @@ Discord is linked in a sentence. Search and demonstrations retain their existing
 header and player paths. The release notice and testing proof section remain.
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 <!-- source: internal/le/site/facts.go -- factsFromRepositoryFile -->
+
+Thomas requested this correction on 11 November 2026:
+
+> after 1.84 M can you add the 3rd party library count too as a new extra counter.
+>
+> Run BGP, OSPF and IS-IS on Linux. Manage interfaces and services through one configuration over SSH, web or APIs.
+> You removed all the links to the page we have in the current live site at ze-project.net
+> You also removed information when we have space for it, please rectify
+>
+> Current first-party Go inventory. Includes comments and blank lines; excludes third-party dependencies. Development activity →
+> The comment is not useful with the extra number and the details are on the page so remove
+
+The opening keeps its linked protocol and management summary. The complete
+Route and connect and Manage one configuration information sits beside the
+demonstration on desktop and below the player on smaller screens. The metric
+band has five figures and no inventory note; their definitions remain on the
+activity page and in this build reference.
+<!-- source: internal/le/site/homebody.go -- homeTemplate -->
+<!-- source: website/assets/css/30-components.css -- .site-home .hero-start-intro.hero-grid -->
+<!-- source: website/assets/css/30-components.css -- .site-home .hero-capabilities -->
+<!-- source: website/assets/css/60-responsive.css -- .site-home .hero-start-intro.hero-grid -->
 
 The line labels read as a phrase after the quantity. Thomas requested this
 wording improvement on 2026-11-11:

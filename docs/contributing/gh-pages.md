@@ -331,14 +331,18 @@ See `website/AI.md` for the full reference: structure, tools, and how to add a t
 
 ## README thumbnail and terminal playback
 
-The homepage introduces project size with four linked figures: Go source lines,
-Go test lines, plugins and CLI commands. The line totals are recorded through
+The homepage introduces project size with five linked figures: Go source lines,
+Go test lines, third-party Go lines, plugins and CLI commands. The line totals are recorded through
 `./le site facts update`; the build reads those committed values and publishes
 compact display strings in its facts snapshot. Counts include comments and
-blank lines and exclude dependencies. Activity retains the detailed inventory,
+blank lines. Source and test counts exclude dependencies; the third-party
+counter shows vendored Go lines separately. Activity retains the detailed inventory,
 and the plugin and CLI references explain the other figures. The hero keeps
 Why Ze exists and Discord as text links alongside the existing demo and search
 paths; its release notice and testing evidence remain separate.
+The opening summary links to its protocol and management pages, with the full
+capability information beside the demo on desktop and below it on mobile.
+The metrics omit the inventory note because the activity page carries the details.
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 <!-- source: internal/le/site/facts.go -- factsFromRepositoryFile -->
 

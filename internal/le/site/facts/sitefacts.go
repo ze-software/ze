@@ -230,6 +230,11 @@ func derive(root string) (facts, error) {
 			Value:    inventory.Tests.TotalLines,
 			Source:   "activity Go inventory: tracked first-party _test.go files, including comments and blank lines; excluding dependencies",
 		},
+		GoVendorLinesKey: {
+			Category: categoryCommitted,
+			Value:    inventory.Vendor.TotalLines,
+			Source:   "activity Go inventory: tracked vendor Go files, including comments and blank lines",
+		},
 		"repo.design_comments": {
 			Category: categoryCommitted,
 			Value:    counts.design,

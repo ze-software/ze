@@ -42,6 +42,7 @@ var repositoryFactKeys = []string{
 	"repo.go_packages",
 	sitefacts.GoSourceLinesKey,
 	sitefacts.GoTestLinesKey,
+	sitefacts.GoVendorLinesKey,
 }
 
 // The one network reach a site build makes, and its bounds.
@@ -177,7 +178,7 @@ type factsInterop struct {
 	Targets          int    `json:"targets"`
 }
 
-// factsRepo counts what the Go tree holds: packages, source and test lines,
+// factsRepo counts what the Go tree holds: packages, source, test and vendor lines,
 // and the file headers that explain themselves.
 type factsRepo struct {
 	DesignComments        int    `json:"design_comments"`
@@ -190,6 +191,8 @@ type factsRepo struct {
 	GoSourceLinesDisplay  string `json:"go_source_lines_display"`
 	GoTestLines           int    `json:"go_test_lines"`
 	GoTestLinesDisplay    string `json:"go_test_lines_display"`
+	GoVendorLines         int    `json:"go_vendor_lines"`
+	GoVendorLinesDisplay  string `json:"go_vendor_lines_display"`
 }
 
 // factsRFC counts the RFC requirement ledger: every requirement, the summaries
@@ -422,7 +425,7 @@ func factsFromRepositoryFile(source string, facts *siteFacts) error {
 	if err := json.Unmarshal(content, &measurements); err != nil {
 		return fmt.Errorf("read website/data/%s measurements: %w", repositoryFactsFile, err)
 	}
-	for _, key := range []string{sitefacts.GoSourceLinesKey, sitefacts.GoTestLinesKey} {
+	for _, key := range []string{sitefacts.GoSourceLinesKey, sitefacts.GoTestLinesKey, sitefacts.GoVendorLinesKey} {
 		if measurements.Facts[key].Value == nil {
 			return fmt.Errorf("website/data/%s states no numeric value for %s; run `./le site facts update`", repositoryFactsFile, key)
 		}
@@ -447,6 +450,8 @@ func factsFromRepositoryFile(source string, facts *siteFacts) error {
 	facts.Repo.GoSourceLinesDisplay = sitefacts.FormatGoLines(facts.Repo.GoSourceLines)
 	facts.Repo.GoTestLines = committed.Facts[sitefacts.GoTestLinesKey].Value
 	facts.Repo.GoTestLinesDisplay = sitefacts.FormatGoLines(facts.Repo.GoTestLines)
+	facts.Repo.GoVendorLines = committed.Facts[sitefacts.GoVendorLinesKey].Value
+	facts.Repo.GoVendorLinesDisplay = sitefacts.FormatGoLines(facts.Repo.GoVendorLines)
 	return nil
 }
 

@@ -43,7 +43,8 @@ func factsFixture(t *testing.T) Paths {
 	    "repo.detail_comments": {"category":"committed-data","value":3281,"source":"git ls-files '*.go'"},
 	    "repo.go_packages": {"category":"committed-data","value":755,"source":"go list ./..."},
 	    "repo.go_source_lines": {"category":"committed-data","value":2345678,"source":"activity Go inventory"},
-	    "repo.go_test_lines": {"category":"committed-data","value":3456789,"source":"activity Go inventory"}
+	    "repo.go_test_lines": {"category":"committed-data","value":3456789,"source":"activity Go inventory"},
+	    "repo.go_vendor_lines": {"category":"committed-data","value":4567890,"source":"activity Go inventory"}
 	  },
 	  "live": {}
 	}`)

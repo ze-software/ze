@@ -28,7 +28,7 @@ func TestPublishedGoLineFactsUseRecordedInventory(t *testing.T) {
 // TestRecordedGoLinesDistinguishMissingNegativeAndZero makes zero a valid
 // measurement while refusing absent and negative committed measurements.
 func TestRecordedGoLinesDistinguishMissingNegativeAndZero(t *testing.T) {
-	for _, key := range []string{"repo.go_source_lines", "repo.go_test_lines"} {
+	for _, key := range []string{"repo.go_source_lines", "repo.go_test_lines", "repo.go_vendor_lines"} {
 		for _, state := range []string{"missing", "missing-value", "null-value", "negative", "zero"} {
 			t.Run(key+"/"+state, func(t *testing.T) {
 				paths := factsFixture(t)
@@ -67,12 +67,50 @@ func TestRecordedGoLinesDistinguishMissingNegativeAndZero(t *testing.T) {
 					if key == "repo.go_source_lines" && facts.Repo.GoSourceLinesDisplay != "0" || key == "repo.go_test_lines" && facts.Repo.GoTestLinesDisplay != "0" {
 						t.Error("zero did not publish a readable 0")
 					}
+					if key == "repo.go_vendor_lines" {
+						content, err := json.Marshal(facts)
+						if err != nil {
+							t.Fatal(err)
+						}
+						var published map[string]any
+						if err := json.Unmarshal(content, &published); err != nil {
+							t.Fatal(err)
+						}
+						if shown, held := factValue(published, key+"_display"); !held || shown != "0" {
+							t.Error("vendor zero did not publish a readable 0")
+						}
+					}
 					return
 				}
 				if err == nil || !strings.Contains(err.Error(), key) || !strings.Contains(err.Error(), "./le site facts update") {
 					t.Errorf("%s %s: got %v, want named refusal and update action", state, key, err)
 				}
 			})
+		}
+	}
+}
+
+// TestPublishedVendorGoLineFactsUseRecordedInventory checks the additive JSON
+// schema and its raw/display values through the real snapshot producer.
+func TestPublishedVendorGoLineFactsUseRecordedInventory(t *testing.T) {
+	facts, err := deriveSiteFacts(factsFixture(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	content, err := json.Marshal(facts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var published map[string]any
+	if err := json.Unmarshal(content, &published); err != nil {
+		t.Fatal(err)
+	}
+	for key, want := range map[string]string{
+		"repo.go_vendor_lines":         "4567890",
+		"repo.go_vendor_lines_display": "4.57 million",
+	} {
+		if got, held := factValue(published, key); !held || got != want {
+			t.Errorf("published %s = %q (present %t), want %q", key, got, held, want)
 		}
 	}
 }

@@ -20,6 +20,7 @@ func TestRepositoryFactsIncludeGoLineInventory(t *testing.T) {
 	for key, want := range map[string]int{
 		"repo.go_source_lines": 4,
 		"repo.go_test_lines":   3,
+		"repo.go_vendor_lines": 2,
 	} {
 		held, found := written.Facts[key]
 		if !found {
@@ -35,7 +36,7 @@ func TestRepositoryFactsIncludeGoLineInventory(t *testing.T) {
 // TestGoLineDisplayPrecisionMatchesStaleness checks the boundary a visitor can
 // see, which is finer than the older repository-count formatter's precision.
 func TestGoLineDisplayPrecisionMatchesStaleness(t *testing.T) {
-	for _, key := range []string{"repo.go_source_lines", "repo.go_test_lines"} {
+	for _, key := range []string{"repo.go_source_lines", "repo.go_test_lines", "repo.go_vendor_lines"} {
 		t.Run(key, func(t *testing.T) {
 			before := facts{Facts: map[string]fact{key: {
 				Category: categoryCommitted, Value: 1_564_999, Source: "fixture",

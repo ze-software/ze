@@ -50,6 +50,15 @@ product code alone. The activity page reads a live checkout inventory; a
 homepage figure is the inventory recorded by the facts update action.
 <!-- source: internal/le/site/facts/sitefacts.go -- derive -->
 
+`repo.go_vendor_lines` records the same collector's separate vendor total,
+including comments and blank lines in tracked Go files under `vendor/`. The
+homepage places this third-party code figure after test lines. It counts lines
+of dependency source; the activity inventory's module count remains a separate
+measurement. All three line totals use the same display and staleness precision.
+<!-- source: internal/le/site/facts/sitefacts.go -- derive -->
+<!-- source: internal/le/repo/rewrite/activity.go -- collectGoStats -->
+<!-- source: internal/le/site/facts/golines.go -- displayedFact -->
+
 ## Not every fact can be committed
 
 A published fact belongs to one of six categories, and the file records the
