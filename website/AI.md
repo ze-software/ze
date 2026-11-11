@@ -799,17 +799,21 @@ build trims `changes/fragments/` from the artifact it deploys.
    `data/milestones.json`. Use the source report's `covers:` start for `date`
    and `blog`, so the entry links to its report under `changes/`.
 
-   Present one main card per month, newest months first. Its short Key Points
-   use the milestone titles. Put the month's report links at the bottom of
-   that card. Derive those links from `changes/posts/`, including every report
-   whose `covers:` start falls in the month. Show each report link once and
-   keep this list generated.
+   Present one main card per month, oldest months first. Use a compact
+   Milestones header and a two-column desktop grid that becomes one column
+   on mobile. Put related navigation below the timeline. Each card's short
+   Key Points use the milestone titles. Put the month's report links at the
+   bottom of that card. Derive those links from `changes/posts/`, including
+   every report whose `covers:` start falls in the month. Show each report
+   link once and keep this list generated.
 
    Report the added titles and linked report dates outside the public post.
    If none qualifies, state that result and its reason. After generation,
    inspect `../gh-pages/project/milestones/index.html` and `index.md` for the
-   monthly grouping, Key Points, categories and complete report links. A build
-   or site check without this review leaves website work pending.
+   monthly grouping, oldest-first order, Key Points, categories and complete
+   report links. Also inspect the HTML's compact header, responsive grid and
+   related navigation below the timeline. A build or site check without this
+   review leaves website work pending.
 3. **Check Compare for drift.** Did the week close one of the
    "Where Ze is behind today" gaps, or change a Yes/No/Partial cell? Edit
    `../docs/comparison.md` first (the source of truth), then copy the

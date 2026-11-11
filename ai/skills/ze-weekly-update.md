@@ -331,8 +331,10 @@ In `website/`, apply the checklist from `AI.md`:
    - `changes/feed.xml`,
    - `index.html` homepage `Latest updates` cards, when the new week is within the rendered latest set.
 9. Verify the generated Milestones page and Markdown mirror as the checklist
-   requires: one card per month, short Key Points, and report links at the
-   bottom. A successful build alone does not account for the milestone review.
+   requires: oldest months first, one card per month, short Key Points, and
+   report links at the bottom. Verify the compact header, desktop grid,
+   mobile column and related navigation below the timeline in the HTML.
+   A successful build alone does not account for the milestone review.
 10. Do not assume the homepage card count. Read `website/data/whats-new.json` and the staged `../gh-pages/index.html` before claiming the homepage is correct.
 11. Use `./le site check` for the native artifact and page-mirror checks.
 

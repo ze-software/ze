@@ -534,14 +534,19 @@ published surfaces".
 <!-- source: internal/le/site/datapages.go -- loadFeatureData -->
 
 The Milestones page groups `website/data/milestones.json` into one card per
-month, newest first. Landmark titles form the short key points; long blurbs
-remain in the source data. Each card's footer links every report whose
+month, oldest first, with landmarks and reports in first-arrival order.
+Landmark titles form the short key points; long blurbs remain in the source
+data. A compact header introduces the landmark timeline, followed by a
+two-column card grid on desktop and one column on mobile. Related navigation
+follows the timeline instead of occupying a sidebar column. The Latest month
+link restores every category before jumping to the final month.
+Each card's footer links every report whose
 `covers:` starts in that month, read from `website/changes/posts/`. A report
 that spans months appears only under its starting month. Report-only months
 state that no milestone is recorded. HTML and Markdown use the
 same monthly groups. Category filters hide individual key points and empty
 month cards; resetting the filter restores report-only months too.
-<!-- source: internal/le/site/datapages.go -- groupMilestones, milestoneMonthHTML, milestonesMirror -->
+<!-- source: internal/le/site/datapages.go -- renderMilestones, milestoneMonthHTML, milestonesMirror -->
 <!-- source: website/assets/js/site.js -- initCategoryFilter, initTimelineFilters -->
 
 Card colors identify subjects across the website. Use the existing categories

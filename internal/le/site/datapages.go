@@ -9,6 +9,7 @@ import (
 	"html"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -630,14 +631,56 @@ func milestoneReportLabel(report changeWeek) (string, error) {
 // layout no shared rule covers, so the rules travel with the page that needs
 // them rather than growing site.css for a single reader.
 const milestonesStyle = `        <style>
-            .tl-timeline { display: grid; gap: 1.2rem; }
+            main.has-page-sidebar:has(> .tl-overview) {
+                display: block;
+                width: min(72rem, calc(100% - 2rem));
+                max-width: 72rem;
+            }
+            .tl-overview { margin: 0 0 1rem; }
+            .tl-overview .journey-hero {
+                padding: 1.25rem 0;
+                margin-bottom: 0.8rem;
+                min-height: 0;
+            }
+            .tl-overview .journey-hero h1 {
+                margin: 0;
+                font-size: clamp(1.8rem, 3.2vw, 2.5rem);
+                color: var(--hero-text);
+                background: none;
+                -webkit-text-fill-color: currentColor;
+            }
+            .tl-overview .journey-hero p {
+                margin-top: 0.45rem;
+                max-width: 52rem;
+                font-size: 1rem;
+                line-height: 1.5;
+            }
+            .tl-toolbar {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 0.5rem 1rem;
+                margin-bottom: 0.5rem;
+                font-size: 0.82rem;
+                color: var(--muted);
+            }
+            .tl-toolbar p { margin: 0; }
+            .tl-toolbar a { margin-left: auto; font-weight: 600; }
+            .tl-overview .legend { margin: 0; gap: 0.4rem; }
+            .tl-timeline {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                align-items: start;
+                gap: 1rem;
+            }
             .tl-card {
-                padding: 1.2rem 1.4rem;
+                min-width: 0;
+                padding: 1rem 1.15rem;
                 background: var(--bg-soft);
                 border: 1px solid var(--line);
                 border-radius: 12px;
             }
-            .tl-month-title { margin: 0 0 1rem; font-size: 1.2rem; }
+            .tl-month-title { margin: 0 0 0.8rem; font-size: 1.2rem; scroll-margin-top: 6rem; }
             .tl-section-title {
                 margin: 0 0 0.5rem;
                 font-size: 0.75rem;
@@ -686,8 +729,26 @@ const milestonesStyle = `        <style>
                 text-decoration: none;
             }
             .tl-link:hover { text-decoration: underline; }
-            @media (max-width: 640px) {
+            main.has-page-sidebar:has(> .tl-overview) > .page-sidebar {
+                position: static;
+                top: auto;
+                width: auto;
+                max-width: none;
+                max-height: none;
+                margin: 1.25rem 0 0;
+                overflow: visible;
+            }
+            main.has-page-sidebar:has(> .tl-overview) .page-sidebar-nav {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                align-items: start;
+                gap: 1.5rem;
+            }
+            @media (max-width: 760px) {
+                .tl-timeline { grid-template-columns: minmax(0, 1fr); }
                 .tl-card { padding: 1rem; }
+                main.has-page-sidebar:has(> .tl-overview) .page-sidebar-nav {
+                    grid-template-columns: minmax(0, 1fr);
+                }
             }
         </style>
 `
@@ -713,12 +774,24 @@ func renderMilestones(paths Paths) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	// The full history reads oldest first; the shared grouping remains newest
+	// first for consumers that summarize recent landmarks.
+	slices.Reverse(months)
+	for index := range months {
+		month := &months[index]
+		sort.SliceStable(month.Items, func(left, right int) bool {
+			return month.Items[left].Date < month.Items[right].Date
+		})
+		sort.SliceStable(month.Reports, func(left, right int) bool {
+			return month.Reports[left].CoverageStart < month.Reports[right].CoverageStart
+		})
+	}
 	links, err := loadPageLinks(paths.Source)
 	if err != nil {
 		return nil, err
 	}
 
-	description := "Ze's key milestones by month, with links to every update report."
+	description := "Landmark features in Ze's development, oldest to newest, with links to every update report."
 	shell := pageShell{
 		Title:       "Milestones - Ze",
 		Description: description,
@@ -742,20 +815,20 @@ func renderMilestones(paths Paths) ([]string, error) {
 }
 
 // milestonesBody renders the page under <main>: the hero and its filter legend,
-// then one card per month, newest first.
+// then one card per month, oldest first.
 func milestonesBody(data milestoneData, months []milestoneMonth) (string, error) {
 	var body textbuf.Buffer
-	body.Str("            <section aria-labelledby=\"milestones-title\">\n")
+	body.Str("            <section class=\"tl-overview\" aria-labelledby=\"milestones-title\">\n")
 	body.Str("                <div class=\"section-head journey-hero reveal\">\n")
-	body.Str("                    <span class=\"journey-eyebrow\">Timeline</span>\n")
-	body.Str("                    <h1 id=\"milestones-title\">The road so far.</h1>\n")
-	body.Str("                    <p>").Int(int64(len(data.Milestones))).Str(" milestones, newest first. ").
-		Str(html.EscapeString(data.Intro)).Str("</p>\n")
+	body.Str("                    <h1 id=\"milestones-title\">Milestones</h1>\n")
+	body.Str("                    <p>").Str(html.EscapeString(data.Intro)).Str("</p>\n")
 	body.Str("                </div>\n")
-	body.Str("                <div class=\"section-note reveal\">\n")
-	body.Str("                    <p>Browse the key points, then follow each month&#39;s reports for the details. ").
-		Str("<a href=\"../../features/\">Features</a> lists what ships today. ").
-		Str("Select a category to filter the key points; select it again to show every month.</p>\n")
+	body.Str("                <div class=\"tl-toolbar\"><span>").Int(int64(len(data.Milestones))).
+		Str(" milestones</span><p>Select again to clear.</p>\n")
+	if len(months) > 0 {
+		body.Str("                    <a href=\"#month-").Str(months[len(months)-1].Date).
+			Str("\" data-latest-month>Latest month &darr;</a>\n")
+	}
 	body.Str("                </div>\n")
 	body.Str("                <div class=\"legend reveal\" role=\"group\" aria-label=\"Filter milestones by category\">\n")
 	for _, category := range legendCategories {

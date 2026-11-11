@@ -450,12 +450,12 @@ func TestFeaturesWithNoShippedSectionAreRefused(t *testing.T) {
 	}
 }
 
-// VALIDATES: the timeline sorts newest first and groups all of a month's
+// VALIDATES: the timeline sorts oldest first and groups all of a month's
 // milestones in one card.
 //
-// The method reads the rendered page: month dates must never rise, each month
+// The method reads the rendered page: month dates must never fall, each month
 // appears once, and every fixture landmark remains present.
-func TestTheTimelineSortsNewestFirstAndGroupsByMonth(t *testing.T) {
+func TestTheTimelineSortsOldestFirstAndGroupsByMonth(t *testing.T) {
 	paths := milestonesPaths(t)
 
 	if _, err := renderMilestones(paths); err != nil {
@@ -483,9 +483,13 @@ func TestTheTimelineSortsNewestFirstAndGroupsByMonth(t *testing.T) {
 		seen[date] = true
 	}
 	for index := 1; index < len(dates); index++ {
-		if dates[index] > dates[index-1] {
-			t.Errorf("month %d is dated %s, above the older %s", index, dates[index], dates[index-1])
+		if dates[index] < dates[index-1] {
+			t.Errorf("month %d is dated %s, after the newer %s", index, dates[index], dates[index-1])
 		}
+	}
+	latest := `href="#month-` + dates[len(dates)-1] + `" data-latest-month`
+	if !strings.Contains(page, latest) {
+		t.Errorf("the latest-month link does not target the final monthly card: %s", latest)
 	}
 	if points := strings.Count(page, `class="tl-title"`); points != len(data.Milestones) {
 		t.Errorf("the cards carry %d key points, want all %d landmarks", points, len(data.Milestones))
@@ -497,9 +501,10 @@ func TestTheTimelineSortsNewestFirstAndGroupsByMonth(t *testing.T) {
 func TestTwoMilestonesOnOneDateKeepTheFilesOrder(t *testing.T) {
 	paths := milestonesPaths(t)
 	writeSourceData(t, paths, milestonesDataFile, `{"intro":"Intro.","milestones":[
-		{"date":"2026-01-05","title":"Older","category":"routing","blog":"","blurb":"Older."},
 		{"date":"2026-03-02","title":"First of March","category":"operate","blog":"","blurb":"One."},
-		{"date":"2026-03-02","title":"Second of March","category":"secure","blog":"","blurb":"Two."}]}`)
+		{"date":"2026-01-05","title":"Older","category":"routing","blog":"","blurb":"Older."},
+		{"date":"2026-03-02","title":"Second of March","category":"secure","blog":"","blurb":"Two."},
+		{"date":"2026-03-01","title":"Earlier in March","category":"services","blog":"","blurb":"Earlier."}]}`)
 
 	if _, err := renderMilestones(paths); err != nil {
 		t.Fatal(err)
@@ -507,7 +512,7 @@ func TestTwoMilestonesOnOneDateKeepTheFilesOrder(t *testing.T) {
 	page := readArtifact(t, paths.Output, milestonesDest)
 
 	titles := betweenAll(page, `<span class="tl-title">`, `</span>`)
-	want := []string{"First of March", "Second of March", "Older"}
+	want := []string{"Older", "Earlier in March", "First of March", "Second of March"}
 	if len(titles) != len(want) {
 		t.Fatalf("the page lists %v, want %v", titles, want)
 	}
@@ -557,11 +562,17 @@ func TestMonthlyMilestonesCombineKeyPointsAndAllReports(t *testing.T) {
 			t.Errorf("key point %q is missing above the footer", title)
 		}
 	}
+	previous := -1
 	for _, slug := range []string{"2026-05-04", "2026-05-11", "2026-05-25"} {
 		link := `href="../changes/` + slug + `/"`
 		if count := strings.Count(card[footer:], link); count != 1 {
 			t.Errorf("May footer carries %d links to %s, want one", count, slug)
 		}
+		at := strings.Index(card[footer:], link)
+		if at <= previous {
+			t.Errorf("May report %s is out of first-arrival order", slug)
+		}
+		previous = at
 	}
 	if strings.Contains(card, "2026-06-01/") {
 		t.Error("a June report appears in May")
@@ -612,8 +623,8 @@ func TestTheTimelineRetainsLandmarksAndPageChrome(t *testing.T) {
 		`<link rel="canonical" href="https://ze-software.net/project/milestones/" />`,
 		`<link rel="stylesheet" href="../../assets/site.css" />`,
 		`<main id="top" class="has-page-sidebar" tabindex="-1">`,
-		`<section aria-labelledby="milestones-title">`,
-		`<h1 id="milestones-title">The road so far.</h1>`,
+		`<section class="tl-overview" aria-labelledby="milestones-title">`,
+		`<h1 id="milestones-title">Milestones</h1>`,
 		`<section class="tl-timeline reveal" aria-label="Milestone timeline">`,
 		".tl-month-title {",
 		`<aside class="page-sidebar" aria-label="Related page links">`,
