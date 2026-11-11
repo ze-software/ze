@@ -220,7 +220,16 @@ cases in `internal/component/bgp/plugins/nlri/vpn/rfc4659_vpn_test.go` and
   `internal/component/bgp/reactor/forward_build.go` is consumed by `fwdWithdrawal.of`. No
   criterion or symbol is changed to hide those matches. The separate genuine
   Debug-only send failure in `BMPPlugin.handleBestChange` in
-  `internal/component/bgp/plugins/bmp/bmp_locrib.go` is assigned for repair;
+  `internal/component/bgp/plugins/bmp/bmp_locrib.go` now has a warning and
+  report-bus error event under the existing runtime recent-events check.
+  `TestLocRIBSendFailureWarnsAndKeepsHealthyCollector` in
+  `internal/component/bgp/plugins/bmp/locrib_send_failure_test.go` failed on
+  the hidden warning in main's `job-refusal-bmp-send-red-b40bb382.log`, after
+  proving the healthy collector received its route. Main's
+  `job-refusal-bmp-send-green-96338873.log` passes that regression and five
+  existing BMP controls plus `TestDoctorRecentEventsRowsFromReportRing` under
+  race with the native feature tags. Independent source, style and docs review
+  is clean. Scoped lint and the final BMP functional scenario remain owed;
   census40's actual ORIGIN producer, `buildLocRIBUpdateBody`, has no hit.
   Actual report: `job-refusal-current-report-fcb16ac0.log` in session scratch.
   Exact row/source classification: session state `refusal-ac7-census.md`.

@@ -200,6 +200,15 @@ Ze handles all 7 BMP message types defined in RFC 7854:
 
 ### Sender Behavior
 
+If a Loc-RIB update cannot be queued for a collector, Ze logs a warning with
+the collector and the original error, and continues sending to the other
+collectors. It also retains the failure as an error event under
+`doctor-recent-events`. `show errors` and the daemon's `show doctor` expose
+that event even if the collector later reconnects. Run `ze show bmp collectors`
+to inspect the collector sessions.
+<!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- BMPPlugin.handleBestChange -->
+<!-- source: internal/component/doctor/checks_recent_events.go -- checkRecentEvents, recentEventsDiagnostic -->
+
 - Sends Initiation with the system identity on each connection
 - Sends Peer Up with the cached sent and received OPEN messages for every established BGP peer, followed by its current route snapshot and per-family End-of-RIB
 - Reports the actual established TCP local and remote ports in Peer Up, including the active opener's ephemeral port

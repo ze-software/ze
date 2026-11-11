@@ -16,9 +16,11 @@
 package bmp
 
 import (
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math"
 	"net/netip"
 	"sync/atomic"
@@ -32,8 +34,11 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/replay"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -761,7 +766,11 @@ func (bp *BMPPlugin) handleBestChange(batch *ribevents.BestChangeBatch) {
 		}
 		for _, ss := range senders {
 			if err := ss.writeRouteMonitoring(peer, msgtype.TypeUPDATE, body); err != nil {
-				logger().Debug("bmp: loc-rib route monitoring failed", "collector", ss.name, "error", err)
+				failure := opererr.Wrap(err, "BMP Loc-RIB update was not sent to collector "+ss.name,
+					"The collector's route view may be incomplete", "ze show bmp collectors")
+				logger().LogAttrs(context.Background(), slog.LevelWarn, failure.Problem(),
+					failure.LogAttrs(slog.String("code", diagnostic.CodeDoctorRecentEvents), slog.String("collector", ss.name))...)
+				report.RaiseError("bgp-bmp", diagnostic.CodeDoctorRecentEvents, ss.name, failure.Error())
 			}
 		}
 	}
