@@ -7,10 +7,10 @@
 | Priority | P2 |
 | Release reason | `ai/META-DECISIONS.md`, "Goal and scope": `ze doctor` reports every problem an operator can hit, each with its cause and the command that fixes it; O-3 of `spec-doctor-coverage-1-audit-and-gate` makes every area child release work |
 | RFC gaps | - |
-| Depends | `spec-doctor-coverage-1-audit-and-gate` (the `runtime` phase, `Diagnostic.Fix`, the `recent-events` check and the gate, landed in ce58dddf53 and fc96556110); `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a, which registers the cross-cutting codes `doctor-internal-defect`, `doctor-plugin-setup-failed`, `doctor-plugin-stopped`, `doctor-plugin-request-refused` and `doctor-plugin-stop-cleanup-late`, the transient-code registration that `doctor-recent-events` reads, and the convention that a report-bus raise carries its own fix |
+| Depends | `spec-doctor-coverage-1-audit-and-gate` (the `runtime` phase, `Diagnostic.Fix`, the `recent-events` check and the gate, landed in ce58dddf53 and fc96556110); `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a, which registers the cross-cutting codes `doctor-internal-defect`, `doctor-plugin-setup-failed`, `doctor-plugin-stopped`, `doctor-plugin-request-refused` and `doctor-plugin-stop-cleanup-late`, the transient-code registration that `doctor-recent-events` reads, and the convention that a report-bus raise carries its own fix (the `Issue` fix field and its `recent-events` rendering, its AC-3), which phase P1 here needs first; `plan/release/validation/spec-doctor-coverage-11-hub-engine.md`, the route field on `DoctorCheckContext` (its AC-1, A-2), for R-6 |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-10 |
+| Updated | 2026-11-11 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -56,7 +56,7 @@ C47) and 2 are covered (C18, C20a). This spec closes every gap:
 - [ ] `plan/release/validation/spec-doctor-coverage-2-home-cpe-batch.md` - sibling child
   → Constraint: it owns no BGP engine row (it names BGP only as one IPsec own-traffic flow); nothing here respecs it
 - [ ] `plan/release/fixes/spec-dropped-error-1-bgp-engine.md` - raises 57 Debug-dropped BGP engine errors to Warn
-  → Constraint: every line it raises to Warn becomes a problem site the gate judges; it names the doctor code of the class this spec assigns (Data Flow map), whichever spec lands second
+  → Constraint: every line it raises to Warn becomes a problem site the gate judges, and `./le commit create` refuses an added Warn site whose `code` no check declares. That spec names no doctor code today; the code of each such line is the class code this spec assigns (Data Flow map), carried by whichever spec lands second (R-3)
 - [ ] `ai/rules/user-facing-errors.md`
   → Constraint: problem first, why, then the fixing command on a line of its own; JSON carries no color
 
@@ -112,11 +112,11 @@ C47) and 2 are covered (C18, C20a). This spec closes every gap:
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
-| BGP post-config checks | `internal/component/bgp/config/doctor_checks.go` `bgpDoctorChecks`; `bfd_strict_doctor.go`, `filter_reference_doctor.go`, `neighbor_table_doctor.go` | Six checks over the config tree, the platform and the filesystem | extends: the new local checks (C8, C13, C14 config half, C21, C22, C25 config half, C27) join this table; the covered rows C18 and C20a keep their checks |
-| Doctor check registry and phases | `internal/core/diagnostic/doctor_registry.go` `RegisterDoctorCheck`, `DoctorCheck` | Registered checks with codes, by phase | extends: the reactor registers one `runtime` check from its own `init()` |
+| BGP config-phase checks | `internal/component/bgp/config/doctor_checks.go` `bgpDoctorChecks`; `bfd_strict_doctor.go`, `filter_reference_doctor.go`, `neighbor_table_doctor.go` | Six checks over the config tree, the platform and the filesystem: five `post-config`, and `bgp-filter-references` at `parsed-config`; all through `diagnostic.RegisterDoctorCheck`, so each runs on the local route and, through `doctor.Answer`, on the daemon route | extends: the new local checks (C8, C13, C14 config half, C21, C22, C25 config half, C27) join this table; the covered rows C18 and C20a keep their checks |
+| Doctor check registry and phases | `internal/core/diagnostic/doctor_registry.go` `RegisterDoctorCheck`, `DoctorCheck` | Registered checks with codes, by phase; `runtime` runs only through `doctor.RunRuntimeChecks` on the daemon route | extends: the reactor registers one `runtime` check from its own `init()` through `diagnostic.RegisterDoctorCheck`. Not as a `registry.DoctorCheckDef` on the `bgp` plugin's registration, which `validateDoctorCheckDef` refuses in the `runtime` phase (commit 149497ce12), and not as a Stage 1 declaration: the reactor is never forked (`runBGPEngine` attaches it to the coordinator in process, `coord.AttachReactor`), so the daemon-process read is the live one (A-1) |
 | Diagnostic code registry | `internal/core/diagnostic/codes.go` constants; `diagnostic.Register` of `CodeMeta` from each owner's `init()` | One spelling per code, metadata for `ze show diagnostic` | extends: every code below gets one exported spelling there, and its metadata registered by `bgp/config` beside the check that declares it |
-| Report bus | `internal/core/report/report.go` `RaiseWarning`, `RaiseError`, `Warnings`, `Errors`, `Issue` | Active warnings and a bounded ring of error events, keyed (source, code, subject) | extends: the eleven reactor codes are renamed to doctor codes; a raise carries its fix command; new transient classes (C36, C40, C46 read and remove) raise here |
-| Recent-events check | `internal/component/doctor/checks_recent_events.go` `recentEventsCheck` | One runtime row per bus key, fix `show errors`/`show warnings` | extends: a row draws the raise's own fix command when the raise carries one, and keeps `show errors`/`show warnings` otherwise |
+| Report bus | `internal/core/report/report.go` `RaiseWarning`, `RaiseError`, `Warnings`, `Errors`, `Issue` | Active warnings and a bounded ring of error events, keyed (source, code, subject) | extends: the eleven reactor codes are renamed to doctor codes; a raise carries its fix command through child 12 phase P0a's `Issue` fix field (`Issue` has no fix field today); new transient classes (C36, C40, C46 read and remove) raise here |
+| Recent-events check | `internal/component/doctor/checks_recent_events.go` `recentEventsCheck` | One runtime row per bus key, fix `show errors`/`show warnings` | uses: child 12 phase P0a (its AC-3) makes a row draw the raise's own fix command when the raise carries one, keeping `show errors`/`show warnings` otherwise; this spec builds no second convention and only passes a fix on each BGP raise |
 | Health probe over bus codes | `internal/core/report/health_probe.go` `HealthProbeDegraded`; `internal/component/bgp/plugin/register.go` `init` | `bgp` row degraded on three literal codes | extends: the row names the exported code constants (journal row `helper-bypassed-by-an-open-coded-copy`, 2026-11-10) |
 | Doctor-coverage gate | `internal/le/arch/doctorcoverage`, `./le arch doctor-coverage report` and `check` | Lists uncovered sites; refuses added ones | does not apply as a change: it is the measure; this spec moves the BGP engine's covered count |
 | `opererr` log attributes | `internal/core/opererr` `LogAttrs` | `why`, `fix`, and a caller's `code` | extends: a line with a fix logs it through the same `fix` key; the `code` key holds the doctor code only |
@@ -141,7 +141,7 @@ C47) and 2 are covered (C18, C20a). This spec closes every gap:
 2. Runtime: `HandleDoctor` runs `RunRuntimeChecks`; the reactor's `bgp-runtime` check reads the live state the running reactor publishes (a value-type snapshot the reactor fills, never a pointer into reactor data) and answers one row per finding.
 3. Transient: a reactor raise on the report bus carries its doctor code and fix; `recent-events` answers the row under that code with that fix.
 4. Health: the `bgp` health row's `HealthProbeDegraded` names the exported constants of the three session codes.
-5. Gate: every Warn/Error line carries a `code` attribute naming a code that `bgp/config` or the reactor's `runtime` check declares; the gate resolves it through `diagnostic.DoctorChecks`.
+5. Gate: every Warn/Error line carries a `code` attribute naming a code that `bgp/config` or the reactor's `runtime` check declares. The gate links no registry: it reads the covered set from the parsed source, every composite literal of a check declaration type (`checkDeclarations`, `coveredCodes` in `internal/le/arch/doctorcoverage/codes.go`; `diagnostic.DoctorCheck` among them), so each `Codes` entry of `bgp-runtime` is a literal or a constant the scan resolves, never a value built at run time.
 
 **Class to code map** (the canonical names; `doctor-bgp-session-stuck` is the one the audit's code table already fixed, every other `doctor-bgp-*` name is new and follows its pattern):
 
@@ -204,7 +204,7 @@ C47) and 2 are covered (C18, C20a). This spec closes every gap:
 
 ### Changed-Wire Census
 
-**Search evidence:** scope `internal/`, `cmd/`, `pkg/`, `test/`, `docs/`; terms the eleven bus codes (`session-stuck`, `session-flap`, `eor-timeout`, `op-queue-full`, `prefix-threshold`, `prefix-hold`, `prefix-stale`, `route-count-anomaly`, `session-dropped`, `notification-sent`, `notification-received`) and the log key `"code", ` under `internal/component/bgp` minus `plugins/`. The bus-code search returned 53 files; a hit may be the same word in another sense (a YANG leaf, an event name), so the implementer classifies each hit before P1. The log-key search returned 12 reactor sites. Positive controls: `raisePrefixThreshold` (`internal/component/bgp/reactor/session_prefix.go`) writes `prefix-threshold`; `test/plugin/errors-received-show.ci` reads `notification-received`; `codeKey` (`internal/le/arch/doctorcoverage/sites.go`) reads `code`.
+**Search evidence:** scope `internal/`, `cmd/`, `pkg/`, `test/`, `docs/`; terms the eleven bus codes (`session-stuck`, `session-flap`, `eor-timeout`, `op-queue-full`, `prefix-threshold`, `prefix-hold`, `prefix-stale`, `route-count-anomaly`, `session-dropped`, `notification-sent`, `notification-received`) and the log key `"code", ` under `internal/component/bgp` minus `plugins/`. The bus-code search returned 53 files; a hit may be the same word in another sense (a YANG leaf, an event name), so the implementer classifies each hit before P1. The log-key search returned 12 reactor sites at the audit and 11 on 2026-11-11 (`forward_build.go` 4, `peer_initial_sync.go` 2, one Debug, and one each in `session.go`, `session_handlers.go`, `announce_build.go`, `session_write.go`, `session_connection.go`); the implementer re-counts at P6. Positive controls: `raisePrefixThreshold` (`internal/component/bgp/reactor/session_prefix.go`) writes `prefix-threshold`; `test/plugin/errors-received-show.ci` reads `notification-received`; `codeKey` (`internal/le/arch/doctorcoverage/sites.go`) reads `code`.
 
 | Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
 |------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
@@ -214,7 +214,7 @@ C47) and 2 are covered (C18, C20a). This spec closes every gap:
 | same | reader | `internal/component/cmd/show/show_test.go`, `internal/component/cmd/show/yang/ze-cli-show-api.yang`, `internal/component/bgp/plugins/cmd/peer/peer.go`, `internal/component/plugin/types_bgp.go`, `internal/test/fixture/misc_fixture_observers.go`, `internal/test/fixture/plugin_fixture_06_events.go`, `internal/test/fixture/plugin_fixture_16.go`, `internal/le/test/integration/stress.go` | hits of the search; classified at P1 | change where the hit is the bus code; preserve where it is another word |
 | same | reader | docs: `docs/guide/health-checks.md`, `docs/guide/operational-reports.md`, `docs/guide/bgp-peering.md`, `docs/architecture/api/commands.md`, `docs/architecture/behavior/peer-lifecycle.md`, `docs/architecture/core-design.md` and the other doc hits | prose naming the codes | change in the same commit |
 | same | reader | an API client outside the repository reading `show warnings` | pre-release, no consumer of `main` (`ai/META-DECISIONS.md`, "Ze is pre-release") | change, recorded in the commit body |
-| `code` log attribute | writer | the reactor lines whose `code` key holds a NOTIFICATION or attribute code (`forward_build.go`, `session_handlers.go`, `session.go`, `announce_build.go`, `session_write.go`, `peer_initial_sync.go`, `session_connection.go` under `internal/component/bgp/reactor/`) | 12 sites of the log-key search | change: renamed `notify-code` or `attr-code`, so `code` holds the doctor code only |
+| `code` log attribute | writer | the reactor lines whose `code` key holds a NOTIFICATION or attribute code (`forward_build.go`, `session_handlers.go`, `session.go`, `announce_build.go`, `session_write.go`, `peer_initial_sync.go`, `session_connection.go` under `internal/component/bgp/reactor/`) | 11 sites of the log-key search today | change: renamed `notify-code` or `attr-code`, so `code` holds the doctor code only |
 | `code` log attribute | writer | `internal/core/opererr/opererr.go` `LogAttrs` callers | "a caller-supplied code passed through" | preserve: already a doctor code |
 | `code` log attribute | reader | `internal/le/arch/doctorcoverage/sites.go` `codeKey` | the gate resolves `code` as the site's doctor code | preserve: the renames turn the code-dynamic reads into resolved ones |
 | `code` log attribute | reader | an operator's log tooling outside the repository | pre-release | change, recorded in the commit body |
@@ -222,7 +222,7 @@ C47) and 2 are covered (C18, C20a). This spec closes every gap:
 ### Integration Points
 - `internal/component/bgp/config/register.go` `init` - registers the new post-config checks and their code metadata
 - the reactor package `init` - registers `bgp-runtime`
-- `internal/component/doctor/checks_recent_events.go` - draws a raise's fix
+- `internal/component/doctor/checks_recent_events.go` - draws a raise's fix (built by child 12 phase P0a, used here)
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -239,7 +239,7 @@ C47) and 2 are covered (C18, C20a). This spec closes every gap:
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The reactor runs in the daemon process, so a `runtime` check registered from the reactor package reads the live reactor | `ai/doors/system.md`: BGP is a subsystem whose reactor `internal/component/bgp/plugin/register.go` builds in the daemon; the parent spec's A-3 for in-process owners | the check reads an empty copy | `TestBGPRuntimeCheckReadsPublishedReactor` | unvalidated |
+| A-1 | The reactor runs in the daemon process, so a `runtime` check registered from the reactor package through `diagnostic.RegisterDoctorCheck` reads the live reactor | `ai/doors/system.md`: BGP is a subsystem whose reactor `internal/component/bgp/plugin/register.go` builds in the daemon (`runBGPEngine` calls `coord.AttachReactor` and `registry.GetPluginServer`, both in-process); the parent spec's A-3 for in-process owners. The plugin-registry route is closed to it: `validateDoctorCheckDef` refuses a `runtime` `registry.DoctorCheckDef` (149497ce12) | the check reads an empty copy | `TestBGPRuntimeCheckReadsPublishedReactor` | unvalidated |
 | A-2 | With no reactor published, the BGP engine is either not configured or reported by plugin-infra's `doctor-plugin-setup-failed`/`doctor-plugin-stopped` (C50) | the audit's cross-cutting codes, owned by plugin-infra; the slice left the overlap with `checks_plugin_registry.go` untraced | a configured BGP that never started reads healthy | `TestBGPRuntimeCheckNoReactorAnswersNothing` with child 12's (`spec-doctor-coverage-12-plugin-infra.md`) test over a failed `bgp` engine | unvalidated |
 | A-3 | `writeGRMarker`'s seam can return its error to the restart command's caller | `infra.SetGRMarkerWriter(writeGRMarker)` in `internal/component/bgp/config/register.go`; the seam returns nothing today | the write failure reaches only the log | reading the seam's callers at P5 | unvalidated |
 | A-4 | Renaming the eleven bus codes breaks no consumer outside the repository that must keep working | `ai/META-DECISIONS.md`: pre-release, no consumer of `main` | none to migrate | census | validated by the owner rule |
@@ -252,7 +252,8 @@ C47) and 2 are covered (C18, C20a). This spec closes every gap:
 | R-1 | Duplicate rows: a bus warning reported by both `recent-events` and `bgp-runtime` | two rows for one stuck peer | `bgp-runtime` declares the bus codes and reports no row for them; it answers only classes whose state is not on the bus |
 | R-2 | A hot-path counter adds cost to the UPDATE path | `./le perf` regression | one atomic add per refused or suppressed route, no allocation; measured on a known host before release, never on the Linux development VM |
 | R-3 | Collision with `spec-dropped-error-1-bgp-engine` on the same lines | both specs edit one log line | the line's level comes from that spec and its code from the map above; the second to land carries both |
-| R-4 | Another area child extends `recent-events` to draw a raise's fix in a different shape | two conventions | P1 lands one convention (the raise's fix); a later child reuses it; the main thread orders children so the first to need it owns it |
+| R-4 | A second convention for a raise's fix | two fix fields or two renderers | resolved: child 12 phase P0a (its AC-3) owns the one convention, the `Issue` fix field and its `recent-events` rendering; this spec's P1 waits for it and builds none (`ai/rules/no-layering.md`) |
+| R-6 | One fact drawn twice on `show doctor`: a config-phase check (C8, C14, C22, C25 local halves) runs in the daemon too (`doctor.Answer` runs `runChecks` on the daemon route), beside the bus row or the `bgp-runtime` row under the same code | two rows for one stale family or one EBGP absence | where the two halves report the same subject, the local half answers on route `local` only, through the route field on `DoctorCheckContext` that `plan/release/validation/spec-doctor-coverage-11-hub-engine.md` adds (its AC-1, A-2); halves about different subjects (a group's router-id against per-member refusals) stay as they are |
 | R-5 | A bus flood from a misbehaving peer evicts other events from the ring | many C40 events | C40 raises one event per (peer, RFC 7606 action) per session and counts the rest |
 
 ## Blast Radius
@@ -261,7 +262,7 @@ C47) and 2 are covered (C18, C20a). This spec closes every gap:
 |----------|--------|
 | What breaks if this is wrong? | `show warnings`/`show errors` codes change spelling; a doctor row missing or wrong; a hot-path counter cost. No wire change to peers or plugins |
 | How is it reverted? | one commit revert per phase |
-| Who else touches this path? | `spec-dropped-error-1-bgp-engine` (same log lines), `spec-bgp-one-off-defects` (owns the `op-queue-full` never-cleared row), `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` (P0a cross-cutting codes) |
+| Who else touches this path? | `spec-dropped-error-1-bgp-engine` (same log lines), `spec-bgp-one-off-defects` (owns the `op-queue-full` never-cleared row), `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` (P0a cross-cutting codes, the raise fix), `plan/release/validation/spec-doctor-coverage-7-bgp-plugins.md` (its AC-16 plans a local check `doctor-bgp-relay-grant-missing` over the same route-server fast-path grant condition as AC-25 here, the A6 grants row beside A5 C27, and moves the reactor's grant predicate to a shared package), `plan/release/validation/spec-doctor-coverage-11-hub-engine.md` (the route field, R-6) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -272,7 +273,7 @@ C47) and 2 are covered (C18, C20a). This spec closes every gap:
 | `ze doctor` on a config with an EBGP peer and no export policy | → | `bgp-rfc8212` post-config check | `test/ui/doctor-bgp-rfc8212.ci` |
 | `ze doctor` on a config with an incomplete peer | → | `bgp-peer-complete` post-config check | `test/ui/doctor-bgp-peer-incomplete.ci` |
 | `show health` with a stuck peer | → | `bgp` health row on `doctor-bgp-session-stuck` | `TestBGPHealthRowDegradesOnSessionStuck` |
-| `./le arch doctor-coverage report` | → | BGP engine sites resolved through the registry | `TestBGPEngineSitesCovered` |
+| `./le arch doctor-coverage report` | → | BGP engine sites resolved against the check declarations the gate parses from source | `TestBGPEngineSitesCovered` |
 
 ## Acceptance Criteria
 
@@ -284,7 +285,7 @@ Every finding below is a `Diagnostic` with code, severity, a message that names 
 |-------|-------------------|-------------------|-----------------------------|
 | AC-1 | The eleven reactor bus codes | each is raised under its doctor code (Data Flow map), spelled once in `internal/core/diagnostic/codes.go`; `ze show diagnostic <code>` describes each; the `bgp-runtime` check declares each; every census reader converted | none: the old spellings leave the tree (no-layering) |
 | AC-2 | A stuck, flapping or EOR-late session | the `bgp` health row degrades, reading the exported constants, the only spelling of the three codes (fixes journal row `helper-bypassed-by-an-open-coded-copy`, 2026-11-10) | none |
-| AC-3 | A report-bus raise that names a fix | the `recent-events` row carries that fix; a raise with none keeps `show errors` or `show warnings` | rows from producers outside BGP keep today's fix until they name one |
+| AC-3 | A BGP engine report-bus raise that names a fix | the `recent-events` row carries that fix; a raise with none keeps `show errors` or `show warnings`. The fix field and its rendering are child 12 phase P0a's (its AC-3, `TestRecentEventsRendersRaiseFix`); this AC proves it for the BGP raises | rows from producers outside BGP keep today's fix until they name one |
 | AC-4 | Every reactor log line whose `code` attribute holds a NOTIFICATION or attribute code | the protocol value moves to `notify-code` or `attr-code`, and `code` holds the line's doctor code | none |
 | AC-5 | The running reactor | publishes a value-type doctor snapshot (per-peer state, refusal record, watch states, listener set, cache occupancy) that `bgp-runtime` reads; with no reactor published the check answers nothing, the guard named in its comment (A-2) | none |
 | AC-6 | A route refused, suppressed or skipped for a reason C23, C26, C31, C33, C40, C43 or C49 names | a per-peer (or per-process) refusal record counts it by class and keeps the last reason and time; the hot path pays one atomic add | none |
@@ -376,7 +377,7 @@ Every finding below is a `Diagnostic` with code, severity, a message that names 
 |------|------|-----------|--------|
 | `TestBGPReportCodesAreDoctorCodes` | `internal/component/bgp/reactor/session_health_test.go` | AC-1 | |
 | `TestBGPHealthRowDegradesOnSessionStuck` | `internal/component/bgp/plugin/register_test.go` | AC-2 | |
-| `TestDoctorRecentEventsDrawsRaiseFix` | `internal/component/doctor/checks_recent_events_test.go` | AC-3 | |
+| `TestBGPRaiseCarriesFix` (one BGP raise with its fix, through child 12's renderer) | `internal/component/bgp/reactor/session_health_test.go` | AC-3 | |
 | `TestReactorLogCodeAttributeIsDoctorCode` | `internal/component/bgp/reactor/doctor_runtime_test.go` | AC-4 | |
 | `TestBGPRuntimeCheckReadsPublishedReactor`, `TestBGPRuntimeCheckNoReactorAnswersNothing` | `internal/component/bgp/reactor/doctor_runtime_test.go` | AC-5, A-1, A-2 | |
 | `TestPeerRefusalRecordCountsByClass` | `internal/component/bgp/reactor/doctor_refusals_test.go` | AC-6 | |
@@ -410,8 +411,6 @@ Every finding below is a `Diagnostic` with code, severity, a message that names 
 
 ## Files to Modify
 - `internal/core/diagnostic/codes.go` - one exported spelling per code in the Data Flow map
-- `internal/core/report/report.go` - a raise carries its fix (one convention, P1)
-- `internal/component/doctor/checks_recent_events.go` - draw the raise's fix
 - `internal/component/bgp/plugin/register.go` - health row on the constants; the start-refusal and SDK-run lines carry codes
 - `internal/component/bgp/reactor/session_health.go`, `internal/component/bgp/reactor/session_prefix.go`, `internal/component/bgp/reactor/peer.go` - raise under the doctor codes, with fixes
 - `internal/component/bgp/reactor/reactor.go` - publish the doctor snapshot; refusal lines carry codes
@@ -419,7 +418,7 @@ Every finding below is a `Diagnostic` with code, severity, a message that names 
 - `internal/component/bgp/reactor/reactor_address_watch.go` - publish the watch status
 - `internal/component/bgp/reactor/gtsm.go` - the Warn carries `doctor-gtsm-kernel-state`
 - `internal/component/bgp/reactor/rfc8212_warning.go` - the Warn carries `doctor-bgp-rfc8212-no-policy`
-- every other Warn/Error site under `internal/component/bgp/reactor/` the audit lists, by class: a `code` attribute, and the refusal record at the C23, C26, C31, C33, C40, C43 and C49 sites; the 12 `code` attribute collisions renamed
+- every other Warn/Error site under `internal/component/bgp/reactor/` the audit lists, by class: a `code` attribute, and the refusal record at the C23, C26, C31, C33, C40, C43 and C49 sites; the 11 `code` attribute collisions renamed (Changed-Wire Census)
 - `internal/component/bgp/config/doctor_checks.go`, `internal/component/bgp/config/register.go` - the new post-config checks and their code metadata
 - `internal/component/bgp/server/validate.go`, `internal/component/bgp/server/events.go` - C6 and C49 lines and records
 - `internal/component/bgp/redistribute/consumer.go` - C32 record and codes
@@ -475,7 +474,7 @@ Each phase is one agent of about 60 tool calls. Agents edit only; every test run
 
 | Phase | Owns | Covers | Depends on |
 |-------|------|--------|------------|
-| P1 codes and bus | `codes.go`, the `report.go` fix carriage, `checks_recent_events.go`, the eleven renames, the health row, the census readers, the `bgp-runtime` skeleton declaring the bus codes | AC-1 to AC-4, AC-7 to AC-10, AC-13 to AC-15, AC-17, `test/plugin/doctor-bgp-session-stuck.ci` | - |
+| P1 codes and bus | `codes.go`, the eleven renames with a fix on each raise, the health row, the census readers, the `bgp-runtime` skeleton declaring the bus codes | AC-1 to AC-4, AC-7 to AC-10, AC-13 to AC-15, AC-17, `test/plugin/doctor-bgp-session-stuck.ci` | `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a (the `Issue` fix field and its `recent-events` rendering) |
 | P2 runtime snapshot | `doctor_runtime.go`, the snapshot, C5, C6, C12 | AC-5, AC-11, AC-12, AC-16 | P1 |
 | P3 local checks | `bgp/config` checks for C8, C13, C14, C21, C22, C25, C27; the dynamic accept Warn | AC-18, AC-20 to AC-25, the two `test/ui` files | P1 |
 | P4 watches and listeners | C15, C16, C17, C19, C20b, C28, C30, C37, C38, C41, C44, C47, C48 | AC-26 to AC-30, AC-34, AC-35, AC-40, AC-41, AC-43, AC-46, AC-49, AC-50 | P2 |
@@ -483,8 +482,8 @@ Each phase is one agent of about 60 tool calls. Agents edit only; every test run
 | P6 remaining lines | the not-problem groups, `code` collisions, C10, C18, C20a, C50 lines, docs | AC-19, AC-52 to AC-61 | P1 to P5, and `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a (codes, transient-code registration, raise fix) |
 
 1. **Phase: Wiring** -- P1: codes, bus renames, the `bgp-runtime` registration, the stuck `.ci`
-   - Tests: `TestBGPReportCodesAreDoctorCodes`, `TestBGPHealthRowDegradesOnSessionStuck`, `TestDoctorRecentEventsDrawsRaiseFix`
-   - Files: `codes.go`, `report.go`, `checks_recent_events.go`, the three reactor raise files, the bgp plugin `register.go`
+   - Tests: `TestBGPReportCodesAreDoctorCodes`, `TestBGPHealthRowDegradesOnSessionStuck`, `TestBGPRaiseCarriesFix`
+   - Files: `codes.go`, the three reactor raise files, the bgp plugin `register.go` (the fix field in `report.go` and its rendering in `checks_recent_events.go` land first, in child 12 phase P0a)
    - Verify: the `.ci` red against the old code, green after
 2. **Phase: P2 to P6** -- as the table above, each test written first and seen red
 
@@ -522,7 +521,7 @@ Each phase is one agent of about 60 tool calls. Agents edit only; every test run
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
 ## Design Insights
-- The eleven bus codes need a rename, not a registration under their old names: a doctor code starts `doctor-`, and `RegisterDoctorCheck` refuses any other.
+- The eleven bus codes are renamed rather than registered under their old names, to keep the naming convention every BGP doctor code follows (`doctor-bgp-*`, Critical Review "Naming"). No registry forces it: `diagnostic.RegisterDoctorCheck` accepts any lower-kebab code (`validateDoctorCheckCodesReg`; `config-plugin-verify` is such a code) and `diagnostic.Register` refuses only a duplicate; the `doctor-` prefix is enforced only on a plugin's `registry.DoctorCheckDef` (`validateDoctorCheckDef`) and a Stage 1 `rpc.DoctorCheckDecl` (`validateDoctorCheckDecls`), neither of which `bgp-runtime` uses.
 - C10 is not an operator class: `parseFamiliesFromTree` refuses an unknown family before the prefix limits are parsed, so the two Warns can only be reached through a Ze defect.
 - C19 is covered by `gtsm-kernel-state`, which already reads the installed state on the daemon route; only its producer line lacked the code.
 

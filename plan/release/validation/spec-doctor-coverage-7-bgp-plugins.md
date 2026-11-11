@@ -7,10 +7,10 @@
 | Priority | P2 |
 | Release reason | Thomas's rule that `ze doctor` reports every problem an operator can hit, each with its cause and the command that fixes it (`ai/META-DECISIONS.md`, "Goal and scope"), and owner decision O-3 of the parent: every area child is release work, P2 in `plan/release/validation/`, whatever release profile its feature sits in |
 | RFC gaps | - |
-| Depends | `spec-doctor-coverage-1-audit-and-gate`: the `runtime` doctor phase, `Diagnostic.Fix` and the doctor-coverage gate (landed in commits ce58dddf53 and fc96556110), and its `doctor-recent-events` check (`internal/component/doctor/checks_recent_events.go`). `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a (the cross-cutting codes, the transient-code registration that `doctor-recent-events` reads, a raise carrying its fix) and phase P0b (the plugin-protocol report-bus raise route a forked plugin uses; it replaces the P0 raise route this spec once planned for itself). From child 12 also the codes it owns: `doctor-internal-defect`, `doctor-plugin-setup-failed`, `doctor-plugin-stopped`, `doctor-plugin-external-unsupported` and its "runs in-process only" registration field (inventory, "Shared mechanisms", item 6). `plan/release/fixes/spec-bmp-route-action-redistribute-acts-as-monitor.md` owns the BMP `route-action redistribute` row |
+| Depends | `spec-doctor-coverage-1-audit-and-gate`: the `runtime` doctor phase, `Diagnostic.Fix` and the doctor-coverage gate (landed in commits ce58dddf53 and fc96556110), and its `doctor-recent-events` check (`internal/component/doctor/checks_recent_events.go`). `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a (the cross-cutting codes, the transient-code registration that `doctor-recent-events` reads, a raise carrying its fix) and phase P0b (the plugin-protocol report-bus raise route a forked plugin uses; it replaces the P0 raise route this spec once planned for itself). From child 12 also the codes it owns (P0a: `doctor-internal-defect`, `doctor-plugin-setup-failed`, `doctor-plugin-stopped`, `doctor-plugin-external-unsupported`) and the "runs in-process only" registration field with its check (child 12 phase P4, its AC-24; inventory, "Shared mechanisms", item 6). `plan/release/validation/spec-doctor-coverage-11-hub-engine.md`: the `config-plugin-verify` declaration of its `hub-runtime` check (its AC-34, for AC-76 here) and the route field on `DoctorCheckContext` (its AC-1 and A-2, for the local halves of AC-4 and AC-25). `plan/release/validation/spec-doctor-coverage-15-system.md` AC-19 adds `doctor-bgp-irr-stale-data` to the `filter_irr` runtime check of phase P6; whichever spec lands first creates that check. `plan/release/fixes/spec-bmp-route-action-redistribute-acts-as-monitor.md` owns the BMP `route-action redistribute` row; its design deletes the warning line, so AC-85 reads that line gone only after that spec lands (a closure-only dependency) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-10 |
+| Updated | 2026-11-11 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -40,7 +40,8 @@ Every runtime check here reads the plugin's own state inside the plugin's own pr
   → Constraint: a plain Go call into a plugin's package works internal and silently reads an empty copy when the plugin runs forked; a check reaches plugin state through the protocol
   → Constraint: "A backend that cannot apply a config exactly refuses it at verify. It never approximates" (AC-34, AC-57, AC-66 refuse at verify as well as report)
 - [ ] `ai/doors/bgp-plugins.md` - the BGP plugins
-  → Constraint: "Every one can run in another process"; "A plugin declares twice, and both must agree" (`registry.Registration` and the `sdk.Registration` passed to `p.Run`), so a runtime doctor check is declared in the `sdk.Registration` the running plugin sends at Stage 1, and `./le plugin declarations check` judges the pair
+  → Constraint: "Every one can run in another process", so a runtime doctor check is declared in the `sdk.Registration` the running plugin sends at Stage 1 and answered by `OnDoctorCheck`
+  → Constraint: the door's "A plugin declares twice, and both must agree" holds for commands and pipe aliases (`./le plugin declarations check` compares only those), and NOT for doctor checks: each doctor check has exactly one declaration route since commit 149497ce12. A config-phase check is a `registry.DoctorCheckDef` (or a `diagnostic.RegisterDoctorCheck`, as `bgp-bmp-collectors` and `bgp-rpki-cache-servers` are); a live-state check is a Stage 1 `rpc.DoctorCheckDecl`. `validateDoctorCheckDef` refuses a `registry.DoctorCheckDef` in the `runtime` phase, and `refuseDoctorCheckDeclaredTwice` refuses a Stage 1 check whose name the plugin's registry row also holds
   → Constraint: "A barrier or a report is about timing, never about permission": the session-ready rows report a fence held, never a refusal
 - [ ] `ai/doors/plugin-infra.md` - SDK and process protocol
   → Constraint: "One engine-op entry per RPC" (`plugin/server/dispatch_registry.go` `engineOps`); the event-raise RPC is one entry there, built by child 12 phase P0b, and this spec adds none, with its YANG in `internal/core/ipc/yang/ze-plugin-engine.yang`
@@ -65,16 +66,21 @@ Every runtime check here reads the plugin's own state inside the plugin's own pr
   → Decision: 1b: a `runtime` registry check gets only `Platform`; a runtime check reads its owner's live state, never a config tree
 
 **Key insights:**
-- `collectPluginDoctorChecks` (`internal/component/doctor/cmd/show.go`) "calls every check a running plugin declared, whatever its phase", through `CallDoctorCheck`, internal or forked; that is the route every runtime check here takes. The local bridge `runPluginRegistryChecks` runs only `registry.DoctorCheckDef` checks of the local phases, so the config checks here register there
-- `internal/plugins/ddos/detect/register.go` is the in-tree model of a plugin carrying both: a `registry.DoctorCheckDef` (post-config, config tree) and an `sdk.Registration` `DoctorChecks` entry answered by `p.OnDoctorCheck` (runtime state)
+- `collectDoctorChecksFrom` (`internal/component/doctor/cmd/show.go`, called by `answerDaemonDoctor` under `HandleDoctor`) "calls every check a running plugin declared, whatever its phase", through `CallDoctorCheck`, internal or forked, and runs on the daemon route only; that is the route every runtime check here takes. `runPluginRegistryChecks` runs the `registry.DoctorCheckDef` checks of the config phases (a runtime one is refused at registration) in whichever process answers: the operator's own on the local route, and the daemon on the daemon route, where `doctor.Answer` runs `runChecks` too. So the config checks here register there, and each of them also runs inside the daemon on `show doctor`
+- `internal/plugins/ddos/detect/register.go` is the in-tree model of a plugin carrying both kinds, under two different check names: a `registry.DoctorCheckDef` (`ddos-detect-flow-source`, post-config, config tree) and an `sdk.Registration` `DoctorChecks` entry (`rateFeedCheckDecl`) answered by `p.OnDoctorCheck` (runtime state). One name declared on both routes is refused at Stage 1 (`refuseDoctorCheckDeclaredTwice`, commit 149497ce12), so a plugin here that has a local and a runtime half of one class carries two checks with two names
+- Stage 1 bounds a plugin's declared checks (`validateDoctorCheckDecls`, `internal/component/plugin/server/startup.go`): at most 16 checks, each with 1 to 16 codes, every code `doctor-` prefixed, the name kebab-case, the order 0 to 9999
+- A config check and a runtime check that report one fact under one code both run on `show doctor` (the config phase runs in the daemon too), so such a pair would draw two rows there; the config half answers on route `local` only, through the route field on `DoctorCheckContext` that `spec-doctor-coverage-11-hub-engine` adds (its AC-1, A-2). A bind probe run inside the daemon fails on every port the daemon itself serves (`docs/architecture/doctor-and-health-checks.md`, "The phase decides what a check may read"), which makes this mandatory for AC-25
 - `report.RaiseError` and `report.RaiseWarning` (`internal/core/report/report.go`) write the bus of the calling process. No RPC in `pkg/plugin/rpc` carries a raise (grep of `pkg/plugin/sdk` for a raise or report method finds none), so every transient class of a forked plugin is invisible to `doctor-recent-events` today. `metrics-publish` (`engineOps`, `ze-plugin-engine.yang`) is the precedent for a forked plugin publishing state the daemon keeps
 - `doctor-recent-events` draws every row as a warning whatever the event's severity ("the event already happened and its owner may have recovered"), so a transient AC below never makes the box read not ready
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/plugin/registry/doctor.go` - `DoctorCheckDef{Name, Phase, Order, Dependencies, Platforms, Codes, Check}`, `PluginDoctorChecks`; `validateDoctorCheckDef` requires the `doctor-` prefix on every code
-- [ ] `internal/component/doctor/cmd/show.go` - `HandleDoctor` runs `doctor.RunRuntimeChecks` and `collectPluginDoctorChecks`; `collectDoctorChecksFrom` calls each declared check through `doctorCheckSource.CallDoctorCheck`
+- [ ] `internal/component/plugin/registry/doctor.go` - `DoctorCheckDef{Name, Phase, Order, Dependencies, Platforms, Codes, Check}`, `PluginDoctorChecks`; `DoctorCheckContext{Tree, ConfigDir, Platform}` (no route); `validateDoctorCheckDef` requires the `doctor-` prefix on every code and refuses phase `runtime` ("declare it in the sdk.Registration DoctorChecks and answer it with OnDoctorCheck", commit 149497ce12)
+- [ ] `internal/component/doctor/cmd/show.go` - `HandleDoctor` calls `answerDaemonDoctor`, which runs `doctor.Answer` (the config phases, compiled-in plugin `registry.DoctorCheckDef` checks included) with a runtime step of `doctor.RunRuntimeChecks` then `collectDoctorChecksFrom`; `collectDoctorChecksFrom` calls each Stage 1 declared check through `doctorCheckSource.CallDoctorCheck`, skipping the calling plugin, under `perCheckTimeout` (5 s) and `maxDiagnosticsPerCheck` (64)
+- [ ] `internal/component/plugin/server/startup.go` - Stage 1: `validateDoctorCheckDecls` (bounds above) and `refuseDoctorCheckDeclaredTwice` (a Stage 1 check whose name the plugin's registry row holds is refused)
+- [ ] `internal/component/bgp/plugins/bmp/bmp_locrib.go` - a Loc-RIB Route Monitoring write that fails toward a collector logs Warn and raises an error event on the bus, both under the generic `doctor-recent-events` code (commit eb3efdecee)
+- [ ] `internal/component/bgp/plugins/rs/worker.go` - `workerPool.backpressure` is clear-on-read (`BackpressureDetected`, dispatch polling); `workerPool.inBackpressure` holds the keys in backpressure now, cleared at the 10% low-water mark
 - [ ] `pkg/plugin/sdk/sdk_callbacks.go` - `OnDoctorCheck(DoctorCheckHandler)` answers `ze-plugin-callback:doctor-check`
 - [ ] `pkg/plugin/rpc/types.go` - `DoctorCheckDecl{Name, Phase, Order, Dependencies, Platforms, Codes}`; `DoctorPhaseRuntime` "run only on the daemon route"
 - [ ] `internal/plugins/ddos/detect/register.go` - the model above (`OnDoctorCheck`, `sdk.Registration.DoctorChecks`)
@@ -113,8 +119,8 @@ The A6 and A7 slice rows (`tmp/session/2026-11-09-223019/scratch/audit/A6-bgp-pl
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
 | Existing BGP plugin checks | `bmp/doctor.go` `bmpDoctorCheck`; `role/register.go` `bgp-peer-no-role`; `rpki/doctor.go` `bgp-rpki-cache-servers` | Config-tree checks with a host probe | extends: kept as they are; AC-28 adds the per-collector runtime half beside `doctor-bmp-unreachable`, AC-64 the RTR session half beside `doctor-rpki-unreachable` |
-| Plugin doctor declaration, local | `internal/component/plugin/registry/doctor.go` `DoctorCheckDef`; bridged by `internal/component/doctor/checks_plugin_registry.go` `runPluginRegistryChecks` | Config checks a plugin declares, run on the local route | extends: every local AC registers here in its plugin's `register.go` |
-| Plugin doctor declaration, runtime | `pkg/plugin/rpc/types.go` `DoctorCheckDecl` with `DoctorPhaseRuntime`; `pkg/plugin/sdk/sdk_callbacks.go` `OnDoctorCheck`; called by `collectPluginDoctorChecks` | A running plugin answers its own checks over the protocol, internal or forked; used by `ddos-detect` | extends: every runtime AC is a check of this kind in its owning plugin. This is the "command" route the brief requires, so no daemon-side Go call reads plugin state |
+| Plugin doctor declaration, local | `internal/component/plugin/registry/doctor.go` `DoctorCheckDef`; bridged by `internal/component/doctor/checks_plugin_registry.go` `runPluginRegistryChecks`; or `diagnostic.RegisterDoctorCheck` from the plugin's `register.go`, as `bgp-bmp-collectors` and `bgp-rpki-cache-servers` are | Config-phase checks a compiled-in plugin declares, run in whichever process answers (local route, and the daemon route through `doctor.Answer`); a `runtime` `DoctorCheckDef` is refused | extends: every local AC registers here in its plugin's `register.go`; a local half that must not answer on the daemon route registers through `diagnostic.RegisterDoctorCheck`, whose context carries child 11's route field, because `registry.DoctorCheckContext` carries none |
+| Plugin doctor declaration, runtime | `pkg/plugin/rpc/types.go` `DoctorCheckDecl` with `DoctorPhaseRuntime`; `pkg/plugin/sdk/sdk_callbacks.go` `OnDoctorCheck`; called by `collectDoctorChecksFrom` | A running plugin answers its own checks over the protocol, internal or forked; used by `ddos-detect`; the only route a plugin runtime check may take (149497ce12) | extends: every runtime AC is a check of this kind in its owning plugin, under a name its registry row does not hold. This is the "command" route the brief requires, so no daemon-side Go call reads plugin state |
 | Doctor runtime phase and fix field | parent spec P1a; `Diagnostic.Fix`, `DoctorCheckDiagnostic` `fix` | Daemon-only phase; fix command on its own line | extends: every finding sets `fix` |
 | Report bus and recent events | `internal/core/report/report.go` `RaiseError`, `RaiseWarning`; `internal/component/doctor/checks_recent_events.go` `checkRecentEvents` | Coded events of the calling process; one `runtime` row per recent event | extends: every transient AC raises its event under its code; child 12 phase P0b carries a forked plugin's raise to the daemon's bus, and each transient code is registered through child 12 phase P0a's transient-code registration, which `doctor-recent-events` reads (parent amendment 2a) |
 | Plugin-to-engine RPC table | `internal/component/plugin/server/dispatch_registry.go` `engineOps`; `internal/core/ipc/yang/ze-plugin-engine.yang`; precedent `metrics-publish` | One entry per plugin-to-engine RPC; JSON, direct and typed paths derived from it | uses: child 12 phase P0b adds the one coded-event raise entry; this spec adds none and calls it |
@@ -133,8 +139,8 @@ The A6 and A7 slice rows (`tmp/session/2026-11-09-223019/scratch/audit/A6-bgp-pl
 - `show doctor` on SSH, MCP, REST, gRPC and web; `ze doctor` locally (asks the daemon, parent O-1); `ze doctor config <file>` for the local checks
 
 ### Transformation Path
-1. Local checks (config tree): `runPluginRegistryChecks` runs each plugin's `registry.DoctorCheckDef` at `post-config`; the check walks the tree and returns findings with code, severity, message and fix
-2. Runtime checks (plugin state): `HandleDoctor` runs `collectPluginDoctorChecks`; the plugin server sends `ze-plugin-callback:doctor-check` to the running plugin; the plugin's `OnDoctorCheck` handler reads its own state in its own process and answers `DoctorCheckDiagnostic` rows
+1. Local checks (config tree): `runPluginRegistryChecks` runs each plugin's `registry.DoctorCheckDef` at `post-config`, in the operator's process on the local route and in the daemon on the daemon route (`doctor.Answer`); the check walks the tree and returns findings with code, severity, message and fix
+2. Runtime checks (plugin state): `HandleDoctor` runs `collectDoctorChecksFrom` (through `answerDaemonDoctor`); the plugin server sends `ze-plugin-callback:doctor-check` to the running plugin; the plugin's `OnDoctorCheck` handler reads its own state in its own process and answers `DoctorCheckDiagnostic` rows
 3. Transient classes: at the failure site the plugin logs the line with its `code` attribute and raises the event through the SDK method of child 12 phase P0b; internal, the raise reaches the daemon's bus through the direct path of the engine op; forked, it is one `ze-plugin-engine:` RPC answered by the same engine op, which raises on the daemon's bus with the plugin's name as source; `doctor-recent-events` renders it under its code
 4. `doctor.Answer` merges and draws every row with its fix line
 
@@ -179,11 +185,11 @@ The A6 and A7 slice rows (`tmp/session/2026-11-09-223019/scratch/audit/A6-bgp-pl
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | A runtime check declared in `sdk.Registration.DoctorChecks` with phase `runtime` and answered by `OnDoctorCheck` runs on `show doctor` for an internal and a forked plugin alike | `collectPluginDoctorChecks` comment: "It calls every check a running plugin declared, whatever its phase"; `ddos-detect` declares one | the runtime ACs need another route | `TestBGPPluginRuntimeChecksAnswerBothTransports` and `./le mock plugin-external bgp-rib` in P1 | unvalidated |
-| A-2 | No plugin in this area raises on the report bus today | A6 slice: "none of these packages raises on the report bus" | an existing code needs registering | grep of `report.Raise` under `internal/component/bgp/plugins/` in P1 | unvalidated |
+| A-1 | A runtime check declared in `sdk.Registration.DoctorChecks` with phase `runtime` and answered by `OnDoctorCheck` runs on `show doctor` for an internal and a forked plugin alike | `collectDoctorChecksFrom` comment: "It calls every check a running plugin declared, whatever its phase"; `ddos-detect` declares one; since 149497ce12 it is the only route for a plugin runtime check | the runtime ACs need another route | `TestBGPPluginRuntimeChecksAnswerBothTransports` and `./le mock plugin-external bgp-rib` in P1 | unvalidated |
+| A-2 | One plugin in this area raises on the report bus today: bmp's Loc-RIB collector write failure (`bmp_locrib.go`, commit eb3efdecee), under the generic `doctor-recent-events` code; the A6 slice ("none of these packages raises on the report bus") predates it | grep of `report.Raise` under `internal/component/bgp/plugins/` on 2026-11-11: that one site | another raise exists that P4 must recode | the same grep in P1 | unvalidated |
 | A-3 | The verify paths do not already refuse the invalid forms of AC-34 (IRR `as-set`), AC-57 (watchdog), AC-66 (role) | the slices found the forms logged at apply | the refusal half of that AC is already met; its test asserts the existing refusal | a commit test per form in P6, P8, P9 | unvalidated |
 | A-4 | Each fix command named in an AC exists in the YANG schema or the command registry with the words used | the slices name config paths; this spec does not invent commands | a fix line names a command that fails | each check's unit test asserts the fix text, and the implementer resolves each path against the YANG before writing it | unvalidated |
-| A-5 | The route-action redistribute row is answered by its own fix spec | `plan/release/fixes/spec-bmp-route-action-redistribute-acts-as-monitor.md` (design, P1) | the Warn line in `applyReceiverConfig` stays uncovered | AC-79 lists that line; whichever lands second removes or codes it | unvalidated |
+| A-5 | The route-action redistribute row is answered by its own fix spec, whose design deletes the Warn line and the `RouteAction` field | `plan/release/fixes/spec-bmp-route-action-redistribute-acts-as-monitor.md` (design, P1; its A-1 waits on the owner's answer to its Q-1) | the Warn line in `applyReceiverConfig` stays, uncovered, and AC-85 cannot read covered | AC-79 lists that line; this spec closes only after that spec lands | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -200,7 +206,7 @@ The A6 and A7 slice rows (`tmp/session/2026-11-09-223019/scratch/audit/A6-bgp-pl
 |----------|--------|
 | What breaks if this is wrong? | a doctor row missing or false; a verify refusal on a config that used to be accepted (AC-34, AC-57, AC-66). No route handling changes |
 | How is it reverted? | single commit revert per phase |
-| Who else touches this path? `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` (P0a shared codes and transient-code registration, P0b raise route), the bgp-engine child (grant predicate, OPEN refusals), `spec-bmp-route-action-redistribute-acts-as-monitor` |
+| Who else touches this path? | `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` (P0a shared codes and transient-code registration, P0b raise route, P4 in-process field), the bgp-engine child `spec-doctor-coverage-6-bgp-engine` (grant predicate, OPEN refusals; its AC-25 plans a local check `doctor-bgp-route-server-not-attached` for the same fast-path grant condition as AC-16 here, inventory A5 C27 beside the A6 grants row), `spec-doctor-coverage-11-hub-engine` (route field, `config-plugin-verify`), `spec-doctor-coverage-15-system` (filter_irr stale row), `spec-bmp-route-action-redistribute-acts-as-monitor` |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -213,11 +219,11 @@ The A6 and A7 slice rows (`tmp/session/2026-11-09-223019/scratch/audit/A6-bgp-pl
 | `ze doctor config <file>` with an invalid IRR `as-set` and an invalid role | → | filter_irr and role local checks | `test/ui/doctor-bgp-plugins-config.ci` |
 | `show doctor` with an RPKI cache refusing RTR | → | rpki runtime check, AC-64 | `test/plugin/doctor-rpki-cache-down.ci` |
 | `show doctor` with a failing healthcheck probe | → | healthcheck runtime check, AC-51 | `test/plugin/doctor-bgp-healthcheck-down.ci` |
-| each plugin's declarations | → | `sdk.Registration.DoctorChecks` and `registry.Registration.DoctorChecks` agree | `TestBGPPluginRuntimeChecksAnswerBothTransports`, `./le plugin declarations check` |
+| each plugin's declarations | → | every doctor check declared on one route only: a config check in `registry.Registration.DoctorChecks` (or `diagnostic.RegisterDoctorCheck`), a live-state check in the Stage 1 `sdk.Registration.DoctorChecks`, so Stage 1 (`validateDoctorCheckDecls`, `refuseDoctorCheckDeclaredTwice`) accepts the plugin | `TestBGPPluginRuntimeChecksAnswerBothTransports` (the plugin starts on both transports and answers its checks) |
 
 ## Acceptance Criteria
 
-Each row names what doctor reports (finding, severity, code, fix), the state it reads, and the route: `local` is a `registry.DoctorCheckDef` at `post-config` over the config tree; `runtime` is a `runtime` check the plugin answers through `OnDoctorCheck`; `recent event` is a raise under the code through child 12 phase P0b's route, rendered by `doctor-recent-events` as a warning row, the code registered through child 12 phase P0a's transient-code registration that `doctor-recent-events` reads. Every code is registered in `internal/core/diagnostic/codes.go`. Every fix is the command alone on its own line.
+Each row names what doctor reports (finding, severity, code, fix), the state it reads, and the route: `local` is a `registry.DoctorCheckDef` at `post-config` over the config tree (it runs on both routes); `runtime` is a `runtime` check the plugin declares at Stage 1 and answers through `OnDoctorCheck`, under a check name its registry row does not hold; where a row has a local and a runtime half under one code, the local half answers on route `local` only (Key insights); `recent event` is a raise under the code through child 12 phase P0b's route, rendered by `doctor-recent-events` as a warning row, the code registered through child 12 phase P0a's transient-code registration that `doctor-recent-events` reads. Every code is registered in `internal/core/diagnostic/codes.go`. Every fix is the command alone on its own line.
 
 ### Shared mechanisms (phase P0)
 
@@ -231,7 +237,7 @@ Each row names what doctor reports (finding, severity, code, fix), the state it 
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
-| AC-4 | A peer's configured or negotiated family has no registered NLRI splitter (`nlrisplit.Get`, `Supported`) | `doctor-bgp-family-unstorable`, warning, names peer and family and what is lost (not stored, selected, shown, re-sent); local from the config `family` list, runtime from `RIBManager.unstorableFamilies`; fix names the plugin that provides the family's codec, or removing the family from the peer | a family a running plugin registers at Stage 1 is storable and not reported |
+| AC-4 | A peer's configured or negotiated family has no registered NLRI splitter (`nlrisplit.Get`, `Supported`) | `doctor-bgp-family-unstorable`, warning, names peer and family and what is lost (not stored, selected, shown, re-sent); local from the config `family` list (route `local` only), runtime from `RIBManager.unstorableFamilies` (`rib/rib_unstorable.go`); fix names the plugin that provides the family's codec, or removing the family from the peer | a family a running plugin registers at Stage 1 is storable and not reported |
 | AC-5 | The store cannot split a received NLRI section (`adj_rib_in/rib_complex.go`, `rib/rib.go`, `rib/rib_validation.go`, `rs/server_inventory.go`) | recent event `doctor-bgp-nlri-unsplittable` naming peer and family; the runtime check answers the per-peer last split failure and count until the peer resets | none |
 | AC-6 | `AdjRIBInManager.terminal` set by `failValidationOwner` | `doctor-bgp-adj-rib-in-stopped`, error: the receive store refuses every route until restart; runtime; fix names the daemon restart command | none |
 | AC-7 | `sweepExpiredPending` promotes routes to NotValidated after the validation timeout | `doctor-bgp-validation-timeout`, warning, with per-peer promotion count and last time, kept in adj_rib_in; runtime; fix names the RPKI show command and the cache config | a promotion older than the record's window (one hour) is not reported |
@@ -255,14 +261,14 @@ Each row names what doctor reports (finding, severity, code, fix), the state it 
 | AC-20 | A validation change not relayed to a target (`rr/validation.go`, `rs/server_validation.go`) | recent event `doctor-bgp-validation-relay-failed` naming target and prefix count | none |
 | AC-21 | A FlowSpec rule relayed before its UPDATE, or dropped because its source went down first (`rs/server_validation.go`) | recent event `doctor-bgp-rs-flowspec-out-of-order` naming source peer | none |
 | AC-22 | An UPDATE forward discarded: no destination matched, or the source is down (`rs/server_forward.go`, `rs/server_withdrawal.go`) | recent event `doctor-bgp-rs-forward-discarded`; a discarded withdrawal is raised as an error event, a discarded announcement as a warning | none |
-| AC-23 | `routeServer.pausedPeers` holds a source, or `workerPool.backpressure` is above its high-water mark (`rs/worker.go`) | `doctor-bgp-rs-source-paused`, warning, naming the source and how long it has been paused; runtime | a pause shorter than one second is not reported, because backpressure that drains is normal |
+| AC-23 | `routeServer.pausedPeers` holds a source, or `workerPool.inBackpressure` holds its key (`rs/worker.go`; the check never reads `workerPool.backpressure`, which `BackpressureDetected` clears on read for dispatch) | `doctor-bgp-rs-source-paused`, warning, naming the source and how long it has been paused; runtime | a pause shorter than one second is not reported, because backpressure that drains is normal |
 | AC-24 | A withdrawal inventory not updated (records not extracted, unknown encoding context, VPN path id or identity rejected; `rs/server_withdrawal.go`, `rs/server_inventory.go`, `rr/withdrawal.go`) | recent event `doctor-bgp-withdrawal-untracked`, error event: clients may keep stale routes; fix names the source peer reset command | none |
 
 ### BMP (`bmp`)
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
-| AC-25 | A configured receiver address not bound, or its accept loop ended (`receiver.go` `startListenerLocked`, `acceptLoop`) | `doctor-bmp-receiver-not-listening`, error, naming address and the bind error; runtime from a listener record kept beside `BMPPlugin.listeners`; locally a port probe on the configured addresses with the same code | a listener closed by a reload (`listenerIsCurrent` false) is not reported |
+| AC-25 | A configured receiver address not bound, or its accept loop ended (`receiver.go` `startListenerLocked`, `acceptLoop`) | `doctor-bmp-receiver-not-listening`, error, naming address and the bind error; runtime from a listener record kept beside `BMPPlugin.listeners`; on route `local` only, a port probe on the configured addresses with the same code (on the daemon route the bind fails on every address bmp serves, so the probe never judges there) | a listener closed by a reload (`listenerIsCurrent` false) is not reported |
 | AC-26 | Active sessions at `max-sessions` and a router refused | `doctor-bmp-receiver-full`, warning, naming address, cap and refused count; runtime; fix names `max-sessions` | none |
 | AC-27 | A monitored router sends malformed BMP, or a monitored UPDATE is too short (`bmp/bmp.go`, `rib/rib_inject.go`) | recent event `doctor-bmp-malformed-message` naming router and what was malformed | none |
 | AC-28 | A configured collector whose session is not up (connect or Initiation failed, retried with backoff; `bmp/sender.go`) | `doctor-bmp-collector-down`, warning per collector, from the sender session state in the plugin's process; runtime | `doctor-bmp-unreachable` stays the local probe; a collector in its first connect attempt is not reported |
@@ -358,16 +364,16 @@ Each row names what doctor reports (finding, severity, code, fix), the state it 
 | AC-73 | A6 engine-to-plugin event refused, 50 sites (`adj_rib_in/rib.go`, `adj_rib_in/rib_gate_events.go`, `rib/rib.go`, `rib/rib_structured.go`, `rib/rib_validation.go`, `rib/rib_event_sdk.go`, `rr/rr.go`, `rs/server.go`, `rs/server_handlers.go`) | each line carries `doctor-internal-defect` and raises it as a recent event | none |
 | AC-74 | A6 self-reported defects, 11 sites (`adj_rib_in/rib_eligibility.go`, `rib/rib_bestchange.go`, `rib/rib_event_sdk.go`, `rib/rib_inject.go`, `rib/rib_pipeline_best.go`, `rib/rib_sent_lifecycle.go`, `rr/withdrawal.go`, `rs/worker.go`) | `doctor-internal-defect`, raised as a recent event | none |
 | AC-75 | A6 registration failures at init, 5 sites (`adj_rib_in/register.go`, `bmp/register.go`, `rib/rib_commands_community.go`, `rib/rib_inject.go`) | `doctor-plugin-setup-failed` | the three `os.Exit` sites reach stderr only, before any doctor runs: they carry the code for the gate and raise nothing |
-| AC-76 | Config refusals answered to the committer: 4 A6 sites (`bmp/bmp.go`) and 1 A7 site (`watchdog/config_tx.go`) | carry `config-plugin-verify` under the doctor code the config-yang area child registers for refusals answered to the committer | none |
+| AC-76 | Config refusals answered to the committer: 4 A6 sites (`bmp/bmp.go`) and 1 A7 site (`watchdog/config_tx.go`) | each line carries `config-plugin-verify` as its `code`, the code of a plugin's config verify refusal that `spec-doctor-coverage-11-hub-engine`'s `hub-runtime` check declares (its AC-34) | none |
 | AC-77 | A6 shutdown race, 2 sites (`rs/server.go`) | `doctor-internal-defect` | none |
 | AC-78 | A6 benign notes, 2 sites (`rib/rib_replay.go` duplicate replay suppressed, `adj_rib_in/rib_validation.go` early verdict expired) | logged at Info: nothing is wrong and no operator action changes them | none: `doctor-bgp-rib-note` (CODES.md) is not registered, because a code for a non-problem would put a healthy box in doctor |
-| AC-79 | A7 registration failures, 27 sites (every `register.go` line, `gr/register.go`, `rpki/register.go`, `nlri/flowspec/register.go`, `nlri/srpolicy/register.go`); every plugin's SDK-run failure line (`rr/rr.go`, `aigp/aigp.go`, `gr/gr.go`, `rpki/rpki.go`, `epe/epe_plugin.go`, `ls_export/export_plugin.go`, `bmp/bmp.go`, `rib/rib.go`, `adj_rib_in/rib.go` and the rest of B1); the `route-action redistribute` line in `bmp/receiver.go` until its spec lands | the 23 plugin registrations carry `doctor-plugin-missing`, the 4 auxiliary ones `doctor-plugin-setup-failed`, the run-failure lines `doctor-plugin-stopped`, the redistribute line its fix spec's code | none |
+| AC-79 | A7 registration failures, 27 sites (every `register.go` line, `gr/register.go`, `rpki/register.go`, `nlri/flowspec/register.go`, `nlri/srpolicy/register.go`); every plugin's SDK-run failure line (`rr/rr.go`, `aigp/aigp.go`, `gr/gr.go`, `rpki/rpki.go`, `epe/epe_plugin.go`, `ls_export/export_plugin.go`, `bmp/bmp.go`, `rib/rib.go`, `adj_rib_in/rib.go` and the rest of B1); the `route-action redistribute` line in `bmp/receiver.go` | the 23 plugin registrations carry `doctor-plugin-missing` (declared by the existing plugin-infra check, `internal/component/plugin/doctor/register.go`), the 4 auxiliary ones `doctor-plugin-setup-failed`, the run-failure lines `doctor-plugin-stopped`; the redistribute line is deleted by `spec-bmp-route-action-redistribute-acts-as-monitor` (A-5), so this spec gives it no code | none |
 | AC-80 | A7 engine-contract invariants, 23 sites (`filter_community/handler.go`, `filter_irr/filter_irr.go`, `gr/gr.go`, `gr/gr_egress.go`, `gr/gr_capability.go`, `hostname/hostname.go`, `llnh/llnh.go`, `softver/softver.go`, `role/config.go`, `role/otc.go`, `role/removal.go`, `role/role.go`, `rpki/rpki.go`, `rpki/validate.go`) | `doctor-internal-defect`, raised as a recent event | none |
 | AC-81 | A7 clamps behind YANG bounds, 4 sites (`gr/gr_capability.go`, `gr/gr_llgr.go`, `hostname/hostname.go`) | `doctor-internal-defect` | none |
 | AC-82 | A7 RTR panic-guard follow-ups, 4 sites (`rpki/panic_guard.go`) | `doctor-internal-defect`, raised as a recent event | none |
 | AC-83 | A7 RPKI log-only policy output, 3 sites (`rpki/rpki.go`) | logged at Info: it is the audit trail the operator chose with `log-only` | none: `doctor-rpki-log-only-retained` is not registered, for the reason of AC-78 |
 | AC-84 | A7 outcomes reported to the caller: withdraw withheld (`cmd/announce/registry.go`), EPE teardown at stop (`epe/epe_plugin.go`) | the withdraw-withheld line at Info (the command succeeded); the EPE stop line `doctor-internal-defect` | none: `doctor-bgp-withdraw-withheld` is not registered, for the reason of AC-78 |
-| AC-85 | `./le arch doctor-coverage report` after phase P10 | lists every Warn and Error site under `internal/component/bgp/plugins/` as covered, each with the code an AC above names | none |
+| AC-85 | `./le arch doctor-coverage report` after phase P10 and after `spec-bmp-route-action-redistribute-acts-as-monitor` has landed (A-5) | lists every Warn and Error site under `internal/component/bgp/plugins/` as covered, each with the code an AC above names | none |
 
 ## End-to-End User Stories
 
@@ -384,7 +390,7 @@ Each row names what doctor reports (finding, severity, code, fix), the state it 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | the first transient AC's raise test (the route itself is tested by child 12 AC-4) | the raising plugin's package | AC-1, both transports | |
-| `TestEngineOpRaiseSetsPluginSource` | `internal/component/plugin/server/dispatch_raise_test.go` | AC-1: source is the authenticated name | |
+| none here: the authenticated-source assertion is child 12's `TestReportRaiseRouteBothTransports` (`internal/component/plugin/server/dispatch_report_test.go`, its AC-4) | child 12 | AC-1 relies on it | |
 | `TestBGPPluginCodesRegistered` | `internal/core/diagnostic/codes_test.go` | AC-2 | |
 | `TestRTRErrorReportLogAttributes` | `internal/component/bgp/plugins/rpki/rtr_session_test.go` | AC-3 | |
 | `TestBGPPluginRuntimeChecksAnswerBothTransports` | the `doctor_test.go` of each plugin with a runtime check | A-1, AC-71 | |
@@ -437,17 +443,16 @@ Each row names what doctor reports (finding, severity, code, fix), the state it 
 - `internal/component/bgp/plugins/healthcheck/`, `watchdog/` (P8)
 - `internal/component/bgp/plugins/role/`, `rpki/`, `rpki_decorator/` (P9)
 - every remaining file the AC-73 to AC-84 groups name (P10)
-- `docs/architecture/doctor-and-health-checks.md`, `docs/architecture/api/process-protocol.md`, `docs/plugin-development/` (raise method), `docs/guide/bmp.md`
+- `docs/architecture/doctor-and-health-checks.md`, `docs/guide/bmp.md` (the raise method's pages, `docs/architecture/api/process-protocol.md` and `docs/plugin-development/`, are child 12 phase P0b's)
 
 ## Files to Create
 - `internal/component/bgp/plugins/<plugin>/doctor.go` (+ `doctor_test.go`) for each plugin that has none
-- `pkg/plugin/sdk/sdk_raise.go` (+ test)
-- the seven `.ci` files in the Functional Tests table
+- the six `.ci` files this spec owns in the Functional Tests table (the raise route's `.ci` is child 12's)
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | Yes | `ze-plugin-engine.yang` raise RPC; `ze-bmp-conf.yang` description text |
+| YANG schema (new RPCs/config) | Yes | `ze-bmp-conf.yang` description text; the `ze-plugin-engine.yang` raise RPC is child 12 phase P0b's |
 | YANG validation constraints | N-A | no new leaf |
 | YANG custom validators | N-A | the verify refusals (AC-34, AC-57, AC-66) live in each plugin's config verify |
 | CLI commands/flags | N-A | no new command; fixes name existing ones |
@@ -466,11 +471,11 @@ Each row names what doctor reports (finding, severity, code, fix), the state it 
 | 1 | New user-facing feature, or a feature's scope, evidence or level changed? | No | doctor coverage grows; no feature file states doctor coverage per plugin |
 | 2 | Config syntax changed? | No | refusals of already-invalid forms; syntax unchanged |
 | 3 | CLI command added/changed? | No | - |
-| 4 | API/RPC added/changed? | Yes | `docs/architecture/api/process-protocol.md` (raise RPC) |
+| 4 | API/RPC added/changed? | No | this spec adds no RPC; the raise RPC and its `process-protocol.md` section are child 12 phase P0b's |
 | 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md` if it lists doctor checks per plugin; checked in P10 |
 | 6 | Has a user guide page? | Yes | `docs/guide/bmp.md` (statistics-timeout, AC-69) |
 | 7 | Wire format changed? | No | - |
-| 8 | Plugin SDK/protocol changed? | Yes | `docs/plugin-development/` raise method; `process-protocol.md` |
+| 8 | Plugin SDK/protocol changed? | No | the SDK raise method is child 12 phase P0b's; this spec only calls it and declares Stage 1 doctor checks in an existing field |
 | 9 | RFC behavior implemented, changed, or newly proven? | No | - |
 | 10 | Test infrastructure changed? | No | - |
 | 11 | Affects daemon comparison? | No | - |
@@ -492,12 +497,12 @@ Phases are cut for one agent of about 60 tool calls each. Child 12 phases P0a an
 2. **Phase P1: wiring** -- each plugin with a runtime AC declares its runtime check in its `sdk.Registration` and answers it with `OnDoctorCheck`, empty at first
    - Tests: `TestBGPPluginRuntimeChecksAnswerBothTransports`, `test/plugin/doctor-bgp-rib-runtime.ci` (red until P2)
    - Files: the runners of rib, adj_rib_in, rs, rr, bmp, cmd/commit, ls_export, filter_family, filter_irr, gr, healthcheck, role, rpki
-   - Verify: `./le plugin declarations check` clean; each check reachable internal and forked
+   - Verify: each plugin's Stage 1 registration accepted (no `validateDoctorCheckDecls` or `refuseDoctorCheckDeclaredTwice` refusal: every runtime check name differs from the names in the plugin's registry row); each check reachable internal and forked. `./le plugin declarations check` judges commands and pipe aliases only, so it proves nothing about doctor checks
 3. **Phase P2: RIB and Adj-RIB-In** -- AC-4 to AC-13, the per-peer split and promotion records
 4. **Phase P3: route server and reflector** -- AC-14 to AC-24, the per-peer replay record, the shared grant predicate, AC-68
 5. **Phase P4: BMP** -- AC-25 to AC-33, listener and collector records, AC-69
-6. **Phase P5: announce, commit, EPE, BGP-LS export, filter-family** -- AC-35, AC-37 to AC-41 (AC-38 once plugin-infra's in-process field exists)
-7. **Phase P6: IRR, modify, community filters** -- AC-34, AC-36, AC-42 to AC-45
+6. **Phase P5: announce, commit, EPE, BGP-LS export, filter-family** -- AC-35, AC-37 to AC-41 (AC-38 once child 12 phase P4's in-process field, its AC-24, exists)
+7. **Phase P6: IRR, modify, community filters** -- AC-34, AC-36, AC-42 to AC-45. `filter_irr` carries two checks: a config check (AC-34, AC-36) and a runtime check (AC-42, AC-43) that `spec-doctor-coverage-15-system` AC-19 joins with `doctor-bgp-irr-stale-data`; whichever spec lands first creates the runtime check
 8. **Phase P7: GR** -- AC-46 to AC-50
 9. **Phase P8: healthcheck and watchdog** -- AC-51 to AC-57
 10. **Phase P9: role and RPKI** -- AC-58 to AC-67
