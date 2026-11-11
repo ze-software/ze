@@ -4185,3 +4185,43 @@ lenses below and found no security regression: 0 BLOCKER, 0 ISSUE, 12 NOTE.
   `OneCICommand`; it is the operator's own operand, and docker-lab already runs
   arbitrary shell. Add a check refusing a `Slice()` of a stack Buffer that
   outlives its frame.
+
+## Review Gate round 2: the OPEN observables walked (2026-11-11)
+
+These walks cover the observables the completed status lines marked OPEN. Five
+needed a carrier, written for this round: `TestBgpUnknownVerbRefusalNamesIt`,
+`TestNegativeOrphanPeerBlockRefusalNamesIt`,
+`TestHeadlessDeclaredTimerIsNotWaitedInline`,
+`TestWebSuiteMissingBrowserFollowsVerifyMode` and `TestCompareHasNoJSONFormat`.
+Each walk broke the producer, and every carrier passed again on the restored
+bytes. The rfc/ data walks broke the file in place, because their carriers read
+it from disk. Every other walk overlaid the Go source.
+
+| P | Observable | Carrier | Break | Red |
+| --- | --- | --- | --- | --- |
+| P-1 | the unknown suite verb is named | `TestBgpUnknownVerbRefusalNamesIt` (new, `internal/test/cli`) | `cmd_bgp.go` refusal drops the verb | "refusal ... does not name the unknown verb" |
+| P-1 | help is not a refusal | `TestBgpHelpSucceeds` | help branch skipped | "help [--help] returned 1" |
+| P-1 | a positive orphan peer block is named | `TestUnusedPeerBlockRefused` (`internal/test/runner`) | `peer_contract.go` drops the block name | the require.Contains on `stdin=peer block has no peer consumer` |
+| P-1 | a negative orphan peer block is named | `TestNegativeOrphanPeerBlockRefusalNamesIt` (new) | the reject refusal names `<block>` | the require on `stdin=peer block line` |
+| P-2 | the declared height reaches the screen | `TestETDimensionsReachScreens/height` | `runner.go` forces height 24 | "initial: rendered 24 rows, want 37" |
+| P-2 | a declared timer is not waited inline (tick cost) | `TestHeadlessDeclaredTimerIsNotWaitedInline` (new) | `headless.go` `processMsg` waits the tick synchronously | "the keypress must leave its validation timer pending, not waited inline" |
+| P-15 | the missing-browser skip follows verify mode | `TestWebSuiteMissingBrowserFollowsVerifyMode` (new) | `webBrowserMissing(false)` | "verify mode skipped the web suite without agent-browser" |
+| P-20 | an unrecorded pass is named | `TestComparisonUnrecordedPassIsNamed` | the name returns empty | `no ze row carries pass "not recorded"` |
+| P-20 | HTML validates raw input | `TestComparisonRefusesLossBeforeSelection/html` | `ValidateResults(nil)` | "lossy raw row was ranked" |
+| P-20 | the performance doc validates raw input | same, `doc` | same, in `perfdoc.go` | "lossy raw row was ranked" |
+| P-20 | a stdout failure propagates | `TestReportCommandsPropagateStdoutFailure` | the HTML error returns 0 | "compare --html exit = 0, want 1" |
+| P-20 | compare has no JSON format | `TestCompareHasNoJSONFormat` (new) | a `--json` flag registered | "--json exit = 0, want non-zero" |
+| P-20 | raw JSON keeps loss evidence | `TestJSONResult` | `RoutesLost` tag `json:"-"` | "round-trip mismatch" |
+| P-20 | raw NDJSON keeps loss evidence | `TestRawLossDiagnosticRoundTrip` | same | "loss diagnostic erased" |
+| P-23 | the reader reaches the published page | `TestNotEnrolledWriterReaderAgreement` | `render_ledger.go` drops rows not enrolled | "publication omitted the source-restricted ISO document" |
+| P-25 | ASPA-profile, 4506, 7519 and 1008 accounting | `TestOwnedDocumentDisposition/{draft-ietf-sidrops-aspa-profile,rfc4506,rfc7519,rfc1008}` | each correction's `Retired` line becomes `Noted` (in place) | "native retirement reader lost correction provenance for <id>", one per document |
+| P-25 | RFC 7383 optional debt kept | same, `rfc7383` | the `RFC7383-2.4-2` row deleted (in place) | "retired RFC7296 fragmentation recommendation was not retained in RFC7383" |
+| P-36 | a foreign silent holder is never signalled | `TestAStalledHolderIsBrokenOnItsSilence` | `reportBusy` SIGKILLs the holder after measuring its silence | "waiter never reported two observations of \"has not grown for\"". The killed holder ends the silence the waiter reports, so the assertion before the kill check fires first |
+| P-37 | a preserved backup is not selected | `TestLintInputGuardMatchesProducer` | `goList` adds `tmp/session/*/scratch/*.go` | "producer selected preserved backup tmp/session/2026-11-10-120000/scratch/probe.go" |
+| P-37 | a preserved backup is not deleted | same | `RemoveAll(tmp/session)` before capture | "preserved backup ... is gone" |
+| P-41 | no RFC7084 row reports no-rfc-text | `TestQuoteBackfillRealCorpusHasNothingLeft` | `SourceText` answers not-found for rfc7084 | "RFC7084-4.1-1 is not verbatim in its section (no-rfc-text ...)" |
+
+P-13's poster stability is not walked. `TestWebConfigPosterUsesAuthoredInputs`
+fails at HEAD, alone and every time: "recorded-config-save.wb ... action click:
+browser requests did not settle". The fault is this spec's own `7b5d645b94`
+HTMX settle wait, and it is being fixed.
