@@ -175,6 +175,13 @@ reader keys the unit by the directory, so such a row would be written and never
 matched, and the refusal names the directory key to record instead.
 <!-- source: internal/le/rfc/approvalunits.go -- ResolveApprovalUnitContent, noApprovalCarrier -->
 
+The registered action `./le test weakened approve` resolves the unit and
+checks the reason in a read-only preparation that runs before startup can
+write. A refused request leaves no commit namespace and no approval file
+behind. Only its admitted answer creates the main thread's commit namespace
+and writes the row, through the same `Approve` writer.
+<!-- source: internal/le/test/weakened/approve.go -- Approve, approveAnswer, approveAdmitted -->
+
 Every approval file holds one table, `| Test | Reason | Target | Content |`.
 `Content` is `<base>..<current>`: the SHA-256 digests of the unit's text at
 HEAD and in the working tree when the verdict was recorded (`none` for a side

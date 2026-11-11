@@ -45,7 +45,7 @@ var actions = leaction.New(area,
 			{Keyword: keyUnit, Kind: leaction.KindString, Help: "the approved weakened unit, as <package>.<TestName>", Value: "<package>.<TestName>", Requirement: leaction.Required},
 			{Keyword: keyReason, Kind: leaction.KindString, Help: "the judge's verdict approving the weakening", Value: keyReason, Requirement: leaction.Required},
 		},
-		AnswerArgs: approveAnswer,
+		PrepareArgs: approveAnswer,
 	},
 )
 

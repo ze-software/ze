@@ -365,6 +365,14 @@ unit (`./le rfc approve`) also accepts that unit's weakening. Because the unit
 keeps only the directory's base name, a commit that changes `cmd.TestX` in both
 `a/cmd` and `b/cmd` is refused: split it so each commit carries one of them.
 
+The writer resolves the directory key against current and HEAD carriers, and
+refuses an unknown or ambiguous key before it changes an approval file. The
+registered action checks the unit and the reason in a read-only preparation
+before startup, so a refused request writes nothing. Its admitted answer
+creates the commit namespace and writes the row.
+<!-- source: internal/le/test/weakened/approve.go -- Approve, approveAnswer, approveAdmitted -->
+<!-- source: internal/le/rfc/approvalunits.go -- ResolveApprovalUnit -->
+
 Known limit: two kinds of unit cannot be approved at all, because the unit must match
 `<package>.<TestName>` with one dot and no empty side. A `.ci` or `.et` file
 whose stem holds a dot (`x.y.ci` is `suite.x.y`), and a test file at the

@@ -6,7 +6,9 @@ package testweakened
 
 import (
 	"errors"
+	"strings"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/rfc"
@@ -55,17 +57,48 @@ func Approve(root, session, unit, reason string) (rfc.ApprovalReport, error) {
 	}, unit, reason)
 }
 
-// approveAnswer is the `le test weakened approve` command body.
-func approveAnswer(args leaction.Arguments) (any, int) {
+// approveAnswer admits a parsed approval before process startup can write:
+// the unit resolves to its one carrier and the reason passes the writer's
+// checks while nothing has been created, so a refused request leaves no
+// commit namespace and no approval file behind.
+func approveAnswer(args leaction.Arguments) (leaction.Prepared, int) {
 	if !args.Has(keyUnit) || !args.Has(keyReason) {
 		leaction.ReportError(errors.New("test weakened approve requires unit <package>.<TestName> reason \"<the judge's verdict>\""))
-		return nil, 2
+		return leaction.Prepared{}, 2
 	}
 	root, err := lepath.Root()
 	if err != nil {
 		leaction.ReportError(err)
-		return nil, 2
+		return leaction.Prepared{}, 2
 	}
+	unit, reason := args.One(keyUnit), strings.TrimSpace(args.One(keyReason))
+	// This boundary MUST admit before SessionCommitSession writes a namespace.
+	if _, err := rfc.ResolveApprovalUnit(root, "", unit); err != nil {
+		leaction.ReportError(opererr.Wrap(err, "test weakened approve: unit "+unit+" names no one changed test",
+			"an approval admits one test unit, <package>.<TestName>, that the working tree changes against HEAD",
+			"run ./le test weakened check to list the weakened units, then ./le test weakened approve unit <package>.<TestName> reason \"<the judge's verdict>\""))
+		return leaction.Prepared{}, 2
+	}
+	if reason == "" {
+		leaction.ReportError(opererr.New("test weakened approve: the reason is empty",
+			"the reason is the judge's verdict, which the commit carries as its Weakening-approved trailer",
+			"./le test weakened approve unit "+unit+" reason \"<the judge's verdict>\""))
+		return leaction.Prepared{}, 2
+	}
+	if strings.ContainsAny(reason, "\r\n|") {
+		leaction.ReportError(opererr.New("test weakened approve: the reason holds a line break or a '|'",
+			"the reason becomes one Weakening-approved trailer line and one cell of the approval table",
+			"./le test weakened approve unit "+unit+" reason \"<the verdict on one line, with no '|'>\""))
+		return leaction.Prepared{}, 2
+	}
+	return leaction.PreparedAnswer(func() (any, int) {
+		return approveAdmitted(root, unit, reason)
+	}), 0
+}
+
+// approveAdmitted retains the admitted request across startup. Approve keeps
+// the writer's own guard for callers that bypass the registered action.
+func approveAdmitted(root, unit, reason string) (any, int) {
 	// The approval admits the main thread's commit, so it is keyed on the
 	// main thread's namespace even when the judge agent records it.
 	session, err := lepath.SessionCommitSession(root)
@@ -73,7 +106,7 @@ func approveAnswer(args leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	report, err := Approve(root, session, args.One(keyUnit), args.One(keyReason))
+	report, err := Approve(root, session, unit, reason)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2
