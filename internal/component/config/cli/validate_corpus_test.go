@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	editorcli "github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/config"
@@ -21,6 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/exabgp/migration"
 	"github.com/ze-software/ze/internal/test/exabgpnative"
 	"github.com/ze-software/ze/internal/test/labconfig"
+	"github.com/ze-software/ze/internal/test/labconfig/homecpe"
 	"github.com/ze-software/ze/internal/test/runner"
 	"github.com/ze-software/ze/internal/test/tmpfs"
 )
@@ -348,6 +350,13 @@ func (s *sweepContext) confCarrier(path string) (sweepCarrier, bool) {
 
 // renderScenario fills the placeholders an interop lab fills before a run.
 func (s *sweepContext) renderScenario(path, body string) (string, error) {
+	if filepath.Clean(path) == filepath.Join(s.root, filepath.FromSlash(homecpe.Directory), homecpe.ConvertedFile) {
+		rendered, err := homecpe.Render(s.root, time.Now(), homecpe.KeyP256)
+		if err != nil {
+			return "", err
+		}
+		return rendered.Config, nil
+	}
 	rendered, _, err := labconfig.RenderLinkLocals(body, sweepLabPrefix)
 	if err != nil {
 		return "", err

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
+	"github.com/ze-software/ze/internal/test/labconfig/homecpe"
 )
 
 // The home-CPE lab's scenarios (spec-home-cpe-11), each a directory under
@@ -111,7 +112,7 @@ type homeOptions struct {
 	internet  []node
 	dns       *node
 	usersCopy string
-	cpeKey    cpeKeyAlgorithm
+	cpeKey    homecpe.KeyAlgorithm
 }
 
 // homeLab answers a home-CPE scenario: the access chain (ze-cpe ==PPPoE==
@@ -231,9 +232,9 @@ func wgClient() node {
 			"ip address add " + wgClientInner + "/24 dev wg0; ip link set wg0 up\n" +
 			"ip route add 192.168.50.0/24 dev wg0; ip route add 10.99.0.0/24 dev wg0; ip route add " + webAddress + "/32 dev wg0",
 		prepared: []sharedFile{
-			{source: issuedLaptopKey, target: "/etc/wireguard/laptop.key"},
-			{source: issuedCPEPublic, target: "/etc/wireguard/cpe.pub"},
-			{source: issuedLaptopPSK, target: "/etc/wireguard/psk"},
+			{source: homecpe.LaptopKeyFile, target: "/etc/wireguard/laptop.key"},
+			{source: homecpe.CPEPublicFile, target: "/etc/wireguard/cpe.pub"},
+			{source: homecpe.LaptopPSKFile, target: "/etc/wireguard/psk"},
 		}}
 }
 
@@ -250,9 +251,9 @@ func swanResponder() node {
 			{source: "test/interop-ipsec/strongswan-lab.conf", target: "/etc/strongswan.d/98-lab.conf"},
 		},
 		prepared: []sharedFile{
-			{source: issuedCA, target: "/etc/swanctl/x509ca/lab-ca.pem"},
-			{source: issuedResponder, target: "/etc/swanctl/x509/vpn.pem"},
-			{source: issuedResponderSK, target: "/etc/swanctl/private/vpn-key.pem"},
+			{source: homecpe.CAFile, target: "/etc/swanctl/x509ca/lab-ca.pem"},
+			{source: homecpe.ResponderFile, target: "/etc/swanctl/x509/vpn.pem"},
+			{source: homecpe.ResponderKeyFile, target: "/etc/swanctl/private/vpn-key.pem"},
 		},
 		ready: []string{"sh", "-c", "swanctl --stats | grep -q uptime && swanctl --load-all >/dev/null"}}
 }
@@ -289,30 +290,30 @@ func init() {
 		}})
 	scenarios[conversionScenario] = homeLab(checkConversion, homeOptions{
 		lan:    []node{dhcpClient(nodeLANClient, 21, "")},
-		cpeKey: cpeKeyP256})
+		cpeKey: homecpe.KeyP256})
 	scenarios[lanServicesScenario] = homeLab(checkLANServices, homeOptions{
 		lan: []node{dhcpClient(nodeLANClient, 21, ""), dhcpClient(nodeLANResA, 22, resAMAC),
 			dhcpClient(nodeLANResB, 23, resBMAC), lanStatic()},
 		internet: []node{webServer()},
-		cpeKey:   cpeKeyP256})
+		cpeKey:   homecpe.KeyP256})
 	scenarios[roadWarriorScenario] = homeLab(checkRoadWarrior, homeOptions{
 		lan:      []node{dhcpClient(nodeLANResA, 22, resAMAC)},
 		internet: []node{webServer(), wgClient()},
-		cpeKey:   cpeKeyP256})
+		cpeKey:   homecpe.KeyP256})
 	scenarios[mgmtTunnelScenario] = homeLab(checkMgmtTunnel, homeOptions{
 		lan:      []node{dhcpClient(nodeLANClient, 21, "")},
 		internet: []node{swanResponder()},
 		dns:      dnsServer(true),
-		cpeKey:   cpeKeyP256})
+		cpeKey:   homecpe.KeyP256})
 	scenarios[mgmtTunnelEd25519Scenario] = homeLab(checkMgmtTunnelEd25519, homeOptions{
 		lan:      []node{dhcpClient(nodeLANClient, 21, "")},
 		internet: []node{swanResponder()},
 		dns:      dnsServer(true),
-		cpeKey:   cpeKeyEd25519})
+		cpeKey:   homecpe.KeyEd25519})
 	scenarios[accessReconnectScenario] = homeLab(checkAccessReconnect, homeOptions{
 		lan:       []node{lanStatic()},
 		internet:  []node{webServer(), swanResponder()},
 		dns:       dnsServer(false),
 		usersCopy: reconnectUsersTarget,
-		cpeKey:    cpeKeyP256})
+		cpeKey:    homecpe.KeyP256})
 }

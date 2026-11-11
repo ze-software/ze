@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
+	"github.com/ze-software/ze/internal/test/labconfig/homecpe"
 )
 
 // homeCPEExempt names the scenarios that run a ze-cpe node on purpose with a
@@ -60,7 +61,7 @@ func checkConversion(ctx context.Context, check *interoplab.CheckContext) error 
 // conversionRecordCovers reads the VyOS source and the record under root and
 // runs the coverage check.
 func conversionRecordCovers(root string) error {
-	directory := filepath.Join(root, filepath.FromSlash(cpeDirectory))
+	directory := filepath.Join(root, filepath.FromSlash(homecpe.Directory))
 	source, err := os.ReadFile(filepath.Join(directory, cpeSourceFile)) //nolint:gosec // the checkout root joined with a fixed name
 	if err != nil {
 		return fmt.Errorf("read the VyOS source: %w", err)

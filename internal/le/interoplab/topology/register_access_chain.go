@@ -7,6 +7,7 @@ import (
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
+	"github.com/ze-software/ze/internal/test/labconfig/homecpe"
 )
 
 // The access chain's scenarios, each a directory under scenarioDirectory.
@@ -83,7 +84,7 @@ func accessChain(checker interoplab.Checker, lan ...node) scenario {
 		members = append(members, lan[index].name)
 	}
 	chain.links = append(chain.links, interoplab.Link{Name: homeLANLink, VLAN: 197, Members: members})
-	chain.prepare = prepareHomeCPE(cpeKeyP256)
+	chain.prepare = prepareHomeCPE(homecpe.KeyP256)
 	return chain
 }
 
@@ -129,7 +130,7 @@ var passThroughAdditions = []cpeAddition{
 // option 6 under the default (checkOption6PassThrough).
 func accessUpChain() scenario {
 	chain := accessChain(checkAccessUp, dhcpClient(nodeLANResC, 25, resCMAC))
-	chain.prepare = prepareHomeCPE(cpeKeyP256, passThroughAdditions...)
+	chain.prepare = prepareHomeCPE(homecpe.KeyP256, passThroughAdditions...)
 	return chain
 }
 

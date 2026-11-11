@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
+	"github.com/ze-software/ze/internal/test/labconfig/homecpe"
 )
 
 // TestPassThroughAdditionsOnTheConversion proves access-up's CPE is the
@@ -21,11 +22,11 @@ import (
 // br0 address each appear once, and that 192.168.50.0/24 stays first in both
 // lists, so the subnet a new client is allocated from is unchanged.
 func TestPassThroughAdditionsOnTheConversion(t *testing.T) {
-	rendered, err := renderHomeCPE(checkoutRoot(t), time.Now(), cpeKeyP256)
+	rendered, err := homecpe.Render(checkoutRoot(t), time.Now(), homecpe.KeyP256)
 	if err != nil {
 		t.Fatalf("render: %v", err)
 	}
-	added, err := addToCPEConfig(rendered.config, passThroughAdditions)
+	added, err := addToCPEConfig(rendered.Config, passThroughAdditions)
 	if err != nil {
 		t.Fatalf("the pass-through additions do not apply to the conversion: %v", err)
 	}
@@ -33,7 +34,7 @@ func TestPassThroughAdditionsOnTheConversion(t *testing.T) {
 	for _, addition := range passThroughAdditions {
 		stripped = strings.Replace(stripped, addition.text, "", 1)
 	}
-	if stripped != rendered.config {
+	if stripped != rendered.Config {
 		t.Fatal("removing the additions does not give the rendered conversion back: they changed more than they insert")
 	}
 	subnet := "subnet " + passThroughSubnetIP + " {"

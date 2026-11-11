@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
+	"github.com/ze-software/ze/internal/test/labconfig/homecpe"
 )
 
 // The ping the access chain sends across the session: pingCount echo
@@ -352,17 +353,17 @@ func cpeCLILogin(root string) (interoplab.ZeCLILogin, error) {
 	if root == "" {
 		return interoplab.ZeCLILogin{}, errors.New("reading ze-cpe's CLI password needs the checkout's lab-values; the caller declared no checkout")
 	}
-	listed, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(cpeDirectory), cpeLabValuesFile)) //nolint:gosec // the checkout root joined with fixed names
+	listed, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(homecpe.Directory), homecpe.LabValuesFile)) //nolint:gosec // the checkout root joined with fixed names
 	if err != nil {
 		return interoplab.ZeCLILogin{}, fmt.Errorf("read the lab values for ze-cpe's CLI password: %w", err)
 	}
-	values, err := parseLabValues(string(listed))
+	values, err := homecpe.ParseValues(string(listed))
 	if err != nil {
 		return interoplab.ZeCLILogin{}, err
 	}
 	password, found := values[cpeCLIPasswordValue]
 	if !found {
-		return interoplab.ZeCLILogin{}, fmt.Errorf("%s/%s lists no %s, the password ze-cpe.conf gives user %s; add it", cpeDirectory, cpeLabValuesFile, cpeCLIPasswordValue, cpeCLIUser)
+		return interoplab.ZeCLILogin{}, fmt.Errorf("%s/%s lists no %s, the password ze-cpe.conf gives user %s; add it", homecpe.Directory, homecpe.LabValuesFile, cpeCLIPasswordValue, cpeCLIUser)
 	}
 	// The CLI dials the CPE's LAN gateway address, never its loopback: the
 	// converted input ruleset (ze-cpe.conf `table v4-input`, rules 20-a and

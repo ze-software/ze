@@ -1,22 +1,11 @@
 // Design: docs/architecture/testing/interop.md -- the home-CPE lab.
 // Related: register_home_lab.go -- the scenarios that run the rendered CPE.
-// Related: home_lab_record.go -- the conversion record the conversion scenario checks.
 package topology
 
 import (
-	"crypto/ecdh"
-	"crypto/ecdsa"
-	"crypto/ed25519"
-	"crypto/elliptic"
-	"crypto/rand"
-	"crypto/x509"
-	"crypto/x509/pkix"
-	"encoding/base64"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"maps"
-	"math/big"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,389 +13,27 @@ import (
 
 	"github.com/ze-software/ze/internal/le/interoplab"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/test/labconfig/homecpe"
 )
 
-// The converted CPE's inputs, under the checkout: the model's output with
-// placeholders, the VyOS source it came from, the record of the conversion,
-// and the lab values for the placeholders.
 const (
-	cpeDirectory      = "test/interop-topology/cpe"
-	cpeConvertedFile  = "ze-cpe.conf"
-	cpeSourceFile     = "vyos.conf"
-	cpeRecordFile     = "conversion-record.md"
-	cpeLabValuesFile  = "lab-values"
-	renderedCPEConfig = "ze-cpe.conf"
-	// renderedCPEResolvConf is the resolv.conf convertedCPE mounts at
-	// systemResolvConf, naming the converted configuration's static server.
+	cpeSourceFile         = "vyos.conf"
+	cpeRecordFile         = "conversion-record.md"
+	renderedCPEConfig     = homecpe.ConvertedFile
 	renderedCPEResolvConf = "resolv.conf"
 	systemResolvConf      = "/etc/resolv.conf"
 )
 
-// cpeResolvConf is the content of renderedCPEResolvConf: the one static
-// server, with one one-second attempt, so a query while the lab's DNS is still
-// gated shut fails fast and mgmt-tunnel measures Ze's backoff rather than the
-// resolver's retries.
+// cpeResolvConf names the converted configuration's static server, with one
+// one-second attempt, so mgmt-tunnel measures Ze's backoff, not resolver retries.
 const cpeResolvConf = "nameserver " + cpeStaticNameServer + "\noptions timeout:1 attempts:1\n"
-
-// The two placeholder kinds of the conversion: a secret the owner fills on the
-// router, and a value the lab issues at run time.
-const (
-	placeholderOpen   = "<<"
-	placeholderClose  = ">>"
-	placeholderSecret = "SECRET:"
-	placeholderLab    = "LAB:"
-)
-
-// The names the issuer reads from lab-values and the names it issues. Each
-// issued name is a placeholder of ze-cpe.conf; wgLaptopPrivate is not, it is
-// the wg-client's own key.
-const (
-	wgCPEPrivate      = "wg-wg0-private-key"
-	wgLaptopPSK       = "wg-wg0-laptop-psk"
-	wgLaptopPrivate   = "wg-laptop-private-key"
-	wgLaptopPublic    = "wg-wg0-laptop-public-key"
-	pkiCACertificate  = "pki-LAB-CA-certificate"
-	pkiCPECertificate = "pki-CPE-certificate"
-	pkiCPEKey         = "pki-CPE-key"
-)
-
-// The identities of the lab PKI: the responder vpn.example.net and the CPE's
-// local-id, both in ze-cpe.conf and the responder's swanctl.conf.
-const (
-	responderName = "vpn.example.net"
-	cpeIKEName    = "cpe.lab.example.net"
-)
-
-// The files the issuer writes for the peers, relative to the prepared
-// directory, named by the node declarations that mount them.
-const (
-	issuedLaptopKey   = "wireguard/laptop.key"
-	issuedCPEPublic   = "wireguard/cpe.pub"
-	issuedLaptopPSK   = "wireguard/psk"
-	issuedCA          = "swanctl/x509ca/lab-ca.pem"
-	issuedResponder   = "swanctl/x509/vpn.pem"
-	issuedResponderSK = "swanctl/private/vpn-key.pem"
-)
-
-// labValues maps a placeholder name to its value.
-type labValues map[string]string
-
-// parseLabValues reads lab-values: one "name value" pair per line, with blank
-// lines and lines opening with "#" skipped. A line with no value and a name
-// given twice are refused, so a typo never leaves a placeholder unfilled in
-// silence.
-func parseLabValues(text string) (labValues, error) {
-	values := labValues{}
-	for number, line := range strings.Split(text, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		if strings.HasPrefix(line, "#") {
-			continue
-		}
-		name, value, found := strings.Cut(line, " ")
-		value = strings.TrimSpace(value)
-		if !found {
-			return nil, fmt.Errorf("lab-values line %d names %q with no value; write \"<name> <value>\"", number+1, name)
-		}
-		if value == "" {
-			return nil, fmt.Errorf("lab-values line %d names %q with no value; write \"<name> <value>\"", number+1, name)
-		}
-		if _, seen := values[name]; seen {
-			return nil, fmt.Errorf("lab-values line %d names %q a second time; keep one value per name", number+1, name)
-		}
-		values[name] = value
-	}
-	return values, nil
-}
-
-// substitutePlaceholders replaces every <<SECRET:name>> and <<LAB:name>> of
-// template with its value and changes nothing else. A placeholder of another
-// kind, one with no value, and an unterminated one are refused: a file that
-// still holds a placeholder is not the configuration the lab means to run.
-func substitutePlaceholders(template string, values labValues) (string, error) {
-	var out strings.Builder
-	rest := template
-	for {
-		before, after, opened := strings.Cut(rest, placeholderOpen)
-		out.WriteString(before)
-		if !opened {
-			return out.String(), nil
-		}
-		body, tail, closed := strings.Cut(after, placeholderClose)
-		if !closed {
-			return "", fmt.Errorf("the configuration holds an unterminated placeholder at %q; close it with %q", clip(placeholderOpen+after), placeholderClose)
-		}
-		name, err := placeholderName(body)
-		if err != nil {
-			return "", err
-		}
-		value, found := values[name]
-		if !found {
-			return "", fmt.Errorf("placeholder %q has no lab value; add \"%s <value>\" to %s/%s or issue it", body, name, cpeDirectory, cpeLabValuesFile)
-		}
-		out.WriteString(value)
-		rest = tail
-	}
-}
-
-// placeholderName answers the name of one placeholder's body, and refuses a
-// kind that is neither SECRET nor LAB.
-func placeholderName(body string) (string, error) {
-	if name, found := strings.CutPrefix(body, placeholderSecret); found {
-		return name, nil
-	}
-	if name, found := strings.CutPrefix(body, placeholderLab); found {
-		return name, nil
-	}
-	return "", fmt.Errorf("placeholder %q is neither %s nor %s; the conversion writes only those two kinds", body, placeholderSecret, placeholderLab)
-}
-
-// clip shortens a fragment quoted in an error to one line of context.
-func clip(fragment string) string {
-	const contextOctets = 40
-	if len(fragment) > contextOctets {
-		return fragment[:contextOctets]
-	}
-	return fragment
-}
-
-// issuedLab is what one run issues: the placeholder values only the run can
-// know, and the files the peers mount, by path relative to the prepared
-// directory.
-type issuedLab struct {
-	values labValues
-	files  map[string][]byte
-}
-
-// cpeKeyAlgorithm is the algorithm of the key the lab issues the CPE, which
-// is the key Ze signs its IKE AUTH with. The zero value is no choice, and
-// issuing refuses it.
-type cpeKeyAlgorithm uint8
-
-const (
-	cpeKeyUnspecified cpeKeyAlgorithm = iota
-	// cpeKeyP256 is an ECDSA P-256 key: Ze signs with ECDSA under RFC 7427.
-	cpeKeyP256
-	// cpeKeyEd25519 is an Ed25519 key: Ze signs with pure Ed25519 under
-	// RFC 8420 (mgmt-tunnel-ed25519, spec-home-cpe-11 AC-9).
-	cpeKeyEd25519
-)
-
-// errCPEKeyUnspecified says a scenario declared no CPE key algorithm.
-var errCPEKeyUnspecified = errors.New("the scenario names no CPE key algorithm; declare cpeKeyP256 or cpeKeyEd25519")
-
-// issueLab derives the WireGuard public keys from the lab private keys and
-// issues a fresh PKI: a P-256 CA with path length 0, the responder's P-256
-// certificate for vpn.example.net, and the CPE's certificate for
-// cpe.lab.example.net with a key of algorithm, the one AC-9 variant the
-// scenario runs.
-func issueLab(values labValues, now time.Time, algorithm cpeKeyAlgorithm) (issuedLab, error) {
-	issued := issuedLab{values: labValues{}, files: map[string][]byte{}}
-	if err := issueWireGuard(values, &issued); err != nil {
-		return issuedLab{}, err
-	}
-	if err := issuePKI(now, algorithm, &issued); err != nil {
-		return issuedLab{}, err
-	}
-	return issued, nil
-}
-
-// issueWireGuard derives each X25519 public key from its lab private key
-// (RFC 7748 Section 6.1), so no public key is written by hand beside the
-// private key it must match.
-func issueWireGuard(values labValues, issued *issuedLab) error {
-	laptopPublic, err := wireGuardPublic(values, wgLaptopPrivate)
-	if err != nil {
-		return err
-	}
-	cpePublic, err := wireGuardPublic(values, wgCPEPrivate)
-	if err != nil {
-		return err
-	}
-	psk, found := values[wgLaptopPSK]
-	if !found {
-		return fmt.Errorf("lab-values names no %s; the wg-client needs the preshared key the CPE holds", wgLaptopPSK)
-	}
-	issued.values[wgLaptopPublic] = laptopPublic
-	issued.files[issuedLaptopKey] = []byte(values[wgLaptopPrivate] + "\n")
-	issued.files[issuedCPEPublic] = []byte(cpePublic + "\n")
-	issued.files[issuedLaptopPSK] = []byte(psk + "\n")
-	return nil
-}
-
-// wireGuardPublic answers the base64 public key of the lab private key name.
-func wireGuardPublic(values labValues, name string) (string, error) {
-	encoded, found := values[name]
-	if !found {
-		return "", fmt.Errorf("lab-values names no %s; add a base64 X25519 private key for it", name)
-	}
-	raw, err := base64.StdEncoding.DecodeString(encoded)
-	if err != nil {
-		return "", fmt.Errorf("lab value %s is not base64: %w", name, err)
-	}
-	private, err := ecdh.X25519().NewPrivateKey(raw)
-	if err != nil {
-		return "", fmt.Errorf("lab value %s is not a 32-octet X25519 private key: %w", name, err)
-	}
-	return base64.StdEncoding.EncodeToString(private.PublicKey().Bytes()), nil
-}
-
-// issuePKI issues the CA, the responder's certificate and the CPE's, the
-// CPE's with a key of algorithm. Ze's pki leaves take the base64 DER without
-// PEM armour (a certificate) and a key in SEC 1 or PKCS #8 DER; strongSwan
-// reads PEM.
-func issuePKI(now time.Time, algorithm cpeKeyAlgorithm, issued *issuedLab) error {
-	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return fmt.Errorf("generate the lab CA key: %w", err)
-	}
-	caTemplate, err := certificateTemplate(now, "ze-home-lab-ca")
-	if err != nil {
-		return err
-	}
-	caTemplate.IsCA = true
-	caTemplate.BasicConstraintsValid = true
-	caTemplate.MaxPathLen = 0
-	caTemplate.MaxPathLenZero = true
-	caTemplate.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageCRLSign
-	caDER, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caKey.PublicKey, caKey)
-	if err != nil {
-		return fmt.Errorf("issue the lab CA: %w", err)
-	}
-	ca, err := x509.ParseCertificate(caDER)
-	if err != nil {
-		return fmt.Errorf("read back the lab CA: %w", err)
-	}
-	responderDER, responderKey, err := issueLeaf(now, ca, caKey, responderName, cpeKeyP256)
-	if err != nil {
-		return err
-	}
-	cpeDER, cpeKey, err := issueLeaf(now, ca, caKey, cpeIKEName, algorithm)
-	if err != nil {
-		return err
-	}
-	issued.values[pkiCACertificate] = base64.StdEncoding.EncodeToString(caDER)
-	issued.values[pkiCPECertificate] = base64.StdEncoding.EncodeToString(cpeDER)
-	issued.values[pkiCPEKey] = base64.StdEncoding.EncodeToString(cpeKey)
-	issued.files[issuedCA] = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caDER})
-	issued.files[issuedResponder] = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: responderDER})
-	issued.files[issuedResponderSK] = pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: responderKey})
-	return nil
-}
-
-// issueLeaf issues one end-entity certificate for name with a key of
-// algorithm, signed by ca, and answers its DER and its key's DER: SEC 1 for a
-// P-256 key, which the responder's "EC PRIVATE KEY" PEM block carries, and
-// PKCS #8 for an Ed25519 key, which SEC 1 cannot hold.
-func issueLeaf(now time.Time, ca *x509.Certificate, caKey *ecdsa.PrivateKey, name string, algorithm cpeKeyAlgorithm) ([]byte, []byte, error) {
-	public, keyDER, err := leafKey(algorithm)
-	if err != nil {
-		return nil, nil, fmt.Errorf("the key of %s: %w", name, err)
-	}
-	template, err := certificateTemplate(now, name)
-	if err != nil {
-		return nil, nil, err
-	}
-	template.DNSNames = []string{name}
-	template.KeyUsage = x509.KeyUsageDigitalSignature
-	der, err := x509.CreateCertificate(rand.Reader, template, ca, public, caKey)
-	if err != nil {
-		return nil, nil, fmt.Errorf("issue the certificate of %s: %w", name, err)
-	}
-	return der, keyDER, nil
-}
-
-// leafKey generates a key of algorithm and answers its public half and the
-// DER of its private half.
-func leafKey(algorithm cpeKeyAlgorithm) (any, []byte, error) {
-	switch algorithm {
-	case cpeKeyUnspecified:
-		return nil, nil, errCPEKeyUnspecified
-	case cpeKeyP256:
-		key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		if err != nil {
-			return nil, nil, fmt.Errorf("generate a P-256 key: %w", err)
-		}
-		der, err := x509.MarshalECPrivateKey(key)
-		if err != nil {
-			return nil, nil, fmt.Errorf("encode a P-256 key: %w", err)
-		}
-		return &key.PublicKey, der, nil
-	case cpeKeyEd25519:
-		public, private, err := ed25519.GenerateKey(rand.Reader)
-		if err != nil {
-			return nil, nil, fmt.Errorf("generate an Ed25519 key: %w", err)
-		}
-		der, err := x509.MarshalPKCS8PrivateKey(private)
-		if err != nil {
-			return nil, nil, fmt.Errorf("encode an Ed25519 key: %w", err)
-		}
-		return public, der, nil
-	}
-	return nil, nil, fmt.Errorf("unknown CPE key algorithm %d", algorithm)
-}
-
-// certificateTemplate is a certificate valid for one day around now, with a
-// random 128-bit serial number.
-func certificateTemplate(now time.Time, commonName string) (*x509.Certificate, error) {
-	serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
-	if err != nil {
-		return nil, fmt.Errorf("draw a serial number for %s: %w", commonName, err)
-	}
-	return &x509.Certificate{SerialNumber: serial, Subject: pkix.Name{CommonName: commonName},
-		NotBefore: now.Add(-time.Hour), NotAfter: now.Add(24 * time.Hour)}, nil
-}
-
-// renderedCPE is the converted configuration with every placeholder filled,
-// and the files the run issued for the peers.
-type renderedCPE struct {
-	config string
-	files  map[string][]byte
-}
-
-// renderHomeCPE reads the converted configuration and the lab values under
-// root, issues the run's values with a CPE key of algorithm, and substitutes
-// both. A name both listed and issued is refused, so lab-values can never
-// shadow what the run derived.
-func renderHomeCPE(root string, now time.Time, algorithm cpeKeyAlgorithm) (renderedCPE, error) {
-	directory := filepath.Join(root, filepath.FromSlash(cpeDirectory))
-	template, err := os.ReadFile(filepath.Join(directory, cpeConvertedFile)) //nolint:gosec // the checkout root joined with a fixed name
-	if err != nil {
-		return renderedCPE{}, fmt.Errorf("read the converted CPE configuration: %w", err)
-	}
-	listed, err := os.ReadFile(filepath.Join(directory, cpeLabValuesFile)) //nolint:gosec // the checkout root joined with a fixed name
-	if err != nil {
-		return renderedCPE{}, fmt.Errorf("read the lab values: %w", err)
-	}
-	values, err := parseLabValues(string(listed))
-	if err != nil {
-		return renderedCPE{}, err
-	}
-	issued, err := issueLab(values, now, algorithm)
-	if err != nil {
-		return renderedCPE{}, err
-	}
-	for name, value := range issued.values {
-		if _, both := values[name]; both {
-			return renderedCPE{}, fmt.Errorf("lab-values lists %s, which the run issues; remove it from %s/%s", name, cpeDirectory, cpeLabValuesFile)
-		}
-		values[name] = value
-	}
-	config, err := substitutePlaceholders(string(template), values)
-	if err != nil {
-		return renderedCPE{}, err
-	}
-	return renderedCPE{config: config, files: issued.files}, nil
-}
 
 // prepareHomeCPE answers the prepare step of a scenario whose CPE holds a key
 // of algorithm: it renders the CPE configuration, with the scenario's
 // additions inserted, and the issued files into directory, for the nodes that
 // mount them (node.prepared). A scenario with no additions runs the
 // conversion as rendered.
-func prepareHomeCPE(algorithm cpeKeyAlgorithm, additions ...cpeAddition) func(root, directory string) error {
+func prepareHomeCPE(algorithm homecpe.KeyAlgorithm, additions ...cpeAddition) func(root, directory string) error {
 	return func(root, directory string) error {
 		return writeHomeCPE(root, directory, algorithm, additions)
 	}
@@ -429,7 +56,7 @@ func addToCPEConfig(config string, additions []cpeAddition) (string, error) {
 		count := strings.Count(config, addition.anchor)
 		if count != 1 {
 			return "", fmt.Errorf("a lab addition to the CPE configuration is anchored on %q, which %s/%s holds %d times, want once; "+
-				"re-anchor the addition on text the converted file holds once", addition.anchor, cpeDirectory, cpeConvertedFile, count)
+				"re-anchor the addition on text the converted file holds once", addition.anchor, homecpe.Directory, homecpe.ConvertedFile, count)
 		}
 		at := strings.Index(config, addition.anchor)
 		config = config[:at] + addition.text + config[at:]
@@ -438,17 +65,17 @@ func addToCPEConfig(config string, additions []cpeAddition) (string, error) {
 }
 
 // writeHomeCPE is prepareHomeCPE's step for one run.
-func writeHomeCPE(root, directory string, algorithm cpeKeyAlgorithm, additions []cpeAddition) error {
-	rendered, err := renderHomeCPE(root, time.Now(), algorithm)
+func writeHomeCPE(root, directory string, algorithm homecpe.KeyAlgorithm, additions []cpeAddition) error {
+	rendered, err := homecpe.Render(root, time.Now(), algorithm)
 	if err != nil {
 		return err
 	}
-	config, err := addToCPEConfig(rendered.config, additions)
+	config, err := addToCPEConfig(rendered.Config, additions)
 	if err != nil {
 		return err
 	}
 	files := map[string][]byte{renderedCPEConfig: []byte(config), renderedCPEResolvConf: []byte(cpeResolvConf)}
-	maps.Copy(files, rendered.files)
+	maps.Copy(files, rendered.Files)
 	for name, content := range files {
 		path := filepath.Join(directory, filepath.FromSlash(name))
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil { //nolint:gosec // the lab containers read these files as another user

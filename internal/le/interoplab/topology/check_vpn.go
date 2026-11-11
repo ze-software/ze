@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
+	"github.com/ze-software/ze/internal/test/labconfig/homecpe"
 )
 
 // ikeWait bounds every wait on the IKE SA: a first exchange, a DNS answer
@@ -146,7 +147,7 @@ func checkMgmtTunnelEd25519(ctx context.Context, check *interoplab.CheckContext)
 	if !logs.Available {
 		return errors.New("strongSwan's log is not readable, so the Ed25519 AUTH cannot be judged")
 	}
-	return swanAuthVerdict(logs.Text, cpeIKEName, charonEd25519)
+	return swanAuthVerdict(logs.Text, homecpe.CPEIdentity, charonEd25519)
 }
 
 // swanAuthVerdict accepts a strongSwan log holding the line that says it

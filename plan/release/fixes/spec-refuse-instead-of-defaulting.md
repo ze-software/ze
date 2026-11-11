@@ -15,6 +15,52 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Blocker
 
+Verification is incomplete at the owner's model-switch checkpoint. The old
+inventory compilation failure no longer blocks the named launcher. The shared
+CPE renderer repair passes focused race tests, but the four corrected fixtures
+remain drafts and the required full corpus run has not followed their promotion.
+
+Resume with these commands, through the current named launcher and in the main
+thread:
+
+- `./le test bgp reload --draft dns-source-reload reload-parse-error-single-prefix`.
+- `./le test ui --draft config-compiled-out-feature-names-tag doctor-procfs-netlink`.
+- Promote the four passing drafts, preserving the native test-judge approvals,
+  then run `TestRepositoryConfigsValidate` under the full feature tags and race.
+- `INTEROP_SCENARIO=addpath-zero-id-frr ./le test integration interop` for the
+  baseline, the zero-ID omission overlay, and the clean rebuild in that order.
+  Preserve effective Go flags when adding the overlay. The overlay and its
+  single changed producer are recorded below.
+- `INTEROP_SCENARIO=ldp-init-unknown-tlv-frr ./le test integration interop`.
+- Complete the remaining scoped checks and independent closure review.
+
+The first draft reload attempt used `test reload`, which printed a namespace
+error. No fixture ran. The correct registered route is `test bgp reload`.
+No ADD-PATH or LDP verdict is claimed by this continuation. Neither a stale
+image nor a no-build bypass is evidence for these owed runs.
+
+## Prior blocker and completed corpus repair
+
+The continuation built the named launcher from the current checkout on
+2026-11-11. The missing inventory fields below are a historical build failure,
+not a current refusal to attempt the labs. ADD-PATH baseline, negative control,
+clean rebuild and LDP execution remain owed.
+
+The config corpus repair shares the topology lab's CPE renderer with config
+validation. `internal/test/labconfig/homecpe/render.go` owns `Render`, PKI
+issuance and placeholder substitution. The corpus previously validated the
+unrendered template. Excluding that file would hide the lab input, so the fix
+moves the existing producer and validates its result. The three deliberate
+refusal fixtures gain their existing diagnostic codes. The doctor fixture uses
+table 100, outside the reserved ranges that `policyroute.validateActionTable`
+refuses. Main-thread race tests passed for the shared renderer, its topology
+callers, and `TestSweepRendersHomeCPE`, including the renderer-bypass negative
+control. Evidence: `tmp/session/2026-11-11-014000/scratch/job-refusal-cpe-focused-c8e0a05a.log`.
+Independent source review is clean, and the test judge approved all moved and
+mechanically updated tests. The four fixture drafts still await execution and
+promotion. Concurrent commit `ab4a67d631` carried the shared-rendering paragraph
+and source anchors in `docs/architecture/testing/interop.md`.
+
 The 2026-11-11 main-thread attempt to run `addpath-zero-id-frr` stopped in
 shared interop staging before any scenario executed: `0 passed, 0 failed`.
 `StageBinaries` (`internal/le/interoplab/zebuild.go`) could not compile the
@@ -86,6 +132,12 @@ declare its older phases or acceptance criteria complete.
   No fixture expectation was weakened, and no full-corpus green is claimed.
   These findings also need disposition before claiming the required corpus
   evidence complete; the interop staging compile blocker remains decisive.
+
+## Mistake Log
+
+| Mistake | Effect | Correction |
+|---------|--------|------------|
+| The CPE renderer extraction omitted the identity constant's VPN checker and test callers. Its first source review did not find those callers. | `./le test qemu ci test test/reload/static-bfd-profile-reload-deleted.ci` exited 1 while building the QEMU launcher: `check_vpn.go` still referenced `cpeIKEName`. No guest test ran. | Export the single shared `homecpe.CPEIdentity` declaration. Update `checkMgmtTunnelEd25519`, `TestSwanAuthVerdict` and the moved renderer test. Search every moved declaration for remaining callers, then run focused compilation before the guest retry. Independent followup source review is clean. Main-thread execution remains the proof. |
 
 ## Task
 
@@ -510,7 +562,7 @@ Owner approval (Thomas, 2026-10-24): the doctor `collectSchemaListeners` row rem
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-13 all demonstrated
 - [ ] Wiring Test table complete
-- [ ] Targeted tests pass; full gate once over the closing commits
+- [ ] Scoped package and functional tests pass; GitHub CI owns whole-tree verification after a push
 - [ ] Every A-N confirmed or broken
 - [ ] Every item this spec did not do is a spec of its own, named here
 

@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/test/labconfig/homecpe"
 )
 
 // pcapOf builds a little-endian classic pcap file holding frames.
@@ -453,12 +455,12 @@ func TestAccessChainCPECLILogin(t *testing.T) {
 	if login.Host.String() != cpeLANGateway {
 		t.Errorf("cpeCLILogin dials %s, want the CPE's LAN gateway %s", login.Host, cpeLANGateway)
 	}
-	template, err := os.ReadFile(filepath.Join(checkoutRoot(t), filepath.FromSlash(cpeDirectory), cpeConvertedFile))
+	template, err := os.ReadFile(filepath.Join(checkoutRoot(t), filepath.FromSlash(homecpe.Directory), homecpe.ConvertedFile))
 	if err != nil {
 		t.Fatalf("read the converted CPE configuration: %v", err)
 	}
 	if !strings.Contains(string(template), "<<SECRET:"+cpeCLIPasswordValue+">>") {
-		t.Errorf("%s gives no field the placeholder %s, so the login's password is not the CPE's", cpeConvertedFile, cpeCLIPasswordValue)
+		t.Errorf("%s gives no field the placeholder %s, so the login's password is not the CPE's", homecpe.ConvertedFile, cpeCLIPasswordValue)
 	}
 	if _, err := cpeCLILogin(""); err == nil {
 		t.Error("cpeCLILogin answered with no checkout")
