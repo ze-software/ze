@@ -989,8 +989,8 @@ func (s *Server) restartPluginFn() transaction.RestartFunc {
 // exceeded, plugin disabled, no such plugin) must leave the running plugin
 // exactly as it found it, and a teardown before the refusal would unregister a
 // plugin that is still serving. Such a refusal wraps
-// transaction.ErrRestartRefused, so the reload answer says the old process
-// still runs rather than that it is down.
+// transaction.ErrRestartRefused, so the reload answer distinguishes a refused
+// restart from a failed replacement without claiming the old process runs.
 func (s *Server) restartPlugin(pluginName string) error {
 	if s.spawner == nil {
 		return fmt.Errorf("no plugin spawner available to restart %s", pluginName)
@@ -1021,9 +1021,9 @@ func (s *Server) restartPlugin(pluginName string) error {
 }
 
 // respawnRefused reports whether err is one of the refusals
-// ProcessManager.Respawn returns BEFORE it stops the process it replaces, so
-// the old process still runs. Any other Respawn error comes from starting the
-// replacement, after the old process was stopped.
+// ProcessManager.Respawn returns BEFORE it stops the process it replaces.
+// The old process may already have exited. Any other Respawn error comes from
+// starting the replacement, after the old process was stopped.
 func respawnRefused(err error) bool {
 	if errors.Is(err, process.ErrRespawnLimitExceeded) {
 		return true

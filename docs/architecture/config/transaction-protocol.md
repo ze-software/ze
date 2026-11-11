@@ -281,15 +281,21 @@ The engine then tells the operator what the rollback left running. The error a
 rolled-back reload answers is the apply failure followed by one line per
 plugin, each starting with `Rollback:`. A line names, in participant order,
 each plugin that answered `CodeBroken`, with what became of it: the engine
-restarted it; the restart was refused before the old process stopped (the
-respawn limit, a disabled plugin, a stopping daemon, no such plugin), so it
-still runs without part of its config; the restart failed after the old process
+restarted it; the restart was refused before it could stop the old process (the
+respawn limit, a disabled plugin, a stopping daemon, no such plugin), without
+claiming whether that process still runs; the restart failed after the old process
 stopped, so it is not running; or the engine had no restart function, so only
 the plugin's log says what it runs. A line also names each plugin that did not
 ack in time. When every plugin acked `CodeOK`, one `Rollback:` line says that
 every plugin put its running config back.
 <!-- source: internal/component/config/transaction/orchestrator.go -- rollBack, rollbackOutcome, brokenRollbackLine, handleRollbackAck -->
 <!-- source: internal/component/plugin/server/reload_tx.go -- restartPlugin, respawnRefused -->
+
+A refused restart can follow a plugin's exit. Check its current `running` state
+with `ze show system subsystem list` and read its log lines before retrying the
+reload. The refusal alone does not establish whether the plugin is running.
+<!-- source: internal/component/cmd/show/system.go -- handleShowSystemSubsystemList -->
+<!-- source: internal/component/config/transaction/orchestrator.go -- ErrRestartRefused, brokenRollbackLine -->
 
 ### Completion
 

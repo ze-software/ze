@@ -867,7 +867,7 @@ func TestOrchestratorBrokenRecovery(t *testing.T) {
 // VALIDATES: review round 3 ISSUE-7 and round 4 ISSUE-1, NOTE-1, NOTE-5.
 // rollbackOutcome names, per participant, a rollback that did not put the
 // running config back: restarted, restart refused before the old process was
-// stopped (it still runs), restart failed after it (it does not run), not
+// stopped (its state is unknown), restart failed after it (it does not run), not
 // restarted, or no answer at all; a plugin that answered CodeOK is not named,
 // and every line it writes starts with "Rollback: ".
 // PREVENTS: a reload answer that leaves the operator guessing whether a
@@ -895,7 +895,7 @@ func TestRollbackOutcomeNamesEachUnrepairedPlugin(t *testing.T) {
 		"dead could not put its running config back (port 69 in use), and ze could not restart it (spawn failed), so it is not running",
 		"refused could not put its running config back (port 70 in use), and ze refused to restart it " +
 			"(respawn refused: ze refused to restart the plugin: respawn limit exceeded), " +
-			"so it still runs without part of its config",
+			"check its status and log lines before retrying the reload: ze show system subsystem list",
 		"unrestarted could not put its running config back, and ze did not restart it; " +
 			"its log lines say what it runs",
 		"silent did not answer the rollback in time",

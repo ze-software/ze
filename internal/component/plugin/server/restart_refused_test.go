@@ -46,9 +46,9 @@ func registerCountedRestartPlugin(t *testing.T, name string, okRuns int64) {
 // reaches the orchestrator as transaction.ErrRestartRefused, and that the old
 // process is then still the one running.
 //
-// VALIDATES: review round 4 ISSUE-1. The Rollback line says "it still runs
-// without part of its config" for a refused restart, and "it is not running"
-// only for a restart that stopped the old process and failed after that.
+// VALIDATES: review round 4 ISSUE-1. The Rollback line distinguishes a refused
+// restart from a restart that stopped the old process and failed after that.
+// This test starts a running process and checks the refusal leaves it running.
 // PREVENTS: a reload answer that tells the operator a plugin is down when the
 // respawn limit refused its restart and the old process keeps serving.
 func TestRestartPluginSaysWhenTheRespawnWasRefused(t *testing.T) {
@@ -100,7 +100,7 @@ func TestRestartPluginSaysWhenTheRespawnWasRefused(t *testing.T) {
 // VALIDATES: review round 4 ISSUE-1, the other class. The Rollback line keeps
 // "so it is not running" for this failure.
 // PREVENTS: ErrRestartRefused wrapped around every restart error, which would
-// tell the operator a stopped plugin still runs.
+// hide the failed replacement behind the pre-stop refusal classification.
 func TestRestartPluginFailedHandshakeIsNotARefusal(t *testing.T) {
 	snap := registry.Snapshot()
 	registry.Reset()

@@ -117,8 +117,8 @@ type RestartFunc func(pluginName string) error
 
 // ErrRestartRefused marks a RestartFunc error returned before the restart
 // stopped the old process: the respawn limit, a disabled plugin, a daemon
-// that is stopping, or no such plugin. The old process still runs, with what
-// its failed rollback left of its config.
+// that is stopping, or no such plugin. It says nothing about whether the old
+// process still runs: the process may have exited before the restart attempt.
 var ErrRestartRefused = errors.New("ze refused to restart the plugin")
 
 // OperationPlanRequest is the input to operation planning after full verify.
@@ -885,7 +885,7 @@ const rollbackLinePrefix = "Rollback: "
 
 // brokenRollbackLine says what happened to a plugin whose rollback answered
 // CodeBroken with reason, from restarts: ze restarted it; ze refused the
-// restart before stopping it (ErrRestartRefused), so it still runs; the
+// restart before stopping it (ErrRestartRefused), with no liveness verdict; the
 // restart failed after stopping it, so it does not run; or ze did not try,
 // in which case only the plugin's own log says what it runs.
 func brokenRollbackLine(plugin, reason string, restarts map[string]error) string {
@@ -899,7 +899,7 @@ func brokenRollbackLine(plugin, reason string, restarts map[string]error) string
 	}
 	if errors.Is(restartErr, ErrRestartRefused) {
 		return line + ", and ze refused to restart it (" + restartErr.Error() + "), " +
-			"so it still runs without part of its config"
+			"check its status and log lines before retrying the reload: ze show system subsystem list"
 	}
 	if restartErr != nil {
 		return line + ", and ze could not restart it (" + restartErr.Error() + "), so it is not running"

@@ -22,7 +22,7 @@ The owner keeps this spec open until it closes on Linux (2026-10-15). All six ph
 | 1 | MET: real VPP 26.06 lifecycle proof, empty-egress no-op mutation red, then final clean normal run. Harness 844f42a7d5; alias a82960a6e8 and monitor e4e5f8da3a repairs. Do not repeat completed proof without new changes. | `./le test deployment vpp-iface` (Docker server with required kernel features and devices) |
 | 2 | Current static-BFD diagnostic fixture needs guest proof: native run skipped because this process lacks CAP_NET_ADMIN. Earlier guest-suite history remains below; this skip is not a pass. | `./le test qemu ci test test/reload/static-bfd-profile-reload-deleted.ci` |
 | 3 | Main-thread scoped proof of changed packages and affected functional fixtures, then scoped lint and closure prechecks. Whole-tree verification belongs to pushed CI and is not an agent closure gate. | Named race tests, affected reload fixtures, `./le test deployment vpp-iface`, scoped `./le go lint run` |
-| 4 | Review Gate remains open. Rounds 1 through 4 have recorded findings and dispositions below; round 2's owner approval was already granted (Q19) and its wrappers removed in 224b0ef514. Review the round 4 fixes (5966274823), subsequent scoped repairs and new VPP lifecycle proof independently, then record a clean next round through native spec review. | `/ze-review` |
+| 4 | Round 5 found an unsupported liveness claim after a refused restart. Its separate diagnostic repair needs an independent sixth review, which requires the owner's authorization. No CLEAN verdict or sixth-round authorization is recorded. | `/ze-review`, after the owner authorizes round 6 |
 | 5 | Close: append `plan/templates/TEMPLATE-CLOSURE.md`, commit A (code, tests, docs, spec), commit B (`remove` the spec) in one `./le commit create` script | `/ze-close` |
 
 ## Task
@@ -671,6 +671,26 @@ Artifact: `tmp/review/plugin-reload-applies-or-refuses-3be8cd06-0062-4950-8b30-0
 | 2 | 1 | 3 | 2 | findings: not clean |
 | 3 | 0 | 2 | 1 | findings: not clean |
 | 4 | 0 | 3 | 5 | findings: not clean |
+| 5 | 0 | 1 | 0 | findings: refused restart does not prove liveness |
+
+Round 5 scope (2026-11-11): the round-4 repair `5966274823`, operation-registry
+fixture isolation `82abdd598d`, SDK rollback recovery `f768ab3ca7`, VPP alias
+lookup `a82960a6e8`, monitor shutdown `e4e5f8da3a`, and lifecycle proof
+`844f42a7d5`, with their current callers. The independent closure review checks
+failure recovery and resource ownership, then test discrimination and public
+claims. Main-thread execution supplies all new test and lint evidence. The
+review found one issue; no CLEAN verdict is recorded.
+
+| ID | Severity | Producer | Finding and evidence | Next action |
+|----|----------|----------|----------------------|-------------|
+| R5-1 | ISSUE | `internal/component/config/transaction/orchestrator.go`, `brokenRollbackLine`; `internal/component/plugin/server/reload_tx.go`, `respawnRefused`; `internal/component/plugin/process/manager.go`, `Respawn` | A refusal precedes the stop operation and establishes no liveness. An engine can exit after its rollback answer, before the coordinator processes that answer. The renderer nevertheless says it still runs. Main reproduced the false claim with `TestRefusedRestartDoesNotClaimPluginLiveness`; `TestRestartRefusalCanFollowPluginExit` passed with an exited real plugin and the same refusal sentinel. Race log: `tmp/session/2026-11-11-014000/scratch/job-reload-refusal-red-139ad124.log`. | Keep the pre-stop refusal classification and remove the unsupported liveness claim from its diagnostic and public pages. Preserve the distinction from a failed restart. A source review of that fix is round 6 and requires the owner's authorization. |
+
+The diagnosis is a conflation of restart disposition with process state, in the
+transaction's operator-facing result. Checking `Running()` once would add a
+snapshot whose liveness can change before the answer is read [workaround].
+State only what the refusal proves and direct the operator to current status
+and logs [source]. The implementation is in a separate context; this review
+does not review its own repair or authorize a sixth round.
 
 Round 4 scope: the round-3 fixes, 6d2e8b22b9 and 28ca61484a. Findings (2026-10-15), in full in `tmp/session/2026-10-14-3be8cd06-0062-4950-8b30-09ebec04cbaf/scratch/review-r4-findings.md`:
 
@@ -903,20 +923,25 @@ lacks its plugin. Harness commit `844f42a7d5` closes AC-18b runtime proof.
 
 ## Blocker
 
-Static-BFD guest proof is blocked by sandbox write permissions. Native
-`runOneCIHere` in `internal/le/test/qemu/onetest.go` calls
-`testfunctional.PrepareGuest`, which cannot write
-`tmp/qemu/linux-amd64/bin/ze`: the shared `tmp/qemu` symlink targets
-`/home/thomas/.cache/ze-tmp/main/qemu`, outside writable roots. Main observed
-this refusal in `tmp/session/2026-11-10-224742/scratch/reload-static-bfd-qemu.log`.
-Grant write access to `/home/thomas/.cache/ze-tmp`, then rerun only
-`./le test qemu ci test test/reload/static-bfd-profile-reload-deleted.ci`.
-The host skip for missing CAP_NET_ADMIN is not guest proof. QEMU is installed;
-KVM readiness was not reached. No shared path was redirected.
+The old write-permission and inventory compile blockers are cleared. On
+2026-11-11 main created and removed a temporary file in
+`/home/thomas/.cache/ze-tmp/main/qemu`, then built the current named launcher.
+The new static-BFD attempt built the runtime kernel and image but stopped
+before the test while a concurrent CPE renderer extraction left an unresolved
+`cpeIKEName` caller in `internal/le/interoplab/topology/check_vpn.go`. That
+extraction belongs to the refusal spec's corpus repair. Its corrected shared
+identity landed in `dd6864599a` and the focused build has since passed; the guest test itself has not. The failed guest attempt is in the main tool transcript, without a retained log file.
+Run `./le test qemu ci test test/reload/static-bfd-profile-reload-deleted.ci`.
+The earlier host skip for missing CAP_NET_ADMIN is still not guest proof.
 
-Final scoped lint, closure prechecks and independent final Review Gate are
-still owed. Concurrent inventory tooling compilation defects prevent current
-native rebuilds; their owner must finish those edits before those gates run.
-Source reviews and scoped tests recorded above remain valid, but no final
-CLEAN or spec closure is claimed. Keep the recorded historical review
-population plus current repair commits; do not broaden to interleaved history.
+Round 5 exposed a product diagnostic defect: `brokenRollbackLine` in
+`internal/component/config/transaction/orchestrator.go` inferred that a plugin
+still ran from a pre-stop refusal. The real stopped-plugin control and failing
+renderer assertion are recorded under R5-1. The repair in this handback preserves the refusal sentinel, removes the liveness claim, and directs operators to `ze show system subsystem list` and logs. Main passed all five named tests under race: `TestRollbackOutcomeNamesEachUnrepairedPlugin`, `TestRefusedRestartDoesNotClaimPluginLiveness`, `TestRestartRefusalCanFollowPluginExit`, `TestRestartPluginSaysWhenTheRespawnWasRefused`, and `TestRestartPluginFailedHandshakeIsNotARefusal`. Evidence: `tmp/session/2026-11-11-014000/scratch/job-reload-refusal-green-0bb88bcd.log`. The expected-prose change has independent native test-judge approval. This repair must receive
+an independent source review, which would be round 6. The owner must authorize
+that round under `ai/rules/planning.md`; a test-judge approval of the corrected
+expected text does not supply that authorization or the source review.
+
+Final scoped lint and closure prechecks remain owed. Preserve the completed
+VPP runtime proof and the recorded historical review population, plus the
+current repair commits. No CLEAN verdict or spec closure is claimed.
