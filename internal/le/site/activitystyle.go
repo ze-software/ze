@@ -214,7 +214,8 @@ const activityStyle = `        <style>
             text-transform: uppercase;
             cursor: pointer;
         }
-        .activity-widget .metric-switch button[aria-pressed="true"] {
+        .activity-widget .metric-switch button[aria-pressed="true"],
+        .activity-widget .activity-tabs button[aria-selected="true"] {
             color: #07111d;
             background: linear-gradient(135deg, #9fffd0, #7dd3fc);
             box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.14);

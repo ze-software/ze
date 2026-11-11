@@ -10,7 +10,7 @@ const activityGrowthStyle = `<style>
         width: fit-content;
         padding: 0.32rem;
         border: 2px solid var(--activity-border);
-        border-radius: var(--radius-md);
+        border-radius: var(--radius-lg);
         background: var(--activity-card-strong);
         box-shadow: var(--clay);
     }
@@ -20,7 +20,7 @@ const activityGrowthStyle = `<style>
     body[data-metric="commits"] .activity-growth [data-growth-metric="lines"] { display: none; }
     .activity-tabs button {
         border: 0;
-        border-radius: var(--radius-sm);
+        border-radius: var(--radius-md);
         padding: 0.45rem 0.7rem;
         background: transparent;
         color: var(--muted);
@@ -30,11 +30,6 @@ const activityGrowthStyle = `<style>
         letter-spacing: 0.03em;
         text-transform: uppercase;
         cursor: pointer;
-    }
-    .activity-tabs button[aria-selected="true"] {
-        background: var(--activity-card);
-        color: var(--text);
-        box-shadow: var(--clay);
     }
     .activity-tabs button:focus-visible,
     .growth-chart:focus-visible,
