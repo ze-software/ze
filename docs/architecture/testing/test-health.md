@@ -197,6 +197,28 @@ digest pair, is refused, because only the approve commands write rows.
 <!-- source: internal/le/rfc/approvalunits.go -- ApprovalContentCell, ApprovalContentAdmits -->
 <!-- source: internal/le/test/weakened/ledger.go -- parseLedger, staleApproval -->
 
+At the commit gate a stale row is not silent: a changed unit that no live row
+claims, while an unlanded row names it stale, refuses preparation with the
+unit, the stale reason and the fix (a fresh `ze-test-judge` verdict, or the
+row's removal). A row a landed commit carried stays silent.
+<!-- source: internal/le/test/weakened/testweakened.go -- Check, staleRowProblem -->
+
+A Go helper (a function of a `_test.go` file that is not `Test`, `Fuzz` or
+`Benchmark`, `TestMain` included) is its own unit: a weakening inside it is
+the helper's finding at the edit hook, the commit gate and the audit alike,
+and only a row naming the helper admits it, so its content digests guard it
+against a later change. A caller's row judged the caller's text and admits
+nothing in the helper. At the commit gate a changed, added or removed helper
+also makes every existing test that calls it, in a file the commit carries,
+a changed unit, so that test's live row is spent and a stale one refuses. A
+test calls a helper when it names it as a call or a function value, never
+after a selector's dot, directly or through other package-level helpers, on
+the committed side of the `_test.go` files of the same directory. It is a name
+match, so a local that shadows the name also counts and spends that test's
+row early. A file the commit does not carry that does not parse at the anchor
+lends no call; one the commit carries refuses.
+<!-- source: internal/le/test/weakened/helpers.go -- attributeHelpers, callingTests, packageUnits -->
+
 The shared table also reads targeted RFC rows through its `Target` column.
 Those rows approve only their exact historical change and are never used by the
 worktree weakening gate, edit hook or ordinary current-change selection. Their

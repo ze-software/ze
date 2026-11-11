@@ -126,6 +126,29 @@ nothing. Preparation keeps the row. The successful script removes it, and a
 verdict already carried by a commit cannot be used again. A new test function
 or an entirely new test file does not spend a semantic approval.
 
+A changed existing unit that no live row claims, while an unlanded row naming
+it is stale (the unit changed after the verdict), refuses preparation. The
+refusal names the unit and the stale reason, and gives the fix: run
+`ze-test-judge` again and record a fresh row with the approve command it
+prints, or remove the stale row. A row a landed commit already carried stays
+silent.
+
+A helper is a function in a `_test.go` file that is not a `Test`, `Fuzz` or
+`Benchmark` unit, `TestMain` included. A weakening the detector finds inside
+a helper stays the helper's own finding and needs the helper's own row
+(`<package>.<helperName>`), whose content digests make it stale once the
+helper changes again. A changed, added or removed helper also makes every
+existing test that calls it, in a file the commit carries, a changed unit: its
+live row is spent and a stale row refuses. The call rule is by name, over the
+committed side of the `_test.go` files of the same directory: the test names
+the helper as a call or a function value, never after a selector's dot,
+directly or through other package-level helpers. A file the commit does not
+carry is read at the anchor and skipped when it does not parse there; a file
+the commit carries that does not parse refuses. A helper no test calls keeps
+its finding.
+<!-- source: internal/le/test/weakened/helpers.go -- attributeHelpers, callingTests, packageUnits -->
+<!-- source: internal/le/test/weakened/testweakened.go -- Check, staleRowProblem -->
+
 Go units end at their matching body brace, including one-line functions. Adding
 a separator or another declaration cannot spend an unchanged unit's approval.
 Valid bodyless declarations end at their signature and do not hide later tests.

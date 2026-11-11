@@ -401,6 +401,23 @@ unit (`./le rfc approve`) also accepts that unit's weakening. Because the unit
 keeps only the directory's base name, a commit that changes `cmd.TestX` in both
 `a/cmd` and `b/cmd` is refused: split it so each commit carries one of them.
 
+A helper is any function of a `_test.go` file that is not a `Test`, `Fuzz` or
+`Benchmark` function (`TestMain` counts as a helper). A weakening inside a
+helper (an assertion it no longer makes) is the helper's own finding: the row
+names the helper, `<package>.<helperName>`, because a calling test's verdict
+judged the test's text, not the helper's. A changed helper also changes every
+existing test that calls it in a file the commit carries, so that test's live
+row is spent and a stale one refuses. A test calls a helper when it names the
+helper as a call or a function value (never after a selector's dot), directly
+or through other helpers, in the `_test.go` files of the same directory. The
+rule matches names, so a local of the same name also counts as a call. A
+helper no test calls keeps its finding all the same.
+
+A test edited again after its verdict is refused at commit, even when the new
+edit weakens nothing: the row is stale, because the judge saw other text. Run
+the judge again on the change as it stands and record its fresh verdict, or
+remove the stale row when the change needs none.
+
 The writer resolves the directory key against current and HEAD carriers, and
 refuses an unknown or ambiguous key before it changes an approval file. The
 registered action checks the unit and the reason in a read-only preparation

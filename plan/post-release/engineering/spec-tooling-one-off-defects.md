@@ -492,8 +492,9 @@ AC-27 was dropped on 2026-11-08 ("Scope decision" above): the incident was not i
 | `bash-guard-misses-a-command-shape` | 2026-11-11 | `bashLossyPipe`, `bashRawHeavy`: a launcher's option value read as the command word |
 | `bash-guard-misses-a-command-shape` | 2026-11-11 | `bashRootBuild`: `-toolexec`, `-overlay`, `-modfile` pass the text judgement |
 | `bash-guard-misses-a-command-shape` | 2026-11-11 | `bashSystemTmp`: no `}` boundary in `systemTmp` |
-| `hook-existing-patterns-false-positive` | 2026-11-11 | `rawHeavy` on a `for` loop: a quoted `go vet` alternative read as a raw run |
 | `green-that-could-not-have-been-red` | 2026-11-11 | bash parity golden judged by the hand model `bashCode` |
+| `gate-excludes-part-of-its-population` | 2026-11-11 | `Check` changed-unit loop, `comparePath`: a stale row and a changed helper pass the weakening gate silently |
+| `hook-existing-patterns-false-positive` | 2026-11-11 | error-inventory `shapeFinding`: an identity-only `Finding` literal judged as a plain message |
 
 ## Rows found already fixed
 

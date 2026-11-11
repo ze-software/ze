@@ -173,6 +173,7 @@ func Check(request Request) Result {
 			result.Approvals.Dropped = append(result.Approvals.Dropped, row.Text)
 		}
 	}
+	refused := make(map[string]bool, len(findings))
 	for _, finding := range findings {
 		claimed, why := claimFinding(&result.Approvals, &weakening, finding)
 		if !claimed {
@@ -183,6 +184,7 @@ func Check(request Request) Result {
 			}
 		}
 		if !claimed {
+			refused[finding.Unit()] = true
 			result.Problems = append(result.Problems, unapprovedProblem(finding, why))
 		}
 	}
@@ -192,10 +194,23 @@ func Check(request Request) Result {
 	// A unit an unlanded row names is still an approval site when the row is
 	// stale and claims nothing: the commit's shared-unit guard must see every
 	// unit a verdict names, so one row cannot be spent across two carriers.
+	// A stale unlanded row also refuses the commit: the unit was edited after
+	// its verdict, so landing it would carry text no judge saw while the row
+	// that says otherwise stays behind. A row a landed commit already carried
+	// did its work and stays silent.
 	for _, unit := range changed {
 		claimed, _ := claimFinding(&result.Approvals, &weakening, unit)
 		if !claimed {
 			claimed, _ = claimFinding(&result.RFCApprovals, &owner, unit)
+		}
+		if !claimed && !refused[unit.Unit()] {
+			if problem := staleRowProblem(&weakening, unit); problem != "" {
+				refused[unit.Unit()] = true
+				result.Problems = append(result.Problems, problem)
+			} else if problem := staleRowProblem(&owner, unit); problem != "" {
+				refused[unit.Unit()] = true
+				result.Problems = append(result.Problems, problem)
+			}
 		}
 		site := claimed
 		if !site {
@@ -229,6 +244,33 @@ func namesUnlanded(file *approvalFile, unit Finding) bool {
 	return false
 }
 
+// staleRowProblem is the refusal for a changed unit that an untargeted row of
+// file names while that row is stale, or empty when no such row exists. It
+// claims nothing. LoadApprovals marks only an unlanded row stale, so a row a
+// landed commit carried never refuses here.
+func staleRowProblem(file *approvalFile, unit Finding) string {
+	for _, row := range file.rows {
+		if row.Target != "" {
+			continue
+		}
+		if row.Stale == "" {
+			continue
+		}
+		if !rowMatches(row.Name, unit) {
+			continue
+		}
+		var text textbuf.Buffer
+		return text.Str(unit.Path).Str(" changes ").Str(unit.Unit()).
+			Str(" after its ze-test-judge verdict: the approval naming it in ").Str(file.path).
+			Str(" is stale (").Str(row.Stale).Str("), so no verdict covers the text this commit carries.\n").
+			Str("    Run ze-test-judge again on the change as it stands and record its fresh verdict:\n    ").
+			Str(file.command(unit.Unit())).
+			Str("\n    or, when the change needs no verdict, remove the stale row from ").Str(file.path).
+			Str(" and retry.").String()
+	}
+	return ""
+}
+
 // approvalSession answers the namespace whose approval files admit request,
 // as Request.ApprovalSession describes, refusing one that is not a namespace
 // before it names a file under tmp/.
@@ -251,17 +293,19 @@ func approvalSession(request Request) (string, string) {
 
 // approvalFile is one owner approval file as the check reads it. used marks
 // the rows this commit claimed, so each row's trailer is carried once.
+// command renders the command that records a fresh row of this file.
 type approvalFile struct {
-	path string
-	rows []ApprovalRow
-	used map[int]bool
+	path    string
+	rows    []ApprovalRow
+	used    map[int]bool
+	command func(unit string) string
 }
 
 // loadApprovalFile reads one approval file through LoadApprovals, the loader
 // the edit hook and the audit share.
 func loadApprovalFile(root string, source ApprovalSource) (approvalFile, []string) {
 	rows, problems := LoadApprovals(root, source)
-	return approvalFile{path: source.Path, rows: rows, used: make(map[int]bool)}, problems
+	return approvalFile{path: source.Path, rows: rows, used: make(map[int]bool), command: source.Command}, problems
 }
 
 // claimFinding marks the first live row of file that names finding as used,
@@ -409,6 +453,7 @@ func weakenedTests(
 	changed := make([]Finding, 0)
 	problems := make([]string, 0)
 	seen := make(map[string]bool, len(paths)+len(removed))
+	helpers := make(changedHelperSet)
 	removedSet := make(map[string]bool, len(removed))
 	var text textbuf.Buffer
 	for _, path := range removed {
@@ -422,13 +467,14 @@ func weakenedTests(
 		}
 		seen[pair.OldPath] = true
 		seen[pair.NewPath] = true
-		pairFindings, pairChanges, problem := comparePath(root, pair.OldPath, pair.NewPath, anchor, selection)
+		pairFindings, pairChanges, pairHelpers, problem := comparePath(root, pair.OldPath, pair.NewPath, anchor, selection)
 		findings = append(findings, pairFindings...)
 		if problem != "" {
 			problems = append(problems, text.Reset().Str(cannotRunPrefix).Str(problem).String())
 			continue
 		}
 		changed = append(changed, pairChanges...)
+		helpers.add(pairHelpers)
 	}
 	for _, path := range slices.Concat(paths, removed) {
 		if seen[path] || !isTestPath(path) {
@@ -439,24 +485,41 @@ func weakenedTests(
 		if removedSet[path] {
 			newPath = ""
 		}
-		pathFindings, pathChanges, problem := comparePath(root, path, newPath, anchor, selection)
+		pathFindings, pathChanges, pathHelpers, problem := comparePath(root, path, newPath, anchor, selection)
 		findings = append(findings, pathFindings...)
 		if problem != "" {
 			problems = append(problems, text.Reset().Str(cannotRunPrefix).Str(problem).String())
 			continue
 		}
 		changed = append(changed, pathChanges...)
+		helpers.add(pathHelpers)
 	}
+	if len(problems) != 0 {
+		return findings, changed, problems
+	}
+	if !helpers.hasHelpers() {
+		return findings, changed, problems
+	}
+	// A helper's change is a change to every existing test of the commit's
+	// files that calls it. The helper's own weakening stays its own finding.
+	changed, problems = attributeHelpers(helperPackages{
+		root: root, anchor: anchor, selection: selection,
+		paths: paths, removed: removed, renamePairs: renamePairs,
+	}, helpers, changed)
 	return findings, changed, problems
 }
 
-func comparePath(root, oldPath, newPath, anchor string, selection hunks.Selection) ([]Finding, []Finding, string) {
+// comparePath judges one test path: the weakened units, the existing units
+// whose text changed, and, for Go, the file's helper change (the helpers whose
+// text changed, was added or was removed, and the tests its baseline holds),
+// which attributeHelpers hands to the tests that call them.
+func comparePath(root, oldPath, newPath, anchor string, selection hunks.Selection) ([]Finding, []Finding, testFileChange, string) {
 	oldText, problem := baselineText(root, oldPath, anchor)
 	if problem != "" {
-		return nil, nil, problem
+		return nil, nil, testFileChange{}, problem
 	}
 	if strings.TrimSpace(oldText) == "" {
-		return nil, nil, ""
+		return nil, nil, testFileChange{}, ""
 	}
 	newText := ""
 	path := oldPath
@@ -464,7 +527,7 @@ func comparePath(root, oldPath, newPath, anchor string, selection hunks.Selectio
 		path = newPath
 		text, problem := worktreeText(root, newPath, selection)
 		if problem != "" {
-			return nil, nil, problem
+			return nil, nil, testFileChange{}, problem
 		}
 		newText = text
 	}
@@ -483,12 +546,22 @@ func comparePath(root, oldPath, newPath, anchor string, selection hunks.Selectio
 	changed := make([]Finding, 0)
 	names, err := changedUnitNames(path, oldText, newText)
 	if err != nil {
-		return findings, nil, err.Error()
+		return findings, nil, testFileChange{}, err.Error()
 	}
 	for _, name := range names {
-		changed = append(changed, Finding{Path: path, Package: packageName, Name: name})
+		changed = append(changed, changedUnit(path, packageName, name))
 	}
-	return findings, changed, ""
+	if !strings.HasSuffix(path, ".go") {
+		return findings, changed, testFileChange{}, ""
+	}
+	return findings, changed, goTestFileChange(path, oldText, newText), ""
+}
+
+// changedUnit names one existing unit a commit changes, for the approval
+// matcher and the approval sites. It is a unit's identity, never a finding a
+// reader is shown, so it carries no details.
+func changedUnit(path, packageName, name string) Finding {
+	return Finding{Path: path, Package: packageName, Name: name}
 }
 
 func baselineText(root, path, anchor string) (string, string) {

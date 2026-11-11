@@ -191,6 +191,42 @@ func SelfTest() SelfTestReport {
 	check(os.Remove(filepath.Join(root, filepath.FromSlash(selfTestApprovals))) == nil,
 		"remove the unused fixture approval file")
 
+	// A judged unit edited again after its verdict refuses with the reason,
+	// even when the new edit weakens nothing.
+	commentFixture := negative[1]
+	_, approveErr := Approve(root, selfTestSession, "pkg.TestCommentFixture", "fixture: the judge read this change")
+	check(approveErr == nil, "record a verdict for the changed negative fixture")
+	check(writeSelfTestFile(root, commentFixture.path,
+		strings.Replace(commentFixture.new, "1, got", "2, got", 1)) == nil,
+		"change the judged negative fixture again")
+	stale := Check(Request{Root: root, ApprovalSession: selfTestSession, Paths: []string{commentFixture.path}})
+	check(stale.ExitCode() == 1 && containsProblem(stale.Problems, "changes pkg.TestCommentFixture after its ze-test-judge verdict") &&
+		containsProblem(stale.Problems, "is stale (") && containsProblem(stale.Problems, "remove the stale row"),
+		"a changed unit whose only approval is stale must be refused with the reason and the fix")
+	check(os.Remove(filepath.Join(root, filepath.FromSlash(selfTestApprovals))) == nil,
+		"remove the stale fixture approval file")
+
+	// A helper's weakening is the helper's own finding, named by its own row:
+	// the calling test's verdict judged the test's text, not the helper's.
+	const helperPath = "helperpkg/helper_test.go"
+	const helperCaller = "func TestCallsHelper(t *testing.T) { requireReady(t) }\n"
+	check(writeSelfTestFile(root, helperPath, "package helperpkg\nfunc requireReady(t *testing.T) {\n"+
+		"\trequire.NoError(t, err)\n\trequire.Equal(t, 1, got)\n}\n"+helperCaller) == nil,
+		"write the helper fixture baseline")
+	check(runSelfTestGit(root, "add", "--", helperPath) && runSelfTestGit(root,
+		"-c", "user.email=t@t", "-c", "user.name=t",
+		"-c", "commit.gpgsign=false", "commit", "-q", "-m", "helper baseline"),
+		"commit the helper fixture baseline")
+	check(writeSelfTestFile(root, helperPath, "package helperpkg\nfunc requireReady(t *testing.T) {\n"+
+		"\trequire.NoError(t, err)\n}\n"+helperCaller) == nil,
+		"remove one assertion from the helper")
+	helper := Check(Request{Root: root, ApprovalSession: selfTestSession, Paths: []string{helperPath}})
+	helperFinding, helperFound := findingForPath(helper.Findings, helperPath)
+	check(helper.ExitCode() == 1 && helperFound && len(helper.Findings) == 1 &&
+		helperFinding.Unit() == "helperpkg.requireReady" &&
+		containsDetail(helperFinding.Details, "removing assertions"),
+		"a helper's assertion loss must be reported under the helper's own name")
+
 	invalidAnchor := Check(Request{
 		Root: root, ApprovalSession: selfTestSession, Paths: []string{positive[0].path}, Anchor: "NO-SUCH-ANCHOR",
 	})
