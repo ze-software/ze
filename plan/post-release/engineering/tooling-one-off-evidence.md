@@ -4334,3 +4334,26 @@ patched `GOROOT` under `~/.cache/ze/stdpatch/.../goroot` (`2300efb0f9`), and
 extraction and analysis completed before the check refused. The red is
 attributed to the library path alone, and the green run is the same workflow
 with that repair on the check's path. P-17 is closed.
+
+## P-10: the Mac host's 9p backend reproduces the xattr ELOOP (2026-11-11)
+
+The owner ran the Linux 9p check's script on the Mac (arm64, Colima, Ze's
+`runtime` arm64 kernel built that day) through `./le test qemu docker-lab
+kernel <k> harness timeout 1200s command ...`, with a static linux/arm64
+buildx v0.38.1 lent to the guest under a scratch `HOME`. Each context is read
+by the guest docker CLI from `/workspace` over the Mac host's 9p export.
+
+| Builder | Real directory (control) | `cache` a symlink to the host cache |
+| --- | --- | --- |
+| BuildKit | `sha256:de673604...`, rc=0 | rc=1: "failed to build: failed to solve: failed to read dockerfile: error from sender: failed to xattr /workspace/tmp/session/2026-11-11-100846/scratch/p10mac/link/cache: too many levels of symbolic links" |
+| classic (`DOCKER_BUILDKIT=0`) | `sha256:70d80b89...`, rc=0 | `sha256:70d80b89...`, rc=0 |
+
+The journal row's symptom reproduces on the Mac and nowhere else: the same
+four builds pass on a Linux host ("P-10: the symlinked cache builds on Linux
+over 9p"). The failure needs BuildKit, a symlink in the context, and the Mac
+host's 9p server together. BuildKit raises it while sending the Dockerfile,
+before `.dockerignore` applies, which is why excluding `cache/` never helped.
+The classic builder's tar context does not read the link's xattrs. An earlier
+run the same day without buildx answered only the classic legs, and one
+before it stopped in the kernel build ("No space left on device") before any
+guest booted.
