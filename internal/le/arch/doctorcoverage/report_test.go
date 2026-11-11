@@ -2,6 +2,8 @@
 // uncovered site in the tree, grouped by door area and owner package, with
 // counts, and the health rows the audit maps by hand counted apart; and that
 // the real checkout scans above the site floor with a door for every file.
+// It also validates spec-doctor-coverage-12-plugin-infra AC-46's report form:
+// a plugin's rpc.DoctorCheckDiagnostic findings are listed under their owner.
 // PREVENTS: an inventory the audit cannot split by area, and a scan of the
 // real tree that matched too little to judge it.
 package archdoctorcoverage
@@ -78,6 +80,84 @@ func TestDoctorCoverageReportGroupsByOwner(t *testing.T) {
 		if !strings.Contains(text, line) {
 			t.Errorf("report text has no line %q:\n%s", line, text)
 		}
+	}
+}
+
+// TestDoctorCoverageReportListsPluginFindings is AC-46's report form. Goal:
+// every rpc.DoctorCheckDiagnostic literal, written through rpc, through the
+// SDK alias, as an elided element, address taken or unqualified in rpc
+// itself, is a doctor finding judged on its Fix, and report lists the ones
+// with no Fix under their owner package. Method: scan pluginFindingTree
+// (judge_test.go) and read the inventory and the report.
+func TestDoctorCoverageReportListsPluginFindings(t *testing.T) {
+	inventory, err := Scan(pluginFindingTree(t), 0, fixtureDoors)
+	if err != nil {
+		t.Fatalf("Scan: %v", err)
+	}
+	cases := []struct {
+		message string
+		file    string
+		call    string
+		status  Status
+	}{
+		{"copp: no fix", pluginFindingCopp, "rpc.DoctorCheckDiagnostic", StatusNoFix},
+		{"copp: fix set", pluginFindingCopp, "rpc.DoctorCheckDiagnostic", StatusFixSet},
+		{"static: no fix", "internal/plugins/static/doctor.go", "sdk.DoctorCheckDiagnostic", StatusNoFix},
+		{"static: fix empty", "internal/plugins/static/doctor.go", "sdk.DoctorCheckDiagnostic", StatusNoFix},
+		{"rpc: own finding", "pkg/plugin/rpc/types.go", "DoctorCheckDiagnostic", StatusFixSet},
+	}
+	for _, tc := range cases {
+		site := siteWith(t, inventory.Sites, tc.message)
+		if site.File != tc.file {
+			t.Errorf("%q: file %s, want %s", tc.message, site.File, tc.file)
+		}
+		if site.Kind != KindDoctorFinding {
+			t.Errorf("%q: kind %s, want %s", tc.message, site.Kind, KindDoctorFinding)
+		}
+		if site.Call != tc.call {
+			t.Errorf("%q: call %q, want %q", tc.message, site.Call, tc.call)
+		}
+		if site.Status != tc.status {
+			t.Errorf("%q: status %s, want %s", tc.message, site.Status, tc.status)
+		}
+	}
+	if len(inventory.Sites) != len(cases) {
+		t.Errorf("scan found %d sites, want %d (an empty literal is no finding): %+v", len(inventory.Sites), len(cases), inventory.Sites)
+	}
+
+	report := treeReport(inventory)
+	if report.Findings != 5 {
+		t.Errorf("report findings %d, want 5", report.Findings)
+	}
+	if report.FindingsFixed != 2 {
+		t.Errorf("report findings with a Fix %d, want 2", report.FindingsFixed)
+	}
+	owners := map[string]int{}
+	for _, group := range report.Doors {
+		for _, owner := range group.Packages {
+			owners[owner.Package] = owner.Uncovered
+		}
+	}
+	for pkg, want := range map[string]int{"internal/plugins/copp": 1, "internal/plugins/static": 2} {
+		if owners[pkg] != want {
+			t.Errorf("owner %s lists %d uncovered finding(s), want %d: %+v", pkg, owners[pkg], want, report.Doors)
+		}
+	}
+	text := report.Text()
+	for _, want := range []string{
+		"5 doctor finding(s), 2 with a Fix",
+		"internal/plugins/copp: 1 uncovered",
+		"internal/plugins/static: 2 uncovered",
+		"doctor-finding no-fix rpc.DoctorCheckDiagnostic",
+		"doctor-finding no-fix sdk.DoctorCheckDiagnostic",
+		`"copp: no fix"`, `"static: no fix"`, `"static: fix empty"`,
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("report does not list %q:\n%s", want, text)
+		}
+	}
+	if strings.Contains(text, "copp: fix set") {
+		t.Errorf("report lists a finding with its Fix:\n%s", text)
 	}
 }
 

@@ -330,6 +330,9 @@ type treeIndex struct {
 	variables map[string]map[string]constRef
 	// packageNames maps a directory to the package name its files declare.
 	packageNames map[string]string
+	// wrappers are the functions that forward a message to a log call, and
+	// their forwarding calls (wrappers.go), found once the imports are known.
+	wrappers wrapperSet
 }
 
 // constRef is one declared constant or package-level variable: its value
@@ -394,6 +397,7 @@ func indexTree(tree string, overlay map[string]overlayFile) (*treeIndex, error) 
 	for _, file := range index.files {
 		file.imports = index.importNames(file.ast)
 	}
+	index.wrappers = index.findWrappers()
 	return index, nil
 }
 

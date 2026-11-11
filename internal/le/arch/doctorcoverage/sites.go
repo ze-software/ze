@@ -1,6 +1,7 @@
 // Design: docs/architecture/doctor-and-health-checks.md -- the doctor-coverage gate
 //
 // Overview: doctorcoverage.go -- the site kinds and statuses, and the scan
+// Related: wrappers.go -- the functions that forward a message to Warn or Error
 //
 // sites.go decides which calls are problem sites and reads the code each one
 // names. The scan reads syntax, not types, so the shapes are:
@@ -10,24 +11,32 @@
 //	x.WarnContext(ctx, msg, ...), x.ErrorContext(...)    the context forms
 //	x.Log(ctx, slog.LevelWarn|LevelError, msg, ...)      the level forms,
 //	x.LogAttrs(ctx, slog.LevelWarn|LevelError, msg, ...) LogAttrs included
+//	warnLimited(log, last, msg, ...)                     a wrapper's call
 //	report.RaiseWarning(source, code, ...)               the report bus
 //	report.RaiseError(source, code, ...)
 //	health.Register(name, ...), health.RegisterWhen(...) a health row
 //	diagnostic.Diagnostic{...}                           a doctor finding,
 //	&diagnostic.Diagnostic{...}                          its address taken,
-//	[]diagnostic.Diagnostic{{...}}                       elided elements too
+//	[]diagnostic.Diagnostic{{...}}                       elided elements too,
+//	rpc.DoctorCheckDiagnostic{...}                       a plugin's finding
 //
-// A doctor finding is a composite literal whose type is the diagnostic
-// package's Diagnostic, named through any import name of that package or
-// unqualified inside it. A literal with no element is the zero value a
-// function answers beside "no finding" (`return diagnostic.Diagnostic{},
-// false`), so it is no site. Its Fix is read from the keyed element `Fix`.
+// A doctor finding is a composite literal whose type is one of findingTypes,
+// named through any import name of its package or unqualified inside it. A
+// literal with no element is the zero value a function answers beside "no
+// finding" (`return diagnostic.Diagnostic{}, false`), so it is no site. Its
+// Fix is read from the keyed element `Fix`.
 //
 // A call on another imported package (http.Error) is no site. A method call
-// on a value is a log call when its message is a string constant, or when the
+// on a value is a log call when its message is a string the source shows (a
+// constant, a concatenation, a string variable, an error's text), or when the
 // arguments after it are attributes: a string key, a slog attribute, or a
 // spread (an operator error's LogAttrs). That excludes err.Error(), which
-// takes no argument, and a value's Error(err) with nothing after it.
+// takes no argument, and a value's Error(err) with nothing after it. A call
+// of a wrapper, a function whose body forwards its own message and attribute
+// parameters to a log call or to another wrapper, is a log call of the
+// wrapper's level whatever its name (wrappers.go). A level the source does
+// not spell (x.Log(ctx, level, msg)) is no site, and neither is a wrapper
+// that forwards one.
 //
 // A log line names its code as a `code` attribute, the key internal/core/opererr
 // passes a caller's code under: `"code", X` among the key-value arguments, or
@@ -40,6 +49,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"slices"
 	"strconv"
 )
 
@@ -49,13 +59,19 @@ const (
 	reportPath = modulePath + "/internal/core/report"
 	healthPath = modulePath + "/internal/core/health"
 
-	// diagnosticDir is the tree directory of the package whose Diagnostic
-	// literal is a doctor finding.
-	diagnosticDir  = "internal/core/diagnostic"
-	diagnosticPath = modulePath + "/" + diagnosticDir
-	// diagnosticType is the doctor finding's type name.
-	diagnosticType = "Diagnostic"
+	fmtPath = "fmt"
 )
+
+// findingTypes are the types whose composite literal is a doctor finding: the
+// diagnostic package's Diagnostic, which an in-tree check answers, and the
+// finding a plugin's doctor callback answers, rpc.DoctorCheckDiagnostic, with
+// its SDK alias. collectDoctorChecksFrom (internal/component/doctor/cmd)
+// carries the plugin finding's Fix to the operator, so both are judged alike.
+var findingTypes = []typeRef{
+	{dir: "internal/core/diagnostic", name: "Diagnostic"},
+	{dir: "pkg/plugin/rpc", name: "DoctorCheckDiagnostic"},
+	{dir: "pkg/plugin/sdk", name: "DoctorCheckDiagnostic"},
+}
 
 // codeKey is the log attribute key a site names its doctor code under.
 const codeKey = "code"
@@ -70,15 +86,30 @@ const codeDepthMax = 16
 // site roots). A call or literal nested in another's arguments is read too.
 func (index *treeIndex) sitesOf(file *sourceFile, callSites bool) []Site {
 	var sites []Site
+	// path holds every node from the file down to the one inspected, and
+	// scope the functions among them, innermost last: a message variable is
+	// looked up in the functions that enclose its call (stringValued).
+	var path, scope []ast.Node
 	ast.Inspect(file.ast, func(node ast.Node) bool {
+		if node == nil {
+			switch path[len(path)-1].(type) {
+			case *ast.FuncDecl, *ast.FuncLit:
+				scope = scope[:len(scope)-1]
+			}
+			path = path[:len(path)-1]
+			return false
+		}
+		path = append(path, node)
 		switch node := node.(type) {
+		case *ast.FuncDecl, *ast.FuncLit:
+			scope = append(scope, node)
 		case *ast.CompositeLit:
 			sites = append(sites, index.findingsOf(file, node)...)
 		case *ast.CallExpr:
 			if !callSites {
 				return true
 			}
-			site, isSite := index.siteOf(file, node)
+			site, isSite := index.siteOf(file, node, scope)
 			if !isSite {
 				return true
 			}
@@ -185,17 +216,28 @@ func (index *treeIndex) findingSite(file *sourceFile, lit *ast.CompositeLit, typ
 	return index.placed(file, site, lit), true
 }
 
-// isDiagnosticType reports whether a type expression names the diagnostic
-// package's Diagnostic: through an import name of that package, or
-// unqualified in a file of the package itself.
+// isDiagnosticType reports whether a type expression names one of the
+// findingTypes: through an import name of its package, or unqualified in a
+// file of the package itself.
 func isDiagnosticType(file *sourceFile, expr ast.Expr) bool {
+	var ref typeRef
 	switch typed := expr.(type) {
 	case *ast.Ident:
-		return file.dir == diagnosticDir && typed.Name == diagnosticType
+		ref = typeRef{dir: file.dir, name: typed.Name}
 	case *ast.SelectorExpr:
-		return typed.Sel.Name == diagnosticType && refersTo(file, typed.X, diagnosticPath)
+		receiver, isIdent := typed.X.(*ast.Ident)
+		if !isIdent {
+			return false
+		}
+		dir, inTree := cutModule(file.imports[receiver.Name])
+		if !inTree {
+			return false
+		}
+		ref = typeRef{dir: dir, name: typed.Sel.Name}
+	default:
+		return false
 	}
-	return false
+	return slices.Contains(findingTypes, ref)
 }
 
 // emptyStringLiteral reports whether expr is a string literal holding nothing:
@@ -215,8 +257,16 @@ func emptyStringLiteral(expr ast.Expr) bool {
 	return value == ""
 }
 
-// siteOf answers the site a call is, if it is one.
-func (index *treeIndex) siteOf(file *sourceFile, call *ast.CallExpr) (Site, bool) {
+// siteOf answers the site a call is, if it is one. scope holds the functions
+// enclosing the call, innermost last. A wrapper's own forwarding call is no
+// site: each call of the wrapper is one, judged for its own code (wrappers.go).
+func (index *treeIndex) siteOf(file *sourceFile, call *ast.CallExpr, scope []ast.Node) (Site, bool) {
+	if index.wrappers.forwards[call] {
+		return Site{}, false
+	}
+	if forwarded, isWrapper := index.wrappers.of(file, call); isWrapper {
+		return index.logSite(file, forwarded.kind, call.Args, forwarded.messageAt)
+	}
 	selector, isSelector := call.Fun.(*ast.SelectorExpr)
 	if !isSelector {
 		return Site{}, false
@@ -226,7 +276,7 @@ func (index *treeIndex) siteOf(file *sourceFile, call *ast.CallExpr) (Site, bool
 			return index.packageSite(file, path, selector.Sel.Name, call.Args)
 		}
 	}
-	return index.methodSite(file, selector.Sel.Name, call.Args)
+	return index.methodSite(file, selector.Sel.Name, call.Args, scope)
 }
 
 // packageSite answers the site a call on an imported package is: the package
@@ -250,21 +300,28 @@ func (index *treeIndex) packageSite(file *sourceFile, path, name string, args []
 
 // methodSite answers the site a method call on a value is: a logger's Warn or
 // Error, in any of its forms.
-func (index *treeIndex) methodSite(file *sourceFile, name string, args []ast.Expr) (Site, bool) {
-	kind, messageAt := logShape(name)
-	if kind == KindUnspecified {
-		kind, messageAt = index.levelShape(file, name, args)
-	}
+func (index *treeIndex) methodSite(file *sourceFile, name string, args []ast.Expr, scope []ast.Node) (Site, bool) {
+	kind, messageAt := index.methodShape(file, name, args)
 	if kind == KindUnspecified {
 		return Site{}, false
 	}
 	if messageAt >= len(args) {
 		return Site{}, false
 	}
-	if !index.looksLikeLog(file, args[messageAt], args[messageAt+1:]) {
+	if !index.looksLikeLog(file, args[messageAt], args[messageAt+1:], scope) {
 		return Site{}, false
 	}
 	return index.logSite(file, kind, args, messageAt)
+}
+
+// methodShape answers the kind and message index of a method named name: a
+// Warn or Error form, or a Log or LogAttrs form whose level the source spells.
+func (index *treeIndex) methodShape(file *sourceFile, name string, args []ast.Expr) (Kind, int) {
+	kind, messageAt := logShape(name)
+	if kind == KindUnspecified {
+		return index.levelShape(file, name, args)
+	}
+	return kind, messageAt
 }
 
 // logShape answers the kind of a Warn or Error method and the index of its
@@ -310,13 +367,12 @@ func (index *treeIndex) levelShape(file *sourceFile, name string, args []ast.Exp
 }
 
 // looksLikeLog reports whether a method call's arguments read as a log call:
-// a message that is a string constant, a message that is an error's or an
-// operator error's text, or attributes after the message.
-func (index *treeIndex) looksLikeLog(file *sourceFile, message ast.Expr, rest []ast.Expr) bool {
-	if _, isString := index.resolve(file, message, 0); isString {
-		return true
-	}
-	if textCall(message) {
+// a message the source shows is a string (a constant, a concatenation, a
+// string variable of an enclosing function, an error's or an operator error's
+// text), or attributes after the message. A value's Error(err) with nothing
+// after it is none: err is no string.
+func (index *treeIndex) looksLikeLog(file *sourceFile, message ast.Expr, rest []ast.Expr, scope []ast.Node) bool {
+	if index.stringValued(file, scope, message, 0) {
 		return true
 	}
 	if len(rest) == 0 {

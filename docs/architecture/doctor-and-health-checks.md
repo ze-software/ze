@@ -655,10 +655,36 @@ or the config validator builds:
 
 | Site | Where the operator meets it | How it names its code |
 |------|-----------------------------|-----------------------|
-| A `Warn` or `Error` log line, any form (`WarnContext`, `Log` and `LogAttrs` at `slog.LevelWarn` or `slog.LevelError`) | the log | a `code` attribute: `"code", diagnostic.CodeDoctorX` among the key-value arguments, or `slog.String("code", ...)`, nested in an operator error's `LogAttrs` included |
+| A `Warn` or `Error` log line, any form (`WarnContext`, `Log` and `LogAttrs` at `slog.LevelWarn` or `slog.LevelError`), its message a literal, a constant, a concatenation, a string variable or an error's text; or a call of a wrapper that forwards its message and attributes to one | the log | a `code` attribute: `"code", diagnostic.CodeDoctorX` among the key-value arguments, or `slog.String("code", ...)`, nested in an operator error's `LogAttrs` included; a wrapper's call names it among the attributes it passes |
 | `report.RaiseWarning` or `report.RaiseError` | `show warnings`, `show errors` | its code argument |
 | `health.Register` or `health.RegisterWhen` | the health endpoint | none: a health row carries a name, so the audit maps it to its check by hand |
-| a `diagnostic.Diagnostic` composite literal (a doctor finding), written plainly, with `&`, as an elided element of a `[]diagnostic.Diagnostic` literal, through an import alias, or unqualified inside `internal/core/diagnostic` | `ze doctor`, `show doctor`, config validation, `ze config fix --plan` | none: a finding is judged by its `Fix` field, not by a code |
+| a `diagnostic.Diagnostic` composite literal (a doctor finding), or an `rpc.DoctorCheckDiagnostic` literal (the finding a plugin's doctor callback answers) or one of its SDK alias `sdk.DoctorCheckDiagnostic`, written plainly, with `&`, as an elided element of a slice literal, through an import alias, or unqualified inside the declaring package | `ze doctor`, `show doctor`, config validation, `ze config fix --plan` | none: a finding is judged by its `Fix` field, not by a code |
+
+The scan reads syntax, not types, so a method call on a value is a log call
+only when its arguments read as one: the message is a string the source
+shows (a literal, a constant, a concatenation with a string operand, a
+variable an enclosing function declares as a string or with a string value,
+an error's `Error()` text, a `String()` or `fmt.Sprint` call), or the
+message is followed by attributes. A value's `Error(err)` with nothing after
+it is no site, because `err` is no string. A wrapper is a function or method
+whose last two parameters are a string message and a variadic attribute list,
+and whose body passes both on, the message alone or with a prefix
+concatenated (`"iface dhcp v6: "+msg`), to a `Warn` or `Error` call or to
+another wrapper (dhcpserver's `warnUnserved` forwards to `warnLimited`, which
+forwards to `Warn`). It is found from its body, never from its name. Each
+call of a wrapper is a site of the wrapper's level, judged for the `code`
+attribute that call passes, and the forwarding call inside the wrapper is
+none. With no types, a name is matched as Go scopes it: a function by its
+package and name, a method by its name in its package, and an exported
+method by its name anywhere. A method named `Warn`, `Error` or `Log` is
+judged by its own shape instead. A `Log` whose level the source does not
+spell (`x.Log(ctx, level, msg)`) is no site, and neither is a wrapper that
+forwards one. A function stored in a field and called through it (`seg.warn
+= r.warnWithheld`, then `seg.warn(...)`) is not followed.
+<!-- source: internal/le/arch/doctorcoverage/wrappers.go -- findWrappers, candidateOf, forwardsOf, passesOn, stringValued, stringName -->
+<!-- test: internal/le/arch/doctorcoverage/judge_test.go TestGateSeesWrapperAndNonLiteralWarn -->
+<!-- test: internal/le/arch/doctorcoverage/report_test.go TestDoctorCoverageReportListsPluginFindings -->
+<!-- test: internal/le/arch/doctorcoverage/judge_test.go TestDoctorCoverageCheckRefusesPluginFindingWithoutFix -->
 
 A site is covered when its code is one that a doctor check declares. The
 gate reads the covered codes from the same parsed source the sites come from,
