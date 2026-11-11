@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | umbrella: children 1 and 2 designed; area children created by child 1 |
 | Handoff | - |
-| Updated | 2026-11-08 |
+| Updated | 2026-11-11 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -59,15 +59,15 @@ audit's output. Child 1 owes their creation, so the work stays visible as specs
 **Key insights:**
 - Two classes of check exist: config or kernel readable (works on the local route), and daemon-state readable (works only inside the daemon). Child 1 makes the second class explicit with a `runtime` phase, so a local run never answers healthy for state it cannot see
 - The gate judges what a commit adds (an added problem site with no doctor code), which `ai/META-DECISIONS.md` lets stand as a refusal
-- Plugin diagnostics lose everything but code, severity and message on the way to the operator (`collectPluginDoctorChecks` maps only those three), so a fix command has no field to travel in today
+- Plugin diagnostics once lost everything but code, severity and message on the way to the operator; child 1 gave `rpc.DoctorCheckDiagnostic` a `Fix` field (ce58dddf53), and `collectDoctorChecksFrom` now carries each plugin's fix to the operator. Since 10c6647f6d the doctor-coverage gate refuses a `diagnostic.Diagnostic` finding with no `Fix`; it does not yet judge an `rpc.DoctorCheckDiagnostic` (`spec-doctor-coverage-12-plugin-infra` AC-46)
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
 - [ ] `internal/component/doctor/answer.go` - `Answer(validated, runtime RuntimeChecks)`: runs `runChecks(configPath)`, appends the daemon-supplied runtime diagnostics when `runtime` is non-nil; the local route passes nil
-- [ ] `internal/component/doctor/cmd/show.go` - `HandleDoctor` passes `collectPluginDoctorChecks`, which asks each plugin the daemon runs for its declared checks, ordered by `Order`, each under `perCheckTimeout`, truncated at 64 diagnostics, mapping only `Code`, `Severity`, `Message`
+- [ ] `internal/component/doctor/cmd/show.go` - `HandleDoctor` runs `doctor.RunRuntimeChecks` and `collectDoctorChecksFrom`, which asks each plugin the daemon runs (the caller excepted) for every check it declared at Stage 1, whatever its phase, ordered by `Order`, each under `perCheckTimeout`, truncated at 64 diagnostics, carrying each finding's `Fix`; since 149497ce12 this is the only route that runs a declared check, and a compiled-in plugin's `registry.DoctorCheckDef` runs through `doctor.Answer` at a config phase only
 - [ ] `internal/core/diagnostic/doctor_registry.go` - `RegisterDoctorCheck`, `DoctorCheck{Name, Phase, Order, Component, Dependencies, Platforms, Codes, Check}`, `DoctorCheckContext{Tree, ConfigDir, Plugins, Store, Platform}`
-- [ ] `pkg/plugin/rpc/types.go` - `DoctorCheckPhase` (`pre-config`, `missing-config`, `parsed-config`, `post-config`) with `Valid`; `DoctorCheckDiagnostic{Code, Severity, Message}`: no fix field
+- [ ] `pkg/plugin/rpc/types.go` - `DoctorCheckPhase` (`pre-config`, `missing-config`, `parsed-config`, `post-config`) with `Valid`; `DoctorCheckDiagnostic{Code, Severity, Message, Fix}` (the fix field landed with child 1, ce58dddf53); the phase set includes `runtime`
 - [ ] `internal/core/diagnostic/types.go` - `Diagnostic` carries `Help`, `FixSafety`, `Repair`; `DoctorResult{SchemaVersion, Ready, Diagnostics}` is the `--json` envelope
 - [ ] `internal/core/report/report.go` - the operational report bus behind `show warnings` and `show errors`: state warnings raised and cleared, error events in a ring, process-local
 
@@ -86,8 +86,8 @@ audit's output. Child 1 owes their creation, so the work stays visible as specs
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
 | Doctor check registry | `internal/core/diagnostic/doctor_registry.go` `RegisterDoctorCheck` | Owner packages register phase-ordered checks with their codes | extends: every new check registers here or through the plugin field below; no check is called by hand |
-| Plugin doctor checks | `internal/component/plugin/registry/doctor.go` `DoctorCheckDef`, `Registration.DoctorChecks`; `internal/component/doctor/checks_plugin_registry.go` | An internal plugin declares checks; doctor bridges them per phase | extends: plugin-owned classes (IKE, DNS) register here |
-| Daemon doctor RPC | `internal/component/doctor/cmd/show.go` `HandleDoctor`, `collectPluginDoctorChecks` | `show doctor` runs the same producer in the daemon and adds every running plugin's checks | extends: the daemon route is where `runtime` checks run (child 1) |
+| Plugin doctor checks | `internal/component/plugin/registry/doctor.go` `DoctorCheckDef`, `Registration.DoctorChecks`; `internal/component/doctor/checks_plugin_registry.go` | An internal plugin declares config-phase checks; doctor bridges them per phase. Since 149497ce12 a check takes one route: the registry refuses a `runtime`-phase `DoctorCheckDef` (`validateDoctorCheckDef`), a check over live plugin state is declared in the Stage 1 `sdk.Registration` `DoctorChecks` and answered by `OnDoctorCheck`, and Stage 1 refuses a name declared on both routes (`refuseDoctorCheckDeclaredTwice`) | extends: plugin-owned config and host classes register here; live-state classes go through the Stage 1 callback |
+| Daemon doctor RPC | `internal/component/doctor/cmd/show.go` `HandleDoctor`, `collectDoctorChecksFrom` | `show doctor` runs the same producer in the daemon and adds every running plugin's checks | extends: the daemon route is where `runtime` checks run (child 1) |
 | Doctor phases | `pkg/plugin/rpc/types.go` `DoctorCheckPhase`; page "The phase decides what a check may read" | Four phases, declared once, aliased by `diagnostic` | extends: child 1 adds `runtime`, declared in the same place |
 | Diagnostic code registry | `internal/core/diagnostic/registry.go` `Register`, `ze show diagnostic <code>` | Each code has a title, description and example commands | extends: every new code registers from its owner with its fix command |
 | Kernel capability enrolment | `internal/component/kernelcap` `MustRegister` | One owner call puts a kernel feature on doctor, start, reload and validate | does not apply to the new classes: none is a missing kernel feature; reused where the audit finds one |
@@ -111,7 +111,7 @@ audit's output. Child 1 owes their creation, so the work stays visible as specs
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Operator to daemon | `show doctor` command dispatch | Yes, `HandleDoctor` exists |
-| Engine to plugin | `ze-plugin-callback:doctor-check` RPC per declared check | Yes, `collectPluginDoctorChecks` |
+| Engine to plugin | `ze-plugin-callback:doctor-check` RPC per declared check | Yes, `collectDoctorChecksFrom` |
 
 ### Changed-Wire Census
 
@@ -128,7 +128,7 @@ audit's output. Child 1 owes their creation, so the work stays visible as specs
 | No duplicated functionality (extends existing, does not recreate) | Yes | Existing Mechanisms table |
 | Zero-copy preserved where applicable (refs, not copies) | Yes | no hot path |
 | Registration over hardcoding, outbound | Yes | checks register from owners |
-| Registration over hardcoding, inbound | Yes | `runChecks` and `collectPluginDoctorChecks` iterate registries; no list learns a check name |
+| Registration over hardcoding, inbound | Yes | `runChecks` and `collectDoctorChecksFrom` iterate registries; no list learns a check name |
 
 ## Risks & Assumptions
 

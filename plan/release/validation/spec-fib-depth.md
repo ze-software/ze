@@ -7,7 +7,7 @@
 | Release reason | Rich-route implementation remains subject to functional, interop, cost-change and backend-parity proof. |
 | Depends | - |
 | Phase | 8/12 |
-| Updated | 2026-10-09 |
+| Updated | 2026-11-11 |
 
 Set aside 2026-10-09 (owner: "fib depth can be picked when we are back to two specs in dev"): pick it up when only two specs are in development. Depends no longer names `spec-vrf-0-umbrella.md`, because the 2026-10-08 owner decision moved AC-4, AC-8, AC-9 and the TableID producer to `plan/post-release/features/spec-fib-nexthop-objects-vpp-metric.md` and no remaining AC needs a VRF table. Next: the functional and interop evidence for AC-1, AC-2, AC-3, AC-5, AC-6, AC-7 and AC-10 to AC-15, notably AC-13 cost-change reselection and AC-15 kernel/VPP backend parity.
 
@@ -88,6 +88,7 @@ and backend parity under AC-15.
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `fixture-encodes-an-impossible-state.md` | 2026-10-31 | `connectedDistanceWinner02` injects a next hop the kernel cannot install |
+| `guard-added-to-one-half-of-a-pair.md` | 2026-11-11 | fib-vpp consumes no `(mpls-fib, entry)` event, so LDP and RSVP-TE swap and pop entries never reach VPP (backend parity) |
 
 ## Required Reading
 
@@ -129,13 +130,24 @@ and backend parity under AC-15.
 - Existing BestChangeEntry JSON format (add new fields with omitempty)
 - fib-kernel rtprotZE identification (stale-mark-then-sweep)
 - fib-vpp tableID from config remains the fallback when a change carries no override
-- MPLS labels already reach both backends
+- MPLS labels on best changes (push) already reach both backends; label-switching entries (swap, pop) reach fib-kernel only (Existing Mechanisms)
 - Existing route-type handling, including blackhole, unreachable and prohibit
 - Metrics: route install/update/remove counters unchanged
 
 **Behavior to change:**
 - TableID production, AC-4 (Linux nexthop objects), AC-8 (VPP metric) and AC-9 (table install) moved to `plan/post-release/features/spec-fib-nexthop-objects-vpp-metric.md` (owner, 2026-10-08).
 - Establish the remaining AC evidence against the implemented resolver, cost comparison, ECMP and backend paths, especially AC-13 cost-change reselection.
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|---------------------------------------------------------------|
+| System-RIB best change | `internal/component/sysrib/events/events.go` `BestChangeEntry`, published by `internal/component/sysrib/sysrib.go` | Carries route type, metric, TableID, labels, SRv6 SID and weighted ECMP paths to every FIB writer | extends: the rich fields this spec proves are its fields; no second event |
+| Recursive next-hop and IGP cost | `internal/component/sysrib/nhresolver.go` `Resolve`, `IGPMetric`; `internal/component/bgp/plugins/rib/bestpath.go` `lookupIGPCost` | Resolves over the Loc-RIB and feeds the comparator's IGP cost step | extends: AC evidence is gathered against it |
+| Kernel rich route | `internal/plugins/fib/kernel/nexthop_linux.go` `buildRichRoute`, `backend_linux.go` | Programs type, metric, table, multipath, MPLS push and SEG6 encap | extends: the kernel half of backend parity |
+| VPP rich route and SRv6 | `internal/plugins/fib/vpp/backend.go` `richRouteAddDel`, `srv6.go` `processSRv6Change`, `fibvpp.go` `processMPLSChange` | Programs weighted paths, a supplied table, SRv6 steering and labeled (push) routes from best changes | extends: the VPP half of backend parity |
+| MPLS label-switching entries | `internal/core/mplsfib/events.go`, consumed by `internal/plugins/fib/kernel/mplsentry.go` only | LDP and RSVP-TE swap and pop entries reach fib-kernel; fib-vpp subscribes only to best changes (`subscribeFibVPP`, `register.go`) | extends: backend parity owes fib-vpp the same consumer (owned row `guard-added-to-one-half-of-a-pair.md`, 2026-11-11) |
+| One writer per data plane | `internal/component/plugin/registry/registry.go` `ProgramsFIB`, `DataPlane`; `startup_autoload.go` `appendDataPlaneWriter` | Loads the writer for the configured data plane | does not apply: this spec adds no writer |
 
 ## Data Flow (MANDATORY)
 

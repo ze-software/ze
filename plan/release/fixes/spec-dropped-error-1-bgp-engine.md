@@ -252,7 +252,7 @@ Lines are those of HEAD on 2026-11-02; the report is the current list.
 | Zero findings under this child's paths | `./le arch refuse-by-default report '|' json` filtered by path |
 | Package tests | `./le job run label bgp command go test -tags ze_bgp ./internal/component/bgp/reactor/ ./internal/component/bgp/cli/ ./internal/component/bgp/server/` |
 | Functional | `./le test bgp plugin <name>` for each `.ci` the change reaches, from `./le repo changed scope print both` |
-| Change set judged | `./le verify changed` after the closing commit |
+| Change set judged | The scoped runs above, nothing wider: the three packages under `-race` (`./le job run label bgp command go test -race -tags ze_bgp ./internal/component/bgp/reactor/ ./internal/component/bgp/cli/ ./internal/component/bgp/server/`), the `test/plugin`, `test/decode` and `test/encode` `.ci` that reach the changed files (`capability-llgr` included), and `./le arch refuse-by-default report` filtered to this child's paths (AC-1). No agent runs any `./le verify` command (`ai/META-DECISIONS.md`, "Ze is pre-release"); GitHub CI verifies the pushed commit |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -301,7 +301,7 @@ The class row for the whole population is owned by the umbrella.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-5 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] The targeted tests for what changed pass, and `./le verify changed` over the closing commits
+- [ ] The targeted tests for what changed pass: the scoped package and functional runs of the Pre-Commit table, no `./le verify` command
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD

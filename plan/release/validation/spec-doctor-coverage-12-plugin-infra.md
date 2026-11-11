@@ -270,6 +270,7 @@ Every row: severity, code, the fix line, the state read, and the route. "Event" 
 | AC-6 | a plugin crashes, then is disabled at the respawn limit | the bus carries `doctor-plugin-crashed` and `doctor-plugin-stopped` (renamed from `plugin-crash`, `plugin-down`); the `plugins` health row reads down on the new name; the internal-runner non-zero exit line logs `exit-code` and carries `doctor-plugin-crashed` | none: no release shipped the old names |
 | AC-7 | the bus reaches its warning cap and evicts, or the error ring wraps | runtime warning `doctor-report-bus-full` names the cap, how many entries were lost and the fix `ze.report.warnings.max` / `ze.report.errors.max`; a `HealthProbe*` row whose code could have been evicted reads degraded "report bus full" instead of healthy | a bus below cap reads as today, because nothing was lost |
 | AC-8 | ze stops because of a plugin (fatal policy, boot refusal) or a stop-time cleanup ran late | the reason, the plugin and the time are written to a zefs key before the stop; the next run's checks read it (AC-11, AC-32); a clean start clears it | none |
+| AC-47 | a plugin's run function logs the error `sdk.Plugin.Run` returned (`pkg/plugin/sdk/sdk.go`), which today is a startup failure wrapped `stage N (...)` for stages 1 to 5 or a failure after ready, told apart only by message text | the SDK marks every error `Run` returns before stage 5 completes with one exported, generic mark a caller tests with `errors.Is` or `errors.As` (the symbol named at implementation), so a run-failure site logs a startup failure under `doctor-plugin-startup-phase-failed` and a later failure under `doctor-plugin-stopped`, each line with one static code; children 6 (AC-52), 7 (AC-79) and 14 (AC-85) use it (R-6) | a connection closed during stage 5 still returns nil, as today, because the engine already holds the ready request |
 
 ### Plugin lifecycle (P2)
 
@@ -342,6 +343,7 @@ Every row: severity, code, the fix line, the state read, and the route. "Event" 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
 | AC-43 | a fixture commit adding a Warn whose message is not a literal (concatenation, variable) with no attributes, and a call to a wrapper that forwards its message and attributes to Warn (the dhcpserver `warnLimited` shape) | `./le arch doctor-coverage check` reports both as sites, the wrapper's call judged at the caller for its `code` attribute; the report counts flow-export's concatenated Warn and dhcpserver's `warnLimited` callers | a Warn whose level the source does not spell is no site, as today |
+| AC-46 | a fixture commit adding an `rpc.DoctorCheckDiagnostic` literal with no `Fix` (the type a plugin's doctor callback answers, `pkg/plugin/rpc/types.go`, whose `Fix` field `collectDoctorChecksFrom` carries to the operator) | `./le arch doctor-coverage check` refuses it as it refuses a `diagnostic.Diagnostic` with no Fix, and `./le arch doctor-coverage report` lists the existing ones (copp, static, geodns, ldp, rsvpte, ike and the rest) under their owners; today `findingsOf` and `isDiagnosticType` (`internal/le/arch/doctorcoverage/sites.go`) judge only `internal/core/diagnostic`'s `Diagnostic` (journal row `gate-excludes-part-of-its-population.md`, 2026-11-11) | none: a plugin finding reaches the operator through the same renderer |
 
 ## 🧪 TDD Test Plan
 
@@ -515,6 +517,7 @@ Each phase: failing test, implement, pass, page edit in the same phase, commit.
 | `plan/journal/zero-value-as-valid-answer.md` | 2026-11-10 | env `GetInt`/`GetInt64`/`GetDuration` silent default (AC-35) |
 | `plan/journal/probe-inability-read-as-absence.md` | 2026-11-10 | report-bus eviction turns a health row healthy (AC-7) |
 | `plan/journal/check-cannot-see-the-change-it-looks-for.md` | 2026-11-10 | doctor-coverage gate misses wrapper and non-literal Warn (AC-43) |
+| `plan/journal/gate-excludes-part-of-its-population.md` | 2026-11-11 | doctor-coverage gate never judges the Fix of an `rpc.DoctorCheckDiagnostic` (AC-46) |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |

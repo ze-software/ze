@@ -354,7 +354,7 @@ Every finding below is a `Diagnostic` with code, severity, a message that names 
 | AC-49 | C47: capture not running for a configured peer | runtime row `doctor-bgp-capture-stopped` naming peer and error | the directory stays `doctor-bgp-capture-directory` |
 | AC-50 | C48: no recovery owner, or the owner not attached to the source peer | runtime row `doctor-bgp-recovery-owner-missing` naming peer; fix the attach command | none |
 | AC-51 | C49: a plugin does not receive BGP events | runtime row `doctor-bgp-plugin-events-undelivered` naming process and count | none |
-| AC-52 | C50: the bgp plugin's SDK run failed before ready | the Error line carries `doctor-plugin-startup-phase-failed`, a five-stage startup failure (child 12 R-6), reported by the startup check of `plan/release/fixes/spec-doctor-reports-failed-plugin-startup.md` | none |
+| AC-52 | C50: the bgp plugin's SDK run failed, before or after ready | `sdk.Plugin.Run` (`pkg/plugin/sdk/sdk.go`) returns both kinds through the one site, so the site logs on one of two lines with one static code each, chosen by the SDK's typed before-stage-5 mark (`plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` AC-47): a startup failure carries `doctor-plugin-startup-phase-failed`, a five-stage startup failure (child 12 R-6), reported by the startup check of `plan/release/fixes/spec-doctor-reports-failed-plugin-startup.md`; a failure after ready carries `doctor-plugin-stopped` (child 12), as `plan/release/validation/spec-doctor-coverage-7-bgp-plugins.md` AC-79 and `spec-doctor-coverage-14-system-plugins.md` AC-85 do | none |
 
 ### Not problem classes, and coverage
 
