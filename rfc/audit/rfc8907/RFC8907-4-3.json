@@ -2,7 +2,7 @@
   "note": "TestRFC8907SessionIDComesFromCryptoRand substitutes crypto/rand.Reader and requires the id to be exactly those octets; TestRandomSessionIDDistinct adds cross-session distinctness",
   "requirement_sha": "8883fe743af402b0",
   "tests": {
-    "internal/component/tacacs/rfc8907_client_test.go::TestRandomSessionIDDistinct": "cbb58d00c914079a",
+    "internal/component/tacacs/rfc8907_client_test.go::TestRandomSessionIDDistinct": "6fa45e82f62db1dd",
     "internal/component/tacacs/rfc8907_sessionid_test.go::TestRFC8907SessionIDComesFromCryptoRand": "c177866ba89112ce"
   },
   "units": {
