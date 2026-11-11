@@ -3,8 +3,8 @@
 This lane records which real agent clients connect to Ze's MCP server, call a
 tool, and what context they report the tool catalog costs. The clients are
 Claude Code and Codex. The practice comes from REA, an outside project: its
-`docs/development/client-verification.md` keeps one lane per client, and its
-`docs/mcp-catalog-evaluation.md` reads catalog cost from a real client's
+`docs/development/client-verification.md` keeps one lane per client, and its <!-- doc-links: ignore (a path in REA's repository, not this one) -->
+`docs/mcp-catalog-evaluation.md` reads catalog cost from a real client's <!-- doc-links: ignore (a path in REA's repository, not this one) -->
 reported usage. Those paths are in REA's repository, not in this one.
 
 ## Who runs it

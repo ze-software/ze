@@ -167,7 +167,7 @@ the shared dispatcher:
 | Generated tools | Command groups named from their registered paths, with an `action` enum where the group has named actions |
 <!-- source: internal/component/mcp/tools.go -- toolHandlers, groupCommands, buildToolDef -->
 
-The server builds generated tools from the live command list at `tools/list`
+The server builds generated tools from the live command list at `tools/list` <!-- doc-links: ignore (MCP method name, not a path) -->
 time. YANG RPC input metadata supplies typed parameters when it is available;
 groups without typed parameters expose a generic `arguments` string. Tool
 names and grouping depend on the registered command population, so clients

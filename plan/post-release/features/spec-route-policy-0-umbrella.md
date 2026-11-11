@@ -60,8 +60,8 @@ The final closure Review Gate and closing commits remain owed.
   to prevent an insertion missing a concurrent reselect. AC-16's literal
   "one pointer load" is superseded by this correctness fence; a final closure
   must describe the two loads accurately, without removing the fence.
-- The filter-wire closure at `0c3c86b319`, historical path
-  `plan/post-release/engineering/spec-filter-wire-0-umbrella.md`, records
+- The filter-wire closure at `0c3c86b319`, historical spec
+  `spec-filter-wire-0-umbrella`, records
   all three BGP policy interop scenarios green/red/green and explicitly
   retains the existing BGP policy functional population under its AC-10.
   Its source and evidence are the phase-4 review input; this handback does

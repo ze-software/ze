@@ -18,7 +18,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 Thomas, 2026-11-08: "we should allow oauth for login, but after release", and
 "make an umbrella spec for it". This umbrella replaces
-`plan/post-release/features/spec-mgmt-oauth-bearer-and-web-sso.md`, written
+`spec-mgmt-oauth-bearer-and-web-sso`, written
 earlier the same day from VyOS's OAuth and web SSO feature. Every acceptance
 criterion, assumption, risk and reference of that spec now lives in a child
 below; the table "Where the old spec went" maps each one.

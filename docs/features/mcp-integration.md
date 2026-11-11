@@ -19,10 +19,10 @@ Groups without typed inputs expose an `arguments` string.
 |------|-------------|
 | `ze_execute` | Dispatch a supported daemon command string with the caller's permissions. |
 | `ze_reference` | Reference assembled from this binary's registries and schemas; the same JSON data as `ze help ai --json`. |
-| Generated groups | Discover current names and action/input schemas through `tools/list`; do not assume a route-specific tool name. |
+| Generated groups | Discover current names and action/input schemas through `tools/list`; do not assume a route-specific tool name. <!-- doc-links: ignore (MCP method name, not a path) --> |
 
 `ze_execute` and `ze_reference` are the fixed tools. Generated tool groups read
-the live command list at `tools/list` time. Groups with named actions expose an
+the live command list at `tools/list` time. Groups with named actions expose an <!-- doc-links: ignore (MCP method name, not a path) -->
 `action` enum; selector parameters appear only where the command supports them.
 <!-- source: internal/component/mcp/tools.go -- toolHandlers, groupCommands, buildToolDef -->
 
@@ -88,7 +88,7 @@ explanations are maintained text, not a guarantee that every example is current.
 
 An AI assistant connected via MCP can:
 
-1. Read `tools/list` and call `ze_reference` to discover this daemon's commands.
+1. Read `tools/list` and call `ze_reference` to discover this daemon's commands. <!-- doc-links: ignore (MCP method name, not a path) -->
 2. Call `ze_execute` with `show bgp peer list` to inspect configured peers.
 3. Announce through `ze_execute` with `send bgp * update text origin igp next-hop 10.0.0.1 nlri add 10.0.0.0/24`.
 4. Call `ze_execute` with `show bgp rib sent peer peer1 family ipv4/unicast` to inspect that peer's sent routes.

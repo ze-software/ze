@@ -65,7 +65,7 @@ func TestDesignEvidenceRefusesEditAddingMissingPath(t *testing.T) {
 	for _, heading := range []string{"Current Behavior", "Files to Modify"} {
 		t.Run(heading, func(t *testing.T) {
 			root := shorthandFixture(t)
-			live := "## Files to Create\n`internal/le/producer_new.go`\n"
+			live := "## Files to Create\n`internal/le/producer_new.go`\n" // <!-- doc-links: ignore (a synthetic path in a test fixture) -->
 			writeHookFixture(t, root, evidenceProbeSpec, live)
 			message := observedDesignGate(t, root, live+"## "+heading+"\n`"+evidenceProbeA+"`\n", 2)
 			if !strings.Contains(message, evidenceProbeA+": inspect producer") || !strings.Contains(message, "git history never deleted it") {

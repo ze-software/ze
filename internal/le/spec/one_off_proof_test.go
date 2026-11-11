@@ -28,10 +28,10 @@ const proofCensusHeader = "| Wire | Role (writer / reader) | Carrier (file + pro
 // shell script, and a Python writer read by Go. Each wire has exactly one row
 // per end, so omitting any one row leaves its wire with a missing speaker.
 var proofCensusRows = []string{
-	"| `status.json` | writer | `internal/x/status.go` writeStatus | encodes the file | change: adds `state` |\n",
+	"| `status.json` | writer | `internal/x/status.go` writeStatus | encodes the file | change: adds `state` |\n", // <!-- doc-links: ignore (a synthetic path in a test fixture) -->
 	"| same | reader | `scripts/check-status.sh` main | `jq .state` reads it | change: reads `state` |\n",
-	"| `report.txt` | writer | `tools/report.py` main | prints one line per peer | preserve |\n",
-	"| `report.txt` | reader | `internal/x/report.go` readReport | scans the lines | preserve |\n",
+	"| `report.txt` | writer | `tools/report.py` main | prints one line per peer | preserve |\n",   // <!-- doc-links: ignore (a synthetic path in a test fixture) -->
+	"| `report.txt` | reader | `internal/x/report.go` readReport | scans the lines | preserve |\n", // <!-- doc-links: ignore (a synthetic path in a test fixture) -->
 }
 
 const proofEvidence = "**Search evidence:** scope `internal`, `scripts`, `tools`; terms `status.json`, `report.txt`; control: `writeStatus` found as the writer.\n\n"
@@ -53,7 +53,7 @@ func proofSpec(status, census, criteria string) string {
 	if criteria != "-" {
 		spec += proofCriteriaHeader + criteria
 	}
-	return spec + "\n## Files to Modify\n\n- `internal/x/status.go`\n"
+	return spec + "\n## Files to Modify\n\n- `internal/x/status.go`\n" // <!-- doc-links: ignore (a synthetic path in a test fixture) -->
 }
 
 // fullCensus is the census with every speaker.

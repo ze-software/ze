@@ -140,7 +140,7 @@ func TestDesignEvidenceCanonicalCheckoutIdentity(t *testing.T) {
 			t.Fatal(err)
 		}
 		recordObservedRead(t, root, filepath.Join(root, evidenceProbeB), "package other\n", 1, 2, 2)
-		observedDesignGate(t, root, "## Files to Modify\n`internal/escaped/producer.go`\n", 2)
+		observedDesignGate(t, root, "## Files to Modify\n`internal/escaped/producer.go`\n", 2) // <!-- doc-links: ignore (a synthetic path in a test fixture) -->
 	})
 	t.Run("normalized-subject", func(t *testing.T) {
 		root := t.TempDir()

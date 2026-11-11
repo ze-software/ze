@@ -174,7 +174,7 @@ CLAUDE_CODE_SESSION_ID=01a1a907-3278-7971-98dc-dbc41d4a54a5 CGO_ENABLED=0 \
 
 The cumulative CPU sample attribution is 85.25% for both
 `externalReflectionWalk.collect` and `collectNamed`, and 77.71% for
-`collectMethods`, in `internal/le/repo/inventory/externalreflectiontypes.go`.
+`collectMethods`, in `internal/le/repo/inventory/externalreflectiontypes.go`. <!-- doc-links: ignore (file deleted by the inventory spec; this record cites it historically) -->
 Those nested totals overlap. They describe an incomplete run and establish no
 report-speed improvement, throughput figure, or completed-run comparison.
 

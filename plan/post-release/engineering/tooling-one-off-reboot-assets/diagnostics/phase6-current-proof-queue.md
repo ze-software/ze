@@ -12,7 +12,7 @@ edited. The separate Docker-lab harness changes were inspected and preserved.
 The spec's Phase 6 row is still open. Proposed carrier names in its tables are
 requirements, not statements that the named test exists or ran. Current actual
 paths supersede proposed paths: dispatch is `internal/le/verify/dispatch`,
-not `internal/le/verifydispatch`; the native documentation action is
+not `internal/le/verifydispatch`; the native documentation action is <!-- doc-links: ignore (a proposed path this line says does not exist) -->
 `doc yang-contract doc-drift`.
 
 `tooling-one-off-evidence-recovery-2026-11-06.md` says the former November 5

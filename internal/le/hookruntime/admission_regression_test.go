@@ -87,7 +87,7 @@ func TestShippedBridgeProofReachesEveryEditTool(t *testing.T) {
 				writeHookFixture(t, root, "docs/bridge.md", "# Bridge\n\n<!-- source: internal/exabgp/bridge/bridge.go -- producer -->\n")
 				body := strings.Replace(specFixture(source), "## Files to Modify\n\nOne.", "## Files to Modify\n\n- `"+source+"`", 1)
 				body = strings.Replace(body, "## Data Flow", "## Existing Mechanisms\n\n| Mechanism | Source | Decision |\n|---|---|---|\n| Script bridge | `"+source+"` | Extend the existing dispatch |\n\n## Data Flow", 1)
-				body += "\n## Proof\n`" + proof + "`\n\n## Design documentation\n`docs/bridge.md`\n"
+				body += "\n## Proof\n`" + proof + "`\n\n## Design documentation\n`docs/bridge.md`\n" // <!-- doc-links: ignore (a synthetic path in a test fixture) -->
 				const file = "plan/post-release/engineering/spec-bridge-proof.md"
 				before := strings.ReplaceAll(body, source, "internal/le/probe/probe.go")
 				writeHookFixture(t, root, file, before)
@@ -147,7 +147,7 @@ func TestProofPopulationPreservesOnlyAffirmativeExemptions(t *testing.T) {
 			writeHookFixture(t, root, "docs/population.md",
 				"# Population fixture\n\n<!-- source: internal/le/probe/docownership.go -- the neutral documentation prerequisite -->\n")
 			body := strings.Replace(specFixture(test.source), "## Files to Modify\n\nOne.", "## Files to Modify\n\n- `"+test.source+"`", 1)
-			body += "\n## Design documentation\n`docs/population.md`\n"
+			body += "\n## Design documentation\n`docs/population.md`\n" // <!-- doc-links: ignore (a synthetic path in a test fixture) -->
 			const file = "plan/post-release/engineering/spec-population.md"
 			writeHookFixture(t, root, file, body)
 			code, _, message := runHook(t, root, "validate-spec", map[string]any{

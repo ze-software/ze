@@ -224,9 +224,9 @@ func TestDaemonPathDemandsFunctionalProof(t *testing.T) {
 				"// Design: docs/probe-design.md -- the test-owned daemon subject\npackage probe\n")
 			writeHookFixture(t, root, "docs/probe-design.md",
 				"# Probe design\n\n<!-- source: internal/component/probe/probe.go -- the probe producer -->\n")
-			body += "\n## Design documentation\n`docs/probe-design.md`\n"
+			body += "\n## Design documentation\n`docs/probe-design.md`\n" // <!-- doc-links: ignore (a synthetic path in a test fixture) -->
 			body = strings.Replace(body, "## Files to Modify\n\nOne.",
-				"## Files to Modify\n\n- `internal/component/probe/probe.go`", 1)
+				"## Files to Modify\n\n- `internal/component/probe/probe.go`", 1) // <!-- doc-links: ignore (a synthetic path in a test fixture) -->
 			const file = "plan/post-release/engineering/spec-daemon.md"
 			writeHookFixture(t, root, file, body)
 			code, _, message := runHook(t, root, "validate-spec", map[string]any{
@@ -334,7 +334,7 @@ func TestDesignEvidenceNamesSubjectAndFreshness(t *testing.T) {
 				SessionID: "design-proof", ToolName: toolWrite,
 				ToolInput: map[string]any{
 					"file_path": "plan/post-release/engineering/spec-subject.md",
-					"content":   "## Files to Modify\n- `internal/probe/subject.go`\n",
+					"content":   "## Files to Modify\n- `internal/probe/subject.go`\n", // <!-- doc-links: ignore (a synthetic path in a test fixture) -->
 				},
 			}, root)
 			if !found || code != test.want {

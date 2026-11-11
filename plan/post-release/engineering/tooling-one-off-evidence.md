@@ -982,7 +982,7 @@ not new runtime results. None of the three commits carries a
 | `workflowcheck.requireEveryJobAdvisory` in `TestEvidenceNightlyScheduleActionsAndPrivileges`: every `evidence-nightly.yml` job carries `continue-on-error: true` | `6df62d6f73` (2026-09-13) | The commit body shows the old expectation wrong against its producer: `7682286f9b` removed the key on 2026-09-02 because the workflow reported success while five of six jobs failed. The property the name meant (no merge waits on the job) is `requireScheduledOnly`: `schedule:` present, no `push:` or `pull_request:`. The inverted key is now `requireEveryJobStatesItsOwnVerdict`, which refuses job-level `continue-on-error: true`. Independent judge, 2026-11-08: APPROVE (b) |
 | The same helper in `TestQEMUNightlyScheduleActionsCachesAndBudgets`: every `qemu-nightly.yml` job carries the key | `6df62d6f73` | Independent judge, 2026-11-08: REFUSE, because the key had no assertion either way while the three jobs still carried it, so a failed nightly job reported success. Repaired: the key is removed from all three jobs and the test now calls `requireEveryJobStatesItsOwnVerdict` after `requireScheduledOnly` |
 | `le-discovery-answers` `gitChangedFiles`: the router's `changed` list equals live-checkout `git status --porcelain` paths | `3815463353` (2026-10-05) | The old expectation was wrong against its producer: `616e397902` made `le doc wiring` judge the unpushed range, so any unpushed commit reddened it. Replaced by `leDiscoveryWiringTree` (`internal/test/fixture/ui_fixture_le_discovery_answers.go`, called at line 53, compared at line 177). It builds an owned repository with a published `origin/HEAD` baseline, one unpushed commit, a staged, an unstaged and an untracked file, and requires the routed list to equal exactly those four. This proves more than the old live comparison, which could not hold an unpushed commit. Independent judge, 2026-11-08: APPROVE (a) |
-| `TestProbeUnclaimedRoutes`, `TestProbeSharedHeader`, `TestProbeAuthoredPages` (`internal/le/site/zzprobe_p10b_test.go`) and `TestScratchDocsDest`, `TestScratchProducerCensus` (`zzscratch_census_test.go`) | `16efe2aa68` (2026-09-13) | Every finding went to `t.Logf`, which cannot fail. Most `t.Fatal` calls checked the probe's own I/O; the three that reached the product (errors from `docsProducerPages`, `sharedHeaderHTML`, `renderAuthoredPages`) are still asserted in `docs_test.go`, `nav_test.go` and `authored_test.go`. Independent judge, 2026-11-08: APPROVE (a); the units are deleted, so the verdict rides in the commit body |
+| `TestProbeUnclaimedRoutes`, `TestProbeSharedHeader`, `TestProbeAuthoredPages` (`internal/le/site/zzprobe_p10b_test.go`) <!-- doc-links: ignore (a removed scratch probe test, cited historically) --> and `TestScratchDocsDest`, `TestScratchProducerCensus` (`zzscratch_census_test.go`) | `16efe2aa68` (2026-09-13) | Every finding went to `t.Logf`, which cannot fail. Most `t.Fatal` calls checked the probe's own I/O; the three that reached the product (errors from `docsProducerPages`, `sharedHeaderHTML`, `renderAuthoredPages`) are still asserted in `docs_test.go`, `nav_test.go` and `authored_test.go`. Independent judge, 2026-11-08: APPROVE (a); the units are deleted, so the verdict rides in the commit body |
 
 ## Contemporary review follow-up: not recovered historical evidence
 
@@ -1044,9 +1044,9 @@ identity across differently labeled runs.
 | Captured publication and approval binding land without phase closure | Commit `8c64ad2d4a` carries the85 selected paths, with two shared documentation patches excluding foreign hunks. Exact retained independent verdicts are recorded under the gate's canonical RFC identities; no test/tag rewrite or repeated semantic review clears the preparation refusals. The commit message explicitly preserves the unattributed `1dc` byte mutation and nonreproducing `271` observation. No push or seal/phase-closure claim. |
 | External Git tracing observes only history reads | `job-tooling-native-spent-query-external-trace2-diagnostic-20261104a-fae1ff2d.log` passes the sole public fresh0/spent1 case with strict complete snapshots and original frozen-image checks. Its21 TRACE2 events cover exactly `git log` history, `git cat-file --batch`, and the carrier-name `git log`, all status0. No index/status writer is observed. TRACE2 is not a filesystem-write audit, and this attempt remains nonreproduction rather than attribution or repair. |
 | Conditional namespace baseline is masked, not false acceptance | `job-tooling-conditional-first-baseline-and-owed-checker-restoration-20261104a-f7c3fab8.log` fails all eight new conditional groups at their positive prerequisite: unsupported `ifdef`/`ifndef`. Their negative cases are masked. The independently admitted branch-neutral namespace design is released only after this observed baseline; entered conditional bodies and unknown registration conditions still owe refusal. |
-| Actual stdlib producer smoke and consumer restorations pass separately | The same `f7c3fab8` run passes the throwaway real-installed-GOROOT listing/comparison, with exact `runtime`, `unsafe` and `cmd/go` metadata; it is a valid-input producer smoke, not a new runtime empty-output rejection. LP reverse-barrier4, EOR attribution14, NSSA first-epoch19 and both named DelayOpen capture tests pass. The overall invocation remains FAILED at inventory; these consumer results prove no native peer image, scenario, producer cut or RFC discrimination record. |
+| Actual stdlib producer smoke and consumer restorations pass separately | The same `f7c3fab8` run passes the throwaway real-installed-GOROOT listing/comparison, with exact `runtime`, `unsafe` and `cmd/go` <!-- doc-links: ignore (a Go standard-library package, not a path in this repository) --> metadata; it is a valid-input producer smoke, not a new runtime empty-output rejection. LP reverse-barrier4, EOR attribution14, NSSA first-epoch19 and both named DelayOpen capture tests pass. The overall invocation remains FAILED at inventory; these consumer results prove no native peer image, scenario, producer cut or RFC discrimination record. |
 | Cancellation restoration exposes a private-fixture prerequisite | `job-tooling-phase6a-owned-cancel-and-slot-restoration-20261104a-d3ffb6b9.log` passes the job identity package but fails dispatcher `cancel-slot` before readiness: its private `git init` has no HEAD for admission's fingerprint. After the exact independently judged empty-commit fixture repair, `job-tooling-cancel-slot-and-eor-bespoke-scoped-restoration-20261104a-0fc494ea.log` reruns only that failed subcase and passes; its other package passes the separately owed Bespoke EOR subcase. This is fixture maintenance, not a product cancellation RED or repair. Test-only race uses the explicit CGO1 exception; no shipping build evidence follows. |
-| Native lint guard and combined source chunk land | Native `21c4576e` passes registered listing, then stops before the target guard because the private fixture wrongly ignores `/cache/` as a directory while real startup creates a cache symlink. Correcting only that fixture literal to canonical `/cache`, `job-tooling-p37-frozen-native-tracked-excluded-restoration-20261104a-19c69f5d.log` reruns only the failed case and observes exit2 for the exact excluded `docs/probe/probe.go`, with its live holder unchanged. Commit `7e21d1c4ed` lands the reviewed12-path selection, preserving seven shared-file hunk boundaries. Its canonical file-scope receipt reuses the existing exact guard-deletion verdict and all producer prerequisites. No real linter or full matrix runs; listing is not positive planning proof. |
+| Native lint guard and combined source chunk land | Native `21c4576e` passes registered listing, then stops before the target guard because the private fixture wrongly ignores `/cache/` as a directory while real startup creates a cache symlink. Correcting only that fixture literal to canonical `/cache`, `job-tooling-p37-frozen-native-tracked-excluded-restoration-20261104a-19c69f5d.log` reruns only the failed case and observes exit2 for the exact excluded `docs/probe/probe.go` <!-- doc-links: ignore (a synthetic path in a test fixture) -->, with its live holder unchanged. Commit `7e21d1c4ed` lands the reviewed12-path selection, preserving seven shared-file hunk boundaries. Its canonical file-scope receipt reuses the existing exact guard-deletion verdict and all producer prerequisites. No real linter or full matrix runs; listing is not positive planning proof. |
 | Whole-case PID observation finds a permitted preceding writer, not the original mutation | `job-tooling-p5-public-owned-syscall-observation-20261104a-6a4fa820.log` passes the strict public case within its stated observer limits. Raw syscall records identify an earlier native invocation's detached `le scratch trim background` process alive across both snapshots, with fixture `tmp/store-trim/last.log` descriptors; both snapshots see the same57 bytes. This is an observed lifetime hazard, not an observed changed snapshot or attribution of `1dc`. Environment expansion is deliberately omitted, strings are bounded to4096 bytes, and ptrace changes timing. |
 | Standard test isolation is restored without changing production | `runner.childEnv` and its existing contract explicitly give test children `ze_le_store_trim=off`; the custom native smoke helper had omitted that isolation. Exact independently judged patch `6A3C` restores the same normalized-alias replacement while retaining all whole-root, semantic and frozen-image assertions. `job-tooling-p5-standard-test-isolation-public-restoration-20261104a-fae1ff2d.log` passes only the affected public case in this corrected fixture context. Default production trim semantics and the original `1dc` attribution limit remain unchanged; this is test maintenance, not a product repair. |
 | Conditional certificates restore; actual root reports another boundary | `job-tooling-conditional-namespace-eight-restoration-20261104a-d58f141c.log` passes all eight new groups; `job-tooling-conditional-four-reached-old-controls-20261104a-68515b50.log` passes only the four reached legacy subcases. The subsequent once-only actual-root consumer `job-tooling-conditional-repaired-real-root-next-boundary-20261104a-10b1bf28.log` refuses method execution through parameter `err` at `internal/component/command/local_data.go:367`. Root inventory, native collection and canonical publication remain unproved; no leaf-effect code is yet admitted. |
@@ -1488,9 +1488,9 @@ expected. This is `job-gobgp-native-export-reload-owned-fe673b84.log`, distinct
 from the earlier canceled setup-only run with the same hash suffix. The retained
 proof and wire capture belong to `bgp-export-reload-gobgp-520019689`.
 
-The deciding upstream source, GoBGP v4.11.0 `pkg/config/config.go` `UpdateConfig`,
+The deciding upstream source, GoBGP v4.11.0 `pkg/config/config.go` `UpdateConfig`, <!-- doc-links: ignore (a path in GoBGP's repository, not this one) -->
 requests an IN-only soft reset after policy changes. Its SIGHUP handler in
-`cmd/gobgpd/main.go` calls that producer. The reviewed two-hunk repair is now a
+`cmd/gobgpd/main.go` calls that producer. The reviewed two-hunk repair is now a <!-- doc-links: ignore (a path in GoBGP's repository, not this one) -->
 build-time patch under `test/interop/`. One hunk requests BOTH directions after
 policy changes. The other sends a withdrawal for a previously advertised
 secondary destination when import removes it and current export policy rejects
@@ -1906,7 +1906,7 @@ grounding test) were judged by an independent `ze-test-judge`; the first
 test-first rebinding was refused for dropping the only test of the
 inactive-status refusal, and approved once that test existed. The fixture
 digests were re-sealed after the judgement. Package runs: `session`,
-`hookruntime` and `ai/hooks` pass whole.
+`hookruntime` and `ai/hooks` pass whole. <!-- doc-links: ignore (a removed package, cited historically) -->
 
 ## P-8: fenced recovery blocks and both rule generators (2026-11-11)
 
@@ -2200,7 +2200,7 @@ committed when this was written, and no green lab run with it is recorded here.
 
 | Obligation | Change | Evidence |
 | --- | --- | --- |
-| P-26 tracked shell tooling removed | `54ab426716` removes `test/perf/filter-a6/measure.sh` and keeps its procedure as prose in `plan/records/filter-wire-0-a6-procedure.md` | `TestNoPythonLeRemains` (`internal/le`) passes after the removal ("ok ... internal/le 1.227s"). The refusal it answered is named in the commit body; no break was replayed |
+| P-26 tracked shell tooling removed | `54ab426716` removes `test/perf/filter-a6/measure.sh` <!-- doc-links: ignore (the file this row records as removed) --> and keeps its procedure as prose in `plan/records/filter-wire-0-a6-procedure.md` | `TestNoPythonLeRemains` (`internal/le`) passes after the removal ("ok ... internal/le 1.227s"). The refusal it answered is named in the commit body; no break was replayed |
 | P-29 a hunk adding to an empty file is accepted | `15abb6254e`, follow-up to `dfee230f18` (whose zero-context walk is in the table above) | The commit body records the walk: removing the `0,0` early return makes `TestApplyRefusesZeroContextPatch` refuse the type change to a symlink; restored green. It also clears `TestLinuxLimitCreateRefusesSelectedAncestorSymlink` (`internal/le/commit`), which `dfee230f18` had turned red. The red text itself was not retained |
 
 ### Lab finding: every le helper container panicked (`c77a8dd2f3`)
@@ -3115,7 +3115,7 @@ Each route needed one finding resolved first:
   proof's check and the docker kernel install.
 - **The first gokrazy observer:** it passed the user's Go module cache to the
   root run. The image build resolves offline from `gokrazy/modcache` only when
-  `GOMODCACHE` is unset, so `go get` of `cmd/heartbeat` failed. That was an
+  `GOMODCACHE` is unset, so `go get` of `cmd/heartbeat` failed. That was an <!-- doc-links: ignore (a package path given to go get, not a path in this repository) -->
   observer defect, not le's, and the observer no longer sets it.
 - **The l2tp-ppp warm-up:** the warm-up pass ran while the patched toolchain
   compiled as root, and once reported "ze L2TP listener did not start". A
@@ -3353,18 +3353,18 @@ NoExportBoundary second breaks are in `c1e6060b68`.
 `9059161574` (2026-08-21, "docs(plan): six specs stop asking for a command that
 is gone") is the Review Gate ISSUE-3 repair of `spec-cli-show-bgp-is-the-command`.
 Besides that spec (AC-9 rewritten from an absence into a criterion with an
-exception list) and one `plan/verification-debt/ca1b4c65.md` row, it edits
+exception list) and one `plan/verification-debt/ca1b4c65.md` row, it edits <!-- doc-links: ignore (a removed debt row, cited historically) -->
 exactly six specs. Counting `show bgp summary` in each file at `9059161574^` and
 at `9059161574` (git show, read-only):
 
 | Spec at the commit | Before | After | What the repair changed | Fate |
 | --- | --- | --- | --- | --- |
-| `plan/future/spec-cli-operator-defined-aliases.md` | 1 | 0 | the problem statement's "the `show bgp summary` payload happens to split into" names `show bgp` | survives as `plan/post-release/features/spec-cli-operator-defined-aliases.md` (moved `4831b585d9`) |
-| `plan/future/spec-fixit-migrate-sleeps-infra.md` | 1 | 0 | the RS bucket waits all-peers `eor-sent` via `show bgp` | closed `e905ef5f41` (2026-09-05) |
-| `plan/spec-bgp-filtered-route-storage.md` | 1 | 0 | AC-1: `show bgp` reports routes_filtered = M | survives as `plan/post-release/features/spec-bgp-filtered-route-storage.md` |
-| `plan/spec-bgp-per-peer-received-counter.md` | 9 | 0 | Task, data-flow entry point, wiring row, AC-1, AC-2, AC-4 and user story 1; the argument form becomes `show bgp <afi/safi>` | survives as `plan/release/fixes/spec-bgp-per-peer-received-counter.md` |
-| `plan/spec-fixit-redistribute-establishment-stall.md` | 1 | 0 | the established -> eor-sent step reads `show bgp` | closed `8f3a80bf9e` (2026-08-23) |
-| `plan/spec-lg-deferred-birdwatcher-route-counts.md` | 2 | 0 | data-flow step 1 and the LG -> engine boundary row name `show bgp` | closed `a8a604d816` (2026-09-05) |
+| `plan/future/spec-cli-operator-defined-aliases.md` <!-- doc-links: ignore (the spec's path at census time; the last column records where it went) --> | 1 | 0 | the problem statement's "the `show bgp summary` payload happens to split into" names `show bgp` | survives as `plan/post-release/features/spec-cli-operator-defined-aliases.md` (moved `4831b585d9`) |
+| `plan/future/spec-fixit-migrate-sleeps-infra.md` <!-- doc-links: ignore (the spec's path at census time; the last column records where it went) --> | 1 | 0 | the RS bucket waits all-peers `eor-sent` via `show bgp` | closed `e905ef5f41` (2026-09-05) |
+| `plan/spec-bgp-filtered-route-storage.md` <!-- doc-links: ignore (the spec's path at census time; the last column records where it went) --> | 1 | 0 | AC-1: `show bgp` reports routes_filtered = M | survives as `plan/post-release/features/spec-bgp-filtered-route-storage.md` |
+| `plan/spec-bgp-per-peer-received-counter.md` <!-- doc-links: ignore (the spec's path at census time; the last column records where it went) --> | 9 | 0 | Task, data-flow entry point, wiring row, AC-1, AC-2, AC-4 and user story 1; the argument form becomes `show bgp <afi/safi>` | survives as `plan/release/fixes/spec-bgp-per-peer-received-counter.md` |
+| `plan/spec-fixit-redistribute-establishment-stall.md` <!-- doc-links: ignore (the spec's path at census time; the last column records where it went) --> | 1 | 0 | the established -> eor-sent step reads `show bgp` | closed `8f3a80bf9e` (2026-08-23) |
+| `plan/spec-lg-deferred-birdwatcher-route-counts.md` <!-- doc-links: ignore (the spec's path at census time; the last column records where it went) --> | 2 | 0 | data-flow step 1 and the LG -> engine boundary row name `show bgp` | closed `a8a604d816` (2026-09-05) |
 
 The 15 occurrences match the commit body's count.
 
@@ -3383,7 +3383,7 @@ Each live mention names `show bgp`: aliases line 31; filtered-route storage AC-1
 and 252, with the family form `show bgp <afi/safi>` at 175 and 245. Each
 mention is the per-peer table or its family-scoped form, which is what
 `handleBgpOverview` answers, so every survivor still asks for a live command.
-The per-peer spec's planned `test/plugin/bgp-summary-received-prepolicy.ci`
+The per-peer spec's planned `test/plugin/bgp-summary-received-prepolicy.ci` <!-- doc-links: ignore (a planned test that does not exist yet) -->
 does not exist yet. That is the spec's own unimplemented deliverable, not a
 repair defect.
 
@@ -4069,7 +4069,7 @@ package depends on `internal/le/repo/inventory`.
 | P-8 | backtick-info test removed | `TestStopSummaryKeepsInlineBackticksOutsideFenceState` | "Stop summary retained a fourth real snapshot" |
 | P-8 | separator no longer flushes the block | `TestStopSummaryWritesOneSeparatorBetweenBlocks` | "rotated state holds 5 separators, want 4" |
 | P-8 | single-command rendered-rule wording restored | `TestRenderedRuleRefusalNamesBothGenerators` (`hookruntime`) | "generated-rule refusal lacks exact next step \"./le ai rules update condensed\" on its own line" |
-| P-8 | same | `TestRenderedRuleNeedleMatchesProducer` (`ai/hooks`) | "expects \"./le ai rules update condensed\", which the producer does not print" |
+| P-8 | same | `TestRenderedRuleNeedleMatchesProducer` (`ai/hooks` <!-- doc-links: ignore (a removed package, cited historically) -->) | "expects \"./le ai rules update condensed\", which the producer does not print" |
 | P-13 | the Mac's seven snapshot-window edits in `dashboard.go` | `TestDashboardBroadcastSerializesClockAndEventSnapshot` (`internal/chaos/web`) | "first complete message count = 4, want 3" |
 | P-14 | forward apply runs as a check | `TestVendoringPublishesActualPatchedReplacement` (`setup`) | "actual published/staged dependency bytes = ... Upstream = 42 ..., want the real applied patch" |
 | P-14 | rollback omitted | `TestPublishVendorRestoresOriginalAfterSecondRenameFailure` | "rollback did not restore original.go" |

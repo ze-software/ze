@@ -53,7 +53,7 @@ func TestDaemonProofUsesCanonicalSourceBeforeExemptions(t *testing.T) {
 					}
 				}
 				body := strings.Replace(specFixture(test.source), "## Files to Modify\n\nOne.", "## Files to Modify\n\n- `"+test.source+"`", 1)
-				body = strings.Replace(body, "## Data Flow", "## Existing Mechanisms\n\n| Mechanism | Source | Decision |\n|---|---|---|\n| Existing dispatch | `internal/le/neutral.go` | Extend |\n\n## Data Flow", 1)
+				body = strings.Replace(body, "## Data Flow", "## Existing Mechanisms\n\n| Mechanism | Source | Decision |\n|---|---|---|\n| Existing dispatch | `internal/le/neutral.go` | Extend |\n\n## Data Flow", 1) // <!-- doc-links: ignore (a synthetic path in a test fixture) -->
 				const file = "plan/post-release/engineering/spec-canonical-proof.md"
 				const before = "# Before\n"
 				writeHookFixture(t, root, file, before)
@@ -135,7 +135,7 @@ func TestValidationAndSourceAdmissionShareMetadataGrammar(t *testing.T) {
 			const source = "internal/le/probe/metadata.go"
 			writeHookFixture(t, root, source, "// Design: docs/metadata.md -- the fixture producer\npackage probe\n")
 			writeHookFixture(t, root, "docs/metadata.md", "# Metadata\n\n<!-- source: internal/le/probe/metadata.go -- fixture producer -->\n")
-			body := strings.Replace(specFixture(source), "| Status | design |", "| Status | in-progress |", 1) + "\n## Design documentation\n`docs/metadata.md`\n"
+			body := strings.Replace(specFixture(source), "| Status | design |", "| Status | in-progress |", 1) + "\n## Design documentation\n`docs/metadata.md`\n" // <!-- doc-links: ignore (a synthetic path in a test fixture) -->
 			const file = "plan/post-release/engineering/spec-metadata-proof.md"
 			writeHookFixture(t, root, file, body)
 			if answer, code := spec.Claim([]string{"spec-metadata-proof.md"}); code != 0 {
