@@ -36,7 +36,7 @@ const activityStyle = `        <style>
             border-radius: clamp(1.1rem, 2.5vw, 1.55rem);
             padding: clamp(1.15rem, 2.4vw, 1.65rem);
             background:
-                radial-gradient(circle at 86% 38%, rgba(157, 100, 245, 0.18), transparent 14rem),
+                radial-gradient(circle at 86% 38%, rgba(0, 141, 211, 0.18), transparent 14rem),
                 radial-gradient(circle at 20% 18%, rgba(26, 188, 156, 0.14), transparent 16rem),
                 var(--panel);
             box-shadow: var(--clay), 0 1.7rem 4rem -2.2rem var(--shadow);
@@ -48,8 +48,8 @@ const activityStyle = `        <style>
             position: absolute;
             inset: 0;
             background:
-                linear-gradient(rgba(190, 120, 210, 0.08) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(190, 120, 210, 0.08) 1px, transparent 1px);
+                linear-gradient(rgba(0, 141, 211, 0.08) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 141, 211, 0.08) 1px, transparent 1px);
             background-size: 22px 22px;
             mask-image: linear-gradient(115deg, #000, transparent 72%);
             pointer-events: none;
@@ -61,10 +61,10 @@ const activityStyle = `        <style>
             bottom: clamp(0.8rem, 2vw, 1.2rem);
             width: min(12rem, 28vw);
             height: min(12rem, 28vw);
-            border: 1px solid rgba(157, 100, 245, 0.24);
+            border: 1px solid rgba(0, 141, 211, 0.24);
             border-radius: 999px;
             background:
-                radial-gradient(circle, transparent 55%, rgba(157, 100, 245, 0.16) 56%, transparent 57%),
+                radial-gradient(circle, transparent 55%, rgba(0, 141, 211, 0.16) 56%, transparent 57%),
                 radial-gradient(circle, rgba(0, 159, 227, 0.12), transparent 68%);
             transform: translate(20%, 24%);
             pointer-events: none;
@@ -158,7 +158,7 @@ const activityStyle = `        <style>
             position: absolute;
             inset: auto 0 0;
             height: 0.22rem;
-            background: linear-gradient(90deg, var(--mint-base), var(--sky-base), var(--grape-base));
+            background: linear-gradient(90deg, var(--sky-base), var(--sky-deep));
             opacity: 0.75;
         }
         .activity-widget .stat span {
@@ -255,11 +255,11 @@ const activityStyle = `        <style>
             height: 0.7rem;
         }
         .activity-widget .chart-scroll::-webkit-scrollbar-track {
-            background: rgba(190, 120, 210, 0.16);
+            background: rgba(0, 141, 211, 0.16);
             border-radius: 999px;
         }
         .activity-widget .chart-scroll::-webkit-scrollbar-thumb {
-            background: rgba(157, 100, 245, 0.5);
+            background: rgba(0, 141, 211, 0.5);
             border-radius: 999px;
         }
         .activity-widget .chart {
@@ -316,7 +316,7 @@ const activityStyle = `        <style>
             z-index: 2;
             border-color: var(--text);
             outline: none;
-            box-shadow: 0 0 0 2px var(--grape-glow), var(--clay);
+            box-shadow: 0 0 0 2px var(--sky-glow), var(--clay);
             transform: scale(1.22);
         }
         .activity-widget .day-cell[data-level="1"] { background: var(--activity-level-1); }
@@ -357,8 +357,8 @@ const activityStyle = `        <style>
             height: 0.62rem;
             margin-right: 0.45rem;
             border-radius: 999px;
-            background: var(--grape-base);
-            box-shadow: 0 0 0 0.28rem rgba(160, 110, 220, 0.16);
+            background: var(--sky-base);
+            box-shadow: 0 0 0 0.28rem rgba(0, 141, 211, 0.16);
         }
         .activity-widget .go-breakdown {
             display: grid;
