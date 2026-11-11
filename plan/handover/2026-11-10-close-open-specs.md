@@ -6,6 +6,38 @@ access remains claimed by another session. All four handback claims are released
 **Goal:** close the open specs whose implementation is already committed. The
 owner asked that locked or blocked specs not stop progress on the others.
 
+## Active refusal evidence continuation, 2026-11-11
+
+The refusal spec is claimed and in-progress again. Its new retained-evidence
+ledger maps all 54 census rows to canonical regression definitions, recent
+red/green repairs or the closed dependency spec. Three stale dependency-census
+journal Fix cells now cite `30422ebe30`, `a81034e794` and `82c2cb97a7`; the
+text-renderer registrar row cites its repair and passing tests in `a6f93cea5d`.
+These are record corrections, not new executions.
+
+Later actual PASS lines resolve the old unrun labels for the three PKI fixtures,
+both L2TP health regressions and VPP stats read refusal. The spec retains their
+canonical sources and exact logs. Their historical labels do not require fresh
+runs. AC-7 still needs a current actual report compared by file and function
+against owned producers, including annotated findings; report exit zero alone
+does not prove that condition.
+
+The latest shared build refusal came from another session's in-progress
+patternmatcher dependency addition. Its owner now reports the explicit vendor
+entry and files complete; preserve that work. Main has formatted the focused
+netlink stats seam and five new direct-method regressions and is attempting the
+current-source named test. No result is claimed before the runner answers.
+The new units cover missing links, other read errors, missing counters, valid
+all-zero counters and preservation of all measured counter fields.
+
+The remaining scoped queue is in the refusal spec: full RIB and updated daemon
+fixture, corpus once, ADD-PATH baseline/overlay-negative/clean rebuild, LDP,
+BMP/pmacct, actual AC-7 report, thermal and scripted DHCP DAD tests, TCX probe
+in ordinary/root contexts, gnmic's changed encoding contract, and native RFC
+debt reconciliation. Independent closure review remains owed. Main executes
+every test, build, lint, formatter and proof; agents continue source/prose work.
+No whole-tree verification or push is added by this continuation.
+
 ## NTP follow-up completed, 2026-11-11
 
 This section supersedes the pending NTP decision, owner-terminal requirement,
