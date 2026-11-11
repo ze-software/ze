@@ -1569,8 +1569,9 @@ Both init/import children inherit the accepted config directory at fd 4 beside
 the executable at fd 3. Startup admits that directory before crash capture, and
 the bound init entry uses retained-root storage APIs. Directory pathname
 replacement therefore does not redirect those children into the replacement.
-AC-33 remains open for native Darwin/BSD runtime proof and remaining gates in
-`plan/post-release/engineering/spec-tooling-one-off-defects.md`.
+The proof of this is recorded under P-33 of the closed
+spec-tooling-one-off-defects, in
+`plan/post-release/engineering/tooling-one-off-evidence.md`.
 <!-- source: internal/le/session/seed.go -- validateSeedEntry, seedStore -->
 <!-- source: internal/le/session/seed_root.go -- openSeedResources, openSeedDirectory -->
 <!-- source: internal/le/job/process.go -- ProcessIO, RunProcess -->

@@ -1,6 +1,6 @@
 # Tooling one-off defects: recovered historical evidence
 
-Companion to [the design candidate](spec-tooling-one-off-defects.md).
+Companion to the design candidate, spec-tooling-one-off-defects (closed 2026-11-11).
 These are historical diagnostics, not current lint results, executed repair
 proof, or evidence that contention caused a failure. Counts measure the retained
 selection only. Described commands are historical producers, not rerun instructions.

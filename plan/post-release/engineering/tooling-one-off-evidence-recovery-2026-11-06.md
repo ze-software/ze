@@ -2,7 +2,7 @@
 
 Earlier session raw evidence became unavailable during an automatic cleanup run
 while work on the
-[tooling one-off defects spec](spec-tooling-one-off-defects.md) continued.
+tooling one-off defects spec (spec-tooling-one-off-defects, now closed) continued.
 Source changes remain in the checkout. Earlier observed results remain recorded
 in the [evidence page](tooling-one-off-evidence.md#git-only-evaluator-continuation-on-2026-11-06)
 and conversation, but their former session paths cannot supply the original bytes.

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | done |
 | Scope | tooling |
 | Priority | P3 |
 | Release reason | Each row is a defect in `le`, the hooks, the commit and verify tooling, or the functional and editor test harness; none changes the shipped binary, so it does not block release correctness |
@@ -457,28 +457,57 @@ path.
 | 3 | NOTE | `interop.md` said "a truncated context is never built", which finding 2 shows false of docker | fixed: the page now says docker may build from the part it read, the failure releases the build's own tag, and the image is never answered as built; it also states the symlinked-root resolution |
 | 4 | NOTE | `TestDockerBuildRejectsEmptyImageID`'s path (docker succeeds and prints no id) also returns with the owned tag held. That predates `8c184b7ed0` | noted, not this change |
 
-## Blocker
+Round 5's two ISSUEs landed in `b32134986e`. The main thread ran
+`./internal/le/interoplab/` (ok) and walked both fixes red and green: with
+the root left unresolved, `TestBuildSendsAContextReachedThroughASymlink` fails
+"the archive lacks Dockerfile: []"; with the release skipped,
+`TestBuildFailsWhenTheContextCannotBeSentWhole` fails "the failed build did
+not release its owned tag". Lint over the package is clean apart from the
+`rangeValCopy` finding in `lab.go` that was already there. The `-tags docker`
+carriers pass on the real daemon.
 
-Set 2026-11-11 by the closure agent. Every P-1 to P-41 proof is recorded, but
-closure stops on two things.
+### Round 6 (2026-11-11): CLEAN
 
-1. **Owned journal rows still open.** The deliverable "Every row of the Owned
-   journal rows table names its fixing commit" fails: the 2026-11-11 rows of
-   `plan/journal/bash-guard-misses-a-command-shape.md` (`bashLossyPipe` and
-   `bashRawHeavy`, `bashRootBuild`, `bashSystemTmp` in
-   `internal/le/hookruntime`), of `plan/journal/green-that-could-not-have-been-red.md`
-   (the bash parity golden judged by `bashCode`), and of
-   `plan/journal/gate-excludes-part-of-its-population.md` (`Check`,
-   `comparePath` in `internal/le/test/weakened`, being written by another
-   session) all read `open:`. Removing the spec would leave them unowned.
-   Cleared by fixing each row and closing its Fix cell with the commit, or by
-   moving a row to a spec whose mechanism fits (the bash-guard and parity rows
-   fit `spec-agent-economy-6-shell-parser.md`) with a Work Not Done row.
-2. **Review Gate round 5 is not clean.** Its two ISSUEs are fixed in source
-   (`prepareBuildContext`, `Build` in `internal/le/interoplab`) and their
-   package tests have not run. Cleared by a green
-   `./le test unit pkg path ./internal/le/interoplab/` and a round 6 over the
-   fix.
+Scope: `b32134986e` only. `b32134986e` was written by the round 5 reviewer,
+so an independent `ze-read` reviewer who wrote none of it ran this round
+(`ai/rules/principles.md`). Result: 0 BLOCKER, 0 ISSUE, 3 NOTE.
+
+Checked correct:
+- `EvalSymlinks` runs before `Stat` and `IsDir`.
+- `-f` is computed relative to the named path and is the same path inside the archive.
+- The `..` guard still applies.
+- Two `%w` verbs inside `errors.Join` keep `errors.Is` true.
+- `WithoutCancel` is bounded by `dockerCommandTimeout`.
+- The goroutine lifetime is unchanged.
+- `interop.md` matches the code and its anchors.
+- The tests assert `-f Dockerfile -`, the archive entries and their bytes, and the exact `docker image rm --no-prune <retainedTag>`.
+- Style pass clean: no panic, no unbounded loop.
+
+| # | Severity | Finding | State |
+|---|----------|---------|-------|
+| 1 | NOTE | `docker_build_context.go` `prepareBuildContext`, `contextDockerfile`: only the context root is resolved, so a Dockerfile named through the resolved path under a context named through a link is refused "outside the context", where the docker CLI accepts it. No production caller does this: every `ImageBuild` caller joins the Dockerfile onto the same context string | noted |
+| 2 | NOTE | `contextIgnoreMatcher`, `readIgnoreFile` (unchanged code): a `<Dockerfile>.dockerignore` reached through a symlinked subdirectory is read outside the context; it yields patterns only, from the operator's own lab paths, the same as the docker CLI | noted |
+| 3 | NOTE | `docker.go` `Build`, `buildWithProgress`: `ReleaseImage` drops only the run-owned `retainedTag`, so the shared `build.Tag` can stay on a partial image after a failed walk. Runs select images by the retained reference, matching the documented design | noted |
+
+### Review Gate record
+
+| Field | Value |
+|-------|-------|
+| Artifact | written by `./le spec review record spec tooling-one-off-defects verdict CLEAN rounds 6`; commit A carries its `Review:` pin |
+| `./le spec review check` | clean, run before commit A |
+| Rounds | 6. Rounds 5 and 6 were earned by the product defects round 5 found in `8c184b7ed0` (symlinked context root, unreleased tag) |
+| Reviewer lenses used | proof matrix against evidence, journal accounting, code lens over each round's commits, style pass, security |
+
+### Findings fixed
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| R2-1 | ISSUE | expectation fixture refused the observer's `open about:blank` | `internal/component/web/testing/expect_deadline_test.go` fixture | `21518736f5` |
+| R3-1 | ISSUE | P-18's three stale generator cuts unwalked | P-18 generator cuts | `f4c8a116de` |
+| R5-1 | ISSUE | a context named through a symlink was sent empty | `internal/le/interoplab/docker_build_context.go` `prepareBuildContext` | `b32134986e` |
+| R5-2 | ISSUE | a part-way walk failure left the owned tag in the daemon | `internal/le/interoplab/docker.go` `Build` | `b32134986e` |
+
+Round 1's ISSUEs are resolved in round 2's table above.
 
 ## Executable integrity incident
 
@@ -489,12 +518,15 @@ AC-27 was dropped on 2026-11-08 ("Scope decision" above): the incident was not i
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `failure-report-names-a-command-that-does-not-exist` | 2026-11-10 | `parseOptionNeedsLinux` |
-| `bash-guard-misses-a-command-shape` | 2026-11-11 | `bashLossyPipe`, `bashRawHeavy`: a launcher's option value read as the command word |
-| `bash-guard-misses-a-command-shape` | 2026-11-11 | `bashRootBuild`: `-toolexec`, `-overlay`, `-modfile` pass the text judgement |
-| `bash-guard-misses-a-command-shape` | 2026-11-11 | `bashSystemTmp`: no `}` boundary in `systemTmp` |
-| `green-that-could-not-have-been-red` | 2026-11-11 | bash parity golden judged by the hand model `bashCode` |
-| `gate-excludes-part-of-its-population` | 2026-11-11 | `Check` changed-unit loop, `comparePath`: a stale row and a changed helper pass the weakening gate silently |
-| `hook-existing-patterns-false-positive` | 2026-11-11 | error-inventory `shapeFinding`: an identity-only `Finding` literal judged as a plain message |
+
+Moved 2026-11-11 by Thomas's decision to `spec-agent-economy-6-shell-parser.md`
+(accepted in `04caac807e`): the three `bash-guard-misses-a-command-shape`
+rows (`bashLossyPipe` and `bashRawHeavy`, `bashRootBuild`, `bashSystemTmp`),
+the `green-that-could-not-have-been-red` row (the bash parity golden judged by
+`bashCode`) and the `hook-existing-patterns-false-positive` row (error-inventory
+`shapeFinding`), all of 2026-11-11. The
+`gate-excludes-part-of-its-population` 2026-11-11 row is fixed by `464e84ac4c`
+and is listed under "Rows found already fixed".
 
 ## Rows found already fixed
 
@@ -662,6 +694,7 @@ the cell names no commit.
 | `bound-too-small-for-its-own-burst` | 2026-10-25 | `le job run` stall window breaks a silent gomu run | journal Fix names no commit: removed waiter termination and foreign evidence deletion |
 | `validate-accepts-what-start-refuses` | 2026-10-26 | `./le test weakened approve` records a unit key (`airules.TestX`) the commit gate never matches | journal Fix names no commit: `rfc.ApproveInto` resolves each row's unit to its one carrier before writing, refuses a unit matching only a Go package clause, naming the ...; `TestWeakenedApproveRefusesPackageClauseAlias` |
 | `container-cannot-see-migrated-scratch` | 2026-10-21 | `Run.virtfsArgs` guest lab build over 9p, cache symlink xattr ELOOP | `8c184b7ed0` (moved here from the owned table on 2026-11-11; journal Fix cell `fixed:` in `7ae8ccfb8a`); `TestDockerBuildSendsAContextHoldingSymlinks` red pre-fix and green at HEAD on the Mac (tooling-one-off-evidence.md, "P-10: repaired, red and green through `Docker.Build` on the Mac") |
+| `gate-excludes-part-of-its-population` | 2026-11-11 | `Check` changed-unit loop, `comparePath` (`internal/le/test/weakened`) | `464e84ac4c`; journal Fix cell: "fixed: a stale unlanded row refuses; a changed helper keeps its own finding and marks its committed callers changed, so their rows are spent or refused" |
 
 ## Checklist
 
@@ -1718,3 +1751,104 @@ the subsequently observed scoped results; no full-CI verdict is inferred.
 | Promoted plugin entry points | All six named live cases passed with their original expectations | `tmp/session/2026-11-03-231620/scratch/job-ci-leased-port-plugin-live-c32d4069.log` |
 | Promoted UI entry points | All three named live cases passed, including archive retention, SSH completion and path confinement | `tmp/session/2026-11-03-231620/scratch/job-ci-leased-port-ui-live-1b032926.log` |
 | Independent input judgment | JoinJudge approved all nine canonical units after comparing live, draft and HEAD plus the five actual callers | The implementation commit carries the native `Weakening-approved` verdicts |
+
+## Implementation Summary
+
+### What Was Implemented
+- Each retained AC-1 to AC-41 (AC-27 dropped by Thomas on 2026-11-08) is repaired at its producer and carries its P-N proof: a real entry point, an attributed red under a break of that producer, and a restored green, recorded in `tooling-one-off-evidence.md`. The proof matrix ("AC / P" rows above) names the evidence section and commit for each.
+- The last two obligations closed on 2026-11-11: P-17, real CodeQL extraction in CI (`a4b8575d14`), and P-10. For P-10, `Docker.Build` now writes the build context as a tar itself (`8c184b7ed0`, `a669259023`, `b32134986e`).
+
+### Bugs Found/Fixed
+- Review rounds 5 and 6 found and fixed two defects in the P-10 repair (`b32134986e`). A symlinked context root was sent as an empty archive, now covered by `TestBuildSendsAContextReachedThroughASymlink`. The owned tag was left in the daemon after a part-way walk, now covered by `TestBuildFailsWhenTheContextCannotBeSentWhole`. Every other defect is a journal row in the owned and fixed tables above.
+
+### Documentation Updates
+- `docs/architecture/testing/interop.md`: the build-context paragraph (anchors `docker_build_context.go` `prepareBuildContext`, `streamBuildContext`; `docker.go` `Build`). `docs/contributing/committing.md` and `docs/functional-tests.md` were edited in the commits their ACs name.
+- `./le doc check all`: red only on drift between the live command catalog and the published catalogs in `../wiki` and `../gh-pages`, which this spec did not touch.
+
+### Deviations from Plan
+- AC-27 was dropped, and phase 13 moved to `spec-tooling-historical-evidence.md` ("Scope decision" above). Six open rows met during review went to other owners (Owned journal rows).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The P-10 repair replaced the docker CLI's context walk without its root resolution or its failure cleanup | `ResolveAndValidateContextPath` resolves symlinks, and a part-way stream can still build | Review Gate round 5 | Fixed in `b32134986e`, with tests |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Reproduce each owned row at HEAD, fix it or move it to "Rows found already fixed" | Done | Owned journal rows; Rows found already fixed | Six rows moved to other owners on 2026-11-11 |
+| Take the release-validation blockers first (AC-1) | Done | AC-1 / P-1 matrix row | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 to AC-41 except AC-27 | Done | the AC / P matrix row's status line and its evidence section | AC-8 carries its proved line |
+| AC-27 | Changed | "Scope decision" | dropped by Thomas |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| one red-first unit or fixture per AC | Done | the carriers named in the "P-N" carrier table above | each red recorded in the evidence file |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| The producer files under Current Behavior | Done | changed by the commits the evidence names |
+
+### Audit Summary
+- **Total items:** 41 ACs
+- **Done:** 40
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (AC-27, recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Each owned tooling row reproduced at HEAD and fixed, or found already fixed | recorded red and green per row | `tooling-one-off-evidence.md`; every matrix row ends "Remaining: none" or is proved or dropped |
+| Release-validation blockers first: an unknown verb, step kind or orphan block never passes | functional and unit | AC-1 / P-1: `TestBgpUnknownVerbRefusalNamesIt`, the `.ci` walk through `zeTestParseRunCLI` (evidence, "Review Gate round 1: the missing reds walked") |
+| The guest lab build works with `cache` a symlink | real daemon on the Mac | `TestDockerBuildSendsAContextHoldingSymlinks` red pre-fix and green at HEAD (evidence, "P-10: repaired, red and green through `Docker.Build` on the Mac") |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| `bash-guard-misses-a-command-shape` 2026-11-11, three rows | met during review; the shell parser replaces the text judgement (Thomas, 2026-11-11) | `plan/post-release/engineering/spec-agent-economy-6-shell-parser.md` |
+| `green-that-could-not-have-been-red` 2026-11-11, the parity golden | same | `plan/post-release/engineering/spec-agent-economy-6-shell-parser.md` |
+| `hook-existing-patterns-false-positive` 2026-11-11, `shapeFinding` | same | `plan/post-release/engineering/spec-agent-economy-6-shell-parser.md` |
+| The historical-evidence phase 13 | moved out by the scope decision | `plan/post-release/engineering/spec-tooling-historical-evidence.md` |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/interoplab/docker_build_context.go` | yes | in HEAD since `8c184b7ed0` |
+| `plan/post-release/engineering/tooling-one-off-evidence.md` | yes | tracked; holds every P-N section |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-41 | each matrix row is closed | grep on 2026-11-11: 41 "AC / P" rows; all but AC-8 (proved line), AC-12 ("Remaining for P-12: none named by the evidence") and AC-27 (dropped) end "Remaining: none named by the evidence" |
+| AC-10 | the symlinked context builds | the main thread ran `go test ./internal/le/interoplab/` (ok) and the `-tags docker` carriers on the real daemon (pass) over `b32134986e` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `le test bgp <mistyped-verb>` | unit `TestBgpUnknownVerbRefusalNamesIt` | evidence, "Review Gate round 2: the OPEN observables walked" |
+| `./le commit create ... remove <path>` | the closure fixture of AC-5 | evidence, AC-5 / P-5 row |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| Sessions share one main checkout | confirmed | every fix was designed and tested in the main checkout, including the shared-index commit tooling (AC-5, AC-29) |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `interop.md` build-context paragraph | `prepareBuildContext`, `streamBuildContext`, `Build` read in round 6 | yes, round 6 |
+| `committing.md`, `functional-tests.md` | AC-5, AC-6, AC-15 evidence sections | yes |
