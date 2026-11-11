@@ -52,9 +52,9 @@ func TestNetlinkGetStatsReadErrorIsNotAbsence(t *testing.T) {
 		{"wrapped-io", fmt.Errorf("read link: %w", unix.EIO)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			link := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{
+			link := &netlink.Dummy{
 				Name: "stats0", Statistics: &netlink.LinkStatistics{RxBytes: 42},
-			}}
+			}
 			stubStatsLookup(t, link, tc.err)
 			b := &netlinkBackend{}
 			stats, err := b.GetStats("stats0")
@@ -77,7 +77,7 @@ func TestNetlinkGetStatsReadErrorIsNotAbsence(t *testing.T) {
 // TestNetlinkGetStatsMissingCounters refuses an otherwise valid link without
 // statistics instead of reporting an idle interface.
 func TestNetlinkGetStatsMissingCounters(t *testing.T) {
-	stubStatsLookup(t, &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "stats0"}}, nil)
+	stubStatsLookup(t, &netlink.Dummy{Name: "stats0"}, nil)
 	b := &netlinkBackend{}
 	stats, err := b.GetStats("stats0")
 	if stats != nil {
@@ -100,9 +100,9 @@ func TestNetlinkGetStatsMissingCounters(t *testing.T) {
 // TestNetlinkGetStatsZeroCounters accepts an allocated, all-zero statistics
 // record through GetStats, distinguishing an idle link from missing counters.
 func TestNetlinkGetStatsZeroCounters(t *testing.T) {
-	stubStatsLookup(t, &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{
+	stubStatsLookup(t, &netlink.Dummy{
 		Name: "stats0", Statistics: &netlink.LinkStatistics{},
-	}}, nil)
+	}, nil)
 	b := &netlinkBackend{}
 	stats, err := b.GetStats("stats0")
 	if err != nil {
@@ -119,13 +119,13 @@ func TestNetlinkGetStatsZeroCounters(t *testing.T) {
 // TestNetlinkGetStatsMeasuredCounters checks every counter through GetStats
 // with distinct values so a constant answer or a field swap cannot pass.
 func TestNetlinkGetStatsMeasuredCounters(t *testing.T) {
-	stubStatsLookup(t, &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{
+	stubStatsLookup(t, &netlink.Dummy{
 		Name: "stats0",
 		Statistics: &netlink.LinkStatistics{
 			RxBytes: 101, RxPackets: 102, RxErrors: 103, RxDropped: 104, Multicast: 105,
 			TxBytes: 201, TxPackets: 202, TxErrors: 203, TxDropped: 204,
 		},
-	}}, nil)
+	}, nil)
 	b := &netlinkBackend{}
 	stats, err := b.GetStats("stats0")
 	if err != nil {
