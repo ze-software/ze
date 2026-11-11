@@ -40,6 +40,17 @@ le command discovers the root before entering that chain. Explicit relative
 <!-- source: internal/le/build/gokrazy/gokrazy.go -- Run, prepareArgs -->
 <!-- source: internal/le/setup/docker/host/build.go -- builder.build, runGok, runGokWith -->
 
+The named appliance's `image.kernel-profile` selects its installer kernel.
+The disk-image build resolves the shared `runtime` profile for `image.arch`,
+so selecting the installer `qemu` profile leaves the runtime driver set
+unchanged. Both kernel purposes start from Linux `defconfig` and merge their
+resolved fragments; a fragment's driver requests describe additions to that
+baseline. The emitted configuration records the resulting driver set.
+<!-- source: internal/appliance/cmd_kernel.go -- runKernel -->
+<!-- source: internal/appliance/kernelargs.go -- resolveBuildParentDir -->
+<!-- source: internal/appliance/runtimekernel.go -- RuntimeKernelTree -->
+<!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
+
 The appliance CLI resolves its base directory to an absolute path once, before
 dispatch. This pins relative `--dir`, `ZE_APPLIANCE_DIR` and XDG-default paths to
 the invocation's working directory even while gok temporarily changes it.

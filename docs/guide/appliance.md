@@ -178,7 +178,16 @@ access to kernel.org and Docker or QEMU on a host of the image's architecture.
 <!-- source: internal/le/build/gokrazy/gokrazy.go -- prepareArgs -->
 <!-- source: internal/appliance/runtimekernel.go -- RuntimeKernelTree -->
 
-`ze appliance kernel` calls the Go driver in
+`image.kernel-profile` selects the installer kernel. Appliance images use the
+shared `runtime` profile for their architecture. The installer `qemu` fragment
+requests virtio drivers and is merged onto Linux `defconfig`, which can enable
+additional drivers. The emitted kernel configuration records the complete
+driver selection.
+<!-- source: internal/appliance/cmd_kernel.go -- runKernel -->
+<!-- source: internal/appliance/runtimekernel.go -- RuntimeKernelTree -->
+<!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
+
+`ze appliance kernel --target runtime` calls the Go driver in
 `internal/appliance/kernelbuilder`. The driver reads
 `internal/appliance/kernel.version`, selects Docker or QEMU, resolves the
 tracked config fragments and `.require` manifests, and writes the runtime

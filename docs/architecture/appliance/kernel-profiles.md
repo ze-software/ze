@@ -11,11 +11,27 @@ gives a single level of layering, and nesting is rejected.
 
 ## Go owns the guarantee
 
-`ze appliance kernel` resolves the fragments, invokes Docker or QEMU with an
-explicit `--fragment` order, reads the emitted `build/config`, and only then
-enforces two things: the profile's own manifest, and a hardcoded universal floor
-of `IP_PNP_DHCP`, `EXT4_FS`, `BLK_DEV_INITRD`, and `DEVTMPFS_MOUNT`. The
-guarantee is read back from the artifact, not assumed from the inputs.
+`ze appliance kernel` defaults to the installer target. For a local build, it
+resolves the fragments, invokes Docker or QEMU with an explicit `--fragment`
+order, and reads the emitted configuration. The installer target checks the profile's
+manifest and the compiled floor of `IP_PNP_DHCP`, `EXT4_FS`, `BLK_DEV_INITRD`,
+and `DEVTMPFS_MOUNT`. The runtime target checks its runtime floor instead.
+These checks verify the artifact's configuration after the build.
+<!-- source: internal/appliance/cmd_kernel.go -- kernelTargetFor, resolveInstallerKernel, resolveRuntimeKernel -->
+<!-- source: internal/appliance/kernelreq.go -- universalKernelRequirements, runtimeKernelRequirements -->
+
+The worker starts with Linux `defconfig`, merges the resolved fragments, and
+runs `olddefconfig`. The installer `qemu` fragment requests virtio drivers;
+drivers inherited from `defconfig` can also remain enabled. The emitted
+configuration records the complete selection.
+<!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
+
+For a named appliance, `image.kernel-profile` selects the installer profile.
+Disk images resolve the shared `runtime` profile for `image.arch` separately,
+so the installer profile does not change the disk image's runtime drivers.
+<!-- source: internal/appliance/cmd_kernel.go -- runKernel -->
+<!-- source: internal/appliance/kernelargs.go -- resolveBuildParentDir -->
+<!-- source: internal/appliance/runtimekernel.go -- RuntimeKernelTree -->
 
 Library callers supply the source root. The resolver reads profiles, their
 base/shared includes and requirement manifests under that root. It preserves
