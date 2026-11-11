@@ -23,8 +23,9 @@
 //     non-error, whose only record is a log line below WARN
 //
 // The detection is syntactic, like `arch compound-guard`: it reads one file's
-// AST and resolves no types, so it names a shape for a reader to judge, and the
-// annotation (annotation.go) is how the reader records a zero that is a guard.
+// AST without type checking. State assignments follow visible declarations
+// and initializers (state_assignments.go), so unknown call results stay
+// unknown. The annotation records a zero that is a guard.
 // The precision cuts (recordsMiss, mentions, parses, the callback flag) were
 // each measured against the last 200 commits; the spec's A-2 row has the count.
 
@@ -94,6 +95,7 @@ func ScanFile(fset *token.FileSet, path string) ([]Hit, []Annotation, error) {
 		return nil, nil, nil
 	}
 	scan := &fileScan{fset: fset, packageVars: packageVars(file)}
+	scan.stateAssignments(file)
 	for _, decl := range file.Decls {
 		funcDecl, isFunc := decl.(*ast.FuncDecl)
 		if !isFunc {

@@ -87,7 +87,7 @@ shapes on the lines your unpushed commits and working tree changed:
 | Unmatched switch value | A `default:` arm, or the return after a switch whose every case returns, answering a nil error | An error naming the value |
 | Miss answered as a hit | A branch on `!ok`, on a nil registered slot or on a read error's `err != nil` answering `true`, a lone zero or a nil error; `return err == nil` from a read | An error naming what could not be found or read |
 | ADD-PATH identifier compared with zero | `pathID != 0` and every comparison of a path identifier with `0` | The negotiated capability the route carries (`nlri.HasPathID`, `Route.AddPath`, `RawRoute.HasPathID`): zero is a valid identifier (RFC 7911 Section 2) |
-| State from a literal | `StatusHealthy` in a function that measures nothing; a check that is one literal `return nil` or `return true`; a literal boolean in a `State`, `Status` or `Health` value | Read the state; where it cannot be read, Unknown with the reason |
+| State from a literal | `StatusHealthy` in a function that measures nothing; a check that is one literal `return nil` or `return true`; a literal boolean in a `State`, `Status` or `Health` value, including a direct member assignment | Read the state; where it cannot be read, Unknown with the reason |
 | Error dropped below WARN | A branch on `err != nil` (or the `else` of `err == nil`) whose only record is a `Debug` or `Info` log call, and which then falls through, continues, breaks or returns no error | Return the error, count it, or log it at WARN: Ze logs at WARN by default, so a debug line is no record (the MOBIKE route-source EPERM that stopped UPDATE_SA_ADDRESSES) |
 
 A branch that records what it met before it answers (a field or element write,
@@ -100,6 +100,17 @@ refused either. A log line is no record: a WARN beside a default is still the
 default. A branch that returns or records the error, logs it at WARN, or
 panics hands it on, so the dropped-error shape does not refuse it, and a
 branch the miss shape already refuses is not listed twice.
+
+State member assignments use the same type-name suffixes as composite literals:
+`State`, `Status` and `Health`. The check follows file-local receiver,
+parameter, result and variable declarations, direct construction, builtin
+`new`, pointer operations and copies of known values. Package initializer
+dependencies are resolved regardless of declaration order. Each block keeps
+its own bindings, so a config variable that shadows a state variable stays a
+config variable. The check does not load imported packages or infer an unknown call
+result or a nested member's type. A measured value assigned to a state member
+is accepted.
+<!-- source: internal/le/arch/refusebydefault/state_assignments.go -- stateAssignments, resolvePackageStates, Visit, assignment, stateValue, stateNamedType -->
 
 Where the zero IS the answer another branch relies on, name that guard on the
 shape's line or the line above it:
