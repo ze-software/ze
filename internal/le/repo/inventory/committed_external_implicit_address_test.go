@@ -110,32 +110,6 @@ func TestCommittedExternalImplicitAddressExposesMetadata(t *testing.T) {
 	}
 }
 
-// TestCommittedPointerMethodImplicitAddressExecutesOwner requires a pointer
-// method called on a package variable of the value type to execute, as Go
-// calls it on &packet. Method: Deliver installs the owner; the implicit call
-// and its explicit (&packet).Deliver() form both publish with that owner.
-//
-// MUTATION: (internal/le/repo/inventory/methods.go,
-// `if !e.addressable(receiver) {`, `if !e.addressable(receiver) || true {`):
-// no value receiver is addressed, the implicit call's callee is unresolved,
-// and its report refuses as callable receiver has unresolved execution
-// ownership.
-func TestCommittedPointerMethodImplicitAddressExecutesOwner(t *testing.T) {
-	for _, call := range []string{"packet.Deliver()", "(&packet).Deliver()"} {
-		for _, kind := range []string{"plugin", "yang"} {
-			t.Run(call+"/"+kind, func(t *testing.T) {
-				scenario := callableOwnerCase{declarations: "type parcel struct{}\nfunc (*parcel) Deliver() { helper.Install(0) }\nvar packet parcel\n"}
-				fixture := pointerOwnerFixture(t, kind, scenario)
-				fixture.goFile(t, callableOwnerCaller, callableOwnerSource(scenario, call))
-				commitInventoryFixture(t, fixture.root)
-				if _, _, err := callableOwnerOutcome(t, fixture, kind, false); err != nil {
-					t.Fatalf("implicitly addressed pointer method lost its owner: %v", err)
-				}
-			})
-		}
-	}
-}
-
 // TestCommittedExternalImplicitAddressKeepsUnaddressableRefusal keeps a
 // pointer method on a value Go cannot address unresolved. Method: a retained
 // call's result and a composite literal are values with no address, so

@@ -57,45 +57,6 @@ func TestCommittedExternalPromotedMethodPublishes(t *testing.T) {
 	}
 }
 
-// TestCommittedPointerMethodPromotedExecutesOwner requires a promoted method
-// to be executed by the registration walk, so the owner it installs is in the
-// report. Method: Deliver, a pointer method of parcel, installs the owner;
-// it is called through an embedded *parcel on a nil *envelope (the scenario
-// TestCommittedPointerMethodUnsupportedOwnersRefuse pinned as unsupported),
-// through an embedded parcel on an addressable variable, which Go calls on
-// &packet.parcel, and through two embedding levels.
-//
-// MUTATION: (internal/le/repo/inventory/methodpromotion.go,
-// `if members == 1 {`, `if members == 2 {`): the level holding Deliver never
-// decides, the search runs out of embedded fields, and every shape refuses as
-// callable receiver has unresolved execution ownership.
-// MUTATION: (internal/le/repo/inventory/methodpromotion.go,
-// `if !addressable {`, `if addressable {`): the addressable embedded value
-// refuses as callable receiver has unresolved execution ownership, and the
-// unaddressable one in TestCommittedExternalPromotedMethodUnresolvedRefuses
-// resolves to an address of a call result, which refuses on address
-// ownership instead of root field ownership.
-func TestCommittedPointerMethodPromotedExecutesOwner(t *testing.T) {
-	const parcel = "type parcel struct{}\nfunc (*parcel) Deliver() { helper.Install(0) }\n"
-	for _, shape := range []struct{ name, declarations string }{
-		{"embedded pointer", "type envelope struct { *parcel }\nvar packet *envelope\n"},
-		{"embedded value", "type envelope struct { parcel }\nvar packet envelope\n"},
-		{"two levels", "type inner struct { *parcel }\ntype envelope struct { inner }\nvar packet envelope\n"},
-	} {
-		for _, kind := range []string{"plugin", "yang"} {
-			t.Run(shape.name+"/"+kind, func(t *testing.T) {
-				scenario := callableOwnerCase{declarations: parcel + shape.declarations}
-				fixture := pointerOwnerFixture(t, kind, scenario)
-				fixture.goFile(t, callableOwnerCaller, callableOwnerSource(scenario, "packet.Deliver()"))
-				commitInventoryFixture(t, fixture.root)
-				if _, _, err := callableOwnerOutcome(t, fixture, kind, false); err != nil {
-					t.Fatalf("promoted method lost its owner: %v", err)
-				}
-			})
-		}
-	}
-}
-
 // TestCommittedExternalPromotedMethodBindsEmbeddedField requires the
 // receiver of a promoted method to be the embedded field, so the method body
 // reads that field's values. Method: Deliver, a pointer method of parcel,
@@ -248,29 +209,5 @@ func TestCommittedExternalPromotedMethodUnresolvedRefuses(t *testing.T) {
 				externalEffectsRefusal(t, fixture, "root field ownership")
 			})
 		}
-	}
-}
-
-// TestCommittedConcreteMethodPromotedValueExecutesOwner requires a value
-// method promoted through an embedded value to be executed by the
-// registration walk. Method: the input of the promoted case of
-// TestCommittedUnsupportedReceiverOwnersRefuse, packet = envelope{} with
-// envelope embedding parcel and Deliver a value method of parcel that
-// installs the owner; the report publishes with that owner.
-//
-// MUTATION: (internal/le/repo/inventory/methodpromotion.go,
-// `if members == 1 {`, `if members == 2 {`): Deliver no longer resolves and
-// the report refuses as callable receiver has unresolved execution ownership.
-func TestCommittedConcreteMethodPromotedValueExecutesOwner(t *testing.T) {
-	scenario := callableOwnerCase{declarations: "type parcel struct{}\nfunc (parcel) Deliver() { helper.Install(0) }\ntype envelope struct { parcel }\nvar packet = envelope{}\n", call: "packet.Deliver()"}
-	for _, kind := range []string{"plugin", "yang"} {
-		t.Run(kind, func(t *testing.T) {
-			fixture := callableOwnerFixture(t, kind, scenario)
-			fixture.goFile(t, callableOwnerCaller, callableOwnerSource(scenario, scenario.call))
-			commitInventoryFixture(t, fixture.root)
-			if _, _, err := callableOwnerOutcome(t, fixture, kind, false); err != nil {
-				t.Fatalf("promoted value method lost its owner: %v", err)
-			}
-		})
 	}
 }

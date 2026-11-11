@@ -52,47 +52,6 @@ func TestCommittedExternalMethodChainPublishes(t *testing.T) {
 	}
 }
 
-// TestCommittedMethodReceiverCallExecutesRegistration requires the
-// registration walk to execute a directly called method's receiver, as Go
-// evaluates it before the arguments. Method: build() installs the owner and
-// returns a value whose plain Register method is empty, so the report holds
-// the owner only if build().Register() executed build(). The fixture imports
-// no external package, so the registration walk alone decides.
-//
-// MUTATION: (internal/le/repo/inventory/registrations.go,
-// `if ast.Unparen(current.Fun) == callee.value {`,
-// `if ast.Unparen(current.Fun) == nil {`): the receiver is never walked, so
-// build() never runs and the report publishes without the owner: the plugin
-// case fails as the executed callable plugin owner disappeared, the YANG case
-// as the executed callable YANG owner disappeared. The parenthesised call is
-// the same direct call. Through the method-value alias the receiver already
-// ran, unconditionally, where the value was taken, so the alias called inside
-// a loop still publishes.
-//
-// MUTATION: (internal/le/repo/inventory/registrations.go,
-// `if ast.Unparen(current.Fun) == callee.value {`, `if true {`): the alias
-// call runs build() again inside the loop, and its registration refuses as
-// depending on an unresolved condition or iteration.
-func TestCommittedMethodReceiverCallExecutesRegistration(t *testing.T) {
-	scenario := callableOwnerCase{
-		declarations: "type sealed struct { size int }\n" +
-			"func build() sealed { install(0); return sealed{size: 0} }\n" +
-			"func (s sealed) Register() { _ = s }\n",
-	}
-	for _, call := range []string{"build().Register()", "(build().Register)()", "f := build().Register; for range 2 { f() }"} {
-		for _, kind := range []string{"plugin", "yang"} {
-			t.Run(call+"/"+kind, func(t *testing.T) {
-				fixture := callableOwnerFixture(t, kind, scenario)
-				fixture.goFile(t, callableOwnerCaller, callableOwnerSource(scenario, call))
-				commitInventoryFixture(t, fixture.root)
-				if _, _, err := callableOwnerOutcome(t, fixture, kind, false); err != nil {
-					t.Fatalf("receiver call refused its registration: %v", err)
-				}
-			})
-		}
-	}
-}
-
 // TestCommittedExternalMethodChainUnresolvedReceiversRefuse keeps refusing a
 // method the bounded method-owner contract does not resolve, now that the
 // receiver may be a call result. Method: the chain of the publishing test,

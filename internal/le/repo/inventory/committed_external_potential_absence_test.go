@@ -2,8 +2,6 @@
 package repoinventory
 
 import (
-	"reflect"
-	"strings"
 	"testing"
 
 	"golang.org/x/mod/modfile"
@@ -11,7 +9,7 @@ import (
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
-const externalAbsentPotentialTarget = "unrelated/missing/target"
+const externalAbsentPotentialTarget = absentPackageTarget // forwards to committed_source_selection_test.go; goes with this file
 const externalAbsentPotentialImporter = "arbitrary/absence/importer"
 
 // TestCommittedExternalAbsentPotentialDependency keeps the exact report while
@@ -60,33 +58,6 @@ func TestCommittedExternalAbsentPotentialDependencyClosure(t *testing.T) {
 	for _, directory := range []string{externalAbsentPotentialImporter, dependent} {
 		if _, included := private.snapshot.packages[directory]; included {
 			t.Fatalf("dependent of absent parent package entered private graph: %s", directory)
-		}
-	}
-}
-
-// TestCommittedExternalAbsentCertainDependency preserves ordinary source
-// refusal when initialization imports the absent package.
-func TestCommittedExternalAbsentCertainDependency(t *testing.T) {
-	fixture := externalPotentialFixture(t)
-	fixture.goFile(t, "cmd/ze/absent_import.go", "package main\nimport _ \"github.com/ze-software/ze/"+externalAbsentPotentialTarget+"\"\n")
-	commitInventoryFixture(t, fixture.root)
-	inv, reportErr := Collect(fixture.root)
-	plugins, pluginErr := Plugins(fixture.root)
-	if reportErr == nil {
-		t.Fatalf("certain absent package published report: %+v", inv)
-	}
-	if pluginErr == nil {
-		t.Fatalf("certain absent package published plugins: %+v", plugins)
-	}
-	if !reflect.DeepEqual(inv, Inventory{}) {
-		t.Fatalf("certain absence refusal leaked report: %+v", inv)
-	}
-	if plugins != nil {
-		t.Fatalf("certain absence refusal leaked plugins: %+v", plugins)
-	}
-	for _, err := range []error{reportErr, pluginErr} {
-		if !strings.Contains(err.Error(), "imports "+externalAbsentPotentialTarget+" but selects no Go source") {
-			t.Fatalf("certain absent source cause absent: %v", err)
 		}
 	}
 }

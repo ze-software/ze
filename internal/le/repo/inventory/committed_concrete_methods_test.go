@@ -173,7 +173,7 @@ func TestCommittedConcreteMethodUsesDefiningPackage(t *testing.T) {
 				t.Fatal(err)
 			}
 			revision := snapshot.Revision()
-			expected := asmHeaderExpected(fixture)
+			expected := frozenFixture(fixture)
 			fixture.goFile(t, callableOwnerFile, strings.Replace(helper, "func (Parcel) Deliver() {}", "func (Parcel) Deliver() { Install(0) }", 1))
 			dirty, err := Collect(fixture.root)
 			if err != nil {
@@ -198,7 +198,7 @@ func TestCommittedConcreteMethodUsesDefiningPackage(t *testing.T) {
 				t.Fatalf("later method body changed retained full report: %v", err)
 			}
 			expected.checkReport(t, oldReport)
-			asmHeaderSelectedPaths(t, snapshot, callableOwnerPaths())
+			checkSelectedPaths(t, snapshot, callableOwnerPaths())
 		})
 	}
 }
@@ -224,5 +224,28 @@ func TestCommittedConcreteMethodsDoNotBorrowRegistrationAPIs(t *testing.T) {
 				callableOwnerOutcome(t, fixture, kind, false)
 			})
 		}
+	}
+}
+
+// TestCommittedConcreteMethodPromotedValueExecutesOwner requires a value
+// method promoted through an embedded value to be executed by the
+// registration walk. Method: packet = envelope{}, with envelope embedding
+// parcel and Deliver a value method of parcel that installs the owner; the
+// report publishes with that owner.
+//
+// MUTATION: (internal/le/repo/inventory/methodpromotion.go,
+// `if members == 1 {`, `if members == 2 {`): Deliver no longer resolves and
+// the report refuses as callable receiver has unresolved execution ownership.
+func TestCommittedConcreteMethodPromotedValueExecutesOwner(t *testing.T) {
+	scenario := callableOwnerCase{declarations: "type parcel struct{}\nfunc (parcel) Deliver() { helper.Install(0) }\ntype envelope struct { parcel }\nvar packet = envelope{}\n", call: "packet.Deliver()"}
+	for _, kind := range []string{"plugin", "yang"} {
+		t.Run(kind, func(t *testing.T) {
+			fixture := callableOwnerFixture(t, kind, scenario)
+			fixture.goFile(t, callableOwnerCaller, callableOwnerSource(scenario, scenario.call))
+			commitInventoryFixture(t, fixture.root)
+			if _, _, err := callableOwnerOutcome(t, fixture, kind, false); err != nil {
+				t.Fatalf("promoted value method lost its owner: %v", err)
+			}
+		})
 	}
 }

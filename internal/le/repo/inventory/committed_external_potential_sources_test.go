@@ -2,14 +2,19 @@
 package repoinventory
 
 import (
-	"reflect"
 	"slices"
-	"strings"
 	"testing"
 )
 
-const externalInvalidPotentialDir = "arbitrary/place/parcel"
-const externalInvalidPotentialSource = "package parcel\nfunc broken( {\n"
+// The names below forward to committed_source_selection_test.go for the
+// proof-named tests that still use them; they go with this file.
+const externalInvalidPotentialDir = invalidPackageDir
+const externalInvalidPotentialSource = invalidPackageSource
+
+func externalPotentialFixture(t *testing.T) *asmInventoryFixture {
+	t.Helper()
+	return statCallerFixture(t)
+}
 
 // TestCommittedExternalInvalidPotentialPackage retains every report input while
 // excluding a complete syntax-invalid package from possible external imports.
@@ -56,34 +61,6 @@ func TestCommittedExternalInvalidPotentialDependents(t *testing.T) {
 	for _, directory := range []string{externalInvalidPotentialDir, intermediate, dependent} {
 		if _, included := private.snapshot.packages[directory]; included {
 			t.Fatalf("nonimportable dependency entered private graph: %s", directory)
-		}
-	}
-}
-
-// TestCommittedExternalInvalidCertainPackage preserves the refusal when a
-// certain import requires the same syntax-invalid retained package.
-func TestCommittedExternalInvalidCertainPackage(t *testing.T) {
-	fixture := externalPotentialFixture(t)
-	fixture.goFile(t, externalInvalidPotentialDir+"/broken.go", externalInvalidPotentialSource)
-	fixture.goFile(t, "cmd/ze/broken_import.go", "package main\nimport _ \"github.com/ze-software/ze/"+externalInvalidPotentialDir+"\"\n")
-	commitInventoryFixture(t, fixture.root)
-	inv, reportErr := Collect(fixture.root)
-	plugins, pluginErr := Plugins(fixture.root)
-	if reportErr == nil {
-		t.Fatalf("certain invalid package published report: %+v", inv)
-	}
-	if pluginErr == nil {
-		t.Fatalf("certain invalid package published plugins: %+v", plugins)
-	}
-	if !reflect.DeepEqual(inv, Inventory{}) {
-		t.Fatalf("certain parse refusal leaked report: %+v", inv)
-	}
-	if plugins != nil {
-		t.Fatalf("certain parse refusal leaked plugins: %+v", plugins)
-	}
-	for _, err := range []error{reportErr, pluginErr} {
-		if !strings.Contains(err.Error(), "parse committed source "+externalInvalidPotentialDir+"/broken.go") {
-			t.Fatalf("certain invalid syntax cause absent: %v", err)
 		}
 	}
 }
@@ -146,15 +123,6 @@ func TestCommittedExternalInvalidPotentialModuleIdentity(t *testing.T) {
 	fixture.goFile(t, externalInvalidPotentialDir+"/broken.go", "package parcel\nimport _ \"github.com/ze-software/ze/"+nested+"\"\nfunc broken( {\n")
 	commitInventoryFixture(t, fixture.root)
 	externalEffectsRefusal(t, fixture, "nested module")
-}
-
-func externalPotentialFixture(t *testing.T) *asmInventoryFixture {
-	t.Helper()
-	fixture := externalEffectsFixture(t, "plugin")
-	fixture.goFile(t, callableOwnerCaller, externalEffectsSource("", "parcel, fault := remote.Stat(\".\"); _ = parcel; _ = fault"))
-	commitInventoryFixture(t, fixture.root)
-	externalEffectsPositive(t, fixture)
-	return fixture
 }
 
 func externalPotentialInstaller(packageName, extraImport string) string {

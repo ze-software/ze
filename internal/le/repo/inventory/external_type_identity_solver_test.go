@@ -5,8 +5,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"path"
-	"slices"
 	"strings"
 	"testing"
 )
@@ -188,30 +186,14 @@ func TestExternalTypeIdentityExecutesGenericReceiverMethods(t *testing.T) {
 	}
 }
 
+// The names below forward to methods_test.go for the proof-named tests that
+// still use them; they go with this file.
 func typeIdentitySelectedSource(t testing.TB, directory string, sources map[string]string) *externalEffects {
 	t.Helper()
-	snapshot := &Snapshot{blobs: make(map[string][]byte), directories: make(map[string][]string), fset: token.NewFileSet(), packages: make(map[string]*sourcePackage)}
-	for name, text := range sources {
-		snapshot.blobs[name] = []byte(text)
-		snapshot.directories[path.Dir(name)] = append(snapshot.directories[path.Dir(name)], name)
-	}
-	for _, files := range snapshot.directories {
-		slices.Sort(files)
-	}
-	context := linuxContext(nil, snapshot.blobs)
-	if err := snapshot.selectPackage(directory, &context); err != nil {
-		t.Fatal(err)
-	}
-	return newExternalEffects(&externalSource{snapshot: snapshot})
+	return newExternalEffects(&externalSource{snapshot: selectedSnapshot(t, directory, sources)})
 }
 
 func typeIdentitySelectedFile(t *testing.T, pkg *sourcePackage, name string) *ast.File {
 	t.Helper()
-	for _, file := range pkg.files {
-		if file.Path == name {
-			return file.File
-		}
-	}
-	t.Fatalf("authored selected file %s is unavailable", name)
-	return nil
+	return selectedFile(t, pkg, name)
 }

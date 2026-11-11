@@ -4,66 +4,24 @@ package repoinventory
 import (
 	"os/exec"
 	"path"
-	"reflect"
 	"slices"
-	"strconv"
 	"strings"
 	"testing"
 )
 
-const asmOrdinaryDir = "internal/plugins/ordinary"
+// The names below forward to ordinary_fixture_test.go for the proof-named
+// tests that still use them; they go with this file.
+const asmOrdinaryDir = ordinaryDir
 const asmTargetFile = asmOrdinaryDir + "/boundary_linux_amd64.s"
 const asmTargetBody = "//go:build linux && amd64 && gc && ze_le && ze_fixture\n\n#include \"textflag.h\"\nTEXT ·inventoryGate(SB),NOSPLIT,$0-56\n JMP syscall·Syscall(SB)\n"
-const asmSchema = "module fixture { namespace urn:fixture; prefix f; rpc fixture-list { } }\n"
-const asmExtraSchema = "module extra { namespace urn:extra; prefix e; rpc extra-check { } }\n"
+const asmSchema = ordinarySchema
+const asmExtraSchema = ordinaryExtraSchema
 
-type asmInventoryFixture struct {
-	root      string
-	goSources map[string]string
-}
+type asmInventoryFixture = ordinaryFixture
 
-// newASMInventoryFixture establishes exact ordinary registration/report controls
-// before the unavailable-body input is introduced. It never compiles its source.
 func newASMInventoryFixture(t *testing.T) *asmInventoryFixture {
 	t.Helper()
-	fixture := &asmInventoryFixture{root: t.TempDir(), goSources: make(map[string]string)}
-	write(t, fixture.root, "go.mod", "module github.com/ze-software/ze\n\ngo 1.26\n")
-	write(t, fixture.root, "feature-gates.txt", "ze_fixture "+asmOrdinaryDir+"\n")
-	fixture.goFile(t, "cmd/ze/main.go", "//go:build ze_le && ze_fixture\npackage main\nimport _ \"github.com/ze-software/ze/"+asmOrdinaryDir+"\"\nfunc main() {}\n")
-	fixture.goFile(t, "internal/component/plugin/registry/registry.go", `package registry
-type Registration struct { Name, Description, YANG, Features string; Families, Dependencies, OptionalDependencies, StartAfter, ConfigRoots, RFCs []string; CapabilityCodes []uint8; RunEngine, InProcessNLRIDecoder, InProcessNLRIEncoder, InProcessRouteEncoder, InProcessConfigNLRIBuilder func() }
-func Register(Registration) error { return nil }
-`)
-	fixture.goFile(t, "internal/component/config/yang/register.go", "package yang\nfunc RegisterModule(name, content string) {}\n")
-	fixture.goFile(t, asmOrdinaryDir+"/register.go", `package ordinary
-import (
- r "github.com/ze-software/ze/internal/component/plugin/registry"
- y "github.com/ze-software/ze/internal/component/config/yang"
-)
-func engine() {}
-func init() {
- _ = r.Register(r.Registration{Name: "ordinary", Description: "ordinary committed control", Families: []string{"ipv4/unicast"}, CapabilityCodes: []uint8{64}, OptionalDependencies: []string{"optional"}, StartAfter: []string{"ordered"}, ConfigRoots: []string{"fixture"}, RFCs: []string{"fixture-rfc"}, Features: "fixture feature", RunEngine: engine, YANG: fixtureSchema, InProcessNLRIDecoder: engine, InProcessNLRIEncoder: engine, InProcessRouteEncoder: engine, InProcessConfigNLRIBuilder: engine})
- y.RegisterModule("extra.yang", extraSchema)
-}
-const fixtureSchema = `+strconv.Quote(asmSchema)+"\nconst extraSchema = "+strconv.Quote(asmExtraSchema)+"\n")
-	write(t, fixture.root, asmOrdinaryDir+"/yang/fixture.yang", asmSchema)
-	write(t, fixture.root, asmOrdinaryDir+"/yang/extra.yang", asmExtraSchema)
-	write(t, fixture.root, "test/ui/fixture.ci", "cmd=foreground:exec=ze fixture list\n")
-	write(t, fixture.root, "test/schema/extra.ci", "cmd=foreground:exec=ze extra check\n")
-	committedGit(t, fixture.root, "init", "--initial-branch=main")
-	commitInventoryFixture(t, fixture.root)
-	inv, err := Collect(fixture.root)
-	if err != nil {
-		t.Fatalf("ordinary registered control: %v", err)
-	}
-	fixture.checkReport(t, inv)
-	return fixture
-}
-
-func (fixture *asmInventoryFixture) goFile(t *testing.T, name, body string) {
-	t.Helper()
-	fixture.goSources[name] = body
-	write(t, fixture.root, name, body)
+	return newOrdinaryFixture(t)
 }
 
 func (fixture *asmInventoryFixture) addBoundary(t *testing.T, alias string) {
@@ -83,69 +41,6 @@ func (fixture *asmInventoryFixture) addBoundary(t *testing.T, alias string) {
 	}
 	fixture.goFile(t, asmOrdinaryDir+"/boundary.go", "package ordinary\nimport "+imported+"\nfunc inventoryGate(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err "+alias+".Errno)\nfunc init() { _, _, _ = inventoryGate(0, 0, 0, 0) }\n")
 	write(t, fixture.root, asmTargetFile, asmTargetBody)
-}
-
-func (fixture *asmInventoryFixture) checkPlugins(t *testing.T, plugins []Plugin) {
-	t.Helper()
-	want := []Plugin{{
-		Name: "ordinary", Description: "ordinary committed control", Families: []string{"ipv4/unicast"},
-		Capabilities: []uint8{64}, OptionalDependencies: []string{"optional"}, StartAfter: []string{"ordered"},
-		ConfigRoots: []string{"fixture"}, RFCs: []string{"fixture-rfc"}, Features: "fixture feature",
-		SourceDir: asmOrdinaryDir, YANGFiles: []string{asmOrdinaryDir + "/yang/extra.yang", asmOrdinaryDir + "/yang/fixture.yang"},
-		HasYANG: true, HasDecoder: true, HasEncoder: true,
-	}}
-	if !reflect.DeepEqual(plugins, want) {
-		t.Fatalf("committed plugin metadata = %+v, want %+v", plugins, want)
-	}
-}
-
-// checkReport derives code counts from the authored fixture corpus, not a host
-// registry, live filesystem walk or a second invocation of the report producer.
-func (fixture *asmInventoryFixture) checkReport(t *testing.T, inv Inventory) {
-	t.Helper()
-	fixture.checkPlugins(t, inv.Plugins)
-	if !reflect.DeepEqual(inv.Families, map[string]string{"ipv4/unicast": "ordinary"}) {
-		t.Errorf("families = %v", inv.Families)
-	}
-	if !reflect.DeepEqual(inv.Capabilities, map[string]string{"64": "ordinary"}) {
-		t.Errorf("capabilities = %v", inv.Capabilities)
-	}
-	wantSupport := []Family{{Family: "ipv4/unicast", Plugin: "ordinary", Decode: true, Encode: true, RouteEncode: true, ConfigNLRI: true}}
-	if !reflect.DeepEqual(inv.FamilySupport, wantSupport) {
-		t.Errorf("family support = %+v", inv.FamilySupport)
-	}
-	wantModules := []YANGModule{{Name: "extra.yang", Source: "plugin:ordinary"}, {Name: "fixture", Source: "plugin:ordinary"}}
-	if !reflect.DeepEqual(inv.YANGModules, wantModules) {
-		t.Errorf("registered schemas = %+v, want %+v", inv.YANGModules, wantModules)
-	}
-	wantRPC := []RPC{{Name: "extra-check", Module: "extra.yang", Covered: true}, {Name: "fixture-list", Module: "fixture.yang", Covered: true}}
-	if !reflect.DeepEqual(inv.RPCList, wantRPC) || inv.TotalRPCs != 2 || !reflect.DeepEqual(inv.RPCsByModule, map[string]int{"extra.yang": 1, "fixture.yang": 1}) {
-		t.Errorf("RPC report = %+v totals %d %v", inv.RPCList, inv.TotalRPCs, inv.RPCsByModule)
-	}
-	if inv.TotalTests != 2 || !reflect.DeepEqual(inv.TestCounts, map[string]int{"ui": 1, "schema": 1}) {
-		t.Errorf("CI report = %d %v", inv.TotalTests, inv.TestCounts)
-	}
-	wantStats := make([]AreaStats, 0, 3)
-	for _, area := range []string{"internal", "pkg", "cmd"} {
-		stats := AreaStats{Area: area + "/"}
-		packages := make(map[string]bool)
-		for name, body := range fixture.goSources {
-			if !strings.HasPrefix(name, area+"/") {
-				continue
-			}
-			stats.Files++
-			packages[path.Dir(name)] = true
-			stats.Lines += strings.Count(body, "\n")
-			if !strings.HasSuffix(body, "\n") {
-				stats.Lines++
-			}
-		}
-		stats.Packages = len(packages)
-		wantStats = append(wantStats, stats)
-	}
-	if !reflect.DeepEqual(inv.PackageStats, wantStats) {
-		t.Errorf("Go report population = %+v, want exact authored %+v", inv.PackageStats, wantStats)
-	}
 }
 
 // asmGitInput writes only test-owned Git objects; no shared index or checkout is

@@ -2,7 +2,6 @@
 package repoinventory
 
 import (
-	"maps"
 	"path"
 	"slices"
 	"strings"
@@ -57,38 +56,6 @@ func asmHeaderFixture(t *testing.T, declarations, unit string, witnesses ...stri
 	return fixture
 }
 
-func asmHeaderSelectedPaths(t *testing.T, snapshot *Snapshot, want []string) {
-	t.Helper()
-	sources, _ := snapshot.Sources()
-	got := make([]string, 0, len(sources))
-	for _, source := range sources {
-		got = append(got, source.Path)
-	}
-	if !slices.Equal(got, want) {
-		t.Fatalf("selected retained Go paths = %q, want exact authored %q", got, want)
-	}
-}
-
-func asmHeaderPositive(t *testing.T, fixture *asmInventoryFixture, paths []string) *Snapshot {
-	t.Helper()
-	inv, err := Collect(fixture.root)
-	if err != nil {
-		t.Fatalf("positive header prerequisite failed: %v", err)
-	}
-	fixture.checkReport(t, inv)
-	snapshot, err := ReadCommitted(t.Context(), fixture.root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	plugins, err := snapshot.Plugins()
-	if err != nil {
-		t.Fatalf("positive retained plugin prerequisite failed: %v", err)
-	}
-	fixture.checkPlugins(t, plugins)
-	asmHeaderSelectedPaths(t, snapshot, paths)
-	return snapshot
-}
-
 // asmHeaderCause prevents a prerequisite refusal from impersonating the named
 // discriminator. In particular, old unknown includes are not collision proof.
 func asmHeaderCause(t *testing.T, err error, fragments ...string) {
@@ -125,12 +92,6 @@ func asmHeaderRefusal(t *testing.T, fixture *asmInventoryFixture, fragments ...s
 	asmHeaderCause(t, err, fragments...)
 }
 
-// asmHeaderExpected freezes the authored expected report corpus before later
-// dirty writes; a changed fixture map must not become the committed oracle.
-func asmHeaderExpected(fixture *asmInventoryFixture) *asmInventoryFixture {
-	return &asmInventoryFixture{root: fixture.root, goSources: maps.Clone(fixture.goSources)}
-}
-
 // asmHeaderCommitEntry creates only test-owned trees. Unlike the older frozen
 // helper, its directory is the authored header-probe package, not ordinary.
 func asmHeaderCommitEntry(t *testing.T, fixture *asmInventoryFixture, entry string) {
@@ -162,4 +123,20 @@ func asmHeaderCommitEntry(t *testing.T, fixture *asmInventoryFixture, entry stri
 	}
 	commit := asmGitInput(t, fixture.root, "", "-c", "user.name=Inventory Fixture", "-c", "user.email=inventory@example.invalid", "commit-tree", childTree, "-p", head, "-m", "header namespace object fixture")
 	committedGit(t, fixture.root, "update-ref", "refs/heads/main", commit, head)
+}
+
+// The names below forward to ordinary_fixture_test.go for the proof-named
+// tests that still use them; they go with this file.
+func asmHeaderSelectedPaths(t *testing.T, snapshot *Snapshot, want []string) {
+	t.Helper()
+	checkSelectedPaths(t, snapshot, want)
+}
+
+func asmHeaderPositive(t *testing.T, fixture *asmInventoryFixture, paths []string) *Snapshot {
+	t.Helper()
+	return checkOrdinaryPositive(t, fixture, paths)
+}
+
+func asmHeaderExpected(fixture *asmInventoryFixture) *asmInventoryFixture {
+	return frozenFixture(fixture)
 }

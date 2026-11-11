@@ -11,7 +11,7 @@ import (
 
 const callableOwnerDir = "internal/callableowner"
 const callableOwnerFile = callableOwnerDir + "/owner.go"
-const callableOwnerCaller = asmOrdinaryDir + "/callable_owner.go"
+const callableOwnerCaller = ordinaryDir + "/callable_owner.go"
 const callableOwnerSchema = "module owner { namespace urn:owner; prefix o; }\n"
 
 type callableOwnerCase struct {
@@ -28,7 +28,7 @@ func callableOwnerPaths() []string {
 		"cmd/ze/main.go",
 		"internal/component/config/yang/register.go",
 		"internal/component/plugin/registry/registry.go",
-		asmOrdinaryDir + "/register.go",
+		ordinaryDir + "/register.go",
 		callableOwnerCaller,
 		callableOwnerFile,
 	}
@@ -58,9 +58,9 @@ func callableOwnerHelper(kind string) string {
 // callableOwnerFixture uses only ordinary Go bodies. Every candidate has an
 // exact ordinary report/path control and a successful direct installer control
 // before its call syntax changes. No assembly/header admission can mask it.
-func callableOwnerFixture(t *testing.T, kind string, scenario callableOwnerCase) *asmInventoryFixture {
+func callableOwnerFixture(t *testing.T, kind string, scenario callableOwnerCase) *ordinaryFixture {
 	t.Helper()
-	fixture := newASMInventoryFixture(t)
+	fixture := newOrdinaryFixture(t)
 	for _, origin := range scenario.witnessImports {
 		for _, sink := range []struct{ file, name string }{
 			{"internal/component/plugin/registry/registry.go", "registry"},
@@ -92,7 +92,7 @@ func callableOwnerFixture(t *testing.T, kind string, scenario callableOwnerCase)
 		t.Fatalf("ordinary retained owner prerequisite: %v", err)
 	}
 	fixture.checkPlugins(t, plugins)
-	asmHeaderSelectedPaths(t, snapshot, callableOwnerPaths())
+	checkSelectedPaths(t, snapshot, callableOwnerPaths())
 
 	fixture.goFile(t, callableOwnerCaller, callableOwnerSource(scenario, "install(ownerProbe())"))
 	commitInventoryFixture(t, fixture.root)
@@ -103,7 +103,7 @@ func callableOwnerFixture(t *testing.T, kind string, scenario callableOwnerCase)
 // callableOwnerInstalled validates the complete useful report, not only names.
 // Only the one explicitly expected registration is removed before reusing the
 // frozen exact ordinary report oracle; unexpected rows are never filtered out.
-func callableOwnerInstalled(t *testing.T, fixture *asmInventoryFixture, kind string, inv Inventory) {
+func callableOwnerInstalled(t *testing.T, fixture *ordinaryFixture, kind string, inv Inventory) {
 	t.Helper()
 	ordinary := inv
 	if kind == "yang" {
@@ -147,14 +147,14 @@ func callableOwnerCause(t *testing.T, err error) {
 // callableOwnerOutcome requires both public consumers to agree. A supported
 // call must retain exact membership and metadata; an unsupported call must name
 // execution ownership and return no partial plugins from either consumer.
-func callableOwnerOutcome(t *testing.T, fixture *asmInventoryFixture, kind string, allowRefusal bool) (*Snapshot, []Plugin, error) {
+func callableOwnerOutcome(t *testing.T, fixture *ordinaryFixture, kind string, allowRefusal bool) (*Snapshot, []Plugin, error) {
 	t.Helper()
 	inv, reportErr := Collect(fixture.root)
 	snapshot, err := ReadCommitted(t.Context(), fixture.root)
 	if err != nil {
 		t.Fatalf("source capture failed before callable-owner admission: %v", err)
 	}
-	asmHeaderSelectedPaths(t, snapshot, callableOwnerPaths())
+	checkSelectedPaths(t, snapshot, callableOwnerPaths())
 	plugins, pluginErr := snapshot.Plugins()
 	if reportErr != nil {
 		if !allowRefusal {
@@ -194,5 +194,5 @@ func callableOwnerRetained(t *testing.T, snapshot *Snapshot, plugins []Plugin, p
 	} else if err != nil || !reflect.DeepEqual(got, plugins) {
 		t.Fatalf("captured executable owners changed: %+v %v, want %+v", got, err, plugins)
 	}
-	asmHeaderSelectedPaths(t, snapshot, callableOwnerPaths())
+	checkSelectedPaths(t, snapshot, callableOwnerPaths())
 }

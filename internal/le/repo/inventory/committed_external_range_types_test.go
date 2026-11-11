@@ -2,17 +2,13 @@
 package repoinventory
 
 import (
-	"go/ast"
-	"go/types"
-	"strings"
 	"testing"
 )
 
 // externalRangeTypeDeclarations are retained types whose methods a ranged
 // value calls, so a range variable whose type is lost leaves its method call
 // unresolved instead of publishing.
-const externalRangeTypeDeclarations = "type label string\nfunc (l label) text() string { return string(l) }\n" +
-	"type count int\nfunc (c count) text() string { return \"\" }\ntype labels []label\n"
+const externalRangeTypeDeclarations = rangeTypeDeclarations
 
 // externalRangeExposed hands every accumulator the loops append to an opaque
 // call, so each ranged value a loop read reaches external code.
@@ -169,130 +165,5 @@ func TestCommittedExternalRangeUntypedOperandRefuses(t *testing.T) {
 			commitInventoryFixture(t, fixture.root)
 			externalEffectsRefusal(t, fixture, "range capability ownership is unsupported")
 		})
-	}
-}
-
-// TestExternalRangeVariableTypes pins valueType's answer for each range
-// variable of each kind in the Go specification's range clause table,
-// function iterators included, which the published report never reaches
-// because function-range execution refuses first. Method: a dormant retained
-// function holds one loop per row; each variable's derived type is printed
-// with types.ExprString, and "?" requires valueType to refuse.
-//
-// MUTATION: (internal/le/repo/inventory/methods.go,
-// "case 0:\n\t\t\treturn at(kind.Key)", "case 0:\n\t\t\treturn at(kind.Value)")
-// answers a map key with the element type: the map rows go red.
-// MUTATION: (internal/le/repo/inventory/methods.go,
-// "if position < len(yielded) {", "if position < len(yielded)-1 {") loses
-// an iterator's last yielded type: the iterator rows go red.
-// MUTATION: (internal/le/repo/inventory/methods.go,
-// "case *ast.FuncLit:\n\t\treturn sourceExpr{value: value.Type, file: source.file, pkg: source.pkg}, true",
-// "case *ast.FuncLit:\n\t\treturn sourceExpr{}, false") leaves a literal
-// iterator untyped: its row goes red.
-// MUTATION: (internal/le/repo/inventory/methods.go,
-// "if binding.Kind == ast.Fun {", "if binding.Kind == ast.Bad {") leaves a
-// declared iterator untyped: its rows go red.
-// MUTATION: (internal/le/repo/inventory/methods.go,
-// "if variadic, ok := field.Type.(*ast.Ellipsis); ok {",
-// "if variadic, ok := field.Type.(*ast.Ellipsis); ok && false {")
-// leaves a variadic parameter typed ...T: both variadic rows go red.
-// MUTATION: (internal/le/repo/inventory/methods.go,
-// "return e.sliceType(source, value, depth)", "return sourceExpr{}, false")
-// leaves every slice expression untyped: the sliced rows go red.
-func TestExternalRangeVariableTypes(t *testing.T) {
-	const declarations = "var table = map[label]int{\"a\": 1}\nvar list = []label{\"a\"}\nvar row = [1]label{\"a\"}\n" +
-		"var named = labels{\"a\"}\nvar word = \"ab\"\nvar limit count = 2\nvar queue chan label = make(chan label, 1)\n" +
-		"func pairs() map[string]label { return nil }\nfunc each(yield func(label, count) bool) {}\nfunc keys(yield func(label) bool) {}\n"
-	rows := []struct{ loop, key, value string }{
-		{"for k, v := range table { _, _ = k, v }", "label", "int"},
-		{"for k := range table { _ = k }", "label", ""},
-		{"for k, v := range list { _, _ = k, v }", "int", "label"},
-		{"for _, v := range list { _ = v }", "", "label"},
-		{"for k, v := range row { _, _ = k, v }", "int", "label"},
-		{"for k, v := range &row { _, _ = k, v }", "int", "label"},
-		{"for k, v := range named { _, _ = k, v }", "int", "label"},
-		{"for k, v := range word { _, _ = k, v }", "int", "rune"},
-		{"for k, v := range \"ab\" { _, _ = k, v }", "int", "rune"},
-		{"for k := range 3 { _ = k }", "int", ""},
-		{"for k := range limit { _ = k }", "count", ""},
-		{"for k := range queue { _ = k }", "label", ""},
-		{"for k, v := range pairs() { _, _ = k, v }", "string", "label"},
-		{"for k, v := range (map[string]bool{}) { _, _ = k, v }", "string", "bool"},
-		{"for k, v := range each { _, _ = k, v }", "label", "count"},
-		{"for k := range keys { _ = k }", "label", ""},
-		{"for k, v := range (func(yield func(int, string) bool) {}) { _, _ = k, v }", "int", "string"},
-		{"for k, v := range remote.Environ() { _, _ = k, v }", "?", "?"},
-		{"for k, v := range list[1:] { _, _ = k, v }", "int", "label"},
-		{"for k, v := range list[0:1:1] { _, _ = k, v }", "int", "label"},
-		{"for k, v := range named[1:] { _, _ = k, v }", "int", "label"},
-		{"for k, v := range row[:] { _, _ = k, v }", "int", "label"},
-		{"for k, v := range (&row)[:] { _, _ = k, v }", "int", "label"},
-		{"for k, v := range word[1:] { _, _ = k, v }", "int", "rune"},
-		{"for k, v := range \"ab\"[1:] { _, _ = k, v }", "int", "rune"},
-		{"for k, v := range remote.Environ()[1:] { _, _ = k, v }", "?", "?"},
-		{"_ = func(args ...label) { for k, v := range args { _, _ = k, v } }", "int", "label"},
-		{"_ = func(args ...label) { for k, v := range args[1:] { _, _ = k, v } }", "int", "label"},
-	}
-	var loops strings.Builder
-	for _, row := range rows {
-		loops.WriteString("\t" + row.loop + "\n")
-	}
-	fixture := callableOwnerFixture(t, "plugin", callableOwnerCase{})
-	source := "package ordinary\nimport remote \"os\"\n" + externalRangeTypeDeclarations + declarations + "func ranges() {\n" + loops.String() + "}\n"
-	fixture.goFile(t, asmOrdinaryDir+"/ranges.go", source)
-	commitInventoryFixture(t, fixture.root)
-	snapshot, err := ReadCommitted(t.Context(), fixture.root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	pkg, found := snapshot.packages[asmOrdinaryDir]
-	if !found {
-		t.Fatalf("retained package %s is missing", asmOrdinaryDir)
-	}
-	var statements []*ast.RangeStmt
-	var file *ast.File
-	for _, candidate := range pkg.files {
-		for _, declaration := range candidate.File.Decls {
-			function, ok := declaration.(*ast.FuncDecl)
-			if !ok {
-				continue
-			}
-			if function.Name.Name != "ranges" {
-				continue
-			}
-			file = candidate.File
-			ast.Inspect(function.Body, func(node ast.Node) bool {
-				if statement, ok := node.(*ast.RangeStmt); ok {
-					statements = append(statements, statement)
-				}
-				return true
-			})
-		}
-	}
-	if len(statements) != len(rows) {
-		t.Fatalf("found %d range statements, want %d", len(statements), len(rows))
-	}
-	answer := func(variable ast.Expr) string {
-		name, ok := variable.(*ast.Ident)
-		if !ok {
-			return ""
-		}
-		if name.Name == "_" {
-			return ""
-		}
-		datatype, known := snapshot.evaluator().valueType(sourceExpr{value: name, file: file, pkg: pkg}, 0)
-		if !known {
-			return "?"
-		}
-		return types.ExprString(datatype.value)
-	}
-	for index, row := range rows {
-		statement := statements[index]
-		if got := answer(statement.Key); got != row.key {
-			t.Errorf("%s: key type %q, want %q", row.loop, got, row.key)
-		}
-		if got := answer(statement.Value); got != row.value {
-			t.Errorf("%s: value type %q, want %q", row.loop, got, row.value)
-		}
 	}
 }
