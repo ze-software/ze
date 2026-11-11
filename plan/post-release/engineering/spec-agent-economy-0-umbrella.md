@@ -111,6 +111,23 @@ Forced reads: the Go style guide (49KB) 858 times, the system door (11KB)
 | 4 | `plan/post-release/engineering/spec-agent-economy-4-supervision.md` | Context-size nudge at agent spawn; a warning on a second spec claim; the agent's call count reported to the main thread; skill bodies shed branch-only reference text; test-judge batching | 1 (same hook file) |
 | 5 | `plan/post-release/engineering/spec-agent-economy-5-scoped-gates.md` | A cheaper post-commit compile gate and a changed-only RFC check, CI keeping the whole-corpus runs | 2 |
 
+### Model tier per child (owner, 2026-11-11)
+
+Tiers, not model names: more than one harness implements these specs. The
+development tier is the harness's high-capability model; no work here runs on
+a cheaper tier. The strongest tier is used where an error would be silent or
+would reach every session.
+
+| Child | Implementation | Design and review | Why |
+|-------|----------------|-------------------|-----|
+| 1, phase 1 (identity check) | development | strongest | A wrong check blocks every subagent or lets one act under another's identity |
+| 1, phases 2 to 4 | development | development | Well specified; the existing refusal tests catch a regression |
+| 2 | development | development | Joins parts that exist; its failures are loud |
+| 3 | development | strongest | Which rules an agent stops loading is judgment, and a dropped rule fails silently |
+| 4 | development | development; strongest review for the skill-body trimming | A step lost from a skill shows only as worse work later |
+| 5 | development | strongest | The only child that changes what a gate proves |
+| Test-change judging | - | development | Independence of context matters more than tier |
+
 Existing specs this work meets:
 
 | Spec | Relation |
