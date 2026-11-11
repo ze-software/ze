@@ -212,6 +212,7 @@ The plugin RPC answer format, the transaction orchestrator, the storage registry
 | `claim-outlives-the-evidence-it-cites` | 2026-10-13 | `ze signal restart` promised to restart; unit has `Restart=on-failure` |
 | `comment-describes-superseded-behaviour` | 2026-10-15 | `VPPManager.Run` says SIGTERM; `exec.CommandContext` sends SIGKILL |
 | `gate-red-where-nothing-blocks-on-it` | 2026-09-14 | `TestRegisterDoctorCheckAcceptsForeignNamespace` red with full tags |
+| `test-asserts-superseded-behaviour` | 2026-11-11 | `TestBuildTag_VPP_AbsentIfaceBackendFailsClosed` wants "unknown backend", gets the compiled-out refusal |
 | `test-against-broken-path` | 2026-08-22 | `test/plugin/attach-process-reload.ci` |
 | `test-against-broken-path` | 2026-08-23 | seven `test/plugin` tests red |
 | `test-against-broken-path` | 2026-08-23 | `config-edit-ssh.ci` observer shutdown decode |
