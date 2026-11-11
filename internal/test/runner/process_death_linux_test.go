@@ -21,13 +21,26 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vishvananda/netns"
+
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // runnerDeathRoleEnv selects the role of a re-executed test binary. Only
 // TestRunnerKilledOutrightTakesItsChildren sets it, on the stand-in runner it
 // starts; every other run of TestRunnerDeathStandIn skips.
 const runnerDeathRoleEnv = "RUNNER_DEATH_ROLE"
+
+// The stand-in runner's roles, one per fork thread the .ci start path accepts.
+const (
+	// runnerDeathRoleSpawner forks through plugin.StartChild's spawner thread,
+	// as every start outside netns mode does.
+	runnerDeathRoleSpawner = "runner"
+	// runnerDeathRoleLocked locks the test goroutine's thread and forks on it,
+	// as a netns-mode test does on the thread enterTestNetns locked (AC-4).
+	runnerDeathRoleLocked = "runner-locked"
+)
 
 // childPIDPrefix marks the stand-in runner's stdout line carrying its child's
 // pid, so the parent finds it among anything else the test binary prints.
@@ -45,12 +58,27 @@ const childPIDPrefix = "runner-death-child-pid="
 // pid now belongs to a process with another start time. A zombie also carries
 // its wait status, and that status must be death by SIGKILL. When the child
 // survives, the cleanup kills it, so a red run leaks nothing.
+//
+// It runs once per fork thread: the spawner thread every start outside netns
+// mode takes, and a locked test thread, the route a netns-mode child takes
+// (AC-4). The namespace itself needs privilege and is not entered here; the
+// locked case proves the death signal on the thread netns mode forks from.
 func TestRunnerKilledOutrightTakesItsChildren(t *testing.T) {
+	for _, role := range []string{runnerDeathRoleSpawner, runnerDeathRoleLocked} {
+		t.Run(role, func(t *testing.T) {
+			runnerKilledOutrightTakesItsChild(t, role)
+		})
+	}
+}
+
+// runnerKilledOutrightTakesItsChild runs TestRunnerKilledOutrightTakesItsChildren
+// against a stand-in runner in role.
+func runnerKilledOutrightTakesItsChild(t *testing.T, role string) {
 	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
 
 	runner := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestRunnerDeathStandIn$")
-	runner.Env = append(os.Environ(), runnerDeathRoleEnv+"=runner")
+	runner.Env = append(os.Environ(), runnerDeathRoleEnv+"="+role)
 	runner.Stderr = os.Stderr
 	output, err := runner.StdoutPipe()
 	if err != nil {
@@ -107,14 +135,23 @@ func TestRunnerKilledOutrightTakesItsChildren(t *testing.T) {
 // TestRunnerDeathStandIn is the stand-in runner of
 // TestRunnerKilledOutrightTakesItsChildren and does nothing in any other run.
 // It starts its child through the real .ci start path, reports the child's
-// pid, then waits on the child until the parent test SIGKILLs it.
+// pid, then waits on the child until the parent test SIGKILLs it. The role
+// names the fork thread; the locked role holds its thread locked until it is
+// killed, as enterTestNetns holds a netns-mode test's thread.
 func TestRunnerDeathStandIn(t *testing.T) {
-	if os.Getenv(runnerDeathRoleEnv) != "runner" {
+	thread := forkThreadUnspecified
+	switch os.Getenv(runnerDeathRoleEnv) {
+	case runnerDeathRoleSpawner:
+		thread = forkThreadSpawner
+	case runnerDeathRoleLocked:
+		runtime.LockOSThread()
+		thread = forkThreadLocked
+	default:
 		t.Skip("helper process for TestRunnerKilledOutrightTakesItsChildren")
 	}
 	ctx := t.Context()
 	proc := exec.CommandContext(ctx, "sleep", "300")
-	owned, err := startWithETXTBSYRetry(ctx, proc.Path, proc.Args[1:], proc, nil, forkThreadSpawner)
+	owned, err := startWithETXTBSYRetry(ctx, proc.Path, proc.Args[1:], proc, nil, thread)
 	if err != nil {
 		t.Fatalf("start the child: %v", err)
 	}
@@ -238,6 +275,93 @@ func TestRetriedStartKeepsTheDeathSignal(t *testing.T) {
 	if err := owned.lifecycleError(); err != nil {
 		t.Errorf("stop the child through its owner: %v", err)
 	}
+}
+
+// TestLockedStartForksInTheThreadsNamespace proves the .ci start path forks a
+// forkThreadLocked child in the network namespace of the locked calling thread,
+// and a forkThreadSpawner child in the spawner's (AC-4, A-2).
+//
+// netns mode depends on the first: ze and its peer must share the test's
+// namespace, which only the test's locked thread is in. The second is the
+// control that makes the first discriminate: a netns-mode start routed to the
+// spawner would land in the host namespace, and this test would go red.
+//
+// Method: enter a user namespace (userns.Enter grants CAP_SYS_ADMIN without
+// root), lock this thread into a fresh network namespace, start `sleep`
+// through startWithETXTBSYRetry with each fork thread, and compare each
+// child's /proc/<pid>/ns/net with the thread's and the host's.
+func TestLockedStartForksInTheThreadsNamespace(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
+	hostLink, err := os.Readlink("/proc/self/ns/net")
+	if err != nil {
+		t.Fatalf("readlink host /proc/self/ns/net: %v", err)
+	}
+
+	// The restore runs in one t.Cleanup while the thread is still locked, after
+	// every child below is finished (each defer runs before the Cleanup).
+	runtime.LockOSThread()
+	origNS, err := netns.Get()
+	if err != nil {
+		runtime.UnlockOSThread()
+		t.Fatalf("get current network namespace: %v", err)
+	}
+	const nsName = "ze-locked-start"
+	newNS, err := netns.NewNamed(nsName)
+	if err != nil {
+		origNS.Close() //nolint:errcheck // best-effort close on the failure path
+		runtime.UnlockOSThread()
+		t.Fatalf("create network namespace %q: %v", nsName, err)
+	}
+	t.Cleanup(func() {
+		if restoreErr := netns.Set(origNS); restoreErr != nil {
+			t.Errorf("restore original namespace: %v", restoreErr)
+		}
+		origNS.Close()            //nolint:errcheck // best-effort close on cleanup path
+		newNS.Close()             //nolint:errcheck // best-effort close on cleanup path
+		netns.DeleteNamed(nsName) //nolint:errcheck // best-effort cleanup
+		runtime.UnlockOSThread()
+	})
+	threadLink, err := os.Readlink("/proc/thread-self/ns/net")
+	if err != nil {
+		t.Fatalf("readlink /proc/thread-self/ns/net: %v", err)
+	}
+	if threadLink == hostLink {
+		t.Fatalf("the thread did not enter the new namespace: still %s (host)", threadLink)
+	}
+
+	locked := childNamespace(t, forkThreadLocked)
+	if locked != threadLink {
+		t.Errorf("a forkThreadLocked child is in namespace %s, want the locked thread's %s (host %s)", locked, threadLink, hostLink)
+	}
+	spawned := childNamespace(t, forkThreadSpawner)
+	if spawned == threadLink {
+		t.Errorf("a forkThreadSpawner child is in the locked thread's namespace %s, want the spawner's own", spawned)
+	}
+}
+
+// childNamespace starts `sleep` through the .ci start path on thread and
+// answers the network namespace link of the started child, then stops it
+// through its owner.
+func childNamespace(t *testing.T, thread forkThread) string {
+	t.Helper()
+	proc := exec.CommandContext(t.Context(), "sleep", "60")
+	owned, err := startWithETXTBSYRetry(t.Context(), proc.Path, proc.Args[1:], proc, nil, thread)
+	if err != nil {
+		t.Fatalf("start the child on fork thread %d: %v", thread, err)
+	}
+	defer owned.cleanup()
+
+	link, err := os.Readlink("/proc/" + strconv.Itoa(owned.cmd.Process.Pid) + "/ns/net")
+	if err != nil {
+		t.Fatalf("readlink the child's /proc/%d/ns/net: %v", owned.cmd.Process.Pid, err)
+	}
+	owned.cleanup()
+	if err := owned.lifecycleError(); err != nil {
+		t.Errorf("stop the child through its owner: %v", err)
+	}
+	return link
 }
 
 // ownedStart carries the result of a start requested from another goroutine.

@@ -8,7 +8,7 @@
 | Release reason | A leaked test peer holds its functional-test port for days, so later functional runs fail on "address already in use" and redden the evidence the release depends on |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 1/3 |
+| Phase | 3/3 |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -375,3 +375,143 @@ N-A: tooling, no protocol behaviour changes.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- `internal/test/runner/runner_exec_util.go`: `forkThread` (Unspecified, Spawner, Locked), `forkFor` (refuses Unspecified and unknown values), `startWithETXTBSYRetry` takes the fork thread, `startWithRetry` rebuilds `SysProcAttr` from the caller's requested attributes on every attempt through `forkAttributes`
+- `internal/test/runner/fork_attributes_linux.go`, `fork_attributes_other.go`: `forkAttributes` lays `plugin.NewSysProcAttr` (Setpgid, and Pdeathsig on Linux) over a copy of the caller's attributes
+- `internal/test/runner/runner_exec.go`: `runTest` peer and client fork on the spawner; `runOrchestrated` forks on the spawner outside netns mode and on the locked test thread inside it; the netns ze credential is set on the existing attributes instead of replacing them
+- `internal/test/runner/process_death_linux_test.go`: the tests below
+- Committed as c195efcf1b; closure added the locked-thread death case and the namespace test (Review Gate, Findings fixed)
+
+### Bugs Found/Fixed
+- The orphaned `.ci` child (the task's symptom): `TestRunnerKilledOutrightTakesItsChildren`
+
+### Documentation Updates
+- `docs/architecture/testing/runner-architecture.md`, after "Three things end a process": the `.ci` owner meets the `Pdeathsig` route, the forking-thread rule, the setcap'd netns ze escape; anchors `runner_exec_util.go startWithETXTBSYRetry`, `sysproc_linux.go NewSysProcAttr, StartChild`, `netns_linux.go enterTestNetns`, test anchor `process_death_linux_test.go`
+- `internal/le/test/functional/run.go` `Execute` comment: the false "every process the suite starts stays in it" replaced
+- `./le doc check all` (main thread, before c195efcf1b): no finding names a changed file
+
+### Deviations from Plan
+- `TestRetriedStartKeepsTheDeathSignal` lives in `process_death_linux_test.go`, not `runner_exec_util_test.go` (Design Insights: that file is untagged and `Pdeathsig` is Linux-only)
+- Closure added `TestLockedStartForksInTheThreadsNamespace` and the `runner-locked` case of `TestRunnerKilledOutrightTakesItsChildren` for AC-4
+
+## Mistake Log
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | AC-4's netns clauses were recorded as provable only on a privileged host, so the locked-thread fork had no test | `userns.Enter` gives a test CAP_SYS_ADMIN over its own namespaces without root, as `TestNetnsLaunchChildInheritsNamespace` already does | Review Gate round 1 | Added the namespace test and the locked death case |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| A `.ci` child dies when its runner dies, however the runner dies, on Linux | Done | `runner_exec_util.go` `startWithRetry`, `fork_attributes_linux.go` `forkAttributes` | setcap'd netns ze excepted (Known Limitations) |
+| le's suite interrupt ends the tree it means to end | Done | follows from the above; `internal/le/test/functional/run.go` `Execute` comment corrected | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRunnerKilledOutrightTakesItsChildren/runner` | red on the old code, recorded in Design Insights |
+| AC-2 | Done | `TestOwnedChildLivesWhileItsRunnerLives` | |
+| AC-3 | Done | `TestRetriedStartKeepsTheDeathSignal` | |
+| AC-4 | Done | `TestLockedStartForksInTheThreadsNamespace`, `TestRetriedStartKeepsTheDeathSignal` (credential kept), `TestRunnerKilledOutrightTakesItsChildren/runner-locked` | the namespace in a user namespace, not under sudo |
+| AC-5 | Done | `docs/architecture/testing/runner-architecture.md` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestRunnerKilledOutrightTakesItsChildren` | Done | `internal/test/runner/process_death_linux_test.go` | two cases: spawner and locked thread |
+| `TestOwnedChildLivesWhileItsRunnerLives` | Done | same file | |
+| `TestRetriedStartKeepsTheDeathSignal` | Changed | same file | file moved, see Deviations |
+| existing runner primitives | Done | `./le test functional runner` | reds belong to other sessions (Pre-Commit Verification) |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/test/runner/runner_exec_util.go` | Done | |
+| `internal/test/runner/runner_exec.go` | Done | |
+| `docs/architecture/testing/runner-architecture.md` | Done | |
+| `internal/le/test/functional/run.go` | Done | |
+| `plan/post-release/engineering/spec-test-sandbox.md` | Done | closure repointed its citation of this spec at the page |
+| `internal/test/runner/process_death_linux_test.go` | Done | |
+
+### Audit Summary
+- **Total items:** 13
+- **Done:** 12
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (test file location, recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A `.ci` child dies when the runner dies, however the runner dies | process test over the real start path | `TestRunnerKilledOutrightTakesItsChildren`: a re-executed stand-in runner is SIGKILLed; the child is gone or a SIGKILLed zombie within 5 s; red on the old code ("the child 1563899 outlived its SIGKILLed runner: still in state S 5s after the runner died") |
+| le's suite interrupt then ends the tree | follows from the first goal | the suite group SIGKILL kills the runner (`gaterun.StreamContext`), and the runner's death now kills each child; no `le test peer` left on the host after the runs |
+
+## Work Not Done
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | | |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/test-children-die-with-runner-765b0994-816e-4640-a8f7-4b05feade51e.md` (12 files, verdict clean) |
+| `./le spec review check` | OK (10 code files, clean, hashes match) |
+| Rounds | 2 (round 1: 2 ISSUE, fixed; round 2: 0 BLOCKER, 0 ISSUE) |
+| Reviewer lenses used | logic and thread lifetime, netns and credential, test discrimination, docs against source, style (`ze-go-style.md`: no panic, no peer input) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The `forkThreadLocked` branch, the one netns mode takes, had no death test: AC-4's "a non-ze child dies with a SIGKILLed runner" was unproven | `process_death_linux_test.go` `TestRunnerKilledOutrightTakesItsChildren`, `TestRunnerDeathStandIn` | a `runner-locked` stand-in role that locks its thread and forks with `forkThreadLocked` |
+| 2 | ISSUE | No test drove `startWithETXTBSYRetry` in a network namespace, so a netns-mode start routed to the spawner (host namespace) would stay green; the spec called this provable only with root | `process_death_linux_test.go` | `TestLockedStartForksInTheThreadsNamespace` under `userns.Enter`, with the spawner case as control |
+
+### Run 2
+Over the round-1 fixes (`process_death_linux_test.go`, `spec-test-sandbox.md`), by a closure agent that wrote neither: 0 BLOCKER, 0 ISSUE.
+- The `runner-locked` stand-in locks its thread before `startWithETXTBSYRetry(..., forkThreadLocked)` and never unlocks, so the forking thread dies only with the process, as `runOrchestrated` holds it in netns mode.
+- `TestLockedStartForksInTheThreadsNamespace` is not vacuous: `userns.Enter` fails the parent on a failed or empty child and skips it only on a child skip, and the body has no skip.
+- NOTE: `childNamespace` both defers and calls `owned.cleanup()`; `cleanup` runs once (`cleanupOnce`, `process_owner.go`), and the defer covers the `t.Fatalf` path.
+- NOTE: the spawner control asserts "not the locked thread's namespace" rather than "the host's"; either catches a netns-mode start routed to the spawner.
+- Style (`ze-go-style.md`): no panic, no peer input, the zero fork thread is refused by `forkFor`.
+- Evidence (main thread): `./le test unit pkg path ./internal/test/runner/ run 'TestRunnerKilledOutrightTakesItsChildren|TestLockedStartForksInTheThreadsNamespace|TestRunnerDeathStandIn|TestOwnedChildLivesWhileItsRunnerLives|TestRetriedStartKeepsTheDeathSignal'` exit 0; `gofmt -l` and `gopls check` clean on the test file. Scoped lint could not plan (another session's live edit changed a lint input during planning); the completed run over c195efcf1b named no changed file.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/test/runner/process_death_linux_test.go` | yes | committed in c195efcf1b, extended at closure |
+| `internal/test/runner/fork_attributes_linux.go`, `fork_attributes_other.go` | yes | committed in c195efcf1b |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | child dies with its SIGKILLed runner | main thread: red on old code, green after (`./le test unit pkg path ./internal/test/runner/ run '...'`, exit 0) |
+| AC-2 | child lives while the runner lives | same run, `TestOwnedChildLivesWhileItsRunnerLives` pass |
+| AC-3 | retry keeps Pdeathsig, Setpgid, credential | same run, `TestRetriedStartKeepsTheDeathSignal` pass |
+| AC-4 | locked-thread child in the thread's namespace, dies with the runner | closure tests, run by the main thread |
+| AC-5 | page names the route, the thread rule and the escape | `runner-architecture.md`, the paragraphs after "Three things end a process" |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| runner SIGKILLed after starting a `.ci` child | none: re-executed test binary through `startWithETXTBSYRetry` | `TestRunnerKilledOutrightTakesItsChildren` calls the real start path |
+| netns-mode fork | none: `TestLockedStartForksInTheThreadsNamespace` | calls `startWithETXTBSYRetry` with `forkThreadLocked`, the value `runOrchestrated` sets in netns mode |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | every `startWithETXTBSYRetry` caller: `runner_exec.go` lines 257, 373, 1047; the zero thread is refused by `forkFor` |
+| A-2 | confirmed | `runOrchestrated`: `defer restore()` (line 610) precedes every `defer owned.finish` (line 1053) in the same function |
+| A-3 | confirmed | Go `syscall/exec_linux.go` applies the credential before `PR_SET_PDEATHSIG`; `TestRetriedStartKeepsTheDeathSignal` keeps the credential |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `.ci` owner meets `Pdeathsig` | `startWithRetry` sets `forkAttributes(requested)` each attempt; `forkAttributes` copies `plugin.NewSysProcAttr().Pdeathsig` | yes |
+| spawner outside netns, locked thread inside | `runOrchestrated` `childThread`; `forkFor` maps Spawner to `plugin.StartChild`, Locked to `(*exec.Cmd).Start` | yes |
+| `Execute` comment in `run.go` | `startWithETXTBSYRetry` gives each child its own group (`boundProcessDeadline` Setpgid) | yes |
