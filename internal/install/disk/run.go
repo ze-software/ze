@@ -192,11 +192,26 @@ func runISO(cfg installConfig) int {
 		return 1
 	}
 
-	syncFS()
+	if err := finishISOWrite(disk); err != nil {
+		slog.Error("ISO image finalization failed", "disk", disk, "error", err)
+		_ = umountFS(isoMount)
+		return 1
+	}
 	_ = umountFS(isoMount)
 	slog.Info("ISO installation complete, powering off")
 	doPoweroff()
 	return 0
+}
+
+// finishISOWrite reports the shared write-completion marker only after the
+// bytes are synchronized and the kernel has accepted the new partition table.
+func finishISOWrite(disk string) error {
+	syncFS()
+	if err := blkRereadPart(disk); err != nil {
+		return fmt.Errorf("reread installed ISO partition table on %s: %w", disk, err)
+	}
+	slog.Info("image written, partition table re-read")
+	return nil
 }
 
 // waitForPartitionNode polls for a block device node to appear after

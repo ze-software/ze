@@ -44,8 +44,12 @@ func TestISOToolFailureNamesTheTool(t *testing.T) {
 			if err := os.WriteFile(grub, []byte(tc.script), 0o755); err != nil { //nolint:gosec // test script must be executable
 				t.Fatal(err)
 			}
+			modules := filepath.Join(grubDir, "grub modules")
+			if err := os.MkdirAll(modules, 0o750); err != nil {
+				t.Fatal(err)
+			}
 			err := runISOBuilder(isoBuilderCall{
-				GRUBPath: grub, XorrisoPath: "/nonexistent/xorriso", OutputPath: filepath.Join(t.TempDir(), "out.iso"),
+				GRUBPath: grub, GRUBModules: modules, XorrisoPath: "/nonexistent/xorriso", OutputPath: filepath.Join(t.TempDir(), "out.iso"),
 				StagingDir: t.TempDir(), GRUBTarget: "x86_64-efi", EFIBootFile: "BOOTX64.EFI",
 			})
 			if err == nil {
@@ -61,7 +65,7 @@ func TestISOToolFailureNamesTheTool(t *testing.T) {
 				t.Errorf("an ISO tool out of time is reported as killed:\n%v", err)
 			}
 			lines := strings.Split(err.Error(), "\n")
-			if last := lines[len(lines)-1]; !strings.HasPrefix(last, shellArg(grub)+" -O x86_64-efi ") || !strings.HasPrefix(last, "'") {
+			if last := lines[len(lines)-1]; !strings.HasPrefix(last, shellArg(grub)+" --directory "+shellArg(modules)+" -O x86_64-efi ") || !strings.HasPrefix(last, "'") {
 				t.Errorf("the ISO tool failure does not end with its command line:\n%v", err)
 			}
 		})

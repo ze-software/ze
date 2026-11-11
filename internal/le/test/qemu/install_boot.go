@@ -127,18 +127,7 @@ func newInstallSerial(reader io.Reader) *installSerial {
 		for {
 			count, err := reader.Read(buffer)
 			if count != 0 {
-				serial.mu.Lock()
-				serial.text.Write(buffer[:count])
-				if serial.text.Len() > installSerialMax {
-					text := serial.text.String()
-					serial.text.Reset()
-					serial.text.WriteString(text[len(text)-installSerialMax:])
-				}
-				serial.mu.Unlock()
-				select {
-				case serial.changed <- struct{}{}:
-				default:
-				}
+				_, _ = serial.Write(buffer[:count])
 			}
 			if err != nil {
 				serial.failure <- err
@@ -147,6 +136,23 @@ func newInstallSerial(reader io.Reader) *installSerial {
 		}
 	}()
 	return serial
+}
+
+// Write retains bounded serial output and notifies a reader when one exists.
+func (serial *installSerial) Write(data []byte) (int, error) {
+	serial.mu.Lock()
+	serial.text.Write(data)
+	if serial.text.Len() > installSerialMax {
+		text := serial.text.String()
+		serial.text.Reset()
+		serial.text.WriteString(text[len(text)-installSerialMax:])
+	}
+	serial.mu.Unlock()
+	select {
+	case serial.changed <- struct{}{}:
+	default:
+	}
+	return len(data), nil
 }
 
 func (serial *installSerial) snapshot() string {
@@ -249,6 +255,31 @@ func (installer *Installer) runCapture(ctx context.Context, argv []string, timeo
 	}
 }
 
+// runCaptureUntilExit proves poweroff through process exit, not a message the
+// guest writes before asking the kernel to power off. The process MUST exit
+// cleanly before the deadline; CommandContext MUST stop it on cancellation.
+func (installer *Installer) runCaptureUntilExit(ctx context.Context, argv []string, timeout time.Duration) (string, error) {
+	bounded, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	// #nosec G204 -- argv is produced by the installer's closed ISO argument builder.
+	command := exec.CommandContext(bounded, argv[0], argv[1:]...)
+	command.Env = installer.ops.Environ()
+	serial := &installSerial{}
+	command.Stdout, command.Stderr = serial, serial
+	if err := installer.ops.Start(command); err != nil {
+		return "", fmt.Errorf("start ISO installer QEMU: %w", err)
+	}
+	waitErr := command.Wait()
+	output := serial.snapshot()
+	if err := bounded.Err(); err != nil {
+		return output, fmt.Errorf("ISO installer did not power off before its deadline: %w", err)
+	}
+	if waitErr != nil {
+		return output, fmt.Errorf("ISO installer QEMU did not exit cleanly: %w", waitErr)
+	}
+	return output, nil
+}
+
 // HTTPArgv returns the complete direct-kernel HTTP installer invocation.
 func (installer *Installer) HTTPArgv(kernel, initrd, disk string, port int) ([]string, error) {
 	base := installer.qemuBase(false)
@@ -304,6 +335,24 @@ func (installer *Installer) sshLoginOK(ctx context.Context, port int) (bool, err
 		return false, fmt.Errorf("authenticate installer SSH at %s: %w", address, err)
 	}
 	client := ssh.NewClient(transport, channels, requests)
+	session, err := client.NewSession()
+	if err != nil {
+		return false, errors.Join(fmt.Errorf("open installer management command: %w", err), client.Close())
+	}
+	output, runErr := session.CombinedOutput("show version")
+	closeErr := session.Close()
+	if errors.Is(closeErr, io.EOF) {
+		closeErr = nil
+	}
+	if runErr != nil {
+		return false, errors.Join(fmt.Errorf("query installed daemon version: %w", runErr), closeErr, client.Close())
+	}
+	if !strings.Contains(string(output), "ze ") {
+		return false, errors.Join(fmt.Errorf("installed daemon did not return its Ze version: %s", output), closeErr, client.Close())
+	}
+	if closeErr != nil {
+		return false, errors.Join(fmt.Errorf("close installer management command: %w", closeErr), client.Close())
+	}
 	if err := client.Close(); err != nil {
 		return false, fmt.Errorf("close installer SSH client: %w", err)
 	}
@@ -362,7 +411,14 @@ func (installer *Installer) bootTargetSSH(
 	if err != nil {
 		return false, "", err
 	}
-	base := installer.qemuBase(true)
+	base := installer.qemuBase(installer.Options.Kind != InstallKindISO)
+	if installer.Options.Kind == InstallKindISO {
+		firmwareArgs, err := installer.isoFirmwareArgs(installer.findUEFIFirmware())
+		if err != nil {
+			return false, "", err
+		}
+		base = append(base, firmwareArgs...)
+	}
 	argv := slices.Clone(base)
 	var b textbuf.Buffer
 	drive := b.Str("file=").Str(disk).Str(",format=raw,if=virtio").String()

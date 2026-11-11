@@ -20,8 +20,11 @@ func TestIsoCheckAllReady(t *testing.T) {
 	}
 
 	oldLookPath := isoLookPathFn
+	oldModules := isoModuleCheckFn
 	isoLookPathFn = func(name string) (string, error) { return "/usr/bin/" + name, nil }
+	isoModuleCheckFn = func(string, string) (string, error) { return "/test/modules", nil }
 	t.Cleanup(func() { isoLookPathFn = oldLookPath })
+	t.Cleanup(func() { isoModuleCheckFn = oldModules })
 
 	code := checkISOPrerequisites(isoOptions{
 		kernelPath: kernelPath,

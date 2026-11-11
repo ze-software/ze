@@ -103,6 +103,11 @@ reachable but unprovisioned state, gated on `ze.gokrazy.enabled`.
   written, matching the serial fail-open recovery posture.
 - The installer registers as `ze install disk` under the existing subdispatch,
   not as a new binary.
+- ISO source discovery includes optical drives such as `sr0`. Disk-target
+  discovery continues to reject optical drives, so finding the installation
+  medium never makes that medium a writable target.
+  <!-- source: internal/install/disk/iso.go -- findISOMedia, isISOMediaDisk -->
+  <!-- source: internal/install/disk/validate.go -- isSkippedDisk -->
 - PXE injection checks `/perm/ze/database/` before the sibling
   `database.zefs`. It preserves an existing tree and never downloads a bootstrap
   blob beside it. A non-empty baked seed is also preserved. An invalid live

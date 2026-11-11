@@ -11,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/appliance/kernelbuilder"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const (
@@ -160,8 +161,27 @@ func checkInitrdArtifact(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 
 func checkGrubBinary(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	for _, name := range []string{grubStandalone, grubStandalone2} {
-		if _, err := doctorLookPathFn(name); err == nil {
-			return nil
+		if builder, err := doctorLookPathFn(name); err == nil {
+			target, _, targetErr := isoGRUBTarget(runtime.GOARCH)
+			if targetErr == nil {
+				_, targetErr = isoModuleCheckFn(builder, target)
+			}
+			if targetErr == nil {
+				return nil
+			}
+			failure := isoGRUBModuleError(targetErr, builder, target, "")
+			var message textbuf.Buffer
+			message.Str(failure.Problem())
+			if cause := failure.Unwrap(); cause != nil {
+				message.Str(": ").Err(cause)
+			}
+			return []diagnostic.Diagnostic{{
+				Code:     "doctor-appliance-grub",
+				Severity: diagnostic.SeverityWarning,
+				Message:  message.String(),
+				Help:     failure.Why(),
+				Fix:      failure.Fix(),
+			}}
 		}
 	}
 	return []diagnostic.Diagnostic{{

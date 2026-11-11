@@ -308,32 +308,48 @@ commit; the committed config replaces the bootstrap config on the next restart.
 
 ## Appliance ISO Install
 
-For appliances built with `ze appliance build`, ISO media is an offline
+For appliances built with `./ze-host appliance build`, ISO media is an offline
 install transport for the gokrazy image. The image is gzip-compressed inside the
 ISO; the installer initrd decompresses it during installation. Create it with:
 <!-- source: internal/appliance/cmd_iso.go -- runIso -->
 
 ```bash
+./le build host-driver
 GOROOT="$(./le go stdpatch goroot)" && export GOROOT GOTOOLCHAIN=local PATH="$GOROOT/bin:$PATH"
-ze appliance build prod                       # under the patched Go tree, see "Build the disk image"
-ze appliance kernel --profile hardware prod   # download or build installer kernel (reads arch from config)
-ze appliance initrd                           # download or build installer initrd
-ze appliance iso prod
+./ze-host appliance build prod                       # under the patched Go tree, see "Build the disk image"
+./ze-host appliance kernel --profile hardware prod   # download or build installer kernel (reads arch from config)
+./ze-host appliance initrd                           # download or build installer initrd
+./ze-host appliance iso prod
 ```
 
-Use `ze appliance iso --check` to verify all prerequisites (kernel, initrd,
-grub, xorriso) are available before building. The `kernel` and `initrd` commands
+Use `./ze-host appliance iso --check prod` to check the named appliance's prerequisites
+before building. This checks the GRUB EFI modules for its target architecture,
+as well as the executable, kernel, initrd and xorriso. Omitting the name checks
+the host architecture. On Debian or Ubuntu, install `grub-efi-amd64-bin` for
+amd64 EFI modules or `grub-efi-arm64-bin` for arm64 EFI modules.
+<!-- source: internal/appliance/cmd_iso.go -- runIso, checkISOPrerequisites -->
+<!-- source: internal/appliance/iso_modules.go -- checkISOGRUBModules -->
+
+The `kernel` and `initrd` commands
 download pre-built artifacts when configured, then fall back to the native
 local QEMU or Docker kernel builder and the Go initrd builder. Cached artifacts
 are stored under `$XDG_CACHE_HOME/ze/`.
 
-For arm64 targets (the kernel version is single-sourced in
+The installer searches optical and removable media for its matching ISO.
+Optical devices can supply the image but cannot be selected as the disk to
+overwrite. On completion, the installer powers off; remove the installation
+media before booting the written disk.
+<!-- source: internal/install/disk/iso.go -- findISOMedia, isISOMediaDisk -->
+<!-- source: internal/install/disk/run.go -- runISO -->
+
+For arm64 targets, run on an arm64 build host and set `image.arch` to `arm64`
+in the named appliance's config first. The kernel version is single-sourced in
 `internal/appliance/kernel.version`; `--version` only overrides it and must be a
-kernel >= 7):
+kernel >= 7:
 
 ```bash
-ze appliance kernel --arch arm64
-ze appliance iso --kernel build/kernel/Image prod
+./ze-host appliance kernel --profile hardware --arch arm64 prod
+./ze-host appliance iso --kernel build/kernel/Image prod
 ```
 
 The ISO installer decompresses and writes the embedded image to the target disk.
@@ -357,7 +373,7 @@ builder-generated media id match before it trusts a mounted installer volume.
 <!-- source: internal/install/disk/detect.go -- findTargetDisk; internal/install/disk/iso.go -- find ISO media -->
 
 ```bash
-ze appliance iso --target /dev/vda prod
+./ze-host appliance iso --target /dev/vda prod
 ```
 
 The generated ISO includes the installer kernel, initrd, the selected image,
@@ -860,7 +876,7 @@ ZE_INSTALL_KERNEL=$PWD/build/kernel/Image ./le --name storage-proof test qemu in
 ```
 
 `./le test qemu installer-iso` exercises the ISO transport. It creates an ISO
-through `ze appliance iso`, boots it, verifies the embedded image is written
+through `./ze-host appliance iso`, boots it, verifies the embedded image is written
 without the PXE-only branch, checks safe poweroff and the GPT layout, then logs
 in with the embedded ZeFS credentials.
 <!-- source: internal/le/test/qemu/actions.go -- Actions -->

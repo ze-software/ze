@@ -108,6 +108,8 @@ func setupIsoBuilderTest(t *testing.T) (kernel, initrd string, calls *[]isoBuild
 
 	oldLookPath := isoLookPathFn
 	oldBuilder := isoBuilderFn
+	oldModules := isoModuleCheckFn
+	isoModuleCheckFn = func(string, string) (string, error) { return "/test/modules", nil }
 	var got []isoBuilderCall
 	isoLookPathFn = func(file string) (string, error) {
 		if file == "grub-mkstandalone" || file == "xorriso" {
@@ -122,6 +124,7 @@ func setupIsoBuilderTest(t *testing.T) (kernel, initrd string, calls *[]isoBuild
 	t.Cleanup(func() {
 		isoLookPathFn = oldLookPath
 		isoBuilderFn = oldBuilder
+		isoModuleCheckFn = oldModules
 	})
 	return kernel, initrd, &got
 }
@@ -182,6 +185,7 @@ func TestRunISOBuilderCreatesExpectedEFIImage(t *testing.T) {
 
 	err := runISOBuilder(isoBuilderCall{
 		GRUBPath:    grubPath,
+		GRUBModules: t.TempDir(),
 		XorrisoPath: xorrisoPath,
 		OutputPath:  out,
 		StagingDir:  staging,

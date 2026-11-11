@@ -41,7 +41,7 @@ func findISOMedia(image, mediaID string) (*isoMedia, error) {
 
 	for _, entry := range entries {
 		name := entry.Name()
-		if isSkippedDisk(name) {
+		if !isISOMediaDisk(name) {
 			continue
 		}
 
@@ -62,6 +62,16 @@ func findISOMedia(image, mediaID string) (*isoMedia, error) {
 	}
 
 	return nil, fmt.Errorf("no ze installer ISO with media-id %s found", mediaID)
+}
+
+// isISOMediaDisk admits optical source media while retaining the virtual-device
+// exclusions used by target discovery. Optical drives MUST remain excluded by
+// isSkippedDisk when the installer chooses a disk to overwrite.
+func isISOMediaDisk(name string) bool {
+	if strings.HasPrefix(name, "sr") {
+		return true
+	}
+	return !isSkippedDisk(name)
 }
 
 // tryVentoyISO scans FAT/exFAT partitions for ISO files on Ventoy-style

@@ -1,9 +1,30 @@
 # VM Appliance
 
-Build a bootable VM image with Ze baked in using [gokrazy](https://gokrazy.org/). The default target is x86_64, and `image.arch` in `appliance.json` selects another architecture for `ze appliance build`. At runtime, the appliance is minimal: Linux kernel, gokrazy init, and Ze as the only application, with no package manager, no general shell (except authenticated emergency serial console), no unused distro daemons, and automatic process supervision.
+Build a bootable VM image with Ze baked in using [gokrazy](https://gokrazy.org/). The default target is x86_64, and `image.arch` in `appliance.json` selects another architecture for `./ze-host appliance build`. At runtime, the appliance is minimal: Linux kernel, gokrazy init, and Ze as the only application, with no package manager, no general shell (except authenticated emergency serial console), no unused distro daemons, and automatic process supervision.
 
 Suitable for N100-class mini PCs, Proxmox VMs, or QEMU testing.
 <!-- source: gokrazy/ze/config.json -- Packages, KernelPackage, Environment -->
+
+## Prepare the build-host command
+
+Work from the Ze source checkout with Go and Git installed. Build the native
+host driver and select the patched Go environment before the image commands:
+
+```bash
+./le build host-driver
+GOROOT="$(./le go stdpatch goroot)"
+export GOROOT GOTOOLCHAIN=local PATH="$GOROOT/bin:$PATH"
+```
+
+The examples below use `./ze-host`, which runs on the build machine and carries
+the appliance and PXE provisioning commands. The ordinary `./ze` launcher builds
+the Linux daemon; it does not carry `appliance`. Build kernels and cold-cache
+images on a host matching the image architecture. Binaries can be cross-built,
+but selecting another `image.arch` does not make a foreign kernel build possible.
+<!-- source: internal/le/build/hostdriver/hostdriver.go -- Answer, RuntimeKernelBuild -->
+<!-- source: internal/le/build/compile/build.go -- HostTags, HostBinary, hostPlan -->
+<!-- source: internal/appliance/cmd_build.go -- requirePatchedTree, buildOne -->
+<!-- source: internal/appliance/runtimekernel.go -- ImageRuntimeKernelTree -->
 
 ## What's in the image
 
@@ -725,20 +746,32 @@ The base config is read first, then per-appliance `ze.conf` is appended. Later `
 
 ### ISO prerequisites
 
-The ISO build requires an installer kernel, an initrd, `grub-mkstandalone`, and
-`xorriso`. Use `ze appliance iso --check` to see what is ready and what is
-missing. The `kernel` and `initrd` commands handle downloading or building these
+The ISO build requires an installer kernel, an initrd, `grub-mkstandalone`, its
+EFI modules for the target architecture, and `xorriso`. Use
+`./ze-host appliance iso --check lab` to check the named appliance's target; omitting
+the name checks the host architecture. An installed GRUB executable alone is
+insufficient. Debian and Ubuntu supply the modules in `grub-efi-amd64-bin`
+or `grub-efi-arm64-bin`, according to the target. The `kernel` and `initrd`
+commands handle downloading or building these
 artifacts automatically:
 
-    ze appliance iso --check
-    ze appliance kernel lab
-    ze appliance kernel --profile hardware lab
-    ze appliance kernel --builder qemu --arch arm64 lab    # a build needs an arm64 host
-    ze appliance kernel --target runtime
-    ze appliance initrd
-    ze appliance iso lab
+    ./ze-host appliance iso --check lab
+    ./ze-host appliance kernel lab
+    ./ze-host appliance kernel --profile hardware lab
+    ./ze-host appliance kernel --builder qemu --arch arm64 lab    # a build needs an arm64 host
+    ./ze-host appliance kernel --target runtime
+    ./ze-host appliance initrd
+    ./ze-host appliance iso lab
 
-`ze appliance kernel` defaults to the installer target. `--target runtime`
+The installer searches optical media as well as removable block media for its
+matching ISO. Optical devices remain excluded from installation targets. On
+completion it powers off; remove the installer media before booting the target
+disk.
+<!-- source: internal/appliance/cmd_iso.go -- runIso, checkISOPrerequisites -->
+<!-- source: internal/appliance/iso_modules.go -- checkISOGRUBModules -->
+<!-- source: internal/install/disk/iso.go -- findISOMedia, isISOMediaDisk -->
+
+`./ze-host appliance kernel` defaults to the installer target. `--target runtime`
 builds the gokrazy runtime kernel tree and enforces the runtime requirement
 floor. The installer target tries the cache, then an optional configured
 artifact URL, then the local Go driver. The driver selects Docker when
@@ -747,26 +780,26 @@ backend. Resolved artifacts are cached under `$XDG_CACHE_HOME/ze/`.
 <!-- source: internal/appliance/cmd_kernel.go -- runKernel, kernelTargetFor -->
 <!-- source: internal/appliance/kernelbuilder/driver.go -- Build -->
 
-`ze appliance initrd` uses the same cache, optional configured URL, then local
+`./ze-host appliance initrd` uses the same cache, optional configured URL, then local
 build pattern for the initrd artifact. The download URL has no built-in release
 server default; set `ze.appliance.kernel.url` or `ze.appliance.initrd.url` to use
 prebuilt artifacts.
 <!-- source: internal/appliance/cmd_initrd.go -- resolveInitrd -->
 
-`ze doctor` includes checks for kernel, initrd, grub, xorriso, and e2fsprogs
+`./ze-host doctor` includes checks for kernel, initrd, grub, xorriso, and e2fsprogs
 availability, reporting warnings with actionable hints when prerequisites are
 missing.
 <!-- source: internal/appliance/doctor_checks.go -- applianceDoctorChecks -->
 
 ### ISO installer media
 
-Create an installer ISO from an image already produced by `ze appliance
+Create an installer ISO from an image already produced by `./ze-host appliance
 build`. By default the command selects the latest `ze-*.img` in the appliance
 directory, verifies its `.sha256` sidecar, and writes `ze-*.iso` next to the
 image. Use `--image` to select a specific image filename and `--output` to write
 the ISO elsewhere. The output path must not overwrite the selected `.img`, and
 the image filename must stay within `[A-Za-z0-9._-]` so the initrd can pass it
-on the kernel command line. By default, `ze appliance iso` resolves a matching
+on the kernel command line. By default, `./ze-host appliance iso` resolves a matching
 installer kernel from the cache, or from `build/kernel/Image` only when its
 variant metadata matches the appliance architecture, profile, and version.
 Pass `--kernel` to select a specific installer kernel.
@@ -777,12 +810,12 @@ request gets a separate cache entry.
 <!-- source: internal/appliance/cmd_kernel.go -- runKernel -->
 <!-- source: internal/appliance/cmd_iso.go -- runIso, resolveISOInput, readRequiredImageChecksum -->
 
-    ze appliance build lab
-    ze appliance kernel --builder docker --profile hardware lab
-    ze appliance iso lab
-    ze appliance iso --image ze-20260601-120000.img lab
-    ze appliance iso --output /path/to/lab.iso lab
-    ze appliance iso --kernel build/kernel/Image lab
+    ./ze-host appliance build lab
+    ./ze-host appliance kernel --builder docker --profile hardware lab
+    ./ze-host appliance iso lab
+    ./ze-host appliance iso --image ze-20260601-120000.img lab
+    ./ze-host appliance iso --output /path/to/lab.iso lab
+    ./ze-host appliance iso --kernel build/kernel/Image lab
 The ISO is an installer envelope around the existing raw gokrazy image. The image
 is gzip-compressed inside the ISO to reduce media size (a 2 GiB image with ~100
 MiB of content compresses to roughly 100 MiB). The installer initrd decompresses
@@ -804,7 +837,7 @@ confuse the source selection. With multiple fixed disks, pass a whole disk path
 such as `/dev/vda` at ISO creation time:
 <!-- source: internal/install/disk/detect.go -- findTargetDisk; internal/install/disk/iso.go -- media-id match -->
 
-    ze appliance iso --target /dev/vda lab
+    ./ze-host appliance iso --target /dev/vda lab
 
 After the installer writes the disk in ISO mode, it powers off instead of
 rebooting. Remove the installer media, then power the target back on so the

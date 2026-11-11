@@ -244,6 +244,7 @@ func (installer *Installer) findUEFIFirmware() string {
 	}
 	candidates := append((&Run{ops: installer.ops.runOps}).brewFiles(
 		"share/qemu/edk2-x86_64-code.fd"),
+		"/usr/share/OVMF/OVMF_CODE_4M.fd",
 		"/usr/share/OVMF/OVMF_CODE.fd",
 		"/usr/share/ovmf/OVMF.fd",
 		"/usr/share/edk2/ovmf/OVMF_CODE.fd",
@@ -275,7 +276,11 @@ func (installer *Installer) isoCDROMArgs(iso string) []string {
 func (installer *Installer) ISOArgv(iso, disk, extraDisk, firmware string) ([]string, error) {
 	base := installer.qemuBase(false)
 	argv := slices.Clone(base)
-	argv = append(argv, "-bios", firmware)
+	firmwareArgs, err := installer.isoFirmwareArgs(firmware)
+	if err != nil {
+		return nil, err
+	}
+	argv = append(argv, firmwareArgs...)
 	argv = append(argv, installer.isoCDROMArgs(iso)...)
 	var tb textbuf.Buffer
 	targetDrive := tb.Str("file=").Str(disk).Str(",format=raw,if=virtio").String()
@@ -284,12 +289,39 @@ func (installer *Installer) ISOArgv(iso, disk, extraDisk, firmware string) ([]st
 	return append(argv, "-drive", targetDrive, "-drive", extraDrive), nil
 }
 
+// isoFirmwareArgs keeps split firmware variable stores private to this QEMU
+// process. QEMU MUST discard its snapshot when the process exits; the installed
+// firmware files MUST remain unchanged for other sessions.
+func (installer *Installer) isoFirmwareArgs(firmware string) ([]string, error) {
+	name := filepath.Base(firmware)
+	varsName := strings.Replace(name, "_CODE", "_VARS", 1)
+	if varsName == name {
+		varsName = strings.Replace(name, "-code", "-vars", 1)
+	}
+	if varsName == name {
+		return []string{"-bios", firmware}, nil
+	}
+	vars := filepath.Join(filepath.Dir(firmware), varsName)
+	if !installer.regularFile(vars) {
+		override := "ZE_INSTALL_X86_UEFI_BIOS"
+		if installer.Options.Arch == ArchARM64 {
+			override = "ZE_INSTALL_AARCH64_BIOS"
+		}
+		return nil, fmt.Errorf("split UEFI firmware %s requires its matching variable image %s; install the complete OVMF/AAVMF firmware package or set %s to a complete firmware image", firmware, vars, override)
+	}
+	var b textbuf.Buffer
+	codeDrive := b.Str("if=pflash,unit=0,format=raw,readonly=on,file=").Str(firmware).String()
+	b.Reset()
+	varsDrive := b.Str("if=pflash,unit=1,format=raw,snapshot=on,file=").Str(vars).String()
+	return []string{"-drive", codeDrive, "-drive", varsDrive}, nil
+}
+
 func (installer *Installer) bootISO(ctx context.Context, iso, disk, extraDisk, firmware string) (string, error) {
 	argv, err := installer.ISOArgv(iso, disk, extraDisk, firmware)
 	if err != nil {
 		return "", err
 	}
-	return installer.runCapture(ctx, argv, installer.Options.BootTimeout)
+	return installer.runCaptureUntilExit(ctx, argv, installer.Options.BootTimeout)
 }
 
 type installGPTEntry struct {
@@ -436,9 +468,14 @@ func (installer *Installer) executeISO(ctx context.Context, work string, report 
 	if err := truncateInstallFile(extra, imageInfo.Size()); err != nil {
 		return report, err
 	}
+	extraSHA, err := installSHA256(extra)
+	if err != nil {
+		return report, err
+	}
 	firmware := installer.findUEFIFirmware()
 	serial, err := installer.bootISO(ctx, iso, disk, extra, firmware)
 	if err != nil {
+		report.lines = append(report.lines, serial)
 		return report, err
 	}
 	tb.Reset()
@@ -461,6 +498,14 @@ func (installer *Installer) executeISO(ctx context.Context, work string, report 
 	tb.Reset()
 	report.line(installer.prefix(), tb.Str("installer consumed explicit ze.target=").Str(installTarget).String())
 	report.line(installer.prefix(), "installer wrote embedded image + powered off safely")
+	afterExtraSHA, err := installSHA256(extra)
+	if err != nil {
+		return report, err
+	}
+	if afterExtraSHA != extraSHA {
+		return installer.fail(report, "ISO installer modified the untargeted disk")
+	}
+	report.passed("untargeted-disk", "all bytes unchanged")
 	if err := assertInstallGPT(image.Image, disk); err != nil {
 		return report, err
 	}
@@ -477,6 +522,7 @@ func (installer *Installer) executeISO(ctx context.Context, work string, report 
 		return report, nil
 	}
 	report.passed("ssh-login", "embedded ZeFS power user authenticated")
+	report.passed("daemon-version", "authenticated show version returned Ze runtime identity")
 	report.line(installer.prefix(), "SSH login as embedded-ZeFS power user succeeded")
 	report.line(installer.prefix(), "PASS")
 	report.Verdict = InstallVerdictPass

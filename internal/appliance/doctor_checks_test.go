@@ -118,8 +118,11 @@ func TestDoctorKernelMissing(t *testing.T) {
 
 func TestDoctorGrubPresent(t *testing.T) {
 	old := doctorLookPathFn
+	oldModules := isoModuleCheckFn
 	doctorLookPathFn = func(name string) (string, error) { return "/usr/bin/" + name, nil }
+	isoModuleCheckFn = func(string, string) (string, error) { return "/test/modules", nil }
 	t.Cleanup(func() { doctorLookPathFn = old })
+	t.Cleanup(func() { isoModuleCheckFn = oldModules })
 
 	diags := checkGrubBinary(diagnostic.DoctorCheckContext{})
 	if len(diags) != 0 {

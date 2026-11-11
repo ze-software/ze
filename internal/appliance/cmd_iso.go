@@ -18,10 +18,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/appliance/kernelbuilder"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/thirdparty/fat"
 )
@@ -45,11 +47,14 @@ const (
 )
 
 var (
-	isoLookPathFn = exec.LookPath
-	isoBuilderFn  = runISOBuilder
+	isoLookPathFn    = exec.LookPath
+	isoBuilderFn     = runISOBuilder
+	isoModuleCheckFn = checkISOGRUBModules
 )
 
 type isoOptions struct {
+	appliance   string
+	arch        string
 	imageFile   string
 	outputPath  string
 	kernelPath  string
@@ -72,6 +77,7 @@ type isoBuildInput struct {
 	initrdPath  string
 	target      string
 	grubPath    string
+	grubModules string
 	xorrisoPath string
 }
 
@@ -90,6 +96,7 @@ type isoManifest struct {
 
 type isoBuilderCall struct {
 	GRUBPath    string
+	GRUBModules string
 	XorrisoPath string
 	OutputPath  string
 	StagingDir  string
@@ -133,6 +140,29 @@ func runIso(args []string) int {
 		return exitError
 	}
 	if checkOnly {
+		if fs.NArg() > 1 {
+			fmt.Fprintln(os.Stderr, opererr.New("ISO prerequisite check accepts at most one appliance name",
+				"one check can select only one appliance target; omit the name to check this host instead",
+				"./ze-host appliance iso --help"))
+			return exitError
+		}
+		if fs.NArg() == 1 {
+			if !validNameRe.MatchString(fs.Arg(0)) {
+				fmt.Fprintln(os.Stderr, isoNameError(fs.Arg(0)))
+				return exitError
+			}
+			cfg, err := LoadConfig(ConfigPath(getBaseDir(), fs.Arg(0)))
+			if err != nil {
+				var problem, repair textbuf.Buffer
+				fmt.Fprintln(os.Stderr, opererr.Wrap(err,
+					problem.Str("cannot check ISO prerequisites for appliance ").Quoted(fs.Arg(0)).String(),
+					"the appliance configuration could not be read, so its target architecture is unknown; select an initialized appliance from this directory",
+					repair.Str("./ze-host appliance --dir ").Str(shellArg(getBaseDir())).Str(" list").String()))
+				return exitError
+			}
+			opts.arch = cfg.Image.Arch
+			opts.appliance = fs.Arg(0)
+		}
 		return checkISOPrerequisites(opts)
 	}
 	if fs.NArg() < 1 {
@@ -148,11 +178,29 @@ func runIso(args []string) int {
 
 	out, err := buildISO(fs.Arg(0), opts)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		selected := isoGRUBSelectionError(err, fs.Arg(0), getBaseDir())
+		var actionable *opererr.Error
+		if !errors.As(selected, &actionable) {
+			var problem, repair textbuf.Buffer
+			actionable = opererr.Wrap(selected,
+				problem.Str("cannot build installer ISO for appliance ").Quoted(fs.Arg(0)).String(),
+				"Correct the image, filesystem, or builder failure reported above; check this appliance's prerequisites before retrying the ISO build",
+				repair.Str("./ze-host appliance --dir ").Str(shellArg(getBaseDir())).Str(" iso --check ").Str(shellArg(fs.Arg(0))).String())
+		}
+		fmt.Fprintln(os.Stderr, actionable)
 		return exitError
 	}
 	fmt.Fprintf(os.Stdout, "iso ready: %s\n", out) //nolint:errcheck // CLI output
 	return exitOK
+}
+
+// isoNameError preserves the chosen appliance directory when selection fails.
+func isoNameError(name string) *opererr.Error {
+	var problem, repair textbuf.Buffer
+	return opererr.New(problem.Str("invalid appliance name ").Quoted(name).
+		Str(": must match ").Str(validNameRe.String()).String(),
+		"the appliance name selects the image configuration and target architecture; choose an initialized appliance in this directory",
+		repair.Str("./ze-host appliance --dir ").Str(shellArg(getBaseDir())).Str(" list").String())
 }
 
 func checkISOPrerequisites(opts isoOptions) int {
@@ -195,7 +243,21 @@ func checkISOPrerequisites(opts isoOptions) int {
 		fmt.Fprintf(os.Stdout, "grub:     missing (install grub-mkstandalone)\n") //nolint:errcheck // CLI output
 		allReady = false
 	} else {
-		fmt.Fprintf(os.Stdout, "grub:     ready (%s)\n", grubPath) //nolint:errcheck // CLI output
+		arch := opts.arch
+		if arch == "" {
+			arch = runtime.GOARCH
+		}
+		target, _, err := isoGRUBTarget(arch)
+		modules := ""
+		if err == nil {
+			modules, err = isoModuleCheckFn(grubPath, target)
+		}
+		if err != nil {
+			fmt.Fprintln(os.Stdout, isoGRUBSelectionError(err, opts.appliance, getBaseDir())) //nolint:errcheck // CLI output retains the producer's complete repair line.
+			allReady = false
+		} else {
+			fmt.Fprintf(os.Stdout, "grub:     ready (%s, modules %s)\n", grubPath, modules) //nolint:errcheck // CLI output
+		}
 	}
 
 	xorrisoPath, xorrisoErr := isoLookPathFn("xorriso")
@@ -254,6 +316,7 @@ func buildISO(name string, opts isoOptions) (string, error) {
 	}
 	call := isoBuilderCall{
 		GRUBPath:    input.grubPath,
+		GRUBModules: input.grubModules,
 		XorrisoPath: input.xorrisoPath,
 		OutputPath:  builderOutput,
 		StagingDir:  staging,
@@ -271,7 +334,7 @@ func buildISO(name string, opts isoOptions) (string, error) {
 
 func resolveISOInput(name string, opts isoOptions) (isoBuildInput, error) {
 	if !validNameRe.MatchString(name) {
-		return isoBuildInput{}, fmt.Errorf("invalid appliance name %q: must match %s", name, validNameRe.String())
+		return isoBuildInput{}, isoNameError(name)
 	}
 	if opts.imageFile != "" && filepath.Base(opts.imageFile) != opts.imageFile {
 		return isoBuildInput{}, fmt.Errorf("image %q must be a file name inside the appliance directory", opts.imageFile)
@@ -348,6 +411,14 @@ func resolveISOInput(name string, opts isoOptions) (isoBuildInput, error) {
 	if err != nil {
 		return isoBuildInput{}, err
 	}
+	grubTarget, _, err := isoGRUBTarget(cfg.Image.Arch)
+	if err != nil {
+		return isoBuildInput{}, err
+	}
+	grubModules, err := isoModuleCheckFn(grubPath, grubTarget)
+	if err != nil {
+		return isoBuildInput{}, err
+	}
 	mediaID, err := generateISOMediaID()
 	if err != nil {
 		return isoBuildInput{}, err
@@ -372,6 +443,7 @@ func resolveISOInput(name string, opts isoOptions) (isoBuildInput, error) {
 		initrdPath:  initrd,
 		target:      opts.target,
 		grubPath:    grubPath,
+		grubModules: grubModules,
 		xorrisoPath: xorrisoPath,
 	}, nil
 }
@@ -821,7 +893,7 @@ func runISOBuilder(call isoBuilderCall) error {
 		return fmt.Errorf("create EFI staging: %w", err)
 	}
 	efiBinaryPath := filepath.Join(efiDir, call.EFIBootFile)
-	grubArgs := []string{"-O", call.GRUBTarget, "-o", efiBinaryPath, "boot/grub/grub.cfg=" + cfgPath}
+	grubArgs := []string{"--directory", call.GRUBModules, "-O", call.GRUBTarget, "-o", efiBinaryPath, "boot/grub/grub.cfg=" + cfgPath}
 	grubCmd := exec.CommandContext(ctx, call.GRUBPath, grubArgs...) //nolint:gosec // controlled argv
 	grubCmd.Stdout = os.Stderr
 	grubCmd.Stderr = os.Stderr
