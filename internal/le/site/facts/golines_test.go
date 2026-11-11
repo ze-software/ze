@@ -44,17 +44,17 @@ func TestGoLineDisplayPrecisionMatchesStaleness(t *testing.T) {
 				Category: categoryCommitted, Value: 1_560_001, Source: "fixture",
 			}}}
 			if differences := compare(before, sameDisplay); len(differences) != 0 {
-				t.Errorf("equivalent 1.56M figures disagree: %+v", differences)
+				t.Errorf("equivalent 1.56 million figures disagree: %+v", differences)
 			}
 			after := facts{Facts: map[string]fact{key: {
 				Category: categoryCommitted, Value: 1_565_000, Source: "fixture",
 			}}}
 			differences := compare(before, after)
 			if len(differences) != 1 {
-				t.Fatalf("1.56M → 1.57M has %d differences, want one: %+v", len(differences), differences)
+				t.Fatalf("1.56 million → 1.57 million has %d differences, want one: %+v", len(differences), differences)
 			}
-			if differences[0].Committed != "1.56M" || differences[0].Derived != "1.57M" {
-				t.Errorf("visible difference = %+v, want 1.56M → 1.57M", differences[0])
+			if differences[0].Committed != "1.56 million" || differences[0].Derived != "1.57 million" {
+				t.Errorf("visible difference = %+v, want 1.56 million → 1.57 million", differences[0])
 			}
 		})
 	}
@@ -64,18 +64,18 @@ func TestGoLineDisplayPrecisionMatchesStaleness(t *testing.T) {
 // transitions and the largest inventory the machine's integer can represent.
 func TestGoLineFormattingBoundaries(t *testing.T) {
 	for count, want := range map[int]string{
-		0: "0", 999: "999", 1_000: "1.00K",
-		999_994: "999.99K", 999_995: "1.00M", 1_000_000: "1.00M",
-		1_564_999: "1.56M", 1_565_000: "1.57M",
+		0: "0", 999: "999", 1_000: "1.00 thousand",
+		999_994: "999.99 thousand", 999_995: "1.00 million", 1_000_000: "1.00 million",
+		1_564_999: "1.56 million", 1_565_000: "1.57 million",
 	} {
 		if got := FormatGoLines(count); got != want {
 			t.Errorf("FormatGoLines(%d) = %q, want %q", count, got, want)
 		}
 	}
 	maximum := int(^uint(0) >> 1)
-	want := "9223372036854.78M"
+	want := "9223372036854.78 million"
 	if strconv.IntSize == 32 {
-		want = "2147.48M"
+		want = "2147.48 million"
 	}
 	if got := FormatGoLines(maximum); got != want {
 		t.Errorf("FormatGoLines(maxInt) = %q, want %q", got, want)

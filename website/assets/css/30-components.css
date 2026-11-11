@@ -1336,7 +1336,7 @@ pre.code-copy-wrap, .md-content pre.code-copy-wrap { position: relative; padding
 .site-home .search-shortcut-hint { color: var(--hero-muted); font-size: 0.68rem; }
 .site-home .hero-start-action .search-shortcut-hint { margin-left: 0; }
 .site-home .hero-start-action .search-shortcut-hint kbd { color: var(--hero-muted); background: transparent; border-color: #426382; }
-.site-home .hero-release-callout { max-width: 15rem; gap: 0.5rem; align-items: flex-start; }
+.site-home .hero-release-callout { max-width: 15rem; gap: 0.5rem; align-items: flex-start; align-self: stretch; border-inline-start: 1px solid #2c4564; padding-inline-start: 1.1rem; }
 .site-home .hero-release-callout .hero-mascot { width: 2.8rem; height: auto; }
 .site-home .hero-release-callout p { min-width: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; color: var(--hero-muted); font-size: 0.72rem; font-weight: 400; line-height: 1.5; }
 .site-home .hero-release-callout p::before, .site-home .hero-release-callout p::after { content: none; }

@@ -97,8 +97,9 @@ display rule moves.
 
 ### Go line display precision
 
-Go line totals use a compact display with two decimal places in thousands or
-millions. Their staleness comparison uses that same formatter, so a visible
+Go line totals write out "thousand" and "million" with two decimal places.
+Thomas requested this convention on 2026-11-11: "M is not clear to be million".
+Their staleness comparison uses that same formatter, so a visible
 change is reported even when it falls inside an older count's rounding bucket.
 Other repository counts keep their existing display precision. The published
 snapshot carries raw line totals and their `_display` strings; every homepage

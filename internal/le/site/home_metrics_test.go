@@ -18,8 +18,8 @@ func metricHomeFixture(t *testing.T) Paths {
 		t.Fatal(err)
 	}
 	snapshot["repo"] = map[string]any{
-		"go_source_lines": 2_345_678, "go_source_lines_display": "2.35M",
-		"go_test_lines": 3_456_789, "go_test_lines_display": "3.46M",
+		"go_source_lines": 2_345_678, "go_source_lines_display": "2.35 million",
+		"go_test_lines": 3_456_789, "go_test_lines_display": "3.46 million",
 	}
 	snapshot["plugin_registrations"] = 87
 	snapshot["cli_commands"] = 612
@@ -44,8 +44,8 @@ func TestHomeProjectMetricsUseSnapshotValues(t *testing.T) {
 		t.Fatal(err)
 	}
 	wants := map[string]struct{ value, label, href string }{
-		"repo.go_source_lines_display": {"2.35M", "Go source lines", "project/activity/"},
-		"repo.go_test_lines_display":   {"3.46M", "Go test lines", "project/activity/"},
+		"repo.go_source_lines_display": {"2.35 million", "Go source lines", "project/activity/"},
+		"repo.go_test_lines_display":   {"3.46 million", "Go test lines", "project/activity/"},
 		"plugin_registrations":         {"87", "Plugins", "reference/plugins/"},
 		"cli_commands":                 {"612", "CLI commands", "reference/cli/"},
 	}
@@ -108,6 +108,7 @@ func TestHomeProjectMetricsPreserveNavigationAndRelease(t *testing.T) {
 		`href="project/why-ze/"`, `href="https://discord.gg/T8s7CjPDne"`,
 		`No stable release yet.`, `id="proof"`, `data-terminal-demo-player`,
 		`Includes comments and blank lines; excludes third-party dependencies.`,
+		`Current first-party Go inventory.`,
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("homepage lacks preserved path or metric definition %s", want)
@@ -127,8 +128,9 @@ func TestHomeProjectMetricsMirrorIsReadable(t *testing.T) {
 	}
 	mirror := readArtifact(t, paths.Output, "index.md")
 	for _, want := range []string{
-		"2.35M", "Go source lines", "3.46M", "Go test lines", "87", "Plugins", "612", "CLI commands",
+		"2.35 million", "Go source lines", "3.46 million", "Go test lines", "87", "Plugins", "612", "CLI commands",
 		"Includes comments and blank lines; excludes third-party dependencies.", "project/activity/", "project/why-ze/", "discord.gg/T8s7CjPDne",
+		"Current first-party Go inventory.",
 	} {
 		if !strings.Contains(mirror, want) {
 			t.Errorf("homepage Markdown lacks %q", want)

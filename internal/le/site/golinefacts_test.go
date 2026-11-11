@@ -17,11 +17,11 @@ func TestPublishedGoLineFactsUseRecordedInventory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if facts.Repo.GoSourceLines != 2_345_678 || facts.Repo.GoSourceLinesDisplay != "2.35M" {
-		t.Errorf("recorded source lines = %d/%q, want 2345678/2.35M", facts.Repo.GoSourceLines, facts.Repo.GoSourceLinesDisplay)
+	if facts.Repo.GoSourceLines != 2_345_678 || facts.Repo.GoSourceLinesDisplay != "2.35 million" {
+		t.Errorf("recorded source lines = %d/%q, want 2345678/2.35 million", facts.Repo.GoSourceLines, facts.Repo.GoSourceLinesDisplay)
 	}
-	if facts.Repo.GoTestLines != 3_456_789 || facts.Repo.GoTestLinesDisplay != "3.46M" {
-		t.Errorf("recorded test lines = %d/%q, want 3456789/3.46M", facts.Repo.GoTestLines, facts.Repo.GoTestLinesDisplay)
+	if facts.Repo.GoTestLines != 3_456_789 || facts.Repo.GoTestLinesDisplay != "3.46 million" {
+		t.Errorf("recorded test lines = %d/%q, want 3456789/3.46 million", facts.Repo.GoTestLines, facts.Repo.GoTestLinesDisplay)
 	}
 }
 

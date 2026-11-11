@@ -12,15 +12,16 @@ const (
 )
 
 // FormatGoLines states a line total to the nearest hundredth of a thousand or
-// million. Smaller counts stay exact. Integer arithmetic preserves the visible
-// rounding boundary and cannot overflow for an int-sized source inventory.
+// million, with the unit written in full. Smaller counts stay exact. Integer
+// arithmetic preserves the visible rounding boundary and cannot overflow for an
+// int-sized source inventory.
 func FormatGoLines(count int) string {
 	for _, unit := range []struct {
 		value  int
 		suffix string
 	}{
-		{1_000_000, "M"},
-		{1_000, "K"},
+		{1_000_000, " million"},
+		{1_000, " thousand"},
 	} {
 		// Promote the unit when rounding the smaller one would reach it.
 		if count < unit.value-unit.value/200_000 {

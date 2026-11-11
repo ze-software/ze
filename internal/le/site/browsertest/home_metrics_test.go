@@ -32,8 +32,8 @@ func TestTheBrowserFillsHomeProjectMetrics(t *testing.T) {
 		t.Fatal(err)
 	}
 	versions := []struct{ body, text string }{
-		{`{"repo":{"go_source_lines_display":"1.57M","go_test_lines_display":"1.84M"},"plugin_registrations":96,"cli_commands":499}`, "1.57M|1.84M|96|499"},
-		{`{"repo":{"go_source_lines_display":"2.35M","go_test_lines_display":"3.46M"},"plugin_registrations":87,"cli_commands":612}`, "2.35M|3.46M|87|612"},
+		{`{"repo":{"go_source_lines_display":"1.57 million","go_test_lines_display":"1.84 million"},"plugin_registrations":96,"cli_commands":499}`, "1.57 million|1.84 million|96|499"},
+		{`{"repo":{"go_source_lines_display":"2.35 million","go_test_lines_display":"3.46 million"},"plugin_registrations":87,"cli_commands":612}`, "2.35 million|3.46 million|87|612"},
 	}
 	var version atomic.Int32
 	var requests atomic.Int32

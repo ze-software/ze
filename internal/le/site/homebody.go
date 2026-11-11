@@ -160,7 +160,7 @@ const homeTemplate = `        <div class="site-home">
                                         <span>CLI commands</span>
                                     </a>
                                 </div>
-                                <p class="hero-metrics-note">Includes comments and blank lines; excludes third-party dependencies. <a href="project/activity/">Development activity →</a></p>
+                                <p class="hero-metrics-note">Current first-party Go inventory. Includes comments and blank lines; excludes third-party dependencies. <a href="project/activity/">Development activity →</a></p>
                             </div>
                             <div class="hero-release-callout">
                                 <a

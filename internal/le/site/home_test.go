@@ -15,6 +15,7 @@ import (
 
 	xhtml "golang.org/x/net/html"
 
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 	siteterminaldemo "github.com/ze-software/ze/internal/le/site/terminaldemo"
 )
 
@@ -24,7 +25,11 @@ func homeFixture(t *testing.T) Paths {
 	t.Helper()
 	root := t.TempDir()
 	source := filepath.Join(root, "website")
-	repository := repositoryRoot(t)
+	// The fixture copies raw topic data; it needs no derived RFC artifacts.
+	repository, err := lepath.Root()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	copyFixture(t, filepath.Join("testdata", "published-audience.json"),
 		filepath.Join(source, "data", audienceDataFile))
@@ -79,8 +84,8 @@ func homeFixtureWeeks() []string {
 const publishedFactsSnapshot = `{
   "cli_commands": 499,
   "plugin_registrations": 96,
-  "repo": {"go_source_lines": 1567454, "go_source_lines_display": "1.57M",
-           "go_test_lines": 1839367, "go_test_lines_display": "1.84M"},
+  "repo": {"go_source_lines": 1567454, "go_source_lines_display": "1.57 million",
+           "go_test_lines": 1839367, "go_test_lines_display": "1.84 million"},
   "features": {"categories": {"automate": 7, "observe": 9, "operate": 6, "platform": 6,
                "routing": 9, "secure": 6, "services": 9}},
   "interop": {"target_display": "9"},

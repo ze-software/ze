@@ -13,6 +13,7 @@ import (
 	"sync"
 	"testing"
 
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/rfc"
 	siterelease "github.com/ze-software/ze/internal/le/site/release"
 	testhealth "github.com/ze-software/ze/internal/le/test/health"
@@ -133,7 +134,12 @@ func stubRFCLedger(t *testing.T, collected rfc.Collected) {
 		liveStemFigures = previousFigures
 	})
 	liveRFCLedger = func(string) (rfc.Collected, error) { return collected, nil }
-	root := repositoryRoot(t)
+	// Only identify the real checkout here. Synthetic ledgers need no global
+	// derived corpus, and the real-checkout branch keeps its original reader.
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatal(err)
+	}
 	liveStemFigures = func(tree string, stated rfc.Collected) (map[string]rfc.StemFigures, error) {
 		if tree == root {
 			return previousFigures(tree, stated)
