@@ -475,6 +475,7 @@ ze show errors source l2tp count 5     # last 5 errors from l2tp
 | `subject` | string | What the issue is about: peer address, transaction id, file path |
 | `message` | string | Human-readable one-liner |
 | `detail` | object | Optional structured context (family, code/subcode, reason, ...) |
+| `fix` | string | Optional: the command that fixes the subject, when the producer knows one; omitted when empty |
 | `raised` | RFC 3339 time | When the issue first appeared on the bus |
 | `updated` | RFC 3339 time | Most recent raise time (warnings advance; errors equal raised) |
 

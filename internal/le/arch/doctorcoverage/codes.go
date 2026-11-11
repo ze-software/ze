@@ -47,6 +47,22 @@ type checkDeclaration struct {
 	// declaration does not spell them, so the table does, and the oracle test
 	// compares the result with what the product registers.
 	addedCodes []string
+	// eventFlagField names the boolean field that marks a check declaring
+	// every event code (diagnostic.DoctorCheck.DeclaresEventCodes): a literal
+	// setting it to true declares each event code the tree registers.
+	eventFlagField string
+	// eventCodes marks a type that declares no check of its own: its
+	// codeFields are event codes (diagnostic.EventCode), which the checks
+	// carrying eventFlagField declare.
+	eventCodes bool
+}
+
+// eventPool gathers, over one walk, the event codes the tree registers and
+// the checks that declare them, so each code is added under each check once
+// the walk has seen both, whatever order the files come in.
+type eventPool struct {
+	codes     []string
+	declarers []string
 }
 
 // checkNameField is the field most declaration types name their check in.
@@ -61,8 +77,14 @@ var codesField = []string{"Codes"}
 // checkout: a new declaration shape that registers a check this table misses
 // fails it.
 var checkDeclarations = []checkDeclaration{
-	// An in-tree check, given to diagnostic.RegisterDoctorCheck.
-	{dir: "internal/core/diagnostic", name: "DoctorCheck", nameField: checkNameField, listFields: codesField},
+	// An in-tree check, given to diagnostic.RegisterDoctorCheck. One that
+	// sets DeclaresEventCodes (the recent-events check) also declares every
+	// event code below.
+	{dir: "internal/core/diagnostic", name: "DoctorCheck", nameField: checkNameField, listFields: codesField, eventFlagField: "DeclaresEventCodes"},
+	// A transient code an owner raises on the report bus, given to
+	// diagnostic.RegisterEventCode: declared by the checks above that set
+	// DeclaresEventCodes, because the registry lists it in their Codes.
+	{dir: "internal/core/diagnostic", name: "EventCode", codeFields: []string{"Code"}, eventCodes: true},
 	// A plugin's check, in registry.Registration.DoctorChecks.
 	{dir: "internal/component/plugin/registry", name: "DoctorCheckDef", nameField: checkNameField, listFields: codesField},
 	// An SDK plugin's declaration, sent at startup, and its SDK alias.
@@ -78,9 +100,11 @@ var checkDeclarations = []checkDeclaration{
 // slice, array or map literal of one whose type is elided. A declaration is
 // read where it is written, whatever registers it (a variable, a function's
 // result, a loop over a slice), so the syntax decides and no data flow is
-// traced.
+// traced. Each event code is added under every check that declares the event
+// codes, once the walk has read them all.
 func (index *treeIndex) coveredCodes() Covered {
 	covered := Covered{}
+	events := &eventPool{}
 	for _, file := range index.files {
 		ast.Inspect(file.ast, func(node ast.Node) bool {
 			literal, isLiteral := node.(*ast.CompositeLit)
@@ -88,7 +112,7 @@ func (index *treeIndex) coveredCodes() Covered {
 				return true
 			}
 			if declaration, isCheck := index.declarationOf(file, literal.Type); isCheck {
-				index.addCheck(covered, file, literal, declaration)
+				index.addCheck(covered, events, file, literal, declaration)
 				return true
 			}
 			element := elementType(literal.Type)
@@ -111,10 +135,15 @@ func (index *treeIndex) coveredCodes() Covered {
 				if inner.Type != nil {
 					continue
 				}
-				index.addCheck(covered, file, inner, declaration)
+				index.addCheck(covered, events, file, inner, declaration)
 			}
 			return true
 		})
+	}
+	for _, check := range events.declarers {
+		for _, code := range events.codes {
+			covered.add(check, code)
+		}
 	}
 	for code := range covered {
 		slices.Sort(covered[code])
@@ -175,10 +204,12 @@ func elementType(expr ast.Expr) ast.Expr {
 // addCheck records the codes one doctor check declaration lists. A code the
 // source does not fix (a function parameter's field, a call) is not recorded:
 // no site can be matched to it, so a site naming it is refused rather than
-// covered.
-func (index *treeIndex) addCheck(covered Covered, file *sourceFile, literal *ast.CompositeLit, declaration checkDeclaration) {
+// covered. An event code goes to events rather than to a check of its own,
+// and a check that declares the event codes is named there too.
+func (index *treeIndex) addCheck(covered Covered, events *eventPool, file *sourceFile, literal *ast.CompositeLit, declaration checkDeclaration) {
 	var name ast.Expr
 	var codes []constRef
+	declaresEvents := false
 	for _, value := range literal.Elts {
 		pair, isPair := value.(*ast.KeyValueExpr)
 		if !isPair {
@@ -190,6 +221,12 @@ func (index *treeIndex) addCheck(covered Covered, file *sourceFile, literal *ast
 		}
 		if key.Name == declaration.nameField {
 			name = pair.Value
+		}
+		// Only the literal true declares: a flag the source does not fix
+		// declares nothing the scan can match a site to.
+		if declaration.eventFlagField != "" && key.Name == declaration.eventFlagField {
+			flag, isIdent := pair.Value.(*ast.Ident)
+			declaresEvents = isIdent && flag.Name == "true"
 		}
 		if slices.Contains(declaration.codeFields, key.Name) {
 			codes = append(codes, constRef{expr: pair.Value, file: file})
@@ -203,7 +240,18 @@ func (index *treeIndex) addCheck(covered Covered, file *sourceFile, literal *ast
 			codes = append(codes, list...)
 		}
 	}
+	if declaration.eventCodes {
+		for _, code := range codes {
+			if value, isFixed := index.resolve(code.file, code.expr, 0); isFixed {
+				events.codes = append(events.codes, value)
+			}
+		}
+		return
+	}
 	check := index.checkName(file, literal, declaration.namePrefix, name)
+	if declaresEvents {
+		events.declarers = append(events.declarers, check)
+	}
 	for _, code := range codes {
 		value, isFixed := index.resolve(code.file, code.expr, 0)
 		if !isFixed {

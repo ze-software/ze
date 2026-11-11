@@ -43,22 +43,25 @@ const (
 // warnings. It runs in the runtime phase only: the bus lives in the daemon,
 // and in the local ze doctor process it is always empty.
 //
-// It declares doctor-recent-events alone, yet a row carries the event's own
-// code whenever `ze show diagnostic` can describe that code: the code a
-// producer raised names the problem better than this check's. Like the plugin
-// bridge, the check renders codes another check declares; a bus code with no
-// metadata is reported under doctor-recent-events instead, its own code named
-// in the message, so no event is dropped and no row carries a code the
-// operator cannot look up.
+// It declares doctor-recent-events and, through DeclaresEventCodes, every
+// event code an owner registered with diagnostic.RegisterEventCode: this
+// check is what reports those transient codes, so it is their declaring
+// check. A row carries the event's own code whenever `ze show diagnostic`
+// can describe that code: the code a producer raised names the problem
+// better than this check's. Like the plugin bridge, the check also renders
+// codes another check declares; a bus code with no metadata is reported under
+// doctor-recent-events instead, its own code named in the message, so no
+// event is dropped and no row carries a code the operator cannot look up.
 var recentEventsCheck = diagnostic.DoctorCheck{
-	Name:         recentEventsCheckName,
-	Phase:        diagnostic.DoctorPhaseRuntime,
-	Order:        recentEventsOrder,
-	Component:    doctorOwnComponent,
-	Dependencies: []string{recentEventsDependency},
-	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{diagnostic.CodeDoctorRecentEvents},
-	Check:        checkRecentEvents,
+	Name:               recentEventsCheckName,
+	Phase:              diagnostic.DoctorPhaseRuntime,
+	Order:              recentEventsOrder,
+	Component:          doctorOwnComponent,
+	Dependencies:       []string{recentEventsDependency},
+	Platforms:          []string{diagnostic.DoctorPlatformAny},
+	Codes:              []string{diagnostic.CodeDoctorRecentEvents},
+	DeclaresEventCodes: true,
+	Check:              checkRecentEvents,
 }
 
 // recentEventsKey groups the events one row reports: one producer's code on
@@ -70,11 +73,13 @@ type recentEventsKey struct {
 	subject  string
 }
 
-// recentEventsGroup is one row in the making: the newest event of its key,
-// the time it last happened, and how many events the key holds.
+// recentEventsGroup is one row in the making: the newest event of its key
+// with the fix its raise carried, the time it last happened, and how many
+// events the key holds.
 type recentEventsGroup struct {
 	key     recentEventsKey
 	message string
+	fix     string
 	last    time.Time
 	count   int
 }
@@ -112,14 +117,15 @@ func groupRecentEvents(groups []recentEventsGroup, issues []report.Issue) []rece
 			continue
 		}
 		index[key] = len(groups)
-		groups = append(groups, recentEventsGroup{key: key, message: issue.Message, last: issue.Updated, count: 1})
+		groups = append(groups, recentEventsGroup{key: key, message: issue.Message, fix: issue.Fix, last: issue.Updated, count: 1})
 	}
 	return groups
 }
 
 // recentEventsDiagnostic writes one group as a doctor row: what happened and
-// where, how often and when last, that it does not change readiness, and the
-// show command that lists each event.
+// where, how often and when last, that it does not change readiness, and its
+// fix: the command the newest raise carried, or else the show command that
+// lists each event.
 func recentEventsDiagnostic(group *recentEventsGroup) diagnostic.Diagnostic {
 	code := group.key.code
 	described := diagnostic.Lookup(code) != nil
@@ -147,6 +153,12 @@ func recentEventsDiagnostic(group *recentEventsGroup) diagnostic.Diagnostic {
 	}
 	tb.Str(group.last.UTC().Format(recentEventsTimeLayout)).Str(": ").Str(group.message)
 	tb.Str(". It may have recovered, so the box still reads ready; check that it no longer happens.")
+
+	// The producer knows the command that fixes its subject (report
+	// RaiseErrorFix, RaiseWarningFix); the show command only lists the event.
+	if group.fix != "" {
+		fix = group.fix
+	}
 
 	return diagnostic.Diagnostic{
 		Code:     code,

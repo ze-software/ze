@@ -274,6 +274,12 @@ func TestDoctorCoverageReadsCodesFromSource(t *testing.T) {
 		"doctor-fixture-unknown": {"kernel-capability-fixture"},
 		// kernelcap.MustRegister adds the forced code to every capability check.
 		"doctor-kernel-capability-forced": {"kernel-capability-fixture"},
+		// A check setting DeclaresEventCodes to true declares its own code
+		// and every diagnostic.EventCode the tree registers; one whose flag
+		// is a call declares only its own.
+		"doctor-fixture-events":        {"fixture-events-check"},
+		"doctor-fixture-event":         {"fixture-events-check"},
+		"doctor-fixture-flag-computed": {"fixture-flag-computed-check"},
 	}
 	if !maps.EqualFunc(covered, want, slices.Equal[[]string]) {
 		t.Errorf("covered set\n got %v\nwant %v", covered, want)
@@ -321,6 +327,30 @@ func TestDoctorCoverageSourceHoldsEveryRegisteredCode(t *testing.T) {
 				t.Errorf("in-tree check %s declares %s; the source covered set holds it under %v", check.Name, code, covered[code])
 			}
 		}
+	}
+	// The event-code registration (AC-2 of spec-doctor-coverage-12): every
+	// code an owner registered is covered under each linked check that
+	// declares the event codes. The in-tree loop above already judged those
+	// checks' Codes, which the registry lists with the event codes added; this
+	// names the registration itself, so an empty one cannot pass unnoticed.
+	events := diagnostic.EventCodes()
+	if len(events) == 0 {
+		t.Fatal("the linked product registered no event code, so the event-code comparison judged nothing")
+	}
+	declarers := 0
+	for _, check := range inTree {
+		if !check.DeclaresEventCodes {
+			continue
+		}
+		declarers++
+		for _, code := range events {
+			if !slices.Contains(covered[code], check.Name) {
+				t.Errorf("event code %s is declared by %s; the source covered set holds it under %v", code, check.Name, covered[code])
+			}
+		}
+	}
+	if declarers == 0 {
+		t.Error("no linked in-tree check declares the event codes, so no registered event code is reported by doctor")
 	}
 	if !slices.Contains(covered[diagnostic.CodeDoctorGNMITLSMaterial], "gnmi-tls-material") {
 		t.Errorf("%s is covered by %v, want the gnmi-tls-material check", diagnostic.CodeDoctorGNMITLSMaterial, covered[diagnostic.CodeDoctorGNMITLSMaterial])

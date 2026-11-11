@@ -8,3 +8,32 @@
 // (e.g., handler, editor) call RegisterRPCs() from their own init().
 
 package server
+
+import "github.com/ze-software/ze/internal/core/diagnostic"
+
+// serverEventCodes are the report-bus codes the plugin server raises as
+// events, which the recent-events doctor check reports (see
+// docs/architecture/doctor-and-health-checks.md, "Event codes"): a payload or
+// state only a defect produces, a refused plugin request, an answer or a
+// queue that never reached its plugin, a config parent left behind, a
+// deprecated command name, a managed client never told of a change, and an
+// external plugin's connect-back refused by the acceptor the server starts
+// (plugin/ipc tls.go; ipc cannot import diagnostic without a cycle).
+var serverEventCodes = []diagnostic.EventCode{
+	{Code: diagnostic.CodeDoctorPluginConnectBackRefused},
+	{Code: diagnostic.CodeDoctorInternalDefect},
+	{Code: diagnostic.CodeDoctorPluginRequestRefused},
+	{Code: diagnostic.CodeDoctorPluginAnswerUndelivered},
+	{Code: diagnostic.CodeDoctorPluginDrainIncomplete},
+	{Code: diagnostic.CodeDoctorCommandEnsureRollbackFailed},
+	{Code: diagnostic.CodeDoctorCommandDeprecatedUsed},
+	{Code: diagnostic.CodeDoctorManagedClientNotifyDropped},
+}
+
+func init() {
+	for _, event := range serverEventCodes {
+		if err := diagnostic.RegisterEventCode(event); err != nil {
+			panic("BUG: plugin server event code registration refused: " + err.Error())
+		}
+	}
+}

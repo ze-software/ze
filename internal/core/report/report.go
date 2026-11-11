@@ -94,6 +94,10 @@ func (s *Severity) UnmarshalJSON(data []byte) error {
 // Subject is what the Issue is about (peer address, transaction id, file path).
 // Message is a human-readable one-liner suitable for an operator UI.
 // Detail carries optional structured context (family, code/subcode, reason, ...).
+// Fix is the command that fixes the subject, when the producer knows one
+// (RaiseWarningFix, RaiseErrorFix); empty otherwise. The doctor recent-events
+// row shows it as its fix line, and falls back to show errors or show
+// warnings when it is empty, because that command still lists the event.
 // Raised is when the Issue first appeared on the bus.
 // Updated is the most recent raise time. For warnings this advances on every
 // re-raise. For errors Updated equals Raised since errors are events.
@@ -104,6 +108,7 @@ type Issue struct {
 	Subject  string         `json:"subject"`
 	Message  string         `json:"message"`
 	Detail   map[string]any `json:"detail,omitempty"`
+	Fix      string         `json:"fix,omitempty"`
 	Raised   time.Time      `json:"raised"`
 	Updated  time.Time      `json:"updated"`
 }
@@ -136,6 +141,8 @@ const (
 	maxSubjectLen = 256
 	maxMessageLen = 1024
 	maxDetailKeys = 16
+	// maxFixLen bounds a fix: one command line, never a paragraph.
+	maxFixLen = 256
 )
 
 // Env var keys.
@@ -253,8 +260,11 @@ func resetWithCaps(warningCap, errorCap int) {
 
 // validFields returns true if all fields are non-empty and within length bounds.
 // Returns false (with no logging here, the caller logs) for any violation.
-func validFields(source, code, subject, message string, detail map[string]any) bool {
+func validFields(source, code, subject, message, fix string, detail map[string]any) bool {
 	if source == "" || code == "" || subject == "" {
+		return false
+	}
+	if len(fix) > maxFixLen {
 		return false
 	}
 	if len(source) > maxSourceLen {
@@ -291,7 +301,15 @@ func validFields(source, code, subject, message string, detail map[string]any) b
 // at store and again at snapshot time; values inside the map are shared by
 // reference, so callers MUST NOT mutate values they have passed in.
 func RaiseWarning(source, code, subject, message string, detail ...map[string]any) {
-	pkg.Load().raiseWarning(source, code, subject, message, firstDetail(detail))
+	pkg.Load().raiseWarning(source, code, subject, message, "", firstDetail(detail))
+}
+
+// RaiseWarningFix is RaiseWarning for a producer that knows the command that
+// fixes the subject: fix is stored on the Issue (at most 256 bytes, or the
+// raise is rejected like any oversized field) and a re-raise refreshes it.
+// An empty fix is the same as RaiseWarning.
+func RaiseWarningFix(source, code, subject, message, fix string, detail ...map[string]any) {
+	pkg.Load().raiseWarning(source, code, subject, message, fix, firstDetail(detail))
 }
 
 // ClearWarning removes the active warning identified by (Source, Code, Subject).
@@ -317,7 +335,13 @@ func ClearSource(source string) {
 //
 // Detail is optional and follows the same shallow-clone contract as RaiseWarning.
 func RaiseError(source, code, subject, message string, detail ...map[string]any) {
-	pkg.Load().raiseError(source, code, subject, message, firstDetail(detail))
+	pkg.Load().raiseError(source, code, subject, message, "", firstDetail(detail))
+}
+
+// RaiseErrorFix is RaiseError for a producer that knows the command that
+// fixes the subject, with the fix contract of RaiseWarningFix.
+func RaiseErrorFix(source, code, subject, message, fix string, detail ...map[string]any) {
+	pkg.Load().raiseError(source, code, subject, message, fix, firstDetail(detail))
 }
 
 // Warnings returns a snapshot of all active warnings, ordered most-recently-
@@ -368,11 +392,11 @@ func copyDetail(d map[string]any) map[string]any {
 	return maps.Clone(d)
 }
 
-func (s *store) raiseWarning(source, code, subject, message string, detail map[string]any) {
-	if !validFields(source, code, subject, message, detail) {
+func (s *store) raiseWarning(source, code, subject, message, fix string, detail map[string]any) {
+	if !validFields(source, code, subject, message, fix, detail) {
 		s.logger.Debug("rejected RaiseWarning: invalid fields",
 			"source", source, "code", code, "subject_len", len(subject),
-			"message_len", len(message), "detail_keys", len(detail))
+			"message_len", len(message), "fix_len", len(fix), "detail_keys", len(detail))
 		return
 	}
 	key := warningKey{source: source, code: code, subject: subject}
@@ -385,6 +409,7 @@ func (s *store) raiseWarning(source, code, subject, message string, detail map[s
 		existing.Updated = now
 		existing.Message = message
 		existing.Detail = copyDetail(detail)
+		existing.Fix = fix
 		return
 	}
 
@@ -395,6 +420,7 @@ func (s *store) raiseWarning(source, code, subject, message string, detail map[s
 		Subject:  subject,
 		Message:  message,
 		Detail:   copyDetail(detail),
+		Fix:      fix,
 		Raised:   now,
 		Updated:  now,
 	}
@@ -427,11 +453,11 @@ func (s *store) clearSource(source string) {
 	}
 }
 
-func (s *store) raiseError(source, code, subject, message string, detail map[string]any) {
-	if !validFields(source, code, subject, message, detail) {
+func (s *store) raiseError(source, code, subject, message, fix string, detail map[string]any) {
+	if !validFields(source, code, subject, message, fix, detail) {
 		s.logger.Debug("rejected RaiseError: invalid fields",
 			"source", source, "code", code, "subject_len", len(subject),
-			"message_len", len(message), "detail_keys", len(detail))
+			"message_len", len(message), "fix_len", len(fix), "detail_keys", len(detail))
 		return
 	}
 	now := time.Now()
@@ -442,6 +468,7 @@ func (s *store) raiseError(source, code, subject, message string, detail map[str
 		Subject:  subject,
 		Message:  message,
 		Detail:   copyDetail(detail),
+		Fix:      fix,
 		Raised:   now,
 		Updated:  now,
 	}

@@ -4,6 +4,7 @@
 package doctor
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -168,11 +169,12 @@ func TestDoctorRecentEventsEmptyBus(t *testing.T) {
 // reads.
 //
 // VALIDATES: the check is registered in the runtime phase alone and declares
-// doctor-recent-events.
+// doctor-recent-events, followed by exactly the registered event codes.
 // PREVENTS: the local ze doctor process reading its own empty bus as a quiet
 // box, and the check missing from the daemon route.
 func TestDoctorRecentEventsRegisteredRuntimePhase(t *testing.T) {
 	found := 0
+	want := append([]string{diagnostic.CodeDoctorRecentEvents}, diagnostic.EventCodes()...)
 	for _, check := range diagnostic.DoctorChecks() {
 		if check.Name != recentEventsCheckName {
 			continue
@@ -181,11 +183,115 @@ func TestDoctorRecentEventsRegisteredRuntimePhase(t *testing.T) {
 		if check.Phase != diagnostic.DoctorPhaseRuntime {
 			t.Errorf("phase: want %q, got %q", diagnostic.DoctorPhaseRuntime, check.Phase)
 		}
-		if len(check.Codes) != 1 || check.Codes[0] != diagnostic.CodeDoctorRecentEvents {
-			t.Errorf("codes: want [%s], got %v", diagnostic.CodeDoctorRecentEvents, check.Codes)
+		if !slices.Equal(check.Codes, want) {
+			t.Errorf("codes: want %v, got %v", want, check.Codes)
 		}
 	}
 	if found != 1 {
 		t.Fatalf("want the %s check registered once, found %d", recentEventsCheckName, found)
+	}
+}
+
+// recentEventsTestEventCode is the fixture event code: described by metadata
+// the test registers, then registered as an event code.
+const recentEventsTestEventCode = "doctor-test-recent-event-registered"
+
+// registerTestEventCode describes and registers the fixture event code, and
+// removes the registration after the test. The metadata stays: the code
+// registry has no single-entry removal, and no other test raises this code.
+func registerTestEventCode(t *testing.T) {
+	t.Helper()
+	if diagnostic.Lookup(recentEventsTestEventCode) == nil {
+		err := diagnostic.Register(diagnostic.CodeMeta{
+			Code:        recentEventsTestEventCode,
+			Title:       "Fixture event",
+			Description: "A fixture event code for the recent-events tests.",
+			Examples:    []string{"ze show errors"},
+		})
+		if err != nil {
+			t.Fatalf("describe fixture code: %v", err)
+		}
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: recentEventsTestEventCode}); err != nil {
+		t.Fatalf("register fixture event code: %v", err)
+	}
+	t.Cleanup(func() { diagnostic.UnregisterEventCodeForTest(recentEventsTestEventCode) })
+}
+
+// TestEventCodeRegistrationDeclared registers an event code as an owner does
+// from init(), raises it, and raises a code nobody registered.
+//
+// VALIDATES: AC-2. The recent-events check as the registry lists it declares
+// the registered code, and its row carries that code; a raised code with no
+// registration and no metadata is reported under doctor-recent-events; a code
+// with no metadata is refused at registration.
+// PREVENTS: a transient code whose line or raise the gate cannot count
+// covered, and an event code declared that `ze show diagnostic` cannot
+// describe.
+func TestEventCodeRegistrationDeclared(t *testing.T) {
+	diagnostic.RegisterBuiltinCodes()
+	resetReportBus(t)
+	registerTestEventCode(t)
+
+	declared := false
+	for _, check := range diagnostic.DoctorChecksForPhase(diagnostic.DoctorPhaseRuntime) {
+		if check.Name == recentEventsCheckName && slices.Contains(check.Codes, recentEventsTestEventCode) {
+			declared = true
+		}
+	}
+	if !declared {
+		t.Fatalf("the %s check does not declare the registered event code %s", recentEventsCheckName, recentEventsTestEventCode)
+	}
+
+	const unregistered = "fixture-unregistered-event"
+	report.RaiseError(recentEventsFixtureSource, recentEventsTestEventCode, "worker", "lost its queue")
+	report.RaiseError(recentEventsFixtureSource, unregistered, "worker", "crashed")
+
+	diags := checkRecentEvents(diagnostic.DoctorCheckContext{})
+	if rows := rowsWithCode(diags, recentEventsTestEventCode); len(rows) != 1 {
+		t.Errorf("want one row under the registered event code %s, got %+v", recentEventsTestEventCode, diags)
+	}
+	fallback := rowsWithCode(diags, diagnostic.CodeDoctorRecentEvents)
+	if len(fallback) != 1 || !strings.Contains(fallback[0].Message, unregistered) {
+		t.Errorf("want the unregistered code %s under %s, got %+v", unregistered, diagnostic.CodeDoctorRecentEvents, diags)
+	}
+
+	const undescribed = "doctor-test-recent-event-undescribed"
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: undescribed}); err == nil {
+		t.Errorf("an event code with no metadata, %s, was accepted", undescribed)
+	}
+}
+
+// TestRecentEventsRendersRaiseFix raises an error event and a warning that
+// each carry their own fix, and one warning that carries none.
+//
+// VALIDATES: AC-3. A row's Fix is the fix its raise carried; a raise with no
+// fix keeps the show command that lists the event.
+// PREVENTS: a producer that knows the command fixing its subject having that
+// command replaced by a generic listing.
+func TestRecentEventsRendersRaiseFix(t *testing.T) {
+	diagnostic.RegisterBuiltinCodes()
+	resetReportBus(t)
+
+	const errorFix = "ze config edit plugin"
+	const warningFix = "ze show plugin list"
+	report.RaiseErrorFix(recentEventsFixtureSource, diagnostic.CodeDoctorDiskSpace, "disk", "full", errorFix)
+	report.RaiseWarningFix(recentEventsFixtureSource, diagnostic.CodeDoctorClockSkew, "clock", "drifts", warningFix)
+	report.RaiseWarning(recentEventsFixtureSource, diagnostic.CodeDoctorRandomSeed, "seed", "low entropy")
+
+	diags := checkRecentEvents(diagnostic.DoctorCheckContext{})
+	for _, want := range []struct{ code, fix string }{
+		{diagnostic.CodeDoctorDiskSpace, errorFix},
+		{diagnostic.CodeDoctorClockSkew, warningFix},
+		{diagnostic.CodeDoctorRandomSeed, recentEventsFixWarnings},
+	} {
+		rows := rowsWithCode(diags, want.code)
+		if len(rows) != 1 {
+			t.Errorf("want one row under %s, got %+v", want.code, diags)
+			continue
+		}
+		if rows[0].Fix != want.fix {
+			t.Errorf("%s row fix: want %q, got %q", want.code, want.fix, rows[0].Fix)
+		}
 	}
 }

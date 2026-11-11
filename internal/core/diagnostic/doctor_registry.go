@@ -65,15 +65,23 @@ type DoctorCheckFunc func(DoctorCheckContext) []Diagnostic
 // run, so that resolution is proven by the owner's registry-reach test and by
 // TestDoctorRegisteredCheckCodesHaveMetadata (internal/component/doctor),
 // never by the validator below.
+//
+// DeclaresEventCodes marks the check that reports the transient codes owners
+// register with RegisterEventCode (the recent-events check, which renders
+// report-bus events): every listing of the registry (DoctorChecks,
+// DoctorChecksForPhase) answers that check's Codes followed by EventCodes().
+// The owners register from init() in any order, so the codes are added when
+// the registry is read, never copied in at registration.
 type DoctorCheck struct {
-	Name         string
-	Phase        DoctorCheckPhase
-	Order        int
-	Component    string
-	Dependencies []string
-	Platforms    []string
-	Codes        []string
-	Check        DoctorCheckFunc
+	Name               string
+	Phase              DoctorCheckPhase
+	Order              int
+	Component          string
+	Dependencies       []string
+	Platforms          []string
+	Codes              []string
+	DeclaresEventCodes bool
+	Check              DoctorCheckFunc
 }
 
 var doctorCheckRegistry = struct {
@@ -103,12 +111,13 @@ func RegisterDoctorCheck(check DoctorCheck) error {
 // DoctorChecksForPhase returns all registered checks for the given phase,
 // sorted by order then name.
 func DoctorChecksForPhase(phase DoctorCheckPhase) []DoctorCheck {
+	events := EventCodes()
 	doctorCheckRegistry.Lock()
 	defer doctorCheckRegistry.Unlock()
 	checks := make([]DoctorCheck, 0, len(doctorCheckRegistry.entries))
 	for i := range doctorCheckRegistry.entries {
 		if doctorCheckRegistry.entries[i].Phase == phase {
-			checks = append(checks, cloneDoctorCheckReg(doctorCheckRegistry.entries[i]))
+			checks = append(checks, listedDoctorCheckReg(doctorCheckRegistry.entries[i], events))
 		}
 	}
 	sort.Slice(checks, func(i, j int) bool {
@@ -315,4 +324,15 @@ func cloneDoctorCheckReg(check DoctorCheck) DoctorCheck {
 	check.Platforms = append([]string(nil), check.Platforms...)
 	check.Codes = append([]string(nil), check.Codes...)
 	return check
+}
+
+// listedDoctorCheckReg answers a registered check as the registry lists it: a
+// copy, whose Codes are followed by the event codes when the check declares
+// them.
+func listedDoctorCheckReg(check DoctorCheck, events []string) DoctorCheck {
+	listed := cloneDoctorCheckReg(check)
+	if listed.DeclaresEventCodes {
+		listed.Codes = append(listed.Codes, events...)
+	}
+	return listed
 }

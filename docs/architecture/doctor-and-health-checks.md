@@ -666,7 +666,10 @@ never from the registries linked into `le`: every composite literal of a
 doctor check declaration type (`diagnostic.DoctorCheck`,
 `registry.DoctorCheckDef`, `rpc.DoctorCheckDecl` and its SDK alias, and
 `kernelcap.Capability`, whose check `kernel-capability-<Subsystem>` declares
-its `CodeAbsent` and `CodeUnknown`), whatever registers it. Each code in its
+its `CodeAbsent` and `CodeUnknown`), whatever registers it, and every
+`diagnostic.EventCode` literal, whose code is declared by each
+`diagnostic.DoctorCheck` literal that sets `DeclaresEventCodes: true` (see
+"Event codes" below). Each code in its
 `Codes` list resolves the way a site's code does (a literal, a constant of its
 package, an exported constant of another tree package), and the list may be a
 package-level variable. So a check in a package no composition root imports
@@ -741,17 +744,46 @@ code and subject, error events and active warnings apart, newest first:
 | Code | the event's own code, when `ze show diagnostic` describes it; otherwise `doctor-recent-events`, with the event's code written in the message |
 | Severity | `warning`, whatever the event's: the event already happened and its owner may have recovered, so the row never makes the box read not ready |
 | Message | the source, error event or warning, the subject, how many times it happened and when it last did (RFC 3339, UTC), and the newest event's message |
-| `fix` | `show errors` for error events, `show warnings` for warnings: each lists every event behind the row |
+| `fix` | the fix the newest event's raise carried (`report.RaiseErrorFix`, `report.RaiseWarningFix`); when it carried none, `show errors` for error events and `show warnings` for warnings, which each list every event behind the row |
 
-The check declares `doctor-recent-events` alone in `Codes`. Like the plugin
-bridge, it renders codes another check declares, so a transient class is
-covered by a code its own owner's check declares, and raising the event on the
-bus is what makes this check report it.
+The producer knows the command that fixes its subject, so the fix travels on
+the raise (the `Issue` field `Fix`, JSON key `fix`, at most 256 bytes) rather
+than in a table of codes here. `report.RaiseWarning` and `report.RaiseError`
+raise with no fix.
+<!-- source: internal/core/report/report.go -- Issue, RaiseWarningFix, RaiseErrorFix, validFields -->
+
+### Event codes
+
+The check declares `doctor-recent-events` and every event code. An owner that
+raises a transient code on the bus registers it from its `init()` with
+`diagnostic.RegisterEventCode(diagnostic.EventCode{Code: ...})`, the code a
+literal or a constant. The registry refuses a code `ze show diagnostic` cannot
+describe: its entry must be in the builtin table (`builtinCodes`, read
+directly, because it registers only after `init()`) or registered already.
+Two owners may register one code. The check sets `DeclaresEventCodes`, so
+every listing of the doctor registry (`DoctorChecks`, `DoctorChecksForPhase`)
+answers its `Codes` followed by `diagnostic.EventCodes()`: the codes are added
+when the registry is read, because the owners' `init()` order is not fixed.
+The doctor-coverage gate reads the same declaration from the source: an
+`EventCode` literal's code is covered under every `DoctorCheck` literal that
+sets `DeclaresEventCodes: true`.
+
+A bus code nobody registered is still rendered under its own code when
+`ze show diagnostic` describes it, and under `doctor-recent-events` when it
+does not: so a transient class is covered either by its registration here or
+by a code its own owner's check declares, and raising the event on the bus is
+what makes this check report it. Registering a code whose sites only log, and
+never raise, would declare a row this check never shows: every site carrying
+a registered event code raises it.
+<!-- source: internal/core/diagnostic/event_codes.go -- EventCode, RegisterEventCode, EventCodes, describedCode -->
+<!-- source: internal/core/diagnostic/doctor_registry.go -- DoctorCheck, listedDoctorCheckReg -->
 <!-- source: internal/component/doctor/checks_recent_events.go -- recentEventsCheck, checkRecentEvents, groupRecentEvents, recentEventsDiagnostic -->
 <!-- source: internal/component/doctor/register.go -- init -->
 <!-- source: internal/core/report/report.go -- Errors, Warnings -->
 <!-- test: internal/component/doctor/checks_recent_events_test.go TestDoctorRecentEventsRowsFromReportRing -->
 <!-- test: internal/component/doctor/checks_recent_events_test.go TestDoctorRecentEventsCodeWithoutMetadata -->
+<!-- test: internal/component/doctor/checks_recent_events_test.go TestEventCodeRegistrationDeclared -->
+<!-- test: internal/component/doctor/checks_recent_events_test.go TestRecentEventsRendersRaiseFix -->
 
 ## Which check a new dependency needs
 

@@ -103,9 +103,18 @@ A doctor diagnostic can also carry `fix`: the command or config statement the
 operator runs to clear the problem, held alone with no label of its own. It is
 not a repair ID and carries no safety label. The `ze doctor` text report draws
 it on a line of its own under the finding, opened by `fix:`, and JSON carries
-it under `fix` when the check names one.
+it under `fix` when the check names one. An entry of `show errors` and
+`show warnings` carries the same `fix` key when its producer named the
+command, and `show doctor`'s row for that event shows it as the fix line.
 <!-- source: internal/core/diagnostic/types.go -- Diagnostic -->
 <!-- source: internal/component/doctor/doctor.go -- outputText, outputJSON -->
+<!-- source: internal/core/report/report.go -- Issue -->
+
+A transient code a component raises on the report bus (a plugin process that
+ended unasked, a refused plugin request) is registered by its owner as an
+event code, so `ze show diagnostic <code>` describes it and `show doctor`
+reports the event under it.
+<!-- source: internal/core/diagnostic/event_codes.go -- RegisterEventCode, EventCodes -->
 
 ## Bundled Skills
 

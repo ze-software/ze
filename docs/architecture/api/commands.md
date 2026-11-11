@@ -581,14 +581,15 @@ Subsystems import `internal/core/report` and call:
 | `ClearWarning(source, code, subject string)` | Remove an active warning. No-op if missing. |
 | `ClearSource(source string)` | Remove all active warnings for one source (shutdown cleanup). |
 | `RaiseError(source, code, subject, message string, detail ...map[string]any)` | Append an error event to the ring buffer. No dedup. |
+| `RaiseWarningFix(source, code, subject, message, fix string, detail ...map[string]any)`, `RaiseErrorFix(...)` | The same, carrying the command that fixes the subject in `Issue.Fix`; a re-raised warning refreshes it. `show doctor` shows it as the event's fix line. |
 | `Warnings() []Issue` | Snapshot of all active warnings, most-recently-updated first. Consumed by ze-cmd:show-warnings handler. |
 | `Errors(limit int) []Issue` | Recent N error events, newest first. limit 0 or negative returns all retained. Consumed by ze-cmd:show-errors handler. |
 
 Empty or oversized fields (Source/Code > 64 bytes, Subject > 256, Message > 1024,
-Detail > 16 keys) are rejected at the boundary with a debug log, protecting
-the bus from buggy or malicious producers.
+Detail > 16 keys, Fix > 256 bytes) are rejected at the boundary with a debug
+log, protecting the bus from buggy or malicious producers.
 
-<!-- source: internal/core/report/report.go -- validFields, RaiseWarning, RaiseError, ClearWarning, ClearSource, Warnings, Errors -->
+<!-- source: internal/core/report/report.go -- validFields, RaiseWarning, RaiseError, RaiseWarningFix, RaiseErrorFix, ClearWarning, ClearSource, Warnings, Errors -->
 
 ### Query RPCs
 
@@ -727,6 +728,7 @@ errors accepts `count <N>` limit. Return a non-nil empty slice when empty.
 | `subject` | string | What the issue is about (peer address, transaction id, file path) |
 | `message` | string | Human-readable one-liner |
 | `detail` | object | Optional. Omitted via `omitempty` when nil or empty. Keys and values are producer-defined. |
+| `fix` | string | Optional. The command that fixes the subject, set by `RaiseWarningFix` / `RaiseErrorFix`. Omitted via `omitempty` when empty. |
 | `raised` | RFC 3339 time | First appearance |
 | `updated` | RFC 3339 time | Most recent raise (warnings advance; errors equal raised) |
 

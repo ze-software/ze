@@ -70,18 +70,22 @@ Every entry, regardless of severity or source, has the same shape:
 | `subject` | What the issue is about: usually a peer address, file path, or transaction id. Used as the primary "which thing is affected" key. |
 | `message` | A one-line human-readable description. Safe for banners and dashboards. |
 | `detail` | Optional structured context. Depends on the producer. See the code-specific tables below. |
+| `fix` | Optional: the command that fixes the subject, when the producer knows one. `show doctor` shows it as the fix line of the event's row. |
 | `raised` | RFC 3339 UTC timestamp of the first observation. |
 | `updated` | For warnings, the most recent re-raise. For errors, equals `raised`. |
 
-`detail` is omitted entirely when empty, so consumers should treat its
-absence and its presence as equivalent.
+`detail` and `fix` are omitted entirely when empty, so consumers should treat
+an absent key and an empty one as equivalent. An entry with no `fix` is still
+listed by `show doctor`, with `show errors` or `show warnings` as its fix line.
 
-<!-- source: internal/core/report/report.go -- Issue struct with json tags, copyDetail empty normalization -->
+<!-- source: internal/core/report/report.go -- Issue struct with json tags, copyDetail empty normalization, RaiseWarningFix, RaiseErrorFix -->
 
-## Day-one vocabulary
+## BGP vocabulary
 
-The BGP subsystem ships with five codes. Any future subsystem can add its
-own by calling the push API documented in the architecture reference.
+The tables below hold the BGP codes. Other subsystems push their own
+(FIB, firewall, plugin, interface): [Health Checks](health-checks.md) lists
+every code. Any subsystem can add its own by calling the push API documented
+in the architecture reference.
 
 ### Warnings (BGP)
 
@@ -89,9 +93,17 @@ own by calling the push API documented in the architecture reference.
 |------|---------|-------------|-------------|--------------|
 | `prefix-threshold` | `<peer-addr>/<afi>/<safi>` | `family`, `count`, `warning`, `maximum` | Per-family received prefix count crosses the configured warning threshold (set via `peer { session { family { ipv4/unicast { prefix { warning N ; } } } } }`) | Per-family count drops back below the threshold |
 | `prefix-stale` | peer address | `updated` (ISO date of last refresh) | `peer { prefix { updated YYYY-MM-DD ; } }` is older than 180 days, checked at peer add time | Peer is removed, or peer is re-added with a fresher `updated` date (e.g., after a PeeringDB refresh) |
+| `prefix-hold` | peer address | `family`, `reconnect` | A prefix limit stopped the session and the family asks for no reconnect, so the peer is held down until an operator acts | The peer stops or is recreated |
+| `session-stuck` | peer address | none | The peer has not reached Established for 5 minutes | The peer reaches Established, stops, or is held down |
+| `session-flap` | peer address | `transitions` | The session left Established 3 times within 5 minutes | A later transition finds the last 3 older than 5 minutes, or the peer stops |
+| `eor-timeout` | peer address | `restart_time`, `pending`, `expected` | Not every negotiated family sent End-of-RIB within the Graceful Restart restart-time after Established | The last End-of-RIB arrives, the session leaves Established, or the peer stops |
+| `op-queue-full` | peer address | `queue-size`, `queue-max` | The peer's route operation queue reached its cap, so routes for the peer are dropped, not delayed | No clear path exists in the reactor today |
 
 <!-- source: internal/component/bgp/reactor/session_prefix.go -- raisePrefixThreshold, clearPrefixThreshold, raisePrefixStale, clearPrefixStale -->
 <!-- source: internal/component/bgp/reactor/reactor_peers.go -- raisePrefixStale call at AddPeer, clearPrefixStale call at RemovePeer -->
+<!-- source: internal/component/bgp/reactor/session_prefix.go -- raisePrefixHold, clearPrefixHold -->
+<!-- source: internal/component/bgp/reactor/session_health.go -- onStateChange, startStuckTimerLocked, startEORTimer, recordFlapLocked, stop -->
+<!-- source: internal/component/bgp/reactor/peer.go -- raiseOpQueueFull -->
 
 ### Errors (BGP)
 
@@ -100,6 +112,9 @@ own by calling the push API documented in the architecture reference.
 | `notification-sent` | peer address | `code`, `subcode`, `direction=sent` | Ze sends any BGP NOTIFICATION (RFC 4271 §4.5) to the peer. Includes all causes: operator teardown, hold-timer expiry, protocol error, prefix-max exceeded. |
 | `notification-received` | peer address | `code`, `subcode`, `direction=received` | The peer sends a NOTIFICATION to ze. |
 | `session-dropped` | peer address | `reason` (string: "tcp-failure" when the transport ended, "local-close" when ze closed the session and no NOTIFICATION reached the peer, "adj-rib-in-invalid" when ze could not publish some UPDATE the peer sent and no NOTIFICATION reached the peer) | An Established session ends WITHOUT a NOTIFICATION exchange (TCP loss, peer FIN, internal teardown without wire notification). Suppressed when a notification-sent or notification-received was already raised in the same session. |
+| `route-count-anomaly` | peer address | `before`, `after` | The peer's received prefix count drops by more than half in a single UPDATE |
+
+<!-- source: internal/component/bgp/reactor/session_prefix.go -- raiseRouteCountAnomaly -->
 
 <!-- source: internal/component/bgp/reactor/session_prefix.go -- reportCodeNotificationSent, reportCodeNotificationReceived, reportCodeSessionDropped constants -->
 <!-- source: internal/component/bgp/reactor/peer_stats.go -- IncrNotificationSent/Received -->
@@ -189,8 +204,9 @@ debug level.
 | `subject` | 256 |
 | `message` | 1024 |
 | `detail` keys | 16 entries (no per-value length check; pass only primitive types) |
+| `fix` | 256 |
 
-<!-- source: internal/core/report/report.go -- validFields, maxSourceLen, maxCodeLen, maxSubjectLen, maxMessageLen, maxDetailKeys -->
+<!-- source: internal/core/report/report.go -- validFields, maxSourceLen, maxCodeLen, maxSubjectLen, maxMessageLen, maxDetailKeys, maxFixLen -->
 
 ## See also
 

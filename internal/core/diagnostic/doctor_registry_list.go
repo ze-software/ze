@@ -14,15 +14,18 @@ import (
 // is listed with no edit here. The doctor-coverage gate
 // (internal/le/arch/doctorcoverage) reads the covered codes from the source,
 // and its test holds that read to the codes each check listed here declares.
-// Each entry is a copy: a caller cannot change what the registry holds.
+// Each entry is a copy: a caller cannot change what the registry holds. A
+// check whose DeclaresEventCodes is set lists every registered event code
+// after its own codes.
 //
 // Safe for concurrent use.
 func DoctorChecks() []DoctorCheck {
+	events := EventCodes()
 	doctorCheckRegistry.Lock()
 	defer doctorCheckRegistry.Unlock()
 	checks := make([]DoctorCheck, 0, len(doctorCheckRegistry.entries))
 	for i := range doctorCheckRegistry.entries {
-		checks = append(checks, cloneDoctorCheckReg(doctorCheckRegistry.entries[i]))
+		checks = append(checks, listedDoctorCheckReg(doctorCheckRegistry.entries[i], events))
 	}
 	slices.SortFunc(checks, func(a, b DoctorCheck) int { return strings.Compare(a.Name, b.Name) })
 	return checks
