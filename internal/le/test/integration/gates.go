@@ -225,7 +225,7 @@ func Table() []Action {
 		{
 			Verb:    "stress-bird",
 			Does:    doesRun,
-			Native:  runStressBirdGate,
+			Native:  stressBirdGate(realStressBirdSystem{}),
 			Summary: "run the BIRD baseline for the stress numbers",
 			Why: "the BIRD baseline the ze bulk-IPv4 stress numbers are read against." +
 				" Needs root, bird2 and network namespaces",

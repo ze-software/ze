@@ -2,19 +2,22 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | A stress harness killed outright leaves ze, BIRD, test peers and their network namespaces running as root, holding ports and addresses that redden later stress and functional runs, the evidence the release depends on |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 2/2 |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
 | Updated | 2026-11-11 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+**Cap exception (2026-11-11).** Thomas authorised starting this spec above the
+WIP cap ("ignore the cap"); it was claimed at 19/19.
 
 ## Task
 
@@ -138,7 +141,7 @@ every gate.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | `ip netns exec` execs its target in place, so the death signal set on the forked `ip` reaches ze, BIRD and the peer | iproute2 v6.1.0 `ip/ipnetns.c` `netns_exec`, `lib/exec.c` `cmd_exec` | the target is a grandchild and outlives a killed harness | source read (done); the host runs iproute2 6.1.0 (`ip -V`) | confirmed |
 | A-2 | No stress child relies on sharing the harness's process group | grep of `stressbird.go`, `stress.go` for `Getpgid`/`Setpgid`/group signals: none | a child stops receiving a terminal's group signal | grep (done) | confirmed |
-| A-3 | Moving each child to its own group does not let `./le job`'s group stop miss it | `Pdeathsig` kills the child when the harness dies, which the job's group SIGKILL causes | children outlive a stopped job | AC-1 test kills the stand-in harness by SIGKILL | unvalidated |
+| A-3 | Moving each child to its own group does not let `./le job`'s group stop miss it | `Pdeathsig` kills the child when the harness dies, which the job's group SIGKILL causes | children outlive a stopped job | AC-1 test kills the stand-in harness by SIGKILL | confirmed: `TestStressHarnessKilledOutrightTakesItsChildren` red before the fix (child alive 5 s after the harness's SIGKILL), green after |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -161,7 +164,7 @@ every gate.
 |-------------|---|--------------|------|
 | A harness process that started a stress child is SIGKILLed | → | `realStressBirdSystem.Start` | `TestStressHarnessKilledOutrightTakesItsChildren/start` |
 | A harness process killed during a short stress command | → | `realStressBirdSystem.Run` | `TestStressHarnessKilledOutrightTakesItsChildren/run` |
-| `./le test integration stress-bird` receives SIGINT | → | `runStressBirdGate` → `runStressBird` | `TestStressBirdGateRunsUnderTheSignalContext` |
+| `./le test integration stress-bird` receives SIGINT | → | `stressBirdGate` (replaces `runStressBirdGate`) → `runStressBird` | `TestStressBirdGateRunsUnderTheSignalContext` |
 
 ## Acceptance Criteria
 
@@ -197,11 +200,13 @@ every gate.
 | N-A | | The harness needs root and a quiet host (`ai/META-DECISIONS.md`, one root run at a time); the unit tests drive the real `realStressBirdSystem` without root, which is the boundary this spec changes | |
 
 ## Files to Modify
-- `internal/le/test/integration/stressbird.go` - `realStressBirdSystem.Start`, `Run`; `realStressBirdProcess.Terminate`, `Kill`; delete `runStressBirdAction`
-- `internal/le/test/integration/actions.go` - `runStressBirdGate` runs `runStressBird` under the context and root it is handed
+- `internal/le/test/integration/stressbird.go` - delete `runStressBirdAction`; the real system moves out (below)
+- `internal/le/test/integration/actions.go` - `stressBirdGate(system)` replaces `runStressBirdGate` and runs `runStressBird` under the context and root it is handed
+- `internal/le/test/integration/gates.go` - the `stress-bird` row uses `stressBirdGate(realStressBirdSystem{})`
 - `docs/functional-tests.md` - the stress cleanup paragraph: the children's lifetime
 
 ## Files to Create
+- `internal/le/test/integration/stressbird_system.go` - `realStressBirdSystem` and `realStressBirdProcess` moved out of `stressbird.go` (which passed 1000 lines with the change): `Start`, `Run` fork through `plugin.KillGroupOnCancel` and `plugin.StartChild`; `Terminate`, `Kill` signal the group
 - `internal/le/test/integration/stressbird_death_linux_test.go` - AC-1 to AC-5
 
 ### Integration Checklist
@@ -239,7 +244,7 @@ every gate.
 | 13 | Route metadata keys added/changed? | No | |
 | 14 | Prometheus counters added/changed? | No | |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `docs/functional-tests.md` anchors `stressbird.go` (updated, row 10); `stressbird.go`'s `// Design:` names `stress.go`, which is unaffected; `docs/architecture/core-design.md`, declared by a changed file's `// Design:` header, is unaffected: it describes the product's core, and nothing here changes it |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `docs/functional-tests.md` anchors `stressbird.go` (updated, row 10); `stressbird.go`'s `// Design:` names `stress.go`, which is unaffected; `docs/architecture/core-design.md`, declared by a changed file's `// Design:` header, is unaffected: it describes the product's core, and nothing here changes it; `docs/architecture/testing/interop.md`, declared by `gates.go`, is unaffected: the `stress-bird` row's verb, summary and requirements are unchanged, only its runner function |
 | 17 | Existing docs show config/CLI/API examples for this area? | No | the stress invocation examples are unchanged |
 
 ## Implementation Steps
@@ -260,7 +265,7 @@ every gate.
 | Correctness | Every fork carrying `NewSysProcAttr` goes through `StartChild`; no `cmd.Start`/`cmd.Run` left in `realStressBirdSystem` |
 | Correctness | `Terminate` and `Kill` signal `-pid` only for a child forked with `Setpgid` (all of them now), and only before `done` closes |
 | Correctness | `Run` still returns the context error on timeout and the exit code otherwise |
-| Data flow | `runStressBirdGate` passes its context and root through; nothing roots a stress run on `context.Background()` |
+| Data flow | `stressBirdGate` passes its context and root through; nothing roots a stress run on `context.Background()` |
 | Tests | each new test was red before the fix for the reason it names (paste the red) |
 
 ### Deliverables Checklist

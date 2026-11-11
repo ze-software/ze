@@ -980,6 +980,20 @@ before it created them. A deletion that fails counts as a cleanup error only
 when the namespace's file under `/run/netns` is still there, and the report's
 `cleanup-errors` then names the namespace left behind.
 
+Every process the stress gates start (ze, BIRD, the test peers, tcpdump, the
+profile curl, and the short commands such as `ip`, `birdc` and the DUT build)
+runs in a process group of its own, and the kernel SIGKILLs it if the harness
+dies, however the harness dies. A stop or a timeout signals the whole group, so
+a child that started children of its own stops with them. Both gates, `stress`
+and `stress-bird`, run their teardown when the harness receives SIGINT or
+SIGTERM. A harness killed outright runs no teardown, so its two namespaces and
+its `/tmp` files stay behind, holding no process; sweeping them is
+`plan/release/validation/spec-stress-sweeps-abandoned-namespaces.md`.
+<!-- source: internal/le/test/integration/stressbird_system.go -- realStressBirdSystem.Start, Run, realStressBirdProcess.Terminate, Kill -->
+<!-- source: internal/le/test/integration/actions.go -- stressBirdGate, runStressGate -->
+<!-- test: internal/le/test/integration/stressbird_death_linux_test.go -- TestStressHarnessKilledOutrightTakesItsChildren, TestStressStopReachesTheChildsWholeGroup, TestStressChildLivesWhileItsHarnessLives, TestStressRunTimeoutReachesTheWholeGroup -->
+<!-- test: internal/le/test/integration/stressbird_test.go -- TestStressBirdGateRunsUnderTheSignalContext -->
+
 The profile scenario, `05-profile-1m`, drives the three paths perf round 3
 changed (`docs/architecture/perf-round-3.md`), which a lone injector into a DUT
 that keeps its routes never reaches:

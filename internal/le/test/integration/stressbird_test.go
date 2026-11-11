@@ -362,6 +362,57 @@ func TestStressBirdKillsAPeerWhoseBoundedWaitExpires(t *testing.T) {
 	assertStressBirdCleanupTail(t, recorder.events, 2)
 }
 
+// stressBirdCancelingRecorder is the recorder whose waits honor their context,
+// as realStressBirdSystem.Sleep does: a done context ends the wait with its
+// error. Every other call is the recorder's.
+type stressBirdCancelingRecorder struct {
+	*stressBirdRecorder
+}
+
+func (r stressBirdCancelingRecorder) Sleep(ctx context.Context, duration time.Duration) error {
+	if err := ctx.Err(); err != nil {
+		r.events = append(r.events, "sleep "+duration.String()+" canceled")
+		return err
+	}
+	return r.stressBirdRecorder.Sleep(ctx, duration)
+}
+
+// TestStressBirdGateRunsUnderTheSignalContext proves the BIRD gate runs its
+// scenario under the context nativeRunner hands it, so a SIGINT or SIGTERM to
+// the harness stops the run at its next wait and still runs the cleanup (AC-6).
+//
+// Method: call the gate built over a recorder whose waits honor the context,
+// with a context already canceled, as signalContext leaves it after a signal.
+// The first wait is BIRD's startup wait, so the run must fail in bird-start,
+// and the cleanup must still stop BIRD, delete both namespaces and remove
+// every file. A gate that roots the run on a fresh context never sees the
+// cancel, and the recorder then passes every round.
+func TestStressBirdGateRunsUnderTheSignalContext(t *testing.T) {
+	recorder := newStressBirdRecorder()
+	recorder.routeCounts = []int{100_000, 250_000, 500_000, 1_000_000}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	result, code := stressBirdGate(stressBirdCancelingRecorder{recorder})(ctx, "/repo")
+	if code == 0 {
+		t.Fatalf("a canceled gate answered code 0; events = %v", recorder.events)
+	}
+	report, ok := result.(StressBirdReport)
+	if !ok {
+		t.Fatalf("the gate answered %T, want StressBirdReport", result)
+	}
+	if report.Failure == nil || report.Failure.Phase != "bird-start" {
+		t.Fatalf("failure = %#v, want the bird-start wait to end on the cancel", report.Failure)
+	}
+	if report.Root != "/repo" {
+		t.Fatalf("report root = %q, want the root the gate was handed", report.Root)
+	}
+	if len(report.Rounds) != 0 {
+		t.Fatalf("rounds = %#v, want none after the cancel", report.Rounds)
+	}
+	assertStressBirdCleanupTail(t, recorder.events, 1)
+}
+
 func assertStressBirdCallOrder(t *testing.T, events []string) {
 	t.Helper()
 	ordered := []string{

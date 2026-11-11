@@ -130,8 +130,16 @@ func runRSVPTEInterop(ctx context.Context, root string) (any, int) {
 	return report, report.Code
 }
 
-func runStressBirdGate(_ context.Context, _ string) (any, int) {
-	return runStressBirdAction()
+// stressBirdGate answers the native `stress-bird` verb over system. The run is
+// rooted on the context nativeRunner hands it, which signalContext cancels on
+// SIGINT or SIGTERM, so a signaled harness stops at its next wait and still
+// runs the scenario's cleanup. The root is the checkout nativeRunner resolved.
+// It answers the StressBirdReport value, which the structured renderers read.
+func stressBirdGate(system stressBirdSystem) func(context.Context, string) (any, int) {
+	return func(ctx context.Context, root string) (any, int) {
+		report, code := runStressBird(ctx, root, system)
+		return report, code
+	}
 }
 
 func runStressGate(ctx context.Context, root string) (any, int) {

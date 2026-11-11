@@ -1,6 +1,7 @@
 // Design: stress.go -- the aggregate lifecycle and verdict this native gate preserves.
 // Detail: the native namespace, process, BIRD, wait, and cleanup behavior below.
 // Related: stressScenarioRegistry -- the complete five-scenario registry.
+// Related: stressbird_system.go -- realStressBirdSystem, how every stress child forks and stops.
 //
 // stressbird.go owns the BIRD baseline scenario as callable Go. BIRD, birdc, ip,
 // ethtool, ss, and `le test peer` remain external because they are the systems this
@@ -12,20 +13,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
-	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
-	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 const (
@@ -103,18 +99,6 @@ func (r StressBirdReport) Text() string {
 		return text.Str("FAIL  ").Str(r.Scenario).String()
 	}
 	return text.Str("FAIL  ").Str(r.Scenario).Str(": ").Str(r.Failure.Message).String()
-}
-
-// runStressBirdAction is the action callback the integration composition can wire
-// directly. It resolves the checkout once and returns the scenario's exact code.
-func runStressBirdAction() (any, int) {
-	root, err := lepath.Root()
-	if err != nil {
-		report := newStressBirdReport("")
-		return failStressBird(report, "preflight", 0, 1, err)
-	}
-	report, code := runStressBird(context.Background(), root, realStressBirdSystem{})
-	return report, code
 }
 
 type stressBirdRound struct {
@@ -811,161 +795,3 @@ func commandErrorCode(err error) int {
 	}
 	return gaterun.CannotStart
 }
-
-type realStressBirdSystem struct{}
-
-func (realStressBirdSystem) effectiveUID() int { return os.Geteuid() }
-
-func (realStressBirdSystem) LookPath(name string) (string, error) { return exec.LookPath(name) }
-
-func (realStressBirdSystem) FileExists(path string) bool {
-	info, err := os.Stat(path)
-	return err == nil && !info.IsDir()
-}
-
-func (realStressBirdSystem) Executable() (string, error) { return os.Executable() }
-func (realStressBirdSystem) PID() int                    { return os.Getpid() }
-func (realStressBirdSystem) Environ() []string           { return os.Environ() }
-func (realStressBirdSystem) Getenv(key string) string    { return os.Getenv(key) }
-func (realStressBirdSystem) Now() time.Time              { return time.Now() }
-
-func (realStressBirdSystem) Run(
-	ctx context.Context,
-	command stressBirdCommand,
-) (stressBirdCommandResult, error) {
-	commandCtx := ctx
-	cancel := func() {}
-	if command.timeout > 0 {
-		commandCtx, cancel = context.WithTimeout(ctx, command.timeout)
-	}
-	defer cancel()
-	cmd := exec.CommandContext(commandCtx, command.argv[0], command.argv[1:]...) //nolint:gosec // fixed scenario grammar owns argv
-	cmd.Dir = command.dir
-	cmd.Env = command.environ
-	var stdout, stderr textbuf.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-	result := stressBirdCommandResult{
-		stdout: stdout.String(), stderr: stderr.String(), code: gaterun.ExitCode(err),
-	}
-	if commandCtx.Err() != nil {
-		return result, commandCtx.Err()
-	}
-	if err != nil {
-		if _, ok := errors.AsType[*exec.ExitError](err); !ok {
-			return result, err
-		}
-	}
-	return result, nil
-}
-
-func (realStressBirdSystem) Start(
-	ctx context.Context,
-	command stressBirdCommand,
-) (stressBirdProcess, error) {
-	output, err := os.OpenFile(command.outputPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
-	if err != nil {
-		return nil, fmt.Errorf("open process log %s: %w", command.outputPath, err)
-	}
-	cmd := exec.CommandContext(ctx, command.argv[0], command.argv[1:]...) //nolint:gosec // fixed scenario grammar owns argv
-	cmd.Dir = command.dir
-	cmd.Env = command.environ
-	cmd.Stdout = output
-	cmd.Stderr = output
-	if err := cmd.Start(); err != nil {
-		return nil, errors.Join(err, output.Close())
-	}
-	process := &realStressBirdProcess{cmd: cmd, output: output, done: make(chan struct{})}
-	go process.collect()
-	return process, nil
-}
-
-func (realStressBirdSystem) Remove(path string) error { return os.Remove(path) }
-
-func (realStressBirdSystem) Sleep(ctx context.Context, duration time.Duration) error {
-	timer := time.NewTimer(duration)
-	defer timer.Stop()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-timer.C:
-		return nil
-	}
-}
-
-// realStressBirdProcess owns one wait goroutine from Start until the child exits.
-// The caller MUST call Wait after Terminate or Kill. Safe for concurrent use.
-type realStressBirdProcess struct {
-	cmd    *exec.Cmd
-	output io.Closer
-	done   chan struct{}
-	mu     sync.Mutex
-	code   int
-	err    error
-}
-
-func (p *realStressBirdProcess) collect() {
-	err := p.cmd.Wait()
-	closeErr := p.output.Close()
-	p.mu.Lock()
-	p.code = gaterun.ExitCode(err)
-	if err != nil {
-		if _, ok := errors.AsType[*exec.ExitError](err); !ok {
-			p.err = err
-		}
-	}
-	if p.err == nil && closeErr != nil {
-		p.err = closeErr
-	}
-	p.mu.Unlock()
-	close(p.done)
-}
-
-func (p *realStressBirdProcess) Exited() (bool, int, error) {
-	select {
-	case <-p.done:
-		code, err := p.result()
-		return true, code, err
-	default:
-		return false, 0, nil
-	}
-}
-
-func (p *realStressBirdProcess) Wait(timeout time.Duration) (int, error) {
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
-	select {
-	case <-p.done:
-		return p.result()
-	case <-timer.C:
-		return 0, errStressBirdWaitTimeout
-	}
-}
-
-func (p *realStressBirdProcess) Terminate() error {
-	select {
-	case <-p.done:
-		return nil
-	default:
-		return p.cmd.Process.Signal(syscall.SIGTERM)
-	}
-}
-
-func (p *realStressBirdProcess) Kill() error {
-	select {
-	case <-p.done:
-		return nil
-	default:
-		return p.cmd.Process.Kill()
-	}
-}
-
-func (p *realStressBirdProcess) result() (int, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	return p.code, p.err
-}
-
-var _ stressBirdSystem = realStressBirdSystem{}
-var _ stressBirdProcess = (*realStressBirdProcess)(nil)
