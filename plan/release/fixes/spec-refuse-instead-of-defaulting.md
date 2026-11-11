@@ -20,7 +20,8 @@ Adj-RIB-In owner correctly leaves a refusing lookup on exit, but
 `startValidationReceiver` left it registered for later tests. The redist replay
 test passed alone and failed after ASPA retention; the new untagged
 `TestValidationReceiverRestoresUngatedSelection` then failed both teardown
-assertions. The fixture now unregisters only after joining its owner. Main's
+assertions. Commit `1aa91d030b` makes the fixture unregister only after joining
+its owner. Main's
 native `test unit pkg path ./internal/component/bgp/plugins/rib/ run` selection
 covering the new regression, all six existing
 fixture callers and `TestRedistReplayEmitsUnderEmitLock` passes under the native
@@ -29,7 +30,11 @@ feature tags and race. Logs are `job-unit-pkg-77fea4ce.log` (isolation),
 `job-unit-pkg-59779559.log` (focused green) in the session scratch directory.
 Independent test judgment and source review are clean. Existing caller inputs
 and assertions, and the production fail-closed teardown, remain unchanged.
-The full RIB retry remains owed; its earlier 152 failures are not a pass.
+Main's full native `test unit pkg path ./internal/component/bgp/plugins/rib/`
+retry also passes in `job-unit-pkg-f5c56d84.log`. That deterministic log path
+was reused: its current contents are the passing retry, not retained evidence
+of the initial 152 failures. The separate pair and new-regression red logs
+above retain the fixture leak's observed failures.
 
 Earlier checkpoint history: the dependency addition was coherent enough for the named
 netlink scoped package proof to pass and its negative overlay to run. The later
@@ -43,7 +48,7 @@ the scoped race tests and actual daemon functional test passing, as recorded
 below. Independent source/docs review is clean. The final combined scoped lint
 run could not produce a plan: foreign `setup/setup.go` changed after its wasip1
 stage. No lint success is claimed. Resume with stable inputs for that scoped
-check, then finish the already-recorded full pipeline package, functional,
+check, then finish the already-recorded functional,
 corpus, ADD-PATH/LDP and AC-7 report obligations. NTP is fixed; the full refusal
 spec remains open while main finishes its scoped verification.
 
@@ -75,8 +80,6 @@ run stopped at the launcher registration panic, before any fixture ran.
 Resume with these commands, through the current named launcher and in the main
 thread:
 
-- Run `go test -race -tags ze_bgp ./internal/component/bgp/plugins/rib` through
-  main-thread job admission; the seven selected regressions already passed.
 - Run `./le test bgp plugin rib-filter-show` through the rebuilt named launcher.
 - Run `TestRepositoryConfigsValidate` under the full feature tags and race.
 - `INTEROP_SCENARIO=addpath-zero-id-frr ./le test integration interop` for the
@@ -200,16 +203,19 @@ cases in `internal/component/bgp/plugins/nlri/vpn/rfc4659_vpn_test.go` and
   with every census producer. `runReport` returns zero even with findings; its
   exit status alone cannot satisfy this criterion. No current report is claimed.
 - AC-8: retained unit/command evidence includes the recent absent-CoS and writer
-  repairs. The full RIB and updated daemon pipeline proof remain pending.
+  repairs. The full RIB package now passes after the fixture cleanup; updated
+  daemon pipeline proof remains pending.
 - AC-9: LDP Ze-kernel scenario and the changed gnmic default/PROTO contract
   remain pending; existing RADIUS interop evidence is retained.
 - AC-10: ADD-PATH baseline, omitted-zero negative, clean rebuild remain pending.
 - AC-11: thermal zero-reading Linux run remains pending; existing LLGR, DDoS
   and dynamic-AS producer-red evidence is retained.
-- AC-12: TCX actual-kernel root/non-root evidence and BMP/pmacct remain pending.
-  The later L2TP and VPP stats passes below supersede their old unrun labels.
+- AC-12: TCX actual-kernel root/non-root proof passes with the explicit
+  expectation test below. BMP/pmacct remains pending. The later L2TP and VPP
+  stats passes below supersede their old unrun labels.
 - AC-13: the ledger preserves all rows and regression attribution; platform
-  runs above, netlink stats regression proof, and independent final audit are still owed.
+  runs above and independent final audit are still owed. The netlink stats
+  regression's observed negative and committed-source clean pass are recorded below.
   Rows 44, 46 and 47, plus MRT in row 45, are the dependency spec’s work by the
   existing Known Limitations and handover 24. NTP is explicitly brought back
   here by the owner instruction already recorded above.
@@ -238,6 +244,23 @@ alone as proof.
   `tmp/session/2026-11-11-010844/scratch/job-vpp-monitor-stop-green-e2d672f4.log`.
   The separate netlink `GetStats` obligation from handover 24 is not silently
   conflated with this VPP result.
+- TCX: `TestTCXProbeRuntimeReadiness` in
+  `internal/plugins/trafficusage/readiness_integration_linux_test.go`, committed
+  as `5fa5efe3d2`, passes
+  as root UID0 with measured ready and ENODEV, and as UID1000 with no effective
+  capabilities, measured unknown and EPERM. The same host-built integration
+  binary ran through `test qemu docker-lab kernel <matching-runtime-vmlinuz>`
+  command mode on Ze7.3.0, once with `root` and
+  `-tcx-probe-expect=ready`, then without `root` and
+  `-tcx-probe-expect=unknown`. Both selected only this test with `-test.run`,
+  `-test.v`, `-test.count=1` and `-test.timeout=2m`; neither requested run
+  skipped, and both command/check/lab exits are zero. Both guests used kernel
+  SHA256 `1305faf7734c0c309b0b1d97d37951df625f71e548bbdc04f7ff456f27d4c5e0`.
+  Actual outputs are `tcx-root-runtime-19008.log` and
+  `tcx-ordinary-runtime-57305.log` in this session's scratch; consoles are
+  `tmp/qemu/docker-lab-console-181362749.log` and
+  `tmp/qemu/docker-lab-console-3659063372.log`. Expectations were selected
+  before the real probe; the assertions require the original kernel errno.
 
 ### Scoped execution queue
 
@@ -246,9 +269,8 @@ after the foreign dependency addition is coherent. The new registered
 `test unit pkg` route supplies the checkout's feature tags, timeout and race
 detector; its `run` keyword takes a regex. It accepts no arbitrary Go flags.
 
-1. `test unit pkg path ./internal/component/bgp/plugins/rib/`, then
-   `test bgp plugin rib-filter-show`. The seven selected pipeline regressions
-   already passed and are not separately repeated.
+1. `test bgp plugin rib-filter-show`. The full native RIB package and focused
+   pipeline regressions already passed and are not separately repeated.
 2. `test unit pkg path ./internal/component/config/cli/ run '^TestRepositoryConfigsValidate$'`
    once after the four promoted fixtures and shared CPE renderer repair.
 3. ADD-PATH baseline, the recorded zero-ID omission overlay, then the clean
@@ -266,13 +288,8 @@ detector; its `run` keyword takes a regex. It accepts no arbitrary Go flags.
 6. `test unit pkg path ./internal/plugins/trafficusage/ run '^(TestTrafficUsageReadinessCanFail|TestNewAttacherLinux)$'`
    as the ordinary Linux user. The former checks classifier/doctor verdicts;
    the latter really asks the kernel and accepts a measured ready, absent or
-   unknown answer. Also execute that test binary as root on Ze's runtime
-   kernel. The existing own-system route is `test qemu docker-lab kernel
-   <matching-runtime-vmlinuz> root command <guest-script>`: compile the package
-   test binary in the main checkout through job admission, then have the guest
-   script copy it to guest `/tmp` and select `TestNewAttacherLinux` with
-   `-test.run` and `-test.v`. The image has no Go; do not assume a guest
-   `test unit pkg` can build. `test qemu run` uses Alpine and is not this carrier.
+   unknown answer. The actual root/non-root probe obligation is now complete
+   through the explicit expectation test above; no repetition is owed.
 7. For gnmic, use the documented direct `job run` recipe because the test needs
    the additional `docker` tag: full feature tags plus `docker`, `-race`,
    `-run '^TestGnmicInterop$'`, package `./internal/component/gnmi/`, and
@@ -314,10 +331,13 @@ both permission and wrapped-I/O subcases of
 `TestNetlinkGetStatsReadErrorIsNotAbsence` fail on the fabricated absence, and
 `TestNetlinkGetStatsMissingCounters` fails on the fabricated zero record.
 The typed-missing-link, valid-zero and measured-counter controls pass in the
-same negative run. The subsequent verbose clean attempt stopped at the foreign
-hook-runtime launcher compile failure before any test ran; that clean control
-remains owed. The initial scoped package pass and observed negative support
-this standalone coverage piece, while the full refusal spec stays open.
+same negative run. The first verbose clean attempt stopped at the foreign
+hook-runtime launcher compile failure before any test ran. After commit
+`3a66d9d5cd`, main's registered job ran the same five named tests with verbose
+output under native tags and race. Every test and both read-error subcases
+pass in `job-netlink-getstats-committed-clean-5f83ba7a.log` in the same scratch
+directory. The direct-method regression, observed negative and committed-source
+clean control are complete; the full refusal spec stays open.
 This is not a kernel-capability finding or a reason to repeat the already-passing
 VPP test.
 
