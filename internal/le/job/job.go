@@ -83,9 +83,10 @@ const (
 	// is held for the length of a directory scan rather than for the length of
 	// a job.
 	lockName = ".registry.lock"
-	// DurationFile records how long each job took, one tab-separated line per
-	// finished job. A waiting session reads it to say what the previous run of
-	// this label cost.
+	// DurationFile records how long each job took and how long it waited for
+	// its slot, one tab-separated line per released claim (appendDuration
+	// names the columns). A waiting session reads it to say what the previous
+	// run of this label cost.
 	DurationFile = "tmp/.ze-verify-duration.txt"
 )
 
@@ -441,7 +442,9 @@ type Ticket struct {
 }
 
 // Release drops the slot: it records the job's verdict where a follower can
-// find it, appends the run's duration, and removes the entry.
+// find it, appends the run's duration and the ticket's Waited, and removes the
+// entry. Only a claim writes that row: an attached ticket and one inside a
+// parent's slot held no slot, so they record nothing here.
 //
 // The result is written BEFORE the entry goes, never after. An attacher
 // watching the entry disappear must find the code already written rather than
@@ -457,7 +460,7 @@ func (t *Ticket) Release(code int) {
 	t.Kind = KindUnspecified
 
 	adm := t.adm
-	adm.appendDuration(t.Label, time.Since(t.started))
+	adm.appendDuration(t.Label, time.Since(t.started), t.Waited)
 	adm.writeResult(t.Entry, code)
 	adm.remove(adm.abs(t.Entry))
 	adm.remove(adm.abs(t.Log))

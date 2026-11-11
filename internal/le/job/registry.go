@@ -362,11 +362,20 @@ func (a *Admission) readResult(entryRel string) (int, bool) {
 }
 
 // appendDuration records how long one job took, which is what lets the next
-// asker for the same label be told what it is waiting for.
-func (a *Admission) appendDuration(label string, took time.Duration) {
+// asker for the same label be told what it is waiting for, and how long
+// admission made it wait first, which is what tells run time from queue time.
+//
+// A row is label, run seconds, UTC time and waited seconds, tab-separated,
+// both counts in whole seconds rounded down. The wait is the fourth column,
+// after the three that rows written before it existed already hold, so every
+// reader of the first three reads both widths. A three-column row means the
+// wait was not recorded, never that it was zero: a claim that never queued
+// writes a 0 of its own.
+func (a *Admission) appendDuration(label string, took, waited time.Duration) {
 	var tb textbuf.Buffer
 	line := tb.Str(label).Byte('\t').Int(int64(took / time.Second)).Byte('\t').
-		Str(time.Now().UTC().Format("2006-01-02T15:04:05Z")).Byte('\n').String()
+		Str(time.Now().UTC().Format("2006-01-02T15:04:05Z")).Byte('\t').
+		Int(int64(waited / time.Second)).Byte('\n').String()
 
 	file, err := os.OpenFile(a.abs(DurationFile), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644) //nolint:gosec // a fixed path under the checkout's tmp/
 	if err != nil {
@@ -382,6 +391,10 @@ func (a *Admission) appendDuration(label string, took time.Duration) {
 
 // reportPrevious tells a job what the last run of its label cost, which is the
 // one number that says whether waiting is worth it.
+//
+// It reads the run seconds, the second column, of the label's last row, and
+// takes a row of three columns or four alike (appendDuration): the record on
+// a machine holds rows from before the wait column existed.
 func (a *Admission) reportPrevious(label string) {
 	body, err := os.ReadFile(a.abs(DurationFile)) //nolint:gosec // a fixed path under the checkout's tmp/
 	if err != nil {

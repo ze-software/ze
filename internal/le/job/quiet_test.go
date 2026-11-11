@@ -224,3 +224,32 @@ func TestQuietRunTakesADirectoryAndAnEnvironment(t *testing.T) {
 		t.Errorf("the child did not see the named environment; the log holds:\n%s", body)
 	}
 }
+
+// TestQuietSummaryShowsTheWaitWhenAboveZero renders the summary line of one
+// report at the boundary: a run that waited no whole second prints no wait
+// clause, so the line every existing reader matches is unchanged, and a run
+// that waited one second or more says so between the exit code and the log,
+// which is where the reader learns that run time and queue time differ.
+func TestQuietSummaryShowsTheWaitWhenAboveZero(t *testing.T) {
+	for _, row := range []struct {
+		waited int
+		want   string
+	}{
+		{0, "job unit-pkg: exit 1, log tmp/q.log\n412:--- FAIL: TestX (0.00s)\n"},
+		{1, "job unit-pkg: exit 1, waited 1s, log tmp/q.log\n412:--- FAIL: TestX (0.00s)\n"},
+		{95, "job unit-pkg: exit 1, waited 95s, log tmp/q.log\n412:--- FAIL: TestX (0.00s)\n"},
+	} {
+		report := Report{
+			Label: "unit-pkg", Quiet: true, Code: 1, Log: "tmp/q.log",
+			KeyLines: []string{"412:--- FAIL: TestX (0.00s)"}, WaitedSeconds: row.waited,
+		}
+		if got := report.Text(); got != row.want {
+			t.Errorf("waited %d: summary = %q, want %q", row.waited, got, row.want)
+		}
+	}
+
+	streamed := Report{Label: "unit-pkg", Code: 0, WaitedSeconds: 30}
+	if got := streamed.Text(); got != "" {
+		t.Errorf("a streamed run rendered %q, want no text: its output already reached the terminal", got)
+	}
+}

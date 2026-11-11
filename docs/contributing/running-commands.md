@@ -1608,6 +1608,24 @@ two different rules are different hardware rather than a contradiction. `ticket.
 so that file is the only per-machine record there is. Read it as an expectation,
 never as a threshold.
 
+Each row is one released claim, tab-separated, in this order:
+
+| Column | Holds |
+|--------|-------|
+| 1 | The job's label |
+| 2 | The seconds it ran, counted from the claim |
+| 3 | The UTC time the row was written |
+| 4 | The seconds admission made it wait before the claim |
+
+Both counts are whole seconds, rounded down, so a run that never queued
+writes `0` in column 4. Rows written before the wait was recorded have three
+columns: a missing fourth column means the wait is not known, never that it
+was zero, so a median of waits leaves those rows out. A job that attached to
+another session's identical run, or ran inside a parent's slot, held no slot
+and writes no row; its quiet summary still shows its wait. The previous-run
+banner reads column 2 of the label's last row, whatever its width.
+<!-- source: internal/le/job/registry.go -- appendDuration, reportPrevious -->
+
 A slow or silent run is not proof of a broken run. Admission waiters only
 observe other jobs: a live quiet holder keeps its slot, and an unreadable
 entry counts as occupied regardless of age. A demonstrably absent or zombie
@@ -1912,14 +1930,17 @@ not been tested the way the gate tests it, so put it back before the end.
 
 `quiet` sits between the label and the `command` keyword. It sends the child's
 merged output to `tmp/session/<YYYY-MM-DD>-<HHMMSS>/scratch/job-<label>.log` instead of
-the terminal, and answers three things: the exit code, that log's path, and up
-to twenty failure lines from it, each with its line number.
+the terminal, and answers the exit code, how long admission waited when it
+waited a whole second or more, that log's path, and up to twenty failure lines
+from it, each with its line number. At zero wait the `waited` clause is left
+out.
 
 ```
-job unit-pkg: exit 1, log tmp/session/2026-09-01-abc/scratch/job-unit-pkg.log
+job unit-pkg: exit 1, waited 42s, log tmp/session/2026-09-01-abc/scratch/job-unit-pkg.log
 412:--- FAIL: TestEAPIdentity (0.00s)
 418:FAIL	github.com/ze-software/ze/internal/core/eap	0.310s
 ```
+<!-- source: internal/le/job/report.go -- Report.Text -->
 
 Which lines those are is one declaration, `internal/le/runlog`, shared with the
 verification failure index, so a stage log and a quiet job name the same lines.

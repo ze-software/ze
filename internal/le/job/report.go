@@ -52,15 +52,21 @@ type Report struct {
 //
 // A quiet run wrote that output to a file instead, so its reader has seen
 // nothing yet. The summary is then the whole of what reaches the terminal:
-// the verdict, where the log is, and the lines that say what broke.
+// the verdict, how long admission waited when it waited a whole second or
+// more, where the log is, and the lines that say what broke. The wait is what
+// tells a slow run from a run that queued; at zero the clause is left out, so
+// an uncontested run's line reads as it always did.
 func (r Report) Text() string {
 	if !r.Quiet {
 		return ""
 	}
 
 	var text textbuf.Buffer
-	text.Reset().Str("job ").Str(r.Label).Str(": exit ").Int(int64(r.Code)).
-		Str(", log ").Str(r.Log).Byte('\n')
+	text.Reset().Str("job ").Str(r.Label).Str(": exit ").Int(int64(r.Code))
+	if r.WaitedSeconds > 0 {
+		text.Str(", waited ").Int(int64(r.WaitedSeconds)).Byte('s')
+	}
+	text.Str(", log ").Str(r.Log).Byte('\n')
 	for _, line := range r.KeyLines {
 		text.Str(line).Byte('\n')
 	}

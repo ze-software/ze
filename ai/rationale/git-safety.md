@@ -30,14 +30,21 @@ Running foreground means the tool result IS the completion signal -- no
 polling, no missed notifications, log is ready to read on return. The
 two-pass strategy (cached full pass + `-race` only on changed groups) is
 what keeps the common case short enough for that to be practical. How
-short is not stated here: `_release` (`internal/le/job/answer.go`)
-appends the real elapsed seconds to `tmp/.ze-verify-duration.txt`, and a
-duration typed into a document is a claim, not a measurement.
+short is not stated here: `Ticket.Release` (`internal/le/job/job.go`)
+calls `appendDuration` (`internal/le/job/registry.go`), which appends the
+real elapsed seconds and the seconds admission waited to
+`tmp/.ze-verify-duration.txt`, and a duration typed into a document is a
+claim, not a measurement.
 
 If a previous run is still going, the admission wrapper blocks the second
-invocation inside the same foreground Bash call until a slot frees. There is
-no lock file: `internal/le/job/answer.go`, which keeps one entry per running job under
-`tmp/.ze-jobs/` and admits `ZE_RUN_SLOTS` of them at a time.
+invocation inside the same foreground Bash call until a slot frees.
+Admission (`Admission.claim` and `scanAndClaim` in
+`internal/le/job/registry.go`) keeps one entry per claimed job under
+`tmp/.ze-jobs/` and admits `ZE_RUN_SLOTS` of them at a time, by default the
+core count divided by the cores one job takes (`defaultSlots`,
+`internal/le/job/job.go`). The one lock, the flock on
+`tmp/.ze-jobs/.registry.lock`, is held only while a scan counts the entries
+and claims, never for the length of a job.
 
 An agent never starts this run, and never watches Thomas's: he reads its
 result at his terminal. The long run an agent does start is the scoped one,
