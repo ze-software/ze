@@ -691,12 +691,14 @@ The published page stacks Calendar/Growth at the left of its summary cards and
 Added Lines/Commits at the right. The date range sits to the left of the
 calendar's Less/More legend. The deck embed retains its calendar. Growth sums the daily commits and
 added lines already carried by the calendar cells, starting at the beginning of
-the displayed window. Two charts
-use separate scales, and a shared date readout follows the pointer, the date
-slider or keyboard navigation. These are cumulative additions, not net source
-size or lifetime counts. Code, tests and third-party Go lines are shown as
-current snapshot totals, with an overall total that includes all three. No
-historical category measurements are collected for this representation.
+the displayed window. Growth shows one chart for the Added Lines/Commits
+selection shared with Calendar. Each metric uses its own scale. The date readout
+follows the pointer, the date slider or keyboard navigation. The selected date
+persists when changing the metric or representation. These are cumulative
+additions, not net source size or lifetime counts. Code, tests and third-party Go
+lines are shown as current snapshot totals, with an overall total that includes
+all three. No historical category measurements are collected for this
+representation.
 <!-- source: internal/le/site/activitygrowth.go -- activityGrowthHTML, activityGrowthScript -->
 
 ## Adding a new presentation

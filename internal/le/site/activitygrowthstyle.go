@@ -16,6 +16,8 @@ const activityGrowthStyle = `<style>
     }
     .activity-widget .activity-tabs[hidden],
     .activity-widget .activity-view[hidden] { display: none; }
+    body[data-metric="lines"] .activity-growth [data-growth-metric="commits"],
+    body[data-metric="commits"] .activity-growth [data-growth-metric="lines"] { display: none; }
     .activity-tabs button {
         border: 0;
         border-radius: var(--radius-sm);

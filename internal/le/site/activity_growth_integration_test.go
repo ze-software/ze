@@ -124,6 +124,14 @@ window.addEventListener('load', async () => {
       check(document.activeElement === growth && growth.getAttribute('aria-selected') === 'true',
         'ArrowRight must focus and activate Growth');
       check(calendarPanel.hidden && !growthPanel.hidden, 'Growth must replace the calendar panel');
+      function metricVisible(metric) {
+        for (const name of ['lines', 'commits']) {
+          const graph = document.getElementById('activity-growth-' + name + '-chart');
+          const shown = graph.getClientRects().length > 0 && getComputedStyle(graph).visibility !== 'hidden';
+          check(shown === (name === metric), 'Growth must display only the selected ' + metric + ' chart; ' + name + ' visibility was ' + shown);
+        }
+      }
+      metricVisible('lines');
       const day = document.getElementById('activity-growth-day');
       function values(date, lines, commits) {
         check(text('activity-growth-date').includes(date), 'Selected date must be ' + date);
@@ -131,6 +139,11 @@ window.addEventListener('load', async () => {
         check(text('activity-growth-commits') === String(commits), 'Cumulative commits must be ' + commits);
       }
       values('2026-08-03', 17, 3);
+      document.querySelector('[data-metric="commits"]').click();
+      metricVisible('commits');
+      values('2026-08-03', 17, 3);
+      document.querySelector('[data-metric="lines"]').click();
+      metricVisible('lines');
       day.value = '0'; day.dispatchEvent(new Event('input', {bubbles:true}));
       values('2026-08-01', 10, 2);
       const chart = document.getElementById('activity-growth-lines-chart');
@@ -161,6 +174,14 @@ window.addEventListener('load', async () => {
         'Home must return to Calendar');
       document.querySelector('[data-metric="commits"]').click();
       check(text('total-value') === '3', 'Calendar commit metric must still work');
+      growth.click();
+      metricVisible('commits');
+      values('2026-08-01', 10, 2);
+      calendar.click();
+      document.querySelector('[data-metric="lines"]').click();
+      growth.click();
+      metricVisible('lines');
+      values('2026-08-01', 10, 2);
     }
   } catch (error) { failures.push(String(error)); }
   await fetch('/growth-observation', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(failures)});

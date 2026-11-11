@@ -20,16 +20,16 @@ func activityGrowthHTML(inventory reporewrite.ActivityGo) string {
     <h2>Growth within this window</h2>
     <p>Commits and added lines accumulated since the displayed window began. Added lines count additions, not net repository size.</p>
     <div class="growth-charts">
-        <div><h3>Cumulative added lines</h3><svg id="activity-growth-lines-chart" class="growth-chart" viewBox="0 0 720 220" tabindex="0" role="img" aria-label="Cumulative added lines. Use arrow keys to select a date, or Home and End."></svg></div>
-        <div><h3>Cumulative commits</h3><svg id="activity-growth-commits-chart" class="growth-chart" viewBox="0 0 720 220" tabindex="0" role="img" aria-label="Cumulative commits. Use arrow keys to select a date, or Home and End."></svg></div>
+        <div data-growth-metric="lines"><h3>Cumulative added lines</h3><svg id="activity-growth-lines-chart" class="growth-chart" viewBox="0 0 720 220" tabindex="0" role="img" aria-label="Cumulative added lines. Use arrow keys to select a date, or Home and End."></svg></div>
+        <div data-growth-metric="commits"><h3>Cumulative commits</h3><svg id="activity-growth-commits-chart" class="growth-chart" viewBox="0 0 720 220" tabindex="0" role="img" aria-label="Cumulative commits. Use arrow keys to select a date, or Home and End."></svg></div>
     </div>
     <label class="growth-date-control" for="activity-growth-day">Select a date
         <input id="activity-growth-day" type="range" min="0" max="0" value="0" step="1" aria-describedby="activity-growth-readout">
     </label>
     <div id="activity-growth-readout" class="growth-readout" aria-live="polite" aria-atomic="true">
         <strong id="activity-growth-date"></strong>
-        <span>Added lines: <strong id="activity-growth-lines"></strong></span>
-        <span>Commits: <strong id="activity-growth-commits"></strong></span>
+        <span data-growth-metric="lines">Added lines: <strong id="activity-growth-lines"></strong></span>
+        <span data-growth-metric="commits">Commits: <strong id="activity-growth-commits"></strong></span>
     </div>
     <h2>Current Go lines</h2>
     <p>Current snapshot, including blank lines and comments. Historical category totals are unavailable in this data.</p>
