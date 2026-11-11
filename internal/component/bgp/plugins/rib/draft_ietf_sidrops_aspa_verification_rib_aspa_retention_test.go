@@ -71,6 +71,10 @@ func startValidationReceiver(t *testing.T, bus *testEventBus) (*rpc.DirectBridge
 		_ = engineEnd.Close()
 		select {
 		case <-done:
+			// An enabled owner deliberately leaves a refusing lookup on exit.
+			// This fixture's owner has joined; restore the test process for
+			// later tests, while production keeps that refusal until shutdown.
+			ribevents.RegisterValidationLookup(nil, nil)
 		case <-ctx.Done():
 			t.Error("Adj-RIB-In did not stop")
 		}

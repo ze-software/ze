@@ -15,7 +15,23 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Remaining verification
 
-The dependency addition is now coherent enough for main's current-source named
+The full native RIB package ran and exposed a shared fixture leak: an enabled
+Adj-RIB-In owner correctly leaves a refusing lookup on exit, but
+`startValidationReceiver` left it registered for later tests. The redist replay
+test passed alone and failed after ASPA retention; the new untagged
+`TestValidationReceiverRestoresUngatedSelection` then failed both teardown
+assertions. The fixture now unregisters only after joining its owner. Main's
+native `test unit pkg path ./internal/component/bgp/plugins/rib/ run` selection
+covering the new regression, all six existing
+fixture callers and `TestRedistReplayEmitsUnderEmitLock` passes under the native
+feature tags and race. Logs are `job-unit-pkg-77fea4ce.log` (isolation),
+`job-unit-pkg-f0677e7f.log` (pair red), `job-unit-pkg-cf1bde44.log` (new red) and
+`job-unit-pkg-59779559.log` (focused green) in the session scratch directory.
+Independent test judgment and source review are clean. Existing caller inputs
+and assertions, and the production fail-closed teardown, remain unchanged.
+The full RIB retry remains owed; its earlier 152 failures are not a pass.
+
+Earlier checkpoint history: the dependency addition was coherent enough for the named
 netlink scoped package proof to pass and its negative overlay to run. The later
 verbose clean control could not start: foreign in-progress hook-runtime edits
 left callers in `lossypipe.go` and `rawheavy.go` passing three arguments to
@@ -29,7 +45,7 @@ run could not produce a plan: foreign `setup/setup.go` changed after its wasip1
 stage. No lint success is claimed. Resume with stable inputs for that scoped
 check, then finish the already-recorded full pipeline package, functional,
 corpus, ADD-PATH/LDP and AC-7 report obligations. NTP is fixed; the full refusal
-spec remains open and blocked on its remaining verification.
+spec remains open while main finishes its scoped verification.
 
 The earlier launcher attempt panicked during command registration before dispatch because
 `internal/le/test/unit/pkg.go` supplies Help strings longer than the 60-character
@@ -748,6 +764,7 @@ Owner approval (Thomas, 2026-10-24): the doctor `collectSchemaListeners` row rem
 
 | Class file | Date | Surface (short) | Family |
 |------------|------|-----------------|--------|
+| `registry-contamination.md` | 2026-11-11 | `startValidationReceiver` leaves an enabled owner's refusing lookup | Verification fixture |
 | `silent-fall-through.md` | 2026-10-21 | `Server.appendDataPlaneWriter` starts with no FIB writer | F1 |
 | `silent-fall-through.md` | 2026-10-20 | `sendPostStartupTo` failure logged at DEBUG | F1 |
 | `silent-fall-through.md` | 2026-10-20 | `LIB.allocateLabelLocked` returns a bound label | F2 |

@@ -1,5 +1,6 @@
 | Date | Spec | Surface | Symptom | Fix |
 |------|------|---------|---------|-----|
+| 2026-11-11 | spec-refuse-instead-of-defaulting | bgp-rib `startValidationReceiver` | Enabled owner teardown leaves its deliberate refusing lookup registered, so later RIB tests select no paths; redist replay passes alone and fails after ASPA retention | fixed: clear the fixture lookup only after owner join; preserve production refusal and all caller assertions. New teardown regression observed red, then all eight selected units pass under native tags/race; full RIB retry remains owed |
 | 2026-10-15 | spec-plugin-reload-applies-or-refuses | `internal/component/plugin/server` tests | 31 tests fail at HEAD 3efcfa4be3 with the HEAD SDK, also run alone: `TestValidBgpEventTypes` answers "invalid namespace: bgp"; the bgp namespace and plugin registrations are absent from the test binary | open: bisect what the server test binary links and add the import its tests need |
 | 2026-03-21 | - | tests | test A called `Reset()` on package-level registry, test B failed | fixed: added Snapshot/Restore pair with t.Cleanup |
 | 2026-04-06 | - | tests | Snapshot/Restore/Reset in registry missed new global | fixed: included every new global in snapshot |
