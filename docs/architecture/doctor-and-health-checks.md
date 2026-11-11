@@ -56,6 +56,24 @@ state where it lives. The dns-source checks (`doctor-dns-source-empty`,
 `doctor-dns-source-interface-silent`, `doctor-dns-source-self-unserved`) are
 the first such checks, owned by `internal/component/config/system`.
 
+The MPLS label checks are plugin runtime checks, each declared in its
+plugin's Stage 1 registration and answered by its doctor callback, because the
+state they read lives in that plugin's process:
+
+| Check | Plugin | Reports | Code |
+|-------|--------|---------|------|
+| `ldp-label-entries` | `ldp` | a push or pop LDP wants that no writer carried out | `doctor-fib-mpls-no-writer` |
+| `rsvp-te-label-entries` | `rsvp-te` | an entry a writer's replay did not install, under an LSP RSVP-TE holds up | `doctor-fib-mpls-no-writer` |
+| `ospf-sr-label-entries` | `ospf` | a Segment Routing push, swap or pop no writer carried out, or one OSPF cannot program because it runs forked | `doctor-fib-mpls-no-writer` |
+| `bgp-epe-label-entries` | `bgp-epe` | a PeerNode SID label no writer installed or removed as EPE wants | `doctor-fib-mpls-no-writer` |
+| `fib-vpp-label-entries` | `fib-vpp` | label entries installed without their path MTU; a label route a previous run left in VPP that could not be removed | `doctor-fib-vpp-mpls-path-mtu`, `doctor-fib-vpp-mpls-stale-label` |
+
+What each finding means, and the stale-label sweep behind the last code, are
+in `docs/architecture/mpls/mpls-kernel.md`, "Doctor checks".
+<!-- source: internal/plugins/ldp/doctor_label.go -- labelEntriesCheckDecl -->
+<!-- source: internal/plugins/rsvpte/doctor_label.go -- labelEntriesCheckName -->
+<!-- source: internal/plugins/fib/vpp/doctor_label.go -- labelEntriesCheckDecl -->
+
 There is one phase set and one registry. A second registry of daemon-only
 checks would let a check pick the one the local route happens to run, so the
 phase is the only place that says when a check runs.

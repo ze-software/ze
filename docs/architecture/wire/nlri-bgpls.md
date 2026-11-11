@@ -539,6 +539,16 @@ labels. A refused cleanup blocks installation and advertisement. Graceful
 removal returns cleanup failures to the lifecycle owner for retry; successful
 retirement is idempotent, so a deferred old-source stop cannot clear a new
 producer's labels. This does not claim cleanup of prefix-keyed push contexts.
+Each label the data plane disagrees with EPE about (an install no writer
+acknowledged, a removal no writer carried out, a label a writer's replay did
+not restore, or the labels a refused cleanup blocks) is reported by the runtime
+`ze show doctor` check `bgp-epe-label-entries` as a `doctor-fib-mpls-no-writer`
+error naming the label, its peer and the writer's cause, until the data plane
+holds what EPE wants. EPE declares the check in its Stage 1 registration and
+answers it from its own doctor callback.
+
+<!-- source: internal/component/bgp/plugins/epe/epe_doctor_label.go -- labelEntriesCheckDecl, labelDoctorFindings, forgetSettledLocked -->
+<!-- source: internal/component/bgp/plugins/epe/epe_plugin.go -- OnDoctorCheck, DoctorChecks -->
 
 The owner selected **Standard origination only** for private-use origination.
 `encodeTopology` produces standard Node, Link, IPv4/IPv6 Prefix, and SRv6 SID

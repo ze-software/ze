@@ -20,8 +20,16 @@ const (
 	ActionReject    ActionType = 3
 )
 
+// NoInterface is VPP's "no sw_if_index" (~0). A path that names no interface
+// MUST carry it: VPP reads sw_if_index 0 as local0, and fib_path_create
+// (`~0 != rpath->frp_sw_if_index`) then makes the path an attached next hop on
+// local0, which forwards nothing, instead of resolving the next hop.
+const NoInterface = ^uint32(0)
+
 // Path is a single ECMP next-hop. Weight is uint8 (VPP limit, max 255);
 // callers translating from the parent static package's uint16 Weight must cap.
+// SwIfIndex is the interface the path leaves by, or NoInterface for a path via
+// a next-hop address alone; it is never 0 for "none".
 type Path struct {
 	NextHop   netip.Addr
 	Weight    uint8

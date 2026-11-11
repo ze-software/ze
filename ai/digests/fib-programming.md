@@ -98,7 +98,7 @@ Route wins in a protocol, then gets programmed in the kernel:
    the plain prefix+next-hop path otherwise. The Linux backend programs via netlink tagged
    `RTPROT_ZE=250` (`internal/plugins/fib/kernel/backend_linux.go`, `addRoute:51`,
    `replaceRoute:71`, `delRoute:59`); labels are validated first
-   (`internal/plugins/fib/kernel/mpls.go`). Failures raise a `fib-sync-failure` report
+   (`mplsfib.ValidateOutLabels`, `internal/core/mplsfib/label.go`). Failures raise a `fib-sync-failure` report
    and track the prefix as pending for a 30s `fib-programming-lag` warning
    (`fibkernel.go`, `:359`).
 9. **Deletion/withdraw.** A Loc-RIB `ChangeRemove` (protocol withdraws, or the whole
@@ -123,11 +123,16 @@ Route wins in a protocol, then gets programmed in the kernel:
     ze-managed prefix that changed underneath it and publishes `(fib,
     external-change)` (`monitor.go`) for observability.
 12. **Parallel MPLS channel (bypasses sysrib).** RSVP-TE/LDP publish
-    `(mpls-fib, entry)` batches (`internal/core/mplsfib/events.go`) directly to
-    fib-kernel; `handleMPLSEntry` (`internal/plugins/fib/kernel/mplsentry.go`) programs
-    push entries through the rich-route path and swap/pop entries (AF_MPLS, label-keyed,
-    do not fit a prefix-keyed best-path table) through a dedicated `mplsBackend`
-    (`mplsentry.go`, `:135`).
+    `(mpls-fib, entry)` batches (`internal/core/mplsfib/events.go`, `Apply`) to the
+    writer of the selected data plane; each declares `NeedsDataPlane` and names no
+    writer. In fib-kernel `handleMPLSEntry` (`internal/plugins/fib/kernel/mplsentry.go`)
+    programs push entries through the rich-route path and swap/pop entries (AF_MPLS,
+    label-keyed, do not fit a prefix-keyed best-path table) through a dedicated
+    `mplsBackend`. In fib-vpp `handleMPLSEntry` (`internal/plugins/fib/vpp/mplsentry.go`)
+    programs two routes per swap/pop in VPP MPLS table 0. Both call
+    `mplsfib.ValidateEntry`. A writer that opens late emits `(mpls-fib, replay-request)`
+    and the producers re-apply through `mplsfib.ApplyReplay`, in a batch only that
+    writer consumes (`EntryBatch.Addresses`).
 13. **Parallel static path (bypasses sysrib and Loc-RIB entirely).**
     `routeManager.applyRouteLocked`/`programRouteLocked`
     (`internal/plugins/static/inject.go`, `:139`) call `backend.applyRoute`/
@@ -162,7 +167,8 @@ Route wins in a protocol, then gets programmed in the kernel:
 | `core/redistevents/registry.go` | `RegisterProtocol`/`RegisterProducer`/`ProtocolName`: protocol identity registry shared by every producer |
 | `core/routingtable/registry.go` | Named routing-table → kernel table ID resolution (used by static only) |
 | `core/rtproto/rtproto.go` | `RTPROT_ZE=250`/`RTPROT_STATIC=251`/`RTPROT_PolicyRoute=252`, `IsZe` |
-| `core/mplsfib/events.go` | `EntryBatch`/`Entry`: label-distribution-source (RSVP-TE/LDP) → fib-kernel channel, bypasses sysrib |
+| `core/mplsfib/events.go` | `EntryBatch`/`Entry`: label-distribution-source (RSVP-TE/LDP) → data-plane writer (fib-kernel, fib-vpp) channel, bypasses sysrib; `ReplayRequest`, `ApplyReplay` |
+| `core/mplsfib/label.go` | `ValidateEntry`/`ValidateOutLabels`: the one label validation every writer applies |
 | `fib/kernel/fibkernel.go` | `fibKernel`: `processEvent` (best-change dispatch), pending/lag tracking, `startupSweep`/`sweepStale`/`flushRoutes` |
 | `fib/kernel/backend_linux.go` | Linux netlink backend: `addRoute`/`delRoute`/`replaceRoute`/`listZeRoutes`, `RTPROT_ZE` |
 | `fib/kernel/richroute.go` | `RichRoute`/`richRouteBackend`: labels/ECMP/SRv6/backup/table-ID programming interface |
@@ -227,9 +233,10 @@ Route wins in a protocol, then gets programmed in the kernel:
   previous state (not just next-hop) before suppressing a republish specifically so a
   relabel (same next-hop, new MPLS stack) or ECMP-membership-only change still reaches the
   kernel (`sysrib.go`, `ecmp.go` `ecmpChanged` compares labels too).
-- **fib-kernel is the single kernel-FIB owner for the Loc-RIB path and for MPLS.** Design
-  comment at `internal/core/mplsfib/events.go`: RSVP-TE/LDP route through fib-kernel rather than
-  writing netlink themselves, to keep stale-sweep/re-assertion/metrics unified. Static is
+- **The writer of a data plane owns all of its forwarding state, labels included.**
+  fib-kernel is the single kernel-FIB owner for the Loc-RIB path and for MPLS, fib-vpp the
+  VPP one. Package comment at `internal/core/mplsfib/events.go`: RSVP-TE/LDP route through
+  the writer rather than writing netlink themselves, to keep stale-sweep/re-assertion/metrics unified. Static is
   the one dynamic exception (its own backend), justified by static routes needing no
   best-path machinery at all.
 - **Multiple dataplane backends subscribe the same event.** `fib/kernel`, `fib/vpp`,

@@ -1,12 +1,13 @@
 // Design: docs/architecture/testing/interop.md -- ze against a real VPP daemon
 // Overview: actions.go -- the deployment action that reaches this run
-// Detail: vppevidencescenarios.go -- the eight scenario inputs
-// Detail: vppevidencerun.go -- the eight scenario producers
+// Detail: vppevidencescenarios.go -- the nine scenario inputs
+// Detail: vppevidencerun.go -- the nine scenario producers
+// Detail: vppevidencempls.go -- the mpls-label-pop producer and its packet trace
 // Detail: vppevidencereport.go -- the structured result of each scenario
 // Related: vppiface.go -- the shared VPP container and command machinery
 //
 // This runner ports the legacy effective-VPP harness without starting it. One VPP container is
-// shared by eight ordered scenarios. A proof failure stops the sequence because
+// shared by nine ordered scenarios. A proof failure stops the sequence because
 // the next scenario would inherit state that the failed scenario did not prove.
 package testdeployment
 
@@ -42,7 +43,7 @@ const (
 	vppDaemonReadyLine = "Ze running."
 )
 
-// VPP is one run of the eight legacy deployment scenarios. It
+// VPP is one run of the nine deployment scenarios. It
 // embeds the existing VPP runner because both proofs use the same image,
 // container, sockets, vppctl path, daemon settings, and bounded process helpers.
 //
@@ -62,7 +63,7 @@ func newVPP(tree string) *VPP {
 	return &VPP{vppIface: newVPPIface(tree)}
 }
 
-// Run performs all eight scenarios and returns the completed report.
+// Run performs all nine scenarios and returns the completed report.
 // Operating failures return an error. A VPP answer that disproves a claim is a
 // failed report with a nil error.
 //
@@ -139,6 +140,7 @@ func (v *VPP) scenarioRuns() []vppEvidenceRunStep {
 		{name: VPPScenarioIPsec, run: v.runIPsec},
 		{name: VPPScenarioIPv4FIB, run: v.runIPv4FIB},
 		{name: VPPScenarioMPLSFIB, run: v.runMPLSFIB},
+		{name: VPPScenarioMPLSLabelPop, run: v.runMPLSLabelPop},
 		{name: VPPScenarioTrafficInterface, run: v.runTrafficInterface},
 		{name: VPPScenarioTrafficProtocol, run: v.runTrafficProtocol},
 		{name: VPPScenarioTrafficDSCP, run: v.runTrafficDSCP},

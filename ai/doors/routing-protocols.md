@@ -43,8 +43,10 @@ work, not the tests in this repository alone.
   only to read routes and links.
 - **Label entries go through the bus.** LDP and RSVP-TE emit
   `(mpls-fib, entry)` events (`internal/core/mplsfib/events.go`, `Apply`), and
-  `fib-kernel` is the only code that programs them
-  (`ai/digests/mpls-signaling.md`).
+  the writer of the selected data plane programs them: `fib-kernel` for the
+  kernel, `fib-vpp` for VPP MPLS table 0 (`ai/digests/mpls-signaling.md`). A
+  writer that opens late asks for them again with `(mpls-fib, replay-request)`,
+  and each producer answers with `mplsfib.ApplyReplay`.
 - **The plugin can run forked.** In a subprocess `locrib.Default()` is nil, so
   the installer needs its `RouteSink`, which ships each batch over the
   `route-install` RPC (`docs/architecture/forked-route-install.md`). An
@@ -93,9 +95,12 @@ work, not the tests in this repository alone.
 
 ## Traps
 
-- **OSPF, IS-IS and LDP name `fib-kernel` in `Dependencies`**, so a VPP
-  deployment loads the kernel writer (`plan/journal/plugin-list-hardcoded.md`,
-  and `ldp/register.go` carries the same name).
+- **OSPF, IS-IS, LDP and RSVP-TE named `fib-kernel` in `Dependencies`**, so a
+  VPP deployment loaded the kernel writer and LDP's labels never reached VPP
+  (`plan/journal/plugin-list-hardcoded.md`). Each now declares `NeedsDataPlane`,
+  and `TestNoRegistrationDependsOnAFIBWriter`
+  (`internal/component/plugin/all/all_test.go`) refuses a registration whose
+  `Dependencies` name a plugin that declares `ProgramsFIB`.
 - **OSPFv2 and OSPFv3 share code, and logic written for one was wrong in the
   other:** an OSPFv2 LSA body originated by the OSPFv3 engine, an SR flag read
   for IPv4 only (`plan/journal/guard-added-to-one-half-of-a-pair.md`).

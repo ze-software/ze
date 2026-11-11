@@ -26,6 +26,7 @@ import (
 	"go.fd.io/govpp/binapi/fib_types"
 	"go.fd.io/govpp/binapi/ip"
 	"go.fd.io/govpp/binapi/ip_types"
+	"go.fd.io/govpp/binapi/mpls"
 )
 
 // --- shared fakes and helpers ---
@@ -34,9 +35,11 @@ import (
 // and returns a configurable reply via ReceiveReply.
 type testChannel struct {
 	lastRequest api.Message
-	retval      int32 // reply retval for IPRouteAddDelReply
-	sendErr     error // error returned by ReceiveReply
+	requests    []api.Message // every request, in order
+	retval      int32         // reply retval for IPRouteAddDelReply and the MPLS replies
+	sendErr     error         // error returned by ReceiveReply
 	closed      bool
+	mplsDump    []mpls.MplsRoute // what an MplsRouteDump answers (mplsstale_test.go)
 }
 
 var _ api.Channel = (*testChannel)(nil)
@@ -49,7 +52,14 @@ func (r *testRequestCtx) ReceiveReply(msg api.Message) error {
 	if r.ch.sendErr != nil {
 		return r.ch.sendErr
 	}
-	if reply, ok := msg.(*ip.IPRouteAddDelReply); ok {
+	switch reply := msg.(type) {
+	case *ip.IPRouteAddDelReply:
+		reply.Retval = r.ch.retval
+	case *mpls.MplsRouteAddDelReply:
+		reply.Retval = r.ch.retval
+	case *mpls.MplsTableAddDelReply:
+		reply.Retval = r.ch.retval
+	case *mpls.SwInterfaceSetMplsEnableReply:
 		reply.Retval = r.ch.retval
 	}
 	return nil
@@ -57,10 +67,14 @@ func (r *testRequestCtx) ReceiveReply(msg api.Message) error {
 
 func (c *testChannel) SendRequest(msg api.Message) api.RequestCtx {
 	c.lastRequest = msg
+	c.requests = append(c.requests, msg)
 	return &testRequestCtx{ch: c}
 }
 
-func (c *testChannel) SendMultiRequest(api.Message) api.MultiRequestCtx { return nil }
+func (c *testChannel) SendMultiRequest(msg api.Message) api.MultiRequestCtx {
+	c.requests = append(c.requests, msg)
+	return &testMPLSDumpCtx{ch: c, msg: msg}
+}
 func (c *testChannel) SubscribeNotification(chan api.Message, api.Message) (api.SubscriptionCtx, error) {
 	return nil, nil //nolint:nilnil // test stub, never called
 }
@@ -933,28 +947,63 @@ func TestMPLSPush(t *testing.T) {
 	assert.Equal(t, []uint32{100}, mb.pushes[0].labels)
 }
 
+// labelRouteRequests returns the MplsRouteAddDel requests ch recorded.
+func labelRouteRequests(t *testing.T, ch *testChannel) []*mpls.MplsRouteAddDel {
+	t.Helper()
+	var out []*mpls.MplsRouteAddDel
+	for _, m := range ch.requests {
+		if req, ok := m.(*mpls.MplsRouteAddDel); ok {
+			out = append(out, req)
+		}
+	}
+	return out
+}
+
+// VALIDATES: a swap reaches VPP as one route per S-bit value in table 0, each
+// imposing the out-label toward the next hop. Method: the GoVPP backend over the
+// recording fake channel.
 func TestMPLSSwap(t *testing.T) {
-	mb := &mockMPLSBackend{}
+	ch := &testChannel{}
+	b := newGovppMPLSBackend(ch, 5)
 	nh := netip.MustParseAddr("192.168.1.1")
 
-	err := mb.addMPLSSwap(100, 200, nh)
+	err := b.addLabelRoutes(labelRoute{inLabel: 100, outLabels: []uint32{200}, nextHop: nh})
 	require.NoError(t, err)
-	require.Len(t, mb.swaps, 1)
-	assert.Equal(t, uint32(100), mb.swaps[0].inLabel)
-	assert.Equal(t, uint32(200), mb.swaps[0].outLabel)
-	assert.Equal(t, nh, mb.swaps[0].nextHop)
+	reqs := labelRouteRequests(t, ch)
+	require.Len(t, reqs, 2)
+	assert.Equal(t, uint32(100), reqs[0].MrRoute.MrLabel)
+	assert.Equal(t, uint32(200), reqs[0].MrRoute.MrPaths[0].LabelStack[0].Label)
+	assert.Equal(t, uint32(mplsTableZero), reqs[0].MrRoute.MrTableID)
+	assert.Equal(t, uint8(1), reqs[0].MrRoute.MrEos)
+	assert.Equal(t, uint8(0), reqs[1].MrRoute.MrEos)
+	// Both stack positions forward toward the entry's next hop, as an IPv4 next
+	// hop (labelPath, nextHopAddress in mpls.go).
+	for i := range reqs {
+		require.NotEmpty(t, reqs[i].MrRoute.MrPaths, "request %d", i)
+		path := reqs[i].MrRoute.MrPaths[0]
+		assert.Equal(t, ip_types.IP4Address(nh.As4()), path.Nh.Address.GetIP4(), "request %d next hop", i)
+		assert.Equal(t, fib_types.FIB_API_PATH_NH_PROTO_IP4, path.Proto, "request %d next-hop protocol", i)
+	}
 }
 
+// VALIDATES: a penultimate-hop pop imposes the single label Implicit NULL, which
+// VPP reads as a pop. Method: as TestMPLSSwap.
 func TestMPLSPop(t *testing.T) {
-	mb := &mockMPLSBackend{}
+	ch := &testChannel{}
+	b := newGovppMPLSBackend(ch, 0)
 	nh := netip.MustParseAddr("192.168.1.1")
 
-	err := mb.addMPLSSwap(100, 3, nh)
+	err := b.addLabelRoutes(labelRoute{inLabel: 100, nextHop: nh})
 	require.NoError(t, err)
-	require.Len(t, mb.swaps, 1)
-	assert.Equal(t, uint32(3), mb.swaps[0].outLabel)
+	reqs := labelRouteRequests(t, ch)
+	require.Len(t, reqs, 2)
+	assert.Equal(t, uint8(1), reqs[0].MrRoute.MrPaths[0].NLabels)
+	assert.Equal(t, uint32(implicitNullLabel), reqs[0].MrRoute.MrPaths[0].LabelStack[0].Label)
 }
 
+// VALIDATES: a labeled push is removed through the mock, and a label entry is
+// removed from VPP at both stack positions. Method: the mock, then the GoVPP
+// backend over the recording fake channel.
 func TestMPLSDelete(t *testing.T) {
 	mb := &mockMPLSBackend{}
 	pfx := netip.MustParsePrefix("10.0.0.0/24")
@@ -964,24 +1013,35 @@ func TestMPLSDelete(t *testing.T) {
 	require.Len(t, mb.delPushes, 1)
 	assert.Equal(t, pfx, mb.delPushes[0])
 
-	err = mb.delMPLSSwap(100)
+	ch := &testChannel{}
+	err = newGovppMPLSBackend(ch, 0).delLabelRoutes(100)
 	require.NoError(t, err)
-	require.Len(t, mb.delSwaps, 1)
-	assert.Equal(t, uint32(100), mb.delSwaps[0])
+	reqs := labelRouteRequests(t, ch)
+	require.Len(t, reqs, 2)
+	assert.Equal(t, uint32(100), reqs[0].MrRoute.MrLabel)
+	assert.False(t, reqs[0].MrIsAdd)
+	assert.False(t, reqs[1].MrIsAdd)
 }
 
-func TestMPLSInterfaceEnable(t *testing.T) {
-	mb := &mockMPLSBackend{}
+// VALIDATES: MPLS table 0, which VPP needs before it enables MPLS input on an
+// interface or accepts a label route, is created with MplsTableAddDel. Interface
+// enable itself moved to the iface VPP backend (internal/plugins/iface/vpp).
+// Method: the GoVPP backend over the recording fake channel.
+func TestMPLSCreateTableZero(t *testing.T) {
+	ch := &testChannel{}
 
-	err := mb.enableMPLS(1)
+	err := newGovppMPLSBackend(ch, 7).createMPLSTable()
 	require.NoError(t, err)
-	require.Len(t, mb.enables, 1)
-	assert.Equal(t, uint32(1), mb.enables[0])
+	require.Len(t, ch.requests, 1)
+	req, ok := ch.requests[0].(*mpls.MplsTableAddDel)
+	require.True(t, ok)
+	assert.True(t, req.MtIsAdd)
+	assert.Equal(t, uint32(0), req.MtTable.MtTableID)
 
-	err = mb.disableMPLS(1)
-	require.NoError(t, err)
-	require.Len(t, mb.disables, 1)
-	assert.Equal(t, uint32(1), mb.disables[0])
+	ch.retval = -6
+	err = newGovppMPLSBackend(ch, 7).createMPLSTable()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "retval=-6")
 }
 
 func TestProcessEventWithLabels(t *testing.T) {

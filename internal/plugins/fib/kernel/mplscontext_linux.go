@@ -12,6 +12,8 @@ import (
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+
+	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
 )
 
 const mplsContextPriority = 1
@@ -55,7 +57,7 @@ func (n *netlinkBackend) addMPLSContext(r RichRoute) error {
 	// An empty stack is a plain route via the next hop (Implicit NULL, see
 	// addMPLSEntryLocked).
 	if len(r.Labels) > 0 {
-		if err := validateMPLSLabels(r.Labels); err != nil {
+		if err := mplsfibevents.ValidateOutLabels(r.Labels); err != nil {
 			return err
 		}
 	}

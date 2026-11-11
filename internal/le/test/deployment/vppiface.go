@@ -4,7 +4,7 @@
 // Detail: vppifacereport.go -- the payload this run answers
 // Related: deployment.go -- the container and the collector
 // Related: daemonbuild.go -- the daemon this proof builds
-// Related: vppevidence.go -- the eight-scenario proof that shares this VPP lab
+// Related: vppevidence.go -- the nine-scenario proof that shares this VPP lab
 //
 // vppiface.go proves that ze programs interface features on a VPP daemon that
 // somebody else built. ze sends a GRE tunnel, a SPAN mirror, a wireguard

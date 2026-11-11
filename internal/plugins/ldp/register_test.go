@@ -10,8 +10,44 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
+
+// TestLDPRegistrationNeedsDataPlane proves LDP reaches forwarding through a
+// declaration rather than a writer's name: it declares NeedsDataPlane, so the
+// engine loads the writer of the configured data plane, and its doctor check
+// depends on LDP itself.
+//
+// VALIDATES: AC-16 -- LDP declares NeedsDataPlane; no Dependencies entry is a
+// registration that declares ProgramsFIB. This package links no FIB writer,
+// so the cross-registry half is TestNoRegistrationDependsOnAFIBWriter
+// (internal/component/plugin/all); here every dependency LDP names must be
+// one whose registration, where linked, does not program a FIB.
+func TestLDPRegistrationNeedsDataPlane(t *testing.T) {
+	reg := registry.Lookup(pluginName)
+	if reg == nil {
+		t.Fatal("ldp is not registered")
+	}
+	if !reg.NeedsDataPlane {
+		t.Fatal("ldp does not declare NeedsDataPlane, so no writer is loaded for its label entries")
+	}
+	for _, dep := range reg.Dependencies {
+		if other := registry.Lookup(dep); other != nil && other.ProgramsFIB {
+			t.Errorf("ldp Dependencies names %q, which programs a FIB", dep)
+		}
+	}
+	for _, check := range reg.DoctorChecks {
+		for _, dep := range check.Dependencies {
+			if other := registry.Lookup(dep); other != nil && other.ProgramsFIB {
+				t.Errorf("ldp doctor check %q depends on %q, which programs a FIB", check.Name, dep)
+			}
+		}
+		if len(check.Dependencies) != 1 || check.Dependencies[0] != pluginName {
+			t.Errorf("ldp doctor check %q Dependencies = %v, want [%s]", check.Name, check.Dependencies, pluginName)
+		}
+	}
+}
 
 // VALIDATES: spec-ospf-ext-11 AC-11, A-4, R-4 -- a discovered adjacency (and hence
 // the emitted SessionUp/SessionDown event) carries the local interface it was

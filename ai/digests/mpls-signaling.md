@@ -13,9 +13,12 @@ bandwidth admission, and RFC 4090 facility-backup Fast Reroute. `ldp/register.go
 `ldp/session.go` run LDP (RFC 5036): UDP Hello discovery, a per-peer TCP session FSM, and
 downstream-unsolicited FEC-to-label distribution. Both translate their decisions into
 `(mpls-fib, entry)` events (`internal/core/mplsfib/events.go`) on the shared EventBus;
-`fib-kernel` (`internal/plugins/fib/kernel/mplsentry.go`) is the single subscriber and
-the only code that calls netlink for these entries, unifying push/swap/pop programming,
-stale-sweep and metrics regardless of which protocol produced the entry.
+the writer of the data plane `interface { backend }` selects consumes them:
+`fib-kernel` (`internal/plugins/fib/kernel/mplsentry.go`) on netlink, the only code that
+calls netlink for these entries, and `fib-vpp` (`internal/plugins/fib/vpp/mplsentry.go`)
+on VPP. Neither producer names a writer: both declare `NeedsDataPlane`, and the
+writer unifies push/swap/pop programming, stale-sweep and metrics regardless of which
+protocol produced the entry.
 `internal/component/mpls` is a separate, read-only path: it dumps the kernel's AF_MPLS
 table plus ze-owned IP-encap routes directly from netlink to serve `show mpls
 forwarding`, independent of either engine's in-memory state.
@@ -24,7 +27,7 @@ forwarding`, independent of either engine's in-memory state.
 
 ### LDP: discovery, session, label distribution, LIB → FIB
 1. **Registration.** `registerLDP` (`ldp/register.go`) registers the `ldp`
-   plugin (YANG root `ldp`, depends on `fib-kernel`+`sysctl`) and a doctor check
+   plugin (YANG root `ldp`, depends on `sysctl`, declares `NeedsDataPlane`) and a doctor check
    for UDP/TCP port 646 (`ldp/register.go`, `ldp/doctor.go`). `runLDPEngine`
    (`ldp/register.go`) is the process entry point: it builds a `LIB`
    (`ldp/lib.go`) and `AdjacencyTable` (`ldp/discovery.go`), then wires
@@ -84,7 +87,7 @@ forwarding`, independent of either engine's in-memory state.
 
 ### RSVP-TE: LSP setup, label allocation, tunnel state
 9. **Registration and transport.** `registerRSVPTE` (`rsvpte/register.go`) registers
-   the `rsvp-te` plugin (depends on `fib-kernel`+`sysctl`) plus a CAP_NET_RAW doctor check
+   the `rsvp-te` plugin (depends on `interface`+`sysctl`, declares `NeedsDataPlane`) plus a CAP_NET_RAW doctor check
    (`rsvpte/register.go`, `rsvpte/doctor.go`). `runRSVPTEEngine`
    (`rsvpte/register.go`) is the process entry; `OnStarted` (`rsvpte/register.go`)
    opens the raw IP transport on protocol 46 (`newTransport`, `rsvpte/transport.go`,
@@ -159,9 +162,17 @@ forwarding`, independent of either engine's in-memory state.
     `busFIB.emit` (`rsvpte/fib.go`) build an `mplsfibevents.Entry` (Action
     Add/Remove, Op Push/Swap/Pop, tagged `Source` = 2 for LDP / 1 for RSVP-TE,
     `ldp/fib.go`, `rsvpte/fib.go`) and call
-    `mplsfibevents.EntryChange.Emit` (`mplsfib/events.go`), a batch of one
-    entry per call, onto the `(mpls-fib, entry)` namespace
-    (`mplsfib/events.go`).
+    `mplsfibevents.Apply` (`mplsfib/events.go`), a batch of one entry per call,
+    onto the `(mpls-fib, entry)` namespace; `Apply` returns only once the writer
+    acknowledged. Both also answer `(mpls-fib, replay-request)` with
+    `mplsfibevents.ApplyReplay`, re-applying every entry they want installed in a
+    batch only the requesting writer consumes (`ldpFIB.replay`, `busFIB.replay`).
+    OSPF Segment Routing is a third producer on the same topic: `srFIB.emit`
+    (`ospf/sr_fib.go`, `Source` 3 for OSPFv2 SR, 4 for OSPFv3 SR) applies the
+    same way and `srFIB.replay` answers the same request, subscribed in
+    `initSPF` (`ospf/spf_wiring.go`). BGP EPE (`bgp/plugins/epe/epe_source.go`,
+    `Source` 5) applies its PeerNode SID pops the same way and answers with
+    `Source.ReplayLabels`. IS-IS emits no label entry.
 17. **fib-kernel programs it.** `fibKernel.run` subscribes `f.handleMPLSEntry` to
     `mplsfibevents.EntryChange` (`internal/plugins/fib/kernel/fibkernel.go`,
     alongside the separate `sysribevents.BestChange` subscription that carries BGP-LU
@@ -213,8 +224,10 @@ forwarding`, independent of either engine's in-memory state.
 | `internal/component/mpls/show_forwarding.go` | `ze-mpls:show-forwarding` RPC handler, `forwardingEntry` shape, limit/truncation |
 
 ## Invariants & gotchas
-- **fib-kernel is the single kernel programmer for MPLS.** Neither `ldp/fib.go`
-  nor `rsvpte/fib.go` calls netlink; both only emit `(mpls-fib, entry)`. This
+- **fib-kernel is the single kernel programmer for MPLS, fib-vpp the VPP one.**
+  Neither `ldp/fib.go` nor `rsvpte/fib.go` calls netlink; both only emit
+  `(mpls-fib, entry)`. `show mpls forwarding` still reads only the kernel table, so
+  on VPP it lists none of the labels fib-vpp holds. This
   keeps stale-sweep, `RouteAdd`-vs-`RouteReplace` foreign-route safety, and the
   `ze_fibkernel_mpls_*` metrics unified across producers
   (`internal/plugins/fib/kernel/mplsentry.go`).
@@ -230,8 +243,11 @@ forwarding`, independent of either engine's in-memory state.
   (`MaxLabel` = 1048575, defined separately in `ldp/wire.go` and
   `rsvpte/wire.go`) with no cross-protocol coordination. Running both
   protocols concurrently on one node for long enough makes an in-label numeric
-  collision possible; nothing in `fib-kernel` currently detects two different
-  `Source` tags racing to install the same `InLabel`.
+  collision possible. Each writer records the source that owns an installed
+  `InLabel` and refuses another source's install with `EEXIST`
+  (`internal/plugins/fib/kernel/mplsentry.go`, `internal/plugins/fib/vpp/mplsentry.go`),
+  so the second protocol's entry fails rather than overwriting the first, but
+  nothing allocates around the collision.
 - **Implicit-null (PHP) is a "do not push" signal, not a real label.** LDP label 3
   means "forward as plain IP, don't impose anything" (RFC 3032 §2.1); it is
   handled as a special case in `applyRemoteBinding` (`ldp/fib.go`) that clears

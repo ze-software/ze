@@ -30,11 +30,11 @@ type panickingPopFIB struct {
 	calls   atomic.Int32
 }
 
-func (f *panickingPopFIB) programPop(inLabel uint32, nextHop netip.Addr, pathMTU uint32) error {
+func (f *panickingPopFIB) programPop(inLabel uint32, fec netip.Prefix, nextHop netip.Addr, pathMTU uint32) error {
 	if f.calls.Add(1) == f.panicAt {
 		panic("injected test panic in programPop")
 	}
-	return f.fakeFIB.programPop(inLabel, nextHop, pathMTU)
+	return f.fakeFIB.programPop(inLabel, fec, nextHop, pathMTU)
 }
 
 // guardEvidence is what a contained panic leaves: the task's count and the

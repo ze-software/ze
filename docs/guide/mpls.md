@@ -55,8 +55,19 @@ start. Details: `docs/architecture/mpls/mpls-kernel.md`, "On a kernel without
 the patch".
 
 A VPP or P4 FIB backend is never judged on the kernel's AF_MPLS table. The
-`fib { kernel { } }` block is what activates the plugin that programs kernel
-labels, and it is that plugin that carries the requirement.
+requirement belongs to fib-kernel, the plugin that programs kernel labels.
+LDP and RSVP-TE load it under `interface { backend netlink; }` with no
+`fib { }` block, and a `fib { kernel { } }` block loads it too.
+
+On `interface { backend vpp; }`, fib-vpp programs the same LDP and RSVP-TE
+swap and pop entries into VPP's MPLS table 0, and `mpls { enable true; }`
+enables MPLS input on the VPP interface instead of only writing the sysctl.
+`show mpls fib` in `vppctl` lists each label twice, as `eos` and `neos`. VPP
+has no per-route MTU, so labeled frames are bounded by the interface MTU, and
+an RSVP-TE facility-backup push into a private table is refused. The details
+are in [VPP](vpp.md), row vpp-3.
+<!-- source: internal/plugins/fib/vpp/mplsentry.go -- handleMPLSEntry -->
+<!-- source: internal/plugins/iface/vpp/mplsinput.go -- ReplaceMPLSInput -->
 
 ## Inspecting the forwarding table
 
@@ -133,10 +144,12 @@ Rejected/No Hello.
 
 Inspect LDP state with `show ldp neighbor` (session state, transport address)
 and `show ldp binding` (FEC-to-label bindings). A label binding learned from a
-neighbor programs an ingress push entry in the kernel MPLS FIB toward that
-neighbor.
+neighbor programs an ingress push entry toward that neighbor, in the kernel MPLS
+FIB under `interface { backend netlink; }` and in VPP under `backend vpp`.
+Under `backend vpp`, `show mpls forwarding` still reads only the kernel table,
+so it does not list the labels VPP holds; use `vppctl show mpls fib` there.
 
-<!-- source: internal/plugins/fib/kernel/mpls.go -- label validation -->
+<!-- source: internal/core/mplsfib/label.go -- label validation -->
 <!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- buildMPLSEncap (push) -->
 <!-- source: internal/component/iface/config_sysctl.go -- net.mpls.conf.<iface>.input -->
 <!-- source: internal/component/mpls/show_forwarding.go -- show mpls forwarding -->

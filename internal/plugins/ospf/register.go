@@ -161,7 +161,12 @@ func registerOSPF() {
 		ConfigReads: []string{bfdapi.ConfigRoot, ifcomp.ConfigRoot, policy.RootName},
 		// policy is a hard dependency of every protocol with a filter attachment:
 		// the filter instances its chains name live under the policy root.
-		Dependencies:            []string{"interface", "fib-kernel", "sysctl", policy.PluginName},
+		Dependencies: []string{"interface", "sysctl", policy.PluginName},
+		// OSPF's routes reach forwarding only through the writer of the data
+		// plane `interface { backend }` selects (fib-kernel on netlink, fib-vpp
+		// on VPP), so the engine resolves and loads that writer. Naming
+		// fib-kernel here would load the kernel writer on a VPP deployment.
+		NeedsDataPlane:          true,
 		RFCs:                    []string{"2328", "5709", "7474", "9129"},
 		RunEngine:               runOSPFEngine,
 		Commands:                commandDecls(),
@@ -633,6 +638,11 @@ func runOSPFEngine(conn net.Conn) int {
 	})
 
 	p.OnDoctorCheck(func(name string) ([]rpc.DoctorCheckDiagnostic, error) {
+		// The SR label record lives in this process, internal and forked
+		// alike; before any engine wired SR it holds nothing to report.
+		if name == srLabelEntriesCheckName {
+			return srLabelDoctorFindings(), nil
+		}
 		if name != "ospf-state" {
 			return nil, fmt.Errorf("unknown ospf doctor check %s", name)
 		}
@@ -920,7 +930,7 @@ func runOSPFEngine(conn net.Conn) int {
 		DoctorChecks: []rpc.DoctorCheckDecl{{
 			Name: "ospf-state", Phase: rpc.DoctorPhasePostConfig,
 			Codes: []string{codeOSPFGracefulRestartNVS},
-		}},
+		}, srLabelEntriesCheckDecl},
 	})
 	if err != nil {
 		log.Error("ospf engine failed", "error", err)

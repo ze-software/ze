@@ -59,6 +59,16 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 **Behavior to change:**
 - Every copy answers what the owner answers, because it is deleted and its caller calls the owner.
 
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| RFC 6811 origin AS derivation | `internal/component/bgp/plugins/rpki/rpki.go` `rpkiOriginASFromASPath` | Reads the final segment type: an AS_SET is NONE, an empty or confederation path uses the local AS | Extends: it becomes the one owner, and `originASFromParsed` is deleted with its callers moved to it (AC-3) |
+| Canonical IP protocol name table | `internal/component/firewall/protocol.go` `ProtocolName`, `ProtocolNames` | Maps an IANA protocol number to its name from one table, with a found flag | Extends: `trafficusage` `protoName` is deleted and its caller uses the owner (AC-7) |
+| govpp reply deadline | `internal/plugins/firewall/vpp/timeout_linux.go` and `internal/plugins/traffic/vpp/timeout_linux.go` `newGovppOps` | Installs `SetReplyTimeout` on every channel those two backends build | Replaces: the bound moves into `vpp.Connector.NewChannel` (`internal/component/vpp/conn.go`), which today hands out an unbounded channel, so every consumer gets it (AC-6) |
+| LOCAL_PREF placement rule | `internal/component/bgp/reactor/forward_local_pref.go` `localPrefAllowedTo` | Owns the RFC 4271 Section 5.1.5 answer of whether LOCAL_PREF goes to a peer, for every rail | Does not apply to the value: it owns where LOCAL_PREF goes, not the default 100, which stays written in four places until AC-5 declares it once |
+| Data-plane writer selection | `internal/component/plugin/registry/registry.go` `Registration.NeedsDataPlane`, `ProgramsFIB`, `DataPlane`; `internal/component/plugin/server/startup_autoload.go` `appendDataPlaneWriter` | A producer declares it needs a data plane and the engine loads the writer the configured backend selects | Extends: AC-9 is met by declaring `NeedsDataPlane` on OSPF, IS-IS and LDP instead of naming `fib-kernel` (done by `plan/release/validation/spec-fib-depth.md` Phase 13) |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -131,7 +141,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 | AC-6 | Every govpp channel any plugin obtains | Carries the reply deadline; a silent VPP yields an error, not a hang |
 | AC-7 | `update text` EVPN `ethernet-ad`/`ethernet-segment`; CIDR family set; legacy next-hop families; IP protocol names; rp_filter words; mrt direction words; RADIUS rate forms | Each answered by one owner; every rail accepts what config accepts |
 | AC-8 | `set <list> <key-leaf> <v>` from SSH, web terminal, CLI bar and session write-through | One resolver; all surfaces store the same tree, and the serialized form parses back |
-| AC-9 | OSPF, IS-IS or LDP with `interface backend vpp` | Loads the VPP FIB writer, not `fib-kernel` |
+| AC-9 | OSPF, IS-IS or LDP with `interface backend vpp` | Loads the VPP FIB writer, not `fib-kernel`. -> Met (2026-11-11) by `plan/release/validation/spec-fib-depth.md` Phase 13 AC-16: OSPF, IS-IS, LDP and RSVP-TE declare `NeedsDataPlane` and name no FIB writer in `Dependencies`. Evidence: `TestNoRegistrationDependsOnAFIBWriter`, `TestLDPRegistrationNeedsDataPlane`, `TestRSVPTERegistrationNeedsDataPlane`, `TestOSPFRegistrationNeedsDataPlane`, `TestISISRegistrationNeedsDataPlane` |
 | AC-10 | Each owned pair row (blackhole gate, web rollback, TLS rotation, IKE SK failure, `SendAnnounce` admission, audit success signal, ChangeCount and diff, geodns TTL bound, link-event queue, hub CR handling, firewall ARP literal, vpp ARP/ND verifier, policy-route protocol leaf, simultaneous announce and withdraw) | Both halves call one owner and give one answer |
 | AC-11 | Each owned row's representative reproduction (Owned journal rows below) | No longer reproduces; the row is re-pointed to this spec and closed with its test name |
 

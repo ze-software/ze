@@ -592,6 +592,56 @@ and require the packet proof to pass before claiming closure.
 <!-- source: internal/le/test/deployment/vpp_srv6_oracle_integration_linux_test.go -- TestVPPSRv6StateOracle, TestVPPSRv6PacketOracle -->
 <!-- source: internal/le/test/deployment/vpp_srv6_integration_test.go -- TestVPPSRv6ServiceRoute -->
 
+## Real VPP label pop proof (`mpls-label-pop`)
+
+`./le test deployment vpp` runs nine scenarios in order against one VPP
+container. `mpls-label-pop` is the fourth, after `mpls-fib`, and it proves
+that an LDP egress pop reaches VPP's MPLS table 0 when the engine, not a
+`fib { }` block, chooses the label writer.
+
+Before Ze starts, the harness creates the packet-generator interface `pg0`, so
+the VPP interface backend's first interface dump names it. Ze then runs with
+`interface { backend vpp; ethernet pg0 { unit default { mpls { enable true; } } } }`
+and `ldp { lsr-id 10.0.0.1; transport-address 10.0.0.1; interfaces lo; }`, and
+no `fib { }` block. The container's Linux loopback offers LDP no advertisable
+prefix, so the LSR-ID host route is the only FEC LDP originates. Every verdict
+comes from VPP's own CLI:
+
+| Check | VPP query | What passes |
+|-------|-----------|-------------|
+| `installed` | `show mpls fib table 0` | Exactly one label of 16 or above holds an `eos` entry whose path is an `ip4` deag and a `neos` entry whose path is an `mpls` deag |
+| `mpls-input` | `show mpls interface` | `pg0` is followed by `MPLS enabled` |
+| `popped` | `show trace` | A frame carrying that label, S set, reaches `mpls-lookup` and then `lookup-ip4-dst` or `ip4-lookup` |
+| `unprogrammed-drop` | `show trace` | A frame carrying label 999999 reaches `mpls-lookup`, then `mpls-drop`, and no IPv4 lookup |
+| `removed` | `show mpls fib table 0` | After the configuration loses `ldp { }` and the running daemon gets SIGHUP, the label has neither entry |
+
+The parsers follow VPP's formatters in FDio/vpp v26.06, the release of the
+`ligato/vpp-base:26.06-release` image. `mpls_fib_show` prints each entry with
+`format_fib_entry`, whose first token is `format_fib_prefix`: for an MPLS
+prefix, `"%U:%U"` of the label and of `format_mpls_eos_bit`, then `"/%d"`.
+`format_mpls_eos_bit` writes `MPLS_EOS_BITS`, `"eos"` or `"neos"`, and a
+reserved label prints by name, so only an allocated label matches.
+`format_fib_path` writes `"%U weight=%d "` with `format_dpo_proto` (`ip4`,
+`mpls`) and then `fib_path_type_names`, where a lookup path is `deag`.
+`show_mpls_interface_one` prints the interface name, then `"  MPLS enabled"`.
+A table 0 miss forwards through `mpls_fib_drop_dpo_index`, whose node is
+`mpls-drop`. A frame on an interface without MPLS input meets the
+`mpls-not-enabled` feature and never reaches `mpls-lookup`, so `popped` also
+proves that Ze enforced `mpls { enable true; }` in VPP.
+
+The frames go in through the packet generator from a pcap file in the scratch
+mount, the pattern of `vppSRv6PGPacket`. `show packet-generator` must count one
+generated frame before the trace is judged, so a stream that never ran cannot
+pass the drop check.
+
+The scenario is red when fib-vpp no longer consumes label entries, for example
+with the `(mpls-fib, entry)` subscription in fib-vpp's `register.go` removed,
+or when LDP names `fib-kernel` in `Dependencies` again: `installed` then fails.
+The daemon binary is rebuilt by the run itself, so reverting the source and
+rerunning `./le test deployment vpp` is enough to show it.
+<!-- source: internal/le/test/deployment/vppevidencempls.go -- runMPLSLabelPop, singlePoppedLabel, traceMPLSFrame, vppMPLSInputEnabled -->
+<!-- source: internal/le/test/deployment/vppevidencescenarios.go -- vppMPLSLabelPopConfig -->
+
 ## Live Interop Tests (`test/interop/`)
 
 Each scenario runs Ze and one or more peer daemons in Docker containers on a shared

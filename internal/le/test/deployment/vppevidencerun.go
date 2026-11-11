@@ -1,4 +1,4 @@
-// Design: docs/architecture/testing/interop.md -- the eight real VPP proof scenarios
+// Design: docs/architecture/testing/interop.md -- the nine real VPP proof scenarios
 // Overview: vppevidence.go -- the shared container and ordered scenario dispatch
 //
 // Each function below is the Go producer for one legacy scenario function.

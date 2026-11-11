@@ -8,28 +8,30 @@ import (
 // TestVPPScenarioTableNamesEveryProducerScenario validates the complete and
 // ordered producer population.
 //
-// VALIDATES: all eight legacy effective-VPP scenarios are represented as data.
+// VALIDATES: the eight legacy effective-VPP scenarios and mpls-label-pop are
+// represented as data, in execution order.
 // PREVENTS: a scenario disappearing while the command still reports a pass.
 func TestVPPScenarioTableNamesEveryProducerScenario(t *testing.T) {
 	want := []string{
 		VPPScenarioIPsec,
 		VPPScenarioIPv4FIB,
 		VPPScenarioMPLSFIB,
+		VPPScenarioMPLSLabelPop,
 		VPPScenarioTrafficInterface,
 		VPPScenarioTrafficProtocol,
 		VPPScenarioTrafficDSCP,
 		VPPScenarioTrafficMultiClass,
 		VPPScenarioFirewall,
 	}
-	got := make([]string, 0, 8)
+	got := make([]string, 0, 9)
 	for _, step := range newVPP(t.TempDir()).scenarioRuns() {
 		got = append(got, step.name)
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("scenarioRuns() = %v, want %v", got, want)
 	}
-	if len(want) != 8 {
-		t.Fatalf("the absolute scenario count is %d, want 8", len(want))
+	if len(want) != 9 {
+		t.Fatalf("the absolute scenario count is %d, want 9", len(want))
 	}
 }
 

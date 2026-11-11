@@ -260,7 +260,7 @@ func (f *fibKernel) addChange(c *incomingChange, pfx string, rb richRouteBackend
 		return f.replaceChange(c, pfx, rb)
 	}
 	if len(c.Labels) > 0 {
-		if err := validateMPLSLabels(c.Labels); err != nil {
+		if err := mplsfibevents.ValidateOutLabels(c.Labels); err != nil {
 			return err
 		}
 	}
@@ -278,7 +278,7 @@ func (f *fibKernel) replaceChange(c *incomingChange, pfx string, rb richRouteBac
 		return f.addChange(c, pfx, rb)
 	}
 	if len(c.Labels) > 0 {
-		if err := validateMPLSLabels(c.Labels); err != nil {
+		if err := mplsfibevents.ValidateOutLabels(c.Labels); err != nil {
 			return err
 		}
 	}

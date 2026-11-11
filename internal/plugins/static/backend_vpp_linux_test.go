@@ -170,6 +170,44 @@ func TestVPPStaticBackendApplyAndRemove(t *testing.T) {
 	}
 }
 
+// TestVPPStaticNextHopAddressSendsNoInterface proves a static route via a
+// next-hop address reaches VPP with sw_if_index ~0, so VPP resolves the next
+// hop. VPP reads sw_if_index 0 as local0: fib_path_create tests
+// `~0 != rpath->frp_sw_if_index` and makes such a path an attached next hop on
+// local0, which forwards nothing.
+//
+// VALIDATES: the zero-value-as-valid-answer 2026-11-11 row: the path toVPPRoute
+// builds for an address next hop carries staticvpp.NoInterface, and the
+// IPRouteAddDel sent carries ^uint32(0) in every path.
+// METHOD: applyRoute through the fake GoVPP channel, IPv4 and IPv6 next hops.
+func TestVPPStaticNextHopAddressSendsNoInterface(t *testing.T) {
+	for _, tc := range []struct{ prefix, nextHop string }{
+		{"10.0.0.0/24", "192.168.1.1"},
+		{"2001:db8:1::/48", "2001:db8::1"},
+	} {
+		ch := &fakeChannel{}
+		b := &vppStaticBackend{ch: ch}
+		err := b.applyRoute(staticRoute{
+			Prefix:   netip.MustParsePrefix(tc.prefix),
+			Action:   actionForward,
+			NextHops: []nextHop{{Address: netip.MustParseAddr(tc.nextHop), Weight: 1}},
+		})
+		if err != nil {
+			t.Fatalf("%s: applyRoute: %v", tc.prefix, err)
+		}
+		req, ok := ch.lastRequest.(*ip.IPRouteAddDel)
+		if !ok {
+			t.Fatalf("%s: lastRequest type: got %T", tc.prefix, ch.lastRequest)
+		}
+		if len(req.Route.Paths) != 1 {
+			t.Fatalf("%s: paths = %d, want 1", tc.prefix, len(req.Route.Paths))
+		}
+		if got := req.Route.Paths[0].SwIfIndex; got != ^uint32(0) {
+			t.Errorf("%s via %s: sw_if_index = %d, want ~0 (%d): 0 is local0", tc.prefix, tc.nextHop, got, ^uint32(0))
+		}
+	}
+}
+
 func TestVPPStaticBackendCloseClosesChannel(t *testing.T) {
 	ch := &fakeChannel{}
 	b := &vppStaticBackend{ch: ch}

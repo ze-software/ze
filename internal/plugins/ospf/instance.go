@@ -63,6 +63,10 @@ type engine struct {
 	// post-SPF hook; nil until initSPF wires it. It reads remote SR state from the LSDB
 	// and emits push/swap/pop entries on the shared mpls-fib bus.
 	srInstaller *srInstaller
+	// srReplayUnsub ends the SR producer's answer to (mpls-fib, replay-request)
+	// and drops it from the ospf-sr-label-entries doctor check; nil until
+	// initSPF subscribes it, called by shutdown.
+	srReplayUnsub func()
 	// srAdj drives the Adj-SID lifecycle off the neighbor Full<->non-Full transition
 	// (SRLB allocation + pop/forward install + withdraw); nil until initSPF wires it.
 	srAdj *srAdjManager
@@ -1390,6 +1394,12 @@ func (e *engine) shutdown() {
 	e.gr.stop()
 	// Release BFD sessions (and join their subscribers) before canceling the engine context.
 	e.bfdStopAll()
+	// Stop answering label replay requests before SPF stops, so a writer that
+	// opens now is not handed SR entries the engine is tearing down.
+	if e.srReplayUnsub != nil {
+		e.srReplayUnsub()
+		e.srReplayUnsub = nil
+	}
 	if e.spf != nil {
 		e.spf.Stop()
 	}

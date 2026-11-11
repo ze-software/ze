@@ -298,6 +298,17 @@ type Backend interface {
 	// the dataplane hands the host.
 	ReplaceIPv4RPF(checks []RPFCheck) error
 
+	// ReplaceMPLSInput makes interfaces the complete set of interfaces that
+	// accept labeled frames, under the same whole-set contract as
+	// ReplaceIPv6RPF: every interface not in the slice stops accepting them,
+	// so an empty slice disables MPLS input everywhere. The same leaf
+	// (`mpls { enable }`) also reaches net.mpls.conf.<dev>.input through
+	// applySysctl, so a backend whose traffic the Linux kernel forwards is
+	// already enforced there and MUST say so where it accepts the set. A
+	// backend that forwards outside the kernel MUST enforce the set itself
+	// or refuse it.
+	ReplaceMPLSInput(interfaces []string) error
+
 	// SetupLCPPair creates a Linux Control Plane pair for a VPP interface: a
 	// Linux TAP that shadows the named VPP interface so kernel networking (the
 	// ze BGP listener, ssh, ...) can bind on it. hostName is the desired Linux

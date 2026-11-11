@@ -9,8 +9,33 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
+
+// TestRSVPTERegistrationNeedsDataPlane proves RSVP-TE reaches forwarding
+// through a declaration rather than a writer's name: it declares
+// NeedsDataPlane, keeps its interface and sysctl dependencies, and its
+// doctor check depends on RSVP-TE itself.
+//
+// VALIDATES: AC-16 -- RSVP-TE declares NeedsDataPlane; no Dependencies entry
+// is a registration that declares ProgramsFIB. The cross-registry half is
+// TestNoRegistrationDependsOnAFIBWriter (internal/component/plugin/all).
+func TestRSVPTERegistrationNeedsDataPlane(t *testing.T) {
+	reg := registry.Lookup(Namespace)
+	require.NotNil(t, reg, "rsvp-te is not registered")
+	assert.True(t, reg.NeedsDataPlane, "rsvp-te must declare NeedsDataPlane so a writer is loaded for its label entries")
+	assert.Contains(t, reg.Dependencies, "interface")
+	assert.Contains(t, reg.Dependencies, "sysctl")
+	for _, dep := range reg.Dependencies {
+		if other := registry.Lookup(dep); other != nil {
+			assert.False(t, other.ProgramsFIB, "rsvp-te Dependencies names %q, which programs a FIB", dep)
+		}
+	}
+	for _, check := range reg.DoctorChecks {
+		assert.Equal(t, []string{Namespace}, check.Dependencies, "doctor check %q", check.Name)
+	}
+}
 
 // VALIDATES: mpls-3 reload -- reconcileTunnels sets up every configured tunnel as an
 // ingress LSP and tears down the LSP of a tunnel removed from config, originating a

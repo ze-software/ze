@@ -1,17 +1,18 @@
-// Design: docs/architecture/testing/interop.md -- the eight real VPP proof scenarios
+// Design: docs/architecture/testing/interop.md -- the nine real VPP proof scenarios
 // Overview: vppevidence.go -- the run that drives these configurations
 //
-// The constants and configurations are data shared by the eight native scenarios.
+// The constants and configurations are data shared by the nine native scenarios.
 // The parity test compares every value and every written file.
 package testdeployment
 
 import "github.com/ze-software/ze/internal/core/textbuf"
 
-// The eight producer scenarios, in execution order.
+// The nine producer scenarios, in execution order.
 const (
 	VPPScenarioIPsec             = "ipsec"
 	VPPScenarioIPv4FIB           = "ipv4-fib"
 	VPPScenarioMPLSFIB           = "mpls-fib"
+	VPPScenarioMPLSLabelPop      = "mpls-label-pop"
 	VPPScenarioTrafficInterface  = "traffic-interface-class"
 	VPPScenarioTrafficProtocol   = "traffic-protocol-class"
 	VPPScenarioTrafficDSCP       = "traffic-dscp-class"
@@ -96,6 +97,36 @@ func vppFIBConfig(mpls bool) string {
     vpp { enabled true; }
 }
 `)
+	return tb.String()
+}
+
+// The mpls-label-pop inputs. The packet-generator interface is the one ze
+// enables MPLS input on, so a frame it injects is accepted only because ze
+// enforced `mpls { enable true; }` in VPP. LDP runs Hello discovery on the
+// container's Linux loopback, which offers no advertisable prefix
+// (advertisablePrefix in internal/plugins/ldp/local.go), so the LSR-ID host
+// route is the only FEC LDP originates and its local label is the only one
+// table 0 holds above the reserved range.
+const (
+	VPPMPLSPopInterface    = "pg0"
+	VPPMPLSPopInterfaceMAC = "02:fe:00:00:30:01"
+	VPPMPLSPopLSRID        = "10.0.0.1"
+	// VPPMPLSPopUnprogrammedLabel is the control frame's label: LDP allocates
+	// upward from 16 and this run binds one FEC, so no entry holds it.
+	VPPMPLSPopUnprogrammedLabel uint32 = 999999
+)
+
+// vppMPLSLabelPopConfig is LDP over the VPP backend with no fib block, so the
+// engine, not the config, chooses fib-vpp as the label writer. withLDP false
+// is the reload that removes LDP and must remove its label entries.
+func vppMPLSLabelPopConfig(withLDP bool) string {
+	var tb textbuf.Buffer
+	tb.Str(vppBase).Byte('\n').Str("interface {\n    backend vpp;\n    ethernet ").Str(VPPMPLSPopInterface).
+		Str(" {\n        unit default { mpls { enable true; } }\n    }\n}\n")
+	if withLDP {
+		tb.Byte('\n').Str("ldp {\n    lsr-id ").Str(VPPMPLSPopLSRID).Str(";\n    transport-address ").
+			Str(VPPMPLSPopLSRID).Str(";\n    interfaces lo;\n}\n")
+	}
 	return tb.String()
 }
 

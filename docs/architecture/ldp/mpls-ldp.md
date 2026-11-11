@@ -223,13 +223,48 @@ stops sending Hellos retries nothing.
 
 <!-- source: internal/plugins/ldp/register.go -- startSessionForAdj, setupRetry, recordSetupFailure, processDiscoveryPacket -->
 
+## Decision: LDP names no forwarding writer
+
+LDP's label entries reach forwarding through the writer of the data plane
+`interface { backend }` selects, so its registration declares
+`NeedsDataPlane` and its `Dependencies` hold only `sysctl`. The engine loads
+`fib-kernel` on netlink and `fib-vpp` on VPP. Naming `fib-kernel` instead loaded
+the kernel writer on a VPP deployment, where no label LDP advertised was
+forwarded.
+
+`fib.go` submits each batch with `mplsfib.Apply`, which waits for the writer to
+accept it, and logs a refused batch with the entry and its cause. It keeps the
+set of pushes and pops it wants installed and answers a writer's
+`(mpls-fib, replay-request)` by re-applying that set with `mplsfib.ApplyReplay`,
+so a writer that opens after LDP started, or after VPP lost its FIB, still gets
+the egress pops LDP programmed at start
+(`docs/architecture/mpls/mpls-kernel.md`). The replay subscription ends before
+the engine withdraws its entries at stop.
+
+<!-- source: internal/plugins/ldp/register.go -- NeedsDataPlane, the replay subscription -->
+<!-- source: internal/plugins/ldp/fib.go -- Apply, the wanted sets, replay -->
+
 ## Decision: the doctor check is self-contained
 
 The port 646 readiness check probes a UDP and a TCP bind through a test seam and
 registers through the plugin's own `Registration.DoctorChecks`, not a central
-check list. Removing the LDP plugin removes its check.
+check list. Its `DoctorCheckDef.Dependencies` names the LDP plugin itself, not a
+forwarding writer. Removing the LDP plugin removes its check.
+
+The runtime check `ldp-label-entries` reports what only LDP knows: each push or
+pop it wants that no writer carried out, because no writer was running or the
+writer refused it. `fib.go` keeps each such entry with the writer's cause until
+a later apply of the same FEC or in-label succeeds, and the check answers one
+`doctor-fib-mpls-no-writer` error per entry, at most 32 and a count of the
+rest. It is declared in the Stage 1 registration LDP's runner sends and
+answered by LDP's own `OnDoctorCheck`, because the record lives in LDP's
+process, which may be a forked one. The writer's own check
+(`fib-vpp-label-entries`, including the label routes a previous run left in
+VPP) is described in `docs/architecture/mpls/mpls-kernel.md`, "Doctor checks".
 
 <!-- source: internal/plugins/ldp/doctor.go -- the port 646 readiness check -->
+<!-- source: internal/plugins/ldp/doctor_label.go -- labelEntriesCheckDecl, labelDoctorFindings -->
+<!-- source: internal/plugins/ldp/register.go -- OnDoctorCheck, DoctorChecks -->
 
 ## Trap: the delivered config shape
 

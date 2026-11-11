@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/nlri/bgpls"
 	"github.com/ze-software/ze/internal/core/linkstateevents"
 	"github.com/ze-software/ze/internal/core/mplsfib"
+	"github.com/ze-software/ze/internal/core/replay"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -43,6 +44,11 @@ type Source struct {
 	stopped   bool
 	acquired  bool
 	retired   bool // Both native labels and the last advertised snapshot are cleared.
+	// refusals holds each label the data plane disagrees with EPE about (an
+	// add no writer installed, a removal no writer carried out), with the
+	// writer's cause, until the data plane holds what EPE wants. The
+	// bgp-epe-label-entries doctor check reports it (epe_doctor_label.go).
+	refusals mplsfib.Refusals
 }
 
 // NewSource returns a Source that emits labels and snapshots on bus.
@@ -135,19 +141,13 @@ func (s *Source) publishLocked() error {
 		// stop must not reset labels that the new instance has since acquired.
 		return nil
 	}
-	desired := make(map[netip.Addr]uint32)
+	desired := s.desiredLocked()
 	var failures []error
-	if !s.stopped {
-		for peer, config := range s.config.Peers {
-			if _, up := s.sessions[peer]; up {
-				desired[peer] = s.config.Base + config.Index
-			}
-		}
-	}
 	// The native FIB owner outlives this source object. Reclaim its retained
 	// labels before any fresh assignment, including after an error exit.
 	if !s.acquired {
 		if err := mplsfib.RemoveLabelSource(s.bus, epeMPLSSource); err != nil {
+			s.recordUnacquiredLocked(desired, err)
 			snapshot := linkstateevents.Snapshot{Domain: linkstateevents.Domain{Protocol: linkstateevents.BGP, Instance: 1}, Generation: epeGeneration.Add(1)}
 			_, publishErr := epeSnapshots.Emit(s.bus, &snapshot)
 			return errors.Join(err, publishErr)
@@ -188,6 +188,7 @@ func (s *Source) publishLocked() error {
 		s.installed[peer] = label
 		occupied[label] = peer
 	}
+	s.forgetSettledLocked(desired)
 	snapshot := linkstateevents.Snapshot{Domain: linkstateevents.Domain{Protocol: linkstateevents.BGP, Instance: 1}, Generation: epeGeneration.Add(1)}
 	peers := make([]netip.Addr, 0, len(desired))
 	for peer, label := range desired {
@@ -227,11 +228,80 @@ func (s *Source) publishLocked() error {
 	return errors.Join(failures...)
 }
 
+// desiredLocked answers the label each established, configured peer should
+// own; a stopped source wants none. Caller holds s.mu.
+func (s *Source) desiredLocked() map[netip.Addr]uint32 {
+	desired := make(map[netip.Addr]uint32)
+	if s.stopped {
+		return desired
+	}
+	for peer, config := range s.config.Peers {
+		if _, up := s.sessions[peer]; up {
+			desired[peer] = s.config.Base + config.Index
+		}
+	}
+	return desired
+}
+
+// ReplayLabels answers a label writer's (mpls-fib, replay-request): it
+// re-applies every label EPE holds for a peer it still wants, tagged with the
+// request's token, so only the writer that asked consumes it. A writer opens
+// after EPE installed its labels (VPP connects late), or after it lost its FIB
+// (VPP restarted), and holds none of them until this answer. A label kept only
+// because its removal failed is not re-applied: EPE is retiring it.
+//
+// It runs on the requesting writer's goroutine, synchronously, and takes
+// s.mu: the writer MUST NOT hold the lock its own (mpls-fib, entry) handler
+// takes while it emits the request.
+func (s *Source) ReplayLabels(req *replay.Request) {
+	if req == nil {
+		return
+	}
+	if !replay.IsReplay(req.ReplayID) {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.retired {
+		return
+	}
+	desired := s.desiredLocked()
+	entries := make([]mplsfib.Entry, 0, len(s.installed))
+	for peer, label := range s.installed {
+		if wanted, ok := desired[peer]; !ok || wanted != label {
+			continue
+		}
+		entries = append(entries, mplsfib.Entry{Action: mplsfib.ActionAdd, Op: mplsfib.OpPop,
+			InLabel: label, NextHop: peer, Source: epeMPLSSource})
+	}
+	if len(entries) == 0 {
+		return
+	}
+	if err := mplsfib.ApplyReplay(s.bus, req.ReplayID, entries); err != nil {
+		// The writer answers one acknowledgement for the batch, so which
+		// labels it refused is unknown: each is recorded with the cause.
+		for i := range entries {
+			s.refusals.Record(&entries[i], err)
+		}
+		epeLogger.Warn("BGP EPE: the forwarding writer that asked for the PeerNode SID labels did not install them all, so labeled traffic to those peers is not forwarded; run `ze show doctor` to see why",
+			"labels", len(entries), "error", err,
+			"code", mplsfib.CodeDoctorNoWriter)
+		return
+	}
+	for i := range entries {
+		s.refusals.Clear(&entries[i])
+	}
+}
+
+// emitLabel applies one PeerNode SID label change through the writer of the
+// selected data plane, and records or clears its refusal. Caller holds s.mu.
 func (s *Source) emitLabel(action mplsfib.Action, label uint32, peer netip.Addr) error {
 	entries := []mplsfib.Entry{{Action: action, Op: mplsfib.OpPop,
 		InLabel: label, NextHop: peer, Source: epeMPLSSource}}
 	if err := mplsfib.Apply(s.bus, entries); err != nil {
+		s.refusals.Record(&entries[0], err)
 		return fmt.Errorf("EPE label %d: %w", label, err)
 	}
+	s.refusals.Clear(&entries[0])
 	return nil
 }

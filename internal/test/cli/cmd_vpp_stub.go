@@ -326,6 +326,12 @@ func (state *vppStubState) handle(name string, contextID uint32, body []byte) ([
 	case "mpls_route_add_del":
 		fields = decodeMPLSRoute(body)
 		replyBody = make([]byte, 8)
+	case "mpls_table_add_del":
+		// mt_is_add (u8), then mpls_table: mt_table_id (u32), mt_name.
+		if len(body) >= 5 {
+			fields["is_add"] = body[0] != 0
+			fields["table_id"] = binary.BigEndian.Uint32(body[1:5])
+		}
 	case "sw_interface_set_mpls_enable":
 		if len(body) >= 5 {
 			fields["sw_if_index"] = binary.BigEndian.Uint32(body)

@@ -100,9 +100,12 @@ func toVPPRoute(r staticRoute) (staticvpp.Route, error) {
 	for i := range r.NextHops {
 		nh := r.NextHops[i]
 		if nh.Address.IsValid() {
+			// A next hop named by address alone leaves by whichever interface
+			// VPP resolves it to, so the path names none (NoInterface, never 0).
 			out.Paths = append(out.Paths, staticvpp.Path{
-				NextHop: nh.Address,
-				Weight:  capWeight(nh.Weight),
+				NextHop:   nh.Address,
+				Weight:    capWeight(nh.Weight),
+				SwIfIndex: staticvpp.NoInterface,
 			})
 			continue
 		}

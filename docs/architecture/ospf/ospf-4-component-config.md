@@ -114,7 +114,9 @@ lifecycle callbacks, transport enrollment and config validation.
 - `ze config validate` needs a static allow-list entry for each new top-level
   config root. A new YANG module alone does not make it validate through the
   CLI.
-- OSPF depends on `interface` as well as `fib-kernel` and `sysctl`. Router-id
+- OSPF depends on `interface`, `sysctl` and the policy plugin, and declares
+  `NeedsDataPlane` rather than naming `fib-kernel`, so the engine loads the FIB
+  writer of the configured backend (`fib-kernel` or `fib-vpp`). Router-id
   derivation calls the iface backend during config verification when the
   operator omits `router-id`.
 - The transport exposes link-up and link-down callbacks because engine running

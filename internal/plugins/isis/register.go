@@ -179,10 +179,15 @@ func registerISIS() {
 		ConfigReads: []string{policy.RootName},
 		// policy is a hard dependency of every protocol with a filter attachment:
 		// the filter instances its chains name live under the policy root.
-		Dependencies: []string{"fib-kernel", "sysctl", policy.PluginName},
-		RFCs:         []string{"1195", "5301", "5303", "5305", "5308", "5310"},
-		RunEngine:    runISISEngine,
-		Commands:     commandDecls(),
+		Dependencies: []string{"sysctl", policy.PluginName},
+		// IS-IS's routes reach forwarding only through the writer of the data
+		// plane `interface { backend }` selects (fib-kernel on netlink, fib-vpp
+		// on VPP), so the engine resolves and loads that writer. Naming
+		// fib-kernel here would load the kernel writer on a VPP deployment.
+		NeedsDataPlane: true,
+		RFCs:           []string{"1195", "5301", "5303", "5305", "5308", "5310"},
+		RunEngine:      runISISEngine,
+		Commands:       commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

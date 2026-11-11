@@ -2,12 +2,14 @@
 // Related: register.go -- runSession wires label events to the fib
 // Related: ../../core/mplsfib/events.go -- the (mpls-fib, entry) payload
 //
-// ldpFIB translates LDP remote label bindings into (mpls-fib, entry) push
-// events that fib-kernel programs into the kernel. A binding learned from a
-// peer ("FEC -> label via peer") makes this LSR an ingress that imposes that
-// label on traffic to FEC and forwards it to the advertising peer. fib-kernel
-// stays the single owner of kernel forwarding state; LDP never touches netlink
-// directly -- the same model RSVP-TE uses.
+// ldpFIB translates LDP label bindings into (mpls-fib, entry) events that the
+// writer of the selected data plane programs: fib-kernel on the Linux kernel,
+// fib-vpp on VPP. A binding learned from a peer ("FEC -> label via peer")
+// makes this LSR an ingress that imposes that label on traffic to FEC and
+// forwards it to the advertising peer; a local binding is an egress pop. The
+// writer stays the single owner of its data plane's forwarding state; LDP
+// never touches netlink or VPP directly -- the same model RSVP-TE uses. LDP
+// names no writer: its registration declares NeedsDataPlane.
 //
 // NOTE (next-hop resolution): this phase programs the push toward the peer that
 // advertised the binding, i.e. it assumes that peer is the IP next-hop for the
@@ -22,6 +24,7 @@ import (
 	"sync"
 
 	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
+	"github.com/ze-software/ze/internal/core/replay"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -94,51 +97,93 @@ type ldpFIB struct {
 	bus ze.EventBus
 	log *slog.Logger
 
-	// pushed tracks the FECs for which an ingress push is currently installed, so
-	// Remove is idempotent: it withdraws a push only when one exists. This makes
-	// the implicit-null transition correct (a FEC relabelled real -> implicit-null
-	// has its stale push cleared) without emitting spurious removals for FECs that
-	// never had a push. Shared across session goroutines, so guarded by mu.
-	mu     sync.Mutex
-	pushed map[string]bool
+	// mu guards the two wanted sets. Shared across session goroutines.
+	mu sync.Mutex
+	// pushed holds the ingress push LDP wants installed for each FEC, keyed by
+	// the FEC's text. It makes Remove idempotent: it withdraws a push only when
+	// one is wanted, so the implicit-null transition (a FEC relabelled real ->
+	// implicit-null) clears its stale push without emitting spurious removals
+	// for FECs that never had one.
+	pushed map[string]mplsfibevents.Entry
+	// pops holds the egress pop LDP wants installed for each local label.
+	pops map[uint32]mplsfibevents.Entry
+	// The two sets record what LDP WANTS, not what a writer accepted: an entry
+	// a writer refused, or one applied before any writer was running, stays
+	// wanted, and replay re-applies it when a writer opens.
+
+	// refusals holds the last entry for each FEC or in-label that no writer
+	// carried out, with the cause, until a later apply of the same slot
+	// succeeds. mu guards it. The ldp-label-entries doctor check reports it
+	// (doctor_label.go).
+	refusals mplsfibevents.Refusals
 
 	// reconcileMu serializes the compound LIB-mutation + FIB-reconciliation across
-	// sessions (see withReconcileLock). Distinct from mu, which only guards pushed.
+	// sessions (see withReconcileLock). Distinct from mu, which only guards the sets.
 	reconcileMu sync.Mutex
 }
 
 func newLDPFIB(bus ze.EventBus, log *slog.Logger) *ldpFIB {
-	return &ldpFIB{bus: bus, log: log, pushed: make(map[string]bool)}
+	return &ldpFIB{bus: bus, log: log,
+		pushed: make(map[string]mplsfibevents.Entry), pops: make(map[uint32]mplsfibevents.Entry)}
 }
 
+// emit applies e through the writer of the selected data plane and waits for
+// its acknowledgement. A refusal is logged with the entry and its cause rather
+// than lost: the entry stays wanted, and a writer that opens later asks for it
+// again (replay). Caller holds f.mu.
 func (f *ldpFIB) emit(e mplsfibevents.Entry) {
 	e.Source = mplsSourceLDP
 	if f.bus == nil {
-		f.log.Warn("ldp: no event bus, cannot program MPLS entry", "op", e.Op)
+		f.refusals.Record(&e, errNoEventBus)
+		f.log.Warn("ldp: no event bus, cannot program MPLS entry", "op", e.Op,
+			"code", mplsfibevents.CodeDoctorNoWriter)
 		return
 	}
-	batch := &mplsfibevents.EntryBatch{Entries: []mplsfibevents.Entry{e}}
-	if _, err := mplsfibevents.EntryChange.Emit(f.bus, batch); err != nil {
-		f.log.Warn("ldp: mpls-fib emit failed", "op", e.Op, "error", err)
+	if err := mplsfibevents.Apply(f.bus, []mplsfibevents.Entry{e}); err != nil {
+		f.refusals.Record(&e, err)
+		f.log.Warn("ldp: the forwarding writer refused a label entry, so the data plane does not hold what LDP wants for this FEC; an added entry stays wanted and is applied again when a writer opens; run `ze show doctor` to see why the data plane's writer refused it",
+			"action", e.Action, "op", e.Op, "fec", e.FEC, "in-label", e.InLabel,
+			"out-labels", e.OutLabels, "next-hop", e.NextHop, "error", err,
+			"code", mplsfibevents.CodeDoctorNoWriter)
+		return
 	}
+	f.refusals.Clear(&e)
+}
+
+// hasPush reports whether LDP wants an ingress push installed for fec.
+func (f *ldpFIB) hasPush(fec netip.Prefix) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	_, wanted := f.pushed[fec.String()]
+	return wanted
+}
+
+// hasPop reports whether LDP wants an egress pop installed for inLabel.
+func (f *ldpFIB) hasPop(inLabel uint32) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	_, wanted := f.pops[inLabel]
+	return wanted
 }
 
 // ProgramPush installs an ingress push: traffic to fec gets label imposed and
 // is forwarded to nextHop (the peer that advertised the binding).
 func (f *ldpFIB) ProgramPush(fec netip.Prefix, label uint32, nextHop netip.Addr) {
-	// Emit under the lock so the pushed-set update and the bus event stay ordered
-	// when sessions program the same FEC concurrently. Safe: the fib-kernel
-	// subscriber does not call back into ldpFIB.
+	// Apply under the lock so the wanted-set update and the bus event stay
+	// ordered when sessions program the same FEC concurrently. Safe: no label
+	// writer calls back into ldpFIB.
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.pushed[fec.String()] = true
-	f.emit(mplsfibevents.Entry{
+	e := mplsfibevents.Entry{
 		Action:    mplsfibevents.ActionAdd,
 		Op:        mplsfibevents.OpPush,
 		FEC:       fec,
 		OutLabels: []uint32{label},
 		NextHop:   nextHop,
-	})
+		Source:    mplsSourceLDP,
+	}
+	f.pushed[fec.String()] = e
+	f.emit(e)
 }
 
 // Remove withdraws the push entry for fec if one is installed. It is idempotent:
@@ -148,7 +193,7 @@ func (f *ldpFIB) Remove(fec netip.Prefix) {
 	key := fec.String()
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if !f.pushed[key] {
+	if _, wanted := f.pushed[key]; !wanted {
 		return
 	}
 	delete(f.pushed, key)
@@ -157,6 +202,57 @@ func (f *ldpFIB) Remove(fec netip.Prefix) {
 		Op:     mplsfibevents.OpPush,
 		FEC:    fec,
 	})
+}
+
+// replay answers a label writer's (mpls-fib, replay-request): it re-applies
+// every entry LDP wants installed, tagged with the request's token, so only
+// the writer that asked consumes it. A writer opens after LDP's OnStarted
+// programmed its egress pops (VPP connects late), or after it lost its FIB
+// (VPP restarted), and holds none of them until this answer.
+//
+// It runs on the requesting writer's goroutine, synchronously, and takes
+// f.mu: the writer MUST NOT hold the lock its own (mpls-fib, entry) handler
+// takes while it emits the request.
+func (f *ldpFIB) replay(req *replay.Request) {
+	if req == nil {
+		return
+	}
+	if !replay.IsReplay(req.ReplayID) {
+		return
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	entries := make([]mplsfibevents.Entry, 0, len(f.pops)+len(f.pushed))
+	for _, e := range f.pops {
+		entries = append(entries, e)
+	}
+	for _, e := range f.pushed {
+		entries = append(entries, e)
+	}
+	if len(entries) == 0 {
+		return
+	}
+	if f.bus == nil {
+		for i := range entries {
+			f.refusals.Record(&entries[i], errNoEventBus)
+		}
+		f.log.Warn("ldp: no event bus, cannot answer a label replay request", "entries", len(entries),
+			"code", mplsfibevents.CodeDoctorNoWriter)
+		return
+	}
+	if err := mplsfibevents.ApplyReplay(f.bus, req.ReplayID, entries); err != nil {
+		// The writer answers one acknowledgement for the batch, so which
+		// entries it refused is unknown: each is recorded with the cause.
+		for i := range entries {
+			f.refusals.Record(&entries[i], err)
+		}
+		f.log.Warn("ldp: the forwarding writer that asked for LDP's label entries did not install them all, so labeled traffic for those FECs is not forwarded; run `ze show doctor` to see why",
+			"entries", len(entries), "error", err, "code", mplsfibevents.CodeDoctorNoWriter)
+		return
+	}
+	for i := range entries {
+		f.refusals.Clear(&entries[i])
+	}
 }
 
 // withReconcileLock runs fn under the engine reconcile lock, which serializes the
@@ -181,18 +277,28 @@ func (f *ldpFIB) withReconcileLock(fn func()) {
 // LSR advertised for fec has the label popped and is then forwarded by normal IP
 // lookup. This LSR is the egress for fec (a connected prefix or its own LSR-ID),
 // so it advertises a real label (ultimate-hop popping) rather than implicit-null.
-// fib-kernel keys the AF_MPLS entry by InLabel; FEC rides along for diagnostics.
+// The writer keys the entry by InLabel. FEC names the payload's network layer
+// protocol, which a writer that disposes of the payload itself (fib-vpp looks
+// it up in the IP table of the FEC's family) needs: RFC 3032 Section 2.2.
 func (f *ldpFIB) programPop(fec netip.Prefix, inLabel uint32) {
-	f.emit(mplsfibevents.Entry{
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	e := mplsfibevents.Entry{
 		Action:  mplsfibevents.ActionAdd,
 		Op:      mplsfibevents.OpPop,
 		InLabel: inLabel,
 		FEC:     fec,
-	})
+		Source:  mplsSourceLDP,
+	}
+	f.pops[inLabel] = e
+	f.emit(e)
 }
 
 // removePop withdraws the egress pop entry keyed by inLabel.
 func (f *ldpFIB) removePop(fec netip.Prefix, inLabel uint32) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	delete(f.pops, inLabel)
 	f.emit(mplsfibevents.Entry{
 		Action:  mplsfibevents.ActionRemove,
 		Op:      mplsfibevents.OpPop,

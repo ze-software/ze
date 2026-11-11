@@ -452,11 +452,29 @@ Verify a named interop peer exists before an acceptance criterion names it.
 
 ## Dataplane
 
-The engine submits push, swap and pop entries to the native MPLS FIB owner.
-An Up transition or outgoing label advertisement follows successful acceptance,
-not merely event publication. The kernel backend programs the corresponding IP
-and `AF_MPLS` routes. Bypass control traffic uses private mark-selected contexts.
-See [`../mpls/mpls-kernel.md`](../mpls/mpls-kernel.md).
+The engine submits push, swap and pop entries to the writer of the selected
+data plane. RSVP-TE names no writer: its registration declares
+`NeedsDataPlane`, and the engine loads `fib-kernel` under `interface { backend
+netlink }` and `fib-vpp` under `backend vpp`. An Up transition or outgoing label
+advertisement follows successful acceptance, not merely event publication.
+`fib-kernel` programs the corresponding IP and `AF_MPLS` routes, `fib-vpp` the
+routes in VPP MPLS table 0. Bypass control traffic uses private mark-selected
+contexts, which only the kernel writer can install: `fib-vpp` refuses such a
+push, so a facility backup is not available on VPP. An egress pop carries the
+session's tunnel endpoint as its `FEC`, which tells a writer the payload family
+of the popped packet. RSVP-TE answers a writer's `(mpls-fib, replay-request)` by
+re-applying every entry it has installed, so a writer that opens late or after
+a VPP restart gets them all. An entry that replay asked for again and the
+writer did not install leaves an LSP RSVP-TE holds up with no forwarding under
+it: `fib.go` keeps it with the writer's cause until it is applied again or a
+later replay succeeds, and the runtime doctor check `rsvp-te-label-entries`
+answers one `doctor-fib-mpls-no-writer` error per entry, at most 32 and a count
+of the rest. RSVP-TE declares the check in the Stage 1 registration its runner
+sends and answers it from its own `OnDoctorCheck`, because the record lives in
+its process, which may be a forked one. A label route a previous run left in
+VPP is the writer's to remove, not RSVP-TE's.
+See [`../mpls/mpls-kernel.md`](../mpls/mpls-kernel.md), including "Doctor
+checks" and "Label routes a previous run left in VPP".
 
 A transit whose downstream RESV carries the Implicit NULL label (3) programs a pop
 toward the downstream hop, not a swap. RFC 3032 Section 2.1: "When an LSR would
@@ -464,12 +482,12 @@ otherwise replace the label at the top of the stack with a new label, but the ne
 label is "Implicit NULL", the LSR will pop the stack instead of doing the
 replacement." Every imposed stack goes through `imposedLabels`, which drops label
 3: an ingress that receives Implicit NULL programs its tunnel FEC with an empty
-push stack, and the fib-kernel backend installs that as a plain IP route via the
-next hop. At local repair a bypass or inner label of 3 is left out of the stack,
+push stack, and the writer installs that as a plain IP route via the next hop. At local repair a bypass or inner label of 3 is left out of the stack,
 and a transit whose whole backup stack empties pops toward the bypass next hop.
 
 <!-- source: internal/plugins/rsvpte/reservation.go -- installReservation, imposedLabels -->
 <!-- source: internal/plugins/rsvpte/fib.go -- busFIB programSwap, programPop, programPush -->
+<!-- source: internal/plugins/rsvpte/doctor_label.go -- the rsvp-te-label-entries check -->
 <!-- source: internal/core/mplsfib/events.go -- the MPLS forwarding-entry event -->
 
 PATH, PathTear and ResvConf use IPv4 Router Alert and an explicitly selected

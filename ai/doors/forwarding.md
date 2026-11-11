@@ -60,9 +60,10 @@ programs Ze does not control, so most mistakes here are about ownership.
   (`docs/architecture/static-routes.md`). The IKE engine's tunnel-source guard
   writes its own tables (3000 to 3999, `rtproto.IPsecSourceGuard`) and their
   `ip rule` entries through `internal/core/iprule`: they steer traffic from a
-  tunnel address, not forwarded routes (`docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`). MPLS label entries reach the kernel
-  only as `(mpls-fib, entry)` events that `fib-kernel` consumes
-  (`internal/core/mplsfib/events.go`).
+  tunnel address, not forwarded routes (`docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`). MPLS label entries reach a data plane
+  only as `(mpls-fib, entry)` events that its writer consumes, `fib-kernel` for
+  the kernel and `fib-vpp` for VPP MPLS table 0
+  (`internal/core/mplsfib/events.go`, `internal/plugins/fib/vpp/mplsentry.go`).
 - **Exact or refuse, at verify.** Feature support is declared with `ze:backend`
   in YANG and checked by `config.validateBackendFeatures` from `OnConfigure` and
   `OnConfigVerify` (`core-design.md`, section 14a). A semantic limit the

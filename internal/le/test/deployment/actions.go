@@ -1,7 +1,7 @@
 // Design: docs/architecture/core-design.md -- the deployment area, as one command
 // Detail: l2tp.go -- the L2TP peer proof this table reaches
 // Detail: vppiface.go -- the VPP interface proof this table reaches
-// Detail: vppevidence.go -- the eight real VPP deployment scenarios
+// Detail: vppevidence.go -- the nine real VPP deployment scenarios
 // Detail: l2tpppp.go -- the on-host L2TP PPP proof this table reaches
 // Detail: l2tpdiag.go -- the two gateless native L2TP diagnostics
 //
@@ -242,7 +242,7 @@ func runVPPIface(ctx context.Context, run proofRun[VPPIfaceReport]) (any, int) {
 	return report, 0
 }
 
-// runVPPAt proves all eight VPP deployment scenarios over the checkout at root.
+// runVPPAt proves all nine VPP deployment scenarios over the checkout at root.
 func runVPPAt(ctx context.Context, root string) (any, int) {
 	return runVPP(ctx, newVPP(root))
 }

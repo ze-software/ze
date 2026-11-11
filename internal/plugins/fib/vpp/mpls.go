@@ -1,6 +1,7 @@
 // Design: docs/research/vpp-deployment-reference.md -- VPP MPLS FIB programming
 // Related: backend.go -- vppBackend interface extended with MPLS methods
 // Related: fibvpp.go -- processEvent dispatches to MPLS when labels present
+// Related: mplsentry.go -- (mpls-fib, entry) consumer that calls the label routes
 
 package fibvpp
 
@@ -11,45 +12,74 @@ import (
 
 	"go.fd.io/govpp/api"
 	"go.fd.io/govpp/binapi/fib_types"
-	"go.fd.io/govpp/binapi/interface_types"
 	"go.fd.io/govpp/binapi/ip"
 	"go.fd.io/govpp/binapi/mpls"
+
+	"github.com/ze-software/ze/internal/core/mplsfib"
 )
 
-var errMplsEmptyLabelStack = errors.New("mpls: empty label stack")
-
 const (
-	maxMPLSLabel   = 1048575 // 20-bit, RFC 3032
-	maxLabelStack  = 16      // VPP FibPath.LabelStack fixed array
-	defaultMPLSTTL = 64
-	mplsEOSBit     = 1
+	// mplsTableZero is the MPLS label space every MPLS-enabled VPP interface
+	// looks up (MPLS_FIB_DEFAULT_TABLE_ID). It is not fib.vpp.table-id, which
+	// names an IP table.
+	mplsTableZero = 0
+
+	// implicitNullLabel is the reserved label value 3, which VPP reads as a pop
+	// when it is the whole path label stack (fib_path_ext_is_imp_null).
+	implicitNullLabel = 3
+
+	// noInterface is VPP's "no sw_if_index" (~0). A path that carries 0 instead
+	// is attached to local0, the interface VPP reserves for itself.
+	noInterface = ^uint32(0)
 )
 
 // mplsBackend extends vppBackend with MPLS operations.
 type mplsBackend interface {
 	addMPLSRoute(prefix netip.Prefix, nextHop netip.Addr, labels []uint32) error
 	delMPLSRoute(prefix netip.Prefix, labels []uint32) error
-	addMPLSSwap(inLabel, outLabel uint32, nextHop netip.Addr) error
-	delMPLSSwap(inLabel uint32) error
-	enableMPLS(swIfIndex uint32) error
-	disableMPLS(swIfIndex uint32) error
+	// createMPLSTable creates MPLS table 0. VPP refuses a label route and an
+	// interface enable until it exists; creating it again is harmless.
+	createMPLSTable() error
+	// addLabelRoutes installs both stack positions of one swap or pop entry.
+	addLabelRoutes(r labelRoute) error
+	// delLabelRoutes removes both stack positions of inLabel.
+	delLabelRoutes(inLabel uint32) error
+	// dumpLabelRoutes lists the unicast label routes MPLS table 0 holds whose
+	// in-label is outside the reserved range, one per stack position.
+	dumpLabelRoutes() ([]labelPosition, error)
+	// delLabelRoute removes the label route of one stack position.
+	delLabelRoute(p labelPosition) error
 }
 
-// validateLabels checks that all labels are within the 20-bit range and
-// the stack does not exceed the VPP FibPath limit.
-func validateLabels(labels []uint32) error {
-	if len(labels) == 0 {
-		return errMplsEmptyLabelStack
+// labelPosition names one VPP label route: an in-label at one value of the
+// S bit. One Ze swap or pop entry is two of them.
+type labelPosition struct {
+	inLabel uint32
+	eos     uint8
+}
+
+// labelRoute is one swap or pop entry as VPP programs it. outLabels empty is a
+// pop; nextHop invalid is an egress pop, which looks the payload up in the IP
+// table of fec's family.
+type labelRoute struct {
+	inLabel   uint32
+	outLabels []uint32
+	nextHop   netip.Addr
+	fec       netip.Prefix
+	ipTableID uint32
+}
+
+// uniformLabels writes labels into path in order, each in uniform mode.
+//
+// RFC 3032 Section 2.4.2: "When a labeled packet is forwarded, the TTL field of the label stack entry at the top of the label stack MUST be set to the outgoing TTL value."
+// RFC 3032 Section 2.4.3: "When an IP packet is first labeled, the TTL field of the label stack entry MUST BE set to the value of the IP TTL field."
+// Uniform mode (FIB_MPLS_LSP_MODE_UNIFORM, from is_uniform in fib_api_path_decode)
+// copies the TTL from the packet, so no fixed TTL is written.
+func uniformLabels(path *fib_types.FibPath, labels []uint32) {
+	path.NLabels = uint8(len(labels)) //nolint:gosec // callers validate <= mplsfib.MaxLabelStack
+	for i, l := range labels {
+		path.LabelStack[i] = fib_types.FibMplsLabel{IsUniform: 1, Label: l}
 	}
-	if len(labels) > maxLabelStack {
-		return fmt.Errorf("mpls: label stack depth %d exceeds limit %d", len(labels), maxLabelStack)
-	}
-	for _, l := range labels {
-		if l > maxMPLSLabel {
-			return fmt.Errorf("mpls: label %d exceeds 20-bit maximum %d", l, maxMPLSLabel)
-		}
-	}
-	return nil
 }
 
 // govppMPLSBackend implements mplsBackend using GoVPP binary API.
@@ -64,21 +94,15 @@ func newGovppMPLSBackend(ch api.Channel, tableID uint32) *govppMPLSBackend {
 
 // addMPLSRoute programs a label push: IP route with MPLS label stack on the FibPath.
 func (b *govppMPLSBackend) addMPLSRoute(prefix netip.Prefix, nextHop netip.Addr, labels []uint32) error {
-	if err := validateLabels(labels); err != nil {
+	if err := mplsfib.ValidateOutLabels(labels); err != nil {
 		return err
 	}
 	path, err := gatewayPath(nextHop, prefix)
 	if err != nil {
 		return err
 	}
-	path.NLabels = uint8(len(labels)) //nolint:gosec // validated <= 16
-	for i, l := range labels {
-		path.LabelStack[i] = fib_types.FibMplsLabel{
-			Label: l,
-			TTL:   defaultMPLSTTL,
-			Exp:   0,
-		}
-	}
+	// RFC 3032 Section 2.4.3
+	uniformLabels(&path, labels)
 	req := &ip.IPRouteAddDel{
 		IsAdd: true,
 		Route: ip.IPRoute{
@@ -117,103 +141,182 @@ func (b *govppMPLSBackend) delMPLSRoute(prefix netip.Prefix, _ []uint32) error {
 	return nil
 }
 
-// addMPLSSwap programs label swap: in-label -> out-label + next-hop.
-func (b *govppMPLSBackend) addMPLSSwap(inLabel, outLabel uint32, nextHop netip.Addr) error {
-	if inLabel > maxMPLSLabel {
-		return fmt.Errorf("mpls: in-label %d exceeds maximum", inLabel)
+// createMPLSTable creates MPLS table 0. mpls_table_create holds one API lock
+// on the table however often it is called, so a repeat creates nothing.
+func (b *govppMPLSBackend) createMPLSTable() error {
+	req := &mpls.MplsTableAddDel{
+		MtIsAdd: true,
+		MtTable: mpls.MplsTable{MtTableID: mplsTableZero},
 	}
-	if outLabel > maxMPLSLabel {
-		return fmt.Errorf("mpls: out-label %d exceeds maximum", outLabel)
+	reply := &mpls.MplsTableAddDelReply{}
+	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return fmt.Errorf("mpls MplsTableAddDel table 0: %w: %w", errVPPMutationUncertain, err)
 	}
-	// An MPLS swap forwards to a gateway, and the label decides the family of
-	// what is carried rather than of the path, so there is no route prefix to
-	// derive one from.
-	path, err := gatewayPath(nextHop, netip.PrefixFrom(nextHop, nextHop.BitLen()))
+	if reply.Retval != 0 {
+		return fmt.Errorf("mpls MplsTableAddDel table 0 retval=%d", reply.Retval)
+	}
+	return nil
+}
+
+// addLabelRoutes installs inLabel once per value of the S bit.
+//
+// RFC 3032 Section 2.1: "This bit is set to one for the last entry in the label stack (i.e., for the bottom of the stack), and zero for all other label stack entries."
+// A packet whose in-label is the bottom of its stack and one that carries more
+// labels below it look up different VPP entries (fp_eos), so one Ze entry is
+// two VPP routes. vl_api_mpls_route_add_del_t_handler takes mr_eos_proto as
+// the payload protocol of the S=1 route and MPLS for the S=0 one.
+func (b *govppMPLSBackend) addLabelRoutes(r labelRoute) error {
+	for _, eos := range [2]uint8{1, 0} {
+		route, err := labelRouteFor(r, eos)
+		if err != nil {
+			return err
+		}
+		if err := b.sendLabelRoute(true, route); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// delLabelRoutes removes both stack positions of inLabel, attempting the
+// second even when the first fails so neither is left behind.
+func (b *govppMPLSBackend) delLabelRoutes(inLabel uint32) error {
+	var result error
+	for _, eos := range [2]uint8{1, 0} {
+		route := mpls.MplsRoute{MrTableID: mplsTableZero, MrLabel: inLabel, MrEos: eos}
+		result = errors.Join(result, b.sendLabelRoute(false, route))
+	}
+	return result
+}
+
+// reservedLabelsMax is the highest reserved label value. VPP installs its own
+// entries for reserved labels when MPLS table 0 is created, and no Ze label
+// allocator hands one out as an in-label.
+//
+// RFC 3032 Section 6: "Label values 0-15 inclusive have special meaning, as specified in this document, or as further assigned by IANA."
+const reservedLabelsMax = 15
+
+// dumpLabelRoutes reads every route of MPLS table 0 (mpls_route_dump) and
+// keeps the unicast ones whose in-label is not reserved: those are the routes
+// a Ze writer can have installed. A multicast route is never one, because
+// fib-vpp installs none.
+func (b *govppMPLSBackend) dumpLabelRoutes() ([]labelPosition, error) {
+	dump := b.ch.SendMultiRequest(&mpls.MplsRouteDump{Table: mpls.MplsTable{MtTableID: mplsTableZero}})
+	var positions []labelPosition
+	for {
+		details := &mpls.MplsRouteDetails{}
+		last, err := dump.ReceiveReply(details)
+		if err != nil {
+			return nil, fmt.Errorf("mpls MplsRouteDump table 0: %w", err)
+		}
+		if last {
+			return positions, nil
+		}
+		route := details.MrRoute
+		if route.MrIsMulticast {
+			continue
+		}
+		if route.MrLabel <= reservedLabelsMax {
+			continue
+		}
+		positions = append(positions, labelPosition{inLabel: route.MrLabel, eos: route.MrEos})
+	}
+}
+
+// delLabelRoute removes the label route of one stack position.
+func (b *govppMPLSBackend) delLabelRoute(p labelPosition) error {
+	return b.sendLabelRoute(false, mpls.MplsRoute{MrTableID: mplsTableZero, MrLabel: p.inLabel, MrEos: p.eos})
+}
+
+func (b *govppMPLSBackend) sendLabelRoute(add bool, route mpls.MplsRoute) error {
+	req := &mpls.MplsRouteAddDel{MrIsAdd: add, MrRoute: route}
+	reply := &mpls.MplsRouteAddDelReply{}
+	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return fmt.Errorf("mpls MplsRouteAddDel label %d eos %d: %w: %w",
+			route.MrLabel, route.MrEos, errVPPMutationUncertain, err)
+	}
+	if reply.Retval != 0 {
+		return fmt.Errorf("mpls MplsRouteAddDel label %d eos %d retval=%d",
+			route.MrLabel, route.MrEos, reply.Retval)
+	}
+	return nil
+}
+
+// labelRouteFor builds the VPP route of r at one stack position.
+func labelRouteFor(r labelRoute, eos uint8) (mpls.MplsRoute, error) {
+	path, payload, err := labelPath(r, eos)
 	if err != nil {
-		return err
+		return mpls.MplsRoute{}, err
 	}
-	path.NLabels = 1
-	path.LabelStack[0] = fib_types.FibMplsLabel{
-		Label: outLabel,
-		TTL:   defaultMPLSTTL,
-	}
-	req := &mpls.MplsRouteAddDel{
-		MrIsAdd: true,
-		MrRoute: mpls.MplsRoute{
-			MrTableID: b.tableID,
-			MrLabel:   inLabel,
-			MrEos:     mplsEOSBit,
-			MrNPaths:  1,
-			MrPaths:   []fib_types.FibPath{path},
-		},
-	}
-	reply := &mpls.MplsRouteAddDelReply{}
-	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
-		return fmt.Errorf("mpls MplsRouteAddDel: %w", err)
-	}
-	if reply.Retval != 0 {
-		return fmt.Errorf("mpls MplsRouteAddDel retval=%d", reply.Retval)
-	}
-	return nil
+	return mpls.MplsRoute{
+		MrTableID:  mplsTableZero,
+		MrLabel:    r.inLabel,
+		MrEos:      eos,
+		MrEosProto: uint8(payload), //nolint:gosec // FibPathNhProto values are 0 to 5
+		MrNPaths:   1,
+		MrPaths:    []fib_types.FibPath{path},
+	}, nil
 }
 
-// delMPLSSwap removes an MPLS swap/pop entry.
-func (b *govppMPLSBackend) delMPLSSwap(inLabel uint32) error {
-	if inLabel > maxMPLSLabel {
-		return fmt.Errorf("mpls: in-label %d exceeds maximum", inLabel)
+// labelPath builds the one path of r at stack position eos and the payload
+// protocol of an S=1 route (VPP ignores it at S=0).
+func labelPath(r labelRoute, eos uint8) (fib_types.FibPath, fib_types.FibPathNhProto, error) {
+	path := fib_types.FibPath{Weight: defaultWeight(), SwIfIndex: noInterface}
+	if r.nextHop.IsValid() {
+		path.Proto, path.Nh.Address = nextHopAddress(r.nextHop)
+		uniformLabels(&path, swapOrPopStack(r.outLabels))
+		return path, path.Proto, nil
 	}
-	req := &mpls.MplsRouteAddDel{
-		MrIsAdd: false,
-		MrRoute: mpls.MplsRoute{
-			MrTableID: b.tableID,
-			MrLabel:   inLabel,
-			MrEos:     mplsEOSBit,
-		},
+	// RFC 3032 Section 2.2: "The LSR which pops the last label off the stack must therefore be able to identify the packet's network layer protocol."
+	// An egress pop names no next hop, so the payload family comes from the FEC.
+	if !r.fec.IsValid() {
+		return fib_types.FibPath{}, 0, fmt.Errorf("mpls-fib: egress pop of in-label %d names neither a next hop "+
+			"nor a FEC, so the payload's network layer protocol is unknown (RFC 3032 Section 2.2)", r.inLabel)
 	}
-	reply := &mpls.MplsRouteAddDelReply{}
-	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
-		return fmt.Errorf("mpls del MplsRouteAddDel: %w", err)
+	payload := fib_types.FIB_API_PATH_NH_PROTO_IP6
+	if r.fec.Addr().Is4() {
+		payload = fib_types.FIB_API_PATH_NH_PROTO_IP4
 	}
-	if reply.Retval != 0 {
-		return fmt.Errorf("mpls del MplsRouteAddDel retval=%d", reply.Retval)
+	// RFC 3032 Section 2.1: "When an LSR would otherwise replace the label at the top of the stack with a new label, but the new label is "Implicit NULL", the LSR will pop the stack instead of doing the replacement."
+	uniformLabels(&path, []uint32{implicitNullLabel})
+	if eos == 1 {
+		// A path with no address and no interface in a named table is a
+		// lookup (DEAG): the popped IP packet is routed in that table.
+		path.Proto = payload
+		path.TableID = r.ipTableID
+		return path, payload, nil
 	}
-	return nil
+	// More labels remain below: look the next one up in MPLS table 0.
+	path.Proto = fib_types.FIB_API_PATH_NH_PROTO_MPLS
+	path.TableID = mplsTableZero
+	return path, payload, nil
 }
 
-// enableMPLS enables MPLS on a VPP interface.
-func (b *govppMPLSBackend) enableMPLS(swIfIndex uint32) error {
-	return b.setMPLSInterface(swIfIndex, true)
-}
-
-// disableMPLS disables MPLS on a VPP interface.
-func (b *govppMPLSBackend) disableMPLS(swIfIndex uint32) error {
-	return b.setMPLSInterface(swIfIndex, false)
-}
-
-func (b *govppMPLSBackend) setMPLSInterface(swIfIndex uint32, enable bool) error {
-	req := &mpls.SwInterfaceSetMplsEnable{
-		SwIfIndex: interface_types.InterfaceIndex(swIfIndex),
-		Enable:    enable,
+// swapOrPopStack returns the labels a swap imposes, or the Implicit NULL label
+// that makes VPP pop toward the next hop.
+func swapOrPopStack(outLabels []uint32) []uint32 {
+	if len(outLabels) > 0 {
+		return outLabels
 	}
-	reply := &mpls.SwInterfaceSetMplsEnableReply{}
-	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
-		return fmt.Errorf("mpls SwInterfaceSetMplsEnable: %w", err)
-	}
-	if reply.Retval != 0 {
-		return fmt.Errorf("mpls SwInterfaceSetMplsEnable retval=%d", reply.Retval)
-	}
-	return nil
+	// RFC 3032 Section 2.1
+	return []uint32{implicitNullLabel}
 }
 
 // mockMPLSBackend is a test double for MPLS operations.
 type mockMPLSBackend struct {
-	pushes    []mplsPushOp
-	swaps     []mplsSwapOp
-	delPushes []netip.Prefix
-	delSwaps  []uint32
-	enables   []uint32
-	disables  []uint32
-	err       error
+	pushes      []mplsPushOp
+	delPushes   []netip.Prefix
+	tables      int
+	labelAdds   []labelRoute
+	labelDels   []uint32
+	err         error
+	labelAddErr error
+	labelDelErr error
+	// dumped is what dumpLabelRoutes answers, or dumpErr; positionDels
+	// records each delLabelRoute, which fails with labelDelErr.
+	dumped       []labelPosition
+	dumpErr      error
+	positionDels []labelPosition
 }
 
 type mplsPushOp struct {
@@ -222,17 +325,11 @@ type mplsPushOp struct {
 	labels  []uint32
 }
 
-type mplsSwapOp struct {
-	inLabel  uint32
-	outLabel uint32
-	nextHop  netip.Addr
-}
-
 func (m *mockMPLSBackend) addMPLSRoute(prefix netip.Prefix, nextHop netip.Addr, labels []uint32) error {
 	if m.err != nil {
 		return m.err
 	}
-	if err := validateLabels(labels); err != nil {
+	if err := mplsfib.ValidateOutLabels(labels); err != nil {
 		return err
 	}
 	cp := make([]uint32, len(labels))
@@ -249,34 +346,48 @@ func (m *mockMPLSBackend) delMPLSRoute(prefix netip.Prefix, _ []uint32) error {
 	return nil
 }
 
-func (m *mockMPLSBackend) addMPLSSwap(inLabel, outLabel uint32, nextHop netip.Addr) error {
+func (m *mockMPLSBackend) createMPLSTable() error {
 	if m.err != nil {
 		return m.err
 	}
-	m.swaps = append(m.swaps, mplsSwapOp{inLabel, outLabel, nextHop})
+	m.tables++
 	return nil
 }
 
-func (m *mockMPLSBackend) delMPLSSwap(inLabel uint32) error {
+func (m *mockMPLSBackend) addLabelRoutes(r labelRoute) error {
 	if m.err != nil {
 		return m.err
 	}
-	m.delSwaps = append(m.delSwaps, inLabel)
+	if m.labelAddErr != nil {
+		return m.labelAddErr
+	}
+	r.outLabels = append([]uint32(nil), r.outLabels...)
+	m.labelAdds = append(m.labelAdds, r)
 	return nil
 }
 
-func (m *mockMPLSBackend) enableMPLS(swIfIndex uint32) error {
+func (m *mockMPLSBackend) delLabelRoutes(inLabel uint32) error {
 	if m.err != nil {
 		return m.err
 	}
-	m.enables = append(m.enables, swIfIndex)
+	if m.labelDelErr != nil {
+		return m.labelDelErr
+	}
+	m.labelDels = append(m.labelDels, inLabel)
 	return nil
 }
 
-func (m *mockMPLSBackend) disableMPLS(swIfIndex uint32) error {
-	if m.err != nil {
-		return m.err
+func (m *mockMPLSBackend) dumpLabelRoutes() ([]labelPosition, error) {
+	if m.dumpErr != nil {
+		return nil, m.dumpErr
 	}
-	m.disables = append(m.disables, swIfIndex)
+	return append([]labelPosition(nil), m.dumped...), nil
+}
+
+func (m *mockMPLSBackend) delLabelRoute(p labelPosition) error {
+	m.positionDels = append(m.positionDels, p)
+	if m.labelDelErr != nil {
+		return m.labelDelErr
+	}
 	return nil
 }

@@ -20,7 +20,8 @@ and system ID, runs the SDK lifecycle, and installs the PDU receive dispatcher.
 
 The component is a `registry.Registration` created in `init()`, modeled on LDP:
 name `isis`, the embedded YANG, `ConfigRoots ["isis"]`, dependencies on
-`fib-kernel` and `sysctl`, and the logger, metrics, event-bus and CLI hooks. Core
+`sysctl` and the policy plugin, `NeedsDataPlane` (so the engine loads the FIB
+writer of the configured backend, `fib-kernel` or `fib-vpp`), and the logger, metrics, event-bus and CLI hooks. Core
 discovers IS-IS through the registry and never imports it. The only import of the
 component outside itself is the generated composition root.
 

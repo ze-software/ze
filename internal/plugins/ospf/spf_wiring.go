@@ -67,6 +67,17 @@ func (e *engine) initSPF() {
 	// (R-8). The mpls-fib Source tag and the Explicit NULL label are address-family
 	// specific; the install decision is shared.
 	srFib := newSRFIB(getEventBus(), e.srSourceTag())
+	// A label writer that opens after SPF installed SR labels (fib-vpp once VPP
+	// connects, or after VPP restarted with an empty FIB) asks for every entry
+	// SR wants installed; subscribe before the first SPF run so none is missed.
+	// The ospf-sr-label-entries doctor check answers from every srFIB the
+	// process holds, until shutdown forgets this one.
+	unsubscribeReplay := srFib.subscribeReplay()
+	forgetLabels := srLabelSources.add(srFib)
+	e.srReplayUnsub = func() {
+		unsubscribeReplay()
+		forgetLabels()
+	}
 	e.srInstaller = newSRInstaller(srFib, e.srAF(), e.srExplicitNull())
 	e.spf.SetPostRun(func() {
 		e.srInstallFromRoutes()

@@ -88,3 +88,75 @@ func TestMPLSApplyRefusesUnsupportedContext(t *testing.T) {
 		t.Fatal("Apply accepted a private context without packet-mark support")
 	}
 }
+
+// TestHandleMPLSEntryIgnoresForeignReplay proves fib-kernel leaves a replay
+// answer addressed to another writer alone: it programs nothing from it and
+// does not acknowledge it, so Apply's answer belongs to the writer that asked.
+//
+// VALIDATES: AC-25 -- fib-kernel ignores a batch carrying a token it does not
+// hold and does not acknowledge it; an incremental batch still programs.
+// METHOD: the production bus with fib-kernel as the only writer; ApplyReplay
+// with a fresh token must fail for want of an owner and leave the mock empty.
+func TestHandleMPLSEntryIgnoresForeignReplay(t *testing.T) {
+	mb := newMPLSMockBackend()
+	f := newFIBKernel(mb)
+	bus := newMPLSApplyBus(t, f)
+	entry := mplsfibevents.Entry{Action: mplsfibevents.ActionAdd, Op: mplsfibevents.OpSwap,
+		InLabel: 1000, OutLabels: []uint32{2000}, NextHop: netip.MustParseAddr("10.0.0.5"), Source: 2}
+
+	if err := mplsfibevents.ApplyReplay(bus, mplsfibevents.NewReplayToken(), []mplsfibevents.Entry{entry}); err == nil {
+		t.Fatal("fib-kernel acknowledged a replay batch it did not ask for")
+	}
+	if len(mb.swapsAdded) != 0 {
+		t.Fatalf("fib-kernel programmed %d entries from a foreign replay", len(mb.swapsAdded))
+	}
+	if len(f.mplsSwaps) != 0 {
+		t.Fatalf("fib-kernel recorded ownership from a foreign replay: %v", f.mplsSwaps)
+	}
+
+	if err := mplsfibevents.Apply(bus, []mplsfibevents.Entry{entry}); err != nil {
+		t.Fatalf("incremental Apply after the foreign replay: %v", err)
+	}
+	if len(mb.swapsAdded) != 1 {
+		t.Fatalf("incremental batch programmed %d entries, want 1", len(mb.swapsAdded))
+	}
+}
+
+// TestHandleMPLSEntryAppliesSharedValidation proves fib-kernel refuses, at
+// its subscription, every entry the shared mplsfib.ValidateEntry refuses, and
+// programs nothing for it: the rule lives once, in the core package.
+//
+// VALIDATES: AC-23 -- kernel half: in-label above 2^20-1, empty swap stack, a
+// stack deeper than MaxLabelStack, a pop carrying an out-label, a push label
+// above 2^20-1.
+func TestHandleMPLSEntryAppliesSharedValidation(t *testing.T) {
+	deep := make([]uint32, mplsfibevents.MaxLabelStack+1)
+	for i := range deep {
+		deep[i] = uint32(100 + i)
+	}
+	nh := netip.MustParseAddr("10.0.0.5")
+	cases := map[string]mplsfibevents.Entry{
+		"in-label above 20 bits": {Action: mplsfibevents.ActionAdd, Op: mplsfibevents.OpSwap,
+			InLabel: mplsfibevents.MaxLabel + 1, OutLabels: []uint32{200}, NextHop: nh},
+		"empty swap stack": {Action: mplsfibevents.ActionAdd, Op: mplsfibevents.OpSwap,
+			InLabel: 100, NextHop: nh},
+		"stack too deep": {Action: mplsfibevents.ActionAdd, Op: mplsfibevents.OpSwap,
+			InLabel: 100, OutLabels: deep, NextHop: nh},
+		"pop with out-label": {Action: mplsfibevents.ActionAdd, Op: mplsfibevents.OpPop,
+			InLabel: 100, OutLabels: []uint32{200}, NextHop: nh},
+		"push label above 20 bits": {Action: mplsfibevents.ActionAdd, Op: mplsfibevents.OpPush,
+			FEC: netip.MustParsePrefix("192.0.2.1/32"), OutLabels: []uint32{mplsfibevents.MaxLabel + 1}, NextHop: nh},
+	}
+	for name, entry := range cases {
+		t.Run(name, func(t *testing.T) {
+			mb := newMPLSMockBackend()
+			f := newFIBKernel(mb)
+			if err := mplsfibevents.Apply(newMPLSApplyBus(t, f), []mplsfibevents.Entry{entry}); err == nil {
+				t.Fatal("fib-kernel accepted an entry the shared validation refuses")
+			}
+			if len(mb.swapsAdded) != 0 || len(f.mplsSwaps) != 0 || len(f.mplsInstalled) != 0 {
+				t.Fatal("fib-kernel programmed a refused entry")
+			}
+		})
+	}
+}

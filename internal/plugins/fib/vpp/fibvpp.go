@@ -17,10 +17,12 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 
 	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
+	"github.com/ze-software/ze/internal/core/mplsfib"
 	"github.com/ze-software/ze/internal/core/replay"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/ze"
@@ -152,6 +154,30 @@ type fibVPP struct {
 	mplsInstalled map[string]bool                 // prefix -> true (MPLS labeled routes)
 	srv6Installed map[srv6RouteKey]bool           // (prefix, table) -> owned SRv6 steering
 	srv6TableID   uint32
+	// labelOwners maps each swap/pop in-label this writer installed to the
+	// source that owns it; labelPushes each (mpls-fib, entry) push FEC to
+	// whether it carries labels (false: the plain route of an Implicit NULL
+	// push).
+	labelOwners map[uint32]uint16
+	labelPushes map[netip.Prefix]bool
+	// labelTableReady records that MPLS table 0 exists on this connection.
+	labelTableReady bool
+	// labelStale holds the label routes MPLS table 0 carried when this
+	// writer opened, before it asked for the replay: what a previous writer
+	// left behind. sweepStaleLabels removes the ones no source re-claimed.
+	// labelSweepFailures keeps each one VPP would not remove, and
+	// labelDumpErr why table 0 could not be read, for the doctor check.
+	labelStale         []labelPosition
+	labelSweepFailures map[labelPosition]error
+	labelDumpErr       error
+	// labelReplayToken is the targeted (mpls-fib, replay-request) token this
+	// writer minted when it opened; a replay batch carrying another token is
+	// another writer's. Set before the writer is published, then read only.
+	labelReplayToken uint64
+	// ipTableID is fib.vpp.table-id, the IP table an egress pop looks the
+	// popped packet up in.
+	ipTableID     uint32
+	pathMTUWarned bool
 	retired       bool // prevents an old subscription racing reconnect reconciliation
 	backend       vppBackend
 	mplsBackend   mplsBackend
@@ -164,6 +190,8 @@ func newFibVPP(backend vppBackend) *fibVPP {
 		installed:     make(map[srv6RouteKey]installedRoute),
 		mplsInstalled: make(map[string]bool),
 		srv6Installed: make(map[srv6RouteKey]bool),
+		labelOwners:   make(map[uint32]uint16),
+		labelPushes:   make(map[netip.Prefix]bool),
 		backend:       backend,
 	}
 }
@@ -369,6 +397,8 @@ func (f *fibVPP) flushRoutes() {
 		}
 	}
 
+	f.flushLabelRoutesLocked()
+
 	if f.srv6Backend != nil {
 		for key := range f.srv6Installed {
 			if _, remains := f.installed[key]; remains {
@@ -413,8 +443,41 @@ func (f *fibVPP) showInstalled() any {
 	return entries
 }
 
-// run requests replay after the plugin has subscribed and restored ownership.
-// The caller MUST cancel ctx when retiring this worker.
+// requestLabelReplay creates MPLS table 0, records the label routes a previous
+// writer left there (markStaleLabelsLocked), and then asks every label producer
+// to re-apply the entries it wants installed, tagged with this writer's token:
+// a writer that opens after the producers started, or after VPP restarted and
+// lost its FIB, holds none of them. The answer arrives on the (mpls-fib,
+// entry) subscription, which the lifecycle lock orders after this writer is
+// published.
+func (f *fibVPP) requestLabelReplay(eb ze.EventBus) {
+	f.mu.Lock()
+	var err error
+	if f.mplsBackend != nil {
+		err = f.ensureMPLSTableLocked()
+	}
+	if err == nil && f.mplsBackend != nil {
+		// Read what table 0 holds before any source answers the replay, so
+		// a route a source re-claims is told apart from a leftover.
+		f.markStaleLabelsLocked()
+	}
+	f.mu.Unlock()
+	if err != nil {
+		logger().Warn("fib-vpp: MPLS table 0 could not be created, so no label entry is programmed "+
+			"until it is; run 'ze show doctor' to see which label entries are missing", "error", err,
+			"code", mplsfib.CodeDoctorNoWriter)
+		return
+	}
+	if _, err := mplsfib.ReplayRequest.Emit(eb, &replay.Request{ReplayID: f.labelReplayToken}); err != nil {
+		logger().Warn("fib-vpp: mpls-fib replay-request emit failed", "error", err,
+			"code", mplsfib.CodeDoctorNoWriter)
+	}
+}
+
+// run requests replay after the plugin has subscribed and restored ownership,
+// then, labelSweepDelay later unless ctx ends first, removes the leftover
+// label routes no source re-claimed. The caller MUST cancel ctx when retiring
+// this worker.
 func (f *fibVPP) run(ctx context.Context, flushOnStop bool) {
 	eb := getEventBus()
 	if eb == nil {
@@ -428,8 +491,20 @@ func (f *fibVPP) run(ctx context.Context, flushOnStop bool) {
 		logger().Warn("fib-vpp: replay-request emit failed", "error", err)
 	}
 
+	f.requestLabelReplay(eb)
+
 	logger().Info("fib-vpp: running")
-	<-ctx.Done()
+	// The sources answer the replay asynchronously; once the window has
+	// passed, a leftover label route nobody re-claimed is removed, as
+	// fib-kernel's sweepStale removes an IP route sysrib did not refresh.
+	sweep := time.NewTimer(labelSweepDelay)
+	select {
+	case <-ctx.Done():
+	case <-sweep.C:
+		f.sweepStaleLabels()
+		<-ctx.Done()
+	}
+	sweep.Stop()
 
 	if flushOnStop {
 		f.flushRoutes()

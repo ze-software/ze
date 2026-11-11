@@ -8,6 +8,10 @@
 // IP route with an imposed label stack), swap/pop use AF_MPLS routes keyed by
 // the incoming label. The AF_MPLS programming lives in mplsentry_linux.go.
 // Unsupported backends reject entries through the synchronous acknowledgment.
+// The entry rules it shares with every other label writer come from
+// mplsfib.ValidateEntry; it adds only the private-table namespace its packet-mark
+// contexts use. fib-kernel never asks for a replay, so a batch answering another
+// writer's replay request is left alone, unprogrammed and unacknowledged.
 package fibkernel
 
 import (
@@ -55,6 +59,13 @@ func (f *fibKernel) handleMPLSEntry(batch *mplsfibevents.EntryBatch) {
 	if batch == nil {
 		return
 	}
+	// A batch tagged with a replay token answers a request another writer
+	// made (fib-vpp on open). fib-kernel holds no token, so it neither
+	// re-installs entries it already holds nor acknowledges a batch it did
+	// not program: Apply's answer belongs to the writer that asked.
+	if !batch.Addresses(0) {
+		return
+	}
 	f.mu.Lock()
 	var result error
 	defer func() {
@@ -72,11 +83,22 @@ func (f *fibKernel) handleMPLSEntry(batch *mplsfibevents.EntryBatch) {
 	mb := f.asMPLSBackend()
 	for i := range batch.Entries {
 		e := &batch.Entries[i]
-		if e.TableID != 0 {
-			if e.Op != mplsfibevents.OpPush {
-				result = errors.Join(result, errors.New("mpls-fib: swap/pop require table zero"))
-				continue
+		if err := mplsfibevents.ValidateEntry(e); err != nil {
+			// The refusal reaches the label source through the acknowledgement,
+			// and its own doctor check (ldp-label-entries, rsvp-te-label-entries,
+			// ospf-sr-label-entries, bgp-epe-label-entries) reports the entry.
+			logger().Error("fib-kernel: refused an MPLS label entry that fails validation, so the kernel did not apply it; the label source keeps it as not carried out, run `ze show doctor` to see the entry and the cause",
+				"action", e.Action, "op", e.Op, "in-label", e.InLabel, "fec", e.FEC, "source", e.Source, "error", err,
+				"code", mplsfibevents.CodeDoctorNoWriter)
+			if e.Action == mplsfibevents.ActionAdd {
+				f.recordMPLSAddErrorLocked()
 			}
+			result = errors.Join(result, err)
+			continue
+		}
+		// ValidateEntry already refused a swap or pop carrying a table, so a
+		// nonzero table here is a push: a private packet-mark context.
+		if e.TableID != 0 {
 			if e.TableID&mplsContextMask != mplsContextMark {
 				result = errors.Join(result, fmt.Errorf("mpls-fib: private table %#x is outside the bypass namespace", e.TableID))
 				continue
@@ -104,13 +126,7 @@ func (f *fibKernel) addMPLSEntryLocked(e *mplsfibevents.Entry, rb richRouteBacke
 		// RFC 3032 Section 2.1: Implicit NULL is a label "which never actually
 		// appears in the encapsulation". An empty push stack is an LSP whose next hop is also its
 		// egress, so the FEC is programmed as a plain IP route via the next hop.
-		if len(e.OutLabels) > 0 {
-			if err := validateMPLSLabels(e.OutLabels); err != nil {
-				logger().Error("fib-kernel: mpls push validation failed", "fec", e.FEC, "error", err)
-				f.recordMPLSAddErrorLocked()
-				return err
-			}
-		}
+		// handleMPLSEntry judged a non-empty stack with mplsfib.ValidateEntry.
 		if rb == nil || !e.FEC.IsValid() {
 			logger().Warn("fib-kernel: cannot program mpls push (no rich backend or invalid FEC)", "fec", e.FEC)
 			return fmt.Errorf("mpls-fib: cannot program push: backend available=%t, FEC=%s", rb != nil, e.FEC)
@@ -121,18 +137,8 @@ func (f *fibKernel) addMPLSEntryLocked(e *mplsfibevents.Entry, rb richRouteBacke
 			return err
 		}
 	case mplsfibevents.OpSwap, mplsfibevents.OpPop:
-		if e.InLabel > maxMPLSLabel {
-			logger().Error("fib-kernel: mpls in-label exceeds 20-bit maximum", "in-label", e.InLabel)
-			f.recordMPLSAddErrorLocked()
-			return fmt.Errorf("mpls-fib: in-label %d exceeds 20 bits", e.InLabel)
-		}
-		if e.Op == mplsfibevents.OpSwap {
-			if err := validateMPLSLabels(e.OutLabels); err != nil {
-				logger().Error("fib-kernel: mpls swap validation failed", "in-label", e.InLabel, "error", err)
-				f.recordMPLSAddErrorLocked()
-				return err
-			}
-		}
+		// handleMPLSEntry judged the in-label and the stack with
+		// mplsfib.ValidateEntry.
 		if mb == nil {
 			logger().Warn("fib-kernel: cannot program mpls swap/pop (no AF_MPLS backend)", "in-label", e.InLabel)
 			return errors.New("mpls-fib: no AF_MPLS backend")

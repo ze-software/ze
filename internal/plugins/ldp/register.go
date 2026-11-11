@@ -32,6 +32,7 @@ import (
 	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/metrics"
+	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
 	"github.com/ze-software/ze/internal/core/network"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/taskguard"
@@ -198,9 +199,14 @@ func registerLDP() {
 		Features:     "yang",
 		YANG:         ldpyang.ZeLDPConfYANG,
 		ConfigRoots:  []string{configRoot},
-		Dependencies: []string{"fib-kernel", "sysctl"},
-		RunEngine:    runLDPEngine,
-		Commands:     commandDecls(),
+		Dependencies: []string{"sysctl"},
+		// LDP's label entries reach forwarding only through the writer of the
+		// data plane `interface { backend }` selects (fib-kernel on netlink,
+		// fib-vpp on VPP), so the engine resolves and loads that writer. Naming
+		// fib-kernel here would load the kernel writer on a VPP deployment.
+		NeedsDataPlane: true,
+		RunEngine:      runLDPEngine,
+		Commands:       commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -214,7 +220,7 @@ func registerLDP() {
 			Name:         "ldp-port",
 			Phase:        rpc.DoctorPhasePostConfig,
 			Order:        720,
-			Dependencies: []string{"fib-kernel"},
+			Dependencies: []string{pluginName},
 			Platforms:    []string{"any"},
 			Codes:        []string{"doctor-ldp-port-unavailable"},
 			Check:        checkLDPPort,
@@ -253,6 +259,9 @@ func runLDPEngine(conn net.Conn) int {
 	// retries holds the setup backoff per adjacency key; sessionsMu guards it too.
 	retries := make(map[string]*setupRetry)
 	var fib *ldpFIB
+	// unsubReplay ends fib's answer to label replay requests; nil until
+	// OnStarted subscribes it.
+	var unsubReplay func()
 	var discoveryMgr *discoveryManager
 	var mgrMu sync.Mutex // guards activeCfg/pendingCfg/havePending and discoveryMgr
 
@@ -320,7 +329,17 @@ func runLDPEngine(conn net.Conn) int {
 			"hello-interval", cfg.HelloInterval, "hello-hold-time", cfg.HelloHoldTime,
 			"keepalive-time", cfg.KeepaliveTime)
 
+		// Published under mgrMu: the doctor callback reads fib from its own
+		// goroutine.
+		mgrMu.Lock()
 		fib = newLDPFIB(getEventBus(), log)
+		mgrMu.Unlock()
+		// A label writer that opens after this point (VPP connects late, or
+		// reconnects with an empty FIB) asks for every entry LDP wants
+		// installed; subscribe before the first pop so no request is missed.
+		if eb := getEventBus(); eb != nil {
+			unsubReplay = mplsfibevents.ReplayRequest.Subscribe(eb, fib.replay)
+		}
 
 		// AC-3: originate label bindings for the FECs this LSR is egress for
 		// (its LSR-ID and connected prefixes). Allocate a stable local label per
@@ -374,6 +393,22 @@ func runLDPEngine(conn net.Conn) int {
 		}
 	})
 
+	// The ldp-label-entries check reads the refusals LDP's own process holds,
+	// so it is answered here, internal and forked alike. Before OnStarted, or
+	// with no lsr-id, LDP applied no entry, so it has nothing to report.
+	p.OnDoctorCheck(func(name string) ([]rpc.DoctorCheckDiagnostic, error) {
+		if name != labelEntriesCheckName {
+			return nil, fmt.Errorf("unknown ldp doctor check %s", name)
+		}
+		mgrMu.Lock()
+		labelFIB := fib
+		mgrMu.Unlock()
+		if labelFIB == nil {
+			return nil, nil
+		}
+		return labelFIB.labelDoctorFindings(), nil
+	})
+
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, &sdk.Registration{
@@ -381,6 +416,7 @@ func runLDPEngine(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands:     commandDecls(),
+		DoctorChecks: []rpc.DoctorCheckDecl{labelEntriesCheckDecl},
 	})
 	if err != nil {
 		log.Error("ldp engine failed", "error", err)
@@ -393,8 +429,14 @@ func runLDPEngine(conn net.Conn) int {
 	}
 	sessionsMu.Unlock()
 
+	// Stop answering replay requests before the withdrawals, so a writer that
+	// opens now is not handed entries LDP is about to remove.
+	if unsubReplay != nil {
+		unsubReplay()
+	}
 	// Withdraw the egress pop entries this LSR programmed for its local FECs so
-	// fib-kernel does not retain stale AF_MPLS state after the engine exits.
+	// the data plane's writer does not retain stale label state after the
+	// engine exits.
 	if fib != nil {
 		for _, lb := range lib.localBindings() {
 			fib.removePop(lb.FEC, lb.Label)

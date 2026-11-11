@@ -2,15 +2,22 @@
 package ldp
 
 import (
+	"bytes"
+	"errors"
+	"log/slog"
 	"net/netip"
+	"slices"
 	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/plugin/server"
 	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
+	"github.com/ze-software/ze/internal/core/replay"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // VALIDATES: concurrent ProgramPush/Remove on the same FEC from many sessions do
@@ -256,7 +263,7 @@ func TestReconcileConcurrentWithdraw(t *testing.T) {
 	wg.Wait()
 
 	assert.Zero(t, lib.Len(), "both peers withdrawn from LIB")
-	assert.False(t, fib.pushed[fec.String()], "no push must remain after both peers withdraw")
+	assert.False(t, fib.hasPush(fec), "no push must remain after both peers withdraw")
 }
 
 // VALIDATES: peer teardown re-points FECs another peer still advertises and
@@ -282,8 +289,8 @@ func TestReconcilePeerDown(t *testing.T) {
 	if _, ok := lib.remainingForFEC(shared); !ok {
 		t.Error("shared FEC should still have peerB's binding")
 	}
-	assert.True(t, fib.pushed[shared.String()], "shared push re-pointed, still installed")
-	assert.False(t, fib.pushed[soloP.String()], "soloP push withdrawn (no surviving peer)")
+	assert.True(t, fib.hasPush(shared), "shared push re-pointed, still installed")
+	assert.False(t, fib.hasPush(soloP), "soloP push withdrawn (no surviving peer)")
 }
 
 // VALIDATES: a peer teardown running concurrently with another session's reconcile
@@ -309,7 +316,7 @@ func TestReconcilePeerDownConcurrent(t *testing.T) {
 	})
 	wg.Wait()
 
-	assert.True(t, fib.pushed[other.String()], "the unrelated FEC remains programmed")
+	assert.True(t, fib.hasPush(other), "the unrelated FEC remains programmed")
 }
 
 // VALIDATES: reconcileFEC programs the best (lowest-key) binding for a FEC, using
@@ -372,4 +379,110 @@ func TestLDPFIBNilBus(t *testing.T) {
 		fib.programPop(netip.MustParsePrefix("10.1.0.0/24"), 18000)
 		fib.removePop(netip.MustParsePrefix("10.1.0.0/24"), 18000)
 	})
+}
+
+// labelWriter stands in for a data plane's label writer (fib-kernel,
+// fib-vpp) on the production bus: it consumes the batches that address the
+// replay token it holds, records them and acknowledges with refusal.
+type labelWriter struct {
+	mu      sync.Mutex
+	held    uint64
+	refusal error
+	batches []mplsfibevents.EntryBatch
+}
+
+func (w *labelWriter) handle(batch *mplsfibevents.EntryBatch) {
+	if !batch.Addresses(w.held) {
+		return
+	}
+	w.mu.Lock()
+	w.batches = append(w.batches, mplsfibevents.EntryBatch{Entries: slices.Clone(batch.Entries), ReplayID: batch.ReplayID})
+	w.mu.Unlock()
+	batch.Acknowledge(w.refusal)
+}
+
+func newLabelBus(t *testing.T, writers ...*labelWriter) ze.EventBus {
+	t.Helper()
+	bus, err := server.NewServer(&server.ServerConfig{}, nil)
+	require.NoError(t, err)
+	for _, w := range writers {
+		t.Cleanup(mplsfibevents.EntryChange.Subscribe(bus, w.handle))
+	}
+	return bus
+}
+
+// TestLDPEmitLogsRefusal proves a label entry the writer refuses is logged
+// with the entry and the cause, where the old bare Emit dropped it silently.
+//
+// VALIDATES: AC-22 -- LDP uses mplsfib.Apply and logs the refused entry and
+// its cause instead of dropping it.
+// METHOD: a refusing writer on the production bus; the log record must carry
+// the refusal text and the in-label of the refused pop.
+func TestLDPEmitLogsRefusal(t *testing.T) {
+	refusal := errors.New("vpp: mpls_route_add_del retval -6")
+	bus := newLabelBus(t, &labelWriter{refusal: refusal})
+	var logged bytes.Buffer
+	fib := newLDPFIB(bus, slog.New(slog.NewTextHandler(&logged, nil)))
+
+	fib.programPop(netip.MustParsePrefix("10.1.0.1/32"), 18000)
+
+	out := logged.String()
+	assert.Contains(t, out, "level=WARN")
+	assert.Contains(t, out, refusal.Error(), "the cause is logged")
+	assert.Contains(t, out, "in-label=18000", "the refused entry is logged")
+	assert.True(t, fib.hasPop(18000), "a refused add stays wanted for the next replay")
+}
+
+// TestLDPReplayReappliesWantedEntries proves LDP answers a writer's replay
+// request with every entry it wants installed, tagged with the request's
+// token, so only the asking writer consumes it.
+//
+// VALIDATES: AC-25 -- LDP re-applies every wanted entry tagged with the token;
+// a withdrawn entry is not re-applied; a writer holding no token (fib-kernel)
+// does not receive the replay batch.
+// METHOD: two writers on the production bus, one holding a fresh token; LDP
+// programs two pops and two pushes, withdraws one of each, then answers a
+// replay request emitted on the bus.
+func TestLDPReplayReappliesWantedEntries(t *testing.T) {
+	kernel := &labelWriter{}
+	vpp := &labelWriter{held: mplsfibevents.NewReplayToken()}
+	bus := newLabelBus(t, kernel, vpp)
+	fib := newLDPFIB(bus, slogutil.DiscardLogger())
+	t.Cleanup(mplsfibevents.ReplayRequest.Subscribe(bus, fib.replay))
+
+	keptPop, gonePop := netip.MustParsePrefix("10.1.0.1/32"), netip.MustParsePrefix("10.1.0.0/24")
+	keptPush, gonePush := netip.MustParsePrefix("10.9.0.0/24"), netip.MustParsePrefix("10.8.0.0/24")
+	peer := netip.MustParseAddr("10.0.0.2")
+	fib.programPop(keptPop, 18000)
+	fib.programPop(gonePop, 18001)
+	fib.ProgramPush(keptPush, 17000, peer)
+	fib.ProgramPush(gonePush, 17001, peer)
+	fib.removePop(gonePop, 18001)
+	fib.Remove(gonePush)
+	kernelBefore, vppBefore := len(kernel.batches), len(vpp.batches)
+
+	_, err := mplsfibevents.ReplayRequest.Emit(bus, &replay.Request{ReplayID: vpp.held})
+	require.NoError(t, err)
+
+	require.Len(t, vpp.batches, vppBefore+1, "the asking writer receives one replay batch")
+	assert.Len(t, kernel.batches, kernelBefore, "a writer that did not ask receives nothing")
+	answer := vpp.batches[len(vpp.batches)-1]
+	assert.Equal(t, vpp.held, answer.ReplayID, "the batch carries the request's token")
+	require.Len(t, answer.Entries, 2, "only the wanted pop and push are re-applied")
+	byOp := map[mplsfibevents.Op]mplsfibevents.Entry{}
+	for _, e := range answer.Entries {
+		assert.Equal(t, mplsfibevents.ActionAdd, e.Action)
+		assert.Equal(t, mplsSourceLDP, e.Source)
+		byOp[e.Op] = e
+	}
+	assert.Equal(t, uint32(18000), byOp[mplsfibevents.OpPop].InLabel)
+	assert.Equal(t, keptPop, byOp[mplsfibevents.OpPop].FEC, "the egress pop names its FEC")
+	assert.Equal(t, keptPush, byOp[mplsfibevents.OpPush].FEC)
+	assert.Equal(t, []uint32{17000}, byOp[mplsfibevents.OpPush].OutLabels)
+	assert.Equal(t, peer, byOp[mplsfibevents.OpPush].NextHop)
+
+	// A request with the incremental token asks for nothing.
+	_, err = mplsfibevents.ReplayRequest.Emit(bus, &replay.Request{})
+	require.NoError(t, err)
+	assert.Len(t, vpp.batches, vppBefore+1)
 }

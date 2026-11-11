@@ -274,7 +274,10 @@ func namesATarget(nextHop netip.Addr, ifaceName string) bool {
 //
 // REQUIRES: namesATarget reports true for (nextHop, ifaceName).
 func toFibPath(nextHop netip.Addr, ifaceName string, weight uint8, dst netip.Prefix) (fib_types.FibPath, error) {
-	path := fib_types.FibPath{Weight: weight}
+	// A path that names no device carries ~0: VPP reads sw_if_index 0 as
+	// local0 and makes the path attached to it (fib_path_create), where it
+	// resolves to nothing, instead of resolving the next hop recursively.
+	path := fib_types.FibPath{Weight: weight, SwIfIndex: noInterface}
 	if path.Weight == 0 {
 		path.Weight = defaultWeight()
 	}
@@ -286,24 +289,28 @@ func toFibPath(nextHop netip.Addr, ifaceName string, weight uint8, dst netip.Pre
 		path.SwIfIndex = idx
 	}
 	switch {
-	case nextHop.Is4():
-		path.Proto = fib_types.FIB_API_PATH_NH_PROTO_IP4
-		a4 := nextHop.As4()
-		var ip4 ip_types.IP4Address
-		copy(ip4[:], a4[:])
-		path.Nh.Address = ip_types.AddressUnionIP4(ip4)
-	case nextHop.Is6():
-		path.Proto = fib_types.FIB_API_PATH_NH_PROTO_IP6
-		a16 := nextHop.As16()
-		var ip6 ip_types.IP6Address
-		copy(ip6[:], a16[:])
-		path.Nh.Address = ip_types.AddressUnionIP6(ip6)
+	case nextHop.IsValid():
+		path.Proto, path.Nh.Address = nextHopAddress(nextHop)
 	case dst.Addr().Is4():
 		path.Proto = fib_types.FIB_API_PATH_NH_PROTO_IP4
 	default:
 		path.Proto = fib_types.FIB_API_PATH_NH_PROTO_IP6
 	}
 	return path, nil
+}
+
+// nextHopAddress renders a valid next hop as VPP's path protocol and address.
+func nextHopAddress(nextHop netip.Addr) (fib_types.FibPathNhProto, ip_types.AddressUnion) {
+	if nextHop.Is4() {
+		a4 := nextHop.As4()
+		var ip4 ip_types.IP4Address
+		copy(ip4[:], a4[:])
+		return fib_types.FIB_API_PATH_NH_PROTO_IP4, ip_types.AddressUnionIP4(ip4)
+	}
+	a16 := nextHop.As16()
+	var ip6 ip_types.IP6Address
+	copy(ip6[:], a16[:])
+	return fib_types.FIB_API_PATH_NH_PROTO_IP6, ip_types.AddressUnionIP6(ip6)
 }
 
 // gatewayPath renders the one path of a plain route: a gateway address, no

@@ -68,7 +68,9 @@ func applySysctl(osName string, u unitEntry) {
 	if u.MPLSEnable != nil {
 		// RFC 3031: enabling MPLS label input on the interface. The global
 		// net.mpls.platform_labels sysctl (label table size) is managed
-		// separately via the sysctl config/known keys.
+		// separately via the sysctl config/known keys. A backend with its own
+		// dataplane enforces the same leaf through Backend.ReplaceMPLSInput
+		// (mplsinput.go, desiredMPLSInput).
 		emit("net.mpls.conf."+osName+".input", boolVal(*u.MPLSEnable))
 	}
 	if s := u.IPv6; s != nil {

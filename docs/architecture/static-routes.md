@@ -288,6 +288,11 @@ Both backends resolve an interface next hop through the same `iface.Resolve`.
 The netlink backend reads `Binding.Ifindex` as a kernel ifindex and the VPP
 backend reads it as a VPP `sw_if_index`.
 
+A VPP path via a next-hop address alone names no interface, and carries
+`staticvpp.NoInterface` (~0), never 0. VPP reads `sw_if_index` 0 as `local0`:
+`fib_path_create` makes any path whose `sw_if_index` is not ~0 an attached
+next hop on that interface, so a 0 would never resolve the next hop.
+
 **The data plane and the iface backend are selected by two independent
 globals.** `vpp.GetActiveConnector()` selects the VPP static backend and
 `iface.LoadBackend` selects the iface backend. They can disagree, and a VPP

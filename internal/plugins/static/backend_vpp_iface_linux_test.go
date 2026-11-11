@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	staticvpp "github.com/ze-software/ze/internal/plugins/static/vpp"
 )
 
 // fakeIfaceBackend is a minimal iface.Backend serving GetInterface and GetLink
@@ -217,8 +218,10 @@ func TestToVPPRouteMixedAddressAndInterfaceNextHops(t *testing.T) {
 	if len(out.Paths) != 2 {
 		t.Fatalf("Paths: got %d, want 2", len(out.Paths))
 	}
-	if !out.Paths[0].NextHop.IsValid() || out.Paths[0].SwIfIndex != 0 {
-		t.Errorf("path[0]: got NextHop=%v SwIfIndex=%d, want the address path", out.Paths[0].NextHop, out.Paths[0].SwIfIndex)
+	// The address path names no interface: ~0 (staticvpp.NoInterface), never 0,
+	// which VPP reads as local0 (TestVPPStaticNextHopAddressSendsNoInterface).
+	if !out.Paths[0].NextHop.IsValid() || out.Paths[0].SwIfIndex != staticvpp.NoInterface {
+		t.Errorf("path[0]: got NextHop=%v SwIfIndex=%d, want the address path with no interface (~0)", out.Paths[0].NextHop, out.Paths[0].SwIfIndex)
 	}
 	if out.Paths[1].NextHop.IsValid() || out.Paths[1].SwIfIndex != 13 {
 		t.Errorf("path[1]: got NextHop=%v SwIfIndex=%d, want the interface path (index 13)", out.Paths[1].NextHop, out.Paths[1].SwIfIndex)

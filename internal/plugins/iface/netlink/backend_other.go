@@ -96,6 +96,15 @@ func (s *stubBackend) ReplaceIPv4RPF(checks []iface.RPFCheck) error {
 	return unsupported()
 }
 
+// ReplaceMPLSInput has nothing to do for an empty set and refuses a real one,
+// for the same reason as ReplaceIPv6RPF.
+func (s *stubBackend) ReplaceMPLSInput(interfaces []string) error {
+	if len(interfaces) == 0 {
+		return nil
+	}
+	return unsupported()
+}
+
 func (s *stubBackend) RemoveLCPPair(_ string) error     { return unsupported() }
 func (s *stubBackend) StartMonitor(_ ze.EventBus) error { return unsupported() }
 func (s *stubBackend) StopMonitor()                     {}

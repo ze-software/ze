@@ -27,6 +27,8 @@ import (
 	"github.com/ze-software/ze/internal/core/events"
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
 	"github.com/ze-software/ze/internal/core/metrics"
+	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
+	"github.com/ze-software/ze/internal/core/replay"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	rsvpteyang "github.com/ze-software/ze/internal/plugins/rsvpte/yang"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -462,9 +464,15 @@ func registerRSVPTE() {
 		Features:     "yang",
 		YANG:         rsvpteyang.ZeRSVPTEConfYANG,
 		ConfigRoots:  []string{Namespace},
-		Dependencies: []string{"interface", "fib-kernel", "sysctl"},
-		RunEngine:    runRSVPTEEngine,
-		Commands:     commandDecls(),
+		Dependencies: []string{"interface", "sysctl"},
+		// RSVP-TE's label entries reach forwarding only through the writer of
+		// the data plane `interface { backend }` selects (fib-kernel on
+		// netlink, fib-vpp on VPP), so the engine resolves and loads that
+		// writer. Naming fib-kernel here would load the kernel writer on a VPP
+		// deployment.
+		NeedsDataPlane: true,
+		RunEngine:      runRSVPTEEngine,
+		Commands:       commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -478,7 +486,7 @@ func registerRSVPTE() {
 			Name:         "rsvp-te-rawsock",
 			Phase:        rpc.DoctorPhasePostConfig,
 			Order:        721,
-			Dependencies: []string{"fib-kernel"},
+			Dependencies: []string{Namespace},
 			Platforms:    []string{"any"},
 			Codes:        []string{"doctor-rsvpte-rawsock-unavailable"},
 			Check:        checkRSVPTERawSocket,
@@ -512,9 +520,11 @@ func runRSVPTEEngine(conn net.Conn) int {
 	var activeCfg, pendingCfg rsvpteConfig
 	var havePending bool
 	var eng *engine
+	// labelFIB is eng's label programmer, which the doctor callback reads.
+	var labelFIB *busFIB
 	var configuredTunnels map[lspKey]bool
 	var configuredInterfaces map[string]bool
-	var tunnelsMu sync.Mutex // guards activeCfg/pendingCfg/havePending, eng, configuredTunnels, configuredInterfaces
+	var tunnelsMu sync.Mutex // guards activeCfg/pendingCfg/havePending, eng, labelFIB, configuredTunnels, configuredInterfaces
 	var workers sync.WaitGroup
 	var stopWorkers context.CancelFunc
 	defer func() {
@@ -604,11 +614,28 @@ func runRSVPTEEngine(conn net.Conn) int {
 		if err != nil {
 			log.Warn("rsvp-te: raw IP transport unavailable, signaling disabled", "error", err)
 		} else {
-			e := newEngine(t, lspTable, admission, &busFIB{bus: getEventBus()}, cfg, log)
+			fib := &busFIB{bus: getEventBus()}
+			e := newEngine(t, lspTable, admission, fib, cfg, log)
 			e.startPeerIdentity(ctx)
 			tunnelsMu.Lock()
 			eng = e
+			labelFIB = fib
 			tunnelsMu.Unlock()
+			// A label writer that opens after this point (VPP connects late, or
+			// reconnects with an empty FIB) asks for every entry RSVP-TE has
+			// installed; the answer is tagged so only that writer takes it.
+			if eb := getEventBus(); eb != nil {
+				unsubReplay := mplsfibevents.ReplayRequest.Subscribe(eb, func(req *replay.Request) {
+					if err := fib.replay(req); err != nil {
+						log.Warn("rsvp-te: the forwarding writer that asked for RSVP-TE's label entries did not install them all, so traffic on those LSPs is not forwarded; run `ze show doctor` to see which entries and why",
+							"error", err, "code", mplsfibevents.CodeDoctorNoWriter)
+					}
+				})
+				workers.Go(func() {
+					<-ctx.Done()
+					unsubReplay()
+				})
+			}
 			workers.Go(func() { e.run(ctx) })
 		}
 
@@ -691,6 +718,23 @@ func runRSVPTEEngine(conn net.Conn) int {
 		}
 	})
 
+	// The rsvp-te-label-entries check reads the record RSVP-TE's own process
+	// holds, so it is answered here, internal and forked alike. With no
+	// engine (signaling disabled, or not started) RSVP-TE installed no entry,
+	// so it has nothing to report.
+	p.OnDoctorCheck(func(name string) ([]rpc.DoctorCheckDiagnostic, error) {
+		if name != labelEntriesCheckName {
+			return nil, fmt.Errorf("unknown rsvp-te doctor check %s", name)
+		}
+		tunnelsMu.Lock()
+		fib := labelFIB
+		tunnelsMu.Unlock()
+		if fib == nil {
+			return nil, nil
+		}
+		return fib.labelDoctorFindings(), nil
+	})
+
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, &sdk.Registration{
@@ -698,6 +742,7 @@ func runRSVPTEEngine(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands:     commandDecls(),
+		DoctorChecks: []rpc.DoctorCheckDecl{labelEntriesCheckDecl},
 	})
 	if err != nil {
 		log.Error("rsvp-te engine failed", "error", err)

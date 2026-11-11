@@ -97,6 +97,9 @@ func (m *mockMigrateBackend) ReplaceIPv6RPF(_ []RPFCheck) error {
 func (m *mockMigrateBackend) ReplaceIPv4RPF(_ []RPFCheck) error {
 	return fmt.Errorf("mock: not supported")
 }
+func (m *mockMigrateBackend) ReplaceMPLSInput(_ []string) error {
+	return fmt.Errorf("mock: not supported")
+}
 func (m *mockMigrateBackend) SetupLCPPair(_, _ string) error {
 	return fmt.Errorf("mock: not supported")
 }

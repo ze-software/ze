@@ -55,7 +55,7 @@ func rpfCheckMode(m rpfMode) RPFMode {
 // whose leaf, unit or interface left the config is absent from it.
 func desiredRPF(cfg *ifaceConfig, devices map[string]string, leaf func(*unitEntry) *rpfMode) []RPFCheck {
 	var checks []RPFCheck
-	add := func(osName string, u *unitEntry) {
+	forEachAppliedUnit(cfg, devices, func(osName string, u *unitEntry) {
 		configured := leaf(u)
 		if configured == nil {
 			return
@@ -65,7 +65,16 @@ func desiredRPF(cfg *ifaceConfig, devices map[string]string, leaf func(*unitEntr
 			return
 		}
 		checks = append(checks, RPFCheck{Interface: unitOSName(osName, u), Mode: mode})
-	}
+	})
+	return checks
+}
+
+// forEachAppliedUnit calls add for every enabled unit of cfg with the device
+// it configures, walking the units the sysctl phase of applyConfigPass walks,
+// with the same device binding. A whole-set backend call (the reverse-path
+// checks, the MPLS input set) builds its set here, so every set skips the same
+// unbound entries and disabled units.
+func forEachAppliedUnit(cfg *ifaceConfig, devices map[string]string, add func(osName string, u *unitEntry)) {
 	entries := allIfaceEntries(cfg)
 	for i := range entries {
 		if entries[i].Disable {
@@ -90,5 +99,4 @@ func desiredRPF(cfg *ifaceConfig, devices map[string]string, leaf func(*unitEntr
 			add("lo", &cfg.Loopback.Units[j])
 		}
 	}
-	return checks
 }

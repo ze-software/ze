@@ -342,6 +342,38 @@ func TestPolicyRoutesDependsOnFirewall(t *testing.T) {
 	}
 }
 
+// TestNoRegistrationDependsOnAFIBWriter walks every registration the
+// composition root links and refuses a Dependencies entry that names a plugin
+// whose registration declares ProgramsFIB.
+//
+// VALIDATES: spec-fib-depth AC-16 -- no producer names a FIB writer: a
+// producer whose routes or labels reach forwarding declares NeedsDataPlane,
+// and the engine loads the writer of the configured data plane
+// (appendDataPlaneWriter). Naming fib-kernel loads the kernel writer on a VPP
+// deployment, the defect OSPF, IS-IS, LDP and RSVP-TE carried.
+// PREVENTS: a new producer depending on fib-kernel or fib-vpp by name.
+// METHOD: the writer set is asked of the registry (ProgramsFIB), never
+// listed, so a new writer is covered with no edit here. The walk must meet
+// at least one writer, or it proved nothing about this build.
+func TestNoRegistrationDependsOnAFIBWriter(t *testing.T) {
+	writers := make(map[string]bool)
+	for _, reg := range registry.All() {
+		if reg.ProgramsFIB {
+			writers[reg.Name] = true
+		}
+	}
+	if len(writers) == 0 {
+		t.Fatal("the composition root links no ProgramsFIB plugin, so the walk proves nothing")
+	}
+	for _, reg := range registry.All() {
+		for _, dep := range reg.Dependencies {
+			if writers[dep] {
+				t.Errorf("%s Dependencies names %q, a ProgramsFIB plugin; declare NeedsDataPlane instead", reg.Name, dep)
+			}
+		}
+	}
+}
+
 // TestCapabilityMappings verifies that capability codes are mapped to plugins.
 //
 // VALIDATES: Capability-to-plugin mapping works after init() registration.

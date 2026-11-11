@@ -111,6 +111,7 @@ type fakeFIB struct {
 	swapped      []swapRec
 	backups      []backupRec
 	popped       []uint32
+	popFECs      []netip.Prefix
 	removedSwap  []uint32
 	pathMTUs     []uint32
 }
@@ -135,7 +136,8 @@ func (f *fakeFIB) programBackup(inLabel uint32, outLabels []uint32, nextHop neti
 	return nil
 }
 
-func (f *fakeFIB) programPop(inLabel uint32, _ netip.Addr, pathMTU uint32) error {
+func (f *fakeFIB) programPop(inLabel uint32, fec netip.Prefix, _ netip.Addr, pathMTU uint32) error {
+	f.popFECs = append(f.popFECs, fec)
 	f.pathMTUs = append(f.pathMTUs, pathMTU)
 	f.popped = append(f.popped, inLabel)
 	return nil

@@ -1571,6 +1571,19 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 		return record("ipv4 rpf-check", err)
 	}
 
+	// Phase 2b''': Replace the set of interfaces that accept labeled frames.
+	// The net.mpls.conf.<dev>.input sysctl written above judges only what the
+	// Linux kernel receives, so the whole set also goes to the backend, with
+	// the same removal and undo as the reverse-path sets.
+	mplsInput := desiredMPLSInput(cfg, devices)
+	if err := applyBackendStep(journal, func() error {
+		return b.ReplaceMPLSInput(mplsInput)
+	}, func() error {
+		return b.ReplaceMPLSInput(desiredMPLSInput(previous, devices))
+	}); err != nil {
+		return record("mpls input", err)
+	}
+
 	// Phase 2c: Bring all non-disabled interfaces administratively UP.
 	// Without this, DHCP and other protocols cannot send packets on the
 	// interface even if the physical link is connected.

@@ -507,10 +507,16 @@ lacks (see Dependencies).
 The config-path phase also resolves the FIB writer. When a plugin it is about to
 load declares `NeedsDataPlane`, and no `ProgramsFIB` plugin is configured or
 running, the engine adds the plugin whose `DataPlane` matches the backend
-`interface { backend }` selects. So `static { route ... }` with no `fib { }`
-block loads `fib-kernel` on a Linux host and `fib-vpp` on a VPP deployment,
-while an explicit `fib { ... }` block wins because its own plugin is already in
-the set. A data plane no plugin programs adds nothing and logs a warning; the
+`interface { backend }` selects. The producers that declare it are `static`,
+`ospf`, `isis`, `ldp`, `rsvp-te` and BGP EPE (`internal/component/bgp/plugins/epe`):
+none of them names a FIB plugin in
+`Dependencies`, and `TestNoRegistrationDependsOnAFIBWriter`
+(`internal/component/plugin/all/all_test.go`) refuses a registration that does.
+So `static { route ... }` or `ldp { }` with no `fib { }` block loads
+`fib-kernel` on a Linux host and `fib-vpp` on a VPP deployment, while an
+explicit `fib { ... }` block wins because its own plugin is already in the set.
+The writer of a data plane owns all of its forwarding state, so the same
+declaration covers routes and MPLS label entries. A data plane no plugin programs adds nothing and logs a warning; the
 producer's own doctor check is what tells the operator.
 
 <!-- source: internal/component/plugin/server/startup_autoload.go -- appendDataPlaneWriter -->

@@ -163,7 +163,7 @@ func TestHandleMPLSEntryRejectsBadLabel(t *testing.T) {
 	f.handleMPLSEntry(&mplsfibevents.EntryBatch{Entries: []mplsfibevents.Entry{{
 		Action:  mplsfibevents.ActionAdd,
 		Op:      mplsfibevents.OpSwap,
-		InLabel: maxMPLSLabel + 1,
+		InLabel: mplsfibevents.MaxLabel + 1,
 		NextHop: netip.MustParseAddr("10.0.0.5"),
 	}}})
 	assert.Empty(t, mb.swapsAdded, "out-of-range in-label rejected")

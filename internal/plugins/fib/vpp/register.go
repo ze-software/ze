@@ -2,6 +2,7 @@ package fibvpp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -13,10 +14,12 @@ import (
 	vppcomp "github.com/ze-software/ze/internal/component/vpp"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/mplsfib"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/statestore"
 	vppevents "github.com/ze-software/ze/internal/core/vpp/events"
 	fibvppyang "github.com/ze-software/ze/internal/plugins/fib/vpp/yang"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
 	"github.com/ze-software/ze/pkg/zefs"
@@ -90,6 +93,7 @@ func runFibVPPPlugin(conn net.Conn) int {
 
 	var vppUnsub func() // VPP reconnect subscription cleanup
 	var bestChangeUnsub func()
+	var labelEntryUnsub func()
 	defer func() {
 		fibMu.Lock()
 		defer fibMu.Unlock()
@@ -100,6 +104,9 @@ func runFibVPPPlugin(conn net.Conn) int {
 		}
 		if bestChangeUnsub != nil {
 			bestChangeUnsub()
+		}
+		if labelEntryUnsub != nil {
+			labelEntryUnsub()
 		}
 	}()
 
@@ -155,6 +162,11 @@ func runFibVPPPlugin(conn net.Conn) int {
 			if bestChangeUnsub == nil {
 				if eb := getEventBus(); eb != nil {
 					bestChangeUnsub = subscribeFibVPP(eb, &fibMu, &fib)
+				}
+			}
+			if labelEntryUnsub == nil {
+				if eb := getEventBus(); eb != nil {
+					labelEntryUnsub = subscribeFibVPPLabels(eb, &fibMu, &fib, func() error { return unreachable })
 				}
 			}
 
@@ -217,14 +229,16 @@ func runFibVPPPlugin(conn net.Conn) int {
 		return "error", "", fmt.Errorf("unknown command: %s", command)
 	})
 
+	p.OnDoctorCheck(func(name string) ([]rpc.DoctorCheckDiagnostic, error) {
+		fibMu.Lock()
+		f := fib
+		fibMu.Unlock()
+		return answerLabelDoctorCheck(name, f)
+	})
+
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
-	err := p.Run(ctx, &sdk.Registration{
-		WantsConfig:  []string{configRoot},
-		VerifyBudget: 1,
-		ApplyBudget:  1,
-		Commands:     commandDecls(),
-	})
+	err := p.Run(ctx, engineRegistration())
 	if err != nil {
 		lg.Error("fib-vpp plugin failed", "error", err)
 		return 1
@@ -235,6 +249,32 @@ func runFibVPPPlugin(conn net.Conn) int {
 	}
 
 	return 0
+}
+
+// engineRegistration is the Stage 1 registration the runner sends: the config
+// it wants, the commands it serves and the runtime doctor check it answers.
+func engineRegistration() *sdk.Registration {
+	return &sdk.Registration{
+		WantsConfig:  []string{configRoot},
+		VerifyBudget: 1,
+		ApplyBudget:  1,
+		Commands:     commandDecls(),
+		DoctorChecks: []rpc.DoctorCheckDecl{labelEntriesCheckDecl},
+	}
+}
+
+// answerLabelDoctorCheck answers the runtime doctor check named name from
+// the current writer f. With no writer there is no label state to judge, so
+// it answers no finding: VPP being unreachable is reported by the vpp
+// component's own checks. A name fib-vpp did not declare is refused.
+func answerLabelDoctorCheck(name string, f *fibVPP) ([]rpc.DoctorCheckDiagnostic, error) {
+	if name != labelEntriesCheckName {
+		return nil, fmt.Errorf("unknown fib-vpp doctor check %s", name)
+	}
+	if f == nil {
+		return nil, nil
+	}
+	return f.labelDoctorFindings(), nil
 }
 
 // openFibVPPWriter returns a COMPLETE fibVPP programming VPP through
@@ -256,6 +296,8 @@ func openFibVPPWriter(connector *vppcomp.Connector, table uint32, store srv6Stat
 	f := newFibVPP(newGovppBackend(ch, table))
 	f.mplsBackend = newGovppMPLSBackend(ch, table)
 	f.srv6TableID = table
+	f.ipTableID = table
+	f.labelReplayToken = mplsfib.NewReplayToken()
 	f.srv6Backend = newGovppSRv6Backend(ch, table, store)
 	if err := f.restoreSRv6(); err != nil {
 		logger().Error("fib-vpp: SRv6 ownership restore failed", "error", err)
@@ -288,6 +330,42 @@ func subscribeFibVPP(eb ze.EventBus, mu *sync.Mutex, current **fibVPP) func() {
 			(*current).processEvent(batch)
 		}
 	})
+}
+
+// subscribeFibVPPLabels routes each (mpls-fib, entry) batch to the current
+// writer under the lifecycle lock, and acknowledges with the cause while there
+// is none, so mplsfib.Apply fails and a producer advertises no label VPP does
+// not hold. A targeted replay answer meant for a writer that is gone is left
+// unacknowledged, as every writer leaves another's. The caller MUST hold mu
+// while subscribing and replacing current, and MUST unsubscribe when the plugin
+// stops.
+func subscribeFibVPPLabels(eb ze.EventBus, mu *sync.Mutex, current **fibVPP, unreachable func() error) func() {
+	return mplsfib.EntryChange.Subscribe(eb, func(batch *mplsfib.EntryBatch) {
+		mu.Lock()
+		defer mu.Unlock()
+		if *current != nil {
+			(*current).handleMPLSEntry(batch)
+			return
+		}
+		if batch == nil {
+			return
+		}
+		if !batch.Addresses(0) {
+			return
+		}
+		if batch.Acknowledge != nil {
+			batch.Acknowledge(noLabelWriterError(unreachable()))
+		}
+	})
+}
+
+// noLabelWriterError names why fib-vpp cannot program a label entry.
+func noLabelWriterError(unreachable error) error {
+	if unreachable == nil {
+		return errors.New("mpls-fib: fib-vpp has not opened its VPP writer yet, so no label entry is " +
+			"programmed; the producer's entries are re-applied once it opens")
+	}
+	return fmt.Errorf("mpls-fib: fib-vpp holds no VPP writer, so no label entry is programmed: %w", unreachable)
 }
 
 // commandDecls names the commands this plugin serves and states what each

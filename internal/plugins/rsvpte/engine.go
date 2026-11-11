@@ -53,8 +53,10 @@ type fibProgrammer interface {
 	// programPop installs a pop entry: packets arriving with inLabel are
 	// stripped of the label and forwarded toward nextHop. The egress uses it for
 	// disposition, and a transit whose downstream label is Implicit NULL uses it
-	// in place of a swap.
-	programPop(inLabel uint32, nextHop netip.Addr, pathMTU uint32) error
+	// in place of a swap. fec names the payload's network layer protocol on the
+	// egress pop, which has no next hop (RFC 3032 Section 2.2); a transit pop
+	// passes the zero prefix, because its next hop decides the forwarding.
+	programPop(inLabel uint32, fec netip.Prefix, nextHop netip.Addr, pathMTU uint32) error
 	// removePush withdraws a previously programmed push entry for fec.
 	removePush(fec netip.Prefix, tableID uint32) error
 	// removeSwap withdraws a previously programmed swap or pop entry for inLabel.
@@ -569,6 +571,16 @@ func receivedRefreshPeriod(msg *ParsedMessage) time.Duration {
 
 // handlePathEgress acts as the receiver for this configured IPv4 LSP profile.
 // An increased request is admitted before replacing the accepted reservation.
+// egressFEC is the FEC an egress pop carries: the session's tunnel endpoint
+// host prefix, the IPv4 FEC the LSP delivers. A writer that disposes of the
+// payload itself (fib-vpp) reads the payload's protocol from it.
+//
+// RFC 3032 Section 2.2: "The LSR which pops the last label off the stack must
+// therefore be able to identify the packet's network layer protocol."
+func egressFEC(key lspKey) netip.Prefix {
+	return netip.PrefixFrom(key.TunnelEndpoint, key.TunnelEndpoint.BitLen())
+}
+
 func (e *engine) handlePathEgress(src netip.Addr, msg *ParsedMessage) {
 	key := keyFromMessage(msg)
 	lsp, existed := e.table.GetOrCreate(key)
@@ -622,7 +634,7 @@ func (e *engine) handlePathEgress(src netip.Addr, msg *ParsedMessage) {
 			if e.fib == nil {
 				installErr = errForwardingUnavailable
 			} else if !popAccepted || oldRSB == nil || oldRSB.Label.Label != label || oldRSB.PathMTU != rsb.PathMTU {
-				installErr = e.fib.programPop(label, netip.Addr{}, rsb.PathMTU)
+				installErr = e.fib.programPop(label, egressFEC(key), netip.Addr{}, rsb.PathMTU)
 			}
 			if installErr != nil {
 				e.restoreReservation(iface, key, oldRSB, oldBandwidth)

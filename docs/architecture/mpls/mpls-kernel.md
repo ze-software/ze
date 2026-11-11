@@ -9,7 +9,16 @@ system-RIB routes and native label-distribution entries have separate ownership.
 | Transit swap and pop (LDP, RSVP-TE) | `mplsfib` forwarding entries | an `AF_MPLS` route keyed by in-label |
 | RSVP bypass control push | acknowledged `mplsfib` entry with a private table | a mark-selected IP route with an MPLS stack |
 
-<!-- source: internal/plugins/fib/kernel/mpls.go -- shared MPLS constants, errors, validation -->
+The writer of a data plane owns all of its forwarding state, labels included.
+LDP and RSVP-TE name no writer: each declares `Registration.NeedsDataPlane`,
+and the engine loads the writer of the data plane `interface { backend }`
+selects, `fib-kernel` for netlink and `fib-vpp` for VPP
+(`appendDataPlaneWriter`). Both writers subscribe to `(mpls-fib, entry)` and
+judge each entry with the one validation in `internal/core/mplsfib`
+(`ValidateEntry`, `ValidateOutLabels`). The VPP form is in "Label entries on
+VPP" below.
+
+<!-- source: internal/core/mplsfib/label.go -- the shared label validation -->
 <!-- source: internal/plugins/fib/kernel/mplsentry.go -- the transit swap and pop entry path -->
 
 ## Decision: reuse the IP-route plumbing for the push
@@ -45,9 +54,20 @@ checks kernel ownership before replacing or deleting an installed label.
 <!-- source: internal/plugins/fib/kernel/mplsentry.go -- source-owned label dispatch -->
 <!-- source: internal/plugins/fib/kernel/mplsentry_linux.go -- first installation and owned replacement -->
 
-`mplsfib.Apply` waits for synchronous native-owner acceptance. Publishing a
-batch without an accepting owner is an error, as is a rejected kernel operation.
-Callers must not advertise forwarding that the owner refused.
+`mplsfib.Apply` waits for the data plane's writer to accept the batch
+synchronously. Publishing a batch without an accepting writer is an error, as
+is a rejected kernel or VPP operation. Callers must not advertise forwarding
+that the writer refused.
+
+A writer that opens late holds none of the entries: VPP connects after LDP has
+already programmed its egress pops, or reconnects after losing its FIB. Such a
+writer emits `(mpls-fib, replay-request)` with a token from
+`mplsfib.NewReplayToken`, and LDP, RSVP-TE, OSPF Segment Routing and BGP EPE
+answer with `mplsfib.ApplyReplay`,
+re-applying every entry they want installed in a batch tagged with that token.
+Only the writer that holds the token consumes and acknowledges a tagged batch
+(`EntryBatch.Addresses`); `fib-kernel` running beside it ignores the batch, so
+it never re-installs what it already holds.
 
 `mplsfib.RemoveLabelSource` retires the native owner's retained `AF_MPLS`
 swap/pop labels for one source. A replacement producer can use it even when its
@@ -265,9 +285,126 @@ omission and DF-set ICMP quotation.
 <!-- source: internal/plugins/fib/kernel/mplsmtu_integration_linux_test.go -- TestMPLSIntegration_PathMTU, mplsIPMTUGateProbe -->
 <!-- source: internal/plugins/fib/kernel/mplstransitmtu_integration_linux_test.go -- TestMPLSIntegration_TransitPathMTUFollowsTheProbe -->
 
+## Label entries on VPP
+
+`fib-vpp` is the label writer of the VPP data plane. Its `(mpls-fib, entry)`
+subscription lives as long as the plugin, so while it holds no VPP writer
+(VPP unreachable, channel refused) it acknowledges every batch with an error
+naming the cause, and `Apply` fails. It programs MPLS table 0, the label space
+every MPLS-enabled VPP interface looks up, never `fib.vpp.table-id`, which is
+an IP table. It creates table 0 with `MplsTableAddDel` before its first label
+route and never deletes it.
+
+One swap or pop entry becomes two VPP routes, one per value of the S bit
+(RFC 3032 Section 2.1), because VPP keys a label route on its end-of-stack bit:
+
+| Entry | S=1 route | S=0 route |
+|-------|-----------|-----------|
+| Swap via next hop N | payload of N's family, path via N imposing the whole stack | payload MPLS, the same path |
+| Pop via next hop N (penultimate hop) | payload of N's family, path via N with the single label Implicit NULL (3), which VPP reads as a pop | payload MPLS, the same path |
+| Pop, no next hop (egress) | payload of the FEC's family, a lookup in IP table `fib.vpp.table-id` | payload MPLS, a lookup in MPLS table 0 |
+| Pop with neither next hop nor FEC | refused, naming RFC 3032 Section 2.2 | refused |
+
+Every label path is sent with `sw_if_index` ~0 (no interface): VPP treats any
+other value as an attached next hop on that interface, and 0 is `local0`.
+Every imposed label is uniform mode, so VPP copies the TTL rather than writing
+a fixed one; the labeled best-change push uses uniform mode too. In VPP v26.06
+the uniform disposition is inserted only for attached-next-hop and lookup
+(DEAG) paths, so an egress pop copies the TTL back into the IP packet, while a
+penultimate pop via a bare next hop (a recursive path) pops without copying it.
+
+VPP has no per-route MTU, so an entry's path MTU is not installed: the writer
+logs once, as a warning, that labeled frames are bounded by the interface MTU
+alone. A push entry with a private table (an RSVP-TE facility-backup control
+context selected by packet mark) has no VPP form and is refused with an error
+naming the table.
+
+### Label routes a previous run left in VPP
+
+VPP keeps its FIB when Ze stops, and `fib-vpp` does not flush on stop, so the
+label routes a previous writer installed in MPLS table 0 survive a Ze restart
+and keep forwarding while no source remembers them. A new writer removes them
+with fib-kernel's stale-mark-then-sweep (`startupSweep`, `sweepStale`) applied
+to the label table:
+
+1. When it opens, after creating table 0 and before it asks for the replay,
+   the writer reads table 0 with `MplsRouteDump` and records every unicast
+   route whose in-label is not reserved (RFC 3032 Section 6 reserves 0 to 15,
+   and VPP installs its own entries for them).
+2. The sources re-apply what they want. An in-label a source installs, from
+   the replay or otherwise, is the source's from then on, and the sweep never
+   touches it.
+3. After 30 seconds (`labelSweepDelay`, fib-kernel's `sweepDelay`) the writer
+   removes each recorded route, at its own stack position, that no source
+   re-claimed.
+
+VPP carries no owner mark on a label route, so every unreserved unicast label
+route in table 0 counts as Ze's: `fib-vpp` is the only writer of MPLS table 0
+on the VPP Ze supervises. The sweep reads table 0 only. A push is a labeled IP
+route, not a label route, so one a previous run left stays until its source
+installs or withdraws the FEC again, as an IP route a previous run left does:
+`fib-vpp` reconciles no IP table at open.
+
+A route VPP refuses to remove, and a table 0 that could not be read, are
+reported by the runtime doctor check below, which a successful re-claim of the
+in-label clears.
+
+### Doctor checks
+
+Every label source and the VPP writer answer a runtime doctor check from their
+own process, declared in the `DoctorChecks` of the Stage 1 registration they
+send, so `ze show doctor` reaches them whether they run in the daemon or
+forked:
+
+| Check | Answered by | Reports | Code |
+|-------|-------------|---------|------|
+| `ldp-label-entries` | LDP | each push or pop no writer carried out, with the writer's cause, until a later apply of the same FEC or in-label succeeds | `doctor-fib-mpls-no-writer` (error) |
+| `rsvp-te-label-entries` | RSVP-TE | each entry a writer's replay asked for again and did not install, which leaves an LSP RSVP-TE holds up with no forwarding under it | `doctor-fib-mpls-no-writer` (error) |
+| `ospf-sr-label-entries` | OSPF | each Segment Routing push, swap or pop of any OSPFv2 instance or OSPFv3 family that no writer carried out: refused on apply, not installed by a replay, or unprogrammable because OSPF runs forked with no event bus | `doctor-fib-mpls-no-writer` (error) |
+| `bgp-epe-label-entries` | `bgp-epe` | each PeerNode SID label no writer installed, a removal no writer carried out, or a label a replay did not restore, until the data plane holds what EPE wants | `doctor-fib-mpls-no-writer` (error) |
+| `fib-vpp-label-entries` | `fib-vpp` | label entries installed without their path MTU | `doctor-fib-vpp-mpls-path-mtu` (warning) |
+| `fib-vpp-label-entries` | `fib-vpp` | a label route a previous run left that VPP refused to remove, or a table 0 the writer could not read | `doctor-fib-vpp-mpls-stale-label` (error) |
+
+The four label sources keep one shared record, `mplsfib.Refusals`: an entry
+per data-plane slot (a push by FEC and table, a swap or pop by in-label) with
+the writer's cause, cleared when a later apply of the slot succeeds. A
+writer's refusal, `fib-kernel`'s included, returns to the source through the
+acknowledgement, so the source's check is where it is reported.
+
+Each check lists at most 32 entries or label routes, one finding each, and
+counts the rest in one more finding. With no
+writer open, `fib-vpp-label-entries` answers no finding: VPP being unreachable
+is the vpp component's own report.
+
+<!-- source: internal/plugins/fib/vpp/mplsstale.go -- markStaleLabelsLocked, sweepStaleLabels, reclaimStaleLabelLocked, labelSweepDelay -->
+<!-- source: internal/plugins/fib/vpp/mpls.go -- dumpLabelRoutes, delLabelRoute, reservedLabelsMax -->
+<!-- source: internal/plugins/fib/vpp/fibvpp.go -- requestLabelReplay, run -->
+<!-- source: internal/plugins/fib/vpp/doctor_label.go -- labelEntriesCheckDecl, labelDoctorFindings, staleLabelFindingsLocked -->
+<!-- source: internal/plugins/fib/vpp/register.go -- engineRegistration, answerLabelDoctorCheck -->
+<!-- source: internal/plugins/ldp/doctor_label.go -- labelDoctorFindings -->
+<!-- source: internal/plugins/rsvpte/doctor_label.go -- the rsvp-te-label-entries check -->
+<!-- source: internal/plugins/ospf/sr_doctor_label.go -- srLabelEntriesCheckDecl, srLabelDoctorFindings, errSRNoEventBus -->
+<!-- source: internal/component/bgp/plugins/epe/epe_doctor_label.go -- labelEntriesCheckDecl, forgetSettledLocked -->
+<!-- source: internal/core/mplsfib/refusal.go -- Refusals, Findings -->
+<!-- source: internal/core/mplsfib/doctor.go -- CodeDoctorNoWriter -->
+
+`mpls { enable true; }` under `backend vpp` reaches VPP through the iface
+backend's whole-set `ReplaceMPLSInput`: the VPP backend creates table 0, reads
+the enabled set back with `MplsInterfaceDump`, enables only what VPP does not
+already report, and disables once an interface the set no longer names. The
+enable is reference-counted in VPP, which is why it is never sent twice. The
+netlink backend accepts the set and installs nothing, because the sysctl
+already enables the kernel.
+
+<!-- source: internal/plugins/fib/vpp/mplsentry.go -- the VPP label consumer -->
+<!-- source: internal/plugins/fib/vpp/mpls.go -- the two S routes, table 0, uniform labels -->
+<!-- source: internal/plugins/fib/vpp/register.go -- subscribeFibVPPLabels -->
+<!-- source: internal/plugins/iface/vpp/mplsinput.go -- ReplaceMPLSInput -->
+
 ## Operator surface
 
-`show mpls forwarding` reads the kernel table on Linux. The non-Linux build
+`show mpls forwarding` reads the kernel table on Linux, and only that table: on
+VPP it does not show the labels `fib-vpp` installed. The non-Linux build
 carries a stub so the command exists everywhere, and the stub refuses with an
 error naming the host's OS: an empty table would read as "no MPLS routes" on a
 host where Ze cannot read the table at all. OpenBSD's kernel has MPLS, but Ze

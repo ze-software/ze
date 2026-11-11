@@ -296,7 +296,7 @@ func (e *engine) installReservation(lsp *LSP, role lspRole, inLabel, outLabel ui
 		// the top of the stack with a new label, but the new label is "Implicit
 		// NULL", the LSR will pop the stack instead of doing the replacement."
 		if outLabel == labelImplicitNull {
-			return e.fib.programPop(inLabel, src, pathMTU)
+			return e.fib.programPop(inLabel, netip.Prefix{}, src, pathMTU)
 		}
 		return e.fib.programSwap(inLabel, outLabel, src, pathMTU)
 	}
@@ -329,7 +329,7 @@ func imposedLabels(labels ...uint32) []uint32 {
 // popped toward the bypass next hop (RFC 3032 Section 2.1).
 func (e *engine) programBackupStack(inLabel uint32, stack []uint32, nextHop netip.Addr, pathMTU uint32) error {
 	if len(stack) == 0 {
-		return e.fib.programPop(inLabel, nextHop, pathMTU)
+		return e.fib.programPop(inLabel, netip.Prefix{}, nextHop, pathMTU)
 	}
 	return e.fib.programBackup(inLabel, stack, nextHop, pathMTU)
 }

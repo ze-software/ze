@@ -15,6 +15,10 @@ type srCaptureBus struct {
 func (c *srCaptureBus) Emit(namespace, eventType string, payload any) (int, error) {
 	if batch, ok := payload.(*mplsfibevents.EntryBatch); ok {
 		c.entries = append(c.entries, batch.Entries...)
+		// Accept, as a running label writer does, so mplsfib.Apply succeeds.
+		if batch.Acknowledge != nil {
+			batch.Acknowledge(nil)
+		}
 	}
 	return 0, nil
 }
