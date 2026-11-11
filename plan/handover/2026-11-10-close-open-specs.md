@@ -6,6 +6,93 @@ access remains claimed by another session. All four handback claims are released
 **Goal:** close the open specs whose implementation is already committed. The
 owner asked that locked or blocked specs not stop progress on the others.
 
+## Model-switch checkpoint, 2026-11-11
+
+This section supersedes the old blockers below. The owner requested a model
+switch after the continuation's source review and focused repairs. No additional
+spec closed. No push or `./le verify` command ran. Unrelated dirty files remain.
+
+- QEMU writes now work: a temporary file was created and removed under
+  `/home/thomas/.cache/ze-tmp/main/qemu`. The named launcher also builds from
+  current source; the old inventory missing-field error did not recur.
+- The static-BFD QEMU command built runtime kernel `7.3.0-ze` and the Ze guest
+  image, then failed before guest execution because the CPE extraction missed
+  `check_vpn.go`'s `cpeIKEName` caller. The shared `homecpe.CPEIdentity` repairs
+  that caller. The current launcher and focused topology tests then built and
+  passed. **The static-BFD guest assertion still needs its retry.** Keep the
+  new kernel and image caches; they avoid repeating the cold build.
+- `dd6864599a` shares the existing home-CPE renderer between the topology lab
+  and config corpus, adds a negative rendering control, and records the refusal
+  spec's blocked handback. Its claim is released. The documentation hunk landed
+  concurrently in `ab4a67d631`. Focused race tests passed for `homecpe`, affected
+  topology callers, and `TestSweepRendersHomeCPE`; independent source review and
+  moved-test judgments passed.
+- Reload review round 5 found a real diagnostic defect: a refused restart can
+  follow a plugin exit, but `brokenRollbackLine` claimed the plugin still ran.
+  The new renderer regression failed, while the real stopped-process control
+  passed. Repair and blocked handback `1cddf638d8` keep refusal classification
+  and replace the liveness claim with the live status command. All five focused
+  race tests passed after the fix. The claim is released. **A sixth review needs
+  the owner's approval; none was performed.**
+- Lint-tooling is locked by two existing markers:
+  `opencode-lint-backlog-20261102+tooling-fix` and
+  `1b60310f-ee84-4530-a4fa-5c2a0c43bc6f`. Access remains claimed by
+  `644a4e78-0122-4eeb-8642-eb50638a1641+AccessInteropImplement`.
+  Inventory remains claimed by `03d43e18-c488-4511-8040-2650b2986bb3`.
+  None of these claims was taken or released. Resolve ownership before edits;
+  `specOwner.Claim` does not itself enforce exclusivity between markers.
+- Route-policy still has no matched Mac Loc-RIB record. Baseline resolves to
+  `d04aabe5e0019f83369767ebf0d111a1806d5798`; implementation is
+  `fb94aa04977da6f0cb31f08dd46a8f315af0ffc1`. Run
+  `BenchmarkShardedInsertSerial`, `BenchmarkShardedInsertParallel`, and
+  `BenchmarkShardedManyWritersDistinctShards` on that pair on the same Mac and
+  Go toolchain, retaining full output and hardware metadata. Later Loc-RIB
+  changes need reconciliation before claiming current-HEAD performance.
+
+### Successor's execution queue
+
+1. Retry `./le test qemu ci test test/reload/static-bfd-profile-reload-deleted.ci`.
+   Finish the reload spec's recorded scoped lint/checks. Keep it open until the
+   owner authorizes the sixth review and that review passes.
+2. Run the four approved fixture drafts through job admission and the current
+   named runner: `test bgp reload --draft dns-source-reload
+   reload-parse-error-single-prefix`, then `test ui --draft
+   config-compiled-out-feature-names-tag doctor-procfs-netlink`.
+   `test reload` is not a registered command: the attempted spelling exited 2
+   with usage and ran no tests. Promote only after actual passes, then run the
+   named `TestRepositoryConfigsValidate` corpus test once.
+3. Run ADD-PATH baseline, negative overlay, and clean rebuild; then LDP. The
+   refusal spec records the exact scenarios and overlay. The existing overlay
+   still changes only `nlri.WriteNLRI` to omit identifier zero. Preserve effective
+   Go flags when adding it; this continuation's `go env GOFLAGS` was empty.
+   Neither interop scenario ran in this continuation.
+4. Recheck foreign ownership before resuming lint-tooling or access. Obtain the
+   matched Mac measurements before route-policy closure.
+
+### Retained evidence and drafts
+
+Session: `01a1c842-0a58-7752-bbff-2a3f1633b66f`.
+Scratch: `tmp/session/2026-11-11-014000/scratch/`.
+Named metadata binary: `bin/le-close-open-nov11/le`; use the launcher with
+`--name close-open-nov11` when execution must read current source.
+All tests, builds and formatting ran in the main thread.
+
+Observed race logs in that scratch directory are
+`job-refusal-cpe-focused-c8e0a05a.log` (pass),
+`job-reload-refusal-red-139ad124.log` (expected renderer failure and passing
+stopped-process control), and `job-reload-refusal-green-0bb88bcd.log` (all five
+named tests pass). The canonical test sources and commands are in the specs;
+these session logs aid diagnosis and are not a substitute for retained source.
+
+Keep `test/draft/reload/{dns-source-reload,reload-parse-error-single-prefix}.ci`
+and `test/draft/ui/{config-compiled-out-feature-names-tag,doctor-procfs-netlink}.ci`.
+Three add expected-refusal metadata; the doctor fixture changes reserved table
+3001 to table 100. Runtime assertions are preserved. Native independent
+approvals remain in `tmp/commit-weakening-approved-8b5d7643.md` for this session.
+Remove draft copies only after their tested promotion. Keep the prior ADD-PATH
+overlay until its negative/clean proof completes. No full-tree compile, lint,
+documentation gate, or verification ran; the evidence is the scoped runs above.
+
 ## Status
 
 ### Done (committed)
