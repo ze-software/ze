@@ -504,14 +504,8 @@ func (s *Server) stopCollectedProcesses(stopped map[string]bool) error {
 	return nil
 }
 
-// autoStopForRemovedConfigPaths stops plugins whose config sections were
-// removed and of whose roots tree, the config the removal leaves, holds none.
-func (s *Server) autoStopForRemovedConfigPaths(removedRoots []string, tree map[string]any) error {
-	return s.stopCollectedProcesses(s.collectProcessesForRemovedConfigPaths(removedRoots, tree))
-}
-
 // autoStopPluginNames stops the exact plugin processes that a failed reload
-// auto-loaded. Unlike autoStopForRemovedConfigPaths, the input is already a
+// auto-loaded. Unlike collectProcessesForRemovedConfigPaths, the input is already a
 // plugin name list, not config roots such as "fib/kernel".
 func (s *Server) autoStopPluginNames(pluginNames []string) error {
 	stopped := make(map[string]bool, len(pluginNames))

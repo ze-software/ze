@@ -305,7 +305,7 @@ func qosOnlyMap(output string, expected uint32) error {
 		if err != nil {
 			return fmt.Errorf("VPP QoS map ID: %w", err)
 		}
-		if uint32(id) != expected {
+		if id != uint64(expected) {
 			return errors.New("VPP QoS map ID differs from the VLAN index")
 		}
 	}

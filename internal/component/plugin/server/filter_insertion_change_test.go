@@ -148,11 +148,11 @@ func TestReloadStoppingAnInsertingPluginRebuildsThePeers(t *testing.T) {
 	require.NotNil(t, pm)
 	pm.GetProcess("insertion-stop-inserter").Registration().FilterInsertions = []rpc.FilterInsertion{thirdPartyInsertion}
 
-	require.NoError(t, s.autoStopForRemovedConfigPaths([]string{"insertionstopb"}, nil))
+	require.NoError(t, s.stopCollectedProcesses(s.collectProcessesForRemovedConfigPaths([]string{"insertionstopb"}, nil)))
 	assert.Equal(t, int64(0), calls.Load(), "a plugin that declared nothing changes no filter list")
 
 	require.True(t, s.txLock.tryAcquire(), "the stop runs inside a reload")
-	require.NoError(t, s.autoStopForRemovedConfigPaths([]string{"insertionstopa"}, nil))
+	require.NoError(t, s.stopCollectedProcesses(s.collectProcessesForRemovedConfigPaths([]string{"insertionstopa"}, nil)))
 	assert.Equal(t, int64(0), calls.Load(), "the rebuild waits for the reload's running tree")
 	s.txLock.release()
 	assert.Equal(t, int64(1), calls.Load(), "the stopped plugin's members leave the peers")

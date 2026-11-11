@@ -166,7 +166,7 @@ func TestReactorCleanupDoesNotStopWhatItDoesNotOwn(t *testing.T) {
 
 // VALIDATES: spec-fixit-shutdown-waits-out-a-deadlock -- the second defect the same
 // line carries. runBGPEngine returns on two occasions, not one: daemon shutdown, and
-// bgp being REMOVED at reload (Server.autoStopForRemovedConfigPaths stops the bgp
+// bgp being REMOVED at reload (Server.stopCollectedProcesses stops the bgp
 // process, its engine returns, and its tail calls Reactor.Stop). An unguarded
 // Reactor.cleanup then takes the hub's whole plugin server down, killing every OTHER
 // plugin, while the daemon keeps running.

@@ -438,7 +438,7 @@ const fixture06LocalReloadVictim = "127.0.0.10"
 //
 // The whole file is rewritten because the daemon reloads the whole file. The
 // plugin block has to come with it: a reload that dropped it would stop this
-// probe through autoStopForRemovedConfigPaths, and the test would end with no
+// probe through stopCollectedProcesses, and the test would end with no
 // assertion having run.
 const fixture06LocalReloadConfig = `ddos {
 	detect {
