@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	bashRowsExpected          = 75
+	bashRowsExpected          = 80
 	writeEditRowsExpected     = 92
 	weakeningRowsExpected     = 10
 	postWriteEditRowsExpected = 24
@@ -36,11 +36,14 @@ const (
 // Re-sealed 2026-10-26 for the Phase 4 retirement of `doc check verify`
 // (successor `doc check all`): nine bash rows type the new spelling. Same
 // rows, same expected codes.
+// Re-sealed 2026-11-11 for spec-agent-economy-1-call-shape phase 4: `go build
+// ./...` expects 2 (umbrella D-4, AC-11), and five bash rows join for AC-7,
+// AC-12 and AC-16. 75 rows are 80.
 var parityCatalogDigest = [sha256.Size]byte{
-	0xb6, 0x3f, 0x7a, 0x32, 0x21, 0x08, 0xca, 0x31,
-	0xb2, 0x1c, 0x15, 0xc1, 0xae, 0xd8, 0x51, 0x58,
-	0xe1, 0x6d, 0xa0, 0x1d, 0xc0, 0x02, 0x40, 0xd4,
-	0x48, 0x40, 0xf9, 0xdd, 0x78, 0xde, 0xec, 0x97,
+	0x9f, 0xf2, 0x14, 0xe6, 0xf4, 0x0f, 0x45, 0x35,
+	0xa4, 0x87, 0x82, 0x24, 0x18, 0xe4, 0xcd, 0xc3,
+	0xc4, 0xec, 0x3a, 0xd5, 0x18, 0x37, 0x22, 0xb3,
+	0x04, 0x42, 0xb4, 0x42, 0x89, 0x46, 0x38, 0x51,
 }
 
 var (
@@ -158,6 +161,11 @@ func bashCode(command string) int {
 		}
 	}
 	if strings.TrimSpace(command) == "go build ./cmd/ze" || strings.Contains(command, "cat /tmp/") {
+		return 2
+	}
+	// Umbrella D-4: the build guard refuses a whole-tree build
+	// (TestRootBuildRefusesTheWholeTree, internal/le/hookruntime/bash_test.go).
+	if strings.TrimSpace(command) == "go build ./..." {
 		return 2
 	}
 	if strings.Contains(command, "rm internal/") && strings.Contains(command, "_test.go") {

@@ -7,7 +7,7 @@ package aihooks
 // the former producer and is part of the structured answer contract.
 var parityCatalog = [...]parityTable{
 	{
-		key: "BASH_GOLDEN", name: "bash-dispatcher-golden", expected: 75, judge: bashCode,
+		key: "BASH_GOLDEN", name: "bash-dispatcher-golden", expected: 80, judge: bashCode,
 		fixtures: []parityFixture{
 			{name: "cat /tmp/x", expectedCode: 2},
 			{name: "cat tmp/x", expectedCode: 0},
@@ -17,7 +17,9 @@ var parityCatalog = [...]parityTable{
 			{name: "git reset --hard", expectedCode: 2},
 			{name: "git restore --staged f", expectedCode: 0},
 			{name: "go build -o bin/ze ./cmd/ze", expectedCode: 0},
-			{name: "go build ./...", expectedCode: 0},
+			// Umbrella D-4 (spec-agent-economy-1-call-shape AC-11): a whole-tree
+			// build is refused, no longer exempt.
+			{name: "go build ./...", expectedCode: 2},
 			{name: "go build ./cmd/ze", expectedCode: 2},
 			{name: "go build -o tmp/session/2026-08-10-abc123/bin/ze ./cmd/ze", expectedCode: 0},
 			{name: "grep -n x f.log", expectedCode: 0},
@@ -84,6 +86,15 @@ var parityCatalog = [...]parityTable{
 			{name: "./le commit no-such-action", expectedCode: 2},
 			{name: "ZE_ADMIT_RAW=\"bisecting one 2s case\" go test -run TestX ./internal/core/env", expectedCode: 0},
 			{name: "./le job run label gotest command go test ./internal/core/env", expectedCode: 0},
+			// spec-agent-economy-1-call-shape AC-7: a guarded name inside a
+			// reader's pattern is text; the real piped go test stays refused
+			// (AC-7 survivor, AC-12).
+			{name: "grep -rn \"go build\" plan/ | head -5", expectedCode: 0},
+			{name: "grep -n 'go test ./x | tail' f", expectedCode: 0},
+			{name: "grep -rn golangci-lint ai/rules", expectedCode: 0},
+			{name: "go test ./x | tail -5", expectedCode: 2},
+			// AC-16: a tmp directory under a literal parent is not /tmp.
+			{name: "cat foo/tmp/x", expectedCode: 0},
 		},
 	},
 	{

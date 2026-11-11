@@ -40,8 +40,8 @@ func TestParityMapsEveryTypedDispatcherRow(t *testing.T) {
 	if !reflect.DeepEqual(population, want) {
 		t.Fatalf("population = %+v, want %+v", population, want)
 	}
-	if len(golden) != 201 {
-		t.Fatalf("dispatcher fixtures = %d, want 201", len(golden))
+	if len(golden) != 206 {
+		t.Fatalf("dispatcher fixtures = %d, want 206", len(golden))
 	}
 	seen := make(map[string]struct{}, len(golden))
 	exitCounts := [3]int{}
@@ -57,8 +57,8 @@ func TestParityMapsEveryTypedDispatcherRow(t *testing.T) {
 		seen[key] = struct{}{}
 		exitCounts[fixture.ExpectedCode]++
 	}
-	if exitCounts != [3]int{71, 9, 121} {
-		t.Fatalf("dispatcher exit populations = %v, want [71 9 121]", exitCounts)
+	if exitCounts != [3]int{74, 9, 123} {
+		t.Fatalf("dispatcher exit populations = %v, want [74 9 123]", exitCounts)
 	}
 	for _, result := range results {
 		if !result.Passed {
@@ -236,7 +236,7 @@ func TestFixtureCatalogExactPopulationAndContent(t *testing.T) {
 		identities[identity] = struct{}{}
 		names[fixture.name]++
 	}
-	if !reflect.DeepEqual(exitCounts, map[int]int{-1: 286, 0: 165, 1: 12, 2: 75}) {
+	if !reflect.DeepEqual(exitCounts, map[int]int{-1: 286, 0: 166, 1: 12, 2: 77}) {
 		t.Fatalf("fixture exit populations = %v", exitCounts)
 	}
 	wantMessages := map[string]int{"contains": 83, "not-contains": 11, "equals": 3, "suffix": 3}

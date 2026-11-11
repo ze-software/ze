@@ -173,11 +173,17 @@ var fixtureSites = [...]fixtureSite{
 	{category: categorySessionID, name: "subagent-context-names-exact-parent-scratch", expectedExit: -1},
 	{category: categorySessionID, generator: fixtureNameGenerator{prefix: "subagent-context-rejects-present-", suffix: "-parent-id", labels: []string{labelDot, labelTrailingNewline}}, expectedExit: 0},
 	{category: categorySessionID, name: "subagent-context-absent-id-keeps-legacy-fallback", expectedExit: 0},
-	{category: categorySessionID, name: "pretool-bash-prefixes-safe-parent-export", expectedExit: 0},
+	// 2026-11-11, spec-agent-economy-1-call-shape: the hook no longer rewrites a
+	// subagent command (18f0f40a19). The agent types its identity line and the
+	// hook checks it (AC-1 to AC-4, session_identity_test.go).
+	{category: categorySessionID, name: "pretool-bash-subagent-reader-passes-unchanged", expectedExit: 0},
+	{category: categorySessionID, name: "pretool-bash-subagent-command-needs-its-identity-line", expectedExit: 2},
+	{category: categorySessionID, name: "pretool-bash-subagent-command-carrying-its-identity-line-passes", expectedExit: 0},
+	{category: categorySessionID, name: "pretool-bash-subagent-other-identity-refused", expectedExit: 2},
 	{category: categorySessionID, generator: fixtureNameGenerator{prefix: "pretool-bash-leaves-", suffix: "-id-unchanged", labels: []string{labelTrailingNewline, "encoded-nul", labelDot, labelDotDot}}, expectedExit: 0},
-	{category: categorySessionID, name: "pretool-bash-parent-export-keeps-three-scratch-calls-stable", expectedExit: 0},
-	{category: categorySessionID, name: "pretool-bash-parent-export-reaches-make", expectedExit: -1},
-	{category: categorySessionID, name: "pretool-bash-parent-export-reaches-review", expectedExit: -1},
+	{category: categorySessionID, name: "pretool-bash-identity-line-keeps-three-scratch-calls-stable", expectedExit: 0},
+	{category: categorySessionID, name: "pretool-bash-identity-line-reaches-make", expectedExit: -1},
+	{category: categorySessionID, name: "pretool-bash-identity-line-reaches-review", expectedExit: -1},
 	{category: categorySessionID, name: "session-id-fork-parent-marker", expectedExit: 0},
 	{category: categorySessionID, name: "session-id-fork-parent-persisted-env", expectedExit: 0},
 	{category: categorySessionID, name: "session-id-fork-parent-bash-command", expectedExit: 0},
