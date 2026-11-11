@@ -12,9 +12,9 @@
 | Components | internal/component/mcp |
 | Real-path tests | test/plugin/mcp-mrtr-elicit-roundtrip.ci, test/plugin/mcp-header-mismatch-rejected.ci |
 | Docs | docs/features/mcp-integration.md |
-| Doc review | 2026-10-07: re-read after the doc-links marker; revision 2026-07-28, ttlMs and the private cacheScope on server/discover, tools/list, resources/list and resources/read read in internal/component/mcp/caching.go; input_required, inputRequests and no requestState read in internal/component/mcp/mrtr.go; other claims taken from the source anchors |
+| Doc review | 2026-11-11: page re-read in full after the client-compatibility and tools-size additions; the -32020 initialize answer read in internal/component/mcp/headers.go initializeEraError; tools-size limits read in internal/test/cli/cmd_mcp_calls.go measureToolsSize; the client rows read in docs/contributing/mcp-client-verification.md; the tools/list error path read in internal/component/mcp/streamable_tools.go allTools; other claims taken from the source anchors, which ./le doc check all resolves |
 | Defect review | 2026-10-07: plan/journal/unwired-feature.md (2026-08-15) tools/list readiness race fails mcp-header-mismatch-rejected.ci, unfixed; plan/release/validation/spec-rfc-verdict-fix-services.md ready with MCP verdicts open |
-| Extra criteria | supported: a third-party MCP client completes initialize and tools/call = test/interop/mcp-third-party-client.md |
+| Extra criteria | supported: a third-party MCP client connects and completes tools/call = docs/contributing/mcp-client-verification.md |
 
 ## Description
 

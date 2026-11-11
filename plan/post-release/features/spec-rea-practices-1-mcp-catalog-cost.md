@@ -8,9 +8,9 @@
 | Release reason | Improves how well agents can use the MCP surface and proves real clients load it; it fixes no incorrect routing or config behaviour, so it does not hold the first release |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 1/4 |
+| Phase | 4/4 |
 | Handoff | - |
-| Updated | 2026-11-09 |
+| Updated | 2026-11-11 |
 
 Parent: `plan/post-release/engineering/spec-rea-practices-0-umbrella.md`.
 
@@ -164,10 +164,10 @@ also gets its own spec (R-1).
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Ze's served input schemas are at most depth 2 and always carry `type` beside `enum` | `buildToolDef` and `addYANGParams` in `internal/component/mcp/tools.go` | The structural `.ci` goes red at first run, which is then a found defect to fix under this spec | First run of `mcp-tools-list-structural-limits.ci` | confirmed (2026-11-09: max-depth=2, bare-enum=0, combinators=0 over 142 served tools) |
-| A-2 | Claude Code and Codex, at their versions on the day of the lane, speak MCP `2026-07-28` | Not known; Ze accepts only that revision (`docs/architecture/mcp/overview.md`) | The clients cannot connect; the lane records the refusal and a connectivity spec is opened (R-1) | The G-3 lane's first run | unvalidated |
-| A-3 | Each client reports token usage for a headless run (Claude Code JSON output, Codex JSON events) | REA records Codex usage this way (REA `docs/mcp-catalog-evaluation.md`) | The token column records "not reported" with the client version; size is still measured by G-1 | The G-3 lane's first run | unvalidated |
-| A-4 | The 13,312-byte and ten-level limits are the right budgets | REA's measurements for Moonshot and strict-depth clients | A tighter client limit exists; the budget is lowered when a client refusal is observed | Lane results and REA's contract page | unvalidated |
-| A-5 | A loopback daemon with a bearer token configured is enough for a real client to authenticate | `docs/architecture/mcp/overview.md`, bearer auth mode | The lane needs OAuth setup; documented in the lane page | The G-3 lane's first run | unvalidated |
+| A-2 | Claude Code and Codex, at their versions on the day of the lane, speak MCP `2026-07-28` | Not known; Ze accepts only that revision (`docs/architecture/mcp/overview.md`) | The clients cannot connect; the lane records the refusal and a connectivity spec is opened (R-1) | The G-3 lane's first run | broken for Codex: 0.167.1 opens with the `2025-06-18` `initialize` handshake, which Ze refuses with `-32020` (lane run 2026-11-11); confirmed for Claude Code 2.1.322 |
+| A-3 | Each client reports token usage for a headless run (Claude Code JSON output, Codex JSON events) | REA records Codex usage this way (REA `docs/mcp-catalog-evaluation.md`) | The token column records "not reported" with the client version; size is still measured by G-1 | The G-3 lane's first run | confirmed (2026-11-11: both clients reported input token usage, lane Results table) |
+| A-4 | The 13,312-byte and ten-level limits are the right budgets | REA's measurements for Moonshot and strict-depth clients | A tighter client limit exists; the budget is lowered when a client refusal is observed | Lane results and REA's contract page | confirmed as far as observed (2026-11-11: Claude Code loaded the 142-tool catalog with no structural refusal; Codex never reached `tools/list`) |
+| A-5 | A loopback daemon with a bearer token configured is enough for a real client to authenticate | `docs/architecture/mcp/overview.md`, bearer auth mode | The lane needs OAuth setup; documented in the lane page | The G-3 lane's first run | confirmed (2026-11-11: Claude Code authenticated with an `Authorization: Bearer` header alone) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -424,3 +424,150 @@ build); the HEAD build sends `tools-size` to the daemon as a command and gets
 - [ ] `/ze-review` gate clean
 - [ ] **Commit A:** code + tests + docs + edited spec
 - [ ] **Commit B:** `remove plan/post-release/features/spec-rea-practices-1-mcp-catalog-cost.md` only
+
+## Implementation Summary
+
+### What Was Implemented
+- `le test mcp` verb `tools-size` (`internal/test/cli/cmd_mcp.go` `sizeDirective`; `internal/test/cli/cmd_mcp_calls.go` `measureToolsSize`, `measureSchemaShape`, `toolsSize.render`), measuring the served `tools/list` bytes
+- `test/plugin/mcp-tools-list-structural-limits.ci`, asserting the summary line with a tool count of at least 3 and no violation line
+- `generateTools` and `buildToolDef` (`internal/component/mcp/tools.go`) return an error naming the tool when its input schema does not encode; `allTools` (`internal/component/mcp/streamable_tools.go`) answers it as a JSON-RPC error instead of a list without the tool
+- The owner-run real-client lane `docs/contributing/mcp-client-verification.md`, and its first round of results (2026-11-11)
+- Landed in a6199d11d8; the lane page's daemon start command was fixed in 32b19eeeeb
+
+### Bugs Found/Fixed
+- A tool whose schema failed to encode vanished from `tools/list` with no log line and no error (`buildToolDef` returned nil, `generateTools` skipped it). Now an error; covered by `TestGenerateToolsReportsEncodeFailure`
+
+### Documentation Updates
+- a6199d11d8: `ai/digests/mcp.md`, `docs/architecture/mcp/overview.md`, `docs/functional-tests.md`, `docs/guide/mcp/overview.md`, `docs/contributing/README.md`, `ai/INDEX.md`, `docs/contributing/mcp-client-verification.md`
+- Closure: `docs/contributing/mcp-client-verification.md` Results table (two client rows, written from Thomas's run), `docs/features/mcp-integration.md` sections "Client compatibility" (anchor `headers.go -- initializeEraError`) and the `tools-size` paragraph under "Testing" (anchors `cmd_mcp.go -- sizeDirective`, `cmd_mcp_calls.go -- measureToolsSize`), `features/mcp-integration.md` Extra criteria pointer and Doc review
+- `./le doc check all` 2026-11-11: only red is drift of `../wiki/command-catalog.md` and `../gh-pages/data/cli-commands.json` against the live command catalog, outside this repository and not from this change; link, anchor and digest checks pass
+
+### Deviations from Plan
+- R-1's mitigation said a client that cannot connect opens a fix spec. Thomas decided on 2026-11-11 that Ze keeps revision `2026-07-28` only and Codex is recorded as unsupported until it updates, so no connectivity spec is opened
+- `docs/architecture/testing/ci-format.md` gained nothing: it lists no `le test mcp` script verbs (grep for `tools-order-stable` finds none), so the "if the page lists" condition does not hold
+- `features/mcp-integration.md` Extra criteria pointed at `test/interop/mcp-third-party-client.md`, which does not exist, and named an `initialize` the revision does not have. It now reads "a third-party MCP client connects and completes tools/call" and points at the lane page. The declared level stays experimental
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2 assumed current clients speak `2026-07-28` | Codex 0.167.1 opens with the `2025-06-18` `initialize` handshake and cannot connect | Lane round 1, 2026-11-11 | Recorded as a valid AC-7 row; Thomas decided Codex is unsupported until it updates |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| G-1 measure and print catalog size and shape | Done | `internal/test/cli/cmd_mcp_calls.go` `measureToolsSize` | From the served answer |
+| G-2 functional test refuses a catalog breaking limits | Done | `test/plugin/mcp-tools-list-structural-limits.ci` | Red recorded (AC-4) |
+| G-3 documented owner-run lane with results | Done | `docs/contributing/mcp-client-verification.md` | Two rows |
+| G-4 build failure reported, never dropped | Done | `internal/component/mcp/tools.go` `generateTools`, `buildToolDef`; `streamable_tools.go` `allTools` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestToolsSizeSummary`; `.ci` summary pattern | |
+| AC-2 | Done | `TestToolsSizeViolations` | Each limit at and above its bound |
+| AC-3 | Done | `mcp-tools-list-structural-limits.ci` | `count=([3-9]\|[1-9][0-9]+)`, `reject=stdout:contains=tools-size violation` |
+| AC-4 | Done | Design Insights, red phase 2026-11-09 | `toolSchemaBytesMax` lowered to 100, `stdout_mismatch` |
+| AC-5 | Done | `TestGenerateToolsReportsEncodeFailure` | Through `generateTools` and through `dispatchMethod` |
+| AC-6 | Done | `docs/contributing/mcp-client-verification.md` | Steps, clients, recorded fields, results, owner-only |
+| AC-7 | Done | Lane Results table | Claude Code 2.1.322 connected and called `ze_reference`; Codex 0.167.1 could not connect, a valid row under AC-7's survivor rule |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestToolsSizeSummary` | Done | `internal/test/cli/cmd_mcp_test.go` | |
+| `TestToolsSizeViolations` | Done | `internal/test/cli/cmd_mcp_test.go` | Boundary 13312/13313 and 10/11 |
+| `TestGenerateToolsReportsEncodeFailure` | Done | `internal/component/mcp/tools_test.go` | |
+| `mcp-tools-list-structural-limits` | Done | `test/plugin/mcp-tools-list-structural-limits.ci` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/test/cli/cmd_mcp.go` | Done | Verb and help text |
+| `internal/component/mcp/tools.go` | Done | |
+| `internal/component/mcp/streamable_tools.go` | Done | |
+| `docs/functional-tests.md` | Done | |
+| `docs/architecture/mcp/overview.md` | Done | |
+| `docs/guide/mcp/overview.md` | Done | |
+| `docs/architecture/testing/ci-format.md` | Changed | Lists no verbs; see Deviations |
+| `ai/digests/mcp.md` | Done | |
+| `features/mcp-integration.md` | Done | Closure commit |
+| `test/plugin/mcp-tools-list-structural-limits.ci` | Done | |
+| `docs/contributing/mcp-client-verification.md` | Done | |
+
+### Audit Summary
+- **Total items:** 30
+- **Done:** 29
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (`ci-format.md`, recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| G-1 | functional | `mcp-tools-list-structural-limits.ci` against `ze --mcp $PORT`: 142 tools, 109,108 bytes, largest `ze_show_ospf` 5,670 bytes, max schema 4,662 bytes, depth 2 (Design Insights, 2026-11-09) |
+| G-2 | functional, with recorded red | Same `.ci`; with `toolSchemaBytesMax` at 100 it failed `stdout_mismatch` naming each tool, green again at 13312 (AC-4) |
+| G-3 | owner-run interop lane | `docs/contributing/mcp-client-verification.md` Results: Claude Code 2.1.322 connected, called `ze_reference`, 76,211 vs 166,973 input tokens; Codex 0.167.1 refused at the `initialize` handshake |
+| G-4 | unit through dispatch | `TestGenerateToolsReportsEncodeFailure`: no partial list, error wraps `*json.UnsupportedValueError` and names `ze_show_probe`, and `dispatchMethod` answers `tools/list` with a JSON-RPC error |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | Every AC is met; catalog reduction was out of scope by design until figures exist, and Codex connectivity is not owed by Thomas's 2026-11-11 decision | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/rea-practices-1-mcp-catalog-cost-ad9def1f-df41-4fcc-bc2d-9569a17e6b8c.md` (14 files: the closure's six and the eight code and test files of a6199d11d8, verdict clean) |
+| `./le spec review check` | clean |
+| Rounds | 1 |
+| Reviewer lenses used | wiring, functional coverage, removed-behavior audit, logic and edge cases of the schema walk, security (untrusted server answer, error leakage, token in results), style, docs drift, citers |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | none | No BLOCKER or ISSUE. NOTE: `./le test weakened check` reports six weakenings, all in `internal/le/repo/inventory/*_test.go`, another session's work and not in this diff. NOTE: `features/mcp-integration.md` held a dangling Extra-criteria path; repointed in this closure | - | - |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/mcp-tools-list-structural-limits.ci` | yes | 54 lines in a6199d11d8 |
+| `docs/contributing/mcp-client-verification.md` | yes | 138 lines in a6199d11d8, Results rows in the working tree |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-3 | Summary line asserted | `.ci` line 53 `expect=stdout:pattern=tools-size count=...` |
+| AC-2 | Violation lines | `toolsSize.add` appends one `toolsSizeViolation` per broken limit |
+| AC-5 | Error, no partial list | `generateTools` returns `nil, err`; `allTools` wraps it; `dispatchMethod` answers `s.fail(..., err.Error())` |
+| AC-6, AC-7 | Lane and rows | `docs/contributing/mcp-client-verification.md` Results, two rows dated 2026-11-11 |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `le test mcp` line `tools-size` | `test/plugin/mcp-tools-list-structural-limits.ci` | Read: line 21 sends `tools-size`, line 50 starts `ze --mcp $PORT`; `CmdMcp` `directive` calls `sizeDirective` |
+| `tools/list` with an unencodable schema | `TestGenerateToolsReportsEncodeFailure` (unit) | Read: drives `dispatchMethod` with `methodToolsList` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | max-depth=2, bare-enum=0, combinators=0 over 142 tools |
+| A-2 | broken for Codex, confirmed for Claude Code | Lane Results rows; Mistake Log row |
+| A-3 | confirmed | Both rows carry reported input tokens |
+| A-4 | confirmed as far as observed | Claude Code loaded the catalog with no structural refusal |
+| A-5 | confirmed | Claude Code connected with the bearer header |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Feature declaration and page | `features/mcp-integration.md`, `docs/features/mcp-integration.md`; `-32020` read in `headers.go` `initializeEraError` and its header comment | yes |
+| API/RPC: `tools/list` error path | `streamable_tools.go` `allTools` | yes |
+| Test infrastructure | `docs/functional-tests.md` (a6199d11d8); `ci-format.md` lists no verbs | yes |
+| Digest | `ai/digests/mcp.md` (a6199d11d8); `./le doc check all` digest anchors all resolve | yes |

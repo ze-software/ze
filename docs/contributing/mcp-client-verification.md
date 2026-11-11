@@ -28,9 +28,10 @@ Ze accepts only MCP revision `2026-07-28`, the stateless Streamable HTTP
 profile. A client that speaks an earlier revision first POSTs `initialize`.
 Ze answers it with error `-32020`, which names the revision Ze speaks, and the
 client cannot connect. That is a valid result: record the row with
-"connected: no" and the error text the client shows. A client that cannot
-connect also opens a fix spec in `plan/release/fixes/`, because an MCP
-surface that no current client reaches is a shipped defect.
+"connected: no" and the error text the client shows. Ze speaks only the
+current revision and adds no compatibility path for an earlier one: such a
+client is recorded as not yet supported, and a later round records it again
+once it updates.
 
 <!-- source: internal/component/mcp/streamable.go -- ProtocolVersion, Endpoint -->
 <!-- source: internal/component/mcp/headers.go -- initializeEraError -->
@@ -137,7 +138,26 @@ before you paste it here.
 
 ## Results
 
-The table is empty until the first run.
-
 | Client and version | Connected | `ze_reference` called | Tokens without Ze | Tokens with Ze | Ze commit | Date |
 |--------------------|-----------|-----------------------|-------------------|----------------|-----------|------|
+| Claude Code 2.1.322 | yes | yes | 76,211 input (6 + 14,302 cache write + 61,903 cache read) | 166,973 input (14 + 13,226 + 153,733) | d54128e6f8, tags `ze_core ze_mcp` | 2026-11-11 |
+| Codex 0.167.1 | no: "MCP server startup failed ... handshaking with MCP server failed" | no ("the ze MCP server's tool isn't available in this session") | 67,213 input (50,688 cached) | 58,295 input (43,520 cached); no Ze tool was loaded | d54128e6f8, tags `ze_core ze_mcp` | 2026-11-11 |
+
+Notes on the first round:
+
+- Claude Code defers MCP tools behind its tool search, so the catalog is not
+  loaded into context up front. The with-Ze run also made a tool search and
+  three shell calls after `ze_reference`, because the answer was 69 KB and the
+  client saved it to a file. The difference between the two figures is
+  therefore not the catalog's cost alone.
+- `ze_reference` listed 0 address families: the binary was built with
+  `ze_core ze_mcp` only, so no BGP family is compiled in. A later round uses the
+  full feature tag set.
+- Codex's MCP client still opens a server with the `initialize` handshake of
+  revision `2025-06-18`; its other servers answer it at that revision. Sent the
+  same `initialize`, Ze answers HTTP 400 with error `-32020` ("initialize is not
+  a method in this protocol era"). The stderr line above comes from a second
+  Codex run that reached no daemon, so the refusal is shown by Ze's answer, not
+  by a Codex run against a live daemon. Codex is recorded as not yet
+  supported until it speaks revision `2026-07-28`; Ze adds no path for the
+  earlier revision.

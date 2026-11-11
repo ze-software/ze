@@ -141,6 +141,18 @@ what makes the `task` result type interpretable, because a client can reject a
 
 <!-- source: internal/component/mcp/discover.go -- serverDiscover, serverCapabilities -->
 
+### Client compatibility
+
+A client connects only if it speaks revision `2026-07-28`. One that opens with
+the `initialize` handshake of an earlier revision gets error `-32020`, which
+names the revision Ze speaks, and cannot connect. The owner-run
+[real-client lane](../contributing/mcp-client-verification.md) records each
+client tried. In its first round, on 2026-11-11, Claude Code 2.1.322 connected
+and called `ze_reference`. Codex 0.167.1 opened with the `2025-06-18`
+`initialize` handshake and could not connect.
+
+<!-- source: internal/component/mcp/headers.go -- initializeEraError -->
+
 ### Cacheable results
 
 `server/discover`, `tools/list`, `resources/list` and `resources/read` return <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
@@ -205,6 +217,17 @@ flag is itself a test, because the server must still serve an undeclaring client
 synchronously.
 
 <!-- source: internal/test/cli/cmd_mcp.go -- taskDirective -->
+
+The `tools-size` directive measures the `tools/list` answer a running daemon <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+serves: tool count, total bytes, the largest tool, and each tool's input schema
+size and depth. It prints one violation line for each tool that breaks a limit
+strict clients enforce: an input schema above 13,312 bytes, nesting deeper
+than 10 levels, an `enum` with no sibling `type`, or a `oneOf`, `allOf` or
+`anyOf`. `test/plugin/mcp-tools-list-structural-limits.ci` refuses a catalog
+that prints a violation.
+
+<!-- source: internal/test/cli/cmd_mcp.go -- sizeDirective -->
+<!-- source: internal/test/cli/cmd_mcp_calls.go -- measureToolsSize, toolSchemaBytesMax, toolSchemaDepthMax -->
 
 See [MCP Guide](../guide/mcp/overview.md) for details and
 [MCP Remote Access](../guide/mcp/remote-access.md) for tunneling.
