@@ -644,10 +644,10 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 				bySection = append(bySection, peer)
 				continue
 			}
-			withdrawal := withdrawals.of(update, peerWire)
-			if withdrawal == nil {
+			withdrawal, err := withdrawals.of(update, peerWire)
+			if err != nil {
 				fwdLogger().Warn("withdrawal conversion failed, suppressing route",
-					"id", updateID, "peer", facts.addr)
+					"id", updateID, "peer", facts.addr, "err", err)
 				continue
 			}
 			peerWire = withdrawal

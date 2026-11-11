@@ -872,8 +872,9 @@ membership map allocation.
 `buildWithdrawalPayload` returns an explicit error when the payload has an
 unreadable or empty layout, needs separate MP family messages, or cannot be
 encoded within the supplied buffer and source framing. `fwdWithdrawal.of`
-refuses the conversion on that error and returns its borrowed buffer. The
-failed conversion dispatches no withdrawal; it remains a drop rather than a
+returns that error to its forwarding caller and returns its borrowed buffer.
+Both forwarding rails warn with the concrete conversion cause. The failed
+conversion dispatches no withdrawal; it remains a drop rather than a
 policy suppression that a replay could count as completed. A successful
 conversion still returns its actual byte count and adopts the buffer for the
 cached update's lifetime.

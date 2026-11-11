@@ -1007,16 +1007,16 @@ type fwdWithdrawal struct {
 }
 
 // of returns the withdrawal of every route base names (buildWithdrawalPayload),
-// or nil when it cannot be converted. The bytes live in a read-pool buffer the
+// or an error when it cannot be converted. The bytes live in a read-pool buffer the
 // update adopts (ReceivedUpdate.adoptFwdHandle), so they outlive every worker
 // that writes them, and are returned when the cache evicts the update. The
 // withdrawal keeps base's source identity: buildFwdBody keys ze's RFC 7911 Path
 // Identifier on it, and a withdraw that lost its source leaves under an
 // identifier the destination never received, which RFC 7911 Section 5 has it
 // silently ignore.
-func (w *fwdWithdrawal) of(update *ReceivedUpdate, base *wireu.WireUpdate) *wireu.WireUpdate {
+func (w *fwdWithdrawal) of(update *ReceivedUpdate, base *wireu.WireUpdate) (*wireu.WireUpdate, error) {
 	if w.wire != nil && w.base == base {
-		return w.wire
+		return w.wire, nil
 	}
 	payload := base.Payload()
 
@@ -1028,14 +1028,14 @@ func (w *fwdWithdrawal) of(update *ReceivedUpdate, base *wireu.WireUpdate) *wire
 	n, err := buildWithdrawalPayload(payload, h.Buf, bgpctx.Registry.Get(base.SourceCtxID()))
 	if err != nil {
 		returnReadBuffer(h)
-		return nil
+		return nil, err
 	}
 	update.adoptFwdHandle(h)
 
 	wire := wireu.NewWireUpdate(h.Buf[:n], base.SourceCtxID())
 	wire.SetSourceID(base.SourceID())
 	w.base, w.wire = base, wire
-	return wire
+	return wire, nil
 }
 
 // acquireModBuf returns a buffer sized for modification output. Prefers

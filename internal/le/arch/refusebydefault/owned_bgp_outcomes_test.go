@@ -49,6 +49,7 @@ func TestOwnedBGPRefusalProducersReportExplicitOutcomes(t *testing.T) {
 	}{
 		{file: "internal/component/bgp/reactor/reactor_notify.go", name: "Reactor.notifyOneMessage"},
 		{file: "internal/component/bgp/reactor/forward_build.go", name: "buildWithdrawalPayload"},
+		{file: "internal/component/bgp/reactor/forward_build.go", name: "fwdWithdrawal.of"},
 	} {
 		t.Run(producer.name, func(t *testing.T) {
 			path := filepath.Join(root, filepath.FromSlash(producer.file))

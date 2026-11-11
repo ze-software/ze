@@ -1106,14 +1106,14 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			// payload, so it is built once per base and shared (fwdWithdrawal), and
 			// the shared wire lets the body cache below build its body once too.
 			if mods.IsWithdraw() {
-				withdrawal := withdrawals.of(update, peerWire)
+				withdrawal, err := withdrawals.of(update, peerWire)
 				if modBufIdx > 0 && modPoolRef != nil {
 					modPoolRef.Return(modBufIdx)
 					modBufIdx, modPoolRef = 0, nil
 				}
-				if withdrawal == nil {
+				if err != nil {
 					fwdLogger().Warn("withdrawal conversion failed, suppressing route",
-						"id", updateID, "peer", facts.addr)
+						"id", updateID, "peer", facts.addr, "err", err)
 					continue
 				}
 				peerWire = withdrawal
