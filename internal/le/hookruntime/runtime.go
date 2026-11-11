@@ -72,10 +72,35 @@ type context struct {
 	content    string
 	transcript string
 	payload    Payload
+	// call is the state the checks of one hook call share. Every check
+	// receives a copy of the context, and the copies share this pointer.
+	// It is one pointer rather than a field per fact, so the context stays
+	// under gocritic's hugeParam size (288 bytes): each check takes it by
+	// value. nil in a context built without newContext.
+	call *callState
+}
+
+// callState is what the checks of one hook call share through the context.
+// It is not safe for concurrent use: Run calls its checks one after another.
+type callState struct {
 	// refused reports that a check Run ran earlier for this call blocked it
 	// (code 2). The budget reads it: a refused call costs the agent a turn,
 	// so it does not cost a unit of the budget too (agentCallBudgetCheck).
 	refused bool
+	// parse holds the one bash parse of a Bash call's command, made by the
+	// first check that asks (ctx.commandParse, shellparse.go) and read by
+	// every later check of the same call.
+	parse shellParse
+}
+
+// earlierRefused reports that a check Run ran earlier for this call refused
+// it. A context built without newContext holds no call state, and no check
+// ran before the one it is handed to.
+func (ctx context) earlierRefused() bool {
+	if ctx.call == nil {
+		return false
+	}
+	return ctx.call.refused
 }
 
 type hookCheck func(context) *verdict
@@ -152,6 +177,7 @@ func newContext(payload Payload, root string) (context, bool) {
 		content:    standardContent(payload.ToolInput),
 		transcript: payload.TranscriptPath,
 		payload:    payload,
+		call:       &callState{},
 	}, true
 }
 
@@ -262,7 +288,7 @@ func Run(kind string, in io.Reader, out, errOut io.Writer) (code int) {
 	for _, check := range action.checks {
 		if result := check(ctx); result != nil {
 			results = append(results, *result)
-			ctx.refused = ctx.refused || result.code >= 2
+			ctx.call.refused = ctx.call.refused || result.code >= 2
 		}
 	}
 

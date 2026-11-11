@@ -81,7 +81,14 @@ func identityLine(agent, session string) string {
 // (readerCommand, readers.go) and writes no file (shellLine.writesFile), so
 // a line the hook cannot see whole is never a reader line, and a reader
 // cannot write the git or shell configuration a later reader would run.
-func commandOutsideReaders(command string) string {
+//
+// A line bash's grammar does not accept (parse, the call's one parse,
+// shellparse.go) is never a reader line either: the splitter reads
+// `cat a |` as the reader cat, while bash refuses the line, so what the
+// splitter answered is not what bash runs. That reason is asked last, so a
+// line that is outside the readers for a reason named above keeps the
+// reason it had before the parse existed.
+func commandOutsideReaders(command string, parse commandParse) string {
 	if construct := unmodeledSyntax(command); construct != "" {
 		return construct + ", shell syntax the hook does not model, so it cannot tell which commands the line runs"
 	}
@@ -102,6 +109,9 @@ func commandOutsideReaders(command string) string {
 		if line.writesFile(index) {
 			return "`" + line.segments[index] + "`, which redirects its output into a file"
 		}
+	}
+	if !parse.parsed() {
+		return "a line that does not parse as bash (" + parse.failure + "), so the hook cannot tell which commands it runs"
 	}
 	return ""
 }
@@ -381,7 +391,7 @@ func bashAgentIdentity(ctx context) *verdict {
 	if anyPrefix(strings.TrimSpace(command), "export "+agentVariable+"=", "export "+sessionVariable+"=") {
 		return anotherIdentityVerdict(own, "It starts with an identity line that is not this agent's: it names another agent or session, or leaves the agent out.")
 	}
-	outsider := commandOutsideReaders(command)
+	outsider := commandOutsideReaders(command, ctx.commandParse())
 	if outsider == "" {
 		return nil
 	}

@@ -808,7 +808,7 @@ The check has three outcomes:
 |------------------------|---------|
 | The line lies inside the shell syntax the hook models (below), every command of it is in the reader set (`readerCommands`: `grep`, `sed`, `cat`, `head`, `gopls`, `git` followed directly by a read verb, and the rest of that table) with the arguments its judge admits, and no command redirects its output into a file (`/dev/null`, `2>&1` and an input `<` are fine) | Passes as typed. A reader reads neither variable and starts no `le` |
 | It starts with the agent's exact identity line, and no command after it but an admitted reader names either variable | Passes as typed |
-| Anything else: syntax the hook does not model, a command outside the reader set, a reader carrying an option or a word its judge does not admit, a command substitution (a backtick or `$(`), a line that ends inside a quote, or an identity line naming another agent or session | Refused (hook exit 2). The message prints the line to type |
+| Anything else: syntax the hook does not model, a command outside the reader set, a reader carrying an option or a word its judge does not admit, a command substitution (a backtick or `$(`), a line that ends inside a quote, a line bash's grammar does not accept (`cat a |`: the hook reads each command line once with the `mvdan.cc/sh` bash parser, and a parser that fails or panics counts as a line that does not parse), or an identity line naming another agent or session | Refused (hook exit 2). The message prints the line to type |
 
 The hook splits a line into commands with its own splitter (`lineCommands`),
 which reads only part of bash's syntax, so it trusts that split only on a line
@@ -914,6 +914,7 @@ a name of your own.
 <!-- source: internal/le/hookruntime/readers.go -- readerCommands, readerCommand -->
 <!-- source: internal/le/hookruntime/shellline.go -- lineCommands -->
 <!-- source: internal/le/hookruntime/shellsyntax.go -- modeledSyntax, unmodeledSyntax -->
+<!-- source: internal/le/hookruntime/shellparse.go -- parseCommandLine, commandParse -->
 <!-- source: internal/le/hookruntime/lifecycle.go -- hookSubagentContext -->
 <!-- source: internal/le/test/weakened/approve.go -- ApprovalPath, approveAnswer -->
 <!-- source: internal/le/test/overlay/overlay.go -- Write -->
