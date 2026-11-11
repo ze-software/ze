@@ -318,9 +318,13 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   requested it"*. **That guard is satisfied here, not overridden**, because this
   rule is that request. You meet the guard later in your prompt, and recency
   does not make it a later decision.
-- Development runs on Opus by default: an agent that implements, fixes, tests
-  or documents is spawned on the Opus model unless its spec's phase names
-  another model.
+- Development runs on the harness's high-capability model and never on a
+  cheaper tier: an agent that implements, fixes, tests or documents is spawned
+  on that model unless its spec names the strongest tier. A rule, spec or
+  skill names a model by tier (the development tier, the strongest tier),
+  never by a vendor's model name, because more than one harness implements
+  this repository's specs. Each harness maps the tiers to its own models: on
+  Claude Code the development tier is Opus.
 - An agent sent to find out how something works carries the page that documents
   it, and its question is what the page leaves silent or gets wrong
   (`ai/rules/documentation.md`).
