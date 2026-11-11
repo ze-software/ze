@@ -16,6 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/paths"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/zefs"
@@ -69,6 +70,10 @@ func (rt *serviceRuntime) cmdInstall(args []string) int {
 	}
 
 	if !rt.requireSystemd() || !rt.requireRoot() {
+		return exitError
+	}
+	if err := (nativeService{rt: rt}).trustedExecutable(binaryPath); err != nil {
+		writeln(rt.stderr, opererr.Wrap(err, "The service executable path is not trusted", "Another account must not be able to replace a privileged service executable.", "ze install --prefix /opt/ze"))
 		return exitError
 	}
 	if !force {

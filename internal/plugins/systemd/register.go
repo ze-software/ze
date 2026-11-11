@@ -15,6 +15,7 @@ import (
 )
 
 func init() {
+	install.RegisterService(nativeService{rt: defaultRuntime()})
 	install.Register("systemd", RunInstall, subdispatch.SubMeta{Desc: "Install and enable ze as a systemd service"})
 	uninstall.Register("systemd", RunUninstall, subdispatch.SubMeta{Desc: "Stop, disable, and remove the systemd service"})
 

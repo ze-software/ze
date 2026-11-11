@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/paths"
 )
 
@@ -45,6 +46,10 @@ func cmdUninstall(args []string) int {
 
 	if *dryRun {
 		return dryRunUninstall(binPath, configDir, *purge)
+	}
+	if err := packageOwnership(binPath); err != nil {
+		fmt.Fprintln(os.Stderr, opererr.Wrap(err, "Local removal cannot change this executable", "Resolve package ownership before removing the selected installation.", "ze help uninstall"))
+		return exitError
 	}
 
 	if !*yes {

@@ -117,6 +117,14 @@ instructions. Ordinary opens never transfer ownership.
 <!-- source: pkg/zefs/check_tree_unix.go -- OpenDirectory -->
 <!-- source: internal/component/config/storage/ownership.go -- TransferOwnership -->
 
+`AcquireMaintenance` holds the same exclusive lock without opening store data.
+The native installer uses it during executable replacement and removal.
+The folder owner or root can take it, after descriptor-safe path validation.
+This permits root to maintain a service-owned installation without granting
+root a store-data opener. The caller closes the lock before ownership transfer
+or daemon startup. A live owner refuses maintenance.
+<!-- source: internal/component/config/storage/maintenance_linux.go -- AcquireMaintenance -->
+
 ## Keys and reads
 
 A logical key maps unchanged to `database/<key>`. Each file holds exactly one

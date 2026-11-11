@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -370,6 +371,9 @@ type fakeServiceOps struct {
 	activeConfigData [][]byte
 	activeConfigErr  error
 	transferErr      error
+	statModes        map[string]fs.FileMode
+	statUIDs         map[string]uint32
+	directories      map[string][]os.DirEntry
 }
 
 func newFakeServiceOps() *fakeServiceOps {
@@ -378,10 +382,14 @@ func newFakeServiceOps() *fakeServiceOps {
 		root:           true,
 		executablePath: "/usr/local/bin/ze",
 		files: map[string]string{
+			"/": "", "/usr": "", "/usr/local": "", "/usr/local/bin": "",
 			"/etc/ze":           "",
 			"/etc/ze/database":  "zefs",
 			"/usr/sbin/nologin": "",
 		},
+		statModes:   map[string]fs.FileMode{"/": os.ModeDir | 0o755, "/usr": os.ModeDir | 0o755, "/usr/local": os.ModeDir | 0o755, "/usr/local/bin": os.ModeDir | 0o755},
+		statUIDs:    make(map[string]uint32),
+		directories: make(map[string][]os.DirEntry),
 		lookPaths: map[string]string{
 			"systemctl": "/bin/systemctl",
 			"groupadd":  "/usr/sbin/groupadd",
@@ -424,9 +432,31 @@ func (f *fakeServiceOps) lookPath(name string) (string, error) {
 
 func (f *fakeServiceOps) stat(path string) (fs.FileInfo, error) {
 	if _, ok := f.files[path]; ok {
-		return fakeFileInfo{name: path}, nil
+		mode, set := f.statModes[path]
+		if !set {
+			mode = 0o644
+		}
+		return fakeFileInfo{name: path, mode: mode, uid: f.statUIDs[path]}, nil
 	}
 	return nil, os.ErrNotExist
+}
+
+func (f *fakeServiceOps) lstat(path string) (fs.FileInfo, error) { return f.stat(path) }
+
+func (f *fakeServiceOps) readFile(path string) ([]byte, error) {
+	data, ok := f.files[path]
+	if !ok {
+		return nil, os.ErrNotExist
+	}
+	return []byte(data), nil
+}
+
+func (f *fakeServiceOps) readDir(path string) ([]os.DirEntry, error) {
+	entries, ok := f.directories[path]
+	if !ok {
+		return nil, os.ErrNotExist
+	}
+	return entries, nil
 }
 
 func (f *fakeServiceOps) writeFile(path string, data []byte, _ fs.FileMode) error {
@@ -456,6 +486,22 @@ func (f *fakeServiceOps) output(name string, args ...string) ([]byte, error) {
 	if out, ok := f.outputs[call]; ok {
 		return []byte(out), nil
 	}
+	if call == "systemctl show --property=LoadState --property=FragmentPath --property=DropInPaths ze.service" {
+		fragment := ""
+		state := "not-found"
+		if _, exists := f.files[defaultUnitPath]; exists {
+			fragment = defaultUnitPath
+			state = "loaded"
+		}
+		paths := make([]string, 0)
+		for dir, entries := range f.directories {
+			for _, entry := range entries {
+				paths = append(paths, filepath.Join(dir, entry.Name()))
+			}
+		}
+		slices.Sort(paths)
+		return []byte("LoadState=" + state + "\nFragmentPath=" + fragment + "\nDropInPaths=" + strings.Join(paths, " ") + "\n"), nil
+	}
 	return nil, errors.New("not found")
 }
 
@@ -468,14 +514,35 @@ func (f *fakeServiceOps) activeConfigs(string) ([][]byte, error) {
 	return f.activeConfigData, f.activeConfigErr
 }
 
-type fakeFileInfo struct{ name string }
+type fakeFileInfo struct {
+	name string
+	mode fs.FileMode
+	uid  uint32
+}
 
 func (f fakeFileInfo) Name() string       { return f.name }
 func (f fakeFileInfo) Size() int64        { return 0 }
-func (f fakeFileInfo) Mode() fs.FileMode  { return 0o644 }
+func (f fakeFileInfo) Mode() fs.FileMode  { return f.mode }
 func (f fakeFileInfo) ModTime() time.Time { return time.Time{} }
-func (f fakeFileInfo) IsDir() bool        { return false }
+func (f fakeFileInfo) IsDir() bool        { return f.mode.IsDir() }
 func (f fakeFileInfo) Sys() any           { return nil }
+
+func (f *fakeServiceOps) owner(info fs.FileInfo) (uint32, error) {
+	file, ok := info.(fakeFileInfo)
+	if !ok {
+		return 0, errors.New("unexpected test file metadata")
+	}
+	return file.uid, nil
+}
+
+type fakeDirEntry struct{ name string }
+
+func (entry fakeDirEntry) Name() string      { return entry.name }
+func (entry fakeDirEntry) IsDir() bool       { return false }
+func (entry fakeDirEntry) Type() fs.FileMode { return 0 }
+func (entry fakeDirEntry) Info() (fs.FileInfo, error) {
+	return fakeFileInfo{name: entry.name, mode: 0o644}, nil
+}
 
 func assertCalls(t *testing.T, got []string, wants ...string) {
 	t.Helper()

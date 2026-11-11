@@ -10,8 +10,10 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/netip"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"golang.org/x/crypto/bcrypt"
@@ -22,9 +24,11 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/fetch"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/redact"
 	"github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/selfcert"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -317,6 +321,25 @@ func runInit(r io.Reader, promptW io.Writer, dir string, managed bool, webCertAd
 // runInitPublished shares credential population between ordinary init and the
 // descriptor-bound session entry. Only the publication operation differs.
 func runInitPublished(r io.Reader, promptW io.Writer, path string, managed bool, webCertAddr, webCertName string, seed bool, publish func(func(storage.Storage) error) (storage.Storage, error)) int {
+	return runInitPublishedProfile(r, promptW, path, managed, webCertAddr, webCertName, seed, publish, initDiscover)
+}
+
+type initProfile uint8
+
+const (
+	initDiscover initProfile = iota + 1
+	initLocalService
+)
+
+// runInstallInit initializes the native daemon without claiming host interfaces.
+func runInstallInit(r io.Reader, promptW io.Writer, dir string) int {
+	publish := func(populate func(storage.Storage) error) (storage.Storage, error) {
+		return storage.CreatePopulated(dir, populate)
+	}
+	return runInitPublishedProfile(r, promptW, filepath.Join(dir, "database"), false, "", "", false, publish, initLocalService)
+}
+
+func runInitPublishedProfile(r io.Reader, promptW io.Writer, path string, managed bool, webCertAddr, webCertName string, seed bool, publish func(func(storage.Storage) error) (storage.Storage, error), profile initProfile) int {
 	// Read credentials (with optional prompts)
 	scanner := bufio.NewScanner(r)
 
@@ -367,6 +390,26 @@ func runInitPublished(r io.Reader, promptW io.Writer, path string, managed bool,
 	if name == "" {
 		name = defaultName
 	}
+	if profile == initLocalService {
+		address, err := netip.ParseAddr(host)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, opererr.New("The bootstrap SSH address is invalid", "Enter a loopback address, 127.0.0.1 or ::1, when repeating installation.", "ze install"))
+			return 1
+		}
+		if !address.IsLoopback() {
+			fmt.Fprintln(os.Stderr, opererr.New("The bootstrap SSH address is not loopback", "Enter 127.0.0.1 or ::1. Configure remote access after the first login.", "ze install"))
+			return 1
+		}
+		n, err := strconv.ParseUint(port, 10, 16)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, opererr.New("The bootstrap SSH port is invalid", "Enter a number from 1 through 65535 when repeating installation.", "ze install"))
+			return 1
+		}
+		if n == 0 {
+			fmt.Fprintln(os.Stderr, opererr.New("The bootstrap SSH port is zero", "Enter a number from 1 through 65535 when repeating installation.", "ze install"))
+			return 1
+		}
+	}
 
 	populate := func(store storage.Storage) error {
 		// Write SSH credentials in deterministic order.
@@ -416,7 +459,18 @@ func runInitPublished(r io.Reader, promptW io.Writer, path string, managed bool,
 		// cmdStartManaged reads file/active/<name>.conf as the hub's cached
 		// config, so a discovered file under that name would stand in for it
 		// and the first boot would never fetch from the hub.
-		if seed { //nolint:staticcheck // SA9003: intentional no-op; see comment above
+		if profile == initLocalService {
+			configName, err := resolve.DefaultConfig(store)
+			if err != nil {
+				return err
+			}
+			var config textbuf.Buffer
+			config.Str("environment {\n    ssh {\n        enabled true;\n        server local {\n            ip ").Str(host).
+				Str(";\n            port ").Str(port).Str(";\n        }\n    }\n}\n")
+			if err := store.WriteKey(zefs.KeyFileActive.Key(configName), config.Bytes()); err != nil {
+				return fmt.Errorf("write local SSH config: %w", err)
+			}
+		} else if seed { //nolint:staticcheck // SA9003: intentional no-op; see comment above
 			// appliance seed: nothing baked in; first boot discovers on-device.
 		} else if managed { //nolint:staticcheck // SA9003: intentional no-op; see comment above
 			// managed client: the hub supplies the first config.

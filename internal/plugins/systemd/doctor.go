@@ -95,10 +95,14 @@ func serviceDoctorCheck() diagnostic.DoctorCheck {
 }
 
 type serviceUnitInfo struct {
-	execStart  string
-	execReload []string
-	user       string
-	group      string
+	execStart      string
+	execReload     []string
+	user           string
+	group          string
+	workingDir     string
+	configDir      string
+	execStartValue string
+	unsupported    string
 }
 
 // checkServiceInstall reads the installed unit back and reports an ExecStart,
@@ -170,6 +174,7 @@ func parseServiceUnit(data []byte) serviceUnitInfo {
 		switch strings.TrimSpace(key) {
 		case "ExecStart":
 			unit.execStart = execStartExecutable(value)
+			unit.execStartValue = strings.TrimSpace(value)
 		case "ExecReload":
 			// ExecReload is a list: an empty assignment clears it, and each
 			// later line adds one command.
@@ -183,6 +188,20 @@ func parseServiceUnit(data []byte) serviceUnitInfo {
 			unit.user = strings.TrimSpace(value)
 		case "Group":
 			unit.group = strings.TrimSpace(value)
+		case "WorkingDirectory":
+			unit.workingDir = strings.Trim(strings.TrimSpace(value), `"`)
+		case "Environment":
+			if strings.TrimSpace(value) == "" {
+				unit.configDir = ""
+			}
+			for _, field := range strings.Fields(value) {
+				setting := strings.Trim(field, `"`)
+				if dir, ok := strings.CutPrefix(setting, "ZE_CONFIG_DIR="); ok {
+					unit.configDir = dir
+				}
+			}
+		case "EnvironmentFile", "UnsetEnvironment", "PassEnvironment", "RootDirectory", "RootImage", "RootEphemeral", "ExtensionDirectories", "ExtensionImages", "MountImages", "BindPaths", "BindReadOnlyPaths", "TemporaryFileSystem", "ExecStartPre", "ExecStartPost", "ExecCondition", "ExecStop", "ExecStopPost":
+			unit.unsupported = strings.TrimSpace(key)
 		}
 	}
 	return unit

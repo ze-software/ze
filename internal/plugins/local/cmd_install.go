@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/paths"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -76,6 +77,10 @@ func cmdInstall(args []string) int {
 
 	if *dryRun {
 		return dryRunInstall(resolved, binPath, configDir)
+	}
+	if err := packageOwnership(binPath, resolved); err != nil {
+		fmt.Fprintln(os.Stderr, opererr.Wrap(err, "Local installation cannot replace this executable", "Resolve package ownership before changing the selected installation.", "ze help install"))
+		return exitError
 	}
 
 	if err := os.MkdirAll(binDir, 0o755); err != nil { // #nosec G301 - standard system bin directory
@@ -167,7 +172,10 @@ func copyFile(src, dst string) error {
 		return err
 	}
 	defer in.Close() //nolint:errcheck // read-only source
+	return copyInstalledBytes(in, dst)
+}
 
+func copyInstalledBytes(in io.Reader, dst string) error {
 	tmp, err := os.CreateTemp(filepath.Dir(dst), ".ze-install-*.tmp")
 	if err != nil {
 		return err

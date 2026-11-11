@@ -5,6 +5,7 @@ package subdispatch
 import (
 	"os"
 	"slices"
+	"strings"
 
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/suggest"
@@ -16,14 +17,17 @@ func writeStderr(s string) {
 }
 
 type SubMeta struct {
-	Desc string
+	Desc    string
+	Options func() []helpfmt.HelpEntry
 }
 
 type Dispatcher struct {
-	Command  string
-	Summary  string
-	handlers map[string]func([]string) int
-	metas    map[string]SubMeta
+	Command        string
+	Summary        string
+	handlers       map[string]func([]string) int
+	metas          map[string]SubMeta
+	defaultHandler func([]string) int
+	defaultMeta    SubMeta
 }
 
 func New(command, summary string) *Dispatcher {
@@ -40,8 +44,24 @@ func (d *Dispatcher) Register(name string, handler func([]string) int, meta SubM
 	d.metas[name] = meta
 }
 
+// RegisterDefault declares the owner of the bare command and its offline options.
+// Registration MUST finish before Dispatch is called.
+func (d *Dispatcher) RegisterDefault(handler func([]string) int, meta SubMeta) {
+	if handler == nil {
+		panic("BUG: nil default command handler")
+	}
+	if d.defaultHandler != nil {
+		panic("BUG: duplicate default command handler")
+	}
+	d.defaultHandler = handler
+	d.defaultMeta = meta
+}
+
 func (d *Dispatcher) Dispatch(args []string) int {
 	if len(args) == 0 {
+		if d.defaultHandler != nil {
+			return d.defaultHandler(args)
+		}
 		d.usage()
 		return 1
 	}
@@ -49,6 +69,11 @@ func (d *Dispatcher) Dispatch(args []string) int {
 	if args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
 		d.usage()
 		return 0
+	}
+	if strings.HasPrefix(args[0], "-") {
+		if d.defaultHandler != nil {
+			return d.defaultHandler(args)
+		}
 	}
 
 	h, ok := d.handlers[args[0]]
@@ -101,15 +126,24 @@ func (d *Dispatcher) usage() {
 	for _, n := range names {
 		entries = append(entries, helpfmt.HelpEntry{Name: n, Desc: d.metas[n].Desc})
 	}
+	if d.defaultHandler != nil {
+		entries = append([]helpfmt.HelpEntry{{Name: "(no target)", Desc: d.defaultMeta.Desc}}, entries...)
+	}
 
 	var tb textbuf.Buffer
+	usage := tb.Str("ze ").Str(d.Command).Str(" <target> [options]").String()
+	if d.defaultHandler != nil {
+		usage = tb.Reset().Str("ze ").Str(d.Command).Str(" [target] [options]").String()
+	}
+	sections := []helpfmt.HelpSection{{Title: "Targets", Entries: entries}}
+	if d.defaultMeta.Options != nil {
+		sections = append(sections, helpfmt.HelpSection{Title: "Default options", Entries: d.defaultMeta.Options()})
+	}
 	p := helpfmt.Page{
 		Command:   tb.Str("ze ").Str(d.Command).String(),
 		ShortHelp: d.Summary,
-		Usage:     []string{tb.Reset().Str("ze ").Str(d.Command).Str(" <target> [options]").String()},
-		Sections: []helpfmt.HelpSection{
-			{Title: "Targets", Entries: entries},
-		},
+		Usage:     []string{usage},
+		Sections:  sections,
 	}
 	p.WriteErr()
 }

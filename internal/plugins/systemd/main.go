@@ -34,6 +34,10 @@ type serviceOps interface {
 	evalSymlinks(string) (string, error)
 	lookPath(string) (string, error)
 	stat(string) (fs.FileInfo, error)
+	lstat(string) (fs.FileInfo, error)
+	readFile(string) ([]byte, error)
+	readDir(string) ([]os.DirEntry, error)
+	owner(fs.FileInfo) (uint32, error)
 	writeFile(string, []byte, fs.FileMode) error
 	remove(string) error
 	run(string, ...string) error
@@ -43,10 +47,11 @@ type serviceOps interface {
 }
 
 type serviceRuntime struct {
-	stdout   io.Writer
-	stderr   io.Writer
-	ops      serviceOps
-	unitPath string
+	stdout     io.Writer
+	stderr     io.Writer
+	ops        serviceOps
+	unitPath   string
+	binaryPath string
 }
 
 type realServiceOps struct {
@@ -95,6 +100,15 @@ func (rt *serviceRuntime) requireRoot() bool {
 }
 
 func (rt *serviceRuntime) resolveBinaryPath() (string, error) {
+	if rt.binaryPath != "" {
+		if !filepath.IsAbs(rt.binaryPath) {
+			return "", errors.New("installation binary path must be absolute")
+		}
+		if containsUnitPathUnsafeChar(rt.binaryPath) {
+			return "", errors.New("installation binary path contains unsafe characters")
+		}
+		return rt.binaryPath, nil
+	}
 	exe, err := rt.ops.executable()
 	if err != nil {
 		return "", fmt.Errorf("cannot find own binary: %w", err)
@@ -141,6 +155,12 @@ func (r realServiceOps) evalSymlinks(path string) (string, error) { return filep
 func (r realServiceOps) lookPath(name string) (string, error) { return exec.LookPath(name) }
 
 func (r realServiceOps) stat(path string) (fs.FileInfo, error) { return os.Stat(path) }
+
+func (r realServiceOps) lstat(path string) (fs.FileInfo, error) { return os.Lstat(path) }
+
+func (r realServiceOps) readFile(path string) ([]byte, error) { return os.ReadFile(path) }
+
+func (r realServiceOps) readDir(path string) ([]os.DirEntry, error) { return os.ReadDir(path) }
 
 func (r realServiceOps) writeFile(path string, data []byte, perm fs.FileMode) error {
 	return os.WriteFile(path, data, perm) // #nosec G306 - systemd unit files are world-readable by convention

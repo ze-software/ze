@@ -12,6 +12,8 @@ import (
 )
 
 func init() {
+	install.RegisterDefault(RunNativeInstall, subdispatch.SubMeta{Desc: "Install and initialize this Linux host", Options: nativeInstallOptions})
+	uninstall.RegisterDefault(RunNativeUninstall, subdispatch.SubMeta{Desc: "Remove this installation and preserve state", Options: nativeUninstallOptions})
 	install.Register("local", RunInstall, subdispatch.SubMeta{Desc: "Copy ze binary and create config directory"})
 	uninstall.Register("local", RunUninstall, subdispatch.SubMeta{Desc: "Remove ze binary and optionally config directory"})
 
@@ -20,5 +22,17 @@ func init() {
 	registry.RegisterCommandFlags("install local", []registry.FlagSpec{
 		{Name: "--prefix", Description: "installation prefix (default: interactive selection)", ValueHint: registry.FlagValueFile},
 		{Name: flagDryRun, Description: "print what would be done without making changes", ValueHint: registry.FlagValueNone},
+	})
+	registry.RegisterCommandFlags("install", []registry.FlagSpec{
+		{Name: "--prefix", Description: "installation prefix (default /usr/local)", ValueHint: registry.FlagValueFile},
+		{Name: "--no-service", Description: "install for foreground operation", ValueHint: registry.FlagValueNone},
+		{Name: flagDryRun, Description: "show paths without changes", ValueHint: registry.FlagValueNone},
+	})
+	registry.RegisterCommandFlags("uninstall", []registry.FlagSpec{
+		{Name: "--prefix", Description: "installation prefix (default /usr/local)", ValueHint: registry.FlagValueFile},
+		{Name: "--no-service", Description: "remove a foreground installation", ValueHint: registry.FlagValueNone},
+		{Name: "--yes", Description: "confirm removal", ValueHint: registry.FlagValueNone},
+		{Name: "--purge", Description: "also remove selected state", ValueHint: registry.FlagValueNone},
+		{Name: flagDryRun, Description: "show paths without changes", ValueHint: registry.FlagValueNone},
 	})
 }

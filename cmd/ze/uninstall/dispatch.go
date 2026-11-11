@@ -10,5 +10,10 @@ func Register(name string, handler func([]string) int, meta subdispatch.SubMeta)
 	dispatcher.Register(name, handler, meta)
 }
 
+// RegisterDefault gives the native uninstaller ownership of the bare command.
+func RegisterDefault(handler func([]string) int, meta subdispatch.SubMeta) {
+	dispatcher.RegisterDefault(handler, meta)
+}
+
 func Dispatch(args []string) int { return dispatcher.Dispatch(args) }
 func Subcommands() string        { return dispatcher.Subcommands() }

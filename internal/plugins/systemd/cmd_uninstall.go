@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 func (rt *serviceRuntime) cmdUninstall(args []string) int {
@@ -44,7 +45,8 @@ func (rt *serviceRuntime) cmdUninstall(args []string) int {
 	}
 
 	if err := rt.ops.run("systemctl", "stop", serviceName); err != nil {
-		writef(rt.stderr, "warning: %v\n", err)
+		writeln(rt.stderr, opererr.Wrap(err, "Ze service removal stopped before deleting files", "The service could not be stopped. Its unit is retained.", "sudo systemctl stop ze.service"))
+		return exitError
 	}
 	if err := rt.ops.run("systemctl", "disable", serviceName); err != nil {
 		writef(rt.stderr, "error: %v\n", err)

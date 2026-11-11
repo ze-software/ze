@@ -3,11 +3,15 @@
 package init
 
 import (
+	"os"
+
+	"github.com/ze-software/ze/cmd/ze/install"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/core/seedinit"
 )
 
 func init() {
+	install.RegisterBootstrap(func(dir string) int { return runInstallInit(os.Stdin, os.Stderr, dir) })
 	seedinit.Register(runSeedChild)
 	registry.MustRegisterRootHandler("init", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)

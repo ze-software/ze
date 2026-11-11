@@ -402,6 +402,75 @@ Arguments are split by whitespace. The `--decode` flag is always appended last.
 | `/missing/path` | Process spawn fails, returns nil |
 <!-- source: internal/component/bgp/format/decode.go -- error handling per mode -->
 
+## Native installation commands
+
+The bare `ze install` and `ze uninstall` commands dispatch to defaults registered
+by the local plugin. Explicit targets remain separate operations. Help and
+unknown targets do not call the default. Offline options reach the default's
+flag parser. The registered default description appears with the target list.
+<!-- source: internal/core/subdispatch/subdispatch.go -- RegisterDefault, Dispatch, usage -->
+<!-- source: internal/plugins/local/register.go -- init -->
+
+The install registry also holds the bootstrap and service owners. The init
+plugin registers the bootstrap callback. The systemd plugin registers service
+availability, preflight, stop and removal callbacks. A successful stop returns
+the installation and recovery operations bound to the prior service state.
+The local plugin
+invokes those registrations without importing either sibling plugin.
+<!-- source: cmd/ze/install/native.go -- NativeService, RegisterBootstrap, RegisterService -->
+<!-- source: internal/plugins/init/register.go -- init -->
+<!-- source: internal/plugins/systemd/register.go -- init -->
+
+Native installation selects `/usr/local` unless `--prefix` supplies another
+absolute prefix. It refuses symlink paths, package ownership markers and
+conflicting services before copying the executable. A fresh private store
+contains prompted credentials and a loopback SSH listener, without discovered
+host interfaces. An existing store is retained. The binary copy takes the
+store's maintenance lock and releases it before the service owner starts Ze.
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.install, selectNativeTarget, nativeTarget.preflight, nativePath -->
+<!-- source: internal/plugins/init/main.go -- runInstallInit, runInitPublishedProfile -->
+
+On a running systemd host, the service owner records the selected service's
+active state before replacement. A compatible administrator unit and its drop-ins are retained.
+A previously inactive service remains inactive. An active service is stopped
+and started around replacement. A failed replacement restores the prior binary
+and resumes a service that was previously active.
+A fresh unit uses the existing service installer. Without a service manager,
+or with `--no-service`, installation prints the foreground start command.
+<!-- source: internal/plugins/systemd/native.go -- nativeService.Available, nativeService.Preflight, nativeService.Stop, nativeService.installSelected, nativeStoppedService.Restore -->
+<!-- source: internal/plugins/local/native_replace.go -- captureNativeReplacement, nativeReplacement.restore, nativeRuntime.recoverInstall -->
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.selectedService, nativeRuntime.install -->
+
+Service installation requires root ownership of the executable and every
+existing ancestor. Group or other write permission refuses the path before
+bootstrap, service stop or replacement. A missing suffix is created beneath
+the trusted parent. Foreground installation with `--no-service` retains support
+for a user-owned prefix. Explicit systemd installation applies the same guard.
+<!-- source: internal/plugins/systemd/native_trust.go -- nativeService.trustedExecutable, nativeService.trustedNode -->
+<!-- source: internal/plugins/systemd/native.go -- nativeService.Preflight -->
+<!-- source: internal/plugins/systemd/cmd_install.go -- serviceRuntime.cmdInstall -->
+
+Preflight reads systemd's effective load state, fragment and ordered drop-in
+paths. Runtime units, masks, unsupported effective fragments and orphan
+unit-specific drop-ins refuse installation. Compatible global tuning remains
+supported. Indirect environment files, environment removal, root or mount
+overrides, execution hooks and alternate configuration arguments refuse the
+native path before mutation. Their administrator policy remains unchanged.
+<!-- source: internal/plugins/systemd/native_unit.go -- nativeService.effectiveUnit, validateNativePolicy -->
+<!-- source: internal/plugins/systemd/native.go -- nativeService.compatibleUnit -->
+<!-- source: internal/plugins/systemd/doctor.go -- parseServiceUnit -->
+
+Native removal first asks the service owner to stop the selected service.
+Service stop is nondestructive. Removal takes the maintenance lock
+before disabling or removing the service and executable. A busy store retains
+the unit, enablement, executable and state. The stop lease resumes only a
+previously active service when that lock refuses removal. State and the service
+account remain unless state removal is explicitly requested with `--purge`.
+Purge removes the selected config directory and retains the account.
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.uninstall -->
+<!-- source: internal/plugins/systemd/cmd_uninstall.go -- serviceRuntime.cmdUninstall -->
+<!-- source: internal/plugins/systemd/native.go -- nativeStoppedService.Restore -->
+
 ## Related
 
 - `docs/architecture/api/process-protocol.md` - Engine-plugin protocol

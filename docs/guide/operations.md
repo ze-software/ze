@@ -394,6 +394,147 @@ ze env get ze.log              # details for one var
 | `-V`, `--version` | Show version |
 <!-- source: cmd/ze/main.go -- global flag parsing -->
 
+## Install and remove a standalone Linux daemon
+
+From the directory containing the selected Ze executable, run:
+
+```bash
+sudo ./ze install
+```
+
+The default prefix is `/usr/local`. The installer prompts for the initial
+username, password, SSH address, SSH port and instance name. Keep the SSH
+address on loopback. The default listener is `127.0.0.1:2222`. This bootstrap
+does not configure the host's interfaces.
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.install, selectNativeTarget -->
+<!-- source: internal/plugins/init/main.go -- runInstallInit, runInitPublishedProfile -->
+
+On a running systemd host, installation creates and starts the service.
+Connect with the account and store path the installer prints:
+
+```bash
+sudo -u ze env ZE_CONFIG_DIR=/etc/ze XDG_RUNTIME_DIR=/run/ze ze cli
+sudo -u ze env ZE_CONFIG_DIR=/etc/ze XDG_RUNTIME_DIR=/run/ze ze doctor
+```
+
+An existing private store, credentials and compatible administrator unit are
+preserved during repeat installation. Conflicting services, package ownership
+markers and symlink paths refuse installation before executable replacement.
+<!-- source: internal/plugins/systemd/native.go -- nativeService.Preflight, nativeService.Install, nativeService.compatibleUnit -->
+<!-- source: internal/plugins/local/native.go -- nativeTarget.preflight, nativePath -->
+
+Choose another prefix or foreground operation with:
+
+```bash
+./ze install --dry-run --prefix /opt/ze
+sudo ./ze install --prefix /opt/ze
+./ze install --prefix "$HOME/ze" --no-service
+"$HOME/ze/bin/ze" start
+```
+
+Without a running systemd manager, the installer also prints the foreground
+start command. A foreground daemon must be stopped before replacement or
+removal. `--no-service` does not bypass the store ownership lock.
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.install, nativeRuntime.selectedService, nativeRuntime.uninstall -->
+<!-- source: internal/plugins/systemd/native.go -- nativeService.Available -->
+
+A service installation needs a root-owned executable path. Existing ancestors
+and the executable must not permit group or other write access. Use a
+protected prefix such as `/opt/ze`, or select `--no-service` for a user-owned
+prefix. Installation refuses conflicting runtime units, masks, indirect
+configuration sources and unsupported service execution overrides before
+changing files or service state.
+<!-- source: internal/plugins/systemd/native_trust.go -- nativeService.trustedExecutable -->
+<!-- source: internal/plugins/systemd/native.go -- nativeService.Preflight, nativeService.compatibleUnit -->
+<!-- source: internal/plugins/systemd/native_unit.go -- nativeService.effectiveUnit, validateNativePolicy -->
+
+To remove the default installation, run:
+
+```bash
+sudo ze uninstall
+```
+
+Removal asks for confirmation, stops and removes the selected service, and
+removes the executable. It retains `/etc/ze` and the service account.
+A stop failure retains the executable and service. Use the installation's
+prefix when removing a custom installation. `--yes` confirms removal in scripts.
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.uninstall -->
+<!-- source: internal/plugins/systemd/cmd_uninstall.go -- serviceRuntime.cmdUninstall -->
+
+A foreground process that still owns the selected store also refuses removal.
+The installer takes the store lock before disabling or deleting the unit.
+That refusal preserves the previous service policy and resumes only a service
+that was active before the attempt.
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.uninstall -->
+<!-- source: internal/plugins/systemd/native.go -- nativeService.Stop, nativeStoppedService.Restore -->
+
+Explicit purge also removes the selected config directory, including its
+backups. Copy required backups elsewhere first. The service account remains.
+
+```bash
+sudo ze uninstall --prefix /opt/ze --purge
+```
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.uninstall -->
+
+### Upgrade and recover a standalone installation
+
+Keep the previous executable and a live store backup before upgrading:
+
+```bash
+sudo install -m 0755 /usr/local/bin/ze /var/tmp/ze-before-upgrade
+sudo -u ze env ZE_CONFIG_DIR=/etc/ze XDG_RUNTIME_DIR=/run/ze \
+  ze cli -c "request data backup path /etc/ze/pre-upgrade.zefs"
+```
+
+Choose a new backup filename when that file already exists. The backup
+command runs on the daemon and preserves the complete store in a private blob.
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataBackup -->
+
+Run the new executable's native installer, then verify the running version
+and diagnostic results:
+
+```bash
+sudo ./ze install
+sudo -u ze env ZE_CONFIG_DIR=/etc/ze XDG_RUNTIME_DIR=/run/ze \
+  ze cli -c "show version"
+sudo -u ze env ZE_CONFIG_DIR=/etc/ze XDG_RUNTIME_DIR=/run/ze ze doctor
+```
+
+The installer stops an active managed service before replacement and starts it
+afterward. A previously inactive service remains inactive. It retains the store
+and compatible administrator service settings. A failed replacement restores
+the prior executable and resumes a service that was previously active.
+The existing binary is replaced atomically. Preserve the backup executable
+until the new version and required routes are verified.
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.install -->
+<!-- source: internal/plugins/local/cmd_install.go -- copyFile -->
+<!-- source: internal/plugins/systemd/native.go -- nativeService.Stop, nativeService.Install -->
+<!-- source: internal/plugins/local/native_replace.go -- nativeReplacement.restore, nativeRuntime.recoverInstall -->
+
+To restore the previous executable with the current configuration, run its
+installer:
+
+```bash
+sudo /var/tmp/ze-before-upgrade install
+```
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.install -->
+
+If configuration restoration is also required, stop the service first.
+Restore the saved store as its owner, then install the previous executable:
+
+```bash
+sudo systemctl stop ze.service
+sudo -u ze env ZE_CONFIG_DIR=/etc/ze \
+  /var/tmp/ze-before-upgrade data restore /etc/ze/pre-upgrade.zefs full
+sudo /var/tmp/ze-before-upgrade install
+```
+
+Full restoration retains the replaced tree as a recovery directory. Verify
+the restored version, login and routes after startup. Package-managed
+installations use their package manager for upgrade and removal.
+<!-- source: internal/component/config/storage/cli/cmd_restore.go -- cmdRestoreFull -->
+<!-- source: internal/plugins/local/native.go -- nativeTarget.preflight -->
+
 ## systemd
 
 Use `ze install systemd` on standard Linux hosts:
