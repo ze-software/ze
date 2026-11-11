@@ -10,7 +10,7 @@ const activityGrowthStyle = `<style>
         width: fit-content;
         padding: 0.32rem;
         border: 2px solid var(--activity-border);
-        border-radius: 999px;
+        border-radius: var(--radius-md);
         background: var(--activity-card-strong);
         box-shadow: var(--clay);
     }
@@ -18,7 +18,7 @@ const activityGrowthStyle = `<style>
     .activity-widget .activity-view[hidden] { display: none; }
     .activity-tabs button {
         border: 0;
-        border-radius: 999px;
+        border-radius: var(--radius-sm);
         padding: 0.45rem 0.7rem;
         background: transparent;
         color: var(--muted);
