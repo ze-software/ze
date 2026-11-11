@@ -21,7 +21,7 @@ import (
 func startSleeper(t *testing.T) *ownedProcess {
 	t.Helper()
 	proc := exec.CommandContext(t.Context(), "sleep", "60")
-	owned, err := startWithETXTBSYRetry(t.Context(), "sleep", []string{"60"}, proc, nil)
+	owned, err := startWithETXTBSYRetry(t.Context(), "sleep", []string{"60"}, proc, nil, forkThreadSpawner)
 	if err != nil {
 		t.Fatalf("start sleeper: %v", err)
 	}

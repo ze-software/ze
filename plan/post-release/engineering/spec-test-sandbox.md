@@ -150,6 +150,11 @@ Runner to child process (environment, cwd); runner to host kernel (addresses, po
 | AC-9 | a test reads the live wiki, the live git HEAD, or the host's `lo` name | it reads a fixture the sandbox provides instead |
 | AC-10 | every row in "Owned journal rows" | re-run or re-read after the change: green, or still red with a cause that is not host state |
 
+AC-5 is split. Its process half for the `.ci` runner (no child survives a
+runner that dies, killed or not) is owned by
+`plan/release/validation/spec-test-children-die-with-runner.md`. The
+loopback-address half stays here.
+
 ## 🧪 TDD Test Plan
 
 ### Unit Tests

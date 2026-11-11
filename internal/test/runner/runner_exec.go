@@ -254,7 +254,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) (pa
 	peerCmd.Stdout = peerStdout
 	peerCmd.Stderr = peerStderr
 
-	peerProc, err := startWithETXTBSYRetry(testCtx, r.lePath, peerArgs, peerCmd, r.observeProcessExit)
+	peerProc, err := startWithETXTBSYRetry(testCtx, r.lePath, peerArgs, peerCmd, r.observeProcessExit, forkThreadSpawner)
 	if err != nil {
 		rec.Error = fmt.Errorf("start peer: %w", err)
 		return false
@@ -370,7 +370,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) (pa
 	clientCmd.Stdout = clientStdout
 	clientCmd.Stderr = clientStderr
 
-	clientProc, err := startWithETXTBSYRetry(testCtx, r.zePath, clientArgs, clientCmd, r.observeProcessExit)
+	clientProc, err := startWithETXTBSYRetry(testCtx, r.zePath, clientArgs, clientCmd, r.observeProcessExit, forkThreadSpawner)
 	if err != nil {
 		rec.Error = fmt.Errorf("start client: %w", err)
 		return false
@@ -583,6 +583,10 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	netnsMode := netnsModeActive()
 	var netnsHostInode uint64
 	netnsUID, netnsGID, netnsHasUID := 0, 0, false
+	// Outside netns mode every child forks from plugin.StartChild's spawner
+	// thread, which lives as long as the runner, so its death signal fires only
+	// when the runner dies.
+	childThread := forkThreadSpawner
 	if netnsMode {
 		netnsUID, netnsGID, netnsHasUID = netnsChildIDs()
 		if !netnsHasUID {
@@ -604,6 +608,11 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			return false
 		}
 		defer restore()
+		// The children must inherit this thread's namespace, and the spawner
+		// thread sits in the host one, so they fork on this locked thread. The
+		// restore above is deferred before every child's finish, so the thread
+		// stays locked until each child is finished and outlives all of them.
+		childThread = forkThreadLocked
 		netnsHostInode = hostInode
 		// Provision any interfaces the test declared (option=netns-link) inside the
 		// fresh namespace, on this locked thread, before spawning ze. A policy
@@ -1015,11 +1024,15 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// works (A-4: the readiness file is written after dropPrivileges, so a
 		// root ze never writes it). The setcap'd binary keeps ambient CAP_NET_ADMIN
 		// for nft. Peer and fixture helpers stay privileged (root under sudo) so
-		// they can read nft state and signal the daemon.
+		// they can read nft state and signal the daemon. The credential is set
+		// beside whatever attributes the command already carries, never in
+		// place of them; startWithETXTBSYRetry then lays the process group and
+		// the death signal over it.
 		if netnsMode && netnsHasUID && binName == binNameZe {
-			proc.SysProcAttr = &syscall.SysProcAttr{
-				Credential: &syscall.Credential{Uid: uint32(netnsUID), Gid: uint32(netnsGID)}, //nolint:gosec // uid/gid from local dev env
+			if proc.SysProcAttr == nil {
+				proc.SysProcAttr = &syscall.SysProcAttr{}
 			}
+			proc.SysProcAttr.Credential = &syscall.Credential{Uid: uint32(netnsUID), Gid: uint32(netnsGID)} //nolint:gosec // uid/gid from local dev env
 		}
 
 		// Preserve the pre-launch offsets, but publish the open span only after
@@ -1031,7 +1044,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		proc.Stderr = stderrSeen
 
 		// Start the process, retrying on ETXTBSY (see startWithETXTBSYRetry).
-		owned, startErr := startWithETXTBSYRetry(testCtx, binPath, args, proc, r.observeProcessExit)
+		owned, startErr := startWithETXTBSYRetry(testCtx, binPath, args, proc, r.observeProcessExit, childThread)
 		if startErr != nil {
 			rec.Error = fmt.Errorf("start %s: %w", binName, startErr)
 			return false

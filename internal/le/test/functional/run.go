@@ -74,12 +74,15 @@ const interruptedCode = 130
 // Execute runs one suite and answers its exit status and how long it took.
 //
 // The suite's `timeout` heads a process group of its own (gaterun.StreamContext),
-// and every process the suite starts stays in it unless it moves itself out. A
-// canceled ctx SIGKILLs that whole group, so a suite that ignores SIGTERM, and
-// the daemons it started, stop with it, where killing le alone used to leave
-// them running to their budget. Execute then waits for the group to empty and
-// says so when it does not. The caller MUST read ctx after the call: a canceled
-// run's code is the kill's (137), never a verdict of the suite.
+// and the runner it starts is in that group. A canceled ctx SIGKILLs the whole
+// group, so a runner that ignores SIGTERM stops with it. The runner's children
+// are not in that group: the runner puts each one in a process group of its own
+// (startWithETXTBSYRetry in internal/test/runner). On Linux each child carries
+// a parent-death signal, so the kernel kills it when the runner dies. One child
+// escapes: a netns-mode ze is a setcap'd binary, its exec clears that signal,
+// and it can outlive the runner. Execute then waits for the suite's group to
+// empty and says so when it does not. The caller MUST read ctx after the call:
+// a canceled run's code is the kill's (137), never a verdict of the suite.
 func Execute(ctx context.Context, tc gotoolchain.Toolchain, suite Suite, set BinarySet, cover string) (code, seconds int) {
 	environ := coverEnvironment(set.Environment(tc), cover)
 	started := time.Now()

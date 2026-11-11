@@ -316,7 +316,7 @@ func TestOwnedCancellationJoinsLifetime(t *testing.T) {
 	cmd := exec.CommandContext(ctx, "sh", "-c", "echo ready; exec sleep 60")
 	ready := newSyncWriterPattern("ready")
 	cmd.Stdout = ready
-	p, err := startWithETXTBSYRetry(ctx, cmd.Path, cmd.Args[1:], cmd, nil)
+	p, err := startWithETXTBSYRetry(ctx, cmd.Path, cmd.Args[1:], cmd, nil, forkThreadSpawner)
 	if err != nil {
 		t.Fatal(err)
 	}

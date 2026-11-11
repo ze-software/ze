@@ -252,6 +252,36 @@ Three things end a process, and the suite owes all three:
 | Context cancellation | The per-case timeout, and the suite context when the operator interrupts the runner |
 | `Pdeathsig` on Linux | The runner dying outright, which no code in the runner can cover |
 
+The `.ci` owner meets the third route in `startWithETXTBSYRetry`, the one
+function that starts every long-lived `.ci` child: the peer, the ze client and
+each multi-process command. Every child gets the plugin package's fork
+attributes (`plugin.NewSysProcAttr`: its own process group, and SIGKILL from
+the kernel when its parent dies), merged with the dropped credential that a
+netns-mode ze carries. A start retried after ETXTBSY builds the same
+attributes, so a retry does not lose the death signal.
+
+The kernel's "parent" is the thread that forked, not the runner process, so
+the forking thread decides when the signal fires. The Go runtime destroys a
+thread whose goroutine returns while it holds that thread locked, and a child
+forked on such a thread would be killed mid-test. Outside netns mode the start
+therefore goes through `plugin.StartChild`, which forks from a spawner thread
+locked for the life of the runner. In netns mode the child must inherit the
+test's network namespace, which only the test goroutine's thread is in
+(`enterTestNetns`), while the spawner thread sits in the host namespace. The
+child is forked on that locked test thread, which stays locked until the
+test's deferred restore runs after every child is finished, so it outlives
+each child it forks.
+
+One child escapes. The kernel clears the death signal when a process execs a
+binary that carries file capabilities, and a netns-mode ze is a setcap'd
+binary, so that ze can still outlive a runner that dies outright. Its peer and
+fixtures cannot. Other platforms have no `Pdeathsig`, so there the first two
+routes are all the runner has.
+<!-- source: internal/test/runner/runner_exec_util.go -- startWithETXTBSYRetry -->
+<!-- source: internal/component/plugin/sysproc_linux.go -- NewSysProcAttr, StartChild -->
+<!-- source: internal/test/runner/netns_linux.go -- enterTestNetns -->
+<!-- test: internal/test/runner/process_death_linux_test.go TestRunnerKilledOutrightTakesItsChildren, TestOwnedChildLivesWhileItsRunnerLives -->
+
 An explicit stop inside a branch is an ORDERING barrier, not a lifetime: output
 must not be read while its writer runs, and an exit status does not exist until
 the process has one. A branch that reads it as the lifetime leaves the process

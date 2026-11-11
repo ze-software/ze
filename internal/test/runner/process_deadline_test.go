@@ -23,7 +23,7 @@ func TestStartedProcessDeadlineEndsTheTree(t *testing.T) {
 	var out bytes.Buffer
 	proc.Stdout = &out
 	proc.Stderr = &out
-	owned, err := startWithETXTBSYRetry(ctx, "sh", args, proc, nil)
+	owned, err := startWithETXTBSYRetry(ctx, "sh", args, proc, nil, forkThreadSpawner)
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}

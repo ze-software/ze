@@ -21,6 +21,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/test/tmpfs"
 )
@@ -944,16 +945,68 @@ func zeCLICommandValue(args []string) (string, bool) {
 	return "", false
 }
 
-// startWithETXTBSYRetry starts proc, retrying on ETXTBSY -- which occurs when a
-// concurrent fork+exec in another test goroutine holds a write-open fd to the
-// binary between fork and execve (https://go.dev/issue/22315). Go 1.25+ marks a
-// Cmd as started even on failure (https://go.dev/issue/77075), so a fresh Cmd is
-// created for each retry. Only success returns an owned process. The caller
-// MUST immediately defer its cleanup before any later operation can fail.
+// forkThread names the OS thread a long-lived .ci child is forked on. The
+// kernel sends a child's parent-death signal when the THREAD that forked it
+// exits, so the thread decides how long the child may live.
+type forkThread uint8
+
+const (
+	// forkThreadUnspecified is the zero value, which no start accepts.
+	forkThreadUnspecified forkThread = iota
+	// forkThreadSpawner forks through plugin.StartChild, whose spawner thread
+	// stays locked for the life of the runner. Every start outside netns mode.
+	forkThreadSpawner
+	// forkThreadLocked forks on the calling goroutine's thread. The caller MUST
+	// hold that thread locked until every child it forks is finished: netns
+	// mode, where only the test's locked thread is in the test's namespace
+	// (enterTestNetns) and its deferred restore runs after each child's finish.
+	forkThreadLocked
+)
+
+// forkFor answers the start operation for thread. A start that cannot say
+// which thread it forks on is refused, because the wrong thread kills the
+// child mid-test or leaves it alive after the runner dies.
+func forkFor(thread forkThread) (func(*exec.Cmd) error, error) {
+	switch thread {
+	case forkThreadSpawner:
+		return plugin.StartChild, nil
+	case forkThreadLocked:
+		return (*exec.Cmd).Start, nil
+	case forkThreadUnspecified:
+		return nil, errors.New("start a .ci child: the fork thread is unspecified")
+	}
+	return nil, fmt.Errorf("start a .ci child: fork thread %d is not one the runner defines", thread)
+}
+
+// startWithETXTBSYRetry starts proc on the thread the caller names, retrying
+// on ETXTBSY -- which occurs when a concurrent fork+exec in another test
+// goroutine holds a write-open fd to the binary between fork and execve
+// (https://go.dev/issue/22315). Only success returns an owned process. The
+// caller MUST immediately defer its cleanup before any later operation can fail.
 //
 // Every attempt is bounded by boundProcessDeadline, so the test's deadline ends
-// the whole process tree and Wait returns when it does.
-func startWithETXTBSYRetry(ctx context.Context, binPath string, args []string, proc *exec.Cmd, observe func(*ownedProcess) error) (*ownedProcess, error) {
+// the whole process tree and Wait returns when it does. Every attempt's child
+// also carries the plugin package's fork attributes (forkAttributes): its own
+// group and, on Linux, SIGKILL from the kernel when its forking thread dies,
+// which is how a child dies with a runner that dies outright.
+func startWithETXTBSYRetry(ctx context.Context, binPath string, args []string, proc *exec.Cmd, observe func(*ownedProcess) error, thread forkThread) (*ownedProcess, error) {
+	fork, err := forkFor(thread)
+	if err != nil {
+		return nil, err
+	}
+	return startWithRetry(ctx, binPath, args, proc, observe, fork)
+}
+
+// startWithRetry is startWithETXTBSYRetry with the fork operation passed in,
+// so a test can drive the retry branch without racing a real ETXTBSY. Go 1.25+
+// marks a Cmd as started even on failure (https://go.dev/issue/77075), so a
+// fresh Cmd is created for each retry.
+func startWithRetry(ctx context.Context, binPath string, args []string, proc *exec.Cmd, observe func(*ownedProcess) error, fork func(*exec.Cmd) error) (*ownedProcess, error) {
+	// The caller's attributes (the netns-mode credential drop, Fix B) are read
+	// once, so every attempt builds the same attributes from them: a retry that
+	// lost the credential would re-run ze as root, and one that lost the death
+	// signal would reopen the orphan leak.
+	requested := proc.SysProcAttr
 	var startErr error
 	var owned *ownedProcess
 	for attempt := range 3 {
@@ -966,13 +1019,11 @@ func startWithETXTBSYRetry(ctx context.Context, binPath string, args []string, p
 			proc.Stdin = old.Stdin
 			proc.Stdout = old.Stdout
 			proc.Stderr = old.Stderr
-			// Preserve the netns-mode credential drop (Fix B); losing it on retry
-			// would silently re-run ze as root and break the readiness handshake.
-			proc.SysProcAttr = old.SysProcAttr
 		}
+		proc.SysProcAttr = forkAttributes(requested)
 		owned = boundProcessDeadline(proc)
 		owned.observe = observe
-		startErr = proc.Start()
+		startErr = fork(proc)
 		if startErr == nil || !errors.Is(startErr, syscall.ETXTBSY) {
 			break
 		}

@@ -17,7 +17,7 @@ import (
 // same mandatory cleanup, including when a test assertion aborts the caller.
 func startOwnedTestProcess(t *testing.T, cmd *exec.Cmd) *ownedProcess {
 	t.Helper()
-	owned, err := startWithETXTBSYRetry(t.Context(), cmd.Path, cmd.Args[1:], cmd, nil)
+	owned, err := startWithETXTBSYRetry(t.Context(), cmd.Path, cmd.Args[1:], cmd, nil, forkThreadSpawner)
 	if err != nil {
 		t.Fatal(err)
 	}
