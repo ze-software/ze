@@ -10,6 +10,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/events"
@@ -63,7 +64,14 @@ func init() {
 	}
 	registry.SetNTPSyncProvider(ntpSyncInfo)
 
-	reg.CLIHandler = func(_ []string) int { return 1 }
+	reg.CLIHandler = func(args []string) int {
+		cfg := cli.BaseConfig(&reg)
+		cfg.GetYANG = func() string { return reg.YANG }
+		cfg.ConfigLogger = func(level string) {
+			loggerPtr.Store(slogutil.PluginLogger(reg.Name, level))
+		}
+		return cli.RunPlugin(cfg, args)
+	}
 
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
