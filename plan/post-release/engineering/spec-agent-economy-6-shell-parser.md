@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P1 |
 | Release reason | Release-independent development tooling: it changes how the pre-tool Bash hook reads an agent's command line and changes no shipped binary. |
@@ -21,6 +21,7 @@ Owner order, 2026-11-11, in reply to the offer to vendor a real bash parser
 (`mvdan.cc/sh`, the parser behind shfmt) in place of the hand-written splitter
 and syntax allow-list of the pre-tool Bash hook: "incorporate all the
 improvements you have identified".
+→ Decision: Status moved from `design` to `ready` on that order (2026-11-11): Thomas ordered the work itself, so the design needs no further approval, and the umbrella's child-claim rule admits the claim at the in-progress count plus one.
 
 Child 1 closed with the hook reading a command line through a splitter it
 wrote itself (`lineCommands`) and trusting that split only inside a byte-level
@@ -582,6 +583,7 @@ umbrella's Children table.
    - Verify: A-1 (the import blocks of the vendored package), A-7. The main thread runs the module commands, which need the network, and `./le repo compiles check`.
    - Gate before phase 2's import: Thomas runs `./le deps approve package mvdan.cc/sh/v3/syntax importer internal/le/hookruntime reason "bash parser for the pre-tool Bash hook"`.
 2. **Phase: Wiring (MANDATORY FIRST of the code)** -- development tier; strongest-tier review
+   - → Decision (2026-11-11, main thread): the fixes below (AC-20, AC-21, AC-22, AC-26, AC-27, AC-32) land first, in a commit of their own, and the recorded HEAD-verdict table (`TestGuardVerdictsOfHeadStand`) lands in the next commit, recorded from the tree that commit produces. The fix commit changes one verdict, and only toward refusal (AC-26's lone `.`), so a table recorded after it still holds every refusal HEAD gives.
    - First commit, no parser, the first hook-touching commit: the recorded table written from HEAD (`TestGuardVerdictsOfHeadStand`, green by construction against the code it recorded). Then the fixes that need no parser, each with its test failing first: the lone `.` (AC-26) and the rows owed (AC-27), because that hole is open in every session today; the quiet form (AC-20); the hoisted pattern (AC-21); the stale comment and page sentence (AC-22); the `readerCommands` comment (AC-32).
    - The fork probe (AC-28) runs here; its record decides whether the hook's fork test changes, in a commit of its own.
    - Second commit: `shellparse.go` with the parse, the panic containment and the word-value reading; the wiring tests of the table above fail; the bash comparison tests and the fuzz target pass over the corpus. The parse has one production reader from this commit: `commandOutsideReaders` names a line that does not parse from it.

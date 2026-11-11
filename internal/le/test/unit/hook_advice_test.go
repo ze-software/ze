@@ -59,9 +59,9 @@ func TestRawGoTestAdvisesTheShortFormOnlyWhereTheActionRuns(t *testing.T) {
 		use     string
 	}{
 		{"runs", `go test ./internal/le/job/`, "./le test unit pkg path ./internal/le/job/"},
-		{"spans-groups", `go test ./internal/...`, "./le job run label unit-pkg command go test ./internal/..."},
-		{"installer-group", `go test ./internal/install/x/`, "./le job run label unit-pkg command go test ./internal/install/x/"},
-		{"vet-installer", `go vet ./internal/install/...`, "./le job run label vet-pkg command go vet ./internal/install/..."},
+		{"spans-groups", `go test ./internal/...`, "./le job run label unit-pkg quiet command go test ./internal/..."},
+		{"installer-group", `go test ./internal/install/x/`, "./le job run label unit-pkg quiet command go test ./internal/install/x/"},
+		{"vet-installer", `go vet ./internal/install/...`, "./le job run label vet-pkg quiet command go vet ./internal/install/..."},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

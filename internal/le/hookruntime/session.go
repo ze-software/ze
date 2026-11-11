@@ -159,12 +159,25 @@ func changesEnvironment(raw, words []string) bool {
 			afterWrapper = true
 			continue
 		}
-		if afterWrapper && (strings.HasPrefix(word, "-") || strings.Trim(word, "0123456789.smhd") == "") {
+		if afterWrapper && (strings.HasPrefix(word, "-") || wrapperNumber(word)) {
 			continue
 		}
 		return environmentTools[word]
 	}
 	return false
+}
+
+// wrapperNumber reports whether a word after a wrapper is a count or a
+// duration the walk skips (`nice 10`, `timeout 1.5s`): made only of digits,
+// `.` and the unit letters `smhd`, and holding a digit. A word with no digit
+// is the command word the wrapper runs, so a lone `.` is the source builtin
+// and `time . ./env.sh` is judged as `.` (spec-agent-economy-6-shell-parser
+// AC-26).
+func wrapperNumber(word string) bool {
+	if strings.Trim(word, "0123456789.smhd") != "" {
+		return false
+	}
+	return strings.ContainsAny(word, "0123456789")
 }
 
 // plainAssignment reports whether a word typed in front of a command assigns

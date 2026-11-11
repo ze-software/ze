@@ -88,8 +88,9 @@ func TestSubagentContextResolvesClaim(t *testing.T) {
 
 // VALIDATES: AC-6, the identity line. The start text of a subagent whose
 // payload carries its agent id holds the full line the agent types in front of
-// a command; a payload with no agent id holds the session part and says that
-// the first refusal prints the full line. Neither claims that the hook adds
+// a command; a payload with no agent id holds the session part alone and says
+// that part is the whole identity line, so no later refusal prints more, and
+// neither text speaks of a first refusal. Neither claims that the hook adds
 // the line, because the hook no longer changes a command.
 // PREVENTS: a subagent learning its identity line only from a refused call.
 func TestSubagentStartCarriesTheIdentityLine(t *testing.T) {

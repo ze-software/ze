@@ -344,7 +344,7 @@ func TestRawGoTestRefusalNamesTheShortAction(t *testing.T) {
 			if !strings.Contains(message, "  -- Use: "+test.use+"\n") {
 				t.Errorf("%q: the refusal does not use %q: %s", test.command, test.use, message)
 			}
-			if strings.Contains(message, "label unit-pkg command") {
+			if strings.Contains(message, "./le job run label unit-pkg") {
 				t.Errorf("%q: the refusal still teaches the long form: %s", test.command, message)
 			}
 		})
@@ -370,7 +370,7 @@ func TestRawGoVetIsRefusedNamingTheShortAction(t *testing.T) {
 		{"two-packages", `go vet ./internal/x/ ./internal/y/`, 2,
 			[]string{"  -- Use: ./le test unit pkg path ./internal/x/ path ./internal/y/ vet\n"}},
 		{"a-flag", `go vet -printf=false ./internal/x/`, 2, []string{
-			"  -- Use: ./le job run label vet-pkg command go vet -printf=false ./internal/x/\n",
+			"  -- Use: ./le job run label vet-pkg quiet command go vet -printf=false ./internal/x/\n",
 			"takes no other flag: ./le test unit pkg path <package> vet\n"}},
 		{"admitted-raw", `ZE_ADMIT_RAW="one vet of a fixture" go vet ./internal/x/`, 0, nil},
 		{"a-reader", `grep -n "go vet ./internal/x/" f`, 0, nil},
@@ -442,7 +442,7 @@ func TestRawGoTestWithAnotherFlagKeepsTheLongForm(t *testing.T) {
 			if code != 2 {
 				t.Fatalf("%q: code %d, want 2: %s", test.command, code, message)
 			}
-			if !strings.Contains(message, "  -- Use: ./le job run label unit-pkg command "+test.use+"\n") {
+			if !strings.Contains(message, "  -- Use: ./le job run label unit-pkg quiet command "+test.use+"\n") {
 				t.Errorf("%q: the refusal lacks the long form of %q: %s", test.command, test.use, message)
 			}
 			if !strings.Contains(message, "takes no other flag: ./le test unit pkg path <package> [run <regex>]\n") {

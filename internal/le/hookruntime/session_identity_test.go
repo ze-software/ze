@@ -525,7 +525,9 @@ func TestSubagentQuotedBackslashTargetIsAFile(t *testing.T) {
 // environment by its form is refused whatever names it carries: export, env,
 // exec, sudo, declare, unset and the rest, and an assignment in front of a
 // command to a name that is not plain, on modeled and unmodeled lines alike,
-// while the plain forms agents type still pass.
+// while the plain forms agents type still pass. The rows that name no
+// identity variable prove each form by its form, and one row puts an
+// environment tool behind each reserved word and each wrapper.
 // PREVENTS: a name built from pieces (`ZE_AGENT_""ID`, `"${n}_ID"`, a
 // backslash, a brace, `$'\x49'`) hiding from the literal-mention rule, and
 // `env -i`, `exec -c` or `sudo` dropping the identity the line set.
@@ -547,6 +549,31 @@ func TestSubagentChangingTheEnvironmentAfterItsLineIsRefused(t *testing.T) {
 		`exec -c le x`,
 		`sudo le x`,
 		`nice -n 5 env -u ZE_AGENT_""ID le x`,
+		// AC-27 of spec-agent-economy-6-shell-parser: rows that name no
+		// identity variable, so each is refused by its form and not by the
+		// mention rule.
+		`source x`,
+		`. x`,
+		`set -a`,
+		`eval x`,
+		`typeset -x A`,
+		`readonly A`,
+		`local A`,
+		`command export A=1`,
+		`if true; then export A=1; fi`,
+		`timeout 5 env -i le x`,
+		`time . x`,
+		// An environment tool behind each reserved word and each wrapper.
+		`if env -i le x; then true; fi`,
+		`if false; then true; elif env -i le x; then true; fi`,
+		`if false; then true; else env -i le x; fi`,
+		`for f in a; do env -i le x; done`,
+		`while env -i le x; do true; done`,
+		`until env -i le x; do true; done`,
+		`nohup env -i le x`,
+		`timeout 1.5s sudo le x`,
+		`xargs env -i le x`,
+		`stdbuf -oL env -i le x`,
 	} {
 		code, output, message := runSubagentBash(t, identityLineOfAgent+rest)
 		if code != 2 || output != "" {
@@ -611,6 +638,47 @@ func TestSubagentNamingAnIdentityVariableAfterItsLineIsRefused(t *testing.T) {
 		`grep ZE_AGENT_ID f`,
 		`echo $ZE_AGENT_ID`,
 		`grep -n CLAUDE_CODE_SESSION_ID f; ./le spec current`,
+	} {
+		code, output, message := runSubagentBash(t, identityLineOfAgent+rest)
+		if code != 0 || output != "" {
+			t.Errorf("%q: code=%d output=%q message=%s, want exit 0 and no output", rest, code, output, message)
+		}
+	}
+}
+
+// TestEnvironmentToolIsFoundBehindEveryWrapper is AC-26 of
+// spec-agent-economy-6-shell-parser.
+//
+// VALIDATES: through the hook's Run, after the agent's own identity line, a
+// lone `.` behind `time`, `then`, `command` or `builtin` is the command word
+// and is refused as taking another identity, on a line inside the modeled
+// syntax and on one outside it (a brace group): a word the walk skips as a
+// duration holds a digit. A wrapper's numeric argument that holds a digit is
+// still skipped, so `timeout 5`, `timeout 1.5s` and `nice -n 5` in front of
+// `./le` pass.
+// PREVENTS: `time . ./env.sh` sourcing a file that sets either identity
+// variable unseen, because the walk skipped `.` as a duration made only of
+// the characters `0123456789.smhd`.
+func TestEnvironmentToolIsFoundBehindEveryWrapper(t *testing.T) {
+	for _, rest := range []string{
+		`time . ./env.sh; ./le spec current`,
+		`if true; then . ./env.sh; fi; ./le spec current`,
+		`command . x; ./le spec current`,
+		`builtin . x; ./le spec current`,
+		`{ time . ./env.sh; }; ./le spec current`,
+	} {
+		code, output, message := runSubagentBash(t, identityLineOfAgent+rest)
+		if code != 2 || output != "" {
+			t.Errorf("%q: code=%d output=%q, want exit 2 and no output", rest, code, output)
+		}
+		if !strings.Contains(message, "another identity") {
+			t.Errorf("%q: message does not say the command takes another identity: %s", rest, message)
+		}
+	}
+	for _, rest := range []string{
+		`timeout 5 ./le spec current`,
+		`timeout 1.5s ./le spec current`,
+		`nice -n 5 ./le spec current`,
 	} {
 		code, output, message := runSubagentBash(t, identityLineOfAgent+rest)
 		if code != 0 || output != "" {

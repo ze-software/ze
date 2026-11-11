@@ -54,7 +54,7 @@ func lossyPipeRefusal(identity, filter, segment string) *verdict {
 	}
 	advice := head +
 		"  -- Run it with no filter, redirect or tee, in the quiet admitted form (ai/rules/commands.md). Its output goes to this session's scratch log, and the answer carries the exit code, the log's path and the failure lines:\n" +
-		"     " + identity + admittedCommand(lossyPipeLabel(words), true, words) + "\n"
+		"     " + identity + admittedCommand(lossyPipeLabel(words), words) + "\n"
 	if goTest(words) {
 		advice += "  -- For one package with its feature tags, the short form: " + shortPackageForm + "\n"
 	}

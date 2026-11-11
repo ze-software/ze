@@ -32,6 +32,13 @@ type readerJudge func(arguments []string, expands []bool) bool
 // line on every `cat "$dir/x.log"`; only its command word must be text.
 // diff carries a judge because its -l pipes the output through pr.
 //
+// The nil judges assume the GNU option sets of grep and coreutils, which no
+// code here checks. A host whose grep or coreutils carry another option set
+// (the BSD userland of macOS, BusyBox) can give one of these commands an
+// option that runs a program or writes a file, and a nil judge would pass it:
+// on such a host each nil entry is owed a judge, read from that host's
+// manual, before it is trusted.
+//
 // A reader's own options write no file, and the shell's redirections are
 // judged beside the table: a command that redirects its output into a file
 // (shellLine.writesFile) is no reader, whatever its judge says.

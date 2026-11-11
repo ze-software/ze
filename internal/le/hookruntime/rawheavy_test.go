@@ -34,7 +34,7 @@ func TestRawGoTestAdviceKeepsAQuotedFilter(t *testing.T) {
 			"./le test unit pkg path ./internal/x/ run 'TestA|TestB'"},
 		{"unpiped", `go test -run 'A|B' ./x`, "./le test unit pkg path ./x run 'A|B'"},
 		{"assignment", `GOFLAGS=-count=1 go test -run 'A|B' ./x`,
-			"./le job run label unit-pkg command env GOFLAGS=-count=1 go test -run 'A|B' ./x"},
+			"./le job run label unit-pkg quiet command env GOFLAGS=-count=1 go test -run 'A|B' ./x"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -74,7 +74,7 @@ func TestRawGoTestMoveTheFormCannotCarry(t *testing.T) {
 			if code != 2 {
 				t.Fatalf("%q: code %d, want 2: %s", command, code, message)
 			}
-			if !strings.Contains(message, "  -- Use: ./le job run label unit-pkg command go test ./x/\n") {
+			if !strings.Contains(message, "  -- Use: ./le job run label unit-pkg quiet command go test ./x/\n") {
 				t.Errorf("%q: the refusal lacks the long form with no move: %s", command, message)
 			}
 			if !strings.Contains(message, "changes directory first ("+move+"), which this form cannot carry") {
@@ -208,5 +208,102 @@ func TestRawGoVetShortLineSaysVet(t *testing.T) {
 	}
 	if strings.Contains(message, "race detector") {
 		t.Errorf("the vet short line names the race detector: %s", message)
+	}
+}
+
+// TestLauncherLoopsCompileNoPattern is AC-21 of
+// spec-agent-economy-6-shell-parser.
+//
+// VALIDATES: rawHeavy and programWords skip a launcher's numeric argument
+// (`timeout 60`, `nice 10`, `timeout 1.5m`) as before, and each launcher word
+// added in front of a segment costs at most two allocations: the
+// numeric-argument pattern is compiled once, at package load. The test
+// compares a segment behind k launcher pairs with one behind k+8, so the
+// allocations every judgment makes whatever its launchers (the word slice,
+// the kept argv, the refusal) cancel out, and only the cost of each added
+// word is measured.
+// PREVENTS: a regular expression compiled on every pass of the launcher
+// loops, which costs every Bash call of every session dozens of allocations
+// per launcher word.
+func TestLauncherLoopsCompileNoPattern(t *testing.T) {
+	if got := programWords("nice 10 timeout 1.5m go test ./x"); strings.Join(got, " ") != "go test ./x" {
+		t.Errorf("programWords skipped to %q, want go test ./x", got)
+	}
+	if refusal := rawHeavy("timeout 60 go test ./x", nil, t.TempDir()); refusal.what != "`go test`" {
+		t.Errorf("rawHeavy behind timeout 60 answered %q, want the go test refusal", refusal.what)
+	}
+	// The per-word budget: an added word costs shellWords one string, and
+	// the word slice and the prefix slice an amortized share of a doubling,
+	// so two allocations per word is a ceiling no correct loop reaches. One
+	// compile of the pattern costs dozens of allocations, and the loops would
+	// compile at least once for each launcher word, so a compile inside
+	// either loop exceeds the ceiling many times over.
+	const (
+		fewPairs              = 2
+		addedPairs            = 8
+		wordsPerPair          = 2
+		allocationsPerWordMax = 2
+	)
+	few := strings.Repeat("timeout 5 ", fewPairs) + "cat x"
+	many := strings.Repeat("timeout 5 ", fewPairs+addedPairs) + "cat x"
+	budget := float64(addedPairs * wordsPerPair * allocationsPerWordMax)
+	if got := programWords(many); strings.Join(got, " ") != "cat x" {
+		t.Fatalf("programWords behind %d launchers skipped to %q, want cat x", fewPairs+addedPairs, got)
+	}
+	short := testing.AllocsPerRun(20, func() { programWords(few) })
+	long := testing.AllocsPerRun(20, func() { programWords(many) })
+	if long-short > budget {
+		t.Errorf("programWords: %v allocations behind %d launcher pairs, %v behind %d: more than %d per added word, the launcher loop compiles a pattern",
+			long, fewPairs+addedPairs, short, fewPairs, allocationsPerWordMax)
+	}
+	short = testing.AllocsPerRun(20, func() { rawHeavy(few, nil, "") })
+	long = testing.AllocsPerRun(20, func() { rawHeavy(many, nil, "") })
+	if long-short > budget {
+		t.Errorf("rawHeavy: %v allocations behind %d launcher pairs, %v behind %d: more than %d per added word, the launcher loop compiles a pattern",
+			long, fewPairs+addedPairs, short, fewPairs, allocationsPerWordMax)
+	}
+}
+
+// TestRawRefusalAdvisesTheQuietForm is AC-20 of
+// spec-agent-economy-6-shell-parser.
+//
+// VALIDATES: through the hook's Run, a raw go test or go vet the short action
+// cannot express, and a raw golangci-lint run, are refused with a Use line in
+// the quiet admitted form `./le job run label <label> quiet command <argv>`,
+// and the generic-form line carries `quiet` too. A go test the short action
+// expresses still advises the short action, which is quiet by itself.
+// PREVENTS: the refusal teaching the long form without `quiet`, whose
+// streamed output fills the caller's context (ai/rules/commands.md), while
+// the piped-command refusal already teaches the quiet form.
+func TestRawRefusalAdvisesTheQuietForm(t *testing.T) {
+	tests := []struct {
+		name    string
+		command string
+		use     string
+	}{
+		{"go-test-flag", `go test -v ./internal/x/`, "./le job run label unit-pkg quiet command go test -v ./internal/x/"},
+		{"go-vet-flag", `go vet -printf=false ./internal/x/`,
+			"./le job run label vet-pkg quiet command go vet -printf=false ./internal/x/"},
+		{"lint", `golangci-lint run ./internal/x/`, "./le job run label lint quiet command golangci-lint run ./internal/x/"},
+		{"go-test-short", `go test ./internal/x/`, "./le test unit pkg path ./internal/x/"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			code, message := rawRefusalOf(t, test.command)
+			if code != 2 {
+				t.Fatalf("%q: code %d, want 2: %s", test.command, code, message)
+			}
+			if !strings.Contains(message, "  -- Use: "+test.use+"\n") {
+				t.Errorf("%q: the refusal lacks the Use line %q: %s", test.command, test.use, message)
+			}
+			if !strings.Contains(message, "  -- Generic form:\n     ./le job run label <label> quiet command <argv...>\n") {
+				t.Errorf("%q: the generic form lacks quiet: %s", test.command, message)
+			}
+			for _, label := range []string{"unit-pkg", "vet-pkg", "lint", "<label>"} {
+				if strings.Contains(message, "./le job run label "+label+" command") {
+					t.Errorf("%q: the refusal teaches the %s form without quiet: %s", test.command, label, message)
+				}
+			}
+		})
 	}
 }

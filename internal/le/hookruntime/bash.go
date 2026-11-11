@@ -345,7 +345,7 @@ func programWords(segment string) []string {
 		}
 		tokens = tokens[1:]
 		if head == "timeout" || head == "nice" {
-			for len(tokens) != 0 && (strings.HasPrefix(tokens[0], "-") || regexp.MustCompile(`^-?\d+(?:\.\d+)?[smhd]?$`).MatchString(tokens[0])) {
+			for len(tokens) != 0 && (strings.HasPrefix(tokens[0], "-") || launcherNumber.MatchString(tokens[0])) {
 				tokens = tokens[1:]
 			}
 		}
@@ -475,16 +475,12 @@ func commandSegments(command string) []string {
 }
 
 // admittedCommand writes the job-admission form of a command a refusal
-// advises: `./le job run label <label> [quiet] command <argv>`. quiet sends
-// the child's output to this session's scratch log rather than the
-// transcript (ai/rules/commands.md).
-func admittedCommand(label string, quiet bool, tokens []string) string {
-	form := "./le job run label " + label
-	if quiet {
-		form += " quiet"
-	}
+// advises: `./le job run label <label> quiet command <argv>`. Every refusal
+// advises the quiet form: quiet sends the child's output to this session's
+// scratch log rather than the transcript (ai/rules/commands.md).
+func admittedCommand(label string, tokens []string) string {
 	var advice strings.Builder
-	advice.WriteString(form)
+	advice.WriteString("./le job run label " + label + " quiet")
 	advice.WriteString(" command")
 	// Each word is written back as one shell word, so a value the caller
 	// quoted (`-run 'TestA|TestB'`) is advised as the same argument.
@@ -548,7 +544,7 @@ func bashRawHeavy(ctx context) *verdict {
 			"  -- One machine, several sessions: registered `./le` actions admit\n" +
 			"     their own heavy work. A raw tool reaches the box unadmitted.\n" +
 			"  -- Use: " + commandIdentityPrefix(ctx) + refusal.use + "\n" + moved + short +
-			"  -- Generic form:\n     ./le job run label <label> command <argv...>\n" +
+			"  -- Generic form:\n     ./le job run label <label> quiet command <argv...>\n" +
 			"  -- A one-off that must not queue states its reason:\n" +
 			"     ZE_ADMIT_RAW=\"bisecting one 2s case\" <command>"}
 	}

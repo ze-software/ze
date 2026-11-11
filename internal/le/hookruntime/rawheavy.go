@@ -82,7 +82,7 @@ func rawHeavy(segment string, moves []string, root string) rawRefusal {
 		if oneOf(head, "bash", "sh", "perl", "ruby", "sudo", "time", "nice", "env", "timeout") {
 			prefix = append(prefix, head)
 			tokens = tokens[1:]
-			for len(tokens) != 0 && (strings.HasPrefix(tokens[0], "-") || regexp.MustCompile(`^\d+(?:\.\d+)?[smhd]?$`).MatchString(tokens[0])) {
+			for len(tokens) != 0 && (strings.HasPrefix(tokens[0], "-") || launcherNumber.MatchString(tokens[0])) {
 				prefix = append(prefix, tokens[0])
 				tokens = tokens[1:]
 			}
@@ -116,7 +116,7 @@ func rawHeavy(segment string, moves []string, root string) rawRefusal {
 		if oneOf(sub, "config", "version", "help", "linters", "cache", "completion") {
 			return rawRefusal{}
 		}
-		return rawRefusal{what: "`golangci-lint`", use: admittedCommand("lint", false, kept), uncarried: uncarried}
+		return rawRefusal{what: "`golangci-lint`", use: admittedCommand("lint", kept), uncarried: uncarried}
 	}
 	return rawRefusal{}
 }
@@ -256,10 +256,12 @@ func PackageActionWords() map[string]string {
 }
 
 // packageRefusal advises the short package action for a go test or go vet
-// whose words it expresses exactly, and otherwise the long admitted form with
-// one line naming the short action: a suggestion that dropped a flag, an
+// whose words it expresses exactly, and otherwise the quiet long admitted form
+// with one line naming the short action: a suggestion that dropped a flag, an
 // assignment or a launcher would change what the run does
-// (spec-agent-economy-2-scoped-test AC-7).
+// (spec-agent-economy-2-scoped-test AC-7). The long form is quiet, as the
+// piped-command refusal's is, so the run's output goes to the job log and not
+// into the caller's context (spec-agent-economy-6-shell-parser AC-20).
 func packageRefusal(what, label string, prefixed bool, tokens, kept []string, root string) rawRefusal {
 	vet := goVet(tokens)
 	if !prefixed {
@@ -271,7 +273,7 @@ func packageRefusal(what, label string, prefixed bool, tokens, kept []string, ro
 	if vet {
 		short = shortPackageForm + " " + pkgVetKeyword
 	}
-	return rawRefusal{what: what, use: admittedCommand(label, false, kept), short: short, vet: vet}
+	return rawRefusal{what: what, use: admittedCommand(label, kept), short: short, vet: vet}
 }
 
 // shortPackageAction writes the `./le test unit pkg` form of the words of a
@@ -365,3 +367,11 @@ func shellWord(value string) (string, bool) {
 
 // literalWord matches a word the shell reads as it is written.
 var literalWord = regexp.MustCompile(`^[A-Za-z0-9_./:@%+=,-]+$`)
+
+// launcherNumber matches a launcher's numeric argument, a count or a duration
+// (`nice 10`, `timeout 60`, `timeout 1.5m`), which the launcher loops of
+// rawHeavy and programWords skip to reach the program. It is compiled once,
+// at package load, because both loops run on every Bash call. A negative
+// value needs no sign here: both loops skip a word that starts with `-`
+// before they ask this pattern.
+var launcherNumber = regexp.MustCompile(`^\d+(?:\.\d+)?[smhd]?$`)

@@ -794,8 +794,10 @@ commands that need it. Its identity line is `export ZE_AGENT_ID=<agent_id>;
 export CLAUDE_CODE_SESSION_ID=<parent>; `, built from the ids in the hook
 payload (`identityLine`, `internal/le/hookruntime/session.go`). The start text
 of the subagent prints the line (`hookSubagentContext`), in full when the start
-payload carries the agent id, and otherwise the session part with a note that
-the first refusal prints the rest.
+payload carries the agent id. A start payload with no agent id, as a fork's
+is, gets the session part alone, with a note that this part is the whole
+identity line: the identity check compares nothing more, so no refusal prints
+more.
 
 The pretool Bash hook checks the line and never adds it (`bashAgentIdentity`).
 A hook that changes a command leaves auto mode with no verdict for the changed
@@ -839,7 +841,9 @@ pieces (`ZE_AGENT_""ID`, `"${n}_ID"`), so a command that changes the
 environment by its form is refused whatever names it carries: `export`,
 `declare`, `typeset`, `readonly`, `local`, `unset`, `env`, `exec`, `sudo`,
 `eval`, `source`, `.` or `set` as the command word, past a reserved word or a
-wrapper such as `time` or `nice`, and an assignment in front of a command to
+wrapper such as `time` or `nice` and the options and the count or duration
+the wrapper takes (a skipped count holds a digit, so `time . ./env.sh` is
+judged as `.`), and an assignment in front of a command to
 a name that is not plain. On a line outside the allow-list the first words
 of each command are judged by their text. `FOO=bar ./le x` and `cd x &&
 ./le x` pass.
