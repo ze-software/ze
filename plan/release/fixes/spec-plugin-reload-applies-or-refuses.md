@@ -2,14 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Priority | P1 |
 | Release reason | Retain reload repair ownership and outstanding review findings; completed phases are not closure. |
 | Scope | plugin |
 | Depends | spec-bgp-open-session-rfc-defects (closed 2026-10-21; D2, Q1 = b) for Phase 4 only: the capability-only plugins' explicit declaration lands after its capability extractor |
 | Phase | 6/6 |
 | Handoff | - |
-| Updated | 2026-10-15 |
+| Updated | 2026-11-11 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -19,10 +19,10 @@ The owner keeps this spec open until it closes on Linux (2026-10-15). All six ph
 
 | Step | Action | Command |
 |------|--------|---------|
-| 1 | Write, then run, the VPP functional proof of AC-18b: a running VPP receives `UpdateVLANQoSMap` as a full replace, and an empty egress map disables the mark. No test proves it today: `test/vpp/*.ci` drive the GoVPP stub, not a VPP, and `vpp-iface-test` (`internal/le/test/deployment/vppiface.go`, rows in `vppifacescenarios.go`) boots ze against a real VPP in Docker but has no QoS row and no reload step. Add a row there (a VLAN unit with `egress-qos-map` 3:3 and 5:5), give the run a SIGHUP step, and assert from `vppctl` after each reload: egress 3:3 only (5 gone), then no egress map (the sub-interface no longer marked). Confirm red under an overlay ze whose empty-egress branch returns with nothing done (the pre-`e0a0b087d6` no-op), then green | `./le test deployment vpp-iface` (Linux host: Docker, `/dev/net/tun`, `/dev/vhost-net`) |
-| 2 | Other Linux-host-only items: none owed. Every `needs-linux` reload test ran in the QEMU guest (History, phase 6 guest run). `firewall-reload` is red at initial state, before any reload, found not caused, journaled in `plan/journal/failing-gate-prints-no-cause.md` | - |
-| 3 | Gates the main thread owes | `./le go lint run`, `./le test unit all`, `./le test functional gating`, `./le verify worktree` |
-| 4 | Review Gate: not clean yet. Round 1 (2026-10-15) found 3 ISSUE, fixed; round 2 (2026-10-15, over the fixes) found 1 BLOCKER and 3 ISSUE (`## Review Gate`): ISSUE-5 and ISSUE-6 fixed in 6a3d05537e, BLOCKER-1 and ISSUE-4 wait on the owner's RFC-test approval; then run round 3 over those fixes, loop to 0 BLOCKER and 0 ISSUE, record through `./le spec review` | `/ze-review` |
+| 1 | MET: real VPP 26.06 lifecycle proof, empty-egress no-op mutation red, then final clean normal run. Harness 844f42a7d5; alias a82960a6e8 and monitor e4e5f8da3a repairs. Do not repeat completed proof without new changes. | `./le test deployment vpp-iface` (Docker server with required kernel features and devices) |
+| 2 | Current static-BFD diagnostic fixture needs guest proof: native run skipped because this process lacks CAP_NET_ADMIN. Earlier guest-suite history remains below; this skip is not a pass. | `./le test qemu ci test test/reload/static-bfd-profile-reload-deleted.ci` |
+| 3 | Main-thread scoped proof of changed packages and affected functional fixtures, then scoped lint and closure prechecks. Whole-tree verification belongs to pushed CI and is not an agent closure gate. | Named race tests, affected reload fixtures, `./le test deployment vpp-iface`, scoped `./le go lint run` |
+| 4 | Review Gate remains open. Rounds 1 through 4 have recorded findings and dispositions below; round 2's owner approval was already granted (Q19) and its wrappers removed in 224b0ef514. Review the round 4 fixes (5966274823), subsequent scoped repairs and new VPP lifecycle proof independently, then record a clean next round through native spec review. | `/ze-review` |
 | 5 | Close: append `plan/templates/TEMPLATE-CLOSURE.md`, commit A (code, tests, docs, spec), commit B (`remove` the spec) in one `./le commit create` script | `/ze-close` |
 
 ## Task
@@ -50,27 +50,31 @@ Current Behavior.
 
 ### Boundary with the BGP OPEN spec
 
-spec-bgp-open-session-rfc-defects (closed 2026-10-21), D2, owner Q1 = b
-(2026-10-13): a reload that changes, adds or removes a plugin-declared
-CAPABILITY is refused at config-verify by the SDK, through the capability
-extractor each capability plugin registers (`Plugin.DeclareCapabilitiesFrom`,
-final name set there). Its callers: `softver`, `hostname`, `role`, `llnh`, `gr`,
-the exabgp bridge, and the external `internal/plugins/exabgp/main_sdk.go`.
+The original design (2026-10-13, owner Q1 = b) delegated capability changes
+to the BGP OPEN spec and described its then-planned verify refusal. That is
+historical design context, not the current capability-reload contract.
+
+Current source keeps the ownership boundary but stages capability declarations:
+`Plugin.composeCapabilityVerify` calls the plugin's own verifier first, then
+extracts the candidate declaration into its successful answer. The server's
+`stageVerifiedCapabilities`, `installStagedCapabilities` and
+`restoreCapabilities` validate, publish and undo the declaration as part of the
+transaction. A peer added by the reload sends its first OPEN with it. A running
+session restarts when the changed capability was advertised by its peer;
+otherwise it keeps running and uses the new value in its next OPEN. The current
+operator contract is `docs/guide/config-reload.md`, capability rows, backed by
+`reactor/peer_settings_negotiation.go`.
 
 | Concern | Owner |
 |---------|-------|
-| Any leaf whose value reaches a capability declaration (softver encoding, hostname FQDN, role value, llnh capability, GR/LLGR timers and families, bridge route-refresh and add-path) | BGP OPEN spec. This spec adds no verify check for these leaves and never re-declares a capability |
+| Any leaf whose value reaches a capability declaration (softver encoding, hostname FQDN, role value, llnh capability, GR/LLGR timers and families, bridge route-refresh and add-path) | BGP capability-declaration lifecycle. This spec adds no second capability verifier or installer |
 | Every other leaf those plugins read (role `strict`, role `export`, the role name-to-address map, the bridge's non-capability leaves) | This spec |
-| The apply handler of a plugin whose only config is capability declarations (`gr`, `hostname`, `llnh`, `softver`, external exabgp) | This spec, Phase 4, and only after the OPEN spec's extractor has landed: before it, a no-op apply would name as handled a change nobody refuses |
+| The apply handler of a plugin whose only config is capability declarations (`gr`, `hostname`, `llnh`, `softver`, external exabgp) | This spec's explicit applies-nothing declaration; capability publication is handled by the server transaction |
 
-The two verify refusals compose in the OPEN spec's order (its "D2 refusal
-design" step 3 and Data Flow step 4): the plugin's own verify handler answers
-first, then the SDK runs the capability extractor on the candidate and compares.
-The OPEN spec fixes that order so the `llnh` and `gr` refusals keep answering
-first; nothing in this spec argues for the reverse, so this spec's verify
-handlers sit in the "own handler" slot. Neither spec weakens the other's refusal.
-(Design review round 1, I3: an earlier draft here said the capability comparison
-ran first, which contradicted the OPEN spec.)
+The plugin's own verify handler retains precedence over capability extraction,
+so a refused plugin verification cannot be turned into acceptance by its
+extractor. This closure audits the current staging behavior and does not certify
+the historical blanket capability-refusal text as current behavior.
 
 ### Boundary with stored routes (design review round 1, I4)
 
@@ -783,7 +787,7 @@ Gates owed to the main thread: `./le verify worktree`; `as112-reload` in the QEM
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify worktree` passes
+- [ ] Main-thread scoped tests, lint and closure prechecks pass; pushed CI owns whole-tree verification
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -805,3 +809,114 @@ Gates owed to the main thread: `./le verify worktree`; `as112-reload` in the QEM
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-plugin-reload-applies-or-refuses.md` only, in the same `./le commit create` script
+
+
+## Continuation audit and repair evidence (2026-11-11)
+
+The six implementation phases remain present. SDK ConfigTx binds verify,
+apply and rollback; plugin installers replace their parsed snapshots. Role
+prunes learned OPEN roles only after commit. This audit does not claim a new
+full test pass. The current original role-export fixture passes its U2/U3
+wire and single-session assertions. AC-18b now has real VPP replacement
+and empty-map positive/negative proof, followed by a clean final run.
+The other implemented acceptance rows retain their recorded historical proof.
+
+The main thread reproduced the stale testing.T panic in
+`TestReloadUsesRegisteredOperationDecomposer` when a later address-movement
+reload invoked its retained callback. Commit `82abdd598d` adds operation
+registry snapshot/restore and lifetime cleanup to all nine affected server
+fixtures. It preserves every operation and assertion, replaces permanent
+sync.Once fixtures with per-test registration, and has independent test-judge
+approval. Main reran all nine tests twice under race and the new snapshot
+regression twice: PASS, complete job exit 0. Evidence:
+`tmp/session/2026-11-11-000258/scratch/job-refusal-reload-repairs-green-98a0e2b7.log`.
+The red is
+`tmp/session/2026-11-10-235517/scratch/job-refusal-reload-red-36ff0cc5.log`.
+
+The original IRR SSH fixture passes unchanged (6.4s). Commit cf5d6b8c9e had
+already added boot import/export final accept. `Peer.importDecisionRises`
+therefore sees an already accepting policy; this fixture no longer crosses the
+historical default-reject relaxation that needed Route Refresh. The proposed
+draft capability change is superseded and is not promoted or stressed.
+
+Main also passed the original role-export fixture (5.1s), BGP deleted-BFD
+reference fixture (799ms) and broken-PKI reference fixture (1.1s). Role retains
+all U2/U3 wire and single-session assertions; no new producer change was
+needed and no intervening repair commit is inferred. BFD/PKI retain the
+corrected expectations from ece2daa9de. The static-BFD sibling was skipped
+for missing CAP_NET_ADMIN and still needs the named guest run. Full evidence:
+`tmp/session/2026-11-10-224742/scratch/reload-five-originals.log`.
+
+Main attempted that native guest command. It stopped before launching the
+guest because `tmp/qemu/linux-amd64/bin/ze` is read-only in this sandbox:
+`tmp/qemu` points to `/home/thomas/.cache/ze-tmp/main/qemu`, outside the
+configured writable roots. Evidence is
+`tmp/session/2026-11-10-224742/scratch/reload-static-bfd-qemu.log`.
+The required external change is write access to `/home/thomas/.cache/ze-tmp`;
+the shared symlink was not changed. QEMU exists, but KVM readiness was not
+reached and is not asserted as a blocker. Static-BFD guest proof remains open.
+
+The VPP harness now has a sixth QoS lifecycle row, with source review clean.
+Its proof starts from a successful empty-map query in the private container,
+keeps one daemon alive through two SIGHUPs, and reads VPP's full 256-entry VLAN
+row and mark. A sole external map ID matching the VLAN index and mark pool
+index zero bind those observations to the same allocation. The checks require
+3:3 and 5:5 initially, only 3:3 after replacement, and no mark on the same
+existing VLAN after empty config. Failed queries, changed interface identity
+and exited daemons fail. Parser/census tests passed, including strengthened map-binding controls
+(main job refusal-final-vpp-parser-05244d6d). Main reached real VPP
+v26.06-release and verified the initial full map and mark, but the first
+reduced-map reload failed: `GetLink("qos0.100")` searched VPP's raw
+`loop1.100` name instead of the registered alias index. The reload then
+attempted duplicate VLAN creation and rolled back. Evidence is
+`tmp/session/2026-11-10-224742/scratch/reload-vpp-live.log`.
+This is a producer defect, not an infrastructure blocker. A focused alias
+query regression reproduced both alias reads and the wrong absence result
+for a missing mapped index (main job vpp-alias-red-5948fb18); transport and
+raw-name controls passed. The reviewed source correction now resolves
+registered aliases by index; full package race and another unchanged live
+harness run followed. Commit `a82960a6e8` carries the alias correction and
+full VPP package race passed (main job vpp-alias-green-e2d672f4).
+
+Real VPP then completed both QoS reloads, including removal of the mark.
+The empty-egress no-op overlay produced the required red: both reloads
+committed but the mark remained `VLAN: map:0` on the same interface. Logs:
+`scratch/reload-vpp-alias-live-green.log` and
+`scratch/reload-vpp-empty-noop-red.log` under the continuation session.
+These runs also exposed a shutdown panic: monitor.stop closed the
+notification channel after GoVPP Unsubscribe had already closed it.
+They are QoS state evidence, not clean whole-run successes.
+
+The new deterministic subscription-close test reproduced that panic in
+main job vpp-monitor-stop-red-48de79f5. The reviewed ownership correction
+uses a separate monitor-owned stop signal, drains a bounded snapshot of
+queued events and joins dispatch even if unsubscribe fails without closing
+its channel. No existing assertion was removed. Full package race and a
+final normal live run without the overlay passed. Monitor repair is
+`e4e5f8da3a`; full package race passed in main job
+vpp-monitor-stop-green-e2d672f4. Final real VPP exited 0, with both reloads,
+correct replacement/clearing, backend shutdown and no panic or internal defect:
+`tmp/session/2026-11-10-224742/scratch/reload-vpp-final-clean.log`.
+Five active scenarios passed; LCP was explicitly skipped because this image
+lacks its plugin. Harness commit `844f42a7d5` closes AC-18b runtime proof.
+
+
+## Blocker
+
+Static-BFD guest proof is blocked by sandbox write permissions. Native
+`runOneCIHere` in `internal/le/test/qemu/onetest.go` calls
+`testfunctional.PrepareGuest`, which cannot write
+`tmp/qemu/linux-amd64/bin/ze`: the shared `tmp/qemu` symlink targets
+`/home/thomas/.cache/ze-tmp/main/qemu`, outside writable roots. Main observed
+this refusal in `tmp/session/2026-11-10-224742/scratch/reload-static-bfd-qemu.log`.
+Grant write access to `/home/thomas/.cache/ze-tmp`, then rerun only
+`./le test qemu ci test test/reload/static-bfd-profile-reload-deleted.ci`.
+The host skip for missing CAP_NET_ADMIN is not guest proof. QEMU is installed;
+KVM readiness was not reached. No shared path was redirected.
+
+Final scoped lint, closure prechecks and independent final Review Gate are
+still owed. Concurrent inventory tooling compilation defects prevent current
+native rebuilds; their owner must finish those edits before those gates run.
+Source reviews and scoped tests recorded above remain valid, but no final
+CLEAN or spec closure is claimed. Keep the recorded historical review
+population plus current repair commits; do not broaden to interleaved history.
