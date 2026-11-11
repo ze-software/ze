@@ -7,10 +7,10 @@
 | Priority | P2 |
 | Release reason | the eight problem classes the home-CPE lab met on 2026-11-07, each visible today only in a log line or by reading kernel state by hand; `ai/META-DECISIONS.md` makes each a gap owed a doctor check |
 | RFC gaps | - |
-| Depends | `spec-doctor-coverage-1-audit-and-gate` phase 1 (the `runtime` phase and the `fix` field); class 3 also `spec-home-cpe-23b-dns-source-consumers` (closed; `show system dns` and the DNS source doctor checks), after `spec-home-cpe-23-dns-source-fall-through` (23a: the resolver registry and the router's selection, design in `docs/features/dns-resolver.md`); class 8's last-failure text (A-3) also `plan/release/validation/spec-doctor-coverage-3-access-security.md` phase P1, which builds the IKE per-peer last failure record this spec reads. Sibling children that build on this spec, not the reverse: `plan/release/validation/spec-doctor-coverage-3-access-security.md` (extends the L2TP per-peer record, phase 3), `plan/release/validation/spec-doctor-coverage-10-forwarding.md` AC-7 (extends the name-resolver check, phase 4), and `plan/release/validation/spec-doctor-coverage-5-appliance.md` (leaves the resolver selection states, class 3, here) |
+| Depends | `spec-doctor-coverage-1-audit-and-gate` (closed: the `runtime` phase and the `fix` field landed in commits ce58dddf53 and fc96556110; 149497ce12 then made a plugin's `runtime` check an `sdk.Registration` declaration answered by `OnDoctorCheck`, and refuses a `runtime` `registry.DoctorCheckDef`); class 3 also `spec-home-cpe-23b-dns-source-consumers` and `spec-home-cpe-23-dns-source-fall-through` (both closed: the router's selection over every source, 25a0665638, and the `dns-source-selection` runtime check with `doctor-dns-source-empty`, `-interface-silent`, `-self-unserved`, 311177442c, design in `docs/features/dns-resolver.md`); class 8's last-failure text (A-3) also `plan/release/validation/spec-doctor-coverage-3-access-security.md` phase P1, which builds the IKE per-peer last failure record this spec reads. Sibling children that build on this spec, not the reverse: `plan/release/validation/spec-doctor-coverage-3-access-security.md` (extends the L2TP per-peer record, phase 3), `plan/release/validation/spec-doctor-coverage-10-forwarding.md` AC-7 (extends the name-resolver check, phase 4), and `plan/release/validation/spec-doctor-coverage-5-appliance.md` (leaves the resolver selection states, class 3, here) |
 | Phase | design |
 | Handoff | - |
-| Updated | 2026-11-08 |
+| Updated | 2026-11-11 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -29,7 +29,7 @@ condition is not reported.
 |---|-------|---------------|-------|
 | 1 | IPsec discard catch-all in force while the box's own traffic (ICMP, DNS, NTP, SSH, BGP) has no bypass | `internal/component/ike/engine` | local and daemon (config) |
 | 2 | L2TP peer that never acknowledged control messages; tunnels and sessions stuck establishing | `internal/component/l2tp` | runtime |
-| 3 | Ze's own system resolver: no usable server, one server where several are configured or learned, learned DNS not followed | the system DNS owner `spec-home-cpe-23` creates | runtime |
+| 3 | Ze's own system resolver: no usable server, one server where several are configured or learned, learned DNS not followed | `internal/component/config/system` (`Resolvers`, `ProcessResolvers`, the `dns-source-selection` check), the owner `spec-home-cpe-23` created | runtime |
 | 4 | No interface backend loaded while interface-dependent features are configured | `internal/component/iface` | local (config) and runtime |
 | 5 | Bridge STP in the kernel not matching config | `internal/plugins/iface/netlink` | local and daemon (kernel) |
 | 6 | PPPoE client: no session; session up with IPCP or IPv6CP not opened; IPv6 with no default route or no address from RA/SLAAC; DHCPv6-PD requested and not received | `internal/component/iface` (PPPoE client) | runtime |
@@ -40,7 +40,7 @@ condition is not reported.
 
 ### Architecture Docs
 - [ ] `docs/architecture/doctor-and-health-checks.md` - registration owners and the two tests
-  → Constraint: an internal plugin registers through `Registration.DoctorChecks` (IKE does, `ike/engine/register.go`); a component registers with `diagnostic.RegisterDoctorCheck` from its own `init()` (iface does, `register_linux.go`; the netlink backend does, `doctor.go` plus `register.go`)
+  → Constraint: an internal plugin registers a config-phase check through `Registration.DoctorChecks` (IKE does, `ike/engine/register.go`), which runs in whichever process answers; a plugin check over the plugin's live state is `runtime`, declared in the `sdk.Registration` its runner passes to `p.Run` and answered by `OnDoctorCheck` (`internal/plugins/ddos/detect/doctor.go` `rateFeedCheckDecl` is the reference), because `validateDoctorCheckDef` refuses a `runtime` `registry.DoctorCheckDef` and Stage 1 refuses a name declared on both routes (`refuseDoctorCheckDeclaredTwice`); a component registers with `diagnostic.RegisterDoctorCheck` from its own `init()` (iface does, `register_linux.go`; the netlink backend does, `doctor.go` plus `register.go`)
   → Constraint: a unit test in the owning package proves the check fires only when its config is present and emits its registered code; a functional test exposes it through `ze doctor --json` or `show doctor`
 - [ ] `docs/architecture/iface/logical-name-resolution.md` - the shared resolver
   → Constraint: names go through `Resolve`, `ResolveIndex`, `ResolveDevice`; `Binding` holds no address, `Addresses` reads them; a check never reads the kernel by name directly (`./le arch iface-resolution`)
@@ -58,7 +58,7 @@ condition is not reported.
   → Constraint: problem, why, and the fixing command on its own line (the `fix` field from child 1)
 
 **Key insights:**
-- Two existing IKE checks already read engine runtime state at `post-config` (`ipsec-virtual-ip-pool` reads "the running SA table", `ipsec-udp-encap` its socket state); on the local route that state is empty, so they can read healthy for a state they never saw. They move to `runtime` here (AC-9)
+- Two existing IKE checks already read engine runtime state at `post-config` (`ipsec-virtual-ip-pool` reads "the running SA table", `ipsec-udp-encap` its socket state); on the local route that state is empty, so they can read healthy for a state they never saw. They move to `runtime` here (AC-9): out of the registry row and into the IKE runner's `sdk.Registration` (`register.go`, the `p.Run` call), answered by an `OnDoctorCheck` handler the runner does not set yet
 - The implicit-discard text is already declared once (`implicitDiscardCuts`, `implicitDiscardICMPExample` in `unmatched.go`); class 1's message and fix reuse them, never a copy
 - L2TP registers a health row (`health.Register("l2tp", checkHealth)`) and no doctor check at all
 
@@ -66,14 +66,16 @@ condition is not reported.
 
 **Source files read:**
 - [ ] `internal/component/ike/engine/unmatched.go` - `refuseImplicitDiscard` refuses a commit that turns the discard on unwritten; `warnImplicitDiscardAtStart` logs at Error at start; `countBypassEntries` counts bypass policies but never checks what they cover
-- [ ] `internal/component/ike/engine/register.go` - six `DoctorChecks` at `post-config`, Orders 730 to 735, none about the discard catch-all or bound XFRM interfaces
+- [ ] `internal/component/ike/engine/register.go` - nine `DoctorChecks` at `post-config`, Orders 730 to 738 (`ipsec-interface`, `ipsec-udp-encap`, `ipsec-cert-url`, `ipsec-cookie-threshold`, `ipsec-virtual-ip-pool`, `ipsec-interface-address`, `ipsec-application-override`, `ipsec-spd-writers`, `ipsec-no-pmtu-disc`), none about the discard catch-all or bound XFRM interfaces; the runner's `sdk.Registration` (the `p.Run` call) declares no doctor check and the runner sets no `OnDoctorCheck`
 - [ ] `internal/component/ike/engine/unmatched_xfrm_interface.go` - `xfrmInterfaceEntry` and `xfrmInterfaceExemptions`: the if_id 0 BYPASS entries for each bound interface; a failed read keeps the entries
 - [ ] `internal/core/ipsecinventory/registry.go` - `Tunnel{Peer, Up, IfID, ...}`, `Tunnels()`, `ErrNotRegistered`
-- [ ] `internal/component/l2tp/reactor.go` `handleTick` - retransmit budget exhausted on a not-closed tunnel logs the Warn "peer never acknowledged a control message" (an uncommitted working-tree edit on 2026-11-08) and tears down; nothing keeps the fact once the tunnel is gone
+- [ ] `internal/component/l2tp/reactor.go` `handleTick` - retransmit budget exhausted on a not-closed tunnel logs the Warn "peer never acknowledged a control message" (committed in 8e2c5c8dca, with no `code` attribute) and tears down; nothing keeps the fact once the tunnel is gone
 - [ ] `internal/component/l2tp/snapshot.go` - `Snapshot{Tunnels, ...}`, `TunnelSnapshot{PeerAddr, State, CreatedAt, LastActivity, Sessions}`
 - [ ] `internal/component/l2tp/health.go` `checkHealth` - degraded when the subsystem is absent or has no kernel data plane; no code, no fix
 - [ ] `internal/component/l2tp/register.go` - tree validators and `health.Register`; no doctor registration
-- [ ] `cmd/ze/hub/main_system.go` `newResolvers` - the system resolver gets `sc.NameServers[0]` only
+- [ ] `cmd/ze/hub/main_system.go` `newResolvers` - the system resolver follows the router's selection (`system.ProcessResolvers().Watch`), handing every server of `Snapshot.Router.Servers` to `Resolver.SetServers` on each change (25a0665638)
+- [ ] `internal/component/resolve/dns/resolver.go` - a query asks each server of the list in order and moves to the next on no answer, SERVFAIL or REFUSED (aad764e148); nothing outside the resolver can read the list it holds
+- [ ] `internal/component/config/system/doctor_dns_source.go` `dnsSourceFindings` - `doctor-dns-source-empty` fires for a selection whose list names `received` and that selected no server, the router's included; a router selection with no server and no `received` source raises no row
 - [ ] `internal/component/iface/dispatch.go` - `ErrNoBackendLoaded` "iface: no backend loaded"
 - [ ] `internal/component/iface/backend.go` `Backend` - `BridgeAddPort`, `BridgeDelPort`, `BridgeSetSTP`; no read of the STP state
 - [ ] `internal/component/iface/register_linux.go` - registers `ethernetDoctorCheck` with `diagnostic.RegisterDoctorCheck`
@@ -81,7 +83,7 @@ condition is not reported.
 - [ ] `internal/plugins/iface/netlink/doctor.go` - `macvlanDoctorCheck` (`iface-macvlan`, Order 742), silent when the backend is vpp
 - [ ] `internal/plugins/iface/vpp/ifacevpp.go` `BridgeSetSTP` - `errNotSupported`
 - [ ] `internal/component/iface/config_apply.go` bridge step - undo sets `!e.STP`, not the prior state (journal row below)
-- [ ] `internal/component/iface/pppoe_client.go` - `PPPoEClient{state, lastErr, attempts, upSince, ...}`, `PPPoEClientStatus{Name, State, SourceInterface, PPPInterface, SessionID, LocalIP, PeerIP, Uptime, DNSServers}`: no NCP state, no IPv6 facts
+- [ ] `internal/component/iface/pppoe_client.go` - `PPPoEClient{state, lastErr, attempts, upSince, ...}`, `PPPoEClientStatus{Name, State, SourceInterface, PPPInterface, SessionID, LocalIP, PeerIP, Uptime, DNSServers, DelegatedPrefixes}`: no NCP state; the one IPv6 fact is the DHCPv6 delegated prefixes (`delegated-prefixes`), no IPv6 default route or address
 
 **Behavior to preserve:**
 - every existing IKE, L2TP, iface and DNS check and code; the L2TP health row
@@ -95,7 +97,7 @@ condition is not reported.
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
-| IKE plugin doctor checks | `internal/component/ike/engine/register.go` `DoctorChecks` | Six config-time checks | extends: classes 1 and 8 join the list; two existing runtime readers move to `runtime` |
+| IKE plugin doctor checks | `internal/component/ike/engine/register.go` `DoctorChecks` (registry row) and the runner's `sdk.Registration` | Nine config-time checks in the registry row; none declared in the runner | extends: class 1 joins the registry row (config phase); class 8 and the two existing runtime readers are declared in the runner's `sdk.Registration` `DoctorChecks` and answered by `OnDoctorCheck`, and the two leave the registry row (a `runtime` `registry.DoctorCheckDef` is refused, 149497ce12) |
 | Implicit discard refusal and log | `ike/engine/unmatched.go` `refuseImplicitDiscard`, `warnImplicitDiscardAtStart`, `implicitDiscardCuts` | Refuses or logs the unwritten discard | extends: class 1 reuses the strings and adds what neither checks: which own-traffic flows have no bypass |
 | XFRM interface exemptions | `ike/engine/unmatched_xfrm_interface.go` `xfrmInterfaceExemptions`, `xfrmInterfaceEntry` | Builds and tracks the if_id 0 entries | extends: class 8 compares the entries Ze holds with the kernel SPD |
 | IPsec inventory | `internal/core/ipsecinventory` `Tunnels` | Per-peer `Up`, `IfID` | extends: class 8 reads it |
@@ -106,7 +108,7 @@ condition is not reported.
 | PPPoE client status | `internal/component/iface/pppoe_client.go` `status`, `PPPoEClientStatus` | Session state for `show interface pppoe-client` | extends: adds NCP and IPv6 facts; class 6 reads the same producer |
 | netlink backend doctor | `internal/plugins/iface/netlink/doctor.go` (`iface-macvlan`) | Backend-owned check | extends: class 5 registers beside it |
 | Static route skipped check | `doctor-static-route-skipped` | Reports a route skipped at apply | does not apply: class 7 excludes static next-hops, which that check covers |
-| System DNS sources | `spec-home-cpe-23b-dns-source-consumers` (closed; built the producer of `show system dns`, `internal/plugins/system-dns-cmd`, and a check for an empty router selection, over the registry `spec-home-cpe-23-dns-source-fall-through` builds) | Fixes the resolver's behavior | extends: class 3 reads the same producer and adds the three resolver states; the check spec-23 plans is one of class 3's codes, not a second check |
+| System DNS sources | `internal/component/config/system` `Resolvers` (`ProcessResolvers`, `Snapshot`), `doctor_dns_source.go` `dnsSourceDoctorCheck` (`dns-source-selection`, runtime), `internal/plugins/system-dns-cmd` (`show system dns`); built by the closed `spec-home-cpe-23-dns-source-fall-through` and `spec-home-cpe-23b-dns-source-consumers` | The router's selection over every source; the hub's resolver asks every selected server in order; `doctor-dns-source-empty` reports a selection naming `received` that selected nothing | extends: class 3's codes join the declaration of `dns-source-selection` (one check over the one registry, `plan/release/validation/spec-doctor-coverage-5-appliance.md` extends the same check); an empty router selection already reported by `doctor-dns-source-empty` is not reported a second time |
 | Operator error text | `internal/component/iface/dispatch.go` `ErrNoBackendLoaded` (an `opererr.Error`, spec-operator-errors-name-the-fix, closed), journal row `plan/journal/error-names-no-fix-command.md` 2026-11-07 (`ErrNoBackendLoaded`) | Fixes the error text | extends: class 4 reports the state; both name one fix command, declared once in `iface` |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
@@ -122,7 +124,8 @@ condition is not reported.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| IKE plugin to doctor | `DoctorChecks` callback (in-process through DirectBridge, or RPC) | Yes, existing six checks |
+| IKE plugin to doctor, config phase | `registry.DoctorCheckDef` run by `runPluginRegistryChecks` in whichever process answers | Yes, the nine existing checks |
+| IKE plugin to doctor, runtime | `sdk.Registration` `DoctorChecks` answered by `OnDoctorCheck`, called by `collectDoctorChecksFrom` (`internal/component/doctor/cmd/show.go`) over DirectBridge or RPC | No: the IKE runner declares none yet; `internal/plugins/ddos/detect` is the working reference |
 | Component to doctor | `diagnostic.RegisterDoctorCheck` in the daemon process | Yes, iface `register_linux.go` |
 
 ### Changed-Wire Census
@@ -131,7 +134,7 @@ condition is not reported.
 
 | Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
 |------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
-| `show interface pppoe-client` JSON | writer | `iface/pppoe_client.go` `status`, `pppoe_client_command.go` `pppoeClientAnswer` | read above | add `ipcp-state`, `ipv6cp-state`, `last-error`, `attempts`, `ipv6-default-route`, `ipv6-addresses`, `delegated-prefixes`; no key renamed |
+| `show interface pppoe-client` JSON | writer | `iface/pppoe_client.go` `status`, `pppoe_client_command.go` `pppoeClientAnswer` | read above | add `ipcp-state`, `ipv6cp-state`, `last-error`, `attempts`, `ipv6-default-route`, `ipv6-addresses`; `delegated-prefixes` already exists and class 6 reads it; no key renamed |
 | same | reader | `.ci` files and interoplab checks that parse it | to search at implementation | preserve: additions only |
 
 ### Integration Points
@@ -153,11 +156,11 @@ condition is not reported.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Every config leaf naming an interface uses one YANG type, so class 4 can derive "interface-dependent" from the schema | logical-name-resolution page: completion from the iface resolver | class 4 misses a feature | grep of YANG modules for the interface-name typedef at implementation | unvalidated |
-| A-2 | The L2TP Warn in `reactor.go` lands (it is another session's uncommitted edit) | `git diff` on 2026-11-08 | class 2's site carries no code yet | read HEAD before phase 3; if absent, the check's own record is the evidence | unvalidated |
+| A-2 | The L2TP Warn in `reactor.go` lands (it was another session's uncommitted edit) | `git diff` on 2026-11-08 | class 2's site carries no code yet | read HEAD before phase 3; if absent, the check's own record is the evidence | validated: in HEAD since 8e2c5c8dca (`handleTick`), still with no `code` attribute |
 | A-3 | The IKE engine keeps or can keep the last negotiation failure per peer, so class 8 names why no Child SA exists | none yet; `plan/release/validation/spec-doctor-coverage-3-access-security.md` phase P1 builds the record | class 8 says only "no Child SA since T" | read the record child 3 P1 lands, or the `ike/engine` session failure paths if it has not landed | unvalidated |
 | A-4 | `RTM_GETLINK` returns `IFLA_BR_STP_STATE` without privilege | rtnetlink link dumps are unprivileged | class 5 needs the daemon route | `TestBridgeSTPStateRead` under QEMU | unvalidated |
 | A-5 | A reload command re-applies interface config when the kernel drifted (class 5 fix line) | iface reconciles on apply | the fix line names the wrong command | implementer reads the reload path and names the verified command | unvalidated |
-| A-6 | spec-home-cpe-23 names the package that owns system DNS selection | its Files to Create | class 3 has no owner | read spec-23 before phase 6; until it lands, the check reads the hub's resolver configuration through a registered seam | unvalidated |
+| A-6 | spec-home-cpe-23 names the package that owns system DNS selection | its Files to Create | class 3 has no owner | read spec-23 before phase 6; until it lands, the check reads the hub's resolver configuration through a registered seam | validated: spec-23 and 23b closed; `internal/component/config/system` owns the selection (`Resolvers`, `ProcessResolvers`) and its runtime check (`dns-source-selection`); the servers the resolver applied are known only to the hub's `newResolvers` callback, so phase 6 records them through a `config/system` setter, the hub never importing doctor |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -196,12 +199,12 @@ condition is not reported.
 | AC-1 | Effective `vpn ipsec unmatched discard` (written or default), and an own-traffic flow (ICMPv4, ICMPv6 with neighbor discovery, each configured DNS or NTP server, each SSH, web or API listener, each BGP peer) that no bypass entry and no Child SA selector covers | `doctor-ipsec-discard-cuts-own-traffic` names each uncovered flow; error when the discard is unwritten, warning when written; fix names the bypass entry to add (from `implicitDiscardICMPExample` for ICMP) or `set vpn ipsec unmatched bypass` | none: a covered flow is not listed |
 | AC-2 | An L2TP tunnel torn down because its retransmit budget ran out, no tunnel to that peer established since | `doctor-l2tp-peer-unresponsive` names the peer, the local address, since when and the state it reached; fix names the peer-side acceptance (accel-ppp `client-ip-range` as the lab case), UDP 1701 reachability, and the `show` command that lists L2TP tunnels; cleared once a tunnel to that peer establishes | none |
 | AC-3 | A tunnel or session not established after its full retransmit budget | `doctor-l2tp-tunnel-not-established` or `doctor-l2tp-session-not-established` with peer, age and state | a tunnel younger than the budget is not reported (normal setup) |
-| AC-4 | System resolver with no usable server, or querying one server while several are configured or learned, or not using learned DNS while the config asks it to | `doctor-system-resolver-no-server`, `doctor-system-resolver-uses-one-of-several`, `doctor-system-resolver-ignores-learned`, each naming the servers configured, learned and in use; fix names the config command | the uses-one row disappears when the resolver uses every server (spec-23 behavior); the check reads what the resolver uses, never the config alone |
+| AC-4 | System resolver with no usable server, or querying one server while several are configured or learned, or not using learned DNS while the config asks it to | `doctor-system-resolver-no-server`, `doctor-system-resolver-uses-one-of-several`, `doctor-system-resolver-ignores-learned`, each naming the servers configured, learned and in use; fix names the config command; the three codes are declared by the `dns-source-selection` runtime check, which compares the router selection (`Resolvers.Snapshot().Router`) with the servers the hub's resolver last applied | the uses-one row disappears when the resolver uses every server (spec-23 behavior, which the hub implements since 25a0665638); the check reads what the resolver uses, never the config alone; a router selection that `doctor-dns-source-empty` already reports (its list names `received`) gets no no-server row beside it |
 | AC-5 | Config naming interfaces (any leaf of the interface-name type) and no `interface` block, or a daemon whose iface backend is nil | `doctor-iface-no-backend` error naming the first leaves that need it; fix `set interface backend netlink` | none |
 | AC-6 | A configured bridge whose kernel STP state differs from `stp` | `doctor-iface-bridge-stp-mismatch` naming bridge, configured and kernel value; the read is a new `Backend` method; VPP answers not supported and the row reads cannot determine | none |
 | AC-7 | A pppoe-client: no session past its redial timing; session up and IPCP not Opened (IPv4 configured) or IPv6CP not Opened (`ipv6` configured); IPv6 configured and no default route on the device, or no global address from RA/SLAAC; DHCPv6-PD requested and no delegated prefix | one code each: `doctor-pppoe-client-no-session` (with last error and attempts), `doctor-pppoe-client-ipcp-not-open`, `doctor-pppoe-client-ipv6cp-not-open`, `doctor-pppoe-client-ipv6-no-default-route`, `doctor-pppoe-client-ipv6-no-address`, `doctor-pppoe-client-pd-not-received`; `show interface pppoe-client` carries the same facts | a client within its redial timing is not reported |
 | AC-8 | A configured interface whose selector (os-name, mac match) resolves to no device; a pppoe-client whose source-interface does not resolve | `doctor-iface-name-unresolved` and `doctor-pppoe-client-source-unresolved`, each naming the entry, the selector and what the kernel has; fix names `show interface` and the selector leaf | a ppp device a pppoe-client owns while that client is not up (AC-7 reports it) |
-| AC-9 | A VTI-bound peer (IfID non-zero) whose inventory reads `Up` false past its IKE retransmit budget; a bound interface whose if_id 0 exemptions Ze holds are missing from the kernel SPD while the discard is in force | `doctor-ipsec-xfrm-peer-no-child-sa` (with the last failure when A-3 holds) and `doctor-ipsec-xfrm-exemption-missing` naming interface and if_id; the existing `ipsec-virtual-ip-pool` and `ipsec-udp-encap` checks move to `runtime` | none |
+| AC-9 | A VTI-bound peer (IfID non-zero) whose inventory reads `Up` false past its IKE retransmit budget; a bound interface whose if_id 0 exemptions Ze holds are missing from the kernel SPD while the discard is in force | `doctor-ipsec-xfrm-peer-no-child-sa` (with the last failure when A-3 holds) and `doctor-ipsec-xfrm-exemption-missing` naming interface and if_id; the existing `ipsec-virtual-ip-pool` and `ipsec-udp-encap` checks move to `runtime`; all four are declared in the IKE runner's `sdk.Registration` `DoctorChecks` and answered by its `OnDoctorCheck`, and the two moved checks leave the registry row | none |
 | AC-10 | Every check above | message states the cause in plain words; `fix` holds the exact command on its own line; reachable by `show doctor` on every surface; its unit test goes red when the detection is removed (recorded at implementation) | none |
 
 ## End-to-End User Stories
@@ -220,9 +223,9 @@ condition is not reported.
 | `TestDoctorIPsecDiscardOwnTraffic` | `internal/component/ike/engine/doctor_unmatched_test.go` | AC-1, covered and uncovered flows, written and unwritten | |
 | `TestDoctorL2TPPeerUnresponsive` | `internal/component/l2tp/doctor_test.go` | AC-2, set and cleared | |
 | `TestDoctorL2TPNotEstablished` | `internal/component/l2tp/doctor_test.go` | AC-3, budget boundary | |
-| `TestDoctorSystemResolver` | the system DNS owner's doctor test | AC-4 | |
+| `TestDoctorSystemResolver` | `internal/component/config/system/doctor_dns_source_test.go` | AC-4 | |
 | `TestDoctorIfaceNoBackend` | `internal/component/iface/doctor_backend_test.go` | AC-5 | |
-| `TestBridgeSTPStateRead` | `internal/plugins/iface/netlink/bridge_linux_test.go` | AC-6 read | |
+| `TestBridgeSTPStateRead` | `internal/plugins/iface/netlink/bridge_stp_linux_test.go` (beside `TestBridgeSetSTPKernel` and the `bridgeLinkInfo` helper of the owned journal row) | AC-6 read | |
 | `TestDoctorBridgeSTPMismatch` | `internal/plugins/iface/netlink/doctor_test.go` | AC-6 | |
 | `TestDoctorPPPoEClient` | `internal/component/iface/doctor_pppoe_client_test.go` | AC-7, one case per code | |
 | `TestDoctorIfaceNameUnresolved` | `internal/component/iface/doctor_resolve_test.go` | AC-8 and its survivor | |
@@ -253,7 +256,7 @@ condition is not reported.
 | N-A | - | - | no wire behavior changes; doctor reads state | |
 
 ## Files to Modify
-- `internal/component/ike/engine/register.go` - two new `DoctorChecks`, two moved to `runtime`
+- `internal/component/ike/engine/register.go` - class 1 joins the registry `DoctorChecks`; class 8 and the two moved checks are declared in the runner's `sdk.Registration` `DoctorChecks`, answered by an `OnDoctorCheck` handler, and the two leave the registry row
 - `internal/component/ike/engine/unmatched.go` - shared flow coverage helper beside `countBypassEntries`
 - `internal/component/l2tp/reactor.go` - per-peer unanswered record set at the Warn site, cleared on establishment; code attribute on the Warn
 - `internal/component/l2tp/snapshot.go` - the record in the snapshot
@@ -265,7 +268,8 @@ condition is not reported.
 - `internal/plugins/iface/netlink/bridge_linux.go` - the STP read
 - `internal/plugins/iface/netlink/doctor.go` - class 5 check
 - `internal/plugins/iface/vpp/ifacevpp.go` - `BridgeSTPState` not supported
-- `cmd/ze/hub/main_system.go` - resolver exposes the servers it uses (with spec-23)
+- `cmd/ze/hub/main_system.go` - `newResolvers` records the servers it applied through a `config/system` setter
+- `internal/component/config/system/doctor_dns_source.go`, `resolv.go` - the applied-server record and class 3's findings in `dns-source-selection`
 - `docs/guide/health-checks.md`, `docs/guide/ipsec.md`, `docs/guide/l2tp.md` - the new rows
 
 ## Files to Create
@@ -367,7 +371,7 @@ condition is not reported.
 | Class 1 checks coverage per flow | report only that the discard is in force | the start log already says it is in force; the operator needs to know which flow is cut |
 
 ## Known Limitations
-- Class 3 depends on spec-23's producer; until it lands the check reads the hub's resolver configuration (A-6).
+- Class 3 depends on spec-23's producer, which has landed (A-6); on a healthy box its uses-one and ignores-learned rows stay silent, because the hub applies every router server.
 
 ## Checklist
 

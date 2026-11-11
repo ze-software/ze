@@ -7,10 +7,10 @@
 | Priority | P2 |
 | Release reason | `ai/META-DECISIONS.md` (Goal and scope): `ze doctor` reports every problem an operator can hit, each with its cause and the command that fixes it; O-3 of the parent makes every area child release work |
 | RFC gaps | - |
-| Depends | `spec-doctor-coverage-1-audit-and-gate` (the `runtime` phase, the `Fix` field, the recent-events check and the gate, landed in commits ce58dddf53 and fc96556110); `plan/release/validation/spec-doctor-coverage-2-home-cpe-batch.md` for the rows it owns (Existing Mechanisms) and the L2TP per-peer record it adds; `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a for `doctor-plugin-stopped`, `doctor-plugin-crashed`, `doctor-plugin-external-unsupported` and `doctor-internal-defect` (and the transient-code registration), and its AC-35 (phase P6) for `doctor-env-invalid-value` (AC-54); `plan/release/validation/spec-doctor-coverage-5-appliance.md` for `doctor-dns-source-host-only-dropped` |
+| Depends | `spec-doctor-coverage-1-audit-and-gate` (the `runtime` phase, the `Fix` field, the recent-events check and the gate, landed in commits ce58dddf53 and fc96556110; 149497ce12 routes a plugin's `runtime` check through its `sdk.Registration` and `OnDoctorCheck` only); `plan/release/validation/spec-doctor-coverage-2-home-cpe-batch.md` for the rows it owns (Existing Mechanisms) and the L2TP per-peer record it adds; `plan/release/validation/spec-doctor-coverage-12-plugin-infra.md` phase P0a for `doctor-plugin-stopped`, `doctor-plugin-crashed`, `doctor-plugin-external-unsupported` and `doctor-internal-defect` (and the transient-code registration), and its AC-35 (phase P6) for `doctor-env-invalid-value` (AC-54); `plan/release/validation/spec-doctor-coverage-5-appliance.md` for `doctor-dns-source-host-only-dropped` |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-10 |
+| Updated | 2026-11-11 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -35,7 +35,7 @@ Rows owned by child 2 stay there and are not respecified here.
 ### Architecture Docs
 - [ ] `ai/doors/system.md` - platform constraints
   → Constraint: a check is registered by the package that owns the state it reads ("Shared machinery", readiness check row); no central list names a check
-  → Constraint: a plugin can run forked; the subscriber plugins and the IKE engine declare plugin doctor checks (`registry.DoctorCheckDef`), which reach `show doctor` through `collectPluginDoctorChecks` whichever way they run
+  → Constraint: a plugin can run forked. A plugin's config-phase check is a `registry.DoctorCheckDef` in its registry row, run by `runPluginRegistryChecks` in whichever process answers (the operator's on the local route, the daemon's on `show doctor`). A plugin check over the plugin's live state is `runtime`: it is declared in the `sdk.Registration` `DoctorChecks` the runner passes to `p.Run` and answered by `OnDoctorCheck`, and `show doctor` reaches it through `collectDoctorChecksFrom` (`internal/component/doctor/cmd/show.go`) whichever way the plugin runs. `validateDoctorCheckDef` refuses a `runtime` `registry.DoctorCheckDef`, and Stage 1 refuses a name declared on both routes (`refuseDoctorCheckDeclaredTwice`, 149497ce12); `internal/plugins/ddos/detect/doctor.go` is the working reference
 - [ ] `ai/doors/access-security.md` - the area door
   → Constraint: readers of IKE state outside `ike/engine` use `ipsecinventory` and `ikeprobe`, never the engine package
   → Constraint: a backend that cannot build degrades, it does not abort (`aaa/types.go` `Build`); the doctor row reports the degradation and never turns it into an abort
@@ -45,7 +45,7 @@ Rows owned by child 2 stay there and are not respecified here.
   → Constraint: a core registry holds value types and is the only list; new codes go in `internal/core/diagnostic/codes.go` and nowhere else
   → Constraint: L2TP and PPPoE boot through `Engine.RegisterSubsystem` (`registerBNGSubsystems`); a check that reads the subsystem runs in the daemon
   → Constraint: a field name in `rpc` is wire; this spec adds no field, only codes
-  → Constraint: `ze` never links `internal/le`; the gate reads codes from the registries
+  → Constraint: `ze` never links `internal/le`; the gate reads the covered codes from parsed source, never from the registries linked into `le` (`docs/architecture/doctor-and-health-checks.md`, "Every problem site names a doctor code"): a code counts covered when the `Codes` of a check declaration literal (`diagnostic.DoctorCheck`, `registry.DoctorCheckDef`, `rpc.DoctorCheckDecl`) lists it as a literal or a constant
 - [ ] `spec-doctor-coverage-1-audit-and-gate` - Data Flow 1b, 2a (amended), 4b
   → Decision: a `runtime` check receives `Platform` only; it reads its owner's live state, never `Tree` or `ConfigDir`
   → Decision: a transient code counts as covered only when the check of the code's owner declares it; the `recent-events` check then reports the bus event under that code when its metadata is registered
@@ -69,7 +69,7 @@ Rows owned by child 2 stay there and are not respecified here.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/ike/engine/register.go` - `init()` registers the `ike` plugin with ten `DoctorChecks`, all `rpc.DoctorPhasePostConfig`; `runEngine` logs "dataplane load failed, SA installation disabled" and keeps running
+- [ ] `internal/component/ike/engine/register.go` - `init()` registers the `ike` plugin with nine `DoctorChecks` (Orders 730 to 738), all `rpc.DoctorPhasePostConfig`; the runner's `sdk.Registration` (the `p.Run` call in `runEngine`) declares no doctor check and the runner sets no `OnDoctorCheck`; `runEngine` logs "dataplane load failed, SA installation disabled" and keeps running
 - [ ] `internal/component/ike/engine/doctor_interface_address.go` - `checkIPsecInterfaceAddress` ignores its context and reads `interfaceWaitPtr`, nil outside the running engine
 - [ ] `internal/component/ike/engine/doctor_application_override.go` - `checkIPsecApplicationOverride` reads `overrideRefusal`, `appliedOverride`, `dataplane.Get()`; `checkIPsecSPDWriters` returns nothing while `appliedOverride` is nil
 - [ ] `internal/component/ike/engine/health.go` - `checkIPsecHealth`: down when no `ActiveTable`, degraded for no or some established SAs, drift, or an unreadable dataplane; no code, no fix
@@ -109,11 +109,11 @@ Rows owned by child 2 stay there and are not respecified here.
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
-| IKE plugin doctor checks | `ike/engine/register.go` `DoctorChecks` (`ipsec-interface`, `ipsec-udp-encap`, `ipsec-cert-url`, `ipsec-cookie-threshold`, `ipsec-virtual-ip-pool`, `ipsec-interface-address`, `ipsec-application-override`, `ipsec-spd-writers`, `ipsec-no-pmtu-disc`) | config-phase checks; five read engine globals | extends: new IKE checks join this list; `ipsec-interface-address`, `ipsec-application-override`, `ipsec-spd-writers` move to `runtime` (AC-36); the two child 2 moves stay child 2's |
+| IKE plugin doctor checks | `ike/engine/register.go` `DoctorChecks` (`ipsec-interface`, `ipsec-udp-encap`, `ipsec-cert-url`, `ipsec-cookie-threshold`, `ipsec-virtual-ip-pool`, `ipsec-interface-address`, `ipsec-application-override`, `ipsec-spd-writers`, `ipsec-no-pmtu-disc`) | config-phase checks; five read engine globals | extends: new local IKE checks join this list; every runtime IKE check of this spec, and `ipsec-interface-address`, `ipsec-application-override`, `ipsec-spd-writers` (AC-36), is declared in the runner's `sdk.Registration` `DoctorChecks` and answered by one `OnDoctorCheck` handler shared with child 2, and the three leave the registry row; the two child 2 moves stay child 2's |
 | AAA doctor checks | `aaa/doctor.go` `aaa-no-local-fallback`; `radius/doctor.go` `radius-admin-unreachable`; `tacacs/doctor.go` `tacacs-servers` | config and probe checks | extends: the RADIUS probe distinguishes a secret mismatch; new runtime checks join each package |
 | PKI doctor checks | `pki/doctor.go` `pki-ca-root`; `pki/doctor_config_certs.go` `pki-configured-certificates` (`doctor-pki-cert`) | store and config material | extends: `pki-configured-certificates` already declares `doctor-pki-cert`, so the re-coded raise is covered by it; a runtime check reads the loaded store and the ephemeral root |
 | L2TP and PPPoE kernel checks | `l2tp/register_kernelcap_linux.go` and the PPPoE kernelcap check (`doctor-l2tp-unavailable`, `doctor-l2tp-unknown`, `doctor-l2tp-ppp-*`, `doctor-pppoe-*`) | kernel support probes, gated on config | does not apply: correct as local checks; kept |
-| authradius server check | `l2tp/plugins/authradius/register.go` `l2tp-auth-radius-servers` | probes configured servers | extends: the no-server case and the runtime rows join the same plugin's `DoctorChecks` |
+| authradius server check | `l2tp/plugins/authradius/register.go` `l2tp-auth-radius-servers` | probes configured servers | extends: the no-server case joins the registry row's `DoctorChecks` (config phase); the runtime rows are declared in the `authradius` runner's `sdk.Registration` and answered by `OnDoctorCheck` |
 | Doctor runtime phase | `pkg/plugin/rpc/types.go` `DoctorPhaseRuntime`; `doctor/registry.go` `RunRuntimeChecks`; `doctor/cmd/show.go` `HandleDoctor` | runs runtime checks only in the daemon; the local route asks the daemon or warns `doctor-runtime-not-checked` | extends: every runtime check here registers with this phase |
 | Fix field | `rpc.DoctorCheckDiagnostic.Fix`, `diagnostic.Diagnostic.Fix` | the fixing command alone | extends: every new diagnostic sets it |
 | Report bus | `internal/core/report/report.go` `RaiseWarning`, `RaiseError`, `ClearWarning` | coded issues: active warnings and a bounded error ring | extends: each transient class raises its event here under its doctor code |
@@ -142,7 +142,7 @@ Rows owned by child 2 stay there and are not respecified here.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Engine to plugin | IKE and subscriber plugins answer `doctor-check` callbacks with `fix`; phase `runtime` in the Stage 1 declaration | No |
+| Engine to plugin | IKE and subscriber plugins answer `doctor-check` callbacks (`OnDoctorCheck`) with `fix` for the `runtime` checks they declare in their runner's `sdk.Registration`; their config-phase checks stay `registry.DoctorCheckDef` rows | No: no IKE or subscriber runner declares one yet |
 | Core leaves | non-IKE readers use `ipsecinventory` and `ikeprobe` | No |
 
 ### Changed-Wire Census
@@ -158,10 +158,10 @@ Rows owned by child 2 stay there and are not respecified here.
 | `show doctor` JSON | writer and reader | unchanged format; new codes only | parent census | preserve |
 
 ### Integration Points
-- `ike/engine/register.go` `DoctorChecks` - new and moved IKE checks
+- `ike/engine/register.go` - new local IKE checks in the registry `DoctorChecks`; runtime and moved IKE checks in the runner's `sdk.Registration` `DoctorChecks` with `OnDoctorCheck`
 - each component's doctor file and `diagnostic.RegisterDoctorCheck` - new AAA, RADIUS, TACACS+, authz and PKI checks
 - the L2TP and PPPoE subsystems register runtime checks with `diagnostic.RegisterDoctorCheck` from their own package (they run in the daemon, parent A-3)
-- the subscriber plugins add to their `registry.Registration.DoctorChecks`
+- the subscriber plugins add local checks to their `registry.Registration.DoctorChecks`, and runtime checks to the `sdk.Registration` their runners pass to `p.Run`, answered by `OnDoctorCheck`
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -182,7 +182,7 @@ Rows owned by child 2 stay there and are not respecified here.
 | A-2 | The L2TP and PPPoE subsystems run in the daemon, so a registry check in their package reads live state | `Engine.RegisterSubsystem` (`ai/doors/hub-engine.md`) | a check reads an empty copy | `test/plugin/show-doctor-l2tp-tunnel-auth.ci` | unvalidated |
 | A-3 | An IKE per-peer last-failure record (cause, peer, time, message) is enough for every transient IKE class here | slice A1 rows share one shape | some class needs more (an SPI, a proposal) | `TestIPsecPeerLastFailureRecord` over each cause | unvalidated |
 | A-4 | Every fix named in an AC exists as a command or YANG path | each AC names it by kind | a fix names nothing | each check's unit test resolves its fix against the command registry or YANG (parent AC-7) | unvalidated |
-| A-5 | The subscriber plugins run internal; `authradius` refuses external | `l2tp/plugins/authradius/register.go` | a forked `authlocal`, `pool` or `shaper` reads its own state | plugin `DoctorChecks` answer through the callback either way | unvalidated |
+| A-5 | The subscriber plugins run internal; `authradius` refuses external | `l2tp/plugins/authradius/register.go` | a forked `authlocal`, `pool` or `shaper` reads its own state | a runtime check declared in the runner's `sdk.Registration` answers through `OnDoctorCheck` either way; a `registry.DoctorCheckDef` would run in the daemon over its own copy, so it carries config phases only | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -262,7 +262,7 @@ owner's runtime check declares the code.
 | AC-33 | Inbound overload: owner queue, transport queue or PMTU refusal queue full | drop counters added per queue; runtime `doctor-ipsec-inbound-dropped` (warning) with counts since start; fix names `show vpn ipsec` | none |
 | AC-34 | An ESP-form receiver stopped reading | the receiver keeps its run state; runtime `doctor-ipsec-espform-receiver` (error); fix names the reload command | none |
 | AC-35 | Health row `ipsec` degraded or down | a runtime check reports the same states with code and fix: `doctor-ipsec-peer-not-established` (warning, per peer), `doctor-ipsec-dataplane-drift` (error), `doctor-ipsec-dataplane-unknown` (warning); "engine not running" is AC-4's code | the health row stays as it is |
-| AC-36 | AC-9 rows: `ipsec-interface-address`, `ipsec-application-override`, `ipsec-spd-writers` | each registers at `rpc.DoctorPhaseRuntime`; on the local route with no daemon they do not run and `doctor-runtime-not-checked` appears; through `show doctor` they report as today | `ipsec-udp-encap` and `ipsec-virtual-ip-pool` move in child 2 |
+| AC-36 | AC-9 rows: `ipsec-interface-address`, `ipsec-application-override`, `ipsec-spd-writers` | each is declared at `rpc.DoctorPhaseRuntime` in the IKE runner's `sdk.Registration` `DoctorChecks`, answered by its `OnDoctorCheck`, and leaves the registry row (a `runtime` `registry.DoctorCheckDef` is refused); on the local route with no daemon they do not run and `doctor-runtime-not-checked` appears; through `show doctor` they report as today | `ipsec-udp-encap` and `ipsec-virtual-ip-pool` move in child 2 |
 | AC-37 | Every Warn and Error line at the source sites of AC-1 to AC-35, and of the covered rows (`doctor-ipsec-iface`, `doctor-ipsec-cookie-threshold`, `doctor-ipsec-cert-url`) | each carries its doctor code as the `code` attribute; the gate reports them covered | none |
 | AC-38 | Not problem classes (IKE): 23 crypto or build failures, 9 event-bus emit failures, 2 unreachable group names, 4 transport close errors, 2 per-message build paths; 5 single-response send failures; the "accepted a longer key" line | the first five groups carry `doctor-internal-defect`; the send failures carry `doctor-ipsec-no-send-path`; the longer-key line becomes Info | the merge's assignment (`plan/audits/doctor-problem-inventory.md`) |
 
@@ -320,7 +320,7 @@ owner's runtime check declares the code.
 | AC-81 | An IPv4 address pool exhausted | runtime per named pool: `doctor-subscriber-pool-exhausted` (error) with size; fix names the pool range leaf | none |
 | AC-82 | An IPv6 PD pool exhausted, or IPv6 requested with no PD pool | runtime `doctor-subscriber-pd-pool-exhausted` (error); fix names the `ipv6-pd` leaf | none |
 | AC-83 | RADIUS Framed-Pool names a pool not configured | bus event `doctor-subscriber-pool-unknown` (error): pool name and user; the silent reject logs too; fix names the pool leaf | none |
-| AC-84 | Subscriber DNS from RADIUS or a host-only resolver not offered | the pool site carries `doctor-dns-source-host-only-dropped` (declared by `spec-doctor-coverage-5-appliance.md`'s dns-source check) for the host-only case; runtime `doctor-subscriber-dns-dropped` (warning) for the RADIUS case | the empty selection stays `doctor-dns-source-empty` |
+| AC-84 | Subscriber DNS from RADIUS or a host-only resolver not offered | the pool site carries `doctor-dns-source-host-only-dropped` (declared by `spec-doctor-coverage-5-appliance.md`'s dns-source check) for the host-only case, and the pool's dns-source publisher (`l2tp/plugins/pool/dns_source.go`) fills the dropped-list field child 5 AC-19 adds to `dnssource.ConsumerSelection`, so that check reports it; runtime `doctor-subscriber-dns-dropped` (warning) for the RADIUS case | the empty selection stays `doctor-dns-source-empty` |
 | AC-85 | Shaper configured, no traffic backend loaded | runtime reads `traffic.GetBackend()`: `doctor-shaper-no-backend` (error); fix names the traffic backend leaf | none |
 | AC-86 | TC apply, update or restore failed for a session | runtime compares the shaper's sessions with live sessions: `doctor-shaper-apply-failed` (error); fix names the reload command | none |
 | AC-87 | RADIUS subscriber auth with no usable client (no server) | local `doctor-radius-no-server` (error): every subscriber rejected; fix names the server leaf | none |
