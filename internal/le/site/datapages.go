@@ -714,7 +714,7 @@ const milestonesStyle = `        <style>
             .tl-reports {
                 margin-top: 1rem;
                 padding-top: 0.8rem;
-                border-top: 1px solid var(--line);
+                border-top: 1px solid color-mix(in srgb, var(--line-strong) 60%, var(--text));
                 display: flex;
                 flex-wrap: wrap;
                 align-items: baseline;
