@@ -380,11 +380,22 @@ var (
 	// create gains the body-file keyword in internal/le/commit; the review
 	// fixes I1 and N1-N5 reword the refusals. Pinned by the raw tests in
 	// hookruntime/bash_test.go, refusal_messages_test.go and body_file_test.go.
+	// Re-sealed 2026-11-11 for spec-agent-economy-6-shell-parser phase 2
+	// (e7e1d95731, 04caac807e, 1c2220b392, ff53c0b945, 2ec3034f3d): a lone
+	// source builtin behind a wrapper is refused and the raw-job refusal
+	// advises the quiet form; the guard verdicts are recorded as a table the
+	// parser replacement must keep; launcher option values, toolchain build
+	// flags (-toolexec, -overlay, -modfile) and braced tmp paths are refused by
+	// the text judgement; each line is parsed once with mvdan.cc/sh, a parser
+	// panic reads as did-not-parse. Also covers 9e21d84edf (doc-links ignore
+	// comments on test fixtures only). Each commit carries its own tests; the
+	// strongest-tier phase 2 review found 0 BLOCKER and its issues are fixed.
+	// The spec re-derives the seal again in phase 5.
 	hookSourcesDigest = [sha256.Size]byte{
-		0xb3, 0x61, 0x9d, 0x51, 0x44, 0xc3, 0x41, 0x19,
-		0x92, 0xb3, 0xd5, 0x67, 0xf1, 0x24, 0x59, 0x73,
-		0x4d, 0x7c, 0x7c, 0x85, 0x62, 0xbd, 0xc4, 0x10,
-		0x49, 0x75, 0x71, 0xd5, 0x19, 0x2e, 0x29, 0x21,
+		0x89, 0x7f, 0xd3, 0xd8, 0x2a, 0x9e, 0x38, 0xbd,
+		0xf5, 0xc1, 0x15, 0xfb, 0x55, 0x25, 0x66, 0x71,
+		0x86, 0x0d, 0x41, 0xc9, 0xc6, 0xf4, 0x46, 0x72,
+		0x2b, 0x4b, 0x47, 0xc6, 0x42, 0x65, 0xf5, 0x6b,
 	}
 )
 
