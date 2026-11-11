@@ -107,11 +107,11 @@
                 [
                     {"label_only": "Progress and history"},
                     {"href": "project/", "icon": "🧭", "title": "Project overview", "desc": "Progress, history, talks, and contribution paths", "feature": true},
-                    {"href": "project/roadmap/", "icon": "\ud83d\uddfa\ufe0f", "title": "Roadmap", "desc": "Planned changes and remaining release work, awaiting prioritization"},
-                    {"href": "project/changes/", "icon": "🧾", "title": "Changes", "desc": "{{ze:changes}} update reports, what shipped"},
-                    {"href": "project/milestones/", "icon": "🏁", "title": "Milestones", "desc": "Landmark features, oldest to newest"},
                     {"href": "project/activity/", "icon": "📈", "title": "Activity", "desc": "A year of commits, at a glance"},
-                    {"href": "project/history/", "icon": "🕰️", "title": "Project history", "desc": "How ExaBGP's programmable model grew into Ze"}
+                    {"href": "project/milestones/", "icon": "🏁", "title": "Milestone", "desc": "Landmark features, oldest to newest"},
+                    {"href": "project/changes/", "icon": "🧾", "title": "Changes", "desc": "{{ze:changes}} update reports, what shipped"},
+                    {"href": "project/history/", "icon": "🕰️", "title": "Project History", "desc": "How ExaBGP's programmable model grew into Ze"},
+                    {"href": "project/roadmap/", "icon": "\ud83d\uddfa\ufe0f", "title": "Roadmap", "desc": "Planned changes and remaining release work, awaiting prioritization"}
                 ],
                 [
                     {"label_only": "Community and notes"},
