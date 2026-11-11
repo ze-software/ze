@@ -6,6 +6,8 @@ import (
 	"maps"
 	"strings"
 	"sync"
+
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // Profile holds ingress and egress 802.1p QoS maps for a named
@@ -66,8 +68,7 @@ func All() map[string]Profile {
 }
 
 // RegisterResolver sets the callback used by Resolve. The cos plugin
-// registers this at init time; removing the plugin leaves no resolver,
-// so Resolve becomes a no-op.
+// registers this at init time; without it Resolve refuses named profiles.
 func RegisterResolver(fn ResolverFunc) {
 	mu.Lock()
 	resolver = fn
@@ -113,15 +114,29 @@ func ParseProfiles(data string) (map[string]Profile, error) {
 }
 
 // Resolve delegates to the registered resolver, over the given profile set.
-// Returns nil, nil, nil when no resolver is registered (cos plugin absent).
+// Without a resolver, only a unit requesting no profile can succeed. An
+// explicit "none" overrides an inherited profile and needs no provider.
 func Resolve(set map[string]Profile, parentCoS, unitCoS string, hasInlineMaps bool) (ingress, egress map[uint32]uint32, err error) {
 	mu.RLock()
 	fn := resolver
 	mu.RUnlock()
-	if fn == nil {
+	if fn != nil {
+		return fn(set, parentCoS, unitCoS, hasInlineMaps)
+	}
+	name := unitCoS
+	if name == "" {
+		name = parentCoS
+	}
+	if name == "" {
 		return nil, nil, nil
 	}
-	return fn(set, parentCoS, unitCoS, hasInlineMaps)
+	if name == "none" {
+		return nil, nil, nil
+	}
+	return nil, nil, opererr.New(
+		"class-of-service profile \""+name+"\" needs the missing class-of-service plugin",
+		"the interface cannot apply this profile without its resolver; set this unit to opt out of profile inheritance",
+		"class-of-service none")
 }
 
 const filterPrefix = "cos:"

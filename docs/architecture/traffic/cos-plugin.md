@@ -50,6 +50,12 @@ augment would leave the binding leaf behind.
 
 A leafref across container-merged modules creates YANG coupling. Go validation
 through `cos.Resolve()` is equivalent and survives the plugin's removal.
+If no resolver is registered, a named profile is refused with the profile name
+and the missing plugin. A unit with no reference, or with `class-of-service
+none` overriding its parent's reference, still works without the plugin; its
+inline maps remain the interface component's responsibility.
+
+<!-- source: internal/core/cos/cos.go -- Resolve -->
 
 ### The interface resolves against the candidate's profiles
 

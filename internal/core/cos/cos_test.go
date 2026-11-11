@@ -79,11 +79,13 @@ func TestParseFilterID(t *testing.T) {
 	}
 }
 
-func TestResolveNoResolver(t *testing.T) {
+func TestResolveNoResolverRefusesProfile(t *testing.T) {
 	t.Cleanup(ClearResolver)
 
 	ingress, egress, err := Resolve(nil, "residential", "", false)
-	assert.NoError(t, err)
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "class-of-service")
+	assert.ErrorContains(t, err, "residential")
 	assert.Nil(t, ingress)
 	assert.Nil(t, egress)
 }
