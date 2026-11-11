@@ -223,6 +223,14 @@
             "name": "Testing & Build Tooling",
             "modules": [
                 {
+                    "module": "github.com/moby/patternmatcher",
+                    "why": "Applies .dockerignore patterns when preparing the files sent to Docker for lab image builds."
+                },
+                {
+                    "module": "mvdan.cc/sh/v3",
+                    "why": "Parses Bash commands so the agent safety checks can inspect the commands a session is about to run."
+                },
+                {
                     "module": "github.com/stretchr/testify",
                     "why": "Assertion and require helpers used across the Go unit test suite."
                 },
