@@ -103,9 +103,9 @@ type ConfigInstaller[T any] func(cfg T) error
 // or a channel never compares equal and is installed on every apply.
 //
 // An install that fails with ErrRunningConfigLost leaves the transaction
-// broken: Apply compares nothing and installs, and Rollback installs the
-// running config again, failing (so the engine restarts the plugin) when
-// that install fails too.
+// broken: Apply compares nothing and installs. Rollback retries the previous
+// config after an accepted apply, or reinstalls the running config after a
+// failed apply. A failed repair asks the engine to restart the plugin.
 //
 // Safe for concurrent use.
 type ConfigTx[T any] struct {
@@ -216,27 +216,30 @@ func (tx *ConfigTx[T]) Apply() error {
 }
 
 // Rollback installs back the config the last accepted apply replaced, when
-// that apply changed one. In a broken transaction it installs the running
-// config again instead. An error here leaves the plugin's state unknown; the
-// engine then restarts the plugin, which reads the committed config at
-// Stage 2.
+// that apply changed one, retaining that target if the undo fails. Without a
+// previous config, a broken transaction reinstalls its running config. A lost
+// running config stays broken even if the engine refuses the requested restart,
+// so a later apply cannot mistake a partially running config for a no-op.
 func (tx *ConfigTx[T]) Rollback() error {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 	tx.pending = nil
-	if tx.broken {
-		if err := tx.install(tx.running); err != nil {
-			return fmt.Errorf("the running config could not be installed again, so the plugin must restart: %w", err)
+	if tx.previous != nil {
+		if err := tx.install(*tx.previous); err != nil {
+			if errors.Is(err, ErrRunningConfigLost) {
+				tx.broken = true
+			}
+			return err
 		}
-		tx.broken = false
+		tx.running, tx.previous, tx.broken = *tx.previous, nil, false
 		return nil
 	}
-	if tx.previous == nil {
+	if !tx.broken {
 		return nil
 	}
-	if err := tx.install(*tx.previous); err != nil {
-		return err
+	if err := tx.install(tx.running); err != nil {
+		return fmt.Errorf("the running config could not be installed again, so the plugin must restart: %w", err)
 	}
-	tx.running, tx.previous = *tx.previous, nil
+	tx.broken = false
 	return nil
 }

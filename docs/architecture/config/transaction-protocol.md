@@ -239,9 +239,13 @@ answers drop the undo set, as the contract above requires. An install that
 fails MUST leave the running config as it was; one that cannot (a listener of
 the running config could not be bound again: the DNS installers, dhcpserver,
 tftpserver and imageserver) wraps `ErrRunningConfigLost`,
-which leaves the transaction broken. Rollback then installs the running config
-again and fails when that install fails, and until an install succeeds apply
-skips the comparison, so a later apply of the running config installs it. A
+which leaves the transaction broken. After a failed apply, rollback installs
+its running config again. After an accepted apply, rollback retries the prior
+config it saved, retaining that target if the undo fails. An undo that itself
+loses running state also marks the transaction broken: if restart is refused,
+a later apply of the same parsed candidate must install it again. A retried
+rollback still targets the prior config, and only a successful install clears
+this broken state. Until then apply skips its equal-config comparison. A
 commit of the running config does not reach that apply: it has no diff, so the
 reload stops at "no changes" before any transaction. The repair is the
 rollback itself, or the restart that follows it. A lost-listener error says so:

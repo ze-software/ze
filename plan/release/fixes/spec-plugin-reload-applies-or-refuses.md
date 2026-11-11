@@ -604,6 +604,7 @@ Documents that only `<!-- source: -->` mention a changed file (advisory, from `.
 | `plan/journal/test-asserts-superseded-behaviour.md` | 2026-11-01 | `bgp-filter-irr-loaded-over-ssh` commit refused without Route Refresh (red since e9385df360) |
 | `plan/journal/expected-message-never-sent.md` | 2026-11-01 | `bgp-role-export-reload`: U2 never reaches B after the export reload (red since 30ff1fce91) |
 | `plan/journal/registry-contamination.md` | 2026-11-02 | `TestReloadUsesRegisteredOperationDecomposer` leaves its decomposer registered; the binder reload test panics under `-count=2` |
+| `plan/journal/rollback-forgets-partial-apply.md` | 2026-11-11 | `ConfigTx.Rollback` fails to mark a lost running config broken; equal-candidate apply can skip repair after a refused restart |
 
 ## Design Insights
 
