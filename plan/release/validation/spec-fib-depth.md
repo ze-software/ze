@@ -94,6 +94,8 @@ and backend parity under AC-15.
 | `announced-state-never-replayed.md` | 2026-11-11 | OSPF-SR label entries used a bare `Emit`, waited for no acknowledgement and answered no `(mpls-fib, replay-request)` (fixed in Phase 13) |
 | `announced-state-never-replayed.md` | 2026-11-11 | BGP EPE peer-SID pops answered no `(mpls-fib, replay-request)` (fixed in Phase 13) |
 | `guard-added-to-one-half-of-a-pair.md` | 2026-11-11 | fib-vpp sweeps no stale IP routes or labeled pushes at writer open, as fib-kernel's `startupSweep` does (Work Not Done) |
+| `config-accepts-a-value-that-breaks-an-rfc-must.md` | 2026-11-11 | `net.mpls.ip_ttl_propagate` 0 accepted by the sysctl registry, so pushed labels carry `net.mpls.default_ttl`, against RFC 3032 Section 2.4.3 (fixed: the key's `KeyDef.Constraint` refuses 0; `TestBuildRichRoutePushCarriesNoTTL` proves the push carries no tunnel TTL) |
+| `config-accepts-a-value-that-breaks-an-rfc-must.md` | 2026-11-11 | kernel `net.mpls.ip_ttl_propagate` 0 written outside Ze, which no doctor check reports (Work Not Done) |
 | `plugin-list-hardcoded.md` | 2026-09-07 | OSPF and IS-IS `Dependencies` named `fib-kernel` (Phase 13 AC-16; also listed by `spec-one-owner-per-domain-fact.md`) |
 | `plugin-list-hardcoded.md` | 2026-10-20 | LDP `Dependencies` named `fib-kernel` (Phase 13 AC-16; also listed by `spec-one-owner-per-domain-fact.md`) |
 | `plugin-list-hardcoded.md` | 2026-11-11 | geodns, dnsresolver and as112 doctor checks name `fib-kernel` in `DoctorCheckDef.Dependencies` |
@@ -340,18 +342,18 @@ AC-9 (BestChangeEntry with TableID != 0: route installed in table N on both back
 | `TestVPPMultiPath` | `internal/plugins/fib/vpp/fibvpp_test.go` | NPaths > 1 with correct FibPaths | |
 | `TestVPPRouteType` | `internal/plugins/fib/vpp/fibvpp_test.go` | Drop/unreach adjacency | |
 | `TestBestChangeEntryJSON` | `internal/plugins/sysrib/events/events_test.go` | New fields serialize with omitempty | |
-| `TestFibVPPLabelSwapProgramsBothStackPositions` | `internal/plugins/fib/vpp/mplsentry_test.go` | AC-17: one-label swap and a two-label backup stack give S=1 (payload IP4) and S=0 (payload MPLS) routes in table 0, stack order kept | |
-| `TestFibVPPLabelPenultimatePop` | `internal/plugins/fib/vpp/mplsentry_test.go` | AC-18: Implicit NULL uniform path via the next hop, both S routes | |
-| `TestFibVPPLabelEgressPopLooksUp` | `internal/plugins/fib/vpp/mplsentry_test.go` | AC-19: IPv4 and IPv6 FEC select the IP lookup table and payload; S=0 looks up MPLS table 0; no FEC and no next hop refused | |
-| `TestFibVPPLabelUsesMPLSTableZero` | `internal/plugins/fib/vpp/mplsentry_test.go` | AC-20: `table-id 5` still programs table 0; `MplsTableAddDel` precedes the first route once per connection | |
-| `TestFibVPPLabelTTLUniform` | `internal/plugins/fib/vpp/mplsentry_test.go` | AC-21: swap, pop and labeled push labels carry `IsUniform` 1 | |
+| `TestFibVPPLabelSwapProgramsBothStackPositions` | `internal/plugins/fib/vpp/rfc3032_mplsentry_test.go` | AC-17: one-label swap and a two-label backup stack give S=1 (payload IP4) and S=0 (payload MPLS) routes in table 0, stack order kept | |
+| `TestFibVPPLabelPenultimatePop` | `internal/plugins/fib/vpp/rfc3032_mplsentry_test.go` | AC-18: Implicit NULL uniform path via the next hop, both S routes | |
+| `TestFibVPPLabelEgressPopLooksUp` | `internal/plugins/fib/vpp/rfc3032_mplsentry_test.go` | AC-19: IPv4 and IPv6 FEC select the IP lookup table and payload; S=0 looks up MPLS table 0; no FEC and no next hop refused | |
+| `TestFibVPPLabelUsesMPLSTableZero` | `internal/plugins/fib/vpp/rfc3032_mplsentry_test.go` | AC-20: `table-id 5` still programs table 0; `MplsTableAddDel` precedes the first route once per connection | |
+| `TestFibVPPLabelTTLUniform` | `internal/plugins/fib/vpp/rfc3032_mplsentry_test.go` | AC-21: swap, pop and labeled push labels carry `IsUniform` 1 | |
 | `TestFibVPPLabelAckWithoutWriter` | `internal/plugins/fib/vpp/register_test.go` | AC-22: with no writer, `mplsfib.Apply` through a real bus returns the cause | |
-| `TestFibVPPLabelAckVPPRefusal` | `internal/plugins/fib/vpp/mplsentry_test.go` | AC-22: nonzero `Retval` and a transport error reach the producer; no ownership recorded | |
-| `TestFibVPPLabelValidationAndOwnership` | `internal/plugins/fib/vpp/mplsentry_test.go` | AC-23: each refusal, EEXIST for a foreign source, remove of both routes, `RemoveLabelSource` keeps a failed deletion | |
-| `TestFibVPPLabelPrivateTableRefused` | `internal/plugins/fib/vpp/mplsentry_test.go` | AC-24 | |
+| `TestFibVPPLabelAckVPPRefusal` | `internal/plugins/fib/vpp/rfc3032_mplsentry_test.go` | AC-22: nonzero `Retval` and a transport error reach the producer; no ownership recorded | |
+| `TestFibVPPLabelValidationAndOwnership` | `internal/plugins/fib/vpp/rfc3032_mplsentry_test.go` | AC-23: each refusal, EEXIST for a foreign source, remove of both routes, `RemoveLabelSource` keeps a failed deletion | |
+| `TestFibVPPLabelPrivateTableRefused` | `internal/plugins/fib/vpp/rfc3032_mplsentry_test.go` | AC-24 | |
 | `TestFibVPPLabelReplayOnWriterOpen` | `internal/plugins/fib/vpp/register_test.go` | AC-25: one targeted request per writer open; foreign-token batch neither consumed nor acknowledged | |
-| `TestFibVPPLabelPathMTUWarnsOnce` | `internal/plugins/fib/vpp/mplsentry_test.go` | AC-26 | |
-| `TestFibVPPFlushRemovesLabelEntries` | `internal/plugins/fib/vpp/mplsentry_test.go` | AC-29 | |
+| `TestFibVPPLabelPathMTUWarnsOnce` | `internal/plugins/fib/vpp/rfc3032_mplsentry_test.go` | AC-26 | |
+| `TestFibVPPFlushRemovesLabelEntries` | `internal/plugins/fib/vpp/rfc3032_mplsentry_test.go` | AC-29 | |
 | `TestApplyReplayTargetsOneWriter`, `TestReplayTokensAreDistinct`, `TestValidateOutLabels` | `internal/core/mplsfib/events_test.go` | AC-23, AC-25: targeted acknowledgement, token counter, the one validator | |
 | `TestHandleMPLSEntryIgnoresForeignReplay` | `internal/plugins/fib/kernel/mplsapply_test.go` | AC-25: fib-kernel neither programs nor acknowledges a foreign-token batch | |
 | `TestLDPRegistrationNeedsDataPlane`, `TestRSVPTERegistrationNeedsDataPlane` | `internal/plugins/ldp/register_test.go`, `internal/plugins/rsvpte/register_test.go` | AC-16: `NeedsDataPlane` set, no `Dependencies` entry whose registration declares `ProgramsFIB` (asked of the registry, not a name) | |
@@ -437,7 +439,7 @@ Swap needs a signaling peer on both sides, which the single-container harness do
 - `test/bgp/fib-recursive.ci` -- functional test
 - `test/bgp/fib-blackhole.ci` -- functional test
 - `test/bgp/fib-mpls-kernel.ci` -- functional test
-- `internal/plugins/fib/vpp/mplsentry_test.go` -- Phase 13 unit tests
+- `internal/plugins/fib/vpp/rfc3032_mplsentry_test.go` -- Phase 13 unit tests
 - `internal/core/mplsfib/events_test.go` -- Phase 13 unit tests
 - `internal/component/iface/mplsinput_test.go` -- Phase 13 unit tests
 - `internal/plugins/iface/vpp/mplsinput_test.go` -- Phase 13 unit tests
@@ -632,6 +634,7 @@ except AC-4, AC-8 and AC-9, which moved to
 
 | Item | Why not here | Destination |
 |------|--------------|-------------|
+| A doctor check for a kernel `net.mpls.ip_ttl_propagate` of 0 written outside Ze | The sysctl registry refuses 0 on every write Ze makes, but a value another program writes is never read back, so fib-kernel would push labels carrying `net.mpls.default_ttl` against RFC 3032 Section 2.4.3 with nothing reporting it | Owned journal row (2026-11-11, second row); the check belongs under spec-doctor-coverage-10-forwarding |
 | fib-vpp sweeps no stale IP routes or labeled pushes at writer open | fib-kernel's `startupSweep` lists its routes by `rtm_protocol` and `sweepStale` removes the leftovers after `sweepDelay`; fib-vpp restores only SRv6 ownership (`restoreSRv6`) and `run(runCtx, false)` flushes nothing on stop, so after a ze restart with VPP running the IP routes and labeled pushes a previous run installed keep forwarding. The Phase 13 sweep (`mplsstale.go`) covers MPLS table 0 label routes only | Owned journal row `guard-added-to-one-half-of-a-pair.md` (2026-11-11), owed by this spec (backend parity, AC-15) |
 | RSVP-TE facility-backup control contexts (push with a nonzero `TableID`) on a VPP data plane | They are packet-mark tables in the kernel with no VPP form; Phase 13 refuses them (AC-24) and the design of where Ze's own RSVP traffic is routed on a VPP box is its own question | `plan/release/fixes/spec-rsvpte-vpp-dataplane.md` |
 | Real-VPP transit swap forwarding proof | The single-container harness holds no RSVP-TE or LDP peer on both sides; Phase 13 proves swap through the subscription with a fake channel and pop on real VPP (AC-28) | `plan/release/fixes/spec-rsvpte-vpp-dataplane.md` |

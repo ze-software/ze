@@ -7,7 +7,7 @@
     "claim-sha": "8e26b296cb084e1b",
     "route": "revert",
     "producer": "internal/plugins/rsvpte/engine.go::handlePathEgress",
-    "producer-sha": "2df4c04fc0391c1d",
+    "producer-sha": "d98ace2e37fe087d",
     "break": "body of handlePathEgress replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -40,7 +40,7 @@
     "claim-sha": "1aa49eec444244ef",
     "route": "revert",
     "producer": "internal/plugins/rsvpte/engine.go::handlePathEgress",
-    "producer-sha": "2df4c04fc0391c1d",
+    "producer-sha": "d98ace2e37fe087d",
     "break": "body of handlePathEgress replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -3133,6 +3133,16 @@ IPv6 switch on while any unit sets `ipv6 forwarding true`
 (`applyIPv6ForwardingSwitch`).
 <!-- source: internal/core/sysctl/known_linux.go -- Propagates -->
 <!-- source: internal/component/sysctl/sysctl.go -- write, reapplyManaged, restoreAll -->
+
+A known key can also declare a value its type admits but Ze cannot run with
+(`KeyDef.Constraint`). `Validate` runs it after the type and range check, so the
+refusal reaches config verify, config apply, a transient `set sysctl` and a
+plugin default without any caller naming the key. `net.mpls.ip_ttl_propagate`
+refuses 0: fib-kernel pushes labels with no tunnel TTL, and with 0 Linux writes
+`net.mpls.default_ttl` into every pushed label instead of the IP TTL, against
+RFC 3032 Section 2.4.3 (`docs/architecture/mpls/mpls-kernel.md`).
+<!-- source: internal/core/sysctl/known.go -- KeyDef.Constraint, Validate -->
+<!-- source: internal/core/sysctl/known_linux.go -- refuseMPLSTTLNoPropagate -->
 <!-- source: internal/component/iface/config_sysctl.go -- applyIPv6ForwardingSwitch -->
 
 A profile registry (`internal/core/sysctl/profiles.go`) holds named collections of

@@ -1,9 +1,10 @@
 {
-  "note": "Rejudged 2026-11-11 (independent judge) against rfc/full/rfc3032.txt Section 2.1 iv: \"When an LSR would otherwise replace the label at the top of the stack with a new label, but the new label is \"Implicit NULL\", the LSR will pop the stack instead of doing the replacement.\" The six earlier units are byte-identical and still enforce item iv at the imposing sites (rsvpte transit pop, ingress empty push, bypass not stacked, fib-kernel empty push) and item v (TestLSPTableAllocateSkipsReservedLabels). The new positive tag on internal/plugins/fib/vpp/rfc3032_mplsentry_test.go::TestFibVPPLabelSwapProgramsBothStackPositions is wrong for this row: it swaps in-label 100 to ordinary out stacks {200} and {300,301} and asserts the S=1/S=0 split and stack order; label 3 never enters the body, so it says nothing about Implicit NULL or a pop and cannot go red if fib-vpp stopped popping. The unit in the same file that exercises item iv on VPP, TestFibVPPLabelPenultimatePop, is untagged: it asserts both S routes of an OpPop with a next hop carry exactly the single label 3 (implicitNullLabel) in uniform mode toward the IPv6 next hop (producer labelPath/swapOrPopStack, internal/plugins/fib/vpp/mpls.go). Fix owed: move the RFC3032-2.1-1 positive tag from the swap test to TestFibVPPLabelPenultimatePop, with a claim no wider than its body (fib-vpp sends label 3 as the out label, which VPP reads as pop; no running VPP proves the pop), and record its discrimination. Not covered: VPP's own reading of label 3 as a pop against a running VPP, the transit backup stack that empties to a pop, and TestMPLSIntegration_PushImplicitNull in the QEMU guest.",
+  "note": "Rejudged 2026-11-11 (independent judge) after the fib-vpp tag move, against rfc/full/rfc3032.txt Section 2.1 iv: \"When an LSR would otherwise replace the label at the top of the stack with a new label, but the new label is \"Implicit NULL\", the LSR will pop the stack instead of doing the replacement.\" fib-vpp positive TestFibVPPLabelPenultimatePop: an OpPop with a next hop reaches VPP as the S=1 and S=0 routes, each with exactly one path carrying exactly the literal label stack {3} in uniform mode toward the IPv6 next hop; recorded break of swapOrPopStack (empty stack) reds it. fib-vpp negative TestFibVPPLabelSwapProgramsBothStackPositions: swaps to ordinary stacks {200} and {300,301} impose exactly that stack on both S routes, never label 3; recorded break (swapOrPopStack always returning Implicit NULL) reds it. Claims match the bodies. Earlier units unchanged and still enforce item iv at the rsvpte imposing sites and fib-kernel empty push, and item v (TestLSPTableAllocateSkipsReservedLabels). The VPP units prove what Ze sends; VPP's own reading of out label 3 as a pop is not proven against a running VPP. Not covered: that VPP run, the transit backup stack that empties to a pop, and TestMPLSIntegration_PushImplicitNull in the QEMU guest.",
   "requirement_sha": "c262dc601eab8a95",
   "tests": {
     "internal/plugins/fib/kernel/rfc3032_mplsentry_test.go::TestHandleMPLSEntryPushImplicitNull": "7a9e7c6eecbe4457",
-    "internal/plugins/fib/vpp/rfc3032_mplsentry_test.go::TestFibVPPLabelSwapProgramsBothStackPositions": "1f35e3502c28beb8",
+    "internal/plugins/fib/vpp/rfc3032_mplsentry_test.go::TestFibVPPLabelPenultimatePop": "128ab2d30ec13850",
+    "internal/plugins/fib/vpp/rfc3032_mplsentry_test.go::TestFibVPPLabelSwapProgramsBothStackPositions": "128ab2d30ec13850",
     "internal/plugins/rsvpte/rfc3032_fsm_test.go::TestLSPTableAllocateSkipsReservedLabels": "5d4454f4e719f058",
     "internal/plugins/rsvpte/rfc3032_implicit_null_test.go::TestRFC3032ImplicitNullBypassLabelNotStacked": "c9a7284defa2fbd5",
     "internal/plugins/rsvpte/rfc3032_implicit_null_test.go::TestRFC3032ImplicitNullResvProgramsPop": "c9a7284defa2fbd5",
@@ -13,7 +14,8 @@
   },
   "units": {
     "internal/plugins/fib/kernel/rfc3032_mplsentry_test.go::TestHandleMPLSEntryPushImplicitNull": "f69858cd8b84da9e",
-    "internal/plugins/fib/vpp/rfc3032_mplsentry_test.go::TestFibVPPLabelSwapProgramsBothStackPositions": "47c04afcd06bd299",
+    "internal/plugins/fib/vpp/rfc3032_mplsentry_test.go::TestFibVPPLabelPenultimatePop": "2510d5c66d020446",
+    "internal/plugins/fib/vpp/rfc3032_mplsentry_test.go::TestFibVPPLabelSwapProgramsBothStackPositions": "c269301889a1c7b1",
     "internal/plugins/rsvpte/rfc3032_fsm_test.go::TestLSPTableAllocateSkipsReservedLabels": "4f34e2f4e8374f00",
     "internal/plugins/rsvpte/rfc3032_implicit_null_test.go::TestRFC3032ImplicitNullBypassLabelNotStacked": "135c3a1dd15619da",
     "internal/plugins/rsvpte/rfc3032_implicit_null_test.go::TestRFC3032ImplicitNullResvProgramsPop": "74b2b2262d74c6d8",
@@ -21,5 +23,5 @@
     "internal/plugins/rsvpte/rfc3032_implicit_null_test.go::TestRFC3032IngressPushesOrdinaryLabel": "28c6bd30e89af8e8",
     "internal/plugins/rsvpte/rfc3032_implicit_null_test.go::TestRFC3032OrdinaryResvLabelSwapped": "89763246b272e8fe"
   },
-  "verdict": "wrong"
+  "verdict": "enforced"
 }

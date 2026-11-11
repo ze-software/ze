@@ -7,8 +7,8 @@
     "claim-sha": "fa1ec6345481a87b",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/epe/epe_source.go::publishLocked",
-    "producer-sha": "326f0928961a7220",
-    "break": "body of publishLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "5b2f95813737f92a",
+    "break": "body of publishLocked replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9086-7-1",
@@ -18,7 +18,7 @@
     "claim-sha": "95de167da0797bd5",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/epe/epe_source.go::publishLocked",
-    "producer-sha": "326f0928961a7220",
-    "break": "body of publishLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "5b2f95813737f92a",
+    "break": "body of publishLocked replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

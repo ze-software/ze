@@ -5,6 +5,8 @@
 
 package sysctl
 
+import "github.com/ze-software/ze/internal/core/opererr"
+
 func init() {
 	// System-wide keys.
 	MustRegister(KeyDef{
@@ -124,6 +126,8 @@ func init() {
 	MustRegister(KeyDef{
 		Name: "net.mpls.ip_ttl_propagate", Type: TypeBool,
 		Description: "Propagate IP TTL into MPLS header", Platform: PlatformLinux,
+		// RFC 3032 Section 2.4.3
+		Constraint: refuseMPLSTTLNoPropagate,
 	})
 	MustRegister(KeyDef{
 		Name: "net.mpls.default_ttl", Type: TypeIntRange, Min: 1, Max: 255,
@@ -133,4 +137,25 @@ func init() {
 		Name: "net.mpls.conf.<iface>.input", Type: TypeBool, Template: true,
 		Description: "Enable MPLS input on interface", Platform: PlatformLinux,
 	})
+}
+
+// refuseMPLSTTLNoPropagate refuses turning off net.mpls.ip_ttl_propagate.
+// fib-kernel pushes labels with an MPLS lwtunnel that carries label values and
+// no MPLS_IPTUNNEL_TTL (buildMPLSEncap, internal/plugins/fib/kernel), so Linux
+// mpls_xmit (net/mpls/mpls_iptunnel.c) copies the IP TTL into the label it
+// imposes only while this key is 1, and imposes net.mpls.default_ttl when it
+// is 0. The kernel's own default is 1 and Ze never writes 0, so this refuses
+// only an operator's setting. Safe for concurrent use: it reads its argument
+// only.
+//
+// RFC 3032 Section 2.4.3: "When an IP packet is first labeled, the TTL field of the label stack entry MUST BE set to the value of the IP TTL field."
+func refuseMPLSTTLNoPropagate(value string) error {
+	if value != "0" {
+		return nil
+	}
+	return opererr.New(
+		"sysctl net.mpls.ip_ttl_propagate 0 is refused",
+		"RFC 3032 Section 2.4.3 requires a label pushed onto an IP packet to carry the packet's IP TTL, and with 0 Linux writes net.mpls.default_ttl into every label Ze pushes instead",
+		"remove the net.mpls.ip_ttl_propagate sysctl setting, or set its value to 1",
+	)
 }

@@ -3556,7 +3556,12 @@ sysctl {
 
 Keys use kernel-native names (e.g., the `/proc/sys/` path with `/` replaced by `.`
 on Linux, or MIB names on Darwin). Known keys get type and range validation on
-commit; unknown keys are validated by attempting the write.
+commit; unknown keys are validated by attempting the write. A few known keys
+also refuse a value Ze cannot run with: `net.mpls.ip_ttl_propagate 0` is
+refused, because with it Linux writes `net.mpls.default_ttl` into every MPLS
+label Ze pushes instead of the packet's IP TTL, which RFC 3032 Section 2.4.3
+forbids. Leave the key unset (the kernel default is 1) or set it to 1.
+<!-- source: internal/core/sysctl/known_linux.go -- refuseMPLSTTLNoPropagate -->
 
 The sysctl plugin uses three-layer precedence: config values (above) are authoritative
 and override both transient values (`set sysctl` from CLI) and plugin defaults

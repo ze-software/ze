@@ -37,6 +37,21 @@ a pop.
 
 <!-- source: internal/plugins/fib/kernel/mplsentry.go -- addMPLSEntryLocked -->
 
+## Constraint: the pushed label carries the IP TTL
+
+RFC 3032 Section 2.4.3: "When an IP packet is first labeled, the TTL field of
+the label stack entry MUST BE set to the value of the IP TTL field." The push
+encapsulation `buildMPLSEncap` writes the label stack and no
+`MPLS_IPTUNNEL_TTL`, so Linux `mpls_xmit` (`net/mpls/mpls_iptunnel.c`) chooses
+the TTL itself: the IP TTL while `net.mpls.ip_ttl_propagate` is 1, and
+`net.mpls.default_ttl` when it is 0. The kernel's default is 1 and Ze never
+writes the key, so the sysctl registration refuses 0 from config verify, a
+transient `set sysctl` and a plugin default alike, with an error that names the
+RFC section (`refuseMPLSTTLNoPropagate`).
+
+<!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- buildMPLSEncap -->
+<!-- source: internal/core/sysctl/known_linux.go -- refuseMPLSTTLNoPropagate -->
+
 ## Constraint: the push shares the FIB with other writers
 
 An MPLS push bypasses sysrib best-path arbitration, so it can meet a foreign

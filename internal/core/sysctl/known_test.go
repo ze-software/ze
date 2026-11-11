@@ -1,6 +1,7 @@
 package sysctl
 
 import (
+	"errors"
 	"testing"
 )
 
@@ -194,5 +195,42 @@ func TestValidate(t *testing.T) {
 				t.Errorf("Validate(%q, %q) error = %v, wantErr %v", tt.key, tt.value, err, tt.wantErr)
 			}
 		})
+	}
+}
+
+// VALIDATES: a key's Constraint runs on every value its type admits, its
+// refusal is what Validate returns, and a value the type refuses never
+// reaches it. Method: a registered bool key whose Constraint refuses 0 and
+// records each value it judged.
+// PREVENTS: a registered Constraint that Validate never calls, so the value
+// it exists to refuse reaches the kernel.
+func TestValidateRunsConstraint(t *testing.T) {
+	ResetRegistry()
+	t.Cleanup(ResetRegistry)
+
+	errRefused := errors.New("refused by constraint")
+	var judged []string
+	MustRegister(KeyDef{
+		Name: "net.test.constrained", Type: TypeBool, Platform: PlatformLinux,
+		Constraint: func(value string) error {
+			judged = append(judged, value)
+			if value == "0" {
+				return errRefused
+			}
+			return nil
+		},
+	})
+
+	if err := Validate("net.test.constrained", "1"); err != nil {
+		t.Errorf("value 1 refused: %v", err)
+	}
+	if err := Validate("net.test.constrained", "0"); !errors.Is(err, errRefused) {
+		t.Errorf("value 0: error = %v, want the Constraint's refusal", err)
+	}
+	if err := Validate("net.test.constrained", "yes"); err == nil || errors.Is(err, errRefused) {
+		t.Errorf("value yes: error = %v, want the bool type refusal", err)
+	}
+	if len(judged) != 2 || judged[0] != "1" || judged[1] != "0" {
+		t.Errorf("Constraint judged %v, want [1 0]: the type check runs first", judged)
 	}
 }

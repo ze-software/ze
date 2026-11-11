@@ -106,7 +106,7 @@ func pathLabels(p fib_types.FibPath) []uint32 {
 // each reach VPP as two routes in MPLS table 0 for the in-label, S=1 with the
 // next hop's family as payload and S=0 with MPLS, each imposing the whole stack
 // in order. Method: mplsfib.Apply through the subscription onto the fake channel.
-// RFC requirement: RFC3032-2.1-1 positive -- the S=1 and S=0 MplsRouteAddDel requests fib-vpp sends for one swap entry carry the entry's whole out stack in order.
+// RFC requirement: RFC3032-2.1-1 negative -- a swap entry whose out stack holds no Implicit NULL ({200}, or {300, 301}) reaches VPP as S=1 and S=0 routes each imposing exactly that stack in order, never label 3.
 func TestFibVPPLabelSwapProgramsBothStackPositions(t *testing.T) {
 	for _, stack := range [][]uint32{{200}, {300, 301}} {
 		w := newLabelWriter(t, 0)
@@ -130,16 +130,20 @@ func TestFibVPPLabelSwapProgramsBothStackPositions(t *testing.T) {
 
 // VALIDATES: AC-18 -- a penultimate-hop pop programs both S routes whose path
 // via the next hop carries the single label Implicit NULL in uniform mode.
-// Method: as above.
+// Method: as above. The expected label is the literal 3, so a wrong
+// implicitNullLabel constant reds the test too.
+// RFC requirement: RFC3032-2.1-1 positive -- a pop entry with a next hop reaches VPP as both S routes whose path carries the single out label 3 (Implicit NULL) in uniform mode.
 func TestFibVPPLabelPenultimatePop(t *testing.T) {
 	w := newLabelWriter(t, 0)
 	require.NoError(t, w.apply(mplsfib.Entry{Action: mplsfib.ActionAdd, Op: mplsfib.OpPop, InLabel: 100,
 		NextHop: netip.MustParseAddr("2001:db8::1"), Source: 1}))
 	reqs := w.routes()
 	require.Len(t, reqs, 2)
-	for _, req := range reqs {
-		p := req.MrRoute.MrPaths[0]
-		assert.Equal(t, []uint32{implicitNullLabel}, pathLabels(p))
+	for i, eos := range []uint8{1, 0} {
+		assert.Equal(t, eos, reqs[i].MrRoute.MrEos)
+		require.Len(t, reqs[i].MrRoute.MrPaths, 1)
+		p := reqs[i].MrRoute.MrPaths[0]
+		assert.Equal(t, []uint32{3}, pathLabels(p))
 		assert.Equal(t, uint8(1), p.LabelStack[0].IsUniform)
 		assert.Equal(t, fib_types.FIB_API_PATH_NH_PROTO_IP6, p.Proto)
 	}
@@ -149,7 +153,8 @@ func TestFibVPPLabelPenultimatePop(t *testing.T) {
 // fib.vpp.table-id of the FEC's family at S=1, and in MPLS table 0 at S=0; one
 // with neither next hop nor FEC is refused naming RFC 3032 Section 2.2.
 // Method: as above, for an IPv4 and an IPv6 FEC.
-// RFC requirement: RFC3032-2.2-1 positive -- the S=1 route fib-vpp sends for an egress pop names the FEC's family as its payload protocol, and an egress pop naming no family is refused.
+// RFC requirement: RFC3032-2.2-1 positive -- the S=1 route fib-vpp sends for an IPv4 or an IPv6 egress pop names the FEC's family as its payload protocol.
+// RFC requirement: RFC3032-2.2-1 negative -- an egress pop naming neither a next hop nor a FEC is refused with an error citing RFC 3032 Section 2.2, and no route reaches VPP.
 func TestFibVPPLabelEgressPopLooksUp(t *testing.T) {
 	for _, tc := range []struct {
 		fec   string

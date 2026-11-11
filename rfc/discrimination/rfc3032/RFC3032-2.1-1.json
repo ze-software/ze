@@ -7,8 +7,30 @@
     "claim-sha": "e4fff422ba51863d",
     "route": "revert",
     "producer": "internal/plugins/fib/kernel/mplsentry.go::addMPLSEntryLocked",
-    "producer-sha": "cd24804060ebfbd8",
-    "break": "body of addMPLSEntryLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "b379e0e67b7eb4bf",
+    "break": "body of addMPLSEntryLocked replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3032-2.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/fib/vpp/rfc3032_mplsentry_test.go::TestFibVPPLabelPenultimatePop",
+    "unit-sha": "e025927eec5783b6",
+    "claim-sha": "dc3c52da8cb5acf7",
+    "route": "mutant",
+    "producer": "internal/plugins/fib/vpp/mpls.go::swapOrPopStack",
+    "producer-sha": "fde722f1728ff04a",
+    "break": "line 302: \"[]uint32{implicitNullLabel}\" -\u003e \"[]uint32{}\""
+  },
+  {
+    "rid": "RFC3032-2.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/fib/vpp/rfc3032_mplsentry_test.go::TestFibVPPLabelSwapProgramsBothStackPositions",
+    "unit-sha": "1ab921f58f1dabad",
+    "claim-sha": "5a711ea4ebc51dc9",
+    "route": "mutant",
+    "producer": "internal/plugins/fib/vpp/mpls.go::swapOrPopStack",
+    "producer-sha": "fde722f1728ff04a",
+    "break": "line 299: \"return outLabels\" -\u003e \"return []uint32{implicitNullLabel}\""
   },
   {
     "rid": "RFC3032-2.1-1",
@@ -40,8 +62,8 @@
     "claim-sha": "be767757d866435d",
     "route": "revert",
     "producer": "internal/plugins/rsvpte/reservation.go::installReservation",
-    "producer-sha": "706e7422bd925c24",
-    "break": "body of installReservation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "854f448ba1e7c376",
+    "break": "body of installReservation replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC3032-2.1-1",
@@ -73,7 +95,7 @@
     "claim-sha": "6fe024fdd303d0b2",
     "route": "revert",
     "producer": "internal/plugins/rsvpte/reservation.go::installReservation",
-    "producer-sha": "706e7422bd925c24",
-    "break": "body of installReservation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "854f448ba1e7c376",
+    "break": "body of installReservation replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3032-2.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/fib/vpp/rfc3032_mplsentry_test.go::TestFibVPPLabelEgressPopLooksUp",
+    "unit-sha": "137fa9fd416ee75f",
+    "claim-sha": "16e0b16a3bebf04e",
+    "route": "mutant",
+    "producer": "internal/plugins/fib/vpp/mpls.go::labelPath",
+    "producer-sha": "ec990c79c8b7e5f8",
+    "break": "line 277: \"r.fec.Addr().Is4()\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC3032-2.2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/fib/vpp/rfc3032_mplsentry_test.go::TestFibVPPLabelEgressPopLooksUp",
+    "unit-sha": "137fa9fd416ee75f",
+    "claim-sha": "1a9e9a56c158bdcb",
+    "route": "mutant",
+    "producer": "internal/plugins/fib/vpp/mpls.go::labelPath",
+    "producer-sha": "ec990c79c8b7e5f8",
+    "break": "line 272: \"!r.fec.IsValid()\" -\u003e \"false\""
+  }
+]

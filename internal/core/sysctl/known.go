@@ -58,6 +58,15 @@ type KeyDef struct {
 	// store re-applies each instance it manages; the kernel's copy stands on
 	// every other one. Empty for a key whose write touches nothing else.
 	Propagates []string
+
+	// Constraint refuses a value the Type admits but Ze cannot run with: the
+	// key's own registration declares it, so no caller names the key. It runs
+	// after the type and range check, on every path Validate guards (config
+	// verify and apply, a transient `set sysctl`, a plugin default), and returns
+	// nil to accept the value or an operator error naming the problem, why and
+	// the fix. Nil for a key whose type is its whole rule. MUST be safe for
+	// concurrent use and MUST NOT write a sysctl.
+	Constraint func(value string) error
 }
 
 var (
@@ -72,7 +81,7 @@ func MustRegister(k KeyDef) {
 	defer mu.Unlock()
 
 	if _, exists := registry[k.Name]; exists {
-		panic(fmt.Sprintf("sysctl: duplicate registration for %q", k.Name))
+		panic("BUG: sysctl: duplicate registration for " + strconv.Quote(k.Name))
 	}
 	registry[k.Name] = k
 }
@@ -138,7 +147,8 @@ func All() []KeyDef {
 
 // Validate checks a value against the known key's type constraints.
 // Returns nil for unknown keys (they bypass validation).
-// Returns an error if the value does not match the key's type or range.
+// Returns an error if the value does not match the key's type or range, or if
+// the key's Constraint refuses it.
 func Validate(key, value string) error {
 	mu.RLock()
 	k, ok := registry[key]
@@ -152,7 +162,13 @@ func Validate(key, value string) error {
 		}
 	}
 
-	return validateValue(k, value)
+	if err := validateValue(k, value); err != nil {
+		return err
+	}
+	if k.Constraint != nil {
+		return k.Constraint(value)
+	}
+	return nil
 }
 
 func validateValue(k KeyDef, value string) error {
