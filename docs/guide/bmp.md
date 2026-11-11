@@ -151,6 +151,16 @@ established peer requires that BGP peer to reconnect before it can be monitored.
 The sender reconnects automatically with exponential backoff (30s to 720s)
 per RFC 7854 recommendations.
 
+Use the internal BMP plugin for `loc-rib true`. Runtime startup and reload
+require the live BGP RIB event bus and refuse this mode when that feed is
+unavailable, before starting BMP sessions. The current external process has
+no transport for this feed. Replace that external instance with
+`plugin { internal bmp { use bgp-bmp; } }`. Offline configuration parsing
+checks syntax independently of this runtime capability.
+
+<!-- source: internal/component/bgp/plugins/bmp/locrib_runtime.go -- validateLocRIBRuntimeConfig -->
+<!-- source: internal/component/bgp/plugins/bmp/bmp.go -- BMPPlugin.registerCallbacks -->
+
 ## CLI Commands
 
 | Command | Description |

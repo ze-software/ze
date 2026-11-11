@@ -517,6 +517,10 @@ func (bp *BMPPlugin) registerCallbacks() {
 	}, nil, "full")
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
+		// RFC 9069 Section 5.4: refuse an unavailable feed before any session starts.
+		if err := validateLocRIBRuntimeConfig(sections); err != nil {
+			return err
+		}
 		// Identity must be installed before a collector starts, regardless of
 		// the order the engine delivers the configuration roots.
 		for _, section := range sections {
@@ -579,6 +583,10 @@ func (bp *BMPPlugin) registerCallbacks() {
 		replacedReceiver = nil
 		pendingSystem = nil
 		replacedSystem = nil
+		// RFC 9069 Section 5.4: reject before publishing any pending candidate.
+		if err := validateLocRIBRuntimeConfig(sections); err != nil {
+			return err
+		}
 		for _, section := range sections {
 			switch section.Root {
 			case configRootSystem:

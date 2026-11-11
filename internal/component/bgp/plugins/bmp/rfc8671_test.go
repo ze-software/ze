@@ -1210,15 +1210,27 @@ func TestBMPRollbackWithoutAnApplyLeavesTheSenderConfigurationAlone(t *testing.T
 // the configuration in force: a plugin told at startup that monitoring was off
 // reads this reload as no change at all, and the case would prove nothing.
 func TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo(t *testing.T) {
+	previousBus := eventBusPtr.Load()
+	setEventBus(newLocRIBTestBus())
+	t.Cleanup(func() { eventBusPtr.Store(previousBus) })
+
 	server, client := net.Pipe()
 	defer closeLog(server, "server")
 	defer closeLog(client, "client")
 
 	bp := &BMPPlugin{stopCh: make(chan struct{})}
+	t.Cleanup(bp.stopLocRIB)
 	engine := startReloadEngine(t, bp, senderJSON(t, map[string]any{"loc-rib": yangTrue}))
 
+	stopSubscription := bp.locRIBUnsub
+	if stopSubscription == nil {
+		t.Fatal("enabled startup did not subscribe to the Loc-RIB feed")
+	}
 	unsubscribed := false
-	bp.locRIBUnsub = func() { unsubscribed = true }
+	bp.locRIBUnsub = func() {
+		stopSubscription()
+		unsubscribed = true
+	}
 	bp.locRIBUp = true
 	// The startup rail above committed the identity leaves senderJSON carries,
 	// so the Peer Down this reload owes has a router to name.
