@@ -34,7 +34,7 @@ func repositoryRoot(t *testing.T) string {
 func TestAPluginCarriesItsSourceDirectoryYANGFilesAndOptionalDependencies(t *testing.T) {
 	root := repositoryRoot(t)
 
-	plugins, err := Plugins(root)
+	plugins, err := DeclaredPlugins(root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +63,7 @@ func TestAPluginCarriesItsSourceDirectoryYANGFilesAndOptionalDependencies(t *tes
 // catalog and its JSON/text renderings, so a projection cannot turn an
 // order-only edge back into an auto-activating dependency.
 func TestBFDCatalogKeepsStartupOrderingSeparateFromDependencies(t *testing.T) {
-	plugins, err := Plugins(repositoryRoot(t))
+	plugins, err := DeclaredPlugins(repositoryRoot(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +166,7 @@ func TestRegisteredBFDOrdersOnlySelectedInterface(t *testing.T) {
 func TestAPluginWithNoRegisteredModuleTakesTheYANGBesideItsPackage(t *testing.T) {
 	root := repositoryRoot(t)
 
-	plugins, err := Plugins(root)
+	plugins, err := DeclaredPlugins(root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +202,7 @@ func TestAPluginWithNoRegisteredModuleTakesTheYANGBesideItsPackage(t *testing.T)
 func TestEveryYANGPathAPluginAnswersResolvesUnderTheCheckout(t *testing.T) {
 	root := repositoryRoot(t)
 
-	plugins, err := Plugins(root)
+	plugins, err := DeclaredPlugins(root)
 	if err != nil {
 		t.Fatal(err)
 	}

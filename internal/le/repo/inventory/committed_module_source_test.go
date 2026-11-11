@@ -57,7 +57,7 @@ func init() {
 // directory recorded for each registered module filename.
 func moduleDirectories(t *testing.T, snapshot *Snapshot) map[string]string {
 	t.Helper()
-	reader, err := snapshot.readRegistrations()
+	reader, err := snapshot.declaredRegistrations()
 	if err != nil {
 		t.Fatalf("registrations refused: %v", err)
 	}
@@ -117,7 +117,7 @@ func TestRegisteredModuleJoiningAnEmbedIsRefused(t *testing.T) {
 	snapshot := moduleSourceFixture(t, map[string]string{
 		"internal/extra/mixed.go": "package extra\nimport schema \"github.com/ze-software/ze/internal/component/config/yang\"\nfunc init() { schema.RegisterModule(\"mixed.yang\", Sub + \"\\n\") }\n",
 	})
-	_, err := snapshot.readRegistrations()
+	_, err := snapshot.declaredRegistrations()
 	if err == nil || !strings.Contains(err.Error(), "joins an embedded file with other text") {
 		t.Fatalf("mixed registration error = %v, want the joined-embed refusal", err)
 	}

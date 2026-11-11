@@ -31,7 +31,7 @@ func TestCommittedConcreteReceiverMethodsRetainExecution(t *testing.T) {
 					t.Fatalf("concrete inert method control refused: %v", err)
 				}
 				fixture.checkReport(t, inv)
-				plugins, err := Plugins(fixture.root)
+				plugins, err := DeclaredPlugins(fixture.root)
 				if err != nil {
 					t.Fatalf("public Plugins refused concrete inert method: %v", err)
 				}
@@ -41,7 +41,7 @@ func TestCommittedConcreteReceiverMethodsRetainExecution(t *testing.T) {
 				fixture.goFile(t, callableOwnerCaller, callableOwnerSource(scenario, call))
 				commitInventoryFixture(t, fixture.root)
 				inv, reportErr := Collect(fixture.root)
-				plugins, pluginErr := Plugins(fixture.root)
+				plugins, pluginErr := DeclaredPlugins(fixture.root)
 				if binding == "range-element" {
 					if reportErr == nil {
 						t.Fatalf("conditional method report succeeded: %+v", inv.Plugins)
@@ -77,74 +77,6 @@ func TestCommittedConcreteReceiverMethodsRetainExecution(t *testing.T) {
 	}
 }
 
-// TestCommittedInterfaceReceiverCannotBorrowConcreteMethod proves a method-set
-// declaration alone cannot stand in for the dynamic receiver's execution owner.
-func TestCommittedInterfaceReceiverCannotBorrowConcreteMethod(t *testing.T) {
-	for _, kind := range []string{"plugin", "yang"} {
-		t.Run(kind, func(t *testing.T) {
-			scenario := callableOwnerCase{
-				declarations: "type parcel struct{}\nfunc (parcel) Deliver() { helper.Install(0) }\ntype delivery interface { Deliver() }\nfunc deliverUnknown(packet delivery) { packet.Deliver() }\n",
-				call:         "deliverUnknown(parcel{})",
-			}
-			fixture := callableOwnerFixture(t, kind, scenario)
-			fixture.goFile(t, callableOwnerCaller, callableOwnerSource(scenario, scenario.call))
-			commitInventoryFixture(t, fixture.root)
-			inv, reportErr := Collect(fixture.root)
-			plugins, pluginErr := Plugins(fixture.root)
-			if reportErr == nil {
-				t.Fatalf("interface receiver report succeeded: %+v", inv.Plugins)
-			}
-			if pluginErr == nil {
-				t.Fatalf("interface receiver Plugins succeeded: %+v", plugins)
-			}
-			if inv.Plugins != nil {
-				t.Fatalf("interface report leaked partial membership: %+v", inv.Plugins)
-			}
-			if plugins != nil {
-				t.Fatalf("interface Plugins leaked partial membership: %+v", plugins)
-			}
-			callableOwnerCause(t, reportErr)
-			callableOwnerCause(t, pluginErr)
-		})
-	}
-}
-
-// TestCommittedUnsupportedReceiverOwnersRefuse keeps interface results and
-// generic types outside the direct concrete owner certificate. A promoted
-// method resolves, and TestCommittedConcreteMethodPromotedValueExecutesOwner
-// requires its owner.
-func TestCommittedUnsupportedReceiverOwnersRefuse(t *testing.T) {
-	for _, owner := range []struct{ name, declarations string }{
-		{"interface-result", "type parcel struct{}\nfunc (parcel) Deliver() { helper.Install(0) }\ntype delivery interface { Deliver() }\nfunc makeDelivery() delivery { return parcel{} }\nvar packet = makeDelivery()\n"},
-		{"generic", "type parcel[T any] struct{}\nfunc (parcel[T]) Deliver() { helper.Install(0) }\nvar packet = parcel[int]{}\n"},
-	} {
-		for _, kind := range []string{"plugin", "yang"} {
-			t.Run(owner.name+"/"+kind, func(t *testing.T) {
-				scenario := callableOwnerCase{declarations: owner.declarations, call: "packet.Deliver()"}
-				fixture := callableOwnerFixture(t, kind, scenario)
-				fixture.goFile(t, callableOwnerCaller, callableOwnerSource(scenario, scenario.call))
-				commitInventoryFixture(t, fixture.root)
-				inv, reportErr := Collect(fixture.root)
-				plugins, pluginErr := Plugins(fixture.root)
-				if reportErr == nil {
-					t.Fatalf("unsupported receiver report succeeded: %+v", inv.Plugins)
-				}
-				if pluginErr == nil {
-					t.Fatalf("unsupported receiver Plugins succeeded: %+v", plugins)
-				}
-				if inv.Plugins != nil {
-					t.Fatalf("unsupported report leaked partial membership: %+v", inv.Plugins)
-				}
-				if plugins != nil {
-					t.Fatalf("unsupported Plugins leaked partial membership: %+v", plugins)
-				}
-				callableOwnerCause(t, reportErr)
-				callableOwnerCause(t, pluginErr)
-			})
-		}
-	}
-}
-
 // TestCommittedConcreteMethodUsesDefiningPackage distinguishes an imported
 // concrete result from a same-named local type with different method effects.
 func TestCommittedConcreteMethodUsesDefiningPackage(t *testing.T) {
@@ -162,7 +94,7 @@ func TestCommittedConcreteMethodUsesDefiningPackage(t *testing.T) {
 				t.Fatalf("imported concrete inert method refused: %v", err)
 			}
 			fixture.checkReport(t, inv)
-			plugins, err := Plugins(fixture.root)
+			plugins, err := DeclaredPlugins(fixture.root)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -188,7 +120,7 @@ func TestCommittedConcreteMethodUsesDefiningPackage(t *testing.T) {
 			if snapshot.Revision() != revision {
 				t.Fatal("captured method snapshot revision moved")
 			}
-			retained, err := snapshot.Plugins()
+			retained, err := snapshot.DeclaredPlugins()
 			if err != nil {
 				t.Fatalf("later method body changed retained Plugins: %v", err)
 			}

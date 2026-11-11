@@ -957,6 +957,16 @@ built and then deleted (see Abandoned approaches).
   filter mechanisms, one of which silently vanishes when its plugin runs
   forked, is the layering `ai/rules/no-layering.md` forbids. The registry was
   deleted; every former entry became a plugin filter or engine code.
+- **The whole-tree external-effect proof of the plugin inventory**
+  (spec-inventory-fast-registry-checks): a static analysis of every committed
+  Go and assembly source, standard library and vendored code included, that
+  proved no registration hides behind a call the declared walk cannot follow.
+  It grew to 56 files, took minutes, and refused the real tree whenever a new
+  library shape appeared. It was replaced by three cheap checks of the same
+  property: the registry seal (no registration after `main` starts), the
+  registration-sites check (every registering call sits in initialization in
+  a `register*.go` file) and the comparison of the built `ze`'s registry with
+  the declared list. The declared walk stays the only static reader.
 
 ### Load-bearing invariants
 

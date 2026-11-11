@@ -58,7 +58,7 @@ func installArgumentMember() { y.RegisterModule("argument.yang", "module argumen
 					commitInventoryFixture(t, root)
 				}
 				inv, reportErr := Collect(root)
-				plugins, pluginErr := Plugins(root)
+				plugins, pluginErr := DeclaredPlugins(root)
 				if reportErr == nil {
 					if pluginErr != nil {
 						t.Fatalf("argument consumers disagree: report succeeded, plugins refused: %v", pluginErr)

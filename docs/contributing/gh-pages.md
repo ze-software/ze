@@ -592,15 +592,15 @@ compile; it never falls back to a partial host population.
 <!-- source: internal/le/repo/inventory/source.go -- ReadCommitted, normalizeLinuxContext -->
 <!-- source: internal/le/site/pluginregistry.go -- committedPluginRegistry -->
 
-The build publishes the DECLARED registrations (`repoinventory.DeclaredPlugins`)
-and does not prove them. Building the website renders data and never runs a
-check, so the external-effect proof, which shows no registration hides behind
-a call the reader cannot follow, is not a step of `./le site build`. The
-`plugin gated-table check` and `plugin coupling check` stages and the
-inventory report read the same declared list; only the inventory package's
-own unit tests run the proof, through `repoinventory.Plugins`.
+The build publishes the DECLARED registrations (`repoinventory.DeclaredPlugins`).
+Building the website renders data and never runs a check, so none of the
+three checks that make that list complete (the registry seal, `./le plugin
+registration-sites check` and `TestBuiltZeRegistersTheDeclaredPlugins`, in
+`docs/architecture/plugin/feature-gates.md`, "What makes the declared list
+complete") is a step of `./le site build`. The `plugin gated-table check` and
+`plugin coupling check` stages and the inventory report read the same
+declared list.
 <!-- source: internal/le/repo/inventory/plugins.go -- DeclaredPlugins -->
-<!-- source: internal/le/repo/inventory/externalcertificate.go -- Plugins -->
 <!-- source: internal/le/verify/engine/stages.go -- fullStages -->
 
 The command catalog and the configuration tree below need no container: a

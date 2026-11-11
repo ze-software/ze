@@ -8,9 +8,9 @@
 | Release reason | Replaces a development check (the inventory's whole-tree external-effect proof) with three fast checks; the only shipped change is that the plugin registry seals after start-up and hands out copies, which hardens behaviour without changing any operator-visible answer |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 4/8 |
+| Phase | 7/8 |
 | Handoff | - |
-| Updated | 2026-11-10 |
+| Updated | 2026-11-11 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -460,6 +460,32 @@ N-A: tooling scope, no wire-visible change.
   treating `bgp-hostname`'s `registry.Register` call as opaque (expected red:
   registered at run time and absent from the declared list), and the other
   direction, the hostname blank import dropped from `all_ze_bgp.go`.
+- Phase 5 (AC-12, AC-13, d7791ae716): the report, site, gated-table and
+  coupling readers read `DeclaredPlugins`; `collectFiles` skips YANG under a
+  `testdata` segment (a deliberately malformed fixture had been hidden behind
+  the proof's refusal).
+- Phase 6a (AC-14, d793ad88a6): `walkRegistrations` takes no authority; an
+  unresolved callee walks its operands and returns nil, a bodyless function
+  returns nil; `closureBinding`, `closureCalledOnly` and `embeddedTypeName`
+  moved to `callsites.go`. Phase 6 judge (`ze-test-judge`): 293 approvals
+  recorded (C 249, D3 12, D2 32), 18 tests refused and moved with their
+  claims in 12720abe4c; the check-3 field gap the judge named closed in
+  bd41a902a8.
+- Phase 6b-2 and 7 (AC-14 to AC-17): the 56 `external*`/`assembly*` files, the
+  93 proof-named test files, the D3 files and `INVENTORY-EXTERNAL-EFFECTS.md`
+  are removed with the two reboot-asset diagnostics; `source.go` reads only
+  report inputs (no `.s`, `.h`, `go.work`, nested `go.mod` or `modules.txt`
+  blob, no assembly mode refusal); every surviving test reads
+  `DeclaredPlugins`/`declaredRegistrations`. `feature-gates.md` "What makes
+  the declared list complete" replaces the contract section; gh-pages.md,
+  the META website example, DESIGN-HISTORY and `spec-tooling-one-off-defects`
+  AC-32/P-32 restated; handover 35's Next 1-2 and actual-root stop marked
+  superseded. Evidence before the removals landed, with a `go -overlay`
+  deleting every removed Go file: `go vet` of the inventory, site and plugin
+  packages clean; `go test -count=1 ./internal/le/repo/inventory/` FAIL only
+  on `TestRegisteredBFDOrdersOnlySelectedInterface` (reads the host registry,
+  needs `-tags ze_bfd`), which passes with the tag together with
+  `TestAnswerAnswersTheInventory` and the 18 moved tests.
 
 ## Known Limitations
 - Check 3 compares every field of `repoinventory.Plugin` except `SourceDir` and `YANGFiles`, which are checkout paths a binary does not hold. Registration fields the declared walk does not read are compared by nothing, and no inventory figure publishes them.

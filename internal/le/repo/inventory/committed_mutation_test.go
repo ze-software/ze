@@ -10,10 +10,10 @@ import (
 
 // TestCommittedPluginsRefuseMutatedDeclarationInputs proves slice aliases and
 // escaped registration owners cannot turn a supported declaration into stale
-// metadata. Each fixture commits the actual mutation before invoking Plugins.
+// metadata. Each fixture commits the actual mutation before invoking DeclaredPlugins.
 func TestCommittedPluginsRefuseMutatedDeclarationInputs(t *testing.T) {
 	for name, mutation := range map[string]string{
-		"slice-input": `prerequisites = append(prerequisites, "late");`,
+		"slice-input":        `prerequisites = append(prerequisites, "late");`,
 		"registration-alias": `alias := &reg; alias.Name = "late";`,
 		"whole-registration": `reg = r.Registration{Name: "late", RunEngine: names.Engine};`,
 	} {
@@ -31,7 +31,7 @@ func TestCommittedPluginsRefuseMutatedDeclarationInputs(t *testing.T) {
 			write(t, root, "internal/plugins/example/register_linux.go", strings.Replace(string(raw), marker, mutation+marker, 1))
 			committedGit(t, root, "add", ".")
 			committedGit(t, root, "-c", "user.name=Inventory Fixture", "-c", "user.email=inventory@example.invalid", "commit", "-m", name)
-			plugins, err := Plugins(root)
+			plugins, err := DeclaredPlugins(root)
 			if err == nil || plugins != nil {
 				t.Fatalf("mutated declaration published %+v: %v", plugins, err)
 			}

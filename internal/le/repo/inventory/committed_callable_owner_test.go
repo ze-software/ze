@@ -63,33 +63,11 @@ func TestCommittedCallableOwnerArgumentsCannotDisappear(t *testing.T) {
 	}
 }
 
-// Missing import lookup, opaque receivers and generic/indexed/returned callees
-// are not external-standard ownership. Local receiver methods carry a real
-// installer so ignoring them cannot pass as an ordinary-only complete report.
-func TestCommittedOpaqueCallableOwnersCannotDisappear(t *testing.T) {
-	method := "type ownerHook struct{}\nfunc (ownerHook) Run(_ uint32) { install(0) }\n"
-	cases := []callableOwnerCase{
-		{name: "indexed-function", declarations: "var ownerCallbacks = []func(uint32){install}", call: "ownerCallbacks[ownerProbe()](ownerProbe())"},
-		{name: "returned-function", declarations: "func ownerFactory() func(uint32) { return install }", call: "ownerFactory()(ownerProbe())"},
-		{name: "local-method", declarations: method, call: "local := ownerHook{}; local.Run(ownerProbe())"},
-		{name: "local-function-field", declarations: "type ownerFields struct { Run func(uint32) }", call: "local := ownerFields{Run: install}; local.Run(ownerProbe())"},
-		{name: "indexed-receiver", declarations: method + "var ownerHooks = []ownerHook{{}}", call: "ownerHooks[ownerProbe()].Run(ownerProbe())"},
-		{name: "returned-receiver", declarations: method + "func ownerReceiver() ownerHook { return ownerHook{} }", call: "ownerReceiver().Run(ownerProbe())"},
-		{name: "shadowed-standard-import", extraImport: "std \"fmt\"", witnessImports: []string{"fmt"}, declarations: method + "var _ = std.Sprintf", prefix: "_ = std.Sprintf(\"ordinary import control\")\n", call: "std := ownerHook{}; std.Run(ownerProbe())"},
-		{name: "shadowed-retained-import", declarations: method, prefix: "_ = helper.Install\n", call: "helper := ownerHook{}; helper.Run(ownerProbe())"},
-		{name: "generic-index", declarations: "func ownerGeneric[T any](_ uint32) { install(0) }", call: "ownerGeneric[int](ownerProbe())"},
-		{name: "generic-index-list", declarations: "func ownerGeneric[T, U any](_ uint32) { install(0) }", call: "ownerGeneric[int, string](ownerProbe())"},
-	}
-	for _, scenario := range cases {
-		t.Run(scenario.name, func(t *testing.T) { runCallableOwnerCase(t, scenario) })
-	}
-}
-
 // Dirty source cannot change the old full report. After HEAD moves, the
-// captured Plugins/Go paths retain their old owners or precise refusal while a
+// captured DeclaredPlugins/Go paths retain their old owners or precise refusal while a
 // fresh full report reads the new ordinary-only commit. No pinned full-report
 // API is invented for YANG: its old module is checked by Collect before HEAD
-// moves, and the captured public Plugins call still checks traversal/refusal.
+// moves, and the captured public DeclaredPlugins call still checks traversal/refusal.
 func TestCommittedCallableOwnersRetainSnapshot(t *testing.T) {
 	for _, kind := range []string{"plugin", "yang"} {
 		t.Run(kind, func(t *testing.T) {

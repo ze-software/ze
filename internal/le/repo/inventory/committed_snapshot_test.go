@@ -22,7 +22,7 @@ func TestCommittedSnapshotKeepsMembershipMetadataAndSchemaAcrossHEADMovement(t *
 	write(t, root, "internal/plugins/example/register_linux.go", "package example\n")
 	committedGit(t, root, "add", ".")
 	committedGit(t, root, "-c", "user.name=Inventory Fixture", "-c", "user.email=inventory@example.invalid", "commit", "-m", "advance HEAD")
-	plugins, err := snapshot.Plugins()
+	plugins, err := snapshot.DeclaredPlugins()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func init() { _ = r.Register(r.Registration{Name: "feature-off", RunEngine: func
 `)
 	committedGit(t, root, "add", ".")
 	committedGit(t, root, "-c", "user.name=Inventory Fixture", "-c", "user.email=inventory@example.invalid", "commit", "-m", "context constraints")
-	plugins, err := Plugins(root)
+	plugins, err := DeclaredPlugins(root)
 	if err != nil {
 		t.Fatal(err)
 	}

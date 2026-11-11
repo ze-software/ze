@@ -11,7 +11,7 @@ import (
 func retainedControlFixture(t *testing.T) string {
 	t.Helper()
 	root := committedFixture(t)
-	plugins, err := Plugins(root)
+	plugins, err := DeclaredPlugins(root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,52 +109,6 @@ func init() { _ = r.Register(r.Registration{Name: "family-provider", RunEngine: 
 	}
 }
 
-// TestCommittedCallableAliasesAreResolvedOrRefused keeps a valid ordinary
-// control while plugin and standalone-YANG callable aliases execute in init.
-// A bounded reader may refuse the form, but cannot return an incomplete success.
-func TestCommittedCallableAliasesAreResolvedOrRefused(t *testing.T) {
-	for _, kind := range []string{"plugin", "yang"} {
-		t.Run(kind, func(t *testing.T) {
-			root := retainedControlFixture(t)
-			body := `package example
-import r "github.com/ze-software/ze/internal/component/plugin/registry"
-func aliasEngine() {}
-func init() { install := r.Register; _ = install(r.Registration{Name: "alias-plugin", RunEngine: aliasEngine}) }
-`
-			if kind == "yang" {
-				write(t, root, "internal/component/config/yang/register.go", "package yang\nfunc RegisterModule(name, content string) {}\n")
-				write(t, root, "internal/plugins/example/yang/alias.yang", "module alias { namespace urn:alias; prefix a; }\n")
-				body = `package example
-import schema "github.com/ze-software/ze/internal/component/config/yang"
-func init() { install := schema.RegisterModule; install("alias.yang", "module alias { namespace urn:alias; prefix a; }") }
-`
-			}
-			write(t, root, "internal/plugins/example/alias.go", body)
-			commitInventoryFixture(t, root)
-			inv, err := Collect(root)
-			if err != nil {
-				if inv.Plugins != nil {
-					t.Fatalf("refusal leaked partial plugins: %+v", inv.Plugins)
-				}
-				return
-			}
-			if kind == "plugin" {
-				names := make([]string, 0, len(inv.Plugins))
-				for _, plugin := range inv.Plugins {
-					names = append(names, plugin.Name)
-				}
-				if !slices.Equal(names, []string{"alias-plugin", "committed-linux"}) {
-					t.Fatalf("callable plugin alias silently omitted: %v", names)
-				}
-				return
-			}
-			if !slices.ContainsFunc(inv.YANGModules, func(module YANGModule) bool { return module.Name == "alias.yang" && module.Source == "plugin:example" }) {
-				t.Fatalf("callable schema alias silently omitted: %+v", inv.YANGModules)
-			}
-		})
-	}
-}
-
 // TestCommittedPackageInitializersAreResolvedOrRefused covers named and blank
 // package variables whose initializer calls a helper that registers a plugin.
 // A valid ordinary registration prevents an empty-population error hiding loss.
@@ -169,7 +123,7 @@ func installAtDeclaration() int { _ = r.Register(r.Registration{Name: "initializ
 var `+variable+` = installAtDeclaration()
 `)
 			commitInventoryFixture(t, root)
-			plugins, err := Plugins(root)
+			plugins, err := DeclaredPlugins(root)
 			if err != nil {
 				if plugins != nil {
 					t.Fatalf("refusal leaked partial plugins: %+v", plugins)
@@ -198,7 +152,7 @@ func installInArgument() int { _ = r.Register(r.Registration{Name: "argument-plu
 func init() { func(_ int) {}(installInArgument()) }
 `)
 	commitInventoryFixture(t, root)
-	plugins, err := Plugins(root)
+	plugins, err := DeclaredPlugins(root)
 	if err != nil {
 		t.Fatal(err)
 	}

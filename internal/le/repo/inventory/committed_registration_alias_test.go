@@ -32,7 +32,7 @@ func init() {
 			commitInventoryFixture(t, root)
 		}
 		inv, reportErr := Collect(root)
-		plugins, pluginErr := Plugins(root)
+		plugins, pluginErr := DeclaredPlugins(root)
 		if reportErr == nil {
 			if pluginErr != nil {
 				t.Fatalf("alias consumers disagree: report succeeded, plugins refused: %v", pluginErr)

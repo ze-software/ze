@@ -24,7 +24,7 @@ func TestCommittedPluginsFollowImmediateInitClosures(t *testing.T) {
 	write(t, root, "internal/plugins/example/register_linux.go", strings.Replace(string(raw), before, "func init() { func() { registerExample() }() }", 1))
 	committedGit(t, root, "add", ".")
 	committedGit(t, root, "-c", "user.name=Inventory Fixture", "-c", "user.email=inventory@example.invalid", "commit", "-m", "immediate init closure")
-	plugins, err := Plugins(root)
+	plugins, err := DeclaredPlugins(root)
 	if err != nil {
 		t.Fatal(err)
 	}

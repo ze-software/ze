@@ -9,9 +9,10 @@ an incomplete inventory from being published as complete.
 The approved input boundary remains unchanged. The analyzer inspects retained
 Git source and checks whether external code can reach registration functions or
 alter registration metadata through accessible values. Ordinary reflection over
-those values is part of that analysis. The
-[external-effects decision](INVENTORY-EXTERNAL-EFFECTS.md#the-change-thomas-approved)
-records its bounded trust contract. Neither traversal proposal adds library
+those values is part of that analysis. The external-effects decision, removed
+from the tree when `spec-inventory-fast-registry-checks` replaced the proof
+(`plan/learned/DESIGN-HISTORY.md`, "Plugin system: architecture"), recorded
+its bounded trust contract. Neither traversal proposal adds library
 source or treats familiar libraries as harmless.
 
 The last retained test of the actual repository,
@@ -29,7 +30,7 @@ not count equivalent visits or prove that avoidable duplication dominates the
 actual repository. The model under review is therefore whether making each
 visit cheaper is sufficient when the number of visits can multiply.
 
-In [externalreflectiontypes.go](internal/le/repo/inventory/externalreflectiontypes.go),
+In `externalreflectiontypes.go` (deleted with the proof; read it in git history),
 `externalReflectionWalk.collectNamed` keeps a list of named types on the active
 recursive path. This prevents a cycle from continuing indefinitely. It removes
 the entry when the call returns, so a later sibling can traverse the completed

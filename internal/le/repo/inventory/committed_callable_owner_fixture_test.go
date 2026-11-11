@@ -87,7 +87,7 @@ func callableOwnerFixture(t *testing.T, kind string, scenario callableOwnerCase)
 	if err != nil {
 		t.Fatal(err)
 	}
-	plugins, err := snapshot.Plugins()
+	plugins, err := snapshot.DeclaredPlugins()
 	if err != nil {
 		t.Fatalf("ordinary retained owner prerequisite: %v", err)
 	}
@@ -155,7 +155,7 @@ func callableOwnerOutcome(t *testing.T, fixture *ordinaryFixture, kind string, a
 		t.Fatalf("source capture failed before callable-owner admission: %v", err)
 	}
 	checkSelectedPaths(t, snapshot, callableOwnerPaths())
-	plugins, pluginErr := snapshot.Plugins()
+	plugins, pluginErr := snapshot.DeclaredPlugins()
 	if reportErr != nil {
 		if !allowRefusal {
 			t.Fatalf("direct Go installer prerequisite failed: %v", reportErr)
@@ -182,7 +182,7 @@ func callableOwnerOutcome(t *testing.T, fixture *ordinaryFixture, kind string, a
 
 func callableOwnerRetained(t *testing.T, snapshot *Snapshot, plugins []Plugin, previous error) {
 	t.Helper()
-	got, err := snapshot.Plugins()
+	got, err := snapshot.DeclaredPlugins()
 	if previous != nil {
 		if got != nil {
 			t.Fatalf("captured owner refusal became partial success: %+v", got)

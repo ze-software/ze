@@ -52,7 +52,7 @@ func TestCommittedPointerMethodsKeepDefiningIdentityAndEffects(t *testing.T) {
 			if snapshot.Revision() != revision {
 				t.Fatal("retained pointer snapshot revision moved")
 			}
-			plugins, err := snapshot.Plugins()
+			plugins, err := snapshot.DeclaredPlugins()
 			if err != nil {
 				t.Fatalf("later pointer method changed retained membership: %v", err)
 			}
@@ -83,7 +83,7 @@ func TestCommittedPointerMethodIterationRetainsConditionalRefusal(t *testing.T) 
 			fixture.goFile(t, callableOwnerFile, callableOwnerHelper(kind)+changed)
 			commitInventoryFixture(t, fixture.root)
 			inv, reportErr := Collect(fixture.root)
-			plugins, pluginErr := Plugins(fixture.root)
+			plugins, pluginErr := DeclaredPlugins(fixture.root)
 			if reportErr == nil {
 				t.Fatalf("conditional pointer report succeeded: %+v", inv.Plugins)
 			}
@@ -102,46 +102,6 @@ func TestCommittedPointerMethodIterationRetainsConditionalRefusal(t *testing.T) 
 				}
 			}
 		})
-	}
-}
-
-// TestCommittedPointerMethodUnsupportedOwnersRefuse does not infer
-// value-method fallback, dereference expressions, aliases, generic sets or
-// interface values. Implicit addressing of a variable, a reassigned receiver
-// binding and a promoted method are resolved, and
-// TestCommittedPointerMethodImplicitAddressExecutesOwner and
-// TestCommittedPointerMethodPromotedExecutesOwner require their owner.
-func TestCommittedPointerMethodUnsupportedOwnersRefuse(t *testing.T) {
-	for _, scenario := range []callableOwnerCase{
-		{name: "value-method-fallback", declarations: "type parcel struct{}\nfunc (parcel) Deliver() { helper.Install(0) }\nfunc makeParcel() *parcel { return &parcel{} }\nvar packet = makeParcel()\n", call: "packet.Deliver()"},
-		{name: "double-pointer", declarations: "type parcel struct{}\nfunc (*parcel) Deliver() { helper.Install(0) }\nvar first = &parcel{}\nvar packet = &first\n", call: "(*packet).Deliver()"},
-		{name: "type-alias", declarations: "type parcel struct{}\nfunc (*parcel) Deliver() { helper.Install(0) }\ntype alias = parcel\nvar packet *alias\n", call: "packet.Deliver()"},
-		{name: "generic", declarations: "type parcel[T any] struct{}\nfunc (*parcel[T]) Deliver() { helper.Install(0) }\nvar packet *parcel[int]\n", call: "packet.Deliver()"},
-		{name: "interface", declarations: "type parcel struct{}\nfunc (*parcel) Deliver() { helper.Install(0) }\ntype delivery interface { Deliver() }\nfunc makeDelivery() delivery { return &parcel{} }\nvar packet = makeDelivery()\n", call: "packet.Deliver()"},
-	} {
-		for _, kind := range []string{"plugin", "yang"} {
-			t.Run(scenario.name+"/"+kind, func(t *testing.T) {
-				fixture := pointerOwnerFixture(t, kind, scenario)
-				fixture.goFile(t, callableOwnerCaller, callableOwnerSource(scenario, scenario.call))
-				commitInventoryFixture(t, fixture.root)
-				inv, reportErr := Collect(fixture.root)
-				plugins, pluginErr := Plugins(fixture.root)
-				if reportErr == nil {
-					t.Fatalf("unsupported pointer report succeeded: %+v", inv.Plugins)
-				}
-				if pluginErr == nil {
-					t.Fatalf("unsupported pointer Plugins succeeded: %+v", plugins)
-				}
-				if inv.Plugins != nil {
-					t.Fatalf("unsupported pointer report leaked partial membership: %+v", inv.Plugins)
-				}
-				if plugins != nil {
-					t.Fatalf("unsupported pointer Plugins leaked partial membership: %+v", plugins)
-				}
-				callableOwnerCause(t, reportErr)
-				callableOwnerCause(t, pluginErr)
-			})
-		}
 	}
 }
 

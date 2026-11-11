@@ -37,21 +37,14 @@ type SourceFile struct {
 // for concurrent read-only use after construction; metadata resolution is local
 // to each caller and never changes its parsed source trees.
 type Snapshot struct {
-	revision           string
-	blobs              map[string][]byte
-	paths              []string
-	directories        map[string][]string
-	files              []SourceFile
-	fset               *token.FileSet
-	packages           map[string]*sourcePackage
-	gates              pluginimports.GateIndex
-	headerPresence     map[string]bool
-	assemblyInvalid    map[string]string
-	assemblyPredefines []string
-	// localHeaders names every committed regular .h blob not spelled like a
-	// compiler header; its payload is in blobs. Only assemblyNamespace.includeLocal
-	// reads one, as the text of a quoted #include.
-	localHeaders map[string]bool
+	revision    string
+	blobs       map[string][]byte
+	paths       []string
+	directories map[string][]string
+	files       []SourceFile
+	fset        *token.FileSet
+	packages    map[string]*sourcePackage
+	gates       pluginimports.GateIndex
 }
 
 type sourcePackage struct {
@@ -63,7 +56,6 @@ type sourcePackage struct {
 	functions         map[string]sourceFunction
 	initializers      []sourceFunction
 	initializerValues []sourceExpr
-	assembly          []string
 }
 
 type sourceExpr struct {
@@ -97,22 +89,15 @@ func ReadCommitted(ctx context.Context, root string) (*Snapshot, error) {
 		return nil, err
 	}
 	snapshot := &Snapshot{
-		revision: revision, paths: population.reportPaths, blobs: make(map[string][]byte, len(population.payloadPaths)),
+		revision: revision, paths: population.paths, blobs: make(map[string][]byte, len(population.paths)),
 		fset: token.NewFileSet(), packages: make(map[string]*sourcePackage), directories: make(map[string][]string),
-		headerPresence: population.headers, assemblyInvalid: population.invalidAssembly,
-		localHeaders: make(map[string]bool, len(population.localHeaders)),
 	}
-	for index, name := range population.payloadPaths {
+	for index, name := range population.paths {
 		snapshot.blobs[name] = payloads[index]
 	}
-	for _, name := range population.localHeaders {
-		snapshot.localHeaders[name] = true
-	}
-	for _, names := range [][]string{population.reportPaths, population.assemblyPaths} {
-		for _, name := range names {
-			directory := path.Dir(name)
-			snapshot.directories[directory] = append(snapshot.directories[directory], name)
-		}
+	for _, name := range population.paths {
+		directory := path.Dir(name)
+		snapshot.directories[directory] = append(snapshot.directories[directory], name)
 	}
 	manifest, found := snapshot.blobs["feature-gates.txt"]
 	if !found {
@@ -124,10 +109,6 @@ func ReadCommitted(ctx context.Context, root string) (*Snapshot, error) {
 	}
 	snapshot.gates = pluginimports.GateIndexFrom(gates)
 	buildContext := linuxContext(gates, snapshot.blobs)
-	snapshot.assemblyPredefines, err = assemblyContextBindings(&buildContext)
-	if err != nil {
-		return nil, err
-	}
 	module := modfile.ModulePath(snapshot.blobs["go.mod"])
 	if module != strings.TrimSuffix(modulePrefix, "/") {
 		return nil, fmt.Errorf("committed %s declares module %q, not %s; select the Ze repository", revision, module, strings.TrimSuffix(modulePrefix, "/"))
@@ -151,18 +132,12 @@ func (s *Snapshot) Sources() ([]SourceFile, *token.FileSet) {
 // Gates returns the manifest index built from this snapshot's retained blob.
 func (s *Snapshot) Gates() pluginimports.GateIndex { return s.gates }
 
-// sourcePopulation keeps assembly evidence separate from report inputs. Header
-// presence is sufficient to refuse a shadow; no compiler-header payload is
-// needed. A local header's payload is read, because a quoted include of it is
-// text the assembler reads at the include line.
+// sourcePopulation names the committed inputs the inventory reads: Go sources,
+// the root go.mod, feature-gates.txt, the code areas' YANG and the .ci tests.
+// ids carries the object ID of each path, in the same order.
 type sourcePopulation struct {
-	reportPaths     []string
-	payloadPaths    []string
-	assemblyPaths   []string
-	localHeaders    []string
-	ids             []string
-	headers         map[string]bool
-	invalidAssembly map[string]string
+	paths []string
+	ids   []string
 }
 
 func sourceObjects(ctx context.Context, root, revision string) (sourcePopulation, error) {
@@ -175,7 +150,7 @@ func sourceObjects(ctx context.Context, root, revision string) (sourcePopulation
 	if err != nil {
 		return sourcePopulation{}, fmt.Errorf("cannot enumerate committed inventory %s; repair repository history: %w: %s", revision, err, stderr.String())
 	}
-	population := sourcePopulation{headers: make(map[string]bool), invalidAssembly: make(map[string]string)}
+	var population sourcePopulation
 	for record := range bytes.SplitSeq(output, []byte{0}) {
 		if len(record) == 0 {
 			continue
@@ -189,48 +164,17 @@ func sourceObjects(ctx context.Context, root, revision string) (sourcePopulation
 		if len(fields) != 3 {
 			return sourcePopulation{}, fmt.Errorf("invalid committed inventory entry %q; repair repository objects", rel)
 		}
-		if assemblyHeaderNamed(path.Base(rel)) != nil {
-			population.headers[rel] = true
-		}
 		if fields[1] == "tree" {
 			continue
 		}
-		report := inventoryInput(rel)
-		identity := rel == "go.work" || strings.HasSuffix(rel, "/go.mod") || rel == "vendor/modules.txt"
-		assembly := strings.HasSuffix(rel, ".s")
-		localHeader := strings.HasSuffix(rel, ".h") && assemblyHeaderNamed(path.Base(rel)) == nil
-		if !report {
-			if !assembly {
-				if !identity {
-					if !localHeader {
-						continue
-					}
-				}
-			}
+		if !inventoryInput(rel) {
+			continue
 		}
 		regular := fields[1] == "blob" && (fields[0] == "100644" || fields[0] == "100755")
-		if localHeader {
-			// A symlink or gitlink header is left out, so an include of it
-			// names no committed header and refuses; nothing follows it.
-			if !regular {
-				continue
-			}
-			population.localHeaders = append(population.localHeaders, rel)
-		}
-		if assembly {
-			population.assemblyPaths = append(population.assemblyPaths, rel)
-			if !regular {
-				population.invalidAssembly[rel] = fields[0]
-				continue
-			}
-		}
 		if !regular {
 			return sourcePopulation{}, fmt.Errorf("committed inventory source %q has type %s mode %s; commit a regular source file", rel, fields[1], fields[0])
 		}
-		if report {
-			population.reportPaths = append(population.reportPaths, rel)
-		}
-		population.payloadPaths = append(population.payloadPaths, rel)
+		population.paths = append(population.paths, rel)
 		population.ids = append(population.ids, fields[2])
 	}
 	return population, nil
@@ -294,19 +238,6 @@ func (s *Snapshot) selectPackage(dir string, context *build.Context) error {
 	pkg := &sourcePackage{dir: dir, imports: make(map[*ast.File]map[string]string), values: make(map[string]sourceExpr), functions: make(map[string]sourceFunction)}
 	s.packages[dir] = pkg
 	for _, name := range s.directories[dir] {
-		if strings.HasSuffix(name, ".s") {
-			match, err := context.MatchFile(dir, path.Base(name))
-			if err != nil {
-				if mode, invalid := s.assemblyInvalid[name]; invalid {
-					return fmt.Errorf("committed assembly %s has mode %s; commit a regular assembly source", name, mode)
-				}
-				return fmt.Errorf("select committed assembly %s: %w", name, err)
-			}
-			if match {
-				pkg.assembly = append(pkg.assembly, name)
-			}
-			continue
-		}
 		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
 			continue
 		}

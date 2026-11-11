@@ -13,7 +13,7 @@ func _() { _ = r.Register(r.Registration{Name: "blank-function-is-not-an-initial
 func _() {}
 `)
 	commitInventoryFixture(t, root)
-	plugins, err := Plugins(root)
+	plugins, err := DeclaredPlugins(root)
 	if err != nil {
 		t.Fatal(err)
 	}

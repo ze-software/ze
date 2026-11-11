@@ -21,7 +21,8 @@ must format only those two selected copies and compute source/overlay hashes.
 
 The package reads the system and le-tooling doors, the Go style guide, the
 root-field/formal-provenance contract in `feature-gates.md`, and the diagnosis
-and independent REWORK in `../inventory-flowspec-range/`.
+and independent REWORK in the `inventory-flowspec-range` diagnostic (removed
+with the proof by `spec-inventory-fast-registry-checks`; in git history).
 
 The first draft and its independent REFUSE are preserved under `refused-v1/`.
 That review found missing deferred-reflection checks. This revision adds the

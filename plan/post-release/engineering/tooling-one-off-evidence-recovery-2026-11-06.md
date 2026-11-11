@@ -31,8 +31,9 @@ recovery of the earlier evidence.
 
 The original source-boundary proposal and Git-only design linked from the root
 explanation are also unavailable at their old scratch paths. The approved
-decision and trust contract remain recorded in
-[INVENTORY-EXTERNAL-EFFECTS.md](../../../INVENTORY-EXTERNAL-EFFECTS.md).
+decision and trust contract were recorded in `INVENTORY-EXTERNAL-EFFECTS.md`,
+removed with the proof by `spec-inventory-fast-registry-checks` and still
+readable in git history.
 
 ## What the cleanup evidence establishes
 

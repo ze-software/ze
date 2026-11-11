@@ -12,9 +12,9 @@ import (
 // reader cannot resolve never becomes a partial or host-derived successful list.
 func TestCommittedPluginsRefuseUnresolvedMetadata(t *testing.T) {
 	cases := []struct {
-		name string
+		name   string
 		before string
-		after string
+		after  string
 		reason string
 	}{
 		{"unknown-description", `Description: "committed description"`, `Description: describeAtRuntime()`, "string value requires unsupported executable logic"},
@@ -36,7 +36,7 @@ func TestCommittedPluginsRefuseUnresolvedMetadata(t *testing.T) {
 			write(t, root, "internal/plugins/example/register_linux.go", strings.Replace(string(raw), scenario.before, scenario.after, 1))
 			committedGit(t, root, "add", ".")
 			committedGit(t, root, "-c", "user.name=Inventory Fixture", "-c", "user.email=inventory@example.invalid", "commit", "-m", scenario.name)
-			plugins, err := Plugins(root)
+			plugins, err := DeclaredPlugins(root)
 			if err == nil {
 				t.Fatalf("unresolved committed registration published %d plugins without refusal", len(plugins))
 			}

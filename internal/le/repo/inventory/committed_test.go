@@ -86,7 +86,7 @@ func TestCommittedPluginsIgnoreDirtySourcesAndRetainLinuxRegistration(t *testing
 	write(t, root, "internal/plugins/example/register_linux.go", "package example\n// Uncommitted replacement removes every registration.\n")
 	write(t, root, "feature-gates.txt", "ze_dirty internal/plugins/dirty\n")
 	write(t, root, "internal/schema/external.yang", "module dirty { }\n")
-	plugins, err := Plugins(root)
+	plugins, err := DeclaredPlugins(root)
 	if err != nil {
 		t.Fatal(err)
 	}
