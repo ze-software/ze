@@ -153,11 +153,15 @@ func CheckExtraction(ctx context.Context, root, file, database, executable strin
 	return report, nil
 }
 
-// extractionBundlePacks uses the selected bundle's actual layout:
-// <bundle>/codeql/codeql and <bundle>/qlpacks. A missing library refuses before
-// CodeQL can fall back to a different installation or a downloaded pack.
+// extractionBundlePacks uses the selected bundle's actual layout. The
+// codeql-bundle archive that github/codeql-action installs unpacks to one
+// codeql/ directory holding the executable and its query packs side by side,
+// <bundle>/codeql and <bundle>/qlpacks, so the bundle is the executable's own
+// directory (in the tool cache, .../CodeQL/<version>/x64/codeql/codeql beside
+// .../x64/codeql/qlpacks). A missing library refuses before CodeQL can fall
+// back to a different installation or a downloaded pack.
 func extractionBundlePacks(executable string) (string, error) {
-	bundle := filepath.Dir(filepath.Dir(executable))
+	bundle := filepath.Dir(executable)
 	packs, err := filepath.EvalSymlinks(filepath.Join(bundle, "qlpacks"))
 	if err != nil {
 		return "", fmt.Errorf("bundled Go library is unavailable: %w", err)

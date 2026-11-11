@@ -309,8 +309,8 @@ func extractionCodeQLFixture(t *testing.T, rows string) (string, []string) {
 		t.Fatal(err)
 	}
 	fixtureWrite(t, directory, "codeql/placeholder", "owned CodeQL executable directory\n")
-	fixtureWrite(t, directory, "qlpacks/codeql/go-all/fixture/qlpack.yml", "name: codeql/go-all\nversion: 0.0.0\nlibrary: true\n")
-	fixtureWrite(t, directory, "qlpacks/codeql/go-all/fixture/go.qll", "// Synthetic bundled Go library; this process fixture does not compile QL.\n")
+	fixtureWrite(t, directory, "codeql/qlpacks/codeql/go-all/fixture/qlpack.yml", "name: codeql/go-all\nversion: 0.0.0\nlibrary: true\n")
+	fixtureWrite(t, directory, "codeql/qlpacks/codeql/go-all/fixture/go.qll", "// Synthetic bundled Go library; this process fixture does not compile QL.\n")
 	tool := filepath.Join(directory, "codeql", "codeql")
 	writeExtractionExecutable(t, tool, "#!/bin/sh\nexec \"$CODEQL_PROOF_TEST_BINARY\" -test.run '^TestExtractionCodeQLProcess$' -- \"$@\"\n")
 	return tool, []string{"CODEQL_PROOF_TEST_BINARY=" + binary, "CODEQL_PROOF_CSV=" + data, "CODEQL_PROOF_CHILD=1"}

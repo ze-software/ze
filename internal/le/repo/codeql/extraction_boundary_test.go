@@ -16,8 +16,9 @@ import (
 )
 
 // TestExtractionProofUsesSelectedBundle drives the native check through a
-// bundle-shaped executable boundary. Libraries are beside codeql/, rather than
-// beside codeql/codeql; no package-install fallback is accepted by the process.
+// bundle-shaped executable boundary. Libraries are in codeql/qlpacks, beside
+// the codeql/codeql executable, as the real bundle archive lays them out; no
+// package-install fallback is accepted by the process.
 func TestExtractionProofUsesSelectedBundle(t *testing.T) {
 	for _, library := range []bool{true, false} {
 		name := "bundled Go library present"
@@ -173,21 +174,24 @@ func extractionBundleFixture(t *testing.T, rows string, library bool) (string, [
 	if err != nil {
 		t.Fatal(err)
 	}
-	bundle := t.TempDir()
-	fixtureWrite(t, bundle, "files.csv", rows)
-	fixtureWrite(t, bundle, "codeql/placeholder", "owned bundle fixture\n")
+	toolcache := t.TempDir()
+	fixtureWrite(t, toolcache, "files.csv", rows)
+	fixtureWrite(t, toolcache, "codeql/placeholder", "owned bundle fixture\n")
 	if library {
-		fixtureWrite(t, bundle, "qlpacks/codeql/go-all/fixture/qlpack.yml", "name: codeql/go-all\nversion: 0.0.0\nlibrary: true\n")
-		fixtureWrite(t, bundle, "qlpacks/codeql/go-all/fixture/go.qll", "// Synthetic bundled Go library; this process fixture does not compile QL.\n")
+		fixtureWrite(t, toolcache, "codeql/qlpacks/codeql/go-all/fixture/qlpack.yml", "name: codeql/go-all\nversion: 0.0.0\nlibrary: true\n")
+		fixtureWrite(t, toolcache, "codeql/qlpacks/codeql/go-all/fixture/go.qll", "// Synthetic bundled Go library; this process fixture does not compile QL.\n")
 	}
-	bundle, err = filepath.EvalSymlinks(bundle)
+	toolcache, err = filepath.EvalSymlinks(toolcache)
 	if err != nil {
 		t.Fatal(err)
 	}
-	tool := filepath.Join(bundle, "codeql", "codeql")
+	// The unpacked archive is one codeql/ directory: the executable and its
+	// qlpacks sit side by side in it, as in .../CodeQL/<version>/x64/codeql.
+	bundle := filepath.Join(toolcache, "codeql")
+	tool := filepath.Join(bundle, "codeql")
 	writeExtractionExecutable(t, tool, "#!/bin/sh\nexec \"$CODEQL_BOUNDARY_TEST_BINARY\" -test.run '^TestExtractionBundleProcess$' -- \"$@\"\n")
 	return tool, []string{"CODEQL_BOUNDARY_CHILD=1", "CODEQL_BOUNDARY_TEST_BINARY=" + binary,
-		"CODEQL_BOUNDARY_BUNDLE=" + bundle, "CODEQL_BOUNDARY_CSV=" + filepath.Join(bundle, "files.csv")}
+		"CODEQL_BOUNDARY_BUNDLE=" + bundle, "CODEQL_BOUNDARY_CSV=" + filepath.Join(toolcache, "files.csv")}
 }
 
 // TestExtractionBundleProcess checks the selected bundle and query-pack
@@ -277,4 +281,49 @@ func TestExtractionBundleProcess(t *testing.T) {
 		}
 	}
 	os.Exit(0)
+}
+
+// TestExtractionBundlePacksFollowsTheArchiveLayout pins where the bundle's
+// query packs are looked for. The tool cache holds .../x64/codeql/codeql beside
+// .../x64/codeql/qlpacks, and nothing at .../x64/qlpacks (the CI refusal
+// "lstat .../x64/qlpacks: no such file or directory"). Each case builds that
+// tool cache: the real layout must answer its own codeql/qlpacks even when a
+// complete decoy library sits one level up, and a library found only one level
+// up must refuse, because it is outside the selected bundle.
+func TestExtractionBundlePacksFollowsTheArchiveLayout(t *testing.T) {
+	library := func(t *testing.T, root, packs string) {
+		t.Helper()
+		fixtureWrite(t, root, packs+"/codeql/go-all/fixture/qlpack.yml", "name: codeql/go-all\nversion: 0.0.0\nlibrary: true\n")
+		fixtureWrite(t, root, packs+"/codeql/go-all/fixture/go.qll", "// Synthetic bundled Go library.\n")
+	}
+	toolcache := func(t *testing.T) string {
+		t.Helper()
+		root, err := filepath.EvalSymlinks(t.TempDir())
+		if err != nil {
+			t.Fatal(err)
+		}
+		fixtureWrite(t, root, "codeql/placeholder", "owned bundle fixture\n")
+		writeExtractionExecutable(t, filepath.Join(root, "codeql", "codeql"), "#!/bin/sh\nexit 0\n")
+		return root
+	}
+	t.Run("archive layout beside a decoy one level up", func(t *testing.T) {
+		root := toolcache(t)
+		library(t, root, "codeql/qlpacks")
+		library(t, root, "qlpacks")
+		packs, err := extractionBundlePacks(filepath.Join(root, "codeql", "codeql"))
+		if err != nil {
+			t.Fatalf("real bundle layout refused: %v", err)
+		}
+		if want := filepath.Join(root, "codeql", "qlpacks"); packs != want {
+			t.Fatalf("query packs resolved to %q, want the bundle's own %q", packs, want)
+		}
+	})
+	t.Run("library only one level up", func(t *testing.T) {
+		root := toolcache(t)
+		library(t, root, "qlpacks")
+		_, err := extractionBundlePacks(filepath.Join(root, "codeql", "codeql"))
+		if err == nil || !strings.Contains(err.Error(), "bundled Go library is unavailable") {
+			t.Fatalf("library outside the bundle was accepted: %v", err)
+		}
+	})
 }

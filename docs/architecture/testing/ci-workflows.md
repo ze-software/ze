@@ -100,9 +100,16 @@ source hashes are checked again before a successful report is saved.
 The query and its tiny QL pack live in a new task-owned directory beside the
 manifest. The pack resolves the Go library already in the selected CodeQL
 bundle; the checker installs or downloads nothing and a missing library fails
-the query. Compilation caches and intermediate BQRS are removed when the check
-ends. The workflow retains only the manifest, query, pack, decoded CSV and
-report in `codeql-go-extraction-proof`, with a 14-day artifact lifetime.
+the query. The bundle is the directory that holds the selected executable: the
+CodeQL bundle archive unpacks to one `codeql/` directory with the `codeql`
+executable and `qlpacks/` side by side, so the tool cache path
+`.../CodeQL/<version>/x64/codeql/codeql` reads its library from
+`.../x64/codeql/qlpacks/codeql/go-all`. A `qlpacks` that resolves outside that
+directory refuses. Compilation caches and intermediate BQRS are removed when
+the check ends. The workflow retains only the manifest, query, pack, decoded
+CSV and report in `codeql-go-extraction-proof`, with a 14-day artifact
+lifetime.
+<!-- source: internal/le/repo/codeql/extraction_check.go -- extractionBundlePacks -->
 
 Local fixture builds and synthetic CodeQL-process answers prove these native
 admission and checking boundaries. Actual extraction remains proved only by a
