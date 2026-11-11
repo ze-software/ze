@@ -204,11 +204,13 @@ func TestBuildPrefersTheDockerfilesOwnIgnoreFile(t *testing.T) {
 }
 
 // VALIDATES: an entry a build context cannot carry (a named pipe) fails the
-// build with its path, even when docker answers an image id.
+// build with its path, even when docker answers an image id, and the build's
+// owned tag, which docker moved onto the image it built from the part it
+// read, is released.
 // METHOD: a context holding a fifo, built through a runner that reads stdin
-// to its end and then reports success.
+// to its end and then reports success; the commands docker received are read.
 // PREVENTS: a walk that stops part way handing docker a truncated context
-// that builds in silence.
+// that builds in silence, or leaving its image tagged in the shared daemon.
 func TestBuildFailsWhenTheContextCannotBeSentWhole(t *testing.T) {
 	root := t.TempDir()
 	writeContextFile(t, filepath.Join(root, "Dockerfile"), "FROM scratch\n", 0o644)
@@ -217,7 +219,8 @@ func TestBuildFailsWhenTheContextCannotBeSentWhole(t *testing.T) {
 		t.Fatal(err)
 	}
 	recorded := &buildContextRunner{}
-	image, err := newDocker(recorded.runner()).Build(t.Context(), ImageBuild{Name: "lab", Tag: "lab:latest",
+	runner := recorded.runner()
+	image, err := newDocker(runner).Build(t.Context(), ImageBuild{Name: "lab", Tag: "lab:latest",
 		Dockerfile: filepath.Join(root, "Dockerfile"), Context: root})
 	if err == nil {
 		t.Fatal("Build succeeded over a context it could not send whole")
@@ -227,6 +230,52 @@ func TestBuildFailsWhenTheContextCannotBeSentWhole(t *testing.T) {
 	}
 	if image.Built {
 		t.Errorf("Build answered a built image over a truncated context: %+v", image)
+	}
+	if image.retainedTag == "" {
+		t.Fatal("the failed build carries no owned tag to release")
+	}
+	released := false
+	for _, command := range runner.commands {
+		if strings.Join(command.Arguments, " ") == "docker image rm --no-prune "+image.retainedTag {
+			released = true
+		}
+	}
+	if !released {
+		t.Errorf("the failed build did not release its owned tag %s: %v", image.retainedTag, runner.commands)
+	}
+}
+
+// VALIDATES: a context named through a symlink to its directory is sent with
+// its contents, and `-f` names the Dockerfile inside it.
+// METHOD: a real context directory reached through a symlink, as a migrated
+// `tmp/` child is, built through a runner that reads the archive.
+// PREVENTS: the walk stopping at a root that is a symlink and sending docker
+// an empty context, where the docker CLI resolved the link and built.
+func TestBuildSendsAContextReachedThroughASymlink(t *testing.T) {
+	directory := t.TempDir()
+	writeContextFile(t, filepath.Join(directory, "Dockerfile"), "FROM scratch\n", 0o644)
+	writeContextFile(t, filepath.Join(directory, "file.txt"), "regular bytes\n", 0o644)
+	link := filepath.Join(t.TempDir(), "context")
+	if err := os.Symlink(directory, link); err != nil {
+		t.Fatal(err)
+	}
+	recorded := &buildContextRunner{}
+	if _, err := newDocker(recorded.runner()).Build(t.Context(), ImageBuild{Name: "lab", Tag: "lab:latest",
+		Dockerfile: filepath.Join(link, "Dockerfile"), Context: link}); err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	tail := strings.Join(recorded.arguments[len(recorded.arguments)-3:], " ")
+	if tail != "-f Dockerfile -" {
+		t.Errorf("the build ends %q, want %q", tail, "-f Dockerfile -")
+	}
+	entries := recorded.entries(t)
+	for _, name := range []string{"Dockerfile", "file.txt"} {
+		if _, ok := entries[name]; !ok {
+			t.Errorf("the archive lacks %s: %v", name, entryNames(entries))
+		}
+	}
+	if entries["file.txt"].body != "regular bytes\n" {
+		t.Errorf("file.txt carries %q", entries["file.txt"].body)
 	}
 }
 

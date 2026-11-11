@@ -4520,9 +4520,13 @@ could match inside it, and the Dockerfile and the ignore file are always
 sent. Owners are sent as root, as the docker CLI sends them. A socket is
 skipped, also as the docker CLI does, while a device or a named pipe fails
 the build with its path. A Dockerfile outside the context is refused, because
-the stream carries the context alone. A walk that fails part way fails the
-build with its cause, so a truncated context is never built. A named context
-(`--build-context`) is still passed as a path.
+the stream carries the context alone. A context named through a symlink to
+its directory (a migrated `tmp/` child) is resolved before the walk, as the
+docker CLI resolves it, so its contents are sent rather than an empty
+archive. A walk that fails part way fails the build with its cause. Docker
+may still build an image from the part it read, so that failure also
+releases the build's own tag, and the image is never answered as built. A
+named context (`--build-context`) is still passed as a path.
 <!-- source: internal/le/interoplab/docker_build_context.go -- prepareBuildContext, contextIgnoreMatcher, streamBuildContext, writeEntry -->
 <!-- source: internal/le/interoplab/docker.go -- Build -->
 

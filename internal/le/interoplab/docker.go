@@ -537,6 +537,15 @@ func (d *Docker) Build(ctx context.Context, build ImageBuild) (ImageResult, erro
 		return commandOutcome(result, err, timeout, commandOperation(arguments), arguments)
 	})
 	if err != nil {
+		// Docker may have built from the part of the context it read before
+		// the walk failed, and moved the owned tag onto that image. A failed
+		// docker build tags nothing, so only this failure owes the release
+		// buildWithProgress makes for every failed build.
+		if errors.Is(err, errBuildContextUnsent) {
+			if cleanupErr := d.ReleaseImage(context.WithoutCancel(ctx), image); cleanupErr != nil {
+				err = errors.Join(err, fmt.Errorf("release failed build's owned tag: %w", cleanupErr))
+			}
+		}
 		return image, err
 	}
 	lines := strings.Fields(result.Stdout)

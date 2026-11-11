@@ -40,12 +40,17 @@ const buildContextDefaultDockerfile = "Dockerfile"
 // status then judges the build, so this cause alone fails nothing.
 var errBuildContextUnread = errors.New("the build process returned before reading the whole context")
 
+// errBuildContextUnsent marks a build whose context walk failed part way.
+// Docker may still have built from the part it read and moved the build's
+// owned tag onto that image, so Build releases the tag when it meets this.
+var errBuildContextUnsent = errors.New("the build context was not sent whole")
+
 // buildContext is a build context checked and ready to stream: the directory,
 // the Dockerfile's path inside it, and the ignore patterns that apply. Only
 // prepareBuildContext builds one; its zero value names no directory and
 // writeArchive refuses it.
 type buildContext struct {
-	// root is the context directory, absolute.
+	// root is the context directory, absolute, with its symlinks resolved.
 	root string
 	// dockerfile is the Dockerfile's path relative to root, in slash form: the
 	// `-f` argument of a build whose context arrives on stdin.
@@ -64,9 +69,19 @@ func prepareBuildContext(context, dockerfile string) (buildContext, error) {
 	if context == "" {
 		return buildContext{}, errors.New("Docker build context is empty")
 	}
-	root, err := filepath.Abs(context)
+	named, err := filepath.Abs(context)
 	if err != nil {
 		return buildContext{}, fmt.Errorf("resolve Docker build context %s: %w", context, err)
+	}
+	// WalkDir does not descend a root that is itself a symlink, so a context
+	// reached through one (a migrated `tmp/` child) would be sent empty. The
+	// docker CLI resolves the context the same way before it walks it
+	// (ResolveAndValidateContextPath). The Dockerfile is still placed against
+	// the path the caller named: resolving the root leaves every path below it
+	// the same.
+	root, err := filepath.EvalSymlinks(named)
+	if err != nil {
+		return buildContext{}, fmt.Errorf("read Docker build context: %w", err)
 	}
 	info, err := os.Stat(root)
 	if err != nil {
@@ -75,7 +90,7 @@ func prepareBuildContext(context, dockerfile string) (buildContext, error) {
 	if !info.IsDir() {
 		return buildContext{}, errors.New("Docker build context " + root + " is not a directory")
 	}
-	relative, err := contextDockerfile(root, dockerfile)
+	relative, err := contextDockerfile(named, dockerfile)
 	if err != nil {
 		return buildContext{}, err
 	}
@@ -182,7 +197,7 @@ func streamBuildContext(source buildContext, run func(stdin io.Reader) (ProcessR
 	reader.CloseWithError(errBuildContextUnread) //nolint:errcheck // CloseWithError always answers nil.
 	walkErr := <-written
 	if walkErr != nil && !errors.Is(walkErr, errBuildContextUnread) {
-		err = errors.Join(err, fmt.Errorf("send Docker build context %s: %w", source.root, walkErr))
+		err = errors.Join(err, fmt.Errorf("send Docker build context %s: %w: %w", source.root, errBuildContextUnsent, walkErr))
 	}
 	return result, err
 }
