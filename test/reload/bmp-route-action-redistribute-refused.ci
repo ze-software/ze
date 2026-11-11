@@ -1,0 +1,157 @@
+# Test: a SIGHUP reload to a config whose BMP receiver writes
+#       `route-action redistribute` is refused, and the daemon keeps running the
+#       config it already has.
+#
+# VALIDATES: spec-bmp-route-action-redistribute-acts-as-monitor AC-3. The value
+#            left ze-bmp-conf.yang (owner Q-1: BMP is monitoring only), so the
+#            reload's config parse refuses it through the native enum refusal.
+# PREVENTS:  a reload that accepts a receiver action Ze does not perform, which
+#            used to commit and then act as monitor with one warning line.
+#
+# The replacement config differs from the running one by the one route-action
+# line, so nothing about the peer session changes whether the reload is applied
+# or refused. Restore `enum redistribute` and the refusal below disappears.
+#
+# Two fences, the shape of test/reload/config-reload-invalid-validator.ci:
+#   the reload FAILS -- the stderr expectations, which name the leaf, the
+#   refused value and the value the schema accepts. Only those three words are
+#   pinned, because spec-config-enum-refusal-proposes-valid-values replaces the
+#   generic enum message text and both texts carry them.
+#   the daemon KEEPS RUNNING -- the SIGTERM after the SIGHUP, and exit code 0.
+#   A daemon that died on the SIGHUP cannot take the SIGTERM and cannot exit 0.
+#
+# The listener set is not asserted: the reload is refused at parse, before
+# applyReceiverConfig runs, and the receiver's "listening" line is logged at
+# Info under the default WARN level.
+
+stdin=peer:terminator=EOF_PEER
+
+# Connection 1: the peer's route plus EOR, proving the session is established
+# before the reload is attempted.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# Swap in the config carrying the refused value, then SIGHUP. The SIGTERM that
+# follows is the liveness fence.
+action=rewrite:conn=1:seq=2:source=redistribute.conf:dest=ze-bgp.conf
+action=sighup:conn=1:seq=2
+action=sigterm:conn=1:seq=2
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	bmp {
+		enabled true
+		server default {
+			ip 127.0.0.1
+			port $PORT2
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=redistribute.conf:refused=config-parse:terminator=EOF_REDIST
+environment {
+	bmp {
+		enabled true
+		server default {
+			ip 127.0.0.1
+			port $PORT2
+		}
+		route-action redistribute
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+EOF_REDIST
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s
+
+# The daemon refused the reload ...
+expect=stderr:contains=reload error
+expect=stderr:contains=route-action
+expect=stderr:contains=redistribute
+expect=stderr:contains=monitor
+# ... and was still there afterwards to take the SIGTERM and shut down cleanly.
+expect=exit:code=0

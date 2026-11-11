@@ -1,0 +1,21 @@
+# Test: ze config validate refuses net.mpls.ip_ttl_propagate 0
+# VALIDATES: the operator's entry point, `ze config validate`, reaches the
+#            sysctl plugin's config verifier and refuses a sysctl setting that
+#            turns off MPLS TTL propagation, with the RFC it breaks and the fix.
+#            A unit test drives verifySysctlConfig directly; only this run
+#            proves the config pipeline hands the sysctl section to it.
+# PREVENTS: Linux writing net.mpls.default_ttl into every label fib-kernel
+#           pushes instead of the IP TTL (RFC 3032 Section 2.4.3), from a config
+#           that validates and commits.
+stdin=config:terminator=EOF_CONF
+sysctl {
+	setting net.mpls.ip_ttl_propagate {
+		value 0
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config:exit=1
+expect=exit:code=1
+expect=stdout:contains=net.mpls.ip_ttl_propagate
+expect=stdout:contains=RFC 3032 Section 2.4.3

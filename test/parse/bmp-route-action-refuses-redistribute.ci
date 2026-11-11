@@ -1,0 +1,76 @@
+# The BMP receiver's route-action leaf offers monitor alone. Until 2026-11-11 it
+# also listed redistribute, which committed and then acted as monitor, with one
+# warning line in the log as the only signal (owner Q-1: BMP is monitoring
+# only). With the value gone from ze-bmp-conf.yang the native enum refusal
+# (ValidateLeafValue, internal/component/config/schema.go) rejects it.
+#
+# VALIDATES: spec-bmp-route-action-redistribute-acts-as-monitor AC-1 (validate
+#            refuses redistribute), AC-2 (daemon start refuses it), AC-4
+#            (monitor written and the leaf absent both validate).
+# PREVENTS:  a config Ze accepts and then does something else with. The two
+#            accepted counterparts make the test fail if the refusal ever widens
+#            into "route-action rejected" or "environment bmp rejected".
+#
+# Only route-action, redistribute and monitor are pinned. The generic enum
+# refusal text is replaced by spec-config-enum-refusal-proposes-valid-values,
+# and both the current and the replacement text carry these three words. No
+# needle holds a ':' because the directive splits on it.
+
+stdin=redistribute:terminator=EOF_REDIST
+environment {
+    bmp {
+        enabled true;
+        server default {
+            ip 127.0.0.1;
+            port 11019;
+        }
+        route-action redistribute;
+    }
+}
+EOF_REDIST
+
+stdin=monitor:terminator=EOF_MONITOR
+environment {
+    bmp {
+        enabled true;
+        server default {
+            ip 127.0.0.1;
+            port 11019;
+        }
+        route-action monitor;
+    }
+}
+EOF_MONITOR
+
+stdin=absent:terminator=EOF_ABSENT
+environment {
+    bmp {
+        enabled true;
+        server default {
+            ip 127.0.0.1;
+            port 11019;
+        }
+    }
+}
+EOF_ABSENT
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=redistribute
+expect=exit:code=1
+expect=stdout:contains=route-action
+expect=stdout:contains=redistribute
+expect=stdout:contains=monitor
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=monitor
+expect=exit:code=0
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=absent
+expect=exit:code=0
+
+# The daemon's own config load refuses the same value before any plugin runs.
+# No "receiver listening" reject: that line is logged at Info and the default
+# level is WARN, so it never prints and a reject on it would prove nothing.
+cmd=foreground:seq=4:exec=ze -:stdin=redistribute:timeout=30s
+expect=exit:code=1
+expect=stderr:contains=route-action
+expect=stderr:contains=redistribute
+expect=stderr:contains=monitor
