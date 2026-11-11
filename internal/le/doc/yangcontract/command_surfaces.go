@@ -178,7 +178,7 @@ type publishedCommand struct {
 var commandCatalogGenerationTimeout = 2 * time.Minute
 
 // daemonBuildTimeout bounds the one compile of cmd/ze that BuildDaemon performs.
-const daemonBuildTimeout = 5 * time.Minute
+const daemonBuildTimeout = 15 * time.Minute
 
 // catalogDaemon compiles the daemon the drift check reads the live catalog
 // from. It is a variable so a test can state the daemon rather than compile it.

@@ -390,11 +390,51 @@ For a raw HTML table, set `<table data-column-controls="off">`. Set
 `table-columns: false` in front matter only when every table on the page should
 remain fixed.
 
+### Project overview
+
+The `project` producer publishes `/project/` from `project/index.md`, filling
+its two page-local slots before the shared Markdown renderer writes the HTML
+and Markdown mirror. The latest update uses the same canonical report loader,
+coverage label, authored summary and clipping rule as the homepage. The three
+recent landmarks use `data/milestones.json` and the timeline's existing date and
+category validation and stable newest-first order. Short histories show every
+available landmark; an empty one is stated plainly. Missing or unknown template
+slots stop publication rather than leaving an unfinished overview.
+<!-- source: internal/le/site/project.go -- renderProject, projectOverviewContent, projectLatestUpdate, projectLandmarkList -->
+
+The overview preserves the existing roadmap, milestones, updates, activity,
+blog, talks, history, Why Ze, AI development and contribution destinations. Its
+demonstration section links to the existing homepage player and continuous
+recording with their transcript; the preview is an authentic static capture,
+not a live hosted router. Release work remains a planning inventory and is
+never presented as a completion percentage. Layout styles live in
+`assets/css/35-project.css` and use the shared theme tokens.
+<!-- source: website/project/index.md -- project overview sections -->
+<!-- source: website/assets/css/35-project.css -- project overview layout -->
+
 ### Markdown mirrors
 
 Every published page gets an `index.md` sibling beside `index.html`. A reader
 can request the same URL with `.md` and receive the source form used by
 `llms.txt`.
+
+The search index is a plain-text consumer of those mirrors. It renders each
+page's title and body with the shared Markdown engine, then extracts visible
+HTML text once, preserving inline punctuation, image labels and separation
+between blocks and table cells. Literal entity spellings inside code remain
+literal; prose entities become the characters readers see. Script and style
+contents do not enter the search index. The configuration index keeps its
+existing structured-data path. `llms-full.txt` continues to copy Markdown
+bodies, while `llms.txt` reads structured metadata and links to the mirrors.
+<!-- source: internal/le/site/search.go -- pageSearchRecords, searchMirrorText, configSearchRecords -->
+<!-- source: internal/le/site/llmsfull.go -- writeLLMSFullSection -->
+<!-- source: internal/le/site/derived.go -- renderLLMS -->
+
+When HTML is converted to Markdown, literal tag characters and entity-looking
+text remain prose after the mirror is rendered again. Inline code,
+preformatted blocks and code-producing chips, tags and card labels keep their
+literal text; they do not decode entity-looking content a second time.
+<!-- source: internal/le/site/mirror.go -- mirrorConverter.data, mirrorConverter.renderNode, renderComponent, mirrorCodeComponent -->
 
 Pages backed by Markdown publish that source with internal links rewritten to
 their public siblings. Pages built from JSON produce HTML and Markdown from the
@@ -513,15 +553,18 @@ Use `categoryLabel` for category display names: `platform` reads as
 <!-- source: internal/le/site/docpage.go -- categoryLabel -->
 
 The homepage preserves its useful content and data slots. Its opening keeps
-the network OS and immutable-services identity, followed by a short explanation.
+the network OS and immutable-services identity, followed by a short explanation
+of Linux routing and shared configuration through SSH, web and APIs.
 "Try the BGP quickstart" is the first, primary action and links directly to
-`guides/quickstart/`; the demo gallery is secondary. Two compact groups in the
-left column retain the routing, interface, tunnel and management capabilities
-with their individual destinations. The engine, daemon and immutable-appliance
-explanation follows those groups, then the primary actions. The copy and demo
-are vertically centered in their shared desktop row. The support links,
-no-stable-release notice and product map follow that row without an intervening
-full-width capability band. No capability content is collapsed or hidden.
+`guides/quickstart/`; the demo gallery is secondary. The copy, actions and
+pre-release notice sit beside the genuine terminal recording on desktop.
+Keep these actions and the recording controls within the initial laptop
+viewport. On phones, compact the copy and place the recording before the
+interface selector so its preview and Play action are visible before scrolling.
+The project metrics, release callout and product map follow the opening row.
+Two groups below that map retain every routing, interface, tunnel and
+management destination, followed by the engine, plugin and deployment
+explanation. No capability content is collapsed or hidden.
 The outer hero alone paints the shared navy gradient. Its inner panel and
 showcase chrome remain transparent in both themes, without an inner shadow
 that creates seams at the left and right edges.

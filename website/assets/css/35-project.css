@@ -1,0 +1,41 @@
+/* The project overview shares the site's surfaces, typography and link roles. */
+.project-overview { display: grid; gap: 2rem; min-width: 0; }
+#top .project-overview { max-width: none; }
+.project-overview h2 { margin: 0 0 0.85rem; font-size: clamp(1.5rem, 2.2vw, 2rem); }
+.project-overview p { max-width: 72ch; }
+.project-overview .project-eyebrow { margin: 0 0 0.65rem; color: var(--muted); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.project-state { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2rem; }
+.project-text-link, .project-links a { color: var(--blue); font-weight: 700; }
+.project-progress { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 1.5rem; }
+.project-latest, .project-release { padding: clamp(1.25rem, 2.5vw, 2rem); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--panel); min-width: 0; }
+.project-latest { background: var(--brand-surface); }
+.project-report-date { color: var(--muted); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.project-links, .project-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.85rem 1.5rem; }
+.project-overview .project-secondary-link { margin: 1rem 0 0; font-size: 0.85rem; }
+.project-demo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr); align-items: center; gap: 2rem; padding: clamp(1.25rem, 3vw, 2.5rem); background: var(--brand-section-gradient); border: 1px solid var(--line); border-radius: var(--radius-lg); }
+.project-demo-preview { display: block; min-width: 0; color: var(--muted); text-decoration: none; }
+.project-demo-preview img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: var(--radius-lg); }
+.project-demo-preview span { display: block; margin-top: 0.75rem; font-size: 0.8rem; line-height: 1.5; }
+.project-history { padding-block: 0.5rem; }
+.project-overview .project-landmarks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem; list-style: none; margin: 1.5rem 0; padding: 0; }
+.project-landmarks li { min-width: 0; border-top: 3px solid var(--brand); padding-top: 1rem; }
+.project-landmarks time { color: var(--muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.project-landmarks h3 { margin: 0.6rem 0; font-size: 1.05rem; }
+.project-landmarks p { font-size: 0.9rem; }
+.project-development { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.8fr); align-items: start; gap: 2.5rem; padding: 2rem 0; border-block: 1px solid var(--line); }
+.project-reading { display: grid; gap: 0; }
+.project-reading a { display: block; padding: 1rem 0; border-bottom: 1px solid var(--line); text-decoration: none; }
+.project-reading a:first-child { padding-top: 0; }
+.project-reading a:last-child { border-bottom: 0; }
+.project-reading strong, .project-reading span { display: block; }
+.project-reading strong { color: var(--blue); }
+.project-reading span { margin-top: 0.3rem; color: var(--muted); font-size: 0.9rem; }
+.project-participation { display: flex; align-items: center; justify-content: space-between; gap: 2rem; }
+.project-participation .button { flex-shrink: 0; }
+@media (max-width: 850px) {
+    .project-state, .project-demo, .project-development { grid-template-columns: minmax(0, 1fr); gap: 1.25rem; }
+    .project-state > a { justify-self: start; }
+    .project-progress { grid-template-columns: minmax(0, 1fr); }
+    .project-overview .project-landmarks { grid-template-columns: minmax(0, 1fr); }
+    .project-participation { align-items: flex-start; flex-direction: column; gap: 1rem; }
+}

@@ -237,12 +237,11 @@ var docsDestinationPrefixes = []docsDestinationPrefix{
 	{Source: "plugin-development/", Public: "developers/plugins/"},
 }
 
-// hubPages are the five curated collection landing pages, whose sources live
+// hubPages are the curated collection landing pages, whose sources live
 // in the website tree rather than in docs/.
 var hubPages = []sitePage{
 	{Source: "website/guides/index.md", Dest: "guides/index.html", Desc: "Task-oriented installation, configuration, operation, and troubleshooting guides.", Category: categoryOperate},
 	{Source: "website/reference/index.md", Dest: "reference/index.html", Desc: "Generated and lookup-oriented command, configuration, plugin, standards, and feature data."},
-	{Source: "website/project/index.md", Dest: "project/index.html", Desc: "Ze roadmap, milestones, changes, history, talks, and contribution paths."},
 	{Source: "website/developers/index.md", Dest: "developers/index.html", Desc: "Plugin SDK documentation and contributor development workflows.", Category: categoryAutomate},
 	{Source: "website/demos/index.md", Dest: "demos/index.html", Desc: "Recorded workflows, runnable labs, netlab topologies, and deployment examples.", Category: categoryObserve},
 }

@@ -6,7 +6,9 @@ package site
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -14,6 +16,8 @@ import (
 	"slices"
 	"sort"
 	"strings"
+
+	xhtml "golang.org/x/net/html"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -76,8 +80,8 @@ type searchRecord struct {
 	Text           string `json:"text"`
 }
 
-// newSearchRecord answers one record with its display fields stripped of
-// Markdown, which is what the page prints into the results list.
+// newSearchRecord keeps the configuration index's existing inline-Markdown
+// normalization for its title and section metadata.
 func newSearchRecord(title, url, section, text string) searchRecord {
 	title = stripMarkdown(title)
 	section = stripMarkdown(section)
@@ -228,11 +232,104 @@ func pageSearchRecords(output string) ([]searchRecord, error) {
 		if readErr != nil {
 			return nil, readErr
 		}
-		record := newSearchRecord(searchTitleOf(string(content), directory), searchURLOf(directory),
-			searchSectionOf(directory), capRunes(stripMarkdown(string(content)), searchBodyCap))
-		records = append(records, record)
+		title, err := searchMirrorText(searchTitleOf(string(content), directory))
+		if err != nil {
+			return nil, fmt.Errorf("search mirror %s title: %w", mirror, err)
+		}
+		body, err := searchMirrorText(string(content))
+		if err != nil {
+			return nil, fmt.Errorf("search mirror %s body: %w", mirror, err)
+		}
+		section := stripMarkdown(searchSectionOf(directory))
+		records = append(records, searchRecord{
+			Title: title, DisplayTitle: title,
+			URL:     searchURLOf(directory),
+			Section: section, DisplaySection: section,
+			Text: capRunes(body, searchBodyCap),
+		})
 	}
 	return records, nil
+}
+
+// searchMirrorText reads Markdown as a reader does before the browser prints
+// the index as escaped HTML. Tokenization decodes prose once and preserves the
+// entity-looking text that the Markdown renderer kept literal inside code.
+func searchMirrorText(markdown string) (string, error) {
+	body, _, err := renderMarkdown([]byte(markdown))
+	if err != nil {
+		return "", err
+	}
+	var text textbuf.Buffer
+	text.Reset()
+	tokenizer := xhtml.NewTokenizer(strings.NewReader(body))
+	skipped := ""
+	for {
+		switch tokenizer.Next() {
+		case xhtml.ErrorToken:
+			if errors.Is(tokenizer.Err(), io.EOF) {
+				return strings.Join(strings.Fields(text.String()), " "), nil
+			}
+			return "", tokenizer.Err()
+		case xhtml.TextToken:
+			if skipped == "" {
+				text.Write(tokenizer.Text())
+			}
+		case xhtml.StartTagToken, xhtml.SelfClosingTagToken:
+			name, hasAttributes := tokenizer.TagName()
+			tag := string(name)
+			if skipped != "" {
+				continue
+			}
+			if tag == "script" {
+				skipped = tag
+				continue
+			}
+			if tag == "style" {
+				skipped = tag
+				continue
+			}
+			if searchTextBoundary(tag) {
+				text.Byte(' ')
+			}
+			if tag == "img" {
+				for hasAttributes {
+					var key, value []byte
+					key, value, hasAttributes = tokenizer.TagAttr()
+					if string(key) == "alt" {
+						text.Write(value)
+					}
+				}
+			}
+		case xhtml.EndTagToken:
+			name, _ := tokenizer.TagName()
+			tag := string(name)
+			if skipped != "" {
+				if tag == skipped {
+					skipped = ""
+				}
+				continue
+			}
+			if searchTextBoundary(tag) {
+				text.Byte(' ')
+			}
+		case xhtml.CommentToken, xhtml.DoctypeToken:
+			// Neither contributes reader-visible search text.
+		default:
+			// The tokenizer's token set is open; unknown tokens add no text.
+		}
+	}
+}
+
+// searchTextBoundary separates the block and table tags the Markdown renderer
+// emits. Other tags are inline or transparent, so punctuation stays adjacent.
+func searchTextBoundary(tag string) bool {
+	switch tag {
+	case "blockquote", "br", "h1", "h2", "h3", "h4", "h5", "h6", "hr",
+		"li", "ol", "p", "pre", "table", "td", "th", "tr", "ul":
+		return true
+	default:
+		return false
+	}
 }
 
 // configSearchRecords answers one record for the configuration reference and
@@ -356,13 +453,9 @@ func searchTitleOf(mirror, directory string) string {
 	return directory[strings.LastIndex(directory, "/")+1:]
 }
 
-// The passes that turn one Markdown mirror into searchable words. Each one
-// removes a construct a reader never types into a search box.
-//
-// They are named for this file rather than for Markdown, because two other
-// files strip Markdown for a different reader and answer differently:
-// llmsdata.go keeps a sentence readable, and this one keeps only the words a
-// match runs over.
+// These passes preserve the configuration index's existing normalization of
+// inline Markdown in title and section metadata. Page mirrors instead use
+// searchMirrorText, which distinguishes literal prose from code content.
 var (
 	searchComment     = regexp.MustCompile(`(?s)<!--.*?-->`)
 	searchFence       = regexp.MustCompile("(?m)^```.*$")
@@ -370,13 +463,13 @@ var (
 	searchHeadingMark = regexp.MustCompile(`(?m)^\s{0,3}#{1,6}\s*`)
 )
 
-// stripMarkdown answers one Markdown text as the words a reader would search
-// for: no comments, no fences, link text without its target, no heading marks,
-// no emphasis, and one space between words.
+// stripMarkdown normalizes configuration-index metadata: no comments or
+// fences, link text without its target, no heading marks or emphasis, and one
+// space between words. Its existing normalization contract remains separate
+// from page mirrors' reader-visible Markdown conversion.
 //
 // Each pattern runs only over a text holding the literal it cannot match
-// without, and the last three passes are one hand loop: the build strips every
-// published page, and each regexp pass walked every byte of it.
+// without, and the last three separator passes share one byte loop.
 func stripMarkdown(text string) string {
 	if strings.Contains(text, "<!--") {
 		text = searchComment.ReplaceAllString(text, " ")

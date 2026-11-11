@@ -96,7 +96,7 @@
     main, main.site-main-wide, main.has-page-sidebar { width: min(var(--max), calc(100% - 3rem)); padding: 0 0 3rem; }
     main.has-page-sidebar > .page-sidebar { width: 100%; max-height: none; margin: 1.5rem 0; }
     main.has-page-sidebar > .page-sidebar .page-sidebar-nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; }
-    .site-home .hero-start-intro.hero-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "copy" "preview"; gap: 2rem; padding-top: 2.5rem; }
+    .site-home .hero-start-intro.hero-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "copy" "preview"; gap: 1.5rem; padding-top: 1.5rem; }
     .site-home .hero-copy { max-width: 46rem; }
     .site-home #hero-title { font-size: clamp(2.25rem, 5vw, 3rem); }
     .site-home .showcase { width: 100%; max-width: 46rem; justify-self: center; }
@@ -151,10 +151,19 @@
     .cli-toolbar { padding: 1rem; }
     .cli-toolbar > * { grid-column: 1; }
     .cli-reference-content .cli-group > table::before { content: "Scroll sideways to see all columns."; display: block; padding: 0.6rem 1rem; font: 0.75rem/1.5 Lato, sans-serif; color: var(--muted); background: var(--bg-soft); }
-    .site-home .hero-start-intro.hero-grid { padding: 2rem 0 1.5rem; gap: 1.5rem; }
-    .site-home #hero-title { font-size: clamp(2rem, 8vw, 2.55rem); }
-    .site-home .hero-intro { font-size: 1.08rem; }
-    .site-home .hero-actions .button { font-size: 0.78rem; flex: 1 1 12rem; }
+    .site-home .hero-start-intro.hero-grid { padding: 1.25rem 0 1rem; gap: 1rem; }
+    .site-home .hero .eyebrow { margin-bottom: 0.6rem; }
+    .site-home #hero-title { font-size: clamp(1.7rem, 7vw, 2rem); margin-bottom: 0.75rem; }
+    .site-home #hero-title em { font-size: 0.78em; }
+    .site-home .hero-start-points { margin-bottom: 0.65rem; gap: 0.25rem 0.65rem; }
+    .site-home .hero-intro { font-size: 0.98rem; line-height: 1.5; margin-bottom: 0.7rem; }
+    .site-home .hero-actions { margin-top: 1rem; gap: 0.5rem; }
+    .site-home .hero-actions .button { font-size: 0.75rem; flex: 1 1 auto; min-height: 2.6rem; padding: 0.65rem 0.6rem; gap: 0.4rem; }
+    .site-home .hero-status { margin-top: 0.6rem; font-size: 0.75rem; }
+    .site-home .showcase { display: flex; flex-direction: column; }
+    .site-home .showcase .product-panels { order: 1; }
+    .site-home .showcase .screen-tabs { order: 2; margin-bottom: 0; }
+    .site-home .hero-capabilities dl { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
     .site-home .screen-tabs button { font-size: 0.75rem; padding: 0.5rem 0.65rem; }
     .site-home .screen-toolbar { gap: 0.5rem; font-size: 0.65rem; }
     .site-home .screen-description { padding: 1rem; }

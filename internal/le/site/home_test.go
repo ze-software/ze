@@ -714,10 +714,11 @@ func TestTheHomepageCarriesTheShellAndItsMirror(t *testing.T) {
 	if strings.Contains(page, `<main id="top" tabindex="-1" class=`) {
 		t.Error("the homepage opened <main> with a class; it carries no sidebar and asks for no width")
 	}
+	mirrorText := markdownVisibleText(t, mirror)
 	for _, want := range []string{
 		"A <renderer> & its sources", "2026-08-17 – 2026-08-23 (1 week)",
 	} {
-		if !strings.Contains(mirror, want) {
+		if !strings.Contains(mirrorText, want) {
 			t.Errorf("the homepage mirror does not carry %q", want)
 		}
 	}

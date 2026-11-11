@@ -83,6 +83,9 @@ type mirrorNode struct {
 	tag        string
 	attributes map[string]string
 	text       textbuf.Buffer
+	// Literal holds decoded text only for elements that can produce code.
+	// Code must preserve entity-looking text without a second decode.
+	literal textbuf.Buffer
 }
 
 // mirrorList is one open list and the number of items it has numbered.
@@ -174,6 +177,7 @@ var (
 	mirrorMultiSpace    = regexp.MustCompile(`[ \t]{2,}`)
 	mirrorSingleIndent  = regexp.MustCompile("(?m)^ (?:(?:[-*+]|\\d+\\.) |\\*\\*|`)")
 	mirrorLabelValue    = regexp.MustCompile(`([^\s:])(\*\*)([ \t]*)`)
+	mirrorLiteralText   = strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;")
 )
 
 // collapseSpacesOutsideCode removes the double spaces a pretty-printed page
@@ -190,17 +194,32 @@ func collapseSpacesOutsideCode(text string) string {
 	return strings.Join(parts, "```")
 }
 
-// data records the text of one token. Inside a <pre> it is kept as it was
-// written, because the indentation is what the block says.
+// data records decoded text as safe Markdown prose. Code-producing ancestors
+// also collect its literal form, so neither inline code nor badges need to
+// decode entities after text has already crossed that boundary.
 func (converter *mirrorConverter) data(text string) {
 	if converter.skip != 0 {
 		return
 	}
+	if converter.pre == 0 {
+		text = mirrorSpaceRun.ReplaceAllString(text, " ")
+	}
+	converter.recordLiteral(text)
 	if converter.pre != 0 {
 		converter.top().text.Str(text)
 		return
 	}
-	converter.top().text.Str(mirrorSpaceRun.ReplaceAllString(text, " "))
+	converter.top().text.Str(mirrorLiteralText.Replace(text))
+}
+
+// recordLiteral preserves text and explicit separators for every enclosing
+// code producer, including a badge that contains an inline code element.
+func (converter *mirrorConverter) recordLiteral(text string) {
+	for _, node := range converter.stack {
+		if node.tag == "code" || mirrorCodeComponent(strings.Fields(node.attributes["class"])) {
+			node.literal.Str(text)
+		}
+	}
 }
 
 // top answers the element currently open.
@@ -226,6 +245,7 @@ func (converter *mirrorConverter) start(tag string, attributes map[string]string
 	}
 	switch tag {
 	case "br":
+		converter.recordLiteral("  \n")
 		converter.top().text.Str("  \n")
 		return
 	case "hr":
@@ -403,7 +423,7 @@ func (converter *mirrorConverter) renderNode(tag string, node *mirrorNode) strin
 		if converter.pre != 0 {
 			return inner
 		}
-		return "`" + strings.TrimSpace(inner) + "`"
+		return "`" + strings.TrimSpace(node.literal.String()) + "`"
 	case tagPreformatted:
 		code := strings.Trim(inner, "\n")
 		if code == "" {
@@ -435,12 +455,12 @@ func (converter *mirrorConverter) renderNode(tag string, node *mirrorNode) strin
 		}
 		return "\n\n" + strings.Join(quoted, "\n") + "\n\n"
 	}
-	return renderComponent(tag, inner, classes)
+	return renderComponent(tag, inner, node.literal.String(), classes)
 }
 
 // renderComponent answers the Markdown for the site's own components, which are
 // named by class rather than by tag.
-func renderComponent(tag, inner string, classes []string) string {
+func renderComponent(tag, inner, literal string, classes []string) string {
 	text := strings.TrimSpace(inner)
 	switch {
 	case tag == "div" && hasAnyClass(classes, "status-row", "stat", "quality-meter-row"):
@@ -451,11 +471,11 @@ func renderComponent(tag, inner string, classes []string) string {
 			return ""
 		}
 		return "- " + mirrorLabelValue.ReplaceAllStringFunc(text, labelValueColon) + "\n"
-	case hasAnyClass(classes, "chip", "tag", "card-label"):
-		if text == "" {
+	case mirrorCodeComponent(classes):
+		if strings.TrimSpace(literal) == "" {
 			return ""
 		}
-		return "`" + text + "` "
+		return "`" + strings.TrimSpace(literal) + "` "
 	case hasAnyClass(classes, "quality-stage-number"):
 		if text == "" {
 			return ""
@@ -470,6 +490,12 @@ func renderComponent(tag, inner string, classes []string) string {
 	// Every other element is transparent: its children pass through rather
 	// than being dropped for want of a case.
 	return inner
+}
+
+// mirrorCodeComponent is shared by text collection and component rendering so
+// a badge's literal-code role is declared once.
+func mirrorCodeComponent(classes []string) bool {
+	return hasAnyClass(classes, "chip", "tag", "card-label")
 }
 
 // labelValueColon puts a colon and one space between a label and the bold value

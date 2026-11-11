@@ -54,6 +54,103 @@ func publishedSearchIndex(t *testing.T, output string) []searchRecord {
 	return records
 }
 
+// TestSearchIndexesVisibleMirrorText indexes a real HTML-derived mirror and
+// reads the published JSON so prose is decoded once while code stays literal.
+func TestSearchIndexesVisibleMirrorText(t *testing.T) {
+	paths := searchPaths(t)
+	const fragment = `<h1>A &lt;renderer&gt; &amp; &amp;lt;title&amp;gt;</h1>
+<p>Prose &lt;renderer&gt; &amp; &amp;lt;prose&amp;gt;.</p>
+<p>Inline <code>&amp;lt;inline&amp;gt; &amp;</code>.</p>
+<pre><code>&amp;lt;fenced&amp;gt; &amp;
+</code></pre>`
+	mirror, err := htmlToMarkdown(fragment, "https://ze-software.net/project/literal-text/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeArtifactFile(t, paths.Output, "project/literal-text/index.md", mirror)
+	if _, err := renderSearch(paths); err != nil {
+		t.Fatal(err)
+	}
+	const title = "A <renderer> & &lt;title&gt;"
+	found := false
+	var published searchRecord
+	for _, record := range publishedSearchIndex(t, paths.Output) {
+		if record.URL != "project/literal-text/" {
+			continue
+		}
+		found = true
+		published = record
+		if record.Title != title || record.DisplayTitle != title {
+			t.Errorf("search titles differ from visible Markdown: title=%q display=%q, want %q", record.Title, record.DisplayTitle, title)
+		}
+		for _, text := range []string{
+			title,
+			"Prose <renderer> & &lt;prose&gt;.",
+			"Inline &lt;inline&gt; &.",
+			"&lt;fenced&gt; &",
+		} {
+			if !strings.Contains(record.Text, text) {
+				t.Errorf("search body lacks visible text %q: %q", text, record.Text)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("published search index omitted the literal-text mirror")
+	}
+	records, err := pageSearchRecords(paths.Output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, record := range records {
+		if record.URL == published.URL {
+			if record != published {
+				t.Errorf("published JSON changed its reader-text record: got %+v, want %+v", published, record)
+			}
+			return
+		}
+	}
+	t.Fatal("search index serialization published a record absent from the page walk")
+}
+
+// TestSearchMirrorTextPreservesReaderBoundaries checks image labels, link text,
+// inline punctuation and block separation without indexing hidden script text.
+func TestSearchMirrorTextPreservesReaderBoundaries(t *testing.T) {
+	for _, scenario := range []struct {
+		name, markdown, text string
+	}{
+		{
+			"image and link labels",
+			`Before ![Diagram label](figure.webp) and [link label](guide/).`,
+			`Before Diagram label and link label.`,
+		},
+		{
+			"inline adjacency",
+			`Run ` + "`show peer`" + `, then **inspect**.`,
+			`Run show peer, then inspect.`,
+		},
+		{
+			"block separation",
+			"First paragraph.\n\nSecond paragraph.\n\n- One\n- Two\n\n| Field | Value |\n| --- | --- |\n| alpha | beta |\n",
+			`First paragraph. Second paragraph. One Two Field Value alpha beta`,
+		},
+		{
+			"script and style contents",
+			`<p>Before<script>hidden script</script><style>hidden style</style>after.</p>`,
+			`Beforeafter.`,
+		},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			text, err := searchMirrorText(scenario.markdown)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if text != scenario.text {
+				t.Errorf("search text differs from the reader's text: got %q, want %q", text, scenario.text)
+			}
+		})
+	}
+}
+
 // VALIDATES: AC-13 -- the index is built from the ARTIFACT this build wrote:
 // one record for every published Markdown mirror, and nothing for a directory
 // that publishes no page.

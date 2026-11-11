@@ -84,6 +84,95 @@ func TestMirrorMatchesThePublishedConversion(t *testing.T) {
 	}
 }
 
+// TestMirrorPreservesLiteralTextThroughMarkdown renders each converted mirror
+// again so decoded tags, entities and ampersands cannot change its meaning.
+func TestMirrorPreservesLiteralTextThroughMarkdown(t *testing.T) {
+	for _, scenario := range []struct {
+		name, fragment, text string
+	}{
+		{
+			"prose",
+			`<p>Literal &lt;img src=x onerror="alert(1)"&gt; &amp;lt;entity&amp;gt; &amp; ordinary text.</p>`,
+			`Literal <img src=x onerror="alert(1)"> &lt;entity&gt; & ordinary text.`,
+		},
+		{
+			"literal blockquote marker",
+			`<p>&gt; literal marker</p>`,
+			`> literal marker`,
+		},
+		{
+			"inline code",
+			`<p>Run <code>show &lt;peer&gt; &amp; &amp;lt;literal&amp;gt;</code>.</p>`,
+			`Run show <peer> & &lt;literal&gt;.`,
+		},
+		{
+			"inline code with line break",
+			`<code>show<br>peer</code>`,
+			`show peer`,
+		},
+		{
+			"chip",
+			`<span class="chip">A &lt; B &amp; &amp;lt;literal&amp;gt;</span>`,
+			`A < B & &lt;literal&gt;`,
+		},
+		{
+			"empty chip",
+			`<span class="chip"> </span>`,
+			``,
+		},
+		{
+			"chip with line break",
+			`<span class="chip">A<br>B</span>`,
+			`A B`,
+		},
+		{
+			"tag with nested code",
+			`<span class="tag"><code>A &amp;lt; B &amp; C</code></span>`,
+			`A &lt; B & C`,
+		},
+		{
+			"card label",
+			`<span class="card-label">A &lt; B &amp; C</span>`,
+			`A < B & C`,
+		},
+		{
+			"tag class on prose formatting",
+			`<strong class="tag">A &lt;img src=x onerror="alert(1)"&gt; &amp; C</strong>`,
+			`A <img src=x onerror="alert(1)"> & C`,
+		},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			mirror, err := htmlToMarkdown(scenario.fragment, "https://ze-software.net/project/")
+			if err != nil {
+				t.Fatal(err)
+			}
+			rendered, _, err := renderMarkdown([]byte(mirror))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := visibleText(rendered); got != scenario.text {
+				t.Errorf("mirror changed visible text: got %q, want %q; Markdown: %s", got, scenario.text, mirror)
+			}
+			if strings.Contains(rendered, `<img src=x onerror=`) {
+				t.Error("literal markup became an image element")
+			}
+		})
+	}
+}
+
+// TestMirrorKeepsPreformattedLiteralText checks that prose escaping does not
+// alter the indentation, markup characters or entity text of a fenced block.
+func TestMirrorKeepsPreformattedLiteralText(t *testing.T) {
+	fragment := "<pre><code>  show &lt;peer&gt; &amp; &amp;lt;literal&amp;gt;\n    next</code></pre>"
+	mirror, err := htmlToMarkdown(fragment, "https://ze-software.net/project/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "```\n  show <peer> & &lt;literal&gt;\n    next\n```"; !strings.Contains(mirror, want) {
+		t.Errorf("fenced code changed: want %q in %q", want, mirror)
+	}
+}
+
 // readTestdata answers one fixture file.
 func readTestdata(t *testing.T, name string) string {
 	t.Helper()

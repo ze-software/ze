@@ -670,9 +670,11 @@ temporary directory it removes afterwards. `publishCommandCatalog` asks
 `ze help command --json` gives, and writes it to
 `../gh-pages/data/cli-commands.json`. The configuration tree above is read from
 the same binary. The producers below read that file and nothing else.
-`yangcontract.BuildDaemon` performs the compile, under a 5-minute bound of its
+`yangcontract.BuildDaemon` performs the compile, under a 15-minute bound of its
 own, and the documentation drift check (`./le doc check all`) compiles its
-live catalog the same way. Each run of the compiled binary has a 2-minute bound
+live catalog the same way. This allows compilation and linking on a loaded host
+to finish while retaining a bounded compile and the caller's earlier cancellation.
+Each run of the compiled binary has a 2-minute bound
 that covers the command alone, so a slow compile on a loaded host does not kill
 the catalog.
 

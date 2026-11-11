@@ -93,10 +93,10 @@ func TestEveryDocsProducerSourceExists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("pages: %v", err)
 	}
-	// 148 recovered pages, less project/roadmap/, which the roadmap producer
-	// owns, plus legal/, project/ai-development/ and the Docker guide.
-	if len(pages) != 150 {
-		t.Errorf("the docs producer publishes %d pages, want the 147 recovered pages plus legal/, project/ai-development/ and Docker", len(pages))
+	// 148 recovered pages, less project/roadmap/ and project/, which their
+	// dedicated producers own, plus legal/, project/ai-development/ and Docker.
+	if len(pages) != 149 {
+		t.Errorf("the docs producer publishes %d pages, want the 146 recovered pages plus legal/, project/ai-development/ and Docker", len(pages))
 	}
 	destinations := map[string]string{}
 	for _, page := range pages {

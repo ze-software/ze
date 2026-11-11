@@ -42,41 +42,13 @@ const homeTemplate = `        <div class="site-home">
                                     <span>Appliance option</span>
                                     <span>ExaBGP compatible</span>
                                 </p>
-                                <p class="hero-intro">Route traffic and manage your network with one configuration. Extend Ze with plugins for automation and services of your own.</p>
+                                <p class="hero-intro">Run BGP, OSPF and IS-IS on Linux. Manage interfaces and services through one configuration over SSH, web or APIs.</p>
                                 <p class="hero-project-intro"><a href="project/why-ze/">Why Ze exists →</a> · Ask questions and follow development on <a href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener">Discord</a>.</p>
-                                <div class="hero-capabilities" aria-label="Networking and management capabilities">
-                                    <dl>
-                                        <div>
-                                            <dt>Route and connect</dt>
-                                            <dd>
-                                                Speak <a href="guides/bgp-peering/">BGP</a>,
-                                                <a href="guides/isis/">ISIS</a> and <a href="guides/ospf/">OSPF</a>.
-                                                Manage <a href="features/interfaces/">interfaces</a> and tunnels with
-                                                <a href="guides/ipsec/">IPsec VPN</a> and
-                                                <a href="features/interfaces/#wireguard-configuration">WireGuard</a>.
-                                                Set the <a href="reference/plugins/fib-kernel/">forwarding table (FIB)</a>.
-                                            </dd>
-                                        </div>
-                                        <div>
-                                            <dt>Manage one configuration</dt>
-                                            <dd>
-                                                Ze uses one configuration, defined in <a href="features/bgp-configuration/">YANG</a>,
-                                                through its own built-in SSH server, <a href="features/web-interface/">web interface</a>,
-                                                <a href="features/cli-commands/">CLI</a>, <a href="features/mcp-integration/">MCP</a>
-                                                and <a href="features/api-commands/">APIs</a>:
-                                                <a href="guides/api/#rest-endpoints">REST</a>,
-                                                <a href="guides/api/#grpc-services">gRPC</a> and <a href="guides/gnmi/">gNMI</a>.
-                                            </dd>
-                                        </div>
-                                    </dl>
-                                    <p>Ze is built on a configuration and protocol engine. It runs as a
-                                        <a href="architecture/">background service (daemon)</a> or an
-                                        <a href="guides/appliance/">appliance with a read-only operating system</a>.</p>
-                                </div>
                                 <div class="hero-actions">
                                     <a class="button primary" href="guides/quickstart/">Try the BGP quickstart <span aria-hidden="true">↗</span></a>
                                     <a class="button ghost" href="demos/terminal/">Watch the demos <span aria-hidden="true">↗</span></a>
                                 </div>
+                                <p class="hero-status">Linux service or immutable appliance. <span>No stable release yet.</span></p>
                             </div>
                             <div class="showcase" data-product-showcase>
                                 <div class="screen-tabs" role="group" aria-label="Choose a product interface" hidden>
@@ -92,7 +64,7 @@ const homeTemplate = `        <div class="site-home">
                                     <div class="screen-media" data-cast-poster="43">{hero_demo}</div>
                                     <figcaption class="screen-description">
                                         <strong id="hero-demo-title">{hero_demo_title}</strong>
-                                        <p>The recording follows a terminal lab, and the transcript lets you read the commands and their output.</p>
+                                        <p>Watch ExaBGP migration, inspect BGP peers, then configure, diagnose and repair services without restarting Ze. The transcript includes the commands and their output.</p>
                                         <a href="demos/terminal/">Watch the other demos →</a>
                                         <p class="capture-caption">Enlarged preview from the recording. Play shows the full terminal. Use full screen for a closer look.</p>
                                     </figcaption>
@@ -178,8 +150,7 @@ const homeTemplate = `        <div class="site-home">
                                 </a>
                                 <p>
                                     Expected initial release:<br />
-                                    Q4 2026.<br />
-                                    No stable release yet.
+                                    Q4 2026.
                                 </p>
                             </div>
                         </div>
@@ -190,6 +161,36 @@ const homeTemplate = `        <div class="site-home">
                             <a href="features/ai-first/">CLI, SSH, web, API, MCP</a>
                             <a href="reference/plugins/">Compiled or external plugins</a>
                             <a href="license/">AGPLv3 source</a>
+                        </div>
+                        <div class="hero-capabilities" aria-label="Networking and management capabilities">
+                            <dl>
+                                <div>
+                                    <dt>Route and connect</dt>
+                                    <dd>
+                                        Speak <a href="guides/bgp-peering/">BGP</a>,
+                                        <a href="guides/isis/">ISIS</a> and <a href="guides/ospf/">OSPF</a>.
+                                        Manage <a href="features/interfaces/">interfaces</a> and tunnels with
+                                        <a href="guides/ipsec/">IPsec VPN</a> and
+                                        <a href="features/interfaces/#wireguard-configuration">WireGuard</a>.
+                                        Set the <a href="reference/plugins/fib-kernel/">forwarding table (FIB)</a>.
+                                    </dd>
+                                </div>
+                                <div>
+                                    <dt>Manage one configuration</dt>
+                                    <dd>
+                                        Ze uses one configuration, defined in <a href="features/bgp-configuration/">YANG</a>,
+                                        through its own built-in SSH server, <a href="features/web-interface/">web interface</a>,
+                                        <a href="features/cli-commands/">CLI</a>, <a href="features/mcp-integration/">MCP</a>
+                                        and <a href="features/api-commands/">APIs</a>:
+                                        <a href="guides/api/#rest-endpoints">REST</a>,
+                                        <a href="guides/api/#grpc-services">gRPC</a> and <a href="guides/gnmi/">gNMI</a>.
+                                    </dd>
+                                </div>
+                            </dl>
+                            <p>Ze is built on a configuration and protocol engine.
+                                Extend Ze with plugins for automation and services of your own.
+                                It runs as a <a href="architecture/">background service (daemon)</a> or an
+                                <a href="guides/appliance/">appliance with a read-only operating system</a>.</p>
                         </div>
                     </aside>
                 </div>
