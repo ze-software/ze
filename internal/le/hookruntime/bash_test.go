@@ -1865,3 +1865,133 @@ func TestSystemTmpTakesABraceAsABoundary(t *testing.T) {
 		{"tmp", bashSystemTmp, `time cat x/tmp/y`, false},
 	})
 }
+
+// TestLossyPipeIsRefusedInsideAConstruct is AC-10. Its goal: an expensive
+// command piped into a lossy filter is refused wherever the pipeline stands,
+// and a pipeline whose expensive command is only an argument, or whose
+// filter runs before it, is not. Its method: the guard alone over pipelines
+// the text split cuts so that no piece starts with the expensive command or
+// with the filter (a loop body, a conditional, a group, a subshell stage, a
+// filter inside a group, an assignment in front of the filter, a quoted bar),
+// then over survivors that are no reader line.
+// VALIDATES: AC-10, the tree judgment OR-ed with the text verdict.
+// PREVENTS: a tree judgment that reads only top-level pipelines, that reads
+// a compound stage as no command, or that reads an argument as a command.
+func TestLossyPipeIsRefusedInsideAConstruct(t *testing.T) {
+	judgeGuardRows(t, t.TempDir(), []guardRow{
+		{"pipe", bashLossyPipe, `for p in a b; do ./le test unit all | tail -3; done`, true},
+		{"pipe", bashLossyPipe, `if true; then go test ./x | tail -5; fi`, true},
+		{"pipe", bashLossyPipe, `{ go test -run 'TestA|TestB' ./x | tail -5; }`, true},
+		{"pipe", bashLossyPipe, `( go test ./x ) | tail -5`, true},
+		{"pipe", bashLossyPipe, `go test ./x | { tail -5; }`, true},
+		{"pipe", bashLossyPipe, `x=$(go test ./x | tail -1)`, true},
+		{"pipe", bashLossyPipe, `while read -r p; do go vet ./$p |& grep -v ok; done < list`, true},
+		{"pipe", bashLossyPipe, `LC_ALL=C go test ./x | LC_ALL=C grep FAIL`, true},
+		// Survivors, each on a line that is no reader line.
+		{"pipe", bashLossyPipe, `for p in a b; do ./le spec wip | tail -3; done`, false},
+		{"pipe", bashLossyPipe, `./le job run label unit-pkg quiet command go test ./x | tail -3`, false},
+		{"pipe", bashLossyPipe, `for p in a; do tail -5 f | go test ./$p; done`, false},
+		{"pipe", bashLossyPipe, `( ./le spec wip ) | tail -5`, false},
+		{"pipe", bashLossyPipe, `go test ./x > /dev/null; ./le spec wip | tail -3`, false},
+	})
+}
+
+// TestExpensiveActionIsReadFromItsRegistration is hook defect (a) of the
+// parity golden's first judgment by the hook (AC-36). Its goal: an le action
+// that registered its run as expensive (leroot.RegisterExpensive) is an
+// expensive command under every name the program takes, `le`, `./le` and the
+// `ze le` personality, and its siblings are not. Its method: a probe action
+// registered here, so the row's verdict depends on the registration alone,
+// judged by the guard on a line that is no reader line. The real
+// registration, `ai hooks unit`, is proven in its own package
+// (TestHookSelftestIsAnExpensiveCommand, internal/le/ai/hooks), which links
+// it.
+// PREVENTS: an action that runs a selftest and takes no job slot being piped
+// through tail, the shape `ze le ai hooks unit | tail -25` had.
+func TestExpensiveActionIsReadFromItsRegistration(t *testing.T) {
+	leroot.RegisterExpensive("expensive-probe run")
+	judgeGuardRows(t, t.TempDir(), []guardRow{
+		{"pipe", bashLossyPipe, `./le expensive-probe run | tail -5`, true},
+		{"pipe", bashLossyPipe, `ze le expensive-probe run | tail -5`, true},
+		{"pipe", bashLossyPipe, `bin/ze le expensive-probe run 2>&1 | grep FAIL`, true},
+		{"pipe", bashLossyPipe, `for p in a; do ./le expensive-probe run | tail -5; done`, true},
+		{"pipe", bashLossyPipe, `./le expensive-probe list | tail -5`, false},
+		{"pipe", bashLossyPipe, `./le expensive-probe | tail -5`, false},
+		{"pipe", bashLossyPipe, `ze le expensive | tail -5`, false},
+		{"pipe", bashLossyPipe, `./le expensive-probe run`, false},
+	})
+}
+
+// TestScratchGuardLiftsOnAReaderLine is hook defect (b) of the parity
+// golden's first judgment by the hook (AC-36). Its goal: the scratch guard
+// refuses a write at the tmp/ root, and a reader line writes no file, so a
+// write named inside a reader's quoted argument passes while every real
+// write, on a line that is then no reader line, is still refused. Its
+// method: the predicate first, which must admit each pass row as a reader
+// line and put each refused row outside, so every row's verdict comes from
+// the lift and not from the text scan; then the guard alone over reader lines
+// that name a tmp/ root write in a pattern, and over lines that write one by
+// a redirection or a tee. It is the proof the recorded table's reader-line
+// rows for `grep -rn '> tmp/out.log' ai/rules` name (readerLineProofs).
+// PREVENTS: `grep -rn '> tmp/out.log' ai/rules` refused for its pattern, and
+// a lift that also passes a reader's own redirection or a tee.
+func TestScratchGuardLiftsOnAReaderLine(t *testing.T) {
+	for _, line := range []string{
+		`grep -rn '> tmp/out.log' ai/rules`,
+		`grep -n 'tee tmp/x.log' f`,
+		`for f in a b; do grep -c '>> tmp/y' "$f"; done`,
+		`echo 'never > tmp/out.log'`,
+	} {
+		if _, outside := judgeReaderLine(line, parseCommandLine(line), ""); outside != "" {
+			t.Errorf("%q: outside (%s), want a reader line, which the scratch guard lifts on", line, outside)
+		}
+	}
+	for _, line := range []string{
+		`grep -rn foo ai/rules > tmp/notes.txt`,
+		`echo probe > ./tmp/notes.txt`,
+		`grep -n x f 2> tmp/err.log`,
+		`grep x f | tee tmp/out.log`,
+		`bash -c "./le doc check all > tmp/out.log"`,
+	} {
+		if _, outside := judgeReaderLine(line, parseCommandLine(line), ""); outside == "" {
+			t.Errorf("%q: a reader line, want it outside: it writes a file or runs a shell", line)
+		}
+	}
+	judgeGuardRows(t, t.TempDir(), []guardRow{
+		{"scratch", bashScratch, `grep -rn '> tmp/out.log' ai/rules`, false},
+		{"scratch", bashScratch, `grep -n 'tee tmp/x.log' f`, false},
+		{"scratch", bashScratch, `for f in a b; do grep -c '>> tmp/y' "$f"; done`, false},
+		{"scratch", bashScratch, `echo 'never > tmp/out.log'`, false},
+		{"scratch", bashScratch, `grep -rn foo ai/rules > tmp/notes.txt`, true},
+		{"scratch", bashScratch, `echo probe > ./tmp/notes.txt`, true},
+		{"scratch", bashScratch, `grep -n x f 2> tmp/err.log`, true},
+		{"scratch", bashScratch, `grep x f | tee tmp/out.log`, true},
+		{"scratch", bashScratch, `bash -c "./le doc check all > tmp/out.log"`, true},
+	})
+}
+
+// TestHereDocumentToAReaderIsDataToTheScratchGuard is hook defect (c) of
+// the parity golden's first judgment by the hook (AC-36). Its goal: on a
+// line that parses and runs only readers, a here-document body is data the
+// reader prints, so a tmp/ root write written in it is not a write, while
+// the line's own redirection targets are still judged; a body handed to a
+// shell or an interpreter, a body whose substitution runs a write, and a
+// body on a line that runs any command outside the reader set keep their
+// text scanned. Its method: the guard alone over both kinds of line.
+// PREVENTS: a note appended with `cat >> <file> <<'EOF'` refused for its
+// text, and a blanking that hides `cat <<'EOF' | bash` or a substitution's
+// write.
+func TestHereDocumentToAReaderIsDataToTheScratchGuard(t *testing.T) {
+	judgeGuardRows(t, t.TempDir(), []guardRow{
+		{"scratch", bashScratch, "cat >> tmp/session/x/state.md <<'EOF'\n  -- never write > tmp/out.log\nEOF", false},
+		{"scratch", bashScratch, "cat <<'EOF' >> tmp/session/x/a.md\nuse tee tmp/x.log\nEOF", false},
+		{"scratch", bashScratch, "cat <<EOF > tmp/session/x/b.md\n> tmp/out.log $HOME\nEOF", false},
+		{"scratch", bashScratch, "cat > tmp/out.log <<'EOF'\nhello\nEOF", true},
+		{"scratch", bashScratch, "bash <<'EOF'\n./le doc check all > tmp/out.log\nEOF", true},
+		{"scratch", bashScratch, "cat <<'EOF' | bash\n./le doc check all > tmp/out.log\nEOF", true},
+		{"scratch", bashScratch, "python3 - <<'EOF'\n# > tmp/out.log\nEOF", true},
+		{"scratch", bashScratch, "cat <<EOF > tmp/session/x/c.md\n$(echo x > tmp/out.log)\nEOF", true},
+		{"scratch", bashScratch, "X=1 cat <<'EOF' >> tmp/session/x/d.md\n> tmp/out.log\nEOF", true},
+		{"scratch", bashScratch, "cat >> tmp/session/x/e.md <<'EOF'\n> tmp/out.log\nEOF\n./le spec current", true},
+	})
+}

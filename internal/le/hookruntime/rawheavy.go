@@ -1,9 +1,11 @@
 // Design: docs/architecture/core-design.md -- native Bash hook policy
 // Related: bash.go -- bashRawHeavy, the guard whose refusal this writes
 // Related: lossypipe.go -- goTest, goVet and the short package form both refusals name
+// Related: parsedcommands.go -- everyCommand, the parsed commands the tree judgment reads
 package hookruntime
 
 import (
+	"fmt"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -25,23 +27,14 @@ type rawRefusal struct {
 	uncarried string
 }
 
-// rawAdvice answers the refusal the raw-job block shows. The guard's verdict
-// reads a quote-blind split, which keeps HEAD's text verdict, but that split
-// cuts `go test -run 'TestA|TestB' ./x` at the quoted bar and would advise a
-// different command. On a line that parses (parse, the call's one parse),
-// the first heavy command of the tree is the one the shell runs, written from
-// its parsed words (parsedCommand.segment), with the directory changes before
-// it, so a redirection is never read as one of its words (AC-15); a line that
-// does not parse keeps the text refusal (review I1, as advisedSegment does
-// for the piped-command refusal).
-func rawAdvice(command string, parse commandParse, root string, text rawRefusal) rawRefusal {
-	if !parse.parsed() {
-		return text
-	}
+// textRawHeavy is the raw-job guard's text judgment, its verdict at HEAD for
+// a line that is not a reader line: the first segment of the quote-blind
+// split (commandSegments) that runs a heavy job, judged with the directory
+// changes before it, and a zero what when none does.
+func textRawHeavy(command, root string) rawRefusal {
 	var moves []string
-	for _, parsed := range everyCommand(command, parse.file.Stmts) {
-		segment := parsed.segment()
-		if len(parsed.words) != 0 && oneOf(parsed.words[0], "cd", "pushd") {
+	for _, segment := range commandSegments(command) {
+		if words := shellWords(segment); len(words) != 0 && oneOf(words[0], "cd", "pushd") {
 			moves = append(moves, segment)
 			continue
 		}
@@ -49,18 +42,82 @@ func rawAdvice(command string, parse commandParse, root string, text rawRefusal)
 			return refusal
 		}
 	}
-	return text
+	return rawRefusal{}
+}
+
+// treeRawHeavy is the raw-job guard's tree judgment (AC-9): every simple
+// command of a line that parses (parse, the call's one parse), at any depth
+// (everyCommand), judged by the word judgment the text judgment applies to a
+// segment (rawHeavyWords), over the command's own assignment nodes and words
+// (parsedCommand.tokens). The text split reads the first word of each piece,
+// so `for p in a b; do go test ./$p; done` and `( go test ./x )` read there as
+// the commands `do` and `(`; the tree reads `go test`. It reads command words
+// only, so a heavy job that is an argument of another command
+// (`./le job run label unit-pkg quiet command go test ./x`) passes, and a
+// string handed to a shell is never opened.
+//
+// It answers the first heavy command in source order, with the directory
+// changes before it, written from its parsed words, so a redirection is
+// never read as one of its words and a quoted bar never cuts it (AC-15), and
+// a zero what for a line that does not parse or runs no heavy job.
+//
+// A panic inside the walk is answered as a refusal that says so
+// (unreadRawRefusal): a line the hook failed to read is never cleared, as
+// the reader-line predicate answers it (review I4). readTreeRawHeavy is the
+// walk itself, which the fuzz target calls without this recover.
+func treeRawHeavy(command string, parse commandParse, root string) (refusal rawRefusal) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			refusal = unreadRawRefusal(recovered)
+		}
+	}()
+	return readTreeRawHeavy(command, parse, root)
+}
+
+// unreadRawRefusal is the raw-job refusal for a line whose tree walk
+// panicked: it names the failure, and advises the generic admitted form,
+// there being no parsed command to write back.
+func unreadRawRefusal(recovered any) rawRefusal {
+	return rawRefusal{
+		what: "a line the hook failed to read (" + fmt.Sprint(recovered) + "), which may hold a heavy job",
+		use:  "./le job run label <label> quiet command <argv...>",
+	}
+}
+
+// readTreeRawHeavy is treeRawHeavy without its recover.
+func readTreeRawHeavy(command string, parse commandParse, root string) rawRefusal {
+	if !parse.parsed() {
+		return rawRefusal{}
+	}
+	var moves []string
+	for _, parsed := range everyCommand(command, parse.file.Stmts) {
+		if oneOf(parsed.commandWord(), "cd", "pushd") {
+			moves = append(moves, parsed.segment())
+			continue
+		}
+		if refusal := rawHeavyWords(parsed.tokens, moves, root); refusal.what != "" {
+			return refusal
+		}
+	}
+	return rawRefusal{}
 }
 
 // rawHeavy answers the refusal for a segment that runs a heavy job raw, and
-// a zero what for any other segment. moves holds the text of each directory
-// change the line makes before the segment, as typed: a relative package then
-// names a directory the short action, which runs at the checkout root, would
-// not test, and the long form carries them as `env -C`, or names those it
-// cannot carry (keptArgv). root is the
-// checkout the short action runs in.
+// a zero what for any other segment: rawHeavyWords over the segment's words
+// as the text judgment reads them (shellWords).
 func rawHeavy(segment string, moves []string, root string) rawRefusal {
-	tokens := shellWords(segment)
+	return rawHeavyWords(shellWords(segment), moves, root)
+}
+
+// rawHeavyWords is the word judgment of the raw-job guard, the one the text
+// judgment applies to a segment's words and the tree judgment to a parsed
+// command's tokens. It answers the refusal for words that run a heavy job
+// raw, and a zero what for any other words. moves holds the text of each
+// directory change the line makes before them, as typed: a relative package
+// then names a directory the short action, which runs at the checkout root,
+// would not test, and the long form carries them as `env -C`, or names those
+// it cannot carry (keptArgv). root is the checkout the short action runs in.
+func rawHeavyWords(tokens, moves []string, root string) rawRefusal {
 	if len(tokens) == 0 {
 		return rawRefusal{}
 	}

@@ -16,6 +16,10 @@ import (
 
 const area = "ai hooks"
 
+// unitVerb is the verb of the selftest that runs every golden row and
+// behavioral fixture, which register.go marks expensive.
+const unitVerb = "unit"
+
 // payloadWait bounds how long a hook verb waits for its JSON payload.
 //
 // Every verb below is a hook rather than a command: the runner writes one
@@ -37,7 +41,7 @@ var actions = func() leaction.Area {
 	}
 	list := make([]leaction.Action, 0, 1+len(verbs))
 	list = append(list, leaction.Action{
-		Verb:    "unit",
+		Verb:    unitVerb,
 		Does:    "selftest",
 		Summary: "run every hook golden row and behavioral fixture",
 		Why:     "run every hook dispatcher golden row and every behavioral fixture category in-process",

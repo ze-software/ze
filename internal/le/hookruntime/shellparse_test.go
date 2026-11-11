@@ -917,7 +917,10 @@ func TestParsedCommandsMatchBash(t *testing.T) {
 // wordNotRead. Phase 3 adds the predicate's property: it never answers
 // "reader line" for a line holding a command outside the reader set; and no
 // walk of the line (the reader line with and without the identity line, the
-// after-line identity walk, the deletion guard's two readings) panics.
+// after-line identity walk, the deletion guard's two readings) panics. Phase 4
+// adds its walks: the reader line with every write recorded, the tree
+// judgments of the raw-job and piped-command guards, and the scratch guard's
+// here-document blanking.
 func FuzzShellParse(f *testing.F) {
 	for _, line := range bashCorpusLines(f) {
 		f.Add(line)
@@ -931,12 +934,17 @@ func FuzzShellParse(f *testing.F) {
 		// Review I4: the walks are called without the recover their
 		// callers put around them, so a panic in any of them fails the
 		// target instead of being answered on the refusing side.
-		readReaderLine(line, parse, "")
+		readReaderLine(line, parse, "", readerWalk{source: line, admit: readerAdmit})
+		readReaderLine(line, parse, "", readerWalk{source: line, admit: readerAdmit, recordWrites: true})
 		readPlainRmArguments(line, parse)
 		readDeletionWords(line, parse)
+		readTreeRawHeavy(line, parse, t.TempDir())
+		readTreeLossyPipe(line, parse)
+		readWithoutReaderData(line, parse, "")
 		owned := identityLineOfAgent + line
 		ownedParse := parseCommandLine(owned)
-		readReaderLine(owned, ownedParse, identityLineOfAgent)
+		readReaderLine(owned, ownedParse, identityLineOfAgent, readerWalk{source: owned, admit: readerAdmit})
+		readWithoutReaderData(owned, ownedParse, identityLineOfAgent)
 		readAnotherIdentity(owned, ownedParse, identityLineOfAgent)
 		if strings.ContainsRune(line, '\r') {
 			// The raw parser reads a carriage return as bash does not, so

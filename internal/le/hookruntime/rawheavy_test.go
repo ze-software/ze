@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md -- native Bash hook policy
-// Related: rawheavy.go -- rawAdvice, keptArgv and the packageRuns judgment
+// Related: rawheavy.go -- treeRawHeavy, keptArgv and the packageRuns judgment
 
 package hookruntime
 
@@ -364,6 +364,60 @@ func TestLauncherValueOptionsAreSkippedWithTheirValue(t *testing.T) {
 		if (with != nil) != (without != nil) {
 			t.Errorf("%s: %q refused = %t, but %q refused = %t: the option and its value must not change the verdict",
 				row.guard, row.with, with != nil, row.without, without != nil)
+		}
+	}
+}
+
+// TestHeavyJobIsRefusedWhereverTheLineRunsIt is AC-9. Its goal: a heavy job
+// that is a real command of the line is refused at any depth, and a heavy
+// job that is only an argument of another command is not. Its method: the
+// guard alone over rows whose text split reads the job as the command `do`,
+// `then`, `(`, `{` or `!`, or reads its assignment's substitution as two
+// words, each of which the text judgment passes; then the survivors, each a
+// line that is no reader line, so the guard's own judgment decides them;
+// then the whole hook through Run, whose refusal names the job's own
+// words.
+// VALIDATES: AC-9, the tree judgment OR-ed with the text verdict.
+// PREVENTS: a tree judgment that reads only the top-level commands (the
+// loop, conditional, subshell, group and negation rows go green) or that
+// reads an argument as a command (the `./le job run ... command go test`
+// survivor goes red).
+func TestHeavyJobIsRefusedWhereverTheLineRunsIt(t *testing.T) {
+	judgeGuardRows(t, t.TempDir(), []guardRow{
+		{"raw", bashRawHeavy, `for p in a b; do go test ./$p; done`, true},
+		{"raw", bashRawHeavy, `if true; then go vet ./x; fi`, true},
+		{"raw", bashRawHeavy, `( go test ./x )`, true},
+		{"raw", bashRawHeavy, `{ go test ./x; }`, true},
+		{"raw", bashRawHeavy, `! golangci-lint run`, true},
+		{"raw", bashRawHeavy, `x=$(go test ./x)`, true},
+		{"raw", bashRawHeavy, `while true; do go test ./x; break; done`, true},
+		{"raw", bashRawHeavy, `case a in a) go test ./x;; esac`, true},
+		{"raw", bashRawHeavy, `X=$(cat f) go test ./x`, true},
+		{"raw", bashRawHeavy, `for p in a b; do timeout -s KILL 60 go test ./$p; done`, true},
+		// Survivors: a heavy job that is an argument, a quoted pattern or a
+		// string, and a real escape, each on a line that is no reader line.
+		{"raw", bashRawHeavy, `./le job run label unit-pkg quiet command go test ./x`, false},
+		{"raw", bashRawHeavy, `for p in a b; do ./le job run label unit-pkg quiet command go test ./$p; done`, false},
+		{"raw", bashRawHeavy, `nice -n 5 echo go test ./x`, false},
+		{"raw", bashRawHeavy, `grep -n 'go test ./x' f; ./le spec current`, false},
+		{"raw", bashRawHeavy, `ZE_ADMIT_RAW="bisecting one 2s case" go test ./x`, false},
+		{"raw", bashRawHeavy, `for p in a b; do ZE_ADMIT_RAW="one 2s case" go test ./$p; done`, false},
+	})
+	for _, row := range []struct {
+		command string
+		advised string
+	}{
+		{`( go test ./x )`, "Use: ./le test unit pkg path ./x"},
+		{`if true; then go vet ./x; fi`, "Use: ./le test unit pkg path ./x vet"},
+		{`x=$(go test -count=1 ./x)`, "quiet command go test -count=1 ./x"},
+	} {
+		code, message := runMainBash(t, row.command)
+		if code != 2 {
+			t.Errorf("%q: code=%d, want 2", row.command, code)
+			continue
+		}
+		if !strings.Contains(message, row.advised) {
+			t.Errorf("%q: the refusal does not advise %q: %s", row.command, row.advised, message)
 		}
 	}
 }

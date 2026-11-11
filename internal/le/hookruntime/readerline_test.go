@@ -348,9 +348,10 @@ func TestIdentityLineBeforeAReaderLineStillLifts(t *testing.T) {
 
 // VALIDATES: AC-15. A refused piped command on a line that parses is advised
 // from its own parsed words, each written back as one shell word: after a
-// quoted `#`, and before a redirection, which is never one of its words. The
-// group row of AC-15 is refused only by the tree judgment of phase 4
-// (AC-9, AC-10), which lands its row.
+// quoted `#`, before a redirection, which is never one of its words, and
+// inside a group, which only the tree judgment refuses (AC-9, AC-10): the
+// text split cuts the group at the quoted bar into pieces that start with
+// `{` and with `TestB'`, and neither guard's text judgment refuses either.
 // PREVENTS: the advice being cut at a quoted bar, or carrying `2>&1` as an
 // argument of the advised command.
 func TestRefusalAdvisesTheParsedCommand(t *testing.T) {
@@ -358,6 +359,7 @@ func TestRefusalAdvisesTheParsedCommand(t *testing.T) {
 	for _, command := range []string{
 		`grep -n '#' f; go test -run 'TestA|TestB' ./x | tail -5`,
 		`go test -run 'TestA|TestB' ./x 2>&1 | tail -5`,
+		`{ go test -run 'TestA|TestB' ./x | tail -5; }`,
 	} {
 		code, message := runMainBash(t, command)
 		if code != 2 {

@@ -511,7 +511,8 @@ first setting through `gitenv.ReadOnly`.
 ### Post-tool hooks block only on the author's own files
 
 <!-- source: internal/le/hookruntime/postwrite.go -- postLintVerdict -->
-<!-- source: internal/le/hookruntime/postbash.go -- postBashGofmt, commandNames, commandNamedPaths, redirectWritesGo, readerCall, wordPath, globOnly -->
+<!-- source: internal/le/hookruntime/postbash.go -- postBashGofmt, commandNames, commandNamedPaths, redirectWritesGo, readerCall, wordPath, globOnly, commandUnread -->
+<!-- source: internal/le/hookruntime/shellparse.go -- treeMisreadsLine -->
 <!-- source: internal/le/hookruntime/runtime.go -- shownVerdicts -->
 
 A post-tool hook's blocking text enters the agent's context, and every later
@@ -558,7 +559,13 @@ read-only, so the word of `cd` names the file, as it does in `cd pkg && sed
 -i ... x.go`.
 
 A command that does not parse names nothing, and the code-0 line says the
-command could not be read and how to check what it changed.
+command could not be read and how to check what it changed. So does a line
+whose tree names fewer commands than bash runs (`treeMisreadsLine`, read by
+`commandUnread` in `internal/le/hookruntime/postbash.go`): a comment that ends
+in a backslash, which the parser joins to the next line while bash runs that
+line, and a `$` followed by a backslash-newline. Such a tree would read
+`echo a # x \` then `gofmt -w x.go` as one read-only echo, so the check does
+not read it at all.
 
 The limits that remain. In each case the file is counted at code 0 and does
 not block:
@@ -580,9 +587,6 @@ not block:
   read-only.
 - A glob that `path.Match` refuses (an unmatched `[`) is compared as it is
   spelled, so a file it would reach by matching is not named.
-- A comment that ends in a backslash makes the parser join the next line
-  into the comment, where bash runs that line. The tree then holds no command
-  for it, and the line reads as read-only.
 
 Some limits go the other way, and block for a file the command did not
 change:

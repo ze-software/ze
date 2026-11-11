@@ -1,8 +1,10 @@
 // Design: docs/architecture/core-design.md -- native Bash hook policy
 // Related: bash.go -- bashLossyPipe, the guard whose refusal this writes
+// Related: parsedcommands.go -- everyCommand and the pipeline stages the tree judgment reads
 package hookruntime
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 )
@@ -35,9 +37,11 @@ const verifyArea = "verify"
 // verification command gets the scoped package run instead, because no agent
 // runs one (ai/META-DECISIONS.md), so the refusal never names it. identity is
 // the caller's identity line (commandIdentityPrefix), which the advised
-// command starts with so that following it is not refused again.
-func lossyPipeRefusal(identity, filter, segment string) *verdict {
-	words := beforeRedirection(programWords(segment))
+// command starts with so that following it is not refused again. words are
+// the refused command's words from its program on, with no redirection:
+// read from the tree on a line that parses (treeLossyPipe), and from the
+// text segment otherwise.
+func lossyPipeRefusal(identity, filter string, words []string) *verdict {
 	head := "❌ Blocked: piping an expensive command's output through a lossy filter (" + filter + ")\n" +
 		"  -- The filter drops the lines that say why a run failed, and what it keeps is what you would judge the run by.\n"
 	if len(words) == 0 {
@@ -61,39 +65,58 @@ func lossyPipeRefusal(identity, filter, segment string) *verdict {
 	return &verdict{2, advice + "  -- Then read the log it names with the Read tool, offset and limit."}
 }
 
-// advisedSegment answers the command text the piped-command refusal shows.
-// The guard's verdict reads a quote-blind split, which keeps HEAD's text
-// verdict, but that split cuts `go test -run 'TestA|TestB' ./x | tail` at
-// the quoted bar and would advise a different command. On a line that parses
-// (parse, the call's one parse), the advice is the first expensive command of
-// the tree that a lossy filter follows in the same pipeline, written from its
-// parsed words (parsedCommand.segment), so an expensive command of another
-// statement is never advised in its place (review I2) and a redirection is
-// never one of its words (AC-15). A line that does not parse keeps the text
-// segment: there is nothing else to read.
-func advisedSegment(command string, parse commandParse, textSegment string) string {
+// treeLossyPipe is the piped-command guard's tree judgment (AC-10): on a line
+// that parses (parse, the call's one parse), every pipeline of the tree at
+// any depth, inside a loop, a conditional, a group or a substitution
+// included, where an expensive command (expensiveWords over its program
+// words) runs in an earlier stage than a lossy filter (parsedCommand.feeds).
+// The text split cuts `for p in a b; do ./le test unit all | tail -3; done`
+// into a piece that starts with `do`, and cuts `go test -run 'TestA|TestB'
+// ./x | tail` at the quoted bar; the tree reads the command the shell runs.
+// It reads command words only, so an expensive command that is an argument
+// of another command is not one.
+//
+// It answers the expensive command's program words, from its parsed tokens,
+// so a redirection is never one of them and an expensive command of another
+// statement is never advised in its place (AC-15, review I2), and the
+// filter's command word; found is false for a line that does not parse or
+// holds no such pipeline.
+//
+// A panic inside the walk is answered as found, with no words and a filter
+// that names the failure, so the refusal advises the generic admitted form: a
+// line the hook failed to read is never cleared, as the reader-line
+// predicate answers it (review I4). readTreeLossyPipe is the walk itself,
+// which the fuzz target calls without this recover.
+func treeLossyPipe(command string, parse commandParse) (words []string, filter string, found bool) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			words, filter, found = nil, "unknown: a line the hook failed to read ("+fmt.Sprint(recovered)+")", true
+		}
+	}()
+	return readTreeLossyPipe(command, parse)
+}
+
+// readTreeLossyPipe is treeLossyPipe without its recover.
+func readTreeLossyPipe(command string, parse commandParse) ([]string, string, bool) {
 	if !parse.parsed() {
-		return textSegment
+		return nil, "", false
 	}
 	commands := everyCommand(command, parse.file.Stmts)
 	for index, candidate := range commands {
-		segment := candidate.segment()
-		if !commandExpensive(segment) {
+		program := programTokens(candidate.tokens)
+		if !expensiveWords(program) {
 			continue
 		}
 		for _, later := range commands[index+1:] {
-			if later.pipeline != candidate.pipeline {
+			if !candidate.feeds(later) {
 				continue
 			}
-			if later.stage <= candidate.stage {
-				continue
-			}
-			if len(later.words) != 0 && lossyFilter(later.words[0]) {
-				return segment
+			if lossyFilter(later.commandWord()) {
+				return program, later.commandWord(), true
 			}
 		}
 	}
-	return textSegment
+	return nil, "", false
 }
 
 // lossyFilter reports a program that drops lines of what it reads: the

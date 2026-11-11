@@ -237,13 +237,14 @@ var readerLineProofs = []func(*testing.T){
 	TestTestDeletionReadsThePlainRmFromTheTree,
 	TestAnotherIdentityIsJudgedByTheNode,
 	TestSetOptionsThatChangeNoVariablePass,
+	TestScratchGuardLiftsOnAReaderLine,
 }
 
 // verdictsTableRowsMin is the row count of the table after its last update. A
 // table holding fewer rows lost recorded refusals: deleting the file and
 // re-running -update records again from the tree in hand, which keeps no
 // refusal HEAD gave. Raise it when an update appends rows; never lower it.
-const verdictsTableRowsMin = 1691
+const verdictsTableRowsMin = 1701
 
 // readerSetJudgment is the one function that judges whether a command is a
 // reader (readers.go). A check whose code reaches it can pass a line because
@@ -515,12 +516,14 @@ func TestVerdictTableUpdateKeepsEveryRecordedRow(t *testing.T) {
 // VALIDATES: a reader-line row keeps every recorded refusal of a check that
 // never asks the reader set, and a waiver of one is reported; it waives a
 // recorded refusal of a check a reader line lifts only when its Waives names
-// it (bashRawHeavy over `cat a`), so a liftable refusal it does not name
-// still holds, and the same row unmarked waives nothing; a mark that waives
-// nothing, a mark on a line the predicate puts outside, a proof that asserts
-// a refusal, and a proof that judged another line, or none, are refused.
-// PREVENTS: a reader-line mark that clears a git, poll, scratch or governed
-// write refusal, and a proof that names any test of the package.
+// it (bashRawHeavy, and bashScratch, over `cat a`: a reader line writes no
+// file, so the scratch guard lifts on one), so a liftable refusal it does not
+// name still holds, and the same row unmarked waives nothing; a mark that
+// waives nothing, a mark on a line the predicate puts outside, a proof that
+// asserts a refusal, and a proof that judged another line, or none, are
+// refused.
+// PREVENTS: a reader-line mark that clears a git, poll or governed write
+// refusal, and a proof that names any test of the package.
 func TestReaderLineRowWaivesOnlyTheChecksAReaderLineLifts(t *testing.T) {
 	root := goBuildTree(t)
 	t.Setenv("GOFLAGS", "")
@@ -546,7 +549,7 @@ func TestReaderLineRowWaivesOnlyTheChecksAReaderLineLifts(t *testing.T) {
 	if faults := judge(merge, judged(merge.Line)); !holds(faults, "which no reader line lifts") || !holds(faults, "no reader line now") {
 		t.Errorf("a reader-line mark on %q: faults %q, want the waiver and the mark refused", merge.Line, faults)
 	}
-	for _, check := range []string{"bashBranchMove", "bashDestructiveGit", "bashPollLoop", "bashScratch", "bashGovernedWrite"} {
+	for _, check := range []string{"bashBranchMove", "bashDestructiveGit", "bashPollLoop", "bashGovernedWrite"} {
 		lost := verdictRow{Line: "cat a", Caller: callerMain, RefusedBy: []string{check}, ReaderLine: true, Proof: proof, Waives: []string{check}}
 		if faults := judge(lost, judged(lost.Line)); !holds(faults, check+" refused") {
 			t.Errorf("a reader-line row whose %s refusal the hook no longer gives: faults %q, want that refusal held", check, faults)
@@ -556,6 +559,15 @@ func TestReaderLineRowWaivesOnlyTheChecksAReaderLineLifts(t *testing.T) {
 	lifted := verdictRow{Line: "cat a", Caller: callerMain, RefusedBy: []string{"bashRawHeavy"}, ReaderLine: true, Proof: proof, Waives: []string{"bashRawHeavy"}}
 	if faults := judge(lifted, judged(lifted.Line)); len(faults) != 0 {
 		t.Errorf("a reader-line row losing a bashRawHeavy refusal: faults %q, want none", faults)
+	}
+	scratch := verdictRow{Line: "cat a", Caller: callerMain, RefusedBy: []string{"bashScratch"}, ReaderLine: true, Proof: proof, Waives: []string{"bashScratch"}}
+	if faults := judge(scratch, judged(scratch.Line)); len(faults) != 0 {
+		t.Errorf("a reader-line row losing a bashScratch refusal: faults %q, want none", faults)
+	}
+	unmarkedScratch := scratch
+	unmarkedScratch.ReaderLine, unmarkedScratch.Proof, unmarkedScratch.Waives = false, "", nil
+	if faults := judge(unmarkedScratch, judged(unmarkedScratch.Line)); len(faults) != 1 || !strings.Contains(faults[0], "bashScratch refused") {
+		t.Errorf("the bashScratch row unmarked: faults %q, want the bashScratch refusal held", faults)
 	}
 
 	// The waiver is per check: a liftable refusal the row does not name
@@ -599,24 +611,26 @@ func TestReaderLineRowWaivesOnlyTheChecksAReaderLineLifts(t *testing.T) {
 // TestReaderLiftableChecksAreTheReaderGuards reads the set readerLiftableChecks
 // derives from the source.
 //
-// VALIDATES: the guards that ask the reader set are in it (the identity
-// exemption, the lifts of the raw-job, lossy-pipe and /tmp guards, the build
-// guard's reader+build line, the plain-rm narrowing), and every other
-// pretool-bash check is not: the git guards, bashGovernedWrite, bashPollLoop
-// and bashScratch, which the spec says never lift, and the checks that never
-// read the reader judgment (bashDocumentRead judges its text alone).
+// VALIDATES: the seven guards that ask the reader set are in it (the
+// identity exemption, the lifts of the raw-job, lossy-pipe, /tmp and scratch
+// guards, the build guard's reader+build line, the plain-rm narrowing), and
+// every other pretool-bash check is not: the git guards, bashGovernedWrite
+// and bashPollLoop, which the spec says never lift, and the checks that never
+// read the reader judgment (bashDocumentRead judges its text alone). The
+// scratch guard refuses only a write at the tmp/ root, and a reader line
+// writes no file, so it lifts there (hook defect (b) of AC-36).
 // PREVENTS: a derivation that follows a shared helper, or a local whose name
 // a method shares, into a git guard and lets a reader-line mark waive its
 // refusal.
 func TestReaderLiftableChecksAreTheReaderGuards(t *testing.T) {
 	liftable := readerLiftableChecks(t)
-	readers := []string{"bashAgentIdentity", "bashRawHeavy", "bashLossyPipe", "bashSystemTmp", "bashRootBuild", "bashTestDeletion"}
+	readers := []string{"bashAgentIdentity", "bashRawHeavy", "bashLossyPipe", "bashSystemTmp", "bashScratch", "bashRootBuild", "bashTestDeletion"}
 	for _, name := range readers {
 		if !liftable[name] {
 			t.Errorf("%s asks the reader set and is not in the liftable set %v", name, liftable)
 		}
 	}
-	for _, name := range []string{"bashWorktreeCopy", "bashDestructiveGit", "bashBranchMove", "bashGovernedWrite", "bashPollLoop", "bashScratch"} {
+	for _, name := range []string{"bashWorktreeCopy", "bashDestructiveGit", "bashBranchMove", "bashGovernedWrite", "bashPollLoop"} {
 		if liftable[name] {
 			t.Errorf("%s never lifts on a reader line and is in the liftable set %v", name, liftable)
 		}

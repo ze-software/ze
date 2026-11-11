@@ -157,17 +157,28 @@ func ctxReaderLine(ctx context) (readerLine, string) {
 // A panic inside the walk is answered as outside, with its reason: a line the
 // hook failed to read is never a reader line (review I4). readReaderLine is
 // the walk itself, which the fuzz target calls without this recover.
-func judgeReaderLine(command string, parse commandParse, identity string) (line readerLine, outside string) {
+func judgeReaderLine(command string, parse commandParse, identity string) (readerLine, string) {
+	return judgeReaderWalk(command, parse, identity, readerWalk{source: command, admit: readerAdmit})
+}
+
+// judgeReaderWalk is the reader-line predicate run with the walk it is
+// given, so the scratch guard can ask the same question with every file
+// write recorded rather than refused (readerLineButWrites, readerdata.go).
+// walk MUST hold command as its source. A panic inside the walk is answered
+// as outside, as judgeReaderLine answers it.
+func judgeReaderWalk(command string, parse commandParse, identity string, walk readerWalk) (line readerLine, outside string) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
 			line, outside = readerLine{}, "a line the hook failed to read ("+fmt.Sprint(recovered)+")"
 		}
 	}()
-	return readReaderLine(command, parse, identity)
+	return readReaderLine(command, parse, identity, walk)
 }
 
-// readReaderLine is judgeReaderLine without its recover.
-func readReaderLine(command string, parse commandParse, identity string) (readerLine, string) {
+// readReaderLine is judgeReaderWalk without its recover: the predicate's
+// checks, then walk over the statements after the identity line. walk MUST
+// hold command as its source.
+func readReaderLine(command string, parse commandParse, identity string, walk readerWalk) (readerLine, string) {
 	if strings.ContainsAny(command, "\r\x00") {
 		// The lexer drops a carriage return before a newline and every NUL
 		// byte (vendor/mvdan.cc/sh/v3/syntax/lexer.go, rune), and reads a lone
@@ -187,7 +198,6 @@ func readReaderLine(command string, parse commandParse, identity string) (reader
 	if outside != "" {
 		return readerLine{}, outside
 	}
-	walk := readerWalk{source: command, admit: readerAdmit}
 	if outside := walk.statements(statements, readerPlace{leftmost: true}); outside != "" {
 		return readerLine{}, outside
 	}

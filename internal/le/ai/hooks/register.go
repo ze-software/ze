@@ -20,4 +20,8 @@ func init() {
 	})
 	leroot.RegisterActions(area, Actions)
 	leroot.RegisterShape(area, command.ShapeMap)
+	// The selftest prints each failing row before its summary, so a filter
+	// that keeps the last lines drops what says which row failed; the hook
+	// reads the mark and refuses that pipe (bashLossyPipe).
+	leroot.RegisterExpensive(area + " " + unitVerb)
 }

@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- native Bash hook policy
-// Related: rawheavy.go -- rawAdvice, which advises the parsed command it refused
-// Related: lossypipe.go -- advisedSegment, which advises the parsed command it refused
+// Related: rawheavy.go -- treeRawHeavy, the raw-job guard's judgment of every parsed command
+// Related: lossypipe.go -- treeLossyPipe, the piped-command guard's judgment of every parsed pipeline
 // Related: readerline.go -- the reader-line walk, which judges what this file only reads
 package hookruntime
 
@@ -10,8 +10,9 @@ import (
 	"mvdan.cc/sh/v3/syntax"
 )
 
-// parsedCommand is one simple command of any parsed line, reader or not,
-// for the advice a refusal prints (rawAdvice, advisedSegment).
+// parsedCommand is one simple command of any parsed line, reader or not: the
+// unit the tree judgments of the raw-job and piped-command guards read
+// (treeRawHeavy, treeLossyPipe), and the command their refusals advise.
 type parsedCommand struct {
 	// words holds each argument's value; readable reports that every
 	// argument and assignment has one the hook can read and none expands,
@@ -20,11 +21,27 @@ type parsedCommand struct {
 	readable bool
 	// assigns holds the assignments in front, as typed.
 	assigns []string
+	// tokens holds the command as the word judgments read the words of a
+	// text segment (rawHeavyWords, expensiveWords): one token per assignment
+	// node in front, `name=value`, then one per argument. A value the hook
+	// reads exactly (readWord, nothing expands) is that value; any other is
+	// its typed text read the way the text judgment reads a segment
+	// (typedToken), so the tree judgment reads every command at least as the
+	// text judgment reads the same words. tokens[len(assigns)] is the command
+	// word.
+	tokens []string
 	// source is the command's own text from its first assignment or word
 	// to its last word, as typed, with no redirection.
 	source string
-	// pipeline numbers the pipeline the command stands in, and stage its
-	// place in it from 0; a command outside a pipeline is a pipeline of one.
+	// stages holds every pipeline stage the command runs in (stageCommands):
+	// none outside a pipeline, two for a command in a pipeline nested inside
+	// a stage of another.
+	stages []pipelineStage
+}
+
+// pipelineStage is one place in one pipeline of a line: the pipeline's
+// number on the line, and the stage's place in it from 0.
+type pipelineStage struct {
 	pipeline int
 	stage    int
 }
@@ -45,37 +62,55 @@ func (command parsedCommand) segment() string {
 	return strings.Join(words, " ")
 }
 
+// commandWord answers the token of the command word, the first argument.
+// parsedCall builds a command only from a call with an argument, so it
+// always exists.
+func (command parsedCommand) commandWord() string {
+	return command.tokens[len(command.assigns)]
+}
+
+// feeds reports whether command runs in an earlier stage of a pipeline that
+// later runs in too, so that later reads what command prints.
+func (command parsedCommand) feeds(later parsedCommand) bool {
+	for _, own := range command.stages {
+		for _, other := range later.stages {
+			if own.pipeline != other.pipeline {
+				continue
+			}
+			if own.stage < other.stage {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // everyCommand answers every simple command of a parsed line at any depth,
-// in source order, with the pipeline each stands in. It judges nothing: it
-// is the reading the advice is written from, so a refusal names the command
-// the shell runs rather than a text segment cut at a quoted bar (AC-15).
+// in source order, with the pipeline stages each runs in. It judges nothing:
+// it is the reading the tree judgments and their advice are written from, so
+// a refusal names the command the shell runs rather than a text segment cut
+// at a quoted bar (AC-15). Only a call node is a command: a heavy job written
+// as an argument of another command (`./le job run ... command go test ./x`)
+// is that command's word, and a string handed to a shell is never opened. A
+// command inside a command substitution, a process substitution or an
+// assignment's value is a call node of its own, so it is found.
 func everyCommand(source string, statements []*syntax.Stmt) []parsedCommand {
 	walk := readerWalk{source: source}
+	stages := pipelineMembership(statements)
 	commands := make([]parsedCommand, 0, 8)
-	stages := make(map[*syntax.Stmt][2]int)
-	pipelines := 0
 	for _, statement := range statements {
-		// syntax.Walk visits a statement before the statements inside it,
-		// so a pipeline numbers its stages before the walk reaches them.
 		syntax.Walk(statement, func(node syntax.Node) bool {
-			held, ok := node.(*syntax.Stmt)
+			call, ok := node.(*syntax.CallExpr)
 			if !ok {
 				return true
 			}
-			if _, staged := stages[held]; !staged {
-				stages[held] = [2]int{pipelines, 0}
-				pipelines++
-			}
-			pipelineStages(held, stages)
-			call, simple := held.Cmd.(*syntax.CallExpr)
-			if !simple {
-				return true
-			}
 			if len(call.Args) == 0 {
+				// Bare assignments run no command; the walk goes on into
+				// their values, where a substitution runs one.
 				return true
 			}
 			command := walk.parsedCall(call)
-			command.pipeline, command.stage = stages[held][0], stages[held][1]
+			command.stages = stages[call]
 			commands = append(commands, command)
 			return true
 		})
@@ -83,38 +118,106 @@ func everyCommand(source string, statements []*syntax.Stmt) []parsedCommand {
 	return commands
 }
 
-// pipelineStages numbers the stages of a pipeline statement: every leaf of
-// a chain of `|` and `|&` takes the pipeline of the statement and its place.
-func pipelineStages(statement *syntax.Stmt, stages map[*syntax.Stmt][2]int) {
+// pipelineMembership answers the pipeline stages every simple command of a
+// line runs in. Each chain of `|` and `|&` is one pipeline, numbered in
+// source order, and each leaf of the chain is a stage (pipelineLeaves).
+// Every command a stage holds runs in it (stageCommands), so a command
+// inside a group, a subshell, a loop or a conditional that is a stage reads
+// from the stage before it and prints to the stage after it.
+func pipelineMembership(statements []*syntax.Stmt) map[*syntax.CallExpr][]pipelineStage {
+	members := make(map[*syntax.CallExpr][]pipelineStage)
+	inner := make(map[*syntax.Stmt]bool)
+	pipelines := 0
+	for _, statement := range statements {
+		// syntax.Walk visits a statement before the statements inside it, so
+		// the top of a chain is met before the chain's inner links, which
+		// markChain then keeps from being read as pipelines of their own.
+		syntax.Walk(statement, func(node syntax.Node) bool {
+			held, ok := node.(*syntax.Stmt)
+			if !ok {
+				return true
+			}
+			if inner[held] {
+				return true
+			}
+			if _, pipe := pipeOf(held); !pipe {
+				return true
+			}
+			markChain(held, inner)
+			for stage, leaf := range pipelineLeaves(held, nil) {
+				for _, call := range stageCommands(leaf) {
+					members[call] = append(members[call], pipelineStage{pipeline: pipelines, stage: stage})
+				}
+			}
+			pipelines++
+			return true
+		})
+	}
+	return members
+}
+
+// stageCommands answers every simple command one stage of a pipeline runs,
+// at any depth, except inside a command or process substitution: what such
+// a command prints goes to the substitution and never to the pipe. A stage
+// that holds a pipeline of its own counts that pipeline's commands too, so a
+// filter in it is read as reading the stage before, which is the side a
+// refusal errs on.
+func stageCommands(leaf *syntax.Stmt) []*syntax.CallExpr {
+	var calls []*syntax.CallExpr
+	syntax.Walk(leaf, func(node syntax.Node) bool {
+		switch node := node.(type) {
+		case *syntax.CmdSubst, *syntax.ProcSubst:
+			return false
+		case *syntax.CallExpr:
+			if len(node.Args) != 0 {
+				calls = append(calls, node)
+			}
+		}
+		return true
+	})
+	return calls
+}
+
+// pipeOf answers the pipe a statement is, when its command is a `|` or `|&`.
+func pipeOf(statement *syntax.Stmt) (*syntax.BinaryCmd, bool) {
 	binary, ok := statement.Cmd.(*syntax.BinaryCmd)
+	if !ok {
+		return nil, false
+	}
+	if binary.Op != syntax.Pipe && binary.Op != syntax.PipeAll {
+		return nil, false
+	}
+	return binary, true
+}
+
+// markChain marks every link of a pipe chain below its top, so the walk in
+// pipelineMembership reads the chain once. The chain is bounded by the line.
+func markChain(statement *syntax.Stmt, inner map[*syntax.Stmt]bool) {
+	binary, ok := pipeOf(statement)
 	if !ok {
 		return
 	}
-	if binary.Op != syntax.Pipe && binary.Op != syntax.PipeAll {
-		return
-	}
-	pipeline := stages[statement][0]
-	for stage, leaf := range pipelineLeaves(statement, nil) {
-		stages[leaf] = [2]int{pipeline, stage}
+	for _, side := range []*syntax.Stmt{binary.X, binary.Y} {
+		if _, pipe := pipeOf(side); pipe {
+			inner[side] = true
+			markChain(side, inner)
+		}
 	}
 }
 
 // pipelineLeaves flattens a chain of pipes, left to right. The chain is
 // bounded by the line.
 func pipelineLeaves(statement *syntax.Stmt, leaves []*syntax.Stmt) []*syntax.Stmt {
-	binary, ok := statement.Cmd.(*syntax.BinaryCmd)
+	binary, ok := pipeOf(statement)
 	if !ok {
-		return append(leaves, statement)
-	}
-	if binary.Op != syntax.Pipe && binary.Op != syntax.PipeAll {
 		return append(leaves, statement)
 	}
 	leaves = pipelineLeaves(binary.X, leaves)
 	return pipelineLeaves(binary.Y, leaves)
 }
 
-// parsedCall reads one simple command for the advice. MUST be called with a
-// command that has at least one argument.
+// parsedCall reads one simple command. MUST be called with a command that
+// has at least one argument.
 func (walk *readerWalk) parsedCall(call *syntax.CallExpr) parsedCommand {
 	command := parsedCommand{readable: true}
 	start := call.Pos().Offset()
@@ -124,17 +227,57 @@ func (walk *readerWalk) parsedCall(call *syntax.CallExpr) parsedCommand {
 	}
 	for _, assign := range call.Assigns {
 		command.assigns = append(command.assigns, walk.text(assign))
+		command.tokens = append(command.tokens, walk.assignToken(assign))
 	}
 	for _, argument := range call.Args {
 		value, err := readWord(argument)
 		if err != nil {
 			command.readable = false
+			command.tokens = append(command.tokens, typedToken(walk.text(argument)))
 			continue
 		}
+		token := value.text
 		if value.expands {
 			command.readable = false
+			token = typedToken(walk.text(argument))
 		}
+		command.tokens = append(command.tokens, token)
 		command.words = append(command.words, value.text)
 	}
 	return command
+}
+
+// assignToken reads one assignment in front of a command as the token the
+// word judgments read (parsedCommand.tokens): `name=value` with the value
+// read exactly when nothing in it expands, and the assignment's typed text
+// otherwise, so `ZE_ADMIT_RAW="$why"` keeps a value that is not empty, as
+// the text judgment reads it.
+func (walk *readerWalk) assignToken(assign *syntax.Assign) string {
+	if assign.Name == nil {
+		return typedToken(walk.text(assign))
+	}
+	if assign.Value == nil {
+		return typedToken(walk.text(assign))
+	}
+	if assign.Append {
+		return typedToken(walk.text(assign))
+	}
+	if assign.Index != nil {
+		return typedToken(walk.text(assign))
+	}
+	value, err := readWord(assign.Value)
+	if err != nil {
+		return typedToken(walk.text(assign))
+	}
+	if value.expands {
+		return typedToken(walk.text(assign))
+	}
+	return assign.Name.Value + "=" + value.text
+}
+
+// typedToken reads one word's typed text as the text judgment reads a
+// segment (shellWords), kept one token: a word the parser delimited is one
+// word, whatever spaces its quotes or its substitution hold.
+func typedToken(text string) string {
+	return strings.Join(shellWords(text), " ")
 }

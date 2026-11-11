@@ -314,8 +314,18 @@ func byteAt(text string, index int) byte {
 	return 0
 }
 
+// commandExpensive reports whether a text segment runs an expensive command:
+// expensiveWords over its program words as the text judgment reads them.
 func commandExpensive(segment string) bool {
-	tokens := programWords(segment)
+	return expensiveWords(programWords(segment))
+}
+
+// expensiveWords is the cost judgment of program words, the one the text
+// judgment applies to a segment and the tree judgment to a parsed command
+// (treeLossyPipe): a go test, build, vet or run, the linter, and an le
+// command, typed as `le` or as the `ze le` personality, whose area or action
+// runs something (heavyArea).
+func expensiveWords(tokens []string) bool {
 	if len(tokens) == 0 {
 		return false
 	}
@@ -342,7 +352,13 @@ func commandExpensive(segment string) bool {
 // refusal shows these words, so the command it advises is the one the guard
 // judged.
 func programWords(segment string) []string {
-	tokens := shellWords(segment)
+	return programTokens(shellWords(segment))
+}
+
+// programTokens answers words from their program on: programWords over
+// words already read, a text segment's or a parsed command's tokens
+// (parsedCommand.tokens). It returns a subslice of tokens.
+func programTokens(tokens []string) []string {
 	for len(tokens) != 0 {
 		head := tokens[0]
 		if strings.Contains(strings.Split(head, "/")[0], "=") && !strings.HasPrefix(head, "-") {
@@ -401,6 +417,9 @@ func heavyArea(words []string) bool {
 	if len(words) == 0 {
 		return false
 	}
+	if expensiveAction(words) {
+		return true
+	}
 	area, rest := words[0], words[1:]
 	if area == "go" {
 		return len(rest) > 0 && rest[0] == "lint"
@@ -424,19 +443,60 @@ func heavyArea(words []string) bool {
 	return oneOf(suite, "functional", "integration", "qemu", "unit")
 }
 
+// expensiveNameWordsMax bounds the words expensiveAction joins into a
+// command name: an le name is its area's words and a verb, and no area is
+// deeper than three words.
+const expensiveNameWordsMax = 4
+
+// expensiveAction reports whether words open with the whole name of an le
+// action that registered its run as expensive (leroot.RegisterExpensive):
+// `ai hooks unit` runs every hook golden row and behavioral fixture in
+// process and takes no job slot, so no area rule reads it as heavy, while
+// the lines a filter drops from it are the ones that say which row failed.
+// The registration is the declaration, so an action joins by registering
+// and this function names none.
+func expensiveAction(words []string) bool {
+	for count := 1; count <= min(len(words), expensiveNameWordsMax); count++ {
+		if leroot.Expensive(strings.Join(words[:count], " ")) {
+			return true
+		}
+	}
+	return false
+}
+
 // ze point: commands/no-pipes-on-expensive-commands/never-pipe-an-expensive-command-read-the-log
 // ze point: commands/directives/run-commands-through-native-actions-and-never-poll
 // bashLossyPipe refuses piping an expensive command through a filter that drops
 // output. The truncated text is what the caller would judge the run by, and the
-// part a filter removes is usually the part that says why the run failed. Its
-// text judgment is its verdict, and only a reader line (ctxReaderLine) lifts
-// it: no reader is an expensive command, so `grep -n 'ok | go test ./x |
-// head'` pipes nothing.
+// part a filter removes is usually the part that says why the run failed. A
+// reader line (ctxReaderLine) passes: no reader is an expensive command, so
+// `grep -n 'ok | go test ./x | head'` pipes nothing. On every other line the
+// verdict is the text judgment (textLossyPipe), unchanged, OR the tree
+// judgment (treeLossyPipe) on a line that parses, which reads each pipeline
+// at any depth: the tree only adds refusals.
 func bashLossyPipe(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
 	if _, outside := ctxReaderLine(ctx); outside == "" {
 		return nil
 	}
+	// The tree goes first so that, where both refuse, the advice is the
+	// parsed command and not a text segment cut at a quoted bar (AC-15).
+	if words, filter, found := treeLossyPipe(command, ctx.commandParse()); found {
+		return lossyPipeRefusal(commandIdentityPrefix(ctx), filter, words)
+	}
+	filter, segment, found := textLossyPipe(command)
+	if !found {
+		return nil
+	}
+	return lossyPipeRefusal(commandIdentityPrefix(ctx), filter, beforeRedirection(programWords(segment)))
+}
+
+// textLossyPipe is the piped-command guard's text judgment, its verdict at
+// HEAD for a line that is not a reader line: in each statement of a split at
+// `&&`, `||`, `;` and a newline, quoted ones included, the first expensive
+// segment before a `|` or `|&`, when a later segment's first field is a lossy
+// filter. It answers that filter and that segment.
+func textLossyPipe(command string) (filter, segment string, found bool) {
 	flat := strings.ReplaceAll(command, "\\\n", " ")
 	flat = regexp.MustCompile(`\|[ \t]*\n`).ReplaceAllString(flat, "| ")
 	for _, statement := range regexp.MustCompile(`&&|\|\||;|\n`).Split(flat, -1) {
@@ -453,15 +513,15 @@ func bashLossyPipe(ctx context) *verdict {
 		if expensive == "" {
 			continue
 		}
-		for _, segment := range segments[1:] {
-			fields := strings.Fields(segment)
+		for _, later := range segments[1:] {
+			fields := strings.Fields(later)
 			if len(fields) == 0 || !lossyFilter(fields[0]) {
 				continue
 			}
-			return lossyPipeRefusal(commandIdentityPrefix(ctx), fields[0], advisedSegment(command, ctx.commandParse(), expensive))
+			return fields[0], expensive, true
 		}
 	}
-	return nil
+	return "", "", false
 }
 
 // commandSegments splits a line into command texts at every separator, inside
@@ -508,51 +568,50 @@ func quotedWord(value string) string {
 // bashRawHeavy refuses a heavy job typed raw, outside job admission. One machine
 // carries several sessions, and an unadmitted job oversubscribes it. A reader
 // line (ctxReaderLine) runs no heavy job, so a grep pattern naming one
-// passes; every other line is judged by its text.
+// passes. On every other line the verdict is the text judgment
+// (textRawHeavy), unchanged, OR the tree judgment (treeRawHeavy) on a line
+// that parses, which reads every command at any depth: the tree only adds
+// refusals.
 func bashRawHeavy(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
 	if _, outside := ctxReaderLine(ctx); outside == "" {
 		return nil
 	}
-	var moves []string
-	for _, segment := range commandSegments(command) {
-		if words := shellWords(segment); len(words) != 0 && oneOf(words[0], "cd", "pushd") {
-			moves = append(moves, segment)
-			continue
-		}
-		text := rawHeavy(segment, moves, ctx.root)
-		if text.what == "" {
-			continue
-		}
-		// The text split decides the verdict; the advice comes from the
-		// parsed words of the line (rawAdvice).
-		refusal := rawAdvice(command, ctx.commandParse(), ctx.root, text)
-		short := ""
-		if refusal.short != "" && refusal.vet {
-			short = "  -- The short form vets a package with its feature tags,\n" +
-				"     and takes no other flag: " + refusal.short + "\n"
-		}
-		if refusal.short != "" && !refusal.vet {
-			short = "  -- The short form tests a package with its feature tags and the race detector,\n" +
-				"     and takes no other flag: " + refusal.short + "\n"
-		}
-		moved := ""
-		if refusal.uncarried != "" {
-			moved = "  -- Your line changes directory first (" + refusal.uncarried + "), which this form cannot carry:\n" +
-				"     run it from the directory that change reaches, or name that directory as\n" +
-				"     `env -C <dir>` in front of the program.\n"
-		}
-		// The Use line starts with the caller's identity line, so a subagent
-		// following it is not refused by bashAgentIdentity (review N7).
-		return &verdict{2, "❌ Blocked: " + refusal.what + " run raw, outside job admission (ai/rules/commands.md)\n" +
-			"  -- One machine, several sessions: registered `./le` actions admit\n" +
-			"     their own heavy work. A raw tool reaches the box unadmitted.\n" +
-			"  -- Use: " + commandIdentityPrefix(ctx) + refusal.use + "\n" + moved + short +
-			"  -- Generic form:\n     ./le job run label <label> quiet command <argv...>\n" +
-			"  -- A one-off that must not queue states its reason:\n" +
-			"     ZE_ADMIT_RAW=\"bisecting one 2s case\" <command>"}
+	// Where both refuse, the advice is the tree's: the parsed command the
+	// shell runs, never a text segment cut at a quoted bar (AC-15). A line
+	// that does not parse keeps the text refusal, there being nothing else to
+	// read.
+	refusal := treeRawHeavy(command, ctx.commandParse(), ctx.root)
+	if refusal.what == "" {
+		refusal = textRawHeavy(command, ctx.root)
 	}
-	return nil
+	if refusal.what == "" {
+		return nil
+	}
+	short := ""
+	if refusal.short != "" && refusal.vet {
+		short = "  -- The short form vets a package with its feature tags,\n" +
+			"     and takes no other flag: " + refusal.short + "\n"
+	}
+	if refusal.short != "" && !refusal.vet {
+		short = "  -- The short form tests a package with its feature tags and the race detector,\n" +
+			"     and takes no other flag: " + refusal.short + "\n"
+	}
+	moved := ""
+	if refusal.uncarried != "" {
+		moved = "  -- Your line changes directory first (" + refusal.uncarried + "), which this form cannot carry:\n" +
+			"     run it from the directory that change reaches, or name that directory as\n" +
+			"     `env -C <dir>` in front of the program.\n"
+	}
+	// The Use line starts with the caller's identity line, so a subagent
+	// following it is not refused by bashAgentIdentity (review N7).
+	return &verdict{2, "❌ Blocked: " + refusal.what + " run raw, outside job admission (ai/rules/commands.md)\n" +
+		"  -- One machine, several sessions: registered `./le` actions admit\n" +
+		"     their own heavy work. A raw tool reaches the box unadmitted.\n" +
+		"  -- Use: " + commandIdentityPrefix(ctx) + refusal.use + "\n" + moved + short +
+		"  -- Generic form:\n     ./le job run label <label> quiet command <argv...>\n" +
+		"  -- A one-off that must not queue states its reason:\n" +
+		"     ZE_ADMIT_RAW=\"bisecting one 2s case\" <command>"}
 }
 
 // ze point: commands/directives/run-commands-through-native-actions-and-never-poll
@@ -619,8 +678,21 @@ func bashSystemTmp(ctx context) *verdict {
 // ze point: commands/write-ad-hoc-scratch-under-your-per-session-dir/write-ad-hoc-scratch-under-this-session-s-private-directory
 // bashScratch refuses ad-hoc scratch written at the tmp/ root. Sessions share
 // that tree, so an unqualified name collides with whatever another session wrote.
+//
+// Its text judgment (scratchWrite) refuses only a write: a `>` or `>>`
+// redirection, or a `tee`, into a tmp/ root name. A reader line
+// (ctxReaderLine) writes no file, because the predicate admits output only
+// onto /dev/null or another descriptor and `tee` is no reader, so such a
+// match there is text inside a quoted argument (`grep -rn '> tmp/out.log'
+// ai/rules`) and the guard lifts. On every other line a here-document body
+// that is only data to the readers of the line (readerData) is blanked out
+// of the text first; the line's redirection targets stay, so `cat >
+// tmp/out.log <<'EOF'` is still refused.
 func bashScratch(ctx context) *verdict {
-	command := stringInput(ctx.input, "command")
+	if _, outside := ctxReaderLine(ctx); outside == "" {
+		return nil
+	}
+	command := withoutReaderData(stringInput(ctx.input, "command"), ctx.commandParse(), commandIdentityPrefix(ctx))
 	seen := map[string]bool{}
 	offenders := make([]string, 0, 2)
 	for _, match := range scratchWrite.FindAllStringSubmatch(command, -1) {

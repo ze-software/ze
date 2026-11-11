@@ -1678,8 +1678,11 @@ The pretool-bash guard refuses that pipe for the areas that RUN something
 (`heavyArea` in `internal/le/hookruntime/bash.go`): every `verify` area,
 `go lint`, the suites `test functional`, `test unit`, `test integration` and
 `test qemu` when a word follows the suite (`./le test unit` and
-`./le test functional` alone print a listing), and every `test` area whose
-registration is admitted to the job queue, such as `test bgp` and `test ospf`.
+`./le test functional` alone print a listing), every `test` area whose
+registration is admitted to the job queue, such as `test bgp` and `test ospf`,
+and every action that registered its run as expensive
+(`leroot.RegisterExpensive`), such as the hook selftest `ai hooks unit`, under
+`le`, `./le` or `ze le` alike.
 It reads the two-word area name, so `./le verify status check` and
 `./le verify summary` stay pipeable: they read and write the verification
 certificate and start no run.

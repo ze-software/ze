@@ -281,6 +281,31 @@ func TestPostBashGofmtReadsAnAbsolutePathAsItsRelativeForm(t *testing.T) {
 	}
 }
 
+// VALIDATES: a line whose tree names fewer commands than bash runs (a comment
+// ending in a backslash, which the parser joins to the next line, the B2
+// shape of treeMisreadsLine) is read as unread: the code-0 line says the
+// command was not read, never that it names no file. The same line without
+// the backslash, which the tree reads whole, names the file and blocks.
+// PREVENTS: `echo a # x \` then `gofmt -w x.go` read as one read-only echo.
+func TestPostBashGofmtDoesNotReadALineTheTreeMisreads(t *testing.T) {
+	root := gitFixture(t)
+	writeHookFixture(t, root, "internal/le/test/x.go", unformattedGo)
+
+	code, message := probeBashCommand(t, root, "echo a # x \\\ngofmt -w internal/le/test/x.go")
+	if code != 0 {
+		t.Fatalf("a misread line blocked (code %d):\n%s", code, message)
+	}
+	if !strings.Contains(message, "could not be read") {
+		t.Errorf("the line does not say the command could not be read:\n%s", message)
+	}
+	if strings.Contains(message, "does not name") {
+		t.Errorf("the line claims the misread command names no file:\n%s", message)
+	}
+	if code, message := probeBashCommand(t, root, "echo a # x\ngofmt -w internal/le/test/x.go"); code != 2 {
+		t.Errorf("the line read whole did not block on the file it names (code %d):\n%s", code, message)
+	}
+}
+
 // VALIDATES: a command the bash grammar cannot read names nothing, and the
 // code-0 line says the command was not read, not that it names no file.
 // PREVENTS: the check answering "does not name" for a line it never read, or

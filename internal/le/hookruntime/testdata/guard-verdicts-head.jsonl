@@ -375,8 +375,8 @@
 {"line":"cat <f a","caller":"subagent","refused-by":[],"reader-line":false}
 {"line":"cat > tmp/out.log <<'EOF'\nhello\nEOF","caller":"main","refused-by":["bashScratch"],"reader-line":false}
 {"line":"cat > tmp/out.log <<'EOF'\nhello\nEOF","caller":"subagent","refused-by":["bashScratch","bashAgentIdentity"],"reader-line":false}
-{"line":"cat >> tmp/session/x/state.md <<'EOF'\n  -- never write > tmp/out.log\nEOF","caller":"main","refused-by":["bashScratch"],"reader-line":false}
-{"line":"cat >> tmp/session/x/state.md <<'EOF'\n  -- never write > tmp/out.log\nEOF","caller":"subagent","refused-by":["bashScratch","bashAgentIdentity"],"reader-line":false}
+{"line":"cat >> tmp/session/x/state.md <<'EOF'\n  -- never write > tmp/out.log\nEOF","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat >> tmp/session/x/state.md <<'EOF'\n  -- never write > tmp/out.log\nEOF","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"cat @(a|b)","caller":"main","refused-by":[],"reader-line":false}
 {"line":"cat @(a|b)","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"cat a &","caller":"main","refused-by":[],"reader-line":false}
@@ -681,6 +681,8 @@
 {"line":"echo 'go build' >> f","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
 {"line":"echo 'go build'\\>|sh","caller":"main","refused-by":["bashRootBuild"],"reader-line":false}
 {"line":"echo 'go build'\\>|sh","caller":"subagent","refused-by":["bashRootBuild","bashAgentIdentity"],"reader-line":false}
+{"line":"echo 'never > tmp/out.log'","caller":"main","refused-by":[],"reader-line":false}
+{"line":"echo 'never > tmp/out.log'","caller":"subagent","refused-by":[],"reader-line":false}
 {"line":"echo 'rm internal/foo/foo_test.go'","caller":"main","refused-by":[],"reader-line":false}
 {"line":"echo 'rm internal/foo/foo_test.go'","caller":"subagent","refused-by":[],"reader-line":false}
 {"line":"echo 'x'\\>|sh","caller":"main","refused-by":[],"reader-line":false}
@@ -1096,6 +1098,8 @@
 {"line":"for f in a b; do cat \"$f\"; done","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":true,"proof":"TestReaderLineReachesThroughConstructs","waives":["bashAgentIdentity"]}
 {"line":"for f in a b; do go vet ./y; done","caller":"main","refused-by":[],"reader-line":false}
 {"line":"for f in a b; do go vet ./y; done","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
+{"line":"for f in a b; do grep -c '>> tmp/y' \"$f\"; done","caller":"main","refused-by":[],"reader-line":false}
+{"line":"for f in a b; do grep -c '>> tmp/y' \"$f\"; done","caller":"subagent","refused-by":[],"reader-line":false}
 {"line":"for f in a b; do grep -c 'x; go test ./y | tail -1' \"$f\"; done","caller":"main","refused-by":["bashLossyPipe","bashRawHeavy"],"reader-line":true,"proof":"TestReaderLineReachesThroughConstructs","waives":["bashLossyPipe","bashRawHeavy"]}
 {"line":"for f in a b; do grep -c 'x; go test ./y | tail -1' \"$f\"; done","caller":"subagent","refused-by":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"],"reader-line":true,"proof":"TestReaderLineReachesThroughConstructs","waives":["bashLossyPipe","bashRawHeavy","bashAgentIdentity"]}
 {"line":"for f in a b; do grep -n \"x\\|go vet ./y\" \"$f\"; done","caller":"main","refused-by":["bashRawHeavy"],"reader-line":true,"proof":"TestReaderLineReachesThroughConstructs","waives":["bashRawHeavy"]}
@@ -1314,6 +1318,8 @@
 {"line":"grep -n 'go test ./x | tail' f","caller":"subagent","refused-by":[],"reader-line":false}
 {"line":"grep -n 'go vet ./x' f","caller":"main","refused-by":[],"reader-line":false}
 {"line":"grep -n 'go vet ./x' f","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep -n 'tee tmp/x.log' f","caller":"main","refused-by":[],"reader-line":false}
+{"line":"grep -n 'tee tmp/x.log' f","caller":"subagent","refused-by":[],"reader-line":false}
 {"line":"grep -n 'unclosed notes.md | head","caller":"main","refused-by":[],"reader-line":false}
 {"line":"grep -n 'unclosed notes.md | head","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"grep -n '{x}' f","caller":"main","refused-by":[],"reader-line":false}
@@ -1322,6 +1328,8 @@
 {"line":"grep -n 'é' f","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":true,"proof":"TestReaderLineReachesThroughConstructs","waives":["bashAgentIdentity"]}
 {"line":"grep -n rm internal/foo/foo_test.go","caller":"main","refused-by":["bashTestDeletion"],"reader-line":false}
 {"line":"grep -n rm internal/foo/foo_test.go","caller":"subagent","refused-by":["bashTestDeletion"],"reader-line":false}
+{"line":"grep -n x f 2> tmp/err.log","caller":"main","refused-by":["bashScratch"],"reader-line":false}
+{"line":"grep -n x f 2> tmp/err.log","caller":"subagent","refused-by":["bashScratch","bashAgentIdentity"],"reader-line":false}
 {"line":"grep -n x f.log","caller":"main","refused-by":[],"reader-line":false}
 {"line":"grep -n x f.log","caller":"subagent","refused-by":[],"reader-line":false}
 {"line":"grep -n x notes.md | head -5","caller":"fork","refused-by":[],"reader-line":false}
@@ -1335,8 +1343,8 @@
 {"line":"grep -n x{ f","caller":"subagent","refused-by":[],"reader-line":false}
 {"line":"grep -rn \"go build\" plan/ | head -5","caller":"main","refused-by":[],"reader-line":false}
 {"line":"grep -rn \"go build\" plan/ | head -5","caller":"subagent","refused-by":[],"reader-line":false}
-{"line":"grep -rn '> tmp/out.log' ai/rules","caller":"main","refused-by":["bashScratch"],"reader-line":false}
-{"line":"grep -rn '> tmp/out.log' ai/rules","caller":"subagent","refused-by":["bashScratch"],"reader-line":false}
+{"line":"grep -rn '> tmp/out.log' ai/rules","caller":"main","refused-by":["bashScratch"],"reader-line":true,"proof":"TestScratchGuardLiftsOnAReaderLine","waives":["bashScratch"]}
+{"line":"grep -rn '> tmp/out.log' ai/rules","caller":"subagent","refused-by":["bashScratch"],"reader-line":true,"proof":"TestScratchGuardLiftsOnAReaderLine","waives":["bashScratch"]}
 {"line":"grep -rn 'time.sleep(' test/plugin","caller":"main","refused-by":[],"reader-line":false}
 {"line":"grep -rn 'time.sleep(' test/plugin","caller":"subagent","refused-by":[],"reader-line":false}
 {"line":"grep -rn 'until ! pgrep' ai/rules","caller":"main","refused-by":[],"reader-line":false}
@@ -1357,6 +1365,8 @@
 {"line":"grep x f 2>&1","caller":"subagent","refused-by":[],"reader-line":false}
 {"line":"grep x f 2>/dev/null","caller":"main","refused-by":[],"reader-line":false}
 {"line":"grep x f 2>/dev/null","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"grep x f | tee tmp/out.log","caller":"main","refused-by":["bashScratch"],"reader-line":false}
+{"line":"grep x f | tee tmp/out.log","caller":"subagent","refused-by":["bashScratch","bashAgentIdentity"],"reader-line":false}
 {"line":"grep x | tail -5","caller":"main","refused-by":[],"reader-line":false}
 {"line":"grep x | tail -5","caller":"subagent","refused-by":[],"reader-line":false}
 {"line":"if [ -f a ]; then cat a; fi","caller":"main","refused-by":[],"reader-line":false}

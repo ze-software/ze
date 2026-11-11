@@ -71,8 +71,9 @@ func postBashGofmt(ctx context) *verdict {
 	command.Stderr = &stderr
 	output, err := command.Output()
 	parse := ctx.commandParse()
+	unread := commandUnread(stringInput(ctx.input, "command"), parse)
 	var namedPaths []namedPath
-	if parse.parsed() {
+	if unread == "" {
 		namedPaths = commandNamedPaths(parse.file, ctx.root)
 	}
 	named := make([]string, 0, 4)
@@ -110,10 +111,23 @@ func postBashGofmt(ctx context) *verdict {
 		return nil
 	}
 	count := dim + "gofmt: " + strconv.Itoa(unnamed) + " unformatted Go file(s) changed in the last " + postBashWindow.String()
-	if !parse.parsed() {
-		return &verdict{0, count + "; this command could not be read as bash (" + parse.failure + "), so whether it names one is not known. Check the Go files it changed with: gofmt -l <path>" + reset}
+	if unread != "" {
+		return &verdict{0, count + "; this command could not be read as bash (" + unread + "), so whether it names one is not known. Check the Go files it changed with: gofmt -l <path>" + reset}
 	}
 	return &verdict{0, count + " that this command does not name" + reset}
+}
+
+// commandUnread answers why the check cannot read what a command names, and
+// "" when it can: a line that does not parse, and a line whose tree names
+// fewer commands than bash runs (treeMisreadsLine), as when a comment ends in
+// a backslash and the parser joins the next line into it. Such a tree would
+// read `echo a # x \` then `gofmt -w y.go` as one read-only echo, so it is
+// not read at all, as a line that does not parse is not.
+func commandUnread(command string, parse commandParse) string {
+	if !parse.parsed() {
+		return parse.failure
+	}
+	return treeMisreadsLine(command, parse)
 }
 
 // namedPath is one word of a command read as a path under the checkout.
@@ -176,9 +190,11 @@ func commandNames(named []namedPath, file string) bool {
 //     value (`-ox.go`), the script of `bash -c '...'`;
 //   - a path that arrives through a variable or xargs;
 //   - a relative word after a `cd` on the same line: every word is read
-//     against the checkout root, so only the word of cd names;
-//   - a line whose tree holds fewer commands than bash runs, as when a
-//     comment ends in a backslash and the parser joins the next line into it.
+//     against the checkout root, so only the word of cd names.
+//
+// A line whose tree holds fewer commands than bash runs never reaches it: its
+// caller reads such a line as unread (commandUnread), as one that does not
+// parse.
 //
 // On a line that is not read-only, a word inside `${x:-word}`, `(( ))`,
 // `[[ ]]` or a case pattern is a candidate like any other.

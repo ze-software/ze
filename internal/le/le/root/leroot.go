@@ -274,6 +274,40 @@ var admittedAreas struct {
 	byName map[string]bool
 }
 
+// RegisterExpensive records an le action whose run a caller judges by its
+// whole output, as it judges a test suite, while the action takes no slot
+// through the job registry (RegisterAdmitted marks the runs that do): a
+// selftest such as `ai hooks unit`, whose last lines are a summary and whose
+// failing rows print before it. The pretool hook reads a command that runs
+// such an action as expensive, so piping it through a filter that drops
+// lines is refused (bashLossyPipe), from this registration rather than from
+// a list of names in the hook. name is the action's whole command name, its
+// area and its verb. MUST be called from init.
+func RegisterExpensive(name string) {
+	expensiveActions.Lock()
+	defer expensiveActions.Unlock()
+	if expensiveActions.byName == nil {
+		expensiveActions.byName = make(map[string]bool, 8)
+	}
+	expensiveActions.byName[name] = true
+}
+
+// Expensive reports whether name is the whole command name of an action that
+// registered its run as expensive (RegisterExpensive).
+func Expensive(name string) bool {
+	expensiveActions.RLock()
+	defer expensiveActions.RUnlock()
+	return expensiveActions.byName[name]
+}
+
+// expensiveActions holds every action that registered as expensive.
+// Registration runs in init() and the hook reads it on any goroutine, so the
+// set is guarded. Safe for concurrent use.
+var expensiveActions struct {
+	sync.RWMutex
+	byName map[string]bool
+}
+
 // CommandPath answers the canonical local-data path for one le tool.
 func CommandPath(name string) string {
 	var tb textbuf.Buffer
