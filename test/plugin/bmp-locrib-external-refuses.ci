@@ -1,0 +1,89 @@
+# Test: a forked BMP plugin refuses Loc-RIB monitoring without its event bus.
+# QUESTION: does the actual external-plugin startup reject loc-rib true with
+# the cause and a usable internal-plugin configuration, rather than reporting
+# successful startup while never receiving a best-path change?
+# A unit test cannot prove the CLI launcher, TLS connect-back, Stage-2 refusal
+# and runtime process removal across the real process boundary.
+# The plugin declares no fatal-on-config-error policy: docs/guide/plugins.md,
+# "When a Plugin Fails", and TestConfigRefusalIsNotFatalWithoutTheFlag require
+# the daemon to remain available after this plugin refuses its configuration.
+# VALIDATES: spec-refuse-instead-of-defaulting row 40; an unavailable Loc-RIB
+# feed refuses the requested runtime configuration before collector sessions.
+# PREVENTS: a forked BMP process silently accepting a feed it cannot receive.
+# The existing bmp-locrib test retains the useful internal collector proof.
+
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT
+EOF_INIT
+
+tmpfs=bmp-refusal.conf:terminator=EOF_CONF
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+plugin {
+	hub {
+		server local {
+			ip 127.0.0.1;
+			port 0;
+			secret bmp-locrib-refusal-test-0123456789;
+		}
+	}
+	external bgp-bmp {
+		run "ze plugin bgp-bmp"
+		encoder json
+	}
+}
+
+bgp {
+	router-id 1.2.3.4;
+	session {
+		asn { local 65000; }
+	}
+	bmp {
+		sender {
+			loc-rib true;
+			collector test-collector {
+				address 127.0.0.1;
+				port $PORT2;
+			}
+		}
+	}
+}
+EOF_CONF
+
+# The banner follows plugin startup. The successful SSH command proves the
+# daemon remains available; the refused process must be absent from the actual
+# process manager, because rollbackStartupProcess removes it after Stage 2.
+# Readiness is a state barrier, not an elapsed-time assumption.
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start bmp-refusal.conf:name=daemon:ready=Ze running.
+expect=stderr:contains=bgp-bmp Loc-RIB monitoring cannot run
+expect=stderr:contains=event bus is unavailable
+expect=stderr:contains=plugin { internal bmp { use bgp-bmp; } }
+reject=stderr:contains=panic
+cmd=foreground:seq=3:exec=ze cli -c "show system subsystem list | json":exit=0
+expect=stdout:pattern="subsystems".*\[
+expect=stdout:pattern="count".*[0-9]
+reject=stdout:pattern="name".*"bgp-bmp"
+cmd=stop:seq=4:name=daemon:signal=term

@@ -1,0 +1,49 @@
+# QUESTION: do NTP status, peer status and date enrichment read the same active
+# NTP worker when that worker runs in another process?
+# A unit test cannot prove the daemon does not read its own unused state copy.
+# VALIDATES: the native NTP command transport and date metadata preserve an
+# enabled worker's published false synchronization and initial zero offset.
+# PREVENTS: an active forked NTP client silently looking disabled to its daemon.
+
+stdin=ntp-conf:terminator=EOF_CONF
+plugin {
+	hub {
+		server local {
+			ip 127.0.0.1
+			port 0
+			secret ntp-state-test-secret-01234567890
+		}
+	}
+	external ntp {
+		run "ze plugin ntp"
+		encoder json
+	}
+	external system-date-ntp-forked-test {
+		run "le test fixture plugin/system-date-ntp-forked"
+		encoder json
+	}
+}
+environment {
+	ntp {
+		enabled true
+		interval 60
+	}
+}
+bgp {
+	router-id 1.2.3.4
+	session {
+		asn {
+			local 65000
+		}
+	}
+}
+EOF_CONF
+
+# No server is configured, so the worker cannot set the clock from a response.
+# This explicit fork runs the plugin CLI, which never installs the daemon's
+# statestore: loadTime fails before the saved-time clock setter can run.
+cmd=foreground:seq=1:exec=ze -:stdin=ntp-conf:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=OK: forked NTP status and date preserve unsynchronized state and zero offset; peers=0
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
