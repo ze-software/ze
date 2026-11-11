@@ -188,9 +188,9 @@ walk.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | No vendored package receives a registry reference from Ze code | The registry is under `internal/`, so no third-party import compiles (Go internal-package rule); owner's framing | Vendored code could register or mutate after the declared walk ran | Check 2 itself, green at HEAD (AC-7) | unvalidated: at d53989cfad the check refused only the two sites phase 3 moved; green owed once those moves are committed |
+| A-1 | No vendored package receives a registry reference from Ze code | The registry is under `internal/`, so no third-party import compiles (Go internal-package rule); owner's framing | Vendored code could register or mutate after the declared walk ran | Check 2 itself, green at HEAD (AC-7) | confirmed: `./le plugin registration-sites check` passes at HEAD after the phase 3 moves landed (66e2ccdb94), observed by the main thread |
 | A-2 | The registry can be sealed without breaking tests that register late | 89 test files call `registry.Register`, 67 call `Reset` or `Restore`; none goes through `cmd/ze` `main`, which is the only caller of the seal | Tests panic or fail after an unrelated test sealed | Grep: no test calls the seal function except the registry's own unit tests, which restore through `Snapshot`/`Restore`; scoped runs of `internal/component/plugin/...` and `cmd/ze` | confirmed (phase 2: 90 test files call `Register`, 68 `Reset`/`Restore`, none reaches `main`; registry, plugin/server, bgp/server and cmd/ze scoped runs green) |
-| A-3 | No production code registers after `main` starts | Census of non-test `registry.Register` callers: 107 `register.go` files; the other hits (`plugin/server/startup.go`, `subsystem.go`, `config/schema/cli/main.go`) are other types' `Register` methods | A real runtime registration path breaks at start | Check 2 at HEAD, plus the functional suites that start the daemon (`./le test functional plugin`) | unvalidated |
+| A-3 | No production code registers after `main` starts | Census of non-test `registry.Register` callers: 107 `register.go` files; the other hits (`plugin/server/startup.go`, `subsystem.go`, `config/schema/cli/main.go`) are other types' `Register` methods | A real runtime registration path breaks at start | Check 2 at HEAD, plus the functional suites that start the daemon (`./le test functional plugin`) | confirmed: check 2 passes at HEAD, so every registering call sits in an initialization chain; 6750277e28 ran `./le test bgp plugin -a` under the seal with no new failure (`redistribute-as112-announce` fails with and without the seal) |
 | A-4 | No hot path calls `Lookup` or `All` per route or per event | Census of 48 non-test callers: config verify, startup, autoload, help, command declarations; `bgp/server/events.go` calls `Lookup` while ordering a startup selection | Copying adds allocations per UPDATE | Read each caller in the census; allocation benchmark of `Lookup` and `All` (AC-4) | confirmed with two exceptions moved (phase 2): the per-event callers `sortByReverseDependencyTier` (`bgp/server/events.go`) and `declaresSessionReady` (`plugin/server/events.go`) read `registry.StartOrderEdges` and `registry.RegisteredSessionReady`, which answer values |
 | A-5 | No caller relies on pointer identity of a returned registration | Grep for comparisons of `Lookup` results found only nil checks | A comparison between two lookups turns false | Grep at implementation time for `==` on `*registry.Registration` values | confirmed (phase 2: no `==` on a looked-up registration) |
 | A-6 | The `ze_le` tag adds no plugin registration, and no registration file is selected by GOARCH | `DeclaredPlugins` reads the ze_le linux/amd64 context; `find` shows Linux-selected registration files only under `internal/test/fixture` (test DUT) | Check 3 reports a difference that is a context mismatch, not a defect | Check 3 green at HEAD on linux/amd64 (AC-10) | confirmed: `TestBuiltZeRegistersTheDeclaredPlugins` green on linux/amd64 at 10a0471714, 96 plugins on both sides (the build carries `ze_core ze_distro`, the walk `ze_le`) |
@@ -536,3 +536,152 @@ N-A: tooling scope.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/post-release/engineering/spec-inventory-fast-registry-checks.md` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- Check 1, the seal: `registry.Seal`, `refuseSealedLocked`, `panicIfSealedLocked` (`internal/component/plugin/registry/seal.go`), called by `main` before `dispatchMain` (`cmd/ze/main.go`); every start-up writer guarded, runtime seams marked; `Lookup`, `All` and the field accessors hand out clones (`registration_clone.go` `cloneRegistration`, `cloneDoctorCheck`). Commits 6750277e28, ae1aac228b, ecfdc5c679.
+- Check 2: `./le plugin registration-sites check` (`internal/le/plugin/registrationsites` `Judge`, `registeringFunctions`, `judge`, `initializationOnly`), a verify stage; the two sites it refused moved into register files (66e2ccdb94, 10a0471714).
+- Check 3: `TestBuiltZeRegistersTheDeclaredPlugins` (`internal/le/plugin/registered` `BuildZe`, `ListPlugins`, `Compare`), every registration field the walk reads compared (7d35fed490, bd41a902a8).
+- Readers moved to `DeclaredPlugins` (d7791ae716); walker without authority, helpers in `callsites.go` (d793ad88a6); moved tests (12720abe4c); the proof deleted (066717fbab); the two coupling edges it then exposed declared (44cb535338).
+
+### Bugs Found/Fixed
+- The malformed testdata YANG hidden behind the proof's refusal: `collectFiles` skips `testdata` (d7791ae716, `TestAnswerAnswersTheInventory`).
+- ike and bgp-gr filled another plugin's registry with no declared edge (44cb535338, coupling check).
+- `textbuf.New` left a short buffer on a dead stack frame (78320a778b, `TestNewSliceOutlivesCaller`), found through check 3's field comparison run.
+- Closure review: `ClaimsFor`, `ConfigRootsMap`, `PluginDoctorChecks` handed out the registry's own slices (ecfdc5c679, `TestFieldAccessorsReturnCopies`).
+
+### Documentation Updates
+- `feature-gates.md` "What makes the declared list complete" replaces the contract section; `plugin-system.md` registration fields (seal, clones, accessors, checks 2 and 3); `core-design.md`; `gh-pages.md`; `text-format.md`; `ci-test-coverage.md`; `DESIGN-HISTORY.md` row; META website example. `./le doc check all`: source anchors all valid (4434 paths); its reds are the wiki and gh-pages command catalogs (sibling checkouts) and `ai/rules/planning.md` render staleness, none from this spec.
+
+### Deviations from Plan
+- The site rule is the transitive reading in Key Design Decisions (a `register*.go` file, followed through helpers reached only from initialization), not the literal "init() of register.go"; it landed in 10a0471714 and the main thread owes Thomas the confirmation the design approval section asked for.
+- Fixtures for check 2 are inline temporary git repositories, not `testdata/`.
+
+## Mistake Log
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Copy-on-read was applied to `Lookup` and `All` only | Three field accessors still returned stored slices, so Task 1's "no caller can change a registration's metadata" was false | Closure review, reading every exported registry function that returns a slice or map | Fixed in ecfdc5c679 with a red-proved test |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| 1. Registry seals, copies out | Done | `registry/seal.go` `Seal`; `registry.go` `Lookup`, `All`, `ClaimsFor`, `ConfigRootsMap`; `doctor.go` `PluginDoctorChecks` | |
+| 2. Registration sites | Done | `internal/le/plugin/registrationsites/registrationsites.go` `Judge` | |
+| 3. Static list equals runtime list | Done | `internal/le/plugin/registered/registered.go` `Compare` | |
+| Proof deleted, readers on the declared walk | Done | 066717fbab, d7791ae716 | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRegisterAfterSealRefuses` | |
+| AC-2 | Done | `TestRegistryMutatorsAfterSealRefuse`, `TestEveryRegistryWriterIsGuardedOrASeam` | |
+| AC-3 | Done | `TestLookupAndAllReturnCopies`, `TestFieldAccessorsReturnCopies` | |
+| AC-4 | Done | `BenchmarkLookupAndAll`, Phase results | |
+| AC-5 | Done | `TestSnapshotRestoreCarriesTheSeal` | |
+| AC-6 | Done | `registry-sealed-after-start.ci` 5 of 5, red without the seal (6750277e28, da60c69f7d) | |
+| AC-7 | Done | `TestRegistrationSitesCheckAcceptsTheCommittedTree`; check green at HEAD | |
+| AC-8 | Done | `TestRegistrationSitesRefusesEachWrongSite` | |
+| AC-9 | Done | `TestRegistrationSitesDerivesTheMutatorSet` | |
+| AC-10 | Done | `TestBuiltZeRegistersTheDeclaredPlugins`, 96 plugins | |
+| AC-11 | Done | Red recorded below in AC Verified, both directions | |
+| AC-12 | Done | `TestGatedPluginTableMatchesManifest`, `TestCouplingReadsTheDeclaredPopulation`; both checks green at HEAD | |
+| AC-13 | Done | `TestAnswerAnswersTheInventory` | |
+| AC-14 | Done | `git ls-files internal/le/repo/inventory` holds no `external*`/`assembly*` | |
+| AC-15 | Done | 293 `ze-test-judge` approvals in the commits; `./le test weakened check base 6750277e28~1` reports no finding in this spec's files | |
+| AC-16 | Done | the pages above; `INVENTORY-EXTERNAL-EFFECTS.md` removed | |
+| AC-17 | Done | `spec-tooling-one-off-defects` AC-32/P-32, handover 35 marked superseded, two diagnostics removed (066717fbab) | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `seal_test.go` units and benchmark | Done | `internal/component/plugin/registry/seal_test.go` | plus `TestFieldAccessorsReturnCopies` |
+| `TestMainSealsBeforeDispatch` | Done | `cmd/ze/main_seal_test.go` | |
+| registration-sites tests | Done | `internal/le/plugin/registrationsites/registrationsites_test.go` | |
+| `TestBuiltZeRegistersTheDeclaredPlugins` | Done | `internal/le/plugin/registered/registered_linux_test.go` | |
+| gated-table, coupling, inventory answer | Done | their packages | |
+| `registry-sealed-after-start` | Done | `test/plugin/registry-sealed-after-start.ci` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify and Files to Create | Done | all present in the commits listed; `registered_test.go` added for the portable parse and compare units |
+
+### Audit Summary
+- **Total items:** 17 AC, 4 requirements
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (Deviations)
+
+## Goal Validation (BLOCKING)
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A registration after start-up fails loudly | functional | `registry-sealed-after-start.ci` through the real `ze start`, red with the `Seal` call removed |
+| No caller changes a registration's metadata | unit, red-proved | `TestLookupAndAllReturnCopies`, `TestFieldAccessorsReturnCopies` (red against HEAD's accessors) |
+| Every registering call sits in initialization | check over the committed tree | `./le plugin registration-sites check` green at HEAD; fixtures refuse each wrong site |
+| The declared list equals what the built ze registers | built-binary test, red-proved | `TestBuiltZeRegistersTheDeclaredPlugins`: red naming `bgp-hostname` in both directions |
+| Every reader of `Plugins()` is green and fast | check runs | gated-table, coupling, declarations checks and `TestAnswerAnswersTheInventory` green at HEAD |
+
+## Work Not Done
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is met | - |
+
+## Review Gate
+| Field | Value |
+|-------|-------|
+| Artifact | recorded by `./le spec review record` in the closing session (path in the closure report) |
+| `./le spec review check` | run by `./le commit create` on commit A |
+| Rounds | 2 |
+| Reviewer lenses used | wiring, removed behaviour, shared state and copies, check-2 rule holes, check-3 vacuity, style pass (no peer-reachable panic: every new `panic("BUG:")` runs only at init or on a Ze defect) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `ClaimsFor`, `ConfigRootsMap` and `PluginDoctorChecks` returned the stored slices, so a caller could still change registration metadata | `registry.go`, `doctor.go` | ecfdc5c679 |
+| 2 | ISSUE | AC-11's first direction (a registration the walk cannot see) had no recorded red | `registered` test | recorded below |
+
+NOTEs (no block): `StartOrderEdges` clones three slices per call on a peer-state event, where the old pointer read cost none (control plane); check 2 accepts a `go helper()` inside `init()`, which the seal then refuses at run time; a helper reached through a dot import of a non-registry package is not seen as a reference; `Reset` and `Restore` are exported test seams that nothing but convention keeps out of production code (no non-test caller today); the git status lines check 3 prints on failure lose the first line's leading space.
+
+Run 2 (over ecfdc5c679): 0 BLOCKER, 0 ISSUE.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| Files to Create, and the `.ci` | Yes | `git ls-files` lists seal.go, seal_test.go, registration_clone.go, main_seal_test.go, registrationsites/*, registered/*, callsites.go, lateregister/*, `test/plugin/registry-sealed-after-start.ci` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-11 | Opaque registration names the plugin | `go test -overlay` making `registrations.go` `node` skip `bgp-hostname`'s `Register`: `plugin "bgp-hostname" is registered at run time and absent from the declared list`, FAIL; green without the overlay (main thread, HEAD) |
+| AC-11 | Dropped build import names the plugin | 7d35fed490: `plugin "bgp-hostname" is in the declared list and not registered at run time` |
+| AC-3 | Field accessors copy | `TestFieldAccessorsReturnCopies` red on HEAD's accessors, registry package `ok` under `-race` |
+| AC-12, AC-13 | Readers green | main thread at HEAD: gated-table, coupling (96 plugins), declarations checks, `TestAnswerAnswersTheInventory` with `-tags ze_bfd` |
+| AC-14 | Compiles | `./le repo compiles check` OK at ecfdc5c679 |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze start` with `lateregister` | `test/plugin/registry-sealed-after-start.ci` | Read: starts the real daemon, expects the sealed refusal text and the `show plugin list` line, rejects any FAIL line |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | check 2 green at HEAD |
+| A-2 | confirmed | phase 2 census; registry package green |
+| A-3 | confirmed | check 2 green; `./le test bgp plugin -a` under the seal (6750277e28) |
+| A-4 | confirmed | census in Phase results; two per-event callers moved |
+| A-5 | confirmed | no `==` on a looked-up registration |
+| A-6 | confirmed | check 3 green on linux/amd64 |
+| A-7 | confirmed | check reads only `Snapshot.Sources` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `plugin-system.md` copies and accessors | `registry.go` `ClaimsFor`, `ConfigRootsMap`; `doctor.go` `PluginDoctorChecks` | `./le doc check all` source anchors valid |
+| `feature-gates.md` completeness section | `registrationsites.go` `Judge`, `registered.go` `Compare`, `seal.go` `Seal` | anchors valid |
