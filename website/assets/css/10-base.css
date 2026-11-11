@@ -573,9 +573,9 @@ main.has-page-sidebar > :not(.page-sidebar) {
 .page-sidebar-link {
     display: grid;
     gap: 0.18rem;
-    padding: 0.65rem 0;
+    padding: 0.65rem;
     border: 0;
-    border-radius: 0;
+    border-radius: var(--radius-md);
     color: var(--text);
     background: transparent;
     text-decoration: none;
