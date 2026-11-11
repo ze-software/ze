@@ -442,6 +442,10 @@ AC-27 was dropped on 2026-11-08 ("Scope decision" above): the incident was not i
 |------------|------|-----------------|
 | `container-cannot-see-migrated-scratch` | 2026-10-21 | `Run.virtfsArgs` |
 | `failure-report-names-a-command-that-does-not-exist` | 2026-11-10 | `parseOptionNeedsLinux` |
+| `bash-guard-misses-a-command-shape` | 2026-11-11 | `bashLossyPipe`, `bashRawHeavy`: a launcher's option value read as the command word |
+| `bash-guard-misses-a-command-shape` | 2026-11-11 | `bashRootBuild`: `-toolexec`, `-overlay`, `-modfile` pass the text judgement |
+| `bash-guard-misses-a-command-shape` | 2026-11-11 | `bashSystemTmp`: no `}` boundary in `systemTmp` |
+| `green-that-could-not-have-been-red` | 2026-11-11 | bash parity golden judged by the hand model `bashCode` |
 
 ## Rows found already fixed
 

@@ -7,7 +7,7 @@
 | Priority | P1 |
 | Release reason | Release-independent development tooling: it changes how the main thread is told about context size and agent cost and changes no shipped binary. |
 | RFC gaps | - |
-| Depends | plan/post-release/engineering/spec-agent-economy-1-call-shape.md |
+| Depends | - |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-11-11 |

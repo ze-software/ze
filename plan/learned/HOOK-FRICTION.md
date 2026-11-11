@@ -58,7 +58,7 @@ native owner of each hook family is listed in `.claude/hooks/README.md`.
 | `pretool-writeedit.py` `c_throwaway_tests` | 1 (2026-07-16) | Retired 2026-08-28 | [F5](#retired-f5-c_throwaway_tests-blocks-legitimate-test-filenames-under-the-retired-scriptsdev-current-internalle) |
 | `session-end-summary.sh` clobbers hand-written digests | 1 (2026-07-22) | Retired 2026-08-28 | [F9](#retired-f9-session-end-summarysh-destroys-the-digests-post-compactionmd-asks-for) |
 | `stress-repro.py` broken argv / crash-only detection | 1 (2026-07-22) | Fixed 2026-07-22 at the source | [F10](#f10-stress-repropy-was-broken-for-every-sub-suite-and-said-so-as-reproduced) |
-| `pretool-bash` identity rewrite (`updatedInput`) voided by auto mode | about 490 (three weeks to 2026-11-11) | Rewrite removed 2026-11-11, live probe owed | [entry](#the-bash-hook-rewrote-every-subagent-command-and-auto-mode-voided-the-call-2026-11-11) |
+| `pretool-bash` identity rewrite (`updatedInput`) voided by auto mode | about 490 (three weeks to 2026-11-11) | Rewrite removed 2026-11-11; live probe passed the same day, retired | [entry](#the-bash-hook-rewrote-every-subagent-command-and-auto-mode-voided-the-call-2026-11-11) |
 
 ### Renamed checks
 
@@ -1875,14 +1875,16 @@ exact command the hook produced, the two exports included. Why the second
 attempt passed was not investigated.
 
 **What removed it.** The hook no longer changes any command
-(`plan/post-release/engineering/spec-agent-economy-1-call-shape.md`, phase 1).
+(spec-agent-economy-1-call-shape, phase 1; `docs/contributing/running-commands.md`,
+"Session identity, and what each agent owns").
 The agent's start text prints its identity line and the agent types it;
 `bashAgentIdentity` passes a command made only of readers, passes a command
 that starts with the agent's exact line, and refuses any other with the line
 to type. That the voids had this cause and no other is the spec's assumption
-A-2: it is confirmed only when an agent spawned after the commit runs its Bash
-calls with no "no verdict" failure. Until that probe is recorded this entry is
-not retired.
+A-2, confirmed on 2026-11-11 by a live probe: an agent spawned on build
+`20261111T022138Z-18f0f40a19` made 5 Bash calls, 4 ran, 1 was refused as
+designed and none was voided, where on the old build two of three readers
+sent in parallel were voided with "no verdict". The entry is retired.
 
 **The general trap.** A PreToolUse hook that returns `updatedInput` changes
 what the permission layer judged. Any hook that repairs a command in place

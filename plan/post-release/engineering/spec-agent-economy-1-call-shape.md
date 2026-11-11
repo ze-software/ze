@@ -8,7 +8,7 @@
 | Release reason | Release-independent development tooling: it changes how the Bash hook judges an agent's command and changes no shipped binary. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 2/4 |
+| Phase | 4/4 |
 | Handoff | - |
 | Updated | 2026-11-11 |
 
@@ -166,7 +166,7 @@ Two wires change hands.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The SubagentStart payload carries the agent's id | `Payload.AgentID` exists and the PreToolUse payload fills it; not observed for SubagentStart | The start text cannot print the full line; the agent learns it from its first refusal, one wasted call per agent | Phase 1 records one real SubagentStart payload into scratch and reads the field | validated 2026-11-11 by the live probe: the first research agent spawned on the phase 1 build had the full identity line (agent id and session) in its start text, and no fallback sentence |
 | A-2 | Auto mode voids a call only because the hook returns changed input | The voided calls' message names the changed input | Voids continue after the rewrite is gone | After the phase 1 commit, a research agent's Bash calls are counted for the "no verdict" text | validated 2026-11-11 by the live probe: on the old build two of three readers sent in parallel were voided with "no verdict"; on the phase 1 build the same three ran, and 0 of 5 calls were voided. The umbrella's AC-2 window remains the wider measure |
-| A-3 | Only `le`, test binaries and scripts that start them read the two variables | Census above | A reader command needs the identity after all | The census, re-run at implementation | unvalidated |
+| A-3 | Only `le`, test binaries and scripts that start them read the two variables | Census above | A reader command needs the identity after all | The census, re-run at implementation | validated 2026-11-11 at closure: the census grep over non-test Go under `internal`, `cmd` and `pkg` names the same readers as the table (every one under `internal/le`, `internal/test`), plus the hook files that write the line; the `le` launcher reads `CLAUDE_CODE_SESSION_ID` for `--name session` only. No member of `readerCommands` is among them |
 | A-4 | An agent reliably types a line it is given verbatim | Agents retype the hook's output today to pass auto mode | Repeated refusals | The same count as A-2, for the identity refusal | validated 2026-11-11 by the live probe: a bare `./le spec current` was refused printing the line byte-identical to the start text, and the retyped call with the line ran first try |
 
 ### Risks
@@ -248,7 +248,7 @@ Two wires change hands.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `./le ai hooks unit` | `internal/le/ai/hooks/fixtures.go` | Every golden row and behavioral fixture of the hooks, with rows added for AC-1, AC-2, AC-7 and AC-12 and the source seal re-derived | |
+| `./le ai hooks unit` | `internal/le/ai/hooks/fixtures.go` | Every golden row and behavioral fixture of the hooks, with rows added for AC-1, AC-2, AC-7 and AC-12 and the source seal re-derived. The bash parity rows (`parity_catalog.go`) are judged by `bashCode`, a hand model in `parity.go` that runs no row through `internal/le/hookruntime`: they check the model, not the hook, and are no proof of any AC. The AC proof is the `internal/le/hookruntime` unit tests (journal row `green-that-could-not-have-been-red`, 2026-11-11) | |
 | Live probe | a research agent spawned after the phase 1 build of HEAD is published under `bin/builds/` (the launcher builds a new HEAD in the background and serves the previous binary until then, about 95 s here) | Its Bash calls run with no "no verdict" failure, and its first `le` call carries the line (A-2, A-4) | passed 2026-11-11 on build `20261111T022138Z-18f0f40a19`: 5 calls, 4 ran, 1 refused as designed, 0 voided. An earlier probe spawned before the build was published hit the old hook and proves nothing about phase 1 |
 
 ## Files to Modify
@@ -259,6 +259,10 @@ Two wires change hands.
 - `internal/le/hookruntime/session.go` - `readerCommands` and its judges move to `readers.go`; `commandOutsideReaders` reads the word expansions
 - `internal/le/hookruntime/lifecycle.go` - the start text
 - `internal/le/ai/hooks/fixtures.go` - new rows, the counts and the source seal
+- `internal/le/ai/hooks/fixture_catalog.go` - the identity-check fixture sites replace the rewrite site (phase 4)
+- `internal/le/ai/hooks/parity.go` and `internal/le/ai/hooks/parity_catalog.go` - the `bashCode` model and its rows follow D-4 and AC-7, AC-12, AC-16 (phase 4)
+- `internal/le/le/path/commitsession.go` - the session-identity reader's comment follows the typed line (phase 1)
+- `ai/skills/ze-fix-alloc.md` - its verification step named `go build ./...`, which the build guard now refuses; phase 2 names the scoped compile
 
 Pages and rule points that change with the code, in the same phase:
 - `.claude/hooks/README.md` - the rows for the prefix, the budget and each changed guard
@@ -275,12 +279,13 @@ guards' matching or the budget's counting, so no sentence in it becomes wrong.
 
 ## Files to Create
 - `internal/le/hookruntime/session_identity_test.go` - the identity check's tests
-- `internal/le/hookruntime/shellline.go` - the one line splitter (`lineCommands`, and `lineWords` on it), created in phase 1; phase 2 adds `guardLine` and `textCommands`
+- `internal/le/hookruntime/shellline.go` - the one line splitter (`lineCommands`, and `lineWords` on it), created in phase 1; phase 2 adds `readerLine`
 - `internal/le/hookruntime/gobuild.go` - the build guard's judgment of what a `go build` writes, created in phase 2
 - `internal/le/hookruntime/readers.go` - `readerCommands` and its allow-list judges, moved from `session.go` in phase 2
 - `internal/le/hookruntime/systemtmp.go` - the `/tmp` guard's word judgement on a reader line, split from `bash.go` to keep it under 1000 lines
 - `internal/le/hookruntime/shellsyntax.go` - `modeledSyntax`, the allow-list of shell syntax the splitter models, which every lift and the identity exemption require (phase 2, round 6)
-- `ai/skills/ze-fix-alloc.md` - its verification step named `go build ./...`, which the build guard now refuses; phase 2 names the scoped compile
+- `internal/le/hookruntime/lossypipe.go` - `lossyPipeRefusal`, the piped-command refusal (phase 3)
+- `internal/le/hookruntime/testdeletion.go` - `plainRmArguments`, the narrowed test-deletion judgement (phase 3)
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -603,6 +608,29 @@ Phase 3 (2026-11-11):
   counted. The agent type and the number come from the budget's own
   constants.
 
+Phase 4 (2026-11-11):
+
+- The bash parity golden (`parity_catalog.go`, judged by `bashCode` in
+  `parity.go`) is a hand-written model of the hook's main-thread verdict,
+  and nothing runs its rows through `internal/le/hookruntime`. That is why
+  the `go build ./...` row stayed green after phase 2: the row and the model
+  agreed with each other and both disagreed with the hook. The row now
+  expects 2 and `bashCode` refuses that line (D-4, AC-11,
+  `TestRootBuildRefusesTheWholeTree`). Five rows join for AC-7, AC-12 and
+  AC-16; 75 rows are 80.
+- The session-id fixture site `pretool-bash-prefixes-safe-parent-export`
+  pinned the rewrite phase 1 deleted. It gives way to four identity-check
+  sites for AC-1 to AC-4, each backed by a `session_identity_test.go` test,
+  and the three `parent-export` sites are named `identity-line` with their
+  exits kept, because the export now comes from the line the agent types.
+  An independent `ze-test-judge` approved every changed row; the commit
+  carries its three `Test-judge:` lines.
+- No commit of phases 1 to 3 touched `internal/le/ai/hooks`, and the seal
+  `hookSourcesDigest` does not cover that package, so the fixture edits do
+  not move it. It and the three catalog digests are re-derived through
+  `TestEveryStoredDigestMatchesTheTreeItRatchets`, each with a dated comment
+  naming this spec.
+
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
@@ -675,6 +703,17 @@ Phase 3 (2026-11-11):
   its lines starts with a word that changes the environment (`export`, `set`,
   `.`, `env` and the rest), here-document bodies included. It fails closed;
   the Write tool covers note-writing.
+- A commit body passed inline is judged with the `./le commit create` line
+  that carries it, and `./le` is not a reader, so three bodies are refused:
+  one that names either identity variable (`takesAnotherIdentity`, every
+  mention outside an admitted reader), one that takes the line outside the
+  modeled syntax (a `#`, `!`, a parenthesis or a brace in the body) and holds a
+  piece starting with an environment-changing word such as `export` or `set`
+  (`textChangesEnvironment`, which splits that text at `;`, `|`, a newline, a
+  bracket and the rest), and one that quotes an expensive command piped
+  through a filter, which `bashLossyPipe`'s text judgement reads as the line
+  doing it. Each refusal names its cause and fails closed. A body-from-file
+  form removes it; Work Not Done names its owner.
 - A raw `go vet` without tags is not refused here. `plan/post-release/engineering/spec-agent-economy-2-scoped-test.md` owns the short action that replaces it and the message that names it.
 
 ## Checklist
@@ -717,3 +756,215 @@ Phase 3 (2026-11-11):
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/post-release/engineering/spec-agent-economy-1-call-shape.md` only, in the same `./le commit create` script
+
+## Implementation Summary
+
+### What Was Implemented
+- Phase 1, 18f0f40a19: the rewrite in `writeParentSessionPrefix` is deleted;
+  `bashAgentIdentity` (`session.go`) is a registered check that passes a
+  line of admitted readers, passes the agent's exact `identityLine`, and
+  refuses any other subagent command with the line to type. `lineCommands`
+  (`shellline.go`) is the one splitter; `lineWords` flattens it. The start
+  text (`hookSubagentContext`, `lifecycle.go`) prints the identity line.
+- Phase 2, 614ce4ebea: each guard keeps HEAD's text verdict and may only lift
+  it on a reader line (`readerLine`) or a reader+build line (`goBuildLine`,
+  `gobuild.go`). `readerCommands` (`readers.go`) is an allow-list of judges;
+  `modeledSyntax` (`shellsyntax.go`) bounds every lift and the identity
+  exemption; the `/tmp` word judgement is `namesSystemTmp` (`systemtmp.go`);
+  the build guard follows D-4.
+- Phase 3, 48a98fb9d4: `lossyPipeRefusal` (`lossypipe.go`) shows the quiet
+  admitted form; `plainRmArguments` (`testdeletion.go`) narrows the
+  test-deletion guard and its refusal names the commit route; `Run` sets
+  `context.refused` and `agentCallBudgetCheck` does not count such a call;
+  `subagentCallRules` adds the five rule lines.
+- Phase 4, 70f70633b3: fixture sites, parity rows and the `bashCode` model
+  follow the identity line and D-4; the seal and catalog digests are
+  re-derived.
+
+### Bugs Found/Fixed
+- Phase 1's identity exemption trusted the splitter: `printf -v 'a[$(...)]'`
+  and brace, comment and ANSI-C quoting shapes ran `le` without the line.
+  Closed in phase 2 by the reader judges and `modeledSyntax`; covered by
+  `TestGuardsKeepTheTextVerdictWhereTheSplitMovesAWord` and the
+  `session_identity_test.go` rows added in phase 2.
+- The `go build ./...` parity row expected exit 0 after D-4 because the
+  parity catalog models the hook by hand; fixed in phase 4 (Design Insights).
+
+### Documentation Updates
+- `docs/contributing/running-commands.md`, "Session identity, and what each
+  agent owns": the agent types the line (18f0f40a19, 614ce4ebea).
+- `.claude/hooks/README.md`: `bashAgentIdentity`, the guards, the budget, the
+  lossy-pipe and test-deletion rows (all three code phases).
+- `ai/rules/points/planning/directives/brief-every-subagent-with-its-spec-phase-and-rules.md`,
+  `ai/rules/points/context-economy/directives/an-editing-agent-hands-off-at-one-hundred-tool-calls.md`,
+  `ai/agents/ze-work.md`, `ai/skills/ze-fix-alloc.md`, `plan/learned/HOOK-FRICTION.md`.
+- `./le doc check all`: owed to the main thread with the closure commit.
+
+### Deviations from Plan
+- `lineCommands` was built in phase 1, not phase 2 (Design Insights, phase 1).
+- Six files were created beyond the first plan (`readers.go`, `gobuild.go`,
+  `systemtmp.go`, `shellsyntax.go`, `lossypipe.go`, `testdeletion.go`), to
+  keep `bash.go` under 1000 lines and to hold the syntax allow-list; Files to
+  Create now lists them.
+- AC-16 is honoured for a literal parent only (Known Limitations).
+- `TestLossyPipeRefusalNamesTheScopedRun` was deleted, not edited, on an
+  independent `ze-test-judge` approval.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Phase 2 edited the text judgement (quote deletion, option skipping, boundaries) | Each edit cleared a line HEAD refused | Phase 2 review round 3 | The text verdict stays HEAD's; only the reader lift may clear |
+| approach | Phase 2 opened the string a shell is handed (`-c`, `eval`) and judged its words | Every program that runs a string reopened the hole | Two reviews in phase 2 | Deleted; the reader-only lift closes the class by construction |
+| approach | The splitter was trusted as bash's reading of a line | It moved words on braces, comments, ANSI-C quotes, early redirections, empty words | Phase 2 review rounds 5 and 6 | `modeledSyntax` and `syntaxCommand` allow-list the syntax |
+| approach | `setsIdentity` listed the forms that set a variable | Fourteen forms were missing | Phase 2 review round 6 | Replaced by the mention rule in `takesAnotherIdentity` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| 1. The hook stops rewriting subagent commands | Done | `internal/le/hookruntime/session.go` `bashAgentIdentity` | no `updatedInput` writer under `internal/le/hookruntime` |
+| 2. Guards match commands, not text | Done | `shellline.go` `readerLine`, `gobuild.go` `goBuildLine`, `systemtmp.go` `namesSystemTmp` | lift only; text verdict is HEAD's |
+| 3. Two refusals teach the fix | Done | `lossypipe.go` `lossyPipeRefusal`, `bash.go` `bashTestDeletion` | |
+| 4. Refused calls cost no budget | Done | `runtime.go` `Run` (`ctx.refused`), `budget.go` `agentCallBudgetCheck` | |
+| 5. The start text carries the rules | Done | `lifecycle.go` `subagentCallRules`, `hookSubagentContext` | |
+| D-4 | Done | `gobuild.go` `judgeGoBuild`, `bash.go` `bashRootBuild` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestSubagentReaderCommandPassesUnchanged` | |
+| AC-2 | Done | `TestSubagentCommandOutsideTheReaderSetNeedsTheIdentityLine` | |
+| AC-3 | Done | `TestSubagentCommandCarryingItsIdentityLinePasses` | |
+| AC-4 | Done | `TestSubagentIdentityLineOfAnotherAgentIsRefused` | |
+| AC-5 | Done | `TestMainThreadCommandNeedsNoIdentityLine` | |
+| AC-6 | Done | `TestSubagentStartCarriesTheIdentityLine` | both payload shapes |
+| AC-7 | Done | `TestGuardsIgnoreCommandNamesInsideQuotes` | |
+| AC-8 | Done | `TestGuardsJudgeAnUnparsableLineByItsText`, `TestGuardsKeepTheTextVerdictOfHead` | |
+| AC-9 | Done | `TestRootBuildAllowsPackagesThatProduceNoBinary` | |
+| AC-10 | Done | `TestRootBuildRefusalNamesTheCallersPackage` | |
+| AC-11 | Done | `TestRootBuildRefusesTheWholeTree` | |
+| AC-12 | Done | `TestLossyPipeRefusalNamesTheQuietAdmittedForm` | |
+| AC-13 | Done | `TestRefusedCallDoesNotConsumeTheBudget` | |
+| AC-14 | Done | `TestTestDeletionJudgesOnlyTheArgumentsOfAPlainRm` | |
+| AC-15 | Done | `TestTestDeletionRefusalNamesTheNextAction` | |
+| AC-16 | Changed | `TestSystemTmpIgnoresATmpDirectoryUnderAnotherPath` | literal parent only; recorded in Known Limitations and Deviations |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The six identity tests | Done | `internal/le/hookruntime/session_identity_test.go` | |
+| `TestSubagentStartCarriesTheIdentityLine` | Done | `internal/le/hookruntime/lifecycle_test.go` | |
+| The ten guard, build, lossy-pipe, deletion and `/tmp` tests | Done | `internal/le/hookruntime/bash_test.go` | |
+| `TestRefusedCallDoesNotConsumeTheBudget` | Done | `internal/le/hookruntime/budget_test.go` | |
+| `./le ai hooks unit` | Done | `internal/le/ai/hooks/fixtures.go` | 30/30 on 70f70633b3's build |
+| Live probe | Done | build `20261111T022138Z-18f0f40a19` | A-1, A-2, A-4 |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify, code and skill (11): `session.go`, `runtime.go`, `budget.go`, `bash.go`, `lifecycle.go`, `fixtures.go`, `fixture_catalog.go`, `parity.go`, `parity_catalog.go`, `commitsession.go`, `ai/skills/ze-fix-alloc.md` | Done | |
+| Files to Modify, pages and rule points (6): `.claude/hooks/README.md`, `running-commands.md`, the planning point, the context-economy point, `ai/agents/ze-work.md`, `HOOK-FRICTION.md` | Done | see Documentation Updates |
+| Files to Create (8): `session_identity_test.go`, `shellline.go`, `gobuild.go`, `readers.go`, `systemtmp.go`, `shellsyntax.go`, `lossypipe.go`, `testdeletion.go` | Done | |
+
+### Audit Summary
+- **Total items:** 16 ACs, 6 requirements, 18 tests, 25 files (11 code and skill files modified, 6 pages and rule points, 8 files created)
+- **Done:** all but AC-16
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** AC-16 (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A subagent's command reaches the shell exactly as typed | live probe + unit | probe on build `20261111T022138Z-18f0f40a19`: 5 calls, 0 voided; `TestSubagentReaderCommandPassesUnchanged` asserts empty standard output through `Run` |
+| A guard fires only on a command that does what it names, on a modelled reader line (`readerLine`) or a reader+build line (`goBuildLine`); every other line keeps HEAD's text verdict, so a reader carrying an option its judge does not admit is still refused: `git log -S'"go build ./..."'` is refused as a whole-tree build, because the shell joins the attached value into one word and the option judge reads `S"go build ./..."` as a cluster of option letters, where the quote and the space are not admitted, while the split form `git log -S 'go build ./...'` is a reader line and is lifted | unit | `TestGuardsIgnoreCommandNamesInsideQuotes` for the reader lines; `TestGuardsKeepTheTextVerdictOfHead` holds HEAD's refusals on every other line; phase 2 red walk, 22 breaks |
+| Every refusal carries the command that fixes it | unit | `TestLossyPipeRefusalNamesTheQuietAdmittedForm`, `TestTestDeletionRefusalNamesTheNextAction`, `TestRootBuildRefusalNamesTheCallersPackage`, `TestSubagentCommandOutsideTheReaderSetNeedsTheIdentityLine` |
+| A refusal costs no budget | unit through `Run` | `TestRefusedCallDoesNotConsumeTheBudget` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| A commit-body-from-file form, so an inline body is not judged as shell text (Known Limitations) | outside this spec's ACs | `plan/post-release/engineering/spec-agent-economy-2-scoped-test.md` (phase 6) |
+| Review round 1 findings I1 and N1-N5 (refusal messages) | child 2's phase 6 rewrites those messages in files it is editing now | `plan/post-release/engineering/spec-agent-economy-2-scoped-test.md` (phase 6) |
+| The bash parity golden runs no row through the hook (review I3) | fixing the golden's mechanism is outside this spec's ACs | `plan/post-release/engineering/spec-tooling-one-off-defects.md`, owned journal row `green-that-could-not-have-been-red` 2026-11-11 |
+| Rewarding batching: count turns, not calls | needs the transcript at pre-tool time | `plan/post-release/engineering/spec-agent-economy-4-supervision.md` |
+| HEAD's text-judgement gaps (`bash -o pipefail -c`, `-toolexec` with `-o bin/`, unquoted `${v}/tmp`) | changing a text verdict was outside phase 2 | `plan/post-release/engineering/spec-tooling-one-off-defects.md`, through owned journal rows |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/agent-economy-1-call-shape-f4d858bd-ad8f-4b19-8a8d-50f67a40ccf9.md` (9 files, verdict clean) |
+| `./le spec review check` | clean: hashes match the artifact |
+| Rounds | 3; the final round found 0 BLOCKER and 0 ISSUE |
+| Reviewer lenses used | independent review in the main thread, over `git diff 18f0f40a19^..70f70633b3` limited to this spec's paths, plus the uncommitted spec |
+
+### Run 1
+0 BLOCKER, 3 ISSUE, 6 NOTE.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| I2 | ISSUE | The summary row and the entry still said the live probe was owed and the entry not retired, though A-2 was validated on build `20261111T022138Z-18f0f40a19` | `plan/learned/HOOK-FRICTION.md`, the summary table and the identity-rewrite entry | both now state the probe result and retire the entry |
+| I3 | ISSUE | The bash parity golden is judged by the hand model `bashCode` and runs no row through `internal/le/hookruntime`, so its rows prove nothing about the hook | `internal/le/ai/hooks/parity.go` `bashCode` | open journal row `green-that-could-not-have-been-red` 2026-11-11, owned by `spec-tooling-one-off-defects.md`; the Functional Tests `./le ai hooks unit` row now says the parity rows are model-only and no AC proof |
+| N6 | NOTE | Files to Create named `guardLine` and `textCommands`, which do not exist, and listed `ai/skills/ze-fix-alloc.md`, an edit; Files to Modify omitted `parity.go`, `parity_catalog.go`, `fixture_catalog.go`, `commitsession.go` | this spec | both lists corrected |
+
+### Run 2
+0 BLOCKER, 1 ISSUE, 4 NOTE, all over the closure edits of run 1.
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| R2-I1 | ISSUE | The journal class holds three open rows dated 2026-11-11, but the owning spec listed the class and date once, so `UnownedOpenRows` would refuse commit A | `plan/post-release/engineering/spec-tooling-one-off-defects.md`, Owned journal rows | one entry per open row, each naming its surface |
+| R2-N2 | NOTE | The new class file's Spec cell lacked the `spec-` prefix, and the file had no title or class statement | `plan/journal/bash-guard-misses-a-command-shape.md` | Spec cells read `spec-agent-economy-1-call-shape`; title and class statement added |
+| R2-N3 | NOTE | Files Exist, Files from Plan and the audit's file count disagreed with the corrected file lists | this spec, closure sections | all three now count 11 modified code and skill files, 6 pages and rule points, 8 created files |
+| R2-N4 | NOTE | The Goal Validation guard row claimed more than the design: only a modelled reader line lifts the text verdict | this spec, Goal Validation | the row is bounded to reader lines and says every other line keeps HEAD's verdict |
+
+### Run 3
+0 BLOCKER, 0 ISSUE, 1 NOTE: the Goal Validation guard row gave a false reason for its `git log -S` example (`gitOptions` admits `S`; the attached value makes the word an unadmitted option cluster). Reworded. The gate is clean.
+
+### Findings transferred (run 1)
+| # | Severity | Finding | Owner | Why |
+|---|----------|---------|-------|-----|
+| I1 | ISSUE | `lossyPipeRefusal` rebuilds the advised command from a quote-blind segment and joins words unquoted, so `go test -run 'TestA\|TestB' ./internal/x/` piped through `tail -5` is advised without its package and with a changed filter | `plan/post-release/engineering/spec-agent-economy-2-scoped-test.md`, phase 6 | phase 6 rewrites the refusal messages in the files it is editing now, so a fix here would collide with it |
+| N1 | NOTE | `bashTestDeletion`'s fix line omits the known path, advises "remove" for a `git checkout --` discard, and its header says "user approval required" while the body says the agent cannot approve | the same spec, phase 6 | the same reason |
+| N2 | NOTE | `hookSubagentContext`'s fallback sentence ("the first refusal prints your full line") is false for a fork and for an invalid agent id | the same spec, phase 6 | the same reason |
+| N3 | NOTE | `bashSystemTmp` and `bashScratch` advise `dir=$(./le session scratch ensure)` without the identity line, so a subagent following it is refused again | the same spec, phase 6 | the same reason |
+| N4 | NOTE | `bashAgentIdentity` puts the reader list after the fixing line, and refuses the agent's own line with leading whitespace as "not this agent's" | the same spec, phase 6 | the same reason |
+| N5 | NOTE | `goBuildText` labels a refused subtree pattern "the whole tree" | the same spec, phase 6 | the same reason |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| the eight Go files of Files to Create | Yes | `ls` at closure printed all eight |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-16 | each AC's test exists | a `grep` for each named test function over `internal/le/hookruntime/*_test.go` at closure found all 18; `TestLossyPipeRefusalNamesTheScopedRun` is absent (judge-approved deletion) |
+| AC-1 | no changed input | `grep -rn updatedInput internal/le/hookruntime` outside tests: no hit |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `le ai hooks pretool-bash` and `subagent-context` | none: the four Wiring Test rows run through `Run`, and `./le ai hooks unit` drives the fixtures | main thread: `./le ai hooks unit` 30/30 on 70f70633b3's build; `internal/le/hookruntime` and `internal/le/ai/hooks` green |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | live probe, start text held the full line |
+| A-2 | confirmed | live probe, 0 of 5 calls voided |
+| A-3 | confirmed | census re-run at closure (table row) |
+| A-4 | confirmed | live probe, retyped line ran first try |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `running-commands.md` identity section | names the typed line, the reader set and the refusal, as `bashAgentIdentity` does | Yes |
+| `.claude/hooks/README.md` `bashAgentIdentity` row | matches `takesAnotherIdentity` and `changesEnvironment` | Yes |
+| no page still says the hook adds the prefix | `grep -rn` for "adds this prefix", "Allow this test deletion" and "its hook exports" over `docs ai .claude internal`: no hit | Yes |

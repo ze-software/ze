@@ -39,7 +39,7 @@ cap exception recorded in the umbrella).
 | Code | `internal/le/hookruntime/session.go`, `shellline.go` (new), `bash.go`, `runtime.go`, `lifecycle.go`, `internal/le/le/path/commitsession.go` |
 | Tests | `internal/le/hookruntime/session_identity_test.go` (new), `lifecycle_test.go`, `runtime_test.go`, `budget_test.go`, `one_off_proof_test.go` |
 | Pages and rules | `docs/contributing/running-commands.md`, `.claude/hooks/README.md`, `plan/learned/HOOK-FRICTION.md`, `ai/rules/points/planning/directives/brief-every-subagent-with-its-spec-phase-and-rules.md`, `ai/rules/planning.md` (rendered) |
-| Spec | `plan/post-release/engineering/spec-agent-economy-1-call-shape.md` |
+| Spec | spec-agent-economy-1-call-shape (closed) |
 
 The commit body names the one known red: `./le ai hooks unit` fails
 `hook-source-drift` until phase 4 re-derives the seal. The scoped lint
