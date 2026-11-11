@@ -1916,12 +1916,12 @@ so this adds only what that record lacked.
 
 | Defect | Repair | Carrier | Break | Red |
 | --- | --- | --- | --- | --- |
-| A handoff quoting `---` or `## Session:` inside a Markdown code fence was split, or its quoted heading took a retention slot | `preserveState` (`internal/le/session/summary.go`) keeps every line of a fence inside its block; `fenceMarker` and `closesFence` follow CommonMark (at most three spaces of indent, three or more backticks or tildes, no backtick in a backtick info string, a close at least as long) | `TestStopSummaryPreservesQuotedSnapshotHeading/fenced-*` (`internal/le/hookruntime`) | fence branches removed from `preserveState` | owed |
-| A closing-looking marker indented four or more spaces closed the fence | three-space limit in `fenceMarker` | `TestStopSummaryPreservesIndentedFenceContents`, paired with `TestStopSummaryClosesFencesIndentedAtMostThreeSpaces` | indent limit removed | owed |
-| An inline span such as ```` ```x``` ```` opened a false fence and swallowed the snapshots after it | a backtick in a backtick info string is no fence | `TestStopSummaryKeepsInlineBackticksOutsideFenceState` | backtick test removed | owed |
-| A `# Session State` line below the first was read as the title and cut the block holding it | only line one is the title | `TestStopSummaryPreservesQuotedSnapshotHeading/fenced-title` | title matched on any line | owed |
-| The separator after an authored block stayed inside it and the join wrote a second one, one more per rotation | a column-zero `---` ends the block before it | `TestStopSummaryWritesOneSeparatorBetweenBlocks` | separator no longer flushes the block | owed |
-| `writeRenderedRule` named only `./le ai rules update render`, so an edited rule left `CORE.md` and `TRIGGERS.md` stale | the refusal names `./le ai rules update render` then `./le ai rules update condensed`, each on its own line; the catalog site requires both | `TestRenderedRuleRefusalNamesBothGenerators`, `TestRenderedRuleNeedleMatchesProducer` | the single-command wording restored | owed |
+| A handoff quoting `---` or `## Session:` inside a Markdown code fence was split, or its quoted heading took a retention slot | `preserveState` (`internal/le/session/summary.go`) keeps every line of a fence inside its block; `fenceMarker` and `closesFence` follow CommonMark (at most three spaces of indent, three or more backticks or tildes, no backtick in a backtick info string, a close at least as long) | `TestStopSummaryPreservesQuotedSnapshotHeading/fenced-*` (`internal/le/hookruntime`) | fence branches removed from `preserveState` | red on SERVER (2026-11-11), "SERVER unit red walks of the ported carriers" |
+| A closing-looking marker indented four or more spaces closed the fence | three-space limit in `fenceMarker` | `TestStopSummaryPreservesIndentedFenceContents`, paired with `TestStopSummaryClosesFencesIndentedAtMostThreeSpaces` | indent limit removed | red on SERVER (2026-11-11), same section |
+| An inline span such as ```` ```x``` ```` opened a false fence and swallowed the snapshots after it | a backtick in a backtick info string is no fence | `TestStopSummaryKeepsInlineBackticksOutsideFenceState` | backtick test removed | red on SERVER (2026-11-11), same section |
+| A `# Session State` line below the first was read as the title and cut the block holding it | only line one is the title | `TestStopSummaryPreservesQuotedSnapshotHeading/fenced-title` | title matched on any line | red on SERVER (2026-11-11), same section |
+| The separator after an authored block stayed inside it and the join wrote a second one, one more per rotation | a column-zero `---` ends the block before it | `TestStopSummaryWritesOneSeparatorBetweenBlocks` | separator no longer flushes the block | red on SERVER (2026-11-11), same section |
+| `writeRenderedRule` named only `./le ai rules update render`, so an edited rule left `CORE.md` and `TRIGGERS.md` stale | the refusal names `./le ai rules update render` then `./le ai rules update condensed`, each on its own line; the catalog site requires both | `TestRenderedRuleRefusalNamesBothGenerators`, `TestRenderedRuleNeedleMatchesProducer` | the single-command wording restored | red on SERVER (2026-11-11) at both carriers, same section |
 
 The catalog site gains a second required needle and keeps its exit-2
 refusal, so it proves more than before. The three seals
@@ -3855,12 +3855,12 @@ purpose. Mac logs and proposals named here are copied to
 | Item | On SERVER | Proof state |
 | --- | --- | --- |
 | P-18 gokrazy cancellation carrier | `TestGokrazyBuildCancelEndsTheGrandchildren` (`internal/le/test/deployment/gokrazyroot_test.go`) waits on `owned.Done()` for at most 10s, and a timeout joins owned cleanup through `owned.Close()` before it fails | The Mac's independently approved proposal (`p18-gokrazy-bounded-wait-proposal.patch`) is applied; bounded baseline, cut and restored runs owed |
-| P-13 broadcast interleaving | `internal/chaos/web/broadcast_snapshot_interleaving_test.go`, verbatim; the package's non-test source is identical to the Mac's | Native cut and restored runs owed; the Mac's hash-bound overlay generator is not on this host |
-| P-13 HTMX request lifetime | `capture_htmx_body_integration_test.go` and `capture_htmx_lifecycle_integration_test.go` (`internal/component/web/testing`, build tag `integration`), verbatim | Committed red in `36d3cdf3f3` (`TestBrowserScreenshotNativeWaitsForHTMXBody`, `TestBrowserScreenshotNativeHTMXLifecycle`). The Mac's source-only proposal `p13-htmx-lifecycle-proposal.patch` was never applied there and is not ported; the browser repair and its restored run are owed |
-| P-16 positive criteria at both entries | `TestPositiveCriteriaReachCarriedCommit` (`internal/le/commit`) and `TestPositiveCriteriaReachPreWriteHook` (`internal/le/hookruntime`), verbatim; their fixtures and `internal/le/spec/mechanisms/criteria.go` are identical to the Mac's | Pass in `36d3cdf3f3`'s record; the walk is owed |
+| P-13 broadcast interleaving | `internal/chaos/web/broadcast_snapshot_interleaving_test.go`, verbatim; the package's non-test source is identical to the Mac's | Red on SERVER (2026-11-11) under the Mac generator's seven `dashboard.go` edits, reproduced against this tree (`tmp/mac-port/logs/10/p13-broadcast-overlay-generator`); see "SERVER unit red walks of the ported carriers" |
+| P-13 HTMX request lifetime | `capture_htmx_body_integration_test.go` and `capture_htmx_lifecycle_integration_test.go` (`internal/component/web/testing`, build tag `integration`), verbatim | Committed red in `36d3cdf3f3` (`TestBrowserScreenshotNativeWaitsForHTMXBody`, `TestBrowserScreenshotNativeHTMXLifecycle`). Repaired in `7b5d645b94` (2026-11-11): the Mac's `p13-htmx-lifecycle-proposal.patch`, reviewed against this tree by an independent agent that added the hx-sse and comment corrections. Baseline on SERVER before the repair: both fail, "the real capture predicate accepted headers before the finite HTMX body and swap completed" and, for `awaited-swap` and `removed-source`, "capture readiness accepted the actual pending HTMX body/swap". Repaired: both pass, all eight lifecycle cases. Red walk through a compiler overlay removing the two listeners (`tmp/session/2026-11-11-004732/scratch/walks/p13-htmx-break.patch`, `p13-htmx-broken.log`): the body test, `awaited-swap` and `removed-source` fail again; `request-failure`, `body-failure`, `abort-*` and `cancel-*` stay green, as they guard against a stuck counter. `test/web/lg-stream-swaps.wb` and `lg-stream-error.wb` (hx-sse pages) pass on the repair. The "cleanup incomplete: signal: killed" lines in the Mac's `test-10-htmx.log` came from the agent-browser daemon hanging at `set viewport` there; no SERVER run printed it, so it is not recorded as a SERVER defect |
+| P-16 positive criteria at both entries | `TestPositiveCriteriaReachCarriedCommit` (`internal/le/commit`) and `TestPositiveCriteriaReachPreWriteHook` (`internal/le/hookruntime`), verbatim; their fixtures and `internal/le/spec/mechanisms/criteria.go` are identical to the Mac's | Pass in `36d3cdf3f3`'s record; red at both entries on SERVER (2026-11-11), "SERVER unit red walks of the ported carriers" |
 | P-24 design-admission fixture | `internal/le/spec/testdata/design-admission.json` completed as recorded below; its `ai/skills/ze-spec.md` range is `211-275` here, because SERVER's `ze-spec.md` has three more lines above that section than the Mac's. The fixture here is SHA256 `4633cf2562f177c2b77b0cdd8cce43fa020488365ff8c5a5f129b33f347d316c`, not the Mac's `938f2f52...`. The nil-input correction (`p24-model-proof/nil-preservation-proposal.json`) was judged APPROVE (b) on SERVER by an independent `ze-test-judge` (2026-11-11) and applied: 84 leaves, 9 design fields in each of 8 design targets and 2 criterion fields in each of 6 AC-2 objects, no before-value mismatch; the fixture is now SHA256 `cdb562cc2d8c4e1c58d6bd1297c056d12c6073051249be2a9fd75c17290857fa`. No Go test reads it | The observations below ran on the Mac's pre-correction bytes; fresh observations over the corrected inputs are owed |
-| P-14 real vendor publication | `internal/le/setup/vendor_real_publication_test.go`, verbatim; `internal/le/setup` and `internal/le/vendorpatch` are identical to the Mac's | Passes in `36d3cdf3f3`'s record; the walk is owed |
-| RFC 7296 correction provenance | `TestOwnedDocumentDisposition` (`internal/le/rfc`) also requires `RFC7296-2.1-1` retired, which `rfc/corrections/rfc7296.md` records | Passes in `36d3cdf3f3`'s record; the walk is owed |
+| P-14 real vendor publication | `internal/le/setup/vendor_real_publication_test.go`, verbatim; `internal/le/setup` and `internal/le/vendorpatch` are identical to the Mac's | Passes in `36d3cdf3f3`'s record; red on SERVER (2026-11-11) under the forward-apply and rollback breaks, "SERVER unit red walks of the ported carriers" |
+| RFC 7296 correction provenance | `TestOwnedDocumentDisposition` (`internal/le/rfc`) also requires `RFC7296-2.1-1` retired, which `rfc/corrections/rfc7296.md` records | Passes in `36d3cdf3f3`'s record; red on SERVER (2026-11-11) when the retirement loses its provenance, "SERVER unit red walks of the ported carriers" |
 | P-12 (a) LOCAL_PREF batching | `internal/le/interoplab/bgp/check_local_pref_batch_test.go` with the repair Thomas authorized, committed in `d645d0357b`: `check_local_pref_wire.go` accepts the fence in either NLRI order inside the UPDATE that completes the three subjects (RFC 4271 Section 4.3: "An UPDATE message is used to advertise feasible routes that share common path attributes to a peer"), replacing `7081cfdfa7`'s in-UPDATE NLRI-order rule; "fence then third" is accepted, and a fence in an earlier UPDATE than the third subject is refused | Settled: the independent judge approved the change for `bgp.TestLocalPrefStripChecksDestinationWire` (the `Weakening-approved:` line in `d645d0357b`), which records `TestLocalPrefStrip*` passing. Owed: the lab red walk on `bgp-local-pref-strip-gobgp` (break the rule in the checker or in Ze's `applyFactsLocalPref`, rebuild, red, restore, green) and the discrimination record |
 
 Not ported. The P-32 ambient capture work (the generation guard in
@@ -3934,6 +3934,37 @@ ACCEPT. Future model execution still takes the maintained frozen input without
 runtime completion or expected verdicts. This remains a probabilistic manual
 harness judgment, not a deterministic native CLI analyzer.
 
+### P-24: fresh observations over the corrected fixture (SERVER, 2026-11-11)
+
+Inputs decoded from the corrected fixture (SHA256 `cdb562cc...57fa`), exact
+raw bytes of each `frozen-model-inputs` member plus one newline, numbered as
+the Mac's `maintained-inputs`. Against the Mac's set only the nine
+nil-preservation design members (all seven inputs) and the two AC-2 criterion
+members (inputs 03 to 07) differ. The reviewer instruction and the five
+current canonical extracts (`ze-spec.md` 211-275, `ze-design.md` 40-52,
+`ze-review-spec.md` 41, `TEMPLATE.md` 54-134 and 173-186) are byte-identical
+to the Mac's. Payloads are in `tmp/session/2026-11-11-004732/scratch/p24-fresh/out/`;
+the case mapping and expected assertions were moved out of that directory to
+`../p24-main-only/` before any reviewer ran. Each reviewer was a fresh agent
+context told to read only the instruction, its one input and the five extracts.
+
+| Input (SHA256 prefix) | Case (MAIN only) | Expected | Actual |
+| --- | --- | --- | --- |
+| 01 `8af989fe` | absence-only | REWORK | REWORK: AC-1 states only an absence and names no permitted survivors |
+| 02 `271b160f` | missing survivor rationale | REWORK | REWORK: AC-1 has no permitted-survivor rationale |
+| 03 `4a5fffdf` | missing Go writer | REWORK | REWORK: no census row for `writer.go PublishRoutes` |
+| 04 `8edf2a42` | missing shell reader | REWORK | REWORK: no census row for `reader.sh` |
+| 05 `119d9ed9` | missing Python reader | REWORK | REWORK: no census row for `reader.py installed_prefixes` |
+| 06 `0252587c` | corrected record | ACCEPT | ACCEPT; checks that nil stays `{"routes":null}` under "No other behavior changes" |
+| 07 `9d754778` | unsupported source | UNJUDGEABLE | UNJUDGEABLE: no source to derive the census from |
+
+All seven match. No reviewer raised the nil-input scope defect that
+`/root/design_observation_12` found on the Mac's pre-correction bytes; three
+(02, 04, 05) checked the nil and empty boundaries against the source and found
+them consistent. This is a probabilistic harness-model regression, one
+observation per input, not a deterministic check; the serving-model build
+identifier is not exposed.
+
 ### P-18: fault-run cleanup admission (Mac)
 
 Source review caught six unsafe proposed cuts before execution: the guest
@@ -3951,3 +3982,57 @@ timeout is not accepted as child cleanup.
 
 The proposals are copied to `tmp/mac-port/logs/10/`. Of them only the gokrazy
 bounded-wait proposal is applied on SERVER, committed in `36d3cdf3f3` (row above).
+
+## SERVER unit red walks of the ported carriers (2026-11-11)
+
+Each walk ran through `./le test redwalk check break <patch> unit <Test>
+package <pkg>`: a clean pass, then the break handed to the compiler as an
+overlay, never written to the tracked file, so the clean run is also the
+restored state. The breaks reproduce the Mac's overlay generators
+(`tmp/mac-port/logs/10/p13-*`, `p14-*`, `p25-*`, `p28-*`) against this tree's
+bytes, and the P-8 and P-16 breaks follow the Break column of their tables.
+Patches and logs: `tmp/session/2026-11-11-004732/scratch/walks/`
+(`<break>.patch`, `walk-<break>-<Test>.log`, `batch-verdicts.txt`). No carrier
+package depends on `internal/le/repo/inventory`.
+
+| Obligation | Break | Carrier (package) | Red |
+| --- | --- | --- | --- |
+| P-8 | fence branches removed from `preserveState` | `TestStopSummaryPreservesQuotedSnapshotHeading` (`hookruntime`) | "Stop summary split or deleted authored handoff bytes" |
+| P-8 | title matched on any line | same | same |
+| P-8 | fence indent limit removed | `TestStopSummaryPreservesIndentedFenceContents` | same |
+| P-8 | backtick-info test removed | `TestStopSummaryKeepsInlineBackticksOutsideFenceState` | "Stop summary retained a fourth real snapshot" |
+| P-8 | separator no longer flushes the block | `TestStopSummaryWritesOneSeparatorBetweenBlocks` | "rotated state holds 5 separators, want 4" |
+| P-8 | single-command rendered-rule wording restored | `TestRenderedRuleRefusalNamesBothGenerators` (`hookruntime`) | "generated-rule refusal lacks exact next step \"./le ai rules update condensed\" on its own line" |
+| P-8 | same | `TestRenderedRuleNeedleMatchesProducer` (`ai/hooks`) | "expects \"./le ai rules update condensed\", which the producer does not print" |
+| P-13 | the Mac's seven snapshot-window edits in `dashboard.go` | `TestDashboardBroadcastSerializesClockAndEventSnapshot` (`internal/chaos/web`) | "first complete message count = 4, want 3" |
+| P-14 | forward apply runs as a check | `TestVendoringPublishesActualPatchedReplacement` (`setup`) | "actual published/staged dependency bytes = ... Upstream = 42 ..., want the real applied patch" |
+| P-14 | rollback omitted | `TestPublishVendorRestoresOriginalAfterSecondRenameFailure` | "rollback did not restore original.go" |
+| P-14 | schema registration omitted (Mac cut) | `TestThisBinaryLinksEveryModuleItsSchemaImports` (`config/cli`) | "this binary's schema does not resolve, so a module it imports is not linked" |
+| P-14 | FlowSpec VPN RD omitted (Mac cut) | `TestParseConfigRoute_FlowSpecVPN` (`nlri/flowspec`) | "VPN NLRI missing RD bytes" |
+| P-16 | absence check disabled in `criteria.go` | `TestPositiveCriteriaReachCarriedCommit` (`commit`) | "carried criterion = <nil>, want refusal \"AC-1 states only an absence\"" |
+| P-16 | same | `TestPositiveCriteriaReachPreWriteHook` (`hookruntime`) | "criterion entry = 0, want 2 and \"AC-1 states only an absence\"" |
+| P-25 | `RFC7296-2.1-1` retirement loses its correction provenance | `TestOwnedDocumentDisposition` (`rfc`) | "retired RFC7296 fragmentation recommendation lost correction provenance" |
+| P-25 | RFC 9117 shortest cover chosen | `TestRFC9117AuthorizationUsesLongestCoveringRoute` (`rib`) | "eligibility = false, want true" |
+| P-25 | RFC 9117 peer ASN | `TestFlowSpecAuthorizationFromReceivedUpdates` (`rib`) | "eligibility = false, want true" |
+| P-25 | RFC 9117 originator mismatch accepted | same | "eligibility = true, want false" |
+| P-25 | RFC 8247 method 1 instead of 14 | `TestRFC7427DigitalSignatureMethodIsUsed` (`ike/engine`) | "AUTH method = 1 is a legacy signature method; RFC 7427 Section 3 requires method 14" |
+| P-25 | RFC 8247 empty AUTH | same | "AUTH payload carries no signature data" |
+| P-25 | Fletcher zero normalization | `TestFletcherRFC905Vectors` (`ospf/types`) | "FletcherChecksum = 0x1500, want 0x15ff" |
+| P-28 | ordinary classification | `TestGeneratedBulkAttributesFollowOPEN` (`internal/test/peer`) | "actual OPEN-classified internal=false: LOCAL_PREF count=1 want=0" |
+| P-28 | connmap classification | same | same |
+| P-28 | IPv4 / IPv6 always internal | same | same |
+| P-28 | IPv4 / IPv6 always external | same | "actual OPEN-classified internal=true: LOCAL_PREF count=0 want=1" |
+| P-28 | raw normalization | same | "raw hex was changed" |
+| P-28 | active inject, passive identity; passive inject classification | `TestGeneratedInjectAttributesFollowOPEN` | "actual OPEN-classified internal=false: LOCAL_PREF count=1 want=0" |
+| P-12 (a) | the `7081cfdfa7` in-UPDATE NLRI-order rule restored in `check_local_pref_wire.go` | `TestLocalPrefStripAcceptsBatchedFence` (`interoplab/bgp`) | "LOCAL_PREF FIFO fence preceded all three separate subjects" on the clean batched interval |
+
+Two P-28 cuts first failed to walk on this tree, as cut defects rather than
+test results. The connmap cut, verbatim from the Mac, left `zeOpen` unused here
+and did not compile (`not-a-red`); it now also discards `zeOpen`. The
+raw-normalization cut compared the send action with a lowercase literal, but
+this tree's checker uppercases send hex (`checker.go`, the `action=send` arm),
+so it never fired and the walk read `green`; it now compares with
+`strings.EqualFold`. Both re-walked red (`walk2-*.log`). The lab half of
+P-12 (a) is the `./le rfc record` run against `applyFactsLocalPref`; the host
+`le` is not rebuilt by a scenario walk, so only the unit walk above reaches the
+checker break.
