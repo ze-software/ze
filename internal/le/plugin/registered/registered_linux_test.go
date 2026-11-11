@@ -18,12 +18,14 @@ import (
 //
 // VALIDATES: a `ze` built with the daemon tags answers `show plugin list`
 // with exactly the plugins repoinventory.DeclaredPlugins reads from the
-// committed source, each with the same description, RFCs, capability codes
-// and families, and no row is a plugin that recorded setup without
-// registering.
+// committed source, each with the same description, RFCs, capability codes,
+// families, config roots, dependencies, optional dependencies, start-after
+// names, features and YANG, NLRI decoder and NLRI encoder presence, and no
+// row is a plugin that recorded setup without registering.
 // PREVENTS: a registration the declared walk cannot see (one moved behind a
-// call the walk treats as opaque) shipping unlisted, and a declared plugin
-// the build never registers being published as shipped.
+// call the walk treats as opaque) shipping unlisted, a declared plugin the
+// build never registers being published as shipped, and metadata written by
+// code the walk does not read publishing a value the binary does not hold.
 //
 // Method: build cmd/ze from the checkout, run its `show plugin list` in the
 // JSON rendering, and compare with the declared walk of HEAD. Linux only:

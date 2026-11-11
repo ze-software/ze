@@ -85,3 +85,80 @@ func TestCompareNamesEveryDifference(t *testing.T) {
 		t.Error("Compare accepted an empty runtime list")
 	}
 }
+
+// TestCompareNamesEachRegistrationField proves every field the two sides share
+// is compared, one field at a time.
+//
+// VALIDATES: for each of config roots, dependencies, optional dependencies,
+// start-after, features, yang, nlri-decoder and nlri-encoder, Compare accepts
+// a row equal to the declared plugin and names that field, with both values,
+// when only it differs.
+// PREVENTS: registration metadata written by code the declared walk reads as
+// opaque, or a field the runtime row drops, passing as equal.
+func TestCompareNamesEachRegistrationField(t *testing.T) {
+	declared := []repoinventory.Plugin{{
+		Name: "a", Description: "A",
+		ConfigRoots: []string{"bgp"}, Dependencies: []string{"b"},
+		OptionalDependencies: []string{"c"}, StartAfter: []string{"d"},
+		Features: "nlri yang", HasYANG: true, HasDecoder: true,
+	}}
+	base := Row{
+		Name: "a", Description: "A",
+		ConfigRoots: []string{"bgp"}, Dependencies: []string{"b"},
+		OptionalDependencies: []string{"c"}, StartAfter: []string{"d"},
+		Features: "nlri yang", YANG: true, NLRIDecoder: true, Outcome: "unknown",
+	}
+	if err := Compare(declared, []Row{base}); err != nil {
+		t.Fatalf("Compare refused an equal row: %v", err)
+	}
+
+	cases := []struct {
+		field string
+		edit  func(*Row)
+		want  string
+	}{
+		{"config-roots", func(r *Row) { r.ConfigRoots = nil }, `plugin "a" config-roots: declared [bgp], registered []`},
+		{"dependencies", func(r *Row) { r.Dependencies = []string{"b", "e"} }, `plugin "a" dependencies: declared [b], registered [b e]`},
+		{"optional-dependencies", func(r *Row) { r.OptionalDependencies = []string{"x"} }, `plugin "a" optional-dependencies: declared [c], registered [x]`},
+		{"start-after", func(r *Row) { r.StartAfter = nil }, `plugin "a" start-after: declared [d], registered []`},
+		{"features", func(r *Row) { r.Features = "nlri" }, `plugin "a" features: declared "nlri yang", registered "nlri"`},
+		{"yang", func(r *Row) { r.YANG = false }, `plugin "a" yang: declared true, registered false`},
+		{"nlri-decoder", func(r *Row) { r.NLRIDecoder = false }, `plugin "a" nlri-decoder: declared true, registered false`},
+		{"nlri-encoder", func(r *Row) { r.NLRIEncoder = true }, `plugin "a" nlri-encoder: declared false, registered true`},
+	}
+	for _, tc := range cases {
+		row := base
+		tc.edit(&row)
+		err := Compare(declared, []Row{row})
+		if err == nil {
+			t.Errorf("%s: Compare accepted a row whose %s differs", tc.field, tc.field)
+			continue
+		}
+		if !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: Compare error lacks %q:\n%v", tc.field, tc.want, err)
+		}
+		if strings.Count(err.Error(), "\n  ") != 1 {
+			t.Errorf("%s: Compare named more than the one differing field:\n%v", tc.field, err)
+		}
+	}
+}
+
+// TestParseRowsReadsEveryRegistrationKey proves the row keys ParseRows reads
+// are the keys `show plugin list` writes, so a renamed key reaches Compare as
+// a difference rather than as a silent zero on both sides.
+//
+// VALIDATES: each kebab-case key PluginInfo writes lands in its Row field.
+// PREVENTS: a misspelled JSON tag making a field compare empty with empty.
+func TestParseRowsReadsEveryRegistrationKey(t *testing.T) {
+	rows, err := ParseRows([]byte(`[{"name":"a","outcome":"unknown","config-roots":["bgp"],` +
+		`"dependencies":["b"],"optional-dependencies":["c"],"start-after":["d"],` +
+		`"features":"nlri","yang":true,"nlri-decoder":true,"nlri-encoder":true}]`))
+	if err != nil {
+		t.Fatalf("ParseRows refused a plugin list: %v", err)
+	}
+	row := rows[0]
+	if len(row.ConfigRoots) != 1 || len(row.Dependencies) != 1 || len(row.OptionalDependencies) != 1 ||
+		len(row.StartAfter) != 1 || row.Features != "nlri" || !row.YANG || !row.NLRIDecoder || !row.NLRIEncoder {
+		t.Fatalf("ParseRows = %+v, want every registration key read", row)
+	}
+}

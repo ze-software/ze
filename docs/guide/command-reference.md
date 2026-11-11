@@ -593,6 +593,14 @@ applies to the answer: `show plugin list | json`, `| yaml`, `| table`, `| count`
 | `families` | The address families it handles, when it declares any |
 | `rfcs` | The RFCs it implements, when it declares any |
 | `capabilities` | The BGP capability codes it owns, when it declares any |
+| `config-roots` | The config roots whose presence loads it, when it declares any |
+| `dependencies` | The plugins that must load with it, when it declares any |
+| `optional-dependencies` | The plugins it uses when they are loaded, when it declares any |
+| `start-after` | The plugins it starts after when both are selected, when it declares any |
+| `features` | Its space-separated feature list, when it declares one |
+| `yang` | `true` when it carries a YANG schema. Absent otherwise |
+| `nlri-decoder` | `true` when it decodes NLRI in process. Absent otherwise |
+| `nlri-encoder` | `true` when it encodes NLRI in process. Absent otherwise |
 | `reason` | What the plugin said about a failure. Absent when it gave none |
 
 `unknown` means the plugin registered and recorded nothing. It is not an error,

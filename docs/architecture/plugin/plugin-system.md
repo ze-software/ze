@@ -85,7 +85,12 @@ runtime one. It builds `ze` from the checkout with the daemon tags
 `show plugin list` through `ze cli -c "show plugin list | json"` (answered in
 that process, never by a daemon), and requires the rows to name exactly the
 plugins `repoinventory.DeclaredPlugins` reads from HEAD, with equal
-description, RFCs, capability codes and families. A plugin on one side only is
+description, RFCs, capability codes, families, config roots, dependencies,
+optional dependencies, start-after names and features, and the same answer to
+whether each carries a YANG schema, an in-process NLRI decoder and an
+in-process NLRI encoder: every field the row and the walk both carry. The
+walk's `SourceDir` and `YANGFiles` are checkout paths a binary does not hold,
+and are not compared. A plugin on one side only is
 named with its side, and an empty or unparsable runtime list is refused rather
 than compared. The binary is built from the working tree, so on a dirty
 checkout the failure lists the uncommitted Go files.

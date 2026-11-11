@@ -47,14 +47,24 @@ const listTimeout = time.Minute
 const listCommand = "show plugin list | json"
 
 // Row is one row of `show plugin list` in its JSON rendering: the fields
-// pluginRow writes (internal/component/plugin/register.go).
+// pluginRow writes (internal/component/plugin/register.go, PluginInfo in
+// resolve.go). The three booleans are omitted when false, so an absent key
+// reads as false, which is what the row means by leaving it out.
 type Row struct {
-	Name         string   `json:"name"`
-	Description  string   `json:"description"`
-	RFCs         []string `json:"rfcs"`
-	Capabilities []int    `json:"capabilities"`
-	Families     []string `json:"families"`
-	Outcome      string   `json:"outcome"`
+	Name                 string   `json:"name"`
+	Description          string   `json:"description"`
+	RFCs                 []string `json:"rfcs"`
+	Capabilities         []int    `json:"capabilities"`
+	Families             []string `json:"families"`
+	ConfigRoots          []string `json:"config-roots"`
+	Dependencies         []string `json:"dependencies"`
+	OptionalDependencies []string `json:"optional-dependencies"`
+	StartAfter           []string `json:"start-after"`
+	Features             string   `json:"features"`
+	YANG                 bool     `json:"yang"`
+	NLRIDecoder          bool     `json:"nlri-decoder"`
+	NLRIEncoder          bool     `json:"nlri-encoder"`
+	Outcome              string   `json:"outcome"`
 }
 
 // BuildZe compiles cmd/ze from the checkout at root into dir, for Linux on
@@ -139,8 +149,14 @@ func ParseRows(data []byte) ([]Row, error) {
 }
 
 // Compare answers nil when the runtime rows name exactly the declared plugins
-// with the same description, RFCs, capability codes and families, and an
-// error naming every difference otherwise.
+// with the same description, RFCs, capability codes, families, config roots,
+// dependencies, optional dependencies, start-after names and features, and
+// the same answer to whether each carries a YANG schema, an NLRI decoder and
+// an NLRI encoder; and an error naming every difference otherwise.
+//
+// SourceDir and YANGFiles are not compared: they are paths in the checkout,
+// which the walk derives beside the registration and a built binary does not
+// carry.
 //
 // A plugin on one side only is named with the side it is on. A plugin that
 // recorded a setup outcome and never registered reaches the rows with a
@@ -194,13 +210,6 @@ func fieldDifferences(plugin *repoinventory.Plugin, row *Row) []string {
 		differences = append(differences, prefix+"description: declared "+strconv.Quote(plugin.Description)+
 			", registered "+strconv.Quote(row.Description))
 	}
-	if !slices.Equal(plugin.RFCs, row.RFCs) {
-		differences = append(differences, prefix+"rfcs: declared "+list(plugin.RFCs)+", registered "+list(row.RFCs))
-	}
-	if !slices.Equal(plugin.Families, row.Families) {
-		differences = append(differences, prefix+"families: declared "+list(plugin.Families)+
-			", registered "+list(row.Families))
-	}
 	declaredCodes := make([]string, len(plugin.Capabilities))
 	for index, code := range plugin.Capabilities {
 		declaredCodes[index] = strconv.Itoa(int(code))
@@ -209,9 +218,39 @@ func fieldDifferences(plugin *repoinventory.Plugin, row *Row) []string {
 	for index, code := range row.Capabilities {
 		registeredCodes[index] = strconv.Itoa(code)
 	}
-	if !slices.Equal(declaredCodes, registeredCodes) {
-		differences = append(differences, prefix+"capabilities: declared "+list(declaredCodes)+
-			", registered "+list(registeredCodes))
+	for _, field := range []struct {
+		name                 string
+		declared, registered []string
+	}{
+		{"rfcs", plugin.RFCs, row.RFCs},
+		{"families", plugin.Families, row.Families},
+		{"capabilities", declaredCodes, registeredCodes},
+		{"config-roots", plugin.ConfigRoots, row.ConfigRoots},
+		{"dependencies", plugin.Dependencies, row.Dependencies},
+		{"optional-dependencies", plugin.OptionalDependencies, row.OptionalDependencies},
+		{"start-after", plugin.StartAfter, row.StartAfter},
+	} {
+		if !slices.Equal(field.declared, field.registered) {
+			differences = append(differences, prefix+field.name+": declared "+list(field.declared)+
+				", registered "+list(field.registered))
+		}
+	}
+	if plugin.Features != row.Features {
+		differences = append(differences, prefix+"features: declared "+strconv.Quote(plugin.Features)+
+			", registered "+strconv.Quote(row.Features))
+	}
+	for _, field := range []struct {
+		name                 string
+		declared, registered bool
+	}{
+		{"yang", plugin.HasYANG, row.YANG},
+		{"nlri-decoder", plugin.HasDecoder, row.NLRIDecoder},
+		{"nlri-encoder", plugin.HasEncoder, row.NLRIEncoder},
+	} {
+		if field.declared != field.registered {
+			differences = append(differences, prefix+field.name+": declared "+strconv.FormatBool(field.declared)+
+				", registered "+strconv.FormatBool(field.registered))
+		}
 	}
 	return differences
 }

@@ -59,8 +59,10 @@ func init() {
 	command.MustRegisterLocalData("show plugin list", dataPlugins, cmdregistry.Meta{
 		ShortHelp: "Every plugin compiled into this binary, with its setup outcome.",
 		Description: "One row is written for each plugin the binary links. The row names the " +
-			"families it registers, the RFCs it implements and the capability codes it " +
-			"negotiates, beside the outcome its own init() recorded and the reason for it.",
+			"families it registers, the RFCs it implements, the capability codes it " +
+			"negotiates, the config roots that load it, the plugins it depends on or starts " +
+			"after, its features, and whether it carries a YANG schema and an NLRI decoder " +
+			"or encoder, beside the outcome its own init() recorded and the reason for it.",
 		Mode: modeOffline,
 	}, command.RenderLocalAnswer)
 
@@ -70,7 +72,9 @@ func init() {
 	// long cell in the middle pushes the short ones off the terminal.
 	command.RegisterShape([]string{"show plugin list"}, command.ShapeTab)
 	command.RegisterColumns([]string{"show plugin list"},
-		command.ColumnOrder{"name", "description", "outcome", "families", "rfcs", "capabilities", "reason"},
+		command.ColumnOrder{"name", "description", "outcome", "families", "rfcs", "capabilities",
+			"config-roots", "dependencies", "optional-dependencies", "start-after", "features",
+			"yang", "nlri-decoder", "nlri-encoder", "reason"},
 	)
 
 	// `show plugin declarations` is the second command on this noun: the list

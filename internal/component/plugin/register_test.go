@@ -199,7 +199,9 @@ func TestShowPluginListDeclaresItsShapeAndColumns(t *testing.T) {
 	if len(orders) != 1 {
 		t.Fatalf("show plugin list declares %d column orders, want 1", len(orders))
 	}
-	if strings.Join(orders[0], ",") != "name,description,outcome,families,rfcs,capabilities,reason" {
+	if strings.Join(orders[0], ",") != "name,description,outcome,families,rfcs,capabilities,"+
+		"config-roots,dependencies,optional-dependencies,start-after,features,"+
+		"yang,nlri-decoder,nlri-encoder,reason" {
 		t.Errorf("declared columns = %v", orders[0])
 	}
 }

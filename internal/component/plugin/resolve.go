@@ -34,13 +34,28 @@ type ResolvedPlugin struct {
 	Command []string // For external: binary and args to exec
 }
 
-// PluginInfo contains metadata about an internal plugin.
+// PluginInfo contains metadata about an internal plugin: the descriptive
+// fields of its registry.Registration, the ones an operator reads to learn what
+// the plugin is, what loads it and what it needs.
+//
+// Each field copies one Registration field. The three booleans answer whether
+// the plugin carries a YANG schema, an in-process NLRI decoder and an
+// in-process NLRI encoder; they omit false so a row names only what the plugin
+// has.
 type PluginInfo struct {
-	Name         string   `json:"name"`                   // Plugin name (e.g., "flowspec")
-	Description  string   `json:"description"`            // Human-readable description
-	RFCs         []string `json:"rfcs,omitempty"`         // Related RFCs
-	Capabilities []int    `json:"capabilities,omitempty"` // Capability codes this plugin handles
-	Families     []string `json:"families,omitempty"`     // Address families this plugin handles
+	Name                 string   `json:"name"`                            // Plugin name (e.g., "flowspec")
+	Description          string   `json:"description"`                     // Human-readable description
+	RFCs                 []string `json:"rfcs,omitempty"`                  // Related RFCs
+	Capabilities         []int    `json:"capabilities,omitempty"`          // Capability codes this plugin handles
+	Families             []string `json:"families,omitempty"`              // Address families this plugin handles
+	ConfigRoots          []string `json:"config-roots,omitempty"`          // Config roots whose presence auto-loads it
+	Dependencies         []string `json:"dependencies,omitempty"`          // Plugins that MUST load with it
+	OptionalDependencies []string `json:"optional-dependencies,omitempty"` // Plugins it uses when present
+	StartAfter           []string `json:"start-after,omitempty"`           // Order-only prerequisites
+	Features             string   `json:"features,omitempty"`              // Space-separated feature list
+	YANG                 bool     `json:"yang,omitempty"`                  // It carries a YANG schema
+	NLRIDecoder          bool     `json:"nlri-decoder,omitempty"`          // It decodes NLRI in process
+	NLRIEncoder          bool     `json:"nlri-encoder,omitempty"`          // It encodes NLRI in process
 }
 
 // AvailableInternalPlugins returns the list of internal plugin names.
@@ -56,19 +71,32 @@ func InternalPluginInfo() []PluginInfo {
 	regs := registry.All()
 	result := make([]PluginInfo, 0, len(regs))
 	for _, reg := range regs {
-		info := PluginInfo{
-			Name:        reg.Name,
-			Description: reg.Description,
-			RFCs:        reg.RFCs,
-			Families:    reg.Families,
-		}
-		// Convert uint8 capability codes to int for JSON compatibility.
-		for _, c := range reg.CapabilityCodes {
-			info.Capabilities = append(info.Capabilities, int(c))
-		}
-		result = append(result, info)
+		result = append(result, pluginInfo(reg))
 	}
 	return result
+}
+
+// pluginInfo copies the descriptive fields of one registration into its row.
+func pluginInfo(reg *registry.Registration) PluginInfo {
+	info := PluginInfo{
+		Name:                 reg.Name,
+		Description:          reg.Description,
+		RFCs:                 reg.RFCs,
+		Families:             reg.Families,
+		ConfigRoots:          reg.ConfigRoots,
+		Dependencies:         reg.Dependencies,
+		OptionalDependencies: reg.OptionalDependencies,
+		StartAfter:           reg.StartAfter,
+		Features:             reg.Features,
+		YANG:                 reg.YANG != "",
+		NLRIDecoder:          reg.InProcessNLRIDecoder != nil,
+		NLRIEncoder:          reg.InProcessNLRIEncoder != nil,
+	}
+	// Convert uint8 capability codes to int for JSON compatibility.
+	for _, c := range reg.CapabilityCodes {
+		info.Capabilities = append(info.Capabilities, int(c))
+	}
+	return info
 }
 
 // defaultEventNamespace holds the event namespace under which plugin-declared
