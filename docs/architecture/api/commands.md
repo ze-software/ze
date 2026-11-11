@@ -1039,9 +1039,18 @@ system command list      # List all commands (builtin + plugin)
 system command list verbose  # List with source (builtin/process name)
 system command help name "<name>"    # Show command details; the bare "<name>" is accepted too
 system command complete partial "<partial>"  # Complete command names; the bare "<partial>" is accepted too
-system command complete args "<cmd>" [<completed>...] "<partial>"  # Arg completion
+system command complete args "<cmd>" [<completed>...] ["<partial>"]  # Arg completion; no partial lists every candidate
 ```
 <!-- source: internal/core/ipc/yang/ze-system-api.yang -- system RPCs -->
+
+A builtin whose argument names runtime state declares an `ArgCompleter` in its
+`RPCRegistration`; `system command complete args` answers it from the daemon,
+and `system command list` marks the command `completable`, so the `ze cli`
+tree asks the daemon at Tab while an SSH session's tree calls the completer in
+the daemon's own process (`docs/architecture/cli/command-completion.md`). A
+plugin command that declared itself completable is answered by its plugin.
+<!-- source: internal/component/plugin/server/arg_completion.go -- ArgCompleter, builtinArgCompletions, WireArgCompletion -->
+<!-- source: internal/component/plugin/server/system.go -- handleSystemCommandComplete, handleArgComplete, commandRows -->
 
 ### Process Lifecycle Commands
 
@@ -1050,6 +1059,7 @@ request shutdown         # Gracefully shutdown
 request reboot           # Gracefully shutdown then reboot the system
 show status              # Show process status
 request reload           # Reload the configuration
+request plugin restart <name>   # Start a configured plugin that is not running again (lifts a respawn-limit disable)
 request data backup path <file> [spare <n>] [force]   # Back up the store to a file on the daemon host
 request data restore path <file> config [name <n>]    # Restore the config from a backup through the reload
 show reload-status       # Show how many config reloads have been processed

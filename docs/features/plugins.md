@@ -135,6 +135,14 @@ configuration asking to restart a plugin that declares it must not be restarted
 stops ze at startup rather than picking a side. `docs/guide/plugins.md` carries
 the table an operator needs.
 
+A configured plugin left down, by its policy, the restart limit, a failed
+restart or a failed startup handshake, is named by `ze doctor` under
+`doctor-plugin-stopped` with the reason, and `ze request plugin restart <name>`
+starts it again without restarting ze. Tab after the command offers the
+configured plugins that are not running.
+
+<!-- source: internal/component/plugin/process/stopped.go -- RecordStopped, RestartCommand -->
+<!-- source: internal/component/plugin/server/register_plugin_restart.go -- handlePluginRestart, completePluginRestart -->
 <!-- source: pkg/plugin/rpc/enums.go -- FailurePolicy -->
 <!-- source: internal/component/plugin/server/failure_policy.go -- (*Server).applyFailurePolicy -->
 

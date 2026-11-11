@@ -12,6 +12,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -35,6 +36,12 @@ func (s *Server) superviseProcess(proc *process.Process) {
 	// it is out of the caller set and has returned before the failure policy
 	// can respawn the plugin, so a respawn never meets the old caller.
 	stopDrainCaller := s.startDrainCaller(proc)
+	// This generation reached running, so the plugin is no longer down: a
+	// stop record from the generation before it (a failed handshake, the
+	// respawn that started this one) is cleared with its bus warning.
+	if pm := s.procManager.Load(); pm != nil {
+		pm.ClearStopped(proc.Name())
+	}
 	s.handleSingleProcessCommandsRPC(proc)
 	stopDrainCaller()
 	s.applyFailurePolicy(proc)
@@ -135,14 +142,17 @@ func (s *Server) applyFailurePolicy(proc *process.Process) {
 		return
 	}
 
-	// Reported before the policy is read, because a plugin that asked not to be
-	// started again still crashed, and `ze doctor` owes an operator that row
-	// whatever ze does next.
-	pm.ReportCrash(name)
+	// Reported before the policy is acted on, because a plugin that asked not
+	// to be started again still crashed, and `ze doctor` owes an operator that
+	// row whatever ze does next.
+	policy := pluginFailurePolicy(proc)
+	exitStatus := proc.ExitStatus()
+	pm.ReportCrash(name, exitStatus, policy.String())
 
-	switch pluginFailurePolicy(proc) {
+	switch policy {
 	case rpc.FailureRestart:
 		logger().Warn("plugin exited, starting it again", "plugin", name)
+		// restartPlugin records the stop itself when the restart fails.
 		if err := s.restartPlugin(name); err != nil {
 			logger().Error("plugin exited and could not be started again, so it stays down",
 				"plugin", name, "error", err)
@@ -150,12 +160,10 @@ func (s *Server) applyFailurePolicy(proc *process.Process) {
 	case rpc.FailureFatal:
 		s.stopDaemonForPlugin(name, "the plugin declares that its failure stops ze")
 	case rpc.FailureIgnore, rpc.FailureUnspecified:
-		logger().Warn("plugin exited and is not to be started again, so ze continues without it",
-			"plugin", name)
+		pm.RecordStopped(name, process.PluginStop{Cause: process.StopPolicyExit, Policy: policy.String(), ExitStatus: exitStatus})
 	default:
 		// Typed plugin registrations are open; unknown policies do not authorize a restart.
-		logger().Warn("plugin exited and is not to be started again, so ze continues without it",
-			"plugin", name)
+		pm.RecordStopped(name, process.PluginStop{Cause: process.StopPolicyExit, Policy: policy.String(), ExitStatus: exitStatus})
 	}
 }
 
@@ -201,7 +209,7 @@ func (s *Server) stopDaemonOnRemovalFailure(proc *process.Process, attempt *plug
 		if pm.GetProcess(proc.Name()) != proc {
 			return
 		}
-		pm.ReportCrash(proc.Name())
+		pm.ReportCrash(proc.Name(), proc.ExitStatus(), pluginFailurePolicy(proc).String())
 		s.stopDaemonForPlugin(proc.Name(), "the fatal plugin failed before acknowledging removal")
 	})
 	return true
@@ -285,8 +293,13 @@ func startupEndedOutsidePlugin(ctx context.Context, cause error) bool {
 // Both are called because they end different waits, and a daemon wires both. A
 // Server with no shutdownFunc, which is an embedded or ad-hoc one, is still
 // stopped by the second: nothing here can succeed silently.
+//
+// The reason is written to the last-stop record first (last_stop.go), because
+// nothing else survives the stop and the next `ze doctor` names it from there.
 func (s *Server) stopDaemonForPlugin(name, reason string) {
-	logger().Error("stopping ze because a plugin failed", "plugin", name, "reason", reason)
+	s.recordStop(LastStopEntry{Reason: LastStopFatalPolicy, Plugin: name, Detail: reason})
+	logger().Error("stopping ze because a plugin failed; run ze doctor after the restart for the recorded cause",
+		"plugin", name, "reason", reason, "code", diagnostic.CodeDoctorPluginFatalStop)
 	if s.shutdownFunc != nil {
 		s.shutdownFunc()
 	}

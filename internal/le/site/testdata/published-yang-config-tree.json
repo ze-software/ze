@@ -23157,7 +23157,7 @@
             ]
           },
           {
-            "description": "States what you expect ze to do when this plugin's process exits. The plugin itself declares\nwhether it may be started again, and this leaf is a request inside that declaration. With no leaf\nhere the plugin's own declaration decides. With 'false' the plugin is left stopped even when it\nwould have been started again. With 'true' against a plugin that declares it must not be\nrestarted, ze refuses to start, and the error names the plugin and the policy it declared: ze\nhonors neither side in silence. The spelling comes from ExaBGP, whose process block carries the\nsame leaf. A restart is bounded at 5 in 60 seconds and 20 in the life of the daemon, after which\nthe plugin is disabled and 'show health' reports plugin-down.",
+            "description": "States what you expect ze to do when this plugin's process exits. The plugin itself declares\nwhether it may be started again, and this leaf is a request inside that declaration. With no leaf\nhere the plugin's own declaration decides. With 'false' the plugin is left stopped even when it\nwould have been started again. With 'true' against a plugin that declares it must not be\nrestarted, ze refuses to start, and the error names the plugin and the policy it declared: ze\nhonors neither side in silence. The spelling comes from ExaBGP, whose process block carries the\nsame leaf. A restart is bounded at 5 in 60 seconds and 20 in the life of the daemon, after which\nthe plugin is disabled and 'show health' reports doctor-plugin-stopped.",
             "kind": "leaf",
             "name": "respawn",
             "short-help": "Respawn on exit",

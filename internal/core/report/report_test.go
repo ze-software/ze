@@ -7,6 +7,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/health"
 )
 
 // VALIDATES: AC-1, single RaiseWarning creates one entry with matching fields and Raised == Updated.
@@ -616,5 +618,66 @@ func TestSequentialConsistency(t *testing.T) {
 	}
 	if gotErrs[0].Subject != "peer-4" {
 		t.Errorf("most recent error: want peer-4, got %s", gotErrs[0].Subject)
+	}
+}
+
+// TestEvictionDegradesProbe proves a health row cannot read healthy over a
+// warning the bus dropped. Method: fill a two-slot bus so the oldest warning,
+// the one a probe filters on, is evicted; the probe must read degraded "report
+// bus full" naming the cap and the fix, Losses must count the eviction, and
+// the owner's clear must end the doubt. A bus below its cap, and an error ring
+// that has not wrapped, read as before.
+//
+// VALIDATES: AC-7 (spec-doctor-coverage-12-plugin-infra).
+// PREVENTS: an evicted doctor-plugin-stopped turning the plugins row healthy
+// (plan/journal/probe-inability-read-as-absence.md).
+func TestEvictionDegradesProbe(t *testing.T) {
+	t.Cleanup(reset)
+
+	resetWithCaps(2, 2)
+	stopped := HealthProbeDown("doctor-plugin-stopped")
+	unrelated := HealthProbeDegraded("never-raised")
+
+	RaiseWarning("plugin", "doctor-plugin-stopped", "p1", "plugin disabled", nil)
+	if status, _ := stopped(); status != health.StatusDown {
+		t.Fatalf("probe with its code active = %s, want down", status)
+	}
+	if loss := Losses(); loss.Lost() {
+		t.Fatalf("Losses below the cap = %+v, want nothing lost", loss)
+	}
+
+	time.Sleep(5 * time.Millisecond)
+	RaiseWarning("test", "a", "s", "m", nil)
+	time.Sleep(5 * time.Millisecond)
+	RaiseWarning("test", "b", "s", "m", nil) // third warning on a cap of two: evicts p1
+
+	status, reason := stopped()
+	if status != health.StatusDegraded {
+		t.Fatalf("probe after its code was evicted = %s (%q), want degraded", status, reason)
+	}
+	for _, want := range []string{"report bus full", "2", envWarningCap} {
+		if !strings.Contains(reason, want) {
+			t.Errorf("degraded reason %q does not name %q", reason, want)
+		}
+	}
+	if status, reason := unrelated(); status != health.StatusHealthy {
+		t.Errorf("probe whose code was never evicted = %s (%q), want healthy", status, reason)
+	}
+	loss := Losses()
+	if loss.WarningsEvicted != 1 || loss.WarningCap != 2 {
+		t.Errorf("Losses = %+v, want 1 warning evicted at cap 2", loss)
+	}
+
+	ClearWarning("plugin", "doctor-plugin-stopped", "p1")
+	if status, reason := stopped(); status != health.StatusHealthy {
+		t.Errorf("probe after the owner cleared the evicted warning = %s (%q), want healthy", status, reason)
+	}
+
+	for i := range 3 {
+		RaiseError("test", "e", "s"+strconv.Itoa(i), "m", nil)
+	}
+	loss = Losses()
+	if loss.ErrorsOverwritten != 1 || loss.ErrorCap != 2 {
+		t.Errorf("Losses after three errors on a ring of two = %+v, want 1 overwritten at cap 2", loss)
 	}
 }

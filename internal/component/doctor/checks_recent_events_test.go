@@ -295,3 +295,46 @@ func TestRecentEventsRendersRaiseFix(t *testing.T) {
 		}
 	}
 }
+
+// TestRecentEventsSkipsWarningAStateCheckOwns proves one fault gives one row:
+// an active warning whose code a runtime check declares (doctor-plugin-stopped,
+// declared by plugin-stopped) is not repeated as a recent-events row, while a
+// warning no check declares and every error event still are.
+func TestRecentEventsSkipsWarningAStateCheckOwns(t *testing.T) {
+	report.ResetForTest()
+	t.Cleanup(report.ResetForTest)
+
+	const owner = "test-state-owner"
+	if err := diagnostic.RegisterDoctorCheck(diagnostic.DoctorCheck{
+		Name: owner, Phase: diagnostic.DoctorPhaseRuntime, Order: 1, Component: "test",
+		Dependencies: []string{"plugin-state"},
+		Platforms:    []string{diagnostic.DoctorPlatformAny}, Codes: []string{diagnostic.CodeDoctorPluginStopped},
+		Check: func(diagnostic.DoctorCheckContext) []diagnostic.Diagnostic { return nil },
+	}); err != nil {
+		t.Fatalf("register owner check: %v", err)
+	}
+	t.Cleanup(func() { diagnostic.UnregisterDoctorCheckForTest(owner) })
+
+	report.RaiseWarning("plugin", diagnostic.CodeDoctorPluginStopped, "p1", "configured plugin p1 is not running")
+	report.RaiseWarning("other", diagnostic.CodeDoctorInternalDefect, "s1", "a warning no check owns")
+	report.RaiseError("plugin", diagnostic.CodeDoctorPluginCrashed, "p1", "plugin process exited unexpectedly: p1")
+
+	rows := checkRecentEvents(diagnostic.DoctorCheckContext{})
+	var stopped, defect, crashed int
+	for _, row := range rows {
+		switch {
+		case strings.Contains(row.Message, "is not running"):
+			stopped++
+		case strings.Contains(row.Message, "no check owns"):
+			defect++
+		case strings.Contains(row.Message, "exited unexpectedly"):
+			crashed++
+		}
+	}
+	if stopped != 0 {
+		t.Errorf("doctor-plugin-stopped rendered %d times by recent-events, want 0: its state check reports it", stopped)
+	}
+	if defect != 1 || crashed != 1 {
+		t.Errorf("unowned warning rows = %d, crash event rows = %d, want 1 and 1", defect, crashed)
+	}
+}

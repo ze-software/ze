@@ -32,6 +32,7 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
+	"slices"
 	"sort"
 	"strconv"
 	"sync"
@@ -187,6 +188,19 @@ type store struct {
 	warningCap int
 	errorCap   int
 	logger     *slog.Logger
+
+	// warningsEvicted counts the active warnings evictOldestWarning dropped,
+	// and errorsOverwritten the error events the ring wrapped over, for the
+	// life of this store. They are what Losses answers.
+	warningsEvicted   uint64
+	errorsOverwritten uint64
+	// evicted holds each evicted warning key until its owner clears it or
+	// raises it again: until then a probe filtering on its code cannot tell
+	// whether the condition still holds. It is bounded by warningCap; past
+	// that bound evictedUntracked is true, and every probe treats its codes as
+	// possibly evicted for the life of the store.
+	evicted          map[warningKey]struct{}
+	evictedUntracked bool
 }
 
 // pkg is the default process-wide store, held atomically so reset() can swap
@@ -243,6 +257,7 @@ func newStore(warningCap, errorCap int) *store {
 		warningCap: warningCap,
 		errorCap:   errorCap,
 		logger:     logger,
+		evicted:    make(map[warningKey]struct{}),
 	}
 }
 
@@ -426,6 +441,8 @@ func (s *store) raiseWarning(source, code, subject, message, fix string, detail 
 		return
 	}
 
+	// Raised again, the warning is visible, so it is no longer in doubt.
+	delete(s.evicted, key)
 	s.warnings[key] = &Issue{
 		Source:   source,
 		Code:     code,
@@ -451,6 +468,8 @@ func (s *store) clearWarning(source, code, subject string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.warnings, key)
+	// The owner says the condition ended, which settles an evicted copy too.
+	delete(s.evicted, key)
 }
 
 func (s *store) clearSource(source string) {
@@ -462,6 +481,11 @@ func (s *store) clearSource(source string) {
 	for k := range s.warnings {
 		if k.source == source {
 			delete(s.warnings, k)
+		}
+	}
+	for k := range s.evicted {
+		if k.source == source {
+			delete(s.evicted, k)
 		}
 	}
 }
@@ -489,6 +513,10 @@ func (s *store) raiseError(source, code, subject, message, fix string, detail ma
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if s.errorCount == s.errorCap {
+		// The ring is full, so this write overwrites the oldest event.
+		s.errorsOverwritten++
+	}
 	s.errors[s.errorHead] = issue
 	s.errorHead = (s.errorHead + 1) % s.errorCap
 	if s.errorCount < s.errorCap {
@@ -547,6 +575,82 @@ func (s *store) evictOldestWarning() {
 		}
 	}
 	delete(s.warnings, oldestKey)
-	s.logger.Warn("warning evicted (cap reached)",
-		"source", oldestKey.source, "code", oldestKey.code, "subject", oldestKey.subject)
+	s.warningsEvicted++
+	if len(s.evicted) < s.warningCap {
+		s.evicted[oldestKey] = struct{}{}
+	} else {
+		s.evictedUntracked = true
+	}
+	s.logger.Warn("report bus full: the oldest active warning was dropped, so show warnings and the health rows no longer see it; export a larger "+envWarningCap,
+		"source", oldestKey.source, "evicted-code", oldestKey.code, "subject", oldestKey.subject,
+		"cap", s.warningCap, "code", CodeReportBusFull)
+}
+
+// mayHaveEvicted reports whether a warning carrying one of codes was evicted
+// and neither cleared nor raised again since, so its absence from the active
+// set proves nothing. Caller MUST hold s.mu (read or write lock).
+func (s *store) mayHaveEvicted(codes []string) bool {
+	if s.evictedUntracked {
+		return true
+	}
+	for k := range s.evicted {
+		if slices.Contains(codes, k.code) {
+			return true
+		}
+	}
+	return false
+}
+
+// CodeReportBusFull is the doctor code that names a full bus. It is spelled
+// here because internal/core/diagnostic, which declares the same spelling as
+// diagnostic.CodeDoctorReportBusFull, imports this package;
+// TestReportBusFullRow (internal/component/plugin/doctor) compares the two.
+const CodeReportBusFull = "doctor-report-bus-full"
+
+// Loss is what the bus has dropped since it started: the active warnings
+// evicted at the warning cap, and the error events the ring overwrote. The
+// caps travel with the counts, so a reader names both, and so do the largest
+// caps the env keys accept, so a fix never proposes one the clamp refuses.
+type Loss struct {
+	WarningsEvicted   uint64
+	WarningCap        int
+	WarningCapMax     int
+	ErrorsOverwritten uint64
+	ErrorCap          int
+	ErrorCapMax       int
+}
+
+// Lost reports whether the bus dropped anything at all.
+func (l Loss) Lost() bool {
+	return l.WarningsEvicted > 0 || l.ErrorsOverwritten > 0
+}
+
+// Losses answers what the bus has dropped. Safe for concurrent use.
+func Losses() Loss {
+	s := pkg.Load()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return Loss{
+		WarningsEvicted:   s.warningsEvicted,
+		WarningCap:        s.warningCap,
+		WarningCapMax:     maxWarningCap,
+		ErrorsOverwritten: s.errorsOverwritten,
+		ErrorCap:          s.errorCap,
+		ErrorCapMax:       maxErrorCap,
+	}
+}
+
+// evictionDoubt answers, for a probe that found none of codes active, whether
+// one of them may have been evicted, with the reason its health row shows. The
+// reason names the cap and the fix, so the row says why it cannot answer.
+func evictionDoubt(codes []string) (bool, string) {
+	s := pkg.Load()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if !s.mayHaveEvicted(codes) {
+		return false, ""
+	}
+	return true, "report bus full: " + string(strconv.AppendUint(nil, s.warningsEvicted, 10)) +
+		" warnings dropped at the cap of " + strconv.Itoa(s.warningCap) +
+		", so this row cannot tell whether its warning is still active; export a larger " + envWarningCap
 }

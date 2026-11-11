@@ -234,12 +234,14 @@ Keys follow a `<namespace>/<qualifier>/<path>` convention to prevent collisions 
 | Namespace | Purpose | Example |
 |-----------|---------|---------|
 | `meta/` | Instance metadata (credentials, identity, flags) | `meta/auth/local/username`, `meta/instance/managed` |
+| `meta/plugin/last-stop` | Why ze last stopped itself because of a plugin (a `fatal` failure policy, a boot refusal) or ran a stop-time cleanup late: JSON entries of reason, plugin, detail and time, written by the plugin server before the stop, deleted on the next clean start, read by the next `ze doctor` | `meta/plugin/last-stop` |
 | `file/active/` | Current committed config files | `file/active/router.conf` |
 | `file/draft/` | Live edits in progress | `file/draft/router.conf` |
 | `file/<date>/` | Historical config version entries, each holding `sha256:<hex>` | `file/20260318-100000.000/router.conf` |
 | `object/` | Config version bytes, named by their lowercase SHA-256; reached by raw key only | `object/9f86d081884c7d65...` |
 | `support/archive/` | A support archive (tar.gz, secrets redacted) the daemon collected for `request support archive` from a caller in another process; `show data cat <key>` reads it back | `support/archive/ze-support-router1-20261102-101500.tar.gz` |
-<!-- source: pkg/zefs/keys.go -- KeyLocalAdminUsername, KeySupportArchive -->
+<!-- source: pkg/zefs/keys.go -- KeyLocalAdminUsername, KeySupportArchive, KeyPluginLastStop -->
+<!-- source: internal/component/plugin/server/last_stop.go -- RecordLastStop, ReadLastStop, clearLastStop -->
 
 The configuration storage layer maps config paths into this key space and also
 exposes raw-key operations for data commands. Its mapping, per-config pointers

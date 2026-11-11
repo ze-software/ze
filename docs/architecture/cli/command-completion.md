@@ -186,8 +186,26 @@ plugin a later reload added.
    missing from.
 2. `ze completion words`. A standalone CLI process with no daemon. It stays
    YANG-only and cannot see live plugin commands.
-3. The daemon's `system command complete` RPC. It already completed plugin
-   commands through `Registry().Complete()`.
+3. The daemon's `system command complete` RPC. It completes plugin commands
+   through `Registry().Complete()`, and with `args "<cmd>"` it answers the
+   values a command's argument may take now. A builtin whose argument names
+   something only the running daemon knows declares an `ArgCompleter` in the
+   `Complete` field of its `RPCRegistration`, beside its handler
+   (`request plugin restart` offers the configured plugins that are not
+   running). `handleArgComplete` asks that completer first and falls back to a
+   `Completable` plugin command's own process. `args "<cmd>"` with no partial
+   lists every candidate, and `system command list` marks each such command
+   `completable`. The interactive trees use it: the SSH session's tree, built
+   in the daemon, gets `Server.WireArgCompletion`, which hangs each completer
+   on its node as value hints, and `ze cli` hangs a hint on every command the
+   list marks completable that asks the daemon `system command complete args`
+   at each Tab. A `ze cli` whose daemon does not answer offers no candidate.
+   Shell completion (path 2) has no daemon and offers no such values.
+<!-- source: internal/component/plugin/server/arg_completion.go -- ArgCompleter, builtinArgCompletions, WireArgCompletion -->
+<!-- source: internal/component/plugin/server/system.go -- handleSystemCommandComplete, handleArgComplete, commandRows -->
+<!-- source: internal/component/plugin/server/register_plugin_restart.go -- completePluginRestart -->
+<!-- source: cmd/ze/hub/session_factory.go -- mergePluginCommands -->
+<!-- source: internal/component/cli/client/inject.go -- wireDaemonArgCompletion, fetchArgCompletions -->
 
 The shell scripts `ze completion <shell>` generates use path 2 for the second
 word of every registered root. A root's second words are the verbs its `Subs`

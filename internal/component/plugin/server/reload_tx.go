@@ -992,6 +992,22 @@ func (s *Server) restartPluginFn() transaction.RestartFunc {
 // transaction.ErrRestartRefused, so the reload answer distinguishes a refused
 // restart from a failed replacement without claiming the old process runs.
 func (s *Server) restartPlugin(pluginName string) error {
+	err := s.restartPluginProcess(pluginName)
+	if err == nil {
+		return nil
+	}
+	// A failed restart leaves the plugin down whatever asked for it (its
+	// failure policy, a reload rollback, `request plugin restart`), so it is
+	// recorded, and doctor-plugin-stopped names it with the error.
+	if pm := s.procManager.Load(); pm != nil {
+		pm.RecordStopped(pluginName, process.PluginStop{Cause: process.StopRestartFailed, Detail: err.Error()})
+	}
+	return err
+}
+
+// restartPluginProcess is the restart itself, the three steps restartPlugin
+// describes.
+func (s *Server) restartPluginProcess(pluginName string) error {
 	if s.spawner == nil {
 		return fmt.Errorf("no plugin spawner available to restart %s", pluginName)
 	}

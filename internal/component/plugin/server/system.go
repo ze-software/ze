@@ -16,6 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -401,7 +402,7 @@ func commandRows(dispatcher *Dispatcher, verbose bool) iter.Seq[rpc.RowRecord] {
 		var encoded rpc.RawRow
 
 		for _, cmd := range dispatcher.Commands() {
-			row := Completion{Value: cmd.Name, ShortHelp: cmd.ShortHelp, Description: cmd.Description}
+			row := Completion{Value: cmd.Name, ShortHelp: cmd.ShortHelp, Description: cmd.Description, Completable: cmd.Complete != nil}
 			if verbose {
 				row.Source = sourceBuiltin
 			}
@@ -509,6 +510,7 @@ func lookupCommandHelp(ctx *CommandContext, name, kind string) (*plugin.Response
 //
 //	system command complete partial "<partial>"           - command completion
 //	system command complete "<partial>"                   - the same, positional
+//	system command complete args "<cmd>"                  - every arg candidate
 //	system command complete args "<cmd>" "<partial>"      - arg completion
 //	system command complete args "<cmd>" <done...> "<partial>"
 func handleSystemCommandComplete(ctx *CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
@@ -523,14 +525,20 @@ func handleSystemCommandComplete(ctx *CommandContext, validated command.Validate
 
 	// Arg completion: the keyword must come before the free-form command string.
 	if args[0] == fieldArgs {
-		if len(args) < 3 {
-			return &plugin.Response{
-				Status: plugin.StatusError,
-				Error:  "usage: system command complete args \"<cmd>\" [<completed>...] \"<partial>\"",
-			}, errMissingPartialInput
+		if len(args) < 2 {
+			return plugin.OperatorErrorResponse(opererr.New(
+				"system command complete args names no command",
+				"argument completion needs the command whose arguments are being completed",
+				`system command complete args "<cmd>" [<completed>...] ["<partial>"]`,
+			)), errMissingPartialInput
 		}
 		cmdName := args[1]
-		partialArg := args[len(args)-1]
+		// No partial typed yet answers every candidate: the interactive trees
+		// ask this once and match the typed prefix themselves.
+		partialArg := ""
+		if len(args) > 2 {
+			partialArg = args[len(args)-1]
+		}
 		var completedArgs []string
 		if len(args) > 3 {
 			completedArgs = args[2 : len(args)-1]
@@ -575,6 +583,15 @@ func handleArgComplete(ctx *CommandContext, cmdName string, completedArgs []stri
 
 	if ctx.Dispatcher() == nil {
 		return emptyResult, nil
+	}
+
+	// A builtin that declares an argument completer answers from the daemon's
+	// own state (arg_completion.go).
+	if candidates, ok := ctx.Dispatcher().builtinArgCompletions(ctx.Server, cmdName, partial); ok {
+		return &plugin.Response{
+			Status: plugin.StatusDone,
+			Data:   plugin.Map{fieldCompletions: candidates},
+		}, nil
 	}
 
 	// Check if it's a plugin command with completable flag

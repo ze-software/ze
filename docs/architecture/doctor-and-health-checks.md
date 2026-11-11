@@ -796,6 +796,38 @@ than in a table of codes here. `report.RaiseWarning` and `report.RaiseError`
 raise with no fix.
 <!-- source: internal/core/report/report.go -- Issue, RaiseWarningFix, RaiseErrorFix, validFields -->
 
+An active warning whose code another `runtime` check declares in its own
+`Codes` is that check's row and is not repeated here: the check reads the state
+the warning mirrors, so one fault gives one row (`doctor-plugin-stopped` is
+reported by `plugin-stopped`, not by `recent-events`). Error events always
+render, because they are history no state check reports.
+<!-- source: internal/component/doctor/checks_recent_events.go -- runtimeCheckCodes, warningsNoCheckOwns -->
+<!-- test: internal/component/doctor/checks_recent_events_test.go TestRecentEventsSkipsWarningAStateCheckOwns -->
+
+### A full bus
+
+The bus is bounded: `ze.report.warnings.max` active warnings and
+`ze.report.errors.max` error events, each clamped to 10000. Past the warning cap
+`evictOldestWarning` drops the oldest active warning, and past the error cap the
+ring overwrites its oldest event. Both are counted, and `report.Losses` answers
+the counts with the caps. The `report-bus-capacity` check, registered by
+`internal/component/plugin/doctor` at the `runtime` phase, answers one
+`doctor-report-bus-full` warning per kind of loss, naming the cap, how many
+entries were lost and the fix: an export of the env key at twice the cap, or
+`ze show warnings` / `ze show errors` when the cap is already at its largest.
+
+A dropped warning is also absent from `report.Warnings`, so a `HealthProbe*` row
+that filters on its code would read the absence as healthy while the condition
+still holds. The bus keeps each evicted key until its owner clears it
+(`ClearWarning`, `ClearSource`) or raises it again, and a probe with none of its
+codes active reads degraded "report bus full" while one of them is in that set.
+The set is bounded by the warning cap; past that bound every probe reads
+degraded until the store is replaced. A bus that never reached its caps reads
+as it always did.
+<!-- source: internal/core/report/report.go -- evictOldestWarning, mayHaveEvicted, Losses, evictionDoubt -->
+<!-- source: internal/core/report/health_probe.go -- probe -->
+<!-- source: internal/component/plugin/doctor/check_report_bus.go -- checkReportBusFull, busFullRow -->
+
 ### Event codes
 
 The check declares `doctor-recent-events` and every event code. An owner that
@@ -838,6 +870,71 @@ raise only a code this check declares (`docs/architecture/api/process-protocol.m
 <!-- test: internal/component/doctor/checks_recent_events_test.go TestDoctorRecentEventsCodeWithoutMetadata -->
 <!-- test: internal/component/doctor/checks_recent_events_test.go TestEventCodeRegistrationDeclared -->
 <!-- test: internal/component/doctor/checks_recent_events_test.go TestRecentEventsRendersRaiseFix -->
+
+## Plugin state a runtime check reads
+
+A runtime check is handed the platform alone, and `DoctorCheckContext` is
+shared core, so it carries no handle on the plugin server. The server publishes
+itself instead, in the core-leaf registry shape of `internal/core/ipsecinventory`:
+`StartWithContext` publishes and `Stop` withdraws, and a check calls
+`server.PluginDoctorSnapshot` for value types. Each configured plugin appears
+whether or not a process runs for it, with whether it is running, the stage it
+reached, whether the respawn limit disabled it, and the cause recorded for a
+failed startup. With no server in the process the answer is
+`ErrDoctorSnapshotNotPublished`, and before plugin startup begins
+`ErrDoctorSnapshotNotStarted`: never an empty list that reads as every plugin
+being fine.
+<!-- source: internal/component/plugin/server/doctor_snapshot.go -- PluginDoctorSnapshot, DoctorSnapshot, PluginDoctorState, publishDoctorSnapshot -->
+
+Why ze last stopped itself survives the stop in the `meta/plugin/last-stop`
+key (`docs/architecture/zefs-format.md`). `stopDaemonForPlugin` writes a
+`fatal-policy` entry before it stops ze, a startup that ends with an error
+writes `boot-refused`, and `RecordStopCleanupLate` writes `stop-cleanup-late`
+for an owner whose stop-time cleanup ran late. Each entry carries the reason,
+the plugin, a detail and the time; the record keeps the first 16 and counts the
+rest. A start that completes cleanly deletes it, unless that same run recorded
+a stop. The daemon reads it with `ReadLastStop`; the local checks, whose
+process registers no statestore, read it from the store they are handed with
+`ReadLastStopFrom`.
+<!-- source: internal/component/plugin/server/last_stop.go -- RecordLastStop, RecordStopCleanupLate, ReadLastStop, ReadLastStopFrom, settleLastStop -->
+
+### Plugin lifecycle checks
+
+Every path that leaves a configured plugin not running records it with the
+process manager (`ProcessManager.RecordStopped`): its failure policy
+(`ignore`, or none declared) after an exit, the respawn limit, a failed
+restart, and a startup handshake that did not reach running. The record holds
+the cause, the policy applied, the exit status (an internal plugin's runner
+code, a fork's reaped state) and the detail, and it raises
+`doctor-plugin-stopped` on the bus, so the `plugins` health row reads down on
+every one of those paths. A generation that reaches running clears it
+(`superviseProcess`), and so does a removal (`RemoveProcess`): a plugin the
+configuration no longer names is not down. `RemoveProcess` and `ReportCrash`
+also clear the warnings the plugin raised itself through `report-issue`
+(`report.ClearSource` of its name), because only the plugin could clear them.
+<!-- source: internal/component/plugin/process/stopped.go -- RecordStopped, ClearStopped, StoppedMessage, RestartCommand, ExitStatus -->
+<!-- source: internal/component/plugin/server/failure_policy.go -- superviseProcess, applyFailurePolicy -->
+
+| Check | Phase | Code | Reports | Fix |
+|-------|-------|------|---------|-----|
+| `plugin-stopped` | runtime | `doctor-plugin-stopped` (error) | each configured plugin recorded down, with the cause, policy, exit status and time | `ze request plugin restart <name>` |
+| `recent-events` | runtime | `doctor-plugin-crashed` (event) | each unasked exit, with its exit status and the policy ze applied | `ze show errors` |
+| `plugin-fatal-stop` | pre-config | `doctor-plugin-fatal-stop` (error) | each `fatal-policy` or `boot-refused` entry of the last-stop record, with plugin, detail and time | the plugin's log lines before that time, then its config change |
+| `plugin-fatal-stop` | pre-config | `doctor-plugin-stop-cleanup-late` (warning) | each `stop-cleanup-late` entry of the last-stop record: the stop went on before that plugin finished its cleanup, so state it installs may remain | `journalctl -u ze --until <time> \| grep <plugin>` |
+| `plugin-autoload` | post-config | `doctor-plugin-autoload-unresolved` (error) | the config's auto-load set that `registry.ResolveDependencies` refuses, with the boot refusal's text | the fix the refusal names |
+| `plugin-setup` | pre-config | `doctor-plugin-setup-failed` (error for hard, warning for soft) | each `registry.SetupResults` failure, with the recorded reason | the remedy after the reason's last `; `, else `ze show plugin list` |
+
+`request plugin restart <name>` starts a configured plugin that is not running
+again, lifting a respawn-limit disable because the operator asked for this
+restart; a running plugin and an unknown name are refused. Tab after the
+command offers the configured plugins that are not running, the names it
+accepts (`completePluginRestart`, served through `system command complete
+args`; `docs/architecture/cli/command-completion.md`).
+<!-- source: internal/component/plugin/server/register_plugin_restart.go -- handlePluginRestart, pluginRestartRefusal, completePluginRestart -->
+<!-- source: internal/component/plugin/doctor/check_lifecycle_local.go -- checkPluginFatalStop, cleanupLateRow -->
+<!-- source: internal/component/plugin/doctor/register_lifecycle.go -- init -->
+<!-- test: internal/component/plugin/doctor/checks_runtime_test.go TestPluginStoppedEveryDownPath -->
+<!-- test: internal/component/plugin/doctor/check_setup_test.go TestPluginSetupFailedReportsRecordedOutcome -->
 
 ## Environment values ze could not use
 

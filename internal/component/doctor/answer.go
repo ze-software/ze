@@ -57,8 +57,14 @@ type doctorRequest struct {
 // answerLocal is the local-data handler of doctor: the readiness answer of
 // the caller's own host, asked of the daemon over SSH when one answers
 // (local_route.go), and answered here with the doctor-runtime-not-checked row
-// when none does.
+// when none does. A test that builds its daemon in process hands that daemon
+// to the ask instead of the SSH listener (SetDaemonExecForTest).
 func answerLocal(validated command.ValidatedArgs) command.LocalAnswer {
+	if exec := daemonExecOverride.Load(); exec != nil {
+		return answerLocalWith(validated, func(line string) (diagnostic.DoctorResult, error) {
+			return askDaemonOverride(*exec, line)
+		})
+	}
 	return answerLocalWith(validated, askDaemonOverSSH)
 }
 

@@ -74,3 +74,10 @@ var (
 // storeAnswer). The archive redacts secrets, as every archive does, so the
 // pattern stays listable.
 var KeySupportArchive = MustRegister(KeyEntry{Pattern: "support/archive/{name}", Description: "Support archive the daemon collected for a remote caller (tar.gz)"})
+
+// Why ze last stopped itself when a plugin caused the stop, or when a
+// stop-time cleanup ran late: the plugin server writes it before the stop and
+// deletes it on the next clean start, and the next `ze doctor` reads it
+// (internal/component/plugin/server, last_stop.go). It is new, so no earlier
+// image writes or reads it.
+var KeyPluginLastStop = MustRegister(KeyEntry{Pattern: "meta/plugin/last-stop", Description: "Why ze last stopped because of a plugin, or ran a stop cleanup late (JSON)"})

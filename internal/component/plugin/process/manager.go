@@ -17,6 +17,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -81,6 +82,10 @@ type ProcessManager struct {
 
 	// Disabled processes (respawn limit exceeded)
 	disabled map[string]bool
+
+	// stopped holds the record of every configured plugin that is down, and
+	// why (stopped.go). A start that reaches running and a removal clear it.
+	stopped map[string]PluginStop
 
 	// TLS acceptor for external plugin connect-back (nil = use socketpairs).
 	acceptor *ipc.PluginAcceptor
@@ -158,6 +163,7 @@ func NewProcessManager(configs []plugin.PluginConfig) *ProcessManager {
 		respawnTimes:  make(map[string][]time.Time),
 		totalRespawns: make(map[string]int),
 		disabled:      make(map[string]bool),
+		stopped:       make(map[string]PluginStop),
 	}
 }
 
@@ -441,10 +447,16 @@ func AmbiguousRegistration(registration string, blocks []string) error {
 
 // RemoveProcess unregisters a stopped process by name.
 // Used during config reload to clean up auto-stopped plugins.
+//
+// A removed plugin is not down, so its stop record and its bus warning go
+// with it, and so do the warnings it raised itself (report-issue) and its
+// crash: its own source is cleared, because only the plugin could clear it.
 func (pm *ProcessManager) RemoveProcess(name string) {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 	delete(pm.processes, name)
+	pm.clearStoppedLocked(name)
+	report.ClearSource(name)
 }
 
 // AddProcess registers a process by name. Used by tests to inject mock processes.
@@ -498,28 +510,58 @@ func (pm *ProcessManager) isRunning(name string) bool {
 	return proc.Running()
 }
 
-// isDisabled returns true if the named process is disabled due to respawn limit.
-func (pm *ProcessManager) isDisabled(name string) bool {
+// ConfiguredNames returns the name of every plugin this manager was given to
+// run, in the order it was given them (NewProcessManager, then each
+// StartMore). A name stays configured after its process ends or is disabled,
+// which is what lets a reader tell a stopped plugin from an absent one. Safe
+// for concurrent use.
+func (pm *ProcessManager) ConfiguredNames() []string {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+	names := make([]string, 0, len(pm.configs))
+	for i := range pm.configs {
+		names = append(names, pm.configs[i].Name)
+	}
+	return names
+}
+
+// Disabled reports whether the respawn limit disabled the named process
+// (Respawn). Safe for concurrent use.
+func (pm *ProcessManager) Disabled(name string) bool {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 	return pm.disabled[name]
 }
 
+// reportSourcePlugin is the report-bus source of every raise this manager
+// makes. The codes are the doctor codes (diagnostic.CodeDoctorPluginCrashed,
+// diagnostic.CodeDoctorPluginStopped), so `ze doctor` and the bus name one
+// fault the same way.
 const reportSourcePlugin = "plugin"
-const reportCodePluginCrash = "plugin-crash"
-const reportCodePluginDown = "plugin-down"
 
 // ReportCrash records that a named plugin's process ended when nothing asked it
-// to. The engine calls it for EVERY unexpected exit, before it decides what to
-// do about one (Server.applyFailurePolicy,
+// to, with how it ended (exitStatus) and the failure policy ze applies to it
+// (policy). The engine calls it for EVERY unexpected exit, before it acts on
+// the policy (Server.applyFailurePolicy,
 // internal/component/plugin/server/failure_policy.go).
 //
 // It is separate from Respawn because a crash and a restart are different
 // events. A plugin that asked not to be started again still crashed, and an
 // operator reading `ze doctor` needs that row whether or not ze acted on it.
-func (pm *ProcessManager) ReportCrash(name string) {
-	report.RaiseError(reportSourcePlugin, reportCodePluginCrash, name,
-		"plugin process exited unexpectedly: "+name, nil)
+//
+// The warnings the plugin raised itself through report-issue are cleared
+// here: their owner is gone and nothing else can clear them, so they would
+// outlive it as stale faults. doctor-plugin-crashed and doctor-plugin-stopped
+// then report the down.
+func (pm *ProcessManager) ReportCrash(name, exitStatus, policy string) {
+	report.ClearSource(name)
+	var message textbuf.Buffer
+	message.Str("plugin process exited unexpectedly: ").Str(name).
+		Str("; it ended with ").Str(exitStatus).
+		Str(", and ze applies its failure policy ").Str(policy)
+	report.RaiseErrorFix(reportSourcePlugin, diagnostic.CodeDoctorPluginCrashed, name,
+		message.String(), "ze show errors",
+		map[string]any{"exit-status": exitStatus, "policy": policy})
 }
 
 // Respawn restarts a process, enforcing respawn limits. It returns the NEW
@@ -588,11 +630,10 @@ func (pm *ProcessManager) Respawn(name string) (*Process, error) {
 		pm.disabled[name] = true
 		pm.clearProcessCallbacks(name)
 		pm.deletePluginStatusLabel(name)
-		report.RaiseWarning(reportSourcePlugin, reportCodePluginDown, name,
-			"plugin disabled (respawn limit exceeded): "+name,
-			map[string]any{"limit": RespawnLimit, "window_seconds": int(RespawnWindow.Seconds())})
-		logger().Warn("respawn limit exceeded, process disabled",
-			"process", name, "limit", RespawnLimit, "window", RespawnWindow)
+		var detail textbuf.Buffer
+		detail.Str("it was started ").Int(RespawnLimit).Str(" times within ").
+			Str(RespawnWindow.String()).Str(", the per-window limit")
+		pm.recordStoppedLocked(name, PluginStop{Cause: StopRespawnLimit, Detail: detail.String()})
 		return nil, ErrRespawnLimitExceeded
 	}
 
@@ -602,11 +643,10 @@ func (pm *ProcessManager) Respawn(name string) (*Process, error) {
 		pm.disabled[name] = true
 		pm.clearProcessCallbacks(name)
 		pm.deletePluginStatusLabel(name)
-		report.RaiseWarning(reportSourcePlugin, reportCodePluginDown, name,
-			"plugin disabled (cumulative respawn limit exceeded): "+name,
-			map[string]any{"total_respawns": pm.totalRespawns[name], "limit": MaxTotalRespawns})
-		logger().Warn("cumulative respawn limit exceeded, process disabled",
-			"process", name, "total", pm.totalRespawns[name], "limit", MaxTotalRespawns)
+		var detail textbuf.Buffer
+		detail.Str("it was started ").Int(int64(pm.totalRespawns[name])).Str(" times, above the cumulative limit of ").
+			Int(MaxTotalRespawns)
+		pm.recordStoppedLocked(name, PluginStop{Cause: StopRespawnLimit, Detail: detail.String()})
 		return nil, ErrRespawnLimitExceeded
 	}
 
@@ -657,8 +697,9 @@ func (pm *ProcessManager) Respawn(name string) (*Process, error) {
 	pm.stopping.Store(false)
 	pm.processes[name] = newProc
 
-	// Successful restart clears the plugin-down warning.
-	report.ClearWarning(reportSourcePlugin, reportCodePluginDown, name)
+	// A respawned process has not run its handshake yet, so the stop record
+	// stays until that generation reaches running (Server.superviseProcess
+	// calls ClearStopped); a failed handshake replaces it.
 
 	// Increment restart counter after successful start.
 	if pm.pmetrics != nil {

@@ -149,7 +149,7 @@ lives in the managed store, so the replacement reads the same store and
 programs its sets from what was already fetched. It is bounded at 5 restarts in
 60 seconds and 20 over the life of the daemon, which is what stops an answer
 that panics every time from cycling: past the bound the plugin is disabled and
-`show health` reports plugin-down.
+`show health` reports doctor-plugin-stopped.
 
 ### CIDR is encoded as an interval
 

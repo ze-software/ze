@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -245,7 +246,7 @@ func TestProcessManagerRespawnLimit(t *testing.T) {
 	}
 
 	// Process should be disabled after exceeding limit
-	assert.True(t, pm.isDisabled("crash"), "process should be disabled after exceeding respawn limit")
+	assert.True(t, pm.Disabled("crash"), "process should be disabled after exceeding respawn limit")
 }
 
 // TestProcessManagerCumulativeRespawnLimit verifies process disabled after MaxTotalRespawns across windows.
@@ -287,7 +288,7 @@ func TestProcessManagerCumulativeRespawnLimit(t *testing.T) {
 		assert.ErrorIs(t, finalErr, ErrRespawnLimitExceeded, "should hit cumulative limit")
 	}
 
-	assert.True(t, pm.isDisabled("cycle"), "process should be disabled after cumulative limit")
+	assert.True(t, pm.Disabled("cycle"), "process should be disabled after cumulative limit")
 }
 
 // TestProcessManagerRespawnNotStarted verifies Respawn fails if manager not started.
@@ -331,7 +332,7 @@ func TestProcessManagerRespawnSuccess(t *testing.T) {
 	}
 
 	assert.True(t, pm.isRunning("run"), "process should be running after respawn")
-	assert.False(t, pm.isDisabled("run"), "process should not be disabled within limit")
+	assert.False(t, pm.Disabled("run"), "process should not be disabled within limit")
 }
 
 // TestProcessInternalPlugin verifies internal plugins run in-process.
@@ -728,8 +729,9 @@ func TestInternalPluginRunnerPanicRecovery(t *testing.T) {
 	assert.False(t, proc.Running(), "process should not be running after panic")
 }
 
-// VALIDATES: AC-10 -- an unexpected plugin exit raises the plugin-crash error on
-// the report bus, and the respawn limit raises the plugin-down warning.
+// VALIDATES: AC-10 -- an unexpected plugin exit raises the doctor-plugin-crashed
+// error on the report bus, and the respawn limit raises the doctor-plugin-stopped
+// warning.
 // PREVENTS: Silent plugin failures going unnoticed by operators.
 //
 // ReportCrash and Respawn are called in the order the engine calls them
@@ -747,21 +749,21 @@ func TestPluginCrashReportBus(t *testing.T) {
 	require.NoError(t, err)
 	defer pm.Stop()
 
-	// First crash: plugin-crash error should appear.
-	pm.ReportCrash("crash")
+	// First crash: doctor-plugin-crashed error should appear.
+	pm.ReportCrash("crash", "exit code 1", "ignore")
 
 	errs := report.Errors(0)
 	found := false
 	for _, e := range errs {
-		if e.Code == reportCodePluginCrash && e.Subject == "crash" {
+		if e.Code == diagnostic.CodeDoctorPluginCrashed && e.Subject == "crash" {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatal("plugin-crash error not raised on ReportCrash")
+		t.Fatal("doctor-plugin-crashed error not raised on ReportCrash")
 	}
 
-	// Exhaust respawn limit to trigger plugin-down warning.
+	// Exhaust respawn limit to trigger doctor-plugin-stopped warning.
 	for range RespawnLimit + 2 {
 		_, respawnErr := pm.Respawn("crash")
 		if errors.Is(respawnErr, ErrRespawnLimitExceeded) || errors.Is(respawnErr, ErrProcessDisabled) {
@@ -775,11 +777,11 @@ func TestPluginCrashReportBus(t *testing.T) {
 	warnings := report.Warnings()
 	downFound := false
 	for _, w := range warnings {
-		if w.Code == reportCodePluginDown && w.Subject == "crash" {
+		if w.Code == diagnostic.CodeDoctorPluginStopped && w.Subject == "crash" {
 			downFound = true
 		}
 	}
 	if !downFound {
-		t.Fatal("plugin-down warning not raised after respawn limit exceeded")
+		t.Fatal("doctor-plugin-stopped warning not raised after respawn limit exceeded")
 	}
 }

@@ -185,11 +185,15 @@ runaway string) from exhausting memory.
 Operator values above the maximum are clamped with a warn log at daemon
 startup. Zero or negative values fall back to the default.
 
-At cap, new warnings evict the oldest-by-`Updated` entry. New errors
-evict the oldest event in the ring buffer. Eviction is logged at warn
-level at most once per minute per source to avoid log flooding.
+At cap, new warnings evict the oldest-by-`Updated` entry, and each eviction is
+logged at warn level under the code `doctor-report-bus-full`. New errors
+overwrite the oldest event in the ring buffer. Both losses are counted:
+`show doctor` reports `doctor-report-bus-full` with the cap, how many entries
+were lost and the export that raises the cap, and a health row whose warning
+may have been evicted reads degraded "report bus full" instead of healthy.
 
-<!-- source: internal/core/report/report.go -- newStore, maxWarningCap, maxErrorCap, evictOldestWarning -->
+<!-- source: internal/core/report/report.go -- newStore, maxWarningCap, maxErrorCap, evictOldestWarning, Losses -->
+<!-- source: internal/component/plugin/doctor/check_report_bus.go -- checkReportBusFull -->
 
 ## Field length limits
 

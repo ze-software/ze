@@ -338,6 +338,10 @@ type RPCRegistration struct {
 	Handler          Handler // Handler function
 	RequiresSelector bool    // True if peer commands must have explicit selector (not default "*")
 	PluginCommand    string  // If set, this builtin proxies to a runtime plugin command (e.g., "bgp rib show")
+	// Complete answers the values the command's argument may take from the
+	// daemon's runtime state, for tab completion (arg_completion.go). Nil
+	// means the argument completes from its YANG leaves alone.
+	Complete ArgCompleter
 	// registrar is the import path of the package that called RegisterRPCs.
 	// Only RegisterRPCs writes it, and the field is private so that neither a
 	// struct literal nor a caller holding the slice AllBuiltinRPCs returns can

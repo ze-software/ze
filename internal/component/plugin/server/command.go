@@ -92,6 +92,7 @@ func LoadBuiltins(d *Dispatcher, wireToPath, pathToDesc, pathToHelp map[string]s
 			ArgDefs:          pathToArgDefs[name],
 			Description:      pathToHelp[name],
 			Owner:            reg.WireMethod,
+			Complete:         reg.Complete,
 		}); err != nil {
 			return err
 		}
@@ -148,6 +149,7 @@ func loadBuiltinsWithAliases(d *Dispatcher, regs []RPCRegistration, wireToPaths 
 				ArgDefs:          pathToArgDefs[name],
 				Description:      pathToHelp[name],
 				Owner:            reg.WireMethod,
+				Complete:         reg.Complete,
 			}); err != nil {
 				return err
 			}
@@ -522,6 +524,10 @@ type Command struct {
 	ReadOnly         bool             // True if command only reads state (safe for "ze show")
 	RequiresSelector bool             // True if command requires an explicit selector instead of implicit/all scope
 	ArgDefs          []command.ArgDef // Typed argument definitions from YANG leaves.
+	// Complete answers the values the command's argument may take, from the
+	// daemon's runtime state (arg_completion.go). Nil means the command
+	// declares none, and its argument completes from its YANG leaves alone.
+	Complete ArgCompleter
 }
 
 // TakesInlineSelector reports whether Dispatch would consume an INLINE selector
@@ -558,6 +564,7 @@ type RegisterOptions struct {
 	ArgDefs          []command.ArgDef // Typed argument definitions from YANG leaves
 	Description      string           // The long explanation the command's own help page prints (empty = none declared)
 	Owner            string           // The wire method of the builtin RPC registering the command (empty = none declared)
+	Complete         ArgCompleter     // The argument completer the builtin RPC declares (nil = none declared)
 }
 
 // ErrCommandHeld is the refusal Dispatcher.RegisterWithOptions returns for a
@@ -652,6 +659,7 @@ func (d *Dispatcher) RegisterWithOptions(name string, handler Handler, help stri
 		ReadOnly:         opts.ReadOnly,
 		RequiresSelector: opts.RequiresSelector,
 		ArgDefs:          opts.ArgDefs,
+		Complete:         opts.Complete,
 	}
 	d.updateSortedKeys()
 

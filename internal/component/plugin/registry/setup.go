@@ -90,7 +90,10 @@ var setupResults = make(map[string]SetupResult)
 // Seal it panics and records nothing: a setup record is registration.
 //
 // The reason reaches CLI output as data, so a recording site MUST NOT put a
-// secret in it.
+// secret in it. A failure's reason ends with its remedy after its last "; "
+// ("...: <error>; raise RLIMIT_MEMLOCK ..."): the plugin-setup doctor check
+// (plugin/doctor/check_setup.go) reports the part before as the message and
+// the remedy as the fix.
 //
 // An empty plugin name, SetupUnknown, and any value outside the enumeration
 // are programmer errors: each one records a row that says nothing, and a row

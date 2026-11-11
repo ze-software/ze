@@ -89,9 +89,15 @@ type recentEventsGroup struct {
 // warnings. A row is a warning whatever the event's severity, because the
 // event already happened and its owner may have recovered, so it never makes
 // the box read not ready.
+//
+// An active warning whose code another runtime check declares is that check's
+// row, not a second one here: the check reads the state the warning mirrors
+// (plugin-stopped reads the plugin snapshot doctor-plugin-stopped mirrors), so
+// one fault gives one row. Error events stay, because they are history no
+// state check reports.
 func checkRecentEvents(diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	groups := groupRecentEvents(nil, report.Errors(0))
-	groups = groupRecentEvents(groups, report.Warnings())
+	groups = groupRecentEvents(groups, warningsNoCheckOwns(report.Warnings(), runtimeCheckCodes()))
 	if len(groups) == 0 {
 		return nil
 	}
@@ -101,6 +107,34 @@ func checkRecentEvents(diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 		diags = append(diags, recentEventsDiagnostic(&groups[i]))
 	}
 	return diags
+}
+
+// runtimeCheckCodes answers the codes the runtime checks other than this one
+// declare. Their own Codes only: the event codes are appended to this check's
+// listing alone (DeclaresEventCodes).
+func runtimeCheckCodes() map[string]bool {
+	codes := make(map[string]bool)
+	for _, check := range diagnostic.DoctorChecksForPhase(diagnostic.DoctorPhaseRuntime) {
+		if check.Name == recentEventsCheckName {
+			continue
+		}
+		for _, code := range check.Codes {
+			codes[code] = true
+		}
+	}
+	return codes
+}
+
+// warningsNoCheckOwns drops the active warnings whose code is in owned.
+func warningsNoCheckOwns(warnings []report.Issue, owned map[string]bool) []report.Issue {
+	kept := warnings[:0:0]
+	for i := range warnings {
+		if owned[warnings[i].Code] {
+			continue
+		}
+		kept = append(kept, warnings[i])
+	}
+	return kept
 }
 
 // groupRecentEvents folds issues, newest first as the bus answers them, into

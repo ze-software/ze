@@ -27,10 +27,12 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/syncutil"
 	"github.com/ze-software/ze/internal/core/taskguard"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -100,6 +102,10 @@ type Process struct {
 	// StageRunning, so the engine can report the cause instead of only the
 	// stage it stopped at. See SetStartupError.
 	startupFail atomic.Pointer[startupFailure]
+
+	// exit records how the process ended (stopped.go, ExitStatus): the
+	// runner's return code for an internal plugin, the reaped state for a fork.
+	exit exitRecord
 
 	// Metrics callbacks (set by ProcessManager, nil when metrics disabled).
 	onStageChange func(plugin.PluginStage) // Called after stage transition
@@ -599,14 +605,25 @@ func (p *Process) startInternal() error {
 		defer runnerPanics().run.Contain(func() taskguard.Context {
 			return taskguard.Context{Unit: "internal plugin " + p.config.Name}
 		}, nil)
+		// Runs before the panic boundary above, and only stores a status when
+		// the runner did not return one: the runner panicked.
+		defer p.exit.record("a panic in the plugin; its crash record names the cause")
 		defer func() {
 			if err := bridgedPluginSide.Close(); err != nil {
 				logger().Debug("close plugin side", "error", err)
 			}
 		}()
 
-		if code := runner(bridgedPluginSide); code != 0 {
-			logger().Warn("internal plugin exited with non-zero code", "plugin", p.config.Name, "code", code)
+		// The exit status is logged as exit-code, because `code` on every Warn
+		// line is the doctor code that names the fault (here the plugin ending
+		// unasked, which applyFailurePolicy then reports on the bus).
+		exitCode := runner(bridgedPluginSide)
+		var status textbuf.Buffer
+		status.Str("exit code ").Int(int64(exitCode))
+		p.exit.record(status.String())
+		if exitCode != 0 {
+			logger().Warn("internal plugin exited with a non-zero status; read its log lines above for the cause",
+				"plugin", p.config.Name, "exit-code", exitCode, "code", diagnostic.CodeDoctorPluginCrashed)
 		}
 	})
 
@@ -1186,7 +1203,8 @@ func (p *Process) monitorCmd(cmd *exec.Cmd, relayDone <-chan struct{}, stderr *s
 		group.exit(p.ctx.Err() != nil)
 	}
 
-	_ = cmd.Wait()
+	waitErr := cmd.Wait()
+	p.exit.record(forkExitStatus(cmd, waitErr))
 	// Where waitExitedUnreaped had no answer the exit is recorded only now, past
 	// the reap: a kill that raced it in between is the one this cannot exclude.
 	group.exit(false)
@@ -1207,4 +1225,17 @@ func (p *Process) monitorCmd(cmd *exec.Cmd, relayDone <-chan struct{}, stderr *s
 	// out. Release the descriptor only once the relay has read them, which is
 	// what keeps a plugin's last line -- its verdict, or its panic block.
 	drainStderrRelay(relayDone, stderr)
+}
+
+// forkExitStatus names how a forked plugin ended: the reaped process state
+// ("exit status 1", "signal: killed"), or the wait error when the state was
+// not recorded.
+func forkExitStatus(cmd *exec.Cmd, waitErr error) string {
+	if cmd.ProcessState != nil {
+		return cmd.ProcessState.String()
+	}
+	if waitErr != nil {
+		return "an unreaped exit: " + waitErr.Error()
+	}
+	return "an exit whose state was not recorded"
 }

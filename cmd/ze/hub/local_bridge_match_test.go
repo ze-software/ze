@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/doctor"
 	"github.com/ze-software/ze/internal/component/plugin"
 	_ "github.com/ze-software/ze/internal/component/plugin/all"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -119,6 +120,24 @@ func TestLocalCommandDaemonMatchesLocal(t *testing.T) {
 	}
 	t.Cleanup(server.Stop)
 	d := server.Dispatcher()
+
+	// `ze doctor` answers by asking the running daemon for its show doctor
+	// answer and drawing it (internal/component/doctor/local_route.go), and
+	// answers alone, with a doctor-runtime-not-checked row, only when no
+	// daemon answers. The daemon here is the dispatcher in this process, which
+	// no SSH listener fronts, so the local route is handed that dispatcher:
+	// it is then compared as an operator with a running daemon reads it.
+	t.Cleanup(doctor.SetDaemonExecForTest(func(line string) (string, error) {
+		resp, dispatchErr := d.Dispatch(&pluginserver.CommandContext{}, line)
+		if dispatchErr != nil {
+			return "", dispatchErr
+		}
+		encoded, err := json.Marshal(resp.Data)
+		if err != nil {
+			return "", err
+		}
+		return string(encoded), nil
+	}))
 
 	checked := 0
 	for _, entry := range command.ListLocal() {

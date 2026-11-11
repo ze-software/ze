@@ -70,6 +70,22 @@ func init() {
 	}); err != nil {
 		exitOnRegistrationFailure(err)
 	}
+
+	// The report bus check reads the daemon's own bus, so it runs at the
+	// runtime phase, which only the daemon runs (a registry.DoctorCheckDef
+	// cannot be runtime, validateDoctorCheckDef).
+	if err := diagnostic.RegisterDoctorCheck(diagnostic.DoctorCheck{
+		Name:         reportBusCheckName,
+		Phase:        diagnostic.DoctorPhaseRuntime,
+		Order:        710,
+		Component:    componentPlugin,
+		Dependencies: []string{"report-bus"},
+		Platforms:    []string{diagnostic.DoctorPlatformAny},
+		Codes:        []string{diagnostic.CodeDoctorReportBusFull},
+		Check:        checkReportBusFull,
+	}); err != nil {
+		exitOnRegistrationFailure(err)
+	}
 }
 
 // exitOnRegistrationFailure ends the process on a refused doctor check.

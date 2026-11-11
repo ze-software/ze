@@ -54,6 +54,11 @@ Use `ze show diagnostic <code>` for remediation guidance.
 | `doctor-tls-*` | TLS cert existence, expiry, validity |
 | `doctor-plugin-missing` | Plugin binary on PATH |
 | `doctor-plugin-shell-missing` | The shell an external plugin is started with. Ze runs the `run` string as `/bin/sh -c <run>`, so a host with no shell, such as a gokrazy appliance image, starts none of them <!-- source: internal/component/plugin/doctor/check_shell.go -- diagnosePluginShell --> |
+| `doctor-plugin-setup-failed` | A plugin's setup step recorded a failure: an error when the failure stops ze starting, a warning when the plugin runs degraded. The fix is the remedy the failure names, else `ze show plugin list` <!-- source: internal/component/plugin/doctor/check_setup.go -- checkPluginSetup --> |
+| `doctor-plugin-fatal-stop` | The last stop of ze was a plugin whose failure policy is `fatal`, or a boot ze refused: the plugin, what happened and when, read from the record the stop left <!-- source: internal/component/plugin/doctor/check_lifecycle_local.go -- checkPluginFatalStop --> |
+| `doctor-plugin-stop-cleanup-late` | A warning: the last stop went on before a plugin finished its cleanup, so state that plugin installs may remain. The fix searches the log up to that stop <!-- source: internal/component/plugin/doctor/check_lifecycle_local.go -- cleanupLateRow --> |
+| `doctor-plugin-autoload-unresolved` | A plugin the config loads needs a plugin this build does not carry, so ze would refuse to start; the row carries the refusal ze would give <!-- source: internal/component/plugin/doctor/check_lifecycle_local.go -- checkPluginAutoload --> |
+| `doctor-plugin-stopped` | Inside the daemon only (`show doctor`): each configured plugin that is not running, with why (its failure policy after an exit, the respawn limit, a failed restart, a failed startup handshake), the exit status and since when. An error, fixed by `ze request plugin restart <name>` <!-- source: internal/component/plugin/doctor/checks_runtime.go -- checkPluginStopped, pluginStoppedRow --> |
 | `doctor-hub-managed-collision` | A `plugin/hub/server` block declares managed clients on the address the plugin acceptor binds, so its managed listener cannot bind and its clients are refused <!-- source: internal/component/plugin/doctor/check_managed_listener.go -- diagnoseManagedListener --> |
 | `doctor-service-executable` | Installed systemd unit `ExecStart` points to an executable ze binary, and every `ExecReload` program exists and is executable |
 | `doctor-service-user` / `doctor-service-group` | User/group referenced by installed `ze.service` exists |
@@ -158,9 +163,17 @@ show warnings source bgp
 | `fib-programming-lag` | fib | warning | Routes pending >30s |
 | `firewall-stale-table` | firewall | warning | ze_* table in kernel not in config |
 | `firewall-drift` | firewall | warning | Chain count mismatch vs config, or a ze_* table the kernel no longer has |
-| `plugin-crash` | plugin | error | Plugin process exited unexpectedly |
-| `plugin-down` | plugin | warning | Plugin disabled (respawn limit) |
+| `doctor-plugin-crashed` | plugin | error | Plugin process exited unexpectedly; carries the exit status and the failure policy ze applies, and clears every warning the plugin raised itself |
+| `doctor-plugin-stopped` | plugin | warning | A configured plugin is down on any path (failure policy, respawn limit, failed restart, failed startup handshake); the fix is `ze request plugin restart <name>`, and the `plugins` health row reads down. Cleared when the plugin runs again or leaves the configuration |
 | `iface-errors` | iface | warning | RX/TX error counters increasing |
+
+The bus holds at most `ze.report.warnings.max` active warnings (default 1024)
+and `ze.report.errors.max` error events (default 256), both clamped to 10000.
+Past the warning cap the oldest warning is dropped, and past the error cap the
+oldest event is overwritten. `ze doctor` then reports `doctor-report-bus-full`
+with the cap, how many entries were lost and the export that raises the cap. A
+health row whose code may have been dropped reads degraded "report bus full"
+rather than healthy, until the owner clears or raises that warning again.
 
 ## Adding Doctor Checks
 

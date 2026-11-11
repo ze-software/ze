@@ -404,6 +404,9 @@ func (s *Server) signalStartupComplete() {
 			}
 		}
 	}
+	// Startup's outcome is now final: a refusal is recorded as the reason ze
+	// does not start, and a clean start deletes the previous stop's record.
+	s.settleLastStop()
 	s.startupDoneOnce.Do(func() { close(s.startupDone) })
 }
 
@@ -552,6 +555,9 @@ func (s *Server) runPluginPhaseWithin(ctx context.Context, plugins []plugin.Plug
 			if rollbackErr := s.rollbackStartupProcess(proc); rollbackErr != nil {
 				phaseErr = errors.Join(phaseErr, rollbackErr)
 			}
+			// Recorded after the rollback, because the rollback removes the
+			// process and a removal clears the record.
+			pm.RecordStopped(proc.Name(), process.PluginStop{Cause: process.StopHandshakeFailed, Detail: err.Error()})
 			// A phase that fails leaves the daemon running without those
 			// plugins, which is right for a plugin that said nothing about its
 			// own failure and wrong for one that did (failure_policy.go).
@@ -627,6 +633,8 @@ func (s *Server) rollbackNonRunningStartupProcesses(pm *process.ProcessManager, 
 		if err := s.rollbackStartupProcess(proc); err != nil {
 			logger().Error("plugin startup rollback failed", "plugin", proc.Name(), "error", err)
 		}
+		pm.RecordStopped(proc.Name(), process.PluginStop{Cause: process.StopHandshakeFailed,
+			Detail: "the startup phase failed before its tier handshake completed; the log names the plugin that failed it"})
 	}
 }
 

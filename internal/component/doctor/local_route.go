@@ -19,6 +19,7 @@ import (
 	"errors"
 	"net"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/cli/sshclient"
@@ -64,6 +65,38 @@ type daemonUnanswered struct {
 }
 
 func (e *daemonUnanswered) Error() string { return e.why }
+
+// daemonExecOverride, when set, carries the local route's show doctor line to
+// a daemon dispatcher in the same process instead of the SSH listener. Only a
+// test sets it (SetDaemonExecForTest): a test that compares `ze doctor` with
+// the daemon's answer builds its dispatcher in process, where no SSH listener
+// runs, and the local route is designed to draw that daemon's answer.
+var daemonExecOverride atomic.Pointer[func(line string) (string, error)]
+
+// testDaemonAddress names the in-process daemon in a message about its answer.
+const testDaemonAddress = "the in-process test daemon"
+
+// SetDaemonExecForTest makes the local route send its show doctor line to exec,
+// which answers the dispatcher's JSON as `show doctor | raw` does over SSH, and
+// answers the function that restores the SSH route. The answer is decoded by
+// the same decodeDaemonDoctor the SSH route uses, so a reply that is not a
+// doctor result is still no answer. Tests only. MUST call the restore function
+// (t.Cleanup) before another test runs the local route.
+func SetDaemonExecForTest(exec func(line string) (string, error)) (restore func()) {
+	previous := daemonExecOverride.Swap(&exec)
+	return func() { daemonExecOverride.Store(previous) }
+}
+
+// askDaemonOverride is the daemonAsk over a test's in-process daemon.
+func askDaemonOverride(exec func(line string) (string, error), line string) (diagnostic.DoctorResult, error) {
+	output, err := exec(line)
+	if err != nil {
+		var why textbuf.Buffer
+		why.Str(testDaemonAddress).Str(" did not answer ").Str(line).Str(" (").Err(err).Str(")")
+		return diagnostic.DoctorResult{}, &daemonUnanswered{why: why.String(), fix: fixAskAsAccount}
+	}
+	return decodeDaemonDoctor(output, testDaemonAddress)
+}
 
 // answerLocalWith is the local route over one ask: the daemon's answer, drawn
 // here, when the daemon answers; otherwise the local checks and the

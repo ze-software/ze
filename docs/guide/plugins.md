@@ -122,7 +122,14 @@ The leaf is spelled the way ExaBGP spells it, because an ExaBGP process block
 carries the same option and a migrated configuration keeps working.
 
 Past the restart bound the plugin is disabled, `show health` reports
-`plugin-down` for it, and ze carries on.
+`doctor-plugin-stopped` for it, and ze carries on. A plugin left stopped this
+way, or by `respawn false`, comes back with `ze request plugin restart <name>`
+without restarting ze; the order lifts the restart bound
+([command reference](command-reference.md#request-plugin-restart)).
+<!-- source: internal/component/plugin/server/register_plugin_restart.go -- handlePluginRestart -->
+<!-- source: internal/component/plugin/process/stopped.go -- Reenable -->
+
+
 
 ## When a Reload Changes a Plugin's Config
 

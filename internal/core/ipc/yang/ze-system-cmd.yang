@@ -129,7 +129,9 @@ neither registry fails with unknown command.";
                 ze:rpc "ze-system-api:command-complete";
                 description "Ze completes a command NAME from the partial text. Write 'args' before the
 command name to complete an ARGUMENT of that command instead, in the form
-'system command complete args <cmd> [<completed>...] <partial>'.";
+'system command complete args <cmd> [<completed>...] [<partial>]'. With no partial
+it lists every candidate. A builtin answers from the daemon's own state, a plugin
+command from the plugin that registered it.";
                 ze:help "List the completion candidates for a partial command.";
                 leaf partial {
                     type string;
@@ -161,6 +163,31 @@ command needs a running reactor, so a daemon that has none refuses it.";
 
     container request {
         config false;
+
+        container plugin {
+            config false;
+            description "Actions on one plugin of the running daemon. Nothing here writes
+configuration.";
+            ze:help "Plugin operator actions.";
+
+            container restart {
+                config false;
+                ze:command "ze-plugin:system-plugin-restart";
+                description "Starts a configured plugin that is not running again: one its failure
+policy left stopped, one the respawn limit disabled (the order lifts the limit),
+one whose restart or startup handshake failed. ze doctor names each such plugin
+under doctor-plugin-stopped with this command as its fix. A running plugin, and a
+name no configuration or auto-load started, are refused.";
+                ze:help "Start a stopped plugin again.";
+
+                leaf name {
+                    type string;
+                    mandatory true;
+                    description "The plugin's configured name, as ze doctor and show health name it.";
+                    ze:help "Name of the configured plugin to start again.";
+                }
+            }
+        }
 
         container shutdown {
             config false;

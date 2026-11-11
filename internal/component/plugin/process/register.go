@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/process-protocol.md -- plugin process health
-// Related: manager.go -- raises the plugin-down warning this row reports
+// Related: manager.go -- raises the doctor-plugin-stopped warning this row reports
 
 package process
 
@@ -18,9 +18,9 @@ var processEventCodes = []diagnostic.EventCode{
 }
 
 func init() {
-	// manager.go raises plugin-down when a managed plugin process dies; the
-	// process manager owns its health row (ai/rules/plugins.md).
-	health.Register("plugins", report.HealthProbeDown("plugin-down"))
+	// manager.go raises doctor-plugin-stopped when the respawn limit disables
+	// a plugin; the process manager owns its health row (ai/rules/plugins.md).
+	health.Register("plugins", report.HealthProbeDown(diagnostic.CodeDoctorPluginStopped))
 	for _, event := range processEventCodes {
 		if err := diagnostic.RegisterEventCode(event); err != nil {
 			panic("BUG: plugin process event code registration refused: " + err.Error())

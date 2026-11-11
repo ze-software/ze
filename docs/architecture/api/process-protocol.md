@@ -811,8 +811,27 @@ names the plugin, the policy it declared and the leaf.
 
 A restart is bounded: `RespawnLimit` restarts in `RespawnWindow`, and
 `MaxTotalRespawns` over the life of the daemon. Past either bound the plugin is
-disabled, the `plugin-down` warning is raised, and the daemon carries on, which
-is the `ignore` outcome.
+disabled and the daemon carries on, which is the `ignore` outcome.
+
+Every path that leaves a configured plugin down records why and raises the
+`doctor-plugin-stopped` warning, whose fix is `ze request plugin restart <name>`:
+
+| Path | Cause the warning and the doctor row name |
+|------|-------------------------------------------|
+| The process ended and its policy is `ignore`, or it declared none | it exited and its failure policy does not start it again, with the policy and the exit status |
+| The respawn limit disabled it | the respawn limit disabled it, with the limit |
+| Its policy asked for a restart and the restart failed | it exited and could not be started again, with the error |
+| Its startup handshake did not reach running, and ze runs without it | its startup handshake failed, with the error |
+
+The warning clears when the plugin runs again, and when a reload removes it from
+the configuration. `request plugin restart <name>` starts a configured plugin
+that is not running; the operator's order lifts a respawn-limit disable, and
+the command refuses a running plugin and a name nothing configured.
+
+A process exit also clears every warning and error the plugin raised itself
+through `report-issue`: their owner is gone and nothing else can clear them.
+`doctor-plugin-crashed` (an error, fix `ze show errors`) then records the exit
+with its status and the policy ze applies.
 
 A stop ends every restart. From the start of the stop drain (`BeginDrain`), the
 manager refuses each respawn with `respawn refused: ze is stopping`, so a plugin
@@ -840,7 +859,10 @@ aborted it, the error log line names the plugin and the sibling's failure.
 <!-- source: internal/component/plugin/server/startup_failure.go -- tierFailureCause, withTierCause -->
 <!-- source: internal/component/plugin/server/startup.go -- (*Server).stageTransition -->
 <!-- source: internal/component/plugin/process/process.go -- (*Process).PluginEnded -->
-<!-- source: internal/component/plugin/process/manager.go -- RespawnLimit, RespawnWindow, MaxTotalRespawns, RefuseRespawns, ErrDaemonStopping -->
+<!-- source: internal/component/plugin/process/manager.go -- RespawnLimit, RespawnWindow, MaxTotalRespawns, RefuseRespawns, ErrDaemonStopping, ReportCrash, RemoveProcess -->
+<!-- source: internal/component/plugin/process/stopped.go -- StopCause, RecordStopped, ClearStopped, RestartCommand, Reenable -->
+<!-- source: internal/component/plugin/server/reload_tx.go -- restartPlugin -->
+<!-- source: internal/component/plugin/server/register_plugin_restart.go -- handlePluginRestart, pluginRestartRefusal -->
 
 **Pipe Alias Declaration (Stage 1):**
 

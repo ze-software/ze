@@ -705,6 +705,47 @@ started.
 <!-- source: internal/component/plugin/declarations.go -- dataDeclarations, declarationRows, queriedDeclarationRow -->
 <!-- source: internal/component/plugin/register.go -- the two show plugin declarations registrations -->
 
+### request plugin restart
+
+Starts a configured plugin that is not running again, without restarting ze.
+A plugin can stop for good on several paths: its failure policy left it
+stopped, the respawn limit disabled it, a restart failed, or its startup
+handshake failed. `ze doctor` names each such plugin under
+`doctor-plugin-stopped`, with this command as its fix. The command runs in the
+daemon.
+
+```
+ze request plugin restart <name>     # <name> is the plugin's configured name
+```
+
+The order lifts a respawn-limit disable and resets the plugin's respawn count,
+because the limit guards against a crash loop nobody asked for and this restart
+was asked for. The daemon then respawns the plugin and runs its startup
+handshake again, and answers `plugin <name> started again`.
+
+| Refusal | When |
+|---------|------|
+| `request plugin restart needs exactly one plugin name` | no name, or more than one, was given |
+| `plugin <name> is not a configured plugin` | neither the configuration nor its auto-load started a plugin of that name. The name is refused, never guessed |
+| `plugin <name> is running` | the plugin is up: restarting it would stop a working plugin |
+| `plugin <name> cannot be restarted: no plugin server runs here` | the process that answered holds no plugin server; the fix is `ze start` |
+| `plugin <name> cannot be restarted: plugin startup has not begun` | the daemon has not handed its plugins to a process manager yet |
+| `plugin <name> did not start again` | the restart itself failed. The plugin stays down, and `ze doctor` names it with the error |
+
+Each refusal says why and names the command that helps, `ze show doctor` for
+all but the missing server.
+
+In the interactive CLI (SSH and `ze cli`), Tab after `request plugin restart`
+offers the configured plugins that are not running: exactly the names the
+command accepts. The candidates are asked of the running daemon at each Tab,
+so a plugin that came back up drops out of the list. Shell completion
+(`ze completion`) has no daemon to ask and offers no plugin names.
+
+<!-- source: internal/component/plugin/server/register_plugin_restart.go -- handlePluginRestart, pluginRestartRefusal, completePluginRestart -->
+<!-- source: internal/component/plugin/server/reload_tx.go -- restartPlugin -->
+<!-- source: internal/component/plugin/process/stopped.go -- Reenable, RestartCommand -->
+<!-- source: internal/core/ipc/yang/ze-system-cmd.yang -- request plugin restart -->
+
 ### show host
 
 Host hardware inventory. Read-only. Walks sysfs/procfs (and issues best-effort

@@ -197,6 +197,9 @@ func buildCommandTree() (*command.Node, error) {
 // factory is built before the dispatcher is wired: the per-session closure runs
 // after post-start, when the registry is populated. A nil dispatcher (no plugin
 // engine, e.g. early startup) is a no-op, leaving the YANG-only tree intact.
+// The builtins that complete an argument from the daemon's state (`request
+// plugin restart <name>`) get their completer hung on their node here too,
+// called in this process at each Tab.
 func mergePluginCommands(tree *command.Node, params infra.HookParams) {
 	if params.APIServer == nil {
 		return
@@ -210,6 +213,7 @@ func mergePluginCommands(tree *command.Node, params infra.HookParams) {
 		return
 	}
 	command.MergeCommandPaths(tree, d.Registry().VisibleCommandEntries())
+	srv.WireArgCompletion(tree)
 }
 
 // cliExecutor carries an SSH command response into the Bubble Tea writer.

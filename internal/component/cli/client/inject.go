@@ -30,6 +30,9 @@ type commandEntry struct {
 	// surface reads it at all.
 	Description string `json:"description"`
 	Hidden      bool   `json:"hidden"`
+	// Completable says the daemon completes this command's argument from its
+	// runtime state (wireDaemonArgCompletion).
+	Completable bool `json:"completable"`
 	// RetiredHelp holds the retired summary key when a row still carries it.
 	// decodeCommandList refuses such an answer, because decoding it would leave
 	// Description empty and no reader can tell that from a command that states
@@ -62,6 +65,72 @@ func decodeCommandList(payload []byte) ([]commandEntry, error) {
 			data.Commands[i].Value, retiredSummaryKey, summaryKey)
 	}
 	return data.Commands, nil
+}
+
+// daemonQuery sends one command line to the daemon and answers its raw JSON.
+type daemonQuery func(line string) (string, error)
+
+// dispatchQuery adapts a dispatch function to a daemonQuery, releasing the
+// answer's transport once its text is read.
+func dispatchQuery(dispatch CommandFunc) daemonQuery {
+	return func(line string) (string, error) {
+		output, err := dispatch(line)
+		if output.TransportComplete != nil {
+			defer output.TransportComplete()
+		}
+		return output.Text, err
+	}
+}
+
+// wireDaemonArgCompletion hangs a value hint on the node of every command the
+// daemon marks completable, so Tab after `request plugin restart` offers what
+// the running daemon holds. The hint asks `system command complete args
+// "<cmd>"` at each Tab and lists every candidate; the tree completer matches
+// the typed prefix. A daemon that does not answer offers nothing, because a
+// completion is best-effort and a candidate guessed here would be wrong.
+func wireDaemonArgCompletion(tree *cmd.Node, commands []commandEntry, query daemonQuery) {
+	for i := range commands {
+		if !commands[i].Completable {
+			continue
+		}
+		node := cmd.FindNode(tree, strings.Fields(commands[i].Value))
+		if node == nil {
+			continue
+		}
+		line := `system command complete args "` + commands[i].Value + `"`
+		node.ValueHints = func() []cmd.Suggestion {
+			return fetchArgCompletions(query, line)
+		}
+	}
+}
+
+// fetchArgCompletions runs one `system command complete args` line and
+// converts its candidates to value suggestions.
+func fetchArgCompletions(query daemonQuery, line string) []cmd.Suggestion {
+	output, err := query(line)
+	// refuse-by-default: guards wireDaemonArgCompletion -- an unreachable daemon offers no candidate, never a guessed one
+	if err != nil {
+		return nil
+	}
+	var data struct {
+		Completions []struct {
+			Value     string `json:"value"`
+			ShortHelp string `json:"short-help"`
+		} `json:"completions"`
+	}
+	// refuse-by-default: guards wireDaemonArgCompletion -- an answer that does not decode offers no candidate
+	if json.Unmarshal([]byte(output), &data) != nil {
+		return nil
+	}
+	suggestions := make([]cmd.Suggestion, 0, len(data.Completions))
+	for _, candidate := range data.Completions {
+		suggestions = append(suggestions, cmd.Suggestion{
+			Text:        candidate.Value,
+			Description: candidate.ShortHelp,
+			Type:        cmd.SuggestionValue,
+		})
+	}
+	return suggestions
 }
 
 // injectPluginCommands adds plugin-registered commands to the completion tree.

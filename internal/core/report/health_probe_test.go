@@ -33,11 +33,11 @@ func TestHealthProbeDown(t *testing.T) {
 	ResetForTest()
 	defer ResetForTest()
 
-	probe := HealthProbeDown("plugin-down")
+	probe := HealthProbeDown("doctor-plugin-stopped")
 	status, _ := probe()
 	assert.Equal(t, health.StatusHealthy, status)
 
-	RaiseWarning("plugin", "plugin-down", "my-plugin", "disabled", nil)
+	RaiseWarning("plugin", "doctor-plugin-stopped", "my-plugin", "disabled", nil)
 	status, _ = probe()
 	assert.Equal(t, health.StatusDown, status)
 }
@@ -52,13 +52,13 @@ func TestHealthProbesInRegistry(t *testing.T) {
 	reg := &health.Registry{}
 	reg.Register("bgp", HealthProbeDegraded("session-stuck"))
 	reg.Register("fib", HealthProbeDegraded("fib-sync-failure"))
-	reg.Register("plugins", HealthProbeDown("plugin-down"))
+	reg.Register("plugins", HealthProbeDown("doctor-plugin-stopped"))
 
 	rpt := reg.Check()
 	assert.Equal(t, health.StatusHealthy, rpt.Status)
 	assert.Len(t, rpt.Components, 3)
 
-	RaiseWarning("plugin", "plugin-down", "test", "crashed", nil)
+	RaiseWarning("plugin", "doctor-plugin-stopped", "test", "crashed", nil)
 	rpt = reg.Check()
 	assert.Equal(t, health.StatusDown, rpt.Status)
 }

@@ -969,6 +969,7 @@ func buildRuntimeTree(client *cliClient) (*Command, error) {
 	// Plugin commands not backed by YANG proxy RPCs are missing from the tree
 	// unless we add them here.
 	injectPluginCommands(tree, commands, hidden)
+	wireDaemonArgCompletion(tree, commands, client.sendCommandRaw)
 
 	// Attach dynamic peer selector completion to the "peer" node.
 	// This allows "peer <TAB>" to suggest peer names and IPs.
@@ -1064,6 +1065,7 @@ func runtimeTreeFromDispatch(dispatch CommandFunc) (*Command, error) {
 
 	// Inject non-hidden plugin commands into the completion tree.
 	injectPluginCommands(tree, commands, hidden)
+	wireDaemonArgCompletion(tree, commands, dispatchQuery(dispatch))
 
 	if tree.Children != nil {
 		if peerNode, ok := tree.Children["peer"]; ok {

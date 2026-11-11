@@ -276,7 +276,7 @@ module ze-plugin-conf {
                     restarted, ze refuses to start, and the error names the plugin and the policy it declared: ze
                     honors neither side in silence. The spelling comes from ExaBGP, whose process block carries the
                     same leaf. A restart is bounded at 5 in 60 seconds and 20 in the life of the daemon, after which
-                    the plugin is disabled and 'show health' reports plugin-down.";
+                    the plugin is disabled and 'show health' reports doctor-plugin-stopped.";
                 ze:help "Respawn on exit";
             }
 

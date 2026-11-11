@@ -206,7 +206,7 @@ func TestPluginMetricsDeletedOnDisable(t *testing.T) {
 	}
 
 	// Plugin should be disabled.
-	require.True(t, pm.isDisabled("crash-metrics"))
+	require.True(t, pm.Disabled("crash-metrics"))
 
 	body := scrapeMetrics(t, reg)
 

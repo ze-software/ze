@@ -132,6 +132,10 @@ type Completion struct {
 	// means the command declares none, and the key is then absent. It is NEVER
 	// read as a summary, and no one-line surface reads it at all.
 	Description string `json:"description,omitempty"`
+	// Completable says the daemon completes the command's argument from its
+	// runtime state, through `system command complete args <cmd>`. Only a
+	// `system command list` row carries it; absent means it does not.
+	Completable bool `json:"completable,omitempty"`
 }
 
 // CommandDef describes a command to register.

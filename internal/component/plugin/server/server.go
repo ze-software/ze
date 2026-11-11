@@ -115,7 +115,10 @@ type Server struct {
 
 	startupDone     chan struct{} // closed when signalStartupComplete runs
 	startupDoneOnce sync.Once
-	startupErr      error // non-nil when a config-path plugin fails during startup
+	// lastStopRecorded is true once this server wrote the last-stop record
+	// (last_stop.go), so its own startup end does not delete it as a clean start.
+	lastStopRecorded atomic.Bool
+	startupErr       error // non-nil when a config-path plugin fails during startup
 
 	configLoader          ConfigLoader   // Loads new config tree for ReloadFromDisk
 	fullReload            FullReloadFunc // Runs hub-level reload for daemon-reload RPC
@@ -818,6 +821,9 @@ func (s *Server) Start() error {
 func (s *Server) StartWithContext(ctx context.Context) error {
 	s.ctx, s.cancel = context.WithCancel(ctx)
 	s.running.Store(true)
+	// The runtime doctor checks read plugin state through this publication
+	// (doctor_snapshot.go); Stop withdraws it.
+	publishDoctorSnapshot(s)
 
 	// Hold the door open for the reactor's initial-sync barrier, which asks
 	// whether a process declared it reports `plugin session ready`. An external
@@ -898,6 +904,7 @@ func (s *Server) SignalShutdownRequested() {
 // which restarts plugins the next line is about to kill.
 func (s *Server) Stop() {
 	s.running.Store(false)
+	withdrawDoctorSnapshot(s)
 	s.stopTransaction(txShutdownGrace)
 	if s.cancel != nil {
 		s.cancel()
