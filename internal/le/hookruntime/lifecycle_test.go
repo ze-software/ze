@@ -141,6 +141,46 @@ func TestSubagentStartCarriesTheIdentityLine(t *testing.T) {
 	}
 }
 
+// TestSubagentStartCarriesTheCallRules drives the subagent-context hook with
+// a payload that carries a session and one that carries none (AC-6).
+//
+// VALIDATES: the start text states the five rules a subagent's calls are
+// judged by: the whole Read of a door, Edit or Write under plan/ and
+// ai/rules/, batching, tests and builds in the main thread, and the budget
+// with refused calls uncounted.
+// PREVENTS: an agent learning each rule from a refusal, a turn apiece.
+func TestSubagentStartCarriesTheCallRules(t *testing.T) {
+	for _, payload := range []map[string]any{
+		{"session_id": "context-parent", "agent_id": "agent-1"},
+		{"session_id": ""},
+	} {
+		code, output, diagnostics := runHook(t, t.TempDir(), "subagent-context", payload)
+		if code != 0 {
+			t.Fatalf("%v: code = %d, want advisory context; stderr: %s", payload, code, diagnostics)
+		}
+		var response struct {
+			Output struct {
+				Context string `json:"additionalContext"`
+			} `json:"hookSpecificOutput"`
+		}
+		if err := json.Unmarshal([]byte(output), &response); err != nil {
+			t.Fatal(err)
+		}
+		for _, want := range []string{
+			"Read a door or the Go style guide with the Read tool, whole",
+			"Edit files under plan/ and ai/rules/ with Edit or Write only",
+			"Put independent calls in one message",
+			"Hand tests, builds, lint and formatters to the main thread",
+			"A ze-work agent's budget is 100 hooked calls",
+			"A call a hook refuses is not counted.",
+		} {
+			if !strings.Contains(response.Output.Context, want) {
+				t.Errorf("%v: start text missing %q: %s", payload, want, response.Output.Context)
+			}
+		}
+	}
+}
+
 // TestSessionStartNamesDueJournalClasses drives the due-class line through the
 // hook entry point over committed journals of 9 and 10 rows, and over a tree
 // git cannot read. It proves the line appears at the threshold, stays absent

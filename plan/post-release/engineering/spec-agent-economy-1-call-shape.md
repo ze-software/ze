@@ -560,6 +560,49 @@ Phase 2 (2026-11-11):
   removes. It now answers 2, so the row and the `bashCode` model in
   `internal/le/ai/hooks/parity.go` owe the change with the phase 4 fixture work.
 
+Phase 3 (2026-11-11):
+
+- The refused-call rule: `Run` (`runtime.go`) sets `context.refused` once a
+  check of the action returns code 2 or above, and `agentCallBudgetCheck`
+  (`budget.go`) returns nothing for such a call, so the counter does not move
+  and no budget message joins the other refusal. The budget therefore MUST
+  stay the last check of `pretool-bash` and `pretool-writeedit`
+  (`nativeHookActions` says so): `Run` can report only the checks that ran
+  before it, and a check placed after the budget could refuse a call the
+  budget had already counted. A call past the budget that another check
+  refuses shows only that other refusal; the budget refusal appears once its
+  cause is fixed. `TestAgentCallBudgetRefusesTheCallPastTheBudget` edited a
+  Go file past the budget, which the style-guide gate refuses first, so its
+  fixture now edits a file no other check refuses and keeps both assertions.
+- The piped-command refusal (`lossypipe.go`) no longer advises a redirect or
+  a `tee`. It shows the caller's own command, assignments, launchers and
+  redirections removed, as `./le job run label <label> quiet command <argv>`
+  (`admittedCommand` with `quiet` set; `lossyPipeLabel` picks `unit-pkg`,
+  `lint` or `le-test`), adds `./le test unit pkg path <package>` for a
+  `go test`, and answers a verification command with the scoped package run
+  and the sentence that GitHub CI verifies a pushed commit.
+  `TestLossyPipeRefusalNamesTheScopedRun` expected the redirect form, which
+  `ai/rules/commands.md` forbids; an independent `ze-test-judge` approved its
+  deletion, and `TestLossyPipeRefusalNamesTheQuietAdmittedForm` with the
+  unchanged `TestLossyPipeReadsTheTwoWordArea` keep what it proved.
+- The test-deletion guard is narrowed for one line shape only
+  (`plainRmArguments`, `testdeletion.go`): modeled syntax, parsed whole, no
+  command substitution, and every command either an `rm` typed as the command
+  word with no word the shell expands, or a reader its judge admits that
+  writes no file, is not `cd` and names no delete word. On such a line only
+  the `rm` arguments are judged. Every other line (`git rm`, `find -delete`,
+  `xargs`, `eval`, a loop, a variable, a glob, a subshell, `cd`) keeps the
+  line-wide judgment. The refusal keeps its header, which the committed test
+  helper reads, and replaces its closing question with the commit route
+  (`./le commit create ... remove <path>`) and a report to the main thread.
+- The start text gains five rule lines (`subagentCallRules`, `lifecycle.go`):
+  read a door, the Go style guide and a spec's sources whole with the Read
+  tool; edit `plan/` and `ai/rules/` with Edit or Write only; put independent
+  calls in one message; hand tests, builds, lint and formatters to the main
+  thread; and the `ze-work` budget of 100 hooked calls, a refused call not
+  counted. The agent type and the number come from the budget's own
+  constants.
+
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
@@ -625,6 +668,13 @@ Phase 2 (2026-11-11):
   `~/tmp`, a glob) stays refused, because it can expand to nothing or to `/`
   and so reach /tmp itself; `cat "$CLAUDE_JOB_DIR"/tmp/x`, the example AC-16
   first named, is refused.
+- After the agent's own identity line, a line the hook does not model (a
+  here-document such as `cat >> notes <<'EOF'`, or any other syntax outside
+  the allow-list) is judged by its text, so it is refused as taking another
+  identity when its text mentions either identity variable, or when one of
+  its lines starts with a word that changes the environment (`export`, `set`,
+  `.`, `env` and the rest), here-document bodies included. It fails closed;
+  the Write tool covers note-writing.
 - A raw `go vet` without tags is not refused here. `plan/post-release/engineering/spec-agent-economy-2-scoped-test.md` owns the short action that replaces it and the message that names it.
 
 ## Checklist

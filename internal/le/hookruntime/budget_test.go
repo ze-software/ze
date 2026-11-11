@@ -34,7 +34,10 @@ func TestAgentCallBudgetRefusesTheCallPastTheBudget(t *testing.T) {
 	if code != 2 || !strings.Contains(message, "100 tool calls; its budget is 100") {
 		t.Fatalf("call 101: code=%d message=%q", code, message)
 	}
-	edit := agentPayload(budgetedAgentType, "Edit", map[string]any{"file_path": "internal/core/x.go", "old_string": "a", "new_string": "b"})
+	// The edit names a file no earlier check refuses: a Go file is refused by
+	// the style-guide and door gates first, and the budget yields on a call
+	// another check already refused (agentCallBudgetCheck).
+	edit := agentPayload(budgetedAgentType, "Edit", map[string]any{"file_path": "notes.md", "old_string": "a", "new_string": "b"})
 	code, _, message = runHook(t, root, "pretool-writeedit", edit)
 	if code != 2 || !strings.Contains(message, "its budget") {
 		t.Fatalf("edit past budget: code=%d message=%q", code, message)
@@ -110,6 +113,49 @@ func TestAgentCallBudgetCountsEveryIdTheIdentityAccepts(t *testing.T) {
 	}
 	if _, _, message := runHook(t, t.TempDir(), "pretool-writeedit", edit); !strings.Contains(message, "is not a file name, so this agent is not counted") {
 		t.Fatalf("unsafe agent id: message=%q, want the uncounted report", message)
+	}
+}
+
+// TestRefusedCallDoesNotConsumeTheBudget drives the dispatcher with calls
+// another check refuses, between calls that pass (AC-13).
+//
+// VALIDATES: a Bash or Write call that an earlier check refuses leaves the
+// counter where it was, so the agent's 100th passing call still passes and
+// only the 101st is refused by the budget.
+// PREVENTS: a refusal costing an agent a unit of its budget on top of the
+// turn it already costs, which ended agents early that the identity check
+// had refused a few times.
+func TestRefusedCallDoesNotConsumeTheBudget(t *testing.T) {
+	root := t.TempDir()
+	passing := agentPayload(budgetedAgentType, "Bash", map[string]any{"command": "echo ok"})
+	for call := 1; call < agentCallBudget; call++ {
+		if code, _, message := runHook(t, root, "pretool-bash", passing); code != 0 {
+			t.Fatalf("call %d: code=%d message=%q", call, code, message)
+		}
+	}
+	refused := []struct {
+		kind    string
+		payload map[string]any
+	}{
+		{"pretool-bash", agentPayload(budgetedAgentType, "Bash", map[string]any{"command": "./le spec current"})},
+		{"pretool-bash", agentPayload(budgetedAgentType, "Bash", map[string]any{"command": "cat /tmp/x"})},
+		{"pretool-bash", agentPayload(budgetedAgentType, "Bash", map[string]any{"command": "./le spec current"})},
+		{"pretool-writeedit", agentPayload(budgetedAgentType, "Write", map[string]any{"file_path": "internal/core/x.go", "content": "package x\n\nfunc f() { go func() {}() }\n"})},
+	}
+	for _, call := range refused {
+		code, _, message := runHook(t, root, call.kind, call.payload)
+		if code != 2 {
+			t.Fatalf("%s %v: code=%d message=%q, want another check's refusal", call.kind, call.payload["tool_input"], code, message)
+		}
+		if strings.Contains(message, "its budget") {
+			t.Fatalf("%s %v: refused by the budget before it was spent: %q", call.kind, call.payload["tool_input"], message)
+		}
+	}
+	if code, _, message := runHook(t, root, "pretool-bash", passing); code != 0 {
+		t.Fatalf("call %d after the refusals: code=%d message=%q, want it counted as call %d", agentCallBudget, code, message, agentCallBudget)
+	}
+	if code, _, message := runHook(t, root, "pretool-bash", passing); code != 2 || !strings.Contains(message, "its budget is 100") {
+		t.Fatalf("call %d: code=%d message=%q, want the budget refusal", agentCallBudget+1, code, message)
 	}
 }
 

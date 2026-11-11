@@ -42,9 +42,15 @@ func writeCallBudget(ctx context) *verdict {
 }
 
 // agentCallBudgetCheck counts the hooked calls an editing agent has made and
-// refuses the call past the budget, except a call that writes the handoff.
+// refuses the call past the budget, except a call that writes the handoff. A
+// call an earlier check refused is not counted: the refusal already costs the
+// agent a turn, and the call never ran. Run sets ctx.refused, which is why the
+// budget is the last check of its action (nativeHookActions).
 func agentCallBudgetCheck(ctx context) *verdict {
 	if ctx.payload.AgentID == "" || ctx.payload.AgentType != budgetedAgentType {
+		return nil
+	}
+	if ctx.refused {
 		return nil
 	}
 	if !lepath.ValidAgentID(ctx.payload.AgentID) {

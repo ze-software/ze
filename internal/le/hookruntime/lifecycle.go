@@ -540,10 +540,27 @@ func hookSubagentContext(ctx context, out io.Writer) int {
 			}
 		}
 	}
+	subagentCallRules(&text)
 	text.Str("\nYou are a subagent under ai/rules/planning.md. Report grounded facts, read routed rules before acting, never weaken tests, and write scratch only under ./le session scratch ensure.\n")
 	response := map[string]any{"hookSpecificOutput": map[string]any{"hookEventName": "SubagentStart", "additionalContext": text.String()}}
 	_ = json.NewEncoder(out).Encode(response)
 	return 0
+}
+
+// subagentCallRules writes the five rules a subagent's calls are judged by,
+// each one a check it would otherwise learn from a refusal that costs it a
+// turn: the whole-document read the edit gates record (readgate.go), the
+// shell-write guard on plan/ and ai/rules/ (bashGovernedWrite), the batching
+// a turn rewards, where tests and builds run, and the call budget
+// (agentCallBudgetCheck), whose numbers come from its own constants.
+func subagentCallRules(text *textbuf.Buffer) {
+	text.Str("\nHow your calls are judged:\n").
+		Str("- Read a door or the Go style guide with the Read tool, whole (no offset or limit): only a whole read is recorded, and the write hooks refuse a code edit until it is. Read a spec's source files whole too.\n").
+		Str("- Edit files under plan/ and ai/rules/ with Edit or Write only: the Bash hook refuses a shell write there.\n").
+		Str("- Put independent calls in one message: every call re-reads your whole context.\n").
+		Str("- Hand tests, builds, lint and formatters to the main thread, which runs them one at a time on the shared machine.\n").
+		Str("- A ").Str(budgetedAgentType).Str(" agent's budget is ").Int(agentCallBudget).
+		Str(" hooked calls (Bash, Write, Edit). A call a hook refuses is not counted.\n")
 }
 
 // readToolLineCap is how many lines the Read tool returns when a call names no

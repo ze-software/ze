@@ -14,8 +14,8 @@ your whole context, and past 250k tokens each call costs more than a successor's
 whole start, so at 100 calls you stop: append your handoff to the per-spec state
 file and report that the package needs a continuation. The main thread spawns
 it, into a fresh context, carrying the SAME package. The pretool hook counts
-your Bash and Write/Edit calls and refuses the 101st; the calls that write the
-state file still pass. Never trim an acceptance
+your Bash and Write/Edit calls and refuses the 101st; a call a hook refuses is
+not counted, and the calls that write the state file still pass. Never trim an acceptance
 criterion, park a defect, or weaken a test to fit (`ai/rules/completion.md`,
 `ai/rules/context-economy.md`).
 

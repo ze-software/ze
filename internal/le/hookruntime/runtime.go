@@ -72,6 +72,10 @@ type context struct {
 	content    string
 	transcript string
 	payload    Payload
+	// refused reports that a check Run ran earlier for this call blocked it
+	// (code 2). The budget reads it: a refused call costs the agent a turn,
+	// so it does not cost a unit of the budget too (agentCallBudgetCheck).
+	refused bool
 }
 
 type hookCheck func(context) *verdict
@@ -84,7 +88,9 @@ type hookAction struct {
 // nativeHookActions is the runtime authority for native checks. The rule
 // coverage gate reads this Go declaration, then requires every named function
 // to carry a `// ze point:` binding and refuses bindings on functions absent
-// from this registry.
+// from this registry. The call budget (bashCallBudget, writeCallBudget) MUST
+// stay the last check of its action: Run tells it whether an earlier check
+// refused the call, and it counts only a call none refused.
 var nativeHookActions = map[string]hookAction{
 	"pretool-bash": {
 		tools: []string{toolBash},
@@ -256,6 +262,7 @@ func Run(kind string, in io.Reader, out, errOut io.Writer) (code int) {
 	for _, check := range action.checks {
 		if result := check(ctx); result != nil {
 			results = append(results, *result)
+			ctx.refused = ctx.refused || result.code >= 2
 		}
 	}
 

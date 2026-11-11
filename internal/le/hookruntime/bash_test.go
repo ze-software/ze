@@ -297,24 +297,51 @@ func TestLossyPipeReadsTheTwoWordArea(t *testing.T) {
 	}
 }
 
-// TestLossyPipeRefusalNamesTheScopedRun is the example the refusal teaches.
+// TestLossyPipeRefusalNamesTheQuietAdmittedForm is the command the
+// piped-command refusal teaches (AC-12).
 //
-// VALIDATES: the lossy-filter refusal's example command is a scoped test run,
-// the evidence an agent owes.
-// PREVENTS: the refusal teaching an agent to start any `./le verify` command,
-// which no agent runs (ai/META-DECISIONS.md).
-func TestLossyPipeRefusalNamesTheScopedRun(t *testing.T) {
-	_, _, message := runHook(t, t.TempDir(), "pretool-bash", map[string]any{
-		"tool_name":  "Bash",
-		"tool_input": map[string]any{"command": "./le verify changed | tail -5"},
-	})
-	if !strings.Contains(message, `./le test unit <group> > "$dir/test.log"`) {
-		t.Errorf("the refusal does not name the scoped run as its example: %s", message)
+// VALIDATES: the refusal shows the caller's own command, its assignments,
+// launchers and redirections removed, in the quiet admitted form, and a
+// verification command gets the scoped package run instead.
+// PREVENTS: the refusal advising a redirect or a tee into a scratch path,
+// which ai/rules/commands.md forbids, and telling an agent to run any `./le
+// verify` command, which no agent runs (ai/META-DECISIONS.md).
+func TestLossyPipeRefusalNamesTheQuietAdmittedForm(t *testing.T) {
+	tests := []struct {
+		name    string
+		command string
+		want    []string
+	}{
+		{"go-test", `go test -run TestX ./internal/x/ | tail -5`,
+			[]string{"./le job run label unit-pkg quiet command go test -run TestX ./internal/x/\n", "./le test unit pkg path <package>"}},
+		{"go-test-assignment-and-redirect", `GOFLAGS=-count=1 go test ./internal/x/ 2>&1 | grep FAIL`,
+			[]string{"./le job run label unit-pkg quiet command go test ./internal/x/\n"}},
+		{"lint", `golangci-lint run ./internal/x/ | head -20`,
+			[]string{"./le job run label lint quiet command golangci-lint run ./internal/x/\n"}},
+		{"le-suite", `./le test functional gating | tail -5`,
+			[]string{"./le job run label le-test quiet command ./le test functional gating\n"}},
+		{"verify", `./le verify changed | tail -5`,
+			[]string{"./le test unit pkg path <package>", "GitHub CI verifies a pushed commit"}},
+		{"ze-le-verify", `ze le verify current | tail -5`,
+			[]string{"./le test unit pkg path <package>"}},
 	}
-	for _, full := range []string{"le verify"} {
-		if strings.Contains(message, full) {
-			t.Errorf("the refusal tells an agent to run %q: %s", full, message)
-		}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			refusal := guardVerdict(bashLossyPipe, t.TempDir(), test.command)
+			if refusal == nil || refusal.code != 2 {
+				t.Fatalf("%q: verdict %+v, want the piped-command refusal", test.command, refusal)
+			}
+			for _, want := range test.want {
+				if !strings.Contains(refusal.message, want) {
+					t.Errorf("%q: the refusal lacks %q: %s", test.command, want, refusal.message)
+				}
+			}
+			for _, banned := range []string{"tee ", `> "$dir`, "le verify", "?"} {
+				if strings.Contains(refusal.message, banned) {
+					t.Errorf("%q: the refusal holds %q: %s", test.command, banned, refusal.message)
+				}
+			}
+		})
 	}
 }
 
@@ -650,6 +677,77 @@ func TestTestDeletionAsksOnlyForATestPath(t *testing.T) {
 	for _, command := range asked {
 		if asked, message := testDeletionAsked(t, command); !asked {
 			t.Errorf("%q was not asked about as a test deletion: %s", command, message)
+		}
+	}
+}
+
+// TestTestDeletionJudgesOnlyTheArgumentsOfAPlainRm drives the pretool-bash
+// hook with lines whose rm is a plain command beside readers (AC-14).
+//
+// VALIDATES: on a line of plain rm commands with literal arguments and
+// readers, only the rm arguments are judged, so a scratch delete beside a
+// read of a test file passes, and a plain rm of a test is still refused.
+// PREVENTS: the narrowing reaching a line whose deletes the hook cannot see
+// whole: a variable, a substitution, find, xargs, a loop, eval, a shell
+// handed a string, a cd, a redirect into a file, and a reader naming rm each
+// keep the line-wide judgment.
+func TestTestDeletionJudgesOnlyTheArgumentsOfAPlainRm(t *testing.T) {
+	allowed := []string{
+		`rm -f tmp/session/2026-11-11-021635/scratch/out.log && grep x internal/a_test.go`,
+		`rm -f bin/x; cat internal/foo/foo_test.go`,
+		`rm -f bin/x && ls test/plugin`,
+		`rm -f bin/x bin/y && wc -l internal/foo/foo_test.go | sort`,
+	}
+	for _, command := range allowed {
+		if asked, message := testDeletionAsked(t, command); asked {
+			t.Errorf("%q was refused as a test deletion: %s", command, message)
+		}
+	}
+	refused := []string{
+		`rm -f bin/x && rm internal/a_test.go`,
+		`rm -f "$f" && grep x internal/a_test.go`,
+		`rm -f $(cat list) && grep x internal/a_test.go`,
+		`rm -f x && find internal -name '*_test.go' -delete`,
+		`rm -f x && find . -name '*_test.go' | xargs rm`,
+		`rm -f x; for f in internal/a_test.go; do rm "$f"; done`,
+		`rm -f x && eval rm internal/a_test.go`,
+		`rm -f x && bash -c 'rm internal/a_test.go'`,
+		`rm -f x && cd internal/x_test_dir && rm a.go`,
+		`rm -f x && cat a > internal/a_test.go`,
+		`rm -f x && grep -n rm internal/a_test.go`,
+		`rm -f x && git rm internal/a_test.go`,
+	}
+	for _, command := range refused {
+		if asked, message := testDeletionAsked(t, command); !asked {
+			t.Errorf("%q was not refused as a test deletion: %s", command, message)
+		}
+	}
+}
+
+// TestTestDeletionRefusalNamesTheNextAction is what the test-deletion refusal
+// tells an agent to do (AC-15).
+//
+// VALIDATES: the refusal says the agent cannot approve the deletion, names
+// the commit route for a tracked test, and sends anything else to the main
+// thread.
+// PREVENTS: a refusal that ends in a question an agent cannot answer.
+func TestTestDeletionRefusalNamesTheNextAction(t *testing.T) {
+	for _, command := range []string{`rm internal/x/foo_test.go`, `git checkout -- internal/foo/foo_test.go`, `rm 'unclosed_quote`} {
+		refusal := guardVerdict(bashTestDeletion, t.TempDir(), command)
+		if refusal == nil || refusal.code != 2 {
+			t.Fatalf("%q: verdict %+v, want the test-deletion refusal", command, refusal)
+		}
+		for _, want := range []string{
+			"cannot approve that",
+			"./le commit create ... remove <path>",
+			"report the path and the reason to the main thread",
+		} {
+			if !strings.Contains(refusal.message, want) {
+				t.Errorf("%q: the refusal lacks %q: %s", command, want, refusal.message)
+			}
+		}
+		if strings.Contains(refusal.message, "?") {
+			t.Errorf("%q: the refusal asks a question: %s", command, refusal.message)
 		}
 	}
 }

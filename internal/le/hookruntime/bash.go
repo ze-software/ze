@@ -303,6 +303,33 @@ func shellWords(text string) []string {
 }
 
 func commandExpensive(segment string) bool {
+	tokens := programWords(segment)
+	if len(tokens) == 0 {
+		return false
+	}
+	word := tokens[0]
+	base := filepath.Base(word)
+	if base == "go" {
+		return len(tokens) > 1 && oneOf(tokens[1], "test", "build", "vet", "run")
+	}
+	if base == lintCommand {
+		return true
+	}
+	if base == "le" {
+		return heavyArea(tokens[1:])
+	}
+	if strings.HasPrefix(base, "ze") && len(tokens) > 2 && tokens[1] == "le" {
+		return heavyArea(tokens[2:])
+	}
+	return false
+}
+
+// programWords answers a segment's words from its program on, the way
+// commandExpensive reads a segment: the assignments and launchers in front of
+// the program and the options before it are removed. The piped-command
+// refusal shows these words, so the command it advises is the one the guard
+// judged.
+func programWords(segment string) []string {
 	tokens := shellWords(segment)
 	launchers := map[string]bool{"bash": true, "sh": true, "perl": true, "ruby": true, "sudo": true, "time": true, "nice": true, "env": true, "timeout": true}
 	for len(tokens) != 0 {
@@ -324,24 +351,7 @@ func commandExpensive(segment string) bool {
 	for len(tokens) != 0 && strings.HasPrefix(tokens[0], "-") {
 		tokens = tokens[1:]
 	}
-	if len(tokens) == 0 {
-		return false
-	}
-	word := tokens[0]
-	base := filepath.Base(word)
-	if base == "go" {
-		return len(tokens) > 1 && oneOf(tokens[1], "test", "build", "vet", "run")
-	}
-	if base == "golangci-lint" {
-		return true
-	}
-	if base == "le" {
-		return heavyArea(tokens[1:])
-	}
-	if strings.HasPrefix(base, "ze") && len(tokens) > 2 && tokens[1] == "le" {
-		return heavyArea(tokens[2:])
-	}
-	return false
+	return tokens
 }
 
 // beforeRedirection answers the words up to the first redirection. The
@@ -389,7 +399,7 @@ func heavyArea(words []string) bool {
 	if area == "go" {
 		return len(rest) > 0 && rest[0] == "lint"
 	}
-	if area == "verify" {
+	if area == verifyArea {
 		if len(rest) > 0 && oneOf(rest[0], "status", "summary") {
 			return false
 		}
@@ -428,11 +438,13 @@ func bashLossyPipe(ctx context) *verdict {
 		if len(segments) < 2 {
 			continue
 		}
-		expensive := false
+		expensive := ""
 		for _, segment := range segments[:len(segments)-1] {
-			expensive = expensive || commandExpensive(segment)
+			if expensive == "" && commandExpensive(segment) {
+				expensive = segment
+			}
 		}
-		if !expensive {
+		if expensive == "" {
 			continue
 		}
 		for _, segment := range segments[1:] {
@@ -440,11 +452,7 @@ func bashLossyPipe(ctx context) *verdict {
 			if len(fields) == 0 || !oneOf(fields[0], "head", "tail", "grep", "egrep", "fgrep", "awk", "sed", catCommand, "less", "more") {
 				continue
 			}
-			return &verdict{2, "❌ Blocked: piping an expensive command's output through a lossy filter (" + fields[0] + ")\n" +
-				"  -- The truncated output is what you would judge the run by.\n" +
-				"  -- Use: dir=$(./le session scratch ensure); ./le test unit <group> > \"$dir/test.log\" 2>&1\n" +
-				"  -- Or:  dir=$(./le session scratch ensure); <command> 2>&1 | tee \"$dir/out.log\"\n" +
-				"  -- Then: Read the log with offset/limit"}
+			return lossyPipeRefusal(fields[0], expensive)
 		}
 	}
 	return nil
@@ -491,10 +499,10 @@ func rawHeavy(segment string) (string, string) {
 		return "", ""
 	}
 	base := filepath.Base(tokens[0])
-	if base == "go" && len(tokens) > 1 && tokens[1] == "test" {
-		return "`go test`", admittedCommand("unit-pkg", tokens)
+	if goTest(tokens) {
+		return "`go test`", admittedCommand("unit-pkg", false, tokens)
 	}
-	if base == "golangci-lint" {
+	if base == lintCommand {
 		sub := ""
 		for _, token := range tokens[1:] {
 			if !strings.HasPrefix(token, "-") {
@@ -505,13 +513,21 @@ func rawHeavy(segment string) (string, string) {
 		if oneOf(sub, "config", "version", "help", "linters", "cache", "completion") {
 			return "", ""
 		}
-		return "`golangci-lint`", admittedCommand("lint", tokens)
+		return "`golangci-lint`", admittedCommand("lint", false, tokens)
 	}
 	return "", ""
 }
 
-func admittedCommand(label string, tokens []string) string {
-	return "./le job run label " + label + " command " + strings.Join(tokens, " ")
+// admittedCommand writes the job-admission form of a command a refusal
+// advises: `./le job run label <label> [quiet] command <argv>`. quiet sends
+// the child's output to this session's scratch log rather than the
+// transcript (ai/rules/commands.md).
+func admittedCommand(label string, quiet bool, tokens []string) string {
+	form := "./le job run label " + label
+	if quiet {
+		form += " quiet"
+	}
+	return form + " command " + strings.Join(tokens, " ")
 }
 
 // ze point: commands/directives/heavy-jobs-are-admitted-by-native-actions-never-typed-raw
@@ -693,13 +709,16 @@ func testPath(path string) bool {
 const testElement = "test"
 
 // ze point: testing/directives/write-the-test-first-and-never-weaken-it
-// bashTestDeletion asks before a command deletes a test. A deleted test is
+// bashTestDeletion refuses a command that deletes a test. A deleted test is
 // indistinguishable from a test that never existed, and its coverage goes with it.
-// It fails closed: it asks when the line runs a delete ANYWHERE and names a test
-// path ANYWHERE, without deciding which command deletes which path, because a
-// shell has more ways to reach an rm than a hook can parse. Only the path test is
-// exact, so a test path is a path the rule guards and not any path spelling
-// "test". A line that cannot be split into words, and that runs rm, is asked about.
+// It fails closed: it refuses when the line runs a delete ANYWHERE and names a
+// test path ANYWHERE, without deciding which command deletes which path, because
+// a shell has more ways to reach an rm than a hook can parse. The one line it
+// reads closer is a line of plain rm commands and readers (plainRmArguments),
+// where only the rm arguments are judged, so `rm -f <scratch> && grep x
+// internal/a_test.go` passes. Only the path test is exact, so a test path is a
+// path the rule guards and not any path spelling "test". A line that cannot be
+// split into words, and that runs rm, is refused.
 func bashTestDeletion(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
 	errors := make([]string, 0, 2)
@@ -708,7 +727,11 @@ func bashTestDeletion(ctx context) *verdict {
 		errors = append(errors, "Cannot split the command into words (an unclosed quote or a trailing backslash), so what its rm deletes is unknown: "+command)
 	}
 	if runsDeletion(words) {
-		for _, word := range words {
+		judged := words
+		if arguments, plain := plainRmArguments(command); plain {
+			judged = arguments
+		}
+		for _, word := range judged {
 			if testPath(word) {
 				errors = append(errors, "Attempting to delete test path "+word+" via: "+command)
 			}
@@ -720,11 +743,15 @@ func bashTestDeletion(ctx context) *verdict {
 	if len(errors) == 0 {
 		return nil
 	}
-	lines := []string{yellow + bold + "❓ Test deletion - user approval required" + reset, ""}
+	lines := []string{red + bold + "❌ Blocked: Test deletion - user approval required" + reset, ""}
 	for _, problem := range errors {
 		lines = append(lines, "  → "+problem)
 	}
-	lines = append(lines, "", "  "+bold+"Allow this test deletion?"+reset)
+	lines = append(lines, "",
+		"  -- A deleted test takes its coverage with it, and the agent that deletes it cannot approve that (ai/rules/testing.md).",
+		"  -- A tracked test that the agreed work removes is deleted by the commit that lands the work. Leave the file in place and name it:",
+		"     ./le commit create ... remove <path>",
+		"  -- Otherwise do not delete it: report the path and the reason to the main thread.")
 	return &verdict{2, strings.Join(lines, "\n")}
 }
 
