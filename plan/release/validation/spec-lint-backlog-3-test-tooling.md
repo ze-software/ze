@@ -2,17 +2,61 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | 58 findings of the full lint in the test harness, `le` and the chaos tooling; the full lint holds the release (`plan/release/validation/spec-lint-backlog-0-umbrella.md`) |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 5/5: tooling and fixture edits written; parent verification pending |
-| Handoff | - |
-| Updated | 2026-11-02 |
+| Phase | 5/5: source review complete; final validation blocked by foreign work |
+| Handoff | verify after the claimed inventory build dependency is restored |
+| Updated | 2026-11-11 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Blocker
+
+The current checkout cannot build the native tooling while another session
+owns unfinished inventory changes. The main thread observed the named-tool
+rebuild fail on 2026-11-11 (exec session `39179`, exit 1), with these compiler
+diagnostics in `internal/le/repo/inventory`:
+
+| Producer location | Missing member |
+|-------------------|----------------|
+| `assemblyheaders.go:76:39` | `reader.snapshot.assemblyPredefines` |
+| `assemblyheaders.go:120:27` | `unit.headers.snapshot.headerPresence` |
+| `assemblylinkage.go:52:28` | `pkg.assembly` |
+| `assemblylocalinclude.go:42:28` | `unit.headers.snapshot.localHeaders` |
+
+`inventory/source.go` is dirty under the foreign claim for
+`plan/post-release/engineering/spec-inventory-fast-registry-checks.md`, held by
+session `03d43e18-c488-4511-8040-2650b2986bb3`. The claim marker is
+`tmp/session/.session-03d43e18-c488-4511-8040-2650b2986bb3`. Its owner must
+restore the coherent source dependency before lint3 validation resumes. The
+launcher reported that the named binary was unchanged; this is an observed
+build failure, not a scoped-lint verdict. No foreign source was changed here.
+
+All lint3 repairs are committed, including the labs parity repair
+`241b754837`, and the independent source review is ready. Final scoped lint,
+structural/documentation prechecks and their evidence consolidation remain
+owed; AC-1 and AC-2 are not certified. Resume with the current scoped evidence
+listed below, rerun only the remaining gates once the dependency builds, then
+record the machine Review Gate and complete closure. The owner's instruction
+to move past locked or blocked work is why this spec is handed back now.
+
+## Resolved environment blocker
+
+The main-thread scoped lint on 2026-11-10 exited 2 before analysis. Its host
+flavor `go list` could not write `/home/thomas/.cache/ze/go-cache/*`: the
+sandbox reports a read-only filesystem. `Toolchain.Overrides` in
+`internal/le/go/toolchain/gotoolchain.go` selects the checkout cache, whose
+symlink reaches that directory; an environment-only GOCACHE override cannot
+change the selected cache. No lint or package-test verdict was produced.
+
+The owner restored write access to the configured cache and signing directories
+on 2026-11-10. Closure resumed with a fresh main-thread scoped lint. The shared
+cache link and tooling were not changed. AC-1 and AC-2 stay open until their
+scoped evidence is available.
 
 ## Task
 
@@ -192,8 +236,9 @@ scoped run (umbrella A-2). Line numbers are the CI run's.
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1-15, 17 | Feature, config, CLI, API, plugin, wire, SDK, RFC, test infrastructure, comparison, architecture, metadata, metrics, inventory, examples | No | Lint fixes change no documented behavior |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `./le spec citation anchors spec plan/release/validation/spec-lint-backlog-3-test-tooling.md` |
+| 1-9, 11, 13-15, 17 | Feature, config, CLI, API, plugin, wire, SDK, RFC, comparison, metadata, metrics, inventory, examples | No | Equivalent lint edits change no shipped operator or protocol contract |
+| 10, 12 | Test infrastructure and tooling architecture | Yes | `docs/architecture/testing/interop.md` records exclusive marker creation; `docs/architecture/testing/test-health.md` and `docs/contributing/committing.md` record semantic approval selection and consumption, landed with `fc62fd18ec`, `726855e9be` and `9fffb6b1b3`. `docs/contributing/rfc-conformance-gates.md` records Git discovery ceilings in `b49d61572d`; `docs/contributing/gh-pages.md` describes the controlled labs parity input. |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Read current source-anchored claims for `runParsedEmptyMPSource`, `writeParsedEmptyMPReady`, `Check`, `claimFinding`, `checkSourceGates`, `insideGitCheckout` and `assertAuthoredPageContentParity`; each matches its producer. |
 
 ## Implementation Steps
 
@@ -323,6 +368,22 @@ of the whole tooling diff remains owed. No real checkout commit was prepared or 
 
 ## Review Gate
 
+### Closure review scope, 2026-11-10
+
+This fresh closure pass covers the two lint commits `5c403f0234` and
+`bf7d87359f`, the marker fixes `d2c19eae5c` and `fc62fd18ec`, the semantic
+approval fixes `726855e9be` and `9fffb6b1b3`, observer repair `39c04d6fbc`,
+Git-discovery repair `b49d61572d`, DNS repair `9bca475108`, and the controlled
+labs parity repair, their current producers and documentation, and the
+closure record. The three lenses are behavior and
+wiring, trust boundaries and cleanup, and assertion preservation and Go style.
+The earlier seven semantic-approval rounds remain recorded below; this pass
+does not reopen their completed correction loop. This independent source pass
+found zero BLOCKER and zero ISSUE. The current shared `rfc.DeclaredUnits`
+producer, rather than the retired handwritten scanner, was reviewed for the
+Go unit boundary contract. Final machine artifact remains pending scoped lint
+and main-thread structural prechecks; source review alone is not closure.
+
 ### Round seven: owner authorization and scope
 
 Owner authorization, 2026-11-02: asked "Do you authorize this correction and
@@ -360,8 +421,11 @@ CGO enabled. Evidence logs under `tmp/session/2026-11-02-150621/scratch/`:
 `job-semantic-round7-red-be5a6b56.log`,
 `job-semantic-round7-green-be5a6b56.log`, and
 `job-semantic-round7-race-41e8a1f4.log`.
-Independent round-seven review remains pending; this is implementation evidence,
-not a review verdict. The real access-child approval was not consumed.
+Independent round-seven review completed before commit `9fffb6b1b3`.
+That commit records no code finding and a separate check of the corrected
+documentation. The real access-child approval was not consumed. The pending
+review statement previously recorded here was stale; this correction does not
+authorize round eight.
 
 ### Round six: owner authorization and scope
 
@@ -482,3 +546,265 @@ with the round-count reconciliation above.
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
 - [ ] `./le go lint run scope "<the packages>"` zero; `./le job run label unit-pkg command go test -tags <tags> <changed packages>`; `./le ai hooks unit` if a hook source changed. Full-run evidence belongs to the umbrella's CI run.
+
+## Implementation Summary
+
+### What Was Implemented
+
+Commits `5c403f0234` and `bf7d87359f` apply reasoned permission annotations,
+equivalent loop and regular-expression forms, named fixture constants, and
+explicit fixture cleanup errors. Commits `726855e9be` and `9fffb6b1b3`
+preserve judged semantic approval rows through commit publication. Commits
+`d2c19eae5c` and `fc62fd18ec` make the parsed-empty-MP readiness marker an
+exclusively created file and prove refusal through the registered speaker.
+
+### Bugs Found/Fixed
+
+Scoped validation found two observer-guard defects. The family-12 census in
+`plugin_fixture_12_peer_wait_test.go`, `parseFixturePackage12`, accepts exactly
+two Register arguments, so adding the valid StopsDaemon property hides real
+observers. The general guard in `plugin_fixture_peer_wait_test.go`,
+`observerPackage.register`, treats that property as an executable driver.
+Its wrapper discovery and ranged-row selection repeat the same old contract.
+The owning layer is the static guard's interpretation of `fixture.Register`.
+The source fix reads the second argument as the sole direct driver and admits
+trailing metadata consistently. Removing the empty-census assertion or ignoring
+the StopsDaemon error would hide the lost proof, so neither workaround is used.
+Independent judgment approved the exact source correction. Main-thread red
+`job-lint3-regressions-red-d4153b71.log` demonstrated lost direct, wrapped and
+table registrations and the dropped family-12 observer. The approved repair is
+applied. The main-thread focused run passed both real observer corpora, the
+existing false-pass guard corpus and the new family-12 census case. Its new
+property tests exposed an incomplete synthetic wait helper; independent
+judgment approved supplying the recognized peer selector without changing any
+expected finding. All six corrected property cases passed under the race
+detector in main-thread `job-lint3-fixes-green-44b14f4e.log`. Commit
+`39c04d6fbc` carries the three observer files, the native helper approvals and
+the independent judgment of the receiver-ambiguous wrapper-discovery method.
+
+The same matrix exposed bare RFC and approval fixtures inheriting empty
+ancestor `.git` entries from the sandbox. `insideGitCheckout` ignored Git's
+directory ceilings, so it classified the fixtures as corrupt repositories.
+The repair honors the same discovery boundary as Git while preserving
+refusal of a corrupt marker inside that boundary (`b49d61572d`). DNS runner failures came
+from per-command exit fields on foreground commands; the repair preserves each
+startup rejection in a separately asserted boot case. Main-thread validation
+passed all five drafts, 80 stress invocations selecting the five cases, and all
+five promoted live tests. Commit `9bca475108` carries the independently judged
+split and removes only the stale accept-only exemption for `l2tp-bad-port`.
+These repairs preserve the original validation scope; the remaining scoped
+lint and package reruns still gate closure.
+
+The site rerun exposed a stale editorial snapshot in
+`TestTheLabsIndexPageReadsAsThePublishedPage`. The rendering contract gives
+authored source authority over wording and forbids refreshing prose snapshots.
+Commit `241b754837` instead feeds controlled captured content with a deliberately
+stale sidebar through the original renderer. Exact visible text, ordered links
+and complete Markdown assertions remain unchanged; the shared helper still
+reads the live Zeledon source. Independent judgment approved both changed units.
+The main-thread race run passed all four named authored-page tests in
+`tmp/session/2026-11-10-234952/scratch/job-lint3-labs-parity-0b4734cb.log`
+(package 3.497 seconds), including the existing sidebar and mirror controls.
+
+- `writeParsedEmptyMPReady` previously overwrote an existing marker or symlink
+  target. `TestParsedEmptyMPSourcePropagatesMarkerRefusal` proves the refusal
+  reaches the registered speaker's caller and preserves the target bytes.
+- `testweakened.Check` previously omitted approved semantic changes without
+  structural findings. Native Create tests prove selection, publication and
+  pruning, with weakening-first RFC fallback and directory-collision refusal.
+
+### Documentation Updates
+
+`docs/architecture/testing/interop.md` documents exclusive capture and marker
+creation through `runParsedEmptyMPSource` and `writeParsedEmptyMPReady`.
+`docs/contributing/committing.md` and `docs/architecture/testing/test-health.md`
+document selected semantic approvals through `Check`, `claimFinding` and
+`checkSourceGates`. These updates landed with their producing changes.
+`docs/contributing/rfc-conformance-gates.md` documents bounded Git discovery;
+`docs/contributing/gh-pages.md` documents the controlled labs parity input.
+Both claims were independently checked against their named producers.
+
+### Deviations from Plan
+
+The CI locations had moved and the exhaustive annotations already existed.
+The marker overwrite and semantic approval defects required source fixes
+before the lint work could land. Current scoped lint and package evidence are
+still required; the original CI list is not evidence for the current tree.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1 treated the CI line list as current | Locations moved and exhaustive annotations already existed | Implementation source audit | Judge the current scoped lint |
+| approach | The spec still called round seven pending | `9fffb6b1b3` records independent review and passing race tests | Closure history review | Correct the stale record without inventing another review round |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Clear the listed tooling scopes | In progress | `5c403f0234`, `bf7d87359f` | Cache access restored; fresh lint planning refused a concurrently changed source file |
+| Preserve harness assertions | Reviewed | Fixture constants, equivalent regex classes and cleanup-error branches in `bf7d87359f` | No expected assertion removed |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | In progress | Scoped lint planning exited 2 | `internal/le/workflowcheck/stdpatch_cache_link_test.go` changed during planning; no lint verdict |
+| AC-2 | In progress | Main-thread tagged race matrix and focused reruns | Initial observer, runner, RFC-fixture and native-tool failures resolved; named RFC real-corpus and all four named labs tests passed; final validation consolidation remains |
+| AC-3 | Reviewed | `5c403f0234` and `bf7d87359f` annotations | Each names its linter and trust or result-handling reason |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Existing changed-package tests | In progress | Main-thread tagged race matrix | Partial passes recorded in the job log; focused repairs and reruns remain |
+| Marker refusal red/green proof | Recorded | `fc62fd18ec`, `TestParsedEmptyMPSourcePropagatesMarkerRefusal` | The earlier proof is recorded above |
+| Semantic RFC approval native proof | Recorded | `9fffb6b1b3`, `TestCreateSemanticRFCApproval` | Independent round seven completed |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Task-table files | Implemented or already corrected | Current lint must verify the population, including later changes |
+
+### Audit Summary
+
+AC-1 and AC-2 remain open. No scope was removed.
+
+The main-thread race matrix completed green for `internal/test/plugins/fakefilter`,
+`internal/test/userns`, `internal/test/editorcase`, `internal/test/cli`,
+`internal/le/cli/catalog`, `internal/le/go/extract`,
+`internal/le/go/stdpatch/gen`, `internal/le/interoplab/ipsec`,
+`internal/le/setup` and `internal/le/test/functional`.
+`tools/freertr-entrypoint` compiled and has no tests. The RFC package exhausted
+its 600-second aggregate budget during `TestRFCTreeOverRealCorpus`; its earlier
+completed passes remain evidence, but the interrupted package run is not a pass.
+The site package initially failed to build during concurrent inventory source
+changes; workflowcheck reported missing import artifacts. The main thread retains the full log
+as `job-lint3-scoped-race-9ef91d05.log`.
+
+The fresh `job-lint3-site-workflow-18c55e1c.log` run completed the full
+workflowcheck package under race. Site compiled and passed its catalog checks,
+including `TestEveryPublishedCatalogFieldReachesAReader`, and
+`TestThisCheckoutCanAnswerEveryPublishedFact`. Its labs page assertion exposed
+a rendered HTML/Markdown wording mismatch; repair `241b754837` passed all four
+named labs tests under race in `job-lint3-labs-parity-0b4734cb.log` (3.497s).
+Its package-wide 600-second budget expired during
+`TestTheGateSnapshotAgreesWithItself`, after that test had run for 2m53s.
+That interrupted whole-tree snapshot remains unverified; it exercises a full
+RFC check rather than the changed catalog comment and is a disclosed limit,
+not an additional whole-tree closure requirement. The completed site passes do
+not need repeating and the incomplete package run is not reported as a pass.
+
+The two remaining native producer fixtures passed under race in
+`job-lint3-native-fixtures-e269ad09.log`: `TestToolFixturesReachTheirProducer`
+and `TestRulesFixtureRootAliasesReachOnlyOwnedTree`. The corrected main-thread
+environment points PATH at the actual named native `le` binary rather than the
+shell launcher and explicitly supplies the checkout GOCACHE. Their command
+helpers use synchronous `cmd.Run`; no fixture assertion or source changed.
+
+The seven original RFC action tests covering `disableBody` and its halt/import
+handling passed under race in `job-lint3-actions-and-corpus-2c82a357.log`, as
+did all three previously failed runner corpus checks: `TestCIAcceptOnlyLint`,
+`TestParseCICorpusReadsUnderTheGenericParser` and
+`TestPeerASDerivationReachesEveryCIFile`. The other RFC package tests do not
+become owed solely because the aggregate run was interrupted; the named
+real-corpus test that was running at that point was rerun separately. It passed
+under race in 297.40s in `job-lint3-focused-corpus-5e2a0f64.log` (exit 0).
+
+## Goal Validation
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Zero findings in the tooling scope | Scoped lint | Main-thread run exited 2 before analysis; no verdict |
+| Preserve test and command behavior | Tagged package tests | Observer, runner, RFC fixture and native-tool repairs passed focused race runs; workflowcheck passed in full; named RFC corpus and all four labs tests passed; unrelated whole-tree site snapshot remains an explicit limitation |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Final scoped lint and changed-package validation | Current closure runs exposed defects; repairs and reruns remain in progress | `plan/release/validation/spec-lint-backlog-3-test-tooling.md` retains AC-1 and AC-2 |
+
+## Pre-Commit Verification
+
+### Files Exist
+| File | Exists | Evidence |
+|------|--------|----------|
+| Implementation files | Yes | Committed file lists in `5c403f0234`, `bf7d87359f`, `726855e9be`, `9fffb6b1b3`, `d2c19eae5c`, `fc62fd18ec` |
+
+### AC Verified
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2 | Lint and changed-package checks pass | Not established: current lint planning refused a concurrent source edit; race matrix exposed defects under repair |
+| AC-3 | Added annotations explain their permission or error handling | Read the annotation diffs in both lint commits |
+
+### Wiring Verified
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Scoped lint | Not applicable: tooling analysis | Requested over all four package roots |
+| Native commit preparation | Native Create tests | `9fffb6b1b3` records selection, publication and pruning proof |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken | Existing annotations and moved source locations; recorded in Mistake Log |
+| A-2 | Unvalidated: in progress | Scoped lint must cover the earlier eight fixes; cache access is restored |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Marker file ownership | `runParsedEmptyMPSource`, `writeParsedEmptyMPReady` | Exclusive creation and explicit result-path routing |
+| Semantic approval carry | `testweakened.Check`, `claimFinding` | Weakening-first RFC fallback uses selected existing units |
+| Fixture literals and loop syntax | `5c403f0234`, `bf7d87359f` | No operator contract changes |
+
+## Closure repair: Git discovery boundaries (2026-11-10)
+
+Implementation and documentation committed as `b49d61572d`; the lint3 claim
+remains held for closure.
+
+The scoped RFC tests exposed a tooling defect in
+`internal/le/rfc/check_evidence_prior.go::insideGitCheckout`. Its ancestor
+walk ignored `GIT_CEILING_DIRECTORIES`, so empty sandbox `.git` markers above
+history-free fixtures made `priorRevisionState` report unreadable history.
+`approvalunits.go::resolveApprovalSides` uses the same predicate and could
+not take its intended plain-tree path either.
+
+The source fix follows Git's documented discovery boundary. It preserves
+markers below the ceiling and in the working directory, explicit `GIT_DIR`,
+and fail-closed handling of unresolved paths and non-ENOENT inspection
+errors. `gitDiscoveryCeilings` resolves absolute entries' symlinks until an
+empty entry disables resolution; relative entries are ignored. Ignoring
+malformed `.git` markers instead would be a workaround that also hides a
+corrupt checkout, so that approach was rejected.
+
+Files changed in this phase:
+
+- `check_evidence_prior.go`: the two discovery producers above.
+- `check_evidence_ceiling_test.go`: ceiling, symlink, current-directory,
+  explicit-Git-directory and failed-inspection regressions.
+- `check_test.go::checkFixtureTree` and
+  `check_evidence_test.go::TestPriorRevisionState`: set the temporary root's
+  parent as the discovery ceiling; all existing assertions remain intact.
+- `docs/contributing/rfc-conformance-gates.md`: the exclusion-ratchet
+  contract now describes discovery boundaries.
+
+All test execution was in the main thread. The ceiling matrix failed before
+the fix in `job-lint3-regressions-red-d4153b71.log`. It and the existing
+`TestPriorRevisionState` corruption, shallow-clone and missing-parent
+controls passed in `job-lint3-ceiling-check-7f7b8f05.log`; that invocation
+remained red because the newly added non-directory regression exposed an
+ignored `Lstat` error. After the error guard, that regression passed under
+race in `job-lint3-fixes-green-44b14f4e.log` (exit 0). These logs live under
+the 2026-11-10 sessions `231811`, `232205` and `232320`, respectively.
+
+The independent test judge approved both fixture setup edits, recorded in
+`tmp/commit-weakening-approved-a51004d0.md`, and independently re-read the
+source fix with no remaining findings. The implementation agent also read
+the complete phase diff against the Go style guide. No protocol assertion
+or RFC proof record changed. The main thread then reran all 20 previously
+failing consumers: 13 RFC tests and seven weakening-approval tests passed
+under race in
+`tmp/session/2026-11-10-232436/scratch/job-lint3-git-consumers-8bc99280.log`.
+That process used
+`GIT_CEILING_DIRECTORIES=/home/thomas/.zt:/home/thomas/.cache/tmp:/tmp` to
+bound the parallel weakening tests' temporary roots without changing their
+assertions or process environment mid-test. This phase does not claim the
+spec's final closure Review Gate or its closing commits.

@@ -45,7 +45,7 @@ handover time belongs to other sessions.
 
 | Spec | What remains | Rating |
 |------|--------------|--------|
-| `plan/release/validation/spec-lint-backlog-3-test-tooling.md` | Scoped lint over `./internal/test/... ./internal/le/... ./internal/chaos/... ./tools/freertr-entrypoint/...`; tagged tests for `internal/test/{fixture,plugins/fakefilter,runner,userns,editorcase,cli}` and a race run of `internal/le/commit` and `internal/le/test/weakened` (earlier run hit a 240 s timeout); review round 7 pending | medium |
+| `plan/release/validation/spec-lint-backlog-3-test-tooling.md` | Blocked: foreign-claimed inventory source does not build (missing assembly snapshot members; session `03d43e18-c488-4511-8040-2650b2986bb3`). Original round seven and independent source review completed; observer, Git-discovery, DNS and labs repairs committed. Final scoped lint and structural/documentation checks remain owed after that dependency is restored; spec stays open. | medium |
 | `plan/release/validation/spec-rfc-verdict-fix-ike-eap.md` | Review Gate not run; rfc4555 and rfc2759 SHIFTED verdicts may need `./le rfc reseal`; Work Not Done must name `plan/release/validation/spec-ipsec-rfc9190.md` for RFC9190-2.3-1/2.3-4; its "`./le verify changed` is owed" row is wrong under the rules and is rewritten at closure | medium |
 | `plan/post-release/features/spec-route-policy-0-umbrella.md` | Phase 4 has no review round and no AC-17 evidence (cite `spec-filter-wire-0-umbrella`'s closure, commit `0c3c86b319`, or run the BGP policy `.ci` and `bgp-policy-*` interop); AC-12/AC-13 status cells are stale; one owned journal row open in `plan/journal/comment-describes-superseded-behaviour.md` (the `ze:filter` marker documented as discovery but never read) | medium |
 
