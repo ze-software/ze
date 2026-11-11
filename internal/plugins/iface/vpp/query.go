@@ -181,11 +181,17 @@ func (b *vppBackendImpl) GetLink(name string) (*iface.InterfaceInfo, error) {
 }
 
 // detailsByName returns the SwInterfaceDetails of the interface named name.
-// The name is the VPP long name; SwInterfaceDump's NameFilter is
-// substring-match, so the answer is re-checked for an exact InterfaceName
-// match. An absent interface answers an error wrapping
-// iface.ErrInterfaceNotFound.
+// Registered names resolve to their VPP interface index, as writes do. A
+// missing registered index is inconsistent readback and refuses the read.
+// Unregistered names use VPP's substring filter, followed by an exact name
+// check; only an absent unregistered name wraps iface.ErrInterfaceNotFound.
 func (b *vppBackendImpl) detailsByName(name string) (*interfaces.SwInterfaceDetails, error) {
+	if err := b.ensureChannel(); err != nil {
+		return nil, err
+	}
+	if idx, ok := b.names.lookupIndex(name); ok {
+		return b.dumpByIndex(interface_types.InterfaceIndex(idx))
+	}
 	details, err := b.dumpByName(name)
 	if err != nil {
 		return nil, err

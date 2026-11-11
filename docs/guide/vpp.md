@@ -436,6 +436,15 @@ still available through the CLI socket ze writes to `/run/vpp/cli.sock`.
 
 ## Implementation status
 
+Configured interface names can differ from VPP's names: a VLAN named
+`qos0.100` may appear as `loop1.100` in VPP. Link and address reads resolve
+the configured name through the same registered interface index used by
+writes, so a reload updates the existing VLAN. If that registered index
+cannot be read, the reload refuses instead of treating the VLAN as absent
+and creating it again. An unregistered name is looked up as an exact VPP
+interface name.
+<!-- source: internal/plugins/iface/vpp/query.go -- detailsByName -->
+
 The implementation status differs by subsystem:
 
 | Phase | Scope | Status |
