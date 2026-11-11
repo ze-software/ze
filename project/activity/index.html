@@ -228,7 +228,8 @@
             text-transform: uppercase;
             cursor: pointer;
         }
-        .activity-widget .metric-switch button[aria-pressed="true"] {
+        .activity-widget .metric-switch button[aria-pressed="true"],
+        .activity-widget .activity-tabs button[aria-selected="true"] {
             color: #07111d;
             background: linear-gradient(135deg, #9fffd0, #7dd3fc);
             box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.14);
@@ -504,7 +505,7 @@
         width: fit-content;
         padding: 0.32rem;
         border: 2px solid var(--activity-border);
-        border-radius: var(--radius-md);
+        border-radius: var(--radius-lg);
         background: var(--activity-card-strong);
         box-shadow: var(--clay);
     }
@@ -514,7 +515,7 @@
     body[data-metric="commits"] .activity-growth [data-growth-metric="lines"] { display: none; }
     .activity-tabs button {
         border: 0;
-        border-radius: var(--radius-sm);
+        border-radius: var(--radius-md);
         padding: 0.45rem 0.7rem;
         background: transparent;
         color: var(--muted);
@@ -524,11 +525,6 @@
         letter-spacing: 0.03em;
         text-transform: uppercase;
         cursor: pointer;
-    }
-    .activity-tabs button[aria-selected="true"] {
-        background: var(--activity-card);
-        color: var(--text);
-        box-shadow: var(--clay);
     }
     .activity-tabs button:focus-visible,
     .growth-chart:focus-visible,
