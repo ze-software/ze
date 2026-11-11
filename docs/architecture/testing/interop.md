@@ -1069,6 +1069,19 @@ L2TP and PPPoE suites, so they reach the same check. A suite with no kernel
 module of its own, such as the FreeRADIUS admin-login suite, is checked too:
 the owner's rule is about the host, not about the scenario.
 
+The `vpp-iface` VLAN QoS scenario keeps one Ze daemon running through two
+SIGHUP reloads. A successful empty-map preflight establishes a fresh pool.
+VPP's own `show qos egress map` output must contain exactly one map, whose
+external ID is the VLAN index and whose mark refers to the first pool entry.
+Its output must first contain
+the full VLAN row with priorities 3 and 5 mapped to themselves, then only
+priority 3 after replacement. The next reload removes the egress map from
+config, and `show qos mark` must report no mark on the same existing VLAN
+interface. A failed CLI query, a changed interface index or an exited daemon
+cannot satisfy the proof. The signal targets the exact daemon command in the
+proof's private container, as the other VPP deployment scenarios do.
+<!-- source: internal/le/test/deployment/vppifaceqos.go -- proveVLANQoSReload, awaitVLANQoS, qosVLANRow -->
+
 The `l2tp`, `vpp` and `vpp-iface` deployment proofs run no suite,
 and neither does `TestVPPSRv6ServiceRoute` (build tag `integration`), which
 prepares its daemon through the step `vpp-iface` uses. Each cross-compiles its own daemon to `tmp/evidence/bin/ze-linux-<arch>`, and
@@ -1850,11 +1863,14 @@ the log read with bgpd PID and `/proc` start ticks, log device/inode, exact
 neighbor socket ports, Established state, one connection establishment and
 zero drops. Foreign peers, address substrings, other families/VRFs, send
 messages, pre-startup events and daemon/session/log replacement cannot certify
-this observation. The final Established check and identity comparison retain
-the original-session survival assertion.
+this observation. An identity query the wait's end cuts short, before or
+after the log read, fails that probe and preserves the last complete
+observation for the EOR wait's verdict; an observed identity replacement
+still refuses immediately. The final Established check and identity
+comparison retain the original-session survival assertion.
 <!-- source: internal/le/interoplab/bgp/check_rfc.go -- checkNoFamilyEndOfRIB -->
 <!-- source: internal/le/interoplab/bgp/check_rfc_predicate.go -- endOfRIBDecoded, frrStartupRelease, requireMultiprotocolAdvertisedOnly -->
-<!-- source: internal/le/interoplab/bgp/check_no_family_eor.go -- readNoFamilyEORIdentity, noFamilyFRRLogMessage -->
+<!-- source: internal/le/interoplab/bgp/check_no_family_eor.go -- readNoFamilyEORIdentity, probeNoFamilyEORIdentity, noFamilyFRRLogMessage -->
 <!-- source: test/interop/scenarios/no-family-peer-eor-frr/daemons -- early bgpd logging -->
 
 These are checker/source contracts, not a live result. Current native GREEN,

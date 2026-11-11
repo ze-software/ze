@@ -1320,10 +1320,10 @@ func checkNoFamilyEndOfRIB(ctx context.Context, check *interoplab.CheckContext) 
 	// with no decode ends with Wait's not-ready verdict quoting the last FRR
 	// log (noFamilyEORObservation.String), never the expired context.
 	//
-	// Each probe reads the identity twice and the log once, about eleven
-	// docker execs; a 3s interval keeps that rate below what stalled one exec
-	// past its bound. Every fact the probe reads is cumulative, so spacing the
-	// probes loses no decode and no identity change.
+	// Each complete probe runs nine queries: four for each identity read and
+	// one for the log. A 3s interval keeps that rate below what stalled one
+	// exec past its bound. Every fact the probe reads is cumulative, so
+	// spacing the probes loses no decode and no identity change.
 	observed, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     60 * time.Second,
 		Interval:    3 * time.Second,
