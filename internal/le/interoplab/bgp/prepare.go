@@ -16,6 +16,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/interoplab"
 	"github.com/ze-software/ze/internal/test/labconfig"
@@ -379,6 +380,10 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 	if !regularFile(filepath.Join(scenario, zeConfigFile)) {
 		return nil, fmt.Errorf("missing ze.conf in %s", filepath.Base(scenario))
 	}
+	zeConfig, err := readZeConfig(filepath.Join(scenario, zeConfigFile))
+	if err != nil {
+		return nil, err
+	}
 	timeout := interoplab.ReadEnvironment(interoplab.EnvironmentOptions{}).SessionTimeout
 	peers := make([]interoplab.PeerConfig, 0, len(containerRoles))
 	var rendered textbuf.Buffer
@@ -391,12 +396,13 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 
 	// A scenario carrying pmbmpd.conf reads ze's BMP stream with pmacct, so ze's
 	// own collector is not started for it: two collectors would be two readings
-	// of one stream, and only the third-party one is interop evidence.
+	// of one stream, and only the third-party one is interop evidence. Any
+	// other scenario whose ze.conf runs the BMP sender gets ze's collector.
 	pmacctConfig := filepath.Join(scenario, "pmbmpd.conf")
 	if regularFile(pmacctConfig) {
 		peers = append(peers, interoplab.PeerConfig{Name: peerPMACCT, Container: containerName(peerPMACCT, suffix), Image: peerPMACCT, Host: 13,
 			Mounts: []interoplab.Mount{mount(pmacctConfig, "/etc/pmacct/pmbmpd.conf")}, Command: []string{"-f", "/etc/pmacct/pmbmpd.conf"}})
-	} else if configContains(filepath.Join(scenario, zeConfigFile), "bmp {") {
+	} else if zeSendsBMP(zeConfig) {
 		peers = append(peers, interoplab.PeerConfig{Name: peerBMP, Container: containerName(peerBMP, suffix), Image: "ze", Host: 6,
 			Arguments: []string{dockerEntrypointFlag, leBinary}, Command: []string{leTestWord, "interop-bgp", "bmp-collector"}})
 	}
@@ -497,8 +503,12 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 			}
 		}
 	}
-	peers = append(peers, zeDaemonPeer("ze", suffix, zeHostNumber, zeMounts, zeArguments, zeCommand, timeout))
-	peers[len(peers)-1].AppArmorProfile = appArmorProfile
+	zeDaemon, zeDaemonErr := zeDaemonPeer("ze", suffix, zeHostNumber, zeConfig, zeConfigFile, zeMounts, zeArguments, zeCommand, timeout)
+	if zeDaemonErr != nil {
+		return nil, zeDaemonErr
+	}
+	zeDaemon.AppArmorProfile = appArmorProfile
+	peers = append(peers, zeDaemon)
 	// A scenario carrying ze-peer.conf runs a second Ze daemon where no
 	// third-party daemon can serve (ospf-multiaf-v4-frr: FRR ospf6d has no
 	// IPv4-unicast address family). It starts the way the Ze under test does
@@ -510,8 +520,16 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 				Str(" holds both ").Str(zePeerConfigFile).Str(" and ").Str(frrConfigFile).
 				Str(": both peers take host 3. Fix: remove one of the two files from the scenario directory").String())
 		}
-		peers = append(peers, zeDaemonPeer(peerZePeer, suffix, frrHostNumber,
-			[]interoplab.Mount{mount(path, zeMountedConfig)}, ipv6Sysctls(), []string{"start", zeMountedConfig}, timeout))
+		zePeerConfig, zePeerConfigErr := readZeConfig(path)
+		if zePeerConfigErr != nil {
+			return nil, zePeerConfigErr
+		}
+		zePeer, zePeerErr := zeDaemonPeer(peerZePeer, suffix, frrHostNumber, zePeerConfig, zePeerConfigFile,
+			[]interoplab.Mount{mount(path, zeMountedConfig)}, ipv6Sysctls(), []string{"start", zeMountedConfig}, timeout)
+		if zePeerErr != nil {
+			return nil, zePeerErr
+		}
+		peers = append(peers, zePeer)
 	}
 
 	// A relay to a native daemon (FRR, the FRR sink, GoBGP) waits for both
@@ -764,14 +782,19 @@ func frrImageName(reference string) string {
 
 // zeDaemonPeer is a Ze daemon container: the ze image, NET_ADMIN for the
 // routes and sockets it programs, the session timeout the scenario allows,
-// and a readiness that waits on nothing, because each checker waits on the
-// state it reads. The Ze under test and a scenario's second Ze (peerZePeer)
-// both start through it.
-func zeDaemonPeer(name, suffix string, host uint8, mounts []interoplab.Mount, arguments, command []string, timeout time.Duration) interoplab.PeerConfig {
+// and the readiness zeReadyProbe derives from zeConfig, the parsed config the
+// daemon starts from (configName, the file it was read from, names it in an
+// error): a listener on each port Ze answers a peer it never dials. The Ze under test and a scenario's second Ze (peerZePeer) both
+// start through it.
+func zeDaemonPeer(name, suffix string, host uint8, zeConfig *config.Tree, configName string, mounts []interoplab.Mount, arguments, command []string, timeout time.Duration) (interoplab.PeerConfig, error) {
+	listenPorts, err := zePassiveListenPorts(zeConfig, configName)
+	if err != nil {
+		return interoplab.PeerConfig{}, err
+	}
 	return interoplab.PeerConfig{Name: name, Container: containerName(name, suffix), Image: "ze", Host: host,
 		Mounts: mounts, Capabilities: []string{capabilityNetAdmin}, Arguments: arguments,
 		Environment: []interoplab.EnvironmentVariable{{Name: "SESSION_TIMEOUT", Value: strconv.Itoa(int(timeout / time.Second))}},
-		Command:     command, Ready: &interoplab.ReadyProbe{Command: []string{"true"}, Timeout: 30 * time.Second, Interval: time.Second}}
+		Command:     command, Ready: zeReadyProbe(listenPorts)}, nil
 }
 
 func containerName(role, suffix string) string {

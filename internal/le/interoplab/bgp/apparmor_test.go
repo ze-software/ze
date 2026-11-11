@@ -25,7 +25,25 @@ import (
 // PREVENTS: the lab silently running ze with apparmor=unconfined.
 func TestVRRPLabZeRunsUnderItsAppArmorProfile(t *testing.T) {
 	scenario := t.TempDir()
-	writeFixture(t, filepath.Join(scenario, "ze.conf"), "vrrp {}\n")
+	// A VRRP router's config, which scenarioPeers parses against the full
+	// schema for the readiness probe, modeled on vrrp-mastership-keepalived.
+	writeFixture(t, filepath.Join(scenario, "ze.conf"), `interface {
+    ethernet eth0 {
+        unit 0 {
+            ipv4 {
+                address [ 172.31.22.2/24 ];
+                vrrp {
+                    group vip {
+                        vrid 10;
+                        virtual-address [ 172.31.22.100 ];
+                        priority 200;
+                    }
+                }
+            }
+        }
+    }
+}
+`)
 	writeFixture(t, filepath.Join(scenario, "keepalived.conf"), "vrrp_instance VI_1 {}\n")
 	network := interoplab.Network{Name: "lab", IPv4: netip.MustParsePrefix("172.31.22.0/24")}
 	peers, err := scenarioPeers(t.TempDir(), scenario, "fixture", network)

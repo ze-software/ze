@@ -43,9 +43,9 @@ func TestLinkLocalAssignmentFollowsThePlaceholders(t *testing.T) {
 		wrapZe    bool
 		wrapFRR   bool
 	}{
-		{"ze-only", "neighbor " + labconfig.ZeLinkLocalPlaceholder + "\n", "bfd\n", true, false},
+		{"ze-only", "# neighbor " + labconfig.ZeLinkLocalPlaceholder + "\nbgp {}\n", "bfd\n", true, false},
 		{"frr-only", "bfd {}\n", "peer " + labconfig.FRRLinkLocalPlaceholder + "\n", false, true},
-		{"both", "local " + labconfig.ZeLinkLocalPlaceholder + "\n", "peer " + labconfig.FRRLinkLocalPlaceholder + " " + labconfig.ZeLinkLocalPlaceholder + "\n", true, true},
+		{"both", "# local " + labconfig.ZeLinkLocalPlaceholder + "\nbgp {}\n", "peer " + labconfig.FRRLinkLocalPlaceholder + " " + labconfig.ZeLinkLocalPlaceholder + "\n", true, true},
 		// The name the harness used to compare against: carrying no placeholder,
 		// it gets no assignment, so the name no longer decides.
 		{"bgp-rfc2545-linklocal-nexthop-frr", "bgp {}\n", "router bgp 65002\n", false, false},

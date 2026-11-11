@@ -310,6 +310,23 @@ exit-only readiness; relays to other daemons and other speaker personalities ret
 No readiness probe opens a BGP connection, and the relay never reconnects a
 connected socket.
 
+Ze's own probe waits for a listener whenever Ze answers a peer it never dials.
+The runner starts the peers in order, Ze before the third-party BGP daemons,
+and waits on each probe before it starts the next. When the config a Ze starts from (`ze.conf`, or
+`ze-peer.conf` for a second Ze) gives a peer `connection remote connect false`,
+or holds a dynamic group, the probe runs `ss -ltn` and requires `:<port> ` for
+each such peer's listen port: 179 unless `connection local port` sets another.
+The question is answered from the parsed config, so a comment that names
+`connect false` decides nothing. Without the barrier, BIRD or FRR can dial
+before Ze listens, and the refused dial waits the daemon's connect-retry (120
+seconds by default), which outlasts the session budget. A Ze that dials every
+peer keeps the probe that only runs `true`, because it redials the daemons
+started after it on its own backoff. A relay barrier keeps the listener check:
+one `sh` runs `ss -ltn` and then the peer list, and the probe requires both
+sets of strings.
+<!-- source: internal/le/interoplab/bgp/ze_ready.go -- zePassiveListenPorts, zeReadyProbe -->
+<!-- source: internal/le/interoplab/bgp/extended_relay.go -- prepareExtendedRelayPeers -->
+
 A GoBGP-facing relay, as in `bgp-local-pref-strip-gobgp`, is gated the same way.
 GoBGP's `InitialConfig` calls `StartBgp`, which opens the listener, before it
 adds its neighbors, and `passConnToPeer` closes a connection from an address it
@@ -593,8 +610,9 @@ scenario it then:
 
 1. Creates an isolated Docker network, after refusing an existing container or
    network of the same name that this process did not create.
-2. Starts Ze and the peer daemons declared by the scenario's config files.
-3. Waits for every declared readiness probe.
+2. Starts Ze and the peer daemons declared by the scenario's config files,
+   in the order `scenarioPeers` lists them.
+3. Waits for each peer's declared readiness probe before it starts the next.
 4. Runs the scenario's typed checker from the package-local BGP registry,
    recording every call it makes to the lab ("Recording and replaying a
    checker" below).
@@ -1945,11 +1963,16 @@ IPv6-hop proof through a transit namespace. Ze's link scope reads the interface
 table, not the configured BGP TTL.
 <!-- source: internal/le/interoplab/bgp/check_linklocal_multihop.go -- checkLinkLocalOnlyMultihopWithdraw -->
 
-A BMP scenario with no `pmbmpd.conf` starts `le test interop-bgp bmp-collector`. Announcement and
+A scenario whose `ze.conf` runs the BMP sender (`bgp bmp sender`) and carries
+no `pmbmpd.conf` starts `le test interop-bgp bmp-collector`. The lab reads that
+from the parsed config, so a commented-out `bmp` block starts no collector, a
+receiver-only `environment bmp` starts none either, and a `ze.conf` that cannot
+be read or parsed fails the scenario's preparation, naming the file. Announcement and
 observer process plugins use `le test interop-bgp process <scenario> <plugin>`.
 These personalities are compiled into `le`; no interpreter or source mount
 is present in the Ze image.
 <!-- source: internal/le/interoplab/bgp/prepare.go -- sidecar startup -->
+<!-- source: internal/le/interoplab/bgp/ze_ready.go -- readZeConfig, zeSendsBMP -->
 <!-- source: internal/le/interoplab/bgp/helper.go -- compiled process and BMP helpers -->
 <!-- source: internal/le/interoplab/bgp/speaker.go -- compiled strict speaker -->
 <!-- source: test/interop/scenarios/bgp-rfc7606-relay-shape-frr/ -- injector worked example -->

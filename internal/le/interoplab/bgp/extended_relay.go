@@ -14,6 +14,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -57,14 +58,30 @@ func prepareExtendedRelayPeers(peers []interoplab.PeerConfig, relays []extendedR
 		return nil, errors.New("extended relay requires a configured Ze peer")
 	}
 	command := zeCommand("show bgp peer list")
-	peers[zeIndex].Ready = &interoplab.ReadyProbe{
-		Command: command, Environment: queryEnvironment("ze", command),
-		Contains: make([]string, len(relays)), Timeout: 30 * time.Second, Interval: time.Second,
+	// The listener barrier zeReadyProbe installed for a peer Ze never dials
+	// stays, because the peer list can name a relay before Ze listens for a
+	// third-party daemon. One probe runs one command, so ss prints the
+	// listeners ahead of the peer list on the same stdout, and the probe
+	// requires the relay neighbors and the listener ports together.
+	var listeners []string
+	if peers[zeIndex].Ready != nil {
+		listeners = peers[zeIndex].Ready.Contains
 	}
+	probeCommand := command
+	if len(listeners) > 0 {
+		var script textbuf.Buffer
+		script.Str(strings.Join(zeListenerCommand, " ")).Str(` && exec "$@"`)
+		probeCommand = append([]string{"sh", "-c", script.String(), "sh"}, command...)
+	}
+	ready := &interoplab.ReadyProbe{
+		Command: probeCommand, Environment: queryEnvironment("ze", command),
+		Contains: make([]string, 0, len(relays)+len(listeners)), Timeout: 30 * time.Second, Interval: time.Second,
+	}
+	peers[zeIndex].Ready = ready
 	for index := range relays {
 		relay := relays[index]
 		neighbor := networkHostAddress(network, relay.peer.Host)
-		peers[zeIndex].Ready.Contains[index] = `"` + neighbor + `"`
+		ready.Contains = append(ready.Contains, `"`+neighbor+`"`)
 		nativeIndex := -1
 		for candidate := range peers {
 			if peers[candidate].Name == relay.destination {
@@ -81,6 +98,7 @@ func prepareExtendedRelayPeers(peers []interoplab.PeerConfig, relays []extendedR
 		}
 		peers[nativeIndex].Ready = barrier
 	}
+	ready.Contains = append(ready.Contains, listeners...)
 	for index := range relays {
 		peers = append(peers, relays[index].peer)
 	}
