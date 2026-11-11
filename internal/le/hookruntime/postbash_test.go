@@ -40,6 +40,16 @@ func probeBash(t *testing.T, root string) (int, string) {
 	return code, message
 }
 
+// probeBashCommand asks postBashGofmt alone for its verdict after command.
+func probeBashCommand(t *testing.T, root, command string) (int, string) {
+	t.Helper()
+	code, message, found := Probe("postBashGofmt", Payload{ToolName: "Bash", ToolInput: map[string]any{"command": command}}, root)
+	if !found {
+		t.Fatal("postBashGofmt is not registered in nativeHookActions")
+	}
+	return code, message
+}
+
 func TestPostBashGofmtNamesTheFileTheCommandLeftUnformatted(t *testing.T) {
 	root := gitFixture(t)
 	writeHookFixture(t, root, "pkg/bad.go", unformattedGo)
@@ -116,5 +126,180 @@ func TestPostBashGofmtBlocksOnlyAFileTheCommandNames(t *testing.T) {
 	code, message, _ = Probe("postBashGofmt", Payload{ToolName: "Bash", ToolInput: map[string]any{"command": "gopls rename ./other/ x y"}}, root)
 	if code != 2 || !strings.Contains(message, "other/theirs.go") {
 		t.Errorf("a file under a directory the command names did not block (code %d):\n%s", code, message)
+	}
+}
+
+// VALIDATES: a command names a file only through a whole word of the parsed
+// line: the file's path, a directory above it, a glob that matches either, the
+// value of an option, or a redirection's target. A read-only line (every
+// command a reader, no redirection that may write a Go file of the checkout)
+// names nothing,
+// and a word bash expands other than as a plain glob names nothing.
+// PREVENTS: a grep, a `git log -- <dir>` or any command whose text holds the
+// word `internal` blocked for every unformatted Go file another session left
+// under internal/, which the substring test over the command text did.
+func TestPostBashGofmtNamesAFileOnlyThroughAWholeWord(t *testing.T) {
+	const theirs = "internal/le/test/x.go"
+	cases := []struct {
+		name    string
+		file    string
+		command string
+		blocks  bool
+	}{
+		{"a top directory inside another word", theirs, "sed -i s/internal/external/ docs/page.md", false},
+		{"a top directory inside a quoted message", theirs, `./tool -m "fix the internal lint"`, false},
+		{"a sibling directory", theirs, "./tool -- internal/le/arch", false},
+		{"a path that only shares a prefix", "internal/le/arch/x.go", "./tool internal/le/archive", false},
+		{"the checkout as a dot", theirs, "./tool .", false},
+		{"a reader searching for the word", theirs, "grep -rn internal docs/", false},
+		{"a reader over the directory", theirs, "grep -rn misaligned internal/le/test", false},
+		{"a reader over the file", theirs, "cat " + theirs + " | wc -l", false},
+		{"a reader after a cd", theirs, "cd internal/le/test && grep -n misaligned x.go", false},
+		{"a reader reading the file as its input", theirs, "wc -l < " + theirs, false},
+		{"a reader that discards its errors", theirs, "grep -rn misaligned internal/le 2>/dev/null", false},
+		{"a reader that joins its outputs", theirs, "grep -rn misaligned internal/le 2>&1 | head", false},
+		{"a reader that closes a descriptor", theirs, "grep -rn misaligned internal/le 2>&-", false},
+		{"a reader writing outside the checkout", theirs, "grep -rn misaligned internal/le > /tmp/out.txt", false},
+		// A reader can change a Go file only through a redirection's
+		// target, so a known target that is not Go source keeps the line
+		// read-only.
+		{"a reader writing a text file in the checkout", theirs, "grep -rn misaligned internal/le > tmp/out.txt", false},
+		{"a reader writing its errors in the checkout", theirs, "grep -rn misaligned internal/le 2> tmp/err.log", false},
+		{"an empty command", theirs, "", false},
+		{"a glob that would have to cross a directory", theirs, "sed -i s/a/b/ internal/*.go", false},
+		{"a parent directory above the checkout", theirs, "./tool ../internal", false},
+		{"an absolute path outside the checkout", theirs, "./tool /nowhere/" + theirs, false},
+		{"the checkout in Go's spelling", theirs, "go fix ./...", false},
+		// The literal parts of a word bash expands are not the argument, so
+		// such a word names nothing: `internal/le/$pkg/x.go` is not
+		// internal/le/x.go, and `internal$x` is not internal.
+		{"a word with a parameter in its middle", "internal/le/x.go", "sed -i s/a/b/ internal/le/$pkg/x.go", false},
+		{"a word with a parameter at its end", theirs, "./tool internal$suffix", false},
+		{"a word with a command substitution", theirs, "./tool internal$(true)", false},
+		{"a word with a brace expansion", theirs, "./tool internal/{le,other}", false},
+		{"a word with a tilde", theirs, "./tool ~/internal", false},
+		{"a glob word that also carries quotes", theirs, `./tool "internal"/*`, false},
+
+		{"the exact path", theirs, "sed -i s/a/b/ " + theirs, true},
+		{"the path spelled with a dot slash", theirs, "sed -i s/a/b/ ./" + theirs, true},
+		{"a quoted path", theirs, `sed -i s/a/b/ "` + theirs + `"`, true},
+		{"a parent directory", theirs, "./tool internal/le", true},
+		{"a parent directory with a slash", theirs, "./tool internal/le/", true},
+		{"the top directory", theirs, "./tool internal", true},
+		{"a glob over the file", theirs, "sed -i s/a/b/ internal/le/*/x.go", true},
+		{"an option's value", theirs, "./tool --file=" + theirs, true},
+		{"a directory entered before a writer", theirs, "cd internal/le/test && sed -i s/a/b/ x.go", true},
+		{"a for loop's item", theirs, `for f in ` + theirs + `; do sed -i s/a/b/ "$f"; done`, true},
+		{"a redirection's target on a reader line", theirs, "cat > " + theirs + " <<'EOF'\npackage sample\nEOF", true},
+		{"an appending redirection's target", theirs, "echo 'var  x = 1' >> " + theirs, true},
+		{"a both-streams redirection's target", theirs, "echo x &> " + theirs, true},
+		{"a clobbering redirection's target", theirs, "echo x >| " + theirs, true},
+		{"a read-write redirection's target", theirs, "echo x <> " + theirs, true},
+		{"a duplicating redirection's file target", theirs, "echo x >& " + theirs, true},
+		// A redirection that writes makes the line no reader line, so the
+		// word of cd names the file the redirection writes relative to it.
+		{"a directory entered before a redirection", theirs, "cd internal/le/test && cat > x.go <<'EOF'\npackage sample\nEOF", true},
+		{"a redirection whose target is not known", theirs, `grep -rn misaligned internal/le > "$out"`, true},
+		// An assignment before a reader can change what the program runs
+		// (GIT_EXTERNAL_DIFF, a pager), so the command is no reader here.
+		{"a reader under an assignment", theirs, "X=1 grep -rn misaligned internal/le", true},
+		// A command with a word the hook cannot give a value for is no
+		// reader: its judge was never shown what bash passes.
+		{"a reader with a word that is not read", theirs, "grep -rn $'misaligned' internal/le", true},
+		{"a writer nested in a reader's substitution", theirs, "echo $(sed -i s/a/b/ " + theirs + ")", true},
+		{"a package pattern in Go's spelling", theirs, "go generate ./internal/le/...", true},
+		{"a package pattern from the top directory", theirs, "go fix ./internal/...", true},
+		// This row proves the literal fallback only: when path.Match
+		// refuses the pattern (an unmatched `[`), the word is compared as
+		// it is spelled, so it names the file of exactly that name. Bash
+		// would still expand the `*`; a file such a word reaches by
+		// matching (pkg/sub/[x.go) is not named, a limit the page lists.
+		{"a glob path.Match refuses", "pkg/*/[x.go", "sed -i s/a/b/ pkg/*/[x.go", true},
+		// `../` is outside the checkout only when the shell stands at its
+		// root, which the hook cannot know, so the target may be a Go
+		// file and the line is not read-only: the word of cd names.
+		{"a redirection through a parent directory", theirs, "cd internal/le && cat > ../le/test/x.go <<'EOF'\npackage sample\nEOF", true},
+		{"a glob with a bracket expression", theirs, "sed -i s/a/b/ internal/le/test/[xy].go", true},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			root := gitFixture(t)
+			writeHookFixture(t, root, test.file, unformattedGo)
+
+			code, message := probeBashCommand(t, root, test.command)
+			if test.blocks {
+				if code != 2 || !strings.Contains(message, test.file) {
+					t.Errorf("%q did not block for %s (code %d):\n%s", test.command, test.file, code, message)
+				}
+				return
+			}
+			if code != 0 {
+				t.Fatalf("%q blocked for %s, which it does not name (code %d):\n%s", test.command, test.file, code, message)
+			}
+			if !strings.Contains(message, "1 unformatted Go file(s)") || strings.Contains(message, test.file) {
+				t.Errorf("the unnamed file is not counted, or is named into the agent's view:\n%s", message)
+			}
+		})
+	}
+}
+
+// VALIDATES: the blocking message says what to do when this command changed
+// the file and what to do when another session did.
+// PREVENTS: an agent told only `gofmt -w <path>` for a file it did not edit:
+// the window cannot tell whose write it was.
+func TestPostBashGofmtBlockingMessageCoversBothOwners(t *testing.T) {
+	root := gitFixture(t)
+	writeHookFixture(t, root, "pkg/bad.go", unformattedGo)
+
+	code, message := probeBash(t, root)
+	if code != 2 {
+		t.Fatalf("code %d, want 2:\n%s", code, message)
+	}
+	if !strings.Contains(message, "gofmt -w") || !strings.Contains(message, "another session") {
+		t.Errorf("the message does not say what to do for this session's file and for another's:\n%s", message)
+	}
+}
+
+// VALIDATES: an absolute path under the checkout names what its relative form
+// names, and the checkout's own absolute path names nothing.
+// PREVENTS: `cd <checkout> && ...` naming every file, or an absolute path to a
+// file naming none.
+func TestPostBashGofmtReadsAnAbsolutePathAsItsRelativeForm(t *testing.T) {
+	root := gitFixture(t)
+	writeHookFixture(t, root, "internal/le/test/x.go", unformattedGo)
+
+	if code, message := probeBashCommand(t, root, "cd "+root+" && ./tool docs"); code != 0 {
+		t.Errorf("the checkout root named a file (code %d):\n%s", code, message)
+	}
+	code, message := probeBashCommand(t, root, "sed -i s/a/b/ "+root+"/internal/le/test/x.go")
+	if code != 2 || !strings.Contains(message, "internal/le/test/x.go") {
+		t.Errorf("the file's absolute path did not block (code %d):\n%s", code, message)
+	}
+	code, message = probeBashCommand(t, root, "./tool "+filepath.Join(root, "internal")+"/")
+	if code != 2 || !strings.Contains(message, "internal/le/test/x.go") {
+		t.Errorf("a parent directory's absolute path did not block (code %d):\n%s", code, message)
+	}
+}
+
+// VALIDATES: a command the bash grammar cannot read names nothing, and the
+// code-0 line says the command was not read, not that it names no file.
+// PREVENTS: the check answering "does not name" for a line it never read, or
+// falling back to a search of the command's text.
+func TestPostBashGofmtSaysWhenItCouldNotReadTheCommand(t *testing.T) {
+	root := gitFixture(t)
+	writeHookFixture(t, root, "internal/le/test/x.go", unformattedGo)
+
+	code, message := probeBashCommand(t, root, "sed -i 's/a/b internal/le/test/x.go")
+	if code != 0 {
+		t.Fatalf("an unread command blocked (code %d):\n%s", code, message)
+	}
+	if !strings.Contains(message, "1 unformatted Go file(s)") || !strings.Contains(message, "could not be read") {
+		t.Errorf("the line does not say the command could not be read:\n%s", message)
+	}
+	if strings.Contains(message, "does not name") {
+		t.Errorf("the line claims an answer the check does not have:\n%s", message)
+	}
+	if !strings.Contains(message, "gofmt -l") {
+		t.Errorf("the line does not say how to check what the command changed:\n%s", message)
 	}
 }

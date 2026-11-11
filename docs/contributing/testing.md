@@ -511,7 +511,7 @@ first setting through `gitenv.ReadOnly`.
 ### Post-tool hooks block only on the author's own files
 
 <!-- source: internal/le/hookruntime/postwrite.go -- postLintVerdict -->
-<!-- source: internal/le/hookruntime/postbash.go -- postBashGofmt, commandNames -->
+<!-- source: internal/le/hookruntime/postbash.go -- postBashGofmt, commandNames, commandNamedPaths, redirectWritesGo, readerCall, wordPath, globOnly -->
 <!-- source: internal/le/hookruntime/runtime.go -- shownVerdicts -->
 
 A post-tool hook's blocking text enters the agent's context, and every later
@@ -526,6 +526,74 @@ therefore blocks only on what the tool call itself touched:
 
 When any check blocks, the hook drops the code-0 hints from what it prints,
 because a hint carries nothing for the agent to act on.
+
+The gofmt check reads what a command names from its parse as bash, never from
+its text. A file is named when a whole word of the line is its path or a
+directory above it:
+
+- `./`, a trailing slash and an absolute path under the checkout are spelling.
+- Go's `dir/...` names `dir`.
+- A word that is one unquoted glob (`pkg/*.go`) names what it matches, and
+  `*` does not cross a directory.
+- Any word that starts with `-` and holds `=` names what follows the first
+  `=` (`--file=pkg/x.go`).
+- The checkout itself (`.`, `./...`, its absolute path) and a path outside it
+  name nothing.
+
+A read-only line names nothing, because it cannot have changed a file. A line
+is read-only when every command on it is a reader (`grep`, `cat`, `git log`,
+the set in `readerCommands`), a command inside `$(...)` included, and no
+redirection may write a Go file of the checkout, which is the only way a line
+of readers changes one:
+
+| Redirection target | Ends the exemption |
+|--------------------|--------------------|
+| Outside the checkout (`2>/dev/null`), or a descriptor (`2>&1`, `>&-`) | No |
+| A known file that does not end in `.go` (`> tmp/out.txt`, `2> tmp/err.log`) | No |
+| A file that ends in `.go`, or a glob | Yes |
+| Not known: an expansion (`> "$out"`), or a relative path that climbs with `..` (`> ../x.go`) | Yes |
+
+The exemption is all or nothing: `cd pkg && cat > x.go <<EOF` is not
+read-only, so the word of `cd` names the file, as it does in `cd pkg && sed
+-i ... x.go`.
+
+A command that does not parse names nothing, and the code-0 line says the
+command could not be read and how to check what it changed.
+
+The limits that remain. In each case the file is counted at code 0 and does
+not block:
+
+- A word bash expands other than as a plain glob names nothing: a parameter
+  (`pkg/$name/x.go`), a command substitution, arithmetic, a tilde, braces, or
+  a glob that also carries a quote or a backslash. The check cannot know what
+  bash passes for it.
+- A path inside a longer word is not seen: `dd of=x.go`, an attached short
+  option value (`-ox.go`), the script of `bash -c '...'`.
+- A path that arrives through a variable or `xargs` is not seen.
+- A relative word is read against the checkout root, not against the shell's
+  directory after an earlier `cd` on the line. Only the word of `cd` names,
+  and a relative word that climbs with `..` names nothing.
+- An absolute path is compared as it is spelled, so one that reaches the
+  checkout through a symlink is read as outside it.
+- A redirection target that starts with `-` and holds no `=` (`cat > -x.go`)
+  is read as an option word and names nothing, so such a line stays
+  read-only.
+- A glob that `path.Match` refuses (an unmatched `[`) is compared as it is
+  spelled, so a file it would reach by matching is not named.
+- A comment that ends in a backslash makes the parser join the next line
+  into the comment, where bash runs that line. The tree then holds no command
+  for it, and the line reads as read-only.
+
+Some limits go the other way, and block for a file the command did not
+change:
+
+- A command that is not a reader blocks for another session's file under a
+  directory it names (`gofmt -l internal/le`).
+- A reader under an assignment is not taken for a reader (`LC_ALL=C grep -rn
+  x internal/le`, `GIT_PAGER=cat git log -- internal/le`). This is
+  deliberate: the check cannot know what the variable changes.
+- On a line that is not read-only, a word inside `${x:-word}`, `(( ))`,
+  `[[ ]]` or a case pattern is a candidate like any other.
 
 ### The slot a lint holds
 

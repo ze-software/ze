@@ -1920,12 +1920,63 @@ eleven subagents, each time for a test file another session was editing
 file in the reader's context with the advice `gofmt -w <path>`, which the
 owner's rule forbids for a file the session did not edit.
 
-**Workaround.** None that is honest: the command cannot avoid the word
-`internal`. Do not run the formatter on the named file. Say in the report
-that the file is another session's and carry on.
+**What removed it.** `commandNamedPaths` reads what a command names from the
+parse the hook already holds (`ctx.commandParse`, `mvdan.cc/sh`), and the
+substring test is gone. A file is named only when a whole word of the line,
+cleaned and made relative to the checkout, is its path or a directory above
+it; a word that is one unquoted glob names what it matches, a word starting
+with `-` that holds `=` names what follows it, and Go's `dir/...` names `dir`.
+A read-only line names nothing: every command on it is a reader
+(`readerCommand`, the one registry), nested substitutions included, and no
+redirection may write a Go file of the checkout (`2>/dev/null`, `2>&1` and
+`> tmp/out.txt` write none; a `.go` target, `> "$out"` and `> ../x.go` may).
+The exemption is all or nothing, so `cd pkg && sed -i ...
+x.go` and `cd pkg && cat > x.go <<EOF` name their file through the word of
+`cd`. A command that does not parse names nothing, and the code-0 line says
+it could not be read. The blocking message now says what to do when the file
+is another session's. The cases are
+`TestPostBashGofmtNamesAFileOnlyThroughAWholeWord` and its two neighbours
+(`postbash_test.go`); the rules are in `docs/contributing/testing.md`,
+"Post-tool hooks block only on the author's own files".
 
-**The fix it needs.** A command names a path only when a whole argument of
-the parsed command is that path or a directory above it, and a command made
-only of readers names nothing: it cannot have changed the file. The Bash hook
-already parses each line with `mvdan.cc/sh` and already knows which commands
-are readers, so both facts exist to be reused.
+**What remains.** Two kinds of residue, in opposite directions.
+
+- Still blocked for another session's file: a command that is not a reader
+  and names a directory holding it, such as `./le test unit pkg path
+  ./internal/le/arch/` or `gofmt -l internal/le`. The check cannot know such
+  a command wrote nothing. Do not run the formatter on a file the session did
+  not edit; say whose it is and carry on.
+  The same holds for a reader under an assignment (`LC_ALL=C grep -rn x
+  internal/le`, `GIT_PAGER=cat git log -- internal/le`), which counts as a
+  writer on purpose because the hook cannot know what the variable changes,
+  for a reader whose output goes to a target the hook cannot know (`>
+  "$out"`, `> ../x.go`), and, on
+  any line that is not read-only, a word inside `${x:-word}`, `(( ))`,
+  `[[ ]]` or a case pattern, which is a candidate like any other.
+- No longer caught, and said only at code 0:
+  - a word bash expands other than as a plain glob (a parameter as in
+    `pkg/$name/x.go`, a command substitution, arithmetic, a tilde, braces, a
+    glob that also carries a quote or a backslash): its literal parts are not
+    the argument, so it names nothing;
+  - a path inside a longer word: `dd of=x.go`, an attached short option value
+    (`-ox.go`), the script of `bash -c '...'`;
+  - a path that arrives through a variable or `xargs`;
+  - a relative word after a `cd` on the same line: words are read against the
+    checkout root, so only the word of `cd` names, and one that climbs with
+    `..` names nothing;
+  - an absolute path that reaches the checkout through a symlink, which is
+    compared as spelled and read as outside;
+  - a redirection target that starts with `-` and holds no `=` (`cat >
+    -x.go`), which is read as an option word and names nothing, so the line
+    stays read-only;
+  - a glob `path.Match` refuses (an unmatched `[`), which is compared as
+    spelled, so a file it reaches by matching is not named;
+  - a comment ending in a backslash, which makes the parser join the next
+    line into the comment where bash runs it: the tree holds no command for
+    that line, and it reads as read-only. `treeMisreadsLine` in the Bash
+    hook's uncommitted work detects this; the check owes a call to it once
+    that lands, and could not make one against HEAD;
+  - a line bash reads and the parser does not, and a reader given an option
+    that writes, if its judge ever admits one.
+
+  A scoped lint finds these at commit.
