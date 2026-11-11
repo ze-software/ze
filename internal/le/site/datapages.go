@@ -664,7 +664,6 @@ const milestonesStyle = `        <style>
                 color: var(--muted);
             }
             .tl-toolbar p { margin: 0; }
-            .tl-toolbar a { margin-left: auto; font-weight: 600; }
             .tl-overview .legend { margin: 0; gap: 0.4rem; }
             .tl-timeline {
                 display: grid;
@@ -812,10 +811,6 @@ func milestonesBody(data milestoneData, months []milestoneMonth) (string, error)
 	body.Str("                </div>\n")
 	body.Str("                <div class=\"tl-toolbar\"><span>").Int(int64(len(data.Milestones))).
 		Str(" milestones</span><p>Select again to clear.</p>\n")
-	if len(months) > 0 {
-		body.Str("                    <a href=\"#month-").Str(months[0].Date).
-			Str("\" data-latest-month>Latest month &uarr;</a>\n")
-	}
 	body.Str("                </div>\n")
 	body.Str("                <div class=\"legend reveal\" role=\"group\" aria-label=\"Filter milestones by category\">\n")
 	for _, category := range legendCategories {

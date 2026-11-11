@@ -1039,13 +1039,6 @@ document.addEventListener("DOMContentLoaded", function () {
             visibleSelector: ".tl-item[data-cat]:not(.filtered-out)",
             statusName: "milestones",
         });
-        var latest = document.querySelector("[data-latest-month]");
-        if (latest) {
-            latest.addEventListener("click", function () {
-                var active = document.querySelector('.legend button[data-cat][aria-pressed="true"]');
-                if (active) active.click();
-            });
-        }
     }
 
     function initChangesFilters() {

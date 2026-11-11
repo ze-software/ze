@@ -489,9 +489,8 @@ func TestTheTimelineSortsNewestFirstAndGroupsByMonth(t *testing.T) {
 			t.Errorf("month %d is dated %s, after the older %s", index, dates[index], dates[index-1])
 		}
 	}
-	latest := `href="#month-` + dates[0] + `" data-latest-month`
-	if !strings.Contains(page, latest) {
-		t.Errorf("the latest-month link does not target the first monthly card: %s", latest)
+	if strings.Contains(page, "data-latest-month") || strings.Contains(page, "Latest month") {
+		t.Error("the timeline carries a redundant latest-month shortcut")
 	}
 	if points := strings.Count(page, `class="tl-title"`); points != len(data.Milestones) {
 		t.Errorf("the cards carry %d key points, want all %d landmarks", points, len(data.Milestones))
