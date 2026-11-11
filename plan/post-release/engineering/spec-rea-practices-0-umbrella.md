@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-10 |
+| Updated | 2026-11-11 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -115,3 +115,153 @@ Owned by each child.
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
 - [ ] Each child names its targeted runs, for example `./le test functional plugin`
+
+### Deliverables Checklist
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| Child 1 closed | `git log --oneline -- plan/post-release/features/spec-rea-practices-1-mcp-catalog-cost.md` shows the removal commit 264db5ca6a |
+| Child 2 closed | `git log --oneline -- plan/post-release/engineering/spec-rea-practices-2-error-inventory.md` shows the removal commit 3e6af8384a |
+| Item 3 rule edit | `grep -n "Lifecycle Regressions" ai/rules/testing.md`; `ls ai/rules/points/testing/lifecycle-regressions/` |
+| Item 4 rule edit | `ls ai/rules/points/writing/documentation/fix-the-tool-output-before-writing-advice-about-it.md` |
+
+### Security Review Checklist
+
+| Check | What to look for |
+|-------|-----------------|
+| No code of its own | The umbrella's closure commit carries prose only: this spec and one handover citation. Each child ran its own security review over its own code |
+
+### Documentation Update Checklist (BLOCKING)
+
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1-15, 17 | Any feature, config, CLI, API, plugin, wire, SDK, RFC, test-infrastructure, comparison, architecture, metadata, metric, inventory or example change? | No: this umbrella changes no source file. Each child carried its own page edits (child 1: a6199d11d8, b619cc8edd; child 2: fdd671e32f, 0866eb06f6, f35639c2fe) | - |
+| 16 | Changed source files referenced by doc anchors | No: `./le spec citation anchors spec plan/post-release/engineering/spec-rea-practices-0-umbrella.md` lists none | - |
+
+## Implementation Summary
+
+### What Was Implemented
+- Nothing in this spec: the umbrella owns no code. Its four practices landed
+  through two child specs and one rule commit, listed under Implementation
+  Audit.
+
+### Bugs Found/Fixed
+- None in this closure.
+
+### Documentation Updates
+- None by this closure. The children's pages: `docs/contributing/mcp-client-verification.md`,
+  `docs/architecture/mcp/overview.md`, `docs/functional-tests.md` (child 1, a6199d11d8, b619cc8edd);
+  `docs/contributing/error-inventory.md`, `docs/architecture/cli/error-surface.md` (child 2, fdd671e32f, 0866eb06f6, f35639c2fe).
+- `plan/handover/36-rea-practices-2-and-doctor-children.md` now cites this spec by bare stem, so commit B leaves no dangling path.
+
+### Deviations from Plan
+- Child 1's lane round recorded Codex 0.167.1 as not yet supported: it opens
+  with the `2025-06-18` revision's `initialize`, which Ze refuses with `-32020`.
+  Ze speaks only the current MCP revision by owner decision
+  (`ai/META-DECISIONS.md`, 8ad50e88b9), so this is a recorded result, not
+  unfinished work. Claude Code 2.1.322 connected and called `ze_reference`.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| none | | | | |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Item 1: MCP catalog measured as context cost, real-client lane | Done | `internal/test/cli/cmd_mcp_calls.go` `measureToolsSize` (verb `tools-size`), `test/plugin/mcp-tools-list-structural-limits.ci`, `docs/contributing/mcp-client-verification.md` "Results" | a6199d11d8, b619cc8edd, 264db5ca6a |
+| Item 2: user-visible error inventory | Done | `internal/le/arch/errorinventory/actions.go` `runReport`, `runCheck`; `docs/contributing/error-inventory.md` | fdd671e32f, 0866eb06f6, 10c6647f6d, f35639c2fe, 3e6af8384a |
+| Item 3: lifecycle regression scenario list | Done | `ai/rules/testing.md` "Lifecycle Regressions"; `ai/rules/points/testing/lifecycle-regressions/` (two points); trigger row in `ai/rules/TRIGGERS.md` | ad28186f0b |
+| Item 4: fix the tool's result before writing advice | Done | `ai/rules/points/writing/documentation/fix-the-tool-output-before-writing-advice-about-it.md`, `ai/rules/writing.md` | ad28186f0b |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | Child 1 removed in 264db5ca6a (closure record b619cc8edd); child 2 removed in 3e6af8384a (closure record f35639c2fe). Each child's ACs are demonstrated in its own closure record | |
+| AC-2 | Done | ad28186f0b adds both points through their manifests (`ai/rules/points/testing/manifest.md`, `ai/rules/points/writing/manifest.md`) and the regenerated `ai/rules/TRIGGERS.md` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Owned by each child | Done | Child 1: `internal/component/mcp/tools_test.go`, `internal/test/cli/cmd_mcp_test.go`, `test/plugin/mcp-tools-list-structural-limits.ci`. Child 2: the `internal/le/arch/errorinventory` package tests | Run by each child's own closure |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Owned by each child | Done | See Requirements from Task |
+
+### Audit Summary
+- **Total items:** 4 requirements, 2 ACs
+- **Done:** 6
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Item 1: what the MCP catalog costs an agent is measured, and a real client is shown to load it | functional test plus a recorded real-client run | `test/plugin/mcp-tools-list-structural-limits.ci` runs `tools-size` (`measureToolsSize`) against a live daemon and asserts its summary line; `docs/contributing/mcp-client-verification.md` "Results" records Claude Code 2.1.322 connecting and calling `ze_reference` at d54128e6f8, and Codex 0.167.1 refused for its older revision |
+| Item 2: which user-visible messages meet `ai/rules/user-facing-errors.md` is measured | tool plus commit gate | `./le arch error-inventory report` lists every message site (`runReport`); `./le arch error-inventory check` refuses an added message site that names no fix (`runCheck`, 0866eb06f6); page `docs/contributing/error-inventory.md` |
+| Item 3: a lifecycle change selects its regression scenarios from a list | rule | `ai/rules/testing.md` "Lifecycle Regressions"; the testing trigger in `ai/rules/TRIGGERS.md` names plugin supervision, config reload and daemon stop, so an agent changing them is routed to the list |
+| Item 4: a misleading tool output is fixed, not explained around | rule | Point `fix-the-tool-output-before-writing-advice-about-it`, which covers CLI answers, MCP tool results, `./le` diagnostics, hook refusals and `ze doctor` reports |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | Every item of the Task table is done | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | recorded by `./le spec review record` over this spec and the handover file (path in the closure report) |
+| `./le spec review check` | clean |
+| Rounds | 1 |
+| Reviewer lenses used | closure record against the tree and git log (every SHA, path and symbol re-read), citation integrity for commit B |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | none | - | - |
+
+### Run 1
+0 BLOCKER, 0 ISSUE. The change set is this spec and one handover line; it
+carries no Go, YANG or templ, so the style pass has nothing to judge.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/mcp-tools-list-structural-limits.ci` | yes | `ls` 2026-11-11; line 21 runs `tools-size` |
+| `docs/contributing/mcp-client-verification.md` | yes | `ls` 2026-11-11; "Results" carries the Claude Code and Codex rows |
+| `docs/contributing/error-inventory.md` | yes | `ls` 2026-11-11 |
+| `ai/rules/points/testing/lifecycle-regressions/` | yes | `ls`: `select-every-lifecycle-scenario-the-change-reaches.md`, `the-lifecycle-scenarios-and-where-each-outcome-is-declared.md` |
+| `ai/rules/points/writing/documentation/fix-the-tool-output-before-writing-advice-about-it.md` | yes | `git ls-files` 2026-11-11 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Both children closed | `git show --name-only 264db5ca6a 3e6af8384a` deletes each child spec; `ls plan/*/*/spec-rea-practices-*` lists only this umbrella |
+| AC-2 | Rule edits landed through the point format | `grep -n "Lifecycle Regressions" ai/rules/testing.md` line 49; `grep fix-the-tool-output ai/rules/points/writing/manifest.md` line 13; ad28186f0b touches `ai/rules/TRIGGERS.md` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `tools-size` over a live daemon (child 1) | `test/plugin/mcp-tools-list-structural-limits.ci` | read: line 21 sends `tools-size`, line 53 asserts the summary line; run green in child 1's closure (b619cc8edd) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| none | confirmed | The umbrella declares no A-N; each child resolved its own |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| No page changes owed by the umbrella | `./le spec citation anchors` lists none; no source file in the change set | yes |
+| Handover 36 citation | `grep -rn spec-rea-practices-0-umbrella plan/ docs/` shows only the bare stem after this edit | yes |

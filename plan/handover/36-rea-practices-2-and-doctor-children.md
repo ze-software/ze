@@ -11,7 +11,7 @@ and all that can be done". Nothing is pushed; a push needs his order.
 | # | Work | State | First action |
 |---|------|-------|--------------|
 | 1 | `spec-rea-practices-2-error-inventory`, closed 2026-11-10 (f35639c2fe, 3e6af8384a) (code-derived user-visible error inventory, option A, harm pre-rank) | `design`; both dependencies closed; current-state text refreshed (aa8c59a0aa) | Apply the two decisions below, set `ready`, claim, implement |
-| 2 | `plan/post-release/engineering/spec-rea-practices-0-umbrella.md` | `skeleton`; both children closed (rows 1 and 3) | Close the umbrella |
+| 2 | `spec-rea-practices-0-umbrella`, closed 2026-11-11 | both children closed (rows 1 and 3), then the umbrella | none |
 | 3 | `spec-rea-practices-1-mcp-catalog-cost` | closed 2026-11-11 (b619cc8edd, 264db5ca6a): AC-7 lane round recorded; Codex 0.167.1 not yet supported (older MCP revision, by owner decision no compatibility path) | none |
 | 4 | Doctor area children `plan/release/validation/spec-doctor-coverage-<n>-<area>.md`, n = 3..15, plus the existing child 2 (`home-cpe-batch`) | all `ready`, P2 release work, about 650 ACs | Child 12 (plugin-infra) first: every other child depends on its phases P0a (cross-cutting codes, transient-code registration, a raise carrying its fix) and P0b (the plugin-protocol report-bus route). One spec per session |
 
