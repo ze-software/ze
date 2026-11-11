@@ -502,8 +502,8 @@ func equivalentIndexBody(
 	body.Byte('\n').Str(`<section aria-labelledby="command-equivalents-title" `).
 		Str(`class="md-content command-equivalents reveal cat-operate">`).Byte('\n')
 	body.Str(pageHero("Command Equivalents",
-		"One line per live Ze command, with vendor CLI surfaced first when a curated equivalent "+
-			"exists. The full catalog still includes reviewed gaps; a dash means no equivalent has "+
+		"One line per Ze command, showing the equivalent vendor command first when one has been "+
+			"listed. The full catalog also includes commands with no known equivalent; a dash means none has "+
 			"been listed yet.",
 		"Reference", ` id="command-equivalents-title"`, heroClasses))
 	body.Byte('\n').Str(`<div class="cmd-eq-stats">`).Byte('\n')

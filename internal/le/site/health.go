@@ -73,8 +73,8 @@ func renderHealth(paths Paths) ([]string, error) {
 		return nil, fmt.Errorf("%s cannot state its figures: %w", healthDest, err)
 	}
 
-	const description = "Whether a regression would be caught: proof density, tests that cannot " +
-		"fail, tests nothing runs, and how they move over time."
+	const description = "How well the tests catch bugs: what they check, whether they can detect " +
+		"faults, which tests are run, and how these measures change over time."
 	shell := pageShell{
 		Title:       "Testing Health - Ze",
 		Description: description,

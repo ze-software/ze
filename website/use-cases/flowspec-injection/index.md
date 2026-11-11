@@ -4,14 +4,14 @@ Use Ze to inject or relay BGP FlowSpec rules when an automation system must dist
 
 **RFC completion:** the [DDoS detection and mitigation by sending FlowSpec upstream coverage page](../../quality/rfc-compliance/profiles/ddos-flowspec/) shows how much of the RFC work behind this use case is proven by tests.
 
-## Choose the deployment shape
+## Choose the router's role
 
 The router can take either of these roles:
 
 1. A FlowSpec route reflector receives rules from an authorised controller and reflects them to clients.
 2. A protected router receives FlowSpec and translates accepted rules into local firewall actions.
 
-The existing [FlowSpec route-reflector](../../guides/flowspec-route-reflector/) and [protected-router](../../guides/flowspec-protected-router/) guides cover those complete roles. This page focuses on the injection boundary.
+The existing [FlowSpec route-reflector](../../guides/flowspec-route-reflector/) and [protected-router](../../guides/flowspec-protected-router/) guides cover those complete roles. This page explains how an automation system sends and withdraws rules.
 
 ## Complete injection lab
 
@@ -64,7 +64,7 @@ MCP. Confirm the remote router installed the rule, then withdraw the exact NLRI:
 ze cli -c "send bgp flowspec-client update text nlri ipv4/flow del destination-ipv4 203.0.113.0/24 protocol tcp destination-port =443"
 ```
 
-## Use an atomic window
+## Send related rules together
 
 When several rules form one mitigation, stage and inspect them before release:
 
@@ -88,7 +88,7 @@ Treat route injection as a privileged operation:
 - validate component ranges, actions, and traffic rates;
 - reject rules outside the protected address space;
 - record the actor and request in the audit trail;
-- set an external expiry or withdrawal owner for temporary rules.
+- arrange for another service or an operator to withdraw temporary rules when they expire.
 
 A controller must be able to withdraw every rule it installs. Do not rely on process exit as cleanup.
 

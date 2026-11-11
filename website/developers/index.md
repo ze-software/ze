@@ -4,13 +4,13 @@ The public plugin SDK lets you extend Ze. These pages explain how plugins commun
 
 ## Build extensions
 
-- [Plugin development](plugins/): start with the SDK and five-stage registration model.
-- [Protocol](plugins/protocol/): implement plugin transport and lifecycle.
-- [Configuration schemas](plugins/schema/): register YANG-backed configuration.
-- [Handlers](plugins/handlers/): consume events and expose behavior.
+- [Plugin development](plugins/): start with the SDK and plugin startup sequence.
+- [Protocol](plugins/protocol/): connect a plugin to the daemon and manage its startup and shutdown.
+- [Configuration schemas](plugins/schema/): define plugin configuration with YANG.
+- [Handlers](plugins/handlers/): receive events and implement plugin behavior.
 - [Commands](plugins/commands/): add commands to CLI, web, API, gRPC, and MCP.
 - [Metrics](plugins/metrics/): publish operational measurements.
-- [Plugin testing](plugins/testing/): prove registration and runtime behavior.
+- [Plugin testing](plugins/testing/): test plugin registration and behavior while Ze runs.
 
 ## Contribute to Ze
 

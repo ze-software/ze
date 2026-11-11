@@ -1,6 +1,6 @@
 # Transit Edge with RPKI
 
-This deployment shape uses Ze at an Internet edge with two transit sessions, origin validation, explicit import policy, and local preference for deterministic failover.
+This example uses Ze at an Internet edge with two transit sessions, origin validation, explicit import policy, and local preference to select the preferred transit and its backup.
 
 **RFC completion:** the [RPKI coverage page](../../quality/rfc-compliance/profiles/rpki/) shows how much of the RFC work behind this use case is proven by tests.
 

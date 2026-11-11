@@ -569,7 +569,8 @@ func factsFromRFCLedger(repository string, facts *siteFacts) error {
 	// (independent review; ai/rules/principles.md).
 	facts.Sources["rfc"] = "internal/le/rfc.Collect, over rfc/short/*.md"
 	facts.Sources["rfc.proven"] = "internal/le/rfc.ImplementedSectionsOf, the one producer of " +
-		"Ze proven over the MUST rows Ze and the OS owe in walked RFCs Ze implements"
+		"requirements proven by Ze's tests, divided by mandatory requirements Ze or the OS must meet, " +
+		"for implemented RFCs whose requirement lists have been reviewed"
 	return nil
 }
 

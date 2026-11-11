@@ -160,7 +160,7 @@ func TestRFCProfilePagesRendered(t *testing.T) {
 	if release < 0 || other < release || aggregate < other {
 		t.Fatalf("index order: route-server at %d, vpn-concentrator at %d, bgp-core at %d; want release first", release, other, aggregate)
 	}
-	for _, heading := range []string{"Release profiles", "Other use-case profiles", "Technology aggregates"} {
+	for _, heading := range []string{"Release profiles", "Other use-case profiles", "Profiles by technology"} {
 		if !strings.Contains(index, "<h2>"+heading+"</h2>") {
 			t.Errorf("index carries no %q heading", heading)
 		}
@@ -169,7 +169,7 @@ func TestRFCProfilePagesRendered(t *testing.T) {
 		t.Errorf("index mirror does not link the release profile:\n%s", mirror)
 	}
 	// A profile with an unwalked member must not read complete.
-	if !strings.Contains(index, "Mandatory register") || !strings.Contains(index, "not complete") {
+	if !strings.Contains(index, "Mandatory requirements complete") || !strings.Contains(index, "not complete") {
 		t.Errorf("index carries no mandatory register column")
 	}
 	if mirror := readRFCProfilePage(t, output, "", "index.md"); !strings.Contains(mirror, "| not complete |") {
@@ -187,9 +187,9 @@ func TestRFCProfilePagesRendered(t *testing.T) {
 		`<span data-ze-rfc="profile/route-server/required:should.proven">1</span>`,
 		`<span data-ze-rfc="profile/route-server/required:not-walked">1</span>`,
 		"<h3>Level 0</h3>", "<h3>Level 1</h3>",
-		"<h3>No level: the corpus holds no text of the RFC</h3>",
+		"<h3>No level: the repository has no copy of this RFC&#39;s text</h3>",
 		`<a href="../../rfc4271/">RFC 4271</a>`, "(cycle with rfc7948)",
-		`<div data-ze-rfc-bar="rfc4271:must">Ze proven 3, Ze correctness gap 1</div>`, "not walked",
+		`<div data-ze-rfc-bar="rfc4271:must">Ze proven 3, Ze correctness gap 1</div>`, "requirements not reviewed",
 		"route-server: required by rfc/short/rfc7947.md", "<h2>Optional (not counted)</h2>",
 		// The optional tier's own figures: rfc2918's 1 of 2 MUST rows.
 		`<span data-ze-rfc="profile/route-server/optional:must.total">2</span>`,
@@ -208,7 +208,7 @@ func TestRFCProfilePagesRendered(t *testing.T) {
 		t.Error("a profile page or the index still carries an absent count: every listed RFC has a summary")
 	}
 	for _, keyword := range append(rfc.MandatoryKeywords(), rfc.OptionalKeywords()...) {
-		if !strings.Contains(page, keyword+",") && !strings.Contains(page, keyword+" and") && !strings.Contains(page, keyword+" rows") {
+		if !strings.Contains(page, keyword+",") && !strings.Contains(page, keyword+" and") && !strings.Contains(page, keyword+" rows") && !strings.Contains(page, keyword+")") {
 			t.Errorf("route-server page figures prose does not name keyword %q", keyword)
 		}
 	}
@@ -218,7 +218,7 @@ func TestRFCProfilePagesRendered(t *testing.T) {
 	}
 	mirror := readRFCProfilePage(t, output, "route-server", "index.md")
 	for _, fact := range []string{"# Route server", "**MUST bar**: Ze proven 3, Ze correctness gap 1", "| MUST rows | 4 |", "### Level 0",
-		"| [RFC 4271](../../rfc4271/) |", "| not walked |", "## Optional (not counted)",
+		"| [RFC 4271](../../rfc4271/) |", "| requirements not reviewed |", "## Optional (not counted)",
 		"| route-server: optional in rfc/short/rfc2918.md |"} {
 		if !strings.Contains(mirror, fact) {
 			t.Errorf("route-server mirror lacks %q", fact)
@@ -226,7 +226,7 @@ func TestRFCProfilePagesRendered(t *testing.T) {
 	}
 
 	aggregatePage := readRFCProfilePage(t, output, "bgp-core", pageIndexFile)
-	if !strings.Contains(aggregatePage, "Technology aggregate") || strings.Contains(aggregatePage, "Why it is here") {
+	if !strings.Contains(aggregatePage, "Technology profile") || strings.Contains(aggregatePage, "Why it is here") {
 		t.Error("an aggregate page is labeled as one and carries no path column")
 	}
 

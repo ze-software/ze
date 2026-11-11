@@ -8,7 +8,7 @@ When a test fails, its failure report should identify the next command to run. T
 <!-- source: ../main/internal/test/trace/trace.go -- per-step trace output -->
 <!-- source: ../main/docs/guide/debugging-tools.md -- debugging tools -->
 
-`./le verify current` is a release check, also run by GitHub CI on pushed commits. It is staged, locked, and reports commands for reproducing failures. During development, a change is checked with the tests for the packages and behavior it reaches; a full verification run is scheduled by the maintainer.
+`./le verify current` is a release check, also run by GitHub CI on pushed commits. It runs checks in stages, prevents overlapping verification runs, and reports commands for reproducing failures. During development, a change is checked with the tests for the affected packages and behavior; a full verification run is scheduled by the maintainer.
 
 ```bash
 ./le verify current fast
@@ -20,14 +20,14 @@ When a test fails, its failure report should identify the next command to run. T
 <table>
 <thead><tr><th>Stage</th><th>Purpose</th><th>Typical rerun</th></tr></thead>
 <tbody>
-<tr><td>Lint and architecture checks</td><td>Formatting, static analysis, generated docs, wiring, and project rules.</td><td><code>./le go lint run</code> or the printed validation target.</td></tr>
-<tr><td>Unit and race checks</td><td>Package contracts, changed groups, and race-sensitive paths.</td><td><code>go test -race -run TestName ./path/...</code></td></tr>
+<tr><td>Lint and architecture checks</td><td>Formatting, code analysis, generated docs, component registration, and project rules.</td><td><code>./le go lint run</code> or the printed check command.</td></tr>
+<tr><td>Unit and race checks</td><td>Package behavior, affected test groups, and concurrent memory access.</td><td><code>go test -race -run TestName ./path/...</code></td></tr>
 <tr><td>Functional suites</td><td><code>.ci</code>, <code>.wb</code>, and <code>.et</code> behavior that an operator or browser can observe.</td><td><code>./le test &lt;suite&gt; NAME -v</code></td></tr>
-<tr><td>Compatibility checks</td><td>ExaBGP and related protocol compatibility gates that belong in the local pass.</td><td>The command printed by the failure group.</td></tr>
+<tr><td>Compatibility checks</td><td>ExaBGP and related protocol compatibility checks included in this verification run.</td><td>The command printed by the failure group.</td></tr>
 </tbody>
 </table>
 
-The verify runner writes logs under `tmp/`, keeps a compact failure index, and prints grouped failures. Heavy-job admission in `internal/le/job/job.go` (`./le job run`) prevents two verify-class runs from corrupting shared temp state or making failures unreadable.
+The verify runner writes logs under `tmp/`, keeps an index of failures, and groups related failures in its report. The job scheduler in `internal/le/job/job.go` (`./le job run`) prevents resource-intensive verification runs from overlapping and interfering with shared temporary files or their reports.
 
 ## Reading the failure
 
@@ -62,7 +62,7 @@ Trace output is available for `.ci`, `.wb`, and `.et`. The first broken transiti
 Ze logging is controlled per subsystem through environment variables. Enable the log for the subsystem involved in the failure.
 
 <table>
-<thead><tr><th>Surface</th><th>Example</th></tr></thead>
+<thead><tr><th>Area</th><th>Example</th></tr></thead>
 <tbody>
 <tr><td>BGP peer behavior</td><td><code>ze.log.bgp.reactor.peer=debug ./le test bgp plugin NAME -v</code></td></tr>
 <tr><td>Plugin server behavior</td><td><code>ze.log.plugin.server=debug ./le test bgp plugin NAME -v</code></td></tr>
@@ -73,11 +73,11 @@ Ze logging is controlled per subsystem through environment variables. Enable the
 
 Do not turn on every log by default. Broad logs can hide the one line that matters and can change timing in concurrent tests.
 
-## Skips and flakes
+## Skipped and intermittent tests
 
-A skip is not proof. `option=needs-linux` is the correct marker for functional behavior that requires Linux. `.wb` has an explicit skip option for external browser fixtures. Go tests should skip only when an optional capability is genuinely absent and another gate covers the required behavior.
+A skipped test supplies no result. `option=needs-linux` marks functional behavior that requires Linux. `.wb` has an explicit skip option for external browser fixtures. Go tests should skip only when an optional capability is absent and another check covers the required behavior.
 
-Flakes should be fixed at the source. Replace timing guesses with readiness checks, process waits, observable browser state, or protocol synchronization. If the test only passes after a sleep grows, the runner is missing a signal.
+Intermittent failures need their cause fixed. Replace timing guesses with readiness checks, process waits, observable browser state, or protocol synchronization. If increasing a delay makes the test pass, the runner needs to check when the operation has finished.
 
 ## Debugging order
 

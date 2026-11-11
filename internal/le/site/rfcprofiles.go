@@ -183,7 +183,7 @@ type rfcProfileGroup struct {
 var rfcProfileGroups = []rfcProfileGroup{
 	{"Release profiles", func(r *rfc.TreeReport) bool { return !r.IsAggregate() && r.Release }},
 	{"Other use-case profiles", func(r *rfc.TreeReport) bool { return !r.IsAggregate() && !r.Release }},
-	{"Technology aggregates", func(r *rfc.TreeReport) bool { return r.IsAggregate() }},
+	{"Profiles by technology", func(r *rfc.TreeReport) bool { return r.IsAggregate() }},
 }
 
 // rfcProfilesOrdered answers the profiles in index order, each group in the
@@ -203,7 +203,7 @@ func rfcProfilesOrdered(profiles []*rfc.TreeReport) []*rfc.TreeReport {
 // rfcProfileKindLabel is the eyebrow of one profile's page.
 func rfcProfileKindLabel(report *rfc.TreeReport) string {
 	if report.IsAggregate() {
-		return "Technology aggregate"
+		return "Technology profile"
 	}
 	if report.Release {
 		return "Release profile"
@@ -215,14 +215,14 @@ func rfcProfileKindLabel(report *rfc.TreeReport) string {
 // profile, what the owner rule asks of it.
 func rfcProfileLead(report *rfc.TreeReport) string {
 	if report.IsAggregate() {
-		return report.Heading + ". The RFCs whose summary names the " + report.Profile +
-			" aggregate, with the MUST bar and the overview bar of the set and of each RFC."
+		return report.Heading + ". The RFCs grouped under " + report.Profile +
+			", showing mandatory requirement coverage and overall coverage for the group and each RFC."
 	}
 	lead := "The RFCs this use case requires, each declared by the Use cases row of its own summary. " +
 		"RFCs it lists as optional follow in their own table and never enter its figures."
 	if report.Release {
-		lead += " Before release, every mandatory requirement of every required RFC must be " +
-			"proven by a recorded break of its test."
+		lead += " Before release, every mandatory requirement of every required RFC must have " +
+			"a test that has been shown to fail when the behavior it checks is deliberately broken."
 	}
 	return lead
 }
@@ -353,8 +353,8 @@ type rfcProfileFigure struct {
 func rfcProfileFigures() []rfcProfileFigure {
 	figures := []rfcProfileFigure{
 		{"RFCs", "rfcs"},
-		{"Not walked", "not-walked"},
-		{"Mandatory register", "register"},
+		{"Requirements not reviewed", "not-walked"},
+		{"Mandatory requirements complete", "register"},
 		{"MUST rows", "must.total"},
 		{"MUST rows kept (the MUST bar)", "must.kept"},
 	}
@@ -403,12 +403,15 @@ func rfcProfileNotOwedKinds() []string {
 
 // rfcProfileFiguresProse says what the bars and the figure table count.
 func rfcProfileFiguresProse() string {
-	return "The MUST bar counts the " + rfcKeywordSeries(rfc.MandatoryKeywords()) + " rows of the walked RFCs " +
-		"that the stack owes: Ze proven means a recorded test break proves the row; a row a layer under Ze " +
-		"performs is OS verified when a test checks that layer on the state Ze installs, an OS testing gap " +
-		"until one does. The overview bar adds the " + rfcKeywordSeries(rfc.OptionalKeywords()) + " rows and " +
-		"the rows not owed, which do not bind Ze. An RFC that is not walked has no valid extraction sign-off, " +
-		"so its rows count in no figure. Every count is read from the RFC data files when the page loads."
+	return "The MUST bar shows mandatory requirements (" + rfcKeywordSeries(rfc.MandatoryKeywords()) + ") " +
+		"that Ze and its operating system must meet. It includes only RFCs whose requirement lists have " +
+		"been checked against the original text. Ze proven means a test has been shown to fail when the " +
+		"required behavior is deliberately broken. Behavior provided by the operating system or a library " +
+		"is OS verified when a test checks it using the settings Ze installs and has also been shown to detect " +
+		"a deliberate fault; until then, it is an OS testing gap. The overview bar adds optional requirements (" +
+		rfcKeywordSeries(rfc.OptionalKeywords()) + ") and requirements that do not apply to Ze. " +
+		"An RFC marked requirements not reviewed is excluded from these figures because its requirement list " +
+		"has not been checked against the original text. Counts are loaded from the RFC data files."
 }
 
 // rfcBarsHTML renders a subject's MUST bar and overview bar, each under its
@@ -586,9 +589,10 @@ func rfcProfileColumns(report *rfc.TreeReport) []string {
 
 // rfcProfileTreeProse says how the tree is ordered.
 func rfcProfileTreeProse(report *rfc.TreeReport) string {
-	prose := "Roots first: an RFC sits one level above the highest level of the RFCs it builds on, " +
-		"and the RFCs of one citation cycle share a level. Each RFC carries the same two bars as the " +
-		"set above, from its own data file; an RFC that is not walked shows \"not walked\" and no bar."
+	prose := "The RFCs are listed with the standards they build on first. An RFC appears one level after " +
+		"the highest level of its dependencies; RFCs that refer back to each other share a level. Each RFC " +
+		"has the same two coverage bars as the group above. An RFC whose requirement list has not been " +
+		"reviewed shows \"requirements not reviewed\" instead of a bar."
 	if report.IsAggregate() {
 		return prose
 	}
@@ -621,7 +625,7 @@ func rfcProfileLevelLabel(row *rfc.TreeRow) string {
 	if row.Level != nil {
 		return "Level " + strconv.Itoa(*row.Level)
 	}
-	return "No level: the corpus holds no text of the RFC"
+	return "No level: the repository has no copy of this RFC's text"
 }
 
 // rfcProfileStemHTML names one row's RFC, linked to its ledger page, with its
@@ -721,9 +725,8 @@ func rfcProfilesIndexMirror(profiles []*rfc.TreeReport) string {
 const rfcProfilesPointerHeading = "Coverage by profile"
 
 // rfcProfilesPointerText is that section's sentence, before its link.
-const rfcProfilesPointerText = "This page covers every RFC. Each use case Ze serves and each technology " +
-	"aggregate has its own page, with its MUST bar and overview bar and the RFCs it lists ordered " +
-	"roots to leaves: "
+const rfcProfilesPointerText = "This page covers every RFC. Each deployment role and technology " +
+	"has its own page showing mandatory and overall coverage, with the RFCs it builds on listed first: "
 
 // rfcProfilesPointerHTML renders the section's body on the compliance index.
 func rfcProfilesPointerHTML() string {
@@ -742,7 +745,7 @@ const rfcProfilesLead = "Each use case Ze serves and each technology it implemen
 	"RFCs a use case lists are not counted."
 
 // rfcProfilesIndexColumns are the index tables' columns.
-var rfcProfilesIndexColumns = []string{"Profile", rfcProfileMustColumn, rfcProfileOverviewColumn, "RFCs", "Not walked", "Mandatory register"}
+var rfcProfilesIndexColumns = []string{"Profile", rfcProfileMustColumn, rfcProfileOverviewColumn, "RFCs", "Requirements not reviewed", "Mandatory requirements complete"}
 
 // removeRetiredRFCProfilePages deletes the page of a profile this build no
 // longer publishes, keyed on the marker this family writes, never on a name

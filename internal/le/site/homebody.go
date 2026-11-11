@@ -38,7 +38,7 @@ const homeTemplate = `        <div class="site-home">
                                 <p class="eyebrow">Ze, an OpenNOS</p>
                                 <h1 id="hero-title" class="hero-start-title">A network OS.<br /><em>A platform for immutable services.</em></h1>
                                 <p class="hero-start-points" aria-label="Key capabilities">
-                                    <span>Plugin extensible</span>
+                                    <span>Extend with plugins</span>
                                     <span>Appliance option</span>
                                     <span>ExaBGP compatible</span>
                                 </p>
@@ -53,13 +53,13 @@ const homeTemplate = `        <div class="site-home">
                                                 Manage <a href="features/interfaces/">interfaces</a> and tunnels with
                                                 <a href="guides/ipsec/">IPsec VPN</a> and
                                                 <a href="features/interfaces/#wireguard-configuration">WireGuard</a>.
-                                                Program the <a href="reference/plugins/fib-kernel/">FIB</a>.
+                                                Set the <a href="reference/plugins/fib-kernel/">forwarding table (FIB)</a>.
                                             </dd>
                                         </div>
                                         <div>
                                             <dt>Manage one configuration</dt>
                                             <dd>
-                                                Ze exposes one <a href="features/bgp-configuration/">YANG</a>-modeled configuration
+                                                Ze uses one configuration, defined in <a href="features/bgp-configuration/">YANG</a>,
                                                 through its own built-in SSH server, <a href="features/web-interface/">web interface</a>,
                                                 <a href="features/cli-commands/">CLI</a>, <a href="features/mcp-integration/">MCP</a>
                                                 and <a href="features/api-commands/">APIs</a>:
@@ -68,9 +68,9 @@ const homeTemplate = `        <div class="site-home">
                                             </dd>
                                         </div>
                                     </dl>
-                                    <p>Ze is built on a configuration and protocol engine, and runs as a
-                                        <a href="architecture/">daemon</a> or an
-                                        <a href="guides/appliance/">immutable appliance</a>.</p>
+                                    <p>Ze is built on a configuration and protocol engine. It runs as a
+                                        <a href="architecture/">background service (daemon)</a> or an
+                                        <a href="guides/appliance/">appliance with a read-only operating system</a>.</p>
                                 </div>
                                 <div class="hero-actions">
                                     <a class="button primary" href="guides/quickstart/">Try the BGP quickstart <span aria-hidden="true">↗</span></a>
@@ -111,7 +111,7 @@ const homeTemplate = `        <div class="site-home">
                                     <a href="{web_demo_poster}" target="_blank" rel="noopener"><img src="{web_demo_poster}" alt="Ze web configuration showing the system identity form with the committed hostname edge-demo" width="1680" height="1008" loading="lazy" /></a>
                                     <figcaption class="screen-description">
                                         <strong>Configure Ze in your browser.</strong>
-                                        <p>Edit a setting, review its diff, commit the draft and verify the active value.</p>
+                                        <p>Edit a setting, review the changes, apply them and check the active value.</p>
                                         <a href="{tour_demo_href}">Explore the web interface →</a>
                                         <p class="capture-caption">Captured after the hostname commit in an isolated local Ze lab. <a href="{web_demo_transcript}">Read the transcript.</a></p>
                                     </figcaption>
@@ -188,8 +188,8 @@ const homeTemplate = `        <div class="site-home">
                             </div>
                         </div>
                         <div class="hero-outcome-links" aria-label="Ze product map">
-                            <a href="architecture/">Protocol-agnostic core</a>
-                            <a href="reference/configuration/">YANG per subsystem</a>
+                            <a href="architecture/">Core shared by all protocols</a>
+                            <a href="reference/configuration/">Configuration models in YANG</a>
                             <a href="features/#routing">BGP, interfaces, FIB</a>
                             <a href="features/ai-first/">CLI, SSH, web, API, MCP</a>
                             <a href="reference/plugins/">Compiled or external plugins</a>
@@ -204,12 +204,12 @@ const homeTemplate = `        <div class="site-home">
             <section id="proof" class="home-proof-block reveal" aria-labelledby="proof-title">
                 <div class="home-proof-head">
                     <div>
-                        <h2 id="proof-title">Regression prevention</h2>
+                        <h2 id="proof-title">Tests that catch bugs</h2>
                         <p>
                             Tests help catch changes that break existing behavior.
                             Go tests, end-to-end scenarios, protocol checks,
-                            fuzzing and interoperability tests cover different
-                            failure modes. The figures below describe the test suite
+                            tests with generated inputs (fuzzing) and tests against other routers cover different
+                            kinds of failure. The figures below describe the test suite
                             and its coverage, with links explaining what each kind
                             of test checks. Ze is written
                             with AI agents working under a quality process
@@ -228,15 +228,15 @@ const homeTemplate = `        <div class="site-home">
                     <a class="proof" href="quality/rfc-compliance/">
                         <strong
                             >{{ze:rfc.proven_percent}}%
-                            <span class="label">RFC MUSTs tested</span></strong
+                            <span class="label">Mandatory RFC requirements proven</span></strong
                         >
                         <ul>
-                            <li>{{ze:rfc.proven_display}} of {{ze:rfc.must_kept_display}} MUSTs Ze and the OS owe, in walked RFCs Ze implements</li>
-                            <li>Across {{ze:rfc.implemented_display}} RFCs, {{ze:rfc.not_walked_display}} not walked yet</li>
-                            <li>Until 2026-10-31 the figure counted every MUST row but rollups, annotated rows included</li>
-                            <li>Tests tied to requirements</li>
+                            <li>{{ze:rfc.proven_display}} of {{ze:rfc.must_kept_display}} mandatory requirements that Ze or the operating system must meet, from RFCs whose requirement lists have been reviewed</li>
+                            <li>Ze implements {{ze:rfc.implemented_display}} RFCs; {{ze:rfc.not_walked_display}} still await that review and are not included in this percentage</li>
+                            <li>Until 2026-10-31 the percentage counted all mandatory requirements, including those with special notes; rows summarizing other requirements were excluded</li>
+                            <li>Each test identifies the requirement it checks</li>
                         </ul>
-                        <span class="proof-check concept-evidence">RFC requirement ledger.</span>
+                        <span class="proof-check concept-evidence">Standards requirements and test results.</span>
                     </a>
                     <a class="proof" href="quality/unit-fuzz-mutation/">
                         <strong
@@ -299,12 +299,12 @@ const homeTemplate = `        <div class="site-home">
                     <div class="why-lead-copy">
                         <h2 id="why-title">Why Ze?</h2>
                         <p>
-                            Ze brings BGP, Linux interfaces and FIB programming
+                            Ze brings BGP, Linux interfaces and forwarding-table management
                             together with network services and plugins in one
                             open-source platform. Use the same configuration model
                             and tools in a lab, as a daemon or as an appliance,
-                            with policy data, generated references and test
-                            evidence available alongside them.
+                            with routing policy data, reference pages generated from the code and test
+                            results available alongside them.
                         </p>
                         <h3>Manage Ze directly.</h3>
                         <p>
@@ -357,11 +357,11 @@ const homeTemplate = `        <div class="site-home">
                     </article>
                     <article class="card usp-card cat-platform">
                         <span class="cat">Runtime</span>
-                        <h3><a href="architecture/">Small core, registered subsystems</a></h3>
+                            <h3><a href="architecture/">A small core shared by each subsystem</a></h3>
                         <p>
-                            The core holds the supervisor, message bus, config
-                            provider, and plugin manager. BGP and interface
-                            management register into it.
+                            The core manages background tasks, messages between components,
+                            configuration and plugins. BGP and interface management
+                            connect to these shared services.
                         </p>
                     </article>
                     <article class="card usp-card cat-routing">
@@ -416,7 +416,7 @@ const homeTemplate = `        <div class="site-home">
                 <div class="legend reveal" role="group" aria-label="Browse features by category">
 {category_links}
                 </div>
-                <p class="capability-note">Open a feature for its behavior and limitations, and <a href="reference/feature-status/">check its maturity</a> before choosing a deployment.</p>
+                <p class="capability-note">Each feature page explains its behavior and limitations. The <a href="reference/feature-status/">feature status</a> shows how thoroughly it has been tested before you choose where to use it.</p>
                 <div class="capability-grid">
 {feature_overview}
                 </div>
@@ -575,8 +575,8 @@ const homeTemplate = `        <div class="site-home">
                         <div class="status-row">
                             <strong>Source</strong>
                             <span
-                                >Read the code, generated docs, RFC gate, and
-                                test evidence before deciding where Ze belongs.</span
+                                >Read the code, generated docs, standards checks, and
+                                test results before deciding where Ze belongs.</span
                             >
                         </div>
                     </div>

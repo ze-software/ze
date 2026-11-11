@@ -420,7 +420,7 @@ func TestAStemPageStatesItsEnrolmentAndItsPublicStatus(t *testing.T) {
 	_, text, mirror := disclosurePage(t)
 	for _, fact := range []string{
 		"Widgets",
-		"Enrolled: every MUST carries both polarities",
+		"Included in automatic checks: every MUST carries both polarities",
 		"rfc/short/rfc9999.md",
 		"rfc/requirements/rfc9999.md",
 		"rfc/full/rfc9999.txt",
@@ -439,9 +439,9 @@ func TestAStemPageStatesItsEnrolmentAndItsPublicStatus(t *testing.T) {
 		rfcNoPublicRow,
 		// The kind is stated WITH its meaning, because `backlog` is this
 		// project's word and a reader outside it cannot act on it alone.
-		"Not enrolled (backlog, " + rfcDispositionMeaning("backlog") +
+		"Excluded from automatic checks (backlog, " + rfcDispositionMeaning("backlog") +
 			"): the extraction is owed",
-		"no requirement declared, so no shard is generated",
+		"no requirements are listed, so no table is generated",
 		"this checkout does not carry the RFC's own text",
 	} {
 		if !strings.Contains(declinedMirror, fact) {
@@ -535,7 +535,7 @@ func TestAnAuditVerdictAppearsWithItsMeaningAndFreshness(t *testing.T) {
 // showing a blank cell a reader would read as "nothing wrong".
 func TestARequirementWithNoVerdictSaysSoRatherThanShowingABlank(t *testing.T) {
 	_, text, mirror := disclosurePage(t)
-	const want = "not audited: no reader has judged these tests"
+	const want = "not reviewed: no reviewer has checked whether these tests enforce the requirement"
 	if !strings.Contains(text, want) {
 		t.Errorf("the page does not state %q for a requirement carrying no verdict", want)
 	}
@@ -599,7 +599,7 @@ func TestATagWithNoDiscriminationRecordReadsAsUnproven(t *testing.T) {
 // (docs/contributing/rfc-conformance-gates.md).
 func TestANoBreakRecordIsCountedApartFromAProof(t *testing.T) {
 	_, text, mirror := disclosurePage(t)
-	const escape = "no-break escape (foreign-producer), which is not a proof, verified"
+	const escape = "no-break without a fault test (foreign-producer), which does not count as proof, verified"
 	if !strings.Contains(mirror, "| positive | `TestLogged` | unit/verify | "+escape+" |") {
 		t.Error("the mirror carries no escape row for TestLogged")
 	}
@@ -636,7 +636,7 @@ func TestTheExtractionSignoffNamesEveryExcludedSiteAndItsKind(t *testing.T) {
 	none := disclosureLedger()
 	none.Stems[0].Extraction = nil
 	_, plain := renderRFCDetail(t, none, "rfc9999")
-	if !strings.Contains(plain, "No extraction sign-off exists for RFC 9999") {
+	if !strings.Contains(plain, "No requirement list review is recorded for RFC 9999") {
 		t.Error("a stem with no sign-off does not say so, and an omitted section reads as a fact")
 	}
 }
@@ -724,7 +724,7 @@ func TestAnRFCPageMirrorReadsAsThePublishedMirror(t *testing.T) {
 	for _, heading := range []string{
 		"## At a glance", "## Coverage", "## Requirements",
 		"## Gaps and untested MUSTs", "## Proof state",
-		"## Extraction sign-off", "## Superseded",
+		"## Requirement list review", "## Superseded",
 	} {
 		if !strings.Contains(mirror, heading) {
 			t.Errorf("the mirror carries no %q section", heading)
@@ -737,7 +737,7 @@ func TestAnRFCPageMirrorReadsAsThePublishedMirror(t *testing.T) {
 func TestAnRFCPageReadsAsThePublishedPage(t *testing.T) {
 	page, _, _ := disclosurePage(t)
 	for _, chrome := range []string{
-		"<title>RFC 9999 requirement ledger - Ze</title>",
+		"<title>RFC 9999 requirements and tests - Ze</title>",
 		`<link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc9999/" />`,
 		`<link rel="stylesheet" href="../../../assets/site.css" />`,
 		`<section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">`,
@@ -751,7 +751,7 @@ func TestAnRFCPageReadsAsThePublishedPage(t *testing.T) {
 	for _, heading := range []string{
 		"<h2>At a glance</h2>", "<h2>Coverage</h2>", "<h2>Requirements</h2>",
 		"<h2>Gaps and untested MUSTs</h2>", "<h2>Proof state</h2>",
-		"<h2>Extraction sign-off</h2>", "<h2>Superseded</h2>",
+		"<h2>Requirement list review</h2>", "<h2>Superseded</h2>",
 	} {
 		if !strings.Contains(page, heading) {
 			t.Errorf("the page carries no %s", heading)
@@ -1113,14 +1113,14 @@ func TestAStemPageOpensWithTheCardGridTheIndexCarries(t *testing.T) {
 	// good outcome is green at any value, a bad one is red above zero, and
 	// neither a population nor a scope count is an outcome.
 	for label, want := range map[string]string{
-		"Tested both ways":           rfcToneOK,
-		"One polarity plus reason":   rfcToneOK,
-		"One polarity, unexcused":    rfcToneBad,
-		"No test at all":             rfcToneBad,
-		"Proven by a recorded break": rfcToneOK,
-		"Out of scope":               rfcToneNeutral,
-		"Gated MUSTs":                rfcToneNeutral,
-		"Audit verdicts":             rfcToneBad,
+		"Tested both ways":               rfcToneOK,
+		"One polarity plus reason":       rfcToneOK,
+		"One polarity, unexcused":        rfcToneBad,
+		"No test at all":                 rfcToneBad,
+		"Tests shown to detect a fault":  rfcToneOK,
+		"Out of scope":                   rfcToneNeutral,
+		"Mandatory requirements checked": rfcToneNeutral,
+		"Audit verdicts":                 rfcToneBad,
 	} {
 		if tones[label] != want {
 			t.Errorf("the %s card reads %q, want %q: a bad number must read as bad",
@@ -1132,7 +1132,7 @@ func TestAStemPageOpensWithTheCardGridTheIndexCarries(t *testing.T) {
 	// supersedes the ratio-first order ruled earlier the same day. The
 	// population is safe at the head only while it is labeled as scale and the
 	// coverage shares sit in the same grid immediately after it.
-	if cards[0].Label != "Gated MUSTs" {
+	if cards[0].Label != "Mandatory requirements checked" {
 		t.Errorf("the grid opens with %q, want the population it is a scale of", cards[0].Label)
 	}
 	if cards[0].Tone != rfcToneNeutral {
@@ -1146,7 +1146,7 @@ func TestAStemPageOpensWithTheCardGridTheIndexCarries(t *testing.T) {
 	// from the RFC pages (2026-10-31): the value is the group's own count, and
 	// the population it is part of follows it.
 	if !cards[2].Partition || cards[2].Value != groupThousands(cards[2].Part) ||
-		cards[2].Count != "of "+groupThousands(whole)+" gated MUSTs" {
+		cards[2].Count != "of "+groupThousands(whole)+" mandatory requirements checked" {
 		t.Errorf("the third card is %q reading %q / %q, so a reader meets no standing count of the %d gated MUSTs beside the scale",
 			cards[2].Label, cards[2].Value, cards[2].Count, whole)
 	}
@@ -1226,7 +1226,7 @@ func TestTheGlanceTableCarriesNoProse(t *testing.T) {
 				fact[0], len(rfcPlain(fact[1])))
 		}
 	}
-	prose := "Enrolled: every MUST carries both polarities"
+	prose := "Included in automatic checks: every MUST carries both polarities"
 	if !strings.Contains(text, prose) {
 		t.Errorf("the page dropped %q, which moved out of the table and owes a heading", prose)
 	}
@@ -1277,7 +1277,7 @@ func TestAnEmptySectionStatesItsEmptinessOnce(t *testing.T) {
 		if strings.Contains(rendering, "None.") {
 			t.Errorf("the %s still states an emptiness as a bare \"None.\"", name)
 		}
-		if !strings.Contains(rendering, "declares no gap, and every gated MUST it carries") {
+		if !strings.Contains(rendering, "lists no missing behavior, and every mandatory requirement included in automatic checks") {
 			t.Errorf("the %s does not say in words that it declares no gap", name)
 		}
 		if !strings.Contains(rendering,
@@ -2299,7 +2299,7 @@ func TestEveryStemPageAccountsForItsGatedRequirements(t *testing.T) {
 			if !strings.Contains(rendering, rfcGatedBucketLabel) {
 				t.Errorf("the %s for %s states no accounting total", name, entry.Stem)
 			}
-			if !strings.Contains(rendering, "falls in exactly one bucket above") {
+			if !strings.Contains(rendering, "appears in exactly one group above") {
 				t.Errorf("the %s for %s does not say its buckets partition its population",
 					name, entry.Stem)
 			}
@@ -2377,17 +2377,17 @@ func TestAnUnenrolledPageNeverClaimsTheGateHoldsIt(t *testing.T) {
 		body := rfcDetailBody(entry)
 		if entry.Enrolled {
 			enrolled++
-			if !strings.Contains(body, "requirements checked by the gate") {
+			if !strings.Contains(body, "requirements included in the automatic checks") {
 				t.Errorf("the %s page does not say the gate holds its requirements", entry.Stem)
 			}
 			continue
 		}
 		declined++
-		if strings.Contains(body, "requirements checked by the gate") {
+		if strings.Contains(body, "requirements included in the automatic checks") {
 			t.Errorf("%s is not enrolled and its page says the gate holds its requirements",
 				entry.Stem)
 		}
-		if !strings.Contains(body, "gate does not check these requirements") {
+		if !strings.Contains(body, "these requirements are not checked") {
 			t.Errorf("%s is not enrolled and its page does not say the gate holds none of it",
 				entry.Stem)
 		}
@@ -2411,7 +2411,7 @@ func TestThePartitionSentenceReadsTheSharesItAddsUp(t *testing.T) {
 	complete := []rfcCard{
 		{Label: "Proven", Partition: true, Part: 60},
 		{Label: "Excused", Partition: true, Part: 40},
-		{Label: "Proven by a recorded break", Part: 999},
+		{Label: "Tests shown to detect a fault", Part: 999},
 	}
 	note := rfcPartitionNote(complete, 100)
 	if !strings.Contains(note, "they add up to 100.") {

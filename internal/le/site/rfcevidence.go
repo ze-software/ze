@@ -126,8 +126,8 @@ func rfcGapsMirror(entry *rfcLedgerStem) string {
 // One sentence, and not a sentence followed by a bare "None." The two read as
 // two facts and only one of them is (owner review, 2026-09-01).
 func rfcNoGapsText(entry *rfcLedgerStem) string {
-	return entry.Display + " declares no gap, and every gated MUST it carries has a test " +
-		"bound to it."
+	return entry.Display + " lists no missing behavior, and every mandatory requirement " +
+		"included in automatic checks has a linked test."
 }
 
 // rfcProofCounts is what one summary's recorded AUDIT verdicts add up to.
@@ -187,7 +187,7 @@ func rfcProofRows(entry *rfcLedgerStem) []*rfcLedgerRequirement {
 // plainly when nobody has.
 func rfcVerdictText(verdict *rfcLedgerVerdict) string {
 	if verdict == nil {
-		return "not audited: no reader has judged these tests"
+		return "not reviewed: no reviewer has checked whether these tests enforce the requirement"
 	}
 	text := verdict.Verdict
 	if verdict.Meaning != "" {
@@ -215,7 +215,7 @@ func rfcProofStateText(cover *rfcLedgerCover) string {
 	}
 	text := cover.Proof.Route
 	if !cover.Proof.Proves {
-		text += " escape (" + cover.Proof.Reason + "), which is not a proof"
+		text += " without a fault test (" + cover.Proof.Reason + "), which does not count as proof"
 	}
 	text += ", " + cover.Proof.State
 	if cover.Proof.Detail != "" {
@@ -234,8 +234,8 @@ func rfcProofHTML(entry *rfcLedgerStem) string {
 	rows := rfcProofRows(entry)
 	if len(rows) == 0 {
 		return "<p>" + html.EscapeString(entry.Display+
-			" carries no gated, tagged or audited requirement, so there is no proof state "+
-			"to state.") + "</p>"
+			" has no requirements included in automatic checks, linked to tests, or reviewed, "+
+			"so there is no test evidence to show.") + "</p>"
 	}
 	ambiguous := rfcAmbiguousNames(entry)
 	var out textbuf.Buffer
@@ -244,14 +244,14 @@ func rfcProofHTML(entry *rfcLedgerStem) string {
 		out.Str("<h3>").Str(rfcRequirementRefHTML(requirement.RID, "")).Str("</h3>\n")
 		out.Str("<p>").Str(html.EscapeString(requirement.Subject())).Str("</p>\n")
 		if requirement.Annotation != nil && requirement.Annotation.Kind == rfc.AnnotationPartial {
-			out.Str("<p>").Str(html.EscapeString("Scoped tag-claim records only: " + requirement.Annotation.Reason)).
-				Str("; zero whole-requirement credit.</p>\n")
+			out.Str("<p>").Str(html.EscapeString("Records cover only part of this requirement: " + requirement.Annotation.Reason)).
+				Str("; they do not prove the whole requirement.</p>\n")
 		}
 		out.Str("<p><strong>Audit verdict:</strong> ").
 			Str(html.EscapeString(rfcVerdictText(requirement.Audit))).Str("</p>\n")
 		if len(requirement.Covers) == 0 {
 			out.Str("<p>").Str(html.EscapeString("No test carries " + requirement.RID +
-				", so no unit is bound to it.")).Str("</p>\n")
+				", so there is no linked test.")).Str("</p>\n")
 			continue
 		}
 		var body textbuf.Buffer
@@ -272,8 +272,8 @@ func rfcProofHTML(entry *rfcLedgerStem) string {
 func rfcProofMirror(entry *rfcLedgerStem) string {
 	rows := rfcProofRows(entry)
 	if len(rows) == 0 {
-		return entry.Display + " carries no gated, tagged or audited requirement, so there " +
-			"is no proof state to state.\n"
+		return entry.Display + " has no requirements included in automatic checks, linked to tests, or reviewed, " +
+			"so there is no test evidence to show.\n"
 	}
 	ambiguous := rfcAmbiguousNames(entry)
 	var out textbuf.Buffer
@@ -282,13 +282,13 @@ func rfcProofMirror(entry *rfcLedgerStem) string {
 		out.Str("\n### ").Str(rfcRequirementRefMirror(requirement.RID, "")).Str("\n\n")
 		out.Str(requirement.Subject()).Str("\n\n")
 		if requirement.Annotation != nil && requirement.Annotation.Kind == rfc.AnnotationPartial {
-			out.Str("Scoped tag-claim records only: ").Str(rfc.TableCell(requirement.Annotation.Reason)).
-				Str("; zero whole-requirement credit.\n\n")
+			out.Str("Records cover only part of this requirement: ").Str(rfc.TableCell(requirement.Annotation.Reason)).
+				Str("; they do not prove the whole requirement.\n\n")
 		}
 		out.Str("Audit verdict: ").Str(rfcVerdictText(requirement.Audit)).Byte('\n')
 		if len(requirement.Covers) == 0 {
 			out.Str("\nNo test carries ").Str(requirement.RID).
-				Str(", so no unit is bound to it.\n")
+				Str(", so there is no linked test.\n")
 			continue
 		}
 		out.Byte('\n').Str(rfcMirrorHead("Polarity", "Test",
@@ -308,8 +308,8 @@ func rfcProofMirror(entry *rfcLedgerStem) string {
 // RFC became requirements at all.
 func rfcExtractionHTML(entry *rfcLedgerStem) string {
 	if entry.Extraction == nil {
-		return "<p>" + html.EscapeString("No extraction sign-off exists for "+entry.Display+
-			", so no reviewer has walked its text sentence by sentence.") + "</p>"
+		return "<p>" + html.EscapeString("No requirement list review is recorded for "+entry.Display+
+			", so there is no recorded check of its requirements against the original RFC, sentence by sentence.") + "</p>"
 	}
 	signoff := entry.Extraction
 	var facts textbuf.Buffer
@@ -402,8 +402,8 @@ const rfcPresumedWrongMark = "Presumed wrong until justified: Ze rarely implemen
 // rfcExtractionMirror states the sign-off the page states.
 func rfcExtractionMirror(entry *rfcLedgerStem) string {
 	if entry.Extraction == nil {
-		return "No extraction sign-off exists for " + entry.Display +
-			", so no reviewer has walked its text sentence by sentence.\n"
+		return "No requirement list review is recorded for " + entry.Display +
+			", so there is no recorded check of its requirements against the original RFC, sentence by sentence.\n"
 	}
 	signoff := entry.Extraction
 	var out textbuf.Buffer
@@ -463,13 +463,16 @@ func rfcNoSectionsText(entry *rfcLedgerStem) string {
 }
 
 func rfcNoExclusionsText(entry *rfcLedgerStem) string {
-	return "The walk over " + entry.Display +
-		" declined no sentence: every site it found is mapped to a requirement."
+	return "The review of " + entry.Display +
+		" excluded no sentences: every sentence identified as an obligation is linked to a requirement."
 }
 
 // rfcSectionDisposition says what the reviewer did with one section, with the
 // skip kind beside it where the section was skipped.
 func rfcSectionDisposition(section *rfcLedgerSection) string {
+	if section.Disposition == "walked" {
+		return "reviewed"
+	}
 	if section.SkipKind == "" {
 		return section.Disposition
 	}

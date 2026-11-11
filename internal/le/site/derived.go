@@ -83,8 +83,8 @@ func writeLLMSIntro(out *textbuf.Buffer) {
 		Str("as subsystems or plugins.\n\n")
 	out.Str("Pre-release: no tagged versions yet, built continuously from the main branch. ").
 		Str("AGPLv3 open source. See the ExaBGP [migration path](use-cases/exabgp-migration/index.md).\n\n")
-	out.Str("This file is intentionally denormalized for AI use. It includes the high-signal ").
-		Str("product inventory and then the normal page map, so common questions should not require ").
+	out.Str("This file collects information for AI tools in one place. It describes the product ").
+		Str("and lists the website pages, so common questions should not require ").
 		Str("fetching many separate pages. Page links still point at Markdown `index.md` files first, ").
 		Str("with rendered web URLs beside them for humans.\n\n")
 }
@@ -101,7 +101,7 @@ func writeLLMSProductSnapshot(out *textbuf.Buffer, lookup *factLookup) {
 	out.Str("- Protocols and subsystems in the shipped daemon: BGP, IS-IS, OSPF, BFD, static ").
 		Str("routes, policy routing, FIB programming, interfaces, firewall, traffic control, DNS, DHCP, ").
 		Str("NTP, IPsec, L2TP, PPPoE, telemetry, web UI, SSH CLI, MCP, and plugins.\n")
-	out.Str("- Operator surfaces: SSH CLI with commit and rollback, generated command ").
+	out.Str("- Management interfaces: SSH CLI with commit and rollback, generated command ").
 		Str("reference, server-rendered web workbench, looking glass, telemetry, gNMI, gRPC, MCP, ").
 		Str("JSON/YAML/NDJSON/table output, and shell-like output pipes derived from the schema where ").
 		Str("possible.\n")
@@ -121,7 +121,7 @@ func writeLLMSProductSnapshot(out *textbuf.Buffer, lookup *factLookup) {
 		Str(" end-to-end transcript steps, ").Str(lookup.plain("interop.scenarios_display")).
 		Str(" interop scenarios across ").Str(lookup.plain("interop.target_display")).
 		Str(" target implementations.\n")
-	out.Str("- Classified planning inventory (not release-readiness proof): [roadmap](").
+	out.Str("- Plans for the release and later improvements (a plan does not mean a feature is ready): [roadmap](").
 		Str(siteBase).Str("project/roadmap/index.md), [snapshot JSON](").
 		Str(siteBase).Str(roadmapDataFile).Str(").\n")
 	out.Str("- Generated date: ").Str(lookup.plain("generated_at")).Str(".\n\n")

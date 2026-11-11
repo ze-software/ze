@@ -22,7 +22,7 @@ Ze uses different tests for package logic, running daemons, and behavior that de
     <p>Fuzzing extends the inputs a Go test tries, and mutation testing with gomu checks whether its assertions detect a deliberate code change. A parser failure can then become a saved regression case. If a mutation survives, the reviewer must establish whether the changed code behaves equivalently or whether the test missed a defect.</p>
   </div>
   <div class="quality-meter" aria-label="Quality layers">
-    <div class="quality-meter-row"><strong class="concept-evidence">Local</strong><span>Go tests, race runs, coverage, fuzz targets, and gomu run before the expensive gates.</span></div>
+    <div class="quality-meter-row"><strong class="concept-evidence">Local</strong><span>Go tests, race checks, coverage, generated-input tests, and gomu run before checks that need more time or resources.</span></div>
     <div class="quality-meter-row"><strong class="concept-evidence">Process</strong><span><code>.ci</code>, <code>.wb</code>, and <code>.et</code> files run Ze the way an operator, peer, browser, or editor would use it.</span></div>
     <div class="quality-meter-row"><strong class="concept-evidence">Linux</strong><span>QEMU runs the same tests where netlink, nftables, eBPF, PPP, and namespaces exist.</span></div>
     <div class="quality-meter-row"><strong class="concept-evidence">Release</strong><span>Interop, deployment, performance, and chaos runs check behavior that package tests cannot establish.</span></div>
@@ -59,11 +59,11 @@ Ze uses different tests for package logic, running daemons, and behavior that de
 <div class="quality-routes">
   <article class="quality-route">
     <h3>Example tests</h3>
-    <p>A normal Go test gives the case a name and states the exact result. It is the first proof for a parser rule, encoder rule, state transition, validation path, or error shape.</p>
+    <p>A normal Go test gives the case a name and states the exact result. It checks a parser rule, encoder rule, state transition, validation, or error message.</p>
   </article>
   <article class="quality-route">
     <h3>Fuzz targets</h3>
-    <p>A fuzz target is a Go test with generated inputs. It starts from useful seed cases, tries more shapes, and keeps any crash or semantic failure as a corpus entry.</p>
+    <p>A fuzz target is a Go test with generated inputs. It starts from known examples, tries variations, and saves any input that causes a crash or an incorrect result so it can be tested again.</p>
   </article>
   <article class="quality-route">
     <h3>gomu mutation checks</h3>
@@ -79,10 +79,10 @@ Ze uses different tests for package logic, running daemons, and behavior that de
 <tr><td>Package behavior, parser rules, encoders, races, fuzzable inputs, or weak assertions</td><td><code>go test</code>, race, fuzz, coverage, gomu mutation checks</td><td><a href="unit-fuzz-mutation/">Local Go tests, fuzzing, and gomu</a></td></tr>
 <tr><td>Daemon startup, CLI output, BGP wire output, HTTP, syslog, files, or process exits</td><td><code>.ci</code> under <code>test/&lt;suite&gt;/</code></td><td><a href="functional-ci/">Functional <code>.ci</code> tests</a></td></tr>
 <tr><td>Rendered web UI behavior or interactive editor behavior</td><td><code>.wb</code> under <code>test/web/</code>, <code>.et</code> under <code>test/editor/</code></td><td><a href="browser-editor/">Browser and editor tests</a></td></tr>
-<tr><td>Linux kernel behavior, real peer compatibility, deployment, or release evidence</td><td>QEMU, Docker interop, deployment scripts, perf gates</td><td><a href="qemu-interop-release/">QEMU, interop, and release evidence</a></td></tr>
+<tr><td>Linux kernel behavior, compatibility with other routers, deployment, or release evidence</td><td>QEMU, Docker interoperability tests, deployment scripts, performance checks</td><td><a href="qemu-interop-release/">QEMU, interop, and release evidence</a></td></tr>
 <tr><td>A failing verify run that needs a clear rerun command</td><td>Verify stages, failure groups, trace output, debug logs</td><td><a href="verify-debugging/">Verify and debugging workflow</a></td></tr>
-<tr><td>Whether the suite would catch a regression</td><td>Proof density, tests that cannot fail, tests nothing runs, ratchets, KPI history</td><td><a href="health/">Testing health</a></td></tr>
-<tr><td>RFC requirement coverage, public gap disclosure, or AI agent test-change guards</td><td><code>./le rfc check</code>, RFC test tags, status-ledger agreement, audit freshness</td><td><a href="rfc-compliance/">RFC compliance gate</a></td></tr>
+<tr><td>Whether the suite would catch a regression</td><td>What assertions check, tests that cannot fail, tests nothing runs, checks against declining coverage, and results over time</td><td><a href="health/">Testing health</a></td></tr>
+<tr><td>RFC requirement coverage, known omissions, or checks on AI changes to tests</td><td><code>./le rfc check</code>, links from requirements to tests, agreement with published status, and current reviews</td><td><a href="rfc-compliance/">RFC compliance</a></td></tr>
 </tbody>
 </table>
 
@@ -106,7 +106,7 @@ go run github.com/sivchari/gomu/cmd/gomu run --incremental --base-branch=main --
   </article>
   <article class="quality-command">
     <h3>Linux and release</h3>
-    <p>Use the wider gates only when the behavior needs Linux, real peers, or release evidence.</p>
+    <p>Use these checks when the behavior depends on Linux, another router, or the release environment.</p>
     <pre><code>./le test qemu netns
 ./le test qemu run command '...' keep-alive
 ./le test integration interop

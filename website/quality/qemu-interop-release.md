@@ -65,7 +65,7 @@ A `.ci` transcript can isolate a Ze behavior and make its failure easy to reprod
 
 ## Performance and live evidence
 
-Performance gates are used when a change can regress throughput, convergence, or data-plane behavior. Live evidence is used when the contract includes external data, such as RPKI cache behavior. These checks are not default verify steps because they depend on time, host capacity, Docker, root privileges, or the internet.
+Performance checks are used when a change can reduce throughput, slow convergence, or affect packet forwarding. Tests with live services are used when the behavior depends on external data, such as an RPKI cache. These checks are separate from the default verification run because they depend on time, host capacity, Docker, root privileges, or the internet.
 
 ```bash
 ./le perf record
@@ -75,7 +75,7 @@ Performance gates are used when a change can regress throughput, convergence, or
 ## Release evidence
 
 Release evidence runs verification over a clean checkout in a container. The
-native action checks its prerequisites before it starts the matrix.
+command checks its prerequisites before it starts testing each supported build.
 
 ```bash
 ./le verify evidence release-candidate

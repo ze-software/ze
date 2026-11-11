@@ -137,7 +137,7 @@ func TestRFCDetailPageShowsItsFiguresFromItsFile(t *testing.T) {
 		}
 	}
 	unwalked := readRFCProfileFile(t, paths.Output, rfcComplianceDirectory+"/rfc3/index.html")
-	if !strings.Contains(unwalked, `<span data-ze-rfc="rfc3:must.ze-proven">not walked</span>`) {
+	if !strings.Contains(unwalked, `<span data-ze-rfc="rfc3:must.ze-proven">requirements not reviewed</span>`) {
 		t.Error("an unwalked RFC's figure does not read not walked")
 	}
 }

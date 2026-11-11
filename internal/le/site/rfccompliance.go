@@ -94,7 +94,7 @@ const (
 	// The card that is NOT a part of the partition. Named here because
 	// rfcPartitionNote names it and its builder sets it, and a label spelled
 	// twice is a sentence that stops matching the card it describes.
-	rfcProofCardLabel = "Proven by a recorded break"
+	rfcProofCardLabel = "Tests shown to detect a fault"
 	// The label the non-binding bucket carries. The partition row, the tone
 	// legend and the bucket table each name it, and a label spelled three times
 	// is a sentence that stops matching the card it describes.
@@ -327,10 +327,10 @@ func renderRFCCompliance(paths Paths) ([]string, error) {
 		return nil, err
 	}
 
-	const description = "Generated RFC gate report from requirement summaries, test tags, " +
-		"status ledger, audits, and the verification stages that run the gate."
+	const description = "RFC compliance and test evidence, generated from requirement summaries, " +
+		"linked tests, implementation status, and recorded reviews."
 	shell := pageShell{
-		Title:       "RFC Compliance Gate Report - Ze",
+		Title:       "RFC Compliance Report - Ze",
 		Description: description,
 		Root:        rfcComplianceRoot,
 		Path:        rfcComplianceDest,
@@ -664,7 +664,7 @@ func rfcAuditCounts(gated []rfc.Requirement, states map[string]rfc.Freshness, to
 func rfcComplianceBody(snapshot *rfcCompliance, ledger rfcLedger) string {
 	var body textbuf.Buffer
 	body.Str("            <section aria-labeledby=\"rfc-compliance-title\" class=\"md-content reveal cat-observe\">\n")
-	body.Str(pageHero("RFC Compliance Gate Report",
+	body.Str(pageHero("RFC Compliance Report",
 		html.EscapeString(rfcHeroLead)+" Source: <code>internal/le/rfc</code>, <code>rfc/short/*.md</code>, and "+
 			"<code>rfc/audit/*/*.json</code>.",
 		"Quality", ` id="rfc-compliance-title"`, heroClasses)).Byte('\n')
@@ -688,13 +688,13 @@ func rfcComplianceBody(snapshot *rfcCompliance, ledger rfcLedger) string {
 	body.Str("<section><h2>Gap disclosure</h2>\n").Str(rfcLeadHTML(rfcLeadGaps)).Str(rfcGapDisclosureHTML(snapshot.Gaps)).Str("\n</section>\n")
 	body.Str("<section><h2>Exclusion disclosure</h2>\n").
 		Str(rfcLeadHTML(rfcLeadExclusions)).Str(rfcExclusionDisclosureHTML(ledger)).Str("\n</section>\n")
-	body.Str("<section><h2>Top gap clusters</h2>\n").Str(rfcLeadHTML(rfcLeadClusters)).Str(rfcGapClusterHTML(snapshot.Gaps)).Str("\n</section>\n")
+	body.Str("<section><h2>RFCs with the most missing requirements</h2>\n").Str(rfcLeadHTML(rfcLeadClusters)).Str(rfcGapClusterHTML(snapshot.Gaps)).Str("\n</section>\n")
 	body.Str("<section><h2>How this is checked</h2>\n").Str(rfcLeadHTML(rfcLeadMechanism)).Str(rfcMechanismHTML(snapshot)).
 		Str("\n</section>\n")
 	body.Str("<section><h2>Check results</h2>\n").Str(rfcLeadHTML(rfcLeadChecks)).Str(rfcCheckHTML(snapshot.Gate)).Str("\n</section>\n")
-	body.Str(`<section id="`).Str(rfcListAnchor).Str(`"><h2>Enrolled RFCs</h2>`).Byte('\n').
+	body.Str(`<section id="`).Str(rfcListAnchor).Str(`"><h2>RFCs included in automatic checks</h2>`).Byte('\n').
 		Str(rfcLeadHTML(rfcLeadEnrolled)).Str(rfcListOverviewHTML()).Str(rfcFilterHTML).Str(rfcEnrolledIndexHTML(ledger)).Str("\n</section>\n")
-	body.Str(`<section id="`).Str(rfcDeclinedAnchor).Str(`"><h2>Summaries that are not enrolled</h2>`).Byte('\n').
+	body.Str(`<section id="`).Str(rfcDeclinedAnchor).Str(`"><h2>RFCs excluded from automatic checks</h2>`).Byte('\n').
 		Str(rfcLeadHTML(rfcLeadDeclined)).Str(rfcDeclinedIndexHTML(ledger)).Str("\n</section>\n")
 	body.Str(rfcFilterScript)
 	body.Str(rfcFiguresScriptHTML(rfcComplianceRoot))
@@ -757,7 +757,7 @@ var rfcCardGroups = []struct {
 	Overall bool
 }{
 	{Heading: "Overall", Tone: rfcToneNeutral, Overall: true,
-		Lead: "the populations every count below is drawn from"},
+		Lead: "the totals used to calculate the figures below"},
 	{Heading: "Positive", Tone: rfcToneOK,
 		Lead: "what Ze has"},
 	{Heading: "Neutral", Tone: rfcToneNeutral,
@@ -862,18 +862,18 @@ func rfcPartitionNote(cards []rfcCard, whole int) string {
 	// sentence about a card a reader cannot see is a sentence about nothing.
 	tail := ""
 	if rfcGridHas(cards, rfcProofCardLabel) {
-		tail += " " + rfcProofCardLabel + " counts TAGGED UNITS, a different " +
-			"population, so it is not one of them."
+		tail += " " + rfcProofCardLabel + " counts individual tests rather than requirements, " +
+			"so its count is separate."
 	}
 	if sum != whole {
 		return "The " + plural(parts, "count") + " marked as a part above account for " +
 			groupThousands(sum) + " of the " + groupThousands(whole) +
-			" gated MUSTs, so " + groupThousands(whole-sum) +
+			" mandatory requirements checked, so " + groupThousands(whole-sum) +
 			" fall in none of them: they do NOT add up to " + groupThousands(whole) + "." + tail
 	}
 	return "The " + plural(parts, "count") + " marked as a part above " +
 		"are the whole of the " + groupThousands(whole) +
-		" gated MUSTs: they add up to " + groupThousands(whole) + "." + tail
+		" mandatory requirements checked: they add up to " + groupThousands(whole) + "." + tail
 }
 
 // rfcGridHas answers whether a grid carries the card with one label.
@@ -1041,7 +1041,7 @@ var rfcStanding = []struct {
 	{Label: rfcNotApplyLabel, Keys: []string{rfcNotApplyBucket}, Tone: rfcToneNeutral,
 		Meaning: "a {not-applicable} annotation says the obligation does not bind Ze. No test " +
 			"is owed only once its evidence passes; one whose evidence fails stays owed, and " +
-			"the figures count it as a Ze gap. It is counted in the gated whole the cards add up to",
+			"the figures count it as a Ze gap. It remains in the total that these cards add up to",
 		Rule: "no color: an obligation that never bound Ze is neither an achievement nor a " +
 			"failure, and counting it either way would be a claim"},
 	{Label: rfcLowerLayerLabel, Keys: []string{rfcLowerLayerBucket}, Tone: rfcToneNeutral,
@@ -1057,7 +1057,7 @@ var rfcStanding = []struct {
 			"feature the RFC makes optional and Ze does not offer, and it quotes the sentence " +
 			"that makes it optional. The condition is false, so nothing is owed once that " +
 			"quote passes its evidence check; one whose quote fails stays owed, and the " +
-			"figures count it as a Ze gap. It is counted in the gated whole the cards add up to",
+			"figures count it as a Ze gap. It remains in the total that these cards add up to",
 		Rule: "no color: an obligation whose condition Ze never meets is neither an " +
 			"achievement nor a failure. The absent FEATURE is disclosed on the RFC's own " +
 			"status row, as an implementation gap a later scope decision can revisit"},
@@ -1066,7 +1066,7 @@ var rfcStanding = []struct {
 			"still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: " +
 			"once its limit entry is verified, the row is not owed (OS blocked) and is left " +
 			"out of the MUST bar; one whose entry fails stays owed, and the figures count it " +
-			"as a Ze gap. It is counted in the gated whole the cards add up to and earns no " +
+			"as a Ze gap. It remains in the total that these cards add up to and earns no " +
 			"proof credit",
 		Rule: "neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption"},
 }
@@ -1132,7 +1132,7 @@ func rfcStandingCards(whole int, countOf func(string) int) []rfcCard {
 		}
 		cards = append(cards, rfcCard{Label: group.Label,
 			Value: groupThousands(part),
-			Count: "of " + groupThousands(whole) + " gated MUSTs",
+			Count: "of " + groupThousands(whole) + " mandatory requirements checked",
 			Note:  group.Meaning, Tone: tone, Rule: group.Rule, Partition: true, Part: part})
 	}
 	return cards
@@ -1149,13 +1149,13 @@ func rfcComplianceCards(snapshot *rfcCompliance, ledger rfcLedger) []rfcCard {
 	totals := rfcTotalsOf(ledger)
 	return []rfcCard{
 		rfcProofCard(totals.Proven(), totals.Units, totals.Escapes, totals.Stale,
-			" in enrolled RFCs"),
-		{Label: "Gate verdict", Value: rfcGateWord(snapshot.Gate.OK),
-			Count: plural(snapshot.Gate.ErrorCount, "open gate issue"),
+			" in RFCs included in automatic checks"),
+		{Label: "Compliance check result", Value: rfcGateWord(snapshot.Gate.OK),
+			Count: plural(snapshot.Gate.ErrorCount, "unresolved check finding"),
 			Note:  "whether ./le rfc check passes over this tree",
 			Tone:  rfcGateTone(snapshot.Gate.OK),
 			Rule:  "the verdict IS the value: green when the gate passes, red when it does not"},
-		{Label: "Semantic verdicts", Value: groupThousands(snapshot.Audit.Fresh),
+		{Label: "Current test reviews", Value: groupThousands(snapshot.Audit.Fresh),
 			Count: groupThousands(snapshot.Audit.Shifted) + " shifted, " +
 				groupThousands(snapshot.Audit.Stale) + " stale, " +
 				groupThousands(snapshot.Audit.Missing) + " missing",
@@ -1169,7 +1169,7 @@ func rfcComplianceCards(snapshot *rfcCompliance, ledger rfcLedger) []rfcCard {
 }
 
 // rfcEnrolledSectionsTitle heads the index's headline figures.
-const rfcEnrolledSectionsTitle = "How the enrolled RFCs' requirements are answered"
+const rfcEnrolledSectionsTitle = "Status of the RFC requirements included in automatic checks"
 
 // rfcEnrolledScope says which RFCs the sections count and how large the
 // corpus behind them is. The implemented count is rfc.Implements summed
@@ -1180,16 +1180,16 @@ const rfcEnrolledSectionsTitle = "How the enrolled RFCs' requirements are answer
 // last sentences say what the figure this block replaced counted
 // (spec-rfc-figures-sectioned-presentation, AC-15).
 func rfcEnrolledScope() string {
-	return "Of the " + rfcValueMirror(rfcEnrolledSubject, "rfcs") + " enrolled RFCs, " +
-		rfcValueMirror(rfcEnrolledSubject, "not-walked") + " have not been walked, so their rows " +
+	return "Of the " + rfcValueMirror(rfcEnrolledSubject, "rfcs") + " RFCs included in automatic checks, " +
+		rfcValueMirror(rfcEnrolledSubject, "not-walked") + " have not had their requirement lists reviewed, so their requirements " +
 		"are excluded from the figures above. Ze implements " + rfcValueMirror(rfcEnrolledSubject, "implemented") +
-		" of the enrolled RFCs, each with a public support entry. The rfc/short/ directory holds " + rfcValueMirror(rfcAllSubject, "rfcs") +
-		" summary files, including unenrolled RFCs and summaries that declare no requirements. " +
+		" of these RFCs, each with a public support entry. The rfc/short/ directory holds " + rfcValueMirror(rfcAllSubject, "rfcs") +
+		" summary files, including RFCs excluded from automatic checks and summaries that list no requirements. " +
 		"They list " + rfcValueMirror(rfcAllSubject, "requirements") + " requirements across all " +
-		"levels. These totals describe the inventory. Until 2026-10-31 this page led with Gated " +
-		"MUSTs, which counted every MUST row of the enrolled RFCs, including annotated rows, " +
+		"levels. These totals describe the requirement inventory. Until 2026-10-31 this page led with a count of " +
+		"mandatory requirements, including requirements with explanatory annotations, " +
 		"and showed the percentage of that total proven by tests. The sections above replace " +
-		"those figures by classifying each MUST row of a walked enrolled RFC in exactly one section."
+		"those figures by classifying each mandatory requirement of a reviewed RFC included in automatic checks in exactly one section."
 }
 
 // rfcMarkedHTML escapes text for a page and turns each mirror mark in it into
@@ -1236,19 +1236,20 @@ func rfcEnrolledSectionsMirror() string {
 // stored. A record whose ground moved is a LAPSED proof, counted apart here and
 // named under its requirement id on its RFC's page.
 func rfcProofCard(proven, units, escapes, stale int, where string) rfcCard {
-	count := groupThousands(proven) + " of " + groupThousands(units) + " tagged units" + where
+	count := groupThousands(proven) + " of " + groupThousands(units) + " tests linked to requirements" + where
 	if escapes+stale > 0 {
-		count += ", " + groupThousands(escapes) + " escaped and " + groupThousands(stale) +
-			" lapsed"
+		count += ", " + groupThousands(escapes) + " without a fault test and " + groupThousands(stale) +
+			" with outdated fault tests"
 	}
 	return rfcCard{Label: rfcProofCardLabel, Value: groupThousands(proven),
 		Count: count,
-		Note: "a red was observed once under a recorded procedure, and the unit, the claim " +
-			"and the producer it rested on still hash to what was recorded. The break is not " +
-			"re-run. A test pair is not a proof until one has been observed",
+		Note: "each test was observed to fail when the code it checks was deliberately broken. " +
+			"The test, its stated claim, and the relevant code are checked against the saved record " +
+			"for changes; the deliberate fault is not run again. Having both positive and negative " +
+			"tests counts as proof only after this check has demonstrated that they can detect a fault",
 		Tone: rfcToneOK,
-		Rule: "green at every value: an observed break is the outcome the discrimination gate " +
-			"exists to produce. This card counts tagged units separately, so its total cannot " +
+		Rule: "green at every value: these tests have been shown to detect a deliberate fault. " +
+			"This card counts individual tests separately, so its total cannot " +
 			"be added to the requirement counts above"}
 }
 
@@ -1256,9 +1257,9 @@ func rfcProofCard(proven, units, escapes, stale int, where string) rfcCard {
 // both carry, so the two cannot say different things about one gate run.
 func rfcGateWord(ok bool) string {
 	if ok {
-		return "OK"
+		return "Passed"
 	}
-	return "RED"
+	return "Failed"
 }
 
 func rfcGateTone(ok bool) string {
@@ -1278,22 +1279,22 @@ func rfcGateTone(ok bool) string {
 // review, 2026-09-01).
 func rfcGateVerdictHTML(snapshot *rfcCompliance) string {
 	return `<div class="rfc-verdict rfc-` + rfcGateTone(snapshot.Gate.OK) + `">` + "\n" +
-		"<p><span>Gate verdict</span><strong>" + rfcGateWord(snapshot.Gate.OK) +
+		"<p><span>Compliance check result</span><strong>" + rfcGateWord(snapshot.Gate.OK) +
 		"</strong></p>\n<p>" + html.EscapeString(rfcGateVerdictText(snapshot)) +
 		"</p>\n<p>Contributors reproduce it with <code>" + html.EscapeString(snapshot.Verify.Command) +
-		"</code>. The gate's own line reads <code>" + html.EscapeString(snapshot.Gate.Message) +
+		"</code>. The check's original output reads <code>" + html.EscapeString(snapshot.Gate.Message) +
 		"</code>.</p>\n</div>\n"
 }
 
 // rfcGateVerdictText says what the verdict means, in the page's own voice.
 func rfcGateVerdictText(snapshot *rfcCompliance) string {
 	if snapshot.Gate.OK {
-		return "Every enrolled MUST-level requirement carries both test polarities or an " +
-			"annotation saying why not."
+		return "Every mandatory requirement included in the checks has positive and negative tests, " +
+			"or a note explaining why not."
 	}
-	return plural(snapshot.Gate.ErrorCount, "open gate issue") +
-		". Check results below names them, up to the " + strconv.Itoa(rfcIssuesShown) +
-		" this page inlines."
+	return plural(snapshot.Gate.ErrorCount, "unresolved check finding") +
+		". Check results below lists them, up to the " + strconv.Itoa(rfcIssuesShown) +
+		" shown on this page."
 }
 
 // The sentence the `Out of scope` card of a per-RFC page carries.
@@ -1307,7 +1308,7 @@ const (
 		"its condition is an optional feature Ze does not offer, and quotes the RFC sentence " +
 		"that makes it optional. An annotation whose evidence fails is not counted here: the " +
 		"figures count it as a Ze gap. This classification records applicability and forms " +
-		"part of the gated total accounted for by the cards on this page"
+		"part of the total accounted for by the cards on this page"
 )
 
 // rfcNonBindingOf sums the buckets whose obligation does not bind Ze, over one
@@ -1363,8 +1364,8 @@ func rfcGapClusterHTML(gaps rfcGaps) string {
 func rfcCheckHTML(gate rfcGate) string {
 	var out textbuf.Buffer
 	if len(gate.Findings) == 0 {
-		out.Str("<p>No open issue. Every enrolled MUST-level requirement carries both test ").
-			Str("polarities or an annotation saying why not.</p>\n").Str(rfcCheckLinesHTML(gate))
+		out.Str("<p>No open issue. Every mandatory requirement included in the checks has positive and negative tests, ").
+			Str("or a note explaining why not.</p>\n").Str(rfcCheckLinesHTML(gate))
 		return out.String()
 	}
 	out.Str(rfcCheckLinesHTML(gate))
@@ -1396,8 +1397,8 @@ func rfcCheckHTML(gate rfcGate) string {
 // rfcCheckMirror states the same table.
 func rfcCheckMirror(gate rfcGate) string {
 	if len(gate.Findings) == 0 {
-		return "No open issue. Every enrolled MUST-level requirement carries both test " +
-			"polarities or an annotation saying why not.\n\n" + rfcCheckLinesMirror(gate)
+		return "No open issue. Every mandatory requirement included in the checks has positive and negative tests, " +
+			"or a note explaining why not.\n\n" + rfcCheckLinesMirror(gate)
 	}
 	shown := gate.Findings
 	if len(shown) > rfcIssuesShown {
@@ -1493,13 +1494,13 @@ func rfcComplianceMirror(snapshot *rfcCompliance, ledger rfcLedger) string {
 	}
 
 	var mirror textbuf.Buffer
-	mirror.Str("# RFC Compliance Gate Report\n\n")
+	mirror.Str("# RFC Compliance Report\n\n")
 	mirror.Str(rfcHeroLead).Str(" Source: `internal/le/rfc`, `rfc/short/*.md`, and ").
 		Str("`rfc/audit/*/*.json`.\n\n")
 	mirror.Str(rfcReaderIntroMirror()).Byte('\n')
-	mirror.Str("## Gate verdict\n\n").Str(rfcLeadVerdict).Str("\n\n").Str(rfcGateWord(snapshot.Gate.OK)).Str(". ").
+	mirror.Str("## Compliance check result\n\n").Str(rfcLeadVerdict).Str("\n\n").Str(rfcGateWord(snapshot.Gate.OK)).Str(". ").
 		Str(rfcGateVerdictText(snapshot)).Str(" Contributors reproduce it with `").Str(snapshot.Verify.Command).
-		Str("`. The gate's own line reads `").Str(snapshot.Gate.Message).Str("`.\n\n")
+		Str("`. The check's original output reads `").Str(snapshot.Gate.Message).Str("`.\n\n")
 	mirror.Str(rfcEnrolledSectionsMirror())
 	cards := rfcComplianceCards(snapshot, ledger)
 	mirror.Str(rfcCardsMirror(cards, 0)).Byte('\n').
@@ -1519,8 +1520,8 @@ func rfcComplianceMirror(snapshot *rfcCompliance, ledger rfcLedger) string {
 	} {
 		mirror.Str("| ").Str(row.Label).Str(" | ").Str(groupThousands(row.Value)).Str(" |\n")
 	}
-	mirror.Str("| MUST rows of the walked enrolled RFCs | ").Str(rfcValueMirror(rfcEnrolledSubject, rfcMustTotalField)).Str(" |\n")
-	mirror.Str("| Enrolled RFCs | ").Str(rfcValueMirror(rfcEnrolledSubject, "rfcs")).Str(" |\n")
+	mirror.Str("| Mandatory requirements of reviewed RFCs included in automatic checks | ").Str(rfcValueMirror(rfcEnrolledSubject, rfcMustTotalField)).Str(" |\n")
+	mirror.Str("| RFCs included in automatic checks | ").Str(rfcValueMirror(rfcEnrolledSubject, "rfcs")).Str(" |\n")
 
 	mirror.Str("\n## ").Str(rfcProfilesPointerHeading).Str("\n\n").Str(rfcLeadProfiles).Str("\n\n").Str(rfcProfilesPointerMirror())
 	mirror.Str("\n## Who implements each document\n\n").Str(rfcLeadImplements).Str("\n\n")
@@ -1534,7 +1535,7 @@ func rfcComplianceMirror(snapshot *rfcCompliance, ledger rfcLedger) string {
 	mirror.Str("\n## Exclusion disclosure\n\n").Str(rfcLeadExclusions).Str("\n\n")
 	mirror.Str(rfcExclusionDisclosureMirror(ledger))
 
-	mirror.Str("\n## Top gap clusters\n\n").Str(rfcLeadClusters).Str("\n\n")
+	mirror.Str("\n## RFCs with the most missing requirements\n\n").Str(rfcLeadClusters).Str("\n\n")
 	mirror.Str("| RFC | Declared gaps |\n|---|---:|\n")
 	for _, row := range snapshot.Gaps.TopRFCs {
 		mirror.Str("| `").Str(row.RFC).Str("` | ").Str(groupThousands(row.Count)).Str(" |\n")
@@ -1656,7 +1657,7 @@ func rfcStemHref(stem string) string { return stem + "/" }
 func rfcEnrolledIndexHTML(ledger rfcLedger) string {
 	rows := rfcIndexRows(ledger, true)
 	if len(rows) == 0 {
-		return "<p>No summary is enrolled.</p>"
+		return "<p>No RFC summary is included in automatic checks.</p>"
 	}
 	var body textbuf.Buffer
 	for index := range rows {
@@ -1686,7 +1687,7 @@ func rfcEnrolledIndexHTML(ledger rfcLedger) string {
 func rfcDeclinedIndexHTML(ledger rfcLedger) string {
 	rows := rfcIndexRows(ledger, false)
 	if len(rows) == 0 {
-		return "<p>Every summary is enrolled.</p>"
+		return "<p>Every RFC summary is included in automatic checks.</p>"
 	}
 	var body textbuf.Buffer
 	for index := range rows {
@@ -1750,10 +1751,10 @@ func rfcDispositionLegendMirror(rows []*rfcLedgerStem) string {
 // rfcIndexMirror states both link tables in the Markdown sibling.
 func rfcIndexMirror(ledger rfcLedger) string {
 	var out textbuf.Buffer
-	out.Str("\n## Enrolled RFCs\n\n").Str(rfcLeadEnrolled).Str("\n\n").Str(rfcListOverviewMirror())
+	out.Str("\n## RFCs included in automatic checks\n\n").Str(rfcLeadEnrolled).Str("\n\n").Str(rfcListOverviewMirror())
 	enrolled := rfcIndexRows(ledger, true)
 	if len(enrolled) == 0 {
-		out.Str("No summary is enrolled.\n")
+		out.Str("No RFC summary is included in automatic checks.\n")
 	} else {
 		out.Str(rfcIndexLegendMirror())
 		out.Str(rfcMirrorHead("RFC", rfcIndexAreaLabel, rfcIndexMandatoryLabel, rfcIndexOptionalLabel,
@@ -1771,10 +1772,10 @@ func rfcIndexMirror(ledger rfcLedger) string {
 				Int(int64(entry.Coverage.Missing)).Str(" |\n")
 		}
 	}
-	out.Str("\n## Summaries that are not enrolled\n\n").Str(rfcLeadDeclined).Str("\n\n")
+	out.Str("\n## RFCs excluded from automatic checks\n\n").Str(rfcLeadDeclined).Str("\n\n")
 	declined := rfcIndexRows(ledger, false)
 	if len(declined) == 0 {
-		out.Str("Every summary is enrolled.\n")
+		out.Str("Every RFC summary is included in automatic checks.\n")
 		return out.String()
 	}
 	out.Str(rfcDispositionLegendMirror(declined))
@@ -1946,11 +1947,11 @@ func rfcExclusionsOf(ledger rfcLedger) rfcExclusions {
 // section's own face.
 func rfcExclusionCoverage() string {
 	return rfcValueMirror(rfcAllSubject, "walked") + " of the " + rfcValueMirror(rfcAllSubject, "rfcs") +
-		" summary files carry an extraction sign-off, " + rfcValueMirror(rfcEnrolledSubject, "walked") +
+		" summary files have a recorded review of their requirement lists, " + rfcValueMirror(rfcEnrolledSubject, "walked") +
 		" of them among the " + rfcValueMirror(rfcEnrolledSubject, "rfcs") +
-		" enrolled. The other " + rfcValueMirror(rfcAllSubject, "not-walked") +
-		" have no exclusion ledger at all, so what follows counts the walks that HAVE been " +
-		"done and is not the whole picture."
+		" included in automatic checks. The other " + rfcValueMirror(rfcAllSubject, "not-walked") +
+		" have no record of excluded sentences, so this section covers only completed " +
+		"reviews and remains incomplete."
 }
 
 // rfcExclusionCaution is the sentence the presumed-wrong kind carries.
@@ -2098,9 +2099,9 @@ const rfcExcludedLabel = "Sentences declined"
 // rfcExclusionIntro says what an exclusion IS, and how it differs from the
 // {not-applicable} count the card grid already carries.
 func rfcExclusionIntro(exclusions rfcExclusions) string {
-	return "A reviewer walks an RFC's own text sentence by sentence and decides which " +
-		"sentences become requirements. One that does not is EXCLUDED, with a kind and a " +
-		"reason, and it never reaches the gated ledger at all. That is a different mechanism " +
+	return "A reviewer reads the original RFC sentence by sentence and decides which " +
+		"sentences become requirements. A sentence left out is recorded with a category and a " +
+		"reason, and is absent from the requirement list. This differs " +
 		"from the Out of scope card above, which counts requirements that exist and carry a " +
 		"{not-applicable} annotation. Across the sign-offs done so far, " +
 		groupThousands(exclusions.Mapped) + " sentences were mapped to a requirement and " +
@@ -2114,7 +2115,7 @@ func rfcExclusionTotalNote(exclusions rfcExclusions) string {
 	return groupThousands(exclusions.Sites-exclusions.Debt) + " say the obligation never " +
 		"bound Ze and " + groupThousands(exclusions.Debt) + " say Ze owes it, of " +
 		groupThousands(exclusions.Mapped+exclusions.Sites) +
-		" normative sentences the walks found"
+		" sentences stating requirements that the reviews found"
 }
 
 // rfcStemLinksHTML and rfcStemLinksMirror name summaries as links to their own
@@ -2135,13 +2136,13 @@ type rfcImplementationKind struct {
 func rfcImplementationMeaning(kind string) string {
 	switch kind {
 	case "ze":
-		return "Ze's own Go implements the document, and its MUSTs are gated."
+		return "Ze's own code implements the RFC, and its mandatory requirements are included in automatic checks."
 	case "mixed":
 		return "Ze implements part in Go and another layer performs the rest. " +
-			"The part Ze's Go answers stays gated."
+			"The requirements implemented by Ze's own code remain included in automatic checks."
 	case "third-party":
 		return "A layer under or beside Ze performs it and Ze holds no Go code for it, " +
-			"so its MUSTs are not gated against Ze."
+			"so its mandatory requirements are excluded from the checks of Ze's own code."
 	case "foundation":
 		return "The document defines, registers or describes, and obliges no implementer."
 	}
@@ -2175,7 +2176,7 @@ func rfcImplementationHTML(ledger rfcLedger) string {
 	kinds := rfcImplementationsOf(ledger)
 	var out textbuf.Buffer
 	out.Str("<p>").Str(html.EscapeString("The ledger counts what Ze implements in its " +
-		"own Go. A document another layer performs leaves the gated population and names " +
+		"own code. An RFC implemented by another layer is excluded from these checks and names " +
 		"what performs it, and where Ze can observe the behavior the requirement still " +
 		"carries a test over the state Ze installs.")).Str("</p>\n")
 	var rows textbuf.Buffer
@@ -2199,8 +2200,8 @@ func rfcImplementationHTML(ledger rfcLedger) string {
 // rfcImplementationMirror states the same split in Markdown.
 func rfcImplementationMirror(ledger rfcLedger) string {
 	var out textbuf.Buffer
-	out.Str("The ledger counts what Ze implements in its own Go. A document another " +
-		"layer performs leaves the gated population and names what performs it, and where " +
+	out.Str("The requirement list counts what Ze implements in its own code. An RFC implemented by another " +
+		"layer is excluded from these checks and names what performs it, and where " +
 		"Ze can observe the behavior the requirement still carries a test over the state " +
 		"Ze installs.\n\n")
 	out.Str("| Implemented by | Summaries | What it means |\n|---|---:|---|\n")
@@ -2269,10 +2270,9 @@ func rfcMechanismMirror(snapshot *rfcCompliance) string {
 // which is the fact the retired card carried.
 func rfcMechanismLead(snapshot *rfcCompliance) string {
 	if snapshot.Verify.GateStages == 0 {
-		return "NO verification stage runs this gate, so nothing on this page is enforced " +
-			"before a commit is verified."
+		return "No verification stage runs this compliance check, so verification does not enforce these requirements."
 	}
-	return "This gate runs before a commit is verified: " + snapshot.Verify.Command +
+	return "This compliance check runs during verification: " + snapshot.Verify.Command +
 		" is " + plural(snapshot.Verify.GateStages, "stage") + " of the " +
 		groupThousands(snapshot.Verify.Stages) + " that ./le verify current runs."
 }
@@ -2285,9 +2285,9 @@ func rfcMechanismRows(snapshot *rfcCompliance) [][3]string {
 			groupThousands(snapshot.Verify.GateStages) + " of " +
 				groupThousands(snapshot.Verify.Stages) + " full-mode verify stages run it"},
 		{"Requirement source", "<code>rfc/short/*.md</code>",
-			rfcValueMirror(rfcEnrolledSubject, rfcMustTotalField) + " MUST rows in the walked enrolled RFCs"},
+			rfcValueMirror(rfcEnrolledSubject, rfcMustTotalField) + " mandatory requirements in reviewed RFCs included in automatic checks"},
 		{rfcEnrolmentLabel, "<code>rfc/short/*.md</code>, the <code>| Enrolment |</code> Meta row",
-			rfcValueMirror(rfcEnrolledSubject, "rfcs") + " enrolled RFCs"},
+			rfcValueMirror(rfcEnrolledSubject, "rfcs") + " RFCs included in automatic checks"},
 		{rfcTestTagsLabel, "<code>internal/</code>, <code>pkg/</code>, <code>test/</code>",
 			groupThousands(snapshot.Gate.TestTags) + " resolved tags"},
 		{"Public ledger", "<code>rfc/short/*.md</code>, the <code>| Support |</code> Meta row",

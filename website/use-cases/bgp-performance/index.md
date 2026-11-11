@@ -25,7 +25,7 @@ A performance test has to answer these questions and publish the evidence for ea
 | Does the result repeat? | Several iterations, warmups discarded, standard deviation reported |
 | Can someone reproduce it? | DUT config, route count, family, batch size, hardware, runtime, and raw JSON |
 
-A good run proves a complete path: generated routes enter the DUT, pass through the DUT policy and RIB path, leave the DUT, and arrive at a real BGP receiver. A route count alone is wiring. A repeated run with zero loss and published inputs is evidence.
+A useful run checks the complete route path: generated routes enter the device under test, pass through its policy and routing table, leave the device, and arrive at a BGP receiver. A route count alone shows that the routers exchanged routes. Repeated runs with zero loss and published inputs let others assess the performance result.
 
 ## Topology
 
@@ -196,10 +196,10 @@ Publish the method with the result.
 | Field | Why it matters |
 | --- | --- |
 | DUT name, version, commit, and config | Policy and defaults change results |
-| Hardware or VM shape | CPU, memory, and virtualization dominate control-plane tests |
+| Hardware or VM resources | CPU, memory, and virtualization dominate control-plane tests |
 | Runtime | Bare metal, Docker, Colima, QEMU, and VM networking are different tests |
 | Route source | Synthetic routes, MRT replay, and production captures stress different code paths |
-| Peer shape | One large peer and many small peers find different bugs |
+| Number of peers and routes per peer | One peer sending many routes and many peers sending fewer routes find different bugs |
 | Route count and family | IPv4 inline NLRI, IPv4 MP_REACH, and IPv6 MP_REACH exercise different paths |
 | Batch size | Packed UPDATEs and one prefix per UPDATE are different workloads |
 | Repeats and warmups | One run is a smoke test |
@@ -214,7 +214,7 @@ The current `le perf` setup is one sender session and one receiver session. That
 
 For a full AMS-IX or bgperf-style route-server scale test, Ze would need a multi-peer mode:
 
-| Missing shape | Feature to add |
+| Test not yet supported | Feature to add |
 | --- | --- |
 | 500 small route-server clients | N sender sessions, each with its own local address, ASN, and route slice |
 | MRT replay as route source | Route input from MRT, with `count` and `skip` controls |

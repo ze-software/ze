@@ -33,8 +33,8 @@ These answers cover what Ze does, its release status, and what adopting it invol
       <details class="faq-card cat-operate" id="what-is-ze" open>
         <summary>What is Ze?</summary>
         <div>
-          <p>Ze is an open-source configuration and protocol engine. The repository also builds a Linux network operating system around that engine. It speaks BGP, manages network interfaces, programs the FIB, and serves one configuration over SSH, a web UI, API, and MCP.</p>
-          <p>The core is a protocol-agnostic supervisor with an event bus, configuration provider, and plugin manager. Each subsystem registers its own YANG model. Ze uses that model to derive the CLI, completion, validation, web editor, generated reference, and MCP tools.</p>
+          <p>Ze is an open-source configuration and protocol engine, also available as a Linux network operating system. It speaks BGP, manages network interfaces, updates the forwarding table, and lets you manage the same configuration through SSH, a web interface, APIs, and AI tools using MCP (Model Context Protocol).</p>
+          <p>The core manages configuration, plugins, and communication between components, while individual subsystems implement the network protocols. Each subsystem defines its configuration in a YANG schema. Ze uses those definitions for its command syntax, completion, validation, web editor, reference pages, and MCP tools.</p>
         </div>
       </details>
       <details class="faq-card cat-meta" id="ready">
@@ -47,7 +47,7 @@ These answers cover what Ze does, its release status, and what adopting it invol
       <details class="faq-card cat-meta" id="today">
         <summary>What can Ze actually do today?</summary>
         <div>
-          <p>Ze has a broad BGP implementation, YANG-modeled configuration with commit and rollback, Linux interface and FIB management, an SSH CLI, a web interface, APIs, observability, and a plugin system.</p>
+          <p>Ze implements BGP and manages Linux interfaces and forwarding tables. You can change configuration through SSH, a web interface, or APIs, review and commit those changes, and roll them back. It also provides monitoring and a plugin system.</p>
           <p>OSPF, IS-IS, MPLS, firewall, VPN, PPPoE, and L2TP code also exists, but those areas remain experimental. Use the <a href="../features/">feature catalog</a> for current status instead of treating this answer as a compatibility matrix.</p>
         </div>
       </details>
@@ -140,8 +140,8 @@ These answers cover what Ze does, its release status, and what adopting it invol
       <details class="faq-card cat-meta" id="ai-development">
         <summary>How is AI used to develop Ze?</summary>
         <div>
-          <p>AI coding agents write Ze's code under a process we developed to guide their work and check the result. We agree on a spec before implementation, write tests first, and ask a separate agent to review the change. Commit gates check the repository's rules. Keeping the instructions beside the code gives each new session the same requirements. <a href="../project/ai-development/">How Ze is developed with AI</a> explains how this process developed.</p>
-          <p>As with human development, the process is iterative, and the first version of something is often not fully correct. Proving a feature takes many passes and a lot of time and compute. For an RFC, every requirement has to be found, tested, and shown to fail when the code is broken, and that coverage keeps growing after the first implementation is published. The <a href="../quality/rfc-compliance/">RFC compliance pages</a> show what is proven and what is still missing.</p>
+          <p>AI coding agents write Ze's code under a process we developed to guide their work and check the result. We agree on a specification before implementation, write tests first, and ask a separate agent to review the change. Automated checks enforce the repository's rules before a change is committed. Keeping the instructions beside the code gives each new session the same requirements. <a href="../project/ai-development/">How Ze is developed with AI</a> explains how this process developed.</p>
+          <p>As with human development, the first version is often not fully correct, and we improve it through repeated testing and review. Checking a feature thoroughly takes time and computing resources. For an RFC, every requirement has to be identified and tested, and each test has to detect a deliberate fault in the behavior it checks. That coverage keeps growing after the first implementation is published. The <a href="../quality/rfc-compliance/">RFC compliance pages</a> show what the tests establish and what is still missing.</p>
           <p>The website is harder to check automatically. An RFC can define behavior precisely enough for a test, while free text leaves more room for unclear explanations and mistakes. Most of the site's figures, feature lists, and references are generated from the code, but the prose still needs review and is likely to contain more mistakes than the code. We revise it as we find them. If you spot a mistake on the site or in Ze, we would appreciate a report on <a href="https://discord.gg/T8s7CjPDne">Discord</a> or the <a href="https://github.com/ze-software/ze/issues">issue tracker</a>.</p>
         </div>
       </details>

@@ -277,7 +277,7 @@
                 return;
             }
             if (sum.walked === 0) {
-                node.textContent = "not walked";
+                node.textContent = "requirements not reviewed";
                 return;
             }
             if (value === undefined && byKind.test(marker[1])) {
@@ -309,7 +309,7 @@
             return;
         }
         if (sum.walked === 0) {
-            node.textContent = "not walked";
+            node.textContent = "requirements not reviewed";
             return;
         }
         var total = fieldsSum(sum, totalFields);

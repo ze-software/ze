@@ -171,7 +171,7 @@ func TestRFCProfilePagesCarryTheMarkersAndTheLastBuildValues(t *testing.T) {
 		`<span data-ze-rfc="profile/edge/optional:register">complete</span>`,
 		`<span data-ze-rfc="profile/edge/optional:must.ze-proven">9</span>`,
 		`<div data-ze-rfc-bar="rfc1:must">Ze proven 3, OS verified 2, OS testing gap 1, Ze correctness gap 1,200</div>`,
-		`<div data-ze-rfc-bar="rfc3:overview">not walked</div>`,
+		`<div data-ze-rfc-bar="rfc3:overview">requirements not reviewed</div>`,
 		`<div data-ze-rfc-bar="rfc4:must">Ze proven 9</div>`,
 		`<script src="../../../../assets/rfc-figures.js" defer></script>`,
 	} {
@@ -186,7 +186,7 @@ func TestRFCProfilePagesCarryTheMarkersAndTheLastBuildValues(t *testing.T) {
 	}
 	mirror := readRFCProfileFile(t, output, rfcProfilesDirectory+"/edge/"+pageMirrorFile)
 	for _, want := range []string{"**MUST bar**: " + edgeRequiredMust, "**Overview bar**: " + edgeRequiredView,
-		"**MUST bar**: " + edgeOptionalMust, "| Mandatory register | not complete |", "| Ze correctness gap | 1,200 |",
+		"**MUST bar**: " + edgeOptionalMust, "| Mandatory requirements complete | not complete |", "| Ze correctness gap | 1,200 |",
 		"[data/rfc/profiles/edge.json](../../../../data/rfc/profiles/edge.json)",
 		"[data/rfc/index.json](../../../../data/rfc/index.json)"} {
 		if !strings.Contains(mirror, want) {
@@ -230,7 +230,7 @@ func TestRFCFigureSetAnswersAsTheScriptDoes(t *testing.T) {
 	for _, check := range []struct{ name, subject, field, want string }{
 		{"a count grouped by thousands", "rfc1", "must.ze-gap", "1,200"},
 		{"a count below a thousand", "rfc1", "must.ze-proven", "3"},
-		{"an unwalked RFC", "rfc3", "must.ze-proven", "not walked"},
+		{"an unwalked RFC", "rfc3", "must.ze-proven", "requirements not reviewed"},
 		{"an empty tier", "profile/core/optional", "must.ze-proven", "no rows"},
 		{"a by-kind count no file holds", "rfc2", "must.not-owed-by-kind.not-applicable", "0"},
 		{"an unwalked member keeps a gapless register open", "profile/lab/required", "register", rfcRegisterOpen},

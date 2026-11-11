@@ -28,14 +28,14 @@ const rfcReaderHeading = "How to read this page"
 // repository.
 var rfcReaderParagraphs = []string{
 	"This page shows how far Ze meets the standards (RFCs) it implements, and how that " +
-		"is proven. For each RFC, Ze keeps a summary that lists every requirement the RFC " +
-		"states and links each requirement to the tests that prove Ze meets it. An automatic " +
-		"check, the gate, reads those summaries and the tests, and the figures on this page " +
+		"is proven. For each RFC, Ze keeps a summary of the requirements identified so far " +
+		"and links them to their tests. Automatic checks read those " +
+		"summaries and tests, and the figures on this page " +
 		"are computed from the same summaries and tests.",
 	"If you are evaluating Ze for one role, start with Coverage by profile. To check one " +
-		"RFC, find it in the Enrolled RFCs table and open its own page, which lists each " +
-		"requirement and the tests behind it. The terms below are used throughout this page; " +
-		"the per-RFC pages and Ze's source use the same terms.",
+		"RFC, find it in the RFCs included in automatic checks table and open its own page, which lists each " +
+		"requirement and the tests behind it. The glossary below explains the results and " +
+		"notes the corresponding terms in Ze's source.",
 }
 
 // rfcGlossaryTerm is one term the page uses, as a reader meets it.
@@ -56,24 +56,25 @@ func rfcGlossary() []rfcGlossaryTerm {
 		{"MUST-level (mandatory)", "a requirement stated with " +
 			strings.Join(rfc.MandatoryKeywords(), ", ") + ". The optional levels are " +
 			strings.Join(rfc.OptionalKeywords(), ", ") + "."},
-		{"Enrolled", "an RFC whose summary the gate holds Ze to. Summaries that are not " +
-			"enrolled are listed at the end of the page, each with its reason."},
-		{"Gate, gated", "the gate is the automatic check that reads every summary and the " +
-			"tests. A gated requirement is a MUST-level requirement of an enrolled RFC, one " +
-			"the gate holds Ze to."},
+		{"Included in automatic checks", "an RFC whose mandatory requirements are " +
+			"checked against its summary and tests. Other RFC summaries are listed at the end " +
+			"of the page with the reason they are excluded. The repository calls this enrollment."},
+		{"Automatic compliance check", "the check reads RFC requirement summaries and tests " +
+			"to find missing evidence or unsupported claims. The repository calls it a gate."},
 		{"Positive and negative test (polarity)", "a positive test proves Ze does what the " +
 			"requirement demands; a negative test proves Ze refuses what the requirement " +
 			"forbids. Tested both ways means both exist."},
-		{"Tagged unit", "one test that names, in a tag, the requirement it proves. One " +
-			"requirement can have several."},
-		{"Recorded break", "the proof that a test can fail: the code under the test was " +
+		{"Test linked to a requirement", "one test that names the requirement it checks " +
+			"in a source annotation. One requirement can have several tests."},
+		{"Recorded fault test", "evidence that a test can detect a fault: the code under the test was " +
 			"broken once on purpose, the test was seen to fail, and a record stores what the " +
 			"test, its claim and the code looked like. The break is not run again. Ze's " +
 			"source calls this a discrimination record."},
-		{"Escaped", "a tagged unit whose record claims that no break of the code exists. " +
-			"It is not counted as a proof."},
-		{"Lapsed", "a recorded break whose test, claim or code has changed since it was " +
-			"recorded. It is not counted as a proof."},
+		{"No fault test recorded", "a test record states that no deliberate code change " +
+			"could demonstrate the test failing. The source calls this escaped, and it does not " +
+			"count as proof that the test can detect a fault."},
+		{"Outdated fault test", "a test, its stated claim, or the code it checks has changed " +
+			"since the fault test was recorded. The source calls this lapsed, and it no longer counts as proof."},
 		{"Gap", "a requirement the summary openly declares Ze does not meet yet. Every gap " +
 			"is work Ze owes."},
 		{"Annotation", "a note on a requirement, written in braces, that says why it " +
@@ -88,14 +89,15 @@ func rfcGlossary() []rfcGlossaryTerm {
 			"The annotation names the Linux Limitations Register entry. The row is OS blocked: " +
 			"a limit of the kernel, never counted against Ze, so it sits with the rows not owed " +
 			"and in no section of the MUST bar."},
-		{"Walked, sign-off", "a reviewer read the RFC's own text sentence by sentence and " +
-			"checked the requirement list against it; the sign-off records that review. " +
-			"Not walked means the review has not been done, so no figure is counted."},
+		{"Requirements reviewed", "a reviewer read the original RFC sentence by sentence " +
+			"and checked the requirement list against it. The review record documents that check. " +
+			"Requirements not reviewed means that this check has not been completed, so the RFC " +
+			"is excluded from the coverage figures."},
 		{"Excluded sentence", "a sentence of the RFC that the review decided not to turn " +
 			"into a requirement, with a kind and a reason."},
-		{"Semantic verdict", "a reviewer's recorded judgement that a requirement's tests " +
-			"enforce what the requirement says. Fresh: still current. Shifted: the test is " +
-			"unchanged and only the file around it moved. Stale: what it judged has changed."},
+		{"Test review", "a reviewer's recorded judgment of whether the tests check what " +
+			"the requirement says. Fresh means still current. Shifted means the test is unchanged " +
+			"and only the surrounding file moved. Stale means the reviewed code or requirement changed."},
 	}, rfcBarGlossary()...)
 }
 
@@ -189,11 +191,11 @@ func rfcReaderIntroMirror() string {
 // choosing a router. Each one is the first paragraph under its heading, on the
 // page and in the mirror.
 const (
-	rfcLeadVerdict = "The gate holds Ze to every MUST-level requirement of the RFCs it " +
-		"implements. The bars and the Total row below put each MUST row of a walked " +
-		"enrolled RFC in one section: proven by Ze's tests, verified in the operating " +
-		"system, not owed, or still owed by Ze or by the operating system's tests. The cards " +
-		"after them say how many tagged tests carry a recorded break and whether the gate passes."
+	rfcLeadVerdict = "Ze's automatic checks cover the mandatory requirements of the RFCs it " +
+		"implements. For RFCs whose requirement lists have been reviewed, the bars and Total " +
+		"row group those requirements by status: proven by Ze's tests, verified in the operating " +
+		"system, not applicable, or awaiting implementation or tests. The cards below show " +
+		"how many tests have been shown to detect a deliberate fault and whether the checks pass."
 	rfcLeadProfiles = "A profile groups the RFCs one kind of deployment needs. If you are " +
 		"evaluating Ze for one role, its profile page gives the figures for that role alone."
 	rfcLeadImplements = "Some RFCs are carried out by Ze's own code, some by a layer under or " +
@@ -209,14 +211,14 @@ const (
 	rfcLeadMechanism = "Where the figures come from: the files that hold the requirements " +
 		"and the tests, and the command that reproduces the verdict. You do not need this " +
 		"section to read the results."
-	rfcLeadChecks = "The gate runs several groups of checks. Each line below says what one " +
+	rfcLeadChecks = "Compliance is checked in several groups. Each line below says what one " +
 		"group verifies and whether it passed, and for a group that failed, what that means " +
 		"for the figures. The raw findings, written for Ze's contributors, are in the " +
 		"collapsed block after the list."
-	rfcLeadEnrolled = "Every RFC the gate holds Ze to, with its own figures. Open an RFC to " +
+	rfcLeadEnrolled = "Every RFC included in Ze's automatic checks, with its own figures. Open an RFC to " +
 		"see each of its requirements and the tests behind it."
-	rfcLeadDeclined = "RFCs Ze keeps a summary for that the gate does not hold Ze to, each " +
-		"with the kind of reason and the reason itself."
+	rfcLeadDeclined = "RFCs with a requirement summary that are excluded from the automatic " +
+		"checks, with the reason for each exclusion."
 )
 
 // rfcLeadHTML renders one section lead.

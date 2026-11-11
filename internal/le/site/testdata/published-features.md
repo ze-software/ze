@@ -535,4 +535,4 @@ Implemented and tested, still waiting for production evidence.
 
 ## Release roadmap
 
-The [release inventory](https://ze-software.net/project/roadmap/) lists remaining release work, post-release work, and proposals from committed specs. Classification is not release-readiness proof.
+The [release roadmap](https://ze-software.net/project/roadmap/) lists remaining work for the first release, later improvements, and proposals from the project's recorded plans. A plan does not mean a feature is ready to use.

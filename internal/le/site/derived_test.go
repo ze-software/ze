@@ -175,7 +175,7 @@ func TestThePageMapTakesItsCountsFromTheFactsSnapshot(t *testing.T) {
 		"5 features, grouped by category",
 		"7 commands, generated from Ze's live binary",
 		"3 direct packages, generated from go.mod",
-		"36 sections, indexed from live YANG",
+		"36 sections, generated from Ze's YANG schemas",
 		"9 update reports, what shipped",
 	} {
 		if !strings.Contains(content, fresh) {

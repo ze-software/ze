@@ -402,9 +402,9 @@ func featuresBody(data featureData, shipped []featureCard) string {
 		Str(`<button type="button" data-reset-features>Reset filters</button></div>`).Byte('\n')
 	body.Str("            <section id=\"roadmap\" aria-labelledby=\"roadmap-title\">\n").
 		Str("                <h2 id=\"roadmap-title\">Release roadmap</h2>\n").
-		Str("                <p>The <a href=\"../project/roadmap/\">release inventory</a> lists remaining ").
-		Str("release work, post-release work, and proposals from committed specs. ").
-		Str("Classification is not release-readiness proof.</p>\n            </section>\n")
+		Str("                <p>The <a href=\"../project/roadmap/\">release roadmap</a> lists remaining ").
+		Str("work for the first release, later improvements, and proposals from the project's recorded plans. ").
+		Str("A plan does not mean a feature is ready to use.</p>\n            </section>\n")
 	body.Str("</div></div>\n")
 	return body.String()
 }
@@ -520,9 +520,9 @@ func featuresMirror(data featureData, shipped int) string {
 			mirror.Str("\n[Learn more](").Str(card.mirrorHref()).Str(")\n\n")
 		}
 	}
-	mirror.Str("## Release roadmap\n\nThe [release inventory](").Str(siteBase).
-		Str("project/roadmap/) lists remaining release work, post-release work, and proposals from committed specs. ").
-		Str("Classification is not release-readiness proof.\n\n")
+	mirror.Str("## Release roadmap\n\nThe [release roadmap](").Str(siteBase).
+		Str("project/roadmap/) lists remaining work for the first release, later improvements, and proposals from the project's recorded plans. ").
+		Str("A plan does not mean a feature is ready to use.\n\n")
 	return strings.TrimSpace(mirror.String()) + "\n"
 }
 

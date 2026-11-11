@@ -48,8 +48,8 @@ job you are trying to do, then follow the links inside that path.
     </article>
     <article class="card docs-path-card cat-automate">
         <span class="cat">Automate</span>
-        <h2>Use and extend every surface</h2>
-        <p>Management transports, browser and public interfaces, and the plugin SDK.</p>
+        <h2>Use and extend Ze's interfaces</h2>
+        <p>Management APIs, browser and public interfaces, and the plugin SDK.</p>
         <div class="link-list">
             <a href="../guides/api/">REST and gRPC <span>authentication, commands, config sessions, and streaming</span></a>
             <a href="../guides/gnmi/">gNMI <span>Capabilities, Get, Set, Subscribe, TLS, and metrics</span></a>
@@ -78,14 +78,14 @@ job you are trying to do, then follow the links inside that path.
     <article class="card docs-path-card cat-meta">
         <span class="cat">Design</span>
         <h2>Understand the system</h2>
-        <p>Explanation pages for architecture, comparisons, performance, labs, and deployment shapes.</p>
+        <p>Explanations of architecture, comparisons, performance, labs, and deployment examples.</p>
         <div class="link-list">
-            <a href="../architecture/">Architecture <span>engine, config, plugins, and operator surfaces</span></a>
+            <a href="../architecture/">Architecture <span>engine, configuration, plugins, and management interfaces</span></a>
             <a href="../architecture/route-selection/">Route selection <span>how Ze picks the best path, step by step</span></a>
             <a href="../compare/">Compare <span>Ze against BIRD, FRR, GoBGP, and others</span></a>
             <a href="../performance/">Performance <span>measured BGP benchmarks and methodology</span></a>
             <a href="../architecture/vpp-deployment/">VPP deployment reference <span>startup.conf, NIC, LCP, and notes</span></a>
-            <a href="../labs/">Labs and usage examples <span>interop proof and deployment shapes</span></a>
+            <a href="../labs/">Labs and usage examples <span>tests with other routers and deployment examples</span></a>
             <a href="../guides/chaos-testing/">Chaos testing <span>deterministic faults, properties, replay, and shrink</span></a>
             <a href="../use-cases/route-server/">IXP route server <span>member policy, validation, and replay checks</span></a>
             <a href="../use-cases/transit-edge-rpki/">Transit edge with RPKI <span>dual transit, origin validation, and failover</span></a>
@@ -107,7 +107,7 @@ job you are trying to do, then follow the links inside that path.
             <a href="../contribute/rfc-implementation-guide/">RFC implementation guide <span>how a new RFC gets built and proven</span></a>
             <a href="../contribute/documentation-testing/">Documentation testing <span>keep docs honest with tested command output</span></a>
             <a href="../project/history/">Project history <span>how ExaBGP's programmable model grew into Ze</span></a>
-            <a href="../contribute/testing/">Contributor testing <span>choose the right proof layer and run it locally</span></a>
+            <a href="../contribute/testing/">Contributor testing <span>choose tests for your change and run them locally</span></a>
         </div>
     </article>
 </div>

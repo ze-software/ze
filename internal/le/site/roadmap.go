@@ -41,8 +41,8 @@ func renderRoadmap(paths Paths) ([]string, error) {
 	page := sitePage{
 		Source:  "plan/README.md",
 		Dest:    roadmapDestination,
-		Desc:    "Classified release work, post-release work, and proposals from committed specs; not release-readiness proof.",
-		Journey: "Release queue",
+		Desc:    "Plans for the first release, later improvements, and proposals. A plan does not mean a feature is ready to use.",
+		Journey: "Release plans",
 	}
 	source := roadmap.Markdown(&snapshot, false) + "\n[Snapshot JSON](../../" + roadmapDataFile + ")\n"
 	if err := renderer.renderSource(page, []byte(source)); err != nil {

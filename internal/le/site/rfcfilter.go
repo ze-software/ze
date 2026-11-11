@@ -56,7 +56,7 @@ func rfcListOverviewHTML() string {
 	out.Str(rfcTotalRowHTML(rfcAllSubject, "rfc-overview-check"))
 	out.Str(`<p id="rfc-overview-scope">`).Str(rfcValueHTML(rfcAllSubject, "rfcs")).
 		Str(" RFCs, of which ").Str(rfcValueHTML(rfcAllSubject, "not-walked")).
-		Str(" not walked, so their rows count in no figure.</p>\n</div>\n")
+		Str(" have not had their requirement lists reviewed and are excluded from the figures.</p>\n</div>\n")
 	return out.String()
 }
 
@@ -66,7 +66,7 @@ func rfcListOverviewMirror() string {
 	out.Str("### ").Str(rfcListOverviewTitle).Str("\n\n").Str(rfcBarsMirror(rfcAllSubject)).Byte('\n')
 	out.Str(rfcTotalRowMirror(rfcAllSubject))
 	out.Str(rfcValueMirror(rfcAllSubject, "rfcs")).Str(" RFCs, of which ").
-		Str(rfcValueMirror(rfcAllSubject, "not-walked")).Str(" not walked, so their rows count in no figure.\n\n")
+		Str(rfcValueMirror(rfcAllSubject, "not-walked")).Str(" have not had their requirement lists reviewed and are excluded from the figures.\n\n")
 	return out.String()
 }
 
@@ -136,7 +136,7 @@ func rfcListTotalColumns() []rfcProfileFigure {
 
 // rfcListCheckWords says what the check line adds up.
 func rfcListCheckWords() string {
-	return "MUST rows: the four MUST bar sections and the rows not owed add up to every MUST row of the walked RFCs."
+	return "mandatory requirements: the four bar sections and the requirements that do not apply add up to all mandatory requirements in the RFCs whose requirement lists have been reviewed."
 }
 
 // rfcFilterScript selects the rows of both RFC tables. A link names the RFCs
@@ -288,11 +288,11 @@ func rfcIndexLegend() [][2]string {
 	return [][2]string{
 		{rfcIndexAreaLabel, "the area the RFC's public row is filed under, or that its summary declares no public row"},
 		{rfcIndexMandatoryLabel, "the RFC's " + rfcKeywordSeries(rfc.MandatoryKeywords()) +
-			" rows the stack owes, by section, read from data/rfc/<stem>.json. \"not walked\" means the " +
+			" requirements that Ze and its operating system must meet, grouped by status. \"requirements not reviewed\" means the " +
 			"requirement list has not yet been checked against the RFC text, so no row is counted"},
 		{rfcIndexOptionalLabel, "the same MUST rows with its " + rfcKeywordSeries(rfc.OptionalKeywords()) +
 			" rows and the rows not owed, which do not bind Ze"},
-		{rfcIndexMustsLabel, "the mandatory requirements the gate holds Ze to"},
+		{rfcIndexMustsLabel, "the mandatory requirements included in Ze's automatic checks"},
 		{rfcIndexGapsLabel, "requirements the summary declares Ze does not meet yet"},
 		{rfcIndexGapsTested, "of those gaps, the ones a test demonstrates"},
 		{rfcIndexUntestedLabel, "mandatory requirements with no test at all"},

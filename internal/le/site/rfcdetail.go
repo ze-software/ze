@@ -27,7 +27,7 @@ const (
 	// rfcNoPublicRow is what the page says for a stem docs/features/rfc-status.md
 	// carries no row for. 39 of the 190 stems are in that state, and a blank
 	// cell would read as "no status" rather than as "no row".
-	rfcNoPublicRow = "No row in the public ledger"
+	rfcNoPublicRow = "No entry in the public support list"
 	// rfcUnproven is what a tagged unit with no recorded break reads as, in its
 	// own column. It is not a proof and it is never counted as one, and the
 	// sentence that says why is the legend above the table rather than a copy
@@ -35,15 +35,14 @@ const (
 	rfcUnproven = "unproven"
 
 	// rfcGatedBucketLabel names the whole that the coverage buckets partition.
-	rfcGatedBucketLabel = "Gated MUST-level requirements"
+	rfcGatedBucketLabel = "Mandatory requirements checked"
 
 	// rfcDetailMarker is what a page of THIS family carries and no other page
 	// does. removeRetiredRFCPages keys its deletion on it.
 	rfcDetailMarker = ` id="rfc-detail-title"`
 	// rfcProofLegend is that sentence.
-	rfcProofLegend = "A tagged unit reads " + rfcUnproven + " where no discrimination record " +
-		"exists for it: nothing in this tree has been observed to break it, so the claim its " +
-		"tag makes is unproven."
+	rfcProofLegend = "A test reads " + rfcUnproven + " when no record shows it failing " +
+		"after a deliberate fault. Until then, its claim to check the requirement remains unproven."
 	// The two facts the index and one stem's page both label. Named once, so a
 	// reader following a link from the index meets the same words on the page.
 	rfcDeclaredGapsLabel     = "Declared gaps"
@@ -52,7 +51,7 @@ const (
 	// rfcEnrolmentLabel is the summary's own Meta label, spelled as the Meta
 	// table spells it. The three surfaces that print it read it from here, so
 	// none of them can drift into the American spelling the label does not use.
-	rfcEnrolmentLabel = "Enrolment"
+	rfcEnrolmentLabel = "Automatic checks"
 )
 
 // writeRFCDetailPage publishes one summary's page and its mirror, and answers
@@ -65,7 +64,7 @@ func writeRFCDetailPage(output string, entry *rfcLedgerStem, figures *rfcFigureS
 	route := rfcComplianceRoute + entry.Stem + "/"
 	destination := rfcComplianceDirectory + "/" + entry.Stem + "/" + pageIndexFile
 	shell := pageShell{
-		Title:       entry.Display + " requirement ledger - Ze",
+		Title:       entry.Display + " requirements and tests - Ze",
 		Description: rfcDetailDescription(entry),
 		Root:        rfcDetailRoot,
 		Path:        destination,
@@ -93,13 +92,13 @@ var rfcDetailSections = []struct {
 	{"Overview", rfcOverviewHTML, rfcOverviewMirror},
 	{"At a glance", rfcGlanceHTML, rfcGlanceMirror},
 	{rfcEnrolmentLabel, rfcEnrolmentHTML, rfcEnrolmentMirror},
-	{"What the public ledger says", rfcPublicLedgerHTML, rfcPublicLedgerMirror},
+	{"Published support status", rfcPublicLedgerHTML, rfcPublicLedgerMirror},
 	{"Coverage", rfcCoverageHTML, rfcCoverageMirror},
 	{rfcDetailFiguresHeading, rfcDetailFiguresHTML, rfcDetailFiguresMirror},
 	{"Requirements", rfcRequirementsHTML, rfcRequirementsMirror},
 	{"Gaps and untested MUSTs", rfcGapsHTML, rfcGapsMirror},
 	{"Proof state", rfcProofHTML, rfcProofMirror},
-	{"Extraction sign-off", rfcExtractionHTML, rfcExtractionMirror},
+	{"Requirement list review", rfcExtractionHTML, rfcExtractionMirror},
 	{"Superseded", rfcSupersededHTML, rfcSupersededMirror},
 }
 
@@ -111,7 +110,7 @@ func rfcDetailDescription(entry *rfcLedgerStem) string {
 		out.Str(": ").Str(entry.Title)
 	}
 	out.Str(". ").Int(int64(entry.Coverage.Gated)).
-		Str(" gated MUST-level requirements, ").Int(int64(entry.Coverage.Gaps)).
+		Str(" mandatory requirements included in automatic checks, ").Int(int64(entry.Coverage.Gaps)).
 		Str(" declared gaps (").Int(int64(entry.Coverage.DemonstratedGaps)).
 		Str(" demonstrated by a test), ").Int(int64(entry.Coverage.Missing)).Str(" with no test.")
 	return out.String()
@@ -174,12 +173,12 @@ func rfcDetailHeading(entry *rfcLedgerStem) string {
 
 // rfcDetailLead is the sentence under the heading.
 func rfcDetailLead(entry *rfcLedgerStem) string {
-	state := "not enrolled"
+	state := "excluded from automatic compliance checks"
 	if entry.Enrolled {
-		state = "enrolled and gated by ./le rfc check"
+		state = "included in the automatic compliance check, ./le rfc check"
 	}
-	return "Every requirement this repository extracted from " + entry.Display +
-		", the tests bound to it, and what a reader has verified about them. " +
+	return "Every requirement listed for " + entry.Display +
+		", the tests linked to it, and their recorded reviews. " +
 		"This summary is " + state + "."
 }
 
@@ -219,7 +218,7 @@ func rfcDetailCards(entry *rfcLedgerStem) []rfcCard {
 			Rule: "no color: a population is a scale, and a larger one is neither good news " +
 				"nor bad. It is the accounting total"},
 		{Label: "Out of scope", Value: rfcOutOfScopeValue(entry, rfcNonBindingOf),
-			Count: "of " + groupThousands(coverage.Gated) + " gated MUSTs",
+			Count: "of " + groupThousands(coverage.Gated) + " mandatory requirements checked",
 			Note:  rfcScopeCardNote,
 			Tone:  rfcToneNeutral,
 			Rule: "no color: an obligation that never bound Ze is neither an achievement nor a " +
@@ -229,13 +228,13 @@ func rfcDetailCards(entry *rfcLedgerStem) []rfcCard {
 	return append(cards,
 		rfcProofCard(coverage.Proven(), coverage.Units, coverage.Escapes, coverage.Stale, ""),
 		rfcCard{Label: "Audit verdicts", Value: groupThousands(coverage.Audited),
-			Count: "of " + groupThousands(coverage.Gated) + " gated MUSTs judged",
+			Count: "of " + groupThousands(coverage.Gated) + " mandatory requirements reviewed",
 			Note: groupThousands(proof.Unsound) + " " + unsoundWords + ", " +
 				groupThousands(proof.NotCurrent) + " no longer current. Each is named below " +
 				"under its own requirement id",
 			Tone: rfcAuditTone(entry, proof),
 			Rule: "RED on the first " + unsoundWords + " verdict, amber while a verdict is no " +
-				"longer current or a gated MUST is unjudged, green when every one is judged " +
+				"longer current or a mandatory requirement is unreviewed, green when every one is judged " +
 				"sound and current"})
 }
 
@@ -248,7 +247,7 @@ func rfcDetailCards(entry *rfcLedgerStem) []rfcCard {
 // un-enrolled ones that sentence was false (independent review, 2026-09-01).
 func rfcGatedCardLabel(entry *rfcLedgerStem) string {
 	if entry.Enrolled {
-		return "Gated MUSTs"
+		return "Mandatory requirements checked"
 	}
 	return "MUSTs declared"
 }
@@ -256,11 +255,11 @@ func rfcGatedCardLabel(entry *rfcLedgerStem) string {
 // rfcGatedCardNote is the sentence beneath it.
 func rfcGatedCardNote(entry *rfcLedgerStem) string {
 	if entry.Enrolled {
-		return "MUST-level requirements checked by the gate. This is the total being " +
+		return "Mandatory requirements included in the automatic checks. This is the total being " +
 			"assessed; the counts beside it show the recorded status of those requirements."
 	}
-	return "MUST-level requirements declared in this summary. This RFC is not enrolled " +
-		"(" + entry.Disposition.Kind + "), so the gate does not check these requirements. " +
+	return "Mandatory requirements listed in this summary. This RFC is excluded from automatic checks " +
+		"(" + entry.Disposition.Kind + "), so these requirements are not checked. " +
 		"The counts below show what the summary records."
 }
 
@@ -305,19 +304,19 @@ func rfcGlanceFacts(entry *rfcLedgerStem) [][2]string {
 		{"Public row", html.EscapeString(rfcDetailEyebrow(entry))},
 		{rfcEnrolmentLabel, html.EscapeString(rfcEnrolmentState(entry))},
 		{"Requirements", strconv.Itoa(entry.Coverage.Requirements)},
-		{"Gated MUST-level", strconv.Itoa(entry.Coverage.Gated)},
+		{"Mandatory requirements checked", strconv.Itoa(entry.Coverage.Gated)},
 		{"Not applicable, so out of scope", html.EscapeString(rfcOutOfScopeValue(entry, rfcNotApplicableOf))},
 		{rfcDeclaredGapsLabel, strconv.Itoa(entry.Coverage.Gaps)},
 		{rfcDemonstratedGapsLabel, strconv.Itoa(entry.Coverage.DemonstratedGaps)},
-		{"Gated with no test", strconv.Itoa(entry.Coverage.Missing)},
+		{"Mandatory requirements with no test", strconv.Itoa(entry.Coverage.Missing)},
 		{"Nightly-only evidence", strconv.Itoa(entry.Coverage.NightlyOnly)},
 		{rfcTestTagsLabel, strconv.Itoa(entry.Coverage.Tags)},
-		{"Tagged units", strconv.Itoa(entry.Coverage.Units)},
+		{"Tests linked to requirements", strconv.Itoa(entry.Coverage.Units)},
 		{"Recorded audit verdicts", strconv.Itoa(entry.Coverage.Audited)},
-		{"Discrimination records", strconv.Itoa(entry.Coverage.Records)},
+		{"Fault test records", strconv.Itoa(entry.Coverage.Records)},
 		{"Summary", "<code>" + html.EscapeString(entry.SummaryPath) + "</code>"},
-		{"Requirement shard",
-			rfcPathOrAbsent(entry.ShardPath, "no requirement declared, so no shard is generated")},
+		{"Requirement table",
+			rfcPathOrAbsent(entry.ShardPath, "no requirements are listed, so no table is generated")},
 		{"RFC text",
 			rfcPathOrAbsent(entry.SourcePath, "this checkout does not carry the RFC's own text")},
 	}
@@ -393,9 +392,9 @@ func rfcGlanceMirror(entry *rfcLedgerStem) string {
 // the gate holds this RFC, and the disposition kind where it does not.
 func rfcEnrolmentState(entry *rfcLedgerStem) string {
 	if entry.Enrolled {
-		return "Enrolled"
+		return "Included"
 	}
-	return "Not enrolled (" + entry.Disposition.Kind + ")"
+	return "Excluded (" + entry.Disposition.Kind + ")"
 }
 
 // rfcEnrolmentText says whether the gate holds this RFC, and the reason the
@@ -408,9 +407,9 @@ func rfcEnrolmentState(entry *rfcLedgerStem) string {
 // is dead code that reads like a real case (ai/rules/principles.md).
 func rfcEnrolmentText(entry *rfcLedgerStem) string {
 	if entry.Enrolled {
-		return "Enrolled: " + entry.EnrolmentReason
+		return "Included in automatic checks: " + entry.EnrolmentReason
 	}
-	return "Not enrolled (" + entry.Disposition.Kind + ", " +
+	return "Excluded from automatic checks (" + entry.Disposition.Kind + ", " +
 		rfcDispositionMeaning(entry.Disposition.Kind) + "): " + entry.Disposition.Reason
 }
 
@@ -549,7 +548,7 @@ func rfcCoverageBuckets(entry *rfcLedgerStem) []rfcCoverageBucket {
 			Partitions: true},
 		{Label: "Annotated (including scoped evidence)", Count: entry.Coverage.Annotated, IDs: annotated,
 			Partitions: true},
-		{Label: "One polarity only", Count: entry.Coverage.One, IDs: one, Partitions: true},
+		{Label: "Only a positive or negative test", Count: entry.Coverage.One, IDs: one, Partitions: true},
 		{Label: "No test and no annotation", Count: entry.Coverage.Missing, IDs: missing,
 			Partitions: true},
 		{Label: rfcPartialLabel + " (subset of annotated; zero whole-requirement credit)", Count: entry.Coverage.Partial, IDs: partial},
@@ -581,14 +580,14 @@ func rfcCoverageWalkNote(bucket rfcCoverageBucket) string {
 	if len(bucket.IDs) == bucket.Count {
 		return ""
 	}
-	return " The gate counts " + strconv.Itoa(bucket.Count) + " and this page names " +
-		strconv.Itoa(len(bucket.IDs)) + ", so the two walks disagree."
+	return " The automatic check counts " + strconv.Itoa(bucket.Count) + " and this page lists " +
+		strconv.Itoa(len(bucket.IDs)) + ", so the counts disagree."
 }
 
 // rfcCoverageAccountedNote says whether the parts add up to the whole.
 func rfcCoverageAccountedNote(total, gated int) string {
 	if total == gated {
-		return "every gated MUST falls in exactly one bucket above"
+		return "every mandatory requirement checked appears in exactly one group above"
 	}
 	return "the buckets account for " + strconv.Itoa(total) + " of " + strconv.Itoa(gated) +
 		", so " + strconv.Itoa(gated-total) + " fall in none: the bucketing is incomplete"
@@ -598,14 +597,14 @@ func rfcCoverageAccountedNote(total, gated int) string {
 // overlay counted again inside one of the parts.
 func rfcCoverageRoleNote(bucket rfcCoverageBucket) string {
 	if bucket.Partitions {
-		return "one part of the gated population" + rfcCoverageWalkNote(bucket)
+		return "one part of the mandatory requirements checked" + rfcCoverageWalkNote(bucket)
 	}
 	if bucket.Derived {
-		return "outside the gated population: each asserts nothing and derives its state " +
-			"from the rows it names, which the parts above already count" +
+		return "excluded from the total: each summarizes the status of other requirements, " +
+			"which are already counted above" +
 			rfcCoverageWalkNote(bucket)
 	}
-	return "an overlay: each of these is also counted by the part it falls in" +
+	return "also counted in one of the groups above" +
 		rfcCoverageWalkNote(bucket)
 }
 
@@ -633,7 +632,7 @@ func rfcHasBothPolarities(requirement *rfcLedgerRequirement) bool {
 func rfcCoverageHTML(entry *rfcLedgerStem) string {
 	if entry.Coverage.Gated == 0 {
 		return "<p>" + html.EscapeString(entry.Display+
-			" declares no MUST-level requirement, so the gate counts nothing here.") + "</p>"
+			" lists no mandatory requirements for these checks, so nothing is counted here.") + "</p>"
 	}
 	buckets := rfcCoverageBuckets(entry)
 	var rows textbuf.Buffer
@@ -664,8 +663,7 @@ func rfcCoverageHTML(entry *rfcLedgerStem) string {
 // rfcCoverageMirror states the same counts and the same membership.
 func rfcCoverageMirror(entry *rfcLedgerStem) string {
 	if entry.Coverage.Gated == 0 {
-		return entry.Display + " declares no MUST-level requirement, so the gate counts " +
-			"nothing here.\n"
+		return entry.Display + " lists no mandatory requirements for these checks, so nothing is counted here.\n"
 	}
 	buckets := rfcCoverageBuckets(entry)
 	var out textbuf.Buffer
@@ -761,7 +759,7 @@ var rfcRequirementColumns = []string{"Requirement", "Level", "Section", "Tests"}
 func rfcRequirementsHTML(entry *rfcLedgerStem) string {
 	if len(entry.Requirements) == 0 {
 		return "<p>" + html.EscapeString(entry.Display+
-			" declares no requirement, so this summary generates no shard.") + "</p>"
+			" lists no requirements, so no requirement table is generated.") + "</p>"
 	}
 	names := rfcSectionNames(entry)
 	ambiguous := rfcAmbiguousNames(entry)
@@ -875,13 +873,13 @@ func rfcRequirementMarks(requirement *rfcLedgerRequirement) [][2]string {
 			marks = append(marks, [2]string{"derived", requirement.Annotation.Derived})
 		}
 		if requirement.Annotation.Kind == rfc.AnnotationPartial {
-			marks = append(marks, [2]string{"Scoped evidence", "Tests and tag-claim records apply only to Tested; zero whole-requirement credit. " + rfcVerdictText(requirement.Audit)})
+			marks = append(marks, [2]string{"Partial test coverage", "Tests and fault test records cover only the part marked Tested; they do not prove the whole requirement. " + rfcVerdictText(requirement.Audit)})
 		}
 	}
 	if requirement.NightlyOnly {
 		marks = append(marks, [2]string{"nightly-only",
 			"every test bound to this requirement runs in the scheduled workflow alone, so " +
-				"nothing here is proven on the merge path"})
+				"these tests are not run as part of the checks before integration"})
 	}
 	return marks
 }
@@ -926,7 +924,7 @@ func rfcNoPolarityText(polarity string) string { return "no " + polarity + " tes
 // rfcRequirementsMirror states the same rows.
 func rfcRequirementsMirror(entry *rfcLedgerStem) string {
 	if len(entry.Requirements) == 0 {
-		return entry.Display + " declares no requirement, so this summary generates no shard.\n"
+		return entry.Display + " lists no requirements, so no requirement table is generated.\n"
 	}
 	names := rfcSectionNames(entry)
 	ambiguous := rfcAmbiguousNames(entry)

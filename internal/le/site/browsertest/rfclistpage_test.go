@@ -55,7 +55,7 @@ func TestTheBrowserSumsTheFilteredRFCListFromItsFiles(t *testing.T) {
 	if want := []string{"ze-proven=Ze proven 4"}; !reflect.DeepEqual(got.Bars["rfc2:must"], want) {
 		t.Errorf("rfc2's row draws %q, want %q", got.Bars["rfc2:must"], want)
 	}
-	if want := []string{"not walked"}; !reflect.DeepEqual(got.Bars["rfc3:overview"], want) {
+	if want := []string{"requirements not reviewed"}; !reflect.DeepEqual(got.Bars["rfc3:overview"], want) {
 		t.Errorf("rfc3's row draws %q, want %q", got.Bars["rfc3:overview"], want)
 	}
 

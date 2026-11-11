@@ -226,8 +226,8 @@ return the aggregate as structured JSON. The login banner reads the same
 source, so nothing is silently hidden.
 
 SNMP is a deliberate non-goal, not a gap: FRR and freeRtr both expose
-legacy AgentX/MIB agents, but Ze's operational surface (Prometheus, gNMI,
-gRPC, structured JSON events) already covers what those MIBs would carry,
+legacy AgentX/MIB agents, but Ze's monitoring interfaces (Prometheus, gNMI,
+gRPC, structured JSON events) already cover what those MIBs would carry,
 without maintaining a second protocol stack to do it.
 
 ## API & Programmability
@@ -238,7 +238,7 @@ without maintaining a second protocol stack to do it.
 | gRPC API | Yes | No | No | Partial | No | Yes | Yes | No | Yes | Yes | No |
 | REST API | Yes | No | No | Partial | No | No | No | No | No | Partial | No |
 | YANG model | Yes | No | No | Partial | No | No | No | No | No | No | No |
-| Register-once operator surfaces | Yes | No | No | Partial | No | No | No | No | No | No | Partial |
+| Shared definitions for management interfaces | Yes | No | No | Partial | No | No | No | No | No | No | Partial |
 | CLI tool | Yes | Yes | Yes | Yes | Yes | Yes | Partial | Yes | No | Yes | Yes |
 | CLI JSON output | Yes | No | No | Yes | Yes | Yes | No | Yes | No | Yes | No |
 | Runtime route injection | Yes | No | No | No | No | Yes | No | Yes | Yes | Yes | Yes |
@@ -249,7 +249,7 @@ without maintaining a second protocol stack to do it.
 | MCP (Model Context Protocol) server | Yes | No | No | No | No | No | No | No | No | No | No |
 | SSH CLI access | Yes | No | No | No | No | No | No | No | No | No | Yes |
 
-Ze's register-once row means a command, config node, plugin, RPC, or event can feed the CLI, web workbench, REST/gRPC, MCP, generated docs, completion, authorization, and audit paths. FRR has partial YANG/API evidence. freeRtr has integrated CLI, NETCONF, and help generation, but not the same all-surface pipeline in the inspected sources.
+The shared-definitions row describes how a command, configuration node, plugin, RPC, or event can be defined once and used by the CLI, web interface, REST/gRPC, MCP, generated docs, completion, authorization, and audit. FRR has partial YANG/API evidence. freeRtr has integrated CLI, NETCONF, and help generation, but the inspected sources did not show shared definitions supplying all of those interfaces as they do in Ze.
 
 ## Operations
 

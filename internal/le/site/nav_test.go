@@ -131,7 +131,7 @@ func TestTheSharedHeaderStatesTheCountsTheSnapshotPublishes(t *testing.T) {
 		"<small>" + markedFact("features.core_experimental", "52") + " features, grouped by category</small>",
 		"<small>" + markedFact("dependencies", "42") + " direct packages, generated from go.mod</small>",
 		"<small>" + markedFact("cli_commands", "402") + " commands, generated from Ze&#39;s live binary</small>",
-		"<small>" + markedFact("config_sections", "36") + " sections, indexed from live YANG</small>",
+		"<small>" + markedFact("config_sections", "36") + " sections, generated from Ze&#39;s YANG schemas</small>",
 		"<small>" + markedFact("changes", "37") + " update reports, what shipped</small>",
 		`aria-label="Ze on GitHub"`,
 		`<span class="nav-badge-count">` + markedFact("github_stars", "50") + `</span>`,

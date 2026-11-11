@@ -43,7 +43,7 @@ func TestTheComplianceIndexMarksEveryFigure(t *testing.T) {
 			t.Errorf("the index does not carry %s", element)
 		}
 	}
-	for _, line := range []string{"| MUST rows of the walked enrolled RFCs | 1,232 |", "| Enrolled RFCs | 5 |"} {
+	for _, line := range []string{"| Mandatory requirements of reviewed RFCs included in automatic checks | 1,232 |", "| RFCs included in automatic checks | 5 |"} {
 		if !strings.Contains(mirror, line) {
 			t.Errorf("the mirror does not carry %q", line)
 		}

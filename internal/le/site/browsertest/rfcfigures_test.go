@@ -291,7 +291,7 @@ func TestTheBrowserDrawsRFCFiguresFromTheirFiles(t *testing.T) {
 		t.Fatalf("load: %v", err)
 	}
 	got := waitForRFCPage(ctx, t)
-	wantTexts := map[string]string{"stem": "3", "unwalked": "not walked", "profile-gap": "7", "profile-unwalked": "1",
+	wantTexts := map[string]string{"stem": "3", "unwalked": "requirements not reviewed", "profile-gap": "7", "profile-unwalked": "1",
 		"optional-proven": "9", "empty-optional": "no rows", "by-kind": "6", "by-kind-absent": "0",
 		"bad-field": "must.no-such-count is not a field of the RFC data, so nothing can be shown here. " +
 			"Fix the data-ze-rfc marker: docs/architecture/site-facts.md lists the fields.",

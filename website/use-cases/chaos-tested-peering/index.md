@@ -70,7 +70,7 @@ Select faults that exercise the deployment's real risks:
 - malformed messages on an untrusted peer;
 - plugin delay or failure where policy depends on a plugin.
 
-Run one fault class at a time before combining them. This keeps failures attributable and makes shrinking more effective.
+Run one type of fault at a time before combining them. This makes failures easier to trace and helps the tool reduce a failing run to the events that caused it.
 
 ## Replay and shrink
 
@@ -83,7 +83,7 @@ When a scenario fails:
 
 Replay proves the failure is deterministic. Shrink removes unrelated events until the smallest useful reproduction remains. Keep the seed, event log, configuration, binary version, and final report together.
 
-## Deployment gate
+## Checks before deployment
 
 Before accepting the peer configuration:
 

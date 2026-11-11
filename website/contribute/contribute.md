@@ -6,12 +6,12 @@ Contributions to Ze can be code, documentation, bug reports, or results from try
   <article class="contribute-route cat-meta">
     <span class="contribute-route-kicker">Code</span>
     <h2>Contribute a fix</h2>
-    <p>Small, well-proven changes are welcome: parser fixes, command output fixes, protocol edge cases, docs corrections, and test coverage that catches real behavior.</p>
+    <p>Small, tested changes are welcome: parser fixes, command output fixes, protocol edge cases, docs corrections, and tests that detect incorrect behavior.</p>
   </article>
   <article class="contribute-route cat-observe">
     <span class="contribute-route-kicker">Evidence</span>
     <h2>Bring a trace, lab, or transcript</h2>
-    <p>Interop reports, QEMU runs, failing <code>.ci</code> transcripts, and browser captures are useful because they show exactly what broke and what should be checked next.</p>
+    <p>Reports of tests with other routers, QEMU test results, failing <code>.ci</code> test logs, and browser captures are useful because they show exactly what broke and what should be checked next.</p>
   </article>
   <article class="contribute-route cat-secure">
     <span class="contribute-route-kicker">Care</span>

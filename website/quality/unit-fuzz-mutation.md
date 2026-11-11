@@ -39,7 +39,7 @@ A normal unit test is the right tool when the behavior sits inside one package o
 <tr><td>Plugin group</td><td><code>./le test unit plugins</code></td><td>Runtime plugin logic and plugin boundaries.</td></tr>
 <tr><td>Config group</td><td><code>./le test unit config</code></td><td>YANG, config parsing, validation, and rendering.</td></tr>
 <tr><td>CLI group</td><td><code>./le test unit cli</code></td><td>Command parsing and user-visible formatting.</td></tr>
-<tr><td>All unit groups</td><td><code>./le test unit</code></td><td>Local unit gate.</td></tr>
+<tr><td>All unit groups</td><td><code>./le test unit</code></td><td>Run every unit test group.</td></tr>
 </tbody>
 </table>
 
@@ -72,21 +72,21 @@ Fuzzing and mutation testing expose different weaknesses. Fuzzing may find an in
 <tbody>
 <tr><td>Killed</td><td>The test suite noticed the changed behavior.</td><td>No action needed.</td></tr>
 <tr><td>Survived</td><td>The tests still passed after a code mutation.</td><td>Add a stronger assertion, add a functional test, or classify the mutation as equivalent.</td></tr>
-<tr><td>Timed out</td><td>The package or test is too slow for the current mutation settings.</td><td>Narrow the package or skip mutation where it does not add signal.</td></tr>
+<tr><td>Timed out</td><td>The package or test is too slow for the current mutation settings.</td><td>Test a smaller package or skip mutation testing where it provides no useful result.</td></tr>
 </tbody>
 </table>
 
-gomu runs through `go run`, so no separate install is needed. `.gomuignore` excludes paths where mutation testing is noisy or not useful. Full mutation runs are slower than unit tests and advisory in release evidence, but a survived mutation in changed code deserves a real decision.
+gomu runs through `go run`, so no separate install is needed. `.gomuignore` excludes paths where mutation testing produces misleading results or is not useful. Full mutation runs are slower than unit tests and do not determine whether a release passes, but a change that the tests fail to detect still needs review.
 
-## Choosing the proof
+## Choosing the test
 
 <table>
-<thead><tr><th>Change</th><th>First proof</th><th>Strengthen it with</th></tr></thead>
+<thead><tr><th>Change</th><th>Starting test</th><th>Strengthen it with</th></tr></thead>
 <tbody>
 <tr><td>Pure parser or encoder</td><td>Normal test with exact input and output.</td><td>Fuzz target for malformed inputs and gomu for assertion strength.</td></tr>
 <tr><td>State machine or route decision</td><td>Normal test for transition or selected result.</td><td>Race run if goroutines are involved.</td></tr>
-<tr><td>Error handling</td><td>Normal test that asserts the error shape.</td><td>gomu if changing a condition could silently pass.</td></tr>
+<tr><td>Error handling</td><td>Normal test that checks the error type and message.</td><td>gomu if changing a condition could silently pass.</td></tr>
 <tr><td>Malformed external input</td><td>Fuzz target seeded with known examples.</td><td>Corpus regression when a failure is found.</td></tr>
-<tr><td>Process or UI behavior</td><td>Functional transcript.</td><td>Normal tests only for helper logic behind the surface.</td></tr>
+<tr><td>Process or UI behavior</td><td>Functional transcript.</td><td>Normal tests for the helper functions used by the process or interface.</td></tr>
 </tbody>
 </table>

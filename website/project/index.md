@@ -10,5 +10,5 @@ Follow Ze's progress, understand where it came from, and see how to participate.
 - [Talks](../talks/): conference presentations about Ze and ExaBGP.
 - [Project history](history/): how ExaBGP's programmable model grew into Ze.
 - [Why Ze or why not Ze](why-ze/): where Ze fits and where it does not.
-- [How Ze is developed with AI](ai-development/): the process the agents work under, and where it came from.
+- [How Ze is developed with AI](ai-development/): how coding agents are guided and their changes checked.
 - [Contribute](../contribute/): code, testing, documentation, and interoperability results.

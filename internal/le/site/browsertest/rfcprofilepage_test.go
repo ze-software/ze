@@ -83,7 +83,7 @@ const readRFCProfilePage = `(function () {
         var key = node.getAttribute("data-ze-rfc-bar");
         var spans = node.querySelectorAll(".rfc-seg");
         if (!spans.length && !node.classList.contains("rfc-figure-error") &&
-            node.textContent !== "not walked" && node.textContent !== "no rows") drawn = false;
+            node.textContent !== "requirements not reviewed" && node.textContent !== "no rows") drawn = false;
         bars[key] = spans.length ? Array.prototype.map.call(spans, function (span) {
             return span.getAttribute("data-segment") + "=" + span.textContent;
         }) : [node.textContent];
@@ -172,7 +172,7 @@ func TestTheBrowserDrawsAProfilePageFromItsFiles(t *testing.T) {
 			"not-yet=SHOULD not yet 2", "not-decided=SHOULD not decided 2", "os-gap=OS testing gap 2",
 			"ze-gap=Ze correctness gap 1,200"},
 		"profile/edge/optional:must": {"ze-proven=Ze proven 9"},
-		"rfc3:must":                  {"not walked"},
+		"rfc3:must":                  {"requirements not reviewed"},
 		"rfc4:overview":              {"ze-proven=Ze MUST proven 9"},
 	} {
 		if !reflect.DeepEqual(got.Bars[key], want) {

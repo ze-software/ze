@@ -9,8 +9,8 @@
     {
       "id": "experimental",
       "heading": "Experimental and growing.",
-      "lead": "Implemented, still waiting for production evidence or for a named part to be finished.",
-      "note": "These still need deployment evidence, hardening, or a named part implemented or proven before production claims. The feature status page lists the status of each. Configuration may change."
+      "lead": "These features have code, but still need production testing or have unfinished parts.",
+      "note": "Before these features can be recommended for production, they need deployment testing, reliability or security improvements, or unfinished behavior completed and tested. The feature status page explains what remains for each one. Configuration may change."
     }
   ],
   "cards": [
@@ -60,8 +60,8 @@
         }
       ],
       "bullets": [
-        "YANG-driven **config tree**",
-        "Same **CLI grammar** in browser",
+        "**Configuration tree** defined by YANG schemas",
+        "Same **command syntax** in browser and CLI",
         "**Live updates** via SSE"
       ]
     },
@@ -136,7 +136,7 @@
         }
       ],
       "bullets": [
-        "**20 modules**, pure Go, no shell-outs",
+        "**20 modules** written in Go, without external commands",
         "Structured **JSON** per module",
         "Privacy-by-default, **gokrazy**-safe"
       ]
@@ -269,7 +269,7 @@
         }
       ],
       "bullets": [
-        "**Access concentrator** with discovery FSM",
+        "**Access concentrator** with PPPoE discovery",
         "Shared **PPP driver** with L2TP",
         "**PAP**, **CHAP-MD5**, and **MS-CHAPv2** authentication"
       ]
@@ -297,7 +297,7 @@
         "Ethernet, VLAN, bridge, **WireGuard**",
         "8 tunnel kinds, **DHCP** client",
         "NTP sync, **offload** tuning, mirroring",
-        "**IPv6 Router Advertisements**, the radvd role"
+        "Built-in **IPv6 Router Advertisements**, an alternative to radvd"
       ]
     },
     {
@@ -346,7 +346,7 @@
       ],
       "bullets": [
         "**L3/L4 match** criteria",
-        "Table steering, **next-hop** actions",
+        "Select routing tables and **next hops**",
         "TCP-MSS clamping, **interface** wildcards"
       ]
     },
@@ -478,7 +478,7 @@
       "bullets": [
         "First-hop **gateway redundancy**, IPv4 and IPv6",
         "Per-group **virtual-MAC** macvlan for L2 failover",
-        "**keepalived** interop, compile-out",
+        "Tested with **keepalived**; can be excluded at build time",
         "**Interface tracking**, accept-mode"
       ]
     },
@@ -608,8 +608,8 @@
       ],
       "bullets": [
         "Authoritative **sink zones** on four fixed anycast addresses (RFC 7534/7535)",
-        "Conditional **BGP origination** via healthcheck-gated watchdog",
-        "Anycast IPs bound on **lo** automatically, never operator-typed"
+        "**BGP announcements** controlled by DNS health checks",
+        "Anycast addresses added to **lo** automatically"
       ]
     },
     {
@@ -939,8 +939,8 @@
       ],
       "bullets": [
         "Plugins add **commands**, RPCs, events",
-        "YANG roots join **CLI** and web",
-        "Independent, **composable**",
+        "Plugin configuration appears in the **CLI** and web editor",
+        "Independent plugins can be **combined**",
         "Each plugin declares what its **failure** means"
       ]
     },
@@ -994,7 +994,7 @@
       ],
       "bullets": [
         "**Self-describing** command catalogue from the live binary",
-        "Every command is an **automation** surface",
+        "Every command is available to **automation**",
         "Structured **diagnostics** and repair plans"
       ]
     },
@@ -1018,7 +1018,7 @@
       ],
       "bullets": [
         "**Streamable HTTP** transport, OAuth 2.1 resource server",
-        "Server-initiated **elicitation**, task-augmented tool calls",
+        "Server requests for **user input**, tool calls tracked as tasks",
         "**MCP Apps UI** with embedded panels"
       ]
     },
@@ -1172,7 +1172,7 @@
       ],
       "bullets": [
         "Automatic **panic** stack traces",
-        "Ring buffer **context** (last 64 entries)",
+        "Last 64 **diagnostic entries** saved with each crash",
         "**show crashes** CLI command"
       ]
     },
@@ -1342,7 +1342,7 @@
       "features": [
         "bgp-protocol"
       ],
-      "title": "Feature Gates",
+      "title": "Choose Features at Build Time",
       "href": "guides/quickstart/",
       "external": false,
       "chips": [
@@ -1356,9 +1356,9 @@
         }
       ],
       "bullets": [
-        "Compile out **whole subsystems**, BGP included",
-        "Smaller binary, smaller **attack surface**",
-        "Config **fails closed** on blocks the build lacks"
+        "Exclude **whole subsystems** from the binary, including BGP",
+        "Smaller binary with **less exposed code**",
+        "Reject configuration for **features absent** from the build"
       ]
     }
   ]

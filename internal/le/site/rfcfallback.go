@@ -303,7 +303,7 @@ func (set *rfcFigureSet) value(subject, field string) (string, error) {
 		return rfcNoRows, nil
 	}
 	if sum["walked"] == float64(0) {
-		return "not walked", nil
+		return "requirements not reviewed", nil
 	}
 	if found == nil && rfcNotOwedByKind.MatchString(field) {
 		return "0", nil
@@ -329,7 +329,7 @@ func (set *rfcFigureSet) bar(subject, name string) (string, error) {
 		return rfcNoRows, nil
 	}
 	if sum["walked"] == float64(0) {
-		return "not walked", nil
+		return "requirements not reviewed", nil
 	}
 	total, err := rfcFieldsSum(sum, totalFields)
 	if err != nil {

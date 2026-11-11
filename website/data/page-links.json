@@ -131,12 +131,12 @@
             {
               "href": "quality/",
               "label": "Quality",
-              "desc": "Tests, QEMU, fuzzing, mutation checks, and release gates."
+              "desc": "Tests, QEMU, fuzzing, mutation testing, and release checks."
             },
             {
               "href": "features/",
               "label": "Features",
-              "desc": "What Ze already exposes as generated feature cards."
+              "desc": "Available features and their current status."
             }
           ]
         }
@@ -316,7 +316,7 @@
             {
               "href": "features/",
               "label": "Current features",
-              "desc": "What is already visible as product surface."
+              "desc": "Features available in Ze today."
             },
             {
               "href": "compare/",
@@ -441,7 +441,7 @@
             {
               "href": "quality/",
               "label": "Quality",
-              "desc": "Verification gates behind the activity."
+              "desc": "How changes to Ze are tested."
             },
             {
               "href": "reference/dependencies/",
@@ -521,7 +521,7 @@
       "eyebrow": "Debugging",
       "groups": [
         {
-          "title": "Pick a proof path",
+          "title": "Explore the tests",
           "links": [
             {
               "href": "quality/health/",
@@ -530,8 +530,8 @@
             },
             {
               "href": "quality/rfc-compliance/",
-              "label": "RFC compliance gate",
-              "desc": "Generated RFC requirements, tests, gaps, and AI guard state."
+              "label": "RFC compliance",
+              "desc": "Standards requirements, tests, missing coverage, and checks on AI changes."
             },
             {
               "href": "quality/functional-ci/",
@@ -556,7 +556,7 @@
             {
               "href": "quality/verify-debugging/",
               "label": "Verify debugging",
-              "desc": "How failures are routed and investigated."
+              "desc": "How to investigate a failed check."
             }
           ]
         }
@@ -1009,7 +1009,7 @@
             {
               "href": "features/",
               "label": "Features",
-              "desc": "Browse product surface by category."
+              "desc": "Browse features by category."
             },
             {
               "href": "reference/command-equivalents/",
@@ -1029,7 +1029,7 @@
       "eyebrow": "Debugging",
       "groups": [
         {
-          "title": "How the proof is produced",
+          "title": "How testing results are produced",
           "links": [
             {
               "href": "quality/",
@@ -1038,8 +1038,8 @@
             },
             {
               "href": "quality/rfc-compliance/",
-              "label": "RFC compliance gate",
-              "desc": "How RFC proof, public gaps, and agent guards fit together."
+              "label": "RFC compliance",
+              "desc": "RFC test evidence, known omissions, and checks on AI changes."
             },
             {
               "href": "quality/unit-fuzz-mutation/",
@@ -1049,7 +1049,7 @@
             {
               "href": "quality/verify-debugging/",
               "label": "Verify debugging",
-              "desc": "How a red is routed to its cause."
+              "desc": "How to find the cause of a failed check."
             }
           ]
         }
@@ -1069,17 +1069,17 @@
             {
               "href": "quality/health/",
               "label": "Testing health",
-              "desc": "Proof-density and sensitivity metrics."
+              "desc": "What assertions check and whether tests detect deliberate faults."
             },
             {
               "href": "reference/rfcs/",
               "label": "RFC status",
-              "desc": "Public implementation and remaining-gap ledger."
+              "desc": "Implemented standards and behavior still missing."
             },
             {
               "href": "quality/verify-debugging/",
               "label": "Verify debugging",
-              "desc": "How failed gates route to evidence."
+              "desc": "How to investigate failed checks using their logs."
             }
           ]
         }
@@ -1169,7 +1169,7 @@
             {
               "href": "quality/verify-debugging/",
               "label": "Verify debugging",
-              "desc": "How failed checks route to evidence."
+              "desc": "How to investigate failed checks using their logs."
             },
             {
               "href": "guides/production-diagnostics/",
@@ -1297,7 +1297,7 @@
             {
               "href": "use-cases/",
               "label": "All usage examples",
-              "desc": "Return to the deployment shapes."
+              "desc": "Return to the deployment examples."
             },
             {
               "href": "docs/",

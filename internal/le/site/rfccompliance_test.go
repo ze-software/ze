@@ -176,14 +176,15 @@ func TestTheRFCComplianceSectionsReadAsThePublishedPage(t *testing.T) {
 	// order, and every other space still has to agree.
 	published := visibleText(strings.ReplaceAll(
 		readFixture(t, "published-rfc-compliance-body.html"), "</td>", "</td>\n"))
+	published = strings.Replace(published, "Top gap clusters", "RFCs with the most missing requirements", 1)
 
 	for _, chrome := range []string{
-		"<title>RFC Compliance Gate Report - Ze</title>",
+		"<title>RFC Compliance Report - Ze</title>",
 		`<link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/" />`,
 		`<link rel="stylesheet" href="../../assets/site.css" />`,
 		`<main id="top" class="has-page-sidebar" tabindex="-1">`,
 		`<section aria-labeledby="rfc-compliance-title" class="md-content reveal cat-observe">`,
-		`<h1 id="rfc-compliance-title">RFC Compliance Gate Report</h1>`,
+		`<h1 id="rfc-compliance-title">RFC Compliance Report</h1>`,
 		`<aside class="page-sidebar" aria-label="Related page links">`,
 		"<footer>",
 	} {
@@ -218,13 +219,13 @@ func TestTheRFCComplianceSectionsReadAsThePublishedPage(t *testing.T) {
 	}{
 		// The exclusion disclosure was inserted between the two on 2026-09-01,
 		// so this section now ends at that heading rather than at the clusters.
-		{"gap disclosure", "Gap disclosure", "Exclusion disclosure", "Top gap clusters", rfcLeadGaps,
+		{"gap disclosure", "Gap disclosure", "Exclusion disclosure", "RFCs with the most missing requirements", rfcLeadGaps,
 			func(string) string {
 				return "Declared gapsCount Requirements declared as gaps 518 RFCs declaring a gap 80"
 			}},
 		// The Gate inputs section folded into How this is checked on 2026-09-01:
 		// a mechanism belongs in one place, and it was in two.
-		{"top gap clusters", "Top gap clusters", "How this is checked", "AI guard and gate inputs", rfcLeadClusters,
+		{"top gap clusters", "RFCs with the most missing requirements", "How this is checked", "AI guard and gate inputs", rfcLeadClusters,
 			func(text string) string {
 				return publishedStatusCell.ReplaceAllString(strings.Replace(text, "Public status", "", 1), "$2")
 			}},
@@ -331,8 +332,8 @@ func TestTheGateInputRowsReadAsThePublishedRows(t *testing.T) {
 	for _, row := range []string{
 		// The fixture's one walked enrolled RFC holds one MUST row, read from
 		// its data/rfc/ file rather than the gate snapshot's corpus count.
-		"Requirement source rfc/short/*.md 1 MUST rows in the walked enrolled RFCs",
-		"Enrolment rfc/short/*.md, the | Enrolment | Meta row 1 enrolled RFCs",
+		"Requirement source rfc/short/*.md 1 mandatory requirements in reviewed RFCs included in automatic checks",
+		"Automatic checks rfc/short/*.md, the | Enrolment | Meta row 1 RFCs included in automatic checks",
 		"Test tags internal/, pkg/, test/ 3,595 resolved tags",
 		"Public ledger rfc/short/*.md, the | Support | Meta row 80 RFCs with gaps",
 		"Semantic audits rfc/audit/*/*.json 52 fresh, 0 shifted, 0 stale, 2,914 missing",
@@ -341,7 +342,7 @@ func TestTheGateInputRowsReadAsThePublishedRows(t *testing.T) {
 			t.Errorf("the mechanism table does not read %q", row)
 		}
 	}
-	if !strings.Contains(text, "This gate runs before a commit is verified") {
+	if !strings.Contains(text, "This compliance check runs during verification") {
 		t.Error("the page dropped the fact the retired Pre-commit gate card carried")
 	}
 	for _, card := range rfcComplianceCards(publishedRFCComplianceRef(t), twoStemLedger()) {
@@ -438,7 +439,7 @@ func TestTheCheckSectionPublishesTheGatesOwnIssues(t *testing.T) {
 	if strings.Contains(redPage, "<ul>\n<li class=\"rfc-check-bad\"") {
 		t.Error("the check section is still a bullet list")
 	}
-	if !strings.Contains(redText, "Gate verdictRED2 open gate issues") {
+	if !strings.Contains(redText, "Compliance check resultFailed2 unresolved check findings") {
 		t.Error("a red gate does not read as red on its card")
 	}
 
@@ -515,11 +516,11 @@ func TestTheIndexExplainsItselfToAReader(t *testing.T) {
 		{"Who implements each document", rfcLeadImplements},
 		{"Gap disclosure", rfcLeadGaps},
 		{"Exclusion disclosure", rfcLeadExclusions},
-		{"Top gap clusters", rfcLeadClusters},
+		{"RFCs with the most missing requirements", rfcLeadClusters},
 		{"How this is checked", rfcLeadMechanism},
 		{"Check results", rfcLeadChecks},
-		{"Enrolled RFCs", rfcLeadEnrolled},
-		{"Summaries that are not enrolled", rfcLeadDeclined},
+		{"RFCs included in automatic checks", rfcLeadEnrolled},
+		{"RFCs excluded from automatic checks", rfcLeadDeclined},
 	} {
 		if !strings.Contains(page, heading.Title+"</h2>\n"+rfcLeadHTML(heading.Lead)) {
 			t.Errorf("the page section %q does not open with its lead", heading.Title)
@@ -528,7 +529,7 @@ func TestTheIndexExplainsItselfToAReader(t *testing.T) {
 			t.Errorf("the mirror section %q does not open with its lead", heading.Title)
 		}
 	}
-	if !strings.Contains(mirror, "## Gate verdict\n\n"+rfcLeadVerdict+"\n") ||
+	if !strings.Contains(mirror, "## Compliance check result\n\n"+rfcLeadVerdict+"\n") ||
 		!strings.Contains(page, rfcLeadHTML(rfcLeadVerdict)) {
 		t.Error("the gate verdict does not open with its lead")
 	}
@@ -577,12 +578,12 @@ func TestTheRFCComplianceMirrorReadsAsThePublishedMirror(t *testing.T) {
 	mirror := readArtifact(t, paths.Output, "quality/rfc-compliance/"+pageMirrorFile)
 
 	for _, line := range []string{
-		"# RFC Compliance Gate Report",
-		"| MUST rows of the walked enrolled RFCs | 1 |",
-		"| Enrolled RFCs | 1 |",
+		"# RFC Compliance Report",
+		"| Mandatory requirements of reviewed RFCs included in automatic checks | 1 |",
+		"| RFCs included in automatic checks | 1 |",
 		// rfc.Implements over the fixture: rfc9998 is enrolled and renders a
 		// public row, so the count the retired proof share took is 1.
-		"Ze implements 1 of the enrolled RFCs, each with a public support entry.",
+		"Ze implements 1 of these RFCs, each with a public support entry.",
 		"| Resolved test tags | 3,595 |",
 		"| Declared gaps | 518 |",
 		"| RFCs with declared gaps | 80 |",
@@ -919,12 +920,12 @@ func TestTheComplianceIndexLinksEveryPublishedStem(t *testing.T) {
 			t.Errorf("the index mirror does not link %s", entry.Stem)
 		}
 	}
-	if !strings.Contains(page, "<h2>Enrolled RFCs</h2>") ||
-		!strings.Contains(page, "<h2>Summaries that are not enrolled</h2>") {
+	if !strings.Contains(page, "<h2>RFCs included in automatic checks</h2>") ||
+		!strings.Contains(page, "<h2>RFCs excluded from automatic checks</h2>") {
 		t.Error("the index carries fewer than the two link tables")
 	}
-	if !strings.Contains(mirror, "## Enrolled RFCs") ||
-		!strings.Contains(mirror, "## Summaries that are not enrolled") {
+	if !strings.Contains(mirror, "## RFCs included in automatic checks") ||
+		!strings.Contains(mirror, "## RFCs excluded from automatic checks") {
 		t.Error("the index mirror carries fewer than the two link tables")
 	}
 }
@@ -1016,10 +1017,10 @@ func TestTheGateVerdictIsAStatusAndNotTerminalOutput(t *testing.T) {
 		t.Error("the page carries no verdict status block")
 	}
 	for _, want := range []string{
-		"Gate verdict",
-		"Every enrolled MUST-level requirement carries both test polarities",
+		"Compliance check result",
+		"Every mandatory requirement included in the checks has positive and negative tests",
 		"reproduce it with",
-		"The gate's own line reads",
+		"The check's original output reads",
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("the verdict status does not state %q", want)
@@ -1045,7 +1046,7 @@ func TestTheGateVerdictIsAStatusAndNotTerminalOutput(t *testing.T) {
 		t.Error("a red gate does not read as red")
 	}
 	if !strings.Contains(visibleText(mainContent(t, redPage)),
-		"158 open gate issues. Check results below names them") {
+		"158 unresolved check findings. Check results below lists them") {
 		t.Error("a red gate does not say how many requirements are open")
 	}
 }
@@ -1086,7 +1087,7 @@ func TestEveryCardStatesTheRuleBehindItsColor(t *testing.T) {
 	// A population is a scale, so it takes the neutral tone rather than a color
 	// that reads as a verdict.
 	for _, card := range rfcComplianceCards(publishedRFCComplianceRef(t), twoStemLedger()) {
-		if card.Label == "Gated MUSTs" && card.Tone != rfcToneNeutral {
+		if card.Label == "Mandatory requirements checked" && card.Tone != rfcToneNeutral {
 			t.Errorf("the Gated MUSTs card reads %q, want %q", card.Tone, rfcToneNeutral)
 		}
 	}
@@ -1197,7 +1198,7 @@ func TestTheRatioCardsPartitionTheirDenominator(t *testing.T) {
 			parts++
 			sum += card.Part
 			if !strings.HasSuffix(card.Count, "of "+groupThousands(one.whole)+
-				" gated MUSTs") {
+				" mandatory requirements checked") {
 				t.Errorf("the %s %s card does not name its denominator: %q", name, card.Label,
 					card.Count)
 			}
@@ -1221,7 +1222,7 @@ func TestTheRatioCardsPartitionTheirDenominator(t *testing.T) {
 		}
 		// The proof ratio is over tagged units, so it must never be counted in.
 		for _, card := range one.cards {
-			if card.Label == "Proven by a recorded break" && card.Partition {
+			if card.Label == "Tests shown to detect a fault" && card.Partition {
 				t.Errorf("the %s proof ratio is marked as a part of the gated population",
 					name)
 			}
@@ -1246,20 +1247,20 @@ func TestALapsedRecordIsNotCountedAsAProof(t *testing.T) {
 	entry := disclosureLedger().Stems[0]
 	var proof rfcCard
 	for _, card := range rfcDetailCards(&entry) {
-		if card.Label == "Proven by a recorded break" {
+		if card.Label == "Tests shown to detect a fault" {
 			proof = card
 		}
 	}
 	for _, want := range []string{
-		"observed once under a recorded procedure",
-		"still hash to what was recorded",
-		"The break is not re-run",
+		"was observed to fail when the code it checks was deliberately broken",
+		"checked against the saved record for changes",
+		"the deliberate fault is not run again",
 	} {
 		if !strings.Contains(proof.Note, want) {
 			t.Errorf("the proof card does not say %q: %q", want, proof.Note)
 		}
 	}
-	if !strings.Contains(proof.Count, "tagged units") {
+	if !strings.Contains(proof.Count, "tests linked to requirements") {
 		t.Errorf("the proof card does not name its own denominator: %q", proof.Count)
 	}
 
@@ -1270,13 +1271,13 @@ func TestALapsedRecordIsNotCountedAsAProof(t *testing.T) {
 		t.Errorf("four lapsed records answer %d proven, want 0", lapsed.Coverage.Proven())
 	}
 	for _, card := range rfcDetailCards(&lapsed) {
-		if card.Label != "Proven by a recorded break" {
+		if card.Label != "Tests shown to detect a fault" {
 			continue
 		}
 		if card.Value != "0" {
 			t.Errorf("four lapsed records read %q, want 0", card.Value)
 		}
-		if !strings.Contains(card.Count, "4 lapsed") {
+		if !strings.Contains(card.Count, "4 with outdated fault tests") {
 			t.Errorf("the card does not name the lapsed records: %q", card.Count)
 		}
 	}
@@ -1298,7 +1299,7 @@ func TestTheProofRatioSitsBesideTheTestPairRatio(t *testing.T) {
 			if card.Partition {
 				lastPart = position
 			}
-			if card.Label == "Proven by a recorded break" {
+			if card.Label == "Tests shown to detect a fault" {
 				proof = position
 			}
 		}
@@ -1311,7 +1312,7 @@ func TestTheProofRatioSitsBesideTheTestPairRatio(t *testing.T) {
 			t.Errorf("the %s proof ratio is at %d and the last coverage share at %d, so a "+
 				"reader can read one without the other", name, proof, lastPart)
 		}
-		if !strings.Contains(cards[proof].Note, "A test pair is not a proof until one has") {
+		if !strings.Contains(cards[proof].Note, "Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault") {
 			t.Errorf("the %s proof card does not say what it corrects: %q", name,
 				cards[proof].Note)
 		}
@@ -1321,17 +1322,17 @@ func TestTheProofRatioSitsBesideTheTestPairRatio(t *testing.T) {
 	// (AC-13), so its proof card has no share to sit after; it still says
 	// what a test pair lacks, and an escape still counts no proof there.
 	index := rfcComplianceCards(publishedRFCComplianceRef(t), twoStemLedger())
-	if len(index) == 0 || index[0].Label != "Proven by a recorded break" {
+	if len(index) == 0 || index[0].Label != "Tests shown to detect a fault" {
 		t.Fatalf("the index grid does not open with the proof card: %+v", index)
 	}
-	if !strings.Contains(index[0].Note, "A test pair is not a proof until one has") {
+	if !strings.Contains(index[0].Note, "Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault") {
 		t.Errorf("the index proof card does not say what it corrects: %q", index[0].Note)
 	}
 	escapedLedger := twoStemLedger()
 	escapedLedger.Stems[0].Coverage.Units, escapedLedger.Stems[0].Coverage.Records,
 		escapedLedger.Stems[0].Coverage.Escapes = 4, 4, 4
 	card := rfcComplianceCards(publishedRFCComplianceRef(t), escapedLedger)[0]
-	if card.Value != "0" || !strings.HasPrefix(card.Count, "0 of 4 tagged units") {
+	if card.Value != "0" || !strings.HasPrefix(card.Count, "0 of 4 tests linked to requirements") {
 		t.Errorf("four index units carrying nothing but escapes read %q / %q, want 0 of 4", card.Value, card.Count)
 	}
 
@@ -1339,7 +1340,7 @@ func TestTheProofRatioSitsBesideTheTestPairRatio(t *testing.T) {
 	escaped := disclosureLedger().Stems[0]
 	escaped.Coverage.Units, escaped.Coverage.Records, escaped.Coverage.Escapes = 4, 4, 4
 	for _, card := range rfcDetailCards(&escaped) {
-		if card.Label != "Proven by a recorded break" {
+		if card.Label != "Tests shown to detect a fault" {
 			continue
 		}
 		if card.Value != "0" {
@@ -1401,10 +1402,10 @@ func TestTheExclusionLedgerIsPublishedWithItsCoverage(t *testing.T) {
 	// The coverage is on the section's own face: a count over a minority of the
 	// corpus read as a count over the corpus is the flattery this page exists
 	// to prevent.
-	if !strings.Contains(text, "1 of the 2 summary files carry an extraction sign-off, 1 of them among the 1 enrolled") {
+	if !strings.Contains(text, "1 of the 2 summary files have a recorded review of their requirement lists, 1 of them among the 1 included in automatic checks") {
 		t.Error("the section does not state how much of the corpus it covers")
 	}
-	if !strings.Contains(text, "is not the whole picture") {
+	if !strings.Contains(text, "remains incomplete") {
 		t.Error("the section does not say the count is partial")
 	}
 
@@ -1627,7 +1628,7 @@ func TestRollupRendersInItsOwnBucket(t *testing.T) {
 	}
 
 	coverage := rfcCoverageHTML(&entry)
-	for _, want := range []string{rfcRollupLabel, "RFC9998-5-1", "outside the gated population"} {
+	for _, want := range []string{rfcRollupLabel, "RFC9998-5-1", "excluded from the total"} {
 		if !strings.Contains(coverage, want) {
 			t.Errorf("the coverage table lacks %q:\n%s", want, coverage)
 		}
