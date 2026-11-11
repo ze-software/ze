@@ -22,6 +22,7 @@ first. This page says only where each child stands and what to do next.
 | 3 | Child 3, `spec-agent-economy-3-preamble.md` | `ready`, not started | Phase 1 is the probe and needs a session started after `./le ai sync update`, because agent definitions load at session start. Its review, and the review of the decisions-file move, are strongest-tier work |
 | 4 | Child 4, `spec-agent-economy-4-supervision.md` | `skeleton` with the research; its Depends row is cleared | Design it (development tier) |
 | 5 | Child 5, `spec-agent-economy-5-scoped-gates.md` | `skeleton`; its Depends row is cleared | Last, by design: it changes what two gates prove. Child 2's wait record now exists (db7126e71e). Its design is strongest-tier work |
+| 6a | Child 6, `spec-agent-economy-6-shell-parser.md` (the hook parses bash with the vendored `mvdan.cc/sh`) | `in-progress`. Phase 1 done: 1fdd96d4d6 (vendor; it also carried the ledger row, which belonged in the importing commit). Phase 2 committed: e7e1d95731 (pre-parser fixes, the lone `.` behind a wrapper), 04caac807e (recorded verdict table), 1c2220b392 (AC-33..35), 47be60c067 (AC-37), ff53c0b945 (table review fixes: reader lines waive only liftable checks, deletion verdicts recorded, 1345-row floor), 2ec3034f3d (one parse per call, panic-safe). Phase 2 strongest-tier review: 0 BLOCKER, its 3 ISSUEs fixed. Still owed in phase 2: word-value reading, `TestWordValuesMatchBash`, `TestParsedCommandsMatchBash`, `FuzzShellParse`, `BenchmarkHookParse`, the A-3 record, the AC-28 fork side | Finish phase 2's owed items, then phase 3 (delete the splitter and allow-list, reader lines from the tree), in a fresh session from the spec and its state file `tmp/session/2026-11-11-021635/state/session-state-agent-economy-6-shell-parser-f4d858bd-ad8f-4b19-8a8d-50f67a40ccf9.md`. Phases 3 and 4 need strongest-tier review. The claim is held under an agent of the old session: release it with `./le spec release` behind that agent's identity, or claim at count+1 |
 | 6 | The umbrella's acceptance criteria | AC-6 met (one six-word command answers one line on green) and AC-7 met (wait recorded) by child 2; the others need children 3 and 4 and the two-week window | Child 4 owns a kept measure (`./le ai tokens`); repeat the baseline with it |
 
 ## What every brief must say now
@@ -64,8 +65,7 @@ first. This page says only where each child stands and what to do next.
 
 | Question | State |
 |----------|-------|
-| A vendored bash parser (`mvdan.cc/sh`) in place of the syntax allow-list | Offered; not answered. The allow-list stands meanwhile |
-| Strongest-tier review of child 1's identity-exemption change | Offered; not answered. It ran on the development tier |
+| None open | Thomas ordered the parser ("incorporate all the improvements you have identified") and approved `mvdan.cc/sh/v3/syntax` for `internal/le/hookruntime`; the strongest-tier review of child 1's identity exemption ran (0 BLOCKER, 3 ISSUE), and its findings are child 6's ACs 26 to 32 |
 
 ## Strongest-tier work that remains
 
