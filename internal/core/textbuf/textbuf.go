@@ -76,7 +76,7 @@ func StringHexUpper(data []byte) string {
 // Choosing an init:
 //
 //	Local use (0 alloc):  var b Buffer; b.Reset().Str("x").Bytes()
-//	Return a string:      b := New(); return b.Str("x").Slice()
+//	Return a string:      b := New(); return b.Str("x").Slice()  (1 alloc)
 //	Hot loop (amortized): b := Get(); defer b.Release()
 //	                      for ... { use(b.Reset().Str("x").Slice()) }
 //
@@ -86,6 +86,9 @@ func StringHexUpper(data []byte) string {
 // Slice: always zero-copy. Freezes the buffer; writes panic until Reset.
 // Valid only until the next Reset or Release. Do not use with Get()
 // unless the string is consumed before Release (pool exhaustion).
+// A Slice that outlives the function holding the Buffer (returned, stored,
+// sent) MUST come from New: a `var b Buffer` is on the stack, so its Slice
+// dangles once that function returns.
 //
 // Bytes: returns raw []byte sharing buffer memory. For w.Write() or
 // string(b.Bytes()) in map/switch (compiler elides alloc).
@@ -134,11 +137,19 @@ func (b *Buffer) SetColor(enabled bool) *Buffer {
 
 // New returns a heap-allocated Buffer. Use Slice() to extract the result
 // zero-copy; the GC keeps the Buffer alive via the interior pointer in
-// the returned string. Prefer Get() in loops where the allocation can be
-// amortized.
+// the returned string, so the string MAY outlive the function that called
+// New. Prefer Get() in loops where the allocation can be amortized.
+//
+// New MUST NOT point b.b at arr through inlineSlice. noescape hides that
+// self-reference from escape analysis, which then keeps the Buffer in the
+// caller's frame, and a Slice the caller returns points into dead stack
+// memory once the text fits the inline array. The plain b.arr[:0] stores a
+// pointer to the Buffer into the Buffer, which escape analysis sees, so the
+// Buffer is always on the heap: one allocation, which is the whole price of a
+// Slice that outlives its caller. TestNewSliceOutlivesCaller guards it.
 func New() *Buffer {
 	b := new(Buffer)
-	b.b = b.inlineSlice()
+	b.b = b.arr[:0]
 	return b
 }
 
@@ -489,6 +500,12 @@ func (b *Buffer) StdErr() error {
 // Prefer Slice over String when the string is consumed immediately (passed
 // to WriteString, Printf, or similar I/O) or when it is the last extraction
 // from the buffer before the buffer goes out of scope.
+//
+// A Slice that outlives the function that holds the Buffer (returned, stored
+// in a field or a map, sent on a channel) MUST be taken from a Buffer that New
+// returned, the one init that guarantees a heap Buffer. A `var b Buffer` stays
+// on the stack through noescape, so its Slice is valid only inside that
+// function; use String to hand its text out.
 func (b *Buffer) Slice() string {
 	b.done = true
 	return unsafe.String(unsafe.SliceData(b.b), len(b.b)) //nolint:gosec // zero-copy always; caller must not hold past Reset()

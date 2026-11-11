@@ -922,3 +922,51 @@ func TestStdOutEmptyBuffer(t *testing.T) {
 		assert.NoError(t, b.Reset().StdOut())
 	}))
 }
+
+// newSliceShort builds a short text in a New buffer and returns its Slice, the
+// shape `(*opererr.Error).Error` has. The text fits the inline array, so the
+// returned string points into the Buffer's arr. noinline keeps the function a
+// real frame of its own, so a stack-resident Buffer would die on return.
+//
+//go:noinline
+func newSliceShort(n uint64) string {
+	b := New()
+	return b.Str("problem\nwhy: cause\nfix: ze ").Uint(n).Slice()
+}
+
+// clobberStack writes a recognizable pattern over the stack below its caller,
+// depth frames deep, so a string left pointing into a dead frame reads garbage.
+// Bounded: depth is a constant the test passes.
+//
+//go:noinline
+func clobberStack(depth int) byte {
+	var pad [256]byte
+	for i := range pad {
+		pad[i] = 0xA5
+	}
+	if depth == 0 {
+		return pad[depth]
+	}
+	return clobberStack(depth-1) ^ pad[depth%len(pad)]
+}
+
+// TestNewSliceOutlivesCaller proves New keeps its contract: the Buffer is on
+// the heap, so a Slice of it returned from the function that called New stays
+// valid after that function's frame is gone. Method: return a short Slice
+// from a New buffer, overwrite the stack, compare; and count the allocation
+// New owes. The defect it guards: New once pointed b.b at arr through
+// noescape, escape analysis kept the Buffer in the caller's frame, and
+// opererr.Error.Error returned a string into dead stack memory.
+func TestNewSliceOutlivesCaller(t *testing.T) {
+	const want = "problem\nwhy: cause\nfix: ze 179"
+	got := newSliceShort(179)
+	_ = clobberStack(64)
+	assert.Equal(t, want, strings.Clone(got), "Slice of a New buffer must survive the caller's return")
+
+	var sink string
+	allocs := testing.AllocsPerRun(100, func() {
+		sink = newSliceShort(179)
+	})
+	assert.Equal(t, want, sink)
+	assert.Equal(t, 1.0, allocs, "New must heap-allocate the Buffer (one allocation), or its Slice dangles")
+}

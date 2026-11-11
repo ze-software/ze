@@ -16,6 +16,14 @@ each choice costs in allocations. The obligation to use it is a rule
 `var b Buffer` stays on the stack for local use, and the inline array avoids
 any heap allocation for content of 128 bytes or less.
 
+`New()` is the one init that must not use the trick. It points the buffer at
+its array with a plain `b.arr[:0]`, which escape analysis sees as the buffer
+pointing into itself, so the buffer is always on the heap and a `Slice()` the
+caller returns stays valid. Routed through `noescape`, `New()` cost nothing,
+the buffer stayed in the caller's frame, and `(*opererr.Error).Error` returned
+a string into dead stack memory whenever the text fitted the inline array.
+`TestNewSliceOutlivesCaller` holds the contract.
+
 The trick mirrors `strings.Builder` in `$(go env GOROOT)/src/strings/builder.go`.
 A Go compiler update can change the stdlib technique, so `ai/rules/performance.md`
 carries the obligation to re-compare `noescape` and `inlineSlice` against the
