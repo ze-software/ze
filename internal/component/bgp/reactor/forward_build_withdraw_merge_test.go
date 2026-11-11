@@ -16,15 +16,15 @@ import (
 
 // withdrawMergePayload builds an UPDATE payload from its three sections.
 // withdrawalOf runs buildWithdrawalPayload over payload into a buffer of the
-// size its contract requires, and returns the octets written, or nil for a
-// payload it refuses.
-func withdrawalOf(payload []byte) []byte {
+// size its contract requires, and returns the octets written, or nil and the
+// refusal for a payload it cannot convert.
+func withdrawalOf(payload []byte) ([]byte, error) {
 	buf := make([]byte, len(payload)+4)
-	n := buildWithdrawalPayload(payload, buf, nil)
+	n, err := buildWithdrawalPayload(payload, buf, nil)
 	if n == 0 {
-		return nil
+		return nil, err
 	}
-	return buf[:n]
+	return buf[:n], err
 }
 
 func withdrawMergePayload(withdrawn, attrs, nlri []byte) []byte {
@@ -114,7 +114,8 @@ func TestBuildWithdrawalPayloadKeepsSourceWithdrawals(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := withdrawalOf(withdrawMergePayload(tc.withdrawn, tc.attrs, tc.nlri))
+			got, err := withdrawalOf(withdrawMergePayload(tc.withdrawn, tc.attrs, tc.nlri))
+			require.NoError(t, err)
 			require.NotNil(t, got)
 			update, err := message.UnpackUpdate(got)
 			require.NoError(t, err)
@@ -144,6 +145,7 @@ func TestBuildWithdrawalPayloadKeepsSourceWithdrawals(t *testing.T) {
 // silently drops one family's half.
 func TestBuildWithdrawalPayloadRefusesTwoUnreachFamilies(t *testing.T) {
 	attrs := append(withdrawMergeUnreach(1, 128, []byte{88, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 24, 10, 0, 1}), withdrawMergeReach(mergeV6New)...)
-	got := withdrawalOf(withdrawMergePayload(nil, attrs, nil))
+	got, err := withdrawalOf(withdrawMergePayload(nil, attrs, nil))
+	assert.Error(t, err)
 	assert.Nil(t, got)
 }

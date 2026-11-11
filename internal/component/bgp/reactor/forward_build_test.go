@@ -757,7 +757,8 @@ func TestBuildWithdrawalPayload_IPv4(t *testing.T) {
 	attrs := makeAttr(0x40, 1, []byte{0})
 	payload := buildModTestPayload(attrs, nlri)
 
-	result := withdrawalOf(payload)
+	result, err := withdrawalOf(payload)
+	require.NoError(t, err)
 	require.NotNil(t, result, "should produce withdrawal")
 
 	// Withdrawn length should be len(nlri).
@@ -790,7 +791,8 @@ func TestBuildWithdrawalPayload_MPReach(t *testing.T) {
 	mpReachAttr := makeAttr(0x80, 14, mpReachVal) // Optional, code 14
 	payload := buildModTestPayload(mpReachAttr, nil)
 
-	result := withdrawalOf(payload)
+	result, err := withdrawalOf(payload)
+	require.NoError(t, err)
 	require.NotNil(t, result, "should produce MP withdrawal")
 
 	// Parse result: withdrawn_len=0, then attr section with MP_UNREACH.
@@ -824,11 +826,14 @@ func TestBuildWithdrawalPayload_MPReach(t *testing.T) {
 // VALIDATES: Defensive: malformed payload returns nil.
 // PREVENTS: Panic on truncated or empty payloads.
 func TestBuildWithdrawalPayload_Nil(t *testing.T) {
-	r := withdrawalOf(nil)
+	r, err := withdrawalOf(nil)
+	assert.Error(t, err)
 	assert.Nil(t, r)
-	r = withdrawalOf([]byte{0})
+	r, err = withdrawalOf([]byte{0})
+	assert.Error(t, err)
 	assert.Nil(t, r)
-	r = withdrawalOf([]byte{0, 0, 0}) // too short for attr_len
+	r, err = withdrawalOf([]byte{0, 0, 0}) // too short for attr_len
+	assert.Error(t, err)
 	assert.Nil(t, r)
 }
 
@@ -950,7 +955,8 @@ func TestFwdWithdrawalLabelledCompatibility(t *testing.T) {
 				want := wantWithdrawal(afiSAFI, nlri, 3)
 
 				buf := make([]byte, len(payload)+4)
-				n := buildWithdrawalPayload(payload, buf, source)
+				n, err := buildWithdrawalPayload(payload, buf, source)
+				require.NoError(t, err)
 				require.NotZero(t, n, "labeled payload refused")
 				assert.Equal(t, hex.EncodeToString(want), hex.EncodeToString(buf[:n]))
 
@@ -965,7 +971,9 @@ func TestFwdWithdrawalLabelledCompatibility(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, labeledWithdrawn(nil, 0x800000, lf.rd, 22, []byte{10, 1, 4}), one[:k])
 
-				assert.Zero(t, buildWithdrawalPayload(payload, buf, nil), "a nil source context frames a labeled family")
+				refused, err := buildWithdrawalPayload(payload, buf, nil)
+				assert.Zero(t, refused, "a nil source context frames a labeled family")
+				assert.Error(t, err)
 
 				allocs := testing.AllocsPerRun(100, func() {
 					buildWithdrawalPayload(payload, buf, source)
@@ -986,7 +994,8 @@ func TestFwdWithdrawalLabelledCompatibility(t *testing.T) {
 		require.Greater(t, 3+len(reach), 255, "guard: the unconverted value needs the extended header")
 		require.Less(t, 3+len(nlri), 256, "guard: the converted value fits one octet")
 		buf := make([]byte, len(payload)+4)
-		n := buildWithdrawalPayload(payload, buf, bgpctx.NewEncodingContext(nil, &capability.EncodingCaps{}, bgpctx.DirectionRecv))
+		n, err := buildWithdrawalPayload(payload, buf, bgpctx.NewEncodingContext(nil, &capability.EncodingCaps{}, bgpctx.DirectionRecv))
+		require.NoError(t, err)
 		want := wantWithdrawal([]byte{0, 1, 128}, nlri, 4)
 		assert.Equal(t, hex.EncodeToString(want), hex.EncodeToString(buf[:n]))
 	})
@@ -1018,7 +1027,8 @@ func TestFwdWithdrawalLabelledCompatibility(t *testing.T) {
 			}
 			want := wantWithdrawal(tc.afiSAFI, reach, hdr)
 			buf := make([]byte, len(payload)+4)
-			n := buildWithdrawalPayload(payload, buf, nil)
+			n, err := buildWithdrawalPayload(payload, buf, nil)
+			require.NoError(t, err)
 			assert.Equal(t, hex.EncodeToString(want), hex.EncodeToString(buf[:n]), tc.name)
 			assert.LessOrEqual(t, n, len(payload)+4, tc.name)
 		}
@@ -1030,7 +1040,9 @@ func TestFwdWithdrawalLabelledCompatibility(t *testing.T) {
 		reach := []byte{56, 0, 0x10, 0x40, 0, 0x11, 0x40, 10}
 		payload := labeledWithdrawPayload(lf, reach, nil)
 		buf := make([]byte, len(payload)+4)
-		assert.Zero(t, buildWithdrawalPayload(payload, buf, bgpctx.NewEncodingContext(nil, &capability.EncodingCaps{}, bgpctx.DirectionRecv)))
+		n, err := buildWithdrawalPayload(payload, buf, bgpctx.NewEncodingContext(nil, &capability.EncodingCaps{}, bgpctx.DirectionRecv))
+		assert.Zero(t, n)
+		assert.Error(t, err)
 	})
 }
 
@@ -1049,7 +1061,11 @@ func BenchmarkBuildWithdrawalPayloadLabelled(b *testing.B) {
 	source := bgpctx.NewEncodingContext(nil, &capability.EncodingCaps{}, bgpctx.DirectionRecv)
 	b.ReportAllocs()
 	for b.Loop() {
-		if buildWithdrawalPayload(payload, buf, source) == 0 {
+		n, err := buildWithdrawalPayload(payload, buf, source)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if n == 0 {
 			b.Fatal("refused")
 		}
 	}

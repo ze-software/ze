@@ -448,13 +448,10 @@ func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageT
 		wireUpdate.SetMessageID(messageID)
 		r.invalidateAIGPReceived(peerAddr, wireUpdate)
 
-		// Derive AttrsWire for observation callback
-		// Errors are logged but not fatal; the session validates received UPDATEs
-		// before handing their ownership to this callback.
+		// Derive AttrsWire for the observation callback. The session validates
+		// received UPDATEs before handing their ownership to this callback;
+		// retain any later parse failure in the message the reader receives.
 		attrsWire, parseErr := wireUpdate.Attrs()
-		if parseErr != nil {
-			sessionLogger().Debug("WireUpdate.Attrs error", "peer", peerAddr, "error", parseErr)
-		}
 
 		// RawMessage uses zero-copy for synchronous callback processing
 		msg = bgptypes.RawMessage{
@@ -466,7 +463,10 @@ func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageT
 			SourcePolicyEpoch: sourcePolicyEpoch,
 			WireUpdate:        wireUpdate,
 			AttrsWire:         attrsWire, // Derived from WireUpdate
-			ParseError:        parseErr,  // Propagate parse error to plugins
+		}
+		if parseErr != nil {
+			msg.ParseError = parseErr
+			sessionLogger().Debug("WireUpdate.Attrs error", "peer", peerAddr, "error", parseErr)
 		}
 	} else {
 		// Non-UPDATE or sent messages: copy bytes for async processing safety
@@ -645,13 +645,14 @@ func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageT
 				wireUpdate.SetSourceID(sourceID)
 				// Update RawMessage to use modified WireUpdate.
 				attrsWire, parseErr := wireUpdate.Attrs()
-				if parseErr != nil {
-					sessionLogger().Debug("modified WireUpdate.Attrs error", "peer", peerAddr, "error", parseErr)
-				}
 				msg.RawBytes = payload
 				msg.WireUpdate = wireUpdate
 				msg.AttrsWire = attrsWire
-				msg.ParseError = parseErr
+				msg.ParseError = nil
+				if parseErr != nil {
+					msg.ParseError = parseErr
+					sessionLogger().Debug("modified WireUpdate.Attrs error", "peer", peerAddr, "error", parseErr)
+				}
 			}
 			if res.followWithdrawal != nil {
 				*follow = res.followWithdrawal

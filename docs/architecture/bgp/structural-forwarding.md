@@ -869,10 +869,16 @@ membership map allocation.
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopLinkLocalOnlyOffLink -->
 <!-- source: internal/component/bgp/reactor/forward_build.go -- buildWithdrawalPayload -->
 
-`buildWithdrawalPayload` answers 0 octets when the payload's layout cannot be
-read. That zero is a guard: no UPDATE payload is shorter than 4 octets, so
-`fwdWithdrawal.of` refuses on it and the rail suppresses the route rather than
-forwarding an empty withdrawal.
+`buildWithdrawalPayload` returns an explicit error when the payload has an
+unreadable or empty layout, needs separate MP family messages, or cannot be
+encoded within the supplied buffer and source framing. `fwdWithdrawal.of`
+refuses the conversion on that error and returns its borrowed buffer. The
+failed conversion dispatches no withdrawal; it remains a drop rather than a
+policy suppression that a replay could count as completed. A successful
+conversion still returns its actual byte count and adopts the buffer for the
+cached update's lifetime.
+<!-- source: internal/component/bgp/reactor/forward_build.go -- buildWithdrawalPayload, fwdWithdrawal.of -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- forwardUpdateSection -->
 <!-- source: internal/component/bgp/reactor/forward_build.go -- fwdWithdrawal -->
 <!-- source: internal/component/bgp/reactor/forward_build.go -- withdrawalBySection -->
 <!-- source: internal/component/bgp/reactor/forward_build.go -- fwdWithdrawal -->

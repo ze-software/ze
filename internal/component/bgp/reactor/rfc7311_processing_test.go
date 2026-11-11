@@ -209,7 +209,8 @@ func TestAIGPForwardedMetricsReachFinalWire(t *testing.T) {
 			require.Equal(t, tc.name == "zero-refused", mods.IsWithdraw())
 			if mods.IsWithdraw() {
 				rebuilt = make([]byte, len(body))
-				n := buildWithdrawalPayload(body, rebuilt, nil)
+				n, err := buildWithdrawalPayload(body, rebuilt, nil)
+				require.NoError(t, err)
 				require.NotZero(t, n)
 				rebuilt = rebuilt[:n]
 			}

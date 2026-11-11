@@ -20,7 +20,10 @@ import (
 func verdictWithdrawalOf(t *testing.T, body []byte) []byte {
 	t.Helper()
 	buf := make([]byte, len(body)+4)
-	n := buildWithdrawalPayload(body, buf, nil)
+	n, err := buildWithdrawalPayload(body, buf, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if n == 0 {
 		t.Fatal("the test body has no withdrawal")
 	}

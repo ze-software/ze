@@ -12,6 +12,7 @@ package reactor
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
@@ -836,7 +837,7 @@ func (e *attrEmitter) run(buf []byte, off int) (int, modifyFailure) {
 // the MP_UNREACH half withdrawal framed. RFC 8277 Section 2.4: "Upon
 // transmission, the Compatibility field SHOULD be set to 0x800000." A copied
 // stack of two or more labels would make a receiver that frames the withdrawal
-// per Section 2.4 read the extra labels as prefix bits. A nil source answers 0
+// per Section 2.4 read the extra labels as prefix bits. A nil source is refused
 // for a labeled family, because its ADD-PATH framing is then unknown; for any
 // other family source is never read.
 //
@@ -855,22 +856,29 @@ func (e *attrEmitter) run(buf []byte, off int) (int, modifyFailure) {
 // conversion only shrinks the halves, so it is never longer than the source
 // plus one extended attribute header. Allocation-free.
 //
-// Returns the octets written, or 0 if the payload is malformed, withdraws
-// nothing once converted, is the two-family shape above, carries a labeled
-// NLRI the writer refuses or a labeled family with a nil source, or buf is
-// too small.
-func buildWithdrawalPayload(payload, buf []byte, source *bgpctx.EncodingContext) int {
+// Returns the octets written and nil on success. A non-nil error names an
+// unreadable or empty layout, a two-family conversion requiring separate
+// messages, or an encoding refusal (buffer bound or source NLRI framing).
+func buildWithdrawalPayload(payload, buf []byte, source *bgpctx.EncodingContext) (int, error) {
 	withdrawn, announced, mp, other, ok := withdrawalLayout(payload)
-	// refuse-by-default: guards fwdWithdrawal -- 0 octets is no UPDATE payload (one holds at least 4), so fwdWithdrawal.of refuses on it and the rail suppresses the route
 	if !ok {
-		return 0
+		return 0, errWithdrawalLayout
 	}
-	// refuse-by-default: guards fwdWithdrawal -- two MP families need two UPDATEs (buildWithdrawalPayloads), so the rail splits by section instead
 	if other.afiSAFI != nil {
-		return 0
+		return 0, errWithdrawalFamilies
 	}
-	return writeWithdrawal(buf, withdrawn, announced, mp, source)
+	n := writeWithdrawal(buf, withdrawn, announced, mp, source)
+	if n == 0 {
+		return 0, errWithdrawalEncoding
+	}
+	return n, nil
 }
+
+var (
+	errWithdrawalLayout   = errors.New("withdrawal payload has an unreadable layout or contains no routes")
+	errWithdrawalFamilies = errors.New("withdrawal of different MP families requires separate messages")
+	errWithdrawalEncoding = errors.New("withdrawal cannot be encoded within the supplied buffer and source framing")
+)
 
 // buildWithdrawalPayloads converts an UPDATE payload into the withdrawal of
 // every route it names, as buildWithdrawalPayload does, for a caller that can
@@ -1017,8 +1025,8 @@ func (w *fwdWithdrawal) of(update *ReceivedUpdate, base *wireu.WireUpdate) *wire
 		returnReadBuffer(h)
 		h = bufMuxExt.Get()
 	}
-	n := buildWithdrawalPayload(payload, h.Buf, bgpctx.Registry.Get(base.SourceCtxID()))
-	if n == 0 {
+	n, err := buildWithdrawalPayload(payload, h.Buf, bgpctx.Registry.Get(base.SourceCtxID()))
+	if err != nil {
 		returnReadBuffer(h)
 		return nil
 	}

@@ -42,7 +42,10 @@ func TestRFC7311DirectLinkCostNeverWrapsOrDisappears(t *testing.T) {
 		}
 		if mods.IsWithdraw() {
 			rebuilt = make([]byte, len(body))
-			n := buildWithdrawalPayload(body, rebuilt, nil)
+			n, err := buildWithdrawalPayload(body, rebuilt, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
 			if n == 0 {
 				t.Fatal("cost-withheld withdrawal could not be built")
 			}

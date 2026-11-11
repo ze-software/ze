@@ -287,7 +287,10 @@ func TestFinalWriterMixedWithdrawalIntent(t *testing.T) {
 	original := fwdPackUpdateBody(&message.Update{WithdrawnRoutes: syncOrderPrefixWire,
 		PathAttributes: syncOrderAnnounceBody[4:24], NLRI: q})
 	converted := make([]byte, message.MaxMsgLen)
-	n := buildWithdrawalPayload(original, converted, nil)
+	n, buildErr := buildWithdrawalPayload(original, converted, nil)
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
 	if n == 0 {
 		t.Fatal("real withdrawal synthesis produced no body")
 	}
