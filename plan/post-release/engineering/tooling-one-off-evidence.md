@@ -4138,3 +4138,50 @@ Met on the way and fixed:
 - With a verdict on the real tree for the first time, the coupling check found
   ike and bgp-gr filling registries they declared no edge to (`44cb535338`).
   The check is now clean across 96 plugins.
+
+## Review Gate round 1: the missing reds walked (2026-11-11)
+
+Round 1 of the independent Review Gate named five rows with no attributed red.
+Each walk below overlays one break of the producing code, or of the workflow
+file the test reads, and runs the carrier. Each carrier then passes again on
+restored bytes. The P-1 naming walk ran an `le` built with the break, because
+its `.ci` drives that binary.
+
+| P / row | Carrier | Break | Red |
+| --- | --- | --- | --- |
+| P-32 (Linux context on darwin) | `TestLinuxContextNormalizesDarwinARM64Seed` (`internal/le/repo/inventory`) | `source.go` `normalizeLinuxContext` keeps the seed's GOOS and GOARCH | "target selectors retained foreign seed: {GOARCH:arm64 GOOS:darwin ...}" |
+| P-32 (Linux-only registrations read) | `TestCommittedSourceUsesTheCompleteLinuxBuildContext` | the committed read uses a darwin/arm64 context | "target build population = [{Name:darwin-only ...}]" |
+| P-32 (dirty edits never published) | `TestCommittedSnapshotKeepsMembershipMetadataAndSchemaAcrossHEADMovement` | `Gates()` re-reads HEAD at query time instead of the snapshot | "snapshot mixed feature manifests: []" |
+| P-1 (a refusal names the input) | `./le test bgp parse ac1-native-refusals` (`test/parse/ac1-native-refusals.ci`) | `internal/test/cli/cmd_bgp.go` `zeTestParseRunCLI`: the unknown-command refusal drops the name | `FAIL 2 ac1-native-refusals` (expects `unknown suite command "ac1-unknown-verb"`) |
+| P-1 (help is not a refusal) | `TestBgpHelpSucceeds` (`internal/test/cli`) | the help branch returns an error | "help [--help] returned 1" |
+| P-40 `.wb` (adapter record) | `TestWebNativeExclusiveCleanup` (`-tags integration`) | `cmd_web_discovery.go` `webResourceRecord` collapses every declared group to one constant | "different group finished only after the holder exited: <nil>" |
+| journal row 2026-11-10, skip message (`4119ee0ee0`) | `TestNeedsLinuxSkipNamesTheHostGuestRoute` (`internal/test/runner`) | `guestRouteCommand` back to `./le test qemu all test ` | "skip reason ... does not end with the host command ./le test qemu ci test ..." |
+| same | `TestRunnerGuestRouteIsTheOneCIAction` (`internal/le/test/qemu`) | `oneCIVerb` renamed | "route ... names verb \"ci\", want the host action \"one\"" |
+| P-17 (bootstrap keeps the selected GOROOT) | `TestWorkflowBootstrapKeepsSelectedGOROOT` (`internal/le/repo/codeql`) | `.github/workflows/codeql.yml` Select step back to `go run ./internal/le/go/stdpatch/goroot` (in place) | "selected GOROOT lost its Go defaults after launcher cache acquisition" |
+| P-17 (CodeQL initializes after selection) | `TestCodeQLInitializationSeesSelectedToolchain` | the Initialize CodeQL step moved ahead of selection (in place) | "CodeQL initializes before the patched Go toolchain it must trace is selected" |
+
+The P-17 pair now has a red on this host, not only in the Mac logs. P-17's real
+extraction proof still waits on a push.
+
+## Security Review (2026-11-11)
+
+An independent read-only reviewer read the change set's commits through the
+lenses below and found no security regression: 0 BLOCKER, 0 ISSUE, 12 NOTE.
+
+- Lenses: argv built from untrusted text, path traversal and symlinks, privilege
+  and chown, secret leakage, CI workflow trust, weakened security tests, lock
+  TOCTOU, and unsafe memory.
+- Reading: the fourteen session commits and the security-relevant trailer
+  commits in full, and the rest by targeted scans.
+- Strengthenings: the textbuf use-after-return fix (`78320a778b`), the
+  commit-script heredoc and path validation, the nightly no longer reporting
+  success on failure, the pre-write hook seeing MultiEdit, and the PATH-hijack
+  carrier.
+- Accepted limits: a PTY wrapper still passes the owner terminal gate, as its
+  documentation states. Workflow actions are pinned by tag rather than SHA,
+  which predates this work.
+- Hardening follow-ups, noted and not owed by this spec: print control bytes
+  visibly in the retry command the owner gate shows. Quote the `.ci` path in
+  `OneCICommand`; it is the operator's own operand, and docker-lab already runs
+  arbitrary shell. Add a check refusing a `Slice()` of a stack Buffer that
+  outlives its frame.
