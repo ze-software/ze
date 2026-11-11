@@ -135,6 +135,18 @@ two interfaces at the same time, which is what the uniqueness rule states.
 Remove, then add, with the binder stopped, is correct under the requirement and
 carries less machinery. The design asks for no dual-presence window.
 
+## Registry fixtures
+
+Tests that register operation decomposers, constraint rules or settlement rules
+save `SnapshotOperationRegistry` before registering fixtures and restore it in
+`t.Cleanup`. Register that cleanup before creating a server, so the server's
+later cleanup stops its users before the registry is restored. These tests must
+not run in parallel: the registry lock protects individual reads and writes,
+not the whole test's save, use and restore interval. A snapshot copies registry
+entries, not mutable state captured by a decomposer closure. Restoring its zero
+value installs an empty registry that still accepts registrations.
+<!-- source: internal/component/config/transaction/operation_snapshot.go -- SnapshotOperationRegistry, RestoreOperationRegistry -->
+
 ## What is not built
 
 The three entries below are the distance between the design above and the code.

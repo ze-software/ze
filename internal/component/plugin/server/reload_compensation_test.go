@@ -9,7 +9,6 @@ import (
 	"maps"
 	"net"
 	"net/netip"
-	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -470,25 +469,23 @@ func TestReloadOriginalJournalAcrossAcceptance(t *testing.T) {
 	}
 }
 
-var retainedCompletionDecomposerOnce sync.Once
-
 // A real registered decomposer must not reconstruct an owner whose original
 // journal is retained, even when another participant needs coarse restoration.
 func TestReloadOriginalJournalWithCoarseRestoration(t *testing.T) {
+	savedOperations := transaction.SnapshotOperationRegistry()
+	t.Cleanup(func() { transaction.RestoreOperationRegistry(savedOperations) })
 	const ownerName, serviceName = "completion-retained", "completion-dependent"
-	retainedCompletionDecomposerOnce.Do(func() {
-		require.NoError(t, transaction.RegisterOperationDecomposer(ownerName, func(_ context.Context, req transaction.DecomposeRequest) ([]transaction.ConfigOperation, error) {
-			// The registry is process-global and the planner asks every root, so
-			// answer only for a reload whose candidate holds this root.
-			if req.CandidateRoot == "" || req.CandidateRoot == "{}" {
-				return nil, nil
-			}
-			return []transaction.ConfigOperation{{
-				ID: ownerName + "-change", Root: ownerName, Owner: ownerName, Type: testOpSetProperty,
-				Verb: transaction.VerbModify, Target: transaction.ResourceRef{Kind: testResourceSysctl, Name: ownerName},
-			}}, nil
-		}))
-	})
+	require.NoError(t, transaction.RegisterOperationDecomposer(ownerName, func(_ context.Context, req transaction.DecomposeRequest) ([]transaction.ConfigOperation, error) {
+		// The registry is process-global and the planner asks every root, so
+		// answer only for a reload whose candidate holds this root.
+		if req.CandidateRoot == "" || req.CandidateRoot == "{}" {
+			return nil, nil
+		}
+		return []transaction.ConfigOperation{{
+			ID: ownerName + "-change", Root: ownerName, Owner: ownerName, Type: testOpSetProperty,
+			Verb: transaction.VerbModify, Target: transaction.ResourceRef{Kind: testResourceSysctl, Name: ownerName},
+		}}, nil
+	}))
 	for _, wire := range []bool{false, true} {
 		t.Run(fmt.Sprintf("wire=%t", wire), func(t *testing.T) {
 			snapshot := registry.Snapshot()

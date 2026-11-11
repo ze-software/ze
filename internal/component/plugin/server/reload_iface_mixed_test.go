@@ -43,24 +43,13 @@ const (
 // address the binder root binds.
 const ifaceMixedAddress = "10.0.0.1"
 
-// The binder root of this file. One root serves all three tests, and its
-// decomposer is registered once: a decomposer stays registered for the life of
-// the test binary, and the planner asks EVERY registered root once an address
-// is disturbed. A root registered per test would therefore answer inside the
-// next test, where its owner is not a participant and the planner refuses the
-// operation it emits.
+// Each test owns a fresh registration for the same binder root.
 const (
 	ifaceMixedBinderRoot  = "oproot-iface-mixed-binder"
 	ifaceMixedBinderOwner = "ifacemixedbinder"
 
 	// The readiness event the `interface` root settles an address create on.
 	ifaceEventAddrAdded = "addr-added"
-)
-
-var (
-	ifaceMixedBinderOnce sync.Once
-	ifaceMixedBinderMu   sync.Mutex
-	ifaceMixedBinderSeen []string
 )
 
 // ifaceMixedTrees returns the running and candidate trees for one commit
@@ -101,33 +90,30 @@ func ifaceMixedTrees(runningMTU, candidateMTU string, moveAddress bool) (running
 	return running, candidate
 }
 
-// registerMixedBinder registers, once for this file, a binder root that stops
-// and starts itself whenever the commit takes the address it binds off the
-// host. It clears what the last test saw and returns the addresses this one is
-// told about.
+// registerMixedBinder registers a binder for this test and restores the registry
+// after the server stops. The returned reader reports this test's disturbances.
 func registerMixedBinder(t *testing.T) func() []string {
 	t.Helper()
-	ifaceMixedBinderOnce.Do(func() {
-		require.NoError(t, transaction.RegisterOperationDecomposer(ifaceMixedBinderRoot, func(_ context.Context, req transaction.DecomposeRequest) ([]transaction.ConfigOperation, error) {
-			ifaceMixedBinderMu.Lock()
-			ifaceMixedBinderSeen = slices.Clone(req.DisturbedAddresses)
-			ifaceMixedBinderMu.Unlock()
-			if !slices.Contains(req.DisturbedAddresses, ifaceMixedAddress) {
-				return nil, nil
-			}
-			return []transaction.ConfigOperation{
-				mixedBinderOperation("binder-stop", testOpStopBinder, transaction.VerbDestroy),
-				mixedBinderOperation("binder-start", testOpStartBinder, transaction.VerbCreate),
-			}, nil
-		}))
-	})
-	ifaceMixedBinderMu.Lock()
-	ifaceMixedBinderSeen = nil
-	ifaceMixedBinderMu.Unlock()
+	savedOperations := transaction.SnapshotOperationRegistry()
+	t.Cleanup(func() { transaction.RestoreOperationRegistry(savedOperations) })
+	var mu sync.Mutex
+	var seen []string
+	require.NoError(t, transaction.RegisterOperationDecomposer(ifaceMixedBinderRoot, func(_ context.Context, req transaction.DecomposeRequest) ([]transaction.ConfigOperation, error) {
+		mu.Lock()
+		seen = slices.Clone(req.DisturbedAddresses)
+		mu.Unlock()
+		if !slices.Contains(req.DisturbedAddresses, ifaceMixedAddress) {
+			return nil, nil
+		}
+		return []transaction.ConfigOperation{
+			mixedBinderOperation("binder-stop", testOpStopBinder, transaction.VerbDestroy),
+			mixedBinderOperation("binder-start", testOpStartBinder, transaction.VerbCreate),
+		}, nil
+	}))
 	return func() []string {
-		ifaceMixedBinderMu.Lock()
-		defer ifaceMixedBinderMu.Unlock()
-		return slices.Clone(ifaceMixedBinderSeen)
+		mu.Lock()
+		defer mu.Unlock()
+		return slices.Clone(seen)
 	}
 }
 

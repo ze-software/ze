@@ -1643,6 +1643,8 @@ func TestReloadTxVerifyReceivesFullSubtree(t *testing.T) {
 // deleted name sort was standing in for, and which a coarse node placed after
 // the peer operation reintroduces.
 func TestReloadTxAppliesCoarseSectionsBeforeBinderStarts(t *testing.T) {
+	savedOperations := transaction.SnapshotOperationRegistry()
+	t.Cleanup(func() { transaction.RestoreOperationRegistry(savedOperations) })
 	root := fmt.Sprintf("oproot-coarse-before-binder-%d", time.Now().UnixNano())
 	binder := "binder"
 	require.NoError(t, transaction.RegisterOperationDecomposer(root, func(_ context.Context, req transaction.DecomposeRequest) ([]transaction.ConfigOperation, error) {
@@ -1698,6 +1700,8 @@ func TestReloadTxAppliesCoarseSectionsBeforeBinderStarts(t *testing.T) {
 // VALIDATES: ReloadConfig -> registered decomposer -> operation verify/apply/commit callbacks.
 // PREVENTS: Operation planning existing only behind test-only coordinator injection.
 func TestReloadUsesRegisteredOperationDecomposer(t *testing.T) {
+	savedOperations := transaction.SnapshotOperationRegistry()
+	t.Cleanup(func() { transaction.RestoreOperationRegistry(savedOperations) })
 	root := fmt.Sprintf("oproot-reload-operation-path-%d", time.Now().UnixNano())
 	owner := "opowner"
 	require.NoError(t, transaction.RegisterOperationDecomposer(root, func(_ context.Context, req transaction.DecomposeRequest) ([]transaction.ConfigOperation, error) {
@@ -1736,6 +1740,8 @@ func TestReloadUsesRegisteredOperationDecomposer(t *testing.T) {
 // VALIDATES: Operation callbacks are exact-or-reject gated by Stage 1 declarations.
 // PREVENTS: Undeclared operation callbacks being invoked by accident.
 func TestReloadRejectsUndeclaredConfigOperation(t *testing.T) {
+	savedOperations := transaction.SnapshotOperationRegistry()
+	t.Cleanup(func() { transaction.RestoreOperationRegistry(savedOperations) })
 	root := fmt.Sprintf("oproot-undeclared-operation-%d", time.Now().UnixNano())
 	owner := "opowner-undeclared"
 	require.NoError(t, transaction.RegisterOperationDecomposer(root, func(context.Context, transaction.DecomposeRequest) ([]transaction.ConfigOperation, error) {

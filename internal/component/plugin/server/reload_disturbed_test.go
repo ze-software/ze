@@ -48,17 +48,15 @@ const testMovedAddress = "198.51.100.7"
 // binder that cannot be reached at all because its plugin joined no
 // transaction.
 func TestReloadStopsABinderWhoseAddressMovesAndItsOwnConfigDidNot(t *testing.T) {
+	savedOperations := transaction.SnapshotOperationRegistry()
+	t.Cleanup(func() { transaction.RestoreOperationRegistry(savedOperations) })
 	stamp := time.Now().UnixNano()
 	addressRoot := fmt.Sprintf("oproot-address-%d", stamp)
 	binderRoot := fmt.Sprintf("oproot-binder-%d", stamp)
 	addressOwner := "addressowner"
 	binderOwner := "binderowner"
 
-	// A decomposer stays registered for the life of the test binary, and the
-	// planner asks every registered root a second time once any LATER test
-	// disturbs an address. Answering there takes an address off the host that
-	// the first pass never named, which checkDisturbanceSettled refuses, so
-	// this one answers only while its own test runs and its diff is present.
+	// The address root emits operations only when its candidate is present.
 	require.NoError(t, transaction.RegisterOperationDecomposer(addressRoot, func(_ context.Context, req transaction.DecomposeRequest) ([]transaction.ConfigOperation, error) {
 		if req.CandidateRoot == "" || req.CandidateRoot == "{}" {
 			return nil, nil
@@ -143,14 +141,15 @@ func TestReloadStopsABinderWhoseAddressMovesAndItsOwnConfigDidNot(t *testing.T) 
 // PREVENTS: every reload asking every root that decomposes, which turns a
 // one-line MTU edit into a decompose round trip for each of them.
 func TestReloadAsksNoUnchangedRootWhenNoAddressMoves(t *testing.T) {
+	savedOperations := transaction.SnapshotOperationRegistry()
+	t.Cleanup(func() { transaction.RestoreOperationRegistry(savedOperations) })
 	stamp := time.Now().UnixNano()
 	changedRoot := fmt.Sprintf("oproot-quiet-%d", stamp)
 	binderRoot := fmt.Sprintf("oproot-quiet-binder-%d", stamp)
 	changedOwner := "quietowner"
 	binderOwner := "quietbinder"
 
-	// Gated on its own diff, for the reason the decomposer above carries: a
-	// registration outlives its test, and the second pass asks every root.
+	// Only a candidate containing this root can emit its modification.
 	require.NoError(t, transaction.RegisterOperationDecomposer(changedRoot, func(_ context.Context, req transaction.DecomposeRequest) ([]transaction.ConfigOperation, error) {
 		if req.CandidateRoot == "" || req.CandidateRoot == "{}" {
 			return nil, nil
