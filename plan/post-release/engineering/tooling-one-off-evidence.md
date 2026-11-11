@@ -4316,3 +4316,21 @@ scratch (`walks-p36.json`, `walks-p36-logs/`). Each one adds a signal to
 
 Each restored run passed. `./le test weakened check base ebb5d8e173` is clean,
 with 5 changed test files examined.
+
+## P-17: real CodeQL extraction proved in CI (2026-11-11)
+
+The finalized-database check ran in GitHub's `CodeQL Advanced` workflow on two
+pushed commits, so the proof below is CodeQL's own extraction rather than a
+stand-in executable.
+
+| Run | Commit | Step "Check Go extraction evidence" |
+| --- | --- | --- |
+| 42933954502 (red) | `44797abe31`, before `a4b8575d14` | "CodeQL query failed before execution: bundled Go library is unavailable: lstat /opt/hostedtoolcache/CodeQL/2.27.4/x64/qlpacks: no such file or directory" |
+| repair | `a4b8575d14` | the bundle is the executable's own directory, so the library is `<bundle>/qlpacks` (`.../x64/codeql/qlpacks`) |
+| 43000641637 (green) | `c20d1efca7`, holds `a4b8575d14` | "authored sentinel extracted; cache sources excluded", proof `codeql-proof-3545214762`; both Analyze jobs succeeded |
+
+The red run had already got past selection: its environment carries the
+patched `GOROOT` under `~/.cache/ze/stdpatch/.../goroot` (`2300efb0f9`), and
+extraction and analysis completed before the check refused. The red is
+attributed to the library path alone, and the green run is the same workflow
+with that repair on the check's path. P-17 is closed.
