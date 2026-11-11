@@ -785,18 +785,39 @@ missing or unreadable, because its owner is unknown. The one copy of this rule
 is `internal/core/sessiondir`, which the native session tools and the test
 artifact router (`internal/test/sessionpath`) both call.
 
-A subagent runs under its parent's session. The pretool Bash hook prefixes each
-of its calls with `export ZE_AGENT_ID=<agent_id>; export
-CLAUDE_CODE_SESSION_ID=<parent>` from the hook payload
-(`writeParentSessionPrefix`, `internal/le/hookruntime/session.go`). An agent id
-that cannot name a file blocks the Bash call (hook exit 2) rather than run it
-under the parent's id alone. A payload that names an agent but carries an
+A subagent runs under its parent's session, and it types its identity on the
+commands that need it. Its identity line is `export ZE_AGENT_ID=<agent_id>;
+export CLAUDE_CODE_SESSION_ID=<parent>; `, built from the ids in the hook
+payload (`identityLine`, `internal/le/hookruntime/session.go`). The start text
+of the subagent prints the line (`hookSubagentContext`), in full when the start
+payload carries the agent id, and otherwise the session part with a note that
+the first refusal prints the rest.
+
+The pretool Bash hook checks the line and never adds it (`bashAgentIdentity`).
+A hook that changes a command leaves auto mode with no verdict for the changed
+text, so the harness voids that call and every call sent in the same message.
+The check has three outcomes:
+
+| The subagent's command | Outcome |
+|------------------------|---------|
+| Every command of the line is in the reader set (`readerCommands`: `grep`, `sed`, `cat`, `head`, `gopls`, `git` followed directly by a read verb, and the rest of that table) | Passes as typed. A reader reads neither variable and starts no `le` |
+| It starts with the agent's exact identity line, and sets neither variable again after it | Passes as typed |
+| Anything else: a command outside the reader set, a command substitution (a backtick or `$(`), a line that ends inside a quote, or an identity line naming another agent or session | Refused (hook exit 2). The message prints the line to type |
+
+The reader set is one declared table, and a command absent from it needs the
+line, so an unknown command is refused with its fix and never passed unjudged.
+The main thread is never asked for the line: it is the identity `le` resolves
+by default.
+
+An agent id that cannot name a file blocks every Bash call (hook exit 2)
+rather than let it run under the parent's id alone. A payload that names an
+agent but carries an
 absent or unsafe `session_id` blocks the same way, and the pretool Write/Edit
 weakening check refuses its edits (`writeWeakening`,
 `internal/le/hookruntime/writeedit.go`), because either one would otherwise
 act as the main thread. The budget counts every agent id this identity accepts
 (`lepath.ValidAgentID`). A fork subagent (`CLAUDE_CODE_FORK_SUBAGENT`, no
-`agent_id` in its payload) gets only the session id, so it shares the main
+`agent_id` in its payload) types the session part alone, so it shares the main
 thread's identity and everything below. Every agent of a session shares the
 session directory and its scratch, and owns what follows:
 
@@ -826,7 +847,9 @@ a name of your own.
 <!-- source: internal/le/le/path/session.go -- SpecClaimMarker, MarkerOwnedBy -->
 <!-- source: internal/core/sessiondir/sessiondir.go -- Resolve, Find, Owner -->
 <!-- source: internal/le/session/reap.go -- candidateSID -->
-<!-- source: internal/le/hookruntime/session.go -- writeParentSessionPrefix -->
+<!-- source: internal/le/hookruntime/session.go -- bashAgentIdentity, identityLine, readerCommands, commandOutsideReaders -->
+<!-- source: internal/le/hookruntime/shellline.go -- lineCommands -->
+<!-- source: internal/le/hookruntime/lifecycle.go -- hookSubagentContext -->
 <!-- source: internal/le/test/weakened/approve.go -- ApprovalPath, approveAnswer -->
 <!-- source: internal/le/test/overlay/overlay.go -- Write -->
 

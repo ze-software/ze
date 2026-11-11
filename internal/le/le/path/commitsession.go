@@ -40,9 +40,10 @@ func ValidCommitSession(namespace string) bool {
 }
 
 // AgentKey is the dot-notation spelling of ZE_AGENT_ID, the subagent identity
-// the pretool Bash hook exports from its payload's agent_id
-// (internal/le/hookruntime/session.go, writeParentSessionPrefix). A main
-// thread has none.
+// an agent types in front of its commands, and that the pretool Bash hook
+// checks against its payload's agent_id
+// (internal/le/hookruntime/session.go, bashAgentIdentity). A main thread has
+// none.
 const AgentKey = "ze.agent.id"
 
 var agentEntry = env.MustRegister(env.EnvEntry{

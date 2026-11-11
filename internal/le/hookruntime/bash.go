@@ -14,6 +14,10 @@ import (
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
+// catCommand is the command word `cat`, which several checks name: a lossy
+// filter, a search command, a whole-document read and a reader command.
+const catCommand = "cat"
+
 var (
 	goBuildCall      = regexp.MustCompile(`(^|[^A-Za-z0-9_])go\s+build([^A-Za-z0-9_]|$)`)
 	goBuildBin       = regexp.MustCompile(`-o\s+bin/`)
@@ -409,7 +413,7 @@ func bashLossyPipe(ctx context) *verdict {
 		}
 		for _, segment := range segments[1:] {
 			fields := strings.Fields(segment)
-			if len(fields) == 0 || !oneOf(fields[0], "head", "tail", "grep", "egrep", "fgrep", "awk", "sed", "cat", "less", "more") {
+			if len(fields) == 0 || !oneOf(fields[0], "head", "tail", "grep", "egrep", "fgrep", "awk", "sed", catCommand, "less", "more") {
 				continue
 			}
 			return &verdict{2, "❌ Blocked: piping an expensive command's output through a lossy filter (" + fields[0] + ")\n" +
@@ -510,7 +514,7 @@ func bashRawHeavy(ctx context) *verdict {
 func bashPollLoop(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
 	locations := waitKeyword.FindAllStringIndex(command, -1)
-	searches := map[string]bool{"grep": true, "egrep": true, "fgrep": true, "rg": true, "ag": true, "git": true, "sed": true, "awk": true, "cat": true, "echo": true, "printf": true}
+	searches := map[string]bool{"grep": true, "egrep": true, "fgrep": true, "rg": true, "ag": true, "git": true, "sed": true, "awk": true, catCommand: true, "echo": true, "printf": true}
 	for _, location := range locations {
 		head := command[:location[0]]
 		cut := 0
@@ -580,76 +584,6 @@ func bashScratch(ctx context) *verdict {
 		"  -- Use: dir=$(./le session scratch ensure); <command> > \"$dir/out.log\"\n" +
 		"  -- A subdirectory passes, and so do the root names that are shared by design: ze-verify*, commit-*, delete-*, mutation*, test-timings*\n" +
 		"  -- ai/rules/commands.md, 'Write Ad-Hoc Scratch Under Your Per-Session Dir'"}
-}
-
-// lineWords splits a whole shell line into words with their quotes removed, so
-// `'rm'` and `"rm"` are the word rm, as the shell runs them. It does not split the line
-// into commands: whitespace and the operators `; & | ( ) { } ! < >` all break a
-// word, so `2>&1`, `>/dev/null` and `{ rm x; }` leave the paths as words of
-// their own. A `#` that starts a word comments out the rest of its line. It
-// returns false when the line ends inside a quote or after a lone backslash,
-// because a caller that cannot see where a word ends cannot judge it.
-func lineWords(line string) ([]string, bool) {
-	words := make([]string, 0, 16)
-	var word textbuf.Buffer
-	word.Reset()
-	// quoted marks a word that opened with a quote, so `''#x` is a word and
-	// not a comment.
-	quoted := false
-	flush := func() {
-		if word.Len() != 0 {
-			words = append(words, word.String())
-		}
-		quoted = false
-	}
-	quote := rune(0)
-	escaped := false
-	comment := false
-	for _, character := range line {
-		if comment {
-			comment = character != '\n'
-			continue
-		}
-		if escaped {
-			// A backslash before a newline continues the line and adds nothing.
-			if character != '\n' {
-				word.WriteRune(character)
-			}
-			escaped = false
-			continue
-		}
-		if character == '\\' && quote != '\'' {
-			escaped = true
-			continue
-		}
-		if quote != 0 {
-			if character == quote {
-				quote = 0
-			} else {
-				word.WriteRune(character)
-			}
-			continue
-		}
-		switch {
-		case character == '\'' || character == '"':
-			quote = character
-			quoted = true
-		case character == '#' && word.Len() == 0 && !quoted:
-			comment = true
-		case unicode.IsSpace(character) || strings.ContainsRune(";&|(){}!<>", character):
-			flush()
-		default:
-			word.WriteRune(character)
-		}
-	}
-	if quote != 0 {
-		return nil, false
-	}
-	if escaped {
-		return nil, false
-	}
-	flush()
-	return words, true
 }
 
 // runsDeletion reports whether a line runs a delete: a word that is `rm` or
@@ -920,7 +854,7 @@ func printedDocuments(words []string) []string {
 	program := filepath.Base(words[0])
 	ranged := program == "bat"
 	switch program {
-	case "cat", "bat", "nl", "less", "more":
+	case catCommand, "bat", "nl", "less", "more":
 	default:
 		return nil
 	}

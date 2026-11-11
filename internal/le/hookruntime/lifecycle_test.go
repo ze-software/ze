@@ -86,6 +86,61 @@ func TestSubagentContextResolvesClaim(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-6, the identity line. The start text of a subagent whose
+// payload carries its agent id holds the full line the agent types in front of
+// a command; a payload with no agent id holds the session part and says that
+// the first refusal prints the full line. Neither claims that the hook adds
+// the line, because the hook no longer changes a command.
+// PREVENTS: a subagent learning its identity line only from a refused call.
+func TestSubagentStartCarriesTheIdentityLine(t *testing.T) {
+	tests := []struct {
+		name    string
+		payload map[string]any
+		want    []string
+		absent  []string
+	}{
+		{
+			name:    "payload-with-agent-id",
+			payload: map[string]any{"session_id": "context-parent", "agent_id": "agent-1"},
+			want:    []string{"\nexport ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=context-parent; \n"},
+			absent:  []string{"first refusal"},
+		},
+		{
+			name:    "payload-without-agent-id",
+			payload: map[string]any{"session_id": "context-parent"},
+			want:    []string{"\nexport CLAUDE_CODE_SESSION_ID=context-parent; \n", "first refusal"},
+			absent:  []string{"ZE_AGENT_ID="},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			code, output, diagnostics := runHook(t, t.TempDir(), "subagent-context", test.payload)
+			if code != 0 {
+				t.Fatalf("code = %d, want advisory context; stderr: %s", code, diagnostics)
+			}
+			var response struct {
+				Output struct {
+					Context string `json:"additionalContext"`
+				} `json:"hookSpecificOutput"`
+			}
+			if err := json.Unmarshal([]byte(output), &response); err != nil {
+				t.Fatal(err)
+			}
+			context := response.Output.Context
+			for _, want := range test.want {
+				if !strings.Contains(context, want) {
+					t.Errorf("start text missing %q: %s", want, context)
+				}
+			}
+			for _, absent := range append(test.absent, "adds this prefix") {
+				if strings.Contains(context, absent) {
+					t.Errorf("start text holds %q: %s", absent, context)
+				}
+			}
+		})
+	}
+}
+
 // TestSessionStartNamesDueJournalClasses drives the due-class line through the
 // hook entry point over committed journals of 9 and 10 rows, and over a tree
 // git cannot read. It proves the line appears at the threshold, stays absent

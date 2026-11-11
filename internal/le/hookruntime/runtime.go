@@ -92,7 +92,7 @@ var nativeHookActions = map[string]hookAction{
 			bashWorktreeCopy, bashDestructiveGit, bashBranchMove, bashRootBuild, bashLossyPipe,
 			bashRawHeavy, bashPollLoop, bashSystemTmp, bashScratch,
 			bashTestDeletion, bashGovernedWrite, preMaterializeDerived,
-			bashDocumentRead, bashCallBudget,
+			bashDocumentRead, bashAgentIdentity, bashCallBudget,
 		},
 	},
 	"pretool-writeedit": {
@@ -262,11 +262,6 @@ func Run(kind string, in io.Reader, out, errOut io.Writer) (code int) {
 	worst, messages := shownVerdicts(results)
 	if len(messages) != 0 {
 		fmt.Fprintln(errOut, strings.Join(messages, "\n")) //nolint:errcheck // hook protocol
-	}
-	if kind == "pretool-bash" && worst < 2 {
-		if code := writeParentSessionPrefix(ctx, out, errOut); code > worst {
-			worst = code
-		}
 	}
 	return worst
 }

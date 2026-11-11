@@ -57,8 +57,9 @@ in-process rather than launching a second implementation.
 | Stop | every | `block-premature-stop`, `rule-coverage-report`, `session-end-summary`, `session-end-deferrals` |
 | SubagentStart | every | `subagent-context` |
 
-A dispatcher returns the worst verdict of its checks, and `pretool-bash` also
-writes the parent session prefix when nothing blocked.
+A dispatcher returns the worst verdict of its checks. No dispatcher changes the
+tool input: `pretool-bash` checks a subagent's identity line
+(`bashAgentIdentity`, below) and never adds it.
 
 Each section below carries one table under a heading naming its Go source. The
 `Enforces` column names the rule stems that check's `// ze point:` bindings
@@ -146,6 +147,21 @@ judgment are unchanged.
 
 <!-- source: internal/le/hookruntime/specwip.go -- writeSpecWIP -->
 <!-- source: internal/le/spec/session.go -- CheckWIPTransition -->
+
+
+## PreToolUse: Bash, a subagent's identity (`internal/le/hookruntime/session.go`)
+
+<!-- source: internal/le/hookruntime/session.go -- bashAgentIdentity, identityLine, readerCommands, commandOutsideReaders, takesAnotherIdentity -->
+<!-- source: internal/le/hookruntime/shellline.go -- lineCommands -->
+
+| Check | Enforces | What it refuses |
+|---|---|---|
+| `bashAgentIdentity` | `planning.md` | A subagent's Bash command that could start `le` without the agent's own identity. A command whose every command word is in the reader set (`readerCommands`) passes as typed, and so does one that starts with the agent's exact identity line, `export ZE_AGENT_ID=<agent>; export CLAUDE_CODE_SESSION_ID=<parent>; ` (the session part alone for a fork subagent), and sets neither variable again. Refused: any other command, a command substitution, a line the splitter cannot parse, an identity line naming another agent or session, and every call of an agent whose id or session id cannot name a file. The refusal prints the line to type. The check never changes the command, and the main thread is never judged. |
+
+The check replaced a rewrite: the hook used to prepend the identity line and
+return the command as changed input, and auto mode then voided the call
+(`plan/learned/HOOK-FRICTION.md`, "The Bash hook rewrote every subagent
+command, and auto mode voided the call").
 
 
 ## PreToolUse: Bash and Write/Edit, the editing agent's budget (`internal/le/hookruntime/budget.go`)

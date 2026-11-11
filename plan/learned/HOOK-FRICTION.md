@@ -58,6 +58,7 @@ native owner of each hook family is listed in `.claude/hooks/README.md`.
 | `pretool-writeedit.py` `c_throwaway_tests` | 1 (2026-07-16) | Retired 2026-08-28 | [F5](#retired-f5-c_throwaway_tests-blocks-legitimate-test-filenames-under-the-retired-scriptsdev-current-internalle) |
 | `session-end-summary.sh` clobbers hand-written digests | 1 (2026-07-22) | Retired 2026-08-28 | [F9](#retired-f9-session-end-summarysh-destroys-the-digests-post-compactionmd-asks-for) |
 | `stress-repro.py` broken argv / crash-only detection | 1 (2026-07-22) | Fixed 2026-07-22 at the source | [F10](#f10-stress-repropy-was-broken-for-every-sub-suite-and-said-so-as-reproduced) |
+| `pretool-bash` identity rewrite (`updatedInput`) voided by auto mode | about 490 (three weeks to 2026-11-11) | Rewrite removed 2026-11-11, live probe owed | [entry](#the-bash-hook-rewrote-every-subagent-command-and-auto-mode-voided-the-call-2026-11-11) |
 
 ### Renamed checks
 
@@ -1845,3 +1846,44 @@ recorded on the call itself, every time, for the agent that made it, with
 nothing an agent can call to add a record. A refusal that names the door also
 says which reads of it the gate saw, so a missing record is told apart from a
 missing read.
+
+## The Bash hook rewrote every subagent command, and auto mode voided the call (2026-11-11)
+
+**Hook:** `writeParentSessionPrefix`, the rewrite that `Run` called for
+`pretool-bash` (`internal/le/hookruntime/session.go`, `runtime.go`). Replaced
+by the check `bashAgentIdentity`.
+
+**Trigger.** Every Bash call of a subagent. The hook prepended
+`export ZE_AGENT_ID=<agent>; export CLAUDE_CODE_SESSION_ID=<parent>; ` to the
+command and returned it to the harness as `updatedInput`. It did so for a
+`grep` as for an `le` call, because it did not look at the command.
+
+**Blocks.** Under auto mode the harness holds no verdict for the changed
+command and voids the call: the agent's command never runs, and the failure
+text names the changed input. A voided call also voids the other calls sent in
+the same message, so an agent that batched its calls, as
+`ai/rules/context-economy.md` asks, lost more than one that did not. None of
+this was a violation by the agent.
+
+**What it cost.** `plan/post-release/engineering/spec-agent-economy-0-umbrella.md`
+holds the baseline: about 490 voided calls recorded over three weeks, and the
+research agents of 2026-11-11 lost between one call in four and one in three.
+Each lost call is a whole turn, and a turn re-reads the agent's context.
+
+**Workaround, while the rewrite was live.** Issue the call again with the
+exact command the hook produced, the two exports included. Why the second
+attempt passed was not investigated.
+
+**What removed it.** The hook no longer changes any command
+(`plan/post-release/engineering/spec-agent-economy-1-call-shape.md`, phase 1).
+The agent's start text prints its identity line and the agent types it;
+`bashAgentIdentity` passes a command made only of readers, passes a command
+that starts with the agent's exact line, and refuses any other with the line
+to type. That the voids had this cause and no other is the spec's assumption
+A-2: it is confirmed only when an agent spawned after the commit runs its Bash
+calls with no "no verdict" failure. Until that probe is recorded this entry is
+not retired.
+
+**The general trap.** A PreToolUse hook that returns `updatedInput` changes
+what the permission layer judged. Any hook that repairs a command in place
+has this cost under auto mode. Refuse with the exact text to type instead.

@@ -527,8 +527,17 @@ func hookSubagentContext(ctx context, out io.Writer) int {
 			}
 			text.Str("\nParent session ID: ").Str(id).
 				Str("\nParent session scratch: ").Str(paths.Scratch).
-				Str("\nSet CLAUDE_CODE_SESSION_ID=").Str(id).
-				Str(" for every Bash tool call. The Bash PreToolUse hook adds this prefix to the command.\n")
+				Str("\nStart every Bash command that runs anything but readers (grep, sed, cat, a git read verb) with your identity line, exactly as printed. The Bash hook checks the line and never adds it:\n")
+			// The line is the one bashAgentIdentity compares a command with.
+			// A payload whose agent id is absent, or cannot name a file, gets
+			// the session part: the hook's first refusal prints the full line,
+			// or says why the agent has none.
+			if agent := ctx.payload.AgentID; lepath.ValidAgentID(agent) {
+				text.Str(identityLine(agent, id)).Byte('\n')
+			} else {
+				text.Str(identityLine("", id)).
+					Str("\nThat is the session part of the line. This start payload carries no usable agent id, so the first refusal of a Bash command prints your full line.\n")
+			}
 		}
 	}
 	text.Str("\nYou are a subagent under ai/rules/planning.md. Report grounded facts, read routed rules before acting, never weaken tests, and write scratch only under ./le session scratch ensure.\n")

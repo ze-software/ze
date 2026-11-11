@@ -51,9 +51,9 @@ func TestAgentCallBudgetLetsTheHandoffThrough(t *testing.T) {
 		kind    string
 		payload map[string]any
 	}{
-		{"pretool-bash", agentPayload(budgetedAgentType, "Bash", map[string]any{"command": "./le spec state current"})},
-		{"pretool-bash", agentPayload(budgetedAgentType, "Bash", map[string]any{"command": "./le spec state current"})},
-		{"pretool-bash", agentPayload(budgetedAgentType, "Bash", map[string]any{"command": "cat >> tmp/session/2026-09-15-parent-17/state/session-state-spec-x-parent-17.md <<'EOF'\n- done\nEOF"})},
+		{"pretool-bash", agentPayload(budgetedAgentType, "Bash", map[string]any{"command": "export ZE_AGENT_ID=a1b2c3; export CLAUDE_CODE_SESSION_ID=parent-17; ./le spec state current"})},
+		{"pretool-bash", agentPayload(budgetedAgentType, "Bash", map[string]any{"command": "export ZE_AGENT_ID=a1b2c3; export CLAUDE_CODE_SESSION_ID=parent-17; ./le spec state current"})},
+		{"pretool-bash", agentPayload(budgetedAgentType, "Bash", map[string]any{"command": "export ZE_AGENT_ID=a1b2c3; export CLAUDE_CODE_SESSION_ID=parent-17; cat >> tmp/session/2026-09-15-parent-17/state/session-state-spec-x-parent-17.md <<'EOF'\n- done\nEOF"})},
 		{"pretool-writeedit", agentPayload(budgetedAgentType, "Write", map[string]any{"file_path": "tmp/session/2026-09-15-parent-17/state/session-state-spec-x-parent-17.md", "content": "- done"})},
 	}
 	for _, handoff := range handoffs {

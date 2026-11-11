@@ -249,8 +249,8 @@ func TestDelegatedRenameUsesCommitRoute(t *testing.T) {
 		command string
 		want    int
 	}{
-		{"git mv old.go new.go", 2},
-		{"bash tmp/commit-4f95a2b5-a-probe.sh", 0},
+		{"export ZE_AGENT_ID=delegate; export CLAUDE_CODE_SESSION_ID=rename-proof; git mv old.go new.go", 2},
+		{"export ZE_AGENT_ID=delegate; export CLAUDE_CODE_SESSION_ID=rename-proof; bash tmp/commit-4f95a2b5-a-probe.sh", 0},
 	} {
 		code, _, message := runHook(t, t.TempDir(), "pretool-bash", map[string]any{
 			"session_id": "rename-proof", "agent_id": "delegate", "tool_name": "Bash",

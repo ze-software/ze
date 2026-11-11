@@ -1,7 +1,8 @@
 // Related: runtime.go -- native hook protocol dispatcher
 //
-// VALIDATES: hook JSON, exit severity, stderr messages, updated-input output,
-// session isolation, and marker paths all execute in Go.
+// VALIDATES: hook JSON, exit severity, stderr messages, the absence of changed
+// input on standard output, session isolation, and marker paths all execute in
+// Go.
 // PREVENTS: a configuration-only migration that leaves hook behavior inert.
 package hookruntime
 
@@ -47,49 +48,100 @@ func TestBashRuntimePreservesSeverityAndAllMessages(t *testing.T) {
 
 func TestBashRuntimePrefixesOnlySafeForkIdentity(t *testing.T) {
 	root := t.TempDir()
+	const ownLine = "export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; "
+	// A reader command needs no identity and reaches the shell as typed: the
+	// hook writes no changed input.
 	code, output, _ := runHook(t, root, "pretool-bash", map[string]any{
 		"session_id": "parent-17", "agent_id": "agent-1", "tool_name": "Bash",
 		"tool_input": map[string]any{"command": "echo ok"},
 	})
-	if code != 0 || !strings.Contains(output, "export CLAUDE_CODE_SESSION_ID=parent-17; echo ok") {
-		t.Fatalf("safe prefix: code=%d output=%q", code, output)
+	if code != 0 || output != "" {
+		t.Fatalf("reader command: code=%d output=%q, want exit 0 and no changed input", code, output)
+	}
+	// A command that could start le is refused until it carries the agent's
+	// own line, and the refusal prints that line.
+	code, output, errOutput := runHook(t, root, "pretool-bash", map[string]any{
+		"session_id": "parent-17", "agent_id": "agent-1", "tool_name": "Bash",
+		"tool_input": map[string]any{"command": "./le spec current"},
+	})
+	if code != 2 || output != "" || !strings.Contains(errOutput, ownLine) {
+		t.Fatalf("le call without the line: code=%d output=%q message=%q, want exit 2, no changed input and the line %q", code, output, errOutput, ownLine)
+	}
+	code, output, errOutput = runHook(t, root, "pretool-bash", map[string]any{
+		"session_id": "parent-17", "agent_id": "agent-1", "tool_name": "Bash",
+		"tool_input": map[string]any{"command": ownLine + "./le spec current"},
+	})
+	if code != 0 || output != "" {
+		t.Fatalf("le call with the line: code=%d output=%q message=%q, want exit 0 and no changed input", code, output, errOutput)
 	}
 	code, output, _ = runHook(t, root, "pretool-bash", map[string]any{
 		"session_id": "../shared", "agent_id": "agent-1", "tool_name": "Bash",
 		"tool_input": map[string]any{"command": "echo ok"},
 	})
-	// An agent whose session id is unsafe blocks rather than run unprefixed as
-	// the main thread; TestBashRuntimeBlocksAnAgentWithNoSessionID covers the
-	// message.
+	// An agent whose session id is unsafe blocks rather than run as the main
+	// thread, even for a reader command;
+	// TestBashRuntimeBlocksAnAgentWithNoSessionID covers the message.
 	if code != 2 || output != "" {
-		t.Fatalf("unsafe identity: code=%d output=%q, want exit 2 and no updated input", code, output)
+		t.Fatalf("unsafe identity: code=%d output=%q, want exit 2 and no changed input", code, output)
 	}
 }
 
-// VALIDATES: a subagent's Bash call carries its own agent id beside the
-// parent's session id, a fork with no agent id carries none, and an agent id
-// that cannot name a file blocks the call (exit 2, no updated input) with a
-// message naming the cause and the next step.
+// VALIDATES: a subagent's le call runs only under its own agent id beside the
+// parent's session id, and a fork's only under the session id: the call is
+// refused (exit 2) with the identity line to type until it starts with that
+// exact line, a reader command passes as typed, and the hook never writes
+// changed input. An agent id that cannot name a file blocks every call (exit
+// 2, no changed input) with a message naming the cause and the next step.
 // PREVENTS: sibling subagents resolving one identity, which made them share a
 // commit namespace and a spec claim
 // (plan/journal/concurrent-session-corruption.md), and an unsafe agent id
 // running the call silently as the main thread.
 func TestBashRuntimeExportsTheAgentIdentity(t *testing.T) {
 	root := t.TempDir()
-	code, output, _ := runHook(t, root, "pretool-bash", map[string]any{
-		"session_id": "parent-17", "agent_id": "agent-1", "tool_name": "Bash",
-		"tool_input": map[string]any{"command": "echo ok"},
-	})
-	if code != 0 || !strings.Contains(output, "export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; echo ok") {
-		t.Fatalf("agent prefix: code=%d output=%q", code, output)
+	const agentLine = "export ZE_AGENT_ID=agent-1; export CLAUDE_CODE_SESSION_ID=parent-17; "
+	const forkLine = "export CLAUDE_CODE_SESSION_ID=parent-17; "
+	agent := func(command string) map[string]any {
+		return map[string]any{
+			"session_id": "parent-17", "agent_id": "agent-1", "tool_name": "Bash",
+			"tool_input": map[string]any{"command": command},
+		}
+	}
+	fork := func(command string) map[string]any {
+		return map[string]any{
+			"session_id": "parent-17", "tool_name": "Bash",
+			"tool_input": map[string]any{"command": command},
+		}
+	}
+	code, output, errOutput := runHook(t, root, "pretool-bash", agent("echo ok"))
+	if code != 0 || output != "" {
+		t.Fatalf("agent reader command: code=%d output=%q message=%q, want exit 0 and no changed input", code, output, errOutput)
+	}
+	code, output, errOutput = runHook(t, root, "pretool-bash", agent("./le spec current"))
+	if code != 2 || output != "" || !strings.Contains(errOutput, agentLine) {
+		t.Fatalf("agent le call without the line: code=%d output=%q message=%q, want exit 2, no changed input and the line %q", code, output, errOutput, agentLine)
+	}
+	code, output, errOutput = runHook(t, root, "pretool-bash", agent(agentLine+"./le spec current"))
+	if code != 0 || output != "" {
+		t.Fatalf("agent le call with the line: code=%d output=%q message=%q, want exit 0 and no changed input", code, output, errOutput)
+	}
+	// The fork's line is not the agent's: an agent that types it would run
+	// as the main thread.
+	code, output, errOutput = runHook(t, root, "pretool-bash", agent(forkLine+"./le spec current"))
+	if code != 2 || output != "" || !strings.Contains(errOutput, agentLine) {
+		t.Fatalf("agent le call under the session line alone: code=%d output=%q message=%q, want exit 2 and the line %q", code, output, errOutput, agentLine)
 	}
 	t.Setenv("CLAUDE_CODE_FORK_SUBAGENT", "1")
-	code, output, _ = runHook(t, root, "pretool-bash", map[string]any{
-		"session_id": "parent-17", "tool_name": "Bash",
-		"tool_input": map[string]any{"command": "echo ok"},
-	})
-	if code != 0 || strings.Contains(output, "ZE_AGENT_ID") || !strings.Contains(output, "export CLAUDE_CODE_SESSION_ID=parent-17; echo ok") {
-		t.Fatalf("fork prefix: code=%d output=%q", code, output)
+	code, output, errOutput = runHook(t, root, "pretool-bash", fork("echo ok"))
+	if code != 0 || output != "" {
+		t.Fatalf("fork reader command: code=%d output=%q message=%q, want exit 0 and no changed input", code, output, errOutput)
+	}
+	code, output, errOutput = runHook(t, root, "pretool-bash", fork("./le spec current"))
+	if code != 2 || output != "" || strings.Contains(errOutput, "ZE_AGENT_ID=") || !strings.Contains(errOutput, forkLine) {
+		t.Fatalf("fork le call without the line: code=%d output=%q message=%q, want exit 2 and the session line %q with no agent id", code, output, errOutput, forkLine)
+	}
+	code, output, errOutput = runHook(t, root, "pretool-bash", fork(forkLine+"./le spec current"))
+	if code != 0 || output != "" {
+		t.Fatalf("fork le call with the line: code=%d output=%q message=%q, want exit 0 and no changed input", code, output, errOutput)
 	}
 	for _, agent := range []string{"../agent", "agent+x"} {
 		code, output, errOutput := runHook(t, root, "pretool-bash", map[string]any{

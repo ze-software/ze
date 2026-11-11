@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P1 |
 | Release reason | Release-independent development tooling: it changes how the Bash hook judges an agent's command and changes no shipped binary. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 1/4 |
 | Handoff | - |
 | Updated | 2026-11-11 |
 
@@ -274,6 +274,7 @@ guards' matching or the budget's counting, so no sentence in it becomes wrong.
 
 ## Files to Create
 - `internal/le/hookruntime/session_identity_test.go` - the identity check's tests
+- `internal/le/hookruntime/shellline.go` - the one line splitter (`lineCommands`, and `lineWords` on it), created in phase 1
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -310,7 +311,7 @@ guards' matching or the budget's counting, so no sentence in it becomes wrong.
 | 13 | Route metadata keys added/changed? | No | |
 | 14 | Prometheus counters added/changed? | No | |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | run `./le spec citation anchors spec plan/post-release/engineering/spec-agent-economy-1-call-shape.md` in phase 1 and name each page here |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `./le spec citation anchors` run in phase 1 named three pages. `docs/contributing/navigating-the-code.md` anchors `nativeHookActions`, `preMaterializeDerived`, `commandNamesArtifact` and the session-start steps; `docs/contributing/spec-workflow.md` anchors `hookStop`, `hookValidateSpec`, `validateSpecText` and `validateSpecRFCGaps`; `docs/architecture/testing/verify-freshness-scope.md` anchors `reportDerivedDebt` and `linkedWorktree`. Phase 1 changes none of those symbols and no sentence beside them, so all three are unaffected by phase 1. Phases 2 and 3 re-check `navigating-the-code.md` for `bash.go`. The pages phase 1 edited: `docs/contributing/running-commands.md` and `.claude/hooks/README.md` |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/contributing/running-commands.md`, `docs/contributing/testing.md` where they show a piped or redirected test command |
 
 ## Implementation Steps
@@ -373,6 +374,33 @@ agent, committed when it passes. The main thread runs every test.
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
 ## Design Insights
+
+Phase 1 (2026-11-11):
+
+- The identity check needs each command's first word, and `lineWords` yields
+  one flat word list with the command boundaries dropped. So the one segmenter
+  this spec plans for phase 2 was built in phase 1: `lineCommands`, in the new
+  file `internal/le/hookruntime/shellline.go`, and `lineWords` is now its
+  flattened output with the same words as before. The move to a new file keeps
+  `bash.go` under the 1000-line threshold. Phase 2 points the four guards at
+  `lineCommands`; it does not build a segmenter.
+- The identity check is a registered check, `bashAgentIdentity`, in
+  `nativeHookActions`, bound to the planning point that briefs a subagent. It
+  runs with every other check, so an agent sees the identity refusal and any
+  guard's refusal in one turn. The rewrite ran only when no check refused.
+- A double-quoted `$(` and a backtick hide a command inside one word, so the
+  segmenter reports a command substitution and the check asks for the line.
+  A single-quoted one is text and passes.
+- After its own line a command is still refused when it sets or unsets either
+  identity variable (an assignment in front of a command, or an argument of
+  `export`, `unset`, `env`, `declare`, `typeset`, `readonly`, `local`).
+- Two reader-set members stay on trust and the table's comment says so: a GNU
+  `sed` script can run a command through its `e` command, and `gopls` starts
+  the go tool. `find`, `rg`, `sort` and `git` carry an argument judge.
+- A-1 is not validated by phase 1: no hook records a SubagentStart payload,
+  and the agent cannot make the harness send one. The start text handles both
+  shapes, so the first agent spawned after the commit shows which shape the
+  harness sends: the full line, or the session part with the fallback sentence.
 
 ## Owned journal rows
 | Class file | Date | Surface (short) |
