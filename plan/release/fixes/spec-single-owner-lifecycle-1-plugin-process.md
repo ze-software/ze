@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | plugin |
 | Priority | P1 |
 | Release reason | A plugin that exits and is not restarted stays down until the daemon restarts, a restarting plugin can be sent a runtime call in the middle of its handshake, and a plugin restarted during the stop is torn down again: shipped-daemon lifecycle defects an operator meets in production. |

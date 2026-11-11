@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | A shipped-daemon defect an operator meets in production: one datagram built from an observed IKE header ends an initiator's handshake, against a MUST NOT of an RFC Ze implements. |

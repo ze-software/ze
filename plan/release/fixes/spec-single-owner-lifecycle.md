@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | Umbrella of five release fixes for lifecycle defects an operator meets in the shipped daemon: a plugin that exits and stays down, a goroutine of an ended BGP session writing on the next session's connection, a forged datagram ending an IKE handshake Ze initiated. It holds the owner's decisions and the routing of every journal row, and changes no file itself. |
@@ -23,10 +23,12 @@ record and the routing of every journal row. Its stem keeps the name the
 children and three other specs already cite, so it does not carry the
 `-0-umbrella` suffix of `docs/contributing/spec-workflow.md`, "Spec sets".
 
-Status: that page prescribes no status of its own for an umbrella. `design`
-is the vocabulary's value for design still in progress, which is true of the
-set: the owner's decisions are made and the five children are written at
-`design`, each still to pass its final gate before `ready`.
+Status: that page prescribes no status of its own for an umbrella. `ready`
+is the vocabulary's value for a complete design, which is true of the set:
+the owner's decisions are made and he approved the five children at their
+final gate on 2026-11-11, so each reads `ready`. The umbrella holds no
+implementation work of its own, so it stays `ready` while the children are
+implemented and is never claimed to start work.
 
 Family S3 of the journal backlog analysis (2026-10-23), part 1 of 3. The other
 two parts are named under "Sibling specs".
@@ -77,6 +79,7 @@ The owner's words are quoted as he gave them in the design conversation of
 | D2 | "D2 - BIRD is better" | The BGP reconnect delay follows BIRD's damping intent, not FRR's reset on reaching Established |
 | D3 | "D3 - Ok add it to the post-release spec" | Routing every IKE SA state write through one transition function leaves this release fix. It is the later-phase item "IKE SA state, one transition" of `plan/post-release/engineering/spec-validated-construction-and-state-types.md` (its AC-26 to AC-28) |
 | D4 | "fix the issues you identified during this work too, use an agent for each" | The defects found during the design pass were fixed or given an owning spec the same day. They are listed under "Defects found during this work" |
+| Final gate | "Approve all five, the refined D2 rule stands" | The five children are approved and move to `ready`, and the refined D2 rule below is the rule |
 
 **D1, the reason recorded.** A check for a write to an annotated field has to
 know the type of the value written through. No gate under `internal/le/arch`
@@ -90,7 +93,7 @@ measure: 102 assignments to the SA state in 10 non-test files. The Go style
 guide (`docs/contributing/ze-go-style.md`, "One type per lifecycle state")
 names types as "the first design to reach for".
 
-**D2, as refined at the code and reported to the owner.** A rule keyed on the
+**D2, as refined at the code; the owner confirmed the refined rule on 2026-11-11.** A rule keyed on the
 age of the previous error would also restart the delay of a peer that never
 came up, because its wait at the cap is about as long as the quiet period. The
 rule child 2 carries is: the reconnect delay and the prefix-teardown count
@@ -106,11 +109,11 @@ why the choice went to the owner.
 
 | # | Spec | What it fixes | Doors it names | Status |
 |---|------|---------------|----------------|--------|
-| 1 | `plan/release/fixes/spec-single-owner-lifecycle-1-plugin-process.md` | A plugin that exits with no successor can be started again by a reload; runtime senders reach only running processes; a retired engine-event handler is skipped; no restart between the stop signal and the drain | plugin-infra first; also bgp-engine, hub-engine, forwarding, system-plugins, core | design |
-| 2 | `plan/release/fixes/spec-single-owner-lifecycle-2-bgp-session.md` | The initial sync ends with its session and is joined; the backoff restarts after a stable session (D2); a passive peer added once the listeners started has a listener | bgp-engine | design |
-| 3 | `plan/release/fixes/spec-single-owner-lifecycle-3-bgp-plugins.md` | A validation decision without a message id applies only to a route present now; every forked route-install sink stops with its plugin run; Graceful Restart retention is proven and a failed peer-state delivery ends its recipient | bgp-plugins first; also bgp-engine, plugin-infra, routing-protocols, system-plugins, core | design |
-| 4 | `plan/release/fixes/spec-single-owner-lifecycle-4-ike-unauthenticated-input.md` | Every SK-protected inbound IKE message is opened by one function that drops and counts an unauthenticated failure itself, the initiator included; `ze doctor` names it | access-security, core | design |
-| 5 | `plan/release/fixes/spec-single-owner-lifecycle-5-session-end-locals.md` | LDP records a setup failure only for a session that never became operational; L2TP session events reach readers in the order the state changed; the DDoS FlowSpec plugin withdraws on every end it can and records what it could not | routing-protocols, access-security, system-plugins, plugin-infra, core | design |
+| 1 | `plan/release/fixes/spec-single-owner-lifecycle-1-plugin-process.md` | A plugin that exits with no successor can be started again by a reload; runtime senders reach only running processes; a retired engine-event handler is skipped; no restart between the stop signal and the drain | plugin-infra first; also bgp-engine, hub-engine, forwarding, system-plugins, core | ready |
+| 2 | `plan/release/fixes/spec-single-owner-lifecycle-2-bgp-session.md` | The initial sync ends with its session and is joined; the backoff restarts after a stable session (D2); a passive peer added once the listeners started has a listener | bgp-engine | ready |
+| 3 | `plan/release/fixes/spec-single-owner-lifecycle-3-bgp-plugins.md` | A validation decision without a message id applies only to a route present now; every forked route-install sink stops with its plugin run; Graceful Restart retention is proven and a failed peer-state delivery ends its recipient | bgp-plugins first; also bgp-engine, plugin-infra, routing-protocols, system-plugins, core | ready |
+| 4 | `plan/release/fixes/spec-single-owner-lifecycle-4-ike-unauthenticated-input.md` | Every SK-protected inbound IKE message is opened by one function that drops and counts an unauthenticated failure itself, the initiator included; `ze doctor` names it | access-security, core | ready |
+| 5 | `plan/release/fixes/spec-single-owner-lifecycle-5-session-end-locals.md` | LDP records a setup failure only for a session that never became operational; L2TP session events reach readers in the order the state changed; the DDoS FlowSpec plugin withdraws on every end it can and records what it could not | routing-protocols, access-security, system-plugins, plugin-infra, core | ready |
 
 Every child also names the system door and the le-tooling door (its tests).
 No child depends on another for code. Children 1 and 3 and
@@ -322,7 +325,7 @@ wire.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Each of the 17 open routed rows is listed by exactly one spec's table | The seven tables and the journal rows, read 2026-11-11 | A commit that touches the row is refused, or two specs claim one fix | Reading each table on that date; `./le commit create` re-judges it at every commit | validated for rows 1 to 20; not for the L2TP findings (see "Defects found during this work") |
-| A-2 | No child needs a mechanism only the removed owner object would have given | Each child's Existing Mechanisms and Key Design Decisions | A child reopens the design | Each child's final gate before `ready` | unvalidated |
+| A-2 | No child needs a mechanism only the removed owner object would have given | Each child's Existing Mechanisms and Key Design Decisions | A child reopens the design | Each child's final gate before `ready` | validated 2026-11-11: five children ready, none uses an owner object |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | Three shipped-daemon defects an operator meets in production: an LDP session that ended cleanly is retried as if it had failed and costs an OSPF link out, an L2TP subscriber that hung up stays in the subscriber table with an accounting record nobody stops, and a FlowSpec discard rule stays at every peer after the plugin that announced it is gone. |

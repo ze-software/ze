@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | Three shipped-daemon defects in the BGP plugins: an unversioned validation verdict installs a later announcement without validating it, a forked `bgp-rib` cannot be stopped while it waits on the engine, and RFC 4724 route retention has no proof and one ordering hole when `bgp-gr` runs forked. Each is wrong behaviour of a capability Ze already ships. |
