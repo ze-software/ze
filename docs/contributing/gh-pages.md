@@ -527,7 +527,7 @@ month, newest first. Landmark titles form the short key points; long blurbs
 remain in the source data. Each card's footer links every report whose
 `covers:` starts in that month, read from `website/changes/posts/`. A report
 that spans months appears only under its starting month. Report-only months
-state that no new landmark capability was added. HTML and Markdown use the
+state that no milestone is recorded. HTML and Markdown use the
 same monthly groups. Category filters hide individual key points and empty
 month cards; resetting the filter restores report-only months too.
 <!-- source: internal/le/site/datapages.go -- groupMilestones, milestoneMonthHTML, milestonesMirror -->

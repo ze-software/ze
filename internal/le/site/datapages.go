@@ -786,7 +786,7 @@ func milestoneMonthHTML(month milestoneMonth) (string, error) {
 		Str("\"><time datetime=\"").Str(month.Date).Str("\">").Str(month.Label).Str("</time></h2>\n")
 	out.Str("                    <h3 class=\"tl-section-title\">Key points</h3>\n")
 	if len(month.Items) == 0 {
-		out.Str("                    <p class=\"tl-no-landmark\">No new landmark capability in this month.</p>\n")
+		out.Str("                    <p class=\"tl-no-landmark\">No milestone recorded for this month.</p>\n")
 	}
 	if len(month.Items) > 0 {
 		out.Str("                    <ul class=\"tl-points\">\n")
@@ -824,7 +824,7 @@ func milestonesMirror(data milestoneData, months []milestoneMonth) (string, erro
 	for _, month := range months {
 		mirror.Str("## ").Str(month.Label).Str("\n\n### Key points\n\n")
 		if len(month.Items) == 0 {
-			mirror.Str("No new landmark capability in this month.\n")
+			mirror.Str("No milestone recorded for this month.\n")
 		}
 		for _, item := range month.Items {
 			mirror.Str("- ").Str(item.Title).Str(" (").Str(strings.ToLower(categoryLabel(item.Category))).Str(")\n")

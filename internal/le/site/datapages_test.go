@@ -570,7 +570,7 @@ func TestMonthlyMilestonesCombineKeyPointsAndAllReports(t *testing.T) {
 		t.Error("the month with reports but no new landmark has no card")
 	}
 	mirror := readArtifact(t, paths.Output, "project/milestones/"+pageMirrorFile)
-	for _, text := range []string{"First capability", "Second capability", "../changes/2026-05-11/", "../changes/2026-05-25/", "No new landmark capability"} {
+	for _, text := range []string{"First capability", "Second capability", "../changes/2026-05-11/", "../changes/2026-05-25/", "No milestone recorded for this month."} {
 		if !strings.Contains(mirror, text) {
 			t.Errorf("the Markdown mirror is missing %q", text)
 		}
