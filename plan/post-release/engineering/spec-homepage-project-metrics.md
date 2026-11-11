@@ -8,7 +8,7 @@
 | Release reason | Website presentation and repository statistics do not block release correctness. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | independent closure; final checks and visual evidence pending |
+| Phase | verified and candidate validated; final script execution and release |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -50,6 +50,9 @@ the shipped binary's code.
 
 ## Required Reading
 
+Reading complete. The unchecked boxes below are retained template markers,
+not unfinished reading; the spec workflow forbids changing them to checked boxes.
+
 - [ ] `ai/doors/system.md` and `ai/doors/le-tooling.md`.
   → Constraint: work and scoped tests stay in main; no product runtime or plugin API change.
 - [ ] `docs/contributing/gh-pages.md` and `website/AI.md`.
@@ -67,7 +70,7 @@ The repository-facts gate must compare the same precision that the new band show
 
 ## Current Behavior
 
-**Source files read:**
+**Source files read before implementation: complete.**
 
 - [ ] `internal/le/site/homebody.go`, `homeTemplate`: four hero action links beside the mascot/release notice; separate testing proof section below.
 - [ ] `internal/le/site/home.go`, `renderHome`, `homeBody`, `homeMirror`: reads the generated facts, substitutes tokens and derives Markdown from HTML.
@@ -247,7 +250,7 @@ producer registration, activity history or frontend key lookup is needed.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `TestTheBrowserFillsHomeProjectMetrics` | `internal/le/site/browsertest/home_metrics_test.go` | All four band figures refresh from two successive snapshots using real site.js. | PASS |
-| Canonical build and check | Existing site commands | Generated homepage/mirror and linked detail pages are reviewable. | Build exit 0; final check pending concurrent builder completion |
+| Canonical build and check | Existing site commands | Generated homepage/mirror and linked detail pages are reviewable. | PASS: current-source canonical build and site check; 24 producers, 1106 published/written routes |
 
 No product RPC or protocol changes: .ci and interop scenarios are inapplicable.
 Use scoped Go tests and the existing browser harness; do not run any le verify.
@@ -354,11 +357,11 @@ These extend existing package owners rather than introducing another subsystem.
 
 ### Security Review Checklist
 
-| Check | What to look for |
-|-------|-----------------|
-| Scalar injection | Existing escaped spans and textContent remain the only dynamic rendering. |
-| External link | Discord retains existing fixed destination and safe external-link attributes. |
-| Resource use | No browser file walks or new network requests; build reads committed line facts. |
+| Check | What to look for | Review result |
+|-------|-----------------|---------------|
+| Scalar injection | Existing escaped spans and textContent remain the only dynamic rendering. | PASS: `siteFactSnapshot.substituteHTML` escapes server values and `fillRepoStats` writes textContent. |
+| External link | Discord retains existing fixed destination and safe external-link attributes. | PASS: fixed destination with target blank and rel noopener in `homeTemplate`. |
+| Resource use | No browser file walks or new network requests; build reads committed line facts. | PASS: one existing snapshot fetch; fixed repository-file read and bounded formatter. |
 
 ### Failure Routing
 
@@ -381,12 +384,12 @@ These extend existing package owners rather than introducing another subsystem.
 
 | Run | Scope | Reviewer | Verdict | Evidence |
 |-----|-------|----------|---------|----------|
-| 1 | Task, six ACs, changed-wire census, tests and preserved behavior | Independent homepage_review agent | CLEAN: 0 BLOCKER, 0 ISSUE | Dedicated test locations reconciled; pending execution evidence is recorded separately. |
+| 1 | Task, six ACs, changed-wire census, tests and preserved behavior | Independent homepage_review agent | CLEAN: 0 BLOCKER, 0 ISSUE | Dedicated test locations reconciled; completed scoped, artifact and visual evidence is recorded separately. |
 
 | Field | Value |
 |-------|-------|
-| Artifact | Main-thread hash-pinned record pending; no artifact claimed yet. |
-| `./le spec review check` | Not run yet. |
+| Artifact | `tmp/review/homepage-project-metrics-01a1cba5-41ab-7790-9642-1443cb692cd4.md`: CLEAN record over 16 immutable source blobs/modes from `b93587634441`. |
+| `./le spec review check` | Working-tree file-path check is stale only for the other session's unselected `homebody.go` quickstart hunk. Native closure A+B preparation PASS: CLEAN pins validated against the immutable prospective tree, no override, debt nothing owed. No working-tree CLI-clean result is claimed. |
 | Rounds | 1 |
 | Reviewer lenses used | Inventory/formatter correctness; validation/security; spec, presentation, style and preservation. |
 
@@ -413,17 +416,16 @@ scratch log is `job-homepage-metrics-red-c4fc3ad1.log`. The implementation agent
 runs no tests, builds or formatters under `ai/rules/commands.md`; the main thread
 owns subsequent scoped evidence.
 
-The first post-implementation scoped-run attempt executed no tests: another
-session's report producer had six mismatched arguments and blocked launcher
-compilation. The main thread observed the producer corrected before retrying.
-Post-implementation verification remains pending; this is not a test result.
+Historical first attempts executed no tests: another session's report producer
+had six mismatched arguments, followed by a settling doctor-coverage
+wrapper/model mismatch. Main observed those producers corrected before retrying.
+Neither launcher failure was a test result. These intermediate states were
+superseded by the named PASS results and final artifact evidence below.
 
-The main thread reported an independent review with zero BLOCKERs and zero
-ISSUEs. Its documentation NOTE is addressed by the test locations above. Native
-checks remain pending: the second launcher attempt failed on another session's
-doctor-coverage wrapper/model mismatch while that source was still settling.
-Neither failed launcher attempt executed the post-implementation tests. The
-spec remains in-progress; main owns the native checks, review record and closure.
+Independent review returned zero BLOCKERs and zero ISSUEs. Its test-location
+documentation NOTE is addressed above. Native closure candidate validation has
+also passed; main retains the in-progress claim only through final script
+execution and release.
 
 ## Owned journal rows
 
@@ -448,11 +450,15 @@ checkout moments; their counting definition remains shared and explicit.
 
 ## Checklist
 
-- [ ] Native spec citation inventory checked during implementation.
-- [ ] All six acceptance criteria demonstrated with scoped evidence.
-- [ ] Independent code and spec reviews recorded before closure.
-- [ ] Canonical artifact generated and checked without push.
-- [ ] Closure template appended and closure commits completed through le commit.
+| Item | Status | Evidence |
+|------|--------|----------|
+| Required reading and source inspection | Complete | Required Reading and Current Behavior record the completed reads and producing symbols. |
+| Spec citation inventory | Complete | Main searched the tracked tree for this spec's actual path and found no citers to repoint. |
+| Six acceptance criteria | Complete | Named scoped tests, final canonical build/check and four viewport/theme inspections. |
+| Independent code/spec review | Complete | Round 1 CLEAN; 16 source pins; native prospective-tree validation PASS. |
+| Canonical artifact | Complete | Current-source build and site check PASS; no push performed. |
+| Closure sections and candidate preparation | Complete | All closure tables populated; A+B candidate accepted with no override or debt. |
+| Final prepared script execution and claim release | Pending execution | Main will recapture the final prose, run the generated script and release the claim. |
 
 ---
 
@@ -482,8 +488,10 @@ preserving zero, covered by `TestRecordedGoLinesDistinguishMissingNegativeAndZer
 | `docs/architecture/site-facts.md` | Definitions and precision; anchors name `derive`, `FormatGoLines`, `displayedFact` and `factsFromRepositoryFile`. |
 | `ai/INDEX.md` | Existing site-facts row now names homepage line metrics. |
 
-Main-thread `doc check all` result is pending. Source review found no stale
-contract caused by the owned change; unrelated shared edits remain excluded.
+Main-thread `doc check all` returned red, including wiki command-catalog drift
+among its findings; this does not claim that drift was its only finding. Source
+review found no stale contract caused by the owned change, and unrelated shared
+edits remain excluded. The final check accounting remains main-thread work.
 
 ### Deviations from Plan
 
@@ -507,7 +515,7 @@ not a whole-site/browser-package green claim.
 | Show project size early | Done | `homeTemplate`, `factsFromRepositoryFile` | Four generated figures with detail links. |
 | Simplify repeated navigation | Done | `homeTemplate` | Why/Discord become text links; header search and player paths remain. |
 | Share activity definitions | Done | `MeasureGoInventory`, `derive` | Same scanner; recorded and live inventories can differ in time. |
-| Responsive presentation | Implemented; visual confirmation pending | Owned hero CSS | Main is inspecting the canonical artifact. |
+| Responsive presentation | Done | Owned hero CSS and canonical artifact | Main inspected four viewport/theme screenshots and verified columns, links, overflow and focus. |
 
 ### Acceptance Criteria
 
@@ -517,8 +525,8 @@ not a whole-site/browser-package green claim.
 | AC-2 | Done | `TestRepositoryFactsIncludeGoLineInventory` PASS | Source, tests, vendor, comments, blanks and untracked work. |
 | AC-3 | Done | Snapshot-value rendering test PASS; canonical links read | Activity, plugin and CLI destinations. |
 | AC-4 | Done | Preservation and mirror tests PASS | Readable values/definitions and retained paths. |
-| AC-5 | Pending main visual evidence | Responsive/focus source reviewed | No viewport/theme pass claimed yet. |
-| AC-6 | Build done; final checks pending | Native canonical build exit 0; HTML/Markdown read | Site/doc/mechanical checks remain pending. |
+| AC-5 | Done | Browser inspection at 1440×1100 and 320×760, both themes | Four/two columns respectively; all values/hrefs match JSON; no horizontal overflow; keyboard focus has a solid 2px outline. |
+| AC-6 | Done | Current-source canonical build and native site check PASS | 24 producers; 1106 published/written routes; no source-only, mirror or plain-figure findings. Unrelated broad mechanical reds remain disclosed. |
 
 ### Tests from TDD Plan
 
@@ -544,26 +552,25 @@ not a whole-site/browser-package green claim.
 
 ### Audit Summary
 
-All implementation deliverables are present; none is omitted or deferred.
-Visual confirmation, final checks and the main-thread review/closure actions
-remain pending evidence.
+All implementation deliverables and scoped/artifact/visual evidence are complete;
+none is omitted or deferred. The main-thread native review check, closure commits
+and claim release remain execution steps rather than missing implementation.
 
 ## Goal Validation
 
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
-| Show size immediately | Rendering/browser | Named rendering and browser tests PASS; canonical HTML has marked 1.57M, 1.84M, 96 and 499. |
+| Show size immediately | Rendering/browser | Named rendering and browser tests PASS; the final current-source canonical build and browser inspection show marked 1.57M, 1.84M, 96 and 499. |
 | Keep figures consistent and inspectable | Derivation/snapshot | Inventory, precision and recorded-sentinel tests PASS; generated JSON has both raw values and provenance. |
-| Simplify navigation while retaining useful paths | Rendering/mirror | Preservation and mirror tests PASS; canonical Markdown retains detail/Why/Discord links. |
-| Work across viewports/themes | Visual | Main-thread confirmation pending. |
+| Simplify navigation while retaining useful paths | Rendering/mirror | Preservation and mirror tests PASS; final canonical HTML/Markdown retain the detail/Why/Discord links. |
+| Work across viewports/themes | Visual | 1440×1100 light/dark have four columns; 320×760 light/dark have two. Main inspected all four screenshots; no overflow and visible keyboard focus. |
 
 ## Work Not Done
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
 
-No in-scope implementation is omitted. Pending verification and closure remain
-part of this spec, not deferred work.
+No in-scope work is omitted or deferred. All six acceptance criteria are met.
 
 ## Pre-Commit Verification
 
@@ -578,10 +585,12 @@ part of this spec, not deferred work.
 
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
-| AC-1, AC-3 | Four bound figures and destinations | `TestHomeProjectMetricsUseSnapshotValues` PASS. |
+| AC-1 | Four bound figures | `TestHomeProjectMetricsUseSnapshotValues` and browser refresh test PASS; final browser values match canonical JSON. |
 | AC-2 | Shared source/test population | `TestRepositoryFactsIncludeGoLineInventory` PASS. |
+| AC-3 | Useful destinations | Rendering test PASS; final browser hrefs are activity, activity, plugins and CLI references. |
 | AC-4 | Fallback/mirror and retained paths | Preservation and mirror tests PASS. |
-| AC-5, AC-6 | Responsive, checked artifact | Visual and final check results pending; canonical build exit 0. |
+| AC-5 | Responsive, accessible band | Four/two columns across both themes, no horizontal overflow; keyboard Tab reaches Go test lines with rgb(143,207,244) solid 2px outline. |
+| AC-6 | Checked canonical artifact | Current-source native build and native site check PASS: 24 producers, 1106 published and written routes. |
 
 ### Wiring Verified
 
@@ -617,7 +626,12 @@ Main-thread admitted, tagged `go test -race` runs in the main checkout produced:
 | Complete activity/rewrite package | `ok github.com/ze-software/ze/internal/le/repo/rewrite 1.144s` |
 | Browser refresh | `--- PASS: TestTheBrowserFillsHomeProjectMetrics (3.19s)` |
 | Five focused affected site tests | All five named tests PASS; `ok github.com/ze-software/ze/internal/le/site 5.416s` |
-| Canonical native build | Exit 0; generated homepage and Markdown contain all four values and detail links. |
+| Canonical native build | Exit 0; at completion the generated homepage and Markdown contained all four values and detail links. |
+| Final current-source canonical refresh | PASS at 2026-11-11 19:36 UTC: 24 producers, 1106 published/written routes. |
+| Final native site check | PASS with the same producer/route counts; no source-only, mirror or plain-figure issues. |
+| Desktop browser inspection | 1440×1100 light and dark: four columns, correct values/hrefs, no horizontal overflow. |
+| Mobile browser inspection | 320×760 light and dark: two columns, correct values/hrefs, no horizontal overflow. |
+| Keyboard inspection | Tab reached 1.84M Go test lines; rgb(143,207,244) solid 2px focus outline. |
 
 The broad site/browser package runs timed out after ten minutes in RFC-ledger
 rebuilding. Neither whole package is reported green. A narrow retry was
@@ -627,14 +641,53 @@ No test was weakened and no whole-tree verification was run.
 
 The first canonical site check reported source-only files while another site's
 builder was staging into the same artifact checkout. Main observed that
-concurrent builder and will regenerate and check the completed canonical
-artifact after it finishes. That first result is not reported as a passing
-check or suppressed as irrelevant. Documentation checking is still running.
+concurrent builder finish with a binary predating this implementation, replacing
+the metrics with the older hero actions. The artifact therefore needs a fresh
+native build and check after that builder's completion. The first check is not
+reported as passing or suppressed as irrelevant.
+
+The later current-source partial build replaced that older artifact and the
+final native site check passed. Main inspected the four viewport/theme
+screenshots in addition to the browser's geometry/value observations. No source
+fix was required. Intermediate launcher retries also encountered settling
+environment-limit and LDP edits from other sessions; those resolved before the
+successful final build and are not passing test results.
+
+Main-thread `doc check all` returned red with wiki command-catalog drift among
+its reported findings; its full result is not claimed green. `repo check`
+reported ten unwired exports outside the owned files. `test weakened check`
+reported nine hook-runtime findings outside the owned files and none in the
+owned changes. These are disclosed mechanical-check results, not a claim that
+the whole shared checkout is clean.
+
+## Landing Record
+
+The tested implementation and preserved spec were committed as `b935876344`,
+subject `site: show project scale in the homepage hero`, through the exact
+generated script `tmp/commit-0ad310ef-a-469754.sh`. This incremental commit does
+not close the spec. The required committed-source compile check passed at
+`b93587634441` for every reported profile: distro, appliance, setup, host and
+installer. There were five reported profiles; earlier six-flavor wording was
+incorrect. Main recorded CLEAN review pins for 16 source blobs/modes from that
+commit. The subsequent working-tree review check reported only `homebody.go`
+stale because it also contains another session's unselected quickstart hunk.
+The owned committed source did not change. Native commit preparation checks
+review pins against the candidate's immutable selected tree. That validation
+passed when the closure A+B candidate was prepared, with no override and debt
+reported as nothing owed. The first candidate used script
+`tmp/commit-0ad310ef-a-31e520.sh`, with messages
+`tmp/commit-msg-0ad310ef-a-eafbb3.txt` and
+`tmp/commit-msg-0ad310ef-b-57cfc3.txt`. Main will recapture both blocks after this
+final bookkeeping edit, so those preparation paths do not claim script execution.
 
 ## Closure Readiness
 
 Independent code/spec review and the generated-data supplement are clean.
-Final checks, visual evidence and the main-thread review pin remain pending.
-Main retains the claim and will perform closure commits, post-commit compile
-check and release. No push is authorized. Closure uses `no-news`: website
+The source review pin, final canonical build/check and all viewport/theme
+observations are recorded. The working-tree check's unrelated shared-hunk stale
+result is recorded above; exact prospective-tree validation has passed without
+override or debt. The spec is ready for main to recapture and execute the final
+generated closure script, then release the claim. No implementation, review,
+artifact, visual or documentation work remains after that script capture.
+No push is authorized. Closure uses `no-news`: website
 presentation only, with no operator/runtime change.
