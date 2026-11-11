@@ -6,7 +6,6 @@ package engine
 
 import (
 	"errors"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/component/ike/wire"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // ownedOutcome reports state changes the maintainSA loop must apply after a
@@ -116,8 +116,18 @@ func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *tran
 		// A MOBIKE retransmission can use another address pair. Authenticate it
 		// before routing the cached response there; never reapply its update.
 		if sa.mobike.enabled {
-			inner, err := decryptAndParse(sa, &msg, pkt.Data)
+			// RFC 7296 Section 2.4
+			inner, dropped, err := openProtected(sa, &msg, pkt.Data, suppressedUnauthenticatedEstablished, log)
+			if dropped {
+				return ownedOutcome{}
+			}
 			if err != nil {
+				// Authenticated (errInnerParse): the peer's own retransmission, whose
+				// payloads do not parse. The cached response is not sent to its path.
+				sa.countPeerMalformedMessage()
+				log.Warn("ike: MOBIKE retransmission authenticated but its payloads do not parse, not answered",
+					"peer", ps.peerName, "msgid", msg.Header.MessageID, "error", err,
+					"code", diagnostic.CodeDoctorIPsecPeerMalformedMessage)
 				return ownedOutcome{}
 			}
 			if sa.lastResponseSet {
@@ -138,19 +148,31 @@ func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *tran
 		// response cannot mask a dead peer and a path probe's answer credits no
 		// liveness.
 		if isResponse && msg.Header.ExchangeType == wire.ExchangeInformational {
-			if inner, err := decryptAndParse(sa, &msg, pkt.Data); err == nil {
-				if sa.mobike.pending != nil && sa.mobike.pending.msgID == msg.Header.MessageID {
-					return ps.handleMobikeResponse(sa, inner, msg.Header.MessageID, dp, tr, log)
-				}
-				if sa.requestOutstanding && sa.requestMsgID == msg.Header.MessageID {
-					observeMobikeNATMapping(sa, inner)
-				}
-				// Release site one of two, after authentication. RFC 7296 §2.3: this
-				// answer completes a request that left no pendingRekey, so the window
-				// it holds frees here and nowhere else.
-				sa.answerAuthenticatedResponse(msg.Header.MessageID)
-				return ownedOutcome{dpdResp: true, dpdRespMsgID: msg.Header.MessageID}
+			// RFC 7296 Section 2.4
+			inner, dropped, err := openProtected(sa, &msg, pkt.Data, suppressedUnauthenticatedEstablished, log)
+			if dropped {
+				return ownedOutcome{}
 			}
+			if err != nil {
+				// Authenticated (errInnerParse), and a response, which nothing answers
+				// (RFC 7296 Section 3.1). It completes no probe and credits no liveness.
+				sa.countPeerMalformedMessage()
+				log.Warn("ike: INFORMATIONAL response authenticated but its payloads do not parse, dropped",
+					"peer", ps.peerName, "msgid", msg.Header.MessageID, "error", err,
+					"code", diagnostic.CodeDoctorIPsecPeerMalformedMessage)
+				return ownedOutcome{}
+			}
+			if sa.mobike.pending != nil && sa.mobike.pending.msgID == msg.Header.MessageID {
+				return ps.handleMobikeResponse(sa, inner, msg.Header.MessageID, dp, tr, log)
+			}
+			if sa.requestOutstanding && sa.requestMsgID == msg.Header.MessageID {
+				observeMobikeNATMapping(sa, inner)
+			}
+			// Release site one of two, after authentication. RFC 7296 §2.3: this
+			// answer completes a request that left no pendingRekey, so the window
+			// it holds frees here and nowhere else.
+			sa.answerAuthenticatedResponse(msg.Header.MessageID)
+			return ownedOutcome{dpdResp: true, dpdRespMsgID: msg.Header.MessageID}
 		}
 		// RFC 7296 Section 2.3: an out-of-window REQUEST draws an INVALID_MESSAGE_ID.
 		// The notification is not an answer to this request. It is a new INFORMATIONAL
@@ -167,12 +189,19 @@ func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *tran
 		// RFC 7296 Section 3.1 forbids an answer to anything marked as a response. The
 		// !isResponse guard therefore comes first.
 		if !isResponse {
-			if _, err := decryptAndParse(sa, &msg, pkt.Data); err == nil {
+			// RFC 7296 Section 2.4. A drop is counted under the reason by openProtected and
+			// deliberately not logged above debug: a louder line here is an oracle that
+			// tells an off-path prober its guess reached a live SA.
+			_, dropped, err := openProtected(sa, &msg, pkt.Data, suppressedInvalidMsgIDUnauthenticated, log)
+			switch {
+			case dropped:
+				// Counted and logged by openProtected; nothing goes out.
+			case err != nil:
+				// Authenticated (errInnerParse), but malformed: it draws no INVALID_MESSAGE_ID
+				// either, and is counted under the same reason as a drop.
+				countErrorNotifySuppressed(suppressedInvalidMsgIDUnauthenticated)
+			default:
 				ps.sendInvalidMessageID(sa, msg.Header.MessageID, tr, log)
-			} else {
-				// Deliberately not logged above debug. A louder line here is an oracle
-				// that tells an off-path prober its guess reached a live SA.
-				countErrorNotifySuppressed("invalid-msgid-unauthenticated")
 			}
 		}
 		log.Debug("ike: owned inbound out of window",
@@ -186,18 +215,28 @@ func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *tran
 		panic("BUG: unknown inbound IKE message classification")
 	}
 
-	inner, err := decryptAndParse(sa, &msg, pkt.Data)
+	// RFC 7296 Section 2.4. A message that fails its integrity check is dropped and
+	// counted by openProtected: nothing is sent and no liveness is credited.
+	inner, dropped, err := openProtected(sa, &msg, pkt.Data, suppressedUnauthenticatedEstablished, log)
+	if dropped {
+		return ownedOutcome{}
+	}
 	if err != nil {
-		log.Debug("ike: owned inbound decrypt failed", "peer", ps.peerName, "error", err)
+		// openProtected returns an error only marked errInnerParse, so the integrity check
+		// verified. RFC 7296 Section 3.1 forbids answering a response at all.
+		if isResponse {
+			sa.countPeerMalformedMessage()
+			log.Warn("ike: response authenticated but its payloads do not parse, dropped",
+				"peer", ps.peerName, "exchange", msg.Header.ExchangeType, "msgid", msg.Header.MessageID, "error", err,
+				"code", diagnostic.CodeDoctorIPsecPeerMalformedMessage)
+			return ownedOutcome{}
+		}
 		// RFC 7296 Section 3.10.1 lets INVALID_SYNTAX go out only "in an encrypted packet
 		// if the Message ID and cryptographic checksum were valid". Both hold here and
 		// only here: classifyInbound returned inboundNewRequest, which means the Message
 		// ID equals sa.ExpectedMsgID, and errInnerParse is set only after decryptSKPayload
-		// verified the integrity check. A decrypt failure carries no such proof, so it
-		// stays silent. RFC 7296 Section 3.1 forbids answering a response at all.
-		if !isResponse && errors.Is(err, errInnerParse) {
-			ps.respondInnerParseError(sa, &msg, err, tr, log)
-		}
+		// verified the integrity check.
+		ps.respondInnerParseError(sa, &msg, err, tr, log)
 		return ownedOutcome{}
 	}
 	if !isResponse && sa.mobike.enabled {
@@ -265,37 +304,6 @@ func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *tran
 	}
 	out.peerAlive = true
 	return out
-}
-
-// decryptAndParse decrypts the SK payload of an established-SA message and parses
-// its inner payload chain.
-func decryptAndParse(sa *SA, msg *wire.Message, raw []byte) ([]wire.PayloadEntry, error) {
-	var sk *wire.PayloadSK
-	for i := range msg.Payloads {
-		if p, ok := msg.Payloads[i].Payload.(*wire.PayloadSK); ok {
-			sk = p
-			break
-		}
-	}
-	if sk == nil {
-		return nil, fmt.Errorf("no SK payload")
-	}
-	plain, err := decryptSKPayload(sa, raw, sk)
-	if err != nil {
-		return nil, err
-	}
-	inner, err := wire.ParsePayloadChain(plain, sk.InnerNextPayload)
-	if err != nil {
-		// Mark the failure as an INNER one.
-		// The distinction decides whether an error notify can go out.
-		// Only a chain that failed AFTER the integrity check passed satisfies the
-		// INVALID_SYNTAX precondition of RFC 7296 Section 3.10.1.
-		// decryptSKPayload already marks its own failures past the integrity check
-		// (padding, block alignment); a checksum or AEAD tag that fails returns
-		// unmarked and stays silent.
-		return nil, fmt.Errorf("%w: %w", errInnerParse, err)
-	}
-	return inner, nil
 }
 
 // errInnerParse marks a failure to parse the encrypted content of a message whose SK

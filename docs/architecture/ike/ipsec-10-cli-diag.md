@@ -189,3 +189,60 @@ same as the L2TP and BGP pages.
 `checkIPsecInterfaceAddress` (`doctor_interface_address.go`) warns once per peer the
 running engine holds back because `vpn ipsec interface` has no IPv4 address, naming
 the peer, the interface and the fixes. Code `doctor-ipsec-interface-address`.
+
+## ipsec-unauthenticated-input
+
+`checkIPsecUnauthenticatedInput` (`doctor_unauthenticated_input.go`) warns once per
+peer whose handshake in progress dropped at least one IKE message that failed its
+integrity check. `openProtected` drops such a message and keeps the handshake (RFC 7296
+Section 2.4), so the tunnel only waits for the peer's genuine answer, and the drop is
+logged at debug alone. The warning names the peer, the number of messages dropped and
+the handshake state, and its fix is the command that shows the
+`handshake-unauthenticated` series. Code `doctor-ipsec-unauthenticated-input`.
+
+The count lives on the SA, not in a per-peer counter: `dropUnauthenticated` adds one to
+`SA.unauthenticatedDrops` on every drop, in every role and state, and the check reads
+it from the running SA table. Only a handshake state (`sa-init-sent`,
+`sa-init-responded`, `auth-sent`, `auth-responded`, `eap-in-progress`) is reported,
+and a peer that holds an established IKE SA is not reported at all. A handshake that
+establishes, or a cycle that ends and builds a new SA, therefore clears the warning
+with no reset, where the cumulative series would warn forever after one forgery. The
+field is reached through `atomic.AddUint64` and `atomic.LoadUint64` because the doctor
+reads it from another goroutine, and is a plain integer for the reason `hardExpiry`
+gives: the twin-SA tests copy the struct.
+
+<!-- source: internal/component/ike/engine/doctor_unauthenticated_input.go -- checkIPsecUnauthenticatedInput, unauthenticatedInputByPeer -->
+<!-- source: internal/component/ike/engine/protected_input.go -- dropUnauthenticated -->
+<!-- test: internal/component/ike/engine/doctor_unauthenticated_input_test.go TestDoctorReportsHandshakeReceivingUnprotectedMessages -->
+<!-- test: internal/component/ike/engine/doctor_unauthenticated_input_test.go TestDoctorIsSilentOnceThePeerEstablished -->
+
+## ipsec-peer-malformed-message
+
+`checkIPsecPeerMalformedMessage` (`doctor_peer_malformed.go`) warns once per peer whose
+live IKE SA received messages whose integrity check verified and whose payloads do not
+parse. `handleOwnedInbound` drops three kinds without an answer and keeps the SA: a
+MOBIKE retransmission it would answer from its cache, an out-of-window INFORMATIONAL
+response, and an in-window response (RFC 7296 Section 3.1 forbids answering a
+response). Each drop logs a WARN line under code `doctor-ipsec-peer-malformed-message`
+and adds one to `SA.peerMalformedMessages`, which the check reads from the running SA
+table under the same atomic rule as the drop count above. A malformed in-window request
+is not counted here: it draws INVALID_SYNTAX and ends the SA (`respondInnerParseError`).
+The initiator's `handleAuthResponse` counts one more kind on the handshake SA: an
+IKE_AUTH response of the RFC 4739 second exchange whose Padding, Pad Length or block
+alignment is wrong. It keeps the SA and lets the retransmission of the second request
+draw the answer again, and logs its WARN line under the same code. The same response
+in the first exchange ends the handshake, so it logs under that code but is not
+counted: the check would report a kept SA that is gone.
+
+This is a separate problem class from `ipsec-unauthenticated-input`. Only the peer holds
+the SA's keys and the integrity check covers every octet, so no path can have damaged
+the message: the defect is in the peer's implementation. The warning names the peer and
+the count, says the exchange each message carried was lost, and points at the peer's
+own log and vendor. Its fix is `show vpn ipsec sa`. The count clears when the SA ends or
+is rekeyed.
+
+<!-- source: internal/component/ike/engine/doctor_peer_malformed.go -- checkIPsecPeerMalformedMessage, peerMalformedByPeer -->
+<!-- source: internal/component/ike/engine/inbound.go -- handleOwnedInbound -->
+<!-- source: internal/component/ike/engine/fsm.go -- handleAuthResponse -->
+<!-- test: internal/component/ike/engine/doctor_peer_malformed_test.go TestDoctorReportsPeerSendingMalformedMessages -->
+<!-- test: internal/component/ike/engine/doctor_peer_malformed_test.go TestDoctorIsSilentForAPeerWithNoMalformedMessage -->

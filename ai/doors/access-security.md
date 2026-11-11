@@ -105,15 +105,16 @@ a user takes effect at once on every credential surface
   selector committed and never applied. Fixed by `SiteToSitePeer.Equal`
   (`plan/journal/guard-enumerates-instead-of-subtracting.md`, 2026-08-24).
 - **A datagram that fails to decrypt killed a live SA.** RFC 7296 Section 2.4
-  forbids concluding anything from an unprotected message. Every handshake
-  handler, the responder's three and the initiator's `handleAuthResponse` and
-  `handleEAPResponse` (`fsm.go`), now opens the message through `openProtected`
+  forbids concluding anything from an unprotected message. Every handler that reads
+  an SK-protected message, the responder's three, the initiator's `handleAuthResponse`
+  and `handleEAPResponse` (`fsm.go`), and the established-SA sites in
+  `handleOwnedInbound` and `handleHeldSuccessorInbound`, opens it through `openProtected`
   (`ike/engine/protected_input.go`), which drops and counts it and keeps the
   handshake, while an authenticated message that fails to parse (`errInnerParse`)
   keeps the reaction its handler had. A new handler that calls `decryptSKPayload`
-  itself reopens the hole. Fixed on the responder (2026-11-09) and the initiator
-  (2026-11-11) (`plan/journal/unprotected-message-changes-sa-state.md`). The
-  established-SA sites still open through `decryptAndParse` (`inbound.go`).
+  itself reopens the hole, and `TestOneFunctionOpensEveryProtectedMessage` refuses
+  such a call by name. Fixed on the responder (2026-11-09) and the initiator
+  (2026-11-11) (`plan/journal/unprotected-message-changes-sa-state.md`).
 - **A refusal added for reload also ran at startup**, so the IPsec config
   apply (then `applyIPsecConfig`, now `applyConfig` taking an `applyPhase`) skipped every IKE transport when the WAN came up late
   (`plan/learned/RECURRING-PATTERNS.md`, from

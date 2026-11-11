@@ -1,6 +1,7 @@
 // Design: docs/architecture/ike/ipsec-14-responder.md -- unauthenticated input during the handshake, both roles
 // Related: auth.go -- decryptSKPayload, which marks its post-checksum failures errInnerParse
-// Related: inbound.go -- errInnerParse, and decryptAndParse, which the established sites still call
+// Related: inbound.go -- errInnerParse, and handleOwnedInbound, the established SA's four callers
+// Related: held_successor.go -- handleHeldSuccessorInbound, the held successor's caller
 // Related: fsm.go -- handleAuthResponse and handleEAPResponse, the initiator's callers
 // Related: responder.go -- handleAuthRequest, the first IKE_AUTH request
 // Related: responder_eap.go -- handleResponderEAP, each EAP round
@@ -22,6 +23,19 @@ import (
 // the handshake authenticated. No notification may answer it (RFC 7296 Section 2.21.2
 // allows one only in a protected response), and the SA it names is left as it was.
 const suppressedUnauthenticatedHandshake = "handshake-unauthenticated"
+
+// The reasons an established SA's openers drop under. Each is the name of the guard that
+// fired, so an operator can tell which one did (docs/guide/ipsec.md, "Health and metrics").
+const (
+	// suppressedUnauthenticatedEstablished: a message on an established SA, in its window,
+	// at the cached Message ID of a MOBIKE SA, or an out-of-window INFORMATIONAL response.
+	suppressedUnauthenticatedEstablished = "established-unauthenticated"
+	// suppressedInvalidMsgIDUnauthenticated: an out-of-window request, which would draw
+	// INVALID_MESSAGE_ID had it authenticated.
+	suppressedInvalidMsgIDUnauthenticated = "invalid-msgid-unauthenticated"
+	// suppressedHeldSuccessorUnauthenticated: a request on a held successor IKE SA.
+	suppressedHeldSuccessorUnauthenticated = "held-successor-decrypt-failed"
+)
 
 // errInnerChain marks an authenticated message whose decrypted payload chain does not
 // parse, as opposed to one whose Padding, Pad Length or block alignment is wrong. Both
@@ -48,7 +62,8 @@ func protectedPayload(msg *wire.Message) *wire.PayloadSK {
 }
 
 // openProtected opens the SK-protected message msg (raw is its octets) for sa. It is
-// the one function a handshake handler opens such a message through, and it answers
+// the one function every handler, in the handshake and on an established SA, opens such
+// a message through (TestOneFunctionOpensEveryProtectedMessage), and it answers
 // exactly one of three outcomes:
 //
 //   - opened: the integrity check verified and the inner chain parsed. inner holds it
@@ -107,6 +122,7 @@ func openProtected(sa *SA, msg *wire.Message, raw []byte, reason string, log *sl
 // debug only, for the reason openProtected gives.
 func dropUnauthenticated(sa *SA, msg *wire.Message, reason string, cause error, log *slog.Logger) {
 	countErrorNotifySuppressed(reason)
+	sa.countUnauthenticatedDrop()
 	log.Debug("ike: unauthenticated message dropped, SA kept",
 		"peer", sa.PeerName, "exchange", msg.Header.ExchangeType,
 		"response", msg.Header.Flags&wire.FlagResponse != 0,

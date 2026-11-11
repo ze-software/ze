@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/component/ike/wire"
 	"github.com/ze-software/ze/internal/component/pki"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/eap"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -914,10 +915,14 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 	// An authenticated response whose Padding, Pad Length or block alignment is wrong.
 	// The second exchange keeps the SA on it and lets the retransmission of the second
 	// request draw the answer again; the first exchange ends. No RFC sentence decides
-	// between the two, and both are kept as they were.
+	// between the two, and both are kept as they were. Only the kept SA counts the
+	// message for the ipsec-peer-malformed-message check, which says the SA was kept;
+	// in the first exchange the SA ends, and its WARN line is the record.
 	if err != nil && !errors.Is(err, errInnerChain) {
-		log.Warn("ike: AUTH response decryption failed", "peer", sa.PeerName, "error", err)
+		log.Warn("ike: AUTH response decryption failed", "peer", sa.PeerName, "error", err,
+			"code", diagnostic.CodeDoctorIPsecPeerMalformedMessage)
 		if sa.secondAuthExchange {
+			sa.countPeerMalformedMessage()
 			return
 		}
 		sa.State = StateDead

@@ -229,7 +229,7 @@ func (sa *SA) noteRequestRetransmit(now time.Time) {
 // never reach it. strongSwan orders it the same way: process_response clears its slot
 // after parse_body verifies the message.
 //
-// Two call sites exist, and both sit after a successful decryptAndParse in
+// Two call sites exist, and both sit after openProtected opened the message in
 // handleOwnedInbound (inbound.go). One serves a response that leaves no pendingRekey,
 // which is a DPD probe or a Delete. The other serves the rekey response. A third
 // response path MUST call this too, or its request holds the window until

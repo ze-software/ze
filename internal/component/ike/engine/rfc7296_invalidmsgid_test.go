@@ -142,8 +142,8 @@ func TestImiRateLimitCapsTheNotification(t *testing.T) {
 //
 // RFC requirement: RFC7296-2.3-9 negative -- the bound the rate limit protects is reachable
 // only by an authenticated peer. The out-of-window arm of handleOwnedInbound (inbound.go)
-// calls decryptAndParse first. It calls sendInvalidMessageID only when that returns no
-// error. An unauthenticated datagram therefore never reaches the emitter, and it never
+// calls openProtected first. It calls sendInvalidMessageID only when that opened the
+// message. An unauthenticated datagram therefore never reaches the emitter, and it never
 // spends a token or the request window.
 func TestImiUnauthenticatedRequestDrawsNothing(t *testing.T) {
 	log := slogutil.DiscardLogger()

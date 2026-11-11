@@ -80,6 +80,8 @@ const (
 	CodeDoctorIPsecVirtualIPPool                   = "doctor-ipsec-virtual-ip-pool"
 	CodeDoctorIPsecInterfaceAddress                = "doctor-ipsec-interface-address"
 	CodeDoctorIPsecNoPMTUDisc                      = "doctor-ipsec-no-pmtu-disc"
+	CodeDoctorIPsecUnauthenticatedInput            = "doctor-ipsec-unauthenticated-input"
+	CodeDoctorIPsecPeerMalformedMessage            = "doctor-ipsec-peer-malformed-message"
 	CodeDoctorIPsecIface                           = "doctor-ipsec-iface"
 	CodeDoctorIPsecUDPEncap                        = "doctor-ipsec-udp-encap"
 	CodeDoctorIPsecXFRMUnavailable                 = "doctor-ipsec-xfrm-unavailable"
@@ -1091,6 +1093,39 @@ var builtinCodes = append([]CodeMeta{
 			"or range6 under vpn ipsec remote-access pool <name>, or bind some peers to another " +
 			"pool with virtual-ip-pool.",
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-virtual-ip-pool"},
+	},
+	{
+		Code:  CodeDoctorIPsecUnauthenticatedInput,
+		Title: "IPsec handshake receiving messages that fail their integrity check",
+		Description: "The IKE handshake of a configured peer that has not established dropped at " +
+			"least one message that failed its integrity check. Such a message carries no proof " +
+			"that it came from the peer: the SPIs and the Message ID travel in the clear, so anyone " +
+			"who saw one datagram can build it. RFC 7296 Section 2.4 forbids ending the handshake " +
+			"on it, so Ze drops it, keeps the handshake and waits for the peer's genuine answer. " +
+			"The tunnel comes up late, or not at all if forgeries keep arriving until the " +
+			"retransmissions run out. Someone is sending datagrams under the SPIs of this " +
+			"handshake, or the path to the peer damages them. Each drop is counted in the " +
+			"handshake-unauthenticated series; read it with show metrics values | match " +
+			"handshake-unauthenticated, and check the path to the peer for a device that rewrites " +
+			"or corrupts IKE datagrams on UDP 500 and 4500.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-unauthenticated-input"},
+	},
+	{
+		Code:  CodeDoctorIPsecPeerMalformedMessage,
+		Title: "IPsec peer sends authenticated IKE messages that do not parse",
+		Description: "The peer of an IKE SA, established or in its RFC 4739 second " +
+			"authentication exchange, sent messages whose integrity check " +
+			"verified and whose payloads do not parse. Only the peer holds the SA's keys, and the " +
+			"check covers every octet of the message, so a path that damaged the datagram would " +
+			"have failed that check: the defect is in the peer's IKE implementation. Ze drops " +
+			"such a response, or a retransmission it would otherwise answer from its cache, and " +
+			"keeps the SA; a malformed request is answered with INVALID_SYNTAX and ends the SA " +
+			"(RFC 7296 Section 2.21.3). The exchange the peer meant is lost, so a rekey, a " +
+			"liveness check, an address update or the second authentication exchange can " +
+			"fail. Run show vpn ipsec sa to see the SA, " +
+			"collect the peer's IKE log for the same time, and report the defect to the peer's " +
+			"vendor.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-peer-malformed-message"},
 	},
 	{
 		Code:  CodeDoctorIPsecInterfaceAddress,

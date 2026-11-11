@@ -413,6 +413,28 @@ func init() {
 			Platforms:    []string{doctorPlatformAny},
 			Codes:        []string{diagnostic.CodeDoctorIPsecNoPMTUDisc},
 			Check:        checkIPsecNoPMTUDisc,
+		}, {
+			// RFC 7296 Section 2.4: a handshake drops a message that fails its integrity
+			// check and keeps waiting, logging it at debug only, so a tunnel held up by
+			// forgeries or a damaging path shows no cause (doctor_unauthenticated_input.go).
+			Name:         "ipsec-unauthenticated-input",
+			Phase:        rpc.DoctorPhasePostConfig,
+			Order:        739,
+			Dependencies: []string{doctorDepConfigLoaded},
+			Platforms:    []string{doctorPlatformAny},
+			Codes:        []string{diagnostic.CodeDoctorIPsecUnauthenticatedInput},
+			Check:        checkIPsecUnauthenticatedInput,
+		}, {
+			// RFC 7296 Section 3.1: an authenticated response that does not parse draws no
+			// answer, so the peer's defect shows only in a WARN line
+			// (doctor_peer_malformed.go).
+			Name:         "ipsec-peer-malformed-message",
+			Phase:        rpc.DoctorPhasePostConfig,
+			Order:        740,
+			Dependencies: []string{doctorDepConfigLoaded},
+			Platforms:    []string{doctorPlatformAny},
+			Codes:        []string{diagnostic.CodeDoctorIPsecPeerMalformedMessage},
+			Check:        checkIPsecPeerMalformedMessage,
 		}},
 	}
 	reg.CLIHandler = func(_ []string) int { return 1 }

@@ -1918,3 +1918,52 @@ func TestMobikeUpdateRefusedForTransportChildAfterIKERekey(t *testing.T) {
 		})
 	}
 }
+
+// VALIDATES: AC-9, the MOBIKE retransmit arm. On a MOBIKE SA, a request at the Message ID
+// of the cached response whose checksum fails is dropped and counted under
+// established-unauthenticated, and the cached response is not sent; the genuine
+// retransmission then draws the cached response unchanged.
+//
+// METHOD: mbInitiator gives an established MOBIKE SA with a Child SA. The peer's liveness
+// probe at the expected Message ID is answered once through handleOwnedInbound, which
+// caches the answer. The forgery is that request with its last octet flipped, delivered
+// at the same Message ID, so classifyInbound sends it to the retransmit arm.
+//
+// PREVENTS: the arm returning on a failed decrypt with nothing counted and nothing logged.
+func TestMobikeRetransmitArmCountsUnprotectedMessage(t *testing.T) {
+	log := slogutil.DiscardLogger()
+	f := mbInitiator(t)
+	msgID := f.local.ExpectedMsgID
+	request := mbInformational(t, f.peer, msgID, false, nil)
+	pkt := transport.Packet{Data: request, RemoteAddr: nttPeerAddr(t, f.peerTr), LocalAddr: nttPeerAddr(t, f.myTr)}
+	f.ps.handleOwnedInbound(f.local, pkt, f.myTr, f.dp, log)
+	answer := mbReceive(t, f.peerTr)
+	if !f.local.lastResponseSet || f.local.lastResponseID != msgID {
+		t.Fatal("the probe's answer was not cached, so the forgery would not reach the retransmit arm")
+	}
+
+	forged := pkt
+	forged.Data = unprotTampered(request)
+	before := errorNotifySuppressedCount(suppressedUnauthenticatedEstablished)
+	out := f.ps.handleOwnedInbound(f.local, forged, f.myTr, f.dp, log)
+	if out.peerAlive {
+		t.Error("a retransmission that failed its integrity check was credited as liveness")
+	}
+	rtxExpectSilence(t, f.peerTr, f.myTr, nttPeerAddr(t, f.peerTr), "a forged retransmission on a MOBIKE SA")
+	if got := errorNotifySuppressedCount(suppressedUnauthenticatedEstablished) - before; got != 1 {
+		t.Errorf("%s rose by %d, want 1", suppressedUnauthenticatedEstablished, got)
+	}
+	if f.local.State != StateEstablished {
+		t.Fatalf("state after the forgery = %v, want established", f.local.State)
+	}
+
+	// Control: the genuine retransmission draws the cached answer, byte for byte.
+	f.ps.handleOwnedInbound(f.local, pkt, f.myTr, f.dp, log)
+	again := mbReceive(t, f.peerTr)
+	if !bytes.Equal(again.Data, answer.Data) {
+		t.Fatal("the genuine retransmission did not draw the cached response")
+	}
+	if got := errorNotifySuppressedCount(suppressedUnauthenticatedEstablished) - before; got != 1 {
+		t.Errorf("the genuine retransmission was counted: %s rose by %d, want 1", suppressedUnauthenticatedEstablished, got)
+	}
+}

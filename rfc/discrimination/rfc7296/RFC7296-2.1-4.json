@@ -29,8 +29,8 @@
     "claim-sha": "817a232de1e5a894",
     "route": "revert",
     "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
-    "producer-sha": "380b3bc19f99a860",
-    "break": "body of handleOwnedInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "67aa5a111a4a8280",
+    "break": "body of handleOwnedInbound replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7296-2.1-4",
@@ -40,7 +40,7 @@
     "claim-sha": "6bd6ac4f0d333a97",
     "route": "revert",
     "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
-    "producer-sha": "380b3bc19f99a860",
-    "break": "body of handleOwnedInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "67aa5a111a4a8280",
+    "break": "body of handleOwnedInbound replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

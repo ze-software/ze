@@ -752,6 +752,10 @@ func writeAuthHeaderWithMsgID(buf []byte, sa *SA, firstType uint8, totalLen, mes
 
 // decryptSKPayload decrypts an SK payload from a raw IKE message.
 // rawMsg is the complete message bytes. skPayload is the parsed SK payload.
+//
+// Its one caller is openProtected (protected_input.go), which decides what a failure
+// means. A handler that calls it directly could act on an unauthenticated failure,
+// which RFC 7296 Section 2.4 forbids (TestOneFunctionOpensEveryProtectedMessage).
 func decryptSKPayload(sa *SA, rawMsg []byte, skPayload *wire.PayloadSK) ([]byte, error) {
 	if sa.Proposal.Encryption.IsAEAD {
 		// RFC 5282 Section 5.1: "The associated data (A) MUST consist of the partial

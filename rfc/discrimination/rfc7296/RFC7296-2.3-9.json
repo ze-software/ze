@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7296-2.3-9",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_invalidmsgid_test.go::TestImiUnauthenticatedRequestDrawsNothing",
+    "unit-sha": "92976d6ebd231f45",
+    "claim-sha": "9f002407ae1d8c07",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
+    "producer-sha": "67aa5a111a4a8280",
+    "break": "line 197: \"case dropped:\" -\u003e \"case dropped \u0026\u0026 !dropped:\""
+  }
+]

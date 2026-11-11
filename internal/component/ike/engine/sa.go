@@ -295,6 +295,25 @@ type SA struct {
 	// reason hardExpiry gives: the twin-SA test copies this struct.
 	mobikeUp int32
 
+	// unauthenticatedDrops counts the messages for this SA that openProtected dropped
+	// because nothing in them proved they came from the peer (dropUnauthenticated). The
+	// ipsec-unauthenticated-input doctor check reads it from another goroutine, so it is
+	// reached only through countUnauthenticatedDrop and unauthenticatedDropCount, as a
+	// plain integer for the reason hardExpiry gives. It lives on the SA, not per peer,
+	// so a handshake that establishes or a cycle that builds a new SA clears the warning
+	// with no reset (doctor_unauthenticated_input.go).
+	unauthenticatedDrops uint64 //nolint:modernize // atomic.Uint64 carries noCopy, and the twin-SA test copies this struct.
+
+	// peerMalformedMessages counts the messages on this SA whose integrity check verified
+	// and whose payloads do not parse, and which were dropped while the SA was kept
+	// (countPeerMalformedMessage): the three kinds handleOwnedInbound drops on an
+	// established SA without an answer, and the IKE_AUTH response of the RFC 4739 second
+	// exchange whose padding is wrong, which handleAuthResponse drops on the handshake
+	// SA. Only the peer holds the keys, so each
+	// one is the peer's own. The ipsec-peer-malformed-message doctor check reads it from
+	// another goroutine, under the same rule as unauthenticatedDrops.
+	peerMalformedMessages uint64 //nolint:modernize // atomic.Uint64 carries noCopy, and the twin-SA test copies this struct.
+
 	// localPort names the UDP port this SA sends FROM.
 	//
 	// RFC 7296 Section 2.23 MUST: an endpoint
@@ -566,6 +585,30 @@ func (sa *SA) setHardExpiry(at time.Time) {
 	atomic.StoreInt64(&sa.hardExpiry, at.UnixNano())
 }
 
+// countUnauthenticatedDrop records one message openProtected dropped for this SA.
+// Safe for concurrent use with unauthenticatedDropCount.
+func (sa *SA) countUnauthenticatedDrop() {
+	atomic.AddUint64(&sa.unauthenticatedDrops, 1)
+}
+
+// unauthenticatedDropCount answers how many messages openProtected dropped for this SA.
+// Safe for concurrent use with countUnauthenticatedDrop.
+func (sa *SA) unauthenticatedDropCount() uint64 {
+	return atomic.LoadUint64(&sa.unauthenticatedDrops)
+}
+
+// countPeerMalformedMessage records one authenticated message from the peer whose
+// payloads do not parse. Safe for concurrent use with peerMalformedMessageCount.
+func (sa *SA) countPeerMalformedMessage() {
+	atomic.AddUint64(&sa.peerMalformedMessages, 1)
+}
+
+// peerMalformedMessageCount answers how many authenticated messages from the peer did
+// not parse on this SA. Safe for concurrent use with countPeerMalformedMessage.
+func (sa *SA) peerMalformedMessageCount() uint64 {
+	return atomic.LoadUint64(&sa.peerMalformedMessages)
+}
+
 // lifetimeExpired reports whether this IKE SA's negotiated lifetime has run out.
 // RFC 7296 Section 2.8 forbids using the SA once it has.
 //
@@ -702,7 +745,7 @@ func (sa *SA) sendPath(fallback *transport.UDPTransport) (*transport.UDPTranspor
 //     "dynamic updates can only be done safely if replay protection is enabled",
 //     and the Message ID counter of Section 2.2 IS that replay protection.
 //
-// The caller therefore calls this AFTER decryptAndParse returns a nil error, and
+// The caller therefore calls this AFTER openProtected opened the message, and
 // never from a branch that only compared a Message ID.
 //
 // The FIRST observation always lands. It associates an endpoint with the SA rather

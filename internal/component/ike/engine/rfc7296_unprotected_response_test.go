@@ -770,7 +770,8 @@ func TestInitiatorTimesOutWhenOnlyUnprotectedResponsesArrive(t *testing.T) {
 		if steps > unprotTimeoutStepsMax || ini == nil {
 			return fail(errors.New("the handshake loop ran past the steps the test drives"))
 		}
-		if steps == 1 {
+		switch {
+		case steps == 1:
 			saInit = bytes.Clone(ini.LastSentMsg)
 			sa, err := newResponderSA(unprotRespPeerName, respPeer, ikeGroup, espGroup, ini.InitiatorSPI)
 			if err != nil {
@@ -787,7 +788,11 @@ func TestInitiatorTimesOutWhenOnlyUnprotectedResponsesArrive(t *testing.T) {
 				return fail(err)
 			}
 			handleSAInitResponse(ini, answer, far.LastSentMsg, table, nil, nil, log)
-		} else if !forgeryPending {
+		case forgeryPending:
+			// The retransmit time arrives.
+			forgeryPending = false
+			ini.RetransmitTime = time.Now().Add(-time.Millisecond)
+		default:
 			if forged == nil {
 				authReq = bytes.Clone(ini.LastSentMsg)
 				req, err := icyParse(ini.LastSentMsg)
@@ -807,10 +812,6 @@ func TestInitiatorTimesOutWhenOnlyUnprotectedResponsesArrive(t *testing.T) {
 			forgeryPending = true
 			// The forgery's wake, not the timer, ends this wait.
 			return never
-		} else {
-			// The retransmit time arrives.
-			forgeryPending = false
-			ini.RetransmitTime = time.Now().Add(-time.Millisecond)
 		}
 		ch := make(chan time.Time, 1)
 		ch <- time.Now()
@@ -894,5 +895,113 @@ func TestUnprotectedAuthResponseDoesNotMoveThePeerEndpoint(t *testing.T) {
 	}
 	if p.ini.peerEndpoint == nil || !sameUDPEndpoint(p.ini.peerEndpoint, answerer) {
 		t.Fatalf("peer endpoint after the genuine response = %v, want %v", p.ini.peerEndpoint, answerer)
+	}
+}
+
+// VALIDATES: AC-9, the in-window site. On an established SA, an in-window INFORMATIONAL
+// request whose checksum fails is dropped: nothing is sent, no liveness is credited, the
+// SA and its Message ID window are unchanged, and established-unauthenticated rises by
+// exactly one. The genuine request is then answered and credited.
+//
+// METHOD: osrSession gives an established PSK pair on a loopback link. The peer seals the
+// liveness probe at the expected Message ID; the forgery is that datagram with its last
+// octet, which belongs to the checksum, flipped. Both go through handleOwnedInbound, the
+// owner loop's entry for every established-SA datagram.
+//
+// PREVENTS: the in-window site dropping such a message with only a debug line, so no
+// operator could see that someone sends datagrams under the live SPIs.
+func TestEstablishedSACountsUnprotectedMessage(t *testing.T) {
+	log := slogutil.DiscardLogger()
+	ini, peer, ps, peerTr, myTr := osrSession(t)
+	remote := ini.remoteUDPAddr()
+	child := ps.getChildSA()
+	expected := ini.ExpectedMsgID
+
+	good := osrRequest(t, peer, expected)
+	forged := unprotTampered(good)
+	before := errorNotifySuppressedCount(suppressedUnauthenticatedEstablished)
+	invalidBefore := errorNotifySuppressedCount(suppressedInvalidMsgIDUnauthenticated)
+	out := ps.handleOwnedInbound(ini, transport.Packet{Data: forged}, myTr, nil, log)
+	if out.peerAlive {
+		t.Error("a message that failed its integrity check was credited as liveness")
+	}
+	rtxExpectSilence(t, peerTr, myTr, remote, "an in-window request that failed its integrity check")
+	if got := errorNotifySuppressedCount(suppressedUnauthenticatedEstablished) - before; got != 1 {
+		t.Errorf("%s rose by %d, want 1", suppressedUnauthenticatedEstablished, got)
+	}
+	if got := errorNotifySuppressedCount(suppressedInvalidMsgIDUnauthenticated) - invalidBefore; got != 0 {
+		t.Errorf("an in-window message was counted %d times as out of window", got)
+	}
+	if ini.State != StateEstablished {
+		t.Fatalf("state after the forgery = %v, want established", ini.State)
+	}
+	if ini.ExpectedMsgID != expected {
+		t.Fatalf("expected Message ID after the forgery = %d, want %d", ini.ExpectedMsgID, expected)
+	}
+	if ps.getChildSA() != child {
+		t.Fatal("the forgery changed the Child SA")
+	}
+
+	// Control: the genuine request reaches the same site, is answered and credited.
+	out = ps.handleOwnedInbound(ini, transport.Packet{Data: good}, myTr, nil, log)
+	if !out.peerAlive {
+		t.Error("the genuine request was not credited as liveness")
+	}
+	if rtxRecv(t, peerTr) == nil {
+		t.Fatal("the genuine request drew no answer")
+	}
+	if got := errorNotifySuppressedCount(suppressedUnauthenticatedEstablished) - before; got != 1 {
+		t.Errorf("the genuine request was counted: %s rose by %d, want 1", suppressedUnauthenticatedEstablished, got)
+	}
+}
+
+// VALIDATES: AC-9, the out-of-window INFORMATIONAL response site. An INFORMATIONAL
+// response at a Message ID no request of Ze's holds, whose checksum fails, is dropped and
+// counted under established-unauthenticated, completes no probe and sends nothing; the
+// genuine copy reaches the same arm and is reported as a probe answer.
+//
+// METHOD: osrSession's peer seals an empty INFORMATIONAL response at seven past Ze's next
+// Message ID; the forgery flips its last octet. Both go through handleOwnedInbound.
+//
+// PREVENTS: the arm falling through to its out-of-window debug line on a forgery, uncounted.
+func TestEstablishedSACountsUnprotectedOutOfWindowResponse(t *testing.T) {
+	log := slogutil.DiscardLogger()
+	ini, peer, ps, peerTr, myTr := osrSession(t)
+	remote := ini.remoteUDPAddr()
+	msgID := ini.NextMsgID + 7
+
+	good, err := buildEncryptedMessageEx(peer, nil, msgID, wire.ExchangeInformational,
+		initiatorFlag(peer)|wire.FlagResponse)
+	if err != nil {
+		t.Fatalf("build the peer response at id %d: %v", msgID, err)
+	}
+	forged := unprotTampered(good)
+	before := errorNotifySuppressedCount(suppressedUnauthenticatedEstablished)
+	invalidBefore := errorNotifySuppressedCount(suppressedInvalidMsgIDUnauthenticated)
+	out := ps.handleOwnedInbound(ini, transport.Packet{Data: forged}, myTr, nil, log)
+	if out.dpdResp || out.peerAlive {
+		t.Errorf("a response that failed its integrity check was reported: %+v", out)
+	}
+	rtxExpectSilence(t, peerTr, myTr, remote, "an out-of-window response that failed its integrity check")
+	if got := errorNotifySuppressedCount(suppressedUnauthenticatedEstablished) - before; got != 1 {
+		t.Errorf("%s rose by %d, want 1", suppressedUnauthenticatedEstablished, got)
+	}
+	if got := errorNotifySuppressedCount(suppressedInvalidMsgIDUnauthenticated) - invalidBefore; got != 0 {
+		t.Errorf("a response was counted %d times as an out-of-window request", got)
+	}
+	if ini.State != StateEstablished {
+		t.Fatalf("state after the forgery = %v, want established", ini.State)
+	}
+
+	// Control: the genuine copy authenticates in the same arm.
+	out = ps.handleOwnedInbound(ini, transport.Packet{Data: good}, myTr, nil, log)
+	if !out.dpdResp {
+		t.Fatal("the genuine out-of-window response was not reported, so the forgery may not have reached its arm")
+	}
+	if out.dpdRespMsgID != msgID {
+		t.Fatalf("reported Message ID = %d, want %d", out.dpdRespMsgID, msgID)
+	}
+	if got := errorNotifySuppressedCount(suppressedUnauthenticatedEstablished) - before; got != 1 {
+		t.Errorf("the genuine response was counted: %s rose by %d, want 1", suppressedUnauthenticatedEstablished, got)
 	}
 }

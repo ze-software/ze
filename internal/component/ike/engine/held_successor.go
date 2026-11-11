@@ -13,7 +13,6 @@
 package engine
 
 import (
-	"errors"
 	"log/slog"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
@@ -77,17 +76,18 @@ func (ps *PeerSession) handleHeldSuccessorInbound(sa *SA, msg *wire.Message, pkt
 		panic("BUG: unknown inbound IKE message classification")
 	}
 
-	inner, err := decryptAndParse(sa, msg, pkt.Data)
+	// RFC 7296 Section 2.4. A request that fails its integrity check is dropped and
+	// counted by openProtected, silent as on the owned path.
+	inner, dropped, err := openProtected(sa, msg, pkt.Data, suppressedHeldSuccessorUnauthenticated, log)
+	if dropped {
+		return true
+	}
 	if err != nil {
 		// RFC 7296 Section 3.10.1 lets INVALID_SYNTAX go out only "in an encrypted packet
-		// if the Message ID and cryptographic checksum were valid", which errInnerParse
-		// alone proves. Any other failure stays silent, as on the owned path.
-		if errors.Is(err, errInnerParse) {
-			ps.respondInnerParseError(sa, msg, err, tr, log)
-			ps.dropDeadHeldSuccessor(sa, table, log)
-			return true
-		}
-		countErrorNotifySuppressed("held-successor-decrypt-failed")
+		// if the Message ID and cryptographic checksum were valid", which errInnerParse,
+		// the only error openProtected returns, proves.
+		ps.respondInnerParseError(sa, msg, err, tr, log)
+		ps.dropDeadHeldSuccessor(sa, table, log)
 		return true
 	}
 	// The message decrypted under the successor's keys at the expected Message ID, the

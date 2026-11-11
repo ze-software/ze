@@ -174,7 +174,10 @@ install/read-back therefore does not establish an operator-usable VPP tunnel.
     `PeerSession.inbound` channel (`routeInbound`, `register.go`) so `maintainSA`
     is the single owner of SA/childSA state. `handleOwnedInbound` (`inbound.go`)
     applies RFC 7296 §2.3 message-ID validation (`classifyInbound`, `msgid.go`),
-    decrypts the SK payload (`decryptAndParse`), and drives the CREATE_CHILD_SA
+    opens the SK payload through `openProtected` (`protected_input.go`), which drops
+    and counts a message that fails its integrity check (reason
+    `established-unauthenticated`, or `invalid-msgid-unauthenticated` for an
+    out-of-window request) with no liveness credit, and drives the CREATE_CHILD_SA
     rekey (initiator: `applyChildRekeyResponse`/`applyIKERekeyResponse` + Delete of
     the old SA; responder: `respondChildRekey`) and INFORMATIONAL/Delete/DPD. The
     old `handleEstablishedInbound`/`handleCreateChildSA` log-only path (`inbound.go`)
@@ -287,8 +290,12 @@ install/read-back therefore does not establish an operator-usable VPP tunnel.
   `createFirstChildSA`); `DeriveChildSAKeysPFS` remains unused. SK header framing is
   exchange-parameterized (`buildEncryptedMessageEx`).
 - **Established-SA inbound decrypts and acts (owner loop).** `handleOwnedInbound`
-  (`inbound.go`) calls `decryptAndParse` → `decryptSKPayload` and drives the rekey /
-  INFORMATIONAL exchanges. The former log-only `handleCreateChildSA`/`handleInformational`
+  (`inbound.go`) and `handleHeldSuccessorInbound` (`held_successor.go`) open every
+  message through `openProtected` → `decryptSKPayload`, the primitive's one caller, and
+  drive the rekey / INFORMATIONAL exchanges. A message that fails its integrity check is
+  dropped and counted, never answered and never credited as liveness; one whose check
+  verified and whose content does not parse (`errInnerParse`) is the peer's own and
+  draws INVALID_SYNTAX or UNSUPPORTED_CRITICAL_PAYLOAD when it is a request. The former log-only `handleCreateChildSA`/`handleInformational`
   path survives only as the no-owner fallback on the `handleInbound` state switch.
 - **DPD is encrypted and correlated.** `sendDPD` (`dpd.go`) sends an SK-protected
   INFORMATIONAL request through the owner's request window. Its authenticated

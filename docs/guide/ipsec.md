@@ -2285,7 +2285,27 @@ Prometheus exposes `ze_ipsec_sa_count`, `ze_ipsec_tunnel_up{peer}`, `ze_ipsec_tu
 `ze_ipsec_error_notify_sent_total{type,protected}` counts error notifications Ze sent, by
 notify type and by whether the carrying message was encrypted.
 `ze_ipsec_error_notify_suppressed_total{reason}` counts the ones a guard stopped, by the
-name of that guard.
+name of that guard. Four reasons count IKE messages that failed their integrity check,
+which Ze drops without answering and without changing the SA (RFC 7296 Section 2.4):
+`handshake-unauthenticated` during the IKE_AUTH exchange, in either role;
+`established-unauthenticated` on an established SA; `invalid-msgid-unauthenticated` for
+an out-of-window request on an established SA; and `held-successor-decrypt-failed` on a
+re-authenticated IKE SA held before adoption. A rising count means someone is sending
+datagrams under the SPIs of a live SA, or a path is damaging them.
+`ze doctor` warns under `ipsec-unauthenticated-input` for each peer whose handshake in
+progress dropped such a message, naming the peer, how many were dropped and the
+handshake state. The handshake keeps waiting for the peer's genuine answer, so the
+tunnel comes up late or not at all while the forgeries win the race. The warning
+clears when the handshake establishes or a new attempt starts.
+`ze doctor` also warns under `ipsec-peer-malformed-message` for each peer whose live IKE
+SA received messages that passed their integrity check and do not parse. Only the peer
+can build such a message, so the defect is in the peer's IKE software: Ze drops it and
+keeps the SA, but the exchange it carried is lost. Collect the peer's log and report it
+to the peer's vendor.
+<!-- source: internal/component/ike/engine/doctor_peer_malformed.go -- checkIPsecPeerMalformedMessage --><!-- source: internal/component/ike/engine/protected_input.go -- openProtected, dropUnauthenticated -->
+<!-- source: internal/component/ike/engine/doctor_unauthenticated_input.go -- checkIPsecUnauthenticatedInput -->
+<!-- source: internal/component/ike/engine/inbound.go -- handleOwnedInbound -->
+<!-- source: internal/component/ike/engine/held_successor.go -- handleHeldSuccessorInbound -->
 
 Three more counters report the COOKIE challenge described under [Denial-of-service protection](#denial-of-service-protection). `ze_ipsec_cookie_challenges_total{peer}` counts the challenges Ze issues, `ze_ipsec_cookie_verify_failures_total{peer}` counts inbound cookies that did not verify, and `ze_ipsec_sa_init_retries_total{peer,cause}` counts the IKE_SA_INIT retries Ze sends, labeled `cookie` or `invalid-ke-payload`. A rising verify-failure count is either an attacker probing the half-open slot or a secret rotation catching an in-flight challenge. A rising retry count on the `cookie` cause is the signature of the forged-notify flood RFC 7296 Section 2.6 describes.
 

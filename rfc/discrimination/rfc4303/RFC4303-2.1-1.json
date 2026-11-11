@@ -51,7 +51,7 @@
     "claim-sha": "b2da05e2ded98da2",
     "route": "revert",
     "producer": "internal/component/ike/engine/fsm.go::handleAuthResponse",
-    "producer-sha": "961814e9a681dfba",
+    "producer-sha": "ec7648d0d44f856a",
     "break": "body of handleAuthResponse replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -62,7 +62,7 @@
     "claim-sha": "008a80505d784375",
     "route": "revert",
     "producer": "internal/component/ike/engine/fsm.go::handleAuthResponse",
-    "producer-sha": "961814e9a681dfba",
+    "producer-sha": "ec7648d0d44f856a",
     "break": "body of handleAuthResponse replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

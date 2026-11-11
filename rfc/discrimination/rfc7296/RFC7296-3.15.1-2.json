@@ -17,8 +17,8 @@
     "unit-sha": "bae6b367921cfa52",
     "claim-sha": "23d0f66b2bea3450",
     "route": "revert",
-    "producer": "internal/component/ike/engine/inbound.go::decryptAndParse",
-    "producer-sha": "27135f248ee76ddb",
-    "break": "body of decryptAndParse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer": "internal/component/ike/engine/protected_input.go::openProtected",
+    "producer-sha": "95bc07c8d939f760",
+    "break": "body of openProtected replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

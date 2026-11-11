@@ -425,8 +425,12 @@ which wraps `errInnerParse`: the one decrypt failure that is evidence about the
 peer. The responder's three handlers, the first IKE_AUTH response and each EAP
 round end the handshake on either. The RFC 4739 second exchange on the initiator
 keeps the SA on a padding failure and ends it on a chain that does not parse, as it
-did before the opener moved. The established-SA sites still open through
-`decryptAndParse` (`inbound.go`), which sets the same mark.
+did before the opener moved. The established-SA sites (`handleOwnedInbound` in
+`inbound.go`, `handleHeldSuccessorInbound` in `held_successor.go`) open through the
+same `openProtected`, so `decryptSKPayload` has that one caller. Their drops count
+under `established-unauthenticated`, or under the two reasons they kept,
+`invalid-msgid-unauthenticated` for an out-of-window request and
+`held-successor-decrypt-failed` on the held successor.
 On an established SA the same mark is what lets `respondInnerParseError` answer
 with INVALID_SYNTAX. During IKE_AUTH the handshake ends with no answer, an open
 gap against RFC 7296 Section 2.21.2
