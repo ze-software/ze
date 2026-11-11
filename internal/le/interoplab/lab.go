@@ -354,11 +354,12 @@ func (s Suite) Run(ctx context.Context) (report SuiteReport) {
 	// beforeChecker holds the names of the scenarios that failed in a row
 	// before their checker ran; a pass or a checker failure empties it.
 	var beforeChecker []string
-	for index, plan := range s.Scenarios {
+	for index := range s.Scenarios {
+		plan := &s.Scenarios[index]
 		line.Reset()
 		s.progress(scenarioLine(&line, index, len(s.Scenarios), plan.Source.Name).Str(": running"))
 		started := time.Now()
-		result := s.runScenario(ctx, plan, references, &report.Images, starts, recordings)
+		result := s.runScenario(ctx, *plan, references, &report.Images, starts, recordings)
 		report.Scenarios = append(report.Scenarios, result)
 		for _, cleanup := range result.CleanupErrors {
 			report.Code = 1
